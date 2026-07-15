@@ -21,8 +21,11 @@
 ### Prerequisites
 
 - [Go 1.21+](https://go.dev/dl/)
+- [Node.js 18+](https://nodejs.org/) (for the frontend)
 
 ### Install & Run
+
+#### Backend (Go)
 
 ```bash
 # Clone the repository
@@ -32,11 +35,21 @@ cd f1game-telemetry-go
 # Build the binary
 make build
 
-# Run the server
+# Run the backend server
 make run
 ```
 
-Open [http://localhost:8080](http://localhost:8080) in your browser.
+#### Frontend (React)
+
+In a new terminal window:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open [http://localhost:5173](http://localhost:5173) in your browser to view the dashboard.
 
 ## Game Configuration
 
@@ -67,17 +80,18 @@ F1T_UDP_ADDR=0.0.0.0:20777 F1T_HTTP_ADDR=:3000 make run
 
 ## Project Structure
 
-```
+```text
 f1game-telemetry-go/
 ├── cmd/
 │   └── server/          # Application entry point
 │       └── main.go
 ├── internal/
-│   ├── udp/             # UDP listener and packet handling
-│   ├── packet/          # Packet parsing and types
+│   ├── api/             # HTTP server, REST endpoints and WebSocket hub
+│   ├── packets/         # F1 telemetry packet parsing and types
+│   ├── session/         # Session tracking logic
 │   ├── storage/         # SQLite persistence layer
-│   └── web/             # HTTP server and WebSocket
-├── web/                 # Frontend assets (HTML, CSS, JS)
+│   └── udp/             # UDP listener and packet handling
+├── frontend/            # React/Vite frontend application
 ├── Makefile
 ├── go.mod
 ├── README.md
