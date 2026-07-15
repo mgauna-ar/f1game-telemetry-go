@@ -20,3 +20,6 @@ This file (`.agents/AGENTS.md`) contains workspace-specific rules and context th
 
 ## 5. CI/CD Pipeline
 *   **GitHub Actions:** Any new tests or linting tools must be integrated into the `.github/workflows/ci.yml` pipeline. Ensure that both the Go backend (`go test`) and React frontend (`vitest`) pass successfully before merging code.
+
+## 6. Documentation Upkeep
+*   **README & Rules:** Whenever significant changes are made to the architecture, tech stack, API endpoints, or project structure, you MUST update both `README.md` and `.agents/AGENTS.md` to reflect the new state. Do not leave documentation out of date!
