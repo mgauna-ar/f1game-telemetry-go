@@ -91,8 +91,8 @@ f1game-telemetry-go/
 | `GET` | `/` | Web dashboard |
 | `GET` | `/ws` | WebSocket telemetry stream |
 | `GET` | `/api/sessions` | List recorded sessions |
-| `GET` | `/api/sessions/:id` | Get session details |
 | `GET` | `/api/sessions/:id/laps` | Get laps for a session |
+| `GET` | `/api/laps/:id/telemetry` | Get telemetry for a lap |
 
 > **Note:** API endpoints are planned and subject to change.
 
