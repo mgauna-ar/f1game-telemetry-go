@@ -14,6 +14,7 @@
 - **Lap Comparison** — Compare lap times, sector splits, and telemetry traces
 - **Real-time WebSocket** — Stream live telemetry to the dashboard via WebSocket
 - **Multi-format Support** — Supports both 2025 & 2026 UDP packet formats
+- **Live Track Mini-Map** — Real-time visualization of the car's position on the circuit
 
 ## Quick Start
 
