@@ -55,6 +55,8 @@ func (s *Server) routes() {
 		r.Get("/sessions", s.handleGetSessions)
 		r.Get("/sessions/{id}/laps", s.handleGetLaps)
 		r.Get("/laps/{id}/telemetry", s.handleGetTelemetry)
+		r.Get("/laps/{id}/export", s.handleExportLap)
+		r.Post("/laps/import", s.handleImportLap)
 	})
 
 	// Serve static files from the frontend directory (created in Phase 4)
@@ -127,4 +129,70 @@ func (s *Server) handleGetTelemetry(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(telemetry)
+}
+
+// GhostLapPayload represents the JSON structure of an exported/imported lap.
+type GhostLapPayload struct {
+	Lap       storage.Lap               `json:"lap"`
+	Telemetry []storage.TelemetrySample `json:"telemetry"`
+}
+
+func (s *Server) handleExportLap(w http.ResponseWriter, r *http.Request) {
+	lapIDStr := chi.URLParam(r, "id")
+	lapID, err := strconv.ParseInt(lapIDStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid lap ID", http.StatusBadRequest)
+		return
+	}
+
+	lap, err := s.repo.GetLapByID(r.Context(), lapID)
+	if err != nil {
+		http.Error(w, "Failed to get lap", http.StatusInternalServerError)
+		return
+	}
+
+	telemetry, err := s.repo.GetTelemetryByLap(r.Context(), lapID)
+	if err != nil {
+		http.Error(w, "Failed to get telemetry", http.StatusInternalServerError)
+		return
+	}
+
+	payload := GhostLapPayload{
+		Lap:       *lap,
+		Telemetry: telemetry,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Disposition", `attachment; filename="ghost_lap_`+lapIDStr+`.json"`)
+	json.NewEncoder(w).Encode(payload)
+}
+
+func (s *Server) handleImportLap(w http.ResponseWriter, r *http.Request) {
+	// 10MB max memory
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		http.Error(w, "Failed to parse form", http.StatusBadRequest)
+		return
+	}
+
+	file, _, err := r.FormFile("file")
+	if err != nil {
+		http.Error(w, "Failed to get file", http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	var payload GhostLapPayload
+	if err := json.NewDecoder(file).Decode(&payload); err != nil {
+		http.Error(w, "Failed to decode ghost lap", http.StatusBadRequest)
+		return
+	}
+
+	if err := s.repo.SaveImportedGhostLap(r.Context(), &payload.Lap, payload.Telemetry); err != nil {
+		log.Printf("Failed to save imported lap: %v", err)
+		http.Error(w, "Failed to save imported lap", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"status":"success"}`))
 }

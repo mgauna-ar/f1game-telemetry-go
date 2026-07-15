@@ -162,6 +162,95 @@ func (r *Repository) GetTelemetryByLap(ctx context.Context, lapID int64) ([]Tele
 	return samples, nil
 }
 
+// GetLapByID retrieves a single lap by its ID.
+func (r *Repository) GetLapByID(ctx context.Context, lapID int64) (*Lap, error) {
+	var lap Lap
+	query := `SELECT * FROM laps WHERE id = ?`
+	if err := r.db.GetContext(ctx, &lap, query, lapID); err != nil {
+		return nil, fmt.Errorf("failed to get lap: %w", err)
+	}
+	return &lap, nil
+}
+
+// SaveImportedGhostLap saves a ghost lap and its telemetry in a transaction.
+// It creates a dedicated "Imported Ghost Laps" session if it doesn't exist.
+func (r *Repository) SaveImportedGhostLap(ctx context.Context, lap *Lap, telemetry []TelemetrySample) error {
+	tx, err := r.db.Beginx()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Ensure the imported session exists
+	sessionQuery := `
+		INSERT INTO sessions (session_uid, track_id, track_name, session_type, weather, packet_format)
+		VALUES (9999999999999999, 0, 'Imported Ghost Laps', 'Ghost', 'Unknown', 0)
+		ON CONFLICT(session_uid) DO NOTHING
+	`
+	if _, err := tx.ExecContext(ctx, sessionQuery); err != nil {
+		return fmt.Errorf("failed to ensure imported session exists: %w", err)
+	}
+
+	// Get the ID of the imported session
+	var sessionID int64
+	if err := tx.GetContext(ctx, &sessionID, `SELECT id FROM sessions WHERE session_uid = 9999999999999999`); err != nil {
+		return fmt.Errorf("failed to get imported session ID: %w", err)
+	}
+
+	lap.SessionID = sessionID
+	lap.ID = 0 // Ensure it gets a new ID
+
+	// Assign a unique lap number within this imported session to avoid unique constraint failure
+	var maxLapNumber int
+	_ = tx.GetContext(ctx, &maxLapNumber, `SELECT COALESCE(MAX(lap_number), 0) FROM laps WHERE session_id = ?`, sessionID)
+	lap.LapNumber = maxLapNumber + 1
+
+	lapQuery := `
+		INSERT INTO laps (session_id, lap_number, lap_time_ms, sector1_ms, sector2_ms, sector3_ms, is_valid, tyre_compound, fuel_load, max_speed_kmh)
+		VALUES (:session_id, :lap_number, :lap_time_ms, :sector1_ms, :sector2_ms, :sector3_ms, :is_valid, :tyre_compound, :fuel_load, :max_speed_kmh)
+		RETURNING id
+	`
+	rows, err := tx.NamedQuery(lapQuery, lap)
+	if err != nil {
+		return fmt.Errorf("failed to save lap: %w", err)
+	}
+	if rows.Next() {
+		if err := rows.Scan(&lap.ID); err != nil {
+			rows.Close()
+			return fmt.Errorf("failed to scan lap id: %w", err)
+		}
+	}
+	rows.Close()
+
+	if len(telemetry) > 0 {
+		telemetryQuery := `
+			INSERT INTO telemetry_samples (
+				lap_id, lap_distance, session_time, speed, throttle, brake, steer, gear, engine_rpm, drs, ers_deploy, world_pos_x, world_pos_y, world_pos_z
+			) VALUES (
+				:lap_id, :lap_distance, :session_time, :speed, :throttle, :brake, :steer, :gear, :engine_rpm, :drs, :ers_deploy, :world_pos_x, :world_pos_y, :world_pos_z
+			)
+		`
+		stmt, err := tx.PrepareNamedContext(ctx, telemetryQuery)
+		if err != nil {
+			return fmt.Errorf("failed to prepare telemetry statement: %w", err)
+		}
+		defer stmt.Close()
+
+		for _, sample := range telemetry {
+			sample.LapID = lap.ID
+			sample.ID = 0
+			if _, err := stmt.ExecContext(ctx, sample); err != nil {
+				return fmt.Errorf("failed to insert telemetry sample: %w", err)
+			}
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+	return nil
+}
+
 // Close closes the database connection.
 func (r *Repository) Close() error {
 	return r.db.Close()

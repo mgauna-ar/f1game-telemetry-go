@@ -94,6 +94,8 @@ f1game-telemetry-go/
 | `GET` | `/api/sessions` | List recorded sessions |
 | `GET` | `/api/sessions/:id/laps` | Get laps for a session |
 | `GET` | `/api/laps/:id/telemetry` | Get telemetry for a lap |
+| `GET` | `/api/laps/:id/export` | Export lap and telemetry as a Ghost Lap JSON |
+| `POST` | `/api/laps/import` | Import a Ghost Lap JSON file |
 
 > **Note:** API endpoints are planned and subject to change.
 
