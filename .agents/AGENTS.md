@@ -17,3 +17,6 @@ This file (`.agents/AGENTS.md`) contains workspace-specific rules and context th
 
 ## 4. UI/UX Guidelines
 *   **Design Aesthetic:** Build modern, responsive React components. Use curated color palettes, smooth micro-animations for real-time data updates, and avoid default browser styling to maintain a premium feel.
+
+## 5. CI/CD Pipeline
+*   **GitHub Actions:** Any new tests or linting tools must be integrated into the `.github/workflows/ci.yml` pipeline. Ensure that both the Go backend (`go test`) and React frontend (`vitest`) pass successfully before merging code.
