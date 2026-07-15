@@ -39,11 +39,20 @@ interface PacketLapData {
   LapData: LapData[];
 }
 
+export interface TelemetrySample extends CarTelemetryData {
+  SessionTime: number;
+}
+
 export function useTelemetry(wsUrl: string) {
   const [telemetry, setTelemetry] = useState<CarTelemetryData | null>(null);
   const [lap, setLap] = useState<LapData | null>(null);
   const [connected, setConnected] = useState(false);
+  
+  // Rolling buffer for chart data
+  const [history, setHistory] = useState<TelemetrySample[]>([]);
+  
   const ws = useRef<WebSocket | null>(null);
+  const historyRef = useRef<TelemetrySample[]>([]);
 
   useEffect(() => {
     ws.current = new WebSocket(wsUrl);
@@ -62,7 +71,17 @@ export function useTelemetry(wsUrl: string) {
         // PacketID 6 is CarTelemetry
         if (header.PacketId === 6) {
           const pkt = data as PacketCarTelemetryData;
-          setTelemetry(pkt.CarTelemetryData[playerIdx]);
+          const current = pkt.CarTelemetryData[playerIdx];
+          setTelemetry(current);
+
+          // Update rolling buffer
+          const sample: TelemetrySample = {
+            ...current,
+            SessionTime: header.SessionTime
+          };
+          
+          historyRef.current = [...historyRef.current.slice(-99), sample];
+          setHistory(historyRef.current);
         } 
         // PacketID 2 is LapData
         else if (header.PacketId === 2) {
@@ -79,5 +98,5 @@ export function useTelemetry(wsUrl: string) {
     };
   }, [wsUrl]);
 
-  return { telemetry, lap, connected };
+  return { telemetry, lap, connected, history };
 }
