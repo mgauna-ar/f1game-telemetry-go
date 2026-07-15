@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { CarMotionData } from '../hooks/useTelemetry';
+import type { CarMotionData } from '../hooks/useTelemetry';
 
 interface TrackMapProps {
   motion: CarMotionData | null;

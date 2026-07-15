@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -52,8 +53,8 @@ func (s *Server) routes() {
 	// API routes
 	s.router.Route("/api", func(r chi.Router) {
 		r.Get("/sessions", s.handleGetSessions)
-		// r.Get("/sessions/{id}/laps", s.handleGetLaps)
-		// r.Get("/laps/{id}/telemetry", s.handleGetTelemetry)
+		r.Get("/sessions/{id}/laps", s.handleGetLaps)
+		r.Get("/laps/{id}/telemetry", s.handleGetTelemetry)
 	})
 
 	// Serve static files from the frontend directory (created in Phase 4)
@@ -85,8 +86,45 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleGetSessions(w http.ResponseWriter, r *http.Request) {
-	// For now, return empty or implement repo.GetSessions()
-	// To keep it compiling quickly, we return a mock response.
+	sessions, err := s.repo.GetSessions(r.Context())
+	if err != nil {
+		http.Error(w, "Failed to get sessions", http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok", "message": "Sessions endpoint stub"})
+	json.NewEncoder(w).Encode(sessions)
+}
+
+func (s *Server) handleGetLaps(w http.ResponseWriter, r *http.Request) {
+	sessionIDStr := chi.URLParam(r, "id")
+	sessionID, err := strconv.ParseInt(sessionIDStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid session ID", http.StatusBadRequest)
+		return
+	}
+
+	laps, err := s.repo.GetLapsBySession(r.Context(), sessionID)
+	if err != nil {
+		http.Error(w, "Failed to get laps", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(laps)
+}
+
+func (s *Server) handleGetTelemetry(w http.ResponseWriter, r *http.Request) {
+	lapIDStr := chi.URLParam(r, "id")
+	lapID, err := strconv.ParseInt(lapIDStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid lap ID", http.StatusBadRequest)
+		return
+	}
+
+	telemetry, err := s.repo.GetTelemetryByLap(r.Context(), lapID)
+	if err != nil {
+		http.Error(w, "Failed to get telemetry", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(telemetry)
 }

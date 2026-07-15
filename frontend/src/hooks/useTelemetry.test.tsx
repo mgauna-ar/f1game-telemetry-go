@@ -16,7 +16,7 @@ class MockWebSocket {
 }
 
 beforeAll(() => {
-  (global as any).WebSocket = MockWebSocket;
+  (globalThis as any).WebSocket = MockWebSocket;
 });
 
 // A simple test component to use the hook
@@ -41,7 +41,7 @@ describe('useTelemetry', () => {
 
   it('parses telemetry packets correctly', () => {
     let wsInstance: MockWebSocket | undefined;
-    (global as any).WebSocket = class extends MockWebSocket {
+    (globalThis as any).WebSocket = class extends MockWebSocket {
       constructor(url: string) {
         super(url);
         wsInstance = this;
@@ -74,7 +74,7 @@ describe('useTelemetry', () => {
 
   it('parses motion packets correctly', () => {
     let wsInstance: MockWebSocket | undefined;
-    (global as any).WebSocket = class extends MockWebSocket {
+    (globalThis as any).WebSocket = class extends MockWebSocket {
       constructor(url: string) {
         super(url);
         wsInstance = this;
