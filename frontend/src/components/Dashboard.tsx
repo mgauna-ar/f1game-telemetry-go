@@ -1,12 +1,13 @@
 import React from 'react';
-import { Gauge, AlertCircle, Timer, Activity } from 'lucide-react';
+import { Gauge, AlertCircle, Timer, Activity, Map } from 'lucide-react';
 import { useTelemetry } from '../hooks/useTelemetry';
 import { TelemetryChart } from './TelemetryChart';
+import { TrackMap } from './TrackMap';
 
 const WS_URL = 'ws://localhost:8080/ws';
 
 export const Dashboard: React.FC = () => {
-  const { telemetry, lap, connected, history } = useTelemetry(WS_URL);
+  const { telemetry, lap, motion, trackPath, connected, history } = useTelemetry(WS_URL);
 
   const formatTime = (ms: number) => {
     if (!ms) return '--:--.---';
@@ -186,6 +187,14 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Track Map */}
+      <div className="glass-panel" style={{ gridColumn: 'span 12', marginTop: '1rem' }}>
+        <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1.5rem' }}>
+          <Map size={20} /> Live Track Map
+        </h3>
+        <TrackMap motion={motion} trackPath={trackPath} />
       </div>
 
       {/* Live Telemetry Chart */}

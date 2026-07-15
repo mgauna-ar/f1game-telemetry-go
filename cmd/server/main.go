@@ -96,7 +96,7 @@ func main() {
 				// Optional: Broadcast to WebSocket
 				// We can marshal it to JSON, but it might be heavy to do for every packet (60Hz * 16 packet types)
 				// Let's only broadcast CarTelemetry and LapData as an example
-				if pkt.GetHeader().PacketId == packets.PacketIDCarTelemetry || pkt.GetHeader().PacketId == packets.PacketIDLapData {
+				if pkt.GetHeader().PacketId == packets.PacketIDCarTelemetry || pkt.GetHeader().PacketId == packets.PacketIDLapData || pkt.GetHeader().PacketId == packets.PacketIDMotion {
 					if js, err := json.Marshal(pkt); err == nil {
 						hub.Broadcast(js)
 					}
