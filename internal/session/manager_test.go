@@ -26,7 +26,7 @@ func TestSessionManagerIntegration(t *testing.T) {
 		SessionUID:     123456789,
 		PlayerCarIndex: 0,
 	}
-	
+
 	sessionPacket := &packets.PacketSessionData{
 		Header:      sessionHeader,
 		TrackId:     11, // Monza
@@ -83,7 +83,7 @@ func TestSessionManagerIntegration(t *testing.T) {
 	if manager.lapTracker.currentLapNum != 2 {
 		t.Errorf("expected lap num 2, got %d", manager.lapTracker.currentLapNum)
 	}
-	
+
 	// Telemetry samples should have been flushed on lap completion
 	if len(manager.lapTracker.samples) != 0 {
 		t.Errorf("expected 0 telemetry samples after lap flush, got %d", len(manager.lapTracker.samples))

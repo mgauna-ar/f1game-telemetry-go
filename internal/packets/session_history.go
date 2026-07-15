@@ -13,14 +13,14 @@ const (
 
 // LapHistoryData contains lap history timing data.
 type LapHistoryData struct {
-	LapTimeInMS        uint32
-	Sector1TimeMSPart  uint16
+	LapTimeInMS            uint32
+	Sector1TimeMSPart      uint16
 	Sector1TimeMinutesPart uint8
-	Sector2TimeMSPart  uint16
+	Sector2TimeMSPart      uint16
 	Sector2TimeMinutesPart uint8
-	Sector3TimeMSPart  uint16
+	Sector3TimeMSPart      uint16
 	Sector3TimeMinutesPart uint8
-	LapValidBitFlags   uint8
+	LapValidBitFlags       uint8
 }
 
 // TyreStintHistoryData contains tyre stint history data.
@@ -32,16 +32,16 @@ type TyreStintHistoryData struct {
 
 // PacketSessionHistoryData contains session history for a single car. Packet ID: 11.
 type PacketSessionHistoryData struct {
-	Header                PacketHeader
-	CarIdx                uint8
-	NumLaps               uint8
-	NumTyreStints         uint8
-	BestLapTimeLapNum     uint8
-	BestSector1LapNum     uint8
-	BestSector2LapNum     uint8
-	BestSector3LapNum     uint8
-	LapHistoryData        [MaxLapHistoryEntries]LapHistoryData
-	TyreStintHistoryData  [MaxTyreStintHistoryEntries]TyreStintHistoryData
+	Header               PacketHeader
+	CarIdx               uint8
+	NumLaps              uint8
+	NumTyreStints        uint8
+	BestLapTimeLapNum    uint8
+	BestSector1LapNum    uint8
+	BestSector2LapNum    uint8
+	BestSector3LapNum    uint8
+	LapHistoryData       [MaxLapHistoryEntries]LapHistoryData
+	TyreStintHistoryData [MaxTyreStintHistoryEntries]TyreStintHistoryData
 }
 
 func (p PacketSessionHistoryData) GetHeader() PacketHeader { return p.Header }

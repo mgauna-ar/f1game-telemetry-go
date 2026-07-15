@@ -39,3 +39,9 @@ clean:
 ## fmt: Format Go code
 fmt:
 	go fmt ./...
+
+## install-hooks: Install git pre-commit hooks
+install-hooks:
+	cp scripts/pre-commit.sh .git/hooks/pre-commit
+	chmod +x .git/hooks/pre-commit
+	@echo "Pre-commit hooks installed successfully!"

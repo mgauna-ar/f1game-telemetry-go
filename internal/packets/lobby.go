@@ -29,9 +29,9 @@ func (l LobbyInfoData) NameString() string {
 
 // PacketLobbyInfoData contains lobby info for all players. Packet ID: 9.
 type PacketLobbyInfoData struct {
-	Header        PacketHeader
-	NumPlayers    uint8
-	LobbyPlayers  [MaxCars]LobbyInfoData
+	Header       PacketHeader
+	NumPlayers   uint8
+	LobbyPlayers [MaxCars]LobbyInfoData
 }
 
 func (p PacketLobbyInfoData) GetHeader() PacketHeader { return p.Header }

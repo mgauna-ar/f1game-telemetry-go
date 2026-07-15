@@ -9,18 +9,18 @@ import (
 
 // ParticipantData contains data for a single participant.
 type ParticipantData struct {
-	AIControlled  uint8
-	DriverId      uint8
-	NetworkId     uint8
-	TeamId        uint8
-	MyTeam        uint8
-	RaceNumber    uint8
-	Nationality   uint8
-	Name          [48]byte
-	YourTelemetry uint8
+	AIControlled    uint8
+	DriverId        uint8
+	NetworkId       uint8
+	TeamId          uint8
+	MyTeam          uint8
+	RaceNumber      uint8
+	Nationality     uint8
+	Name            [48]byte
+	YourTelemetry   uint8
 	ShowOnlineNames uint8
-	TechLevel     uint16
-	Platform      uint8
+	TechLevel       uint16
+	Platform        uint8
 }
 
 // NameString returns the participant name as a Go string, trimming null bytes.
@@ -34,9 +34,9 @@ func (p ParticipantData) NameString() string {
 
 // PacketParticipantsData contains data for all participants. Packet ID: 4.
 type PacketParticipantsData struct {
-	Header          PacketHeader
-	NumActiveCars   uint8
-	Participants    [MaxCars]ParticipantData
+	Header        PacketHeader
+	NumActiveCars uint8
+	Participants  [MaxCars]ParticipantData
 }
 
 func (p PacketParticipantsData) GetHeader() PacketHeader { return p.Header }

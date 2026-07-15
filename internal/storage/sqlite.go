@@ -109,7 +109,7 @@ func (r *Repository) SaveTelemetryBatch(ctx context.Context, samples []Telemetry
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	
+
 	// Prepare the statement for the transaction
 	stmt, err := tx.PrepareNamedContext(ctx, query)
 	if err != nil {

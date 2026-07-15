@@ -59,7 +59,7 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 		lt.currentLap.Sector1MS = int(lapData.Sector1TimeMSPart) // simplifying, actual time is ms + min*60000
 		lt.currentLap.Sector2MS = int(lapData.Sector2TimeMSPart)
 		lt.currentLap.IsValid = lapData.CurrentLapInvalid == 0
-		
+
 		// Periodic save to keep DB updated
 		lt.repo.SaveLap(ctx, lt.currentLap)
 	}
@@ -114,7 +114,7 @@ func (lt *LapTracker) startNewLap(ctx context.Context, sessionID int64, lapNum i
 		LapNumber: lapNum,
 		IsValid:   true,
 	}
-	
+
 	if err := lt.repo.SaveLap(ctx, lt.currentLap); err != nil {
 		log.Printf("[LapTracker] Error starting new lap: %v", err)
 	}
@@ -126,7 +126,7 @@ func (lt *LapTracker) finalizeCurrentLap(ctx context.Context, lapTimeMS int) {
 	}
 
 	lt.currentLap.LapTimeMS = lapTimeMS
-	
+
 	if err := lt.repo.SaveLap(ctx, lt.currentLap); err != nil {
 		log.Printf("[LapTracker] Error finalizing lap: %v", err)
 	}
@@ -136,6 +136,6 @@ func (lt *LapTracker) finalizeCurrentLap(ctx context.Context, lapTimeMS int) {
 		lt.repo.SaveTelemetryBatch(ctx, lt.samples)
 		lt.samples = lt.samples[:0]
 	}
-	
+
 	log.Printf("[LapTracker] Lap %d completed in %d ms", lt.currentLap.LapNumber, lapTimeMS)
 }

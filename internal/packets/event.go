@@ -8,26 +8,26 @@ import (
 
 // Event code constants (4-character codes).
 const (
-	EventSessionStarted      = "SSTA"
-	EventSessionEnded        = "SEND"
-	EventFastestLap          = "FTLP"
-	EventRetirement          = "RTMT"
-	EventDRSEnabled          = "DRSE"
-	EventDRSDisabled         = "DRSD"
-	EventTeamMateInPits      = "TMPT"
-	EventChequeredFlag       = "CHQF"
-	EventRaceWinner          = "RCWN"
-	EventPenaltyIssued       = "PENA"
-	EventSpeedTrapTriggered  = "SPTP"
-	EventStartLights         = "STLG"
-	EventLightsOut           = "LGOT"
-	EventDriveThroughServed  = "DTSV"
-	EventStopGoServed        = "SGSV"
-	EventFlashback           = "FLBK"
-	EventButtonStatus        = "BUTN"
-	EventOvertake            = "OVTK"
-	EventSafetyCarStatus     = "SCAR"
-	EventCollision           = "COLL"
+	EventSessionStarted     = "SSTA"
+	EventSessionEnded       = "SEND"
+	EventFastestLap         = "FTLP"
+	EventRetirement         = "RTMT"
+	EventDRSEnabled         = "DRSE"
+	EventDRSDisabled        = "DRSD"
+	EventTeamMateInPits     = "TMPT"
+	EventChequeredFlag      = "CHQF"
+	EventRaceWinner         = "RCWN"
+	EventPenaltyIssued      = "PENA"
+	EventSpeedTrapTriggered = "SPTP"
+	EventStartLights        = "STLG"
+	EventLightsOut          = "LGOT"
+	EventDriveThroughServed = "DTSV"
+	EventStopGoServed       = "SGSV"
+	EventFlashback          = "FLBK"
+	EventButtonStatus       = "BUTN"
+	EventOvertake           = "OVTK"
+	EventSafetyCarStatus    = "SCAR"
+	EventCollision          = "COLL"
 )
 
 // EventDataDetails is a union-like struct holding event-specific data.
@@ -102,7 +102,7 @@ type StartLightsEventData struct {
 
 // OvertakeEventData contains data specific to the overtake event.
 type OvertakeEventData struct {
-	OvertakingVehicleIdx  uint8
+	OvertakingVehicleIdx     uint8
 	BeingOvertakenVehicleIdx uint8
 }
 

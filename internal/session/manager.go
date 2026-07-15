@@ -48,12 +48,12 @@ func (sm *SessionManager) ProcessPacket(ctx context.Context, pkt packets.Packet)
 
 func (sm *SessionManager) handleNewSession(ctx context.Context, header packets.PacketHeader) {
 	log.Printf("[Session] New session detected: %d", header.SessionUID)
-	
+
 	// Finalize old session's lap tracker if needed
 	sm.lapTracker.Reset()
 
 	sm.currentSessionUID = header.SessionUID
-	
+
 	// Create a new session in storage
 	sm.currentSession = &storage.Session{
 		SessionUID:   header.SessionUID,
@@ -84,7 +84,7 @@ func (sm *SessionManager) updateSessionInfo(ctx context.Context, p *packets.Pack
 	// To avoid compilation errors, we can just cast or ignore if we aren't sure. Let's just assume it works.
 	// Actually we can just write it safely here if we can't find it. Let's assume it's there.
 	// To avoid compiler error, I'll use a type assertion or just assume it.
-	
+
 	updated := false
 	if sm.currentSession.TrackID != int(p.TrackId) {
 		sm.currentSession.TrackID = int(p.TrackId)
@@ -93,7 +93,7 @@ func (sm *SessionManager) updateSessionInfo(ctx context.Context, p *packets.Pack
 		// Let's rely on the DB ID for now.
 		updated = true
 	}
-	
+
 	if updated {
 		if err := sm.repo.SaveSession(ctx, sm.currentSession); err != nil {
 			log.Printf("[Session] Error updating session info: %v", err)
