@@ -3,8 +3,8 @@
 This file (`.agents/AGENTS.md`) contains workspace-specific rules and context that agents will automatically load and follow when working on this project.
 
 ## 1. Technology Stack & Architecture
-*   **Backend:** Go, utilizing WebSockets for real-time data streaming and SQLite for persistence.
-*   **Frontend:** React, Vite (for building/bundling), Recharts (for data visualization), HTML5 Canvas (for track mapping). 
+*   **Backend:** Go (located at the root using standard `cmd/` and `internal/` layout), utilizing WebSockets for real-time data streaming and SQLite for persistence.
+*   **Frontend:** React (located in the `frontend/` directory), Vite (for building/bundling), Recharts (for data visualization), HTML5 Canvas (for track mapping). 
 *   **Communication:** JSON payloads over WebSockets for live telemetry data.
 
 ## 2. Testing Standards
