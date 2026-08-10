@@ -425,7 +425,7 @@ export const LapComparator: React.FC = () => {
             padding: '1.5rem',
             boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6)'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', pb: '0.75rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '0.75rem' }}>
               <div>
                 <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.15rem', color: '#fff' }}>
                   <Sliders size={20} color="#00f2fe" /> Car Setup Details — {activeSetupParticipant.participant.name} (#{activeSetupParticipant.participant.race_number})

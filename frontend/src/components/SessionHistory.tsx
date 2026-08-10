@@ -1,0 +1,818 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Calendar,
+  Search,
+  ChevronRight,
+  ChevronDown,
+  ChevronUp,
+  Download,
+  Trophy,
+  Wrench,
+  CloudSun,
+  Flag,
+  Users,
+  ArrowLeft,
+  Filter,
+  RefreshCw,
+  Disc,
+  Sliders,
+  Shield,
+  Clock,
+  Zap,
+  X,
+} from 'lucide-react';
+import { TEAM_COLORS } from './LeaderboardTower';
+
+export interface Session {
+  id: number;
+  session_uid: string | number;
+  track_id?: number;
+  track_name: string;
+  session_type: string;
+  weather: string;
+  packet_format?: number;
+  created_at: string;
+}
+
+export interface Participant {
+  id: number;
+  session_id: number;
+  car_index: number;
+  name: string;
+  driver_id: number;
+  team_id: number;
+  race_number: number;
+  ai_controlled: boolean;
+  nationality?: number;
+}
+
+export interface Lap {
+  id: number;
+  session_id: number;
+  car_index: number;
+  lap_number: number;
+  lap_time_ms: number;
+  sector1_ms: number;
+  sector2_ms: number;
+  sector3_ms: number;
+  is_valid: boolean;
+  tyre_compound: string;
+  fuel_load: number;
+  max_speed_kmh: number;
+  created_at?: string;
+}
+
+export interface CarSetup {
+  id: number;
+  session_id: number;
+  car_index: number;
+  front_wing: number;
+  rear_wing: number;
+  on_throttle: number;
+  off_throttle: number;
+  front_camber: number;
+  rear_camber: number;
+  front_toe: number;
+  rear_toe: number;
+  front_suspension: number;
+  rear_suspension: number;
+  front_anti_roll_bar: number;
+  rear_anti_roll_bar: number;
+  front_suspension_height: number;
+  rear_suspension_height: number;
+  brake_pressure: number;
+  brake_bias: number;
+  front_tyre_pressure: number;
+  rear_tyre_pressure: number;
+  ballast: number;
+  fuel_load: number;
+}
+
+interface DriverStanding {
+  position: number;
+  participant: Participant;
+  laps: Lap[];
+  bestLap: Lap | null;
+  bestLapTimeMS: number;
+  maxSpeed: number;
+  setup?: CarSetup;
+}
+
+export const SessionHistory: React.FC = () => {
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [loadingSessions, setLoadingSessions] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Search & Filters
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [sessionTypeFilter, setSessionTypeFilter] = useState<string>('ALL');
+
+  // Selected Session Detail state
+  const [selectedSession, setSelectedSession] = useState<Session | null>(null);
+  const [loadingDetail, setLoadingDetail] = useState<boolean>(false);
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [laps, setLaps] = useState<Lap[]>([]);
+  const [setups, setSetups] = useState<CarSetup[]>([]);
+  const [expandedDrivers, setExpandedDrivers] = useState<Record<number, boolean>>({});
+
+  // Setup Modal State
+  const [selectedSetupDriver, setSelectedSetupDriver] = useState<DriverStanding | null>(null);
+
+  useEffect(() => {
+    fetchSessions();
+  }, []);
+
+  const fetchSessions = async () => {
+    setLoadingSessions(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/sessions');
+      if (!res.ok) throw new Error('Failed to fetch sessions');
+      const data: Session[] = await res.json();
+      setSessions(data || []);
+    } catch (err: any) {
+      setError(err.message || 'Error loading sessions');
+    } finally {
+      setLoadingSessions(false);
+    }
+  };
+
+  const selectSession = async (session: Session) => {
+    setSelectedSession(session);
+    setLoadingDetail(true);
+    setExpandedDrivers({});
+    setSelectedSetupDriver(null);
+
+    try {
+      const [partsRes, lapsRes, setupsRes] = await Promise.all([
+        fetch(`/api/sessions/${session.id}/participants`),
+        fetch(`/api/sessions/${session.id}/laps`),
+        fetch(`/api/sessions/${session.id}/setups`),
+      ]);
+
+      const partsData = partsRes.ok ? await partsRes.json() : [];
+      const lapsData = lapsRes.ok ? await lapsRes.json() : [];
+      const setupsData = setupsRes.ok ? await setupsRes.json() : [];
+
+      setParticipants(partsData || []);
+      setLaps(lapsData || []);
+      setSetups(setupsData || []);
+    } catch (err: any) {
+      console.error('Error fetching session details:', err);
+    } finally {
+      setLoadingDetail(false);
+    }
+  };
+
+  const exportGhostLap = (lapId: number, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    window.open(`/api/laps/${lapId}/export`, '_blank');
+  };
+
+  const toggleDriverExpand = (carIndex: number) => {
+    setExpandedDrivers(prev => ({
+      ...prev,
+      [carIndex]: !prev[carIndex],
+    }));
+  };
+
+  const formatLapTime = (ms: number) => {
+    if (!ms || ms <= 0) return '--:--.---';
+    const mins = Math.floor(ms / 60000);
+    const secs = Math.floor((ms % 60000) / 1000);
+    const millis = ms % 1000;
+    return `${mins}:${secs.toString().padStart(2, '0')}.${millis.toString().padStart(3, '0')}`;
+  };
+
+  const formatSector = (ms: number) => {
+    if (!ms || ms <= 0) return '--.---';
+    return (ms / 1000).toFixed(3) + 's';
+  };
+
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return 'Unknown Date';
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const getSessionBadgeClass = (typeStr?: string) => {
+    if (!typeStr) return 'badge-gray';
+    const lower = typeStr.toLowerCase();
+    if (lower.includes('race')) return 'badge-red';
+    if (lower.includes('qual') || lower.includes('q1') || lower.includes('q2') || lower.includes('q3')) return 'badge-purple';
+    if (lower.includes('practice') || lower.includes('fp')) return 'badge-green';
+    return 'badge-gray';
+  };
+
+  // Session filtering logic
+  const filteredSessions = sessions.filter(s => {
+    const matchesSearch =
+      !searchQuery ||
+      s.track_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      s.session_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      String(s.id).includes(searchQuery);
+
+    const matchesType =
+      sessionTypeFilter === 'ALL' ||
+      s.session_type.toLowerCase().includes(sessionTypeFilter.toLowerCase());
+
+    return matchesSearch && matchesType;
+  });
+
+  // Driver standings calculation for selected session
+  const driverStandings: DriverStanding[] = React.useMemo(() => {
+    if (!selectedSession) return [];
+
+    // Group laps by car_index
+    const lapsByCar: Record<number, Lap[]> = {};
+    laps.forEach(l => {
+      if (!lapsByCar[l.car_index]) lapsByCar[l.car_index] = [];
+      lapsByCar[l.car_index].push(l);
+    });
+
+    // Map participants
+    const driverList = (participants.length > 0
+      ? participants
+      : Object.keys(lapsByCar).map(idxStr => ({
+          id: Number(idxStr),
+          session_id: selectedSession.id,
+          car_index: Number(idxStr),
+          name: `Driver ${Number(idxStr) + 1}`,
+          driver_id: 0,
+          team_id: 0,
+          race_number: Number(idxStr) + 1,
+          ai_controlled: false,
+        }))
+    ).map(p => {
+      const driverLaps = lapsByCar[p.car_index] || [];
+      const validLaps = driverLaps.filter(l => l.is_valid && l.lap_time_ms > 0);
+
+      let bestLap: Lap | null = null;
+      if (validLaps.length > 0) {
+        bestLap = validLaps.reduce((prev, curr) => (curr.lap_time_ms < prev.lap_time_ms ? curr : prev), validLaps[0]);
+      } else if (driverLaps.length > 0) {
+        bestLap = driverLaps.reduce((prev, curr) => (curr.lap_time_ms < prev.lap_time_ms ? curr : prev), driverLaps[0]);
+      }
+
+      const maxSpeed = driverLaps.reduce((max, l) => Math.max(max, l.max_speed_kmh || 0), 0);
+      const setup = setups.find(s => s.car_index === p.car_index);
+
+      return {
+        participant: p,
+        laps: driverLaps.sort((a, b) => a.lap_number - b.lap_number),
+        bestLap,
+        bestLapTimeMS: bestLap ? bestLap.lap_time_ms : Infinity,
+        maxSpeed,
+        setup,
+      };
+    });
+
+    // Sort by best lap time
+    driverList.sort((a, b) => a.bestLapTimeMS - b.bestLapTimeMS);
+
+    return driverList.map((d, index) => ({
+      ...d,
+      position: index + 1,
+    }));
+  }, [selectedSession, participants, laps, setups]);
+
+  // Overall session statistics
+  const totalSessionLaps = laps.length;
+  const totalDriversCount = Math.max(participants.length, driverStandings.length);
+
+  return (
+    <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '1.5rem 2rem' }}>
+      {/* Session History Title Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <div>
+          <h1 style={{ margin: 0, fontSize: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <Calendar color="var(--accent-primary)" size={28} />
+            Session Explorer
+          </h1>
+          <p className="mono" style={{ color: 'var(--text-secondary)', margin: '4px 0 0 0', fontSize: '0.9rem' }}>
+            Historical Session Telemetry, Standings, Car Setups & Ghost Laps
+          </p>
+        </div>
+
+        {selectedSession && (
+          <button
+            className="nav-tab active"
+            onClick={() => {
+              setSelectedSession(null);
+              setSelectedSetupDriver(null);
+            }}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
+          >
+            <ArrowLeft size={16} /> Back to Sessions List
+          </button>
+        )}
+      </div>
+
+      {/* VIEW 1: SESSION LIST & FILTERING */}
+      {!selectedSession && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* Controls / Filter Bar */}
+          <div className="glass-panel" style={{ padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, minWidth: '280px' }}>
+              <div style={{ position: 'relative', width: '100%', maxWidth: '380px' }}>
+                <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                <input
+                  type="text"
+                  placeholder="Search track name, session type..."
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '0.6rem 1rem 0.6rem 2.5rem',
+                    background: 'rgba(0,0,0,0.4)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-sm)',
+                    color: 'var(--text-primary)',
+                    fontFamily: 'var(--font-sans)',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Filter size={16} color="var(--text-secondary)" />
+                <select
+                  className="ui-select"
+                  value={sessionTypeFilter}
+                  onChange={e => setSessionTypeFilter(e.target.value)}
+                  style={{ background: 'rgba(0,0,0,0.4)', minWidth: '150px' }}
+                >
+                  <option value="ALL">All Session Types</option>
+                  <option value="Race">Race</option>
+                  <option value="Qualifying">Qualifying</option>
+                  <option value="Practice">Practice</option>
+                </select>
+              </div>
+            </div>
+
+            <button
+              className="nav-tab"
+              onClick={fetchSessions}
+              disabled={loadingSessions}
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
+            >
+              <RefreshCw size={14} className={loadingSessions ? 'animate-spin' : ''} /> Refresh List
+            </button>
+          </div>
+
+          {/* Session Cards / Table */}
+          {loadingSessions ? (
+            <div className="glass-panel" style={{ textAlign: 'center', padding: '3rem' }}>
+              <RefreshCw size={32} className="animate-spin" style={{ color: 'var(--accent-primary)', marginBottom: '1rem' }} />
+              <p style={{ color: 'var(--text-secondary)' }}>Loading session history repository...</p>
+            </div>
+          ) : error ? (
+            <div className="glass-panel" style={{ textAlign: 'center', padding: '3rem', borderColor: 'var(--accent-primary)' }}>
+              <p style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>{error}</p>
+              <button className="nav-tab active" onClick={fetchSessions} style={{ marginTop: '1rem' }}>
+                Retry
+              </button>
+            </div>
+          ) : filteredSessions.length === 0 ? (
+            <div className="glass-panel" style={{ textAlign: 'center', padding: '3rem' }}>
+              <Flag size={40} color="var(--text-muted)" style={{ marginBottom: '1rem' }} />
+              <h3>No Sessions Found</h3>
+              <p style={{ color: 'var(--text-secondary)' }}>
+                {searchQuery || sessionTypeFilter !== 'ALL'
+                  ? 'No historical sessions match your search filters.'
+                  : 'No telemetry sessions recorded in the database yet. Launch a session or simulator!'}
+              </p>
+            </div>
+          ) : (
+            <div className="glass-panel" style={{ padding: '1rem' }}>
+              <table className="history-table">
+                <thead>
+                  <tr>
+                    <th>Session ID</th>
+                    <th>Date & Time</th>
+                    <th>Track Name</th>
+                    <th>Session Type</th>
+                    <th>Weather</th>
+                    <th style={{ textAlign: 'right' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredSessions.map(session => (
+                    <tr
+                      key={session.id}
+                      onClick={() => selectSession(session)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      <td className="mono" style={{ fontWeight: 700, color: 'var(--accent-secondary)' }}>
+                        #{session.id}
+                      </td>
+                      <td style={{ color: 'var(--text-primary)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <Clock size={14} color="var(--text-muted)" />
+                          {formatDate(session.created_at)}
+                        </div>
+                      </td>
+                      <td>
+                        <span style={{ fontWeight: 700, fontSize: '1rem' }}>{session.track_name || 'Unknown Track'}</span>
+                      </td>
+                      <td>
+                        <span className={`session-badge ${getSessionBadgeClass(session.session_type)}`}>
+                          {session.session_type || 'RACE'}
+                        </span>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}>
+                          <CloudSun size={14} color="var(--text-secondary)" />
+                          {session.weather || 'Clear'}
+                        </div>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <button
+                          className="nav-tab active"
+                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                          onClick={e => {
+                            e.stopPropagation();
+                            selectSession(session);
+                          }}
+                        >
+                          Explore <ChevronRight size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* VIEW 2: SELECTED SESSION DETAIL EXPLORER */}
+      {selectedSession && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          {/* Header Metadata Card */}
+          <div className="glass-panel session-header-panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 800 }}>{selectedSession.track_name}</h1>
+                <span className={`session-badge ${getSessionBadgeClass(selectedSession.session_type)}`}>
+                  {selectedSession.session_type}
+                </span>
+              </div>
+              <p className="mono" style={{ color: 'var(--text-secondary)', margin: '4px 0 0 0', fontSize: '0.85rem' }}>
+                Recorded on {formatDate(selectedSession.created_at)} • UID: {selectedSession.session_uid || selectedSession.id}
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+              <div className="header-stat-box">
+                <CloudSun size={16} color="var(--text-secondary)" />
+                <div>
+                  <div className="stat-label">WEATHER</div>
+                  <div className="stat-value" style={{ fontSize: '0.85rem' }}>{selectedSession.weather || 'Clear'}</div>
+                </div>
+              </div>
+
+              <div className="header-stat-box">
+                <Flag size={16} color="var(--text-secondary)" />
+                <div>
+                  <div className="stat-label">TOTAL LAPS</div>
+                  <div className="stat-value mono">{totalSessionLaps} Laps</div>
+                </div>
+              </div>
+
+              <div className="header-stat-box">
+                <Users size={16} color="var(--text-secondary)" />
+                <div>
+                  <div className="stat-label">DRIVERS</div>
+                  <div className="stat-value mono">{totalDriversCount} Drivers</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {loadingDetail ? (
+            <div className="glass-panel" style={{ textAlign: 'center', padding: '3rem' }}>
+              <RefreshCw size={32} className="animate-spin" style={{ color: 'var(--accent-primary)', marginBottom: '1rem' }} />
+              <p style={{ color: 'var(--text-secondary)' }}>Retrieving drivers, lap timing telemetry, and setups...</p>
+            </div>
+          ) : (
+            /* STANDINGS & EXPANDABLE LAPS TABLE WITH DRIVER SETUP ICON BUTTON */
+            <div className="glass-panel" style={{ padding: '1rem' }}>
+              <h3 style={{ margin: '0.5rem 0 1rem 0.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Trophy size={20} color="var(--accent-primary)" />
+                Session Standings & Laps Telemetry
+              </h3>
+
+              {driverStandings.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
+                  No lap timing data recorded for this session.
+                </div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="history-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: '40px' }}>POS</th>
+                        <th>DRIVER</th>
+                        <th>SETUP</th>
+                        <th>BEST LAP</th>
+                        <th>SECTOR 1</th>
+                        <th>SECTOR 2</th>
+                        <th>SECTOR 3</th>
+                        <th>MAX SPEED</th>
+                        <th>TYRE</th>
+                        <th style={{ textAlign: 'right' }}>DETAILS / EXPORT</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {driverStandings.map(driver => {
+                        const teamColor = TEAM_COLORS[driver.participant.team_id] || '#A0A0A0';
+                        const isExpanded = !!expandedDrivers[driver.participant.car_index];
+
+                        return (
+                          <React.Fragment key={driver.participant.car_index}>
+                            {/* Primary Driver Row */}
+                            <tr
+                              onClick={() => toggleDriverExpand(driver.participant.car_index)}
+                              style={{ cursor: 'pointer' }}
+                            >
+                              <td className="mono" style={{ fontWeight: 800, fontSize: '1rem', color: driver.position === 1 ? 'var(--accent-warning)' : 'inherit' }}>
+                                P{driver.position}
+                              </td>
+                              <td>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                  <div style={{ width: '4px', height: '22px', backgroundColor: teamColor, borderRadius: '2px' }} />
+                                  <div>
+                                    <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                      {driver.participant.name}
+                                      <span className="mono" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                        #{driver.participant.race_number}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+
+                              {/* Car Setup Icon Button next to Driver */}
+                              <td>
+                                {driver.setup ? (
+                                  <button
+                                    className="nav-tab"
+                                    title={`View Setup for ${driver.participant.name}`}
+                                    onClick={e => {
+                                      e.stopPropagation();
+                                      setSelectedSetupDriver(driver);
+                                    }}
+                                    style={{
+                                      padding: '4px 8px',
+                                      fontSize: '0.75rem',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      background: 'rgba(0, 242, 254, 0.1)',
+                                      borderColor: 'rgba(0, 242, 254, 0.3)',
+                                      color: '#00f2fe',
+                                    }}
+                                  >
+                                    <Sliders size={13} /> Setup
+                                  </button>
+                                ) : (
+                                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>-</span>
+                                )}
+                              </td>
+
+                              <td className="mono" style={{ fontWeight: 700, color: 'var(--accent-tertiary)' }}>
+                                {driver.bestLap ? formatLapTime(driver.bestLap.lap_time_ms) : '--:--.---'}
+                              </td>
+                              <td className="mono">{driver.bestLap ? formatSector(driver.bestLap.sector1_ms) : '--.---'}</td>
+                              <td className="mono">{driver.bestLap ? formatSector(driver.bestLap.sector2_ms) : '--.---'}</td>
+                              <td className="mono">{driver.bestLap ? formatSector(driver.bestLap.sector3_ms) : '--.---'}</td>
+                              <td className="mono">
+                                {driver.maxSpeed ? `${driver.maxSpeed.toFixed(1)} km/h` : '-- km/h'}
+                              </td>
+                              <td>
+                                {driver.bestLap?.tyre_compound ? (
+                                  <span className="session-badge badge-gray">{driver.bestLap.tyre_compound}</span>
+                                ) : (
+                                  '-'
+                                )}
+                              </td>
+                              <td style={{ textAlign: 'right' }}>
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                                  {driver.bestLap && (
+                                    <button
+                                      className="nav-tab"
+                                      title="Export Best Ghost Lap"
+                                      onClick={e => exportGhostLap(driver.bestLap!.id, e)}
+                                      style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                    >
+                                      <Download size={12} /> Ghost
+                                    </button>
+                                  )}
+                                  <button
+                                    className="nav-tab"
+                                    onClick={e => {
+                                      e.stopPropagation();
+                                      toggleDriverExpand(driver.participant.car_index);
+                                    }}
+                                    style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                  >
+                                    {driver.laps.length} Laps {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+
+                            {/* Driver Laps Sub-Table (Expanded View) */}
+                            {isExpanded && (
+                              <tr>
+                                <td colSpan={10} style={{ background: 'rgba(0, 0, 0, 0.5)', padding: '0.75rem 1rem' }}>
+                                  <div style={{ padding: '0.5rem', background: 'rgba(255, 255, 255, 0.02)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+                                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                      <Clock size={14} /> Recorded Laps for {driver.participant.name}
+                                    </div>
+                                    <table style={{ width: '100%', fontSize: '0.85rem', borderCollapse: 'collapse' }}>
+                                      <thead>
+                                        <tr style={{ color: 'var(--text-muted)', textAlign: 'left', borderBottom: '1px solid var(--border-color)' }}>
+                                          <th style={{ padding: '4px 8px' }}>Lap #</th>
+                                          <th style={{ padding: '4px 8px' }}>Lap Time</th>
+                                          <th style={{ padding: '4px 8px' }}>S1</th>
+                                          <th style={{ padding: '4px 8px' }}>S2</th>
+                                          <th style={{ padding: '4px 8px' }}>S3</th>
+                                          <th style={{ padding: '4px 8px' }}>Max Speed</th>
+                                          <th style={{ padding: '4px 8px' }}>Status</th>
+                                          <th style={{ padding: '4px 8px', textAlign: 'right' }}>Ghost Lap Export</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {driver.laps.map(lap => (
+                                          <tr key={lap.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                                            <td className="mono" style={{ padding: '6px 8px', fontWeight: 700 }}>
+                                              Lap {lap.lap_number}
+                                            </td>
+                                            <td className="mono" style={{ padding: '6px 8px', color: lap.id === driver.bestLap?.id ? 'var(--accent-tertiary)' : 'inherit' }}>
+                                              {formatLapTime(lap.lap_time_ms)}
+                                            </td>
+                                            <td className="mono" style={{ padding: '6px 8px' }}>{formatSector(lap.sector1_ms)}</td>
+                                            <td className="mono" style={{ padding: '6px 8px' }}>{formatSector(lap.sector2_ms)}</td>
+                                            <td className="mono" style={{ padding: '6px 8px' }}>{formatSector(lap.sector3_ms)}</td>
+                                            <td className="mono" style={{ padding: '6px 8px' }}>{lap.max_speed_kmh ? `${lap.max_speed_kmh.toFixed(1)} km/h` : '-'}</td>
+                                            <td style={{ padding: '6px 8px' }}>
+                                              <span className={`session-badge ${lap.is_valid ? 'badge-green' : 'badge-red'}`} style={{ fontSize: '0.65rem' }}>
+                                                {lap.is_valid ? 'VALID' : 'INVALID'}
+                                              </span>
+                                            </td>
+                                            <td style={{ padding: '6px 8px', textAlign: 'right' }}>
+                                              <button
+                                                className="nav-tab active"
+                                                onClick={e => exportGhostLap(lap.id, e)}
+                                                style={{ padding: '2px 8px', fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                              >
+                                                <Download size={10} /> Export JSON
+                                              </button>
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* CAR SETUP MODAL OVERLAY */}
+          {selectedSetupDriver && selectedSetupDriver.setup && (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                backgroundColor: 'rgba(0, 0, 0, 0.75)',
+                backdropFilter: 'blur(8px)',
+                zIndex: 9999,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '1.5rem',
+              }}
+              onClick={() => setSelectedSetupDriver(null)}
+            >
+              <div
+                className="glass-panel"
+                style={{
+                  maxWidth: '650px',
+                  width: '100%',
+                  backgroundColor: 'rgba(18, 18, 22, 0.95)',
+                  border: '1px solid rgba(0, 242, 254, 0.3)',
+                  padding: '1.75rem',
+                  boxShadow: '0 20px 40px rgba(0, 0, 0, 0.7)',
+                }}
+                onClick={e => e.stopPropagation()}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ width: '4px', height: '24px', backgroundColor: TEAM_COLORS[selectedSetupDriver.participant.team_id] || '#A0A0A0', borderRadius: '2px' }} />
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Sliders size={18} color="#00f2fe" /> Car Setup Details — {selectedSetupDriver.participant.name}
+                      </h3>
+                      <span className="mono" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                        Car #{selectedSetupDriver.participant.car_index + 1} • Race #{selectedSetupDriver.participant.race_number}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    className="nav-tab"
+                    onClick={() => setSelectedSetupDriver(null)}
+                    style={{ padding: '6px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', fontSize: '0.9rem' }}>
+                  {/* Aerodynamics */}
+                  <div>
+                    <div style={{ fontWeight: 700, color: '#00f2fe', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                      <Zap size={14} /> Aerodynamics & Wings
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', background: 'rgba(0,0,0,0.4)', padding: '8px 12px', borderRadius: '6px' }}>
+                      <div>Front Wing: <span className="mono" style={{ fontWeight: 700 }}>{selectedSetupDriver.setup.front_wing}</span></div>
+                      <div>Rear Wing: <span className="mono" style={{ fontWeight: 700 }}>{selectedSetupDriver.setup.rear_wing}</span></div>
+                    </div>
+                  </div>
+
+                  {/* Differential */}
+                  <div>
+                    <div style={{ fontWeight: 700, color: '#00f2fe', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                      <Sliders size={14} /> Transmission & Differential
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', background: 'rgba(0,0,0,0.4)', padding: '8px 12px', borderRadius: '6px' }}>
+                      <div>On Throttle: <span className="mono" style={{ fontWeight: 700 }}>{selectedSetupDriver.setup.on_throttle}%</span></div>
+                      <div>Off Throttle: <span className="mono" style={{ fontWeight: 700 }}>{selectedSetupDriver.setup.off_throttle}%</span></div>
+                    </div>
+                  </div>
+
+                  {/* Suspension & ARB */}
+                  <div>
+                    <div style={{ fontWeight: 700, color: '#00f2fe', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                      <Wrench size={14} /> Suspension & Geometry
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', background: 'rgba(0,0,0,0.4)', padding: '8px 12px', borderRadius: '6px' }}>
+                      <div>Suspension (F/R): <span className="mono" style={{ fontWeight: 700 }}>{selectedSetupDriver.setup.front_suspension} / {selectedSetupDriver.setup.rear_suspension}</span></div>
+                      <div>Anti-Roll (F/R): <span className="mono" style={{ fontWeight: 700 }}>{selectedSetupDriver.setup.front_anti_roll_bar} / {selectedSetupDriver.setup.rear_anti_roll_bar}</span></div>
+                      <div>Camber (F/R): <span className="mono" style={{ fontWeight: 700 }}>{selectedSetupDriver.setup.front_camber}° / {selectedSetupDriver.setup.rear_camber}°</span></div>
+                      <div>Toe (F/R): <span className="mono" style={{ fontWeight: 700 }}>{selectedSetupDriver.setup.front_toe}° / {selectedSetupDriver.setup.rear_toe}°</span></div>
+                      <div>Ride Height (F/R): <span className="mono" style={{ fontWeight: 700 }}>{selectedSetupDriver.setup.front_suspension_height} / {selectedSetupDriver.setup.rear_suspension_height}</span></div>
+                    </div>
+                  </div>
+
+                  {/* Brakes */}
+                  <div>
+                    <div style={{ fontWeight: 700, color: '#00f2fe', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                      <Shield size={14} /> Brakes
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', background: 'rgba(0,0,0,0.4)', padding: '8px 12px', borderRadius: '6px' }}>
+                      <div>Brake Pressure: <span className="mono" style={{ fontWeight: 700 }}>{selectedSetupDriver.setup.brake_pressure}%</span></div>
+                      <div>Brake Bias: <span className="mono" style={{ fontWeight: 700 }}>{selectedSetupDriver.setup.brake_bias}%</span></div>
+                    </div>
+                  </div>
+
+                  {/* Tyres & Weight */}
+                  <div>
+                    <div style={{ fontWeight: 700, color: '#00f2fe', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                      <Disc size={14} /> Tyres & Fuel Load
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', background: 'rgba(0,0,0,0.4)', padding: '8px 12px', borderRadius: '6px' }}>
+                      <div>Front Pressure: <span className="mono" style={{ fontWeight: 700 }}>{selectedSetupDriver.setup.front_tyre_pressure} PSI</span></div>
+                      <div>Rear Pressure: <span className="mono" style={{ fontWeight: 700 }}>{selectedSetupDriver.setup.rear_tyre_pressure} PSI</span></div>
+                      <div>Ballast: <span className="mono" style={{ fontWeight: 700 }}>{selectedSetupDriver.setup.ballast} kg</span></div>
+                      <div>Fuel Load: <span className="mono" style={{ fontWeight: 700 }}>{selectedSetupDriver.setup.fuel_load?.toFixed(1)} kg</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};

@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Dashboard } from './components/Dashboard'
 import { LapComparator } from './components/LapComparator'
+import { SessionHistory } from './components/SessionHistory'
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'live' | 'comparator'>('live')
+  const [activeTab, setActiveTab] = useState<'live' | 'comparator' | 'history'>('live')
 
   return (
     <div>
@@ -20,11 +21,24 @@ function App() {
         >
           Lap Comparator
         </button>
+        <button 
+          className={`nav-tab ${activeTab === 'history' ? 'active' : ''}`}
+          onClick={() => setActiveTab('history')}
+        >
+          Session History
+        </button>
       </div>
 
-      {activeTab === 'live' ? <Dashboard /> : <LapComparator />}
+      {activeTab === 'live' ? (
+        <Dashboard />
+      ) : activeTab === 'comparator' ? (
+        <LapComparator />
+      ) : (
+        <SessionHistory />
+      )}
     </div>
   )
 }
 
 export default App
+
