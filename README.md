@@ -58,15 +58,14 @@ make run
 git clone https://github.com/mgauna/f1game-telemetry-go.git
 cd f1game-telemetry-go
 
-# Option A: Run directly with Go
-go run ./cmd/server
+# Option A: One-click runner (Auto-unblocks files, starts Backend + Frontend & opens Browser)
+.\run.bat
 
-# Option B: Build executable and run
-go build -o bin/f1telemetry.exe ./cmd/server
-.\bin\f1telemetry.exe
+# Option B: Manual run directly with Go
+go run ./cmd/server
 ```
 
-> **Windows Firewall Note:** On your first run on Windows, Windows Defender Firewall may prompt you to allow network access. Make sure to allow network access for UDP port `20777` (for receiving F1 telemetry) and TCP port `8080` (for HTTP API & WebSocket dashboard stream).
+> **Windows Firewall & Security Note:** On your first run on Windows, `run.bat` will automatically set the PowerShell execution policy for the current user and unblock project binaries. Windows Defender Firewall may prompt you to allow network access: make sure to allow access for UDP port `20777` (for receiving F1 telemetry) and TCP port `8080` (for HTTP API & WebSocket dashboard stream).
 
 #### Frontend (React)
 
