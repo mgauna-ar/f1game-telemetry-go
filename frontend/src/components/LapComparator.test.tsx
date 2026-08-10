@@ -37,6 +37,8 @@ describe('LapComparator Component', () => {
     render(<LapComparator />);
 
     expect(screen.getByText('Lap Comparator')).toBeInTheDocument();
+    expect(screen.getByText(/ERS Battery Level/)).toBeInTheDocument();
+    expect(screen.getByText(/ERS Deploy Mode/)).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByText(/Monaco - Race/)).toBeInTheDocument();
     });

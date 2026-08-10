@@ -13,14 +13,16 @@ type LapTracker struct {
 	repo     *storage.Repository
 	carIndex int
 
-	currentLapNum   int
-	currentLap      *storage.Lap
-	lastLapDistance float64
-	lastWorldPosX   float64
-	lastWorldPosY   float64
-	lastWorldPosZ   float64
-	lastERSDeploy   float64
-	samples         []storage.TelemetrySample
+	currentLapNum      int
+	currentLap         *storage.Lap
+	lastLapDistance    float64
+	lastWorldPosX      float64
+	lastWorldPosY      float64
+	lastWorldPosZ      float64
+	lastERSDeploy      float64
+	lastERSStoreEnergy float64
+	lastERSDeployMode  int
+	samples            []storage.TelemetrySample
 }
 
 // NewLapTracker creates a new LapTracker.
@@ -41,6 +43,8 @@ func (lt *LapTracker) Reset() {
 	lt.lastWorldPosY = 0
 	lt.lastWorldPosZ = 0
 	lt.lastERSDeploy = 0
+	lt.lastERSStoreEnergy = 0
+	lt.lastERSDeployMode = 0
 	lt.samples = lt.samples[:0]
 }
 
@@ -62,6 +66,8 @@ func (lt *LapTracker) ProcessCarStatus(p *packets.PacketCarStatusData) {
 	}
 	cs := p.CarStatusData[lt.carIndex]
 	lt.lastERSDeploy = float64(cs.ERSDeployedThisLap)
+	lt.lastERSStoreEnergy = float64((cs.ERSStoreEnergy / 4000000.0) * 100.0)
+	lt.lastERSDeployMode = int(cs.ERSDeployMode)
 
 	if lt.currentLap != nil {
 		lt.currentLap.FuelLoad = float64(cs.FuelInTank)
@@ -129,20 +135,22 @@ func (lt *LapTracker) ProcessTelemetry(ctx context.Context, session *storage.Ses
 	}
 
 	sample := storage.TelemetrySample{
-		LapID:       lt.currentLap.ID,
-		LapDistance: lt.lastLapDistance,
-		SessionTime: float64(p.Header.SessionTime),
-		Speed:       int(carData.Speed),
-		Throttle:    float64(carData.Throttle),
-		Brake:       float64(carData.Brake),
-		Steer:       float64(carData.Steer),
-		Gear:        int(carData.Gear),
-		EngineRPM:   int(carData.EngineRPM),
-		DRS:         carData.DRS == 1,
-		ERSDeploy:   lt.lastERSDeploy,
-		WorldPosX:   lt.lastWorldPosX,
-		WorldPosY:   lt.lastWorldPosY,
-		WorldPosZ:   lt.lastWorldPosZ,
+		LapID:          lt.currentLap.ID,
+		LapDistance:    lt.lastLapDistance,
+		SessionTime:    float64(p.Header.SessionTime),
+		Speed:          int(carData.Speed),
+		Throttle:       float64(carData.Throttle),
+		Brake:          float64(carData.Brake),
+		Steer:          float64(carData.Steer),
+		Gear:           int(carData.Gear),
+		EngineRPM:      int(carData.EngineRPM),
+		DRS:            carData.DRS == 1,
+		ERSDeploy:      lt.lastERSDeploy,
+		ERSStoreEnergy: lt.lastERSStoreEnergy,
+		ERSDeployMode:  lt.lastERSDeployMode,
+		WorldPosX:      lt.lastWorldPosX,
+		WorldPosY:      lt.lastWorldPosY,
+		WorldPosZ:      lt.lastWorldPosZ,
 	}
 
 	lt.samples = append(lt.samples, sample)

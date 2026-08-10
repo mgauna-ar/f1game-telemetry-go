@@ -232,3 +232,61 @@ func TestSaveLapWithCarIndex(t *testing.T) {
 		t.Errorf("expected 2 laps (different car indices), got %d", len(laps))
 	}
 }
+
+func TestSaveAndGetTelemetryWithERS(t *testing.T) {
+	repo := setupTestRepo(t)
+	session := createTestSession(t, repo)
+	ctx := context.Background()
+
+	lap := &Lap{
+		SessionID: session.ID,
+		CarIndex:  0,
+		LapNumber: 1,
+		LapTimeMS: 80000,
+	}
+	if err := repo.SaveLap(ctx, lap); err != nil {
+		t.Fatalf("SaveLap() error = %v", err)
+	}
+
+	samples := []TelemetrySample{
+		{
+			LapID:          lap.ID,
+			LapDistance:    100.5,
+			SessionTime:    12.34,
+			Speed:          250,
+			Throttle:       1.0,
+			Brake:          0.0,
+			Steer:          -0.1,
+			Gear:           6,
+			EngineRPM:      11500,
+			DRS:            true,
+			ERSDeploy:      150000.0,
+			ERSStoreEnergy: 85.5,
+			ERSDeployMode:  2, // Hotlap
+			WorldPosX:      10.0,
+			WorldPosY:      2.0,
+			WorldPosZ:      15.0,
+		},
+	}
+
+	if err := repo.SaveTelemetryBatch(ctx, samples); err != nil {
+		t.Fatalf("SaveTelemetryBatch() error = %v", err)
+	}
+
+	retrieved, err := repo.GetTelemetryByLap(ctx, lap.ID)
+	if err != nil {
+		t.Fatalf("GetTelemetryByLap() error = %v", err)
+	}
+
+	if len(retrieved) != 1 {
+		t.Fatalf("expected 1 telemetry sample, got %d", len(retrieved))
+	}
+
+	if retrieved[0].ERSStoreEnergy != 85.5 {
+		t.Errorf("expected ERSStoreEnergy 85.5, got %f", retrieved[0].ERSStoreEnergy)
+	}
+
+	if retrieved[0].ERSDeployMode != 2 {
+		t.Errorf("expected ERSDeployMode 2, got %d", retrieved[0].ERSDeployMode)
+	}
+}

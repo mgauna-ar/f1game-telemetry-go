@@ -48,6 +48,8 @@ interface TelemetrySample {
   speed: number;
   throttle: number;
   brake: number;
+  ers_store_energy?: number;
+  ers_deploy_mode?: number;
 }
 
 export const LapComparator: React.FC = () => {
@@ -421,6 +423,82 @@ export const LapComparator: React.FC = () => {
               )}
               {normB.length > 0 && (
                 <Line type="monotone" data={normB} dataKey="brake" name="Brake - Lap B (Cyan Dashed)" stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" />
+              )}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* ERS Battery Level Sub-chart */}
+      <div className="glass-panel" style={{ gridColumn: 'span 12', height: '240px', display: 'flex', flexDirection: 'column' }}>
+        <h3 style={{ marginBottom: '0.5rem', fontSize: '1.1rem', color: '#ccc' }}>ERS Battery Level (0 - 100% Store Energy)</h3>
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+              <XAxis 
+                dataKey={xAxisType === 'distance' ? 'lap_distance' : 'session_time'} 
+                type="number" 
+                domain={['auto', 'auto']}
+                stroke="#666" 
+                tick={{ fill: '#999' }}
+              />
+              <YAxis stroke="#666" tick={{ fill: '#999' }} domain={[0, 100]} />
+              <Tooltip 
+                contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }}
+                itemStyle={{ color: '#fff' }}
+                formatter={(value: any) => [`${Number(value).toFixed(1)}%`, 'Battery']}
+              />
+              <Legend />
+              {normA.length > 0 && (
+                <Line type="monotone" data={normA} dataKey="ers_store_energy" name="ERS Battery - Lap A (Red Solid)" stroke="#ff4757" dot={false} strokeWidth={2} />
+              )}
+              {normB.length > 0 && (
+                <Line type="monotone" data={normB} dataKey="ers_store_energy" name="ERS Battery - Lap B (Cyan Dashed)" stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" />
+              )}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* ERS Deploy Mode Sub-chart */}
+      <div className="glass-panel" style={{ gridColumn: 'span 12', height: '240px', display: 'flex', flexDirection: 'column' }}>
+        <h3 style={{ marginBottom: '0.5rem', fontSize: '1.1rem', color: '#ccc' }}>ERS Deploy Mode (0: None, 1: Medium, 2: Hotlap, 3: Overtake)</h3>
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+              <XAxis 
+                dataKey={xAxisType === 'distance' ? 'lap_distance' : 'session_time'} 
+                type="number" 
+                domain={['auto', 'auto']}
+                stroke="#666" 
+                tick={{ fill: '#999' }}
+              />
+              <YAxis 
+                stroke="#666" 
+                tick={{ fill: '#999' }} 
+                domain={[0, 3]} 
+                ticks={[0, 1, 2, 3]}
+                tickFormatter={(val) => {
+                  const modes = ['None', 'Medium', 'Hotlap', 'Overtake'];
+                  return modes[val] !== undefined ? `${val}: ${modes[val]}` : `${val}`;
+                }}
+              />
+              <Tooltip 
+                contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }}
+                itemStyle={{ color: '#fff' }}
+                formatter={(value: any) => {
+                  const modes = ['0: None', '1: Medium', '2: Hotlap', '3: Overtake'];
+                  return [modes[Number(value)] ?? `${value}`, 'Deploy Mode'];
+                }}
+              />
+              <Legend />
+              {normA.length > 0 && (
+                <Line type="stepAfter" data={normA} dataKey="ers_deploy_mode" name="Deploy Mode - Lap A (Red Solid)" stroke="#ff4757" dot={false} strokeWidth={2} />
+              )}
+              {normB.length > 0 && (
+                <Line type="stepAfter" data={normB} dataKey="ers_deploy_mode" name="Deploy Mode - Lap B (Cyan Dashed)" stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" />
               )}
             </LineChart>
           </ResponsiveContainer>

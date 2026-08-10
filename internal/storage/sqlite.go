@@ -98,9 +98,9 @@ func (r *Repository) SaveTelemetryBatch(ctx context.Context, samples []Telemetry
 
 	query := `
 		INSERT INTO telemetry_samples (
-			lap_id, lap_distance, session_time, speed, throttle, brake, steer, gear, engine_rpm, drs, ers_deploy, world_pos_x, world_pos_y, world_pos_z
+			lap_id, lap_distance, session_time, speed, throttle, brake, steer, gear, engine_rpm, drs, ers_deploy, ers_store_energy, ers_deploy_mode, world_pos_x, world_pos_y, world_pos_z
 		) VALUES (
-			:lap_id, :lap_distance, :session_time, :speed, :throttle, :brake, :steer, :gear, :engine_rpm, :drs, :ers_deploy, :world_pos_x, :world_pos_y, :world_pos_z
+			:lap_id, :lap_distance, :session_time, :speed, :throttle, :brake, :steer, :gear, :engine_rpm, :drs, :ers_deploy, :ers_store_energy, :ers_deploy_mode, :world_pos_x, :world_pos_y, :world_pos_z
 		)
 	`
 	// Use NamedExec for bulk insert. SQLX handles executing this efficiently in a single transaction if we provide it,
@@ -225,9 +225,9 @@ func (r *Repository) SaveImportedGhostLap(ctx context.Context, lap *Lap, telemet
 	if len(telemetry) > 0 {
 		telemetryQuery := `
 			INSERT INTO telemetry_samples (
-				lap_id, lap_distance, session_time, speed, throttle, brake, steer, gear, engine_rpm, drs, ers_deploy, world_pos_x, world_pos_y, world_pos_z
+				lap_id, lap_distance, session_time, speed, throttle, brake, steer, gear, engine_rpm, drs, ers_deploy, ers_store_energy, ers_deploy_mode, world_pos_x, world_pos_y, world_pos_z
 			) VALUES (
-				:lap_id, :lap_distance, :session_time, :speed, :throttle, :brake, :steer, :gear, :engine_rpm, :drs, :ers_deploy, :world_pos_x, :world_pos_y, :world_pos_z
+				:lap_id, :lap_distance, :session_time, :speed, :throttle, :brake, :steer, :gear, :engine_rpm, :drs, :ers_deploy, :ers_store_energy, :ers_deploy_mode, :world_pos_x, :world_pos_y, :world_pos_z
 			)
 		`
 		stmt, err := tx.PrepareNamedContext(ctx, telemetryQuery)

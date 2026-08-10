@@ -33,21 +33,23 @@ type Lap struct {
 
 // TelemetrySample represents a single telemetry snapshot within a lap.
 type TelemetrySample struct {
-	ID          int64   `db:"id" json:"id"`
-	LapID       int64   `db:"lap_id" json:"lap_id"`
-	LapDistance float64 `db:"lap_distance" json:"lap_distance"`
-	SessionTime float64 `db:"session_time" json:"session_time"`
-	Speed       int     `db:"speed" json:"speed"`
-	Throttle    float64 `db:"throttle" json:"throttle"`
-	Brake       float64 `db:"brake" json:"brake"`
-	Steer       float64 `db:"steer" json:"steer"`
-	Gear        int     `db:"gear" json:"gear"`
-	EngineRPM   int     `db:"engine_rpm" json:"engine_rpm"`
-	DRS         bool    `db:"drs" json:"drs"`
-	ERSDeploy   float64 `db:"ers_deploy" json:"ers_deploy"`
-	WorldPosX   float64 `db:"world_pos_x" json:"world_pos_x"`
-	WorldPosY   float64 `db:"world_pos_y" json:"world_pos_y"`
-	WorldPosZ   float64 `db:"world_pos_z" json:"world_pos_z"`
+	ID             int64   `db:"id" json:"id"`
+	LapID          int64   `db:"lap_id" json:"lap_id"`
+	LapDistance    float64 `db:"lap_distance" json:"lap_distance"`
+	SessionTime    float64 `db:"session_time" json:"session_time"`
+	Speed          int     `db:"speed" json:"speed"`
+	Throttle       float64 `db:"throttle" json:"throttle"`
+	Brake          float64 `db:"brake" json:"brake"`
+	Steer          float64 `db:"steer" json:"steer"`
+	Gear           int     `db:"gear" json:"gear"`
+	EngineRPM      int     `db:"engine_rpm" json:"engine_rpm"`
+	DRS            bool    `db:"drs" json:"drs"`
+	ERSDeploy      float64 `db:"ers_deploy" json:"ers_deploy"`
+	ERSStoreEnergy float64 `db:"ers_store_energy" json:"ers_store_energy"`
+	ERSDeployMode  int     `db:"ers_deploy_mode" json:"ers_deploy_mode"`
+	WorldPosX      float64 `db:"world_pos_x" json:"world_pos_x"`
+	WorldPosY      float64 `db:"world_pos_y" json:"world_pos_y"`
+	WorldPosZ      float64 `db:"world_pos_z" json:"world_pos_z"`
 }
 
 // Participant represents a driver/participant in a session.

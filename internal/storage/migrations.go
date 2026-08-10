@@ -61,6 +61,8 @@ CREATE TABLE IF NOT EXISTS telemetry_samples (
     engine_rpm      INTEGER,
     drs             BOOLEAN,
     ers_deploy      REAL,
+    ers_store_energy REAL,
+    ers_deploy_mode INTEGER,
     world_pos_x     REAL,
     world_pos_y     REAL,
     world_pos_z     REAL
