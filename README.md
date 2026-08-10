@@ -12,7 +12,7 @@
 - **SQLite Storage** — Persists session data, laps, telemetry traces, and session participants locally
 - **Driver & Participant Metadata** — Stores driver names, team IDs, race numbers, and AI status per session
 - **Web Dashboard** — Browser-based interface for live data visualization
-- **Lap Comparison** — Compare lap times, sector splits, and telemetry traces
+- **Lap Comparison** — Compare lap times, sector splits, and telemetry traces with driver name matching and participant roster visualization
 - **Real-time WebSocket** — Stream live telemetry to the dashboard via WebSocket
 - **Multi-format Support** — Supports both 2025 & 2026 UDP packet formats
 - **Live Track Mini-Map** — Real-time visualization of the car's position on the circuit

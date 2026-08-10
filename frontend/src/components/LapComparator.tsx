@@ -18,9 +18,23 @@ interface Session {
   created_at: string;
 }
 
+interface Participant {
+  id: number;
+  session_id: number;
+  car_index: number;
+  name: string;
+  driver_id: number;
+  team_id: number;
+  race_number: number;
+  ai_controlled: boolean;
+  nationality: number;
+  created_at?: string;
+}
+
 interface Lap {
   id: number;
   session_id: number;
+  car_index?: number;
   lap_number: number;
   lap_time_ms: number;
   is_valid: boolean;
@@ -28,6 +42,7 @@ interface Lap {
 
 interface TelemetrySample {
   id: number;
+  car_index?: number;
   lap_distance: number;
   session_time: number;
   speed: number;
@@ -39,6 +54,7 @@ export const LapComparator: React.FC = () => {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<number | ''>('');
   
+  const [participants, setParticipants] = useState<Participant[]>([]);
   const [laps, setLaps] = useState<Lap[]>([]);
   const [lapAId, setLapAId] = useState<number | ''>('');
   const [lapBId, setLapBId] = useState<number | ''>('');
@@ -88,8 +104,14 @@ export const LapComparator: React.FC = () => {
         .then(res => res.json())
         .then(data => setLaps(data || []))
         .catch(err => console.error("Failed to fetch laps", err));
+
+      fetch(`/api/sessions/${selectedSessionId}/participants`)
+        .then(res => res.json())
+        .then(data => setParticipants(data || []))
+        .catch(err => console.error("Failed to fetch participants", err));
     } else {
       setLaps([]);
+      setParticipants([]);
       setLapAId('');
       setLapBId('');
     }
@@ -119,6 +141,22 @@ export const LapComparator: React.FC = () => {
 
   const normA = normalizeTime(telemetryA);
   const normB = normalizeTime(telemetryB);
+
+  const formatLapOption = (l: Lap) => {
+    const p = l.car_index !== undefined && l.car_index !== null 
+      ? participants.find(part => part.car_index === l.car_index) 
+      : undefined;
+    
+    const timeStr = formatTime(l.lap_time_ms);
+    const driverLabel = p 
+      ? `${p.name}${p.race_number !== undefined && p.race_number !== null ? ` (#${p.race_number})` : ''}`
+      : (l.car_index !== undefined && l.car_index !== null ? `Car ${l.car_index}` : null);
+
+    if (driverLabel) {
+      return `Lap ${l.lap_number} — ${driverLabel} — ${timeStr}`;
+    }
+    return `Lap ${l.lap_number} (${timeStr})`;
+  };
 
   return (
     <div className="dashboard-grid" style={{ paddingTop: 0 }}>
@@ -165,7 +203,7 @@ export const LapComparator: React.FC = () => {
             >
               <option value="">Select Lap A...</option>
               {laps.map(l => (
-                <option key={l.id} value={l.id}>Lap {l.lap_number} ({formatTime(l.lap_time_ms)})</option>
+                <option key={l.id} value={l.id}>{formatLapOption(l)}</option>
               ))}
             </select>
           </div>
@@ -182,7 +220,7 @@ export const LapComparator: React.FC = () => {
             >
               <option value="">Select Lap B...</option>
               {laps.map(l => (
-                <option key={l.id} value={l.id}>Lap {l.lap_number} ({formatTime(l.lap_time_ms)})</option>
+                <option key={l.id} value={l.id}>{formatLapOption(l)}</option>
               ))}
             </select>
           </div>
@@ -217,6 +255,59 @@ export const LapComparator: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Participants Roster Panel */}
+      {selectedSessionId !== '' && (
+        <div className="glass-panel" style={{ gridColumn: 'span 12', padding: '1rem 1.25rem', marginTop: '-0.5rem' }}>
+          <h4 className="readout-label" style={{ marginBottom: '0.75rem', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            🏎️ Session Participants ({participants.length})
+          </h4>
+          {participants.length === 0 ? (
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>
+              No participant metadata recorded for this session.
+            </p>
+          ) : (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem' }}>
+              {participants.map(p => (
+                <div 
+                  key={p.id || `car-${p.car_index}`}
+                  style={{ 
+                    background: 'rgba(0, 0, 0, 0.35)', 
+                    border: '1px solid var(--border-color)', 
+                    borderRadius: 'var(--radius-sm)', 
+                    padding: '0.4rem 0.75rem', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '0.5rem',
+                    fontSize: '0.85rem' 
+                  }}
+                >
+                  <span style={{ fontWeight: 'bold', color: 'var(--accent-secondary)', fontFamily: 'var(--font-mono)' }}>
+                    #{p.race_number}
+                  </span>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                    {p.name}
+                  </span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', background: 'rgba(255, 255, 255, 0.06)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
+                    Team {p.team_id}
+                  </span>
+                  <span style={{ 
+                    fontSize: '0.7rem', 
+                    fontWeight: 700, 
+                    padding: '0.1rem 0.4rem', 
+                    borderRadius: '999px',
+                    background: p.ai_controlled ? 'rgba(255, 165, 0, 0.15)' : 'rgba(0, 210, 211, 0.15)',
+                    color: p.ai_controlled ? '#ffa500' : '#00d2d3',
+                    border: `1px solid ${p.ai_controlled ? 'rgba(255, 165, 0, 0.3)' : 'rgba(0, 210, 211, 0.3)'}`
+                  }}>
+                    {p.ai_controlled ? 'AI' : 'HUMAN'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Speed Sub-chart */}
       <div className="glass-panel" style={{ gridColumn: 'span 12', height: '280px', display: 'flex', flexDirection: 'column' }}>
