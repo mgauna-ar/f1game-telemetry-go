@@ -88,10 +88,10 @@ describe('LapComparator Component', () => {
       expect(screen.getByText('HUMAN')).toBeInTheDocument();
     });
 
-    // Verify option label with matched driver name: "Lap 3 — Max Verstappen (#1) — 1:25.432"
-    expect(screen.getAllByText('Lap 3 — Max Verstappen (#1) — 1:25.432').length).toBeGreaterThan(0);
-
-    // Verify option label with fallback driver name: "Lap 4 — Car 2 — 1:26.100"
-    expect(screen.getAllByText('Lap 4 — Car 2 — 1:26.100').length).toBeGreaterThan(0);
+    // Verify optgroup labels and lap option labels inside dropdowns
+    expect(screen.getAllByRole('group', { name: 'Max Verstappen (#1)' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('group', { name: 'Car 2' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Lap 3 — 1:25.432/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Lap 4 — 1:26.100/).length).toBeGreaterThan(0);
   });
 });

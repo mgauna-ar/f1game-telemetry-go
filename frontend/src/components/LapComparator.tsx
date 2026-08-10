@@ -158,6 +158,35 @@ export const LapComparator: React.FC = () => {
     return `Lap ${l.lap_number} (${timeStr})`;
   };
 
+  const renderLapSelectOptions = () => {
+    if (participants.length === 0) {
+      return laps.map(l => (
+        <option key={l.id} value={l.id}>{formatLapOption(l)}</option>
+      ));
+    }
+
+    const carIndicesWithLaps = Array.from(new Set(laps.map(l => l.car_index ?? -1)));
+    
+    return carIndicesWithLaps.map(carIdx => {
+      const p = participants.find(part => part.car_index === carIdx);
+      const groupLabel = p 
+        ? `${p.name}${p.race_number !== undefined && p.race_number !== null ? ` (#${p.race_number})` : ''}` 
+        : (carIdx >= 0 ? `Car ${carIdx}` : 'Ghost / Imported Laps');
+
+      const driverLaps = laps.filter(l => (l.car_index ?? -1) === carIdx);
+
+      return (
+        <optgroup key={carIdx} label={groupLabel}>
+          {driverLaps.map(l => (
+            <option key={l.id} value={l.id}>
+              Lap {l.lap_number} — {formatTime(l.lap_time_ms)}
+            </option>
+          ))}
+        </optgroup>
+      );
+    });
+  };
+
   return (
     <div className="dashboard-grid" style={{ paddingTop: 0 }}>
       <div className="header glass-panel" style={{ gridColumn: 'span 12' }}>
@@ -202,9 +231,7 @@ export const LapComparator: React.FC = () => {
               disabled={!selectedSessionId}
             >
               <option value="">Select Lap A...</option>
-              {laps.map(l => (
-                <option key={l.id} value={l.id}>{formatLapOption(l)}</option>
-              ))}
+              {renderLapSelectOptions()}
             </select>
           </div>
 
@@ -219,9 +246,7 @@ export const LapComparator: React.FC = () => {
               disabled={!selectedSessionId}
             >
               <option value="">Select Lap B...</option>
-              {laps.map(l => (
-                <option key={l.id} value={l.id}>{formatLapOption(l)}</option>
-              ))}
+              {renderLapSelectOptions()}
             </select>
           </div>
 

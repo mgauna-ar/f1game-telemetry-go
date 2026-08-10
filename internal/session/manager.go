@@ -9,10 +9,10 @@ import (
 )
 
 // SessionManager orchestrates the processing of F1 telemetry packets.
-// It detects new sessions and routes lap and telemetry data to the LapTracker.
+// It detects new sessions and routes lap and telemetry data to LapTrackers for all active cars.
 type SessionManager struct {
-	repo       *storage.Repository
-	lapTracker *LapTracker
+	repo        *storage.Repository
+	lapTrackers map[int]*LapTracker
 
 	currentSessionUID uint64
 	currentSession    *storage.Session
@@ -20,9 +20,13 @@ type SessionManager struct {
 
 // NewSessionManager creates a new SessionManager.
 func NewSessionManager(repo *storage.Repository) *SessionManager {
+	trackers := make(map[int]*LapTracker)
+	for i := 0; i < packets.MaxCars; i++ {
+		trackers[i] = NewLapTracker(repo, i)
+	}
 	return &SessionManager{
-		repo:       repo,
-		lapTracker: NewLapTracker(repo),
+		repo:        repo,
+		lapTrackers: trackers,
 	}
 }
 
@@ -40,9 +44,17 @@ func (sm *SessionManager) ProcessPacket(ctx context.Context, pkt packets.Packet)
 	case *packets.PacketSessionData:
 		sm.updateSessionInfo(ctx, p)
 	case *packets.PacketLapData:
-		sm.lapTracker.ProcessLapData(ctx, sm.currentSession, p)
+		for i := 0; i < packets.MaxCars; i++ {
+			if tracker, ok := sm.lapTrackers[i]; ok {
+				tracker.ProcessLapData(ctx, sm.currentSession, p)
+			}
+		}
 	case *packets.PacketCarTelemetryData:
-		sm.lapTracker.ProcessTelemetry(ctx, sm.currentSession, p)
+		for i := 0; i < packets.MaxCars; i++ {
+			if tracker, ok := sm.lapTrackers[i]; ok {
+				tracker.ProcessTelemetry(ctx, sm.currentSession, p)
+			}
+		}
 	case *packets.PacketParticipantsData:
 		sm.handleParticipantsData(ctx, p)
 	}
@@ -51,8 +63,10 @@ func (sm *SessionManager) ProcessPacket(ctx context.Context, pkt packets.Packet)
 func (sm *SessionManager) handleNewSession(ctx context.Context, header packets.PacketHeader) {
 	log.Printf("[Session] New session detected: %d", header.SessionUID)
 
-	// Finalize old session's lap tracker if needed
-	sm.lapTracker.Reset()
+	// Finalize old session's lap trackers if needed
+	for _, tracker := range sm.lapTrackers {
+		tracker.Reset()
+	}
 
 	sm.currentSessionUID = header.SessionUID
 

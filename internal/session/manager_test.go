@@ -42,7 +42,7 @@ func TestSessionManagerIntegration(t *testing.T) {
 		t.Errorf("expected track ID to be 11, got %d", manager.currentSession.TrackID)
 	}
 
-	// 3. Simulate Lap Data (Lap 1 starts)
+	// 3. Simulate Lap Data (Lap 1 starts for Car 0 and Car 1)
 	lapHeader := sessionHeader
 	lapHeader.PacketId = packets.PacketIDLapData
 	lapPacket := &packets.PacketLapData{
@@ -50,11 +50,16 @@ func TestSessionManagerIntegration(t *testing.T) {
 	}
 	lapPacket.LapData[0].CurrentLapNum = 1
 	lapPacket.LapData[0].Sector1TimeMSPart = 0
+	lapPacket.LapData[1].CurrentLapNum = 1
+	lapPacket.LapData[1].Sector1TimeMSPart = 0
 
 	manager.ProcessPacket(ctx, lapPacket)
 
-	if manager.lapTracker.currentLapNum != 1 {
-		t.Errorf("expected lap num 1, got %d", manager.lapTracker.currentLapNum)
+	if manager.lapTrackers[0].currentLapNum != 1 {
+		t.Errorf("expected car 0 lap num 1, got %d", manager.lapTrackers[0].currentLapNum)
+	}
+	if manager.lapTrackers[1].currentLapNum != 1 {
+		t.Errorf("expected car 1 lap num 1, got %d", manager.lapTrackers[1].currentLapNum)
 	}
 
 	// 4. Simulate Telemetry
@@ -67,26 +72,39 @@ func TestSessionManagerIntegration(t *testing.T) {
 	}
 	telemetryPacket.CarTelemetryData[0].Speed = 300
 	telemetryPacket.CarTelemetryData[0].Throttle = 1.0
+	telemetryPacket.CarTelemetryData[1].Speed = 295
+	telemetryPacket.CarTelemetryData[1].Throttle = 0.95
 
 	manager.ProcessPacket(ctx, telemetryPacket)
 
-	if len(manager.lapTracker.samples) != 1 {
-		t.Errorf("expected 1 telemetry sample, got %d", len(manager.lapTracker.samples))
+	if len(manager.lapTrackers[0].samples) != 1 {
+		t.Errorf("expected 1 telemetry sample for car 0, got %d", len(manager.lapTrackers[0].samples))
+	}
+	if len(manager.lapTrackers[1].samples) != 1 {
+		t.Errorf("expected 1 telemetry sample for car 1, got %d", len(manager.lapTrackers[1].samples))
 	}
 
 	// 5. Simulate Lap 2 starting (Lap 1 finishes)
 	lapPacket.LapData[0].CurrentLapNum = 2
 	lapPacket.LapData[0].LastLapTimeInMS = 85000 // 1:25.000
+	lapPacket.LapData[1].CurrentLapNum = 2
+	lapPacket.LapData[1].LastLapTimeInMS = 86200 // 1:26.200
 
 	manager.ProcessPacket(ctx, lapPacket)
 
-	if manager.lapTracker.currentLapNum != 2 {
-		t.Errorf("expected lap num 2, got %d", manager.lapTracker.currentLapNum)
+	if manager.lapTrackers[0].currentLapNum != 2 {
+		t.Errorf("expected car 0 lap num 2, got %d", manager.lapTrackers[0].currentLapNum)
+	}
+	if manager.lapTrackers[1].currentLapNum != 2 {
+		t.Errorf("expected car 1 lap num 2, got %d", manager.lapTrackers[1].currentLapNum)
 	}
 
 	// Telemetry samples should have been flushed on lap completion
-	if len(manager.lapTracker.samples) != 0 {
-		t.Errorf("expected 0 telemetry samples after lap flush, got %d", len(manager.lapTracker.samples))
+	if len(manager.lapTrackers[0].samples) != 0 {
+		t.Errorf("expected 0 telemetry samples for car 0 after lap flush, got %d", len(manager.lapTrackers[0].samples))
+	}
+	if len(manager.lapTrackers[1].samples) != 0 {
+		t.Errorf("expected 0 telemetry samples for car 1 after lap flush, got %d", len(manager.lapTrackers[1].samples))
 	}
 }
 

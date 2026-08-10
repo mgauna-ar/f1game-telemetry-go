@@ -10,7 +10,8 @@ import (
 
 // LapTracker monitors a car's lap progress and collects telemetry samples.
 type LapTracker struct {
-	repo *storage.Repository
+	repo     *storage.Repository
+	carIndex int
 
 	currentLapNum int
 	currentLap    *storage.Lap
@@ -18,10 +19,11 @@ type LapTracker struct {
 }
 
 // NewLapTracker creates a new LapTracker.
-func NewLapTracker(repo *storage.Repository) *LapTracker {
+func NewLapTracker(repo *storage.Repository, carIndex int) *LapTracker {
 	return &LapTracker{
-		repo:    repo,
-		samples: make([]storage.TelemetrySample, 0, 10000), // preallocate capacity
+		repo:     repo,
+		carIndex: carIndex,
+		samples:  make([]storage.TelemetrySample, 0, 10000), // preallocate capacity
 	}
 }
 
@@ -38,25 +40,27 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 		return
 	}
 
-	playerIdx := p.Header.PlayerCarIndex
-	if playerIdx >= packets.MaxCars {
+	if lt.carIndex >= packets.MaxCars || lt.carIndex >= len(p.LapData) {
 		return // invalid index
 	}
 
-	lapData := p.LapData[playerIdx]
+	lapData := p.LapData[lt.carIndex]
+	if lapData.CurrentLapNum == 0 {
+		return
+	}
 
 	if lt.currentLapNum == 0 {
-		lt.startNewLap(ctx, session.ID, int(lapData.CurrentLapNum), int(playerIdx))
+		lt.startNewLap(ctx, session.ID, int(lapData.CurrentLapNum), lt.carIndex)
 		return
 	}
 
 	// Lap boundary detection
 	if int(lapData.CurrentLapNum) > lt.currentLapNum {
 		lt.finalizeCurrentLap(ctx, int(lapData.LastLapTimeInMS))
-		lt.startNewLap(ctx, session.ID, int(lapData.CurrentLapNum), int(playerIdx))
+		lt.startNewLap(ctx, session.ID, int(lapData.CurrentLapNum), lt.carIndex)
 	} else if lt.currentLap != nil {
 		// Update current lap state (sectors, validity)
-		lt.currentLap.Sector1MS = int(lapData.Sector1TimeMSPart) // simplifying, actual time is ms + min*60000
+		lt.currentLap.Sector1MS = int(lapData.Sector1TimeMSPart)
 		lt.currentLap.Sector2MS = int(lapData.Sector2TimeMSPart)
 		lt.currentLap.IsValid = lapData.CurrentLapInvalid == 0
 
@@ -71,16 +75,15 @@ func (lt *LapTracker) ProcessTelemetry(ctx context.Context, session *storage.Ses
 		return
 	}
 
-	playerIdx := p.Header.PlayerCarIndex
-	if playerIdx >= packets.MaxCars {
+	if lt.carIndex >= packets.MaxCars || lt.carIndex >= len(p.CarTelemetryData) {
 		return // invalid index
 	}
 
-	carData := p.CarTelemetryData[playerIdx]
+	carData := p.CarTelemetryData[lt.carIndex]
 
 	sample := storage.TelemetrySample{
 		LapID:       lt.currentLap.ID,
-		LapDistance: 0, // Need to get this from lapData, but we can just use time for now
+		LapDistance: 0,
 		SessionTime: float64(p.Header.SessionTime),
 		Speed:       int(carData.Speed),
 		Throttle:    float64(carData.Throttle),
@@ -89,8 +92,8 @@ func (lt *LapTracker) ProcessTelemetry(ctx context.Context, session *storage.Ses
 		Gear:        int(carData.Gear),
 		EngineRPM:   int(carData.EngineRPM),
 		DRS:         carData.DRS == 1,
-		ERSDeploy:   0, // From CarStatus
-		WorldPosX:   0, // From Motion
+		ERSDeploy:   0,
+		WorldPosX:   0,
 		WorldPosY:   0,
 		WorldPosZ:   0,
 	}
@@ -101,7 +104,7 @@ func (lt *LapTracker) ProcessTelemetry(ctx context.Context, session *storage.Ses
 	if len(lt.samples) >= 600 { // 10 seconds at 60Hz
 		err := lt.repo.SaveTelemetryBatch(ctx, lt.samples)
 		if err != nil {
-			log.Printf("[LapTracker] Error saving telemetry batch: %v", err)
+			log.Printf("[LapTracker] Error saving telemetry batch for car %d: %v", lt.carIndex, err)
 		}
 		lt.samples = lt.samples[:0] // keep capacity
 	}

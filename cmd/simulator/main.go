@@ -165,6 +165,15 @@ func main() {
 				WorldVelocityX: float32(math.Cos(angle) * 30),
 				WorldVelocityZ: float32(-math.Sin(angle) * 30),
 			}
+			// Car 1 (Lewis Hamilton) motion offset
+			angle1 := angle - 0.15
+			motionPkt.CarMotionData[1] = packets.CarMotionData{
+				WorldPositionX: float32(300.0 * math.Sin(angle1)),
+				WorldPositionY: posY,
+				WorldPositionZ: float32(150.0 * math.Cos(2*angle1)),
+				WorldVelocityX: float32(math.Cos(angle1) * 29),
+				WorldVelocityZ: float32(-math.Sin(angle1) * 29),
+			}
 			sendPacket(conn, &motionPkt)
 
 			// 3. Car Telemetry Packet (ID: 6)
@@ -180,6 +189,15 @@ func main() {
 				Gear:      gear,
 				EngineRPM: rpm,
 			}
+			// Car 1 (Lewis Hamilton) telemetry
+			telemetryPkt.CarTelemetryData[1] = packets.CarTelemetryData{
+				Speed:     uint16(float64(speedKmh) * 0.97),
+				Throttle:  throttle * 0.95,
+				Steer:     float32(math.Sin(angle1)),
+				Brake:     brake * 1.05,
+				Gear:      gear,
+				EngineRPM: uint16(float64(rpm) * 0.97),
+			}
 			sendPacket(conn, &telemetryPkt)
 
 			// 4. Lap Data Packet (ID: 2)
@@ -189,10 +207,19 @@ func main() {
 			lapPkt.Header.PacketId = packets.PacketIDLapData
 			lapPkt.LapData[0] = packets.LapData{
 				CurrentLapTimeInMS: lapTimeMs,
+				LastLapTimeInMS:    85432,
 				CurrentLapNum:      lapNum,
 				LapDistance:        lapDist,
 				TotalDistance:      totalDistance,
 				CarPosition:        1,
+			}
+			lapPkt.LapData[1] = packets.LapData{
+				CurrentLapTimeInMS: lapTimeMs + 450,
+				LastLapTimeInMS:    86120,
+				CurrentLapNum:      lapNum,
+				LapDistance:        lapDist,
+				TotalDistance:      totalDistance,
+				CarPosition:        2,
 			}
 			sendPacket(conn, &lapPkt)
 		}
