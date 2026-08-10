@@ -5,11 +5,11 @@ This file (`.agents/AGENTS.md`) contains workspace-specific rules and context th
 ## 1. Technology Stack & Architecture
 *   **Backend:** Go (located at the root using standard `cmd/` and `internal/` layout), utilizing WebSockets for real-time data streaming and SQLite for persistence.
 *   **Frontend:** React (located in the `frontend/` directory), Vite (for building/bundling), Recharts (for data visualization), HTML5 Canvas (for track mapping). 
-*   **Communication:** JSON payloads over WebSockets for live telemetry data (Packet IDs: 0 Motion, 1 Session, 2 LapData, 4 Participants, 6 Telemetry, 7 CarStatus).
+*   **Communication:** JSON payloads over WebSockets for live telemetry data (Packet IDs: 0 Motion, 1 Session, 2 LapData, 4 Participants, 5 CarSetup, 6 Telemetry, 7 CarStatus).
 
 ## 2. Testing Standards
 *   **Go Backend:** Always use table-driven tests for packet parsers (especially for handling malformed binary input) and ensure proper error handling.
-*   **Packet Simulation:** Use `make simulate` (`cmd/simulator/main.go`) to generate synthetic live UDP telemetry packets (Motion, Telemetry, LapData, ParticipantsData) at 20Hz without needing the physical F1 game.
+*   **Packet Simulation:** Use `make simulate` (`cmd/simulator/main.go`) to generate synthetic live UDP telemetry packets (Motion, Telemetry, LapData, ParticipantsData, CarSetup) at 20Hz without needing the physical F1 game.
 *   **React Frontend:** Use `vitest` and `@testing-library/react` (`jsdom`) for component and hook testing (like the `useTelemetry` hook).
 
 

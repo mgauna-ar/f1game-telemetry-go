@@ -66,6 +66,7 @@ func (s *Server) routes() {
 	s.router.Route("/api", func(r chi.Router) {
 		r.Get("/sessions", s.handleGetSessions)
 		r.Get("/sessions/{id}/participants", s.handleGetParticipants)
+		r.Get("/sessions/{id}/setups", s.handleGetSetups)
 		r.Get("/sessions/{id}/laps", s.handleGetLaps)
 		r.Get("/laps/{id}/telemetry", s.handleGetTelemetry)
 		r.Get("/laps/{id}/export", s.handleExportLap)
@@ -127,6 +128,25 @@ func (s *Server) handleGetParticipants(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(participants)
+}
+
+func (s *Server) handleGetSetups(w http.ResponseWriter, r *http.Request) {
+	sessionIDStr := chi.URLParam(r, "id")
+	sessionID, err := strconv.ParseInt(sessionIDStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid session ID", http.StatusBadRequest)
+		return
+	}
+
+	setups, err := s.repo.GetCarSetupsBySession(r.Context(), sessionID)
+	if err != nil {
+		log.Printf("Error getting car setups: %v", err)
+		http.Error(w, "Failed to get car setups", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(setups)
 }
 
 func (s *Server) handleGetLaps(w http.ResponseWriter, r *http.Request) {

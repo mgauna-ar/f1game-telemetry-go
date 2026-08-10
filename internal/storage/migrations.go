@@ -68,10 +68,39 @@ CREATE TABLE IF NOT EXISTS telemetry_samples (
     world_pos_z     REAL
 );
 
+CREATE TABLE IF NOT EXISTS car_setups (
+    id                      INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id              INTEGER REFERENCES sessions(id),
+    car_index               INTEGER NOT NULL,
+    front_wing              INTEGER,
+    rear_wing               INTEGER,
+    on_throttle             INTEGER,
+    off_throttle            INTEGER,
+    front_camber            REAL,
+    rear_camber             REAL,
+    front_toe               REAL,
+    rear_toe                REAL,
+    front_suspension        INTEGER,
+    rear_suspension         INTEGER,
+    front_anti_roll_bar     INTEGER,
+    rear_anti_roll_bar      INTEGER,
+    front_suspension_height INTEGER,
+    rear_suspension_height  INTEGER,
+    brake_pressure          INTEGER,
+    brake_bias              INTEGER,
+    front_tyre_pressure     REAL,
+    rear_tyre_pressure      REAL,
+    ballast                 INTEGER,
+    fuel_load               REAL,
+    created_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(session_id, car_index)
+);
+
 CREATE INDEX IF NOT EXISTS idx_samples_lap ON telemetry_samples(lap_id);
 CREATE INDEX IF NOT EXISTS idx_samples_distance ON telemetry_samples(lap_id, lap_distance);
 CREATE INDEX IF NOT EXISTS idx_laps_session ON laps(session_id);
 CREATE INDEX IF NOT EXISTS idx_participants_session ON participants(session_id);
+CREATE INDEX IF NOT EXISTS idx_car_setups_session ON car_setups(session_id);
 `
 
 // Migrate runs the schema migrations to ensure the database is up to date.

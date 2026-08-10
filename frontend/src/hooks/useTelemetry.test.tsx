@@ -21,7 +21,7 @@ beforeAll(() => {
 
 // A simple test component to use the hook
 function TestComponent({ wsUrl }: { wsUrl: string }) {
-  const { telemetry, lap, motion, connected } = useTelemetry(wsUrl);
+  const { telemetry, lap, motion, carSetup, connected } = useTelemetry(wsUrl);
 
   return (
     <div>
@@ -29,6 +29,8 @@ function TestComponent({ wsUrl }: { wsUrl: string }) {
       <div data-testid="speed">{telemetry?.Speed || 0}</div>
       <div data-testid="lap">{lap?.CurrentLapNum || 0}</div>
       <div data-testid="motion-x">{motion?.WorldPositionX || 0}</div>
+      <div data-testid="front-wing">{carSetup?.FrontWing || 0}</div>
+      <div data-testid="brake-bias">{carSetup?.BrakeBias || 0}</div>
     </div>
   );
 }
@@ -99,4 +101,34 @@ describe('useTelemetry', () => {
 
     expect(screen.getByTestId('motion-x')).toHaveTextContent('-100.5');
   });
+
+  it('parses car setup packets correctly', () => {
+    let wsInstance: MockWebSocket | undefined;
+    (globalThis as any).WebSocket = class extends MockWebSocket {
+      constructor(url: string) {
+        super(url);
+        wsInstance = this;
+      }
+    };
+
+    render(<TestComponent wsUrl="ws://localhost:8080/ws" />);
+
+    // Send a mock CarSetup packet (ID: 5)
+    act(() => {
+      if (wsInstance?.onmessage) {
+        wsInstance.onmessage({
+          data: JSON.stringify({
+            Header: { PacketId: 5, SessionTime: 1.0, PlayerCarIndex: 0 },
+            CarSetupData: [
+              { FrontWing: 11, RearWing: 8, BrakeBias: 56, FuelLoad: 45.0 }
+            ]
+          })
+        });
+      }
+    });
+
+    expect(screen.getByTestId('front-wing')).toHaveTextContent('11');
+    expect(screen.getByTestId('brake-bias')).toHaveTextContent('56');
+  });
 });
+

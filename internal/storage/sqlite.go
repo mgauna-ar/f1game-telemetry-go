@@ -305,6 +305,84 @@ func (r *Repository) GetParticipantsBySession(ctx context.Context, sessionID int
 	return participants, nil
 }
 
+// SaveCarSetups upserts car setups for a given session.
+func (r *Repository) SaveCarSetups(ctx context.Context, sessionID int64, setups []CarSetup) error {
+	if len(setups) == 0 {
+		return nil
+	}
+
+	tx, err := r.db.Beginx()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+
+	query := `
+		INSERT INTO car_setups (
+			session_id, car_index, front_wing, rear_wing, on_throttle, off_throttle,
+			front_camber, rear_camber, front_toe, rear_toe,
+			front_suspension, rear_suspension, front_anti_roll_bar, rear_anti_roll_bar,
+			front_suspension_height, rear_suspension_height, brake_pressure, brake_bias,
+			front_tyre_pressure, rear_tyre_pressure, ballast, fuel_load
+		) VALUES (
+			:session_id, :car_index, :front_wing, :rear_wing, :on_throttle, :off_throttle,
+			:front_camber, :rear_camber, :front_toe, :rear_toe,
+			:front_suspension, :rear_suspension, :front_anti_roll_bar, :rear_anti_roll_bar,
+			:front_suspension_height, :rear_suspension_height, :brake_pressure, :brake_bias,
+			:front_tyre_pressure, :rear_tyre_pressure, :ballast, :fuel_load
+		) ON CONFLICT(session_id, car_index) DO UPDATE SET
+			front_wing = excluded.front_wing,
+			rear_wing = excluded.rear_wing,
+			on_throttle = excluded.on_throttle,
+			off_throttle = excluded.off_throttle,
+			front_camber = excluded.front_camber,
+			rear_camber = excluded.rear_camber,
+			front_toe = excluded.front_toe,
+			rear_toe = excluded.rear_toe,
+			front_suspension = excluded.front_suspension,
+			rear_suspension = excluded.rear_suspension,
+			front_anti_roll_bar = excluded.front_anti_roll_bar,
+			rear_anti_roll_bar = excluded.rear_anti_roll_bar,
+			front_suspension_height = excluded.front_suspension_height,
+			rear_suspension_height = excluded.rear_suspension_height,
+			brake_pressure = excluded.brake_pressure,
+			brake_bias = excluded.brake_bias,
+			front_tyre_pressure = excluded.front_tyre_pressure,
+			rear_tyre_pressure = excluded.rear_tyre_pressure,
+			ballast = excluded.ballast,
+			fuel_load = excluded.fuel_load
+	`
+
+	stmt, err := tx.PrepareNamedContext(ctx, query)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to prepare car setups statement: %w", err)
+	}
+	defer stmt.Close()
+
+	for i := range setups {
+		setups[i].SessionID = sessionID
+		if _, err := stmt.ExecContext(ctx, setups[i]); err != nil {
+			tx.Rollback()
+			return fmt.Errorf("failed to save car setup at index %d: %w", setups[i].CarIndex, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit car setups transaction: %w", err)
+	}
+	return nil
+}
+
+// GetCarSetupsBySession retrieves all car setups recorded for a given session.
+func (r *Repository) GetCarSetupsBySession(ctx context.Context, sessionID int64) ([]CarSetup, error) {
+	var setups []CarSetup
+	query := `SELECT * FROM car_setups WHERE session_id = ? ORDER BY car_index ASC`
+	if err := r.db.SelectContext(ctx, &setups, query, sessionID); err != nil {
+		return nil, fmt.Errorf("failed to get car setups: %w", err)
+	}
+	return setups, nil
+}
+
 // Close closes the database connection.
 func (r *Repository) Close() error {
 	return r.db.Close()

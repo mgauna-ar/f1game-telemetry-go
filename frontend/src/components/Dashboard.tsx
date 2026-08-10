@@ -6,6 +6,7 @@ import { TrackMap } from './TrackMap';
 import { SessionHeader } from './SessionHeader';
 import { LeaderboardTower } from './LeaderboardTower';
 import { CarStatusWidget } from './CarStatusWidget';
+import { CarSetupWidget } from './CarSetupWidget';
 
 const WS_URL = 'ws://localhost:8080/ws';
 
@@ -20,6 +21,7 @@ export const Dashboard: React.FC = () => {
     lap = null,
     motion = null,
     carStatus = null,
+    carSetup = null,
     trackPath = [],
     connected = false,
     history = [],
@@ -66,6 +68,10 @@ export const Dashboard: React.FC = () => {
       <div style={{ gridColumn: 'span 7', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
         {/* Car Status & Pit Wall Telemetry Widget */}
         <CarStatusWidget carStatus={carStatus} driverName={driverName} />
+
+        {/* Car Setup Telemetry Widget */}
+        <CarSetupWidget carSetup={carSetup} driverName={driverName} />
+
 
         {/* Speedometer, Gauges & Indicators Row */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '1rem' }}>

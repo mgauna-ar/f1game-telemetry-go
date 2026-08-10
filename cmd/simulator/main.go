@@ -290,6 +290,39 @@ func main() {
 				}
 				sendPacket(conn, &statusPkt)
 			}
+
+			// 6. Car Setup Packet (ID: 5)
+			if frameID == 1 || frameID%20 == 0 {
+				setupPkt := packets.PacketCarSetupData{
+					Header: header,
+				}
+				setupPkt.Header.PacketId = packets.PacketIDCarSetup
+				for i := 0; i < 4; i++ {
+					setupPkt.CarSetupData[i] = packets.CarSetupData{
+						FrontWing:             uint8(10 + i*2),
+						RearWing:              uint8(8 + i),
+						OnThrottle:            uint8(60 + i*5),
+						OffThrottle:           uint8(50 + i*2),
+						FrontCamber:           float32(-3.0 + float64(i)*0.1),
+						RearCamber:            float32(-1.5 + float64(i)*0.05),
+						FrontToe:              float32(0.05 + float64(i)*0.01),
+						RearToe:               float32(0.20 + float64(i)*0.02),
+						FrontSuspension:       uint8(8 + i),
+						RearSuspension:        uint8(6 + i),
+						FrontAntiRollBar:      uint8(7 + i),
+						RearAntiRollBar:       uint8(5 + i),
+						FrontSuspensionHeight: uint8(33 + i),
+						RearSuspensionHeight:  uint8(38 + i),
+						BrakePressure:         uint8(100 - i*2),
+						BrakeBias:             uint8(56 - i),
+						FrontTyrePressure:     float32(23.5 + float64(i)*0.2),
+						RearTyrePressure:      float32(21.0 + float64(i)*0.2),
+						Ballast:               0,
+						FuelLoad:              float32(48.0 - float64(i)*1.5),
+					}
+				}
+				sendPacket(conn, &setupPkt)
+			}
 		}
 	}
 }

@@ -290,3 +290,96 @@ func TestSaveAndGetTelemetryWithERS(t *testing.T) {
 		t.Errorf("expected ERSDeployMode 2, got %d", retrieved[0].ERSDeployMode)
 	}
 }
+
+func TestSaveAndGetCarSetups(t *testing.T) {
+	repo := setupTestRepo(t)
+	session := createTestSession(t, repo)
+	ctx := context.Background()
+
+	setups := []CarSetup{
+		{
+			CarIndex:              0,
+			FrontWing:             10,
+			RearWing:              8,
+			OnThrottle:            60,
+			OffThrottle:           55,
+			FrontCamber:           -3.0,
+			RearCamber:            -1.5,
+			FrontToe:              0.05,
+			RearToe:               0.2,
+			FrontSuspension:       8,
+			RearSuspension:        6,
+			FrontAntiRollBar:      7,
+			RearAntiRollBar:       5,
+			FrontSuspensionHeight: 33,
+			RearSuspensionHeight:  38,
+			BrakePressure:         100,
+			BrakeBias:             56,
+			FrontTyrePressure:     23.5,
+			RearTyrePressure:      21.0,
+			Ballast:               0,
+			FuelLoad:              45.0,
+		},
+		{
+			CarIndex:              1,
+			FrontWing:             12,
+			RearWing:              9,
+			OnThrottle:            70,
+			OffThrottle:           50,
+			FrontCamber:           -2.8,
+			RearCamber:            -1.4,
+			FrontToe:              0.06,
+			RearToe:               0.25,
+			FrontSuspension:       9,
+			RearSuspension:        7,
+			FrontAntiRollBar:      8,
+			RearAntiRollBar:       6,
+			FrontSuspensionHeight: 34,
+			RearSuspensionHeight:  40,
+			BrakePressure:         98,
+			BrakeBias:             55,
+			FrontTyrePressure:     24.0,
+			RearTyrePressure:      21.5,
+			Ballast:               0,
+			FuelLoad:              42.0,
+		},
+	}
+
+	if err := repo.SaveCarSetups(ctx, session.ID, setups); err != nil {
+		t.Fatalf("SaveCarSetups() error = %v", err)
+	}
+
+	got, err := repo.GetCarSetupsBySession(ctx, session.ID)
+	if err != nil {
+		t.Fatalf("GetCarSetupsBySession() error = %v", err)
+	}
+
+	if len(got) != 2 {
+		t.Fatalf("expected 2 car setups, got %d", len(got))
+	}
+
+	if got[0].CarIndex != 0 || got[0].FrontWing != 10 || got[0].OnThrottle != 60 || got[0].BrakeBias != 56 {
+		t.Errorf("car setup[0] unexpected values: %+v", got[0])
+	}
+	if got[1].CarIndex != 1 || got[1].FrontWing != 12 || got[1].BrakeBias != 55 {
+		t.Errorf("car setup[1] unexpected values: %+v", got[1])
+	}
+
+	// Verify upsert update
+	setups[0].FrontWing = 11
+	if err := repo.SaveCarSetups(ctx, session.ID, setups[:1]); err != nil {
+		t.Fatalf("SaveCarSetups() upsert error = %v", err)
+	}
+
+	gotAfter, err := repo.GetCarSetupsBySession(ctx, session.ID)
+	if err != nil {
+		t.Fatalf("GetCarSetupsBySession() error after upsert = %v", err)
+	}
+
+	if len(gotAfter) != 2 {
+		t.Fatalf("expected 2 car setups after upsert, got %d", len(gotAfter))
+	}
+	if gotAfter[0].FrontWing != 11 {
+		t.Errorf("expected FrontWing to be updated to 11, got %d", gotAfter[0].FrontWing)
+	}
+}

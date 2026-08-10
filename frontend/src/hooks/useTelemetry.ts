@@ -79,6 +79,29 @@ export interface CarStatusData {
   ERSDeployedThisLap?: number;
 }
 
+export interface CarSetupData {
+  FrontWing: number;
+  RearWing: number;
+  OnThrottle: number;
+  OffThrottle: number;
+  FrontCamber: number;
+  RearCamber: number;
+  FrontToe: number;
+  RearToe: number;
+  FrontSuspension: number;
+  RearSuspension: number;
+  FrontAntiRollBar: number;
+  RearAntiRollBar: number;
+  FrontSuspensionHeight: number;
+  RearSuspensionHeight: number;
+  BrakePressure: number;
+  BrakeBias: number;
+  FrontTyrePressure: number;
+  RearTyrePressure: number;
+  Ballast: number;
+  FuelLoad: number;
+}
+
 export interface PacketHeader {
   PacketId: number;
   SessionTime: number;
@@ -89,6 +112,12 @@ interface PacketCarTelemetryData {
   Header: PacketHeader;
   CarTelemetryData: CarTelemetryData[];
 }
+
+interface PacketCarSetupData {
+  Header: PacketHeader;
+  CarSetupData: CarSetupData[];
+}
+
 
 interface PacketLapData {
   Header: PacketHeader;
@@ -152,6 +181,7 @@ export function useTelemetry(wsUrl: string) {
   const [allLaps, setAllLaps] = useState<LapData[]>([]);
   const [allMotion, setAllMotion] = useState<CarMotionData[]>([]);
   const [allCarStatus, setAllCarStatus] = useState<CarStatusData[]>([]);
+  const [allCarSetup, setAllCarSetup] = useState<CarSetupData[]>([]);
   const [allTelemetry, setAllTelemetry] = useState<CarTelemetryData[]>([]);
   
   const [playerCarIndex, setPlayerCarIndex] = useState<number>(0);
@@ -214,6 +244,13 @@ export function useTelemetry(wsUrl: string) {
             setAllCarStatus(pkt.CarStatusData);
           }
         }
+        // PacketID 5: Car Setup Data
+        else if (header.PacketId === 5) {
+          const pkt = data as PacketCarSetupData;
+          if (pkt.CarSetupData) {
+            setAllCarSetup(pkt.CarSetupData);
+          }
+        }
         // PacketID 6: Car Telemetry Data
         else if (header.PacketId === 6) {
           const pkt = data as PacketCarTelemetryData;
@@ -271,6 +308,7 @@ export function useTelemetry(wsUrl: string) {
   const lap = allLaps[activeIdx] || null;
   const motion = allMotion[activeIdx] || null;
   const carStatus = allCarStatus[activeIdx] || null;
+  const carSetup = allCarSetup[activeIdx] || null;
 
   return {
     session,
@@ -278,11 +316,13 @@ export function useTelemetry(wsUrl: string) {
     allLaps,
     allMotion,
     allCarStatus,
+    allCarSetup,
     allTelemetry,
     telemetry,
     lap,
     motion,
     carStatus,
+    carSetup,
     trackPath,
     connected,
     history,
@@ -291,4 +331,5 @@ export function useTelemetry(wsUrl: string) {
     setSelectedCarIndex,
   };
 }
+
 
