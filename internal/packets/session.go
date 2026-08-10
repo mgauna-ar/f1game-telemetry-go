@@ -71,6 +71,23 @@ func SessionTypeName(sessionType uint8) string {
 	return fmt.Sprintf("Unknown Session (%d)", sessionType)
 }
 
+var weatherNames = map[uint8]string{
+	0: "Clear",
+	1: "Light Cloud",
+	2: "Overcast",
+	3: "Light Rain",
+	4: "Heavy Rain",
+	5: "Storm",
+}
+
+// WeatherName returns the human-readable string for weather state.
+func WeatherName(weather uint8) string {
+	if name, ok := weatherNames[weather]; ok {
+		return name
+	}
+	return "Unknown"
+}
+
 // MarshalZone contains marshal zone data.
 type MarshalZone struct {
 	ZoneStart float32

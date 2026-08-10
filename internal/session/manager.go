@@ -43,6 +43,18 @@ func (sm *SessionManager) ProcessPacket(ctx context.Context, pkt packets.Packet)
 	switch p := pkt.(type) {
 	case *packets.PacketSessionData:
 		sm.updateSessionInfo(ctx, p)
+	case *packets.PacketMotionData:
+		for i := 0; i < packets.MaxCars; i++ {
+			if tracker, ok := sm.lapTrackers[i]; ok {
+				tracker.ProcessMotion(p)
+			}
+		}
+	case *packets.PacketCarStatusData:
+		for i := 0; i < packets.MaxCars; i++ {
+			if tracker, ok := sm.lapTrackers[i]; ok {
+				tracker.ProcessCarStatus(p)
+			}
+		}
 	case *packets.PacketLapData:
 		for i := 0; i < packets.MaxCars; i++ {
 			if tracker, ok := sm.lapTrackers[i]; ok {
@@ -90,22 +102,13 @@ func (sm *SessionManager) updateSessionInfo(ctx context.Context, p *packets.Pack
 		return
 	}
 
-	// Use method generated in packets package if available
-	// or fallback to TrackID string representation if TrackName function isn't available
-	// The subagent created TrackName(id int8) string but let's be safe.
-	// We'll assume it exists as it was in the prompt.
-	// In the prompt we specified packets.TrackName(id int8) string, wait, was it a package level function?
-	// The prompt: a `TrackName(id int8) string` function mapping track IDs to names
-	// So we can use packets.TrackName(p.TrackId) - but actually p.TrackId might be uint8 in some specs. Wait, F1 spec says int8.
-	// To avoid compilation errors, we can just cast or ignore if we aren't sure. Let's just assume it works.
-	// Actually we can just write it safely here if we can't find it. Let's assume it's there.
-	// To avoid compiler error, I'll use a type assertion or just assume it.
-
 	updated := false
-	if sm.currentSession.TrackID != int(p.TrackId) || sm.currentSession.SessionType == "Unknown" {
+	weatherStr := packets.WeatherName(p.Weather)
+	if sm.currentSession.TrackID != int(p.TrackId) || sm.currentSession.SessionType == "Unknown" || sm.currentSession.Weather != weatherStr {
 		sm.currentSession.TrackID = int(p.TrackId)
 		sm.currentSession.TrackName = packets.TrackName(p.TrackId)
 		sm.currentSession.SessionType = packets.SessionTypeName(p.SessionType)
+		sm.currentSession.Weather = weatherStr
 		updated = true
 	}
 

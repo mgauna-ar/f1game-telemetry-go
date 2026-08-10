@@ -16,6 +16,10 @@ type LapTracker struct {
 	currentLapNum   int
 	currentLap      *storage.Lap
 	lastLapDistance float64
+	lastWorldPosX   float64
+	lastWorldPosY   float64
+	lastWorldPosZ   float64
+	lastERSDeploy   float64
 	samples         []storage.TelemetrySample
 }
 
@@ -33,7 +37,35 @@ func (lt *LapTracker) Reset() {
 	lt.currentLapNum = 0
 	lt.currentLap = nil
 	lt.lastLapDistance = 0
+	lt.lastWorldPosX = 0
+	lt.lastWorldPosY = 0
+	lt.lastWorldPosZ = 0
+	lt.lastERSDeploy = 0
 	lt.samples = lt.samples[:0]
+}
+
+// ProcessMotion updates the latest 3D world position coordinates for the car.
+func (lt *LapTracker) ProcessMotion(p *packets.PacketMotionData) {
+	if lt.carIndex >= packets.MaxCars || lt.carIndex >= len(p.CarMotionData) {
+		return
+	}
+	motion := p.CarMotionData[lt.carIndex]
+	lt.lastWorldPosX = float64(motion.WorldPositionX)
+	lt.lastWorldPosY = float64(motion.WorldPositionY)
+	lt.lastWorldPosZ = float64(motion.WorldPositionZ)
+}
+
+// ProcessCarStatus updates fuel load and ERS status.
+func (lt *LapTracker) ProcessCarStatus(p *packets.PacketCarStatusData) {
+	if lt.carIndex >= packets.MaxCars || lt.carIndex >= len(p.CarStatusData) {
+		return
+	}
+	cs := p.CarStatusData[lt.carIndex]
+	lt.lastERSDeploy = float64(cs.ERSDeployedThisLap)
+
+	if lt.currentLap != nil {
+		lt.currentLap.FuelLoad = float64(cs.FuelInTank)
+	}
 }
 
 // ProcessLapData processes the LapData packet to detect lap changes.
@@ -64,8 +96,14 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 		lt.startNewLap(ctx, session.ID, int(lapData.CurrentLapNum), lt.carIndex)
 	} else if lt.currentLap != nil {
 		// Update current lap state (sectors, validity)
-		lt.currentLap.Sector1MS = int(lapData.Sector1TimeMSPart)
-		lt.currentLap.Sector2MS = int(lapData.Sector2TimeMSPart)
+		s1 := int(lapData.Sector1TimeMSPart) + int(lapData.Sector1TimeMinutesPart)*60000
+		s2 := int(lapData.Sector2TimeMSPart) + int(lapData.Sector2TimeMinutesPart)*60000
+		if s1 > 0 {
+			lt.currentLap.Sector1MS = s1
+		}
+		if s2 > 0 {
+			lt.currentLap.Sector2MS = s2
+		}
 		lt.currentLap.IsValid = lapData.CurrentLapInvalid == 0
 
 		// Periodic save to keep DB updated
@@ -85,6 +123,11 @@ func (lt *LapTracker) ProcessTelemetry(ctx context.Context, session *storage.Ses
 
 	carData := p.CarTelemetryData[lt.carIndex]
 
+	speedKMH := float64(carData.Speed)
+	if speedKMH > lt.currentLap.MaxSpeedKMH {
+		lt.currentLap.MaxSpeedKMH = speedKMH
+	}
+
 	sample := storage.TelemetrySample{
 		LapID:       lt.currentLap.ID,
 		LapDistance: lt.lastLapDistance,
@@ -96,10 +139,10 @@ func (lt *LapTracker) ProcessTelemetry(ctx context.Context, session *storage.Ses
 		Gear:        int(carData.Gear),
 		EngineRPM:   int(carData.EngineRPM),
 		DRS:         carData.DRS == 1,
-		ERSDeploy:   0,
-		WorldPosX:   0,
-		WorldPosY:   0,
-		WorldPosZ:   0,
+		ERSDeploy:   lt.lastERSDeploy,
+		WorldPosX:   lt.lastWorldPosX,
+		WorldPosY:   lt.lastWorldPosY,
+		WorldPosZ:   lt.lastWorldPosZ,
 	}
 
 	lt.samples = append(lt.samples, sample)
@@ -135,6 +178,13 @@ func (lt *LapTracker) finalizeCurrentLap(ctx context.Context, lapTimeMS int) {
 
 	lt.currentLap.LapTimeMS = lapTimeMS
 
+	if lapTimeMS > 0 && lt.currentLap.Sector1MS > 0 && lt.currentLap.Sector2MS > 0 {
+		s3 := lapTimeMS - (lt.currentLap.Sector1MS + lt.currentLap.Sector2MS)
+		if s3 > 0 {
+			lt.currentLap.Sector3MS = s3
+		}
+	}
+
 	if err := lt.repo.SaveLap(ctx, lt.currentLap); err != nil {
 		log.Printf("[LapTracker] Error finalizing lap: %v", err)
 	}
@@ -145,5 +195,5 @@ func (lt *LapTracker) finalizeCurrentLap(ctx context.Context, lapTimeMS int) {
 		lt.samples = lt.samples[:0]
 	}
 
-	log.Printf("[LapTracker] Lap %d completed in %d ms", lt.currentLap.LapNumber, lapTimeMS)
+	log.Printf("[LapTracker] Lap %d completed in %d ms (Car %d)", lt.currentLap.LapNumber, lapTimeMS, lt.carIndex)
 }
