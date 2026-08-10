@@ -9,7 +9,8 @@
 ## Features
 
 - **UDP Telemetry Capture** — Listens for real-time telemetry packets from F1 25 / F1 26
-- **SQLite Storage** — Persists session data locally for analysis and replay
+- **SQLite Storage** — Persists session data, laps, telemetry traces, and session participants locally
+- **Driver & Participant Metadata** — Stores driver names, team IDs, race numbers, and AI status per session
 - **Web Dashboard** — Browser-based interface for live data visualization
 - **Lap Comparison** — Compare lap times, sector splits, and telemetry traces
 - **Real-time WebSocket** — Stream live telemetry to the dashboard via WebSocket
@@ -120,6 +121,7 @@ f1game-telemetry-go/
 | `GET` | `/` | Web dashboard |
 | `GET` | `/ws` | WebSocket telemetry stream |
 | `GET` | `/api/sessions` | List recorded sessions |
+| `GET` | `/api/sessions/:id/participants` | Get participant roster (drivers) for a session |
 | `GET` | `/api/sessions/:id/laps` | Get laps for a session |
 | `GET` | `/api/laps/:id/telemetry` | Get telemetry for a lap |
 | `GET` | `/api/laps/:id/export` | Export lap and telemetry as a Ghost Lap JSON |
