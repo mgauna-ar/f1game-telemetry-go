@@ -1,5 +1,5 @@
 import { render, screen, act } from '@testing-library/react';
-import { useTelemetry } from './useTelemetry';
+import { useTelemetry, parseDriverName } from './useTelemetry';
 
 // Mock the WebSocket
 class MockWebSocket {
@@ -130,5 +130,65 @@ describe('useTelemetry', () => {
     expect(screen.getByTestId('front-wing')).toHaveTextContent('11');
     expect(screen.getByTestId('brake-bias')).toHaveTextContent('56');
   });
+
+  it('slices participants to NumActiveCars', () => {
+    let wsInstance: MockWebSocket | undefined;
+    (globalThis as any).WebSocket = class extends MockWebSocket {
+      constructor(url: string) {
+        super(url);
+        wsInstance = this;
+      }
+    };
+
+    function ParticipantsTestComponent() {
+      const { participants } = useTelemetry('ws://localhost:8080/ws');
+      return <div data-testid="count">{participants.length}</div>;
+    }
+
+    render(<ParticipantsTestComponent />);
+
+    act(() => {
+      if (wsInstance?.onmessage) {
+        wsInstance.onmessage({
+          data: JSON.stringify({
+            Header: { PacketId: 4, SessionTime: 1.0, PlayerCarIndex: 0 },
+            NumActiveCars: 4,
+            Participants: [
+              { DriverId: 9, Name: 'Max Verstappen' },
+              { DriverId: 7, Name: 'Lewis Hamilton' },
+              { DriverId: 22, Name: 'Charles Leclerc' },
+              { DriverId: 10, Name: 'Lando Norris' },
+              { DriverId: 0, Name: '' },
+              { DriverId: 0, Name: '' },
+            ]
+          })
+        });
+      }
+    });
+
+    expect(screen.getByTestId('count')).toHaveTextContent('4');
+  });
 });
+
+describe('parseDriverName', () => {
+  it('parses string driver names without base64 corruption', () => {
+    expect(parseDriverName('Carlos Sainz', 'Driver 55')).toBe('Carlos Sainz');
+    expect(parseDriverName('Sainz', 'Driver 55')).toBe('Sainz');
+  });
+
+  it('parses character array driver names', () => {
+    const charArray = [77, 97, 120, 0, 0];
+    expect(parseDriverName(charArray, 'Driver 1')).toBe('Max');
+  });
+
+  it('resolves AI driver names via DriverId when name is empty', () => {
+    expect(parseDriverName('', 'Driver 9', 9)).toBe('Max Verstappen');
+    expect(parseDriverName('', 'Driver 22', 22)).toBe('Charles Leclerc');
+  });
+
+  it('falls back to defaultName when name is empty and driverId unknown', () => {
+    expect(parseDriverName('', 'Driver 99', 999)).toBe('Driver 99');
+  });
+});
+
 

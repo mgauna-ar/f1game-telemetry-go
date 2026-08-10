@@ -64,7 +64,8 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
     const lap = laps[idx];
     const carStatus = carStatuses[idx];
     const rawName = p.Name;
-    const name = parseDriverName(rawName, `Driver ${p.RaceNumber || idx + 1}`);
+    const defaultName = p.RaceNumber ? `Driver #${p.RaceNumber}` : `Car #${idx + 1}`;
+    const name = parseDriverName(rawName, defaultName, p.DriverId);
 
     return {
       carIndex: idx,
@@ -84,15 +85,52 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
     { carIndex: 0, position: laps[0]?.CarPosition || 1, name: 'Player Car', raceNumber: 1, teamId: 0, aiControlled: false, lap: laps[0], carStatus: carStatuses[0], isPlayer: true }
   ];
 
-  // Sort drivers by position
-  displayDrivers.sort((a, b) => a.position - b.position);
+  // Sort drivers
+  if (isQualy) {
+    displayDrivers.sort((a, b) => {
+      const timeA = a.lap?.LastLapTimeInMS || 0;
+      const timeB = b.lap?.LastLapTimeInMS || 0;
+
+      // Both drivers have completed timed laps -> sort by lap time ascending
+      if (timeA > 0 && timeB > 0) {
+        return timeA - timeB;
+      }
+      // Driver A has timed lap, B does not -> A goes first
+      if (timeA > 0 && timeB === 0) return -1;
+      if (timeA === 0 && timeB > 0) return 1;
+
+      // Neither has a timed lap -> sort by track position / car index
+      if (a.position !== b.position) return a.position - b.position;
+      return a.carIndex - b.carIndex;
+    });
+
+    // Re-assign positions based on qualifying standing order
+    displayDrivers.forEach((d, idx) => {
+      d.position = idx + 1;
+    });
+  } else {
+    // Race sorting by car position
+    displayDrivers.sort((a, b) => a.position - b.position);
+  }
+
+  // Find Pole Position lap time in Qualifying
+  const poleTimeMs = isQualy && displayDrivers[0]?.lap?.LastLapTimeInMS && displayDrivers[0].lap.LastLapTimeInMS > 0
+    ? displayDrivers[0].lap.LastLapTimeInMS
+    : 0;
 
   const formatTime = (ms?: number) => {
-    if (!ms) return '--:--.---';
+    if (!ms || ms <= 0) return 'NO TIME';
     const mins = Math.floor(ms / 60000);
     const secs = Math.floor((ms % 60000) / 1000);
     const millis = ms % 1000;
     return `${mins}:${secs.toString().padStart(2, '0')}.${millis.toString().padStart(3, '0')}`;
+  };
+
+  const formatQualyDelta = (driverMs?: number) => {
+    if (!driverMs || driverMs <= 0) return '';
+    if (!poleTimeMs || driverMs === poleTimeMs) return 'POLE';
+    const delta = (driverMs - poleTimeMs) / 1000;
+    return `+${delta.toFixed(3)}s`;
   };
 
   const formatDelta = (msPart?: number, minsPart?: number) => {
@@ -135,8 +173,9 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
           const teamColor = TEAM_COLORS[driver.teamId] || '#A0A0A0';
           const isSelected = driver.carIndex === selectedCarIndex;
           const compound = driver.carStatus?.VisualTyreCompound ? TYRE_COMPOUNDS[driver.carStatus.VisualTyreCompound] : null;
+          const driverBestLap = driver.lap?.LastLapTimeInMS;
 
-          const showEliminationLine = isQualy && (
+          const showEliminationLine = isQualy && displayDrivers.length >= 15 && (
             (isQ1 && index === 14) || (isQ2 && index === 9)
           );
 
@@ -189,9 +228,14 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
                 <div className="tower-time-col mono">
                   {isQualy ? (
                     <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>
-                        {formatTime(driver.lap?.LastLapTimeInMS || driver.lap?.CurrentLapTimeInMS)}
+                      <div style={{ fontSize: '0.85rem', fontWeight: 600, color: driverBestLap && driverBestLap > 0 ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                        {formatTime(driverBestLap)}
                       </div>
+                      {driverBestLap && driverBestLap > 0 && (
+                        <div style={{ fontSize: '0.7rem', color: index === 0 ? 'var(--accent-primary)' : 'var(--text-secondary)' }}>
+                          {formatQualyDelta(driverBestLap)}
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div style={{ textAlign: 'right' }}>

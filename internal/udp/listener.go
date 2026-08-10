@@ -41,7 +41,7 @@ func NewListener(addr string, bufferSize int) *Listener {
 	return &Listener{
 		addr:       addr,
 		bufferSize: bufferSize,
-		packets:    make(chan RawPacket, 100),
+		packets:    make(chan RawPacket, 2048),
 		ready:      make(chan struct{}),
 	}
 }

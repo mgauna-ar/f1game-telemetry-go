@@ -158,20 +158,58 @@ export interface TelemetrySample extends CarTelemetryData {
   SessionTime: number;
 }
 
-export function parseDriverName(rawName: string | number[] | undefined, defaultName: string): string {
-  if (!rawName) return defaultName;
+export const F1_DRIVER_NAMES: Record<number, string> = {
+  0: 'Carlos Sainz',
+  1: 'Daniil Kvyat',
+  2: 'Daniel Ricciardo',
+  3: 'Fernando Alonso',
+  6: 'Kimi Räikkönen',
+  7: 'Lewis Hamilton',
+  9: 'Max Verstappen',
+  10: 'Lando Norris',
+  11: 'Sergio Pérez',
+  12: 'Valtteri Bottas',
+  14: 'Esteban Ocon',
+  15: 'Lance Stroll',
+  17: 'George Russell',
+  19: 'Alexander Albon',
+  20: 'Nicholas Latifi',
+  21: 'Pierre Gasly',
+  22: 'Charles Leclerc',
+  23: 'Zhou Guanyu',
+  24: 'Mick Schumacher',
+  25: 'Kevin Magnussen',
+  26: 'Yuki Tsunoda',
+  27: 'Logan Sargeant',
+  28: 'Oscar Piastri',
+  29: 'Liam Lawson',
+  30: 'Nyck de Vries',
+  31: 'Felipe Drugovich',
+  32: 'Théo Pourchaire',
+  33: 'Oliver Bearman',
+  34: 'Kimi Antonelli',
+  35: 'Jack Doohan',
+  36: 'Gabriel Bortoleto',
+  37: 'Isack Hadjar',
+};
+
+export function parseDriverName(rawName: string | number[] | undefined, defaultName: string, driverId?: number): string {
+  let nameStr = '';
   if (typeof rawName === 'string') {
-    try {
-      const decoded = atob(rawName).replace(/\0/g, '').trim();
-      return decoded || defaultName;
-    } catch {
-      return rawName.replace(/\0/g, '').trim() || defaultName;
-    }
-  }
-  if (Array.isArray(rawName)) {
+    nameStr = rawName.replace(/\0/g, '').trim();
+  } else if (Array.isArray(rawName)) {
     const chars = rawName.map(c => String.fromCharCode(c)).join('');
-    return chars.replace(/\0/g, '').trim() || defaultName;
+    nameStr = chars.replace(/\0/g, '').trim();
   }
+
+  if (nameStr && nameStr.length > 0) {
+    return nameStr;
+  }
+
+  if (driverId !== undefined && F1_DRIVER_NAMES[driverId]) {
+    return F1_DRIVER_NAMES[driverId];
+  }
+
   return defaultName;
 }
 
@@ -264,7 +302,8 @@ export function useTelemetry(wsUrl?: string) {
             else if (header.PacketId === 4) {
               const pkt = data as PacketParticipantsData;
               if (pkt.Participants && pkt.Participants.length > 0) {
-                setParticipants(pkt.Participants);
+                const activeCount = pkt.NumActiveCars && pkt.NumActiveCars > 0 ? pkt.NumActiveCars : pkt.Participants.length;
+                setParticipants(pkt.Participants.slice(0, activeCount));
               }
             }
             // PacketID 7: Car Status Data

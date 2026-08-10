@@ -120,16 +120,25 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 		// Update current lap state (sectors, validity)
 		s1 := int(lapData.Sector1TimeMSPart) + int(lapData.Sector1TimeMinutesPart)*60000
 		s2 := int(lapData.Sector2TimeMSPart) + int(lapData.Sector2TimeMinutesPart)*60000
-		if s1 > 0 {
-			lt.currentLap.Sector1MS = s1
-		}
-		if s2 > 0 {
-			lt.currentLap.Sector2MS = s2
-		}
-		lt.currentLap.IsValid = lapData.CurrentLapInvalid == 0
+		isValid := lapData.CurrentLapInvalid == 0
 
-		// Periodic save to keep DB updated
-		lt.repo.SaveLap(ctx, lt.currentLap)
+		updated := false
+		if s1 > 0 && lt.currentLap.Sector1MS != s1 {
+			lt.currentLap.Sector1MS = s1
+			updated = true
+		}
+		if s2 > 0 && lt.currentLap.Sector2MS != s2 {
+			lt.currentLap.Sector2MS = s2
+			updated = true
+		}
+		if lt.currentLap.IsValid != isValid {
+			lt.currentLap.IsValid = isValid
+			updated = true
+		}
+
+		if updated {
+			lt.repo.SaveLap(ctx, lt.currentLap)
+		}
 	}
 }
 
