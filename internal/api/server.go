@@ -39,7 +39,7 @@ func NewServer(repo *storage.Repository, hub *Hub) *Server {
 	s.router.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 			if r.Method == "OPTIONS" {
 				w.WriteHeader(http.StatusOK)
@@ -65,6 +65,7 @@ func (s *Server) routes() {
 	// API routes
 	s.router.Route("/api", func(r chi.Router) {
 		r.Get("/sessions", s.handleGetSessions)
+		r.Delete("/sessions/{id}", s.handleDeleteSession)
 		r.Get("/sessions/{id}/participants", s.handleGetParticipants)
 		r.Get("/sessions/{id}/setups", s.handleGetSetups)
 		r.Get("/sessions/{id}/laps", s.handleGetLaps)
@@ -109,6 +110,29 @@ func (s *Server) handleGetSessions(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(sessions)
+}
+
+func (s *Server) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
+	sessionIDStr := chi.URLParam(r, "id")
+	sessionID, err := strconv.ParseInt(sessionIDStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid session ID", http.StatusBadRequest)
+		return
+	}
+
+	if err := s.repo.DeleteSession(r.Context(), sessionID); err != nil {
+		if err.Error() == "session not found" {
+			http.Error(w, "Session not found", http.StatusNotFound)
+			return
+		}
+		log.Printf("Error deleting session %d: %v", sessionID, err)
+		http.Error(w, "Failed to delete session", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"status":"success"}`))
 }
 
 func (s *Server) handleGetParticipants(w http.ResponseWriter, r *http.Request) {

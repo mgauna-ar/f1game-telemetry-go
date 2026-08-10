@@ -131,6 +131,58 @@ func (r *Repository) SaveTelemetryBatch(ctx context.Context, samples []Telemetry
 	return nil
 }
 
+// DeleteSession deletes a session and all its associated laps, telemetry samples, participants, and car setups.
+func (r *Repository) DeleteSession(ctx context.Context, sessionID int64) error {
+	tx, err := r.db.Beginx()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// 1. Delete telemetry samples for laps belonging to this session
+	deleteSamplesQuery := `
+		DELETE FROM telemetry_samples
+		WHERE lap_id IN (SELECT id FROM laps WHERE session_id = ?)
+	`
+	if _, err := tx.ExecContext(ctx, deleteSamplesQuery, sessionID); err != nil {
+		return fmt.Errorf("failed to delete telemetry samples: %w", err)
+	}
+
+	// 2. Delete laps for this session
+	if _, err := tx.ExecContext(ctx, `DELETE FROM laps WHERE session_id = ?`, sessionID); err != nil {
+		return fmt.Errorf("failed to delete laps: %w", err)
+	}
+
+	// 3. Delete participants for this session
+	if _, err := tx.ExecContext(ctx, `DELETE FROM participants WHERE session_id = ?`, sessionID); err != nil {
+		return fmt.Errorf("failed to delete participants: %w", err)
+	}
+
+	// 4. Delete car setups for this session
+	if _, err := tx.ExecContext(ctx, `DELETE FROM car_setups WHERE session_id = ?`, sessionID); err != nil {
+		return fmt.Errorf("failed to delete car setups: %w", err)
+	}
+
+	// 5. Delete session entry
+	res, err := tx.ExecContext(ctx, `DELETE FROM sessions WHERE id = ?`, sessionID)
+	if err != nil {
+		return fmt.Errorf("failed to delete session: %w", err)
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("session not found")
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit delete transaction: %w", err)
+	}
+	return nil
+}
+
 // GetSessions retrieves all recorded sessions, ordered by most recent first.
 func (r *Repository) GetSessions(ctx context.Context) ([]Session, error) {
 	var sessions []Session

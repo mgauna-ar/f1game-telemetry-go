@@ -383,3 +383,100 @@ func TestSaveAndGetCarSetups(t *testing.T) {
 		t.Errorf("expected FrontWing to be updated to 11, got %d", gotAfter[0].FrontWing)
 	}
 }
+
+func TestDeleteSession(t *testing.T) {
+	repo := setupTestRepo(t)
+	session := createTestSession(t, repo)
+	ctx := context.Background()
+
+	// 1. Add participants
+	participants := []Participant{
+		{CarIndex: 0, Name: "Driver 1", DriverID: 1, TeamID: 1, RaceNumber: 1, AIControlled: false},
+	}
+	if err := repo.SaveParticipants(ctx, session.ID, participants); err != nil {
+		t.Fatalf("SaveParticipants error: %v", err)
+	}
+
+	// 2. Add car setup
+	setups := []CarSetup{
+		{CarIndex: 0, FrontWing: 10, RearWing: 10},
+	}
+	if err := repo.SaveCarSetups(ctx, session.ID, setups); err != nil {
+		t.Fatalf("SaveCarSetups error: %v", err)
+	}
+
+	// 3. Add lap
+	lap := &Lap{
+		SessionID: session.ID,
+		CarIndex:  0,
+		LapNumber: 1,
+		LapTimeMS: 90000,
+		IsValid:   true,
+	}
+	if err := repo.SaveLap(ctx, lap); err != nil {
+		t.Fatalf("SaveLap error: %v", err)
+	}
+
+	// 4. Add telemetry samples
+	samples := []TelemetrySample{
+		{LapID: lap.ID, LapDistance: 100.0, SessionTime: 10.0, Speed: 250},
+	}
+	if err := repo.SaveTelemetryBatch(ctx, samples); err != nil {
+		t.Fatalf("SaveTelemetryBatch error: %v", err)
+	}
+
+	// Delete existing session
+	if err := repo.DeleteSession(ctx, session.ID); err != nil {
+		t.Fatalf("DeleteSession() failed: %v", err)
+	}
+
+	// Verify session is deleted
+	sessions, err := repo.GetSessions(ctx)
+	if err != nil {
+		t.Fatalf("GetSessions() error: %v", err)
+	}
+	if len(sessions) != 0 {
+		t.Errorf("expected 0 sessions, got %d", len(sessions))
+	}
+
+	// Verify participants are deleted
+	parts, err := repo.GetParticipantsBySession(ctx, session.ID)
+	if err != nil {
+		t.Fatalf("GetParticipantsBySession() error: %v", err)
+	}
+	if len(parts) != 0 {
+		t.Errorf("expected 0 participants, got %d", len(parts))
+	}
+
+	// Verify car setups are deleted
+	stps, err := repo.GetCarSetupsBySession(ctx, session.ID)
+	if err != nil {
+		t.Fatalf("GetCarSetupsBySession() error: %v", err)
+	}
+	if len(stps) != 0 {
+		t.Errorf("expected 0 setups, got %d", len(stps))
+	}
+
+	// Verify laps are deleted
+	laps, err := repo.GetLapsBySession(ctx, session.ID)
+	if err != nil {
+		t.Fatalf("GetLapsBySession() error: %v", err)
+	}
+	if len(laps) != 0 {
+		t.Errorf("expected 0 laps, got %d", len(laps))
+	}
+
+	// Verify telemetry samples are deleted
+	telemetry, err := repo.GetTelemetryByLap(ctx, lap.ID)
+	if err != nil {
+		t.Fatalf("GetTelemetryByLap() error: %v", err)
+	}
+	if len(telemetry) != 0 {
+		t.Errorf("expected 0 telemetry samples, got %d", len(telemetry))
+	}
+
+	// Deleting a non-existent session should return error
+	if err := repo.DeleteSession(ctx, 99999); err == nil {
+		t.Errorf("expected error deleting non-existent session, got nil")
+	}
+}

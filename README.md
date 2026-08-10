@@ -168,6 +168,7 @@ f1game-telemetry-go/
 | `GET` | `/` | Web dashboard |
 | `GET` | `/ws` | WebSocket telemetry stream |
 | `GET` | `/api/sessions` | List recorded sessions |
+| `DELETE` | `/api/sessions/:id` | Delete a recorded session and all associated data |
 | `GET` | `/api/sessions/:id/participants` | Get participant roster (drivers) for a session |
 | `GET` | `/api/sessions/:id/setups` | Get car setups for a session |
 | `GET` | `/api/sessions/:id/laps` | Get laps for a session |

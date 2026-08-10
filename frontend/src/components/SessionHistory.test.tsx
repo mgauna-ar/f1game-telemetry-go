@@ -155,5 +155,54 @@ describe('SessionHistory Component', () => {
       expect(screen.getByText('22')).toBeInTheDocument(); // Rear wing
     });
   });
+
+  it('shows confirmation modal and deletes a session when confirmed', async () => {
+    const mockSessions = [
+      { id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' },
+      { id: 2, session_uid: '1002', track_name: 'Monaco', session_type: 'Qualifying', weather: 'Clear', created_at: '2026-08-10T16:00:00Z' },
+    ];
+
+    let deletedId: string | null = null;
+
+    globalThis.fetch = vi.fn().mockImplementation((url: string, options?: any) => {
+      if (url === '/api/sessions') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSessions) });
+      }
+      if (url.startsWith('/api/sessions/') && options?.method === 'DELETE') {
+        deletedId = url.split('/')[3];
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ status: 'success' }) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    });
+
+    render(<SessionHistory />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Silverstone')).toBeInTheDocument();
+      expect(screen.getByText('Monaco')).toBeInTheDocument();
+    });
+
+    // Click delete button for Silverstone (#1)
+    const deleteBtn = screen.getByTitle('Delete Session #1');
+    fireEvent.click(deleteBtn);
+
+    // Confirmation modal should appear
+    await waitFor(() => {
+      expect(screen.getByText('Confirm Session Deletion')).toBeInTheDocument();
+      expect(screen.getAllByText(/Silverstone/).length).toBeGreaterThan(0);
+    });
+
+    // Click Delete Session inside confirmation modal
+    const confirmDeleteBtn = screen.getByRole('button', { name: 'Delete Session' });
+    fireEvent.click(confirmDeleteBtn);
+
+    // Verify fetch call for DELETE
+    await waitFor(() => {
+      expect(deletedId).toBe('1');
+      expect(screen.queryByText('Silverstone')).not.toBeInTheDocument();
+      expect(screen.getByText('Monaco')).toBeInTheDocument();
+    });
+  });
 });
+
 

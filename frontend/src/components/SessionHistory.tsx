@@ -20,6 +20,8 @@ import {
   Clock,
   Zap,
   X,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 import { TEAM_COLORS } from './LeaderboardTower';
 
@@ -118,6 +120,33 @@ export const SessionHistory: React.FC = () => {
 
   // Setup Modal State
   const [selectedSetupDriver, setSelectedSetupDriver] = useState<DriverStanding | null>(null);
+
+  // Deletion State & Handler
+  const [sessionToDelete, setSessionToDelete] = useState<Session | null>(null);
+  const [deletingSessionId, setDeletingSessionId] = useState<number | null>(null);
+
+  const confirmDeleteSession = async () => {
+    if (!sessionToDelete) return;
+    const targetId = sessionToDelete.id;
+    setDeletingSessionId(targetId);
+    try {
+      const res = await fetch(`/api/sessions/${targetId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Failed to delete session');
+
+      setSessions(prev => prev.filter(s => s.id !== targetId));
+      if (selectedSession && selectedSession.id === targetId) {
+        setSelectedSession(null);
+      }
+      setSessionToDelete(null);
+    } catch (err: any) {
+      console.error('Error deleting session:', err);
+      alert(`Error deleting session: ${err.message || err}`);
+    } finally {
+      setDeletingSessionId(null);
+    }
+  };
 
   useEffect(() => {
     fetchSessions();
@@ -536,16 +565,38 @@ export const SessionHistory: React.FC = () => {
                         </div>
                       </td>
                       <td style={{ textAlign: 'right' }}>
-                        <button
-                          className="nav-tab active"
-                          style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                          onClick={e => {
-                            e.stopPropagation();
-                            selectSession(session);
-                          }}
-                        >
-                          Explore <ChevronRight size={14} />
-                        </button>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                          <button
+                            className="nav-tab active"
+                            style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                            onClick={e => {
+                              e.stopPropagation();
+                              selectSession(session);
+                            }}
+                          >
+                            Explore <ChevronRight size={14} />
+                          </button>
+                          <button
+                            className="nav-tab"
+                            title={`Delete Session #${session.id}`}
+                            style={{
+                              padding: '0.4rem 0.6rem',
+                              fontSize: '0.8rem',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              color: '#ff4d4f',
+                              borderColor: 'rgba(255, 77, 79, 0.3)',
+                            }}
+                            onClick={e => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setSessionToDelete(session);
+                            }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -597,6 +648,24 @@ export const SessionHistory: React.FC = () => {
                   <div className="stat-value mono">{totalDriversCount} Drivers</div>
                 </div>
               </div>
+
+              <button
+                className="nav-tab"
+                title="Delete this session"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '0.6rem 1rem',
+                  color: '#ff4d4f',
+                  borderColor: 'rgba(255, 77, 79, 0.3)',
+                  cursor: 'pointer',
+                  fontSize: '0.85rem',
+                }}
+                onClick={() => setSessionToDelete(selectedSession)}
+              >
+                <Trash2 size={15} /> Delete Session
+              </button>
             </div>
           </div>
 
@@ -965,6 +1034,70 @@ export const SessionHistory: React.FC = () => {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* CONFIRM DELETE MODAL */}
+      {sessionToDelete && (
+        <div className="modal-overlay" onClick={() => setSessionToDelete(null)}>
+          <div
+            className="modal-container glass-panel"
+            onClick={e => e.stopPropagation()}
+            style={{ maxWidth: '480px', padding: '1.75rem', borderRadius: 'var(--radius-lg)' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#ff4d4f' }}>
+                <AlertTriangle size={24} />
+                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>Confirm Session Deletion</h3>
+              </div>
+              <button
+                onClick={() => setSessionToDelete(null)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: '1.5', margin: '0 0 1.25rem 0' }}>
+              Are you sure you want to delete <strong style={{ color: 'var(--text-primary)' }}>Session #{sessionToDelete.id} ({sessionToDelete.track_name} — {sessionToDelete.session_type})</strong>?
+              This action will permanently delete all associated telemetry samples, lap data, participants, and car setups.
+            </p>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              <button
+                className="nav-tab"
+                onClick={() => setSessionToDelete(null)}
+                disabled={deletingSessionId === sessionToDelete.id}
+                style={{ padding: '0.5rem 1.2rem' }}
+              >
+                Cancel
+              </button>
+              <button
+                className="nav-tab active"
+                onClick={confirmDeleteSession}
+                disabled={deletingSessionId === sessionToDelete.id}
+                style={{
+                  padding: '0.5rem 1.2rem',
+                  background: 'linear-gradient(135deg, #ff4d4f, #d9363e)',
+                  borderColor: '#ff4d4f',
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                {deletingSessionId === sessionToDelete.id ? (
+                  <>
+                    <RefreshCw size={14} className="animate-spin" /> Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={14} /> Delete Session
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

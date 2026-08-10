@@ -96,3 +96,54 @@ func TestHandleGetParticipants(t *testing.T) {
 		})
 	}
 }
+
+func TestHandleDeleteSession(t *testing.T) {
+	server, repo := setupTestServer(t)
+	ctx := context.Background()
+
+	session := &storage.Session{
+		SessionUID:   987654321,
+		TrackID:      1,
+		TrackName:    "Melbourne",
+		SessionType:  "Race",
+		Weather:      "Clear",
+		PacketFormat: 2025,
+	}
+	if err := repo.SaveSession(ctx, session); err != nil {
+		t.Fatalf("failed to create session: %v", err)
+	}
+
+	tests := []struct {
+		name       string
+		url        string
+		wantStatus int
+	}{
+		{
+			name:       "delete valid existing session",
+			url:        "/api/sessions/1",
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "delete non-existent session",
+			url:        "/api/sessions/999",
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:       "invalid session ID format",
+			url:        "/api/sessions/invalid",
+			wantStatus: http.StatusBadRequest,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodDelete, tt.url, nil)
+			rec := httptest.NewRecorder()
+			server.router.ServeHTTP(rec, req)
+
+			if rec.Code != tt.wantStatus {
+				t.Errorf("expected status %d, got %d (body: %s)", tt.wantStatus, rec.Code, rec.Body.String())
+			}
+		})
+	}
+}
