@@ -239,10 +239,10 @@ export const LapComparator: React.FC = () => {
               />
               <Legend />
               {normA.length > 0 && (
-                <Line type="monotone" data={normA} dataKey="speed" name="Speed - Lap A (Red)" stroke="#ff4757" dot={false} strokeWidth={2.5} />
+                <Line type="monotone" data={normA} dataKey="speed" name="Speed - Lap A (Red Solid)" stroke="#ff4757" dot={false} strokeWidth={2.5} />
               )}
               {normB.length > 0 && (
-                <Line type="monotone" data={normB} dataKey="speed" name="Speed - Lap B (Cyan)" stroke="#00d2d3" dot={false} strokeWidth={2.5} />
+                <Line type="monotone" data={normB} dataKey="speed" name="Speed - Lap B (Cyan Dashed)" stroke="#00d2d3" dot={false} strokeWidth={2.5} strokeDasharray="4 4" />
               )}
             </LineChart>
           </ResponsiveContainer>
@@ -270,10 +270,10 @@ export const LapComparator: React.FC = () => {
               />
               <Legend />
               {normA.length > 0 && (
-                <Line type="monotone" data={normA} dataKey="throttle" name="Throttle - Lap A (Red)" stroke="#ff4757" dot={false} strokeWidth={2} />
+                <Line type="monotone" data={normA} dataKey="throttle" name="Throttle - Lap A (Red Solid)" stroke="#ff4757" dot={false} strokeWidth={2} />
               )}
               {normB.length > 0 && (
-                <Line type="monotone" data={normB} dataKey="throttle" name="Throttle - Lap B (Cyan)" stroke="#00d2d3" dot={false} strokeWidth={2} />
+                <Line type="monotone" data={normB} dataKey="throttle" name="Throttle - Lap B (Cyan Dashed)" stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" />
               )}
             </LineChart>
           </ResponsiveContainer>
@@ -301,10 +301,10 @@ export const LapComparator: React.FC = () => {
               />
               <Legend />
               {normA.length > 0 && (
-                <Line type="monotone" data={normA} dataKey="brake" name="Brake - Lap A (Red)" stroke="#ff4757" dot={false} strokeWidth={2} />
+                <Line type="monotone" data={normA} dataKey="brake" name="Brake - Lap A (Red Solid)" stroke="#ff4757" dot={false} strokeWidth={2} />
               )}
               {normB.length > 0 && (
-                <Line type="monotone" data={normB} dataKey="brake" name="Brake - Lap B (Cyan)" stroke="#00d2d3" dot={false} strokeWidth={2} />
+                <Line type="monotone" data={normB} dataKey="brake" name="Brake - Lap B (Cyan Dashed)" stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" />
               )}
             </LineChart>
           </ResponsiveContainer>
