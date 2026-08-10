@@ -20,9 +20,9 @@ run: build
 dev:
 	go run ./cmd/server
 
-## simulate: Run the telemetry packet simulator
+## simulate: Run the telemetry packet simulator (e.g. make simulate SESSION=quali)
 simulate:
-	go run ./cmd/simulator
+	go run ./cmd/simulator -session $(or $(SESSION),$(F1T_SESSION_TYPE),race)
 
 
 ## test: Run all tests with verbose output

@@ -83,14 +83,18 @@ F1T_UDP_ADDR=0.0.0.0:20777 F1T_HTTP_ADDR=:3000 make run
 
 ## Testing & Telemetry Simulation
 
-You can test the application without needing the actual F1 game by running the built-in UDP telemetry simulator:
+You can test the application without needing the actual F1 game by running the built-in UDP telemetry simulator. You can easily switch between simulating a **Race** or **Qualifying** session:
 
 ```bash
-# In a separate terminal while the server is running:
+# Simulate a Race session (default):
 make simulate
+
+# Simulate a Qualifying session (Q1, Q2, Q3):
+make simulate SESSION=quali
+make simulate SESSION=q1
 ```
 
-This sends synthetic live telemetry packets (Session, Motion, Car Telemetry, Lap Data, Participants Data) to port `20777` at 20Hz, allowing you to preview real-time telemetry, track visualization, participant rosters, and WebSocket updates in the dashboard.
+This sends synthetic live telemetry packets (Session, Motion, Car Telemetry, Lap Data, Car Status, Participants Data) to port `20777` at 20Hz, allowing you to preview real-time telemetry, multi-car track visualization, participant standings, and WebSocket updates in the dashboard.
 
 ## Project Structure
 

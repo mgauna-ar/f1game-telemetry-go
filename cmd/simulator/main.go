@@ -3,12 +3,14 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"flag"
 	"fmt"
 	"log"
 	"math"
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -21,6 +23,9 @@ const (
 )
 
 func main() {
+	sessionFlag := flag.String("session", getEnv("F1T_SESSION_TYPE", "race"), "Session type to simulate: race, quali, q1, q2, q3, practice, timetrial")
+	flag.Parse()
+
 	targetAddr := getEnv("F1T_UDP_ADDR", defaultTargetUDP)
 
 	udpAddr, err := net.ResolveUDPAddr("udp", targetAddr)
@@ -34,8 +39,38 @@ func main() {
 	}
 	defer conn.Close()
 
+	// Parse session mode
+	var sessionType uint8
+	var sessionModeName string
+	isQualifying := false
+
+	switch strings.ToLower(*sessionFlag) {
+	case "q1":
+		sessionType = packets.SessionQ1
+		sessionModeName = "Qualifying 1 (Q1)"
+		isQualifying = true
+	case "q2":
+		sessionType = packets.SessionQ2
+		sessionModeName = "Qualifying 2 (Q2)"
+		isQualifying = true
+	case "q3", "quali", "qualifying":
+		sessionType = packets.SessionQ3
+		sessionModeName = "Qualifying 3 (Q3)"
+		isQualifying = true
+	case "practice", "p1":
+		sessionType = packets.SessionP1
+		sessionModeName = "Practice 1"
+	case "timetrial", "tt":
+		sessionType = packets.SessionTimeTrial
+		sessionModeName = "Time Trial"
+	default:
+		sessionType = packets.SessionRace
+		sessionModeName = "Race"
+	}
+
 	fmt.Println("🏎️  F1 Telemetry Packet Simulator")
 	fmt.Println("=================================")
+	fmt.Printf("Simulating Session Mode: %s (Type ID: %d)\n", sessionModeName, sessionType)
 	fmt.Printf("Sending synthetic UDP telemetry to %s at 20Hz...\n", targetAddr)
 	fmt.Println("Press Ctrl+C to stop.")
 
@@ -46,14 +81,20 @@ func main() {
 	defer ticker.Stop()
 
 	var (
-		frameID       uint32
-		sessionUID    uint64 = 987654321
-		sessionTime   float32
-		angle         float64
-		lapTimeMs     uint32
-		lapNum        uint8 = 1
-		totalDistance float32
+		frameID         uint32
+		sessionUID      uint64 = 987654321
+		sessionTime     float32
+		angle           float64
+		lapTimeMs       uint32
+		lapNum          uint8 = 1
+		totalDistance   float32
+		sessionTimeLeft uint16
 	)
+	if isQualifying {
+		sessionTimeLeft = 720 // 12 minutes
+	} else {
+		sessionTimeLeft = 2400
+	}
 
 	for {
 		select {
@@ -64,6 +105,9 @@ func main() {
 			frameID++
 			sessionTime += 0.05
 			lapTimeMs += 50
+			if frameID%20 == 0 && sessionTimeLeft > 0 {
+				sessionTimeLeft--
+			}
 
 			// 1. Calculate simulated motion & track trajectory (ellipse loop)
 			angle += 0.02
@@ -106,13 +150,17 @@ func main() {
 				SecondaryPlayerCarIndex: 255,
 			}
 
-			// 1b. Session Data Packet (ID: 1)
+			var totalLaps uint8 = 58
+			if isQualifying {
+				totalLaps = 0
+			}
+
 			sessionPkt := packets.PacketSessionData{
 				Header:           header,
-				TrackId:          0,                   // Melbourne
-				SessionType:      packets.SessionRace, // Race
-				TotalLaps:        58,
-				SessionTimeLeft:  2400, // 40 minutes remaining
+				TrackId:          0, // Melbourne
+				SessionType:      sessionType,
+				TotalLaps:        totalLaps,
+				SessionTimeLeft:  sessionTimeLeft,
 				TrackTemperature: 32,
 				AirTemperature:   24,
 				Weather:          0, // Clear
