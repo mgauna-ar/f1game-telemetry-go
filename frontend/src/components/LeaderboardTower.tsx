@@ -59,6 +59,25 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
   const isQ1 = session?.SessionType === 5;
   const isQ2 = session?.SessionType === 6;
 
+  // Track best lap times per car during qualifying session
+  const bestLapTimesRef = React.useRef<Record<number, number>>({});
+  const lastSessionKeyRef = React.useRef<string | number | null>(null);
+
+  const sessionKey = `${session?.SessionType}_${session?.TrackId}`;
+  if (lastSessionKeyRef.current !== sessionKey) {
+    bestLapTimesRef.current = {};
+    lastSessionKeyRef.current = sessionKey;
+  }
+
+  laps.forEach((lap, idx) => {
+    if (lap && lap.LastLapTimeInMS > 0) {
+      const currentBest = bestLapTimesRef.current[idx] || 0;
+      if (currentBest === 0 || lap.LastLapTimeInMS < currentBest) {
+        bestLapTimesRef.current[idx] = lap.LastLapTimeInMS;
+      }
+    }
+  });
+
   // Build unified driver entries
   const drivers: ProcessedDriver[] = participants.map((p, idx) => {
     const lap = laps[idx];
@@ -88,19 +107,19 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
   // Sort drivers
   if (isQualy) {
     displayDrivers.sort((a, b) => {
-      const timeA = a.lap?.LastLapTimeInMS || 0;
-      const timeB = b.lap?.LastLapTimeInMS || 0;
+      const timeA = bestLapTimesRef.current[a.carIndex] || (a.lap?.LastLapTimeInMS || 0);
+      const timeB = bestLapTimesRef.current[b.carIndex] || (b.lap?.LastLapTimeInMS || 0);
 
       // Both drivers have completed timed laps -> sort by lap time ascending
       if (timeA > 0 && timeB > 0) {
-        return timeA - timeB;
+        if (timeA !== timeB) return timeA - timeB;
+        return a.carIndex - b.carIndex;
       }
       // Driver A has timed lap, B does not -> A goes first
       if (timeA > 0 && timeB === 0) return -1;
       if (timeA === 0 && timeB > 0) return 1;
 
-      // Neither has a timed lap -> sort by track position / car index
-      if (a.position !== b.position) return a.position - b.position;
+      // Neither driver has a timed lap -> sort stably by car index (prevent UI jitter)
       return a.carIndex - b.carIndex;
     });
 
@@ -114,9 +133,9 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
   }
 
   // Find Pole Position lap time in Qualifying
-  const poleTimeMs = isQualy && displayDrivers[0]?.lap?.LastLapTimeInMS && displayDrivers[0].lap.LastLapTimeInMS > 0
-    ? displayDrivers[0].lap.LastLapTimeInMS
-    : 0;
+  const p1CarIndex = displayDrivers[0]?.carIndex;
+  const p1BestLap = isQualy && p1CarIndex !== undefined ? (bestLapTimesRef.current[p1CarIndex] || displayDrivers[0]?.lap?.LastLapTimeInMS || 0) : 0;
+  const poleTimeMs = isQualy && p1BestLap > 0 ? p1BestLap : 0;
 
   const formatTime = (ms?: number) => {
     if (!ms || ms <= 0) return 'NO TIME';
@@ -173,7 +192,9 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
           const teamColor = TEAM_COLORS[driver.teamId] || '#A0A0A0';
           const isSelected = driver.carIndex === selectedCarIndex;
           const compound = driver.carStatus?.VisualTyreCompound ? TYRE_COMPOUNDS[driver.carStatus.VisualTyreCompound] : null;
-          const driverBestLap = driver.lap?.LastLapTimeInMS;
+          const driverBestLap = isQualy
+            ? (bestLapTimesRef.current[driver.carIndex] || driver.lap?.LastLapTimeInMS)
+            : driver.lap?.LastLapTimeInMS;
 
           const showEliminationLine = isQualy && displayDrivers.length >= 15 && (
             (isQ1 && index === 14) || (isQ2 && index === 9)

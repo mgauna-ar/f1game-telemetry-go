@@ -402,7 +402,17 @@ export const SessionHistory: React.FC = () => {
         return a.totalRaceTimeMS - b.totalRaceTimeMS;
       });
     } else {
-      driverList.sort((a, b) => a.bestLapTimeMS - b.bestLapTimeMS);
+      driverList.sort((a, b) => {
+        const timeA = a.bestLapTimeMS;
+        const timeB = b.bestLapTimeMS;
+        if (timeA !== Infinity && timeB !== Infinity) {
+          if (timeA !== timeB) return timeA - timeB;
+          return a.participant.car_index - b.participant.car_index;
+        }
+        if (timeA !== Infinity) return -1;
+        if (timeB !== Infinity) return 1;
+        return a.participant.car_index - b.participant.car_index;
+      });
     }
 
     return driverList.map((d, index) => ({
