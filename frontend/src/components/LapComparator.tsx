@@ -74,7 +74,6 @@ export const LapComparator: React.FC = () => {
       if (res.ok) {
         e.target.value = '';
         fetchSessions();
-        // optionally alert or toast here
       } else {
         console.error('Failed to import ghost lap');
       }
@@ -118,15 +117,18 @@ export const LapComparator: React.FC = () => {
     }
   }, [lapBId]);
 
+  const normA = normalizeTime(telemetryA);
+  const normB = normalizeTime(telemetryB);
+
   return (
     <div className="dashboard-grid" style={{ paddingTop: 0 }}>
       <div className="header glass-panel" style={{ gridColumn: 'span 12' }}>
         <div>
           <h2>Lap Comparator</h2>
-          <p className="text-secondary">Compare telemetry across two laps</p>
+          <p className="text-secondary">Compare telemetry traces between two laps</p>
         </div>
         
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <div>
             <label className="readout-label" style={{ display: 'block', marginBottom: '0.25rem' }}>Session</label>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -152,7 +154,9 @@ export const LapComparator: React.FC = () => {
           </div>
 
           <div>
-            <label className="readout-label" style={{ display: 'block', marginBottom: '0.25rem' }}>Lap A (Red)</label>
+            <label className="readout-label" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.25rem' }}>
+              <span style={{ color: '#ff4757', fontWeight: 'bold' }}>●</span> Lap A (Red)
+            </label>
             <select 
               className="ui-select" 
               value={lapAId} 
@@ -167,7 +171,9 @@ export const LapComparator: React.FC = () => {
           </div>
 
           <div>
-            <label className="readout-label" style={{ display: 'block', marginBottom: '0.25rem' }}>Lap B (Blue)</label>
+            <label className="readout-label" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.25rem' }}>
+              <span style={{ color: '#00d2d3', fontWeight: 'bold' }}>●</span> Lap B (Cyan)
+            </label>
             <select 
               className="ui-select" 
               value={lapBId} 
@@ -212,12 +218,13 @@ export const LapComparator: React.FC = () => {
         </div>
       </div>
 
-      <div className="glass-panel" style={{ gridColumn: 'span 12', height: '600px', display: 'flex', flexDirection: 'column' }}>
-        <h3 style={{ marginBottom: '1rem' }}>Telemetry Overlay</h3>
+      {/* Speed Sub-chart */}
+      <div className="glass-panel" style={{ gridColumn: 'span 12', height: '280px', display: 'flex', flexDirection: 'column' }}>
+        <h3 style={{ marginBottom: '0.5rem', fontSize: '1.1rem', color: '#ccc' }}>Speed (KM/H)</h3>
         <div style={{ flex: 1, minHeight: 0 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+            <LineChart margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
               <XAxis 
                 dataKey={xAxisType === 'distance' ? 'lap_distance' : 'session_time'} 
                 type="number" 
@@ -225,30 +232,79 @@ export const LapComparator: React.FC = () => {
                 stroke="#666" 
                 tick={{ fill: '#999' }}
               />
-              <YAxis yAxisId="speed" stroke="#666" tick={{ fill: '#999' }} domain={[0, 350]} />
-              <YAxis yAxisId="inputs" orientation="right" stroke="#666" tick={{ fill: '#999' }} domain={[0, 1]} />
+              <YAxis stroke="#666" tick={{ fill: '#999' }} domain={[0, 360]} />
               <Tooltip 
-                contentStyle={{ backgroundColor: 'rgba(0,0,0,0.8)', border: '1px solid #333' }}
+                contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }}
                 itemStyle={{ color: '#fff' }}
               />
               <Legend />
-              
-              {/* Lap A */}
-              {telemetryA.length > 0 && (
-                <>
-                  <Line yAxisId="speed" type="monotone" data={normalizeTime(telemetryA)} dataKey="speed" name="Speed A" stroke="var(--accent-primary)" dot={false} strokeWidth={2} />
-                  <Line yAxisId="inputs" type="monotone" data={normalizeTime(telemetryA)} dataKey="throttle" name="Throttle A" stroke="var(--accent-tertiary)" dot={false} strokeDasharray="5 5" />
-                  <Line yAxisId="inputs" type="monotone" data={normalizeTime(telemetryA)} dataKey="brake" name="Brake A" stroke="var(--accent-warning)" dot={false} strokeDasharray="5 5" />
-                </>
+              {normA.length > 0 && (
+                <Line type="monotone" data={normA} dataKey="speed" name="Speed - Lap A (Red)" stroke="#ff4757" dot={false} strokeWidth={2.5} />
               )}
+              {normB.length > 0 && (
+                <Line type="monotone" data={normB} dataKey="speed" name="Speed - Lap B (Cyan)" stroke="#00d2d3" dot={false} strokeWidth={2.5} />
+              )}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
 
-              {/* Lap B */}
-              {telemetryB.length > 0 && (
-                <>
-                  <Line yAxisId="speed" type="monotone" data={normalizeTime(telemetryB)} dataKey="speed" name="Speed B" stroke="var(--accent-secondary)" dot={false} strokeWidth={2} />
-                  <Line yAxisId="inputs" type="monotone" data={normalizeTime(telemetryB)} dataKey="throttle" name="Throttle B" stroke="hsl(150, 60%, 60%)" dot={false} strokeDasharray="2 2" />
-                  <Line yAxisId="inputs" type="monotone" data={normalizeTime(telemetryB)} dataKey="brake" name="Brake B" stroke="hsl(45, 80%, 60%)" dot={false} strokeDasharray="2 2" />
-                </>
+      {/* Throttle Sub-chart */}
+      <div className="glass-panel" style={{ gridColumn: 'span 12', height: '240px', display: 'flex', flexDirection: 'column' }}>
+        <h3 style={{ marginBottom: '0.5rem', fontSize: '1.1rem', color: '#ccc' }}>Throttle (0 - 100%)</h3>
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+              <XAxis 
+                dataKey={xAxisType === 'distance' ? 'lap_distance' : 'session_time'} 
+                type="number" 
+                domain={['auto', 'auto']}
+                stroke="#666" 
+                tick={{ fill: '#999' }}
+              />
+              <YAxis stroke="#666" tick={{ fill: '#999' }} domain={[0, 1]} />
+              <Tooltip 
+                contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }}
+                itemStyle={{ color: '#fff' }}
+              />
+              <Legend />
+              {normA.length > 0 && (
+                <Line type="monotone" data={normA} dataKey="throttle" name="Throttle - Lap A (Red)" stroke="#ff4757" dot={false} strokeWidth={2} />
+              )}
+              {normB.length > 0 && (
+                <Line type="monotone" data={normB} dataKey="throttle" name="Throttle - Lap B (Cyan)" stroke="#00d2d3" dot={false} strokeWidth={2} />
+              )}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Brake Sub-chart */}
+      <div className="glass-panel" style={{ gridColumn: 'span 12', height: '240px', display: 'flex', flexDirection: 'column' }}>
+        <h3 style={{ marginBottom: '0.5rem', fontSize: '1.1rem', color: '#ccc' }}>Brake (0 - 100%)</h3>
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+              <XAxis 
+                dataKey={xAxisType === 'distance' ? 'lap_distance' : 'session_time'} 
+                type="number" 
+                domain={['auto', 'auto']}
+                stroke="#666" 
+                tick={{ fill: '#999' }}
+              />
+              <YAxis stroke="#666" tick={{ fill: '#999' }} domain={[0, 1]} />
+              <Tooltip 
+                contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }}
+                itemStyle={{ color: '#fff' }}
+              />
+              <Legend />
+              {normA.length > 0 && (
+                <Line type="monotone" data={normA} dataKey="brake" name="Brake - Lap A (Red)" stroke="#ff4757" dot={false} strokeWidth={2} />
+              )}
+              {normB.length > 0 && (
+                <Line type="monotone" data={normB} dataKey="brake" name="Brake - Lap B (Cyan)" stroke="#00d2d3" dot={false} strokeWidth={2} />
               )}
             </LineChart>
           </ResponsiveContainer>
