@@ -32,7 +32,7 @@ describe('Dashboard', () => {
 
   it('renders disconnected state', () => {
     render(<Dashboard />);
-    expect(screen.getByText('DISCONNECTED')).toBeInTheDocument();
+    expect(screen.getByText(/RECONNECTING|DISCONNECTED/i)).toBeInTheDocument();
   });
 
   it('renders connected state and telemetry data', () => {

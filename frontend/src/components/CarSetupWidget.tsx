@@ -1,6 +1,6 @@
 import React from 'react';
 import { Sliders, Wrench, Shield, Disc, CircleDot, Fuel } from 'lucide-react';
-import { CarSetupData } from '../hooks/useTelemetry';
+import type { CarSetupData } from '../hooks/useTelemetry';
 
 interface CarSetupWidgetProps {
   carSetup: CarSetupData | null;

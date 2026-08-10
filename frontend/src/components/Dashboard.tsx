@@ -8,8 +8,6 @@ import { LeaderboardTower } from './LeaderboardTower';
 import { CarStatusWidget } from './CarStatusWidget';
 import { CarSetupWidget } from './CarSetupWidget';
 
-const WS_URL = 'ws://localhost:8080/ws';
-
 export const Dashboard: React.FC = () => {
   const {
     session = null,
@@ -28,7 +26,7 @@ export const Dashboard: React.FC = () => {
     playerCarIndex = 0,
     selectedCarIndex = 0,
     setSelectedCarIndex = () => {},
-  } = useTelemetry(WS_URL);
+  } = useTelemetry();
 
   const selectedParticipant = (participants || [])[selectedCarIndex || 0];
   const driverName = parseDriverName(selectedParticipant?.Name, `Car #${(selectedCarIndex || 0) + 1}`);

@@ -175,7 +175,7 @@ export function parseDriverName(rawName: string | number[] | undefined, defaultN
   return defaultName;
 }
 
-export function useTelemetry(wsUrl: string) {
+export function useTelemetry(wsUrl?: string) {
   const [session, setSession] = useState<SessionData | null>(null);
   const [participants, setParticipants] = useState<ParticipantData[]>([]);
   const [allLaps, setAllLaps] = useState<LapData[]>([]);
@@ -200,106 +200,150 @@ export function useTelemetry(wsUrl: string) {
   }, [selectedCarIndex]);
 
   useEffect(() => {
-    ws.current = new WebSocket(wsUrl);
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let isUnmounted = false;
 
-    ws.current.onopen = () => setConnected(true);
-    ws.current.onclose = () => setConnected(false);
+    const getTargetUrl = () => {
+      if (wsUrl) return wsUrl;
+      if (typeof window === 'undefined') return 'ws://localhost:8080/ws';
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      return `${protocol}//${window.location.host}/ws`;
+    };
 
-    ws.current.onmessage = (event) => {
+    const connect = () => {
+      if (isUnmounted) return;
+
+      const targetUrl = getTargetUrl();
       try {
-        const data = JSON.parse(event.data);
-        const header = data.Header as PacketHeader;
-        if (!header) return;
+        const socket = new WebSocket(targetUrl);
+        ws.current = socket;
 
-        const playerIdx = header.PlayerCarIndex !== undefined ? header.PlayerCarIndex : 0;
-        setPlayerCarIndex(playerIdx);
+        socket.onopen = () => {
+          if (!isUnmounted) setConnected(true);
+        };
 
-        // PacketID 1: Session Data
-        if (header.PacketId === 1) {
-          const pkt = data as PacketSessionData;
-          setSession({
-            Weather: pkt.Weather,
-            TrackTemperature: pkt.TrackTemperature,
-            AirTemperature: pkt.AirTemperature,
-            TotalLaps: pkt.TotalLaps,
-            TrackLength: pkt.TrackLength,
-            SessionType: pkt.SessionType,
-            TrackId: pkt.TrackId,
-            SessionTimeLeft: pkt.SessionTimeLeft,
-            SessionDuration: pkt.SessionDuration,
-            SafetyCarStatus: pkt.SafetyCarStatus,
-          });
-        }
-        // PacketID 4: Participants Data
-        else if (header.PacketId === 4) {
-          const pkt = data as PacketParticipantsData;
-          if (pkt.Participants && pkt.Participants.length > 0) {
-            setParticipants(pkt.Participants);
+        socket.onclose = () => {
+          if (!isUnmounted) {
+            setConnected(false);
+            reconnectTimer = setTimeout(connect, 2000);
           }
-        }
-        // PacketID 7: Car Status Data
-        else if (header.PacketId === 7) {
-          const pkt = data as PacketCarStatusData;
-          if (pkt.CarStatusData) {
-            setAllCarStatus(pkt.CarStatusData);
-          }
-        }
-        // PacketID 5: Car Setup Data
-        else if (header.PacketId === 5) {
-          const pkt = data as PacketCarSetupData;
-          if (pkt.CarSetupData) {
-            setAllCarSetup(pkt.CarSetupData);
-          }
-        }
-        // PacketID 6: Car Telemetry Data
-        else if (header.PacketId === 6) {
-          const pkt = data as PacketCarTelemetryData;
-          if (pkt.CarTelemetryData) {
-            setAllTelemetry(pkt.CarTelemetryData);
-            const activeIdx = selectedCarIndexRef.current < pkt.CarTelemetryData.length ? selectedCarIndexRef.current : playerIdx;
-            const current = pkt.CarTelemetryData[activeIdx] || pkt.CarTelemetryData[playerIdx];
+        };
 
-            if (current) {
-              const sample: TelemetrySample = {
-                ...current,
-                SessionTime: header.SessionTime,
-              };
-              historyRef.current = [...historyRef.current.slice(-99), sample];
-              setHistory(historyRef.current);
-            }
+        socket.onerror = () => {
+          if (!isUnmounted) {
+            setConnected(false);
           }
-        }
-        // PacketID 2: Lap Data
-        else if (header.PacketId === 2) {
-          const pkt = data as PacketLapData;
-          if (pkt.LapData) {
-            setAllLaps(pkt.LapData);
-          }
-        }
-        // PacketID 0: Motion Data
-        else if (header.PacketId === 0) {
-          const pkt = data as PacketMotionData;
-          if (pkt.CarMotionData) {
-            setAllMotion(pkt.CarMotionData);
-            const playerMotion = pkt.CarMotionData[playerIdx];
-            if (playerMotion) {
-              setTrackPath((prev) => {
-                const last = prev[prev.length - 1];
-                if (!last || Math.abs(last.x - playerMotion.WorldPositionX) > 1.0 || Math.abs(last.z - playerMotion.WorldPositionZ) > 1.0) {
-                  return [...prev, { x: playerMotion.WorldPositionX, z: playerMotion.WorldPositionZ }];
-                }
-                return prev;
+        };
+
+        socket.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            const header = data.Header as PacketHeader;
+            if (!header) return;
+
+            const playerIdx = header.PlayerCarIndex !== undefined ? header.PlayerCarIndex : 0;
+            setPlayerCarIndex(playerIdx);
+
+            // PacketID 1: Session Data
+            if (header.PacketId === 1) {
+              const pkt = data as PacketSessionData;
+              setSession({
+                Weather: pkt.Weather,
+                TrackTemperature: pkt.TrackTemperature,
+                AirTemperature: pkt.AirTemperature,
+                TotalLaps: pkt.TotalLaps,
+                TrackLength: pkt.TrackLength,
+                SessionType: pkt.SessionType,
+                TrackId: pkt.TrackId,
+                SessionTimeLeft: pkt.SessionTimeLeft,
+                SessionDuration: pkt.SessionDuration,
+                SafetyCarStatus: pkt.SafetyCarStatus,
               });
             }
+            // PacketID 4: Participants Data
+            else if (header.PacketId === 4) {
+              const pkt = data as PacketParticipantsData;
+              if (pkt.Participants && pkt.Participants.length > 0) {
+                setParticipants(pkt.Participants);
+              }
+            }
+            // PacketID 7: Car Status Data
+            else if (header.PacketId === 7) {
+              const pkt = data as PacketCarStatusData;
+              if (pkt.CarStatusData) {
+                setAllCarStatus(pkt.CarStatusData);
+              }
+            }
+            // PacketID 5: Car Setup Data
+            else if (header.PacketId === 5) {
+              const pkt = data as PacketCarSetupData;
+              if (pkt.CarSetupData) {
+                setAllCarSetup(pkt.CarSetupData);
+              }
+            }
+            // PacketID 6: Car Telemetry Data
+            else if (header.PacketId === 6) {
+              const pkt = data as PacketCarTelemetryData;
+              if (pkt.CarTelemetryData) {
+                setAllTelemetry(pkt.CarTelemetryData);
+                const activeIdx = selectedCarIndexRef.current < pkt.CarTelemetryData.length ? selectedCarIndexRef.current : playerIdx;
+                const current = pkt.CarTelemetryData[activeIdx] || pkt.CarTelemetryData[playerIdx];
+
+                if (current) {
+                  const sample: TelemetrySample = {
+                    ...current,
+                    SessionTime: header.SessionTime,
+                  };
+                  historyRef.current = [...historyRef.current.slice(-99), sample];
+                  setHistory(historyRef.current);
+                }
+              }
+            }
+            // PacketID 2: Lap Data
+            else if (header.PacketId === 2) {
+              const pkt = data as PacketLapData;
+              if (pkt.LapData) {
+                setAllLaps(pkt.LapData);
+              }
+            }
+            // PacketID 0: Motion Data
+            else if (header.PacketId === 0) {
+              const pkt = data as PacketMotionData;
+              if (pkt.CarMotionData) {
+                setAllMotion(pkt.CarMotionData);
+                const playerMotion = pkt.CarMotionData[playerIdx];
+                if (playerMotion) {
+                  setTrackPath((prev) => {
+                    const last = prev[prev.length - 1];
+                    if (!last || Math.abs(last.x - playerMotion.WorldPositionX) > 1.0 || Math.abs(last.z - playerMotion.WorldPositionZ) > 1.0) {
+                      return [...prev, { x: playerMotion.WorldPositionX, z: playerMotion.WorldPositionZ }];
+                    }
+                    return prev;
+                  });
+                }
+              }
+            }
+          } catch (err) {
+            console.error('Failed to parse telemetry packet:', err);
           }
-        }
+        };
       } catch (err) {
-        console.error('Failed to parse telemetry packet:', err);
+        if (!isUnmounted) {
+          setConnected(false);
+          reconnectTimer = setTimeout(connect, 2000);
+        }
       }
     };
 
+    connect();
+
     return () => {
-      ws.current?.close();
+      isUnmounted = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (ws.current) {
+        ws.current.onclose = null; // Prevent onclose reconnect loop on clean unmount
+        ws.current.close();
+      }
     };
   }, [wsUrl]);
 

@@ -143,7 +143,7 @@ export const SessionHeader: React.FC<SessionHeaderProps> = ({ session, connected
         <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255, 255, 255, 0.03)', padding: '6px 12px', borderRadius: '8px' }}>
           <span className={`status-dot ${connected ? 'status-live' : ''}`} />
           <span className="mono" style={{ marginLeft: '8px', color: connected ? 'var(--accent-primary)' : 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 600 }}>
-            {connected ? 'LIVE' : 'DISCONNECTED'}
+            {connected ? 'LIVE' : 'RECONNECTING...'}
           </span>
         </div>
       </div>
