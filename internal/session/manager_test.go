@@ -212,3 +212,61 @@ func TestSessionManagerParticipants(t *testing.T) {
 		}
 	}
 }
+
+func TestSessionManagerHighBitSessionUIDAndLapValidation(t *testing.T) {
+	repo, err := storage.NewRepository("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("failed to create repo: %v", err)
+	}
+	defer repo.Close()
+
+	manager := NewSessionManager(repo)
+	ctx := context.Background()
+
+	// 1. SessionUID with high bit set (e.g. 17362816241492575144 > MaxInt64)
+	highBitUID := uint64(17362816241492575144)
+	sessionHeader := packets.PacketHeader{
+		PacketFormat:   2025,
+		PacketId:       packets.PacketIDSession,
+		SessionUID:     highBitUID,
+		PlayerCarIndex: 0,
+	}
+
+	sessionPacket := &packets.PacketSessionData{
+		Header:      sessionHeader,
+		TrackId:     1,
+		SessionType: 10,
+	}
+
+	manager.ProcessPacket(ctx, sessionPacket)
+
+	if manager.currentSession == nil || manager.currentSession.ID == 0 {
+		t.Fatalf("expected session to be saved cleanly without driver error, got ID %d", manager.currentSession.ID)
+	}
+
+	// 2. Send invalid lap numbers for inactive cars (e.g. Lap 253, 254)
+	lapHeader := sessionHeader
+	lapHeader.PacketId = packets.PacketIDLapData
+	lapPacket := &packets.PacketLapData{
+		Header: lapHeader,
+	}
+	// Inactive car with high/invalid lap number
+	lapPacket.LapData[5].CurrentLapNum = 253
+	lapPacket.LapData[5].ResultStatus = 0
+
+	manager.ProcessPacket(ctx, lapPacket)
+
+	// Car 5 tracker should ignore lap 253
+	if manager.lapTrackers[5].currentLapNum != 0 {
+		t.Errorf("expected car 5 lap num 0 for invalid lap 253, got %d", manager.lapTrackers[5].currentLapNum)
+	}
+
+	// 3. Verify no fake laps were saved to database
+	laps, err := repo.GetLapsBySession(ctx, manager.currentSession.ID)
+	if err != nil {
+		t.Fatalf("failed to query laps: %v", err)
+	}
+	if len(laps) != 0 {
+		t.Errorf("expected 0 laps in database for invalid packet, got %d", len(laps))
+	}
+}

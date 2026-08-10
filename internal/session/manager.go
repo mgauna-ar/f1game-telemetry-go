@@ -11,8 +11,9 @@ import (
 // SessionManager orchestrates the processing of F1 telemetry packets.
 // It detects new sessions and routes lap and telemetry data to LapTrackers for all active cars.
 type SessionManager struct {
-	repo        *storage.Repository
-	lapTrackers map[int]*LapTracker
+	repo          *storage.Repository
+	lapTrackers   map[int]*LapTracker
+	numActiveCars int
 
 	currentSessionUID uint64
 	currentSession    *storage.Session
@@ -25,8 +26,9 @@ func NewSessionManager(repo *storage.Repository) *SessionManager {
 		trackers[i] = NewLapTracker(repo, i)
 	}
 	return &SessionManager{
-		repo:        repo,
-		lapTrackers: trackers,
+		repo:          repo,
+		lapTrackers:   trackers,
+		numActiveCars: packets.MaxCars,
 	}
 }
 
@@ -39,30 +41,35 @@ func (sm *SessionManager) ProcessPacket(ctx context.Context, pkt packets.Packet)
 		sm.handleNewSession(ctx, header)
 	}
 
+	maxCars := sm.numActiveCars
+	if maxCars <= 0 || maxCars > packets.MaxCars {
+		maxCars = packets.MaxCars
+	}
+
 	// 2. Dispatch packet based on type
 	switch p := pkt.(type) {
 	case *packets.PacketSessionData:
 		sm.updateSessionInfo(ctx, p)
 	case *packets.PacketMotionData:
-		for i := 0; i < packets.MaxCars; i++ {
+		for i := 0; i < maxCars; i++ {
 			if tracker, ok := sm.lapTrackers[i]; ok {
 				tracker.ProcessMotion(p)
 			}
 		}
 	case *packets.PacketCarStatusData:
-		for i := 0; i < packets.MaxCars; i++ {
+		for i := 0; i < maxCars; i++ {
 			if tracker, ok := sm.lapTrackers[i]; ok {
 				tracker.ProcessCarStatus(p)
 			}
 		}
 	case *packets.PacketLapData:
-		for i := 0; i < packets.MaxCars; i++ {
+		for i := 0; i < maxCars; i++ {
 			if tracker, ok := sm.lapTrackers[i]; ok {
 				tracker.ProcessLapData(ctx, sm.currentSession, p)
 			}
 		}
 	case *packets.PacketCarTelemetryData:
-		for i := 0; i < packets.MaxCars; i++ {
+		for i := 0; i < maxCars; i++ {
 			if tracker, ok := sm.lapTrackers[i]; ok {
 				tracker.ProcessTelemetry(ctx, sm.currentSession, p)
 			}
@@ -79,8 +86,13 @@ func (sm *SessionManager) handleCarSetupData(ctx context.Context, p *packets.Pac
 		return
 	}
 
-	setups := make([]storage.CarSetup, 0, packets.MaxCars)
-	for i := 0; i < packets.MaxCars; i++ {
+	maxCars := sm.numActiveCars
+	if maxCars <= 0 || maxCars > packets.MaxCars {
+		maxCars = packets.MaxCars
+	}
+
+	setups := make([]storage.CarSetup, 0, maxCars)
+	for i := 0; i < maxCars; i++ {
 		cs := p.CarSetupData[i]
 		setups = append(setups, storage.CarSetup{
 			CarIndex:              i,
@@ -124,7 +136,7 @@ func (sm *SessionManager) handleNewSession(ctx context.Context, header packets.P
 
 	// Create a new session in storage
 	sm.currentSession = &storage.Session{
-		SessionUID:   header.SessionUID,
+		SessionUID:   int64(header.SessionUID),
 		PacketFormat: int(header.PacketFormat),
 		TrackID:      -1,
 		TrackName:    "Unknown",
@@ -138,7 +150,7 @@ func (sm *SessionManager) handleNewSession(ctx context.Context, header packets.P
 }
 
 func (sm *SessionManager) updateSessionInfo(ctx context.Context, p *packets.PacketSessionData) {
-	if sm.currentSession == nil || sm.currentSession.SessionUID != p.Header.SessionUID {
+	if sm.currentSession == nil || uint64(sm.currentSession.SessionUID) != p.Header.SessionUID {
 		return
 	}
 
@@ -165,9 +177,10 @@ func (sm *SessionManager) handleParticipantsData(ctx context.Context, p *packets
 	}
 
 	numActive := int(p.NumActiveCars)
-	if numActive > packets.MaxCars {
+	if numActive <= 0 || numActive > packets.MaxCars {
 		numActive = packets.MaxCars
 	}
+	sm.numActiveCars = numActive
 
 	participants := make([]storage.Participant, 0, numActive)
 	for i := 0; i < numActive; i++ {

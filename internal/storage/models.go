@@ -5,7 +5,7 @@ import "time"
 // Session represents a racing session.
 type Session struct {
 	ID           int64     `db:"id" json:"id"`
-	SessionUID   uint64    `db:"session_uid" json:"session_uid"`
+	SessionUID   int64     `db:"session_uid" json:"session_uid"`
 	TrackID      int       `db:"track_id" json:"track_id"`
 	TrackName    string    `db:"track_name" json:"track_name"`
 	SessionType  string    `db:"session_type" json:"session_type"`

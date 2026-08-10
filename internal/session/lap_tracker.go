@@ -101,23 +101,53 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 	}
 
 	lapData := p.LapData[lt.carIndex]
-	if lapData.CurrentLapNum == 0 {
+
+	// Filter out inactive cars if ResultStatus is available (2 = Active, 3 = Finished)
+	if lapData.ResultStatus != 0 && lapData.ResultStatus != 2 && lapData.ResultStatus != 3 {
+		return
+	}
+
+	newLapNum := int(lapData.CurrentLapNum)
+	// Sanity check: F1 sessions never exceed 120 laps; 135, 152, 204, 253, 254 are uninitialized bytes
+	if newLapNum <= 0 || newLapNum > 120 {
 		return
 	}
 
 	lt.lastLapDistance = float64(lapData.LapDistance)
 
+	// Case 1: Initial lap tracker initialization
 	if lt.currentLapNum == 0 {
-		lt.startNewLap(ctx, session.ID, int(lapData.CurrentLapNum), lt.carIndex)
+		lt.startNewLap(ctx, session.ID, newLapNum, lt.carIndex)
 		return
 	}
 
-	// Lap boundary detection
-	if int(lapData.CurrentLapNum) > lt.currentLapNum {
+	// Case 2: Session restarted or rewound in game (Flashback / restart session)
+	if newLapNum < lt.currentLapNum {
+		log.Printf("[LapTracker] Session reset detected for Car %d (Lap %d -> Lap %d)", lt.carIndex, lt.currentLapNum, newLapNum)
+		lt.currentLap = nil
+		lt.samples = lt.samples[:0]
+		lt.startNewLap(ctx, session.ID, newLapNum, lt.carIndex)
+		return
+	}
+
+	// Case 3: Completed a lap (normal increment: newLapNum == lt.currentLapNum + 1)
+	if newLapNum == lt.currentLapNum+1 {
 		lt.finalizeCurrentLap(ctx, int(lapData.LastLapTimeInMS))
-		lt.startNewLap(ctx, session.ID, int(lapData.CurrentLapNum), lt.carIndex)
-	} else if lt.currentLap != nil {
-		// Update current lap state (sectors, validity)
+		lt.startNewLap(ctx, session.ID, newLapNum, lt.carIndex)
+		return
+	}
+
+	// Case 4: Unexpected jump in lap number (> +1)
+	if newLapNum > lt.currentLapNum+1 {
+		log.Printf("[LapTracker] Lap jump detected for Car %d (Lap %d -> Lap %d), re-syncing", lt.carIndex, lt.currentLapNum, newLapNum)
+		lt.currentLap = nil
+		lt.samples = lt.samples[:0]
+		lt.startNewLap(ctx, session.ID, newLapNum, lt.carIndex)
+		return
+	}
+
+	// Case 5: Same lap in progress
+	if lt.currentLap != nil {
 		s1 := int(lapData.Sector1TimeMSPart) + int(lapData.Sector1TimeMinutesPart)*60000
 		s2 := int(lapData.Sector2TimeMSPart) + int(lapData.Sector2TimeMinutesPart)*60000
 		isValid := lapData.CurrentLapInvalid == 0
@@ -209,24 +239,31 @@ func (lt *LapTracker) finalizeCurrentLap(ctx context.Context, lapTimeMS int) {
 		return
 	}
 
-	lt.currentLap.LapTimeMS = lapTimeMS
+	if lapTimeMS > 0 {
+		lt.currentLap.LapTimeMS = lapTimeMS
 
-	if lapTimeMS > 0 && lt.currentLap.Sector1MS > 0 && lt.currentLap.Sector2MS > 0 {
-		s3 := lapTimeMS - (lt.currentLap.Sector1MS + lt.currentLap.Sector2MS)
-		if s3 > 0 {
-			lt.currentLap.Sector3MS = s3
+		if lt.currentLap.Sector1MS > 0 && lt.currentLap.Sector2MS > 0 {
+			s3 := lapTimeMS - (lt.currentLap.Sector1MS + lt.currentLap.Sector2MS)
+			if s3 > 0 {
+				lt.currentLap.Sector3MS = s3
+			}
 		}
-	}
 
-	if err := lt.repo.SaveLap(ctx, lt.currentLap); err != nil {
-		log.Printf("[LapTracker] Error finalizing lap: %v", err)
-	}
+		if err := lt.repo.SaveLap(ctx, lt.currentLap); err != nil {
+			log.Printf("[LapTracker] Error finalizing lap: %v", err)
+		}
 
-	// Flush remaining samples
-	if len(lt.samples) > 0 {
-		lt.repo.SaveTelemetryBatch(ctx, lt.samples)
+		// Flush remaining samples
+		if len(lt.samples) > 0 {
+			if err := lt.repo.SaveTelemetryBatch(ctx, lt.samples); err != nil {
+				log.Printf("[LapTracker] Error saving telemetry batch for car %d: %v", lt.carIndex, err)
+			}
+			lt.samples = lt.samples[:0]
+		}
+
+		log.Printf("[LapTracker] Lap %d completed in %d ms (Car %d)", lt.currentLap.LapNumber, lapTimeMS, lt.carIndex)
+	} else {
+		log.Printf("[LapTracker] Lap %d ended without valid lap time (Car %d)", lt.currentLap.LapNumber, lt.carIndex)
 		lt.samples = lt.samples[:0]
 	}
-
-	log.Printf("[LapTracker] Lap %d completed in %d ms (Car %d)", lt.currentLap.LapNumber, lapTimeMS, lt.carIndex)
 }
