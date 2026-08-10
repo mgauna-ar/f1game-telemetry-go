@@ -94,6 +94,7 @@ interface DriverStanding {
   laps: Lap[];
   bestLap: Lap | null;
   bestLapTimeMS: number;
+  totalRaceTimeMS: number;
   maxSpeed: number;
   setup?: CarSetup;
 }
@@ -184,9 +185,96 @@ export const SessionHistory: React.FC = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}.${millis.toString().padStart(3, '0')}`;
   };
 
-  const formatSector = (ms: number) => {
-    if (!ms || ms <= 0) return '--.---';
-    return (ms / 1000).toFixed(3) + 's';
+  const formatTotalDuration = (ms: number) => {
+    if (!ms || ms <= 0) return '--:--.---';
+    const hrs = Math.floor(ms / 3600000);
+    const mins = Math.floor((ms % 3600000) / 60000);
+    const secs = Math.floor((ms % 60000) / 1000);
+    const millis = ms % 1000;
+
+    if (hrs > 0) {
+      return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${millis.toString().padStart(3, '0')}`;
+    }
+    return `${mins}:${secs.toString().padStart(2, '0')}.${millis.toString().padStart(3, '0')}`;
+  };
+
+  const renderTyreBadge = (compoundRaw?: string) => {
+    if (!compoundRaw || compoundRaw.trim() === '') {
+      return <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>-</span>;
+    }
+
+    const str = compoundRaw.trim().toUpperCase();
+
+    let label = str;
+    let color = '#FFFFFF';
+    let bg = 'rgba(255, 255, 255, 0.15)';
+
+    if (str === '16' || str.includes('SOFT') || str === 'S') {
+      label = 'S';
+      color = '#FF3333';
+      bg = 'rgba(255, 51, 51, 0.15)';
+    } else if (str === '17' || str.includes('MEDIUM') || str === 'M') {
+      label = 'M';
+      color = '#FFD700';
+      bg = 'rgba(255, 215, 0, 0.15)';
+    } else if (str === '18' || str.includes('HARD') || str === 'H') {
+      label = 'H';
+      color = '#FFFFFF';
+      bg = 'rgba(255, 255, 255, 0.15)';
+    } else if (str === '7' || str.includes('INTER') || str === 'I') {
+      label = 'I';
+      color = '#33FF33';
+      bg = 'rgba(51, 255, 51, 0.15)';
+    } else if (str === '8' || str.includes('WET') || str === 'W') {
+      label = 'W';
+      color = '#3399FF';
+      bg = 'rgba(51, 153, 255, 0.15)';
+    }
+
+    return (
+      <div
+        className="tyre-badge mono"
+        title={`Tyre Compound: ${compoundRaw}`}
+        style={{ color, backgroundColor: bg, borderColor: color }}
+      >
+        {label}
+      </div>
+    );
+  };
+
+  const renderDriverTyreStints = (laps: Lap[]) => {
+    if (!laps || laps.length === 0) {
+      return <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>-</span>;
+    }
+
+    const compoundCounts: { compound: string; count: number }[] = [];
+    laps.forEach(lap => {
+      const raw = lap.tyre_compound?.trim();
+      if (!raw) return;
+      const existing = compoundCounts.find(c => c.compound.toUpperCase() === raw.toUpperCase());
+      if (existing) {
+        existing.count += 1;
+      } else {
+        compoundCounts.push({ compound: raw, count: 1 });
+      }
+    });
+
+    if (compoundCounts.length === 0) {
+      return <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>-</span>;
+    }
+
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        {compoundCounts.map(({ compound, count }, idx) => (
+          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            {renderTyreBadge(compound)}
+            <span className="mono" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+              {count}L
+            </span>
+          </div>
+        ))}
+      </div>
+    );
   };
 
   const formatDate = (dateStr?: string) => {
@@ -226,6 +314,8 @@ export const SessionHistory: React.FC = () => {
     return matchesSearch && matchesType;
   });
 
+  const isRaceSession = selectedSession?.session_type?.toLowerCase().includes('race');
+
   // Driver standings calculation for selected session
   const driverStandings: DriverStanding[] = React.useMemo(() => {
     if (!selectedSession) return [];
@@ -261,6 +351,7 @@ export const SessionHistory: React.FC = () => {
         bestLap = driverLaps.reduce((prev, curr) => (curr.lap_time_ms < prev.lap_time_ms ? curr : prev), driverLaps[0]);
       }
 
+      const totalRaceTimeMS = driverLaps.reduce((acc, l) => acc + (l.lap_time_ms > 0 ? l.lap_time_ms : 0), 0);
       const maxSpeed = driverLaps.reduce((max, l) => Math.max(max, l.max_speed_kmh || 0), 0);
       const setup = setups.find(s => s.car_index === p.car_index);
 
@@ -269,19 +360,30 @@ export const SessionHistory: React.FC = () => {
         laps: driverLaps.sort((a, b) => a.lap_number - b.lap_number),
         bestLap,
         bestLapTimeMS: bestLap ? bestLap.lap_time_ms : Infinity,
+        totalRaceTimeMS,
         maxSpeed,
         setup,
       };
     });
 
-    // Sort by best lap time
-    driverList.sort((a, b) => a.bestLapTimeMS - b.bestLapTimeMS);
+    // Sort: if Race, by total race time / laps completed; otherwise by best lap time
+    if (isRaceSession) {
+      driverList.sort((a, b) => {
+        if (b.laps.length !== a.laps.length) return b.laps.length - a.laps.length;
+        return a.totalRaceTimeMS - b.totalRaceTimeMS;
+      });
+    } else {
+      driverList.sort((a, b) => a.bestLapTimeMS - b.bestLapTimeMS);
+    }
 
     return driverList.map((d, index) => ({
       ...d,
       position: index + 1,
     }));
-  }, [selectedSession, participants, laps, setups]);
+  }, [selectedSession, participants, laps, setups, isRaceSession]);
+
+  const leaderBestLapMS = driverStandings.length > 0 ? driverStandings[0].bestLapTimeMS : Infinity;
+  const leaderTotalRaceTimeMS = driverStandings.length > 0 ? driverStandings[0].totalRaceTimeMS : Infinity;
 
   // Overall session statistics
   const totalSessionLaps = laps.length;
@@ -504,11 +606,11 @@ export const SessionHistory: React.FC = () => {
               <p style={{ color: 'var(--text-secondary)' }}>Retrieving drivers, lap timing telemetry, and setups...</p>
             </div>
           ) : (
-            /* STANDINGS & EXPANDABLE LAPS TABLE WITH DRIVER SETUP ICON BUTTON */
+            /* STANDINGS & EXPANDABLE LAPS TABLE */
             <div className="glass-panel" style={{ padding: '1rem' }}>
               <h3 style={{ margin: '0.5rem 0 1rem 0.5rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Trophy size={20} color="var(--accent-primary)" />
-                Session Standings & Laps Telemetry
+                {isRaceSession ? 'Race Standings & Total Race Time' : 'Session Standings & Delta Timing'}
               </h3>
 
               {driverStandings.length === 0 ? (
@@ -524,9 +626,8 @@ export const SessionHistory: React.FC = () => {
                         <th>DRIVER</th>
                         <th>SETUP</th>
                         <th>BEST LAP</th>
-                        <th>SECTOR 1</th>
-                        <th>SECTOR 2</th>
-                        <th>SECTOR 3</th>
+                        <th>DELTA</th>
+                        <th>{isRaceSession ? 'TOTAL RACE TIME' : 'TOTAL TIME'}</th>
                         <th>MAX SPEED</th>
                         <th>TYRE</th>
                         <th style={{ textAlign: 'right' }}>DETAILS / EXPORT</th>
@@ -536,6 +637,25 @@ export const SessionHistory: React.FC = () => {
                       {driverStandings.map(driver => {
                         const teamColor = TEAM_COLORS[driver.participant.team_id] || '#A0A0A0';
                         const isExpanded = !!expandedDrivers[driver.participant.car_index];
+
+                        const isLeader = driver.position === 1;
+                        let deltaStr = '--';
+
+                        if (isRaceSession) {
+                          if (isLeader) {
+                            deltaStr = 'LEADER';
+                          } else if (driver.totalRaceTimeMS > 0 && leaderTotalRaceTimeMS > 0) {
+                            const gapMS = driver.totalRaceTimeMS - leaderTotalRaceTimeMS;
+                            deltaStr = gapMS >= 0 ? `+${(gapMS / 1000).toFixed(3)}s` : `-${(Math.abs(gapMS) / 1000).toFixed(3)}s`;
+                          }
+                        } else {
+                          if (isLeader) {
+                            deltaStr = 'LEADER';
+                          } else if (driver.bestLapTimeMS < Infinity && leaderBestLapMS < Infinity) {
+                            const delta = (driver.bestLapTimeMS - leaderBestLapMS) / 1000;
+                            deltaStr = `+${delta.toFixed(3)}s`;
+                          }
+                        }
 
                         return (
                           <React.Fragment key={driver.participant.car_index}>
@@ -589,22 +709,35 @@ export const SessionHistory: React.FC = () => {
                                 )}
                               </td>
 
+                              {/* Best Lap Time */}
                               <td className="mono" style={{ fontWeight: 700, color: 'var(--accent-tertiary)' }}>
                                 {driver.bestLap ? formatLapTime(driver.bestLap.lap_time_ms) : '--:--.---'}
                               </td>
-                              <td className="mono">{driver.bestLap ? formatSector(driver.bestLap.sector1_ms) : '--.---'}</td>
-                              <td className="mono">{driver.bestLap ? formatSector(driver.bestLap.sector2_ms) : '--.---'}</td>
-                              <td className="mono">{driver.bestLap ? formatSector(driver.bestLap.sector3_ms) : '--.---'}</td>
+
+                              {/* Delta Time */}
+                              <td className="mono" style={{ fontWeight: 700, color: isLeader ? 'var(--accent-primary)' : 'var(--text-primary)' }}>
+                                {deltaStr}
+                              </td>
+
+                              {/* Total Race Time / Total Duration */}
+                              <td className="mono" style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.85rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <Clock size={12} color="var(--text-secondary)" />
+                                  {formatTotalDuration(driver.totalRaceTimeMS)}
+                                </div>
+                              </td>
+
+                              {/* Max Speed */}
                               <td className="mono">
                                 {driver.maxSpeed ? `${driver.maxSpeed.toFixed(1)} km/h` : '-- km/h'}
                               </td>
+
+                              {/* Tyre Compound Stints */}
                               <td>
-                                {driver.bestLap?.tyre_compound ? (
-                                  <span className="session-badge badge-gray">{driver.bestLap.tyre_compound}</span>
-                                ) : (
-                                  '-'
-                                )}
+                                {renderDriverTyreStints(driver.laps)}
                               </td>
+
+                              {/* Details & Export Actions */}
                               <td style={{ textAlign: 'right' }}>
                                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                                   {driver.bestLap && (
@@ -634,7 +767,7 @@ export const SessionHistory: React.FC = () => {
                             {/* Driver Laps Sub-Table (Expanded View) */}
                             {isExpanded && (
                               <tr>
-                                <td colSpan={10} style={{ background: 'rgba(0, 0, 0, 0.5)', padding: '0.75rem 1rem' }}>
+                                <td colSpan={9} style={{ background: 'rgba(0, 0, 0, 0.5)', padding: '0.75rem 1rem' }}>
                                   <div style={{ padding: '0.5rem', background: 'rgba(255, 255, 255, 0.02)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
                                     <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                       <Clock size={14} /> Recorded Laps for {driver.participant.name}
@@ -644,43 +777,64 @@ export const SessionHistory: React.FC = () => {
                                         <tr style={{ color: 'var(--text-muted)', textAlign: 'left', borderBottom: '1px solid var(--border-color)' }}>
                                           <th style={{ padding: '4px 8px' }}>Lap #</th>
                                           <th style={{ padding: '4px 8px' }}>Lap Time</th>
-                                          <th style={{ padding: '4px 8px' }}>S1</th>
-                                          <th style={{ padding: '4px 8px' }}>S2</th>
-                                          <th style={{ padding: '4px 8px' }}>S3</th>
+                                          <th style={{ padding: '4px 8px' }}>Cumulative Time</th>
+                                          <th style={{ padding: '4px 8px' }}>Delta to Best</th>
                                           <th style={{ padding: '4px 8px' }}>Max Speed</th>
+                                          <th style={{ padding: '4px 8px' }}>Tyre</th>
                                           <th style={{ padding: '4px 8px' }}>Status</th>
                                           <th style={{ padding: '4px 8px', textAlign: 'right' }}>Ghost Lap Export</th>
                                         </tr>
                                       </thead>
                                       <tbody>
-                                        {driver.laps.map(lap => (
-                                          <tr key={lap.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                                            <td className="mono" style={{ padding: '6px 8px', fontWeight: 700 }}>
-                                              Lap {lap.lap_number}
-                                            </td>
-                                            <td className="mono" style={{ padding: '6px 8px', color: lap.id === driver.bestLap?.id ? 'var(--accent-tertiary)' : 'inherit' }}>
-                                              {formatLapTime(lap.lap_time_ms)}
-                                            </td>
-                                            <td className="mono" style={{ padding: '6px 8px' }}>{formatSector(lap.sector1_ms)}</td>
-                                            <td className="mono" style={{ padding: '6px 8px' }}>{formatSector(lap.sector2_ms)}</td>
-                                            <td className="mono" style={{ padding: '6px 8px' }}>{formatSector(lap.sector3_ms)}</td>
-                                            <td className="mono" style={{ padding: '6px 8px' }}>{lap.max_speed_kmh ? `${lap.max_speed_kmh.toFixed(1)} km/h` : '-'}</td>
-                                            <td style={{ padding: '6px 8px' }}>
-                                              <span className={`session-badge ${lap.is_valid ? 'badge-green' : 'badge-red'}`} style={{ fontSize: '0.65rem' }}>
-                                                {lap.is_valid ? 'VALID' : 'INVALID'}
-                                              </span>
-                                            </td>
-                                            <td style={{ padding: '6px 8px', textAlign: 'right' }}>
-                                              <button
-                                                className="nav-tab active"
-                                                onClick={e => exportGhostLap(lap.id, e)}
-                                                style={{ padding: '2px 8px', fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                                              >
-                                                <Download size={10} /> Export JSON
-                                              </button>
-                                            </td>
-                                          </tr>
-                                        ))}
+                                        {(() => {
+                                          let runningRaceTime = 0;
+                                          return driver.laps.map(lap => {
+                                            if (lap.lap_time_ms > 0) runningRaceTime += lap.lap_time_ms;
+
+                                            const lapDeltaToBest = driver.bestLap
+                                              ? lap.lap_time_ms === driver.bestLap.lap_time_ms
+                                                ? 'PERSONAL BEST'
+                                                : `+${((lap.lap_time_ms - driver.bestLap.lap_time_ms) / 1000).toFixed(3)}s`
+                                              : '--';
+
+                                            return (
+                                              <tr key={lap.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                                                <td className="mono" style={{ padding: '6px 8px', fontWeight: 700 }}>
+                                                  Lap {lap.lap_number}
+                                                </td>
+                                                <td className="mono" style={{ padding: '6px 8px', color: lap.id === driver.bestLap?.id ? 'var(--accent-tertiary)' : 'inherit' }}>
+                                                  {formatLapTime(lap.lap_time_ms)}
+                                                </td>
+                                                <td className="mono" style={{ padding: '6px 8px', color: 'var(--text-secondary)' }}>
+                                                  {formatTotalDuration(runningRaceTime)}
+                                                </td>
+                                                <td className="mono" style={{ padding: '6px 8px', color: lapDeltaToBest === 'PERSONAL BEST' ? 'var(--accent-tertiary)' : 'var(--text-muted)' }}>
+                                                  {lapDeltaToBest}
+                                                </td>
+                                                <td className="mono" style={{ padding: '6px 8px' }}>
+                                                  {lap.max_speed_kmh ? `${lap.max_speed_kmh.toFixed(1)} km/h` : '-'}
+                                                </td>
+                                                <td style={{ padding: '6px 8px' }}>
+                                                  {renderTyreBadge(lap.tyre_compound)}
+                                                </td>
+                                                <td style={{ padding: '6px 8px' }}>
+                                                  <span className={`session-badge ${lap.is_valid ? 'badge-green' : 'badge-red'}`} style={{ fontSize: '0.65rem' }}>
+                                                    {lap.is_valid ? 'VALID' : 'INVALID'}
+                                                  </span>
+                                                </td>
+                                                <td style={{ padding: '6px 8px', textAlign: 'right' }}>
+                                                  <button
+                                                    className="nav-tab active"
+                                                    onClick={e => exportGhostLap(lap.id, e)}
+                                                    style={{ padding: '2px 8px', fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                                  >
+                                                    <Download size={10} /> Export JSON
+                                                  </button>
+                                                </td>
+                                              </tr>
+                                            );
+                                          });
+                                        })()}
                                       </tbody>
                                     </table>
                                   </div>

@@ -123,6 +123,9 @@ describe('SessionHistory Component', () => {
       expect(screen.getByText('Lewis Hamilton')).toBeInTheDocument();
       expect(screen.getByText('#44')).toBeInTheDocument();
       expect(screen.getByText('1:28.500')).toBeInTheDocument(); // Best lap
+      expect(screen.getByText('DELTA')).toBeInTheDocument();
+      expect(screen.getByText('TOTAL RACE TIME')).toBeInTheDocument();
+      expect(screen.getByText('LEADER')).toBeInTheDocument();
     });
 
     // Expand driver laps

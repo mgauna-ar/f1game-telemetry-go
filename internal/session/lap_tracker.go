@@ -71,6 +71,22 @@ func (lt *LapTracker) ProcessCarStatus(p *packets.PacketCarStatusData) {
 
 	if lt.currentLap != nil {
 		lt.currentLap.FuelLoad = float64(cs.FuelInTank)
+		if lt.currentLap.TyreCompound == "" && cs.VisualTyreCompound > 0 {
+			switch cs.VisualTyreCompound {
+			case 16:
+				lt.currentLap.TyreCompound = "SOFT"
+			case 17:
+				lt.currentLap.TyreCompound = "MEDIUM"
+			case 18:
+				lt.currentLap.TyreCompound = "HARD"
+			case 7:
+				lt.currentLap.TyreCompound = "INTERMEDIATE"
+			case 8:
+				lt.currentLap.TyreCompound = "WET"
+			default:
+				lt.currentLap.TyreCompound = "MEDIUM"
+			}
+		}
 	}
 }
 
