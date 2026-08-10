@@ -73,8 +73,6 @@ func main() {
 				lapTimeMs = 0
 			}
 
-			posX := float32(300.0 * math.Sin(angle))
-			posZ := float32(150.0 * math.Cos(2*angle))
 			posY := float32(5.0 * math.Sin(angle*0.5))
 
 			speedKmh := uint16(120.0 + 180.0*(0.5+0.5*math.Sin(angle*2)))
@@ -110,9 +108,15 @@ func main() {
 
 			// 1b. Session Data Packet (ID: 1)
 			sessionPkt := packets.PacketSessionData{
-				Header:      header,
-				TrackId:     0,                        // Melbourne
-				SessionType: packets.SessionTimeTrial, // Time Trial
+				Header:           header,
+				TrackId:          0,                   // Melbourne
+				SessionType:      packets.SessionRace, // Race
+				TotalLaps:        58,
+				SessionTimeLeft:  2400, // 40 minutes remaining
+				TrackTemperature: 32,
+				AirTemperature:   24,
+				Weather:          0, // Clear
+				SafetyCarStatus:  0, // Green Flag
 			}
 			sessionPkt.Header.PacketId = packets.PacketIDSession
 			sendPacket(conn, &sessionPkt)
@@ -133,8 +137,8 @@ func main() {
 					aiControlled uint8
 					nationality  uint8
 				}{
-					{"Max Verstappen", 1, 1, 1, 0, 5},
-					{"Lewis Hamilton", 2, 0, 44, 1, 12},
+					{"Max Verstappen", 1, 0, 1, 0, 5},
+					{"Lewis Hamilton", 2, 4, 44, 1, 12},
 					{"Charles Leclerc", 3, 4, 16, 1, 18},
 					{"Lando Norris", 4, 2, 4, 1, 12},
 				}
@@ -158,21 +162,17 @@ func main() {
 				Header: header,
 			}
 			motionPkt.Header.PacketId = packets.PacketIDMotion
-			motionPkt.CarMotionData[0] = packets.CarMotionData{
-				WorldPositionX: posX,
-				WorldPositionY: posY,
-				WorldPositionZ: posZ,
-				WorldVelocityX: float32(math.Cos(angle) * 30),
-				WorldVelocityZ: float32(-math.Sin(angle) * 30),
-			}
-			// Car 1 (Lewis Hamilton) motion offset
-			angle1 := angle - 0.15
-			motionPkt.CarMotionData[1] = packets.CarMotionData{
-				WorldPositionX: float32(300.0 * math.Sin(angle1)),
-				WorldPositionY: posY,
-				WorldPositionZ: float32(150.0 * math.Cos(2*angle1)),
-				WorldVelocityX: float32(math.Cos(angle1) * 29),
-				WorldVelocityZ: float32(-math.Sin(angle1) * 29),
+
+			offsets := []float64{0.0, -0.15, -0.32, -0.50}
+			for i, off := range offsets {
+				a := angle + off
+				motionPkt.CarMotionData[i] = packets.CarMotionData{
+					WorldPositionX: float32(300.0 * math.Sin(a)),
+					WorldPositionY: posY,
+					WorldPositionZ: float32(150.0 * math.Cos(2*a)),
+					WorldVelocityX: float32(math.Cos(a) * 30),
+					WorldVelocityZ: float32(-math.Sin(a) * 30),
+				}
 			}
 			sendPacket(conn, &motionPkt)
 
@@ -181,22 +181,18 @@ func main() {
 				Header: header,
 			}
 			telemetryPkt.Header.PacketId = packets.PacketIDCarTelemetry
-			telemetryPkt.CarTelemetryData[0] = packets.CarTelemetryData{
-				Speed:     speedKmh,
-				Throttle:  throttle,
-				Steer:     float32(math.Sin(angle)),
-				Brake:     brake,
-				Gear:      gear,
-				EngineRPM: rpm,
-			}
-			// Car 1 (Lewis Hamilton) telemetry
-			telemetryPkt.CarTelemetryData[1] = packets.CarTelemetryData{
-				Speed:     uint16(float64(speedKmh) * 0.97),
-				Throttle:  throttle * 0.95,
-				Steer:     float32(math.Sin(angle1)),
-				Brake:     brake * 1.05,
-				Gear:      gear,
-				EngineRPM: uint16(float64(rpm) * 0.97),
+			for i := 0; i < 4; i++ {
+				factor := 1.0 - float64(i)*0.03
+				a := angle - float64(i)*0.15
+				telemetryPkt.CarTelemetryData[i] = packets.CarTelemetryData{
+					Speed:     uint16(float64(speedKmh) * factor),
+					Throttle:  float32(float64(throttle) * factor),
+					Steer:     float32(math.Sin(a)),
+					Brake:     float32(float64(brake) * (1.0 + float64(i)*0.05)),
+					Gear:      gear,
+					EngineRPM: uint16(float64(rpm) * factor),
+					DRS:       uint8(i % 2),
+				}
 			}
 			sendPacket(conn, &telemetryPkt)
 
@@ -205,21 +201,25 @@ func main() {
 				Header: header,
 			}
 			lapPkt.Header.PacketId = packets.PacketIDLapData
-			lapPkt.LapData[0] = packets.LapData{
-				CurrentLapTimeInMS: lapTimeMs,
-				LastLapTimeInMS:    85432,
-				CurrentLapNum:      lapNum,
-				LapDistance:        lapDist,
-				TotalDistance:      totalDistance,
-				CarPosition:        1,
-			}
-			lapPkt.LapData[1] = packets.LapData{
-				CurrentLapTimeInMS: lapTimeMs + 450,
-				LastLapTimeInMS:    86120,
-				CurrentLapNum:      lapNum,
-				LapDistance:        lapDist,
-				TotalDistance:      totalDistance,
-				CarPosition:        2,
+			for i := 0; i < 4; i++ {
+				gapMs := uint32(i * 450)
+				var pitStatus uint8 = 0
+				if i == 3 {
+					pitStatus = 1
+				}
+				lapPkt.LapData[i] = packets.LapData{
+					CurrentLapTimeInMS:      lapTimeMs + gapMs,
+					LastLapTimeInMS:         uint32(85432 + i*320),
+					Sector1TimeMSPart:       uint16(28120 + i*150),
+					Sector2TimeMSPart:       uint16(31450 + i*120),
+					CurrentLapNum:           lapNum,
+					LapDistance:             lapDist,
+					TotalDistance:           totalDistance - float32(i*15),
+					CarPosition:             uint8(i + 1),
+					DeltaToRaceLeaderMSPart: uint16(gapMs),
+					DeltaToCarInFrontMSPart: uint16(450),
+					PitStatus:               pitStatus,
+				}
 			}
 			sendPacket(conn, &lapPkt)
 
@@ -229,15 +229,16 @@ func main() {
 					Header: header,
 				}
 				statusPkt.Header.PacketId = packets.PacketIDCarStatus
-				statusPkt.CarStatusData[0] = packets.CarStatusData{
-					FuelInTank:         45.5,
-					VisualTyreCompound: 16, // Soft
-					ERSStoreEnergy:     4000000.0,
-				}
-				statusPkt.CarStatusData[1] = packets.CarStatusData{
-					FuelInTank:         47.0,
-					VisualTyreCompound: 17, // Medium
-					ERSStoreEnergy:     3800000.0,
+				compounds := []uint8{16, 17, 18, 16} // Soft, Medium, Hard, Soft
+				for i := 0; i < 4; i++ {
+					statusPkt.CarStatusData[i] = packets.CarStatusData{
+						FuelInTank:         float32(48.0 - float64(i)*1.5),
+						FuelCapacity:       110.0,
+						VisualTyreCompound: compounds[i],
+						TyresAgeLaps:       uint8(5 + i*3),
+						ERSStoreEnergy:     float32(4000000.0 * (1.0 - float64(i)*0.15)),
+						ERSDeployMode:      uint8(i % 4),
+					}
 				}
 				sendPacket(conn, &statusPkt)
 			}
