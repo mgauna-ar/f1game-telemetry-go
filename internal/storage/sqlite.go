@@ -63,9 +63,9 @@ func (r *Repository) SaveSession(ctx context.Context, s *Session) error {
 // SaveLap inserts or updates a lap.
 func (r *Repository) SaveLap(ctx context.Context, l *Lap) error {
 	query := `
-		INSERT INTO laps (session_id, lap_number, lap_time_ms, sector1_ms, sector2_ms, sector3_ms, is_valid, tyre_compound, fuel_load, max_speed_kmh)
-		VALUES (:session_id, :lap_number, :lap_time_ms, :sector1_ms, :sector2_ms, :sector3_ms, :is_valid, :tyre_compound, :fuel_load, :max_speed_kmh)
-		ON CONFLICT(session_id, lap_number) DO UPDATE SET
+		INSERT INTO laps (session_id, car_index, lap_number, lap_time_ms, sector1_ms, sector2_ms, sector3_ms, is_valid, tyre_compound, fuel_load, max_speed_kmh)
+		VALUES (:session_id, :car_index, :lap_number, :lap_time_ms, :sector1_ms, :sector2_ms, :sector3_ms, :is_valid, :tyre_compound, :fuel_load, :max_speed_kmh)
+		ON CONFLICT(session_id, car_index, lap_number) DO UPDATE SET
 			lap_time_ms = excluded.lap_time_ms,
 			sector1_ms = excluded.sector1_ms,
 			sector2_ms = excluded.sector2_ms,
@@ -206,8 +206,8 @@ func (r *Repository) SaveImportedGhostLap(ctx context.Context, lap *Lap, telemet
 	lap.LapNumber = maxLapNumber + 1
 
 	lapQuery := `
-		INSERT INTO laps (session_id, lap_number, lap_time_ms, sector1_ms, sector2_ms, sector3_ms, is_valid, tyre_compound, fuel_load, max_speed_kmh)
-		VALUES (:session_id, :lap_number, :lap_time_ms, :sector1_ms, :sector2_ms, :sector3_ms, :is_valid, :tyre_compound, :fuel_load, :max_speed_kmh)
+		INSERT INTO laps (session_id, car_index, lap_number, lap_time_ms, sector1_ms, sector2_ms, sector3_ms, is_valid, tyre_compound, fuel_load, max_speed_kmh)
+		VALUES (:session_id, :car_index, :lap_number, :lap_time_ms, :sector1_ms, :sector2_ms, :sector3_ms, :is_valid, :tyre_compound, :fuel_load, :max_speed_kmh)
 		RETURNING id
 	`
 	rows, err := tx.NamedQuery(lapQuery, lap)
@@ -249,6 +249,60 @@ func (r *Repository) SaveImportedGhostLap(ctx context.Context, lap *Lap, telemet
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 	return nil
+}
+
+// SaveParticipants upserts participants for a given session.
+func (r *Repository) SaveParticipants(ctx context.Context, sessionID int64, participants []Participant) error {
+	if len(participants) == 0 {
+		return nil
+	}
+
+	tx, err := r.db.Beginx()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+
+	query := `
+		INSERT INTO participants (session_id, car_index, name, driver_id, team_id, race_number, ai_controlled, nationality)
+		VALUES (:session_id, :car_index, :name, :driver_id, :team_id, :race_number, :ai_controlled, :nationality)
+		ON CONFLICT(session_id, car_index) DO UPDATE SET
+			name = excluded.name,
+			driver_id = excluded.driver_id,
+			team_id = excluded.team_id,
+			race_number = excluded.race_number,
+			ai_controlled = excluded.ai_controlled,
+			nationality = excluded.nationality
+	`
+
+	stmt, err := tx.PrepareNamedContext(ctx, query)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("failed to prepare participants statement: %w", err)
+	}
+	defer stmt.Close()
+
+	for i := range participants {
+		participants[i].SessionID = sessionID
+		if _, err := stmt.ExecContext(ctx, participants[i]); err != nil {
+			tx.Rollback()
+			return fmt.Errorf("failed to save participant at index %d: %w", participants[i].CarIndex, err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit participants transaction: %w", err)
+	}
+	return nil
+}
+
+// GetParticipantsBySession retrieves all participants for a given session.
+func (r *Repository) GetParticipantsBySession(ctx context.Context, sessionID int64) ([]Participant, error) {
+	var participants []Participant
+	query := `SELECT * FROM participants WHERE session_id = ? ORDER BY car_index ASC`
+	if err := r.db.SelectContext(ctx, &participants, query, sessionID); err != nil {
+		return nil, fmt.Errorf("failed to get participants: %w", err)
+	}
+	return participants, nil
 }
 
 // Close closes the database connection.

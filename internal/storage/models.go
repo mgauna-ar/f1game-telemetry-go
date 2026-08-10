@@ -18,6 +18,7 @@ type Session struct {
 type Lap struct {
 	ID           int64     `db:"id" json:"id"`
 	SessionID    int64     `db:"session_id" json:"session_id"`
+	CarIndex     int       `db:"car_index" json:"car_index"`
 	LapNumber    int       `db:"lap_number" json:"lap_number"`
 	LapTimeMS    int       `db:"lap_time_ms" json:"lap_time_ms"`
 	Sector1MS    int       `db:"sector1_ms" json:"sector1_ms"`
@@ -47,4 +48,18 @@ type TelemetrySample struct {
 	WorldPosX   float64 `db:"world_pos_x" json:"world_pos_x"`
 	WorldPosY   float64 `db:"world_pos_y" json:"world_pos_y"`
 	WorldPosZ   float64 `db:"world_pos_z" json:"world_pos_z"`
+}
+
+// Participant represents a driver/participant in a session.
+type Participant struct {
+	ID           int64     `db:"id" json:"id"`
+	SessionID    int64     `db:"session_id" json:"session_id"`
+	CarIndex     int       `db:"car_index" json:"car_index"`
+	Name         string    `db:"name" json:"name"`
+	DriverID     int       `db:"driver_id" json:"driver_id"`
+	TeamID       int       `db:"team_id" json:"team_id"`
+	RaceNumber   int       `db:"race_number" json:"race_number"`
+	AIControlled bool      `db:"ai_controlled" json:"ai_controlled"`
+	Nationality  int       `db:"nationality" json:"nationality"`
+	CreatedAt    time.Time `db:"created_at" json:"created_at"`
 }

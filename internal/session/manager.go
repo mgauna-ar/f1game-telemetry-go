@@ -43,6 +43,8 @@ func (sm *SessionManager) ProcessPacket(ctx context.Context, pkt packets.Packet)
 		sm.lapTracker.ProcessLapData(ctx, sm.currentSession, p)
 	case *packets.PacketCarTelemetryData:
 		sm.lapTracker.ProcessTelemetry(ctx, sm.currentSession, p)
+	case *packets.PacketParticipantsData:
+		sm.handleParticipantsData(ctx, p)
 	}
 }
 
@@ -97,5 +99,34 @@ func (sm *SessionManager) updateSessionInfo(ctx context.Context, p *packets.Pack
 		if err := sm.repo.SaveSession(ctx, sm.currentSession); err != nil {
 			log.Printf("[Session] Error updating session info: %v", err)
 		}
+	}
+}
+
+func (sm *SessionManager) handleParticipantsData(ctx context.Context, p *packets.PacketParticipantsData) {
+	if sm.currentSession == nil {
+		return
+	}
+
+	numActive := int(p.NumActiveCars)
+	if numActive > packets.MaxCars {
+		numActive = packets.MaxCars
+	}
+
+	participants := make([]storage.Participant, 0, numActive)
+	for i := 0; i < numActive; i++ {
+		pd := p.Participants[i]
+		participants = append(participants, storage.Participant{
+			CarIndex:     i,
+			Name:         pd.NameString(),
+			DriverID:     int(pd.DriverId),
+			TeamID:       int(pd.TeamId),
+			RaceNumber:   int(pd.RaceNumber),
+			AIControlled: pd.AIControlled == 1,
+			Nationality:  int(pd.Nationality),
+		})
+	}
+
+	if err := sm.repo.SaveParticipants(ctx, sm.currentSession.ID, participants); err != nil {
+		log.Printf("[Session] Error saving participants: %v", err)
 	}
 }

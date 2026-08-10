@@ -46,14 +46,14 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 	lapData := p.LapData[playerIdx]
 
 	if lt.currentLapNum == 0 {
-		lt.startNewLap(ctx, session.ID, int(lapData.CurrentLapNum))
+		lt.startNewLap(ctx, session.ID, int(lapData.CurrentLapNum), int(playerIdx))
 		return
 	}
 
 	// Lap boundary detection
 	if int(lapData.CurrentLapNum) > lt.currentLapNum {
 		lt.finalizeCurrentLap(ctx, int(lapData.LastLapTimeInMS))
-		lt.startNewLap(ctx, session.ID, int(lapData.CurrentLapNum))
+		lt.startNewLap(ctx, session.ID, int(lapData.CurrentLapNum), int(playerIdx))
 	} else if lt.currentLap != nil {
 		// Update current lap state (sectors, validity)
 		lt.currentLap.Sector1MS = int(lapData.Sector1TimeMSPart) // simplifying, actual time is ms + min*60000
@@ -107,11 +107,12 @@ func (lt *LapTracker) ProcessTelemetry(ctx context.Context, session *storage.Ses
 	}
 }
 
-func (lt *LapTracker) startNewLap(ctx context.Context, sessionID int64, lapNum int) {
+func (lt *LapTracker) startNewLap(ctx context.Context, sessionID int64, lapNum int, carIndex int) {
 	lt.currentLapNum = lapNum
 	lt.currentLap = &storage.Lap{
 		SessionID: sessionID,
 		LapNumber: lapNum,
+		CarIndex:  carIndex,
 		IsValid:   true,
 	}
 

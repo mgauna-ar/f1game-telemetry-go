@@ -17,9 +17,24 @@ CREATE TABLE IF NOT EXISTS sessions (
     created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS participants (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id      INTEGER REFERENCES sessions(id),
+    car_index       INTEGER NOT NULL,
+    name            TEXT,
+    driver_id       INTEGER,
+    team_id         INTEGER,
+    race_number     INTEGER,
+    ai_controlled   BOOLEAN,
+    nationality     INTEGER,
+    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(session_id, car_index)
+);
+
 CREATE TABLE IF NOT EXISTS laps (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     session_id      INTEGER REFERENCES sessions(id),
+    car_index       INTEGER NOT NULL DEFAULT 0,
     lap_number      INTEGER NOT NULL,
     lap_time_ms     INTEGER,
     sector1_ms      INTEGER,
@@ -30,7 +45,7 @@ CREATE TABLE IF NOT EXISTS laps (
     fuel_load       REAL,
     max_speed_kmh   REAL,
     created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(session_id, lap_number)
+    UNIQUE(session_id, car_index, lap_number)
 );
 
 CREATE TABLE IF NOT EXISTS telemetry_samples (
@@ -54,6 +69,7 @@ CREATE TABLE IF NOT EXISTS telemetry_samples (
 CREATE INDEX IF NOT EXISTS idx_samples_lap ON telemetry_samples(lap_id);
 CREATE INDEX IF NOT EXISTS idx_samples_distance ON telemetry_samples(lap_id, lap_distance);
 CREATE INDEX IF NOT EXISTS idx_laps_session ON laps(session_id);
+CREATE INDEX IF NOT EXISTS idx_participants_session ON participants(session_id);
 `
 
 // Migrate runs the schema migrations to ensure the database is up to date.

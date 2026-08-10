@@ -89,3 +89,108 @@ func TestSessionManagerIntegration(t *testing.T) {
 		t.Errorf("expected 0 telemetry samples after lap flush, got %d", len(manager.lapTracker.samples))
 	}
 }
+
+func TestSessionManagerParticipants(t *testing.T) {
+	repo, err := storage.NewRepository("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("failed to create repo: %v", err)
+	}
+	defer repo.Close()
+
+	manager := NewSessionManager(repo)
+	ctx := context.Background()
+
+	// 1. First, establish a session
+	sessionHeader := packets.PacketHeader{
+		PacketFormat:   2025,
+		PacketId:       packets.PacketIDSession,
+		SessionUID:     987654321,
+		PlayerCarIndex: 0,
+	}
+	sessionPacket := &packets.PacketSessionData{
+		Header:      sessionHeader,
+		TrackId:     11,
+		SessionType: 10,
+	}
+	manager.ProcessPacket(ctx, sessionPacket)
+
+	if manager.currentSession == nil {
+		t.Fatal("expected current session to be set")
+	}
+
+	// 2. Send a participants packet
+	participantsHeader := sessionHeader
+	participantsHeader.PacketId = packets.PacketIDParticipants
+
+	participantsPacket := &packets.PacketParticipantsData{
+		Header:        participantsHeader,
+		NumActiveCars: 3,
+	}
+
+	// Set participant names (null-terminated [48]byte arrays)
+	copy(participantsPacket.Participants[0].Name[:], "Max Verstappen")
+	participantsPacket.Participants[0].DriverId = 1
+	participantsPacket.Participants[0].TeamId = 1
+	participantsPacket.Participants[0].RaceNumber = 1
+	participantsPacket.Participants[0].AIControlled = 0
+
+	copy(participantsPacket.Participants[1].Name[:], "Lewis Hamilton")
+	participantsPacket.Participants[1].DriverId = 2
+	participantsPacket.Participants[1].TeamId = 0
+	participantsPacket.Participants[1].RaceNumber = 44
+	participantsPacket.Participants[1].AIControlled = 0
+
+	copy(participantsPacket.Participants[2].Name[:], "Charles Leclerc")
+	participantsPacket.Participants[2].DriverId = 3
+	participantsPacket.Participants[2].TeamId = 4
+	participantsPacket.Participants[2].RaceNumber = 16
+	participantsPacket.Participants[2].AIControlled = 1
+
+	manager.ProcessPacket(ctx, participantsPacket)
+
+	// 3. Verify participants were saved
+	participants, err := repo.GetParticipantsBySession(ctx, manager.currentSession.ID)
+	if err != nil {
+		t.Fatalf("GetParticipantsBySession() error = %v", err)
+	}
+
+	if len(participants) != 3 {
+		t.Fatalf("expected 3 participants, got %d", len(participants))
+	}
+
+	// Verify ordering and data
+	tests := []struct {
+		carIndex     int
+		name         string
+		driverID     int
+		teamID       int
+		raceNumber   int
+		aiControlled bool
+	}{
+		{0, "Max Verstappen", 1, 1, 1, false},
+		{1, "Lewis Hamilton", 2, 0, 44, false},
+		{2, "Charles Leclerc", 3, 4, 16, true},
+	}
+
+	for i, tt := range tests {
+		p := participants[i]
+		if p.CarIndex != tt.carIndex {
+			t.Errorf("participant[%d] car_index = %d, want %d", i, p.CarIndex, tt.carIndex)
+		}
+		if p.Name != tt.name {
+			t.Errorf("participant[%d] name = %q, want %q", i, p.Name, tt.name)
+		}
+		if p.DriverID != tt.driverID {
+			t.Errorf("participant[%d] driver_id = %d, want %d", i, p.DriverID, tt.driverID)
+		}
+		if p.TeamID != tt.teamID {
+			t.Errorf("participant[%d] team_id = %d, want %d", i, p.TeamID, tt.teamID)
+		}
+		if p.RaceNumber != tt.raceNumber {
+			t.Errorf("participant[%d] race_number = %d, want %d", i, p.RaceNumber, tt.raceNumber)
+		}
+		if p.AIControlled != tt.aiControlled {
+			t.Errorf("participant[%d] ai_controlled = %v, want %v", i, p.AIControlled, tt.aiControlled)
+		}
+	}
+}
