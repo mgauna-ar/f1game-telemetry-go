@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 
-// Simplified types based on our Go backend structs
 export interface CarTelemetryData {
   Speed: number;
   Throttle: number;
@@ -14,19 +13,70 @@ export interface CarTelemetryData {
 }
 
 export interface LapData {
-  CurrentLapTimeInMS: number;
   LastLapTimeInMS: number;
+  CurrentLapTimeInMS: number;
   Sector1TimeMSPart: number;
+  Sector1TimeMinutesPart?: number;
   Sector2TimeMSPart: number;
-  CurrentLapNum: number;
+  Sector2TimeMinutesPart?: number;
+  DeltaToCarInFrontMSPart?: number;
+  DeltaToCarInFrontMinutesPart?: number;
+  DeltaToRaceLeaderMSPart?: number;
+  DeltaToRaceLeaderMinutesPart?: number;
+  SafetyCarDelta?: number;
   CarPosition: number;
+  CurrentLapNum: number;
+  PitStatus: number;
+  NumPitStops?: number;
+  Sector?: number;
   CurrentLapInvalid: number;
+  DriverStatus?: number;
+  ResultStatus?: number;
+  LapDistance?: number;
+  TotalDistance?: number;
 }
 
 export interface CarMotionData {
   WorldPositionX: number;
   WorldPositionY: number;
   WorldPositionZ: number;
+}
+
+export interface SessionData {
+  Weather: number;
+  TrackTemperature: number;
+  AirTemperature: number;
+  TotalLaps: number;
+  TrackLength: number;
+  SessionType: number;
+  TrackId: number;
+  SessionTimeLeft: number;
+  SessionDuration: number;
+  SafetyCarStatus: number;
+}
+
+export interface ParticipantData {
+  AIControlled: number;
+  DriverId: number;
+  NetworkId?: number;
+  TeamId: number;
+  MyTeam?: number;
+  RaceNumber: number;
+  Nationality: number;
+  Name: string | number[];
+}
+
+export interface CarStatusData {
+  FuelInTank: number;
+  FuelCapacity?: number;
+  VisualTyreCompound: number;
+  ActualTyreCompound?: number;
+  TyresAgeLaps?: number;
+  ERSStoreEnergy: number;
+  ERSDeployMode: number;
+  ERSHarvestedThisLapMGUK?: number;
+  ERSHarvestedThisLapMGUH?: number;
+  ERSDeployedThisLap?: number;
 }
 
 export interface PacketHeader {
@@ -50,24 +100,74 @@ interface PacketMotionData {
   CarMotionData: CarMotionData[];
 }
 
+interface PacketSessionData {
+  Header: PacketHeader;
+  Weather: number;
+  TrackTemperature: number;
+  AirTemperature: number;
+  TotalLaps: number;
+  TrackLength: number;
+  SessionType: number;
+  TrackId: number;
+  SessionTimeLeft: number;
+  SessionDuration: number;
+  SafetyCarStatus: number;
+}
+
+interface PacketParticipantsData {
+  Header: PacketHeader;
+  NumActiveCars: number;
+  Participants: ParticipantData[];
+}
+
+interface PacketCarStatusData {
+  Header: PacketHeader;
+  CarStatusData: CarStatusData[];
+}
+
 export interface TelemetrySample extends CarTelemetryData {
   SessionTime: number;
 }
 
+export function parseDriverName(rawName: string | number[] | undefined, defaultName: string): string {
+  if (!rawName) return defaultName;
+  if (typeof rawName === 'string') {
+    try {
+      const decoded = atob(rawName).replace(/\0/g, '').trim();
+      return decoded || defaultName;
+    } catch {
+      return rawName.replace(/\0/g, '').trim() || defaultName;
+    }
+  }
+  if (Array.isArray(rawName)) {
+    const chars = rawName.map(c => String.fromCharCode(c)).join('');
+    return chars.replace(/\0/g, '').trim() || defaultName;
+  }
+  return defaultName;
+}
+
 export function useTelemetry(wsUrl: string) {
-  const [telemetry, setTelemetry] = useState<CarTelemetryData | null>(null);
-  const [lap, setLap] = useState<LapData | null>(null);
-  const [motion, setMotion] = useState<CarMotionData | null>(null);
+  const [session, setSession] = useState<SessionData | null>(null);
+  const [participants, setParticipants] = useState<ParticipantData[]>([]);
+  const [allLaps, setAllLaps] = useState<LapData[]>([]);
+  const [allMotion, setAllMotion] = useState<CarMotionData[]>([]);
+  const [allCarStatus, setAllCarStatus] = useState<CarStatusData[]>([]);
+  const [allTelemetry, setAllTelemetry] = useState<CarTelemetryData[]>([]);
+  
+  const [playerCarIndex, setPlayerCarIndex] = useState<number>(0);
+  const [selectedCarIndex, setSelectedCarIndex] = useState<number>(0);
+
   const [connected, setConnected] = useState(false);
-  
-  // Rolling buffer for chart data
   const [history, setHistory] = useState<TelemetrySample[]>([]);
-  
-  // Track layout historical positions
-  const [trackPath, setTrackPath] = useState<{x: number, z: number}[]>([]);
-  
+  const [trackPath, setTrackPath] = useState<{ x: number; z: number }[]>([]);
+
   const ws = useRef<WebSocket | null>(null);
   const historyRef = useRef<TelemetrySample[]>([]);
+  const selectedCarIndexRef = useRef<number>(0);
+
+  useEffect(() => {
+    selectedCarIndexRef.current = selectedCarIndex;
+  }, [selectedCarIndex]);
 
   useEffect(() => {
     ws.current = new WebSocket(wsUrl);
@@ -79,47 +179,85 @@ export function useTelemetry(wsUrl: string) {
       try {
         const data = JSON.parse(event.data);
         const header = data.Header as PacketHeader;
-        
-        // Use PlayerCarIndex from header, fallback to 0
-        const playerIdx = header.PlayerCarIndex || 0;
+        if (!header) return;
 
-        // PacketID 6 is CarTelemetry
-        if (header.PacketId === 6) {
-          const pkt = data as PacketCarTelemetryData;
-          const current = pkt.CarTelemetryData[playerIdx];
-          setTelemetry(current);
+        const playerIdx = header.PlayerCarIndex !== undefined ? header.PlayerCarIndex : 0;
+        setPlayerCarIndex(playerIdx);
 
-          // Update rolling buffer
-          const sample: TelemetrySample = {
-            ...current,
-            SessionTime: header.SessionTime
-          };
-          
-          historyRef.current = [...historyRef.current.slice(-99), sample];
-          setHistory(historyRef.current);
-        } 
-        // PacketID 2 is LapData
-        else if (header.PacketId === 2) {
-          const pkt = data as PacketLapData;
-          setLap(pkt.LapData[playerIdx]);
-        }
-        // PacketID 0 is MotionData
-        else if (header.PacketId === 0) {
-          const pkt = data as PacketMotionData;
-          const current = pkt.CarMotionData[playerIdx];
-          setMotion(current);
-          
-          // Downsample tracking to avoid massive arrays (e.g., only add if moved significantly)
-          setTrackPath(prev => {
-            const last = prev[prev.length - 1];
-            if (!last || Math.abs(last.x - current.WorldPositionX) > 1.0 || Math.abs(last.z - current.WorldPositionZ) > 1.0) {
-              return [...prev, { x: current.WorldPositionX, z: current.WorldPositionZ }];
-            }
-            return prev;
+        // PacketID 1: Session Data
+        if (header.PacketId === 1) {
+          const pkt = data as PacketSessionData;
+          setSession({
+            Weather: pkt.Weather,
+            TrackTemperature: pkt.TrackTemperature,
+            AirTemperature: pkt.AirTemperature,
+            TotalLaps: pkt.TotalLaps,
+            TrackLength: pkt.TrackLength,
+            SessionType: pkt.SessionType,
+            TrackId: pkt.TrackId,
+            SessionTimeLeft: pkt.SessionTimeLeft,
+            SessionDuration: pkt.SessionDuration,
+            SafetyCarStatus: pkt.SafetyCarStatus,
           });
         }
+        // PacketID 4: Participants Data
+        else if (header.PacketId === 4) {
+          const pkt = data as PacketParticipantsData;
+          if (pkt.Participants && pkt.Participants.length > 0) {
+            setParticipants(pkt.Participants);
+          }
+        }
+        // PacketID 7: Car Status Data
+        else if (header.PacketId === 7) {
+          const pkt = data as PacketCarStatusData;
+          if (pkt.CarStatusData) {
+            setAllCarStatus(pkt.CarStatusData);
+          }
+        }
+        // PacketID 6: Car Telemetry Data
+        else if (header.PacketId === 6) {
+          const pkt = data as PacketCarTelemetryData;
+          if (pkt.CarTelemetryData) {
+            setAllTelemetry(pkt.CarTelemetryData);
+            const activeIdx = selectedCarIndexRef.current < pkt.CarTelemetryData.length ? selectedCarIndexRef.current : playerIdx;
+            const current = pkt.CarTelemetryData[activeIdx] || pkt.CarTelemetryData[playerIdx];
+
+            if (current) {
+              const sample: TelemetrySample = {
+                ...current,
+                SessionTime: header.SessionTime,
+              };
+              historyRef.current = [...historyRef.current.slice(-99), sample];
+              setHistory(historyRef.current);
+            }
+          }
+        }
+        // PacketID 2: Lap Data
+        else if (header.PacketId === 2) {
+          const pkt = data as PacketLapData;
+          if (pkt.LapData) {
+            setAllLaps(pkt.LapData);
+          }
+        }
+        // PacketID 0: Motion Data
+        else if (header.PacketId === 0) {
+          const pkt = data as PacketMotionData;
+          if (pkt.CarMotionData) {
+            setAllMotion(pkt.CarMotionData);
+            const playerMotion = pkt.CarMotionData[playerIdx];
+            if (playerMotion) {
+              setTrackPath((prev) => {
+                const last = prev[prev.length - 1];
+                if (!last || Math.abs(last.x - playerMotion.WorldPositionX) > 1.0 || Math.abs(last.z - playerMotion.WorldPositionZ) > 1.0) {
+                  return [...prev, { x: playerMotion.WorldPositionX, z: playerMotion.WorldPositionZ }];
+                }
+                return prev;
+              });
+            }
+          }
+        }
       } catch (err) {
-        console.error("Failed to parse telemetry:", err);
+        console.error('Failed to parse telemetry packet:', err);
       }
     };
 
@@ -128,5 +266,29 @@ export function useTelemetry(wsUrl: string) {
     };
   }, [wsUrl]);
 
-  return { telemetry, lap, motion, trackPath, connected, history };
+  const activeIdx = selectedCarIndex < (allTelemetry.length || 1) ? selectedCarIndex : playerCarIndex;
+  const telemetry = allTelemetry[activeIdx] || null;
+  const lap = allLaps[activeIdx] || null;
+  const motion = allMotion[activeIdx] || null;
+  const carStatus = allCarStatus[activeIdx] || null;
+
+  return {
+    session,
+    participants,
+    allLaps,
+    allMotion,
+    allCarStatus,
+    allTelemetry,
+    telemetry,
+    lap,
+    motion,
+    carStatus,
+    trackPath,
+    connected,
+    history,
+    playerCarIndex,
+    selectedCarIndex,
+    setSelectedCarIndex,
+  };
 }
+

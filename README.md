@@ -11,11 +11,13 @@
 - **UDP Telemetry Capture** — Listens for real-time telemetry packets from F1 25 / F1 26
 - **SQLite Storage** — Persists session data, laps, telemetry traces, and session participants locally
 - **Driver & Participant Metadata** — Stores driver names, team IDs, race numbers, and AI status per session
-- **Web Dashboard** — Browser-based interface for live data visualization
+- **Pit Wall Command Center UI** — Browser-based interface featuring session status (Track name, Weather, Safety Car flags, Session type, Countdown/Total laps)
+- **Live Leaderboard Tower** — Real-time standings tower with team color badges, driver numbers, interval deltas, tyre compounds, pit status, and Qualifying elimination cut-off markers
+- **Multi-Car Live Track Map** — Concurrent multi-car position tracking on circuit layout with driver number labels and interactive driver selection
+- **Car Status & Strategy Telemetry** — Live monitoring of ERS Store Energy %, ERS deployment modes, fuel remaining in kg, and tyre compound age
 - **Lap Comparison** — Compare lap times, sector splits, and telemetry traces (Speed, Throttle, Brake, ERS Battery Level %, ERS Deploy Mode) with driver name matching and participant roster visualization
 - **Real-time WebSocket** — Stream live telemetry to the dashboard via WebSocket
 - **Multi-format Support** — Supports both 2025 & 2026 UDP packet formats
-- **Live Track Mini-Map** — Real-time visualization of the car's position on the circuit
 
 ## Quick Start
 
