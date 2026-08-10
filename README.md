@@ -20,6 +20,13 @@
 - **Real-time WebSocket** — Stream live telemetry to the dashboard via WebSocket
 - **Multi-format Support** — Supports both 2025 & 2026 UDP packet formats
 
+## Supported Operating Systems
+
+| OS | Status | Notes |
+|---|---|---|
+| **Windows** | ✅ Supported (Windows 10 / 11) | Native support via PowerShell, CMD, Git Bash, or WSL. CGO-free pure Go SQLite (`modernc.org/sqlite`). |
+| **macOS** | ✅ Supported (macOS 11+) | Apple Silicon (M-series) & Intel |
+| **Linux** | ✅ Supported | Any modern x86_64 or ARM64 distribution |
 
 ## Quick Start
 
@@ -32,6 +39,7 @@
 
 #### Backend (Go)
 
+##### Linux / macOS (using `make`):
 ```bash
 # Clone the repository
 git clone https://github.com/mgauna/f1game-telemetry-go.git
@@ -43,6 +51,22 @@ make build
 # Run the backend server
 make run
 ```
+
+##### Windows (PowerShell / Command Prompt):
+```powershell
+# Clone the repository
+git clone https://github.com/mgauna/f1game-telemetry-go.git
+cd f1game-telemetry-go
+
+# Option A: Run directly with Go
+go run ./cmd/server
+
+# Option B: Build executable and run
+go build -o bin/f1telemetry.exe ./cmd/server
+.\bin\f1telemetry.exe
+```
+
+> **Windows Firewall Note:** On your first run on Windows, Windows Defender Firewall may prompt you to allow network access. Make sure to allow network access for UDP port `20777` (for receiving F1 telemetry) and TCP port `8080` (for HTTP API & WebSocket dashboard stream).
 
 #### Frontend (React)
 
@@ -60,11 +84,11 @@ Open [http://localhost:5173](http://localhost:5173) in your browser to view the 
 
 To enable telemetry output from your F1 25 game:
 
-1. Launch **F1 25** on your platform
+1. Launch **F1 25** on your platform (PC / Windows, PlayStation, Xbox)
 2. Go to **Settings** → **Telemetry Settings**
 3. Set **UDP Telemetry** to **On**
 4. Set **UDP Format** to **2025** (or **2026** if using the Season Pack DLC)
-5. Set **UDP IP Address** to the IP of the machine running this server
+5. Set **UDP IP Address** to the IP of the machine running this server (use `127.0.0.1` if running on the same PC)
 6. Set **UDP Port** to **20777**
 7. Set **UDP Send Rate** to your preference (higher = more data)
 
@@ -80,13 +104,18 @@ Configuration is done via environment variables:
 Example:
 
 ```bash
+# Linux / macOS:
 F1T_UDP_ADDR=0.0.0.0:20777 F1T_HTTP_ADDR=:3000 make run
+
+# Windows (PowerShell):
+$env:F1T_UDP_ADDR="0.0.0.0:20777"; $env:F1T_HTTP_ADDR=":3000"; go run ./cmd/server
 ```
 
 ## Testing & Telemetry Simulation
 
 You can test the application without needing the actual F1 game by running the built-in UDP telemetry simulator. You can easily switch between simulating a **Race** or **Qualifying** session:
 
+### Linux / macOS (using `make`):
 ```bash
 # Simulate a Race session (default):
 make simulate
@@ -94,6 +123,16 @@ make simulate
 # Simulate a Qualifying session (Q1, Q2, Q3):
 make simulate SESSION=quali
 make simulate SESSION=q1
+```
+
+### Windows (PowerShell / CMD):
+```powershell
+# Simulate a Race session (default):
+go run ./cmd/simulator -session race
+
+# Simulate a Qualifying session:
+go run ./cmd/simulator -session quali
+go run ./cmd/simulator -session q1
 ```
 
 This sends synthetic live telemetry packets (Session, Motion, Car Telemetry, Lap Data, Car Status, Participants Data) to port `20777` at 20Hz, allowing you to preview real-time telemetry, multi-car track visualization, participant standings, and WebSocket updates in the dashboard.
