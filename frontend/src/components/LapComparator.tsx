@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Sliders, X, Shield, Disc, Wrench, CircleDot, Fuel } from 'lucide-react';
 import {
   LineChart,
   Line,
@@ -31,6 +32,32 @@ interface Participant {
   created_at?: string;
 }
 
+interface CarSetup {
+  id: number;
+  session_id: number;
+  car_index: number;
+  front_wing: number;
+  rear_wing: number;
+  on_throttle: number;
+  off_throttle: number;
+  front_camber: number;
+  rear_camber: number;
+  front_toe: number;
+  rear_toe: number;
+  front_suspension: number;
+  rear_suspension: number;
+  front_anti_roll_bar: number;
+  rear_anti_roll_bar: number;
+  front_suspension_height: number;
+  rear_suspension_height: number;
+  brake_pressure: number;
+  brake_bias: number;
+  front_tyre_pressure: number;
+  rear_tyre_pressure: number;
+  ballast: number;
+  fuel_load: number;
+}
+
 interface Lap {
   id: number;
   session_id: number;
@@ -57,6 +84,9 @@ export const LapComparator: React.FC = () => {
   const [selectedSessionId, setSelectedSessionId] = useState<number | ''>('');
   
   const [participants, setParticipants] = useState<Participant[]>([]);
+  const [carSetups, setCarSetups] = useState<CarSetup[]>([]);
+  const [activeSetupParticipant, setActiveSetupParticipant] = useState<{ participant: Participant; setup: CarSetup } | null>(null);
+
   const [laps, setLaps] = useState<Lap[]>([]);
   const [lapAId, setLapAId] = useState<number | ''>('');
   const [lapBId, setLapBId] = useState<number | ''>('');
@@ -111,13 +141,20 @@ export const LapComparator: React.FC = () => {
         .then(res => res.json())
         .then(data => setParticipants(data || []))
         .catch(err => console.error("Failed to fetch participants", err));
+
+      fetch(`/api/sessions/${selectedSessionId}/setups`)
+        .then(res => res.json())
+        .then(data => setCarSetups(data || []))
+        .catch(err => console.error("Failed to fetch car setups", err));
     } else {
       setLaps([]);
       setParticipants([]);
+      setCarSetups([]);
       setLapAId('');
       setLapBId('');
     }
   }, [selectedSessionId]);
+
 
   useEffect(() => {
     if (lapAId) {
@@ -295,46 +332,235 @@ export const LapComparator: React.FC = () => {
             </p>
           ) : (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem' }}>
-              {participants.map(p => (
-                <div 
-                  key={p.id || `car-${p.car_index}`}
-                  style={{ 
-                    background: 'rgba(0, 0, 0, 0.35)', 
-                    border: '1px solid var(--border-color)', 
-                    borderRadius: 'var(--radius-sm)', 
-                    padding: '0.4rem 0.75rem', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '0.5rem',
-                    fontSize: '0.85rem' 
-                  }}
-                >
-                  <span style={{ fontWeight: 'bold', color: 'var(--accent-secondary)', fontFamily: 'var(--font-mono)' }}>
-                    #{p.race_number}
-                  </span>
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                    {p.name}
-                  </span>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', background: 'rgba(255, 255, 255, 0.06)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
-                    Team {p.team_id}
-                  </span>
-                  <span style={{ 
-                    fontSize: '0.7rem', 
-                    fontWeight: 700, 
-                    padding: '0.1rem 0.4rem', 
-                    borderRadius: '999px',
-                    background: p.ai_controlled ? 'rgba(255, 165, 0, 0.15)' : 'rgba(0, 210, 211, 0.15)',
-                    color: p.ai_controlled ? '#ffa500' : '#00d2d3',
-                    border: `1px solid ${p.ai_controlled ? 'rgba(255, 165, 0, 0.3)' : 'rgba(0, 210, 211, 0.3)'}`
-                  }}>
-                    {p.ai_controlled ? 'AI' : 'HUMAN'}
-                  </span>
-                </div>
-              ))}
+              {participants.map(p => {
+                const setup = carSetups.find(s => s.car_index === p.car_index);
+                return (
+                  <div 
+                    key={p.id || `car-${p.car_index}`}
+                    style={{ 
+                      background: 'rgba(0, 0, 0, 0.35)', 
+                      border: '1px solid var(--border-color)', 
+                      borderRadius: 'var(--radius-sm)', 
+                      padding: '0.4rem 0.75rem', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '0.5rem',
+                      fontSize: '0.85rem' 
+                    }}
+                  >
+                    <span style={{ fontWeight: 'bold', color: 'var(--accent-secondary)', fontFamily: 'var(--font-mono)' }}>
+                      #{p.race_number}
+                    </span>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {p.name}
+                    </span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', background: 'rgba(255, 255, 255, 0.06)', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
+                      Team {p.team_id}
+                    </span>
+                    <span style={{ 
+                      fontSize: '0.7rem', 
+                      fontWeight: 700, 
+                      padding: '0.1rem 0.4rem', 
+                      borderRadius: '999px',
+                      background: p.ai_controlled ? 'rgba(255, 165, 0, 0.15)' : 'rgba(0, 210, 211, 0.15)',
+                      color: p.ai_controlled ? '#ffa500' : '#00d2d3',
+                      border: `1px solid ${p.ai_controlled ? 'rgba(255, 165, 0, 0.3)' : 'rgba(0, 210, 211, 0.3)'}`
+                    }}>
+                      {p.ai_controlled ? 'AI' : 'HUMAN'}
+                    </span>
+                    {setup && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveSetupParticipant({ participant: p, setup })}
+                        style={{
+                          background: 'rgba(0, 242, 254, 0.12)',
+                          border: '1px solid rgba(0, 242, 254, 0.35)',
+                          color: '#00f2fe',
+                          borderRadius: '4px',
+                          padding: '0.15rem 0.45rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          marginLeft: '0.2rem',
+                          transition: 'all 0.15s ease'
+                        }}
+                        title={`Inspect ${p.name}'s Setup`}
+                      >
+                        <Sliders size={12} /> Setup
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
       )}
+
+      {/* Car Setup Inspector Modal Overlay */}
+      {activeSetupParticipant && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          backdropFilter: 'blur(6px)',
+          zIndex: 1000,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: '1.5rem'
+        }}>
+          <div className="glass-panel" style={{
+            maxWidth: '850px',
+            width: '100%',
+            background: 'rgba(18, 18, 22, 0.95)',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            borderRadius: '12px',
+            padding: '1.5rem',
+            boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', pb: '0.75rem' }}>
+              <div>
+                <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.15rem', color: '#fff' }}>
+                  <Sliders size={20} color="#00f2fe" /> Car Setup Details — {activeSetupParticipant.participant.name} (#{activeSetupParticipant.participant.race_number})
+                </h3>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  Car #{activeSetupParticipant.participant.car_index + 1} • Team ID {activeSetupParticipant.participant.team_id}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveSetupParticipant(null)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: 'none',
+                  color: '#fff',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer'
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
+              {/* 1. Aero & Weight */}
+              <div style={{ background: 'rgba(255, 255, 255, 0.03)', borderRadius: '8px', padding: '0.85rem', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  <Shield size={14} color="#38ef7d" /> Aero & Weight
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>Front Wing</span>
+                    <span className="mono" style={{ fontWeight: 600 }}>{activeSetupParticipant.setup.front_wing}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>Rear Wing</span>
+                    <span className="mono" style={{ fontWeight: 600 }}>{activeSetupParticipant.setup.rear_wing}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                    <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Fuel size={12} /> Fuel Load
+                    </span>
+                    <span className="mono" style={{ fontWeight: 600, color: '#38ef7d' }}>
+                      {activeSetupParticipant.setup.fuel_load ? activeSetupParticipant.setup.fuel_load.toFixed(1) : '0.0'} kg
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>Ballast</span>
+                    <span className="mono" style={{ fontWeight: 600 }}>{activeSetupParticipant.setup.ballast}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Transmission & Brakes */}
+              <div style={{ background: 'rgba(255, 255, 255, 0.03)', borderRadius: '8px', padding: '0.85rem', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  <Disc size={14} color="#ff4e50" /> Transmission & Brakes
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>Diff On-Throttle</span>
+                    <span className="mono" style={{ fontWeight: 600 }}>{activeSetupParticipant.setup.on_throttle}%</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>Diff Off-Throttle</span>
+                    <span className="mono" style={{ fontWeight: 600 }}>{activeSetupParticipant.setup.off_throttle}%</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>Brake Pressure</span>
+                    <span className="mono" style={{ fontWeight: 600 }}>{activeSetupParticipant.setup.brake_pressure}%</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>Brake Bias</span>
+                    <span className="mono" style={{ fontWeight: 600, color: '#ff4e50' }}>{activeSetupParticipant.setup.brake_bias}%</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Suspension & ARB */}
+              <div style={{ background: 'rgba(255, 255, 255, 0.03)', borderRadius: '8px', padding: '0.85rem', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  <Wrench size={14} color="#f8d030" /> Suspension & ARB
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>F / R Suspension</span>
+                    <span className="mono" style={{ fontWeight: 600 }}>{activeSetupParticipant.setup.front_suspension} / {activeSetupParticipant.setup.rear_suspension}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>F / R Anti-Roll Bar</span>
+                    <span className="mono" style={{ fontWeight: 600 }}>{activeSetupParticipant.setup.front_anti_roll_bar} / {activeSetupParticipant.setup.rear_anti_roll_bar}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>F / R Ride Height</span>
+                    <span className="mono" style={{ fontWeight: 600 }}>{activeSetupParticipant.setup.front_suspension_height} / {activeSetupParticipant.setup.rear_suspension_height}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Geometry & Tyres */}
+              <div style={{ background: 'rgba(255, 255, 255, 0.03)', borderRadius: '8px', padding: '0.85rem', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
+                <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  <CircleDot size={14} color="#00f2fe" /> Geometry & Tyres
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>F / R Camber</span>
+                    <span className="mono" style={{ fontWeight: 600 }}>
+                      {activeSetupParticipant.setup.front_camber ? activeSetupParticipant.setup.front_camber.toFixed(2) : '0.00'}° / {activeSetupParticipant.setup.rear_camber ? activeSetupParticipant.setup.rear_camber.toFixed(2) : '0.00'}°
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>F / R Toe</span>
+                    <span className="mono" style={{ fontWeight: 600 }}>
+                      {activeSetupParticipant.setup.front_toe ? activeSetupParticipant.setup.front_toe.toFixed(2) : '0.00'}° / {activeSetupParticipant.setup.rear_toe ? activeSetupParticipant.setup.rear_toe.toFixed(2) : '0.00'}°
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>F / R Tyre PSI</span>
+                    <span className="mono" style={{ fontWeight: 600, color: '#00f2fe' }}>
+                      {activeSetupParticipant.setup.front_tyre_pressure ? activeSetupParticipant.setup.front_tyre_pressure.toFixed(1) : '0.0'} / {activeSetupParticipant.setup.rear_tyre_pressure ? activeSetupParticipant.setup.rear_tyre_pressure.toFixed(1) : '0.0'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
 
       {/* Speed Sub-chart */}
       <div className="glass-panel" style={{ gridColumn: 'span 12', height: '280px', display: 'flex', flexDirection: 'column' }}>
