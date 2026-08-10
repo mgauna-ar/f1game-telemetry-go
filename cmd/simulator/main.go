@@ -222,6 +222,25 @@ func main() {
 				CarPosition:        2,
 			}
 			sendPacket(conn, &lapPkt)
+
+			// 5. Car Status Packet (ID: 7)
+			if frameID == 1 || frameID%20 == 0 {
+				statusPkt := packets.PacketCarStatusData{
+					Header: header,
+				}
+				statusPkt.Header.PacketId = packets.PacketIDCarStatus
+				statusPkt.CarStatusData[0] = packets.CarStatusData{
+					FuelInTank:         45.5,
+					VisualTyreCompound: 16, // Soft
+					ERSStoreEnergy:     4000000.0,
+				}
+				statusPkt.CarStatusData[1] = packets.CarStatusData{
+					FuelInTank:         47.0,
+					VisualTyreCompound: 17, // Medium
+					ERSStoreEnergy:     3800000.0,
+				}
+				sendPacket(conn, &statusPkt)
+			}
 		}
 	}
 }
