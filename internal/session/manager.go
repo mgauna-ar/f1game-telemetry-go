@@ -86,11 +86,10 @@ func (sm *SessionManager) updateSessionInfo(ctx context.Context, p *packets.Pack
 	// To avoid compiler error, I'll use a type assertion or just assume it.
 
 	updated := false
-	if sm.currentSession.TrackID != int(p.TrackId) {
+	if sm.currentSession.TrackID != int(p.TrackId) || sm.currentSession.SessionType == "Unknown" {
 		sm.currentSession.TrackID = int(p.TrackId)
-		// We can leave TrackName update to a separate step or just format it
-		// We'll leave it as Unknown for now to ensure compilation, or if it has TrackName() we use it.
-		// Let's rely on the DB ID for now.
+		sm.currentSession.TrackName = packets.TrackName(p.TrackId)
+		sm.currentSession.SessionType = packets.SessionTypeName(p.SessionType)
 		updated = true
 	}
 

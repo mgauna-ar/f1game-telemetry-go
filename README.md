@@ -78,13 +78,27 @@ Example:
 F1T_UDP_ADDR=0.0.0.0:20777 F1T_HTTP_ADDR=:3000 make run
 ```
 
+## Testing & Telemetry Simulation
+
+You can test the application without needing the actual F1 game by running the built-in UDP telemetry simulator:
+
+```bash
+# In a separate terminal while the server is running:
+make simulate
+```
+
+This sends synthetic live telemetry packets (Motion, Car Telemetry, Lap Data) to port `20777` at 20Hz, allowing you to preview real-time telemetry, track visualization, and WebSocket updates in the dashboard.
+
 ## Project Structure
 
 ```text
 f1game-telemetry-go/
 ├── cmd/
-│   └── server/          # Application entry point
+│   ├── server/          # Application entry point
+│   │   └── main.go
+│   └── simulator/       # Synthetic UDP packet generator for testing
 │       └── main.go
+
 ├── internal/
 │   ├── api/             # HTTP server, REST endpoints and WebSocket hub
 │   ├── packets/         # F1 telemetry packet parsing and types

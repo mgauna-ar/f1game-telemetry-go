@@ -20,6 +20,11 @@ run: build
 dev:
 	go run ./cmd/server
 
+## simulate: Run the telemetry packet simulator
+simulate:
+	go run ./cmd/simulator
+
+
 ## test: Run all tests with verbose output
 test:
 	go test ./... -v -race
