@@ -173,10 +173,77 @@ func (p PacketSessionData) GetHeader() PacketHeader { return p.Header }
 
 // DecodeSession decodes a PacketSessionData from raw bytes.
 func DecodeSession(data []byte) (*PacketSessionData, error) {
-	var pkt PacketSessionData
-	err := binary.Read(bytes.NewReader(data), binary.LittleEndian, &pkt)
+	header, headerLen, err := DecodeHeaderWithOffset(data)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode session packet: %w", err)
+		return nil, fmt.Errorf("failed to decode header in session: %w", err)
 	}
+
+	var pkt PacketSessionData
+	pkt.Header = header
+
+	payload := data[headerLen:]
+	r := bytes.NewReader(payload)
+
+	if err := binary.Read(r, binary.LittleEndian, &pkt.Weather); err != nil {
+		return nil, fmt.Errorf("failed to decode session payload: %w", err)
+	}
+	_ = binary.Read(r, binary.LittleEndian, &pkt.TrackTemperature)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.AirTemperature)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.TotalLaps)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.TrackLength)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.SessionType)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.TrackId)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.Formula)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.SessionTimeLeft)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.SessionDuration)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.PitSpeedLimit)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.GamePaused)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.IsSpectating)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.SpectatorCarIndex)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.SliProNativeSupport)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.NumMarshalZones)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.MarshalZones)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.SafetyCarStatus)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.NetworkGame)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.NumWeatherForecastSamples)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.WeatherForecastSamples)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.ForecastAccuracy)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.AIDifficulty)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.SeasonLinkIdentifier)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.WeekendLinkIdentifier)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.SessionLinkIdentifier)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.PitStopWindowIdealLap)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.PitStopWindowLatestLap)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.PitStopRejoinPosition)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.SteeringAssist)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.BrakingAssist)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.GearboxAssist)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.PitAssist)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.PitReleaseAssist)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.ERSAssist)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.DRSAssist)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.DynamicRacingLine)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.DynamicRacingLineType)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.GameMode)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.RuleSet)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.TimeOfDay)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.SessionLength)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.SpeedUnitsLeadPlayer)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.TemperatureUnitsLeadPlayer)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.SpeedUnitsSecondaryPlayer)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.TemperatureUnitsSecondaryPlayer)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.NumSafetyCarPeriods)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.NumVirtualSafetyCarPeriods)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.NumRedFlagPeriods)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.EqualCarPerformance)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.RecoveryMode)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.FlashbackLimit)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.SurfaceType)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.LowFuelMode)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.RaceStarts)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.TyreLockMode)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.PitLaneTyreSim)
+	_ = binary.Read(r, binary.LittleEndian, &pkt.NumDisqualifications)
+
 	return &pkt, nil
 }

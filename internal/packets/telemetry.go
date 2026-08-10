@@ -39,10 +39,30 @@ func (p PacketCarTelemetryData) GetHeader() PacketHeader { return p.Header }
 
 // DecodeCarTelemetry decodes a PacketCarTelemetryData from raw bytes.
 func DecodeCarTelemetry(data []byte) (*PacketCarTelemetryData, error) {
-	var pkt PacketCarTelemetryData
-	err := binary.Read(bytes.NewReader(data), binary.LittleEndian, &pkt)
+	header, headerLen, err := DecodeHeaderWithOffset(data)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode car telemetry packet: %w", err)
+		return nil, fmt.Errorf("failed to decode header in car telemetry: %w", err)
 	}
+
+	var pkt PacketCarTelemetryData
+	pkt.Header = header
+
+	payload := data[headerLen:]
+	r := bytes.NewReader(payload)
+
+	if err := binary.Read(r, binary.LittleEndian, &pkt.CarTelemetryData); err != nil {
+		return nil, fmt.Errorf("failed to decode car telemetry payload: %w", err)
+	}
+
+	if r.Len() >= 1 {
+		_ = binary.Read(r, binary.LittleEndian, &pkt.MFDPanelIndex)
+	}
+	if r.Len() >= 1 {
+		_ = binary.Read(r, binary.LittleEndian, &pkt.MFDPanelIndexSecondaryPlayer)
+	}
+	if r.Len() >= 1 {
+		_ = binary.Read(r, binary.LittleEndian, &pkt.SuggestedGear)
+	}
+
 	return &pkt, nil
 }

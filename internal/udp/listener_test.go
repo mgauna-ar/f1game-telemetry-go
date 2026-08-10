@@ -86,8 +86,8 @@ func TestListenerDropsSmallPackets(t *testing.T) {
 	}
 	defer conn.Close()
 
-	// Send a packet smaller than the minimum (28 bytes).
-	smallPacket := make([]byte, 28)
+	// Send a packet smaller than the minimum (20 bytes).
+	smallPacket := make([]byte, 20)
 	_, err = conn.Write(smallPacket)
 	if err != nil {
 		t.Fatalf("write UDP: %v", err)

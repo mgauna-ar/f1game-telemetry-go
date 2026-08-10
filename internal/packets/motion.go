@@ -38,10 +38,20 @@ func (p PacketMotionData) GetHeader() PacketHeader { return p.Header }
 
 // DecodeMotion decodes a PacketMotionData from raw bytes.
 func DecodeMotion(data []byte) (*PacketMotionData, error) {
-	var pkt PacketMotionData
-	err := binary.Read(bytes.NewReader(data), binary.LittleEndian, &pkt)
+	header, headerLen, err := DecodeHeaderWithOffset(data)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode motion packet: %w", err)
+		return nil, fmt.Errorf("failed to decode header in motion: %w", err)
 	}
+
+	var pkt PacketMotionData
+	pkt.Header = header
+
+	payload := data[headerLen:]
+	r := bytes.NewReader(payload)
+
+	if err := binary.Read(r, binary.LittleEndian, &pkt.CarMotionData); err != nil {
+		return nil, fmt.Errorf("failed to decode motion payload: %w", err)
+	}
+
 	return &pkt, nil
 }

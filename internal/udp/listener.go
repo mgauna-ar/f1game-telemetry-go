@@ -12,8 +12,8 @@ const (
 	// DefaultBufferSize is the default read buffer size in bytes.
 	DefaultBufferSize = 2048
 
-	// minPacketSize is the minimum valid packet size (header size).
-	minPacketSize = 29
+	// minPacketSize is the minimum valid packet size (2023 header size).
+	minPacketSize = 25
 )
 
 // RawPacket represents a raw UDP packet received from the F1 game.

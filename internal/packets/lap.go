@@ -55,10 +55,27 @@ func (p PacketLapData) GetHeader() PacketHeader { return p.Header }
 
 // DecodeLapData decodes a PacketLapData from raw bytes.
 func DecodeLapData(data []byte) (*PacketLapData, error) {
-	var pkt PacketLapData
-	err := binary.Read(bytes.NewReader(data), binary.LittleEndian, &pkt)
+	header, headerLen, err := DecodeHeaderWithOffset(data)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode lap data packet: %w", err)
+		return nil, fmt.Errorf("failed to decode header in lap data: %w", err)
 	}
+
+	var pkt PacketLapData
+	pkt.Header = header
+
+	payload := data[headerLen:]
+	r := bytes.NewReader(payload)
+
+	if err := binary.Read(r, binary.LittleEndian, &pkt.LapData); err != nil {
+		return nil, fmt.Errorf("failed to decode lap data payload: %w", err)
+	}
+
+	if r.Len() >= 1 {
+		_ = binary.Read(r, binary.LittleEndian, &pkt.TimeTrialPBCarIdx)
+	}
+	if r.Len() >= 1 {
+		_ = binary.Read(r, binary.LittleEndian, &pkt.TimeTrialRivalCarIdx)
+	}
+
 	return &pkt, nil
 }

@@ -176,9 +176,10 @@ describe('parseDriverName', () => {
     expect(parseDriverName('Sainz', 'Driver 55')).toBe('Sainz');
   });
 
-  it('parses character array driver names', () => {
-    const charArray = [77, 97, 120, 0, 0];
+  it('parses character array driver names and truncates trailing garbage', () => {
+    const charArray = [77, 97, 120, 0, 57, 49, 57, 56]; // "Max\09198"
     expect(parseDriverName(charArray, 'Driver 1')).toBe('Max');
+    expect(parseDriverName('GASLY\x00919819000', 'Driver 1')).toBe('GASLY');
   });
 
   it('resolves AI driver names via DriverId when name is empty', () => {

@@ -196,10 +196,12 @@ export const F1_DRIVER_NAMES: Record<number, string> = {
 export function parseDriverName(rawName: string | number[] | undefined, defaultName: string, driverId?: number): string {
   let nameStr = '';
   if (typeof rawName === 'string') {
-    nameStr = rawName.replace(/\0/g, '').trim();
+    const nullIdx = rawName.indexOf('\0');
+    nameStr = (nullIdx !== -1 ? rawName.slice(0, nullIdx) : rawName).trim();
   } else if (Array.isArray(rawName)) {
-    const chars = rawName.map(c => String.fromCharCode(c)).join('');
-    nameStr = chars.replace(/\0/g, '').trim();
+    const nullIdx = rawName.indexOf(0);
+    const validBytes = nullIdx !== -1 ? rawName.slice(0, nullIdx) : rawName;
+    nameStr = validBytes.map(c => String.fromCharCode(c)).join('').trim();
   }
 
   if (nameStr && nameStr.length > 0) {
@@ -366,7 +368,7 @@ export function useTelemetry(wsUrl?: string) {
             console.error('Failed to parse telemetry packet:', err);
           }
         };
-      } catch (err) {
+      } catch (_err) {
         if (!isUnmounted) {
           setConnected(false);
           reconnectTimer = setTimeout(connect, 2000);

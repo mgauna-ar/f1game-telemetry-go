@@ -45,10 +45,20 @@ func (p PacketCarStatusData) GetHeader() PacketHeader { return p.Header }
 
 // DecodeCarStatus decodes a PacketCarStatusData from raw bytes.
 func DecodeCarStatus(data []byte) (*PacketCarStatusData, error) {
-	var pkt PacketCarStatusData
-	err := binary.Read(bytes.NewReader(data), binary.LittleEndian, &pkt)
+	header, headerLen, err := DecodeHeaderWithOffset(data)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode car status packet: %w", err)
+		return nil, fmt.Errorf("failed to decode header in car status: %w", err)
 	}
+
+	var pkt PacketCarStatusData
+	pkt.Header = header
+
+	payload := data[headerLen:]
+	r := bytes.NewReader(payload)
+
+	if err := binary.Read(r, binary.LittleEndian, &pkt.CarStatusData); err != nil {
+		return nil, fmt.Errorf("failed to decode car status payload: %w", err)
+	}
+
 	return &pkt, nil
 }
