@@ -117,6 +117,42 @@ func main() {
 			sessionPkt.Header.PacketId = packets.PacketIDSession
 			sendPacket(conn, &sessionPkt)
 
+			// 1c. Participants Data Packet (ID: 4)
+			if frameID == 1 || frameID%100 == 0 {
+				participantsPkt := packets.PacketParticipantsData{
+					Header:        header,
+					NumActiveCars: 4,
+				}
+				participantsPkt.Header.PacketId = packets.PacketIDParticipants
+
+				drivers := []struct {
+					name         string
+					driverID     uint8
+					teamID       uint8
+					raceNumber   uint8
+					aiControlled uint8
+					nationality  uint8
+				}{
+					{"Max Verstappen", 1, 1, 1, 0, 5},
+					{"Lewis Hamilton", 2, 0, 44, 1, 12},
+					{"Charles Leclerc", 3, 4, 16, 1, 18},
+					{"Lando Norris", 4, 2, 4, 1, 12},
+				}
+
+				for i, d := range drivers {
+					participantsPkt.Participants[i] = packets.ParticipantData{
+						AIControlled: d.aiControlled,
+						DriverId:     d.driverID,
+						TeamId:       d.teamID,
+						RaceNumber:   d.raceNumber,
+						Nationality:  d.nationality,
+					}
+					copy(participantsPkt.Participants[i].Name[:], d.name)
+				}
+
+				sendPacket(conn, &participantsPkt)
+			}
+
 			// 2. Motion Packet (ID: 0)
 			motionPkt := packets.PacketMotionData{
 				Header: header,

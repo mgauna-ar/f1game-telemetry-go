@@ -88,7 +88,7 @@ You can test the application without needing the actual F1 game by running the b
 make simulate
 ```
 
-This sends synthetic live telemetry packets (Motion, Car Telemetry, Lap Data) to port `20777` at 20Hz, allowing you to preview real-time telemetry, track visualization, and WebSocket updates in the dashboard.
+This sends synthetic live telemetry packets (Session, Motion, Car Telemetry, Lap Data, Participants Data) to port `20777` at 20Hz, allowing you to preview real-time telemetry, track visualization, participant rosters, and WebSocket updates in the dashboard.
 
 ## Project Structure
 
