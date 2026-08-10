@@ -13,9 +13,10 @@ type LapTracker struct {
 	repo     *storage.Repository
 	carIndex int
 
-	currentLapNum int
-	currentLap    *storage.Lap
-	samples       []storage.TelemetrySample
+	currentLapNum   int
+	currentLap      *storage.Lap
+	lastLapDistance float64
+	samples         []storage.TelemetrySample
 }
 
 // NewLapTracker creates a new LapTracker.
@@ -31,6 +32,7 @@ func NewLapTracker(repo *storage.Repository, carIndex int) *LapTracker {
 func (lt *LapTracker) Reset() {
 	lt.currentLapNum = 0
 	lt.currentLap = nil
+	lt.lastLapDistance = 0
 	lt.samples = lt.samples[:0]
 }
 
@@ -48,6 +50,8 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 	if lapData.CurrentLapNum == 0 {
 		return
 	}
+
+	lt.lastLapDistance = float64(lapData.LapDistance)
 
 	if lt.currentLapNum == 0 {
 		lt.startNewLap(ctx, session.ID, int(lapData.CurrentLapNum), lt.carIndex)
@@ -83,7 +87,7 @@ func (lt *LapTracker) ProcessTelemetry(ctx context.Context, session *storage.Ses
 
 	sample := storage.TelemetrySample{
 		LapID:       lt.currentLap.ID,
-		LapDistance: 0,
+		LapDistance: lt.lastLapDistance,
 		SessionTime: float64(p.Header.SessionTime),
 		Speed:       int(carData.Speed),
 		Throttle:    float64(carData.Throttle),

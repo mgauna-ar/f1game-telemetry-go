@@ -439,12 +439,32 @@ function formatTime(ms: number) {
   return `${mins}:${secs.toString().padStart(2, '0')}.${m.toString().padStart(3, '0')}`;
 }
 
-// Normalize session_time to start from 0 for a lap comparison
+// Normalize session_time to start from 0 and compute fallback lap_distance if missing/zero
 function normalizeTime(samples: TelemetrySample[]) {
   if (samples.length === 0) return samples;
   const startTime = samples[0].session_time;
-  return samples.map(s => ({
-    ...s,
-    session_time: s.session_time - startTime
-  }));
+  const hasValidDistance = samples.some(s => s.lap_distance && s.lap_distance > 0);
+
+  let accumulatedDist = 0;
+
+  return samples.map((s, idx) => {
+    let lapDist = s.lap_distance || 0;
+
+    if (!hasValidDistance) {
+      if (idx > 0) {
+        const dt = s.session_time - samples[idx - 1].session_time;
+        if (dt > 0 && dt < 5) {
+          const speedMS = (s.speed * 1000) / 3600;
+          accumulatedDist += speedMS * dt;
+        }
+      }
+      lapDist = Math.round(accumulatedDist * 10) / 10;
+    }
+
+    return {
+      ...s,
+      lap_distance: lapDist,
+      session_time: Math.round((s.session_time - startTime) * 1000) / 1000
+    };
+  });
 }
