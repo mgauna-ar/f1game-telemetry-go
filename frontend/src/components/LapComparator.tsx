@@ -111,6 +111,12 @@ export const LapComparator: React.FC = () => {
   }, [fetchSessions]);
 
   useEffect(() => {
+    // Reset laps and telemetry when session changes to avoid stale lap data
+    setLapAId('');
+    setLapBId('');
+    setRawTelemetryA([]);
+    setRawTelemetryB([]);
+
     if (selectedSessionId) {
       fetch(`/api/sessions/${selectedSessionId}/laps`)
         .then((res) => res.json())
@@ -130,13 +136,12 @@ export const LapComparator: React.FC = () => {
       setLaps([]);
       setParticipants([]);
       setCarSetups([]);
-      setLapAId('');
-      setLapBId('');
     }
   }, [selectedSessionId]);
 
   // Fetch Lap A telemetry with server-side LTTB downsampling parameter maxPoints=800
   useEffect(() => {
+    setRawTelemetryA([]); // Instantly clear previous lap telemetry
     if (lapAId) {
       setLoadingA(true);
       fetch(`/api/laps/${lapAId}/telemetry?maxPoints=800`)
@@ -147,13 +152,12 @@ export const LapComparator: React.FC = () => {
         })
         .catch((err) => console.error('Failed to fetch telemetry A', err))
         .finally(() => setLoadingA(false));
-    } else {
-      setRawTelemetryA([]);
     }
   }, [lapAId]);
 
   // Fetch Lap B telemetry with server-side LTTB downsampling parameter maxPoints=800
   useEffect(() => {
+    setRawTelemetryB([]); // Instantly clear previous lap telemetry
     if (lapBId) {
       setLoadingB(true);
       fetch(`/api/laps/${lapBId}/telemetry?maxPoints=800`)
@@ -164,8 +168,6 @@ export const LapComparator: React.FC = () => {
         })
         .catch((err) => console.error('Failed to fetch telemetry B', err))
         .finally(() => setLoadingB(false));
-    } else {
-      setRawTelemetryB([]);
     }
   }, [lapBId]);
 
