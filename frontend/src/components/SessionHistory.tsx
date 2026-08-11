@@ -754,9 +754,16 @@ export const SessionHistory: React.FC = () => {
                         if (isRaceSession) {
                           if (isLeader) {
                             deltaStr = 'LEADER';
-                          } else if (driver.totalRaceTimeMS > 0 && leaderTotalRaceTimeMS > 0) {
-                            const gapMS = driver.totalRaceTimeMS - leaderTotalRaceTimeMS;
-                            deltaStr = gapMS >= 0 ? `+${(gapMS / 1000).toFixed(3)}s` : `-${(Math.abs(gapMS) / 1000).toFixed(3)}s`;
+                          } else if (driverStandings.length > 0) {
+                            const leaderLaps = driverStandings[0].laps.length;
+                            const driverLapsCount = driver.laps.length;
+                            if (leaderLaps > 0 && driverLapsCount < leaderLaps) {
+                              const lapDiff = leaderLaps - driverLapsCount;
+                              deltaStr = `+${lapDiff} ${lapDiff === 1 ? 'Lap' : 'Laps'}`;
+                            } else if (driver.totalRaceTimeWithPenalties > 0 && driverStandings[0].totalRaceTimeWithPenalties > 0) {
+                              const gapMS = driver.totalRaceTimeWithPenalties - driverStandings[0].totalRaceTimeWithPenalties;
+                              deltaStr = gapMS >= 0 ? `+${(gapMS / 1000).toFixed(3)}s` : `+0.000s`;
+                            }
                           }
                         } else {
                           if (isLeader) {
