@@ -144,7 +144,8 @@ func TestDecodeCarTelemetryAlignment(t *testing.T) {
 	hdr.PlayerCarIndex = 18
 	_ = binary.Write(buf, binary.LittleEndian, &hdr)
 
-	for i := 0; i < MaxCars; i++ {
+	numCars := MaxCarsForFormat(hdr.PacketFormat)
+	for i := 0; i < numCars; i++ {
 		cd := CarTelemetryData{
 			Speed:     uint16(100 + i),
 			Throttle:  0.75,

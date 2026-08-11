@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"math"
 )
 
 // CarTelemetryData contains telemetry data for a single car.
@@ -74,23 +75,58 @@ func DecodeCarTelemetry(data []byte) (*PacketCarTelemetryData, error) {
 	pkt.Header = header
 
 	payload := data[headerLen:]
-
-	const structSize = 60
 	maxCars := MaxCarsForFormat(header.PacketFormat)
-	itemSize := InferredItemSize(payload, header, structSize, 3)
+	itemSize := InferredItemSize(payload, header, 59, 3)
 
 	for i := 0; i < maxCars && i < MaxCars; i++ {
 		offset := i * itemSize
-		if offset+structSize > len(payload) {
+		if offset+59 > len(payload) {
 			break
 		}
-		r := bytes.NewReader(payload[offset : offset+structSize])
-		if err := binary.Read(r, binary.LittleEndian, &pkt.CarTelemetryData[i]); err != nil {
-			return nil, fmt.Errorf("failed to decode car telemetry for car %d: %w", i, err)
+
+		carBytes := payload[offset : offset+itemSize]
+		var c CarTelemetryData
+
+		c.Speed = binary.LittleEndian.Uint16(carBytes[0:2])
+		c.Throttle = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[2:6]))
+		c.Steer = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[6:10]))
+		c.Brake = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[10:14]))
+		c.Clutch = carBytes[14]
+		c.Gear = int8(carBytes[15])
+		c.EngineRPM = binary.LittleEndian.Uint16(carBytes[16:18])
+		c.DRS = carBytes[18]
+		c.RevLightsPercent = carBytes[19]
+		c.RevLightsBitValue = binary.LittleEndian.Uint16(carBytes[20:22])
+
+		for b := 0; b < 4; b++ {
+			c.BrakesTemperature[b] = binary.LittleEndian.Uint16(carBytes[22+b*2 : 24+b*2])
 		}
+		copy(c.TyresSurfaceTemperature[:], carBytes[30:34])
+		copy(c.TyresInnerTemperature[:], carBytes[34:38])
+
+		var pressOffset, surfOffset int
+		if itemSize == 59 {
+			c.EngineTemperature = uint16(carBytes[38])
+			pressOffset = 39
+			surfOffset = 55
+		} else {
+			c.EngineTemperature = binary.LittleEndian.Uint16(carBytes[38:40])
+			pressOffset = 40
+			surfOffset = 56
+		}
+
+		for p := 0; p < 4; p++ {
+			if pressOffset+(p+1)*4 <= len(carBytes) {
+				c.TyresPressure[p] = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[pressOffset+p*4 : pressOffset+(p+1)*4]))
+			}
+		}
+		if surfOffset+4 <= len(carBytes) {
+			copy(c.SurfaceType[:], carBytes[surfOffset:surfOffset+4])
+		}
+
+		pkt.CarTelemetryData[i] = c
 	}
 
-	// Read trailing MFD bytes if present
 	tailOffset := maxCars * itemSize
 	if tailOffset < len(payload) {
 		rTail := bytes.NewReader(payload[tailOffset:])
