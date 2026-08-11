@@ -201,6 +201,49 @@ export const LapComparator: React.FC = () => {
     return calculateMergedComparison(rawTelemetryA, rawTelemetryB, 5);
   }, [rawTelemetryA, rawTelemetryB]);
 
+  // Sector Split Distances for Track Map and Chart Reference Lines
+  const { sector1Distance, sector2Distance } = useMemo(() => {
+    if (comparisonData.length === 0) {
+      return { sector1Distance: null, sector2Distance: null };
+    }
+
+    const maxDist = comparisonData[comparisonData.length - 1].lap_distance;
+    const lapObj = (lapAObj?.sector1_ms && lapAObj?.sector2_ms)
+      ? lapAObj
+      : ((lapBObj?.sector1_ms && lapBObj?.sector2_ms) ? lapBObj : null);
+
+    if (lapObj && lapObj.sector1_ms && lapObj.sector2_ms) {
+      const s1Time = lapObj.sector1_ms / 1000;
+      const s2Time = (lapObj.sector1_ms + lapObj.sector2_ms) / 1000;
+      const useTimeA = lapObj === lapAObj;
+
+      let s1Dist: number | null = null;
+      let s2Dist: number | null = null;
+
+      for (const p of comparisonData) {
+        const timeVal = useTimeA ? p.timeA : p.timeB;
+        if (timeVal !== null) {
+          if (s1Dist === null && timeVal >= s1Time) {
+            s1Dist = p.lap_distance;
+          }
+          if (s2Dist === null && timeVal >= s2Time) {
+            s2Dist = p.lap_distance;
+          }
+        }
+      }
+
+      return {
+        sector1Distance: s1Dist ?? maxDist / 3,
+        sector2Distance: s2Dist ?? (maxDist * 2) / 3,
+      };
+    }
+
+    return {
+      sector1Distance: maxDist / 3,
+      sector2Distance: (maxDist * 2) / 3,
+    };
+  }, [comparisonData, lapAObj, lapBObj]);
+
   // Overall time delta calculation
   const totalDeltaMs = useMemo(() => {
     if (!lapAObj?.lap_time_ms || !lapBObj?.lap_time_ms) return null;
@@ -531,7 +574,13 @@ export const LapComparator: React.FC = () => {
           {comparisonData.length > 0 && (
             <div className="glass-panel" style={{ gridColumn: 'span 4', padding: '0.75rem' }}>
               <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Track Heatmap</h4>
-              <ComparatorTrackMap data={comparisonData} activeDistance={hoverDistance} height={160} />
+              <ComparatorTrackMap
+                data={comparisonData}
+                activeDistance={hoverDistance}
+                height={160}
+                sector1Distance={sector1Distance}
+                sector2Distance={sector2Distance}
+              />
             </div>
           )}
         </div>
@@ -566,6 +615,8 @@ export const LapComparator: React.FC = () => {
                     formatter={(val: any) => [`${Number(val) > 0 ? '+' : ''}${Number(val).toFixed(3)}s`, 'Time Delta (A vs B)']}
                   />
                   <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" />
+                  {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
+                  {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
                   <Line type="monotone" dataKey="time_delta" name="Time Delta" stroke="#f1c40f" dot={false} strokeWidth={2.5} isAnimationActive={false} />
                 </LineChart>
               </ResponsiveContainer>
@@ -582,6 +633,8 @@ export const LapComparator: React.FC = () => {
                   <XAxis dataKey="lap_distance" type="number" domain={['auto', 'auto']} stroke="#666" tick={{ fill: '#999' }} unit="m" />
                   <YAxis stroke="#666" tick={{ fill: '#999' }} domain={[0, 360]} />
                   <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }} />
+                  {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
+                  {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
                   <Legend />
                   <Line type="monotone" dataKey="speedA" name="Speed A (KM/H)" stroke="#ff4757" dot={false} strokeWidth={2} isAnimationActive={false} />
                   <Line type="monotone" dataKey="speedB" name="Speed B (KM/H)" stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={false} />
@@ -600,6 +653,8 @@ export const LapComparator: React.FC = () => {
                   <XAxis dataKey="lap_distance" type="number" domain={['auto', 'auto']} stroke="#666" tick={{ fill: '#999' }} unit="m" />
                   <YAxis stroke="#666" tick={{ fill: '#999' }} domain={[0, 1]} tickFormatter={(v) => `${Math.round(v * 100)}%`} />
                   <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }} formatter={(val: any) => [`${Math.round(Number(val) * 100)}%`]} />
+                  {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
+                  {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
                   <Legend />
                   <Line type="monotone" dataKey="throttleA" name="Throttle A" stroke="#ff4757" dot={false} strokeWidth={2} isAnimationActive={false} />
                   <Line type="monotone" dataKey="throttleB" name="Throttle B" stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={false} />
@@ -620,6 +675,8 @@ export const LapComparator: React.FC = () => {
                   <XAxis dataKey="lap_distance" type="number" domain={['auto', 'auto']} stroke="#666" tick={{ fill: '#999' }} unit="m" />
                   <YAxis stroke="#666" tick={{ fill: '#999' }} domain={[1, 8]} ticks={[1, 2, 3, 4, 5, 6, 7, 8]} />
                   <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }} />
+                  {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
+                  {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
                   <Legend />
                   <Line type="stepAfter" dataKey="gearA" name="Gear A" stroke="#ff4757" dot={false} strokeWidth={2} isAnimationActive={false} />
                   <Line type="stepAfter" dataKey="gearB" name="Gear B" stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={false} />
@@ -639,6 +696,8 @@ export const LapComparator: React.FC = () => {
                   <YAxis stroke="#666" tick={{ fill: '#999' }} domain={[-1, 1]} />
                   <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }} />
                   <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" />
+                  {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
+                  {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
                   <Legend />
                   <Line type="monotone" dataKey="steerA" name="Steer A" stroke="#ff4757" dot={false} strokeWidth={2} isAnimationActive={false} />
                   <Line type="monotone" dataKey="steerB" name="Steer B" stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={false} />
@@ -657,6 +716,8 @@ export const LapComparator: React.FC = () => {
                   <XAxis dataKey="lap_distance" type="number" domain={['auto', 'auto']} stroke="#666" tick={{ fill: '#999' }} unit="m" />
                   <YAxis stroke="#666" tick={{ fill: '#999' }} domain={[0, 100]} />
                   <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }} formatter={(val: any) => [`${Number(val).toFixed(1)}%`]} />
+                  {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
+                  {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
                   <Legend />
                   <Line type="monotone" dataKey="ersBatteryA" name="ERS Battery A (%)" stroke="#ff4757" dot={false} strokeWidth={2} isAnimationActive={false} />
                   <Line type="monotone" dataKey="ersBatteryB" name="ERS Battery B (%)" stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={false} />

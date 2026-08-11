@@ -157,12 +157,26 @@ function interpolateAtDistance(
 export function calculateMergedComparison(
   rawA: TelemetrySamplePoint[],
   rawB: TelemetrySamplePoint[],
-  stepMeters: number = 5
+  stepMeters: number = 5,
+  targetTrackLength?: number
 ): MergedTelemetryPoint[] {
-  const normA = normalizeTelemetrySeries(rawA);
-  const normB = normalizeTelemetrySeries(rawB);
+  let normA = normalizeTelemetrySeries(rawA);
+  let normB = normalizeTelemetrySeries(rawB);
 
   if (normA.length === 0 && normB.length === 0) return [];
+
+  if (targetTrackLength && targetTrackLength > 0) {
+    const endA = normA.length > 0 ? normA[normA.length - 1].lap_distance : 0;
+    const endB = normB.length > 0 ? normB[normB.length - 1].lap_distance : 0;
+    if (endA > 0 && Math.abs(endA - targetTrackLength) > 100) {
+      const scaleA = targetTrackLength / endA;
+      normA = normA.map(s => ({ ...s, lap_distance: Math.round(s.lap_distance * scaleA * 10) / 10 }));
+    }
+    if (endB > 0 && Math.abs(endB - targetTrackLength) > 100) {
+      const scaleB = targetTrackLength / endB;
+      normB = normB.map(s => ({ ...s, lap_distance: Math.round(s.lap_distance * scaleB * 10) / 10 }));
+    }
+  }
 
   const startA = normA.length > 0 ? normA[0].lap_distance : 0;
   const startB = normB.length > 0 ? normB[0].lap_distance : 0;
@@ -173,7 +187,10 @@ export function calculateMergedComparison(
   let rangeStart: number;
   let rangeEnd: number;
 
-  if (normA.length > 0 && normB.length > 0) {
+  if (targetTrackLength && targetTrackLength > 0) {
+    rangeStart = 0;
+    rangeEnd = targetTrackLength;
+  } else if (normA.length > 0 && normB.length > 0) {
     rangeStart = Math.min(startA, startB);
     rangeEnd = Math.max(endA, endB);
   } else if (normA.length > 0) {

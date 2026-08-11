@@ -4,8 +4,8 @@ import type { TelemetrySamplePoint } from './downsample';
 
 describe('deltaCalculation utility', () => {
   it('normalizes two laps with different raw distance scales to the exact same track length', () => {
-    // Lap A: 100 samples, raw distance 0 to 5000m, duration 88s
-    const lapA: TelemetrySamplePoint[] = Array.from({ length: 100 }, (_, i) => ({
+    // Lap A: 101 samples, raw distance 0 to 5000m, duration 88s
+    const lapA: TelemetrySamplePoint[] = Array.from({ length: 101 }, (_, i) => ({
       lap_distance: i * 50,
       session_time: i * 0.88,
       speed: 200 + (i % 10) * 10,
@@ -14,8 +14,8 @@ describe('deltaCalculation utility', () => {
       gear: 6,
     }));
 
-    // Lap B: 100 samples, raw distance 0 to 12000m (uncalibrated/accumulated), duration 89s
-    const lapB: TelemetrySamplePoint[] = Array.from({ length: 100 }, (_, i) => ({
+    // Lap B: 101 samples, raw distance 0 to 12000m (uncalibrated/accumulated), duration 89s
+    const lapB: TelemetrySamplePoint[] = Array.from({ length: 101 }, (_, i) => ({
       lap_distance: i * 120,
       session_time: i * 0.89,
       speed: 195 + (i % 10) * 10,

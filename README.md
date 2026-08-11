@@ -16,7 +16,7 @@
 - **Multi-Car Live Track Map** — Concurrent multi-car position tracking on circuit layout with driver number labels and interactive driver selection
 - **Car Setup Telemetry** — Live and stored telemetry for aerodynamics (wings), suspension & anti-roll bars, geometry (camber/toe), brake bias/pressure, and tyre pressures
 - **Car Status & Strategy Telemetry** — Live monitoring of ERS Store Energy %, ERS deployment modes, fuel remaining in kg, and tyre compound age
-- **Lap Comparison** — High-performance lap analysis tool featuring server-side LTTB (Largest-Triangle-Three-Buckets) downsampling, synchronized crosshair charts (Time Delta $Δt$, Speed, Throttle & Brake, Gear Selection, Steering Angle, ERS Battery), Sector split deltas, Quick-Select Driver Best Laps, Car Setup inspection, and interactive Mini Track Map with dynamic Time Delta heatmap overlay
+- **Lap Comparison** — High-performance lap analysis tool featuring server-side LTTB (Largest-Triangle-Three-Buckets) downsampling, synchronized crosshair charts (Time Delta $Δt$, Speed, Throttle & Brake, Gear Selection, Steering Angle, ERS Battery), Sector split deltas, Quick-Select Driver Best Laps, Car Setup inspection, and interactive Mini Track Map with dynamic Time Delta / Speed heatmap overlay and sector split markers (S1, S2, S3)
 - **Real-time WebSocket** — Stream live telemetry to the dashboard via WebSocket
 - **Multi-format Support** — Focused exclusively on F1 2025 & F1 2026 DLC UDP packet formats for maximum performance and decoder accuracy
 
