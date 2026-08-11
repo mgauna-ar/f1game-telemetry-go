@@ -7,7 +7,7 @@ This file (`.agents/AGENTS.md`) contains workspace-specific rules and context th
 *   **Target Telemetry Version:** Exclusive target for **F1 2025** and **F1 2026 DLC** UDP telemetry specifications (`PacketFormat` 2025/2026 with fixed 29-byte `PacketHeader`). Deprecated support for 2023 and older formats.
 *   **Backend:** Go (located at the root using standard `cmd/` and `internal/` layout), utilizing WebSockets for real-time data streaming and SQLite (`modernc.org/sqlite` pure Go CGO-free driver) for cross-platform persistence.
 *   **Frontend:** React (located in the `frontend/` directory), Vite (for building/bundling), Recharts (for data visualization), HTML5 Canvas (for track mapping). 
-*   **Communication:** JSON payloads over WebSockets for live telemetry data (Packet IDs: 0 Motion, 1 Session, 2 LapData, 4 Participants, 5 CarSetup, 6 Telemetry, 7 CarStatus).
+*   **Communication:** JSON payloads over WebSockets for live telemetry data (Packet IDs: 0 Motion, 1 Session, 2 LapData, 4 Participants, 5 CarSetup, 6 Telemetry, 7 CarStatus, 10 CarDamage).
 
 ## 2. Testing Standards
 *   **Go Backend:** Always use table-driven tests for packet parsers (especially for handling binary input and struct alignment) and ensure proper error handling.

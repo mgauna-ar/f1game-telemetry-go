@@ -6,7 +6,7 @@ import { TrackMap } from './TrackMap';
 import { SessionHeader } from './SessionHeader';
 import { LeaderboardTower } from './LeaderboardTower';
 import { CarStatusWidget } from './CarStatusWidget';
-import { CarSetupWidget } from './CarSetupWidget';
+import { CarDamageWidget } from './CarDamageWidget';
 
 export const Dashboard: React.FC = () => {
   const {
@@ -19,7 +19,7 @@ export const Dashboard: React.FC = () => {
     lap = null,
     motion = null,
     carStatus = null,
-    carSetup = null,
+    carDamage = null,
     trackPath = [],
     connected = false,
     history = [],
@@ -250,9 +250,9 @@ export const Dashboard: React.FC = () => {
           <TelemetryChart data={history} />
         </div>
 
-        {/* Car Setup Telemetry Widget */}
+        {/* Car Damage & Tyre Wear Telemetry Widget */}
         <div className="dash-setup-col" style={{ gridColumn: 'span 6' }}>
-          <CarSetupWidget carSetup={carSetup} driverName={driverName} />
+          <CarDamageWidget carDamage={carDamage} driverName={driverName} />
         </div>
       </div>
     </div>

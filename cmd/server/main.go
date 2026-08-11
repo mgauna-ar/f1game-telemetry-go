@@ -101,7 +101,8 @@ func main() {
 					pktID == packets.PacketIDSession ||
 					pktID == packets.PacketIDParticipants ||
 					pktID == packets.PacketIDCarStatus ||
-					pktID == packets.PacketIDCarSetup {
+					pktID == packets.PacketIDCarSetup ||
+					pktID == packets.PacketIDCarDamage {
 					if js, err := json.Marshal(pkt); err == nil {
 						hub.Broadcast(js)
 					}

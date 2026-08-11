@@ -14,7 +14,8 @@
 - **Pit Wall Command Center UI** — Browser-based interface featuring session status (Track name, Weather, Safety Car flags, Session type, Countdown/Total laps)
 - **Live Leaderboard Tower** — Real-time standings tower with team color badges, driver numbers, interval deltas, tyre compounds, pit status, and Qualifying elimination cut-off markers
 - **Multi-Car Live Track Map** — Concurrent multi-car position tracking on circuit layout with driver number labels and interactive driver selection
-- **Car Setup Telemetry** — Live and stored telemetry for aerodynamics (wings), suspension & anti-roll bars, geometry (camber/toe), brake bias/pressure, and tyre pressures
+- **Car Damage & Tire Wear Telemetry** — Live monitoring of 4-wheel tyre wear %, aero damage (wings, floor, diffuser), brake wear, gearbox/engine component health, and DRS/ERS faults
+- **Car Setup Telemetry** — Stored setup telemetry for aerodynamics (wings), suspension & anti-roll bars, geometry (camber/toe), brake bias/pressure, and tyre pressures in Lap Analysis
 - **Car Status & Strategy Telemetry** — Live monitoring of ERS Store Energy %, ERS deployment modes, fuel remaining in kg, and tyre compound age
 - **Lap Comparison** — High-performance lap analysis tool featuring server-side LTTB (Largest-Triangle-Three-Buckets) downsampling, synchronized crosshair charts (Time Delta $Δt$, Speed, Throttle & Brake, Gear Selection, Steering Angle, ERS Battery), Sector split deltas, Quick-Select Driver Best Laps, Car Setup inspection, and interactive Mini Track Map with dynamic Time Delta / Speed heatmap overlay and sector split markers (S1, S2, S3)
 - **Real-time WebSocket** — Stream live telemetry to the dashboard via WebSocket
