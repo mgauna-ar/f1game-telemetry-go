@@ -319,35 +319,18 @@ export const LapComparator: React.FC = () => {
             <label className="readout-label" style={{ display: 'block', marginBottom: '0.25rem' }}>
               Session
             </label>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <select
-                className="ui-select"
-                value={selectedSessionId}
-                onChange={(e) => setSelectedSessionId(Number(e.target.value) || '')}
-              >
-                <option value="">Select Session...</option>
-                {sessions.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.track_name} - {s.session_type} ({new Date(s.created_at).toLocaleDateString()})
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="ui-select"
-                onClick={fetchSessions}
-                style={{
-                  cursor: 'pointer',
-                  background: '#2a2a2a',
-                  border: '1px solid #444',
-                  color: '#fff',
-                  padding: '0.35rem 0.6rem',
-                }}
-                title="Refresh sessions list"
-              >
-                🔄
-              </button>
-            </div>
+            <select
+              className="ui-select"
+              value={selectedSessionId}
+              onChange={(e) => setSelectedSessionId(Number(e.target.value) || '')}
+            >
+              <option value="">Select Session...</option>
+              {sessions.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.track_name} - {s.session_type} ({new Date(s.created_at).toLocaleDateString()})
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>
