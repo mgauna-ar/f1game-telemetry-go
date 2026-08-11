@@ -61,6 +61,8 @@ export interface Lap {
   tyre_compound: string;
   fuel_load: number;
   max_speed_kmh: number;
+  penalties_seconds?: number;
+  car_position?: number;
   created_at?: string;
 }
 
@@ -97,6 +99,9 @@ interface DriverStanding {
   bestLap: Lap | null;
   bestLapTimeMS: number;
   totalRaceTimeMS: number;
+  penaltySeconds: number;
+  totalRaceTimeWithPenalties: number;
+  officialPos: number;
   maxSpeed: number;
   setup?: CarSetup;
 }
@@ -381,6 +386,11 @@ export const SessionHistory: React.FC = () => {
       }
 
       const totalRaceTimeMS = driverLaps.reduce((acc, l) => acc + (l.lap_time_ms > 0 ? l.lap_time_ms : 0), 0);
+      const penaltySeconds = driverLaps.reduce((maxPen, l) => Math.max(maxPen, l.penalties_seconds || 0), 0);
+      const totalRaceTimeWithPenalties = totalRaceTimeMS + penaltySeconds * 1000;
+      const lastLap = driverLaps.length > 0 ? driverLaps[driverLaps.length - 1] : null;
+      const officialPos = lastLap && lastLap.car_position && lastLap.car_position > 0 ? lastLap.car_position : 0;
+
       const maxSpeed = driverLaps.reduce((max, l) => Math.max(max, l.max_speed_kmh || 0), 0);
       const setup = setups.find(s => s.car_index === p.car_index);
 
@@ -390,16 +400,22 @@ export const SessionHistory: React.FC = () => {
         bestLap,
         bestLapTimeMS: bestLap ? bestLap.lap_time_ms : Infinity,
         totalRaceTimeMS,
+        penaltySeconds,
+        totalRaceTimeWithPenalties,
+        officialPos,
         maxSpeed,
         setup,
       };
     });
 
-    // Sort: if Race, by total race time / laps completed; otherwise by best lap time
+    // Sort: if Race, by official F1 position, laps completed, and total race time including penalties
     if (isRaceSession) {
       driverList.sort((a, b) => {
+        if (a.officialPos > 0 && b.officialPos > 0) {
+          return a.officialPos - b.officialPos;
+        }
         if (b.laps.length !== a.laps.length) return b.laps.length - a.laps.length;
-        return a.totalRaceTimeMS - b.totalRaceTimeMS;
+        return a.totalRaceTimeWithPenalties - b.totalRaceTimeWithPenalties;
       });
     } else {
       driverList.sort((a, b) => {
@@ -424,8 +440,12 @@ export const SessionHistory: React.FC = () => {
   const leaderBestLapMS = driverStandings.length > 0 ? driverStandings[0].bestLapTimeMS : Infinity;
   const leaderTotalRaceTimeMS = driverStandings.length > 0 ? driverStandings[0].totalRaceTimeMS : Infinity;
 
-  // Overall session statistics
-  const totalSessionLaps = laps.length;
+  // Overall session statistics: max completed race lap number
+  const totalSessionLaps = React.useMemo(() => {
+    if (!laps || laps.length === 0) return 0;
+    return laps.reduce((max, l) => (l.lap_number > max ? l.lap_number : max), 0);
+  }, [laps]);
+
   const totalDriversCount = Math.max(participants.length, driverStandings.length);
 
   return (

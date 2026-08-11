@@ -16,19 +16,21 @@ type Session struct {
 
 // Lap represents a single lap for a session.
 type Lap struct {
-	ID           int64     `db:"id" json:"id"`
-	SessionID    int64     `db:"session_id" json:"session_id"`
-	CarIndex     int       `db:"car_index" json:"car_index"`
-	LapNumber    int       `db:"lap_number" json:"lap_number"`
-	LapTimeMS    int       `db:"lap_time_ms" json:"lap_time_ms"`
-	Sector1MS    int       `db:"sector1_ms" json:"sector1_ms"`
-	Sector2MS    int       `db:"sector2_ms" json:"sector2_ms"`
-	Sector3MS    int       `db:"sector3_ms" json:"sector3_ms"`
-	IsValid      bool      `db:"is_valid" json:"is_valid"`
-	TyreCompound string    `db:"tyre_compound" json:"tyre_compound"`
-	FuelLoad     float64   `db:"fuel_load" json:"fuel_load"`
-	MaxSpeedKMH  float64   `db:"max_speed_kmh" json:"max_speed_kmh"`
-	CreatedAt    time.Time `db:"created_at" json:"created_at"`
+	ID               int64     `db:"id" json:"id"`
+	SessionID        int64     `db:"session_id" json:"session_id"`
+	CarIndex         int       `db:"car_index" json:"car_index"`
+	LapNumber        int       `db:"lap_number" json:"lap_number"`
+	LapTimeMS        int       `db:"lap_time_ms" json:"lap_time_ms"`
+	Sector1MS        int       `db:"sector1_ms" json:"sector1_ms"`
+	Sector2MS        int       `db:"sector2_ms" json:"sector2_ms"`
+	Sector3MS        int       `db:"sector3_ms" json:"sector3_ms"`
+	IsValid          bool      `db:"is_valid" json:"is_valid"`
+	TyreCompound     string    `db:"tyre_compound" json:"tyre_compound"`
+	FuelLoad         float64   `db:"fuel_load" json:"fuel_load"`
+	MaxSpeedKMH      float64   `db:"max_speed_kmh" json:"max_speed_kmh"`
+	PenaltiesSeconds int       `db:"penalties_seconds" json:"penalties_seconds"`
+	CarPosition      int       `db:"car_position" json:"car_position"`
+	CreatedAt        time.Time `db:"created_at" json:"created_at"`
 }
 
 // TelemetrySample represents a single telemetry snapshot within a lap.

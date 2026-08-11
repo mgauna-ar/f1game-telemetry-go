@@ -32,19 +32,21 @@ CREATE TABLE IF NOT EXISTS participants (
 );
 
 CREATE TABLE IF NOT EXISTS laps (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id      INTEGER REFERENCES sessions(id),
-    car_index       INTEGER NOT NULL DEFAULT 0,
-    lap_number      INTEGER NOT NULL,
-    lap_time_ms     INTEGER,
-    sector1_ms      INTEGER,
-    sector2_ms      INTEGER,
-    sector3_ms      INTEGER,
-    is_valid        BOOLEAN DEFAULT 1,
-    tyre_compound   TEXT,
-    fuel_load       REAL,
-    max_speed_kmh   REAL,
-    created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id        INTEGER REFERENCES sessions(id),
+    car_index         INTEGER NOT NULL DEFAULT 0,
+    lap_number        INTEGER NOT NULL,
+    lap_time_ms       INTEGER,
+    sector1_ms        INTEGER,
+    sector2_ms        INTEGER,
+    sector3_ms        INTEGER,
+    is_valid          BOOLEAN DEFAULT 1,
+    tyre_compound     TEXT,
+    fuel_load         REAL,
+    max_speed_kmh     REAL,
+    penalties_seconds INTEGER DEFAULT 0,
+    car_position      INTEGER DEFAULT 0,
+    created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(session_id, car_index, lap_number)
 );
 
@@ -109,5 +111,10 @@ func Migrate(db *sqlx.DB) error {
 	if err != nil {
 		return fmt.Errorf("failed to execute migrations: %w", err)
 	}
+
+	// Add missing columns dynamically if upgrading an existing DB file
+	_, _ = db.Exec("ALTER TABLE laps ADD COLUMN penalties_seconds INTEGER DEFAULT 0")
+	_, _ = db.Exec("ALTER TABLE laps ADD COLUMN car_position INTEGER DEFAULT 0")
+
 	return nil
 }

@@ -151,6 +151,8 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 		s1 := int(lapData.Sector1TimeMSPart) + int(lapData.Sector1TimeMinutesPart)*60000
 		s2 := int(lapData.Sector2TimeMSPart) + int(lapData.Sector2TimeMinutesPart)*60000
 		isValid := lapData.CurrentLapInvalid == 0
+		penalties := int(lapData.Penalties)
+		pos := int(lapData.CarPosition)
 
 		updated := false
 		if s1 > 0 && lt.currentLap.Sector1MS != s1 {
@@ -163,6 +165,14 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 		}
 		if lt.currentLap.IsValid != isValid {
 			lt.currentLap.IsValid = isValid
+			updated = true
+		}
+		if penalties > 0 && lt.currentLap.PenaltiesSeconds != penalties {
+			lt.currentLap.PenaltiesSeconds = penalties
+			updated = true
+		}
+		if pos > 0 && lt.currentLap.CarPosition != pos {
+			lt.currentLap.CarPosition = pos
 			updated = true
 		}
 
