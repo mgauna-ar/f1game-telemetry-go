@@ -270,3 +270,57 @@ func TestSessionManagerHighBitSessionUIDAndLapValidation(t *testing.T) {
 		t.Errorf("expected 0 laps in database for invalid packet, got %d", len(laps))
 	}
 }
+
+func TestFinalLapFinalizationOnSessionFinish(t *testing.T) {
+	repo, err := storage.NewRepository("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("failed to create repo: %v", err)
+	}
+	defer repo.Close()
+
+	manager := NewSessionManager(repo)
+	ctx := context.Background()
+
+	sessionHeader := packets.PacketHeader{
+		PacketFormat:   2025,
+		PacketId:       packets.PacketIDSession,
+		SessionUID:     999888777,
+		PlayerCarIndex: 0,
+	}
+
+	sessionPacket := &packets.PacketSessionData{
+		Header:      sessionHeader,
+		TrackId:     1,
+		SessionType: 10,
+	}
+	manager.ProcessPacket(ctx, sessionPacket)
+
+	// Start Lap 1 for Car 0
+	lapHeader := sessionHeader
+	lapHeader.PacketId = packets.PacketIDLapData
+	lapPacket := &packets.PacketLapData{Header: lapHeader}
+	lapPacket.LapData[0].CurrentLapNum = 1
+	lapPacket.LapData[0].ResultStatus = 2 // Active
+
+	manager.ProcessPacket(ctx, lapPacket)
+
+	// Car 0 finishes final lap: ResultStatus = 3 (Finished), LastLapTimeInMS = 87500
+	lapPacket.LapData[0].CurrentLapNum = 1
+	lapPacket.LapData[0].ResultStatus = 3 // Finished
+	lapPacket.LapData[0].LastLapTimeInMS = 87500
+
+	manager.ProcessPacket(ctx, lapPacket)
+
+	laps, err := repo.GetLapsBySession(ctx, manager.currentSession.ID)
+	if err != nil {
+		t.Fatalf("failed to get laps: %v", err)
+	}
+
+	if len(laps) != 1 {
+		t.Fatalf("expected 1 lap, got %d", len(laps))
+	}
+
+	if laps[0].LapTimeMS != 87500 {
+		t.Errorf("expected final lap time 87500 ms, got %d ms", laps[0].LapTimeMS)
+	}
+}

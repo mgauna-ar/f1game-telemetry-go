@@ -98,6 +98,8 @@ interface DriverStanding {
   laps: Lap[];
   bestLap: Lap | null;
   bestLapTimeMS: number;
+  lastLap: Lap | null;
+  lastLapTimeMS: number;
   totalRaceTimeMS: number;
   penaltySeconds: number;
   totalRaceTimeWithPenalties: number;
@@ -360,7 +362,7 @@ export const SessionHistory: React.FC = () => {
       lapsByCar[l.car_index].push(l);
     });
 
-    const maxRaceLaps = laps.reduce((max, l) => Math.max(max, l.lap_number), 0);
+    const maxRaceLaps = laps.reduce((max, l) => (l.lap_time_ms > 0 && l.lap_number > max ? l.lap_number : max), 0);
 
     // Map participants
     const driverList = (participants.length > 0
@@ -376,7 +378,9 @@ export const SessionHistory: React.FC = () => {
           ai_controlled: false,
         }))
     ).map(p => {
-      const driverLaps = lapsByCar[p.car_index] || [];
+      const rawDriverLaps = lapsByCar[p.car_index] || [];
+      const completedLaps = rawDriverLaps.filter(l => l.lap_time_ms > 0);
+      const driverLaps = completedLaps.length > 0 ? completedLaps : rawDriverLaps;
       const validLaps = driverLaps.filter(l => l.is_valid && l.lap_time_ms > 0);
 
       let bestLap: Lap | null = null;
@@ -385,6 +389,9 @@ export const SessionHistory: React.FC = () => {
       } else if (driverLaps.length > 0) {
         bestLap = driverLaps.reduce((prev, curr) => (curr.lap_time_ms < prev.lap_time_ms ? curr : prev), driverLaps[0]);
       }
+
+      const lastCompletedLap = [...driverLaps].reverse().find(l => l.lap_time_ms > 0) || (driverLaps.length > 0 ? driverLaps[driverLaps.length - 1] : null);
+      const lastLapTimeMS = lastCompletedLap && lastCompletedLap.lap_time_ms > 0 ? lastCompletedLap.lap_time_ms : 0;
 
       const totalRaceTimeMS = driverLaps.reduce((acc, l) => acc + (l.lap_time_ms > 0 ? l.lap_time_ms : 0), 0);
       const penaltySeconds = driverLaps.reduce((maxPen, l) => Math.max(maxPen, l.penalties_seconds || 0), 0);
@@ -403,6 +410,8 @@ export const SessionHistory: React.FC = () => {
         laps: driverLaps.sort((a, b) => a.lap_number - b.lap_number),
         bestLap,
         bestLapTimeMS: bestLap ? bestLap.lap_time_ms : Infinity,
+        lastLap: lastCompletedLap,
+        lastLapTimeMS,
         totalRaceTimeMS,
         penaltySeconds,
         totalRaceTimeWithPenalties,
@@ -448,7 +457,7 @@ export const SessionHistory: React.FC = () => {
   // Overall session statistics: max completed race lap number
   const totalSessionLaps = React.useMemo(() => {
     if (!laps || laps.length === 0) return 0;
-    return laps.reduce((max, l) => (l.lap_number > max ? l.lap_number : max), 0);
+    return laps.reduce((max, l) => (l.lap_time_ms > 0 && l.lap_number > max ? l.lap_number : max), 0);
   }, [laps]);
 
   const totalDriversCount = Math.max(participants.length, driverStandings.length);
@@ -743,6 +752,7 @@ export const SessionHistory: React.FC = () => {
                         <th>DRIVER</th>
                         <th>SETUP</th>
                         <th>BEST LAP</th>
+                        <th>LAST LAP</th>
                         <th>DELTA</th>
                         <th>{isRaceSession ? 'TOTAL RACE TIME' : 'TOTAL TIME'}</th>
                         <th>MAX SPEED</th>
@@ -852,6 +862,11 @@ export const SessionHistory: React.FC = () => {
                                 {driver.bestLap ? formatLapTime(driver.bestLap.lap_time_ms) : '--:--.---'}
                               </td>
 
+                              {/* Last Lap Time */}
+                              <td className="mono" style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                                {driver.lastLapTimeMS > 0 ? formatLapTime(driver.lastLapTimeMS) : '--:--.---'}
+                              </td>
+
                               {/* Delta Time */}
                               <td className="mono" style={{ fontWeight: 700, color: driver.isDSQ || driver.isDNF ? '#ff4d4f' : isLeader ? 'var(--accent-primary)' : 'var(--text-primary)' }}>
                                 {deltaStr}
@@ -921,7 +936,7 @@ export const SessionHistory: React.FC = () => {
                             {/* Driver Laps Sub-Table (Expanded View) */}
                             {isExpanded && (
                               <tr>
-                                <td colSpan={9} style={{ background: 'rgba(0, 0, 0, 0.5)', padding: '0.75rem 1rem' }}>
+                                <td colSpan={10} style={{ background: 'rgba(0, 0, 0, 0.5)', padding: '0.75rem 1rem' }}>
                                   <div style={{ padding: '0.5rem', background: 'rgba(255, 255, 255, 0.02)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
                                     <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
                                       <Clock size={14} /> Recorded Laps for {driver.participant.name}
@@ -941,10 +956,10 @@ export const SessionHistory: React.FC = () => {
                                       <tbody>
                                         {(() => {
                                           let runningRaceTime = 0;
-                                          return driver.laps.map(lap => {
+                                          return driver.laps.filter(lap => lap.lap_time_ms > 0).map(lap => {
                                             if (lap.lap_time_ms > 0) runningRaceTime += lap.lap_time_ms;
 
-                                            const lapDeltaToBest = driver.bestLap
+                                            const lapDeltaToBest = driver.bestLap && lap.lap_time_ms > 0
                                               ? lap.lap_time_ms === driver.bestLap.lap_time_ms
                                                 ? 'PERSONAL BEST'
                                                 : `+${((lap.lap_time_ms - driver.bestLap.lap_time_ms) / 1000).toFixed(3)}s`

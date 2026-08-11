@@ -218,7 +218,12 @@ func (r *Repository) GetSessions(ctx context.Context) ([]Session, error) {
 // GetLapsBySession retrieves all laps for a given session.
 func (r *Repository) GetLapsBySession(ctx context.Context, sessionID int64) ([]Lap, error) {
 	var laps []Lap
-	query := `SELECT * FROM laps WHERE session_id = ? ORDER BY lap_number ASC`
+	query := `
+		SELECT * FROM laps 
+		WHERE session_id = ? 
+		  AND (lap_time_ms > 0 OR EXISTS (SELECT 1 FROM telemetry_samples WHERE lap_id = laps.id))
+		ORDER BY lap_number ASC
+	`
 	if err := r.db.SelectContext(ctx, &laps, query, sessionID); err != nil {
 		return nil, fmt.Errorf("failed to get laps: %w", err)
 	}
