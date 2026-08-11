@@ -448,6 +448,17 @@ export const SessionHistory: React.FC = () => {
 
   const totalDriversCount = Math.max(participants.length, driverStandings.length);
 
+  const hasValidSetup = (setup?: CarSetup) => {
+    if (!setup) return false;
+    return (
+      setup.front_wing > 0 ||
+      setup.rear_wing > 0 ||
+      setup.brake_pressure > 0 ||
+      setup.on_throttle > 0 ||
+      setup.ballast > 0
+    );
+  };
+
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '1.5rem 2rem' }}>
       {/* Session History Title Header */}
@@ -782,7 +793,7 @@ export const SessionHistory: React.FC = () => {
 
                               {/* Car Setup Icon Button next to Driver */}
                               <td>
-                                {driver.setup ? (
+                                {hasValidSetup(driver.setup) ? (
                                   <button
                                     className="nav-tab"
                                     title={`View Setup for ${driver.participant.name}`}
