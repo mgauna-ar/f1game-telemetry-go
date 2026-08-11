@@ -36,6 +36,10 @@ func NewSessionManager(repo *storage.Repository) *SessionManager {
 func (sm *SessionManager) ProcessPacket(ctx context.Context, pkt packets.Packet) {
 	header := pkt.GetHeader()
 
+	if header.SessionUID == 0 {
+		return
+	}
+
 	// 1. Session Detection
 	if sm.currentSessionUID != header.SessionUID {
 		sm.handleNewSession(ctx, header)

@@ -61,6 +61,14 @@ var sessionTypeNames = map[uint8]string{
 	SessionRace2:     "Race 2",
 	SessionRace3:     "Race 3",
 	SessionTimeTrial: "Time Trial",
+	14:               "Time Trial",
+	15:               "Sprint Qualifying 1",
+	16:               "Sprint Qualifying 2",
+	17:               "Sprint Qualifying 3",
+	18:               "Short Sprint Qualifying",
+	19:               "One-Shot Sprint Qualifying",
+	20:               "Sprint Race",
+	21:               "Equal Sprint Race",
 }
 
 // SessionTypeName returns the human-readable name for the given session type.

@@ -183,10 +183,15 @@ func (r *Repository) DeleteSession(ctx context.Context, sessionID int64) error {
 	return nil
 }
 
-// GetSessions retrieves all recorded sessions, ordered by most recent first.
+// GetSessions retrieves all valid recorded sessions, ordered by most recent first.
 func (r *Repository) GetSessions(ctx context.Context) ([]Session, error) {
 	var sessions []Session
-	query := `SELECT * FROM sessions ORDER BY created_at DESC`
+	query := `
+		SELECT s.* FROM sessions s
+		WHERE s.session_uid != 0
+		  AND (s.track_name != 'Unknown' OR EXISTS (SELECT 1 FROM laps l WHERE l.session_id = s.id))
+		ORDER BY s.created_at DESC
+	`
 	if err := r.db.SelectContext(ctx, &sessions, query); err != nil {
 		return nil, fmt.Errorf("failed to get sessions: %w", err)
 	}
