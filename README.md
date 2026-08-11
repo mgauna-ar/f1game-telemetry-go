@@ -58,7 +58,7 @@ make run
 git clone https://github.com/mgauna/f1game-telemetry-go.git
 cd f1game-telemetry-go
 
-# Option A: One-click runner (Auto-unblocks files, starts Backend + Frontend & opens Browser)
+# Option A: One-click runner (Auto-unblocks files, starts Backend + Frontend)
 .\run.bat
 
 # Option B: Manual run directly with Go

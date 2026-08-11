@@ -29,11 +29,16 @@ start "F1 Telemetry Backend" cmd /k "cd /d ""%~dp0"" && .\bin\server.exe"
 echo [4/4] Starting Web Dashboard...
 start "F1 Telemetry Frontend" cmd /k "cd /d ""%~dp0frontend"" && npm run dev"
 
+for /f "usebackq tokens=*" %%i in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' } | Select-Object -ExpandProperty IPAddress -First 1)"`) do set "LOCAL_IP=%%i"
+
+if "%LOCAL_IP%"=="" set "LOCAL_IP=<YOUR-IP>"
+
 echo.
 echo ===================================================
-echo   All systems go! Opening dashboard in browser...
+echo   All systems go! Servers are running.
+echo.
+echo   Local access:    http://localhost:5173
+echo   Network access:  http://%LOCAL_IP%:5173
 echo ===================================================
-timeout /t 3 /nobreak >nul
-start http://localhost:5173
 
 exit
