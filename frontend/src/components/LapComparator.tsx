@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Sliders, X, Shield, Disc, Wrench, CircleDot, Fuel, Gauge, Award, ArrowUpRight, ArrowDownRight, MapPin, Timer, Activity } from 'lucide-react';
+import { Sliders, X, Shield, Disc, Wrench, CircleDot, Fuel, Gauge, Award, ArrowUpRight, ArrowDownRight, MapPin, Timer, Activity, ArrowLeftRight, Zap } from 'lucide-react';
 import {
   LineChart,
   Line,
@@ -277,6 +277,20 @@ export const LapComparator: React.FC = () => {
     return null;
   }, [lapAObj, lapBObj]);
 
+  // Active participants with recorded laps and personal best times
+  const activeParticipants = useMemo(() => {
+    if (participants.length === 0 || laps.length === 0) return [];
+    return participants
+      .filter((p) => laps.some((l) => (l.car_index ?? -1) === p.car_index))
+      .map((p) => {
+        const driverLaps = laps
+          .filter((l) => (l.car_index ?? -1) === p.car_index && l.is_valid && l.lap_time_ms > 0)
+          .sort((a, b) => a.lap_time_ms - b.lap_time_ms);
+        const bestLap = driverLaps.length > 0 ? driverLaps[0] : null;
+        return { ...p, bestLap };
+      });
+  }, [participants, laps]);
+
   // Quick select best valid lap for driver
   const selectFastestLap = (carIdx: number, target: 'A' | 'B') => {
     const driverLaps = laps
@@ -394,6 +408,61 @@ export const LapComparator: React.FC = () => {
                 </span>
               </div>
             )}
+
+            {lapAObj && lapBObj && (
+              <button
+                type="button"
+                onClick={() => {
+                  const temp = lapAId;
+                  setLapAId(lapBId);
+                  setLapBId(temp);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  padding: '0.35rem 0.65rem',
+                  borderRadius: '20px',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  color: 'var(--text-primary)',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                title="Swap Lap A and Lap B"
+              >
+                <ArrowLeftRight size={13} /> Swap
+              </button>
+            )}
+
+            {(lapAId || lapBId) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setLapAId('');
+                  setLapBId('');
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
+                  padding: '0.35rem 0.65rem',
+                  borderRadius: '20px',
+                  background: 'rgba(255, 71, 87, 0.1)',
+                  border: '1px solid rgba(255, 71, 87, 0.3)',
+                  color: '#ff4757',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                title="Clear Lap Selections"
+              >
+                <X size={13} /> Clear
+              </button>
+            )}
           </div>
         </div>
 
@@ -435,7 +504,20 @@ export const LapComparator: React.FC = () => {
                 <span style={{ color: '#ff4757', fontWeight: 'bold' }}>●</span> Lap A (Red Solid)
               </span>
               {driverA && (
-                <span style={{ fontSize: '0.75rem', color: '#ff4757', fontWeight: 600, textTransform: 'none' }}>
+                <span
+                  title={`#${driverA.race_number} ${driverA.name}`}
+                  style={{
+                    fontSize: '0.75rem',
+                    color: '#ff4757',
+                    fontWeight: 600,
+                    textTransform: 'none',
+                    maxWidth: '120px',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    display: 'inline-block',
+                  }}
+                >
                   #{driverA.race_number} {driverA.name}
                 </span>
               )}
@@ -455,7 +537,27 @@ export const LapComparator: React.FC = () => {
           {/* Lap B Selector */}
           <div>
             <label className="readout-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-              <span style={{ color: '#00d2d3', fontWeight: 'bold' }}>●</span> Lap B (Cyan Dashed)
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <span style={{ color: '#00d2d3', fontWeight: 'bold' }}>●</span> Lap B (Cyan Dashed)
+              </span>
+              {driverB && (
+                <span
+                  title={`#${driverB.race_number} ${driverB.name}`}
+                  style={{
+                    fontSize: '0.75rem',
+                    color: '#00d2d3',
+                    fontWeight: 600,
+                    textTransform: 'none',
+                    maxWidth: '120px',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    display: 'inline-block',
+                  }}
+                >
+                  #{driverB.race_number} {driverB.name}
+                </span>
+              )}
             </label>
             <select
               className="ui-select"
@@ -555,30 +657,99 @@ export const LapComparator: React.FC = () => {
       </div>
 
       {/* Quick Select Driver Best Lap Bar */}
-      {selectedSessionId !== '' && participants.length > 0 && (
-        <div className="glass-panel" style={{ gridColumn: 'span 12', padding: '0.6rem 1rem', display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>Quick Select Fastest Lap:</span>
-          {participants.map((p) => (
-            <div key={p.car_index} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', background: 'rgba(255,255,255,0.04)', padding: '0.2rem 0.5rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                #{p.race_number} {p.name}
-              </span>
-              <button
-                type="button"
-                onClick={() => selectFastestLap(p.car_index, 'A')}
-                style={{ background: 'rgba(255,71,87,0.2)', border: '1px solid #ff4757', color: '#ff4757', borderRadius: '3px', padding: '0.1rem 0.35rem', fontSize: '0.7rem', cursor: 'pointer', fontWeight: 'bold' }}
+      {selectedSessionId !== '' && activeParticipants.length > 0 && (
+        <div className="glass-panel" style={{ gridColumn: 'span 12', padding: '0.75rem 1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.6rem' }}>
+            <Zap size={14} color="var(--accent-primary)" />
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Quick Select Driver Best Laps ({activeParticipants.length}):
+            </span>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+              gap: '0.6rem',
+              maxHeight: '180px',
+              overflowY: 'auto',
+              paddingRight: '0.2rem',
+            }}
+          >
+            {activeParticipants.map((p) => (
+              <div
+                key={p.car_index}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  padding: '0.35rem 0.65rem',
+                  borderRadius: '6px',
+                  border: '1px solid rgba(255, 255, 255, 0.07)',
+                }}
               >
-                Set A
-              </button>
-              <button
-                type="button"
-                onClick={() => selectFastestLap(p.car_index, 'B')}
-                style={{ background: 'rgba(0,210,211,0.2)', border: '1px solid #00d2d3', color: '#00d2d3', borderRadius: '3px', padding: '0.1rem 0.35rem', fontSize: '0.7rem', cursor: 'pointer', fontWeight: 'bold' }}
-              >
-                Set B
-              </button>
-            </div>
-          ))}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: 0 }}>
+                  <span
+                    style={{
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      maxWidth: '120px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                    title={`#${p.race_number} ${p.name}`}
+                  >
+                    #{p.race_number} {p.name}
+                  </span>
+                  {p.bestLap && (
+                    <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--accent-primary)', fontWeight: 600 }}>
+                      {formatTime(p.bestLap.lap_time_ms)}
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }}>
+                  <button
+                    type="button"
+                    onClick={() => selectFastestLap(p.car_index, 'A')}
+                    style={{
+                      background: 'rgba(255, 71, 87, 0.15)',
+                      border: '1px solid rgba(255, 71, 87, 0.6)',
+                      color: '#ff4757',
+                      borderRadius: '4px',
+                      padding: '0.15rem 0.45rem',
+                      fontSize: '0.72rem',
+                      cursor: 'pointer',
+                      fontWeight: 700,
+                    }}
+                    title={`Set Lap A to ${p.name}'s fastest lap`}
+                  >
+                    Set A
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => selectFastestLap(p.car_index, 'B')}
+                    style={{
+                      background: 'rgba(0, 210, 211, 0.15)',
+                      border: '1px solid rgba(0, 210, 211, 0.6)',
+                      color: '#00d2d3',
+                      borderRadius: '4px',
+                      padding: '0.15rem 0.45rem',
+                      fontSize: '0.72rem',
+                      cursor: 'pointer',
+                      fontWeight: 700,
+                    }}
+                    title={`Set Lap B to ${p.name}'s fastest lap`}
+                  >
+                    Set B
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
