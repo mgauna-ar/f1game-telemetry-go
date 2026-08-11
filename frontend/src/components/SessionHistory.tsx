@@ -364,6 +364,8 @@ export const SessionHistory: React.FC = () => {
       lapsByCar[l.car_index].push(l);
     });
 
+    const maxRaceLaps = laps.reduce((max, l) => Math.max(max, l.lap_number), 0);
+
     // Map participants
     const driverList = (participants.length > 0
       ? participants
@@ -395,7 +397,7 @@ export const SessionHistory: React.FC = () => {
       const officialPos = lastLap && lastLap.car_position && lastLap.car_position > 0 ? lastLap.car_position : 0;
       const resStatus = lastLap && lastLap.result_status !== undefined ? lastLap.result_status : 0;
       const isDSQ = resStatus === 5;
-      const isDNF = resStatus === 4 || resStatus === 6 || resStatus === 7;
+      const isDNF = resStatus === 4 || resStatus === 6 || resStatus === 7 || (isRaceSession && maxRaceLaps > 5 && driverLaps.length < Math.floor(maxRaceLaps * 0.9));
 
       const maxSpeed = driverLaps.reduce((max, l) => Math.max(max, l.max_speed_kmh || 0), 0);
       const setup = setups.find(s => s.car_index === p.car_index);
