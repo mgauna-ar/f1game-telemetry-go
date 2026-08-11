@@ -138,12 +138,6 @@ describe('SessionHistory Component', () => {
       expect(screen.getByText('Lap 2')).toBeInTheDocument();
     });
 
-    // Check export lap button interaction
-    const windowOpenSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
-    const exportBtns = screen.getAllByText(/Export JSON/);
-    fireEvent.click(exportBtns[0]);
-    expect(windowOpenSpy).toHaveBeenCalledWith('/api/laps/201/export', '_blank');
-
     // Click Setup icon button next to Lewis Hamilton
     const setupBtn = screen.getByTitle('View Setup for Lewis Hamilton');
     fireEvent.click(setupBtn);

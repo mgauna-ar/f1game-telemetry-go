@@ -107,29 +107,6 @@ export const LapComparator: React.FC = () => {
     fetchSessions();
   }, []);
 
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      const res = await fetch('/api/laps/import', {
-        method: 'POST',
-        body: formData,
-      });
-      if (res.ok) {
-        e.target.value = '';
-        fetchSessions();
-      } else {
-        console.error('Failed to import ghost lap');
-      }
-    } catch (err) {
-      console.error('Error importing ghost lap', err);
-    }
-  };
-
   useEffect(() => {
     if (selectedSessionId) {
       fetch(`/api/sessions/${selectedSessionId}/laps`)
@@ -210,7 +187,7 @@ export const LapComparator: React.FC = () => {
       const p = participants.find(part => part.car_index === carIdx);
       const groupLabel = p 
         ? `${p.name}${p.race_number !== undefined && p.race_number !== null ? ` (#${p.race_number})` : ''}` 
-        : (carIdx >= 0 ? `Car ${carIdx}` : 'Ghost / Imported Laps');
+        : `Car ${carIdx}`;
 
       const driverLaps = laps.filter(l => (l.car_index ?? -1) === carIdx);
 
@@ -299,23 +276,6 @@ export const LapComparator: React.FC = () => {
               <option value="distance">Distance (m)</option>
               <option value="time">Time (s)</option>
             </select>
-          </div>
-
-          <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem', alignSelf: 'flex-end' }}>
-            <label className="ui-select" style={{ cursor: 'pointer', display: 'inline-block', background: '#333', color: '#fff', border: '1px solid #444', padding: '0.35rem 0.75rem', borderRadius: '4px', textAlign: 'center' }}>
-              Import Ghost
-              <input type="file" accept=".json" style={{ display: 'none' }} onChange={handleImport} />
-            </label>
-            
-            {lapAId && (
-              <a 
-                href={`/api/laps/${lapAId}/export`}
-                className="ui-select" 
-                style={{ display: 'inline-block', background: 'var(--accent-primary)', color: '#000', textDecoration: 'none', border: 'none', padding: '0.4rem 0.75rem', borderRadius: '4px', textAlign: 'center', fontWeight: 'bold' }}
-              >
-                Export Lap A
-              </a>
-            )}
           </div>
         </div>
       </div>

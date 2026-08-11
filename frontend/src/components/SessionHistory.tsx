@@ -5,7 +5,6 @@ import {
   ChevronRight,
   ChevronDown,
   ChevronUp,
-  Download,
   Trophy,
   Wrench,
   CloudSun,
@@ -202,10 +201,7 @@ export const SessionHistory: React.FC = () => {
     }
   };
 
-  const exportGhostLap = (lapId: number, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    window.open(`/api/laps/${lapId}/export`, '_blank');
-  };
+
 
   const toggleDriverExpand = (carIndex: number) => {
     setExpandedDrivers(prev => ({
@@ -351,7 +347,7 @@ export const SessionHistory: React.FC = () => {
     return matchesSearch && matchesType;
   });
 
-  const isRaceSession = selectedSession?.session_type?.toLowerCase().includes('race');
+  const isRaceSession = !!(selectedSession?.session_type?.toLowerCase().includes('race'));
 
   // Driver standings calculation for selected session
   const driverStandings: DriverStanding[] = React.useMemo(() => {
@@ -448,7 +444,6 @@ export const SessionHistory: React.FC = () => {
   }, [selectedSession, participants, laps, setups, isRaceSession]);
 
   const leaderBestLapMS = driverStandings.length > 0 ? driverStandings[0].bestLapTimeMS : Infinity;
-  const leaderTotalRaceTimeMS = driverStandings.length > 0 ? driverStandings[0].totalRaceTimeMS : Infinity;
 
   // Overall session statistics: max completed race lap number
   const totalSessionLaps = React.useMemo(() => {
@@ -479,7 +474,7 @@ export const SessionHistory: React.FC = () => {
             Session Explorer
           </h1>
           <p className="mono" style={{ color: 'var(--text-secondary)', margin: '4px 0 0 0', fontSize: '0.9rem' }}>
-            Historical Session Telemetry, Standings, Car Setups & Ghost Laps
+            Historical Session Telemetry, Standings, Car Setups
           </p>
         </div>
 
@@ -750,7 +745,7 @@ export const SessionHistory: React.FC = () => {
                         <th>{isRaceSession ? 'TOTAL RACE TIME' : 'TOTAL TIME'}</th>
                         <th>MAX SPEED</th>
                         <th>TYRE</th>
-                        <th style={{ textAlign: 'right' }}>DETAILS / EXPORT</th>
+                        <th style={{ textAlign: 'right' }}>DETAILS</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -906,30 +901,18 @@ export const SessionHistory: React.FC = () => {
                                 {renderDriverTyreStints(driver.laps)}
                               </td>
 
-                              {/* Details & Export Actions */}
+                              {/* Details Actions */}
                               <td style={{ textAlign: 'right' }}>
-                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                                  {driver.bestLap && (
-                                    <button
-                                      className="nav-tab"
-                                      title="Export Best Ghost Lap"
-                                      onClick={e => exportGhostLap(driver.bestLap!.id, e)}
-                                      style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
-                                    >
-                                      <Download size={12} /> Ghost
-                                    </button>
-                                  )}
-                                  <button
-                                    className="nav-tab"
-                                    onClick={e => {
-                                      e.stopPropagation();
-                                      toggleDriverExpand(driver.participant.car_index);
-                                    }}
-                                    style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
-                                  >
-                                    {driver.laps.length} Laps {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                                  </button>
-                                </div>
+                                <button
+                                  className="nav-tab"
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    toggleDriverExpand(driver.participant.car_index);
+                                  }}
+                                  style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                >
+                                  {driver.laps.length} Laps {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                </button>
                               </td>
                             </tr>
 
@@ -951,7 +934,6 @@ export const SessionHistory: React.FC = () => {
                                           <th style={{ padding: '4px 8px' }}>Max Speed</th>
                                           <th style={{ padding: '4px 8px' }}>Tyre</th>
                                           <th style={{ padding: '4px 8px' }}>Status</th>
-                                          <th style={{ padding: '4px 8px', textAlign: 'right' }}>Ghost Lap Export</th>
                                         </tr>
                                       </thead>
                                       <tbody>
@@ -990,15 +972,6 @@ export const SessionHistory: React.FC = () => {
                                                   <span className={`session-badge ${lap.is_valid ? 'badge-green' : 'badge-red'}`} style={{ fontSize: '0.65rem' }}>
                                                     {lap.is_valid ? 'VALID' : 'INVALID'}
                                                   </span>
-                                                </td>
-                                                <td style={{ padding: '6px 8px', textAlign: 'right' }}>
-                                                  <button
-                                                    className="nav-tab active"
-                                                    onClick={e => exportGhostLap(lap.id, e)}
-                                                    style={{ padding: '2px 8px', fontSize: '0.7rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                                                  >
-                                                    <Download size={10} /> Export JSON
-                                                  </button>
                                                 </td>
                                               </tr>
                                             );
