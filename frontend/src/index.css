@@ -654,3 +654,118 @@ h1 {
   color: #FF9933;
 }
 
+/* Responsive Mobile & Tablet Layout Adjustments */
+@media (max-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr !important;
+    padding: 1rem !important;
+    gap: 1rem !important;
+  }
+
+  .session-header-panel {
+    grid-column: span 12 !important;
+  }
+
+  .dash-hero-row,
+  .dash-middle-row,
+  .dash-bottom-row {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  .dash-hero-tower,
+  .dash-track-map-panel,
+  .dash-status-col,
+  .dash-telemetry-col,
+  .dash-trace-col,
+  .dash-setup-col {
+    grid-column: span 12 !important;
+  }
+
+  .leaderboard-tower {
+    max-height: 420px !important;
+  }
+
+  .car-setup-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .comparator-cards-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .comparator-card-panel,
+  .comparator-map-panel {
+    grid-column: span 12 !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-grid {
+    padding: 0.75rem !important;
+    gap: 0.75rem !important;
+  }
+
+  .glass-panel {
+    padding: 1rem !important;
+  }
+
+  .session-header-panel {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 1rem !important;
+  }
+
+  .speedometer-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .speedometer,
+  .gauges,
+  .indicators {
+    grid-column: span 12 !important;
+  }
+
+  .status-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .car-setup-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .lap-timing-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .speedometer .readout-value {
+    font-size: 3.5rem !important;
+  }
+
+  .readout-value {
+    font-size: 2rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  h1 {
+    font-size: 1.75rem !important;
+  }
+
+  .nav-tabs {
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+    padding: 0.5rem !important;
+  }
+
+  .nav-tab {
+    padding: 0.5rem 1rem !important;
+    font-size: 0.85rem !important;
+  }
+
+  .lap-timing-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+

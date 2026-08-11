@@ -16,245 +16,261 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
   sector1Distance,
   sector2Distance,
 }) => {
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
+
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Handle high-DPI crisp rendering
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
+    const render = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = container.getBoundingClientRect();
+      const rectWidth = rect.width > 0 ? rect.width : 300;
+      const rectHeight = height;
 
-    ctx.clearRect(0, 0, rect.width, rect.height);
+      canvas.width = rectWidth * dpr;
+      canvas.height = rectHeight * dpr;
+      ctx.scale(dpr, dpr);
 
-    // Filter points with valid world coordinates
-    const validPoints = data.filter(
-      (p) => p.worldX !== undefined && p.worldZ !== undefined && (p.worldX !== 0 || p.worldZ !== 0)
-    );
+      ctx.clearRect(0, 0, rectWidth, rectHeight);
 
-    if (validPoints.length < 2) {
-      ctx.fillStyle = '#666';
-      ctx.font = '12px Inter, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('No track coordinate telemetry available for this lap', rect.width / 2, rect.height / 2);
-      return;
-    }
+      // Filter points with valid world coordinates
+      const validPoints = data.filter(
+        (p) => p.worldX !== undefined && p.worldZ !== undefined && (p.worldX !== 0 || p.worldZ !== 0)
+      );
 
-    // Compute bounding box
-    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-    validPoints.forEach((p) => {
-      if (p.worldX! < minX) minX = p.worldX!;
-      if (p.worldX! > maxX) maxX = p.worldX!;
-      if (p.worldZ! < minZ) minZ = p.worldZ!;
-      if (p.worldZ! > maxZ) maxZ = p.worldZ!;
-    });
-
-    const rangeX = maxX - minX || 1;
-    const rangeZ = maxZ - minZ || 1;
-    const padding = 32;
-
-    const availableW = rect.width - padding * 2;
-    const availableH = rect.height - padding * 2;
-
-    const scale = Math.min(availableW / rangeX, availableH / rangeZ);
-    const offsetX = padding + (availableW - rangeX * scale) / 2;
-    const offsetY = padding + (availableH - rangeZ * scale) / 2;
-
-    const toCanvasX = (worldX: number) => offsetX + (worldX - minX) * scale;
-    const toCanvasY = (worldZ: number) => offsetY + (worldZ - minZ) * scale;
-
-    // Determine Sector Boundary distances (fallback to 1/3 and 2/3 of max distance)
-    const maxDist = validPoints[validPoints.length - 1].lap_distance || 1;
-    const s1TargetDist = sector1Distance && sector1Distance > 0 ? sector1Distance : maxDist / 3;
-    const s2TargetDist = sector2Distance && sector2Distance > 0 ? sector2Distance : (maxDist * 2) / 3;
-
-    const findClosestPoint = (targetDist: number) => {
-      return validPoints.reduce((prev, curr) =>
-        Math.abs(curr.lap_distance - targetDist) < Math.abs(prev.lap_distance - targetDist) ? curr : prev
-      , validPoints[0]);
-    };
-
-    const s0Point = validPoints[0];
-    const s1Point = findClosestPoint(s1TargetDist);
-    const s2Point = findClosestPoint(s2TargetDist);
-
-    const s1MidPoint = findClosestPoint(s1TargetDist / 2);
-    const s2MidPoint = findClosestPoint((s1TargetDist + s2TargetDist) / 2);
-    const s3MidPoint = findClosestPoint((s2TargetDist + maxDist) / 2);
-
-    // Pre-calculate segment pace gain colors matching the Time Delta graph slope
-    const windowSize = 6; // +/- 6 points = 12 points total = 60 meters
-    const segmentColors: string[] = [];
-
-    for (let i = 0; i < validPoints.length; i++) {
-      const idx1 = Math.max(0, i - windowSize);
-      const idx2 = Math.min(validPoints.length - 1, i + windowSize);
-
-      const deltaStart = validPoints[idx1].time_delta;
-      const deltaEnd = validPoints[idx2].time_delta;
-
-      if (deltaStart !== null && deltaEnd !== null) {
-        const dDelta = deltaEnd - deltaStart;
-        if (dDelta < -0.005) {
-          segmentColors.push('#ff4757'); // Delta graph sloping down -> Lap A gaining time (Red)
-        } else if (dDelta > 0.005) {
-          segmentColors.push('#00d2d3'); // Delta graph sloping up -> Lap B gaining time (Cyan)
-        } else {
-          segmentColors.push('rgba(255, 255, 255, 0.45)'); // Delta graph flat -> Equal pace (White)
-        }
-      } else {
-        segmentColors.push('rgba(255, 255, 255, 0.45)');
+      if (validPoints.length < 2) {
+        ctx.fillStyle = '#666';
+        ctx.font = '12px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('No track coordinate telemetry available for this lap', rectWidth / 2, rectHeight / 2);
+        return;
       }
-    }
 
-    // Draw track line segments with calculated pace gain coloring
-    ctx.lineWidth = 3.5;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+      // Compute bounding box
+      let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+      validPoints.forEach((p) => {
+        if (p.worldX! < minX) minX = p.worldX!;
+        if (p.worldX! > maxX) maxX = p.worldX!;
+        if (p.worldZ! < minZ) minZ = p.worldZ!;
+        if (p.worldZ! > maxZ) maxZ = p.worldZ!;
+      });
 
-    for (let i = 0; i < validPoints.length - 1; i++) {
-      const p1 = validPoints[i];
-      const p2 = validPoints[i + 1];
+      const rangeX = maxX - minX || 1;
+      const rangeZ = maxZ - minZ || 1;
+      const padding = 32;
 
-      const x1 = toCanvasX(p1.worldX!);
-      const y1 = toCanvasY(p1.worldZ!);
-      const x2 = toCanvasX(p2.worldX!);
-      const y2 = toCanvasY(p2.worldZ!);
+      const availableW = rectWidth - padding * 2;
+      const availableH = rectHeight - padding * 2;
 
-      ctx.beginPath();
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y2);
-      ctx.strokeStyle = segmentColors[i];
-      ctx.stroke();
-    }
+      const scale = Math.min(availableW / rangeX, availableH / rangeZ);
+      const offsetX = padding + (availableW - rangeX * scale) / 2;
+      const offsetY = padding + (availableH - rangeZ * scale) / 2;
 
-    // Helper to draw clean sector region badges (S1, S2, S3)
-    const drawSectorRegionLabel = (point: MergedTelemetryPoint, label: string) => {
-      if (point.worldX === undefined || point.worldX === null || point.worldZ === undefined || point.worldZ === null) return;
-      const cx = toCanvasX(point.worldX);
-      const cy = toCanvasY(point.worldZ);
+      const toCanvasX = (worldX: number) => offsetX + (worldX - minX) * scale;
+      const toCanvasY = (worldZ: number) => offsetY + (worldZ - minZ) * scale;
 
-      ctx.font = 'bold 9px Inter, sans-serif';
-      const badgeW = 18;
-      const badgeH = 13;
-      const bx = cx - badgeW / 2;
-      const by = cy - badgeH / 2;
+      // Determine Sector Boundary distances (fallback to 1/3 and 2/3 of max distance)
+      const maxDist = validPoints[validPoints.length - 1].lap_distance || 1;
+      const s1TargetDist = sector1Distance && sector1Distance > 0 ? sector1Distance : maxDist / 3;
+      const s2TargetDist = sector2Distance && sector2Distance > 0 ? sector2Distance : (maxDist * 2) / 3;
 
-      ctx.fillStyle = 'rgba(15, 15, 20, 0.85)';
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.roundRect(bx, by, badgeW, badgeH, 3);
-      ctx.fill();
-      ctx.stroke();
+      const findClosestPoint = (targetDist: number) => {
+        return validPoints.reduce((prev, curr) =>
+          Math.abs(curr.lap_distance - targetDist) < Math.abs(prev.lap_distance - targetDist) ? curr : prev
+        , validPoints[0]);
+      };
 
-      ctx.fillStyle = '#ffffff';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(label, cx, cy);
-    };
+      const s0Point = validPoints[0];
+      const s1Point = findClosestPoint(s1TargetDist);
+      const s2Point = findClosestPoint(s2TargetDist);
 
-    // Helper to draw clean perpendicular sector split lines across track
-    const drawSectorSplitMarker = (point: MergedTelemetryPoint, color: string) => {
-      if (point.worldX === undefined || point.worldX === null || point.worldZ === undefined || point.worldZ === null) return;
-      const cx = toCanvasX(point.worldX);
-      const cy = toCanvasY(point.worldZ);
+      const s1MidPoint = findClosestPoint(s1TargetDist / 2);
+      const s2MidPoint = findClosestPoint((s1TargetDist + s2TargetDist) / 2);
+      const s3MidPoint = findClosestPoint((s2TargetDist + maxDist) / 2);
 
-      const idx = validPoints.indexOf(point);
-      const pPrev = validPoints[Math.max(0, idx - 1)];
-      const pNext = validPoints[Math.min(validPoints.length - 1, idx + 1)];
+      // Pre-calculate segment pace gain colors matching the Time Delta graph slope
+      const windowSize = 6;
+      const segmentColors: string[] = [];
 
-      const xPrev = toCanvasX(pPrev.worldX ?? 0);
-      const yPrev = toCanvasY(pPrev.worldZ ?? 0);
-      const xNext = toCanvasX(pNext.worldX ?? 0);
-      const yNext = toCanvasY(pNext.worldZ ?? 0);
+      for (let i = 0; i < validPoints.length; i++) {
+        const idx1 = Math.max(0, i - windowSize);
+        const idx2 = Math.min(validPoints.length - 1, i + windowSize);
 
-      const dx = xNext - xPrev;
-      const dy = yNext - yPrev;
-      const len = Math.hypot(dx, dy) || 1;
+        const deltaStart = validPoints[idx1].time_delta;
+        const deltaEnd = validPoints[idx2].time_delta;
 
-      const nx = -dy / len;
-      const ny = dx / len;
+        if (deltaStart !== null && deltaEnd !== null) {
+          const dDelta = deltaEnd - deltaStart;
+          if (dDelta < -0.005) {
+            segmentColors.push('#ff4757');
+          } else if (dDelta > 0.005) {
+            segmentColors.push('#00d2d3');
+          } else {
+            segmentColors.push('rgba(255, 255, 255, 0.45)');
+          }
+        } else {
+          segmentColors.push('rgba(255, 255, 255, 0.45)');
+        }
+      }
 
-      const lineLen = 9;
-      const xA = cx - nx * lineLen;
-      const yA = cy - ny * lineLen;
-      const xB = cx + nx * lineLen;
-      const yB = cy + ny * lineLen;
+      // Draw track line segments
+      ctx.lineWidth = 3.5;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
 
-      ctx.beginPath();
-      ctx.moveTo(xA, yA);
-      ctx.lineTo(xB, yB);
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 4.5;
-      ctx.lineCap = 'butt';
-      ctx.stroke();
+      for (let i = 0; i < validPoints.length - 1; i++) {
+        const p1 = validPoints[i];
+        const p2 = validPoints[i + 1];
 
-      ctx.beginPath();
-      ctx.moveTo(xA, yA);
-      ctx.lineTo(xB, yB);
-      ctx.strokeStyle = color;
-      ctx.lineWidth = 2.5;
-      ctx.lineCap = 'butt';
-      ctx.stroke();
-
-      ctx.beginPath();
-      ctx.arc(cx, cy, 3, 0, Math.PI * 2);
-      ctx.fillStyle = color;
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1;
-      ctx.fill();
-      ctx.stroke();
-    };
-
-    // Draw Sector Region Labels (S1, S2, S3)
-    if (s1MidPoint) drawSectorRegionLabel(s1MidPoint, 'S1');
-    if (s2MidPoint) drawSectorRegionLabel(s2MidPoint, 'S2');
-    if (s3MidPoint) drawSectorRegionLabel(s3MidPoint, 'S3');
-
-    // Draw Sector Split Lines (SF, S1 Split, S2 Split)
-    if (s0Point) drawSectorSplitMarker(s0Point, '#2ecc71');
-    if (s1Point) drawSectorSplitMarker(s1Point, '#f39c12');
-    if (s2Point) drawSectorSplitMarker(s2Point, '#9b59b6');
-
-    // If activeDistance is hovered, draw glowing crosshair marker
-    if (activeDistance !== undefined && activeDistance !== null) {
-      const activePoint = findClosestPoint(activeDistance);
-
-      if (activePoint && activePoint.worldX !== undefined && activePoint.worldX !== null && activePoint.worldZ !== undefined && activePoint.worldZ !== null) {
-        const cx = toCanvasX(activePoint.worldX);
-        const cy = toCanvasY(activePoint.worldZ);
+        const x1 = toCanvasX(p1.worldX!);
+        const y1 = toCanvasY(p1.worldZ!);
+        const x2 = toCanvasX(p2.worldX!);
+        const y2 = toCanvasY(p2.worldZ!);
 
         ctx.beginPath();
-        ctx.arc(cx, cy, 9, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.arc(cx, cy, 4.5, 0, Math.PI * 2);
-        ctx.fillStyle = '#ffffff';
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 1.5;
-        ctx.fill();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.strokeStyle = segmentColors[i];
         ctx.stroke();
       }
+
+      // Helper to draw clean sector region badges (S1, S2, S3)
+      const drawSectorRegionLabel = (point: MergedTelemetryPoint, label: string) => {
+        if (point.worldX === undefined || point.worldX === null || point.worldZ === undefined || point.worldZ === null) return;
+        const cx = toCanvasX(point.worldX);
+        const cy = toCanvasY(point.worldZ);
+
+        ctx.font = 'bold 9px Inter, sans-serif';
+        const badgeW = 18;
+        const badgeH = 13;
+        const bx = cx - badgeW / 2;
+        const by = cy - badgeH / 2;
+
+        ctx.fillStyle = 'rgba(15, 15, 20, 0.85)';
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(bx, by, badgeW, badgeH, 3);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, cx, cy);
+      };
+
+      // Helper to draw clean perpendicular sector split lines across track
+      const drawSectorSplitMarker = (point: MergedTelemetryPoint, color: string) => {
+        if (point.worldX === undefined || point.worldX === null || point.worldZ === undefined || point.worldZ === null) return;
+        const cx = toCanvasX(point.worldX);
+        const cy = toCanvasY(point.worldZ);
+
+        const idx = validPoints.indexOf(point);
+        const pPrev = validPoints[Math.max(0, idx - 1)];
+        const pNext = validPoints[Math.min(validPoints.length - 1, idx + 1)];
+
+        const xPrev = toCanvasX(pPrev.worldX ?? 0);
+        const yPrev = toCanvasY(pPrev.worldZ ?? 0);
+        const xNext = toCanvasX(pNext.worldX ?? 0);
+        const yNext = toCanvasY(pNext.worldZ ?? 0);
+
+        const dx = xNext - xPrev;
+        const dy = yNext - yPrev;
+        const len = Math.hypot(dx, dy) || 1;
+
+        const nx = -dy / len;
+        const ny = dx / len;
+
+        const lineLen = 9;
+        const xA = cx - nx * lineLen;
+        const yA = cy - ny * lineLen;
+        const xB = cx + nx * lineLen;
+        const yB = cy + ny * lineLen;
+
+        ctx.beginPath();
+        ctx.moveTo(xA, yA);
+        ctx.lineTo(xB, yB);
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 4.5;
+        ctx.lineCap = 'butt';
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(xA, yA);
+        ctx.lineTo(xB, yB);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'butt';
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1;
+        ctx.fill();
+        ctx.stroke();
+      };
+
+      if (s1MidPoint) drawSectorRegionLabel(s1MidPoint, 'S1');
+      if (s2MidPoint) drawSectorRegionLabel(s2MidPoint, 'S2');
+      if (s3MidPoint) drawSectorRegionLabel(s3MidPoint, 'S3');
+
+      if (s0Point) drawSectorSplitMarker(s0Point, '#2ecc71');
+      if (s1Point) drawSectorSplitMarker(s1Point, '#f39c12');
+      if (s2Point) drawSectorSplitMarker(s2Point, '#9b59b6');
+
+      if (activeDistance !== undefined && activeDistance !== null) {
+        const activePoint = findClosestPoint(activeDistance);
+        if (activePoint && activePoint.worldX !== undefined && activePoint.worldX !== null && activePoint.worldZ !== undefined && activePoint.worldZ !== null) {
+          const cx = toCanvasX(activePoint.worldX);
+          const cy = toCanvasY(activePoint.worldZ);
+
+          ctx.beginPath();
+          ctx.arc(cx, cy, 9, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+          ctx.fill();
+
+          ctx.beginPath();
+          ctx.arc(cx, cy, 4.5, 0, Math.PI * 2);
+          ctx.fillStyle = '#ffffff';
+          ctx.strokeStyle = '#000000';
+          ctx.lineWidth = 1.5;
+          ctx.fill();
+          ctx.stroke();
+        }
+      }
+    };
+
+    render();
+
+    let observer: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(() => {
+        render();
+      });
+      observer.observe(container);
     }
-  }, [data, activeDistance, sector1Distance, sector2Distance]);
+
+    return () => {
+      if (observer) observer.disconnect();
+    };
+  }, [data, activeDistance, height, sector1Distance, sector2Distance]);
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: `${height}px` }}>
+    <div ref={containerRef} style={{ position: 'relative', width: '100%', height: `${height}px` }}>
       <canvas
         ref={canvasRef}
         style={{ width: '100%', height: '100%', display: 'block' }}
       />
 
-      {/* Pace Legend Overlay */}
       <div
         style={{
           position: 'absolute',
@@ -274,7 +290,6 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         <span style={{ color: '#00d2d3', fontWeight: 'bold' }}>● Lap B Faster</span>
       </div>
 
-      {/* Sector Legend Overlay */}
       <div
         style={{
           position: 'absolute',

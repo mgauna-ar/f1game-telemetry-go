@@ -569,85 +569,87 @@ export const SessionHistory: React.FC = () => {
             </div>
           ) : (
             <div className="glass-panel" style={{ padding: '1rem' }}>
-              <table className="history-table">
-                <thead>
-                  <tr>
-                    <th>Session ID</th>
-                    <th>Date & Time</th>
-                    <th>Track Name</th>
-                    <th>Session Type</th>
-                    <th>Weather</th>
-                    <th style={{ textAlign: 'right' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredSessions.map(session => (
-                    <tr
-                      key={session.id}
-                      onClick={() => selectSession(session)}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      <td className="mono" style={{ fontWeight: 700, color: 'var(--accent-secondary)' }}>
-                        #{session.id}
-                      </td>
-                      <td style={{ color: 'var(--text-primary)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <Clock size={14} color="var(--text-muted)" />
-                          {formatDate(session.created_at)}
-                        </div>
-                      </td>
-                      <td>
-                        <span style={{ fontWeight: 700, fontSize: '1rem' }}>{session.track_name || 'Unknown Track'}</span>
-                      </td>
-                      <td>
-                        <span className={`session-badge ${getSessionBadgeClass(session.session_type)}`}>
-                          {session.session_type || 'RACE'}
-                        </span>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}>
-                          <CloudSun size={14} color="var(--text-secondary)" />
-                          {session.weather || 'Clear'}
-                        </div>
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                          <button
-                            className="nav-tab active"
-                            style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                            onClick={e => {
-                              e.stopPropagation();
-                              selectSession(session);
-                            }}
-                          >
-                            Explore <ChevronRight size={14} />
-                          </button>
-                          <button
-                            className="nav-tab"
-                            title={`Delete Session #${session.id}`}
-                            style={{
-                              padding: '0.4rem 0.6rem',
-                              fontSize: '0.8rem',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              color: '#ff4d4f',
-                              borderColor: 'rgba(255, 77, 79, 0.3)',
-                            }}
-                            onClick={e => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setSessionToDelete(session);
-                            }}
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="history-table">
+                  <thead>
+                    <tr>
+                      <th>Session ID</th>
+                      <th>Date & Time</th>
+                      <th>Track Name</th>
+                      <th>Session Type</th>
+                      <th>Weather</th>
+                      <th style={{ textAlign: 'right' }}>Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {filteredSessions.map(session => (
+                      <tr
+                        key={session.id}
+                        onClick={() => selectSession(session)}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <td className="mono" style={{ fontWeight: 700, color: 'var(--accent-secondary)' }}>
+                          #{session.id}
+                        </td>
+                        <td style={{ color: 'var(--text-primary)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Clock size={14} color="var(--text-muted)" />
+                            {formatDate(session.created_at)}
+                          </div>
+                        </td>
+                        <td>
+                          <span style={{ fontWeight: 700, fontSize: '1rem' }}>{session.track_name || 'Unknown Track'}</span>
+                        </td>
+                        <td>
+                          <span className={`session-badge ${getSessionBadgeClass(session.session_type)}`}>
+                            {session.session_type || 'RACE'}
+                          </span>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}>
+                            <CloudSun size={14} color="var(--text-secondary)" />
+                            {session.weather || 'Clear'}
+                          </div>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                            <button
+                              className="nav-tab active"
+                              style={{ padding: '0.4rem 0.8rem', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              onClick={e => {
+                                e.stopPropagation();
+                                selectSession(session);
+                              }}
+                            >
+                              Explore <ChevronRight size={14} />
+                            </button>
+                            <button
+                              className="nav-tab"
+                              title={`Delete Session #${session.id}`}
+                              style={{
+                                padding: '0.4rem 0.6rem',
+                                fontSize: '0.8rem',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                color: '#ff4d4f',
+                                borderColor: 'rgba(255, 77, 79, 0.3)',
+                              }}
+                              onClick={e => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setSessionToDelete(session);
+                              }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>

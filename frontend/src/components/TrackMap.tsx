@@ -17,132 +17,153 @@ export const TrackMap: React.FC<TrackMapProps> = ({
   selectedCarIndex = 0,
   trackPath,
 }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
 
-    // Clear canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const render = () => {
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
 
-    const activePositions = allMotion.length > 0
-      ? allMotion
-      : (motion ? [motion] : []);
+      const dpr = window.devicePixelRatio || 1;
+      const rect = container.getBoundingClientRect();
+      const width = rect.width > 0 ? rect.width : 400;
+      const height = rect.height > 0 ? rect.height : 360;
 
-    if (trackPath.length === 0 && activePositions.length === 0) {
-      ctx.fillStyle = 'var(--text-muted, #666)';
-      ctx.font = '14px monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText('Waiting for live motion data...', canvas.width / 2, canvas.height / 2);
-      return;
-    }
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      ctx.scale(dpr, dpr);
 
-    // Find bounding box to scale and center the map
-    let minX = Infinity, maxX = -Infinity;
-    let minZ = Infinity, maxZ = -Infinity;
+      ctx.clearRect(0, 0, width, height);
 
-    const allPoints = [
-      ...trackPath,
-      ...activePositions.map(p => ({ x: p.WorldPositionX, z: p.WorldPositionZ })),
-    ];
+      const activePositions = allMotion.length > 0
+        ? allMotion
+        : (motion ? [motion] : []);
 
-    allPoints.forEach((p) => {
-      if (p.x < minX) minX = p.x;
-      if (p.x > maxX) maxX = p.x;
-      if (p.z < minZ) minZ = p.z;
-      if (p.z > maxZ) maxZ = p.z;
-    });
-
-    if (maxX === minX) { minX -= 100; maxX += 100; }
-    if (maxZ === minZ) { minZ -= 100; maxZ += 100; }
-
-    const padding = 25;
-    const drawWidth = canvas.width - padding * 2;
-    const drawHeight = canvas.height - padding * 2;
-
-    const trackWidth = maxX - minX;
-    const trackHeight = maxZ - minZ;
-
-    const scaleX = drawWidth / trackWidth;
-    const scaleZ = drawHeight / trackHeight;
-    const scale = Math.min(scaleX, scaleZ);
-
-    const offsetX = (canvas.width - trackWidth * scale) / 2 - minX * scale;
-    const offsetZ = (canvas.height - trackHeight * scale) / 2 - minZ * scale;
-
-    const mapX = (x: number) => x * scale + offsetX;
-    const mapZ = (z: number) => canvas.height - (z * scale + offsetZ);
-
-    // 1. Draw recorded track path
-    if (trackPath.length > 1) {
-      ctx.beginPath();
-      ctx.moveTo(mapX(trackPath[0].x), mapZ(trackPath[0].z));
-      for (let i = 1; i < trackPath.length; i++) {
-        ctx.lineTo(mapX(trackPath[i].x), mapZ(trackPath[i].z));
+      if (trackPath.length === 0 && activePositions.length === 0) {
+        ctx.fillStyle = 'var(--text-muted, #666)';
+        ctx.font = '14px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('Waiting for live motion data...', width / 2, height / 2);
+        return;
       }
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
-      ctx.lineWidth = 4;
-      ctx.lineJoin = 'round';
-      ctx.stroke();
-    }
 
-    // 2. Draw all active car position markers
-    activePositions.forEach((m, idx) => {
-      // Ignore uninitialized zero positions
-      if (Math.abs(m.WorldPositionX) < 0.01 && Math.abs(m.WorldPositionZ) < 0.01) return;
+      // Find bounding box to scale and center the map
+      let minX = Infinity, maxX = -Infinity;
+      let minZ = Infinity, maxZ = -Infinity;
 
-      const cx = mapX(m.WorldPositionX);
-      const cz = mapZ(m.WorldPositionZ);
+      const allPoints = [
+        ...trackPath,
+        ...activePositions.map(p => ({ x: p.WorldPositionX, z: p.WorldPositionZ })),
+      ];
 
-      const participant = participants[idx];
-      const teamColor = participant ? (TEAM_COLORS[participant.TeamId] || '#FF3333') : '#FF3333';
-      const isSelected = idx === selectedCarIndex;
+      allPoints.forEach((p) => {
+        if (p.x < minX) minX = p.x;
+        if (p.x > maxX) maxX = p.x;
+        if (p.z < minZ) minZ = p.z;
+        if (p.z > maxZ) maxZ = p.z;
+      });
 
-      if (isSelected) {
-        // Outer glowing pulse ring for selected car
+      if (maxX === minX) { minX -= 100; maxX += 100; }
+      if (maxZ === minZ) { minZ -= 100; maxZ += 100; }
+
+      const padding = 25;
+      const drawWidth = width - padding * 2;
+      const drawHeight = height - padding * 2;
+
+      const trackWidth = maxX - minX;
+      const trackHeight = maxZ - minZ;
+
+      const scaleX = drawWidth / trackWidth;
+      const scaleZ = drawHeight / trackHeight;
+      const scale = Math.min(scaleX, scaleZ);
+
+      const offsetX = (width - trackWidth * scale) / 2 - minX * scale;
+      const offsetZ = (height - trackHeight * scale) / 2 - minZ * scale;
+
+      const mapX = (x: number) => x * scale + offsetX;
+      const mapZ = (z: number) => height - (z * scale + offsetZ);
+
+      // 1. Draw recorded track path
+      if (trackPath.length > 1) {
         ctx.beginPath();
-        ctx.arc(cx, cz, 12, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
-        ctx.fill();
-
-        ctx.beginPath();
-        ctx.arc(cx, cz, 8, 0, Math.PI * 2);
-        ctx.fillStyle = teamColor;
-        ctx.fill();
-        ctx.strokeStyle = '#FFFFFF';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      } else {
-        ctx.beginPath();
-        ctx.arc(cx, cz, 5, 0, Math.PI * 2);
-        ctx.fillStyle = teamColor;
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
-        ctx.lineWidth = 1;
+        ctx.moveTo(mapX(trackPath[0].x), mapZ(trackPath[0].z));
+        for (let i = 1; i < trackPath.length; i++) {
+          ctx.lineTo(mapX(trackPath[i].x), mapZ(trackPath[i].z));
+        }
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+        ctx.lineWidth = 4;
+        ctx.lineJoin = 'round';
         ctx.stroke();
       }
 
-      // Draw Car Number or Position Tag
-      const label = participant?.RaceNumber ? `#${participant.RaceNumber}` : `${idx + 1}`;
-      ctx.font = 'bold 9px sans-serif';
-      ctx.fillStyle = isSelected ? '#FFFFFF' : 'rgba(255, 255, 255, 0.85)';
-      ctx.textAlign = 'center';
-      ctx.fillText(label, cx, cz - 8);
-    });
+      // 2. Draw all active car position markers
+      activePositions.forEach((m, idx) => {
+        if (Math.abs(m.WorldPositionX) < 0.01 && Math.abs(m.WorldPositionZ) < 0.01) return;
+
+        const cx = mapX(m.WorldPositionX);
+        const cz = mapZ(m.WorldPositionZ);
+
+        const participant = participants[idx];
+        const teamColor = participant ? (TEAM_COLORS[participant.TeamId] || '#FF3333') : '#FF3333';
+        const isSelected = idx === selectedCarIndex;
+
+        if (isSelected) {
+          ctx.beginPath();
+          ctx.arc(cx, cz, 12, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+          ctx.fill();
+
+          ctx.beginPath();
+          ctx.arc(cx, cz, 8, 0, Math.PI * 2);
+          ctx.fillStyle = teamColor;
+          ctx.fill();
+          ctx.strokeStyle = '#FFFFFF';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        } else {
+          ctx.beginPath();
+          ctx.arc(cx, cz, 5, 0, Math.PI * 2);
+          ctx.fillStyle = teamColor;
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+
+        const label = participant?.RaceNumber ? `#${participant.RaceNumber}` : `${idx + 1}`;
+        ctx.font = 'bold 10px sans-serif';
+        ctx.fillStyle = isSelected ? '#FFFFFF' : 'rgba(255, 255, 255, 0.85)';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, cx, cz - 9);
+      });
+    };
+
+    render();
+
+    let observer: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(() => {
+        render();
+      });
+      observer.observe(container);
+    }
+
+    return () => {
+      if (observer) observer.disconnect();
+    };
   }, [motion, allMotion, participants, selectedCarIndex, trackPath]);
 
   return (
-    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div ref={containerRef} style={{ width: '100%', height: '360px', position: 'relative' }}>
       <canvas
         ref={canvasRef}
-        width={400}
-        height={300}
-        style={{ width: '100%', height: '100%', maxHeight: '300px', objectFit: 'contain' }}
+        style={{ width: '100%', height: '100%', display: 'block' }}
       />
     </div>
   );
 };
-

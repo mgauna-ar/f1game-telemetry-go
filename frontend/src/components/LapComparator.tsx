@@ -755,7 +755,7 @@ export const LapComparator: React.FC = () => {
 
       {/* Lap Summary Cards & Track Map Row */}
       {selectedSessionId !== '' && (lapAObj || lapBObj) && (
-        <div style={{ gridColumn: 'span 12', display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '1rem' }}>
+        <div className="comparator-cards-row" style={{ gridColumn: 'span 12', display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '1rem' }}>
           {/* Summary Banner if both laps selected */}
           {lapAObj && lapBObj && totalDeltaMs !== null && (
             <div
@@ -798,7 +798,7 @@ export const LapComparator: React.FC = () => {
           )}
 
           {/* Lap A Card */}
-          <div className="glass-panel" style={{ gridColumn: lapAObj && lapBObj ? 'span 4' : 'span 6', padding: '1rem' }}>
+          <div className="glass-panel comparator-card-panel" style={{ gridColumn: lapAObj && lapBObj ? 'span 4' : 'span 6', padding: '1rem' }}>
             <h3 style={{ margin: 0, fontSize: '1rem', color: '#ff4757', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               ● Lap A (Red)
             </h3>
@@ -856,7 +856,7 @@ export const LapComparator: React.FC = () => {
           </div>
 
           {/* Lap B Card */}
-          <div className="glass-panel" style={{ gridColumn: lapAObj && lapBObj ? 'span 4' : 'span 6', padding: '1rem' }}>
+          <div className="glass-panel comparator-card-panel" style={{ gridColumn: lapAObj && lapBObj ? 'span 4' : 'span 6', padding: '1rem' }}>
             <h3 style={{ margin: 0, fontSize: '1rem', color: '#00d2d3', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               ● Lap B (Cyan)
             </h3>
@@ -915,7 +915,7 @@ export const LapComparator: React.FC = () => {
 
           {/* Mini Track Map Panel */}
           {comparisonData.length > 0 && (
-            <div className="glass-panel" style={{ gridColumn: 'span 4', padding: '0.75rem' }}>
+            <div className="glass-panel comparator-map-panel" style={{ gridColumn: 'span 4', padding: '0.75rem' }}>
               <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Track Heatmap</h4>
               <ComparatorTrackMap
                 data={comparisonData}
