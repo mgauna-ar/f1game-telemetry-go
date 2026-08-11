@@ -196,8 +196,28 @@ export const F1_DRIVER_NAMES: Record<number, string> = {
 export function parseDriverName(rawName: string | number[] | undefined, defaultName: string, driverId?: number): string {
   let nameStr = '';
   if (typeof rawName === 'string') {
-    const nullIdx = rawName.indexOf('\0');
-    nameStr = (nullIdx !== -1 ? rawName.slice(0, nullIdx) : rawName).trim();
+    // Go's encoding/json marshals [48]byte as base64 strings.
+    // Detect base64: only contains A-Za-z0-9+/= and is longer than a typical plain name.
+    if (rawName.length > 20 && /^[A-Za-z0-9+/=]+$/.test(rawName)) {
+      try {
+        const decoded = atob(rawName);
+        // Extract up to the first null byte
+        const nullIdx = decoded.indexOf('\0');
+        const candidate = (nullIdx !== -1 ? decoded.slice(0, nullIdx) : decoded).trim();
+        // Only accept if all characters are printable ASCII (0x20-0x7E)
+        if (candidate.length > 0 && /^[\x20-\x7E]+$/.test(candidate)) {
+          nameStr = candidate;
+        }
+      } catch {
+        // atob() failed — not valid base64, fall through to raw string handling
+      }
+    }
+
+    // Fall through: try raw string with null-byte search if base64 didn't produce a name
+    if (!nameStr) {
+      const nullIdx = rawName.indexOf('\0');
+      nameStr = (nullIdx !== -1 ? rawName.slice(0, nullIdx) : rawName).trim();
+    }
   } else if (Array.isArray(rawName)) {
     const nullIdx = rawName.indexOf(0);
     const validBytes = nullIdx !== -1 ? rawName.slice(0, nullIdx) : rawName;

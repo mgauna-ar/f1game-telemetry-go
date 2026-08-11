@@ -3,6 +3,7 @@ package packets
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -30,6 +31,21 @@ func (p ParticipantData) NameString() string {
 		n = len(p.Name)
 	}
 	return strings.TrimSpace(string(p.Name[:n]))
+}
+
+// MarshalJSON implements json.Marshaler for ParticipantData.
+// Go's encoding/json encodes [N]byte arrays as base64 strings by default,
+// which produces garbled driver names on the frontend. This custom marshaler
+// serializes the Name field as a proper UTF-8 string instead.
+func (p ParticipantData) MarshalJSON() ([]byte, error) {
+	type participantAlias ParticipantData
+	return json.Marshal(struct {
+		participantAlias
+		Name string `json:"Name"`
+	}{
+		participantAlias: participantAlias(p),
+		Name:             p.NameString(),
+	})
 }
 
 // PacketParticipantsData contains data for all participants. Packet ID: 4.

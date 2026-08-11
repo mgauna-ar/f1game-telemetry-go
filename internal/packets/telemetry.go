@@ -3,6 +3,7 @@ package packets
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 )
 
@@ -24,6 +25,31 @@ type CarTelemetryData struct {
 	EngineTemperature       uint16
 	TyresPressure           [4]float32
 	SurfaceType             [4]uint8
+}
+
+// MarshalJSON implements json.Marshaler for CarTelemetryData.
+// Go's encoding/json encodes [N]uint8 arrays as base64 strings by default,
+// which produces garbled data on the frontend. This custom marshaler converts
+// TyresSurfaceTemperature, TyresInnerTemperature, and SurfaceType to integer
+// arrays so they serialize as proper JSON number arrays.
+func (c CarTelemetryData) MarshalJSON() ([]byte, error) {
+	type telemetryAlias CarTelemetryData
+
+	uint8ToInt := func(a [4]uint8) [4]int {
+		return [4]int{int(a[0]), int(a[1]), int(a[2]), int(a[3])}
+	}
+
+	return json.Marshal(struct {
+		telemetryAlias
+		TyresSurfaceTemperature [4]int `json:"TyresSurfaceTemperature"`
+		TyresInnerTemperature   [4]int `json:"TyresInnerTemperature"`
+		SurfaceType             [4]int `json:"SurfaceType"`
+	}{
+		telemetryAlias:          telemetryAlias(c),
+		TyresSurfaceTemperature: uint8ToInt(c.TyresSurfaceTemperature),
+		TyresInnerTemperature:   uint8ToInt(c.TyresInnerTemperature),
+		SurfaceType:             uint8ToInt(c.SurfaceType),
+	})
 }
 
 // PacketCarTelemetryData contains telemetry data for all cars. Packet ID: 6.
