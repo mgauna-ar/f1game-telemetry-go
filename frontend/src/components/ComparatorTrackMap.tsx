@@ -68,8 +68,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
     const offsetY = padding + (availableH - rangeZ * scale) / 2;
 
     const toCanvasX = (worldX: number) => offsetX + (worldX - minX) * scale;
-    // Flip Z coordinate to match standard 2D top-down track orientation
-    const toCanvasY = (worldZ: number) => rect.height - (offsetY + (worldZ - minZ) * scale);
+    const toCanvasY = (worldZ: number) => offsetY + (worldZ - minZ) * scale;
 
     // Draw track line segments with heatmap coloring
     ctx.lineWidth = 3.5;
