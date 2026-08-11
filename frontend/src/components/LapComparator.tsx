@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Sliders, X, Shield, Disc, Wrench, CircleDot, Fuel, Gauge, Award, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Sliders, X, Shield, Disc, Wrench, CircleDot, Fuel, Gauge, Award, ArrowUpRight, ArrowDownRight, MapPin, Timer, Activity } from 'lucide-react';
 import {
   LineChart,
   Line,
@@ -244,10 +244,37 @@ export const LapComparator: React.FC = () => {
     };
   }, [comparisonData, lapAObj, lapBObj]);
 
+  const selectedSessionObj = useMemo(
+    () => sessions.find((s) => s.id === selectedSessionId),
+    [sessions, selectedSessionId]
+  );
+
   // Overall time delta calculation
   const totalDeltaMs = useMemo(() => {
     if (!lapAObj?.lap_time_ms || !lapBObj?.lap_time_ms) return null;
     return lapAObj.lap_time_ms - lapBObj.lap_time_ms;
+  }, [lapAObj, lapBObj]);
+
+  // Sector time deltas (A vs B)
+  const s1Delta = useMemo(() => {
+    if (lapAObj?.sector1_ms && lapBObj?.sector1_ms) {
+      return lapAObj.sector1_ms - lapBObj.sector1_ms;
+    }
+    return null;
+  }, [lapAObj, lapBObj]);
+
+  const s2Delta = useMemo(() => {
+    if (lapAObj?.sector2_ms && lapBObj?.sector2_ms) {
+      return lapAObj.sector2_ms - lapBObj.sector2_ms;
+    }
+    return null;
+  }, [lapAObj, lapBObj]);
+
+  const s3Delta = useMemo(() => {
+    if (lapAObj?.sector3_ms && lapBObj?.sector3_ms) {
+      return lapAObj.sector3_ms - lapBObj.sector3_ms;
+    }
+    return null;
   }, [lapAObj, lapBObj]);
 
   // Quick select best valid lap for driver
@@ -306,21 +333,89 @@ export const LapComparator: React.FC = () => {
   return (
     <div className="dashboard-grid" style={{ paddingTop: 0 }}>
       {/* Header Controls Panel */}
-      <div className="header glass-panel" style={{ gridColumn: 'span 12' }}>
-        <div>
-          <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Gauge color="var(--accent-primary)" /> Lap Comparator
-          </h2>
-          <p className="text-secondary">Analyze time deltas, braking points, throttle application & setups</p>
+      <div className="glass-panel" style={{ gridColumn: 'span 12', padding: '1.25rem 1.5rem' }}>
+        {/* Top Header Row: Title & Subtitle + Live Badges */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>
+              <Gauge color="var(--accent-primary)" size={26} /> Lap Comparator
+            </h2>
+            <p className="text-secondary" style={{ margin: '0.25rem 0 0 0', fontSize: '0.88rem' }}>
+              Analyze time deltas, braking points, throttle application & setups
+            </p>
+          </div>
+
+          {/* Live Session & Lap Delta Badges */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+            {selectedSessionObj && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  padding: '0.35rem 0.75rem',
+                  borderRadius: '20px',
+                  background: 'rgba(255, 255, 255, 0.06)',
+                  border: '1px solid rgba(255, 255, 255, 0.12)',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  color: 'var(--text-primary)',
+                }}
+              >
+                <MapPin size={14} color="var(--accent-primary)" />
+                <span>{selectedSessionObj.track_name}</span>
+                <span style={{ color: 'var(--text-muted)' }}>•</span>
+                <span style={{ color: 'var(--text-secondary)' }}>{selectedSessionObj.session_type}</span>
+              </div>
+            )}
+
+            {lapAObj && lapBObj && totalDeltaMs !== null && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  padding: '0.35rem 0.75rem',
+                  borderRadius: '20px',
+                  background: totalDeltaMs < 0 ? 'rgba(255, 71, 87, 0.15)' : totalDeltaMs > 0 ? 'rgba(0, 210, 211, 0.15)' : 'rgba(255, 255, 255, 0.08)',
+                  border: `1px solid ${totalDeltaMs < 0 ? '#ff4757' : totalDeltaMs > 0 ? '#00d2d3' : 'rgba(255, 255, 255, 0.2)'}`,
+                  fontSize: '0.82rem',
+                  fontWeight: 700,
+                  color: totalDeltaMs < 0 ? '#ff4757' : totalDeltaMs > 0 ? '#00d2d3' : '#fff',
+                }}
+              >
+                <Timer size={14} />
+                <span>
+                  {totalDeltaMs < 0
+                    ? `Δ -${(Math.abs(totalDeltaMs) / 1000).toFixed(3)}s (Lap A)`
+                    : totalDeltaMs > 0
+                    ? `Δ -${(Math.abs(totalDeltaMs) / 1000).toFixed(3)}s (Lap B)`
+                    : 'Identical Laps'}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        {/* Middle Row: 3 Equal-Width Selector Columns */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+            gap: '1rem',
+            marginTop: '1.25rem',
+            paddingTop: '1rem',
+            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+          }}
+        >
+          {/* Session Selector */}
           <div>
-            <label className="readout-label" style={{ display: 'block', marginBottom: '0.25rem' }}>
-              Session
+            <label className="readout-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.35rem' }}>
+              <Activity size={13} color="var(--accent-primary)" /> Session
             </label>
             <select
               className="ui-select"
+              style={{ width: '100%', boxSizing: 'border-box' }}
               value={selectedSessionId}
               onChange={(e) => setSelectedSessionId(Number(e.target.value) || '')}
             >
@@ -333,12 +428,21 @@ export const LapComparator: React.FC = () => {
             </select>
           </div>
 
+          {/* Lap A Selector */}
           <div>
-            <label className="readout-label" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.25rem' }}>
-              <span style={{ color: '#ff4757', fontWeight: 'bold' }}>●</span> Lap A (Red Solid)
+            <label className="readout-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <span style={{ color: '#ff4757', fontWeight: 'bold' }}>●</span> Lap A (Red Solid)
+              </span>
+              {driverA && (
+                <span style={{ fontSize: '0.75rem', color: '#ff4757', fontWeight: 600, textTransform: 'none' }}>
+                  #{driverA.race_number} {driverA.name}
+                </span>
+              )}
             </label>
             <select
               className="ui-select"
+              style={{ width: '100%', boxSizing: 'border-box' }}
               value={lapAId}
               onChange={(e) => setLapAId(Number(e.target.value) || '')}
               disabled={!selectedSessionId}
@@ -348,12 +452,14 @@ export const LapComparator: React.FC = () => {
             </select>
           </div>
 
+          {/* Lap B Selector */}
           <div>
-            <label className="readout-label" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', marginBottom: '0.25rem' }}>
+            <label className="readout-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
               <span style={{ color: '#00d2d3', fontWeight: 'bold' }}>●</span> Lap B (Cyan Dashed)
             </label>
             <select
               className="ui-select"
+              style={{ width: '100%', boxSizing: 'border-box' }}
               value={lapBId}
               onChange={(e) => setLapBId(Number(e.target.value) || '')}
               disabled={!selectedSessionId}
@@ -363,6 +469,89 @@ export const LapComparator: React.FC = () => {
             </select>
           </div>
         </div>
+
+        {/* Bottom Detailed Telemetry Summary & Sector Deltas Bar */}
+        {(lapAObj || lapBObj) && (
+          <div
+            style={{
+              marginTop: '1rem',
+              padding: '0.75rem 1rem',
+              borderRadius: '8px',
+              background: 'rgba(0, 0, 0, 0.25)',
+              border: '1px solid rgba(255, 255, 255, 0.06)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '0.75rem',
+            }}
+          >
+            {/* Left: Selected Laps Summary Pills */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
+              {lapAObj && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff4757', display: 'inline-block' }} />
+                  <span style={{ fontWeight: 600, color: '#fff' }}>Lap A:</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', color: '#ff4757', fontWeight: 700 }}>{formatTime(lapAObj.lap_time_ms)}</span>
+                  {driverA && <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>({driverA.name})</span>}
+                  {lapAObj.max_speed_kmh && (
+                    <span style={{ fontSize: '0.75rem', background: 'rgba(255, 71, 87, 0.1)', color: '#ff4757', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>
+                      {Math.round(lapAObj.max_speed_kmh)} km/h
+                    </span>
+                  )}
+                  {!lapAObj.is_valid && (
+                    <span style={{ fontSize: '0.75rem', background: 'rgba(255, 71, 87, 0.2)', color: '#ff4757', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
+                      Invalid
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {lapAObj && lapBObj && <div style={{ height: '16px', width: '1px', backgroundColor: 'rgba(255, 255, 255, 0.15)' }} />}
+
+              {lapBObj && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#00d2d3', display: 'inline-block' }} />
+                  <span style={{ fontWeight: 600, color: '#fff' }}>Lap B:</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', color: '#00d2d3', fontWeight: 700 }}>{formatTime(lapBObj.lap_time_ms)}</span>
+                  {driverB && <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>({driverB.name})</span>}
+                  {lapBObj.max_speed_kmh && (
+                    <span style={{ fontSize: '0.75rem', background: 'rgba(0, 210, 211, 0.1)', color: '#00d2d3', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>
+                      {Math.round(lapBObj.max_speed_kmh)} km/h
+                    </span>
+                  )}
+                  {!lapBObj.is_valid && (
+                    <span style={{ fontSize: '0.75rem', background: 'rgba(255, 71, 87, 0.2)', color: '#ff4757', padding: '0.1rem 0.35rem', borderRadius: '4px' }}>
+                      Invalid
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Right: Sector Deltas Chips (S1, S2, S3) */}
+            {lapAObj && lapBObj && (s1Delta !== null || s2Delta !== null || s3Delta !== null) && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.78rem' }}>
+                <span style={{ color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sectors (Δ A vs B):</span>
+                {s1Delta !== null && (
+                  <span style={{ padding: '0.15rem 0.45rem', borderRadius: '4px', background: s1Delta < 0 ? 'rgba(255, 71, 87, 0.15)' : s1Delta > 0 ? 'rgba(0, 210, 211, 0.15)' : 'rgba(255,255,255,0.05)', color: s1Delta < 0 ? '#ff4757' : s1Delta > 0 ? '#00d2d3' : 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+                    S1: {s1Delta <= 0 ? '' : '+'}{(s1Delta / 1000).toFixed(3)}s
+                  </span>
+                )}
+                {s2Delta !== null && (
+                  <span style={{ padding: '0.15rem 0.45rem', borderRadius: '4px', background: s2Delta < 0 ? 'rgba(255, 71, 87, 0.15)' : s2Delta > 0 ? 'rgba(0, 210, 211, 0.15)' : 'rgba(255,255,255,0.05)', color: s2Delta < 0 ? '#ff4757' : s2Delta > 0 ? '#00d2d3' : 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+                    S2: {s2Delta <= 0 ? '' : '+'}{(s2Delta / 1000).toFixed(3)}s
+                  </span>
+                )}
+                {s3Delta !== null && (
+                  <span style={{ padding: '0.15rem 0.45rem', borderRadius: '4px', background: s3Delta < 0 ? 'rgba(255, 71, 87, 0.15)' : s3Delta > 0 ? 'rgba(0, 210, 211, 0.15)' : 'rgba(255,255,255,0.05)', color: s3Delta < 0 ? '#ff4757' : s3Delta > 0 ? '#00d2d3' : 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+                    S3: {s3Delta <= 0 ? '' : '+'}{(s3Delta / 1000).toFixed(3)}s
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Quick Select Driver Best Lap Bar */}
