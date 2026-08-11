@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect } from 'react';
 import type { MergedTelemetryPoint } from '../utils/deltaCalculation';
 
 interface ComparatorTrackMapProps {
@@ -17,7 +17,6 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
   sector2Distance,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [heatmapMode, setHeatmapMode] = useState<'delta' | 'speed'>('delta');
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -70,47 +69,6 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
     const toCanvasX = (worldX: number) => offsetX + (worldX - minX) * scale;
     const toCanvasY = (worldZ: number) => offsetY + (worldZ - minZ) * scale;
 
-    // Draw track line segments with heatmap coloring
-    ctx.lineWidth = 3.5;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-
-    for (let i = 0; i < validPoints.length - 1; i++) {
-      const p1 = validPoints[i];
-      const p2 = validPoints[i + 1];
-
-      const x1 = toCanvasX(p1.worldX!);
-      const y1 = toCanvasY(p1.worldZ!);
-      const x2 = toCanvasX(p2.worldX!);
-      const y2 = toCanvasY(p2.worldZ!);
-
-      ctx.beginPath();
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y2);
-
-      if (heatmapMode === 'delta') {
-        // Time Delta: Negative (Lap A faster) = Red/Coral (#ff4757), Positive (Lap B faster) = Cyan (#00d2d3)
-        // Neutral = Grey/White
-        const dt = p1.time_delta;
-        if (dt !== null && dt < -0.05) {
-          ctx.strokeStyle = '#ff4757'; // Lap A faster (Red)
-        } else if (dt !== null && dt > 0.05) {
-          ctx.strokeStyle = '#00d2d3'; // Lap B faster (Cyan)
-        } else {
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)'; // Tied
-        }
-      } else {
-        // Speed Heatmap (0 - 350 km/h)
-        const speed = p1.speedA;
-        const normSpeed = Math.min(1, Math.max(0, (speed || 0) / 330));
-        // Blue (slow) -> Green -> Yellow -> Red (fast)
-        const hue = (1 - normSpeed) * 240; // 240 (blue) to 0 (red)
-        ctx.strokeStyle = `hsl(${hue}, 90%, 55%)`;
-      }
-
-      ctx.stroke();
-    }
-
     // Determine Sector Boundary distances (fallback to 1/3 and 2/3 of max distance)
     const maxDist = validPoints[validPoints.length - 1].lap_distance || 1;
     const s1TargetDist = sector1Distance && sector1Distance > 0 ? sector1Distance : maxDist / 3;
@@ -130,7 +88,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
     const s2MidPoint = findClosestPoint((s1TargetDist + s2TargetDist) / 2);
     const s3MidPoint = findClosestPoint((s2TargetDist + maxDist) / 2);
 
-    // Draw track line segments with heatmap coloring
+    // Draw track line segments with pace delta coloring
     ctx.lineWidth = 3.5;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -148,34 +106,25 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
       ctx.moveTo(x1, y1);
       ctx.lineTo(x2, y2);
 
-      if (heatmapMode === 'delta') {
-        // Pace / Segment Time Gain: Compare time spent between p1 and p2 for Lap A vs Lap B
-        const segTimeA = (p2.timeA !== null && p1.timeA !== null) ? p2.timeA - p1.timeA : null;
-        const segTimeB = (p2.timeB !== null && p1.timeB !== null) ? p2.timeB - p1.timeB : null;
+      // Pace / Segment Time Gain: Compare time spent between p1 and p2 for Lap A vs Lap B
+      const segTimeA = (p2.timeA !== null && p1.timeA !== null) ? p2.timeA - p1.timeA : null;
+      const segTimeB = (p2.timeB !== null && p1.timeB !== null) ? p2.timeB - p1.timeB : null;
 
-        if (segTimeA !== null && segTimeB !== null && (segTimeA > 0 || segTimeB > 0)) {
-          const diff = segTimeA - segTimeB; // Negative = Lap A gained time (faster)
-          if (diff < -0.003) {
-            ctx.strokeStyle = '#ff4757'; // Lap A faster on this segment (Red)
-          } else if (diff > 0.003) {
-            ctx.strokeStyle = '#00d2d3'; // Lap B faster on this segment (Cyan)
-          } else {
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)'; // Equal pace
-          }
+      if (segTimeA !== null && segTimeB !== null && (segTimeA > 0 || segTimeB > 0)) {
+        const diff = segTimeA - segTimeB; // Negative = Lap A gained time (faster)
+        if (diff < -0.003) {
+          ctx.strokeStyle = '#ff4757'; // Lap A faster on this segment (Red)
+        } else if (diff > 0.003) {
+          ctx.strokeStyle = '#00d2d3'; // Lap B faster on this segment (Cyan)
         } else {
-          // Fallback to cumulative delta if segment delta unavailable
-          const dt = p1.time_delta;
-          if (dt !== null && dt < -0.05) ctx.strokeStyle = '#ff4757';
-          else if (dt !== null && dt > 0.05) ctx.strokeStyle = '#00d2d3';
-          else ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)'; // Equal pace
         }
       } else {
-        // Speed Heatmap (0 - 350 km/h)
-        const speed = p1.speedA;
-        const normSpeed = Math.min(1, Math.max(0, (speed || 0) / 330));
-        // Blue (slow) -> Green -> Yellow -> Red (fast)
-        const hue = (1 - normSpeed) * 240; // 240 (blue) to 0 (red)
-        ctx.strokeStyle = `hsl(${hue}, 90%, 55%)`;
+        // Fallback to cumulative delta if segment delta unavailable
+        const dt = p1.time_delta;
+        if (dt !== null && dt < -0.05) ctx.strokeStyle = '#ff4757';
+        else if (dt !== null && dt > 0.05) ctx.strokeStyle = '#00d2d3';
+        else ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
       }
 
       ctx.stroke();
@@ -213,7 +162,6 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
       const cx = toCanvasX(point.worldX);
       const cy = toCanvasY(point.worldZ);
 
-      // Find index in validPoints to compute track tangent and normal vectors
       const idx = validPoints.indexOf(point);
       const pPrev = validPoints[Math.max(0, idx - 1)];
       const pNext = validPoints[Math.min(validPoints.length - 1, idx + 1)];
@@ -227,7 +175,6 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
       const dy = yNext - yPrev;
       const len = Math.hypot(dx, dy) || 1;
 
-      // Normal unit vector perpendicular to track
       const nx = -dy / len;
       const ny = dx / len;
 
@@ -237,7 +184,6 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
       const xB = cx + nx * lineLen;
       const yB = cy + ny * lineLen;
 
-      // Outer black contrast outline for perpendicular line
       ctx.beginPath();
       ctx.moveTo(xA, yA);
       ctx.lineTo(xB, yB);
@@ -246,7 +192,6 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
       ctx.lineCap = 'butt';
       ctx.stroke();
 
-      // Main vibrant perpendicular sector division line
       ctx.beginPath();
       ctx.moveTo(xA, yA);
       ctx.lineTo(xB, yB);
@@ -255,7 +200,6 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
       ctx.lineCap = 'butt';
       ctx.stroke();
 
-      // Center intersection dot
       ctx.beginPath();
       ctx.arc(cx, cy, 3, 0, Math.PI * 2);
       ctx.fillStyle = color;
@@ -283,13 +227,11 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         const cx = toCanvasX(activePoint.worldX);
         const cy = toCanvasY(activePoint.worldZ);
 
-        // Glow outer circle
         ctx.beginPath();
         ctx.arc(cx, cy, 9, 0, Math.PI * 2);
         ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
         ctx.fill();
 
-        // Inner solid marker
         ctx.beginPath();
         ctx.arc(cx, cy, 4.5, 0, Math.PI * 2);
         ctx.fillStyle = '#ffffff';
@@ -299,7 +241,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         ctx.stroke();
       }
     }
-  }, [data, activeDistance, heatmapMode, sector1Distance, sector2Distance]);
+  }, [data, activeDistance, sector1Distance, sector2Distance]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: `${height}px` }}>
@@ -307,56 +249,8 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         ref={canvasRef}
         style={{ width: '100%', height: '100%', display: 'block' }}
       />
-      {/* Heatmap Mode Toggle */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '6px',
-          right: '6px',
-          display: 'flex',
-          gap: '3px',
-          background: 'rgba(0,0,0,0.7)',
-          padding: '2px 4px',
-          borderRadius: '5px',
-          backdropFilter: 'blur(4px)',
-          border: '1px solid rgba(255,255,255,0.1)',
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => setHeatmapMode('delta')}
-          style={{
-            background: heatmapMode === 'delta' ? 'rgba(255,255,255,0.22)' : 'transparent',
-            border: 'none',
-            color: heatmapMode === 'delta' ? '#fff' : '#aaa',
-            fontSize: '0.68rem',
-            padding: '2px 5px',
-            borderRadius: '3px',
-            cursor: 'pointer',
-            fontWeight: 600,
-          }}
-        >
-          Pace Δ
-        </button>
-        <button
-          type="button"
-          onClick={() => setHeatmapMode('speed')}
-          style={{
-            background: heatmapMode === 'speed' ? 'rgba(255,255,255,0.22)' : 'transparent',
-            border: 'none',
-            color: heatmapMode === 'speed' ? '#fff' : '#aaa',
-            fontSize: '0.68rem',
-            padding: '2px 5px',
-            borderRadius: '3px',
-            cursor: 'pointer',
-            fontWeight: 600,
-          }}
-        >
-          Speed
-        </button>
-      </div>
 
-      {/* Heatmap Legend Overlay */}
+      {/* Pace Delta Legend Overlay */}
       <div
         style={{
           position: 'absolute',
@@ -372,14 +266,8 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
           alignItems: 'center',
         }}
       >
-        {heatmapMode === 'delta' ? (
-          <>
-            <span style={{ color: '#ff4757', fontWeight: 'bold' }}>● Lap A Faster</span>
-            <span style={{ color: '#00d2d3', fontWeight: 'bold' }}>● Lap B Faster</span>
-          </>
-        ) : (
-          <span>Low Speed → High Speed</span>
-        )}
+        <span style={{ color: '#ff4757', fontWeight: 'bold' }}>● Lap A Faster</span>
+        <span style={{ color: '#00d2d3', fontWeight: 'bold' }}>● Lap B Faster</span>
       </div>
 
       {/* Sector Legend Overlay */}
