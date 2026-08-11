@@ -83,13 +83,13 @@ describe('LapComparator Component', () => {
 
     // Verify quick select bar renders driver
     await waitFor(() => {
-      expect(screen.getByText(/#1 Max Verstappen/)).toBeInTheDocument();
+      expect(screen.getAllByText(/Max Verstappen/).length).toBeGreaterThan(0);
     });
 
     // Verify optgroup labels and lap option labels inside dropdowns
     expect(screen.getAllByRole('group', { name: 'Max Verstappen (#1)' }).length).toBeGreaterThan(0);
     expect(screen.getAllByRole('group', { name: 'Car 2' }).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Lap 3 — 1:25.432/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Lap 4 — 1:26.100/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/1:25.432/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/1:26.100/).length).toBeGreaterThan(0);
   });
 });

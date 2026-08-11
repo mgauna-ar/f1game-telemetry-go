@@ -326,7 +326,7 @@ export const LapComparator: React.FC = () => {
         <optgroup key={carIdx} label={groupLabel}>
           {driverLaps.map((l) => (
             <option key={l.id} value={l.id}>
-              Lap {l.lap_number} — {formatTime(l.lap_time_ms)} {!l.is_valid ? '⚠️ Invalid' : ''}
+              {p ? `#${p.race_number} ${p.name} • ` : ''}Lap {l.lap_number} — {formatTime(l.lap_time_ms)} {!l.is_valid ? '⚠️ Invalid' : ''}
             </option>
           ))}
         </optgroup>
@@ -669,9 +669,9 @@ export const LapComparator: React.FC = () => {
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))',
               gap: '0.6rem',
-              maxHeight: '180px',
+              maxHeight: '220px',
               overflowY: 'auto',
               paddingRight: '0.2rem',
             }}
@@ -684,18 +684,18 @@ export const LapComparator: React.FC = () => {
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   background: 'rgba(255, 255, 255, 0.03)',
-                  padding: '0.35rem 0.65rem',
+                  padding: '0.4rem 0.75rem',
                   borderRadius: '6px',
                   border: '1px solid rgba(255, 255, 255, 0.07)',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0, flex: 1, paddingRight: '0.4rem' }}>
                   <span
                     style={{
-                      fontSize: '0.8rem',
+                      fontSize: '0.82rem',
                       fontWeight: 600,
                       color: 'var(--text-primary)',
-                      maxWidth: '120px',
+                      maxWidth: '170px',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
@@ -705,13 +705,13 @@ export const LapComparator: React.FC = () => {
                     #{p.race_number} {p.name}
                   </span>
                   {p.bestLap && (
-                    <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-mono)', color: 'var(--accent-primary)', fontWeight: 600 }}>
+                    <span style={{ fontSize: '0.78rem', fontFamily: 'var(--font-mono)', color: 'var(--accent-primary)', fontWeight: 600, flexShrink: 0 }}>
                       {formatTime(p.bestLap.lap_time_ms)}
                     </span>
                   )}
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }}>
+                <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
                   <button
                     type="button"
                     onClick={() => selectFastestLap(p.car_index, 'A')}
@@ -720,8 +720,8 @@ export const LapComparator: React.FC = () => {
                       border: '1px solid rgba(255, 71, 87, 0.6)',
                       color: '#ff4757',
                       borderRadius: '4px',
-                      padding: '0.15rem 0.45rem',
-                      fontSize: '0.72rem',
+                      padding: '0.2rem 0.5rem',
+                      fontSize: '0.73rem',
                       cursor: 'pointer',
                       fontWeight: 700,
                     }}
@@ -737,8 +737,8 @@ export const LapComparator: React.FC = () => {
                       border: '1px solid rgba(0, 210, 211, 0.6)',
                       color: '#00d2d3',
                       borderRadius: '4px',
-                      padding: '0.15rem 0.45rem',
-                      fontSize: '0.72rem',
+                      padding: '0.2rem 0.5rem',
+                      fontSize: '0.73rem',
                       cursor: 'pointer',
                       fontWeight: 700,
                     }}
