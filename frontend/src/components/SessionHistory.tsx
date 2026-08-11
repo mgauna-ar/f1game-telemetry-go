@@ -864,7 +864,18 @@ export const SessionHistory: React.FC = () => {
                               <td className="mono" style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.85rem' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                   <Clock size={12} color="var(--text-secondary)" />
-                                  {driver.isDSQ ? 'DSQ' : driver.isDNF ? 'DNF' : formatTotalDuration(driver.totalRaceTimeMS)}
+                                  {(() => {
+                                    if (driver.isDSQ) return 'DSQ';
+                                    if (driver.isDNF) return 'DNF';
+                                    if (isRaceSession && driverStandings.length > 0) {
+                                      const leaderLapsCount = driverStandings[0].laps.length;
+                                      if (leaderLapsCount > 0 && driver.laps.length < leaderLapsCount) {
+                                        const diff = leaderLapsCount - driver.laps.length;
+                                        return `+${diff} ${diff === 1 ? 'Lap' : 'Laps'}`;
+                                      }
+                                    }
+                                    return formatTotalDuration(driver.totalRaceTimeMS);
+                                  })()}
                                   {driver.penaltySeconds > 0 && (
                                     <span
                                       className="mono"
