@@ -112,8 +112,8 @@ func (sm *SessionManager) handleCarSetupData(ctx context.Context, p *packets.Pac
 			RearSuspensionHeight:  int(cs.RearSuspensionHeight),
 			BrakePressure:         int(cs.BrakePressure),
 			BrakeBias:             int(cs.BrakeBias),
-			FrontTyrePressure:     float64(cs.FrontTyrePressure),
-			RearTyrePressure:      float64(cs.RearTyrePressure),
+			FrontTyrePressure:     float64(cs.FrontLeftTyrePressure),
+			RearTyrePressure:      float64(cs.RearLeftTyrePressure),
 			Ballast:               int(cs.Ballast),
 			FuelLoad:              float64(cs.FuelLoad),
 		})

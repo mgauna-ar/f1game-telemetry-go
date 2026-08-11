@@ -168,3 +168,49 @@ func TestDecodeCarTelemetryAlignment(t *testing.T) {
 		t.Errorf("Expected Throttle 0.75, Brake 0.25; got %f, %f", pkt.CarTelemetryData[18].Throttle, pkt.CarTelemetryData[18].Brake)
 	}
 }
+
+func TestDecodeCarSetupAlignment(t *testing.T) {
+	buf := new(bytes.Buffer)
+	hdr := createHeader(PacketIDCarSetup)
+	_ = binary.Write(buf, binary.LittleEndian, &hdr)
+
+	for i := 0; i < MaxCars; i++ {
+		cs := CarSetupData{
+			FrontWing:              uint8(10 + i),
+			RearWing:               uint8(5 + i),
+			OnThrottle:             uint8(60 + i),
+			OffThrottle:            uint8(50 + i),
+			FrontCamber:            -3.5 + float32(i)*0.1,
+			RearCamber:             -1.5 + float32(i)*0.05,
+			FrontToe:               0.05 + float32(i)*0.01,
+			RearToe:                0.20 + float32(i)*0.01,
+			FrontSuspension:        uint8(8 + i),
+			RearSuspension:         uint8(6 + i),
+			FrontAntiRollBar:       uint8(7 + i),
+			RearAntiRollBar:        uint8(5 + i),
+			FrontSuspensionHeight:  uint8(33 + i),
+			RearSuspensionHeight:   uint8(38 + i),
+			BrakePressure:          100,
+			BrakeBias:              56,
+			RearLeftTyrePressure:   21.5,
+			RearRightTyrePressure:  21.5,
+			FrontLeftTyrePressure:  23.5,
+			FrontRightTyrePressure: 23.5,
+			Ballast:                0,
+			FuelLoad:               45.0,
+		}
+		_ = binary.Write(buf, binary.LittleEndian, &cs)
+	}
+
+	pkt, err := DecodeCarSetup(buf.Bytes())
+	if err != nil {
+		t.Fatalf("DecodeCarSetup failed: %v", err)
+	}
+
+	if pkt.CarSetupData[0].FrontWing != 10 || pkt.CarSetupData[0].FrontCamber != -3.5 {
+		t.Errorf("Car 0 Setup expected FrontWing 10, Camber -3.5; got Wing %d, Camber %f", pkt.CarSetupData[0].FrontWing, pkt.CarSetupData[0].FrontCamber)
+	}
+	if pkt.CarSetupData[21].FrontWing != 31 || pkt.CarSetupData[21].BrakePressure != 100 {
+		t.Errorf("Car 21 Setup expected FrontWing 31, BrakePressure 100; got Wing %d, Pressure %d", pkt.CarSetupData[21].FrontWing, pkt.CarSetupData[21].BrakePressure)
+	}
+}

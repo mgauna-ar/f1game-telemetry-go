@@ -173,7 +173,7 @@ func main() {
 			if frameID == 1 || frameID%100 == 0 {
 				participantsPkt := packets.PacketParticipantsData{
 					Header:        header,
-					NumActiveCars: 4,
+					NumActiveCars: 22,
 				}
 				participantsPkt.Header.PacketId = packets.PacketIDParticipants
 
@@ -185,10 +185,28 @@ func main() {
 					aiControlled uint8
 					nationality  uint8
 				}{
-					{"Max Verstappen", 1, 0, 1, 0, 5},
-					{"Lewis Hamilton", 2, 4, 44, 1, 12},
-					{"Charles Leclerc", 3, 4, 16, 1, 18},
-					{"Lando Norris", 4, 2, 4, 1, 12},
+					{"Max Verstappen", 9, 0, 1, 0, 5},
+					{"Sergio Perez", 11, 0, 11, 1, 52},
+					{"Lewis Hamilton", 7, 4, 44, 1, 12},
+					{"Charles Leclerc", 22, 4, 16, 1, 18},
+					{"Lando Norris", 10, 2, 4, 1, 12},
+					{"Oscar Piastri", 28, 2, 81, 1, 2},
+					{"George Russell", 17, 1, 63, 1, 12},
+					{"Kimi Antonelli", 34, 1, 12, 1, 18},
+					{"Fernando Alonso", 3, 3, 14, 1, 56},
+					{"Lance Stroll", 15, 3, 18, 1, 14},
+					{"Pierre Gasly", 21, 5, 10, 1, 13},
+					{"Jack Doohan", 35, 5, 7, 1, 2},
+					{"Alexander Albon", 19, 6, 23, 1, 54},
+					{"Carlos Sainz", 0, 6, 55, 1, 56},
+					{"Yuki Tsunoda", 26, 7, 22, 1, 19},
+					{"Liam Lawson", 29, 7, 30, 1, 46},
+					{"Nico Hulkenberg", 13, 8, 27, 1, 15},
+					{"Gabriel Bortoleto", 36, 8, 5, 1, 10},
+					{"Esteban Ocon", 14, 9, 31, 1, 13},
+					{"Oliver Bearman", 33, 9, 87, 1, 12},
+					{"Isack Hadjar", 37, 0, 6, 1, 13},
+					{"Felipe Drugovich", 31, 3, 31, 1, 10},
 				}
 
 				for i, d := range drivers {
@@ -211,8 +229,8 @@ func main() {
 			}
 			motionPkt.Header.PacketId = packets.PacketIDMotion
 
-			offsets := []float64{0.0, -0.15, -0.32, -0.50}
-			for i, off := range offsets {
+			for i := 0; i < 22; i++ {
+				off := -float64(i) * 0.08
 				a := angle + off
 				motionPkt.CarMotionData[i] = packets.CarMotionData{
 					WorldPositionX: float32(300.0 * math.Sin(a)),
@@ -229,14 +247,17 @@ func main() {
 				Header: header,
 			}
 			telemetryPkt.Header.PacketId = packets.PacketIDCarTelemetry
-			for i := 0; i < 4; i++ {
-				factor := 1.0 - float64(i)*0.03
-				a := angle - float64(i)*0.15
+			for i := 0; i < 22; i++ {
+				factor := 1.0 - float64(i)*0.02
+				if factor < 0.5 {
+					factor = 0.5
+				}
+				a := angle - float64(i)*0.08
 				telemetryPkt.CarTelemetryData[i] = packets.CarTelemetryData{
 					Speed:     uint16(float64(speedKmh) * factor),
 					Throttle:  float32(float64(throttle) * factor),
 					Steer:     float32(math.Sin(a)),
-					Brake:     float32(float64(brake) * (1.0 + float64(i)*0.05)),
+					Brake:     float32(float64(brake) * (1.0 + float64(i)*0.02)),
 					Gear:      gear,
 					EngineRPM: uint16(float64(rpm) * factor),
 					DRS:       uint8(i % 2),
@@ -249,24 +270,24 @@ func main() {
 				Header: header,
 			}
 			lapPkt.Header.PacketId = packets.PacketIDLapData
-			for i := 0; i < 4; i++ {
-				gapMs := uint32(i * 450)
+			for i := 0; i < 22; i++ {
+				gapMs := uint32(i * 350)
 				var pitStatus uint8 = 0
-				if i == 3 {
+				if i >= 18 {
 					pitStatus = 1
 				}
 				lapPkt.LapData[i] = packets.LapData{
 					CurrentLapTimeInMS:      lapTimeMs + gapMs,
-					LastLapTimeInMS:         uint32(85432 + i*320),
-					Sector1TimeMSPart:       uint16(28120 + i*150),
-					Sector2TimeMSPart:       uint16(31450 + i*120),
+					LastLapTimeInMS:         uint32(85432 + i*220),
+					Sector1TimeMSPart:       uint16(28120 + i*100),
+					Sector2TimeMSPart:       uint16(31450 + i*90),
 					CurrentLapNum:           lapNum,
 					LapDistance:             lapDist,
 					TotalDistance:           totalDistance - float32(i*15),
 					CarPosition:             uint8(i + 1),
 					ResultStatus:            2, // Active
 					DeltaToRaceLeaderMSPart: uint16(gapMs),
-					DeltaToCarInFrontMSPart: uint16(450),
+					DeltaToCarInFrontMSPart: uint16(350),
 					PitStatus:               pitStatus,
 				}
 			}
@@ -278,14 +299,14 @@ func main() {
 					Header: header,
 				}
 				statusPkt.Header.PacketId = packets.PacketIDCarStatus
-				compounds := []uint8{16, 17, 18, 16} // Soft, Medium, Hard, Soft
-				for i := 0; i < 4; i++ {
+				compounds := []uint8{16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16}
+				for i := 0; i < 22; i++ {
 					statusPkt.CarStatusData[i] = packets.CarStatusData{
-						FuelInTank:         float32(48.0 - float64(i)*1.5),
+						FuelInTank:         float32(48.0 - float64(i)*0.8),
 						FuelCapacity:       110.0,
 						VisualTyreCompound: compounds[i],
-						TyresAgeLaps:       uint8(5 + i*3),
-						ERSStoreEnergy:     float32(4000000.0 * (1.0 - float64(i)*0.15)),
+						TyresAgeLaps:       uint8(3 + i*2),
+						ERSStoreEnergy:     float32(4000000.0 * (1.0 - float64(i)*0.03)),
 						ERSDeployMode:      uint8(i % 4),
 					}
 				}
@@ -298,28 +319,30 @@ func main() {
 					Header: header,
 				}
 				setupPkt.Header.PacketId = packets.PacketIDCarSetup
-				for i := 0; i < 4; i++ {
+				for i := 0; i < 22; i++ {
 					setupPkt.CarSetupData[i] = packets.CarSetupData{
-						FrontWing:             uint8(10 + i*2),
-						RearWing:              uint8(8 + i),
-						OnThrottle:            uint8(60 + i*5),
-						OffThrottle:           uint8(50 + i*2),
-						FrontCamber:           float32(-3.0 + float64(i)*0.1),
-						RearCamber:            float32(-1.5 + float64(i)*0.05),
-						FrontToe:              float32(0.05 + float64(i)*0.01),
-						RearToe:               float32(0.20 + float64(i)*0.02),
-						FrontSuspension:       uint8(8 + i),
-						RearSuspension:        uint8(6 + i),
-						FrontAntiRollBar:      uint8(7 + i),
-						RearAntiRollBar:       uint8(5 + i),
-						FrontSuspensionHeight: uint8(33 + i),
-						RearSuspensionHeight:  uint8(38 + i),
-						BrakePressure:         uint8(100 - i*2),
-						BrakeBias:             uint8(56 - i),
-						FrontTyrePressure:     float32(23.5 + float64(i)*0.2),
-						RearTyrePressure:      float32(21.0 + float64(i)*0.2),
-						Ballast:               0,
-						FuelLoad:              float32(48.0 - float64(i)*1.5),
+						FrontWing:              uint8(10 + (i%5)*2),
+						RearWing:               uint8(8 + (i % 4)),
+						OnThrottle:             uint8(60 + (i%3)*5),
+						OffThrottle:            uint8(50 + (i%3)*2),
+						FrontCamber:            float32(-3.0 + float64(i)*0.05),
+						RearCamber:             float32(-1.5 + float64(i)*0.02),
+						FrontToe:               float32(0.05 + float64(i)*0.005),
+						RearToe:                float32(0.20 + float64(i)*0.01),
+						FrontSuspension:        uint8(8 + (i % 3)),
+						RearSuspension:         uint8(6 + (i % 3)),
+						FrontAntiRollBar:       uint8(7 + (i % 3)),
+						RearAntiRollBar:        uint8(5 + (i % 3)),
+						FrontSuspensionHeight:  uint8(33 + (i % 4)),
+						RearSuspensionHeight:   uint8(38 + (i % 4)),
+						BrakePressure:          uint8(100 - (i%3)*2),
+						BrakeBias:              uint8(56 - (i % 4)),
+						RearLeftTyrePressure:   float32(21.0 + float64(i)*0.1),
+						RearRightTyrePressure:  float32(21.0 + float64(i)*0.1),
+						FrontLeftTyrePressure:  float32(23.5 + float64(i)*0.1),
+						FrontRightTyrePressure: float32(23.5 + float64(i)*0.1),
+						Ballast:                0,
+						FuelLoad:               float32(48.0 - float64(i)*0.8),
 					}
 				}
 				sendPacket(conn, &setupPkt)
