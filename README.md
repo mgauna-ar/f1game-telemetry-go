@@ -16,7 +16,7 @@
 - **Multi-Car Live Track Map** — Concurrent multi-car position tracking on circuit layout with driver number labels and interactive driver selection
 - **Car Setup Telemetry** — Live and stored telemetry for aerodynamics (wings), suspension & anti-roll bars, geometry (camber/toe), brake bias/pressure, and tyre pressures
 - **Car Status & Strategy Telemetry** — Live monitoring of ERS Store Energy %, ERS deployment modes, fuel remaining in kg, and tyre compound age
-- **Lap Comparison** — Compare lap times, sector splits, and telemetry traces (Speed, Throttle, Brake, ERS Battery Level %, ERS Deploy Mode) with driver name matching and participant roster visualization
+- **Lap Comparison** — High-performance lap analysis tool featuring server-side LTTB (Largest-Triangle-Three-Buckets) downsampling, synchronized crosshair charts (Time Delta $Δt$, Speed, Throttle & Brake, Gear Selection, Steering Angle, ERS Battery), Sector split deltas, Quick-Select Driver Best Laps, Car Setup inspection, and interactive Mini Track Map with dynamic Time Delta heatmap overlay
 - **Real-time WebSocket** — Stream live telemetry to the dashboard via WebSocket
 - **Multi-format Support** — Focused exclusively on F1 2025 & F1 2026 DLC UDP packet formats for maximum performance and decoder accuracy
 
@@ -171,7 +171,7 @@ f1game-telemetry-go/
 | `GET` | `/api/sessions/:id/participants` | Get participant roster (drivers) for a session |
 | `GET` | `/api/sessions/:id/setups` | Get car setups for a session |
 | `GET` | `/api/sessions/:id/laps` | Get laps for a session |
-| `GET` | `/api/laps/:id/telemetry` | Get telemetry for a lap |
+| `GET` | `/api/laps/:id/telemetry` | Get telemetry for a lap (supports `?maxPoints=N` LTTB downsampling) |
 
 > **Note:** API endpoints are planned and subject to change.
 

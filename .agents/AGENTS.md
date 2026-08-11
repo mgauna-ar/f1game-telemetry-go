@@ -18,7 +18,7 @@ This file (`.agents/AGENTS.md`) contains workspace-specific rules and context th
 
 ## 3. F1 Telemetry Specifics
 *   **Binary Parsing:** When modifying packet decoding logic (e.g., `PacketLapData`, `PacketMotionData`), ensure strict 1:1 alignment with the official EA F1 2025/2026 game telemetry specification. `LapDistance` and `TotalDistance` are floats positioned immediately before `SafetyCarDelta`.
-*   **Data Transformation:** Keep frontend payloads lightweight. Only broadcast the specific data points needed by the UI (e.g., extracting `WorldPositionX/Z` for the mini-map) rather than sending raw, unparsed packets.
+*   **Data Transformation:** Keep frontend payloads lightweight. Only broadcast the specific data points needed by the UI (e.g., extracting `WorldPositionX/Z` for the mini-map) rather than sending raw, unparsed packets. For historical lap comparison telemetry, server-side LTTB downsampling (`?maxPoints=800`) is used to maintain 60FPS UI performance.
 
 ## 4. UI/UX Guidelines
 *   **Design Aesthetic:** Build modern, responsive React components. Use curated color palettes, smooth micro-animations for real-time data updates, and avoid default browser styling to maintain a premium feel.

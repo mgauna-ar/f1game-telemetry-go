@@ -1,0 +1,79 @@
+package api
+
+import (
+	"math"
+
+	"github.com/mgauna/f1game-telemetry-go/internal/storage"
+)
+
+// DownsampleTelemetry uses Largest-Triangle-Three-Buckets (LTTB) algorithm
+// to downsample telemetry samples to targetThreshold points while preserving visual shapes.
+func DownsampleTelemetry(data []storage.TelemetrySample, targetThreshold int) []storage.TelemetrySample {
+	dataLen := len(data)
+	if targetThreshold >= dataLen || targetThreshold <= 2 {
+		return data
+	}
+
+	sampled := make([]storage.TelemetrySample, 0, targetThreshold)
+
+	// Always add the first point
+	sampled = append(sampled, data[0])
+
+	// Bucket size for the intermediate points
+	every := float64(dataLen-2) / float64(targetThreshold-2)
+
+	a := 0 // Index of the last selected point
+
+	for i := 0; i < targetThreshold-2; i++ {
+		// Calculate point average for next bucket (bucket b)
+		avgX := 0.0
+		avgY := 0.0
+		avgRangeStart := int(math.Floor(float64(i+1)*every)) + 1
+		avgRangeEnd := int(math.Floor(float64(i+2)*every)) + 1
+		if avgRangeEnd > dataLen {
+			avgRangeEnd = dataLen
+		}
+
+		avgRangeLength := float64(avgRangeEnd - avgRangeStart)
+		if avgRangeLength > 0 {
+			for ; avgRangeStart < avgRangeEnd; avgRangeStart++ {
+				avgX += data[avgRangeStart].LapDistance
+				avgY += float64(data[avgRangeStart].Speed)
+			}
+			avgX /= avgRangeLength
+			avgY /= avgRangeLength
+		}
+
+		// Get the range for current bucket
+		rangeOffs := int(math.Floor(float64(i)*every)) + 1
+		rangeTo := int(math.Floor(float64(i+1)*every)) + 1
+
+		// Point a
+		pointAX := data[a].LapDistance
+		pointAY := float64(data[a].Speed)
+
+		maxArea := -1.0
+		nextA := rangeOffs
+
+		for ; rangeOffs < rangeTo; rangeOffs++ {
+			// Calculate triangle area over three points
+			area := math.Abs(
+				(pointAX-avgX)*(float64(data[rangeOffs].Speed)-pointAY)-
+					(pointAX-data[rangeOffs].LapDistance)*(avgY-pointAY),
+			) * 0.5
+
+			if area > maxArea {
+				maxArea = area
+				nextA = rangeOffs
+			}
+		}
+
+		sampled = append(sampled, data[nextA])
+		a = nextA // This point is the next a
+	}
+
+	// Always add the last point
+	sampled = append(sampled, data[dataLen-1])
+
+	return sampled
+}

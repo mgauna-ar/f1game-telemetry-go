@@ -5,13 +5,14 @@ import { LapComparator } from './LapComparator';
 // Mock Recharts to prevent canvas/DOM size errors in JSDOM
 vi.mock('recharts', () => ({
   ResponsiveContainer: ({ children }: any) => <div>{children}</div>,
-  LineChart: () => <div>LineChart</div>,
+  LineChart: ({ children }: any) => <div>LineChart {children}</div>,
   Line: () => <div />,
   XAxis: () => <div />,
   YAxis: () => <div />,
   CartesianGrid: () => <div />,
   Tooltip: () => <div />,
   Legend: () => <div />,
+  ReferenceLine: () => <div />,
 }));
 
 describe('LapComparator Component', () => {
@@ -37,14 +38,12 @@ describe('LapComparator Component', () => {
     render(<LapComparator />);
 
     expect(screen.getByText('Lap Comparator')).toBeInTheDocument();
-    expect(screen.getByText(/ERS Battery Level/)).toBeInTheDocument();
-    expect(screen.getByText(/ERS Deploy Mode/)).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByText(/Monaco - Race/)).toBeInTheDocument();
     });
   });
 
-  it('fetches participants and displays driver names in lap selector & participants panel', async () => {
+  it('fetches participants and displays quick select buttons & driver laps in selector', async () => {
     const mockSessions = [
       { id: 1, session_uid: '123', track_name: 'Monaco', session_type: 'Race', created_at: '2026-08-10T12:00:00Z' }
     ];
@@ -82,12 +81,9 @@ describe('LapComparator Component', () => {
     const sessionSelect = selects[0];
     fireEvent.change(sessionSelect, { target: { value: '1' } });
 
-    // Verify participants roster is rendered
+    // Verify quick select bar renders driver
     await waitFor(() => {
-      expect(screen.getByText('Max Verstappen')).toBeInTheDocument();
-      expect(screen.getByText('#1')).toBeInTheDocument();
-      expect(screen.getByText('Team 1')).toBeInTheDocument();
-      expect(screen.getByText('HUMAN')).toBeInTheDocument();
+      expect(screen.getByText(/#1 Max Verstappen/)).toBeInTheDocument();
     });
 
     // Verify optgroup labels and lap option labels inside dropdowns

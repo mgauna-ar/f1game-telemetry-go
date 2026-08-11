@@ -201,6 +201,13 @@ func (s *Server) handleGetTelemetry(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to get telemetry", http.StatusInternalServerError)
 		return
 	}
+
+	if maxPointsStr := r.URL.Query().Get("maxPoints"); maxPointsStr != "" {
+		if maxPoints, err := strconv.Atoi(maxPointsStr); err == nil && maxPoints > 0 {
+			telemetry = DownsampleTelemetry(telemetry, maxPoints)
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(telemetry)
 }
