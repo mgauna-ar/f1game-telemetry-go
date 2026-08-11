@@ -36,6 +36,11 @@ type PacketMotionData struct {
 
 func (p PacketMotionData) GetHeader() PacketHeader { return p.Header }
 
+const (
+	CarMotionStructSizeMin    = 54
+	CarMotionStructSizeLegacy = 60
+)
+
 // DecodeMotion decodes a PacketMotionData from raw bytes.
 func DecodeMotion(data []byte) (*PacketMotionData, error) {
 	header, headerLen, err := DecodeHeaderWithOffset(data)
@@ -48,20 +53,19 @@ func DecodeMotion(data []byte) (*PacketMotionData, error) {
 
 	payload := data[headerLen:]
 
-	const structSize = 60
-	if len(payload) < structSize {
+	if len(payload) < CarMotionStructSizeLegacy {
 		return nil, fmt.Errorf("data too short for motion payload: got %d bytes", len(payload))
 	}
 
 	maxCars := MaxCarsForFormat(header.PacketFormat)
-	itemSize := InferredItemSize(payload, header, 54, 0)
+	itemSize := InferredItemSize(payload, header, CarMotionStructSizeMin, 0)
 
 	for i := 0; i < maxCars && i < MaxCars; i++ {
 		offset := i * itemSize
-		if offset+structSize > len(payload) {
+		if offset+CarMotionStructSizeLegacy > len(payload) {
 			break
 		}
-		r := bytes.NewReader(payload[offset : offset+structSize])
+		r := bytes.NewReader(payload[offset : offset+CarMotionStructSizeLegacy])
 		if err := binary.Read(r, binary.LittleEndian, &pkt.CarMotionData[i]); err != nil {
 			return nil, fmt.Errorf("failed to decode motion data for car %d: %w", i, err)
 		}

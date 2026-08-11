@@ -64,6 +64,32 @@ type PacketCarTelemetryData struct {
 
 func (p PacketCarTelemetryData) GetHeader() PacketHeader { return p.Header }
 
+const (
+	CarTelemetryStructSize2026   = 59
+	CarTelemetryStructSizeLegacy = 60
+	CarTelemetryTrailerSize      = 3
+
+	OffsetTelemetrySpeed             = 0
+	OffsetTelemetryThrottle          = 2
+	OffsetTelemetrySteer             = 6
+	OffsetTelemetryBrake             = 10
+	OffsetTelemetryClutch            = 14
+	OffsetTelemetryGear              = 15
+	OffsetTelemetryEngineRPM         = 16
+	OffsetTelemetryDRS               = 18
+	OffsetTelemetryRevLightsPercent  = 19
+	OffsetTelemetryRevLightsBitValue = 20
+	OffsetTelemetryBrakesTemp        = 22
+	OffsetTelemetryTyresSurfaceTemp  = 30
+	OffsetTelemetryTyresInnerTemp    = 34
+	OffsetTelemetryEngineTemp2026    = 38
+	OffsetTelemetryPressures2026     = 39
+	OffsetTelemetrySurfaceType2026   = 55
+	OffsetTelemetryEngineTempLegacy  = 38
+	OffsetTelemetryPressuresLegacy   = 40
+	OffsetTelemetrySurfaceTypeLegacy = 56
+)
+
 // DecodeCarTelemetry decodes a PacketCarTelemetryData from raw bytes.
 func DecodeCarTelemetry(data []byte) (*PacketCarTelemetryData, error) {
 	header, headerLen, err := DecodeHeaderWithOffset(data)
@@ -76,43 +102,43 @@ func DecodeCarTelemetry(data []byte) (*PacketCarTelemetryData, error) {
 
 	payload := data[headerLen:]
 	maxCars := MaxCarsForFormat(header.PacketFormat)
-	itemSize := InferredItemSize(payload, header, 59, 3)
+	itemSize := InferredItemSize(payload, header, CarTelemetryStructSize2026, CarTelemetryTrailerSize)
 
 	for i := 0; i < maxCars && i < MaxCars; i++ {
 		offset := i * itemSize
-		if offset+59 > len(payload) {
+		if offset+CarTelemetryStructSize2026 > len(payload) {
 			break
 		}
 
 		carBytes := payload[offset : offset+itemSize]
 		var c CarTelemetryData
 
-		c.Speed = binary.LittleEndian.Uint16(carBytes[0:2])
-		c.Throttle = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[2:6]))
-		c.Steer = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[6:10]))
-		c.Brake = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[10:14]))
-		c.Clutch = carBytes[14]
-		c.Gear = int8(carBytes[15])
-		c.EngineRPM = binary.LittleEndian.Uint16(carBytes[16:18])
-		c.DRS = carBytes[18]
-		c.RevLightsPercent = carBytes[19]
-		c.RevLightsBitValue = binary.LittleEndian.Uint16(carBytes[20:22])
+		c.Speed = binary.LittleEndian.Uint16(carBytes[OffsetTelemetrySpeed : OffsetTelemetrySpeed+2])
+		c.Throttle = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[OffsetTelemetryThrottle : OffsetTelemetryThrottle+4]))
+		c.Steer = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[OffsetTelemetrySteer : OffsetTelemetrySteer+4]))
+		c.Brake = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[OffsetTelemetryBrake : OffsetTelemetryBrake+4]))
+		c.Clutch = carBytes[OffsetTelemetryClutch]
+		c.Gear = int8(carBytes[OffsetTelemetryGear])
+		c.EngineRPM = binary.LittleEndian.Uint16(carBytes[OffsetTelemetryEngineRPM : OffsetTelemetryEngineRPM+2])
+		c.DRS = carBytes[OffsetTelemetryDRS]
+		c.RevLightsPercent = carBytes[OffsetTelemetryRevLightsPercent]
+		c.RevLightsBitValue = binary.LittleEndian.Uint16(carBytes[OffsetTelemetryRevLightsBitValue : OffsetTelemetryRevLightsBitValue+2])
 
 		for b := 0; b < 4; b++ {
-			c.BrakesTemperature[b] = binary.LittleEndian.Uint16(carBytes[22+b*2 : 24+b*2])
+			c.BrakesTemperature[b] = binary.LittleEndian.Uint16(carBytes[OffsetTelemetryBrakesTemp+b*2 : OffsetTelemetryBrakesTemp+2+b*2])
 		}
-		copy(c.TyresSurfaceTemperature[:], carBytes[30:34])
-		copy(c.TyresInnerTemperature[:], carBytes[34:38])
+		copy(c.TyresSurfaceTemperature[:], carBytes[OffsetTelemetryTyresSurfaceTemp:OffsetTelemetryTyresSurfaceTemp+4])
+		copy(c.TyresInnerTemperature[:], carBytes[OffsetTelemetryTyresInnerTemp:OffsetTelemetryTyresInnerTemp+4])
 
 		var pressOffset, surfOffset int
-		if itemSize == 59 {
-			c.EngineTemperature = uint16(carBytes[38])
-			pressOffset = 39
-			surfOffset = 55
+		if itemSize == CarTelemetryStructSize2026 {
+			c.EngineTemperature = uint16(carBytes[OffsetTelemetryEngineTemp2026])
+			pressOffset = OffsetTelemetryPressures2026
+			surfOffset = OffsetTelemetrySurfaceType2026
 		} else {
-			c.EngineTemperature = binary.LittleEndian.Uint16(carBytes[38:40])
-			pressOffset = 40
-			surfOffset = 56
+			c.EngineTemperature = binary.LittleEndian.Uint16(carBytes[OffsetTelemetryEngineTempLegacy : OffsetTelemetryEngineTempLegacy+2])
+			pressOffset = OffsetTelemetryPressuresLegacy
+			surfOffset = OffsetTelemetrySurfaceTypeLegacy
 		}
 
 		for p := 0; p < 4; p++ {

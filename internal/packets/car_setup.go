@@ -41,6 +41,11 @@ type PacketCarSetupData struct {
 
 func (p PacketCarSetupData) GetHeader() PacketHeader { return p.Header }
 
+const (
+	CarSetupStructSize  = 49
+	CarSetupTrailerSize = 4
+)
+
 // DecodeCarSetup decodes a PacketCarSetupData from raw bytes.
 func DecodeCarSetup(data []byte) (*PacketCarSetupData, error) {
 	header, headerLen, err := DecodeHeaderWithOffset(data)
@@ -53,16 +58,15 @@ func DecodeCarSetup(data []byte) (*PacketCarSetupData, error) {
 
 	payload := data[headerLen:]
 
-	const structSize = 49
 	maxCars := MaxCarsForFormat(header.PacketFormat)
-	itemSize := InferredItemSize(payload, header, structSize, 4)
+	itemSize := InferredItemSize(payload, header, CarSetupStructSize, CarSetupTrailerSize)
 
 	for i := 0; i < maxCars && i < MaxCars; i++ {
 		offset := i * itemSize
-		if offset+structSize > len(payload) {
+		if offset+CarSetupStructSize > len(payload) {
 			break
 		}
-		r := bytes.NewReader(payload[offset : offset+structSize])
+		r := bytes.NewReader(payload[offset : offset+CarSetupStructSize])
 		if err := binary.Read(r, binary.LittleEndian, &pkt.CarSetupData[i]); err != nil {
 			return nil, fmt.Errorf("failed to decode car setup for car %d: %w", i, err)
 		}

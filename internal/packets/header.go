@@ -7,16 +7,19 @@ import (
 )
 
 const (
-	HeaderSize = 29
-	MaxCars    = 24
+	HeaderSize       = 29
+	MaxCars          = 24
+	MaxCars2025      = 22
+	MaxCars2026      = 24
+	PacketFormat2026 = 2026
 )
 
 // MaxCarsForFormat returns the maximum number of cars for a given packet format.
 func MaxCarsForFormat(packetFormat uint16) int {
-	if packetFormat >= 2026 {
-		return 24
+	if packetFormat >= PacketFormat2026 {
+		return MaxCars2026
 	}
-	return 22
+	return MaxCars2025
 }
 
 // InferredItemSize calculates the exact per-car byte stride based on packet payload length.

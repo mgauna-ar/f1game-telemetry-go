@@ -57,6 +57,13 @@ type PacketParticipantsData struct {
 
 func (p PacketParticipantsData) GetHeader() PacketHeader { return p.Header }
 
+const (
+	ParticipantStructSizeMin    = 57
+	ParticipantStructSizeLegacy = 58
+	ParticipantNameLen2026      = 32
+	ParticipantNameLenLegacy    = 48
+)
+
 // DecodeParticipants decodes a PacketParticipantsData from raw bytes.
 func DecodeParticipants(data []byte) (*PacketParticipantsData, error) {
 	header, headerLen, err := DecodeHeaderWithOffset(data)
@@ -77,13 +84,13 @@ func DecodeParticipants(data []byte) (*PacketParticipantsData, error) {
 
 	maxCars := MaxCarsForFormat(header.PacketFormat)
 	itemSize := len(carsPayload) / maxCars
-	if itemSize < 57 {
-		itemSize = 57
+	if itemSize < ParticipantStructSizeMin {
+		itemSize = ParticipantStructSizeMin
 	}
 
 	for i := 0; i < maxCars && i < MaxCars; i++ {
 		offset := i * itemSize
-		if offset+57 > len(carsPayload) {
+		if offset+ParticipantStructSizeMin > len(carsPayload) {
 			break
 		}
 
@@ -93,7 +100,7 @@ func DecodeParticipants(data []byte) (*PacketParticipantsData, error) {
 		p.DriverId = carBytes[1]
 
 		var nameOffset, nameLen int
-		if header.PacketFormat >= 2026 {
+		if header.PacketFormat >= PacketFormat2026 {
 			p.NetworkId = uint8(binary.LittleEndian.Uint16(carBytes[2:4]))
 			nameOffset = 8
 			// Check if byte 10 has printable character and byte 8 is race number/zero
@@ -109,7 +116,7 @@ func DecodeParticipants(data []byte) (*PacketParticipantsData, error) {
 				p.RaceNumber = carBytes[6]
 				p.Nationality = carBytes[7]
 			}
-			nameLen = 32
+			nameLen = ParticipantNameLen2026
 		} else {
 			p.NetworkId = carBytes[2]
 			p.TeamId = carBytes[3]
@@ -117,10 +124,10 @@ func DecodeParticipants(data []byte) (*PacketParticipantsData, error) {
 			p.RaceNumber = carBytes[5]
 			p.Nationality = carBytes[6]
 			nameOffset = 7
-			if itemSize >= 58 {
-				nameLen = 48
+			if itemSize >= ParticipantStructSizeLegacy {
+				nameLen = ParticipantNameLenLegacy
 			} else {
-				nameLen = 32
+				nameLen = ParticipantNameLen2026
 			}
 		}
 

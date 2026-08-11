@@ -53,6 +53,11 @@ type PacketLapData struct {
 
 func (p PacketLapData) GetHeader() PacketHeader { return p.Header }
 
+const (
+	LapDataStructSize  = 57
+	LapDataTrailerSize = 2
+)
+
 // DecodeLapData decodes a PacketLapData from raw bytes.
 func DecodeLapData(data []byte) (*PacketLapData, error) {
 	header, headerLen, err := DecodeHeaderWithOffset(data)
@@ -65,20 +70,19 @@ func DecodeLapData(data []byte) (*PacketLapData, error) {
 
 	payload := data[headerLen:]
 
-	const structSize = 57
-	if len(payload) < structSize {
+	if len(payload) < LapDataStructSize {
 		return nil, fmt.Errorf("data too short for lap payload: got %d bytes", len(payload))
 	}
 
 	maxCars := MaxCarsForFormat(header.PacketFormat)
-	itemSize := InferredItemSize(payload, header, structSize, 2)
+	itemSize := InferredItemSize(payload, header, LapDataStructSize, LapDataTrailerSize)
 
 	for i := 0; i < maxCars && i < MaxCars; i++ {
 		offset := i * itemSize
-		if offset+structSize > len(payload) {
+		if offset+LapDataStructSize > len(payload) {
 			break
 		}
-		r := bytes.NewReader(payload[offset : offset+structSize])
+		r := bytes.NewReader(payload[offset : offset+LapDataStructSize])
 		if err := binary.Read(r, binary.LittleEndian, &pkt.LapData[i]); err != nil {
 			return nil, fmt.Errorf("failed to decode lap data for car %d: %w", i, err)
 		}
