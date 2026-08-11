@@ -16,9 +16,10 @@ const ERS_DEPLOY_MODES: Record<number, string> = {
 };
 
 export const CarStatusWidget: React.FC<CarStatusWidgetProps> = ({ carStatus, driverName }) => {
-  const fuel = carStatus?.FuelInTank !== undefined ? carStatus.FuelInTank.toFixed(1) : '--';
-  const fuelCapacity = carStatus?.FuelCapacity || 110.0;
-  const fuelPercent = carStatus?.FuelInTank ? Math.min(100, Math.max(0, (carStatus.FuelInTank / fuelCapacity) * 100)) : 0;
+  const rawFuel = carStatus?.FuelInTank !== undefined ? Math.max(0, carStatus.FuelInTank) : null;
+  const fuel = rawFuel !== null ? (rawFuel > 200 ? '200.0+' : rawFuel.toFixed(1)) : '--';
+  const fuelCapacity = carStatus?.FuelCapacity && carStatus.FuelCapacity > 0 ? carStatus.FuelCapacity : 110.0;
+  const fuelPercent = rawFuel !== null ? Math.min(100, Math.max(0, (rawFuel / fuelCapacity) * 100)) : 0;
 
   // F1 ERS Energy store max capacity is 4.0 MJ (4,000,000 Joules)
   const ersJoules = carStatus?.ERSStoreEnergy !== undefined ? carStatus.ERSStoreEnergy : 0;

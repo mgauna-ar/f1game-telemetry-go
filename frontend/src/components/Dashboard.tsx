@@ -103,20 +103,20 @@ export const Dashboard: React.FC = () => {
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                 <span className="readout-label">Throttle</span>
-                <span className="mono" style={{ fontSize: '0.85rem' }}>{Math.round((telemetry?.Throttle || 0) * 100)}%</span>
+                <span className="mono" style={{ fontSize: '0.85rem' }}>{Math.round(Math.min(100, Math.max(0, (telemetry?.Throttle || 0) * (telemetry?.Throttle && telemetry.Throttle <= 1.0 ? 100 : 1))))}%</span>
               </div>
               <div className="bar-container" style={{ height: '16px' }}>
-                <div className="bar-fill throttle-fill" style={{ width: `${(telemetry?.Throttle || 0) * 100}%` }} />
+                <div className="bar-fill throttle-fill" style={{ width: `${Math.min(100, Math.max(0, (telemetry?.Throttle || 0) * (telemetry?.Throttle && telemetry.Throttle <= 1.0 ? 100 : 1)))}%` }} />
               </div>
             </div>
 
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                 <span className="readout-label">Brake</span>
-                <span className="mono" style={{ fontSize: '0.85rem' }}>{Math.round((telemetry?.Brake || 0) * 100)}%</span>
+                <span className="mono" style={{ fontSize: '0.85rem' }}>{Math.round(Math.min(100, Math.max(0, (telemetry?.Brake || 0) * (telemetry?.Brake && telemetry.Brake <= 1.0 ? 100 : 1))))}%</span>
               </div>
               <div className="bar-container" style={{ height: '16px' }}>
-                <div className="bar-fill brake-fill" style={{ width: `${(telemetry?.Brake || 0) * 100}%` }} />
+                <div className="bar-fill brake-fill" style={{ width: `${Math.min(100, Math.max(0, (telemetry?.Brake || 0) * (telemetry?.Brake && telemetry.Brake <= 1.0 ? 100 : 1)))}%` }} />
               </div>
             </div>
 

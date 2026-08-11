@@ -18,9 +18,9 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({ data }) => {
   // Format data for Recharts, scale throttle/brake from 0-1 to 0-100% for easier viewing with speed
   const formattedData = data.map(sample => ({
     time: sample.SessionTime,
-    speed: sample.Speed,
-    throttle: sample.Throttle * 100, // Scale 0-1 to 0-100
-    brake: sample.Brake * 100,       // Scale 0-1 to 0-100
+    speed: Math.max(0, sample.Speed || 0),
+    throttle: Math.min(100, Math.max(0, sample.Throttle <= 1.0 ? sample.Throttle * 100 : sample.Throttle)),
+    brake: Math.min(100, Math.max(0, sample.Brake <= 1.0 ? sample.Brake * 100 : sample.Brake)),
   }));
 
   // Define colors from our CSS vars (using HSL strings directly for Recharts)

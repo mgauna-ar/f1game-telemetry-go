@@ -18,6 +18,8 @@ type LapData struct {
 	DeltaToCarInFrontMinutesPart uint8
 	DeltaToRaceLeaderMSPart      uint16
 	DeltaToRaceLeaderMinutesPart uint8
+	LapDistance                  float32
+	TotalDistance                float32
 	SafetyCarDelta               float32
 	CarPosition                  uint8
 	CurrentLapNum                uint8
@@ -39,8 +41,6 @@ type LapData struct {
 	PitStopShouldServePen        uint8
 	SpeedTrapFastestSpeed        float32
 	SpeedTrapFastestLap          uint8
-	LapDistance                  float32
-	TotalDistance                float32
 }
 
 // PacketLapData contains lap data for all cars. Packet ID: 2.

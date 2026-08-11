@@ -4,14 +4,11 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"math"
 )
 
 const (
-	HeaderSize2023 = 25
-	HeaderSize2024 = 29
-	HeaderSize     = 29
-	MaxCars        = 22
+	HeaderSize = 29
+	MaxCars    = 22
 )
 
 // Packet IDs
@@ -55,41 +52,18 @@ type Packet interface {
 	GetHeader() PacketHeader
 }
 
-// DecodeHeaderWithOffset decodes a PacketHeader and returns the header length (25 for 2023, 29 for 2024+).
+// DecodeHeaderWithOffset decodes a PacketHeader and returns the header length (29 bytes for F1 2025/2026).
 func DecodeHeaderWithOffset(data []byte) (PacketHeader, int, error) {
-	if len(data) < HeaderSize2023 {
-		return PacketHeader{}, 0, fmt.Errorf("data too short for header: got %d bytes, need at least %d", len(data), HeaderSize2023)
-	}
-
-	packetFormat := binary.LittleEndian.Uint16(data[0:2])
-	if packetFormat == 2023 {
-		var h PacketHeader
-		h.PacketFormat = packetFormat
-		h.GameYear = data[2]
-		h.GameMajorVersion = data[3]
-		h.GameMinorVersion = data[4]
-		h.PacketVersion = data[5]
-		h.PacketId = data[6]
-		h.SessionUID = binary.LittleEndian.Uint64(data[7:15])
-		h.SessionTime = math.Float32frombits(binary.LittleEndian.Uint32(data[15:19]))
-		h.FrameIdentifier = binary.LittleEndian.Uint32(data[19:23])
-		h.OverallFrameIdentifier = 0
-		h.PlayerCarIndex = data[23]
-		h.SecondaryPlayerCarIndex = data[24]
-		return h, HeaderSize2023, nil
-	}
-
-	headerLen := HeaderSize2024
-	if len(data) < headerLen {
-		return PacketHeader{}, 0, fmt.Errorf("data too short for header: got %d bytes, need %d", len(data), headerLen)
+	if len(data) < HeaderSize {
+		return PacketHeader{}, 0, fmt.Errorf("data too short for header: got %d bytes, need %d", len(data), HeaderSize)
 	}
 
 	var h PacketHeader
-	err := binary.Read(bytes.NewReader(data[:headerLen]), binary.LittleEndian, &h)
+	err := binary.Read(bytes.NewReader(data[:HeaderSize]), binary.LittleEndian, &h)
 	if err != nil {
 		return PacketHeader{}, 0, fmt.Errorf("failed to decode header: %w", err)
 	}
-	return h, headerLen, nil
+	return h, HeaderSize, nil
 }
 
 // DecodeHeader decodes a PacketHeader from raw bytes.

@@ -39,7 +39,7 @@ func TestDecodeHeader(t *testing.T) {
 		wantID  uint8
 	}{
 		{
-			name:    "Valid header",
+			name:    "Valid header F1 2025/2026",
 			data:    serializeHeader(createHeader(PacketIDMotion)),
 			wantErr: false,
 			wantID:  PacketIDMotion,
@@ -71,9 +71,6 @@ func TestDecode(t *testing.T) {
 		packetID uint8
 		wantErr  bool
 	}{
-		// We expect errors here because the payload size won't match the specific struct requirements
-		// for DecodeMotion, DecodeSession etc, since we only pass the header.
-		// However, it should NOT fail with "unknown packet ID".
 		{"Motion Packet", PacketIDMotion, true},
 		{"Session Packet", PacketIDSession, true},
 		{"Unknown Packet", 255, true}, // 255 is not a valid packet ID
@@ -100,46 +97,60 @@ func TestDecode(t *testing.T) {
 	}
 }
 
-func TestDecodeHeader2023(t *testing.T) {
-	// Construct a 25-byte 2023 packet header
+func TestDecodeLapDataAlignment(t *testing.T) {
 	buf := new(bytes.Buffer)
-	_ = binary.Write(buf, binary.LittleEndian, uint16(2023))  // PacketFormat
-	_ = binary.Write(buf, binary.LittleEndian, uint8(23))     // GameYear
-	_ = binary.Write(buf, binary.LittleEndian, uint8(1))      // GameMajorVersion
-	_ = binary.Write(buf, binary.LittleEndian, uint8(0))      // GameMinorVersion
-	_ = binary.Write(buf, binary.LittleEndian, uint8(1))      // PacketVersion
-	_ = binary.Write(buf, binary.LittleEndian, uint8(6))      // PacketId (CarTelemetry)
-	_ = binary.Write(buf, binary.LittleEndian, uint64(999))   // SessionUID
-	_ = binary.Write(buf, binary.LittleEndian, float32(10.5)) // SessionTime
-	_ = binary.Write(buf, binary.LittleEndian, uint32(50))    // FrameIdentifier
-	_ = binary.Write(buf, binary.LittleEndian, uint8(18))     // PlayerCarIndex
-	_ = binary.Write(buf, binary.LittleEndian, uint8(255))    // SecondaryPlayerCarIndex
+	hdr := createHeader(PacketIDLapData)
+	_ = binary.Write(buf, binary.LittleEndian, &hdr)
 
-	h, offset, err := DecodeHeaderWithOffset(buf.Bytes())
+	for i := 0; i < MaxCars; i++ {
+		ld := LapData{
+			LastLapTimeInMS:         90000,
+			CurrentLapTimeInMS:      45000,
+			Sector1TimeMSPart:       25000,
+			Sector2TimeMSPart:       20000,
+			DeltaToCarInFrontMSPart: 500,
+			DeltaToRaceLeaderMSPart: 1500,
+			LapDistance:             2500.5,
+			TotalDistance:           15000.0,
+			SafetyCarDelta:          0.0,
+			CarPosition:             uint8(i + 1),
+			CurrentLapNum:           uint8(5 + i),
+			PitStatus:               0,
+			ResultStatus:            2, // Active
+			SpeedTrapFastestSpeed:   325.5,
+			SpeedTrapFastestLap:     3,
+		}
+		_ = binary.Write(buf, binary.LittleEndian, &ld)
+	}
+
+	pkt, err := DecodeLapData(buf.Bytes())
 	if err != nil {
-		t.Fatalf("DecodeHeaderWithOffset failed: %v", err)
+		t.Fatalf("DecodeLapData failed: %v", err)
 	}
-	if offset != 25 {
-		t.Errorf("Expected offset 25 for 2023 header, got %d", offset)
+
+	// Verify car 0 (leader) and car 3
+	if pkt.LapData[0].CarPosition != 1 || pkt.LapData[0].CurrentLapNum != 5 {
+		t.Errorf("Expected Car 0 Position 1, Lap 5; got Pos %d, Lap %d", pkt.LapData[0].CarPosition, pkt.LapData[0].CurrentLapNum)
 	}
-	if h.PacketFormat != 2023 || h.PlayerCarIndex != 18 {
-		t.Errorf("Unexpected header data: %+v", h)
+	if pkt.LapData[3].CarPosition != 4 || pkt.LapData[3].CurrentLapNum != 8 {
+		t.Errorf("Expected Car 3 Position 4, Lap 8; got Pos %d, Lap %d", pkt.LapData[3].CarPosition, pkt.LapData[3].CurrentLapNum)
+	}
+	if pkt.LapData[0].LapDistance != 2500.5 {
+		t.Errorf("Expected LapDistance 2500.5, got %f", pkt.LapData[0].LapDistance)
 	}
 }
 
 func TestDecodeCarTelemetryAlignment(t *testing.T) {
-	// Verify car telemetry decoding for car index 18 (Hülkenberg)
 	buf := new(bytes.Buffer)
 	hdr := createHeader(PacketIDCarTelemetry)
 	hdr.PlayerCarIndex = 18
 	_ = binary.Write(buf, binary.LittleEndian, &hdr)
 
-	// Write 22 CarTelemetryData structs
 	for i := 0; i < MaxCars; i++ {
 		cd := CarTelemetryData{
 			Speed:     uint16(100 + i),
-			Throttle:  0.5,
-			Brake:     0.0,
+			Throttle:  0.75,
+			Brake:     0.25,
 			EngineRPM: uint16(10000 + i*100),
 		}
 		_ = binary.Write(buf, binary.LittleEndian, &cd)
@@ -150,8 +161,10 @@ func TestDecodeCarTelemetryAlignment(t *testing.T) {
 		t.Fatalf("DecodeCarTelemetry failed: %v", err)
 	}
 
-	// Car 18 should have Speed = 118
 	if pkt.CarTelemetryData[18].Speed != 118 {
 		t.Errorf("Expected Car 18 Speed 118, got %d", pkt.CarTelemetryData[18].Speed)
+	}
+	if pkt.CarTelemetryData[18].Throttle != 0.75 || pkt.CarTelemetryData[18].Brake != 0.25 {
+		t.Errorf("Expected Throttle 0.75, Brake 0.25; got %f, %f", pkt.CarTelemetryData[18].Throttle, pkt.CarTelemetryData[18].Brake)
 	}
 }

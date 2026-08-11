@@ -21,8 +21,8 @@ type CarMotionData struct {
 	WorldRightDirY     int16
 	WorldRightDirZ     int16
 	GForceLateral      float32
-	GForceVertical     float32
 	GForceLongitudinal float32
+	GForceVertical     float32
 	Yaw                float32
 	Pitch              float32
 	Roll               float32

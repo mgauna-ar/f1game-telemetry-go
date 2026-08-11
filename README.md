@@ -18,7 +18,7 @@
 - **Car Status & Strategy Telemetry** — Live monitoring of ERS Store Energy %, ERS deployment modes, fuel remaining in kg, and tyre compound age
 - **Lap Comparison** — Compare lap times, sector splits, and telemetry traces (Speed, Throttle, Brake, ERS Battery Level %, ERS Deploy Mode) with driver name matching and participant roster visualization
 - **Real-time WebSocket** — Stream live telemetry to the dashboard via WebSocket
-- **Multi-format Support** — Supports 2023, 2024, 2025 & 2026 UDP packet formats
+- **Multi-format Support** — Focused exclusively on F1 2025 & F1 2026 DLC UDP packet formats for maximum performance and decoder accuracy
 
 ## Supported Operating Systems
 

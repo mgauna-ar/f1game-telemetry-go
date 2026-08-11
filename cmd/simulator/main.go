@@ -264,6 +264,7 @@ func main() {
 					LapDistance:             lapDist,
 					TotalDistance:           totalDistance - float32(i*15),
 					CarPosition:             uint8(i + 1),
+					ResultStatus:            2, // Active
 					DeltaToRaceLeaderMSPart: uint16(gapMs),
 					DeltaToCarInFrontMSPart: uint16(450),
 					PitStatus:               pitStatus,
