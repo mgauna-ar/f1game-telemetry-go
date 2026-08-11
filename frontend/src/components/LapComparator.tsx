@@ -608,7 +608,7 @@ export const LapComparator: React.FC = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={comparisonData} syncId="comparatorSync" onMouseMove={handleMouseMove} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                  <XAxis dataKey="lap_distance" type="number" domain={['auto', 'auto']} stroke="#666" tick={{ fill: '#999' }} unit="m" />
+                  <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} stroke="#666" tick={{ fill: '#999' }} unit="m" />
                   <YAxis stroke="#666" tick={{ fill: '#999' }} domain={['auto', 'auto']} tickFormatter={(v) => `${v > 0 ? '+' : ''}${v.toFixed(2)}s`} />
                   <Tooltip
                     contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }}
@@ -630,7 +630,7 @@ export const LapComparator: React.FC = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={comparisonData} syncId="comparatorSync" onMouseMove={handleMouseMove} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                  <XAxis dataKey="lap_distance" type="number" domain={['auto', 'auto']} stroke="#666" tick={{ fill: '#999' }} unit="m" />
+                  <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} stroke="#666" tick={{ fill: '#999' }} unit="m" />
                   <YAxis stroke="#666" tick={{ fill: '#999' }} domain={[0, 360]} />
                   <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }} />
                   {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
@@ -650,7 +650,7 @@ export const LapComparator: React.FC = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={comparisonData} syncId="comparatorSync" onMouseMove={handleMouseMove} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                  <XAxis dataKey="lap_distance" type="number" domain={['auto', 'auto']} stroke="#666" tick={{ fill: '#999' }} unit="m" />
+                  <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} stroke="#666" tick={{ fill: '#999' }} unit="m" />
                   <YAxis stroke="#666" tick={{ fill: '#999' }} domain={[0, 1]} tickFormatter={(v) => `${Math.round(v * 100)}%`} />
                   <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }} formatter={(val: any) => [`${Math.round(Number(val) * 100)}%`]} />
                   {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
@@ -672,7 +672,7 @@ export const LapComparator: React.FC = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={comparisonData} syncId="comparatorSync" onMouseMove={handleMouseMove} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                  <XAxis dataKey="lap_distance" type="number" domain={['auto', 'auto']} stroke="#666" tick={{ fill: '#999' }} unit="m" />
+                  <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} stroke="#666" tick={{ fill: '#999' }} unit="m" />
                   <YAxis stroke="#666" tick={{ fill: '#999' }} domain={[1, 8]} ticks={[1, 2, 3, 4, 5, 6, 7, 8]} />
                   <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }} />
                   {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
@@ -692,7 +692,7 @@ export const LapComparator: React.FC = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={comparisonData} syncId="comparatorSync" onMouseMove={handleMouseMove} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                  <XAxis dataKey="lap_distance" type="number" domain={['auto', 'auto']} stroke="#666" tick={{ fill: '#999' }} unit="m" />
+                  <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} stroke="#666" tick={{ fill: '#999' }} unit="m" />
                   <YAxis stroke="#666" tick={{ fill: '#999' }} domain={[-1, 1]} />
                   <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }} />
                   <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" />
@@ -713,7 +713,7 @@ export const LapComparator: React.FC = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={comparisonData} syncId="comparatorSync" onMouseMove={handleMouseMove} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                  <XAxis dataKey="lap_distance" type="number" domain={['auto', 'auto']} stroke="#666" tick={{ fill: '#999' }} unit="m" />
+                  <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} stroke="#666" tick={{ fill: '#999' }} unit="m" />
                   <YAxis stroke="#666" tick={{ fill: '#999' }} domain={[0, 100]} />
                   <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }} formatter={(val: any) => [`${Number(val).toFixed(1)}%`]} />
                   {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}

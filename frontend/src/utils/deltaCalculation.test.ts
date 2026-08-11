@@ -39,4 +39,30 @@ describe('deltaCalculation utility', () => {
       expect(Math.abs(finalPoint.time_delta)).toBeLessThan(5.0); // Realistic delta < 5s, NOT 50s!
     }
   });
+
+  it('offsets time delta so it starts at 0.0s', () => {
+    // Lap A first sample at 15m
+    const lapA: TelemetrySamplePoint[] = Array.from({ length: 100 }, (_, i) => ({
+      lap_distance: 15 + i * 50,
+      session_time: 100.27 + i * 0.92,
+      speed: 200,
+      throttle: 1,
+      brake: 0,
+    }));
+
+    // Lap B first sample at 5m
+    const lapB: TelemetrySamplePoint[] = Array.from({ length: 100 }, (_, i) => ({
+      lap_distance: 5 + i * 50,
+      session_time: 200.09 + i * 0.92,
+      speed: 200,
+      throttle: 1,
+      brake: 0,
+    }));
+
+    const merged = calculateMergedComparison(lapA, lapB, 10);
+    // Intersection range starts at max(15, 5) = 15
+    expect(merged[0].lap_distance).toBeGreaterThanOrEqual(15);
+    // Offset correction should zero out the initial time delta
+    expect(merged[0].time_delta).toBe(0);
+  });
 });

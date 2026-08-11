@@ -116,9 +116,9 @@ function interpolateAtDistance(
   key: keyof TelemetrySamplePoint,
   d: number
 ): number | null {
-  if (samples.length === 0) return null;
-  
-  // Return null instead of clamping to avoid fake horizontal lines
+  if (!samples || samples.length === 0) return null;
+
+  // Return null outside data range to avoid fake data
   if (d < samples[0].lap_distance) return null;
   if (d > samples[samples.length - 1].lap_distance) return null;
 
@@ -183,7 +183,6 @@ export function calculateMergedComparison(
   const endA = normA.length > 0 ? normA[normA.length - 1].lap_distance : 0;
   const endB = normB.length > 0 ? normB[normB.length - 1].lap_distance : 0;
 
-  // Use the UNION range to display the entire track
   let rangeStart: number;
   let rangeEnd: number;
 
@@ -191,8 +190,9 @@ export function calculateMergedComparison(
     rangeStart = 0;
     rangeEnd = targetTrackLength;
   } else if (normA.length > 0 && normB.length > 0) {
-    rangeStart = Math.min(startA, startB);
-    rangeEnd = Math.max(endA, endB);
+    // Use the INTERSECTION range so both laps have real data across the full chart
+    rangeStart = Math.max(startA, startB);
+    rangeEnd = Math.min(endA, endB);
   } else if (normA.length > 0) {
     rangeStart = startA;
     rangeEnd = endA;
@@ -260,6 +260,20 @@ export function calculateMergedComparison(
       worldX: worldX !== null ? worldX : undefined,
       worldZ: worldZ !== null ? worldZ : undefined,
     });
+  }
+
+  // Offset time_delta so it starts at 0.0s at the beginning of the lap.
+  // Both laps normalize session_time from their first sample, but those samples
+  // may be at slightly different distances, creating a constant offset.
+  if (result.length > 0) {
+    const initialDelta = result[0].time_delta;
+    if (initialDelta !== null && initialDelta !== 0) {
+      for (const point of result) {
+        if (point.time_delta !== null) {
+          point.time_delta = Math.round((point.time_delta - initialDelta) * 1000) / 1000;
+        }
+      }
+    }
   }
 
   return result;
