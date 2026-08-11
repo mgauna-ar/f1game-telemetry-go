@@ -88,7 +88,32 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
     const s2MidPoint = findClosestPoint((s1TargetDist + s2TargetDist) / 2);
     const s3MidPoint = findClosestPoint((s2TargetDist + maxDist) / 2);
 
-    // Draw track line segments with pace delta coloring
+    // Pre-calculate segment pace gain colors matching the Time Delta graph slope
+    const windowSize = 6; // +/- 6 points = 12 points total = 60 meters
+    const segmentColors: string[] = [];
+
+    for (let i = 0; i < validPoints.length; i++) {
+      const idx1 = Math.max(0, i - windowSize);
+      const idx2 = Math.min(validPoints.length - 1, i + windowSize);
+
+      const deltaStart = validPoints[idx1].time_delta;
+      const deltaEnd = validPoints[idx2].time_delta;
+
+      if (deltaStart !== null && deltaEnd !== null) {
+        const dDelta = deltaEnd - deltaStart;
+        if (dDelta < -0.005) {
+          segmentColors.push('#ff4757'); // Delta graph sloping down -> Lap A gaining time (Red)
+        } else if (dDelta > 0.005) {
+          segmentColors.push('#00d2d3'); // Delta graph sloping up -> Lap B gaining time (Cyan)
+        } else {
+          segmentColors.push('rgba(255, 255, 255, 0.45)'); // Delta graph flat -> Equal pace (White)
+        }
+      } else {
+        segmentColors.push('rgba(255, 255, 255, 0.45)');
+      }
+    }
+
+    // Draw track line segments with calculated pace gain coloring
     ctx.lineWidth = 3.5;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
@@ -105,28 +130,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
       ctx.beginPath();
       ctx.moveTo(x1, y1);
       ctx.lineTo(x2, y2);
-
-      // Pace / Segment Time Gain: Compare time spent between p1 and p2 for Lap A vs Lap B
-      const segTimeA = (p2.timeA !== null && p1.timeA !== null) ? p2.timeA - p1.timeA : null;
-      const segTimeB = (p2.timeB !== null && p1.timeB !== null) ? p2.timeB - p1.timeB : null;
-
-      if (segTimeA !== null && segTimeB !== null && (segTimeA > 0 || segTimeB > 0)) {
-        const diff = segTimeA - segTimeB; // Negative = Lap A gained time (faster)
-        if (diff < -0.003) {
-          ctx.strokeStyle = '#ff4757'; // Lap A faster on this segment (Red)
-        } else if (diff > 0.003) {
-          ctx.strokeStyle = '#00d2d3'; // Lap B faster on this segment (Cyan)
-        } else {
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)'; // Equal pace
-        }
-      } else {
-        // Fallback to cumulative delta if segment delta unavailable
-        const dt = p1.time_delta;
-        if (dt !== null && dt < -0.05) ctx.strokeStyle = '#ff4757';
-        else if (dt !== null && dt > 0.05) ctx.strokeStyle = '#00d2d3';
-        else ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
-      }
-
+      ctx.strokeStyle = segmentColors[i];
       ctx.stroke();
     }
 
@@ -250,7 +254,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         style={{ width: '100%', height: '100%', display: 'block' }}
       />
 
-      {/* Pace Delta Legend Overlay */}
+      {/* Pace Legend Overlay */}
       <div
         style={{
           position: 'absolute',
