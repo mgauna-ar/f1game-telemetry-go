@@ -35,6 +35,8 @@ describe('deltaCalculation utility', () => {
     // At 5000m (finish line), timeA should be ~87.12s, timeB should be ~88.11s, delta ~ -1.0s
     const finalPoint = merged[merged.length - 1];
     expect(finalPoint.time_delta).toBeLessThan(0); // Lap A is faster
-    expect(Math.abs(finalPoint.time_delta)).toBeLessThan(5.0); // Realistic delta < 5s, NOT 50s!
+    if (finalPoint.time_delta !== null) {
+      expect(Math.abs(finalPoint.time_delta)).toBeLessThan(5.0); // Realistic delta < 5s, NOT 50s!
+    }
   });
 });

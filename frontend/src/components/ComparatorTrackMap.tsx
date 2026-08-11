@@ -181,9 +181,9 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
       ctx.stroke();
     }
 
-    // Helper to draw sector region labels (S1, S2, S3)
+    // Helper to draw clean sector region badges (S1, S2, S3)
     const drawSectorRegionLabel = (point: MergedTelemetryPoint, label: string) => {
-      if (point.worldX === undefined || point.worldZ === undefined) return;
+      if (point.worldX === undefined || point.worldX === null || point.worldZ === undefined || point.worldZ === null) return;
       const cx = toCanvasX(point.worldX);
       const cy = toCanvasY(point.worldZ);
 
@@ -194,7 +194,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
       const by = cy - badgeH / 2;
 
       ctx.fillStyle = 'rgba(15, 15, 20, 0.85)';
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
       ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.roundRect(bx, by, badgeW, badgeH, 3);
@@ -207,49 +207,62 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
       ctx.fillText(label, cx, cy);
     };
 
-    // Helper to draw clean sector split markers on track
-    const drawSectorSplitMarker = (point: MergedTelemetryPoint, label: string, color: string) => {
-      if (point.worldX === undefined || point.worldZ === undefined) return;
+    // Helper to draw clean perpendicular sector split lines across track
+    const drawSectorSplitMarker = (point: MergedTelemetryPoint, color: string) => {
+      if (point.worldX === undefined || point.worldX === null || point.worldZ === undefined || point.worldZ === null) return;
       const cx = toCanvasX(point.worldX);
       const cy = toCanvasY(point.worldZ);
 
-      // Outer glow circle on track
-      ctx.beginPath();
-      ctx.arc(cx, cy, 5.5, 0, Math.PI * 2);
-      ctx.fillStyle = color;
-      ctx.globalAlpha = 0.35;
-      ctx.fill();
-      ctx.globalAlpha = 1.0;
+      // Find index in validPoints to compute track tangent and normal vectors
+      const idx = validPoints.indexOf(point);
+      const pPrev = validPoints[Math.max(0, idx - 1)];
+      const pNext = validPoints[Math.min(validPoints.length - 1, idx + 1)];
 
-      // Inner dot
+      const xPrev = toCanvasX(pPrev.worldX ?? 0);
+      const yPrev = toCanvasY(pPrev.worldZ ?? 0);
+      const xNext = toCanvasX(pNext.worldX ?? 0);
+      const yNext = toCanvasY(pNext.worldZ ?? 0);
+
+      const dx = xNext - xPrev;
+      const dy = yNext - yPrev;
+      const len = Math.hypot(dx, dy) || 1;
+
+      // Normal unit vector perpendicular to track
+      const nx = -dy / len;
+      const ny = dx / len;
+
+      const lineLen = 9;
+      const xA = cx - nx * lineLen;
+      const yA = cy - ny * lineLen;
+      const xB = cx + nx * lineLen;
+      const yB = cy + ny * lineLen;
+
+      // Outer black contrast outline for perpendicular line
+      ctx.beginPath();
+      ctx.moveTo(xA, yA);
+      ctx.lineTo(xB, yB);
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 4.5;
+      ctx.lineCap = 'butt';
+      ctx.stroke();
+
+      // Main vibrant perpendicular sector division line
+      ctx.beginPath();
+      ctx.moveTo(xA, yA);
+      ctx.lineTo(xB, yB);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'butt';
+      ctx.stroke();
+
+      // Center intersection dot
       ctx.beginPath();
       ctx.arc(cx, cy, 3, 0, Math.PI * 2);
       ctx.fillStyle = color;
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1.2;
-      ctx.fill();
-      ctx.stroke();
-
-      // Label badge offset above point
-      ctx.font = 'bold 8.5px Inter, sans-serif';
-      const textWidth = ctx.measureText(label).width;
-      const badgeW = textWidth + 6;
-      const badgeH = 12;
-      const bx = cx - badgeW / 2;
-      const by = cy - 15;
-
-      ctx.fillStyle = 'rgba(10, 10, 14, 0.85)';
-      ctx.strokeStyle = color;
       ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.roundRect(bx, by, badgeW, badgeH, 3);
       ctx.fill();
       ctx.stroke();
-
-      ctx.fillStyle = color;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(label, cx, by + badgeH / 2);
     };
 
     // Draw Sector Region Labels (S1, S2, S3)
@@ -257,16 +270,16 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
     if (s2MidPoint) drawSectorRegionLabel(s2MidPoint, 'S2');
     if (s3MidPoint) drawSectorRegionLabel(s3MidPoint, 'S3');
 
-    // Draw Sector Split Markers (SF, S1 Split, S2 Split)
-    if (s0Point) drawSectorSplitMarker(s0Point, 'SF', '#2ecc71');
-    if (s1Point) drawSectorSplitMarker(s1Point, 'S1 Split', '#f39c12');
-    if (s2Point) drawSectorSplitMarker(s2Point, 'S2 Split', '#9b59b6');
+    // Draw Sector Split Lines (SF, S1 Split, S2 Split)
+    if (s0Point) drawSectorSplitMarker(s0Point, '#2ecc71');
+    if (s1Point) drawSectorSplitMarker(s1Point, '#f39c12');
+    if (s2Point) drawSectorSplitMarker(s2Point, '#9b59b6');
 
     // If activeDistance is hovered, draw glowing crosshair marker
     if (activeDistance !== undefined && activeDistance !== null) {
       const activePoint = findClosestPoint(activeDistance);
 
-      if (activePoint && activePoint.worldX !== undefined && activePoint.worldZ !== undefined) {
+      if (activePoint && activePoint.worldX !== undefined && activePoint.worldX !== null && activePoint.worldZ !== undefined && activePoint.worldZ !== null) {
         const cx = toCanvasX(activePoint.worldX);
         const cy = toCanvasY(activePoint.worldZ);
 
