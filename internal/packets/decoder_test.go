@@ -117,8 +117,6 @@ func TestDecodeLapDataAlignment(t *testing.T) {
 			CurrentLapNum:           uint8(5 + i),
 			PitStatus:               0,
 			ResultStatus:            2, // Active
-			SpeedTrapFastestSpeed:   325.5,
-			SpeedTrapFastestLap:     3,
 		}
 		_ = binary.Write(buf, binary.LittleEndian, &ld)
 	}

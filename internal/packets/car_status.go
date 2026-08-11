@@ -54,10 +54,20 @@ func DecodeCarStatus(data []byte) (*PacketCarStatusData, error) {
 	pkt.Header = header
 
 	payload := data[headerLen:]
-	r := bytes.NewReader(payload)
 
-	if err := binary.Read(r, binary.LittleEndian, &pkt.CarStatusData); err != nil {
-		return nil, fmt.Errorf("failed to decode car status payload: %w", err)
+	const structSize = 55
+	maxCars := MaxCarsForFormat(header.PacketFormat)
+	itemSize := InferredItemSize(payload, header, structSize, 0)
+
+	for i := 0; i < maxCars && i < MaxCars; i++ {
+		offset := i * itemSize
+		if offset+structSize > len(payload) {
+			break
+		}
+		r := bytes.NewReader(payload[offset : offset+structSize])
+		if err := binary.Read(r, binary.LittleEndian, &pkt.CarStatusData[i]); err != nil {
+			return nil, fmt.Errorf("failed to decode car status for car %d: %w", i, err)
+		}
 	}
 
 	return &pkt, nil

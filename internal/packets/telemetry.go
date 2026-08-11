@@ -74,20 +74,35 @@ func DecodeCarTelemetry(data []byte) (*PacketCarTelemetryData, error) {
 	pkt.Header = header
 
 	payload := data[headerLen:]
-	r := bytes.NewReader(payload)
 
-	if err := binary.Read(r, binary.LittleEndian, &pkt.CarTelemetryData); err != nil {
-		return nil, fmt.Errorf("failed to decode car telemetry payload: %w", err)
+	const structSize = 60
+	maxCars := MaxCarsForFormat(header.PacketFormat)
+	itemSize := InferredItemSize(payload, header, structSize, 3)
+
+	for i := 0; i < maxCars && i < MaxCars; i++ {
+		offset := i * itemSize
+		if offset+structSize > len(payload) {
+			break
+		}
+		r := bytes.NewReader(payload[offset : offset+structSize])
+		if err := binary.Read(r, binary.LittleEndian, &pkt.CarTelemetryData[i]); err != nil {
+			return nil, fmt.Errorf("failed to decode car telemetry for car %d: %w", i, err)
+		}
 	}
 
-	if r.Len() >= 1 {
-		_ = binary.Read(r, binary.LittleEndian, &pkt.MFDPanelIndex)
-	}
-	if r.Len() >= 1 {
-		_ = binary.Read(r, binary.LittleEndian, &pkt.MFDPanelIndexSecondaryPlayer)
-	}
-	if r.Len() >= 1 {
-		_ = binary.Read(r, binary.LittleEndian, &pkt.SuggestedGear)
+	// Read trailing MFD bytes if present
+	tailOffset := maxCars * itemSize
+	if tailOffset < len(payload) {
+		rTail := bytes.NewReader(payload[tailOffset:])
+		if rTail.Len() >= 1 {
+			_ = binary.Read(rTail, binary.LittleEndian, &pkt.MFDPanelIndex)
+		}
+		if rTail.Len() >= 1 {
+			_ = binary.Read(rTail, binary.LittleEndian, &pkt.MFDPanelIndexSecondaryPlayer)
+		}
+		if rTail.Len() >= 1 {
+			_ = binary.Read(rTail, binary.LittleEndian, &pkt.SuggestedGear)
+		}
 	}
 
 	return &pkt, nil

@@ -73,10 +73,61 @@ func DecodeParticipants(data []byte) (*PacketParticipantsData, error) {
 	}
 
 	pkt.NumActiveCars = payload[0]
-	r := bytes.NewReader(payload[1:])
+	carsPayload := payload[1:]
 
-	if err := binary.Read(r, binary.LittleEndian, &pkt.Participants); err != nil {
-		return nil, fmt.Errorf("failed to decode participants payload: %w", err)
+	maxCars := MaxCarsForFormat(header.PacketFormat)
+	itemSize := len(carsPayload) / maxCars
+	if itemSize < 57 {
+		itemSize = 57
+	}
+
+	for i := 0; i < maxCars && i < MaxCars; i++ {
+		offset := i * itemSize
+		if offset+57 > len(carsPayload) {
+			break
+		}
+
+		carBytes := carsPayload[offset : offset+itemSize]
+		var p ParticipantData
+		p.AIControlled = carBytes[0]
+		p.DriverId = carBytes[1]
+
+		var nameOffset, nameLen int
+		if header.PacketFormat >= 2026 {
+			p.NetworkId = uint8(binary.LittleEndian.Uint16(carBytes[2:4]))
+			nameOffset = 8
+			// Check if byte 10 has printable character and byte 8 is race number/zero
+			if len(carBytes) >= 42 && carBytes[10] >= 0x20 && carBytes[10] <= 0x7E && carBytes[8] < 100 {
+				nameOffset = 10
+				p.TeamId = uint8(binary.LittleEndian.Uint16(carBytes[4:6]))
+				p.MyTeam = carBytes[6]
+				p.RaceNumber = carBytes[8]
+				p.Nationality = carBytes[9]
+			} else {
+				p.TeamId = carBytes[4]
+				p.MyTeam = carBytes[5]
+				p.RaceNumber = carBytes[6]
+				p.Nationality = carBytes[7]
+			}
+			nameLen = 32
+		} else {
+			p.NetworkId = carBytes[2]
+			p.TeamId = carBytes[3]
+			p.MyTeam = carBytes[4]
+			p.RaceNumber = carBytes[5]
+			p.Nationality = carBytes[6]
+			nameOffset = 7
+			if itemSize >= 58 {
+				nameLen = 48
+			} else {
+				nameLen = 32
+			}
+		}
+
+		if nameOffset+nameLen <= len(carBytes) {
+			copy(p.Name[:], carBytes[nameOffset:nameOffset+nameLen])
+		}
+		pkt.Participants[i] = p
 	}
 
 	return &pkt, nil

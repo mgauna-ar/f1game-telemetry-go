@@ -8,8 +8,40 @@ import (
 
 const (
 	HeaderSize = 29
-	MaxCars    = 22
+	MaxCars    = 24
 )
+
+// MaxCarsForFormat returns the maximum number of cars for a given packet format.
+func MaxCarsForFormat(packetFormat uint16) int {
+	if packetFormat >= 2026 {
+		return 24
+	}
+	return 22
+}
+
+// InferredItemSize calculates the exact per-car byte stride based on packet payload length.
+func InferredItemSize(payload []byte, header PacketHeader, structSize int, trailer int) int {
+	maxCars := MaxCarsForFormat(header.PacketFormat)
+	if len(payload) <= 0 || maxCars <= 0 {
+		return structSize
+	}
+
+	if len(payload)%maxCars == 0 {
+		size := len(payload) / maxCars
+		if size >= structSize {
+			return size
+		}
+	}
+
+	if trailer > 0 && len(payload) > trailer && (len(payload)-trailer)%maxCars == 0 {
+		size := (len(payload) - trailer) / maxCars
+		if size >= structSize {
+			return size
+		}
+	}
+
+	return structSize
+}
 
 // Packet IDs
 const (

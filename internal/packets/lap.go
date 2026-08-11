@@ -64,17 +64,35 @@ func DecodeLapData(data []byte) (*PacketLapData, error) {
 	pkt.Header = header
 
 	payload := data[headerLen:]
-	r := bytes.NewReader(payload)
 
-	if err := binary.Read(r, binary.LittleEndian, &pkt.LapData); err != nil {
-		return nil, fmt.Errorf("failed to decode lap data payload: %w", err)
+	const structSize = 57
+	if len(payload) < structSize {
+		return nil, fmt.Errorf("data too short for lap payload: got %d bytes", len(payload))
 	}
 
-	if r.Len() >= 1 {
-		_ = binary.Read(r, binary.LittleEndian, &pkt.TimeTrialPBCarIdx)
+	maxCars := MaxCarsForFormat(header.PacketFormat)
+	itemSize := InferredItemSize(payload, header, structSize, 2)
+
+	for i := 0; i < maxCars && i < MaxCars; i++ {
+		offset := i * itemSize
+		if offset+structSize > len(payload) {
+			break
+		}
+		r := bytes.NewReader(payload[offset : offset+structSize])
+		if err := binary.Read(r, binary.LittleEndian, &pkt.LapData[i]); err != nil {
+			return nil, fmt.Errorf("failed to decode lap data for car %d: %w", i, err)
+		}
 	}
-	if r.Len() >= 1 {
-		_ = binary.Read(r, binary.LittleEndian, &pkt.TimeTrialRivalCarIdx)
+
+	tailOffset := maxCars * itemSize
+	if tailOffset < len(payload) {
+		rTail := bytes.NewReader(payload[tailOffset:])
+		if rTail.Len() >= 1 {
+			_ = binary.Read(rTail, binary.LittleEndian, &pkt.TimeTrialPBCarIdx)
+		}
+		if rTail.Len() >= 1 {
+			_ = binary.Read(rTail, binary.LittleEndian, &pkt.TimeTrialRivalCarIdx)
+		}
 	}
 
 	return &pkt, nil

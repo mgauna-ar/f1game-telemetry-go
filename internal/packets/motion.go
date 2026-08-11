@@ -47,10 +47,24 @@ func DecodeMotion(data []byte) (*PacketMotionData, error) {
 	pkt.Header = header
 
 	payload := data[headerLen:]
-	r := bytes.NewReader(payload)
 
-	if err := binary.Read(r, binary.LittleEndian, &pkt.CarMotionData); err != nil {
-		return nil, fmt.Errorf("failed to decode motion payload: %w", err)
+	const structSize = 60
+	if len(payload) < structSize {
+		return nil, fmt.Errorf("data too short for motion payload: got %d bytes", len(payload))
+	}
+
+	maxCars := MaxCarsForFormat(header.PacketFormat)
+	itemSize := InferredItemSize(payload, header, 54, 0)
+
+	for i := 0; i < maxCars && i < MaxCars; i++ {
+		offset := i * itemSize
+		if offset+structSize > len(payload) {
+			break
+		}
+		r := bytes.NewReader(payload[offset : offset+structSize])
+		if err := binary.Read(r, binary.LittleEndian, &pkt.CarMotionData[i]); err != nil {
+			return nil, fmt.Errorf("failed to decode motion data for car %d: %w", i, err)
+		}
 	}
 
 	return &pkt, nil
