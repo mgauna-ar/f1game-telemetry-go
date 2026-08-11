@@ -154,24 +154,19 @@ func (sm *SessionManager) handleNewSession(ctx context.Context, header packets.P
 }
 
 func (sm *SessionManager) updateSessionInfo(ctx context.Context, p *packets.PacketSessionData) {
-	if sm.currentSession == nil || uint64(sm.currentSession.SessionUID) != p.Header.SessionUID {
-		return
-	}
-
-	updated := false
+	trackName := packets.TrackName(p.TrackId)
+	sessionType := packets.SessionTypeName(p.SessionType)
 	weatherStr := packets.WeatherName(p.Weather)
-	if sm.currentSession.TrackID != int(p.TrackId) || sm.currentSession.SessionType == "Unknown" || sm.currentSession.Weather != weatherStr {
+
+	if sm.currentSession != nil && uint64(sm.currentSession.SessionUID) == p.Header.SessionUID {
 		sm.currentSession.TrackID = int(p.TrackId)
-		sm.currentSession.TrackName = packets.TrackName(p.TrackId)
-		sm.currentSession.SessionType = packets.SessionTypeName(p.SessionType)
+		sm.currentSession.TrackName = trackName
+		sm.currentSession.SessionType = sessionType
 		sm.currentSession.Weather = weatherStr
-		updated = true
 	}
 
-	if updated {
-		if err := sm.repo.SaveSession(ctx, sm.currentSession); err != nil {
-			log.Printf("[Session] Error updating session info: %v", err)
-		}
+	if err := sm.repo.UpdateSessionMetadata(ctx, p.Header.SessionUID, int(p.TrackId), trackName, sessionType, weatherStr); err != nil {
+		log.Printf("[Session] Error updating session metadata: %v", err)
 	}
 }
 
