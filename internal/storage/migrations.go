@@ -115,6 +115,7 @@ func Migrate(db *sqlx.DB) error {
 	// Add missing columns dynamically if upgrading an existing DB file
 	_, _ = db.Exec("ALTER TABLE laps ADD COLUMN penalties_seconds INTEGER DEFAULT 0")
 	_, _ = db.Exec("ALTER TABLE laps ADD COLUMN car_position INTEGER DEFAULT 0")
+	_, _ = db.Exec("ALTER TABLE laps ADD COLUMN result_status INTEGER DEFAULT 0")
 
 	return nil
 }

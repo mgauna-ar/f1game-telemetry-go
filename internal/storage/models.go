@@ -30,6 +30,7 @@ type Lap struct {
 	MaxSpeedKMH      float64   `db:"max_speed_kmh" json:"max_speed_kmh"`
 	PenaltiesSeconds int       `db:"penalties_seconds" json:"penalties_seconds"`
 	CarPosition      int       `db:"car_position" json:"car_position"`
+	ResultStatus     int       `db:"result_status" json:"result_status"`
 	CreatedAt        time.Time `db:"created_at" json:"created_at"`
 }
 

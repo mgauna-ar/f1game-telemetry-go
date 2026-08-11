@@ -63,6 +63,7 @@ export interface Lap {
   max_speed_kmh: number;
   penalties_seconds?: number;
   car_position?: number;
+  result_status?: number;
   created_at?: string;
 }
 
@@ -102,6 +103,8 @@ interface DriverStanding {
   penaltySeconds: number;
   totalRaceTimeWithPenalties: number;
   officialPos: number;
+  isDNF: boolean;
+  isDSQ: boolean;
   maxSpeed: number;
   setup?: CarSetup;
 }
@@ -390,6 +393,9 @@ export const SessionHistory: React.FC = () => {
       const totalRaceTimeWithPenalties = totalRaceTimeMS + penaltySeconds * 1000;
       const lastLap = driverLaps.length > 0 ? driverLaps[driverLaps.length - 1] : null;
       const officialPos = lastLap && lastLap.car_position && lastLap.car_position > 0 ? lastLap.car_position : 0;
+      const resStatus = lastLap && lastLap.result_status !== undefined ? lastLap.result_status : 0;
+      const isDSQ = resStatus === 5;
+      const isDNF = resStatus === 4 || resStatus === 6 || resStatus === 7;
 
       const maxSpeed = driverLaps.reduce((max, l) => Math.max(max, l.max_speed_kmh || 0), 0);
       const setup = setups.find(s => s.car_index === p.car_index);
@@ -403,6 +409,8 @@ export const SessionHistory: React.FC = () => {
         penaltySeconds,
         totalRaceTimeWithPenalties,
         officialPos,
+        isDNF,
+        isDSQ,
         maxSpeed,
         setup,
       };
@@ -750,9 +758,12 @@ export const SessionHistory: React.FC = () => {
 
                         const isLeader = driver.position === 1;
                         let deltaStr = '--';
-
                         if (isRaceSession) {
-                          if (isLeader) {
+                          if (driver.isDSQ) {
+                            deltaStr = 'DSQ';
+                          } else if (driver.isDNF) {
+                            deltaStr = 'DNF';
+                          } else if (isLeader) {
                             deltaStr = 'LEADER';
                           } else if (driverStandings.length > 0) {
                             const leaderLaps = driverStandings[0].laps.length;
@@ -781,9 +792,20 @@ export const SessionHistory: React.FC = () => {
                               onClick={() => toggleDriverExpand(driver.participant.car_index)}
                               style={{ cursor: 'pointer' }}
                             >
-                              <td className="mono" style={{ fontWeight: 800, fontSize: '1rem', color: driver.position === 1 ? 'var(--accent-warning)' : 'inherit' }}>
-                                P{driver.position}
+                              {/* Position */}
+                              <td>
+                                <div
+                                  className="mono"
+                                  style={{
+                                    fontWeight: 700,
+                                    color: driver.position <= 3 ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                                  }}
+                                >
+                                  P{driver.position}
+                                </div>
                               </td>
+
+                              {/* Driver Name & Race Number */}
                               <td>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                   <div style={{ width: '4px', height: '22px', backgroundColor: teamColor, borderRadius: '2px' }} />
@@ -832,15 +854,32 @@ export const SessionHistory: React.FC = () => {
                               </td>
 
                               {/* Delta Time */}
-                              <td className="mono" style={{ fontWeight: 700, color: isLeader ? 'var(--accent-primary)' : 'var(--text-primary)' }}>
+                              <td className="mono" style={{ fontWeight: 700, color: driver.isDSQ || driver.isDNF ? '#ff4d4f' : isLeader ? 'var(--accent-primary)' : 'var(--text-primary)' }}>
                                 {deltaStr}
                               </td>
 
                               {/* Total Race Time / Total Duration */}
                               <td className="mono" style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.85rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                   <Clock size={12} color="var(--text-secondary)" />
-                                  {formatTotalDuration(driver.totalRaceTimeMS)}
+                                  {driver.isDSQ ? 'DSQ' : driver.isDNF ? 'DNF' : formatTotalDuration(driver.totalRaceTimeMS)}
+                                  {driver.penaltySeconds > 0 && (
+                                    <span
+                                      className="mono"
+                                      title={`${driver.penaltySeconds}s Penalty Included`}
+                                      style={{
+                                        backgroundColor: 'rgba(255, 77, 79, 0.15)',
+                                        color: '#ff4d4f',
+                                        border: '1px solid rgba(255, 77, 79, 0.4)',
+                                        borderRadius: '3px',
+                                        padding: '1px 5px',
+                                        fontSize: '0.7rem',
+                                        fontWeight: 700,
+                                      }}
+                                    >
+                                      +{driver.penaltySeconds}s Pen
+                                    </span>
+                                  )}
                                 </div>
                               </td>
 
