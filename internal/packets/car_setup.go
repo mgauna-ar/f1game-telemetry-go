@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
+	"math"
 )
 
 // CarSetupData contains setup data for a single car.
@@ -66,10 +67,49 @@ func DecodeCarSetup(data []byte) (*PacketCarSetupData, error) {
 		if offset+CarSetupStructSize > len(payload) {
 			break
 		}
-		r := bytes.NewReader(payload[offset : offset+CarSetupStructSize])
-		if err := binary.Read(r, binary.LittleEndian, &pkt.CarSetupData[i]); err != nil {
-			return nil, fmt.Errorf("failed to decode car setup for car %d: %w", i, err)
+
+		carBytes := payload[offset : offset+itemSize]
+		var cs CarSetupData
+
+		cs.FrontWing = carBytes[0]
+		cs.RearWing = carBytes[1]
+		cs.OnThrottle = carBytes[2]
+		cs.OffThrottle = carBytes[3]
+		cs.FrontCamber = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[4:8]))
+		cs.RearCamber = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[8:12]))
+		cs.FrontToe = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[12:16]))
+		cs.RearToe = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[16:20]))
+		cs.FrontSuspension = carBytes[20]
+		cs.RearSuspension = carBytes[21]
+		cs.FrontAntiRollBar = carBytes[22]
+		cs.RearAntiRollBar = carBytes[23]
+		cs.FrontSuspensionHeight = carBytes[24]
+		cs.RearSuspensionHeight = carBytes[25]
+		cs.BrakePressure = carBytes[26]
+		cs.BrakeBias = carBytes[27]
+
+		if len(carBytes) >= 44 {
+			cs.RearLeftTyrePressure = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[28:32]))
+			cs.RearRightTyrePressure = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[32:36]))
+			cs.FrontLeftTyrePressure = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[36:40]))
+			cs.FrontRightTyrePressure = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[40:44]))
 		}
+
+		ballastOffset := 44
+		fuelOffset := 45
+		if itemSize >= 50 && len(carBytes) >= 50 {
+			ballastOffset = 45
+			fuelOffset = 46
+		}
+
+		if ballastOffset < len(carBytes) {
+			cs.Ballast = carBytes[ballastOffset]
+		}
+		if fuelOffset+4 <= len(carBytes) {
+			cs.FuelLoad = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[fuelOffset : fuelOffset+4]))
+		}
+
+		pkt.CarSetupData[i] = cs
 	}
 
 	tailOffset := maxCars * itemSize
