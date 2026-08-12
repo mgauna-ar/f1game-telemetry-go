@@ -106,4 +106,40 @@ describe('LeaderboardTower', () => {
     // Norris (1:14.000) P1, Hamilton (1:15.000) P2, Verstappen (No time) P3
     expect(driverNames).toEqual(['Lando Norris', 'Lewis Hamilton', 'Max Verstappen']);
   });
+
+  it('renders compound laps age and driver penalty badges correctly', () => {
+    const laps: LapData[] = [
+      { LastLapTimeInMS: 75000, CurrentLapTimeInMS: 10000, CarPosition: 1, CurrentLapNum: 3, PitStatus: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, CurrentLapInvalid: 0, Penalties: 5 }, // 5s penalty
+      { LastLapTimeInMS: 76000, CurrentLapTimeInMS: 10000, CarPosition: 2, CurrentLapNum: 3, PitStatus: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, CurrentLapInvalid: 0, TotalWarnings: 2 }, // 2 warnings
+      { LastLapTimeInMS: 77000, CurrentLapTimeInMS: 10000, CarPosition: 3, CurrentLapNum: 3, PitStatus: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, CurrentLapInvalid: 0, NumUnservedDriveThroughPens: 1 }, // DT penalty
+    ];
+
+    const carStatuses: CarStatusData[] = [
+      { VisualTyreCompound: 16, TyresAgeLaps: 7, FuelInTank: 10, ERSStoreEnergy: 1000, ERSDeployMode: 1 },
+      { VisualTyreCompound: 17, TyresAgeLaps: 12, FuelInTank: 10, ERSStoreEnergy: 1000, ERSDeployMode: 1 },
+      { VisualTyreCompound: 18, TyresAgeLaps: 3, FuelInTank: 10, ERSStoreEnergy: 1000, ERSDeployMode: 1 },
+    ];
+
+    render(
+      <LeaderboardTower
+        session={qualySession}
+        participants={participants}
+        laps={laps}
+        carStatuses={carStatuses}
+        playerCarIndex={0}
+        selectedCarIndex={0}
+        onSelectCar={() => {}}
+      />
+    );
+
+    // Verify tyre age labels
+    expect(screen.getByText('7L')).toBeInTheDocument();
+    expect(screen.getByText('12L')).toBeInTheDocument();
+    expect(screen.getByText('3L')).toBeInTheDocument();
+
+    // Verify penalty & warning badges
+    expect(screen.getByText('+5s')).toBeInTheDocument();
+    expect(screen.getByText('2W')).toBeInTheDocument();
+    expect(screen.getByText('DT')).toBeInTheDocument();
+  });
 });

@@ -159,6 +159,42 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
     return `+${(totalMs / 1000).toFixed(3)}s`;
   };
 
+  const getPenaltyBadge = (lap?: LapData) => {
+    if (!lap) return null;
+    const elements: React.ReactNode[] = [];
+
+    if (lap.NumUnservedStopGoPens && lap.NumUnservedStopGoPens > 0) {
+      elements.push(
+        <span key="sg" className="driver-penalty-badge penalty-stopgo" title="Stop & Go Penalty">
+          SG
+        </span>
+      );
+    } else if (lap.NumUnservedDriveThroughPens && lap.NumUnservedDriveThroughPens > 0) {
+      elements.push(
+        <span key="dt" className="driver-penalty-badge penalty-drivethrough" title="Drive Through Penalty">
+          DT
+        </span>
+      );
+    }
+
+    if (lap.Penalties && lap.Penalties > 0) {
+      elements.push(
+        <span key="pen" className="driver-penalty-badge penalty-time" title={`${lap.Penalties}s Time Penalty`}>
+          +{lap.Penalties}s
+        </span>
+      );
+    } else if (lap.TotalWarnings && lap.TotalWarnings > 0) {
+      elements.push(
+        <span key="warn" className="driver-warning-badge" title={`${lap.TotalWarnings} Warnings`}>
+          {lap.TotalWarnings}W
+        </span>
+      );
+    }
+
+    if (elements.length === 0) return null;
+    return <>{elements}</>;
+  };
+
   const getDriverStatusBadge = (status?: number, pitStatus?: number) => {
     if (pitStatus === 1 || pitStatus === 2) {
       return <span className="driver-status-badge status-pit"><Wrench size={10} style={{ display: 'inline', marginRight: '2px' }} /> PIT</span>;
@@ -221,8 +257,9 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
                     <span className="tower-number mono">#{driver.raceNumber}</span>
                     {driver.isPlayer && <span className="player-tag">YOU</span>}
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px', flexWrap: 'wrap' }}>
                     {getDriverStatusBadge(driver.lap?.DriverStatus, driver.lap?.PitStatus)}
+                    {getPenaltyBadge(driver.lap)}
                     {driver.lap?.CurrentLapNum ? (
                       <span className="mono" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                         LAP {driver.lap.CurrentLapNum}
@@ -231,19 +268,27 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
                   </div>
                 </div>
 
-                {/* Tyre Compound Badge */}
-                {compound ? (
-                  <div
-                    className="tyre-badge mono"
-                    style={{ color: compound.color, backgroundColor: compound.bg, borderColor: compound.color }}
-                  >
-                    {compound.label}
-                  </div>
-                ) : (
-                  <div className="tyre-badge mono" style={{ color: '#888', backgroundColor: 'rgba(255,255,255,0.05)' }}>
-                    -
-                  </div>
-                )}
+                {/* Tyre Compound Badge & Age */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                  {compound ? (
+                    <div
+                      className="tyre-badge mono"
+                      title={`${compound.label} compound (${driver.carStatus?.TyresAgeLaps !== undefined ? driver.carStatus.TyresAgeLaps : 0} Laps)`}
+                      style={{ color: compound.color, backgroundColor: compound.bg, borderColor: compound.color }}
+                    >
+                      {compound.label}
+                    </div>
+                  ) : (
+                    <div className="tyre-badge mono" style={{ color: '#888', backgroundColor: 'rgba(255,255,255,0.05)' }}>
+                      -
+                    </div>
+                  )}
+                  {driver.carStatus?.TyresAgeLaps !== undefined ? (
+                    <span className="tyre-laps-label mono" style={{ color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      {driver.carStatus.TyresAgeLaps}L
+                    </span>
+                  ) : null}
+                </div>
 
                 {/* Gap / Interval / Lap Time */}
                 <div className="tower-time-col mono">

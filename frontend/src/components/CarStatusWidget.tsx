@@ -35,7 +35,11 @@ export const CarStatusWidget: React.FC<CarStatusWidgetProps> = ({ carStatus, dri
           <Zap size={18} color="var(--accent-primary)" />
           Car Status & Pit Wall Telemetry
         </h3>
-        {driverName && <span className="mono" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{driverName}</span>}
+        {driverName && (
+          <span className="mono" style={{ fontSize: '0.8rem', color: 'var(--accent-primary)', fontWeight: 600, background: 'rgba(51, 255, 204, 0.1)', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(51, 255, 204, 0.3)' }}>
+            SELECTED: {driverName}
+          </span>
+        )}
       </div>
 
       <div className="status-grid">
@@ -43,14 +47,19 @@ export const CarStatusWidget: React.FC<CarStatusWidgetProps> = ({ carStatus, dri
         <div className="status-card">
           <div className="status-card-header">
             <span className="readout-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <BatteryCharging size={14} color="#33FFCC" /> ERS STORE
+              <BatteryCharging size={14} color="#33FFCC" /> ERS BATTERY STORE
             </span>
             <span className={`ers-mode-badge mode-${ersModeText.toLowerCase()}`}>
-              {ersModeText}
+              MODE: {ersModeText}
             </span>
           </div>
-          <div className="readout-value mono" style={{ fontSize: '1.75rem', marginTop: '0.25rem' }}>
-            {ersPercent.toFixed(0)}<span className="readout-unit">%</span>
+          <div className="readout-value mono" style={{ fontSize: '1.75rem', marginTop: '0.25rem', display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+            <span>{ersPercent.toFixed(0)}<span className="readout-unit">%</span></span>
+            {carStatus?.ERSStoreEnergy !== undefined && (
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 400 }}>
+                ({(carStatus.ERSStoreEnergy / 1000000.0).toFixed(2)} MJ)
+              </span>
+            )}
           </div>
           <div className="bar-container" style={{ marginTop: '0.5rem' }}>
             <div className="bar-fill ers-fill" style={{ width: `${ersPercent}%` }} />

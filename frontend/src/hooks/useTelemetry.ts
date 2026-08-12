@@ -34,6 +34,11 @@ export interface LapData {
   ResultStatus?: number;
   LapDistance?: number;
   TotalDistance?: number;
+  Penalties?: number;
+  TotalWarnings?: number;
+  CornerCuttingWarnings?: number;
+  NumUnservedDriveThroughPens?: number;
+  NumUnservedStopGoPens?: number;
 }
 
 export interface CarMotionData {
@@ -445,7 +450,8 @@ export function useTelemetry(wsUrl?: string) {
     };
   }, [wsUrl]);
 
-  const activeIdx = selectedCarIndex < (allTelemetry.length || 1) ? selectedCarIndex : playerCarIndex;
+  const maxCars = Math.max(participants.length, allCarStatus.length, allLaps.length, allTelemetry.length, 22);
+  const activeIdx = selectedCarIndex >= 0 && selectedCarIndex < maxCars ? selectedCarIndex : playerCarIndex;
   const telemetry = allTelemetry[activeIdx] || null;
   const lap = allLaps[activeIdx] || null;
   const motion = allMotion[activeIdx] || null;

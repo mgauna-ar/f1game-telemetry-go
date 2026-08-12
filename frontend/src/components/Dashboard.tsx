@@ -1,7 +1,6 @@
 import React from 'react';
-import { Gauge, AlertCircle, Timer, Activity, Map } from 'lucide-react';
+import { Gauge, AlertCircle, Timer, Map } from 'lucide-react';
 import { useTelemetry, parseDriverName } from '../hooks/useTelemetry';
-import { TelemetryChart } from './TelemetryChart';
 import { TrackMap } from './TrackMap';
 import { SessionHeader } from './SessionHeader';
 import { LeaderboardTower } from './LeaderboardTower';
@@ -22,7 +21,6 @@ export const Dashboard: React.FC = () => {
     carDamage = null,
     trackPath = [],
     connected = false,
-    history = [],
     playerCarIndex = 0,
     selectedCarIndex = 0,
     setSelectedCarIndex = () => {},
@@ -240,20 +238,9 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Bottom Section: Live Telemetry Trace (Span 6) + Car Setup Configuration (Span 6) */}
-      <div className="dash-bottom-row" style={{ gridColumn: 'span 12', display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '1.5rem' }}>
-        {/* Live Telemetry Chart */}
-        <div className="glass-panel dash-trace-col" style={{ gridColumn: 'span 6' }}>
-          <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem', fontSize: '1rem' }}>
-            <Activity size={18} /> Live Telemetry Trace ({driverName})
-          </h3>
-          <TelemetryChart data={history} />
-        </div>
-
-        {/* Car Damage & Tyre Wear Telemetry Widget */}
-        <div className="dash-setup-col" style={{ gridColumn: 'span 6' }}>
-          <CarDamageWidget carDamage={carDamage} driverName={driverName} />
-        </div>
+      {/* Bottom Section: Car Damage & Tyre Wear Telemetry Widget */}
+      <div className="dash-bottom-row" style={{ gridColumn: 'span 12' }}>
+        <CarDamageWidget carDamage={carDamage} driverName={driverName} />
       </div>
     </div>
   );

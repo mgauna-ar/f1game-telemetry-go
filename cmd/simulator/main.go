@@ -276,19 +276,36 @@ func main() {
 				if i >= 18 {
 					pitStatus = 1
 				}
+				var penalties uint8 = 0
+				var totalWarnings uint8 = 0
+				var driveThrough uint8 = 0
+
+				if i == 2 {
+					penalties = 5
+				} else if i == 5 {
+					penalties = 3
+				} else if i == 7 {
+					totalWarnings = 2
+				} else if i == 11 {
+					driveThrough = 1
+				}
+
 				lapPkt.LapData[i] = packets.LapData{
-					CurrentLapTimeInMS:      lapTimeMs + gapMs,
-					LastLapTimeInMS:         uint32(85432 + i*220),
-					Sector1TimeMSPart:       uint16(28120 + i*100),
-					Sector2TimeMSPart:       uint16(31450 + i*90),
-					CurrentLapNum:           lapNum,
-					LapDistance:             lapDist,
-					TotalDistance:           totalDistance - float32(i*15),
-					CarPosition:             uint8(i + 1),
-					ResultStatus:            2, // Active
-					DeltaToRaceLeaderMSPart: uint16(gapMs),
-					DeltaToCarInFrontMSPart: uint16(350),
-					PitStatus:               pitStatus,
+					CurrentLapTimeInMS:          lapTimeMs + gapMs,
+					LastLapTimeInMS:             uint32(85432 + i*220),
+					Sector1TimeMSPart:           uint16(28120 + i*100),
+					Sector2TimeMSPart:           uint16(31450 + i*90),
+					CurrentLapNum:               lapNum,
+					LapDistance:                 lapDist,
+					TotalDistance:               totalDistance - float32(i*15),
+					CarPosition:                 uint8(i + 1),
+					ResultStatus:                2, // Active
+					DeltaToRaceLeaderMSPart:     uint16(gapMs),
+					DeltaToCarInFrontMSPart:     uint16(350),
+					PitStatus:                   pitStatus,
+					Penalties:                   penalties,
+					TotalWarnings:               totalWarnings,
+					NumUnservedDriveThroughPens: driveThrough,
 				}
 			}
 			sendPacket(conn, &lapPkt)
