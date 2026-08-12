@@ -13,7 +13,6 @@
 - **Driver & Participant Metadata** — Stores driver names, team IDs, race numbers, and AI status per session
 - **Pit Wall Command Center UI** — Browser-based interface featuring session status (Track name, Weather, Safety Car flags, Session type, Countdown/Total laps)
 - **Live Leaderboard Tower** — Real-time standings tower with team color badges, driver numbers, interval deltas, tyre compounds, pit status, and Qualifying elimination cut-off markers
-- **Multi-Car Live Track Map** — Concurrent multi-car position tracking on circuit layout with driver number labels and interactive driver selection
 - **Car Damage & Tire Wear Telemetry** — Live monitoring of 4-wheel tyre wear %, aero damage (wings, floor, diffuser), brake wear, gearbox/engine component health, and DRS/ERS faults
 - **Car Setup Telemetry** — Stored setup telemetry for aerodynamics (wings), suspension & anti-roll bars, geometry (camber/toe), brake bias/pressure, and tyre pressures in Lap Analysis
 - **Car Status & Strategy Telemetry** — Live monitoring of ERS Store Energy %, ERS deployment modes, fuel remaining in kg, and tyre compound age

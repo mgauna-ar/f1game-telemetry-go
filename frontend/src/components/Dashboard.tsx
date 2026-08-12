@@ -1,7 +1,6 @@
 import React from 'react';
-import { Gauge, AlertCircle, Timer, Map } from 'lucide-react';
+import { Gauge, AlertCircle, Timer, Award, ShieldAlert, Flag } from 'lucide-react';
 import { useTelemetry, parseDriverName } from '../hooks/useTelemetry';
-import { TrackMap } from './TrackMap';
 import { SessionHeader } from './SessionHeader';
 import { LeaderboardTower } from './LeaderboardTower';
 import { CarStatusWidget } from './CarStatusWidget';
@@ -12,14 +11,11 @@ export const Dashboard: React.FC = () => {
     session = null,
     participants = [],
     allLaps = [],
-    allMotion = [],
     allCarStatus = [],
     telemetry = null,
     lap = null,
-    motion = null,
     carStatus = null,
     carDamage = null,
-    trackPath = [],
     connected = false,
     playerCarIndex = 0,
     selectedCarIndex = 0,
@@ -44,15 +40,21 @@ export const Dashboard: React.FC = () => {
     return g.toString();
   };
 
+  const getPitStatusText = (status?: number) => {
+    if (status === 1) return 'In Pit Lane';
+    if (status === 2) return 'Pitting';
+    return 'On Track';
+  };
+
   return (
     <div className="dashboard-grid">
       {/* Session Top Header */}
       <SessionHeader session={session} connected={connected} />
 
-      {/* Hero Upper Section: Standings Tower (Span 4) + Prominent Live Track Map & Lap Timing (Span 8) */}
+      {/* Hero Upper Section: Standings Tower (Span 5) + Live Lap Timing & Sector Performance (Span 7) */}
       <div className="dash-hero-row" style={{ gridColumn: 'span 12', display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '1.5rem' }}>
         {/* Standings Tower */}
-        <div className="dash-hero-tower" style={{ gridColumn: 'span 4', display: 'flex', flexDirection: 'column' }}>
+        <div className="dash-hero-tower" style={{ gridColumn: 'span 5', display: 'flex', flexDirection: 'column' }}>
           <LeaderboardTower
             session={session}
             participants={participants}
@@ -64,61 +66,104 @@ export const Dashboard: React.FC = () => {
           />
         </div>
 
-        {/* Right Hero Column: Live Multi-Car Track Map + Lap Timing */}
-        <div className="dash-hero-right" style={{ gridColumn: 'span 8', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          {/* Live Multi-Car Track Map - High Priority Map Hero */}
-          <div className="glass-panel dash-track-map-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '1.25rem' }}>
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '1rem', fontSize: '1.1rem', margin: '0 0 1rem 0' }}>
-              <Map size={20} color="var(--accent-primary)" /> Live Multi-Car Track Map
-            </h3>
-            <div style={{ flex: 1, minHeight: '340px' }}>
-              <TrackMap
-                motion={motion}
-                allMotion={allMotion}
-                participants={participants}
-                selectedCarIndex={selectedCarIndex}
-                trackPath={trackPath}
-              />
+        {/* Right Hero Column: Prominent Live Lap Timing & Sector Performance */}
+        <div className="dash-hero-right" style={{ gridColumn: 'span 7', display: 'flex', flexDirection: 'column' }}>
+          <div className="glass-panel dash-lap-timing-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '1.25rem', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.1rem', margin: 0 }}>
+                <Timer size={20} color="var(--accent-primary)" /> Live Lap Timing & Sector Performance ({driverName})
+              </h3>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <span className="mono" style={{ fontSize: '0.8rem', padding: '3px 8px', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  P{lap?.CarPosition || (selectedCarIndex + 1)} • Lap {lap?.CurrentLapNum || 0}
+                </span>
+                {lap?.CurrentLapInvalid ? (
+                  <span className="mono" style={{ color: 'var(--accent-primary)', fontSize: '0.75rem', padding: '3px 8px', borderRadius: '4px', background: 'rgba(255, 51, 85, 0.15)', border: '1px solid rgba(255, 51, 85, 0.4)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <AlertCircle size={12} /> INVALIDATED
+                  </span>
+                ) : (
+                  <span className="mono" style={{ color: 'var(--accent-primary)', fontSize: '0.75rem', padding: '3px 8px', borderRadius: '4px', background: 'rgba(51, 255, 204, 0.1)', border: '1px solid rgba(51, 255, 204, 0.3)' }}>
+                    VALID LAP
+                  </span>
+                )}
+              </div>
             </div>
-          </div>
 
-          {/* Lap Timing - Located directly below track map */}
-          <div className="glass-panel dash-lap-timing-panel">
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1rem', marginBottom: '1rem', margin: '0 0 1rem 0' }}>
-              <Timer size={18} color="var(--accent-primary)" /> Lap Timing ({driverName})
-            </h3>
-
-            <div className="lap-timing-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
-              <div className="readout-group">
-                <div className="readout-label">Current Lap</div>
-                <div className="readout-value mono" style={{ fontSize: '1.4rem', color: lap?.CurrentLapInvalid ? 'var(--accent-primary)' : 'inherit' }}>
+            {/* Primary Lap Readouts */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.25rem', marginBottom: '1.25rem' }}>
+              <div className="glass-panel" style={{ padding: '1rem', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div className="readout-label" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>CURRENT LAP TIME</div>
+                <div className="readout-value mono" style={{ fontSize: '2.2rem', fontWeight: 700, color: lap?.CurrentLapInvalid ? '#ff4d4d' : 'var(--accent-primary)', lineHeight: 1.1 }}>
                   {formatTime(lap?.CurrentLapTimeInMS || 0)}
                 </div>
-                {lap?.CurrentLapInvalid ? (
-                  <span style={{ color: 'var(--accent-primary)', fontSize: '0.75rem' }}>
-                    <AlertCircle size={12} style={{ display: 'inline', verticalAlign: 'text-bottom' }} /> Invalidated
-                  </span>
-                ) : null}
               </div>
 
-              <div className="readout-group">
-                <div className="readout-label">Last Lap</div>
-                <div className="readout-value mono" style={{ fontSize: '1.4rem' }}>
+              <div className="glass-panel" style={{ padding: '1rem', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <div className="readout-label" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>LAST LAP TIME</div>
+                <div className="readout-value mono" style={{ fontSize: '2.2rem', fontWeight: 700, lineHeight: 1.1 }}>
                   {formatTime(lap?.LastLapTimeInMS || 0)}
                 </div>
               </div>
+            </div>
 
-              <div className="readout-group">
-                <div className="readout-label">Sector 1</div>
-                <div className="readout-value mono" style={{ fontSize: '1.4rem' }}>
+            {/* Sector Split Readouts */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1.25rem' }}>
+              <div className="glass-panel" style={{ padding: '0.85rem', background: 'rgba(0,0,0,0.15)', border: (lap?.Sector === 0 || lap?.Sector === 1) ? '1px solid var(--accent-primary)' : '1px solid rgba(255,255,255,0.06)' }}>
+                <div className="readout-label" style={{ fontSize: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>SECTOR 1</span>
+                  {(lap?.Sector === 0 || lap?.Sector === 1) && <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--accent-primary)' }} />}
+                </div>
+                <div className="readout-value mono" style={{ fontSize: '1.3rem', fontWeight: 600, marginTop: '4px' }}>
                   {formatTime(lap?.Sector1TimeMSPart || 0)}
                 </div>
               </div>
 
-              <div className="readout-group">
-                <div className="readout-label">Sector 2</div>
-                <div className="readout-value mono" style={{ fontSize: '1.4rem' }}>
+              <div className="glass-panel" style={{ padding: '0.85rem', background: 'rgba(0,0,0,0.15)', border: lap?.Sector === 2 ? '1px solid var(--accent-primary)' : '1px solid rgba(255,255,255,0.06)' }}>
+                <div className="readout-label" style={{ fontSize: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>SECTOR 2</span>
+                  {lap?.Sector === 2 && <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--accent-primary)' }} />}
+                </div>
+                <div className="readout-value mono" style={{ fontSize: '1.3rem', fontWeight: 600, marginTop: '4px' }}>
                   {formatTime(lap?.Sector2TimeMSPart || 0)}
+                </div>
+              </div>
+
+              <div className="glass-panel" style={{ padding: '0.85rem', background: 'rgba(0,0,0,0.15)', border: lap?.Sector === 3 ? '1px solid var(--accent-primary)' : '1px solid rgba(255,255,255,0.06)' }}>
+                <div className="readout-label" style={{ fontSize: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>SECTOR 3</span>
+                  {lap?.Sector === 3 && <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--accent-primary)' }} />}
+                </div>
+                <div className="readout-value mono" style={{ fontSize: '1.3rem', fontWeight: 600, marginTop: '4px' }}>
+                  IN PROGRESS
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Status & Race Control Row */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0.6rem 0.8rem', background: 'rgba(255,255,255,0.03)', borderRadius: '6px' }}>
+                <Flag size={16} color="var(--accent-primary)" />
+                <div>
+                  <div className="readout-label" style={{ fontSize: '0.65rem' }}>PIT STATUS</div>
+                  <div className="mono" style={{ fontSize: '0.85rem', fontWeight: 600 }}>{getPitStatusText(lap?.PitStatus)}</div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0.6rem 0.8rem', background: 'rgba(255,255,255,0.03)', borderRadius: '6px' }}>
+                <Award size={16} color="var(--accent-primary)" />
+                <div>
+                  <div className="readout-label" style={{ fontSize: '0.65rem' }}>PIT STOPS</div>
+                  <div className="mono" style={{ fontSize: '0.85rem', fontWeight: 600 }}>{lap?.NumPitStops ?? 0} Stops</div>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0.6rem 0.8rem', background: 'rgba(255,255,255,0.03)', borderRadius: '6px' }}>
+                <ShieldAlert size={16} color={(lap?.Penalties || 0) > 0 ? '#ff4d4d' : 'var(--text-secondary)'} />
+                <div>
+                  <div className="readout-label" style={{ fontSize: '0.65rem' }}>PENALTIES / WARNINGS</div>
+                  <div className="mono" style={{ fontSize: '0.85rem', fontWeight: 600, color: (lap?.Penalties || 0) > 0 ? '#ff4d4d' : 'inherit' }}>
+                    {lap?.Penalties || 0}s / {lap?.TotalWarnings || 0} Warns
+                  </div>
                 </div>
               </div>
             </div>
