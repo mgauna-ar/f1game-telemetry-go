@@ -364,6 +364,60 @@ func main() {
 				}
 				sendPacket(conn, &setupPkt)
 			}
+
+			// 7. Car Damage Packet (ID: 10)
+			if frameID == 1 || frameID%20 == 0 {
+				damagePkt := packets.PacketCarDamageData{
+					Header: header,
+				}
+				damagePkt.Header.PacketId = packets.PacketIDCarDamage
+				for i := 0; i < 22; i++ {
+					baseWear := float32(15.0 + float64(lapNum)*2.5 + float64(i)*1.8)
+					if baseWear > 95.0 {
+						baseWear = 95.0
+					}
+					flWear := baseWear + float32(i%3)*2.0
+					frWear := baseWear + float32(i%2)*3.0
+					rlWear := baseWear * 0.95
+					rrWear := baseWear * 0.92
+
+					var drsFault, ersFault, blown, seized uint8
+					if i == 5 {
+						drsFault = 1
+					}
+					if i == 8 {
+						ersFault = 1
+					}
+					if i == 19 {
+						blown = 1
+					}
+
+					damagePkt.CarDamageData[i] = packets.CarDamageData{
+						TyresWear:            [4]float32{rlWear, rrWear, flWear, frWear},
+						TyresDamage:          [4]uint8{uint8(i % 3), uint8(i % 2), uint8((i * 3) % 15), uint8((i * 2) % 20)},
+						BrakesDamage:         [4]uint8{uint8((i * 4) % 30), uint8((i * 4) % 30), uint8((i * 5) % 40), uint8((i * 5) % 40)},
+						FrontLeftWingDamage:  uint8((i * 9) % 55),
+						FrontRightWingDamage: uint8((i * 13) % 40),
+						RearWingDamage:       uint8((i * 5) % 30),
+						FloorDamage:          uint8((i * 7) % 35),
+						DiffuserDamage:       uint8((i * 4) % 25),
+						SidepodDamage:        uint8((i * 6) % 30),
+						DRSFault:             drsFault,
+						ERSFault:             ersFault,
+						GearBoxDamage:        uint8((i * 3) % 25),
+						EngineDamage:         uint8((i * 2) % 20),
+						EngineMGUHWear:       uint8(10 + i*3),
+						EngineESWear:         uint8(8 + i*2),
+						EngineCEWear:         uint8(5 + i*2),
+						EngineICEWear:        uint8(12 + i*3),
+						EngineMGUKWear:       uint8(14 + i*3),
+						EngineTCWear:         uint8(11 + i*3),
+						EngineBlown:          blown,
+						EngineSeized:         seized,
+					}
+				}
+				sendPacket(conn, &damagePkt)
+			}
 		}
 	}
 }

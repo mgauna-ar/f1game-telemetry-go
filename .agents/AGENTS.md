@@ -11,7 +11,7 @@ This file (`.agents/AGENTS.md`) contains workspace-specific rules and context th
 
 ## 2. Testing Standards
 *   **Go Backend:** Always use table-driven tests for packet parsers (especially for handling binary input and struct alignment) and ensure proper error handling.
-*   **Packet Simulation:** Use `make simulate` or `simulate.bat` (`cmd/simulator/main.go`) to generate synthetic live UDP telemetry packets (Motion, Telemetry, LapData, ParticipantsData, CarSetup) at 20Hz without needing the physical F1 game.
+*   **Packet Simulation:** Use `make simulate` or `simulate.bat` (`cmd/simulator/main.go`) to generate synthetic live UDP telemetry packets (Motion, Telemetry, LapData, ParticipantsData, CarSetup, CarDamage) at 20Hz without needing the physical F1 game.
 *   **Windows Helpers:** `run.bat` automated setup script (installs frontend deps if missing, launches backend and frontend concurrently, opens browser). `simulate.bat` shortcut for UDP simulator.
 *   **React Frontend:** Use `vitest` and `@testing-library/react` (`jsdom`) for component and hook testing (like the `useTelemetry` hook).
 
