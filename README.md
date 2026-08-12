@@ -1,6 +1,6 @@
 # 🏎️ f1game-telemetry-go
 
-> Real-time F1 25 / F1 26 telemetry analyzer written in Go
+> Real-time F1 25 / F1 26 telemetry analyzer and pit-wall dashboard built with Go, React, and SQLite.
 
 ![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go) ![License](https://img.shields.io/badge/License-MIT-green.svg)
 
