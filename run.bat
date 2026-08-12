@@ -17,17 +17,11 @@ if not exist "%~dp0frontend\node_modules\" (
     echo [2/4] Frontend dependencies found.
 )
 
-if not exist "%~dp0bin" mkdir "%~dp0bin"
-
-echo [3/4] Building Backend executable (bin/server.exe)...
-go build -o "%~dp0bin\server.exe" ./cmd/server
-powershell -NoProfile -ExecutionPolicy Bypass -Command "Unblock-File -Path '%~dp0bin\server.exe' -ErrorAction SilentlyContinue" 2>nul
-
-echo Starting Backend Server...
-start "F1 Telemetry Backend" cmd /k "cd /d ""%~dp0"" && .\bin\server.exe"
+echo [3/4] Starting Backend Server...
+start "F1 Telemetry Backend" /d "%~dp0" cmd /k "go run ./cmd/server"
 
 echo [4/4] Starting Web Dashboard...
-start "F1 Telemetry Frontend" cmd /k "cd /d ""%~dp0frontend"" && npm run dev"
+start "F1 Telemetry Frontend" /d "%~dp0frontend" cmd /k "npm run dev"
 
 for /f "usebackq tokens=*" %%i in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' } | Select-Object -ExpandProperty IPAddress -First 1)"`) do set "LOCAL_IP=%%i"
 
