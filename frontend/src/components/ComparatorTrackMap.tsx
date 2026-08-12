@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import type { MergedTelemetryPoint } from '../utils/deltaCalculation';
 
 interface ComparatorTrackMapProps {
@@ -18,6 +18,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const markerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -233,19 +234,39 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
           const cx = toCanvasX(activePoint.worldX);
           const cy = toCanvasY(activePoint.worldZ);
 
+          // 1. Draw glowing aura on canvas
           ctx.beginPath();
-          ctx.arc(cx, cy, 9, 0, Math.PI * 2);
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+          ctx.arc(cx, cy, 12, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255, 235, 59, 0.4)';
           ctx.fill();
 
+          // 2. Draw outer ring
           ctx.beginPath();
-          ctx.arc(cx, cy, 4.5, 0, Math.PI * 2);
+          ctx.arc(cx, cy, 7, 0, Math.PI * 2);
+          ctx.strokeStyle = '#ffee58';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          // 3. Draw inner target dot
+          ctx.beginPath();
+          ctx.arc(cx, cy, 3.5, 0, Math.PI * 2);
           ctx.fillStyle = '#ffffff';
           ctx.strokeStyle = '#000000';
-          ctx.lineWidth = 1.5;
+          ctx.lineWidth = 1;
           ctx.fill();
           ctx.stroke();
+
+          // Update HTML overlay ref directly without React re-render delay
+          if (markerRef.current) {
+            markerRef.current.style.display = 'block';
+            markerRef.current.style.left = `${cx}px`;
+            markerRef.current.style.top = `${cy}px`;
+          }
+        } else if (markerRef.current) {
+          markerRef.current.style.display = 'none';
         }
+      } else if (markerRef.current) {
+        markerRef.current.style.display = 'none';
       }
     };
 
@@ -269,6 +290,16 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
       <canvas
         ref={canvasRef}
         style={{ width: '100%', height: '100%', display: 'block' }}
+      />
+      
+      <div
+        ref={markerRef}
+        className="map-hover-marker"
+        style={{
+          display: 'none',
+          position: 'absolute',
+          pointerEvents: 'none',
+        }}
       />
 
       <div

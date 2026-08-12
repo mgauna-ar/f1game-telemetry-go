@@ -335,14 +335,30 @@ export const LapComparator: React.FC = () => {
   };
 
   // Recharts hover crosshair handler
-  const handleMouseMove = (state: any) => {
-    if (state && state.activePayload && state.activePayload.length > 0) {
-      const dist = state.activePayload[0].payload.lap_distance;
-      setHoverDistance(dist);
-    } else {
+  const handleMouseMove = useCallback((state: any) => {
+    if (!state) {
       setHoverDistance(null);
+      return;
     }
-  };
+
+    let dist: number | null = null;
+
+    if (state.activeLabel !== undefined && state.activeLabel !== null) {
+      const num = Number(state.activeLabel);
+      if (!isNaN(num)) {
+        dist = num;
+      }
+    }
+
+    if (dist === null && state.activePayload && state.activePayload.length > 0) {
+      const p = state.activePayload[0]?.payload?.lap_distance;
+      if (typeof p === 'number') {
+        dist = p;
+      }
+    }
+
+    setHoverDistance(dist);
+  }, []);
 
   return (
     <div className="dashboard-grid" style={{ paddingTop: 0 }}>
@@ -949,7 +965,7 @@ export const LapComparator: React.FC = () => {
             </div>
             <div style={{ flex: 1, minHeight: 0 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={comparisonData} syncId="comparatorSync" onMouseMove={handleMouseMove} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
+                <LineChart data={comparisonData} syncId="comparatorSync" onMouseMove={handleMouseMove} onMouseLeave={() => setHoverDistance(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                   <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} stroke="#666" tick={{ fill: '#999' }} unit="m" />
                   <YAxis stroke="#666" tick={{ fill: '#999' }} domain={['auto', 'auto']} tickFormatter={(v) => `${v > 0 ? '+' : ''}${v.toFixed(2)}s`} />
@@ -971,7 +987,7 @@ export const LapComparator: React.FC = () => {
             <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#fff' }}>🏎️ Speed (KM/H)</h3>
             <div style={{ flex: 1, minHeight: 0 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={comparisonData} syncId="comparatorSync" onMouseMove={handleMouseMove} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
+                <LineChart data={comparisonData} syncId="comparatorSync" onMouseMove={handleMouseMove} onMouseLeave={() => setHoverDistance(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                   <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} stroke="#666" tick={{ fill: '#999' }} unit="m" />
                   <YAxis stroke="#666" tick={{ fill: '#999' }} domain={[0, 360]} />
@@ -991,7 +1007,7 @@ export const LapComparator: React.FC = () => {
             <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#fff' }}>🎯 Throttle & Brake (%)</h3>
             <div style={{ flex: 1, minHeight: 0 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={comparisonData} syncId="comparatorSync" onMouseMove={handleMouseMove} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
+                <LineChart data={comparisonData} syncId="comparatorSync" onMouseMove={handleMouseMove} onMouseLeave={() => setHoverDistance(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                   <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} stroke="#666" tick={{ fill: '#999' }} unit="m" />
                   <YAxis stroke="#666" tick={{ fill: '#999' }} domain={[0, 1]} tickFormatter={(v) => `${Math.round(v * 100)}%`} />
@@ -1013,7 +1029,7 @@ export const LapComparator: React.FC = () => {
             <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#fff' }}>⚙️ Gear Selection (1 - 8)</h3>
             <div style={{ flex: 1, minHeight: 0 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={comparisonData} syncId="comparatorSync" onMouseMove={handleMouseMove} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
+                <LineChart data={comparisonData} syncId="comparatorSync" onMouseMove={handleMouseMove} onMouseLeave={() => setHoverDistance(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                   <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} stroke="#666" tick={{ fill: '#999' }} unit="m" />
                   <YAxis stroke="#666" tick={{ fill: '#999' }} domain={[1, 8]} ticks={[1, 2, 3, 4, 5, 6, 7, 8]} />
@@ -1033,7 +1049,7 @@ export const LapComparator: React.FC = () => {
             <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#fff' }}>📐 Steering Angle</h3>
             <div style={{ flex: 1, minHeight: 0 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={comparisonData} syncId="comparatorSync" onMouseMove={handleMouseMove} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
+                <LineChart data={comparisonData} syncId="comparatorSync" onMouseMove={handleMouseMove} onMouseLeave={() => setHoverDistance(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                   <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} stroke="#666" tick={{ fill: '#999' }} unit="m" />
                   <YAxis stroke="#666" tick={{ fill: '#999' }} domain={[-1, 1]} />
@@ -1054,7 +1070,7 @@ export const LapComparator: React.FC = () => {
             <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#fff' }}>⚡ ERS Battery (%)</h3>
             <div style={{ flex: 1, minHeight: 0 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={comparisonData} syncId="comparatorSync" onMouseMove={handleMouseMove} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
+                <LineChart data={comparisonData} syncId="comparatorSync" onMouseMove={handleMouseMove} onMouseLeave={() => setHoverDistance(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                   <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} stroke="#666" tick={{ fill: '#999' }} unit="m" />
                   <YAxis stroke="#666" tick={{ fill: '#999' }} domain={[0, 100]} />
