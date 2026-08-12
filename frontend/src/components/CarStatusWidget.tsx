@@ -29,7 +29,7 @@ export const CarStatusWidget: React.FC<CarStatusWidgetProps> = ({ carStatus, dri
   const tyre = carStatus?.VisualTyreCompound ? TYRE_COMPOUNDS[carStatus.VisualTyreCompound] : null;
 
   return (
-    <div className="glass-panel car-status-widget">
+    <div className="glass-panel car-status-widget" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <div className="status-widget-header">
         <h3 style={{ margin: 0, fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Zap size={18} color="var(--accent-primary)" />
@@ -42,7 +42,7 @@ export const CarStatusWidget: React.FC<CarStatusWidgetProps> = ({ carStatus, dri
         )}
       </div>
 
-      <div className="status-grid">
+      <div className="status-grid" style={{ flex: 1 }}>
         {/* ERS Battery Panel */}
         <div className="status-card">
           <div className="status-card-header">
