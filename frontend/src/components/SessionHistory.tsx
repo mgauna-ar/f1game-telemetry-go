@@ -379,8 +379,9 @@ export const SessionHistory: React.FC = () => {
         }))
     ).map(p => {
       const rawDriverLaps = lapsByCar[p.car_index] || [];
-      const completedLaps = rawDriverLaps.filter(l => l.lap_time_ms > 0);
-      const driverLaps = completedLaps.length > 0 ? completedLaps : rawDriverLaps;
+      const sortedRawLaps = [...rawDriverLaps].sort((a, b) => a.lap_number - b.lap_number);
+      const completedLaps = sortedRawLaps.filter(l => l.lap_time_ms > 0);
+      const driverLaps = completedLaps.length > 0 ? completedLaps : sortedRawLaps;
       const validLaps = driverLaps.filter(l => l.is_valid && l.lap_time_ms > 0);
 
       let bestLap: Lap | null = null;
@@ -390,24 +391,29 @@ export const SessionHistory: React.FC = () => {
         bestLap = driverLaps.reduce((prev, curr) => (curr.lap_time_ms < prev.lap_time_ms ? curr : prev), driverLaps[0]);
       }
 
-      const lastCompletedLap = [...driverLaps].reverse().find(l => l.lap_time_ms > 0) || (driverLaps.length > 0 ? driverLaps[driverLaps.length - 1] : null);
+      const lastCompletedLap = [...completedLaps].reverse().find(l => l.lap_time_ms > 0) || (sortedRawLaps.length > 0 ? sortedRawLaps[sortedRawLaps.length - 1] : null);
       const lastLapTimeMS = lastCompletedLap && lastCompletedLap.lap_time_ms > 0 ? lastCompletedLap.lap_time_ms : 0;
 
       const totalRaceTimeMS = driverLaps.reduce((acc, l) => acc + (l.lap_time_ms > 0 ? l.lap_time_ms : 0), 0);
       const penaltySeconds = driverLaps.reduce((maxPen, l) => Math.max(maxPen, l.penalties_seconds || 0), 0);
       const totalRaceTimeWithPenalties = totalRaceTimeMS + penaltySeconds * 1000;
-      const lastLap = driverLaps.length > 0 ? driverLaps[driverLaps.length - 1] : null;
-      const officialPos = lastLap && lastLap.car_position && lastLap.car_position > 0 ? lastLap.car_position : 0;
-      const resStatus = lastLap && lastLap.result_status !== undefined ? lastLap.result_status : 0;
+
+      // Extract official position & result status from raw laps (including uncompleted final session laps)
+      const lapWithPos = [...sortedRawLaps].reverse().find(l => l.car_position && l.car_position > 0);
+      const officialPos = lapWithPos ? lapWithPos.car_position! : 0;
+
+      const lapWithStatus = [...sortedRawLaps].reverse().find(l => l.result_status !== undefined && l.result_status > 0);
+      const resStatus = lapWithStatus ? lapWithStatus.result_status! : 0;
+
       const isDSQ = resStatus === 5;
-      const isDNF = resStatus === 4 || resStatus === 6 || resStatus === 7 || (isRaceSession && maxRaceLaps > 5 && driverLaps.length < Math.floor(maxRaceLaps * 0.9));
+      const isDNF = resStatus === 4 || resStatus === 6 || resStatus === 7 || (isRaceSession && maxRaceLaps > 5 && completedLaps.length < Math.floor(maxRaceLaps * 0.9));
 
       const maxSpeed = driverLaps.reduce((max, l) => Math.max(max, l.max_speed_kmh || 0), 0);
       const setup = setups.find(s => s.car_index === p.car_index);
 
       return {
         participant: p,
-        laps: driverLaps.sort((a, b) => a.lap_number - b.lap_number),
+        laps: [...driverLaps].sort((a, b) => a.lap_number - b.lap_number),
         bestLap,
         bestLapTimeMS: bestLap ? bestLap.lap_time_ms : Infinity,
         lastLap: lastCompletedLap,
@@ -423,25 +429,71 @@ export const SessionHistory: React.FC = () => {
       };
     });
 
-    // Sort: if Race, by official F1 position, laps completed, and total race time including penalties
+    // Sort standings
     if (isRaceSession) {
       driverList.sort((a, b) => {
+        // 1. Disqualified (DSQ) drivers placed at the absolute bottom
+        if (a.isDSQ !== b.isDSQ) return a.isDSQ ? 1 : -1;
+
+        // 2. DNF drivers placed behind classified/finished drivers
+        if (a.isDNF !== b.isDNF) return a.isDNF ? 1 : -1;
+
+        // 3. For classified/finished drivers (neither is DNF/DSQ):
+        if (!a.isDNF && !b.isDNF) {
+          // Official F1 position comparison (if recorded in telemetry for both or one)
+          if (a.officialPos > 0 && b.officialPos > 0) {
+            return a.officialPos - b.officialPos;
+          }
+          if (a.officialPos > 0 && b.officialPos === 0) return -1;
+          if (a.officialPos === 0 && b.officialPos > 0) return 1;
+
+          // Number of completed laps (more laps = higher rank)
+          if (b.laps.length !== a.laps.length) return b.laps.length - a.laps.length;
+
+          // Total race time including penalties (less time = higher rank)
+          return a.totalRaceTimeWithPenalties - b.totalRaceTimeWithPenalties;
+        }
+
+        // 4. For DNF drivers (both are DNF):
+        // Number of completed laps (more laps = higher rank)
+        if (b.laps.length !== a.laps.length) return b.laps.length - a.laps.length;
+
+        // Official F1 position if recorded
         if (a.officialPos > 0 && b.officialPos > 0) {
           return a.officialPos - b.officialPos;
         }
-        if (b.laps.length !== a.laps.length) return b.laps.length - a.laps.length;
+        if (a.officialPos > 0 && b.officialPos === 0) return -1;
+        if (a.officialPos === 0 && b.officialPos > 0) return 1;
+
+        // Total race time before DNF
         return a.totalRaceTimeWithPenalties - b.totalRaceTimeWithPenalties;
       });
     } else {
+      // Qualifying / Practice Session
       driverList.sort((a, b) => {
+        // 1. Disqualified (DSQ) drivers placed at the bottom
+        if (a.isDSQ !== b.isDSQ) return a.isDSQ ? 1 : -1;
+
+        // 2. Best lap time comparison (fastest first)
         const timeA = a.bestLapTimeMS;
         const timeB = b.bestLapTimeMS;
+
         if (timeA !== Infinity && timeB !== Infinity) {
           if (timeA !== timeB) return timeA - timeB;
-          return a.participant.car_index - b.participant.car_index;
+        } else if (timeA !== Infinity && timeB === Infinity) {
+          return -1;
+        } else if (timeA === Infinity && timeB !== Infinity) {
+          return 1;
         }
-        if (timeA !== Infinity) return -1;
-        if (timeB !== Infinity) return 1;
+
+        // 3. Fallback to official position if recorded
+        if (a.officialPos > 0 && b.officialPos > 0) {
+          return a.officialPos - b.officialPos;
+        }
+        if (a.officialPos > 0 && b.officialPos === 0) return -1;
+        if (a.officialPos === 0 && b.officialPos > 0) return 1;
+
+        // 4. Fallback to car index
         return a.participant.car_index - b.participant.car_index;
       });
     }

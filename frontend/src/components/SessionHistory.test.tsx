@@ -199,6 +199,106 @@ describe('SessionHistory Component', () => {
       expect(screen.getByText('Monaco')).toBeInTheDocument();
     });
   });
+
+  it('correctly sorts race standings based on official F1 positions even when final lap is uncompleted (lap_time_ms=0)', async () => {
+    const mockSessions = [
+      { id: 1, session_uid: '1001', track_name: 'Monza', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' },
+    ];
+
+    const mockParticipants = [
+      { id: 1, session_id: 1, car_index: 0, name: 'Max Verstappen', driver_id: 1, team_id: 0, race_number: 1, ai_controlled: false },
+      { id: 2, session_id: 1, car_index: 1, name: 'Charles Leclerc', driver_id: 3, team_id: 4, race_number: 16, ai_controlled: false },
+    ];
+
+    // Car 0 has completed Lap 1 (85s) and has Lap 2 in-progress (lap_time_ms=0, car_position=1, result_status=3)
+    // Car 1 has completed Lap 1 (80s, faster lap time than Car 0) and has Lap 2 in-progress (lap_time_ms=0, car_position=2, result_status=3)
+    const mockLaps = [
+      { id: 101, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 85000, sector1_ms: 27000, sector2_ms: 30000, sector3_ms: 28000, is_valid: true, car_position: 2 },
+      { id: 102, session_id: 1, car_index: 0, lap_number: 2, lap_time_ms: 0, sector1_ms: 0, sector2_ms: 0, sector3_ms: 0, is_valid: true, car_position: 1, result_status: 3 },
+      { id: 201, session_id: 1, car_index: 1, lap_number: 1, lap_time_ms: 80000, sector1_ms: 26000, sector2_ms: 29000, sector3_ms: 25000, is_valid: true, car_position: 1 },
+      { id: 202, session_id: 1, car_index: 1, lap_number: 2, lap_time_ms: 0, sector1_ms: 0, sector2_ms: 0, sector3_ms: 0, is_valid: true, car_position: 2, result_status: 3 },
+    ];
+
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url === '/api/sessions') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSessions) });
+      if (url === '/api/sessions/1/participants') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockParticipants) });
+      if (url === '/api/sessions/1/laps') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockLaps) });
+      if (url === '/api/sessions/1/setups') return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    });
+
+    render(<SessionHistory />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Monza')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Explore'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Max Verstappen')).toBeInTheDocument();
+      expect(screen.getByText('Charles Leclerc')).toBeInTheDocument();
+    });
+
+    // P1 should be Max Verstappen (officialPos = 1) even though Charles Leclerc had a faster completed lap time on lap 1
+    const driverRows = screen.getAllByRole('row');
+    // First body row should be P1 Max Verstappen
+    expect(driverRows[1]).toHaveTextContent('P1');
+    expect(driverRows[1]).toHaveTextContent('Max Verstappen');
+    // Second body row should be P2 Charles Leclerc
+    expect(driverRows[2]).toHaveTextContent('P2');
+    expect(driverRows[2]).toHaveTextContent('Charles Leclerc');
+  });
+
+  it('places DNF drivers at the bottom of race standings behind all classified finishers', async () => {
+    const mockSessions = [
+      { id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' },
+    ];
+
+    const mockParticipants = [
+      { id: 1, session_id: 1, car_index: 0, name: 'Driver DNF', driver_id: 1, team_id: 0, race_number: 1, ai_controlled: false },
+      { id: 2, session_id: 1, car_index: 1, name: 'Driver Finisher', driver_id: 2, team_id: 1, race_number: 44, ai_controlled: false },
+    ];
+
+    // Driver DNF (Car 0) retired on Lap 2 (result_status = 4, officialPos = 1 when retired)
+    // Driver Finisher (Car 1) finished 10 laps (result_status = 3, officialPos = 2)
+    const mockLaps = [
+      { id: 101, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 90000, is_valid: true, car_position: 1, result_status: 2 },
+      { id: 102, session_id: 1, car_index: 0, lap_number: 2, lap_time_ms: 0, is_valid: true, car_position: 1, result_status: 4 }, // DNF
+      { id: 201, session_id: 1, car_index: 1, lap_number: 1, lap_time_ms: 91000, is_valid: true, car_position: 2, result_status: 2 },
+      { id: 202, session_id: 1, car_index: 1, lap_number: 2, lap_time_ms: 91000, is_valid: true, car_position: 2, result_status: 3 },
+    ];
+
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url === '/api/sessions') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSessions) });
+      if (url === '/api/sessions/1/participants') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockParticipants) });
+      if (url === '/api/sessions/1/laps') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockLaps) });
+      if (url === '/api/sessions/1/setups') return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    });
+
+    render(<SessionHistory />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Silverstone')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Explore'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Driver Finisher')).toBeInTheDocument();
+      expect(screen.getByText('Driver DNF')).toBeInTheDocument();
+    });
+
+    const driverRows = screen.getAllByRole('row');
+    // First body row must be Driver Finisher (P1)
+    expect(driverRows[1]).toHaveTextContent('P1');
+    expect(driverRows[1]).toHaveTextContent('Driver Finisher');
+    // Second body row must be Driver DNF (P2)
+    expect(driverRows[2]).toHaveTextContent('P2');
+    expect(driverRows[2]).toHaveTextContent('Driver DNF');
+    expect(driverRows[2]).toHaveTextContent('DNF');
+  });
 });
 
 
