@@ -1,5 +1,5 @@
 import React from 'react';
-import { Gauge, AlertCircle, Timer, Award, ShieldAlert, Flag, Zap, Swords } from 'lucide-react';
+import { Gauge, AlertCircle, Award, ShieldAlert, Flag, Swords } from 'lucide-react';
 import { useTelemetry, parseDriverName } from '../hooks/useTelemetry';
 import { SessionHeader } from './SessionHeader';
 import { LeaderboardTower } from './LeaderboardTower';
@@ -84,7 +84,7 @@ export const Dashboard: React.FC = () => {
           <div className="glass-panel dash-lap-timing-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '1.25rem', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.05rem', margin: 0 }}>
-                <Swords size={18} color="var(--accent-primary)" /> Panel de Batalla & Deltas ({driverName})
+                <Swords size={18} color="var(--accent-primary)" /> Battle Panel & Deltas ({driverName})
               </h3>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <span className="mono" style={{ fontSize: '0.8rem', padding: '3px 8px', borderRadius: '4px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
@@ -106,23 +106,23 @@ export const Dashboard: React.FC = () => {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.85rem', marginBottom: '0.85rem' }}>
               {/* Interval to car ahead */}
               <div className="glass-panel" style={{ padding: '0.75rem', background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <div className="readout-label" style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', marginBottom: '3px' }}>INTERVALO A COCHE ADELANTE</div>
+                <div className="readout-label" style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', marginBottom: '3px' }}>GAP TO CAR AHEAD</div>
                 <div className="readout-value mono" style={{ fontSize: '1.25rem', fontWeight: 700, color: activeDriverPos === 1 ? 'var(--accent-primary)' : '#FFD700', lineHeight: 1.1 }}>
                   {activeDriverPos === 1 ? 'RACE LEADER' : formatDelta(lap?.DeltaToCarInFrontMSPart, lap?.DeltaToCarInFrontMinutesPart)}
                 </div>
                 <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {activeDriverPos === 1 ? 'Leading group' : `Persiguiendo: P${activeDriverPos - 1} ${carAheadName}`}
+                  {activeDriverPos === 1 ? 'Leading group' : `Chasing: P${activeDriverPos - 1} ${carAheadName}`}
                 </div>
               </div>
 
               {/* Gap to race leader */}
               <div className="glass-panel" style={{ padding: '0.75rem', background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <div className="readout-label" style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', marginBottom: '3px' }}>GAP AL LÍDER</div>
+                <div className="readout-label" style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', marginBottom: '3px' }}>GAP TO LEADER</div>
                 <div className="readout-value mono" style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--accent-primary)', lineHeight: 1.1 }}>
                   {activeDriverPos === 1 ? 'P1 LEADER' : formatDelta(lap?.DeltaToRaceLeaderMSPart, lap?.DeltaToRaceLeaderMinutesPart)}
                 </div>
                 <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '3px' }}>
-                  Diferencia en carrera
+                  Race gap
                 </div>
               </div>
 
@@ -133,7 +133,7 @@ export const Dashboard: React.FC = () => {
                   {lap?.SpeedTrapFastestSpeed ? `${Math.round(lap.SpeedTrapFastestSpeed)} KM/H` : '--'}
                 </div>
                 <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '3px' }}>
-                  {lap?.SpeedTrapFastestLap ? `En Vuelta ${lap.SpeedTrapFastestLap}` : 'Velocidad en recta'}
+                  {lap?.SpeedTrapFastestLap ? `On Lap ${lap.SpeedTrapFastestLap}` : 'Straight-line speed'}
                 </div>
               </div>
             </div>

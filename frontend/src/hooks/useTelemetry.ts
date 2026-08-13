@@ -42,6 +42,8 @@ export interface LapData {
   PitStopTimerInMS?: number;
   SpeedTrapFastestSpeed?: number;
   SpeedTrapFastestLap?: number;
+  NumUnservedDriveThroughPens?: number;
+  NumUnservedStopGoPens?: number;
 }
 
 export interface CarMotionData {
