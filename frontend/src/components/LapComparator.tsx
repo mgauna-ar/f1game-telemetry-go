@@ -1257,20 +1257,6 @@ export const LapComparator: React.FC = () => {
                         <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '2px' }} iconSize={10} />
                         <Line type="stepAfter" dataKey="ersDeployModeA" name={`${nameA} ERS Mode`} stroke="#ff4757" dot={false} strokeWidth={2} isAnimationActive={false} />
                         <Line type="stepAfter" dataKey="ersDeployModeB" name={`${nameB} ERS Mode`} stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={false} />
-                        <Brush
-                          dataKey="lap_distance"
-                          height={20}
-                          stroke="rgba(255, 255, 255, 0.25)"
-                          fill="rgba(15, 15, 22, 0.95)"
-                          tick={{ fill: '#888', fontSize: 10 }}
-                          tickFormatter={(val) => `${Math.round(val)}m`}
-                          travellerWidth={8}
-                          onChange={(domain) => {
-                            if (domain && domain.startIndex !== undefined && domain.endIndex !== undefined && comparisonData[domain.startIndex] && comparisonData[domain.endIndex]) {
-                              setZoomDomain([comparisonData[domain.startIndex].lap_distance, comparisonData[domain.endIndex].lap_distance]);
-                            }
-                          }}
-                        />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
