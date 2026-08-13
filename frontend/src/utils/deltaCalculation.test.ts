@@ -74,12 +74,16 @@ describe('deltaCalculation utility', () => {
         lap_distance: i * 50,
         session_time: 100 + i * 1.0,
         speed: 200,
+        throttle: 1,
+        brake: 0,
       })),
       // Attempt 2 (completed lap: 0m to 4200m)
       ...Array.from({ length: 85 }, (_, i) => ({
         lap_distance: i * 50,
         session_time: 300 + i * 0.85,
         speed: 250,
+        throttle: 1,
+        brake: 0,
       })),
     ];
 

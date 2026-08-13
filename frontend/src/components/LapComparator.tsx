@@ -10,7 +10,6 @@ import {
   Legend,
   ResponsiveContainer,
   ReferenceLine,
-  Brush,
 } from 'recharts';
 
 import { lttbDownsample } from '../utils/downsample';
@@ -1247,9 +1246,9 @@ export const LapComparator: React.FC = () => {
                         <YAxis stroke="#bd93f9" tick={{ fill: '#bd93f9', fontSize: 11 }} domain={[0, 3]} ticks={[0, 1, 2, 3]} tickFormatter={(v) => ERS_MODE_NAMES[v] || `${v}`} />
                         <Tooltip
                           contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }}
-                          formatter={(val: any, name: string) => {
+                          formatter={(val: any, name?: any) => {
                             const modeNum = Math.round(Number(val));
-                            return [ERS_MODE_NAMES[modeNum] || `Mode ${modeNum}`, name];
+                            return [ERS_MODE_NAMES[modeNum] || `Mode ${modeNum}`, String(name ?? '')];
                           }}
                         />
                         {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
@@ -1341,6 +1340,11 @@ export const LapComparator: React.FC = () => {
             </div>
           )}
         </div>
+      )}
+
+      {/* Car Setup Inspector Modal Overlay */}
+      {activeSetupParticipant && (
+        <CarSetupModal participant={activeSetupParticipant.participant} setup={activeSetupParticipant.setup} onClose={() => setActiveSetupParticipant(null)} />
       )}
     </div>
   );
