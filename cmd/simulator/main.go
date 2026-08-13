@@ -290,6 +290,9 @@ func main() {
 					driveThrough = 1
 				}
 
+				gridPos := uint8((i+3)%22 + 1)
+				speedTrap := float32(322.5 - float64(i)*1.1)
+
 				lapPkt.LapData[i] = packets.LapData{
 					CurrentLapTimeInMS:          lapTimeMs + gapMs,
 					LastLapTimeInMS:             uint32(85432 + i*220),
@@ -299,10 +302,15 @@ func main() {
 					LapDistance:                 lapDist,
 					TotalDistance:               totalDistance - float32(i*15),
 					CarPosition:                 uint8(i + 1),
+					GridPosition:                gridPos,
 					ResultStatus:                2, // Active
 					DeltaToRaceLeaderMSPart:     uint16(gapMs),
 					DeltaToCarInFrontMSPart:     uint16(350),
 					PitStatus:                   pitStatus,
+					NumPitStops:                 uint8(i / 8),
+					PitLaneTimeInLaneInMS:       uint16(21500 + i*400),
+					SpeedTrapFastestSpeed:       speedTrap,
+					SpeedTrapFastestLap:         uint8(1 + (i % 3)),
 					Penalties:                   penalties,
 					TotalWarnings:               totalWarnings,
 					NumUnservedDriveThroughPens: driveThrough,

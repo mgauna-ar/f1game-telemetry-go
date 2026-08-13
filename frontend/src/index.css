@@ -875,3 +875,131 @@ h1 {
     position: static;
   }
 }
+
+/* Tower Mode Switcher Tabs */
+.tower-tabs {
+  display: flex;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  padding: 3px;
+  gap: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tower-tab-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  padding: 5px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.tower-tab-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tower-tab-btn.active {
+  color: #000;
+  background: var(--accent-primary);
+  font-weight: 700;
+}
+
+/* Grid Position Delta Badge */
+.grid-delta-badge {
+  font-size: 0.62rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  padding: 0px 4px;
+  border-radius: 3px;
+  margin-top: 1px;
+}
+
+.delta-gain {
+  color: #00E676;
+  background: rgba(0, 230, 118, 0.15);
+}
+
+.delta-loss {
+  color: #FF5252;
+  background: rgba(255, 82, 82, 0.15);
+}
+
+.delta-same {
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Sector & Speed Trap Pills */
+.sector-pill {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.speed-trap-pill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  background: rgba(51, 204, 255, 0.1);
+  border: 1px solid rgba(51, 204, 255, 0.3);
+  color: #33CCFF;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* Flash Animations on Position Changes */
+.flash-pos-up {
+  animation: flash-up-anim 1.2s ease-out;
+}
+
+.flash-pos-down {
+  animation: flash-down-anim 1.2s ease-out;
+}
+
+@keyframes flash-up-anim {
+  0% {
+    background-color: rgba(0, 230, 118, 0.35);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@keyframes flash-down-anim {
+  0% {
+    background-color: rgba(255, 82, 82, 0.35);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.spin-icon {
+  animation: spin 3s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 900px) {
+  .tower-two-cols-grid {
+    grid-template-columns: 1fr !important;
+  }
+}

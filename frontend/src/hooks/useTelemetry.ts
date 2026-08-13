@@ -37,8 +37,11 @@ export interface LapData {
   Penalties?: number;
   TotalWarnings?: number;
   CornerCuttingWarnings?: number;
-  NumUnservedDriveThroughPens?: number;
-  NumUnservedStopGoPens?: number;
+  GridPosition?: number;
+  PitLaneTimeInLaneInMS?: number;
+  PitStopTimerInMS?: number;
+  SpeedTrapFastestSpeed?: number;
+  SpeedTrapFastestLap?: number;
 }
 
 export interface CarMotionData {
