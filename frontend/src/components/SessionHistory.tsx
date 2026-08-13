@@ -63,6 +63,7 @@ export interface Lap {
   penalties_seconds?: number;
   car_position?: number;
   result_status?: number;
+  stint?: number;
   created_at?: string;
 }
 
@@ -282,31 +283,51 @@ export const SessionHistory: React.FC = () => {
       return <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>-</span>;
     }
 
-    const compoundCounts: { compound: string; count: number }[] = [];
-    laps.forEach(lap => {
+    // Sort laps chronologically by lap_number
+    const sortedLaps = [...laps].sort((a, b) => a.lap_number - b.lap_number);
+
+    const stints: { compound: string; count: number; stintId: number }[] = [];
+    let currentStint: { compound: string; count: number; stintId: number } | null = null;
+
+    sortedLaps.forEach(lap => {
       const raw = lap.tyre_compound?.trim();
       if (!raw) return;
-      const existing = compoundCounts.find(c => c.compound.toUpperCase() === raw.toUpperCase());
-      if (existing) {
-        existing.count += 1;
+
+      const lapStint = lap.stint && lap.stint > 0 ? lap.stint : 0;
+
+      // Start a new stint if:
+      // 1) First lap processed
+      // 2) lapStint is defined (>0) and differs from currentStint's stintId
+      // 3) Compound changed
+      const isNewStint =
+        !currentStint ||
+        (lapStint > 0 && currentStint.stintId > 0 && lapStint !== currentStint.stintId) ||
+        (currentStint.compound.toUpperCase() !== raw.toUpperCase());
+
+      if (isNewStint) {
+        currentStint = { compound: raw, count: 1, stintId: lapStint };
+        stints.push(currentStint);
       } else {
-        compoundCounts.push({ compound: raw, count: 1 });
+        currentStint.count += 1;
       }
     });
 
-    if (compoundCounts.length === 0) {
+    if (stints.length === 0) {
       return <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>-</span>;
     }
 
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-        {compoundCounts.map(({ compound, count }, idx) => (
-          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            {renderTyreBadge(compound)}
-            <span className="mono" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-              {count}L
-            </span>
-          </div>
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
+        {stints.map(({ compound, count }, idx) => (
+          <React.Fragment key={idx}>
+            {idx > 0 && <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', margin: '0 1px' }}>➔</span>}
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+              {renderTyreBadge(compound)}
+              <span className="mono" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                {count}L
+              </span>
+            </div>
+          </React.Fragment>
         ))}
       </div>
     );
@@ -406,7 +427,7 @@ export const SessionHistory: React.FC = () => {
       const resStatus = lapWithStatus ? lapWithStatus.result_status! : 0;
 
       const isDSQ = resStatus === 5;
-      const isDNF = resStatus === 4 || resStatus === 6 || resStatus === 7 || (isRaceSession && maxRaceLaps > 5 && completedLaps.length < Math.floor(maxRaceLaps * 0.9));
+      const isDNF = resStatus === 4 || resStatus === 6 || resStatus === 7 || (isRaceSession && maxRaceLaps > 5 && completedLaps.length < maxRaceLaps);
 
       const maxSpeed = driverLaps.reduce((max, l) => Math.max(max, l.max_speed_kmh || 0), 0);
       const setup = setups.find(s => s.car_index === p.car_index);
@@ -438,34 +459,17 @@ export const SessionHistory: React.FC = () => {
         // 2. DNF drivers placed behind classified/finished drivers
         if (a.isDNF !== b.isDNF) return a.isDNF ? 1 : -1;
 
-        // 3. For classified/finished drivers (neither is DNF/DSQ):
-        if (!a.isDNF && !b.isDNF) {
-          // Official F1 position comparison (if recorded in telemetry for both or one)
-          if (a.officialPos > 0 && b.officialPos > 0) {
-            return a.officialPos - b.officialPos;
-          }
-          if (a.officialPos > 0 && b.officialPos === 0) return -1;
-          if (a.officialPos === 0 && b.officialPos > 0) return 1;
-
-          // Number of completed laps (more laps = higher rank)
-          if (b.laps.length !== a.laps.length) return b.laps.length - a.laps.length;
-
-          // Total race time including penalties (less time = higher rank)
-          return a.totalRaceTimeWithPenalties - b.totalRaceTimeWithPenalties;
-        }
-
-        // 4. For DNF drivers (both are DNF):
-        // Number of completed laps (more laps = higher rank)
+        // 3. Number of completed laps (more laps = higher rank, e.g. 29 laps > 26 laps)
         if (b.laps.length !== a.laps.length) return b.laps.length - a.laps.length;
 
-        // Official F1 position if recorded
+        // 4. Official F1 position comparison for drivers with same completed laps
         if (a.officialPos > 0 && b.officialPos > 0) {
           return a.officialPos - b.officialPos;
         }
         if (a.officialPos > 0 && b.officialPos === 0) return -1;
         if (a.officialPos === 0 && b.officialPos > 0) return 1;
 
-        // Total race time before DNF
+        // 5. Total race time including penalties
         return a.totalRaceTimeWithPenalties - b.totalRaceTimeWithPenalties;
       });
     } else {

@@ -22,15 +22,20 @@ type LapTracker struct {
 	lastERSDeploy      float64
 	lastERSStoreEnergy float64
 	lastERSDeployMode  int
+	currentStintNum    int
+	lastTyreAge        int
+	lastPitStops       int
+	lastCompound       string
 	samples            []storage.TelemetrySample
 }
 
 // NewLapTracker creates a new LapTracker.
 func NewLapTracker(repo *storage.Repository, carIndex int) *LapTracker {
 	return &LapTracker{
-		repo:     repo,
-		carIndex: carIndex,
-		samples:  make([]storage.TelemetrySample, 0, 10000), // preallocate capacity
+		repo:            repo,
+		carIndex:        carIndex,
+		currentStintNum: 1,
+		samples:         make([]storage.TelemetrySample, 0, 10000), // preallocate capacity
 	}
 }
 
@@ -45,6 +50,10 @@ func (lt *LapTracker) Reset() {
 	lt.lastERSDeploy = 0
 	lt.lastERSStoreEnergy = 0
 	lt.lastERSDeployMode = 0
+	lt.currentStintNum = 1
+	lt.lastTyreAge = 0
+	lt.lastPitStops = 0
+	lt.lastCompound = ""
 	lt.samples = lt.samples[:0]
 }
 
@@ -69,23 +78,43 @@ func (lt *LapTracker) ProcessCarStatus(p *packets.PacketCarStatusData) {
 	lt.lastERSStoreEnergy = float64((cs.ERSStoreEnergy / 4000000.0) * 100.0)
 	lt.lastERSDeployMode = int(cs.ERSDeployMode)
 
+	tyreAge := int(cs.TyresAgeLaps)
+	if lt.lastTyreAge > 1 && tyreAge <= 1 {
+		lt.currentStintNum++
+		log.Printf("[LapTracker] New tyre set detected for Car %d (Stint %d, tyre age reset %d -> %d)", lt.carIndex, lt.currentStintNum, lt.lastTyreAge, tyreAge)
+	}
+	lt.lastTyreAge = tyreAge
+
 	if lt.currentLap != nil {
+		if lt.currentStintNum <= 0 {
+			lt.currentStintNum = 1
+		}
+		if lt.currentLap.Stint < lt.currentStintNum {
+			lt.currentLap.Stint = lt.currentStintNum
+		}
 		lt.currentLap.FuelLoad = float64(cs.FuelInTank)
-		if lt.currentLap.TyreCompound == "" && cs.VisualTyreCompound > 0 {
+		if cs.VisualTyreCompound > 0 {
+			var newComp string
 			switch cs.VisualTyreCompound {
 			case 16:
-				lt.currentLap.TyreCompound = "SOFT"
+				newComp = "SOFT"
 			case 17:
-				lt.currentLap.TyreCompound = "MEDIUM"
+				newComp = "MEDIUM"
 			case 18:
-				lt.currentLap.TyreCompound = "HARD"
+				newComp = "HARD"
 			case 7:
-				lt.currentLap.TyreCompound = "INTERMEDIATE"
+				newComp = "INTERMEDIATE"
 			case 8:
-				lt.currentLap.TyreCompound = "WET"
+				newComp = "WET"
 			default:
-				lt.currentLap.TyreCompound = "MEDIUM"
+				newComp = "MEDIUM"
 			}
+			if lt.lastCompound != "" && newComp != lt.lastCompound {
+				lt.currentStintNum++
+				lt.currentLap.Stint = lt.currentStintNum
+			}
+			lt.lastCompound = newComp
+			lt.currentLap.TyreCompound = newComp
 		}
 	}
 }
@@ -106,6 +135,13 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 	if lapData.ResultStatus != 0 && lapData.ResultStatus != 2 && lapData.ResultStatus != 3 {
 		return
 	}
+
+	pitStops := int(lapData.NumPitStops)
+	if lt.lastPitStops > 0 && pitStops > lt.lastPitStops {
+		lt.currentStintNum++
+		log.Printf("[LapTracker] Pit stop detected for Car %d (Stint %d, pit stops %d -> %d)", lt.carIndex, lt.currentStintNum, lt.lastPitStops, pitStops)
+	}
+	lt.lastPitStops = pitStops
 
 	newLapNum := int(lapData.CurrentLapNum)
 	// Sanity check: F1 sessions never exceed 120 laps; 135, 152, 204, 253, 254 are uninitialized bytes
@@ -263,11 +299,16 @@ func (lt *LapTracker) ProcessTelemetry(ctx context.Context, session *storage.Ses
 
 func (lt *LapTracker) startNewLap(ctx context.Context, sessionID int64, lapNum int, carIndex int) {
 	lt.currentLapNum = lapNum
+	stint := lt.currentStintNum
+	if stint <= 0 {
+		stint = 1
+	}
 	lt.currentLap = &storage.Lap{
 		SessionID: sessionID,
 		LapNumber: lapNum,
 		CarIndex:  carIndex,
 		IsValid:   true,
+		Stint:     stint,
 	}
 
 	if err := lt.repo.SaveLap(ctx, lt.currentLap); err != nil {

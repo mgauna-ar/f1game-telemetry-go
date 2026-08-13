@@ -299,6 +299,97 @@ describe('SessionHistory Component', () => {
     expect(driverRows[2]).toHaveTextContent('Driver DNF');
     expect(driverRows[2]).toHaveTextContent('DNF');
   });
+
+  it('renders tyre stints sequentially when the same compound is reused across separate stints', async () => {
+    const mockSessions = [
+      { id: 1, session_uid: '1001', track_name: 'Spa-Francorchamps', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' },
+    ];
+
+    const mockParticipants = [
+      { id: 1, session_id: 1, car_index: 0, name: 'Oscar Piastri', driver_id: 1, team_id: 2, race_number: 81, ai_controlled: false },
+    ];
+
+    // Piastri strategy: Lap 1-2 MEDIUM, Lap 3-4 HARD, Lap 5-6 MEDIUM again
+    const mockLaps = [
+      { id: 1, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 100000, is_valid: true, tyre_compound: 'MEDIUM' },
+      { id: 2, session_id: 1, car_index: 0, lap_number: 2, lap_time_ms: 100000, is_valid: true, tyre_compound: 'MEDIUM' },
+      { id: 3, session_id: 1, car_index: 0, lap_number: 3, lap_time_ms: 101000, is_valid: true, tyre_compound: 'HARD' },
+      { id: 4, session_id: 1, car_index: 0, lap_number: 4, lap_time_ms: 101000, is_valid: true, tyre_compound: 'HARD' },
+      { id: 5, session_id: 1, car_index: 0, lap_number: 5, lap_time_ms: 99000, is_valid: true, tyre_compound: 'MEDIUM' },
+      { id: 6, session_id: 1, car_index: 0, lap_number: 6, lap_time_ms: 99000, is_valid: true, tyre_compound: 'MEDIUM' },
+    ];
+
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url === '/api/sessions') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSessions) });
+      if (url === '/api/sessions/1/participants') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockParticipants) });
+      if (url === '/api/sessions/1/laps') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockLaps) });
+      if (url === '/api/sessions/1/setups') return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    });
+
+    render(<SessionHistory />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Spa-Francorchamps')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Explore'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Oscar Piastri')).toBeInTheDocument();
+    });
+
+    // Should render 2L for first Medium stint, 2L for Hard stint, and 2L for second Medium stint
+    const stintElements = screen.getAllByText('2L');
+    expect(stintElements.length).toBe(3); // Stint 1: 2L (Medium), Stint 2: 2L (Hard), Stint 3: 2L (Medium)
+    expect(screen.getAllByText('➔').length).toBe(2); // 2 stint transition arrows
+  });
+
+  it('splits consecutive stints using the same compound when stint IDs are provided', async () => {
+    const mockSessions = [
+      { id: 1, session_uid: '1001', track_name: 'Zandvoort', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' },
+    ];
+
+    const mockParticipants = [
+      { id: 1, session_id: 1, car_index: 0, name: 'Lando Norris', driver_id: 1, team_id: 2, race_number: 4, ai_controlled: false },
+    ];
+
+    // Norris strategy: Stint 1 (Laps 1-3, MEDIUM), Stint 2 (Laps 4-7, MEDIUM set 2 after pit stop)
+    const mockLaps = [
+      { id: 1, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 70000, is_valid: true, tyre_compound: 'MEDIUM', stint: 1 },
+      { id: 2, session_id: 1, car_index: 0, lap_number: 2, lap_time_ms: 70000, is_valid: true, tyre_compound: 'MEDIUM', stint: 1 },
+      { id: 3, session_id: 1, car_index: 0, lap_number: 3, lap_time_ms: 70000, is_valid: true, tyre_compound: 'MEDIUM', stint: 1 },
+      { id: 4, session_id: 1, car_index: 0, lap_number: 4, lap_time_ms: 71000, is_valid: true, tyre_compound: 'MEDIUM', stint: 2 },
+      { id: 5, session_id: 1, car_index: 0, lap_number: 5, lap_time_ms: 71000, is_valid: true, tyre_compound: 'MEDIUM', stint: 2 },
+      { id: 6, session_id: 1, car_index: 0, lap_number: 6, lap_time_ms: 71000, is_valid: true, tyre_compound: 'MEDIUM', stint: 2 },
+      { id: 7, session_id: 1, car_index: 0, lap_number: 7, lap_time_ms: 71000, is_valid: true, tyre_compound: 'MEDIUM', stint: 2 },
+    ];
+
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url === '/api/sessions') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSessions) });
+      if (url === '/api/sessions/1/participants') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockParticipants) });
+      if (url === '/api/sessions/1/laps') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockLaps) });
+      if (url === '/api/sessions/1/setups') return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    });
+
+    render(<SessionHistory />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Zandvoort')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText('Explore'));
+
+    await waitFor(() => {
+      expect(screen.getByText('Lando Norris')).toBeInTheDocument();
+    });
+
+    // Should render 3L for Stint 1 (Medium) and 4L for Stint 2 (Medium), separated by an arrow
+    expect(screen.getByText('3L')).toBeInTheDocument();
+    expect(screen.getByText('4L')).toBeInTheDocument();
+    expect(screen.getByText('➔')).toBeInTheDocument();
+  });
 });
 
 

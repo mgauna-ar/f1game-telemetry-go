@@ -77,8 +77,8 @@ func (r *Repository) UpdateSessionMetadata(ctx context.Context, sessionUID uint6
 // SaveLap inserts or updates a lap.
 func (r *Repository) SaveLap(ctx context.Context, l *Lap) error {
 	query := `
-		INSERT INTO laps (session_id, car_index, lap_number, lap_time_ms, sector1_ms, sector2_ms, sector3_ms, is_valid, tyre_compound, fuel_load, max_speed_kmh, penalties_seconds, car_position, result_status)
-		VALUES (:session_id, :car_index, :lap_number, :lap_time_ms, :sector1_ms, :sector2_ms, :sector3_ms, :is_valid, :tyre_compound, :fuel_load, :max_speed_kmh, :penalties_seconds, :car_position, :result_status)
+		INSERT INTO laps (session_id, car_index, lap_number, lap_time_ms, sector1_ms, sector2_ms, sector3_ms, is_valid, tyre_compound, fuel_load, max_speed_kmh, penalties_seconds, car_position, result_status, stint)
+		VALUES (:session_id, :car_index, :lap_number, :lap_time_ms, :sector1_ms, :sector2_ms, :sector3_ms, :is_valid, :tyre_compound, :fuel_load, :max_speed_kmh, :penalties_seconds, :car_position, :result_status, :stint)
 		ON CONFLICT(session_id, car_index, lap_number) DO UPDATE SET
 			lap_time_ms = excluded.lap_time_ms,
 			sector1_ms = excluded.sector1_ms,
@@ -90,7 +90,8 @@ func (r *Repository) SaveLap(ctx context.Context, l *Lap) error {
 			max_speed_kmh = excluded.max_speed_kmh,
 			penalties_seconds = excluded.penalties_seconds,
 			car_position = excluded.car_position,
-			result_status = excluded.result_status
+			result_status = excluded.result_status,
+			stint = excluded.stint
 		RETURNING id
 	`
 	rows, err := r.db.NamedQueryContext(ctx, query, l)

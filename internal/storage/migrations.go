@@ -46,6 +46,8 @@ CREATE TABLE IF NOT EXISTS laps (
     max_speed_kmh     REAL,
     penalties_seconds INTEGER DEFAULT 0,
     car_position      INTEGER DEFAULT 0,
+    result_status     INTEGER DEFAULT 0,
+    stint             INTEGER DEFAULT 1,
     created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(session_id, car_index, lap_number)
 );
@@ -116,6 +118,7 @@ func Migrate(db *sqlx.DB) error {
 	_, _ = db.Exec("ALTER TABLE laps ADD COLUMN penalties_seconds INTEGER DEFAULT 0")
 	_, _ = db.Exec("ALTER TABLE laps ADD COLUMN car_position INTEGER DEFAULT 0")
 	_, _ = db.Exec("ALTER TABLE laps ADD COLUMN result_status INTEGER DEFAULT 0")
+	_, _ = db.Exec("ALTER TABLE laps ADD COLUMN stint INTEGER DEFAULT 1")
 
 	// Correct legacy session_type entries saved due to previous enum offset bug
 	_, _ = db.Exec("UPDATE sessions SET session_type = 'Race' WHERE session_type = 'Sprint Qualifying 1'")

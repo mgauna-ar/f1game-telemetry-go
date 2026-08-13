@@ -31,6 +31,7 @@ type Lap struct {
 	PenaltiesSeconds int       `db:"penalties_seconds" json:"penalties_seconds"`
 	CarPosition      int       `db:"car_position" json:"car_position"`
 	ResultStatus     int       `db:"result_status" json:"result_status"`
+	Stint            int       `db:"stint" json:"stint"`
 	CreatedAt        time.Time `db:"created_at" json:"created_at"`
 }
 
