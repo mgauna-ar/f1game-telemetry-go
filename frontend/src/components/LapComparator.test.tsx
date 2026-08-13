@@ -13,6 +13,7 @@ vi.mock('recharts', () => ({
   Tooltip: () => <div />,
   Legend: () => <div />,
   ReferenceLine: () => <div />,
+  Brush: () => <div />,
 }));
 
 describe('LapComparator Component', () => {

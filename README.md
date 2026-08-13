@@ -16,7 +16,7 @@
 - **Car Damage & Tire Wear Telemetry** — Live monitoring of 4-wheel tyre wear %, aero damage (wings, floor, diffuser), brake wear, gearbox/engine component health, and DRS/ERS faults
 - **Car Setup Telemetry** — Stored setup telemetry for aerodynamics (wings), suspension & anti-roll bars, geometry (camber/toe), brake bias/pressure, and tyre pressures in Lap Analysis
 - **Car Status & Strategy Telemetry** — Live monitoring of ERS Store Energy %, ERS deployment modes, fuel remaining in kg, and tyre compound age
-- **Lap Comparison** — High-performance lap analysis tool featuring server-side LTTB (Largest-Triangle-Three-Buckets) downsampling, synchronized crosshair charts (Time Delta $Δt$, Speed, Throttle & Brake, Gear Selection, Steering Angle, ERS Battery), Sector split deltas, Quick-Select Driver Best Laps, Car Setup inspection, and interactive Mini Track Map with dynamic Time Delta / Speed heatmap overlay and sector split markers (S1, S2, S3)
+- **Lap Comparison** — High-performance lap analysis tool featuring server-side LTTB downsampling, 2-column layout with a sticky Track Map sidebar, synchronized distance zoom toolbar, separated Throttle % and Brake % charts labeled with driver names, integrated ERS Battery % & ERS Deploy Mode (Off, Medium, Hotlap, Overtake) step charts, Sector split deltas, Quick-Select Driver Best Laps, Car Setup inspection, and real-time hover point telemetry readouts
 - **Real-time WebSocket** — Stream live telemetry to the dashboard via WebSocket
 - **Multi-format Support** — Focused exclusively on F1 2025 & F1 2026 DLC UDP packet formats for maximum performance and decoder accuracy
 

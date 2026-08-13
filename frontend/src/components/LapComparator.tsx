@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Sliders, X, Shield, Disc, Wrench, CircleDot, Fuel, Gauge, Award, ArrowUpRight, ArrowDownRight, MapPin, Timer, Activity, ArrowLeftRight, Zap } from 'lucide-react';
+import { Sliders, X, Shield, Disc, Wrench, CircleDot, Fuel, Gauge, Award, ArrowUpRight, ArrowDownRight, MapPin, Timer, Activity, ArrowLeftRight, Zap, RotateCcw, ZoomIn } from 'lucide-react';
 import {
   LineChart,
   Line,
@@ -10,6 +10,7 @@ import {
   Legend,
   ResponsiveContainer,
   ReferenceLine,
+  Brush,
 } from 'recharts';
 
 import { lttbDownsample } from '../utils/downsample';
@@ -79,6 +80,13 @@ interface Lap {
   max_speed_kmh?: number;
 }
 
+const ERS_MODE_NAMES: Record<number, string> = {
+  0: 'Off',
+  1: 'Medium',
+  2: 'Hotlap',
+  3: 'Overtake',
+};
+
 export const LapComparator: React.FC = () => {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<number | ''>('');
@@ -98,6 +106,7 @@ export const LapComparator: React.FC = () => {
   const [loadingB, setLoadingB] = useState(false);
 
   const [hoverDistance, setHoverDistance] = useState<number | null>(null);
+  const [zoomDomain, setZoomDomain] = useState<[number, number] | null>(null);
 
   const fetchSessions = useCallback(() => {
     fetch('/api/sessions')
@@ -111,11 +120,12 @@ export const LapComparator: React.FC = () => {
   }, [fetchSessions]);
 
   useEffect(() => {
-    // Reset laps and telemetry when session changes to avoid stale lap data
+    // Reset laps, telemetry, and zoom domain when session changes to avoid stale lap data
     setLapAId('');
     setLapBId('');
     setRawTelemetryA([]);
     setRawTelemetryB([]);
+    setZoomDomain(null);
 
     if (selectedSessionId) {
       fetch(`/api/sessions/${selectedSessionId}/laps`)
@@ -185,6 +195,9 @@ export const LapComparator: React.FC = () => {
     [lapBObj, participants]
   );
 
+  const nameA = useMemo(() => (driverA ? `#${driverA.race_number} ${driverA.name}` : 'Lap A'), [driverA]);
+  const nameB = useMemo(() => (driverB ? `#${driverB.race_number} ${driverB.name}` : 'Lap B'), [driverB]);
+
   // Setup details for Lap A & B
   const setupA = useMemo(
     () => (lapAObj?.car_index !== undefined ? carSetups.find((s) => s.car_index === lapAObj.car_index) : undefined),
@@ -200,6 +213,14 @@ export const LapComparator: React.FC = () => {
     if (rawTelemetryA.length === 0 && rawTelemetryB.length === 0) return [];
     return calculateMergedComparison(rawTelemetryA, rawTelemetryB, 5);
   }, [rawTelemetryA, rawTelemetryB]);
+
+  // Filtered telemetry points based on active distance zoom domain
+  const chartData = useMemo(() => {
+    if (!zoomDomain || comparisonData.length === 0) return comparisonData;
+    return comparisonData.filter(
+      (p) => p.lap_distance >= zoomDomain[0] && p.lap_distance <= zoomDomain[1]
+    );
+  }, [comparisonData, zoomDomain]);
 
   // Sector Split Distances for Track Map and Chart Reference Lines
   const { sector1Distance, sector2Distance } = useMemo(() => {
@@ -769,331 +790,570 @@ export const LapComparator: React.FC = () => {
         </div>
       )}
 
-      {/* Lap Summary Cards & Track Map Row */}
+      {/* Active Cursor Point Info memoization */}
+      {/* 2-COLUMN MAIN COMPARISON LAYOUT */}
       {selectedSessionId !== '' && (lapAObj || lapBObj) && (
-        <div className="comparator-cards-row" style={{ gridColumn: 'span 12', display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '1rem' }}>
-          {/* Summary Banner if both laps selected */}
-          {lapAObj && lapBObj && totalDeltaMs !== null && (
-            <div
-              className="glass-panel"
-              style={{
-                gridColumn: 'span 12',
-                padding: '0.75rem 1.25rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                background: totalDeltaMs < 0 ? 'rgba(255, 71, 87, 0.12)' : totalDeltaMs > 0 ? 'rgba(0, 210, 211, 0.12)' : 'rgba(255,255,255,0.05)',
-                border: `1px solid ${totalDeltaMs < 0 ? 'rgba(255, 71, 87, 0.35)' : totalDeltaMs > 0 ? 'rgba(0, 210, 211, 0.35)' : 'rgba(255,255,255,0.1)'}`,
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <Award color={totalDeltaMs < 0 ? '#ff4757' : '#00d2d3'} size={24} />
-                <div>
-                  <div style={{ fontWeight: 'bold', fontSize: '1rem', color: '#fff' }}>
-                    {totalDeltaMs < 0 ? (
-                      <>Lap A is <span style={{ color: '#ff4757' }}>{(Math.abs(totalDeltaMs) / 1000).toFixed(3)}s faster</span> than Lap B</>
-                    ) : totalDeltaMs > 0 ? (
-                      <>Lap B is <span style={{ color: '#00d2d3' }}>{(Math.abs(totalDeltaMs) / 1000).toFixed(3)}s faster</span> than Lap A</>
-                    ) : (
-                      <>Identical lap times</>
+        <div className="comparator-layout" style={{ gridColumn: 'span 12' }}>
+          {/* LEFT COLUMN: Summary cards & Telemetry Charts Stack */}
+          <div className="comparator-charts-col">
+            {/* Summary Banner if both laps selected */}
+            {lapAObj && lapBObj && totalDeltaMs !== null && (
+              <div
+                className="glass-panel"
+                style={{
+                  padding: '0.75rem 1.25rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  background: totalDeltaMs < 0 ? 'rgba(255, 71, 87, 0.12)' : totalDeltaMs > 0 ? 'rgba(0, 210, 211, 0.12)' : 'rgba(255,255,255,0.05)',
+                  border: `1px solid ${totalDeltaMs < 0 ? 'rgba(255, 71, 87, 0.35)' : totalDeltaMs > 0 ? 'rgba(0, 210, 211, 0.35)' : 'rgba(255,255,255,0.1)'}`,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <Award color={totalDeltaMs < 0 ? '#ff4757' : '#00d2d3'} size={24} />
+                  <div>
+                    <div style={{ fontWeight: 'bold', fontSize: '1rem', color: '#fff' }}>
+                      {totalDeltaMs < 0 ? (
+                        <>Lap A is <span style={{ color: '#ff4757' }}>{(Math.abs(totalDeltaMs) / 1000).toFixed(3)}s faster</span> than Lap B</>
+                      ) : totalDeltaMs > 0 ? (
+                        <>Lap B is <span style={{ color: '#00d2d3' }}>{(Math.abs(totalDeltaMs) / 1000).toFixed(3)}s faster</span> than Lap A</>
+                      ) : (
+                        <>Identical lap times</>
+                      )}
+                    </div>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                      {nameA} ({formatTime(lapAObj.lap_time_ms)}) vs {nameB} ({formatTime(lapBObj.lap_time_ms)})
+                    </span>
+                  </div>
+                </div>
+
+                {/* Quick Sector Delta Badges */}
+                <div style={{ display: 'flex', gap: '1rem', fontSize: '0.85rem' }}>
+                  <SectorDeltaBadge label="S1 Delta" msA={lapAObj.sector1_ms} msB={lapBObj.sector1_ms} />
+                  <SectorDeltaBadge label="S2 Delta" msA={lapAObj.sector2_ms} msB={lapBObj.sector2_ms} />
+                  <SectorDeltaBadge label="S3 Delta" msA={lapAObj.sector3_ms} msB={lapBObj.sector3_ms} />
+                </div>
+              </div>
+            )}
+
+            {/* Driver Summary Cards Row */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+              {/* Lap A Card */}
+              <div className="glass-panel comparator-card-panel" style={{ padding: '1rem' }}>
+                <h3 style={{ margin: 0, fontSize: '1rem', color: '#ff4757', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  ● {nameA}
+                </h3>
+                {lapAObj ? (
+                  <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold', fontFamily: 'var(--font-mono)', color: '#fff' }}>
+                      {formatTime(lapAObj.lap_time_ms)}
+                      {!lapAObj.is_valid && <span style={{ fontSize: '0.75rem', color: '#ff4757', marginLeft: '0.5rem' }}>⚠️ INVALID</span>}
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                      Driver: <strong style={{ color: '#fff' }}>{driverA?.name || `Car ${lapAObj.car_index ?? '?'}`}</strong> #{driverA?.race_number ?? ''}
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginTop: '0.5rem', background: 'rgba(0,0,0,0.3)', padding: '0.5rem', borderRadius: '6px' }}>
+                      <div>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>S1</span>
+                        <div style={{ fontSize: '0.85rem', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{formatTime(lapAObj.sector1_ms)}</div>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>S2</span>
+                        <div style={{ fontSize: '0.85rem', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{formatTime(lapAObj.sector2_ms)}</div>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>S3</span>
+                        <div style={{ fontSize: '0.85rem', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{formatTime(lapAObj.sector3_ms)}</div>
+                      </div>
+                    </div>
+
+                    {setupA && driverA && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveSetupParticipant({ participant: driverA, setup: setupA })}
+                        style={{
+                          marginTop: '0.5rem',
+                          background: 'rgba(255, 71, 87, 0.15)',
+                          border: '1px solid rgba(255, 71, 87, 0.35)',
+                          color: '#ff4757',
+                          padding: '0.3rem 0.6rem',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.3rem',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Sliders size={14} /> Inspect Setup A
+                      </button>
                     )}
                   </div>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                    Lap A ({formatTime(lapAObj.lap_time_ms)}) vs Lap B ({formatTime(lapBObj.lap_time_ms)})
-                  </span>
-                </div>
+                ) : (
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '1rem' }}>No Lap A selected</p>
+                )}
               </div>
 
-              {/* Quick Sector Delta Badges */}
-              <div style={{ display: 'flex', gap: '1rem', fontSize: '0.85rem' }}>
-                <SectorDeltaBadge label="S1 Delta" msA={lapAObj.sector1_ms} msB={lapBObj.sector1_ms} />
-                <SectorDeltaBadge label="S2 Delta" msA={lapAObj.sector2_ms} msB={lapBObj.sector2_ms} />
-                <SectorDeltaBadge label="S3 Delta" msA={lapAObj.sector3_ms} msB={lapBObj.sector3_ms} />
+              {/* Lap B Card */}
+              <div className="glass-panel comparator-card-panel" style={{ padding: '1rem' }}>
+                <h3 style={{ margin: 0, fontSize: '1rem', color: '#00d2d3', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  ● {nameB}
+                </h3>
+                {lapBObj ? (
+                  <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 'bold', fontFamily: 'var(--font-mono)', color: '#fff' }}>
+                      {formatTime(lapBObj.lap_time_ms)}
+                      {!lapBObj.is_valid && <span style={{ fontSize: '0.75rem', color: '#ff4757', marginLeft: '0.5rem' }}>⚠️ INVALID</span>}
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                      Driver: <strong style={{ color: '#fff' }}>{driverB?.name || `Car ${lapBObj.car_index ?? '?'}`}</strong> #{driverB?.race_number ?? ''}
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginTop: '0.5rem', background: 'rgba(0,0,0,0.3)', padding: '0.5rem', borderRadius: '6px' }}>
+                      <div>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>S1</span>
+                        <div style={{ fontSize: '0.85rem', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{formatTime(lapBObj.sector1_ms)}</div>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>S2</span>
+                        <div style={{ fontSize: '0.85rem', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{formatTime(lapBObj.sector2_ms)}</div>
+                      </div>
+                      <div>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>S3</span>
+                        <div style={{ fontSize: '0.85rem', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{formatTime(lapBObj.sector3_ms)}</div>
+                      </div>
+                    </div>
+
+                    {setupB && driverB && (
+                      <button
+                        type="button"
+                        onClick={() => setActiveSetupParticipant({ participant: driverB, setup: setupB })}
+                        style={{
+                          marginTop: '0.5rem',
+                          background: 'rgba(0, 210, 211, 0.15)',
+                          border: '1px solid rgba(0, 210, 211, 0.35)',
+                          color: '#00d2d3',
+                          padding: '0.3rem 0.6rem',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.3rem',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Sliders size={14} /> Inspect Setup B
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '1rem' }}>No Lap B selected</p>
+                )}
               </div>
             </div>
-          )}
 
-          {/* Lap A Card */}
-          <div className="glass-panel comparator-card-panel" style={{ gridColumn: lapAObj && lapBObj ? 'span 4' : 'span 6', padding: '1rem' }}>
-            <h3 style={{ margin: 0, fontSize: '1rem', color: '#ff4757', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              ● Lap A (Red)
-            </h3>
-            {lapAObj ? (
-              <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                <div style={{ fontSize: '1.2rem', fontWeight: 'bold', fontFamily: 'var(--font-mono)', color: '#fff' }}>
-                  {formatTime(lapAObj.lap_time_ms)}
-                  {!lapAObj.is_valid && <span style={{ fontSize: '0.75rem', color: '#ff4757', marginLeft: '0.5rem' }}>⚠️ INVALID</span>}
-                </div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  Driver: <strong style={{ color: '#fff' }}>{driverA?.name || `Car ${lapAObj.car_index ?? '?'}`}</strong> #{driverA?.race_number ?? ''}
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginTop: '0.5rem', background: 'rgba(0,0,0,0.3)', padding: '0.5rem', borderRadius: '6px' }}>
-                  <div>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>S1</span>
-                    <div style={{ fontSize: '0.85rem', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{formatTime(lapAObj.sector1_ms)}</div>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>S2</span>
-                    <div style={{ fontSize: '0.85rem', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{formatTime(lapAObj.sector2_ms)}</div>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>S3</span>
-                    <div style={{ fontSize: '0.85rem', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{formatTime(lapAObj.sector3_ms)}</div>
-                  </div>
-                </div>
-
-                {setupA && driverA && (
+            {/* Synchronized Track Distance Zoom Toolbar */}
+            {comparisonData.length > 0 && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '0.6rem 1rem',
+                  background: 'rgba(0,0,0,0.3)',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  flexWrap: 'wrap',
+                  gap: '0.5rem',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', fontSize: '0.82rem' }}>
+                  <ZoomIn size={16} color="var(--accent-primary)" />
+                  <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Track Distance Zoom:</span>
                   <button
                     type="button"
-                    onClick={() => setActiveSetupParticipant({ participant: driverA, setup: setupA })}
+                    onClick={() => setZoomDomain(null)}
                     style={{
-                      marginTop: '0.5rem',
-                      background: 'rgba(255, 71, 87, 0.15)',
-                      border: '1px solid rgba(255, 71, 87, 0.35)',
-                      color: '#ff4757',
-                      padding: '0.3rem 0.6rem',
+                      padding: '0.25rem 0.65rem',
                       borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontSize: '0.8rem',
+                      border: !zoomDomain ? '1px solid var(--accent-primary)' : '1px solid rgba(255,255,255,0.1)',
+                      background: !zoomDomain ? 'rgba(255, 71, 87, 0.15)' : 'rgba(255,255,255,0.05)',
+                      color: !zoomDomain ? '#ff4757' : '#ccc',
+                      fontSize: '0.78rem',
                       fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Full Track
+                  </button>
+                  {sector1Distance !== null && (
+                    <button
+                      type="button"
+                      onClick={() => setZoomDomain([0, sector1Distance])}
+                      style={{
+                        padding: '0.25rem 0.65rem',
+                        borderRadius: '4px',
+                        border: '1px solid rgba(243, 156, 18, 0.4)',
+                        background: 'rgba(243, 156, 18, 0.12)',
+                        color: '#f39c12',
+                        fontSize: '0.78rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Sector 1
+                    </button>
+                  )}
+                  {sector1Distance !== null && sector2Distance !== null && (
+                    <button
+                      type="button"
+                      onClick={() => setZoomDomain([sector1Distance, sector2Distance])}
+                      style={{
+                        padding: '0.25rem 0.65rem',
+                        borderRadius: '4px',
+                        border: '1px solid rgba(155, 89, 182, 0.4)',
+                        background: 'rgba(155, 89, 182, 0.12)',
+                        color: '#9b59b6',
+                        fontSize: '0.78rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Sector 2
+                    </button>
+                  )}
+                  {sector2Distance !== null && comparisonData.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setZoomDomain([sector2Distance, comparisonData[comparisonData.length - 1].lap_distance])}
+                      style={{
+                        padding: '0.25rem 0.65rem',
+                        borderRadius: '4px',
+                        border: '1px solid rgba(0, 210, 211, 0.4)',
+                        background: 'rgba(0, 210, 211, 0.12)',
+                        color: '#00d2d3',
+                        fontSize: '0.78rem',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Sector 3
+                    </button>
+                  )}
+                </div>
+
+                {zoomDomain && (
+                  <button
+                    type="button"
+                    onClick={() => setZoomDomain(null)}
+                    style={{
                       display: 'flex',
                       alignItems: 'center',
                       gap: '0.3rem',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Sliders size={14} /> Inspect Setup A
-                  </button>
-                )}
-              </div>
-            ) : (
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '1rem' }}>No Lap A selected</p>
-            )}
-          </div>
-
-          {/* Lap B Card */}
-          <div className="glass-panel comparator-card-panel" style={{ gridColumn: lapAObj && lapBObj ? 'span 4' : 'span 6', padding: '1rem' }}>
-            <h3 style={{ margin: 0, fontSize: '1rem', color: '#00d2d3', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              ● Lap B (Cyan)
-            </h3>
-            {lapBObj ? (
-              <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                <div style={{ fontSize: '1.2rem', fontWeight: 'bold', fontFamily: 'var(--font-mono)', color: '#fff' }}>
-                  {formatTime(lapBObj.lap_time_ms)}
-                  {!lapBObj.is_valid && <span style={{ fontSize: '0.75rem', color: '#ff4757', marginLeft: '0.5rem' }}>⚠️ INVALID</span>}
-                </div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  Driver: <strong style={{ color: '#fff' }}>{driverB?.name || `Car ${lapBObj.car_index ?? '?'}`}</strong> #{driverB?.race_number ?? ''}
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginTop: '0.5rem', background: 'rgba(0,0,0,0.3)', padding: '0.5rem', borderRadius: '6px' }}>
-                  <div>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>S1</span>
-                    <div style={{ fontSize: '0.85rem', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{formatTime(lapBObj.sector1_ms)}</div>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>S2</span>
-                    <div style={{ fontSize: '0.85rem', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{formatTime(lapBObj.sector2_ms)}</div>
-                  </div>
-                  <div>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>S3</span>
-                    <div style={{ fontSize: '0.85rem', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{formatTime(lapBObj.sector3_ms)}</div>
-                  </div>
-                </div>
-
-                {setupB && driverB && (
-                  <button
-                    type="button"
-                    onClick={() => setActiveSetupParticipant({ participant: driverB, setup: setupB })}
-                    style={{
-                      marginTop: '0.5rem',
-                      background: 'rgba(0, 210, 211, 0.15)',
-                      border: '1px solid rgba(0, 210, 211, 0.35)',
-                      color: '#00d2d3',
-                      padding: '0.3rem 0.6rem',
+                      padding: '0.25rem 0.65rem',
                       borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontSize: '0.8rem',
+                      border: '1px solid rgba(255,255,255,0.2)',
+                      background: 'rgba(255,255,255,0.08)',
+                      color: '#fff',
+                      fontSize: '0.78rem',
                       fontWeight: 600,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.3rem',
-                      justifyContent: 'center',
+                      cursor: 'pointer',
                     }}
                   >
-                    <Sliders size={14} /> Inspect Setup B
+                    <RotateCcw size={12} /> Reset Zoom ({Math.round(zoomDomain[0])}m - {Math.round(zoomDomain[1])}m)
                   </button>
                 )}
               </div>
+            )}
+
+            {/* TELEMETRY CHARTS STACK */}
+            {comparisonData.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                {/* 1. TIME DELTA CHART (MOST IMPORTANT) */}
+                <div className="glass-panel" style={{ height: '300px', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                    <h3 style={{ margin: 0, fontSize: '1rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      ⏱️ Time Delta (s)
+                    </h3>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      Below 0s = {nameA} Ahead | Above 0s = {nameB} Ahead
+                    </span>
+                  </div>
+                  <div style={{ flex: 1, minHeight: 0 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={chartData} syncId="comparatorSync" onMouseMove={handleMouseMove} onMouseLeave={() => setHoverDistance(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                        <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
+                        <YAxis stroke="#666" tick={{ fill: '#999', fontSize: 11 }} domain={['auto', 'auto']} tickFormatter={(v) => `${v > 0 ? '+' : ''}${v.toFixed(2)}s`} />
+                        <Tooltip
+                          contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }}
+                          formatter={(val: any) => [`${Number(val) > 0 ? '+' : ''}${Number(val).toFixed(3)}s`, `Time Delta (${nameA} vs ${nameB})`]}
+                        />
+                        <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" />
+                        {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
+                        {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
+                        <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '2px' }} iconSize={10} />
+                        <Line type="monotone" dataKey="time_delta" name="Time Delta" stroke="#f1c40f" dot={false} strokeWidth={2.5} isAnimationActive={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* 2. SPEED CHART */}
+                <div className="glass-panel" style={{ height: '300px', display: 'flex', flexDirection: 'column' }}>
+                  <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#fff' }}>🏎️ Speed (KM/H)</h3>
+                  <div style={{ flex: 1, minHeight: 0 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={chartData} syncId="comparatorSync" onMouseMove={handleMouseMove} onMouseLeave={() => setHoverDistance(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                        <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
+                        <YAxis stroke="#666" tick={{ fill: '#999', fontSize: 11 }} domain={[0, 360]} />
+                        <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }} />
+                        {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
+                        {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
+                        <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '2px' }} iconSize={10} />
+                        <Line type="monotone" dataKey="speedA" name={`${nameA} Speed (km/h)`} stroke="#ff4757" dot={false} strokeWidth={2} isAnimationActive={false} />
+                        <Line type="monotone" dataKey="speedB" name={`${nameB} Speed (km/h)`} stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* 3. INDIVIDUAL THROTTLE CHART */}
+                <div className="glass-panel" style={{ height: '280px', display: 'flex', flexDirection: 'column' }}>
+                  <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#2ecc71', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    🟢 Throttle Application (%)
+                  </h3>
+                  <div style={{ flex: 1, minHeight: 0 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={chartData} syncId="comparatorSync" onMouseMove={handleMouseMove} onMouseLeave={() => setHoverDistance(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                        <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
+                        <YAxis stroke="#666" tick={{ fill: '#999', fontSize: 11 }} domain={[0, 1]} tickFormatter={(v) => `${Math.round(v * 100)}%`} />
+                        <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }} formatter={(val: any) => [`${Math.round(Number(val) * 100)}%`]} />
+                        {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
+                        {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
+                        <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '2px' }} iconSize={10} />
+                        <Line type="monotone" dataKey="throttleA" name={`${nameA} Throttle`} stroke="#ff4757" dot={false} strokeWidth={2} isAnimationActive={false} />
+                        <Line type="monotone" dataKey="throttleB" name={`${nameB} Throttle`} stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* 4. INDIVIDUAL BRAKE CHART */}
+                <div className="glass-panel" style={{ height: '280px', display: 'flex', flexDirection: 'column' }}>
+                  <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#ff4757', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    🔴 Brake Pressure (%)
+                  </h3>
+                  <div style={{ flex: 1, minHeight: 0 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={chartData} syncId="comparatorSync" onMouseMove={handleMouseMove} onMouseLeave={() => setHoverDistance(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                        <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
+                        <YAxis stroke="#666" tick={{ fill: '#999', fontSize: 11 }} domain={[0, 1]} tickFormatter={(v) => `${Math.round(v * 100)}%`} />
+                        <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }} formatter={(val: any) => [`${Math.round(Number(val) * 100)}%`]} />
+                        {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
+                        {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
+                        <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '2px' }} iconSize={10} />
+                        <Line type="monotone" dataKey="brakeA" name={`${nameA} Brake`} stroke="#ff4757" dot={false} strokeWidth={2} isAnimationActive={false} />
+                        <Line type="monotone" dataKey="brakeB" name={`${nameB} Brake`} stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* 5. GEAR SELECTION CHART */}
+                <div className="glass-panel" style={{ height: '260px', display: 'flex', flexDirection: 'column' }}>
+                  <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#fff' }}>⚙️ Gear Selection (1 - 8)</h3>
+                  <div style={{ flex: 1, minHeight: 0 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={chartData} syncId="comparatorSync" onMouseMove={handleMouseMove} onMouseLeave={() => setHoverDistance(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                        <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
+                        <YAxis stroke="#666" tick={{ fill: '#999', fontSize: 11 }} domain={[1, 8]} ticks={[1, 2, 3, 4, 5, 6, 7, 8]} />
+                        <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }} />
+                        {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
+                        {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
+                        <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '2px' }} iconSize={10} />
+                        <Line type="stepAfter" dataKey="gearA" name={`${nameA} Gear`} stroke="#ff4757" dot={false} strokeWidth={2} isAnimationActive={false} />
+                        <Line type="stepAfter" dataKey="gearB" name={`${nameB} Gear`} stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* 6. STEERING ANGLE CHART */}
+                <div className="glass-panel" style={{ height: '260px', display: 'flex', flexDirection: 'column' }}>
+                  <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#fff' }}>📐 Steering Angle</h3>
+                  <div style={{ flex: 1, minHeight: 0 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={chartData} syncId="comparatorSync" onMouseMove={handleMouseMove} onMouseLeave={() => setHoverDistance(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                        <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
+                        <YAxis stroke="#666" tick={{ fill: '#999', fontSize: 11 }} domain={[-1, 1]} />
+                        <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }} />
+                        <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" />
+                        {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
+                        {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
+                        <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '2px' }} iconSize={10} />
+                        <Line type="monotone" dataKey="steerA" name={`${nameA} Steer`} stroke="#ff4757" dot={false} strokeWidth={2} isAnimationActive={false} />
+                        <Line type="monotone" dataKey="steerB" name={`${nameB} Steer`} stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* 7. INDIVIDUAL ERS BATTERY CHART */}
+                <div className="glass-panel" style={{ height: '280px', display: 'flex', flexDirection: 'column' }}>
+                  <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#38ef7d', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    ⚡ ERS Battery Store (%)
+                  </h3>
+                  <div style={{ flex: 1, minHeight: 0 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={chartData} syncId="comparatorSync" onMouseMove={handleMouseMove} onMouseLeave={() => setHoverDistance(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                        <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
+                        <YAxis stroke="#666" tick={{ fill: '#999', fontSize: 11 }} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+                        <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }} formatter={(val: any) => [`${Number(val).toFixed(1)}%`]} />
+                        {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
+                        {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
+                        <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '2px' }} iconSize={10} />
+                        <Line type="monotone" dataKey="ersBatteryA" name={`${nameA} Battery (%)`} stroke="#ff4757" dot={false} strokeWidth={2} isAnimationActive={false} />
+                        <Line type="monotone" dataKey="ersBatteryB" name={`${nameB} Battery (%)`} stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* 8. INDIVIDUAL ERS DEPLOY MODE CHART */}
+                <div className="glass-panel" style={{ height: '300px', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                    <h3 style={{ margin: 0, fontSize: '1rem', color: '#bd93f9', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      🚀 ERS Deploy Mode
+                    </h3>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      0: Off | 1: Medium | 2: Hotlap | 3: Overtake
+                    </span>
+                  </div>
+                  <div style={{ flex: 1, minHeight: 0 }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={chartData} syncId="comparatorSync" onMouseMove={handleMouseMove} onMouseLeave={() => setHoverDistance(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                        <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
+                        <YAxis stroke="#bd93f9" tick={{ fill: '#bd93f9', fontSize: 11 }} domain={[0, 3]} ticks={[0, 1, 2, 3]} tickFormatter={(v) => ERS_MODE_NAMES[v] || `${v}`} />
+                        <Tooltip
+                          contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }}
+                          formatter={(val: any, name: string) => {
+                            const modeNum = Math.round(Number(val));
+                            return [ERS_MODE_NAMES[modeNum] || `Mode ${modeNum}`, name];
+                          }}
+                        />
+                        {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
+                        {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
+                        <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '2px' }} iconSize={10} />
+                        <Line type="stepAfter" dataKey="ersDeployModeA" name={`${nameA} ERS Mode`} stroke="#ff4757" dot={false} strokeWidth={2} isAnimationActive={false} />
+                        <Line type="stepAfter" dataKey="ersDeployModeB" name={`${nameB} ERS Mode`} stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={false} />
+                        <Brush
+                          dataKey="lap_distance"
+                          height={20}
+                          stroke="rgba(255, 255, 255, 0.25)"
+                          fill="rgba(15, 15, 22, 0.95)"
+                          tick={{ fill: '#888', fontSize: 10 }}
+                          tickFormatter={(val) => `${Math.round(val)}m`}
+                          travellerWidth={8}
+                          onChange={(domain) => {
+                            if (domain && domain.startIndex !== undefined && domain.endIndex !== undefined && comparisonData[domain.startIndex] && comparisonData[domain.endIndex]) {
+                              setZoomDomain([comparisonData[domain.startIndex].lap_distance, comparisonData[domain.endIndex].lap_distance]);
+                            }
+                          }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </div>
             ) : (
-              <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '1rem' }}>No Lap B selected</p>
+              <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center' }}>
+                <p style={{ color: 'var(--text-muted)', fontSize: '1rem', margin: 0 }}>
+                  {!selectedSessionId
+                    ? 'Select a session and two laps above to compare telemetry.'
+                    : loadingA || loadingB
+                    ? 'Loading telemetry data...'
+                    : 'Select Lap A and Lap B to generate comparison charts.'}
+                </p>
+              </div>
             )}
           </div>
 
-          {/* Mini Track Map Panel */}
+          {/* RIGHT COLUMN: Sticky Track Map Sidebar */}
           {comparisonData.length > 0 && (
-            <div className="glass-panel comparator-map-panel" style={{ gridColumn: 'span 4', padding: '0.75rem' }}>
-              <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Track Heatmap</h4>
-              <ComparatorTrackMap
-                data={comparisonData}
-                activeDistance={hoverDistance}
-                height={160}
-                sector1Distance={sector1Distance}
-                sector2Distance={sector2Distance}
-              />
+            <div className="comparator-sidebar-col">
+              <div className="glass-panel" style={{ padding: '0.85rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <h4 style={{ margin: 0, fontSize: '0.9rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <MapPin size={16} color="var(--accent-primary)" /> Track Heatmap
+                  </h4>
+                  {selectedSessionObj && (
+                    <span style={{ fontSize: '0.72rem', background: 'rgba(255,255,255,0.08)', padding: '0.15rem 0.45rem', borderRadius: '4px', color: 'var(--text-secondary)' }}>
+                      {selectedSessionObj.track_name}
+                    </span>
+                  )}
+                </div>
+
+                <ComparatorTrackMap
+                  data={comparisonData}
+                  activeDistance={hoverDistance}
+                  height={360}
+                  sector1Distance={sector1Distance}
+                  sector2Distance={sector2Distance}
+                />
+
+                {/* Active Hover Point Live Telemetry Readout */}
+                {hoverDistance !== null && comparisonData.length > 0 && (() => {
+                  const activePoint = comparisonData.reduce((prev, curr) =>
+                    Math.abs(curr.lap_distance - hoverDistance) < Math.abs(prev.lap_distance - hoverDistance) ? curr : prev
+                  , comparisonData[0]);
+
+                  if (!activePoint) return null;
+
+                  return (
+                    <div style={{ marginTop: '0.75rem', padding: '0.65rem 0.85rem', background: 'rgba(0, 0, 0, 0.4)', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.1)', fontSize: '0.78rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '0.35rem', marginBottom: '0.35rem' }}>
+                        <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Distance Point:</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#f1c40f' }}>{activePoint.lap_distance}m</span>
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '0.35rem' }}>
+                        <div style={{ borderLeft: '2px solid #ff4757', paddingLeft: '0.4rem' }}>
+                          <div style={{ fontSize: '0.72rem', color: '#ff4757', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nameA}</div>
+                          <div>Speed: <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.speedA ?? '-'} km/h</strong></div>
+                          <div>Thr/Brk: <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.throttleA !== null ? Math.round(activePoint.throttleA * 100) : 0}% / {activePoint.brakeA !== null ? Math.round(activePoint.brakeA * 100) : 0}%</strong></div>
+                          <div>ERS: <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.ersBatteryA !== null ? activePoint.ersBatteryA.toFixed(0) : '-'}% ({ERS_MODE_NAMES[activePoint.ersDeployModeA ?? 0] || 'Off'})</strong></div>
+                        </div>
+
+                        <div style={{ borderLeft: '2px solid #00d2d3', paddingLeft: '0.4rem' }}>
+                          <div style={{ fontSize: '0.72rem', color: '#00d2d3', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nameB}</div>
+                          <div>Speed: <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.speedB ?? '-'} km/h</strong></div>
+                          <div>Thr/Brk: <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.throttleB !== null ? Math.round(activePoint.throttleB * 100) : 0}% / {activePoint.brakeB !== null ? Math.round(activePoint.brakeB * 100) : 0}%</strong></div>
+                          <div>ERS: <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.ersBatteryB !== null ? activePoint.ersBatteryB.toFixed(0) : '-'}% ({ERS_MODE_NAMES[activePoint.ersDeployModeB ?? 0] || 'Off'})</strong></div>
+                        </div>
+                      </div>
+
+                      {activePoint.time_delta !== null && (
+                        <div style={{ marginTop: '0.4rem', paddingTop: '0.35rem', borderTop: '1px solid rgba(255,255,255,0.08)', textAlign: 'center', fontWeight: 700, color: activePoint.time_delta < 0 ? '#ff4757' : activePoint.time_delta > 0 ? '#00d2d3' : '#fff' }}>
+                          Δ {activePoint.time_delta > 0 ? '+' : ''}{activePoint.time_delta.toFixed(3)}s
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
             </div>
           )}
-        </div>
-      )}
-
-      {/* Car Setup Inspector Modal Overlay */}
-      {activeSetupParticipant && (
-        <CarSetupModal participant={activeSetupParticipant.participant} setup={activeSetupParticipant.setup} onClose={() => setActiveSetupParticipant(null)} />
-      )}
-
-      {/* CHARTS STACK */}
-      {comparisonData.length > 0 ? (
-        <div style={{ gridColumn: 'span 12', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {/* 1. TIME DELTA CHART (MOST IMPORTANT) */}
-          <div className="glass-panel" style={{ height: '240px', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-              <h3 style={{ margin: 0, fontSize: '1rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                ⏱️ Time Delta (s)
-              </h3>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                Below 0s = Lap A Ahead | Above 0s = Lap B Ahead
-              </span>
-            </div>
-            <div style={{ flex: 1, minHeight: 0 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={comparisonData} syncId="comparatorSync" onMouseMove={handleMouseMove} onMouseLeave={() => setHoverDistance(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                  <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} stroke="#666" tick={{ fill: '#999' }} unit="m" />
-                  <YAxis stroke="#666" tick={{ fill: '#999' }} domain={['auto', 'auto']} tickFormatter={(v) => `${v > 0 ? '+' : ''}${v.toFixed(2)}s`} />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }}
-                    formatter={(val: any) => [`${Number(val) > 0 ? '+' : ''}${Number(val).toFixed(3)}s`, 'Time Delta (A vs B)']}
-                  />
-                  <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" />
-                  {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
-                  {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
-                  <Line type="monotone" dataKey="time_delta" name="Time Delta" stroke="#f1c40f" dot={false} strokeWidth={2.5} isAnimationActive={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* 2. SPEED CHART */}
-          <div className="glass-panel" style={{ height: '240px', display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#fff' }}>🏎️ Speed (KM/H)</h3>
-            <div style={{ flex: 1, minHeight: 0 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={comparisonData} syncId="comparatorSync" onMouseMove={handleMouseMove} onMouseLeave={() => setHoverDistance(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                  <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} stroke="#666" tick={{ fill: '#999' }} unit="m" />
-                  <YAxis stroke="#666" tick={{ fill: '#999' }} domain={[0, 360]} />
-                  <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }} />
-                  {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
-                  {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
-                  <Legend />
-                  <Line type="monotone" dataKey="speedA" name="Speed A (KM/H)" stroke="#ff4757" dot={false} strokeWidth={2} isAnimationActive={false} />
-                  <Line type="monotone" dataKey="speedB" name="Speed B (KM/H)" stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* 3. CONSOLIDATED THROTTLE & BRAKE CHART */}
-          <div className="glass-panel" style={{ height: '260px', display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#fff' }}>🎯 Throttle & Brake (%)</h3>
-            <div style={{ flex: 1, minHeight: 0 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={comparisonData} syncId="comparatorSync" onMouseMove={handleMouseMove} onMouseLeave={() => setHoverDistance(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                  <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} stroke="#666" tick={{ fill: '#999' }} unit="m" />
-                  <YAxis stroke="#666" tick={{ fill: '#999' }} domain={[0, 1]} tickFormatter={(v) => `${Math.round(v * 100)}%`} />
-                  <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }} formatter={(val: any) => [`${Math.round(Number(val) * 100)}%`]} />
-                  {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
-                  {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
-                  <Legend />
-                  <Line type="monotone" dataKey="throttleA" name="Throttle A" stroke="#ff4757" dot={false} strokeWidth={2} isAnimationActive={false} />
-                  <Line type="monotone" dataKey="throttleB" name="Throttle B" stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={false} />
-                  <Line type="monotone" dataKey="brakeA" name="Brake A" stroke="#ff9f43" dot={false} strokeWidth={2} isAnimationActive={false} />
-                  <Line type="monotone" dataKey="brakeB" name="Brake B" stroke="#54a0ff" dot={false} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* 4. GEAR SELECTION CHART */}
-          <div className="glass-panel" style={{ height: '200px', display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#fff' }}>⚙️ Gear Selection (1 - 8)</h3>
-            <div style={{ flex: 1, minHeight: 0 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={comparisonData} syncId="comparatorSync" onMouseMove={handleMouseMove} onMouseLeave={() => setHoverDistance(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                  <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} stroke="#666" tick={{ fill: '#999' }} unit="m" />
-                  <YAxis stroke="#666" tick={{ fill: '#999' }} domain={[1, 8]} ticks={[1, 2, 3, 4, 5, 6, 7, 8]} />
-                  <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }} />
-                  {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
-                  {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
-                  <Legend />
-                  <Line type="stepAfter" dataKey="gearA" name="Gear A" stroke="#ff4757" dot={false} strokeWidth={2} isAnimationActive={false} />
-                  <Line type="stepAfter" dataKey="gearB" name="Gear B" stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* 5. STEERING ANGLE CHART */}
-          <div className="glass-panel" style={{ height: '200px', display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#fff' }}>📐 Steering Angle</h3>
-            <div style={{ flex: 1, minHeight: 0 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={comparisonData} syncId="comparatorSync" onMouseMove={handleMouseMove} onMouseLeave={() => setHoverDistance(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                  <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} stroke="#666" tick={{ fill: '#999' }} unit="m" />
-                  <YAxis stroke="#666" tick={{ fill: '#999' }} domain={[-1, 1]} />
-                  <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }} />
-                  <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" />
-                  {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
-                  {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
-                  <Legend />
-                  <Line type="monotone" dataKey="steerA" name="Steer A" stroke="#ff4757" dot={false} strokeWidth={2} isAnimationActive={false} />
-                  <Line type="monotone" dataKey="steerB" name="Steer B" stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* 6. CONSOLIDATED ERS CHART */}
-          <div className="glass-panel" style={{ height: '220px', display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#fff' }}>⚡ ERS Battery (%)</h3>
-            <div style={{ flex: 1, minHeight: 0 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={comparisonData} syncId="comparatorSync" onMouseMove={handleMouseMove} onMouseLeave={() => setHoverDistance(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                  <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} stroke="#666" tick={{ fill: '#999' }} unit="m" />
-                  <YAxis stroke="#666" tick={{ fill: '#999' }} domain={[0, 100]} />
-                  <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }} formatter={(val: any) => [`${Number(val).toFixed(1)}%`]} />
-                  {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
-                  {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
-                  <Legend />
-                  <Line type="monotone" dataKey="ersBatteryA" name="ERS Battery A (%)" stroke="#ff4757" dot={false} strokeWidth={2} isAnimationActive={false} />
-                  <Line type="monotone" dataKey="ersBatteryB" name="ERS Battery B (%)" stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="glass-panel" style={{ gridColumn: 'span 12', padding: '3rem', textAlign: 'center' }}>
-          <p style={{ color: 'var(--text-muted)', fontSize: '1rem', margin: 0 }}>
-            {!selectedSessionId
-              ? 'Select a session and two laps above to compare telemetry.'
-              : loadingA || loadingB
-              ? 'Loading telemetry data...'
-              : 'Select Lap A and Lap B to generate comparison charts.'}
-          </p>
         </div>
       )}
     </div>

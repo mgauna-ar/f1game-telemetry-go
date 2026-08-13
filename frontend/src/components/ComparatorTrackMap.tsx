@@ -12,7 +12,7 @@ interface ComparatorTrackMapProps {
 export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
   data,
   activeDistance,
-  height = 240,
+  height = 360,
   sector1Distance,
   sector2Distance,
 }) => {
