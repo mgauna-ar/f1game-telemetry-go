@@ -241,6 +241,15 @@ func (r *Repository) GetTelemetryByLap(ctx context.Context, lapID int64) ([]Tele
 	return samples, nil
 }
 
+// DeleteTelemetryByLap deletes all telemetry samples for a given lap ID.
+func (r *Repository) DeleteTelemetryByLap(ctx context.Context, lapID int64) error {
+	query := `DELETE FROM telemetry_samples WHERE lap_id = ?`
+	if _, err := r.db.ExecContext(ctx, query, lapID); err != nil {
+		return fmt.Errorf("failed to delete telemetry for lap %d: %w", lapID, err)
+	}
+	return nil
+}
+
 // GetLapByID retrieves a single lap by its ID.
 func (r *Repository) GetLapByID(ctx context.Context, lapID int64) (*Lap, error) {
 	var lap Lap

@@ -202,6 +202,9 @@ func (s *Server) handleGetTelemetry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Clean out-laps and aborted attempts to isolate the final completed lap attempt
+	telemetry = TrimTelemetryToLastLapAttempt(telemetry)
+
 	if maxPointsStr := r.URL.Query().Get("maxPoints"); maxPointsStr != "" {
 		if maxPoints, err := strconv.Atoi(maxPointsStr); err == nil && maxPoints > 0 {
 			telemetry = DownsampleTelemetry(telemetry, maxPoints)

@@ -77,3 +77,31 @@ func DownsampleTelemetry(data []storage.TelemetrySample, targetThreshold int) []
 
 	return sampled
 }
+
+// TrimTelemetryToLastLapAttempt isolates the final completed lap attempt
+// from raw telemetry samples that may contain out-laps, garage resets, or aborted attempts.
+func TrimTelemetryToLastLapAttempt(samples []storage.TelemetrySample) []storage.TelemetrySample {
+	if len(samples) < 2 {
+		return samples
+	}
+
+	lastStartIndex := 0
+	for i := 1; i < len(samples); i++ {
+		prevDist := samples[i-1].LapDistance
+		currDist := samples[i].LapDistance
+
+		// Case A: Sudden drop from high lap distance (> 300m) to low lap distance (< 100m or < 0.3 * prevDist)
+		if prevDist > 300 && (currDist < 100 || currDist < prevDist*0.3) {
+			if len(samples)-i >= 10 {
+				lastStartIndex = i
+			}
+		} else if prevDist < -2.0 && currDist >= 0.0 {
+			// Case B: Transition from pit/out-lap (negative distance) to start of track (>= 0m)
+			if len(samples)-i >= 10 {
+				lastStartIndex = i
+			}
+		}
+	}
+
+	return samples[lastStartIndex:]
+}

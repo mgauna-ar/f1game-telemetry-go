@@ -45,21 +45,22 @@ export function normalizeTelemetrySeries(
 
   if (sorted.length < 2) return [];
 
-  // Step 2: Find and remove stale samples from previous lap at the start.
+  // Step 2: Find and remove stale samples/aborted attempts from previous attempts/laps at the start.
+  // Scan full array for the LAST lap start where distance drops from >300m back near 0m.
   let cleanStartIdx = 0;
-  const searchLimit = Math.min(sorted.length, 60);
-  for (let i = 1; i < searchLimit; i++) {
+  for (let i = 1; i < sorted.length; i++) {
     const prevDist = sorted[i - 1].lap_distance || 0;
     const currDist = sorted[i].lap_distance || 0;
-    if (prevDist > 1000 && currDist < prevDist * 0.3) {
-      cleanStartIdx = i;
-      break;
+    if (prevDist > 300 && (currDist < 100 || currDist < prevDist * 0.3)) {
+      if (sorted.length - i >= 10) {
+        cleanStartIdx = i;
+      }
     }
   }
 
   // Step 3: Find and remove samples that wrapped into the next lap at the end
   let cleanEndIdx = sorted.length;
-  for (let i = sorted.length - 1; i > Math.max(0, sorted.length - 60); i--) {
+  for (let i = sorted.length - 1; i > Math.max(cleanStartIdx + 1, sorted.length - 60); i--) {
     const prevDist = sorted[i - 1].lap_distance || 0;
     const currDist = sorted[i].lap_distance || 0;
     if (prevDist > 1000 && currDist < prevDist * 0.3) {

@@ -113,7 +113,9 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 		return
 	}
 
-	lt.lastLapDistance = float64(lapData.LapDistance)
+	currDistance := float64(lapData.LapDistance)
+	prevDistance := lt.lastLapDistance
+	lt.lastLapDistance = currDistance
 
 	// Case 1: Initial lap tracker initialization
 	if lt.currentLapNum == 0 {
@@ -148,6 +150,15 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 
 	// Case 5: Same lap in progress
 	if lt.currentLap != nil {
+		// Detect distance reset/restart during the same lap number (e.g. flashback or garage reset)
+		if prevDistance > 500 && (currDistance < 100 || currDistance < prevDistance*0.3) {
+			log.Printf("[LapTracker] Lap restart detected for Car %d on Lap %d (distance %.1fm -> %.1fm). Purging obsolete telemetry.", lt.carIndex, lt.currentLapNum, prevDistance, currDistance)
+			lt.samples = lt.samples[:0]
+			if lt.currentLap.ID > 0 {
+				_ = lt.repo.DeleteTelemetryByLap(ctx, lt.currentLap.ID)
+			}
+		}
+
 		s1 := int(lapData.Sector1TimeMSPart) + int(lapData.Sector1TimeMinutesPart)*60000
 		s2 := int(lapData.Sector2TimeMSPart) + int(lapData.Sector2TimeMinutesPart)*60000
 		isValid := lapData.CurrentLapInvalid == 0

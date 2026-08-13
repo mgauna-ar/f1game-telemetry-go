@@ -38,3 +38,73 @@ func TestDownsampleTelemetry(t *testing.T) {
 		t.Errorf("Expected 100 samples when threshold > len, got %d", len(noChange))
 	}
 }
+
+func TestTrimTelemetryToLastLapAttempt(t *testing.T) {
+	// Generate mock samples simulating 2 lap attempts with a distance drop
+	samples := make([]storage.TelemetrySample, 0, 50)
+
+	// Attempt 1: 0m -> 4000m (20 samples)
+	for i := 0; i < 20; i++ {
+		samples = append(samples, storage.TelemetrySample{
+			ID:          int64(i + 1),
+			LapDistance: float64(i * 200),
+			SessionTime: float64(i) * 0.1,
+			Speed:       200,
+		})
+	}
+
+	// Attempt 2 (completed lap): 0.5m -> 4200m (25 samples)
+	for i := 0; i < 25; i++ {
+		samples = append(samples, storage.TelemetrySample{
+			ID:          int64(i + 21),
+			LapDistance: float64(i * 170),
+			SessionTime: 3.0 + float64(i)*0.1,
+			Speed:       250,
+		})
+	}
+
+	trimmed := TrimTelemetryToLastLapAttempt(samples)
+	if len(trimmed) != 25 {
+		t.Fatalf("Expected 25 samples after trimming, got %d", len(trimmed))
+	}
+
+	if trimmed[0].ID != 21 {
+		t.Errorf("Expected first sample ID of last attempt to be 21, got %d", trimmed[0].ID)
+	}
+	if trimmed[0].LapDistance != 0.0 {
+		t.Errorf("Expected start distance of last attempt to be 0.0, got %f", trimmed[0].LapDistance)
+	}
+}
+
+func TestVerifyLap9771InDatabase(t *testing.T) {
+	repo, err := storage.NewRepository("../../f1telemetry.db")
+	if err != nil {
+		t.Skip("f1telemetry.db not found, skipping DB integration test")
+		return
+	}
+	defer repo.Close()
+
+	ctx := t.Context()
+	lapID := int64(9771)
+
+	raw, err := repo.GetTelemetryByLap(ctx, lapID)
+	if err != nil || len(raw) == 0 {
+		t.Skip("Lap 9771 telemetry not found in local db, skipping")
+		return
+	}
+
+	trimmed := TrimTelemetryToLastLapAttempt(raw)
+	t.Logf("Raw samples: %d, Trimmed samples: %d", len(raw), len(trimmed))
+
+	duration := trimmed[len(trimmed)-1].SessionTime - trimmed[0].SessionTime
+	t.Logf("Trimmed duration: %.3fs (expected ~71.36s)", duration)
+
+	if duration > 80.0 || duration < 65.0 {
+		t.Errorf("Expected trimmed duration around 71.379s, got %.3fs", duration)
+	}
+
+	downsampled := DownsampleTelemetry(trimmed, 800)
+	if len(downsampled) != 800 {
+		t.Errorf("Expected 800 downsampled points, got %d", len(downsampled))
+	}
+}
