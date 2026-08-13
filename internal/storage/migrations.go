@@ -117,5 +117,8 @@ func Migrate(db *sqlx.DB) error {
 	_, _ = db.Exec("ALTER TABLE laps ADD COLUMN car_position INTEGER DEFAULT 0")
 	_, _ = db.Exec("ALTER TABLE laps ADD COLUMN result_status INTEGER DEFAULT 0")
 
+	// Correct legacy session_type entries saved due to previous enum offset bug
+	_, _ = db.Exec("UPDATE sessions SET session_type = 'Race' WHERE session_type = 'Sprint Qualifying 1'")
+
 	return nil
 }

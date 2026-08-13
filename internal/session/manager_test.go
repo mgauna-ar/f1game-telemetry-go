@@ -30,7 +30,7 @@ func TestSessionManagerIntegration(t *testing.T) {
 	sessionPacket := &packets.PacketSessionData{
 		Header:      sessionHeader,
 		TrackId:     11, // Monza
-		SessionType: 10, // Race
+		SessionType: packets.SessionRace,
 	}
 
 	manager.ProcessPacket(ctx, sessionPacket)
@@ -128,7 +128,7 @@ func TestSessionManagerParticipants(t *testing.T) {
 	sessionPacket := &packets.PacketSessionData{
 		Header:      sessionHeader,
 		TrackId:     11,
-		SessionType: 10,
+		SessionType: packets.SessionRace,
 	}
 	manager.ProcessPacket(ctx, sessionPacket)
 
@@ -235,7 +235,7 @@ func TestSessionManagerHighBitSessionUIDAndLapValidation(t *testing.T) {
 	sessionPacket := &packets.PacketSessionData{
 		Header:      sessionHeader,
 		TrackId:     1,
-		SessionType: 10,
+		SessionType: packets.SessionRace,
 	}
 
 	manager.ProcessPacket(ctx, sessionPacket)
@@ -291,7 +291,7 @@ func TestFinalLapFinalizationOnSessionFinish(t *testing.T) {
 	sessionPacket := &packets.PacketSessionData{
 		Header:      sessionHeader,
 		TrackId:     1,
-		SessionType: 10,
+		SessionType: packets.SessionRace,
 	}
 	manager.ProcessPacket(ctx, sessionPacket)
 

@@ -34,10 +34,17 @@ const SESSION_TYPES: Record<number, { label: string; isRace: boolean; isQualy: b
   7: { label: 'QUALIFYING 3', isRace: false, isQualy: true },
   8: { label: 'SHORT QUALIFYING', isRace: false, isQualy: true },
   9: { label: 'ONE-SHOT QUALI', isRace: false, isQualy: true },
-  10: { label: 'RACE', isRace: true, isQualy: false },
-  11: { label: 'RACE 2', isRace: true, isQualy: false },
-  12: { label: 'RACE 3', isRace: true, isQualy: false },
-  13: { label: 'TIME TRIAL', isRace: false, isQualy: false },
+  10: { label: 'SPRINT QUALIFYING 1', isRace: false, isQualy: true },
+  11: { label: 'SPRINT QUALIFYING 2', isRace: false, isQualy: true },
+  12: { label: 'SPRINT QUALIFYING 3', isRace: false, isQualy: true },
+  13: { label: 'SHORT SPRINT QUALI', isRace: false, isQualy: true },
+  14: { label: 'ONE-SHOT SPRINT QUALI', isRace: false, isQualy: true },
+  15: { label: 'RACE', isRace: true, isQualy: false },
+  16: { label: 'RACE 2', isRace: true, isQualy: false },
+  17: { label: 'RACE 3', isRace: true, isQualy: false },
+  18: { label: 'TIME TRIAL', isRace: false, isQualy: false },
+  19: { label: 'SPRINT RACE', isRace: true, isQualy: false },
+  20: { label: 'EQUAL SPRINT RACE', isRace: true, isQualy: false },
 };
 
 export const SessionHeader: React.FC<SessionHeaderProps> = ({ session, connected }) => {

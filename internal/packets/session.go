@@ -8,20 +8,27 @@ import (
 
 // Session type constants.
 const (
-	SessionUnknown   uint8 = 0
-	SessionP1        uint8 = 1
-	SessionP2        uint8 = 2
-	SessionP3        uint8 = 3
-	SessionShortP    uint8 = 4
-	SessionQ1        uint8 = 5
-	SessionQ2        uint8 = 6
-	SessionQ3        uint8 = 7
-	SessionShortQ    uint8 = 8
-	SessionOSQ       uint8 = 9
-	SessionRace      uint8 = 10
-	SessionRace2     uint8 = 11
-	SessionRace3     uint8 = 12
-	SessionTimeTrial uint8 = 13
+	SessionUnknown         uint8 = 0
+	SessionP1              uint8 = 1
+	SessionP2              uint8 = 2
+	SessionP3              uint8 = 3
+	SessionShortP          uint8 = 4
+	SessionQ1              uint8 = 5
+	SessionQ2              uint8 = 6
+	SessionQ3              uint8 = 7
+	SessionShortQ          uint8 = 8
+	SessionOSQ             uint8 = 9
+	SessionSprintQ1        uint8 = 10
+	SessionSprintQ2        uint8 = 11
+	SessionSprintQ3        uint8 = 12
+	SessionShortSprintQ    uint8 = 13
+	SessionOSSprintQ       uint8 = 14
+	SessionRace            uint8 = 15
+	SessionRace2           uint8 = 16
+	SessionRace3           uint8 = 17
+	SessionTimeTrial       uint8 = 18
+	SessionSprintRace      uint8 = 19
+	SessionEqualSprintRace uint8 = 20
 )
 
 // trackNames maps track ID to track name.
@@ -47,28 +54,27 @@ func TrackName(id int8) string {
 
 // sessionTypeNames maps session type to human-readable name.
 var sessionTypeNames = map[uint8]string{
-	SessionUnknown:   "Unknown",
-	SessionP1:        "Practice 1",
-	SessionP2:        "Practice 2",
-	SessionP3:        "Practice 3",
-	SessionShortP:    "Short Practice",
-	SessionQ1:        "Qualifying 1",
-	SessionQ2:        "Qualifying 2",
-	SessionQ3:        "Qualifying 3",
-	SessionShortQ:    "Short Qualifying",
-	SessionOSQ:       "One-Shot Qualifying",
-	SessionRace:      "Race",
-	SessionRace2:     "Race 2",
-	SessionRace3:     "Race 3",
-	SessionTimeTrial: "Time Trial",
-	14:               "Time Trial",
-	15:               "Sprint Qualifying 1",
-	16:               "Sprint Qualifying 2",
-	17:               "Sprint Qualifying 3",
-	18:               "Short Sprint Qualifying",
-	19:               "One-Shot Sprint Qualifying",
-	20:               "Sprint Race",
-	21:               "Equal Sprint Race",
+	SessionUnknown:         "Unknown",
+	SessionP1:              "Practice 1",
+	SessionP2:              "Practice 2",
+	SessionP3:              "Practice 3",
+	SessionShortP:          "Short Practice",
+	SessionQ1:              "Qualifying 1",
+	SessionQ2:              "Qualifying 2",
+	SessionQ3:              "Qualifying 3",
+	SessionShortQ:          "Short Qualifying",
+	SessionOSQ:             "One-Shot Qualifying",
+	SessionSprintQ1:        "Sprint Qualifying 1",
+	SessionSprintQ2:        "Sprint Qualifying 2",
+	SessionSprintQ3:        "Sprint Qualifying 3",
+	SessionShortSprintQ:    "Short Sprint Qualifying",
+	SessionOSSprintQ:       "One-Shot Sprint Qualifying",
+	SessionRace:            "Race",
+	SessionRace2:           "Race 2",
+	SessionRace3:           "Race 3",
+	SessionTimeTrial:       "Time Trial",
+	SessionSprintRace:      "Sprint Race",
+	SessionEqualSprintRace: "Equal Sprint Race",
 }
 
 // SessionTypeName returns the human-readable name for the given session type.

@@ -56,9 +56,10 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
   selectedCarIndex = 0,
   onSelectCar = () => {},
 }) => {
-  const isQualy = session?.SessionType !== undefined && session.SessionType >= 5 && session.SessionType <= 9;
-  const isQ1 = session?.SessionType === 5;
-  const isQ2 = session?.SessionType === 6;
+  const isQualy = session?.SessionType !== undefined && 
+    ((session.SessionType >= 5 && session.SessionType <= 9) || (session.SessionType >= 10 && session.SessionType <= 14));
+  const isQ1 = session?.SessionType === 5 || session?.SessionType === 10;
+  const isQ2 = session?.SessionType === 6 || session?.SessionType === 11;
 
   // Position flash animations on position changes
   const prevPosMapRef = React.useRef<Record<number, number>>({});
