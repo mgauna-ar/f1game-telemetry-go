@@ -104,6 +104,10 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
       const s1Point = findClosestPoint(s1TargetDist);
       const s2Point = findClosestPoint(s2TargetDist);
 
+      const s1MidPoint = findClosestPoint(s1TargetDist / 2);
+      const s2MidPoint = findClosestPoint((s1TargetDist + s2TargetDist) / 2);
+      const s3MidPoint = findClosestPoint((s2TargetDist + maxDist) / 2);
+
       // Pre-calculate segment pace gain colors matching the Time Delta graph slope
       const windowSize = 6;
       const segmentColors: string[] = [];
@@ -164,8 +168,8 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         ctx.stroke();
       }
 
-      // Helper to draw clean perpendicular sector split lines across track
-      const drawSectorSplitMarker = (point: MergedTelemetryPoint, color: string, label: string) => {
+      // Helper to draw clean perpendicular sector split boundary lines across track (no text)
+      const drawSectorSplitMarker = (point: MergedTelemetryPoint, color: string) => {
         if (point.worldX === undefined || point.worldX === null || point.worldZ === undefined || point.worldZ === null) return;
         const cx = toCanvasX(point.worldX);
         const cy = toCanvasY(point.worldZ);
@@ -208,28 +212,51 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         ctx.lineCap = 'butt';
         ctx.stroke();
 
-        // Marker dot
+        // Marker dot on track line
         ctx.beginPath();
-        ctx.arc(cx, cy, 3.5, 0, Math.PI * 2);
+        ctx.arc(cx, cy, 3.2, 0, Math.PI * 2);
         ctx.fillStyle = color;
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 1;
         ctx.fill();
         ctx.stroke();
+      };
 
-        // Text label near split
+      // Helper to draw clean sector region badges at the middle of each sector (S1, S2, S3)
+      const drawSectorRegionBadge = (point: MergedTelemetryPoint, label: string, color: string) => {
+        if (point.worldX === undefined || point.worldX === null || point.worldZ === undefined || point.worldZ === null) return;
+        const cx = toCanvasX(point.worldX);
+        const cy = toCanvasY(point.worldZ);
+
         ctx.save();
-        ctx.font = 'bold 8px Inter, sans-serif';
+        ctx.font = 'bold 9px Inter, sans-serif';
+        const badgeW = 22;
+        const badgeH = 15;
+        const bx = cx - badgeW / 2;
+        const by = cy - badgeH / 2;
+
+        ctx.fillStyle = 'rgba(10, 14, 22, 0.9)';
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.roundRect(bx, by, badgeW, badgeH, 4);
+        ctx.fill();
+        ctx.stroke();
+
         ctx.fillStyle = color;
         ctx.textAlign = 'center';
-        ctx.textBaseline = 'bottom';
-        ctx.fillText(label, cx + nx * (lineLen + 4), cy + ny * (lineLen + 4));
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, cx, cy);
         ctx.restore();
       };
 
-      if (s0Point) drawSectorSplitMarker(s0Point, '#2ecc71', 'SF');
-      if (s1Point) drawSectorSplitMarker(s1Point, '#f39c12', 'S1');
-      if (s2Point) drawSectorSplitMarker(s2Point, '#9b59b6', 'S2');
+      if (s0Point) drawSectorSplitMarker(s0Point, '#f39c12');
+      if (s1Point) drawSectorSplitMarker(s1Point, '#9b59b6');
+      if (s2Point) drawSectorSplitMarker(s2Point, '#2ecc71');
+
+      if (s1MidPoint) drawSectorRegionBadge(s1MidPoint, 'S1', '#f39c12');
+      if (s2MidPoint) drawSectorRegionBadge(s2MidPoint, 'S2', '#9b59b6');
+      if (s3MidPoint) drawSectorRegionBadge(s3MidPoint, 'S3', '#2ecc71');
 
       // Detect and draw clean track corner apex dots & interactive hover callout
       const detectedTurns = detectTrackTurns(validPoints);
@@ -494,9 +521,9 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         }}
       >
         <span style={{ color: '#ffffff', fontWeight: 600 }}>● Apex</span>
-        <span style={{ color: '#2ecc71', fontWeight: 600 }}>● SF</span>
         <span style={{ color: '#f39c12', fontWeight: 600 }}>● S1</span>
         <span style={{ color: '#9b59b6', fontWeight: 600 }}>● S2</span>
+        <span style={{ color: '#2ecc71', fontWeight: 600 }}>● S3</span>
       </div>
     </div>
   );

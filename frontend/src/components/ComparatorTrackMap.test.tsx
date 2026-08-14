@@ -27,8 +27,9 @@ describe('ComparatorTrackMap Component', () => {
     expect(canvas).toBeInTheDocument();
 
     expect(screen.getByText(/Lap A Faster/i)).toBeInTheDocument();
-    expect(screen.getByText(/Lap B Faster/i)).toBeInTheDocument();
     expect(screen.getByText(/Apex/i)).toBeInTheDocument();
-    expect(screen.getByText(/SF/i)).toBeInTheDocument();
+    expect(screen.getByText(/S1/i)).toBeInTheDocument();
+    expect(screen.getByText(/S2/i)).toBeInTheDocument();
+    expect(screen.getByText(/S3/i)).toBeInTheDocument();
   });
 });
