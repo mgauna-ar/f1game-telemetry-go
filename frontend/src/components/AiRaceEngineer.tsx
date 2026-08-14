@@ -686,30 +686,6 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          {isGenerating && (
-            <button
-              className="btn-icon"
-              style={{
-                padding: '2px 7px',
-                background: 'rgba(225, 6, 0, 0.25)',
-                border: '1px solid #e10600',
-                color: '#ff4b4b',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                fontSize: '0.68rem',
-                fontWeight: 600,
-                borderRadius: '4px',
-                cursor: 'pointer',
-              }}
-              onClick={handleStopGeneration}
-              title="Stop response"
-              aria-label="Stop response"
-            >
-              <Square size={10} fill="#ff4b4b" />
-              <span>Stop</span>
-            </button>
-          )}
           <button
             className="btn-icon"
             style={{ padding: '3px' }}
