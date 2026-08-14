@@ -14,6 +14,7 @@ import {
   EyeOff,
   RefreshCw,
   Trash2,
+  ExternalLink,
 } from 'lucide-react';
 import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
 
@@ -826,9 +827,56 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
                 </button>
               </div>
             </div>
-            <small className="ai-settings-hint">
-              Saved locally in your browser per provider. Never shared with third parties.
-            </small>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginTop: '4px',
+              }}
+            >
+              <small className="ai-settings-hint" style={{ margin: 0 }}>
+                Saved locally per provider.
+              </small>
+              {config.provider === 'gemini' && (
+                <a
+                  href="https://aistudio.google.com/app/apikey"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    fontSize: '0.68rem',
+                    color: 'var(--accent-secondary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '3px',
+                    textDecoration: 'none',
+                    fontWeight: 600,
+                  }}
+                  title="Get a Google AI Studio API Key"
+                >
+                  Get Gemini Key <ExternalLink size={10} />
+                </a>
+              )}
+              {config.provider === 'openai' && (
+                <a
+                  href="https://platform.openai.com/api-keys"
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{
+                    fontSize: '0.68rem',
+                    color: 'var(--accent-secondary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '3px',
+                    textDecoration: 'none',
+                    fontWeight: 600,
+                  }}
+                  title="Get an OpenAI API Key"
+                >
+                  Get OpenAI Key <ExternalLink size={10} />
+                </a>
+              )}
+            </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', marginBottom: '0.35rem' }}>
               <label className="readout-label" style={{ margin: 0 }}>Model</label>
@@ -1012,9 +1060,41 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
 
       <div className="ai-drawer-footer" style={{ padding: '0.35rem 0 0 0', background: 'transparent', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
         {!isConfigured && (
-          <div className="ai-unconfigured-alert" style={{ fontSize: '0.68rem', padding: '3px 6px', marginBottom: '0.3rem' }}>
+          <div
+            className="ai-unconfigured-alert"
+            style={{
+              fontSize: '0.68rem',
+              padding: '3px 8px',
+              marginBottom: '0.3rem',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}
+          >
             <span>⚠️ Configure your API Key.</span>
-            <button onClick={() => setShowSettings(true)}>Configure</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button onClick={() => setShowSettings(true)}>Configure</button>
+              <a
+                href={
+                  config.provider === 'openai'
+                    ? 'https://platform.openai.com/api-keys'
+                    : 'https://aistudio.google.com/app/apikey'
+                }
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  color: 'var(--accent-secondary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '2px',
+                  textDecoration: 'none',
+                  fontWeight: 600,
+                }}
+                title="Get API Key from provider"
+              >
+                Get Key <ExternalLink size={10} />
+              </a>
+            </div>
           </div>
         )}
 
