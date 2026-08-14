@@ -110,7 +110,7 @@ func (s *Server) handleAIConfigStatus(w http.ResponseWriter, r *http.Request) {
 	openaiKey := strings.TrimSpace(os.Getenv("OPENAI_API_KEY"))
 
 	defaultProvider := "gemini"
-	defaultModel := "gemini-3.1-flash-lite"
+	defaultModel := "gemini-flash-lite-latest"
 
 	if geminiKey == "" && openaiKey != "" {
 		defaultProvider = "openai"
@@ -327,7 +327,7 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 	model := strings.TrimSpace(req.Model)
 	if model == "" {
 		if provider == "gemini" {
-			model = "gemini-1.5-flash"
+			model = "gemini-flash-lite-latest"
 		} else {
 			model = "gpt-4o-mini"
 		}
