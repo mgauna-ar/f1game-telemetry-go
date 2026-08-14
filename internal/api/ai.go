@@ -361,9 +361,8 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 
 	if streamErr != nil {
 		log.Printf("[AI Chat] Error during streaming: %v", streamErr)
-		// Send error event over SSE
 		errPayload, _ := json.Marshal(map[string]string{"error": streamErr.Error()})
-		fmt.Fprintf(w, "event: error\ndata: %s\n\n", string(errPayload))
+		fmt.Fprintf(w, "data: %s\n\n", string(errPayload))
 		flusher.Flush()
 	}
 }
@@ -432,7 +431,7 @@ func buildSystemPrompt(telemetryCtx *TelemetryAnalysisContext) string {
 func streamGemini(ctx context.Context, apiKey, model, systemPrompt string, messages []AIChatMessage, w http.ResponseWriter, flusher http.Flusher) error {
 	modelClean := strings.TrimPrefix(strings.TrimSpace(model), "models/")
 	if modelClean == "" {
-		modelClean = "gemini-2.5-flash"
+		modelClean = "gemini-flash-lite-latest"
 	}
 	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:streamGenerateContent?alt=sse&key=%s", modelClean, apiKey)
 
@@ -472,7 +471,7 @@ func streamGemini(ctx context.Context, apiKey, model, systemPrompt string, messa
 		},
 		Contents: contents,
 		GenerationConfig: map[string]interface{}{
-			"temperature": 0.4,
+			"temperature": 0.35,
 		},
 	}
 
@@ -558,15 +557,15 @@ func streamOpenAI(ctx context.Context, baseURL, apiKey, model, systemPrompt stri
 		Role    string `json:"role"`
 		Content string `json:"content"`
 	}
-	type OpenAIRequest struct {
-		Model       string          `json:"model"`
-		Messages    []OpenAIMessage `json:"messages"`
-		Stream      bool            `json:"stream"`
-		Temperature float64         `json:"temperature"`
+
+	isReasoningModel := strings.HasPrefix(model, "o1") || strings.HasPrefix(model, "o3")
+	systemRole := "system"
+	if isReasoningModel {
+		systemRole = "developer"
 	}
 
 	openAIMessages := []OpenAIMessage{
-		{Role: "system", Content: systemPrompt},
+		{Role: systemRole, Content: systemPrompt},
 	}
 	for _, m := range messages {
 		role := m.Role
@@ -579,14 +578,16 @@ func streamOpenAI(ctx context.Context, baseURL, apiKey, model, systemPrompt stri
 		})
 	}
 
-	reqBody := OpenAIRequest{
-		Model:       model,
-		Messages:    openAIMessages,
-		Stream:      true,
-		Temperature: 0.4,
+	reqMap := map[string]interface{}{
+		"model":    model,
+		"messages": openAIMessages,
+		"stream":   true,
+	}
+	if !isReasoningModel {
+		reqMap["temperature"] = 0.4
 	}
 
-	jsonBytes, err := json.Marshal(reqBody)
+	jsonBytes, err := json.Marshal(reqMap)
 	if err != nil {
 		return fmt.Errorf("failed to marshal OpenAI request: %w", err)
 	}

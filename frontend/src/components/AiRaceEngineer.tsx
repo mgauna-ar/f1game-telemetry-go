@@ -406,6 +406,17 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
                       m.id === assistantMsgId ? { ...m, content: accumulated } : m
                     )
                   );
+                } else if (parsed.error) {
+                  const errorMsg =
+                    typeof parsed.error === 'string'
+                      ? parsed.error
+                      : JSON.stringify(parsed.error);
+                  accumulated = `⚠️ *Error:* ${errorMsg}\n\n*Please verify your API Key or account quota in Settings (⚙️).*`;
+                  setMessages((prev) =>
+                    prev.map((m) =>
+                      m.id === assistantMsgId ? { ...m, content: accumulated } : m
+                    )
+                  );
                 }
               } catch (e) {
                 console.warn('Failed to parse SSE line', e);
@@ -413,6 +424,20 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
             }
           }
         }
+      }
+
+      if (!accumulated) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantMsgId
+              ? {
+                  ...m,
+                  content:
+                    '⚠️ *No response received from the model.* Please verify that your API Key is valid and has active credit/quota.',
+                }
+              : m
+          )
+        );
       }
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'AbortError') {
@@ -627,7 +652,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
                 saveConfig({
                   ...config,
                   provider: prov,
-                  model: prov === 'gemini' ? 'gemini-1.5-flash' : 'gpt-4o-mini',
+                  model: prov === 'gemini' ? 'gemini-flash-lite-latest' : 'gpt-4o-mini',
                 });
               }}
             >
