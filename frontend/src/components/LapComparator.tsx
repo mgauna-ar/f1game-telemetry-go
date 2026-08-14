@@ -1290,16 +1290,24 @@ export const LapComparator: React.FC = () => {
             )}
           </div>
 
-          {/* RIGHT COLUMN: Sticky Track Map Sidebar */}
+          {/* RIGHT COLUMN: Sticky Sidebar with AI Race Engineer on TOP and Track Heatmap at BOTTOM */}
           {comparisonData.length > 0 && (
             <div className="comparator-sidebar-col">
-              <div className="glass-panel" style={{ padding: '0.85rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                  <h4 style={{ margin: 0, fontSize: '0.9rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <MapPin size={16} color="var(--accent-primary)" /> Track Heatmap
+              {/* AI Race Engineer Compact Card on TOP */}
+              <AiRaceEngineer
+                telemetryContext={telemetryContext}
+                hasLapsSelected={Boolean(lapAId && lapBId && lapAObj && lapBObj)}
+                isZoomActive={Boolean(zoomDomain)}
+              />
+
+              {/* Track Map at BOTTOM */}
+              <div className="glass-panel" style={{ padding: '0.75rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+                  <h4 style={{ margin: 0, fontSize: '0.85rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <MapPin size={15} color="var(--accent-primary)" /> Track Heatmap
                   </h4>
                   {selectedSessionObj && (
-                    <span style={{ fontSize: '0.72rem', background: 'rgba(255,255,255,0.08)', padding: '0.15rem 0.45rem', borderRadius: '4px', color: 'var(--text-secondary)' }}>
+                    <span style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.08)', padding: '0.15rem 0.4rem', borderRadius: '4px', color: 'var(--text-secondary)' }}>
                       {selectedSessionObj.track_name}
                     </span>
                   )}
@@ -1308,58 +1316,74 @@ export const LapComparator: React.FC = () => {
                 <ComparatorTrackMap
                   data={comparisonData}
                   activeDistance={hoverDistance}
-                  height={360}
+                  height={320}
                   sector1Distance={sector1Distance}
                   sector2Distance={sector2Distance}
                 />
 
-                {/* Active Hover Point Live Telemetry Readout */}
-                {hoverDistance !== null && comparisonData.length > 0 && (() => {
-                  const activePoint = comparisonData.reduce((prev, curr) =>
+                {/* Active Hover Point Live Telemetry Readout (Fixed Height to Prevent Layout Shift) */}
+                {comparisonData.length > 0 && (() => {
+                  const activePoint = hoverDistance !== null ? comparisonData.reduce((prev, curr) =>
                     Math.abs(curr.lap_distance - hoverDistance) < Math.abs(prev.lap_distance - hoverDistance) ? curr : prev
-                  , comparisonData[0]);
-
-                  if (!activePoint) return null;
+                  , comparisonData[0]) : null;
 
                   return (
-                    <div style={{ marginTop: '0.75rem', padding: '0.65rem 0.85rem', background: 'rgba(0, 0, 0, 0.4)', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.1)', fontSize: '0.78rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '0.35rem', marginBottom: '0.35rem' }}>
-                        <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Distance Point:</span>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#f1c40f' }}>{activePoint.lap_distance}m</span>
-                      </div>
+                    <div
+                      style={{
+                        marginTop: '0.5rem',
+                        padding: '0.5rem 0.75rem',
+                        background: 'rgba(0, 0, 0, 0.4)',
+                        borderRadius: '6px',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        fontSize: '0.75rem',
+                        minHeight: '112px',
+                        boxSizing: 'border-box',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {activePoint ? (
+                        <>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '0.25rem', marginBottom: '0.25rem' }}>
+                            <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Distance Point:</span>
+                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#f1c40f' }}>{activePoint.lap_distance}m</span>
+                          </div>
 
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '0.35rem' }}>
-                        <div style={{ borderLeft: '2px solid #ff4757', paddingLeft: '0.4rem' }}>
-                          <div style={{ fontSize: '0.72rem', color: '#ff4757', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nameA}</div>
-                          <div>Speed: <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.speedA ?? '-'} km/h</strong></div>
-                          <div>Thr/Brk: <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.throttleA !== null ? Math.round(activePoint.throttleA * 100) : 0}% / {activePoint.brakeA !== null ? Math.round(activePoint.brakeA * 100) : 0}%</strong></div>
-                          <div>ERS: <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.ersBatteryA !== null ? activePoint.ersBatteryA.toFixed(0) : '-'}% ({ERS_MODE_NAMES[activePoint.ersDeployModeA ?? 0] || 'Off'})</strong></div>
-                        </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', marginTop: '0.15rem' }}>
+                            <div style={{ borderLeft: '2px solid #ff4757', paddingLeft: '0.35rem' }}>
+                              <div style={{ fontSize: '0.7rem', color: '#ff4757', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nameA}</div>
+                              <div>Speed: <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.speedA ?? '-'} km/h</strong></div>
+                              <div>Thr/Brk: <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.throttleA !== null ? Math.round(activePoint.throttleA * 100) : 0}% / {activePoint.brakeA !== null ? Math.round(activePoint.brakeA * 100) : 0}%</strong></div>
+                              <div>ERS: <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.ersBatteryA !== null ? activePoint.ersBatteryA.toFixed(0) : '-'}% ({ERS_MODE_NAMES[activePoint.ersDeployModeA ?? 0] || 'Off'})</strong></div>
+                            </div>
 
-                        <div style={{ borderLeft: '2px solid #00d2d3', paddingLeft: '0.4rem' }}>
-                          <div style={{ fontSize: '0.72rem', color: '#00d2d3', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nameB}</div>
-                          <div>Speed: <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.speedB ?? '-'} km/h</strong></div>
-                          <div>Thr/Brk: <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.throttleB !== null ? Math.round(activePoint.throttleB * 100) : 0}% / {activePoint.brakeB !== null ? Math.round(activePoint.brakeB * 100) : 0}%</strong></div>
-                          <div>ERS: <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.ersBatteryB !== null ? activePoint.ersBatteryB.toFixed(0) : '-'}% ({ERS_MODE_NAMES[activePoint.ersDeployModeB ?? 0] || 'Off'})</strong></div>
-                        </div>
-                      </div>
+                            <div style={{ borderLeft: '2px solid #00d2d3', paddingLeft: '0.35rem' }}>
+                              <div style={{ fontSize: '0.7rem', color: '#00d2d3', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nameB}</div>
+                              <div>Speed: <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.speedB ?? '-'} km/h</strong></div>
+                              <div>Thr/Brk: <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.throttleB !== null ? Math.round(activePoint.throttleB * 100) : 0}% / {activePoint.brakeB !== null ? Math.round(activePoint.brakeB * 100) : 0}%</strong></div>
+                              <div>ERS: <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.ersBatteryB !== null ? activePoint.ersBatteryB.toFixed(0) : '-'}% ({ERS_MODE_NAMES[activePoint.ersDeployModeB ?? 0] || 'Off'})</strong></div>
+                            </div>
+                          </div>
 
-                      {activePoint.time_delta !== null && (
-                        <div style={{ marginTop: '0.4rem', paddingTop: '0.35rem', borderTop: '1px solid rgba(255,255,255,0.08)', textAlign: 'center', fontWeight: 700, color: activePoint.time_delta < 0 ? '#ff4757' : activePoint.time_delta > 0 ? '#00d2d3' : '#fff' }}>
-                          Δ {activePoint.time_delta > 0 ? '+' : ''}{activePoint.time_delta.toFixed(3)}s
+                          {activePoint.time_delta !== null && (
+                            <div style={{ marginTop: '0.25rem', paddingTop: '0.2rem', borderTop: '1px solid rgba(255,255,255,0.08)', textAlign: 'center', fontWeight: 700, fontSize: '0.74rem', color: activePoint.time_delta < 0 ? '#ff4757' : activePoint.time_delta > 0 ? '#00d2d3' : '#fff' }}>
+                              Δ {activePoint.time_delta > 0 ? '+' : ''}{activePoint.time_delta.toFixed(3)}s
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.72rem', padding: '0.3rem 0' }}>
+                          <span style={{ display: 'block', color: 'rgba(255,255,255,0.7)', fontWeight: 600, marginBottom: '2px' }}>
+                            🔍 Inspección Telemetría en Vivo
+                          </span>
+                          Pasa el cursor por los gráficos para ver datos en ese punto
                         </div>
                       )}
                     </div>
                   );
                 })()}
               </div>
-
-              {/* AI Race Engineer Integrated Card below Track Map */}
-              <AiRaceEngineer
-                telemetryContext={telemetryContext}
-                hasLapsSelected={Boolean(lapAId && lapBId && lapAObj && lapBObj)}
-                isZoomActive={Boolean(zoomDomain)}
-              />
             </div>
           )}
         </div>

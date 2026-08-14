@@ -75,8 +75,8 @@ describe('AiRaceEngineer Component', () => {
     expect(screen.getByText('Frenada y tracción')).toBeInTheDocument();
     expect(screen.getByText('Despliegue ERS / DRS')).toBeInTheDocument();
 
-    // Verify status bar shows delta
-    expect(screen.getByText(/Lap A/)).toBeInTheDocument();
+    // Verify prompt input field is ready
+    expect(screen.getByPlaceholderText('Pregunta al Race Engineer...')).toBeInTheDocument();
   });
 
   it('toggles settings modal in embedded card', async () => {

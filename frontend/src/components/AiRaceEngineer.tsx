@@ -9,11 +9,9 @@ import {
   Zap,
   Gauge,
   ZoomIn,
-  CheckCircle2,
-  AlertCircle,
+  Cpu,
   Eye,
   EyeOff,
-  Cpu,
   RefreshCw,
 } from 'lucide-react';
 import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
@@ -519,50 +517,64 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
   );
 
   return (
-    <div className="glass-panel ai-embedded-card" style={{ padding: '0.85rem' }}>
-      {/* Header */}
-      <div className="ai-drawer-header" style={{ padding: '0 0 0.65rem 0' }}>
-        <div className="ai-drawer-title-group">
-          <div className="ai-drawer-avatar" style={{ width: '32px', height: '32px' }}>
-            <Bot size={18} style={{ color: '#e10600' }} />
-          </div>
-          <div>
-            <h3 className="ai-drawer-title" style={{ fontSize: '0.95rem' }}>AI Race Engineer</h3>
-            <div className="ai-drawer-meta">
-              <span className="ai-badge-provider" style={{ fontSize: '0.68rem' }}>
-                {config.provider.toUpperCase()} ({config.model})
-              </span>
-            </div>
-          </div>
+    <div className="glass-panel ai-embedded-card" style={{ padding: '0.65rem 0.75rem' }}>
+      {/* Compact Header */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          paddingBottom: '0.4rem',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Bot size={15} style={{ color: '#e10600' }} />
+          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff' }}>
+            AI Race Engineer
+          </span>
+          <span
+            style={{
+              fontSize: '0.62rem',
+              background: 'rgba(255, 255, 255, 0.08)',
+              padding: '1px 5px',
+              borderRadius: '4px',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            {config.model}
+          </span>
         </div>
 
-        <div className="ai-drawer-actions">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <button
             className="btn-icon"
+            style={{ padding: '3px' }}
             onClick={() => setShowSettings(!showSettings)}
             title="Configuración de IA"
             aria-label="Configuración"
           >
-            <Settings size={16} />
+            <Settings size={13} />
           </button>
           <button
             className="btn-icon"
+            style={{ padding: '3px' }}
             onClick={handleClearChat}
             title="Limpiar conversación"
             aria-label="Limpiar chat"
           >
-            <RotateCcw size={16} />
+            <RotateCcw size={13} />
           </button>
         </div>
       </div>
 
       {/* Settings Overlay Card */}
       {showSettings && (
-        <div className="ai-settings-card glass-panel" style={{ top: '50px' }}>
+        <div className="ai-settings-card glass-panel" style={{ top: '42px' }}>
           <div className="ai-settings-header">
             <h4>Configuración del Asistente</h4>
             <button className="btn-icon" onClick={() => setShowSettings(false)}>
-              <X size={16} />
+              <X size={15} />
             </button>
           </div>
 
@@ -611,7 +623,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
                 className="ai-key-toggle-btn"
                 onClick={() => setShowApiKey(!showApiKey)}
               >
-                {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                {showApiKey ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
             </div>
             <small className="ai-settings-hint">
@@ -634,10 +646,10 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   gap: '4px',
-                  fontSize: '0.72rem',
+                  fontSize: '0.7rem',
                 }}
               >
-                <RefreshCw size={12} className={isLoadingModels ? 'spin-icon' : ''} />
+                <RefreshCw size={11} className={isLoadingModels ? 'spin-icon' : ''} />
                 {isLoadingModels ? 'Consultando...' : 'Actualizar modelos'}
               </button>
             </div>
@@ -690,7 +702,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
               </>
             )}
 
-            <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'flex-end' }}>
               <button className="nav-tab active" onClick={() => setShowSettings(false)}>
                 Listo
               </button>
@@ -699,38 +711,11 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
         </div>
       )}
 
-      {/* Lap Comparison Telemetry Status Bar */}
-      <div className="ai-telemetry-statusbar" style={{ borderRadius: '6px', margin: '0.4rem 0' }}>
-        {hasLapsSelected && telemetryContext ? (
-          <div className="ai-status-active">
-            <CheckCircle2 size={13} style={{ color: '#38ef7d', flexShrink: 0 }} />
-            <span style={{ fontSize: '0.75rem' }}>
-              Δ{' '}
-              <span className="mono" style={{ fontWeight: 700, color: telemetryContext.time_delta_seconds < 0 ? '#ff4757' : '#00d2d3' }}>
-                {telemetryContext.time_delta_seconds > 0 ? '+' : ''}
-                {telemetryContext.time_delta_seconds.toFixed(3)}s
-              </span>
-              {' '}• {telemetryContext.faster_lap}
-            </span>
-            {isZoomActive && telemetryContext.zoomed_range && (
-              <span className="ai-zoom-pill" style={{ fontSize: '0.68rem', padding: '1px 6px' }}>
-                🔍 Zoom: {telemetryContext.zoomed_range.start_distance_meters}m-{telemetryContext.zoomed_range.end_distance_meters}m
-              </span>
-            )}
-          </div>
-        ) : (
-          <div className="ai-status-warning" style={{ fontSize: '0.75rem' }}>
-            <AlertCircle size={13} style={{ color: '#ffd200', flexShrink: 0 }} />
-            <span>Selecciona Vuelta A y Vuelta B para análisis en vivo.</span>
-          </div>
-        )}
-      </div>
-
       {/* Messages Feed */}
       <div
         ref={messagesContainerRef}
         className="ai-messages-container"
-        style={{ minHeight: '260px', maxHeight: '340px', padding: '0.6rem 0' }}
+        style={{ minHeight: '160px', maxHeight: '240px', padding: '0.4rem 0' }}
       >
         {messages.map((msg) => (
           <div
@@ -738,11 +723,11 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
             className={`ai-message-row ${msg.role === 'user' ? 'user' : 'assistant'}`}
           >
             {msg.role === 'assistant' && (
-              <div className="ai-msg-avatar" style={{ width: '24px', height: '24px' }}>
-                <Bot size={14} />
+              <div className="ai-msg-avatar" style={{ width: '20px', height: '20px' }}>
+                <Bot size={12} />
               </div>
             )}
-            <div className={`ai-message-bubble ${msg.role}`} style={{ fontSize: '0.82rem', padding: '0.65rem 0.85rem' }}>
+            <div className={`ai-message-bubble ${msg.role}`} style={{ fontSize: '0.78rem', padding: '0.45rem 0.65rem' }}>
               {msg.role === 'assistant' ? (
                 msg.content ? (
                   renderFormattedContent(msg.content)
@@ -756,7 +741,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
               ) : (
                 <div className="chat-user-text">{msg.content}</div>
               )}
-              <span className="ai-msg-time" style={{ fontSize: '0.62rem' }}>
+              <span className="ai-msg-time" style={{ fontSize: '0.6rem' }}>
                 {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
             </div>
@@ -765,7 +750,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
       </div>
 
       {/* Quick Action Prompt Chips */}
-      <div className="ai-quick-prompts-bar" style={{ padding: '0.4rem 0', background: 'transparent' }}>
+      <div className="ai-quick-prompts-bar" style={{ padding: '0.25rem 0', background: 'transparent' }}>
         <div className="ai-quick-prompts-scroll">
           {quickPrompts.map((qp) => {
             const disabled = !hasLapsSelected || (qp.requiresZoom && !isZoomActive);
@@ -776,7 +761,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
                 disabled={disabled || isGenerating}
                 onClick={() => handleSendMessage(qp.prompt)}
                 title={disabled ? 'Requiere dos vueltas seleccionadas' : qp.label}
-                style={{ fontSize: '0.72rem', padding: '4px 9px' }}
+                style={{ fontSize: '0.68rem', padding: '2px 7px', height: '24px' }}
               >
                 {qp.icon}
                 <span>{qp.label}</span>
@@ -787,9 +772,9 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
       </div>
 
       {/* Footer Input Area */}
-      <div className="ai-drawer-footer" style={{ padding: '0.5rem 0 0 0', background: 'transparent', borderTop: '1px solid var(--border-color)' }}>
+      <div className="ai-drawer-footer" style={{ padding: '0.35rem 0 0 0', background: 'transparent', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
         {!isConfigured && (
-          <div className="ai-unconfigured-alert" style={{ fontSize: '0.72rem', padding: '4px 8px' }}>
+          <div className="ai-unconfigured-alert" style={{ fontSize: '0.68rem', padding: '3px 6px', marginBottom: '0.3rem' }}>
             <span>⚠️ Configura tu API Key.</span>
             <button onClick={() => setShowSettings(true)}>Configurar</button>
           </div>
@@ -805,7 +790,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
           <input
             type="text"
             className="ai-chat-input"
-            style={{ fontSize: '0.82rem', padding: '0.5rem 0.9rem' }}
+            style={{ fontSize: '0.78rem', padding: '0.4rem 0.75rem', height: '32px' }}
             placeholder={
               !hasLapsSelected
                 ? 'Selecciona vueltas para consultar...'
@@ -819,22 +804,22 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
           {isGenerating ? (
             <button
               type="button"
-              className="ai-btn-stop"
-              style={{ width: '32px', height: '32px' }}
+              className="ai-send-btn stop"
               onClick={handleStopGeneration}
-              title="Detener generación"
+              title="Detener respuesta"
+              style={{ width: '32px', height: '32px' }}
             >
-              <Square size={14} />
+              <Square size={13} />
             </button>
           ) : (
             <button
               type="submit"
-              className="ai-btn-send"
-              style={{ width: '32px', height: '32px' }}
+              className="ai-send-btn"
               disabled={!inputMessage.trim() || !hasLapsSelected}
               title="Enviar mensaje"
+              style={{ width: '32px', height: '32px' }}
             >
-              <Send size={14} />
+              <Send size={13} />
             </button>
           )}
         </form>
