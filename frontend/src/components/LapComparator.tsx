@@ -89,6 +89,36 @@ const ERS_MODE_NAMES: Record<number, string> = {
   3: 'Overtake',
 };
 
+const compactTooltipProps = {
+  contentStyle: {
+    backgroundColor: 'rgba(10, 14, 23, 0.65)',
+    backdropFilter: 'blur(8px)',
+    WebkitBackdropFilter: 'blur(8px)',
+    border: '1px solid rgba(255, 255, 255, 0.15)',
+    borderRadius: '6px',
+    padding: '4px 8px',
+    fontSize: '0.72rem',
+    lineHeight: '1.2',
+    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.45)',
+  },
+  itemStyle: {
+    padding: '1px 0',
+    fontSize: '0.70rem',
+    margin: 0,
+  },
+  labelStyle: {
+    color: '#cbd5e1',
+    fontSize: '0.68rem',
+    marginBottom: '2px',
+    fontWeight: 600,
+  },
+  wrapperStyle: {
+    zIndex: 100,
+    pointerEvents: 'none' as const,
+  },
+  labelFormatter: (label: any) => `${Math.round(Number(label))}m`,
+};
+
 export const LapComparator: React.FC = () => {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<number | ''>('');
@@ -1108,7 +1138,7 @@ export const LapComparator: React.FC = () => {
                         <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
                         <YAxis stroke="#666" tick={{ fill: '#999', fontSize: 11 }} domain={['auto', 'auto']} tickFormatter={(v) => `${v > 0 ? '+' : ''}${v.toFixed(2)}s`} />
                         <Tooltip
-                          contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }}
+                          {...compactTooltipProps}
                           formatter={(val: any) => [`${Number(val) > 0 ? '+' : ''}${Number(val).toFixed(3)}s`, `Time Delta (${nameA} vs ${nameB})`]}
                         />
                         <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" />
@@ -1131,7 +1161,7 @@ export const LapComparator: React.FC = () => {
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                         <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
                         <YAxis stroke="#666" tick={{ fill: '#999', fontSize: 11 }} domain={[0, 360]} />
-                        <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }} />
+                        <Tooltip {...compactTooltipProps} />
                         {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
                         {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
                         {hoverDistance !== null && <ReferenceLine x={hoverDistance} stroke="#ffd200" strokeWidth={2} strokeDasharray="3 3" />}
@@ -1154,7 +1184,7 @@ export const LapComparator: React.FC = () => {
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                         <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
                         <YAxis stroke="#666" tick={{ fill: '#999', fontSize: 11 }} domain={[0, 1]} tickFormatter={(v) => `${Math.round(v * 100)}%`} />
-                        <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }} formatter={(val: any) => [`${Math.round(Number(val) * 100)}%`]} />
+                        <Tooltip {...compactTooltipProps} formatter={(val: any) => [`${Math.round(Number(val) * 100)}%`]} />
                         {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
                         {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
                         {hoverDistance !== null && <ReferenceLine x={hoverDistance} stroke="#ffd200" strokeWidth={2} strokeDasharray="3 3" />}
@@ -1177,7 +1207,7 @@ export const LapComparator: React.FC = () => {
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                         <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
                         <YAxis stroke="#666" tick={{ fill: '#999', fontSize: 11 }} domain={[0, 1]} tickFormatter={(v) => `${Math.round(v * 100)}%`} />
-                        <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }} formatter={(val: any) => [`${Math.round(Number(val) * 100)}%`]} />
+                        <Tooltip {...compactTooltipProps} formatter={(val: any) => [`${Math.round(Number(val) * 100)}%`]} />
                         {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
                         {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
                         {hoverDistance !== null && <ReferenceLine x={hoverDistance} stroke="#ffd200" strokeWidth={2} strokeDasharray="3 3" />}
@@ -1198,7 +1228,7 @@ export const LapComparator: React.FC = () => {
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                         <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
                         <YAxis stroke="#666" tick={{ fill: '#999', fontSize: 11 }} domain={[1, 8]} ticks={[1, 2, 3, 4, 5, 6, 7, 8]} />
-                        <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }} />
+                        <Tooltip {...compactTooltipProps} />
                         {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
                         {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
                         {hoverDistance !== null && <ReferenceLine x={hoverDistance} stroke="#ffd200" strokeWidth={2} strokeDasharray="3 3" />}
@@ -1219,7 +1249,7 @@ export const LapComparator: React.FC = () => {
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                         <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
                         <YAxis stroke="#666" tick={{ fill: '#999', fontSize: 11 }} domain={[-1, 1]} />
-                        <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }} />
+                        <Tooltip {...compactTooltipProps} />
                         <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" />
                         {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
                         {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
@@ -1243,7 +1273,7 @@ export const LapComparator: React.FC = () => {
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                         <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
                         <YAxis stroke="#666" tick={{ fill: '#999', fontSize: 11 }} domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
-                        <Tooltip contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }} formatter={(val: any) => [`${Number(val).toFixed(1)}%`]} />
+                        <Tooltip {...compactTooltipProps} formatter={(val: any) => [`${Number(val).toFixed(1)}%`]} />
                         {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
                         {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
                         {hoverDistance !== null && <ReferenceLine x={hoverDistance} stroke="#ffd200" strokeWidth={2} strokeDasharray="3 3" />}
@@ -1272,7 +1302,7 @@ export const LapComparator: React.FC = () => {
                         <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
                         <YAxis stroke="#bd93f9" tick={{ fill: '#bd93f9', fontSize: 11 }} domain={[0, 3]} ticks={[0, 1, 2, 3]} tickFormatter={(v) => ERS_MODE_NAMES[v] || `${v}`} />
                         <Tooltip
-                          contentStyle={{ backgroundColor: 'rgba(0,0,0,0.85)', border: '1px solid #333', borderRadius: '6px' }}
+                          {...compactTooltipProps}
                           formatter={(val: any, name?: any) => {
                             const modeNum = Math.round(Number(val));
                             return [ERS_MODE_NAMES[modeNum] || `Mode ${modeNum}`, String(name ?? '')];

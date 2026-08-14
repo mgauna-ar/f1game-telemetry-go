@@ -62,10 +62,31 @@ export const TelemetryChart: React.FC<TelemetryChartProps> = ({ data }) => {
 
           <Tooltip 
             contentStyle={{ 
-              backgroundColor: 'hsla(222, 47%, 11%, 0.9)', 
-              borderColor: 'hsla(0, 0%, 100%, 0.1)',
-              borderRadius: '8px',
-              color: '#fff'
+              backgroundColor: 'rgba(10, 14, 23, 0.65)', 
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)',
+              borderColor: 'rgba(255, 255, 255, 0.15)',
+              borderRadius: '6px',
+              padding: '4px 8px',
+              fontSize: '0.72rem',
+              lineHeight: '1.2',
+              color: '#fff',
+              boxShadow: '0 4px 14px rgba(0, 0, 0, 0.45)',
+            }}
+            itemStyle={{
+              padding: '1px 0',
+              fontSize: '0.70rem',
+              margin: 0,
+            }}
+            labelStyle={{
+              color: '#cbd5e1',
+              fontSize: '0.68rem',
+              marginBottom: '2px',
+              fontWeight: 600,
+            }}
+            wrapperStyle={{
+              zIndex: 100,
+              pointerEvents: 'none',
             }}
             labelFormatter={(label) => `Time: ${Number(label).toFixed(2)}s`}
           />
