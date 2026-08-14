@@ -44,10 +44,18 @@ interface AiRaceEngineerProps {
 
 const STORAGE_KEY_AI_CONFIG = 'f1_ai_engineer_config';
 
+const DEFAULT_GEMINI_MODELS: AIModelItem[] = [
+  { id: 'gemini-3.1-flash-lite', display_name: 'Gemini 3.1 Flash Lite (Recommended, Fast)' },
+  { id: 'gemini-2.5-flash', display_name: 'Gemini 2.5 Flash' },
+  { id: 'gemini-1.5-flash', display_name: 'Gemini 1.5 Flash' },
+  { id: 'gemini-2.5-pro', display_name: 'Gemini 2.5 Pro (Deep Analysis)' },
+  { id: 'gemini-1.5-pro', display_name: 'Gemini 1.5 Pro' },
+];
+
 const DEFAULT_CONFIG: AIConfig = {
   provider: 'gemini',
   apiKey: '',
-  model: 'gemini-1.5-flash',
+  model: 'gemini-3.1-flash-lite',
   baseUrl: '',
 };
 
@@ -66,8 +74,8 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
         const saved = window.localStorage.getItem(STORAGE_KEY_AI_CONFIG);
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (parsed.model === 'gemini-2.0-flash' || parsed.model === 'gemini-2.5-flash') {
-            parsed.model = 'gemini-1.5-flash';
+          if (parsed.model === 'gemini-2.0-flash') {
+            parsed.model = 'gemini-3.1-flash-lite';
           }
           return { ...DEFAULT_CONFIG, ...parsed };
         }
@@ -85,8 +93,8 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
     defaultModel: string;
   } | null>(null);
 
-  // Dynamic Models List
-  const [availableModels, setAvailableModels] = useState<AIModelItem[]>([]);
+  // Dynamic Models List initialized with curated defaults
+  const [availableModels, setAvailableModels] = useState<AIModelItem[]>(DEFAULT_GEMINI_MODELS);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [modelsError, setModelsError] = useState<string | null>(null);
 
@@ -111,6 +119,43 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
       })
       .catch((err) => console.warn('Could not fetch AI config status', err));
   }, []);
+
+  const filterChatModels = (rawModels: AIModelItem[], provider: string): AIModelItem[] => {
+    return rawModels.filter((m) => {
+      const id = m.id.toLowerCase();
+      if (provider === 'gemini') {
+        if (!id.startsWith('gemini-')) return false;
+        if (
+          id.includes('banana') ||
+          id.includes('imagen') ||
+          id.includes('image') ||
+          id.includes('embedding') ||
+          id.includes('aqa') ||
+          id.includes('tts') ||
+          id.includes('audio') ||
+          id.includes('vision') ||
+          id.includes('robotics')
+        ) {
+          return false;
+        }
+        return true;
+      }
+      if (provider === 'openai') {
+        if (
+          id.includes('audio') ||
+          id.includes('realtime') ||
+          id.includes('tts') ||
+          id.includes('whisper') ||
+          id.includes('dall-e') ||
+          id.includes('embedding') ||
+          id.includes('moderation')
+        ) {
+          return false;
+        }
+      }
+      return true;
+    });
+  };
 
   const fetchAvailableModels = async (overrideConfig?: AIConfig) => {
     const activeCfg = overrideConfig || config;
@@ -149,7 +194,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
         );
         if (!directRes.ok) {
           const directErr = await directRes.text();
-          throw new Error(directErr || `Error de Google Gemini (${directRes.status})`);
+          throw new Error(directErr || `Google Gemini API Error (${directRes.status})`);
         }
         const gJson = await directRes.json();
         const gModels: AIModelItem[] = (gJson.models || [])
@@ -163,12 +208,13 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
       }
 
       if (data?.models && data.models.length > 0) {
-        setAvailableModels(data.models);
+        const filtered = filterChatModels(data.models, activeCfg.provider);
+        setAvailableModels(filtered.length > 0 ? filtered : DEFAULT_GEMINI_MODELS);
       } else {
-        setAvailableModels([]);
+        setAvailableModels(activeCfg.provider === 'gemini' ? DEFAULT_GEMINI_MODELS : []);
       }
     } catch (err: any) {
-      setModelsError(err.message || 'No se pudieron obtener los modelos.');
+      setModelsError(err.message || 'Could not query models list.');
     } finally {
       setIsLoadingModels(false);
     }
@@ -208,7 +254,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
           id: 'welcome',
           role: 'assistant',
           content:
-            '👋 **¡Hola! Soy tu AI Race Engineer.**\n\nEstoy listo para analizar la telemetría comparativa entre tus vueltas. Analizo puntos de frenada, velocidad de ápice en curvas, tracción y despliegue de ERS y DRS.\n\n*Usa las acciones rápidas abajo o escribe tu pregunta.*',
+            '👋 **Hello! I am your AI Race Engineer.**\n\nI am ready to analyze comparative telemetry between your laps. I diagnose braking points, corner apex speeds, traction, and ERS/DRS deployment.\n\n*Use the quick action chips below or type your question.*',
           timestamp: new Date(),
         },
       ]);
@@ -243,7 +289,6 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
     abortControllerRef.current = controller;
 
     try {
-      // Build conversation history for the API
       const apiMessages = nextMessages
         .filter((m) => m.id !== 'welcome' && m.id !== assistantMsgId)
         .map((m) => ({
@@ -251,142 +296,147 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
           content: m.content,
         }));
 
-      let res: Response | null = null;
+      const res = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider: config.provider,
+          api_key: config.apiKey,
+          base_url: config.baseUrl,
+          model: config.model,
+          messages: apiMessages,
+          context: telemetryContext,
+        }),
+        signal: controller.signal,
+      });
 
-      // 1. Try Go backend endpoint first
-      try {
-        res = await fetch('/api/ai/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            provider: config.provider,
-            api_key: config.apiKey,
-            base_url: config.baseUrl,
-            model: config.model || (config.provider === 'gemini' ? 'gemini-1.5-flash' : 'gpt-4o-mini'),
-            messages: apiMessages,
-            context: telemetryContext,
-          }),
-          signal: controller.signal,
-        });
-      } catch (err: any) {
-        if (err.name === 'AbortError') throw err;
-        // fallback
-      }
+      if (!res.ok) {
+        if (config.provider === 'gemini' && config.apiKey) {
+          const systemPrompt = buildSystemPromptText(telemetryContext);
+          const geminiContents = apiMessages.map((m) => ({
+            role: m.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: m.content }],
+          }));
 
-      // 2. Direct fallback to Google Gemini API if backend returned 404 (not restarted)
-      if ((!res || res.status === 404) && config.provider === 'gemini' && config.apiKey) {
-        const modelClean = (config.model || 'gemini-1.5-flash').replace('models/', '');
-        const directUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelClean}:streamGenerateContent?alt=sse&key=${config.apiKey}`;
-
-        const systemText = buildSystemPromptText(telemetryContext);
-        const geminiContents = apiMessages.map((m) => ({
-          role: m.role === 'assistant' ? 'model' : 'user',
-          parts: [{ text: m.content }],
-        }));
-
-        res = await fetch(directUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            system_instruction: {
-              parts: [{ text: systemText }],
-            },
-            contents: geminiContents,
-            generationConfig: { temperature: 0.4 },
-          }),
-          signal: controller.signal,
-        });
-      }
-
-      if (!res || !res.ok) {
-        let errText = 'Error en la solicitud de IA';
-        try {
-          const errJson = await res?.text();
-          errText = errJson || errText;
-        } catch {
-          // fallback
-        }
-        throw new Error(errText);
-      }
-
-      if (!res.body) {
-        throw new Error('No readable stream received');
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let streamedContent = '';
-      let buffer = '';
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (trimmed.startsWith('data: ')) {
-            const dataStr = trimmed.substring(6);
-            if (dataStr === '[DONE]') {
-              break;
+          const cleanModel = config.model.replace(/^models\//, '');
+          const geminiRes = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:streamGenerateContent?alt=sse&key=${config.apiKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: geminiContents,
+                system_instruction: {
+                  parts: [{ text: systemPrompt }],
+                },
+                generationConfig: {
+                  temperature: 0.35,
+                },
+              }),
+              signal: controller.signal,
             }
-            try {
-              const dataObj = JSON.parse(dataStr);
-              let chunkText = '';
-              if (dataObj.text) {
-                chunkText = dataObj.text;
-              } else if (dataObj.candidates?.[0]?.content?.parts?.[0]?.text) {
-                chunkText = dataObj.candidates[0].content.parts[0].text;
-              } else if (dataObj.choices?.[0]?.delta?.content) {
-                chunkText = dataObj.choices[0].delta.content;
-              }
+          );
 
-              if (chunkText) {
-                streamedContent += chunkText;
-                setMessages((prev) =>
-                  prev.map((msg) =>
-                    msg.id === assistantMsgId ? { ...msg, content: streamedContent } : msg
-                  )
-                );
-              } else if (dataObj.error) {
-                streamedContent += `\n\n⚠️ *Error:* ${typeof dataObj.error === 'object' ? dataObj.error.message || JSON.stringify(dataObj.error) : dataObj.error}`;
-                setMessages((prev) =>
-                  prev.map((msg) =>
-                    msg.id === assistantMsgId ? { ...msg, content: streamedContent } : msg
-                  )
-                );
+          if (!geminiRes.ok) {
+            const errText = await geminiRes.text();
+            throw new Error(`Gemini API error (status ${geminiRes.status}): ${errText}`);
+          }
+
+          const reader = geminiRes.body?.getReader();
+          const decoder = new TextDecoder('utf-8');
+          let accumulated = '';
+
+          if (reader) {
+            let buffer = '';
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              buffer += decoder.decode(value, { stream: true });
+
+              const lines = buffer.split('\n');
+              buffer = lines.pop() || '';
+
+              for (const line of lines) {
+                const trimmed = line.trim();
+                if (trimmed.startsWith('data: ')) {
+                  const dataStr = trimmed.substring(6);
+                  if (dataStr === '[DONE]') continue;
+                  try {
+                    const parsed = JSON.parse(dataStr);
+                    const chunk = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (chunk) {
+                      accumulated += chunk;
+                      setMessages((prev) =>
+                        prev.map((m) =>
+                          m.id === assistantMsgId ? { ...m, content: accumulated } : m
+                        )
+                      );
+                    }
+                  } catch (e) {
+                    console.warn('Failed to parse SSE JSON chunk', e);
+                  }
+                }
               }
-            } catch {
-              // Ignore partial chunks
+            }
+          }
+          return;
+        }
+
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Server error (status ${res.status})`);
+      }
+
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let accumulated = '';
+
+      if (reader) {
+        let buffer = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (trimmed.startsWith('data: ')) {
+              const dataStr = trimmed.substring(6);
+              if (dataStr === '[DONE]') continue;
+              try {
+                const parsed = JSON.parse(dataStr);
+                if (parsed.text) {
+                  accumulated += parsed.text;
+                  setMessages((prev) =>
+                    prev.map((m) =>
+                      m.id === assistantMsgId ? { ...m, content: accumulated } : m
+                    )
+                  );
+                }
+              } catch (e) {
+                console.warn('Failed to parse SSE line', e);
+              }
             }
           }
         }
       }
-    } catch (err: any) {
-      if (err.name === 'AbortError') {
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === assistantMsgId
-              ? { ...msg, content: msg.content + '\n\n*(Generación detenida)*' }
-              : msg
-          )
-        );
-      } else {
-        const errorDetail = err?.message || 'Error desconocido al conectar con el asistente.';
-        setMessages((prev) =>
-          prev.map((msg) =>
-            msg.id === assistantMsgId
-              ? {
-                  ...msg,
-                  content: `❌ **Error de conexión con el AI Race Engineer**:\n${errorDetail}\n\n*Verifica tu API Key en la configuración (⚙️).*`,
-                }
-              : msg
-          )
-        );
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        return;
       }
+      const errMsg = err instanceof Error ? err.message : 'Unknown communication error';
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantMsgId
+            ? {
+                ...m,
+                content: `⚠️ *Error:* ${errMsg}\n\n*Please verify your API Key in Settings (⚙️).*`,
+              }
+            : m
+        )
+      );
     } finally {
       setIsGenerating(false);
       abortControllerRef.current = null;
@@ -396,7 +446,9 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
   const handleStopGeneration = () => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
+      abortControllerRef.current = null;
     }
+    setIsGenerating(false);
   };
 
   const handleClearChat = () => {
@@ -406,7 +458,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
         id: 'welcome-reset',
         role: 'assistant',
         content:
-          '🔄 **Conversación reiniciada.**\n\nListo para un nuevo análisis. ¿Qué te gustaría consultar sobre las vueltas seleccionadas?',
+          '🔄 **Conversation reset.**\n\nReady for a new analysis. What would you like to inspect on the selected laps?',
         timestamp: new Date(),
       },
     ]);
@@ -416,31 +468,30 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
     {
       id: 'delta-loss',
       icon: <Zap size={13} style={{ color: '#ffd200' }} />,
-      label: '¿Dónde se ganó/perdió tiempo?',
-      prompt: '¿Dónde se ganó o perdió la mayor cantidad de tiempo entre ambas vueltas? Dame un desglose técnico por sectores y curvas clave.',
+      label: 'Where was time gained/lost?',
+      prompt: 'Where was the most time gained or lost between both laps? Provide a technical breakdown by sectors and key corners.',
     },
     {
       id: 'braking-traction',
       icon: <Gauge size={13} style={{ color: '#ff4b4b' }} />,
-      label: 'Frenada y tracción',
-      prompt: 'Analiza y compara los puntos de frenada, presión máxima y la aceleración en la salida de las curvas entre ambas vueltas.',
+      label: 'Braking & Traction',
+      prompt: 'Analyze and compare braking points, peak brake pressure, and corner exit traction between both laps.',
     },
     {
       id: 'ers-drs',
       icon: <Cpu size={13} style={{ color: '#00f2fe' }} />,
-      label: 'Despliegue ERS / DRS',
-      prompt: 'Compara la estrategia de despliegue del motor eléctrico (ERS) y la utilización del DRS entre ambas vueltas.',
+      label: 'ERS & DRS Deployment',
+      prompt: 'Compare the electric motor (ERS) deployment strategy and DRS usage between both laps.',
     },
     {
       id: 'zoomed-analysis',
       icon: <ZoomIn size={13} style={{ color: '#38ef7d' }} />,
-      label: 'Tramo en zoom',
-      prompt: 'Analiza en profundidad el tramo actualmente ampliado en el zoom de los gráficos y explica detalladamente la diferencia de pilotaje.',
+      label: 'Zoomed Sector',
+      prompt: 'Analyze in depth the currently zoomed sector in the telemetry charts and explain the driving difference in detail.',
       requiresZoom: true,
     },
   ];
 
-  // Helper to format simple markdown text into react elements
   const renderFormattedContent = (content: string) => {
     const lines = content.split('\n');
     return (
@@ -450,7 +501,6 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
             return <div key={idx} style={{ height: '0.4rem' }} />;
           }
 
-          // Headers
           if (line.startsWith('### ')) {
             return (
               <h4 key={idx} className="chat-h4">
@@ -466,7 +516,6 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
             );
           }
 
-          // Bullet points
           if (line.startsWith('* ') || line.startsWith('- ')) {
             return (
               <div key={idx} className="chat-bullet">
@@ -518,7 +567,6 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
 
   return (
     <div className="glass-panel ai-embedded-card" style={{ padding: '0.65rem 0.75rem' }}>
-      {/* Compact Header */}
       <div
         style={{
           display: 'flex',
@@ -551,8 +599,8 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
             className="btn-icon"
             style={{ padding: '3px' }}
             onClick={() => setShowSettings(!showSettings)}
-            title="Configuración de IA"
-            aria-label="Configuración"
+            title="AI Settings"
+            aria-label="Settings"
           >
             <Settings size={13} />
           </button>
@@ -560,26 +608,25 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
             className="btn-icon"
             style={{ padding: '3px' }}
             onClick={handleClearChat}
-            title="Limpiar conversación"
-            aria-label="Limpiar chat"
+            title="Clear conversation"
+            aria-label="Clear chat"
           >
             <RotateCcw size={13} />
           </button>
         </div>
       </div>
 
-      {/* Settings Overlay Card */}
       {showSettings && (
         <div className="ai-settings-card glass-panel" style={{ top: '42px' }}>
           <div className="ai-settings-header">
-            <h4>Configuración del Asistente</h4>
+            <h4>Assistant Settings</h4>
             <button className="btn-icon" onClick={() => setShowSettings(false)}>
               <X size={15} />
             </button>
           </div>
 
           <div className="ai-settings-body">
-            <label className="readout-label">Proveedor de IA</label>
+            <label className="readout-label">AI Provider</label>
             <select
               className="ui-select"
               value={config.provider}
@@ -592,18 +639,18 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
                 });
               }}
             >
-              <option value="gemini">Google Gemini (Recomendado)</option>
+              <option value="gemini">Google Gemini (Recommended)</option>
               <option value="openai">OpenAI (GPT-4o-mini / GPT-4o)</option>
-              <option value="custom">Endpoint Compatible OpenAI (Local / Groq / Ollama)</option>
+              <option value="custom">OpenAI-Compatible Endpoint (Local / Groq / Ollama)</option>
             </select>
 
             <label className="readout-label" style={{ marginTop: '0.75rem' }}>
               API Key
               {config.provider === 'gemini' && serverConfigStatus?.hasGeminiEnvKey && (
-                <span className="ai-env-badge">Detectada en servidor (.env)</span>
+                <span className="ai-env-badge">Detected on server (.env)</span>
               )}
               {config.provider === 'openai' && serverConfigStatus?.hasOpenAIEnvKey && (
-                <span className="ai-env-badge">Detectada en servidor (.env)</span>
+                <span className="ai-env-badge">Detected on server (.env)</span>
               )}
             </label>
             <div className="ai-key-input-wrapper">
@@ -612,8 +659,8 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
                 className="ui-input"
                 placeholder={
                   config.provider === 'gemini'
-                    ? 'AIzaSy... (o déjalo vacío para usar .env)'
-                    : 'sk-... (o déjalo vacío para usar .env)'
+                    ? 'AIzaSy... (or leave empty to use server .env)'
+                    : 'sk-... (or leave empty to use server .env)'
                 }
                 value={config.apiKey}
                 onChange={(e) => saveConfig({ ...config, apiKey: e.target.value })}
@@ -627,17 +674,17 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
               </button>
             </div>
             <small className="ai-settings-hint">
-              Guardada localmente en tu navegador. Nunca se envía a terceros.
+              Saved locally in your browser. Never shared with third parties.
             </small>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', marginBottom: '0.35rem' }}>
-              <label className="readout-label" style={{ margin: 0 }}>Modelo</label>
+              <label className="readout-label" style={{ margin: 0 }}>Model</label>
               <button
                 type="button"
                 className="ai-refresh-models-btn"
                 onClick={() => fetchAvailableModels()}
                 disabled={isLoadingModels}
-                title="Consultar modelos disponibles en la API"
+                title="Fetch available models from API"
                 style={{
                   background: 'none',
                   border: 'none',
@@ -650,7 +697,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
                 }}
               >
                 <RefreshCw size={11} className={isLoadingModels ? 'spin-icon' : ''} />
-                {isLoadingModels ? 'Consultando...' : 'Actualizar modelos'}
+                {isLoadingModels ? 'Fetching...' : 'Refresh models'}
               </button>
             </div>
 
@@ -665,13 +712,13 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
                   }
                 }}
               >
-                <option value="" disabled>Selecciona un modelo detectado...</option>
+                <option value="" disabled>Select a detected model...</option>
                 {availableModels.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.display_name || m.id} {m.id !== m.display_name ? `(${m.id})` : ''}
                   </option>
                 ))}
-                <option value="custom">✏️ Otro / Personalizado...</option>
+                <option value="custom">✏️ Custom / Other...</option>
               </select>
             )}
 
@@ -704,14 +751,13 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
 
             <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'flex-end' }}>
               <button className="nav-tab active" onClick={() => setShowSettings(false)}>
-                Listo
+                Done
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Messages Feed */}
       <div
         ref={messagesContainerRef}
         className="ai-messages-container"
@@ -749,7 +795,6 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
         ))}
       </div>
 
-      {/* Quick Action Prompt Chips */}
       <div className="ai-quick-prompts-bar" style={{ padding: '0.25rem 0', background: 'transparent' }}>
         <div className="ai-quick-prompts-scroll">
           {quickPrompts.map((qp) => {
@@ -760,7 +805,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
                 className={`ai-chip-btn ${qp.requiresZoom && isZoomActive ? 'zoom-highlight' : ''}`}
                 disabled={disabled || isGenerating}
                 onClick={() => handleSendMessage(qp.prompt)}
-                title={disabled ? 'Requiere dos vueltas seleccionadas' : qp.label}
+                title={disabled ? 'Requires two laps selected' : qp.label}
                 style={{ fontSize: '0.68rem', padding: '2px 7px', height: '24px' }}
               >
                 {qp.icon}
@@ -771,12 +816,11 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
         </div>
       </div>
 
-      {/* Footer Input Area */}
       <div className="ai-drawer-footer" style={{ padding: '0.35rem 0 0 0', background: 'transparent', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
         {!isConfigured && (
           <div className="ai-unconfigured-alert" style={{ fontSize: '0.68rem', padding: '3px 6px', marginBottom: '0.3rem' }}>
-            <span>⚠️ Configura tu API Key.</span>
-            <button onClick={() => setShowSettings(true)}>Configurar</button>
+            <span>⚠️ Configure your API Key.</span>
+            <button onClick={() => setShowSettings(true)}>Configure</button>
           </div>
         )}
 
@@ -793,8 +837,8 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
             style={{ fontSize: '0.78rem', padding: '0.4rem 0.75rem', height: '32px' }}
             placeholder={
               !hasLapsSelected
-                ? 'Selecciona vueltas para consultar...'
-                : 'Pregunta al Race Engineer...'
+                ? 'Select laps to analyze...'
+                : 'Ask your Race Engineer...'
             }
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
@@ -806,7 +850,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
               type="button"
               className="ai-send-btn stop"
               onClick={handleStopGeneration}
-              title="Detener respuesta"
+              title="Stop response"
               style={{ width: '32px', height: '32px' }}
             >
               <Square size={13} />
@@ -816,7 +860,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
               type="submit"
               className="ai-send-btn"
               disabled={!inputMessage.trim() || !hasLapsSelected}
-              title="Enviar mensaje"
+              title="Send message"
               style={{ width: '32px', height: '32px' }}
             >
               <Send size={13} />
@@ -830,42 +874,42 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
 
 function buildSystemPromptText(ctx: TelemetryContextPayload | null): string {
   let prompt =
-    'Eres el Ingeniero de Pista de F1 (Race Engineer) personal y analista de telemetría exclusivo del PILOTO DE LA VUELTA A (el primer piloto seleccionado).\n' +
-    'Tu función es hablarle directamente a tu piloto (Vuelta A) por la radio del equipo para analizar su rendimiento, diagnosticar sus pérdidas/ganancias de tiempo y darle recomendaciones de pilotaje claras y técnicas para batir a la Vuelta B (vuelta de comparación/rival).\n\n' +
-    'REGLAS FUNDAMENTALES DE ENFOQUE Y ASIGNACIÓN:\n' +
-    '1. DIRÍGETE SIEMPRE EN SEGUNDA PERSONA A TU PILOTO (VUELTA A): Usa "tú", "tu tiempo", "estás frenando", "tu tracción", refiriéndote siempre al piloto de la Vuelta A.\n' +
-    '2. LA VUELTA B ES SIEMPRE LA REFERENCIA / RIVAL: Refiérete a la Vuelta B como "el rival", "Vuelta B" o por el nombre del piloto B. NUNCA le des consejos de mejora al piloto de la Vuelta B ni asumas el rol de su ingeniero.\n' +
-    '3. SI TU PILOTO (VUELTA A) ES MÁS LENTO: Explícale exactamente dónde pierde tiempo (ej. "Frenas 15m antes que Vuelta B en la curva 1", "Pierdes 0.15s en la tracción de la horquilla") y dale la instrucción precisa para recortar esa diferencia.\n' +
-    '4. SI TU PILOTO (VUELTA A) ES MÁS RÁPIDO: Felicítalo por la vuelta, destaca dónde sacó la ventaja a la Vuelta B, y si existe alguna curva puntual donde Vuelta B fue mejor, indícaselo como oportunidad para ganar aún más tiempo.\n' +
-    '5. COMUNICACIÓN Y FORMATO: Comunícate en español con tono profesional, directo y conciso de radio de F1. Usa Markdown estructurado (negritas, listas cortas).\n' +
-    '6. NO INVENTES NI MENCIONES SETUPS DEL COCHE: Los setups de otros pilotos no están disponibles. Concéntrate 100% en la técnica de conducción, puntos de frenada, velocidad de ápice en curva, tracción y uso de ERS/DRS.\n\n';
+    'You are the personal F1 Race Engineer and exclusive telemetry analyst for the DRIVER OF LAP A (the primary selected driver).\n' +
+    'Your role is to speak directly to your driver (Lap A) over the team radio to analyze their performance, diagnose where lap time was gained or lost, and provide clear, highly technical coaching advice to beat Lap B (the comparison / benchmark lap).\n\n' +
+    'CORE COACHING & ROLE RULES:\n' +
+    '1. ALWAYS ADDRESS YOUR DRIVER (LAP A) IN THE SECOND PERSON: Use "you", "your lap", "you are braking", "your traction", always referring to the driver of Lap A.\n' +
+    '2. LAP B IS STRICTLY THE BENCHMARK / RIVAL: Refer to Lap B as "the benchmark", "Lap B", or by driver B\'s name. NEVER give improvement advice to driver B or act as their engineer.\n' +
+    '3. IF YOUR DRIVER (LAP A) IS SLOWER: Explain specifically where they are losing time (e.g. "You are braking 15m too early compared to Lap B into Turn 1", "You lose 0.15s on traction out of the hairpin") and give actionable instructions to recover that delta.\n' +
+    '4. IF YOUR DRIVER (LAP A) IS FASTER: Congratulate them on the lap, highlight where they built the advantage over Lap B, and if there are any specific corners where Lap B was stronger, mention them as opportunities to gain even more time.\n' +
+    '5. COMMUNICATION STYLE & LANGUAGE: Communicate strictly in English with a professional, sharp, direct F1 team radio tone. Use structured Markdown (bold keywords, bullet points).\n' +
+    '6. DO NOT MENTION CAR SETUPS: Setups of other cars are unavailable. Focus 100% on driving technique, braking points, minimum corner apex speed, exit traction, and ERS/DRS deployment.\n\n';
 
   if (ctx) {
-    prompt += `### DATOS DE TELEMETRÍA DE LA COMPARATIVA:\n`;
-    prompt += `- Circuito: ${ctx.track_name} | Sesión: ${ctx.session_type}\n`;
-    prompt += `- TU PILOTO (Vuelta A): ${ctx.lap_a_name} (${ctx.lap_a_time_formatted}) - Neumático: ${ctx.lap_a_compound}\n`;
-    prompt += `- RIVAL / REFERENCIA (Vuelta B): ${ctx.lap_b_name} (${ctx.lap_b_time_formatted}) - Neumático: ${ctx.lap_b_compound}\n`;
-    prompt += `- Delta Total: ${ctx.time_delta_seconds.toFixed(3)}s (Más rápida: ${ctx.faster_lap})\n`;
-    prompt += `- Sectores:\n`;
-    prompt += `  * Sector 1: Tu tiempo (${ctx.lap_a_s1_formatted}) vs Rival (${ctx.lap_b_s1_formatted})\n`;
-    prompt += `  * Sector 2: Tu tiempo (${ctx.lap_a_s2_formatted}) vs Rival (${ctx.lap_b_s2_formatted})\n`;
-    prompt += `  * Sector 3: Tu tiempo (${ctx.lap_a_s3_formatted}) vs Rival (${ctx.lap_b_s3_formatted})\n`;
-    prompt += `- Velocidad Máxima: Tu velocidad = ${ctx.top_speed_a.toFixed(1)} km/h | Rival = ${ctx.top_speed_b.toFixed(1)} km/h\n`;
-    prompt += `- Despliegue ERS acumulado: Tu uso = ${ctx.ers_a_used_percent.toFixed(1)}% | Rival = ${ctx.ers_b_used_percent.toFixed(1)}%\n`;
+    prompt += `### COMPARATIVE TELEMETRY DATA:\n`;
+    prompt += `- Track: ${ctx.track_name} | Session: ${ctx.session_type}\n`;
+    prompt += `- YOUR DRIVER (Lap A): ${ctx.lap_a_name} (${ctx.lap_a_time_formatted}) - Compound: ${ctx.lap_a_compound}\n`;
+    prompt += `- BENCHMARK / RIVAL (Lap B): ${ctx.lap_b_name} (${ctx.lap_b_time_formatted}) - Compound: ${ctx.lap_b_compound}\n`;
+    prompt += `- Total Time Delta: ${ctx.time_delta_seconds.toFixed(3)}s (Faster: ${ctx.faster_lap})\n`;
+    prompt += `- Sector Times:\n`;
+    prompt += `  * Sector 1: Your time (${ctx.lap_a_s1_formatted}) vs Benchmark (${ctx.lap_b_s1_formatted})\n`;
+    prompt += `  * Sector 2: Your time (${ctx.lap_a_s2_formatted}) vs Benchmark (${ctx.lap_b_s2_formatted})\n`;
+    prompt += `  * Sector 3: Your time (${ctx.lap_a_s3_formatted}) vs Benchmark (${ctx.lap_b_s3_formatted})\n`;
+    prompt += `- Top Speed (Speed Trap): Your speed = ${ctx.top_speed_a.toFixed(1)} km/h | Benchmark = ${ctx.top_speed_b.toFixed(1)} km/h\n`;
+    prompt += `- Cumulative ERS Deployment: Your usage = ${ctx.ers_a_used_percent.toFixed(1)}% | Benchmark = ${ctx.ers_b_used_percent.toFixed(1)}%\n`;
 
-    if (ctx.braking_summary) prompt += `- Análisis de Frenada: ${ctx.braking_summary}\n`;
-    if (ctx.apex_speed_summary) prompt += `- Velocidad en Curvas / Ápice: ${ctx.apex_speed_summary}\n`;
-    if (ctx.throttle_summary) prompt += `- Tracción y Aceleración: ${ctx.throttle_summary}\n`;
-    if (ctx.ers_drs_summary) prompt += `- ERS y DRS: ${ctx.ers_drs_summary}\n`;
+    if (ctx.braking_summary) prompt += `- Braking Analysis: ${ctx.braking_summary}\n`;
+    if (ctx.apex_speed_summary) prompt += `- Corner Apex Speed: ${ctx.apex_speed_summary}\n`;
+    if (ctx.throttle_summary) prompt += `- Traction & Acceleration: ${ctx.throttle_summary}\n`;
+    if (ctx.ers_drs_summary) prompt += `- ERS & DRS: ${ctx.ers_drs_summary}\n`;
 
     if (ctx.zoomed_range) {
-      prompt += `\n### TRAMO EN ZOOM SELECCIONADO POR EL PILOTO (${ctx.zoomed_range.start_distance_meters}m - ${ctx.zoomed_range.end_distance_meters}m):\n`;
-      if (ctx.zoomed_range.description) prompt += `- Descripción: ${ctx.zoomed_range.description}\n`;
-      prompt += `- Delta en este tramo: ${ctx.zoomed_range.delta_in_segment.toFixed(3)}s\n`;
-      prompt += `- Diferencia de velocidad mínima en curva: ${ctx.zoomed_range.speed_diff_at_apex.toFixed(1)} km/h\n`;
+      prompt += `\n### ZOOMED SECTOR FOCUSED BY DRIVER (${ctx.zoomed_range.start_distance_meters}m - ${ctx.zoomed_range.end_distance_meters}m):\n`;
+      if (ctx.zoomed_range.description) prompt += `- Description: ${ctx.zoomed_range.description}\n`;
+      prompt += `- Delta in this segment: ${ctx.zoomed_range.delta_in_segment.toFixed(3)}s\n`;
+      prompt += `- Apex speed delta in corner: ${ctx.zoomed_range.speed_diff_at_apex.toFixed(1)} km/h\n`;
     }
   } else {
-    prompt += 'Actualmente no hay dos vueltas seleccionadas en el comparador. Si el usuario pregunta, indícale amablemente que seleccione una Vuelta A y una Vuelta B para poder analizar su telemetría.\n';
+    prompt += 'Currently, two laps are not selected in the comparator. If the user asks, kindly remind them to select Lap A and Lap B to analyze telemetry.\n';
   }
 
   return prompt;

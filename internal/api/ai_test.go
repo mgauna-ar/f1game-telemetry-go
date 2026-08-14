@@ -36,10 +36,10 @@ func TestHandleAIConfigStatus(t *testing.T) {
 func TestBuildSystemPrompt(t *testing.T) {
 	t.Run("nil context", func(t *testing.T) {
 		prompt := buildSystemPrompt(nil)
-		if !strings.Contains(prompt, "Ingeniero de Pista") {
+		if !strings.Contains(prompt, "Race Engineer") {
 			t.Errorf("expected prompt to contain role definition")
 		}
-		if !strings.Contains(prompt, "no hay dos vueltas seleccionadas") {
+		if !strings.Contains(prompt, "two laps are not selected") {
 			t.Errorf("expected prompt to mention no laps selected")
 		}
 	})
@@ -66,8 +66,8 @@ func TestBuildSystemPrompt(t *testing.T) {
 			TopSpeedB:         330.1,
 			ERSAUsedPercent:   42.5,
 			ERSBUsedPercent:   50.2,
-			BrakingSummary:    "Lap A frena 8m más tarde en Copse.",
-			ApexSpeedSummary:  "Lap B mantiene 4 km/h más de velocidad en Stowe.",
+			BrakingSummary:    "Lap A brakes 8m later into Copse.",
+			ApexSpeedSummary:  "Lap B carries 4 km/h more speed in Stowe.",
 			ZoomedRange: &ZoomedRangeInfo{
 				StartDistanceMeters: 1200,
 				EndDistanceMeters:   1900,
@@ -85,7 +85,7 @@ func TestBuildSystemPrompt(t *testing.T) {
 		if !strings.Contains(prompt, "1:27.097") {
 			t.Errorf("expected lap A time in prompt")
 		}
-		if !strings.Contains(prompt, "TRAMO EN ZOOM SELECCIONADO") {
+		if !strings.Contains(prompt, "ZOOMED SECTOR FOCUSED BY DRIVER") {
 			t.Errorf("expected zoomed range in prompt")
 		}
 		if !strings.Contains(prompt, "Copse & Maggotts/Becketts") {

@@ -78,7 +78,7 @@ export function buildTelemetryContext(
   }
 
   const deltaTotalSec = (lapA.lap_time_ms - lapB.lap_time_ms) / 1000;
-  const fasterLap = deltaTotalSec < 0 ? `Vuelta A (${nameA})` : `Vuelta B (${nameB})`;
+  const fasterLap = deltaTotalSec < 0 ? `Lap A (${nameA})` : `Lap B (${nameB})`;
 
   let topSpeedA = 0;
   let topSpeedB = 0;
@@ -156,17 +156,17 @@ export function buildTelemetryContext(
   let apexSpeedSummary = '';
   if (brakingZones.length > 0) {
     const keyZones = brakingZones.slice(0, 5);
-    brakingSummary = `Se detectaron ${brakingZones.length} zonas de frenada fuerte. Ejemplos en: ` +
-      keyZones.map((z) => `${getTurnLabel(z.dist)} (Pico: A=${z.brakeA}% vs B=${z.brakeB}%)`).join(', ');
+    brakingSummary = `Detected ${brakingZones.length} heavy braking zones. Examples at: ` +
+      keyZones.map((z) => `${getTurnLabel(z.dist)} (Peak: A=${z.brakeA}% vs B=${z.brakeB}%)`).join(', ');
 
     apexSpeedSummary = keyZones
       .filter((z) => z.speedMinA > 0 && z.speedMinB > 0)
-      .map((z) => `En ${getTurnLabel(z.dist)}: vel. mínima A=${z.speedMinA.toFixed(0)} km/h vs B=${z.speedMinB.toFixed(0)} km/h`)
+      .map((z) => `At ${getTurnLabel(z.dist)}: min speed A=${z.speedMinA.toFixed(0)} km/h vs B=${z.speedMinB.toFixed(0)} km/h`)
       .join('; ');
   }
 
-  const throttleSummary = `Velocidad punta alcanzada: A=${topSpeedA.toFixed(1)} km/h vs B=${topSpeedB.toFixed(1)} km/h. Delta de vel. punta: ${(topSpeedA - topSpeedB).toFixed(1)} km/h.`;
-  const ersDrsSummary = `Despliegue activo de ERS: A=${ersAUsedPercent.toFixed(1)}% vs B=${ersBUsedPercent.toFixed(1)}% de la distancia de vuelta.`;
+  const throttleSummary = `Top speed reached: A=${topSpeedA.toFixed(1)} km/h vs B=${topSpeedB.toFixed(1)} km/h. Top speed delta: ${(topSpeedA - topSpeedB).toFixed(1)} km/h.`;
+  const ersDrsSummary = `Active ERS deployment: A=${ersAUsedPercent.toFixed(1)}% vs B=${ersBUsedPercent.toFixed(1)}% of lap distance.`;
 
   let zoomedRange: TelemetryContextPayload['zoomed_range'] | undefined;
   if (zoomDomain && zoomDomain[1] > zoomDomain[0]) {
@@ -196,8 +196,8 @@ export function buildTelemetryContext(
         .map((t) => t.name);
 
       const zoomDesc = turnsInZoom.length > 0
-        ? `Sector con ${turnsInZoom.join(', ')} (${Math.round(startM)}m a ${Math.round(endM)}m)`
-        : `Sector específico de ${Math.round(startM)}m a ${Math.round(endM)}m`;
+        ? `Sector with ${turnsInZoom.join(', ')} (${Math.round(startM)}m to ${Math.round(endM)}m)`
+        : `Specific sector from ${Math.round(startM)}m to ${Math.round(endM)}m`;
 
       zoomedRange = {
         start_distance_meters: Math.round(startM),
@@ -211,16 +211,16 @@ export function buildTelemetryContext(
   }
 
   return {
-    track_name: trackName || 'Circuito F1',
-    session_type: sessionType || 'Sesión',
-    lap_a_name: `${nameA} (Vuelta ${lapA.lap_number})`,
-    lap_b_name: `${nameB} (Vuelta ${lapB.lap_number})`,
+    track_name: trackName || 'F1 Circuit',
+    session_type: sessionType || 'Session',
+    lap_a_name: `${nameA} (Lap ${lapA.lap_number})`,
+    lap_b_name: `${nameB} (Lap ${lapB.lap_number})`,
     lap_a_time_formatted: formatLapTime(lapA.lap_time_ms),
     lap_b_time_formatted: formatLapTime(lapB.lap_time_ms),
     time_delta_seconds: deltaTotalSec,
     faster_lap: fasterLap,
-    lap_a_compound: lapA.tyre_compound || 'Desconocido',
-    lap_b_compound: lapB.tyre_compound || 'Desconocido',
+    lap_a_compound: lapA.tyre_compound || 'Unknown',
+    lap_b_compound: lapB.tyre_compound || 'Unknown',
     lap_a_s1_formatted: formatSectorTime(lapA.sector1_ms),
     lap_b_s1_formatted: formatSectorTime(lapB.sector1_ms),
     lap_a_s2_formatted: formatSectorTime(lapA.sector2_ms),

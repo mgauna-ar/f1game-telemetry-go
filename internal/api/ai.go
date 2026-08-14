@@ -110,7 +110,7 @@ func (s *Server) handleAIConfigStatus(w http.ResponseWriter, r *http.Request) {
 	openaiKey := strings.TrimSpace(os.Getenv("OPENAI_API_KEY"))
 
 	defaultProvider := "gemini"
-	defaultModel := "gemini-1.5-flash"
+	defaultModel := "gemini-3.1-flash-lite"
 
 	if geminiKey == "" && openaiKey != "" {
 		defaultProvider = "openai"
@@ -124,18 +124,16 @@ func (s *Server) handleAIConfigStatus(w http.ResponseWriter, r *http.Request) {
 		defaultProvider = envProvider
 	}
 
-	resp := AIConfigStatusResponse{
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(AIConfigStatusResponse{
 		HasGeminiEnvKey: geminiKey != "",
 		HasOpenAIEnvKey: openaiKey != "",
 		DefaultProvider: defaultProvider,
 		DefaultModel:    defaultModel,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	})
 }
 
-// handleAIFetchModels queries the provider's API directly to get live available models for the given API key.
+// handleAIFetchModels queries the provider API for available active text-generation models.
 func (s *Server) handleAIFetchModels(w http.ResponseWriter, r *http.Request) {
 	var req AIFetchModelsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -204,6 +202,24 @@ func (s *Server) handleAIFetchModels(w http.ResponseWriter, r *http.Request) {
 			}
 			if supportsContent {
 				cleanID := strings.TrimPrefix(m.Name, "models/")
+				lowerID := strings.ToLower(cleanID)
+
+				// Strict filtering: must be a gemini text/chat model and NOT an image/banana/embedding/toy model
+				if !strings.HasPrefix(lowerID, "gemini-") {
+					continue
+				}
+				if strings.Contains(lowerID, "banana") ||
+					strings.Contains(lowerID, "imagen") ||
+					strings.Contains(lowerID, "image") ||
+					strings.Contains(lowerID, "embedding") ||
+					strings.Contains(lowerID, "aqa") ||
+					strings.Contains(lowerID, "tts") ||
+					strings.Contains(lowerID, "audio") ||
+					strings.Contains(lowerID, "robotics") ||
+					strings.Contains(lowerID, "vision") {
+					continue
+				}
+
 				dispName := m.DisplayName
 				if dispName == "" {
 					dispName = cleanID
@@ -255,6 +271,17 @@ func (s *Server) handleAIFetchModels(w http.ResponseWriter, r *http.Request) {
 		}
 
 		for _, item := range openAIResp.Data {
+			lowerID := strings.ToLower(item.ID)
+			if strings.Contains(lowerID, "audio") ||
+				strings.Contains(lowerID, "realtime") ||
+				strings.Contains(lowerID, "tts") ||
+				strings.Contains(lowerID, "whisper") ||
+				strings.Contains(lowerID, "dall-e") ||
+				strings.Contains(lowerID, "embedding") ||
+				strings.Contains(lowerID, "moderation") {
+				continue
+			}
+
 			if strings.HasPrefix(item.ID, "gpt-") || strings.HasPrefix(item.ID, "o1") || strings.HasPrefix(item.ID, "o3") || provider == "custom" {
 				models = append(models, AIModelItem{
 					ID:          item.ID,
@@ -345,57 +372,57 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 func buildSystemPrompt(telemetryCtx *TelemetryAnalysisContext) string {
 	var sb strings.Builder
 
-	sb.WriteString("Eres el Ingeniero de Pista de F1 (Race Engineer) personal y analista de telemetría exclusivo del PILOTO DE LA VUELTA A (el primer piloto seleccionado).\n")
-	sb.WriteString("Tu función es hablarle directamente a tu piloto (Vuelta A) por la radio del equipo para analizar su rendimiento, diagnosticar sus pérdidas/ganancias de tiempo y darle recomendaciones de pilotaje claras y técnicas para batir a la Vuelta B (vuelta de comparación/rival).\n\n")
+	sb.WriteString("You are the personal F1 Race Engineer and exclusive telemetry analyst for the DRIVER OF LAP A (the primary selected driver).\n")
+	sb.WriteString("Your role is to speak directly to your driver (Lap A) over the team radio to analyze their performance, diagnose where lap time was gained or lost, and provide clear, highly technical coaching advice to beat Lap B (the comparison / benchmark lap).\n\n")
 
-	sb.WriteString("REGLAS FUNDAMENTALES DE ENFOQUE Y ASIGNACIÓN:\n")
-	sb.WriteString("1. DIRÍGETE SIEMPRE EN SEGUNDA PERSONA A TU PILOTO (VUELTA A): Usa 'tú', 'tu tiempo', 'estás frenando', 'tu tracción', refiriéndote siempre al piloto de la Vuelta A.\n")
-	sb.WriteString("2. LA VUELTA B ES SIEMPRE LA REFERENCIA / RIVAL: Refiérete a la Vuelta B como 'el rival', 'Vuelta B' o por el nombre del piloto B. NUNCA le des consejos de mejora al piloto de la Vuelta B ni asumas el rol de su ingeniero.\n")
-	sb.WriteString("3. SI TU PILOTO (VUELTA A) ES MÁS LENTO: Explícale exactamente dónde pierde tiempo (ej. 'Frenas 15m antes que Vuelta B en la curva 1', 'Pierdes 0.15s en la tracción de la horquilla') y dale la instrucción precisa para recortar esa diferencia.\n")
-	sb.WriteString("4. SI TU PILOTO (VUELTA A) ES MÁS RÁPIDO: Felicítalo por la vuelta, destaca dónde sacó la ventaja a la Vuelta B, y si existe alguna curva puntual donde Vuelta B fue mejor, indícaselo como oportunidad para ganar aún más tiempo.\n")
-	sb.WriteString("5. COMUNICACIÓN Y FORMATO: Comunícate en español con tono profesional, directo y conciso de radio de F1. Usa Markdown estructurado (negritas, listas cortas).\n")
-	sb.WriteString("6. NO INVENTES NI MENCIONES SETUPS DEL COCHE: Los setups de otros pilotos no están disponibles. Concéntrate 100% en la técnica de conducción, puntos de frenada, velocidad de ápice en curva, tracción y uso de ERS/DRS.\n\n")
+	sb.WriteString("CORE COACHING & ROLE RULES:\n")
+	sb.WriteString("1. ALWAYS ADDRESS YOUR DRIVER (LAP A) IN THE SECOND PERSON: Use 'you', 'your lap', 'you are braking', 'your traction', always referring to the driver of Lap A.\n")
+	sb.WriteString("2. LAP B IS STRICTLY THE BENCHMARK / RIVAL: Refer to Lap B as 'the benchmark', 'Lap B', or by driver B's name. NEVER give improvement advice to driver B or act as their engineer.\n")
+	sb.WriteString("3. IF YOUR DRIVER (LAP A) IS SLOWER: Explain specifically where they are losing time (e.g. 'You are braking 15m too early compared to Lap B into Turn 1', 'You lose 0.15s on traction out of the hairpin') and give actionable instructions to recover that delta.\n")
+	sb.WriteString("4. IF YOUR DRIVER (LAP A) IS FASTER: Congratulate them on the lap, highlight where they built the advantage over Lap B, and if there are any specific corners where Lap B was stronger, mention them as opportunities to gain even more time.\n")
+	sb.WriteString("5. COMMUNICATION STYLE & LANGUAGE: Communicate strictly in English with a professional, sharp, direct F1 team radio tone. Use structured Markdown (bold keywords, bullet points).\n")
+	sb.WriteString("6. DO NOT MENTION CAR SETUPS: Setups of other cars are unavailable. Focus 100% on driving technique, braking points, minimum corner apex speed, exit traction, and ERS/DRS deployment.\n\n")
 
 	if telemetryCtx != nil {
-		sb.WriteString("### DATOS DE TELEMETRÍA DE LA COMPARATIVA:\n")
-		sb.WriteString(fmt.Sprintf("- Circuito: %s | Sesión: %s\n", telemetryCtx.TrackName, telemetryCtx.SessionType))
-		sb.WriteString(fmt.Sprintf("- TU PILOTO (Vuelta A): %s (%s) - Neumático: %s\n", telemetryCtx.LapAName, telemetryCtx.LapATimeFormatted, telemetryCtx.LapACompound))
-		sb.WriteString(fmt.Sprintf("- RIVAL / REFERENCIA (Vuelta B): %s (%s) - Neumático: %s\n", telemetryCtx.LapBName, telemetryCtx.LapBTimeFormatted, telemetryCtx.LapBCompound))
-		sb.WriteString(fmt.Sprintf("- Delta Total: %.3f s (Más rápida: %s)\n", telemetryCtx.TimeDeltaSeconds, telemetryCtx.FasterLap))
+		sb.WriteString("### COMPARATIVE TELEMETRY DATA:\n")
+		sb.WriteString(fmt.Sprintf("- Track: %s | Session: %s\n", telemetryCtx.TrackName, telemetryCtx.SessionType))
+		sb.WriteString(fmt.Sprintf("- YOUR DRIVER (Lap A): %s (%s) - Compound: %s\n", telemetryCtx.LapAName, telemetryCtx.LapATimeFormatted, telemetryCtx.LapACompound))
+		sb.WriteString(fmt.Sprintf("- BENCHMARK / RIVAL (Lap B): %s (%s) - Compound: %s\n", telemetryCtx.LapBName, telemetryCtx.LapBTimeFormatted, telemetryCtx.LapBCompound))
+		sb.WriteString(fmt.Sprintf("- Total Time Delta: %.3f s (Faster: %s)\n", telemetryCtx.TimeDeltaSeconds, telemetryCtx.FasterLap))
 
-		sb.WriteString("- Sectores:\n")
-		sb.WriteString(fmt.Sprintf("  * Sector 1: Tu tiempo (%s) vs Rival (%s)\n", telemetryCtx.LapAS1Formatted, telemetryCtx.LapBS1Formatted))
-		sb.WriteString(fmt.Sprintf("  * Sector 2: Tu tiempo (%s) vs Rival (%s)\n", telemetryCtx.LapAS2Formatted, telemetryCtx.LapBS2Formatted))
-		sb.WriteString(fmt.Sprintf("  * Sector 3: Tu tiempo (%s) vs Rival (%s)\n", telemetryCtx.LapAS3Formatted, telemetryCtx.LapBS3Formatted))
+		sb.WriteString("- Sector Times:\n")
+		sb.WriteString(fmt.Sprintf("  * Sector 1: Your time (%s) vs Benchmark (%s)\n", telemetryCtx.LapAS1Formatted, telemetryCtx.LapBS1Formatted))
+		sb.WriteString(fmt.Sprintf("  * Sector 2: Your time (%s) vs Benchmark (%s)\n", telemetryCtx.LapAS2Formatted, telemetryCtx.LapBS2Formatted))
+		sb.WriteString(fmt.Sprintf("  * Sector 3: Your time (%s) vs Benchmark (%s)\n", telemetryCtx.LapAS3Formatted, telemetryCtx.LapBS3Formatted))
 
-		sb.WriteString(fmt.Sprintf("- Velocidad Máxima: Tu velocidad = %.1f km/h | Rival = %.1f km/h\n", telemetryCtx.TopSpeedA, telemetryCtx.TopSpeedB))
-		sb.WriteString(fmt.Sprintf("- Despliegue ERS acumulado: Tu uso = %.1f%% | Rival = %.1f%%\n", telemetryCtx.ERSAUsedPercent, telemetryCtx.ERSBUsedPercent))
+		sb.WriteString(fmt.Sprintf("- Top Speed (Speed Trap): Your speed = %.1f km/h | Benchmark = %.1f km/h\n", telemetryCtx.TopSpeedA, telemetryCtx.TopSpeedB))
+		sb.WriteString(fmt.Sprintf("- Cumulative ERS Deployment: Your usage = %.1f%% | Benchmark = %.1f%%\n", telemetryCtx.ERSAUsedPercent, telemetryCtx.ERSBUsedPercent))
 
 		if telemetryCtx.BrakingSummary != "" {
-			sb.WriteString(fmt.Sprintf("- Análisis de Frenada: %s\n", telemetryCtx.BrakingSummary))
+			sb.WriteString(fmt.Sprintf("- Braking Analysis: %s\n", telemetryCtx.BrakingSummary))
 		}
 		if telemetryCtx.ApexSpeedSummary != "" {
-			sb.WriteString(fmt.Sprintf("- Velocidad en Curvas / Ápice: %s\n", telemetryCtx.ApexSpeedSummary))
+			sb.WriteString(fmt.Sprintf("- Corner Apex Speed: %s\n", telemetryCtx.ApexSpeedSummary))
 		}
 		if telemetryCtx.ThrottleSummary != "" {
-			sb.WriteString(fmt.Sprintf("- Tracción y Aceleración: %s\n", telemetryCtx.ThrottleSummary))
+			sb.WriteString(fmt.Sprintf("- Traction & Acceleration: %s\n", telemetryCtx.ThrottleSummary))
 		}
 		if telemetryCtx.ERSDRSSummary != "" {
-			sb.WriteString(fmt.Sprintf("- ERS y DRS: %s\n", telemetryCtx.ERSDRSSummary))
+			sb.WriteString(fmt.Sprintf("- ERS & DRS: %s\n", telemetryCtx.ERSDRSSummary))
 		}
 
 		if telemetryCtx.ZoomedRange != nil {
 			zr := telemetryCtx.ZoomedRange
-			sb.WriteString(fmt.Sprintf("\n### TRAMO EN ZOOM SELECCIONADO POR EL PILOTO (%.0fm - %.0fm):\n", zr.StartDistanceMeters, zr.EndDistanceMeters))
+			sb.WriteString(fmt.Sprintf("\n### ZOOMED SECTOR FOCUSED BY DRIVER (%.0fm - %.0fm):\n", zr.StartDistanceMeters, zr.EndDistanceMeters))
 			if zr.Description != "" {
-				sb.WriteString(fmt.Sprintf("- Descripción: %s\n", zr.Description))
+				sb.WriteString(fmt.Sprintf("- Description: %s\n", zr.Description))
 			}
-			sb.WriteString(fmt.Sprintf("- Delta en este tramo: %.3fs\n", zr.DeltaInSegment))
-			sb.WriteString(fmt.Sprintf("- Diferencia de velocidad mínima en curva: %.1f km/h\n", zr.SpeedDiffAtApex))
-			sb.WriteString(fmt.Sprintf("- Diferencia en punto de frenada: %.1f metros\n", zr.BrakingDiffMeters))
+			sb.WriteString(fmt.Sprintf("- Delta in this segment: %.3fs\n", zr.DeltaInSegment))
+			sb.WriteString(fmt.Sprintf("- Apex speed delta in corner: %.1f km/h\n", zr.SpeedDiffAtApex))
+			sb.WriteString(fmt.Sprintf("- Braking point difference: %.1f meters\n", zr.BrakingDiffMeters))
 		}
 	} else {
-		sb.WriteString("Actualmente no hay dos vueltas seleccionadas en el comparador. Si el usuario pregunta, indícale amablemente que seleccione una Vuelta A y una Vuelta B para poder analizar su telemetría.\n")
+		sb.WriteString("Currently, two laps are not selected in the comparator. If the user asks, kindly remind them to select Lap A and Lap B to analyze telemetry.\n")
 	}
 
 	return sb.String()

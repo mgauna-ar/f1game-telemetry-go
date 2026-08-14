@@ -70,13 +70,13 @@ describe('AiRaceEngineer Component', () => {
 
     expect(screen.getByText('AI Race Engineer')).toBeInTheDocument();
 
-    // Verify quick action chips
-    expect(screen.getByText('¿Dónde se ganó/perdió tiempo?')).toBeInTheDocument();
-    expect(screen.getByText('Frenada y tracción')).toBeInTheDocument();
-    expect(screen.getByText('Despliegue ERS / DRS')).toBeInTheDocument();
+    // Verify quick action chips in English
+    expect(screen.getByText('Where was time gained/lost?')).toBeInTheDocument();
+    expect(screen.getByText('Braking & Traction')).toBeInTheDocument();
+    expect(screen.getByText('ERS & DRS Deployment')).toBeInTheDocument();
 
     // Verify prompt input field is ready
-    expect(screen.getByPlaceholderText('Pregunta al Race Engineer...')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Ask your Race Engineer...')).toBeInTheDocument();
   });
 
   it('toggles settings modal in embedded card', async () => {
@@ -89,11 +89,11 @@ describe('AiRaceEngineer Component', () => {
     );
 
     // Open settings
-    const settingsBtn = screen.getByRole('button', { name: /Configuración/i });
+    const settingsBtn = screen.getByRole('button', { name: /Settings/i });
     fireEvent.click(settingsBtn);
 
-    expect(screen.getByText('Configuración del Asistente')).toBeInTheDocument();
-    expect(screen.getByText('Proveedor de IA')).toBeInTheDocument();
+    expect(screen.getByText('Assistant Settings')).toBeInTheDocument();
+    expect(screen.getByText('AI Provider')).toBeInTheDocument();
     expect(screen.getByText(/Google Gemini/)).toBeInTheDocument();
   });
 });
