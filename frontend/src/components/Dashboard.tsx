@@ -5,6 +5,7 @@ import { SessionHeader } from './SessionHeader';
 import { LeaderboardTower } from './LeaderboardTower';
 import { CarStatusWidget } from './CarStatusWidget';
 import { CarDamageWidget } from './CarDamageWidget';
+import { WaitingForData } from './WaitingForData';
 
 export const Dashboard: React.FC = () => {
   const {
@@ -21,6 +22,10 @@ export const Dashboard: React.FC = () => {
     selectedCarIndex = 0,
     setSelectedCarIndex = () => {},
   } = useTelemetry();
+
+  if (!connected || !session) {
+    return <WaitingForData connected={connected} />;
+  }
 
   const selectedParticipant = (participants || [])[selectedCarIndex || 0];
   const driverName = parseDriverName(selectedParticipant?.Name, `Car #${(selectedCarIndex || 0) + 1}`);

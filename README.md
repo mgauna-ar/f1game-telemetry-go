@@ -11,7 +11,8 @@
 - **UDP Telemetry Capture** — Listens for real-time telemetry packets from F1 25 / F1 26
 - **SQLite Storage** — Persists session data, laps, telemetry traces, and session participants locally
 - **Driver & Participant Metadata** — Stores driver names, team IDs, race numbers, and AI status per session
-- **Pit Wall Command Center UI** — Browser-based interface featuring session status (Track name, Weather, Safety Car flags, Session type, Countdown/Total laps)
+- **Modern Top Navigation Bar** — Premium sticky glassmorphic navigation header with reordered segmented tabs (1: **Session History**, 2: **Lap Comparator**, 3: **Live Telemetry** with live pulse badge), app branding, persistent active tab memory, and real-time port indicator
+- **Pit Wall Command Center & Live Telemetry** — Browser-based live dashboard featuring session status (Track name, Weather, Safety Car flags, Session type, Countdown/Total laps), live leaderboard tower, battle interval deltas, vehicle damage, car status, and driver telemetry gauges. Features an animated **Waiting for Telemetry Data** empty state with real-time bridge status and in-game UDP configuration guide
 - **Live Leaderboard Tower** — Real-time standings tower with team color badges, driver numbers, interval deltas, tyre compounds, pit status, and Qualifying elimination cut-off markers
 - **Car Damage & Tire Wear Telemetry** — Live monitoring of 4-wheel tyre wear %, aero damage (wings, floor, diffuser), brake wear, gearbox/engine component health, and DRS/ERS faults
 - **Car Setup Telemetry** — Stored setup telemetry for aerodynamics (wings), suspension & anti-roll bars, geometry (camber/toe), brake bias/pressure, and tyre pressures in Lap Analysis
