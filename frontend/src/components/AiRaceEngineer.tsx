@@ -58,7 +58,6 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
   hasLapsSelected,
   isZoomActive,
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
 
@@ -98,7 +97,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
   const [inputMessage, setInputMessage] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Fetch server status on mount
   useEffect(() => {
@@ -196,12 +195,12 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
     }
   };
 
-  // Scroll to bottom when messages update
+  // Scroll messages container to bottom when messages update (without scrolling the outer window/page)
   useEffect(() => {
-    if (isOpen) {
-      messagesEndRef.current?.scrollIntoView?.({ behavior: 'smooth' });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
-  }, [messages, isOpen]);
+  }, [messages]);
 
   // Initial welcome message
   useEffect(() => {
@@ -211,7 +210,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
           id: 'welcome',
           role: 'assistant',
           content:
-            '👋 **¡Hola! Soy tu AI Race Engineer.**\n\nEstoy listo para analizar la telemetría comparativa entre tus vueltas. Puedo decirte con precisión dónde ganas o pierdes tiempo, analizar tus puntos de frenada, velocidad de paso por curva, tracción de salida y el uso óptimo de ERS y DRS.\n\n*Selecciona dos vueltas arriba y pulsa cualquiera de las acciones rápidas o escribe tu consulta.*',
+            '👋 **¡Hola! Soy tu AI Race Engineer.**\n\nEstoy listo para analizar la telemetría comparativa entre tus vueltas. Analizo puntos de frenada, velocidad de ápice en curvas, tracción y despliegue de ERS y DRS.\n\n*Usa las acciones rápidas abajo o escribe tu pregunta.*',
           timestamp: new Date(),
         },
       ]);
@@ -409,7 +408,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
         id: 'welcome-reset',
         role: 'assistant',
         content:
-          '🔄 **Conversación reiniciada.**\n\nListo para un nuevo análisis telemétrico. ¿Qué te gustaría consultar sobre las vueltas seleccionadas?',
+          '🔄 **Conversación reiniciada.**\n\nListo para un nuevo análisis. ¿Qué te gustaría consultar sobre las vueltas seleccionadas?',
         timestamp: new Date(),
       },
     ]);
@@ -418,26 +417,26 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
   const quickPrompts = [
     {
       id: 'delta-loss',
-      icon: <Zap size={14} style={{ color: '#ffd200' }} />,
-      label: '¿Dónde se ganó o perdió más tiempo?',
+      icon: <Zap size={13} style={{ color: '#ffd200' }} />,
+      label: '¿Dónde se ganó/perdió tiempo?',
       prompt: '¿Dónde se ganó o perdió la mayor cantidad de tiempo entre ambas vueltas? Dame un desglose técnico por sectores y curvas clave.',
     },
     {
       id: 'braking-traction',
-      icon: <Gauge size={14} style={{ color: '#ff4b4b' }} />,
-      label: 'Comparar frenada y tracción en curvas',
+      icon: <Gauge size={13} style={{ color: '#ff4b4b' }} />,
+      label: 'Frenada y tracción',
       prompt: 'Analiza y compara los puntos de frenada, presión máxima y la aceleración en la salida de las curvas entre ambas vueltas.',
     },
     {
       id: 'ers-drs',
-      icon: <Cpu size={14} style={{ color: '#00f2fe' }} />,
-      label: 'Comparar despliegue de ERS y uso de DRS',
+      icon: <Cpu size={13} style={{ color: '#00f2fe' }} />,
+      label: 'Despliegue ERS / DRS',
       prompt: 'Compara la estrategia de despliegue del motor eléctrico (ERS) y la utilización del DRS entre ambas vueltas.',
     },
     {
       id: 'zoomed-analysis',
-      icon: <ZoomIn size={14} style={{ color: '#38ef7d' }} />,
-      label: 'Analizar tramo en zoom seleccionado',
+      icon: <ZoomIn size={13} style={{ color: '#38ef7d' }} />,
+      label: 'Tramo en zoom',
       prompt: 'Analiza en profundidad el tramo actualmente ampliado en el zoom de los gráficos y explica detalladamente la diferencia de pilotaje.',
       requiresZoom: true,
     },
@@ -450,7 +449,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
       <div className="chat-markdown">
         {lines.map((line, idx) => {
           if (!line.trim()) {
-            return <div key={idx} style={{ height: '0.5rem' }} />;
+            return <div key={idx} style={{ height: '0.4rem' }} />;
           }
 
           // Headers
@@ -490,7 +489,6 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
     let cur = text;
     let keyIdx = 0;
 
-    // Replace bold **text**
     const boldRegex = /\*\*(.*?)\*\*/g;
     let match;
     let lastIdx = 0;
@@ -521,384 +519,354 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
   );
 
   return (
-    <>
-      {/* Floating Trigger Button */}
-      <button
-        className={`ai-floating-trigger ${isOpen ? 'active' : ''}`}
-        onClick={() => setIsOpen(!isOpen)}
-        title="AI Race Engineer"
-        aria-label="Abrir AI Race Engineer"
-      >
-        <div className="ai-trigger-icon-wrapper">
-          <Bot size={22} className="ai-trigger-icon" />
-          <span className="ai-trigger-pulse" />
-        </div>
-        <div className="ai-trigger-text">
-          <span className="ai-trigger-title">AI Race Engineer</span>
-          <span className="ai-trigger-sub">
-            {isGenerating ? 'Analizando...' : hasLapsSelected ? 'Listo para comparar' : 'Esperando vueltas'}
-          </span>
-        </div>
-      </button>
-
-      {/* Slide-over Drawer */}
-      <div className={`ai-drawer-overlay ${isOpen ? 'open' : ''}`} onClick={() => setIsOpen(false)}>
-        <div
-          className={`ai-drawer-panel glass-panel ${isOpen ? 'open' : ''}`}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div className="ai-drawer-header">
-            <div className="ai-drawer-title-group">
-              <div className="ai-drawer-avatar">
-                <Bot size={20} style={{ color: '#e10600' }} />
-              </div>
-              <div>
-                <h3 className="ai-drawer-title">AI Race Engineer</h3>
-                <div className="ai-drawer-meta">
-                  <span className="ai-badge-provider">
-                    {config.provider.toUpperCase()} ({config.model})
-                  </span>
-                  {telemetryContext && (
-                    <span className="ai-badge-track">{telemetryContext.track_name}</span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="ai-drawer-actions">
-              <button
-                className="btn-icon"
-                onClick={() => setShowSettings(!showSettings)}
-                title="Configuración de IA"
-                aria-label="Configuración"
-              >
-                <Settings size={18} />
-              </button>
-              <button
-                className="btn-icon"
-                onClick={handleClearChat}
-                title="Limpiar conversación"
-                aria-label="Limpiar chat"
-              >
-                <RotateCcw size={18} />
-              </button>
-              <button
-                className="btn-icon"
-                onClick={() => setIsOpen(false)}
-                title="Cerrar panel"
-                aria-label="Cerrar"
-              >
-                <X size={18} />
-              </button>
+    <div className="glass-panel ai-embedded-card" style={{ padding: '0.85rem' }}>
+      {/* Header */}
+      <div className="ai-drawer-header" style={{ padding: '0 0 0.65rem 0' }}>
+        <div className="ai-drawer-title-group">
+          <div className="ai-drawer-avatar" style={{ width: '32px', height: '32px' }}>
+            <Bot size={18} style={{ color: '#e10600' }} />
+          </div>
+          <div>
+            <h3 className="ai-drawer-title" style={{ fontSize: '0.95rem' }}>AI Race Engineer</h3>
+            <div className="ai-drawer-meta">
+              <span className="ai-badge-provider" style={{ fontSize: '0.68rem' }}>
+                {config.provider.toUpperCase()} ({config.model})
+              </span>
             </div>
           </div>
+        </div>
 
-          {/* Settings Overlay / Modal inside drawer */}
-          {showSettings && (
-            <div className="ai-settings-card glass-panel">
-              <div className="ai-settings-header">
-                <h4>Configuración del Asistente</h4>
-                <button className="btn-icon" onClick={() => setShowSettings(false)}>
-                  <X size={16} />
-                </button>
-              </div>
+        <div className="ai-drawer-actions">
+          <button
+            className="btn-icon"
+            onClick={() => setShowSettings(!showSettings)}
+            title="Configuración de IA"
+            aria-label="Configuración"
+          >
+            <Settings size={16} />
+          </button>
+          <button
+            className="btn-icon"
+            onClick={handleClearChat}
+            title="Limpiar conversación"
+            aria-label="Limpiar chat"
+          >
+            <RotateCcw size={16} />
+          </button>
+        </div>
+      </div>
 
-              <div className="ai-settings-body">
-                <label className="readout-label">Proveedor de IA</label>
-                <select
-                  className="ui-select"
-                  value={config.provider}
-                  onChange={(e) => {
-                    const prov = e.target.value as AIConfig['provider'];
-                    saveConfig({
-                      ...config,
-                      provider: prov,
-                      model: prov === 'gemini' ? 'gemini-2.5-flash' : 'gpt-4o-mini',
-                    });
-                  }}
-                >
-                  <option value="gemini">Google Gemini (Recomendado)</option>
-                  <option value="openai">OpenAI (GPT-4o-mini / GPT-4o)</option>
-                  <option value="custom">Endpoint Compatible OpenAI (Local / Groq / Ollama)</option>
-                </select>
+      {/* Settings Overlay Card */}
+      {showSettings && (
+        <div className="ai-settings-card glass-panel" style={{ top: '50px' }}>
+          <div className="ai-settings-header">
+            <h4>Configuración del Asistente</h4>
+            <button className="btn-icon" onClick={() => setShowSettings(false)}>
+              <X size={16} />
+            </button>
+          </div>
 
-                <label className="readout-label" style={{ marginTop: '0.75rem' }}>
-                  API Key
-                  {config.provider === 'gemini' && serverConfigStatus?.hasGeminiEnvKey && (
-                    <span className="ai-env-badge">Detectada en servidor (.env)</span>
-                  )}
-                  {config.provider === 'openai' && serverConfigStatus?.hasOpenAIEnvKey && (
-                    <span className="ai-env-badge">Detectada en servidor (.env)</span>
-                  )}
-                </label>
-                <div className="ai-key-input-wrapper">
-                  <input
-                    type={showApiKey ? 'text' : 'password'}
-                    className="ui-input"
-                    placeholder={
-                      config.provider === 'gemini'
-                        ? 'AIzaSy... (o déjalo vacío para usar .env)'
-                        : 'sk-... (o déjalo vacío para usar .env)'
-                    }
-                    value={config.apiKey}
-                    onChange={(e) => saveConfig({ ...config, apiKey: e.target.value })}
-                  />
-                  <button
-                    type="button"
-                    className="ai-key-toggle-btn"
-                    onClick={() => setShowApiKey(!showApiKey)}
-                  >
-                    {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-                <small className="ai-settings-hint">
-                  Guardada localmente en tu navegador. Nunca se envía a terceros.
-                </small>
+          <div className="ai-settings-body">
+            <label className="readout-label">Proveedor de IA</label>
+            <select
+              className="ui-select"
+              value={config.provider}
+              onChange={(e) => {
+                const prov = e.target.value as AIConfig['provider'];
+                saveConfig({
+                  ...config,
+                  provider: prov,
+                  model: prov === 'gemini' ? 'gemini-1.5-flash' : 'gpt-4o-mini',
+                });
+              }}
+            >
+              <option value="gemini">Google Gemini (Recomendado)</option>
+              <option value="openai">OpenAI (GPT-4o-mini / GPT-4o)</option>
+              <option value="custom">Endpoint Compatible OpenAI (Local / Groq / Ollama)</option>
+            </select>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', marginBottom: '0.35rem' }}>
-                  <label className="readout-label" style={{ margin: 0 }}>Modelo</label>
-                  <button
-                    type="button"
-                    className="ai-refresh-models-btn"
-                    onClick={() => fetchAvailableModels()}
-                    disabled={isLoadingModels}
-                    title="Consultar modelos disponibles en la API"
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--accent-secondary)',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px',
-                      fontSize: '0.72rem',
-                    }}
-                  >
-                    <RefreshCw size={12} className={isLoadingModels ? 'spin-icon' : ''} />
-                    {isLoadingModels ? 'Consultando...' : 'Actualizar modelos'}
-                  </button>
-                </div>
+            <label className="readout-label" style={{ marginTop: '0.75rem' }}>
+              API Key
+              {config.provider === 'gemini' && serverConfigStatus?.hasGeminiEnvKey && (
+                <span className="ai-env-badge">Detectada en servidor (.env)</span>
+              )}
+              {config.provider === 'openai' && serverConfigStatus?.hasOpenAIEnvKey && (
+                <span className="ai-env-badge">Detectada en servidor (.env)</span>
+              )}
+            </label>
+            <div className="ai-key-input-wrapper">
+              <input
+                type={showApiKey ? 'text' : 'password'}
+                className="ui-input"
+                placeholder={
+                  config.provider === 'gemini'
+                    ? 'AIzaSy... (o déjalo vacío para usar .env)'
+                    : 'sk-... (o déjalo vacío para usar .env)'
+                }
+                value={config.apiKey}
+                onChange={(e) => saveConfig({ ...config, apiKey: e.target.value })}
+              />
+              <button
+                type="button"
+                className="ai-key-toggle-btn"
+                onClick={() => setShowApiKey(!showApiKey)}
+              >
+                {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+            <small className="ai-settings-hint">
+              Guardada localmente en tu navegador. Nunca se envía a terceros.
+            </small>
 
-                {availableModels.length > 0 && (
-                  <select
-                    className="ui-select"
-                    style={{ marginBottom: '0.5rem' }}
-                    value={availableModels.some((m) => m.id === config.model) ? config.model : 'custom'}
-                    onChange={(e) => {
-                      if (e.target.value !== 'custom') {
-                        saveConfig({ ...config, model: e.target.value });
-                      }
-                    }}
-                  >
-                    <option value="" disabled>Selecciona un modelo detectado...</option>
-                    {availableModels.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.display_name || m.id} {m.id !== m.display_name ? `(${m.id})` : ''}
-                      </option>
-                    ))}
-                    <option value="custom">✏️ Otro / Personalizado...</option>
-                  </select>
-                )}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', marginBottom: '0.35rem' }}>
+              <label className="readout-label" style={{ margin: 0 }}>Modelo</label>
+              <button
+                type="button"
+                className="ai-refresh-models-btn"
+                onClick={() => fetchAvailableModels()}
+                disabled={isLoadingModels}
+                title="Consultar modelos disponibles en la API"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--accent-secondary)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontSize: '0.72rem',
+                }}
+              >
+                <RefreshCw size={12} className={isLoadingModels ? 'spin-icon' : ''} />
+                {isLoadingModels ? 'Consultando...' : 'Actualizar modelos'}
+              </button>
+            </div>
 
-                {modelsError && (
-                  <small style={{ color: '#ffd200', fontSize: '0.7rem', marginBottom: '0.4rem', display: 'block' }}>
-                    ⚠️ {modelsError}
-                  </small>
-                )}
+            {availableModels.length > 0 && (
+              <select
+                className="ui-select"
+                style={{ marginBottom: '0.5rem' }}
+                value={availableModels.some((m) => m.id === config.model) ? config.model : 'custom'}
+                onChange={(e) => {
+                  if (e.target.value !== 'custom') {
+                    saveConfig({ ...config, model: e.target.value });
+                  }
+                }}
+              >
+                <option value="" disabled>Selecciona un modelo detectado...</option>
+                {availableModels.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.display_name || m.id} {m.id !== m.display_name ? `(${m.id})` : ''}
+                  </option>
+                ))}
+                <option value="custom">✏️ Otro / Personalizado...</option>
+              </select>
+            )}
 
+            {modelsError && (
+              <small style={{ color: '#ffd200', fontSize: '0.7rem', marginBottom: '0.4rem', display: 'block' }}>
+                ⚠️ {modelsError}
+              </small>
+            )}
+
+            <input
+              type="text"
+              className="ui-input"
+              value={config.model}
+              onChange={(e) => saveConfig({ ...config, model: e.target.value })}
+              placeholder={config.provider === 'gemini' ? 'gemini-1.5-flash' : 'gpt-4o-mini'}
+            />
+
+            {config.provider === 'custom' && (
+              <>
+                <label className="readout-label" style={{ marginTop: '0.75rem' }}>Base URL Endpoint</label>
                 <input
                   type="text"
                   className="ui-input"
-                  value={config.model}
-                  onChange={(e) => saveConfig({ ...config, model: e.target.value })}
-                  placeholder={config.provider === 'gemini' ? 'gemini-1.5-flash' : 'gpt-4o-mini'}
+                  value={config.baseUrl}
+                  onChange={(e) => saveConfig({ ...config, baseUrl: e.target.value })}
+                  placeholder="http://localhost:11434/v1"
                 />
-
-                {config.provider === 'custom' && (
-                  <>
-                    <label className="readout-label" style={{ marginTop: '0.75rem' }}>Base URL Endpoint</label>
-                    <input
-                      type="text"
-                      className="ui-input"
-                      value={config.baseUrl}
-                      onChange={(e) => saveConfig({ ...config, baseUrl: e.target.value })}
-                      placeholder="http://localhost:11434/v1"
-                    />
-                  </>
-                )}
-
-                <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
-                  <button className="nav-tab active" onClick={() => setShowSettings(false)}>
-                    Listo
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Lap Comparison Telemetry Status Bar */}
-          <div className="ai-telemetry-statusbar">
-            {hasLapsSelected && telemetryContext ? (
-              <div className="ai-status-active">
-                <CheckCircle2 size={14} style={{ color: '#38ef7d' }} />
-                <span>
-                  <strong>{telemetryContext.lap_a_name}</strong> vs{' '}
-                  <strong>{telemetryContext.lap_b_name}</strong> (Δ{' '}
-                  <span className="mono" style={{ color: telemetryContext.time_delta_seconds < 0 ? '#38ef7d' : '#ff4b4b' }}>
-                    {telemetryContext.time_delta_seconds > 0 ? '+' : ''}
-                    {telemetryContext.time_delta_seconds.toFixed(3)}s
-                  </span>)
-                </span>
-                {isZoomActive && telemetryContext.zoomed_range && (
-                  <span className="ai-zoom-pill">
-                    🔍 Zoom: {telemetryContext.zoomed_range.start_distance_meters}m - {telemetryContext.zoomed_range.end_distance_meters}m
-                  </span>
-                )}
-              </div>
-            ) : (
-              <div className="ai-status-warning">
-                <AlertCircle size={14} style={{ color: '#ffd200' }} />
-                <span>Selecciona Vuelta A y Vuelta B en el comparador para habilitar el análisis en vivo.</span>
-              </div>
-            )}
-          </div>
-
-          {/* Messages Feed */}
-          <div className="ai-messages-container">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`ai-message-row ${msg.role === 'user' ? 'user' : 'assistant'}`}
-              >
-                {msg.role === 'assistant' && (
-                  <div className="ai-msg-avatar">
-                    <Bot size={16} />
-                  </div>
-                )}
-                <div className={`ai-message-bubble ${msg.role}`}>
-                  {msg.role === 'assistant' ? (
-                    msg.content ? (
-                      renderFormattedContent(msg.content)
-                    ) : (
-                      <div className="ai-typing-indicator">
-                        <span />
-                        <span />
-                        <span />
-                      </div>
-                    )
-                  ) : (
-                    <div className="chat-user-text">{msg.content}</div>
-                  )}
-                  <span className="ai-msg-time">
-                    {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Quick Action Prompt Chips */}
-          <div className="ai-quick-prompts-bar">
-            <div className="ai-quick-prompts-scroll">
-              {quickPrompts.map((qp) => {
-                const disabled = !hasLapsSelected || (qp.requiresZoom && !isZoomActive);
-                return (
-                  <button
-                    key={qp.id}
-                    className={`ai-chip-btn ${qp.requiresZoom && isZoomActive ? 'zoom-highlight' : ''}`}
-                    disabled={disabled || isGenerating}
-                    onClick={() => handleSendMessage(qp.prompt)}
-                    title={disabled ? 'Requiere dos vueltas seleccionadas' : qp.label}
-                  >
-                    {qp.icon}
-                    <span>{qp.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Footer Input Area */}
-          <div className="ai-drawer-footer">
-            {!isConfigured && (
-              <div className="ai-unconfigured-alert">
-                <span>⚠️ Falta configurar la API Key de {config.provider.toUpperCase()}.</span>
-                <button onClick={() => setShowSettings(true)}>Configurar ahora</button>
-              </div>
+              </>
             )}
 
-            <form
-              className="ai-input-form"
-              onSubmit={(e) => {
-                e.preventDefault();
-                handleSendMessage();
-              }}
-            >
-              <input
-                type="text"
-                className="ai-chat-input"
-                placeholder={
-                  !hasLapsSelected
-                    ? 'Selecciona dos vueltas para consultar...'
-                    : 'Pregúntale a tu Race Engineer...'
-                }
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                disabled={isGenerating || !hasLapsSelected}
-              />
-
-              {isGenerating ? (
-                <button
-                  type="button"
-                  className="ai-btn-stop"
-                  onClick={handleStopGeneration}
-                  title="Detener generación"
-                >
-                  <Square size={16} />
-                </button>
-              ) : (
-                <button
-                  type="submit"
-                  className="ai-btn-send"
-                  disabled={!inputMessage.trim() || !hasLapsSelected}
-                  title="Enviar mensaje"
-                >
-                  <Send size={16} />
-                </button>
-              )}
-            </form>
+            <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="nav-tab active" onClick={() => setShowSettings(false)}>
+                Listo
+              </button>
+            </div>
           </div>
         </div>
+      )}
+
+      {/* Lap Comparison Telemetry Status Bar */}
+      <div className="ai-telemetry-statusbar" style={{ borderRadius: '6px', margin: '0.4rem 0' }}>
+        {hasLapsSelected && telemetryContext ? (
+          <div className="ai-status-active">
+            <CheckCircle2 size={13} style={{ color: '#38ef7d', flexShrink: 0 }} />
+            <span style={{ fontSize: '0.75rem' }}>
+              Δ{' '}
+              <span className="mono" style={{ fontWeight: 700, color: telemetryContext.time_delta_seconds < 0 ? '#ff4757' : '#00d2d3' }}>
+                {telemetryContext.time_delta_seconds > 0 ? '+' : ''}
+                {telemetryContext.time_delta_seconds.toFixed(3)}s
+              </span>
+              {' '}• {telemetryContext.faster_lap}
+            </span>
+            {isZoomActive && telemetryContext.zoomed_range && (
+              <span className="ai-zoom-pill" style={{ fontSize: '0.68rem', padding: '1px 6px' }}>
+                🔍 Zoom: {telemetryContext.zoomed_range.start_distance_meters}m-{telemetryContext.zoomed_range.end_distance_meters}m
+              </span>
+            )}
+          </div>
+        ) : (
+          <div className="ai-status-warning" style={{ fontSize: '0.75rem' }}>
+            <AlertCircle size={13} style={{ color: '#ffd200', flexShrink: 0 }} />
+            <span>Selecciona Vuelta A y Vuelta B para análisis en vivo.</span>
+          </div>
+        )}
       </div>
-    </>
+
+      {/* Messages Feed */}
+      <div
+        ref={messagesContainerRef}
+        className="ai-messages-container"
+        style={{ minHeight: '260px', maxHeight: '340px', padding: '0.6rem 0' }}
+      >
+        {messages.map((msg) => (
+          <div
+            key={msg.id}
+            className={`ai-message-row ${msg.role === 'user' ? 'user' : 'assistant'}`}
+          >
+            {msg.role === 'assistant' && (
+              <div className="ai-msg-avatar" style={{ width: '24px', height: '24px' }}>
+                <Bot size={14} />
+              </div>
+            )}
+            <div className={`ai-message-bubble ${msg.role}`} style={{ fontSize: '0.82rem', padding: '0.65rem 0.85rem' }}>
+              {msg.role === 'assistant' ? (
+                msg.content ? (
+                  renderFormattedContent(msg.content)
+                ) : (
+                  <div className="ai-typing-indicator">
+                    <span />
+                    <span />
+                    <span />
+                  </div>
+                )
+              ) : (
+                <div className="chat-user-text">{msg.content}</div>
+              )}
+              <span className="ai-msg-time" style={{ fontSize: '0.62rem' }}>
+                {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Quick Action Prompt Chips */}
+      <div className="ai-quick-prompts-bar" style={{ padding: '0.4rem 0', background: 'transparent' }}>
+        <div className="ai-quick-prompts-scroll">
+          {quickPrompts.map((qp) => {
+            const disabled = !hasLapsSelected || (qp.requiresZoom && !isZoomActive);
+            return (
+              <button
+                key={qp.id}
+                className={`ai-chip-btn ${qp.requiresZoom && isZoomActive ? 'zoom-highlight' : ''}`}
+                disabled={disabled || isGenerating}
+                onClick={() => handleSendMessage(qp.prompt)}
+                title={disabled ? 'Requiere dos vueltas seleccionadas' : qp.label}
+                style={{ fontSize: '0.72rem', padding: '4px 9px' }}
+              >
+                {qp.icon}
+                <span>{qp.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Footer Input Area */}
+      <div className="ai-drawer-footer" style={{ padding: '0.5rem 0 0 0', background: 'transparent', borderTop: '1px solid var(--border-color)' }}>
+        {!isConfigured && (
+          <div className="ai-unconfigured-alert" style={{ fontSize: '0.72rem', padding: '4px 8px' }}>
+            <span>⚠️ Configura tu API Key.</span>
+            <button onClick={() => setShowSettings(true)}>Configurar</button>
+          </div>
+        )}
+
+        <form
+          className="ai-input-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSendMessage();
+          }}
+        >
+          <input
+            type="text"
+            className="ai-chat-input"
+            style={{ fontSize: '0.82rem', padding: '0.5rem 0.9rem' }}
+            placeholder={
+              !hasLapsSelected
+                ? 'Selecciona vueltas para consultar...'
+                : 'Pregunta al Race Engineer...'
+            }
+            value={inputMessage}
+            onChange={(e) => setInputMessage(e.target.value)}
+            disabled={isGenerating || !hasLapsSelected}
+          />
+
+          {isGenerating ? (
+            <button
+              type="button"
+              className="ai-btn-stop"
+              style={{ width: '32px', height: '32px' }}
+              onClick={handleStopGeneration}
+              title="Detener generación"
+            >
+              <Square size={14} />
+            </button>
+          ) : (
+            <button
+              type="submit"
+              className="ai-btn-send"
+              style={{ width: '32px', height: '32px' }}
+              disabled={!inputMessage.trim() || !hasLapsSelected}
+              title="Enviar mensaje"
+            >
+              <Send size={14} />
+            </button>
+          )}
+        </form>
+      </div>
+    </div>
   );
 };
 
 function buildSystemPromptText(ctx: TelemetryContextPayload | null): string {
   let prompt =
-    'Eres un Ingeniero de Pista y Analista de Telemetría de Fórmula 1 de élite (Race Engineer). ' +
-    'Tu objetivo es ayudar al piloto a entender exactamente dónde y por qué se gana o pierde tiempo al comparar dos vueltas, ' +
-    'proporcionando explicaciones técnicas, precisas, concisas y orientadas a la acción (conducción, puntos de frenada, velocidad de vértice/ápice, tracción y gestión de energía ERS/DRS).\n\n' +
-    'Reglas de estilo y respuesta:\n' +
-    '- Comunícate en español, con tono profesional de radio de equipo de F1: directo, técnico, analítico y motivador.\n' +
-    '- Sé estructurado usando Markdown (negritas, listas cortas, tablas telemétricas si aportan claridad).\n' +
-    '- No des rodeos ni introducciones innecesarias; ve directo a los datos y a la recomendación de pilotaje.\n' +
-    '- No menciones ni inventes configuraciones de setup del auto, ya que los setups de otros pilotos no están disponibles. Concéntrate 100% en la técnica de conducción y gestión del auto en pista.\n\n';
+    'Eres el Ingeniero de Pista de F1 (Race Engineer) personal y analista de telemetría exclusivo del PILOTO DE LA VUELTA A (el primer piloto seleccionado).\n' +
+    'Tu función es hablarle directamente a tu piloto (Vuelta A) por la radio del equipo para analizar su rendimiento, diagnosticar sus pérdidas/ganancias de tiempo y darle recomendaciones de pilotaje claras y técnicas para batir a la Vuelta B (vuelta de comparación/rival).\n\n' +
+    'REGLAS FUNDAMENTALES DE ENFOQUE Y ASIGNACIÓN:\n' +
+    '1. DIRÍGETE SIEMPRE EN SEGUNDA PERSONA A TU PILOTO (VUELTA A): Usa "tú", "tu tiempo", "estás frenando", "tu tracción", refiriéndote siempre al piloto de la Vuelta A.\n' +
+    '2. LA VUELTA B ES SIEMPRE LA REFERENCIA / RIVAL: Refiérete a la Vuelta B como "el rival", "Vuelta B" o por el nombre del piloto B. NUNCA le des consejos de mejora al piloto de la Vuelta B ni asumas el rol de su ingeniero.\n' +
+    '3. SI TU PILOTO (VUELTA A) ES MÁS LENTO: Explícale exactamente dónde pierde tiempo (ej. "Frenas 15m antes que Vuelta B en la curva 1", "Pierdes 0.15s en la tracción de la horquilla") y dale la instrucción precisa para recortar esa diferencia.\n' +
+    '4. SI TU PILOTO (VUELTA A) ES MÁS RÁPIDO: Felicítalo por la vuelta, destaca dónde sacó la ventaja a la Vuelta B, y si existe alguna curva puntual donde Vuelta B fue mejor, indícaselo como oportunidad para ganar aún más tiempo.\n' +
+    '5. COMUNICACIÓN Y FORMATO: Comunícate en español con tono profesional, directo y conciso de radio de F1. Usa Markdown estructurado (negritas, listas cortas).\n' +
+    '6. NO INVENTES NI MENCIONES SETUPS DEL COCHE: Los setups de otros pilotos no están disponibles. Concéntrate 100% en la técnica de conducción, puntos de frenada, velocidad de ápice en curva, tracción y uso de ERS/DRS.\n\n';
 
   if (ctx) {
-    prompt += `### DATOS DE TELEMETRÍA DE LA COMPARATIVA ACTUAL:\n`;
+    prompt += `### DATOS DE TELEMETRÍA DE LA COMPARATIVA:\n`;
     prompt += `- Circuito: ${ctx.track_name} | Sesión: ${ctx.session_type}\n`;
-    prompt += `- Vuelta A: ${ctx.lap_a_name} (${ctx.lap_a_time_formatted}) - Neumático: ${ctx.lap_a_compound}\n`;
-    prompt += `- Vuelta B: ${ctx.lap_b_name} (${ctx.lap_b_time_formatted}) - Neumático: ${ctx.lap_b_compound}\n`;
+    prompt += `- TU PILOTO (Vuelta A): ${ctx.lap_a_name} (${ctx.lap_a_time_formatted}) - Neumático: ${ctx.lap_a_compound}\n`;
+    prompt += `- RIVAL / REFERENCIA (Vuelta B): ${ctx.lap_b_name} (${ctx.lap_b_time_formatted}) - Neumático: ${ctx.lap_b_compound}\n`;
     prompt += `- Delta Total: ${ctx.time_delta_seconds.toFixed(3)}s (Más rápida: ${ctx.faster_lap})\n`;
     prompt += `- Sectores:\n`;
-    prompt += `  * Sector 1: Vuelta A (${ctx.lap_a_s1_formatted}) vs Vuelta B (${ctx.lap_b_s1_formatted})\n`;
-    prompt += `  * Sector 2: Vuelta A (${ctx.lap_a_s2_formatted}) vs Vuelta B (${ctx.lap_b_s2_formatted})\n`;
-    prompt += `  * Sector 3: Vuelta A (${ctx.lap_a_s3_formatted}) vs Vuelta B (${ctx.lap_b_s3_formatted})\n`;
-    prompt += `- Velocidad Máxima: Vuelta A = ${ctx.top_speed_a.toFixed(1)} km/h | Vuelta B = ${ctx.top_speed_b.toFixed(1)} km/h\n`;
-    prompt += `- Despliegue ERS acumulado: Vuelta A = ${ctx.ers_a_used_percent.toFixed(1)}% | Vuelta B = ${ctx.ers_b_used_percent.toFixed(1)}%\n`;
+    prompt += `  * Sector 1: Tu tiempo (${ctx.lap_a_s1_formatted}) vs Rival (${ctx.lap_b_s1_formatted})\n`;
+    prompt += `  * Sector 2: Tu tiempo (${ctx.lap_a_s2_formatted}) vs Rival (${ctx.lap_b_s2_formatted})\n`;
+    prompt += `  * Sector 3: Tu tiempo (${ctx.lap_a_s3_formatted}) vs Rival (${ctx.lap_b_s3_formatted})\n`;
+    prompt += `- Velocidad Máxima: Tu velocidad = ${ctx.top_speed_a.toFixed(1)} km/h | Rival = ${ctx.top_speed_b.toFixed(1)} km/h\n`;
+    prompt += `- Despliegue ERS acumulado: Tu uso = ${ctx.ers_a_used_percent.toFixed(1)}% | Rival = ${ctx.ers_b_used_percent.toFixed(1)}%\n`;
 
     if (ctx.braking_summary) prompt += `- Análisis de Frenada: ${ctx.braking_summary}\n`;
     if (ctx.apex_speed_summary) prompt += `- Velocidad en Curvas / Ápice: ${ctx.apex_speed_summary}\n`;

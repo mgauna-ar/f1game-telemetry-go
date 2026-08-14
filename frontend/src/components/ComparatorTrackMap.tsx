@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import type { MergedTelemetryPoint } from '../utils/deltaCalculation';
+import { detectTrackTurns } from '../utils/trackTurns';
 
 interface ComparatorTrackMapProps {
   data: MergedTelemetryPoint[];
@@ -228,6 +229,49 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
       if (s1Point) drawSectorSplitMarker(s1Point, '#f39c12');
       if (s2Point) drawSectorSplitMarker(s2Point, '#9b59b6');
 
+      // Detect and draw track corner / turn badges (T1, T2, T3, ...)
+      const detectedTurns = detectTrackTurns(validPoints);
+
+      for (const turn of detectedTurns) {
+        const cx = toCanvasX(turn.worldX);
+        const cy = toCanvasY(turn.worldZ);
+
+        const isNearHover =
+          activeDistance !== undefined &&
+          activeDistance !== null &&
+          Math.abs(turn.distance - activeDistance) < 45;
+
+        ctx.save();
+        ctx.font = 'bold 8.5px Inter, -apple-system, sans-serif';
+        const label = turn.name;
+        const textWidth = ctx.measureText(label).width;
+        const badgeW = Math.max(16, textWidth + 8);
+        const badgeH = 13;
+        const bx = cx - badgeW / 2;
+        const by = cy - badgeH / 2;
+
+        if (isNearHover) {
+          ctx.beginPath();
+          ctx.arc(cx, cy, 14, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255, 210, 0, 0.35)';
+          ctx.fill();
+        }
+
+        ctx.fillStyle = isNearHover ? '#ffd200' : 'rgba(18, 22, 32, 0.92)';
+        ctx.strokeStyle = isNearHover ? '#ffffff' : 'rgba(255, 255, 255, 0.4)';
+        ctx.lineWidth = isNearHover ? 1.5 : 1;
+        ctx.beginPath();
+        ctx.roundRect(bx, by, badgeW, badgeH, 3);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = isNearHover ? '#000000' : '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(label, cx, cy);
+        ctx.restore();
+      }
+
       if (activeDistance !== undefined && activeDistance !== null) {
         const activePoint = findClosestPoint(activeDistance);
         if (activePoint && activePoint.worldX !== undefined && activePoint.worldX !== null && activePoint.worldZ !== undefined && activePoint.worldZ !== null) {
@@ -336,9 +380,10 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
           alignItems: 'center',
         }}
       >
+        <span style={{ color: '#ffffff', fontWeight: 600 }}>● T1, T2 (Turns)</span>
         <span style={{ color: '#2ecc71', fontWeight: 600 }}>● SF</span>
-        <span style={{ color: '#f39c12', fontWeight: 600 }}>● S1 Split</span>
-        <span style={{ color: '#9b59b6', fontWeight: 600 }}>● S2 Split</span>
+        <span style={{ color: '#f39c12', fontWeight: 600 }}>● S1</span>
+        <span style={{ color: '#9b59b6', fontWeight: 600 }}>● S2</span>
       </div>
     </div>
   );

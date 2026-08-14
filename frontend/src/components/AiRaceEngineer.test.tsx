@@ -59,7 +59,7 @@ describe('AiRaceEngineer Component', () => {
     braking_summary: 'Braking test summary',
   };
 
-  it('renders trigger button and opens drawer upon click', async () => {
+  it('renders embedded AI Race Engineer card and quick prompt chips', async () => {
     render(
       <AiRaceEngineer
         telemetryContext={mockTelemetryContext}
@@ -68,24 +68,18 @@ describe('AiRaceEngineer Component', () => {
       />
     );
 
-    const triggerBtn = screen.getByRole('button', { name: /Abrir AI Race Engineer/i });
-    expect(triggerBtn).toBeInTheDocument();
-    expect(screen.getAllByText('AI Race Engineer').length).toBeGreaterThan(0);
-
-    // Click to open drawer
-    fireEvent.click(triggerBtn);
+    expect(screen.getByText('AI Race Engineer')).toBeInTheDocument();
 
     // Verify quick action chips
-    expect(screen.getByText('¿Dónde se ganó o perdió más tiempo?')).toBeInTheDocument();
-    expect(screen.getByText('Comparar frenada y tracción en curvas')).toBeInTheDocument();
-    expect(screen.getByText('Comparar despliegue de ERS y uso de DRS')).toBeInTheDocument();
+    expect(screen.getByText('¿Dónde se ganó/perdió tiempo?')).toBeInTheDocument();
+    expect(screen.getByText('Frenada y tracción')).toBeInTheDocument();
+    expect(screen.getByText('Despliegue ERS / DRS')).toBeInTheDocument();
 
-    // Verify status bar shows laps info
-    expect(screen.getByText(/Max Verstappen \(Lap 5\)/)).toBeInTheDocument();
-    expect(screen.getByText(/Charles Leclerc \(Lap 6\)/)).toBeInTheDocument();
+    // Verify status bar shows delta
+    expect(screen.getByText(/Lap A/)).toBeInTheDocument();
   });
 
-  it('toggles settings modal', async () => {
+  it('toggles settings modal in embedded card', async () => {
     render(
       <AiRaceEngineer
         telemetryContext={mockTelemetryContext}
@@ -93,9 +87,6 @@ describe('AiRaceEngineer Component', () => {
         isZoomActive={false}
       />
     );
-
-    // Open drawer
-    fireEvent.click(screen.getByRole('button', { name: /Abrir AI Race Engineer/i }));
 
     // Open settings
     const settingsBtn = screen.getByRole('button', { name: /Configuración/i });

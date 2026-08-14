@@ -1353,6 +1353,13 @@ export const LapComparator: React.FC = () => {
                   );
                 })()}
               </div>
+
+              {/* AI Race Engineer Integrated Card below Track Map */}
+              <AiRaceEngineer
+                telemetryContext={telemetryContext}
+                hasLapsSelected={Boolean(lapAId && lapBId && lapAObj && lapBObj)}
+                isZoomActive={Boolean(zoomDomain)}
+              />
             </div>
           )}
         </div>
@@ -1362,13 +1369,6 @@ export const LapComparator: React.FC = () => {
       {activeSetupParticipant && (
         <CarSetupModal participant={activeSetupParticipant.participant} setup={activeSetupParticipant.setup} onClose={() => setActiveSetupParticipant(null)} />
       )}
-
-      {/* AI Race Engineer Chatbot Drawer */}
-      <AiRaceEngineer
-        telemetryContext={telemetryContext}
-        hasLapsSelected={Boolean(lapAId && lapBId && lapAObj && lapBObj)}
-        isZoomActive={Boolean(zoomDomain)}
-      />
     </div>
   );
 };

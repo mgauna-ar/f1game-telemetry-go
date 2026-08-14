@@ -1,4 +1,5 @@
 import type { MergedTelemetryPoint } from './deltaCalculation';
+import { detectTrackTurns, type TrackTurn } from './trackTurns';
 
 export interface LapInfo {
   id: number;
@@ -136,16 +137,31 @@ export function buildTelemetryContext(
     }
   }
 
+  // Track turns detection
+  const detectedTurns = detectTrackTurns(comparisonData);
+  const getTurnLabel = (dist: number): string => {
+    let closestTurn: TrackTurn | null = null;
+    let minDist = 130;
+    for (const turn of detectedTurns) {
+      const diff = Math.abs(turn.distance - dist);
+      if (diff < minDist) {
+        minDist = diff;
+        closestTurn = turn;
+      }
+    }
+    return closestTurn ? `${closestTurn.name} (~${dist}m)` : `${dist}m`;
+  };
+
   let brakingSummary = '';
   let apexSpeedSummary = '';
   if (brakingZones.length > 0) {
     const keyZones = brakingZones.slice(0, 5);
     brakingSummary = `Se detectaron ${brakingZones.length} zonas de frenada fuerte. Ejemplos en: ` +
-      keyZones.map((z) => `${z.dist}m (Pico: A=${z.brakeA}% vs B=${z.brakeB}%)`).join(', ');
+      keyZones.map((z) => `${getTurnLabel(z.dist)} (Pico: A=${z.brakeA}% vs B=${z.brakeB}%)`).join(', ');
 
     apexSpeedSummary = keyZones
       .filter((z) => z.speedMinA > 0 && z.speedMinB > 0)
-      .map((z) => `A los ${z.dist}m: vel. mínima A=${z.speedMinA.toFixed(0)} km/h vs B=${z.speedMinB.toFixed(0)} km/h`)
+      .map((z) => `En ${getTurnLabel(z.dist)}: vel. mínima A=${z.speedMinA.toFixed(0)} km/h vs B=${z.speedMinB.toFixed(0)} km/h`)
       .join('; ');
   }
 
@@ -174,10 +190,19 @@ export function buildTelemetryContext(
       }
       const speedDiffAtApex = (minSpdZoomA < 900 && minSpdZoomB < 900) ? minSpdZoomA - minSpdZoomB : 0;
 
+      // Find any turns within zoom range
+      const turnsInZoom = detectedTurns
+        .filter((t) => t.distance >= startM && t.distance <= endM)
+        .map((t) => t.name);
+
+      const zoomDesc = turnsInZoom.length > 0
+        ? `Sector con ${turnsInZoom.join(', ')} (${Math.round(startM)}m a ${Math.round(endM)}m)`
+        : `Sector específico de ${Math.round(startM)}m a ${Math.round(endM)}m`;
+
       zoomedRange = {
         start_distance_meters: Math.round(startM),
         end_distance_meters: Math.round(endM),
-        description: `Sector específico de ${Math.round(startM)}m a ${Math.round(endM)}m`,
+        description: zoomDesc,
         delta_in_segment: deltaInSegment,
         speed_diff_at_apex: speedDiffAtApex,
         braking_diff_meters: 0,

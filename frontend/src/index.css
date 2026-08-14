@@ -1008,6 +1008,21 @@ h1 {
    AI RACE ENGINEER (CHATBOT)
    ========================================================================== */
 
+/* Embedded AI Race Engineer Card in Sidebar */
+.ai-embedded-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-color);
+  background: hsla(222, 47%, 9%, 0.85);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  transition: border-color 0.2s ease;
+}
+
+.ai-embedded-card:hover {
+  border-color: var(--border-highlight);
+}
+
 /* Floating Trigger Button */
 .ai-floating-trigger {
   position: fixed;
