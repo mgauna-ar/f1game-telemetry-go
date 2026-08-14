@@ -625,7 +625,7 @@ export const LapComparator: React.FC = () => {
           gridColumn: 'span 12',
           padding: '1.25rem 1.5rem',
           position: 'relative',
-          zIndex: (isSessionADropdownOpen || isSessionBDropdownOpen) ? 50 : 1,
+          zIndex: 80,
         }}
       >
         {/* Top Header Row: Title & Subtitle + Live Badges */}
@@ -770,7 +770,11 @@ export const LapComparator: React.FC = () => {
             </div>
 
             {/* Session A Selector */}
-            <div ref={sessionADropdownRef} className="custom-session-dropdown">
+            <div
+              ref={sessionADropdownRef}
+              className={`custom-session-dropdown ${isSessionADropdownOpen ? 'is-open' : ''}`}
+              style={{ position: 'relative', zIndex: isSessionADropdownOpen ? 100 : 1 }}
+            >
               <button
                 type="button"
                 className={`custom-session-trigger ${isSessionADropdownOpen ? 'is-open' : ''}`}
@@ -929,7 +933,11 @@ export const LapComparator: React.FC = () => {
             </div>
 
             {/* Session B Selector */}
-            <div ref={sessionBDropdownRef} className="custom-session-dropdown">
+            <div
+              ref={sessionBDropdownRef}
+              className={`custom-session-dropdown ${isSessionBDropdownOpen ? 'is-open' : ''}`}
+              style={{ position: 'relative', zIndex: isSessionBDropdownOpen ? 100 : 1 }}
+            >
               <button
                 type="button"
                 className={`custom-session-trigger ${isSessionBDropdownOpen ? 'is-open' : ''}`}

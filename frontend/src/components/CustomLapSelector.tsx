@@ -235,11 +235,15 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
   const defaultPlaceholder = placeholder || `Select Lap ${slot}...`;
 
   return (
-    <div ref={dropdownRef} className="custom-lap-dropdown">
+    <div
+      ref={dropdownRef}
+      className={`custom-lap-dropdown ${isOpen ? 'is-open' : ''} slot-${slot.toLowerCase()}`}
+      style={{ position: 'relative', zIndex: isOpen ? 100 : 1 }}
+    >
       {/* Trigger Button */}
       <button
         type="button"
-        className={`custom-lap-trigger ${isOpen ? 'is-open' : ''}`}
+        className={`custom-lap-trigger slot-${slot.toLowerCase()} ${isOpen ? 'is-open' : ''}`}
         onClick={() => !disabled && setIsOpen((prev) => !prev)}
         disabled={disabled || laps.length === 0}
         aria-expanded={isOpen}
@@ -281,7 +285,7 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
 
       {/* Floating Popover Menu */}
       {isOpen && (
-        <div ref={popoverRef} className="custom-lap-popover" role="listbox">
+        <div ref={popoverRef} className={`custom-lap-popover slot-${slot.toLowerCase()}`} role="listbox">
           {/* Search Bar */}
           <div className="custom-lap-search-wrapper">
             <Search size={14} color="var(--text-muted)" />
@@ -334,9 +338,9 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
               type="button"
               onClick={() => setValidOnly((prev) => !prev)}
               style={{
-                background: validOnly ? 'rgba(0, 210, 211, 0.15)' : 'transparent',
-                border: validOnly ? '1px solid #00d2d3' : '1px solid rgba(255,255,255,0.1)',
-                color: validOnly ? '#00d2d3' : 'var(--text-muted)',
+                background: validOnly ? (slot === 'A' ? 'rgba(255, 71, 87, 0.15)' : 'rgba(0, 210, 211, 0.15)') : 'transparent',
+                border: validOnly ? (slot === 'A' ? '1px solid #ff4757' : '1px solid #00d2d3') : '1px solid rgba(255,255,255,0.1)',
+                color: validOnly ? slotColor : 'var(--text-muted)',
                 borderRadius: '4px',
                 padding: '2px 6px',
                 fontSize: '0.68rem',

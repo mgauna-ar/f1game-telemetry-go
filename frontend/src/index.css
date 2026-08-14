@@ -1889,6 +1889,7 @@ h1 {
   flex-direction: column;
   gap: 0.65rem;
   position: relative;
+  z-index: 10;
 }
 
 .comparator-slot-card.slot-a {
@@ -1907,6 +1908,11 @@ h1 {
 .comparator-slot-card.slot-b:hover {
   background: rgba(0, 210, 211, 0.03);
   border-color: rgba(0, 210, 211, 0.25);
+}
+
+.comparator-slot-card:has(.is-open),
+.comparator-slot-card:focus-within {
+  z-index: 100;
 }
 
 .slot-card-header {
@@ -1986,9 +1992,17 @@ h1 {
 }
 
 .custom-lap-trigger.is-open {
-  border-color: var(--accent-primary);
   background: rgba(15, 23, 42, 0.85);
-  box-shadow: 0 0 0 1px var(--accent-primary);
+}
+
+.custom-lap-trigger.slot-a.is-open {
+  border-color: #ff4757;
+  box-shadow: 0 0 0 1px #ff4757;
+}
+
+.custom-lap-trigger.slot-b.is-open {
+  border-color: #00d2d3;
+  box-shadow: 0 0 0 1px #00d2d3;
 }
 
 .custom-lap-trigger:disabled {
@@ -2001,19 +2015,27 @@ h1 {
   top: calc(100% + 4px);
   left: 0;
   right: 0;
+  width: 100%;
   min-width: 320px;
-  max-width: 440px;
-  background: rgba(10, 14, 23, 0.96);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(10, 14, 23, 0.98);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: var(--radius-md);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7);
-  z-index: 100;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.85);
+  z-index: 1000;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   animation: popoverFadeIn 0.15s ease-out;
+}
+
+.custom-lap-popover.slot-a {
+  border-color: rgba(255, 71, 87, 0.35);
+}
+
+.custom-lap-popover.slot-b {
+  border-color: rgba(0, 210, 211, 0.35);
 }
 
 .custom-lap-search-wrapper {
@@ -2085,6 +2107,18 @@ h1 {
 }
 
 .custom-lap-driver-tab.active {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: var(--text-primary);
+}
+
+.custom-lap-popover.slot-a .custom-lap-driver-tab.active {
+  background: rgba(255, 71, 87, 0.15);
+  border-color: #ff4757;
+  color: #ff4757;
+}
+
+.custom-lap-popover.slot-b .custom-lap-driver-tab.active {
   background: rgba(0, 210, 211, 0.15);
   border-color: #00d2d3;
   color: #00d2d3;
