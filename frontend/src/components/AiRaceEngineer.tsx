@@ -793,36 +793,38 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
                   });
                 }}
               />
-              {config.apiKey && (
+              <div className="ai-key-actions">
+                {config.apiKey && (
+                  <button
+                    type="button"
+                    className="ai-key-action-btn delete"
+                    onClick={() => {
+                      saveConfig({
+                        ...config,
+                        apiKey: '',
+                        providerKeys: {
+                          ...(config.providerKeys || {}),
+                          [config.provider]: '',
+                        },
+                      });
+                      setAvailableModels([]);
+                    }}
+                    title="Clear API key for this provider"
+                    aria-label="Clear API key"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
                 <button
                   type="button"
-                  className="ai-key-toggle-btn"
-                  onClick={() => {
-                    saveConfig({
-                      ...config,
-                      apiKey: '',
-                      providerKeys: {
-                        ...(config.providerKeys || {}),
-                        [config.provider]: '',
-                      },
-                    });
-                    setAvailableModels([]);
-                  }}
-                  title="Clear API key for this provider"
-                  aria-label="Clear API key"
-                  style={{ color: '#ff4b4b' }}
+                  className="ai-key-action-btn"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  title={showApiKey ? 'Hide key' : 'Show key'}
+                  aria-label={showApiKey ? 'Hide key' : 'Show key'}
                 >
-                  <Trash2 size={13} />
+                  {showApiKey ? <EyeOff size={14} /> : <Eye size={14} />}
                 </button>
-              )}
-              <button
-                type="button"
-                className="ai-key-toggle-btn"
-                onClick={() => setShowApiKey(!showApiKey)}
-                title={showApiKey ? 'Hide key' : 'Show key'}
-              >
-                {showApiKey ? <EyeOff size={15} /> : <Eye size={15} />}
-              </button>
+              </div>
             </div>
             <small className="ai-settings-hint">
               Saved locally in your browser per provider. Never shared with third parties.

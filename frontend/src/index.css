@@ -1602,20 +1602,40 @@ h1 {
 }
 
 .ai-key-input-wrapper input {
-  padding-right: 38px;
+  padding-right: 64px;
 }
 
-.ai-key-toggle-btn {
+.ai-key-actions {
   position: absolute;
-  right: 10px;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ai-key-action-btn {
   background: none;
   border: none;
   color: var(--text-muted);
   cursor: pointer;
   display: flex;
   align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 4px;
+  transition: color 0.15s ease, background 0.15s ease;
 }
 
-.ai-key-toggle-btn:hover {
+.ai-key-action-btn:hover {
   color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ai-key-action-btn.delete {
+  color: #ff4b4b;
+}
+
+.ai-key-action-btn.delete:hover {
+  color: #ff7878;
+  background: rgba(255, 75, 75, 0.15);
 }
