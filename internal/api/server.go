@@ -70,6 +70,11 @@ func (s *Server) routes() {
 		r.Get("/sessions/{id}/setups", s.handleGetSetups)
 		r.Get("/sessions/{id}/laps", s.handleGetLaps)
 		r.Get("/laps/{id}/telemetry", s.handleGetTelemetry)
+
+		// AI Race Engineer routes
+		r.Post("/ai/chat", s.handleAIChat)
+		r.Get("/ai/config-status", s.handleAIConfigStatus)
+		r.Post("/ai/models", s.handleAIFetchModels)
 	})
 
 	// Serve static files from the frontend directory (created in Phase 4)

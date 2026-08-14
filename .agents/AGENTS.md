@@ -7,8 +7,8 @@ This file (`.agents/AGENTS.md`) contains workspace-specific rules and context th
 *   **Target Telemetry Version:** Exclusive target for **F1 2025** and **F1 2026 DLC** UDP telemetry specifications (`PacketFormat` 2025/2026 with fixed 29-byte `PacketHeader`). Deprecated support for 2023 and older formats.
 *   **Backend:** Go (located at the root using standard `cmd/` and `internal/` layout), utilizing WebSockets for real-time data streaming and SQLite (`modernc.org/sqlite` pure Go CGO-free driver) for cross-platform persistence.
 *   **Frontend:** React (located in the `frontend/` directory), Vite (for building/bundling), Recharts (for data visualization), HTML5 Canvas (for track mapping). 
-*   **Communication:** JSON payloads over WebSockets for live telemetry data (Packet IDs: 0 Motion, 1 Session, 2 LapData, 4 Participants, 5 CarSetup, 6 Telemetry, 7 CarStatus, 10 CarDamage).
-
+*   **Communication:** JSON payloads over WebSockets for live telemetry data (Packet IDs: 0 Motion, 1 Session, 2 LapData, 4 Participants, 5 CarSetup, 6 Telemetry, 7 CarStatus, 10 CarDamage). Streaming SSE for AI Race Engineer (`/api/ai/chat`).
+ 
 ## 2. Testing Standards
 *   **Go Backend:** Always use table-driven tests for packet parsers (especially for handling binary input and struct alignment) and ensure proper error handling.
 *   **Packet Simulation:** Use `make simulate` or `simulate.bat` (`cmd/simulator/main.go`) to generate synthetic live UDP telemetry packets (Motion, Telemetry, LapData, ParticipantsData, CarSetup, CarDamage) at 20Hz without needing the physical F1 game.
@@ -18,7 +18,7 @@ This file (`.agents/AGENTS.md`) contains workspace-specific rules and context th
 
 ## 3. F1 Telemetry Specifics
 *   **Binary Parsing:** When modifying packet decoding logic (e.g., `PacketLapData`, `PacketMotionData`), ensure strict 1:1 alignment with the official EA F1 2025/2026 game telemetry specification. `LapDistance` and `TotalDistance` are floats positioned immediately before `SafetyCarDelta`.
-*   **Data Transformation:** Keep frontend payloads lightweight. Only broadcast the specific data points needed by the UI (e.g., extracting `WorldPositionX/Z` for the mini-map) rather than sending raw, unparsed packets. For historical lap comparison telemetry, server-side LTTB downsampling (`?maxPoints=800`) is used to maintain 60FPS UI performance. Lap Comparator features a 2-column layout with a sticky Track Map sidebar, separated Throttle/Brake charts with driver names, integrated ERS battery % and ERS deploy mode (Off, Medium, Hotlap, Overtake) step charts, synchronized track distance zoom buttons, and real-time hover point telemetry readouts.
+*   **Data Transformation:** Keep frontend payloads lightweight. Only broadcast the specific data points needed by the UI (e.g., extracting `WorldPositionX/Z` for the mini-map) rather than sending raw, unparsed packets. For historical lap comparison telemetry, server-side LTTB downsampling (`?maxPoints=800`) is used to maintain 60FPS UI performance. Lap Comparator features a 2-column layout with a sticky Track Map sidebar, separated Throttle/Brake charts with driver names, integrated ERS battery % and ERS deploy mode (Off, Medium, Hotlap, Overtake) step charts, synchronized track distance zoom buttons, real-time hover point telemetry readouts, and an embedded **AI Race Engineer** slide-over drawer with real-time SSE streaming for contextual telemetry analysis and coaching.
 
 ## 4. UI/UX Guidelines
 *   **Design Aesthetic:** Build modern, responsive React components. Use curated color palettes, smooth micro-animations for real-time data updates, and avoid default browser styling to maintain a premium feel.

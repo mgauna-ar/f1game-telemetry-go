@@ -17,6 +17,7 @@
 - **Car Setup Telemetry** — Stored setup telemetry for aerodynamics (wings), suspension & anti-roll bars, geometry (camber/toe), brake bias/pressure, and tyre pressures in Lap Analysis
 - **Car Status & Strategy Telemetry** — Live monitoring of ERS Store Energy %, ERS deployment modes, fuel remaining in kg, and tyre compound age
 - **Lap Comparison** — High-performance lap analysis tool featuring server-side LTTB downsampling, 2-column layout with a sticky Track Map sidebar, synchronized distance zoom toolbar, separated Throttle % and Brake % charts labeled with driver names, integrated ERS Battery % & ERS Deploy Mode (Off, Medium, Hotlap, Overtake) step charts, Sector split deltas, Quick-Select Driver Best Laps, Car Setup inspection, and real-time hover point telemetry readouts
+- **AI Race Engineer (Telemetry Chatbot)** — Interactive telemetry coaching assistant embedded directly in Lap Comparator. Analyzes driving delta, braking points, minimum corner apex speeds, throttle traction pickup, ERS battery deployment & DRS usage with real-time SSE streaming. Supports Google Gemini (default) and OpenAI / compatible endpoints with in-app settings or environment variables
 - **Real-time WebSocket** — Stream live telemetry to the dashboard via WebSocket
 - **Multi-format Support** — Focused exclusively on F1 2025 & F1 2026 DLC UDP packet formats for maximum performance and decoder accuracy
 
@@ -93,21 +94,25 @@ To enable telemetry output from your F1 25 game:
 
 ## Configuration
 
-Configuration is done via environment variables:
+Configuration is done via environment variables (or configured directly in the UI settings for AI):
 
 | Variable | Description | Default |
 |---|---|---|
 | `F1T_UDP_ADDR` | UDP listener address | `0.0.0.0:20777` |
 | `F1T_HTTP_ADDR` | HTTP server address | `:8080` |
+| `GEMINI_API_KEY` | Google Gemini API Key for AI Race Engineer | *(Optional, can be set in UI)* |
+| `OPENAI_API_KEY` | OpenAI API Key for AI Race Engineer | *(Optional, can be set in UI)* |
+| `LLM_PROVIDER` | Default LLM provider (`gemini` or `openai`) | `gemini` |
+| `LLM_MODEL` | Default LLM model identifier | `gemini-2.0-flash` |
 
 Example:
 
 ```bash
 # Linux / macOS:
-F1T_UDP_ADDR=0.0.0.0:20777 F1T_HTTP_ADDR=:3000 make run
+F1T_UDP_ADDR=0.0.0.0:20777 F1T_HTTP_ADDR=:3000 GEMINI_API_KEY="AIzaSy..." make run
 
 # Windows (PowerShell):
-$env:F1T_UDP_ADDR="0.0.0.0:20777"; $env:F1T_HTTP_ADDR=":3000"; go run ./cmd/server
+$env:F1T_UDP_ADDR="0.0.0.0:20777"; $env:F1T_HTTP_ADDR=":3000"; $env:GEMINI_API_KEY="AIzaSy..."; go run ./cmd/server
 ```
 
 ## Testing & Telemetry Simulation
@@ -147,7 +152,7 @@ f1game-telemetry-go/
 │       └── main.go
 
 ├── internal/
-│   ├── api/             # HTTP server, REST endpoints and WebSocket hub
+│   ├── api/             # HTTP server, REST endpoints, AI Race Engineer & WebSocket hub
 │   ├── packets/         # F1 telemetry packet parsing and types
 │   ├── session/         # Session tracking logic
 │   ├── storage/         # SQLite persistence layer
@@ -172,6 +177,8 @@ f1game-telemetry-go/
 | `GET` | `/api/sessions/:id/setups` | Get car setups for a session |
 | `GET` | `/api/sessions/:id/laps` | Get laps for a session |
 | `GET` | `/api/laps/:id/telemetry` | Get telemetry for a lap (supports `?maxPoints=N` LTTB downsampling) |
+| `POST` | `/api/ai/chat` | AI Race Engineer streaming telemetry chat endpoint (SSE) |
+| `GET` | `/api/ai/config-status` | Get AI server environment key status |
 
 > **Note:** API endpoints are planned and subject to change.
 

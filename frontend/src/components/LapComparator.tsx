@@ -16,7 +16,9 @@ import { lttbDownsample } from '../utils/downsample';
 import type { TelemetrySamplePoint } from '../utils/downsample';
 import { calculateMergedComparison } from '../utils/deltaCalculation';
 import type { MergedTelemetryPoint } from '../utils/deltaCalculation';
+import { buildTelemetryContext } from '../utils/aiTelemetrySummary';
 import { ComparatorTrackMap } from './ComparatorTrackMap';
+import { AiRaceEngineer } from './AiRaceEngineer';
 
 interface Session {
   id: number;
@@ -268,6 +270,20 @@ export const LapComparator: React.FC = () => {
     () => sessions.find((s) => s.id === selectedSessionId),
     [sessions, selectedSessionId]
   );
+
+  // Telemetry summary context for AI Race Engineer
+  const telemetryContext = useMemo(() => {
+    return buildTelemetryContext(
+      selectedSessionObj?.track_name || '',
+      selectedSessionObj?.session_type || '',
+      lapAObj,
+      lapBObj,
+      nameA,
+      nameB,
+      comparisonData,
+      zoomDomain
+    );
+  }, [selectedSessionObj, lapAObj, lapBObj, nameA, nameB, comparisonData, zoomDomain]);
 
   // Overall time delta calculation
   const totalDeltaMs = useMemo(() => {
@@ -1346,6 +1362,13 @@ export const LapComparator: React.FC = () => {
       {activeSetupParticipant && (
         <CarSetupModal participant={activeSetupParticipant.participant} setup={activeSetupParticipant.setup} onClose={() => setActiveSetupParticipant(null)} />
       )}
+
+      {/* AI Race Engineer Chatbot Drawer */}
+      <AiRaceEngineer
+        telemetryContext={telemetryContext}
+        hasLapsSelected={Boolean(lapAId && lapBId && lapAObj && lapBObj)}
+        isZoomActive={Boolean(zoomDomain)}
+      />
     </div>
   );
 };

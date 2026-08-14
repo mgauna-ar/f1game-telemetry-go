@@ -304,7 +304,7 @@ export const SessionHistory: React.FC = () => {
         (lapStint > 0 && currentStint.stintId > 0 && lapStint !== currentStint.stintId) ||
         (currentStint.compound.toUpperCase() !== raw.toUpperCase());
 
-      if (isNewStint) {
+      if (isNewStint || !currentStint) {
         currentStint = { compound: raw, count: 1, stintId: lapStint };
         stints.push(currentStint);
       } else {

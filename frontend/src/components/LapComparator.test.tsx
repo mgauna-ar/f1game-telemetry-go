@@ -33,6 +33,12 @@ describe('LapComparator Component', () => {
           json: () => Promise.resolve(mockSessions),
         });
       }
+      if (url === '/api/ai/config-status') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ default_provider: 'gemini', default_model: 'gemini-2.5-flash' }),
+        });
+      }
       return Promise.reject(new Error(`Unhandled fetch url: ${url}`));
     });
 
