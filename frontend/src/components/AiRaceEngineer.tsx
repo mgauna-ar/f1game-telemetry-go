@@ -28,6 +28,8 @@ interface AIConfig {
   apiKey: string;
   model: string;
   baseUrl: string;
+  providerKeys?: Record<string, string>;
+  providerModels?: Record<string, string>;
 }
 
 interface AIModelItem {
@@ -49,6 +51,16 @@ const DEFAULT_CONFIG: AIConfig = {
   apiKey: '',
   model: 'gemini-flash-lite-latest',
   baseUrl: '',
+  providerKeys: {
+    gemini: '',
+    openai: '',
+    custom: '',
+  },
+  providerModels: {
+    gemini: 'gemini-flash-lite-latest',
+    openai: 'gpt-4o-mini',
+    custom: 'llama3',
+  },
 };
 
 export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
@@ -66,10 +78,49 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
         const saved = window.localStorage.getItem(STORAGE_KEY_AI_CONFIG);
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (parsed.model === 'gemini-2.0-flash' || parsed.model === 'gemini-2.5-flash') {
-            parsed.model = 'gemini-flash-lite-latest';
+          const currentProv = parsed.provider || 'gemini';
+          const providerKeys: Record<string, string> = {
+            gemini: '',
+            openai: '',
+            custom: '',
+            ...(parsed.providerKeys || {}),
+          };
+          const providerModels: Record<string, string> = {
+            gemini: 'gemini-flash-lite-latest',
+            openai: 'gpt-4o-mini',
+            custom: 'llama3',
+            ...(parsed.providerModels || {}),
+          };
+
+          // Migrate legacy single key/model if present
+          if (parsed.apiKey && !providerKeys[currentProv]) {
+            providerKeys[currentProv] = parsed.apiKey;
           }
-          return { ...DEFAULT_CONFIG, ...parsed };
+          if (parsed.model && !providerModels[currentProv]) {
+            providerModels[currentProv] = parsed.model;
+          }
+          if (
+            providerModels.gemini === 'gemini-2.0-flash' ||
+            providerModels.gemini === 'gemini-2.5-flash' ||
+            providerModels.gemini === 'gemini-1.5-flash'
+          ) {
+            providerModels.gemini = 'gemini-flash-lite-latest';
+          }
+
+          const activeKey = providerKeys[currentProv] || '';
+          const activeModel =
+            providerModels[currentProv] ||
+            (currentProv === 'gemini' ? 'gemini-flash-lite-latest' : 'gpt-4o-mini');
+
+          return {
+            ...DEFAULT_CONFIG,
+            ...parsed,
+            provider: currentProv,
+            apiKey: activeKey,
+            model: activeModel,
+            providerKeys,
+            providerModels,
+          };
         }
       }
     } catch (e) {
@@ -649,11 +700,19 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
               value={config.provider}
               onChange={(e) => {
                 const prov = e.target.value as AIConfig['provider'];
-                saveConfig({
+                const nextKey = config.providerKeys?.[prov] || '';
+                const nextModel =
+                  config.providerModels?.[prov] ||
+                  (prov === 'gemini' ? 'gemini-flash-lite-latest' : 'gpt-4o-mini');
+
+                const updatedConfig: AIConfig = {
                   ...config,
                   provider: prov,
-                  model: prov === 'gemini' ? 'gemini-flash-lite-latest' : 'gpt-4o-mini',
-                });
+                  apiKey: nextKey,
+                  model: nextModel,
+                };
+                saveConfig(updatedConfig);
+                fetchAvailableModels(updatedConfig);
               }}
             >
               <option value="gemini">Google Gemini (Recommended)</option>
@@ -680,7 +739,17 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
                     : 'sk-... (or leave empty to use server .env)'
                 }
                 value={config.apiKey}
-                onChange={(e) => saveConfig({ ...config, apiKey: e.target.value })}
+                onChange={(e) => {
+                  const newKey = e.target.value;
+                  saveConfig({
+                    ...config,
+                    apiKey: newKey,
+                    providerKeys: {
+                      ...(config.providerKeys || {}),
+                      [config.provider]: newKey,
+                    },
+                  });
+                }}
               />
               <button
                 type="button"
@@ -691,7 +760,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
               </button>
             </div>
             <small className="ai-settings-hint">
-              Saved locally in your browser. Never shared with third parties.
+              Saved locally in your browser per provider. Never shared with third parties.
             </small>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', marginBottom: '0.35rem' }}>
@@ -725,7 +794,15 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
                 value={availableModels.some((m) => m.id === config.model) ? config.model : 'custom'}
                 onChange={(e) => {
                   if (e.target.value !== 'custom') {
-                    saveConfig({ ...config, model: e.target.value });
+                    const newModel = e.target.value;
+                    saveConfig({
+                      ...config,
+                      model: newModel,
+                      providerModels: {
+                        ...(config.providerModels || {}),
+                        [config.provider]: newModel,
+                      },
+                    });
                   }
                 }}
               >
@@ -749,7 +826,17 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
               type="text"
               className="ui-input"
               value={config.model}
-              onChange={(e) => saveConfig({ ...config, model: e.target.value })}
+              onChange={(e) => {
+                const newModel = e.target.value;
+                saveConfig({
+                  ...config,
+                  model: newModel,
+                  providerModels: {
+                    ...(config.providerModels || {}),
+                    [config.provider]: newModel,
+                  },
+                });
+              }}
               placeholder={config.provider === 'gemini' ? 'gemini-flash-lite-latest' : 'gpt-4o-mini'}
             />
 
