@@ -433,7 +433,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
     // 1. Check if clicked near a turn apex dot
     for (const hb of turnHitboxesRef.current) {
       const dist = Math.hypot(hb.x - clickX, hb.y - clickY);
-      if (dist <= hb.radius) {
+      if (dist <= hb.radius + 4) {
         onSelectDistance(hb.turn.distance);
         return;
       }
@@ -457,7 +457,48 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
       }
     }
 
-    if (minCanvasDist < 25) {
+    if (minCanvasDist < 30) {
+      onSelectDistance(closestPoint.lap_distance);
+    }
+  };
+
+  const handleCanvasMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!onSelectDistance) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    // Check if hovering near a turn apex dot
+    for (const hb of turnHitboxesRef.current) {
+      const dist = Math.hypot(hb.x - mouseX, hb.y - mouseY);
+      if (dist <= hb.radius + 4) {
+        onSelectDistance(hb.turn.distance);
+        return;
+      }
+    }
+
+    // Find closest point along track path
+    const validPoints = validPointsRef.current;
+    if (validPoints.length === 0) return;
+
+    const { toX, toY } = toCanvasCoordsRef.current;
+    let closestPoint = validPoints[0];
+    let minCanvasDist = Infinity;
+
+    for (const p of validPoints) {
+      const px = toX(p.worldX!);
+      const py = toY(p.worldZ!);
+      const d = Math.hypot(px - mouseX, py - mouseY);
+      if (d < minCanvasDist) {
+        minCanvasDist = d;
+        closestPoint = p;
+      }
+    }
+
+    if (minCanvasDist < 30) {
       onSelectDistance(closestPoint.lap_distance);
     }
   };
@@ -467,6 +508,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
       <canvas
         ref={canvasRef}
         onClick={handleCanvasClick}
+        onMouseMove={handleCanvasMouseMove}
         style={{ width: '100%', height: '100%', display: 'block', cursor: onSelectDistance ? 'crosshair' : 'default' }}
       />
 
