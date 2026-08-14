@@ -493,7 +493,15 @@ export const LapComparator: React.FC = () => {
   return (
     <div className="dashboard-grid" style={{ paddingTop: 0 }}>
       {/* Header Controls Panel */}
-      <div className="glass-panel" style={{ gridColumn: 'span 12', padding: '1.25rem 1.5rem' }}>
+      <div
+        className="glass-panel"
+        style={{
+          gridColumn: 'span 12',
+          padding: '1.25rem 1.5rem',
+          position: 'relative',
+          zIndex: isSessionDropdownOpen ? 50 : 1,
+        }}
+      >
         {/* Top Header Row: Title & Subtitle + Live Badges */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
@@ -623,6 +631,8 @@ export const LapComparator: React.FC = () => {
             marginTop: '1.25rem',
             paddingTop: '1rem',
             borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+            position: 'relative',
+            zIndex: isSessionDropdownOpen ? 60 : 1,
           }}
         >
           {/* Session Selector */}

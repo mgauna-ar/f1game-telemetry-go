@@ -1686,12 +1686,10 @@ h1 {
   width: 100%;
   min-width: 320px;
   max-width: 440px;
-  background: rgba(14, 18, 28, 0.96);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: #0e1422;
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: var(--radius-md);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), 0 0 1px rgba(255, 255, 255, 0.2);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85), 0 0 1px rgba(255, 255, 255, 0.25);
   z-index: 1000;
   padding: 0.75rem;
   display: flex;
