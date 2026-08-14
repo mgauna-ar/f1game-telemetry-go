@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { vi, describe, it, beforeEach, expect } from 'vitest';
 import { LapComparator } from './LapComparator';
 
@@ -298,4 +298,83 @@ describe('LapComparator Component', () => {
       expect(screen.getByTestId('lap-a-trigger')).toHaveTextContent('1:30.000');
     });
   });
+
+  it('ranks drivers in quick select leaderboard, displays P1/P2 badges, leader delta, and supports searching and toggling', async () => {
+    const mockSessions = [
+      { id: 1, session_uid: '123', track_name: 'Monza', session_type: 'Qualifying', created_at: '2026-08-10T12:00:00Z' }
+    ];
+
+    const mockLaps = [
+      { id: 401, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 80000, sector1_ms: 26000, sector2_ms: 28000, sector3_ms: 26000, is_valid: true, tyre_compound: 'SOFT' },
+      { id: 402, session_id: 1, car_index: 2, lap_number: 1, lap_time_ms: 80500, sector1_ms: 26200, sector2_ms: 28100, sector3_ms: 26200, is_valid: true, tyre_compound: 'MEDIUM' }
+    ];
+
+    const mockParticipants = [
+      { id: 1, session_id: 1, car_index: 0, name: 'Max Verstappen', driver_id: 1, team_id: 1, race_number: 1, ai_controlled: false, nationality: 1 },
+      { id: 2, session_id: 1, car_index: 2, name: 'Lando Norris', driver_id: 2, team_id: 2, race_number: 4, ai_controlled: false, nationality: 2 }
+    ];
+
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url === '/api/sessions') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSessions) });
+      if (url === '/api/sessions/1/laps') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockLaps) });
+      if (url === '/api/sessions/1/participants') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockParticipants) });
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    });
+
+    render(<LapComparator />);
+
+    await waitFor(() => {
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions');
+    });
+
+    fireEvent.click(screen.getByTestId('session-selector-trigger'));
+    await waitFor(() => expect(screen.getByText('Monza')).toBeInTheDocument());
+    fireEvent.click(screen.getByText('Monza'));
+
+    // Wait for Quick Select panel to render
+    await waitFor(() => {
+      expect(screen.getByTestId('quick-select-panel')).toBeInTheDocument();
+    });
+
+    // Check P1 (Max Verstappen - LEADER) and P2 (Lando Norris - +0.500s)
+    expect(screen.getByTestId('rank-badge-1')).toHaveTextContent('P1');
+    expect(screen.getByTestId('rank-badge-2')).toHaveTextContent('P2');
+    expect(screen.getByText('LEADER')).toBeInTheDocument();
+    expect(screen.getByText('+0.500s')).toBeInTheDocument();
+
+    // Check Sector timings are rendered
+    expect(screen.getAllByText(/S1: 26.000/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/S2: 28.000/).length).toBeGreaterThan(0);
+
+    // Test Search input inside Quick Select
+    const searchInput = screen.getByTestId('driver-quick-search-input');
+    fireEvent.change(searchInput, { target: { value: 'Norris' } });
+
+    const grid = screen.getByTestId('quick-select-drivers-grid');
+    // Norris should be present in grid, Verstappen should be filtered out
+    expect(within(grid).getByText(/Lando Norris/)).toBeInTheDocument();
+    expect(within(grid).queryByText(/Max Verstappen/)).not.toBeInTheDocument();
+
+    // Clear search
+    fireEvent.change(searchInput, { target: { value: '' } });
+    expect(within(grid).getByText(/Max Verstappen/)).toBeInTheDocument();
+
+    // Test collapse toggle button in header
+    const collapseBtn = screen.getByTestId('quick-select-collapse-btn');
+    expect(collapseBtn).toHaveTextContent('Collapse');
+    fireEvent.click(collapseBtn);
+
+    // Now it should be collapsed
+    expect(screen.queryByTestId('quick-select-drivers-grid')).not.toBeInTheDocument();
+    expect(collapseBtn).toHaveTextContent('Expand');
+
+    // Test toggle via the top toolbar button
+    const toolbarBtn = screen.getByTestId('toggle-quick-select-toolbar-btn');
+    expect(toolbarBtn).toBeInTheDocument();
+    fireEvent.click(toolbarBtn);
+
+    // Grid should expand back
+    expect(screen.getByTestId('quick-select-drivers-grid')).toBeInTheDocument();
+  });
 });
+

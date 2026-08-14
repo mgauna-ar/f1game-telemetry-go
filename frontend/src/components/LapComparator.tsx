@@ -44,7 +44,7 @@ import { buildTelemetryContext } from '../utils/aiTelemetrySummary';
 import { detectTrackTurns, getTurnContextAtDistance } from '../utils/trackTurns';
 import { ComparatorTrackMap } from './ComparatorTrackMap';
 import { AiRaceEngineer } from './AiRaceEngineer';
-import { CustomLapSelector } from './CustomLapSelector';
+import { CustomLapSelector, renderTyreCompoundBadge } from './CustomLapSelector';
 import type { Lap, Participant } from './CustomLapSelector';
 
 interface Session {
@@ -55,6 +55,39 @@ interface Session {
   weather?: string;
   created_at: string;
 }
+
+export const getRankBadgeStyle = (rank: number) => {
+  if (rank === 1) {
+    return {
+      bg: 'rgba(255, 215, 0, 0.18)',
+      color: '#ffd700',
+      border: '1px solid rgba(255, 215, 0, 0.5)',
+      label: 'P1',
+    };
+  }
+  if (rank === 2) {
+    return {
+      bg: 'rgba(224, 224, 224, 0.18)',
+      color: '#e0e0e0',
+      border: '1px solid rgba(224, 224, 224, 0.45)',
+      label: 'P2',
+    };
+  }
+  if (rank === 3) {
+    return {
+      bg: 'rgba(205, 127, 50, 0.2)',
+      color: '#cd7f32',
+      border: '1px solid rgba(205, 127, 50, 0.45)',
+      label: 'P3',
+    };
+  }
+  return {
+    bg: 'rgba(255, 255, 255, 0.07)',
+    color: 'var(--text-secondary)',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+    label: `P${rank}`,
+  };
+};
 
 export const getSessionBadgeClass = (typeStr?: string) => {
   if (!typeStr) return 'badge-gray';
@@ -171,6 +204,26 @@ export const LapComparator: React.FC = () => {
   // Chart Inspection & Zoom
   const [hoverDistance, setHoverDistance] = useState<number | null>(null);
   const [zoomDomain, setZoomDomain] = useState<[number, number] | null>(null);
+
+  // Quick Select Leaderboard state with localStorage persistence
+  const [isQuickSelectOpen, setIsQuickSelectOpen] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('f1_comparator_quick_select_open');
+      return saved !== null ? saved === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+  const [driverSearchQuery, setDriverSearchQuery] = useState<string>('');
+  const [quickSelectSessionTab, setQuickSelectSessionTab] = useState<'ALL' | 'A' | 'B'>('ALL');
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('f1_comparator_quick_select_open', String(isQuickSelectOpen));
+    } catch {
+      // Ignore localStorage errors
+    }
+  }, [isQuickSelectOpen]);
 
   // Initial Fetch Sessions
   const fetchSessions = useCallback(() => {
@@ -572,6 +625,72 @@ export const LapComparator: React.FC = () => {
       });
   }, [participantsB, lapsB]);
 
+  // Quick Select Leaderboard data computation
+  const quickSelectData = useMemo(() => {
+    const driversA = activeParticipantsA.map((p) => ({
+      ...p,
+      sessionSlot: 'A' as const,
+      sessionTrack: selectedSessionAObj?.track_name,
+      sessionType: selectedSessionAObj?.session_type,
+    }));
+    const driversB = activeParticipantsB.map((p) => ({
+      ...p,
+      sessionSlot: 'B' as const,
+      sessionTrack: selectedSessionBObj?.track_name,
+      sessionType: selectedSessionBObj?.session_type,
+    }));
+
+    let candidateList: Array<typeof driversA[0]>;
+    if (isLinkedSessions || sessionAId === sessionBId) {
+      candidateList = driversA;
+    } else {
+      if (quickSelectSessionTab === 'A') {
+        candidateList = driversA;
+      } else if (quickSelectSessionTab === 'B') {
+        candidateList = driversB;
+      } else {
+        candidateList = [...driversA, ...driversB];
+      }
+    }
+
+    // Sort by bestLap lap_time_ms ascending (drivers without valid laps at the end)
+    const sorted = [...candidateList].sort((a, b) => {
+      const timeA = a.bestLap && a.bestLap.lap_time_ms > 0 ? a.bestLap.lap_time_ms : Infinity;
+      const timeB = b.bestLap && b.bestLap.lap_time_ms > 0 ? b.bestLap.lap_time_ms : Infinity;
+      return timeA - timeB;
+    });
+
+    // Leader lap time
+    const leaderLapTimeMs = sorted.find((d) => d.bestLap && d.bestLap.lap_time_ms > 0)?.bestLap?.lap_time_ms ?? null;
+
+    // Filter by search query
+    const q = driverSearchQuery.trim().toLowerCase();
+    const filtered = q
+      ? sorted.filter(
+          (d) =>
+            d.name.toLowerCase().includes(q) ||
+            d.race_number.toString().includes(q) ||
+            (d.bestLap?.tyre_compound && d.bestLap.tyre_compound.toLowerCase().includes(q))
+        )
+      : sorted;
+
+    return {
+      drivers: filtered,
+      totalCount: sorted.length,
+      leaderLapTimeMs,
+    };
+  }, [
+    activeParticipantsA,
+    activeParticipantsB,
+    isLinkedSessions,
+    sessionAId,
+    sessionBId,
+    quickSelectSessionTab,
+    driverSearchQuery,
+    selectedSessionAObj,
+    selectedSessionBObj,
+  ]);
+
   // Swap Slots handler
   const handleSwapSlots = () => {
     const tempSessionId = sessionAId;
@@ -713,6 +832,32 @@ export const LapComparator: React.FC = () => {
                 title="Swap Slot A and Slot B"
               >
                 <ArrowLeftRight size={13} /> Swap
+              </button>
+            )}
+
+            {sessionAId !== '' && (activeParticipantsA.length > 0 || activeParticipantsB.length > 0) && (
+              <button
+                type="button"
+                onClick={() => setIsQuickSelectOpen((prev) => !prev)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  padding: '0.35rem 0.65rem',
+                  borderRadius: '20px',
+                  background: isQuickSelectOpen ? 'rgba(0, 210, 211, 0.15)' : 'rgba(255, 255, 255, 0.08)',
+                  border: `1px solid ${isQuickSelectOpen ? 'rgba(0, 210, 211, 0.5)' : 'rgba(255, 255, 255, 0.15)'}`,
+                  color: isQuickSelectOpen ? '#00d2d3' : 'var(--text-primary)',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                title={isQuickSelectOpen ? 'Collapse Quick Select Driver leaderboard' : 'Expand Quick Select Driver leaderboard'}
+                data-testid="toggle-quick-select-toolbar-btn"
+              >
+                <Zap size={13} color={isQuickSelectOpen ? '#00d2d3' : 'var(--accent-primary)'} />
+                <span>Drivers ({quickSelectData.totalCount})</span>
               </button>
             )}
 
@@ -1147,117 +1292,491 @@ export const LapComparator: React.FC = () => {
         )}
       </div>
 
-      {/* Quick Select Driver Best Lap Bar */}
+      {/* Enhanced Collapsible Quick Select Driver Leaderboard */}
       {sessionAId !== '' && (activeParticipantsA.length > 0 || activeParticipantsB.length > 0) && (
-        <div className="glass-panel" style={{ gridColumn: 'span 12', padding: '0.75rem 1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.6rem' }}>
-            <Zap size={14} color="var(--accent-primary)" />
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Quick Select Driver Best Laps:
-            </span>
-          </div>
-
+        <div
+          className="glass-panel"
+          style={{
+            gridColumn: 'span 12',
+            padding: '0.75rem 1.25rem',
+            transition: 'all 0.2s ease',
+          }}
+          data-testid="quick-select-panel"
+        >
+          {/* Panel Header & Controls */}
           <div
             style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))',
-              gap: '0.6rem',
-              maxHeight: '220px',
-              overflowY: 'auto',
-              paddingRight: '0.2rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '0.75rem',
+              cursor: 'pointer',
+              userSelect: 'none',
             }}
+            onClick={() => setIsQuickSelectOpen((prev) => !prev)}
+            data-testid="quick-select-header-toggle"
           >
-            {(isLinkedSessions || sessionAId === sessionBId ? activeParticipantsA : [...activeParticipantsA, ...activeParticipantsB]).map((p) => {
-              const isParticipantInA = activeParticipantsA.some((pa) => pa.car_index === p.car_index && pa.session_id === p.session_id);
-              return (
+            {/* Left: Title, Driver Count Badge & Collapsed Snippet */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                <Zap size={15} color="var(--accent-primary)" />
+                <span style={{ fontSize: '0.82rem', color: 'var(--text-primary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Quick Select Driver Leaderboard
+                </span>
+                <span
+                  style={{
+                    fontSize: '0.72rem',
+                    padding: '0.1rem 0.45rem',
+                    borderRadius: '10px',
+                    background: 'rgba(255, 255, 255, 0.08)',
+                    color: 'var(--text-secondary)',
+                    fontWeight: 600,
+                  }}
+                  data-testid="quick-select-driver-count"
+                >
+                  {quickSelectData.drivers.length}{driverSearchQuery ? ` / ${quickSelectData.totalCount}` : ''} drivers
+                </span>
+              </div>
+
+              {/* Top 3 snippet when collapsed */}
+              {!isQuickSelectOpen && quickSelectData.drivers.length > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginLeft: '0.5rem', flexWrap: 'wrap' }}>
+                  {quickSelectData.drivers.slice(0, 3).map((d, i) => (
+                    <span
+                      key={`${d.session_id}-${d.car_index}`}
+                      style={{
+                        fontSize: '0.72rem',
+                        padding: '0.1rem 0.4rem',
+                        borderRadius: '4px',
+                        background: 'rgba(255, 255, 255, 0.04)',
+                        color: i === 0 ? '#ffd700' : 'var(--text-secondary)',
+                        border: '1px solid rgba(255, 255, 255, 0.06)',
+                      }}
+                    >
+                      P{i + 1}: {d.name.split(' ').pop()} {d.bestLap ? formatTime(d.bestLap.lap_time_ms) : ''}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Right: Controls (Tabs, Search, Collapse Button) */}
+            <div
+              style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Session Tabs when in Cross-Session Mode */}
+              {!isLinkedSessions && sessionAId !== sessionBId && isQuickSelectOpen && (
                 <div
-                  key={`${p.session_id}-${p.car_index}`}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'space-between',
-                    background: 'rgba(255, 255, 255, 0.03)',
-                    padding: '0.4rem 0.75rem',
+                    background: 'rgba(0,0,0,0.35)',
+                    padding: '2px',
                     borderRadius: '6px',
-                    border: '1px solid rgba(255, 255, 255, 0.07)',
+                    border: '1px solid rgba(255,255,255,0.08)',
                   }}
+                  data-testid="quick-select-session-tabs"
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0, flex: 1, paddingRight: '0.4rem' }}>
-                    <span
-                      style={{
-                        fontSize: '0.82rem',
-                        fontWeight: 600,
-                        color: 'var(--text-primary)',
-                        maxWidth: '160px',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                      title={`#${p.race_number} ${p.name}`}
-                    >
-                      #{p.race_number} {p.name}
-                    </span>
-                    {p.bestLap && (
-                      <span style={{ fontSize: '0.78rem', fontFamily: 'var(--font-mono)', color: 'var(--accent-primary)', fontWeight: 600, flexShrink: 0 }}>
-                        {formatTime(p.bestLap.lap_time_ms)}
-                      </span>
-                    )}
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setQuickSelectSessionTab('ALL')}
+                    style={{
+                      background: quickSelectSessionTab === 'ALL' ? 'rgba(255,255,255,0.15)' : 'transparent',
+                      border: 'none',
+                      color: quickSelectSessionTab === 'ALL' ? '#fff' : 'var(--text-muted)',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                    data-testid="quick-tab-all"
+                  >
+                    All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setQuickSelectSessionTab('A')}
+                    style={{
+                      background: quickSelectSessionTab === 'A' ? 'rgba(255, 71, 87, 0.2)' : 'transparent',
+                      border: 'none',
+                      color: quickSelectSessionTab === 'A' ? '#ff4757' : 'var(--text-muted)',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                    data-testid="quick-tab-a"
+                  >
+                    Session A
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setQuickSelectSessionTab('B')}
+                    style={{
+                      background: quickSelectSessionTab === 'B' ? 'rgba(0, 210, 211, 0.2)' : 'transparent',
+                      border: 'none',
+                      color: quickSelectSessionTab === 'B' ? '#00d2d3' : 'var(--text-muted)',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      fontSize: '0.7rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                    data-testid="quick-tab-b"
+                  >
+                    Session B
+                  </button>
+                </div>
+              )}
 
-                  <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
-                    {(isLinkedSessions || isParticipantInA) && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const targetLaps = lapsA;
-                          const driverLaps = targetLaps
-                            .filter((l) => (l.car_index ?? -1) === p.car_index && l.is_valid && l.lap_time_ms > 0)
-                            .sort((a, b) => a.lap_time_ms - b.lap_time_ms);
-                          if (driverLaps.length > 0) setLapAId(driverLaps[0].id);
-                        }}
-                        style={{
-                          background: 'rgba(255, 71, 87, 0.15)',
-                          border: '1px solid rgba(255, 71, 87, 0.6)',
-                          color: '#ff4757',
-                          borderRadius: '4px',
-                          padding: '0.2rem 0.5rem',
-                          fontSize: '0.73rem',
-                          cursor: 'pointer',
-                          fontWeight: 700,
-                        }}
-                        title={`Set Lap A to ${p.name}'s fastest lap`}
-                      >
-                        Set A
-                      </button>
-                    )}
+              {/* Driver Search Box */}
+              {isQuickSelectOpen && (
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <Search size={12} style={{ position: 'absolute', left: '8px', color: 'var(--text-muted)', pointerEvents: 'none' }} />
+                  <input
+                    type="text"
+                    placeholder="Filter drivers..."
+                    value={driverSearchQuery}
+                    onChange={(e) => setDriverSearchQuery(e.target.value)}
+                    style={{
+                      background: 'rgba(0,0,0,0.3)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: '4px',
+                      padding: '0.25rem 1.6rem 0.25rem 1.6rem',
+                      fontSize: '0.75rem',
+                      color: '#fff',
+                      width: '130px',
+                      outline: 'none',
+                    }}
+                    data-testid="driver-quick-search-input"
+                  />
+                  {driverSearchQuery && (
                     <button
                       type="button"
-                      onClick={() => {
-                        const targetLaps = lapsB;
-                        const driverLaps = targetLaps
-                          .filter((l) => (l.car_index ?? -1) === p.car_index && l.is_valid && l.lap_time_ms > 0)
-                          .sort((a, b) => a.lap_time_ms - b.lap_time_ms);
-                        if (driverLaps.length > 0) setLapBId(driverLaps[0].id);
-                      }}
+                      onClick={() => setDriverSearchQuery('')}
                       style={{
-                        background: 'rgba(0, 210, 211, 0.15)',
-                        border: '1px solid rgba(0, 210, 211, 0.6)',
-                        color: '#00d2d3',
-                        borderRadius: '4px',
-                        padding: '0.2rem 0.5rem',
-                        fontSize: '0.73rem',
+                        position: 'absolute',
+                        right: '6px',
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--text-muted)',
                         cursor: 'pointer',
-                        fontWeight: 700,
+                        display: 'flex',
+                        padding: 0,
                       }}
-                      title={`Set Lap B to ${p.name}'s fastest lap`}
+                      title="Clear search"
                     >
-                      Set B
+                      <X size={12} />
                     </button>
-                  </div>
+                  )}
                 </div>
-              );
-            })}
+              )}
+
+              {/* Expand / Collapse Button */}
+              <button
+                type="button"
+                onClick={() => setIsQuickSelectOpen((prev) => !prev)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.06)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  color: 'var(--text-secondary)',
+                  borderRadius: '4px',
+                  padding: '0.2rem 0.45rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.25rem',
+                  fontSize: '0.72rem',
+                  cursor: 'pointer',
+                }}
+                title={isQuickSelectOpen ? 'Collapse Quick Select' : 'Expand Quick Select'}
+                data-testid="quick-select-collapse-btn"
+              >
+                {isQuickSelectOpen ? (
+                  <>
+                    <span>Collapse</span>
+                    <ChevronUp size={14} />
+                  </>
+                ) : (
+                  <>
+                    <span>Expand</span>
+                    <ChevronDown size={14} />
+                  </>
+                )}
+              </button>
+            </div>
           </div>
+
+          {/* Expanded Driver Leaderboard Grid */}
+          {isQuickSelectOpen && (
+            <div style={{ marginTop: '0.75rem' }}>
+              {quickSelectData.drivers.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                  No drivers found matching "{driverSearchQuery}".
+                </div>
+              ) : (
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))',
+                    gap: '0.6rem',
+                    maxHeight: '260px',
+                    overflowY: 'auto',
+                    paddingRight: '0.2rem',
+                  }}
+                  data-testid="quick-select-drivers-grid"
+                >
+                  {quickSelectData.drivers.map((p, idx) => {
+                    const isAssignedA = lapAObj && (lapAObj.car_index ?? -1) === p.car_index && (isLinkedSessions || lapAObj.session_id === p.session_id);
+                    const isAssignedB = lapBObj && (lapBObj.car_index ?? -1) === p.car_index && (isLinkedSessions || lapBObj.session_id === p.session_id);
+                    const rankStyle = getRankBadgeStyle(idx + 1);
+
+                    let borderStyle = '1px solid rgba(255, 255, 255, 0.08)';
+                    let bgStyle = 'rgba(255, 255, 255, 0.03)';
+                    let boxShadow = 'none';
+
+                    if (isAssignedA && isAssignedB) {
+                      borderStyle = '1px solid rgba(0, 210, 211, 0.6)';
+                      bgStyle = 'linear-gradient(135deg, rgba(255, 71, 87, 0.08) 0%, rgba(0, 210, 211, 0.08) 100%)';
+                      boxShadow = '0 0 10px rgba(0, 210, 211, 0.15)';
+                    } else if (isAssignedA) {
+                      borderStyle = '1px solid rgba(255, 71, 87, 0.6)';
+                      bgStyle = 'rgba(255, 71, 87, 0.06)';
+                      boxShadow = '0 0 10px rgba(255, 71, 87, 0.15)';
+                    } else if (isAssignedB) {
+                      borderStyle = '1px solid rgba(0, 210, 211, 0.6)';
+                      bgStyle = 'rgba(0, 210, 211, 0.06)';
+                      boxShadow = '0 0 10px rgba(0, 210, 211, 0.15)';
+                    }
+
+                    const isParticipantInA = activeParticipantsA.some((pa) => pa.car_index === p.car_index && pa.session_id === p.session_id);
+
+                    return (
+                      <div
+                        key={`${p.session_id}-${p.car_index}-${p.sessionSlot || ''}`}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.35rem',
+                          background: bgStyle,
+                          padding: '0.5rem 0.75rem',
+                          borderRadius: '6px',
+                          border: borderStyle,
+                          boxShadow,
+                          transition: 'all 0.15s ease',
+                        }}
+                        data-testid={`driver-card-${p.car_index}`}
+                      >
+                        {/* Top Row: Rank, Driver Name, Tyre Badge, Active Slot Badges */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.4rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', minWidth: 0, flex: 1 }}>
+                            <span
+                              style={{
+                                fontSize: '0.68rem',
+                                fontWeight: 700,
+                                padding: '1px 5px',
+                                borderRadius: '4px',
+                                background: rankStyle.bg,
+                                color: rankStyle.color,
+                                border: rankStyle.border,
+                                fontFamily: 'var(--font-mono)',
+                                flexShrink: 0,
+                              }}
+                              data-testid={`rank-badge-${idx + 1}`}
+                            >
+                              {rankStyle.label}
+                            </span>
+
+                            <span
+                              style={{
+                                fontSize: '0.82rem',
+                                fontWeight: 600,
+                                color: 'var(--text-primary)',
+                                maxWidth: '140px',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                              title={`#${p.race_number} ${p.name}`}
+                            >
+                              #{p.race_number} {p.name}
+                            </span>
+
+                            {p.bestLap?.tyre_compound && renderTyreCompoundBadge(p.bestLap.tyre_compound)}
+
+                            {/* Session Slot Tag in Cross-Session All Tab */}
+                            {!isLinkedSessions && sessionAId !== sessionBId && quickSelectSessionTab === 'ALL' && (
+                              <span
+                                style={{
+                                  fontSize: '0.62rem',
+                                  padding: '1px 4px',
+                                  borderRadius: '3px',
+                                  background: p.sessionSlot === 'A' ? 'rgba(255, 71, 87, 0.15)' : 'rgba(0, 210, 211, 0.15)',
+                                  color: p.sessionSlot === 'A' ? '#ff4757' : '#00d2d3',
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {p.sessionSlot === 'A' ? 'S-A' : 'S-B'}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Active Slot Highlight Badges */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexShrink: 0 }}>
+                            {isAssignedA && (
+                              <span
+                                style={{
+                                  fontSize: '0.62rem',
+                                  padding: '1px 5px',
+                                  borderRadius: '3px',
+                                  background: 'rgba(255, 71, 87, 0.25)',
+                                  color: '#ff4757',
+                                  fontWeight: 700,
+                                  border: '1px solid #ff4757',
+                                }}
+                                data-testid="driver-assigned-a-badge"
+                              >
+                                Slot A
+                              </span>
+                            )}
+                            {isAssignedB && (
+                              <span
+                                style={{
+                                  fontSize: '0.62rem',
+                                  padding: '1px 5px',
+                                  borderRadius: '3px',
+                                  background: 'rgba(0, 210, 211, 0.25)',
+                                  color: '#00d2d3',
+                                  fontWeight: 700,
+                                  border: '1px solid #00d2d3',
+                                }}
+                                data-testid="driver-assigned-b-badge"
+                              >
+                                Slot B
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Middle Row: Lap Time & Leader Delta & Action Buttons */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem', minWidth: 0 }}>
+                            {p.bestLap ? (
+                              <>
+                                <span style={{ fontSize: '0.8rem', fontFamily: 'var(--font-mono)', color: 'var(--accent-primary)', fontWeight: 700 }}>
+                                  {formatTime(p.bestLap.lap_time_ms)}
+                                </span>
+                                {quickSelectData.leaderLapTimeMs && p.bestLap.lap_time_ms === quickSelectData.leaderLapTimeMs ? (
+                                  <span
+                                    style={{
+                                      fontSize: '0.65rem',
+                                      fontWeight: 700,
+                                      color: '#ffd700',
+                                      background: 'rgba(255, 215, 0, 0.12)',
+                                      padding: '1px 4px',
+                                      borderRadius: '3px',
+                                    }}
+                                  >
+                                    LEADER
+                                  </span>
+                                ) : quickSelectData.leaderLapTimeMs && p.bestLap.lap_time_ms > quickSelectData.leaderLapTimeMs ? (
+                                  <span style={{ fontSize: '0.68rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                                    +{((p.bestLap.lap_time_ms - quickSelectData.leaderLapTimeMs) / 1000).toFixed(3)}s
+                                  </span>
+                                ) : null}
+                              </>
+                            ) : (
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>No valid lap</span>
+                            )}
+                          </div>
+
+                          {/* Quick Set Actions */}
+                          <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
+                            {(isLinkedSessions || isParticipantInA || p.sessionSlot === 'A') && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const targetLaps = lapsA;
+                                  const driverLaps = targetLaps
+                                    .filter((l) => (l.car_index ?? -1) === p.car_index && l.is_valid && l.lap_time_ms > 0)
+                                    .sort((a, b) => a.lap_time_ms - b.lap_time_ms);
+                                  if (driverLaps.length > 0) setLapAId(driverLaps[0].id);
+                                }}
+                                style={{
+                                  background: isAssignedA ? 'rgba(255, 71, 87, 0.3)' : 'rgba(255, 71, 87, 0.15)',
+                                  border: '1px solid rgba(255, 71, 87, 0.6)',
+                                  color: '#ff4757',
+                                  borderRadius: '4px',
+                                  padding: '0.15rem 0.45rem',
+                                  fontSize: '0.72rem',
+                                  cursor: 'pointer',
+                                  fontWeight: 700,
+                                }}
+                                title={`Set Lap A to ${p.name}'s fastest lap`}
+                                data-testid={`quick-set-a-${p.car_index}`}
+                              >
+                                Set A
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const targetLaps = lapsB;
+                                kicker: {
+                                  const driverLaps = targetLaps
+                                    .filter((l) => (l.car_index ?? -1) === p.car_index && l.is_valid && l.lap_time_ms > 0)
+                                    .sort((a, b) => a.lap_time_ms - b.lap_time_ms);
+                                  if (driverLaps.length > 0) setLapBId(driverLaps[0].id);
+                                }
+                              }}
+                              style={{
+                                background: isAssignedB ? 'rgba(0, 210, 211, 0.3)' : 'rgba(0, 210, 211, 0.15)',
+                                border: '1px solid rgba(0, 210, 211, 0.6)',
+                                color: '#00d2d3',
+                                borderRadius: '4px',
+                                padding: '0.15rem 0.45rem',
+                                fontSize: '0.72rem',
+                                cursor: 'pointer',
+                                fontWeight: 700,
+                              }}
+                              title={`Set Lap B to ${p.name}'s fastest lap`}
+                              data-testid={`quick-set-b-${p.car_index}`}
+                            >
+                              Set B
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Bottom Row: Sector Timings */}
+                        {p.bestLap && (p.bestLap.sector1_ms || p.bestLap.sector2_ms || p.bestLap.sector3_ms) && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.66rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                            {p.bestLap.sector1_ms ? (
+                              <span style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '1px 4px', borderRadius: '3px' }}>
+                                S1: {(p.bestLap.sector1_ms / 1000).toFixed(3)}
+                              </span>
+                            ) : null}
+                            {p.bestLap.sector2_ms ? (
+                              <span style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '1px 4px', borderRadius: '3px' }}>
+                                S2: {(p.bestLap.sector2_ms / 1000).toFixed(3)}
+                              </span>
+                            ) : null}
+                            {p.bestLap.sector3_ms ? (
+                              <span style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '1px 4px', borderRadius: '3px' }}>
+                                S3: {(p.bestLap.sector3_ms / 1000).toFixed(3)}
+                              </span>
+                            ) : null}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
