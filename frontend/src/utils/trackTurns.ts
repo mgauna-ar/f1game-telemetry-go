@@ -3,15 +3,26 @@ import type { MergedTelemetryPoint } from './deltaCalculation';
 export interface TrackTurn {
   turnNumber: number;
   name: string;        // e.g. "T1", "T2", ...
-  distance: number;    // meters along lap
+  distance: number;    // apex meters along lap
+  entryDistance: number;
+  exitDistance: number;
   worldX: number;
   worldZ: number;
+  normalX: number;     // unit normal vector pointing outside the curve (for label offset)
+  normalZ: number;
   speedA?: number;
   speedB?: number;
 }
 
+export interface TurnContextInfo {
+  turn: TrackTurn | null;
+  phase: 'entry' | 'apex' | 'exit' | 'straight';
+  label: string;
+}
+
 /**
- * Detects corners/turns along a track path using curvature and speed apex heuristics.
+ * Detects corners/turns along a track path using curvature and speed apex heuristics,
+ * and calculates outward normal vectors for clean label placement outside the racing line.
  */
 export function detectTrackTurns(points: MergedTelemetryPoint[]): TrackTurn[] {
   const valid = points.filter(
@@ -89,13 +100,48 @@ export function detectTrackTurns(points: MergedTelemetryPoint[]): TrackTurn[] {
       }
 
       const apexPt = valid[apexIdx];
+
+      // Calculate outward normal vector for apex
+      // We look at trajectory before and after apex:
+      const pPrev = valid[Math.max(0, apexIdx - 3)];
+      const pNext = valid[Math.min(n - 1, apexIdx + 3)];
+      const v1x = apexPt.worldX! - pPrev.worldX!;
+      const v1z = apexPt.worldZ! - pPrev.worldZ!;
+      const v2x = pNext.worldX! - apexPt.worldX!;
+      const v2z = pNext.worldZ! - apexPt.worldZ!;
+
+      // Curvature acceleration points towards center of curve (inward)
+      const ax = v2x - v1x;
+      const az = v2z - v1z;
+      const aLen = Math.hypot(ax, az);
+
+      let normX = 0;
+      let normZ = 0;
+      if (aLen > 0.0001) {
+        // Outward normal is opposite of inward acceleration
+        normX = -ax / aLen;
+        normZ = -az / aLen;
+      } else {
+        // Fallback to perpendicular of tangent
+        const tx = pNext.worldX! - pPrev.worldX!;
+        const tz = pNext.worldZ! - pPrev.worldZ!;
+        const tLen = Math.hypot(tx, tz) || 1;
+        normX = -tz / tLen;
+        normZ = tx / tLen;
+      }
+
       const turnNum = turns.length + 1;
+      const apexDist = Math.round(apexPt.lap_distance);
       turns.push({
         turnNumber: turnNum,
         name: `T${turnNum}`,
-        distance: Math.round(apexPt.lap_distance),
+        distance: apexDist,
+        entryDistance: Math.max(0, apexDist - 35),
+        exitDistance: apexDist + 35,
         worldX: apexPt.worldX!,
         worldZ: apexPt.worldZ!,
+        normalX: normX,
+        normalZ: normZ,
         speedA: apexPt.speedA ?? undefined,
         speedB: apexPt.speedB ?? undefined,
       });
@@ -106,4 +152,48 @@ export function detectTrackTurns(points: MergedTelemetryPoint[]): TrackTurn[] {
   }
 
   return turns;
+}
+
+/**
+ * Returns contextual description of where the car / cursor is relative to turns
+ */
+export function getTurnContextAtDistance(turns: TrackTurn[], distance: number | null | undefined): TurnContextInfo {
+  if (distance === null || distance === undefined || turns.length === 0) {
+    return { turn: null, phase: 'straight', label: '' };
+  }
+
+  // 1. Check if inside turn apex/entry/exit zone
+  for (let i = 0; i < turns.length; i++) {
+    const t = turns[i];
+    const diff = distance - t.distance;
+
+    // Apex zone: ±15 meters
+    if (Math.abs(diff) <= 15) {
+      return { turn: t, phase: 'apex', label: `${t.name} (Apex)` };
+    }
+    // Entry zone: -45m to -15m
+    if (diff > -45 && diff < -15) {
+      return { turn: t, phase: 'entry', label: `${t.name} (Entry)` };
+    }
+    // Exit zone: +15m to +45m
+    if (diff > 15 && diff < 45) {
+      return { turn: t, phase: 'exit', label: `${t.name} (Exit)` };
+    }
+  }
+
+  // 2. If between turns, find which ones
+  for (let i = 0; i < turns.length - 1; i++) {
+    const t1 = turns[i];
+    const t2 = turns[i + 1];
+    if (distance >= t1.distance && distance <= t2.distance) {
+      return { turn: null, phase: 'straight', label: `Straight (${t1.name} → ${t2.name})` };
+    }
+  }
+
+  if (distance < turns[0].distance) {
+    return { turn: null, phase: 'straight', label: `Main Straight (Start → ${turns[0].name})` };
+  }
+
+  const lastTurn = turns[turns.length - 1];
+  return { turn: null, phase: 'straight', label: `Final Straight (${lastTurn.name} → Finish)` };
 }

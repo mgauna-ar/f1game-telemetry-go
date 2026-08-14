@@ -17,6 +17,7 @@ import type { TelemetrySamplePoint } from '../utils/downsample';
 import { calculateMergedComparison } from '../utils/deltaCalculation';
 import type { MergedTelemetryPoint } from '../utils/deltaCalculation';
 import { buildTelemetryContext } from '../utils/aiTelemetrySummary';
+import { detectTrackTurns, getTurnContextAtDistance } from '../utils/trackTurns';
 import { ComparatorTrackMap } from './ComparatorTrackMap';
 import { AiRaceEngineer } from './AiRaceEngineer';
 
@@ -214,6 +215,9 @@ export const LapComparator: React.FC = () => {
     if (rawTelemetryA.length === 0 && rawTelemetryB.length === 0) return [];
     return calculateMergedComparison(rawTelemetryA, rawTelemetryB, 5);
   }, [rawTelemetryA, rawTelemetryB]);
+
+  // Detected track turns and apexes
+  const detectedTurns = useMemo(() => detectTrackTurns(comparisonData), [comparisonData]);
 
   // Filtered telemetry points based on active distance zoom domain
   const chartData = useMemo(() => {
@@ -1319,7 +1323,54 @@ export const LapComparator: React.FC = () => {
                   height={320}
                   sector1Distance={sector1Distance}
                   sector2Distance={sector2Distance}
+                  onSelectDistance={(dist) => setHoverDistance(dist)}
                 />
+
+                {/* Turn Quick-Jump Ribbon */}
+                {detectedTurns.length > 0 && (
+                  <div style={{ marginTop: '0.45rem', marginBottom: '0.2rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600 }}>Turns (click to jump):</span>
+                      <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>{detectedTurns.length} turns</span>
+                    </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        gap: '4px',
+                        overflowX: 'auto',
+                        paddingBottom: '3px',
+                        scrollbarWidth: 'thin',
+                      }}
+                    >
+                      {detectedTurns.map((turn) => {
+                        const isSelected = hoverDistance !== null && Math.abs(turn.distance - hoverDistance) <= 35;
+                        return (
+                          <button
+                            key={turn.name}
+                            type="button"
+                            onClick={() => setHoverDistance(turn.distance)}
+                            style={{
+                              background: isSelected ? '#ffd200' : 'rgba(255, 255, 255, 0.08)',
+                              color: isSelected ? '#000000' : '#ffffff',
+                              border: isSelected ? '1px solid #ffd200' : '1px solid rgba(255, 255, 255, 0.12)',
+                              borderRadius: '4px',
+                              padding: '2px 6px',
+                              fontSize: '0.65rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                              flexShrink: 0,
+                              transition: 'all 0.15s ease',
+                            }}
+                            title={`${turn.name} (${turn.distance}m)`}
+                          >
+                            {turn.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Active Hover Point Live Telemetry Readout (Fixed Height to Prevent Layout Shift) */}
                 {comparisonData.length > 0 && (() => {
@@ -1327,10 +1378,12 @@ export const LapComparator: React.FC = () => {
                     Math.abs(curr.lap_distance - hoverDistance) < Math.abs(prev.lap_distance - hoverDistance) ? curr : prev
                   , comparisonData[0]) : null;
 
+                  const turnContext = getTurnContextAtDistance(detectedTurns, hoverDistance);
+
                   return (
                     <div
                       style={{
-                        marginTop: '0.5rem',
+                        marginTop: '0.4rem',
                         padding: '0.5rem 0.75rem',
                         background: 'rgba(0, 0, 0, 0.4)',
                         borderRadius: '6px',
@@ -1345,9 +1398,27 @@ export const LapComparator: React.FC = () => {
                     >
                       {activePoint ? (
                         <>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '0.25rem', marginBottom: '0.25rem' }}>
-                            <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Distance Point:</span>
-                            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#f1c40f' }}>{activePoint.lap_distance}m</span>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '0.25rem', marginBottom: '0.25rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                              <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Distance Point:</span>
+                              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#f1c40f' }}>{activePoint.lap_distance}m</span>
+                            </div>
+
+                            {turnContext.label && (
+                              <span
+                                style={{
+                                  fontSize: '0.66rem',
+                                  fontWeight: 700,
+                                  background: turnContext.phase === 'apex' ? 'rgba(255, 210, 0, 0.2)' : 'rgba(255, 255, 255, 0.08)',
+                                  color: turnContext.phase === 'apex' ? '#ffd200' : 'rgba(255, 255, 255, 0.85)',
+                                  border: turnContext.phase === 'apex' ? '1px solid rgba(255, 210, 0, 0.4)' : '1px solid rgba(255, 255, 255, 0.12)',
+                                  borderRadius: '3px',
+                                  padding: '1px 5px',
+                                }}
+                              >
+                                📍 {turnContext.label}
+                              </span>
+                            )}
                           </div>
 
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', marginTop: '0.15rem' }}>
@@ -1375,9 +1446,9 @@ export const LapComparator: React.FC = () => {
                       ) : (
                         <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.72rem', padding: '0.3rem 0' }}>
                           <span style={{ display: 'block', color: 'rgba(255,255,255,0.7)', fontWeight: 600, marginBottom: '2px' }}>
-                            🔍 Inspección Telemetría en Vivo
+                            🔍 Live Telemetry Inspection
                           </span>
-                          Pasa el cursor por los gráficos para ver datos en ese punto
+                          Hover over graphs or track to inspect telemetry at that point
                         </div>
                       )}
                     </div>

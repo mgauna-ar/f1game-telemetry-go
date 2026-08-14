@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import type { MergedTelemetryPoint } from '../utils/deltaCalculation';
-import { detectTrackTurns } from '../utils/trackTurns';
+import { detectTrackTurns, type TrackTurn } from '../utils/trackTurns';
 
 interface ComparatorTrackMapProps {
   data: MergedTelemetryPoint[];
@@ -8,6 +8,7 @@ interface ComparatorTrackMapProps {
   height?: number;
   sector1Distance?: number | null;
   sector2Distance?: number | null;
+  onSelectDistance?: (distance: number) => void;
 }
 
 export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
@@ -16,10 +17,19 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
   height = 360,
   sector1Distance,
   sector2Distance,
+  onSelectDistance,
 }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const markerRef = useRef<HTMLDivElement | null>(null);
+
+  // Store turn coordinate hitboxes for click handling
+  const turnHitboxesRef = useRef<Array<{ turn: TrackTurn; x: number; y: number; radius: number }>>([]);
+  const validPointsRef = useRef<MergedTelemetryPoint[]>([]);
+  const toCanvasCoordsRef = useRef<{ toX: (x: number) => number; toY: (z: number) => number }>({
+    toX: (x) => x,
+    toY: (z) => z,
+  });
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -45,9 +55,10 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
       const validPoints = data.filter(
         (p) => p.worldX !== undefined && p.worldZ !== undefined && (p.worldX !== 0 || p.worldZ !== 0)
       );
+      validPointsRef.current = validPoints;
 
       if (validPoints.length < 2) {
-        ctx.fillStyle = '#666';
+        ctx.fillStyle = '#888';
         ctx.font = '12px Inter, sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText('No track coordinate telemetry available for this lap', rectWidth / 2, rectHeight / 2);
@@ -65,7 +76,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
 
       const rangeX = maxX - minX || 1;
       const rangeZ = maxZ - minZ || 1;
-      const padding = 32;
+      const padding = 28;
 
       const availableW = rectWidth - padding * 2;
       const availableH = rectHeight - padding * 2;
@@ -76,6 +87,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
 
       const toCanvasX = (worldX: number) => offsetX + (worldX - minX) * scale;
       const toCanvasY = (worldZ: number) => offsetY + (worldZ - minZ) * scale;
+      toCanvasCoordsRef.current = { toX: toCanvasX, toY: toCanvasY };
 
       // Determine Sector Boundary distances (fallback to 1/3 and 2/3 of max distance)
       const maxDist = validPoints[validPoints.length - 1].lap_distance || 1;
@@ -91,10 +103,6 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
       const s0Point = validPoints[0];
       const s1Point = findClosestPoint(s1TargetDist);
       const s2Point = findClosestPoint(s2TargetDist);
-
-      const s1MidPoint = findClosestPoint(s1TargetDist / 2);
-      const s2MidPoint = findClosestPoint((s1TargetDist + s2TargetDist) / 2);
-      const s3MidPoint = findClosestPoint((s2TargetDist + maxDist) / 2);
 
       // Pre-calculate segment pace gain colors matching the Time Delta graph slope
       const windowSize = 6;
@@ -121,7 +129,21 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         }
       }
 
-      // Draw track line segments
+      // Draw subtle track line background shadow for depth
+      ctx.lineWidth = 5.5;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+      ctx.beginPath();
+      for (let i = 0; i < validPoints.length; i++) {
+        const px = toCanvasX(validPoints[i].worldX!);
+        const py = toCanvasY(validPoints[i].worldZ!);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+
+      // Draw track line segments with speed delta colors
       ctx.lineWidth = 3.5;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
@@ -142,34 +164,8 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         ctx.stroke();
       }
 
-      // Helper to draw clean sector region badges (S1, S2, S3)
-      const drawSectorRegionLabel = (point: MergedTelemetryPoint, label: string) => {
-        if (point.worldX === undefined || point.worldX === null || point.worldZ === undefined || point.worldZ === null) return;
-        const cx = toCanvasX(point.worldX);
-        const cy = toCanvasY(point.worldZ);
-
-        ctx.font = 'bold 9px Inter, sans-serif';
-        const badgeW = 18;
-        const badgeH = 13;
-        const bx = cx - badgeW / 2;
-        const by = cy - badgeH / 2;
-
-        ctx.fillStyle = 'rgba(15, 15, 20, 0.85)';
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.roundRect(bx, by, badgeW, badgeH, 3);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = '#ffffff';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(label, cx, cy);
-      };
-
       // Helper to draw clean perpendicular sector split lines across track
-      const drawSectorSplitMarker = (point: MergedTelemetryPoint, color: string) => {
+      const drawSectorSplitMarker = (point: MergedTelemetryPoint, color: string, label: string) => {
         if (point.worldX === undefined || point.worldX === null || point.worldZ === undefined || point.worldZ === null) return;
         const cx = toCanvasX(point.worldX);
         const cy = toCanvasY(point.worldZ);
@@ -190,7 +186,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         const nx = -dy / len;
         const ny = dx / len;
 
-        const lineLen = 9;
+        const lineLen = 10;
         const xA = cx - nx * lineLen;
         const yA = cy - ny * lineLen;
         const xB = cx + nx * lineLen;
@@ -212,66 +208,134 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         ctx.lineCap = 'butt';
         ctx.stroke();
 
+        // Marker dot
         ctx.beginPath();
-        ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+        ctx.arc(cx, cy, 3.5, 0, Math.PI * 2);
         ctx.fillStyle = color;
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 1;
         ctx.fill();
         ctx.stroke();
+
+        // Text label near split
+        ctx.save();
+        ctx.font = 'bold 8px Inter, sans-serif';
+        ctx.fillStyle = color;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(label, cx + nx * (lineLen + 4), cy + ny * (lineLen + 4));
+        ctx.restore();
       };
 
-      if (s1MidPoint) drawSectorRegionLabel(s1MidPoint, 'S1');
-      if (s2MidPoint) drawSectorRegionLabel(s2MidPoint, 'S2');
-      if (s3MidPoint) drawSectorRegionLabel(s3MidPoint, 'S3');
+      if (s0Point) drawSectorSplitMarker(s0Point, '#2ecc71', 'SF');
+      if (s1Point) drawSectorSplitMarker(s1Point, '#f39c12', 'S1');
+      if (s2Point) drawSectorSplitMarker(s2Point, '#9b59b6', 'S2');
 
-      if (s0Point) drawSectorSplitMarker(s0Point, '#2ecc71');
-      if (s1Point) drawSectorSplitMarker(s1Point, '#f39c12');
-      if (s2Point) drawSectorSplitMarker(s2Point, '#9b59b6');
-
-      // Detect and draw track corner / turn badges (T1, T2, T3, ...)
+      // Detect and draw clean track corner apex dots & interactive hover callout
       const detectedTurns = detectTrackTurns(validPoints);
+      turnHitboxesRef.current = [];
 
+      let activeHoverTurnItem: {
+        turn: TrackTurn;
+        apexX: number;
+        apexY: number;
+        badgeX: number;
+        badgeY: number;
+        label: string;
+      } | null = null;
+
+      // 1. Draw subtle minimalist Apex Dots on track for all turns
       for (const turn of detectedTurns) {
-        const cx = toCanvasX(turn.worldX);
-        const cy = toCanvasY(turn.worldZ);
+        const apexX = toCanvasX(turn.worldX);
+        const apexY = toCanvasY(turn.worldZ);
 
         const isNearHover =
           activeDistance !== undefined &&
           activeDistance !== null &&
-          Math.abs(turn.distance - activeDistance) < 45;
+          Math.abs(turn.distance - activeDistance) < 40;
 
-        ctx.save();
-        ctx.font = 'bold 8.5px Inter, -apple-system, sans-serif';
-        const label = turn.name;
-        const textWidth = ctx.measureText(label).width;
-        const badgeW = Math.max(16, textWidth + 8);
-        const badgeH = 13;
-        const bx = cx - badgeW / 2;
-        const by = cy - badgeH / 2;
+        turnHitboxesRef.current.push({
+          turn,
+          x: apexX,
+          y: apexY,
+          radius: 12,
+        });
 
         if (isNearHover) {
+          // Highlighted apex aura
+          ctx.save();
           ctx.beginPath();
-          ctx.arc(cx, cy, 14, 0, Math.PI * 2);
-          ctx.fillStyle = 'rgba(255, 210, 0, 0.35)';
+          ctx.arc(apexX, apexY, 9, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255, 210, 0, 0.4)';
           ctx.fill();
+          ctx.restore();
+
+          let label = turn.name;
+          if (turn.speedA !== undefined && turn.speedB !== undefined) {
+            label = `${turn.name} • ${turn.speedA} / ${turn.speedB} km/h`;
+          }
+
+          const baseOffset = 16;
+          const badgeX = apexX + (turn.normalX || 0) * baseOffset;
+          const badgeY = apexY + (turn.normalZ || 0) * baseOffset;
+
+          activeHoverTurnItem = {
+            turn,
+            apexX,
+            apexY,
+            badgeX,
+            badgeY,
+            label,
+          };
         }
 
-        ctx.fillStyle = isNearHover ? '#ffd200' : 'rgba(18, 22, 32, 0.92)';
-        ctx.strokeStyle = isNearHover ? '#ffffff' : 'rgba(255, 255, 255, 0.4)';
-        ctx.lineWidth = isNearHover ? 1.5 : 1;
+        // Draw Apex Dot
         ctx.beginPath();
-        ctx.roundRect(bx, by, badgeW, badgeH, 3);
+        ctx.arc(apexX, apexY, isNearHover ? 3.8 : 2.2, 0, Math.PI * 2);
+        ctx.fillStyle = isNearHover ? '#ffd200' : 'rgba(255, 255, 255, 0.85)';
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1;
+        ctx.fill();
+        ctx.stroke();
+      }
+
+      // 2. Draw only the active turn callout badge (if hovered / scrubbed)
+      if (activeHoverTurnItem) {
+        const { apexX, apexY, badgeX, badgeY, label } = activeHoverTurnItem;
+
+        ctx.save();
+        // Subtle leader line
+        ctx.beginPath();
+        ctx.moveTo(apexX, apexY);
+        ctx.lineTo(badgeX, badgeY);
+        ctx.strokeStyle = 'rgba(255, 210, 0, 0.85)';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+
+        // Badge Container
+        ctx.font = 'bold 8.5px Inter, -apple-system, sans-serif';
+        const textWidth = ctx.measureText(label).width;
+        const badgeW = Math.max(22, textWidth + 10);
+        const badgeH = 15;
+        const bx = badgeX - badgeW / 2;
+        const by = badgeY - badgeH / 2;
+
+        ctx.fillStyle = '#ffd200';
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.roundRect(bx, by, badgeW, badgeH, 4);
         ctx.fill();
         ctx.stroke();
 
-        ctx.fillStyle = isNearHover ? '#000000' : '#ffffff';
+        ctx.fillStyle = '#000000';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(label, cx, cy);
+        ctx.fillText(label, badgeX, badgeY);
         ctx.restore();
       }
 
+      // Draw Active Telemetry Cursor / Marker on track
       if (activeDistance !== undefined && activeDistance !== null) {
         const activePoint = findClosestPoint(activeDistance);
         if (activePoint && activePoint.worldX !== undefined && activePoint.worldX !== null && activePoint.worldZ !== undefined && activePoint.worldZ !== null) {
@@ -329,13 +393,56 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
     };
   }, [data, activeDistance, height, sector1Distance, sector2Distance]);
 
+  // Handle canvas click to jump to turn or track position
+  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!onSelectDistance) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+
+    // 1. Check if clicked near a turn apex dot
+    for (const hb of turnHitboxesRef.current) {
+      const dist = Math.hypot(hb.x - clickX, hb.y - clickY);
+      if (dist <= hb.radius) {
+        onSelectDistance(hb.turn.distance);
+        return;
+      }
+    }
+
+    // 2. Otherwise find closest point along track path
+    const validPoints = validPointsRef.current;
+    if (validPoints.length === 0) return;
+
+    const { toX, toY } = toCanvasCoordsRef.current;
+    let closestPoint = validPoints[0];
+    let minCanvasDist = Infinity;
+
+    for (const p of validPoints) {
+      const px = toX(p.worldX!);
+      const py = toY(p.worldZ!);
+      const d = Math.hypot(px - clickX, py - clickY);
+      if (d < minCanvasDist) {
+        minCanvasDist = d;
+        closestPoint = p;
+      }
+    }
+
+    if (minCanvasDist < 25) {
+      onSelectDistance(closestPoint.lap_distance);
+    }
+  };
+
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%', height: `${height}px` }}>
       <canvas
         ref={canvasRef}
-        style={{ width: '100%', height: '100%', display: 'block' }}
+        onClick={handleCanvasClick}
+        style={{ width: '100%', height: '100%', display: 'block', cursor: onSelectDistance ? 'crosshair' : 'default' }}
       />
-      
+
       <div
         ref={markerRef}
         className="map-hover-marker"
@@ -346,6 +453,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         }}
       />
 
+      {/* Pace Gain Delta Legend */}
       <div
         style={{
           position: 'absolute',
@@ -353,18 +461,21 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
           left: '6px',
           display: 'flex',
           gap: '6px',
-          fontSize: '0.68rem',
-          background: 'rgba(0,0,0,0.7)',
+          fontSize: '0.65rem',
+          background: 'rgba(10, 14, 22, 0.78)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
           padding: '2px 6px',
           borderRadius: '4px',
           color: '#ccc',
           alignItems: 'center',
+          backdropFilter: 'blur(4px)',
         }}
       >
         <span style={{ color: '#ff4757', fontWeight: 'bold' }}>● Lap A Faster</span>
         <span style={{ color: '#00d2d3', fontWeight: 'bold' }}>● Lap B Faster</span>
       </div>
 
+      {/* Sector & Turn Legend */}
       <div
         style={{
           position: 'absolute',
@@ -372,15 +483,17 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
           right: '6px',
           display: 'flex',
           gap: '6px',
-          fontSize: '0.68rem',
-          background: 'rgba(0,0,0,0.7)',
+          fontSize: '0.65rem',
+          background: 'rgba(10, 14, 22, 0.78)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
           padding: '2px 6px',
           borderRadius: '4px',
           color: '#ccc',
           alignItems: 'center',
+          backdropFilter: 'blur(4px)',
         }}
       >
-        <span style={{ color: '#ffffff', fontWeight: 600 }}>● T1, T2 (Turns)</span>
+        <span style={{ color: '#ffffff', fontWeight: 600 }}>● Apex</span>
         <span style={{ color: '#2ecc71', fontWeight: 600 }}>● SF</span>
         <span style={{ color: '#f39c12', fontWeight: 600 }}>● S1</span>
         <span style={{ color: '#9b59b6', fontWeight: 600 }}>● S2</span>

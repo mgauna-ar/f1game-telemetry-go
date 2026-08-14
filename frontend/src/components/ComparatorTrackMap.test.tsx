@@ -1,5 +1,5 @@
-import { render } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
 import { ComparatorTrackMap } from './ComparatorTrackMap';
 
 describe('ComparatorTrackMap Component', () => {
@@ -10,7 +10,8 @@ describe('ComparatorTrackMap Component', () => {
     { lap_distance: 1500, time_delta: 0.05, timeA: 30, timeB: 29.95, speedA: 180, speedB: 185, speed_delta: -5, throttleA: 0.5, throttleB: 0.6, brakeA: 0, brakeB: 0, steerA: 0.2, steerB: 0.2, gearA: 3, gearB: 3, ersBatteryA: 85, ersBatteryB: 85, ersDeployModeA: 1, ersDeployModeB: 1, worldX: 400, worldZ: 100 },
   ];
 
-  it('renders canvas element and sector indicators', () => {
+  it('renders canvas element and English legends cleanly without extra tab clutter', () => {
+    const onSelect = vi.fn();
     const { container } = render(
       <ComparatorTrackMap
         data={mockData}
@@ -18,10 +19,16 @@ describe('ComparatorTrackMap Component', () => {
         sector1Distance={500}
         sector2Distance={1000}
         height={200}
+        onSelectDistance={onSelect}
       />
     );
 
     const canvas = container.querySelector('canvas');
     expect(canvas).toBeInTheDocument();
+
+    expect(screen.getByText(/Lap A Faster/i)).toBeInTheDocument();
+    expect(screen.getByText(/Lap B Faster/i)).toBeInTheDocument();
+    expect(screen.getByText(/Apex/i)).toBeInTheDocument();
+    expect(screen.getByText(/SF/i)).toBeInTheDocument();
   });
 });
