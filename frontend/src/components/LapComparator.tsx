@@ -640,7 +640,7 @@ export const LapComparator: React.FC = () => {
       sessionType: selectedSessionBObj?.session_type,
     }));
 
-    let candidateList: Array<typeof driversA[0]>;
+    let candidateList: Array<typeof driversA[0] | typeof driversB[0]>;
     if (isLinkedSessions || sessionAId === sessionBId) {
       candidateList = driversA;
     } else {
@@ -1725,12 +1725,10 @@ export const LapComparator: React.FC = () => {
                               type="button"
                               onClick={() => {
                                 const targetLaps = lapsB;
-                                kicker: {
-                                  const driverLaps = targetLaps
-                                    .filter((l) => (l.car_index ?? -1) === p.car_index && l.is_valid && l.lap_time_ms > 0)
-                                    .sort((a, b) => a.lap_time_ms - b.lap_time_ms);
-                                  if (driverLaps.length > 0) setLapBId(driverLaps[0].id);
-                                }
+                                const driverLaps = targetLaps
+                                  .filter((l) => (l.car_index ?? -1) === p.car_index && l.is_valid && l.lap_time_ms > 0)
+                                  .sort((a, b) => a.lap_time_ms - b.lap_time_ms);
+                                if (driverLaps.length > 0) setLapBId(driverLaps[0].id);
                               }}
                               style={{
                                 background: isAssignedB ? 'rgba(0, 210, 211, 0.3)' : 'rgba(0, 210, 211, 0.15)',
