@@ -349,6 +349,7 @@ export const SessionHistory: React.FC = () => {
   const getSessionBadgeClass = (typeStr?: string) => {
     if (!typeStr) return 'badge-gray';
     const lower = typeStr.toLowerCase();
+    if (lower.includes('sprint')) return 'badge-orange';
     if (lower.includes('race')) return 'badge-red';
     if (lower.includes('qual') || lower.includes('q1') || lower.includes('q2') || lower.includes('q3')) return 'badge-purple';
     if (lower.includes('practice') || lower.includes('fp')) return 'badge-green';
@@ -593,6 +594,7 @@ export const SessionHistory: React.FC = () => {
                 >
                   <option value="ALL">All Session Types</option>
                   <option value="Race">Race</option>
+                  <option value="Sprint">Sprint</option>
                   <option value="Qualifying">Qualifying</option>
                   <option value="Practice">Practice</option>
                 </select>

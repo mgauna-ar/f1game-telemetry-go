@@ -24,7 +24,7 @@ const WEATHER_NAMES: Record<number, string> = {
   3: 'Light Rain 🌧️', 4: 'Heavy Rain 🌧️', 5: 'Storm ⛈️',
 };
 
-const SESSION_TYPES: Record<number, { label: string; isRace: boolean; isQualy: boolean }> = {
+const SESSION_TYPES: Record<number, { label: string; isRace: boolean; isQualy: boolean; isSprint?: boolean }> = {
   1: { label: 'PRACTICE 1', isRace: false, isQualy: false },
   2: { label: 'PRACTICE 2', isRace: false, isQualy: false },
   3: { label: 'PRACTICE 3', isRace: false, isQualy: false },
@@ -34,17 +34,17 @@ const SESSION_TYPES: Record<number, { label: string; isRace: boolean; isQualy: b
   7: { label: 'QUALIFYING 3', isRace: false, isQualy: true },
   8: { label: 'SHORT QUALIFYING', isRace: false, isQualy: true },
   9: { label: 'ONE-SHOT QUALI', isRace: false, isQualy: true },
-  10: { label: 'SPRINT QUALIFYING 1', isRace: false, isQualy: true },
-  11: { label: 'SPRINT QUALIFYING 2', isRace: false, isQualy: true },
-  12: { label: 'SPRINT QUALIFYING 3', isRace: false, isQualy: true },
-  13: { label: 'SHORT SPRINT QUALI', isRace: false, isQualy: true },
-  14: { label: 'ONE-SHOT SPRINT QUALI', isRace: false, isQualy: true },
+  10: { label: 'SPRINT QUALI 1', isRace: false, isQualy: true, isSprint: true },
+  11: { label: 'SPRINT QUALI 2', isRace: false, isQualy: true, isSprint: true },
+  12: { label: 'SPRINT QUALI 3', isRace: false, isQualy: true, isSprint: true },
+  13: { label: 'SHORT SPRINT QUALI', isRace: false, isQualy: true, isSprint: true },
+  14: { label: 'ONE-SHOT SPRINT QUALI', isRace: false, isQualy: true, isSprint: true },
   15: { label: 'RACE', isRace: true, isQualy: false },
   16: { label: 'RACE 2', isRace: true, isQualy: false },
   17: { label: 'RACE 3', isRace: true, isQualy: false },
   18: { label: 'TIME TRIAL', isRace: false, isQualy: false },
-  19: { label: 'SPRINT RACE', isRace: true, isQualy: false },
-  20: { label: 'EQUAL SPRINT RACE', isRace: true, isQualy: false },
+  19: { label: 'SPRINT RACE', isRace: true, isQualy: false, isSprint: true },
+  20: { label: 'EQUAL SPRINT RACE', isRace: true, isQualy: false, isSprint: true },
 };
 
 export const SessionHeader: React.FC<SessionHeaderProps> = ({ session, connected }) => {
@@ -91,13 +91,20 @@ export const SessionHeader: React.FC<SessionHeaderProps> = ({ session, connected
     return null;
   };
 
+  const getHeaderBadgeClass = () => {
+    if (sessionInfo.isSprint) return 'badge-orange';
+    if (sessionInfo.isRace) return 'badge-red';
+    if (sessionInfo.isQualy) return 'badge-purple';
+    return 'badge-gray';
+  };
+
   return (
     <header className="header session-header-panel">
       <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 800 }}>{trackName}</h1>
-            <span className={`session-badge ${sessionInfo.isRace ? 'badge-red' : sessionInfo.isQualy ? 'badge-purple' : 'badge-gray'}`}>
+            <span className={`session-badge ${getHeaderBadgeClass()}`}>
               {sessionInfo.label}
             </span>
           </div>

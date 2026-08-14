@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Sliders, X, Shield, Disc, Wrench, CircleDot, Fuel, Gauge, Award, ArrowUpRight, ArrowDownRight, MapPin, Timer, Activity, ArrowLeftRight, Zap, RotateCcw, ZoomIn } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { Sliders, X, Shield, Disc, Wrench, CircleDot, Fuel, Gauge, Award, ArrowUpRight, ArrowDownRight, MapPin, Timer, Activity, ArrowLeftRight, Zap, RotateCcw, ZoomIn, Search, ChevronDown, ChevronUp, Check, Filter } from 'lucide-react';
 import {
   LineChart,
   Line,
@@ -26,8 +26,19 @@ interface Session {
   session_uid: string;
   track_name: string;
   session_type: string;
+  weather?: string;
   created_at: string;
 }
+
+export const getSessionBadgeClass = (typeStr?: string) => {
+  if (!typeStr) return 'badge-gray';
+  const lower = typeStr.toLowerCase();
+  if (lower.includes('sprint')) return 'badge-orange';
+  if (lower.includes('race')) return 'badge-red';
+  if (lower.includes('qual') || lower.includes('q1') || lower.includes('q2') || lower.includes('q3')) return 'badge-purple';
+  if (lower.includes('practice') || lower.includes('fp')) return 'badge-green';
+  return 'badge-gray';
+};
 
 interface Participant {
   id: number;
@@ -122,6 +133,11 @@ const compactTooltipProps = {
 export const LapComparator: React.FC = () => {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<number | ''>('');
+
+  const [isSessionDropdownOpen, setIsSessionDropdownOpen] = useState(false);
+  const [sessionSearchQuery, setSessionSearchQuery] = useState('');
+  const [sessionTypeTab, setSessionTypeTab] = useState<'ALL' | 'RACE' | 'SPRINT' | 'QUALI' | 'PRACTICE'>('ALL');
+  const sessionDropdownRef = useRef<HTMLDivElement>(null);
 
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [carSetups, setCarSetups] = useState<CarSetup[]>([]);
@@ -305,6 +321,50 @@ export const LapComparator: React.FC = () => {
     [sessions, selectedSessionId]
   );
 
+  // Filtered sessions for custom session dropdown search & category filter
+  const filteredDropdownSessions = useMemo(() => {
+    return sessions.filter((s) => {
+      const matchesSearch =
+        !sessionSearchQuery ||
+        s.track_name.toLowerCase().includes(sessionSearchQuery.toLowerCase()) ||
+        s.session_type.toLowerCase().includes(sessionSearchQuery.toLowerCase()) ||
+        new Date(s.created_at).toLocaleDateString().toLowerCase().includes(sessionSearchQuery.toLowerCase());
+
+      if (!matchesSearch) return false;
+
+      if (sessionTypeTab === 'ALL') return true;
+      const lower = s.session_type.toLowerCase();
+      if (sessionTypeTab === 'SPRINT') return lower.includes('sprint');
+      if (sessionTypeTab === 'RACE') return lower.includes('race') && !lower.includes('sprint');
+      if (sessionTypeTab === 'QUALI') return (lower.includes('qual') || lower.includes('q1') || lower.includes('q2') || lower.includes('q3')) && !lower.includes('sprint');
+      if (sessionTypeTab === 'PRACTICE') return lower.includes('practice') || lower.includes('fp') || lower.includes('p1') || lower.includes('p2') || lower.includes('p3');
+      return true;
+    });
+  }, [sessions, sessionSearchQuery, sessionTypeTab]);
+
+  // Click outside & Escape key handler to close session dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (sessionDropdownRef.current && !sessionDropdownRef.current.contains(event.target as Node)) {
+        setIsSessionDropdownOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsSessionDropdownOpen(false);
+      }
+    };
+
+    if (isSessionDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isSessionDropdownOpen]);
+
   // Telemetry summary context for AI Race Engineer
   const telemetryContext = useMemo(() => {
     return buildTelemetryContext(
@@ -465,7 +525,9 @@ export const LapComparator: React.FC = () => {
                 <MapPin size={14} color="var(--accent-primary)" />
                 <span>{selectedSessionObj.track_name}</span>
                 <span style={{ color: 'var(--text-muted)' }}>•</span>
-                <span style={{ color: 'var(--text-secondary)' }}>{selectedSessionObj.session_type}</span>
+                <span className={`session-badge ${getSessionBadgeClass(selectedSessionObj.session_type)}`} style={{ fontSize: '0.68rem', padding: '2px 8px' }}>
+                  {selectedSessionObj.session_type}
+                </span>
               </div>
             )}
 
@@ -564,23 +626,129 @@ export const LapComparator: React.FC = () => {
           }}
         >
           {/* Session Selector */}
-          <div>
-            <label className="readout-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.35rem' }}>
-              <Activity size={13} color="var(--accent-primary)" /> Session
+          <div ref={sessionDropdownRef} className="custom-session-dropdown">
+            <label className="readout-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <Activity size={13} color="var(--accent-primary)" /> Session
+              </span>
+              {selectedSessionObj && (
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                  #{selectedSessionObj.id}
+                </span>
+              )}
             </label>
-            <select
-              className="ui-select"
-              style={{ width: '100%', boxSizing: 'border-box' }}
-              value={selectedSessionId}
-              onChange={(e) => setSelectedSessionId(Number(e.target.value) || '')}
+
+            {/* Custom Dropdown Trigger */}
+            <button
+              type="button"
+              className={`custom-session-trigger ${isSessionDropdownOpen ? 'is-open' : ''}`}
+              onClick={() => setIsSessionDropdownOpen((prev) => !prev)}
+              aria-expanded={isSessionDropdownOpen}
+              aria-haspopup="listbox"
+              data-testid="session-selector-trigger"
             >
-              <option value="">Select Session...</option>
-              {sessions.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.track_name} - {s.session_type} ({new Date(s.created_at).toLocaleDateString()})
-                </option>
-              ))}
-            </select>
+              {selectedSessionObj ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <MapPin size={14} color="var(--accent-primary)" style={{ flexShrink: 0 }} />
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedSessionObj.track_name}</span>
+                  <span className={`session-badge ${getSessionBadgeClass(selectedSessionObj.session_type)}`} style={{ fontSize: '0.65rem', padding: '1px 6px', flexShrink: 0 }}>
+                    {selectedSessionObj.session_type}
+                  </span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', flexShrink: 0 }}>
+                    ({new Date(selectedSessionObj.created_at).toLocaleDateString()})
+                  </span>
+                </div>
+              ) : (
+                <span style={{ color: 'var(--text-muted)' }}>Select Session...</span>
+              )}
+              {isSessionDropdownOpen ? (
+                <ChevronUp size={15} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
+              ) : (
+                <ChevronDown size={15} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
+              )}
+            </button>
+
+            {/* Floating Popover Menu */}
+            {isSessionDropdownOpen && (
+              <div className="custom-session-popover" role="listbox">
+                {/* Search Bar */}
+                <div className="custom-session-search-wrapper">
+                  <Search size={14} className="custom-session-search-icon" />
+                  <input
+                    type="text"
+                    className="custom-session-search-input"
+                    placeholder="Search track, type, date..."
+                    value={sessionSearchQuery}
+                    onChange={(e) => setSessionSearchQuery(e.target.value)}
+                    autoFocus
+                  />
+                  {sessionSearchQuery && (
+                    <button
+                      type="button"
+                      className="custom-session-clear-btn"
+                      onClick={() => setSessionSearchQuery('')}
+                      title="Clear search"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Filter Pills */}
+                <div className="custom-session-filter-tabs">
+                  {(['ALL', 'RACE', 'SPRINT', 'QUALI', 'PRACTICE'] as const).map((tab) => (
+                    <button
+                      key={tab}
+                      type="button"
+                      className={`custom-session-filter-tab ${sessionTypeTab === tab ? 'active' : ''}`}
+                      onClick={() => setSessionTypeTab(tab)}
+                    >
+                      {tab === 'ALL' ? 'All' : tab.charAt(0) + tab.slice(1).toLowerCase()}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Scrollable Session List */}
+                <div className="custom-session-list">
+                  {filteredDropdownSessions.length > 0 ? (
+                    filteredDropdownSessions.map((s) => {
+                      const isSelected = s.id === selectedSessionId;
+                      return (
+                        <div
+                          key={s.id}
+                          className={`custom-session-item ${isSelected ? 'selected' : ''}`}
+                          onClick={() => {
+                            setSelectedSessionId(s.id);
+                            setIsSessionDropdownOpen(false);
+                          }}
+                          role="option"
+                          aria-selected={isSelected}
+                        >
+                          <div className="custom-session-item-main">
+                            <div className="custom-session-item-title">
+                              <MapPin size={13} color="var(--accent-primary)" />
+                              <span>{s.track_name}</span>
+                              <span className={`session-badge ${getSessionBadgeClass(s.session_type)}`} style={{ fontSize: '0.62rem', padding: '1px 5px' }}>
+                                {s.session_type}
+                              </span>
+                            </div>
+                            <div className="custom-session-item-meta">
+                              <span>{new Date(s.created_at).toLocaleDateString()} {new Date(s.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                              {s.weather && <span>• {s.weather}</span>}
+                            </div>
+                          </div>
+                          {isSelected && <Check size={14} color="var(--accent-primary)" style={{ flexShrink: 0 }} />}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div style={{ textAlign: 'center', padding: '1rem 0.5rem', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                      No sessions match your filter.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Lap A Selector */}

@@ -21,9 +21,10 @@ describe('LapComparator Component', () => {
     vi.restoreAllMocks();
   });
 
-  it('fetches sessions on mount and renders initial layout', async () => {
+  it('fetches sessions on mount, opens custom dropdown and displays session items with badges', async () => {
     const mockSessions = [
-      { id: 1, session_uid: '123', track_name: 'Monaco', session_type: 'Race', created_at: '2026-08-10T12:00:00Z' }
+      { id: 1, session_uid: '123', track_name: 'Monaco', session_type: 'Race', created_at: '2026-08-10T12:00:00Z' },
+      { id: 2, session_uid: '124', track_name: 'Spa-Francorchamps', session_type: 'Sprint Race', created_at: '2026-08-11T14:00:00Z' }
     ];
 
     globalThis.fetch = vi.fn().mockImplementation((url: string) => {
@@ -39,18 +40,80 @@ describe('LapComparator Component', () => {
           json: () => Promise.resolve({ default_provider: 'gemini', default_model: 'gemini-2.5-flash' }),
         });
       }
-      return Promise.reject(new Error(`Unhandled fetch url: ${url}`));
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
     });
 
     render(<LapComparator />);
 
     expect(screen.getByText('Lap Comparator')).toBeInTheDocument();
+    
+    // Trigger button should be rendered
+    const trigger = screen.getByTestId('session-selector-trigger');
+    expect(trigger).toHaveTextContent('Select Session...');
+
+    // Wait for sessions to be fetched
     await waitFor(() => {
-      expect(screen.getByText(/Monaco - Race/)).toBeInTheDocument();
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions');
     });
+
+    // Open dropdown
+    fireEvent.click(trigger);
+
+    // Both sessions should be listed in the dropdown menu
+    await waitFor(() => {
+      expect(screen.getByText('Monaco')).toBeInTheDocument();
+      expect(screen.getByText('Spa-Francorchamps')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Sprint Race')).toHaveClass('badge-orange');
   });
 
-  it('fetches participants and displays quick select buttons & driver laps in selector', async () => {
+  it('filters sessions using search bar and category tabs in custom dropdown', async () => {
+    const mockSessions = [
+      { id: 1, session_uid: '123', track_name: 'Monaco', session_type: 'Race', created_at: '2026-08-10T12:00:00Z' },
+      { id: 2, session_uid: '124', track_name: 'Spa-Francorchamps', session_type: 'Sprint Race', created_at: '2026-08-11T14:00:00Z' },
+      { id: 3, session_uid: '125', track_name: 'Silverstone', session_type: 'Qualifying 1', created_at: '2026-08-12T10:00:00Z' }
+    ];
+
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url === '/api/sessions') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSessions) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    });
+
+    render(<LapComparator />);
+
+    // Wait for sessions to be fetched
+    await waitFor(() => {
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions');
+    });
+
+    const trigger = screen.getByTestId('session-selector-trigger');
+    fireEvent.click(trigger);
+
+    await waitFor(() => {
+      expect(screen.getByText('Monaco')).toBeInTheDocument();
+    });
+
+    // Search for "Silverstone"
+    const searchInput = screen.getByPlaceholderText('Search track, type, date...');
+    fireEvent.change(searchInput, { target: { value: 'Silverstone' } });
+
+    expect(screen.getByText('Silverstone')).toBeInTheDocument();
+    expect(screen.queryByText('Monaco')).not.toBeInTheDocument();
+    expect(screen.queryByText('Spa-Francorchamps')).not.toBeInTheDocument();
+
+    // Clear search and filter by "Sprint" tab
+    fireEvent.change(searchInput, { target: { value: '' } });
+    const sprintTab = screen.getByRole('button', { name: 'Sprint' });
+    fireEvent.click(sprintTab);
+
+    expect(screen.getByText('Spa-Francorchamps')).toBeInTheDocument();
+    expect(screen.queryByText('Monaco')).not.toBeInTheDocument();
+    expect(screen.queryByText('Silverstone')).not.toBeInTheDocument();
+  });
+
+  it('selects session from custom dropdown and displays quick select buttons & driver laps', async () => {
     const mockSessions = [
       { id: 1, session_uid: '123', track_name: 'Monaco', session_type: 'Race', created_at: '2026-08-10T12:00:00Z' }
     ];
@@ -80,13 +143,22 @@ describe('LapComparator Component', () => {
     render(<LapComparator />);
 
     await waitFor(() => {
-      expect(screen.getByText(/Monaco - Race/)).toBeInTheDocument();
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions');
     });
 
-    // Select session #1
-    const selects = screen.getAllByRole('combobox');
-    const sessionSelect = selects[0];
-    fireEvent.change(sessionSelect, { target: { value: '1' } });
+    // Open dropdown and select Monaco session
+    const trigger = screen.getByTestId('session-selector-trigger');
+    fireEvent.click(trigger);
+
+    await waitFor(() => {
+      expect(screen.getByText('Monaco')).toBeInTheDocument();
+    });
+
+    const monacoOption = screen.getByText('Monaco');
+    fireEvent.click(monacoOption);
+
+    // Verify trigger and banner now display selected Monaco session
+    expect(trigger).toHaveTextContent('Monaco');
 
     // Verify quick select bar renders driver
     await waitFor(() => {
