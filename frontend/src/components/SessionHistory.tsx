@@ -1071,24 +1071,15 @@ export const SessionHistory: React.FC = () => {
           {/* CAR SETUP MODAL OVERLAY */}
           {selectedSetupDriver && selectedSetupDriver.setup && (
             <div
-              style={{
-                position: 'fixed',
-                inset: 0,
-                backgroundColor: 'rgba(0, 0, 0, 0.75)',
-                backdropFilter: 'blur(8px)',
-                zIndex: 9999,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '1.5rem',
-              }}
+              className="modal-overlay"
               onClick={() => setSelectedSetupDriver(null)}
+              role="dialog"
+              aria-modal="true"
             >
               <div
-                className="glass-panel"
+                className="modal-container glass-panel"
                 style={{
                   maxWidth: '650px',
-                  width: '100%',
                   backgroundColor: 'rgba(18, 18, 22, 0.95)',
                   border: '1px solid rgba(0, 242, 254, 0.3)',
                   padding: '1.75rem',

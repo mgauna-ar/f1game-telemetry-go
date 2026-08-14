@@ -2465,32 +2465,22 @@ const SectorDeltaBadge: React.FC<{ label: string; msA?: number; msB?: number }> 
 const CarSetupModal: React.FC<{ participant: Participant; setup: CarSetup; onClose: () => void }> = ({ participant, setup, onClose }) => {
   return (
     <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.75)',
-        backdropFilter: 'blur(6px)',
-        zIndex: 1000,
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: '1.5rem',
-      }}
+      className="modal-overlay"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
     >
       <div
-        className="glass-panel"
+        className="modal-container glass-panel"
         style={{
           maxWidth: '850px',
-          width: '100%',
           background: 'rgba(18, 18, 22, 0.95)',
           border: '1px solid rgba(255, 255, 255, 0.15)',
           borderRadius: '12px',
           padding: '1.5rem',
           boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6)',
         }}
+        onClick={e => e.stopPropagation()}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '0.75rem' }}>
           <div>

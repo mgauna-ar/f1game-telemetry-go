@@ -95,6 +95,63 @@ h1 {
   transform: translateY(-2px);
 }
 
+/* Modal Dialogs & Overlays */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  overflow-y: auto;
+  animation: modal-overlay-fade-in 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-container {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  background-color: rgba(18, 18, 22, 0.96);
+  border: 1px solid var(--border-highlight);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  margin: auto;
+  animation: modal-container-pop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-container.glass-panel:hover {
+  transform: none;
+}
+
+@keyframes modal-overlay-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modal-container-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+
 /* Live Telemetry Layout */
 .dashboard-grid {
   display: grid;
