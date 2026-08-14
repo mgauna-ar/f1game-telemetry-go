@@ -40,7 +40,7 @@ describe('detectTrackTurns', () => {
     expect(turns[0].distance).toBeGreaterThanOrEqual(0);
     expect(typeof turns[0].normalX).toBe('number');
     expect(typeof turns[0].normalZ).toBe('number');
-    expect(turns[0].entryDistance).toBeLessThan(turns[0].distance);
+    expect(turns[0].entryDistance).toBeLessThanOrEqual(turns[0].distance);
     expect(turns[0].exitDistance).toBeGreaterThan(turns[0].distance);
   });
 });

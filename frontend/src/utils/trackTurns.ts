@@ -147,7 +147,7 @@ export function detectTrackTurns(points: MergedTelemetryPoint[]): TrackTurn[] {
       });
 
       lastTurnDist = apexPt.lap_distance;
-      i = apexIdx + 3; // skip ahead to avoid duplicate detection
+      i = Math.max(i, apexIdx + 3); // skip ahead to avoid duplicate detection, never move backwards
     }
   }
 
