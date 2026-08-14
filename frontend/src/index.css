@@ -1011,6 +1011,7 @@ h1 {
 /* Embedded AI Race Engineer Card in Sidebar */
 .ai-embedded-card {
   position: relative;
+  z-index: 30;
   display: flex;
   flex-direction: column;
   border: 1px solid var(--border-color);
@@ -1544,16 +1545,18 @@ h1 {
 /* Settings Overlay Card */
 .ai-settings-card {
   position: absolute;
-  top: 75px;
-  left: 16px;
-  right: 16px;
-  z-index: 50;
-  background: hsla(222, 47%, 12%, 0.98) !important;
+  inset: 0;
+  z-index: 100;
+  background: hsla(222, 47%, 10%, 0.98) !important;
+  backdrop-filter: blur(16px);
   border: 1px solid var(--border-highlight);
   border-radius: var(--radius-md);
-  padding: 1.25rem !important;
-  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6);
-  animation: slide-down 0.25s ease-out;
+  padding: 0.85rem !important;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.7);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  animation: slide-down 0.2s ease-out;
 }
 
 @keyframes slide-down {

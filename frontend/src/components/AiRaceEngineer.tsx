@@ -728,7 +728,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
       </div>
 
       {showSettings && (
-        <div className="ai-settings-card glass-panel" style={{ top: '42px' }}>
+        <div className="ai-settings-card glass-panel">
           <div className="ai-settings-header">
             <h4>Assistant Settings</h4>
             <button className="btn-icon" onClick={() => setShowSettings(false)}>
@@ -968,8 +968,21 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
               </>
             )}
 
-            <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="nav-tab active" onClick={() => setShowSettings(false)}>
+            <div
+              style={{
+                marginTop: '1rem',
+                paddingTop: '0.65rem',
+                borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+                display: 'flex',
+                justifyContent: 'flex-end',
+              }}
+            >
+              <button
+                type="button"
+                className="nav-tab active"
+                style={{ fontSize: '0.78rem', padding: '5px 18px', cursor: 'pointer' }}
+                onClick={() => setShowSettings(false)}
+              >
                 Done
               </button>
             </div>
