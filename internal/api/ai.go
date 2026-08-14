@@ -278,7 +278,11 @@ func (s *Server) handleAIFetchModels(w http.ResponseWriter, r *http.Request) {
 				strings.Contains(lowerID, "whisper") ||
 				strings.Contains(lowerID, "dall-e") ||
 				strings.Contains(lowerID, "embedding") ||
-				strings.Contains(lowerID, "moderation") {
+				strings.Contains(lowerID, "moderation") ||
+				strings.Contains(lowerID, "davinci") ||
+				strings.Contains(lowerID, "babbage") ||
+				strings.Contains(lowerID, "instruct") ||
+				strings.Contains(lowerID, "canary") {
 				continue
 			}
 

@@ -193,7 +193,11 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
           id.includes('whisper') ||
           id.includes('dall-e') ||
           id.includes('embedding') ||
-          id.includes('moderation')
+          id.includes('moderation') ||
+          id.includes('davinci') ||
+          id.includes('babbage') ||
+          id.includes('instruct') ||
+          id.includes('canary')
         ) {
           return false;
         }
