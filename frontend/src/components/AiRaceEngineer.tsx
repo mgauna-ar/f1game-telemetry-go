@@ -44,18 +44,10 @@ interface AiRaceEngineerProps {
 
 const STORAGE_KEY_AI_CONFIG = 'f1_ai_engineer_config';
 
-const DEFAULT_GEMINI_MODELS: AIModelItem[] = [
-  { id: 'gemini-3.1-flash-lite', display_name: 'Gemini 3.1 Flash Lite (Recommended, Fast)' },
-  { id: 'gemini-2.5-flash', display_name: 'Gemini 2.5 Flash' },
-  { id: 'gemini-1.5-flash', display_name: 'Gemini 1.5 Flash' },
-  { id: 'gemini-2.5-pro', display_name: 'Gemini 2.5 Pro (Deep Analysis)' },
-  { id: 'gemini-1.5-pro', display_name: 'Gemini 1.5 Pro' },
-];
-
 const DEFAULT_CONFIG: AIConfig = {
   provider: 'gemini',
   apiKey: '',
-  model: 'gemini-3.1-flash-lite',
+  model: 'gemini-flash-lite-latest',
   baseUrl: '',
 };
 
@@ -74,8 +66,8 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
         const saved = window.localStorage.getItem(STORAGE_KEY_AI_CONFIG);
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (parsed.model === 'gemini-2.0-flash') {
-            parsed.model = 'gemini-3.1-flash-lite';
+          if (parsed.model === 'gemini-2.0-flash' || parsed.model === 'gemini-2.5-flash') {
+            parsed.model = 'gemini-flash-lite-latest';
           }
           return { ...DEFAULT_CONFIG, ...parsed };
         }
@@ -93,8 +85,8 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
     defaultModel: string;
   } | null>(null);
 
-  // Dynamic Models List initialized with curated defaults
-  const [availableModels, setAvailableModels] = useState<AIModelItem[]>(DEFAULT_GEMINI_MODELS);
+  // Dynamic Models List queried directly from the provider API
+  const [availableModels, setAvailableModels] = useState<AIModelItem[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [modelsError, setModelsError] = useState<string | null>(null);
 
@@ -209,9 +201,9 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
 
       if (data?.models && data.models.length > 0) {
         const filtered = filterChatModels(data.models, activeCfg.provider);
-        setAvailableModels(filtered.length > 0 ? filtered : DEFAULT_GEMINI_MODELS);
+        setAvailableModels(filtered);
       } else {
-        setAvailableModels(activeCfg.provider === 'gemini' ? DEFAULT_GEMINI_MODELS : []);
+        setAvailableModels([]);
       }
     } catch (err: any) {
       setModelsError(err.message || 'Could not query models list.');
@@ -733,7 +725,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
               className="ui-input"
               value={config.model}
               onChange={(e) => saveConfig({ ...config, model: e.target.value })}
-              placeholder={config.provider === 'gemini' ? 'gemini-1.5-flash' : 'gpt-4o-mini'}
+              placeholder={config.provider === 'gemini' ? 'gemini-flash-lite-latest' : 'gpt-4o-mini'}
             />
 
             {config.provider === 'custom' && (
