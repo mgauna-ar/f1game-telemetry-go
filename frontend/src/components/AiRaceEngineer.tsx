@@ -13,6 +13,7 @@ import {
   Eye,
   EyeOff,
   RefreshCw,
+  Trash2,
 } from 'lucide-react';
 import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
 
@@ -492,6 +493,16 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
       }
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'AbortError') {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantMsgId
+              ? {
+                  ...m,
+                  content: m.content ? `${m.content}\n\n*(Response stopped)*` : '*(Response stopped)*',
+                }
+              : m
+          )
+        );
         return;
       }
       const errMsg = err instanceof Error ? err.message : 'Unknown communication error';
@@ -517,6 +528,13 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
       abortControllerRef.current = null;
     }
     setIsGenerating(false);
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.role === 'assistant' && !m.content
+          ? { ...m, content: '*(Response stopped)*' }
+          : m
+      )
+    );
   };
 
   const handleClearChat = () => {
@@ -663,6 +681,30 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          {isGenerating && (
+            <button
+              className="btn-icon"
+              style={{
+                padding: '2px 7px',
+                background: 'rgba(225, 6, 0, 0.25)',
+                border: '1px solid #e10600',
+                color: '#ff4b4b',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontSize: '0.68rem',
+                fontWeight: 600,
+                borderRadius: '4px',
+                cursor: 'pointer',
+              }}
+              onClick={handleStopGeneration}
+              title="Stop response"
+              aria-label="Stop response"
+            >
+              <Square size={10} fill="#ff4b4b" />
+              <span>Stop</span>
+            </button>
+          )}
           <button
             className="btn-icon"
             style={{ padding: '3px' }}
@@ -751,10 +793,33 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
                   });
                 }}
               />
+              {config.apiKey && (
+                <button
+                  type="button"
+                  className="ai-key-toggle-btn"
+                  onClick={() => {
+                    saveConfig({
+                      ...config,
+                      apiKey: '',
+                      providerKeys: {
+                        ...(config.providerKeys || {}),
+                        [config.provider]: '',
+                      },
+                    });
+                    setAvailableModels([]);
+                  }}
+                  title="Clear API key for this provider"
+                  aria-label="Clear API key"
+                  style={{ color: '#ff4b4b' }}
+                >
+                  <Trash2 size={13} />
+                </button>
+              )}
               <button
                 type="button"
                 className="ai-key-toggle-btn"
                 onClick={() => setShowApiKey(!showApiKey)}
+                title={showApiKey ? 'Hide key' : 'Show key'}
               >
                 {showApiKey ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
@@ -882,10 +947,33 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
                 msg.content ? (
                   renderFormattedContent(msg.content)
                 ) : (
-                  <div className="ai-typing-indicator">
-                    <span />
-                    <span />
-                    <span />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div className="ai-typing-indicator">
+                      <span />
+                      <span />
+                      <span />
+                    </div>
+                    {isGenerating && (
+                      <button
+                        type="button"
+                        style={{
+                          background: 'rgba(255, 75, 75, 0.15)',
+                          border: '1px solid rgba(255, 75, 75, 0.4)',
+                          color: '#ff6b6b',
+                          borderRadius: '4px',
+                          padding: '1px 6px',
+                          fontSize: '0.62rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                        }}
+                        onClick={handleStopGeneration}
+                        title="Stop waiting"
+                      >
+                        <Square size={8} fill="#ff6b6b" /> Stop
+                      </button>
+                    )}
                   </div>
                 )
               ) : (
