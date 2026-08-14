@@ -119,4 +119,35 @@ describe('buildTelemetryContext', () => {
     expect(ctx?.zoomed_range?.start_distance_meters).toBe(100);
     expect(ctx?.zoomed_range?.end_distance_meters).toBe(600);
   });
+
+  it('builds cross-session telemetry context correctly', () => {
+    const lapA = { id: 1, lap_number: 5, lap_time_ms: 85000, is_valid: true, tyre_compound: 'SOFT' };
+    const lapB = { id: 2, lap_number: 12, lap_time_ms: 86000, is_valid: true, tyre_compound: 'HARD' };
+    const mockPoints: MergedTelemetryPoint[] = [
+      { lap_distance: 0, time_delta: 0, timeA: 0, timeB: 0, speedA: 200, speedB: 200, speed_delta: 0, throttleA: 1, throttleB: 1, brakeA: 0, brakeB: 0, steerA: 0, steerB: 0, gearA: 5, gearB: 5, ersBatteryA: 90, ersBatteryB: 90, ersDeployModeA: 1, ersDeployModeB: 1 },
+      { lap_distance: 500, time_delta: -1.0, timeA: 85, timeB: 86, speedA: 300, speedB: 290, speed_delta: 10, throttleA: 1, throttleB: 1, brakeA: 0, brakeB: 0, steerA: 0, steerB: 0, gearA: 8, gearB: 8, ersBatteryA: 80, ersBatteryB: 80, ersDeployModeA: 2, ersDeployModeB: 1 }
+    ];
+
+    const ctx = buildTelemetryContext(
+      'Spa-Francorchamps',
+      'Practice 1',
+      lapA,
+      lapB,
+      'Verstappen',
+      'Norris',
+      mockPoints,
+      null,
+      'Qualifying',
+      'Dry',
+      'Light Rain'
+    );
+
+    expect(ctx).not.toBeNull();
+    expect(ctx?.track_name).toBe('Spa-Francorchamps');
+    expect(ctx?.session_type).toBe('Practice 1');
+    expect(ctx?.session_b_type).toBe('Qualifying');
+    expect(ctx?.weather_a).toBe('Dry');
+    expect(ctx?.weather_b).toBe('Light Rain');
+    expect(ctx?.cross_session).toBe(true);
+  });
 });

@@ -24,6 +24,10 @@ type AIChatMessage struct {
 type TelemetryAnalysisContext struct {
 	TrackName         string  `json:"track_name"`
 	SessionType       string  `json:"session_type"`
+	SessionBType      string  `json:"session_b_type,omitempty"`
+	WeatherA          string  `json:"weather_a,omitempty"`
+	WeatherB          string  `json:"weather_b,omitempty"`
+	CrossSession      bool    `json:"cross_session,omitempty"`
 	LapAName          string  `json:"lap_a_name"`
 	LapBName          string  `json:"lap_b_name"`
 	LapATimeFormatted string  `json:"lap_a_time_formatted"`
@@ -388,7 +392,21 @@ func buildSystemPrompt(telemetryCtx *TelemetryAnalysisContext) string {
 
 	if telemetryCtx != nil {
 		sb.WriteString("### COMPARATIVE TELEMETRY DATA:\n")
-		sb.WriteString(fmt.Sprintf("- Track: %s | Session: %s\n", telemetryCtx.TrackName, telemetryCtx.SessionType))
+		if telemetryCtx.CrossSession || (telemetryCtx.SessionBType != "" && telemetryCtx.SessionBType != telemetryCtx.SessionType) {
+			sb.WriteString(fmt.Sprintf("- Track: %s (Cross-Session Comparison)\n", telemetryCtx.TrackName))
+			sb.WriteString(fmt.Sprintf("  * Lap A Session: %s", telemetryCtx.SessionType))
+			if telemetryCtx.WeatherA != "" {
+				sb.WriteString(fmt.Sprintf(" (Weather: %s)", telemetryCtx.WeatherA))
+			}
+			sb.WriteString("\n")
+			sb.WriteString(fmt.Sprintf("  * Lap B Session: %s", telemetryCtx.SessionBType))
+			if telemetryCtx.WeatherB != "" {
+				sb.WriteString(fmt.Sprintf(" (Weather: %s)", telemetryCtx.WeatherB))
+			}
+			sb.WriteString("\n")
+		} else {
+			sb.WriteString(fmt.Sprintf("- Track: %s | Session: %s\n", telemetryCtx.TrackName, telemetryCtx.SessionType))
+		}
 		sb.WriteString(fmt.Sprintf("- YOUR DRIVER (Lap A): %s (%s) - Compound: %s\n", telemetryCtx.LapAName, telemetryCtx.LapATimeFormatted, telemetryCtx.LapACompound))
 		sb.WriteString(fmt.Sprintf("- BENCHMARK / RIVAL (Lap B): %s (%s) - Compound: %s\n", telemetryCtx.LapBName, telemetryCtx.LapBTimeFormatted, telemetryCtx.LapBCompound))
 		sb.WriteString(fmt.Sprintf("- Total Time Delta: %.3f s (Faster: %s)\n", telemetryCtx.TimeDeltaSeconds, telemetryCtx.FasterLap))

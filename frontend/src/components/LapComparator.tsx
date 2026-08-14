@@ -1,5 +1,29 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Sliders, X, Shield, Disc, Wrench, CircleDot, Fuel, Gauge, Award, ArrowUpRight, ArrowDownRight, MapPin, Timer, Activity, ArrowLeftRight, Zap, RotateCcw, ZoomIn, Search, ChevronDown, ChevronUp, Check, Filter } from 'lucide-react';
+import {
+  Sliders,
+  X,
+  Shield,
+  Disc,
+  Wrench,
+  CircleDot,
+  Fuel,
+  Gauge,
+  Award,
+  ArrowUpRight,
+  ArrowDownRight,
+  MapPin,
+  Timer,
+  ArrowLeftRight,
+  Zap,
+  RotateCcw,
+  ZoomIn,
+  Search,
+  ChevronDown,
+  ChevronUp,
+  Check,
+  Link,
+  Unlink,
+} from 'lucide-react';
 import {
   LineChart,
   Line,
@@ -20,6 +44,8 @@ import { buildTelemetryContext } from '../utils/aiTelemetrySummary';
 import { detectTrackTurns, getTurnContextAtDistance } from '../utils/trackTurns';
 import { ComparatorTrackMap } from './ComparatorTrackMap';
 import { AiRaceEngineer } from './AiRaceEngineer';
+import { CustomLapSelector } from './CustomLapSelector';
+import type { Lap, Participant } from './CustomLapSelector';
 
 interface Session {
   id: number;
@@ -39,18 +65,6 @@ export const getSessionBadgeClass = (typeStr?: string) => {
   if (lower.includes('practice') || lower.includes('fp')) return 'badge-green';
   return 'badge-gray';
 };
-
-interface Participant {
-  id: number;
-  session_id: number;
-  car_index: number;
-  name: string;
-  driver_id: number;
-  team_id: number;
-  race_number: number;
-  ai_controlled: boolean;
-  nationality: number;
-}
 
 interface CarSetup {
   id: number;
@@ -76,21 +90,6 @@ interface CarSetup {
   rear_tyre_pressure: number;
   ballast: number;
   fuel_load: number;
-}
-
-interface Lap {
-  id: number;
-  session_id: number;
-  car_index?: number;
-  lap_number: number;
-  lap_time_ms: number;
-  sector1_ms?: number;
-  sector2_ms?: number;
-  sector3_ms?: number;
-  is_valid: boolean;
-  tyre_compound?: string;
-  fuel_load?: number;
-  max_speed_kmh?: number;
 }
 
 const ERS_MODE_NAMES: Record<number, string> = {
@@ -132,34 +131,55 @@ const compactTooltipProps = {
 
 export const LapComparator: React.FC = () => {
   const [sessions, setSessions] = useState<Session[]>([]);
-  const [selectedSessionId, setSelectedSessionId] = useState<number | ''>('');
 
-  const [isSessionDropdownOpen, setIsSessionDropdownOpen] = useState(false);
-  const [sessionSearchQuery, setSessionSearchQuery] = useState('');
-  const [sessionTypeTab, setSessionTypeTab] = useState<'ALL' | 'RACE' | 'SPRINT' | 'QUALI' | 'PRACTICE'>('ALL');
-  const sessionDropdownRef = useRef<HTMLDivElement>(null);
+  // Dual session IDs & Synchronization link
+  const [sessionAId, setSessionAId] = useState<number | ''>('');
+  const [sessionBId, setSessionBId] = useState<number | ''>('');
+  const [isLinkedSessions, setIsLinkedSessions] = useState(true);
 
-  const [participants, setParticipants] = useState<Participant[]>([]);
-  const [carSetups, setCarSetups] = useState<CarSetup[]>([]);
-  const [activeSetupParticipant, setActiveSetupParticipant] = useState<{ participant: Participant; setup: CarSetup } | null>(null);
+  // Session A Dropdown state
+  const [isSessionADropdownOpen, setIsSessionADropdownOpen] = useState(false);
+  const [sessionASearchQuery, setSessionASearchQuery] = useState('');
+  const [sessionATypeTab, setSessionATypeTab] = useState<'ALL' | 'RACE' | 'SPRINT' | 'QUALI' | 'PRACTICE'>('ALL');
+  const sessionADropdownRef = useRef<HTMLDivElement>(null);
 
-  const [laps, setLaps] = useState<Lap[]>([]);
+  // Session B Dropdown state
+  const [isSessionBDropdownOpen, setIsSessionBDropdownOpen] = useState(false);
+  const [sessionBSearchQuery, setSessionBSearchQuery] = useState('');
+  const [sessionBTypeTab, setSessionBTypeTab] = useState<'ALL' | 'RACE' | 'SPRINT' | 'QUALI' | 'PRACTICE'>('ALL');
+  const sessionBDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Session A Data
+  const [lapsA, setLapsA] = useState<Lap[]>([]);
+  const [participantsA, setParticipantsA] = useState<Participant[]>([]);
+  const [carSetupsA, setCarSetupsA] = useState<CarSetup[]>([]);
   const [lapAId, setLapAId] = useState<number | ''>('');
-  const [lapBId, setLapBId] = useState<number | ''>('');
-
   const [rawTelemetryA, setRawTelemetryA] = useState<TelemetrySamplePoint[]>([]);
-  const [rawTelemetryB, setRawTelemetryB] = useState<TelemetrySamplePoint[]>([]);
-
   const [loadingA, setLoadingA] = useState(false);
+
+  // Session B Data
+  const [lapsB, setLapsB] = useState<Lap[]>([]);
+  const [participantsB, setParticipantsB] = useState<Participant[]>([]);
+  const [carSetupsB, setCarSetupsB] = useState<CarSetup[]>([]);
+  const [lapBId, setLapBId] = useState<number | ''>('');
+  const [rawTelemetryB, setRawTelemetryB] = useState<TelemetrySamplePoint[]>([]);
   const [loadingB, setLoadingB] = useState(false);
 
+  // Active Setup Modal state
+  const [activeSetupParticipant, setActiveSetupParticipant] = useState<{ participant: Participant; setup: CarSetup } | null>(null);
+
+  // Chart Inspection & Zoom
   const [hoverDistance, setHoverDistance] = useState<number | null>(null);
   const [zoomDomain, setZoomDomain] = useState<[number, number] | null>(null);
 
+  // Initial Fetch Sessions
   const fetchSessions = useCallback(() => {
     fetch('/api/sessions')
       .then((res) => res.json())
-      .then((data) => setSessions(data || []))
+      .then((data: Session[]) => {
+        const sessionList = data || [];
+        setSessions(sessionList);
+      })
       .catch((err) => console.error('Failed to fetch sessions', err));
   }, []);
 
@@ -167,39 +187,126 @@ export const LapComparator: React.FC = () => {
     fetchSessions();
   }, [fetchSessions]);
 
+  // Handle Session A Selection Change
+  const handleSelectSessionA = (sessionId: number) => {
+    setSessionAId(sessionId);
+    setIsSessionADropdownOpen(false);
+    if (isLinkedSessions) {
+      setSessionBId(sessionId);
+    } else {
+      // If unlinked, verify if current sessionB is on the same track. If not, reset sessionB to new sessionA
+      const newSessionA = sessions.find((s) => s.id === sessionId);
+      const currentSessionB = sessions.find((s) => s.id === sessionBId);
+      if (newSessionA && currentSessionB && newSessionA.track_name.toLowerCase() !== currentSessionB.track_name.toLowerCase()) {
+        setSessionBId(sessionId);
+      }
+    }
+  };
+
+  // Handle Session B Selection Change
+  const handleSelectSessionB = (sessionId: number) => {
+    setSessionBId(sessionId);
+    setIsSessionBDropdownOpen(false);
+    if (sessionId !== sessionAId && isLinkedSessions) {
+      setIsLinkedSessions(false);
+    }
+  };
+
+  // Toggle Session Link / Same-Session mode
+  const toggleSessionLink = () => {
+    if (!isLinkedSessions) {
+      // Re-link: sync session B to session A
+      setIsLinkedSessions(true);
+      if (sessionAId) {
+        setSessionBId(sessionAId);
+      }
+    } else {
+      // Unlink: allow separate session B
+      setIsLinkedSessions(false);
+    }
+  };
+
+  // Fetch Session A data
   useEffect(() => {
-    // Reset laps, telemetry, and zoom domain when session changes to avoid stale lap data
     setLapAId('');
-    setLapBId('');
     setRawTelemetryA([]);
-    setRawTelemetryB([]);
     setZoomDomain(null);
 
-    if (selectedSessionId) {
-      fetch(`/api/sessions/${selectedSessionId}/laps`)
+    if (sessionAId) {
+      fetch(`/api/sessions/${sessionAId}/laps`)
         .then((res) => res.json())
-        .then((data) => setLaps(data || []))
-        .catch((err) => console.error('Failed to fetch laps', err));
+        .then((data: Lap[]) => {
+          const list = data || [];
+          setLapsA(list);
+          // Auto-select fastest valid lap for Lap A
+          if (list.length > 0) {
+            const valid = list.filter((l) => l.is_valid && l.lap_time_ms > 0).sort((a, b) => a.lap_time_ms - b.lap_time_ms);
+            const best = valid.length > 0 ? valid[0] : list[0];
+            setLapAId(best.id);
+          }
+        })
+        .catch((err) => console.error('Failed to fetch laps A', err));
 
-      fetch(`/api/sessions/${selectedSessionId}/participants`)
+      fetch(`/api/sessions/${sessionAId}/participants`)
         .then((res) => res.json())
-        .then((data) => setParticipants(data || []))
-        .catch((err) => console.error('Failed to fetch participants', err));
+        .then((data) => setParticipantsA(data || []))
+        .catch((err) => console.error('Failed to fetch participants A', err));
 
-      fetch(`/api/sessions/${selectedSessionId}/setups`)
+      fetch(`/api/sessions/${sessionAId}/setups`)
         .then((res) => res.json())
-        .then((data) => setCarSetups(data || []))
-        .catch((err) => console.error('Failed to fetch car setups', err));
+        .then((data) => setCarSetupsA(data || []))
+        .catch((err) => console.error('Failed to fetch car setups A', err));
     } else {
-      setLaps([]);
-      setParticipants([]);
-      setCarSetups([]);
+      setLapsA([]);
+      setParticipantsA([]);
+      setCarSetupsA([]);
     }
-  }, [selectedSessionId]);
+  }, [sessionAId]);
+
+  // Fetch Session B data
+  useEffect(() => {
+    setLapBId('');
+    setRawTelemetryB([]);
+
+    if (sessionBId) {
+      fetch(`/api/sessions/${sessionBId}/laps`)
+        .then((res) => res.json())
+        .then((data: Lap[]) => {
+          const list = data || [];
+          setLapsB(list);
+
+          // Auto-select lap for Slot B
+          if (list.length > 0) {
+            const valid = list.filter((l) => l.is_valid && l.lap_time_ms > 0).sort((a, b) => a.lap_time_ms - b.lap_time_ms);
+            if (isLinkedSessions && valid.length > 1) {
+              setLapBId(valid[1].id);
+            } else {
+              const best = valid.length > 0 ? valid[0] : list[0];
+              setLapBId(best.id);
+            }
+          }
+        })
+        .catch((err) => console.error('Failed to fetch laps B', err));
+
+      fetch(`/api/sessions/${sessionBId}/participants`)
+        .then((res) => res.json())
+        .then((data) => setParticipantsB(data || []))
+        .catch((err) => console.error('Failed to fetch participants B', err));
+
+      fetch(`/api/sessions/${sessionBId}/setups`)
+        .then((res) => res.json())
+        .then((data) => setCarSetupsB(data || []))
+        .catch((err) => console.error('Failed to fetch car setups B', err));
+    } else {
+      setLapsB([]);
+      setParticipantsB([]);
+      setCarSetupsB([]);
+    }
+  }, [sessionBId, isLinkedSessions]);
 
   // Fetch Lap A telemetry with server-side LTTB downsampling parameter maxPoints=800
   useEffect(() => {
-    setRawTelemetryA([]); // Instantly clear previous lap telemetry
+    setRawTelemetryA([]);
     if (lapAId) {
       setLoadingA(true);
       fetch(`/api/laps/${lapAId}/telemetry?maxPoints=800`)
@@ -215,7 +322,7 @@ export const LapComparator: React.FC = () => {
 
   // Fetch Lap B telemetry with server-side LTTB downsampling parameter maxPoints=800
   useEffect(() => {
-    setRawTelemetryB([]); // Instantly clear previous lap telemetry
+    setRawTelemetryB([]);
     if (lapBId) {
       setLoadingB(true);
       fetch(`/api/laps/${lapBId}/telemetry?maxPoints=800`)
@@ -229,18 +336,94 @@ export const LapComparator: React.FC = () => {
     }
   }, [lapBId]);
 
+  // Selected session objects
+  const selectedSessionAObj = useMemo(() => sessions.find((s) => s.id === sessionAId), [sessions, sessionAId]);
+  const selectedSessionBObj = useMemo(() => sessions.find((s) => s.id === sessionBId), [sessions, sessionBId]);
+
+  // Filtered Sessions for Dropdown A
+  const filteredDropdownSessionsA = useMemo(() => {
+    return sessions.filter((s) => {
+      const matchesSearch =
+        !sessionASearchQuery ||
+        s.track_name.toLowerCase().includes(sessionASearchQuery.toLowerCase()) ||
+        s.session_type.toLowerCase().includes(sessionASearchQuery.toLowerCase()) ||
+        new Date(s.created_at).toLocaleDateString().toLowerCase().includes(sessionASearchQuery.toLowerCase());
+
+      if (!matchesSearch) return false;
+
+      if (sessionATypeTab === 'ALL') return true;
+      const lower = s.session_type.toLowerCase();
+      if (sessionATypeTab === 'SPRINT') return lower.includes('sprint');
+      if (sessionATypeTab === 'RACE') return lower.includes('race') && !lower.includes('sprint');
+      if (sessionATypeTab === 'QUALI') return (lower.includes('qual') || lower.includes('q1') || lower.includes('q2') || lower.includes('q3')) && !lower.includes('sprint');
+      if (sessionATypeTab === 'PRACTICE') return lower.includes('practice') || lower.includes('fp') || lower.includes('p1') || lower.includes('p2') || lower.includes('p3');
+      return true;
+    });
+  }, [sessions, sessionASearchQuery, sessionATypeTab]);
+
+  // Filtered Sessions for Dropdown B (Strictly restricted to same circuit as Session A)
+  const filteredDropdownSessionsB = useMemo(() => {
+    return sessions.filter((s) => {
+      // Circuit strict restriction
+      if (selectedSessionAObj && s.track_name.toLowerCase() !== selectedSessionAObj.track_name.toLowerCase()) {
+        return false;
+      }
+
+      const matchesSearch =
+        !sessionBSearchQuery ||
+        s.track_name.toLowerCase().includes(sessionBSearchQuery.toLowerCase()) ||
+        s.session_type.toLowerCase().includes(sessionBSearchQuery.toLowerCase()) ||
+        new Date(s.created_at).toLocaleDateString().toLowerCase().includes(sessionBSearchQuery.toLowerCase());
+
+      if (!matchesSearch) return false;
+
+      if (sessionBTypeTab === 'ALL') return true;
+      const lower = s.session_type.toLowerCase();
+      if (sessionBTypeTab === 'SPRINT') return lower.includes('sprint');
+      if (sessionBTypeTab === 'RACE') return lower.includes('race') && !lower.includes('sprint');
+      if (sessionBTypeTab === 'QUALI') return (lower.includes('qual') || lower.includes('q1') || lower.includes('q2') || lower.includes('q3')) && !lower.includes('sprint');
+      if (sessionBTypeTab === 'PRACTICE') return lower.includes('practice') || lower.includes('fp') || lower.includes('p1') || lower.includes('p2') || lower.includes('p3');
+      return true;
+    });
+  }, [sessions, selectedSessionAObj, sessionBSearchQuery, sessionBTypeTab]);
+
+  // Click outside & Escape key listeners for session dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (sessionADropdownRef.current && !sessionADropdownRef.current.contains(event.target as Node)) {
+        setIsSessionADropdownOpen(false);
+      }
+      if (sessionBDropdownRef.current && !sessionBDropdownRef.current.contains(event.target as Node)) {
+        setIsSessionBDropdownOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsSessionADropdownOpen(false);
+        setIsSessionBDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
   // Selected lap objects
-  const lapAObj = useMemo(() => laps.find((l) => l.id === lapAId), [laps, lapAId]);
-  const lapBObj = useMemo(() => laps.find((l) => l.id === lapBId), [laps, lapBId]);
+  const lapAObj = useMemo(() => lapsA.find((l) => l.id === lapAId), [lapsA, lapAId]);
+  const lapBObj = useMemo(() => lapsB.find((l) => l.id === lapBId), [lapsB, lapBId]);
 
   // Driver details for lap A & B
   const driverA = useMemo(
-    () => (lapAObj?.car_index !== undefined ? participants.find((p) => p.car_index === lapAObj.car_index) : undefined),
-    [lapAObj, participants]
+    () => (lapAObj?.car_index !== undefined ? participantsA.find((p) => p.car_index === lapAObj.car_index) : undefined),
+    [lapAObj, participantsA]
   );
   const driverB = useMemo(
-    () => (lapBObj?.car_index !== undefined ? participants.find((p) => p.car_index === lapBObj.car_index) : undefined),
-    [lapBObj, participants]
+    () => (lapBObj?.car_index !== undefined ? participantsB.find((p) => p.car_index === lapBObj.car_index) : undefined),
+    [lapBObj, participantsB]
   );
 
   const nameA = useMemo(() => (driverA ? `#${driverA.race_number} ${driverA.name}` : 'Lap A'), [driverA]);
@@ -248,12 +431,12 @@ export const LapComparator: React.FC = () => {
 
   // Setup details for Lap A & B
   const setupA = useMemo(
-    () => (lapAObj?.car_index !== undefined ? carSetups.find((s) => s.car_index === lapAObj.car_index) : undefined),
-    [lapAObj, carSetups]
+    () => (lapAObj?.car_index !== undefined ? carSetupsA.find((s) => s.car_index === lapAObj.car_index) : undefined),
+    [lapAObj, carSetupsA]
   );
   const setupB = useMemo(
-    () => (lapBObj?.car_index !== undefined ? carSetups.find((s) => s.car_index === lapBObj.car_index) : undefined),
-    [lapBObj, carSetups]
+    () => (lapBObj?.car_index !== undefined ? carSetupsB.find((s) => s.car_index === lapBObj.car_index) : undefined),
+    [lapBObj, carSetupsB]
   );
 
   // Calculate high-performance merged telemetry comparison points (resampled every 5 meters)
@@ -316,68 +499,22 @@ export const LapComparator: React.FC = () => {
     };
   }, [comparisonData, lapAObj, lapBObj]);
 
-  const selectedSessionObj = useMemo(
-    () => sessions.find((s) => s.id === selectedSessionId),
-    [sessions, selectedSessionId]
-  );
-
-  // Filtered sessions for custom session dropdown search & category filter
-  const filteredDropdownSessions = useMemo(() => {
-    return sessions.filter((s) => {
-      const matchesSearch =
-        !sessionSearchQuery ||
-        s.track_name.toLowerCase().includes(sessionSearchQuery.toLowerCase()) ||
-        s.session_type.toLowerCase().includes(sessionSearchQuery.toLowerCase()) ||
-        new Date(s.created_at).toLocaleDateString().toLowerCase().includes(sessionSearchQuery.toLowerCase());
-
-      if (!matchesSearch) return false;
-
-      if (sessionTypeTab === 'ALL') return true;
-      const lower = s.session_type.toLowerCase();
-      if (sessionTypeTab === 'SPRINT') return lower.includes('sprint');
-      if (sessionTypeTab === 'RACE') return lower.includes('race') && !lower.includes('sprint');
-      if (sessionTypeTab === 'QUALI') return (lower.includes('qual') || lower.includes('q1') || lower.includes('q2') || lower.includes('q3')) && !lower.includes('sprint');
-      if (sessionTypeTab === 'PRACTICE') return lower.includes('practice') || lower.includes('fp') || lower.includes('p1') || lower.includes('p2') || lower.includes('p3');
-      return true;
-    });
-  }, [sessions, sessionSearchQuery, sessionTypeTab]);
-
-  // Click outside & Escape key handler to close session dropdown
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (sessionDropdownRef.current && !sessionDropdownRef.current.contains(event.target as Node)) {
-        setIsSessionDropdownOpen(false);
-      }
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsSessionDropdownOpen(false);
-      }
-    };
-
-    if (isSessionDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('keydown', handleKeyDown);
-    }
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isSessionDropdownOpen]);
-
   // Telemetry summary context for AI Race Engineer
   const telemetryContext = useMemo(() => {
     return buildTelemetryContext(
-      selectedSessionObj?.track_name || '',
-      selectedSessionObj?.session_type || '',
+      selectedSessionAObj?.track_name || '',
+      selectedSessionAObj?.session_type || '',
       lapAObj,
       lapBObj,
       nameA,
       nameB,
       comparisonData,
-      zoomDomain
+      zoomDomain,
+      selectedSessionBObj?.session_type || selectedSessionAObj?.session_type,
+      selectedSessionAObj?.weather,
+      selectedSessionBObj?.weather
     );
-  }, [selectedSessionObj, lapAObj, lapBObj, nameA, nameB, comparisonData, zoomDomain]);
+  }, [selectedSessionAObj, selectedSessionBObj, lapAObj, lapBObj, nameA, nameB, comparisonData, zoomDomain]);
 
   // Overall time delta calculation
   const totalDeltaMs = useMemo(() => {
@@ -407,61 +544,51 @@ export const LapComparator: React.FC = () => {
     return null;
   }, [lapAObj, lapBObj]);
 
-  // Active participants with recorded laps and personal best times
-  const activeParticipants = useMemo(() => {
-    if (participants.length === 0 || laps.length === 0) return [];
-    return participants
-      .filter((p) => laps.some((l) => (l.car_index ?? -1) === p.car_index))
+  // Active participants for Session A with best laps
+  const activeParticipantsA = useMemo(() => {
+    if (participantsA.length === 0 || lapsA.length === 0) return [];
+    return participantsA
+      .filter((p) => lapsA.some((l) => (l.car_index ?? -1) === p.car_index))
       .map((p) => {
-        const driverLaps = laps
+        const driverLaps = lapsA
           .filter((l) => (l.car_index ?? -1) === p.car_index && l.is_valid && l.lap_time_ms > 0)
           .sort((a, b) => a.lap_time_ms - b.lap_time_ms);
         const bestLap = driverLaps.length > 0 ? driverLaps[0] : null;
         return { ...p, bestLap };
       });
-  }, [participants, laps]);
+  }, [participantsA, lapsA]);
 
-  // Quick select best valid lap for driver
-  const selectFastestLap = (carIdx: number, target: 'A' | 'B') => {
-    const driverLaps = laps
-      .filter((l) => (l.car_index ?? -1) === carIdx && l.is_valid && l.lap_time_ms > 0)
-      .sort((a, b) => a.lap_time_ms - b.lap_time_ms);
+  // Active participants for Session B with best laps
+  const activeParticipantsB = useMemo(() => {
+    if (participantsB.length === 0 || lapsB.length === 0) return [];
+    return participantsB
+      .filter((p) => lapsB.some((l) => (l.car_index ?? -1) === p.car_index))
+      .map((p) => {
+        const driverLaps = lapsB
+          .filter((l) => (l.car_index ?? -1) === p.car_index && l.is_valid && l.lap_time_ms > 0)
+          .sort((a, b) => a.lap_time_ms - b.lap_time_ms);
+        const bestLap = driverLaps.length > 0 ? driverLaps[0] : null;
+        return { ...p, bestLap };
+      });
+  }, [participantsB, lapsB]);
 
-    if (driverLaps.length > 0) {
-      if (target === 'A') setLapAId(driverLaps[0].id);
-      else setLapBId(driverLaps[0].id);
+  // Swap Slots handler
+  const handleSwapSlots = () => {
+    const tempSessionId = sessionAId;
+    const tempLapId = lapAId;
+
+    if (!isLinkedSessions) {
+      setSessionAId(sessionBId);
+      setSessionBId(tempSessionId);
     }
+    setLapAId(lapBId);
+    setLapBId(tempLapId);
   };
 
-  const renderLapSelectOptions = () => {
-    if (participants.length === 0) {
-      return laps.map((l) => (
-        <option key={l.id} value={l.id}>
-          Lap {l.lap_number} ({formatTime(l.lap_time_ms)})
-        </option>
-      ));
-    }
-
-    const carIndicesWithLaps = Array.from(new Set(laps.map((l) => l.car_index ?? -1)));
-
-    return carIndicesWithLaps.map((carIdx) => {
-      const p = participants.find((part) => part.car_index === carIdx);
-      const groupLabel = p
-        ? `${p.name}${p.race_number !== undefined ? ` (#${p.race_number})` : ''}`
-        : `Car ${carIdx}`;
-
-      const driverLaps = laps.filter((l) => (l.car_index ?? -1) === carIdx);
-
-      return (
-        <optgroup key={carIdx} label={groupLabel}>
-          {driverLaps.map((l) => (
-            <option key={l.id} value={l.id}>
-              {p ? `#${p.race_number} ${p.name} • ` : ''}Lap {l.lap_number} — {formatTime(l.lap_time_ms)} {!l.is_valid ? '⚠️ Invalid' : ''}
-            </option>
-          ))}
-        </optgroup>
-      );
-    });
+  // Clear selections
+  const handleClearSelections = () => {
+    setLapAId('');
+    setLapBId('');
   };
 
   // Recharts hover crosshair handler
@@ -472,7 +599,6 @@ export const LapComparator: React.FC = () => {
     }
 
     let dist: number | null = null;
-
     if (state.activeLabel !== undefined && state.activeLabel !== null) {
       const num = Number(state.activeLabel);
       if (!isNaN(num)) {
@@ -499,7 +625,7 @@ export const LapComparator: React.FC = () => {
           gridColumn: 'span 12',
           padding: '1.25rem 1.5rem',
           position: 'relative',
-          zIndex: isSessionDropdownOpen ? 50 : 1,
+          zIndex: (isSessionADropdownOpen || isSessionBDropdownOpen) ? 50 : 1,
         }}
       >
         {/* Top Header Row: Title & Subtitle + Live Badges */}
@@ -509,13 +635,13 @@ export const LapComparator: React.FC = () => {
               <Gauge color="var(--accent-primary)" size={26} /> Lap Comparator
             </h2>
             <p className="text-secondary" style={{ margin: '0.25rem 0 0 0', fontSize: '0.88rem' }}>
-              Analyze time deltas, braking points, throttle application & setups
+              Compare laps, time deltas, braking points, throttle traces & setups across sessions
             </p>
           </div>
 
-          {/* Live Session & Lap Delta Badges */}
+          {/* Live Badges and Actions */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-            {selectedSessionObj && (
+            {selectedSessionAObj && (
               <div
                 style={{
                   display: 'flex',
@@ -531,11 +657,12 @@ export const LapComparator: React.FC = () => {
                 }}
               >
                 <MapPin size={14} color="var(--accent-primary)" />
-                <span>{selectedSessionObj.track_name}</span>
-                <span style={{ color: 'var(--text-muted)' }}>•</span>
-                <span className={`session-badge ${getSessionBadgeClass(selectedSessionObj.session_type)}`} style={{ fontSize: '0.68rem', padding: '2px 8px' }}>
-                  {selectedSessionObj.session_type}
-                </span>
+                <span>{selectedSessionAObj.track_name}</span>
+                {!isLinkedSessions && selectedSessionBObj && selectedSessionBObj.id !== selectedSessionAObj.id && (
+                  <span style={{ fontSize: '0.72rem', background: 'rgba(255, 165, 2, 0.2)', color: '#ffa502', padding: '1px 6px', borderRadius: '10px' }}>
+                    Cross-Session
+                  </span>
+                )}
               </div>
             )}
 
@@ -568,11 +695,7 @@ export const LapComparator: React.FC = () => {
             {lapAObj && lapBObj && (
               <button
                 type="button"
-                onClick={() => {
-                  const temp = lapAId;
-                  setLapAId(lapBId);
-                  setLapBId(temp);
-                }}
+                onClick={handleSwapSlots}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -587,7 +710,7 @@ export const LapComparator: React.FC = () => {
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
                 }}
-                title="Swap Lap A and Lap B"
+                title="Swap Slot A and Slot B"
               >
                 <ArrowLeftRight size={13} /> Swap
               </button>
@@ -596,10 +719,7 @@ export const LapComparator: React.FC = () => {
             {(lapAId || lapBId) && (
               <button
                 type="button"
-                onClick={() => {
-                  setLapAId('');
-                  setLapBId('');
-                }}
+                onClick={handleClearSelections}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -622,150 +742,13 @@ export const LapComparator: React.FC = () => {
           </div>
         </div>
 
-        {/* Middle Row: 3 Equal-Width Selector Columns */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-            gap: '1rem',
-            marginTop: '1.25rem',
-            paddingTop: '1rem',
-            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-            position: 'relative',
-            zIndex: isSessionDropdownOpen ? 60 : 1,
-          }}
-        >
-          {/* Session Selector */}
-          <div ref={sessionDropdownRef} className="custom-session-dropdown">
-            <label className="readout-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <Activity size={13} color="var(--accent-primary)" /> Session
-              </span>
-              {selectedSessionObj && (
-                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                  #{selectedSessionObj.id}
-                </span>
-              )}
-            </label>
-
-            {/* Custom Dropdown Trigger */}
-            <button
-              type="button"
-              className={`custom-session-trigger ${isSessionDropdownOpen ? 'is-open' : ''}`}
-              onClick={() => setIsSessionDropdownOpen((prev) => !prev)}
-              aria-expanded={isSessionDropdownOpen}
-              aria-haspopup="listbox"
-              data-testid="session-selector-trigger"
-            >
-              {selectedSessionObj ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  <MapPin size={14} color="var(--accent-primary)" style={{ flexShrink: 0 }} />
-                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedSessionObj.track_name}</span>
-                  <span className={`session-badge ${getSessionBadgeClass(selectedSessionObj.session_type)}`} style={{ fontSize: '0.65rem', padding: '1px 6px', flexShrink: 0 }}>
-                    {selectedSessionObj.session_type}
-                  </span>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', flexShrink: 0 }}>
-                    ({new Date(selectedSessionObj.created_at).toLocaleDateString()})
-                  </span>
-                </div>
-              ) : (
-                <span style={{ color: 'var(--text-muted)' }}>Select Session...</span>
-              )}
-              {isSessionDropdownOpen ? (
-                <ChevronUp size={15} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
-              ) : (
-                <ChevronDown size={15} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
-              )}
-            </button>
-
-            {/* Floating Popover Menu */}
-            {isSessionDropdownOpen && (
-              <div className="custom-session-popover" role="listbox">
-                {/* Search Bar */}
-                <div className="custom-session-search-wrapper">
-                  <Search size={14} className="custom-session-search-icon" />
-                  <input
-                    type="text"
-                    className="custom-session-search-input"
-                    placeholder="Search track, type, date..."
-                    value={sessionSearchQuery}
-                    onChange={(e) => setSessionSearchQuery(e.target.value)}
-                    autoFocus
-                  />
-                  {sessionSearchQuery && (
-                    <button
-                      type="button"
-                      className="custom-session-clear-btn"
-                      onClick={() => setSessionSearchQuery('')}
-                      title="Clear search"
-                    >
-                      <X size={12} />
-                    </button>
-                  )}
-                </div>
-
-                {/* Filter Pills */}
-                <div className="custom-session-filter-tabs">
-                  {(['ALL', 'RACE', 'SPRINT', 'QUALI', 'PRACTICE'] as const).map((tab) => (
-                    <button
-                      key={tab}
-                      type="button"
-                      className={`custom-session-filter-tab ${sessionTypeTab === tab ? 'active' : ''}`}
-                      onClick={() => setSessionTypeTab(tab)}
-                    >
-                      {tab === 'ALL' ? 'All' : tab.charAt(0) + tab.slice(1).toLowerCase()}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Scrollable Session List */}
-                <div className="custom-session-list">
-                  {filteredDropdownSessions.length > 0 ? (
-                    filteredDropdownSessions.map((s) => {
-                      const isSelected = s.id === selectedSessionId;
-                      return (
-                        <div
-                          key={s.id}
-                          className={`custom-session-item ${isSelected ? 'selected' : ''}`}
-                          onClick={() => {
-                            setSelectedSessionId(s.id);
-                            setIsSessionDropdownOpen(false);
-                          }}
-                          role="option"
-                          aria-selected={isSelected}
-                        >
-                          <div className="custom-session-item-main">
-                            <div className="custom-session-item-title">
-                              <MapPin size={13} color="var(--accent-primary)" />
-                              <span>{s.track_name}</span>
-                              <span className={`session-badge ${getSessionBadgeClass(s.session_type)}`} style={{ fontSize: '0.62rem', padding: '1px 5px' }}>
-                                {s.session_type}
-                              </span>
-                            </div>
-                            <div className="custom-session-item-meta">
-                              <span>{new Date(s.created_at).toLocaleDateString()} {new Date(s.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                              {s.weather && <span>• {s.weather}</span>}
-                            </div>
-                          </div>
-                          {isSelected && <Check size={14} color="var(--accent-primary)" style={{ flexShrink: 0 }} />}
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div style={{ textAlign: 'center', padding: '1rem 0.5rem', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
-                      No sessions match your filter.
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Lap A Selector */}
-          <div>
-            <label className="readout-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <span style={{ color: '#ff4757', fontWeight: 'bold' }}>●</span> Lap A (Red Solid)
+        {/* SIDE-BY-SIDE COMPARISON SLOTS CONTAINER */}
+        <div className="comparator-slots-container">
+          {/* SLOT A CARD (Red Solid) */}
+          <div className="comparator-slot-card slot-a">
+            <div className="slot-card-header">
+              <span style={{ color: '#ff4757', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <span style={{ fontSize: '1rem' }}>●</span> Slot A (Baseline)
               </span>
               {driverA && (
                 <span
@@ -775,34 +758,156 @@ export const LapComparator: React.FC = () => {
                     color: '#ff4757',
                     fontWeight: 600,
                     textTransform: 'none',
-                    maxWidth: '120px',
+                    maxWidth: '160px',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
-                    display: 'inline-block',
                   }}
                 >
                   #{driverA.race_number} {driverA.name}
                 </span>
               )}
-            </label>
-            <select
-              className="ui-select"
-              style={{ width: '100%', boxSizing: 'border-box' }}
-              value={lapAId}
-              onChange={(e) => setLapAId(Number(e.target.value) || '')}
-              disabled={!selectedSessionId}
-            >
-              <option value="">Select Lap A...</option>
-              {renderLapSelectOptions()}
-            </select>
+            </div>
+
+            {/* Session A Selector */}
+            <div ref={sessionADropdownRef} className="custom-session-dropdown">
+              <button
+                type="button"
+                className={`custom-session-trigger ${isSessionADropdownOpen ? 'is-open' : ''}`}
+                onClick={() => setIsSessionADropdownOpen((prev) => !prev)}
+                aria-expanded={isSessionADropdownOpen}
+                aria-haspopup="listbox"
+                data-testid="session-selector-trigger"
+              >
+                {selectedSessionAObj ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <MapPin size={14} color="#ff4757" style={{ flexShrink: 0 }} />
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedSessionAObj.track_name}</span>
+                    <span className={`session-badge ${getSessionBadgeClass(selectedSessionAObj.session_type)}`} style={{ fontSize: '0.65rem', padding: '1px 6px', flexShrink: 0 }}>
+                      {selectedSessionAObj.session_type}
+                    </span>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', flexShrink: 0 }}>
+                      ({new Date(selectedSessionAObj.created_at).toLocaleDateString()})
+                    </span>
+                  </div>
+                ) : (
+                  <span style={{ color: 'var(--text-muted)' }}>Select Session A...</span>
+                )}
+                {isSessionADropdownOpen ? (
+                  <ChevronUp size={15} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
+                ) : (
+                  <ChevronDown size={15} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
+                )}
+              </button>
+
+              {/* Popover A */}
+              {isSessionADropdownOpen && (
+                <div className="custom-session-popover" role="listbox">
+                  <div className="custom-session-search-wrapper">
+                    <Search size={14} className="custom-session-search-icon" />
+                    <input
+                      type="text"
+                      className="custom-session-search-input"
+                      placeholder="Search track, type, date..."
+                      value={sessionASearchQuery}
+                      onChange={(e) => setSessionASearchQuery(e.target.value)}
+                      autoFocus
+                    />
+                    {sessionASearchQuery && (
+                      <button
+                        type="button"
+                        className="custom-session-clear-btn"
+                        onClick={() => setSessionASearchQuery('')}
+                        title="Clear search"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="custom-session-filter-tabs">
+                    {(['ALL', 'RACE', 'SPRINT', 'QUALI', 'PRACTICE'] as const).map((tab) => (
+                      <button
+                        key={tab}
+                        type="button"
+                        className={`custom-session-filter-tab ${sessionATypeTab === tab ? 'active' : ''}`}
+                        onClick={() => setSessionATypeTab(tab)}
+                      >
+                        {tab === 'ALL' ? 'All' : tab.charAt(0) + tab.slice(1).toLowerCase()}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="custom-session-list">
+                    {filteredDropdownSessionsA.length > 0 ? (
+                      filteredDropdownSessionsA.map((s) => {
+                        const isSelected = s.id === sessionAId;
+                        return (
+                          <div
+                            key={s.id}
+                            className={`custom-session-item ${isSelected ? 'selected' : ''}`}
+                            onClick={() => handleSelectSessionA(s.id)}
+                            role="option"
+                            aria-selected={isSelected}
+                          >
+                            <div className="custom-session-item-main">
+                              <div className="custom-session-item-title">
+                                <MapPin size={13} color="#ff4757" />
+                                <span>{s.track_name}</span>
+                                <span className={`session-badge ${getSessionBadgeClass(s.session_type)}`} style={{ fontSize: '0.62rem', padding: '1px 5px' }}>
+                                  {s.session_type}
+                                </span>
+                              </div>
+                              <div className="custom-session-item-meta">
+                                <span>{new Date(s.created_at).toLocaleDateString()} {new Date(s.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                {s.weather && <span>• {s.weather}</span>}
+                              </div>
+                            </div>
+                            {isSelected && <Check size={14} color="#ff4757" style={{ flexShrink: 0 }} />}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div style={{ textAlign: 'center', padding: '1rem 0.5rem', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                        No sessions match your filter.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Custom Lap Selector for Lap A */}
+            <CustomLapSelector
+              laps={lapsA}
+              participants={participantsA}
+              selectedLapId={lapAId}
+              onSelectLap={(id) => setLapAId(id)}
+              slot="A"
+              disabled={!sessionAId}
+              placeholder="Select Lap A..."
+            />
           </div>
 
-          {/* Lap B Selector */}
-          <div>
-            <label className="readout-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.35rem' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <span style={{ color: '#00d2d3', fontWeight: 'bold' }}>●</span> Lap B (Cyan Dashed)
+          {/* CENTER LINK / SYNC BUTTON */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <button
+              type="button"
+              className={`slot-session-sync-btn ${isLinkedSessions ? 'is-linked' : 'is-unlinked'}`}
+              onClick={toggleSessionLink}
+              title={isLinkedSessions ? 'Sessions linked to same session. Click to unlock Cross-Session comparison.' : 'Cross-session mode active. Click to lock sessions to same session.'}
+              data-testid="session-sync-toggle"
+            >
+              {isLinkedSessions ? <Link size={16} /> : <Unlink size={16} />}
+              <span>{isLinkedSessions ? 'Linked' : 'Cross-Session'}</span>
+            </button>
+          </div>
+
+          {/* SLOT B CARD (Cyan Dashed) */}
+          <div className="comparator-slot-card slot-b">
+            <div className="slot-card-header">
+              <span style={{ color: '#00d2d3', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <span style={{ fontSize: '1rem' }}>●</span> Slot B (Comparison)
               </span>
               {driverB && (
                 <span
@@ -812,27 +917,141 @@ export const LapComparator: React.FC = () => {
                     color: '#00d2d3',
                     fontWeight: 600,
                     textTransform: 'none',
-                    maxWidth: '120px',
+                    maxWidth: '160px',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
-                    display: 'inline-block',
                   }}
                 >
                   #{driverB.race_number} {driverB.name}
                 </span>
               )}
-            </label>
-            <select
-              className="ui-select"
-              style={{ width: '100%', boxSizing: 'border-box' }}
-              value={lapBId}
-              onChange={(e) => setLapBId(Number(e.target.value) || '')}
-              disabled={!selectedSessionId}
-            >
-              <option value="">Select Lap B...</option>
-              {renderLapSelectOptions()}
-            </select>
+            </div>
+
+            {/* Session B Selector */}
+            <div ref={sessionBDropdownRef} className="custom-session-dropdown">
+              <button
+                type="button"
+                className={`custom-session-trigger ${isSessionBDropdownOpen ? 'is-open' : ''}`}
+                onClick={() => setIsSessionBDropdownOpen((prev) => !prev)}
+                aria-expanded={isSessionBDropdownOpen}
+                aria-haspopup="listbox"
+                data-testid="session-b-selector-trigger"
+              >
+                {selectedSessionBObj ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <MapPin size={14} color="#00d2d3" style={{ flexShrink: 0 }} />
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedSessionBObj.track_name}</span>
+                    <span className={`session-badge ${getSessionBadgeClass(selectedSessionBObj.session_type)}`} style={{ fontSize: '0.65rem', padding: '1px 6px', flexShrink: 0 }}>
+                      {selectedSessionBObj.session_type}
+                    </span>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', flexShrink: 0 }}>
+                      ({new Date(selectedSessionBObj.created_at).toLocaleDateString()})
+                    </span>
+                  </div>
+                ) : (
+                  <span style={{ color: 'var(--text-muted)' }}>Select Session B...</span>
+                )}
+                {isSessionBDropdownOpen ? (
+                  <ChevronUp size={15} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
+                ) : (
+                  <ChevronDown size={15} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
+                )}
+              </button>
+
+              {/* Popover B */}
+              {isSessionBDropdownOpen && (
+                <div className="custom-session-popover" role="listbox">
+                  {selectedSessionAObj && (
+                    <div style={{ padding: '0.35rem 0.6rem', background: 'rgba(0, 210, 211, 0.1)', borderBottom: '1px solid rgba(0, 210, 211, 0.2)', fontSize: '0.7rem', color: '#00d2d3', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <MapPin size={11} /> Filtered to {selectedSessionAObj.track_name}
+                    </div>
+                  )}
+
+                  <div className="custom-session-search-wrapper">
+                    <Search size={14} className="custom-session-search-icon" />
+                    <input
+                      type="text"
+                      className="custom-session-search-input"
+                      placeholder="Search session type, date..."
+                      value={sessionBSearchQuery}
+                      onChange={(e) => setSessionBSearchQuery(e.target.value)}
+                      autoFocus
+                    />
+                    {sessionBSearchQuery && (
+                      <button
+                        type="button"
+                        className="custom-session-clear-btn"
+                        onClick={() => setSessionBSearchQuery('')}
+                        title="Clear search"
+                      >
+                        <X size={12} />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="custom-session-filter-tabs">
+                    {(['ALL', 'RACE', 'SPRINT', 'QUALI', 'PRACTICE'] as const).map((tab) => (
+                      <button
+                        key={tab}
+                        type="button"
+                        className={`custom-session-filter-tab ${sessionBTypeTab === tab ? 'active' : ''}`}
+                        onClick={() => setSessionBTypeTab(tab)}
+                      >
+                        {tab === 'ALL' ? 'All' : tab.charAt(0) + tab.slice(1).toLowerCase()}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="custom-session-list">
+                    {filteredDropdownSessionsB.length > 0 ? (
+                      filteredDropdownSessionsB.map((s) => {
+                        const isSelected = s.id === sessionBId;
+                        return (
+                          <div
+                            key={s.id}
+                            className={`custom-session-item ${isSelected ? 'selected' : ''}`}
+                            onClick={() => handleSelectSessionB(s.id)}
+                            role="option"
+                            aria-selected={isSelected}
+                          >
+                            <div className="custom-session-item-main">
+                              <div className="custom-session-item-title">
+                                <MapPin size={13} color="#00d2d3" />
+                                <span>{s.track_name}</span>
+                                <span className={`session-badge ${getSessionBadgeClass(s.session_type)}`} style={{ fontSize: '0.62rem', padding: '1px 5px' }}>
+                                  {s.session_type}
+                                </span>
+                              </div>
+                              <div className="custom-session-item-meta">
+                                <span>{new Date(s.created_at).toLocaleDateString()} {new Date(s.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                {s.weather && <span>• {s.weather}</span>}
+                              </div>
+                            </div>
+                            {isSelected && <Check size={14} color="#00d2d3" style={{ flexShrink: 0 }} />}
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div style={{ textAlign: 'center', padding: '1rem 0.5rem', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                        No matching sessions for this track.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Custom Lap Selector for Lap B */}
+            <CustomLapSelector
+              laps={lapsB}
+              participants={participantsB}
+              selectedLapId={lapBId}
+              onSelectLap={(id) => setLapBId(id)}
+              slot="B"
+              disabled={!sessionBId}
+              placeholder="Select Lap B..."
+            />
           </div>
         </div>
 
@@ -921,12 +1140,12 @@ export const LapComparator: React.FC = () => {
       </div>
 
       {/* Quick Select Driver Best Lap Bar */}
-      {selectedSessionId !== '' && activeParticipants.length > 0 && (
+      {sessionAId !== '' && (activeParticipantsA.length > 0 || activeParticipantsB.length > 0) && (
         <div className="glass-panel" style={{ gridColumn: 'span 12', padding: '0.75rem 1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.6rem' }}>
             <Zap size={14} color="var(--accent-primary)" />
             <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Quick Select Driver Best Laps ({activeParticipants.length}):
+              Quick Select Driver Best Laps:
             </span>
           </div>
 
@@ -940,86 +1159,102 @@ export const LapComparator: React.FC = () => {
               paddingRight: '0.2rem',
             }}
           >
-            {activeParticipants.map((p) => (
-              <div
-                key={p.car_index}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  padding: '0.4rem 0.75rem',
-                  borderRadius: '6px',
-                  border: '1px solid rgba(255, 255, 255, 0.07)',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0, flex: 1, paddingRight: '0.4rem' }}>
-                  <span
-                    style={{
-                      fontSize: '0.82rem',
-                      fontWeight: 600,
-                      color: 'var(--text-primary)',
-                      maxWidth: '170px',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                    title={`#${p.race_number} ${p.name}`}
-                  >
-                    #{p.race_number} {p.name}
-                  </span>
-                  {p.bestLap && (
-                    <span style={{ fontSize: '0.78rem', fontFamily: 'var(--font-mono)', color: 'var(--accent-primary)', fontWeight: 600, flexShrink: 0 }}>
-                      {formatTime(p.bestLap.lap_time_ms)}
+            {(isLinkedSessions || sessionAId === sessionBId ? activeParticipantsA : [...activeParticipantsA, ...activeParticipantsB]).map((p) => {
+              const isParticipantInA = activeParticipantsA.some((pa) => pa.car_index === p.car_index && pa.session_id === p.session_id);
+              return (
+                <div
+                  key={`${p.session_id}-${p.car_index}`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    padding: '0.4rem 0.75rem',
+                    borderRadius: '6px',
+                    border: '1px solid rgba(255, 255, 255, 0.07)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0, flex: 1, paddingRight: '0.4rem' }}>
+                    <span
+                      style={{
+                        fontSize: '0.82rem',
+                        fontWeight: 600,
+                        color: 'var(--text-primary)',
+                        maxWidth: '160px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                      title={`#${p.race_number} ${p.name}`}
+                    >
+                      #{p.race_number} {p.name}
                     </span>
-                  )}
-                </div>
+                    {p.bestLap && (
+                      <span style={{ fontSize: '0.78rem', fontFamily: 'var(--font-mono)', color: 'var(--accent-primary)', fontWeight: 600, flexShrink: 0 }}>
+                        {formatTime(p.bestLap.lap_time_ms)}
+                      </span>
+                    )}
+                  </div>
 
-                <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
-                  <button
-                    type="button"
-                    onClick={() => selectFastestLap(p.car_index, 'A')}
-                    style={{
-                      background: 'rgba(255, 71, 87, 0.15)',
-                      border: '1px solid rgba(255, 71, 87, 0.6)',
-                      color: '#ff4757',
-                      borderRadius: '4px',
-                      padding: '0.2rem 0.5rem',
-                      fontSize: '0.73rem',
-                      cursor: 'pointer',
-                      fontWeight: 700,
-                    }}
-                    title={`Set Lap A to ${p.name}'s fastest lap`}
-                  >
-                    Set A
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => selectFastestLap(p.car_index, 'B')}
-                    style={{
-                      background: 'rgba(0, 210, 211, 0.15)',
-                      border: '1px solid rgba(0, 210, 211, 0.6)',
-                      color: '#00d2d3',
-                      borderRadius: '4px',
-                      padding: '0.2rem 0.5rem',
-                      fontSize: '0.73rem',
-                      cursor: 'pointer',
-                      fontWeight: 700,
-                    }}
-                    title={`Set Lap B to ${p.name}'s fastest lap`}
-                  >
-                    Set B
-                  </button>
+                  <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
+                    {(isLinkedSessions || isParticipantInA) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const targetLaps = lapsA;
+                          const driverLaps = targetLaps
+                            .filter((l) => (l.car_index ?? -1) === p.car_index && l.is_valid && l.lap_time_ms > 0)
+                            .sort((a, b) => a.lap_time_ms - b.lap_time_ms);
+                          if (driverLaps.length > 0) setLapAId(driverLaps[0].id);
+                        }}
+                        style={{
+                          background: 'rgba(255, 71, 87, 0.15)',
+                          border: '1px solid rgba(255, 71, 87, 0.6)',
+                          color: '#ff4757',
+                          borderRadius: '4px',
+                          padding: '0.2rem 0.5rem',
+                          fontSize: '0.73rem',
+                          cursor: 'pointer',
+                          fontWeight: 700,
+                        }}
+                        title={`Set Lap A to ${p.name}'s fastest lap`}
+                      >
+                        Set A
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const targetLaps = lapsB;
+                        const driverLaps = targetLaps
+                          .filter((l) => (l.car_index ?? -1) === p.car_index && l.is_valid && l.lap_time_ms > 0)
+                          .sort((a, b) => a.lap_time_ms - b.lap_time_ms);
+                        if (driverLaps.length > 0) setLapBId(driverLaps[0].id);
+                      }}
+                      style={{
+                        background: 'rgba(0, 210, 211, 0.15)',
+                        border: '1px solid rgba(0, 210, 211, 0.6)',
+                        color: '#00d2d3',
+                        borderRadius: '4px',
+                        padding: '0.2rem 0.5rem',
+                        fontSize: '0.73rem',
+                        cursor: 'pointer',
+                        fontWeight: 700,
+                      }}
+                      title={`Set Lap B to ${p.name}'s fastest lap`}
+                    >
+                      Set B
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
 
-      {/* Active Cursor Point Info memoization */}
       {/* 2-COLUMN MAIN COMPARISON LAYOUT */}
-      {selectedSessionId !== '' && (lapAObj || lapBObj) && (
+      {sessionAId !== '' && (lapAObj || lapBObj) && (
         <div className="comparator-layout" style={{ gridColumn: 'span 12' }}>
           {/* LEFT COLUMN: Summary cards & Telemetry Charts Stack */}
           <div className="comparator-charts-col">
@@ -1299,7 +1534,7 @@ export const LapComparator: React.FC = () => {
             {/* TELEMETRY CHARTS STACK */}
             {comparisonData.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                {/* 1. TIME DELTA CHART (MOST IMPORTANT) */}
+                {/* 1. TIME DELTA CHART */}
                 <div className="glass-panel" style={{ height: '300px', display: 'flex', flexDirection: 'column' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
                     <h3 style={{ margin: 0, fontSize: '1rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -1490,8 +1725,8 @@ export const LapComparator: React.FC = () => {
                         {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
                         {hoverDistance !== null && <ReferenceLine x={hoverDistance} stroke="#ffd200" strokeWidth={2} strokeDasharray="3 3" />}
                         <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '2px' }} iconSize={10} />
-                        <Line type="stepAfter" dataKey="ersDeployModeA" name={`${nameA} ERS Mode`} stroke="#ff4757" dot={false} strokeWidth={2} isAnimationActive={false} />
-                        <Line type="stepAfter" dataKey="ersDeployModeB" name={`${nameB} ERS Mode`} stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={false} />
+                        <Line type="stepAfter" dataKey="ersDeployModeA" name={`${nameA} Mode`} stroke="#ff4757" dot={false} strokeWidth={2} isAnimationActive={false} />
+                        <Line type="stepAfter" dataKey="ersDeployModeB" name={`${nameB} Mode`} stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={false} />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
@@ -1500,7 +1735,7 @@ export const LapComparator: React.FC = () => {
             ) : (
               <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center' }}>
                 <p style={{ color: 'var(--text-muted)', fontSize: '1rem', margin: 0 }}>
-                  {!selectedSessionId
+                  {!sessionAId
                     ? 'Select a session and two laps above to compare telemetry.'
                     : loadingA || loadingB
                     ? 'Loading telemetry data...'
@@ -1526,9 +1761,9 @@ export const LapComparator: React.FC = () => {
                   <h4 style={{ margin: 0, fontSize: '0.85rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                     <MapPin size={15} color="var(--accent-primary)" /> Track Heatmap
                   </h4>
-                  {selectedSessionObj && (
+                  {selectedSessionAObj && (
                     <span style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.08)', padding: '0.15rem 0.4rem', borderRadius: '4px', color: 'var(--text-secondary)' }}>
-                      {selectedSessionObj.track_name}
+                      {selectedSessionAObj.track_name}
                     </span>
                   )}
                 </div>
@@ -1588,7 +1823,7 @@ export const LapComparator: React.FC = () => {
                   </div>
                 )}
 
-                {/* Active Hover Point Live Telemetry Readout (Fixed Height to Prevent Layout Shift) */}
+                {/* Active Hover Point Live Telemetry Readout */}
                 {comparisonData.length > 0 && (() => {
                   const activePoint = hoverDistance !== null ? comparisonData.reduce((prev, curr) =>
                     Math.abs(curr.lap_distance - hoverDistance) < Math.abs(prev.lap_distance - hoverDistance) ? curr : prev
@@ -1865,7 +2100,7 @@ const CarSetupModal: React.FC<{ participant: Participant; setup: CarSetup; onClo
 
 // Helper to format ms into M:SS.ms
 function formatTime(ms?: number) {
-  if (!ms) return '--:--.---';
+  if (!ms || ms <= 0) return '--:--.---';
   const mins = Math.floor(ms / 60000);
   const secs = Math.floor((ms % 60000) / 1000);
   const m = ms % 1000;

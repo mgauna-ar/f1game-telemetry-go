@@ -92,6 +92,34 @@ func TestBuildSystemPrompt(t *testing.T) {
 			t.Errorf("expected zoomed range description in prompt")
 		}
 	})
+
+	t.Run("with cross-session context", func(t *testing.T) {
+		ctx := &TelemetryAnalysisContext{
+			TrackName:         "Spa-Francorchamps",
+			SessionType:       "Practice 1",
+			SessionBType:      "Qualifying",
+			WeatherA:          "Dry",
+			WeatherB:          "Light Rain",
+			CrossSession:      true,
+			LapAName:          "Max Verstappen - Lap 5",
+			LapBName:          "Lando Norris - Lap 8",
+			LapATimeFormatted: "1:44.500",
+			LapBTimeFormatted: "1:45.200",
+			TimeDeltaSeconds:  -0.700,
+			FasterLap:         "Lap A",
+		}
+
+		prompt := buildSystemPrompt(ctx)
+		if !strings.Contains(prompt, "Cross-Session Comparison") {
+			t.Errorf("expected prompt to mention Cross-Session Comparison")
+		}
+		if !strings.Contains(prompt, "Lap A Session: Practice 1 (Weather: Dry)") {
+			t.Errorf("expected Lap A session and weather")
+		}
+		if !strings.Contains(prompt, "Lap B Session: Qualifying (Weather: Light Rain)") {
+			t.Errorf("expected Lap B session and weather")
+		}
+	})
 }
 
 func TestHandleAIChat_Validation(t *testing.T) {

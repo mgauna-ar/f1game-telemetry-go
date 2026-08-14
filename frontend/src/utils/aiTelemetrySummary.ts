@@ -15,6 +15,10 @@ export interface LapInfo {
 export interface TelemetryContextPayload {
   track_name: string;
   session_type: string;
+  session_b_type?: string;
+  weather_a?: string;
+  weather_b?: string;
+  cross_session?: boolean;
   lap_a_name: string;
   lap_b_name: string;
   lap_a_time_formatted: string;
@@ -71,7 +75,10 @@ export function buildTelemetryContext(
   nameA: string,
   nameB: string,
   comparisonData: MergedTelemetryPoint[],
-  zoomDomain: [number, number] | null
+  zoomDomain: [number, number] | null,
+  sessionTypeB?: string,
+  weatherA?: string,
+  weatherB?: string
 ): TelemetryContextPayload | null {
   if (!lapA || !lapB || comparisonData.length === 0) {
     return null;
@@ -210,9 +217,15 @@ export function buildTelemetryContext(
     }
   }
 
+  const isCrossSession = Boolean(sessionTypeB && sessionTypeB !== sessionType);
+
   return {
     track_name: trackName || 'F1 Circuit',
     session_type: sessionType || 'Session',
+    session_b_type: sessionTypeB || sessionType || 'Session',
+    weather_a: weatherA,
+    weather_b: weatherB,
+    cross_session: isCrossSession || Boolean(weatherA && weatherB && weatherA !== weatherB),
     lap_a_name: `${nameA} (Lap ${lapA.lap_number})`,
     lap_b_name: `${nameB} (Lap ${lapB.lap_number})`,
     lap_a_time_formatted: formatLapTime(lapA.lap_time_ms),
