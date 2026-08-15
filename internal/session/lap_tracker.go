@@ -228,24 +228,23 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 			updated = true
 		}
 
-		// If car has finished session (ResultStatus == 3) or if LastLapTimeInMS is available for completed lap, update lap time
+		// If car has finished single lap session (ResultStatus == 3 on Lap 1), update lap time
 		lastLapTimeMS := int(lapData.LastLapTimeInMS)
-		if (resStatus == 3 || (resStatus == 2 && lastLapTimeMS > 0)) && lt.currentLap.LapTimeMS == 0 && lastLapTimeMS > 0 {
-			if resStatus == 3 {
-				lt.currentLap.LapTimeMS = lastLapTimeMS
-				if s1 > 0 && s2 > 0 && lt.currentLap.Sector3MS == 0 {
-					s3 := lastLapTimeMS - (s1 + s2)
-					if s3 > 0 {
-						lt.currentLap.Sector3MS = s3
-					}
+		if resStatus == 3 && lt.currentLapNum == 1 && lt.currentLap.LapTimeMS == 0 && lastLapTimeMS > 0 {
+			lt.currentLap.LapTimeMS = lastLapTimeMS
+			if s1 > 0 && s2 > 0 && lt.currentLap.Sector3MS == 0 {
+				s3 := lastLapTimeMS - (s1 + s2)
+				if s3 > 0 {
+					lt.currentLap.Sector3MS = s3
 				}
-				updated = true
 			}
+			updated = true
 		}
 
 		if updated {
 			lt.repo.SaveLap(ctx, lt.currentLap)
 		}
+
 	}
 }
 

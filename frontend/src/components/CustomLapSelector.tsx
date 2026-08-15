@@ -145,9 +145,9 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
     return undefined;
   }, [selectedLap, participants]);
 
-  // Session Best Lap (overall fastest valid lap)
+  // Session Best Lap (overall fastest valid completed lap)
   const sessionBestLap = useMemo(() => {
-    const validLaps = laps.filter((l) => l.is_valid && l.lap_time_ms > 0);
+    const validLaps = laps.filter((l) => l.is_valid && l.lap_time_ms > 0 && (l.sector3_ms ?? 0) > 0);
     if (validLaps.length === 0) return null;
     return validLaps.reduce((prev, curr) => (curr.lap_time_ms < prev.lap_time_ms ? curr : prev), validLaps[0]);
   }, [laps]);
@@ -157,7 +157,7 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
     const map = new Map<number, number>();
     participants.forEach((p) => {
       const driverValidLaps = laps
-        .filter((l) => (l.car_index ?? -1) === p.car_index && l.is_valid && l.lap_time_ms > 0)
+        .filter((l) => (l.car_index ?? -1) === p.car_index && l.is_valid && l.lap_time_ms > 0 && (l.sector3_ms ?? 0) > 0)
         .sort((a, b) => a.lap_time_ms - b.lap_time_ms);
       if (driverValidLaps.length > 0) {
         map.set(p.car_index, driverValidLaps[0].id);
@@ -185,8 +185,8 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
   const filteredLaps = useMemo(() => {
     return laps
       .filter((l) => {
-        // Valid only filter
-        if (validOnly && (!l.is_valid || l.lap_time_ms <= 0)) {
+        // Valid only filter (must be valid and completed)
+        if (validOnly && (!l.is_valid || l.lap_time_ms <= 0 || (l.sector3_ms ?? 0) <= 0)) {
           return false;
         }
 
@@ -218,9 +218,9 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
       })
       .sort((a, b) => {
         if (sortMode === 'fastest') {
-          // Valid laps first by time, then invalid laps
-          const aValid = a.is_valid && a.lap_time_ms > 0;
-          const bValid = b.is_valid && b.lap_time_ms > 0;
+          // Completed valid laps first by time, then incomplete/invalid laps
+          const aValid = a.is_valid && a.lap_time_ms > 0 && (a.sector3_ms ?? 0) > 0;
+          const bValid = b.is_valid && b.lap_time_ms > 0 && (b.sector3_ms ?? 0) > 0;
           if (aValid && bValid) return a.lap_time_ms - b.lap_time_ms;
           if (aValid) return -1;
           if (bValid) return 1;
@@ -230,6 +230,7 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
         return a.lap_number - b.lap_number;
       });
   }, [laps, validOnly, selectedDriverCarIndex, searchQuery, participants, sortMode]);
+
 
   const slotColor = slot === 'A' ? '#ff4757' : '#00d2d3';
   const defaultPlaceholder = placeholder || `Select Lap ${slot}...`;
@@ -398,10 +399,11 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
               filteredLaps.map((lap) => {
                 const isSelected = lap.id === selectedLapId;
                 const p = participants.find((part) => part.car_index === lap.car_index);
-                const isSessionBest = sessionBestLap && lap.id === sessionBestLap.id;
-                const isDriverPb = (lap.car_index !== undefined && driverPbMap.get(lap.car_index) === lap.id) && !isSessionBest;
+                const isCompleted = lap.is_valid && lap.lap_time_ms > 0 && Boolean(lap.sector3_ms && lap.sector3_ms > 0);
+                const isSessionBest = isCompleted && sessionBestLap && lap.id === sessionBestLap.id;
+                const isDriverPb = isCompleted && (lap.car_index !== undefined && driverPbMap.get(lap.car_index) === lap.id) && !isSessionBest;
 
-                const deltaToBest = sessionBestLap && lap.lap_time_ms > 0 && lap.is_valid
+                const deltaToBest = isCompleted && sessionBestLap
                   ? (lap.lap_time_ms - sessionBestLap.lap_time_ms) / 1000
                   : null;
 
@@ -466,7 +468,7 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
                             <Star size={10} /> PB
                           </span>
                         )}
-                        {!lap.is_valid && (
+                        {!lap.is_valid ? (
                           <span
                             style={{
                               fontSize: '0.62rem',
@@ -483,7 +485,24 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
                           >
                             <AlertTriangle size={10} /> Invalid
                           </span>
-                        )}
+                        ) : !isCompleted ? (
+                          <span
+                            style={{
+                              fontSize: '0.62rem',
+                              fontWeight: 700,
+                              background: 'rgba(243, 156, 18, 0.15)',
+                              color: '#f39c12',
+                              border: '1px solid rgba(243, 156, 18, 0.35)',
+                              padding: '1px 4px',
+                              borderRadius: '3px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '2px',
+                            }}
+                          >
+                            Incomplete
+                          </span>
+                        ) : null}
                         {isSelected && <Check size={14} color={slotColor} />}
                       </div>
                     </div>
@@ -496,17 +515,17 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
                             fontFamily: 'var(--font-mono)',
                             fontSize: '0.92rem',
                             fontWeight: 700,
-                            color: isSelected ? slotColor : '#fff',
+                            color: isSelected ? slotColor : (!isCompleted ? 'var(--text-muted)' : '#fff'),
                           }}
                         >
-                          {formatTime(lap.lap_time_ms)}
+                          {isCompleted ? formatTime(lap.lap_time_ms) : '--:--.---'}
                         </span>
-                        {deltaToBest !== null && deltaToBest > 0 && (
+                        {isCompleted && deltaToBest !== null && deltaToBest > 0 && (
                           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                             +{deltaToBest.toFixed(3)}s
                           </span>
                         )}
-                        {deltaToBest === 0 && (
+                        {isCompleted && deltaToBest === 0 && (
                           <span style={{ fontSize: '0.7rem', color: '#ffd700', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
                             Fastest Lap
                           </span>
@@ -519,6 +538,7 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
                         </span>
                       )}
                     </div>
+
 
                     {/* Bottom Row: Sector Breakdown */}
                     {(lap.sector1_ms || lap.sector2_ms || lap.sector3_ms) && (

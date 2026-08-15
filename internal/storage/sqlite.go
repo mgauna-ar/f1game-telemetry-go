@@ -228,6 +228,14 @@ func (r *Repository) GetLapsBySession(ctx context.Context, sessionID int64) ([]L
 	if err := r.db.SelectContext(ctx, &laps, query, sessionID); err != nil {
 		return nil, fmt.Errorf("failed to get laps: %w", err)
 	}
+
+	// Sanitize legacy incomplete laps where lap_time_ms was erroneously assigned when sector 3 is 0
+	for i := range laps {
+		if laps[i].Sector3MS == 0 && laps[i].Sector1MS > 0 && laps[i].Sector2MS > 0 {
+			laps[i].LapTimeMS = 0
+		}
+	}
+
 	return laps, nil
 }
 

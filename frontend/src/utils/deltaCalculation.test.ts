@@ -159,7 +159,41 @@ describe('deltaCalculation utility', () => {
     expect(finalPt.time_delta).toBeGreaterThan(1.0);
     expect(finalPt.time_delta).toBeLessThan(2.0);
   });
+
+  it('returns null delta when one lap is incomplete and stops short', () => {
+    // Lap A: complete lap 0m to 5000m
+    const lapA: TelemetrySamplePoint[] = Array.from({ length: 101 }, (_, i) => ({
+      lap_distance: i * 50,
+      session_time: 100 + i * 0.85,
+      speed: 250,
+      throttle: 1,
+      brake: 0,
+    }));
+
+    // Lap B: aborted/incomplete lap that only reached 200m
+    const lapB: TelemetrySamplePoint[] = Array.from({ length: 5 }, (_, i) => ({
+      lap_distance: i * 50, // 0m to 200m
+      session_time: 200 + i * 0.85,
+      speed: 250,
+      throttle: 1,
+      brake: 0,
+    }));
+
+    const merged = calculateMergedComparison(lapA, lapB, 50);
+    // At 100m (both have data): delta is 0
+    const pt100 = merged.find(p => p.lap_distance === 100);
+    expect(pt100).toBeDefined();
+    expect(pt100?.time_delta).toBe(0);
+
+    // At 1000m (only Lap A has data): delta should be null, NOT a flatlined fake number
+    const pt1000 = merged.find(p => p.lap_distance === 1000);
+    expect(pt1000).toBeDefined();
+    expect(pt1000?.time_delta).toBeNull();
+    expect(pt1000?.speedB).toBeNull();
+    expect(pt1000?.speedA).toBe(250);
+  });
 });
+
 
 
 

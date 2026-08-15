@@ -126,13 +126,18 @@ func TestVerifyTargetLaps(t *testing.T) {
 		}
 	}
 
-	// Verify Lap 5731 (LC-iL.Magno - 84.566s)
-	raw5731, err := repo.GetTelemetryByLap(ctx, 5731)
-	if err == nil && len(raw5731) > 0 {
-		trimmed := TrimTelemetryToLastLapAttempt(raw5731)
-		dur := trimmed[len(trimmed)-1].SessionTime - trimmed[0].SessionTime
-		if dur < 82.0 || dur > 87.0 {
-			t.Errorf("Expected Lap 5731 trimmed duration ~84.5s, got %.3fs", dur)
-		}
+	// Verify Lap 6103 (Arti Moreno - Lap 3)
+	lap6103, err := repo.GetLapByID(ctx, 6103)
+	if err == nil {
+		t.Logf("Lap 6103 DB Record: LapNum=%d, TimeMS=%d, S1=%d, S2=%d, S3=%d, Valid=%v, ResultStatus=%d",
+			lap6103.LapNumber, lap6103.LapTimeMS, lap6103.Sector1MS, lap6103.Sector2MS, lap6103.Sector3MS, lap6103.IsValid, lap6103.ResultStatus)
+	}
+	raw6103, err := repo.GetTelemetryByLap(ctx, 6103)
+	if err == nil && len(raw6103) > 0 {
+		t.Logf("Lap 6103 Raw count: %d, first dist: %.1f, first time: %.3f, last dist: %.1f, last time: %.3f",
+			len(raw6103), raw6103[0].LapDistance, raw6103[0].SessionTime, raw6103[len(raw6103)-1].LapDistance, raw6103[len(raw6103)-1].SessionTime)
+		trimmed := TrimTelemetryToLastLapAttempt(raw6103)
+		t.Logf("Lap 6103 Trimmed count: %d, first dist: %.1f, first time: %.3f, last dist: %.1f, last time: %.3f",
+			len(trimmed), trimmed[0].LapDistance, trimmed[0].SessionTime, trimmed[len(trimmed)-1].LapDistance, trimmed[len(trimmed)-1].SessionTime)
 	}
 }

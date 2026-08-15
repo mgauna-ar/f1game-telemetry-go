@@ -154,15 +154,22 @@ function interpolateAtDistance(
   const firstDist = samples[0].lap_distance;
   const lastDist = samples[samples.length - 1].lap_distance;
 
-  // Clamping at start (within 0m to first point)
+  // Clamping at start (within 50m tolerance of first point)
   if (d <= firstDist) {
-    return (samples[0][key] as number) ?? 0;
+    if (firstDist - d <= 50) {
+      return (samples[0][key] as number) ?? 0;
+    }
+    return null;
   }
 
-  // Clamping at finish line (within finish tolerance)
+  // Clamping at finish line (within 50m tolerance of finish)
   if (d >= lastDist) {
-    return (samples[samples.length - 1][key] as number) ?? 0;
+    if (d - lastDist <= 50) {
+      return (samples[samples.length - 1][key] as number) ?? 0;
+    }
+    return null;
   }
+
 
   let low = 0;
   let high = samples.length - 1;
