@@ -126,18 +126,22 @@ func TestVerifyTargetLaps(t *testing.T) {
 		}
 	}
 
-	// Verify Lap 6103 (Arti Moreno - Lap 3)
-	lap6103, err := repo.GetLapByID(ctx, 6103)
-	if err == nil {
-		t.Logf("Lap 6103 DB Record: LapNum=%d, TimeMS=%d, S1=%d, S2=%d, S3=%d, Valid=%v, ResultStatus=%d",
-			lap6103.LapNumber, lap6103.LapTimeMS, lap6103.Sector1MS, lap6103.Sector2MS, lap6103.Sector3MS, lap6103.IsValid, lap6103.ResultStatus)
+	raw5606, _ := repo.GetTelemetryByLap(ctx, 5606)
+	t.Logf("Lap 5606 raw total count: %d", len(raw5606))
+	for i := 1; i < len(raw5606); i++ {
+		prev := raw5606[i-1]
+		curr := raw5606[i]
+		if (prev.LapDistance > 100 && curr.LapDistance < 100) || (prev.LapDistance < 0 && curr.LapDistance >= 0) || (curr.LapDistance-prev.LapDistance < -50) {
+			t.Logf("Transition at [%d]: prev(dist=%.1f, time=%.3fs, speed=%d) -> curr(dist=%.1f, time=%.3fs, speed=%d)",
+				i, prev.LapDistance, prev.SessionTime, prev.Speed, curr.LapDistance, curr.SessionTime, curr.Speed)
+		}
 	}
-	raw6103, err := repo.GetTelemetryByLap(ctx, 6103)
-	if err == nil && len(raw6103) > 0 {
-		t.Logf("Lap 6103 Raw count: %d, first dist: %.1f, first time: %.3f, last dist: %.1f, last time: %.3f",
-			len(raw6103), raw6103[0].LapDistance, raw6103[0].SessionTime, raw6103[len(raw6103)-1].LapDistance, raw6103[len(raw6103)-1].SessionTime)
-		trimmed := TrimTelemetryToLastLapAttempt(raw6103)
-		t.Logf("Lap 6103 Trimmed count: %d, first dist: %.1f, first time: %.3f, last dist: %.1f, last time: %.3f",
-			len(trimmed), trimmed[0].LapDistance, trimmed[0].SessionTime, trimmed[len(trimmed)-1].LapDistance, trimmed[len(trimmed)-1].SessionTime)
+
+	trimmed5606 := TrimTelemetryToLastLapAttempt(raw5606)
+	t.Logf("Lap 5606 trimmed total count: %d", len(trimmed5606))
+	if len(trimmed5606) > 0 {
+		t.Logf("Lap 5606 first trimmed: dist=%.1f, time=%.3fs, speed=%d", trimmed5606[0].LapDistance, trimmed5606[0].SessionTime, trimmed5606[0].Speed)
+		t.Logf("Lap 5606 last trimmed: dist=%.1f, time=%.3fs, speed=%d", trimmed5606[len(trimmed5606)-1].LapDistance, trimmed5606[len(trimmed5606)-1].SessionTime, trimmed5606[len(trimmed5606)-1].Speed)
+		t.Logf("Lap 5606 trimmed dur: %.3fs", trimmed5606[len(trimmed5606)-1].SessionTime-trimmed5606[0].SessionTime)
 	}
 }

@@ -39,26 +39,32 @@ export function normalizeTelemetrySeries(
 ): TelemetrySamplePoint[] {
   if (!samples || samples.length === 0) return [];
 
-  // Step 1: Filter invalid distances and sort by session_time
-  const validSamples = samples.filter(s => (s.lap_distance ?? 0) >= 0);
-  const sorted = [...validSamples].sort((a, b) => a.session_time - b.session_time);
-
+  // Step 1: Sort by session_time
+  const sorted = [...samples].sort((a, b) => a.session_time - b.session_time);
   if (sorted.length < 2) return [];
 
-  // Step 2: Find and remove stale samples/aborted attempts from previous attempts/laps at the start.
-  // Scan full array for the LAST lap start where distance drops from >300m back near 0m.
-  let cleanStartIdx = 0;
-  for (let i = 1; i < sorted.length; i++) {
+  // Step 2: Discard any out-lap / in-pit samples at or before negative distances
+  let lastNegativeIdx = -1;
+  for (let i = 0; i < sorted.length; i++) {
+    if ((sorted[i].lap_distance ?? 0) < 0) {
+      lastNegativeIdx = i;
+    }
+  }
+
+  let cleanStartIdx = lastNegativeIdx >= 0 ? lastNegativeIdx + 1 : 0;
+
+  // Step 3: Scan for mid-session resets (where distance drops from >100m back near 0m)
+  for (let i = cleanStartIdx + 1; i < sorted.length; i++) {
     const prevDist = sorted[i - 1].lap_distance || 0;
     const currDist = sorted[i].lap_distance || 0;
-    if (prevDist > 300 && (currDist < 100 || currDist < prevDist * 0.3)) {
+    if (prevDist > 100 && (currDist < 50 || currDist < prevDist * 0.3)) {
       if (sorted.length - i >= 5) {
         cleanStartIdx = i;
       }
     }
   }
 
-  // Step 3: Find and remove samples that wrapped into the next lap at the end
+  // Step 4: Find and remove samples that wrapped into the next lap at the end
   let cleanEndIdx = sorted.length;
   for (let i = cleanStartIdx + 1; i < sorted.length; i++) {
     const prevDist = sorted[i - 1].lap_distance || 0;
@@ -69,7 +75,7 @@ export function normalizeTelemetrySeries(
     }
   }
 
-  const cleaned = sorted.slice(cleanStartIdx, cleanEndIdx);
+  const cleaned = sorted.slice(cleanStartIdx, cleanEndIdx).filter(s => (s.lap_distance ?? 0) >= 0);
   if (cleaned.length < 2) return [];
 
   // Advance past stationary / pre-start freeze samples near distance 0 (e.g. countdown or pit holding)
@@ -84,7 +90,7 @@ export function normalizeTelemetrySeries(
   let actualStart = 0;
   if (firstMovingIdx > 0) {
     for (let i = firstMovingIdx - 1; i >= 0; i--) {
-      if ((cleaned[i].lap_distance ?? 0) <= 5.0) {
+      if ((cleaned[i].lap_distance ?? 0) <= 5.0 && (cleaned[i].lap_distance ?? 0) >= 0.0) {
         actualStart = i;
         break;
       }
@@ -93,6 +99,7 @@ export function normalizeTelemetrySeries(
 
   const movingSamples = cleaned.slice(actualStart);
   if (movingSamples.length < 2) return [];
+
 
   // Step 4: Deduplicate — keep only samples with distinct strictly-increasing distances
   const deduped: TelemetrySamplePoint[] = [movingSamples[0]];

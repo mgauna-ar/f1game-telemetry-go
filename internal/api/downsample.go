@@ -87,17 +87,23 @@ func TrimTelemetryToLastLapAttempt(samples []storage.TelemetrySample) []storage.
 	}
 
 	lastStartIndex := 0
-	for i := 1; i < len(samples); i++ {
+
+	// 1. Any sample at or before a negative distance is part of the pit/out-lap
+	for i := 0; i < len(samples); i++ {
+		if samples[i].LapDistance < 0.0 {
+			if i+1 < len(samples) {
+				lastStartIndex = i + 1
+			}
+		}
+	}
+
+	// 2. Scan from lastStartIndex for any mid-session resets (distance drops from >100m to lower)
+	for i := lastStartIndex + 1; i < len(samples); i++ {
 		prevDist := samples[i-1].LapDistance
 		currDist := samples[i].LapDistance
 
-		// Case A: Sudden drop from high lap distance (> 300m) to low lap distance (< 100m or < 0.3 * prevDist)
-		if prevDist > 300 && (currDist < 100 || currDist < prevDist*0.3) {
-			if len(samples)-i >= 10 {
-				lastStartIndex = i
-			}
-		} else if prevDist < -2.0 && currDist >= 0.0 {
-			// Case B: Transition from pit/out-lap (negative distance) to start of track (>= 0m)
+		// Sudden drop from high distance (> 100m) to low distance (< 50m or < 0.3 * prevDist)
+		if prevDist > 100 && (currDist < 50 || currDist < prevDist*0.3) {
 			if len(samples)-i >= 10 {
 				lastStartIndex = i
 			}
@@ -109,7 +115,7 @@ func TrimTelemetryToLastLapAttempt(samples []storage.TelemetrySample) []storage.
 		return trimmedStart
 	}
 
-	// Scan for trailing wrap-around samples into the next lap at the end
+	// 3. Scan for trailing wrap-around samples into the next lap at the end
 	endIndex := len(trimmedStart)
 	for i := 1; i < len(trimmedStart); i++ {
 		prevDist := trimmedStart[i-1].LapDistance
@@ -127,7 +133,7 @@ func TrimTelemetryToLastLapAttempt(samples []storage.TelemetrySample) []storage.
 		return trimmedAttempt
 	}
 
-	// Advance past stationary / flat freeze samples at the start (e.g. pre-start countdown/garage teleport).
+	// 4. Advance past stationary / flat freeze samples at the start (e.g. pre-start countdown/garage teleport).
 	// Find the first index where car is moving forward on track (dist > 15m), then step back to the last start-line sample.
 	firstMovingIdx := -1
 	for i := 0; i < len(trimmedAttempt); i++ {
@@ -140,7 +146,7 @@ func TrimTelemetryToLastLapAttempt(samples []storage.TelemetrySample) []storage.
 	actualStart := 0
 	if firstMovingIdx > 0 {
 		for i := firstMovingIdx - 1; i >= 0; i-- {
-			if trimmedAttempt[i].LapDistance <= 5.0 {
+			if trimmedAttempt[i].LapDistance <= 5.0 && trimmedAttempt[i].LapDistance >= 0.0 {
 				actualStart = i
 				break
 			}

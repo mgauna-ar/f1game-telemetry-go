@@ -192,7 +192,49 @@ describe('deltaCalculation utility', () => {
     expect(pt1000?.speedB).toBeNull();
     expect(pt1000?.speedA).toBe(250);
   });
+
+  it('correctly handles out-lap with negative distances and garage glitches', () => {
+    // Lap A: normal clean lap 0m to 5000m (85.0s duration)
+    const lapA: TelemetrySamplePoint[] = Array.from({ length: 101 }, (_, i) => ({
+      lap_distance: i * 50,
+      session_time: 500 + i * 0.85,
+      speed: 250,
+      throttle: 1,
+      brake: 0,
+    }));
+
+    // Lap B: had 140s of pit lane / negative distance out-lap + 1-frame garage glitch before crossing the line
+    const pitOutLap: TelemetrySamplePoint[] = [
+      { lap_distance: -5000, session_time: 0, speed: 0, throttle: 0, brake: 0 },
+      { lap_distance: 175, session_time: 5, speed: 0, throttle: 0, brake: 0 }, // 1-frame garage glitch
+      { lap_distance: -5000, session_time: 6, speed: 0, throttle: 0, brake: 0 },
+      { lap_distance: -50, session_time: 139, speed: 250, throttle: 1, brake: 0 },
+      { lap_distance: -1, session_time: 139.9, speed: 250, throttle: 1, brake: 0 },
+    ];
+
+    // Flying lap starting at session_time 140s (85.1s duration, almost identical to Lap A)
+    const flyingLapB: TelemetrySamplePoint[] = Array.from({ length: 101 }, (_, i) => ({
+      lap_distance: i * 50,
+      session_time: 140 + i * 0.851,
+      speed: 250,
+      throttle: 1,
+      brake: 0,
+    }));
+
+    const lapB = [...pitOutLap, ...flyingLapB];
+
+    const merged = calculateMergedComparison(lapA, lapB, 50);
+    expect(merged.length).toBeGreaterThan(0);
+    expect(merged[0].time_delta).toBe(0);
+    // Delta should remain close to 0 across the whole lap, NOT -140s!
+    for (const pt of merged) {
+      if (pt.time_delta !== null) {
+        expect(Math.abs(pt.time_delta)).toBeLessThan(1.0);
+      }
+    }
+  });
 });
+
 
 
 
