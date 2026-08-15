@@ -113,6 +113,53 @@ describe('deltaCalculation utility', () => {
     const lastPoint = normalized[normalized.length - 1];
     expect(lastPoint.lap_distance).toBe(4950);
   });
+
+  it('strips pre-start stationary countdown freeze samples and calculates correct delta', () => {
+    // Lap A: normal lap (84.5s) starting at session_time 500s
+    const lapA: TelemetrySamplePoint[] = Array.from({ length: 100 }, (_, i) => ({
+      lap_distance: i * 50, // 0m to 4950m
+      session_time: 500 + i * 0.85,
+      speed: 250,
+      throttle: 1,
+      brake: 0,
+    }));
+
+    // Lap B: had 30 seconds of stationary pre-start countdown/garage freeze at dist 0.0m
+    const preStartFreeze: TelemetrySamplePoint[] = Array.from({ length: 30 }, (_, i) => ({
+      lap_distance: 0.0,
+      session_time: 600 + i * 1.0, // 600s to 629s (29s freeze)
+      speed: 200,
+      throttle: 1,
+      brake: 0,
+    }));
+
+    // Lap B flying lap starting at session_time 630s (83.1s duration, faster by 1.4s)
+    const flyingLapB: TelemetrySamplePoint[] = Array.from({ length: 100 }, (_, i) => ({
+      lap_distance: i * 50, // 0m to 4950m
+      session_time: 630 + i * 0.835,
+      speed: 255,
+      throttle: 1,
+      brake: 0,
+    }));
+
+    const lapB = [...preStartFreeze, ...flyingLapB];
+
+    const merged = calculateMergedComparison(lapA, lapB, 50);
+    expect(merged.length).toBeGreaterThan(0);
+    // At start (0m), delta is 0
+    expect(merged[0].time_delta).toBe(0);
+    // Across the lap, delta should remain realistic (< 3s, not ~30s!)
+    for (const pt of merged) {
+      if (pt.time_delta !== null) {
+        expect(Math.abs(pt.time_delta)).toBeLessThan(5.0);
+      }
+    }
+    // At finish line, Lap B is ~1.45s faster (Lap A took 84.15s, Lap B took 82.66s, timeA - timeB ~ +1.48s)
+    const finalPt = merged[merged.length - 1];
+    expect(finalPt.time_delta).toBeGreaterThan(1.0);
+    expect(finalPt.time_delta).toBeLessThan(2.0);
+  });
 });
+
 
 

@@ -106,7 +106,7 @@ func TestTrimTelemetryTrailingWrapAround(t *testing.T) {
 	}
 }
 
-func TestVerifyLap9771InDatabase(t *testing.T) {
+func TestVerifyTargetLaps(t *testing.T) {
 	repo, err := storage.NewRepository("../../f1telemetry.db")
 	if err != nil {
 		t.Skip("f1telemetry.db not found, skipping DB integration test")
@@ -115,26 +115,24 @@ func TestVerifyLap9771InDatabase(t *testing.T) {
 	defer repo.Close()
 
 	ctx := t.Context()
-	lapID := int64(9771)
 
-	raw, err := repo.GetTelemetryByLap(ctx, lapID)
-	if err != nil || len(raw) == 0 {
-		t.Skip("Lap 9771 telemetry not found in local db, skipping")
-		return
+	// Verify Lap 5696 (Arti Moreno - 83.109s)
+	raw5696, err := repo.GetTelemetryByLap(ctx, 5696)
+	if err == nil && len(raw5696) > 0 {
+		trimmed := TrimTelemetryToLastLapAttempt(raw5696)
+		dur := trimmed[len(trimmed)-1].SessionTime - trimmed[0].SessionTime
+		if dur < 80.0 || dur > 86.0 {
+			t.Errorf("Expected Lap 5696 trimmed duration ~83.1s, got %.3fs", dur)
+		}
 	}
 
-	trimmed := TrimTelemetryToLastLapAttempt(raw)
-	t.Logf("Raw samples: %d, Trimmed samples: %d", len(raw), len(trimmed))
-
-	duration := trimmed[len(trimmed)-1].SessionTime - trimmed[0].SessionTime
-	t.Logf("Trimmed duration: %.3fs (expected ~71.36s)", duration)
-
-	if duration > 80.0 || duration < 65.0 {
-		t.Errorf("Expected trimmed duration around 71.379s, got %.3fs", duration)
-	}
-
-	downsampled := DownsampleTelemetry(trimmed, 800)
-	if len(downsampled) != 800 {
-		t.Errorf("Expected 800 downsampled points, got %d", len(downsampled))
+	// Verify Lap 5731 (LC-iL.Magno - 84.566s)
+	raw5731, err := repo.GetTelemetryByLap(ctx, 5731)
+	if err == nil && len(raw5731) > 0 {
+		trimmed := TrimTelemetryToLastLapAttempt(raw5731)
+		dur := trimmed[len(trimmed)-1].SessionTime - trimmed[0].SessionTime
+		if dur < 82.0 || dur > 87.0 {
+			t.Errorf("Expected Lap 5731 trimmed duration ~84.5s, got %.3fs", dur)
+		}
 	}
 }

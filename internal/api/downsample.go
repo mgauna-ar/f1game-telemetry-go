@@ -122,5 +122,30 @@ func TrimTelemetryToLastLapAttempt(samples []storage.TelemetrySample) []storage.
 		}
 	}
 
-	return trimmedStart[:endIndex]
+	trimmedAttempt := trimmedStart[:endIndex]
+	if len(trimmedAttempt) < 2 {
+		return trimmedAttempt
+	}
+
+	// Advance past stationary / flat freeze samples at the start (e.g. pre-start countdown/garage teleport).
+	// Find the first index where car is moving forward on track (dist > 15m), then step back to the last start-line sample.
+	firstMovingIdx := -1
+	for i := 0; i < len(trimmedAttempt); i++ {
+		if trimmedAttempt[i].LapDistance > 15.0 {
+			firstMovingIdx = i
+			break
+		}
+	}
+
+	actualStart := 0
+	if firstMovingIdx > 0 {
+		for i := firstMovingIdx - 1; i >= 0; i-- {
+			if trimmedAttempt[i].LapDistance <= 5.0 {
+				actualStart = i
+				break
+			}
+		}
+	}
+
+	return trimmedAttempt[actualStart:]
 }

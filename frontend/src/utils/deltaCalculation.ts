@@ -72,10 +72,32 @@ export function normalizeTelemetrySeries(
   const cleaned = sorted.slice(cleanStartIdx, cleanEndIdx);
   if (cleaned.length < 2) return [];
 
+  // Advance past stationary / pre-start freeze samples near distance 0 (e.g. countdown or pit holding)
+  let firstMovingIdx = -1;
+  for (let i = 0; i < cleaned.length; i++) {
+    if ((cleaned[i].lap_distance ?? 0) > 15.0) {
+      firstMovingIdx = i;
+      break;
+    }
+  }
+
+  let actualStart = 0;
+  if (firstMovingIdx > 0) {
+    for (let i = firstMovingIdx - 1; i >= 0; i--) {
+      if ((cleaned[i].lap_distance ?? 0) <= 5.0) {
+        actualStart = i;
+        break;
+      }
+    }
+  }
+
+  const movingSamples = cleaned.slice(actualStart);
+  if (movingSamples.length < 2) return [];
+
   // Step 4: Deduplicate — keep only samples with distinct strictly-increasing distances
-  const deduped: TelemetrySamplePoint[] = [cleaned[0]];
-  for (let i = 1; i < cleaned.length; i++) {
-    const curr = cleaned[i];
+  const deduped: TelemetrySamplePoint[] = [movingSamples[0]];
+  for (let i = 1; i < movingSamples.length; i++) {
+    const curr = movingSamples[i];
     const prev = deduped[deduped.length - 1];
     if ((curr.lap_distance ?? 0) > (prev.lap_distance ?? 0)) {
       deduped.push(curr);
@@ -116,6 +138,7 @@ export function normalizeTelemetrySeries(
 
   return result;
 }
+
 
 /**
  * Interpolates a value from a strictly-sorted-by-distance array at distance d.
