@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { calculateMergedComparison } from './deltaCalculation';
+import { calculateMergedComparison, normalizeTelemetrySeries } from './deltaCalculation';
 import type { TelemetrySamplePoint } from './downsample';
 
 describe('deltaCalculation utility', () => {
@@ -40,7 +40,7 @@ describe('deltaCalculation utility', () => {
     }
   });
 
-  it('offsets time delta so it starts at 0.0s', () => {
+  it('aligns start distance at 0m and offsets initial time delta to 0.0s', () => {
     // Lap A first sample at 15m
     const lapA: TelemetrySamplePoint[] = Array.from({ length: 100 }, (_, i) => ({
       lap_distance: 15 + i * 50,
@@ -60,9 +60,9 @@ describe('deltaCalculation utility', () => {
     }));
 
     const merged = calculateMergedComparison(lapA, lapB, 10);
-    // Intersection range starts at max(15, 5) = 15
-    expect(merged[0].lap_distance).toBeGreaterThanOrEqual(15);
-    // Offset correction should zero out the initial time delta
+    // Comparison starts at exactly 0m
+    expect(merged[0].lap_distance).toBe(0);
+    // Initial time delta should be 0.0s
     expect(merged[0].time_delta).toBe(0);
   });
 
@@ -94,5 +94,25 @@ describe('deltaCalculation utility', () => {
     // Speed should match Attempt 2 (250 km/h)
     expect(merged[0].speedA).toBe(250);
   });
+
+  it('trims trailing wrap-around samples into the next lap', () => {
+    const raw: TelemetrySamplePoint[] = [
+      ...Array.from({ length: 100 }, (_, i) => ({
+        lap_distance: i * 50, // 0m to 4950m
+        session_time: 100 + i * 0.8,
+        speed: 260,
+        throttle: 1,
+        brake: 0,
+      })),
+      // Trailing wrap-around samples
+      { lap_distance: 2.5, session_time: 180.8, speed: 260, throttle: 1, brake: 0 },
+      { lap_distance: 5.0, session_time: 180.9, speed: 260, throttle: 1, brake: 0 },
+    ];
+
+    const normalized = normalizeTelemetrySeries(raw);
+    const lastPoint = normalized[normalized.length - 1];
+    expect(lastPoint.lap_distance).toBe(4950);
+  });
 });
+
 

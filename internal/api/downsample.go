@@ -79,7 +79,8 @@ func DownsampleTelemetry(data []storage.TelemetrySample, targetThreshold int) []
 }
 
 // TrimTelemetryToLastLapAttempt isolates the final completed lap attempt
-// from raw telemetry samples that may contain out-laps, garage resets, or aborted attempts.
+// from raw telemetry samples that may contain out-laps, garage resets, aborted attempts,
+// or trailing wrap-around samples into the next lap.
 func TrimTelemetryToLastLapAttempt(samples []storage.TelemetrySample) []storage.TelemetrySample {
 	if len(samples) < 2 {
 		return samples
@@ -103,5 +104,23 @@ func TrimTelemetryToLastLapAttempt(samples []storage.TelemetrySample) []storage.
 		}
 	}
 
-	return samples[lastStartIndex:]
+	trimmedStart := samples[lastStartIndex:]
+	if len(trimmedStart) < 2 {
+		return trimmedStart
+	}
+
+	// Scan for trailing wrap-around samples into the next lap at the end
+	endIndex := len(trimmedStart)
+	for i := 1; i < len(trimmedStart); i++ {
+		prevDist := trimmedStart[i-1].LapDistance
+		currDist := trimmedStart[i].LapDistance
+
+		// If distance suddenly drops after traversing a significant part of the track (> 1000m)
+		if prevDist > 1000 && (currDist < 500 || currDist < prevDist*0.3) {
+			endIndex = i
+			break
+		}
+	}
+
+	return trimmedStart[:endIndex]
 }

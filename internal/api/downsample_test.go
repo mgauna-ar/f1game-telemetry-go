@@ -76,6 +76,36 @@ func TestTrimTelemetryToLastLapAttempt(t *testing.T) {
 	}
 }
 
+func TestTrimTelemetryTrailingWrapAround(t *testing.T) {
+	// 30 samples: 0m -> 5000m (samples 1 to 26), then 3 wrap-around samples at 1.5m, 3.2m, 5.0m
+	samples := make([]storage.TelemetrySample, 0, 30)
+	for i := 0; i < 26; i++ {
+		samples = append(samples, storage.TelemetrySample{
+			ID:          int64(i + 1),
+			LapDistance: float64(i * 200),
+			SessionTime: float64(i) * 0.1,
+			Speed:       250,
+		})
+	}
+	// Trailing wrap-around samples
+	samples = append(samples,
+		storage.TelemetrySample{ID: 27, LapDistance: 1.5, SessionTime: 2.7, Speed: 250},
+		storage.TelemetrySample{ID: 28, LapDistance: 3.2, SessionTime: 2.8, Speed: 250},
+		storage.TelemetrySample{ID: 29, LapDistance: 5.0, SessionTime: 2.9, Speed: 250},
+	)
+
+	trimmed := TrimTelemetryToLastLapAttempt(samples)
+	if len(trimmed) != 26 {
+		t.Fatalf("Expected 26 samples after trimming trailing wrap-around, got %d", len(trimmed))
+	}
+	if trimmed[len(trimmed)-1].ID != 26 {
+		t.Errorf("Expected last sample ID to be 26, got %d", trimmed[len(trimmed)-1].ID)
+	}
+	if trimmed[len(trimmed)-1].LapDistance != 5000.0 {
+		t.Errorf("Expected last sample LapDistance to be 5000.0, got %f", trimmed[len(trimmed)-1].LapDistance)
+	}
+}
+
 func TestVerifyLap9771InDatabase(t *testing.T) {
 	repo, err := storage.NewRepository("../../f1telemetry.db")
 	if err != nil {

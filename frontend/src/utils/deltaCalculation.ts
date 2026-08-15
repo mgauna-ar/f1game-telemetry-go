@@ -26,12 +26,12 @@ export interface MergedTelemetryPoint {
 
 /**
  * Cleans telemetry samples for comparison:
- * - Drops negative distances (e.g. from out-laps or invalid starts)
+ * - Drops negative distances (e.g. from out-laps or pit exits)
  * - Sorts by session_time
- * - Removes stale wrap-around samples from the previous lap at the start
- * - Removes wrap-around samples into the next lap at the end
+ * - Removes stale wrap-around samples from previous attempts at the start
+ * - Removes trailing wrap-around samples into the next lap across the entire array
  * - Deduplicates flat plateaus caused by sample rate mismatches
- * - Normalizes session_time to start at 0
+ * - Synthesizes / aligns 0m start point with extrapolated session_time t=0
  * - Enforces strict distance monotonicity for binary search interpolation
  */
 export function normalizeTelemetrySeries(
@@ -52,7 +52,7 @@ export function normalizeTelemetrySeries(
     const prevDist = sorted[i - 1].lap_distance || 0;
     const currDist = sorted[i].lap_distance || 0;
     if (prevDist > 300 && (currDist < 100 || currDist < prevDist * 0.3)) {
-      if (sorted.length - i >= 10) {
+      if (sorted.length - i >= 5) {
         cleanStartIdx = i;
       }
     }
@@ -60,10 +60,10 @@ export function normalizeTelemetrySeries(
 
   // Step 3: Find and remove samples that wrapped into the next lap at the end
   let cleanEndIdx = sorted.length;
-  for (let i = sorted.length - 1; i > Math.max(cleanStartIdx + 1, sorted.length - 60); i--) {
+  for (let i = cleanStartIdx + 1; i < sorted.length; i++) {
     const prevDist = sorted[i - 1].lap_distance || 0;
     const currDist = sorted[i].lap_distance || 0;
-    if (prevDist > 1000 && currDist < prevDist * 0.3) {
+    if (prevDist > 1000 && (currDist < 500 || currDist < prevDist * 0.3)) {
       cleanEndIdx = i;
       break;
     }
@@ -72,36 +72,45 @@ export function normalizeTelemetrySeries(
   const cleaned = sorted.slice(cleanStartIdx, cleanEndIdx);
   if (cleaned.length < 2) return [];
 
-  // Step 4: Deduplicate — keep only the LAST sample in each distance plateau
-  const deduped: TelemetrySamplePoint[] = [];
-  for (let i = 0; i < cleaned.length; i++) {
-    const currDist = cleaned[i].lap_distance ?? 0;
-    const nextDist = i < cleaned.length - 1 ? (cleaned[i + 1].lap_distance ?? 0) : -1;
-    if (currDist !== nextDist) {
-      deduped.push(cleaned[i]);
+  // Step 4: Deduplicate — keep only samples with distinct strictly-increasing distances
+  const deduped: TelemetrySamplePoint[] = [cleaned[0]];
+  for (let i = 1; i < cleaned.length; i++) {
+    const curr = cleaned[i];
+    const prev = deduped[deduped.length - 1];
+    if ((curr.lap_distance ?? 0) > (prev.lap_distance ?? 0)) {
+      deduped.push(curr);
     }
   }
 
   if (deduped.length < 2) return [];
 
-  const startTime = deduped[0].session_time;
+  // Step 5: Calibrate 0m start point & time
+  const firstSample = deduped[0];
+  const firstDist = firstSample.lap_distance ?? 0;
+  const firstSpeed = Math.max(10, firstSample.speed ?? 100); // km/h
+  const speedMS = (firstSpeed * 1000) / 3600; // m/s
+  // Time delta between start line (0m) and first sample position
+  const timeOffsetToZero = firstDist <= 100 ? firstDist / speedMS : 0;
+  const startTime = firstSample.session_time - timeOffsetToZero;
 
-  // Step 5: Build result enforcing strict monotonicity
   const result: TelemetrySamplePoint[] = [];
-  let lastDist = -0.1;
+
+  // If first sample is not at 0m, synthesize a clean 0.0m anchor
+  if (firstDist > 0.5 && firstDist <= 100) {
+    result.push({
+      ...firstSample,
+      lap_distance: 0,
+      session_time: 0,
+    });
+  }
 
   for (const s of deduped) {
-    let dist = s.lap_distance ?? 0;
-
-    if (dist <= lastDist) {
-      dist = Math.round((lastDist + 0.1) * 10) / 10;
-    }
-    lastDist = dist;
-
+    const dist = s.lap_distance ?? 0;
+    const timeNorm = Math.max(0, s.session_time - startTime);
     result.push({
       ...s,
       lap_distance: Math.round(dist * 10) / 10,
-      session_time: Math.round((s.session_time - startTime) * 1000) / 1000,
+      session_time: Math.round(timeNorm * 1000) / 1000,
     });
   }
 
@@ -110,7 +119,7 @@ export function normalizeTelemetrySeries(
 
 /**
  * Interpolates a value from a strictly-sorted-by-distance array at distance d.
- * Returns null if the requested distance is outside the available data range.
+ * Supports smooth edge clamping for boundary continuity.
  */
 function interpolateAtDistance(
   samples: TelemetrySamplePoint[],
@@ -119,9 +128,18 @@ function interpolateAtDistance(
 ): number | null {
   if (!samples || samples.length === 0) return null;
 
-  // Return null outside data range to avoid fake data
-  if (d < samples[0].lap_distance) return null;
-  if (d > samples[samples.length - 1].lap_distance) return null;
+  const firstDist = samples[0].lap_distance;
+  const lastDist = samples[samples.length - 1].lap_distance;
+
+  // Clamping at start (within 0m to first point)
+  if (d <= firstDist) {
+    return (samples[0][key] as number) ?? 0;
+  }
+
+  // Clamping at finish line (within finish tolerance)
+  if (d >= lastDist) {
+    return (samples[samples.length - 1][key] as number) ?? 0;
+  }
 
   let low = 0;
   let high = samples.length - 1;
@@ -179,26 +197,20 @@ export function calculateMergedComparison(
     }
   }
 
-  const startA = normA.length > 0 ? normA[0].lap_distance : 0;
-  const startB = normB.length > 0 ? normB[0].lap_distance : 0;
   const endA = normA.length > 0 ? normA[normA.length - 1].lap_distance : 0;
   const endB = normB.length > 0 ? normB[normB.length - 1].lap_distance : 0;
 
-  let rangeStart: number;
+  const rangeStart = 0;
   let rangeEnd: number;
 
   if (targetTrackLength && targetTrackLength > 0) {
-    rangeStart = 0;
     rangeEnd = targetTrackLength;
   } else if (normA.length > 0 && normB.length > 0) {
-    // Use the INTERSECTION range so both laps have real data across the full chart
-    rangeStart = Math.max(startA, startB);
-    rangeEnd = Math.min(endA, endB);
+    // Extend across the full lap distance to the finish line
+    rangeEnd = Math.max(endA, endB);
   } else if (normA.length > 0) {
-    rangeStart = startA;
     rangeEnd = endA;
   } else {
-    rangeStart = startB;
     rangeEnd = endB;
   }
 
@@ -263,19 +275,16 @@ export function calculateMergedComparison(
     });
   }
 
-  // Offset time_delta so it starts at 0.0s at the beginning of the lap.
-  // Both laps normalize session_time from their first sample, but those samples
-  // may be at slightly different distances, creating a constant offset.
-  if (result.length > 0) {
+  // Ensure initial delta is exactly 0.0s at the start line (0m)
+  if (result.length > 0 && result[0].time_delta !== null && Math.abs(result[0].time_delta) > 0.0001) {
     const initialDelta = result[0].time_delta;
-    if (initialDelta !== null && initialDelta !== 0) {
-      for (const point of result) {
-        if (point.time_delta !== null) {
-          point.time_delta = Math.round((point.time_delta - initialDelta) * 1000) / 1000;
-        }
+    for (const point of result) {
+      if (point.time_delta !== null) {
+        point.time_delta = Math.round((point.time_delta - initialDelta) * 1000) / 1000;
       }
     }
   }
 
   return result;
 }
+
