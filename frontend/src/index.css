@@ -799,6 +799,8 @@ h1 {
 .badge-orange { background: rgba(255, 128, 0, 0.2); color: #FF8000; border: 1px solid rgba(255, 128, 0, 0.4); }
 .badge-blue { background: rgba(51, 153, 255, 0.2); color: #3399FF; border: 1px solid rgba(51, 153, 255, 0.4); }
 .badge-gray { background: rgba(255, 255, 255, 0.1); color: #BBB; border: 1px solid rgba(255, 255, 255, 0.15); }
+.badge-f1-2026 { background: rgba(0, 242, 254, 0.12); color: #00f2fe; border: 1px solid rgba(0, 242, 254, 0.35); }
+.badge-f1-2025 { background: rgba(168, 85, 247, 0.12); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.35); }
 
 .glow-yellow { animation: pulse-yellow 1.5s infinite; }
 @keyframes pulse-yellow {

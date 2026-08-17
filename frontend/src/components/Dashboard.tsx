@@ -21,6 +21,7 @@ export const Dashboard: React.FC = () => {
     playerCarIndex = 0,
     selectedCarIndex = 0,
     setSelectedCarIndex = () => {},
+    packetFormat,
   } = useTelemetry();
 
   const { setLiveContext, setContextMode } = useRaceEngineer();
@@ -68,7 +69,7 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="dashboard-grid race-control-dashboard">
       {/* Session Top Header */}
-      <SessionHeader session={session} connected={connected} />
+      <SessionHeader session={session} connected={connected} packetFormat={packetFormat} />
 
       {/* Hero Upper Section: Full-Width Leaderboard Tower (Span 12) */}
       <div className="dash-hero-row" style={{ gridColumn: 'span 12' }}>

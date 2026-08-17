@@ -4,6 +4,7 @@ import type { Session } from '../../types/session';
 import { getSessionBadgeClass } from '../../utils/formatters';
 import { useI18n } from '../../context/I18nContext';
 import { TagBadge } from '../session_history/TagBadge';
+import { F1FormatBadge } from '../F1FormatBadge';
 
 interface SessionSelectorDropdownProps {
   sessions: Session[];
@@ -61,6 +62,7 @@ export const SessionSelectorDropdown: React.FC<SessionSelectorDropdownProps> = (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             <MapPin size={14} color={accentColor} style={{ flexShrink: 0 }} />
             <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedSession.track_name}</span>
+            <F1FormatBadge format={selectedSession.packet_format} size="xs" />
             <span
               className={`session-badge ${getSessionBadgeClass(selectedSession.session_type)}`}
               style={{ fontSize: '0.65rem', padding: '1px 6px', flexShrink: 0 }}
@@ -165,9 +167,12 @@ export const SessionSelectorDropdown: React.FC<SessionSelectorDropdownProps> = (
                   >
                     <div className="custom-session-item-header">
                       <span className="custom-session-track">{s.track_name}</span>
-                      <span className={`session-badge ${getSessionBadgeClass(s.session_type)}`}>
-                        {s.session_type}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <F1FormatBadge format={s.packet_format} size="xs" />
+                        <span className={`session-badge ${getSessionBadgeClass(s.session_type)}`}>
+                          {s.session_type}
+                        </span>
+                      </div>
                     </div>
                     <div className="custom-session-meta">
                       <span className="custom-session-meta-time">{new Date(s.created_at).toLocaleString()}</span>

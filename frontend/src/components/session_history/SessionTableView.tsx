@@ -3,6 +3,7 @@ import { Clock, CloudSun, ChevronRight, Trash2, ArrowUpDown, Plus, Download } fr
 import type { Session } from '../SessionHistory';
 import { useI18n } from '../../context/I18nContext';
 import { TagBadge } from './TagBadge';
+import { F1FormatBadge } from '../F1FormatBadge';
 
 interface SessionTableViewProps {
   sessions: Session[];
@@ -109,9 +110,12 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
                     </span>
                   </td>
                   <td>
-                    <span className={`session-badge ${getSessionBadgeClass(session.session_type)}`}>
-                      {session.session_type || 'RACE'}
-                    </span>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <F1FormatBadge format={session.packet_format} size="xs" />
+                      <span className={`session-badge ${getSessionBadgeClass(session.session_type)}`}>
+                        {session.session_type || 'RACE'}
+                      </span>
+                    </div>
                   </td>
                   <td onClick={(e) => e.stopPropagation()}>
                     <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px', minWidth: '120px' }}>

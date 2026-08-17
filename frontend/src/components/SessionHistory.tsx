@@ -31,6 +31,7 @@ import { SessionSectorMatrixTab } from './session_history/SessionSectorMatrixTab
 import { TagBadge } from './session_history/TagBadge';
 import { TagManagerModal } from './session_history/TagManagerModal';
 import { TagFilterBar } from './session_history/TagFilterBar';
+import { F1FormatBadge } from './F1FormatBadge';
 import { useRaceEngineer } from '../context/RaceEngineerContext';
 import { useI18n } from '../context/I18nContext';
 
@@ -1098,8 +1099,9 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
           {/* Header Metadata Card */}
           <div className="glass-panel session-header-panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                 <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 800 }}>{selectedSession.track_name}</h1>
+                <F1FormatBadge format={selectedSession.packet_format} size="sm" />
                 <span className={`session-badge ${getSessionBadgeClass(selectedSession.session_type)}`}>
                   {selectedSession.session_type}
                 </span>

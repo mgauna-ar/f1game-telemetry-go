@@ -149,6 +149,7 @@ export function useTelemetry(wsUrl?: string) {
   
   const [playerCarIndex, setPlayerCarIndex] = useState<number>(0);
   const [selectedCarIndex, setSelectedCarIndex] = useState<number>(0);
+  const [packetFormat, setPacketFormat] = useState<number | null>(null);
 
   const [connected, setConnected] = useState(false);
   const [history, setHistory] = useState<TelemetrySample[]>([]);
@@ -227,6 +228,10 @@ export function useTelemetry(wsUrl?: string) {
             const playerIdx = header.PlayerCarIndex !== undefined ? header.PlayerCarIndex : 0;
             setPlayerCarIndex(playerIdx);
 
+            if (header.PacketFormat) {
+              setPacketFormat(header.PacketFormat);
+            }
+
             // PacketID 1: Session Data
             if (header.PacketId === 1) {
               const pkt = data as PacketSessionData;
@@ -249,6 +254,7 @@ export function useTelemetry(wsUrl?: string) {
                 NumSafetyCarPeriods: pkt.NumSafetyCarPeriods,
                 NumVirtualSafetyCarPeriods: pkt.NumVirtualSafetyCarPeriods,
                 NumRedFlagPeriods: pkt.NumRedFlagPeriods,
+                PacketFormat: header.PacketFormat,
               });
 
               // Track Safety Car status change events
@@ -554,6 +560,7 @@ export function useTelemetry(wsUrl?: string) {
     playerCarIndex,
     selectedCarIndex,
     setSelectedCarIndex,
+    packetFormat,
   };
 }
 

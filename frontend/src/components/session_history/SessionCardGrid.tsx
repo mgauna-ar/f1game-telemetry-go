@@ -3,6 +3,7 @@ import { Clock, CloudSun, ChevronRight, Trash2, MapPin, Plus, Download } from 'l
 import type { Session } from '../SessionHistory';
 import { useI18n } from '../../context/I18nContext';
 import { TagBadge } from './TagBadge';
+import { F1FormatBadge } from '../F1FormatBadge';
 
 interface SessionCardGridProps {
   sessions: Session[];
@@ -47,9 +48,12 @@ export const SessionCardGrid: React.FC<SessionCardGridProps> = ({
                 </div>
                 <span className="mono session-id-badge">#{session.id}</span>
               </div>
-              <span className={`session-badge ${badgeClass}`}>
-                {session.session_type || 'RACE'}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <F1FormatBadge format={session.packet_format} size="xs" />
+                <span className={`session-badge ${badgeClass}`}>
+                  {session.session_type || 'RACE'}
+                </span>
+              </div>
             </div>
 
             {/* Card Body Details */}

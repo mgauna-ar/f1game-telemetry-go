@@ -80,6 +80,7 @@ export interface SessionData {
   NumSafetyCarPeriods?: number;
   NumVirtualSafetyCarPeriods?: number;
   NumRedFlagPeriods?: number;
+  PacketFormat?: number;
 }
 
 export interface RaceEvent {
@@ -144,6 +145,8 @@ export interface CarDamageData {
 }
 
 export interface PacketHeader {
+  PacketFormat?: number;
+  GameYear?: number;
   PacketId: number;
   SessionTime: number;
   PlayerCarIndex: number;
