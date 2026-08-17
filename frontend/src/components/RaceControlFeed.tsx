@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { ShieldAlert, Flag, Zap, Swords, Wrench, AlertTriangle, Radio, Trash2 } from 'lucide-react';
 import type { RaceEvent, SessionData } from '../hooks/useTelemetry';
+import { useI18n } from '../context/I18nContext';
 
 interface RaceControlFeedProps {
   events: RaceEvent[];
@@ -13,6 +14,7 @@ export const RaceControlFeed: React.FC<RaceControlFeedProps> = ({
   session = null,
   onClearEvents,
 }) => {
+  const { t } = useI18n();
   const [filter, setFilter] = useState<'all' | 'flag' | 'penalty' | 'overtake' | 'fastest_lap'>('all');
 
   const filteredEvents = useMemo(() => {
@@ -40,14 +42,14 @@ export const RaceControlFeed: React.FC<RaceControlFeedProps> = ({
         return (
           <span className="sc-status-pill formation">
             <Flag size={13} />
-            FORMATION LAP
+            {t('live.formationLap')}
           </span>
         );
       default:
         return (
           <span className="sc-status-pill green-flag">
             <span className="sc-dot-live" />
-            TRACK CLEAR
+            {t('live.trackClear')}
           </span>
         );
     }
@@ -90,8 +92,12 @@ export const RaceControlFeed: React.FC<RaceControlFeedProps> = ({
             <Radio size={16} color="var(--accent-primary)" />
           </div>
           <div>
-            <h3 className="race-hub-title">Race Control & Incidents</h3>
-            <div className="race-hub-subtitle mono">Live Official Timeline & Flag Status</div>
+            <h3 className="race-hub-title">
+              {t('live.raceControlTitle')}
+            </h3>
+            <div className="race-hub-subtitle mono">
+              {t('live.raceControlSub')}
+            </div>
           </div>
         </div>
 
@@ -117,34 +123,34 @@ export const RaceControlFeed: React.FC<RaceControlFeedProps> = ({
             className={`race-feed-filter-btn ${filter === 'all' ? 'active' : ''}`}
             onClick={() => setFilter('all')}
           >
-            All <span className="mono count-badge">{events.length}</span>
+            {t('live.filterAll')} <span className="mono count-badge">{events.length}</span>
           </button>
           <button
             className={`race-feed-filter-btn ${filter === 'flag' ? 'active' : ''}`}
             onClick={() => setFilter('flag')}
           >
-            Flags / SC{' '}
+            {t('live.filterFlags')}{' '}
             <span className="mono count-badge">{events.filter((e) => e.type === 'flag').length}</span>
           </button>
           <button
             className={`race-feed-filter-btn ${filter === 'penalty' ? 'active' : ''}`}
             onClick={() => setFilter('penalty')}
           >
-            Penalties{' '}
+            {t('live.filterPenalties')}{' '}
             <span className="mono count-badge">{events.filter((e) => e.type === 'penalty').length}</span>
           </button>
           <button
             className={`race-feed-filter-btn ${filter === 'overtake' ? 'active' : ''}`}
             onClick={() => setFilter('overtake')}
           >
-            Overtakes{' '}
+            {t('live.filterOvertakes')}{' '}
             <span className="mono count-badge">{events.filter((e) => e.type === 'overtake').length}</span>
           </button>
           <button
             className={`race-feed-filter-btn ${filter === 'fastest_lap' ? 'active' : ''}`}
             onClick={() => setFilter('fastest_lap')}
           >
-            Fastest Laps{' '}
+            {t('live.filterFastestLaps')}{' '}
             <span className="mono count-badge">{events.filter((e) => e.type === 'fastest_lap').length}</span>
           </button>
         </div>
@@ -155,9 +161,11 @@ export const RaceControlFeed: React.FC<RaceControlFeedProps> = ({
         {filteredEvents.length === 0 ? (
           <div className="race-feed-empty">
             <Radio size={24} className="pulse-slow" color="var(--text-muted)" />
-            <div className="race-feed-empty-title">Monitoring Race Control Signals</div>
+            <div className="race-feed-empty-title">
+              {t('live.monitoringSignals')}
+            </div>
             <div className="race-feed-empty-desc">
-              Live steward notices, overtakes, fastest laps, and penalties will stream here in real-time.
+              {t('live.monitoringSignalsSub')}
             </div>
           </div>
         ) : (

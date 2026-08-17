@@ -2,6 +2,7 @@ import React from 'react';
 import { MapPin, Search, ChevronDown, ChevronUp, X } from 'lucide-react';
 import type { Session } from '../../types/session';
 import { getSessionBadgeClass } from '../../utils/formatters';
+import { useI18n } from '../../context/I18nContext';
 
 interface SessionSelectorDropdownProps {
   sessions: Session[];
@@ -39,6 +40,8 @@ export const SessionSelectorDropdown: React.FC<SessionSelectorDropdownProps> = (
   isRestrictedCircuit = false,
   restrictedTrackName,
 }) => {
+  const { t } = useI18n();
+
   return (
     <div
       ref={dropdownRef}
@@ -94,7 +97,7 @@ export const SessionSelectorDropdown: React.FC<SessionSelectorDropdownProps> = (
               }}
             >
               <MapPin size={12} />
-              <span>Filtered to {restrictedTrackName}</span>
+              <span>{t('comparator.dropdown.filteredToCircuit', { track: restrictedTrackName })}</span>
             </div>
           )}
 
@@ -103,7 +106,11 @@ export const SessionSelectorDropdown: React.FC<SessionSelectorDropdownProps> = (
             <input
               type="text"
               className="custom-session-search-input"
-              placeholder={isRestrictedCircuit ? 'Search type, date (same circuit)...' : 'Search track, type, date...'}
+              placeholder={
+                isRestrictedCircuit
+                  ? t('comparator.dropdown.searchSameCircuit')
+                  : t('comparator.dropdown.searchAny')
+              }
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               autoFocus
@@ -113,7 +120,7 @@ export const SessionSelectorDropdown: React.FC<SessionSelectorDropdownProps> = (
                 type="button"
                 className="custom-session-clear-btn"
                 onClick={() => onSearchChange('')}
-                title="Clear search"
+                title={t('comparator.dropdown.clearSearch')}
               >
                 <X size={12} />
               </button>
@@ -121,16 +128,25 @@ export const SessionSelectorDropdown: React.FC<SessionSelectorDropdownProps> = (
           </div>
 
           <div className="custom-session-filter-tabs">
-            {(['ALL', 'RACE', 'SPRINT', 'QUALI', 'PRACTICE'] as const).map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                className={`custom-session-filter-tab ${typeTab === tab ? 'active' : ''}`}
-                onClick={() => onTypeTabChange(tab)}
-              >
-                {tab === 'ALL' ? 'All' : tab.charAt(0) + tab.slice(1).toLowerCase()}
-              </button>
-            ))}
+            {(['ALL', 'RACE', 'SPRINT', 'QUALI', 'PRACTICE'] as const).map((tab) => {
+              const tabMap: Record<string, string> = {
+                ALL: t('comparator.dropdown.tabAll'),
+                RACE: t('comparator.dropdown.tabRace'),
+                SPRINT: t('comparator.dropdown.tabSprint'),
+                QUALI: t('comparator.dropdown.tabQuali'),
+                PRACTICE: t('comparator.dropdown.tabPractice'),
+              };
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  className={`custom-session-filter-tab ${typeTab === tab ? 'active' : ''}`}
+                  onClick={() => onTypeTabChange(tab)}
+                >
+                  {tabMap[tab]}
+                </button>
+              );
+            })}
           </div>
 
           <div className="custom-session-list">
@@ -161,7 +177,9 @@ export const SessionSelectorDropdown: React.FC<SessionSelectorDropdownProps> = (
               })
             ) : (
               <div style={{ textAlign: 'center', padding: '1rem 0.5rem', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
-                {isRestrictedCircuit ? 'No matching sessions for this track.' : 'No matching sessions found.'}
+                {isRestrictedCircuit
+                  ? t('comparator.dropdown.noMatchingTrack')
+                  : t('comparator.dropdown.noMatching')}
               </div>
             )}
           </div>

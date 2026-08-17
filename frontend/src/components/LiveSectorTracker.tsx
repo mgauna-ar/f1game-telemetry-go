@@ -3,6 +3,7 @@ import { Zap, Gauge, Target } from 'lucide-react';
 import { parseDriverName } from '../hooks/useTelemetry';
 import { TEAM_COLORS } from '../constants/f1';
 import type { ParticipantData, LapData } from '../types/telemetry';
+import { useI18n } from '../context/I18nContext';
 
 interface LiveSectorTrackerProps {
   participants: ParticipantData[];
@@ -17,6 +18,8 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = ({
   selectedCarIndex = 0,
   playerCarIndex: _playerCarIndex = 0,
 }) => {
+  const { t } = useI18n();
+
   const formatTime = (ms?: number) => {
     if (!ms || ms <= 0) return '--:--.---';
     const mins = Math.floor(ms / 60000);
@@ -120,14 +123,18 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = ({
             <Zap size={16} color="#B57EDC" />
           </div>
           <div>
-            <h3 className="race-hub-title">Live Sector Performance & Speed Traps</h3>
-            <div className="race-hub-subtitle mono">Session Purple Splits & Top Speeds</div>
+            <h3 className="race-hub-title">
+              {t('live.liveSectorsTitle')}
+            </h3>
+            <div className="race-hub-subtitle mono">
+              {t('live.liveSectorsSub')}
+            </div>
           </div>
         </div>
 
         <div className="race-hub-header-actions">
           <div className="ultimate-lap-chip mono">
-            <span className="label">THEORETICAL BEST:</span>
+            <span className="label">{t('live.theoreticalBest')}</span>
             <span className="val">{formatTime(sectorAnalysis.theoreticalBest)}</span>
           </div>
         </div>
@@ -138,7 +145,7 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = ({
         {/* Sector 1 */}
         <div className="sector-card purple-s1">
           <div className="sector-card-header">
-            <span className="sector-badge">SECTOR 1</span>
+            <span className="sector-badge">{t('live.sector1')}</span>
             <span className="mono sector-time">{formatTime(sectorAnalysis.bestS1.time)}</span>
           </div>
           <div className="sector-holder">
@@ -153,7 +160,7 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = ({
         {/* Sector 2 */}
         <div className="sector-card purple-s2">
           <div className="sector-card-header">
-            <span className="sector-badge">SECTOR 2</span>
+            <span className="sector-badge">{t('live.sector2')}</span>
             <span className="mono sector-time">{formatTime(sectorAnalysis.bestS2.time)}</span>
           </div>
           <div className="sector-holder">
@@ -168,7 +175,7 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = ({
         {/* Fastest Lap */}
         <div className="sector-card fastest-lap-card">
           <div className="sector-card-header">
-            <span className="sector-badge fastest">FASTEST LAP</span>
+            <span className="sector-badge fastest">{t('live.fastestLap')}</span>
             <span className="mono sector-time">{formatTime(sectorAnalysis.fastestLap.time)}</span>
           </div>
           <div className="sector-holder">
@@ -187,7 +194,7 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = ({
         <div className="selected-driver-sector-card">
           <div className="subcard-title">
             <Target size={14} color="var(--accent-primary)" />
-            <span>Sector Splits: {selectedName}</span>
+            <span>{t('live.driverSectorSplits', { driver: selectedName })}</span>
           </div>
 
           <div className="driver-splits-row">
@@ -232,12 +239,12 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = ({
             </div>
 
             <div className="split-col">
-              <span className="split-label">LAST LAP</span>
+              <span className="split-label">{t('live.lastLap')}</span>
               <span className="split-time mono">
                 {formatTime(selectedLap?.LastLapTimeInMS)}
               </span>
               <span className="split-delta mono" style={{ color: 'var(--text-muted)' }}>
-                {selectedLap?.CurrentLapInvalid ? 'INVALIDATED' : 'VALID'}
+                {selectedLap?.CurrentLapInvalid ? t('live.invalidated') : t('live.valid')}
               </span>
             </div>
           </div>
@@ -247,12 +254,12 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = ({
         <div className="speed-trap-card">
           <div className="subcard-title">
             <Gauge size={14} color="#33CCFF" />
-            <span>Speed Trap Leaderboard</span>
+            <span>{t('live.speedTrapLeaderboard')}</span>
           </div>
 
           <div className="speed-trap-list">
             {speedTraps.length === 0 ? (
-              <div className="speed-trap-empty mono">No speed trap triggers recorded yet</div>
+              <div className="speed-trap-empty mono">{t('live.noSpeedTraps')}</div>
             ) : (
               speedTraps.map((st, i) => (
                 <div

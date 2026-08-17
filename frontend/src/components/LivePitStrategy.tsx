@@ -3,6 +3,7 @@ import { Wrench } from 'lucide-react';
 import { parseDriverName } from '../hooks/useTelemetry';
 import { TEAM_COLORS, TYRE_COMPOUNDS } from '../constants/f1';
 import type { ParticipantData, LapData, CarStatusData, SessionData } from '../types/telemetry';
+import { useI18n } from '../context/I18nContext';
 
 interface LivePitStrategyProps {
   session: SessionData | null;
@@ -16,13 +17,15 @@ interface LivePitStrategyProps {
 
 export const LivePitStrategy: React.FC<LivePitStrategyProps> = ({
   session,
-  participants = [],
   laps = [],
   carStatuses = [],
-  selectedCarIndex = 0,
+  participants = [],
   playerCarIndex = 0,
+  selectedCarIndex = 0,
   onSelectCar,
 }) => {
+  const { t } = useI18n();
+
   const idealLap = session?.PitStopWindowIdealLap || 18;
   const latestLap = session?.PitStopWindowLatestLap || 24;
   const rejoinPos = session?.PitStopRejoinPosition || 6;
@@ -59,7 +62,7 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = ({
       return (
         <span className="pit-badge-lane mono">
           <span className="pit-live-dot" />
-          PIT LANE {timeInLaneMs ? `(${(timeInLaneMs / 1000).toFixed(1)}s)` : ''}
+          {t('live.pitLane')} {timeInLaneMs ? `(${(timeInLaneMs / 1000).toFixed(1)}s)` : ''}
         </span>
       );
     }
@@ -67,11 +70,11 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = ({
       return (
         <span className="pit-badge-box mono">
           <span className="pit-live-dot box" />
-          IN BOX {timerMs ? `(${(timerMs / 1000).toFixed(1)}s)` : ''}
+          {t('live.inBox')} {timerMs ? `(${(timerMs / 1000).toFixed(1)}s)` : ''}
         </span>
       );
     }
-    return <span className="pit-badge-track mono">TRACK</span>;
+    return <span className="pit-badge-track mono">{t('live.trackStatus')}</span>;
   };
 
   const getTyreMeta = (compoundId?: number) => {
@@ -92,8 +95,12 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = ({
             <Wrench size={16} color="var(--accent-primary)" />
           </div>
           <div>
-            <h3 className="race-hub-title">Pit Strategy & Field Tyre Matrix</h3>
-            <div className="race-hub-subtitle mono">Stint Progression & Service Windows</div>
+            <h3 className="race-hub-title">
+              {t('live.pitStrategyTitle')}
+            </h3>
+            <div className="race-hub-subtitle mono">
+              {t('live.pitStrategySub')}
+            </div>
           </div>
         </div>
 
@@ -101,7 +108,7 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = ({
           {activePitsCount > 0 && (
             <span className="active-pits-pill mono">
               <span className="pit-live-dot" />
-              {activePitsCount} PITTING NOW
+              {t('live.pittingNow', { count: activePitsCount })}
             </span>
           )}
         </div>
@@ -110,30 +117,34 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = ({
       {/* Pit Window Strategy KPI Strip */}
       <div className="pit-strategy-kpi-row">
         <div className="pit-kpi-box">
-          <div className="readout-label">ESTIMATED PIT WINDOW</div>
+          <div className="readout-label">{t('live.estimatedPitWindow')}</div>
           <div className="pit-kpi-value mono" style={{ color: isWindowOpen ? '#33FF99' : 'inherit' }}>
-            LAP {idealLap} — {latestLap}
+            {t('live.lapRange', { ideal: idealLap, latest: latestLap })}
           </div>
           <div className="pit-kpi-sub">
-            {isWindowOpen ? 'WINDOW OPEN NOW' : currentLeaderLap < idealLap ? `Opens in ${idealLap - currentLeaderLap} laps` : 'Window Closed'}
+            {isWindowOpen
+              ? t('live.windowOpenNow')
+              : currentLeaderLap < idealLap
+              ? t('live.windowOpensIn', { count: idealLap - currentLeaderLap })
+              : t('live.windowClosed')}
           </div>
         </div>
 
         <div className="pit-kpi-box">
-          <div className="readout-label">PREDICTED REJOIN</div>
+          <div className="readout-label">{t('live.predictedRejoin')}</div>
           <div className="pit-kpi-value mono" style={{ color: 'var(--accent-primary)' }}>
             P{rejoinPos}
           </div>
-          <div className="pit-kpi-sub">Clean air window estimate</div>
+          <div className="pit-kpi-sub">{t('live.cleanAirEstimate')}</div>
         </div>
 
         <div className="pit-kpi-box">
-          <div className="readout-label">SELECTED DRIVER</div>
+          <div className="readout-label">{t('live.selectedDriver')}</div>
           <div className="pit-kpi-value mono" style={{ fontSize: '1rem', color: '#33CCFF' }}>
             {drivers.find((d) => d.isSelected)?.name || 'Car #1'}
           </div>
           <div className="pit-kpi-sub">
-            {drivers.find((d) => d.isSelected)?.lap?.NumPitStops || 0} stops made
+            {t('live.stopsMade', { count: drivers.find((d) => d.isSelected)?.lap?.NumPitStops || 0 })}
           </div>
         </div>
       </div>
@@ -143,12 +154,12 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = ({
         <table className="pit-matrix-table">
           <thead>
             <tr>
-              <th style={{ width: '42px', textAlign: 'center' }}>POS</th>
-              <th>DRIVER</th>
-              <th style={{ width: '70px', textAlign: 'center' }}>TYRE</th>
-              <th style={{ width: '75px', textAlign: 'center' }}>AGE</th>
-              <th style={{ width: '65px', textAlign: 'center' }}>STOPS</th>
-              <th style={{ width: '130px', textAlign: 'right' }}>STATUS</th>
+              <th style={{ width: '42px', textAlign: 'center' }}>{t('live.thPos')}</th>
+              <th>{t('live.thDriver')}</th>
+              <th style={{ width: '70px', textAlign: 'center' }}>{t('live.thTyre')}</th>
+              <th style={{ width: '75px', textAlign: 'center' }}>{t('live.thAge')}</th>
+              <th style={{ width: '65px', textAlign: 'center' }}>{t('live.thStops')}</th>
+              <th style={{ width: '130px', textAlign: 'right' }}>{t('live.thStatus')}</th>
             </tr>
           </thead>
           <tbody>
@@ -171,7 +182,7 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = ({
                     <div className="pit-driver-cell">
                       <span className="team-color-indicator" style={{ backgroundColor: teamColor }} />
                       <span className="pit-driver-name">{d.name}</span>
-                      {d.isPlayer && <span className="player-indicator-chip">YOU</span>}
+                      {d.isPlayer && <span className="player-indicator-chip">{t('live.youChip')}</span>}
                     </div>
                   </td>
                   <td className="text-center">

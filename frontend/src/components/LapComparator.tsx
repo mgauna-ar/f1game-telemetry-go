@@ -20,6 +20,7 @@ import { buildTelemetryContext } from '../utils/aiTelemetrySummary';
 import { detectTrackTurns, getTurnContextAtDistance } from '../utils/trackTurns';
 import { ComparatorTrackMap } from './ComparatorTrackMap';
 import { useRaceEngineer } from '../context/RaceEngineerContext';
+import { useI18n } from '../context/I18nContext';
 import { ERS_MODE_NAMES } from '../constants/f1';
 import { formatTime, getRankBadgeStyle, getSessionBadgeClass } from '../utils/formatters';
 
@@ -35,6 +36,7 @@ export interface LapComparatorProps {
 }
 
 export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) => {
+  const { t } = useI18n();
   const { setComparatorContext, setContextMode, openChat } = useRaceEngineer();
   const [sessions, setSessions] = useState<Session[]>([]);
 
@@ -603,10 +605,10 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <h2 style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', margin: 0, fontSize: '1.4rem', fontWeight: 700 }}>
-              <Gauge color="var(--accent-primary)" size={26} /> Lap Comparator
+              <Gauge color="var(--accent-primary)" size={26} /> {t('comparator.title')}
             </h2>
             <p className="text-secondary" style={{ margin: '0.25rem 0 0 0', fontSize: '0.88rem' }}>
-              Compare laps, time deltas, braking points, and throttle traces across sessions
+              {t('comparator.subtitle')}
             </p>
           </div>
 
@@ -631,7 +633,7 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
                 <span>{selectedSessionAObj.track_name}</span>
                 {!isLinkedSessions && selectedSessionBObj && selectedSessionBObj.id !== selectedSessionAObj.id && (
                   <span style={{ fontSize: '0.72rem', background: 'rgba(255, 165, 2, 0.2)', color: '#ffa502', padding: '1px 6px', borderRadius: '10px' }}>
-                    Cross-Session
+                    {t('comparator.crossSession')}
                   </span>
                 )}
               </div>
@@ -656,11 +658,11 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
                 }}
-                title={isLinkedSessions ? 'Sessions linked to same event. Click to compare cross-sessions.' : 'Cross-session comparison active. Click to link sessions.'}
+                title={isLinkedSessions ? t('comparator.linkedTitle') : t('comparator.crossSessionTitle')}
                 data-testid="session-sync-toggle"
               >
                 {isLinkedSessions ? <Link size={14} /> : <Unlink size={14} />}
-                <span>{isLinkedSessions ? 'Linked' : 'Cross-Session'}</span>
+                <span>{isLinkedSessions ? t('comparator.linked') : t('comparator.crossSession')}</span>
               </button>
             )}
 
@@ -682,10 +684,10 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
                 <Timer size={14} />
                 <span>
                   {totalDeltaMs < 0
-                    ? `Δ -${(Math.abs(totalDeltaMs) / 1000).toFixed(3)}s (Lap A)`
+                    ? t('comparator.deltaLap', { delta: (Math.abs(totalDeltaMs) / 1000).toFixed(3), lap: t('comparator.lapA') })
                     : totalDeltaMs > 0
-                    ? `Δ -${(Math.abs(totalDeltaMs) / 1000).toFixed(3)}s (Lap B)`
-                    : 'Identical Laps'}
+                    ? t('comparator.deltaLap', { delta: (Math.abs(totalDeltaMs) / 1000).toFixed(3), lap: t('comparator.lapB') })
+                    : t('comparator.identicalLaps')}
                 </span>
               </div>
             )}
@@ -708,9 +710,9 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
                 }}
-                title="Swap Slot A and Slot B"
+                title={t('comparator.swapTitle')}
               >
-                <ArrowLeftRight size={13} /> Swap
+                <ArrowLeftRight size={13} /> {t('comparator.swap')}
               </button>
             )}
 
@@ -732,11 +734,11 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
                 }}
-                title={isQuickSelectOpen ? 'Collapse Quick Select Driver leaderboard' : 'Expand Quick Select Driver leaderboard'}
+                title={isQuickSelectOpen ? t('comparator.collapseDrivers') : t('comparator.expandDrivers')}
                 data-testid="toggle-quick-select-toolbar-btn"
               >
                 <Zap size={13} color={isQuickSelectOpen ? '#00d2d3' : 'var(--accent-primary)'} />
-                <span>Drivers ({quickSelectData.totalCount})</span>
+                <span>{t('comparator.drivers', { count: quickSelectData.totalCount })}</span>
               </button>
             )}
 
@@ -758,9 +760,9 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
                   cursor: 'pointer',
                   transition: 'all 0.2s ease',
                 }}
-                title="Clear Lap Selections"
+                title={t('comparator.clearTitle')}
               >
-                <X size={13} /> Clear
+                <X size={13} /> {t('comparator.clear')}
               </button>
             )}
           </div>
@@ -771,7 +773,7 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
           {/* SLOT A CARD */}
           <SlotCard
             slot="A"
-            title="Slot A (Baseline)"
+            title={t('comparator.slotABaseline')}
             accentColor="#ff4757"
             driver={driverA}
             sessions={sessions}
@@ -794,7 +796,7 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
           {/* SLOT B CARD */}
           <SlotCard
             slot="B"
-            title="Slot B (Comparison)"
+            title={t('comparator.slotBComparison')}
             accentColor="#00d2d3"
             driver={driverB}
             sessions={sessions}

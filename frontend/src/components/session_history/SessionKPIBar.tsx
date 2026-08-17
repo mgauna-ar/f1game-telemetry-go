@@ -1,18 +1,20 @@
 import React from 'react';
 import { Calendar, Flag, MapPin, Trophy } from 'lucide-react';
 import type { Session } from '../SessionHistory';
+import { useI18n } from '../../context/I18nContext';
 
 interface SessionKPIBarProps {
   sessions: Session[];
 }
 
 export const SessionKPIBar: React.FC<SessionKPIBarProps> = ({ sessions }) => {
+  const { t } = useI18n();
   const totalSessions = sessions.length;
 
   // Track frequency calculation
   const trackCounts: Record<string, number> = {};
   sessions.forEach((s) => {
-    const track = s.track_name || 'Unknown Track';
+    const track = s.track_name || t('common.unknownTrack');
     trackCounts[track] = (trackCounts[track] || 0) + 1;
   });
 
@@ -37,10 +39,10 @@ export const SessionKPIBar: React.FC<SessionKPIBarProps> = ({ sessions }) => {
           <Calendar size={22} />
         </div>
         <div className="kpi-content">
-          <div className="kpi-label">TOTAL SESSIONS</div>
+          <div className="kpi-label">{t('history.kpi.totalSessionsLabel')}</div>
           <div className="kpi-value mono">{totalSessions}</div>
           <div className="kpi-subtext">
-            {raceCount} Races • {qualiCount} Qualifying
+            {t('history.kpi.racesQualifying', { races: raceCount, quali: qualiCount })}
           </div>
         </div>
       </div>
@@ -51,12 +53,14 @@ export const SessionKPIBar: React.FC<SessionKPIBarProps> = ({ sessions }) => {
           <MapPin size={22} />
         </div>
         <div className="kpi-content">
-          <div className="kpi-label">MOST VISITED CIRCUIT</div>
+          <div className="kpi-label">{t('history.kpi.mostVisited')}</div>
           <div className="kpi-value" style={{ fontSize: '1.2rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={topTrack}>
             {topTrack}
           </div>
           <div className="kpi-subtext">
-            {maxTrackCount > 0 ? `${maxTrackCount} session${maxTrackCount > 1 ? 's' : ''} logged` : 'No track data'}
+            {maxTrackCount > 0
+              ? t('history.kpi.sessionsLogged', { count: maxTrackCount })
+              : t('history.kpi.noTrackData')}
           </div>
         </div>
       </div>
@@ -67,9 +71,9 @@ export const SessionKPIBar: React.FC<SessionKPIBarProps> = ({ sessions }) => {
           <Flag size={22} />
         </div>
         <div className="kpi-content">
-          <div className="kpi-label">TELEMETRY REPOSITORY</div>
+          <div className="kpi-label">{t('history.kpi.telemetryRepository')}</div>
           <div className="kpi-value mono" style={{ fontSize: '1.25rem', color: 'var(--accent-tertiary)' }}>
-            ONLINE
+            {t('history.kpi.online')}
           </div>
           <div className="kpi-subtext">
             F1 2025/2026 SQLite Storage
@@ -83,12 +87,12 @@ export const SessionKPIBar: React.FC<SessionKPIBarProps> = ({ sessions }) => {
           <Trophy size={22} />
         </div>
         <div className="kpi-content">
-          <div className="kpi-label">HISTORICAL ANALYSIS</div>
+          <div className="kpi-label">{t('history.kpi.historicalAnalysis')}</div>
           <div className="kpi-value" style={{ fontSize: '1.1rem' }}>
-            Deep Analytics
+            {t('history.kpi.deepAnalytics')}
           </div>
           <div className="kpi-subtext">
-            Sectors • Stints • AI Debrief
+            {t('history.kpi.deepAnalyticsSub')}
           </div>
         </div>
       </div>

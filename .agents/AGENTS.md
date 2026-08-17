@@ -29,6 +29,11 @@ This file (`.agents/AGENTS.md`) contains workspace-specific rules and context th
 ## 6. Documentation Upkeep
 *   **README & Rules:** Whenever significant changes are made to the architecture, tech stack, API endpoints, or project structure, you MUST update both `README.md` and `.agents/AGENTS.md` to reflect the new state. Do not leave documentation out of date!
 
-## 7. Language & Localization Standards
-*   **English-First Policy:** All codebase implementations, UI labels, text copy, placeholder strings, tooltips, error messages, user-facing telemetry summaries, AI assistant system prompts, and prompt chips MUST be written exclusively in **English**. Even when receiving user instructions or questions in another language (e.g. Spanish), all code, UI components, system prompts, and backend payloads must remain in English to maintain complete platform-wide consistency.
+## 7. Multi-Language & Localization Standards
+*   **English-First Base & Type-Safe I18n:** All underlying codebase structures, backend APIs, default telemetry payloads, and English dictionaries (`src/locales/en/`) serve as the primary base schema.
+*   **Multi-Language UI Support:** The frontend includes native, zero-dependency type-safe internationalization via `I18nProvider` and `useI18n` (`src/context/I18nContext.tsx`). Supported locales:
+    - `en`: **English** (default) with 🇬🇧 flag indicator.
+    - `es`: **Español (Latinoamérica)** with 🇦🇷 Argentina flag indicator (`"Español (Latinoamérica)"`), utilizing authentic Latin American motorsport terminology (*boxes*, *neumáticos*, *monoplaza*, *vuelta rápida*, *diferencia*). Standard international F1 acronyms (*DRS*, *ERS*, *S1/S2/S3*, *SC/VSC*, *RPM*, tyre compound letters) remain universally recognizable across all languages.
+*   **Language Selector UI:** Compact glassmorphic dropdown (`src/components/LanguageSelector.tsx`) integrated in the top navigation bar right next to the port status badge. Preference automatically syncs with browser settings and persists in `localStorage` (`f1_telemetry_language`).
+*   **AI Race Engineer Integration:** Active language preference (`en` or `es`) is transmitted to the AI Race Engineer backend context (`language: locale`) and dynamically injected into prompts so analysis, radio calls, and debriefs match the user's selected language.
 

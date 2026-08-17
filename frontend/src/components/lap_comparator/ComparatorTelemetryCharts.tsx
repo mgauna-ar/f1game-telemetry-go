@@ -13,6 +13,7 @@ import {
 } from 'recharts';
 import type { MergedTelemetryPoint } from '../../utils/deltaCalculation';
 import { ERS_MODE_NAMES } from '../../constants/f1';
+import { useI18n } from '../../context/I18nContext';
 
 interface ComparatorTelemetryChartsProps {
   chartData: MergedTelemetryPoint[];
@@ -77,6 +78,8 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
   loadingB,
   onMouseMove,
 }) => {
+  const { t } = useI18n();
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       {/* Synchronized Track Distance Zoom Toolbar */}
@@ -96,7 +99,9 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', fontSize: '0.82rem' }}>
             <ZoomIn size={16} color="var(--accent-primary)" />
-            <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Track Distance Zoom:</span>
+            <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>
+              {t('comparator.charts.zoom')}:
+            </span>
             <button
               type="button"
               onClick={() => onZoomDomainChange(null)}
@@ -111,7 +116,7 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
                 cursor: 'pointer',
               }}
             >
-              Full Track
+              {t('comparator.charts.fullTrack')}
             </button>
             {sector1Distance !== null && (
               <button
@@ -200,10 +205,10 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
           <div className="glass-panel" style={{ height: '300px', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
               <h3 style={{ margin: 0, fontSize: '1rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                ⏱️ Time Delta (s)
+                ⏱️ {t('comparator.charts.timeDelta')}
               </h3>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                Below 0s = {nameA} Ahead | Above 0s = {nameB} Ahead
+                {t('comparator.charts.timeDeltaSub', { driverA: nameA, driverB: nameB })}
               </span>
             </div>
             <div style={{ flex: 1, minHeight: 0 }}>
@@ -238,7 +243,9 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
 
           {/* 2. SPEED CHART */}
           <div className="glass-panel" style={{ height: '300px', display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#fff' }}>🏎️ Speed (KM/H)</h3>
+            <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#fff' }}>
+              🏎️ {t('comparator.charts.speed')}
+            </h3>
             <div style={{ flex: 1, minHeight: 0 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData} syncId="comparatorSync" onMouseMove={onMouseMove} onMouseLeave={() => onHoverDistanceChange(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
@@ -270,7 +277,7 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
           {/* 3. INDIVIDUAL THROTTLE CHART */}
           <div className="glass-panel" style={{ height: '280px', display: 'flex', flexDirection: 'column' }}>
             <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#2ecc71', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              🟢 Throttle Application (%)
+              🟢 {t('comparator.charts.throttle')}
             </h3>
             <div style={{ flex: 1, minHeight: 0 }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -303,7 +310,7 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
           {/* 4. INDIVIDUAL BRAKE CHART */}
           <div className="glass-panel" style={{ height: '280px', display: 'flex', flexDirection: 'column' }}>
             <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#ff4757', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              🔴 Brake Pressure (%)
+              🔴 {t('comparator.charts.brake')}
             </h3>
             <div style={{ flex: 1, minHeight: 0 }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -335,7 +342,9 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
 
           {/* 5. GEAR SELECTION CHART */}
           <div className="glass-panel" style={{ height: '260px', display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#fff' }}>⚙️ Gear Selection (1 - 8)</h3>
+            <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#fff' }}>
+              ⚙️ {t('comparator.charts.gear')}
+            </h3>
             <div style={{ flex: 1, minHeight: 0 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData} syncId="comparatorSync" onMouseMove={onMouseMove} onMouseLeave={() => onHoverDistanceChange(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
@@ -367,7 +376,9 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
 
           {/* 6. STEERING ANGLE CHART */}
           <div className="glass-panel" style={{ height: '260px', display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#fff' }}>📐 Steering Angle</h3>
+            <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#fff' }}>
+              📐 {t('comparator.charts.steering')}
+            </h3>
             <div style={{ flex: 1, minHeight: 0 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData} syncId="comparatorSync" onMouseMove={onMouseMove} onMouseLeave={() => onHoverDistanceChange(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
@@ -400,7 +411,7 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
           {/* 7. INDIVIDUAL ERS BATTERY CHART */}
           <div className="glass-panel" style={{ height: '280px', display: 'flex', flexDirection: 'column' }}>
             <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#38ef7d', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              ⚡ ERS Battery Store (%)
+              ⚡ {t('comparator.charts.ersBattery')}
             </h3>
             <div style={{ flex: 1, minHeight: 0 }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -434,10 +445,10 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
           <div className="glass-panel" style={{ height: '300px', display: 'flex', flexDirection: 'column' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
               <h3 style={{ margin: 0, fontSize: '1rem', color: '#bd93f9', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                🚀 ERS Deploy Mode
+                🚀 {t('comparator.charts.ersDeployMode')}
               </h3>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                0: Off | 1: Medium | 2: Hotlap | 3: Overtake
+                {t('comparator.charts.ersDeployModesSub')}
               </span>
             </div>
             <div style={{ flex: 1, minHeight: 0 }}>
@@ -475,10 +486,10 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
         <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center' }}>
           <p style={{ color: 'var(--text-muted)', fontSize: '1rem', margin: 0 }}>
             {!sessionAId
-              ? 'Select a session and two laps above to compare telemetry.'
+              ? t('comparator.charts.selectSessionAndLaps')
               : loadingA || loadingB
-              ? 'Loading telemetry data...'
-              : 'Select Lap A and Lap B to generate comparison charts.'}
+              ? t('comparator.charts.loadingTelemetry')
+              : t('comparator.charts.selectBothLaps')}
           </p>
         </div>
       )}

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Clock, CloudSun, ChevronRight, Trash2, ArrowUpDown } from 'lucide-react';
 import type { Session } from '../SessionHistory';
+import { useI18n } from '../../context/I18nContext';
 
 interface SessionTableViewProps {
   sessions: Session[];
@@ -23,6 +24,8 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
   sortOrder,
   onToggleSort,
 }) => {
+  const { t } = useI18n();
+
   const renderSortIndicator = (field: string) => {
     if (!onToggleSort) return null;
     if (sortField !== field) return <ArrowUpDown size={12} color="var(--text-muted)" />;
@@ -40,7 +43,7 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
                 onClick={() => onToggleSort && onToggleSort('id')}
               >
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                  <span>Session ID</span>
+                  <span>{t('history.table.sessionId')}</span>
                   {renderSortIndicator('id')}
                 </div>
               </th>
@@ -49,7 +52,7 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
                 onClick={() => onToggleSort && onToggleSort('date')}
               >
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                  <span>Date & Time</span>
+                  <span>{t('history.table.dateTime')}</span>
                   {renderSortIndicator('date')}
                 </div>
               </th>
@@ -58,7 +61,7 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
                 onClick={() => onToggleSort && onToggleSort('track')}
               >
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                  <span>Track Name</span>
+                  <span>{t('history.table.trackName')}</span>
                   {renderSortIndicator('track')}
                 </div>
               </th>
@@ -67,12 +70,12 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
                 onClick={() => onToggleSort && onToggleSort('type')}
               >
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                  <span>Session Type</span>
+                  <span>{t('history.table.sessionType')}</span>
                   {renderSortIndicator('type')}
                 </div>
               </th>
-              <th>Weather</th>
-              <th style={{ textAlign: 'right' }}>Actions</th>
+              <th>{t('history.table.weather')}</th>
+              <th style={{ textAlign: 'right' }}>{t('history.table.actions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -93,7 +96,7 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
                 </td>
                 <td>
                   <span style={{ fontWeight: 700, fontSize: '1rem' }}>
-                    {session.track_name || 'Unknown Track'}
+                    {session.track_name || t('common.unknownTrack')}
                   </span>
                 </td>
                 <td>
@@ -104,7 +107,7 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
                 <td>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}>
                     <CloudSun size={14} color="var(--text-secondary)" />
-                    {session.weather || 'Clear'}
+                    {session.weather || t('common.clearWeather')}
                   </div>
                 </td>
                 <td style={{ textAlign: 'right' }}>
@@ -123,7 +126,7 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
                         onSelectSession(session);
                       }}
                     >
-                      Explore <ChevronRight size={14} />
+                      {t('common.explore')} <ChevronRight size={14} />
                     </button>
                     <button
                       className="nav-tab"

@@ -3,6 +3,7 @@ import { Trophy, Wrench, Flame } from 'lucide-react';
 import { parseDriverName } from '../hooks/useTelemetry';
 import type { ParticipantData, LapData, CarStatusData, SessionData } from '../types/telemetry';
 import { TEAM_COLORS, TYRE_COMPOUNDS } from '../constants/f1';
+import { useI18n } from '../context/I18nContext';
 
 export { TEAM_COLORS, TYRE_COMPOUNDS };
 
@@ -38,6 +39,7 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
   selectedCarIndex = 0,
   onSelectCar = () => {},
 }) => {
+  const { t } = useI18n();
   const isQualy = session?.SessionType !== undefined && 
     ((session.SessionType >= 5 && session.SessionType <= 9) || (session.SessionType >= 10 && session.SessionType <= 14));
   const isQ1 = session?.SessionType === 5 || session?.SessionType === 10;
@@ -312,7 +314,7 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
             ) : (
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '0.8rem', fontWeight: 600, color: overallIndex === 0 ? 'var(--accent-primary)' : 'inherit' }}>
-                  {overallIndex === 0 ? 'LEADER' : formatDelta(driver.lap?.DeltaToRaceLeaderMSPart, driver.lap?.DeltaToRaceLeaderMinutesPart)}
+                  {overallIndex === 0 ? t('live.leaderBadge') : formatDelta(driver.lap?.DeltaToRaceLeaderMSPart, driver.lap?.DeltaToRaceLeaderMinutesPart)}
                 </div>
                 {overallIndex > 0 && driver.lap?.DeltaToCarInFrontMSPart !== undefined && (
                   <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
@@ -327,7 +329,7 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
         {/* Elimination Zone Line for Qualifying */}
         {showEliminationLine && (
           <div className="elimination-line" style={{ margin: '2px 0' }}>
-            <span>ELIMINATION ZONE CUT-OFF</span>
+            <span>{t('live.eliminationCutoff')}</span>
           </div>
         )}
       </React.Fragment>
@@ -340,10 +342,12 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
       <div className="leaderboard-header" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
         <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.05rem' }}>
           <Trophy size={18} color="var(--accent-primary)" />
-          {isQualy ? 'Qualifying Standings' : 'Race Leaderboard Tower'}
+          {isQualy
+            ? t('live.qualifyingStandings')
+            : t('live.raceLeaderboard')}
         </h3>
         <span className="mono" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-          {displayDrivers.length} CARS
+          {t('live.carsCount', { count: displayDrivers.length })}
         </span>
       </div>
 

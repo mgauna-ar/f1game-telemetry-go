@@ -1,6 +1,7 @@
 import React from 'react';
 import { Clock, CloudSun, ChevronRight, Trash2, MapPin } from 'lucide-react';
 import type { Session } from '../SessionHistory';
+import { useI18n } from '../../context/I18nContext';
 
 interface SessionCardGridProps {
   sessions: Session[];
@@ -17,6 +18,8 @@ export const SessionCardGrid: React.FC<SessionCardGridProps> = ({
   formatDate,
   getSessionBadgeClass,
 }) => {
+  const { t } = useI18n();
+
   return (
     <div className="session-card-grid">
       {sessions.map((session) => {
@@ -34,7 +37,7 @@ export const SessionCardGrid: React.FC<SessionCardGridProps> = ({
               <div className="session-card-track-info">
                 <div className="session-card-track-title">
                   <MapPin size={16} color="var(--accent-secondary)" />
-                  <span className="track-name">{session.track_name || 'Unknown Track'}</span>
+                  <span className="track-name">{session.track_name || t('common.unknownTrack')}</span>
                 </div>
                 <span className="mono session-id-badge">#{session.id}</span>
               </div>
@@ -52,12 +55,12 @@ export const SessionCardGrid: React.FC<SessionCardGridProps> = ({
                 </div>
                 <div className="meta-item">
                   <CloudSun size={14} color="var(--text-secondary)" />
-                  <span>{session.weather || 'Clear'}</span>
+                  <span>{session.weather || t('common.clearWeather')}</span>
                 </div>
               </div>
 
               <div className="session-card-tagline mono">
-                UID: {session.session_uid || session.id} • {isRace ? 'Grand Prix Race' : 'Timed Session'}
+                UID: {session.session_uid || session.id} • {isRace ? t('common.grandPrixRace') : t('common.timedSession')}
               </div>
             </div>
 
@@ -71,7 +74,7 @@ export const SessionCardGrid: React.FC<SessionCardGridProps> = ({
                   onSelectSession(session);
                 }}
               >
-                <span>Explore Session</span>
+                <span>{t('common.exploreSession')}</span>
                 <ChevronRight size={15} />
               </button>
 

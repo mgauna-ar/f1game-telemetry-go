@@ -19,6 +19,7 @@ import {
   CloudRain,
 } from 'lucide-react';
 import { useRaceEngineer, type AIConfig } from '../context/RaceEngineerContext';
+import { useI18n } from '../context/I18nContext';
 import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
 
 export interface AiRaceEngineerProps {
@@ -37,6 +38,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
   isOpenOverride,
   onCloseOverride,
 }) => {
+  const { t } = useI18n();
   const {
     isOpen: contextIsOpen,
     closeChat,
@@ -114,28 +116,28 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
         {
           id: 'delta-loss',
           icon: <Zap size={13} style={{ color: '#ffd200' }} />,
-          label: 'Where was time lost?',
-          prompt: 'Where was the most time gained or lost between both laps? Provide a technical breakdown by sectors and key corners.',
+          label: t('ai_engineer.chips.deltaLossLabel'),
+          prompt: t('ai_engineer.chips.deltaLossPrompt'),
         },
         {
           id: 'braking-traction',
           icon: <Gauge size={13} style={{ color: '#ff4b4b' }} />,
-          label: 'Braking & Apex Speed',
-          prompt: 'Analyze and compare braking points, peak brake pressure, and corner apex speeds between both laps.',
+          label: t('ai_engineer.chips.brakingTractionLabel'),
+          prompt: t('ai_engineer.chips.brakingTractionPrompt'),
         },
         {
           id: 'ers-drs',
           icon: <Cpu size={13} style={{ color: '#00f2fe' }} />,
-          label: 'ERS & DRS Usage',
-          prompt: 'Compare the electric motor (ERS) deployment strategy and DRS usage between both laps.',
+          label: t('ai_engineer.chips.ersDrsLabel'),
+          prompt: t('ai_engineer.chips.ersDrsPrompt'),
         },
       ];
       if (isZoomActive) {
         chips.unshift({
           id: 'zoomed-analysis',
           icon: <ZoomIn size={13} style={{ color: '#38ef7d' }} />,
-          label: 'Zoomed Sector Analysis',
-          prompt: 'Analyze in depth the currently zoomed sector in the telemetry charts and explain the driving difference in detail.',
+          label: t('ai_engineer.chips.zoomedAnalysisLabel'),
+          prompt: t('ai_engineer.chips.zoomedAnalysisPrompt'),
         });
       }
       return chips;
@@ -146,20 +148,20 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
         {
           id: 'debrief-overview',
           icon: <Sparkles size={13} style={{ color: '#ffd700' }} />,
-          label: 'Session Pace Overview',
-          prompt: 'Provide a complete session pace debrief comparing the top drivers, sector deltas, and overall consistency.',
+          label: t('ai_engineer.chips.debriefOverviewLabel'),
+          prompt: t('ai_engineer.chips.debriefOverviewPrompt'),
         },
         {
           id: 'debrief-tyres',
           icon: <Gauge size={13} style={{ color: '#ff8000' }} />,
-          label: 'Tyre Stint Degradation',
-          prompt: 'Analyze the tyre stint lengths, compound choices, and pace degradation across the field.',
+          label: t('ai_engineer.chips.debriefTyresLabel'),
+          prompt: t('ai_engineer.chips.debriefTyresPrompt'),
         },
         {
           id: 'debrief-sectors',
           icon: <Zap size={13} style={{ color: '#00f2fe' }} />,
-          label: 'Theoretical Best Lap',
-          prompt: 'What was the session record theoretical best lap, and which driver had the highest potential speed?',
+          label: t('ai_engineer.chips.debriefSectorsLabel'),
+          prompt: t('ai_engineer.chips.debriefSectorsPrompt'),
         },
       ];
     }
@@ -169,20 +171,20 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
         {
           id: 'live-weather',
           icon: <CloudRain size={13} style={{ color: '#00f2fe' }} />,
-          label: 'Weather & Crossover',
-          prompt: 'What is the current weather forecast, rain probability, and recommended tyre crossover window?',
+          label: t('ai_engineer.chips.liveWeatherLabel'),
+          prompt: t('ai_engineer.chips.liveWeatherPrompt'),
         },
         {
           id: 'live-strategy',
           icon: <Flag size={13} style={{ color: '#ffd200' }} />,
-          label: 'Safety Car & Pit Strategy',
-          prompt: 'What is the optimal pit stop strategy and Safety Car contingency plan right now?',
+          label: t('ai_engineer.chips.liveStrategyLabel'),
+          prompt: t('ai_engineer.chips.liveStrategyPrompt'),
         },
         {
           id: 'live-pace',
           icon: <Zap size={13} style={{ color: '#38ef7d' }} />,
-          label: 'Current Sector Pace',
-          prompt: 'Analyze the current sector times, speed trap leaders, and gap deltas across the field.',
+          label: t('ai_engineer.chips.livePaceLabel'),
+          prompt: t('ai_engineer.chips.livePacePrompt'),
         },
       ];
     }
@@ -192,23 +194,23 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
       {
         id: 'gen-trail-braking',
         icon: <Gauge size={13} style={{ color: '#ff4b4b' }} />,
-        label: 'Trail Braking Coaching',
-        prompt: 'Explain how to optimize trail braking into slow and medium speed corners in F1.',
+        label: t('ai_engineer.chips.genTrailBrakingLabel'),
+        prompt: t('ai_engineer.chips.genTrailBrakingPrompt'),
       },
       {
         id: 'gen-tyre-management',
         icon: <Zap size={13} style={{ color: '#ffd200' }} />,
-        label: 'Tyre Temperature Management',
-        prompt: 'How do I manage tyre surface vs core temperatures during long stints to avoid thermal degradation?',
+        label: t('ai_engineer.chips.genTyreManagementLabel'),
+        prompt: t('ai_engineer.chips.genTyreManagementPrompt'),
       },
       {
         id: 'gen-ers',
         icon: <Cpu size={13} style={{ color: '#00f2fe' }} />,
-        label: 'ERS Deployment Strategy',
-        prompt: 'What is the best way to deploy ERS energy between Hotlap, None, and Medium modes?',
+        label: t('ai_engineer.chips.genErsLabel'),
+        prompt: t('ai_engineer.chips.genErsPrompt'),
       },
     ];
-  }, [contextMode, activeComparatorContext, hasLapsSelected, isZoomActive, sessionDebriefContext, liveContext]);
+  }, [contextMode, activeComparatorContext, hasLapsSelected, isZoomActive, sessionDebriefContext, liveContext, t]);
 
   // Context Mode Badge label & color
   const contextBadgeInfo = useMemo(() => {

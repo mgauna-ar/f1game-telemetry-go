@@ -9,9 +9,10 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { TrendingUp, Award, Layers, Filter } from 'lucide-react';
+import { TrendingUp, Award, Layers, Filter, Activity, Clock } from 'lucide-react';
 import { TEAM_COLORS } from '../../constants/f1';
 import type { DriverStanding } from '../../types/session';
+import { useI18n } from '../../context/I18nContext';
 
 interface SessionLapChartsTabProps {
   driverStandings: DriverStanding[];
@@ -46,6 +47,7 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
   totalSessionLaps,
   formatLapTime,
 }) => {
+  const { t } = useI18n();
   const [activeChart, setActiveChart] = useState<'pace' | 'position' | 'gap'>('pace');
   const [filterOutliers, setFilterOutliers] = useState<boolean>(true);
 
@@ -65,13 +67,6 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
     }));
   };
 
-  const selectTop5 = () => {
-    const next: Record<number, boolean> = {};
-    driverStandings.slice(0, 5).forEach((d) => {
-      next[d.participant.car_index] = true;
-    });
-    setSelectedDrivers(next);
-  };
 
   const selectAll = () => {
     const next: Record<number, boolean> = {};
@@ -84,6 +79,8 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
   const clearAll = () => {
     setSelectedDrivers({});
   };
+
+  const activeDriverStandings = driverStandings.filter((d) => selectedDrivers[d.participant.car_index]);
 
   // Find median / fastest lap time to filter outliers (pit in/out laps)
   const sessionBestLapMS = useMemo(() => {
@@ -206,69 +203,69 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
     return data;
   }, [driverStandings, totalSessionLaps]);
 
-  const activeDriverStandings = driverStandings.filter((d) => selectedDrivers[d.participant.car_index]);
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      {/* Chart Selector & Controls Bar */}
-      <div className="glass-panel" style={{ padding: '1rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+      {/* Top Chart Selector Sub-bar */}
+      <div className="glass-panel" style={{ padding: '0.85rem 1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button
             className={`nav-tab ${activeChart === 'pace' ? 'active' : ''}`}
             onClick={() => setActiveChart('pace')}
             style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
           >
-            <TrendingUp size={15} />
-            <span>Lap Pace Progression</span>
+            <Activity size={15} />
+            <span>{t('history.progression.pacePace')}</span>
           </button>
-
           <button
             className={`nav-tab ${activeChart === 'position' ? 'active' : ''}`}
             onClick={() => setActiveChart('position')}
             style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
           >
-            <Award size={15} />
-            <span>Position Lap Chart</span>
+            <TrendingUp size={15} />
+            <span>{t('history.progression.pacePosition')}</span>
           </button>
-
           <button
             className={`nav-tab ${activeChart === 'gap' ? 'active' : ''}`}
             onClick={() => setActiveChart('gap')}
             style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
           >
-            <Layers size={15} />
-            <span>Gap to Leader Evolution</span>
+            <Clock size={15} />
+            <span>{t('history.progression.paceGap')}</span>
           </button>
         </div>
 
-        {activeChart === 'pace' && (
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-            <input
-              type="checkbox"
-              checked={filterOutliers}
-              onChange={(e) => setFilterOutliers(e.target.checked)}
-              style={{ accentColor: 'var(--accent-primary)', cursor: 'pointer' }}
-            />
-            <span>Filter In/Out & Pit Laps (Scale Optimizer)</span>
-          </label>
-        )}
+        {/* Outlier Filter Toggle */}
+        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+          <input
+            type="checkbox"
+            checked={filterOutliers}
+            onChange={(e) => setFilterOutliers(e.target.checked)}
+            style={{ accentColor: 'var(--accent-primary)', cursor: 'pointer' }}
+          />
+          <span>{t('history.progression.filterOutliers')}</span>
+        </label>
       </div>
 
-      {/* Driver Toggle Filter Bar */}
-      <div className="glass-panel" style={{ padding: '0.85rem 1.25rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-          <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Filter size={14} /> FILTER DRIVERS ON CHART ({activeDriverStandings.length}/{driverStandings.length} VISIBLE)
+      {/* Driver Visibility Filter Chips */}
+      <div className="glass-panel" style={{ padding: '0.75rem 1.25rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Filter size={14} /> {t('history.progression.filterDrivers')} ({activeDriverStandings.length}/{driverStandings.length} {t('history.progression.visible')})
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <button className="nav-tab" onClick={selectTop5} style={{ padding: '2px 8px', fontSize: '0.72rem' }}>
-              Top 5
+          <div style={{ display: 'flex', gap: '0.4rem' }}>
+            <button
+              onClick={selectAll}
+              className="nav-tab"
+              style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem' }}
+            >
+              {t('history.progression.selectAll')}
             </button>
-            <button className="nav-tab" onClick={selectAll} style={{ padding: '2px 8px', fontSize: '0.72rem' }}>
-              Select All
-            </button>
-            <button className="nav-tab" onClick={clearAll} style={{ padding: '2px 8px', fontSize: '0.72rem' }}>
-              Clear
+            <button
+              onClick={clearAll}
+              className="nav-tab"
+              style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem' }}
+            >
+              {t('history.progression.clear')}
             </button>
           </div>
         </div>

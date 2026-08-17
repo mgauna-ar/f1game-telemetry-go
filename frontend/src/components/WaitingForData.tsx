@@ -1,47 +1,51 @@
 import React from 'react';
-import { Radio, WifiOff, Activity, CheckCircle2, Terminal, Info, Zap } from 'lucide-react';
+import { Radio, Activity, CheckCircle2, Terminal, Info, Zap } from 'lucide-react';
+import { useI18n } from '../context/I18nContext';
 
 interface WaitingForDataProps {
   connected: boolean;
 }
 
 export const WaitingForData: React.FC<WaitingForDataProps> = ({ connected }) => {
+  const { t } = useI18n();
+
   return (
-    <div className="telemetry-waiting-container">
-      <div className="glass-panel waiting-hero-card">
-        {/* Animated Signal / Radar Header */}
-        <div className="waiting-radar-wrapper">
-          <div className="radar-ripple ring-1" />
-          <div className="radar-ripple ring-2" />
-          <div className="radar-ripple ring-3" />
-          <div className={`radar-center-icon ${connected ? 'connected' : 'disconnected'}`}>
-            {connected ? (
-              <Radio size={36} className="radar-icon-pulse" />
-            ) : (
-              <WifiOff size={36} />
-            )}
+    <div className="waiting-for-data-container">
+      <div className="waiting-card glass-panel">
+        {/* Animated Radar Scanning Effect */}
+        <div className="radar-spinner">
+          <div className="radar-circle circle-1" />
+          <div className="radar-circle circle-2" />
+          <div className="radar-circle circle-3" />
+          <div className="radar-sweep" />
+          <Radio size={36} className="radar-center-icon" />
+        </div>
+
+        {/* Pulse Status Badges */}
+        <div className="waiting-status-badges">
+          <div className={`status-badge-chip ${connected ? 'chip-connected' : 'chip-connecting'}`}>
+            <span className="pulse-dot" />
+            <span>
+              {connected ? t('live.backendConnected') : t('live.connectingToBackend')}
+            </span>
+          </div>
+          <div className="status-badge-chip chip-port">
+            <Activity size={13} />
+            <span>{t('live.udpPort')} <strong>20777</strong></span>
           </div>
         </div>
 
-        {/* Title and Connection State Badge */}
+        {/* Title and Subtitle */}
         <div className="waiting-title-section">
-          <div className="waiting-status-badge-row">
-            <span className={`waiting-status-pill ${connected ? 'pill-connected' : 'pill-reconnecting'}`}>
-              <span className={`status-dot ${connected ? 'status-live' : 'status-waiting'}`} />
-              {connected ? 'BACKEND CONNECTED' : 'CONNECTING TO BACKEND...'}
-            </span>
-            <span className="waiting-port-pill mono">
-              UDP PORT: <strong>20777</strong>
-            </span>
-          </div>
-
-          <h2 className="waiting-hero-title">
-            {connected ? 'Waiting for Live Session Telemetry' : 'Connecting to Telemetry Bridge'}
-          </h2>
-          <p className="waiting-hero-subtitle">
+          <h2 className="waiting-title">
             {connected
-              ? 'The telemetry server is listening. Launch EA Sports F1 2025/2026 or start a simulator to stream live track telemetry.'
-              : 'Establishing WebSocket connection to the local telemetry daemon...'}
+              ? t('live.waitingForLive')
+              : t('live.connectingToBridge')}
+          </h2>
+          <p className="waiting-description">
+            {connected
+              ? t('live.telemetryListening')
+              : t('live.establishingWebSocket')}
           </p>
         </div>
 

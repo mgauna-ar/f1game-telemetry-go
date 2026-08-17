@@ -25,6 +25,7 @@ import { SessionClassificationTab } from './session_history/SessionClassificatio
 import { SessionLapChartsTab } from './session_history/SessionLapChartsTab';
 import { SessionSectorMatrixTab } from './session_history/SessionSectorMatrixTab';
 import { useRaceEngineer } from '../context/RaceEngineerContext';
+import { useI18n } from '../context/I18nContext';
 
 import type {
   Session,
@@ -43,6 +44,7 @@ interface SessionHistoryProps {
 }
 
 export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComparator }) => {
+  const { t } = useI18n();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loadingSessions, setLoadingSessions] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -651,10 +653,10 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
         <div>
           <h1 style={{ margin: 0, fontSize: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <Calendar color="var(--accent-primary)" size={28} />
-            Session Explorer
+            {t('history.title')}
           </h1>
           <p className="mono" style={{ color: 'var(--text-secondary)', margin: '4px 0 0 0', fontSize: '0.9rem' }}>
-            Historical Session Telemetry, Classification, Progression & Sector Analytics
+            {t('history.subtitle')}
           </p>
         </div>
 
@@ -668,7 +670,7 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
             }}
             style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
           >
-            <ArrowLeft size={16} /> Back to Sessions List
+            <ArrowLeft size={16} /> {t('history.backToList')}
           </button>
         )}
       </div>
@@ -687,7 +689,7 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
                 <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                 <input
                   type="text"
-                  placeholder="Search track, session type..."
+                  placeholder={t('history.searchPlaceholder')}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   style={{
@@ -713,11 +715,11 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
                   onChange={(e) => setSessionTypeFilter(e.target.value)}
                   style={{ background: 'rgba(0,0,0,0.4)', minWidth: '140px', fontSize: '0.85rem' }}
                 >
-                  <option value="ALL">All Types</option>
-                  <option value="Race">Race</option>
-                  <option value="Sprint">Sprint</option>
-                  <option value="Qualifying">Qualifying</option>
-                  <option value="Practice">Practice</option>
+                  <option value="ALL">{t('history.allTypes')}</option>
+                  <option value="Race">{t('history.race')}</option>
+                  <option value="Sprint">{t('history.sprint')}</option>
+                  <option value="Qualifying">{t('history.qualifying')}</option>
+                  <option value="Practice">{t('history.practice')}</option>
                 </select>
               </div>
 
@@ -729,7 +731,7 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
                   onChange={(e) => setCircuitFilter(e.target.value)}
                   style={{ background: 'rgba(0,0,0,0.4)', minWidth: '150px', fontSize: '0.85rem' }}
                 >
-                  <option value="ALL">All Circuits ({uniqueCircuits.length})</option>
+                  <option value="ALL">{t('history.allCircuits', { count: uniqueCircuits.length })}</option>
                   {uniqueCircuits.map((circ) => (
                     <option key={circ} value={circ}>
                       {circ}
@@ -745,7 +747,7 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
                 <button
                   className={`nav-tab ${viewMode === 'cards' ? 'active' : ''}`}
                   onClick={() => setViewMode('cards')}
-                  title="Card Grid View"
+                  title={t('history.cardGridView')}
                   style={{ padding: '4px 8px', borderRadius: '4px', border: 'none' }}
                 >
                   <LayoutGrid size={15} />
@@ -753,7 +755,7 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
                 <button
                   className={`nav-tab ${viewMode === 'table' ? 'active' : ''}`}
                   onClick={() => setViewMode('table')}
-                  title="Data Table View"
+                  title={t('history.dataTableView')}
                   style={{ padding: '4px 8px', borderRadius: '4px', border: 'none' }}
                 >
                   <List size={15} />
@@ -766,7 +768,7 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
                 disabled={loadingSessions}
                 style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', padding: '0.55rem 0.9rem' }}
               >
-                <RefreshCw size={14} className={loadingSessions ? 'animate-spin' : ''} /> Refresh
+                <RefreshCw size={14} className={loadingSessions ? 'animate-spin' : ''} /> {t('common.refresh')}
               </button>
             </div>
           </div>
@@ -775,23 +777,25 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
           {loadingSessions ? (
             <div className="glass-panel" style={{ textAlign: 'center', padding: '3rem' }}>
               <RefreshCw size={32} className="animate-spin" style={{ color: 'var(--accent-primary)', marginBottom: '1rem' }} />
-              <p style={{ color: 'var(--text-secondary)' }}>Loading session history repository...</p>
+              <p style={{ color: 'var(--text-secondary)' }}>
+                {t('history.loadingRepo')}
+              </p>
             </div>
           ) : error ? (
             <div className="glass-panel" style={{ textAlign: 'center', padding: '3rem', borderColor: 'var(--accent-primary)' }}>
               <p style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>{error}</p>
               <button className="nav-tab active" onClick={fetchSessions} style={{ marginTop: '1rem' }}>
-                Retry
+                {t('common.retry')}
               </button>
             </div>
           ) : filteredSessions.length === 0 ? (
             <div className="glass-panel" style={{ textAlign: 'center', padding: '3rem' }}>
               <Flag size={40} color="var(--text-muted)" style={{ marginBottom: '1rem' }} />
-              <h3>No Sessions Found</h3>
+              <h3>{t('history.noSessionsFound')}</h3>
               <p style={{ color: 'var(--text-secondary)' }}>
                 {searchQuery || sessionTypeFilter !== 'ALL' || circuitFilter !== 'ALL'
-                  ? 'No historical sessions match your current search filters.'
-                  : 'No telemetry sessions recorded in the database yet. Launch a session or simulator!'}
+                  ? t('history.noSessionsMatch')
+                  : t('history.noSessionsEmpty')}
               </p>
             </div>
           ) : viewMode === 'cards' ? (
@@ -830,7 +834,7 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
                 </span>
               </div>
               <p className="mono" style={{ color: 'var(--text-secondary)', margin: '4px 0 0 0', fontSize: '0.85rem' }}>
-                Recorded on {formatDate(selectedSession.created_at)} • UID: {selectedSession.session_uid || selectedSession.id}
+                {t('history.detail.recordedOn', { date: formatDate(selectedSession.created_at), uid: selectedSession.session_uid || selectedSession.id })}
               </p>
             </div>
 
@@ -838,9 +842,9 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
               <div className="header-stat-box">
                 <CloudSun size={16} color="var(--text-secondary)" />
                 <div>
-                  <div className="stat-label">WEATHER</div>
+                  <div className="stat-label">{t('history.detail.weather')}</div>
                   <div className="stat-value" style={{ fontSize: '0.85rem' }}>
-                    {selectedSession.weather || 'Clear'}
+                    {selectedSession.weather || t('common.clearWeather')}
                   </div>
                 </div>
               </div>
@@ -848,16 +852,16 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
               <div className="header-stat-box">
                 <Flag size={16} color="var(--text-secondary)" />
                 <div>
-                  <div className="stat-label">TOTAL LAPS</div>
-                  <div className="stat-value mono">{totalSessionLaps} Laps</div>
+                  <div className="stat-label">{t('history.detail.totalLaps')}</div>
+                  <div className="stat-value mono">{t('history.detail.lapsCount', { count: totalSessionLaps })}</div>
                 </div>
               </div>
 
               <div className="header-stat-box">
                 <Users size={16} color="var(--text-secondary)" />
                 <div>
-                  <div className="stat-label">DRIVERS</div>
-                  <div className="stat-value mono">{totalDriversCount} Drivers</div>
+                  <div className="stat-label">{t('history.detail.drivers')}</div>
+                  <div className="stat-value mono">{t('history.detail.driversCount', { count: totalDriversCount })}</div>
                 </div>
               </div>
 
@@ -877,12 +881,12 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
                   color: '#fff',
                 }}
               >
-                <Sparkles size={15} color="#ffd700" /> AI Race Engineer Debrief
+                <Sparkles size={15} color="#ffd700" /> {t('history.detail.aiDebrief')}
               </button>
 
               <button
                 className="nav-tab"
-                title="Delete this session"
+                title={t('history.detail.deleteThis')}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -895,7 +899,7 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
                 }}
                 onClick={() => setSessionToDelete(selectedSession)}
               >
-                <Trash2 size={15} /> Delete
+                <Trash2 size={15} /> {t('common.delete')}
               </button>
             </div>
           </div>
@@ -908,7 +912,7 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
               style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', padding: '0.6rem 1.2rem' }}
             >
               <Trophy size={16} />
-              <span>Classification & Laps</span>
+              <span>{t('history.detail.tabClassification')}</span>
             </button>
 
             <button
@@ -917,7 +921,7 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
               style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', padding: '0.6rem 1.2rem' }}
             >
               <TrendingUp size={16} />
-              <span>Lap Progression & Gap Charts</span>
+              <span>{t('history.detail.tabProgression')}</span>
             </button>
 
             <button
@@ -926,7 +930,7 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
               style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', padding: '0.6rem 1.2rem' }}
             >
               <Zap size={16} />
-              <span>Sector & Speed Matrix</span>
+              <span>{t('history.detail.tabSectors')}</span>
             </button>
           </div>
 
@@ -934,7 +938,9 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
           {loadingDetail ? (
             <div className="glass-panel" style={{ textAlign: 'center', padding: '3rem' }}>
               <RefreshCw size={32} className="animate-spin" style={{ color: 'var(--accent-primary)', marginBottom: '1rem' }} />
-              <p style={{ color: 'var(--text-secondary)' }}>Retrieving drivers and lap timing telemetry...</p>
+              <p style={{ color: 'var(--text-secondary)' }}>
+                {t('history.detail.retrievingData')}
+              </p>
             </div>
           ) : activeDetailTab === 'classification' ? (
             <SessionClassificationTab
@@ -996,7 +1002,9 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#ff4d4f' }}>
                 <AlertTriangle size={24} />
-                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>Confirm Session Deletion</h3>
+                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>
+                  {t('history.modal.confirmTitle')}
+                </h3>
               </div>
               <button
                 onClick={() => setSessionToDelete(null)}
@@ -1007,8 +1015,11 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
             </div>
 
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: '1.5', margin: '0 0 1.25rem 0' }}>
-              Are you sure you want to delete <strong style={{ color: 'var(--text-primary)' }}>Session #{sessionToDelete.id} ({sessionToDelete.track_name} — {sessionToDelete.session_type})</strong>?
-              This action will permanently delete all associated telemetry samples, lap data, and participants.
+              {t('history.modal.confirmBody', {
+                id: sessionToDelete.id,
+                track: sessionToDelete.track_name,
+                type: sessionToDelete.session_type,
+              })}
             </p>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
@@ -1018,7 +1029,7 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
                 disabled={deletingSessionId === sessionToDelete.id}
                 style={{ padding: '0.5rem 1.2rem' }}
               >
-                Cancel
+                {t('common.cancel')}
               </button>
               <button
                 className="nav-tab active"
@@ -1036,11 +1047,11 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
               >
                 {deletingSessionId === sessionToDelete.id ? (
                   <>
-                    <RefreshCw size={14} className="animate-spin" /> Deleting...
+                    <RefreshCw size={14} className="animate-spin" /> {t('common.deleting')}
                   </>
                 ) : (
                   <>
-                    <Trash2 size={14} /> Delete Session
+                    <Trash2 size={14} /> {t('common.deleteSession')}
                   </>
                 )}
               </button>

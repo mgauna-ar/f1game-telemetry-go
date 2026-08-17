@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { TEAM_COLORS } from '../../constants/f1';
 import type { Session, Lap, DriverStanding, StagedLap } from '../../types/session';
+import { useI18n } from '../../context/I18nContext';
 
 export type { DriverStanding };
 
@@ -49,6 +50,7 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
   renderTyreBadge,
   renderDriverTyreStints,
 }) => {
+  const { t } = useI18n();
   const leaderBestLapMS = driverStandings.length > 0 ? driverStandings[0].bestLapTimeMS : Infinity;
   const top3 = driverStandings.slice(0, 3);
 
@@ -77,7 +79,11 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
             const isP1 = driver.position === 1;
             const isP2 = driver.position === 2;
             const rankClass = isP1 ? 'podium-p1' : isP2 ? 'podium-p2' : 'podium-p3';
-            const rankLabel = isP1 ? 'P1 • WINNER' : isP2 ? 'P2 • SECOND' : 'P3 • THIRD';
+            const rankLabel = isP1
+              ? t('history.classification.podiumP1')
+              : isP2
+              ? t('history.classification.podiumP2')
+              : t('history.classification.podiumP3');
             const rankColor = isP1 ? '#ffd700' : isP2 ? '#c0c0c0' : '#cd7f32';
 
             return (

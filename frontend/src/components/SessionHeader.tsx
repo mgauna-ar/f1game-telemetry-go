@@ -1,6 +1,7 @@
 import React from 'react';
 import { Flag, CloudSun, Thermometer, ShieldAlert, Timer } from 'lucide-react';
 import type { SessionData } from '../hooks/useTelemetry';
+import { useI18n } from '../context/I18nContext';
 
 interface SessionHeaderProps {
   session: SessionData | null;
@@ -48,6 +49,7 @@ const SESSION_TYPES: Record<number, { label: string; isRace: boolean; isQualy: b
 };
 
 export const SessionHeader: React.FC<SessionHeaderProps> = ({ session, connected }) => {
+  const { t } = useI18n();
   const trackName = session?.TrackId !== undefined ? (TRACK_NAMES[session.TrackId] || `Track #${session.TrackId}`) : 'Albert Park';
   const sessionInfo = session?.SessionType !== undefined ? (SESSION_TYPES[session.SessionType] || { label: 'LIVE SESSION', isRace: false, isQualy: false }) : { label: 'LIVE SESSION', isRace: false, isQualy: false };
   const weatherText = session?.Weather !== undefined ? (WEATHER_NAMES[session.Weather] || 'Clear') : 'Clear ☀️';
@@ -63,7 +65,7 @@ export const SessionHeader: React.FC<SessionHeaderProps> = ({ session, connected
     if (!session || session.SafetyCarStatus === 0) {
       return (
         <span className="session-badge badge-green">
-          <Flag size={14} /> GREEN FLAG
+          <Flag size={14} /> {t('live.greenFlag')}
         </span>
       );
     }
@@ -84,7 +86,7 @@ export const SessionHeader: React.FC<SessionHeaderProps> = ({ session, connected
     if (session.SafetyCarStatus === 3) {
       return (
         <span className="session-badge badge-blue">
-          <Flag size={14} /> FORMATION LAP
+          <Flag size={14} /> {t('live.formationLap')}
         </span>
       );
     }
@@ -109,7 +111,7 @@ export const SessionHeader: React.FC<SessionHeaderProps> = ({ session, connected
             </span>
           </div>
           <p className="mono" style={{ color: 'var(--text-secondary)', margin: '4px 0 0 0', fontSize: '0.9rem' }}>
-            F1 Telemetry Command Center
+            {t('live.commandCenter')}
           </p>
         </div>
       </div>
@@ -120,12 +122,12 @@ export const SessionHeader: React.FC<SessionHeaderProps> = ({ session, connected
           <Timer size={16} color="var(--text-secondary)" />
           {sessionInfo.isRace ? (
             <div>
-              <div className="stat-label">TOTAL LAPS</div>
-              <div className="stat-value mono">{session?.TotalLaps ? `${session.TotalLaps} LAPS` : 'TIME TRIAL'}</div>
+              <div className="stat-label">{t('live.totalLaps')}</div>
+              <div className="stat-value mono">{session?.TotalLaps ? `${session.TotalLaps} ${t('common.laps').toUpperCase()}` : 'TIME TRIAL'}</div>
             </div>
           ) : (
             <div>
-              <div className="stat-label">TIME REMAINING</div>
+              <div className="stat-label">{t('live.timeRemaining')}</div>
               <div className="stat-value mono">{session?.SessionTimeLeft ? formatSeconds(session.SessionTimeLeft) : '--:--'}</div>
             </div>
           )}
@@ -135,7 +137,7 @@ export const SessionHeader: React.FC<SessionHeaderProps> = ({ session, connected
         <div className="header-stat-box">
           <CloudSun size={16} color="var(--text-secondary)" />
           <div>
-            <div className="stat-label">CONDITIONS</div>
+            <div className="stat-label">{t('live.conditions')}</div>
             <div className="stat-value" style={{ fontSize: '0.85rem' }}>{weatherText}</div>
           </div>
         </div>
@@ -143,7 +145,7 @@ export const SessionHeader: React.FC<SessionHeaderProps> = ({ session, connected
         <div className="header-stat-box">
           <Thermometer size={16} color="var(--text-secondary)" />
           <div>
-            <div className="stat-label">TRACK / AIR TEMP</div>
+            <div className="stat-label">{t('live.trackAirTemp')}</div>
             <div className="stat-value mono">
               {session ? `${session.TrackTemperature}°C / ${session.AirTemperature}°C` : '--°C / --°C'}
             </div>
@@ -157,10 +159,11 @@ export const SessionHeader: React.FC<SessionHeaderProps> = ({ session, connected
         <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255, 255, 255, 0.03)', padding: '6px 12px', borderRadius: '8px' }}>
           <span className={`status-dot ${connected ? 'status-live' : ''}`} />
           <span className="mono" style={{ marginLeft: '8px', color: connected ? 'var(--accent-primary)' : 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 600 }}>
-            {connected ? 'LIVE' : 'RECONNECTING...'}
+            {connected ? t('live.liveStatus') : t('live.reconnecting')}
           </span>
         </div>
       </div>
     </header>
   );
 };
+

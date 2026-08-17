@@ -4,6 +4,7 @@ import type { Participant, Lap } from '../../types/session';
 import { TEAM_COLORS } from '../../constants/f1';
 import { formatTime, getRankBadgeStyle } from '../../utils/formatters';
 import { renderTyreCompoundBadge } from '../CustomLapSelector';
+import { useI18n } from '../../context/I18nContext';
 
 export interface QuickSelectDriver extends Participant {
   bestLap: Lap | null;
@@ -55,6 +56,8 @@ export const QuickSelectLeaderboard: React.FC<QuickSelectLeaderboardProps> = ({
   onSetLapB,
   participantsA,
 }) => {
+  const { t } = useI18n();
+
   return (
     <div
       className="glass-panel"
@@ -84,7 +87,7 @@ export const QuickSelectLeaderboard: React.FC<QuickSelectLeaderboardProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
             <Zap size={15} color="var(--accent-primary)" />
             <span style={{ fontSize: '0.82rem', color: 'var(--text-primary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Quick Select Driver Leaderboard
+              {t('comparator.quickSelect.title')}
             </span>
             <span
               style={{
@@ -97,7 +100,7 @@ export const QuickSelectLeaderboard: React.FC<QuickSelectLeaderboardProps> = ({
               }}
               data-testid="quick-select-driver-count"
             >
-              {quickSelectData.drivers.length}{driverSearchQuery ? ` / ${quickSelectData.totalCount}` : ''} drivers
+              {quickSelectData.drivers.length}{driverSearchQuery ? ` / ${quickSelectData.totalCount}` : ''} {t('common.drivers').toLowerCase()}
             </span>
           </div>
 

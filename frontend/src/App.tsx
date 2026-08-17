@@ -4,13 +4,16 @@ import { Dashboard } from './components/Dashboard';
 import { LapComparator } from './components/LapComparator';
 import { SessionHistory } from './components/SessionHistory';
 import { RaceEngineerProvider, useRaceEngineer } from './context/RaceEngineerContext';
+import { I18nProvider, useI18n } from './context/I18nContext';
 import { AiRaceEngineer } from './components/AiRaceEngineer';
+import { LanguageSelector } from './components/LanguageSelector';
 
 type TabType = 'history' | 'comparator' | 'live';
 
 const STORAGE_KEY = 'f1_active_tab';
 
 function AppContent() {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<TabType>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -84,9 +87,9 @@ function AppContent() {
           </div>
           <div className="app-brand-text">
             <div className="app-brand-title">
-              F1 Telemetry <span className="app-brand-tag">PRO</span>
+              {t('nav.brandTitle')} <span className="app-brand-tag">{t('nav.brandTag')}</span>
             </div>
-            <div className="app-brand-sub mono">EA F1 2025 / 2026 DLC</div>
+            <div className="app-brand-sub mono">{t('nav.brandSub')}</div>
           </div>
         </div>
 
@@ -99,7 +102,7 @@ function AppContent() {
             onClick={() => setActiveTab('history')}
           >
             <Calendar size={16} className="nav-tab-icon" />
-            <span>Session History</span>
+            <span>{t('nav.tabs.history')}</span>
           </button>
 
           <button
@@ -109,7 +112,7 @@ function AppContent() {
             onClick={() => setActiveTab('comparator')}
           >
             <GitCompare size={16} className="nav-tab-icon" />
-            <span>Lap Comparator</span>
+            <span>{t('nav.tabs.comparator')}</span>
           </button>
 
           <button
@@ -119,17 +122,18 @@ function AppContent() {
             onClick={() => setActiveTab('live')}
           >
             <Radio size={16} className="nav-tab-icon" />
-            <span>Live Session</span>
+            <span>{t('nav.tabs.live')}</span>
             <span className="live-pulse-badge">
               <span className="live-pulse-dot" />
-              LIVE
+              {t('nav.liveBadge')}
             </span>
           </button>
         </nav>
 
-        {/* Port Status Badge */}
+        {/* Status & Language Controls */}
         <div className="app-nav-status">
-          <span className="mono nav-port-badge">PORT 20777</span>
+          <LanguageSelector />
+          <span className="mono nav-port-badge">{t('nav.portBadge')} 20777</span>
         </div>
       </header>
 
@@ -152,10 +156,13 @@ function AppContent() {
 
 function App() {
   return (
-    <RaceEngineerProvider>
-      <AppContent />
-    </RaceEngineerProvider>
+    <I18nProvider>
+      <RaceEngineerProvider>
+        <AppContent />
+      </RaceEngineerProvider>
+    </I18nProvider>
   );
 }
 
 export default App;
+

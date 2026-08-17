@@ -579,6 +579,135 @@ h1 {
   letter-spacing: 0.04em;
 }
 
+/* Language Selector */
+.lang-selector-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.lang-selector-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.lang-selector-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: var(--text-primary);
+}
+
+.lang-selector-btn.active {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+}
+
+.lang-icon {
+  color: var(--text-muted);
+}
+
+.lang-flag {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.lang-code {
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  color: var(--text-primary);
+}
+
+.lang-chevron {
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+}
+
+.lang-chevron.open {
+  transform: rotate(180deg);
+}
+
+.lang-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 220px;
+  background: rgba(18, 20, 29, 0.96);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-md);
+  padding: 5px;
+  z-index: 1000;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  animation: langDropdownFade 0.15s ease-out;
+}
+
+@keyframes langDropdownFade {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.lang-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+  width: 100%;
+}
+
+.lang-menu-item:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text-primary);
+}
+
+.lang-menu-item.selected {
+  background: rgba(225, 6, 0, 0.15);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.lang-item-flag {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.lang-item-label {
+  flex: 1;
+}
+
+.lang-item-check {
+  color: var(--accent-primary);
+}
+
 .app-main-content {
   flex: 1;
   width: 100%;

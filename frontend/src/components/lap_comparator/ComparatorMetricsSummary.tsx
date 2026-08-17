@@ -2,6 +2,7 @@ import React from 'react';
 import { Award, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import type { Lap, Participant } from '../../types/session';
 import { formatTime } from '../../utils/formatters';
+import { useI18n } from '../../context/I18nContext';
 
 interface ComparatorMetricsSummaryProps {
   lapAObj?: Lap;
@@ -41,6 +42,7 @@ export const ComparatorMetricsSummary: React.FC<ComparatorMetricsSummaryProps> =
   driverB,
   totalDeltaMs,
 }) => {
+  const { t } = useI18n();
   const isLapAComplete = Boolean(lapAObj && lapAObj.is_valid && lapAObj.lap_time_ms > 0 && lapAObj.sector3_ms && lapAObj.sector3_ms > 0);
   const isLapBComplete = Boolean(lapBObj && lapBObj.is_valid && lapBObj.lap_time_ms > 0 && lapBObj.sector3_ms && lapBObj.sector3_ms > 0);
   const areBothLapsComplete = isLapAComplete && isLapBComplete;
@@ -85,26 +87,26 @@ export const ComparatorMetricsSummary: React.FC<ComparatorMetricsSummaryProps> =
                 {!areBothLapsComplete ? (
                   <span style={{ color: '#f39c12' }}>
                     {!isLapAComplete && !isLapBComplete
-                      ? 'Both laps are incomplete (In-Lap / Aborted)'
+                      ? t('comparator.bothIncomplete')
                       : !isLapAComplete
-                      ? 'Lap A is incomplete (Sector 3 missing)'
-                      : 'Lap B is incomplete (Sector 3 missing)'}
+                      ? t('comparator.lapAIncomplete')
+                      : t('comparator.lapBIncomplete')}
                   </span>
                 ) : totalDeltaMs !== null && totalDeltaMs < 0 ? (
-                  <>
-                    Lap A is <span style={{ color: '#ff4757' }}>{(Math.abs(totalDeltaMs) / 1000).toFixed(3)}s faster</span> than Lap B
-                  </>
+                  <span style={{ color: '#ff4757' }}>
+                    {t('comparator.lapAFaster', { delta: (Math.abs(totalDeltaMs) / 1000).toFixed(3) })}
+                  </span>
                 ) : totalDeltaMs !== null && totalDeltaMs > 0 ? (
-                  <>
-                    Lap B is <span style={{ color: '#00d2d3' }}>{(Math.abs(totalDeltaMs) / 1000).toFixed(3)}s faster</span> than Lap A
-                  </>
+                  <span style={{ color: '#00d2d3' }}>
+                    {t('comparator.lapBFaster', { delta: (Math.abs(totalDeltaMs) / 1000).toFixed(3) })}
+                  </span>
                 ) : (
-                  <>Identical lap times</>
+                  <span>{t('comparator.identicalLapTimes')}</span>
                 )}
               </div>
 
               <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                {nameA} ({isLapAComplete ? formatTime(lapAObj.lap_time_ms) : 'Incomplete'}) vs {nameB} ({isLapBComplete ? formatTime(lapBObj.lap_time_ms) : 'Incomplete'})
+                {nameA} ({isLapAComplete ? formatTime(lapAObj.lap_time_ms) : t('comparator.incomplete')}) vs {nameB} ({isLapBComplete ? formatTime(lapBObj.lap_time_ms) : t('comparator.incomplete')})
               </span>
             </div>
           </div>
@@ -130,13 +132,13 @@ export const ComparatorMetricsSummary: React.FC<ComparatorMetricsSummaryProps> =
               <div style={{ fontSize: '1.2rem', fontWeight: 'bold', fontFamily: 'var(--font-mono)', color: '#fff' }}>
                 {isLapAComplete ? formatTime(lapAObj.lap_time_ms) : '--:--.---'}
                 {!lapAObj.is_valid ? (
-                  <span style={{ fontSize: '0.75rem', color: '#ff4757', marginLeft: '0.5rem' }}>⚠️ INVALID</span>
+                  <span style={{ fontSize: '0.75rem', color: '#ff4757', marginLeft: '0.5rem' }}>⚠️ {t('comparator.invalid')}</span>
                 ) : !isLapAComplete ? (
-                  <span style={{ fontSize: '0.75rem', color: '#f39c12', marginLeft: '0.5rem' }}>⚠️ INCOMPLETE</span>
+                  <span style={{ fontSize: '0.75rem', color: '#f39c12', marginLeft: '0.5rem' }}>⚠️ {t('comparator.incomplete')}</span>
                 ) : null}
               </div>
               <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                Driver: <strong style={{ color: '#fff' }}>{driverA?.name || `Car ${lapAObj.car_index ?? '?'}`}</strong> #{driverA?.race_number ?? ''}
+                {t('common.driver')}: <strong style={{ color: '#fff' }}>{driverA?.name || `Car ${lapAObj.car_index ?? '?'}`}</strong> #{driverA?.race_number ?? ''}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginTop: '0.5rem', background: 'rgba(0,0,0,0.3)', padding: '0.5rem', borderRadius: '6px' }}>
                 <div>
@@ -155,7 +157,7 @@ export const ComparatorMetricsSummary: React.FC<ComparatorMetricsSummaryProps> =
             </div>
           ) : (
             <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-              Select a lap for Slot A to view details
+              {t('comparator.selectLapSlotA')}
             </div>
           )}
         </div>
@@ -170,13 +172,13 @@ export const ComparatorMetricsSummary: React.FC<ComparatorMetricsSummaryProps> =
               <div style={{ fontSize: '1.2rem', fontWeight: 'bold', fontFamily: 'var(--font-mono)', color: '#fff' }}>
                 {isLapBComplete ? formatTime(lapBObj.lap_time_ms) : '--:--.---'}
                 {!lapBObj.is_valid ? (
-                  <span style={{ fontSize: '0.75rem', color: '#ff4757', marginLeft: '0.5rem' }}>⚠️ INVALID</span>
+                  <span style={{ fontSize: '0.75rem', color: '#ff4757', marginLeft: '0.5rem' }}>⚠️ {t('comparator.invalid')}</span>
                 ) : !isLapBComplete ? (
-                  <span style={{ fontSize: '0.75rem', color: '#f39c12', marginLeft: '0.5rem' }}>⚠️ INCOMPLETE</span>
+                  <span style={{ fontSize: '0.75rem', color: '#f39c12', marginLeft: '0.5rem' }}>⚠️ {t('comparator.incomplete')}</span>
                 ) : null}
               </div>
               <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                Driver: <strong style={{ color: '#fff' }}>{driverB?.name || `Car ${lapBObj.car_index ?? '?'}`}</strong> #{driverB?.race_number ?? ''}
+                {t('common.driver')}: <strong style={{ color: '#fff' }}>{driverB?.name || `Car ${lapBObj.car_index ?? '?'}`}</strong> #{driverB?.race_number ?? ''}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginTop: '0.5rem', background: 'rgba(0,0,0,0.3)', padding: '0.5rem', borderRadius: '6px' }}>
                 <div>
@@ -195,7 +197,7 @@ export const ComparatorMetricsSummary: React.FC<ComparatorMetricsSummaryProps> =
             </div>
           ) : (
             <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-              Select a lap for Slot B to view details
+              {t('comparator.selectLapSlotB')}
             </div>
           )}
         </div>

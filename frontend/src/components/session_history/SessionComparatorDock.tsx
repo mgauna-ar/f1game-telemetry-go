@@ -2,6 +2,7 @@ import React from 'react';
 import { GitCompare, ArrowLeftRight, X, ChevronRight, Zap } from 'lucide-react';
 import { TEAM_COLORS } from '../../constants/f1';
 import type { StagedLap } from '../../types/session';
+import { useI18n } from '../../context/I18nContext';
 
 export type { StagedLap };
 
@@ -26,6 +27,7 @@ export const SessionComparatorDock: React.FC<SessionComparatorDockProps> = ({
   onLaunch,
   formatLapTime,
 }) => {
+  const { t } = useI18n();
   const hasAny = !!stagedA || !!stagedB;
   const hasBoth = !!stagedA && !!stagedB;
 
@@ -74,10 +76,12 @@ export const SessionComparatorDock: React.FC<SessionComparatorDockProps> = ({
         </div>
         <div>
           <div style={{ fontSize: '0.8rem', fontWeight: 800, letterSpacing: '0.05em', color: '#00f2fe' }}>
-            LAP COMPARATOR STAGING
+            {t('history.dock.stagingTitle')}
           </div>
           <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-            {hasBoth ? '2 Laps ready to compare' : 'Select another lap or compare now'}
+            {hasBoth
+              ? t('history.dock.readyToCompare')
+              : t('history.dock.selectAnother')}
           </div>
         </div>
       </div>
@@ -114,7 +118,7 @@ export const SessionComparatorDock: React.FC<SessionComparatorDockProps> = ({
                   e.stopPropagation();
                   onClearA();
                 }}
-                title="Remove Slot A"
+                title={t('history.dock.removeSlotA')}
                 style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px' }}
               >
                 <X size={13} />
@@ -122,7 +126,7 @@ export const SessionComparatorDock: React.FC<SessionComparatorDockProps> = ({
             </div>
           ) : (
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-              Pick a lap for A...
+              {t('history.dock.pickLapA')}
             </span>
           )}
         </div>
@@ -130,7 +134,7 @@ export const SessionComparatorDock: React.FC<SessionComparatorDockProps> = ({
         {/* Swap Button & VS Badge */}
         <button
           onClick={onSwap}
-          title="Swap Slot A and Slot B"
+          title={t('history.dock.swapSlots')}
           disabled={!stagedA || !stagedB}
           style={{
             background: 'rgba(255, 255, 255, 0.06)',
@@ -178,7 +182,7 @@ export const SessionComparatorDock: React.FC<SessionComparatorDockProps> = ({
                   e.stopPropagation();
                   onClearB();
                 }}
-                title="Remove Slot B"
+                title={t('history.dock.removeSlotB')}
                 style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '2px' }}
               >
                 <X size={13} />
@@ -186,7 +190,7 @@ export const SessionComparatorDock: React.FC<SessionComparatorDockProps> = ({
             </div>
           ) : (
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-              Pick a lap for B...
+              {t('history.dock.pickLapB')}
             </span>
           )}
         </div>
@@ -199,7 +203,7 @@ export const SessionComparatorDock: React.FC<SessionComparatorDockProps> = ({
           className="nav-tab"
           style={{ padding: '6px 10px', fontSize: '0.75rem', color: 'var(--text-muted)' }}
         >
-          Clear
+          {t('common.clear')}
         </button>
 
         <button
@@ -223,7 +227,11 @@ export const SessionComparatorDock: React.FC<SessionComparatorDockProps> = ({
           }}
         >
           <Zap size={14} />
-          <span>{hasBoth ? 'Compare 2 Laps' : 'Launch Comparator'}</span>
+          <span>
+            {hasBoth
+              ? t('history.dock.compare2Laps')
+              : t('history.dock.launchComparator')}
+          </span>
           <ChevronRight size={14} />
         </button>
       </div>
