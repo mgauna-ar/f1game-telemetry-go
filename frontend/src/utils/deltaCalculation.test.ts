@@ -233,6 +233,126 @@ describe('deltaCalculation utility', () => {
       }
     }
   });
+
+  it('keeps both traces and delta continuous across finish line when laps have >70m distance difference', () => {
+    // Lap A: 5320m total distance
+    const lapA: TelemetrySamplePoint[] = Array.from({ length: 107 }, (_, i) => ({
+      lap_distance: i * 50, // 0m to 5300m
+      session_time: 100 + i * 0.82,
+      speed: 260,
+      throttle: 1,
+      brake: 0,
+      gear: 7,
+    }));
+    lapA.push({ lap_distance: 5320, session_time: 187.5, speed: 265, throttle: 1, brake: 0, gear: 7 });
+
+    // Lap B: 5240m total distance (80m shorter due to tighter racing line)
+    const lapB: TelemetrySamplePoint[] = Array.from({ length: 105 }, (_, i) => ({
+      lap_distance: i * 50, // 0m to 5200m
+      session_time: 200 + i * 0.81,
+      speed: 262,
+      throttle: 1,
+      brake: 0,
+      gear: 7,
+    }));
+    lapB.push({ lap_distance: 5240, session_time: 284.8, speed: 267, throttle: 1, brake: 0, gear: 7 });
+
+    const merged = calculateMergedComparison(lapA, lapB, 20);
+    expect(merged.length).toBeGreaterThan(0);
+
+    // Final point should reach 5320m
+    const finalPt = merged[merged.length - 1];
+    expect(finalPt.lap_distance).toBe(5320);
+
+    // Lap B should NOT be null at the end; it clamps smoothly to final sample
+    expect(finalPt.speedB).not.toBeNull();
+    expect(finalPt.speedB).toBe(267);
+    expect(finalPt.speedA).toBe(265);
+    expect(finalPt.time_delta).not.toBeNull();
+    expect(finalPt.throttleB).toBe(1);
+    expect(finalPt.gearB).toBe(7);
+  });
+
+  it('handles telemetry starting late (>60m) without uncalibrated delta jump', () => {
+    // Lap A starts at 75m (e.g. crossing start line at 320 km/h)
+    const lapA: TelemetrySamplePoint[] = Array.from({ length: 100 }, (_, i) => ({
+      lap_distance: 75 + i * 50,
+      session_time: 500.8 + i * 0.85,
+      speed: 280,
+      throttle: 1,
+      brake: 0,
+      gear: 8,
+    }));
+
+    // Lap B starts at 10m
+    const lapB: TelemetrySamplePoint[] = Array.from({ length: 100 }, (_, i) => ({
+      lap_distance: 10 + i * 50,
+      session_time: 800.2 + i * 0.845,
+      speed: 275,
+      throttle: 1,
+      brake: 0,
+      gear: 8,
+    }));
+
+    const merged = calculateMergedComparison(lapA, lapB, 25);
+    expect(merged.length).toBeGreaterThan(0);
+
+    // Start distance is 0m
+    expect(merged[0].lap_distance).toBe(0);
+    expect(merged[0].time_delta).toBe(0);
+
+    // Delta should remain small throughout (< 3s, not 300s!)
+    for (const pt of merged) {
+      if (pt.time_delta !== null) {
+        expect(Math.abs(pt.time_delta)).toBeLessThan(5.0);
+      }
+    }
+  });
+
+  it('filters out isolated distance spike without discarding remaining lap samples', () => {
+    const rawWithSpike: TelemetrySamplePoint[] = [
+      { lap_distance: 0, session_time: 100, speed: 200, throttle: 1, brake: 0 },
+      { lap_distance: 100, session_time: 101, speed: 220, throttle: 1, brake: 0 },
+      { lap_distance: 200, session_time: 102, speed: 230, throttle: 1, brake: 0 },
+      { lap_distance: 3500, session_time: 102.5, speed: 230, throttle: 1, brake: 0 }, // Isolated glitch spike!
+      { lap_distance: 300, session_time: 103, speed: 240, throttle: 1, brake: 0 },
+      { lap_distance: 400, session_time: 104, speed: 250, throttle: 1, brake: 0 },
+      { lap_distance: 500, session_time: 105, speed: 260, throttle: 1, brake: 0 },
+      ...Array.from({ length: 50 }, (_, i) => ({
+        lap_distance: 600 + i * 50,
+        session_time: 106 + i * 0.8,
+        speed: 270,
+        throttle: 1,
+        brake: 0,
+      })),
+    ];
+
+    const normalized = normalizeTelemetrySeries(rawWithSpike);
+    // Should retain samples past 300m rather than truncating them
+    expect(normalized.length).toBeGreaterThan(50);
+    const hasSampleAt300 = normalized.some((s) => s.lap_distance === 300);
+    expect(hasSampleAt300).toBe(true);
+    const hasSampleAt500 = normalized.some((s) => s.lap_distance === 500);
+    expect(hasSampleAt500).toBe(true);
+  });
+
+  it('gracefully handles non-finite / NaN values in input samples', () => {
+    const dirtySamples: TelemetrySamplePoint[] = [
+      { lap_distance: NaN, session_time: NaN, speed: 200, throttle: 1, brake: 0 },
+      { lap_distance: 0, session_time: 100, speed: NaN, throttle: 1, brake: 0 },
+      { lap_distance: 50, session_time: 101, speed: 250, throttle: 1, brake: 0 },
+      { lap_distance: 100, session_time: 102, speed: 260, throttle: 1, brake: 0 },
+    ];
+
+    const merged = calculateMergedComparison(dirtySamples, [], 25);
+    expect(merged.length).toBeGreaterThan(0);
+    for (const pt of merged) {
+      expect(Number.isFinite(pt.lap_distance)).toBe(true);
+      if (pt.speedA !== null) {
+        expect(Number.isFinite(pt.speedA)).toBe(true);
+      }
+    }
+  });
 });
 
 

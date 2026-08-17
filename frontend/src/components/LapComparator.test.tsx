@@ -376,5 +376,66 @@ describe('LapComparator Component', () => {
     // Grid should expand back
     expect(screen.getByTestId('quick-select-drivers-grid')).toBeInTheDocument();
   });
+
+  it('renders all telemetry charts smoothly when laps have boundary distance differences', async () => {
+    const mockSessions = [
+      { id: 1, session_uid: '123', track_name: 'Silverstone', session_type: 'Race', created_at: '2026-08-10T12:00:00Z' }
+    ];
+    const mockLaps = [
+      { id: 501, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 90000, sector1_ms: 30000, sector2_ms: 30000, sector3_ms: 30000, is_valid: true, tyre_compound: 'SOFT' },
+      { id: 502, session_id: 1, car_index: 1, lap_number: 1, lap_time_ms: 91000, sector1_ms: 30500, sector2_ms: 30200, sector3_ms: 30300, is_valid: true, tyre_compound: 'MEDIUM' }
+    ];
+    const mockParticipants = [
+      { id: 1, session_id: 1, car_index: 0, name: 'Driver One', race_number: 1, driver_id: 1, team_id: 1, ai_controlled: false, nationality: 1 },
+      { id: 2, session_id: 1, car_index: 1, name: 'Driver Two', race_number: 2, driver_id: 2, team_id: 2, ai_controlled: false, nationality: 2 }
+    ];
+
+    const mockTelemetryA = [
+      { lap_distance: 0, session_time: 100, speed: 250, throttle: 1, brake: 0, steer: 0, gear: 6, ers_store_energy: 80, ers_deploy_mode: 1, world_pos_x: 10, world_pos_z: 10 },
+      { lap_distance: 2500, session_time: 145, speed: 280, throttle: 1, brake: 0, steer: 0.1, gear: 7, ers_store_energy: 60, ers_deploy_mode: 2, world_pos_x: 50, world_pos_z: 50 },
+      { lap_distance: 5320, session_time: 190, speed: 290, throttle: 1, brake: 0, steer: 0, gear: 8, ers_store_energy: 40, ers_deploy_mode: 2, world_pos_x: 10, world_pos_z: 10 }
+    ];
+
+    const mockTelemetryB = [
+      { lap_distance: 10, session_time: 200, speed: 245, throttle: 1, brake: 0, steer: 0, gear: 6, ers_store_energy: 85, ers_deploy_mode: 1, world_pos_x: 10, world_pos_z: 10 },
+      { lap_distance: 2500, session_time: 245.5, speed: 275, throttle: 1, brake: 0, steer: 0.1, gear: 7, ers_store_energy: 65, ers_deploy_mode: 2, world_pos_x: 50, world_pos_z: 50 },
+      { lap_distance: 5240, session_time: 291, speed: 285, throttle: 1, brake: 0, steer: 0, gear: 8, ers_store_energy: 45, ers_deploy_mode: 2, world_pos_x: 10, world_pos_z: 10 }
+    ];
+
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url === '/api/sessions') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSessions) });
+      if (url === '/api/sessions/1/laps') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockLaps) });
+      if (url === '/api/sessions/1/participants') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockParticipants) });
+      if (url.includes('/api/laps/501/telemetry')) return Promise.resolve({ ok: true, json: () => Promise.resolve(mockTelemetryA) });
+      if (url.includes('/api/laps/502/telemetry')) return Promise.resolve({ ok: true, json: () => Promise.resolve(mockTelemetryB) });
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    });
+
+    render(<LapComparator initialPreload={{ sessionAId: 1, sessionBId: 1, lapAId: 501, lapBId: 502 }} />);
+
+    // Wait for telemetry charts to render
+    await waitFor(() => {
+      expect(screen.getAllByText(/Time Delta/i).length).toBeGreaterThan(0);
+      expect(screen.getByText(/Speed \(KM\/H\)/i)).toBeInTheDocument();
+      expect(screen.getByText(/Throttle Application/i)).toBeInTheDocument();
+      expect(screen.getByText(/Brake Pressure/i)).toBeInTheDocument();
+      expect(screen.getByText(/Gear Selection/i)).toBeInTheDocument();
+      expect(screen.getByText(/Steering Angle/i)).toBeInTheDocument();
+      expect(screen.getByText(/ERS Battery Store/i)).toBeInTheDocument();
+      expect(screen.getByText(/ERS Deploy Mode/i)).toBeInTheDocument();
+    });
+
+    // Zoom buttons should be visible and functional
+    expect(screen.getByText('Full Track')).toBeInTheDocument();
+    expect(screen.getByText('Sector 1')).toBeInTheDocument();
+    expect(screen.getByText('Sector 2')).toBeInTheDocument();
+    expect(screen.getByText('Sector 3')).toBeInTheDocument();
+
+    // Click Sector 2 zoom
+    fireEvent.click(screen.getByText('Sector 2'));
+    await waitFor(() => {
+      expect(screen.getByText(/Reset Zoom/i)).toBeInTheDocument();
+    });
+  });
 });
 

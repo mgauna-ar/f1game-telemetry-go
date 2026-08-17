@@ -26,10 +26,12 @@ export interface MergedTelemetryPoint {
 
 /**
  * Cleans telemetry samples for comparison:
+ * - Sanitizes non-finite/NaN values
  * - Drops negative distances (e.g. from out-laps or pit exits)
  * - Sorts by session_time
  * - Removes stale wrap-around samples from previous attempts at the start
  * - Removes trailing wrap-around samples into the next lap across the entire array
+ * - Filters isolated distance spike noise (e.g. packet corruption or glitch leaps)
  * - Deduplicates flat plateaus caused by sample rate mismatches
  * - Synthesizes / aligns 0m start point with extrapolated session_time t=0
  * - Enforces strict distance monotonicity for binary search interpolation
@@ -39,8 +41,18 @@ export function normalizeTelemetrySeries(
 ): TelemetrySamplePoint[] {
   if (!samples || samples.length === 0) return [];
 
-  // Step 1: Sort by session_time
-  const sorted = [...samples].sort((a, b) => a.session_time - b.session_time);
+  // Step 1: Filter non-finite numbers and sort by session_time
+  const validSamples = samples.filter(
+    (s) =>
+      s &&
+      typeof s.session_time === 'number' &&
+      Number.isFinite(s.session_time) &&
+      typeof s.lap_distance === 'number' &&
+      Number.isFinite(s.lap_distance)
+  );
+  if (validSamples.length < 2) return [];
+
+  const sorted = [...validSamples].sort((a, b) => a.session_time - b.session_time);
   if (sorted.length < 2) return [];
 
   // Step 2: Discard any out-lap / in-pit samples at or before negative distances
@@ -57,7 +69,7 @@ export function normalizeTelemetrySeries(
   for (let i = cleanStartIdx + 1; i < sorted.length; i++) {
     const prevDist = sorted[i - 1].lap_distance || 0;
     const currDist = sorted[i].lap_distance || 0;
-    if (prevDist > 100 && (currDist < 50 || currDist < prevDist * 0.3)) {
+    if (prevDist > 100 && (currDist < 50 || currDist < prevDist * 0.3 || prevDist - currDist > 500)) {
       if (sorted.length - i >= 5) {
         cleanStartIdx = i;
       }
@@ -75,7 +87,7 @@ export function normalizeTelemetrySeries(
     }
   }
 
-  const cleaned = sorted.slice(cleanStartIdx, cleanEndIdx).filter(s => (s.lap_distance ?? 0) >= 0);
+  const cleaned = sorted.slice(cleanStartIdx, cleanEndIdx).filter((s) => (s.lap_distance ?? 0) >= 0);
   if (cleaned.length < 2) return [];
 
   // Advance past stationary / pre-start freeze samples near distance 0 (e.g. countdown or pit holding)
@@ -100,32 +112,43 @@ export function normalizeTelemetrySeries(
   const movingSamples = cleaned.slice(actualStart);
   if (movingSamples.length < 2) return [];
 
-
-  // Step 4: Deduplicate — keep only samples with distinct strictly-increasing distances
+  // Step 5: Deduplicate and filter out isolated distance spike noise
   const deduped: TelemetrySamplePoint[] = [movingSamples[0]];
   for (let i = 1; i < movingSamples.length; i++) {
     const curr = movingSamples[i];
     const prev = deduped[deduped.length - 1];
-    if ((curr.lap_distance ?? 0) > (prev.lap_distance ?? 0)) {
+    const currDist = curr.lap_distance ?? 0;
+    const prevDist = prev.lap_distance ?? 0;
+
+    // Check if curr is an isolated distance jump spike (e.g. leap forward > 250m while next samples are still near prevDist)
+    if (currDist - prevDist > 250 && i + 1 < movingSamples.length) {
+      const nextDist = movingSamples[i + 1].lap_distance ?? 0;
+      if (nextDist < currDist - 150 && nextDist >= prevDist) {
+        // curr is an isolated spike anomaly, skip it
+        continue;
+      }
+    }
+
+    if (currDist > prevDist) {
       deduped.push(curr);
     }
   }
 
   if (deduped.length < 2) return [];
 
-  // Step 5: Calibrate 0m start point & time
+  // Step 6: Calibrate 0m start point & time
   const firstSample = deduped[0];
   const firstDist = firstSample.lap_distance ?? 0;
-  const firstSpeed = Math.max(10, firstSample.speed ?? 100); // km/h
+  const firstSpeed = Math.max(10, Number(firstSample.speed) || 100); // km/h
   const speedMS = (firstSpeed * 1000) / 3600; // m/s
   // Time delta between start line (0m) and first sample position
-  const timeOffsetToZero = firstDist <= 100 ? firstDist / speedMS : 0;
+  const timeOffsetToZero = firstDist > 0 ? firstDist / speedMS : 0;
   const startTime = firstSample.session_time - timeOffsetToZero;
 
   const result: TelemetrySamplePoint[] = [];
 
-  // If first sample is not at 0m, synthesize a clean 0.0m anchor
-  if (firstDist > 0.5 && firstDist <= 100) {
+  // Always synthesize a clean 0.0m anchor if the first sample is not exactly at 0m
+  if (firstDist > 0.05) {
     result.push({
       ...firstSample,
       lap_distance: 0,
@@ -146,37 +169,47 @@ export function normalizeTelemetrySeries(
   return result;
 }
 
-
 /**
  * Interpolates a value from a strictly-sorted-by-distance array at distance d.
- * Supports smooth edge clamping for boundary continuity.
+ * Supports smooth boundary clamping for start and finish line continuity.
  */
 function interpolateAtDistance(
   samples: TelemetrySamplePoint[],
   key: keyof TelemetrySamplePoint,
-  d: number
+  d: number,
+  rangeEnd?: number
 ): number | null {
   if (!samples || samples.length === 0) return null;
 
   const firstDist = samples[0].lap_distance;
   const lastDist = samples[samples.length - 1].lap_distance;
 
-  // Clamping at start (within 50m tolerance of first point)
+  // Clamping at start (before first recorded point)
   if (d <= firstDist) {
-    if (firstDist - d <= 50) {
-      return (samples[0][key] as number) ?? 0;
+    if (key === 'session_time') {
+      if (firstDist > 0) {
+        // Linearly project time from 0.0s at 0m to firstSample time
+        const t0 = samples[0].session_time ?? 0;
+        const projected = (d / firstDist) * t0;
+        return Number.isFinite(projected) ? Math.max(0, projected) : t0;
+      }
+      return samples[0].session_time ?? 0;
     }
-    return null;
+    const val = samples[0][key];
+    return typeof val === 'number' && Number.isFinite(val) ? val : 0;
   }
 
-  // Clamping at finish line (within 50m tolerance of finish)
+  // Clamping at finish line (beyond last recorded point)
   if (d >= lastDist) {
-    if (d - lastDist <= 50) {
-      return (samples[samples.length - 1][key] as number) ?? 0;
+    // If the lap was completed (within 250m of finish or >85% of track), clamp to finish values
+    const isNearFinish = !rangeEnd || rangeEnd - lastDist <= 250 || (rangeEnd > 0 && lastDist >= rangeEnd * 0.85);
+    if (isNearFinish || d - lastDist <= 100) {
+      const val = samples[samples.length - 1][key];
+      return typeof val === 'number' && Number.isFinite(val) ? val : 0;
     }
+    // Otherwise the lap was aborted/incomplete and stopped short
     return null;
   }
-
 
   let low = 0;
   let high = samples.length - 1;
@@ -184,7 +217,8 @@ function interpolateAtDistance(
   while (low <= high) {
     const mid = (low + high) >> 1;
     if (samples[mid].lap_distance === d) {
-      return (samples[mid][key] as number) ?? 0;
+      const val = samples[mid][key];
+      return typeof val === 'number' && Number.isFinite(val) ? val : 0;
     }
     if (samples[mid].lap_distance < d) {
       low = mid + 1;
@@ -195,16 +229,22 @@ function interpolateAtDistance(
 
   const idx1 = Math.max(0, high);
   const idx2 = Math.min(samples.length - 1, low);
-  if (idx1 === idx2) return (samples[idx1][key] as number) ?? 0;
+  if (idx1 === idx2) {
+    const val = samples[idx1][key];
+    return typeof val === 'number' && Number.isFinite(val) ? val : 0;
+  }
 
   const d1 = samples[idx1].lap_distance;
   const d2 = samples[idx2].lap_distance;
-  const v1 = (samples[idx1][key] as number) ?? 0;
-  const v2 = (samples[idx2][key] as number) ?? 0;
+  const rawV1 = samples[idx1][key];
+  const rawV2 = samples[idx2][key];
+  const v1 = typeof rawV1 === 'number' && Number.isFinite(rawV1) ? rawV1 : 0;
+  const v2 = typeof rawV2 === 'number' && Number.isFinite(rawV2) ? rawV2 : 0;
   if (d2 === d1) return v1;
 
   const factor = (d - d1) / (d2 - d1);
-  return v1 + factor * (v2 - v1);
+  const interpolated = v1 + factor * (v2 - v1);
+  return Number.isFinite(interpolated) ? interpolated : v1;
 }
 
 /**
@@ -226,11 +266,11 @@ export function calculateMergedComparison(
     const endB = normB.length > 0 ? normB[normB.length - 1].lap_distance : 0;
     if (endA > 0 && Math.abs(endA - targetTrackLength) > 100) {
       const scaleA = targetTrackLength / endA;
-      normA = normA.map(s => ({ ...s, lap_distance: Math.round(s.lap_distance * scaleA * 10) / 10 }));
+      normA = normA.map((s) => ({ ...s, lap_distance: Math.round(s.lap_distance * scaleA * 10) / 10 }));
     }
     if (endB > 0 && Math.abs(endB - targetTrackLength) > 100) {
       const scaleB = targetTrackLength / endB;
-      normB = normB.map(s => ({ ...s, lap_distance: Math.round(s.lap_distance * scaleB * 10) / 10 }));
+      normB = normB.map((s) => ({ ...s, lap_distance: Math.round(s.lap_distance * scaleB * 10) / 10 }));
     }
   }
 
@@ -258,70 +298,88 @@ export function calculateMergedComparison(
   for (let dist = rangeStart; dist <= rangeEnd; dist += stepMeters) {
     const roundedDist = Math.round(dist * 10) / 10;
 
-    const timeA = normA.length > 0 ? interpolateAtDistance(normA, 'session_time', dist) : null;
-    const timeB = normB.length > 0 ? interpolateAtDistance(normB, 'session_time', dist) : null;
-    const timeDelta = timeA !== null && timeB !== null ? Math.round((timeA - timeB) * 1000) / 1000 : null;
+    const timeA = normA.length > 0 ? interpolateAtDistance(normA, 'session_time', dist, rangeEnd) : null;
+    const timeB = normB.length > 0 ? interpolateAtDistance(normB, 'session_time', dist, rangeEnd) : null;
+    const timeDelta =
+      timeA !== null && timeB !== null && Number.isFinite(timeA) && Number.isFinite(timeB)
+        ? Math.round((timeA - timeB) * 1000) / 1000
+        : null;
 
-    const speedA = normA.length > 0 ? interpolateAtDistance(normA, 'speed', dist) : null;
-    const speedB = normB.length > 0 ? interpolateAtDistance(normB, 'speed', dist) : null;
-    const speedDelta = speedA !== null && speedB !== null ? Math.round(speedA) - Math.round(speedB) : null;
+    const speedA = normA.length > 0 ? interpolateAtDistance(normA, 'speed', dist, rangeEnd) : null;
+    const speedB = normB.length > 0 ? interpolateAtDistance(normB, 'speed', dist, rangeEnd) : null;
+    const speedDelta =
+      speedA !== null && speedB !== null && Number.isFinite(speedA) && Number.isFinite(speedB)
+        ? Math.round(speedA) - Math.round(speedB)
+        : null;
 
-    const throttleA = normA.length > 0 ? interpolateAtDistance(normA, 'throttle', dist) : null;
-    const throttleB = normB.length > 0 ? interpolateAtDistance(normB, 'throttle', dist) : null;
+    const throttleA = normA.length > 0 ? interpolateAtDistance(normA, 'throttle', dist, rangeEnd) : null;
+    const throttleB = normB.length > 0 ? interpolateAtDistance(normB, 'throttle', dist, rangeEnd) : null;
 
-    const brakeA = normA.length > 0 ? interpolateAtDistance(normA, 'brake', dist) : null;
-    const brakeB = normB.length > 0 ? interpolateAtDistance(normB, 'brake', dist) : null;
+    const brakeA = normA.length > 0 ? interpolateAtDistance(normA, 'brake', dist, rangeEnd) : null;
+    const brakeB = normB.length > 0 ? interpolateAtDistance(normB, 'brake', dist, rangeEnd) : null;
 
-    const steerA = normA.length > 0 ? interpolateAtDistance(normA, 'steer', dist) : null;
-    const steerB = normB.length > 0 ? interpolateAtDistance(normB, 'steer', dist) : null;
+    const steerA = normA.length > 0 ? interpolateAtDistance(normA, 'steer', dist, rangeEnd) : null;
+    const steerB = normB.length > 0 ? interpolateAtDistance(normB, 'steer', dist, rangeEnd) : null;
 
-    const gearA = normA.length > 0 ? interpolateAtDistance(normA, 'gear', dist) : null;
-    const gearB = normB.length > 0 ? interpolateAtDistance(normB, 'gear', dist) : null;
+    const gearA = normA.length > 0 ? interpolateAtDistance(normA, 'gear', dist, rangeEnd) : null;
+    const gearB = normB.length > 0 ? interpolateAtDistance(normB, 'gear', dist, rangeEnd) : null;
 
-    const ersBatteryA = normA.length > 0 ? interpolateAtDistance(normA, 'ers_store_energy', dist) : null;
-    const ersBatteryB = normB.length > 0 ? interpolateAtDistance(normB, 'ers_store_energy', dist) : null;
+    const ersBatteryA = normA.length > 0 ? interpolateAtDistance(normA, 'ers_store_energy', dist, rangeEnd) : null;
+    const ersBatteryB = normB.length > 0 ? interpolateAtDistance(normB, 'ers_store_energy', dist, rangeEnd) : null;
 
-    const ersDeployModeA = normA.length > 0 ? interpolateAtDistance(normA, 'ers_deploy_mode', dist) : null;
-    const ersDeployModeB = normB.length > 0 ? interpolateAtDistance(normB, 'ers_deploy_mode', dist) : null;
+    const ersDeployModeA = normA.length > 0 ? interpolateAtDistance(normA, 'ers_deploy_mode', dist, rangeEnd) : null;
+    const ersDeployModeB = normB.length > 0 ? interpolateAtDistance(normB, 'ers_deploy_mode', dist, rangeEnd) : null;
 
-    const worldX = normA.length > 0 ? interpolateAtDistance(normA, 'world_pos_x', dist) : (normB.length > 0 ? interpolateAtDistance(normB, 'world_pos_x', dist) : null);
-    const worldZ = normA.length > 0 ? interpolateAtDistance(normA, 'world_pos_z', dist) : (normB.length > 0 ? interpolateAtDistance(normB, 'world_pos_z', dist) : null);
+    const worldX =
+      normA.length > 0
+        ? interpolateAtDistance(normA, 'world_pos_x', dist, rangeEnd)
+        : normB.length > 0
+        ? interpolateAtDistance(normB, 'world_pos_x', dist, rangeEnd)
+        : null;
+    const worldZ =
+      normA.length > 0
+        ? interpolateAtDistance(normA, 'world_pos_z', dist, rangeEnd)
+        : normB.length > 0
+        ? interpolateAtDistance(normB, 'world_pos_z', dist, rangeEnd)
+        : null;
 
     result.push({
       lap_distance: roundedDist,
       time_delta: timeDelta,
-      timeA: timeA !== null ? Math.round(timeA * 1000) / 1000 : null,
-      timeB: timeB !== null ? Math.round(timeB * 1000) / 1000 : null,
-      speedA: speedA !== null ? Math.round(speedA) : null,
-      speedB: speedB !== null ? Math.round(speedB) : null,
+      timeA: timeA !== null && Number.isFinite(timeA) ? Math.round(timeA * 1000) / 1000 : null,
+      timeB: timeB !== null && Number.isFinite(timeB) ? Math.round(timeB * 1000) / 1000 : null,
+      speedA: speedA !== null && Number.isFinite(speedA) ? Math.round(speedA) : null,
+      speedB: speedB !== null && Number.isFinite(speedB) ? Math.round(speedB) : null,
       speed_delta: speedDelta,
-      throttleA: throttleA !== null ? Math.round(throttleA * 100) / 100 : null,
-      throttleB: throttleB !== null ? Math.round(throttleB * 100) / 100 : null,
-      brakeA: brakeA !== null ? Math.round(brakeA * 100) / 100 : null,
-      brakeB: brakeB !== null ? Math.round(brakeB * 100) / 100 : null,
-      steerA: steerA !== null ? Math.round(steerA * 100) / 100 : null,
-      steerB: steerB !== null ? Math.round(steerB * 100) / 100 : null,
-      gearA: gearA !== null ? Math.round(gearA) : null,
-      gearB: gearB !== null ? Math.round(gearB) : null,
-      ersBatteryA: ersBatteryA !== null ? Math.round(ersBatteryA * 10) / 10 : null,
-      ersBatteryB: ersBatteryB !== null ? Math.round(ersBatteryB * 10) / 10 : null,
-      ersDeployModeA: ersDeployModeA !== null ? Math.round(ersDeployModeA) : null,
-      ersDeployModeB: ersDeployModeB !== null ? Math.round(ersDeployModeB) : null,
-      worldX: worldX !== null ? worldX : undefined,
-      worldZ: worldZ !== null ? worldZ : undefined,
+      throttleA: throttleA !== null && Number.isFinite(throttleA) ? Math.round(throttleA * 100) / 100 : null,
+      throttleB: throttleB !== null && Number.isFinite(throttleB) ? Math.round(throttleB * 100) / 100 : null,
+      brakeA: brakeA !== null && Number.isFinite(brakeA) ? Math.round(brakeA * 100) / 100 : null,
+      brakeB: brakeB !== null && Number.isFinite(brakeB) ? Math.round(brakeB * 100) / 100 : null,
+      steerA: steerA !== null && Number.isFinite(steerA) ? Math.round(steerA * 100) / 100 : null,
+      steerB: steerB !== null && Number.isFinite(steerB) ? Math.round(steerB * 100) / 100 : null,
+      gearA: gearA !== null && Number.isFinite(gearA) ? Math.round(gearA) : null,
+      gearB: gearB !== null && Number.isFinite(gearB) ? Math.round(gearB) : null,
+      ersBatteryA: ersBatteryA !== null && Number.isFinite(ersBatteryA) ? Math.round(ersBatteryA * 10) / 10 : null,
+      ersBatteryB: ersBatteryB !== null && Number.isFinite(ersBatteryB) ? Math.round(ersBatteryB * 10) / 10 : null,
+      ersDeployModeA: ersDeployModeA !== null && Number.isFinite(ersDeployModeA) ? Math.round(ersDeployModeA) : null,
+      ersDeployModeB: ersDeployModeB !== null && Number.isFinite(ersDeployModeB) ? Math.round(ersDeployModeB) : null,
+      worldX: worldX !== null && Number.isFinite(worldX) ? worldX : undefined,
+      worldZ: worldZ !== null && Number.isFinite(worldZ) ? worldZ : undefined,
     });
   }
 
-  // Ensure initial delta is exactly 0.0s at the start line (0m)
-  if (result.length > 0 && result[0].time_delta !== null && Math.abs(result[0].time_delta) > 0.0001) {
-    const initialDelta = result[0].time_delta;
+  // Fail-safe initial delta offset zeroing: find first non-null delta and calibrate
+  const firstValidPoint = result.find((p) => p.time_delta !== null && typeof p.time_delta === 'number' && Number.isFinite(p.time_delta));
+  const firstValidDelta = firstValidPoint?.time_delta;
+  if (typeof firstValidDelta === 'number' && Number.isFinite(firstValidDelta) && Math.abs(firstValidDelta) > 0.0001) {
     for (const point of result) {
       if (point.time_delta !== null) {
-        point.time_delta = Math.round((point.time_delta - initialDelta) * 1000) / 1000;
+        point.time_delta = Math.round((point.time_delta - firstValidDelta) * 1000) / 1000;
       }
     }
   }
 
   return result;
 }
+
 
