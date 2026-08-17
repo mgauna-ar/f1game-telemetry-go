@@ -162,12 +162,26 @@ const compactTooltipProps = {
   labelFormatter: (label: any) => `${Math.round(Number(label))}m`,
 };
 
-export const LapComparator: React.FC = () => {
+export interface LapComparatorProps {
+  initialPreload?: {
+    sessionId: number;
+    lapId: number;
+    slot: 'A' | 'B';
+  } | null;
+}
+
+export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) => {
   const [sessions, setSessions] = useState<Session[]>([]);
 
   // Dual session IDs & Synchronization link
-  const [sessionAId, setSessionAId] = useState<number | ''>('');
-  const [sessionBId, setSessionBId] = useState<number | ''>('');
+  const [sessionAId, setSessionAId] = useState<number | ''>(() => {
+    if (initialPreload && initialPreload.slot === 'A') return initialPreload.sessionId;
+    return '';
+  });
+  const [sessionBId, setSessionBId] = useState<number | ''>(() => {
+    if (initialPreload && initialPreload.slot === 'B') return initialPreload.sessionId;
+    return '';
+  });
   const [isLinkedSessions, setIsLinkedSessions] = useState(true);
 
   // Session A Dropdown state
@@ -279,9 +293,24 @@ export const LapComparator: React.FC = () => {
     }
   };
 
+  // Handle external preload updates (e.g. from Session History)
+  useEffect(() => {
+    if (!initialPreload) return;
+    if (initialPreload.slot === 'A') {
+      setSessionAId(initialPreload.sessionId);
+      setLapAId(initialPreload.lapId);
+      if (isLinkedSessions) {
+        setSessionBId(initialPreload.sessionId);
+      }
+    } else if (initialPreload.slot === 'B') {
+      setIsLinkedSessions(false);
+      setSessionBId(initialPreload.sessionId);
+      setLapBId(initialPreload.lapId);
+    }
+  }, [initialPreload]);
+
   // Fetch Session A data
   useEffect(() => {
-    setLapAId('');
     setRawTelemetryA([]);
     setZoomDomain(null);
 
@@ -291,11 +320,15 @@ export const LapComparator: React.FC = () => {
         .then((data: Lap[]) => {
           const list = data || [];
           setLapsA(list);
-          // Auto-select fastest valid lap for Lap A
+          // Auto-select fastest valid lap for Lap A unless preloaded
           if (list.length > 0) {
-            const valid = list.filter((l) => l.is_valid && l.lap_time_ms > 0).sort((a, b) => a.lap_time_ms - b.lap_time_ms);
-            const best = valid.length > 0 ? valid[0] : list[0];
-            setLapAId(best.id);
+            if (initialPreload && initialPreload.slot === 'A' && initialPreload.sessionId === sessionAId && list.some(l => l.id === initialPreload.lapId)) {
+              setLapAId(initialPreload.lapId);
+            } else {
+              const valid = list.filter((l) => l.is_valid && l.lap_time_ms > 0).sort((a, b) => a.lap_time_ms - b.lap_time_ms);
+              const best = valid.length > 0 ? valid[0] : list[0];
+              setLapAId(best.id);
+            }
           }
         })
         .catch((err) => console.error('Failed to fetch laps A', err));
@@ -310,6 +343,7 @@ export const LapComparator: React.FC = () => {
         .then((data) => setCarSetupsA(data || []))
         .catch((err) => console.error('Failed to fetch car setups A', err));
     } else {
+      setLapAId('');
       setLapsA([]);
       setParticipantsA([]);
       setCarSetupsA([]);
@@ -318,7 +352,6 @@ export const LapComparator: React.FC = () => {
 
   // Fetch Session B data
   useEffect(() => {
-    setLapBId('');
     setRawTelemetryB([]);
 
     if (sessionBId) {
@@ -328,14 +361,18 @@ export const LapComparator: React.FC = () => {
           const list = data || [];
           setLapsB(list);
 
-          // Auto-select lap for Slot B
+          // Auto-select lap for Slot B unless preloaded
           if (list.length > 0) {
-            const valid = list.filter((l) => l.is_valid && l.lap_time_ms > 0).sort((a, b) => a.lap_time_ms - b.lap_time_ms);
-            if (isLinkedSessions && valid.length > 1) {
-              setLapBId(valid[1].id);
+            if (initialPreload && initialPreload.slot === 'B' && initialPreload.sessionId === sessionBId && list.some(l => l.id === initialPreload.lapId)) {
+              setLapBId(initialPreload.lapId);
             } else {
-              const best = valid.length > 0 ? valid[0] : list[0];
-              setLapBId(best.id);
+              const valid = list.filter((l) => l.is_valid && l.lap_time_ms > 0).sort((a, b) => a.lap_time_ms - b.lap_time_ms);
+              if (isLinkedSessions && valid.length > 1) {
+                setLapBId(valid[1].id);
+              } else {
+                const best = valid.length > 0 ? valid[0] : list[0];
+                setLapBId(best.id);
+              }
             }
           }
         })
@@ -351,11 +388,12 @@ export const LapComparator: React.FC = () => {
         .then((data) => setCarSetupsB(data || []))
         .catch((err) => console.error('Failed to fetch car setups B', err));
     } else {
+      setLapBId('');
       setLapsB([]);
       setParticipantsB([]);
       setCarSetupsB([]);
     }
-  }, [sessionBId, isLinkedSessions]);
+  }, [sessionBId]);
 
   // Fetch Lap A telemetry with server-side LTTB downsampling parameter maxPoints=800
   useEffect(() => {

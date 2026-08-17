@@ -21,6 +21,12 @@ function App() {
     return 'history';
   });
 
+  const [comparatorPreload, setComparatorPreload] = useState<{
+    sessionId: number;
+    lapId: number;
+    slot: 'A' | 'B';
+  } | null>(null);
+
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, activeTab);
@@ -28,6 +34,11 @@ function App() {
       // Ignore localStorage write issues
     }
   }, [activeTab]);
+
+  const handleNavigateToComparator = (sessionId: number, lapId: number, slot: 'A' | 'B') => {
+    setComparatorPreload({ sessionId, lapId, slot });
+    setActiveTab('comparator');
+  };
 
   return (
     <div className="app-container">
@@ -91,9 +102,9 @@ function App() {
       {/* Main Tab Content */}
       <main className="app-main-content">
         {activeTab === 'history' ? (
-          <SessionHistory />
+          <SessionHistory onNavigateToComparator={handleNavigateToComparator} />
         ) : activeTab === 'comparator' ? (
-          <LapComparator />
+          <LapComparator initialPreload={comparatorPreload} />
         ) : (
           <Dashboard />
         )}

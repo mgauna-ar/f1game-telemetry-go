@@ -1,0 +1,157 @@
+import React from 'react';
+import { Clock, CloudSun, ChevronRight, Trash2, ArrowUpDown } from 'lucide-react';
+import type { Session } from '../SessionHistory';
+
+interface SessionTableViewProps {
+  sessions: Session[];
+  onSelectSession: (session: Session) => void;
+  onRequestDelete: (session: Session) => void;
+  formatDate: (dateStr?: string) => string;
+  getSessionBadgeClass: (typeStr?: string) => string;
+  sortField?: string;
+  sortOrder?: 'asc' | 'desc';
+  onToggleSort?: (field: string) => void;
+}
+
+export const SessionTableView: React.FC<SessionTableViewProps> = ({
+  sessions,
+  onSelectSession,
+  onRequestDelete,
+  formatDate,
+  getSessionBadgeClass,
+  sortField,
+  sortOrder,
+  onToggleSort,
+}) => {
+  const renderSortIndicator = (field: string) => {
+    if (!onToggleSort) return null;
+    if (sortField !== field) return <ArrowUpDown size={12} color="var(--text-muted)" />;
+    return <span style={{ fontSize: '0.75rem', color: 'var(--accent-secondary)' }}>{sortOrder === 'asc' ? '▲' : '▼'}</span>;
+  };
+
+  return (
+    <div className="glass-panel" style={{ padding: '1rem' }}>
+      <div style={{ overflowX: 'auto' }}>
+        <table className="history-table">
+          <thead>
+            <tr>
+              <th
+                style={{ cursor: onToggleSort ? 'pointer' : 'default' }}
+                onClick={() => onToggleSort && onToggleSort('id')}
+              >
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <span>Session ID</span>
+                  {renderSortIndicator('id')}
+                </div>
+              </th>
+              <th
+                style={{ cursor: onToggleSort ? 'pointer' : 'default' }}
+                onClick={() => onToggleSort && onToggleSort('date')}
+              >
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <span>Date & Time</span>
+                  {renderSortIndicator('date')}
+                </div>
+              </th>
+              <th
+                style={{ cursor: onToggleSort ? 'pointer' : 'default' }}
+                onClick={() => onToggleSort && onToggleSort('track')}
+              >
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <span>Track Name</span>
+                  {renderSortIndicator('track')}
+                </div>
+              </th>
+              <th
+                style={{ cursor: onToggleSort ? 'pointer' : 'default' }}
+                onClick={() => onToggleSort && onToggleSort('type')}
+              >
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <span>Session Type</span>
+                  {renderSortIndicator('type')}
+                </div>
+              </th>
+              <th>Weather</th>
+              <th style={{ textAlign: 'right' }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sessions.map((session) => (
+              <tr
+                key={session.id}
+                onClick={() => onSelectSession(session)}
+                style={{ cursor: 'pointer' }}
+              >
+                <td className="mono" style={{ fontWeight: 700, color: 'var(--accent-secondary)' }}>
+                  #{session.id}
+                </td>
+                <td style={{ color: 'var(--text-primary)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Clock size={14} color="var(--text-muted)" />
+                    {formatDate(session.created_at)}
+                  </div>
+                </td>
+                <td>
+                  <span style={{ fontWeight: 700, fontSize: '1rem' }}>
+                    {session.track_name || 'Unknown Track'}
+                  </span>
+                </td>
+                <td>
+                  <span className={`session-badge ${getSessionBadgeClass(session.session_type)}`}>
+                    {session.session_type || 'RACE'}
+                  </span>
+                </td>
+                <td>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}>
+                    <CloudSun size={14} color="var(--text-secondary)" />
+                    {session.weather || 'Clear'}
+                  </div>
+                </td>
+                <td style={{ textAlign: 'right' }}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                    <button
+                      className="nav-tab active"
+                      style={{
+                        padding: '0.4rem 0.8rem',
+                        fontSize: '0.8rem',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onSelectSession(session);
+                      }}
+                    >
+                      Explore <ChevronRight size={14} />
+                    </button>
+                    <button
+                      className="nav-tab"
+                      title={`Delete Session #${session.id}`}
+                      style={{
+                        padding: '0.4rem 0.6rem',
+                        fontSize: '0.8rem',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        color: '#ff4d4f',
+                        borderColor: 'rgba(255, 77, 79, 0.3)',
+                      }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onRequestDelete(session);
+                      }}
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
