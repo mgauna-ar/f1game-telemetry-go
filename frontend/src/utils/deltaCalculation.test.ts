@@ -421,6 +421,50 @@ describe('deltaCalculation utility', () => {
     const maxDist = normalized[normalized.length - 1].lap_distance;
     expect(maxDist).toBe(5400);
   });
+
+  it('accurately computes time delta between two standing grid starts without false 30s spike', () => {
+    // Lap A (Arti Moreno): Starts at 275m at t=0.5s, finishes at 5417m at t=97.5s (dur = 97.0s)
+    const lapA: TelemetrySamplePoint[] = Array.from({ length: 60 }, (_, i) => ({
+      lap_distance: 275 + i * 85,
+      session_time: 0.5 + i * 1.6, // 0.5s to 94.9s
+      speed: 250,
+      throttle: 1,
+      brake: 0,
+      world_pos_x: 100 + i * 5,
+      world_pos_z: 200 + i * 5,
+    }));
+    lapA.push({ lap_distance: 5417, session_time: 97.5, speed: 270, throttle: 1, brake: 0, world_pos_x: 400, world_pos_z: 500 });
+
+    // Lap B (LC-iL.Magno): Starts at 185m at t=3.0s, finishes at 5417m at t=105.0s (dur = 102.0s)
+    const lapB: TelemetrySamplePoint[] = Array.from({ length: 60 }, (_, i) => ({
+      lap_distance: 185 + i * 87,
+      session_time: 3.0 + i * 1.7, // 3.0s to 103.3s
+      speed: 240,
+      throttle: 1,
+      brake: 0,
+      world_pos_x: 90 + i * 5,
+      world_pos_z: 190 + i * 5,
+    }));
+    lapB.push({ lap_distance: 5417, session_time: 105.0, speed: 260, throttle: 1, brake: 0, world_pos_x: 400, world_pos_z: 500 });
+
+    const merged = calculateMergedComparison(lapA, lapB, 25);
+    expect(merged.length).toBeGreaterThan(0);
+
+    // Initial delta at 0m must be 0.0s
+    expect(merged[0].time_delta).toBe(0);
+
+    // Delta throughout the lap should stay realistic (< 10s, never +30s or +99s!)
+    for (const pt of merged) {
+      if (pt.time_delta !== null) {
+        expect(Math.abs(pt.time_delta)).toBeLessThan(10.0);
+      }
+    }
+
+    // Final delta should be ~ -5.0s (Lap A is 5s faster: 97.0s vs 102.0s)
+    const finalDelta = merged[merged.length - 1].time_delta;
+    expect(finalDelta).not.toBeNull();
+    expect(finalDelta!).toBeCloseTo(-5.0, 1);
+  });
 });
 
 

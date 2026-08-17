@@ -145,6 +145,9 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         if (i === 0) ctx.moveTo(px, py);
         else ctx.lineTo(px, py);
       }
+      if (validPoints.length > 2) {
+        ctx.closePath();
+      }
       ctx.stroke();
 
       // Draw track line segments with speed delta colors
@@ -165,6 +168,22 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
         ctx.strokeStyle = segmentColors[i];
+        ctx.stroke();
+      }
+
+      // Connect final point back to start point to ensure complete closed circuit loop
+      if (validPoints.length > 2) {
+        const pLast = validPoints[validPoints.length - 1];
+        const pFirst = validPoints[0];
+        const xLast = toCanvasX(pLast.worldX!);
+        const yLast = toCanvasY(pLast.worldZ!);
+        const xFirst = toCanvasX(pFirst.worldX!);
+        const yFirst = toCanvasY(pFirst.worldZ!);
+
+        ctx.beginPath();
+        ctx.moveTo(xLast, yLast);
+        ctx.lineTo(xFirst, yFirst);
+        ctx.strokeStyle = segmentColors[segmentColors.length - 1] || 'rgba(255, 255, 255, 0.45)';
         ctx.stroke();
       }
 

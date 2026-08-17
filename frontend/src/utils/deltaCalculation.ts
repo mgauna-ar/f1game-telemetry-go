@@ -203,11 +203,18 @@ export function normalizeTelemetrySeries(
   // Step 6: Calibrate 0m start point & time
   const firstSample = deduped[0];
   const firstDist = firstSample.lap_distance ?? 0;
-  const firstSpeed = Math.max(10, Number(firstSample.speed) || 100); // km/h
-  const speedMS = (firstSpeed * 1000) / 3600; // m/s
-  // Time delta between start line (0m) and first sample position
-  const timeOffsetToZero = firstDist > 0 ? firstDist / speedMS : 0;
-  const startTime = firstSample.session_time - timeOffsetToZero;
+  let startTime = firstSample.session_time;
+
+  // Only project time offset to zero for flying laps crossing the start line at speed
+  // For standing grid starts (e.g. Lap 1 of a race), time starts at firstSample.session_time (t=0)
+  if (firstDist > 0 && firstDist <= 25.0) {
+    const rawSpeed = Number(firstSample.speed) || 0;
+    if (rawSpeed > 30) {
+      const speedMS = (rawSpeed * 1000) / 3600;
+      const timeOffsetToZero = firstDist / speedMS;
+      startTime = firstSample.session_time - timeOffsetToZero;
+    }
+  }
 
   const result: TelemetrySamplePoint[] = [];
 
@@ -251,13 +258,7 @@ function interpolateAtDistance(
   // Clamping at start (before first recorded point)
   if (d <= firstDist) {
     if (key === 'session_time') {
-      if (firstDist > 0) {
-        // Linearly project time from 0.0s at 0m to firstSample time
-        const t0 = samples[0].session_time ?? 0;
-        const projected = (d / firstDist) * t0;
-        return Number.isFinite(projected) ? Math.max(0, projected) : t0;
-      }
-      return samples[0].session_time ?? 0;
+      return 0;
     }
     const val = samples[0][key];
     return typeof val === 'number' && Number.isFinite(val) ? val : 0;
@@ -402,18 +403,26 @@ export function calculateMergedComparison(
     const ersDeployModeA = normA.length > 0 ? interpolateAtDistance(normA, 'ers_deploy_mode', dist, rangeEnd) : null;
     const ersDeployModeB = normB.length > 0 ? interpolateAtDistance(normB, 'ers_deploy_mode', dist, rangeEnd) : null;
 
-    const worldX =
-      normA.length > 0
-        ? interpolateAtDistance(normA, 'world_pos_x', dist, rangeEnd)
-        : normB.length > 0
-        ? interpolateAtDistance(normB, 'world_pos_x', dist, rangeEnd)
-        : null;
-    const worldZ =
-      normA.length > 0
-        ? interpolateAtDistance(normA, 'world_pos_z', dist, rangeEnd)
-        : normB.length > 0
-        ? interpolateAtDistance(normB, 'world_pos_z', dist, rangeEnd)
-        : null;
+    // For 3D world coordinates, prefer whichever series has raw telemetry at this distance
+    const hasRawA = normA.length > 0 && dist >= (normA[0].lap_distance ?? 0);
+    const hasRawB = normB.length > 0 && dist >= (normB[0].lap_distance ?? 0);
+
+    let worldX: number | null = null;
+    let worldZ: number | null = null;
+
+    if (hasRawA) {
+      worldX = interpolateAtDistance(normA, 'world_pos_x', dist, rangeEnd);
+      worldZ = interpolateAtDistance(normA, 'world_pos_z', dist, rangeEnd);
+    } else if (hasRawB) {
+      worldX = interpolateAtDistance(normB, 'world_pos_x', dist, rangeEnd);
+      worldZ = interpolateAtDistance(normB, 'world_pos_z', dist, rangeEnd);
+    } else if (normA.length > 0) {
+      worldX = interpolateAtDistance(normA, 'world_pos_x', dist, rangeEnd);
+      worldZ = interpolateAtDistance(normA, 'world_pos_z', dist, rangeEnd);
+    } else if (normB.length > 0) {
+      worldX = interpolateAtDistance(normB, 'world_pos_x', dist, rangeEnd);
+      worldZ = interpolateAtDistance(normB, 'world_pos_z', dist, rangeEnd);
+    }
 
     result.push({
       lap_distance: roundedDist,
