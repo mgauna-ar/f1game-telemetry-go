@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, it, beforeEach, expect } from 'vitest';
 import { SessionHistory } from './SessionHistory';
 import { RaceEngineerProvider } from '../context/RaceEngineerContext';
+import { I18nProvider } from '../context/I18nContext';
 import { AiRaceEngineer } from './AiRaceEngineer';
 
 describe('SessionHistory Component', () => {
@@ -543,5 +544,69 @@ describe('SessionHistory Component', () => {
     const stintElements = screen.getAllByText('2L');
     expect(stintElements.length).toBe(3);
     expect(screen.getAllByText('➔').length).toBe(2);
+  });
+
+  it('renders Official Race Classification and Laps subtable in Spanish when locale is es', async () => {
+    localStorage.setItem('f1_telemetry_language', 'es');
+
+    const mockSessions = [
+      { id: 1, session_uid: '1001', track_name: 'Interlagos', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' },
+    ];
+
+    const mockParticipants = [
+      { id: 10, session_id: 1, car_index: 0, name: 'Franco Colapinto', driver_id: 43, team_id: 6, race_number: 43, ai_controlled: false },
+    ];
+
+    const mockLaps = [
+      { id: 301, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 71200, sector1_ms: 18200, sector2_ms: 32000, sector3_ms: 21000, is_valid: true, tyre_compound: 'SOFT', max_speed_kmh: 335.0 },
+    ];
+
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url === '/api/sessions') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSessions) });
+      if (url === '/api/sessions/1/participants') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockParticipants) });
+      if (url === '/api/sessions/1/laps') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockLaps) });
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    });
+
+    render(
+      <I18nProvider>
+        <SessionHistory />
+      </I18nProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Interlagos').length).toBeGreaterThan(0);
+    });
+
+    // Click explore button (Explorar Sesión in Spanish)
+    fireEvent.click(screen.getByRole('button', { name: /Explorar Sesión/i }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Franco Colapinto').length).toBeGreaterThan(0);
+      expect(screen.getByText('Clasificación Oficial de Carrera')).toBeInTheDocument();
+      expect(screen.getByText('PILOTO')).toBeInTheDocument();
+      expect(screen.getByText('TIEMPO / DIF.')).toBeInTheDocument();
+      expect(screen.getByText('STINTS DE NEUMÁTICOS')).toBeInTheDocument();
+      expect(screen.getByText('VUELTA RÁPIDA')).toBeInTheDocument();
+      expect(screen.getByText('DETALLES')).toBeInTheDocument();
+      expect(screen.getByText('P1 • GANADOR')).toBeInTheDocument();
+      expect(screen.getByText('MEJOR VUELTA')).toBeInTheDocument();
+      expect(screen.getByText('VEL. MÁXIMA')).toBeInTheDocument();
+    });
+
+    // Expand driver laps button (1 Vueltas)
+    const lapsToggleBtn = screen.getByRole('button', { name: /1 Vueltas/i });
+    fireEvent.click(lapsToggleBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Vueltas Registradas de Franco Colapinto')).toBeInTheDocument();
+      expect(screen.getByText('Tiempo de Vuelta')).toBeInTheDocument();
+      expect(screen.getByText('Acumulado')).toBeInTheDocument();
+      expect(screen.getByText('Dif. con Mejor')).toBeInTheDocument();
+      expect(screen.getByText('Comparar Telemetría')).toBeInTheDocument();
+      expect(screen.getByText('Vuelta 1')).toBeInTheDocument();
+      expect(screen.getByText('RÉCORD PERSONAL')).toBeInTheDocument();
+      expect(screen.getByText('VÁLIDA')).toBeInTheDocument();
+    });
   });
 });

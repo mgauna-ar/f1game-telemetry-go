@@ -107,24 +107,24 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                           : driver.isDNF
                           ? 'DNF'
                           : formatTotalDuration(driver.totalRaceTimeMS ?? 0)
-                        : `Best: ${formatLapTime(driver.bestLapTimeMS)}`}
+                        : t('history.classification.bestPrefix', { time: formatLapTime(driver.bestLapTimeMS) })}
                     </div>
                   </div>
                 </div>
 
                 <div className="podium-stats-row mono">
                   <div className="podium-stat">
-                    <span className="stat-label">BEST LAP</span>
+                    <span className="stat-label">{t('history.classification.bestLap')}</span>
                     <span className="stat-value" style={{ color: 'var(--accent-tertiary)' }}>
                       {formatLapTime(driver.bestLapTimeMS)}
                     </span>
                   </div>
                   <div className="podium-stat">
-                    <span className="stat-label">LAPS</span>
+                    <span className="stat-label">{t('history.classification.laps')}</span>
                     <span className="stat-value">{driver.laps.length}</span>
                   </div>
                   <div className="podium-stat">
-                    <span className="stat-label">MAX SPEED</span>
+                    <span className="stat-label">{t('history.classification.maxSpeed')}</span>
                     <span className="stat-value">
                       {driver.maxSpeed ? `${driver.maxSpeed.toFixed(0)} km/h` : '--'}
                     </span>
@@ -141,23 +141,23 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
           <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Trophy size={20} color="var(--accent-primary)" />
-            {isRaceSession ? 'Official Race Classification' : 'Session Classification & Timing'}
+            {isRaceSession ? t('history.classification.raceClassification') : t('history.classification.timingClassification')}
           </h3>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.75rem' }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--accent-purple)' }} />
-              Session Fastest Sector
+              {t('history.classification.sessionFastestSector')}
             </span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--accent-tertiary)' }} />
-              Personal Best Sector
+              {t('history.classification.personalBestSector')}
             </span>
           </div>
         </div>
 
         {driverStandings.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
-            No lap timing data recorded for this session.
+            {t('history.classification.noLapData')}
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
@@ -165,31 +165,31 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
               <thead>
                 {isRaceSession ? (
                   <tr>
-                    <th style={{ width: '45px' }}>POS</th>
-                    <th>DRIVER</th>
-                    <th>TIME / GAP</th>
-                    <th>LAPS</th>
-                    <th>TYRE STINTS</th>
-                    <th>FASTEST LAP</th>
-                    <th>S1</th>
-                    <th>S2</th>
-                    <th>S3</th>
-                    <th>TOP SPEED</th>
-                    <th style={{ textAlign: 'right' }}>DETAILS</th>
+                    <th style={{ width: '45px' }}>{t('history.classification.headers.pos')}</th>
+                    <th>{t('history.classification.headers.driver')}</th>
+                    <th>{t('history.classification.headers.timeGap')}</th>
+                    <th>{t('history.classification.headers.laps')}</th>
+                    <th>{t('history.classification.headers.tyreStints')}</th>
+                    <th>{t('history.classification.headers.fastestLap')}</th>
+                    <th>{t('history.classification.headers.s1')}</th>
+                    <th>{t('history.classification.headers.s2')}</th>
+                    <th>{t('history.classification.headers.s3')}</th>
+                    <th>{t('history.classification.headers.topSpeed')}</th>
+                    <th style={{ textAlign: 'right' }}>{t('history.classification.headers.details')}</th>
                   </tr>
                 ) : (
                   <tr>
-                    <th style={{ width: '45px' }}>POS</th>
-                    <th>DRIVER</th>
-                    <th>BEST LAP</th>
-                    <th>GAP</th>
-                    <th>S1</th>
-                    <th>S2</th>
-                    <th>S3</th>
-                    <th>LAPS</th>
-                    <th>TYRE STINTS</th>
-                    <th>TOP SPEED</th>
-                    <th style={{ textAlign: 'right' }}>DETAILS</th>
+                    <th style={{ width: '45px' }}>{t('history.classification.headers.pos')}</th>
+                    <th>{t('history.classification.headers.driver')}</th>
+                    <th>{t('history.classification.headers.bestLap')}</th>
+                    <th>{t('history.classification.headers.gap')}</th>
+                    <th>{t('history.classification.headers.s1')}</th>
+                    <th>{t('history.classification.headers.s2')}</th>
+                    <th>{t('history.classification.headers.s3')}</th>
+                    <th>{t('history.classification.headers.laps')}</th>
+                    <th>{t('history.classification.headers.tyreStints')}</th>
+                    <th>{t('history.classification.headers.topSpeed')}</th>
+                    <th style={{ textAlign: 'right' }}>{t('history.classification.headers.details')}</th>
                   </tr>
                 )}
               </thead>
@@ -219,7 +219,9 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                       const driverLapsCount = driver.laps.length;
                       if (leaderLaps > 0 && driverLapsCount < leaderLaps) {
                         const lapDiff = leaderLaps - driverLapsCount;
-                        timeGapDisplay = `+${lapDiff} ${lapDiff === 1 ? 'Lap' : 'Laps'}`;
+                        timeGapDisplay = lapDiff === 1
+                          ? t('history.classification.lapDiffSingular', { count: lapDiff })
+                          : t('history.classification.lapDiffPlural', { count: lapDiff });
                       } else if ((driver.totalRaceTimeWithPenalties ?? 0) > 0 && (driverStandings[0].totalRaceTimeWithPenalties ?? 0) > 0) {
                         const gapMS = (driver.totalRaceTimeWithPenalties ?? 0) - (driverStandings[0].totalRaceTimeWithPenalties ?? 0);
                         timeGapDisplay = gapMS >= 0 ? `+${(gapMS / 1000).toFixed(3)}s` : `+0.000s`;
@@ -227,7 +229,7 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                     }
                   } else {
                     if (isLeader) {
-                      timeGapDisplay = 'LEADER';
+                      timeGapDisplay = t('history.classification.leader');
                     } else if (driver.bestLapTimeMS < Infinity && leaderBestLapMS < Infinity) {
                       const delta = (driver.bestLapTimeMS - leaderBestLapMS) / 1000;
                       timeGapDisplay = `+${delta.toFixed(3)}s`;
@@ -303,7 +305,7 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                                 {(driver.penaltySeconds ?? 0) > 0 && (
                                   <span
                                     className="mono"
-                                    title={`${driver.penaltySeconds}s Penalty Included`}
+                                    title={t('history.classification.penaltyIncluded', { seconds: driver.penaltySeconds })}
                                     style={{
                                       backgroundColor: 'rgba(255, 77, 79, 0.15)',
                                       color: '#ff4d4f',
@@ -334,7 +336,7 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                                 {driver.bestLap ? formatLapTime(driver.bestLap.lap_time_ms) : '--:--.---'}
                                 {isOverallFastestLap && (
                                   <span
-                                    title="Session Fastest Lap"
+                                    title={t('history.classification.sessionFastestLap')}
                                     style={{
                                       display: 'inline-flex',
                                       padding: '1px 4px',
@@ -346,7 +348,7 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                                       fontWeight: 800,
                                     }}
                                   >
-                                    FL
+                                    {t('history.classification.flBadge')}
                                   </span>
                                 )}
                               </div>
@@ -395,7 +397,7 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                                 {driver.bestLap ? formatLapTime(driver.bestLap.lap_time_ms) : '--:--.---'}
                                 {isOverallFastestLap && (
                                   <span
-                                    title="Pole / Session Fastest Lap"
+                                    title={t('history.classification.poleFastestLap')}
                                     style={{
                                       display: 'inline-flex',
                                       padding: '1px 4px',
@@ -407,7 +409,7 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                                       fontWeight: 800,
                                     }}
                                   >
-                                    FL
+                                    {t('history.classification.flBadge')}
                                   </span>
                                 )}
                               </div>
@@ -479,7 +481,7 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                             }}
                             style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                           >
-                            {driver.laps.length} Laps {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                            {t('history.classification.driverLapsCount', { count: driver.laps.length })} {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                           </button>
                         </td>
                       </tr>
@@ -491,26 +493,26 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                             <div style={{ padding: '0.5rem', background: 'rgba(255, 255, 255, 0.02)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
                               <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                  <Clock size={14} /> Recorded Laps for {driver.participant.name}
+                                  <Clock size={14} /> {t('history.classification.recordedLapsFor', { name: driver.participant.name })}
                                 </div>
                                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                  Use 'Slot A' or 'Slot B' to compare telemetry curves in Lap Comparator
+                                  {t('history.classification.slotHelperText')}
                                 </div>
                               </div>
                               <table style={{ width: '100%', fontSize: '0.85rem', borderCollapse: 'collapse' }}>
                                 <thead>
                                   <tr style={{ color: 'var(--text-muted)', textAlign: 'left', borderBottom: '1px solid var(--border-color)' }}>
-                                    <th style={{ padding: '5px 8px' }}>Lap #</th>
-                                    <th style={{ padding: '5px 8px' }}>Lap Time</th>
-                                    <th style={{ padding: '5px 8px' }}>Sector 1</th>
-                                    <th style={{ padding: '5px 8px' }}>Sector 2</th>
-                                    <th style={{ padding: '5px 8px' }}>Sector 3</th>
-                                    <th style={{ padding: '5px 8px' }}>Cumulative</th>
-                                    <th style={{ padding: '5px 8px' }}>Delta to Best</th>
-                                    <th style={{ padding: '5px 8px' }}>Max Speed</th>
-                                    <th style={{ padding: '5px 8px' }}>Tyre</th>
-                                    <th style={{ padding: '5px 8px' }}>Status</th>
-                                    <th style={{ padding: '5px 8px', textAlign: 'right' }}>Compare Telemetry</th>
+                                    <th style={{ padding: '5px 8px' }}>{t('history.classification.subHeaders.lapNumber')}</th>
+                                    <th style={{ padding: '5px 8px' }}>{t('history.classification.subHeaders.lapTime')}</th>
+                                    <th style={{ padding: '5px 8px' }}>{t('history.classification.subHeaders.s1')}</th>
+                                    <th style={{ padding: '5px 8px' }}>{t('history.classification.subHeaders.s2')}</th>
+                                    <th style={{ padding: '5px 8px' }}>{t('history.classification.subHeaders.s3')}</th>
+                                    <th style={{ padding: '5px 8px' }}>{t('history.classification.subHeaders.cumulative')}</th>
+                                    <th style={{ padding: '5px 8px' }}>{t('history.classification.subHeaders.deltaToBest')}</th>
+                                    <th style={{ padding: '5px 8px' }}>{t('history.classification.subHeaders.maxSpeed')}</th>
+                                    <th style={{ padding: '5px 8px' }}>{t('history.classification.subHeaders.tyre')}</th>
+                                    <th style={{ padding: '5px 8px' }}>{t('history.classification.subHeaders.status')}</th>
+                                    <th style={{ padding: '5px 8px', textAlign: 'right' }}>{t('history.classification.subHeaders.compareTelemetry')}</th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -522,7 +524,7 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                                       const isPB = driver.bestLap && lap.id === driver.bestLap.id;
                                       const lapDeltaToBest = driver.bestLap && lap.lap_time_ms > 0
                                         ? isPB
-                                          ? 'PERSONAL BEST'
+                                          ? t('history.classification.personalBest')
                                           : `+${((lap.lap_time_ms - driver.bestLap.lap_time_ms) / 1000).toFixed(3)}s`
                                         : '--';
 
@@ -541,7 +543,7 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                                       return (
                                         <tr key={lap.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                                           <td className="mono" style={{ padding: '6px 8px', fontWeight: 700 }}>
-                                            Lap {lap.lap_number}
+                                            {t('history.classification.lapItem', { number: lap.lap_number })}
                                           </td>
                                           <td className="mono" style={{ padding: '6px 8px', color: isPB ? 'var(--accent-tertiary)' : 'inherit', fontWeight: isPB ? 700 : 500 }}>
                                             {formatLapTime(lap.lap_time_ms)}
@@ -575,7 +577,7 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                                           </td>
                                           <td style={{ padding: '6px 8px' }}>
                                             <span className={`session-badge ${lap.is_valid ? 'badge-green' : 'badge-red'}`} style={{ fontSize: '0.65rem' }}>
-                                              {lap.is_valid ? 'VALID' : 'INVALID'}
+                                              {lap.is_valid ? t('history.classification.valid') : t('history.classification.invalid')}
                                             </span>
                                           </td>
                                           <td style={{ padding: '6px 8px', textAlign: 'right' }}>
@@ -589,7 +591,7 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                                                     <>
                                                       <button
                                                         className={`nav-tab ${isStagedA ? 'active' : ''}`}
-                                                        title={isStagedA ? 'Staged in Slot A (Click to unstage)' : `Stage Lap ${lap.lap_number} into Lap Comparator Slot A`}
+                                                        title={isStagedA ? t('history.classification.stagedInSlotA') : t('history.classification.stageLapInSlotA', { lap: lap.lap_number })}
                                                         onClick={(e) => {
                                                           e.stopPropagation();
                                                           if (onStageLap) {
@@ -611,12 +613,12 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                                                           boxShadow: isStagedA ? '0 0 10px rgba(0, 242, 254, 0.3)' : undefined,
                                                         }}
                                                       >
-                                                        <GitCompare size={11} /> {isStagedA ? '✓ Slot A' : 'Slot A'}
+                                                        <GitCompare size={11} /> {isStagedA ? `✓ ${t('history.classification.stageSlotA')}` : t('history.classification.stageSlotA')}
                                                       </button>
 
                                                       <button
                                                         className={`nav-tab ${isStagedB ? 'active' : ''}`}
-                                                        title={isStagedB ? 'Staged in Slot B (Click to unstage)' : `Stage Lap ${lap.lap_number} into Lap Comparator Slot B`}
+                                                        title={isStagedB ? t('history.classification.stagedInSlotB') : t('history.classification.stageLapInSlotB', { lap: lap.lap_number })}
                                                         onClick={(e) => {
                                                           e.stopPropagation();
                                                           if (onStageLap) {
@@ -638,7 +640,7 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                                                           boxShadow: isStagedB ? '0 0 10px rgba(225, 6, 0, 0.3)' : undefined,
                                                         }}
                                                       >
-                                                        <GitCompare size={11} /> {isStagedB ? '✓ Slot B' : 'Slot B'}
+                                                        <GitCompare size={11} /> {isStagedB ? `✓ ${t('history.classification.stageSlotB')}` : t('history.classification.stageSlotB')}
                                                       </button>
                                                     </>
                                                   );

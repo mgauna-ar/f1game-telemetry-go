@@ -130,7 +130,7 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
                     </button>
                     <button
                       className="nav-tab"
-                      title={`Delete Session #${session.id}`}
+                      title={`${t('common.deleteSession')} #${session.id}`}
                       style={{
                         padding: '0.4rem 0.6rem',
                         fontSize: '0.8rem',

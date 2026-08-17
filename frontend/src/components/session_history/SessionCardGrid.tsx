@@ -68,7 +68,7 @@ export const SessionCardGrid: React.FC<SessionCardGridProps> = ({
             <div className="session-card-footer">
               <button
                 className="session-explore-btn"
-                aria-label={`Explore Session #${session.id}`}
+                aria-label={`${t('common.exploreSession')} #${session.id}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   onSelectSession(session);
@@ -80,7 +80,7 @@ export const SessionCardGrid: React.FC<SessionCardGridProps> = ({
 
               <button
                 className="session-delete-icon-btn"
-                title={`Delete Session #${session.id}`}
+                title={`${t('common.deleteSession')} #${session.id}`}
                 onClick={(e) => {
                   e.stopPropagation();
                   onRequestDelete(session);

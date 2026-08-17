@@ -136,7 +136,7 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
           {/* Sector 1 Record */}
           <div className="glass-panel" style={{ padding: '0.85rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(176, 38, 255, 0.3)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-purple)' }}>SECTOR 1 RECORD</span>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-purple)' }}>{t('history.sectors.s1Record')}</span>
               <span className="mono sector-purple" style={{ padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
                 {formatSectorTime(sessionBestS1)}
               </span>
@@ -150,7 +150,7 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
           {/* Sector 2 Record */}
           <div className="glass-panel" style={{ padding: '0.85rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(176, 38, 255, 0.3)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-purple)' }}>SECTOR 2 RECORD</span>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-purple)' }}>{t('history.sectors.s2Record')}</span>
               <span className="mono sector-purple" style={{ padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
                 {formatSectorTime(sessionBestS2)}
               </span>
@@ -164,7 +164,7 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
           {/* Sector 3 Record */}
           <div className="glass-panel" style={{ padding: '0.85rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(176, 38, 255, 0.3)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-purple)' }}>SECTOR 3 RECORD</span>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-purple)' }}>{t('history.sectors.s3Record')}</span>
               <span className="mono sector-purple" style={{ padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
                 {formatSectorTime(sessionBestS3)}
               </span>
@@ -183,7 +183,7 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
         <div className="glass-panel" style={{ padding: '1.25rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
             <h4 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Zap size={18} color="var(--accent-purple)" /> Sector Leaderboards
+              <Zap size={18} color="var(--accent-purple)" /> {t('history.sectors.sectorLeaderboards')}
             </h4>
             <div style={{ display: 'flex', gap: '4px' }}>
               <button
@@ -191,7 +191,7 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
                 onClick={() => setSectorView('ALL')}
                 style={{ padding: '2px 8px', fontSize: '0.75rem' }}
               >
-                All Sectors
+                {t('history.sectors.allSectors')}
               </button>
               <button
                 className={`nav-tab ${sectorView === 'S1' ? 'active' : ''}`}
@@ -221,11 +221,11 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
             <table className="history-table" style={{ fontSize: '0.85rem' }}>
               <thead>
                 <tr>
-                  <th style={{ width: '40px' }}>POS</th>
-                  <th>DRIVER</th>
-                  {(sectorView === 'ALL' || sectorView === 'S1') && <th>BEST S1</th>}
-                  {(sectorView === 'ALL' || sectorView === 'S2') && <th>BEST S2</th>}
-                  {(sectorView === 'ALL' || sectorView === 'S3') && <th>BEST S3</th>}
+                  <th style={{ width: '40px' }}>{t('history.classification.headers.pos')}</th>
+                  <th>{t('history.classification.headers.driver')}</th>
+                  {(sectorView === 'ALL' || sectorView === 'S1') && <th>{t('history.sectors.bestS1')}</th>}
+                  {(sectorView === 'ALL' || sectorView === 'S2') && <th>{t('history.sectors.bestS2')}</th>}
+                  {(sectorView === 'ALL' || sectorView === 'S3') && <th>{t('history.sectors.bestS3')}</th>}
                 </tr>
               </thead>
               <tbody>
@@ -303,10 +303,10 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
         <div className="glass-panel" style={{ padding: '1.25rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <h4 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Gauge size={18} color="var(--accent-secondary)" /> Speed Trap & Maximum Speeds
+              <Gauge size={18} color="var(--accent-secondary)" /> {t('history.sectors.speedTrapMaxSpeeds')}
             </h4>
             <span className="mono" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              HIGHEST: {maxOverallSpeed ? `${maxOverallSpeed.toFixed(1)} km/h` : '--'}
+              {t('history.sectors.highestSpeed', { speed: maxOverallSpeed ? `${maxOverallSpeed.toFixed(1)} km/h` : '--' })}
             </span>
           </div>
 

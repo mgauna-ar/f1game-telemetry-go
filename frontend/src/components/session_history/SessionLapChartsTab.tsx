@@ -309,11 +309,11 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
       <div className="glass-panel" style={{ padding: '1.5rem', minHeight: '480px' }}>
         {activeDriverStandings.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-secondary)' }}>
-            Please select at least one driver above to render the chart.
+            {t('history.progression.selectDriverPrompt')}
           </div>
         ) : totalSessionLaps === 0 ? (
           <div style={{ textAlign: 'center', padding: '4rem', color: 'var(--text-secondary)' }}>
-            No lap progression data available for this session.
+            {t('history.progression.noLapProgression')}
           </div>
         ) : (
           <div>
@@ -322,7 +322,7 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
               <div>
                 <h4 style={{ margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <TrendingUp size={18} color="var(--accent-primary)" />
-                  Lap-by-Lap Pace Evolution (Seconds per Lap)
+                  {t('history.progression.lapByLapPace')}
                 </h4>
                 <div style={{ width: '100%', height: '400px' }}>
                   <ResponsiveContainer width="100%" height="100%">
@@ -380,7 +380,7 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
               <div>
                 <h4 style={{ margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Award size={18} color="var(--accent-secondary)" />
-                  Position Progression (P1 to P{driverStandings.length})
+                  {t('history.progression.positionProgression', { count: driverStandings.length })}
                 </h4>
                 <div style={{ width: '100%', height: '400px' }}>
                   <ResponsiveContainer width="100%" height="100%">
@@ -436,7 +436,7 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
               <div>
                 <h4 style={{ margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Layers size={18} color="var(--accent-tertiary)" />
-                  Gap to Leader Delta (Seconds Behind P1)
+                  {t('history.progression.gapToLeaderDelta')}
                 </h4>
                 <div style={{ width: '100%', height: '400px' }}>
                   <ResponsiveContainer width="100%" height="100%">
