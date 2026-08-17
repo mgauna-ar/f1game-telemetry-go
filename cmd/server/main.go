@@ -66,6 +66,7 @@ func main() {
 
 	// 5. Setup Session Manager
 	sessionManager := session.NewSessionManager(repo)
+	sessionManager.Start(ctx)
 
 	// 6. Setup UDP Listener
 	listener := udp.NewListener(udpAddr, udp.DefaultBufferSize)
@@ -113,6 +114,10 @@ func main() {
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutdownCancel()
+
+	// Flush remaining in-flight telemetry batches
+	sessionManager.Close(shutdownCtx)
+
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		log.Printf("HTTP server shutdown error: %v", err)
 	}

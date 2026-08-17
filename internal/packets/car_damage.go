@@ -53,7 +53,7 @@ func DecodeCarDamage(data []byte) (*PacketCarDamageData, error) {
 
 	payload := data[headerLen:]
 	maxCars := MaxCarsForFormat(header.PacketFormat)
-	itemSize := InferredItemSize(payload, header, CarDamageStructSize, 0)
+	itemSize := PerCarItemSize(payload, header, CarDamageStructSize, 0)
 
 	for i := 0; i < maxCars && i < MaxCars; i++ {
 		offset := i * itemSize

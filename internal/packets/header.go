@@ -11,10 +11,68 @@ const (
 	MaxCars          = 24
 	MaxCars2025      = 22
 	MaxCars2026      = 24
+	PacketFormat2025 = 2025
 	PacketFormat2026 = 2026
 )
 
-// MaxCarsForFormat returns the maximum number of cars for a given packet format.
+// Tyre compound constants
+const (
+	CompoundInter     uint8 = 7
+	CompoundWet       uint8 = 8
+	CompoundSoft      uint8 = 16
+	CompoundMedium    uint8 = 17
+	CompoundHard      uint8 = 18
+	CompoundSuperSoft uint8 = 19
+	CompoundClassicS  uint8 = 20
+	CompoundClassicM  uint8 = 21
+	CompoundClassicH  uint8 = 22
+)
+
+// VisualTyreCompoundName returns the human-readable visual tyre compound name.
+func VisualTyreCompoundName(compound uint8) string {
+	switch compound {
+	case CompoundSoft, CompoundClassicS:
+		return "SOFT"
+	case CompoundMedium, CompoundClassicM:
+		return "MEDIUM"
+	case CompoundHard, CompoundClassicH:
+		return "HARD"
+	case CompoundInter:
+		return "INTERMEDIATE"
+	case CompoundWet:
+		return "WET"
+	case CompoundSuperSoft:
+		return "SOFT"
+	default:
+		return "MEDIUM"
+	}
+}
+
+// ActualTyreCompoundName returns the human-readable F1 compound identifier (C1-C5, etc.).
+func ActualTyreCompoundName(compound uint8) string {
+	switch compound {
+	case 16:
+		return "C5"
+	case 17:
+		return "C4"
+	case 18:
+		return "C3"
+	case 19:
+		return "C2"
+	case 20:
+		return "C1"
+	case 21:
+		return "C0"
+	case CompoundInter:
+		return "INTERMEDIATE"
+	case CompoundWet:
+		return "WET"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// MaxCarsForFormat returns the maximum number of cars for a given packet format (22 for 2025, 24 for 2026).
 func MaxCarsForFormat(packetFormat uint16) int {
 	if packetFormat >= PacketFormat2026 {
 		return MaxCars2026
@@ -22,8 +80,8 @@ func MaxCarsForFormat(packetFormat uint16) int {
 	return MaxCars2025
 }
 
-// InferredItemSize calculates the exact per-car byte stride based on packet payload length.
-func InferredItemSize(payload []byte, header PacketHeader, structSize int, trailer int) int {
+// PerCarItemSize calculates the per-car byte stride based on packet payload length and format car count.
+func PerCarItemSize(payload []byte, header PacketHeader, structSize int, trailer int) int {
 	maxCars := MaxCarsForFormat(header.PacketFormat)
 	if len(payload) <= 0 || maxCars <= 0 {
 		return structSize

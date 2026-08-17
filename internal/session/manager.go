@@ -12,6 +12,7 @@ import (
 // It detects new sessions and routes lap and telemetry data to LapTrackers for all active cars.
 type SessionManager struct {
 	repo          *storage.Repository
+	batchWriter   *TelemetryBatchWriter
 	lapTrackers   map[int]*LapTracker
 	numActiveCars int
 
@@ -21,14 +22,30 @@ type SessionManager struct {
 
 // NewSessionManager creates a new SessionManager.
 func NewSessionManager(repo *storage.Repository) *SessionManager {
+	bw := NewTelemetryBatchWriter(repo)
 	trackers := make(map[int]*LapTracker)
 	for i := 0; i < packets.MaxCars; i++ {
-		trackers[i] = NewLapTracker(repo, i)
+		trackers[i] = NewLapTracker(repo, bw, i)
 	}
 	return &SessionManager{
 		repo:          repo,
+		batchWriter:   bw,
 		lapTrackers:   trackers,
 		numActiveCars: packets.MaxCars,
+	}
+}
+
+// Start launches background workers for the session manager.
+func (sm *SessionManager) Start(ctx context.Context) {
+	if sm.batchWriter != nil {
+		sm.batchWriter.Start(ctx)
+	}
+}
+
+// Close gracefully flushes all remaining data and shuts down workers.
+func (sm *SessionManager) Close(ctx context.Context) {
+	if sm.batchWriter != nil {
+		sm.batchWriter.Close(ctx)
 	}
 }
 
@@ -85,6 +102,11 @@ func (sm *SessionManager) ProcessPacket(ctx context.Context, pkt packets.Packet)
 
 func (sm *SessionManager) handleNewSession(ctx context.Context, header packets.PacketHeader) {
 	log.Printf("[Session] New session detected: %d", header.SessionUID)
+
+	// Flush in-flight samples from the previous session
+	if sm.batchWriter != nil {
+		sm.batchWriter.Flush(ctx)
+	}
 
 	// Finalize old session's lap trackers if needed
 	for _, tracker := range sm.lapTrackers {

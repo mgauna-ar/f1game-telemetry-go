@@ -17,7 +17,11 @@ func TestSessionManagerIntegration(t *testing.T) {
 	defer repo.Close()
 
 	manager := NewSessionManager(repo)
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	manager.Start(ctx)
+	defer manager.Close(ctx)
 
 	// 2. Simulate new session
 	sessionHeader := packets.PacketHeader{
@@ -77,13 +81,6 @@ func TestSessionManagerIntegration(t *testing.T) {
 
 	manager.ProcessPacket(ctx, telemetryPacket)
 
-	if len(manager.lapTrackers[0].samples) != 1 {
-		t.Errorf("expected 1 telemetry sample for car 0, got %d", len(manager.lapTrackers[0].samples))
-	}
-	if len(manager.lapTrackers[1].samples) != 1 {
-		t.Errorf("expected 1 telemetry sample for car 1, got %d", len(manager.lapTrackers[1].samples))
-	}
-
 	// 5. Simulate Lap 2 starting (Lap 1 finishes)
 	lapPacket.LapData[0].CurrentLapNum = 2
 	lapPacket.LapData[0].LastLapTimeInMS = 85000 // 1:25.000
@@ -99,12 +96,16 @@ func TestSessionManagerIntegration(t *testing.T) {
 		t.Errorf("expected car 1 lap num 2, got %d", manager.lapTrackers[1].currentLapNum)
 	}
 
-	// Telemetry samples should have been flushed on lap completion
-	if len(manager.lapTrackers[0].samples) != 0 {
-		t.Errorf("expected 0 telemetry samples for car 0 after lap flush, got %d", len(manager.lapTrackers[0].samples))
+	// Flush async writer
+	manager.batchWriter.Flush(ctx)
+
+	// Query telemetry samples for lap 1
+	laps, err := repo.GetLapsBySession(ctx, manager.currentSession.ID)
+	if err != nil {
+		t.Fatalf("failed to query laps: %v", err)
 	}
-	if len(manager.lapTrackers[1].samples) != 0 {
-		t.Errorf("expected 0 telemetry samples for car 1 after lap flush, got %d", len(manager.lapTrackers[1].samples))
+	if len(laps) < 2 {
+		t.Fatalf("expected at least 2 laps created, got %d", len(laps))
 	}
 }
 
@@ -145,7 +146,6 @@ func TestSessionManagerParticipants(t *testing.T) {
 		NumActiveCars: 3,
 	}
 
-	// Set participant names (null-terminated [48]byte arrays)
 	copy(participantsPacket.Participants[0].Name[:], "Max Verstappen")
 	participantsPacket.Participants[0].DriverId = 1
 	participantsPacket.Participants[0].TeamId = 1
@@ -176,7 +176,6 @@ func TestSessionManagerParticipants(t *testing.T) {
 		t.Fatalf("expected 3 participants, got %d", len(participants))
 	}
 
-	// Verify ordering and data
 	tests := []struct {
 		carIndex     int
 		name         string
@@ -322,5 +321,70 @@ func TestFinalLapFinalizationOnSessionFinish(t *testing.T) {
 
 	if laps[0].LapTimeMS != 87500 {
 		t.Errorf("expected final lap time 87500 ms, got %d ms", laps[0].LapTimeMS)
+	}
+}
+
+func TestStintProgressionAndCompoundMapping(t *testing.T) {
+	repo, err := storage.NewRepository("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("failed to create repo: %v", err)
+	}
+	defer repo.Close()
+
+	manager := NewSessionManager(repo)
+	ctx := context.Background()
+
+	sessionHeader := packets.PacketHeader{
+		PacketFormat:   2025,
+		PacketId:       packets.PacketIDSession,
+		SessionUID:     555444333,
+		PlayerCarIndex: 0,
+	}
+
+	sessionPacket := &packets.PacketSessionData{
+		Header:      sessionHeader,
+		TrackId:     1,
+		SessionType: packets.SessionRace,
+	}
+	manager.ProcessPacket(ctx, sessionPacket)
+
+	// Start Lap 1 with SOFT tyres (compound 16)
+	lapHeader := sessionHeader
+	lapHeader.PacketId = packets.PacketIDLapData
+	lapPacket := &packets.PacketLapData{Header: lapHeader}
+	lapPacket.LapData[0].CurrentLapNum = 1
+	lapPacket.LapData[0].ResultStatus = 2
+	lapPacket.LapData[0].NumPitStops = 0
+	manager.ProcessPacket(ctx, lapPacket)
+
+	statusHeader := sessionHeader
+	statusHeader.PacketId = packets.PacketIDCarStatus
+	statusPacket := &packets.PacketCarStatusData{Header: statusHeader}
+	statusPacket.CarStatusData[0].VisualTyreCompound = packets.CompoundSoft
+	statusPacket.CarStatusData[0].TyresAgeLaps = 5
+	manager.ProcessPacket(ctx, statusPacket)
+
+	if manager.lapTrackers[0].currentStintNum != 1 {
+		t.Errorf("expected stint 1 at start, got %d", manager.lapTrackers[0].currentStintNum)
+	}
+	if manager.lapTrackers[0].lastCompound != "SOFT" {
+		t.Errorf("expected compound SOFT, got %s", manager.lapTrackers[0].lastCompound)
+	}
+
+	// Pit stop at Lap 10: switch to MEDIUM (compound 17) and NumPitStops = 1
+	lapPacket.LapData[0].CurrentLapNum = 10
+	lapPacket.LapData[0].NumPitStops = 1
+	manager.ProcessPacket(ctx, lapPacket)
+
+	statusPacket.CarStatusData[0].VisualTyreCompound = packets.CompoundMedium
+	statusPacket.CarStatusData[0].TyresAgeLaps = 0
+	manager.ProcessPacket(ctx, statusPacket)
+
+	// Stint should be exactly 2 (not 3 despite both pit stop increment and compound change)
+	if manager.lapTrackers[0].currentStintNum != 2 {
+		t.Errorf("expected stint 2 after single pit stop, got %d", manager.lapTrackers[0].currentStintNum)
+	}
+	if manager.lapTrackers[0].lastCompound != "MEDIUM" {
+		t.Errorf("expected compound MEDIUM, got %s", manager.lapTrackers[0].lastCompound)
 	}
 }

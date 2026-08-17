@@ -97,7 +97,7 @@ func (r *Repository) SaveLap(ctx context.Context, l *Lap) error {
 			is_valid = excluded.is_valid,
 			tyre_compound = excluded.tyre_compound,
 			fuel_load = excluded.fuel_load,
-			max_speed_kmh = excluded.max_speed_kmh,
+			max_speed_kmh = CASE WHEN excluded.max_speed_kmh > laps.max_speed_kmh THEN excluded.max_speed_kmh ELSE laps.max_speed_kmh END,
 			penalties_seconds = excluded.penalties_seconds,
 			car_position = excluded.car_position,
 			result_status = excluded.result_status,
@@ -232,13 +232,6 @@ func (r *Repository) GetLapsBySession(ctx context.Context, sessionID int64) ([]L
 	`
 	if err := r.db.SelectContext(ctx, &laps, query, sessionID); err != nil {
 		return nil, fmt.Errorf("failed to get laps: %w", err)
-	}
-
-	// Sanitize legacy incomplete laps where lap_time_ms was erroneously assigned when sector 3 is 0
-	for i := range laps {
-		if laps[i].Sector3MS == 0 && laps[i].Sector1MS > 0 && laps[i].Sector2MS > 0 {
-			laps[i].LapTimeMS = 0
-		}
 	}
 
 	return laps, nil

@@ -2,7 +2,6 @@ package packets
 
 import (
 	"bytes"
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -58,10 +57,10 @@ type PacketParticipantsData struct {
 func (p PacketParticipantsData) GetHeader() PacketHeader { return p.Header }
 
 const (
-	ParticipantStructSizeMin    = 57
-	ParticipantStructSizeLegacy = 58
-	ParticipantNameLen2026      = 32
-	ParticipantNameLenLegacy    = 48
+	ParticipantStructSize2025 = 60
+	ParticipantStructSize2026 = 57
+	ParticipantNameLen2025    = 48
+	ParticipantNameLen2026    = 32
 )
 
 // DecodeParticipants decodes a PacketParticipantsData from raw bytes.
@@ -83,14 +82,19 @@ func DecodeParticipants(data []byte) (*PacketParticipantsData, error) {
 	carsPayload := payload[1:]
 
 	maxCars := MaxCarsForFormat(header.PacketFormat)
-	itemSize := len(carsPayload) / maxCars
-	if itemSize < ParticipantStructSizeMin {
-		itemSize = ParticipantStructSizeMin
+	structSize := ParticipantStructSize2025
+	if header.PacketFormat >= PacketFormat2026 {
+		structSize = ParticipantStructSize2026
+	}
+
+	itemSize := structSize
+	if maxCars > 0 && len(carsPayload)/maxCars >= structSize {
+		itemSize = len(carsPayload) / maxCars
 	}
 
 	for i := 0; i < maxCars && i < MaxCars; i++ {
 		offset := i * itemSize
-		if offset+ParticipantStructSizeMin > len(carsPayload) {
+		if offset+structSize > len(carsPayload) {
 			break
 		}
 
@@ -98,37 +102,16 @@ func DecodeParticipants(data []byte) (*PacketParticipantsData, error) {
 		var p ParticipantData
 		p.AIControlled = carBytes[0]
 		p.DriverId = carBytes[1]
+		p.NetworkId = carBytes[2]
+		p.TeamId = carBytes[3]
+		p.MyTeam = carBytes[4]
+		p.RaceNumber = carBytes[5]
+		p.Nationality = carBytes[6]
 
-		var nameOffset, nameLen int
+		nameOffset := 7
+		nameLen := ParticipantNameLen2025
 		if header.PacketFormat >= PacketFormat2026 {
-			p.NetworkId = uint8(binary.LittleEndian.Uint16(carBytes[2:4]))
-			nameOffset = 8
-			// Check if byte 10 has printable character and byte 8 is race number/zero
-			if len(carBytes) >= 42 && carBytes[10] >= 0x20 && carBytes[10] <= 0x7E && carBytes[8] < 100 {
-				nameOffset = 10
-				p.TeamId = uint8(binary.LittleEndian.Uint16(carBytes[4:6]))
-				p.MyTeam = carBytes[6]
-				p.RaceNumber = carBytes[8]
-				p.Nationality = carBytes[9]
-			} else {
-				p.TeamId = carBytes[4]
-				p.MyTeam = carBytes[5]
-				p.RaceNumber = carBytes[6]
-				p.Nationality = carBytes[7]
-			}
 			nameLen = ParticipantNameLen2026
-		} else {
-			p.NetworkId = carBytes[2]
-			p.TeamId = carBytes[3]
-			p.MyTeam = carBytes[4]
-			p.RaceNumber = carBytes[5]
-			p.Nationality = carBytes[6]
-			nameOffset = 7
-			if itemSize >= ParticipantStructSizeLegacy {
-				nameLen = ParticipantNameLenLegacy
-			} else {
-				nameLen = ParticipantNameLen2026
-			}
 		}
 
 		if nameOffset+nameLen <= len(carBytes) {

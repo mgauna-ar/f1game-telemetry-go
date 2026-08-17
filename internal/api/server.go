@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -76,9 +78,17 @@ func (s *Server) routes() {
 		r.Post("/ai/models", s.handleAIFetchModels)
 	})
 
-	// Serve static files from the frontend directory (created in Phase 4)
-	fs := http.FileServer(http.Dir("./frontend/dist"))
-	s.router.Handle("/*", http.StripPrefix("/", fs))
+	// Serve static files from frontend with SPA fallback
+	frontendDir := "./frontend/dist"
+	fs := http.FileServer(http.Dir(frontendDir))
+	s.router.Get("/*", func(w http.ResponseWriter, r *http.Request) {
+		path := filepath.Join(frontendDir, r.URL.Path)
+		if info, err := os.Stat(path); os.IsNotExist(err) || (err == nil && info.IsDir()) {
+			http.ServeFile(w, r, filepath.Join(frontendDir, "index.html"))
+			return
+		}
+		fs.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {

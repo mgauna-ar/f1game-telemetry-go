@@ -41,7 +41,7 @@ func DecodeLapPositions(data []byte) (*PacketLapPositionsData, error) {
 
 	payload := data[headerLen:]
 	maxCars := MaxCarsForFormat(header.PacketFormat)
-	itemSize := InferredItemSize(payload, header, LapPositionsCarDataStructSize, 0)
+	itemSize := PerCarItemSize(payload, header, LapPositionsCarDataStructSize, 0)
 
 	for i := 0; i < maxCars && i < MaxCars; i++ {
 		offset := i * itemSize

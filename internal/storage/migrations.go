@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+
 	"github.com/jmoiron/sqlx"
 )
 
@@ -78,21 +79,11 @@ CREATE INDEX IF NOT EXISTS idx_laps_session ON laps(session_id);
 CREATE INDEX IF NOT EXISTS idx_participants_session ON participants(session_id);
 `
 
-// Migrate runs the schema migrations to ensure the database is up to date.
+// Migrate runs the base schema creation to ensure the database is initialized.
 func Migrate(db *sqlx.DB) error {
 	_, err := db.Exec(schema)
 	if err != nil {
-		return fmt.Errorf("failed to execute migrations: %w", err)
+		return fmt.Errorf("failed to execute schema: %w", err)
 	}
-
-	// Add missing columns dynamically if upgrading an existing DB file
-	_, _ = db.Exec("ALTER TABLE laps ADD COLUMN penalties_seconds INTEGER DEFAULT 0")
-	_, _ = db.Exec("ALTER TABLE laps ADD COLUMN car_position INTEGER DEFAULT 0")
-	_, _ = db.Exec("ALTER TABLE laps ADD COLUMN result_status INTEGER DEFAULT 0")
-	_, _ = db.Exec("ALTER TABLE laps ADD COLUMN stint INTEGER DEFAULT 1")
-
-	// Correct legacy session_type entries saved due to previous enum offset bug
-	_, _ = db.Exec("UPDATE sessions SET session_type = 'Race' WHERE session_type = 'Sprint Qualifying 1'")
-
 	return nil
 }
