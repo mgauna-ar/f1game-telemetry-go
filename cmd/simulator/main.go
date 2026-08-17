@@ -156,18 +156,116 @@ func main() {
 			}
 
 			sessionPkt := packets.PacketSessionData{
-				Header:           header,
-				TrackId:          0, // Melbourne
-				SessionType:      sessionType,
-				TotalLaps:        totalLaps,
-				SessionTimeLeft:  sessionTimeLeft,
-				TrackTemperature: 32,
-				AirTemperature:   24,
-				Weather:          0, // Clear
-				SafetyCarStatus:  0, // Green Flag
+				Header:                    header,
+				TrackId:                   0, // Melbourne
+				SessionType:               sessionType,
+				TotalLaps:                 totalLaps,
+				SessionTimeLeft:           sessionTimeLeft,
+				TrackTemperature:          32,
+				AirTemperature:            24,
+				Weather:                   0, // Clear
+				SafetyCarStatus:           0, // Green Flag
+				PitStopWindowIdealLap:     16,
+				PitStopWindowLatestLap:    22,
+				PitStopRejoinPosition:     7,
+				NumWeatherForecastSamples: 4,
+			}
+			sessionPkt.WeatherForecastSamples[0] = packets.WeatherForecastSample{
+				SessionType:            sessionType,
+				TimeOffset:             0,
+				Weather:                0,
+				TrackTemperature:       32,
+				TrackTemperatureChange: 0,
+				AirTemperature:         24,
+				AirTemperatureChange:   0,
+				RainPercentage:         0,
+			}
+			sessionPkt.WeatherForecastSamples[1] = packets.WeatherForecastSample{
+				SessionType:            sessionType,
+				TimeOffset:             5,
+				Weather:                1,
+				TrackTemperature:       31,
+				TrackTemperatureChange: -1,
+				AirTemperature:         24,
+				AirTemperatureChange:   0,
+				RainPercentage:         5,
+			}
+			sessionPkt.WeatherForecastSamples[2] = packets.WeatherForecastSample{
+				SessionType:            sessionType,
+				TimeOffset:             15,
+				Weather:                2,
+				TrackTemperature:       30,
+				TrackTemperatureChange: -1,
+				AirTemperature:         23,
+				AirTemperatureChange:   -1,
+				RainPercentage:         20,
+			}
+			sessionPkt.WeatherForecastSamples[3] = packets.WeatherForecastSample{
+				SessionType:            sessionType,
+				TimeOffset:             30,
+				Weather:                3,
+				TrackTemperature:       28,
+				TrackTemperatureChange: -2,
+				AirTemperature:         22,
+				AirTemperatureChange:   -1,
+				RainPercentage:         65,
 			}
 			sessionPkt.Header.PacketId = packets.PacketIDSession
 			sendPacket(conn, &sessionPkt)
+
+			// 1b. Periodic Event Packet (ID: 3)
+			if frameID%120 == 40 {
+				var evtPkt packets.PacketEventData
+				evtPkt.Header = header
+				evtPkt.Header.PacketId = packets.PacketIDEvent
+
+				switch (frameID / 120) % 5 {
+				case 0:
+					copy(evtPkt.EventStringCode[:], packets.EventFastestLap)
+					var d packets.FastestLapEventData
+					d.VehicleIdx = 0
+					d.LapTime = 84.821
+					var b bytes.Buffer
+					_ = binary.Write(&b, binary.LittleEndian, d)
+					copy(evtPkt.EventDetails.Data[:], b.Bytes())
+				case 1:
+					copy(evtPkt.EventStringCode[:], packets.EventOvertake)
+					var d packets.OvertakeEventData
+					d.OvertakingVehicleIdx = 4
+					d.BeingOvertakenVehicleIdx = 2
+					var b bytes.Buffer
+					_ = binary.Write(&b, binary.LittleEndian, d)
+					copy(evtPkt.EventDetails.Data[:], b.Bytes())
+				case 2:
+					copy(evtPkt.EventStringCode[:], packets.EventPenaltyIssued)
+					var d packets.PenaltyEventData
+					d.PenaltyType = 0
+					d.InfringementType = 0
+					d.VehicleIdx = 2
+					d.Time = 5
+					d.LapNum = lapNum
+					var b bytes.Buffer
+					_ = binary.Write(&b, binary.LittleEndian, d)
+					copy(evtPkt.EventDetails.Data[:], b.Bytes())
+				case 3:
+					copy(evtPkt.EventStringCode[:], packets.EventSpeedTrapTriggered)
+					var d packets.SpeedTrapEventData
+					d.VehicleIdx = 0
+					d.Speed = 334.8
+					d.IsOverallFastestInSession = 1
+					var b bytes.Buffer
+					_ = binary.Write(&b, binary.LittleEndian, d)
+					copy(evtPkt.EventDetails.Data[:], b.Bytes())
+				case 4:
+					copy(evtPkt.EventStringCode[:], packets.EventTeamMateInPits)
+					var d packets.TeamMateInPitsEventData
+					d.VehicleIdx = 1
+					var b bytes.Buffer
+					_ = binary.Write(&b, binary.LittleEndian, d)
+					copy(evtPkt.EventDetails.Data[:], b.Bytes())
+				}
+				sendPacket(conn, &evtPkt)
+			}
 
 			// 1c. Participants Data Packet (ID: 4)
 			if frameID == 1 || frameID%100 == 0 {

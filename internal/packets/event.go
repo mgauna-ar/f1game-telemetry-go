@@ -3,6 +3,7 @@ package packets
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 )
 
@@ -104,6 +105,62 @@ type StartLightsEventData struct {
 type OvertakeEventData struct {
 	OvertakingVehicleIdx     uint8
 	BeingOvertakenVehicleIdx uint8
+}
+
+type eventJSON struct {
+	Header          PacketHeader
+	EventCode       string
+	VehicleIdx      *uint8   `json:"VehicleIdx,omitempty"`
+	OtherVehicleIdx *uint8   `json:"OtherVehicleIdx,omitempty"`
+	LapTime         *float32 `json:"LapTime,omitempty"`
+	Speed           *float32 `json:"Speed,omitempty"`
+	PenaltyType     *uint8   `json:"PenaltyType,omitempty"`
+	PenaltyTime     *uint8   `json:"PenaltyTime,omitempty"`
+	LapNum          *uint8   `json:"LapNum,omitempty"`
+}
+
+func (p PacketEventData) MarshalJSON() ([]byte, error) {
+	code := p.EventCode()
+	ej := eventJSON{
+		Header:    p.Header,
+		EventCode: code,
+	}
+	r := bytes.NewReader(p.EventDetails.Data[:])
+	switch code {
+	case EventFastestLap:
+		var d FastestLapEventData
+		if err := binary.Read(r, binary.LittleEndian, &d); err == nil {
+			ej.VehicleIdx = &d.VehicleIdx
+			ej.LapTime = &d.LapTime
+		}
+	case EventRetirement, EventTeamMateInPits, EventRaceWinner:
+		var d RetirementEventData
+		if err := binary.Read(r, binary.LittleEndian, &d); err == nil {
+			ej.VehicleIdx = &d.VehicleIdx
+		}
+	case EventPenaltyIssued:
+		var d PenaltyEventData
+		if err := binary.Read(r, binary.LittleEndian, &d); err == nil {
+			ej.VehicleIdx = &d.VehicleIdx
+			ej.OtherVehicleIdx = &d.OtherVehicleIdx
+			ej.PenaltyType = &d.PenaltyType
+			ej.PenaltyTime = &d.Time
+			ej.LapNum = &d.LapNum
+		}
+	case EventSpeedTrapTriggered:
+		var d SpeedTrapEventData
+		if err := binary.Read(r, binary.LittleEndian, &d); err == nil {
+			ej.VehicleIdx = &d.VehicleIdx
+			ej.Speed = &d.Speed
+		}
+	case EventOvertake:
+		var d OvertakeEventData
+		if err := binary.Read(r, binary.LittleEndian, &d); err == nil {
+			ej.VehicleIdx = &d.OvertakingVehicleIdx
+			ej.OtherVehicleIdx = &d.BeingOvertakenVehicleIdx
+		}
+	}
+	return json.Marshal(ej)
 }
 
 // DecodeEvent decodes a PacketEventData from raw bytes.

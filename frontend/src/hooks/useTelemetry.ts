@@ -52,6 +52,17 @@ export interface CarMotionData {
   WorldPositionZ: number;
 }
 
+export interface WeatherForecastSample {
+  SessionType: number;
+  TimeOffset: number; // in minutes (0, 5, 10, 15, 30)
+  Weather: number; // 0: Clear, 1: Light Cloud, 2: Overcast, 3: Light Rain, 4: Heavy Rain, 5: Storm
+  TrackTemperature: number;
+  TrackTemperatureChange: number; // 0 = up, 1 = down, 2 = no change
+  AirTemperature: number;
+  AirTemperatureChange: number;
+  RainPercentage: number;
+}
+
 export interface SessionData {
   Weather: number;
   TrackTemperature: number;
@@ -63,6 +74,27 @@ export interface SessionData {
   SessionTimeLeft: number;
   SessionDuration: number;
   SafetyCarStatus: number;
+  PitStopWindowIdealLap?: number;
+  PitStopWindowLatestLap?: number;
+  PitStopRejoinPosition?: number;
+  NumWeatherForecastSamples?: number;
+  WeatherForecastSamples?: WeatherForecastSample[];
+  NumSafetyCarPeriods?: number;
+  NumVirtualSafetyCarPeriods?: number;
+  NumRedFlagPeriods?: number;
+}
+
+export interface RaceEvent {
+  id: string;
+  timestamp: number;
+  sessionTime?: number;
+  eventCode: string;
+  type: 'fastest_lap' | 'overtake' | 'penalty' | 'speed_trap' | 'pit' | 'retirement' | 'flag' | 'general';
+  description: string;
+  vehicleIdx?: number;
+  driverName?: string;
+  lapNum?: number;
+  severity: 'info' | 'warning' | 'danger' | 'purple' | 'success';
 }
 
 export interface ParticipantData {
@@ -175,6 +207,26 @@ interface PacketSessionData {
   SessionTimeLeft: number;
   SessionDuration: number;
   SafetyCarStatus: number;
+  PitStopWindowIdealLap?: number;
+  PitStopWindowLatestLap?: number;
+  PitStopRejoinPosition?: number;
+  NumWeatherForecastSamples?: number;
+  WeatherForecastSamples?: WeatherForecastSample[];
+  NumSafetyCarPeriods?: number;
+  NumVirtualSafetyCarPeriods?: number;
+  NumRedFlagPeriods?: number;
+}
+
+interface PacketEventData {
+  Header: PacketHeader;
+  EventCode: string;
+  VehicleIdx?: number;
+  OtherVehicleIdx?: number;
+  LapTime?: number;
+  Speed?: number;
+  PenaltyType?: number;
+  PenaltyTime?: number;
+  LapNum?: number;
 }
 
 interface PacketParticipantsData {
@@ -283,6 +335,7 @@ export function useTelemetry(wsUrl?: string) {
   const [allCarSetup, setAllCarSetup] = useState<CarSetupData[]>([]);
   const [allCarDamage, setAllCarDamage] = useState<CarDamageData[]>([]);
   const [allTelemetry, setAllTelemetry] = useState<CarTelemetryData[]>([]);
+  const [events, setEvents] = useState<RaceEvent[]>([]);
   
   const [playerCarIndex, setPlayerCarIndex] = useState<number>(0);
   const [selectedCarIndex, setSelectedCarIndex] = useState<number>(0);
@@ -294,10 +347,30 @@ export function useTelemetry(wsUrl?: string) {
   const ws = useRef<WebSocket | null>(null);
   const historyRef = useRef<TelemetrySample[]>([]);
   const selectedCarIndexRef = useRef<number>(0);
+  const participantsRef = useRef<ParticipantData[]>([]);
+  const prevLapsRef = useRef<LapData[]>([]);
+  const prevSafetyCarRef = useRef<number>(0);
 
   useEffect(() => {
     selectedCarIndexRef.current = selectedCarIndex;
   }, [selectedCarIndex]);
+
+  useEffect(() => {
+    participantsRef.current = participants;
+  }, [participants]);
+
+  const addEvent = (event: Omit<RaceEvent, 'id' | 'timestamp'>) => {
+    const newEvt: RaceEvent = {
+      ...event,
+      id: `${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+      timestamp: Date.now(),
+    };
+    setEvents((prev) => [newEvt, ...prev].slice(0, 80));
+  };
+
+  const clearEvents = () => {
+    setEvents([]);
+  };
 
   useEffect(() => {
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -358,7 +431,160 @@ export function useTelemetry(wsUrl?: string) {
                 SessionTimeLeft: pkt.SessionTimeLeft,
                 SessionDuration: pkt.SessionDuration,
                 SafetyCarStatus: pkt.SafetyCarStatus,
+                PitStopWindowIdealLap: pkt.PitStopWindowIdealLap,
+                PitStopWindowLatestLap: pkt.PitStopWindowLatestLap,
+                PitStopRejoinPosition: pkt.PitStopRejoinPosition,
+                NumWeatherForecastSamples: pkt.NumWeatherForecastSamples,
+                WeatherForecastSamples: pkt.WeatherForecastSamples?.slice(0, pkt.NumWeatherForecastSamples || 4),
+                NumSafetyCarPeriods: pkt.NumSafetyCarPeriods,
+                NumVirtualSafetyCarPeriods: pkt.NumVirtualSafetyCarPeriods,
+                NumRedFlagPeriods: pkt.NumRedFlagPeriods,
               });
+
+              // Track Safety Car status change events
+              if (prevSafetyCarRef.current !== pkt.SafetyCarStatus) {
+                const scStatus = pkt.SafetyCarStatus;
+                let desc = 'Track Clear (Green Flag)';
+                let sev: RaceEvent['severity'] = 'success';
+                if (scStatus === 1) {
+                  desc = 'Full Safety Car Deployed';
+                  sev = 'warning';
+                } else if (scStatus === 2) {
+                  desc = 'Virtual Safety Car Deployed';
+                  sev = 'warning';
+                } else if (scStatus === 3) {
+                  desc = 'Formation Lap In Progress';
+                  sev = 'info';
+                }
+                addEvent({
+                  eventCode: 'SCAR',
+                  type: 'flag',
+                  description: desc,
+                  severity: sev,
+                  sessionTime: header.SessionTime,
+                });
+                prevSafetyCarRef.current = scStatus;
+              }
+            }
+            // PacketID 3: Event Data
+            else if (header.PacketId === 3) {
+              const pkt = data as PacketEventData;
+              const code = pkt.EventCode;
+              const vIdx = pkt.VehicleIdx ?? 0;
+              const driver = participantsRef.current[vIdx];
+              const driverName = parseDriverName(driver?.Name, `Car #${vIdx + 1}`, driver?.DriverId);
+
+              switch (code) {
+                case 'FTLP':
+                  addEvent({
+                    eventCode: 'FTLP',
+                    type: 'fastest_lap',
+                    description: `${driverName} set the fastest lap (${(pkt.LapTime || 0).toFixed(3)}s)`,
+                    vehicleIdx: vIdx,
+                    driverName,
+                    severity: 'purple',
+                    sessionTime: header.SessionTime,
+                  });
+                  break;
+                case 'OVTK': {
+                  const targetIdx = pkt.OtherVehicleIdx ?? 0;
+                  const targetDriver = participantsRef.current[targetIdx];
+                  const targetName = parseDriverName(targetDriver?.Name, `Car #${targetIdx + 1}`, targetDriver?.DriverId);
+                  addEvent({
+                    eventCode: 'OVTK',
+                    type: 'overtake',
+                    description: `${driverName} overtook ${targetName}`,
+                    vehicleIdx: vIdx,
+                    driverName,
+                    severity: 'info',
+                    sessionTime: header.SessionTime,
+                  });
+                  break;
+                }
+                case 'PENA':
+                  addEvent({
+                    eventCode: 'PENA',
+                    type: 'penalty',
+                    description: `${driverName} received a ${pkt.PenaltyTime || 5}s time penalty`,
+                    vehicleIdx: vIdx,
+                    driverName,
+                    lapNum: pkt.LapNum,
+                    severity: 'danger',
+                    sessionTime: header.SessionTime,
+                  });
+                  break;
+                case 'SPTP':
+                  addEvent({
+                    eventCode: 'SPTP',
+                    type: 'speed_trap',
+                    description: `${driverName} triggered speed trap at ${(pkt.Speed || 0).toFixed(1)} km/h`,
+                    vehicleIdx: vIdx,
+                    driverName,
+                    severity: 'success',
+                    sessionTime: header.SessionTime,
+                  });
+                  break;
+                case 'TMPT':
+                  addEvent({
+                    eventCode: 'TMPT',
+                    type: 'pit',
+                    description: `${driverName} entered the pit lane`,
+                    vehicleIdx: vIdx,
+                    driverName,
+                    severity: 'warning',
+                    sessionTime: header.SessionTime,
+                  });
+                  break;
+                case 'RTMT':
+                  addEvent({
+                    eventCode: 'RTMT',
+                    type: 'retirement',
+                    description: `${driverName} retired from the session`,
+                    vehicleIdx: vIdx,
+                    driverName,
+                    severity: 'danger',
+                    sessionTime: header.SessionTime,
+                  });
+                  break;
+                case 'SSTA':
+                  addEvent({
+                    eventCode: 'SSTA',
+                    type: 'general',
+                    description: 'Session Started',
+                    severity: 'success',
+                    sessionTime: header.SessionTime,
+                  });
+                  break;
+                case 'SEND':
+                  addEvent({
+                    eventCode: 'SEND',
+                    type: 'general',
+                    description: 'Session Ended',
+                    severity: 'info',
+                    sessionTime: header.SessionTime,
+                  });
+                  break;
+                case 'CHQF':
+                  addEvent({
+                    eventCode: 'CHQF',
+                    type: 'flag',
+                    description: 'Chequered Flag waved',
+                    severity: 'info',
+                    sessionTime: header.SessionTime,
+                  });
+                  break;
+                case 'RCWN':
+                  addEvent({
+                    eventCode: 'RCWN',
+                    type: 'general',
+                    description: `${driverName} won the race!`,
+                    vehicleIdx: vIdx,
+                    driverName,
+                    severity: 'success',
+                    sessionTime: header.SessionTime,
+                  });
+                  break;
+              }
             }
             // PacketID 4: Participants Data
             else if (header.PacketId === 4) {
@@ -412,6 +638,47 @@ export function useTelemetry(wsUrl?: string) {
               const pkt = data as PacketLapData;
               if (pkt.LapData) {
                 setAllLaps(pkt.LapData);
+
+                // Synthetic Event Detection for Pit Stops and Retirements
+                pkt.LapData.forEach((lap, idx) => {
+                  const prev = prevLapsRef.current[idx];
+                  if (!prev) return;
+
+                  // Pit entry transition
+                  if (prev.PitStatus === 0 && (lap.PitStatus === 1 || lap.PitStatus === 2)) {
+                    const p = participantsRef.current[idx];
+                    const dName = parseDriverName(p?.Name, `Car #${idx + 1}`, p?.DriverId);
+                    addEvent({
+                      eventCode: 'TMPT',
+                      type: 'pit',
+                      description: `${dName} entered the pit lane (Lap ${lap.CurrentLapNum})`,
+                      vehicleIdx: idx,
+                      driverName: dName,
+                      lapNum: lap.CurrentLapNum,
+                      severity: 'warning',
+                      sessionTime: header.SessionTime,
+                    });
+                  }
+
+                  // New penalty received
+                  if ((lap.Penalties || 0) > (prev.Penalties || 0)) {
+                    const added = (lap.Penalties || 0) - (prev.Penalties || 0);
+                    const p = participantsRef.current[idx];
+                    const dName = parseDriverName(p?.Name, `Car #${idx + 1}`, p?.DriverId);
+                    addEvent({
+                      eventCode: 'PENA',
+                      type: 'penalty',
+                      description: `${dName} received +${added}s penalty (Lap ${lap.CurrentLapNum})`,
+                      vehicleIdx: idx,
+                      driverName: dName,
+                      lapNum: lap.CurrentLapNum,
+                      severity: 'danger',
+                      sessionTime: header.SessionTime,
+                    });
+                  }
+                });
+
+                prevLapsRef.current = pkt.LapData;
               }
             }
             // PacketID 0: Motion Data
@@ -482,6 +749,8 @@ export function useTelemetry(wsUrl?: string) {
     trackPath,
     connected,
     history,
+    events,
+    clearEvents,
     playerCarIndex,
     selectedCarIndex,
     setSelectedCarIndex,

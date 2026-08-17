@@ -20,14 +20,14 @@ describe('App Navigation and Tab Bar', () => {
     localStorage.clear();
   });
 
-  it('renders reordered navigation tabs in exact order: 1) Session History, 2) Lap Comparator, 3) Live Telemetry', () => {
+  it('renders reordered navigation tabs in exact order: 1) Session History, 2) Lap Comparator, 3) Live Session', () => {
     render(<App />);
 
     const tabs = screen.getAllByRole('tab');
     expect(tabs).toHaveLength(3);
     expect(tabs[0]).toHaveTextContent(/Session History/i);
     expect(tabs[1]).toHaveTextContent(/Lap Comparator/i);
-    expect(tabs[2]).toHaveTextContent(/Live Telemetry/i);
+    expect(tabs[2]).toHaveTextContent(/Live Session/i);
   });
 
   it('defaults to Session History on initial launch', () => {
@@ -55,10 +55,10 @@ describe('App Navigation and Tab Bar', () => {
     expect(localStorage.getItem('f1_active_tab')).toBe('comparator');
   });
 
-  it('switches to Live Telemetry when clicked and persists to localStorage', () => {
+  it('switches to Live Session when clicked and persists to localStorage', () => {
     render(<App />);
 
-    const liveTab = screen.getByRole('tab', { name: /Live Telemetry/i });
+    const liveTab = screen.getByRole('tab', { name: /Live Session/i });
     fireEvent.click(liveTab);
 
     expect(screen.getByTestId('dashboard-view')).toBeInTheDocument();

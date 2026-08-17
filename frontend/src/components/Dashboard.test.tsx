@@ -3,17 +3,6 @@ import { vi } from 'vitest';
 import { Dashboard } from './Dashboard';
 import { useTelemetry } from '../hooks/useTelemetry';
 
-// Mock the Recharts components to avoid issues with ResizeObserver in JSDOM
-vi.mock('recharts', () => ({
-  ResponsiveContainer: ({ children }: any) => <div>{children}</div>,
-  LineChart: () => <div>LineChart</div>,
-  Line: () => <div />,
-  XAxis: () => <div />,
-  YAxis: () => <div />,
-  CartesianGrid: () => <div />,
-  Tooltip: () => <div />,
-}));
-
 // Mock the hook
 vi.mock('../hooks/useTelemetry');
 
@@ -26,6 +15,8 @@ describe('Dashboard', () => {
       allCarStatus: [],
       allCarDamage: [],
       allTelemetry: [],
+      events: [],
+      clearEvents: vi.fn(),
       telemetry: null,
       lap: null,
       motion: null,
@@ -52,6 +43,8 @@ describe('Dashboard', () => {
       allCarStatus: [],
       allCarDamage: [],
       allTelemetry: [],
+      events: [],
+      clearEvents: vi.fn(),
       telemetry: null,
       lap: null,
       motion: null,
@@ -68,7 +61,7 @@ describe('Dashboard', () => {
     expect(screen.getByText(/In-Game Telemetry Settings/i)).toBeInTheDocument();
   });
 
-  it('renders full live telemetry dashboard when connected and session data is received', () => {
+  it('renders full live Race Control Hub when connected and session data is received', () => {
     (useTelemetry as any).mockReturnValue({
       session: {
         TrackId: 0,
@@ -81,17 +74,33 @@ describe('Dashboard', () => {
         SessionTimeLeft: 3600,
         SessionDuration: 7200,
         SafetyCarStatus: 0,
+        PitStopWindowIdealLap: 18,
+        PitStopWindowLatestLap: 24,
+        PitStopRejoinPosition: 6,
       },
       participants: [
         { Name: 'Max Verstappen', DriverId: 9, TeamId: 0, RaceNumber: 1, AIControlled: 0 },
       ],
       allLaps: [
-        { CarPosition: 1, CurrentLapNum: 5, CurrentLapTimeInMS: 81234, LastLapTimeInMS: 80950, Sector: 1 },
+        { CarPosition: 1, CurrentLapNum: 5, CurrentLapTimeInMS: 81234, LastLapTimeInMS: 80950, Sector: 1, SpeedTrapFastestSpeed: 334.5 },
       ],
-      allCarStatus: [],
+      allCarStatus: [
+        { VisualTyreCompound: 17, TyresAgeLaps: 5, FuelInTank: 45, ERSStoreEnergy: 3500000 },
+      ],
       allCarDamage: [],
       allTelemetry: [],
-      telemetry: { Speed: 320, Gear: 8, EngineRPM: 11500, Throttle: 1, Brake: 0, Steer: 0, DRS: 1, RevLightsPercent: 80 },
+      events: [
+        {
+          id: '1',
+          timestamp: Date.now(),
+          eventCode: 'FTLP',
+          type: 'fastest_lap',
+          description: 'Max Verstappen set the fastest lap (80.950s)',
+          severity: 'purple',
+        },
+      ],
+      clearEvents: vi.fn(),
+      telemetry: null,
       lap: { CarPosition: 1, CurrentLapNum: 5, CurrentLapTimeInMS: 81234, LastLapTimeInMS: 80950, Sector: 1 },
       motion: null,
       trackPath: [],
@@ -103,8 +112,16 @@ describe('Dashboard', () => {
     });
 
     render(<Dashboard />);
+    // Session Header
     expect(screen.getByText(/Melbourne/i)).toBeInTheDocument();
-    expect(screen.getByText(/320/)).toBeInTheDocument(); // Speed
-    expect(screen.getByText('8')).toBeInTheDocument(); // Gear
+
+    // 4 Core Race Modules
+    expect(screen.getByText(/Race Control & Incidents/i)).toBeInTheDocument();
+    expect(screen.getByText(/Weather Radar & Track Evolution/i)).toBeInTheDocument();
+    expect(screen.getByText(/Pit Strategy & Field Tyre Matrix/i)).toBeInTheDocument();
+    expect(screen.getByText(/Live Sector Performance & Speed Traps/i)).toBeInTheDocument();
+
+    // Event Feed content
+    expect(screen.getByText(/Max Verstappen set the fastest lap/i)).toBeInTheDocument();
   });
 });

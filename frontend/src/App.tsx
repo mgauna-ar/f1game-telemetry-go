@@ -107,7 +107,7 @@ function App() {
             onClick={() => setActiveTab('live')}
           >
             <Radio size={16} className="nav-tab-icon" />
-            <span>Live Telemetry</span>
+            <span>Live Session</span>
             <span className="live-pulse-badge">
               <span className="live-pulse-dot" />
               LIVE
