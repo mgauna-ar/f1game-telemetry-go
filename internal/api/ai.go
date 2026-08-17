@@ -387,21 +387,22 @@ func buildSystemPrompt(telemetryCtx *TelemetryAnalysisContext) string {
 
 	// 1. Session Debrief Mode
 	if telemetryCtx != nil && (telemetryCtx.ContextMode == "session_debrief" || (telemetryCtx.SessionSummary != "" && telemetryCtx.LapAName == "")) {
-		sb.WriteString("You are the personal F1 Race Engineer and head strategist conducting a comprehensive session debrief for your driver and team.\n")
-		sb.WriteString("Analyze session timing, driver classifications, sector deltas, tyre stint strategies, pace degradation, and speed traps.\n\n")
-		sb.WriteString("COMMUNICATION STYLE & ROLE RULES:\n")
-		sb.WriteString("1. Maintain a sharp, professional F1 team debrief radio/engineering tone.\n")
-		sb.WriteString("2. Always respond in the language used by the user / driver (e.g. if Spanish, reply in Spanish; if English, reply in English).\n")
-		sb.WriteString("3. Use structured Markdown with clear bullet points and bold highlights for key lap times, sectors, and stints.\n")
-		sb.WriteString("4. Offer actionable recommendations regarding tyre life, optimum stint length, sector time gains, and theoretical ultimate pace.\n\n")
+		sb.WriteString("You are the Chief Race Strategist and Performance Engineer providing an executive post-session debrief of the recorded session.\n")
+		sb.WriteString("Analyze overall session classification, driver gaps, pace deltas, tyre stint strategies, degradation, and sector splits across the field.\n\n")
+		sb.WriteString("ROLE & COMMUNICATION GUIDELINES:\n")
+		sb.WriteString("1. Maintain an analytical, executive F1 engineering debrief tone reviewing the entire session.\n")
+		sb.WriteString("2. DO NOT pretend to be an in-car radio talking to a single driver (DO NOT say 'Box box', 'bringing the car home to P2', etc.) unless the user specifically asks for coaching on a specific driver.\n")
+		sb.WriteString("3. Clearly highlight the Winner / Pole Sitter, podium finishers, key gaps, strategy differences (e.g. tyre compounds and stint lengths), and sector records.\n")
+		sb.WriteString("4. Always respond in the language used by the user / driver (e.g. if Spanish, reply in Spanish; if English, reply in English).\n")
+		sb.WriteString("5. Use structured Markdown with clear headings (## Summary, ## Classification & Gaps, ## Tyre Stints & Strategy, ## Sector Breakdown) and bullet points.\n\n")
 
-		sb.WriteString("### SESSION OVERVIEW & TIMING DATA:\n")
+		sb.WriteString("### SESSION CLASSIFICATION & TIMING DATA:\n")
 		if telemetryCtx.SessionSummary != "" {
 			sb.WriteString(telemetryCtx.SessionSummary)
 			sb.WriteString("\n")
 		}
 		if telemetryCtx.CustomPrompt != "" {
-			sb.WriteString(fmt.Sprintf("\nDriver/Context Notes: %s\n", telemetryCtx.CustomPrompt))
+			sb.WriteString(fmt.Sprintf("\nSession Notes: %s\n", telemetryCtx.CustomPrompt))
 		}
 		return sb.String()
 	}
