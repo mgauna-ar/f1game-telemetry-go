@@ -1,5 +1,5 @@
 import React from 'react';
-import { Radio, Activity, CheckCircle2, Terminal, Info, Zap } from 'lucide-react';
+import { Radio, WifiOff, Activity, CheckCircle2, Terminal, Info, Zap } from 'lucide-react';
 import { useI18n } from '../context/I18nContext';
 
 interface WaitingForDataProps {
@@ -10,39 +10,38 @@ export const WaitingForData: React.FC<WaitingForDataProps> = ({ connected }) => 
   const { t } = useI18n();
 
   return (
-    <div className="waiting-for-data-container">
-      <div className="waiting-card glass-panel">
-        {/* Animated Radar Scanning Effect */}
-        <div className="radar-spinner">
-          <div className="radar-circle circle-1" />
-          <div className="radar-circle circle-2" />
-          <div className="radar-circle circle-3" />
-          <div className="radar-sweep" />
-          <Radio size={36} className="radar-center-icon" />
+    <div className="telemetry-waiting-container">
+      <div className="glass-panel waiting-hero-card">
+        {/* Animated Signal / Radar Header */}
+        <div className="waiting-radar-wrapper">
+          <div className="radar-ripple ring-1" />
+          <div className="radar-ripple ring-2" />
+          <div className="radar-ripple ring-3" />
+          <div className={`radar-center-icon ${connected ? 'connected' : 'disconnected'}`}>
+            {connected ? (
+              <Radio size={36} className="radar-icon-pulse" />
+            ) : (
+              <WifiOff size={36} />
+            )}
+          </div>
         </div>
 
-        {/* Pulse Status Badges */}
-        <div className="waiting-status-badges">
-          <div className={`status-badge-chip ${connected ? 'chip-connected' : 'chip-connecting'}`}>
-            <span className="pulse-dot" />
-            <span>
+        {/* Title and Connection State Badge */}
+        <div className="waiting-title-section">
+          <div className="waiting-status-badge-row">
+            <span className={`waiting-status-pill ${connected ? 'pill-connected' : 'pill-reconnecting'}`}>
+              <span className={`status-dot ${connected ? 'status-live' : 'status-waiting'}`} />
               {connected ? t('live.backendConnected') : t('live.connectingToBackend')}
             </span>
+            <span className="waiting-port-pill mono">
+              {t('live.udpPort')} <strong>20777</strong>
+            </span>
           </div>
-          <div className="status-badge-chip chip-port">
-            <Activity size={13} />
-            <span>{t('live.udpPort')} <strong>20777</strong></span>
-          </div>
-        </div>
 
-        {/* Title and Subtitle */}
-        <div className="waiting-title-section">
-          <h2 className="waiting-title">
-            {connected
-              ? t('live.waitingForLive')
-              : t('live.connectingToBridge')}
+          <h2 className="waiting-hero-title">
+            {connected ? t('live.waitingForLive') : t('live.connectingToBridge')}
           </h2>
-          <p className="waiting-description">
+          <p className="waiting-hero-subtitle">
             {connected
               ? t('live.telemetryListening')
               : t('live.establishingWebSocket')}
@@ -54,27 +53,27 @@ export const WaitingForData: React.FC<WaitingForDataProps> = ({ connected }) => 
           <div className="waiting-guide-card">
             <div className="guide-card-header">
               <CheckCircle2 size={16} className="guide-icon-accent" />
-              <span>In-Game Telemetry Settings</span>
+              <span>{t('live.inGameTelemetrySettings')}</span>
             </div>
             <ul className="guide-checklist mono">
               <li>
-                <span className="chk-label">UDP Telemetry:</span>
-                <span className="chk-val highlight-green">ON</span>
+                <span className="chk-label">{t('live.udpTelemetry')}:</span>
+                <span className="chk-val highlight-green">{t('live.on')}</span>
               </li>
               <li>
-                <span className="chk-label">UDP Broadcast:</span>
-                <span className="chk-val">ON (or IP: 127.0.0.1)</span>
+                <span className="chk-label">{t('live.udpBroadcast')}:</span>
+                <span className="chk-val">{t('live.udpBroadcastVal')}</span>
               </li>
               <li>
-                <span className="chk-label">UDP Port:</span>
+                <span className="chk-label">{t('live.udpPort')}:</span>
                 <span className="chk-val highlight-blue">20777</span>
               </li>
               <li>
-                <span className="chk-label">UDP Send Rate:</span>
+                <span className="chk-label">{t('live.udpSendRate')}:</span>
                 <span className="chk-val">20Hz / 60Hz</span>
               </li>
               <li>
-                <span className="chk-label">UDP Format:</span>
+                <span className="chk-label">{t('live.udpFormat')}:</span>
                 <span className="chk-val highlight-purple">2025 / 2026</span>
               </li>
             </ul>
@@ -83,19 +82,19 @@ export const WaitingForData: React.FC<WaitingForDataProps> = ({ connected }) => 
           <div className="waiting-guide-card">
             <div className="guide-card-header">
               <Terminal size={16} className="guide-icon-accent" />
-              <span>Packet Simulator Shortcut</span>
+              <span>{t('live.packetSimulatorShortcut')}</span>
             </div>
             <p className="guide-desc">
-              Want to preview the live telemetry dashboard without running the game? Run the built-in UDP telemetry simulator:
+              {t('live.packetSimulatorDesc')}
             </p>
             <div className="guide-code-snippet mono">
               <code>make simulate</code>
-              <span className="guide-code-or">or</span>
+              <span className="guide-code-or">{t('live.or')}</span>
               <code>simulate.bat</code>
             </div>
             <div className="guide-sub-note">
               <Zap size={13} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
-              <span>Generates real-time 20Hz car motion, setup, tyre wear, and lap sector packets.</span>
+              <span>{t('live.packetSimulatorSubNote')}</span>
             </div>
           </div>
         </div>
@@ -104,14 +103,15 @@ export const WaitingForData: React.FC<WaitingForDataProps> = ({ connected }) => 
         <div className="waiting-footer-info">
           <div className="footer-listening-indicator">
             <Activity size={14} className="pulse-indicator" />
-            <span className="mono">LISTENING ON 0.0.0.0:20777 • AUTO-SYNC ACTIVE</span>
+            <span className="mono">{t('live.listeningFooter')}</span>
           </div>
           <div className="footer-tip">
             <Info size={13} />
-            <span>Dashboard will automatically open the instant telemetry packets are detected.</span>
+            <span>{t('live.dashboardAutoOpenTip')}</span>
           </div>
         </div>
       </div>
     </div>
   );
 };
+

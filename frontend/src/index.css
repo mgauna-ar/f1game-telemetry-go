@@ -3593,6 +3593,23 @@ h1 {
    LIVE RACE CONTROL HUB (REWORKED TELEMETRY CENTER)
    ========================================================================== */
 
+.race-control-dashboard {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+.dash-hero-row {
+  grid-column: span 12;
+  width: 100%;
+}
+
+.dash-hero-row .leaderboard-tower {
+  grid-column: span 12;
+  width: 100%;
+  max-height: none;
+}
+
 .race-control-hub-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -4419,4 +4436,22 @@ h1 {
   color: var(--text-muted);
   text-align: center;
   padding: 1rem 0;
+}
+
+@media (max-width: 768px) {
+  .weather-current-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .weather-forecast-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .sector-purple-grid {
+    grid-template-columns: 1fr;
+  }
+  .sector-bottom-split {
+    grid-template-columns: 1fr;
+  }
+  .pit-strategy-kpi-row {
+    grid-template-columns: 1fr;
+  }
 }
