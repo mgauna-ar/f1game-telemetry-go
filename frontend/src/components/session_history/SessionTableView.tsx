@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, CloudSun, ChevronRight, Trash2, ArrowUpDown, Plus } from 'lucide-react';
+import { Clock, CloudSun, ChevronRight, Trash2, ArrowUpDown, Plus, Download } from 'lucide-react';
 import type { Session } from '../SessionHistory';
 import { useI18n } from '../../context/I18nContext';
 import { TagBadge } from './TagBadge';
@@ -8,6 +8,7 @@ interface SessionTableViewProps {
   sessions: Session[];
   onSelectSession: (session: Session) => void;
   onRequestDelete: (session: Session) => void;
+  onExportSession?: (session: Session) => void;
   formatDate: (dateStr?: string) => string;
   getSessionBadgeClass: (typeStr?: string) => string;
   sortField?: string;
@@ -20,6 +21,7 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
   sessions,
   onSelectSession,
   onRequestDelete,
+  onExportSession,
   formatDate,
   getSessionBadgeClass,
   sortField,
@@ -155,6 +157,30 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
                       >
                         {t('common.explore')} <ChevronRight size={14} />
                       </button>
+
+                      {onExportSession && (
+                        <button
+                          className="nav-tab"
+                          title={`${t('history.exportSession')} #${session.id}`}
+                          style={{
+                            padding: '0.4rem 0.6rem',
+                            fontSize: '0.8rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            color: 'var(--accent-secondary)',
+                            borderColor: 'rgba(0, 242, 254, 0.3)',
+                          }}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            onExportSession(session);
+                          }}
+                        >
+                          <Download size={14} />
+                        </button>
+                      )}
+
                       <button
                         className="nav-tab"
                         title={`${t('common.deleteSession')} #${session.id}`}

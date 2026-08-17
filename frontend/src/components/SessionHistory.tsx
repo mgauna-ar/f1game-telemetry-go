@@ -18,6 +18,9 @@ import {
   Sparkles,
   TrendingUp,
   Plus,
+  Download,
+  Upload,
+  CheckCircle,
 } from 'lucide-react';
 import { SessionKPIBar } from './session_history/SessionKPIBar';
 import { SessionCardGrid } from './session_history/SessionCardGrid';
@@ -53,6 +56,10 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loadingSessions, setLoadingSessions] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Import / Export & Toast State
+  const [importingSession, setImportingSession] = useState<boolean>(false);
+  const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Tags State
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
@@ -267,6 +274,64 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
       console.error('Error deleting tag:', err);
     }
   };
+
+  const handleExportSession = async (sessionToExport: Session) => {
+    try {
+      const res = await fetch(`/api/sessions/${sessionToExport.id}/export`);
+      if (!res.ok) throw new Error('Failed to export session');
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+
+      const dateStr = sessionToExport.created_at ? new Date(sessionToExport.created_at).toISOString().split('T')[0] : 'date';
+      const cleanTrack = (sessionToExport.track_name || 'track').replace(/[^a-zA-Z0-9]/g, '_');
+      const cleanType = (sessionToExport.session_type || 'session').replace(/[^a-zA-Z0-9]/g, '_');
+      a.download = `${cleanTrack}_${cleanType}_${dateStr}.f1session`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err: any) {
+      console.error('Error exporting session:', err);
+      setToastMessage({ type: 'error', text: `${t('history.exportError') || 'Export error'}: ${err.message || err}` });
+    }
+  };
+
+  const handleImportFile = async (file: File) => {
+    if (!file) return;
+    setImportingSession(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/sessions/import', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || 'Import failed');
+      }
+
+      setToastMessage({ type: 'success', text: t('history.importSuccess') });
+      await fetchSessions();
+      await fetchTags();
+    } catch (err: any) {
+      console.error('Error importing session:', err);
+      setToastMessage({ type: 'error', text: `${t('history.importError')}: ${err.message || err}` });
+    } finally {
+      setImportingSession(false);
+    }
+  };
+
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
 
   const fetchSessions = async () => {
     setLoadingSessions(true);
@@ -888,8 +953,8 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
               )}
             </div>
 
-            {/* View Switcher & Refresh */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {/* View Switcher, Import & Refresh */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', background: 'rgba(0,0,0,0.4)', borderRadius: 'var(--radius-sm)', padding: '2px', border: '1px solid var(--border-color)' }}>
                 <button
                   className={`nav-tab ${viewMode === 'cards' ? 'active' : ''}`}
@@ -908,6 +973,45 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
                   <List size={15} />
                 </button>
               </div>
+
+              {/* Import Session Button */}
+              <label
+                className="nav-tab"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '0.85rem',
+                  padding: '0.55rem 0.9rem',
+                  cursor: importingSession ? 'not-allowed' : 'pointer',
+                  background: 'rgba(0, 242, 254, 0.08)',
+                  borderColor: 'rgba(0, 242, 254, 0.3)',
+                  color: 'var(--accent-secondary)',
+                }}
+                title={t('history.importDropPrompt')}
+              >
+                <input
+                  type="file"
+                  accept=".f1session"
+                  style={{ display: 'none' }}
+                  disabled={importingSession}
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      handleImportFile(e.target.files[0]);
+                      e.target.value = '';
+                    }
+                  }}
+                />
+                {importingSession ? (
+                  <>
+                    <RefreshCw size={14} className="animate-spin" /> {t('history.importing')}
+                  </>
+                ) : (
+                  <>
+                    <Upload size={14} /> {t('history.importSession')}
+                  </>
+                )}
+              </label>
 
               <button
                 className="nav-tab"
@@ -966,6 +1070,7 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
               sessions={filteredSessions}
               onSelectSession={selectSession}
               onRequestDelete={(s) => setSessionToDelete(s)}
+              onExportSession={handleExportSession}
               formatDate={formatDate}
               getSessionBadgeClass={getSessionBadgeClass}
               onOpenTagManager={(s) => setSessionToManageTags(s)}
@@ -975,6 +1080,7 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
               sessions={filteredSessions}
               onSelectSession={selectSession}
               onRequestDelete={(s) => setSessionToDelete(s)}
+              onExportSession={handleExportSession}
               formatDate={formatDate}
               getSessionBadgeClass={getSessionBadgeClass}
               sortField={sortField}
@@ -1069,6 +1175,25 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
                 }}
               >
                 <Sparkles size={15} color="#ffd700" /> {t('history.detail.aiDebrief')}
+              </button>
+
+              {/* Export Session Button */}
+              <button
+                className="nav-tab"
+                title={t('history.detail.exportThis')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '0.6rem 1rem',
+                  color: 'var(--accent-secondary)',
+                  borderColor: 'rgba(0, 242, 254, 0.3)',
+                  cursor: 'pointer',
+                  fontSize: '0.85rem',
+                }}
+                onClick={() => handleExportSession(selectedSession)}
+              >
+                <Download size={15} /> {t('common.export')}
               </button>
 
               <button
@@ -1257,6 +1382,33 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
         isOpen={sessionToManageTags !== null}
         onClose={() => setSessionToManageTags(null)}
       />
+
+      {/* TOAST NOTIFICATION */}
+      {toastMessage && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '2rem',
+            left: '2rem',
+            zIndex: 1000,
+            background: toastMessage.type === 'success' ? 'rgba(16, 185, 129, 0.95)' : 'rgba(239, 68, 68, 0.95)',
+            color: '#fff',
+            padding: '0.75rem 1.25rem',
+            borderRadius: 'var(--radius-md)',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            fontSize: '0.9rem',
+            fontWeight: 600,
+            animation: 'fadeIn 0.2s ease-in-out',
+          }}
+        >
+          {toastMessage.type === 'success' ? <CheckCircle size={18} /> : <AlertTriangle size={18} />}
+          <span>{toastMessage.text}</span>
+        </div>
+      )}
     </div>
   );
 };

@@ -44,6 +44,9 @@ func (sm *SessionManager) Start(ctx context.Context) {
 
 // Close gracefully flushes all remaining data and shuts down workers.
 func (sm *SessionManager) Close(ctx context.Context) {
+	for _, tracker := range sm.lapTrackers {
+		tracker.FlushCurrentLap()
+	}
 	if sm.batchWriter != nil {
 		sm.batchWriter.Close(ctx)
 	}

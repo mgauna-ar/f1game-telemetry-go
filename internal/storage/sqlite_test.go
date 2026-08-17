@@ -269,8 +269,8 @@ func TestSaveAndGetTelemetryWithERS(t *testing.T) {
 		},
 	}
 
-	if err := repo.SaveTelemetryBatch(ctx, samples); err != nil {
-		t.Fatalf("SaveTelemetryBatch() error = %v", err)
+	if err := repo.SaveLapTelemetryBlob(ctx, lap.ID, samples); err != nil {
+		t.Fatalf("SaveLapTelemetryBlob() error = %v", err)
 	}
 
 	retrieved, err := repo.GetTelemetryByLap(ctx, lap.ID)
@@ -320,8 +320,8 @@ func TestDeleteSession(t *testing.T) {
 	samples := []TelemetrySample{
 		{LapID: lap.ID, LapDistance: 100.0, SessionTime: 10.0, Speed: 250},
 	}
-	if err := repo.SaveTelemetryBatch(ctx, samples); err != nil {
-		t.Fatalf("SaveTelemetryBatch error: %v", err)
+	if err := repo.SaveLapTelemetryBlob(ctx, lap.ID, samples); err != nil {
+		t.Fatalf("SaveLapTelemetryBlob error: %v", err)
 	}
 
 	// Delete existing session
@@ -368,6 +368,107 @@ func TestDeleteSession(t *testing.T) {
 	// Deleting a non-existent session should return error
 	if err := repo.DeleteSession(ctx, 99999); err == nil {
 		t.Errorf("expected error deleting non-existent session, got nil")
+	}
+}
+
+func TestExportAndImportSession(t *testing.T) {
+	repo := setupTestRepo(t)
+	session := createTestSession(t, repo)
+	ctx := context.Background()
+
+	// Add tag
+	tag := &Tag{Name: "League Race", Color: "#ff0000"}
+	if err := repo.CreateTag(ctx, tag); err != nil {
+		t.Fatalf("CreateTag error: %v", err)
+	}
+	if err := repo.AddTagToSession(ctx, session.ID, tag.ID); err != nil {
+		t.Fatalf("AddTagToSession error: %v", err)
+	}
+
+	// Add participants
+	participants := []Participant{
+		{CarIndex: 0, Name: "Ayrton Senna", DriverID: 12, TeamID: 5, RaceNumber: 12, AIControlled: false},
+	}
+	if err := repo.SaveParticipants(ctx, session.ID, participants); err != nil {
+		t.Fatalf("SaveParticipants error: %v", err)
+	}
+
+	// Add lap
+	lap := &Lap{
+		SessionID: session.ID,
+		CarIndex:  0,
+		LapNumber: 1,
+		LapTimeMS: 78500,
+		Sector1MS: 26000,
+		Sector2MS: 26500,
+		Sector3MS: 26000,
+		IsValid:   true,
+	}
+	if err := repo.SaveLap(ctx, lap); err != nil {
+		t.Fatalf("SaveLap error: %v", err)
+	}
+
+	// Add telemetry
+	samples := []TelemetrySample{
+		{LapID: lap.ID, LapDistance: 50.0, SessionTime: 5.0, Speed: 290, Throttle: 1.0, Gear: 7},
+		{LapID: lap.ID, LapDistance: 150.0, SessionTime: 7.0, Speed: 310, Throttle: 1.0, Gear: 8},
+	}
+	if err := repo.SaveLapTelemetryBlob(ctx, lap.ID, samples); err != nil {
+		t.Fatalf("SaveLapTelemetryBlob error: %v", err)
+	}
+
+	// 1. Export session
+	pkg, err := repo.ExportSession(ctx, session.ID)
+	if err != nil {
+		t.Fatalf("ExportSession failed: %v", err)
+	}
+
+	if pkg.Session.TrackName != "Monza" {
+		t.Errorf("expected TrackName Monza, got %s", pkg.Session.TrackName)
+	}
+	if len(pkg.Tags) != 1 || pkg.Tags[0].Name != "League Race" {
+		t.Errorf("expected 1 tag League Race, got %v", pkg.Tags)
+	}
+	if len(pkg.Participants) != 1 || pkg.Participants[0].Name != "Ayrton Senna" {
+		t.Errorf("expected participant Ayrton Senna, got %v", pkg.Participants)
+	}
+	if len(pkg.Laps) != 1 || len(pkg.Laps[0].Telemetry) != 2 {
+		t.Errorf("expected 1 lap with 2 telemetry samples, got %v", pkg.Laps)
+	}
+
+	// 2. Import session into a fresh repo
+	freshRepo := setupTestRepo(t)
+	importedID, err := freshRepo.ImportSession(ctx, pkg)
+	if err != nil {
+		t.Fatalf("ImportSession failed: %v", err)
+	}
+	if importedID <= 0 {
+		t.Fatalf("expected valid imported session ID, got %d", importedID)
+	}
+
+	// Verify imported data
+	importedSession, err := freshRepo.GetSessionByID(ctx, importedID)
+	if err != nil {
+		t.Fatalf("GetSessionByID failed: %v", err)
+	}
+	if importedSession.TrackName != "Monza" {
+		t.Errorf("expected imported session track Monza, got %s", importedSession.TrackName)
+	}
+	if len(importedSession.Tags) != 1 || importedSession.Tags[0].Name != "League Race" {
+		t.Errorf("expected imported session tag League Race, got %v", importedSession.Tags)
+	}
+
+	importedLaps, err := freshRepo.GetLapsBySession(ctx, importedID)
+	if err != nil || len(importedLaps) != 1 {
+		t.Fatalf("expected 1 imported lap, got %v (err: %v)", importedLaps, err)
+	}
+
+	importedTelemetry, err := freshRepo.GetTelemetryByLap(ctx, importedLaps[0].ID)
+	if err != nil || len(importedTelemetry) != 2 {
+		t.Fatalf("expected 2 imported telemetry samples, got %v (err: %v)", importedTelemetry, err)
+	}
+	if importedTelemetry[0].Speed != 290 || importedTelemetry[1].Speed != 310 {
+		t.Errorf("expected speeds 290 and 310, got %d and %d", importedTelemetry[0].Speed, importedTelemetry[1].Speed)
 	}
 }
 

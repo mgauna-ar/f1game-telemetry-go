@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 
 CREATE TABLE IF NOT EXISTS participants (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id      INTEGER REFERENCES sessions(id),
+    session_id      INTEGER REFERENCES sessions(id) ON DELETE CASCADE,
     car_index       INTEGER NOT NULL,
     name            TEXT,
     driver_id       INTEGER,
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS participants (
 
 CREATE TABLE IF NOT EXISTS laps (
     id                INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id        INTEGER REFERENCES sessions(id),
+    session_id        INTEGER REFERENCES sessions(id) ON DELETE CASCADE,
     car_index         INTEGER NOT NULL DEFAULT 0,
     lap_number        INTEGER NOT NULL,
     lap_time_ms       INTEGER,
@@ -53,28 +53,13 @@ CREATE TABLE IF NOT EXISTS laps (
     UNIQUE(session_id, car_index, lap_number)
 );
 
-CREATE TABLE IF NOT EXISTS telemetry_samples (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    lap_id          INTEGER REFERENCES laps(id),
-    lap_distance    REAL NOT NULL,
-    session_time    REAL NOT NULL,
-    speed           INTEGER,
-    throttle        REAL,
-    brake           REAL,
-    steer           REAL,
-    gear            INTEGER,
-    engine_rpm      INTEGER,
-    drs             BOOLEAN,
-    ers_deploy      REAL,
-    ers_store_energy REAL,
-    ers_deploy_mode INTEGER,
-    world_pos_x     REAL,
-    world_pos_y     REAL,
-    world_pos_z     REAL
+CREATE TABLE IF NOT EXISTS lap_telemetry (
+    lap_id        INTEGER PRIMARY KEY REFERENCES laps(id) ON DELETE CASCADE,
+    sample_count  INTEGER NOT NULL,
+    data          BLOB NOT NULL,
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_samples_lap ON telemetry_samples(lap_id);
-CREATE INDEX IF NOT EXISTS idx_samples_distance ON telemetry_samples(lap_id, lap_distance);
 CREATE INDEX IF NOT EXISTS idx_laps_session ON laps(session_id);
 CREATE INDEX IF NOT EXISTS idx_participants_session ON participants(session_id);
 

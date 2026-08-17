@@ -285,3 +285,70 @@ func TestHandleSessionTags(t *testing.T) {
 		t.Fatalf("expected 1 tag after put, got %d", len(tagsAfterPut))
 	}
 }
+
+func TestHandleExportAndImportSession(t *testing.T) {
+	server, repo := setupTestServer(t)
+	ctx := context.Background()
+
+	session := &storage.Session{
+		SessionUID:   99887711,
+		TrackID:      11,
+		TrackName:    "Monza",
+		SessionType:  "Race",
+		Weather:      "Clear",
+		PacketFormat: 2025,
+	}
+	if err := repo.SaveSession(ctx, session); err != nil {
+		t.Fatalf("failed to create session: %v", err)
+	}
+
+	lap := &storage.Lap{
+		SessionID: session.ID,
+		CarIndex:  0,
+		LapNumber: 1,
+		LapTimeMS: 81000,
+		IsValid:   true,
+	}
+	if err := repo.SaveLap(ctx, lap); err != nil {
+		t.Fatalf("failed to save lap: %v", err)
+	}
+
+	samples := []storage.TelemetrySample{
+		{LapID: lap.ID, LapDistance: 100.0, Speed: 320, Throttle: 1.0},
+	}
+	if err := repo.SaveLapTelemetryBlob(ctx, lap.ID, samples); err != nil {
+		t.Fatalf("failed to save lap telemetry: %v", err)
+	}
+
+	// 1. GET /api/sessions/1/export
+	req := httptest.NewRequest(http.MethodGet, "/api/sessions/1/export", nil)
+	rec := httptest.NewRecorder()
+	server.router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for export, got %d (%s)", rec.Code, rec.Body.String())
+	}
+
+	exportedBytes := rec.Body.Bytes()
+	if len(exportedBytes) == 0 {
+		t.Fatalf("expected non-empty exported bytes")
+	}
+
+	// 2. POST /api/sessions/import
+	importReq := httptest.NewRequest(http.MethodPost, "/api/sessions/import", bytes.NewReader(exportedBytes))
+	importReq.Header.Set("Content-Type", "application/octet-stream")
+	importRec := httptest.NewRecorder()
+	server.router.ServeHTTP(importRec, importReq)
+
+	if importRec.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created for import, got %d (%s)", importRec.Code, importRec.Body.String())
+	}
+
+	var importResp map[string]any
+	if err := json.NewDecoder(importRec.Body).Decode(&importResp); err != nil {
+		t.Fatalf("failed to decode import response: %v", err)
+	}
+
+	if importResp["status"] != "success" || importResp["session_id"] == nil {
+		t.Errorf("unexpected import response: %+v", importResp)
+	}
+}

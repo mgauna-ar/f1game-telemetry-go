@@ -2,11 +2,59 @@ package storage
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
 	"fmt"
+	"math"
+	"strings"
+	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/klauspost/compress/zstd"
 	_ "modernc.org/sqlite"
 )
+
+var (
+	zstdEncoder, _ = zstd.NewWriter(nil, zstd.WithEncoderLevel(zstd.SpeedDefault))
+	zstdDecoder, _ = zstd.NewReader(nil)
+)
+
+// SanitizeFloat replaces NaN and Inf with 0.0 to ensure safe JSON serialization and database storage.
+func SanitizeFloat(f float64) float64 {
+	if math.IsNaN(f) || math.IsInf(f, 0) {
+		return 0.0
+	}
+	return f
+}
+
+// CompressRaw compresses raw bytes with zstandard.
+func CompressRaw(data []byte) []byte {
+	return zstdEncoder.EncodeAll(data, make([]byte, 0, len(data)/4))
+}
+
+// DecompressRaw decompresses zstandard-compressed bytes.
+func DecompressRaw(compressed []byte) ([]byte, error) {
+	return zstdDecoder.DecodeAll(compressed, nil)
+}
+
+func compressJSON(data any) ([]byte, error) {
+	raw, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+	return CompressRaw(raw), nil
+}
+
+func decompressJSON[T any](compressed []byte, out *T) error {
+	decompressed, err := DecompressRaw(compressed)
+	if err != nil {
+		return fmt.Errorf("failed to decompress zstd data: %w", err)
+	}
+	if err := json.Unmarshal(decompressed, out); err != nil {
+		return fmt.Errorf("failed to unmarshal decompressed json: %w", err)
+	}
+	return nil
+}
 
 // Repository handles database operations using SQLite.
 type Repository struct {
@@ -15,21 +63,42 @@ type Repository struct {
 
 // NewRepository creates a new SQLite repository and applies migrations.
 func NewRepository(dbPath string) (*Repository, error) {
-	db, err := sqlx.Connect("sqlite", dbPath)
+	dsn := dbPath
+	if !strings.Contains(dsn, "_pragma=") && !strings.Contains(dsn, "_busy_timeout=") {
+		sep := "?"
+		if strings.Contains(dsn, "?") {
+			sep = "&"
+		}
+		dsn = fmt.Sprintf("%s%s_pragma=busy_timeout(10000)&_pragma=journal_mode(WAL)&_pragma=foreign_keys(ON)&_pragma=synchronous(NORMAL)", dbPath, sep)
+	}
+
+	db, err := sqlx.Connect("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	// Enable WAL mode for better concurrency performance
-	if _, err := db.Exec("PRAGMA journal_mode=WAL"); err != nil {
-		return nil, fmt.Errorf("failed to enable WAL mode: %w", err)
+	// Limit to single connection for writes to serialize concurrent access and eliminate SQLITE_BUSY lock contention
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+
+	// Ensure foreign keys are always enforced on this connection
+	if _, err := db.Exec("PRAGMA foreign_keys=ON;"); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)
 	}
 
+	repo := &Repository{db: db}
 	if err := Migrate(db); err != nil {
-		return nil, fmt.Errorf("failed to migrate database: %w", err)
+		db.Close()
+		return nil, fmt.Errorf("failed to run migrations: %w", err)
 	}
 
-	return &Repository{db: db}, nil
+	return repo, nil
+}
+
+// DB returns the underlying sqlx.DB instance.
+func (r *Repository) DB() *sqlx.DB {
+	return r.db
 }
 
 // SaveSession inserts a new session or ignores if the session_uid already exists.
@@ -86,6 +155,9 @@ func (r *Repository) UpdateSessionMetadata(ctx context.Context, sessionUID uint6
 
 // SaveLap inserts or updates a lap.
 func (r *Repository) SaveLap(ctx context.Context, l *Lap) error {
+	l.FuelLoad = SanitizeFloat(l.FuelLoad)
+	l.MaxSpeedKMH = SanitizeFloat(l.MaxSpeedKMH)
+
 	if l.Sector3MS <= 0 && l.LapTimeMS > 0 && l.Sector1MS > 0 && l.Sector2MS > 0 {
 		s3 := l.LapTimeMS - (l.Sector1MS + l.Sector2MS)
 		if s3 > 0 {
@@ -127,6 +199,9 @@ func (r *Repository) SaveLap(ctx context.Context, l *Lap) error {
 
 // SaveLapHistoryEntry updates or inserts lap timing data received from SessionHistory packet.
 func (r *Repository) SaveLapHistoryEntry(ctx context.Context, l *Lap) error {
+	l.FuelLoad = SanitizeFloat(l.FuelLoad)
+	l.MaxSpeedKMH = SanitizeFloat(l.MaxSpeedKMH)
+
 	if l.Sector3MS <= 0 && l.LapTimeMS > 0 && l.Sector1MS > 0 && l.Sector2MS > 0 {
 		s3 := l.LapTimeMS - (l.Sector1MS + l.Sector2MS)
 		if s3 > 0 {
@@ -159,81 +234,48 @@ func (r *Repository) SaveLapHistoryEntry(ctx context.Context, l *Lap) error {
 	return nil
 }
 
-// SaveTelemetryBatch inserts a batch of telemetry samples efficiently.
-func (r *Repository) SaveTelemetryBatch(ctx context.Context, samples []TelemetrySample) error {
-	if len(samples) == 0 {
+// SaveLapTelemetryBlob compresses and saves the telemetry samples for a given lap ID.
+func (r *Repository) SaveLapTelemetryBlob(ctx context.Context, lapID int64, samples []TelemetrySample) error {
+	if len(samples) == 0 || lapID <= 0 {
 		return nil
 	}
 
+	for i := range samples {
+		samples[i].LapDistance = SanitizeFloat(samples[i].LapDistance)
+		samples[i].SessionTime = SanitizeFloat(samples[i].SessionTime)
+		samples[i].Throttle = SanitizeFloat(samples[i].Throttle)
+		samples[i].Brake = SanitizeFloat(samples[i].Brake)
+		samples[i].Steer = SanitizeFloat(samples[i].Steer)
+		samples[i].ERSDeploy = SanitizeFloat(samples[i].ERSDeploy)
+		samples[i].ERSStoreEnergy = SanitizeFloat(samples[i].ERSStoreEnergy)
+		samples[i].WorldPosX = SanitizeFloat(samples[i].WorldPosX)
+		samples[i].WorldPosY = SanitizeFloat(samples[i].WorldPosY)
+		samples[i].WorldPosZ = SanitizeFloat(samples[i].WorldPosZ)
+	}
+
+	compressed, err := compressJSON(samples)
+	if err != nil {
+		return fmt.Errorf("failed to compress lap telemetry: %w", err)
+	}
+
 	query := `
-		INSERT INTO telemetry_samples (
-			lap_id, lap_distance, session_time, speed, throttle, brake, steer, gear, engine_rpm, drs, ers_deploy, ers_store_energy, ers_deploy_mode, world_pos_x, world_pos_y, world_pos_z
-		) VALUES (
-			:lap_id, :lap_distance, :session_time, :speed, :throttle, :brake, :steer, :gear, :engine_rpm, :drs, :ers_deploy, :ers_store_energy, :ers_deploy_mode, :world_pos_x, :world_pos_y, :world_pos_z
-		)
+		INSERT INTO lap_telemetry (lap_id, sample_count, data)
+		VALUES (?, ?, ?)
+		ON CONFLICT(lap_id) DO UPDATE SET
+			sample_count = excluded.sample_count,
+			data = excluded.data,
+			created_at = CURRENT_TIMESTAMP
 	`
-	// Use NamedExec for bulk insert. SQLX handles executing this efficiently in a single transaction if we provide it,
-	// or we can explicitly wrap it in a transaction for safety and speed.
-	tx, err := r.db.Beginx()
+	_, err = r.db.ExecContext(ctx, query, lapID, len(samples), compressed)
 	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-
-	// Prepare the statement for the transaction
-	stmt, err := tx.PrepareNamedContext(ctx, query)
-	if err != nil {
-		tx.Rollback()
-		return fmt.Errorf("failed to prepare named statement: %w", err)
-	}
-	defer stmt.Close()
-
-	for _, sample := range samples {
-		if _, err := stmt.ExecContext(ctx, sample); err != nil {
-			tx.Rollback()
-			return fmt.Errorf("failed to insert telemetry sample: %w", err)
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit transaction: %w", err)
+		return fmt.Errorf("failed to save lap telemetry blob: %w", err)
 	}
 	return nil
 }
 
-// DeleteSession deletes a session and all its associated laps, telemetry samples, participants, and car setups.
+// DeleteSession deletes a session and all its associated data in cascading fashion.
 func (r *Repository) DeleteSession(ctx context.Context, sessionID int64) error {
-	tx, err := r.db.Beginx()
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	// 1. Delete telemetry samples for laps belonging to this session
-	deleteSamplesQuery := `
-		DELETE FROM telemetry_samples
-		WHERE lap_id IN (SELECT id FROM laps WHERE session_id = ?)
-	`
-	if _, err := tx.ExecContext(ctx, deleteSamplesQuery, sessionID); err != nil {
-		return fmt.Errorf("failed to delete telemetry samples: %w", err)
-	}
-
-	// 2. Delete laps for this session
-	if _, err := tx.ExecContext(ctx, `DELETE FROM laps WHERE session_id = ?`, sessionID); err != nil {
-		return fmt.Errorf("failed to delete laps: %w", err)
-	}
-
-	// 3. Delete participants for this session
-	if _, err := tx.ExecContext(ctx, `DELETE FROM participants WHERE session_id = ?`, sessionID); err != nil {
-		return fmt.Errorf("failed to delete participants: %w", err)
-	}
-
-	// 4. Delete session tags for this session
-	if _, err := tx.ExecContext(ctx, `DELETE FROM session_tags WHERE session_id = ?`, sessionID); err != nil {
-		return fmt.Errorf("failed to delete session tags: %w", err)
-	}
-
-	// 5. Delete session entry
-	res, err := tx.ExecContext(ctx, `DELETE FROM sessions WHERE id = ?`, sessionID)
+	res, err := r.db.ExecContext(ctx, `DELETE FROM sessions WHERE id = ?`, sessionID)
 	if err != nil {
 		return fmt.Errorf("failed to delete session: %w", err)
 	}
@@ -244,10 +286,6 @@ func (r *Repository) DeleteSession(ctx context.Context, sessionID int64) error {
 	}
 	if rowsAffected == 0 {
 		return fmt.Errorf("session not found")
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit delete transaction: %w", err)
 	}
 	return nil
 }
@@ -290,7 +328,6 @@ func (r *Repository) GetSessions(ctx context.Context) ([]Session, error) {
 	`
 	var tagRows []sessionTagJoinRow
 	if err := r.db.SelectContext(ctx, &tagRows, tagJoinQuery); err != nil {
-		// Log or ignore if table is empty or error, but return sessions
 		return sessions, nil
 	}
 
@@ -366,17 +403,7 @@ func (r *Repository) UpdateTag(ctx context.Context, t *Tag) error {
 
 // DeleteTag deletes a tag by its ID.
 func (r *Repository) DeleteTag(ctx context.Context, tagID int64) error {
-	tx, err := r.db.Beginx()
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer tx.Rollback()
-
-	if _, err := tx.ExecContext(ctx, `DELETE FROM session_tags WHERE tag_id = ?`, tagID); err != nil {
-		return fmt.Errorf("failed to delete session tags: %w", err)
-	}
-
-	res, err := tx.ExecContext(ctx, `DELETE FROM tags WHERE id = ?`, tagID)
+	res, err := r.db.ExecContext(ctx, `DELETE FROM tags WHERE id = ?`, tagID)
 	if err != nil {
 		return fmt.Errorf("failed to delete tag: %w", err)
 	}
@@ -389,7 +416,7 @@ func (r *Repository) DeleteTag(ctx context.Context, tagID int64) error {
 		return fmt.Errorf("tag not found")
 	}
 
-	return tx.Commit()
+	return nil
 }
 
 // GetTagsBySession retrieves all tags associated with a specific session ID.
@@ -456,7 +483,7 @@ func (r *Repository) GetLapsBySession(ctx context.Context, sessionID int64) ([]L
 	query := `
 		SELECT * FROM laps 
 		WHERE session_id = ? 
-		  AND (lap_time_ms > 0 OR EXISTS (SELECT 1 FROM telemetry_samples WHERE lap_id = laps.id))
+		  AND (lap_time_ms > 0 OR EXISTS (SELECT 1 FROM lap_telemetry WHERE lap_id = laps.id))
 		ORDER BY lap_number ASC
 	`
 	if err := r.db.SelectContext(ctx, &laps, query, sessionID); err != nil {
@@ -477,18 +504,29 @@ func (r *Repository) GetLapsBySession(ctx context.Context, sessionID int64) ([]L
 
 // GetTelemetryByLap retrieves time-series telemetry data for a specific lap.
 func (r *Repository) GetTelemetryByLap(ctx context.Context, lapID int64) ([]TelemetrySample, error) {
+	query := `SELECT data FROM lap_telemetry WHERE lap_id = ?`
+	var compressed []byte
+	err := r.db.GetContext(ctx, &compressed, query, lapID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return []TelemetrySample{}, nil
+		}
+		return nil, fmt.Errorf("failed to get telemetry for lap %d: %w", lapID, err)
+	}
+
 	var samples []TelemetrySample
-	// Ordered by id to preserve chronological insertion sequence across restarts/laps
-	query := `SELECT * FROM telemetry_samples WHERE lap_id = ? ORDER BY id ASC`
-	if err := r.db.SelectContext(ctx, &samples, query, lapID); err != nil {
-		return nil, fmt.Errorf("failed to get telemetry for lap: %w", err)
+	if err := decompressJSON(compressed, &samples); err != nil {
+		return nil, fmt.Errorf("failed to decode telemetry samples for lap %d: %w", lapID, err)
+	}
+	if samples == nil {
+		samples = []TelemetrySample{}
 	}
 	return samples, nil
 }
 
 // DeleteTelemetryByLap deletes all telemetry samples for a given lap ID.
 func (r *Repository) DeleteTelemetryByLap(ctx context.Context, lapID int64) error {
-	query := `DELETE FROM telemetry_samples WHERE lap_id = ?`
+	query := `DELETE FROM lap_telemetry WHERE lap_id = ?`
 	if _, err := r.db.ExecContext(ctx, query, lapID); err != nil {
 		return fmt.Errorf("failed to delete telemetry for lap %d: %w", lapID, err)
 	}
@@ -563,6 +601,121 @@ func (r *Repository) GetParticipantsBySession(ctx context.Context, sessionID int
 		return nil, fmt.Errorf("failed to get participants: %w", err)
 	}
 	return participants, nil
+}
+
+// GetSessionByID retrieves a session by its database ID.
+func (r *Repository) GetSessionByID(ctx context.Context, sessionID int64) (*Session, error) {
+	var session Session
+	query := `SELECT * FROM sessions WHERE id = ?`
+	if err := r.db.GetContext(ctx, &session, query, sessionID); err != nil {
+		return nil, fmt.Errorf("failed to get session by id: %w", err)
+	}
+	tags, err := r.GetTagsBySession(ctx, sessionID)
+	if err == nil {
+		session.Tags = tags
+	}
+	return &session, nil
+}
+
+// ExportSession generates a fully self-contained package of a session with all its telemetry.
+func (r *Repository) ExportSession(ctx context.Context, sessionID int64) (*ExportedSessionPackage, error) {
+	session, err := r.GetSessionByID(ctx, sessionID)
+	if err != nil {
+		return nil, err
+	}
+
+	tags, err := r.GetTagsBySession(ctx, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to export session tags: %w", err)
+	}
+
+	participants, err := r.GetParticipantsBySession(ctx, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to export participants: %w", err)
+	}
+
+	laps, err := r.GetLapsBySession(ctx, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to export laps: %w", err)
+	}
+
+	lapPackages := make([]ExportedLapPackage, 0, len(laps))
+	for _, lap := range laps {
+		telemetry, err := r.GetTelemetryByLap(ctx, lap.ID)
+		if err != nil {
+			telemetry = []TelemetrySample{}
+		}
+		lapPackages = append(lapPackages, ExportedLapPackage{
+			Lap:       lap,
+			Telemetry: telemetry,
+		})
+	}
+
+	return &ExportedSessionPackage{
+		Version:      "1.0",
+		Session:      *session,
+		Tags:         tags,
+		Participants: participants,
+		Laps:         lapPackages,
+	}, nil
+}
+
+// ImportSession imports a session package into SQLite and returns the newly assigned session ID.
+func (r *Repository) ImportSession(ctx context.Context, pkg *ExportedSessionPackage) (int64, error) {
+	if pkg == nil {
+		return 0, fmt.Errorf("cannot import nil session package")
+	}
+
+	// Generate a unique session_uid to prevent conflicts with existing local sessions
+	sessionUID := pkg.Session.SessionUID
+	if sessionUID == 0 {
+		sessionUID = time.Now().UnixNano()
+	}
+
+	newSession := &Session{
+		SessionUID:   sessionUID,
+		TrackID:      pkg.Session.TrackID,
+		TrackName:    pkg.Session.TrackName,
+		SessionType:  pkg.Session.SessionType,
+		Weather:      pkg.Session.Weather,
+		PacketFormat: pkg.Session.PacketFormat,
+		CreatedAt:    pkg.Session.CreatedAt,
+	}
+
+	if err := r.SaveSession(ctx, newSession); err != nil {
+		return 0, fmt.Errorf("failed to save imported session: %w", err)
+	}
+
+	// Import and link tags
+	for _, tag := range pkg.Tags {
+		t := Tag{Name: tag.Name, Color: tag.Color}
+		if err := r.CreateTag(ctx, &t); err == nil {
+			_ = r.AddTagToSession(ctx, newSession.ID, t.ID)
+		}
+	}
+
+	// Import participants
+	if len(pkg.Participants) > 0 {
+		if err := r.SaveParticipants(ctx, newSession.ID, pkg.Participants); err != nil {
+			return 0, fmt.Errorf("failed to save imported participants: %w", err)
+		}
+	}
+
+	// Import laps and telemetry
+	for _, lapPkg := range pkg.Laps {
+		lap := lapPkg.Lap
+		lap.SessionID = newSession.ID
+		if err := r.SaveLap(ctx, &lap); err != nil {
+			return 0, fmt.Errorf("failed to save imported lap %d: %w", lap.LapNumber, err)
+		}
+		if len(lapPkg.Telemetry) > 0 {
+			if err := r.SaveLapTelemetryBlob(ctx, lap.ID, lapPkg.Telemetry); err != nil {
+				return 0, fmt.Errorf("failed to save imported lap telemetry for lap %d: %w", lap.LapNumber, err)
+			}
+		}
+	}
+
+	return newSession.ID, nil
 }
 
 // Close closes the database connection.

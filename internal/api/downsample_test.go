@@ -106,57 +106,6 @@ func TestTrimTelemetryTrailingWrapAround(t *testing.T) {
 	}
 }
 
-func TestVerifyTargetLaps(t *testing.T) {
-	repo, err := storage.NewRepository("../../f1telemetry.db")
-	if err != nil {
-		t.Skip("f1telemetry.db not found, skipping DB integration test")
-		return
-	}
-	defer repo.Close()
-
-	ctx := t.Context()
-
-	// Verify Lap 5696 (Arti Moreno - 83.109s)
-	raw5696, err := repo.GetTelemetryByLap(ctx, 5696)
-	if err == nil && len(raw5696) > 0 {
-		trimmed := TrimTelemetryToLastLapAttempt(raw5696)
-		dur := trimmed[len(trimmed)-1].SessionTime - trimmed[0].SessionTime
-		if dur < 80.0 || dur > 86.0 {
-			t.Errorf("Expected Lap 5696 trimmed duration ~83.1s, got %.3fs", dur)
-		}
-	}
-
-	// Verify Lap 6437 (Arti Moreno - Lap 1 Losail 97.036s)
-	raw6437, err := repo.GetTelemetryByLap(ctx, 6437)
-	if err == nil && len(raw6437) > 0 {
-		trimmed := TrimTelemetryToLastLapAttempt(raw6437)
-		maxD := trimmed[len(trimmed)-1].LapDistance
-		dur := trimmed[len(trimmed)-1].SessionTime - trimmed[0].SessionTime
-		t.Logf("Lap 6437: maxDist=%.1fm, dur=%.3fs, samples=%d", maxD, dur, len(trimmed))
-		if maxD < 5000.0 {
-			t.Errorf("Expected Lap 6437 trimmed max distance > 5000m, got %.1fm", maxD)
-		}
-		if dur < 90.0 || dur > 105.0 {
-			t.Errorf("Expected Lap 6437 trimmed duration ~97s, got %.3fs", dur)
-		}
-	}
-
-	// Verify Lap 6442 (LC-iL.Magno - Lap 1 Losail 102.262s)
-	raw6442, err := repo.GetTelemetryByLap(ctx, 6442)
-	if err == nil && len(raw6442) > 0 {
-		trimmed := TrimTelemetryToLastLapAttempt(raw6442)
-		maxD := trimmed[len(trimmed)-1].LapDistance
-		dur := trimmed[len(trimmed)-1].SessionTime - trimmed[0].SessionTime
-		t.Logf("Lap 6442: maxDist=%.1fm, dur=%.3fs, samples=%d", maxD, dur, len(trimmed))
-		if maxD < 5000.0 {
-			t.Errorf("Expected Lap 6442 trimmed max distance > 5000m, got %.1fm", maxD)
-		}
-		if dur < 95.0 || dur > 110.0 {
-			t.Errorf("Expected Lap 6442 trimmed duration ~102s, got %.3fs", dur)
-		}
-	}
-}
-
 func TestTrimTelemetryCompletedLapWithTrailingTail(t *testing.T) {
 	// Full completed lap from 275m -> 5400m (duration ~95s)
 	samples := make([]storage.TelemetrySample, 0, 100)

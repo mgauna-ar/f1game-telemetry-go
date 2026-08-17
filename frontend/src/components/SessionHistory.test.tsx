@@ -7,6 +7,7 @@ import { AiRaceEngineer } from './AiRaceEngineer';
 
 describe('SessionHistory Component', () => {
   beforeEach(() => {
+    localStorage.clear();
     vi.restoreAllMocks();
   });
 
@@ -609,4 +610,67 @@ describe('SessionHistory Component', () => {
       expect(screen.getByText('VÁLIDA')).toBeInTheDocument();
     });
   });
+
+  it('handles exporting a session and importing a .f1session package', async () => {
+    const mockSessions = [
+      { id: 1, session_uid: '1001', track_name: 'Monza', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' },
+    ];
+
+    globalThis.fetch = vi.fn().mockImplementation((url: string, options?: any) => {
+      if (url === '/api/sessions') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSessions) });
+      if (url === '/api/tags') return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      if (url === '/api/sessions/1/export') {
+        return Promise.resolve({
+          ok: true,
+          blob: () => Promise.resolve(new Blob(['dummy-binary-f1session'], { type: 'application/octet-stream' })),
+        });
+      }
+      if (url === '/api/sessions/import' && options?.method === 'POST') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ status: 'success', session_id: 2 }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    });
+
+    // Mock URL.createObjectURL and revokeObjectURL
+    const createObjectURLMock = vi.fn(() => 'blob:http://localhost/dummy');
+    const revokeObjectURLMock = vi.fn();
+    globalThis.URL.createObjectURL = createObjectURLMock;
+    globalThis.URL.revokeObjectURL = revokeObjectURLMock;
+
+    render(
+      <I18nProvider>
+        <SessionHistory />
+      </I18nProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Monza').length).toBeGreaterThan(0);
+    });
+
+    // 1. Verify Import Button is present
+    expect(screen.getByText('Import Session')).toBeInTheDocument();
+
+    // 2. Click Export button on the session card
+    const exportBtn = screen.getByTitle('Export Session (.f1session) #1');
+    fireEvent.click(exportBtn);
+
+    await waitFor(() => {
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions/1/export');
+      expect(createObjectURLMock).toHaveBeenCalled();
+    });
+
+    // 3. Upload a file via hidden input
+    const fileInput = screen.getByLabelText(/Import Session/i, { selector: 'input' }) as HTMLInputElement;
+    const dummyFile = new File(['dummy-content'], 'Monza_Race.f1session', { type: 'application/octet-stream' });
+    fireEvent.change(fileInput, { target: { files: [dummyFile] } });
+
+    await waitFor(() => {
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions/import', expect.any(Object));
+      expect(screen.getByText('Session imported successfully!')).toBeInTheDocument();
+    });
+  });
 });
+

@@ -2,6 +2,8 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -67,10 +69,13 @@ func (s *Server) routes() {
 
 	// API routes
 	s.router.Route("/api", func(r chi.Router) {
+		// Session routes
 		r.Get("/sessions", s.handleGetSessions)
 		r.Delete("/sessions/{id}", s.handleDeleteSession)
 		r.Get("/sessions/{id}/participants", s.handleGetParticipants)
 		r.Get("/sessions/{id}/laps", s.handleGetLaps)
+		r.Get("/sessions/{id}/export", s.handleExportSession)
+		r.Post("/sessions/import", s.handleImportSession)
 		r.Get("/laps/{id}/telemetry", s.handleGetTelemetry)
 
 		// Tag routes
@@ -476,4 +481,125 @@ func (s *Server) handleRemoveSessionTag(w http.ResponseWriter, r *http.Request) 
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(tags)
+}
+
+func sanitizeFilename(s string) string {
+	var result []rune
+	for _, r := range s {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
+			result = append(result, r)
+		} else if r == ' ' {
+			result = append(result, '_')
+		}
+	}
+	if len(result) == 0 {
+		return "session"
+	}
+	return string(result)
+}
+
+func (s *Server) handleExportSession(w http.ResponseWriter, r *http.Request) {
+	sessionIDStr := chi.URLParam(r, "id")
+	sessionID, err := strconv.ParseInt(sessionIDStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid session ID", http.StatusBadRequest)
+		return
+	}
+
+	pkg, err := s.repo.ExportSession(r.Context(), sessionID)
+	if err != nil {
+		log.Printf("Error exporting session %d: %v", sessionID, err)
+		http.Error(w, "Failed to export session", http.StatusInternalServerError)
+		return
+	}
+
+	rawJSON, err := json.Marshal(pkg)
+	if err != nil {
+		http.Error(w, "Failed to encode session package", http.StatusInternalServerError)
+		return
+	}
+
+	compressed := storage.CompressRaw(rawJSON)
+
+	filename := fmt.Sprintf("%s_%s_%s.f1session",
+		sanitizeFilename(pkg.Session.TrackName),
+		sanitizeFilename(pkg.Session.SessionType),
+		pkg.Session.CreatedAt.Format("2006-01-02"),
+	)
+
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	w.Header().Set("Content-Length", strconv.Itoa(len(compressed)))
+	w.WriteHeader(http.StatusOK)
+	w.Write(compressed)
+}
+
+func (s *Server) handleImportSession(w http.ResponseWriter, r *http.Request) {
+	// Limit request size to 100MB
+	r.Body = http.MaxBytesReader(w, r.Body, 100<<20)
+
+	var data []byte
+	var err error
+
+	// Check if multipart form
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
+		err := r.ParseMultipartForm(100 << 20)
+		if err != nil {
+			http.Error(w, "Failed to parse multipart form", http.StatusBadRequest)
+			return
+		}
+		file, _, err := r.FormFile("file")
+		if err != nil {
+			http.Error(w, "File is required", http.StatusBadRequest)
+			return
+		}
+		defer file.Close()
+		data, err = io.ReadAll(file)
+		if err != nil {
+			http.Error(w, "Failed to read uploaded file", http.StatusBadRequest)
+			return
+		}
+	} else {
+		data, err = io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Failed to read request body", http.StatusBadRequest)
+			return
+		}
+	}
+
+	if len(data) == 0 {
+		http.Error(w, "Empty file payload", http.StatusBadRequest)
+		return
+	}
+
+	// Decompress if zstd compressed (magic number: 0x28, 0xB5, 0x2F, 0xFD)
+	if len(data) >= 4 && data[0] == 0x28 && data[1] == 0xB5 && data[2] == 0x2F && data[3] == 0xFD {
+		decompressed, err := storage.DecompressRaw(data)
+		if err != nil {
+			http.Error(w, "Failed to decompress .f1session file", http.StatusBadRequest)
+			return
+		}
+		data = decompressed
+	}
+
+	var pkg storage.ExportedSessionPackage
+	if err := json.Unmarshal(data, &pkg); err != nil {
+		log.Printf("Error unmarshaling import session: %v", err)
+		http.Error(w, "Invalid session package format", http.StatusBadRequest)
+		return
+	}
+
+	newSessionID, err := s.repo.ImportSession(r.Context(), &pkg)
+	if err != nil {
+		log.Printf("Error importing session: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to import session: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]any{
+		"status":     "success",
+		"session_id": newSessionID,
+	})
 }

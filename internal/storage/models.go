@@ -78,3 +78,26 @@ type Participant struct {
 	Nationality  int       `db:"nationality" json:"nationality"`
 	CreatedAt    time.Time `db:"created_at" json:"created_at"`
 }
+
+// LapTelemetryBlob represents the compressed telemetry payload for a single lap.
+type LapTelemetryBlob struct {
+	LapID       int64     `db:"lap_id" json:"lap_id"`
+	SampleCount int       `db:"sample_count" json:"sample_count"`
+	Data        []byte    `db:"data" json:"-"`
+	CreatedAt   time.Time `db:"created_at" json:"created_at"`
+}
+
+// ExportedLapPackage represents a lap and its telemetry samples for export/import.
+type ExportedLapPackage struct {
+	Lap       Lap               `json:"lap"`
+	Telemetry []TelemetrySample `json:"telemetry,omitempty"`
+}
+
+// ExportedSessionPackage represents a fully self-contained exported session.
+type ExportedSessionPackage struct {
+	Version      string               `json:"version"`
+	Session      Session              `json:"session"`
+	Tags         []Tag                `json:"tags"`
+	Participants []Participant        `json:"participants"`
+	Laps         []ExportedLapPackage `json:"laps"`
+}

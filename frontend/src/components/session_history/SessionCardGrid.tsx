@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, CloudSun, ChevronRight, Trash2, MapPin, Plus } from 'lucide-react';
+import { Clock, CloudSun, ChevronRight, Trash2, MapPin, Plus, Download } from 'lucide-react';
 import type { Session } from '../SessionHistory';
 import { useI18n } from '../../context/I18nContext';
 import { TagBadge } from './TagBadge';
@@ -8,6 +8,7 @@ interface SessionCardGridProps {
   sessions: Session[];
   onSelectSession: (session: Session) => void;
   onRequestDelete: (session: Session) => void;
+  onExportSession?: (session: Session) => void;
   formatDate: (dateStr?: string) => string;
   getSessionBadgeClass: (typeStr?: string) => string;
   onOpenTagManager: (session: Session) => void;
@@ -17,6 +18,7 @@ export const SessionCardGrid: React.FC<SessionCardGridProps> = ({
   sessions,
   onSelectSession,
   onRequestDelete,
+  onExportSession,
   formatDate,
   getSessionBadgeClass,
   onOpenTagManager,
@@ -101,6 +103,20 @@ export const SessionCardGrid: React.FC<SessionCardGridProps> = ({
                 <span>{t('common.exploreSession')}</span>
                 <ChevronRight size={15} />
               </button>
+
+              {onExportSession && (
+                <button
+                  className="session-delete-icon-btn"
+                  title={`${t('history.exportSession')} #${session.id}`}
+                  style={{ color: 'var(--accent-secondary)' }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onExportSession(session);
+                  }}
+                >
+                  <Download size={15} />
+                </button>
+              )}
 
               <button
                 className="session-delete-icon-btn"
