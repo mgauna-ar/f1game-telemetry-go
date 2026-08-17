@@ -511,7 +511,7 @@ export function useTelemetry(wsUrl?: string) {
             console.error('Failed to parse telemetry packet:', err);
           }
         };
-      } catch (_err) {
+      } catch {
         if (!isUnmounted) {
           setConnected(false);
           reconnectTimer = setTimeout(connect, 2000);

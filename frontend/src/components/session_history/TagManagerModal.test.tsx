@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { TagManagerModal } from './TagManagerModal';
-import { I18nProvider } from '../../context/I18nContext';
+import { I18nProvider } from '../../context/I18nProvider';
 import type { Session, Tag } from '../../types/session';
 
 describe('TagManagerModal', () => {

@@ -1,7 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi, describe, it, beforeEach, expect } from 'vitest';
 import { AiRaceEngineer } from './AiRaceEngineer';
-import { RaceEngineerProvider } from '../context/RaceEngineerContext';
+import { RaceEngineerProvider } from '../context/RaceEngineerProvider';
 import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
 
 describe('AiRaceEngineer Component', () => {

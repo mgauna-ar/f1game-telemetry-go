@@ -22,14 +22,12 @@ import { ComparatorTrackMap } from './ComparatorTrackMap';
 import { useRaceEngineer } from '../context/RaceEngineerContext';
 import { useI18n } from '../context/I18nContext';
 import { ERS_MODE_NAMES } from '../constants/f1';
-import { formatTime, getRankBadgeStyle, getSessionBadgeClass } from '../utils/formatters';
+import { formatTime } from '../utils/formatters';
 
 import { SlotCard } from './lap_comparator/SlotCard';
 import { QuickSelectLeaderboard } from './lap_comparator/QuickSelectLeaderboard';
 import { ComparatorMetricsSummary } from './lap_comparator/ComparatorMetricsSummary';
 import { ComparatorTelemetryCharts } from './lap_comparator/ComparatorTelemetryCharts';
-
-export { getRankBadgeStyle, getSessionBadgeClass };
 
 export interface LapComparatorProps {
   initialPreload?: NavigationComparatorPayload | null;

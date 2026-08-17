@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Search, X, ChevronDown, ChevronUp, Check, Award, Star, AlertTriangle, Filter } from 'lucide-react';
 import type { Lap, Participant } from '../types/session';
 import { formatLapTime as formatTime, formatSectorTime as formatSector } from '../utils/formatters';
+import { TyreCompoundBadge } from './common/TyreCompoundBadge';
 
 export type { Lap, Participant };
 
@@ -14,48 +15,6 @@ interface CustomLapSelectorProps {
   disabled?: boolean;
   placeholder?: string;
 }
-
-// Render Tyre Compound Badge
-export const renderTyreCompoundBadge = (compoundRaw?: string) => {
-  if (!compoundRaw) return null;
-  const str = compoundRaw.toUpperCase().trim();
-
-  let label = str.charAt(0);
-  let color = '#FFFFFF';
-  let bg = 'rgba(255, 255, 255, 0.15)';
-
-  if (str === '16' || str.includes('SOFT') || str === 'S') {
-    label = 'S';
-    color = '#ff4757';
-    bg = 'rgba(255, 71, 87, 0.2)';
-  } else if (str === '17' || str.includes('MED') || str === 'M') {
-    label = 'M';
-    color = '#ffd200';
-    bg = 'rgba(255, 210, 0, 0.2)';
-  } else if (str === '18' || str.includes('HARD') || str === 'H') {
-    label = 'H';
-    color = '#FFFFFF';
-    bg = 'rgba(255, 255, 255, 0.2)';
-  } else if (str === '7' || str.includes('INTER') || str === 'I') {
-    label = 'I';
-    color = '#2ed573';
-    bg = 'rgba(46, 213, 115, 0.2)';
-  } else if (str === '8' || str.includes('WET') || str === 'W') {
-    label = 'W';
-    color = '#1e90ff';
-    bg = 'rgba(30, 144, 255, 0.2)';
-  }
-
-  return (
-    <span
-      className="tyre-badge-mini"
-      style={{ color, backgroundColor: bg, borderColor: color }}
-      title={`Tyre Compound: ${compoundRaw}`}
-    >
-      {label}
-    </span>
-  );
-};
 
 export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
   laps,
@@ -222,7 +181,7 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
               </span>
               <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>•</span>
               <span style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>Lap {selectedLap.lap_number}</span>
-              {renderTyreCompoundBadge(selectedLap.tyre_compound)}
+              <TyreCompoundBadge compound={selectedLap.tyre_compound} />
               <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: slotColor, fontSize: '0.84rem' }}>
                 {formatTime(selectedLap.lap_time_ms)}
               </span>
@@ -390,7 +349,7 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
                         <span style={{ color: 'var(--text-secondary)', fontSize: '0.74rem', fontWeight: 600 }}>
                           Lap {lap.lap_number}
                         </span>
-                        {renderTyreCompoundBadge(lap.tyre_compound)}
+                        <TyreCompoundBadge compound={lap.tyre_compound} />
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexShrink: 0 }}>

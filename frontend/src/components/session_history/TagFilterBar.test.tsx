@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { TagFilterBar } from './TagFilterBar';
-import { I18nProvider } from '../../context/I18nContext';
+import { I18nProvider } from '../../context/I18nProvider';
 import type { Tag } from '../../types/session';
 
 describe('TagFilterBar', () => {

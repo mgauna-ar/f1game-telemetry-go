@@ -41,11 +41,9 @@ describe('useTelemetry', () => {
 
   it('parses telemetry packets correctly', () => {
     let wsInstance: MockWebSocket | undefined;
-    (globalThis as any).WebSocket = class extends MockWebSocket {
-      constructor(url: string) {
-        super(url);
-        wsInstance = this;
-      }
+    (globalThis as any).WebSocket = function (url: string) {
+      wsInstance = new MockWebSocket(url);
+      return wsInstance;
     };
 
     render(<TestComponent wsUrl="ws://localhost:8080/ws" />);
@@ -74,11 +72,9 @@ describe('useTelemetry', () => {
 
   it('parses motion packets correctly', () => {
     let wsInstance: MockWebSocket | undefined;
-    (globalThis as any).WebSocket = class extends MockWebSocket {
-      constructor(url: string) {
-        super(url);
-        wsInstance = this;
-      }
+    (globalThis as any).WebSocket = function (url: string) {
+      wsInstance = new MockWebSocket(url);
+      return wsInstance;
     };
 
     render(<TestComponent wsUrl="ws://localhost:8080/ws" />);
@@ -102,11 +98,9 @@ describe('useTelemetry', () => {
 
   it('slices participants to NumActiveCars', () => {
     let wsInstance: MockWebSocket | undefined;
-    (globalThis as any).WebSocket = class extends MockWebSocket {
-      constructor(url: string) {
-        super(url);
-        wsInstance = this;
-      }
+    (globalThis as any).WebSocket = function (url: string) {
+      wsInstance = new MockWebSocket(url);
+      return wsInstance;
     };
 
     function ParticipantsTestComponent() {

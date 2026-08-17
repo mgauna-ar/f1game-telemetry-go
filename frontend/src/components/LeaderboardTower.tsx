@@ -54,69 +54,73 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
   const lastSessionKeyRef = React.useRef<string | number | null>(null);
 
   const sessionKey = `${session?.SessionType}_${session?.TrackId}`;
-  if (lastSessionKeyRef.current !== sessionKey) {
-    bestLapTimesRef.current = {};
-    lastSessionKeyRef.current = sessionKey;
-  }
-
-  laps.forEach((lap, idx) => {
-    if (lap && lap.LastLapTimeInMS > 0) {
-      const currentBest = bestLapTimesRef.current[idx] || 0;
-      if (currentBest === 0 || lap.LastLapTimeInMS < currentBest) {
-        bestLapTimesRef.current[idx] = lap.LastLapTimeInMS;
-      }
-    }
-  });
 
   // Build unified driver entries
-  const drivers: ProcessedDriver[] = participants.map((p, idx) => {
-    const lap = laps[idx];
-    const carStatus = carStatuses[idx];
-    const rawName = p.Name;
-    const defaultName = p.RaceNumber ? `Driver #${p.RaceNumber}` : `Car #${idx + 1}`;
-    const name = parseDriverName(rawName, defaultName, p.DriverId);
+  const displayDrivers: ProcessedDriver[] = React.useMemo(() => {
+    if (lastSessionKeyRef.current !== sessionKey) {
+      bestLapTimesRef.current = {};
+      lastSessionKeyRef.current = sessionKey;
+    }
 
-    return {
-      carIndex: idx,
-      position: lap?.CarPosition || idx + 1,
-      gridPosition: lap?.GridPosition || 0,
-      name,
-      raceNumber: p.RaceNumber || idx + 1,
-      teamId: p.TeamId,
-      aiControlled: p.AIControlled === 1,
-      lap,
-      carStatus,
-      isPlayer: idx === playerCarIndex,
-    };
-  });
-
-  // Fallback synthetic drivers if array is empty
-  const displayDrivers: ProcessedDriver[] = drivers.length > 0 ? drivers : [
-    { carIndex: 0, position: laps[0]?.CarPosition || 1, gridPosition: laps[0]?.GridPosition || 1, name: 'Player Car', raceNumber: 1, teamId: 0, aiControlled: false, lap: laps[0], carStatus: carStatuses[0], isPlayer: true }
-  ];
-
-  // Sort drivers
-  if (isQualy) {
-    displayDrivers.sort((a, b) => {
-      const timeA = bestLapTimesRef.current[a.carIndex] || (a.lap?.LastLapTimeInMS || 0);
-      const timeB = bestLapTimesRef.current[b.carIndex] || (b.lap?.LastLapTimeInMS || 0);
-
-      if (timeA > 0 && timeB > 0) {
-        if (timeA !== timeB) return timeA - timeB;
-        return a.carIndex - b.carIndex;
+    laps.forEach((lap, idx) => {
+      if (lap && lap.LastLapTimeInMS > 0) {
+        const currentBest = bestLapTimesRef.current[idx] || 0;
+        if (currentBest === 0 || lap.LastLapTimeInMS < currentBest) {
+          bestLapTimesRef.current[idx] = lap.LastLapTimeInMS;
+        }
       }
-      if (timeA > 0 && timeB === 0) return -1;
-      if (timeA === 0 && timeB > 0) return 1;
-
-      return a.carIndex - b.carIndex;
     });
 
-    displayDrivers.forEach((d, idx) => {
-      d.position = idx + 1;
+    const drivers: ProcessedDriver[] = participants.map((p, idx) => {
+      const lap = laps[idx];
+      const carStatus = carStatuses[idx];
+      const rawName = p.Name;
+      const defaultName = p.RaceNumber ? `Driver #${p.RaceNumber}` : `Car #${idx + 1}`;
+      const name = parseDriverName(rawName, defaultName, p.DriverId);
+
+      return {
+        carIndex: idx,
+        position: lap?.CarPosition || idx + 1,
+        gridPosition: lap?.GridPosition || 0,
+        name,
+        raceNumber: p.RaceNumber || idx + 1,
+        teamId: p.TeamId,
+        aiControlled: p.AIControlled === 1,
+        lap,
+        carStatus,
+        isPlayer: idx === playerCarIndex,
+      };
     });
-  } else {
-    displayDrivers.sort((a, b) => a.position - b.position);
-  }
+
+    const result: ProcessedDriver[] = drivers.length > 0 ? drivers : [
+      { carIndex: 0, position: laps[0]?.CarPosition || 1, gridPosition: laps[0]?.GridPosition || 1, name: 'Player Car', raceNumber: 1, teamId: 0, aiControlled: false, lap: laps[0], carStatus: carStatuses[0], isPlayer: true }
+    ];
+
+    // Sort drivers
+    if (isQualy) {
+      result.sort((a, b) => {
+        const timeA = bestLapTimesRef.current[a.carIndex] || (a.lap?.LastLapTimeInMS || 0);
+        const timeB = bestLapTimesRef.current[b.carIndex] || (b.lap?.LastLapTimeInMS || 0);
+
+        if (timeA > 0 && timeB > 0) {
+          if (timeA !== timeB) return timeA - timeB;
+          return a.carIndex - b.carIndex;
+        }
+        if (timeA > 0 && timeB === 0) return -1;
+        if (timeA === 0 && timeB > 0) return 1;
+
+        return a.carIndex - b.carIndex;
+      });
+
+      result.forEach((d, idx) => {
+        d.position = idx + 1;
+      });
+    } else {
+      result.sort((a, b) => a.position - b.position);
+    }
+
+    return result;
+  }, [participants, laps, carStatuses, playerCarIndex, isQualy, sessionKey]);
 
   // Detect position updates for flash animations
   React.useEffect(() => {

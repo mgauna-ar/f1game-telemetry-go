@@ -3,8 +3,10 @@ import { Calendar, GitCompare, Radio, Gauge } from 'lucide-react';
 import { Dashboard } from './components/Dashboard';
 import { LapComparator } from './components/LapComparator';
 import { SessionHistory } from './components/SessionHistory';
-import { RaceEngineerProvider, useRaceEngineer } from './context/RaceEngineerContext';
-import { I18nProvider, useI18n } from './context/I18nContext';
+import { RaceEngineerProvider } from './context/RaceEngineerProvider';
+import { useRaceEngineer } from './context/RaceEngineerContext';
+import { I18nProvider } from './context/I18nProvider';
+import { useI18n } from './context/I18nContext';
 import { AiRaceEngineer } from './components/AiRaceEngineer';
 import { LanguageSelector } from './components/LanguageSelector';
 

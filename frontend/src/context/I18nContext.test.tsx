@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, beforeEach } from 'vitest';
-import { I18nProvider, useI18n } from './I18nContext';
+import { useI18n } from './I18nContext';
+import { I18nProvider } from './I18nProvider';
 
 const TestComponent = () => {
   const { locale, setLocale, t, currentLocaleInfo } = useI18n();

@@ -3,7 +3,7 @@ import { Tag as TagIcon, X, Search, Plus, Check, Trash2 } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
 import type { Session, Tag } from '../../types/session';
 
-export const MOTORSPORT_COLORS = [
+const MOTORSPORT_COLORS = [
   { name: 'Red', hex: '#ef4444' },
   { name: 'Orange', hex: '#f97316' },
   { name: 'Amber', hex: '#eab308' },

@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { I18nProvider } from '../context/I18nContext';
+import { I18nProvider } from '../context/I18nProvider';
 import { LanguageSelector } from './LanguageSelector';
 
 describe('LanguageSelector Component', () => {

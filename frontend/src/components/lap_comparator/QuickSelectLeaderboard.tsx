@@ -3,7 +3,7 @@ import { Zap, Search, X, ChevronDown, ChevronUp } from 'lucide-react';
 import type { Participant, Lap } from '../../types/session';
 import { TEAM_COLORS } from '../../constants/f1';
 import { formatTime, getRankBadgeStyle } from '../../utils/formatters';
-import { renderTyreCompoundBadge } from '../CustomLapSelector';
+import { TyreCompoundBadge } from '../common/TyreCompoundBadge';
 import { useI18n } from '../../context/I18nContext';
 
 export interface QuickSelectDriver extends Participant {
@@ -348,7 +348,7 @@ export const QuickSelectLeaderboard: React.FC<QuickSelectLeaderboardProps> = ({
                           #{p.race_number} {p.name}
                         </span>
                         {p.bestLap?.tyre_compound && (
-                          <span style={{ flexShrink: 0 }}>{renderTyreCompoundBadge(p.bestLap.tyre_compound)}</span>
+                          <span style={{ flexShrink: 0 }}><TyreCompoundBadge compound={p.bestLap.tyre_compound} /></span>
                         )}
                       </div>
 

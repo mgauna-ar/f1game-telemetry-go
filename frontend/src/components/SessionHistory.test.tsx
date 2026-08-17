@@ -1,8 +1,8 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, it, beforeEach, expect } from 'vitest';
 import { SessionHistory } from './SessionHistory';
-import { RaceEngineerProvider } from '../context/RaceEngineerContext';
-import { I18nProvider } from '../context/I18nContext';
+import { RaceEngineerProvider } from '../context/RaceEngineerProvider';
+import { I18nProvider } from '../context/I18nProvider';
 import { AiRaceEngineer } from './AiRaceEngineer';
 
 describe('SessionHistory Component', () => {

@@ -94,7 +94,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
     if (showSettings && config.apiKey) {
       fetchAvailableModels();
     }
-  }, [showSettings, config.provider, config.apiKey]);
+  }, [showSettings, config.provider, config.apiKey, fetchAvailableModels]);
 
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
