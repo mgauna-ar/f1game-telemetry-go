@@ -17,8 +17,15 @@ if not exist "%~dp0frontend\node_modules\" (
     echo [2/4] Frontend dependencies found.
 )
 
-echo [3/4] Starting Backend Server...
-start "F1 Telemetry Backend" /d "%~dp0" cmd /k "go run ./cmd/server"
+echo [3/4] Building and Starting Backend Server...
+if not exist "%~dp0bin" mkdir "%~dp0bin"
+go build -o "%~dp0bin\server.exe" ./cmd/server
+if errorlevel 1 (
+    echo [ERROR] Failed to build backend server.
+    pause
+    exit /b 1
+)
+start "F1 Telemetry Backend" /d "%~dp0" cmd /k "bin\server.exe"
 
 echo [4/4] Starting Web Dashboard...
 start "F1 Telemetry Frontend" /d "%~dp0frontend" cmd /k "npm run dev"
