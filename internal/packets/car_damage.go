@@ -39,12 +39,32 @@ type PacketCarDamageData struct {
 
 func (p PacketCarDamageData) GetHeader() PacketHeader { return p.Header }
 
+const CarDamageStructSize = 42
+
 // DecodeCarDamage decodes a PacketCarDamageData from raw bytes.
 func DecodeCarDamage(data []byte) (*PacketCarDamageData, error) {
-	var pkt PacketCarDamageData
-	err := binary.Read(bytes.NewReader(data), binary.LittleEndian, &pkt)
+	header, headerLen, err := DecodeHeaderWithOffset(data)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode car damage packet: %w", err)
+		return nil, fmt.Errorf("failed to decode header in car damage: %w", err)
 	}
+
+	var pkt PacketCarDamageData
+	pkt.Header = header
+
+	payload := data[headerLen:]
+	maxCars := MaxCarsForFormat(header.PacketFormat)
+	itemSize := InferredItemSize(payload, header, CarDamageStructSize, 0)
+
+	for i := 0; i < maxCars && i < MaxCars; i++ {
+		offset := i * itemSize
+		if offset+CarDamageStructSize > len(payload) {
+			break
+		}
+		r := bytes.NewReader(payload[offset : offset+CarDamageStructSize])
+		if err := binary.Read(r, binary.LittleEndian, &pkt.CarDamageData[i]); err != nil {
+			return nil, fmt.Errorf("failed to decode car damage for car %d: %w", i, err)
+		}
+	}
+
 	return &pkt, nil
 }

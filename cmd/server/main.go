@@ -94,16 +94,7 @@ func main() {
 				sessionManager.ProcessPacket(ctx, pkt)
 
 				// Broadcast relevant real-time telemetry packets to WebSockets
-				pktID := pkt.GetHeader().PacketId
-				if pktID == packets.PacketIDCarTelemetry ||
-					pktID == packets.PacketIDLapData ||
-					pktID == packets.PacketIDMotion ||
-					pktID == packets.PacketIDSession ||
-					pktID == packets.PacketIDParticipants ||
-					pktID == packets.PacketIDCarStatus ||
-					pktID == packets.PacketIDCarSetup ||
-					pktID == packets.PacketIDCarDamage ||
-					pktID == packets.PacketIDEvent {
+				if shouldBroadcastPacket(pkt.GetHeader().PacketId) {
 					if js, err := json.Marshal(pkt); err == nil {
 						hub.Broadcast(js)
 					}
@@ -127,6 +118,24 @@ func main() {
 	}
 
 	log.Println("Shutdown complete")
+}
+
+// shouldBroadcastPacket returns true if the packet should be broadcast over WebSockets to live clients.
+func shouldBroadcastPacket(pktID uint8) bool {
+	switch pktID {
+	case packets.PacketIDMotion,
+		packets.PacketIDSession,
+		packets.PacketIDLapData,
+		packets.PacketIDEvent,
+		packets.PacketIDParticipants,
+		packets.PacketIDCarSetup,
+		packets.PacketIDCarTelemetry,
+		packets.PacketIDCarStatus,
+		packets.PacketIDCarDamage:
+		return true
+	default:
+		return false
+	}
 }
 
 func getEnv(key, fallback string) string {

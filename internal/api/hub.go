@@ -3,27 +3,126 @@ package api
 import (
 	"log"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
 
+const (
+	// Time allowed to write a message to the peer.
+	writeWait = 5 * time.Second
+
+	// Time allowed to read the next pong message from the peer.
+	pongWait = 60 * time.Second
+
+	// Send pings to peer with this period. Must be less than pongWait.
+	pingPeriod = (pongWait * 9) / 10
+
+	// Maximum message size allowed from peer.
+	maxMessageSize = 512
+
+	// Channel buffer size per client.
+	clientSendBufferSize = 256
+)
+
+// Client is a middleman between the websocket connection and the hub.
+type Client struct {
+	hub  *Hub
+	conn *websocket.Conn
+	send chan []byte
+}
+
+// NewClient creates a new client instance.
+func NewClient(hub *Hub, conn *websocket.Conn) *Client {
+	return &Client{
+		hub:  hub,
+		conn: conn,
+		send: make(chan []byte, clientSendBufferSize),
+	}
+}
+
+// ReadPump pumps messages from the websocket connection to the hub.
+func (c *Client) ReadPump() {
+	defer func() {
+		c.hub.unregister <- c
+		c.conn.Close()
+	}()
+	c.conn.SetReadLimit(maxMessageSize)
+	_ = c.conn.SetReadDeadline(time.Now().Add(pongWait))
+	c.conn.SetPongHandler(func(string) error {
+		_ = c.conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
+	for {
+		_, _, err := c.conn.ReadMessage()
+		if err != nil {
+			break
+		}
+	}
+}
+
+// WritePump pumps messages from the hub to the websocket connection.
+func (c *Client) WritePump() {
+	ticker := time.NewTicker(pingPeriod)
+	defer func() {
+		ticker.Stop()
+		c.conn.Close()
+	}()
+	for {
+		select {
+		case message, ok := <-c.send:
+			_ = c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if !ok {
+				_ = c.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+
+			w, err := c.conn.NextWriter(websocket.TextMessage)
+			if err != nil {
+				return
+			}
+			if _, err := w.Write(message); err != nil {
+				return
+			}
+			if err := w.Close(); err != nil {
+				return
+			}
+		case <-ticker.C:
+			_ = c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				return
+			}
+		}
+	}
+}
+
 // Hub maintains the set of active WebSocket clients and broadcasts messages to them.
 type Hub struct {
-	clients    map[*websocket.Conn]bool
+	clients    map[*Client]bool
 	broadcast  chan []byte
-	register   chan *websocket.Conn
-	unregister chan *websocket.Conn
-	mu         sync.Mutex
+	register   chan *Client
+	unregister chan *Client
+	mu         sync.RWMutex
 }
 
 // NewHub creates a new WebSocket Hub.
 func NewHub() *Hub {
 	return &Hub{
-		broadcast:  make(chan []byte, 256),
-		register:   make(chan *websocket.Conn),
-		unregister: make(chan *websocket.Conn),
-		clients:    make(map[*websocket.Conn]bool),
+		broadcast:  make(chan []byte, 1024),
+		register:   make(chan *Client),
+		unregister: make(chan *Client),
+		clients:    make(map[*Client]bool),
 	}
+}
+
+// Register registers a client with the hub.
+func (h *Hub) Register(client *Client) {
+	h.register <- client
+}
+
+// Unregister unregisters a client from the hub.
+func (h *Hub) Unregister(client *Client) {
+	h.unregister <- client
 }
 
 // Run starts the hub's main loop.
@@ -33,31 +132,39 @@ func (h *Hub) Run() {
 		case client := <-h.register:
 			h.mu.Lock()
 			h.clients[client] = true
+			total := len(h.clients)
 			h.mu.Unlock()
-			log.Printf("[WebSocket] Client connected. Total: %d", len(h.clients))
+			log.Printf("[WebSocket] Client connected. Total: %d", total)
 		case client := <-h.unregister:
 			h.mu.Lock()
 			if _, ok := h.clients[client]; ok {
 				delete(h.clients, client)
-				client.Close()
-				log.Printf("[WebSocket] Client disconnected. Total: %d", len(h.clients))
+				close(client.send)
+				total := len(h.clients)
+				h.mu.Unlock()
+				log.Printf("[WebSocket] Client disconnected. Total: %d", total)
+			} else {
+				h.mu.Unlock()
 			}
-			h.mu.Unlock()
 		case message := <-h.broadcast:
-			h.mu.Lock()
+			h.mu.RLock()
 			for client := range h.clients {
-				err := client.WriteMessage(websocket.TextMessage, message)
-				if err != nil {
-					client.Close()
-					delete(h.clients, client)
+				select {
+				case client.send <- message:
+				default:
+					// Slow or lagging client send buffer full: skip dropping message
 				}
 			}
-			h.mu.Unlock()
+			h.mu.RUnlock()
 		}
 	}
 }
 
 // Broadcast sends a message to all connected clients.
 func (h *Hub) Broadcast(msg []byte) {
-	h.broadcast <- msg
+	select {
+	case h.broadcast <- msg:
+	default:
+		// Broadcast channel full: don't block telemetry loop
+	}
 }

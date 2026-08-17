@@ -60,14 +60,24 @@ func (r *Repository) SaveSession(ctx context.Context, s *Session) error {
 	return nil
 }
 
-// UpdateSessionMetadata updates the track name, session type, and weather for a given session_uid.
+// UpdateSessionMetadata updates the track name, session type, and dynamic weather for a given session_uid.
 func (r *Repository) UpdateSessionMetadata(ctx context.Context, sessionUID uint64, trackID int, trackName, sessionType, weather string) error {
 	query := `
 		UPDATE sessions 
-		SET track_id = ?, track_name = ?, session_type = ?, weather = ?
-		WHERE session_uid = ? AND (track_name = 'Unknown' OR session_type = 'Unknown' OR weather = 'Unknown')
+		SET 
+			track_id = CASE WHEN ? != -1 THEN ? ELSE track_id END,
+			track_name = CASE WHEN ? != '' AND ? != 'Unknown' THEN ? ELSE track_name END,
+			session_type = CASE WHEN ? != '' AND ? != 'Unknown' THEN ? ELSE session_type END,
+			weather = CASE WHEN ? != '' AND ? != 'Unknown' THEN ? ELSE weather END
+		WHERE session_uid = ?
 	`
-	_, err := r.db.ExecContext(ctx, query, trackID, trackName, sessionType, weather, int64(sessionUID))
+	_, err := r.db.ExecContext(ctx, query,
+		trackID, trackID,
+		trackName, trackName, trackName,
+		sessionType, sessionType, sessionType,
+		weather, weather, weather,
+		int64(sessionUID),
+	)
 	if err != nil {
 		return fmt.Errorf("failed to update session metadata: %w", err)
 	}

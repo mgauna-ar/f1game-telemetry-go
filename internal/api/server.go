@@ -89,20 +89,11 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.hub.register <- conn
+	client := NewClient(s.hub, conn)
+	s.hub.Register(client)
 
-	// Keep connection alive and handle disconnection
-	go func() {
-		defer func() {
-			s.hub.unregister <- conn
-		}()
-		for {
-			_, _, err := conn.ReadMessage()
-			if err != nil {
-				break
-			}
-		}
-	}()
+	go client.WritePump()
+	go client.ReadPump()
 }
 
 func (s *Server) handleGetSessions(w http.ResponseWriter, r *http.Request) {

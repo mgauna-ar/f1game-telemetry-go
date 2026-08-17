@@ -36,12 +36,47 @@ type PacketLobbyInfoData struct {
 
 func (p PacketLobbyInfoData) GetHeader() PacketHeader { return p.Header }
 
+const LobbyInfoStructSize = 54
+
 // DecodeLobbyInfo decodes a PacketLobbyInfoData from raw bytes.
 func DecodeLobbyInfo(data []byte) (*PacketLobbyInfoData, error) {
-	var pkt PacketLobbyInfoData
-	err := binary.Read(bytes.NewReader(data), binary.LittleEndian, &pkt)
+	header, headerLen, err := DecodeHeaderWithOffset(data)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode lobby info packet: %w", err)
+		return nil, fmt.Errorf("failed to decode header in lobby info: %w", err)
 	}
+
+	var pkt PacketLobbyInfoData
+	pkt.Header = header
+
+	payload := data[headerLen:]
+	if len(payload) < 1 {
+		return nil, fmt.Errorf("data too short for lobby info payload: got %d bytes", len(payload))
+	}
+
+	pkt.NumPlayers = payload[0]
+	playersPayload := payload[1:]
+
+	maxCars := MaxCarsForFormat(header.PacketFormat)
+	itemSize := LobbyInfoStructSize
+	if maxCars > 0 && len(playersPayload)/maxCars >= LobbyInfoStructSize {
+		itemSize = len(playersPayload) / maxCars
+	}
+
+	numToRead := int(pkt.NumPlayers)
+	if numToRead <= 0 || numToRead > maxCars {
+		numToRead = maxCars
+	}
+
+	for i := 0; i < numToRead && i < MaxCars; i++ {
+		offset := i * itemSize
+		if offset+LobbyInfoStructSize > len(playersPayload) {
+			break
+		}
+		r := bytes.NewReader(playersPayload[offset : offset+LobbyInfoStructSize])
+		if err := binary.Read(r, binary.LittleEndian, &pkt.LobbyPlayers[i]); err != nil {
+			return nil, fmt.Errorf("failed to decode lobby player %d: %w", i, err)
+		}
+	}
+
 	return &pkt, nil
 }

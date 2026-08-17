@@ -6,14 +6,16 @@ import (
 	"log"
 	"net"
 	"sync"
+
+	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 )
 
 const (
 	// DefaultBufferSize is the default read buffer size in bytes.
 	DefaultBufferSize = 2048
 
-	// minPacketSize is the minimum valid packet size (2023 header size).
-	minPacketSize = 25
+	// minPacketSize is the minimum valid packet size (F1 2025/2026 29-byte header).
+	minPacketSize = packets.HeaderSize
 )
 
 // RawPacket represents a raw UDP packet received from the F1 game.

@@ -213,3 +213,175 @@ func TestDecodeCarSetupAlignment(t *testing.T) {
 		t.Errorf("Car 21 Setup expected FrontWing 31, BrakePressure 100; got Wing %d, Pressure %d", pkt.CarSetupData[21].FrontWing, pkt.CarSetupData[21].BrakePressure)
 	}
 }
+
+func TestDecodeCarDamage2025And2026(t *testing.T) {
+	formats := []struct {
+		name         string
+		packetFormat uint16
+		expectedCars int
+	}{
+		{"F1 2025 (22 cars)", 2025, 22},
+		{"F1 2026 (24 cars)", 2026, 24},
+	}
+
+	for _, fmtCase := range formats {
+		t.Run(fmtCase.name, func(t *testing.T) {
+			buf := new(bytes.Buffer)
+			hdr := createHeader(PacketIDCarDamage)
+			hdr.PacketFormat = fmtCase.packetFormat
+			_ = binary.Write(buf, binary.LittleEndian, &hdr)
+
+			for i := 0; i < fmtCase.expectedCars; i++ {
+				cd := CarDamageData{
+					FrontLeftWingDamage:  uint8(10 + i),
+					FrontRightWingDamage: uint8(20 + i),
+					RearWingDamage:       uint8(30 + i),
+					GearBoxDamage:        uint8(i),
+				}
+				_ = binary.Write(buf, binary.LittleEndian, &cd)
+			}
+
+			pkt, err := DecodeCarDamage(buf.Bytes())
+			if err != nil {
+				t.Fatalf("DecodeCarDamage failed for %s: %v", fmtCase.name, err)
+			}
+
+			if pkt.CarDamageData[0].FrontLeftWingDamage != 10 {
+				t.Errorf("Car 0 FrontLeftWingDamage expected 10, got %d", pkt.CarDamageData[0].FrontLeftWingDamage)
+			}
+			if pkt.CarDamageData[fmtCase.expectedCars-1].FrontLeftWingDamage != uint8(10+fmtCase.expectedCars-1) {
+				t.Errorf("Last Car FrontLeftWingDamage expected %d, got %d", 10+fmtCase.expectedCars-1, pkt.CarDamageData[fmtCase.expectedCars-1].FrontLeftWingDamage)
+			}
+		})
+	}
+}
+
+func TestDecodeFinalClassification2025And2026(t *testing.T) {
+	formats := []struct {
+		name         string
+		packetFormat uint16
+		expectedCars int
+	}{
+		{"F1 2025 (22 cars)", 2025, 22},
+		{"F1 2026 (24 cars)", 2026, 24},
+	}
+
+	for _, fmtCase := range formats {
+		t.Run(fmtCase.name, func(t *testing.T) {
+			buf := new(bytes.Buffer)
+			hdr := createHeader(PacketIDFinalClassification)
+			hdr.PacketFormat = fmtCase.packetFormat
+			_ = binary.Write(buf, binary.LittleEndian, &hdr)
+
+			numCars := uint8(fmtCase.expectedCars)
+			_ = binary.Write(buf, binary.LittleEndian, &numCars)
+
+			for i := 0; i < fmtCase.expectedCars; i++ {
+				fc := FinalClassificationData{
+					Position:        uint8(i + 1),
+					NumLaps:         50,
+					BestLapTimeInMS: uint32(80000 + i*500),
+					TotalRaceTime:   4500.5,
+				}
+				_ = binary.Write(buf, binary.LittleEndian, &fc)
+			}
+
+			pkt, err := DecodeFinalClassification(buf.Bytes())
+			if err != nil {
+				t.Fatalf("DecodeFinalClassification failed for %s: %v", fmtCase.name, err)
+			}
+
+			if pkt.NumCars != numCars {
+				t.Errorf("Expected NumCars %d, got %d", numCars, pkt.NumCars)
+			}
+			if pkt.ClassificationData[0].Position != 1 {
+				t.Errorf("Car 0 position expected 1, got %d", pkt.ClassificationData[0].Position)
+			}
+			if pkt.ClassificationData[fmtCase.expectedCars-1].Position != uint8(fmtCase.expectedCars) {
+				t.Errorf("Last car position expected %d, got %d", fmtCase.expectedCars, pkt.ClassificationData[fmtCase.expectedCars-1].Position)
+			}
+		})
+	}
+}
+
+func TestDecodeLobbyInfo2025And2026(t *testing.T) {
+	formats := []struct {
+		name         string
+		packetFormat uint16
+		expectedCars int
+	}{
+		{"F1 2025 (22 cars)", 2025, 22},
+		{"F1 2026 (24 cars)", 2026, 24},
+	}
+
+	for _, fmtCase := range formats {
+		t.Run(fmtCase.name, func(t *testing.T) {
+			buf := new(bytes.Buffer)
+			hdr := createHeader(PacketIDLobbyInfo)
+			hdr.PacketFormat = fmtCase.packetFormat
+			_ = binary.Write(buf, binary.LittleEndian, &hdr)
+
+			numPlayers := uint8(fmtCase.expectedCars)
+			_ = binary.Write(buf, binary.LittleEndian, &numPlayers)
+
+			for i := 0; i < fmtCase.expectedCars; i++ {
+				var li LobbyInfoData
+				li.TeamId = uint8(i)
+				li.CarNumber = uint8(i + 1)
+				copy(li.Name[:], "PlayerName")
+				_ = binary.Write(buf, binary.LittleEndian, &li)
+			}
+
+			pkt, err := DecodeLobbyInfo(buf.Bytes())
+			if err != nil {
+				t.Fatalf("DecodeLobbyInfo failed for %s: %v", fmtCase.name, err)
+			}
+
+			if pkt.NumPlayers != numPlayers {
+				t.Errorf("Expected NumPlayers %d, got %d", numPlayers, pkt.NumPlayers)
+			}
+			if pkt.LobbyPlayers[0].NameString() != "PlayerName" {
+				t.Errorf("Expected player 0 name PlayerName, got %q", pkt.LobbyPlayers[0].NameString())
+			}
+		})
+	}
+}
+
+func TestDecodeLapPositions2025And2026(t *testing.T) {
+	formats := []struct {
+		name         string
+		packetFormat uint16
+		expectedCars int
+	}{
+		{"F1 2025 (22 cars)", 2025, 22},
+		{"F1 2026 (24 cars)", 2026, 24},
+	}
+
+	for _, fmtCase := range formats {
+		t.Run(fmtCase.name, func(t *testing.T) {
+			buf := new(bytes.Buffer)
+			hdr := createHeader(PacketIDLapPositions)
+			hdr.PacketFormat = fmtCase.packetFormat
+			_ = binary.Write(buf, binary.LittleEndian, &hdr)
+
+			for i := 0; i < fmtCase.expectedCars; i++ {
+				var lp LapPositionsCarData
+				lp.NumPositions = 10
+				lp.Positions[0] = LapPosition{X: float32(i * 10), Y: 5.0, Z: 100.0}
+				_ = binary.Write(buf, binary.LittleEndian, &lp)
+			}
+
+			pkt, err := DecodeLapPositions(buf.Bytes())
+			if err != nil {
+				t.Fatalf("DecodeLapPositions failed for %s: %v", fmtCase.name, err)
+			}
+
+			if pkt.LapPositionsCarData[0].Positions[0].X != 0 {
+				t.Errorf("Car 0 Position[0].X expected 0, got %f", pkt.LapPositionsCarData[0].Positions[0].X)
+			}
+			if pkt.LapPositionsCarData[1].Positions[0].X != 10 {
+				t.Errorf("Car 1 Position[0].X expected 10, got %f", pkt.LapPositionsCarData[1].Positions[0].X)
+			}
+		})
+	}
+}

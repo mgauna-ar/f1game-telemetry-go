@@ -480,3 +480,53 @@ func TestDeleteSession(t *testing.T) {
 		t.Errorf("expected error deleting non-existent session, got nil")
 	}
 }
+
+func TestUpdateSessionMetadataDynamicWeather(t *testing.T) {
+	repo := setupTestRepo(t)
+	ctx := context.Background()
+
+	// Initial session with unknown info
+	s := &Session{
+		SessionUID:   99887766,
+		TrackID:      -1,
+		TrackName:    "Unknown",
+		SessionType:  "Unknown",
+		Weather:      "Unknown",
+		PacketFormat: 2025,
+	}
+	if err := repo.SaveSession(ctx, s); err != nil {
+		t.Fatalf("failed to save initial session: %v", err)
+	}
+
+	// 1. Resolve from Unknown to Monza / Race / Clear
+	if err := repo.UpdateSessionMetadata(ctx, 99887766, 11, "Monza", "Race", "Clear"); err != nil {
+		t.Fatalf("UpdateSessionMetadata failed: %v", err)
+	}
+
+	sessions, err := repo.GetSessions(ctx)
+	if err != nil {
+		t.Fatalf("GetSessions failed: %v", err)
+	}
+	if len(sessions) != 1 {
+		t.Fatalf("expected 1 session, got %d", len(sessions))
+	}
+	if sessions[0].TrackName != "Monza" || sessions[0].SessionType != "Race" || sessions[0].Weather != "Clear" {
+		t.Errorf("expected Monza/Race/Clear, got %s/%s/%s", sessions[0].TrackName, sessions[0].SessionType, sessions[0].Weather)
+	}
+
+	// 2. Dynamic live weather changes to "Light Rain"
+	if err := repo.UpdateSessionMetadata(ctx, 99887766, 11, "Monza", "Race", "Light Rain"); err != nil {
+		t.Fatalf("UpdateSessionMetadata dynamic weather failed: %v", err)
+	}
+
+	sessionsAfter, err := repo.GetSessions(ctx)
+	if err != nil {
+		t.Fatalf("GetSessions failed: %v", err)
+	}
+	if sessionsAfter[0].Weather != "Light Rain" {
+		t.Errorf("expected dynamic weather to update to Light Rain, got %s", sessionsAfter[0].Weather)
+	}
+	if sessionsAfter[0].TrackName != "Monza" {
+		t.Errorf("expected track name to remain Monza, got %s", sessionsAfter[0].TrackName)
+	}
+}
