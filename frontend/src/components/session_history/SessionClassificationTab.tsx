@@ -8,7 +8,7 @@ import {
   GitCompare,
 } from 'lucide-react';
 import { TEAM_COLORS } from '../LeaderboardTower';
-import type { Session, Participant, Lap, CarSetup } from '../SessionHistory';
+import type { Session, Participant, Lap } from '../SessionHistory';
 
 export interface DriverStanding {
   position: number;
@@ -25,7 +25,6 @@ export interface DriverStanding {
   isDNF: boolean;
   isDSQ: boolean;
   maxSpeed: number;
-  setup?: CarSetup;
   bestS1MS: number;
   bestS2MS: number;
   bestS3MS: number;

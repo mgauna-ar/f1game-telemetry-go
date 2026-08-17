@@ -145,29 +145,6 @@ export interface CarDamageData {
   EngineSeized: number;
 }
 
-export interface CarSetupData {
-  FrontWing: number;
-  RearWing: number;
-  OnThrottle: number;
-  OffThrottle: number;
-  FrontCamber: number;
-  RearCamber: number;
-  FrontToe: number;
-  RearToe: number;
-  FrontSuspension: number;
-  RearSuspension: number;
-  FrontAntiRollBar: number;
-  RearAntiRollBar: number;
-  FrontSuspensionHeight: number;
-  RearSuspensionHeight: number;
-  BrakePressure: number;
-  BrakeBias: number;
-  FrontTyrePressure: number;
-  RearTyrePressure: number;
-  Ballast: number;
-  FuelLoad: number;
-}
-
 export interface PacketHeader {
   PacketId: number;
   SessionTime: number;
@@ -178,12 +155,6 @@ interface PacketCarTelemetryData {
   Header: PacketHeader;
   CarTelemetryData: CarTelemetryData[];
 }
-
-interface PacketCarSetupData {
-  Header: PacketHeader;
-  CarSetupData: CarSetupData[];
-}
-
 
 interface PacketLapData {
   Header: PacketHeader;
@@ -332,7 +303,6 @@ export function useTelemetry(wsUrl?: string) {
   const [allLaps, setAllLaps] = useState<LapData[]>([]);
   const [allMotion, setAllMotion] = useState<CarMotionData[]>([]);
   const [allCarStatus, setAllCarStatus] = useState<CarStatusData[]>([]);
-  const [allCarSetup, setAllCarSetup] = useState<CarSetupData[]>([]);
   const [allCarDamage, setAllCarDamage] = useState<CarDamageData[]>([]);
   const [allTelemetry, setAllTelemetry] = useState<CarTelemetryData[]>([]);
   const [events, setEvents] = useState<RaceEvent[]>([]);
@@ -601,13 +571,6 @@ export function useTelemetry(wsUrl?: string) {
                 setAllCarStatus(pkt.CarStatusData);
               }
             }
-            // PacketID 5: Car Setup Data
-            else if (header.PacketId === 5) {
-              const pkt = data as PacketCarSetupData;
-              if (pkt.CarSetupData) {
-                setAllCarSetup(pkt.CarSetupData);
-              }
-            }
             // PacketID 10: Car Damage Data
             else if (header.PacketId === 10) {
               const pkt = data as PacketCarDamageData;
@@ -728,7 +691,6 @@ export function useTelemetry(wsUrl?: string) {
   const lap = allLaps[activeIdx] || null;
   const motion = allMotion[activeIdx] || null;
   const carStatus = allCarStatus[activeIdx] || null;
-  const carSetup = allCarSetup[activeIdx] || null;
   const carDamage = allCarDamage[activeIdx] || null;
 
   return {
@@ -737,14 +699,12 @@ export function useTelemetry(wsUrl?: string) {
     allLaps,
     allMotion,
     allCarStatus,
-    allCarSetup,
     allCarDamage,
     allTelemetry,
     telemetry,
     lap,
     motion,
     carStatus,
-    carSetup,
     carDamage,
     trackPath,
     connected,

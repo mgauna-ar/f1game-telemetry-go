@@ -96,10 +96,6 @@ describe('SessionHistory Component', () => {
       { id: 202, session_id: 1, car_index: 0, lap_number: 2, lap_time_ms: 88500, sector1_ms: 27500, sector2_ms: 34500, sector3_ms: 26500, is_valid: true, tyre_compound: 'SOFT', fuel_load: 28.0, max_speed_kmh: 318.0 },
     ];
 
-    const mockSetups = [
-      { id: 301, session_id: 1, car_index: 0, front_wing: 28, rear_wing: 22, on_throttle: 75, off_throttle: 50, front_camber: -3.0, rear_camber: -1.5, front_toe: 0.05, rear_toe: 0.2, front_suspension: 8, rear_suspension: 6, front_anti_roll_bar: 7, rear_anti_roll_bar: 5, front_suspension_height: 3, rear_suspension_height: 5, brake_pressure: 100, brake_bias: 56, front_tyre_pressure: 23.5, rear_tyre_pressure: 21.0, ballast: 0, fuel_load: 30.5 },
-    ];
-
     globalThis.fetch = vi.fn().mockImplementation((url: string) => {
       if (url === '/api/sessions') {
         return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSessions) });
@@ -109,9 +105,6 @@ describe('SessionHistory Component', () => {
       }
       if (url === '/api/sessions/1/laps') {
         return Promise.resolve({ ok: true, json: () => Promise.resolve(mockLaps) });
-      }
-      if (url === '/api/sessions/1/setups') {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSetups) });
       }
       return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
     });
@@ -164,7 +157,6 @@ describe('SessionHistory Component', () => {
       if (url === '/api/sessions') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSessions) });
       if (url === '/api/sessions/1/participants') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockParticipants) });
       if (url === '/api/sessions/1/laps') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockLaps) });
-      if (url === '/api/sessions/1/setups') return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
       return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
     });
 
@@ -223,7 +215,6 @@ describe('SessionHistory Component', () => {
       if (url === '/api/sessions') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSessions) });
       if (url === '/api/sessions/1/participants') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockParticipants) });
       if (url === '/api/sessions/1/laps') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockLaps) });
-      if (url === '/api/sessions/1/setups') return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
       return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
     });
 
@@ -294,7 +285,6 @@ describe('SessionHistory Component', () => {
       if (url === '/api/sessions') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSessions) });
       if (url === '/api/sessions/1/participants') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockParticipants) });
       if (url === '/api/sessions/1/laps') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockLaps) });
-      if (url === '/api/sessions/1/setups') return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
       return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
     });
 
@@ -339,7 +329,6 @@ describe('SessionHistory Component', () => {
       if (url === '/api/sessions') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSessions) });
       if (url === '/api/sessions/1/participants') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockParticipants) });
       if (url === '/api/sessions/1/laps') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockLaps) });
-      if (url === '/api/sessions/1/setups') return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
       if (url === '/api/ai/config-status') {
         return Promise.resolve({
           ok: true,
@@ -446,7 +435,6 @@ describe('SessionHistory Component', () => {
       if (url === '/api/sessions') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSessions) });
       if (url === '/api/sessions/1/participants') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockParticipants) });
       if (url === '/api/sessions/1/laps') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockLaps) });
-      if (url === '/api/sessions/1/setups') return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
       return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
     });
 
@@ -491,7 +479,6 @@ describe('SessionHistory Component', () => {
       if (url === '/api/sessions') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSessions) });
       if (url === '/api/sessions/1/participants') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockParticipants) });
       if (url === '/api/sessions/1/laps') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockLaps) });
-      if (url === '/api/sessions/1/setups') return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
       return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
     });
 
@@ -538,7 +525,6 @@ describe('SessionHistory Component', () => {
       if (url === '/api/sessions') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSessions) });
       if (url === '/api/sessions/1/participants') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockParticipants) });
       if (url === '/api/sessions/1/laps') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockLaps) });
-      if (url === '/api/sessions/1/setups') return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
       return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
     });
 

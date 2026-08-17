@@ -80,51 +80,6 @@ func (sm *SessionManager) ProcessPacket(ctx context.Context, pkt packets.Packet)
 		}
 	case *packets.PacketParticipantsData:
 		sm.handleParticipantsData(ctx, p)
-	case *packets.PacketCarSetupData:
-		sm.handleCarSetupData(ctx, p)
-	}
-}
-
-func (sm *SessionManager) handleCarSetupData(ctx context.Context, p *packets.PacketCarSetupData) {
-	if sm.currentSession == nil {
-		return
-	}
-
-	maxCars := sm.numActiveCars
-	if maxCars <= 0 || maxCars > packets.MaxCars {
-		maxCars = packets.MaxCars
-	}
-
-	setups := make([]storage.CarSetup, 0, maxCars)
-	for i := 0; i < maxCars; i++ {
-		cs := p.CarSetupData[i]
-		setups = append(setups, storage.CarSetup{
-			CarIndex:              i,
-			FrontWing:             int(cs.FrontWing),
-			RearWing:              int(cs.RearWing),
-			OnThrottle:            int(cs.OnThrottle),
-			OffThrottle:           int(cs.OffThrottle),
-			FrontCamber:           float64(cs.FrontCamber),
-			RearCamber:            float64(cs.RearCamber),
-			FrontToe:              float64(cs.FrontToe),
-			RearToe:               float64(cs.RearToe),
-			FrontSuspension:       int(cs.FrontSuspension),
-			RearSuspension:        int(cs.RearSuspension),
-			FrontAntiRollBar:      int(cs.FrontAntiRollBar),
-			RearAntiRollBar:       int(cs.RearAntiRollBar),
-			FrontSuspensionHeight: int(cs.FrontSuspensionHeight),
-			RearSuspensionHeight:  int(cs.RearSuspensionHeight),
-			BrakePressure:         int(cs.BrakePressure),
-			BrakeBias:             int(cs.BrakeBias),
-			FrontTyrePressure:     float64(cs.FrontLeftTyrePressure),
-			RearTyrePressure:      float64(cs.RearLeftTyrePressure),
-			Ballast:               int(cs.Ballast),
-			FuelLoad:              float64(cs.FuelLoad),
-		})
-	}
-
-	if err := sm.repo.SaveCarSetups(ctx, sm.currentSession.ID, setups); err != nil {
-		log.Printf("[Session] Error saving car setups: %v", err)
 	}
 }
 

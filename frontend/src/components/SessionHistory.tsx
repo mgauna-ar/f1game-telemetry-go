@@ -70,32 +70,6 @@ export interface Lap {
   created_at?: string;
 }
 
-export interface CarSetup {
-  id: number;
-  session_id: number;
-  car_index: number;
-  front_wing: number;
-  rear_wing: number;
-  on_throttle: number;
-  off_throttle: number;
-  front_camber: number;
-  rear_camber: number;
-  front_toe: number;
-  rear_toe: number;
-  front_suspension: number;
-  rear_suspension: number;
-  front_anti_roll_bar: number;
-  rear_anti_roll_bar: number;
-  front_suspension_height: number;
-  rear_suspension_height: number;
-  brake_pressure: number;
-  brake_bias: number;
-  front_tyre_pressure: number;
-  rear_tyre_pressure: number;
-  ballast: number;
-  fuel_load: number;
-}
-
 import { SessionComparatorDock } from './session_history/SessionComparatorDock';
 import type { StagedLap } from './session_history/SessionComparatorDock';
 
@@ -133,7 +107,6 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
   const [loadingDetail, setLoadingDetail] = useState<boolean>(false);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [laps, setLaps] = useState<Lap[]>([]);
-  const [setups, setSetups] = useState<CarSetup[]>([]);
   const [expandedDrivers, setExpandedDrivers] = useState<Record<number, boolean>>({});
 
   // Staged Laps for Comparator Dock
@@ -259,19 +232,16 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
     setActiveDetailTab('classification');
 
     try {
-      const [partsRes, lapsRes, setupsRes] = await Promise.all([
+      const [partsRes, lapsRes] = await Promise.all([
         fetch(`/api/sessions/${session.id}/participants`),
         fetch(`/api/sessions/${session.id}/laps`),
-        fetch(`/api/sessions/${session.id}/setups`),
       ]);
 
       const partsData = partsRes.ok ? await partsRes.json() : [];
       const lapsData = lapsRes.ok ? await lapsRes.json() : [];
-      const setupsData = setupsRes.ok ? await setupsRes.json() : [];
 
       setParticipants(partsData || []);
       setLaps(lapsData || []);
-      setSetups(setupsData || []);
     } catch (err: any) {
       console.error('Error fetching session details:', err);
     } finally {
@@ -559,7 +529,6 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
       const isDNF = resStatus === 4 || resStatus === 6 || resStatus === 7 || (isRaceSession && maxRaceLaps > 5 && completedLaps.length < maxRaceLaps);
 
       const maxSpeed = driverLaps.reduce((max, l) => Math.max(max, l.max_speed_kmh || 0), 0);
-      const setup = setups.find((s) => s.car_index === p.car_index);
 
       // Best Sectors per driver
       let bestS1MS = 0;
@@ -588,7 +557,6 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
         isDNF,
         isDSQ,
         maxSpeed,
-        setup,
         bestS1MS,
         bestS2MS,
         bestS3MS,
@@ -636,7 +604,7 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
       ...d,
       position: index + 1,
     }));
-  }, [selectedSession, participants, laps, setups, isRaceSession]);
+  }, [selectedSession, participants, laps, isRaceSession]);
 
   // Helper to format tyre stints for debrief
   const getStintsText = (driverLaps: Lap[]) => {
@@ -1010,7 +978,7 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
           {loadingDetail ? (
             <div className="glass-panel" style={{ textAlign: 'center', padding: '3rem' }}>
               <RefreshCw size={32} className="animate-spin" style={{ color: 'var(--accent-primary)', marginBottom: '1rem' }} />
-              <p style={{ color: 'var(--text-secondary)' }}>Retrieving drivers, lap timing telemetry, and setups...</p>
+              <p style={{ color: 'var(--text-secondary)' }}>Retrieving drivers and lap timing telemetry...</p>
             </div>
           ) : activeDetailTab === 'classification' ? (
             <SessionClassificationTab
@@ -1084,7 +1052,7 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
 
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: '1.5', margin: '0 0 1.25rem 0' }}>
               Are you sure you want to delete <strong style={{ color: 'var(--text-primary)' }}>Session #{sessionToDelete.id} ({sessionToDelete.track_name} — {sessionToDelete.session_type})</strong>?
-              This action will permanently delete all associated telemetry samples, lap data, participants, and car setups.
+              This action will permanently delete all associated telemetry samples, lap data, and participants.
             </p>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>

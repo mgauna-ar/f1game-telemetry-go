@@ -137,9 +137,6 @@ describe('LapComparator Component', () => {
       if (url === '/api/sessions/1/participants') {
         return Promise.resolve({ ok: true, json: () => Promise.resolve(mockParticipants) });
       }
-      if (url === '/api/sessions/1/setups') {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
-      }
       return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
     });
 

@@ -69,31 +69,3 @@ type Participant struct {
 	Nationality  int       `db:"nationality" json:"nationality"`
 	CreatedAt    time.Time `db:"created_at" json:"created_at"`
 }
-
-// CarSetup represents setup parameters for a car in a session.
-type CarSetup struct {
-	ID                    int64     `db:"id" json:"id"`
-	SessionID             int64     `db:"session_id" json:"session_id"`
-	CarIndex              int       `db:"car_index" json:"car_index"`
-	FrontWing             int       `db:"front_wing" json:"front_wing"`
-	RearWing              int       `db:"rear_wing" json:"rear_wing"`
-	OnThrottle            int       `db:"on_throttle" json:"on_throttle"`
-	OffThrottle           int       `db:"off_throttle" json:"off_throttle"`
-	FrontCamber           float64   `db:"front_camber" json:"front_camber"`
-	RearCamber            float64   `db:"rear_camber" json:"rear_camber"`
-	FrontToe              float64   `db:"front_toe" json:"front_toe"`
-	RearToe               float64   `db:"rear_toe" json:"rear_toe"`
-	FrontSuspension       int       `db:"front_suspension" json:"front_suspension"`
-	RearSuspension        int       `db:"rear_suspension" json:"rear_suspension"`
-	FrontAntiRollBar      int       `db:"front_anti_roll_bar" json:"front_anti_roll_bar"`
-	RearAntiRollBar       int       `db:"rear_anti_roll_bar" json:"rear_anti_roll_bar"`
-	FrontSuspensionHeight int       `db:"front_suspension_height" json:"front_suspension_height"`
-	RearSuspensionHeight  int       `db:"rear_suspension_height" json:"rear_suspension_height"`
-	BrakePressure         int       `db:"brake_pressure" json:"brake_pressure"`
-	BrakeBias             int       `db:"brake_bias" json:"brake_bias"`
-	FrontTyrePressure     float64   `db:"front_tyre_pressure" json:"front_tyre_pressure"`
-	RearTyrePressure      float64   `db:"rear_tyre_pressure" json:"rear_tyre_pressure"`
-	Ballast               int       `db:"ballast" json:"ballast"`
-	FuelLoad              float64   `db:"fuel_load" json:"fuel_load"`
-	CreatedAt             time.Time `db:"created_at" json:"created_at"`
-}

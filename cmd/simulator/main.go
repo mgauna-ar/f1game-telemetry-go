@@ -436,41 +436,6 @@ func main() {
 				sendPacket(conn, &statusPkt)
 			}
 
-			// 6. Car Setup Packet (ID: 5)
-			if frameID == 1 || frameID%20 == 0 {
-				setupPkt := packets.PacketCarSetupData{
-					Header: header,
-				}
-				setupPkt.Header.PacketId = packets.PacketIDCarSetup
-				for i := 0; i < 22; i++ {
-					setupPkt.CarSetupData[i] = packets.CarSetupData{
-						FrontWing:              uint8(10 + (i%5)*2),
-						RearWing:               uint8(8 + (i % 4)),
-						OnThrottle:             uint8(60 + (i%3)*5),
-						OffThrottle:            uint8(50 + (i%3)*2),
-						FrontCamber:            float32(-3.0 + float64(i)*0.05),
-						RearCamber:             float32(-1.5 + float64(i)*0.02),
-						FrontToe:               float32(0.05 + float64(i)*0.005),
-						RearToe:                float32(0.20 + float64(i)*0.01),
-						FrontSuspension:        uint8(8 + (i % 3)),
-						RearSuspension:         uint8(6 + (i % 3)),
-						FrontAntiRollBar:       uint8(7 + (i % 3)),
-						RearAntiRollBar:        uint8(5 + (i % 3)),
-						FrontSuspensionHeight:  uint8(33 + (i % 4)),
-						RearSuspensionHeight:   uint8(38 + (i % 4)),
-						BrakePressure:          uint8(100 - (i%3)*2),
-						BrakeBias:              uint8(56 - (i % 4)),
-						RearLeftTyrePressure:   float32(21.0 + float64(i)*0.1),
-						RearRightTyrePressure:  float32(21.0 + float64(i)*0.1),
-						FrontLeftTyrePressure:  float32(23.5 + float64(i)*0.1),
-						FrontRightTyrePressure: float32(23.5 + float64(i)*0.1),
-						Ballast:                0,
-						FuelLoad:               float32(48.0 - float64(i)*0.8),
-					}
-				}
-				sendPacket(conn, &setupPkt)
-			}
-
 			// 7. Car Damage Packet (ID: 10)
 			if frameID == 1 || frameID%20 == 0 {
 				damagePkt := packets.PacketCarDamageData{

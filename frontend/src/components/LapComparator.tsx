@@ -1,12 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
-  Sliders,
   X,
-  Shield,
-  Disc,
-  Wrench,
-  CircleDot,
-  Fuel,
   Gauge,
   Award,
   ArrowUpRight,
@@ -100,32 +94,6 @@ export const getSessionBadgeClass = (typeStr?: string) => {
   return 'badge-gray';
 };
 
-interface CarSetup {
-  id: number;
-  session_id: number;
-  car_index: number;
-  front_wing: number;
-  rear_wing: number;
-  on_throttle: number;
-  off_throttle: number;
-  front_camber: number;
-  rear_camber: number;
-  front_toe: number;
-  rear_toe: number;
-  front_suspension: number;
-  rear_suspension: number;
-  front_anti_roll_bar: number;
-  rear_anti_roll_bar: number;
-  front_suspension_height: number;
-  rear_suspension_height: number;
-  brake_pressure: number;
-  brake_bias: number;
-  front_tyre_pressure: number;
-  rear_tyre_pressure: number;
-  ballast: number;
-  fuel_load: number;
-}
-
 const ERS_MODE_NAMES: Record<number, string> = {
   0: 'Off',
   1: 'Medium',
@@ -207,7 +175,6 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
   // Session A Data
   const [lapsA, setLapsA] = useState<Lap[]>([]);
   const [participantsA, setParticipantsA] = useState<Participant[]>([]);
-  const [carSetupsA, setCarSetupsA] = useState<CarSetup[]>([]);
   const [lapAId, setLapAId] = useState<number | ''>('');
   const [rawTelemetryA, setRawTelemetryA] = useState<TelemetrySamplePoint[]>([]);
   const [loadingA, setLoadingA] = useState(false);
@@ -215,13 +182,9 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
   // Session B Data
   const [lapsB, setLapsB] = useState<Lap[]>([]);
   const [participantsB, setParticipantsB] = useState<Participant[]>([]);
-  const [carSetupsB, setCarSetupsB] = useState<CarSetup[]>([]);
   const [lapBId, setLapBId] = useState<number | ''>('');
   const [rawTelemetryB, setRawTelemetryB] = useState<TelemetrySamplePoint[]>([]);
   const [loadingB, setLoadingB] = useState(false);
-
-  // Active Setup Modal state
-  const [activeSetupParticipant, setActiveSetupParticipant] = useState<{ participant: Participant; setup: CarSetup } | null>(null);
 
   // Chart Inspection & Zoom
   const [hoverDistance, setHoverDistance] = useState<number | null>(null);
@@ -367,17 +330,11 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
         .then((res) => res.json())
         .then((data) => setParticipantsA(data || []))
         .catch((err) => console.error('Failed to fetch participants A', err));
-
-      fetch(`/api/sessions/${sessionAId}/setups`)
-        .then((res) => res.json())
-        .then((data) => setCarSetupsA(data || []))
-        .catch((err) => console.error('Failed to fetch car setups A', err));
     } else {
       setLapAId('');
       setRawTelemetryA([]);
       setLapsA([]);
       setParticipantsA([]);
-      setCarSetupsA([]);
     }
   }, [sessionAId]);
 
@@ -412,17 +369,11 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
         .then((res) => res.json())
         .then((data) => setParticipantsB(data || []))
         .catch((err) => console.error('Failed to fetch participants B', err));
-
-      fetch(`/api/sessions/${sessionBId}/setups`)
-        .then((res) => res.json())
-        .then((data) => setCarSetupsB(data || []))
-        .catch((err) => console.error('Failed to fetch car setups B', err));
     } else {
       setLapBId('');
       setRawTelemetryB([]);
       setLapsB([]);
       setParticipantsB([]);
-      setCarSetupsB([]);
     }
   }, [sessionBId]);
 
@@ -550,16 +501,6 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
 
   const nameA = useMemo(() => (driverA ? `#${driverA.race_number} ${driverA.name}` : 'Lap A'), [driverA]);
   const nameB = useMemo(() => (driverB ? `#${driverB.race_number} ${driverB.name}` : 'Lap B'), [driverB]);
-
-  // Setup details for Lap A & B
-  const setupA = useMemo(
-    () => (lapAObj?.car_index !== undefined ? carSetupsA.find((s) => s.car_index === lapAObj.car_index) : undefined),
-    [lapAObj, carSetupsA]
-  );
-  const setupB = useMemo(
-    () => (lapBObj?.car_index !== undefined ? carSetupsB.find((s) => s.car_index === lapBObj.car_index) : undefined),
-    [lapBObj, carSetupsB]
-  );
 
   // Calculate high-performance merged telemetry comparison points (resampled every 5 meters)
   const comparisonData = useMemo<MergedTelemetryPoint[]>(() => {
@@ -827,7 +768,7 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
               <Gauge color="var(--accent-primary)" size={26} /> Lap Comparator
             </h2>
             <p className="text-secondary" style={{ margin: '0.25rem 0 0 0', fontSize: '0.88rem' }}>
-              Compare laps, time deltas, braking points, throttle traces & setups across sessions
+              Compare laps, time deltas, braking points, and throttle traces across sessions
             </p>
           </div>
 
@@ -1951,30 +1892,6 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
                           <div style={{ fontSize: '0.85rem', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{formatTime(lapAObj.sector3_ms)}</div>
                         </div>
                       </div>
-
-                      {setupA && driverA && (
-                        <button
-                          type="button"
-                          onClick={() => setActiveSetupParticipant({ participant: driverA, setup: setupA })}
-                          style={{
-                            marginTop: '0.5rem',
-                            background: 'rgba(255, 71, 87, 0.15)',
-                            border: '1px solid rgba(255, 71, 87, 0.35)',
-                            color: '#ff4757',
-                            padding: '0.3rem 0.6rem',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontSize: '0.8rem',
-                            fontWeight: 600,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.3rem',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          <Sliders size={14} /> Inspect Setup A
-                        </button>
-                      )}
                     </div>
                   );
                 })() : (
@@ -2018,30 +1935,6 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
                           <div style={{ fontSize: '0.85rem', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{formatTime(lapBObj.sector3_ms)}</div>
                         </div>
                       </div>
-
-                      {setupB && driverB && (
-                        <button
-                          type="button"
-                          onClick={() => setActiveSetupParticipant({ participant: driverB, setup: setupB })}
-                          style={{
-                            marginTop: '0.5rem',
-                            background: 'rgba(0, 210, 211, 0.15)',
-                            border: '1px solid rgba(0, 210, 211, 0.35)',
-                            color: '#00d2d3',
-                            padding: '0.3rem 0.6rem',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontSize: '0.8rem',
-                            fontWeight: 600,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.3rem',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          <Sliders size={14} /> Inspect Setup B
-                        </button>
-                      )}
                     </div>
                   );
                 })() : (
@@ -2636,11 +2529,6 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
           )}
         </div>
       )}
-
-      {/* Car Setup Inspector Modal Overlay */}
-      {activeSetupParticipant && (
-        <CarSetupModal participant={activeSetupParticipant.participant} setup={activeSetupParticipant.setup} onClose={() => setActiveSetupParticipant(null)} />
-      )}
     </div>
   );
 };
@@ -2658,158 +2546,6 @@ const SectorDeltaBadge: React.FC<{ label: string; msA?: number; msB?: number }> 
         {deltaMs > 0 ? '+' : ''}{(deltaMs / 1000).toFixed(3)}s
       </span>
       {isFaster ? <ArrowUpRight size={14} color="#ff4757" /> : deltaMs > 0 ? <ArrowDownRight size={14} color="#00d2d3" /> : null}
-    </div>
-  );
-};
-
-// Car Setup Modal
-const CarSetupModal: React.FC<{ participant: Participant; setup: CarSetup; onClose: () => void }> = ({ participant, setup, onClose }) => {
-  return (
-    <div
-      className="modal-overlay"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-    >
-      <div
-        className="modal-container glass-panel"
-        style={{
-          maxWidth: '850px',
-          background: 'rgba(18, 18, 22, 0.95)',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
-          borderRadius: '12px',
-          padding: '1.5rem',
-          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6)',
-        }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', paddingBottom: '0.75rem' }}>
-          <div>
-            <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.15rem', color: '#fff' }}>
-              <Sliders size={20} color="#00f2fe" /> Setup Details — {participant.name} (#{participant.race_number})
-            </h3>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-              Car #{participant.car_index + 1} • Team ID {participant.team_id}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: 'none',
-              color: '#fff',
-              borderRadius: '50%',
-              width: '32px',
-              height: '32px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-            }}
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
-          <div style={{ background: 'rgba(255, 255, 255, 0.03)', borderRadius: '8px', padding: '0.85rem', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
-            <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', textTransform: 'uppercase' }}>
-              <Shield size={14} color="#38ef7d" /> Aero & Weight
-            </h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Front Wing</span>
-                <span className="mono" style={{ fontWeight: 600 }}>{setup.front_wing}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Rear Wing</span>
-                <span className="mono" style={{ fontWeight: 600 }}>{setup.rear_wing}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                <span style={{ color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <Fuel size={12} /> Fuel Load
-                </span>
-                <span className="mono" style={{ fontWeight: 600, color: '#38ef7d' }}>{setup.fuel_load ? setup.fuel_load.toFixed(1) : '0.0'} kg</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Ballast</span>
-                <span className="mono" style={{ fontWeight: 600 }}>{setup.ballast}</span>
-              </div>
-            </div>
-          </div>
-
-          <div style={{ background: 'rgba(255, 255, 255, 0.03)', borderRadius: '8px', padding: '0.85rem', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
-            <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', textTransform: 'uppercase' }}>
-              <Disc size={14} color="#ff4e50" /> Transmission & Brakes
-            </h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Diff On-Throttle</span>
-                <span className="mono" style={{ fontWeight: 600 }}>{setup.on_throttle}%</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Diff Off-Throttle</span>
-                <span className="mono" style={{ fontWeight: 600 }}>{setup.off_throttle}%</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Brake Pressure</span>
-                <span className="mono" style={{ fontWeight: 600 }}>{setup.brake_pressure}%</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Brake Bias</span>
-                <span className="mono" style={{ fontWeight: 600, color: '#ff4e50' }}>{setup.brake_bias}%</span>
-              </div>
-            </div>
-          </div>
-
-          <div style={{ background: 'rgba(255, 255, 255, 0.03)', borderRadius: '8px', padding: '0.85rem', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
-            <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', textTransform: 'uppercase' }}>
-              <Wrench size={14} color="#f8d030" /> Suspension & ARB
-            </h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>F / R Suspension</span>
-                <span className="mono" style={{ fontWeight: 600 }}>{setup.front_suspension} / {setup.rear_suspension}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>F / R Anti-Roll Bar</span>
-                <span className="mono" style={{ fontWeight: 600 }}>{setup.front_anti_roll_bar} / {setup.rear_anti_roll_bar}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>F / R Ride Height</span>
-                <span className="mono" style={{ fontWeight: 600 }}>{setup.front_suspension_height} / {setup.rear_suspension_height}</span>
-              </div>
-            </div>
-          </div>
-
-          <div style={{ background: 'rgba(255, 255, 255, 0.03)', borderRadius: '8px', padding: '0.85rem', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
-            <h4 style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem', textTransform: 'uppercase' }}>
-              <CircleDot size={14} color="#00f2fe" /> Geometry & Tyres
-            </h4>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>F / R Camber</span>
-                <span className="mono" style={{ fontWeight: 600 }}>
-                  {setup.front_camber ? setup.front_camber.toFixed(2) : '0.00'}° / {setup.rear_camber ? setup.rear_camber.toFixed(2) : '0.00'}°
-                </span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>F / R Toe</span>
-                <span className="mono" style={{ fontWeight: 600 }}>
-                  {setup.front_toe ? setup.front_toe.toFixed(2) : '0.00'}° / {setup.rear_toe ? setup.rear_toe.toFixed(2) : '0.00'}°
-                </span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>F / R Tyre PSI</span>
-                <span className="mono" style={{ fontWeight: 600, color: '#00f2fe' }}>
-                  {setup.front_tyre_pressure ? setup.front_tyre_pressure.toFixed(1) : '0.0'} / {setup.rear_tyre_pressure ? setup.rear_tyre_pressure.toFixed(1) : '0.0'}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };
