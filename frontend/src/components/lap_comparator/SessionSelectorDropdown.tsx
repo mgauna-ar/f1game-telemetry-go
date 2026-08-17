@@ -153,7 +153,7 @@ export const SessionSelectorDropdown: React.FC<SessionSelectorDropdownProps> = (
                       </span>
                     </div>
                     <div className="custom-session-meta">
-                      <span>{new Date(s.created_at).toLocaleString()}</span>
+                      <span className="custom-session-meta-time">{new Date(s.created_at).toLocaleString()}</span>
                       {s.weather && <span className="custom-session-weather">🌦️ {s.weather}</span>}
                     </div>
                   </button>

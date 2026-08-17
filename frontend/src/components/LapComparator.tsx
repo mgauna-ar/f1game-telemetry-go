@@ -638,7 +638,7 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
             )}
 
             {/* Session Link / Unlink Toggle Button */}
-            {sessions.length > 1 && (
+            {selectedSessionAObj && sessions.length > 1 && (
               <button
                 type="button"
                 onClick={toggleSessionLink}
@@ -648,9 +648,9 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
                   gap: '0.4rem',
                   padding: '0.35rem 0.75rem',
                   borderRadius: '20px',
-                  background: isLinkedSessions ? 'rgba(51, 255, 204, 0.12)' : 'rgba(255, 165, 2, 0.15)',
-                  border: `1px solid ${isLinkedSessions ? 'rgba(51, 255, 204, 0.4)' : 'rgba(255, 165, 2, 0.5)'}`,
-                  color: isLinkedSessions ? 'var(--accent-primary)' : '#ffa502',
+                  background: isLinkedSessions ? 'rgba(0, 210, 211, 0.12)' : 'rgba(255, 165, 2, 0.15)',
+                  border: `1px solid ${isLinkedSessions ? 'rgba(0, 210, 211, 0.4)' : 'rgba(255, 165, 2, 0.5)'}`,
+                  color: isLinkedSessions ? '#00d2d3' : '#ffa502',
                   fontSize: '0.82rem',
                   fontWeight: 600,
                   cursor: 'pointer',
