@@ -185,6 +185,7 @@ f1game-telemetry-go/
 | `GET` | `/api/sessions/:id/laps` | Get laps for a session |
 | `GET` | `/api/laps/:id/telemetry` | Get telemetry for a lap (supports `?maxPoints=N` LTTB downsampling) |
 | `POST` | `/api/ai/chat` | AI Race Engineer streaming telemetry chat endpoint (SSE) |
+| `POST` | `/api/ai/models` | Query available LLM models for configured provider |
 | `GET` | `/api/ai/config-status` | Get AI server environment key status |
 
 > **Note:** API endpoints are planned and subject to change.

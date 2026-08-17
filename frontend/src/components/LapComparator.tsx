@@ -23,6 +23,7 @@ import {
   Check,
   Link,
   Unlink,
+  Sparkles,
 } from 'lucide-react';
 import {
   LineChart,
@@ -43,7 +44,7 @@ import type { MergedTelemetryPoint } from '../utils/deltaCalculation';
 import { buildTelemetryContext } from '../utils/aiTelemetrySummary';
 import { detectTrackTurns, getTurnContextAtDistance } from '../utils/trackTurns';
 import { ComparatorTrackMap } from './ComparatorTrackMap';
-import { AiRaceEngineer } from './AiRaceEngineer';
+import { useRaceEngineer } from '../context/RaceEngineerContext';
 import { CustomLapSelector, renderTyreCompoundBadge } from './CustomLapSelector';
 import type { Lap, Participant } from './CustomLapSelector';
 
@@ -175,6 +176,7 @@ export interface LapComparatorProps {
 }
 
 export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) => {
+  const { setComparatorContext, setContextMode, openChat } = useRaceEngineer();
   const [sessions, setSessions] = useState<Session[]>([]);
 
   // Dual session IDs & Synchronization link
@@ -634,6 +636,11 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
       selectedSessionBObj?.weather
     );
   }, [selectedSessionAObj, selectedSessionBObj, lapAObj, lapBObj, nameA, nameB, comparisonData, zoomDomain]);
+
+  useEffect(() => {
+    setComparatorContext(telemetryContext);
+    setContextMode('comparator');
+  }, [telemetryContext, setComparatorContext, setContextMode]);
 
   // Overall time delta calculation
   const totalDeltaMs = useMemo(() => {
@@ -2450,33 +2457,47 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
             )}
           </div>
 
-          {/* RIGHT COLUMN: Sticky Sidebar with AI Race Engineer on TOP and Track Heatmap at BOTTOM */}
+          {/* RIGHT COLUMN: Sticky Sidebar with Track Heatmap & Quick Race Engineer trigger */}
           {comparisonData.length > 0 && (
             <div className="comparator-sidebar-col">
-              {/* AI Race Engineer Compact Card on TOP */}
-              <AiRaceEngineer
-                telemetryContext={telemetryContext}
-                hasLapsSelected={Boolean(lapAId && lapBId && lapAObj && lapBObj)}
-                isZoomActive={Boolean(zoomDomain)}
-              />
-
-              {/* Track Map at BOTTOM */}
-              <div className="glass-panel" style={{ padding: '0.75rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                  <h4 style={{ margin: 0, fontSize: '0.85rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              {/* Track Map */}
+              <div className="glass-panel" style={{ padding: '0.85rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
+                  <h4 style={{ margin: 0, fontSize: '0.88rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                     <MapPin size={15} color="var(--accent-primary)" /> Track Heatmap
                   </h4>
-                  {selectedSessionAObj && (
-                    <span style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.08)', padding: '0.15rem 0.4rem', borderRadius: '4px', color: 'var(--text-secondary)' }}>
-                      {selectedSessionAObj.track_name}
-                    </span>
-                  )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {selectedSessionAObj && (
+                      <span style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.08)', padding: '0.15rem 0.45rem', borderRadius: '4px', color: 'var(--text-secondary)' }}>
+                        {selectedSessionAObj.track_name}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      className="nav-tab active"
+                      onClick={() => openChat()}
+                      style={{
+                        padding: '3px 8px',
+                        fontSize: '0.7rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        borderRadius: '12px',
+                        background: 'rgba(0, 242, 254, 0.12)',
+                        borderColor: 'rgba(0, 242, 254, 0.35)',
+                        color: '#00f2fe',
+                      }}
+                      title="Open AI Race Engineer telemetry analysis"
+                    >
+                      <Sparkles size={12} color="#00f2fe" /> Ask AI
+                    </button>
+                  </div>
                 </div>
 
                 <ComparatorTrackMap
                   data={comparisonData}
                   activeDistance={hoverDistance}
-                  height={320}
+                  height={380}
                   sector1Distance={sector1Distance}
                   sector2Distance={sector2Distance}
                   onSelectDistance={(dist) => setHoverDistance(dist)}

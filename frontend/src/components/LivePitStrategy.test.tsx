@@ -17,7 +17,7 @@ describe('LivePitStrategy', () => {
     SafetyCarStatus: 0,
     PitStopWindowIdealLap: 18,
     PitStopWindowLatestLap: 24,
-    PitStopWindowRejoinPosition: 6,
+    PitStopRejoinPosition: 6,
   };
 
   const mockParticipants: ParticipantData[] = [

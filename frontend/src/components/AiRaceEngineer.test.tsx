@@ -1,11 +1,13 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi, describe, it, beforeEach, expect } from 'vitest';
 import { AiRaceEngineer } from './AiRaceEngineer';
+import { RaceEngineerProvider } from '../context/RaceEngineerContext';
 import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
 
 describe('AiRaceEngineer Component', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    localStorage.clear();
     globalThis.fetch = vi.fn().mockImplementation((url: string) => {
       if (url === '/api/ai/config-status') {
         return Promise.resolve({
@@ -15,7 +17,7 @@ describe('AiRaceEngineer Component', () => {
               has_gemini_env_key: true,
               has_openai_env_key: false,
               default_provider: 'gemini',
-              default_model: 'gemini-1.5-flash',
+              default_model: 'gemini-flash-lite-latest',
             }),
         });
       }
@@ -25,7 +27,7 @@ describe('AiRaceEngineer Component', () => {
           json: () =>
             Promise.resolve({
               models: [
-                { id: 'gemini-1.5-flash', display_name: 'Gemini 1.5 Flash' },
+                { id: 'gemini-flash-lite-latest', display_name: 'Gemini Flash Lite' },
                 { id: 'gemini-1.5-pro', display_name: 'Gemini 1.5 Pro' },
               ],
             }),
@@ -59,41 +61,70 @@ describe('AiRaceEngineer Component', () => {
     braking_summary: 'Braking test summary',
   };
 
-  it('renders embedded AI Race Engineer card and quick prompt chips', async () => {
+  it('renders floating FAB button when closed and expands on click without background overlay', async () => {
     render(
-      <AiRaceEngineer
-        telemetryContext={mockTelemetryContext}
-        hasLapsSelected={true}
-        isZoomActive={false}
-      />
+      <RaceEngineerProvider>
+        <AiRaceEngineer />
+      </RaceEngineerProvider>
+    );
+
+    // Initial state: FAB launcher button visible
+    const fabButton = screen.getByRole('button', { name: /Open AI Race Engineer/i });
+    expect(fabButton).toBeInTheDocument();
+    expect(screen.getByText('Race Engineer')).toBeInTheDocument();
+
+    // Click FAB to expand chat
+    fireEvent.click(fabButton);
+
+    // Verify floating chat widget opened
+    expect(screen.getByText('AI Race Engineer')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Ask your Race Engineer...')).toBeInTheDocument();
+
+    // Verify NO modal-overlay is present
+    expect(document.querySelector('.modal-overlay')).toBeNull();
+  });
+
+  it('renders comparative telemetry prompt chips when opened with comparator context', async () => {
+    render(
+      <RaceEngineerProvider>
+        <AiRaceEngineer
+          isOpenOverride={true}
+          telemetryContext={mockTelemetryContext}
+          hasLapsSelected={true}
+          isZoomActive={false}
+        />
+      </RaceEngineerProvider>
     );
 
     expect(screen.getByText('AI Race Engineer')).toBeInTheDocument();
 
     // Verify quick action chips in English
-    expect(screen.getByText('Where was time gained/lost?')).toBeInTheDocument();
-    expect(screen.getByText('Braking & Traction')).toBeInTheDocument();
-    expect(screen.getByText('ERS & DRS Deployment')).toBeInTheDocument();
+    expect(screen.getByText('Where was time lost?')).toBeInTheDocument();
+    expect(screen.getByText('Braking & Apex Speed')).toBeInTheDocument();
+    expect(screen.getByText('ERS & DRS Usage')).toBeInTheDocument();
 
     // Verify prompt input field is ready
-    expect(screen.getByPlaceholderText('Ask your Race Engineer...')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Ask engineer about telemetry deltas/i)).toBeInTheDocument();
   });
 
-  it('toggles settings modal in embedded card', async () => {
+  it('toggles settings panel within the floating card', async () => {
     render(
-      <AiRaceEngineer
-        telemetryContext={mockTelemetryContext}
-        hasLapsSelected={true}
-        isZoomActive={false}
-      />
+      <RaceEngineerProvider>
+        <AiRaceEngineer
+          isOpenOverride={true}
+          telemetryContext={mockTelemetryContext}
+          hasLapsSelected={true}
+          isZoomActive={false}
+        />
+      </RaceEngineerProvider>
     );
 
     // Open settings
     const settingsBtn = screen.getByRole('button', { name: /Settings/i });
     fireEvent.click(settingsBtn);
 
-    expect(screen.getByText('Assistant Settings')).toBeInTheDocument();
-    expect(screen.getByText('AI Provider')).toBeInTheDocument();
+    expect(screen.getByText('AI Engineer Settings')).toBeInTheDocument();
+    expect(screen.getByText('Provider')).toBeInTheDocument();
     expect(screen.getByText(/Google Gemini/)).toBeInTheDocument();
   });
 });

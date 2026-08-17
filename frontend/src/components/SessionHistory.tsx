@@ -25,7 +25,7 @@ import { SessionClassificationTab } from './session_history/SessionClassificatio
 import type { DriverStanding } from './session_history/SessionClassificationTab';
 import { SessionLapChartsTab } from './session_history/SessionLapChartsTab';
 import { SessionSectorMatrixTab } from './session_history/SessionSectorMatrixTab';
-import { SessionAiDebriefDrawer } from './session_history/SessionAiDebriefDrawer';
+import { useRaceEngineer } from '../context/RaceEngineerContext';
 
 export interface Session {
   id: number;
@@ -143,8 +143,8 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
   // Active Sub-Tab in Session Detail ('classification' | 'charts' | 'sectors')
   const [activeDetailTab, setActiveDetailTab] = useState<'classification' | 'charts' | 'sectors'>('classification');
 
-  // AI Debrief Drawer State
-  const [isAiDebriefOpen, setIsAiDebriefOpen] = useState<boolean>(false);
+  // AI Race Engineer Context Hook
+  const { openChat, setSessionDebriefContext, setContextMode } = useRaceEngineer();
 
   // Staged Lap Handlers
   const handleStageLap = (lap: Lap, driver: DriverStanding, slot: 'A' | 'B') => {
@@ -257,7 +257,6 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
     setStagedSlotA(null);
     setStagedSlotB(null);
     setActiveDetailTab('classification');
-    setIsAiDebriefOpen(false);
 
     try {
       const [partsRes, lapsRes, setupsRes] = await Promise.all([
@@ -639,6 +638,45 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
     }));
   }, [selectedSession, participants, laps, setups, isRaceSession]);
 
+  // Sync Session Debrief context to global AI Race Engineer
+  useEffect(() => {
+    if (selectedSession && driverStandings.length > 0) {
+      const top3Names = driverStandings
+        .slice(0, 3)
+        .map((d, i) => `P${i + 1}: ${d.participant.name} (Best: ${formatLapTime(d.bestLapTimeMS)})`)
+        .join(', ');
+      const ultimateMS = sessionBestS1 + sessionBestS2 + sessionBestS3;
+
+      let summaryText = `SESSION OVERVIEW:
+- Circuit: ${selectedSession.track_name}
+- Session Type: ${selectedSession.session_type}
+- Weather: ${selectedSession.weather || 'Clear'}
+- Total Drivers: ${driverStandings.length}
+- Podium / Top Finishers: ${top3Names || 'None'}
+- Session Record Sectors: S1: ${(sessionBestS1 / 1000).toFixed(3)}s, S2: ${(sessionBestS2 / 1000).toFixed(3)}s, S3: ${(sessionBestS3 / 1000).toFixed(3)}s
+- Ultimate Session Theoretical Lap: ${ultimateMS > 0 ? formatLapTime(ultimateMS) : 'N/A'}
+
+DRIVER DETAILS & TYRE STINTS:
+`;
+      driverStandings.slice(0, 8).forEach((d) => {
+        const stints = d.laps.map((l) => `${l.tyre_compound || 'S'}`).filter(Boolean).join(' -> ');
+        summaryText += `- P${d.position} ${d.participant.name} (#${d.participant.race_number}): Best Lap: ${formatLapTime(d.bestLapTimeMS)}, S1: ${(d.bestS1MS / 1000).toFixed(3)}s, S2: ${(d.bestS2MS / 1000).toFixed(3)}s, S3: ${(d.bestS3MS / 1000).toFixed(3)}s, Max Speed: ${d.maxSpeed.toFixed(1)} km/h, Total Laps: ${d.laps.length}, Stints: ${stints || 'None'}, Status: ${d.isDSQ ? 'DSQ' : d.isDNF ? 'DNF' : 'Finished'}\n`;
+      });
+
+      setSessionDebriefContext({
+        trackName: selectedSession.track_name,
+        sessionType: selectedSession.session_type,
+        weather: selectedSession.weather,
+        driverCount: driverStandings.length,
+        summaryText,
+      });
+      setContextMode('session_debrief');
+    } else {
+      setSessionDebriefContext(null);
+      setContextMode('general');
+    }
+  }, [selectedSession, driverStandings, sessionBestS1, sessionBestS2, sessionBestS3, setSessionDebriefContext, setContextMode]);
+
   const totalSessionLaps = useMemo(() => {
     if (!laps || laps.length === 0) return 0;
     return laps.reduce((max, l) => (l.lap_time_ms > 0 && l.lap_number > max ? l.lap_number : max), 0);
@@ -667,7 +705,6 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
               setSelectedSession(null);
               setStagedSlotA(null);
               setStagedSlotB(null);
-              setIsAiDebriefOpen(false);
             }}
             style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
           >
@@ -867,7 +904,7 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
               {/* AI Race Engineer Debrief Button */}
               <button
                 className="nav-tab active"
-                onClick={() => setIsAiDebriefOpen(true)}
+                onClick={() => openChat()}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -970,19 +1007,6 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
               sessionBestS1={sessionBestS1}
               sessionBestS2={sessionBestS2}
               sessionBestS3={sessionBestS3}
-              formatLapTime={formatLapTime}
-            />
-          )}
-
-          {/* AI RACE ENGINEER DEBRIEF DRAWER */}
-          {isAiDebriefOpen && (
-            <SessionAiDebriefDrawer
-              session={selectedSession}
-              driverStandings={driverStandings}
-              sessionBestS1={sessionBestS1}
-              sessionBestS2={sessionBestS2}
-              sessionBestS3={sessionBestS3}
-              onClose={() => setIsAiDebriefOpen(false)}
               formatLapTime={formatLapTime}
             />
           )}

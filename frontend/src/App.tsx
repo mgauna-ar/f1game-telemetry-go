@@ -3,12 +3,14 @@ import { Calendar, GitCompare, Radio, Gauge } from 'lucide-react';
 import { Dashboard } from './components/Dashboard';
 import { LapComparator } from './components/LapComparator';
 import { SessionHistory } from './components/SessionHistory';
+import { RaceEngineerProvider, useRaceEngineer } from './context/RaceEngineerContext';
+import { AiRaceEngineer } from './components/AiRaceEngineer';
 
 type TabType = 'history' | 'comparator' | 'live';
 
 const STORAGE_KEY = 'f1_active_tab';
 
-function App() {
+function AppContent() {
   const [activeTab, setActiveTab] = useState<TabType>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -20,6 +22,8 @@ function App() {
     }
     return 'history';
   });
+
+  const { setContextMode } = useRaceEngineer();
 
   const [comparatorPreload, setComparatorPreload] = useState<{
     sessionId?: number;
@@ -37,7 +41,15 @@ function App() {
     } catch {
       // Ignore localStorage write issues
     }
-  }, [activeTab]);
+    if (activeTab === 'live') {
+      setContextMode('live');
+    } else if (activeTab === 'comparator') {
+      setContextMode('comparator');
+    } else if (activeTab === 'history') {
+      // If we switch to history, default to session_debrief or general
+      setContextMode('general');
+    }
+  }, [activeTab, setContextMode]);
 
   const handleNavigateToComparator = (
     payload:
@@ -131,7 +143,18 @@ function App() {
           <Dashboard />
         )}
       </main>
+
+      {/* Global Persistent Floating AI Race Engineer (Non-modal bottom-right widget) */}
+      <AiRaceEngineer />
     </div>
+  );
+}
+
+function App() {
+  return (
+    <RaceEngineerProvider>
+      <AppContent />
+    </RaceEngineerProvider>
   );
 }
 

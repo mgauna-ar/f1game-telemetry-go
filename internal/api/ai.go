@@ -22,34 +22,40 @@ type AIChatMessage struct {
 
 // TelemetryAnalysisContext represents the driving telemetry context sent to the AI.
 type TelemetryAnalysisContext struct {
-	TrackName         string  `json:"track_name"`
-	SessionType       string  `json:"session_type"`
+	// Multi-context identifiers
+	ContextMode    string `json:"context_mode,omitempty"`    // "comparator", "session_debrief", "live", "general"
+	SessionSummary string `json:"session_summary,omitempty"` // Detailed session classification / stints summary
+	LiveSummary    string `json:"live_summary,omitempty"`    // Live telemetry / weather / SC / pit strategy summary
+	CustomPrompt   string `json:"custom_prompt,omitempty"`   // Extra context notes
+
+	TrackName         string  `json:"track_name,omitempty"`
+	SessionType       string  `json:"session_type,omitempty"`
 	SessionBType      string  `json:"session_b_type,omitempty"`
 	WeatherA          string  `json:"weather_a,omitempty"`
 	WeatherB          string  `json:"weather_b,omitempty"`
 	CrossSession      bool    `json:"cross_session,omitempty"`
-	LapAName          string  `json:"lap_a_name"`
-	LapBName          string  `json:"lap_b_name"`
-	LapATimeFormatted string  `json:"lap_a_time_formatted"`
-	LapBTimeFormatted string  `json:"lap_b_time_formatted"`
-	TimeDeltaSeconds  float64 `json:"time_delta_seconds"` // Negative if A is faster, positive if B is faster
-	FasterLap         string  `json:"faster_lap"`         // "Lap A" or "Lap B"
+	LapAName          string  `json:"lap_a_name,omitempty"`
+	LapBName          string  `json:"lap_b_name,omitempty"`
+	LapATimeFormatted string  `json:"lap_a_time_formatted,omitempty"`
+	LapBTimeFormatted string  `json:"lap_b_time_formatted,omitempty"`
+	TimeDeltaSeconds  float64 `json:"time_delta_seconds,omitempty"` // Negative if A is faster, positive if B is faster
+	FasterLap         string  `json:"faster_lap,omitempty"`         // "Lap A" or "Lap B"
 
-	LapACompound string `json:"lap_a_compound"`
-	LapBCompound string `json:"lap_b_compound"`
+	LapACompound string `json:"lap_a_compound,omitempty"`
+	LapBCompound string `json:"lap_b_compound,omitempty"`
 
-	LapAS1Formatted string `json:"lap_a_s1_formatted"`
-	LapBS1Formatted string `json:"lap_b_s1_formatted"`
-	LapAS2Formatted string `json:"lap_a_s2_formatted"`
-	LapBS2Formatted string `json:"lap_b_s2_formatted"`
-	LapAS3Formatted string `json:"lap_a_s3_formatted"`
-	LapBS3Formatted string `json:"lap_b_s3_formatted"`
+	LapAS1Formatted string `json:"lap_a_s1_formatted,omitempty"`
+	LapBS1Formatted string `json:"lap_b_s1_formatted,omitempty"`
+	LapAS2Formatted string `json:"lap_a_s2_formatted,omitempty"`
+	LapBS2Formatted string `json:"lap_b_s2_formatted,omitempty"`
+	LapAS3Formatted string `json:"lap_a_s3_formatted,omitempty"`
+	LapBS3Formatted string `json:"lap_b_s3_formatted,omitempty"`
 
-	TopSpeedA float64 `json:"top_speed_a"`
-	TopSpeedB float64 `json:"top_speed_b"`
+	TopSpeedA float64 `json:"top_speed_a,omitempty"`
+	TopSpeedB float64 `json:"top_speed_b,omitempty"`
 
-	ERSAUsedPercent float64 `json:"ers_a_used_percent"`
-	ERSBUsedPercent float64 `json:"ers_b_used_percent"`
+	ERSAUsedPercent float64 `json:"ers_a_used_percent,omitempty"`
+	ERSBUsedPercent float64 `json:"ers_b_used_percent,omitempty"`
 
 	// Specific telemetry summary insights
 	BrakingSummary   string `json:"braking_summary,omitempty"`
@@ -379,6 +385,48 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 func buildSystemPrompt(telemetryCtx *TelemetryAnalysisContext) string {
 	var sb strings.Builder
 
+	// 1. Session Debrief Mode
+	if telemetryCtx != nil && (telemetryCtx.ContextMode == "session_debrief" || (telemetryCtx.SessionSummary != "" && telemetryCtx.LapAName == "")) {
+		sb.WriteString("You are the personal F1 Race Engineer and head strategist conducting a comprehensive session debrief for your driver and team.\n")
+		sb.WriteString("Analyze session timing, driver classifications, sector deltas, tyre stint strategies, pace degradation, and speed traps.\n\n")
+		sb.WriteString("COMMUNICATION STYLE & ROLE RULES:\n")
+		sb.WriteString("1. Maintain a sharp, professional F1 team debrief radio/engineering tone.\n")
+		sb.WriteString("2. Always respond in the language used by the user / driver (e.g. if Spanish, reply in Spanish; if English, reply in English).\n")
+		sb.WriteString("3. Use structured Markdown with clear bullet points and bold highlights for key lap times, sectors, and stints.\n")
+		sb.WriteString("4. Offer actionable recommendations regarding tyre life, optimum stint length, sector time gains, and theoretical ultimate pace.\n\n")
+
+		sb.WriteString("### SESSION OVERVIEW & TIMING DATA:\n")
+		if telemetryCtx.SessionSummary != "" {
+			sb.WriteString(telemetryCtx.SessionSummary)
+			sb.WriteString("\n")
+		}
+		if telemetryCtx.CustomPrompt != "" {
+			sb.WriteString(fmt.Sprintf("\nDriver/Context Notes: %s\n", telemetryCtx.CustomPrompt))
+		}
+		return sb.String()
+	}
+
+	// 2. Live Telemetry & Race Control Mode
+	if telemetryCtx != nil && (telemetryCtx.ContextMode == "live" || telemetryCtx.LiveSummary != "") {
+		sb.WriteString("You are the active F1 Race Engineer on the pit wall over team radio during a live race or session.\n")
+		sb.WriteString("Provide immediate tactical advice, weather updates, safety car restart strategy, tyre crossover windows, and gap management.\n\n")
+		sb.WriteString("COMMUNICATION STYLE & ROLE RULES:\n")
+		sb.WriteString("1. Maintain an urgent, clear, radio-concise tone suited for real-time in-car communication.\n")
+		sb.WriteString("2. Always respond in the language used by the user / driver (e.g. if Spanish, reply in Spanish; if English, reply in English).\n")
+		sb.WriteString("3. Highlight critical safety flags, weather precipitation forecasts, and optimal box/pit windows.\n\n")
+
+		sb.WriteString("### LIVE SESSION TELEMETRY & PIT WALL DATA:\n")
+		if telemetryCtx.LiveSummary != "" {
+			sb.WriteString(telemetryCtx.LiveSummary)
+			sb.WriteString("\n")
+		}
+		if telemetryCtx.CustomPrompt != "" {
+			sb.WriteString(fmt.Sprintf("\nLive Strategy Notes: %s\n", telemetryCtx.CustomPrompt))
+		}
+		return sb.String()
+	}
+
+	// 3. Lap Comparator / Comparative Telemetry Mode
 	sb.WriteString("You are the personal F1 Race Engineer and exclusive telemetry analyst for the DRIVER OF LAP A (the primary selected driver).\n")
 	sb.WriteString("Your role is to speak directly to your driver (Lap A) over the team radio to analyze their performance, diagnose where lap time was gained or lost, and provide clear, highly technical coaching advice to beat Lap B (the comparison / benchmark lap).\n\n")
 
@@ -390,7 +438,7 @@ func buildSystemPrompt(telemetryCtx *TelemetryAnalysisContext) string {
 	sb.WriteString("5. COMMUNICATION STYLE & LANGUAGE: Always respond in the language used by the user / driver (e.g. if the driver writes in Spanish, reply in Spanish; if in English, reply in English; default to English if undetermined). Maintain a professional, sharp, direct F1 team radio tone. Use structured Markdown (bold keywords, bullet points).\n")
 	sb.WriteString("6. DO NOT MENTION CAR SETUPS: Setups of other cars are unavailable. Focus 100% on driving technique, braking points, minimum corner apex speed, exit traction, and ERS/DRS deployment.\n\n")
 
-	if telemetryCtx != nil {
+	if telemetryCtx != nil && telemetryCtx.LapAName != "" && telemetryCtx.LapBName != "" {
 		sb.WriteString("### COMPARATIVE TELEMETRY DATA:\n")
 		if telemetryCtx.CrossSession || (telemetryCtx.SessionBType != "" && telemetryCtx.SessionBType != telemetryCtx.SessionType) {
 			sb.WriteString(fmt.Sprintf("- Track: %s (Cross-Session Comparison)\n", telemetryCtx.TrackName))
@@ -442,8 +490,10 @@ func buildSystemPrompt(telemetryCtx *TelemetryAnalysisContext) string {
 			sb.WriteString(fmt.Sprintf("- Apex speed delta in corner: %.1f km/h\n", zr.SpeedDiffAtApex))
 			sb.WriteString(fmt.Sprintf("- Braking point difference: %.1f meters\n", zr.BrakingDiffMeters))
 		}
+	} else if telemetryCtx != nil && telemetryCtx.CustomPrompt != "" {
+		sb.WriteString(fmt.Sprintf("\nTelemetry / Context Information:\n%s\n", telemetryCtx.CustomPrompt))
 	} else {
-		sb.WriteString("Currently, two laps are not selected in the comparator. If the user asks, kindly remind them to select Lap A and Lap B to analyze telemetry.\n")
+		sb.WriteString("Currently, specific telemetry data is not active. Assist the driver with general F1 telemetry interpretation, driving advice, setup considerations, or racecraft guidance.\n")
 	}
 
 	return sb.String()

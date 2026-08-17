@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Bot,
   Send,
@@ -13,583 +13,240 @@ import {
   Eye,
   EyeOff,
   RefreshCw,
-  Trash2,
-  ExternalLink,
+  Minus,
+  Sparkles,
+  Flag,
+  CloudRain,
 } from 'lucide-react';
+import { useRaceEngineer, type AIConfig } from '../context/RaceEngineerContext';
 import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
 
-export interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  timestamp: Date;
+export interface AiRaceEngineerProps {
+  // Optional overrides for standalone or test usage
+  telemetryContext?: TelemetryContextPayload | null;
+  hasLapsSelected?: boolean;
+  isZoomActive?: boolean;
+  isOpenOverride?: boolean;
+  onCloseOverride?: () => void;
 }
-
-interface AIConfig {
-  provider: 'gemini' | 'openai' | 'custom';
-  apiKey: string;
-  model: string;
-  baseUrl: string;
-  providerKeys?: Record<string, string>;
-  providerModels?: Record<string, string>;
-}
-
-interface AIModelItem {
-  id: string;
-  display_name: string;
-  description?: string;
-}
-
-interface AiRaceEngineerProps {
-  telemetryContext: TelemetryContextPayload | null;
-  hasLapsSelected: boolean;
-  isZoomActive: boolean;
-}
-
-const STORAGE_KEY_AI_CONFIG = 'f1_ai_engineer_config';
-
-const DEFAULT_CONFIG: AIConfig = {
-  provider: 'gemini',
-  apiKey: '',
-  model: 'gemini-flash-lite-latest',
-  baseUrl: '',
-  providerKeys: {
-    gemini: '',
-    openai: '',
-    custom: '',
-  },
-  providerModels: {
-    gemini: 'gemini-flash-lite-latest',
-    openai: 'gpt-4o-mini',
-    custom: 'llama3',
-  },
-};
 
 export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
-  telemetryContext,
-  hasLapsSelected,
-  isZoomActive,
+  telemetryContext: propTelemetryContext,
+  hasLapsSelected: propHasLapsSelected,
+  isZoomActive: propIsZoomActive,
+  isOpenOverride,
+  onCloseOverride,
 }) => {
+  const {
+    isOpen: contextIsOpen,
+    closeChat,
+    toggleChat,
+    contextMode,
+    comparatorContext,
+    sessionDebriefContext,
+    liveContext,
+    messages,
+    sendMessage,
+    clearMessages,
+    isGenerating,
+    stopGenerating,
+    config,
+    saveConfig,
+    availableModels,
+    isLoadingModels,
+    modelsError,
+    fetchAvailableModels,
+    serverConfigStatus,
+  } = useRaceEngineer();
+
+  const isOpen = isOpenOverride !== undefined ? isOpenOverride : contextIsOpen;
+  const handleClose = onCloseOverride || closeChat;
+
   const [showSettings, setShowSettings] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
-
-  // Configuration
-  const [config, setConfig] = useState<AIConfig>(() => {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        const saved = window.localStorage.getItem(STORAGE_KEY_AI_CONFIG);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          const currentProv = parsed.provider || 'gemini';
-          const providerKeys: Record<string, string> = {
-            gemini: '',
-            openai: '',
-            custom: '',
-            ...(parsed.providerKeys || {}),
-          };
-          const providerModels: Record<string, string> = {
-            gemini: 'gemini-flash-lite-latest',
-            openai: 'gpt-4o-mini',
-            custom: 'llama3',
-            ...(parsed.providerModels || {}),
-          };
-
-          // Migrate legacy single key/model if present
-          if (parsed.apiKey && !providerKeys[currentProv]) {
-            providerKeys[currentProv] = parsed.apiKey;
-          }
-          if (parsed.model && !providerModels[currentProv]) {
-            providerModels[currentProv] = parsed.model;
-          }
-          if (
-            providerModels.gemini === 'gemini-2.0-flash' ||
-            providerModels.gemini === 'gemini-2.5-flash' ||
-            providerModels.gemini === 'gemini-1.5-flash'
-          ) {
-            providerModels.gemini = 'gemini-flash-lite-latest';
-          }
-
-          const activeKey = providerKeys[currentProv] || '';
-          const activeModel =
-            providerModels[currentProv] ||
-            (currentProv === 'gemini' ? 'gemini-flash-lite-latest' : 'gpt-4o-mini');
-
-          return {
-            ...DEFAULT_CONFIG,
-            ...parsed,
-            provider: currentProv,
-            apiKey: activeKey,
-            model: activeModel,
-            providerKeys,
-            providerModels,
-          };
-        }
-      }
-    } catch (e) {
-      console.warn('Failed to load AI config from localStorage', e);
-    }
-    return DEFAULT_CONFIG;
-  });
-
-  const [serverConfigStatus, setServerConfigStatus] = useState<{
-    hasGeminiEnvKey: boolean;
-    hasOpenAIEnvKey: boolean;
-    defaultProvider: string;
-    defaultModel: string;
-  } | null>(null);
-
-  // Dynamic Models List queried directly from the provider API
-  const [availableModels, setAvailableModels] = useState<AIModelItem[]>([]);
-  const [isLoadingModels, setIsLoadingModels] = useState(false);
-  const [modelsError, setModelsError] = useState<string | null>(null);
-
-  // Messages & Streaming
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputMessage, setInputMessage] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const abortControllerRef = useRef<AbortController | null>(null);
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
-  // Fetch server status on mount
+  // Sync prop telemetry context if passed
+  const activeComparatorContext = propTelemetryContext || comparatorContext;
+  const hasLapsSelected = propHasLapsSelected ?? Boolean(activeComparatorContext?.lap_a_name && activeComparatorContext?.lap_b_name);
+  const isZoomActive = propIsZoomActive ?? Boolean(activeComparatorContext?.zoomed_range);
+
+  // Scroll messages to bottom smoothly
   useEffect(() => {
-    fetch('/api/ai/config-status')
-      .then((res) => res.json())
-      .then((data) => {
-        setServerConfigStatus({
-          hasGeminiEnvKey: data.has_gemini_env_key,
-          hasOpenAIEnvKey: data.has_openai_env_key,
-          defaultProvider: data.default_provider,
-          defaultModel: data.default_model,
-        });
-      })
-      .catch((err) => console.warn('Could not fetch AI config status', err));
-  }, []);
-
-  const filterChatModels = (rawModels: AIModelItem[], provider: string): AIModelItem[] => {
-    return rawModels.filter((m) => {
-      const id = m.id.toLowerCase();
-      if (provider === 'gemini') {
-        if (!id.startsWith('gemini-')) return false;
-        if (
-          id.includes('banana') ||
-          id.includes('imagen') ||
-          id.includes('image') ||
-          id.includes('embedding') ||
-          id.includes('aqa') ||
-          id.includes('tts') ||
-          id.includes('audio') ||
-          id.includes('vision') ||
-          id.includes('robotics')
-        ) {
-          return false;
-        }
-        return true;
-      }
-      if (provider === 'openai') {
-        if (
-          id.includes('audio') ||
-          id.includes('realtime') ||
-          id.includes('tts') ||
-          id.includes('whisper') ||
-          id.includes('dall-e') ||
-          id.includes('embedding') ||
-          id.includes('moderation') ||
-          id.includes('davinci') ||
-          id.includes('babbage') ||
-          id.includes('instruct') ||
-          id.includes('canary')
-        ) {
-          return false;
-        }
-      }
-      return true;
-    });
-  };
-
-  const fetchAvailableModels = async (overrideConfig?: AIConfig) => {
-    const activeCfg = overrideConfig || config;
-    if (!activeCfg.apiKey && !serverConfigStatus?.hasGeminiEnvKey && !serverConfigStatus?.hasOpenAIEnvKey) {
-      return;
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
+  }, [messages, isGenerating]);
 
-    setIsLoadingModels(true);
-    setModelsError(null);
-    try {
-      let data: { models: AIModelItem[] } | null = null;
-
-      // 1. Try backend endpoint first
-      try {
-        const res = await fetch('/api/ai/models', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            provider: activeCfg.provider,
-            api_key: activeCfg.apiKey,
-            base_url: activeCfg.baseUrl,
-          }),
-        });
-
-        if (res.ok) {
-          data = await res.json();
-        }
-      } catch {
-        // backend might not be restarted
-      }
-
-      // 2. Client-side direct fallback if backend route returned 404
-      if (!data && activeCfg.provider === 'gemini' && activeCfg.apiKey) {
-        const directRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models?key=${activeCfg.apiKey}`
-        );
-        if (!directRes.ok) {
-          const directErr = await directRes.text();
-          throw new Error(directErr || `Google Gemini API Error (${directRes.status})`);
-        }
-        const gJson = await directRes.json();
-        const gModels: AIModelItem[] = (gJson.models || [])
-          .filter((m: any) => (m.supportedGenerationMethods || []).includes('generateContent'))
-          .map((m: any) => ({
-            id: m.name.replace('models/', ''),
-            display_name: m.displayName || m.name.replace('models/', ''),
-            description: m.description,
-          }));
-        data = { models: gModels };
-      }
-
-      if (data?.models && data.models.length > 0) {
-        const filtered = filterChatModels(data.models, activeCfg.provider);
-        setAvailableModels(filtered);
-      } else {
-        setAvailableModels([]);
-      }
-    } catch (err: any) {
-      setModelsError(err.message || 'Could not query models list.');
-    } finally {
-      setIsLoadingModels(false);
+  // Focus input when opened
+  useEffect(() => {
+    if (isOpen && !showSettings) {
+      inputRef.current?.focus();
     }
-  };
+  }, [isOpen, showSettings]);
 
-  // Fetch models automatically when settings are opened
+  // Fetch models when opening settings
   useEffect(() => {
     if (showSettings && config.apiKey) {
       fetchAvailableModels();
     }
   }, [showSettings, config.provider, config.apiKey]);
 
-  // Save config
-  const saveConfig = (newConfig: AIConfig) => {
-    setConfig(newConfig);
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        window.localStorage.setItem(STORAGE_KEY_AI_CONFIG, JSON.stringify(newConfig));
-      }
-    } catch (e) {
-      console.warn('Failed to save AI config', e);
-    }
-  };
-
-  // Scroll messages container to bottom when messages update (without scrolling the outer window/page)
-  useEffect(() => {
-    if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
-    }
-  }, [messages]);
-
-  // Initial welcome message
-  useEffect(() => {
-    if (messages.length === 0) {
-      setMessages([
-        {
-          id: 'welcome',
-          role: 'assistant',
-          content:
-            '👋 **Hello! I am your AI Race Engineer.**\n\nI am ready to analyze comparative telemetry between your laps. I diagnose braking points, corner apex speeds, traction, and ERS/DRS deployment.\n\n*Use the quick action chips below or type your question.*',
-          timestamp: new Date(),
-        },
-      ]);
-    }
-  }, [messages.length]);
-
-  const handleSendMessage = async (textToSend?: string) => {
-    const query = (textToSend ?? inputMessage).trim();
-    if (!query || isGenerating) return;
-
-    const userMsg: ChatMessage = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      content: query,
-      timestamp: new Date(),
-    };
-
-    const assistantMsgId = `assistant-${Date.now()}`;
-    const assistantMsg: ChatMessage = {
-      id: assistantMsgId,
-      role: 'assistant',
-      content: '',
-      timestamp: new Date(),
-    };
-
-    const nextMessages = [...messages, userMsg, assistantMsg];
-    setMessages(nextMessages);
+  const handleSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const text = inputMessage.trim();
+    if (!text || isGenerating) return;
     setInputMessage('');
-    setIsGenerating(true);
-
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-
-    try {
-      const apiMessages = nextMessages
-        .filter((m) => m.id !== 'welcome' && m.id !== assistantMsgId)
-        .map((m) => ({
-          role: m.role,
-          content: m.content,
-        }));
-
-      const res = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          provider: config.provider,
-          api_key: config.apiKey,
-          base_url: config.baseUrl,
-          model: config.model,
-          messages: apiMessages,
-          context: telemetryContext,
-        }),
-        signal: controller.signal,
-      });
-
-      if (!res.ok) {
-        if (config.provider === 'gemini' && config.apiKey) {
-          const systemPrompt = buildSystemPromptText(telemetryContext);
-          const geminiContents = apiMessages.map((m) => ({
-            role: m.role === 'assistant' ? 'model' : 'user',
-            parts: [{ text: m.content }],
-          }));
-
-          const cleanModel = config.model.replace(/^models\//, '');
-          const geminiRes = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:streamGenerateContent?alt=sse&key=${config.apiKey}`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents: geminiContents,
-                system_instruction: {
-                  parts: [{ text: systemPrompt }],
-                },
-                generationConfig: {
-                  temperature: 0.35,
-                },
-              }),
-              signal: controller.signal,
-            }
-          );
-
-          if (!geminiRes.ok) {
-            const errText = await geminiRes.text();
-            throw new Error(`Gemini API error (status ${geminiRes.status}): ${errText}`);
-          }
-
-          const reader = geminiRes.body?.getReader();
-          const decoder = new TextDecoder('utf-8');
-          let accumulated = '';
-
-          if (reader) {
-            let buffer = '';
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              buffer += decoder.decode(value, { stream: true });
-
-              const lines = buffer.split('\n');
-              buffer = lines.pop() || '';
-
-              for (const line of lines) {
-                const trimmed = line.trim();
-                if (trimmed.startsWith('data: ')) {
-                  const dataStr = trimmed.substring(6);
-                  if (dataStr === '[DONE]') continue;
-                  try {
-                    const parsed = JSON.parse(dataStr);
-                    const chunk = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
-                    if (chunk) {
-                      accumulated += chunk;
-                      setMessages((prev) =>
-                        prev.map((m) =>
-                          m.id === assistantMsgId ? { ...m, content: accumulated } : m
-                        )
-                      );
-                    }
-                  } catch (e) {
-                    console.warn('Failed to parse SSE JSON chunk', e);
-                  }
-                }
-              }
-            }
-          }
-          return;
-        }
-
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `Server error (status ${res.status})`);
-      }
-
-      const reader = res.body?.getReader();
-      const decoder = new TextDecoder('utf-8');
-      let accumulated = '';
-
-      if (reader) {
-        let buffer = '';
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
-
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
-
-          for (const line of lines) {
-            const trimmed = line.trim();
-            if (trimmed.startsWith('data: ')) {
-              const dataStr = trimmed.substring(6);
-              if (dataStr === '[DONE]') continue;
-              try {
-                const parsed = JSON.parse(dataStr);
-                if (parsed.text) {
-                  accumulated += parsed.text;
-                  setMessages((prev) =>
-                    prev.map((m) =>
-                      m.id === assistantMsgId ? { ...m, content: accumulated } : m
-                    )
-                  );
-                } else if (parsed.error) {
-                  const errorMsg =
-                    typeof parsed.error === 'string'
-                      ? parsed.error
-                      : JSON.stringify(parsed.error);
-                  accumulated = `⚠️ *Error:* ${errorMsg}\n\n*Please verify your API Key or account quota in Settings (⚙️).*`;
-                  setMessages((prev) =>
-                    prev.map((m) =>
-                      m.id === assistantMsgId ? { ...m, content: accumulated } : m
-                    )
-                  );
-                }
-              } catch (e) {
-                console.warn('Failed to parse SSE line', e);
-              }
-            }
-          }
-        }
-      }
-
-      if (!accumulated) {
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantMsgId
-              ? {
-                  ...m,
-                  content:
-                    '⚠️ *No response received from the model.* Please verify that your API Key is valid and has active credit/quota.',
-                }
-              : m
-          )
-        );
-      }
-    } catch (err: unknown) {
-      if (err instanceof Error && err.name === 'AbortError') {
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantMsgId
-              ? {
-                  ...m,
-                  content: m.content ? `${m.content}\n\n*(Response stopped)*` : '*(Response stopped)*',
-                }
-              : m
-          )
-        );
-        return;
-      }
-      const errMsg = err instanceof Error ? err.message : 'Unknown communication error';
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === assistantMsgId
-            ? {
-                ...m,
-                content: `⚠️ *Error:* ${errMsg}\n\n*Please verify your API Key in Settings (⚙️).*`,
-              }
-            : m
-        )
-      );
-    } finally {
-      setIsGenerating(false);
-      abortControllerRef.current = null;
-    }
+    sendMessage(text);
   };
 
-  const handleStopGeneration = () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
-    setIsGenerating(false);
-    setMessages((prev) =>
-      prev.map((m) =>
-        m.role === 'assistant' && !m.content
-          ? { ...m, content: '*(Response stopped)*' }
-          : m
-      )
-    );
+  const handlePromptChipClick = (prompt: string) => {
+    if (isGenerating) return;
+    sendMessage(prompt);
   };
 
-  const handleClearChat = () => {
-    if (isGenerating) handleStopGeneration();
-    setMessages([
+  // Adaptive quick prompt chips
+  const adaptivePromptChips = useMemo(() => {
+    if (contextMode === 'comparator' || (hasLapsSelected && activeComparatorContext)) {
+      const chips = [
+        {
+          id: 'delta-loss',
+          icon: <Zap size={13} style={{ color: '#ffd200' }} />,
+          label: 'Where was time lost?',
+          prompt: 'Where was the most time gained or lost between both laps? Provide a technical breakdown by sectors and key corners.',
+        },
+        {
+          id: 'braking-traction',
+          icon: <Gauge size={13} style={{ color: '#ff4b4b' }} />,
+          label: 'Braking & Apex Speed',
+          prompt: 'Analyze and compare braking points, peak brake pressure, and corner apex speeds between both laps.',
+        },
+        {
+          id: 'ers-drs',
+          icon: <Cpu size={13} style={{ color: '#00f2fe' }} />,
+          label: 'ERS & DRS Usage',
+          prompt: 'Compare the electric motor (ERS) deployment strategy and DRS usage between both laps.',
+        },
+      ];
+      if (isZoomActive) {
+        chips.unshift({
+          id: 'zoomed-analysis',
+          icon: <ZoomIn size={13} style={{ color: '#38ef7d' }} />,
+          label: 'Zoomed Sector Analysis',
+          prompt: 'Analyze in depth the currently zoomed sector in the telemetry charts and explain the driving difference in detail.',
+        });
+      }
+      return chips;
+    }
+
+    if (contextMode === 'session_debrief' && sessionDebriefContext) {
+      return [
+        {
+          id: 'debrief-overview',
+          icon: <Sparkles size={13} style={{ color: '#ffd700' }} />,
+          label: 'Session Pace Overview',
+          prompt: 'Provide a complete session pace debrief comparing the top drivers, sector deltas, and overall consistency.',
+        },
+        {
+          id: 'debrief-tyres',
+          icon: <Gauge size={13} style={{ color: '#ff8000' }} />,
+          label: 'Tyre Stint Degradation',
+          prompt: 'Analyze the tyre stint lengths, compound choices, and pace degradation across the field.',
+        },
+        {
+          id: 'debrief-sectors',
+          icon: <Zap size={13} style={{ color: '#00f2fe' }} />,
+          label: 'Theoretical Best Lap',
+          prompt: 'What was the session record theoretical best lap, and which driver had the highest potential speed?',
+        },
+      ];
+    }
+
+    if (contextMode === 'live' && liveContext) {
+      return [
+        {
+          id: 'live-weather',
+          icon: <CloudRain size={13} style={{ color: '#00f2fe' }} />,
+          label: 'Weather & Crossover',
+          prompt: 'What is the current weather forecast, rain probability, and recommended tyre crossover window?',
+        },
+        {
+          id: 'live-strategy',
+          icon: <Flag size={13} style={{ color: '#ffd200' }} />,
+          label: 'Safety Car & Pit Strategy',
+          prompt: 'What is the optimal pit stop strategy and Safety Car contingency plan right now?',
+        },
+        {
+          id: 'live-pace',
+          icon: <Zap size={13} style={{ color: '#38ef7d' }} />,
+          label: 'Current Sector Pace',
+          prompt: 'Analyze the current sector times, speed trap leaders, and gap deltas across the field.',
+        },
+      ];
+    }
+
+    // Default general chips
+    return [
       {
-        id: 'welcome-reset',
-        role: 'assistant',
-        content:
-          '🔄 **Conversation reset.**\n\nReady for a new analysis. What would you like to inspect on the selected laps?',
-        timestamp: new Date(),
+        id: 'gen-trail-braking',
+        icon: <Gauge size={13} style={{ color: '#ff4b4b' }} />,
+        label: 'Trail Braking Coaching',
+        prompt: 'Explain how to optimize trail braking into slow and medium speed corners in F1.',
       },
-    ]);
-  };
+      {
+        id: 'gen-tyre-management',
+        icon: <Zap size={13} style={{ color: '#ffd200' }} />,
+        label: 'Tyre Temperature Management',
+        prompt: 'How do I manage tyre surface vs core temperatures during long stints to avoid thermal degradation?',
+      },
+      {
+        id: 'gen-ers',
+        icon: <Cpu size={13} style={{ color: '#00f2fe' }} />,
+        label: 'ERS Deployment Strategy',
+        prompt: 'What is the best way to deploy ERS energy between Hotlap, None, and Medium modes?',
+      },
+    ];
+  }, [contextMode, activeComparatorContext, hasLapsSelected, isZoomActive, sessionDebriefContext, liveContext]);
 
-  const quickPrompts = [
-    {
-      id: 'delta-loss',
-      icon: <Zap size={13} style={{ color: '#ffd200' }} />,
-      label: 'Where was time gained/lost?',
-      prompt: 'Where was the most time gained or lost between both laps? Provide a technical breakdown by sectors and key corners.',
-    },
-    {
-      id: 'braking-traction',
-      icon: <Gauge size={13} style={{ color: '#ff4b4b' }} />,
-      label: 'Braking & Traction',
-      prompt: 'Analyze and compare braking points, peak brake pressure, and corner exit traction between both laps.',
-    },
-    {
-      id: 'ers-drs',
-      icon: <Cpu size={13} style={{ color: '#00f2fe' }} />,
-      label: 'ERS & DRS Deployment',
-      prompt: 'Compare the electric motor (ERS) deployment strategy and DRS usage between both laps.',
-    },
-    {
-      id: 'zoomed-analysis',
-      icon: <ZoomIn size={13} style={{ color: '#38ef7d' }} />,
-      label: 'Zoomed Sector',
-      prompt: 'Analyze in depth the currently zoomed sector in the telemetry charts and explain the driving difference in detail.',
-      requiresZoom: true,
-    },
-  ];
+  // Context Mode Badge label & color
+  const contextBadgeInfo = useMemo(() => {
+    if (contextMode === 'comparator' || (hasLapsSelected && activeComparatorContext)) {
+      return {
+        label: 'Comparator',
+        sub: activeComparatorContext?.track_name || 'Laps Selected',
+        color: '#00f2fe',
+      };
+    }
+    if (contextMode === 'session_debrief' && sessionDebriefContext) {
+      return {
+        label: 'Debrief',
+        sub: sessionDebriefContext.trackName,
+        color: '#ffd700',
+      };
+    }
+    if (contextMode === 'live' && liveContext) {
+      return {
+        label: 'Live Wall',
+        sub: liveContext.trackName || 'Active Session',
+        color: '#38ef7d',
+      };
+    }
+    return {
+      label: 'Standby',
+      sub: 'Telemetry Ready',
+      color: 'var(--text-secondary)',
+    };
+  }, [contextMode, activeComparatorContext, hasLapsSelected, sessionDebriefContext, liveContext]);
 
-  const renderFormattedContent = (content: string) => {
+  const renderFormattedMarkdown = (content: string) => {
     const lines = content.split('\n');
     return (
       <div className="chat-markdown">
         {lines.map((line, idx) => {
           if (!line.trim()) {
-            return <div key={idx} style={{ height: '0.4rem' }} />;
+            return <div key={idx} style={{ height: '0.35rem' }} />;
           }
 
           if (line.startsWith('### ')) {
@@ -599,6 +256,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
               </h4>
             );
           }
+
           if (line.startsWith('## ')) {
             return (
               <h3 key={idx} className="chat-h3">
@@ -607,28 +265,43 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
             );
           }
 
-          if (line.startsWith('* ') || line.startsWith('- ')) {
+          if (line.startsWith('- ') || line.startsWith('* ')) {
             return (
               <div key={idx} className="chat-bullet">
                 <span className="chat-bullet-dot">•</span>
-                <span>{renderInlineMarkdown(line.substring(2))}</span>
+                <span>{parseInlineFormatting(line.substring(2))}</span>
               </div>
             );
           }
 
-          return <p key={idx} className="chat-p">{renderInlineMarkdown(line)}</p>;
+          if (/^\d+\.\s/.test(line)) {
+            const match = line.match(/^(\d+)\.\s(.*)$/);
+            if (match) {
+              return (
+                <div key={idx} className="chat-bullet">
+                  <span className="chat-bullet-num mono">{match[1]}.</span>
+                  <span>{parseInlineFormatting(match[2])}</span>
+                </div>
+              );
+            }
+          }
+
+          return (
+            <p key={idx} className="chat-p">
+              {parseInlineFormatting(line)}
+            </p>
+          );
         })}
       </div>
     );
   };
 
-  const renderInlineMarkdown = (text: string) => {
+  const parseInlineFormatting = (text: string): React.ReactNode => {
     const parts: React.ReactNode[] = [];
     let cur = text;
-    let keyIdx = 0;
+    let match: RegExpExecArray | null;
 
     const boldRegex = /\*\*(.*?)\*\*/g;
-    let match;
     let lastIdx = 0;
 
     while ((match = boldRegex.exec(cur)) !== null) {
@@ -636,7 +309,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
         parts.push(cur.substring(lastIdx, match.index));
       }
       parts.push(
-        <strong key={keyIdx++} style={{ color: '#fff', fontWeight: 600 }}>
+        <strong key={`b-${match.index}`} style={{ color: '#fff', fontWeight: 600 }}>
           {match[1]}
         </strong>
       );
@@ -650,74 +323,103 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
     return parts.length > 0 ? parts : text;
   };
 
-  const isConfigured = Boolean(
-    config.apiKey ||
-      (config.provider === 'gemini' && serverConfigStatus?.hasGeminiEnvKey) ||
-      (config.provider === 'openai' && serverConfigStatus?.hasOpenAIEnvKey)
-  );
+  // If closed: render Floating Action Button (FAB)
+  if (!isOpen) {
+    return (
+      <div className="ai-fab-container">
+        <button
+          className="ai-fab-button"
+          onClick={toggleChat}
+          title="Open AI Race Engineer"
+          aria-label="Open AI Race Engineer"
+        >
+          <div className="ai-fab-icon-wrapper">
+            <Bot size={22} className="ai-fab-bot-icon" />
+            <span className="ai-fab-pulse-ring" />
+          </div>
+          <span className="ai-fab-label">Race Engineer</span>
+        </button>
+      </div>
+    );
+  }
 
+  // When open: render Floating Chat Widget (No modal-overlay backdrop)
   return (
-    <div className="glass-panel ai-embedded-card" style={{ padding: '0.65rem 0.75rem' }}>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          paddingBottom: '0.4rem',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Bot size={15} style={{ color: '#e10600' }} />
-          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#fff' }}>
-            AI Race Engineer
-          </span>
-          <span
-            style={{
-              fontSize: '0.62rem',
-              background: 'rgba(255, 255, 255, 0.08)',
-              padding: '1px 5px',
-              borderRadius: '4px',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            {config.model}
-          </span>
+    <div className="ai-floating-widget glass-panel" role="region" aria-label="AI Race Engineer Chat">
+      {/* Widget Header */}
+      <div className="ai-widget-header">
+        <div className="ai-widget-header-left">
+          <div className="ai-widget-avatar">
+            <Bot size={18} color="#00f2fe" />
+          </div>
+          <div>
+            <div className="ai-widget-title-row">
+              <span className="ai-widget-title">AI Race Engineer</span>
+              <span
+                className="ai-context-badge mono"
+                style={{
+                  color: contextBadgeInfo.color,
+                  borderColor: `${contextBadgeInfo.color}40`,
+                  backgroundColor: `${contextBadgeInfo.color}15`,
+                }}
+              >
+                {contextBadgeInfo.label}
+              </span>
+            </div>
+            <div className="ai-widget-sub mono">
+              {contextBadgeInfo.sub} • {config.model.replace('gemini-', '').replace('-latest', '')}
+            </div>
+          </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+        <div className="ai-widget-header-actions">
           <button
-            className="btn-icon"
-            style={{ padding: '3px' }}
+            className="ai-btn-icon"
             onClick={() => setShowSettings(!showSettings)}
-            title="AI Settings"
+            title="Configure AI API & Model"
             aria-label="Settings"
           >
-            <Settings size={13} />
+            <Settings size={14} />
           </button>
           <button
-            className="btn-icon"
-            style={{ padding: '3px' }}
-            onClick={handleClearChat}
+            className="ai-btn-icon"
+            onClick={clearMessages}
             title="Clear conversation"
             aria-label="Clear chat"
           >
-            <RotateCcw size={13} />
+            <RotateCcw size={14} />
+          </button>
+          <button
+            className="ai-btn-icon"
+            onClick={handleClose}
+            title="Minimize Race Engineer"
+            aria-label="Minimize"
+          >
+            <Minus size={15} />
+          </button>
+          <button
+            className="ai-btn-icon ai-btn-close"
+            onClick={handleClose}
+            title="Close"
+            aria-label="Close"
+          >
+            <X size={15} />
           </button>
         </div>
       </div>
 
+      {/* Embedded Settings Drawer within widget */}
       {showSettings && (
-        <div className="ai-settings-card glass-panel">
+        <div className="ai-widget-settings-panel glass-panel">
           <div className="ai-settings-header">
-            <h4>Assistant Settings</h4>
-            <button className="btn-icon" onClick={() => setShowSettings(false)}>
-              <X size={15} />
+            <h4>AI Engineer Settings</h4>
+            <button className="ai-btn-icon" onClick={() => setShowSettings(false)}>
+              <X size={14} />
             </button>
           </div>
 
           <div className="ai-settings-body">
-            <label className="readout-label">AI Provider</label>
+            <label className="readout-label">Provider</label>
             <select
               className="ui-select"
               value={config.provider}
@@ -740,229 +442,101 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
             >
               <option value="gemini">Google Gemini (Recommended)</option>
               <option value="openai">OpenAI (GPT-4o-mini / GPT-4o)</option>
-              <option value="custom">OpenAI-Compatible Endpoint (Local / Groq / Ollama)</option>
+              <option value="custom">OpenAI-Compatible Custom (Ollama / Groq)</option>
             </select>
 
-            <label className="readout-label" style={{ marginTop: '0.75rem' }}>
+            <label className="readout-label" style={{ marginTop: '0.65rem' }}>
               API Key
               {config.provider === 'gemini' && serverConfigStatus?.hasGeminiEnvKey && (
-                <span className="ai-env-badge">Detected on server (.env)</span>
-              )}
-              {config.provider === 'openai' && serverConfigStatus?.hasOpenAIEnvKey && (
-                <span className="ai-env-badge">Detected on server (.env)</span>
+                <span className="ai-env-badge">Server .env active</span>
               )}
             </label>
-            <div className="ai-key-input-wrapper">
+            <div className="ai-input-with-icon">
               <input
                 type={showApiKey ? 'text' : 'password'}
                 className="ui-input"
                 placeholder={
-                  config.provider === 'gemini'
-                    ? 'AIzaSy... (or leave empty to use server .env)'
-                    : 'sk-... (or leave empty to use server .env)'
+                  (config.provider === 'gemini' && serverConfigStatus?.hasGeminiEnvKey) ||
+                  (config.provider === 'openai' && serverConfigStatus?.hasOpenAIEnvKey)
+                    ? 'Using server key (or enter custom key)'
+                    : 'Enter your API key...'
                 }
                 value={config.apiKey}
                 onChange={(e) => {
-                  const newKey = e.target.value;
-                  saveConfig({
-                    ...config,
-                    apiKey: newKey,
-                    providerKeys: {
-                      ...(config.providerKeys || {}),
-                      [config.provider]: newKey,
-                    },
-                  });
+                  const val = e.target.value;
+                  const updatedKeys = { ...(config.providerKeys || {}), [config.provider]: val };
+                  saveConfig({ ...config, apiKey: val, providerKeys: updatedKeys });
                 }}
               />
-              <div className="ai-key-actions">
-                {config.apiKey && (
-                  <button
-                    type="button"
-                    className="ai-key-action-btn delete"
-                    onClick={() => {
-                      saveConfig({
-                        ...config,
-                        apiKey: '',
-                        providerKeys: {
-                          ...(config.providerKeys || {}),
-                          [config.provider]: '',
-                        },
-                      });
-                      setAvailableModels([]);
-                    }}
-                    title="Clear API key for this provider"
-                    aria-label="Clear API key"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="ai-key-action-btn"
-                  onClick={() => setShowApiKey(!showApiKey)}
-                  title={showApiKey ? 'Hide key' : 'Show key'}
-                  aria-label={showApiKey ? 'Hide key' : 'Show key'}
-                >
-                  {showApiKey ? <EyeOff size={14} /> : <Eye size={14} />}
-                </button>
-              </div>
-            </div>
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginTop: '4px',
-              }}
-            >
-              <small className="ai-settings-hint" style={{ margin: 0 }}>
-                Saved locally per provider.
-              </small>
-              {config.provider === 'gemini' && (
-                <a
-                  href="https://aistudio.google.com/app/apikey"
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{
-                    fontSize: '0.68rem',
-                    color: 'var(--accent-secondary)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '3px',
-                    textDecoration: 'none',
-                    fontWeight: 600,
-                  }}
-                  title="Get a Google AI Studio API Key"
-                >
-                  Get Gemini Key <ExternalLink size={10} />
-                </a>
-              )}
-              {config.provider === 'openai' && (
-                <a
-                  href="https://platform.openai.com/api-keys"
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{
-                    fontSize: '0.68rem',
-                    color: 'var(--accent-secondary)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '3px',
-                    textDecoration: 'none',
-                    fontWeight: 600,
-                  }}
-                  title="Get an OpenAI API Key"
-                >
-                  Get OpenAI Key <ExternalLink size={10} />
-                </a>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.75rem', marginBottom: '0.35rem' }}>
-              <label className="readout-label" style={{ margin: 0 }}>Model</label>
               <button
                 type="button"
-                className="ai-refresh-models-btn"
-                onClick={() => fetchAvailableModels()}
-                disabled={isLoadingModels}
-                title="Fetch available models from API"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--accent-secondary)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  fontSize: '0.7rem',
-                }}
+                className="ai-input-action-btn"
+                onClick={() => setShowApiKey(!showApiKey)}
               >
-                <RefreshCw size={11} className={isLoadingModels ? 'spin-icon' : ''} />
-                {isLoadingModels ? 'Fetching...' : 'Refresh models'}
+                {showApiKey ? <EyeOff size={13} /> : <Eye size={13} />}
               </button>
             </div>
 
-            {availableModels.length > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.65rem' }}>
+              <label className="readout-label" style={{ margin: 0 }}>Model</label>
+              <button
+                type="button"
+                className="ai-link-btn"
+                onClick={() => fetchAvailableModels()}
+                disabled={isLoadingModels}
+                title="Query available models from API"
+              >
+                <RefreshCw size={11} className={isLoadingModels ? 'animate-spin' : ''} /> Refresh Models
+              </button>
+            </div>
+
+            {availableModels.length > 0 ? (
               <select
                 className="ui-select"
-                style={{ marginBottom: '0.5rem' }}
-                value={availableModels.some((m) => m.id === config.model) ? config.model : 'custom'}
+                value={config.model}
                 onChange={(e) => {
-                  if (e.target.value !== 'custom') {
-                    const newModel = e.target.value;
-                    saveConfig({
-                      ...config,
-                      model: newModel,
-                      providerModels: {
-                        ...(config.providerModels || {}),
-                        [config.provider]: newModel,
-                      },
-                    });
-                  }
+                  const val = e.target.value;
+                  const updatedModels = { ...(config.providerModels || {}), [config.provider]: val };
+                  saveConfig({ ...config, model: val, providerModels: updatedModels });
                 }}
               >
-                <option value="" disabled>Select a detected model...</option>
                 {availableModels.map((m) => (
                   <option key={m.id} value={m.id}>
-                    {m.display_name || m.id} {m.id !== m.display_name ? `(${m.id})` : ''}
+                    {m.display_name}
                   </option>
                 ))}
-                <option value="custom">✏️ Custom / Other...</option>
               </select>
+            ) : (
+              <input
+                type="text"
+                className="ui-input"
+                value={config.model}
+                placeholder="e.g. gemini-flash-lite-latest, gpt-4o-mini"
+                onChange={(e) => {
+                  const val = e.target.value;
+                  const updatedModels = { ...(config.providerModels || {}), [config.provider]: val };
+                  saveConfig({ ...config, model: val, providerModels: updatedModels });
+                }}
+              />
             )}
 
-            {modelsError && (
-              <small style={{ color: '#ffd200', fontSize: '0.7rem', marginBottom: '0.4rem', display: 'block' }}>
-                ⚠️ {modelsError}
-              </small>
-            )}
-
-            <input
-              type="text"
-              className="ui-input"
-              value={config.model}
-              onChange={(e) => {
-                const newModel = e.target.value;
-                saveConfig({
-                  ...config,
-                  model: newModel,
-                  providerModels: {
-                    ...(config.providerModels || {}),
-                    [config.provider]: newModel,
-                  },
-                });
-              }}
-              placeholder={config.provider === 'gemini' ? 'gemini-flash-lite-latest' : 'gpt-4o-mini'}
-            />
+            {modelsError && <div className="ai-error-text">{modelsError}</div>}
 
             {config.provider === 'custom' && (
               <>
-                <label className="readout-label" style={{ marginTop: '0.75rem' }}>Base URL Endpoint</label>
+                <label className="readout-label" style={{ marginTop: '0.65rem' }}>Base URL</label>
                 <input
                   type="text"
                   className="ui-input"
+                  placeholder="https://api.openai.com/v1"
                   value={config.baseUrl}
                   onChange={(e) => saveConfig({ ...config, baseUrl: e.target.value })}
-                  placeholder="http://localhost:11434/v1"
                 />
               </>
             )}
 
-            <div
-              style={{
-                marginTop: '1rem',
-                paddingTop: '0.65rem',
-                borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-                display: 'flex',
-                justifyContent: 'flex-end',
-              }}
-            >
-              <button
-                type="button"
-                className="nav-tab active"
-                style={{ fontSize: '0.78rem', padding: '5px 18px', cursor: 'pointer' }}
-                onClick={() => setShowSettings(false)}
-              >
+            <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
+              <button className="btn-primary" style={{ padding: '0.35rem 0.8rem', fontSize: '0.75rem' }} onClick={() => setShowSettings(false)}>
                 Done
               </button>
             </div>
@@ -970,167 +544,87 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
         </div>
       )}
 
-      <div
-        ref={messagesContainerRef}
-        className="ai-messages-container"
-        style={{ minHeight: '160px', maxHeight: '240px', padding: '0.4rem 0' }}
-      >
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`ai-message-row ${msg.role === 'user' ? 'user' : 'assistant'}`}
+      {/* Quick Prompt Chips */}
+      <div className="ai-widget-chips-row">
+        {adaptivePromptChips.map((chip) => (
+          <button
+            key={chip.id}
+            className="ai-prompt-chip"
+            onClick={() => handlePromptChipClick(chip.prompt)}
+            disabled={isGenerating}
           >
-            {msg.role === 'assistant' && (
-              <div className="ai-msg-avatar" style={{ width: '20px', height: '20px' }}>
-                <Bot size={12} />
+            {chip.icon}
+            <span>{chip.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Messages Scroll Area */}
+      <div className="ai-widget-messages" ref={messagesContainerRef}>
+        {messages.map((m) => (
+          <div
+            key={m.id}
+            className={`ai-message-row ${m.role === 'user' ? 'ai-user-row' : 'ai-assistant-row'}`}
+          >
+            <div className={`ai-message-bubble ${m.role === 'user' ? 'ai-user-bubble' : 'ai-assistant-bubble'}`}>
+              <div className="ai-message-meta">
+                {m.role === 'assistant' ? <Bot size={12} color="#00f2fe" /> : null}
+                <span>{m.role === 'assistant' ? 'Race Engineer' : 'You'}</span>
               </div>
-            )}
-            <div className={`ai-message-bubble ${msg.role}`} style={{ fontSize: '0.78rem', padding: '0.45rem 0.65rem' }}>
-              {msg.role === 'assistant' ? (
-                msg.content ? (
-                  renderFormattedContent(msg.content)
-                ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div className="ai-typing-indicator">
-                      <span />
-                      <span />
-                      <span />
-                    </div>
-                    {isGenerating && (
-                      <button
-                        type="button"
-                        style={{
-                          background: 'rgba(255, 75, 75, 0.15)',
-                          border: '1px solid rgba(255, 75, 75, 0.4)',
-                          color: '#ff6b6b',
-                          borderRadius: '4px',
-                          padding: '1px 6px',
-                          fontSize: '0.62rem',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '3px',
-                        }}
-                        onClick={handleStopGeneration}
-                        title="Stop waiting"
-                      >
-                        <Square size={8} fill="#ff6b6b" /> Stop
-                      </button>
-                    )}
+              <div className="ai-message-body">
+                {m.content ? (
+                  renderFormattedMarkdown(m.content)
+                ) : isGenerating && m.role === 'assistant' ? (
+                  <div className="ai-typing-indicator">
+                    <span className="ai-dot" />
+                    <span className="ai-dot" />
+                    <span className="ai-dot" />
                   </div>
-                )
-              ) : (
-                <div className="chat-user-text">{msg.content}</div>
-              )}
-              <span className="ai-msg-time" style={{ fontSize: '0.6rem' }}>
-                {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </span>
+                ) : null}
+              </div>
             </div>
           </div>
         ))}
       </div>
 
-      <div className="ai-quick-prompts-bar" style={{ padding: '0.25rem 0', background: 'transparent' }}>
-        <div className="ai-quick-prompts-scroll">
-          {quickPrompts.map((qp) => {
-            const disabled = !hasLapsSelected || (qp.requiresZoom && !isZoomActive);
-            return (
-              <button
-                key={qp.id}
-                className={`ai-chip-btn ${qp.requiresZoom && isZoomActive ? 'zoom-highlight' : ''}`}
-                disabled={disabled || isGenerating}
-                onClick={() => handleSendMessage(qp.prompt)}
-                title={disabled ? 'Requires two laps selected' : qp.label}
-                style={{ fontSize: '0.68rem', padding: '2px 7px', height: '24px' }}
-              >
-                {qp.icon}
-                <span>{qp.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="ai-drawer-footer" style={{ padding: '0.35rem 0 0 0', background: 'transparent', borderTop: '1px solid rgba(255, 255, 255, 0.08)' }}>
-        {!isConfigured && (
-          <div
-            className="ai-unconfigured-alert"
-            style={{
-              fontSize: '0.68rem',
-              padding: '3px 8px',
-              marginBottom: '0.3rem',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}
-          >
-            <span>⚠️ Configure your API Key.</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <button onClick={() => setShowSettings(true)}>Configure</button>
-              <a
-                href={
-                  config.provider === 'openai'
-                    ? 'https://platform.openai.com/api-keys'
-                    : 'https://aistudio.google.com/app/apikey'
-                }
-                target="_blank"
-                rel="noreferrer"
-                style={{
-                  color: 'var(--accent-secondary)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '2px',
-                  textDecoration: 'none',
-                  fontWeight: 600,
-                }}
-                title="Get API Key from provider"
-              >
-                Get Key <ExternalLink size={10} />
-              </a>
-            </div>
-          </div>
-        )}
-
-        <form
-          className="ai-input-form"
-          onSubmit={(e) => {
-            e.preventDefault();
-            handleSendMessage();
-          }}
-        >
+      {/* Chat Input Bar */}
+      <div className="ai-widget-input-bar">
+        <form onSubmit={handleSubmit} className="ai-widget-input-form">
           <input
+            ref={inputRef}
             type="text"
             className="ai-chat-input"
-            style={{ fontSize: '0.78rem', padding: '0.4rem 0.75rem', height: '32px' }}
             placeholder={
-              !hasLapsSelected
-                ? 'Select laps to analyze...'
+              contextMode === 'comparator' || (hasLapsSelected && activeComparatorContext)
+                ? 'Ask engineer about telemetry deltas...'
+                : contextMode === 'session_debrief'
+                ? 'Ask about session pace, stints, or strategy...'
+                : contextMode === 'live'
+                ? 'Ask about live weather, SC, or tyre windows...'
                 : 'Ask your Race Engineer...'
             }
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
-            disabled={isGenerating || !hasLapsSelected}
+            disabled={isGenerating}
           />
 
           {isGenerating ? (
             <button
               type="button"
-              className="ai-send-btn stop"
-              onClick={handleStopGeneration}
+              className="ai-btn-submit ai-btn-stop"
+              onClick={stopGenerating}
               title="Stop response"
-              style={{ width: '32px', height: '32px' }}
             >
-              <Square size={13} />
+              <Square size={14} />
             </button>
           ) : (
             <button
               type="submit"
-              className="ai-send-btn"
-              disabled={!inputMessage.trim() || !hasLapsSelected}
-              title="Send message"
-              style={{ width: '32px', height: '32px' }}
+              className="ai-btn-submit"
+              disabled={!inputMessage.trim()}
+              title="Send to Race Engineer"
             >
-              <Send size={13} />
+              <Send size={14} />
             </button>
           )}
         </form>
@@ -1138,46 +632,3 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
     </div>
   );
 };
-
-function buildSystemPromptText(ctx: TelemetryContextPayload | null): string {
-  let prompt =
-    'You are the personal F1 Race Engineer and exclusive telemetry analyst for the DRIVER OF LAP A (the primary selected driver).\n' +
-    'Your role is to speak directly to your driver (Lap A) over the team radio to analyze their performance, diagnose where lap time was gained or lost, and provide clear, highly technical coaching advice to beat Lap B (the comparison / benchmark lap).\n\n' +
-    'CORE COACHING & ROLE RULES:\n' +
-    '1. ALWAYS ADDRESS YOUR DRIVER (LAP A) IN THE SECOND PERSON: Use "you", "your lap", "you are braking", "your traction", always referring to the driver of Lap A.\n' +
-    '2. LAP B IS STRICTLY THE BENCHMARK / RIVAL: Refer to Lap B as "the benchmark", "Lap B", or by driver B\'s name. NEVER give improvement advice to driver B or act as their engineer.\n' +
-    '3. IF YOUR DRIVER (LAP A) IS SLOWER: Explain specifically where they are losing time (e.g. "You are braking 15m too early compared to Lap B into Turn 1", "You lose 0.15s on traction out of the hairpin") and give actionable instructions to recover that delta.\n' +
-    '4. IF YOUR DRIVER (LAP A) IS FASTER: Congratulate them on the lap, highlight where they built the advantage over Lap B, and if there are any specific corners where Lap B was stronger, mention them as opportunities to gain even more time.\n' +
-    '5. COMMUNICATION STYLE & LANGUAGE: Always respond in the language used by the user / driver (e.g. if the driver writes in Spanish, reply in Spanish; if in English, reply in English; default to English if undetermined). Maintain a professional, sharp, direct F1 team radio tone. Use structured Markdown (bold keywords, bullet points).\n' +
-    '6. DO NOT MENTION CAR SETUPS: Setups of other cars are unavailable. Focus 100% on driving technique, braking points, minimum corner apex speed, exit traction, and ERS/DRS deployment.\n\n';
-
-  if (ctx) {
-    prompt += `### COMPARATIVE TELEMETRY DATA:\n`;
-    prompt += `- Track: ${ctx.track_name} | Session: ${ctx.session_type}\n`;
-    prompt += `- YOUR DRIVER (Lap A): ${ctx.lap_a_name} (${ctx.lap_a_time_formatted}) - Compound: ${ctx.lap_a_compound}\n`;
-    prompt += `- BENCHMARK / RIVAL (Lap B): ${ctx.lap_b_name} (${ctx.lap_b_time_formatted}) - Compound: ${ctx.lap_b_compound}\n`;
-    prompt += `- Total Time Delta: ${ctx.time_delta_seconds.toFixed(3)}s (Faster: ${ctx.faster_lap})\n`;
-    prompt += `- Sector Times:\n`;
-    prompt += `  * Sector 1: Your time (${ctx.lap_a_s1_formatted}) vs Benchmark (${ctx.lap_b_s1_formatted})\n`;
-    prompt += `  * Sector 2: Your time (${ctx.lap_a_s2_formatted}) vs Benchmark (${ctx.lap_b_s2_formatted})\n`;
-    prompt += `  * Sector 3: Your time (${ctx.lap_a_s3_formatted}) vs Benchmark (${ctx.lap_b_s3_formatted})\n`;
-    prompt += `- Top Speed (Speed Trap): Your speed = ${ctx.top_speed_a.toFixed(1)} km/h | Benchmark = ${ctx.top_speed_b.toFixed(1)} km/h\n`;
-    prompt += `- Cumulative ERS Deployment: Your usage = ${ctx.ers_a_used_percent.toFixed(1)}% | Benchmark = ${ctx.ers_b_used_percent.toFixed(1)}%\n`;
-
-    if (ctx.braking_summary) prompt += `- Braking Analysis: ${ctx.braking_summary}\n`;
-    if (ctx.apex_speed_summary) prompt += `- Corner Apex Speed: ${ctx.apex_speed_summary}\n`;
-    if (ctx.throttle_summary) prompt += `- Traction & Acceleration: ${ctx.throttle_summary}\n`;
-    if (ctx.ers_drs_summary) prompt += `- ERS & DRS: ${ctx.ers_drs_summary}\n`;
-
-    if (ctx.zoomed_range) {
-      prompt += `\n### ZOOMED SECTOR FOCUSED BY DRIVER (${ctx.zoomed_range.start_distance_meters}m - ${ctx.zoomed_range.end_distance_meters}m):\n`;
-      if (ctx.zoomed_range.description) prompt += `- Description: ${ctx.zoomed_range.description}\n`;
-      prompt += `- Delta in this segment: ${ctx.zoomed_range.delta_in_segment.toFixed(3)}s\n`;
-      prompt += `- Apex speed delta in corner: ${ctx.zoomed_range.speed_diff_at_apex.toFixed(1)} km/h\n`;
-    }
-  } else {
-    prompt += 'Currently, two laps are not selected in the comparator. If the user asks, kindly remind them to select Lap A and Lap B to analyze telemetry.\n';
-  }
-
-  return prompt;
-}

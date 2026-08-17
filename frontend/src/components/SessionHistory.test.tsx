@@ -1,6 +1,8 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, it, beforeEach, expect } from 'vitest';
 import { SessionHistory } from './SessionHistory';
+import { RaceEngineerProvider } from '../context/RaceEngineerContext';
+import { AiRaceEngineer } from './AiRaceEngineer';
 
 describe('SessionHistory Component', () => {
   beforeEach(() => {
@@ -320,7 +322,7 @@ describe('SessionHistory Component', () => {
     expect(screen.getByText('Speed Trap & Maximum Speeds')).toBeInTheDocument();
   });
 
-  it('opens and interacts with AI Race Engineer debrief drawer', async () => {
+  it('opens and interacts with AI Race Engineer debrief', async () => {
     const mockSessions = [
       { id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' },
     ];
@@ -338,10 +340,21 @@ describe('SessionHistory Component', () => {
       if (url === '/api/sessions/1/participants') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockParticipants) });
       if (url === '/api/sessions/1/laps') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockLaps) });
       if (url === '/api/sessions/1/setups') return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      if (url === '/api/ai/config-status') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ has_gemini_env_key: true, default_provider: 'gemini', default_model: 'gemini-flash-lite-latest' }),
+        });
+      }
       return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
     });
 
-    render(<SessionHistory />);
+    render(
+      <RaceEngineerProvider>
+        <SessionHistory />
+        <AiRaceEngineer />
+      </RaceEngineerProvider>
+    );
 
     await waitFor(() => {
       expect(screen.getAllByText('Silverstone').length).toBeGreaterThan(0);
@@ -353,13 +366,14 @@ describe('SessionHistory Component', () => {
       expect(screen.getByText(/AI Race Engineer Debrief/i)).toBeInTheDocument();
     });
 
-    // Open AI Debrief
+    // Click AI Debrief button
     fireEvent.click(screen.getByText(/AI Race Engineer Debrief/i));
 
     await waitFor(() => {
-      expect(screen.getByText(/Hello! I am your/i)).toBeInTheDocument();
-      expect(screen.getByText(/🏎️ Tyre Strategy Debrief/i)).toBeInTheDocument();
-      expect(screen.getByText(/⚡ Sector Performance Breakdown/i)).toBeInTheDocument();
+      // Floating chat is open
+      expect(screen.getByText('AI Race Engineer')).toBeInTheDocument();
+      expect(screen.getByText('Session Pace Overview')).toBeInTheDocument();
+      expect(screen.getByText('Tyre Stint Degradation')).toBeInTheDocument();
     });
   });
 

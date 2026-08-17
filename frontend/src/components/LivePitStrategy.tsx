@@ -1,5 +1,5 @@
 import React from 'react';
-import { Wrench, Clock, CircleDot, ChevronRight, User } from 'lucide-react';
+import { Wrench } from 'lucide-react';
 import { parseDriverName } from '../hooks/useTelemetry';
 import { TEAM_COLORS, TYRE_COMPOUNDS } from './LeaderboardTower';
 import type { ParticipantData, LapData, CarStatusData, SessionData } from '../hooks/useTelemetry';
@@ -25,7 +25,7 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = ({
 }) => {
   const idealLap = session?.PitStopWindowIdealLap || 18;
   const latestLap = session?.PitStopWindowLatestLap || 24;
-  const rejoinPos = session?.PitStopWindowRejoinPosition || 6;
+  const rejoinPos = session?.PitStopRejoinPosition || 6;
   const currentLeaderLap = Math.max(...laps.map((l) => l?.CurrentLapNum || 0), 1);
 
   // Check if current lap is inside the pit stop window

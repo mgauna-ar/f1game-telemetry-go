@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useTelemetry } from '../hooks/useTelemetry';
+import { useRaceEngineer } from '../context/RaceEngineerContext';
 import { SessionHeader } from './SessionHeader';
 import { LeaderboardTower } from './LeaderboardTower';
 import { RaceControlFeed } from './RaceControlFeed';
@@ -21,6 +22,44 @@ export const Dashboard: React.FC = () => {
     selectedCarIndex = 0,
     setSelectedCarIndex = () => {},
   } = useTelemetry();
+
+  const { setLiveContext, setContextMode } = useRaceEngineer();
+
+  useEffect(() => {
+    if (connected && session) {
+      const weatherDesc =
+        session.WeatherForecastSamples && session.WeatherForecastSamples.length > 0
+          ? `Forecast: ${session.WeatherForecastSamples.length} forecast updates available`
+          : `Weather code: ${session.Weather ?? 0}`;
+
+      const scStatus =
+        session.SafetyCarStatus === 1
+          ? 'Full Safety Car'
+          : session.SafetyCarStatus === 2
+          ? 'Virtual Safety Car'
+          : 'Track Clear (Green)';
+
+      const liveSummary = `LIVE PIT WALL TELEMETRY:
+- Track ID: #${session.TrackId ?? 0}
+- Session Type: #${session.SessionType ?? 0}
+- Safety Car Status: ${scStatus}
+- Track Temp: ${session.TrackTemperature || 0}°C | Air Temp: ${session.AirTemperature || 0}°C
+- ${weatherDesc}
+- Active Cars: ${participants.length} drivers
+- Player Car Index: #${playerCarIndex + 1}
+- Selected Car Focus: #${selectedCarIndex + 1}
+`;
+
+      setLiveContext({
+        trackName: `Track #${session.TrackId ?? 0}`,
+        sessionType: 'Live Race',
+        safetyCarStatus: scStatus,
+        weatherSummary: weatherDesc,
+        liveSummary,
+      });
+      setContextMode('live');
+    }
+  }, [connected, session, participants, playerCarIndex, selectedCarIndex, setLiveContext, setContextMode]);
 
   if (!connected || !session) {
     return <WaitingForData connected={connected} />;

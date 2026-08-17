@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Zap, Gauge, Award, Timer, Target } from 'lucide-react';
+import { Zap, Gauge, Target } from 'lucide-react';
 import { parseDriverName } from '../hooks/useTelemetry';
 import { TEAM_COLORS } from './LeaderboardTower';
 import type { ParticipantData, LapData } from '../hooks/useTelemetry';
@@ -15,7 +15,7 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = ({
   participants = [],
   laps = [],
   selectedCarIndex = 0,
-  playerCarIndex = 0,
+  playerCarIndex: _playerCarIndex = 0,
 }) => {
   const formatTime = (ms?: number) => {
     if (!ms || ms <= 0) return '--:--.---';

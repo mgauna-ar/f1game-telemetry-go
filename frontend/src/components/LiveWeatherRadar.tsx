@@ -33,11 +33,11 @@ export const LiveWeatherRadar: React.FC<LiveWeatherRadarProps> = ({ session }) =
   const getTempTrendIcon = (trend?: number) => {
     if (trend === 0 || trend === 1) {
       // 0 = up
-      if (trend === 0) return <TrendingUp size={12} color="#ff6b6b" title="Rising" />;
+      if (trend === 0) return <span title="Rising"><TrendingUp size={12} color="#ff6b6b" /></span>;
       // 1 = down
-      if (trend === 1) return <TrendingDown size={12} color="#33ccff" title="Falling" />;
+      if (trend === 1) return <span title="Falling"><TrendingDown size={12} color="#33ccff" /></span>;
     }
-    return <Minus size={12} color="var(--text-muted)" title="Stable" />;
+    return <span title="Stable"><Minus size={12} color="var(--text-muted)" /></span>;
   };
 
   // Build forecast list

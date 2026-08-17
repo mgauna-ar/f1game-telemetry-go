@@ -39,8 +39,36 @@ func TestBuildSystemPrompt(t *testing.T) {
 		if !strings.Contains(prompt, "Race Engineer") {
 			t.Errorf("expected prompt to contain role definition")
 		}
-		if !strings.Contains(prompt, "two laps are not selected") {
-			t.Errorf("expected prompt to mention no laps selected")
+		if !strings.Contains(prompt, "specific telemetry data is not active") {
+			t.Errorf("expected prompt to mention no specific telemetry active")
+		}
+	})
+
+	t.Run("session debrief mode", func(t *testing.T) {
+		ctx := &TelemetryAnalysisContext{
+			ContextMode:    "session_debrief",
+			SessionSummary: "SESSION OVERVIEW:\n- Circuit: Silverstone\n- Session Type: Race\n- P1: Verstappen (Best: 1:28.120)",
+		}
+		prompt := buildSystemPrompt(ctx)
+		if !strings.Contains(prompt, "session debrief") {
+			t.Errorf("expected prompt to be session debrief prompt")
+		}
+		if !strings.Contains(prompt, "Circuit: Silverstone") {
+			t.Errorf("expected session summary to be included in prompt")
+		}
+	})
+
+	t.Run("live session mode", func(t *testing.T) {
+		ctx := &TelemetryAnalysisContext{
+			ContextMode: "live",
+			LiveSummary: "LIVE STATUS:\n- Track: Monza\n- Safety Car: Active\n- Rain: 85% in 5 min",
+		}
+		prompt := buildSystemPrompt(ctx)
+		if !strings.Contains(prompt, "active F1 Race Engineer on the pit wall") {
+			t.Errorf("expected prompt to be live pit wall prompt")
+		}
+		if !strings.Contains(prompt, "Safety Car: Active") {
+			t.Errorf("expected live summary to be included in prompt")
 		}
 	})
 
