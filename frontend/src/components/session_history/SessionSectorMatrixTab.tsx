@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Zap, Gauge, Award, Layers } from 'lucide-react';
-import { TEAM_COLORS } from '../LeaderboardTower';
-import type { DriverStanding } from './SessionClassificationTab';
+import { TEAM_COLORS } from '../../constants/f1';
+import type { DriverStanding } from '../../types/session';
 
 interface SessionSectorMatrixTabProps {
   driverStandings: DriverStanding[];

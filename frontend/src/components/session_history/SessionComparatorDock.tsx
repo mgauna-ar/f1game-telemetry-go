@@ -1,18 +1,9 @@
 import React from 'react';
 import { GitCompare, ArrowLeftRight, X, ChevronRight, Zap } from 'lucide-react';
-import { TEAM_COLORS } from '../LeaderboardTower';
+import { TEAM_COLORS } from '../../constants/f1';
+import type { StagedLap } from '../../types/session';
 
-export interface StagedLap {
-  sessionId: number;
-  sessionName: string;
-  lapId: number;
-  lapNumber: number;
-  lapTimeMS: number;
-  driverName: string;
-  teamId: number;
-  raceNumber: number;
-  tyreCompound?: string;
-}
+export type { StagedLap };
 
 interface SessionComparatorDockProps {
   stagedA: StagedLap | null;

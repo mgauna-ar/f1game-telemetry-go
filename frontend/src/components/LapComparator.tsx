@@ -2,35 +2,16 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   X,
   Gauge,
-  Award,
-  ArrowUpRight,
-  ArrowDownRight,
   MapPin,
   Timer,
   ArrowLeftRight,
   Zap,
-  RotateCcw,
-  ZoomIn,
-  Search,
-  ChevronDown,
-  ChevronUp,
-  Check,
   Link,
   Unlink,
   Sparkles,
 } from 'lucide-react';
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  ReferenceLine,
-} from 'recharts';
 
+import type { Session, Participant, Lap, NavigationComparatorPayload } from '../types/session';
 import { lttbDownsample } from '../utils/downsample';
 import type { TelemetrySamplePoint } from '../utils/downsample';
 import { calculateMergedComparison } from '../utils/deltaCalculation';
@@ -39,108 +20,18 @@ import { buildTelemetryContext } from '../utils/aiTelemetrySummary';
 import { detectTrackTurns, getTurnContextAtDistance } from '../utils/trackTurns';
 import { ComparatorTrackMap } from './ComparatorTrackMap';
 import { useRaceEngineer } from '../context/RaceEngineerContext';
-import { CustomLapSelector, renderTyreCompoundBadge } from './CustomLapSelector';
-import type { Lap, Participant } from './CustomLapSelector';
+import { ERS_MODE_NAMES } from '../constants/f1';
+import { formatTime, getRankBadgeStyle, getSessionBadgeClass } from '../utils/formatters';
 
-interface Session {
-  id: number;
-  session_uid: string;
-  track_name: string;
-  session_type: string;
-  weather?: string;
-  created_at: string;
-}
+import { SlotCard } from './lap_comparator/SlotCard';
+import { QuickSelectLeaderboard } from './lap_comparator/QuickSelectLeaderboard';
+import { ComparatorMetricsSummary } from './lap_comparator/ComparatorMetricsSummary';
+import { ComparatorTelemetryCharts } from './lap_comparator/ComparatorTelemetryCharts';
 
-export const getRankBadgeStyle = (rank: number) => {
-  if (rank === 1) {
-    return {
-      bg: 'rgba(255, 215, 0, 0.18)',
-      color: '#ffd700',
-      border: '1px solid rgba(255, 215, 0, 0.5)',
-      label: 'P1',
-    };
-  }
-  if (rank === 2) {
-    return {
-      bg: 'rgba(224, 224, 224, 0.18)',
-      color: '#e0e0e0',
-      border: '1px solid rgba(224, 224, 224, 0.45)',
-      label: 'P2',
-    };
-  }
-  if (rank === 3) {
-    return {
-      bg: 'rgba(205, 127, 50, 0.2)',
-      color: '#cd7f32',
-      border: '1px solid rgba(205, 127, 50, 0.45)',
-      label: 'P3',
-    };
-  }
-  return {
-    bg: 'rgba(255, 255, 255, 0.07)',
-    color: 'var(--text-secondary)',
-    border: '1px solid rgba(255, 255, 255, 0.12)',
-    label: `P${rank}`,
-  };
-};
-
-export const getSessionBadgeClass = (typeStr?: string) => {
-  if (!typeStr) return 'badge-gray';
-  const lower = typeStr.toLowerCase();
-  if (lower.includes('sprint')) return 'badge-orange';
-  if (lower.includes('race')) return 'badge-red';
-  if (lower.includes('qual') || lower.includes('q1') || lower.includes('q2') || lower.includes('q3')) return 'badge-purple';
-  if (lower.includes('practice') || lower.includes('fp')) return 'badge-green';
-  return 'badge-gray';
-};
-
-const ERS_MODE_NAMES: Record<number, string> = {
-  0: 'Off',
-  1: 'Medium',
-  2: 'Hotlap',
-  3: 'Overtake',
-};
-
-const compactTooltipProps = {
-  contentStyle: {
-    backgroundColor: 'rgba(10, 14, 23, 0.65)',
-    backdropFilter: 'blur(8px)',
-    WebkitBackdropFilter: 'blur(8px)',
-    border: '1px solid rgba(255, 255, 255, 0.15)',
-    borderRadius: '6px',
-    padding: '4px 8px',
-    fontSize: '0.72rem',
-    lineHeight: '1.2',
-    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.45)',
-  },
-  itemStyle: {
-    padding: '1px 0',
-    fontSize: '0.70rem',
-    margin: 0,
-  },
-  labelStyle: {
-    color: '#cbd5e1',
-    fontSize: '0.68rem',
-    marginBottom: '2px',
-    fontWeight: 600,
-  },
-  wrapperStyle: {
-    zIndex: 100,
-    pointerEvents: 'none' as const,
-  },
-  labelFormatter: (label: any) => `${Math.round(Number(label))}m`,
-};
+export { getRankBadgeStyle, getSessionBadgeClass };
 
 export interface LapComparatorProps {
-  initialPreload?: {
-    sessionId?: number;
-    lapId?: number;
-    slot?: 'A' | 'B';
-    sessionAId?: number;
-    lapAId?: number;
-    sessionBId?: number;
-    lapBId?: number;
-  } | null;
+  initialPreload?: NavigationComparatorPayload | null;
 }
 
 export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) => {
@@ -150,47 +41,50 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
   // Dual session IDs & Synchronization link
   const [sessionAId, setSessionAId] = useState<number | ''>(() => {
     if (initialPreload?.sessionAId) return initialPreload.sessionAId;
-    if (initialPreload && initialPreload.slot === 'A' && initialPreload.sessionId) return initialPreload.sessionId;
+    if (initialPreload?.sessionId && (!initialPreload?.slot || initialPreload?.slot === 'A')) return initialPreload.sessionId;
     return '';
   });
+
   const [sessionBId, setSessionBId] = useState<number | ''>(() => {
     if (initialPreload?.sessionBId) return initialPreload.sessionBId;
-    if (initialPreload && initialPreload.slot === 'B' && initialPreload.sessionId) return initialPreload.sessionId;
+    if (initialPreload?.sessionId && initialPreload?.slot === 'B') return initialPreload.sessionId;
+    if (initialPreload?.sessionAId) return initialPreload.sessionAId;
+    if (initialPreload?.sessionId) return initialPreload.sessionId;
     return '';
   });
+
   const [isLinkedSessions, setIsLinkedSessions] = useState(true);
 
-  // Session A Dropdown state
+  // Dropdown UI states
   const [isSessionADropdownOpen, setIsSessionADropdownOpen] = useState(false);
   const [sessionASearchQuery, setSessionASearchQuery] = useState('');
   const [sessionATypeTab, setSessionATypeTab] = useState<'ALL' | 'RACE' | 'SPRINT' | 'QUALI' | 'PRACTICE'>('ALL');
   const sessionADropdownRef = useRef<HTMLDivElement>(null);
 
-  // Session B Dropdown state
   const [isSessionBDropdownOpen, setIsSessionBDropdownOpen] = useState(false);
   const [sessionBSearchQuery, setSessionBSearchQuery] = useState('');
   const [sessionBTypeTab, setSessionBTypeTab] = useState<'ALL' | 'RACE' | 'SPRINT' | 'QUALI' | 'PRACTICE'>('ALL');
   const sessionBDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Session A Data
+  // Slot A Data
   const [lapsA, setLapsA] = useState<Lap[]>([]);
   const [participantsA, setParticipantsA] = useState<Participant[]>([]);
   const [lapAId, setLapAId] = useState<number | ''>('');
   const [rawTelemetryA, setRawTelemetryA] = useState<TelemetrySamplePoint[]>([]);
   const [loadingA, setLoadingA] = useState(false);
 
-  // Session B Data
+  // Slot B Data
   const [lapsB, setLapsB] = useState<Lap[]>([]);
   const [participantsB, setParticipantsB] = useState<Participant[]>([]);
   const [lapBId, setLapBId] = useState<number | ''>('');
   const [rawTelemetryB, setRawTelemetryB] = useState<TelemetrySamplePoint[]>([]);
   const [loadingB, setLoadingB] = useState(false);
 
-  // Chart Inspection & Zoom
+  // Inspection & Zoom state
   const [hoverDistance, setHoverDistance] = useState<number | null>(null);
   const [zoomDomain, setZoomDomain] = useState<[number, number] | null>(null);
 
-  // Quick Select Leaderboard state with localStorage persistence
+  // Quick Select Leaderboard State
   const [isQuickSelectOpen, setIsQuickSelectOpen] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem('f1_comparator_quick_select_open');
@@ -206,15 +100,15 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
     try {
       localStorage.setItem('f1_comparator_quick_select_open', String(isQuickSelectOpen));
     } catch {
-      // Ignore localStorage errors
+      // ignore localStorage write errors
     }
   }, [isQuickSelectOpen]);
 
-  // Initial Fetch Sessions
+  // Fetch available sessions
   const fetchSessions = useCallback(() => {
     fetch('/api/sessions')
       .then((res) => res.json())
-      .then((data: Session[]) => {
+      .then((data) => {
         const sessionList = data || [];
         setSessions(sessionList);
       })
@@ -225,162 +119,112 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
     fetchSessions();
   }, [fetchSessions]);
 
-  // Handle Session A Selection Change
+  // Handle Session A Selection
   const handleSelectSessionA = (sessionId: number) => {
     setSessionAId(sessionId);
+    setLapAId('');
     setIsSessionADropdownOpen(false);
     if (isLinkedSessions) {
       setSessionBId(sessionId);
+      setLapBId('');
     } else {
-      // If unlinked, verify if current sessionB is on the same track. If not, reset sessionB to new sessionA
       const newSessionA = sessions.find((s) => s.id === sessionId);
       const currentSessionB = sessions.find((s) => s.id === sessionBId);
       if (newSessionA && currentSessionB && newSessionA.track_name.toLowerCase() !== currentSessionB.track_name.toLowerCase()) {
         setSessionBId(sessionId);
+        setLapBId('');
       }
     }
   };
 
-  // Handle Session B Selection Change
+  // Handle Session B Selection
   const handleSelectSessionB = (sessionId: number) => {
     setSessionBId(sessionId);
+    setLapBId('');
     setIsSessionBDropdownOpen(false);
-    if (sessionId !== sessionAId && isLinkedSessions) {
+    if (isLinkedSessions && sessionId !== sessionAId) {
       setIsLinkedSessions(false);
     }
   };
 
-  // Toggle Session Link / Same-Session mode
+  // Toggle Linked Sessions
   const toggleSessionLink = () => {
     if (!isLinkedSessions) {
-      // Re-link: sync session B to session A
       setIsLinkedSessions(true);
-      if (sessionAId) {
-        setSessionBId(sessionAId);
-      }
+      setSessionBId(sessionAId);
+      setLapBId('');
     } else {
-      // Unlink: allow separate session B
       setIsLinkedSessions(false);
     }
   };
 
-  // Handle external preload updates (e.g. from Session History)
+  // Load Session A details (participants, laps)
   useEffect(() => {
-    if (!initialPreload) return;
-
-    if (initialPreload.sessionAId || initialPreload.lapAId || initialPreload.sessionBId || initialPreload.lapBId) {
-      if (initialPreload.sessionAId) {
-        setSessionAId(initialPreload.sessionAId);
-      }
-      if (initialPreload.lapAId) {
-        setLapAId(initialPreload.lapAId);
-      }
-      if (initialPreload.sessionBId) {
-        setSessionBId(initialPreload.sessionBId);
-        if (initialPreload.sessionAId && initialPreload.sessionBId !== initialPreload.sessionAId) {
-          setIsLinkedSessions(false);
-        } else if (initialPreload.sessionAId && initialPreload.sessionBId === initialPreload.sessionAId) {
-          setIsLinkedSessions(true);
-        }
-      }
-      if (initialPreload.lapBId) {
-        setLapBId(initialPreload.lapBId);
-      }
-      return;
-    }
-
-    if (initialPreload.slot === 'A' && initialPreload.sessionId && initialPreload.lapId) {
-      setSessionAId(initialPreload.sessionId);
-      setLapAId(initialPreload.lapId);
-      if (isLinkedSessions) {
-        setSessionBId(initialPreload.sessionId);
-      }
-    } else if (initialPreload.slot === 'B' && initialPreload.sessionId && initialPreload.lapId) {
-      setIsLinkedSessions(false);
-      setSessionBId(initialPreload.sessionId);
-      setLapBId(initialPreload.lapId);
-    }
-  }, [initialPreload]);
-
-  // Fetch Session A data
-  useEffect(() => {
-    setZoomDomain(null);
-
-    if (sessionAId) {
-      fetch(`/api/sessions/${sessionAId}/laps`)
-        .then((res) => res.json())
-        .then((data: Lap[]) => {
-          const list = data || [];
-          setLapsA(list);
-          // Auto-select fastest valid lap for Lap A unless preloaded
-          if (list.length > 0) {
-            const preloadedLapAId = initialPreload?.lapAId || (initialPreload?.slot === 'A' ? initialPreload?.lapId : undefined);
-            if (preloadedLapAId && list.some((l) => l.id === preloadedLapAId)) {
-              setLapAId(preloadedLapAId);
-            } else {
-              const valid = list.filter((l) => l.is_valid && l.lap_time_ms > 0).sort((a, b) => a.lap_time_ms - b.lap_time_ms);
-              const best = valid.length > 0 ? valid[0] : list[0];
-              setLapAId(best.id);
-            }
-          }
-        })
-        .catch((err) => console.error('Failed to fetch laps A', err));
-
+    if (sessionAId !== '') {
       fetch(`/api/sessions/${sessionAId}/participants`)
         .then((res) => res.json())
         .then((data) => setParticipantsA(data || []))
         .catch((err) => console.error('Failed to fetch participants A', err));
-    } else {
-      setLapAId('');
-      setRawTelemetryA([]);
-      setLapsA([]);
-      setParticipantsA([]);
-    }
-  }, [sessionAId]);
 
-  // Fetch Session B data
-  useEffect(() => {
-    if (sessionBId) {
-      fetch(`/api/sessions/${sessionBId}/laps`)
+      fetch(`/api/sessions/${sessionAId}/laps`)
         .then((res) => res.json())
-        .then((data: Lap[]) => {
-          const list = data || [];
-          setLapsB(list);
+        .then((data) => {
+          const list: Lap[] = data || [];
+          setLapsA(list);
 
-          // Auto-select lap for Slot B unless preloaded
-          if (list.length > 0) {
-            const preloadedLapBId = initialPreload?.lapBId || (initialPreload?.slot === 'B' ? initialPreload?.lapId : undefined);
-            if (preloadedLapBId && list.some((l) => l.id === preloadedLapBId)) {
-              setLapBId(preloadedLapBId);
-            } else {
-              const valid = list.filter((l) => l.is_valid && l.lap_time_ms > 0).sort((a, b) => a.lap_time_ms - b.lap_time_ms);
-              if (isLinkedSessions && valid.length > 1) {
-                setLapBId(valid[1].id);
-              } else {
-                const best = valid.length > 0 ? valid[0] : list[0];
-                setLapBId(best.id);
-              }
-            }
+          const preloadedLapAId = initialPreload?.lapAId || (initialPreload?.slot === 'A' ? initialPreload?.lapId : undefined);
+          if (preloadedLapAId && list.some((l) => l.id === preloadedLapAId)) {
+            setLapAId(preloadedLapAId);
+          } else if (list.length > 0) {
+            const valid = list.filter((l) => l.is_valid && l.lap_time_ms > 0).sort((a, b) => a.lap_time_ms - b.lap_time_ms);
+            const best = valid.length > 0 ? valid[0] : list[0];
+            setLapAId(best.id);
+          } else {
+            setLapAId('');
           }
         })
-        .catch((err) => console.error('Failed to fetch laps B', err));
+        .catch((err) => console.error('Failed to fetch laps A', err));
+    }
+  }, [sessionAId, initialPreload]);
 
+  // Load Session B details (participants, laps)
+  useEffect(() => {
+    if (sessionBId !== '') {
       fetch(`/api/sessions/${sessionBId}/participants`)
         .then((res) => res.json())
         .then((data) => setParticipantsB(data || []))
         .catch((err) => console.error('Failed to fetch participants B', err));
-    } else {
-      setLapBId('');
-      setRawTelemetryB([]);
-      setLapsB([]);
-      setParticipantsB([]);
-    }
-  }, [sessionBId]);
 
-  // Fetch Lap A telemetry with server-side LTTB downsampling parameter maxPoints=800
+      fetch(`/api/sessions/${sessionBId}/laps`)
+        .then((res) => res.json())
+        .then((data) => {
+          const list: Lap[] = data || [];
+          setLapsB(list);
+
+          const preloadedLapBId = initialPreload?.lapBId || (initialPreload?.slot === 'B' ? initialPreload?.lapId : undefined);
+          if (preloadedLapBId && list.some((l) => l.id === preloadedLapBId)) {
+            setLapBId(preloadedLapBId);
+          } else if (list.length > 0) {
+            const valid = list.filter((l) => l.is_valid && l.lap_time_ms > 0).sort((a, b) => a.lap_time_ms - b.lap_time_ms);
+            if (valid.length > 1 && sessionAId === sessionBId) {
+              setLapBId(valid[1].id);
+            } else if (valid.length > 0) {
+              const best = valid.length > 0 ? valid[0] : list[0];
+              setLapBId(best.id);
+            } else {
+              setLapBId(list[0].id);
+            }
+          } else {
+            setLapBId('');
+          }
+        })
+        .catch((err) => console.error('Failed to fetch laps B', err));
+    }
+  }, [sessionBId, sessionAId, initialPreload]);
+
+  // Load Lap A Telemetry (Server-side LTTB downsampled with ?maxPoints=800)
   useEffect(() => {
-    setRawTelemetryA([]);
-    if (lapAId) {
+    if (lapAId !== '') {
       setLoadingA(true);
       fetch(`/api/laps/${lapAId}/telemetry?maxPoints=800`)
         .then((res) => res.json())
@@ -393,10 +237,9 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
     }
   }, [lapAId]);
 
-  // Fetch Lap B telemetry with server-side LTTB downsampling parameter maxPoints=800
+  // Load Lap B Telemetry (Server-side LTTB downsampled with ?maxPoints=800)
   useEffect(() => {
-    setRawTelemetryB([]);
-    if (lapBId) {
+    if (lapBId !== '') {
       setLoadingB(true);
       fetch(`/api/laps/${lapBId}/telemetry?maxPoints=800`)
         .then((res) => res.json())
@@ -437,7 +280,6 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
   // Filtered Sessions for Dropdown B (Strictly restricted to same circuit as Session A)
   const filteredDropdownSessionsB = useMemo(() => {
     return sessions.filter((s) => {
-      // Circuit strict restriction
       if (selectedSessionAObj && s.track_name.toLowerCase() !== selectedSessionAObj.track_name.toLowerCase()) {
         return false;
       }
@@ -551,7 +393,6 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
       }
     }
 
-    // Fallback and bounds validation
     const s1 = calculatedS1 !== null && calculatedS1 > 0 && calculatedS1 < maxDist ? calculatedS1 : Math.round((maxDist / 3) * 10) / 10;
     const s2 = calculatedS2 !== null && calculatedS2 > s1 && calculatedS2 < maxDist ? calculatedS2 : Math.round(((maxDist * 2) / 3) * 10) / 10;
 
@@ -667,17 +508,14 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
       }
     }
 
-    // Sort by bestLap lap_time_ms ascending (drivers without valid laps at the end)
     const sorted = [...candidateList].sort((a, b) => {
       const timeA = a.bestLap && a.bestLap.lap_time_ms > 0 ? a.bestLap.lap_time_ms : Infinity;
       const timeB = b.bestLap && b.bestLap.lap_time_ms > 0 ? b.bestLap.lap_time_ms : Infinity;
       return timeA - timeB;
     });
 
-    // Leader lap time
     const leaderLapTimeMs = sorted.find((d) => d.bestLap && d.bestLap.lap_time_ms > 0)?.bestLap?.lap_time_ms ?? null;
 
-    // Filter by search query
     const q = driverSearchQuery.trim().toLowerCase();
     const filtered = q
       ? sorted.filter(
@@ -799,6 +637,33 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
               </div>
             )}
 
+            {/* Session Link / Unlink Toggle Button */}
+            {sessions.length > 1 && (
+              <button
+                type="button"
+                onClick={toggleSessionLink}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  padding: '0.35rem 0.75rem',
+                  borderRadius: '20px',
+                  background: isLinkedSessions ? 'rgba(51, 255, 204, 0.12)' : 'rgba(255, 165, 2, 0.15)',
+                  border: `1px solid ${isLinkedSessions ? 'rgba(51, 255, 204, 0.4)' : 'rgba(255, 165, 2, 0.5)'}`,
+                  color: isLinkedSessions ? 'var(--accent-primary)' : '#ffa502',
+                  fontSize: '0.82rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                title={isLinkedSessions ? 'Sessions linked to same event. Click to compare cross-sessions.' : 'Cross-session comparison active. Click to link sessions.'}
+                data-testid="session-sync-toggle"
+              >
+                {isLinkedSessions ? <Link size={14} /> : <Unlink size={14} />}
+                <span>{isLinkedSessions ? 'Linked' : 'Cross-Session'}</span>
+              </button>
+            )}
+
             {lapAObj && lapBObj && totalDeltaMs !== null && (
               <div
                 style={{
@@ -903,323 +768,53 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
 
         {/* SIDE-BY-SIDE COMPARISON SLOTS CONTAINER */}
         <div className="comparator-slots-container">
-          {/* SLOT A CARD (Red Solid) */}
-          <div className="comparator-slot-card slot-a">
-            <div className="slot-card-header">
-              <span style={{ color: '#ff4757', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <span style={{ fontSize: '1rem' }}>●</span> Slot A (Baseline)
-              </span>
-              {driverA && (
-                <span
-                  title={`#${driverA.race_number} ${driverA.name}`}
-                  style={{
-                    fontSize: '0.75rem',
-                    color: '#ff4757',
-                    fontWeight: 600,
-                    textTransform: 'none',
-                    maxWidth: '160px',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  #{driverA.race_number} {driverA.name}
-                </span>
-              )}
-            </div>
+          {/* SLOT A CARD */}
+          <SlotCard
+            slot="A"
+            title="Slot A (Baseline)"
+            accentColor="#ff4757"
+            driver={driverA}
+            sessions={sessions}
+            filteredSessions={filteredDropdownSessionsA}
+            selectedSession={selectedSessionAObj}
+            isSessionDropdownOpen={isSessionADropdownOpen}
+            onToggleSessionDropdown={() => setIsSessionADropdownOpen((prev) => !prev)}
+            dropdownRef={sessionADropdownRef}
+            sessionSearchQuery={sessionASearchQuery}
+            onSessionSearchChange={setSessionASearchQuery}
+            sessionTypeTab={sessionATypeTab}
+            onSessionTypeTabChange={setSessionATypeTab}
+            onSelectSession={handleSelectSessionA}
+            laps={lapsA}
+            participants={participantsA}
+            selectedLapId={lapAId}
+            onSelectLap={(id) => setLapAId(id)}
+          />
 
-            {/* Session A Selector */}
-            <div
-              ref={sessionADropdownRef}
-              className={`custom-session-dropdown ${isSessionADropdownOpen ? 'is-open' : ''}`}
-              style={{ position: 'relative', zIndex: isSessionADropdownOpen ? 100 : 1 }}
-            >
-              <button
-                type="button"
-                className={`custom-session-trigger ${isSessionADropdownOpen ? 'is-open' : ''}`}
-                onClick={() => setIsSessionADropdownOpen((prev) => !prev)}
-                aria-expanded={isSessionADropdownOpen}
-                aria-haspopup="listbox"
-                data-testid="session-selector-trigger"
-              >
-                {selectedSessionAObj ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <MapPin size={14} color="#ff4757" style={{ flexShrink: 0 }} />
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedSessionAObj.track_name}</span>
-                    <span className={`session-badge ${getSessionBadgeClass(selectedSessionAObj.session_type)}`} style={{ fontSize: '0.65rem', padding: '1px 6px', flexShrink: 0 }}>
-                      {selectedSessionAObj.session_type}
-                    </span>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', flexShrink: 0 }}>
-                      ({new Date(selectedSessionAObj.created_at).toLocaleDateString()})
-                    </span>
-                  </div>
-                ) : (
-                  <span style={{ color: 'var(--text-muted)' }}>Select Session A...</span>
-                )}
-                {isSessionADropdownOpen ? (
-                  <ChevronUp size={15} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
-                ) : (
-                  <ChevronDown size={15} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
-                )}
-              </button>
-
-              {/* Popover A */}
-              {isSessionADropdownOpen && (
-                <div className="custom-session-popover" role="listbox">
-                  <div className="custom-session-search-wrapper">
-                    <Search size={14} className="custom-session-search-icon" />
-                    <input
-                      type="text"
-                      className="custom-session-search-input"
-                      placeholder="Search track, type, date..."
-                      value={sessionASearchQuery}
-                      onChange={(e) => setSessionASearchQuery(e.target.value)}
-                      autoFocus
-                    />
-                    {sessionASearchQuery && (
-                      <button
-                        type="button"
-                        className="custom-session-clear-btn"
-                        onClick={() => setSessionASearchQuery('')}
-                        title="Clear search"
-                      >
-                        <X size={12} />
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="custom-session-filter-tabs">
-                    {(['ALL', 'RACE', 'SPRINT', 'QUALI', 'PRACTICE'] as const).map((tab) => (
-                      <button
-                        key={tab}
-                        type="button"
-                        className={`custom-session-filter-tab ${sessionATypeTab === tab ? 'active' : ''}`}
-                        onClick={() => setSessionATypeTab(tab)}
-                      >
-                        {tab === 'ALL' ? 'All' : tab.charAt(0) + tab.slice(1).toLowerCase()}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="custom-session-list">
-                    {filteredDropdownSessionsA.length > 0 ? (
-                      filteredDropdownSessionsA.map((s) => {
-                        const isSelected = s.id === sessionAId;
-                        return (
-                          <div
-                            key={s.id}
-                            className={`custom-session-item ${isSelected ? 'selected' : ''}`}
-                            onClick={() => handleSelectSessionA(s.id)}
-                            role="option"
-                            aria-selected={isSelected}
-                          >
-                            <div className="custom-session-item-main">
-                              <div className="custom-session-item-title">
-                                <MapPin size={13} color="#ff4757" />
-                                <span>{s.track_name}</span>
-                                <span className={`session-badge ${getSessionBadgeClass(s.session_type)}`} style={{ fontSize: '0.62rem', padding: '1px 5px' }}>
-                                  {s.session_type}
-                                </span>
-                              </div>
-                              <div className="custom-session-item-meta">
-                                <span>{new Date(s.created_at).toLocaleDateString()} {new Date(s.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                {s.weather && <span>• {s.weather}</span>}
-                              </div>
-                            </div>
-                            {isSelected && <Check size={14} color="#ff4757" style={{ flexShrink: 0 }} />}
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <div style={{ textAlign: 'center', padding: '1rem 0.5rem', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
-                        No sessions match your filter.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Custom Lap Selector for Lap A */}
-            <CustomLapSelector
-              laps={lapsA}
-              participants={participantsA}
-              selectedLapId={lapAId}
-              onSelectLap={(id) => setLapAId(id)}
-              slot="A"
-              disabled={!sessionAId}
-              placeholder="Select Lap A..."
-            />
-          </div>
-
-          {/* CENTER LINK / SYNC BUTTON */}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-            <button
-              type="button"
-              className={`slot-session-sync-btn ${isLinkedSessions ? 'is-linked' : 'is-unlinked'}`}
-              onClick={toggleSessionLink}
-              title={isLinkedSessions ? 'Sessions linked to same session. Click to unlock Cross-Session comparison.' : 'Cross-session mode active. Click to lock sessions to same session.'}
-              data-testid="session-sync-toggle"
-            >
-              {isLinkedSessions ? <Link size={16} /> : <Unlink size={16} />}
-              <span>{isLinkedSessions ? 'Linked' : 'Cross-Session'}</span>
-            </button>
-          </div>
-
-          {/* SLOT B CARD (Cyan Dashed) */}
-          <div className="comparator-slot-card slot-b">
-            <div className="slot-card-header">
-              <span style={{ color: '#00d2d3', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <span style={{ fontSize: '1rem' }}>●</span> Slot B (Comparison)
-              </span>
-              {driverB && (
-                <span
-                  title={`#${driverB.race_number} ${driverB.name}`}
-                  style={{
-                    fontSize: '0.75rem',
-                    color: '#00d2d3',
-                    fontWeight: 600,
-                    textTransform: 'none',
-                    maxWidth: '160px',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  #{driverB.race_number} {driverB.name}
-                </span>
-              )}
-            </div>
-
-            {/* Session B Selector */}
-            <div
-              ref={sessionBDropdownRef}
-              className={`custom-session-dropdown ${isSessionBDropdownOpen ? 'is-open' : ''}`}
-              style={{ position: 'relative', zIndex: isSessionBDropdownOpen ? 100 : 1 }}
-            >
-              <button
-                type="button"
-                className={`custom-session-trigger ${isSessionBDropdownOpen ? 'is-open' : ''}`}
-                onClick={() => setIsSessionBDropdownOpen((prev) => !prev)}
-                aria-expanded={isSessionBDropdownOpen}
-                aria-haspopup="listbox"
-                data-testid="session-b-selector-trigger"
-              >
-                {selectedSessionBObj ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <MapPin size={14} color="#00d2d3" style={{ flexShrink: 0 }} />
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedSessionBObj.track_name}</span>
-                    <span className={`session-badge ${getSessionBadgeClass(selectedSessionBObj.session_type)}`} style={{ fontSize: '0.65rem', padding: '1px 6px', flexShrink: 0 }}>
-                      {selectedSessionBObj.session_type}
-                    </span>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', flexShrink: 0 }}>
-                      ({new Date(selectedSessionBObj.created_at).toLocaleDateString()})
-                    </span>
-                  </div>
-                ) : (
-                  <span style={{ color: 'var(--text-muted)' }}>Select Session B...</span>
-                )}
-                {isSessionBDropdownOpen ? (
-                  <ChevronUp size={15} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
-                ) : (
-                  <ChevronDown size={15} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
-                )}
-              </button>
-
-              {/* Popover B */}
-              {isSessionBDropdownOpen && (
-                <div className="custom-session-popover" role="listbox">
-                  {selectedSessionAObj && (
-                    <div style={{ padding: '0.35rem 0.6rem', background: 'rgba(0, 210, 211, 0.1)', borderBottom: '1px solid rgba(0, 210, 211, 0.2)', fontSize: '0.7rem', color: '#00d2d3', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <MapPin size={11} /> Filtered to {selectedSessionAObj.track_name}
-                    </div>
-                  )}
-
-                  <div className="custom-session-search-wrapper">
-                    <Search size={14} className="custom-session-search-icon" />
-                    <input
-                      type="text"
-                      className="custom-session-search-input"
-                      placeholder="Search session type, date..."
-                      value={sessionBSearchQuery}
-                      onChange={(e) => setSessionBSearchQuery(e.target.value)}
-                      autoFocus
-                    />
-                    {sessionBSearchQuery && (
-                      <button
-                        type="button"
-                        className="custom-session-clear-btn"
-                        onClick={() => setSessionBSearchQuery('')}
-                        title="Clear search"
-                      >
-                        <X size={12} />
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="custom-session-filter-tabs">
-                    {(['ALL', 'RACE', 'SPRINT', 'QUALI', 'PRACTICE'] as const).map((tab) => (
-                      <button
-                        key={tab}
-                        type="button"
-                        className={`custom-session-filter-tab ${sessionBTypeTab === tab ? 'active' : ''}`}
-                        onClick={() => setSessionBTypeTab(tab)}
-                      >
-                        {tab === 'ALL' ? 'All' : tab.charAt(0) + tab.slice(1).toLowerCase()}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="custom-session-list">
-                    {filteredDropdownSessionsB.length > 0 ? (
-                      filteredDropdownSessionsB.map((s) => {
-                        const isSelected = s.id === sessionBId;
-                        return (
-                          <div
-                            key={s.id}
-                            className={`custom-session-item ${isSelected ? 'selected' : ''}`}
-                            onClick={() => handleSelectSessionB(s.id)}
-                            role="option"
-                            aria-selected={isSelected}
-                          >
-                            <div className="custom-session-item-main">
-                              <div className="custom-session-item-title">
-                                <MapPin size={13} color="#00d2d3" />
-                                <span>{s.track_name}</span>
-                                <span className={`session-badge ${getSessionBadgeClass(s.session_type)}`} style={{ fontSize: '0.62rem', padding: '1px 5px' }}>
-                                  {s.session_type}
-                                </span>
-                              </div>
-                              <div className="custom-session-item-meta">
-                                <span>{new Date(s.created_at).toLocaleDateString()} {new Date(s.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                {s.weather && <span>• {s.weather}</span>}
-                              </div>
-                            </div>
-                            {isSelected && <Check size={14} color="#00d2d3" style={{ flexShrink: 0 }} />}
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <div style={{ textAlign: 'center', padding: '1rem 0.5rem', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
-                        No matching sessions for this track.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Custom Lap Selector for Lap B */}
-            <CustomLapSelector
-              laps={lapsB}
-              participants={participantsB}
-              selectedLapId={lapBId}
-              onSelectLap={(id) => setLapBId(id)}
-              slot="B"
-              disabled={!sessionBId}
-              placeholder="Select Lap B..."
-            />
-          </div>
+          {/* SLOT B CARD */}
+          <SlotCard
+            slot="B"
+            title="Slot B (Comparison)"
+            accentColor="#00d2d3"
+            driver={driverB}
+            sessions={sessions}
+            filteredSessions={filteredDropdownSessionsB}
+            selectedSession={selectedSessionBObj}
+            isSessionDropdownOpen={isSessionBDropdownOpen}
+            onToggleSessionDropdown={() => setIsSessionBDropdownOpen((prev) => !prev)}
+            dropdownRef={sessionBDropdownRef}
+            sessionSearchQuery={sessionBSearchQuery}
+            onSessionSearchChange={setSessionBSearchQuery}
+            sessionTypeTab={sessionBTypeTab}
+            onSessionTypeTabChange={setSessionBTypeTab}
+            onSelectSession={handleSelectSessionB}
+            laps={lapsB}
+            participants={participantsB}
+            selectedLapId={lapBId}
+            onSelectLap={(id) => setLapBId(id)}
+            isRestrictedCircuit={!isLinkedSessions}
+            restrictedTrackName={selectedSessionAObj?.track_name}
+          />
         </div>
 
         {/* Bottom Detailed Telemetry Summary & Sector Deltas Bar */}
@@ -1308,488 +903,25 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
 
       {/* Enhanced Collapsible Quick Select Driver Leaderboard */}
       {sessionAId !== '' && (activeParticipantsA.length > 0 || activeParticipantsB.length > 0) && (
-        <div
-          className="glass-panel"
-          style={{
-            gridColumn: 'span 12',
-            padding: '0.75rem 1.25rem',
-            transition: 'all 0.2s ease',
-          }}
-          data-testid="quick-select-panel"
-        >
-          {/* Panel Header & Controls */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '0.75rem',
-              cursor: 'pointer',
-              userSelect: 'none',
-            }}
-            onClick={() => setIsQuickSelectOpen((prev) => !prev)}
-            data-testid="quick-select-header-toggle"
-          >
-            {/* Left: Title, Driver Count Badge & Collapsed Snippet */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                <Zap size={15} color="var(--accent-primary)" />
-                <span style={{ fontSize: '0.82rem', color: 'var(--text-primary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Quick Select Driver Leaderboard
-                </span>
-                <span
-                  style={{
-                    fontSize: '0.72rem',
-                    padding: '0.1rem 0.45rem',
-                    borderRadius: '10px',
-                    background: 'rgba(255, 255, 255, 0.08)',
-                    color: 'var(--text-secondary)',
-                    fontWeight: 600,
-                  }}
-                  data-testid="quick-select-driver-count"
-                >
-                  {quickSelectData.drivers.length}{driverSearchQuery ? ` / ${quickSelectData.totalCount}` : ''} drivers
-                </span>
-              </div>
-
-              {/* Top 3 snippet when collapsed */}
-              {!isQuickSelectOpen && quickSelectData.drivers.length > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginLeft: '0.5rem', flexWrap: 'wrap' }}>
-                  {quickSelectData.drivers.slice(0, 3).map((d, i) => (
-                    <span
-                      key={`${d.session_id}-${d.car_index}`}
-                      style={{
-                        fontSize: '0.72rem',
-                        padding: '0.1rem 0.4rem',
-                        borderRadius: '4px',
-                        background: 'rgba(255, 255, 255, 0.04)',
-                        color: i === 0 ? '#ffd700' : 'var(--text-secondary)',
-                        border: '1px solid rgba(255, 255, 255, 0.06)',
-                      }}
-                    >
-                      P{i + 1}: {d.name.split(' ').pop()} {d.bestLap ? formatTime(d.bestLap.lap_time_ms) : ''}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Right: Controls (Tabs, Search, Collapse Button) */}
-            <div
-              style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Session Tabs when in Cross-Session Mode */}
-              {!isLinkedSessions && sessionAId !== sessionBId && isQuickSelectOpen && (
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    background: 'rgba(0,0,0,0.35)',
-                    padding: '2px',
-                    borderRadius: '6px',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                  }}
-                  data-testid="quick-select-session-tabs"
-                >
-                  <button
-                    type="button"
-                    onClick={() => setQuickSelectSessionTab('ALL')}
-                    style={{
-                      background: quickSelectSessionTab === 'ALL' ? 'rgba(255,255,255,0.15)' : 'transparent',
-                      border: 'none',
-                      color: quickSelectSessionTab === 'ALL' ? '#fff' : 'var(--text-muted)',
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      fontSize: '0.7rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                    data-testid="quick-tab-all"
-                  >
-                    All
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setQuickSelectSessionTab('A')}
-                    style={{
-                      background: quickSelectSessionTab === 'A' ? 'rgba(255, 71, 87, 0.2)' : 'transparent',
-                      border: 'none',
-                      color: quickSelectSessionTab === 'A' ? '#ff4757' : 'var(--text-muted)',
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      fontSize: '0.7rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                    data-testid="quick-tab-a"
-                  >
-                    Session A
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setQuickSelectSessionTab('B')}
-                    style={{
-                      background: quickSelectSessionTab === 'B' ? 'rgba(0, 210, 211, 0.2)' : 'transparent',
-                      border: 'none',
-                      color: quickSelectSessionTab === 'B' ? '#00d2d3' : 'var(--text-muted)',
-                      padding: '2px 8px',
-                      borderRadius: '4px',
-                      fontSize: '0.7rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                    data-testid="quick-tab-b"
-                  >
-                    Session B
-                  </button>
-                </div>
-              )}
-
-              {/* Driver Search Box */}
-              {isQuickSelectOpen && (
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                  <Search size={12} style={{ position: 'absolute', left: '8px', color: 'var(--text-muted)', pointerEvents: 'none' }} />
-                  <input
-                    type="text"
-                    placeholder="Filter drivers..."
-                    value={driverSearchQuery}
-                    onChange={(e) => setDriverSearchQuery(e.target.value)}
-                    style={{
-                      background: 'rgba(0,0,0,0.3)',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      borderRadius: '4px',
-                      padding: '0.25rem 1.6rem 0.25rem 1.6rem',
-                      fontSize: '0.75rem',
-                      color: '#fff',
-                      width: '130px',
-                      outline: 'none',
-                    }}
-                    data-testid="driver-quick-search-input"
-                  />
-                  {driverSearchQuery && (
-                    <button
-                      type="button"
-                      onClick={() => setDriverSearchQuery('')}
-                      style={{
-                        position: 'absolute',
-                        right: '6px',
-                        background: 'none',
-                        border: 'none',
-                        color: 'var(--text-muted)',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        padding: 0,
-                      }}
-                      title="Clear search"
-                    >
-                      <X size={12} />
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {/* Expand / Collapse Button */}
-              <button
-                type="button"
-                onClick={() => setIsQuickSelectOpen((prev) => !prev)}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.06)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  color: 'var(--text-secondary)',
-                  borderRadius: '4px',
-                  padding: '0.2rem 0.45rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.25rem',
-                  fontSize: '0.72rem',
-                  cursor: 'pointer',
-                }}
-                title={isQuickSelectOpen ? 'Collapse Quick Select' : 'Expand Quick Select'}
-                data-testid="quick-select-collapse-btn"
-              >
-                {isQuickSelectOpen ? (
-                  <>
-                    <span>Collapse</span>
-                    <ChevronUp size={14} />
-                  </>
-                ) : (
-                  <>
-                    <span>Expand</span>
-                    <ChevronDown size={14} />
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Expanded Driver Leaderboard Grid */}
-          {isQuickSelectOpen && (
-            <div style={{ marginTop: '0.75rem' }}>
-              {quickSelectData.drivers.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-muted)', fontSize: '0.8rem' }}>
-                  No drivers found matching "{driverSearchQuery}".
-                </div>
-              ) : (
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(310px, 1fr))',
-                    gap: '0.6rem',
-                    maxHeight: '260px',
-                    overflowY: 'auto',
-                    paddingRight: '0.2rem',
-                  }}
-                  data-testid="quick-select-drivers-grid"
-                >
-                  {quickSelectData.drivers.map((p, idx) => {
-                    const isAssignedA = lapAObj && (lapAObj.car_index ?? -1) === p.car_index && (isLinkedSessions || lapAObj.session_id === p.session_id);
-                    const isAssignedB = lapBObj && (lapBObj.car_index ?? -1) === p.car_index && (isLinkedSessions || lapBObj.session_id === p.session_id);
-                    const rankStyle = getRankBadgeStyle(idx + 1);
-
-                    let borderStyle = '1px solid rgba(255, 255, 255, 0.08)';
-                    let bgStyle = 'rgba(255, 255, 255, 0.03)';
-                    let boxShadow = 'none';
-
-                    if (isAssignedA && isAssignedB) {
-                      borderStyle = '1px solid rgba(0, 210, 211, 0.6)';
-                      bgStyle = 'linear-gradient(135deg, rgba(255, 71, 87, 0.08) 0%, rgba(0, 210, 211, 0.08) 100%)';
-                      boxShadow = '0 0 10px rgba(0, 210, 211, 0.15)';
-                    } else if (isAssignedA) {
-                      borderStyle = '1px solid rgba(255, 71, 87, 0.6)';
-                      bgStyle = 'rgba(255, 71, 87, 0.06)';
-                      boxShadow = '0 0 10px rgba(255, 71, 87, 0.15)';
-                    } else if (isAssignedB) {
-                      borderStyle = '1px solid rgba(0, 210, 211, 0.6)';
-                      bgStyle = 'rgba(0, 210, 211, 0.06)';
-                      boxShadow = '0 0 10px rgba(0, 210, 211, 0.15)';
-                    }
-
-                    const isParticipantInA = activeParticipantsA.some((pa) => pa.car_index === p.car_index && pa.session_id === p.session_id);
-
-                    return (
-                      <div
-                        key={`${p.session_id}-${p.car_index}-${p.sessionSlot || ''}`}
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '0.35rem',
-                          background: bgStyle,
-                          padding: '0.5rem 0.75rem',
-                          borderRadius: '6px',
-                          border: borderStyle,
-                          boxShadow,
-                          transition: 'all 0.15s ease',
-                        }}
-                        data-testid={`driver-card-${p.car_index}`}
-                      >
-                        {/* Top Row: Rank, Driver Name, Tyre Badge, Active Slot Badges */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.4rem' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', minWidth: 0, flex: 1 }}>
-                            <span
-                              style={{
-                                fontSize: '0.68rem',
-                                fontWeight: 700,
-                                padding: '1px 5px',
-                                borderRadius: '4px',
-                                background: rankStyle.bg,
-                                color: rankStyle.color,
-                                border: rankStyle.border,
-                                fontFamily: 'var(--font-mono)',
-                                flexShrink: 0,
-                              }}
-                              data-testid={`rank-badge-${idx + 1}`}
-                            >
-                              {rankStyle.label}
-                            </span>
-
-                            <span
-                              style={{
-                                fontSize: '0.82rem',
-                                fontWeight: 600,
-                                color: 'var(--text-primary)',
-                                maxWidth: '140px',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                              }}
-                              title={`#${p.race_number} ${p.name}`}
-                            >
-                              #{p.race_number} {p.name}
-                            </span>
-
-                            {p.bestLap?.tyre_compound && renderTyreCompoundBadge(p.bestLap.tyre_compound)}
-
-                            {/* Session Slot Tag in Cross-Session All Tab */}
-                            {!isLinkedSessions && sessionAId !== sessionBId && quickSelectSessionTab === 'ALL' && (
-                              <span
-                                style={{
-                                  fontSize: '0.62rem',
-                                  padding: '1px 4px',
-                                  borderRadius: '3px',
-                                  background: p.sessionSlot === 'A' ? 'rgba(255, 71, 87, 0.15)' : 'rgba(0, 210, 211, 0.15)',
-                                  color: p.sessionSlot === 'A' ? '#ff4757' : '#00d2d3',
-                                  fontWeight: 600,
-                                }}
-                              >
-                                {p.sessionSlot === 'A' ? 'S-A' : 'S-B'}
-                              </span>
-                            )}
-                          </div>
-
-                          {/* Active Slot Highlight Badges */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexShrink: 0 }}>
-                            {isAssignedA && (
-                              <span
-                                style={{
-                                  fontSize: '0.62rem',
-                                  padding: '1px 5px',
-                                  borderRadius: '3px',
-                                  background: 'rgba(255, 71, 87, 0.25)',
-                                  color: '#ff4757',
-                                  fontWeight: 700,
-                                  border: '1px solid #ff4757',
-                                }}
-                                data-testid="driver-assigned-a-badge"
-                              >
-                                Slot A
-                              </span>
-                            )}
-                            {isAssignedB && (
-                              <span
-                                style={{
-                                  fontSize: '0.62rem',
-                                  padding: '1px 5px',
-                                  borderRadius: '3px',
-                                  background: 'rgba(0, 210, 211, 0.25)',
-                                  color: '#00d2d3',
-                                  fontWeight: 700,
-                                  border: '1px solid #00d2d3',
-                                }}
-                                data-testid="driver-assigned-b-badge"
-                              >
-                                Slot B
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Middle Row: Lap Time & Leader Delta & Action Buttons */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-                          <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem', minWidth: 0 }}>
-                            {p.bestLap ? (
-                              <>
-                                <span style={{ fontSize: '0.8rem', fontFamily: 'var(--font-mono)', color: 'var(--accent-primary)', fontWeight: 700 }}>
-                                  {formatTime(p.bestLap.lap_time_ms)}
-                                </span>
-                                {quickSelectData.leaderLapTimeMs && p.bestLap.lap_time_ms === quickSelectData.leaderLapTimeMs ? (
-                                  <span
-                                    style={{
-                                      fontSize: '0.65rem',
-                                      fontWeight: 700,
-                                      color: '#ffd700',
-                                      background: 'rgba(255, 215, 0, 0.12)',
-                                      padding: '1px 4px',
-                                      borderRadius: '3px',
-                                    }}
-                                  >
-                                    LEADER
-                                  </span>
-                                ) : quickSelectData.leaderLapTimeMs && p.bestLap.lap_time_ms > quickSelectData.leaderLapTimeMs ? (
-                                  <span style={{ fontSize: '0.68rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
-                                    +{((p.bestLap.lap_time_ms - quickSelectData.leaderLapTimeMs) / 1000).toFixed(3)}s
-                                  </span>
-                                ) : null}
-                              </>
-                            ) : (
-                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>No valid lap</span>
-                            )}
-                          </div>
-
-                          {/* Quick Set Actions */}
-                          <div style={{ display: 'flex', gap: '0.35rem', flexShrink: 0 }}>
-                            {(isLinkedSessions || isParticipantInA || p.sessionSlot === 'A') && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const targetLaps = lapsA;
-                                  const driverLaps = targetLaps
-                                    .filter((l) => (l.car_index ?? -1) === p.car_index && l.is_valid && l.lap_time_ms > 0)
-                                    .sort((a, b) => a.lap_time_ms - b.lap_time_ms);
-                                  if (driverLaps.length > 0) setLapAId(driverLaps[0].id);
-                                }}
-                                style={{
-                                  background: isAssignedA ? 'rgba(255, 71, 87, 0.3)' : 'rgba(255, 71, 87, 0.15)',
-                                  border: '1px solid rgba(255, 71, 87, 0.6)',
-                                  color: '#ff4757',
-                                  borderRadius: '4px',
-                                  padding: '0.15rem 0.45rem',
-                                  fontSize: '0.72rem',
-                                  cursor: 'pointer',
-                                  fontWeight: 700,
-                                }}
-                                title={`Set Lap A to ${p.name}'s fastest lap`}
-                                data-testid={`quick-set-a-${p.car_index}`}
-                              >
-                                Set A
-                              </button>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const targetLaps = lapsB;
-                                const driverLaps = targetLaps
-                                  .filter((l) => (l.car_index ?? -1) === p.car_index && l.is_valid && l.lap_time_ms > 0)
-                                  .sort((a, b) => a.lap_time_ms - b.lap_time_ms);
-                                if (driverLaps.length > 0) setLapBId(driverLaps[0].id);
-                              }}
-                              style={{
-                                background: isAssignedB ? 'rgba(0, 210, 211, 0.3)' : 'rgba(0, 210, 211, 0.15)',
-                                border: '1px solid rgba(0, 210, 211, 0.6)',
-                                color: '#00d2d3',
-                                borderRadius: '4px',
-                                padding: '0.15rem 0.45rem',
-                                fontSize: '0.72rem',
-                                cursor: 'pointer',
-                                fontWeight: 700,
-                              }}
-                              title={`Set Lap B to ${p.name}'s fastest lap`}
-                              data-testid={`quick-set-b-${p.car_index}`}
-                            >
-                              Set B
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Bottom Row: Sector Timings */}
-                        {p.bestLap && (p.bestLap.sector1_ms || p.bestLap.sector2_ms || p.bestLap.sector3_ms) && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.66rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                            {p.bestLap.sector1_ms ? (
-                              <span style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '1px 4px', borderRadius: '3px' }}>
-                                S1: {(p.bestLap.sector1_ms / 1000).toFixed(3)}
-                              </span>
-                            ) : null}
-                            {p.bestLap.sector2_ms ? (
-                              <span style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '1px 4px', borderRadius: '3px' }}>
-                                S2: {(p.bestLap.sector2_ms / 1000).toFixed(3)}
-                              </span>
-                            ) : null}
-                            {p.bestLap.sector3_ms ? (
-                              <span style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '1px 4px', borderRadius: '3px' }}>
-                                S3: {(p.bestLap.sector3_ms / 1000).toFixed(3)}
-                              </span>
-                            ) : null}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        <QuickSelectLeaderboard
+          isOpen={isQuickSelectOpen}
+          onToggleOpen={() => setIsQuickSelectOpen((prev) => !prev)}
+          quickSelectData={quickSelectData}
+          driverSearchQuery={driverSearchQuery}
+          onDriverSearchChange={setDriverSearchQuery}
+          isLinkedSessions={isLinkedSessions}
+          sessionAId={sessionAId}
+          sessionBId={sessionBId}
+          quickSelectSessionTab={quickSelectSessionTab}
+          onQuickSelectSessionTabChange={setQuickSelectSessionTab}
+          lapAId={lapAId}
+          lapBId={lapBId}
+          lapsA={lapsA}
+          lapsB={lapsB}
+          onSetLapA={(id) => setLapAId(id)}
+          onSetLapB={(id) => setLapBId(id)}
+          participantsA={participantsA}
+        />
       )}
 
       {/* 2-COLUMN MAIN COMPARISON LAYOUT */}
@@ -1797,557 +929,35 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
         <div className="comparator-layout" style={{ gridColumn: 'span 12' }}>
           {/* LEFT COLUMN: Summary cards & Telemetry Charts Stack */}
           <div className="comparator-charts-col">
-            {/* Comparison Summary Banner */}
-            {lapAObj && lapBObj && (() => {
-              const isLapAComplete = Boolean(lapAObj && lapAObj.is_valid && lapAObj.lap_time_ms > 0 && lapAObj.sector3_ms && lapAObj.sector3_ms > 0);
-              const isLapBComplete = Boolean(lapBObj && lapBObj.is_valid && lapBObj.lap_time_ms > 0 && lapBObj.sector3_ms && lapBObj.sector3_ms > 0);
-              const areBothLapsComplete = isLapAComplete && isLapBComplete;
+            <ComparatorMetricsSummary
+              lapAObj={lapAObj}
+              lapBObj={lapBObj}
+              nameA={nameA}
+              nameB={nameB}
+              driverA={driverA}
+              driverB={driverB}
+              totalDeltaMs={totalDeltaMs}
+              s1Delta={s1Delta}
+              s2Delta={s2Delta}
+              s3Delta={s3Delta}
+            />
 
-              return (
-                <div
-                  className="glass-panel"
-                  style={{
-                    padding: '0.75rem 1.25rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    background: !areBothLapsComplete || totalDeltaMs === null
-                      ? 'rgba(243, 156, 18, 0.12)'
-                      : totalDeltaMs < 0 ? 'rgba(255, 71, 87, 0.12)' : totalDeltaMs > 0 ? 'rgba(0, 210, 211, 0.12)' : 'rgba(255,255,255,0.05)',
-                    border: `1px solid ${!areBothLapsComplete || totalDeltaMs === null
-                      ? 'rgba(243, 156, 18, 0.35)'
-                      : totalDeltaMs < 0 ? 'rgba(255, 71, 87, 0.35)' : totalDeltaMs > 0 ? 'rgba(0, 210, 211, 0.35)' : 'rgba(255,255,255,0.1)'}`,
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <Award color={!areBothLapsComplete || totalDeltaMs === null ? '#f39c12' : totalDeltaMs < 0 ? '#ff4757' : '#00d2d3'} size={24} />
-                    <div>
-                      <div style={{ fontWeight: 'bold', fontSize: '1rem', color: '#fff' }}>
-                        {!areBothLapsComplete ? (
-                          <span style={{ color: '#f39c12' }}>
-                            {!isLapAComplete && !isLapBComplete
-                              ? 'Both laps are incomplete (In-Lap / Aborted)'
-                              : !isLapAComplete
-                              ? 'Lap A is incomplete (Sector 3 missing)'
-                              : 'Lap B is incomplete (Sector 3 missing)'}
-                          </span>
-                        ) : totalDeltaMs !== null && totalDeltaMs < 0 ? (
-                          <>Lap A is <span style={{ color: '#ff4757' }}>{(Math.abs(totalDeltaMs) / 1000).toFixed(3)}s faster</span> than Lap B</>
-                        ) : totalDeltaMs !== null && totalDeltaMs > 0 ? (
-                          <>Lap B is <span style={{ color: '#00d2d3' }}>{(Math.abs(totalDeltaMs) / 1000).toFixed(3)}s faster</span> than Lap A</>
-                        ) : (
-                          <>Identical lap times</>
-                        )}
-                      </div>
-
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                        {nameA} ({isLapAComplete ? formatTime(lapAObj.lap_time_ms) : 'Incomplete'}) vs {nameB} ({isLapBComplete ? formatTime(lapBObj.lap_time_ms) : 'Incomplete'})
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Quick Sector Delta Badges */}
-                  <div style={{ display: 'flex', gap: '1rem', fontSize: '0.85rem' }}>
-                    <SectorDeltaBadge label="S1 Delta" msA={lapAObj.sector1_ms} msB={lapBObj.sector1_ms} />
-                    <SectorDeltaBadge label="S2 Delta" msA={lapAObj.sector2_ms} msB={lapBObj.sector2_ms} />
-                    <SectorDeltaBadge label="S3 Delta" msA={lapAObj.sector3_ms} msB={lapBObj.sector3_ms} />
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Driver Summary Cards Row */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
-              {/* Lap A Card */}
-              <div className="glass-panel comparator-card-panel" style={{ padding: '1rem' }}>
-                <h3 style={{ margin: 0, fontSize: '1rem', color: '#ff4757', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  ● {nameA}
-                </h3>
-                {lapAObj ? (() => {
-                  const isLapAComplete = Boolean(lapAObj.is_valid && lapAObj.lap_time_ms > 0 && lapAObj.sector3_ms && lapAObj.sector3_ms > 0);
-                  return (
-                    <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                      <div style={{ fontSize: '1.2rem', fontWeight: 'bold', fontFamily: 'var(--font-mono)', color: '#fff' }}>
-                        {isLapAComplete ? formatTime(lapAObj.lap_time_ms) : '--:--.---'}
-                        {!lapAObj.is_valid ? (
-                          <span style={{ fontSize: '0.75rem', color: '#ff4757', marginLeft: '0.5rem' }}>⚠️ INVALID</span>
-                        ) : !isLapAComplete ? (
-                          <span style={{ fontSize: '0.75rem', color: '#f39c12', marginLeft: '0.5rem' }}>⚠️ INCOMPLETE</span>
-                        ) : null}
-                      </div>
-                      <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                        Driver: <strong style={{ color: '#fff' }}>{driverA?.name || `Car ${lapAObj.car_index ?? '?'}`}</strong> #{driverA?.race_number ?? ''}
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginTop: '0.5rem', background: 'rgba(0,0,0,0.3)', padding: '0.5rem', borderRadius: '6px' }}>
-                        <div>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>S1</span>
-                          <div style={{ fontSize: '0.85rem', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{formatTime(lapAObj.sector1_ms)}</div>
-                        </div>
-                        <div>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>S2</span>
-                          <div style={{ fontSize: '0.85rem', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{formatTime(lapAObj.sector2_ms)}</div>
-                        </div>
-                        <div>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>S3</span>
-                          <div style={{ fontSize: '0.85rem', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{formatTime(lapAObj.sector3_ms)}</div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })() : (
-                  <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                    Select a lap for Slot A to view details
-                  </div>
-                )}
-              </div>
-
-              {/* Lap B Card */}
-              <div className="glass-panel comparator-card-panel" style={{ padding: '1rem' }}>
-                <h3 style={{ margin: 0, fontSize: '1rem', color: '#00d2d3', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  ● {nameB}
-                </h3>
-                {lapBObj ? (() => {
-                  const isLapBComplete = Boolean(lapBObj.is_valid && lapBObj.lap_time_ms > 0 && lapBObj.sector3_ms && lapBObj.sector3_ms > 0);
-                  return (
-                    <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                      <div style={{ fontSize: '1.2rem', fontWeight: 'bold', fontFamily: 'var(--font-mono)', color: '#fff' }}>
-                        {isLapBComplete ? formatTime(lapBObj.lap_time_ms) : '--:--.---'}
-                        {!lapBObj.is_valid ? (
-                          <span style={{ fontSize: '0.75rem', color: '#ff4757', marginLeft: '0.5rem' }}>⚠️ INVALID</span>
-                        ) : !isLapBComplete ? (
-                          <span style={{ fontSize: '0.75rem', color: '#f39c12', marginLeft: '0.5rem' }}>⚠️ INCOMPLETE</span>
-                        ) : null}
-                      </div>
-                      <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                        Driver: <strong style={{ color: '#fff' }}>{driverB?.name || `Car ${lapBObj.car_index ?? '?'}`}</strong> #{driverB?.race_number ?? ''}
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginTop: '0.5rem', background: 'rgba(0,0,0,0.3)', padding: '0.5rem', borderRadius: '6px' }}>
-                        <div>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>S1</span>
-                          <div style={{ fontSize: '0.85rem', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{formatTime(lapBObj.sector1_ms)}</div>
-                        </div>
-                        <div>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>S2</span>
-                          <div style={{ fontSize: '0.85rem', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{formatTime(lapBObj.sector2_ms)}</div>
-                        </div>
-                        <div>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>S3</span>
-                          <div style={{ fontSize: '0.85rem', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{formatTime(lapBObj.sector3_ms)}</div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })() : (
-                  <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                    Select a lap for Slot B to view details
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Synchronized Track Distance Zoom Toolbar */}
-            {comparisonData.length > 0 && (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '0.6rem 1rem',
-                  background: 'rgba(0,0,0,0.3)',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  flexWrap: 'wrap',
-                  gap: '0.5rem',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', fontSize: '0.82rem' }}>
-                  <ZoomIn size={16} color="var(--accent-primary)" />
-                  <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Track Distance Zoom:</span>
-                  <button
-                    type="button"
-                    onClick={() => setZoomDomain(null)}
-                    style={{
-                      padding: '0.25rem 0.65rem',
-                      borderRadius: '4px',
-                      border: !zoomDomain ? '1px solid var(--accent-primary)' : '1px solid rgba(255,255,255,0.1)',
-                      background: !zoomDomain ? 'rgba(255, 71, 87, 0.15)' : 'rgba(255,255,255,0.05)',
-                      color: !zoomDomain ? '#ff4757' : '#ccc',
-                      fontSize: '0.78rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Full Track
-                  </button>
-                  {sector1Distance !== null && (
-                    <button
-                      type="button"
-                      onClick={() => setZoomDomain([0, sector1Distance])}
-                      style={{
-                        padding: '0.25rem 0.65rem',
-                        borderRadius: '4px',
-                        border: '1px solid rgba(243, 156, 18, 0.4)',
-                        background: 'rgba(243, 156, 18, 0.12)',
-                        color: '#f39c12',
-                        fontSize: '0.78rem',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Sector 1
-                    </button>
-                  )}
-                  {sector1Distance !== null && sector2Distance !== null && (
-                    <button
-                      type="button"
-                      onClick={() => setZoomDomain([sector1Distance, sector2Distance])}
-                      style={{
-                        padding: '0.25rem 0.65rem',
-                        borderRadius: '4px',
-                        border: '1px solid rgba(155, 89, 182, 0.4)',
-                        background: 'rgba(155, 89, 182, 0.12)',
-                        color: '#9b59b6',
-                        fontSize: '0.78rem',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Sector 2
-                    </button>
-                  )}
-                  {sector2Distance !== null && comparisonData.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setZoomDomain([sector2Distance, comparisonData[comparisonData.length - 1].lap_distance])}
-                      style={{
-                        padding: '0.25rem 0.65rem',
-                        borderRadius: '4px',
-                        border: '1px solid rgba(0, 210, 211, 0.4)',
-                        background: 'rgba(0, 210, 211, 0.12)',
-                        color: '#00d2d3',
-                        fontSize: '0.78rem',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Sector 3
-                    </button>
-                  )}
-                </div>
-
-                {zoomDomain && (
-                  <button
-                    type="button"
-                    onClick={() => setZoomDomain(null)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.3rem',
-                      padding: '0.25rem 0.65rem',
-                      borderRadius: '4px',
-                      border: '1px solid rgba(255,255,255,0.2)',
-                      background: 'rgba(255,255,255,0.08)',
-                      color: '#fff',
-                      fontSize: '0.78rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <RotateCcw size={12} /> Reset Zoom ({Math.round(zoomDomain[0])}m - {Math.round(zoomDomain[1])}m)
-                  </button>
-                )}
-              </div>
-            )}
-
-            {/* TELEMETRY CHARTS STACK */}
-            {comparisonData.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                {/* 1. TIME DELTA CHART */}
-                <div className="glass-panel" style={{ height: '300px', display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-                    <h3 style={{ margin: 0, fontSize: '1rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      ⏱️ Time Delta (s)
-                    </h3>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      Below 0s = {nameA} Ahead | Above 0s = {nameB} Ahead
-                    </span>
-                  </div>
-                  <div style={{ flex: 1, minHeight: 0 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={chartData} syncId="comparatorSync" onMouseMove={handleMouseMove} onMouseLeave={() => setHoverDistance(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                        <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
-                        <YAxis
-                          stroke="#666"
-                          tick={{ fill: '#999', fontSize: 11 }}
-                          domain={['auto', 'auto']}
-                          tickFormatter={(v) => (typeof v === 'number' && Number.isFinite(v) ? `${v > 0 ? '+' : ''}${v.toFixed(2)}s` : '')}
-                        />
-                        <Tooltip
-                          {...compactTooltipProps}
-                          formatter={(val: any) =>
-                            val !== null && val !== undefined && Number.isFinite(Number(val))
-                              ? [`${Number(val) > 0 ? '+' : ''}${Number(val).toFixed(3)}s`, `Time Delta (${nameA} vs ${nameB})`]
-                              : ['-', `Time Delta (${nameA} vs ${nameB})`]
-                          }
-                        />
-                        <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" />
-                        {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
-                        {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
-                        {hoverDistance !== null && <ReferenceLine x={hoverDistance} stroke="#ffd200" strokeWidth={2} strokeDasharray="3 3" />}
-                        <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '2px' }} iconSize={10} />
-                        <Line type="monotone" dataKey="time_delta" name="Time Delta" stroke="#f1c40f" dot={false} strokeWidth={2.5} isAnimationActive={false} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                {/* 2. SPEED CHART */}
-                <div className="glass-panel" style={{ height: '300px', display: 'flex', flexDirection: 'column' }}>
-                  <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#fff' }}>🏎️ Speed (KM/H)</h3>
-                  <div style={{ flex: 1, minHeight: 0 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={chartData} syncId="comparatorSync" onMouseMove={handleMouseMove} onMouseLeave={() => setHoverDistance(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                        <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
-                        <YAxis
-                          stroke="#666"
-                          tick={{ fill: '#999', fontSize: 11 }}
-                          domain={[0, 360]}
-                          tickFormatter={(v) => (typeof v === 'number' && Number.isFinite(v) ? `${Math.round(v)}` : '')}
-                        />
-                        <Tooltip
-                          {...compactTooltipProps}
-                          formatter={(val: any) =>
-                            val !== null && val !== undefined && Number.isFinite(Number(val)) ? [`${Math.round(Number(val))} km/h`] : ['-']
-                          }
-                        />
-                        {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
-                        {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
-                        {hoverDistance !== null && <ReferenceLine x={hoverDistance} stroke="#ffd200" strokeWidth={2} strokeDasharray="3 3" />}
-                        <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '2px' }} iconSize={10} />
-                        <Line type="monotone" dataKey="speedA" name={`${nameA} Speed (km/h)`} stroke="#ff4757" dot={false} strokeWidth={2} isAnimationActive={false} />
-                        <Line type="monotone" dataKey="speedB" name={`${nameB} Speed (km/h)`} stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={false} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                {/* 3. INDIVIDUAL THROTTLE CHART */}
-                <div className="glass-panel" style={{ height: '280px', display: 'flex', flexDirection: 'column' }}>
-                  <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#2ecc71', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    🟢 Throttle Application (%)
-                  </h3>
-                  <div style={{ flex: 1, minHeight: 0 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={chartData} syncId="comparatorSync" onMouseMove={handleMouseMove} onMouseLeave={() => setHoverDistance(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                        <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
-                        <YAxis
-                          stroke="#666"
-                          tick={{ fill: '#999', fontSize: 11 }}
-                          domain={[0, 1]}
-                          tickFormatter={(v) => (typeof v === 'number' && Number.isFinite(v) ? `${Math.round(v * 100)}%` : '')}
-                        />
-                        <Tooltip
-                          {...compactTooltipProps}
-                          formatter={(val: any) =>
-                            val !== null && val !== undefined && Number.isFinite(Number(val)) ? [`${Math.round(Number(val) * 100)}%`] : ['-']
-                          }
-                        />
-                        {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
-                        {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
-                        {hoverDistance !== null && <ReferenceLine x={hoverDistance} stroke="#ffd200" strokeWidth={2} strokeDasharray="3 3" />}
-                        <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '2px' }} iconSize={10} />
-                        <Line type="monotone" dataKey="throttleA" name={`${nameA} Throttle`} stroke="#ff4757" dot={false} strokeWidth={2} isAnimationActive={false} />
-                        <Line type="monotone" dataKey="throttleB" name={`${nameB} Throttle`} stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={false} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                {/* 4. INDIVIDUAL BRAKE CHART */}
-                <div className="glass-panel" style={{ height: '280px', display: 'flex', flexDirection: 'column' }}>
-                  <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#ff4757', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    🔴 Brake Pressure (%)
-                  </h3>
-                  <div style={{ flex: 1, minHeight: 0 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={chartData} syncId="comparatorSync" onMouseMove={handleMouseMove} onMouseLeave={() => setHoverDistance(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                        <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
-                        <YAxis
-                          stroke="#666"
-                          tick={{ fill: '#999', fontSize: 11 }}
-                          domain={[0, 1]}
-                          tickFormatter={(v) => (typeof v === 'number' && Number.isFinite(v) ? `${Math.round(v * 100)}%` : '')}
-                        />
-                        <Tooltip
-                          {...compactTooltipProps}
-                          formatter={(val: any) =>
-                            val !== null && val !== undefined && Number.isFinite(Number(val)) ? [`${Math.round(Number(val) * 100)}%`] : ['-']
-                          }
-                        />
-                        {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
-                        {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
-                        {hoverDistance !== null && <ReferenceLine x={hoverDistance} stroke="#ffd200" strokeWidth={2} strokeDasharray="3 3" />}
-                        <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '2px' }} iconSize={10} />
-                        <Line type="monotone" dataKey="brakeA" name={`${nameA} Brake`} stroke="#ff4757" dot={false} strokeWidth={2} isAnimationActive={false} />
-                        <Line type="monotone" dataKey="brakeB" name={`${nameB} Brake`} stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={false} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                {/* 5. GEAR SELECTION CHART */}
-                <div className="glass-panel" style={{ height: '260px', display: 'flex', flexDirection: 'column' }}>
-                  <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#fff' }}>⚙️ Gear Selection (1 - 8)</h3>
-                  <div style={{ flex: 1, minHeight: 0 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={chartData} syncId="comparatorSync" onMouseMove={handleMouseMove} onMouseLeave={() => setHoverDistance(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                        <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
-                        <YAxis
-                          stroke="#666"
-                          tick={{ fill: '#999', fontSize: 11 }}
-                          domain={[1, 8]}
-                          ticks={[1, 2, 3, 4, 5, 6, 7, 8]}
-                          tickFormatter={(v) => (typeof v === 'number' && Number.isFinite(v) ? `G${Math.round(v)}` : '')}
-                        />
-                        <Tooltip
-                          {...compactTooltipProps}
-                          formatter={(val: any) =>
-                            val !== null && val !== undefined && Number.isFinite(Number(val)) ? [`Gear ${Math.round(Number(val))}`] : ['-']
-                          }
-                        />
-                        {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
-                        {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
-                        {hoverDistance !== null && <ReferenceLine x={hoverDistance} stroke="#ffd200" strokeWidth={2} strokeDasharray="3 3" />}
-                        <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '2px' }} iconSize={10} />
-                        <Line type="stepAfter" dataKey="gearA" name={`${nameA} Gear`} stroke="#ff4757" dot={false} strokeWidth={2} isAnimationActive={false} />
-                        <Line type="stepAfter" dataKey="gearB" name={`${nameB} Gear`} stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={false} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                {/* 6. STEERING ANGLE CHART */}
-                <div className="glass-panel" style={{ height: '260px', display: 'flex', flexDirection: 'column' }}>
-                  <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#fff' }}>📐 Steering Angle</h3>
-                  <div style={{ flex: 1, minHeight: 0 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={chartData} syncId="comparatorSync" onMouseMove={handleMouseMove} onMouseLeave={() => setHoverDistance(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                        <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
-                        <YAxis
-                          stroke="#666"
-                          tick={{ fill: '#999', fontSize: 11 }}
-                          domain={[-1, 1]}
-                          tickFormatter={(v) => (typeof v === 'number' && Number.isFinite(v) ? `${v.toFixed(2)}` : '')}
-                        />
-                        <Tooltip
-                          {...compactTooltipProps}
-                          formatter={(val: any) =>
-                            val !== null && val !== undefined && Number.isFinite(Number(val)) ? [`${Number(val).toFixed(2)}`] : ['-']
-                          }
-                        />
-                        <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" />
-                        {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
-                        {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
-                        {hoverDistance !== null && <ReferenceLine x={hoverDistance} stroke="#ffd200" strokeWidth={2} strokeDasharray="3 3" />}
-                        <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '2px' }} iconSize={10} />
-                        <Line type="monotone" dataKey="steerA" name={`${nameA} Steer`} stroke="#ff4757" dot={false} strokeWidth={2} isAnimationActive={false} />
-                        <Line type="monotone" dataKey="steerB" name={`${nameB} Steer`} stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={false} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                {/* 7. INDIVIDUAL ERS BATTERY CHART */}
-                <div className="glass-panel" style={{ height: '280px', display: 'flex', flexDirection: 'column' }}>
-                  <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#38ef7d', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    ⚡ ERS Battery Store (%)
-                  </h3>
-                  <div style={{ flex: 1, minHeight: 0 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={chartData} syncId="comparatorSync" onMouseMove={handleMouseMove} onMouseLeave={() => setHoverDistance(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                        <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
-                        <YAxis
-                          stroke="#666"
-                          tick={{ fill: '#999', fontSize: 11 }}
-                          domain={[0, 100]}
-                          tickFormatter={(v) => (typeof v === 'number' && Number.isFinite(v) ? `${Math.round(v)}%` : '')}
-                        />
-                        <Tooltip
-                          {...compactTooltipProps}
-                          formatter={(val: any) =>
-                            val !== null && val !== undefined && Number.isFinite(Number(val)) ? [`${Number(val).toFixed(1)}%`] : ['-']
-                          }
-                        />
-                        {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
-                        {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
-                        {hoverDistance !== null && <ReferenceLine x={hoverDistance} stroke="#ffd200" strokeWidth={2} strokeDasharray="3 3" />}
-                        <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '2px' }} iconSize={10} />
-                        <Line type="monotone" dataKey="ersBatteryA" name={`${nameA} Battery (%)`} stroke="#ff4757" dot={false} strokeWidth={2} isAnimationActive={false} />
-                        <Line type="monotone" dataKey="ersBatteryB" name={`${nameB} Battery (%)`} stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={false} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                {/* 8. INDIVIDUAL ERS DEPLOY MODE CHART */}
-                <div className="glass-panel" style={{ height: '300px', display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-                    <h3 style={{ margin: 0, fontSize: '1rem', color: '#bd93f9', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      🚀 ERS Deploy Mode
-                    </h3>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      0: Off | 1: Medium | 2: Hotlap | 3: Overtake
-                    </span>
-                  </div>
-                  <div style={{ flex: 1, minHeight: 0 }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={chartData} syncId="comparatorSync" onMouseMove={handleMouseMove} onMouseLeave={() => setHoverDistance(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                        <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
-                        <YAxis
-                          stroke="#bd93f9"
-                          tick={{ fill: '#bd93f9', fontSize: 11 }}
-                          domain={[0, 3]}
-                          ticks={[0, 1, 2, 3]}
-                          tickFormatter={(v) => (typeof v === 'number' && Number.isFinite(v) ? ERS_MODE_NAMES[Math.round(v)] || `${Math.round(v)}` : '')}
-                        />
-                        <Tooltip
-                          {...compactTooltipProps}
-                          formatter={(val: any, name?: any) => {
-                            if (val === null || val === undefined || !Number.isFinite(Number(val))) return ['-', String(name ?? '')];
-                            const modeNum = Math.round(Number(val));
-                            return [ERS_MODE_NAMES[modeNum] || `Mode ${modeNum}`, String(name ?? '')];
-                          }}
-                        />
-                        {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
-                        {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
-                        {hoverDistance !== null && <ReferenceLine x={hoverDistance} stroke="#ffd200" strokeWidth={2} strokeDasharray="3 3" />}
-                        <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '2px' }} iconSize={10} />
-                        <Line type="stepAfter" dataKey="ersDeployModeA" name={`${nameA} Mode`} stroke="#ff4757" dot={false} strokeWidth={2} isAnimationActive={false} />
-                        <Line type="stepAfter" dataKey="ersDeployModeB" name={`${nameB} Mode`} stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={false} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center' }}>
-                <p style={{ color: 'var(--text-muted)', fontSize: '1rem', margin: 0 }}>
-                  {!sessionAId
-                    ? 'Select a session and two laps above to compare telemetry.'
-                    : loadingA || loadingB
-                    ? 'Loading telemetry data...'
-                    : 'Select Lap A and Lap B to generate comparison charts.'}
-                </p>
-              </div>
-            )}
+            <ComparatorTelemetryCharts
+              chartData={chartData}
+              comparisonData={comparisonData}
+              nameA={nameA}
+              nameB={nameB}
+              hoverDistance={hoverDistance}
+              onHoverDistanceChange={setHoverDistance}
+              zoomDomain={zoomDomain}
+              onZoomDomainChange={setZoomDomain}
+              sector1Distance={sector1Distance}
+              sector2Distance={sector2Distance}
+              sessionAId={sessionAId}
+              loadingA={loadingA}
+              loadingB={loadingB}
+              onMouseMove={handleMouseMove}
+            />
           </div>
 
           {/* RIGHT COLUMN: Sticky Sidebar with Track Heatmap & Quick Race Engineer trigger */}
@@ -2532,29 +1142,3 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
     </div>
   );
 };
-
-// Helper component for sector delta display
-const SectorDeltaBadge: React.FC<{ label: string; msA?: number; msB?: number }> = ({ label, msA, msB }) => {
-  if (!msA || !msB) return null;
-  const deltaMs = msA - msB;
-  const isFaster = deltaMs < 0;
-
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', background: 'rgba(0,0,0,0.3)', padding: '0.25rem 0.6rem', borderRadius: '4px' }}>
-      <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{label}:</span>
-      <span style={{ fontWeight: 'bold', fontFamily: 'var(--font-mono)', color: isFaster ? '#ff4757' : deltaMs > 0 ? '#00d2d3' : '#fff' }}>
-        {deltaMs > 0 ? '+' : ''}{(deltaMs / 1000).toFixed(3)}s
-      </span>
-      {isFaster ? <ArrowUpRight size={14} color="#ff4757" /> : deltaMs > 0 ? <ArrowDownRight size={14} color="#00d2d3" /> : null}
-    </div>
-  );
-};
-
-// Helper to format ms into M:SS.ms
-function formatTime(ms?: number) {
-  if (!ms || ms <= 0) return '--:--.---';
-  const mins = Math.floor(ms / 60000);
-  const secs = Math.floor((ms % 60000) / 1000);
-  const m = ms % 1000;
-  return `${mins}:${secs.toString().padStart(2, '0')}.${m.toString().padStart(3, '0')}`;
-}

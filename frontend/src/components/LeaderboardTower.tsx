@@ -1,28 +1,10 @@
 import React from 'react';
 import { Trophy, Wrench, Flame } from 'lucide-react';
 import { parseDriverName } from '../hooks/useTelemetry';
-import type { ParticipantData, LapData, CarStatusData, SessionData } from '../hooks/useTelemetry';
+import type { ParticipantData, LapData, CarStatusData, SessionData } from '../types/telemetry';
+import { TEAM_COLORS, TYRE_COMPOUNDS } from '../constants/f1';
 
-export const TEAM_COLORS: Record<number, string> = {
-  0: '#3671C6', // Red Bull Racing
-  1: '#6CD3BF', // Mercedes
-  2: '#FF8000', // McLaren
-  3: '#229971', // Aston Martin
-  4: '#E8002D', // Ferrari
-  5: '#0093CC', // Alpine
-  6: '#37BEDD', // Williams
-  7: '#6692FF', // Visa Cash App RB
-  8: '#C92D4B', // Sauber
-  9: '#B6BABD', // Haas
-};
-
-export const TYRE_COMPOUNDS: Record<number, { label: string; color: string; bg: string }> = {
-  16: { label: 'S', color: '#FF3333', bg: 'rgba(255, 51, 51, 0.15)' }, // Soft
-  17: { label: 'M', color: '#FFD700', bg: 'rgba(255, 215, 0, 0.15)' }, // Medium
-  18: { label: 'H', color: '#FFFFFF', bg: 'rgba(255, 255, 255, 0.15)' }, // Hard
-  7: { label: 'I', color: '#33FF33', bg: 'rgba(51, 255, 51, 0.15)' },  // Intermediate
-  8: { label: 'W', color: '#3399FF', bg: 'rgba(51, 153, 255, 0.15)' }, // Wet
-};
+export { TEAM_COLORS, TYRE_COMPOUNDS };
 
 interface LeaderboardTowerProps {
   session: SessionData | null;

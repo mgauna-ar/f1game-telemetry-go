@@ -22,66 +22,21 @@ import { SessionKPIBar } from './session_history/SessionKPIBar';
 import { SessionCardGrid } from './session_history/SessionCardGrid';
 import { SessionTableView } from './session_history/SessionTableView';
 import { SessionClassificationTab } from './session_history/SessionClassificationTab';
-import type { DriverStanding } from './session_history/SessionClassificationTab';
 import { SessionLapChartsTab } from './session_history/SessionLapChartsTab';
 import { SessionSectorMatrixTab } from './session_history/SessionSectorMatrixTab';
 import { useRaceEngineer } from '../context/RaceEngineerContext';
 
-export interface Session {
-  id: number;
-  session_uid: string | number;
-  track_id?: number;
-  track_name: string;
-  session_type: string;
-  weather: string;
-  packet_format?: number;
-  created_at: string;
-}
-
-export interface Participant {
-  id: number;
-  session_id: number;
-  car_index: number;
-  name: string;
-  driver_id: number;
-  team_id: number;
-  race_number: number;
-  ai_controlled: boolean;
-  nationality?: number;
-}
-
-export interface Lap {
-  id: number;
-  session_id: number;
-  car_index: number;
-  lap_number: number;
-  lap_time_ms: number;
-  sector1_ms: number;
-  sector2_ms: number;
-  sector3_ms: number;
-  is_valid: boolean;
-  tyre_compound: string;
-  fuel_load: number;
-  max_speed_kmh: number;
-  penalties_seconds?: number;
-  car_position?: number;
-  result_status?: number;
-  stint?: number;
-  created_at?: string;
-}
-
+import type {
+  Session,
+  Participant,
+  Lap,
+  StagedLap,
+  DriverStanding,
+  NavigationComparatorPayload,
+} from '../types/session';
 import { SessionComparatorDock } from './session_history/SessionComparatorDock';
-import type { StagedLap } from './session_history/SessionComparatorDock';
 
-export interface NavigationComparatorPayload {
-  sessionAId?: number;
-  lapAId?: number;
-  sessionBId?: number;
-  lapBId?: number;
-  sessionId?: number;
-  lapId?: number;
-  slot?: 'A' | 'B';
-}
+export type { Session, Participant, Lap, StagedLap, DriverStanding, NavigationComparatorPayload };
 
 interface SessionHistoryProps {
   onNavigateToComparator?: (payload: NavigationComparatorPayload | number, lapId?: number, slot?: 'A' | 'B') => void;
@@ -456,12 +411,11 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
     let s1 = Infinity;
     let s2 = Infinity;
     let s3 = Infinity;
-
     laps.forEach((l) => {
       if (l.is_valid && l.lap_time_ms > 0) {
-        if (l.sector1_ms > 0 && l.sector1_ms < s1) s1 = l.sector1_ms;
-        if (l.sector2_ms > 0 && l.sector2_ms < s2) s2 = l.sector2_ms;
-        if (l.sector3_ms > 0 && l.sector3_ms < s3) s3 = l.sector3_ms;
+        if (l.sector1_ms !== undefined && l.sector1_ms > 0 && l.sector1_ms < s1) s1 = l.sector1_ms;
+        if (l.sector2_ms !== undefined && l.sector2_ms > 0 && l.sector2_ms < s2) s2 = l.sector2_ms;
+        if (l.sector3_ms !== undefined && l.sector3_ms > 0 && l.sector3_ms < s3) s3 = l.sector3_ms;
       }
     });
 
@@ -478,24 +432,26 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
 
     const lapsByCar: Record<number, Lap[]> = {};
     laps.forEach((l) => {
-      if (!lapsByCar[l.car_index]) lapsByCar[l.car_index] = [];
-      lapsByCar[l.car_index].push(l);
+      const cIdx = l.car_index ?? 0;
+      if (!lapsByCar[cIdx]) lapsByCar[cIdx] = [];
+      lapsByCar[cIdx].push(l);
     });
 
     const maxRaceLaps = laps.reduce((max, l) => (l.lap_time_ms > 0 && l.lap_number > max ? l.lap_number : max), 0);
 
-    const driverList = (participants.length > 0
-      ? participants
-      : Object.keys(lapsByCar).map((idxStr) => ({
-          id: Number(idxStr),
-          session_id: selectedSession.id,
-          car_index: Number(idxStr),
-          name: `Driver ${Number(idxStr) + 1}`,
-          driver_id: 0,
-          team_id: 0,
-          race_number: Number(idxStr) + 1,
-          ai_controlled: false,
-        }))
+    const rawStandings = (
+      participants.length > 0
+        ? participants
+        : Object.keys(lapsByCar).map((idxStr) => ({
+            id: Number(idxStr),
+            session_id: selectedSession.id,
+            car_index: Number(idxStr),
+            name: `Driver ${Number(idxStr) + 1}`,
+            driver_id: 0,
+            team_id: 0,
+            race_number: Number(idxStr) + 1,
+            ai_controlled: false,
+          }))
     ).map((p) => {
       const rawDriverLaps = lapsByCar[p.car_index] || [];
       const sortedRawLaps = [...rawDriverLaps].sort((a, b) => a.lap_number - b.lap_number);
@@ -536,16 +492,16 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
       let bestS3MS = 0;
 
       validLaps.forEach((l) => {
-        if (l.sector1_ms > 0 && (bestS1MS === 0 || l.sector1_ms < bestS1MS)) bestS1MS = l.sector1_ms;
-        if (l.sector2_ms > 0 && (bestS2MS === 0 || l.sector2_ms < bestS2MS)) bestS2MS = l.sector2_ms;
-        if (l.sector3_ms > 0 && (bestS3MS === 0 || l.sector3_ms < bestS3MS)) bestS3MS = l.sector3_ms;
+        if (l.sector1_ms !== undefined && l.sector1_ms > 0 && (bestS1MS === 0 || l.sector1_ms < bestS1MS)) bestS1MS = l.sector1_ms;
+        if (l.sector2_ms !== undefined && l.sector2_ms > 0 && (bestS2MS === 0 || l.sector2_ms < bestS2MS)) bestS2MS = l.sector2_ms;
+        if (l.sector3_ms !== undefined && l.sector3_ms > 0 && (bestS3MS === 0 || l.sector3_ms < bestS3MS)) bestS3MS = l.sector3_ms;
       });
 
       const theoreticalBestMS = bestS1MS > 0 && bestS2MS > 0 && bestS3MS > 0 ? bestS1MS + bestS2MS + bestS3MS : 0;
 
       return {
         participant: p,
-        laps: [...driverLaps].sort((a, b) => a.lap_number - b.lap_number),
+        laps: driverLaps,
         bestLap,
         bestLapTimeMS: bestLap ? bestLap.lap_time_ms : Infinity,
         lastLap: lastCompletedLap,
@@ -566,7 +522,7 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
 
     // Sort standings
     if (isRaceSession) {
-      driverList.sort((a, b) => {
+      rawStandings.sort((a, b) => {
         if (a.isDSQ !== b.isDSQ) return a.isDSQ ? 1 : -1;
         if (a.isDNF !== b.isDNF) return a.isDNF ? 1 : -1;
         if (b.laps.length !== a.laps.length) return b.laps.length - a.laps.length;
@@ -575,10 +531,10 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
         if (a.officialPos > 0 && b.officialPos === 0) return -1;
         if (a.officialPos === 0 && b.officialPos > 0) return 1;
 
-        return a.totalRaceTimeWithPenalties - b.totalRaceTimeWithPenalties;
+        return (a.totalRaceTimeWithPenalties ?? 0) - (b.totalRaceTimeWithPenalties ?? 0);
       });
     } else {
-      driverList.sort((a, b) => {
+      rawStandings.sort((a, b) => {
         if (a.isDSQ !== b.isDSQ) return a.isDSQ ? 1 : -1;
 
         const timeA = a.bestLapTimeMS;
@@ -600,7 +556,7 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
       });
     }
 
-    return driverList.map((d, index) => ({
+    return rawStandings.map((d, index) => ({
       ...d,
       position: index + 1,
     }));

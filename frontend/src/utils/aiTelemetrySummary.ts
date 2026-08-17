@@ -1,5 +1,6 @@
 import type { MergedTelemetryPoint } from './deltaCalculation';
 import { detectTrackTurns, type TrackTurn } from './trackTurns';
+import { formatLapTime, formatSectorTime } from './formatters';
 
 export interface LapInfo {
   id: number;
@@ -49,19 +50,6 @@ export interface TelemetryContextPayload {
     speed_diff_at_apex: number;
     braking_diff_meters: number;
   };
-}
-
-function formatLapTime(ms?: number): string {
-  if (!ms || ms <= 0) return '-';
-  const totalSeconds = ms / 1000;
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = (totalSeconds % 60).toFixed(3);
-  return minutes > 0 ? `${minutes}:${seconds.padStart(6, '0')}` : `${seconds}s`;
-}
-
-function formatSectorTime(ms?: number): string {
-  if (!ms || ms <= 0) return '-';
-  return `${(ms / 1000).toFixed(3)}s`;
 }
 
 /**

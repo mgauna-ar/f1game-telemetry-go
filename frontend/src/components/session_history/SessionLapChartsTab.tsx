@@ -10,8 +10,8 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { TrendingUp, Award, Layers, Filter } from 'lucide-react';
-import { TEAM_COLORS } from '../LeaderboardTower';
-import type { DriverStanding } from './SessionClassificationTab';
+import { TEAM_COLORS } from '../../constants/f1';
+import type { DriverStanding } from '../../types/session';
 
 interface SessionLapChartsTabProps {
   driverStandings: DriverStanding[];

@@ -7,31 +7,10 @@ import {
   Award,
   GitCompare,
 } from 'lucide-react';
-import { TEAM_COLORS } from '../LeaderboardTower';
-import type { Session, Participant, Lap } from '../SessionHistory';
+import { TEAM_COLORS } from '../../constants/f1';
+import type { Session, Lap, DriverStanding, StagedLap } from '../../types/session';
 
-export interface DriverStanding {
-  position: number;
-  participant: Participant;
-  laps: Lap[];
-  bestLap: Lap | null;
-  bestLapTimeMS: number;
-  lastLap: Lap | null;
-  lastLapTimeMS: number;
-  totalRaceTimeMS: number;
-  penaltySeconds: number;
-  totalRaceTimeWithPenalties: number;
-  officialPos: number;
-  isDNF: boolean;
-  isDSQ: boolean;
-  maxSpeed: number;
-  bestS1MS: number;
-  bestS2MS: number;
-  bestS3MS: number;
-  theoreticalBestMS: number;
-}
-
-import type { StagedLap } from './SessionComparatorDock';
+export type { DriverStanding };
 
 interface SessionClassificationTabProps {
   session: Session;
@@ -121,7 +100,7 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                           ? 'DSQ'
                           : driver.isDNF
                           ? 'DNF'
-                          : formatTotalDuration(driver.totalRaceTimeMS)
+                          : formatTotalDuration(driver.totalRaceTimeMS ?? 0)
                         : `Best: ${formatLapTime(driver.bestLapTimeMS)}`}
                     </div>
                   </div>
@@ -228,15 +207,15 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                     } else if (driver.isDNF) {
                       timeGapDisplay = 'DNF';
                     } else if (isLeader) {
-                      timeGapDisplay = formatTotalDuration(driver.totalRaceTimeWithPenalties);
+                      timeGapDisplay = formatTotalDuration(driver.totalRaceTimeWithPenalties ?? 0);
                     } else if (driverStandings.length > 0) {
                       const leaderLaps = driverStandings[0].laps.length;
                       const driverLapsCount = driver.laps.length;
                       if (leaderLaps > 0 && driverLapsCount < leaderLaps) {
                         const lapDiff = leaderLaps - driverLapsCount;
                         timeGapDisplay = `+${lapDiff} ${lapDiff === 1 ? 'Lap' : 'Laps'}`;
-                      } else if (driver.totalRaceTimeWithPenalties > 0 && driverStandings[0].totalRaceTimeWithPenalties > 0) {
-                        const gapMS = driver.totalRaceTimeWithPenalties - driverStandings[0].totalRaceTimeWithPenalties;
+                      } else if ((driver.totalRaceTimeWithPenalties ?? 0) > 0 && (driverStandings[0].totalRaceTimeWithPenalties ?? 0) > 0) {
+                        const gapMS = (driver.totalRaceTimeWithPenalties ?? 0) - (driverStandings[0].totalRaceTimeWithPenalties ?? 0);
                         timeGapDisplay = gapMS >= 0 ? `+${(gapMS / 1000).toFixed(3)}s` : `+0.000s`;
                       }
                     }
@@ -250,9 +229,9 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                   }
 
                   // Sector timing for THAT BEST LAP:
-                  const bestLapS1 = driver.bestLap ? driver.bestLap.sector1_ms : 0;
-                  const bestLapS2 = driver.bestLap ? driver.bestLap.sector2_ms : 0;
-                  const bestLapS3 = driver.bestLap ? driver.bestLap.sector3_ms : 0;
+                  const bestLapS1 = driver.bestLap?.sector1_ms ?? 0;
+                  const bestLapS2 = driver.bestLap?.sector2_ms ?? 0;
+                  const bestLapS3 = driver.bestLap?.sector3_ms ?? 0;
 
                   const isS1Purple = bestLapS1 > 0 && sessionBestS1 > 0 && bestLapS1 <= sessionBestS1;
                   const isS2Purple = bestLapS2 > 0 && sessionBestS2 > 0 && bestLapS2 <= sessionBestS2;
@@ -315,7 +294,7 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 {isLeader && !driver.isDSQ && !driver.isDNF && <Clock size={12} color="var(--text-muted)" />}
                                 <span>{timeGapDisplay}</span>
-                                {driver.penaltySeconds > 0 && (
+                                {(driver.penaltySeconds ?? 0) > 0 && (
                                   <span
                                     className="mono"
                                     title={`${driver.penaltySeconds}s Penalty Included`}
@@ -541,13 +520,17 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                                           : `+${((lap.lap_time_ms - driver.bestLap.lap_time_ms) / 1000).toFixed(3)}s`
                                         : '--';
 
-                                      const s1Purple = lap.sector1_ms > 0 && sessionBestS1 > 0 && lap.sector1_ms <= sessionBestS1;
-                                      const s2Purple = lap.sector2_ms > 0 && sessionBestS2 > 0 && lap.sector2_ms <= sessionBestS2;
-                                      const s3Purple = lap.sector3_ms > 0 && sessionBestS3 > 0 && lap.sector3_ms <= sessionBestS3;
+                                      const s1 = lap.sector1_ms ?? 0;
+                                      const s2 = lap.sector2_ms ?? 0;
+                                      const s3 = lap.sector3_ms ?? 0;
 
-                                      const s1Green = !s1Purple && lap.sector1_ms > 0 && lap.sector1_ms <= driver.bestS1MS;
-                                      const s2Green = !s2Purple && lap.sector2_ms > 0 && lap.sector2_ms <= driver.bestS2MS;
-                                      const s3Green = !s3Purple && lap.sector3_ms > 0 && lap.sector3_ms <= driver.bestS3MS;
+                                      const s1Purple = s1 > 0 && sessionBestS1 > 0 && s1 <= sessionBestS1;
+                                      const s2Purple = s2 > 0 && sessionBestS2 > 0 && s2 <= sessionBestS2;
+                                      const s3Purple = s3 > 0 && sessionBestS3 > 0 && s3 <= sessionBestS3;
+
+                                      const s1Green = !s1Purple && s1 > 0 && s1 <= driver.bestS1MS;
+                                      const s2Green = !s2Purple && s2 > 0 && s2 <= driver.bestS2MS;
+                                      const s3Green = !s3Purple && s3 > 0 && s3 <= driver.bestS3MS;
 
                                       return (
                                         <tr key={lap.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
@@ -559,17 +542,17 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                                           </td>
                                           <td className="mono" style={{ padding: '6px 8px' }}>
                                             <span className={s1Purple ? 'sector-purple' : s1Green ? 'sector-green' : ''}>
-                                              {formatSectorTime(lap.sector1_ms)}
+                                              {formatSectorTime(s1)}
                                             </span>
                                           </td>
                                           <td className="mono" style={{ padding: '6px 8px' }}>
                                             <span className={s2Purple ? 'sector-purple' : s2Green ? 'sector-green' : ''}>
-                                              {formatSectorTime(lap.sector2_ms)}
+                                              {formatSectorTime(s2)}
                                             </span>
                                           </td>
                                           <td className="mono" style={{ padding: '6px 8px' }}>
                                             <span className={s3Purple ? 'sector-purple' : s3Green ? 'sector-green' : ''}>
-                                              {formatSectorTime(lap.sector3_ms)}
+                                              {formatSectorTime(s3)}
                                             </span>
                                           </td>
                                           <td className="mono" style={{ padding: '6px 8px', color: 'var(--text-secondary)' }}>

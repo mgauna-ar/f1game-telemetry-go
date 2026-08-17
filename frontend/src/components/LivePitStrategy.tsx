@@ -1,8 +1,8 @@
 import React from 'react';
 import { Wrench } from 'lucide-react';
 import { parseDriverName } from '../hooks/useTelemetry';
-import { TEAM_COLORS, TYRE_COMPOUNDS } from './LeaderboardTower';
-import type { ParticipantData, LapData, CarStatusData, SessionData } from '../hooks/useTelemetry';
+import { TEAM_COLORS, TYRE_COMPOUNDS } from '../constants/f1';
+import type { ParticipantData, LapData, CarStatusData, SessionData } from '../types/telemetry';
 
 interface LivePitStrategyProps {
   session: SessionData | null;

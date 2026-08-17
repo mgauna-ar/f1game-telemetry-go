@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
 import { Zap, Gauge, Target } from 'lucide-react';
 import { parseDriverName } from '../hooks/useTelemetry';
-import { TEAM_COLORS } from './LeaderboardTower';
-import type { ParticipantData, LapData } from '../hooks/useTelemetry';
+import { TEAM_COLORS } from '../constants/f1';
+import type { ParticipantData, LapData } from '../types/telemetry';
 
 interface LiveSectorTrackerProps {
   participants: ParticipantData[];

@@ -1,32 +1,9 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Search, X, ChevronDown, ChevronUp, Check, Award, Star, AlertTriangle, Filter } from 'lucide-react';
+import type { Lap, Participant } from '../types/session';
+import { formatLapTime as formatTime, formatSectorTime as formatSector } from '../utils/formatters';
 
-export interface Lap {
-  id: number;
-  session_id: number;
-  car_index?: number;
-  lap_number: number;
-  lap_time_ms: number;
-  sector1_ms?: number;
-  sector2_ms?: number;
-  sector3_ms?: number;
-  is_valid: boolean;
-  tyre_compound?: string;
-  fuel_load?: number;
-  max_speed_kmh?: number;
-}
-
-export interface Participant {
-  id: number;
-  session_id: number;
-  car_index: number;
-  name: string;
-  driver_id: number;
-  team_id: number;
-  race_number: number;
-  ai_controlled: boolean;
-  nationality: number;
-}
+export type { Lap, Participant };
 
 interface CustomLapSelectorProps {
   laps: Lap[];
@@ -36,21 +13,6 @@ interface CustomLapSelectorProps {
   slot: 'A' | 'B';
   disabled?: boolean;
   placeholder?: string;
-}
-
-// Format milliseconds to M:SS.ms
-function formatTime(ms?: number) {
-  if (!ms || ms <= 0) return '--:--.---';
-  const mins = Math.floor(ms / 60000);
-  const secs = Math.floor((ms % 60000) / 1000);
-  const m = ms % 1000;
-  return `${mins}:${secs.toString().padStart(2, '0')}.${m.toString().padStart(3, '0')}`;
-}
-
-// Format sector milliseconds to SS.ms
-function formatSector(ms?: number) {
-  if (!ms || ms <= 0) return '-';
-  return `${(ms / 1000).toFixed(3)}s`;
 }
 
 // Render Tyre Compound Badge
