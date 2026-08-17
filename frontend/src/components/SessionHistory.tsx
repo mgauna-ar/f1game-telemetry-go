@@ -17,6 +17,7 @@ import {
   List,
   Sparkles,
   TrendingUp,
+  Plus,
 } from 'lucide-react';
 import { SessionKPIBar } from './session_history/SessionKPIBar';
 import { SessionCardGrid } from './session_history/SessionCardGrid';
@@ -24,6 +25,9 @@ import { SessionTableView } from './session_history/SessionTableView';
 import { SessionClassificationTab } from './session_history/SessionClassificationTab';
 import { SessionLapChartsTab } from './session_history/SessionLapChartsTab';
 import { SessionSectorMatrixTab } from './session_history/SessionSectorMatrixTab';
+import { TagBadge } from './session_history/TagBadge';
+import { TagManagerModal } from './session_history/TagManagerModal';
+import { TagFilterBar } from './session_history/TagFilterBar';
 import { useRaceEngineer } from '../context/RaceEngineerContext';
 import { useI18n } from '../context/I18nContext';
 
@@ -34,10 +38,11 @@ import type {
   StagedLap,
   DriverStanding,
   NavigationComparatorPayload,
+  Tag,
 } from '../types/session';
 import { SessionComparatorDock } from './session_history/SessionComparatorDock';
 
-export type { Session, Participant, Lap, StagedLap, DriverStanding, NavigationComparatorPayload };
+export type { Session, Participant, Lap, StagedLap, DriverStanding, NavigationComparatorPayload, Tag };
 
 interface SessionHistoryProps {
   onNavigateToComparator?: (payload: NavigationComparatorPayload | number, lapId?: number, slot?: 'A' | 'B') => void;
@@ -48,6 +53,11 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loadingSessions, setLoadingSessions] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Tags State
+  const [availableTags, setAvailableTags] = useState<Tag[]>([]);
+  const [selectedTagId, setSelectedTagId] = useState<number | null>(null);
+  const [sessionToManageTags, setSessionToManageTags] = useState<Session | null>(null);
 
   // Search & Filters
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -163,7 +173,100 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
 
   useEffect(() => {
     fetchSessions();
+    fetchTags();
   }, []);
+
+  const fetchTags = async () => {
+    try {
+      const res = await fetch('/api/tags');
+      if (res.ok) {
+        const data: Tag[] = await res.json();
+        setAvailableTags(data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching tags:', err);
+    }
+  };
+
+  const handleAddTag = async (sessionId: number, tagId?: number, newTag?: { name: string; color: string }) => {
+    try {
+      const payload = tagId ? { tag_id: tagId } : newTag;
+      const res = await fetch(`/api/sessions/${sessionId}/tags`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) throw new Error('Failed to add tag');
+      const updatedTags: Tag[] = await res.json();
+
+      setSessions((prev) =>
+        prev.map((s) => (s.id === sessionId ? { ...s, tags: updatedTags } : s))
+      );
+      if (selectedSession && selectedSession.id === sessionId) {
+        setSelectedSession((prev) => (prev ? { ...prev, tags: updatedTags } : null));
+      }
+      if (sessionToManageTags && sessionToManageTags.id === sessionId) {
+        setSessionToManageTags((prev) => (prev ? { ...prev, tags: updatedTags } : null));
+      }
+      fetchTags();
+    } catch (err: any) {
+      console.error('Error adding tag:', err);
+    }
+  };
+
+  const handleRemoveTag = async (sessionId: number, tagId: number) => {
+    try {
+      const res = await fetch(`/api/sessions/${sessionId}/tags/${tagId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Failed to remove tag');
+      const updatedTags: Tag[] = await res.json();
+
+      setSessions((prev) =>
+        prev.map((s) => (s.id === sessionId ? { ...s, tags: updatedTags } : s))
+      );
+      if (selectedSession && selectedSession.id === sessionId) {
+        setSelectedSession((prev) => (prev ? { ...prev, tags: updatedTags } : null));
+      }
+      if (sessionToManageTags && sessionToManageTags.id === sessionId) {
+        setSessionToManageTags((prev) => (prev ? { ...prev, tags: updatedTags } : null));
+      }
+    } catch (err: any) {
+      console.error('Error removing tag:', err);
+    }
+  };
+
+  const handleDeleteGlobalTag = async (tagId: number) => {
+    try {
+      const res = await fetch(`/api/tags/${tagId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Failed to delete tag');
+
+      setAvailableTags((prev) => prev.filter((t) => t.id !== tagId));
+      setSessions((prev) =>
+        prev.map((s) => ({
+          ...s,
+          tags: (s.tags || []).filter((t) => t.id !== tagId),
+        }))
+      );
+      if (selectedSession) {
+        setSelectedSession((prev) =>
+          prev ? { ...prev, tags: (prev.tags || []).filter((t) => t.id !== tagId) } : null
+        );
+      }
+      if (sessionToManageTags) {
+        setSessionToManageTags((prev) =>
+          prev ? { ...prev, tags: (prev.tags || []).filter((t) => t.id !== tagId) } : null
+        );
+      }
+      if (selectedTagId === tagId) {
+        setSelectedTagId(null);
+      }
+    } catch (err: any) {
+      console.error('Error deleting tag:', err);
+    }
+  };
 
   const fetchSessions = async () => {
     setLoadingSessions(true);
@@ -377,6 +480,17 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
     return Array.from(set).sort();
   }, [sessions]);
 
+  // Session count per tag for filter badges
+  const sessionCountByTag = useMemo(() => {
+    const counts: Record<number, number> = {};
+    sessions.forEach((s) => {
+      (s.tags || []).forEach((t) => {
+        counts[t.id] = (counts[t.id] || 0) + 1;
+      });
+    });
+    return counts;
+  }, [sessions]);
+
   // Session filtering and sorting logic
   const filteredSessions = useMemo(() => {
     const list = sessions.filter((s) => {
@@ -384,7 +498,8 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
         !searchQuery ||
         s.track_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         s.session_type?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        String(s.id).includes(searchQuery);
+        String(s.id).includes(searchQuery) ||
+        (s.tags && s.tags.some((t) => t.name.toLowerCase().includes(searchQuery.toLowerCase())));
 
       const matchesType =
         sessionTypeFilter === 'ALL' ||
@@ -394,7 +509,11 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
         circuitFilter === 'ALL' ||
         s.track_name?.toLowerCase() === circuitFilter.toLowerCase();
 
-      return matchesSearch && matchesType && matchesCircuit;
+      const matchesTag =
+        selectedTagId === null ||
+        (s.tags && s.tags.some((t) => t.id === selectedTagId));
+
+      return matchesSearch && matchesType && matchesCircuit && matchesTag;
     });
 
     list.sort((a, b) => {
@@ -413,7 +532,7 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
     });
 
     return list;
-  }, [sessions, searchQuery, sessionTypeFilter, circuitFilter, sortField, sortOrder]);
+  }, [sessions, searchQuery, sessionTypeFilter, circuitFilter, selectedTagId, sortField, sortOrder]);
 
   const isRaceSession = !!selectedSession?.session_type?.toLowerCase().includes('race');
 
@@ -621,10 +740,15 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
       const winner = driverStandings[0];
       const fastestLapDriver = [...driverStandings].sort((a, b) => a.bestLapTimeMS - b.bestLapTimeMS)[0];
       const ultimateMS = sessionBestS1 + sessionBestS2 + sessionBestS3;
+      const tagsSummary =
+        selectedSession.tags && selectedSession.tags.length > 0
+          ? selectedSession.tags.map((t) => t.name).join(', ')
+          : 'None';
 
       let summaryText = `SESSION CLASSIFICATION & METRICS:
 - Circuit: ${selectedSession.track_name}
 - Session Type: ${selectedSession.session_type}
+- League / Category Tags: ${tagsSummary}
 - Weather: ${selectedSession.weather || 'Clear'}
 - Total Drivers in Session: ${driverStandings.length}
 - Session Winner / P1: ${winner ? `${winner.participant.name} (#${winner.participant.race_number})` : 'N/A'}
@@ -787,13 +911,29 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
 
               <button
                 className="nav-tab"
-                onClick={fetchSessions}
+                onClick={() => {
+                  fetchSessions();
+                  fetchTags();
+                }}
                 disabled={loadingSessions}
                 style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', padding: '0.55rem 0.9rem' }}
               >
                 <RefreshCw size={14} className={loadingSessions ? 'animate-spin' : ''} /> {t('common.refresh')}
               </button>
             </div>
+
+            {/* Tag Filter Bar Strip */}
+            {availableTags.length > 0 && (
+              <div style={{ width: '100%', borderTop: '1px solid var(--border-color)', paddingTop: '0.6rem', marginTop: '0.25rem' }}>
+                <TagFilterBar
+                  availableTags={availableTags}
+                  selectedTagId={selectedTagId}
+                  onSelectTag={setSelectedTagId}
+                  sessionCountByTag={sessionCountByTag}
+                  totalSessionsCount={sessions.length}
+                />
+              </div>
+            )}
           </div>
 
           {/* Session Content Cards / Table */}
@@ -816,7 +956,7 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
               <Flag size={40} color="var(--text-muted)" style={{ marginBottom: '1rem' }} />
               <h3>{t('history.noSessionsFound')}</h3>
               <p style={{ color: 'var(--text-secondary)' }}>
-                {searchQuery || sessionTypeFilter !== 'ALL' || circuitFilter !== 'ALL'
+                {searchQuery || sessionTypeFilter !== 'ALL' || circuitFilter !== 'ALL' || selectedTagId !== null
                   ? t('history.noSessionsMatch')
                   : t('history.noSessionsEmpty')}
               </p>
@@ -828,6 +968,7 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
               onRequestDelete={(s) => setSessionToDelete(s)}
               formatDate={formatDate}
               getSessionBadgeClass={getSessionBadgeClass}
+              onOpenTagManager={(s) => setSessionToManageTags(s)}
             />
           ) : (
             <SessionTableView
@@ -839,6 +980,7 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
               sortField={sortField}
               sortOrder={sortOrder}
               onToggleSort={handleToggleSort}
+              onOpenTagManager={(s) => setSessionToManageTags(s)}
             />
           )}
         </div>
@@ -859,6 +1001,28 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
               <p className="mono" style={{ color: 'var(--text-secondary)', margin: '4px 0 0 0', fontSize: '0.85rem' }}>
                 {t('history.detail.recordedOn', { date: formatDate(selectedSession.created_at), uid: selectedSession.session_uid || selectedSession.id })}
               </p>
+
+              {/* Tags & Manage Tags Button */}
+              <div className="session-card-tags-row" style={{ paddingTop: '6px' }}>
+                {(selectedSession.tags || []).map((tag) => (
+                  <TagBadge
+                    key={tag.id}
+                    tag={tag}
+                    size="sm"
+                    onRemove={() => handleRemoveTag(selectedSession.id, tag.id)}
+                  />
+                ))}
+
+                <button
+                  type="button"
+                  onClick={() => setSessionToManageTags(selectedSession)}
+                  className="session-add-tag-btn"
+                  title={t('history.tags.manageTags')}
+                >
+                  <Plus size={12} />
+                  <span>{(selectedSession.tags || []).length === 0 ? t('history.tags.addTag') : t('history.tags.manageTags')}</span>
+                </button>
+              </div>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
@@ -1082,6 +1246,17 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
           </div>
         </div>
       )}
+
+      {/* TAG MANAGER MODAL */}
+      <TagManagerModal
+        session={sessionToManageTags}
+        availableTags={availableTags}
+        onAddTag={handleAddTag}
+        onRemoveTag={handleRemoveTag}
+        onDeleteGlobalTag={handleDeleteGlobalTag}
+        isOpen={sessionToManageTags !== null}
+        onClose={() => setSessionToManageTags(null)}
+      />
     </div>
   );
 };

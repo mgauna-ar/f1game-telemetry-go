@@ -1,3 +1,10 @@
+export interface Tag {
+  id: number;
+  name: string;
+  color: string;
+  created_at?: string;
+}
+
 export interface Session {
   id: number;
   session_uid: string | number;
@@ -7,6 +14,7 @@ export interface Session {
   weather?: string;
   packet_format?: number;
   created_at: string;
+  tags?: Tag[];
 }
 
 export interface Participant {

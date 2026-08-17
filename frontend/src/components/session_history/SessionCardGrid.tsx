@@ -1,7 +1,8 @@
 import React from 'react';
-import { Clock, CloudSun, ChevronRight, Trash2, MapPin } from 'lucide-react';
+import { Clock, CloudSun, ChevronRight, Trash2, MapPin, Plus } from 'lucide-react';
 import type { Session } from '../SessionHistory';
 import { useI18n } from '../../context/I18nContext';
+import { TagBadge } from './TagBadge';
 
 interface SessionCardGridProps {
   sessions: Session[];
@@ -9,6 +10,7 @@ interface SessionCardGridProps {
   onRequestDelete: (session: Session) => void;
   formatDate: (dateStr?: string) => string;
   getSessionBadgeClass: (typeStr?: string) => string;
+  onOpenTagManager: (session: Session) => void;
 }
 
 export const SessionCardGrid: React.FC<SessionCardGridProps> = ({
@@ -17,6 +19,7 @@ export const SessionCardGrid: React.FC<SessionCardGridProps> = ({
   onRequestDelete,
   formatDate,
   getSessionBadgeClass,
+  onOpenTagManager,
 }) => {
   const { t } = useI18n();
 
@@ -25,6 +28,7 @@ export const SessionCardGrid: React.FC<SessionCardGridProps> = ({
       {sessions.map((session) => {
         const badgeClass = getSessionBadgeClass(session.session_type);
         const isRace = session.session_type?.toLowerCase().includes('race');
+        const sessionTags = session.tags || [];
 
         return (
           <div
@@ -57,6 +61,26 @@ export const SessionCardGrid: React.FC<SessionCardGridProps> = ({
                   <CloudSun size={14} color="var(--text-secondary)" />
                   <span>{session.weather || t('common.clearWeather')}</span>
                 </div>
+              </div>
+
+              {/* Tags Row */}
+              <div className="session-card-tags-row" onClick={(e) => e.stopPropagation()}>
+                {sessionTags.map((tag) => (
+                  <TagBadge key={tag.id} tag={tag} size="xs" />
+                ))}
+
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onOpenTagManager(session);
+                  }}
+                  className="session-add-tag-btn"
+                  title={t('history.tags.manageTags')}
+                >
+                  <Plus size={11} />
+                  <span>{sessionTags.length === 0 ? t('history.tags.addTag') : '+'}</span>
+                </button>
               </div>
 
               <div className="session-card-tagline mono">

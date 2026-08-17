@@ -2,6 +2,14 @@ package storage
 
 import "time"
 
+// Tag represents a category or league tag for organizing sessions.
+type Tag struct {
+	ID        int64     `db:"id" json:"id"`
+	Name      string    `db:"name" json:"name"`
+	Color     string    `db:"color" json:"color"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+}
+
 // Session represents a racing session.
 type Session struct {
 	ID           int64     `db:"id" json:"id"`
@@ -12,6 +20,7 @@ type Session struct {
 	Weather      string    `db:"weather" json:"weather"`
 	PacketFormat int       `db:"packet_format" json:"packet_format"`
 	CreatedAt    time.Time `db:"created_at" json:"created_at"`
+	Tags         []Tag     `db:"-" json:"tags"`
 }
 
 // Lap represents a single lap for a session.

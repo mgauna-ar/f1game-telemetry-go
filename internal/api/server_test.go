@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -145,5 +146,142 @@ func TestHandleDeleteSession(t *testing.T) {
 				t.Errorf("expected status %d, got %d (body: %s)", tt.wantStatus, rec.Code, rec.Body.String())
 			}
 		})
+	}
+}
+
+func TestHandleTagsCRUD(t *testing.T) {
+	server, _ := setupTestServer(t)
+
+	// 1. Initially GET /api/tags -> empty array
+	req := httptest.NewRequest(http.MethodGet, "/api/tags", nil)
+	rec := httptest.NewRecorder()
+	server.router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", rec.Code)
+	}
+	var tags []storage.Tag
+	json.NewDecoder(rec.Body).Decode(&tags)
+	if len(tags) != 0 {
+		t.Fatalf("expected 0 tags initially, got %d", len(tags))
+	}
+
+	// 2. POST /api/tags -> Create tag
+	body := bytes.NewBufferString(`{"name":"WOR League","color":"#ef4444"}`)
+	req = httptest.NewRequest(http.MethodPost, "/api/tags", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	server.router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201 Created, got %d (%s)", rec.Code, rec.Body.String())
+	}
+	var createdTag storage.Tag
+	json.NewDecoder(rec.Body).Decode(&createdTag)
+	if createdTag.ID == 0 || createdTag.Name != "WOR League" || createdTag.Color != "#ef4444" {
+		t.Errorf("unexpected created tag: %+v", createdTag)
+	}
+
+	// 3. PUT /api/tags/{id} -> Update tag
+	updateBody := bytes.NewBufferString(`{"name":"WOR Tier 1","color":"#06b6d4"}`)
+	req = httptest.NewRequest(http.MethodPut, "/api/tags/1", updateBody)
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	server.router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d (%s)", rec.Code, rec.Body.String())
+	}
+	var updatedTag storage.Tag
+	json.NewDecoder(rec.Body).Decode(&updatedTag)
+	if updatedTag.Name != "WOR Tier 1" || updatedTag.Color != "#06b6d4" {
+		t.Errorf("unexpected updated tag: %+v", updatedTag)
+	}
+
+	// 4. DELETE /api/tags/{id} -> Delete tag
+	req = httptest.NewRequest(http.MethodDelete, "/api/tags/1", nil)
+	rec = httptest.NewRecorder()
+	server.router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", rec.Code)
+	}
+
+	// 5. DELETE non-existent tag -> 404
+	req = httptest.NewRequest(http.MethodDelete, "/api/tags/999", nil)
+	rec = httptest.NewRecorder()
+	server.router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 Not Found, got %d", rec.Code)
+	}
+}
+
+func TestHandleSessionTags(t *testing.T) {
+	server, repo := setupTestServer(t)
+	ctx := context.Background()
+
+	session := &storage.Session{
+		SessionUID:   555444333,
+		TrackID:      1,
+		TrackName:    "Melbourne",
+		SessionType:  "Race",
+		Weather:      "Clear",
+		PacketFormat: 2025,
+	}
+	if err := repo.SaveSession(ctx, session); err != nil {
+		t.Fatalf("failed to create session: %v", err)
+	}
+
+	// 1. Add tag on-demand by name & color to session
+	body := bytes.NewBufferString(`{"name":"AOR League","color":"#10b981"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/sessions/1/tags", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	server.router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d (%s)", rec.Code, rec.Body.String())
+	}
+	var sessionTags []storage.Tag
+	json.NewDecoder(rec.Body).Decode(&sessionTags)
+	if len(sessionTags) != 1 || sessionTags[0].Name != "AOR League" {
+		t.Fatalf("expected 1 tag with name AOR League, got %+v", sessionTags)
+	}
+
+	// 2. GET /api/sessions/1/tags
+	req = httptest.NewRequest(http.MethodGet, "/api/sessions/1/tags", nil)
+	rec = httptest.NewRecorder()
+	server.router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", rec.Code)
+	}
+	var getTags []storage.Tag
+	json.NewDecoder(rec.Body).Decode(&getTags)
+	if len(getTags) != 1 {
+		t.Fatalf("expected 1 tag, got %d", len(getTags))
+	}
+
+	// 3. Remove tag from session: DELETE /api/sessions/1/tags/{tagId}
+	tagID := sessionTags[0].ID
+	req = httptest.NewRequest(http.MethodDelete, "/api/sessions/1/tags/"+string(rune('0'+tagID)), nil)
+	rec = httptest.NewRecorder()
+	server.router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d (%s)", rec.Code, rec.Body.String())
+	}
+	var tagsAfterRemove []storage.Tag
+	json.NewDecoder(rec.Body).Decode(&tagsAfterRemove)
+	if len(tagsAfterRemove) != 0 {
+		t.Fatalf("expected 0 tags after remove, got %d", len(tagsAfterRemove))
+	}
+
+	// 4. PUT /api/sessions/1/tags -> batch set tags
+	putBody := bytes.NewBufferString(`{"tag_ids":[` + string(rune('0'+tagID)) + `]}`)
+	req = httptest.NewRequest(http.MethodPut, "/api/sessions/1/tags", putBody)
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	server.router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d (%s)", rec.Code, rec.Body.String())
+	}
+	var tagsAfterPut []storage.Tag
+	json.NewDecoder(rec.Body).Decode(&tagsAfterPut)
+	if len(tagsAfterPut) != 1 {
+		t.Fatalf("expected 1 tag after put, got %d", len(tagsAfterPut))
 	}
 }

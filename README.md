@@ -13,10 +13,11 @@
 - **Driver & Participant Metadata** — Stores driver names, team IDs, race numbers, and AI status per session
 - **Modern Top Navigation Bar** — Premium sticky glassmorphic navigation header with reordered segmented tabs (1: **Session History**, 2: **Lap Comparator**, 3: **Live Session** with live pulse badge), app branding, persistent active tab memory, and real-time port indicator
 - **Session Explorer & Historical Deep Dive** — Comprehensive historical session hub with aggregate KPI metrics (Total Sessions, Laps, Most Visited Circuit), visual Card Grid vs compact Data Table switcher, multi-attribute filtering (Track, Session Type, Weather) and column sorting. Features a 3-tab session deep-dive experience:
+  - 🏷️ **Multi-Tag & League Management**: Organize sessions by racing league (WOR, AOR, PSGL), tiers, wet setup tests, or custom categories with 8 motorsport color accents. Interactive 1-click **Tag Filter Bar** with session count indicators, inline `+ Tag` popovers directly on cards and table rows, autocomplete tag selector, and full tag lifecycle management.
   - 🏆 **Classification & Laps**: P1/P2/P3 podium cards, driver standings with purple/green sector timing highlights, interactive tyre stint timelines with compound pills and lap counts, and interactive **"Slot A"** / **"Slot B"** staging chips with a persistent **Comparator Staging Dock** that enables staging and swapping laps without abrupt navigation before launching side-by-side telemetry comparison.
   - 📈 **Lap Progression & Gap Charts**: Interactive Recharts lap-by-lap pace chart (with driver toggle chips and pit-in/outlier scale optimizer), Lap Position evolution chart, and Gap to Leader delta chart.
   - ⚡ **Sector & Speed Matrix**: Session Ultimate Theoretical Lap record hero card, S1/S2/S3 sector rankings with delta to purple sector, and speed trap leaderboard with animated speed distribution bars.
-  - 🤖 **AI Race Engineer Session Debrief**: Embedded slide-over drawer with real-time SSE streaming for instant strategic post-race debriefs, tyre degradation analysis, and sector improvement coaching.
+  - 🤖 **AI Race Engineer Session Debrief**: Embedded slide-over drawer with real-time SSE streaming for instant strategic post-race debriefs, tyre degradation analysis, league tag context injection, and sector improvement coaching.
 - **Live Race Control Hub & Race Intelligence** — Dedicated live race center replacing single-car gauges with comprehensive session-level race control:
   - 📡 **Race Control & Incident Feed**: Real-time streaming timeline ticker for race events (Overtakes, Penalties, Fastest Laps, Pit In/Out, Safety Car/VSC deployments, and Retirements) with event filter chips and flag indicators.
   - 🌦️ **Weather Radar & Track Evolution**: Horizontal timeline forecast (+0m, +5m, +10m, +15m, +30m) with rain probability progress bars, air & track temperature trends, and tyre crossover strategy recommendations.
@@ -179,11 +180,19 @@ f1game-telemetry-go/
 |---|---|---|
 | `GET` | `/` | Web dashboard |
 | `GET` | `/ws` | WebSocket telemetry stream |
-| `GET` | `/api/sessions` | List recorded sessions |
+| `GET` | `/api/sessions` | List recorded sessions (with attached tags) |
 | `DELETE` | `/api/sessions/:id` | Delete a recorded session and all associated data |
 | `GET` | `/api/sessions/:id/participants` | Get participant roster (drivers) for a session |
 | `GET` | `/api/sessions/:id/laps` | Get laps for a session |
 | `GET` | `/api/laps/:id/telemetry` | Get telemetry for a lap (supports `?maxPoints=N` LTTB downsampling) |
+| `GET` | `/api/tags` | List all global tags |
+| `POST` | `/api/tags` | Create a new tag (`{"name": "...", "color": "..."}`) |
+| `PUT` | `/api/tags/:id` | Update a tag name or color |
+| `DELETE` | `/api/tags/:id` | Delete a tag globally |
+| `GET` | `/api/sessions/:id/tags` | Get tags associated with a session |
+| `POST` | `/api/sessions/:id/tags` | Attach or create tag for a session |
+| `PUT` | `/api/sessions/:id/tags` | Batch set/sync tags for a session |
+| `DELETE` | `/api/sessions/:id/tags/:tagId` | Remove tag from a session |
 | `POST` | `/api/ai/chat` | AI Race Engineer streaming telemetry chat endpoint (SSE) |
 | `POST` | `/api/ai/models` | Query available LLM models for configured provider |
 | `GET` | `/api/ai/config-status` | Get AI server environment key status |

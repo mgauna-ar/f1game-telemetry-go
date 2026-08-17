@@ -77,6 +77,23 @@ CREATE INDEX IF NOT EXISTS idx_samples_lap ON telemetry_samples(lap_id);
 CREATE INDEX IF NOT EXISTS idx_samples_distance ON telemetry_samples(lap_id, lap_distance);
 CREATE INDEX IF NOT EXISTS idx_laps_session ON laps(session_id);
 CREATE INDEX IF NOT EXISTS idx_participants_session ON participants(session_id);
+
+CREATE TABLE IF NOT EXISTS tags (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT UNIQUE NOT NULL COLLATE NOCASE,
+    color      TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS session_tags (
+    session_id INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    tag_id     INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (session_id, tag_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_session_tags_session ON session_tags(session_id);
+CREATE INDEX IF NOT EXISTS idx_session_tags_tag ON session_tags(tag_id);
 `
 
 // Migrate runs the base schema creation to ensure the database is initialized.

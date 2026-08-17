@@ -3,6 +3,7 @@ import { MapPin, Search, ChevronDown, ChevronUp, X } from 'lucide-react';
 import type { Session } from '../../types/session';
 import { getSessionBadgeClass } from '../../utils/formatters';
 import { useI18n } from '../../context/I18nContext';
+import { TagBadge } from '../session_history/TagBadge';
 
 interface SessionSelectorDropdownProps {
   sessions: Session[];
@@ -172,6 +173,13 @@ export const SessionSelectorDropdown: React.FC<SessionSelectorDropdownProps> = (
                       <span className="custom-session-meta-time">{new Date(s.created_at).toLocaleString()}</span>
                       {s.weather && <span className="custom-session-weather">🌦️ {s.weather}</span>}
                     </div>
+                    {s.tags && s.tags.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1 pt-1">
+                        {s.tags.map((tag) => (
+                          <TagBadge key={tag.id} tag={tag} size="xs" />
+                        ))}
+                      </div>
+                    )}
                   </button>
                 );
               })

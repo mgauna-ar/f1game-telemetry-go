@@ -265,7 +265,8 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
         !sessionASearchQuery ||
         s.track_name.toLowerCase().includes(sessionASearchQuery.toLowerCase()) ||
         s.session_type.toLowerCase().includes(sessionASearchQuery.toLowerCase()) ||
-        new Date(s.created_at).toLocaleDateString().toLowerCase().includes(sessionASearchQuery.toLowerCase());
+        new Date(s.created_at).toLocaleDateString().toLowerCase().includes(sessionASearchQuery.toLowerCase()) ||
+        (s.tags && s.tags.some((t) => t.name.toLowerCase().includes(sessionASearchQuery.toLowerCase())));
 
       if (!matchesSearch) return false;
 
@@ -290,7 +291,8 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
         !sessionBSearchQuery ||
         s.track_name.toLowerCase().includes(sessionBSearchQuery.toLowerCase()) ||
         s.session_type.toLowerCase().includes(sessionBSearchQuery.toLowerCase()) ||
-        new Date(s.created_at).toLocaleDateString().toLowerCase().includes(sessionBSearchQuery.toLowerCase());
+        new Date(s.created_at).toLocaleDateString().toLowerCase().includes(sessionBSearchQuery.toLowerCase()) ||
+        (s.tags && s.tags.some((t) => t.name.toLowerCase().includes(sessionBSearchQuery.toLowerCase())));
 
       if (!matchesSearch) return false;
 

@@ -484,3 +484,129 @@ func TestLapSector3DerivationAndHistoryEntry(t *testing.T) {
 		t.Errorf("expected history Sector3MS 25500, got %d", historySaved.Sector3MS)
 	}
 }
+
+func TestTagOperations(t *testing.T) {
+	repo := setupTestRepo(t)
+	session1 := createTestSession(t, repo)
+	ctx := context.Background()
+
+	// 1. Create a second session
+	session2 := &Session{
+		SessionUID:   987654321,
+		TrackID:      12,
+		TrackName:    "Spa",
+		SessionType:  "Race",
+		Weather:      "Rain",
+		PacketFormat: 2025,
+	}
+	if err := repo.SaveSession(ctx, session2); err != nil {
+		t.Fatalf("failed to create session2: %v", err)
+	}
+
+	// 2. Create Tags
+	tag1 := &Tag{Name: "WOR League", Color: "#ef4444"}
+	tag2 := &Tag{Name: "Tier 1", Color: "#06b6d4"}
+	tag3 := &Tag{Name: "Setup Test", Color: "#10b981"}
+
+	if err := repo.CreateTag(ctx, tag1); err != nil {
+		t.Fatalf("CreateTag tag1 failed: %v", err)
+	}
+	if err := repo.CreateTag(ctx, tag2); err != nil {
+		t.Fatalf("CreateTag tag2 failed: %v", err)
+	}
+	if err := repo.CreateTag(ctx, tag3); err != nil {
+		t.Fatalf("CreateTag tag3 failed: %v", err)
+	}
+
+	if tag1.ID == 0 || tag2.ID == 0 || tag3.ID == 0 {
+		t.Errorf("expected non-zero IDs for tags, got %d, %d, %d", tag1.ID, tag2.ID, tag3.ID)
+	}
+
+	// 3. GetAllTags
+	tags, err := repo.GetAllTags(ctx)
+	if err != nil {
+		t.Fatalf("GetAllTags failed: %v", err)
+	}
+	if len(tags) != 3 {
+		t.Errorf("expected 3 tags, got %d", len(tags))
+	}
+
+	// 4. UpdateTag
+	tag1.Color = "#f97316"
+	tag1.Name = "WOR Championship"
+	if err := repo.UpdateTag(ctx, tag1); err != nil {
+		t.Fatalf("UpdateTag failed: %v", err)
+	}
+
+	// 5. AddTagToSession
+	if err := repo.AddTagToSession(ctx, session1.ID, tag1.ID); err != nil {
+		t.Fatalf("AddTagToSession tag1 failed: %v", err)
+	}
+	if err := repo.AddTagToSession(ctx, session1.ID, tag2.ID); err != nil {
+		t.Fatalf("AddTagToSession tag2 failed: %v", err)
+	}
+
+	// 6. GetTagsBySession
+	s1Tags, err := repo.GetTagsBySession(ctx, session1.ID)
+	if err != nil {
+		t.Fatalf("GetTagsBySession failed: %v", err)
+	}
+	if len(s1Tags) != 2 {
+		t.Fatalf("expected 2 tags for session1, got %d", len(s1Tags))
+	}
+
+	// 7. GetSessions should include tags
+	allSessions, err := repo.GetSessions(ctx)
+	if err != nil {
+		t.Fatalf("GetSessions failed: %v", err)
+	}
+	for _, s := range allSessions {
+		if s.ID == session1.ID {
+			if len(s.Tags) != 2 {
+				t.Errorf("expected session1 to have 2 tags in GetSessions, got %d", len(s.Tags))
+			}
+		} else if s.ID == session2.ID {
+			if len(s.Tags) != 0 {
+				t.Errorf("expected session2 to have 0 tags, got %d", len(s.Tags))
+			}
+		}
+	}
+
+	// 8. SetSessionTags (sync)
+	if err := repo.SetSessionTags(ctx, session2.ID, []int64{tag3.ID}); err != nil {
+		t.Fatalf("SetSessionTags failed: %v", err)
+	}
+	s2Tags, err := repo.GetTagsBySession(ctx, session2.ID)
+	if err != nil {
+		t.Fatalf("GetTagsBySession s2 failed: %v", err)
+	}
+	if len(s2Tags) != 1 || s2Tags[0].ID != tag3.ID {
+		t.Errorf("expected session2 to have tag3, got %v", s2Tags)
+	}
+
+	// 9. RemoveTagFromSession
+	if err := repo.RemoveTagFromSession(ctx, session1.ID, tag1.ID); err != nil {
+		t.Fatalf("RemoveTagFromSession failed: %v", err)
+	}
+	s1TagsAfter, err := repo.GetTagsBySession(ctx, session1.ID)
+	if err != nil {
+		t.Fatalf("GetTagsBySession failed: %v", err)
+	}
+	if len(s1TagsAfter) != 1 || s1TagsAfter[0].ID != tag2.ID {
+		t.Errorf("expected session1 to have only tag2, got %v", s1TagsAfter)
+	}
+
+	// 10. DeleteTag
+	if err := repo.DeleteTag(ctx, tag2.ID); err != nil {
+		t.Fatalf("DeleteTag failed: %v", err)
+	}
+	tagsAfterDelete, _ := repo.GetAllTags(ctx)
+	if len(tagsAfterDelete) != 2 {
+		t.Errorf("expected 2 tags after delete, got %d", len(tagsAfterDelete))
+	}
+
+	// 11. DeleteSession cascades cleanly
+	if err := repo.DeleteSession(ctx, session2.ID); err != nil {
+		t.Fatalf("DeleteSession failed: %v", err)
+	}
+}

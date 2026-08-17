@@ -227,7 +227,12 @@ func (r *Repository) DeleteSession(ctx context.Context, sessionID int64) error {
 		return fmt.Errorf("failed to delete participants: %w", err)
 	}
 
-	// 4. Delete session entry
+	// 4. Delete session tags for this session
+	if _, err := tx.ExecContext(ctx, `DELETE FROM session_tags WHERE session_id = ?`, sessionID); err != nil {
+		return fmt.Errorf("failed to delete session tags: %w", err)
+	}
+
+	// 5. Delete session entry
 	res, err := tx.ExecContext(ctx, `DELETE FROM sessions WHERE id = ?`, sessionID)
 	if err != nil {
 		return fmt.Errorf("failed to delete session: %w", err)
@@ -247,7 +252,15 @@ func (r *Repository) DeleteSession(ctx context.Context, sessionID int64) error {
 	return nil
 }
 
-// GetSessions retrieves all valid recorded sessions, ordered by most recent first.
+// sessionTagJoinRow is a helper struct for fetching tags joined with session IDs.
+type sessionTagJoinRow struct {
+	SessionID int64  `db:"session_id"`
+	ID        int64  `db:"id"`
+	Name      string `db:"name"`
+	Color     string `db:"color"`
+}
+
+// GetSessions retrieves all valid recorded sessions with their tags, ordered by most recent first.
 func (r *Repository) GetSessions(ctx context.Context) ([]Session, error) {
 	var sessions []Session
 	query := `
@@ -259,7 +272,182 @@ func (r *Repository) GetSessions(ctx context.Context) ([]Session, error) {
 	if err := r.db.SelectContext(ctx, &sessions, query); err != nil {
 		return nil, fmt.Errorf("failed to get sessions: %w", err)
 	}
+
+	for i := range sessions {
+		sessions[i].Tags = []Tag{}
+	}
+
+	if len(sessions) == 0 {
+		return sessions, nil
+	}
+
+	// Fetch all tags for sessions
+	tagJoinQuery := `
+		SELECT st.session_id, t.id, t.name, t.color
+		FROM session_tags st
+		JOIN tags t ON t.id = st.tag_id
+		ORDER BY t.name ASC
+	`
+	var tagRows []sessionTagJoinRow
+	if err := r.db.SelectContext(ctx, &tagRows, tagJoinQuery); err != nil {
+		// Log or ignore if table is empty or error, but return sessions
+		return sessions, nil
+	}
+
+	tagsBySession := make(map[int64][]Tag)
+	for _, row := range tagRows {
+		tagsBySession[row.SessionID] = append(tagsBySession[row.SessionID], Tag{
+			ID:    row.ID,
+			Name:  row.Name,
+			Color: row.Color,
+		})
+	}
+
+	for i := range sessions {
+		if tags, exists := tagsBySession[sessions[i].ID]; exists {
+			sessions[i].Tags = tags
+		}
+	}
+
 	return sessions, nil
+}
+
+// GetAllTags retrieves all available global tags.
+func (r *Repository) GetAllTags(ctx context.Context) ([]Tag, error) {
+	var tags []Tag
+	query := `SELECT id, name, color, created_at FROM tags ORDER BY name ASC`
+	if err := r.db.SelectContext(ctx, &tags, query); err != nil {
+		return nil, fmt.Errorf("failed to get tags: %w", err)
+	}
+	if tags == nil {
+		tags = []Tag{}
+	}
+	return tags, nil
+}
+
+// CreateTag inserts a new tag or returns existing if conflict.
+func (r *Repository) CreateTag(ctx context.Context, t *Tag) error {
+	query := `
+		INSERT INTO tags (name, color)
+		VALUES (:name, :color)
+		ON CONFLICT(name) DO UPDATE SET color = excluded.color
+		RETURNING id, created_at
+	`
+	rows, err := r.db.NamedQueryContext(ctx, query, t)
+	if err != nil {
+		return fmt.Errorf("failed to create tag: %w", err)
+	}
+	defer rows.Close()
+
+	if rows.Next() {
+		if err := rows.Scan(&t.ID, &t.CreatedAt); err != nil {
+			return fmt.Errorf("failed to scan tag id/created_at: %w", err)
+		}
+	}
+	return nil
+}
+
+// UpdateTag updates an existing tag's name and color.
+func (r *Repository) UpdateTag(ctx context.Context, t *Tag) error {
+	query := `UPDATE tags SET name = ?, color = ? WHERE id = ?`
+	res, err := r.db.ExecContext(ctx, query, t.Name, t.Color, t.ID)
+	if err != nil {
+		return fmt.Errorf("failed to update tag: %w", err)
+	}
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("tag not found")
+	}
+	return nil
+}
+
+// DeleteTag deletes a tag by its ID.
+func (r *Repository) DeleteTag(ctx context.Context, tagID int64) error {
+	tx, err := r.db.Beginx()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(ctx, `DELETE FROM session_tags WHERE tag_id = ?`, tagID); err != nil {
+		return fmt.Errorf("failed to delete session tags: %w", err)
+	}
+
+	res, err := tx.ExecContext(ctx, `DELETE FROM tags WHERE id = ?`, tagID)
+	if err != nil {
+		return fmt.Errorf("failed to delete tag: %w", err)
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check rows affected: %w", err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("tag not found")
+	}
+
+	return tx.Commit()
+}
+
+// GetTagsBySession retrieves all tags associated with a specific session ID.
+func (r *Repository) GetTagsBySession(ctx context.Context, sessionID int64) ([]Tag, error) {
+	var tags []Tag
+	query := `
+		SELECT t.id, t.name, t.color, t.created_at
+		FROM tags t
+		JOIN session_tags st ON st.tag_id = t.id
+		WHERE st.session_id = ?
+		ORDER BY t.name ASC
+	`
+	if err := r.db.SelectContext(ctx, &tags, query, sessionID); err != nil {
+		return nil, fmt.Errorf("failed to get tags for session: %w", err)
+	}
+	if tags == nil {
+		tags = []Tag{}
+	}
+	return tags, nil
+}
+
+// AddTagToSession links a tag to a session.
+func (r *Repository) AddTagToSession(ctx context.Context, sessionID int64, tagID int64) error {
+	query := `INSERT OR IGNORE INTO session_tags (session_id, tag_id) VALUES (?, ?)`
+	if _, err := r.db.ExecContext(ctx, query, sessionID, tagID); err != nil {
+		return fmt.Errorf("failed to link tag to session: %w", err)
+	}
+	return nil
+}
+
+// RemoveTagFromSession unlinks a tag from a session.
+func (r *Repository) RemoveTagFromSession(ctx context.Context, sessionID int64, tagID int64) error {
+	query := `DELETE FROM session_tags WHERE session_id = ? AND tag_id = ?`
+	if _, err := r.db.ExecContext(ctx, query, sessionID, tagID); err != nil {
+		return fmt.Errorf("failed to unlink tag from session: %w", err)
+	}
+	return nil
+}
+
+// SetSessionTags replaces all tags for a session with the provided tag IDs.
+func (r *Repository) SetSessionTags(ctx context.Context, sessionID int64, tagIDs []int64) error {
+	tx, err := r.db.Beginx()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.ExecContext(ctx, `DELETE FROM session_tags WHERE session_id = ?`, sessionID); err != nil {
+		return fmt.Errorf("failed to clear existing session tags: %w", err)
+	}
+
+	for _, tagID := range tagIDs {
+		if _, err := tx.ExecContext(ctx, `INSERT OR IGNORE INTO session_tags (session_id, tag_id) VALUES (?, ?)`, sessionID, tagID); err != nil {
+			return fmt.Errorf("failed to insert session tag: %w", err)
+		}
+	}
+
+	return tx.Commit()
 }
 
 // GetLapsBySession retrieves all laps for a given session.

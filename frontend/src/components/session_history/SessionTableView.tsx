@@ -1,7 +1,8 @@
 import React from 'react';
-import { Clock, CloudSun, ChevronRight, Trash2, ArrowUpDown } from 'lucide-react';
+import { Clock, CloudSun, ChevronRight, Trash2, ArrowUpDown, Plus } from 'lucide-react';
 import type { Session } from '../SessionHistory';
 import { useI18n } from '../../context/I18nContext';
+import { TagBadge } from './TagBadge';
 
 interface SessionTableViewProps {
   sessions: Session[];
@@ -12,6 +13,7 @@ interface SessionTableViewProps {
   sortField?: string;
   sortOrder?: 'asc' | 'desc';
   onToggleSort?: (field: string) => void;
+  onOpenTagManager: (session: Session) => void;
 }
 
 export const SessionTableView: React.FC<SessionTableViewProps> = ({
@@ -23,6 +25,7 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
   sortField,
   sortOrder,
   onToggleSort,
+  onOpenTagManager,
 }) => {
   const { t } = useI18n();
 
@@ -74,84 +77,109 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
                   {renderSortIndicator('type')}
                 </div>
               </th>
+              <th>{t('history.tags.title')}</th>
               <th>{t('history.table.weather')}</th>
               <th style={{ textAlign: 'right' }}>{t('history.table.actions')}</th>
             </tr>
           </thead>
           <tbody>
-            {sessions.map((session) => (
-              <tr
-                key={session.id}
-                onClick={() => onSelectSession(session)}
-                style={{ cursor: 'pointer' }}
-              >
-                <td className="mono" style={{ fontWeight: 700, color: 'var(--accent-secondary)' }}>
-                  #{session.id}
-                </td>
-                <td style={{ color: 'var(--text-primary)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Clock size={14} color="var(--text-muted)" />
-                    {formatDate(session.created_at)}
-                  </div>
-                </td>
-                <td>
-                  <span style={{ fontWeight: 700, fontSize: '1rem' }}>
-                    {session.track_name || t('common.unknownTrack')}
-                  </span>
-                </td>
-                <td>
-                  <span className={`session-badge ${getSessionBadgeClass(session.session_type)}`}>
-                    {session.session_type || 'RACE'}
-                  </span>
-                </td>
-                <td>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}>
-                    <CloudSun size={14} color="var(--text-secondary)" />
-                    {session.weather || t('common.clearWeather')}
-                  </div>
-                </td>
-                <td style={{ textAlign: 'right' }}>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                    <button
-                      className="nav-tab active"
-                      style={{
-                        padding: '0.4rem 0.8rem',
-                        fontSize: '0.8rem',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onSelectSession(session);
-                      }}
-                    >
-                      {t('common.explore')} <ChevronRight size={14} />
-                    </button>
-                    <button
-                      className="nav-tab"
-                      title={`${t('common.deleteSession')} #${session.id}`}
-                      style={{
-                        padding: '0.4rem 0.6rem',
-                        fontSize: '0.8rem',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        color: '#ff4d4f',
-                        borderColor: 'rgba(255, 77, 79, 0.3)',
-                      }}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        onRequestDelete(session);
-                      }}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+            {sessions.map((session) => {
+              const sessionTags = session.tags || [];
+
+              return (
+                <tr
+                  key={session.id}
+                  onClick={() => onSelectSession(session)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <td className="mono" style={{ fontWeight: 700, color: 'var(--accent-secondary)' }}>
+                    #{session.id}
+                  </td>
+                  <td style={{ color: 'var(--text-primary)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Clock size={14} color="var(--text-muted)" />
+                      {formatDate(session.created_at)}
+                    </div>
+                  </td>
+                  <td>
+                    <span style={{ fontWeight: 700, fontSize: '1rem' }}>
+                      {session.track_name || t('common.unknownTrack')}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={`session-badge ${getSessionBadgeClass(session.session_type)}`}>
+                      {session.session_type || 'RACE'}
+                    </span>
+                  </td>
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px', minWidth: '120px' }}>
+                      {sessionTags.map((tag) => (
+                        <TagBadge key={tag.id} tag={tag} size="xs" />
+                      ))}
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenTagManager(session);
+                        }}
+                        className="session-add-tag-btn"
+                        title={t('history.tags.manageTags')}
+                      >
+                        <Plus size={11} />
+                        <span>{sessionTags.length === 0 ? t('history.tags.addTag') : '+'}</span>
+                      </button>
+                    </div>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}>
+                      <CloudSun size={14} color="var(--text-secondary)" />
+                      {session.weather || t('common.clearWeather')}
+                    </div>
+                  </td>
+                  <td style={{ textAlign: 'right' }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                      <button
+                        className="nav-tab active"
+                        style={{
+                          padding: '0.4rem 0.8rem',
+                          fontSize: '0.8rem',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectSession(session);
+                        }}
+                      >
+                        {t('common.explore')} <ChevronRight size={14} />
+                      </button>
+                      <button
+                        className="nav-tab"
+                        title={`${t('common.deleteSession')} #${session.id}`}
+                        style={{
+                          padding: '0.4rem 0.6rem',
+                          fontSize: '0.8rem',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          color: '#ff4d4f',
+                          borderColor: 'rgba(255, 77, 79, 0.3)',
+                        }}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          onRequestDelete(session);
+                        }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
