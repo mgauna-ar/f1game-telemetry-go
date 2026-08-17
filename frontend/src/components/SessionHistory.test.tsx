@@ -80,7 +80,7 @@ describe('SessionHistory Component', () => {
     expect(screen.getByRole('cell', { name: 'Monaco' })).toBeInTheDocument();
   });
 
-  it('selects a session and displays Classification, Theoretical Best Lap, and Car Setup', async () => {
+  it('selects a session and displays Classification and Driver Standings', async () => {
     const mockSessions = [
       { id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' },
     ];
@@ -128,9 +128,8 @@ describe('SessionHistory Component', () => {
     await waitFor(() => {
       expect(screen.getAllByText('Lewis Hamilton').length).toBeGreaterThan(0);
       expect(screen.getAllByText('#44').length).toBeGreaterThan(0);
-      expect(screen.getByText('THEORETICAL')).toBeInTheDocument();
       expect(screen.getAllByText('1:28.500').length).toBeGreaterThan(0); // Best lap
-      expect(screen.getByText('LEADER')).toBeInTheDocument();
+      expect(screen.getAllByText('2:58.600').length).toBeGreaterThan(0); // Total race time
     });
 
     // Expand driver laps
@@ -141,17 +140,6 @@ describe('SessionHistory Component', () => {
       expect(screen.getByText('Recorded Laps for Lewis Hamilton')).toBeInTheDocument();
       expect(screen.getByText('Lap 1')).toBeInTheDocument();
       expect(screen.getByText('Lap 2')).toBeInTheDocument();
-    });
-
-    // Click Setup icon button next to Lewis Hamilton
-    const setupBtn = screen.getByTitle('View Setup for Lewis Hamilton');
-    fireEvent.click(setupBtn);
-
-    await waitFor(() => {
-      expect(screen.getByText(/Car Setup Details — Lewis Hamilton/)).toBeInTheDocument();
-      expect(screen.getByText('Aerodynamics & Wings')).toBeInTheDocument();
-      expect(screen.getByText('28')).toBeInTheDocument(); // Front wing
-      expect(screen.getByText('22')).toBeInTheDocument(); // Rear wing
     });
   });
 

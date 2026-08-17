@@ -213,7 +213,6 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
                   {(sectorView === 'ALL' || sectorView === 'S1') && <th>BEST S1</th>}
                   {(sectorView === 'ALL' || sectorView === 'S2') && <th>BEST S2</th>}
                   {(sectorView === 'ALL' || sectorView === 'S3') && <th>BEST S3</th>}
-                  <th>THEORETICAL</th>
                 </tr>
               </thead>
               <tbody>
@@ -279,10 +278,6 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
                           </div>
                         </td>
                       )}
-
-                      <td className="mono" style={{ color: '#00f2fe', fontWeight: 600 }}>
-                        {driver.theoreticalBestMS > 0 ? formatLapTime(driver.theoreticalBestMS) : '--:--.---'}
-                      </td>
                     </tr>
                   );
                 })}

@@ -1,7 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Trophy,
-  Sliders,
   Clock,
   ChevronDown,
   ChevronUp,
@@ -42,13 +41,11 @@ interface SessionClassificationTabProps {
   sessionBestS3: number;
   expandedDrivers: Record<number, boolean>;
   onToggleDriverExpand: (carIndex: number) => void;
-  onOpenSetupModal: (driver: DriverStanding) => void;
   onSendToComparator?: (sessionId: number, lapId: number, slot: 'A' | 'B') => void;
   formatLapTime: (ms: number) => string;
   formatTotalDuration: (ms: number) => string;
   renderTyreBadge: (compoundRaw?: string) => React.ReactNode;
   renderDriverTyreStints: (laps: Lap[]) => React.ReactNode;
-  hasValidSetup: (setup?: CarSetup) => boolean;
 }
 
 export const SessionClassificationTab: React.FC<SessionClassificationTabProps> = ({
@@ -60,16 +57,24 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
   sessionBestS3,
   expandedDrivers,
   onToggleDriverExpand,
-  onOpenSetupModal,
   onSendToComparator,
   formatLapTime,
   formatTotalDuration,
   renderTyreBadge,
   renderDriverTyreStints,
-  hasValidSetup,
 }) => {
   const leaderBestLapMS = driverStandings.length > 0 ? driverStandings[0].bestLapTimeMS : Infinity;
   const top3 = driverStandings.slice(0, 3);
+
+  const sessionFastestLapMS = useMemo(() => {
+    let fastest = Infinity;
+    driverStandings.forEach((d) => {
+      if (d.bestLapTimeMS > 0 && d.bestLapTimeMS < fastest) {
+        fastest = d.bestLapTimeMS;
+      }
+    });
+    return fastest < Infinity ? fastest : 0;
+  }, [driverStandings]);
 
   const formatSectorTime = (ms: number) => {
     if (!ms || ms <= 0) return '--.---';
@@ -123,14 +128,14 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                     </span>
                   </div>
                   <div className="podium-stat">
-                    <span className="stat-label">TOP SPEED</span>
+                    <span className="stat-label">LAPS</span>
+                    <span className="stat-value">{driver.laps.length}</span>
+                  </div>
+                  <div className="podium-stat">
+                    <span className="stat-label">MAX SPEED</span>
                     <span className="stat-value">
                       {driver.maxSpeed ? `${driver.maxSpeed.toFixed(0)} km/h` : '--'}
                     </span>
-                  </div>
-                  <div className="podium-stat">
-                    <span className="stat-label">LAPS</span>
-                    <span className="stat-value">{driver.laps.length}</span>
                   </div>
                 </div>
               </div>
@@ -141,19 +146,19 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
 
       {/* CLASSIFICATION & STANDINGS TABLE */}
       <div className="glass-panel" style={{ padding: '1.25rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
           <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Trophy size={20} color="var(--accent-primary)" />
-            {isRaceSession ? 'Official Race Classification & Lap Analysis' : 'Session Classification & Sector Times'}
+            {isRaceSession ? 'Official Race Classification' : 'Session Classification & Timing'}
           </h3>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.75rem' }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--accent-purple)' }} />
-              Session Fastest
+              Session Fastest Sector
             </span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--accent-tertiary)' }} />
-              Personal Best
+              Personal Best Sector
             </span>
           </div>
         </div>
@@ -166,21 +171,35 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
           <div style={{ overflowX: 'auto' }}>
             <table className="history-table">
               <thead>
-                <tr>
-                  <th style={{ width: '45px' }}>POS</th>
-                  <th>DRIVER</th>
-                  <th>SETUP</th>
-                  <th>BEST LAP</th>
-                  <th>THEORETICAL</th>
-                  <th>BEST S1</th>
-                  <th>BEST S2</th>
-                  <th>BEST S3</th>
-                  <th>DELTA</th>
-                  <th>{isRaceSession ? 'TOTAL RACE TIME' : 'TOTAL TIME'}</th>
-                  <th>MAX SPEED</th>
-                  <th>TYRE STINTS</th>
-                  <th style={{ textAlign: 'right' }}>LAPS</th>
-                </tr>
+                {isRaceSession ? (
+                  <tr>
+                    <th style={{ width: '45px' }}>POS</th>
+                    <th>DRIVER</th>
+                    <th>TIME / GAP</th>
+                    <th>LAPS</th>
+                    <th>TYRE STINTS</th>
+                    <th>FASTEST LAP</th>
+                    <th>S1</th>
+                    <th>S2</th>
+                    <th>S3</th>
+                    <th>TOP SPEED</th>
+                    <th style={{ textAlign: 'right' }}>DETAILS</th>
+                  </tr>
+                ) : (
+                  <tr>
+                    <th style={{ width: '45px' }}>POS</th>
+                    <th>DRIVER</th>
+                    <th>BEST LAP</th>
+                    <th>GAP</th>
+                    <th>S1</th>
+                    <th>S2</th>
+                    <th>S3</th>
+                    <th>LAPS</th>
+                    <th>TYRE STINTS</th>
+                    <th>TOP SPEED</th>
+                    <th style={{ textAlign: 'right' }}>DETAILS</th>
+                  </tr>
+                )}
               </thead>
               <tbody>
                 {driverStandings.map((driver) => {
@@ -188,44 +207,53 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                   const isExpanded = !!expandedDrivers[driver.participant.car_index];
                   const isLeader = driver.position === 1;
 
-                  let deltaStr = '--';
+                  // Overall session fastest lap check
+                  const isOverallFastestLap =
+                    sessionFastestLapMS > 0 &&
+                    driver.bestLapTimeMS > 0 &&
+                    driver.bestLapTimeMS === sessionFastestLapMS;
+
+                  // Time / Gap formatted string
+                  let timeGapDisplay = '--';
                   if (isRaceSession) {
                     if (driver.isDSQ) {
-                      deltaStr = 'DSQ';
+                      timeGapDisplay = 'DSQ';
                     } else if (driver.isDNF) {
-                      deltaStr = 'DNF';
+                      timeGapDisplay = 'DNF';
                     } else if (isLeader) {
-                      deltaStr = 'LEADER';
+                      timeGapDisplay = formatTotalDuration(driver.totalRaceTimeWithPenalties);
                     } else if (driverStandings.length > 0) {
                       const leaderLaps = driverStandings[0].laps.length;
                       const driverLapsCount = driver.laps.length;
                       if (leaderLaps > 0 && driverLapsCount < leaderLaps) {
                         const lapDiff = leaderLaps - driverLapsCount;
-                        deltaStr = `+${lapDiff} ${lapDiff === 1 ? 'Lap' : 'Laps'}`;
+                        timeGapDisplay = `+${lapDiff} ${lapDiff === 1 ? 'Lap' : 'Laps'}`;
                       } else if (driver.totalRaceTimeWithPenalties > 0 && driverStandings[0].totalRaceTimeWithPenalties > 0) {
                         const gapMS = driver.totalRaceTimeWithPenalties - driverStandings[0].totalRaceTimeWithPenalties;
-                        deltaStr = gapMS >= 0 ? `+${(gapMS / 1000).toFixed(3)}s` : `+0.000s`;
+                        timeGapDisplay = gapMS >= 0 ? `+${(gapMS / 1000).toFixed(3)}s` : `+0.000s`;
                       }
                     }
                   } else {
                     if (isLeader) {
-                      deltaStr = 'LEADER';
+                      timeGapDisplay = 'LEADER';
                     } else if (driver.bestLapTimeMS < Infinity && leaderBestLapMS < Infinity) {
                       const delta = (driver.bestLapTimeMS - leaderBestLapMS) / 1000;
-                      deltaStr = `+${delta.toFixed(3)}s`;
+                      timeGapDisplay = `+${delta.toFixed(3)}s`;
                     }
                   }
 
-                  // Sector Highlight Logic
-                  const isS1Purple = driver.bestS1MS > 0 && sessionBestS1 > 0 && driver.bestS1MS <= sessionBestS1;
-                  const isS2Purple = driver.bestS2MS > 0 && sessionBestS2 > 0 && driver.bestS2MS <= sessionBestS2;
-                  const isS3Purple = driver.bestS3MS > 0 && sessionBestS3 > 0 && driver.bestS3MS <= sessionBestS3;
+                  // Sector timing for THAT BEST LAP:
+                  const bestLapS1 = driver.bestLap ? driver.bestLap.sector1_ms : 0;
+                  const bestLapS2 = driver.bestLap ? driver.bestLap.sector2_ms : 0;
+                  const bestLapS3 = driver.bestLap ? driver.bestLap.sector3_ms : 0;
 
-                  // Theoretical Delta to Best
-                  const theoreticalPotential =
-                    driver.theoreticalBestMS > 0 && driver.bestLapTimeMS < Infinity
-                      ? driver.bestLapTimeMS - driver.theoreticalBestMS
-                      : 0;
+                  const isS1Purple = bestLapS1 > 0 && sessionBestS1 > 0 && bestLapS1 <= sessionBestS1;
+                  const isS2Purple = bestLapS2 > 0 && sessionBestS2 > 0 && bestLapS2 <= sessionBestS2;
+                  const isS3Purple = bestLapS3 > 0 && sessionBestS3 > 0 && bestLapS3 <= sessionBestS3;
+
+                  const isS1Green = !isS1Purple && bestLapS1 > 0 && driver.bestS1MS > 0 && bestLapS1 <= driver.bestS1MS;
+                  const isS2Green = !isS2Purple && bestLapS2 > 0 && driver.bestS2MS > 0 && bestLapS2 <= driver.bestS2MS;
+                  const isS3Green = !isS3Purple && bestLapS3 > 0 && driver.bestS3MS > 0 && bestLapS3 <= driver.bestS3MS;
 
                   return (
                     <React.Fragment key={driver.participant.car_index}>
@@ -262,148 +290,194 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                           </div>
                         </td>
 
-                        {/* Car Setup */}
-                        <td>
-                          {hasValidSetup(driver.setup) ? (
-                            <button
-                              className="nav-tab"
-                              title={`View Setup for ${driver.participant.name}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onOpenSetupModal(driver);
-                              }}
+                        {isRaceSession ? (
+                          <>
+                            {/* Time / Gap */}
+                            <td
+                              className="mono"
                               style={{
-                                padding: '3px 7px',
-                                fontSize: '0.75rem',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                background: 'rgba(0, 242, 254, 0.1)',
-                                borderColor: 'rgba(0, 242, 254, 0.3)',
-                                color: '#00f2fe',
+                                fontWeight: 700,
+                                color:
+                                  driver.isDSQ || driver.isDNF
+                                    ? '#ff4d4f'
+                                    : isLeader
+                                    ? 'var(--accent-primary)'
+                                    : 'var(--text-primary)',
                               }}
                             >
-                              <Sliders size={12} /> Setup
-                            </button>
-                          ) : (
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>-</span>
-                          )}
-                        </td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                {isLeader && !driver.isDSQ && !driver.isDNF && <Clock size={12} color="var(--text-muted)" />}
+                                <span>{timeGapDisplay}</span>
+                                {driver.penaltySeconds > 0 && (
+                                  <span
+                                    className="mono"
+                                    title={`${driver.penaltySeconds}s Penalty Included`}
+                                    style={{
+                                      backgroundColor: 'rgba(255, 77, 79, 0.15)',
+                                      color: '#ff4d4f',
+                                      border: '1px solid rgba(255, 77, 79, 0.4)',
+                                      borderRadius: '3px',
+                                      padding: '1px 4px',
+                                      fontSize: '0.7rem',
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    +{driver.penaltySeconds}s
+                                  </span>
+                                )}
+                              </div>
+                            </td>
 
-                        {/* Best Lap */}
-                        <td className="mono" style={{ fontWeight: 700, color: 'var(--accent-tertiary)' }}>
-                          {driver.bestLap ? formatLapTime(driver.bestLap.lap_time_ms) : '--:--.---'}
-                        </td>
+                            {/* Laps */}
+                            <td className="mono" style={{ color: 'var(--text-secondary)' }}>
+                              {driver.laps.length}
+                            </td>
 
-                        {/* Theoretical Best Lap */}
-                        <td className="mono" style={{ fontSize: '0.85rem' }}>
-                          {driver.theoreticalBestMS > 0 ? (
-                            <div title={theoreticalPotential > 0 ? `Theoretical potential: -${(theoreticalPotential / 1000).toFixed(3)}s` : 'Optimal pace achieved'}>
-                              <span style={{ color: '#00f2fe', fontWeight: 600 }}>
-                                {formatLapTime(driver.theoreticalBestMS)}
-                              </span>
-                              {theoreticalPotential > 0 && (
-                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginLeft: '4px' }}>
-                                  (-{(theoreticalPotential / 1000).toFixed(2)}s)
-                                </span>
-                              )}
-                            </div>
-                          ) : (
-                            '--:--.---'
-                          )}
-                        </td>
+                            {/* Tyre Stints */}
+                            <td>{renderDriverTyreStints(driver.laps)}</td>
 
-                        {/* Best S1 */}
-                        <td className="mono" style={{ fontSize: '0.85rem' }}>
-                          <span
-                            className={isS1Purple ? 'sector-purple' : driver.bestS1MS > 0 ? 'sector-green' : ''}
-                            style={{ padding: '2px 5px', borderRadius: '3px' }}
-                          >
-                            {formatSectorTime(driver.bestS1MS)}
-                          </span>
-                        </td>
+                            {/* Fastest Lap of Driver */}
+                            <td className="mono" style={{ fontWeight: 700, color: isOverallFastestLap ? 'var(--accent-purple)' : 'var(--accent-tertiary)' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                {driver.bestLap ? formatLapTime(driver.bestLap.lap_time_ms) : '--:--.---'}
+                                {isOverallFastestLap && (
+                                  <span
+                                    title="Session Fastest Lap"
+                                    style={{
+                                      display: 'inline-flex',
+                                      padding: '1px 4px',
+                                      fontSize: '0.65rem',
+                                      background: 'rgba(176, 38, 255, 0.2)',
+                                      border: '1px solid rgba(176, 38, 255, 0.4)',
+                                      color: 'var(--accent-purple)',
+                                      borderRadius: '3px',
+                                      fontWeight: 800,
+                                    }}
+                                  >
+                                    FL
+                                  </span>
+                                )}
+                              </div>
+                            </td>
 
-                        {/* Best S2 */}
-                        <td className="mono" style={{ fontSize: '0.85rem' }}>
-                          <span
-                            className={isS2Purple ? 'sector-purple' : driver.bestS2MS > 0 ? 'sector-green' : ''}
-                            style={{ padding: '2px 5px', borderRadius: '3px' }}
-                          >
-                            {formatSectorTime(driver.bestS2MS)}
-                          </span>
-                        </td>
-
-                        {/* Best S3 */}
-                        <td className="mono" style={{ fontSize: '0.85rem' }}>
-                          <span
-                            className={isS3Purple ? 'sector-purple' : driver.bestS3MS > 0 ? 'sector-green' : ''}
-                            style={{ padding: '2px 5px', borderRadius: '3px' }}
-                          >
-                            {formatSectorTime(driver.bestS3MS)}
-                          </span>
-                        </td>
-
-                        {/* Delta */}
-                        <td
-                          className="mono"
-                          style={{
-                            fontWeight: 700,
-                            color:
-                              driver.isDSQ || driver.isDNF
-                                ? '#ff4d4f'
-                                : isLeader
-                                ? 'var(--accent-primary)'
-                                : 'var(--text-primary)',
-                          }}
-                        >
-                          {deltaStr}
-                        </td>
-
-                        {/* Total Race Time */}
-                        <td className="mono" style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.85rem' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <Clock size={12} color="var(--text-muted)" />
-                            {(() => {
-                              if (driver.isDSQ) return 'DSQ';
-                              if (driver.isDNF) return 'DNF';
-                              if (isRaceSession && driverStandings.length > 0) {
-                                const leaderLapsCount = driverStandings[0].laps.length;
-                                if (leaderLapsCount > 0 && driver.laps.length < leaderLapsCount) {
-                                  const diff = leaderLapsCount - driver.laps.length;
-                                  return `+${diff} ${diff === 1 ? 'Lap' : 'Laps'}`;
-                                }
-                              }
-                              return formatTotalDuration(driver.totalRaceTimeMS);
-                            })()}
-                            {driver.penaltySeconds > 0 && (
+                            {/* S1 of Best Lap */}
+                            <td className="mono" style={{ fontSize: '0.85rem' }}>
                               <span
-                                className="mono"
-                                title={`${driver.penaltySeconds}s Penalty Included`}
-                                style={{
-                                  backgroundColor: 'rgba(255, 77, 79, 0.15)',
-                                  color: '#ff4d4f',
-                                  border: '1px solid rgba(255, 77, 79, 0.4)',
-                                  borderRadius: '3px',
-                                  padding: '1px 4px',
-                                  fontSize: '0.7rem',
-                                  fontWeight: 700,
-                                }}
+                                className={isS1Purple ? 'sector-purple' : isS1Green ? 'sector-green' : ''}
+                                style={{ padding: '2px 5px', borderRadius: '3px' }}
                               >
-                                +{driver.penaltySeconds}s
+                                {formatSectorTime(bestLapS1)}
                               </span>
-                            )}
-                          </div>
-                        </td>
+                            </td>
 
-                        {/* Max Speed */}
-                        <td className="mono">
-                          {driver.maxSpeed ? `${driver.maxSpeed.toFixed(1)} km/h` : '-- km/h'}
-                        </td>
+                            {/* S2 of Best Lap */}
+                            <td className="mono" style={{ fontSize: '0.85rem' }}>
+                              <span
+                                className={isS2Purple ? 'sector-purple' : isS2Green ? 'sector-green' : ''}
+                                style={{ padding: '2px 5px', borderRadius: '3px' }}
+                              >
+                                {formatSectorTime(bestLapS2)}
+                              </span>
+                            </td>
 
-                        {/* Tyre Compound Stints */}
-                        <td>{renderDriverTyreStints(driver.laps)}</td>
+                            {/* S3 of Best Lap */}
+                            <td className="mono" style={{ fontSize: '0.85rem' }}>
+                              <span
+                                className={isS3Purple ? 'sector-purple' : isS3Green ? 'sector-green' : ''}
+                                style={{ padding: '2px 5px', borderRadius: '3px' }}
+                              >
+                                {formatSectorTime(bestLapS3)}
+                              </span>
+                            </td>
 
-                        {/* Laps / Expand button */}
+                            {/* Max Speed */}
+                            <td className="mono">
+                              {driver.maxSpeed ? `${driver.maxSpeed.toFixed(1)} km/h` : '-- km/h'}
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            {/* Best Lap */}
+                            <td className="mono" style={{ fontWeight: 700, color: isOverallFastestLap ? 'var(--accent-purple)' : 'var(--accent-tertiary)' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                {driver.bestLap ? formatLapTime(driver.bestLap.lap_time_ms) : '--:--.---'}
+                                {isOverallFastestLap && (
+                                  <span
+                                    title="Pole / Session Fastest Lap"
+                                    style={{
+                                      display: 'inline-flex',
+                                      padding: '1px 4px',
+                                      fontSize: '0.65rem',
+                                      background: 'rgba(176, 38, 255, 0.2)',
+                                      border: '1px solid rgba(176, 38, 255, 0.4)',
+                                      color: 'var(--accent-purple)',
+                                      borderRadius: '3px',
+                                      fontWeight: 800,
+                                    }}
+                                  >
+                                    FL
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* Gap */}
+                            <td
+                              className="mono"
+                              style={{
+                                fontWeight: 700,
+                                color: isLeader ? 'var(--accent-primary)' : 'var(--text-primary)',
+                              }}
+                            >
+                              {timeGapDisplay}
+                            </td>
+
+                            {/* S1 of Best Lap */}
+                            <td className="mono" style={{ fontSize: '0.85rem' }}>
+                              <span
+                                className={isS1Purple ? 'sector-purple' : isS1Green ? 'sector-green' : ''}
+                                style={{ padding: '2px 5px', borderRadius: '3px' }}
+                              >
+                                {formatSectorTime(bestLapS1)}
+                              </span>
+                            </td>
+
+                            {/* S2 of Best Lap */}
+                            <td className="mono" style={{ fontSize: '0.85rem' }}>
+                              <span
+                                className={isS2Purple ? 'sector-purple' : isS2Green ? 'sector-green' : ''}
+                                style={{ padding: '2px 5px', borderRadius: '3px' }}
+                              >
+                                {formatSectorTime(bestLapS2)}
+                              </span>
+                            </td>
+
+                            {/* S3 of Best Lap */}
+                            <td className="mono" style={{ fontSize: '0.85rem' }}>
+                              <span
+                                className={isS3Purple ? 'sector-purple' : isS3Green ? 'sector-green' : ''}
+                                style={{ padding: '2px 5px', borderRadius: '3px' }}
+                              >
+                                {formatSectorTime(bestLapS3)}
+                              </span>
+                            </td>
+
+                            {/* Laps */}
+                            <td className="mono" style={{ color: 'var(--text-secondary)' }}>
+                              {driver.laps.length}
+                            </td>
+
+                            {/* Tyre Stints */}
+                            <td>{renderDriverTyreStints(driver.laps)}</td>
+
+                            {/* Max Speed */}
+                            <td className="mono">
+                              {driver.maxSpeed ? `${driver.maxSpeed.toFixed(1)} km/h` : '-- km/h'}
+                            </td>
+                          </>
+                        )}
+
+                        {/* Laps / Expand Details button */}
                         <td style={{ textAlign: 'right' }}>
                           <button
                             className="nav-tab"
@@ -421,7 +495,7 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                       {/* Expandable Driver Laps Sub-Table */}
                       {isExpanded && (
                         <tr>
-                          <td colSpan={13} style={{ background: 'rgba(0, 0, 0, 0.5)', padding: '0.75rem 1rem' }}>
+                          <td colSpan={11} style={{ background: 'rgba(0, 0, 0, 0.5)', padding: '0.75rem 1rem' }}>
                             <div style={{ padding: '0.5rem', background: 'rgba(255, 255, 255, 0.02)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
                               <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>

@@ -3,16 +3,12 @@ import {
   Calendar,
   Search,
   Trophy,
-  Wrench,
   CloudSun,
   Flag,
   Users,
   ArrowLeft,
   Filter,
   RefreshCw,
-  Disc,
-  Sliders,
-  Shield,
   Zap,
   X,
   Trash2,
@@ -22,7 +18,6 @@ import {
   Sparkles,
   TrendingUp,
 } from 'lucide-react';
-import { TEAM_COLORS } from './LeaderboardTower';
 import { SessionKPIBar } from './session_history/SessionKPIBar';
 import { SessionCardGrid } from './session_history/SessionCardGrid';
 import { SessionTableView } from './session_history/SessionTableView';
@@ -134,9 +129,6 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
   // AI Debrief Drawer State
   const [isAiDebriefOpen, setIsAiDebriefOpen] = useState<boolean>(false);
 
-  // Setup Modal State
-  const [selectedSetupDriver, setSelectedSetupDriver] = useState<DriverStanding | null>(null);
-
   // Deletion State & Handler
   const [sessionToDelete, setSessionToDelete] = useState<Session | null>(null);
   const [deletingSessionId, setDeletingSessionId] = useState<number | null>(null);
@@ -187,7 +179,6 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
     setSelectedSession(session);
     setLoadingDetail(true);
     setExpandedDrivers({});
-    setSelectedSetupDriver(null);
     setActiveDetailTab('classification');
     setIsAiDebriefOpen(false);
 
@@ -578,17 +569,6 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
 
   const totalDriversCount = Math.max(participants.length, driverStandings.length);
 
-  const hasValidSetup = (setup?: CarSetup) => {
-    if (!setup) return false;
-    return (
-      setup.front_wing > 0 ||
-      setup.rear_wing > 0 ||
-      setup.brake_pressure > 0 ||
-      setup.on_throttle > 0 ||
-      setup.ballast > 0
-    );
-  };
-
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '1.5rem 2rem' }}>
       {/* Session History Title Header */}
@@ -608,7 +588,6 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
             className="nav-tab active"
             onClick={() => {
               setSelectedSession(null);
-              setSelectedSetupDriver(null);
               setIsAiDebriefOpen(false);
             }}
             style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
@@ -891,13 +870,11 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
               sessionBestS3={sessionBestS3}
               expandedDrivers={expandedDrivers}
               onToggleDriverExpand={toggleDriverExpand}
-              onOpenSetupModal={(driver) => setSelectedSetupDriver(driver)}
               onSendToComparator={onNavigateToComparator}
               formatLapTime={formatLapTime}
               formatTotalDuration={formatTotalDuration}
               renderTyreBadge={renderTyreBadge}
               renderDriverTyreStints={renderDriverTyreStints}
-              hasValidSetup={hasValidSetup}
             />
           ) : activeDetailTab === 'charts' ? (
             <SessionLapChartsTab
@@ -913,112 +890,6 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
               sessionBestS3={sessionBestS3}
               formatLapTime={formatLapTime}
             />
-          )}
-
-          {/* CAR SETUP MODAL OVERLAY */}
-          {selectedSetupDriver && selectedSetupDriver.setup && (
-            <div
-              className="modal-overlay"
-              onClick={() => setSelectedSetupDriver(null)}
-              role="dialog"
-              aria-modal="true"
-            >
-              <div
-                className="modal-container glass-panel"
-                style={{
-                  maxWidth: '650px',
-                  backgroundColor: 'rgba(18, 18, 22, 0.95)',
-                  border: '1px solid rgba(0, 242, 254, 0.3)',
-                  padding: '1.75rem',
-                  boxShadow: '0 20px 40px rgba(0, 0, 0, 0.7)',
-                }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{ width: '4px', height: '24px', backgroundColor: TEAM_COLORS[selectedSetupDriver.participant.team_id] || '#A0A0A0', borderRadius: '2px' }} />
-                    <div>
-                      <h3 style={{ margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Sliders size={18} color="#00f2fe" /> Car Setup Details — {selectedSetupDriver.participant.name}
-                      </h3>
-                      <span className="mono" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                        Car #{selectedSetupDriver.participant.car_index + 1} • Race #{selectedSetupDriver.participant.race_number}
-                      </span>
-                    </div>
-                  </div>
-
-                  <button
-                    className="nav-tab"
-                    onClick={() => setSelectedSetupDriver(null)}
-                    style={{ padding: '6px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', fontSize: '0.9rem' }}>
-                  {/* Aerodynamics */}
-                  <div>
-                    <div style={{ fontWeight: 700, color: '#00f2fe', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                      <Zap size={14} /> Aerodynamics & Wings
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', background: 'rgba(0,0,0,0.4)', padding: '8px 12px', borderRadius: '6px' }}>
-                      <div>Front Wing: <span className="mono" style={{ fontWeight: 700 }}>{selectedSetupDriver.setup.front_wing}</span></div>
-                      <div>Rear Wing: <span className="mono" style={{ fontWeight: 700 }}>{selectedSetupDriver.setup.rear_wing}</span></div>
-                    </div>
-                  </div>
-
-                  {/* Differential */}
-                  <div>
-                    <div style={{ fontWeight: 700, color: '#00f2fe', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                      <Sliders size={14} /> Transmission & Differential
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', background: 'rgba(0,0,0,0.4)', padding: '8px 12px', borderRadius: '6px' }}>
-                      <div>On Throttle: <span className="mono" style={{ fontWeight: 700 }}>{selectedSetupDriver.setup.on_throttle}%</span></div>
-                      <div>Off Throttle: <span className="mono" style={{ fontWeight: 700 }}>{selectedSetupDriver.setup.off_throttle}%</span></div>
-                    </div>
-                  </div>
-
-                  {/* Suspension & ARB */}
-                  <div>
-                    <div style={{ fontWeight: 700, color: '#00f2fe', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                      <Wrench size={14} /> Suspension & Geometry
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', background: 'rgba(0,0,0,0.4)', padding: '8px 12px', borderRadius: '6px' }}>
-                      <div>Suspension (F/R): <span className="mono" style={{ fontWeight: 700 }}>{selectedSetupDriver.setup.front_suspension} / {selectedSetupDriver.setup.rear_suspension}</span></div>
-                      <div>Anti-Roll (F/R): <span className="mono" style={{ fontWeight: 700 }}>{selectedSetupDriver.setup.front_anti_roll_bar} / {selectedSetupDriver.setup.rear_anti_roll_bar}</span></div>
-                      <div>Camber (F/R): <span className="mono" style={{ fontWeight: 700 }}>{selectedSetupDriver.setup.front_camber}° / {selectedSetupDriver.setup.rear_camber}°</span></div>
-                      <div>Toe (F/R): <span className="mono" style={{ fontWeight: 700 }}>{selectedSetupDriver.setup.front_toe}° / {selectedSetupDriver.setup.rear_toe}°</span></div>
-                      <div>Ride Height (F/R): <span className="mono" style={{ fontWeight: 700 }}>{selectedSetupDriver.setup.front_suspension_height} / {selectedSetupDriver.setup.rear_suspension_height}</span></div>
-                    </div>
-                  </div>
-
-                  {/* Brakes */}
-                  <div>
-                    <div style={{ fontWeight: 700, color: '#00f2fe', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                      <Shield size={14} /> Brakes
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', background: 'rgba(0,0,0,0.4)', padding: '8px 12px', borderRadius: '6px' }}>
-                      <div>Brake Pressure: <span className="mono" style={{ fontWeight: 700 }}>{selectedSetupDriver.setup.brake_pressure}%</span></div>
-                      <div>Brake Bias: <span className="mono" style={{ fontWeight: 700 }}>{selectedSetupDriver.setup.brake_bias}%</span></div>
-                    </div>
-                  </div>
-
-                  {/* Tyres & Weight */}
-                  <div>
-                    <div style={{ fontWeight: 700, color: '#00f2fe', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                      <Disc size={14} /> Tyres & Fuel Load
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', background: 'rgba(0,0,0,0.4)', padding: '8px 12px', borderRadius: '6px' }}>
-                      <div>Front Pressure: <span className="mono" style={{ fontWeight: 700 }}>{selectedSetupDriver.setup.front_tyre_pressure} PSI</span></div>
-                      <div>Rear Pressure: <span className="mono" style={{ fontWeight: 700 }}>{selectedSetupDriver.setup.rear_tyre_pressure} PSI</span></div>
-                      <div>Ballast: <span className="mono" style={{ fontWeight: 700 }}>{selectedSetupDriver.setup.ballast} kg</span></div>
-                      <div>Fuel Load: <span className="mono" style={{ fontWeight: 700 }}>{selectedSetupDriver.setup.fuel_load?.toFixed(1)} kg</span></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
           )}
 
           {/* AI RACE ENGINEER DEBRIEF DRAWER */}
