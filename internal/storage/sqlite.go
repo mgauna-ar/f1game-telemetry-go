@@ -287,6 +287,10 @@ func (r *Repository) DeleteSession(ctx context.Context, sessionID int64) error {
 	if rowsAffected == 0 {
 		return fmt.Errorf("session not found")
 	}
+
+	// Fast checkpoint to consolidate WAL log and keep disk files clean (<1ms)
+	_, _ = r.db.ExecContext(ctx, `PRAGMA wal_checkpoint(TRUNCATE);`)
+
 	return nil
 }
 
@@ -720,5 +724,9 @@ func (r *Repository) ImportSession(ctx context.Context, pkg *ExportedSessionPack
 
 // Close closes the database connection.
 func (r *Repository) Close() error {
-	return r.db.Close()
+	if r.db != nil {
+		_, _ = r.db.Exec("PRAGMA wal_checkpoint(TRUNCATE);")
+		return r.db.Close()
+	}
+	return nil
 }
