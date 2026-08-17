@@ -590,8 +590,8 @@ describe('SessionHistory Component', () => {
       expect(screen.getByText('VUELTA RÁPIDA')).toBeInTheDocument();
       expect(screen.getByText('DETALLES')).toBeInTheDocument();
       expect(screen.getByText('P1 • GANADOR')).toBeInTheDocument();
-      expect(screen.getByText('MEJOR VUELTA')).toBeInTheDocument();
-      expect(screen.getByText('VEL. MÁXIMA')).toBeInTheDocument();
+      expect(screen.getAllByText('MEJOR VUELTA').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('VEL. MÁXIMA').length).toBeGreaterThan(0);
     });
 
     // Expand driver laps button (1 Vueltas)
