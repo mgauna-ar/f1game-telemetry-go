@@ -593,8 +593,15 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
           return;
         }
 
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `Server responded with status ${res.status}`);
+        const errRaw = await res.text().catch(() => '');
+        let errMsg = `Server responded with status ${res.status}`;
+        try {
+          const errJson = JSON.parse(errRaw);
+          errMsg = errJson.error || errJson.message || errMsg;
+        } catch {
+          if (errRaw.trim()) errMsg = errRaw.trim();
+        }
+        throw new Error(errMsg);
       }
 
       const reader = res.body?.getReader();
@@ -621,8 +628,14 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
                 if (parsed.error) {
                   throw new Error(parsed.error);
                 }
-                if (parsed.content) {
-                  accumulated += parsed.content;
+                const chunkText =
+                  parsed.text ??
+                  parsed.content ??
+                  parsed.delta?.content ??
+                  (parsed.candidates?.[0]?.content?.parts?.[0]?.text) ??
+                  '';
+                if (chunkText) {
+                  accumulated += chunkText;
                   setMessages((prev) =>
                     prev.map((m) =>
                       m.id === assistantMsgId ? { ...m, content: accumulated } : m
@@ -637,6 +650,10 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
             }
           }
         }
+      }
+
+      if (!accumulated.trim()) {
+        throw new Error('Received empty response from AI model. Please verify your selected model or API configuration.');
       }
     } catch (err: any) {
       if (err.name === 'AbortError') {

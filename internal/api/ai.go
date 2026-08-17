@@ -607,7 +607,7 @@ func streamGemini(ctx context.Context, apiKey, model, systemPrompt string, messa
 				if len(geminiChunk.Candidates) > 0 && len(geminiChunk.Candidates[0].Content.Parts) > 0 {
 					text := geminiChunk.Candidates[0].Content.Parts[0].Text
 					if text != "" {
-						chunkJson, _ := json.Marshal(map[string]string{"text": text})
+						chunkJson, _ := json.Marshal(map[string]string{"text": text, "content": text})
 						fmt.Fprintf(w, "data: %s\n\n", chunkJson)
 						flusher.Flush()
 					}
@@ -723,7 +723,7 @@ func streamOpenAI(ctx context.Context, baseURL, apiKey, model, systemPrompt stri
 				if len(chunk.Choices) > 0 {
 					text := chunk.Choices[0].Delta.Content
 					if text != "" {
-						chunkJson, _ := json.Marshal(map[string]string{"text": text})
+						chunkJson, _ := json.Marshal(map[string]string{"text": text, "content": text})
 						fmt.Fprintf(w, "data: %s\n\n", chunkJson)
 						flusher.Flush()
 					}
