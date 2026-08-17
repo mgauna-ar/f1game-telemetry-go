@@ -97,6 +97,10 @@ func (sm *SessionManager) ProcessPacket(ctx context.Context, pkt packets.Packet)
 		}
 	case *packets.PacketParticipantsData:
 		sm.handleParticipantsData(ctx, p)
+	case *packets.PacketSessionHistoryData:
+		if tracker, ok := sm.lapTrackers[int(p.CarIdx)]; ok {
+			tracker.ProcessSessionHistory(ctx, sm.currentSession, p)
+		}
 	}
 }
 

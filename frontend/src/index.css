@@ -342,23 +342,26 @@ h1 {
 .history-table {
   width: 100%;
   border-collapse: separate;
-  border-spacing: 0 8px;
-  margin-top: 1rem;
+  border-spacing: 0 6px;
+  margin-top: 0.75rem;
 }
 
 .history-table th {
   text-align: left;
-  padding: 0 1rem;
+  padding: 0 0.55rem;
   color: var(--text-secondary);
-  font-weight: 500;
-  font-size: 0.85rem;
+  font-weight: 600;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  white-space: nowrap;
 }
 
 .history-table td {
   background: rgba(0, 0, 0, 0.3);
-  padding: 1rem;
+  padding: 0.6rem 0.55rem;
+  font-size: 0.84rem;
+  vertical-align: middle;
 }
 
 .history-table tr td:first-child {

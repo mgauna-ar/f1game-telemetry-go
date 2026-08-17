@@ -420,3 +420,67 @@ func TestUpdateSessionMetadataDynamicWeather(t *testing.T) {
 		t.Errorf("expected track name to remain Monza, got %s", sessionsAfter[0].TrackName)
 	}
 }
+
+func TestLapSector3DerivationAndHistoryEntry(t *testing.T) {
+	repo := setupTestRepo(t)
+	session := createTestSession(t, repo)
+	ctx := context.Background()
+
+	// 1. Save lap with lap_time, S1, S2 but Sector3MS == 0
+	lap := &Lap{
+		SessionID: session.ID,
+		CarIndex:  0,
+		LapNumber: 1,
+		LapTimeMS: 85913,
+		Sector1MS: 31646,
+		Sector2MS: 28724,
+		Sector3MS: 0,
+		IsValid:   true,
+	}
+
+	if err := repo.SaveLap(ctx, lap); err != nil {
+		t.Fatalf("SaveLap failed: %v", err)
+	}
+
+	// 2. GetLapByID should derive Sector3MS = 85913 - (31646 + 28724) = 25543
+	savedLap, err := repo.GetLapByID(ctx, lap.ID)
+	if err != nil {
+		t.Fatalf("GetLapByID failed: %v", err)
+	}
+	expectedS3 := 85913 - (31646 + 28724)
+	if savedLap.Sector3MS != expectedS3 {
+		t.Errorf("expected derived Sector3MS %d, got %d", expectedS3, savedLap.Sector3MS)
+	}
+
+	// 3. GetLapsBySession should also return the derived Sector3MS
+	laps, err := repo.GetLapsBySession(ctx, session.ID)
+	if err != nil {
+		t.Fatalf("GetLapsBySession failed: %v", err)
+	}
+	if len(laps) != 1 || laps[0].Sector3MS != expectedS3 {
+		t.Errorf("expected GetLapsBySession Sector3MS %d, got %d", expectedS3, laps[0].Sector3MS)
+	}
+
+	// 4. SaveLapHistoryEntry updates/upserts official history
+	historyLap := &Lap{
+		SessionID: session.ID,
+		CarIndex:  0,
+		LapNumber: 2,
+		LapTimeMS: 84500,
+		Sector1MS: 31000,
+		Sector2MS: 28000,
+		Sector3MS: 25500,
+		IsValid:   true,
+	}
+	if err := repo.SaveLapHistoryEntry(ctx, historyLap); err != nil {
+		t.Fatalf("SaveLapHistoryEntry failed: %v", err)
+	}
+
+	historySaved, err := repo.GetLapByID(ctx, historyLap.ID)
+	if err != nil {
+		t.Fatalf("GetLapByID for history lap failed: %v", err)
+	}
+	if historySaved.Sector3MS != 25500 {
+		t.Errorf("expected history Sector3MS 25500, got %d", historySaved.Sector3MS)
+	}
+}

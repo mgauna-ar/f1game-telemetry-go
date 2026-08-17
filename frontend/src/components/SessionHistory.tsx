@@ -197,8 +197,17 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
       const partsData = partsRes.ok ? await partsRes.json() : [];
       const lapsData = lapsRes.ok ? await lapsRes.json() : [];
 
+      const normalizedLaps: Lap[] = (lapsData || []).map((l: Lap) => {
+        let s3 = l.sector3_ms || 0;
+        if (s3 <= 0 && l.lap_time_ms > 0 && l.sector1_ms && l.sector1_ms > 0 && l.sector2_ms && l.sector2_ms > 0) {
+          const derived = l.lap_time_ms - (l.sector1_ms + l.sector2_ms);
+          if (derived > 0) s3 = derived;
+        }
+        return { ...l, sector3_ms: s3 };
+      });
+
       setParticipants(partsData || []);
-      setLaps(lapsData || []);
+      setLaps(normalizedLaps);
     } catch (err: any) {
       console.error('Error fetching session details:', err);
     } finally {
@@ -415,9 +424,16 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
     let s3 = Infinity;
     laps.forEach((l) => {
       if (l.is_valid && l.lap_time_ms > 0) {
+        const lapS3 =
+          l.sector3_ms !== undefined && l.sector3_ms > 0
+            ? l.sector3_ms
+            : l.sector1_ms && l.sector2_ms && l.sector1_ms > 0 && l.sector2_ms > 0
+            ? l.lap_time_ms - (l.sector1_ms + l.sector2_ms)
+            : 0;
+
         if (l.sector1_ms !== undefined && l.sector1_ms > 0 && l.sector1_ms < s1) s1 = l.sector1_ms;
         if (l.sector2_ms !== undefined && l.sector2_ms > 0 && l.sector2_ms < s2) s2 = l.sector2_ms;
-        if (l.sector3_ms !== undefined && l.sector3_ms > 0 && l.sector3_ms < s3) s3 = l.sector3_ms;
+        if (lapS3 > 0 && lapS3 < s3) s3 = lapS3;
       }
     });
 
@@ -494,9 +510,16 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
       let bestS3MS = 0;
 
       validLaps.forEach((l) => {
+        const lapS3 =
+          l.sector3_ms !== undefined && l.sector3_ms > 0
+            ? l.sector3_ms
+            : l.sector1_ms && l.sector2_ms && l.sector1_ms > 0 && l.sector2_ms > 0
+            ? l.lap_time_ms - (l.sector1_ms + l.sector2_ms)
+            : 0;
+
         if (l.sector1_ms !== undefined && l.sector1_ms > 0 && (bestS1MS === 0 || l.sector1_ms < bestS1MS)) bestS1MS = l.sector1_ms;
         if (l.sector2_ms !== undefined && l.sector2_ms > 0 && (bestS2MS === 0 || l.sector2_ms < bestS2MS)) bestS2MS = l.sector2_ms;
-        if (l.sector3_ms !== undefined && l.sector3_ms > 0 && (bestS3MS === 0 || l.sector3_ms < bestS3MS)) bestS3MS = l.sector3_ms;
+        if (lapS3 > 0 && (bestS3MS === 0 || lapS3 < bestS3MS)) bestS3MS = lapS3;
       });
 
       const theoreticalBestMS = bestS1MS > 0 && bestS2MS > 0 && bestS3MS > 0 ? bestS1MS + bestS2MS + bestS3MS : 0;

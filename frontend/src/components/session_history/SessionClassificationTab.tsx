@@ -165,31 +165,31 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
               <thead>
                 {isRaceSession ? (
                   <tr>
-                    <th style={{ width: '45px' }}>{t('history.classification.headers.pos')}</th>
-                    <th>{t('history.classification.headers.driver')}</th>
-                    <th>{t('history.classification.headers.timeGap')}</th>
-                    <th>{t('history.classification.headers.laps')}</th>
-                    <th>{t('history.classification.headers.tyreStints')}</th>
-                    <th>{t('history.classification.headers.fastestLap')}</th>
-                    <th>{t('history.classification.headers.s1')}</th>
-                    <th>{t('history.classification.headers.s2')}</th>
-                    <th>{t('history.classification.headers.s3')}</th>
-                    <th>{t('history.classification.headers.topSpeed')}</th>
-                    <th style={{ textAlign: 'right' }}>{t('history.classification.headers.details')}</th>
+                    <th style={{ width: '38px', paddingLeft: '0.65rem' }}>{t('history.classification.headers.pos')}</th>
+                    <th style={{ minWidth: '140px' }}>{t('history.classification.headers.driver')}</th>
+                    <th style={{ minWidth: '110px' }}>{t('history.classification.headers.timeGap')}</th>
+                    <th style={{ width: '45px', textAlign: 'center' }}>{t('history.classification.headers.laps')}</th>
+                    <th style={{ minWidth: '120px' }}>{t('history.classification.headers.tyreStints')}</th>
+                    <th style={{ minWidth: '95px' }}>{t('history.classification.headers.fastestLap')}</th>
+                    <th style={{ minWidth: '65px' }}>{t('history.classification.headers.s1')}</th>
+                    <th style={{ minWidth: '65px' }}>{t('history.classification.headers.s2')}</th>
+                    <th style={{ minWidth: '65px' }}>{t('history.classification.headers.s3')}</th>
+                    <th style={{ minWidth: '75px' }}>{t('history.classification.headers.topSpeed')}</th>
+                    <th style={{ textAlign: 'right', width: '85px', paddingRight: '0.65rem' }}>{t('history.classification.headers.details')}</th>
                   </tr>
                 ) : (
                   <tr>
-                    <th style={{ width: '45px' }}>{t('history.classification.headers.pos')}</th>
-                    <th>{t('history.classification.headers.driver')}</th>
-                    <th>{t('history.classification.headers.bestLap')}</th>
-                    <th>{t('history.classification.headers.gap')}</th>
-                    <th>{t('history.classification.headers.s1')}</th>
-                    <th>{t('history.classification.headers.s2')}</th>
-                    <th>{t('history.classification.headers.s3')}</th>
-                    <th>{t('history.classification.headers.laps')}</th>
-                    <th>{t('history.classification.headers.tyreStints')}</th>
-                    <th>{t('history.classification.headers.topSpeed')}</th>
-                    <th style={{ textAlign: 'right' }}>{t('history.classification.headers.details')}</th>
+                    <th style={{ width: '38px', paddingLeft: '0.65rem' }}>{t('history.classification.headers.pos')}</th>
+                    <th style={{ minWidth: '140px' }}>{t('history.classification.headers.driver')}</th>
+                    <th style={{ minWidth: '95px' }}>{t('history.classification.headers.bestLap')}</th>
+                    <th style={{ minWidth: '80px' }}>{t('history.classification.headers.gap')}</th>
+                    <th style={{ minWidth: '65px' }}>{t('history.classification.headers.s1')}</th>
+                    <th style={{ minWidth: '65px' }}>{t('history.classification.headers.s2')}</th>
+                    <th style={{ minWidth: '65px' }}>{t('history.classification.headers.s3')}</th>
+                    <th style={{ width: '45px', textAlign: 'center' }}>{t('history.classification.headers.laps')}</th>
+                    <th style={{ minWidth: '120px' }}>{t('history.classification.headers.tyreStints')}</th>
+                    <th style={{ minWidth: '75px' }}>{t('history.classification.headers.topSpeed')}</th>
+                    <th style={{ textAlign: 'right', width: '85px', paddingRight: '0.65rem' }}>{t('history.classification.headers.details')}</th>
                   </tr>
                 )}
               </thead>
@@ -239,7 +239,10 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                   // Sector timing for THAT BEST LAP:
                   const bestLapS1 = driver.bestLap?.sector1_ms ?? 0;
                   const bestLapS2 = driver.bestLap?.sector2_ms ?? 0;
-                  const bestLapS3 = driver.bestLap?.sector3_ms ?? 0;
+                  let bestLapS3 = driver.bestLap?.sector3_ms ?? 0;
+                  if (bestLapS3 <= 0 && driver.bestLap && driver.bestLap.lap_time_ms > 0 && bestLapS1 > 0 && bestLapS2 > 0) {
+                    bestLapS3 = driver.bestLap.lap_time_ms - (bestLapS1 + bestLapS2);
+                  }
 
                   const isS1Purple = bestLapS1 > 0 && sessionBestS1 > 0 && bestLapS1 <= sessionBestS1;
                   const isS2Purple = bestLapS2 > 0 && sessionBestS2 > 0 && bestLapS2 <= sessionBestS2;
@@ -257,11 +260,12 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                         style={{ cursor: 'pointer' }}
                       >
                         {/* Position */}
-                        <td>
+                        <td style={{ paddingLeft: '0.65rem' }}>
                           <div
                             className="mono"
                             style={{
                               fontWeight: 700,
+                              fontSize: '0.85rem',
                               color: driver.position === 1 ? '#ffd700' : driver.position <= 3 ? 'var(--accent-primary)' : 'var(--text-secondary)',
                             }}
                           >
@@ -271,15 +275,13 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
 
                         {/* Driver Name */}
                         <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <div style={{ width: '4px', height: '22px', backgroundColor: teamColor, borderRadius: '2px' }} />
-                            <div>
-                              <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                {driver.participant.name}
-                                <span className="mono" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                  #{driver.participant.race_number}
-                                </span>
-                              </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ width: '3px', height: '20px', backgroundColor: teamColor, borderRadius: '2px', flexShrink: 0 }} />
+                            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>{driver.participant.name}</span>
+                              <span className="mono" style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginLeft: '5px' }}>
+                                #{driver.participant.race_number}
+                              </span>
                             </div>
                           </div>
                         </td>
@@ -291,6 +293,8 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                               className="mono"
                               style={{
                                 fontWeight: 700,
+                                fontSize: '0.82rem',
+                                whiteSpace: 'nowrap',
                                 color:
                                   driver.isDSQ || driver.isDNF
                                     ? '#ff4d4f'
@@ -299,20 +303,20 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                                     : 'var(--text-primary)',
                               }}
                             >
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                {isLeader && !driver.isDSQ && !driver.isDNF && <Clock size={12} color="var(--text-muted)" />}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
+                                {isLeader && !driver.isDSQ && !driver.isDNF && <Clock size={11} color="var(--text-muted)" />}
                                 <span>{timeGapDisplay}</span>
                                 {(driver.penaltySeconds ?? 0) > 0 && (
                                   <span
                                     className="mono"
-                                    title={t('history.classification.penaltyIncluded', { seconds: driver.penaltySeconds })}
+                                    title={t('history.classification.penaltyIncluded', { seconds: driver.penaltySeconds ?? 0 })}
                                     style={{
                                       backgroundColor: 'rgba(255, 77, 79, 0.15)',
                                       color: '#ff4d4f',
                                       border: '1px solid rgba(255, 77, 79, 0.4)',
                                       borderRadius: '3px',
-                                      padding: '1px 4px',
-                                      fontSize: '0.7rem',
+                                      padding: '1px 3px',
+                                      fontSize: '0.65rem',
                                       fontWeight: 700,
                                     }}
                                   >
@@ -323,7 +327,7 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                             </td>
 
                             {/* Laps */}
-                            <td className="mono" style={{ color: 'var(--text-secondary)' }}>
+                            <td className="mono" style={{ color: 'var(--text-secondary)', textAlign: 'center', fontSize: '0.82rem' }}>
                               {driver.laps.length}
                             </td>
 
@@ -331,7 +335,7 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                             <td>{renderDriverTyreStints(driver.laps)}</td>
 
                             {/* Fastest Lap of Driver */}
-                            <td className="mono" style={{ fontWeight: 700, color: isOverallFastestLap ? 'var(--accent-purple)' : 'var(--accent-tertiary)' }}>
+                            <td className="mono" style={{ fontWeight: 700, fontSize: '0.82rem', whiteSpace: 'nowrap', color: isOverallFastestLap ? 'var(--accent-purple)' : 'var(--accent-tertiary)' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 {driver.bestLap ? formatLapTime(driver.bestLap.lap_time_ms) : '--:--.---'}
                                 {isOverallFastestLap && (
@@ -339,8 +343,8 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                                     title={t('history.classification.sessionFastestLap')}
                                     style={{
                                       display: 'inline-flex',
-                                      padding: '1px 4px',
-                                      fontSize: '0.65rem',
+                                      padding: '1px 3px',
+                                      fontSize: '0.6rem',
                                       background: 'rgba(176, 38, 255, 0.2)',
                                       border: '1px solid rgba(176, 38, 255, 0.4)',
                                       color: 'var(--accent-purple)',
@@ -355,44 +359,44 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                             </td>
 
                             {/* S1 of Best Lap */}
-                            <td className="mono" style={{ fontSize: '0.85rem' }}>
+                            <td className="mono" style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
                               <span
                                 className={isS1Purple ? 'sector-purple' : isS1Green ? 'sector-green' : ''}
-                                style={{ padding: '2px 5px', borderRadius: '3px' }}
+                                style={{ padding: '2px 4px', borderRadius: '3px' }}
                               >
                                 {formatSectorTime(bestLapS1)}
                               </span>
                             </td>
 
                             {/* S2 of Best Lap */}
-                            <td className="mono" style={{ fontSize: '0.85rem' }}>
+                            <td className="mono" style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
                               <span
                                 className={isS2Purple ? 'sector-purple' : isS2Green ? 'sector-green' : ''}
-                                style={{ padding: '2px 5px', borderRadius: '3px' }}
+                                style={{ padding: '2px 4px', borderRadius: '3px' }}
                               >
                                 {formatSectorTime(bestLapS2)}
                               </span>
                             </td>
 
                             {/* S3 of Best Lap */}
-                            <td className="mono" style={{ fontSize: '0.85rem' }}>
+                            <td className="mono" style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
                               <span
                                 className={isS3Purple ? 'sector-purple' : isS3Green ? 'sector-green' : ''}
-                                style={{ padding: '2px 5px', borderRadius: '3px' }}
+                                style={{ padding: '2px 4px', borderRadius: '3px' }}
                               >
                                 {formatSectorTime(bestLapS3)}
                               </span>
                             </td>
 
                             {/* Max Speed */}
-                            <td className="mono">
-                              {driver.maxSpeed ? `${driver.maxSpeed.toFixed(1)} km/h` : '-- km/h'}
+                            <td className="mono" style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                              {driver.maxSpeed ? `${driver.maxSpeed.toFixed(0)} km/h` : '--'}
                             </td>
                           </>
                         ) : (
                           <>
                             {/* Best Lap */}
-                            <td className="mono" style={{ fontWeight: 700, color: isOverallFastestLap ? 'var(--accent-purple)' : 'var(--accent-tertiary)' }}>
+                            <td className="mono" style={{ fontWeight: 700, fontSize: '0.82rem', whiteSpace: 'nowrap', color: isOverallFastestLap ? 'var(--accent-purple)' : 'var(--accent-tertiary)' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                                 {driver.bestLap ? formatLapTime(driver.bestLap.lap_time_ms) : '--:--.---'}
                                 {isOverallFastestLap && (
@@ -400,8 +404,8 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                                     title={t('history.classification.poleFastestLap')}
                                     style={{
                                       display: 'inline-flex',
-                                      padding: '1px 4px',
-                                      fontSize: '0.65rem',
+                                      padding: '1px 3px',
+                                      fontSize: '0.6rem',
                                       background: 'rgba(176, 38, 255, 0.2)',
                                       border: '1px solid rgba(176, 38, 255, 0.4)',
                                       color: 'var(--accent-purple)',
@@ -420,6 +424,8 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                               className="mono"
                               style={{
                                 fontWeight: 700,
+                                fontSize: '0.82rem',
+                                whiteSpace: 'nowrap',
                                 color: isLeader ? 'var(--accent-primary)' : 'var(--text-primary)',
                               }}
                             >
@@ -427,37 +433,37 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                             </td>
 
                             {/* S1 of Best Lap */}
-                            <td className="mono" style={{ fontSize: '0.85rem' }}>
+                            <td className="mono" style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
                               <span
                                 className={isS1Purple ? 'sector-purple' : isS1Green ? 'sector-green' : ''}
-                                style={{ padding: '2px 5px', borderRadius: '3px' }}
+                                style={{ padding: '2px 4px', borderRadius: '3px' }}
                               >
                                 {formatSectorTime(bestLapS1)}
                               </span>
                             </td>
 
                             {/* S2 of Best Lap */}
-                            <td className="mono" style={{ fontSize: '0.85rem' }}>
+                            <td className="mono" style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
                               <span
                                 className={isS2Purple ? 'sector-purple' : isS2Green ? 'sector-green' : ''}
-                                style={{ padding: '2px 5px', borderRadius: '3px' }}
+                                style={{ padding: '2px 4px', borderRadius: '3px' }}
                               >
                                 {formatSectorTime(bestLapS2)}
                               </span>
                             </td>
 
                             {/* S3 of Best Lap */}
-                            <td className="mono" style={{ fontSize: '0.85rem' }}>
+                            <td className="mono" style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
                               <span
                                 className={isS3Purple ? 'sector-purple' : isS3Green ? 'sector-green' : ''}
-                                style={{ padding: '2px 5px', borderRadius: '3px' }}
+                                style={{ padding: '2px 4px', borderRadius: '3px' }}
                               >
                                 {formatSectorTime(bestLapS3)}
                               </span>
                             </td>
 
                             {/* Laps */}
-                            <td className="mono" style={{ color: 'var(--text-secondary)' }}>
+                            <td className="mono" style={{ color: 'var(--text-secondary)', textAlign: 'center', fontSize: '0.82rem' }}>
                               {driver.laps.length}
                             </td>
 
@@ -465,23 +471,23 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                             <td>{renderDriverTyreStints(driver.laps)}</td>
 
                             {/* Max Speed */}
-                            <td className="mono">
-                              {driver.maxSpeed ? `${driver.maxSpeed.toFixed(1)} km/h` : '-- km/h'}
+                            <td className="mono" style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                              {driver.maxSpeed ? `${driver.maxSpeed.toFixed(0)} km/h` : '--'}
                             </td>
                           </>
                         )}
 
                         {/* Laps / Expand Details button */}
-                        <td style={{ textAlign: 'right' }}>
+                        <td style={{ textAlign: 'right', paddingRight: '0.65rem' }}>
                           <button
                             className="nav-tab"
                             onClick={(e) => {
                               e.stopPropagation();
                               onToggleDriverExpand(driver.participant.car_index);
                             }}
-                            style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                            style={{ padding: '3px 7px', fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap' }}
                           >
-                            {t('history.classification.driverLapsCount', { count: driver.laps.length })} {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                            {t('history.classification.driverLapsCount', { count: driver.laps.length })} {isExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
                           </button>
                         </td>
                       </tr>
@@ -530,7 +536,10 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
 
                                       const s1 = lap.sector1_ms ?? 0;
                                       const s2 = lap.sector2_ms ?? 0;
-                                      const s3 = lap.sector3_ms ?? 0;
+                                      let s3 = lap.sector3_ms ?? 0;
+                                      if (s3 <= 0 && lap.lap_time_ms > 0 && s1 > 0 && s2 > 0) {
+                                        s3 = lap.lap_time_ms - (s1 + s2);
+                                      }
 
                                       const s1Purple = s1 > 0 && sessionBestS1 > 0 && s1 <= sessionBestS1;
                                       const s2Purple = s2 > 0 && sessionBestS2 > 0 && s2 <= sessionBestS2;

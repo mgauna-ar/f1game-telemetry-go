@@ -218,12 +218,12 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 			updated = true
 		}
 
-		// If car has finished single lap session (ResultStatus == 3 on Lap 1), update lap time
+		// If car has finished session (ResultStatus == 3), update lap time and sector 3 if not yet finalized
 		lastLapTimeMS := int(lapData.LastLapTimeInMS)
-		if resStatus == 3 && lt.currentLapNum == 1 && lt.currentLap.LapTimeMS == 0 && lastLapTimeMS > 0 {
+		if resStatus == 3 && lt.currentLap.LapTimeMS == 0 && lastLapTimeMS > 0 {
 			lt.currentLap.LapTimeMS = lastLapTimeMS
-			if s1 > 0 && s2 > 0 && lt.currentLap.Sector3MS == 0 {
-				s3 := lastLapTimeMS - (s1 + s2)
+			if lt.currentLap.Sector1MS > 0 && lt.currentLap.Sector2MS > 0 && lt.currentLap.Sector3MS == 0 {
+				s3 := lastLapTimeMS - (lt.currentLap.Sector1MS + lt.currentLap.Sector2MS)
 				if s3 > 0 {
 					lt.currentLap.Sector3MS = s3
 				}
@@ -233,6 +233,50 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 
 		if updated {
 			_ = lt.repo.SaveLap(ctx, lt.currentLap)
+		}
+	}
+}
+
+// ProcessSessionHistory updates lap history records from official game session history packet (ID 11).
+func (lt *LapTracker) ProcessSessionHistory(ctx context.Context, session *storage.Session, p *packets.PacketSessionHistoryData) {
+	if session == nil || p == nil {
+		return
+	}
+	if int(p.CarIdx) != lt.carIndex {
+		return
+	}
+
+	numLaps := int(p.NumLaps)
+	if numLaps > packets.MaxLapHistoryEntries {
+		numLaps = packets.MaxLapHistoryEntries
+	}
+
+	for i := 0; i < numLaps; i++ {
+		lapData := p.LapHistoryData[i]
+		lapNum := i + 1
+		lapTime := int(lapData.LapTimeInMS)
+		s1 := int(lapData.Sector1TimeMSPart) + int(lapData.Sector1TimeMinutesPart)*60000
+		s2 := int(lapData.Sector2TimeMSPart) + int(lapData.Sector2TimeMinutesPart)*60000
+		s3 := int(lapData.Sector3TimeMSPart) + int(lapData.Sector3TimeMinutesPart)*60000
+
+		if s3 == 0 && lapTime > 0 && s1 > 0 && s2 > 0 {
+			s3 = lapTime - (s1 + s2)
+		}
+
+		if lapTime > 0 || s1 > 0 || s2 > 0 || s3 > 0 {
+			isValid := (lapData.LapValidBitFlags & 0x01) != 0
+
+			lap := &storage.Lap{
+				SessionID: session.ID,
+				CarIndex:  lt.carIndex,
+				LapNumber: lapNum,
+				LapTimeMS: lapTime,
+				Sector1MS: s1,
+				Sector2MS: s2,
+				Sector3MS: s3,
+				IsValid:   isValid,
+			}
+			_ = lt.repo.SaveLapHistoryEntry(ctx, lap)
 		}
 	}
 }

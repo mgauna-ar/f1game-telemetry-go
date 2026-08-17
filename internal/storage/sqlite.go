@@ -86,6 +86,13 @@ func (r *Repository) UpdateSessionMetadata(ctx context.Context, sessionUID uint6
 
 // SaveLap inserts or updates a lap.
 func (r *Repository) SaveLap(ctx context.Context, l *Lap) error {
+	if l.Sector3MS <= 0 && l.LapTimeMS > 0 && l.Sector1MS > 0 && l.Sector2MS > 0 {
+		s3 := l.LapTimeMS - (l.Sector1MS + l.Sector2MS)
+		if s3 > 0 {
+			l.Sector3MS = s3
+		}
+	}
+
 	query := `
 		INSERT INTO laps (session_id, car_index, lap_number, lap_time_ms, sector1_ms, sector2_ms, sector3_ms, is_valid, tyre_compound, fuel_load, max_speed_kmh, penalties_seconds, car_position, result_status, stint)
 		VALUES (:session_id, :car_index, :lap_number, :lap_time_ms, :sector1_ms, :sector2_ms, :sector3_ms, :is_valid, :tyre_compound, :fuel_load, :max_speed_kmh, :penalties_seconds, :car_position, :result_status, :stint)
@@ -107,6 +114,40 @@ func (r *Repository) SaveLap(ctx context.Context, l *Lap) error {
 	rows, err := r.db.NamedQueryContext(ctx, query, l)
 	if err != nil {
 		return fmt.Errorf("failed to save lap: %w", err)
+	}
+	defer rows.Close()
+
+	if rows.Next() {
+		if err := rows.Scan(&l.ID); err != nil {
+			return fmt.Errorf("failed to scan lap id: %w", err)
+		}
+	}
+	return nil
+}
+
+// SaveLapHistoryEntry updates or inserts lap timing data received from SessionHistory packet.
+func (r *Repository) SaveLapHistoryEntry(ctx context.Context, l *Lap) error {
+	if l.Sector3MS <= 0 && l.LapTimeMS > 0 && l.Sector1MS > 0 && l.Sector2MS > 0 {
+		s3 := l.LapTimeMS - (l.Sector1MS + l.Sector2MS)
+		if s3 > 0 {
+			l.Sector3MS = s3
+		}
+	}
+
+	query := `
+		INSERT INTO laps (session_id, car_index, lap_number, lap_time_ms, sector1_ms, sector2_ms, sector3_ms, is_valid, tyre_compound, fuel_load, max_speed_kmh, penalties_seconds, car_position, result_status, stint)
+		VALUES (:session_id, :car_index, :lap_number, :lap_time_ms, :sector1_ms, :sector2_ms, :sector3_ms, :is_valid, :tyre_compound, :fuel_load, :max_speed_kmh, :penalties_seconds, :car_position, :result_status, :stint)
+		ON CONFLICT(session_id, car_index, lap_number) DO UPDATE SET
+			lap_time_ms = CASE WHEN excluded.lap_time_ms > 0 THEN excluded.lap_time_ms ELSE laps.lap_time_ms END,
+			sector1_ms = CASE WHEN excluded.sector1_ms > 0 THEN excluded.sector1_ms ELSE laps.sector1_ms END,
+			sector2_ms = CASE WHEN excluded.sector2_ms > 0 THEN excluded.sector2_ms ELSE laps.sector2_ms END,
+			sector3_ms = CASE WHEN excluded.sector3_ms > 0 THEN excluded.sector3_ms ELSE laps.sector3_ms END,
+			is_valid = excluded.is_valid
+		RETURNING id
+	`
+	rows, err := r.db.NamedQueryContext(ctx, query, l)
+	if err != nil {
+		return fmt.Errorf("failed to save lap history entry: %w", err)
 	}
 	defer rows.Close()
 
@@ -234,6 +275,15 @@ func (r *Repository) GetLapsBySession(ctx context.Context, sessionID int64) ([]L
 		return nil, fmt.Errorf("failed to get laps: %w", err)
 	}
 
+	for i := range laps {
+		if laps[i].Sector3MS <= 0 && laps[i].LapTimeMS > 0 && laps[i].Sector1MS > 0 && laps[i].Sector2MS > 0 {
+			s3 := laps[i].LapTimeMS - (laps[i].Sector1MS + laps[i].Sector2MS)
+			if s3 > 0 {
+				laps[i].Sector3MS = s3
+			}
+		}
+	}
+
 	return laps, nil
 }
 
@@ -263,6 +313,12 @@ func (r *Repository) GetLapByID(ctx context.Context, lapID int64) (*Lap, error) 
 	query := `SELECT * FROM laps WHERE id = ?`
 	if err := r.db.GetContext(ctx, &lap, query, lapID); err != nil {
 		return nil, fmt.Errorf("failed to get lap: %w", err)
+	}
+	if lap.Sector3MS <= 0 && lap.LapTimeMS > 0 && lap.Sector1MS > 0 && lap.Sector2MS > 0 {
+		s3 := lap.LapTimeMS - (lap.Sector1MS + lap.Sector2MS)
+		if s3 > 0 {
+			lap.Sector3MS = s3
+		}
 	}
 	return &lap, nil
 }
