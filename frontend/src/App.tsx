@@ -22,9 +22,13 @@ function App() {
   });
 
   const [comparatorPreload, setComparatorPreload] = useState<{
-    sessionId: number;
-    lapId: number;
-    slot: 'A' | 'B';
+    sessionId?: number;
+    lapId?: number;
+    slot?: 'A' | 'B';
+    sessionAId?: number;
+    lapAId?: number;
+    sessionBId?: number;
+    lapBId?: number;
   } | null>(null);
 
   useEffect(() => {
@@ -35,8 +39,26 @@ function App() {
     }
   }, [activeTab]);
 
-  const handleNavigateToComparator = (sessionId: number, lapId: number, slot: 'A' | 'B') => {
-    setComparatorPreload({ sessionId, lapId, slot });
+  const handleNavigateToComparator = (
+    payload:
+      | {
+          sessionId?: number;
+          lapId?: number;
+          slot?: 'A' | 'B';
+          sessionAId?: number;
+          lapAId?: number;
+          sessionBId?: number;
+          lapBId?: number;
+        }
+      | number,
+    lapId?: number,
+    slot?: 'A' | 'B'
+  ) => {
+    if (typeof payload === 'object') {
+      setComparatorPreload(payload);
+    } else {
+      setComparatorPreload({ sessionId: payload, lapId: lapId!, slot: slot || 'A' });
+    }
     setActiveTab('comparator');
   };
 

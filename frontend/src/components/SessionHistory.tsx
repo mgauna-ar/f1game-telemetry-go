@@ -96,8 +96,21 @@ export interface CarSetup {
   fuel_load: number;
 }
 
+import { SessionComparatorDock } from './session_history/SessionComparatorDock';
+import type { StagedLap } from './session_history/SessionComparatorDock';
+
+export interface NavigationComparatorPayload {
+  sessionAId?: number;
+  lapAId?: number;
+  sessionBId?: number;
+  lapBId?: number;
+  sessionId?: number;
+  lapId?: number;
+  slot?: 'A' | 'B';
+}
+
 interface SessionHistoryProps {
-  onNavigateToComparator?: (sessionId: number, lapId: number, slot: 'A' | 'B') => void;
+  onNavigateToComparator?: (payload: NavigationComparatorPayload | number, lapId?: number, slot?: 'A' | 'B') => void;
 }
 
 export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComparator }) => {
@@ -123,11 +136,73 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
   const [setups, setSetups] = useState<CarSetup[]>([]);
   const [expandedDrivers, setExpandedDrivers] = useState<Record<number, boolean>>({});
 
+  // Staged Laps for Comparator Dock
+  const [stagedSlotA, setStagedSlotA] = useState<StagedLap | null>(null);
+  const [stagedSlotB, setStagedSlotB] = useState<StagedLap | null>(null);
+
   // Active Sub-Tab in Session Detail ('classification' | 'charts' | 'sectors')
   const [activeDetailTab, setActiveDetailTab] = useState<'classification' | 'charts' | 'sectors'>('classification');
 
   // AI Debrief Drawer State
   const [isAiDebriefOpen, setIsAiDebriefOpen] = useState<boolean>(false);
+
+  // Staged Lap Handlers
+  const handleStageLap = (lap: Lap, driver: DriverStanding, slot: 'A' | 'B') => {
+    if (!selectedSession) return;
+    const staged: StagedLap = {
+      sessionId: selectedSession.id,
+      sessionName: selectedSession.track_name,
+      lapId: lap.id,
+      lapNumber: lap.lap_number,
+      lapTimeMS: lap.lap_time_ms,
+      driverName: driver.participant.name,
+      teamId: driver.participant.team_id,
+      raceNumber: driver.participant.race_number,
+      tyreCompound: lap.tyre_compound,
+    };
+
+    if (slot === 'A') {
+      if (stagedSlotA?.lapId === lap.id) {
+        setStagedSlotA(null);
+      } else {
+        setStagedSlotA(staged);
+      }
+    } else {
+      if (stagedSlotB?.lapId === lap.id) {
+        setStagedSlotB(null);
+      } else {
+        setStagedSlotB(staged);
+      }
+    }
+  };
+
+  const handleSwapStagedSlots = () => {
+    const temp = stagedSlotA;
+    setStagedSlotA(stagedSlotB);
+    setStagedSlotB(temp);
+  };
+
+  const handleClearStagedA = () => setStagedSlotA(null);
+  const handleClearStagedB = () => setStagedSlotB(null);
+  const handleClearAllStaged = () => {
+    setStagedSlotA(null);
+    setStagedSlotB(null);
+  };
+
+  const handleLaunchComparison = () => {
+    if (!stagedSlotA && !stagedSlotB) return;
+    if (onNavigateToComparator) {
+      onNavigateToComparator({
+        sessionAId: stagedSlotA ? stagedSlotA.sessionId : undefined,
+        lapAId: stagedSlotA ? stagedSlotA.lapId : undefined,
+        sessionBId: stagedSlotB ? stagedSlotB.sessionId : undefined,
+        lapBId: stagedSlotB ? stagedSlotB.lapId : undefined,
+        sessionId: stagedSlotA ? stagedSlotA.sessionId : stagedSlotB?.sessionId,
+        lapId: stagedSlotA ? stagedSlotA.lapId : stagedSlotB?.lapId,
+        slot: stagedSlotA ? 'A' : 'B',
+      });
+    }
+  };
 
   // Deletion State & Handler
   const [sessionToDelete, setSessionToDelete] = useState<Session | null>(null);
@@ -179,6 +254,8 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
     setSelectedSession(session);
     setLoadingDetail(true);
     setExpandedDrivers({});
+    setStagedSlotA(null);
+    setStagedSlotB(null);
     setActiveDetailTab('classification');
     setIsAiDebriefOpen(false);
 
@@ -588,6 +665,8 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
             className="nav-tab active"
             onClick={() => {
               setSelectedSession(null);
+              setStagedSlotA(null);
+              setStagedSlotB(null);
               setIsAiDebriefOpen(false);
             }}
             style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
@@ -870,6 +949,9 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
               sessionBestS3={sessionBestS3}
               expandedDrivers={expandedDrivers}
               onToggleDriverExpand={toggleDriverExpand}
+              stagedA={stagedSlotA}
+              stagedB={stagedSlotB}
+              onStageLap={handleStageLap}
               onSendToComparator={onNavigateToComparator}
               formatLapTime={formatLapTime}
               formatTotalDuration={formatTotalDuration}
@@ -906,6 +988,18 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
           )}
         </div>
       )}
+
+      {/* COMPARATOR STAGING DOCK */}
+      <SessionComparatorDock
+        stagedA={stagedSlotA}
+        stagedB={stagedSlotB}
+        onClearA={handleClearStagedA}
+        onClearB={handleClearStagedB}
+        onClearAll={handleClearAllStaged}
+        onSwap={handleSwapStagedSlots}
+        onLaunch={handleLaunchComparison}
+        formatLapTime={formatLapTime}
+      />
 
       {/* CONFIRM DELETE MODAL */}
       {sessionToDelete && (

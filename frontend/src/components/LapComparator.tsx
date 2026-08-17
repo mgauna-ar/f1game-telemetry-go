@@ -164,9 +164,13 @@ const compactTooltipProps = {
 
 export interface LapComparatorProps {
   initialPreload?: {
-    sessionId: number;
-    lapId: number;
-    slot: 'A' | 'B';
+    sessionId?: number;
+    lapId?: number;
+    slot?: 'A' | 'B';
+    sessionAId?: number;
+    lapAId?: number;
+    sessionBId?: number;
+    lapBId?: number;
   } | null;
 }
 
@@ -175,11 +179,13 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
 
   // Dual session IDs & Synchronization link
   const [sessionAId, setSessionAId] = useState<number | ''>(() => {
-    if (initialPreload && initialPreload.slot === 'A') return initialPreload.sessionId;
+    if (initialPreload?.sessionAId) return initialPreload.sessionAId;
+    if (initialPreload && initialPreload.slot === 'A' && initialPreload.sessionId) return initialPreload.sessionId;
     return '';
   });
   const [sessionBId, setSessionBId] = useState<number | ''>(() => {
-    if (initialPreload && initialPreload.slot === 'B') return initialPreload.sessionId;
+    if (initialPreload?.sessionBId) return initialPreload.sessionBId;
+    if (initialPreload && initialPreload.slot === 'B' && initialPreload.sessionId) return initialPreload.sessionId;
     return '';
   });
   const [isLinkedSessions, setIsLinkedSessions] = useState(true);
@@ -296,13 +302,35 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
   // Handle external preload updates (e.g. from Session History)
   useEffect(() => {
     if (!initialPreload) return;
-    if (initialPreload.slot === 'A') {
+
+    if (initialPreload.sessionAId || initialPreload.lapAId || initialPreload.sessionBId || initialPreload.lapBId) {
+      if (initialPreload.sessionAId) {
+        setSessionAId(initialPreload.sessionAId);
+      }
+      if (initialPreload.lapAId) {
+        setLapAId(initialPreload.lapAId);
+      }
+      if (initialPreload.sessionBId) {
+        setSessionBId(initialPreload.sessionBId);
+        if (initialPreload.sessionAId && initialPreload.sessionBId !== initialPreload.sessionAId) {
+          setIsLinkedSessions(false);
+        } else if (initialPreload.sessionAId && initialPreload.sessionBId === initialPreload.sessionAId) {
+          setIsLinkedSessions(true);
+        }
+      }
+      if (initialPreload.lapBId) {
+        setLapBId(initialPreload.lapBId);
+      }
+      return;
+    }
+
+    if (initialPreload.slot === 'A' && initialPreload.sessionId && initialPreload.lapId) {
       setSessionAId(initialPreload.sessionId);
       setLapAId(initialPreload.lapId);
       if (isLinkedSessions) {
         setSessionBId(initialPreload.sessionId);
       }
-    } else if (initialPreload.slot === 'B') {
+    } else if (initialPreload.slot === 'B' && initialPreload.sessionId && initialPreload.lapId) {
       setIsLinkedSessions(false);
       setSessionBId(initialPreload.sessionId);
       setLapBId(initialPreload.lapId);
@@ -322,8 +350,9 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
           setLapsA(list);
           // Auto-select fastest valid lap for Lap A unless preloaded
           if (list.length > 0) {
-            if (initialPreload && initialPreload.slot === 'A' && initialPreload.sessionId === sessionAId && list.some(l => l.id === initialPreload.lapId)) {
-              setLapAId(initialPreload.lapId);
+            const preloadedLapAId = initialPreload?.lapAId || (initialPreload?.slot === 'A' ? initialPreload?.lapId : undefined);
+            if (preloadedLapAId && list.some((l) => l.id === preloadedLapAId)) {
+              setLapAId(preloadedLapAId);
             } else {
               const valid = list.filter((l) => l.is_valid && l.lap_time_ms > 0).sort((a, b) => a.lap_time_ms - b.lap_time_ms);
               const best = valid.length > 0 ? valid[0] : list[0];
@@ -363,8 +392,9 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
 
           // Auto-select lap for Slot B unless preloaded
           if (list.length > 0) {
-            if (initialPreload && initialPreload.slot === 'B' && initialPreload.sessionId === sessionBId && list.some(l => l.id === initialPreload.lapId)) {
-              setLapBId(initialPreload.lapId);
+            const preloadedLapBId = initialPreload?.lapBId || (initialPreload?.slot === 'B' ? initialPreload?.lapId : undefined);
+            if (preloadedLapBId && list.some((l) => l.id === preloadedLapBId)) {
+              setLapBId(preloadedLapBId);
             } else {
               const valid = list.filter((l) => l.is_valid && l.lap_time_ms > 0).sort((a, b) => a.lap_time_ms - b.lap_time_ms);
               if (isLinkedSessions && valid.length > 1) {

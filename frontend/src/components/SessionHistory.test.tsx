@@ -182,12 +182,97 @@ describe('SessionHistory Component', () => {
     fireEvent.click(screen.getByRole('button', { name: /1 Laps/ }));
 
     await waitFor(() => {
-      expect(screen.getByTitle('Load Lap 1 into Lap Comparator Slot A')).toBeInTheDocument();
+      expect(screen.getByTitle('Stage Lap 1 into Lap Comparator Slot A')).toBeInTheDocument();
     });
 
-    // Click Slot A
-    fireEvent.click(screen.getByTitle('Load Lap 1 into Lap Comparator Slot A'));
-    expect(onNavigateMock).toHaveBeenCalledWith(1, 201, 'A');
+    // Stage Slot A
+    fireEvent.click(screen.getByTitle('Stage Lap 1 into Lap Comparator Slot A'));
+
+    // Verify Staging Dock appears
+    await waitFor(() => {
+      expect(screen.getByText('LAP COMPARATOR STAGING')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Launch Comparator/i })).toBeInTheDocument();
+    });
+
+    // Click Launch Comparator
+    fireEvent.click(screen.getByRole('button', { name: /Launch Comparator/i }));
+    expect(onNavigateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionAId: 1, lapAId: 201 })
+    );
+  });
+
+  it('stages both Slot A and Slot B, supports swapping, and launches dual comparison', async () => {
+    const onNavigateMock = vi.fn();
+    const mockSessions = [
+      { id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' },
+    ];
+
+    const mockParticipants = [
+      { id: 10, session_id: 1, car_index: 0, name: 'Lewis Hamilton', driver_id: 2, team_id: 1, race_number: 44, ai_controlled: false },
+      { id: 11, session_id: 1, car_index: 1, name: 'Max Verstappen', driver_id: 1, team_id: 3, race_number: 1, ai_controlled: false },
+    ];
+
+    const mockLaps = [
+      { id: 201, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 90000, sector1_ms: 28000, sector2_ms: 35000, sector3_ms: 27000, is_valid: true, tyre_compound: 'SOFT', max_speed_kmh: 320.0 },
+      { id: 202, session_id: 1, car_index: 1, lap_number: 1, lap_time_ms: 90500, sector1_ms: 28100, sector2_ms: 35200, sector3_ms: 27200, is_valid: true, tyre_compound: 'MEDIUM', max_speed_kmh: 322.0 },
+    ];
+
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url === '/api/sessions') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSessions) });
+      if (url === '/api/sessions/1/participants') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockParticipants) });
+      if (url === '/api/sessions/1/laps') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockLaps) });
+      if (url === '/api/sessions/1/setups') return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    });
+
+    render(<SessionHistory onNavigateToComparator={onNavigateMock} />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Silverstone').length).toBeGreaterThan(0);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Explore Session/i }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Lewis Hamilton').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Max Verstappen').length).toBeGreaterThan(0);
+    });
+
+    // Expand both drivers
+    const lapButtons = screen.getAllByRole('button', { name: /1 Laps/ });
+    fireEvent.click(lapButtons[0]);
+    fireEvent.click(lapButtons[1]);
+
+    await waitFor(() => {
+      expect(screen.getAllByTitle('Stage Lap 1 into Lap Comparator Slot A').length).toBeGreaterThan(0);
+      expect(screen.getAllByTitle('Stage Lap 1 into Lap Comparator Slot B').length).toBeGreaterThan(0);
+    });
+
+    // Stage Lewis Lap 1 into Slot A
+    fireEvent.click(screen.getAllByTitle('Stage Lap 1 into Lap Comparator Slot A')[0]);
+    // Stage Max Lap 1 into Slot B
+    fireEvent.click(screen.getAllByTitle('Stage Lap 1 into Lap Comparator Slot B')[1]);
+
+    // Verify dock displays both
+    await waitFor(() => {
+      expect(screen.getByText('2 Laps ready to compare')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Compare 2 Laps/i })).toBeInTheDocument();
+    });
+
+    // Swap slots
+    const swapBtn = screen.getByTitle('Swap Slot A and Slot B');
+    fireEvent.click(swapBtn);
+
+    // Launch comparison
+    fireEvent.click(screen.getByRole('button', { name: /Compare 2 Laps/i }));
+    expect(onNavigateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionAId: 1,
+        lapAId: 202,
+        sessionBId: 1,
+        lapBId: 201,
+      })
+    );
   });
 
   it('switches between detail tabs: Lap Progression and Sector Matrix', async () => {

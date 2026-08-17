@@ -32,6 +32,8 @@ export interface DriverStanding {
   theoreticalBestMS: number;
 }
 
+import type { StagedLap } from './SessionComparatorDock';
+
 interface SessionClassificationTabProps {
   session: Session;
   driverStandings: DriverStanding[];
@@ -41,6 +43,9 @@ interface SessionClassificationTabProps {
   sessionBestS3: number;
   expandedDrivers: Record<number, boolean>;
   onToggleDriverExpand: (carIndex: number) => void;
+  stagedA?: StagedLap | null;
+  stagedB?: StagedLap | null;
+  onStageLap?: (lap: Lap, driver: DriverStanding, slot: 'A' | 'B') => void;
   onSendToComparator?: (sessionId: number, lapId: number, slot: 'A' | 'B') => void;
   formatLapTime: (ms: number) => string;
   formatTotalDuration: (ms: number) => string;
@@ -57,6 +62,9 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
   sessionBestS3,
   expandedDrivers,
   onToggleDriverExpand,
+  stagedA,
+  stagedB,
+  onStageLap,
   onSendToComparator,
   formatLapTime,
   formatTotalDuration,
@@ -583,30 +591,70 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                                             </span>
                                           </td>
                                           <td style={{ padding: '6px 8px', textAlign: 'right' }}>
-                                            {onSendToComparator && (
+                                            {(onStageLap || onSendToComparator) && (
                                               <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                                                <button
-                                                  className="nav-tab active"
-                                                  title={`Load Lap ${lap.lap_number} into Lap Comparator Slot A`}
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    onSendToComparator(session.id, lap.id, 'A');
-                                                  }}
-                                                  style={{ padding: '2px 7px', fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
-                                                >
-                                                  <GitCompare size={11} /> Slot A
-                                                </button>
-                                                <button
-                                                  className="nav-tab"
-                                                  title={`Load Lap ${lap.lap_number} into Lap Comparator Slot B`}
-                                                  onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    onSendToComparator(session.id, lap.id, 'B');
-                                                  }}
-                                                  style={{ padding: '2px 7px', fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
-                                                >
-                                                  <GitCompare size={11} /> Slot B
-                                                </button>
+                                                {(() => {
+                                                  const isStagedA = stagedA?.lapId === lap.id;
+                                                  const isStagedB = stagedB?.lapId === lap.id;
+
+                                                  return (
+                                                    <>
+                                                      <button
+                                                        className={`nav-tab ${isStagedA ? 'active' : ''}`}
+                                                        title={isStagedA ? 'Staged in Slot A (Click to unstage)' : `Stage Lap ${lap.lap_number} into Lap Comparator Slot A`}
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          if (onStageLap) {
+                                                            onStageLap(lap, driver, 'A');
+                                                          } else if (onSendToComparator) {
+                                                            onSendToComparator(session.id, lap.id, 'A');
+                                                          }
+                                                        }}
+                                                        style={{
+                                                          padding: '2px 7px',
+                                                          fontSize: '0.72rem',
+                                                          display: 'inline-flex',
+                                                          alignItems: 'center',
+                                                          gap: '3px',
+                                                          background: isStagedA ? 'rgba(0, 242, 254, 0.22)' : undefined,
+                                                          borderColor: isStagedA ? '#00f2fe' : undefined,
+                                                          color: isStagedA ? '#00f2fe' : undefined,
+                                                          fontWeight: isStagedA ? 800 : 500,
+                                                          boxShadow: isStagedA ? '0 0 10px rgba(0, 242, 254, 0.3)' : undefined,
+                                                        }}
+                                                      >
+                                                        <GitCompare size={11} /> {isStagedA ? '✓ Slot A' : 'Slot A'}
+                                                      </button>
+
+                                                      <button
+                                                        className={`nav-tab ${isStagedB ? 'active' : ''}`}
+                                                        title={isStagedB ? 'Staged in Slot B (Click to unstage)' : `Stage Lap ${lap.lap_number} into Lap Comparator Slot B`}
+                                                        onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          if (onStageLap) {
+                                                            onStageLap(lap, driver, 'B');
+                                                          } else if (onSendToComparator) {
+                                                            onSendToComparator(session.id, lap.id, 'B');
+                                                          }
+                                                        }}
+                                                        style={{
+                                                          padding: '2px 7px',
+                                                          fontSize: '0.72rem',
+                                                          display: 'inline-flex',
+                                                          alignItems: 'center',
+                                                          gap: '3px',
+                                                          background: isStagedB ? 'rgba(225, 6, 0, 0.22)' : undefined,
+                                                          borderColor: isStagedB ? '#e10600' : undefined,
+                                                          color: isStagedB ? '#ff4d4f' : undefined,
+                                                          fontWeight: isStagedB ? 800 : 500,
+                                                          boxShadow: isStagedB ? '0 0 10px rgba(225, 6, 0, 0.3)' : undefined,
+                                                        }}
+                                                      >
+                                                        <GitCompare size={11} /> {isStagedB ? '✓ Slot B' : 'Slot B'}
+                                                      </button>
+                                                    </>
+                                                  );
+                                                })()}
                                               </div>
                                             )}
                                           </td>
