@@ -385,3 +385,175 @@ func TestDecodeLapPositions2025And2026(t *testing.T) {
 		})
 	}
 }
+
+func TestDecodeParticipants2025And2026(t *testing.T) {
+	drivers := []struct {
+		name       string
+		raceNumber uint8
+		teamID     uint8
+	}{
+		{"Max Verstappen", 1, 0},
+		{"Sergio Perez", 11, 0},
+		{"Lewis Hamilton", 44, 4},
+		{"Charles Leclerc", 16, 4},
+		{"Lando Norris", 4, 2},
+		{"Oscar Piastri", 81, 2},
+		{"George Russell", 63, 1},
+		{"Kimi Antonelli", 12, 1},
+		{"Fernando Alonso", 14, 3},
+		{"Lance Stroll", 18, 3},
+		{"Pierre Gasly", 10, 5},
+		{"Jack Doohan", 7, 5},
+		{"Alexander Albon", 23, 6},
+		{"Carlos Sainz", 55, 6},
+		{"Yuki Tsunoda", 22, 7},
+		{"Liam Lawson", 30, 7},
+		{"Nico Hulkenberg", 27, 8},
+		{"Gabriel Bortoleto", 5, 8},
+		{"Esteban Ocon", 31, 9},
+		{"Oliver Bearman", 87, 9},
+		{"Isack Hadjar", 6, 0},
+		{"Felipe Drugovich", 31, 3},
+		{"Colton Herta", 26, 10},
+		{"Alex Palou", 10, 10},
+	}
+
+	formats := []struct {
+		name         string
+		packetFormat uint16
+		expectedCars int
+		nameLen      int
+		structSize   int
+	}{
+		{"F1 2025 (22 cars)", 2025, 22, 48, 60},
+		{"F1 2026 (24 cars)", 2026, 24, 32, 57},
+	}
+
+	for _, fmtCase := range formats {
+		t.Run(fmtCase.name, func(t *testing.T) {
+			buf := new(bytes.Buffer)
+			hdr := createHeader(PacketIDParticipants)
+			hdr.PacketFormat = fmtCase.packetFormat
+			_ = binary.Write(buf, binary.LittleEndian, &hdr)
+
+			numCars := uint8(fmtCase.expectedCars)
+			_ = binary.Write(buf, binary.LittleEndian, &numCars)
+
+			for i := 0; i < fmtCase.expectedCars; i++ {
+				d := drivers[i]
+				_ = binary.Write(buf, binary.LittleEndian, uint8(1))     // AIControlled
+				_ = binary.Write(buf, binary.LittleEndian, uint8(i+1))   // DriverId
+				_ = binary.Write(buf, binary.LittleEndian, uint8(0))     // NetworkId
+				_ = binary.Write(buf, binary.LittleEndian, d.teamID)     // TeamId
+				_ = binary.Write(buf, binary.LittleEndian, uint8(0))     // MyTeam
+				_ = binary.Write(buf, binary.LittleEndian, d.raceNumber) // RaceNumber
+				_ = binary.Write(buf, binary.LittleEndian, uint8(12))    // Nationality
+
+				nameBytes := make([]byte, fmtCase.nameLen)
+				copy(nameBytes, d.name)
+				buf.Write(nameBytes)
+
+				_ = binary.Write(buf, binary.LittleEndian, uint8(1))     // YourTelemetry
+				_ = binary.Write(buf, binary.LittleEndian, uint8(1))     // ShowOnlineNames
+				_ = binary.Write(buf, binary.LittleEndian, uint16(1000)) // TechLevel
+				_ = binary.Write(buf, binary.LittleEndian, uint8(1))     // Platform
+
+				written := 7 + fmtCase.nameLen + 5
+				if written < fmtCase.structSize {
+					extra := make([]byte, fmtCase.structSize-written)
+					buf.Write(extra)
+				}
+			}
+
+			pkt, err := DecodeParticipants(buf.Bytes())
+			if err != nil {
+				t.Fatalf("DecodeParticipants failed for %s: %v", fmtCase.name, err)
+			}
+
+			if pkt.NumActiveCars != numCars {
+				t.Errorf("Expected NumActiveCars %d, got %d", numCars, pkt.NumActiveCars)
+			}
+
+			for i := 0; i < fmtCase.expectedCars; i++ {
+				p := pkt.Participants[i]
+				expectedName := drivers[i].name
+				expectedNumber := drivers[i].raceNumber
+
+				if p.NameString() != expectedName {
+					t.Errorf("Car %d: expected name %q, got %q", i, expectedName, p.NameString())
+				}
+				if p.RaceNumber != expectedNumber {
+					t.Errorf("Car %d: expected race number %d, got %d", i, expectedNumber, p.RaceNumber)
+				}
+				if p.TeamId != drivers[i].teamID {
+					t.Errorf("Car %d: expected team ID %d, got %d", i, drivers[i].teamID, p.TeamId)
+				}
+			}
+		})
+	}
+}
+
+func TestDecodeCarTelemetryAllCarsNoShift(t *testing.T) {
+	formats := []struct {
+		name         string
+		packetFormat uint16
+		expectedCars int
+	}{
+		{"F1 2025 (22 cars)", 2025, 22},
+		{"F1 2026 (24 cars)", 2026, 24},
+	}
+
+	for _, fmtCase := range formats {
+		t.Run(fmtCase.name, func(t *testing.T) {
+			buf := new(bytes.Buffer)
+			hdr := createHeader(PacketIDCarTelemetry)
+			hdr.PacketFormat = fmtCase.packetFormat
+			_ = binary.Write(buf, binary.LittleEndian, &hdr)
+
+			for i := 0; i < fmtCase.expectedCars; i++ {
+				cd := CarTelemetryData{
+					Speed:             uint16(200 + i*5),
+					Throttle:          0.5 + float32(i)*0.01,
+					Steer:             -0.2 + float32(i)*0.01,
+					Brake:             0.1,
+					Clutch:            10,
+					Gear:              int8(5),
+					EngineRPM:         uint16(11000 + i*50),
+					DRS:               uint8(i % 2),
+					EngineTemperature: uint16(90 + i),
+				}
+				_ = binary.Write(buf, binary.LittleEndian, &cd)
+			}
+
+			// Trailer
+			_ = binary.Write(buf, binary.LittleEndian, uint8(255))
+			_ = binary.Write(buf, binary.LittleEndian, uint8(255))
+			_ = binary.Write(buf, binary.LittleEndian, int8(0))
+
+			pkt, err := DecodeCarTelemetry(buf.Bytes())
+			if err != nil {
+				t.Fatalf("DecodeCarTelemetry failed: %v", err)
+			}
+
+			for i := 0; i < fmtCase.expectedCars; i++ {
+				expectedSpeed := uint16(200 + i*5)
+				expectedRPM := uint16(11000 + i*50)
+				expectedTemp := uint16(90 + i)
+
+				actualSpeed := pkt.CarTelemetryData[i].Speed
+				actualRPM := pkt.CarTelemetryData[i].EngineRPM
+				actualTemp := pkt.CarTelemetryData[i].EngineTemperature
+
+				if actualSpeed != expectedSpeed {
+					t.Errorf("Car %d: expected speed %d km/h, got %d km/h", i, expectedSpeed, actualSpeed)
+				}
+				if actualRPM != expectedRPM {
+					t.Errorf("Car %d: expected RPM %d, got %d", i, expectedRPM, actualRPM)
+				}
+				if actualTemp != expectedTemp {
+					t.Errorf("Car %d: expected temp %d, got %d", i, expectedTemp, actualTemp)
+				}
+			}
+		})
+	}
+}

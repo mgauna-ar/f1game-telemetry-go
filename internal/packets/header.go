@@ -87,17 +87,23 @@ func PerCarItemSize(payload []byte, header PacketHeader, structSize int, trailer
 		return structSize
 	}
 
-	if len(payload)%maxCars == 0 {
-		size := len(payload) / maxCars
-		if size >= structSize {
-			return size
-		}
+	netLen := len(payload)
+	if trailer > 0 && len(payload) >= trailer {
+		netLen = len(payload) - trailer
 	}
 
-	if trailer > 0 && len(payload) > trailer && (len(payload)-trailer)%maxCars == 0 {
-		size := (len(payload) - trailer) / maxCars
-		if size >= structSize {
-			return size
+	if netLen > 0 {
+		if netLen%maxCars == 0 {
+			size := netLen / maxCars
+			if size >= structSize {
+				return size
+			}
+		}
+		if netLen%MaxCars == 0 {
+			size := netLen / MaxCars
+			if size >= structSize {
+				return size
+			}
 		}
 	}
 

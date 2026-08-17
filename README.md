@@ -132,22 +132,28 @@ You can test the application without needing the actual F1 game by running the b
 
 ### Linux / macOS (using `make`):
 ```bash
-# Simulate a Race session (default):
+# Simulate a Race session (default F1 2026 24-car format):
 make simulate
+
+# Simulate in F1 2025 22-car format:
+make simulate FORMAT=2025
 
 # Simulate a Qualifying session (Q1, Q2, Q3):
 make simulate SESSION=quali
-make simulate SESSION=q1
+make simulate SESSION=q1 FORMAT=2025
 ```
 
 ### Windows (PowerShell / CMD):
 ```powershell
-# Simulate a Race session (default):
-go run ./cmd/simulator -session race
+# Simulate a Race session (default F1 2026 24-car format):
+go run ./cmd/simulator -session race -format 2026
+
+# Simulate in F1 2025 22-car format:
+go run ./cmd/simulator -session race -format 2025
 
 # Simulate a Qualifying session:
-go run ./cmd/simulator -session quali
-go run ./cmd/simulator -session q1
+go run ./cmd/simulator -session quali -format 2026
+go run ./cmd/simulator -session q1 -format 2025
 ```
 
 This sends synthetic live telemetry packets (Session, Motion, Car Telemetry, Lap Data, Car Status, Participants Data) to port `20777` at 20Hz, allowing you to preview real-time telemetry, multi-car track visualization, participant standings, and WebSocket updates in the dashboard.

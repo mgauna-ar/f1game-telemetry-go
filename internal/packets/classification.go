@@ -55,8 +55,10 @@ func DecodeFinalClassification(data []byte) (*PacketFinalClassificationData, err
 
 	maxCars := MaxCarsForFormat(header.PacketFormat)
 	itemSize := FinalClassificationStructSize
-	if maxCars > 0 && len(carsPayload)/maxCars >= FinalClassificationStructSize {
+	if maxCars > 0 && len(carsPayload)%maxCars == 0 && len(carsPayload)/maxCars >= FinalClassificationStructSize {
 		itemSize = len(carsPayload) / maxCars
+	} else if len(carsPayload)%MaxCars == 0 && len(carsPayload)/MaxCars >= FinalClassificationStructSize {
+		itemSize = len(carsPayload) / MaxCars
 	}
 
 	numToRead := int(pkt.NumCars)

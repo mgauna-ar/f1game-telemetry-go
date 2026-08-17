@@ -58,8 +58,10 @@ func DecodeLobbyInfo(data []byte) (*PacketLobbyInfoData, error) {
 
 	maxCars := MaxCarsForFormat(header.PacketFormat)
 	itemSize := LobbyInfoStructSize
-	if maxCars > 0 && len(playersPayload)/maxCars >= LobbyInfoStructSize {
+	if maxCars > 0 && len(playersPayload)%maxCars == 0 && len(playersPayload)/maxCars >= LobbyInfoStructSize {
 		itemSize = len(playersPayload) / maxCars
+	} else if len(playersPayload)%MaxCars == 0 && len(playersPayload)/MaxCars >= LobbyInfoStructSize {
+		itemSize = len(playersPayload) / MaxCars
 	}
 
 	numToRead := int(pkt.NumPlayers)

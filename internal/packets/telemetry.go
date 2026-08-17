@@ -65,7 +65,7 @@ type PacketCarTelemetryData struct {
 func (p PacketCarTelemetryData) GetHeader() PacketHeader { return p.Header }
 
 const (
-	CarTelemetryStructSize  = 59
+	CarTelemetryStructSize  = 60
 	CarTelemetryTrailerSize = 3
 
 	OffsetTelemetrySpeed             = 0
@@ -82,8 +82,8 @@ const (
 	OffsetTelemetryTyresSurfaceTemp  = 30
 	OffsetTelemetryTyresInnerTemp    = 34
 	OffsetTelemetryEngineTemp        = 38
-	OffsetTelemetryPressures         = 39
-	OffsetTelemetrySurfaceType       = 55
+	OffsetTelemetryPressures         = 40
+	OffsetTelemetrySurfaceType       = 56
 )
 
 // DecodeCarTelemetry decodes a PacketCarTelemetryData from raw bytes.
@@ -126,7 +126,7 @@ func DecodeCarTelemetry(data []byte) (*PacketCarTelemetryData, error) {
 		copy(c.TyresSurfaceTemperature[:], carBytes[OffsetTelemetryTyresSurfaceTemp:OffsetTelemetryTyresSurfaceTemp+4])
 		copy(c.TyresInnerTemperature[:], carBytes[OffsetTelemetryTyresInnerTemp:OffsetTelemetryTyresInnerTemp+4])
 
-		c.EngineTemperature = uint16(carBytes[OffsetTelemetryEngineTemp])
+		c.EngineTemperature = binary.LittleEndian.Uint16(carBytes[OffsetTelemetryEngineTemp : OffsetTelemetryEngineTemp+2])
 		for p := 0; p < 4; p++ {
 			if OffsetTelemetryPressures+(p+1)*4 <= len(carBytes) {
 				c.TyresPressure[p] = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[OffsetTelemetryPressures+p*4 : OffsetTelemetryPressures+(p+1)*4]))

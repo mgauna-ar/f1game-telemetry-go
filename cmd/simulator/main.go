@@ -22,8 +22,45 @@ const (
 	sendInterval     = 50 * time.Millisecond // 20Hz
 )
 
+type driverInfo struct {
+	name         string
+	driverID     uint8
+	teamID       uint8
+	raceNumber   uint8
+	aiControlled uint8
+	nationality  uint8
+}
+
+var allDrivers = []driverInfo{
+	{"Max Verstappen", 9, 0, 1, 0, 5},
+	{"Sergio Perez", 11, 0, 11, 1, 52},
+	{"Lewis Hamilton", 7, 4, 44, 1, 12},
+	{"Charles Leclerc", 22, 4, 16, 1, 18},
+	{"Lando Norris", 10, 2, 4, 1, 12},
+	{"Oscar Piastri", 28, 2, 81, 1, 2},
+	{"George Russell", 17, 1, 63, 1, 12},
+	{"Kimi Antonelli", 34, 1, 12, 1, 18},
+	{"Fernando Alonso", 3, 3, 14, 1, 56},
+	{"Lance Stroll", 15, 3, 18, 1, 14},
+	{"Pierre Gasly", 21, 5, 10, 1, 13},
+	{"Jack Doohan", 35, 5, 7, 1, 2},
+	{"Alexander Albon", 19, 6, 23, 1, 54},
+	{"Carlos Sainz", 0, 6, 55, 1, 56},
+	{"Yuki Tsunoda", 26, 7, 22, 1, 19},
+	{"Liam Lawson", 29, 7, 30, 1, 46},
+	{"Nico Hulkenberg", 13, 8, 27, 1, 15},
+	{"Gabriel Bortoleto", 36, 8, 5, 1, 10},
+	{"Esteban Ocon", 14, 9, 31, 1, 13},
+	{"Oliver Bearman", 33, 9, 87, 1, 12},
+	{"Isack Hadjar", 37, 0, 6, 1, 13},
+	{"Felipe Drugovich", 31, 3, 31, 1, 10},
+	{"Colton Herta", 40, 10, 26, 1, 54},
+	{"Alex Palou", 41, 10, 10, 1, 56},
+}
+
 func main() {
 	sessionFlag := flag.String("session", getEnv("F1T_SESSION_TYPE", "race"), "Session type to simulate: race, quali, q1, q2, q3, practice, timetrial")
+	formatFlag := flag.String("format", getEnv("F1T_PACKET_FORMAT", "2026"), "F1 UDP packet format: 2025 (22 cars) or 2026 (24 cars, default)")
 	flag.Parse()
 
 	targetAddr := getEnv("F1T_UDP_ADDR", defaultTargetUDP)
@@ -38,6 +75,19 @@ func main() {
 		log.Fatalf("Failed to dial UDP: %v", err)
 	}
 	defer conn.Close()
+
+	// Parse format mode
+	var (
+		packetFormat uint16 = packets.PacketFormat2026
+		gameYear     uint8  = 26
+		numCars      int    = packets.MaxCars2026
+	)
+
+	if strings.TrimSpace(*formatFlag) == "2025" || strings.TrimSpace(*formatFlag) == "25" {
+		packetFormat = packets.PacketFormat2025
+		gameYear = 25
+		numCars = packets.MaxCars2025
+	}
 
 	// Parse session mode
 	var sessionType uint8
@@ -71,6 +121,7 @@ func main() {
 	fmt.Println("🏎️  F1 Telemetry Packet Simulator")
 	fmt.Println("=================================")
 	fmt.Printf("Simulating Session Mode: %s (Type ID: %d)\n", sessionModeName, sessionType)
+	fmt.Printf("Telemetry Packet Format: F1 %d (%d Cars Grid, Year %d)\n", packetFormat, numCars, gameYear)
 	fmt.Printf("Sending synthetic UDP telemetry to %s at 20Hz...\n", targetAddr)
 	fmt.Println("Press Ctrl+C to stop.")
 
@@ -137,8 +188,8 @@ func main() {
 
 			// Common Header
 			header := packets.PacketHeader{
-				PacketFormat:            2025,
-				GameYear:                25,
+				PacketFormat:            packetFormat,
+				GameYear:                gameYear,
 				GameMajorVersion:        1,
 				GameMinorVersion:        0,
 				PacketVersion:           1,
@@ -211,7 +262,7 @@ func main() {
 				RainPercentage:         65,
 			}
 			sessionPkt.Header.PacketId = packets.PacketIDSession
-			sendPacket(conn, &sessionPkt)
+			sendSessionPacket(conn, &sessionPkt)
 
 			// 1b. Periodic Event Packet (ID: 3)
 			if frameID%120 == 40 {
@@ -264,73 +315,20 @@ func main() {
 					_ = binary.Write(&b, binary.LittleEndian, d)
 					copy(evtPkt.EventDetails.Data[:], b.Bytes())
 				}
-				sendPacket(conn, &evtPkt)
+				sendEventPacket(conn, &evtPkt)
 			}
 
 			// 1c. Participants Data Packet (ID: 4)
 			if frameID == 1 || frameID%100 == 0 {
-				participantsPkt := packets.PacketParticipantsData{
-					Header:        header,
-					NumActiveCars: 22,
-				}
-				participantsPkt.Header.PacketId = packets.PacketIDParticipants
-
-				drivers := []struct {
-					name         string
-					driverID     uint8
-					teamID       uint8
-					raceNumber   uint8
-					aiControlled uint8
-					nationality  uint8
-				}{
-					{"Max Verstappen", 9, 0, 1, 0, 5},
-					{"Sergio Perez", 11, 0, 11, 1, 52},
-					{"Lewis Hamilton", 7, 4, 44, 1, 12},
-					{"Charles Leclerc", 22, 4, 16, 1, 18},
-					{"Lando Norris", 10, 2, 4, 1, 12},
-					{"Oscar Piastri", 28, 2, 81, 1, 2},
-					{"George Russell", 17, 1, 63, 1, 12},
-					{"Kimi Antonelli", 34, 1, 12, 1, 18},
-					{"Fernando Alonso", 3, 3, 14, 1, 56},
-					{"Lance Stroll", 15, 3, 18, 1, 14},
-					{"Pierre Gasly", 21, 5, 10, 1, 13},
-					{"Jack Doohan", 35, 5, 7, 1, 2},
-					{"Alexander Albon", 19, 6, 23, 1, 54},
-					{"Carlos Sainz", 0, 6, 55, 1, 56},
-					{"Yuki Tsunoda", 26, 7, 22, 1, 19},
-					{"Liam Lawson", 29, 7, 30, 1, 46},
-					{"Nico Hulkenberg", 13, 8, 27, 1, 15},
-					{"Gabriel Bortoleto", 36, 8, 5, 1, 10},
-					{"Esteban Ocon", 14, 9, 31, 1, 13},
-					{"Oliver Bearman", 33, 9, 87, 1, 12},
-					{"Isack Hadjar", 37, 0, 6, 1, 13},
-					{"Felipe Drugovich", 31, 3, 31, 1, 10},
-				}
-
-				for i, d := range drivers {
-					participantsPkt.Participants[i] = packets.ParticipantData{
-						AIControlled: d.aiControlled,
-						DriverId:     d.driverID,
-						TeamId:       d.teamID,
-						RaceNumber:   d.raceNumber,
-						Nationality:  d.nationality,
-					}
-					copy(participantsPkt.Participants[i].Name[:], d.name)
-				}
-
-				sendPacket(conn, &participantsPkt)
+				sendParticipantsPacket(conn, header, numCars, allDrivers)
 			}
 
 			// 2. Motion Packet (ID: 0)
-			motionPkt := packets.PacketMotionData{
-				Header: header,
-			}
-			motionPkt.Header.PacketId = packets.PacketIDMotion
-
-			for i := 0; i < 22; i++ {
+			motionCars := make([]packets.CarMotionData, numCars)
+			for i := 0; i < numCars; i++ {
 				off := -float64(i) * 0.08
 				a := angle + off
-				motionPkt.CarMotionData[i] = packets.CarMotionData{
+				motionCars[i] = packets.CarMotionData{
 					WorldPositionX: float32(300.0 * math.Sin(a)),
 					WorldPositionY: posY,
 					WorldPositionZ: float32(150.0 * math.Cos(2*a)),
@@ -338,40 +336,35 @@ func main() {
 					WorldVelocityZ: float32(-math.Sin(a) * 30),
 				}
 			}
-			sendPacket(conn, &motionPkt)
+			sendMotionPacket(conn, header, numCars, motionCars)
 
 			// 3. Car Telemetry Packet (ID: 6)
-			telemetryPkt := packets.PacketCarTelemetryData{
-				Header: header,
-			}
-			telemetryPkt.Header.PacketId = packets.PacketIDCarTelemetry
-			for i := 0; i < 22; i++ {
+			telemetryCars := make([]packets.CarTelemetryData, numCars)
+			for i := 0; i < numCars; i++ {
 				factor := 1.0 - float64(i)*0.02
 				if factor < 0.5 {
 					factor = 0.5
 				}
 				a := angle - float64(i)*0.08
-				telemetryPkt.CarTelemetryData[i] = packets.CarTelemetryData{
-					Speed:     uint16(float64(speedKmh) * factor),
-					Throttle:  float32(float64(throttle) * factor),
-					Steer:     float32(math.Sin(a)),
-					Brake:     float32(float64(brake) * (1.0 + float64(i)*0.02)),
-					Gear:      gear,
-					EngineRPM: uint16(float64(rpm) * factor),
-					DRS:       uint8(i % 2),
+				telemetryCars[i] = packets.CarTelemetryData{
+					Speed:             uint16(float64(speedKmh) * factor),
+					Throttle:          float32(float64(throttle) * factor),
+					Steer:             float32(math.Sin(a)),
+					Brake:             float32(float64(brake) * (1.0 + float64(i)*0.02)),
+					Gear:              gear,
+					EngineRPM:         uint16(float64(rpm) * factor),
+					DRS:               uint8(i % 2),
+					EngineTemperature: uint16(90 + i),
 				}
 			}
-			sendPacket(conn, &telemetryPkt)
+			sendTelemetryPacket(conn, header, numCars, telemetryCars)
 
 			// 4. Lap Data Packet (ID: 2)
-			lapPkt := packets.PacketLapData{
-				Header: header,
-			}
-			lapPkt.Header.PacketId = packets.PacketIDLapData
-			for i := 0; i < 22; i++ {
+			lapCars := make([]packets.LapData, numCars)
+			for i := 0; i < numCars; i++ {
 				gapMs := uint32(i * 350)
 				var pitStatus uint8 = 0
-				if i >= 18 {
+				if i >= numCars-4 {
 					pitStatus = 1
 				}
 				var penalties uint8 = 0
@@ -388,10 +381,10 @@ func main() {
 					driveThrough = 1
 				}
 
-				gridPos := uint8((i+3)%22 + 1)
+				gridPos := uint8((i+3)%numCars + 1)
 				speedTrap := float32(322.5 - float64(i)*1.1)
 
-				lapPkt.LapData[i] = packets.LapData{
+				lapCars[i] = packets.LapData{
 					CurrentLapTimeInMS:          lapTimeMs + gapMs,
 					LastLapTimeInMS:             uint32(85432 + i*220),
 					Sector1TimeMSPart:           uint16(28120 + i*100),
@@ -414,35 +407,29 @@ func main() {
 					NumUnservedDriveThroughPens: driveThrough,
 				}
 			}
-			sendPacket(conn, &lapPkt)
+			sendLapDataPacket(conn, header, numCars, lapCars)
 
 			// 5. Car Status Packet (ID: 7)
 			if frameID == 1 || frameID%20 == 0 {
-				statusPkt := packets.PacketCarStatusData{
-					Header: header,
-				}
-				statusPkt.Header.PacketId = packets.PacketIDCarStatus
-				compounds := []uint8{16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16}
-				for i := 0; i < 22; i++ {
-					statusPkt.CarStatusData[i] = packets.CarStatusData{
+				statusCars := make([]packets.CarStatusData, numCars)
+				compounds := []uint8{16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18}
+				for i := 0; i < numCars; i++ {
+					statusCars[i] = packets.CarStatusData{
 						FuelInTank:         float32(48.0 - float64(i)*0.8),
 						FuelCapacity:       110.0,
-						VisualTyreCompound: compounds[i],
+						VisualTyreCompound: compounds[i%len(compounds)],
 						TyresAgeLaps:       uint8(3 + i*2),
 						ERSStoreEnergy:     float32(4000000.0 * (1.0 - float64(i)*0.03)),
 						ERSDeployMode:      uint8(i % 4),
 					}
 				}
-				sendPacket(conn, &statusPkt)
+				sendCarStatusPacket(conn, header, numCars, statusCars)
 			}
 
 			// 7. Car Damage Packet (ID: 10)
 			if frameID == 1 || frameID%20 == 0 {
-				damagePkt := packets.PacketCarDamageData{
-					Header: header,
-				}
-				damagePkt.Header.PacketId = packets.PacketIDCarDamage
-				for i := 0; i < 22; i++ {
+				damageCars := make([]packets.CarDamageData, numCars)
+				for i := 0; i < numCars; i++ {
 					baseWear := float32(15.0 + float64(lapNum)*2.5 + float64(i)*1.8)
 					if baseWear > 95.0 {
 						baseWear = 95.0
@@ -463,7 +450,7 @@ func main() {
 						blown = 1
 					}
 
-					damagePkt.CarDamageData[i] = packets.CarDamageData{
+					damageCars[i] = packets.CarDamageData{
 						TyresWear:            [4]float32{rlWear, rrWear, flWear, frWear},
 						TyresDamage:          [4]uint8{uint8(i % 3), uint8(i % 2), uint8((i * 3) % 15), uint8((i * 2) % 20)},
 						BrakesDamage:         [4]uint8{uint8((i * 4) % 30), uint8((i * 4) % 30), uint8((i * 5) % 40), uint8((i * 5) % 40)},
@@ -487,17 +474,116 @@ func main() {
 						EngineSeized:         seized,
 					}
 				}
-				sendPacket(conn, &damagePkt)
+				sendCarDamagePacket(conn, header, numCars, damageCars)
 			}
 		}
 	}
 }
 
-func sendPacket(conn *net.UDPConn, pkt interface{}) {
+func sendSessionPacket(conn *net.UDPConn, pkt *packets.PacketSessionData) {
 	var buf bytes.Buffer
-	if err := binary.Write(&buf, binary.LittleEndian, pkt); err != nil {
-		log.Printf("Error encoding packet: %v", err)
-		return
+	_ = binary.Write(&buf, binary.LittleEndian, pkt)
+	_, _ = conn.Write(buf.Bytes())
+}
+
+func sendEventPacket(conn *net.UDPConn, pkt *packets.PacketEventData) {
+	var buf bytes.Buffer
+	_ = binary.Write(&buf, binary.LittleEndian, pkt)
+	_, _ = conn.Write(buf.Bytes())
+}
+
+func sendParticipantsPacket(conn *net.UDPConn, header packets.PacketHeader, numCars int, drivers []driverInfo) {
+	var buf bytes.Buffer
+	header.PacketId = packets.PacketIDParticipants
+	_ = binary.Write(&buf, binary.LittleEndian, header)
+	_ = binary.Write(&buf, binary.LittleEndian, uint8(numCars))
+
+	nameLen := packets.ParticipantNameLen2025
+	if header.PacketFormat >= packets.PacketFormat2026 {
+		nameLen = packets.ParticipantNameLen2026
+	}
+
+	for i := 0; i < numCars; i++ {
+		d := drivers[i]
+		_ = binary.Write(&buf, binary.LittleEndian, d.aiControlled)
+		_ = binary.Write(&buf, binary.LittleEndian, d.driverID)
+		_ = binary.Write(&buf, binary.LittleEndian, uint8(0)) // NetworkId
+		_ = binary.Write(&buf, binary.LittleEndian, d.teamID)
+		_ = binary.Write(&buf, binary.LittleEndian, uint8(0)) // MyTeam
+		_ = binary.Write(&buf, binary.LittleEndian, d.raceNumber)
+		_ = binary.Write(&buf, binary.LittleEndian, d.nationality)
+
+		nameBytes := make([]byte, nameLen)
+		copy(nameBytes, d.name)
+		buf.Write(nameBytes)
+
+		_ = binary.Write(&buf, binary.LittleEndian, uint8(1))     // YourTelemetry
+		_ = binary.Write(&buf, binary.LittleEndian, uint8(1))     // ShowOnlineNames
+		_ = binary.Write(&buf, binary.LittleEndian, uint16(1000)) // TechLevel
+		_ = binary.Write(&buf, binary.LittleEndian, uint8(1))     // Platform
+
+		if header.PacketFormat >= packets.PacketFormat2026 {
+			// 2026 format extra padding (ParticipantStructSize2026 is 57 bytes, 44 written so far)
+			extra := make([]byte, packets.ParticipantStructSize2026-44)
+			buf.Write(extra)
+		}
+	}
+	_, _ = conn.Write(buf.Bytes())
+}
+
+func sendMotionPacket(conn *net.UDPConn, header packets.PacketHeader, numCars int, cars []packets.CarMotionData) {
+	var buf bytes.Buffer
+	header.PacketId = packets.PacketIDMotion
+	_ = binary.Write(&buf, binary.LittleEndian, header)
+	for i := 0; i < numCars; i++ {
+		_ = binary.Write(&buf, binary.LittleEndian, cars[i])
+	}
+	_, _ = conn.Write(buf.Bytes())
+}
+
+func sendTelemetryPacket(conn *net.UDPConn, header packets.PacketHeader, numCars int, cars []packets.CarTelemetryData) {
+	var buf bytes.Buffer
+	header.PacketId = packets.PacketIDCarTelemetry
+	_ = binary.Write(&buf, binary.LittleEndian, header)
+	for i := 0; i < numCars; i++ {
+		_ = binary.Write(&buf, binary.LittleEndian, cars[i])
+	}
+	// Trailer: MFDPanelIndex, MFDPanelIndexSecondaryPlayer, SuggestedGear
+	_ = binary.Write(&buf, binary.LittleEndian, uint8(255))
+	_ = binary.Write(&buf, binary.LittleEndian, uint8(255))
+	_ = binary.Write(&buf, binary.LittleEndian, int8(0))
+	_, _ = conn.Write(buf.Bytes())
+}
+
+func sendLapDataPacket(conn *net.UDPConn, header packets.PacketHeader, numCars int, laps []packets.LapData) {
+	var buf bytes.Buffer
+	header.PacketId = packets.PacketIDLapData
+	_ = binary.Write(&buf, binary.LittleEndian, header)
+	for i := 0; i < numCars; i++ {
+		_ = binary.Write(&buf, binary.LittleEndian, laps[i])
+	}
+	// Trailer: TimeTrialPBCarIdx, TimeTrialRivalCarIdx
+	_ = binary.Write(&buf, binary.LittleEndian, uint8(255))
+	_ = binary.Write(&buf, binary.LittleEndian, uint8(255))
+	_, _ = conn.Write(buf.Bytes())
+}
+
+func sendCarStatusPacket(conn *net.UDPConn, header packets.PacketHeader, numCars int, status []packets.CarStatusData) {
+	var buf bytes.Buffer
+	header.PacketId = packets.PacketIDCarStatus
+	_ = binary.Write(&buf, binary.LittleEndian, header)
+	for i := 0; i < numCars; i++ {
+		_ = binary.Write(&buf, binary.LittleEndian, status[i])
+	}
+	_, _ = conn.Write(buf.Bytes())
+}
+
+func sendCarDamagePacket(conn *net.UDPConn, header packets.PacketHeader, numCars int, damage []packets.CarDamageData) {
+	var buf bytes.Buffer
+	header.PacketId = packets.PacketIDCarDamage
+	_ = binary.Write(&buf, binary.LittleEndian, header)
+	for i := 0; i < numCars; i++ {
+		_ = binary.Write(&buf, binary.LittleEndian, damage[i])
 	}
 	_, _ = conn.Write(buf.Bytes())
 }

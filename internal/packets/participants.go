@@ -2,6 +2,7 @@ package packets
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -88,8 +89,10 @@ func DecodeParticipants(data []byte) (*PacketParticipantsData, error) {
 	}
 
 	itemSize := structSize
-	if maxCars > 0 && len(carsPayload)/maxCars >= structSize {
+	if maxCars > 0 && len(carsPayload)%maxCars == 0 && len(carsPayload)/maxCars >= structSize {
 		itemSize = len(carsPayload) / maxCars
+	} else if len(carsPayload)%MaxCars == 0 && len(carsPayload)/MaxCars >= structSize {
+		itemSize = len(carsPayload) / MaxCars
 	}
 
 	for i := 0; i < maxCars && i < MaxCars; i++ {
@@ -117,6 +120,21 @@ func DecodeParticipants(data []byte) (*PacketParticipantsData, error) {
 		if nameOffset+nameLen <= len(carBytes) {
 			copy(p.Name[:], carBytes[nameOffset:nameOffset+nameLen])
 		}
+
+		afterName := nameOffset + nameLen
+		if afterName < len(carBytes) {
+			p.YourTelemetry = carBytes[afterName]
+		}
+		if afterName+1 < len(carBytes) {
+			p.ShowOnlineNames = carBytes[afterName+1]
+		}
+		if afterName+3 < len(carBytes) {
+			p.TechLevel = binary.LittleEndian.Uint16(carBytes[afterName+2 : afterName+4])
+		}
+		if afterName+4 < len(carBytes) {
+			p.Platform = carBytes[afterName+4]
+		}
+
 		pkt.Participants[i] = p
 	}
 
