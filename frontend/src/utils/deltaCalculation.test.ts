@@ -353,6 +353,74 @@ describe('deltaCalculation utility', () => {
       }
     }
   });
+
+  it('correctly extracts full completed lap when Lap 1 starts from grid slot and has trailing wrap-around tail', () => {
+    // Lap 1: Starts on grid at 275m, accelerates to 5417m (duration ~97s)
+    const flyingLap1: TelemetrySamplePoint[] = Array.from({ length: 60 }, (_, i) => ({
+      lap_distance: 275 + i * 85, // 275m to ~5290m
+      session_time: 0.5 + i * 1.6,
+      speed: 250,
+      throttle: 1,
+      brake: 0,
+      gear: 7,
+    }));
+    flyingLap1.push({ lap_distance: 5417, session_time: 97.0, speed: 270, throttle: 1, brake: 0, gear: 7 });
+
+    // Trailing wrap-around / cooldown tail at end of session (0m to 275m, speed 0)
+    const trailingTail: TelemetrySamplePoint[] = Array.from({ length: 30 }, (_, i) => ({
+      lap_distance: i * 9, // 0m to 270m
+      session_time: 98.0 + i * 1.5,
+      speed: 0,
+      throttle: 0,
+      brake: 0,
+      gear: 1,
+    }));
+
+    const rawLap1 = [...flyingLap1, ...trailingTail];
+
+    // Lap 2 (flying lap 0m to 5417m, duration ~86s)
+    const flyingLap2: TelemetrySamplePoint[] = Array.from({ length: 65 }, (_, i) => ({
+      lap_distance: i * 84, // 0m to ~5376m
+      session_time: 100 + i * 1.32,
+      speed: 260,
+      throttle: 1,
+      brake: 0,
+      gear: 7,
+    }));
+    flyingLap2.push({ lap_distance: 5417, session_time: 186.0, speed: 275, throttle: 1, brake: 0, gear: 7 });
+
+    const merged = calculateMergedComparison(rawLap1, flyingLap2, 25);
+    expect(merged.length).toBeGreaterThan(0);
+
+    // Max distance should be the full track length (~5417m), NOT truncated to 275m!
+    const maxDist = merged[merged.length - 1].lap_distance;
+    expect(maxDist).toBe(5417);
+
+    // Mid-track sample at 3000m should have valid speed and data from Lap 1
+    const pt3000 = merged.find((p) => p.lap_distance === 3000);
+    expect(pt3000).toBeDefined();
+    expect(pt3000?.speedA).toBe(250);
+    expect(pt3000?.speedB).toBe(260);
+    expect(pt3000?.time_delta).not.toBeNull();
+  });
+
+  it('filters uninitialized distance dropouts (speed > 30 km/h with distance 0m mid-lap)', () => {
+    const rawWithDropouts: TelemetrySamplePoint[] = [
+      { lap_distance: 275, session_time: 0.5, speed: 100, throttle: 1, brake: 0 },
+      { lap_distance: 1000, session_time: 15.0, speed: 250, throttle: 1, brake: 0 },
+      { lap_distance: 0.0, session_time: 15.05, speed: 250, throttle: 1, brake: 0 }, // dropout
+      { lap_distance: 1010, session_time: 15.1, speed: 250, throttle: 1, brake: 0 },
+      { lap_distance: 2500, session_time: 40.0, speed: 270, throttle: 1, brake: 0 },
+      { lap_distance: 0.0, session_time: 40.05, speed: 270, throttle: 1, brake: 0 }, // dropout
+      { lap_distance: 2520, session_time: 40.1, speed: 270, throttle: 1, brake: 0 },
+      { lap_distance: 5400, session_time: 90.0, speed: 280, throttle: 1, brake: 0 },
+    ];
+
+    const normalized = normalizeTelemetrySeries(rawWithDropouts);
+    expect(normalized.length).toBeGreaterThan(0);
+    const maxDist = normalized[normalized.length - 1].lap_distance;
+    expect(maxDist).toBe(5400);
+  });
 });
 
 

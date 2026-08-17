@@ -298,6 +298,7 @@ func (lt *LapTracker) ProcessTelemetry(ctx context.Context, session *storage.Ses
 
 func (lt *LapTracker) startNewLap(ctx context.Context, sessionID int64, lapNum int, carIndex int) {
 	lt.currentLapNum = lapNum
+	lt.samples = lt.samples[:0]
 	stint := lt.currentStintNum
 	if stint <= 0 {
 		stint = 1
@@ -312,6 +313,9 @@ func (lt *LapTracker) startNewLap(ctx context.Context, sessionID int64, lapNum i
 
 	if err := lt.repo.SaveLap(ctx, lt.currentLap); err != nil {
 		log.Printf("[LapTracker] Error starting new lap: %v", err)
+	} else if lt.currentLap.ID > 0 {
+		// Clean any previous aborted/stale run telemetry for this lap record
+		_ = lt.repo.DeleteTelemetryByLap(ctx, lt.currentLap.ID)
 	}
 }
 

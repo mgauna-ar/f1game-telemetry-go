@@ -126,22 +126,74 @@ func TestVerifyTargetLaps(t *testing.T) {
 		}
 	}
 
-	raw5606, _ := repo.GetTelemetryByLap(ctx, 5606)
-	t.Logf("Lap 5606 raw total count: %d", len(raw5606))
-	for i := 1; i < len(raw5606); i++ {
-		prev := raw5606[i-1]
-		curr := raw5606[i]
-		if (prev.LapDistance > 100 && curr.LapDistance < 100) || (prev.LapDistance < 0 && curr.LapDistance >= 0) || (curr.LapDistance-prev.LapDistance < -50) {
-			t.Logf("Transition at [%d]: prev(dist=%.1f, time=%.3fs, speed=%d) -> curr(dist=%.1f, time=%.3fs, speed=%d)",
-				i, prev.LapDistance, prev.SessionTime, prev.Speed, curr.LapDistance, curr.SessionTime, curr.Speed)
+	// Verify Lap 6437 (Arti Moreno - Lap 1 Losail 97.036s)
+	raw6437, err := repo.GetTelemetryByLap(ctx, 6437)
+	if err == nil && len(raw6437) > 0 {
+		trimmed := TrimTelemetryToLastLapAttempt(raw6437)
+		maxD := trimmed[len(trimmed)-1].LapDistance
+		dur := trimmed[len(trimmed)-1].SessionTime - trimmed[0].SessionTime
+		t.Logf("Lap 6437: maxDist=%.1fm, dur=%.3fs, samples=%d", maxD, dur, len(trimmed))
+		if maxD < 5000.0 {
+			t.Errorf("Expected Lap 6437 trimmed max distance > 5000m, got %.1fm", maxD)
+		}
+		if dur < 90.0 || dur > 105.0 {
+			t.Errorf("Expected Lap 6437 trimmed duration ~97s, got %.3fs", dur)
 		}
 	}
 
-	trimmed5606 := TrimTelemetryToLastLapAttempt(raw5606)
-	t.Logf("Lap 5606 trimmed total count: %d", len(trimmed5606))
-	if len(trimmed5606) > 0 {
-		t.Logf("Lap 5606 first trimmed: dist=%.1f, time=%.3fs, speed=%d", trimmed5606[0].LapDistance, trimmed5606[0].SessionTime, trimmed5606[0].Speed)
-		t.Logf("Lap 5606 last trimmed: dist=%.1f, time=%.3fs, speed=%d", trimmed5606[len(trimmed5606)-1].LapDistance, trimmed5606[len(trimmed5606)-1].SessionTime, trimmed5606[len(trimmed5606)-1].Speed)
-		t.Logf("Lap 5606 trimmed dur: %.3fs", trimmed5606[len(trimmed5606)-1].SessionTime-trimmed5606[0].SessionTime)
+	// Verify Lap 6442 (LC-iL.Magno - Lap 1 Losail 102.262s)
+	raw6442, err := repo.GetTelemetryByLap(ctx, 6442)
+	if err == nil && len(raw6442) > 0 {
+		trimmed := TrimTelemetryToLastLapAttempt(raw6442)
+		maxD := trimmed[len(trimmed)-1].LapDistance
+		dur := trimmed[len(trimmed)-1].SessionTime - trimmed[0].SessionTime
+		t.Logf("Lap 6442: maxDist=%.1fm, dur=%.3fs, samples=%d", maxD, dur, len(trimmed))
+		if maxD < 5000.0 {
+			t.Errorf("Expected Lap 6442 trimmed max distance > 5000m, got %.1fm", maxD)
+		}
+		if dur < 95.0 || dur > 110.0 {
+			t.Errorf("Expected Lap 6442 trimmed duration ~102s, got %.3fs", dur)
+		}
+	}
+}
+
+func TestTrimTelemetryCompletedLapWithTrailingTail(t *testing.T) {
+	// Full completed lap from 275m -> 5400m (duration ~95s)
+	samples := make([]storage.TelemetrySample, 0, 100)
+	for i := 0; i < 60; i++ {
+		samples = append(samples, storage.TelemetrySample{
+			ID:          int64(i + 1),
+			LapDistance: 275.0 + float64(i)*85.0, // 275m to ~5290m
+			SessionTime: 0.5 + float64(i)*1.6,
+			Speed:       250,
+		})
+	}
+	samples = append(samples, storage.TelemetrySample{
+		ID:          61,
+		LapDistance: 5417.0,
+		SessionTime: 97.0,
+		Speed:       270,
+	})
+
+	// Trailing stationary tail from 0m to 275m (duration 50s)
+	for i := 0; i < 30; i++ {
+		samples = append(samples, storage.TelemetrySample{
+			ID:          int64(i + 62),
+			LapDistance: float64(i * 9), // 0m to 270m
+			SessionTime: 98.0 + float64(i)*1.5,
+			Speed:       0,
+		})
+	}
+
+	trimmed := TrimTelemetryToLastLapAttempt(samples)
+	if len(trimmed) == 0 {
+		t.Fatalf("Expected non-empty trimmed samples")
+	}
+	maxDist := trimmed[len(trimmed)-1].LapDistance
+	if maxDist < 5000.0 {
+		t.Errorf("Expected max distance to be the full lap (>5000m), got %.1f", maxDist)
+	}
+	if trimmed[len(trimmed)-1].ID != 61 {
+		t.Errorf("Expected last sample to be ID 61 (finish line), got ID %d", trimmed[len(trimmed)-1].ID)
 	}
 }

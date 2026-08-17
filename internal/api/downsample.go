@@ -78,66 +78,149 @@ func DownsampleTelemetry(data []storage.TelemetrySample, targetThreshold int) []
 	return sampled
 }
 
-// TrimTelemetryToLastLapAttempt isolates the final completed lap attempt
+type lapSegment struct {
+	startIdx int
+	endIdx   int
+	minDist  float64
+	maxDist  float64
+	span     float64
+}
+
+// TrimTelemetryToLastLapAttempt isolates the true completed lap attempt
 // from raw telemetry samples that may contain out-laps, garage resets, aborted attempts,
-// or trailing wrap-around samples into the next lap.
+// or trailing wrap-around samples into the next lap / cooldown.
 func TrimTelemetryToLastLapAttempt(samples []storage.TelemetrySample) []storage.TelemetrySample {
 	if len(samples) < 2 {
 		return samples
 	}
 
-	lastStartIndex := 0
+	// 1. Filter out negative distances and uninitialized distance dropouts (e.g. speed > 30 km/h with distance ~0)
+	filtered := make([]storage.TelemetrySample, 0, len(samples))
+	for _, s := range samples {
+		// Drop pit lane / negative distance samples
+		if s.LapDistance < 0.0 {
+			continue
+		}
+		// Drop uninitialized distance dropouts where car is traveling at speed on track
+		if s.LapDistance <= 0.05 && s.Speed > 30 && s.SessionTime > 5.0 {
+			continue
+		}
+		filtered = append(filtered, s)
+	}
 
-	// 1. Any sample at or before a negative distance is part of the pit/out-lap
-	for i := 0; i < len(samples); i++ {
-		if samples[i].LapDistance < 0.0 {
-			if i+1 < len(samples) {
-				lastStartIndex = i + 1
+	if len(filtered) < 2 {
+		return samples
+	}
+
+	// 2. Partition filtered samples into contiguous monotonically progressing segments
+	var segments []lapSegment
+	segStart := 0
+
+	for i := 1; i < len(filtered); i++ {
+		prevDist := filtered[i-1].LapDistance
+		currDist := filtered[i].LapDistance
+		prevTime := filtered[i-1].SessionTime
+		currTime := filtered[i].SessionTime
+
+		// Check if curr is an isolated dropout/glitch (surrounding points continue monotonic trend)
+		if (prevDist-currDist > 200 || currDist < prevDist*0.35) && i+1 < len(filtered) {
+			nextDist := filtered[i+1].LapDistance
+			if nextDist >= prevDist-50.0 {
+				// curr is just an isolated glitch drop, skip it
+				continue
 			}
+		}
+
+		// Reset condition: persistent sudden drop in distance or time reversal
+		isDrop := (prevDist > 100 && (currDist < 50 || currDist < prevDist*0.35)) || (prevDist-currDist > 500) || (currTime < prevTime)
+
+		if isDrop {
+			if i > segStart {
+				minD := filtered[segStart].LapDistance
+				maxD := filtered[segStart].LapDistance
+				for k := segStart; k < i; k++ {
+					if filtered[k].LapDistance < minD {
+						minD = filtered[k].LapDistance
+					}
+					if filtered[k].LapDistance > maxD {
+						maxD = filtered[k].LapDistance
+					}
+				}
+				segments = append(segments, lapSegment{
+					startIdx: segStart,
+					endIdx:   i,
+					minDist:  minD,
+					maxDist:  maxD,
+					span:     maxD - minD,
+				})
+			}
+			segStart = i
 		}
 	}
 
-	// 2. Scan from lastStartIndex for any mid-session resets (distance drops from >100m to lower)
-	for i := lastStartIndex + 1; i < len(samples); i++ {
-		prevDist := samples[i-1].LapDistance
-		currDist := samples[i].LapDistance
-
-		// Sudden drop from high distance (> 100m) to low distance (< 50m or < 0.3 * prevDist)
-		if prevDist > 100 && (currDist < 50 || currDist < prevDist*0.3) {
-			if len(samples)-i >= 10 {
-				lastStartIndex = i
+	// Add final segment
+	if segStart < len(filtered) {
+		minD := filtered[segStart].LapDistance
+		maxD := filtered[segStart].LapDistance
+		for k := segStart; k < len(filtered); k++ {
+			if filtered[k].LapDistance < minD {
+				minD = filtered[k].LapDistance
 			}
+			if filtered[k].LapDistance > maxD {
+				maxD = filtered[k].LapDistance
+			}
+		}
+		segments = append(segments, lapSegment{
+			startIdx: segStart,
+			endIdx:   len(filtered),
+			minDist:  minD,
+			maxDist:  maxD,
+			span:     maxD - minD,
+		})
+	}
+
+	if len(segments) == 0 {
+		return filtered
+	}
+
+	// 3. Select the best segment representing the completed lap attempt
+	// Find the maximum span across all segments
+	var maxSpan float64
+	for _, seg := range segments {
+		if seg.span > maxSpan {
+			maxSpan = seg.span
 		}
 	}
 
-	trimmedStart := samples[lastStartIndex:]
-	if len(trimmedStart) < 2 {
-		return trimmedStart
-	}
-
-	// 3. Scan for trailing wrap-around samples into the next lap at the end
-	endIndex := len(trimmedStart)
-	for i := 1; i < len(trimmedStart); i++ {
-		prevDist := trimmedStart[i-1].LapDistance
-		currDist := trimmedStart[i].LapDistance
-
-		// If distance suddenly drops after traversing a significant part of the track (> 1000m)
-		if prevDist > 1000 && (currDist < 500 || currDist < prevDist*0.3) {
-			endIndex = i
+	// Pick the last segment that achieved at least 70% of maxSpan (or >1000m)
+	bestSegIdx := -1
+	for idx := len(segments) - 1; idx >= 0; idx-- {
+		seg := segments[idx]
+		if seg.span >= maxSpan*0.7 && (seg.span > 1000 || seg.span == maxSpan) {
+			bestSegIdx = idx
 			break
 		}
 	}
-
-	trimmedAttempt := trimmedStart[:endIndex]
-	if len(trimmedAttempt) < 2 {
-		return trimmedAttempt
+	if bestSegIdx == -1 {
+		// Fallback: pick segment with largest span
+		for idx, seg := range segments {
+			if seg.span == maxSpan {
+				bestSegIdx = idx
+				break
+			}
+		}
 	}
 
-	// 4. Advance past stationary / flat freeze samples at the start (e.g. pre-start countdown/garage teleport).
-	// Find the first index where car is moving forward on track (dist > 15m), then step back to the last start-line sample.
+	selected := filtered[segments[bestSegIdx].startIdx:segments[bestSegIdx].endIdx]
+	if len(selected) < 2 {
+		return selected
+	}
+
+	// 4. Advance past stationary / flat freeze samples at the start
+	minDist := segments[bestSegIdx].minDist
 	firstMovingIdx := -1
-	for i := 0; i < len(trimmedAttempt); i++ {
-		if trimmedAttempt[i].LapDistance > 15.0 {
+	for i := 0; i < len(selected); i++ {
+		if selected[i].LapDistance > minDist+15.0 || selected[i].Speed > 10 {
 			firstMovingIdx = i
 			break
 		}
@@ -146,12 +229,12 @@ func TrimTelemetryToLastLapAttempt(samples []storage.TelemetrySample) []storage.
 	actualStart := 0
 	if firstMovingIdx > 0 {
 		for i := firstMovingIdx - 1; i >= 0; i-- {
-			if trimmedAttempt[i].LapDistance <= 5.0 && trimmedAttempt[i].LapDistance >= 0.0 {
+			if selected[i].LapDistance <= minDist+5.0 {
 				actualStart = i
 				break
 			}
 		}
 	}
 
-	return trimmedAttempt[actualStart:]
+	return selected[actualStart:]
 }

@@ -24,76 +24,141 @@ export interface MergedTelemetryPoint {
   worldZ?: number | null;
 }
 
+interface LapSegment {
+  startIdx: number;
+  endIdx: number;
+  minDist: number;
+  maxDist: number;
+  span: number;
+}
+
 /**
  * Cleans telemetry samples for comparison:
- * - Sanitizes non-finite/NaN values
- * - Drops negative distances (e.g. from out-laps or pit exits)
- * - Sorts by session_time
- * - Removes stale wrap-around samples from previous attempts at the start
- * - Removes trailing wrap-around samples into the next lap across the entire array
- * - Filters isolated distance spike noise (e.g. packet corruption or glitch leaps)
- * - Deduplicates flat plateaus caused by sample rate mismatches
- * - Synthesizes / aligns 0m start point with extrapolated session_time t=0
- * - Enforces strict distance monotonicity for binary search interpolation
+ * - Sanitizes non-finite/NaN values and dropout anomalies
+ * - Partitions into contiguous lap segments and isolates the true completed lap attempt
+ * - Trims stationary / pre-start countdown freeze samples
+ * - Filters isolated distance spike noise
+ * - Deduplicates monotonic points for binary search interpolation
+ * - Synthesizes / aligns 0m start anchor
  */
 export function normalizeTelemetrySeries(
   samples: TelemetrySamplePoint[]
 ): TelemetrySamplePoint[] {
   if (!samples || samples.length === 0) return [];
 
-  // Step 1: Filter non-finite numbers and sort by session_time
+  // Step 1: Filter non-finite numbers and uninitialized distance dropouts
   const validSamples = samples.filter(
     (s) =>
       s &&
       typeof s.session_time === 'number' &&
       Number.isFinite(s.session_time) &&
       typeof s.lap_distance === 'number' &&
-      Number.isFinite(s.lap_distance)
+      Number.isFinite(s.lap_distance) &&
+      (s.lap_distance ?? 0) >= 0 &&
+      // Drop uninitialized distance dropouts where car is traveling at speed on track
+      !((s.lap_distance ?? 0) <= 0.05 && (s.speed ?? 0) > 30 && (s.session_time ?? 0) > 5.0)
   );
   if (validSamples.length < 2) return [];
 
   const sorted = [...validSamples].sort((a, b) => a.session_time - b.session_time);
   if (sorted.length < 2) return [];
 
-  // Step 2: Discard any out-lap / in-pit samples at or before negative distances
-  let lastNegativeIdx = -1;
-  for (let i = 0; i < sorted.length; i++) {
-    if ((sorted[i].lap_distance ?? 0) < 0) {
-      lastNegativeIdx = i;
+  // Step 2: Partition sorted samples into contiguous monotonically progressing segments
+  const segments: LapSegment[] = [];
+  let segStart = 0;
+
+  for (let i = 1; i < sorted.length; i++) {
+    const prevDist = sorted[i - 1].lap_distance || 0;
+    const currDist = sorted[i].lap_distance || 0;
+    const prevTime = sorted[i - 1].session_time || 0;
+    const currTime = sorted[i].session_time || 0;
+
+    // Check if curr is an isolated dropout/glitch
+    if ((prevDist - currDist > 200 || currDist < prevDist * 0.35) && i + 1 < sorted.length) {
+      const nextDist = sorted[i + 1].lap_distance || 0;
+      if (nextDist >= prevDist - 50.0) {
+        continue;
+      }
+    }
+
+    // Reset condition: persistent sudden drop in distance or time reversal
+    const isDrop =
+      (prevDist > 100 && (currDist < 50 || currDist < prevDist * 0.35)) ||
+      prevDist - currDist > 500 ||
+      currTime < prevTime;
+
+    if (isDrop) {
+      if (i > segStart) {
+        let minD = sorted[segStart].lap_distance || 0;
+        let maxD = sorted[segStart].lap_distance || 0;
+        for (let k = segStart; k < i; k++) {
+          const d = sorted[k].lap_distance || 0;
+          if (d < minD) minD = d;
+          if (d > maxD) maxD = d;
+        }
+        segments.push({
+          startIdx: segStart,
+          endIdx: i,
+          minDist: minD,
+          maxDist: maxD,
+          span: maxD - minD,
+        });
+      }
+      segStart = i;
     }
   }
 
-  let cleanStartIdx = lastNegativeIdx >= 0 ? lastNegativeIdx + 1 : 0;
+  // Add final segment
+  if (segStart < sorted.length) {
+    let minD = sorted[segStart].lap_distance || 0;
+    let maxD = sorted[segStart].lap_distance || 0;
+    for (let k = segStart; k < sorted.length; k++) {
+      const d = sorted[k].lap_distance || 0;
+      if (d < minD) minD = d;
+      if (d > maxD) maxD = d;
+    }
+    segments.push({
+      startIdx: segStart,
+      endIdx: sorted.length,
+      minDist: minD,
+      maxDist: maxD,
+      span: maxD - minD,
+    });
+  }
 
-  // Step 3: Scan for mid-session resets (where distance drops from >100m back near 0m)
-  for (let i = cleanStartIdx + 1; i < sorted.length; i++) {
-    const prevDist = sorted[i - 1].lap_distance || 0;
-    const currDist = sorted[i].lap_distance || 0;
-    if (prevDist > 100 && (currDist < 50 || currDist < prevDist * 0.3 || prevDist - currDist > 500)) {
-      if (sorted.length - i >= 5) {
-        cleanStartIdx = i;
+  if (segments.length === 0) return [];
+
+  // Step 3: Select the best segment representing the completed lap attempt
+  let maxSpan = 0;
+  for (const seg of segments) {
+    if (seg.span > maxSpan) maxSpan = seg.span;
+  }
+
+  let bestSegIdx = -1;
+  for (let idx = segments.length - 1; idx >= 0; idx--) {
+    const seg = segments[idx];
+    if (seg.span >= maxSpan * 0.7 && (seg.span > 1000 || seg.span === maxSpan)) {
+      bestSegIdx = idx;
+      break;
+    }
+  }
+  if (bestSegIdx === -1) {
+    for (let idx = 0; idx < segments.length; idx++) {
+      if (segments[idx].span === maxSpan) {
+        bestSegIdx = idx;
+        break;
       }
     }
   }
 
-  // Step 4: Find and remove samples that wrapped into the next lap at the end
-  let cleanEndIdx = sorted.length;
-  for (let i = cleanStartIdx + 1; i < sorted.length; i++) {
-    const prevDist = sorted[i - 1].lap_distance || 0;
-    const currDist = sorted[i].lap_distance || 0;
-    if (prevDist > 1000 && (currDist < 500 || currDist < prevDist * 0.3)) {
-      cleanEndIdx = i;
-      break;
-    }
-  }
+  const selected = sorted.slice(segments[bestSegIdx].startIdx, segments[bestSegIdx].endIdx);
+  if (selected.length < 2) return [];
 
-  const cleaned = sorted.slice(cleanStartIdx, cleanEndIdx).filter((s) => (s.lap_distance ?? 0) >= 0);
-  if (cleaned.length < 2) return [];
-
-  // Advance past stationary / pre-start freeze samples near distance 0 (e.g. countdown or pit holding)
+  // Step 4: Advance past stationary / flat freeze samples at the start
+  const minDist = segments[bestSegIdx].minDist;
   let firstMovingIdx = -1;
-  for (let i = 0; i < cleaned.length; i++) {
-    if ((cleaned[i].lap_distance ?? 0) > 15.0) {
+  for (let i = 0; i < selected.length; i++) {
+    if ((selected[i].lap_distance || 0) > minDist + 15.0 || (selected[i].speed || 0) > 10) {
       firstMovingIdx = i;
       break;
     }
@@ -102,14 +167,14 @@ export function normalizeTelemetrySeries(
   let actualStart = 0;
   if (firstMovingIdx > 0) {
     for (let i = firstMovingIdx - 1; i >= 0; i--) {
-      if ((cleaned[i].lap_distance ?? 0) <= 5.0 && (cleaned[i].lap_distance ?? 0) >= 0.0) {
+      if ((selected[i].lap_distance || 0) <= minDist + 5.0) {
         actualStart = i;
         break;
       }
     }
   }
 
-  const movingSamples = cleaned.slice(actualStart);
+  const movingSamples = selected.slice(actualStart);
   if (movingSamples.length < 2) return [];
 
   // Step 5: Deduplicate and filter out isolated distance spike noise
@@ -120,11 +185,10 @@ export function normalizeTelemetrySeries(
     const currDist = curr.lap_distance ?? 0;
     const prevDist = prev.lap_distance ?? 0;
 
-    // Check if curr is an isolated distance jump spike (e.g. leap forward > 250m while next samples are still near prevDist)
+    // Check if curr is an isolated distance jump spike
     if (currDist - prevDist > 250 && i + 1 < movingSamples.length) {
       const nextDist = movingSamples[i + 1].lap_distance ?? 0;
       if (nextDist < currDist - 150 && nextDist >= prevDist) {
-        // curr is an isolated spike anomaly, skip it
         continue;
       }
     }
@@ -293,10 +357,18 @@ export function calculateMergedComparison(
 
   if (rangeEnd <= rangeStart) return [];
 
+  const gridDistances: number[] = [];
+  for (let dist = rangeStart; dist <= rangeEnd; dist += stepMeters) {
+    gridDistances.push(Math.round(dist * 10) / 10);
+  }
+  if (gridDistances.length === 0 || gridDistances[gridDistances.length - 1] < rangeEnd) {
+    gridDistances.push(Math.round(rangeEnd * 10) / 10);
+  }
+
   const result: MergedTelemetryPoint[] = [];
 
-  for (let dist = rangeStart; dist <= rangeEnd; dist += stepMeters) {
-    const roundedDist = Math.round(dist * 10) / 10;
+  for (const dist of gridDistances) {
+    const roundedDist = dist;
 
     const timeA = normA.length > 0 ? interpolateAtDistance(normA, 'session_time', dist, rangeEnd) : null;
     const timeB = normB.length > 0 ? interpolateAtDistance(normB, 'session_time', dist, rangeEnd) : null;

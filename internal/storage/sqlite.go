@@ -242,8 +242,8 @@ func (r *Repository) GetLapsBySession(ctx context.Context, sessionID int64) ([]L
 // GetTelemetryByLap retrieves time-series telemetry data for a specific lap.
 func (r *Repository) GetTelemetryByLap(ctx context.Context, lapID int64) ([]TelemetrySample, error) {
 	var samples []TelemetrySample
-	// Ordered by session_time to ensure time-series consistency
-	query := `SELECT * FROM telemetry_samples WHERE lap_id = ? ORDER BY session_time ASC`
+	// Ordered by id to preserve chronological insertion sequence across restarts/laps
+	query := `SELECT * FROM telemetry_samples WHERE lap_id = ? ORDER BY id ASC`
 	if err := r.db.SelectContext(ctx, &samples, query, lapID); err != nil {
 		return nil, fmt.Errorf("failed to get telemetry for lap: %w", err)
 	}
