@@ -183,7 +183,14 @@ func (s *Server) handleGetLaps(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	laps, err := s.repo.GetLapsBySession(r.Context(), sessionID)
+	var carIndex *int
+	if carIndexStr := r.URL.Query().Get("carIndex"); carIndexStr != "" {
+		if ci, err := strconv.Atoi(carIndexStr); err == nil && ci >= 0 {
+			carIndex = &ci
+		}
+	}
+
+	laps, err := s.repo.GetLapsBySession(r.Context(), sessionID, carIndex)
 	if err != nil {
 		http.Error(w, "Failed to get laps", http.StatusInternalServerError)
 		return

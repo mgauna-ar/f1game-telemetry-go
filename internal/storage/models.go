@@ -12,15 +12,31 @@ type Tag struct {
 
 // Session represents a racing session.
 type Session struct {
-	ID           int64     `db:"id" json:"id"`
-	SessionUID   int64     `db:"session_uid" json:"session_uid"`
-	TrackID      int       `db:"track_id" json:"track_id"`
-	TrackName    string    `db:"track_name" json:"track_name"`
-	SessionType  string    `db:"session_type" json:"session_type"`
-	Weather      string    `db:"weather" json:"weather"`
-	PacketFormat int       `db:"packet_format" json:"packet_format"`
-	CreatedAt    time.Time `db:"created_at" json:"created_at"`
-	Tags         []Tag     `db:"-" json:"tags"`
+	ID              int64     `db:"id" json:"id"`
+	SessionUID      int64     `db:"session_uid" json:"session_uid"`
+	TrackID         int       `db:"track_id" json:"track_id"`
+	TrackName       string    `db:"track_name" json:"track_name"`
+	SessionType     string    `db:"session_type" json:"session_type"`
+	Weather         string    `db:"weather" json:"weather"`
+	TotalLaps       int       `db:"total_laps" json:"total_laps"`
+	AIDifficulty    int       `db:"ai_difficulty" json:"ai_difficulty"`
+	SessionDuration int       `db:"session_duration" json:"session_duration"`
+	PacketFormat    int       `db:"packet_format" json:"packet_format"`
+	CreatedAt       time.Time `db:"created_at" json:"created_at"`
+	Tags            []Tag     `db:"-" json:"tags"`
+}
+
+// DeriveSector3 calculates sector 3 time from lap time and sector 1/2 if missing.
+func DeriveSector3(lap *Lap) {
+	if lap == nil {
+		return
+	}
+	if lap.Sector3MS <= 0 && lap.LapTimeMS > 0 && lap.Sector1MS > 0 && lap.Sector2MS > 0 {
+		s3 := lap.LapTimeMS - (lap.Sector1MS + lap.Sector2MS)
+		if s3 > 0 {
+			lap.Sector3MS = s3
+		}
+	}
 }
 
 // Lap represents a single lap for a session.
@@ -46,23 +62,21 @@ type Lap struct {
 
 // TelemetrySample represents a single telemetry snapshot within a lap.
 type TelemetrySample struct {
-	ID             int64   `db:"id" json:"id"`
-	LapID          int64   `db:"lap_id" json:"lap_id"`
-	LapDistance    float64 `db:"lap_distance" json:"lap_distance"`
-	SessionTime    float64 `db:"session_time" json:"session_time"`
-	Speed          int     `db:"speed" json:"speed"`
-	Throttle       float64 `db:"throttle" json:"throttle"`
-	Brake          float64 `db:"brake" json:"brake"`
-	Steer          float64 `db:"steer" json:"steer"`
-	Gear           int     `db:"gear" json:"gear"`
-	EngineRPM      int     `db:"engine_rpm" json:"engine_rpm"`
-	DRS            bool    `db:"drs" json:"drs"`
-	ERSDeploy      float64 `db:"ers_deploy" json:"ers_deploy"`
-	ERSStoreEnergy float64 `db:"ers_store_energy" json:"ers_store_energy"`
-	ERSDeployMode  int     `db:"ers_deploy_mode" json:"ers_deploy_mode"`
-	WorldPosX      float64 `db:"world_pos_x" json:"world_pos_x"`
-	WorldPosY      float64 `db:"world_pos_y" json:"world_pos_y"`
-	WorldPosZ      float64 `db:"world_pos_z" json:"world_pos_z"`
+	LapDistance    float64 `json:"lap_distance"`
+	SessionTime    float64 `json:"session_time"`
+	Speed          int     `json:"speed"`
+	Throttle       float64 `json:"throttle"`
+	Brake          float64 `json:"brake"`
+	Steer          float64 `json:"steer"`
+	Gear           int     `json:"gear"`
+	EngineRPM      int     `json:"engine_rpm"`
+	DRS            bool    `json:"drs"`
+	ERSDeploy      float64 `json:"ers_deploy"`
+	ERSStoreEnergy float64 `json:"ers_store_energy"`
+	ERSDeployMode  int     `json:"ers_deploy_mode"`
+	WorldPosX      float64 `json:"world_pos_x"`
+	WorldPosY      float64 `json:"world_pos_y"`
+	WorldPosZ      float64 `json:"world_pos_z"`
 }
 
 // Participant represents a driver/participant in a session.

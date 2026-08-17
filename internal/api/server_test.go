@@ -309,12 +309,12 @@ func TestHandleExportAndImportSession(t *testing.T) {
 		LapTimeMS: 81000,
 		IsValid:   true,
 	}
-	if err := repo.SaveLap(ctx, lap); err != nil {
+	if err := repo.SaveLap(ctx, lap, false); err != nil {
 		t.Fatalf("failed to save lap: %v", err)
 	}
 
 	samples := []storage.TelemetrySample{
-		{LapID: lap.ID, LapDistance: 100.0, Speed: 320, Throttle: 1.0},
+		{LapDistance: 100.0, Speed: 320, Throttle: 1.0},
 	}
 	if err := repo.SaveLapTelemetryBlob(ctx, lap.ID, samples); err != nil {
 		t.Fatalf("failed to save lap telemetry: %v", err)
@@ -350,5 +350,73 @@ func TestHandleExportAndImportSession(t *testing.T) {
 
 	if importResp["status"] != "success" || importResp["session_id"] == nil {
 		t.Errorf("unexpected import response: %+v", importResp)
+	}
+}
+
+func TestHandleGetLapsWithCarIndexFilter(t *testing.T) {
+	server, repo := setupTestServer(t)
+	ctx := context.Background()
+
+	session := &storage.Session{
+		SessionUID:   555666777,
+		TrackID:      11,
+		TrackName:    "Monza",
+		SessionType:  "Race",
+		Weather:      "Clear",
+		TotalLaps:    53,
+		AIDifficulty: 95,
+		PacketFormat: 2025,
+	}
+	if err := repo.SaveSession(ctx, session); err != nil {
+		t.Fatalf("failed to create session: %v", err)
+	}
+
+	// Car 0 laps
+	lap0_1 := &storage.Lap{SessionID: session.ID, CarIndex: 0, LapNumber: 1, LapTimeMS: 82000, Sector1MS: 26000, Sector2MS: 27000, Sector3MS: 29000, IsValid: true}
+	lap0_2 := &storage.Lap{SessionID: session.ID, CarIndex: 0, LapNumber: 2, LapTimeMS: 81500, Sector1MS: 25800, Sector2MS: 26900, Sector3MS: 28800, IsValid: true}
+	_ = repo.SaveLap(ctx, lap0_1, false)
+	_ = repo.SaveLap(ctx, lap0_2, false)
+
+	// Car 1 lap
+	lap1_1 := &storage.Lap{SessionID: session.ID, CarIndex: 1, LapNumber: 1, LapTimeMS: 83000, Sector1MS: 26500, Sector2MS: 27200, Sector3MS: 29300, IsValid: true}
+	_ = repo.SaveLap(ctx, lap1_1, false)
+
+	// 1. Get all laps (no filter)
+	reqAll := httptest.NewRequest(http.MethodGet, "/api/sessions/1/laps", nil)
+	recAll := httptest.NewRecorder()
+	server.router.ServeHTTP(recAll, reqAll)
+	if recAll.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", recAll.Code)
+	}
+	var allLaps []storage.Lap
+	json.NewDecoder(recAll.Body).Decode(&allLaps)
+	if len(allLaps) != 3 {
+		t.Fatalf("expected 3 laps in total, got %d", len(allLaps))
+	}
+
+	// 2. Filter by carIndex=0
+	reqCar0 := httptest.NewRequest(http.MethodGet, "/api/sessions/1/laps?carIndex=0", nil)
+	recCar0 := httptest.NewRecorder()
+	server.router.ServeHTTP(recCar0, reqCar0)
+	if recCar0.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", recCar0.Code)
+	}
+	var car0Laps []storage.Lap
+	json.NewDecoder(recCar0.Body).Decode(&car0Laps)
+	if len(car0Laps) != 2 {
+		t.Fatalf("expected 2 laps for car 0, got %d", len(car0Laps))
+	}
+
+	// 3. Filter by carIndex=1
+	reqCar1 := httptest.NewRequest(http.MethodGet, "/api/sessions/1/laps?carIndex=1", nil)
+	recCar1 := httptest.NewRecorder()
+	server.router.ServeHTTP(recCar1, reqCar1)
+	if recCar1.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", recCar1.Code)
+	}
+	var car1Laps []storage.Lap
+	json.NewDecoder(recCar1.Body).Decode(&car1Laps)
+	if len(car1Laps) != 1 {
+		t.Fatalf("expected 1 lap for car 1, got %d", len(car1Laps))
 	}
 }

@@ -213,7 +213,7 @@ func TestSaveLapWithCarIndex(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := repo.SaveLap(ctx, tt.lap)
+			err := repo.SaveLap(ctx, tt.lap, false)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("SaveLap() error = %v, wantErr %v", err, tt.wantErr)
 			}
@@ -224,7 +224,7 @@ func TestSaveLapWithCarIndex(t *testing.T) {
 	}
 
 	// Verify both laps exist (different car_index, same lap_number)
-	laps, err := repo.GetLapsBySession(ctx, session.ID)
+	laps, err := repo.GetLapsBySession(ctx, session.ID, nil)
 	if err != nil {
 		t.Fatalf("GetLapsBySession() error = %v", err)
 	}
@@ -244,13 +244,12 @@ func TestSaveAndGetTelemetryWithERS(t *testing.T) {
 		LapNumber: 1,
 		LapTimeMS: 80000,
 	}
-	if err := repo.SaveLap(ctx, lap); err != nil {
+	if err := repo.SaveLap(ctx, lap, false); err != nil {
 		t.Fatalf("SaveLap() error = %v", err)
 	}
 
 	samples := []TelemetrySample{
 		{
-			LapID:          lap.ID,
 			LapDistance:    100.5,
 			SessionTime:    12.34,
 			Speed:          250,
@@ -312,13 +311,13 @@ func TestDeleteSession(t *testing.T) {
 		LapTimeMS: 90000,
 		IsValid:   true,
 	}
-	if err := repo.SaveLap(ctx, lap); err != nil {
+	if err := repo.SaveLap(ctx, lap, false); err != nil {
 		t.Fatalf("SaveLap error: %v", err)
 	}
 
 	// 3. Add telemetry samples
 	samples := []TelemetrySample{
-		{LapID: lap.ID, LapDistance: 100.0, SessionTime: 10.0, Speed: 250},
+		{LapDistance: 100.0, SessionTime: 10.0, Speed: 250},
 	}
 	if err := repo.SaveLapTelemetryBlob(ctx, lap.ID, samples); err != nil {
 		t.Fatalf("SaveLapTelemetryBlob error: %v", err)
@@ -348,7 +347,7 @@ func TestDeleteSession(t *testing.T) {
 	}
 
 	// Verify laps are deleted
-	laps, err := repo.GetLapsBySession(ctx, session.ID)
+	laps, err := repo.GetLapsBySession(ctx, session.ID, nil)
 	if err != nil {
 		t.Fatalf("GetLapsBySession() error: %v", err)
 	}
@@ -404,14 +403,14 @@ func TestExportAndImportSession(t *testing.T) {
 		Sector3MS: 26000,
 		IsValid:   true,
 	}
-	if err := repo.SaveLap(ctx, lap); err != nil {
+	if err := repo.SaveLap(ctx, lap, false); err != nil {
 		t.Fatalf("SaveLap error: %v", err)
 	}
 
 	// Add telemetry
 	samples := []TelemetrySample{
-		{LapID: lap.ID, LapDistance: 50.0, SessionTime: 5.0, Speed: 290, Throttle: 1.0, Gear: 7},
-		{LapID: lap.ID, LapDistance: 150.0, SessionTime: 7.0, Speed: 310, Throttle: 1.0, Gear: 8},
+		{LapDistance: 50.0, SessionTime: 5.0, Speed: 290, Throttle: 1.0, Gear: 7},
+		{LapDistance: 150.0, SessionTime: 7.0, Speed: 310, Throttle: 1.0, Gear: 8},
 	}
 	if err := repo.SaveLapTelemetryBlob(ctx, lap.ID, samples); err != nil {
 		t.Fatalf("SaveLapTelemetryBlob error: %v", err)
@@ -458,7 +457,7 @@ func TestExportAndImportSession(t *testing.T) {
 		t.Errorf("expected imported session tag League Race, got %v", importedSession.Tags)
 	}
 
-	importedLaps, err := freshRepo.GetLapsBySession(ctx, importedID)
+	importedLaps, err := freshRepo.GetLapsBySession(ctx, importedID, nil)
 	if err != nil || len(importedLaps) != 1 {
 		t.Fatalf("expected 1 imported lap, got %v (err: %v)", importedLaps, err)
 	}
@@ -489,8 +488,8 @@ func TestUpdateSessionMetadataDynamicWeather(t *testing.T) {
 		t.Fatalf("failed to save initial session: %v", err)
 	}
 
-	// 1. Resolve from Unknown to Monza / Race / Clear
-	if err := repo.UpdateSessionMetadata(ctx, 99887766, 11, "Monza", "Race", "Clear"); err != nil {
+	// 1. Resolve from Unknown to Monza / Race / Clear with totalLaps 53, difficulty 95, duration 3600
+	if err := repo.UpdateSessionMetadata(ctx, 99887766, 11, "Monza", "Race", "Clear", 53, 95, 3600); err != nil {
 		t.Fatalf("UpdateSessionMetadata failed: %v", err)
 	}
 
@@ -504,9 +503,12 @@ func TestUpdateSessionMetadataDynamicWeather(t *testing.T) {
 	if sessions[0].TrackName != "Monza" || sessions[0].SessionType != "Race" || sessions[0].Weather != "Clear" {
 		t.Errorf("expected Monza/Race/Clear, got %s/%s/%s", sessions[0].TrackName, sessions[0].SessionType, sessions[0].Weather)
 	}
+	if sessions[0].TotalLaps != 53 || sessions[0].AIDifficulty != 95 || sessions[0].SessionDuration != 3600 {
+		t.Errorf("expected 53 laps / 95 diff / 3600 duration, got %d/%d/%d", sessions[0].TotalLaps, sessions[0].AIDifficulty, sessions[0].SessionDuration)
+	}
 
-	// 2. Dynamic live weather changes to "Light Rain"
-	if err := repo.UpdateSessionMetadata(ctx, 99887766, 11, "Monza", "Race", "Light Rain"); err != nil {
+	// 2. Dynamic live weather changes to "Light Rain" (preserving laps/difficulty/duration)
+	if err := repo.UpdateSessionMetadata(ctx, 99887766, 11, "Monza", "Race", "Light Rain", 0, 0, 0); err != nil {
 		t.Fatalf("UpdateSessionMetadata dynamic weather failed: %v", err)
 	}
 
@@ -519,6 +521,9 @@ func TestUpdateSessionMetadataDynamicWeather(t *testing.T) {
 	}
 	if sessionsAfter[0].TrackName != "Monza" {
 		t.Errorf("expected track name to remain Monza, got %s", sessionsAfter[0].TrackName)
+	}
+	if sessionsAfter[0].TotalLaps != 53 || sessionsAfter[0].AIDifficulty != 95 {
+		t.Errorf("expected retained total_laps 53 / difficulty 95, got %d/%d", sessionsAfter[0].TotalLaps, sessionsAfter[0].AIDifficulty)
 	}
 }
 
@@ -539,7 +544,7 @@ func TestLapSector3DerivationAndHistoryEntry(t *testing.T) {
 		IsValid:   true,
 	}
 
-	if err := repo.SaveLap(ctx, lap); err != nil {
+	if err := repo.SaveLap(ctx, lap, false); err != nil {
 		t.Fatalf("SaveLap failed: %v", err)
 	}
 
@@ -554,7 +559,7 @@ func TestLapSector3DerivationAndHistoryEntry(t *testing.T) {
 	}
 
 	// 3. GetLapsBySession should also return the derived Sector3MS
-	laps, err := repo.GetLapsBySession(ctx, session.ID)
+	laps, err := repo.GetLapsBySession(ctx, session.ID, nil)
 	if err != nil {
 		t.Fatalf("GetLapsBySession failed: %v", err)
 	}
@@ -562,7 +567,7 @@ func TestLapSector3DerivationAndHistoryEntry(t *testing.T) {
 		t.Errorf("expected GetLapsBySession Sector3MS %d, got %d", expectedS3, laps[0].Sector3MS)
 	}
 
-	// 4. SaveLapHistoryEntry updates/upserts official history
+	// 4. SaveLap in mergeMode (historyLap) updates/upserts official history
 	historyLap := &Lap{
 		SessionID: session.ID,
 		CarIndex:  0,
@@ -573,8 +578,8 @@ func TestLapSector3DerivationAndHistoryEntry(t *testing.T) {
 		Sector3MS: 25500,
 		IsValid:   true,
 	}
-	if err := repo.SaveLapHistoryEntry(ctx, historyLap); err != nil {
-		t.Fatalf("SaveLapHistoryEntry failed: %v", err)
+	if err := repo.SaveLap(ctx, historyLap, true); err != nil {
+		t.Fatalf("SaveLap with mergeMode failed: %v", err)
 	}
 
 	historySaved, err := repo.GetLapByID(ctx, historyLap.ID)
@@ -709,5 +714,137 @@ func TestTagOperations(t *testing.T) {
 	// 11. DeleteSession cascades cleanly
 	if err := repo.DeleteSession(ctx, session2.ID); err != nil {
 		t.Fatalf("DeleteSession failed: %v", err)
+	}
+}
+
+func TestDeriveSector3(t *testing.T) {
+	tests := []struct {
+		name     string
+		lap      *Lap
+		expected int
+	}{
+		{
+			name:     "nil lap does not panic",
+			lap:      nil,
+			expected: 0,
+		},
+		{
+			name: "derives sector 3 when sector3 is 0",
+			lap: &Lap{
+				LapTimeMS: 85000,
+				Sector1MS: 28000,
+				Sector2MS: 27000,
+				Sector3MS: 0,
+			},
+			expected: 30000,
+		},
+		{
+			name: "preserves existing sector 3 when > 0",
+			lap: &Lap{
+				LapTimeMS: 85000,
+				Sector1MS: 28000,
+				Sector2MS: 27000,
+				Sector3MS: 30000,
+			},
+			expected: 30000,
+		},
+		{
+			name: "no-op when lap time is 0",
+			lap: &Lap{
+				LapTimeMS: 0,
+				Sector1MS: 28000,
+				Sector2MS: 27000,
+				Sector3MS: 0,
+			},
+			expected: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			DeriveSector3(tt.lap)
+			if tt.lap != nil && tt.lap.Sector3MS != tt.expected {
+				t.Errorf("expected Sector3MS %d, got %d", tt.expected, tt.lap.Sector3MS)
+			}
+		})
+	}
+}
+
+func TestGetLapsBySessionCarIndexFilter(t *testing.T) {
+	repo := setupTestRepo(t)
+	session := createTestSession(t, repo)
+	ctx := context.Background()
+
+	// Insert laps for Car 0, Car 1, Car 2
+	for carIdx := 0; carIdx < 3; carIdx++ {
+		for lapNum := 1; lapNum <= 3; lapNum++ {
+			lap := &Lap{
+				SessionID: session.ID,
+				CarIndex:  carIdx,
+				LapNumber: lapNum,
+				LapTimeMS: 80000 + carIdx*1000 + lapNum*500,
+				Sector1MS: 27000,
+				Sector2MS: 26000,
+				Sector3MS: 27000,
+				IsValid:   true,
+			}
+			if err := repo.SaveLap(ctx, lap, false); err != nil {
+				t.Fatalf("failed to save lap for car %d lap %d: %v", carIdx, lapNum, err)
+			}
+		}
+	}
+
+	// 1. Get all laps (nil carIndex) -> 9 laps
+	allLaps, err := repo.GetLapsBySession(ctx, session.ID, nil)
+	if err != nil {
+		t.Fatalf("GetLapsBySession(nil) failed: %v", err)
+	}
+	if len(allLaps) != 9 {
+		t.Errorf("expected 9 laps total, got %d", len(allLaps))
+	}
+
+	// 2. Filter by Car 1 -> exactly 3 laps for Car 1
+	car1 := 1
+	car1Laps, err := repo.GetLapsBySession(ctx, session.ID, &car1)
+	if err != nil {
+		t.Fatalf("GetLapsBySession(&car1) failed: %v", err)
+	}
+	if len(car1Laps) != 3 {
+		t.Fatalf("expected 3 laps for car 1, got %d", len(car1Laps))
+	}
+	for _, l := range car1Laps {
+		if l.CarIndex != 1 {
+			t.Errorf("expected car_index 1, got %d", l.CarIndex)
+		}
+	}
+
+	// 3. Filter by non-existent car -> 0 laps
+	car99 := 99
+	car99Laps, err := repo.GetLapsBySession(ctx, session.ID, &car99)
+	if err != nil {
+		t.Fatalf("GetLapsBySession(&car99) failed: %v", err)
+	}
+	if len(car99Laps) != 0 {
+		t.Errorf("expected 0 laps for car 99, got %d", len(car99Laps))
+	}
+}
+
+func TestVersionedMigrations(t *testing.T) {
+	repo := setupTestRepo(t)
+	db := repo.DB()
+
+	// Verify schema_version table has recorded version 1
+	var maxVersion int
+	err := db.Get(&maxVersion, "SELECT MAX(version) FROM schema_version")
+	if err != nil {
+		t.Fatalf("failed to query schema_version: %v", err)
+	}
+	if maxVersion != 1 {
+		t.Errorf("expected schema_version 1, got %d", maxVersion)
+	}
+
+	// Running Migrate again should be idempotent
+	if err := Migrate(db); err != nil {
+		t.Fatalf("second Migrate call failed: %v", err)
 	}
 }

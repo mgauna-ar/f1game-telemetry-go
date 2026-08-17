@@ -250,7 +250,7 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 		}
 
 		if updated {
-			_ = lt.repo.SaveLap(ctx, lt.currentLap)
+			_ = lt.repo.SaveLap(ctx, lt.currentLap, false)
 		}
 	}
 }
@@ -277,10 +277,6 @@ func (lt *LapTracker) ProcessSessionHistory(ctx context.Context, session *storag
 		s2 := int(lapData.Sector2TimeMSPart) + int(lapData.Sector2TimeMinutesPart)*60000
 		s3 := int(lapData.Sector3TimeMSPart) + int(lapData.Sector3TimeMinutesPart)*60000
 
-		if s3 == 0 && lapTime > 0 && s1 > 0 && s2 > 0 {
-			s3 = lapTime - (s1 + s2)
-		}
-
 		if lapTime > 0 || s1 > 0 || s2 > 0 || s3 > 0 {
 			isValid := (lapData.LapValidBitFlags & 0x01) != 0
 
@@ -294,7 +290,7 @@ func (lt *LapTracker) ProcessSessionHistory(ctx context.Context, session *storag
 				Sector3MS: s3,
 				IsValid:   isValid,
 			}
-			_ = lt.repo.SaveLapHistoryEntry(ctx, lap)
+			_ = lt.repo.SaveLap(ctx, lap, true)
 		}
 	}
 }
@@ -317,7 +313,6 @@ func (lt *LapTracker) ProcessTelemetry(ctx context.Context, session *storage.Ses
 	}
 
 	sample := storage.TelemetrySample{
-		LapID:          lt.currentLap.ID,
 		LapDistance:    storage.SanitizeFloat(lt.lastLapDistance),
 		SessionTime:    storage.SanitizeFloat(float64(p.Header.SessionTime)),
 		Speed:          int(carData.Speed),
@@ -361,7 +356,7 @@ func (lt *LapTracker) startNewLap(ctx context.Context, sessionID int64, lapNum i
 	}
 	lt.sampleBuffer = make([]storage.TelemetrySample, 0, 1800)
 
-	if err := lt.repo.SaveLap(ctx, lt.currentLap); err != nil {
+	if err := lt.repo.SaveLap(ctx, lt.currentLap, false); err != nil {
 		log.Printf("[LapTracker] Error starting new lap: %v", err)
 	}
 }
@@ -373,15 +368,9 @@ func (lt *LapTracker) finalizeCurrentLap(ctx context.Context, lapTimeMS int) {
 
 	if lapTimeMS > 0 {
 		lt.currentLap.LapTimeMS = lapTimeMS
+		storage.DeriveSector3(lt.currentLap)
 
-		if lt.currentLap.Sector1MS > 0 && lt.currentLap.Sector2MS > 0 {
-			s3 := lapTimeMS - (lt.currentLap.Sector1MS + lt.currentLap.Sector2MS)
-			if s3 > 0 {
-				lt.currentLap.Sector3MS = s3
-			}
-		}
-
-		if err := lt.repo.SaveLap(ctx, lt.currentLap); err != nil {
+		if err := lt.repo.SaveLap(ctx, lt.currentLap, false); err != nil {
 			log.Printf("[LapTracker] Error finalizing lap: %v", err)
 		}
 

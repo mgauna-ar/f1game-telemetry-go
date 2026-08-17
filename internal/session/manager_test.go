@@ -100,7 +100,7 @@ func TestSessionManagerIntegration(t *testing.T) {
 	manager.batchWriter.Flush(ctx)
 
 	// Query telemetry samples for lap 1
-	laps, err := repo.GetLapsBySession(ctx, manager.currentSession.ID)
+	laps, err := repo.GetLapsBySession(ctx, manager.currentSession.ID, nil)
 	if err != nil {
 		t.Fatalf("failed to query laps: %v", err)
 	}
@@ -261,7 +261,7 @@ func TestSessionManagerHighBitSessionUIDAndLapValidation(t *testing.T) {
 	}
 
 	// 3. Verify no fake laps were saved to database
-	laps, err := repo.GetLapsBySession(ctx, manager.currentSession.ID)
+	laps, err := repo.GetLapsBySession(ctx, manager.currentSession.ID, nil)
 	if err != nil {
 		t.Fatalf("failed to query laps: %v", err)
 	}
@@ -310,7 +310,7 @@ func TestFinalLapFinalizationOnSessionFinish(t *testing.T) {
 
 	manager.ProcessPacket(ctx, lapPacket)
 
-	laps, err := repo.GetLapsBySession(ctx, manager.currentSession.ID)
+	laps, err := repo.GetLapsBySession(ctx, manager.currentSession.ID, nil)
 	if err != nil {
 		t.Fatalf("failed to get laps: %v", err)
 	}

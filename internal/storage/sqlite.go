@@ -105,13 +105,16 @@ func (r *Repository) DB() *sqlx.DB {
 // Updates the ID of the passed Session struct if successful.
 func (r *Repository) SaveSession(ctx context.Context, s *Session) error {
 	query := `
-		INSERT INTO sessions (session_uid, track_id, track_name, session_type, weather, packet_format)
-		VALUES (:session_uid, :track_id, :track_name, :session_type, :weather, :packet_format)
+		INSERT INTO sessions (session_uid, track_id, track_name, session_type, weather, total_laps, ai_difficulty, session_duration, packet_format)
+		VALUES (:session_uid, :track_id, :track_name, :session_type, :weather, :total_laps, :ai_difficulty, :session_duration, :packet_format)
 		ON CONFLICT(session_uid) DO UPDATE SET
 			track_id = excluded.track_id,
 			track_name = excluded.track_name,
 			session_type = excluded.session_type,
 			weather = excluded.weather,
+			total_laps = CASE WHEN excluded.total_laps > 0 THEN excluded.total_laps ELSE sessions.total_laps END,
+			ai_difficulty = CASE WHEN excluded.ai_difficulty > 0 THEN excluded.ai_difficulty ELSE sessions.ai_difficulty END,
+			session_duration = CASE WHEN excluded.session_duration > 0 THEN excluded.session_duration ELSE sessions.session_duration END,
 			packet_format = excluded.packet_format
 		RETURNING id
 	`
@@ -129,15 +132,18 @@ func (r *Repository) SaveSession(ctx context.Context, s *Session) error {
 	return nil
 }
 
-// UpdateSessionMetadata updates the track name, session type, and dynamic weather for a given session_uid.
-func (r *Repository) UpdateSessionMetadata(ctx context.Context, sessionUID uint64, trackID int, trackName, sessionType, weather string) error {
+// UpdateSessionMetadata updates the track name, session type, dynamic weather, total laps, ai difficulty, and session duration for a given session_uid.
+func (r *Repository) UpdateSessionMetadata(ctx context.Context, sessionUID uint64, trackID int, trackName, sessionType, weather string, totalLaps, aiDifficulty, sessionDuration int) error {
 	query := `
 		UPDATE sessions 
 		SET 
 			track_id = CASE WHEN ? != -1 THEN ? ELSE track_id END,
 			track_name = CASE WHEN ? != '' AND ? != 'Unknown' THEN ? ELSE track_name END,
 			session_type = CASE WHEN ? != '' AND ? != 'Unknown' THEN ? ELSE session_type END,
-			weather = CASE WHEN ? != '' AND ? != 'Unknown' THEN ? ELSE weather END
+			weather = CASE WHEN ? != '' AND ? != 'Unknown' THEN ? ELSE weather END,
+			total_laps = CASE WHEN ? > 0 THEN ? ELSE total_laps END,
+			ai_difficulty = CASE WHEN ? > 0 THEN ? ELSE ai_difficulty END,
+			session_duration = CASE WHEN ? > 0 THEN ? ELSE session_duration END
 		WHERE session_uid = ?
 	`
 	_, err := r.db.ExecContext(ctx, query,
@@ -145,6 +151,9 @@ func (r *Repository) UpdateSessionMetadata(ctx context.Context, sessionUID uint6
 		trackName, trackName, trackName,
 		sessionType, sessionType, sessionType,
 		weather, weather, weather,
+		totalLaps, totalLaps,
+		aiDifficulty, aiDifficulty,
+		sessionDuration, sessionDuration,
 		int64(sessionUID),
 	)
 	if err != nil {
@@ -154,75 +163,51 @@ func (r *Repository) UpdateSessionMetadata(ctx context.Context, sessionUID uint6
 }
 
 // SaveLap inserts or updates a lap.
-func (r *Repository) SaveLap(ctx context.Context, l *Lap) error {
+// If mergeMode is true (e.g. SessionHistory packets), it updates timing fields only if the new value is > 0.
+// If mergeMode is false (e.g. live LapTracker), it overwrites fields with the latest lap tracker state.
+func (r *Repository) SaveLap(ctx context.Context, l *Lap, mergeMode bool) error {
 	l.FuelLoad = SanitizeFloat(l.FuelLoad)
 	l.MaxSpeedKMH = SanitizeFloat(l.MaxSpeedKMH)
 
-	if l.Sector3MS <= 0 && l.LapTimeMS > 0 && l.Sector1MS > 0 && l.Sector2MS > 0 {
-		s3 := l.LapTimeMS - (l.Sector1MS + l.Sector2MS)
-		if s3 > 0 {
-			l.Sector3MS = s3
-		}
+	DeriveSector3(l)
+
+	var query string
+	if mergeMode {
+		query = `
+			INSERT INTO laps (session_id, car_index, lap_number, lap_time_ms, sector1_ms, sector2_ms, sector3_ms, is_valid, tyre_compound, fuel_load, max_speed_kmh, penalties_seconds, car_position, result_status, stint)
+			VALUES (:session_id, :car_index, :lap_number, :lap_time_ms, :sector1_ms, :sector2_ms, :sector3_ms, :is_valid, :tyre_compound, :fuel_load, :max_speed_kmh, :penalties_seconds, :car_position, :result_status, :stint)
+			ON CONFLICT(session_id, car_index, lap_number) DO UPDATE SET
+				lap_time_ms = CASE WHEN excluded.lap_time_ms > 0 THEN excluded.lap_time_ms ELSE laps.lap_time_ms END,
+				sector1_ms = CASE WHEN excluded.sector1_ms > 0 THEN excluded.sector1_ms ELSE laps.sector1_ms END,
+				sector2_ms = CASE WHEN excluded.sector2_ms > 0 THEN excluded.sector2_ms ELSE laps.sector2_ms END,
+				sector3_ms = CASE WHEN excluded.sector3_ms > 0 THEN excluded.sector3_ms ELSE laps.sector3_ms END,
+				is_valid = excluded.is_valid
+			RETURNING id
+		`
+	} else {
+		query = `
+			INSERT INTO laps (session_id, car_index, lap_number, lap_time_ms, sector1_ms, sector2_ms, sector3_ms, is_valid, tyre_compound, fuel_load, max_speed_kmh, penalties_seconds, car_position, result_status, stint)
+			VALUES (:session_id, :car_index, :lap_number, :lap_time_ms, :sector1_ms, :sector2_ms, :sector3_ms, :is_valid, :tyre_compound, :fuel_load, :max_speed_kmh, :penalties_seconds, :car_position, :result_status, :stint)
+			ON CONFLICT(session_id, car_index, lap_number) DO UPDATE SET
+				lap_time_ms = excluded.lap_time_ms,
+				sector1_ms = excluded.sector1_ms,
+				sector2_ms = excluded.sector2_ms,
+				sector3_ms = excluded.sector3_ms,
+				is_valid = excluded.is_valid,
+				tyre_compound = excluded.tyre_compound,
+				fuel_load = excluded.fuel_load,
+				max_speed_kmh = CASE WHEN excluded.max_speed_kmh > laps.max_speed_kmh THEN excluded.max_speed_kmh ELSE laps.max_speed_kmh END,
+				penalties_seconds = excluded.penalties_seconds,
+				car_position = excluded.car_position,
+				result_status = excluded.result_status,
+				stint = excluded.stint
+			RETURNING id
+		`
 	}
 
-	query := `
-		INSERT INTO laps (session_id, car_index, lap_number, lap_time_ms, sector1_ms, sector2_ms, sector3_ms, is_valid, tyre_compound, fuel_load, max_speed_kmh, penalties_seconds, car_position, result_status, stint)
-		VALUES (:session_id, :car_index, :lap_number, :lap_time_ms, :sector1_ms, :sector2_ms, :sector3_ms, :is_valid, :tyre_compound, :fuel_load, :max_speed_kmh, :penalties_seconds, :car_position, :result_status, :stint)
-		ON CONFLICT(session_id, car_index, lap_number) DO UPDATE SET
-			lap_time_ms = excluded.lap_time_ms,
-			sector1_ms = excluded.sector1_ms,
-			sector2_ms = excluded.sector2_ms,
-			sector3_ms = excluded.sector3_ms,
-			is_valid = excluded.is_valid,
-			tyre_compound = excluded.tyre_compound,
-			fuel_load = excluded.fuel_load,
-			max_speed_kmh = CASE WHEN excluded.max_speed_kmh > laps.max_speed_kmh THEN excluded.max_speed_kmh ELSE laps.max_speed_kmh END,
-			penalties_seconds = excluded.penalties_seconds,
-			car_position = excluded.car_position,
-			result_status = excluded.result_status,
-			stint = excluded.stint
-		RETURNING id
-	`
 	rows, err := r.db.NamedQueryContext(ctx, query, l)
 	if err != nil {
 		return fmt.Errorf("failed to save lap: %w", err)
-	}
-	defer rows.Close()
-
-	if rows.Next() {
-		if err := rows.Scan(&l.ID); err != nil {
-			return fmt.Errorf("failed to scan lap id: %w", err)
-		}
-	}
-	return nil
-}
-
-// SaveLapHistoryEntry updates or inserts lap timing data received from SessionHistory packet.
-func (r *Repository) SaveLapHistoryEntry(ctx context.Context, l *Lap) error {
-	l.FuelLoad = SanitizeFloat(l.FuelLoad)
-	l.MaxSpeedKMH = SanitizeFloat(l.MaxSpeedKMH)
-
-	if l.Sector3MS <= 0 && l.LapTimeMS > 0 && l.Sector1MS > 0 && l.Sector2MS > 0 {
-		s3 := l.LapTimeMS - (l.Sector1MS + l.Sector2MS)
-		if s3 > 0 {
-			l.Sector3MS = s3
-		}
-	}
-
-	query := `
-		INSERT INTO laps (session_id, car_index, lap_number, lap_time_ms, sector1_ms, sector2_ms, sector3_ms, is_valid, tyre_compound, fuel_load, max_speed_kmh, penalties_seconds, car_position, result_status, stint)
-		VALUES (:session_id, :car_index, :lap_number, :lap_time_ms, :sector1_ms, :sector2_ms, :sector3_ms, :is_valid, :tyre_compound, :fuel_load, :max_speed_kmh, :penalties_seconds, :car_position, :result_status, :stint)
-		ON CONFLICT(session_id, car_index, lap_number) DO UPDATE SET
-			lap_time_ms = CASE WHEN excluded.lap_time_ms > 0 THEN excluded.lap_time_ms ELSE laps.lap_time_ms END,
-			sector1_ms = CASE WHEN excluded.sector1_ms > 0 THEN excluded.sector1_ms ELSE laps.sector1_ms END,
-			sector2_ms = CASE WHEN excluded.sector2_ms > 0 THEN excluded.sector2_ms ELSE laps.sector2_ms END,
-			sector3_ms = CASE WHEN excluded.sector3_ms > 0 THEN excluded.sector3_ms ELSE laps.sector3_ms END,
-			is_valid = excluded.is_valid
-		RETURNING id
-	`
-	rows, err := r.db.NamedQueryContext(ctx, query, l)
-	if err != nil {
-		return fmt.Errorf("failed to save lap history entry: %w", err)
 	}
 	defer rows.Close()
 
@@ -481,26 +466,36 @@ func (r *Repository) SetSessionTags(ctx context.Context, sessionID int64, tagIDs
 	return tx.Commit()
 }
 
-// GetLapsBySession retrieves all laps for a given session.
-func (r *Repository) GetLapsBySession(ctx context.Context, sessionID int64) ([]Lap, error) {
+// GetLapsBySession retrieves laps for a given session, optionally filtered by carIndex.
+func (r *Repository) GetLapsBySession(ctx context.Context, sessionID int64, carIndex *int) ([]Lap, error) {
 	var laps []Lap
-	query := `
-		SELECT * FROM laps 
-		WHERE session_id = ? 
-		  AND (lap_time_ms > 0 OR EXISTS (SELECT 1 FROM lap_telemetry WHERE lap_id = laps.id))
-		ORDER BY lap_number ASC
-	`
-	if err := r.db.SelectContext(ctx, &laps, query, sessionID); err != nil {
+	var query string
+	var args []any
+
+	if carIndex != nil {
+		query = `
+			SELECT * FROM laps 
+			WHERE session_id = ? AND car_index = ?
+			  AND (lap_time_ms > 0 OR EXISTS (SELECT 1 FROM lap_telemetry WHERE lap_id = laps.id))
+			ORDER BY lap_number ASC
+		`
+		args = []any{sessionID, *carIndex}
+	} else {
+		query = `
+			SELECT * FROM laps 
+			WHERE session_id = ? 
+			  AND (lap_time_ms > 0 OR EXISTS (SELECT 1 FROM lap_telemetry WHERE lap_id = laps.id))
+			ORDER BY car_index ASC, lap_number ASC
+		`
+		args = []any{sessionID}
+	}
+
+	if err := r.db.SelectContext(ctx, &laps, query, args...); err != nil {
 		return nil, fmt.Errorf("failed to get laps: %w", err)
 	}
 
 	for i := range laps {
-		if laps[i].Sector3MS <= 0 && laps[i].LapTimeMS > 0 && laps[i].Sector1MS > 0 && laps[i].Sector2MS > 0 {
-			s3 := laps[i].LapTimeMS - (laps[i].Sector1MS + laps[i].Sector2MS)
-			if s3 > 0 {
-				laps[i].Sector3MS = s3
-			}
-		}
+		DeriveSector3(&laps[i])
 	}
 
 	return laps, nil
@@ -544,12 +539,7 @@ func (r *Repository) GetLapByID(ctx context.Context, lapID int64) (*Lap, error) 
 	if err := r.db.GetContext(ctx, &lap, query, lapID); err != nil {
 		return nil, fmt.Errorf("failed to get lap: %w", err)
 	}
-	if lap.Sector3MS <= 0 && lap.LapTimeMS > 0 && lap.Sector1MS > 0 && lap.Sector2MS > 0 {
-		s3 := lap.LapTimeMS - (lap.Sector1MS + lap.Sector2MS)
-		if s3 > 0 {
-			lap.Sector3MS = s3
-		}
-	}
+	DeriveSector3(&lap)
 	return &lap, nil
 }
 
@@ -638,7 +628,7 @@ func (r *Repository) ExportSession(ctx context.Context, sessionID int64) (*Expor
 		return nil, fmt.Errorf("failed to export participants: %w", err)
 	}
 
-	laps, err := r.GetLapsBySession(ctx, sessionID)
+	laps, err := r.GetLapsBySession(ctx, sessionID, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to export laps: %w", err)
 	}
@@ -677,13 +667,16 @@ func (r *Repository) ImportSession(ctx context.Context, pkg *ExportedSessionPack
 	}
 
 	newSession := &Session{
-		SessionUID:   sessionUID,
-		TrackID:      pkg.Session.TrackID,
-		TrackName:    pkg.Session.TrackName,
-		SessionType:  pkg.Session.SessionType,
-		Weather:      pkg.Session.Weather,
-		PacketFormat: pkg.Session.PacketFormat,
-		CreatedAt:    pkg.Session.CreatedAt,
+		SessionUID:      sessionUID,
+		TrackID:         pkg.Session.TrackID,
+		TrackName:       pkg.Session.TrackName,
+		SessionType:     pkg.Session.SessionType,
+		Weather:         pkg.Session.Weather,
+		TotalLaps:       pkg.Session.TotalLaps,
+		AIDifficulty:    pkg.Session.AIDifficulty,
+		SessionDuration: pkg.Session.SessionDuration,
+		PacketFormat:    pkg.Session.PacketFormat,
+		CreatedAt:       pkg.Session.CreatedAt,
 	}
 
 	if err := r.SaveSession(ctx, newSession); err != nil {
@@ -709,7 +702,7 @@ func (r *Repository) ImportSession(ctx context.Context, pkg *ExportedSessionPack
 	for _, lapPkg := range pkg.Laps {
 		lap := lapPkg.Lap
 		lap.SessionID = newSession.ID
-		if err := r.SaveLap(ctx, &lap); err != nil {
+		if err := r.SaveLap(ctx, &lap, false); err != nil {
 			return 0, fmt.Errorf("failed to save imported lap %d: %w", lap.LapNumber, err)
 		}
 		if len(lapPkg.Telemetry) > 0 {

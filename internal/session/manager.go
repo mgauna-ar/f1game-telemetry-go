@@ -124,12 +124,15 @@ func (sm *SessionManager) handleNewSession(ctx context.Context, header packets.P
 
 	// Create a new session in storage
 	sm.currentSession = &storage.Session{
-		SessionUID:   int64(header.SessionUID),
-		PacketFormat: int(header.PacketFormat),
-		TrackID:      -1,
-		TrackName:    "Unknown",
-		SessionType:  "Unknown",
-		Weather:      "Unknown",
+		SessionUID:      int64(header.SessionUID),
+		PacketFormat:    int(header.PacketFormat),
+		TrackID:         -1,
+		TrackName:       "Unknown",
+		SessionType:     "Unknown",
+		Weather:         "Unknown",
+		TotalLaps:       0,
+		AIDifficulty:    0,
+		SessionDuration: 0,
 	}
 
 	if err := sm.repo.SaveSession(ctx, sm.currentSession); err != nil {
@@ -141,15 +144,27 @@ func (sm *SessionManager) updateSessionInfo(ctx context.Context, p *packets.Pack
 	trackName := packets.TrackName(p.TrackId)
 	sessionType := packets.SessionTypeName(p.SessionType)
 	weatherStr := packets.WeatherName(p.Weather)
+	totalLaps := int(p.TotalLaps)
+	aiDifficulty := int(p.AIDifficulty)
+	sessionDuration := int(p.SessionDuration)
 
 	if sm.currentSession != nil && uint64(sm.currentSession.SessionUID) == p.Header.SessionUID {
 		sm.currentSession.TrackID = int(p.TrackId)
 		sm.currentSession.TrackName = trackName
 		sm.currentSession.SessionType = sessionType
 		sm.currentSession.Weather = weatherStr
+		if totalLaps > 0 {
+			sm.currentSession.TotalLaps = totalLaps
+		}
+		if aiDifficulty > 0 {
+			sm.currentSession.AIDifficulty = aiDifficulty
+		}
+		if sessionDuration > 0 {
+			sm.currentSession.SessionDuration = sessionDuration
+		}
 	}
 
-	if err := sm.repo.UpdateSessionMetadata(ctx, p.Header.SessionUID, int(p.TrackId), trackName, sessionType, weatherStr); err != nil {
+	if err := sm.repo.UpdateSessionMetadata(ctx, p.Header.SessionUID, int(p.TrackId), trackName, sessionType, weatherStr, totalLaps, aiDifficulty, sessionDuration); err != nil {
 		log.Printf("[Session] Error updating session metadata: %v", err)
 	}
 }

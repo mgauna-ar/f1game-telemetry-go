@@ -6,16 +6,30 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-const schema = `
+// Migration represents a single versioned schema migration.
+type Migration struct {
+	Version int
+	Name    string
+	SQL     string
+}
+
+var migrations = []Migration{
+	{
+		Version: 1,
+		Name:    "baseline_schema",
+		SQL: `
 CREATE TABLE IF NOT EXISTS sessions (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_uid   INTEGER UNIQUE NOT NULL,
-    track_id      INTEGER NOT NULL,
-    track_name    TEXT NOT NULL,
-    session_type  TEXT NOT NULL,
-    weather       TEXT,
-    packet_format INTEGER NOT NULL,
-    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_uid      INTEGER UNIQUE NOT NULL,
+    track_id         INTEGER NOT NULL,
+    track_name       TEXT NOT NULL,
+    session_type     TEXT NOT NULL,
+    weather          TEXT,
+    total_laps       INTEGER DEFAULT 0,
+    ai_difficulty    INTEGER DEFAULT 0,
+    session_duration INTEGER DEFAULT 0,
+    packet_format    INTEGER NOT NULL,
+    created_at       TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS participants (
@@ -60,7 +74,8 @@ CREATE TABLE IF NOT EXISTS lap_telemetry (
     created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_laps_session ON laps(session_id);
+CREATE INDEX IF NOT EXISTS idx_laps_session_car ON laps(session_id, car_index);
+CREATE INDEX IF NOT EXISTS idx_laps_car_laptime ON laps(session_id, car_index, lap_time_ms);
 CREATE INDEX IF NOT EXISTS idx_participants_session ON participants(session_id);
 
 CREATE TABLE IF NOT EXISTS tags (
@@ -79,13 +94,50 @@ CREATE TABLE IF NOT EXISTS session_tags (
 
 CREATE INDEX IF NOT EXISTS idx_session_tags_session ON session_tags(session_id);
 CREATE INDEX IF NOT EXISTS idx_session_tags_tag ON session_tags(tag_id);
-`
+`,
+	},
+}
 
-// Migrate runs the base schema creation to ensure the database is initialized.
+// Migrate runs all pending migrations in version order.
 func Migrate(db *sqlx.DB) error {
-	_, err := db.Exec(schema)
-	if err != nil {
-		return fmt.Errorf("failed to execute schema: %w", err)
+	initVersionTable := `
+	CREATE TABLE IF NOT EXISTS schema_version (
+		version    INTEGER PRIMARY KEY,
+		name       TEXT NOT NULL,
+		applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+	);`
+	if _, err := db.Exec(initVersionTable); err != nil {
+		return fmt.Errorf("failed to initialize schema_version table: %w", err)
 	}
+
+	var currentVersion int
+	err := db.Get(&currentVersion, "SELECT COALESCE(MAX(version), 0) FROM schema_version")
+	if err != nil {
+		return fmt.Errorf("failed to query schema_version: %w", err)
+	}
+
+	for _, m := range migrations {
+		if m.Version > currentVersion {
+			tx, err := db.Beginx()
+			if err != nil {
+				return fmt.Errorf("failed to begin transaction for migration %d (%s): %w", m.Version, m.Name, err)
+			}
+
+			if _, err := tx.Exec(m.SQL); err != nil {
+				_ = tx.Rollback()
+				return fmt.Errorf("failed to execute migration %d (%s): %w", m.Version, m.Name, err)
+			}
+
+			if _, err := tx.Exec("INSERT INTO schema_version (version, name) VALUES (?, ?)", m.Version, m.Name); err != nil {
+				_ = tx.Rollback()
+				return fmt.Errorf("failed to record schema_version %d (%s): %w", m.Version, m.Name, err)
+			}
+
+			if err := tx.Commit(); err != nil {
+				return fmt.Errorf("failed to commit migration %d (%s): %w", m.Version, m.Name, err)
+			}
+		}
+	}
+
 	return nil
 }

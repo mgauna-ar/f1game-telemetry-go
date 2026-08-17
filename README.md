@@ -9,7 +9,7 @@
 ## Features
 
 - **UDP Telemetry Capture** — Listens for real-time telemetry packets from F1 25 / F1 26
-- **High-Performance Compressed Storage** — High-efficiency SQLite database using Zstandard (`zstd`) compressed BLOBs per lap (`lap_telemetry`) with in-memory buffering in `LapTracker`. Reduces database footprint by >90% (from ~25 GB/year to ~2 GB/year) with 1-seek instant query retrieval.
+- **High-Performance Compressed Storage & Versioned Schema** — High-efficiency SQLite database using Zstandard (`zstd`) compressed BLOBs per lap (`lap_telemetry`) with in-memory buffering in `LapTracker`, versioned migration engine (`schema_version`), composite indexing (`(session_id, car_index)` and `(session_id, car_index, lap_time_ms)`), and enriched session metadata (`total_laps`, `ai_difficulty`, `session_duration`). Reduces database footprint by >90% (from ~25 GB/year to ~2 GB/year) with 1-seek instant query retrieval.
 - **Session Portability (Export & Import)** — Seamlessly backup, share, and migrate telemetry sessions as compressed `.f1session` packages directly from the UI with 1-click download and drag-and-drop file import.
 - **Driver & Participant Metadata** — Stores driver names, team IDs, race numbers, and AI status per session
 - **Modern Top Navigation Bar** — Premium sticky glassmorphic navigation header with reordered segmented tabs (1: **Session History**, 2: **Lap Comparator**, 3: **Live Session** with live pulse badge), app branding, persistent active tab memory, and real-time port indicator
@@ -82,7 +82,6 @@ go run ./cmd/server
 #### Frontend (React)
 
 In a new terminal window:
-
 ```bash
 cd frontend
 npm install
@@ -172,7 +171,7 @@ f1game-telemetry-go/
 │   ├── api/             # HTTP server, REST endpoints, AI Race Engineer & WebSocket hub
 │   ├── packets/         # F1 telemetry packet parsing and types
 │   ├── session/         # Session tracking logic
-│   ├── storage/         # SQLite persistence layer
+│   ├── storage/         # SQLite persistence layer & versioned migrations
 │   └── udp/             # UDP listener and packet handling
 ├── frontend/            # React/Vite frontend application
 ├── Makefile
@@ -191,7 +190,9 @@ f1game-telemetry-go/
 | `GET` | `/api/sessions` | List recorded sessions (with attached tags) |
 | `DELETE` | `/api/sessions/:id` | Delete a recorded session and all associated data |
 | `GET` | `/api/sessions/:id/participants` | Get participant roster (drivers) for a session |
-| `GET` | `/api/sessions/:id/laps` | Get laps for a session |
+| `GET` | `/api/sessions/:id/laps` | Get laps for a session (supports optional `?carIndex=N` filter) |
+| `GET` | `/api/sessions/:id/export` | Export session telemetry package (`.f1session`) |
+| `POST` | `/api/sessions/import` | Import session telemetry package (`.f1session`) |
 | `GET` | `/api/laps/:id/telemetry` | Get telemetry for a lap (supports `?maxPoints=N` LTTB downsampling) |
 | `GET` | `/api/tags` | List all global tags |
 | `POST` | `/api/tags` | Create a new tag (`{"name": "...", "color": "..."}`) |
