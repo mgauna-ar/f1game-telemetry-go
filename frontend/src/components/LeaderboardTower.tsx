@@ -195,13 +195,13 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
 
     if (lap.NumUnservedStopGoPens && lap.NumUnservedStopGoPens > 0) {
       elements.push(
-        <span key="sg" className="driver-penalty-badge penalty-stopgo" title="Stop & Go Penalty">
+        <span key="sg" className="driver-penalty-badge penalty-stopgo" title={t('live.badges.stopGoTitle')}>
           SG
         </span>
       );
     } else if (lap.NumUnservedDriveThroughPens && lap.NumUnservedDriveThroughPens > 0) {
       elements.push(
-        <span key="dt" className="driver-penalty-badge penalty-drivethrough" title="Drive Through Penalty">
+        <span key="dt" className="driver-penalty-badge penalty-drivethrough" title={t('live.badges.driveThroughTitle')}>
           DT
         </span>
       );
@@ -209,14 +209,17 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
 
     if (lap.Penalties && lap.Penalties > 0) {
       elements.push(
-        <span key="pen" className="driver-penalty-badge penalty-time" title={`${lap.Penalties}s Time Penalty`}>
+        <span key="pen" className="driver-penalty-badge penalty-time" title={t('live.badges.timePenaltyTitle', { seconds: lap.Penalties })}>
           +{lap.Penalties}s
         </span>
       );
-    } else if (lap.TotalWarnings && lap.TotalWarnings > 0) {
+    }
+
+    const warnings = lap.CornerCuttingWarnings || lap.TotalWarnings || 0;
+    if (warnings > 0) {
       elements.push(
-        <span key="warn" className="driver-warning-badge" title={`${lap.TotalWarnings} Warnings`}>
-          {lap.TotalWarnings}W
+        <span key="warn" className="driver-warning-badge" title={t('live.badges.warningsTitle', { count: warnings })}>
+          {warnings}W
         </span>
       );
     }

@@ -76,6 +76,8 @@ interface PacketEventData {
   Speed?: number;
   PenaltyType?: number;
   PenaltyTime?: number;
+  InfringementType?: number;
+  PlacesGained?: number;
   LapNum?: number;
 }
 
@@ -304,6 +306,7 @@ export function useTelemetry(wsUrl?: string) {
                     description: `${driverName} set the fastest lap (${(pkt.LapTime || 0).toFixed(3)}s)`,
                     vehicleIdx: vIdx,
                     driverName,
+                    lapTime: pkt.LapTime,
                     severity: 'purple',
                     sessionTime: header.SessionTime,
                   });
@@ -318,23 +321,36 @@ export function useTelemetry(wsUrl?: string) {
                     description: `${driverName} overtook ${targetName}`,
                     vehicleIdx: vIdx,
                     driverName,
+                    otherVehicleIdx: targetIdx,
+                    targetDriverName: targetName,
                     severity: 'info',
                     sessionTime: header.SessionTime,
                   });
                   break;
                 }
-                case 'PENA':
+                case 'PENA': {
+                  const targetIdx = pkt.OtherVehicleIdx !== undefined && pkt.OtherVehicleIdx < 255 ? pkt.OtherVehicleIdx : undefined;
+                  const targetDriver = targetIdx !== undefined ? participantsRef.current[targetIdx] : undefined;
+                  const targetName = targetDriver ? parseDriverName(targetDriver?.Name, `Car #${(targetIdx ?? 0) + 1}`, targetDriver?.DriverId) : undefined;
+                  const isSevere = pkt.PenaltyType === 6 || (pkt.PenaltyTime !== undefined && pkt.PenaltyTime >= 10 && pkt.PenaltyTime < 255);
                   addEvent({
                     eventCode: 'PENA',
                     type: 'penalty',
-                    description: `${driverName} received a ${pkt.PenaltyTime || 5}s time penalty`,
+                    description: `${driverName} received a penalty`,
                     vehicleIdx: vIdx,
                     driverName,
+                    otherVehicleIdx: targetIdx,
+                    targetDriverName: targetName,
                     lapNum: pkt.LapNum,
-                    severity: 'danger',
+                    penaltyType: pkt.PenaltyType,
+                    infringementType: pkt.InfringementType,
+                    penaltyTime: pkt.PenaltyTime,
+                    placesGained: pkt.PlacesGained,
+                    severity: isSevere ? 'danger' : 'warning',
                     sessionTime: header.SessionTime,
                   });
                   break;
+                }
                 case 'SPTP':
                   addEvent({
                     eventCode: 'SPTP',
@@ -342,6 +358,7 @@ export function useTelemetry(wsUrl?: string) {
                     description: `${driverName} triggered speed trap at ${(pkt.Speed || 0).toFixed(1)} km/h`,
                     vehicleIdx: vIdx,
                     driverName,
+                    speed: pkt.Speed,
                     severity: 'success',
                     sessionTime: header.SessionTime,
                   });
@@ -364,6 +381,54 @@ export function useTelemetry(wsUrl?: string) {
                     description: `${driverName} retired from the session`,
                     vehicleIdx: vIdx,
                     driverName,
+                    severity: 'danger',
+                    sessionTime: header.SessionTime,
+                  });
+                  break;
+                case 'DTSV':
+                  addEvent({
+                    eventCode: 'DTSV',
+                    type: 'penalty',
+                    description: `${driverName} served Drive Through penalty`,
+                    vehicleIdx: vIdx,
+                    driverName,
+                    severity: 'info',
+                    sessionTime: header.SessionTime,
+                  });
+                  break;
+                case 'SGSV':
+                  addEvent({
+                    eventCode: 'SGSV',
+                    type: 'penalty',
+                    description: `${driverName} served Stop & Go penalty`,
+                    vehicleIdx: vIdx,
+                    driverName,
+                    severity: 'info',
+                    sessionTime: header.SessionTime,
+                  });
+                  break;
+                case 'COLL': {
+                  const targetIdx = pkt.OtherVehicleIdx ?? 0;
+                  const targetDriver = participantsRef.current[targetIdx];
+                  const targetName = parseDriverName(targetDriver?.Name, `Car #${targetIdx + 1}`, targetDriver?.DriverId);
+                  addEvent({
+                    eventCode: 'COLL',
+                    type: 'penalty',
+                    description: `Collision between ${driverName} and ${targetName}`,
+                    vehicleIdx: vIdx,
+                    driverName,
+                    otherVehicleIdx: targetIdx,
+                    targetDriverName: targetName,
+                    severity: 'danger',
+                    sessionTime: header.SessionTime,
+                  });
+                  break;
+                }
+                case 'RDFL':
+                  addEvent({
+                    eventCode: 'RDFL',
+                    type: 'flag',
+                    description: 'Red Flag deployed!',
                     severity: 'danger',
                     sessionTime: header.SessionTime,
                   });

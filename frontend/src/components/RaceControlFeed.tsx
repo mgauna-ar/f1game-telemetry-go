@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { ShieldAlert, Flag, Zap, Swords, Wrench, AlertTriangle, Radio, Trash2 } from 'lucide-react';
 import type { RaceEvent, SessionData } from '../hooks/useTelemetry';
 import { useI18n } from '../context/I18nContext';
+import { getLocalizedRaceEventDescription, getLocalizedPenaltyTag } from '../utils/raceEvents';
 
 interface RaceControlFeedProps {
   events: RaceEvent[];
@@ -169,20 +170,23 @@ export const RaceControlFeed: React.FC<RaceControlFeedProps> = ({
             </div>
           </div>
         ) : (
-          filteredEvents.map((evt) => (
-            <div key={evt.id} className={`race-feed-item severity-${evt.severity}`}>
-              <div className="race-feed-item-left">
-                <span className="race-feed-item-icon">{getEventIcon(evt.type)}</span>
-                <span className="race-feed-item-time mono">{formatEventTime(evt.timestamp, evt.sessionTime)}</span>
+          filteredEvents.map((evt) => {
+            const desc = getLocalizedRaceEventDescription(evt, t) || evt.description;
+            return (
+              <div key={evt.id} className={`race-feed-item severity-${evt.severity}`}>
+                <div className="race-feed-item-left">
+                  <span className="race-feed-item-icon">{getEventIcon(evt.type)}</span>
+                  <span className="race-feed-item-time mono">{formatEventTime(evt.timestamp, evt.sessionTime)}</span>
+                </div>
+                <div className="race-feed-item-content">
+                  <span className={`race-feed-tag tag-${evt.type}`}>
+                    {getLocalizedPenaltyTag(evt, t)}
+                  </span>
+                  <span className="race-feed-item-text">{desc}</span>
+                </div>
               </div>
-              <div className="race-feed-item-content">
-                <span className={`race-feed-tag tag-${evt.type}`}>
-                  {evt.type.replace('_', ' ').toUpperCase()}
-                </span>
-                <span className="race-feed-item-text">{evt.description}</span>
-              </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

@@ -92,7 +92,15 @@ export interface RaceEvent {
   description: string;
   vehicleIdx?: number;
   driverName?: string;
+  otherVehicleIdx?: number;
+  targetDriverName?: string;
   lapNum?: number;
+  speed?: number;
+  lapTime?: number;
+  penaltyType?: number;
+  infringementType?: number;
+  penaltyTime?: number;
+  placesGained?: number;
   severity: 'info' | 'warning' | 'danger' | 'purple' | 'success';
 }
 

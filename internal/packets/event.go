@@ -146,19 +146,21 @@ type CollisionEventData struct {
 }
 
 type eventJSON struct {
-	Header          PacketHeader `json:"Header"`
-	EventCode       string       `json:"EventCode"`
-	VehicleIdx      *uint8       `json:"VehicleIdx,omitempty"`
-	OtherVehicleIdx *uint8       `json:"OtherVehicleIdx,omitempty"`
-	LapTime         *float32     `json:"LapTime,omitempty"`
-	Speed           *float32     `json:"Speed,omitempty"`
-	PenaltyType     *uint8       `json:"PenaltyType,omitempty"`
-	PenaltyTime     *uint8       `json:"PenaltyTime,omitempty"`
-	LapNum          *uint8       `json:"LapNum,omitempty"`
-	Reason          *uint8       `json:"Reason,omitempty"`
-	SafetyCarType   *uint8       `json:"SafetyCarType,omitempty"`
-	EventType       *uint8       `json:"EventType,omitempty"`
-	Severity        *uint8       `json:"Severity,omitempty"`
+	Header           PacketHeader `json:"Header"`
+	EventCode        string       `json:"EventCode"`
+	VehicleIdx       *uint8       `json:"VehicleIdx,omitempty"`
+	OtherVehicleIdx  *uint8       `json:"OtherVehicleIdx,omitempty"`
+	LapTime          *float32     `json:"LapTime,omitempty"`
+	Speed            *float32     `json:"Speed,omitempty"`
+	PenaltyType      *uint8       `json:"PenaltyType,omitempty"`
+	PenaltyTime      *uint8       `json:"PenaltyTime,omitempty"`
+	InfringementType *uint8       `json:"InfringementType,omitempty"`
+	PlacesGained     *uint8       `json:"PlacesGained,omitempty"`
+	LapNum           *uint8       `json:"LapNum,omitempty"`
+	Reason           *uint8       `json:"Reason,omitempty"`
+	SafetyCarType    *uint8       `json:"SafetyCarType,omitempty"`
+	EventType        *uint8       `json:"EventType,omitempty"`
+	Severity         *uint8       `json:"Severity,omitempty"`
 }
 
 func (p PacketEventData) MarshalJSON() ([]byte, error) {
@@ -192,8 +194,10 @@ func (p PacketEventData) MarshalJSON() ([]byte, error) {
 			ej.VehicleIdx = &d.VehicleIdx
 			ej.OtherVehicleIdx = &d.OtherVehicleIdx
 			ej.PenaltyType = &d.PenaltyType
+			ej.InfringementType = &d.InfringementType
 			ej.PenaltyTime = &d.Time
 			ej.LapNum = &d.LapNum
+			ej.PlacesGained = &d.PlacesGained
 		}
 	case EventSpeedTrapTriggered:
 		var d SpeedTrapEventData
