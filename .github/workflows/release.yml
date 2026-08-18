@@ -65,6 +65,7 @@ jobs:
           BUILD_DATE: ${{ steps.version.outputs.date }}
         run: |
           mkdir -p dist_release
+          DIST_DIR="$(pwd)/dist_release"
 
           LDFLAGS="-s -w -X main.version=${TAG} -X main.commit=${COMMIT} -X main.date=${BUILD_DATE}"
 
@@ -99,9 +100,9 @@ jobs:
             fi
 
             if [[ "${ARCHIVE_NAME}" == *.zip ]]; then
-              (cd "${BUILD_TMP}" && zip -9 "../../dist_release/${ARCHIVE_NAME}" "${BIN_NAME}")
+              (cd "${BUILD_TMP}" && zip -9 "${DIST_DIR}/${ARCHIVE_NAME}" "${BIN_NAME}")
             else
-              tar -czf "dist_release/${ARCHIVE_NAME}" -C "${BUILD_TMP}" "${BIN_NAME}"
+              tar -czf "${DIST_DIR}/${ARCHIVE_NAME}" -C "${BUILD_TMP}" "${BIN_NAME}"
             fi
 
             rm -rf "${BUILD_TMP}"
