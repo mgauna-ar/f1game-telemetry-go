@@ -105,11 +105,16 @@ func (lt *LapTracker) ProcessCarStatus(p *packets.PacketCarStatusData) {
 	newComp := packets.VisualTyreCompoundName(cs.VisualTyreCompound)
 
 	// Detect tyre set change / stint increment (avoid duplicate stint increments in same lap)
-	tyreChanged := (lt.lastTyreAge > 1 && tyreAge <= 1) || (lt.lastCompound != "" && newComp != "" && newComp != lt.lastCompound)
+	// A new stint is started when:
+	// 1) Tyre age drops (e.g. from 1+ laps to 0 or fewer laps when mounting a new/fresher set)
+	// 2) Visual tyre compound changes (e.g. Soft -> Medium)
+	tyreAgeDropped := lt.lastTyreAge > 0 && tyreAge < lt.lastTyreAge
+	compoundChanged := lt.lastCompound != "" && newComp != "" && newComp != lt.lastCompound
+	tyreChanged := tyreAgeDropped || compoundChanged
 	if tyreChanged && lt.stintIncrementedInLap != lt.currentLapNum {
 		lt.currentStintNum++
 		lt.stintIncrementedInLap = lt.currentLapNum
-		log.Printf("[LapTracker] Stint %d detected for Car %d (Compound: %s, Tyre Age: %d)", lt.currentStintNum, lt.carIndex, newComp, tyreAge)
+		log.Printf("[LapTracker] Stint %d detected for Car %d (Compound: %s, Tyre Age: %d -> %d)", lt.currentStintNum, lt.carIndex, newComp, lt.lastTyreAge, tyreAge)
 	}
 
 	lt.lastTyreAge = tyreAge
@@ -159,20 +164,20 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 		return
 	}
 
-	// Pit stop detection
-	pitStops := int(lapData.NumPitStops)
-	if lt.lastPitStops > 0 && pitStops > lt.lastPitStops && lt.stintIncrementedInLap != lt.currentLapNum {
-		lt.currentStintNum++
-		lt.stintIncrementedInLap = lt.currentLapNum
-		log.Printf("[LapTracker] Pit stop detected for Car %d (Stint %d, pit stops %d -> %d)", lt.carIndex, lt.currentStintNum, lt.lastPitStops, pitStops)
-	}
-	lt.lastPitStops = pitStops
-
 	newLapNum := int(lapData.CurrentLapNum)
 	// Sanity check: F1 sessions never exceed MaxSessionLapsSanity laps
 	if newLapNum <= 0 || newLapNum > packets.MaxSessionLapsSanity {
 		return
 	}
+
+	// Pit stop detection
+	pitStops := int(lapData.NumPitStops)
+	if pitStops > lt.lastPitStops && lt.stintIncrementedInLap != newLapNum {
+		lt.currentStintNum++
+		lt.stintIncrementedInLap = newLapNum
+		log.Printf("[LapTracker] Pit stop detected for Car %d (Stint %d, pit stops %d -> %d)", lt.carIndex, lt.currentStintNum, lt.lastPitStops, pitStops)
+	}
+	lt.lastPitStops = pitStops
 
 	currDistance := float64(lapData.LapDistance)
 	prevDistance := lt.lastLapDistance
@@ -285,6 +290,16 @@ func (lt *LapTracker) ProcessSessionHistory(ctx context.Context, session *storag
 		numLaps = packets.MaxLapHistoryEntries
 	}
 
+	numStints := int(p.NumTyreStints)
+	if numStints > packets.MaxTyreStintHistoryEntries {
+		numStints = packets.MaxTyreStintHistoryEntries
+	}
+
+	// Synchronize tracker's current stint number if session history reports a higher stint
+	if numStints > lt.currentStintNum {
+		lt.currentStintNum = numStints
+	}
+
 	for i := 0; i < numLaps; i++ {
 		lapData := p.LapHistoryData[i]
 		lapNum := i + 1
@@ -293,18 +308,42 @@ func (lt *LapTracker) ProcessSessionHistory(ctx context.Context, session *storag
 		s2 := int(lapData.Sector2TimeMSPart) + int(lapData.Sector2TimeMinutesPart)*packets.MillisPerMinute
 		s3 := int(lapData.Sector3TimeMSPart) + int(lapData.Sector3TimeMinutesPart)*packets.MillisPerMinute
 
+		// Determine stint number and visual compound from TyreStintHistoryData
+		stintNum := 1
+		compoundName := ""
+		if numStints > 0 {
+			for s := 0; s < numStints; s++ {
+				stintInfo := p.TyreStintHistoryData[s]
+				stintStartLap := 1
+				if s > 0 {
+					stintStartLap = int(p.TyreStintHistoryData[s-1].EndLap) + 1
+				}
+				stintEndLap := int(stintInfo.EndLap)
+				if stintEndLap == 255 || stintEndLap == 0 {
+					stintEndLap = packets.MaxSessionLapsSanity
+				}
+				if lapNum >= stintStartLap && lapNum <= stintEndLap {
+					stintNum = s + 1
+					compoundName = packets.VisualTyreCompoundName(stintInfo.TyreVisualCompound)
+					break
+				}
+			}
+		}
+
 		if lapTime > 0 || s1 > 0 || s2 > 0 || s3 > 0 {
 			isValid := (lapData.LapValidBitFlags & packets.LapValidBitFlag) != 0
 
 			lap := &storage.Lap{
-				SessionID: session.ID,
-				CarIndex:  lt.carIndex,
-				LapNumber: lapNum,
-				LapTimeMS: lapTime,
-				Sector1MS: s1,
-				Sector2MS: s2,
-				Sector3MS: s3,
-				IsValid:   isValid,
+				SessionID:    session.ID,
+				CarIndex:     lt.carIndex,
+				LapNumber:    lapNum,
+				LapTimeMS:    lapTime,
+				Sector1MS:    s1,
+				Sector2MS:    s2,
+				Sector3MS:    s3,
+				IsValid:      isValid,
+				Stint:        stintNum,
+				TyreCompound: compoundName,
 			}
 			_ = lt.repo.SaveLap(ctx, lap, true)
 		}

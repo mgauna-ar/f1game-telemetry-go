@@ -181,7 +181,12 @@ func (r *Repository) SaveLap(ctx context.Context, l *Lap, mergeMode bool) error 
 				sector1_ms = CASE WHEN excluded.sector1_ms > 0 THEN excluded.sector1_ms ELSE laps.sector1_ms END,
 				sector2_ms = CASE WHEN excluded.sector2_ms > 0 THEN excluded.sector2_ms ELSE laps.sector2_ms END,
 				sector3_ms = CASE WHEN excluded.sector3_ms > 0 THEN excluded.sector3_ms ELSE laps.sector3_ms END,
-				is_valid = excluded.is_valid
+				is_valid = excluded.is_valid,
+				tyre_compound = CASE WHEN excluded.tyre_compound != '' THEN excluded.tyre_compound ELSE laps.tyre_compound END,
+				stint = CASE WHEN excluded.stint > 0 THEN excluded.stint ELSE laps.stint END,
+				car_position = CASE WHEN excluded.car_position > 0 THEN excluded.car_position ELSE laps.car_position END,
+				result_status = CASE WHEN excluded.result_status > 0 THEN excluded.result_status ELSE laps.result_status END,
+				penalties_seconds = CASE WHEN excluded.penalties_seconds > 0 THEN excluded.penalties_seconds ELSE laps.penalties_seconds END
 			RETURNING id
 		`
 	} else {

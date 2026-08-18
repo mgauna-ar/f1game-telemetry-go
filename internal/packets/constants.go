@@ -71,4 +71,5 @@ const (
 	InvalidDriverID                      = 255
 	UnknownTrackID                       = -1
 	LapValidBitFlag                uint8 = 0x01
+	MaxTyreStints                        = 8
 )

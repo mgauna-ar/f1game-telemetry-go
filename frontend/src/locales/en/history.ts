@@ -88,6 +88,8 @@ export const history = {
     stagedInSlotB: 'Staged in Slot B (Click to unstage)',
     stageLapInSlotA: 'Stage Lap {lap} into Lap Comparator Slot A',
     stageLapInSlotB: 'Stage Lap {lap} into Lap Comparator Slot B',
+    stintShort: 'S{number}',
+    stintTooltip: 'Stint {number}',
     headers: {
       pos: 'POS',
       driver: 'DRIVER',

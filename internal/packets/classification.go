@@ -8,21 +8,21 @@ import (
 
 // FinalClassificationData contains final classification data for a single car.
 type FinalClassificationData struct {
-	Position          uint8    `json:"Position"`
-	NumLaps           uint8    `json:"NumLaps"`
-	GridPosition      uint8    `json:"GridPosition"`
-	Points            uint8    `json:"Points"`
-	NumPitStops       uint8    `json:"NumPitStops"`
-	ResultStatus      uint8    `json:"ResultStatus"`
-	ResultReason      uint8    `json:"ResultReason"`
-	BestLapTimeInMS   uint32   `json:"BestLapTimeInMS"`
-	TotalRaceTime     float64  `json:"TotalRaceTime"`
-	PenaltiesTime     uint8    `json:"PenaltiesTime"`
-	NumPenalties      uint8    `json:"NumPenalties"`
-	NumTyreStints     uint8    `json:"NumTyreStints"`
-	TyreStintsActual  [8]uint8 `json:"TyreStintsActual"`
-	TyreStintsVisual  [8]uint8 `json:"TyreStintsVisual"`
-	TyreStintsEndLaps [8]uint8 `json:"TyreStintsEndLaps"`
+	Position          uint8                `json:"Position"`
+	NumLaps           uint8                `json:"NumLaps"`
+	GridPosition      uint8                `json:"GridPosition"`
+	Points            uint8                `json:"Points"`
+	NumPitStops       uint8                `json:"NumPitStops"`
+	ResultStatus      uint8                `json:"ResultStatus"`
+	ResultReason      uint8                `json:"ResultReason"`
+	BestLapTimeInMS   uint32               `json:"BestLapTimeInMS"`
+	TotalRaceTime     float64              `json:"TotalRaceTime"`
+	PenaltiesTime     uint8                `json:"PenaltiesTime"`
+	NumPenalties      uint8                `json:"NumPenalties"`
+	NumTyreStints     uint8                `json:"NumTyreStints"`
+	TyreStintsActual  [MaxTyreStints]uint8 `json:"TyreStintsActual"`
+	TyreStintsVisual  [MaxTyreStints]uint8 `json:"TyreStintsVisual"`
+	TyreStintsEndLaps [MaxTyreStints]uint8 `json:"TyreStintsEndLaps"`
 }
 
 // PacketFinalClassificationData contains final classification for all cars. Packet ID: 8.

@@ -582,7 +582,26 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                                             {lap.max_speed_kmh ? `${lap.max_speed_kmh.toFixed(1)} km/h` : '-'}
                                           </td>
                                           <td style={{ padding: '6px 8px' }}>
-                                            {renderTyreBadge(lap.tyre_compound)}
+                                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                                              {renderTyreBadge(lap.tyre_compound)}
+                                              {lap.stint && lap.stint > 0 && (
+                                                <span
+                                                  className="mono"
+                                                  style={{
+                                                    fontSize: '0.68rem',
+                                                    color: 'var(--text-secondary)',
+                                                    background: 'rgba(255, 255, 255, 0.05)',
+                                                    padding: '1px 4px',
+                                                    borderRadius: '3px',
+                                                    border: '1px solid var(--border-color)',
+                                                    fontWeight: 600,
+                                                  }}
+                                                  title={t('history.classification.stintTooltip', { number: lap.stint })}
+                                                >
+                                                  {t('history.classification.stintShort', { number: lap.stint })}
+                                                </span>
+                                              )}
+                                            </div>
                                           </td>
                                           <td style={{ padding: '6px 8px' }}>
                                             <span className={`session-badge ${lap.is_valid ? 'badge-green' : 'badge-red'}`} style={{ fontSize: '0.65rem' }}>

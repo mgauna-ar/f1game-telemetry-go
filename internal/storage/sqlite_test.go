@@ -935,3 +935,54 @@ func TestLapHasTelemetry(t *testing.T) {
 		t.Errorf("GetLapByID lap2 expected has_telemetry=false sample_count=0, got %v, %d", single2.HasTelemetry, single2.SampleCount)
 	}
 }
+
+func TestSaveLapMergeModeStintAndCompound(t *testing.T) {
+	repo := setupTestRepo(t)
+	session := createTestSession(t, repo)
+	ctx := context.Background()
+
+	// 1. Initial live lap record (default stint 1, SOFT)
+	lap := &Lap{
+		SessionID:    session.ID,
+		CarIndex:     0,
+		LapNumber:    3,
+		LapTimeMS:    78000,
+		Sector1MS:    25000,
+		Sector2MS:    26000,
+		Sector3MS:    27000,
+		IsValid:      true,
+		TyreCompound: "SOFT",
+		Stint:        1,
+	}
+	if err := repo.SaveLap(ctx, lap, false); err != nil {
+		t.Fatalf("SaveLap failed: %v", err)
+	}
+
+	// 2. MergeMode update from SessionHistory with Stint 2 (SOFT)
+	historyLap := &Lap{
+		SessionID:    session.ID,
+		CarIndex:     0,
+		LapNumber:    3,
+		LapTimeMS:    78000,
+		Sector1MS:    25000,
+		Sector2MS:    26000,
+		Sector3MS:    27000,
+		IsValid:      true,
+		TyreCompound: "SOFT",
+		Stint:        2,
+	}
+	if err := repo.SaveLap(ctx, historyLap, true); err != nil {
+		t.Fatalf("SaveLap mergeMode failed: %v", err)
+	}
+
+	updated, err := repo.GetLapByID(ctx, lap.ID)
+	if err != nil {
+		t.Fatalf("GetLapByID failed: %v", err)
+	}
+	if updated.Stint != 2 {
+		t.Errorf("expected Stint 2 after mergeMode update, got %d", updated.Stint)
+	}
+	if updated.TyreCompound != "SOFT" {
+		t.Errorf("expected TyreCompound SOFT, got %s", updated.TyreCompound)
+	}
+}

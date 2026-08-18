@@ -88,6 +88,8 @@ export const history = {
     stagedInSlotB: 'Cargada en Slot B (Clic para quitar)',
     stageLapInSlotA: 'Cargar Vuelta {lap} en Slot A del Comparador',
     stageLapInSlotB: 'Cargar Vuelta {lap} en Slot B del Comparador',
+    stintShort: 'S{number}',
+    stintTooltip: 'Stint {number}',
     headers: {
       pos: 'POS',
       driver: 'PILOTO',

@@ -110,6 +110,8 @@ func (sm *SessionManager) ProcessPacket(ctx context.Context, pkt packets.Packet)
 		if tracker, ok := sm.lapTrackers[int(p.CarIdx)]; ok {
 			tracker.ProcessSessionHistory(ctx, sm.currentSession, p)
 		}
+	case *packets.PacketFinalClassificationData:
+		sm.handleFinalClassification(ctx, p)
 	}
 }
 
@@ -228,5 +230,57 @@ func (sm *SessionManager) handleParticipantsData(ctx context.Context, p *packets
 
 	if err := sm.repo.SaveParticipants(ctx, sm.currentSession.ID, participants); err != nil {
 		log.Printf("[Session] Error saving participants: %v", err)
+	}
+}
+
+func (sm *SessionManager) handleFinalClassification(ctx context.Context, p *packets.PacketFinalClassificationData) {
+	if sm.currentSession == nil || p == nil {
+		return
+	}
+
+	maxCars := packets.MaxCarsForFormat(p.Header.PacketFormat)
+	if maxCars <= 0 || maxCars > packets.MaxCars {
+		maxCars = packets.MaxCars
+	}
+
+	for i := 0; i < maxCars && i < int(p.NumCars) && i < len(p.ClassificationData); i++ {
+		cls := p.ClassificationData[i]
+		if cls.NumLaps == 0 && cls.ResultStatus == packets.ResultStatusInactive {
+			continue
+		}
+
+		numStints := int(cls.NumTyreStints)
+		if numStints > packets.MaxTyreStints {
+			numStints = packets.MaxTyreStints
+		}
+
+		if numStints > 0 {
+			for s := 0; s < numStints; s++ {
+				stintNum := s + 1
+				stintStartLap := 1
+				if s > 0 {
+					stintStartLap = int(cls.TyreStintsEndLaps[s-1]) + 1
+				}
+				stintEndLap := int(cls.TyreStintsEndLaps[s])
+				if stintEndLap == 255 || stintEndLap == 0 {
+					stintEndLap = packets.MaxSessionLapsSanity
+				}
+				compName := packets.VisualTyreCompoundName(cls.TyreStintsVisual[s])
+
+				for lapNum := stintStartLap; lapNum <= stintEndLap && lapNum <= int(cls.NumLaps); lapNum++ {
+					lap := &storage.Lap{
+						SessionID:        sm.currentSession.ID,
+						CarIndex:         i,
+						LapNumber:        lapNum,
+						Stint:            stintNum,
+						TyreCompound:     compName,
+						CarPosition:      int(cls.Position),
+						ResultStatus:     int(cls.ResultStatus),
+						PenaltiesSeconds: int(cls.PenaltiesTime),
+					}
+					_ = sm.repo.SaveLap(ctx, lap, true)
+				}
+			}
+		}
 	}
 }

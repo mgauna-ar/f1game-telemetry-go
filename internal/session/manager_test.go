@@ -502,3 +502,252 @@ func TestSessionManagerDriverRetirement(t *testing.T) {
 		t.Errorf("expected Car 2 lap time 76000 ms, got %d", lapsCar2[0].LapTimeMS)
 	}
 }
+
+func TestQualyMultiStintSameCompoundDetection(t *testing.T) {
+	ctx := context.Background()
+	repo, err := storage.NewRepository(":memory:")
+	if err != nil {
+		t.Fatalf("failed to create repo: %v", err)
+	}
+	defer repo.Close()
+
+	manager := NewSessionManager(repo)
+	manager.Start(ctx)
+	defer manager.Close(ctx)
+
+	sessionHeader := packets.PacketHeader{
+		PacketFormat:   2026,
+		PacketId:       packets.PacketIDSession,
+		SessionUID:     888777666,
+		PlayerCarIndex: 0,
+	}
+
+	sessionPacket := &packets.PacketSessionData{
+		Header:      sessionHeader,
+		TrackId:     1,
+		SessionType: packets.SessionQ1,
+	}
+	manager.ProcessPacket(ctx, sessionPacket)
+
+	lapHeader := sessionHeader
+	lapHeader.PacketId = packets.PacketIDLapData
+	statusHeader := sessionHeader
+	statusHeader.PacketId = packets.PacketIDCarStatus
+
+	// --- Stint 1 (Softs): Lap 1 (Outlap) & Lap 2 (Flying lap) ---
+	lapPkt := &packets.PacketLapData{Header: lapHeader}
+	lapPkt.LapData[0].CurrentLapNum = 1
+	lapPkt.LapData[0].ResultStatus = packets.ResultStatusActive
+	manager.ProcessPacket(ctx, lapPkt)
+
+	statusPkt := &packets.PacketCarStatusData{Header: statusHeader}
+	statusPkt.CarStatusData[0].VisualTyreCompound = packets.CompoundSoft
+	statusPkt.CarStatusData[0].TyresAgeLaps = 0 // New softs
+	manager.ProcessPacket(ctx, statusPkt)
+
+	if manager.lapTrackers[0].currentStintNum != 1 {
+		t.Fatalf("expected stint 1 for lap 1, got %d", manager.lapTrackers[0].currentStintNum)
+	}
+
+	// Flying lap (Lap 2) with tyre age 1
+	lapPkt.LapData[0].CurrentLapNum = 2
+	lapPkt.LapData[0].LastLapTimeInMS = 77419
+	manager.ProcessPacket(ctx, lapPkt)
+
+	statusPkt.CarStatusData[0].TyresAgeLaps = 1
+	manager.ProcessPacket(ctx, statusPkt)
+
+	if manager.lapTrackers[0].currentStintNum != 1 {
+		t.Fatalf("expected stint 1 for lap 2, got %d", manager.lapTrackers[0].currentStintNum)
+	}
+
+	// --- Stint 2 (Softs): Return to garage, new Soft tyre set (tyreAge drops from 1 to 0) ---
+	lapPkt.LapData[0].CurrentLapNum = 3
+	lapPkt.LapData[0].LastLapTimeInMS = 77388
+	manager.ProcessPacket(ctx, lapPkt)
+
+	statusPkt.CarStatusData[0].TyresAgeLaps = 0 // Fresh soft tyre set fitted
+	manager.ProcessPacket(ctx, statusPkt)
+
+	if manager.lapTrackers[0].currentStintNum != 2 {
+		t.Fatalf("expected stint 2 after new soft set in garage, got %d", manager.lapTrackers[0].currentStintNum)
+	}
+
+	// --- Stint 3 (Softs): Another run on new Soft tyre set ---
+	statusPkt.CarStatusData[0].TyresAgeLaps = 1
+	manager.ProcessPacket(ctx, statusPkt)
+
+	lapPkt.LapData[0].CurrentLapNum = 4
+	lapPkt.LapData[0].LastLapTimeInMS = 98891
+	manager.ProcessPacket(ctx, lapPkt)
+
+	statusPkt.CarStatusData[0].TyresAgeLaps = 0 // 3rd fresh soft tyre set fitted
+	manager.ProcessPacket(ctx, statusPkt)
+
+	if manager.lapTrackers[0].currentStintNum != 3 {
+		t.Fatalf("expected stint 3 after 3rd soft set in garage, got %d", manager.lapTrackers[0].currentStintNum)
+	}
+}
+
+func TestSessionHistoryStintParsingAndStorage(t *testing.T) {
+	ctx := context.Background()
+	repo, err := storage.NewRepository(":memory:")
+	if err != nil {
+		t.Fatalf("failed to create repo: %v", err)
+	}
+	defer repo.Close()
+
+	manager := NewSessionManager(repo)
+	manager.Start(ctx)
+	defer manager.Close(ctx)
+
+	sessionHeader := packets.PacketHeader{
+		PacketFormat:   2026,
+		PacketId:       packets.PacketIDSession,
+		SessionUID:     999111222,
+		PlayerCarIndex: 0,
+	}
+
+	sessionPacket := &packets.PacketSessionData{
+		Header:      sessionHeader,
+		TrackId:     1,
+		SessionType: packets.SessionQ1,
+	}
+	manager.ProcessPacket(ctx, sessionPacket)
+
+	// Simulate initial lap tracker creation for Car 0
+	lapHeader := sessionHeader
+	lapHeader.PacketId = packets.PacketIDLapData
+	lapPkt := &packets.PacketLapData{Header: lapHeader}
+	lapPkt.LapData[0].CurrentLapNum = 1
+	lapPkt.LapData[0].ResultStatus = packets.ResultStatusActive
+	manager.ProcessPacket(ctx, lapPkt)
+
+	// Build PacketSessionHistoryData with 4 laps and 3 tyre stints (all Soft)
+	historyHeader := sessionHeader
+	historyHeader.PacketId = packets.PacketIDSessionHistory
+	historyPkt := &packets.PacketSessionHistoryData{
+		Header:        historyHeader,
+		CarIdx:        0,
+		NumLaps:       4,
+		NumTyreStints: 3,
+	}
+
+	// Laps 1 and 2 in Stint 1 (EndLap: 2)
+	historyPkt.TyreStintHistoryData[0] = packets.TyreStintHistoryData{
+		EndLap:             2,
+		TyreActualCompound: packets.ActualCompoundC5,
+		TyreVisualCompound: packets.CompoundSoft,
+	}
+	// Lap 3 in Stint 2 (EndLap: 3)
+	historyPkt.TyreStintHistoryData[1] = packets.TyreStintHistoryData{
+		EndLap:             3,
+		TyreActualCompound: packets.ActualCompoundC5,
+		TyreVisualCompound: packets.CompoundSoft,
+	}
+	// Lap 4 in Stint 3 (EndLap: 255)
+	historyPkt.TyreStintHistoryData[2] = packets.TyreStintHistoryData{
+		EndLap:             255,
+		TyreActualCompound: packets.ActualCompoundC5,
+		TyreVisualCompound: packets.CompoundSoft,
+	}
+
+	// Timing for the 4 laps
+	historyPkt.LapHistoryData[0] = packets.LapHistoryData{LapTimeInMS: 77419, Sector1TimeMSPart: 25309, Sector2TimeMSPart: 26774, Sector3TimeMSPart: 25335, LapValidBitFlags: 1}
+	historyPkt.LapHistoryData[1] = packets.LapHistoryData{LapTimeInMS: 77388, Sector1TimeMSPart: 24819, Sector2TimeMSPart: 26688, Sector3TimeMSPart: 25879, LapValidBitFlags: 1}
+	historyPkt.LapHistoryData[2] = packets.LapHistoryData{LapTimeInMS: 98891, Sector1TimeMSPart: 32021, Sector2TimeMSPart: 37853, Sector3TimeMSPart: 29016, LapValidBitFlags: 1}
+	historyPkt.LapHistoryData[3] = packets.LapHistoryData{LapTimeInMS: 98891, Sector1TimeMSPart: 24767, Sector2TimeMSPart: 26678, Sector3TimeMSPart: 47446, LapValidBitFlags: 1}
+
+	manager.ProcessPacket(ctx, historyPkt)
+
+	// Verify all 4 laps in DB have the correct stint and tyre compound
+	carIdx := 0
+	laps, err := repo.GetLapsBySession(ctx, manager.currentSession.ID, &carIdx)
+	if err != nil {
+		t.Fatalf("GetLapsBySession error: %v", err)
+	}
+	if len(laps) != 4 {
+		t.Fatalf("expected 4 laps in DB, got %d", len(laps))
+	}
+
+	expectedStints := []int{1, 1, 2, 3}
+	for i, lap := range laps {
+		if lap.Stint != expectedStints[i] {
+			t.Errorf("Lap %d expected Stint %d, got %d", lap.LapNumber, expectedStints[i], lap.Stint)
+		}
+		if lap.TyreCompound != "SOFT" {
+			t.Errorf("Lap %d expected TyreCompound SOFT, got %s", lap.LapNumber, lap.TyreCompound)
+		}
+	}
+}
+
+func TestFinalClassificationStintConsolidation(t *testing.T) {
+	ctx := context.Background()
+	repo, err := storage.NewRepository(":memory:")
+	if err != nil {
+		t.Fatalf("failed to create repo: %v", err)
+	}
+	defer repo.Close()
+
+	manager := NewSessionManager(repo)
+	manager.Start(ctx)
+	defer manager.Close(ctx)
+
+	sessionHeader := packets.PacketHeader{
+		PacketFormat:   2026,
+		PacketId:       packets.PacketIDSession,
+		SessionUID:     333444555,
+		PlayerCarIndex: 0,
+	}
+
+	sessionPacket := &packets.PacketSessionData{
+		Header:      sessionHeader,
+		TrackId:     1,
+		SessionType: packets.SessionRace,
+	}
+	manager.ProcessPacket(ctx, sessionPacket)
+
+	// Pre-create 3 laps for Car 0
+	_ = repo.SaveLap(ctx, &storage.Lap{SessionID: manager.currentSession.ID, CarIndex: 0, LapNumber: 1, LapTimeMS: 80000, Stint: 1}, false)
+	_ = repo.SaveLap(ctx, &storage.Lap{SessionID: manager.currentSession.ID, CarIndex: 0, LapNumber: 2, LapTimeMS: 81000, Stint: 1}, false)
+	_ = repo.SaveLap(ctx, &storage.Lap{SessionID: manager.currentSession.ID, CarIndex: 0, LapNumber: 3, LapTimeMS: 82000, Stint: 1}, false)
+
+	clsHeader := sessionHeader
+	clsHeader.PacketId = packets.PacketIDFinalClassification
+	clsPkt := &packets.PacketFinalClassificationData{
+		Header:  clsHeader,
+		NumCars: 1,
+	}
+	clsPkt.ClassificationData[0] = packets.FinalClassificationData{
+		Position:          1,
+		NumLaps:           3,
+		ResultStatus:      packets.ResultStatusFinished,
+		NumTyreStints:     2,
+		TyreStintsVisual:  [packets.MaxTyreStints]uint8{packets.CompoundSoft, packets.CompoundHard},
+		TyreStintsEndLaps: [packets.MaxTyreStints]uint8{2, 3},
+	}
+
+	manager.ProcessPacket(ctx, clsPkt)
+
+	carIdx := 0
+	laps, err := repo.GetLapsBySession(ctx, manager.currentSession.ID, &carIdx)
+	if err != nil {
+		t.Fatalf("GetLapsBySession error: %v", err)
+	}
+
+	if len(laps) != 3 {
+		t.Fatalf("expected 3 laps, got %d", len(laps))
+	}
+	if laps[0].Stint != 1 || laps[0].TyreCompound != "SOFT" {
+		t.Errorf("Lap 1 expected Stint 1 SOFT, got %d %s", laps[0].Stint, laps[0].TyreCompound)
+	}
+	if laps[1].Stint != 1 || laps[1].TyreCompound != "SOFT" {
+		t.Errorf("Lap 2 expected Stint 1 SOFT, got %d %s", laps[1].Stint, laps[1].TyreCompound)
+	}
+	if laps[2].Stint != 2 || laps[2].TyreCompound != "HARD" {
+		t.Errorf("Lap 3 expected Stint 2 HARD, got %d %s", laps[2].Stint, laps[2].TyreCompound)
+	}
+	if laps[2].ResultStatus != int(packets.ResultStatusFinished) {
+		t.Errorf("Lap 3 expected ResultStatus Finished, got %d", laps[2].ResultStatus)
+	}
+}

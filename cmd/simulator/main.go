@@ -564,6 +564,37 @@ func main() {
 				}
 				sendCarDamagePacket(conn, header, totalSlots, damageCars)
 			}
+
+			// 7. Session History Packet (ID: 11) - sent every 100 frames (~5s) for active cars
+			if frameID%100 == 0 {
+				compounds := []uint8{16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18}
+				for carIdx := 0; carIdx < numActiveCars && carIdx < 5; carIdx++ {
+					histHeader := header
+					histHeader.PacketId = packets.PacketIDSessionHistory
+					histPkt := &packets.PacketSessionHistoryData{
+						Header:        histHeader,
+						CarIdx:        uint8(carIdx),
+						NumLaps:       lapNum,
+						NumTyreStints: 1,
+					}
+					histPkt.TyreStintHistoryData[0] = packets.TyreStintHistoryData{
+						EndLap:             255,
+						TyreVisualCompound: compounds[carIdx%len(compounds)],
+					}
+					if lapNum > 1 {
+						for l := uint8(1); l < lapNum; l++ {
+							histPkt.LapHistoryData[l-1] = packets.LapHistoryData{
+								LapTimeInMS:       uint32(85432 + carIdx*220),
+								Sector1TimeMSPart: uint16(28120 + carIdx*100),
+								Sector2TimeMSPart: uint16(31450 + carIdx*90),
+								Sector3TimeMSPart: uint16(25862 + carIdx*30),
+								LapValidBitFlags:  1,
+							}
+						}
+					}
+					sendSessionHistoryPacket(conn, histPkt)
+				}
+			}
 		}
 	}
 }
@@ -905,6 +936,20 @@ func sendCarDamagePacket(conn *net.UDPConn, header packets.PacketHeader, numCars
 	for i := 0; i < numCars; i++ {
 		_ = binary.Write(&buf, binary.LittleEndian, damage[i])
 	}
+	_, _ = conn.Write(buf.Bytes())
+}
+
+func sendSessionHistoryPacket(conn *net.UDPConn, pkt *packets.PacketSessionHistoryData) {
+	var buf bytes.Buffer
+	pkt.Header.PacketId = packets.PacketIDSessionHistory
+	_ = binary.Write(&buf, binary.LittleEndian, pkt)
+	_, _ = conn.Write(buf.Bytes())
+}
+
+func sendFinalClassificationPacket(conn *net.UDPConn, pkt *packets.PacketFinalClassificationData) {
+	var buf bytes.Buffer
+	pkt.Header.PacketId = packets.PacketIDFinalClassification
+	_ = binary.Write(&buf, binary.LittleEndian, pkt)
 	_, _ = conn.Write(buf.Bytes())
 }
 
