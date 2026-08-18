@@ -10,4 +10,7 @@ export const nav = {
   liveBadge: 'LIVE',
   portBadge: 'PORT',
   language: 'Language',
+  updateAvailable: 'Update Available',
+  whatsNew: "What's New",
+  checkUpdates: 'Check for Updates',
 };

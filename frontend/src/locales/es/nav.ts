@@ -10,4 +10,7 @@ export const nav = {
   liveBadge: 'EN VIVO',
   portBadge: 'PUERTO',
   language: 'Idioma',
+  updateAvailable: 'Actualización Disponible',
+  whatsNew: 'Novedades',
+  checkUpdates: 'Buscar Actualizaciones',
 };

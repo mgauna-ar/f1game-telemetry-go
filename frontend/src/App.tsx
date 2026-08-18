@@ -1,19 +1,22 @@
-import { useState, useEffect } from 'react';
-import { Calendar, GitCompare, Radio } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Calendar, GitCompare, Radio, Sparkles } from 'lucide-react';
 import { F1TelemetryLogo } from './components/F1TelemetryLogo';
 import { Dashboard } from './components/Dashboard';
 import { LapComparator } from './components/LapComparator';
 import { SessionHistory } from './components/SessionHistory';
+import { ReleaseNotesModal } from './components/ReleaseNotesModal';
 import { RaceEngineerProvider } from './context/RaceEngineerProvider';
 import { useRaceEngineer } from './context/RaceEngineerContext';
 import { I18nProvider } from './context/I18nProvider';
 import { useI18n } from './context/I18nContext';
 import { AiRaceEngineer } from './components/AiRaceEngineer';
 import { LanguageSelector } from './components/LanguageSelector';
+import type { UpdateCheckResponse } from './types/system';
 
 type TabType = 'history' | 'comparator' | 'live';
 
 const STORAGE_KEY = 'f1_active_tab';
+const DISMISSED_UPDATE_KEY = 'f1_telemetry_dismissed_update';
 
 function AppContent() {
   const { t } = useI18n();
@@ -30,6 +33,42 @@ function AppContent() {
   });
 
   const { setContextMode } = useRaceEngineer();
+
+  // Update checking state
+  const [updateInfo, setUpdateInfo] = useState<UpdateCheckResponse | null>(null);
+  const [isReleaseModalOpen, setIsReleaseModalOpen] = useState(false);
+  const [dismissedVersion, setDismissedVersion] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(DISMISSED_UPDATE_KEY);
+    } catch {
+      return null;
+    }
+  });
+
+  const checkUpdates = useCallback(async () => {
+    try {
+      const res = await fetch('/api/system/check-updates');
+      if (res.ok) {
+        const data: UpdateCheckResponse = await res.json();
+        setUpdateInfo(data);
+      }
+    } catch {
+      // Ignore update check failures when offline
+    }
+  }, []);
+
+  useEffect(() => {
+    checkUpdates();
+  }, [checkUpdates]);
+
+  const handleDismissVersion = (version: string) => {
+    setDismissedVersion(version);
+    try {
+      localStorage.setItem(DISMISSED_UPDATE_KEY, version);
+    } catch {
+      // Ignore
+    }
+  };
 
   const [comparatorPreload, setComparatorPreload] = useState<{
     sessionId?: number;
@@ -136,6 +175,19 @@ function AppContent() {
 
         {/* Status & Language Controls */}
         <div className="app-nav-status">
+          {updateInfo?.update_available && dismissedVersion !== updateInfo.latest_version && (
+            <button
+              type="button"
+              className={`nav-update-chip ${updateInfo.is_prerelease ? 'prerelease' : ''}`}
+              onClick={() => setIsReleaseModalOpen(true)}
+              aria-label={t('nav.updateAvailable')}
+              data-testid="nav-update-chip"
+            >
+              <Sparkles size={13} className="animate-pulse" />
+              <span>{updateInfo.latest_version || t('nav.updateAvailable')}</span>
+            </button>
+          )}
+
           <LanguageSelector />
           <span className="mono nav-port-badge">{t('nav.portBadge')} 20777</span>
         </div>
@@ -151,6 +203,14 @@ function AppContent() {
           <Dashboard />
         )}
       </main>
+
+      {/* Release Notes & Update Modal */}
+      <ReleaseNotesModal
+        isOpen={isReleaseModalOpen}
+        onClose={() => setIsReleaseModalOpen(false)}
+        updateData={updateInfo}
+        onDismissVersion={handleDismissVersion}
+      />
 
       {/* Global Persistent Floating AI Race Engineer (Non-modal bottom-right widget) */}
       <AiRaceEngineer />

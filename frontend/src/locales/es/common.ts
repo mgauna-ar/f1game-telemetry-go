@@ -97,5 +97,25 @@ export const common = {
     qa: 'Catar',
     unknown: 'Internacional / Desconocido',
   },
+  updates: {
+    title: 'Novedades',
+    subtitle: 'Notas de la versión y descargas directas',
+    updateAvailable: 'Nueva actualización disponible',
+    latestVersion: 'Versión {version}',
+    currentVersion: 'Actual: {version}',
+    publishedOn: 'Publicado el {date}',
+    prereleaseBadge: 'Beta / Preliminar',
+    stableBadge: 'Versión Estable',
+    downloadTitle: 'Descargar Paquetes de Instalación',
+    windowsPkg: 'Windows (x64 / ARM64)',
+    macPkg: 'macOS (Apple Silicon / Intel)',
+    linuxPkg: 'Linux (x64 / ARM64)',
+    checksumsPkg: 'Sumas de verificación SHA-256',
+    viewOnGitHub: 'Ver en GitHub',
+    dontRemind: 'No recordarme de nuevo para esta versión',
+    upToDateTitle: '¡Estás al día!',
+    upToDateDesc: 'Actualmente estás usando la última versión disponible ({version}).',
+  },
 };
+
 

@@ -131,12 +131,16 @@ Configure server ports or AI API keys via environment variables (or directly wit
 
 ---
 
-## 🤝 Contributing
+## 🤝 Contributing & Release Process
 
-Contributions are welcome! Please check out [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines, branch naming conventions, and development workflows.
+Contributions are welcome! Please check out:
+* **[CONTRIBUTING.md](CONTRIBUTING.md)**: Development guidelines and PR workflows.
+* **[RELEASE.md](RELEASE.md)**: Release lifecycle, SemVer rules, and automated publishing guide.
+* **[CHANGELOG.md](CHANGELOG.md)**: Full release history and notable changes.
 
 ---
 
 ## 📄 License
 
 This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+

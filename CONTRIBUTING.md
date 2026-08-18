@@ -63,6 +63,12 @@ docs(readme): update configuration section
 - Add comments for exported types and functions
 - Use meaningful variable and function names
 
+## Release Process & Changelog
+
+- Release workflows and versioning policies are detailed in [RELEASE.md](RELEASE.md).
+- Keep track of all notable changes in [CHANGELOG.md](CHANGELOG.md).
+
 ## Questions?
 
 Feel free to open an issue if you have questions or need help getting started.
+

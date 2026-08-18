@@ -118,6 +118,10 @@ func (s *Server) routes() {
 		r.Post("/ai/chat", s.handleAIChat)
 		r.Get("/ai/config-status", s.handleAIConfigStatus)
 		r.Post("/ai/models", s.handleAIFetchModels)
+
+		// System & Version Updates routes
+		r.Get("/system/version", s.handleGetSystemVersion)
+		r.Get("/system/check-updates", s.handleCheckUpdates)
 	})
 
 	// Serve static files from embedded frontend with SPA fallback

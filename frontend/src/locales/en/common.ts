@@ -97,5 +97,25 @@ export const common = {
     qa: 'Qatar',
     unknown: 'International / Unknown',
   },
+  updates: {
+    title: "What's New",
+    subtitle: 'Release Notes & Direct Downloads',
+    updateAvailable: 'New Update Available',
+    latestVersion: 'Version {version}',
+    currentVersion: 'Current: {version}',
+    publishedOn: 'Released on {date}',
+    prereleaseBadge: 'Beta / Pre-release',
+    stableBadge: 'Stable Release',
+    downloadTitle: 'Download Release Packages',
+    windowsPkg: 'Windows (x64 / ARM64)',
+    macPkg: 'macOS (Apple Silicon / Intel)',
+    linuxPkg: 'Linux (x64 / ARM64)',
+    checksumsPkg: 'SHA-256 Checksums',
+    viewOnGitHub: 'View on GitHub',
+    dontRemind: "Don't notify me again for this version",
+    upToDateTitle: 'You are up to date!',
+    upToDateDesc: 'You are currently running the latest version ({version}).',
+  },
 };
+
 

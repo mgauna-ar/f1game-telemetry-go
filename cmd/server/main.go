@@ -53,6 +53,8 @@ func main() {
 	httpAddr := *httpFlag
 	dbPath := *dbFlag
 
+	api.SetAppVersion(version, commit, date)
+
 	// Calculate display URLs
 	port := extractPort(httpAddr, "8080")
 	localURL := fmt.Sprintf("http://localhost:%s", port)
