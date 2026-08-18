@@ -5,7 +5,6 @@ import { useI18n } from '../../context/I18nContext';
 import { TagBadge } from './TagBadge';
 import { F1FormatBadge } from '../F1FormatBadge';
 import { WeatherBadgeWithForecast } from './WeatherBadgeWithForecast';
-import { formatSessionUID } from '../../utils/formatters';
 
 interface SessionCardGridProps {
   sessions: Session[];
@@ -88,8 +87,8 @@ export const SessionCardGrid: React.FC<SessionCardGridProps> = ({
                 </button>
               </div>
 
-              <div className="session-card-tagline mono">
-                UID: {formatSessionUID(session.session_uid || session.id)} • {isRace ? t('common.grandPrixRace') : t('common.timedSession')}
+              <div className="session-card-tagline">
+                {isRace ? t('common.grandPrixRace') : t('common.timedSession')}
               </div>
             </div>
 

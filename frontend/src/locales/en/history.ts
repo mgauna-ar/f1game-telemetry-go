@@ -24,7 +24,7 @@ export const history = {
   importError: 'Failed to import session package.',
   fileTypeHint: 'Accepts .f1session packages',
   detail: {
-    recordedOn: 'Recorded on {date} • UID: {uid}',
+    recordedOn: 'Recorded on {date}',
     weather: 'WEATHER',
     totalLaps: 'TOTAL LAPS',
     lapsCount: '{count} Laps',

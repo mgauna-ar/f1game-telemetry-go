@@ -24,7 +24,7 @@ export const history = {
   importError: 'Error al importar el paquete de sesión.',
   fileTypeHint: 'Acepta paquetes .f1session',
   detail: {
-    recordedOn: 'Registrado el {date} • UID: {uid}',
+    recordedOn: 'Registrado el {date}',
     weather: 'CLIMA',
     totalLaps: 'VUELTAS TOTALES',
     lapsCount: '{count} Vueltas',
