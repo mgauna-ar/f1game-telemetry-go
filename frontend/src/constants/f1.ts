@@ -273,3 +273,86 @@ export const WEATHER_TYPES: Record<number, string> = {
   [WEATHER_CODES.HEAVY_RAIN]: 'Heavy Rain',
   [WEATHER_CODES.STORM]: 'Storm',
 };
+
+export interface TrackInfo {
+  id: number;
+  name: string;
+  countryCode: string;
+  countryKey: string;
+  countryIso3: string;
+  aliases?: string[];
+}
+
+export const TRACK_METADATA: Record<number, TrackInfo> = {
+  0: { id: 0, name: 'Melbourne', countryCode: 'au', countryKey: 'au', countryIso3: 'AUS', aliases: ['albert park', 'australia'] },
+  1: { id: 1, name: 'Paul Ricard', countryCode: 'fr', countryKey: 'fr', countryIso3: 'FRA', aliases: ['le castellet', 'france'] },
+  2: { id: 2, name: 'Shanghai', countryCode: 'cn', countryKey: 'cn', countryIso3: 'CHN', aliases: ['china', 'shanghai international circuit'] },
+  3: { id: 3, name: 'Sakhir (Bahrain)', countryCode: 'bh', countryKey: 'bh', countryIso3: 'BHR', aliases: ['bahrain', 'sakhir', 'bahrain international circuit'] },
+  4: { id: 4, name: 'Catalunya', countryCode: 'es', countryKey: 'es', countryIso3: 'ESP', aliases: ['barcelona', 'spain', 'circuit de barcelona-catalunya'] },
+  5: { id: 5, name: 'Monaco', countryCode: 'mc', countryKey: 'mc', countryIso3: 'MCO', aliases: ['monte carlo', 'circuit de monaco'] },
+  6: { id: 6, name: 'Montreal', countryCode: 'ca', countryKey: 'ca', countryIso3: 'CAN', aliases: ['canada', 'gilles villeneuve', 'circuit gilles villeneuve'] },
+  7: { id: 7, name: 'Silverstone', countryCode: 'gb', countryKey: 'gb', countryIso3: 'GBR', aliases: ['great britain', 'uk', 'united kingdom'] },
+  8: { id: 8, name: 'Hockenheim', countryCode: 'de', countryKey: 'de', countryIso3: 'DEU', aliases: ['germany', 'hockenheimring'] },
+  9: { id: 9, name: 'Hungaroring', countryCode: 'hu', countryKey: 'hu', countryIso3: 'HUN', aliases: ['hungary', 'budapest'] },
+  10: { id: 10, name: 'Spa-Francorchamps', countryCode: 'be', countryKey: 'be', countryIso3: 'BEL', aliases: ['spa', 'belgium', 'circuit de spa-francorchamps'] },
+  11: { id: 11, name: 'Monza', countryCode: 'it', countryKey: 'it', countryIso3: 'ITA', aliases: ['autodromo nazionale monza', 'italy'] },
+  12: { id: 12, name: 'Singapore', countryCode: 'sg', countryKey: 'sg', countryIso3: 'SGP', aliases: ['marina bay', 'marina bay street circuit'] },
+  13: { id: 13, name: 'Suzuka', countryCode: 'jp', countryKey: 'jp', countryIso3: 'JPN', aliases: ['japan', 'suzuka international racing course'] },
+  14: { id: 14, name: 'Abu Dhabi', countryCode: 'ae', countryKey: 'ae', countryIso3: 'ARE', aliases: ['yas marina', 'uae', 'united arab emirates'] },
+  15: { id: 15, name: 'Texas (COTA)', countryCode: 'us', countryKey: 'us', countryIso3: 'USA', aliases: ['austin', 'texas', 'cota', 'circuit of the americas', 'united states', 'usa'] },
+  16: { id: 16, name: 'Interlagos', countryCode: 'br', countryKey: 'br', countryIso3: 'BRA', aliases: ['brazil', 'são paulo', 'sao paulo', 'autódromo josé carlos pace'] },
+  17: { id: 17, name: 'Red Bull Ring', countryCode: 'at', countryKey: 'at', countryIso3: 'AUT', aliases: ['austria', 'spielberg', 'österreichring'] },
+  18: { id: 18, name: 'Sochi', countryCode: 'ru', countryKey: 'ru', countryIso3: 'RUS', aliases: ['russia', 'sochi autodrom'] },
+  19: { id: 19, name: 'Mexico City', countryCode: 'mx', countryKey: 'mx', countryIso3: 'MEX', aliases: ['mexico', 'autódromo hermanos rodríguez', 'hermanos rodriguez'] },
+  20: { id: 20, name: 'Baku (Azerbaijan)', countryCode: 'az', countryKey: 'az', countryIso3: 'AZE', aliases: ['baku', 'azerbaijan', 'baku city circuit'] },
+  21: { id: 21, name: 'Sakhir Short', countryCode: 'bh', countryKey: 'bh', countryIso3: 'BHR', aliases: ['bahrain short', 'sakhir outer'] },
+  22: { id: 22, name: 'Silverstone Short', countryCode: 'gb', countryKey: 'gb', countryIso3: 'GBR', aliases: ['silverstone national'] },
+  23: { id: 23, name: 'Texas Short', countryCode: 'us', countryKey: 'us', countryIso3: 'USA', aliases: ['austin short', 'cota short'] },
+  24: { id: 24, name: 'Suzuka Short', countryCode: 'jp', countryKey: 'jp', countryIso3: 'JPN', aliases: ['suzuka east'] },
+  25: { id: 25, name: 'Hanoi', countryCode: 'vn', countryKey: 'vn', countryIso3: 'VNM', aliases: ['vietnam', 'hanoi street circuit'] },
+  26: { id: 26, name: 'Zandvoort', countryCode: 'nl', countryKey: 'nl', countryIso3: 'NLD', aliases: ['netherlands', 'dutch', 'circuit zandvoort'] },
+  27: { id: 27, name: 'Imola', countryCode: 'it', countryKey: 'it', countryIso3: 'ITA', aliases: ['emilia romagna', 'autodromo enzo e dino ferrari', 'san marino'] },
+  28: { id: 28, name: 'Portimão', countryCode: 'pt', countryKey: 'pt', countryIso3: 'PRT', aliases: ['portimao', 'portugal', 'algarve'] },
+  29: { id: 29, name: 'Jeddah', countryCode: 'sa', countryKey: 'sa', countryIso3: 'SAU', aliases: ['saudi arabia', 'jeddah cornice', 'jeddah corniche'] },
+  30: { id: 30, name: 'Miami', countryCode: 'us', countryKey: 'us', countryIso3: 'USA', aliases: ['miami international autodrome'] },
+  31: { id: 31, name: 'Las Vegas', countryCode: 'us', countryKey: 'us', countryIso3: 'USA', aliases: ['las vegas street circuit', 'vegas'] },
+  32: { id: 32, name: 'Losail', countryCode: 'qa', countryKey: 'qa', countryIso3: 'QAT', aliases: ['lusail', 'qatar', 'losail international circuit'] },
+  33: { id: 33, name: 'Lusail', countryCode: 'qa', countryKey: 'qa', countryIso3: 'QAT', aliases: ['losail', 'qatar'] },
+  39: { id: 39, name: 'Silverstone (Reverse)', countryCode: 'gb', countryKey: 'gb', countryIso3: 'GBR', aliases: ['silverstone reverse'] },
+  40: { id: 40, name: 'Austria (Reverse)', countryCode: 'at', countryKey: 'at', countryIso3: 'AUT', aliases: ['red bull ring reverse', 'austria reverse'] },
+  41: { id: 41, name: 'Zandvoort (Reverse)', countryCode: 'nl', countryKey: 'nl', countryIso3: 'NLD', aliases: ['zandvoort reverse'] },
+  42: { id: 42, name: 'Madrid', countryCode: 'es', countryKey: 'es', countryIso3: 'ESP', aliases: ['madrid circuit', 'spain madrid'] },
+};
+
+export const TRACK_NAMES: Record<number, string> = Object.fromEntries(
+  Object.entries(TRACK_METADATA).map(([id, info]) => [Number(id), info.name])
+);
+
+export const getTrackInfo = (trackIdOrName?: number | string | null): TrackInfo | null => {
+  if (trackIdOrName === undefined || trackIdOrName === null) return null;
+
+  if (typeof trackIdOrName === 'number') {
+    return TRACK_METADATA[trackIdOrName] || null;
+  }
+
+  const trimmed = trackIdOrName.trim().toLowerCase();
+  if (!trimmed) return null;
+
+  // 1. Direct name match or ID string match
+  const numericId = Number(trimmed);
+  if (!isNaN(numericId) && TRACK_METADATA[numericId]) {
+    return TRACK_METADATA[numericId];
+  }
+
+  for (const info of Object.values(TRACK_METADATA)) {
+    if (info.name.toLowerCase() === trimmed) {
+      return info;
+    }
+    if (info.aliases && info.aliases.some((a) => a.toLowerCase() === trimmed || trimmed.includes(a.toLowerCase()) || a.toLowerCase().includes(trimmed))) {
+      return info;
+    }
+  }
+
+  return null;
+};
+

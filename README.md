@@ -24,9 +24,11 @@
 * **Delta Coaching:** Instant visual gap charts and braking/apex speed difference indicators.
 
 ### 📊 Session History & League Management
-* **Data Table Explorer:** Streamlined session repository featuring sortable metadata (Date/Time, Track, Type/Format, Duration, Tags, Weather, and Actions), fast filters, and deep-dive session classification, tyre stint timelines, and lap progression charts.
+* **Data Table Explorer:** Streamlined session repository featuring sortable metadata (Date/Time, Track with High-DPI country flag badges, Type/Format, Duration, Tags, Weather, and Actions), fast filters, and deep-dive session classification, tyre stint timelines, and lap progression charts.
+* **Country Flag Visual Identity & Search:** Crisp vector SVG country flags with localized hover tooltips across all views (Session History, Comparator, Live Wall, AI Engineer), with country name and ISO code search support (e.g., searching `Italy`, `ITA`, or `Monza`).
 * **Multi-Tag Organization:** Categorize sessions by league (e.g. *WOR*, *AOR*, *PSGL*), tier, or custom wet/dry setups with motorsport color chips and horizontal filter bar.
 * **Session Portability:** 1-click export and import of complete sessions via compressed `.f1session` packages.
+
 
 ### 🤖 AI Race Engineer (EN / ES)
 * **Real-Time Strategy & Post-Race Debriefs:** Streaming AI debriefs analyzing telemetry deltas, tyre degradation, braking points, and traction pickup.

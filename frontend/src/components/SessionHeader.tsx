@@ -2,24 +2,14 @@ import { Flag, CloudSun, Thermometer, ShieldAlert, Timer } from 'lucide-react';
 import type { SessionData } from '../hooks/useTelemetry';
 import { useI18n } from '../context/I18nContext';
 import { F1FormatBadge } from './F1FormatBadge';
+import { TrackFlag } from './TrackFlag';
+import { TRACK_NAMES, getTrackInfo } from '../constants/f1';
 
 interface SessionHeaderProps {
   session: SessionData | null;
   connected: boolean;
   packetFormat?: number | null;
 }
-
-const TRACK_NAMES: Record<number, string> = {
-  0: 'Melbourne', 1: 'Paul Ricard', 2: 'Shanghai', 3: 'Bahrain',
-  4: 'Catalunya', 5: 'Monaco', 6: 'Montreal', 7: 'Silverstone',
-  8: 'Hockenheim', 9: 'Hungaroring', 10: 'Spa-Francorchamps', 11: 'Monza',
-  12: 'Singapore', 13: 'Suzuka', 14: 'Abu Dhabi', 15: 'Austin',
-  16: 'Interlagos', 17: 'Red Bull Ring', 18: 'Sochi', 19: 'Mexico City',
-  20: 'Baku', 21: 'Sakhir Short', 22: 'Silverstone Short', 23: 'Austin Short',
-  24: 'Suzuka Short', 25: 'Hanoi', 26: 'Zandvoort', 27: 'Imola',
-  28: 'Portimão', 29: 'Jeddah', 30: 'Miami', 31: 'Las Vegas',
-  32: 'Losail', 33: 'Lusail',
-};
 
 const WEATHER_NAMES: Record<number, string> = {
   0: 'Clear ☀️', 1: 'Light Cloud ⛅', 2: 'Overcast ☁️',
@@ -51,7 +41,8 @@ const SESSION_TYPES: Record<number, { label: string; isRace: boolean; isQualy: b
 
 export const SessionHeader: React.FC<SessionHeaderProps> = ({ session, connected, packetFormat }) => {
   const { t } = useI18n();
-  const trackName = session?.TrackId !== undefined ? (TRACK_NAMES[session.TrackId] || `Track #${session.TrackId}`) : 'Albert Park';
+  const trackInfo = session?.TrackId !== undefined ? getTrackInfo(session.TrackId) : null;
+  const trackName = trackInfo?.name || (session?.TrackId !== undefined ? (TRACK_NAMES[session.TrackId] || `Track #${session.TrackId}`) : 'Albert Park');
   const sessionInfo = session?.SessionType !== undefined ? (SESSION_TYPES[session.SessionType] || { label: 'LIVE SESSION', isRace: false, isQualy: false }) : { label: 'LIVE SESSION', isRace: false, isQualy: false };
   const weatherText = session?.Weather !== undefined ? (WEATHER_NAMES[session.Weather] || 'Clear') : 'Clear ☀️';
   const effectiveFormat = packetFormat || session?.PacketFormat;
@@ -107,7 +98,9 @@ export const SessionHeader: React.FC<SessionHeaderProps> = ({ session, connected
       <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <TrackFlag track={session?.TrackId ?? trackName} width={26} height={18} />
             <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 800 }}>{trackName}</h1>
+
             <F1FormatBadge format={effectiveFormat} size="sm" />
             <span className={`session-badge ${getHeaderBadgeClass()}`}>
               {sessionInfo.label}

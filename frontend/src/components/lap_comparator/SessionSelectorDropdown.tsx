@@ -1,10 +1,11 @@
 import React from 'react';
-import { MapPin, Search, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, X } from 'lucide-react';
 import type { Session } from '../../types/session';
 import { getSessionBadgeClass } from '../../utils/formatters';
 import { useI18n } from '../../context/I18nContext';
 import { TagBadge } from '../session_history/TagBadge';
 import { F1FormatBadge } from '../F1FormatBadge';
+import { TrackFlag } from '../TrackFlag';
 
 interface SessionSelectorDropdownProps {
   sessions: Session[];
@@ -19,7 +20,7 @@ interface SessionSelectorDropdownProps {
   onTypeTabChange: (tab: 'ALL' | 'RACE' | 'SPRINT' | 'QUALI' | 'PRACTICE') => void;
   onSelectSession: (id: number) => void;
   slot: 'A' | 'B';
-  accentColor: string;
+  accentColor?: string;
   placeholder?: string;
   isRestrictedCircuit?: boolean;
   restrictedTrackName?: string;
@@ -37,11 +38,12 @@ export const SessionSelectorDropdown: React.FC<SessionSelectorDropdownProps> = (
   onTypeTabChange,
   onSelectSession,
   slot,
-  accentColor,
+  accentColor: _accentColor,
   placeholder = 'Select Session...',
   isRestrictedCircuit = false,
   restrictedTrackName,
 }) => {
+
   const { t } = useI18n();
 
   return (
@@ -60,7 +62,7 @@ export const SessionSelectorDropdown: React.FC<SessionSelectorDropdownProps> = (
       >
         {selectedSession ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            <MapPin size={14} color={accentColor} style={{ flexShrink: 0 }} />
+            <TrackFlag track={selectedSession.track_name} width={18} height={12} />
             <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedSession.track_name}</span>
             <F1FormatBadge format={selectedSession.packet_format} size="xs" />
             <span
@@ -83,6 +85,7 @@ export const SessionSelectorDropdown: React.FC<SessionSelectorDropdownProps> = (
         )}
       </button>
 
+
       {isOpen && (
         <div className="custom-session-popover" role="listbox">
           {/* Circuit Filter Indicator when restricted */}
@@ -96,10 +99,10 @@ export const SessionSelectorDropdown: React.FC<SessionSelectorDropdownProps> = (
                 color: '#00d2d3',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.35rem',
+                gap: '0.45rem',
               }}
             >
-              <MapPin size={12} />
+              <TrackFlag track={restrictedTrackName} width={15} height={10} />
               <span>{t('comparator.dropdown.filteredToCircuit', { track: restrictedTrackName })}</span>
             </div>
           )}
@@ -166,7 +169,10 @@ export const SessionSelectorDropdown: React.FC<SessionSelectorDropdownProps> = (
                     aria-selected={isSelected}
                   >
                     <div className="custom-session-item-header">
-                      <span className="custom-session-track">{s.track_name}</span>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        <TrackFlag track={s.track_name} width={16} height={11} />
+                        <span className="custom-session-track">{s.track_name}</span>
+                      </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <F1FormatBadge format={s.packet_format} size="xs" />
                         <span className={`session-badge ${getSessionBadgeClass(s.session_type)}`}>
@@ -174,6 +180,7 @@ export const SessionSelectorDropdown: React.FC<SessionSelectorDropdownProps> = (
                         </span>
                       </div>
                     </div>
+
                     <div className="custom-session-meta">
                       <span className="custom-session-meta-time">{new Date(s.created_at).toLocaleString()}</span>
                       {s.weather && <span className="custom-session-weather">🌦️ {s.weather}</span>}

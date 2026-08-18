@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Tag as TagIcon, X, Search, Plus, Check, Trash2 } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
 import type { Session, Tag } from '../../types/session';
+import { TrackFlag } from '../TrackFlag';
+
 
 const MOTORSPORT_COLORS = [
   { name: 'Red', hex: '#ef4444' },
@@ -125,8 +127,10 @@ export const TagManagerModal: React.FC<TagManagerModalProps> = ({
               <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700 }}>
                 {t('history.tags.manageTags')}
               </h3>
-              <p className="mono" style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                #{session.id} • {session.track_name} ({session.session_type})
+              <p className="mono" style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>#{session.id} •</span>
+                <TrackFlag track={session.track_name} width={14} height={10} />
+                <span>{session.track_name} ({session.session_type})</span>
               </p>
             </div>
           </div>

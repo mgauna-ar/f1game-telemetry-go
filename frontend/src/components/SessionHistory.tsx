@@ -28,6 +28,9 @@ import { TagManagerModal } from './session_history/TagManagerModal';
 import { TagFilterBar } from './session_history/TagFilterBar';
 import { F1FormatBadge } from './F1FormatBadge';
 import { WeatherBadgeWithForecast } from './session_history/WeatherBadgeWithForecast';
+import { TrackFlag } from './TrackFlag';
+import { getTrackInfo } from '../constants/f1';
+
 import { useRaceEngineer } from '../context/RaceEngineerContext';
 import { useI18n } from '../context/I18nContext';
 
@@ -559,13 +562,25 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
 
   // Session filtering and sorting logic
   const filteredSessions = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+
     const list = sessions.filter((s) => {
+      const trackInfo = getTrackInfo(s.track_name);
+      const localizedCountry = trackInfo ? (t as any)(`common.countries.${trackInfo.countryCode}`) : '';
+      const countryMatches = trackInfo && (
+        trackInfo.countryIso3.toLowerCase().includes(query) ||
+        trackInfo.countryCode.toLowerCase().includes(query) ||
+        (typeof localizedCountry === 'string' && localizedCountry.toLowerCase().includes(query)) ||
+        (trackInfo.aliases && trackInfo.aliases.some((a) => a.toLowerCase().includes(query)))
+      );
+
       const matchesSearch =
-        !searchQuery ||
-        s.track_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.session_type?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        String(s.id).includes(searchQuery) ||
-        (s.tags && s.tags.some((t) => t.name.toLowerCase().includes(searchQuery.toLowerCase())));
+        !query ||
+        s.track_name?.toLowerCase().includes(query) ||
+        Boolean(countryMatches) ||
+        s.session_type?.toLowerCase().includes(query) ||
+        String(s.id).includes(query) ||
+        (s.tags && s.tags.some((t) => t.name.toLowerCase().includes(query)));
 
       const matchesType =
         sessionTypeFilter === 'ALL' ||
@@ -581,6 +596,7 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
 
       return matchesSearch && matchesType && matchesCircuit && matchesTag;
     });
+
 
     list.sort((a, b) => {
       let comp = 0;
@@ -602,7 +618,8 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
     });
 
     return list;
-  }, [sessions, searchQuery, sessionTypeFilter, circuitFilter, selectedTagId, sortField, sortOrder]);
+  }, [sessions, searchQuery, sessionTypeFilter, circuitFilter, selectedTagId, sortField, sortOrder, t]);
+
 
   const isRaceSession = !!selectedSession?.session_type?.toLowerCase().includes('race');
 
@@ -1092,12 +1109,14 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
           <div className="glass-panel session-header-panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                <TrackFlag track={selectedSession.track_name} width={26} height={18} />
                 <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 800 }}>{selectedSession.track_name}</h1>
                 <F1FormatBadge format={selectedSession.packet_format} size="sm" />
                 <span className={`session-badge ${getSessionBadgeClass(selectedSession.session_type)}`}>
                   {selectedSession.session_type}
                 </span>
               </div>
+
               <p style={{ color: 'var(--text-secondary)', margin: '4px 0 0 0', fontSize: '0.85rem' }}>
                 {t('history.detail.recordedOn', { date: formatDate(selectedSession.created_at) })}
               </p>

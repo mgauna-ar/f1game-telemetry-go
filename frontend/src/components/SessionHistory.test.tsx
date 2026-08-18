@@ -87,9 +87,10 @@ describe('SessionHistory Component', () => {
     const searchInput = screen.getByPlaceholderText('Search track, session type...');
     fireEvent.change(searchInput, { target: { value: 'Monaco' } });
 
-    expect(screen.queryByRole('cell', { name: 'Silverstone' })).not.toBeInTheDocument();
-    expect(screen.getByRole('cell', { name: 'Monaco' })).toBeInTheDocument();
+    expect(screen.queryByRole('cell', { name: /Silverstone/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('cell', { name: /Monaco/i })).toBeInTheDocument();
   });
+
 
   it('selects a session and displays Classification and Driver Standings', async () => {
     const mockSessions = [

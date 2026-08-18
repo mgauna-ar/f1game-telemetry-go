@@ -4,6 +4,7 @@ import type { Session } from '../SessionHistory';
 import { useI18n } from '../../context/I18nContext';
 import { TagBadge } from './TagBadge';
 import { F1FormatBadge } from '../F1FormatBadge';
+import { TrackFlag } from '../TrackFlag';
 import { WeatherBadgeWithForecast } from './WeatherBadgeWithForecast';
 import { formatDuration } from '../../utils/formatters';
 import { TIME_CONSTANTS } from '../../constants/f1';
@@ -108,9 +109,12 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
                     </div>
                   </td>
                   <td>
-                    <span style={{ fontWeight: 700, fontSize: '1rem' }}>
-                      {session.track_name || t('common.unknownTrack')}
-                    </span>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                      <TrackFlag track={session.track_name} width={20} height={14} />
+                      <span style={{ fontWeight: 700, fontSize: '1rem' }}>
+                        {session.track_name || t('common.unknownTrack')}
+                      </span>
+                    </div>
                   </td>
                   <td>
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>

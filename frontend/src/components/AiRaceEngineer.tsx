@@ -21,6 +21,8 @@ import {
 import { useRaceEngineer, type AIConfig } from '../context/RaceEngineerContext';
 import { useI18n } from '../context/I18nContext';
 import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
+import { TrackFlag } from './TrackFlag';
+
 
 export interface AiRaceEngineerProps {
   // Optional overrides for standalone or test usage
@@ -218,6 +220,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
       return {
         label: 'Comparator',
         sub: activeComparatorContext?.track_name || 'Laps Selected',
+        track: activeComparatorContext?.track_name,
         color: '#00f2fe',
       };
     }
@@ -225,6 +228,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
       return {
         label: 'Debrief',
         sub: sessionDebriefContext.trackName,
+        track: sessionDebriefContext.trackName,
         color: '#ffd700',
       };
     }
@@ -232,15 +236,18 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
       return {
         label: 'Live Wall',
         sub: liveContext.trackName || 'Active Session',
+        track: liveContext.trackName,
         color: '#38ef7d',
       };
     }
     return {
       label: 'Standby',
       sub: 'Telemetry Ready',
+      track: null,
       color: 'var(--text-secondary)',
     };
   }, [contextMode, activeComparatorContext, hasLapsSelected, sessionDebriefContext, liveContext]);
+
 
   const renderFormattedMarkdown = (content: string) => {
     const lines = content.split('\n');
@@ -368,9 +375,11 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
                 {contextBadgeInfo.label}
               </span>
             </div>
-            <div className="ai-widget-sub mono">
-              {contextBadgeInfo.sub} • {config.model.replace('gemini-', '').replace('-latest', '')}
+            <div className="ai-widget-sub mono" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              {contextBadgeInfo.track && <TrackFlag track={contextBadgeInfo.track} width={13} height={9} />}
+              <span>{contextBadgeInfo.sub} • {config.model.replace('gemini-', '').replace('-latest', '')}</span>
             </div>
+
           </div>
         </div>
 

@@ -19,10 +19,12 @@ import type { MergedTelemetryPoint } from '../utils/deltaCalculation';
 import { buildTelemetryContext } from '../utils/aiTelemetrySummary';
 import { detectTrackTurns, getTurnContextAtDistance } from '../utils/trackTurns';
 import { ComparatorTrackMap } from './ComparatorTrackMap';
+import { TrackFlag } from './TrackFlag';
 import { useRaceEngineer } from '../context/RaceEngineerContext';
 import { useI18n } from '../context/I18nContext';
-import { ERS_MODE_NAMES, TELEMETRY_DOWNSAMPLE_LIMITS } from '../constants/f1';
+import { ERS_MODE_NAMES, TELEMETRY_DOWNSAMPLE_LIMITS, getTrackInfo } from '../constants/f1';
 import { formatTime } from '../utils/formatters';
+
 
 import { SlotCard } from './lap_comparator/SlotCard';
 import { QuickSelectLeaderboard } from './lap_comparator/QuickSelectLeaderboard';
@@ -258,13 +260,24 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
 
   // Filtered Sessions for Dropdown A
   const filteredDropdownSessionsA = useMemo(() => {
+    const query = sessionASearchQuery.trim().toLowerCase();
     return sessions.filter((s) => {
+      const trackInfo = getTrackInfo(s.track_name);
+      const localizedCountry = trackInfo ? (t as any)(`common.countries.${trackInfo.countryCode}`) : '';
+      const countryMatches = trackInfo && (
+        trackInfo.countryIso3.toLowerCase().includes(query) ||
+        trackInfo.countryCode.toLowerCase().includes(query) ||
+        (typeof localizedCountry === 'string' && localizedCountry.toLowerCase().includes(query)) ||
+        (trackInfo.aliases && trackInfo.aliases.some((a) => a.toLowerCase().includes(query)))
+      );
+
       const matchesSearch =
-        !sessionASearchQuery ||
-        s.track_name.toLowerCase().includes(sessionASearchQuery.toLowerCase()) ||
-        s.session_type.toLowerCase().includes(sessionASearchQuery.toLowerCase()) ||
-        new Date(s.created_at).toLocaleDateString().toLowerCase().includes(sessionASearchQuery.toLowerCase()) ||
-        (s.tags && s.tags.some((t) => t.name.toLowerCase().includes(sessionASearchQuery.toLowerCase())));
+        !query ||
+        s.track_name.toLowerCase().includes(query) ||
+        Boolean(countryMatches) ||
+        s.session_type.toLowerCase().includes(query) ||
+        new Date(s.created_at).toLocaleDateString().toLowerCase().includes(query) ||
+        (s.tags && s.tags.some((t) => t.name.toLowerCase().includes(query)));
 
       if (!matchesSearch) return false;
 
@@ -276,21 +289,32 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
       if (sessionATypeTab === 'PRACTICE') return lower.includes('practice') || lower.includes('fp') || lower.includes('p1') || lower.includes('p2') || lower.includes('p3');
       return true;
     });
-  }, [sessions, sessionASearchQuery, sessionATypeTab]);
+  }, [sessions, sessionASearchQuery, sessionATypeTab, t]);
 
   // Filtered Sessions for Dropdown B (Strictly restricted to same circuit as Session A)
   const filteredDropdownSessionsB = useMemo(() => {
+    const query = sessionBSearchQuery.trim().toLowerCase();
     return sessions.filter((s) => {
       if (selectedSessionAObj && s.track_name.toLowerCase() !== selectedSessionAObj.track_name.toLowerCase()) {
         return false;
       }
 
+      const trackInfo = getTrackInfo(s.track_name);
+      const localizedCountry = trackInfo ? (t as any)(`common.countries.${trackInfo.countryCode}`) : '';
+      const countryMatches = trackInfo && (
+        trackInfo.countryIso3.toLowerCase().includes(query) ||
+        trackInfo.countryCode.toLowerCase().includes(query) ||
+        (typeof localizedCountry === 'string' && localizedCountry.toLowerCase().includes(query)) ||
+        (trackInfo.aliases && trackInfo.aliases.some((a) => a.toLowerCase().includes(query)))
+      );
+
       const matchesSearch =
-        !sessionBSearchQuery ||
-        s.track_name.toLowerCase().includes(sessionBSearchQuery.toLowerCase()) ||
-        s.session_type.toLowerCase().includes(sessionBSearchQuery.toLowerCase()) ||
-        new Date(s.created_at).toLocaleDateString().toLowerCase().includes(sessionBSearchQuery.toLowerCase()) ||
-        (s.tags && s.tags.some((t) => t.name.toLowerCase().includes(sessionBSearchQuery.toLowerCase())));
+        !query ||
+        s.track_name.toLowerCase().includes(query) ||
+        Boolean(countryMatches) ||
+        s.session_type.toLowerCase().includes(query) ||
+        new Date(s.created_at).toLocaleDateString().toLowerCase().includes(query) ||
+        (s.tags && s.tags.some((t) => t.name.toLowerCase().includes(query)));
 
       if (!matchesSearch) return false;
 
@@ -302,7 +326,8 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
       if (sessionBTypeTab === 'PRACTICE') return lower.includes('practice') || lower.includes('fp') || lower.includes('p1') || lower.includes('p2') || lower.includes('p3');
       return true;
     });
-  }, [sessions, selectedSessionAObj, sessionBSearchQuery, sessionBTypeTab]);
+  }, [sessions, selectedSessionAObj, sessionBSearchQuery, sessionBTypeTab, t]);
+
 
   // Click outside & Escape key listeners for session dropdowns
   useEffect(() => {
@@ -629,7 +654,7 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
                   color: 'var(--text-primary)',
                 }}
               >
-                <MapPin size={14} color="var(--accent-primary)" />
+                <TrackFlag track={selectedSessionAObj.track_name} width={18} height={12} />
                 <span>{selectedSessionAObj.track_name}</span>
                 {!isLinkedSessions && selectedSessionBObj && selectedSessionBObj.id !== selectedSessionAObj.id && (
                   <span style={{ fontSize: '0.72rem', background: 'rgba(255, 165, 2, 0.2)', color: '#ffa502', padding: '1px 6px', borderRadius: '10px' }}>
@@ -638,6 +663,7 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
                 )}
               </div>
             )}
+
 
             {/* Session Link / Unlink Toggle Button */}
             {selectedSessionAObj && sessions.length > 1 && (
@@ -975,10 +1001,12 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
                   </h4>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     {selectedSessionAObj && (
-                      <span style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.08)', padding: '0.15rem 0.45rem', borderRadius: '4px', color: 'var(--text-secondary)' }}>
-                        {selectedSessionAObj.track_name}
+                      <span style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.08)', padding: '0.15rem 0.45rem', borderRadius: '4px', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                        <TrackFlag track={selectedSessionAObj.track_name} width={14} height={10} />
+                        <span>{selectedSessionAObj.track_name}</span>
                       </span>
                     )}
+
                     <button
                       type="button"
                       className="nav-tab active"
