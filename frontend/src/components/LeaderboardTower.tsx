@@ -1,7 +1,7 @@
 import React from 'react';
 import { Trophy, Wrench, Flame } from 'lucide-react';
 import { parseDriverName } from '../hooks/useTelemetry';
-import type { ParticipantData, LapData, CarStatusData, SessionData } from '../types/telemetry';
+import type { ParticipantData, LapData, CarStatusData, SessionData, CarTelemetry2Data } from '../types/telemetry';
 import { TEAM_COLORS, TYRE_COMPOUNDS } from '../constants/f1';
 import { useI18n } from '../context/I18nContext';
 
@@ -12,6 +12,7 @@ interface LeaderboardTowerProps {
   participants: ParticipantData[];
   laps: LapData[];
   carStatuses: CarStatusData[];
+  telemetry2List?: CarTelemetry2Data[];
   playerCarIndex: number;
   selectedCarIndex: number;
   onSelectCar: (index: number) => void;
@@ -27,6 +28,7 @@ interface ProcessedDriver {
   aiControlled: boolean;
   lap: LapData | undefined;
   carStatus: CarStatusData | undefined;
+  telemetry2: CarTelemetry2Data | undefined;
   isPlayer: boolean;
 }
 
@@ -35,6 +37,7 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
   participants = [],
   laps = [],
   carStatuses = [],
+  telemetry2List = [],
   playerCarIndex = 0,
   selectedCarIndex = 0,
   onSelectCar = () => {},
@@ -74,6 +77,7 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
     const drivers: ProcessedDriver[] = participants.map((p, idx) => {
       const lap = laps[idx];
       const carStatus = carStatuses[idx];
+      const telemetry2 = telemetry2List?.[idx];
       const rawName = p.Name;
       const defaultName = p.RaceNumber ? `Driver #${p.RaceNumber}` : `Car #${idx + 1}`;
       const name = parseDriverName(rawName, defaultName, p.DriverId);
@@ -88,12 +92,13 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
         aiControlled: p.AIControlled === 1,
         lap,
         carStatus,
+        telemetry2,
         isPlayer: idx === playerCarIndex,
       };
     });
 
     const result: ProcessedDriver[] = drivers.length > 0 ? drivers : [
-      { carIndex: 0, position: laps[0]?.CarPosition || 1, gridPosition: laps[0]?.GridPosition || 1, name: 'Player Car', raceNumber: 1, teamId: 0, aiControlled: false, lap: laps[0], carStatus: carStatuses[0], isPlayer: true }
+      { carIndex: 0, position: laps[0]?.CarPosition || 1, gridPosition: laps[0]?.GridPosition || 1, name: 'Player Car', raceNumber: 1, teamId: 0, aiControlled: false, lap: laps[0], carStatus: carStatuses[0], telemetry2: telemetry2List?.[0], isPlayer: true }
     ];
 
     // Sort drivers
@@ -283,6 +288,38 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '1px', flexWrap: 'wrap' }}>
               {getDriverStatusBadge(driver.lap?.DriverStatus, driver.lap?.PitStatus)}
               {getPenaltyBadge(driver.lap)}
+              {driver.telemetry2?.ActiveAeroMode === 1 && (
+                <span
+                  className="mono font-bold"
+                  style={{
+                    fontSize: '0.60rem',
+                    padding: '1px 4px',
+                    borderRadius: '3px',
+                    background: 'rgba(0, 242, 254, 0.2)',
+                    color: '#00f2fe',
+                    border: '1px solid rgba(0, 242, 254, 0.4)',
+                  }}
+                  title="Active Aero: Straight Mode (Low Drag)"
+                >
+                  {t('live.activeAeroStraight')}
+                </span>
+              )}
+              {driver.telemetry2?.OvertakeActive === 1 && (
+                <span
+                  className="mono font-bold"
+                  style={{
+                    fontSize: '0.60rem',
+                    padding: '1px 4px',
+                    borderRadius: '3px',
+                    background: 'rgba(255, 215, 0, 0.25)',
+                    color: '#ffd700',
+                    border: '1px solid rgba(255, 215, 0, 0.5)',
+                  }}
+                  title="Boost / Override Mode Active"
+                >
+                  {t('live.boostActive')}
+                </span>
+              )}
             </div>
           </div>
 

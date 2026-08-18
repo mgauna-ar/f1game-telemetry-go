@@ -7,9 +7,11 @@ export interface TelemetrySamplePoint {
   steer?: number;
   gear?: number;
   engine_rpm?: number;
-  drs?: boolean | number;
   ers_store_energy?: number;
   ers_deploy_mode?: number;
+  active_aero_mode?: number;
+  active_aero_available?: number;
+  overtake_active?: number;
   world_pos_x?: number;
   world_pos_y?: number;
   world_pos_z?: number;

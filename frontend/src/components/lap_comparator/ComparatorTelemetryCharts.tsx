@@ -12,7 +12,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import type { MergedTelemetryPoint } from '../../utils/deltaCalculation';
-import { ERS_MODE_NAMES } from '../../constants/f1';
+import { getErsModeName } from '../../constants/f1';
 import { useI18n } from '../../context/I18nContext';
 
 interface ComparatorTelemetryChartsProps {
@@ -20,6 +20,8 @@ interface ComparatorTelemetryChartsProps {
   comparisonData: MergedTelemetryPoint[];
   nameA: string;
   nameB: string;
+  formatA?: number | null;
+  formatB?: number | null;
   hoverDistance: number | null;
   onHoverDistanceChange: (dist: number | null) => void;
   zoomDomain: [number, number] | null;
@@ -67,6 +69,8 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
   comparisonData,
   nameA,
   nameB,
+  formatA,
+  formatB,
   hoverDistance,
   onHoverDistanceChange,
   zoomDomain,
@@ -79,6 +83,17 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
   onMouseMove,
 }) => {
   const { t } = useI18n();
+
+  const is2026 = formatA === 2026 || formatB === 2026;
+  const hasActiveAeroData =
+    is2026 ||
+    chartData.some(
+      (p) =>
+        (p.activeAeroA !== null && p.activeAeroA !== undefined) ||
+        (p.activeAeroB !== null && p.activeAeroB !== undefined) ||
+        (p.boostActiveA !== null && p.boostActiveA !== undefined) ||
+        (p.boostActiveB !== null && p.boostActiveB !== undefined)
+    );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -108,9 +123,9 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
               style={{
                 padding: '0.25rem 0.65rem',
                 borderRadius: '4px',
-                border: !zoomDomain ? '1px solid var(--accent-primary)' : '1px solid rgba(255,255,255,0.1)',
-                background: !zoomDomain ? 'rgba(255, 71, 87, 0.15)' : 'rgba(255,255,255,0.05)',
-                color: !zoomDomain ? '#ff4757' : '#ccc',
+                border: !zoomDomain ? '1px solid var(--accent-primary)' : '1px solid rgba(255,255,255,0.15)',
+                background: !zoomDomain ? 'rgba(0, 242, 254, 0.15)' : 'rgba(255,255,255,0.05)',
+                color: !zoomDomain ? 'var(--accent-primary)' : '#fff',
                 fontSize: '0.78rem',
                 fontWeight: 600,
                 cursor: 'pointer',
@@ -254,7 +269,7 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
                   <YAxis
                     stroke="#666"
                     tick={{ fill: '#999', fontSize: 11 }}
-                    domain={[0, 360]}
+                    domain={['auto', 'auto']}
                     tickFormatter={(v) => (typeof v === 'number' && Number.isFinite(v) ? `${Math.round(v)}` : '')}
                   />
                   <Tooltip
@@ -267,8 +282,8 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
                   {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
                   {hoverDistance !== null && <ReferenceLine x={hoverDistance} stroke="#ffd200" strokeWidth={2} strokeDasharray="3 3" />}
                   <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '2px' }} iconSize={10} />
-                  <Line type="monotone" dataKey="speedA" name={`${nameA} Speed (km/h)`} stroke="#ff4757" dot={false} strokeWidth={2} isAnimationActive={false} />
-                  <Line type="monotone" dataKey="speedB" name={`${nameB} Speed (km/h)`} stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={false} />
+                  <Line type="monotone" dataKey="speedA" name={`${nameA} Speed`} stroke="#ff4757" dot={false} strokeWidth={2} isAnimationActive={false} />
+                  <Line type="monotone" dataKey="speedB" name={`${nameB} Speed`} stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={false} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -276,7 +291,7 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
 
           {/* 3. INDIVIDUAL THROTTLE CHART */}
           <div className="glass-panel" style={{ height: '280px', display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#2ecc71', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#2ed573', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               🟢 {t('comparator.charts.throttle')}
             </h3>
             <div style={{ flex: 1, minHeight: 0 }}>
@@ -448,7 +463,7 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
                 🚀 {t('comparator.charts.ersDeployMode')}
               </h3>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                {t('comparator.charts.ersDeployModesSub')}
+                {is2026 ? t('comparator.charts.ersDeployModesSub2026') : t('comparator.charts.ersDeployModesSub')}
               </span>
             </div>
             <div style={{ flex: 1, minHeight: 0 }}>
@@ -461,14 +476,15 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
                     tick={{ fill: '#bd93f9', fontSize: 11 }}
                     domain={[0, 3]}
                     ticks={[0, 1, 2, 3]}
-                    tickFormatter={(v) => (typeof v === 'number' && Number.isFinite(v) ? ERS_MODE_NAMES[Math.round(v)] || `${Math.round(v)}` : '')}
+                    tickFormatter={(v) => (typeof v === 'number' && Number.isFinite(v) ? getErsModeName(Math.round(v), formatA || formatB) : '')}
                   />
                   <Tooltip
                     {...compactTooltipProps}
                     formatter={(val: any, name?: any) => {
                       if (val === null || val === undefined || !Number.isFinite(Number(val))) return ['-', String(name ?? '')];
                       const modeNum = Math.round(Number(val));
-                      return [ERS_MODE_NAMES[modeNum] || `Mode ${modeNum}`, String(name ?? '')];
+                      const fmt = String(name ?? '').includes(nameA) ? formatA : formatB;
+                      return [getErsModeName(modeNum, fmt), String(name ?? '')];
                     }}
                   />
                   {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
@@ -481,6 +497,60 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
               </ResponsiveContainer>
             </div>
           </div>
+
+          {/* 9. ACTIVE AERO & BOOST CHART (When 2026 Telemetry Present) */}
+          {hasActiveAeroData && (
+            <div className="glass-panel" style={{ height: '300px', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                <h3 style={{ margin: 0, fontSize: '1rem', color: '#00f2fe', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  🪽 {t('comparator.charts.activeAero')}
+                </h3>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  {t('comparator.charts.activeAeroSub')}
+                </span>
+              </div>
+              <div style={{ flex: 1, minHeight: 0 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData} syncId="comparatorSync" onMouseMove={onMouseMove} onMouseLeave={() => onHoverDistanceChange(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                    <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
+                    <YAxis
+                      stroke="#00f2fe"
+                      tick={{ fill: '#00f2fe', fontSize: 11 }}
+                      domain={[0, 1]}
+                      ticks={[0, 1]}
+                      tickFormatter={(v) =>
+                        v === 1 ? t('comparator.charts.activeAeroStraight') : t('comparator.charts.activeAeroCorner')
+                      }
+                    />
+                    <Tooltip
+                      {...compactTooltipProps}
+                      formatter={(val: any, name?: any) => {
+                        if (val === null || val === undefined || !Number.isFinite(Number(val))) return ['-', String(name ?? '')];
+                        const numericVal = Math.round(Number(val));
+                        const labelName = String(name ?? '');
+                        if (labelName.includes('Boost')) {
+                          return [numericVal === 1 ? 'ACTIVE' : 'OFF', labelName];
+                        }
+                        return [
+                          numericVal === 1 ? t('comparator.charts.activeAeroStraight') : t('comparator.charts.activeAeroCorner'),
+                          labelName,
+                        ];
+                      }}
+                    />
+                    {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
+                    {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
+                    {hoverDistance !== null && <ReferenceLine x={hoverDistance} stroke="#ffd200" strokeWidth={2} strokeDasharray="3 3" />}
+                    <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '2px' }} iconSize={10} />
+                    <Line type="stepAfter" dataKey="activeAeroA" name={`${nameA} Aero`} stroke="#ff4757" dot={false} strokeWidth={2} isAnimationActive={false} />
+                    <Line type="stepAfter" dataKey="activeAeroB" name={`${nameB} Aero`} stroke="#00d2d3" dot={false} strokeWidth={2} strokeDasharray="4 4" isAnimationActive={false} />
+                    <Line type="stepAfter" dataKey="boostActiveA" name={`${nameA} Boost`} stroke="#ffd700" dot={false} strokeWidth={1.5} isAnimationActive={false} />
+                    <Line type="stepAfter" dataKey="boostActiveB" name={`${nameB} Boost`} stroke="#a855f7" dot={false} strokeWidth={1.5} strokeDasharray="2 2" isAnimationActive={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center' }}>

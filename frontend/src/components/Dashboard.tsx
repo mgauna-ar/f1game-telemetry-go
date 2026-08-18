@@ -15,6 +15,7 @@ export const Dashboard: React.FC = () => {
     participants = [],
     allLaps = [],
     allCarStatus = [],
+    allTelemetry2 = [],
     events = [],
     clearEvents = () => {},
     connected = false,
@@ -78,6 +79,7 @@ export const Dashboard: React.FC = () => {
           participants={participants}
           laps={allLaps}
           carStatuses={allCarStatus}
+          telemetry2List={allTelemetry2}
           playerCarIndex={playerCarIndex}
           selectedCarIndex={selectedCarIndex}
           onSelectCar={setSelectedCarIndex}

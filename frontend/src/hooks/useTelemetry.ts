@@ -95,6 +95,11 @@ interface PacketCarDamageData {
   CarDamageData: CarDamageData[];
 }
 
+interface PacketCarTelemetry2Data {
+  Header: PacketHeader;
+  CarTelemetry2Data: import('../types/telemetry').CarTelemetry2Data[];
+}
+
 export function parseDriverName(rawName: string | number[] | undefined, defaultName: string, driverId?: number): string {
   let nameStr = '';
   if (typeof rawName === 'string') {
@@ -145,6 +150,7 @@ export function useTelemetry(wsUrl?: string) {
   const [allCarStatus, setAllCarStatus] = useState<CarStatusData[]>([]);
   const [allCarDamage, setAllCarDamage] = useState<CarDamageData[]>([]);
   const [allTelemetry, setAllTelemetry] = useState<CarTelemetryData[]>([]);
+  const [allTelemetry2, setAllTelemetry2] = useState<import('../types/telemetry').CarTelemetry2Data[]>([]);
   const [events, setEvents] = useState<RaceEvent[]>([]);
   
   const [playerCarIndex, setPlayerCarIndex] = useState<number>(0);
@@ -442,6 +448,13 @@ export function useTelemetry(wsUrl?: string) {
                 }
               }
             }
+            // PacketID 16: Car Telemetry 2 Data (Active Aero & Boost for 2026)
+            else if (header.PacketId === 16) {
+              const pkt = data as PacketCarTelemetry2Data;
+              if (pkt.CarTelemetry2Data) {
+                setAllTelemetry2(pkt.CarTelemetry2Data);
+              }
+            }
             // PacketID 2: Lap Data
             else if (header.PacketId === 2) {
               const pkt = data as PacketLapData;
@@ -538,6 +551,7 @@ export function useTelemetry(wsUrl?: string) {
   const motion = allMotion[activeIdx] || null;
   const carStatus = allCarStatus[activeIdx] || null;
   const carDamage = allCarDamage[activeIdx] || null;
+  const telemetry2 = allTelemetry2[activeIdx] || null;
 
   return {
     session,
@@ -547,7 +561,9 @@ export function useTelemetry(wsUrl?: string) {
     allCarStatus,
     allCarDamage,
     allTelemetry,
+    allTelemetry2,
     telemetry,
+    telemetry2,
     lap,
     motion,
     carStatus,

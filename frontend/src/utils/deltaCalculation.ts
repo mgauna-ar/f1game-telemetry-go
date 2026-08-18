@@ -20,6 +20,10 @@ export interface MergedTelemetryPoint {
   ersBatteryB: number | null;
   ersDeployModeA: number | null;
   ersDeployModeB: number | null;
+  activeAeroA?: number | null;
+  activeAeroB?: number | null;
+  boostActiveA?: number | null;
+  boostActiveB?: number | null;
   worldX?: number | null;
   worldZ?: number | null;
 }
@@ -403,6 +407,12 @@ export function calculateMergedComparison(
     const ersDeployModeA = normA.length > 0 ? interpolateAtDistance(normA, 'ers_deploy_mode', dist, rangeEnd) : null;
     const ersDeployModeB = normB.length > 0 ? interpolateAtDistance(normB, 'ers_deploy_mode', dist, rangeEnd) : null;
 
+    const activeAeroA = normA.length > 0 ? interpolateAtDistance(normA, 'active_aero_mode', dist, rangeEnd) : null;
+    const activeAeroB = normB.length > 0 ? interpolateAtDistance(normB, 'active_aero_mode', dist, rangeEnd) : null;
+
+    const boostActiveA = normA.length > 0 ? interpolateAtDistance(normA, 'overtake_active', dist, rangeEnd) : null;
+    const boostActiveB = normB.length > 0 ? interpolateAtDistance(normB, 'overtake_active', dist, rangeEnd) : null;
+
     // For 3D world coordinates, prefer whichever series has raw telemetry at this distance
     const hasRawA = normA.length > 0 && dist >= (normA[0].lap_distance ?? 0);
     const hasRawB = normB.length > 0 && dist >= (normB[0].lap_distance ?? 0);
@@ -444,6 +454,10 @@ export function calculateMergedComparison(
       ersBatteryB: ersBatteryB !== null && Number.isFinite(ersBatteryB) ? Math.round(ersBatteryB * 10) / 10 : null,
       ersDeployModeA: ersDeployModeA !== null && Number.isFinite(ersDeployModeA) ? Math.round(ersDeployModeA) : null,
       ersDeployModeB: ersDeployModeB !== null && Number.isFinite(ersDeployModeB) ? Math.round(ersDeployModeB) : null,
+      activeAeroA: activeAeroA !== null && Number.isFinite(activeAeroA) ? Math.round(activeAeroA) : null,
+      activeAeroB: activeAeroB !== null && Number.isFinite(activeAeroB) ? Math.round(activeAeroB) : null,
+      boostActiveA: boostActiveA !== null && Number.isFinite(boostActiveA) ? Math.round(boostActiveA) : null,
+      boostActiveB: boostActiveB !== null && Number.isFinite(boostActiveB) ? Math.round(boostActiveB) : null,
       worldX: worldX !== null && Number.isFinite(worldX) ? worldX : undefined,
       worldZ: worldZ !== null && Number.isFinite(worldZ) ? worldZ : undefined,
     });

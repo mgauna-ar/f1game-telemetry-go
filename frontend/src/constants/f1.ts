@@ -45,6 +45,13 @@ export const ERS_MODE_NAMES: Record<number, string> = {
   3: 'Boost',
 };
 
+export const getErsModeName = (mode: number, format?: number | null): string => {
+  if (mode === 3) {
+    return format === 2025 ? 'Overtake' : 'Boost';
+  }
+  return ERS_MODE_NAMES[mode] || `Mode ${mode}`;
+};
+
 export const F1_DRIVER_NAMES: Record<number, string> = {
   0: 'Carlos Sainz',
   2: 'Daniel Ricciardo',
