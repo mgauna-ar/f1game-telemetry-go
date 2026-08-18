@@ -11,7 +11,7 @@ describe('SessionHistory Component', () => {
     vi.restoreAllMocks();
   });
 
-  it('fetches and renders historical sessions and KPI bar on mount', async () => {
+  it('fetches and renders historical sessions and data table on mount', async () => {
     const mockSessions = [
       {
         id: 1,
@@ -19,6 +19,8 @@ describe('SessionHistory Component', () => {
         track_name: 'Silverstone',
         session_type: 'Race',
         weather: 'Clear ☀️',
+        total_laps: 52,
+        session_duration: 5400,
         created_at: '2026-08-10T14:00:00Z',
       },
       {
@@ -27,6 +29,8 @@ describe('SessionHistory Component', () => {
         track_name: 'Spa-Francorchamps',
         session_type: 'Qualifying',
         weather: 'Light Rain 🌧️',
+        total_laps: 15,
+        session_duration: 3600,
         created_at: '2026-08-10T16:00:00Z',
       },
     ];
@@ -44,18 +48,21 @@ describe('SessionHistory Component', () => {
     render(<SessionHistory />);
 
     expect(screen.getByText('Session Explorer')).toBeInTheDocument();
-    expect(screen.getByText('TOTAL SESSIONS')).toBeInTheDocument();
 
     await waitFor(() => {
+      expect(screen.getByText('Date & Time')).toBeInTheDocument();
+      expect(screen.getByText('Track Name')).toBeInTheDocument();
+      expect(screen.getByText('Duration')).toBeInTheDocument();
       expect(screen.getAllByText('Silverstone').length).toBeGreaterThan(0);
       expect(screen.getAllByText('Spa-Francorchamps').length).toBeGreaterThan(0);
+      expect(screen.getByText('1:30:00')).toBeInTheDocument();
     });
   });
 
-  it('filters sessions by search query input and toggles table view', async () => {
+  it('filters sessions by search query input and supports column sorting', async () => {
     const mockSessions = [
-      { id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' },
-      { id: 2, session_uid: '1002', track_name: 'Monaco', session_type: 'Qualifying', weather: 'Clear', created_at: '2026-08-10T16:00:00Z' },
+      { id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', total_laps: 52, session_duration: 5400, created_at: '2026-08-10T14:00:00Z' },
+      { id: 2, session_uid: '1002', track_name: 'Monaco', session_type: 'Qualifying', weather: 'Clear', total_laps: 20, session_duration: 3600, created_at: '2026-08-10T16:00:00Z' },
     ];
 
     globalThis.fetch = vi.fn().mockImplementation((url: string) => {
@@ -72,9 +79,9 @@ describe('SessionHistory Component', () => {
       expect(screen.getAllByText('Monaco').length).toBeGreaterThan(0);
     });
 
-    // Toggle Table View
-    const tableViewBtn = screen.getByTitle('Data Table View');
-    fireEvent.click(tableViewBtn);
+    // Test sort by track name
+    const trackHeader = screen.getByText('Track Name');
+    fireEvent.click(trackHeader);
 
     // Type "Monaco" in search box
     const searchInput = screen.getByPlaceholderText('Search track, session type...');
@@ -118,7 +125,7 @@ describe('SessionHistory Component', () => {
     });
 
     // Click explore on session
-    const exploreBtn = screen.getByRole('button', { name: /Explore Session/i });
+    const exploreBtn = screen.getByRole('button', { name: /^Explore$/i });
     fireEvent.click(exploreBtn);
 
     // Verify detail header & standings table
@@ -168,7 +175,7 @@ describe('SessionHistory Component', () => {
       expect(screen.getAllByText('Silverstone').length).toBeGreaterThan(0);
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Explore Session/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Explore$/i }));
 
     await waitFor(() => {
       expect(screen.getAllByText('Lewis Hamilton').length).toBeGreaterThan(0);
@@ -226,7 +233,7 @@ describe('SessionHistory Component', () => {
       expect(screen.getAllByText('Silverstone').length).toBeGreaterThan(0);
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Explore Session/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Explore$/i }));
 
     await waitFor(() => {
       expect(screen.getAllByText('Lewis Hamilton').length).toBeGreaterThan(0);
@@ -296,7 +303,7 @@ describe('SessionHistory Component', () => {
       expect(screen.getAllByText('Silverstone').length).toBeGreaterThan(0);
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Explore Session/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Explore$/i }));
 
     await waitFor(() => {
       expect(screen.getByText('Classification & Laps')).toBeInTheDocument();
@@ -351,7 +358,7 @@ describe('SessionHistory Component', () => {
       expect(screen.getAllByText('Silverstone').length).toBeGreaterThan(0);
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Explore Session/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Explore$/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/AI Race Engineer Debrief/i)).toBeInTheDocument();
@@ -446,7 +453,7 @@ describe('SessionHistory Component', () => {
       expect(screen.getAllByText('Monza').length).toBeGreaterThan(0);
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Explore Session/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Explore$/i }));
 
     await waitFor(() => {
       expect(screen.getAllByText('Max Verstappen').length).toBeGreaterThan(0);
@@ -490,7 +497,7 @@ describe('SessionHistory Component', () => {
       expect(screen.getAllByText('Silverstone').length).toBeGreaterThan(0);
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Explore Session/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Explore$/i }));
 
     await waitFor(() => {
       expect(screen.getAllByText('Driver Finisher').length).toBeGreaterThan(0);
@@ -536,7 +543,7 @@ describe('SessionHistory Component', () => {
       expect(screen.getAllByText('Spa-Francorchamps').length).toBeGreaterThan(0);
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Explore Session/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Explore$/i }));
 
     await waitFor(() => {
       expect(screen.getAllByText('Oscar Piastri').length).toBeGreaterThan(0);
@@ -579,8 +586,8 @@ describe('SessionHistory Component', () => {
       expect(screen.getAllByText('Interlagos').length).toBeGreaterThan(0);
     });
 
-    // Click explore button (Explorar Sesión in Spanish)
-    fireEvent.click(screen.getByRole('button', { name: /Explorar Sesión/i }));
+    // Click explore button (Explorar in Spanish)
+    fireEvent.click(screen.getByRole('button', { name: /^Explorar$/i }));
 
     await waitFor(() => {
       expect(screen.getAllByText('Franco Colapinto').length).toBeGreaterThan(0);

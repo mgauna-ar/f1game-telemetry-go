@@ -47,6 +47,8 @@ export const history = {
     dateTime: 'Fecha y Hora',
     trackName: 'Circuito',
     sessionType: 'Tipo de Sesión',
+    laps: 'Vueltas',
+    duration: 'Duración',
     weather: 'Clima',
     actions: 'Acciones',
   },

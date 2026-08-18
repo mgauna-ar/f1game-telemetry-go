@@ -24,8 +24,8 @@
 * **Delta Coaching:** Instant visual gap charts and braking/apex speed difference indicators.
 
 ### 📊 Session History & League Management
-* **Deep-Dive Explorer:** Historical session repository featuring classification podiums, tyre stint timelines, and lap progression pace charts.
-* **Multi-Tag Organization:** Categorize sessions by league (e.g. *WOR*, *AOR*, *PSGL*), tier, or custom wet/dry setups with motorsport color chips.
+* **Data Table Explorer:** Streamlined session repository featuring sortable metadata (Date/Time, Track, Type/Format, Duration, Tags, Weather, and Actions), fast filters, and deep-dive session classification, tyre stint timelines, and lap progression charts.
+* **Multi-Tag Organization:** Categorize sessions by league (e.g. *WOR*, *AOR*, *PSGL*), tier, or custom wet/dry setups with motorsport color chips and horizontal filter bar.
 * **Session Portability:** 1-click export and import of complete sessions via compressed `.f1session` packages.
 
 ### 🤖 AI Race Engineer (EN / ES)

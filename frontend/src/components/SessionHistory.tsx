@@ -12,8 +12,6 @@ import {
   X,
   Trash2,
   AlertTriangle,
-  LayoutGrid,
-  List,
   Sparkles,
   TrendingUp,
   Plus,
@@ -21,8 +19,6 @@ import {
   Upload,
   CheckCircle,
 } from 'lucide-react';
-import { SessionKPIBar } from './session_history/SessionKPIBar';
-import { SessionCardGrid } from './session_history/SessionCardGrid';
 import { SessionTableView } from './session_history/SessionTableView';
 import { SessionClassificationTab } from './session_history/SessionClassificationTab';
 import { SessionLapChartsTab } from './session_history/SessionLapChartsTab';
@@ -72,8 +68,7 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
   const [sessionTypeFilter, setSessionTypeFilter] = useState<string>('ALL');
   const [circuitFilter, setCircuitFilter] = useState<string>('ALL');
 
-  // View Mode & Sorting
-  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+  // Sorting
   const [sortField, setSortField] = useState<string>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
@@ -595,6 +590,10 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
         comp = (a.track_name || '').localeCompare(b.track_name || '');
       } else if (sortField === 'type') {
         comp = (a.session_type || '').localeCompare(b.session_type || '');
+      } else if (sortField === 'laps') {
+        comp = (a.total_laps || 0) - (b.total_laps || 0);
+      } else if (sortField === 'duration') {
+        comp = (a.session_duration || 0) - (b.session_duration || 0);
       } else {
         // date
         comp = new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
@@ -913,12 +912,9 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
         )}
       </div>
 
-      {/* VIEW 1: SESSION LIST & KPI LANDING */}
+      {/* VIEW 1: SESSION LIST & FILTER TOOLBAR */}
       {!selectedSession && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          {/* Top Aggregate KPI Metrics Bar */}
-          <SessionKPIBar sessions={sessions} />
-
           {/* Controls / Filter Bar */}
           <div className="glass-panel" style={{ padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: '280px', flexWrap: 'wrap' }}>
@@ -979,27 +975,8 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
               )}
             </div>
 
-            {/* View Switcher, Import & Refresh */}
+            {/* Import & Refresh Actions */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', background: 'rgba(0,0,0,0.4)', borderRadius: 'var(--radius-sm)', padding: '2px', border: '1px solid var(--border-color)' }}>
-                <button
-                  className={`nav-tab ${viewMode === 'cards' ? 'active' : ''}`}
-                  onClick={() => setViewMode('cards')}
-                  title={t('history.cardGridView')}
-                  style={{ padding: '4px 8px', borderRadius: '4px', border: 'none' }}
-                >
-                  <LayoutGrid size={15} />
-                </button>
-                <button
-                  className={`nav-tab ${viewMode === 'table' ? 'active' : ''}`}
-                  onClick={() => setViewMode('table')}
-                  title={t('history.dataTableView')}
-                  style={{ padding: '4px 8px', borderRadius: '4px', border: 'none' }}
-                >
-                  <List size={15} />
-                </button>
-              </div>
-
               {/* Import Session Button */}
               <label
                 className="nav-tab"
@@ -1066,7 +1043,7 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
             )}
           </div>
 
-          {/* Session Content Cards / Table */}
+          {/* Session Content Table */}
           {loadingSessions ? (
             <div className="glass-panel" style={{ textAlign: 'center', padding: '3rem' }}>
               <RefreshCw size={32} className="animate-spin" style={{ color: 'var(--accent-primary)', marginBottom: '1rem' }} />
@@ -1091,16 +1068,6 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
                   : t('history.noSessionsEmpty')}
               </p>
             </div>
-          ) : viewMode === 'cards' ? (
-            <SessionCardGrid
-              sessions={filteredSessions}
-              onSelectSession={selectSession}
-              onRequestDelete={(s) => setSessionToDelete(s)}
-              onExportSession={handleExportSession}
-              formatDate={formatDate}
-              getSessionBadgeClass={getSessionBadgeClass}
-              onOpenTagManager={(s) => setSessionToManageTags(s)}
-            />
           ) : (
             <SessionTableView
               sessions={filteredSessions}

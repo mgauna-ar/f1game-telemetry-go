@@ -991,3 +991,124 @@ func TestSaveLapMergeModeStintAndCompound(t *testing.T) {
 		t.Errorf("expected TyreCompound SOFT, got %s", updated.TyreCompound)
 	}
 }
+
+func TestGetSessionsActualDuration(t *testing.T) {
+	repo := setupTestRepo(t)
+	ctx := context.Background()
+
+	// Create session with 7200s default race timeout
+	session := &Session{
+		SessionUID:      FormatSessionUID(555555555),
+		TrackID:         1,
+		TrackName:       "Melbourne",
+		SessionType:     "Race",
+		Weather:         "Clear",
+		TotalLaps:       22,
+		SessionDuration: 7200,
+		PacketFormat:    2026,
+	}
+	if err := repo.SaveSession(ctx, session); err != nil {
+		t.Fatalf("SaveSession failed: %v", err)
+	}
+
+	// 1. Before laps or participants, 7200 is treated as rulebook limit -> returns 0
+	sessions, err := repo.GetSessions(ctx)
+	if err != nil {
+		t.Fatalf("GetSessions failed: %v", err)
+	}
+	if len(sessions) == 0 {
+		t.Fatalf("expected 1 session, got 0")
+	}
+	if sessions[0].SessionDuration != 0 {
+		t.Errorf("expected 0 for 7200 default limit before completed race, got %d", sessions[0].SessionDuration)
+	}
+
+	// 2. Add laps (3 laps of 80s = 240s total)
+	for l := 1; l <= 3; l++ {
+		lap := &Lap{
+			SessionID: session.ID,
+			CarIndex:  0,
+			LapNumber: l,
+			LapTimeMS: 80000,
+			IsValid:   true,
+		}
+		if err := repo.SaveLap(ctx, lap, false); err != nil {
+			t.Fatalf("SaveLap failed: %v", err)
+		}
+	}
+
+	sessionsWithLaps, err := repo.GetSessions(ctx)
+	if err != nil {
+		t.Fatalf("GetSessions failed: %v", err)
+	}
+	if sessionsWithLaps[0].SessionDuration != 240 {
+		t.Errorf("expected 240s from completed laps, got %d", sessionsWithLaps[0].SessionDuration)
+	}
+
+	// 3. Add participant with official total race time (e.g. 1950.4s)
+	participants := []Participant{
+		{
+			SessionID:     session.ID,
+			CarIndex:      0,
+			Name:          "Driver 1",
+			TotalRaceTime: 1950.4,
+		},
+	}
+	if err := repo.SaveParticipants(ctx, session.ID, participants); err != nil {
+		t.Fatalf("SaveParticipants failed: %v", err)
+	}
+
+	sessionsWithParts, err := repo.GetSessions(ctx)
+	if err != nil {
+		t.Fatalf("GetSessions failed: %v", err)
+	}
+	if sessionsWithParts[0].SessionDuration != 1950 {
+		t.Errorf("expected 1950s from total_race_time, got %d", sessionsWithParts[0].SessionDuration)
+	}
+
+	byID, err := repo.GetSessionByID(ctx, session.ID)
+	if err != nil {
+		t.Fatalf("GetSessionByID failed: %v", err)
+	}
+	if byID.SessionDuration != 1950 {
+		t.Errorf("expected 1950s in GetSessionByID, got %d", byID.SessionDuration)
+	}
+
+	// 4. Test Qualifying / Practice session with scheduled timer (1080s = 18m)
+	qualySession := &Session{
+		SessionUID:      FormatSessionUID(666666666),
+		TrackID:         11,
+		TrackName:       "Imola",
+		SessionType:     "Short Qualifying",
+		Weather:         "Clear",
+		TotalLaps:       4,
+		SessionDuration: 1080,
+		PacketFormat:    2026,
+	}
+	if err := repo.SaveSession(ctx, qualySession); err != nil {
+		t.Fatalf("SaveSession qualy failed: %v", err)
+	}
+
+	// Add 4 completed laps for qualy (4 laps of 80s = 320s)
+	for l := 1; l <= 4; l++ {
+		lap := &Lap{
+			SessionID: qualySession.ID,
+			CarIndex:  0,
+			LapNumber: l,
+			LapTimeMS: 80000,
+			IsValid:   true,
+		}
+		if err := repo.SaveLap(ctx, lap, false); err != nil {
+			t.Fatalf("SaveLap qualy failed: %v", err)
+		}
+	}
+
+	qualyByID, err := repo.GetSessionByID(ctx, qualySession.ID)
+	if err != nil {
+		t.Fatalf("GetSessionByID qualy failed: %v", err)
+	}
+	// For qualifying, duration must be the scheduled 1080s (18m), not the 320s sum of 4 laps!
+	if qualyByID.SessionDuration != 1080 {
+		t.Errorf("expected 1080s (18m) for Short Qualifying session, got %d", qualyByID.SessionDuration)
+	}
+}

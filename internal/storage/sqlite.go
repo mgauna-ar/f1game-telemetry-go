@@ -307,7 +307,41 @@ type sessionTagJoinRow struct {
 func (r *Repository) GetSessions(ctx context.Context) ([]Session, error) {
 	var sessions []Session
 	query := `
-		SELECT s.* FROM sessions s
+		SELECT 
+			s.id,
+			s.session_uid,
+			s.track_id,
+			s.track_name,
+			s.session_type,
+			s.weather,
+			s.weather_forecast,
+			COALESCE(NULLIF(s.total_laps, 0), (SELECT MAX(l.lap_number) FROM laps l WHERE l.session_id = s.id), 0) AS total_laps,
+			s.ai_difficulty,
+			CASE 
+				-- For race sessions: use winner's total race time or sum of leader's completed laps
+				WHEN s.session_type LIKE '%Race%' THEN
+					CASE
+						WHEN EXISTS (SELECT 1 FROM participants p WHERE p.session_id = s.id AND p.total_race_time > 0)
+							THEN (SELECT CAST(MAX(p.total_race_time) AS INTEGER) FROM participants p WHERE p.session_id = s.id)
+						WHEN EXISTS (SELECT 1 FROM laps l WHERE l.session_id = s.id AND l.lap_time_ms > 0)
+							THEN (SELECT CAST(SUM(l.lap_time_ms) / 1000 AS INTEGER) FROM laps l WHERE l.session_id = s.id AND l.lap_time_ms > 0 GROUP BY l.car_index ORDER BY SUM(l.lap_time_ms) DESC LIMIT 1)
+						WHEN s.session_duration > 0 AND s.session_duration != 7200
+							THEN s.session_duration
+						ELSE 0
+					END
+				-- For non-race sessions (Qualifying, Practice, Shootouts): use scheduled session duration from packet (e.g. 18m, 12m, 60m)
+				ELSE
+					CASE
+						WHEN s.session_duration > 0 AND s.session_duration != 7200
+							THEN s.session_duration
+						WHEN EXISTS (SELECT 1 FROM laps l WHERE l.session_id = s.id AND l.lap_time_ms > 0)
+							THEN (SELECT CAST(SUM(l.lap_time_ms) / 1000 AS INTEGER) FROM laps l WHERE l.session_id = s.id AND l.lap_time_ms > 0 GROUP BY l.car_index ORDER BY SUM(l.lap_time_ms) DESC LIMIT 1)
+						ELSE 0
+					END
+			END AS session_duration,
+			s.packet_format,
+			s.created_at
+		FROM sessions s
 		WHERE s.session_uid != '' AND s.session_uid != '0' AND s.session_uid != '0x0000000000000000'
 		  AND (s.track_name != 'Unknown' OR EXISTS (SELECT 1 FROM laps l WHERE l.session_id = s.id))
 		ORDER BY s.created_at DESC
@@ -639,7 +673,44 @@ func (r *Repository) GetParticipantsBySession(ctx context.Context, sessionID int
 // GetSessionByID retrieves a session by its database ID.
 func (r *Repository) GetSessionByID(ctx context.Context, sessionID int64) (*Session, error) {
 	var session Session
-	query := `SELECT * FROM sessions WHERE id = ?`
+	query := `
+		SELECT 
+			s.id,
+			s.session_uid,
+			s.track_id,
+			s.track_name,
+			s.session_type,
+			s.weather,
+			s.weather_forecast,
+			COALESCE(NULLIF(s.total_laps, 0), (SELECT MAX(l.lap_number) FROM laps l WHERE l.session_id = s.id), 0) AS total_laps,
+			s.ai_difficulty,
+			CASE 
+				-- For race sessions: use winner's total race time or sum of leader's completed laps
+				WHEN s.session_type LIKE '%Race%' THEN
+					CASE
+						WHEN EXISTS (SELECT 1 FROM participants p WHERE p.session_id = s.id AND p.total_race_time > 0)
+							THEN (SELECT CAST(MAX(p.total_race_time) AS INTEGER) FROM participants p WHERE p.session_id = s.id)
+						WHEN EXISTS (SELECT 1 FROM laps l WHERE l.session_id = s.id AND l.lap_time_ms > 0)
+							THEN (SELECT CAST(SUM(l.lap_time_ms) / 1000 AS INTEGER) FROM laps l WHERE l.session_id = s.id AND l.lap_time_ms > 0 GROUP BY l.car_index ORDER BY SUM(l.lap_time_ms) DESC LIMIT 1)
+						WHEN s.session_duration > 0 AND s.session_duration != 7200
+							THEN s.session_duration
+						ELSE 0
+					END
+				-- For non-race sessions (Qualifying, Practice, Shootouts): use scheduled session duration from packet (e.g. 18m, 12m, 60m)
+				ELSE
+					CASE
+						WHEN s.session_duration > 0 AND s.session_duration != 7200
+							THEN s.session_duration
+						WHEN EXISTS (SELECT 1 FROM laps l WHERE l.session_id = s.id AND l.lap_time_ms > 0)
+							THEN (SELECT CAST(SUM(l.lap_time_ms) / 1000 AS INTEGER) FROM laps l WHERE l.session_id = s.id AND l.lap_time_ms > 0 GROUP BY l.car_index ORDER BY SUM(l.lap_time_ms) DESC LIMIT 1)
+						ELSE 0
+					END
+			END AS session_duration,
+			s.packet_format,
+			s.created_at
+		FROM sessions s
+		WHERE s.id = ?
+	`
 	if err := r.db.GetContext(ctx, &session, query, sessionID); err != nil {
 		return nil, fmt.Errorf("failed to get session by id: %w", err)
 	}

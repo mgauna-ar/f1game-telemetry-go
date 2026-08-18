@@ -323,9 +323,16 @@ func (sm *SessionManager) handleFinalClassification(ctx context.Context, p *pack
 				}
 			}
 		}
+		if cls.Position == 1 && cls.TotalRaceTime > 0 {
+			sm.currentSession.SessionDuration = int(cls.TotalRaceTime)
+		}
 	}
 
 	if len(participantsToUpdate) > 0 {
 		_ = sm.repo.SaveParticipants(ctx, sm.currentSession.ID, participantsToUpdate)
+	}
+
+	if sm.currentSession.SessionDuration > 0 {
+		_ = sm.repo.UpdateSessionMetadata(ctx, sm.currentSession.SessionUID, sm.currentSession.TrackID, sm.currentSession.TrackName, sm.currentSession.SessionType, sm.currentSession.Weather, sm.currentSession.WeatherForecast, sm.currentSession.TotalLaps, sm.currentSession.AIDifficulty, sm.currentSession.SessionDuration)
 	}
 }

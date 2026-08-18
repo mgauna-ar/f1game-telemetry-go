@@ -5,6 +5,8 @@ import { useI18n } from '../../context/I18nContext';
 import { TagBadge } from './TagBadge';
 import { F1FormatBadge } from '../F1FormatBadge';
 import { WeatherBadgeWithForecast } from './WeatherBadgeWithForecast';
+import { formatDuration } from '../../utils/formatters';
+import { TIME_CONSTANTS } from '../../constants/f1';
 
 interface SessionTableViewProps {
   sessions: Session[];
@@ -47,15 +49,6 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
             <tr>
               <th
                 style={{ cursor: onToggleSort ? 'pointer' : 'default' }}
-                onClick={() => onToggleSort && onToggleSort('id')}
-              >
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                  <span>{t('history.table.sessionId')}</span>
-                  {renderSortIndicator('id')}
-                </div>
-              </th>
-              <th
-                style={{ cursor: onToggleSort ? 'pointer' : 'default' }}
                 onClick={() => onToggleSort && onToggleSort('date')}
               >
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
@@ -81,6 +74,15 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
                   {renderSortIndicator('type')}
                 </div>
               </th>
+              <th
+                style={{ cursor: onToggleSort ? 'pointer' : 'default' }}
+                onClick={() => onToggleSort && onToggleSort('duration')}
+              >
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <span>{t('history.table.duration')}</span>
+                  {renderSortIndicator('duration')}
+                </div>
+              </th>
               <th>{t('history.tags.title')}</th>
               <th>{t('history.table.weather')}</th>
               <th style={{ textAlign: 'right' }}>{t('history.table.actions')}</th>
@@ -89,6 +91,9 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
           <tbody>
             {sessions.map((session) => {
               const sessionTags = session.tags || [];
+              const formattedDurationStr = session.session_duration && session.session_duration > 0
+                ? formatDuration(session.session_duration * TIME_CONSTANTS.MS_PER_SECOND)
+                : '-';
 
               return (
                 <tr
@@ -96,9 +101,6 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
                   onClick={() => onSelectSession(session)}
                   style={{ cursor: 'pointer' }}
                 >
-                  <td className="mono" style={{ fontWeight: 700, color: 'var(--accent-secondary)' }}>
-                    #{session.id}
-                  </td>
                   <td style={{ color: 'var(--text-primary)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Clock size={14} color="var(--text-muted)" />
@@ -118,6 +120,11 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
                       </span>
                     </div>
                   </td>
+                  <td className="mono">
+                    <span style={{ color: formattedDurationStr !== '-' ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
+                      {formattedDurationStr}
+                    </span>
+                  </td>
                   <td onClick={(e) => e.stopPropagation()}>
                     <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px', minWidth: '120px' }}>
                       {sessionTags.map((tag) => (
@@ -130,11 +137,11 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
                           e.stopPropagation();
                           onOpenTagManager(session);
                         }}
-                        className="session-add-tag-btn"
+                        className={`session-add-tag-btn ${sessionTags.length > 0 ? 'icon-only' : ''}`}
                         title={t('history.tags.manageTags')}
                       >
-                        <Plus size={11} />
-                        <span>{sessionTags.length === 0 ? t('history.tags.addTag') : '+'}</span>
+                        <Plus size={sessionTags.length > 0 ? 12 : 11} />
+                        {sessionTags.length === 0 && <span>{t('history.tags.addTag')}</span>}
                       </button>
                     </div>
                   </td>

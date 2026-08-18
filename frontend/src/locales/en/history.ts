@@ -47,6 +47,8 @@ export const history = {
     dateTime: 'Date & Time',
     trackName: 'Track Name',
     sessionType: 'Session Type',
+    laps: 'Laps',
+    duration: 'Duration',
     weather: 'Weather',
     actions: 'Actions',
   },
