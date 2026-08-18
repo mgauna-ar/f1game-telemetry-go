@@ -1,6 +1,6 @@
-# 🏎️ f1game-telemetry-go
+# 🏎️ F1 Telemetry
 
-> High-performance real-time telemetry analyzer, pit-wall dashboard, and AI race engineer for **EA Sports F1 25 & F1 26**.
+> High-performance real-time telemetry analyzer, pit wall dashboard, and AI race engineer for **EA Sports F1 25 & F1 26**.
 
 [![Go](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go)](https://go.dev/)
 [![React](https://img.shields.io/badge/React-18-61DAFB?style=flat&logo=react)](https://react.dev/)

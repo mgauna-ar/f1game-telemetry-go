@@ -654,7 +654,7 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
     const rawStandings = (
       participants.length > 0
         ? participants
-        : Object.keys(lapsByCar).map((idxStr) => ({
+        : Object.keys(lapsByCar).map((idxStr): Participant => ({
             id: Number(idxStr),
             session_id: selectedSession.id,
             car_index: Number(idxStr),
@@ -664,7 +664,7 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
             race_number: Number(idxStr) + 1,
             ai_controlled: false,
           }))
-    ).map((p) => {
+    ).map((p: Participant) => {
       const rawDriverLaps = lapsByCar[p.car_index] || [];
       const sortedRawLaps = [...rawDriverLaps].sort((a, b) => a.lap_number - b.lap_number);
       const completedLaps = sortedRawLaps.filter((l) => l.lap_time_ms > 0);

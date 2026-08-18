@@ -289,7 +289,7 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                               <span
                                 className="mono"
                                 title={t('history.classification.gridTooltip', {
-                                  grid: driver.gridPosition,
+                                  grid: driver.gridPosition ?? 0,
                                   finish: driver.position,
                                   delta: driver.positionsGained > 0 ? `+${driver.positionsGained}` : `${driver.positionsGained}`,
                                 })}

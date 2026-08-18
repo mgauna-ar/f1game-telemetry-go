@@ -1,0 +1,22 @@
+{
+  "name": "F1 Telemetry — Real-Time Telemetry & Pit Wall",
+  "short_name": "F1 Telemetry",
+  "description": "High-performance real-time telemetry analyzer, pit wall dashboard, and AI race engineer for EA Sports F1 25 & 26.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#08090c",
+  "theme_color": "#ff1842",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}

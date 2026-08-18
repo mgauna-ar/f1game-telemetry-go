@@ -1,6 +1,6 @@
 export const nav = {
   brandTitle: 'F1 Telemetry',
-  brandTag: 'PRO',
+  brandTag: '',
   brandSub: 'EA F1 2025 / 2026 DLC',
   tabs: {
     history: 'Historial de Sesiones',

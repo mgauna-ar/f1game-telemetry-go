@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Calendar, GitCompare, Radio, Gauge } from 'lucide-react';
+import { Calendar, GitCompare, Radio } from 'lucide-react';
+import { F1TelemetryLogo } from './components/F1TelemetryLogo';
 import { Dashboard } from './components/Dashboard';
 import { LapComparator } from './components/LapComparator';
 import { SessionHistory } from './components/SessionHistory';
@@ -84,12 +85,13 @@ function AppContent() {
       {/* Modern Top Navigation Bar */}
       <header className="app-top-nav">
         <div className="app-nav-brand">
-          <div className="app-brand-icon">
-            <Gauge size={19} color="var(--accent-primary)" />
+          <div className={`app-brand-logo ${activeTab === 'live' ? 'live' : ''}`}>
+            <F1TelemetryLogo size={28} animated={activeTab === 'live'} />
           </div>
           <div className="app-brand-text">
             <div className="app-brand-title">
-              {t('nav.brandTitle')} <span className="app-brand-tag">{t('nav.brandTag')}</span>
+              <span className="app-brand-f1">F1</span>
+              <span className="app-brand-name">TELEMETRY</span>
             </div>
             <div className="app-brand-sub mono">{t('nav.brandSub')}</div>
           </div>
