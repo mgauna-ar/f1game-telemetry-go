@@ -105,13 +105,14 @@ func (r *Repository) DB() *sqlx.DB {
 // Updates the ID of the passed Session struct if successful.
 func (r *Repository) SaveSession(ctx context.Context, s *Session) error {
 	query := `
-		INSERT INTO sessions (session_uid, track_id, track_name, session_type, weather, total_laps, ai_difficulty, session_duration, packet_format)
-		VALUES (:session_uid, :track_id, :track_name, :session_type, :weather, :total_laps, :ai_difficulty, :session_duration, :packet_format)
+		INSERT INTO sessions (session_uid, track_id, track_name, session_type, weather, weather_forecast, total_laps, ai_difficulty, session_duration, packet_format)
+		VALUES (:session_uid, :track_id, :track_name, :session_type, :weather, :weather_forecast, :total_laps, :ai_difficulty, :session_duration, :packet_format)
 		ON CONFLICT(session_uid) DO UPDATE SET
 			track_id = excluded.track_id,
 			track_name = excluded.track_name,
 			session_type = excluded.session_type,
-			weather = excluded.weather,
+			weather = CASE WHEN sessions.weather IS NULL OR sessions.weather = '' OR sessions.weather = 'Unknown' THEN excluded.weather ELSE sessions.weather END,
+			weather_forecast = CASE WHEN excluded.weather_forecast != '' THEN excluded.weather_forecast ELSE sessions.weather_forecast END,
 			total_laps = CASE WHEN excluded.total_laps > 0 THEN excluded.total_laps ELSE sessions.total_laps END,
 			ai_difficulty = CASE WHEN excluded.ai_difficulty > 0 THEN excluded.ai_difficulty ELSE sessions.ai_difficulty END,
 			session_duration = CASE WHEN excluded.session_duration > 0 THEN excluded.session_duration ELSE sessions.session_duration END,
@@ -132,15 +133,16 @@ func (r *Repository) SaveSession(ctx context.Context, s *Session) error {
 	return nil
 }
 
-// UpdateSessionMetadata updates the track name, session type, dynamic weather, total laps, ai difficulty, and session duration for a given session_uid.
-func (r *Repository) UpdateSessionMetadata(ctx context.Context, sessionUID uint64, trackID int, trackName, sessionType, weather string, totalLaps, aiDifficulty, sessionDuration int) error {
+// UpdateSessionMetadata updates the track name, session type, initial weather, weather forecast, total laps, ai difficulty, and session duration for a given session_uid.
+func (r *Repository) UpdateSessionMetadata(ctx context.Context, sessionUID string, trackID int, trackName, sessionType, weather, weatherForecast string, totalLaps, aiDifficulty, sessionDuration int) error {
 	query := `
 		UPDATE sessions 
 		SET 
 			track_id = CASE WHEN ? != -1 THEN ? ELSE track_id END,
 			track_name = CASE WHEN ? != '' AND ? != 'Unknown' THEN ? ELSE track_name END,
 			session_type = CASE WHEN ? != '' AND ? != 'Unknown' THEN ? ELSE session_type END,
-			weather = CASE WHEN ? != '' AND ? != 'Unknown' THEN ? ELSE weather END,
+			weather = CASE WHEN (weather IS NULL OR weather = '' OR weather = 'Unknown') AND ? != '' AND ? != 'Unknown' THEN ? ELSE weather END,
+			weather_forecast = CASE WHEN ? != '' THEN ? ELSE weather_forecast END,
 			total_laps = CASE WHEN ? > 0 THEN ? ELSE total_laps END,
 			ai_difficulty = CASE WHEN ? > 0 THEN ? ELSE ai_difficulty END,
 			session_duration = CASE WHEN ? > 0 THEN ? ELSE session_duration END
@@ -151,10 +153,11 @@ func (r *Repository) UpdateSessionMetadata(ctx context.Context, sessionUID uint6
 		trackName, trackName, trackName,
 		sessionType, sessionType, sessionType,
 		weather, weather, weather,
+		weatherForecast, weatherForecast,
 		totalLaps, totalLaps,
 		aiDifficulty, aiDifficulty,
 		sessionDuration, sessionDuration,
-		int64(sessionUID),
+		sessionUID,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to update session metadata: %w", err)
@@ -305,7 +308,7 @@ func (r *Repository) GetSessions(ctx context.Context) ([]Session, error) {
 	var sessions []Session
 	query := `
 		SELECT s.* FROM sessions s
-		WHERE s.session_uid != 0
+		WHERE s.session_uid != '' AND s.session_uid != '0' AND s.session_uid != '0x0000000000000000'
 		  AND (s.track_name != 'Unknown' OR EXISTS (SELECT 1 FROM laps l WHERE l.session_id = s.id))
 		ORDER BY s.created_at DESC
 	`
@@ -698,8 +701,8 @@ func (r *Repository) ImportSession(ctx context.Context, pkg *ExportedSessionPack
 
 	// Generate a unique session_uid to prevent conflicts with existing local sessions
 	sessionUID := pkg.Session.SessionUID
-	if sessionUID == 0 {
-		sessionUID = time.Now().UnixNano()
+	if sessionUID == "" || sessionUID == "0" || sessionUID == "0x0000000000000000" {
+		sessionUID = FormatSessionUID(uint64(time.Now().UnixNano()))
 	}
 
 	newSession := &Session{
@@ -708,6 +711,7 @@ func (r *Repository) ImportSession(ctx context.Context, pkg *ExportedSessionPack
 		TrackName:       pkg.Session.TrackName,
 		SessionType:     pkg.Session.SessionType,
 		Weather:         pkg.Session.Weather,
+		WeatherForecast: pkg.Session.WeatherForecast,
 		TotalLaps:       pkg.Session.TotalLaps,
 		AIDifficulty:    pkg.Session.AIDifficulty,
 		SessionDuration: pkg.Session.SessionDuration,

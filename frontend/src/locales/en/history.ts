@@ -228,4 +228,15 @@ export const history = {
     assigned: 'Assigned',
     unassigned: 'Unassigned',
   },
+  forecast: {
+    title: 'Weather Evolution & Forecast',
+    startWeather: 'Start Weather',
+    rainProbability: 'Rain Chance',
+    trackTemp: 'Track',
+    airTemp: 'Air',
+    timeline: 'Timeline',
+    noForecast: 'Static Weather • No dynamic timeline recorded',
+    minutesOffset: '+{mins}m',
+    current: 'Start',
+  },
 };

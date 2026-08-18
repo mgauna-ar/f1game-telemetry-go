@@ -32,6 +32,8 @@ import { TagBadge } from './session_history/TagBadge';
 import { TagManagerModal } from './session_history/TagManagerModal';
 import { TagFilterBar } from './session_history/TagFilterBar';
 import { F1FormatBadge } from './F1FormatBadge';
+import { WeatherBadgeWithForecast } from './session_history/WeatherBadgeWithForecast';
+import { formatSessionUID } from '../utils/formatters';
 import { useRaceEngineer } from '../context/RaceEngineerContext';
 import { useI18n } from '../context/I18nContext';
 
@@ -1132,7 +1134,7 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
                 </span>
               </div>
               <p className="mono" style={{ color: 'var(--text-secondary)', margin: '4px 0 0 0', fontSize: '0.85rem' }}>
-                {t('history.detail.recordedOn', { date: formatDate(selectedSession.created_at), uid: selectedSession.session_uid || selectedSession.id })}
+                {t('history.detail.recordedOn', { date: formatDate(selectedSession.created_at), uid: formatSessionUID(selectedSession.session_uid || selectedSession.id) })}
               </p>
 
               {/* Tags & Manage Tags Button */}
@@ -1160,12 +1162,9 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
               <div className="header-stat-box">
-                <CloudSun size={16} color="var(--text-secondary)" />
                 <div>
                   <div className="stat-label">{t('history.detail.weather')}</div>
-                  <div className="stat-value" style={{ fontSize: '0.85rem' }}>
-                    {selectedSession.weather || t('common.clearWeather')}
-                  </div>
+                  <WeatherBadgeWithForecast session={selectedSession} />
                 </div>
               </div>
 

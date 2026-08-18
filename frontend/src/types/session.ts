@@ -1,3 +1,22 @@
+export interface WeatherForecastSample {
+  SessionType?: number;
+  session_type?: number;
+  TimeOffset?: number;
+  time_offset?: number;
+  Weather?: number;
+  weather?: number;
+  TrackTemperature?: number;
+  track_temperature?: number;
+  TrackTemperatureChange?: number;
+  track_temperature_change?: number;
+  AirTemperature?: number;
+  air_temperature?: number;
+  AirTemperatureChange?: number;
+  air_temperature_change?: number;
+  RainPercentage?: number;
+  rain_percentage?: number;
+}
+
 export interface Tag {
   id: number;
   name: string;
@@ -12,6 +31,10 @@ export interface Session {
   track_name: string;
   session_type: string;
   weather?: string;
+  weather_forecast?: string | WeatherForecastSample[];
+  total_laps?: number;
+  ai_difficulty?: number;
+  session_duration?: number;
   packet_format?: number;
   created_at: string;
   tags?: Tag[];

@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
@@ -116,7 +117,8 @@ func (sm *SessionManager) ProcessPacket(ctx context.Context, pkt packets.Packet)
 }
 
 func (sm *SessionManager) handleNewSession(ctx context.Context, header packets.PacketHeader) {
-	log.Printf("[Session] New session detected: %d", header.SessionUID)
+	uidHex := storage.FormatSessionUID(header.SessionUID)
+	log.Printf("[Session] New session detected: %s (raw %d)", uidHex, header.SessionUID)
 
 	// Flush in-flight samples from the previous session
 	if sm.batchWriter != nil {
@@ -133,12 +135,13 @@ func (sm *SessionManager) handleNewSession(ctx context.Context, header packets.P
 
 	// Create a new session in storage
 	sm.currentSession = &storage.Session{
-		SessionUID:      int64(header.SessionUID),
+		SessionUID:      uidHex,
 		PacketFormat:    int(header.PacketFormat),
 		TrackID:         packets.UnknownTrackID,
 		TrackName:       "Unknown",
 		SessionType:     "Unknown",
 		Weather:         "Unknown",
+		WeatherForecast: "",
 		TotalLaps:       0,
 		AIDifficulty:    0,
 		SessionDuration: 0,
@@ -156,12 +159,33 @@ func (sm *SessionManager) updateSessionInfo(ctx context.Context, p *packets.Pack
 	totalLaps := int(p.TotalLaps)
 	aiDifficulty := int(p.AIDifficulty)
 	sessionDuration := int(p.SessionDuration)
+	uidHex := storage.FormatSessionUID(p.Header.SessionUID)
 
-	if sm.currentSession != nil && uint64(sm.currentSession.SessionUID) == p.Header.SessionUID {
+	var forecastJSON string
+	numSamples := int(p.NumWeatherForecastSamples)
+	if numSamples > len(p.WeatherForecastSamples) {
+		numSamples = len(p.WeatherForecastSamples)
+	}
+	if numSamples > 0 {
+		samples := make([]packets.WeatherForecastSample, 0, numSamples)
+		for i := 0; i < numSamples; i++ {
+			samples = append(samples, p.WeatherForecastSamples[i])
+		}
+		if b, err := json.Marshal(samples); err == nil {
+			forecastJSON = string(b)
+		}
+	}
+
+	if sm.currentSession != nil && sm.currentSession.SessionUID == uidHex {
 		sm.currentSession.TrackID = int(p.TrackId)
 		sm.currentSession.TrackName = trackName
 		sm.currentSession.SessionType = sessionType
-		sm.currentSession.Weather = weatherStr
+		if sm.currentSession.Weather == "" || sm.currentSession.Weather == "Unknown" {
+			sm.currentSession.Weather = weatherStr
+		}
+		if forecastJSON != "" {
+			sm.currentSession.WeatherForecast = forecastJSON
+		}
 		if totalLaps > 0 {
 			sm.currentSession.TotalLaps = totalLaps
 		}
@@ -173,7 +197,7 @@ func (sm *SessionManager) updateSessionInfo(ctx context.Context, p *packets.Pack
 		}
 	}
 
-	if err := sm.repo.UpdateSessionMetadata(ctx, p.Header.SessionUID, int(p.TrackId), trackName, sessionType, weatherStr, totalLaps, aiDifficulty, sessionDuration); err != nil {
+	if err := sm.repo.UpdateSessionMetadata(ctx, uidHex, int(p.TrackId), trackName, sessionType, weatherStr, forecastJSON, totalLaps, aiDifficulty, sessionDuration); err != nil {
 		log.Printf("[Session] Error updating session metadata: %v", err)
 	}
 }

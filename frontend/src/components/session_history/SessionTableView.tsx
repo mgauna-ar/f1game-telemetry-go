@@ -4,6 +4,7 @@ import type { Session } from '../SessionHistory';
 import { useI18n } from '../../context/I18nContext';
 import { TagBadge } from './TagBadge';
 import { F1FormatBadge } from '../F1FormatBadge';
+import { WeatherBadgeWithForecast } from './WeatherBadgeWithForecast';
 
 interface SessionTableViewProps {
   sessions: Session[];
@@ -137,11 +138,8 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
                       </button>
                     </div>
                   </td>
-                  <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}>
-                      <CloudSun size={14} color="var(--text-secondary)" />
-                      {session.weather || t('common.clearWeather')}
-                    </div>
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <WeatherBadgeWithForecast session={session} compact />
                   </td>
                   <td style={{ textAlign: 'right' }}>
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>

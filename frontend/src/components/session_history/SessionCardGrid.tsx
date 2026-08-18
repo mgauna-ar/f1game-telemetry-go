@@ -1,9 +1,11 @@
 import React from 'react';
-import { Clock, CloudSun, ChevronRight, Trash2, MapPin, Plus, Download } from 'lucide-react';
+import { Clock, ChevronRight, Trash2, MapPin, Plus, Download } from 'lucide-react';
 import type { Session } from '../SessionHistory';
 import { useI18n } from '../../context/I18nContext';
 import { TagBadge } from './TagBadge';
 import { F1FormatBadge } from '../F1FormatBadge';
+import { WeatherBadgeWithForecast } from './WeatherBadgeWithForecast';
+import { formatSessionUID } from '../../utils/formatters';
 
 interface SessionCardGridProps {
   sessions: Session[];
@@ -27,7 +29,7 @@ export const SessionCardGrid: React.FC<SessionCardGridProps> = ({
   const { t } = useI18n();
 
   return (
-    <div className="session-card-grid">
+    <div className="session-cards-grid">
       {sessions.map((session) => {
         const badgeClass = getSessionBadgeClass(session.session_type);
         const isRace = session.session_type?.toLowerCase().includes('race');
@@ -36,17 +38,15 @@ export const SessionCardGrid: React.FC<SessionCardGridProps> = ({
         return (
           <div
             key={session.id}
-            className="glass-panel session-glass-card"
+            className="session-card glass-panel"
             onClick={() => onSelectSession(session)}
           >
-            {/* Card Header */}
-            <div className="session-card-header">
-              <div className="session-card-track-info">
-                <div className="session-card-track-title">
-                  <MapPin size={16} color="var(--accent-secondary)" />
-                  <span className="track-name">{session.track_name || t('common.unknownTrack')}</span>
-                </div>
-                <span className="mono session-id-badge">#{session.id}</span>
+            {/* Card Top Row */}
+            <div className="session-card-top-row">
+              <div className="session-card-track">
+                <MapPin size={16} color="var(--accent-secondary)" />
+                <span className="session-track-name">{session.track_name}</span>
+                <span className="session-id-pill mono">#{session.id}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <F1FormatBadge format={session.packet_format} size="xs" />
@@ -63,9 +63,8 @@ export const SessionCardGrid: React.FC<SessionCardGridProps> = ({
                   <Clock size={14} color="var(--text-muted)" />
                   <span>{formatDate(session.created_at)}</span>
                 </div>
-                <div className="meta-item">
-                  <CloudSun size={14} color="var(--text-secondary)" />
-                  <span>{session.weather || t('common.clearWeather')}</span>
+                <div className="meta-item" onClick={(e) => e.stopPropagation()}>
+                  <WeatherBadgeWithForecast session={session} />
                 </div>
               </div>
 
@@ -90,7 +89,7 @@ export const SessionCardGrid: React.FC<SessionCardGridProps> = ({
               </div>
 
               <div className="session-card-tagline mono">
-                UID: {session.session_uid || session.id} • {isRace ? t('common.grandPrixRace') : t('common.timedSession')}
+                UID: {formatSessionUID(session.session_uid || session.id)} • {isRace ? t('common.grandPrixRace') : t('common.timedSession')}
               </div>
             </div>
 

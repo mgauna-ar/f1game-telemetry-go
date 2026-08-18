@@ -1,6 +1,14 @@
 package storage
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
+
+// FormatSessionUID formats a uint64 session UID into a standard hexadecimal string (e.g. 0x00000000075BCD15).
+func FormatSessionUID(uid uint64) string {
+	return fmt.Sprintf("0x%016X", uid)
+}
 
 // Tag represents a category or league tag for organizing sessions.
 type Tag struct {
@@ -13,11 +21,12 @@ type Tag struct {
 // Session represents a racing session.
 type Session struct {
 	ID              int64     `db:"id" json:"id"`
-	SessionUID      int64     `db:"session_uid" json:"session_uid"`
+	SessionUID      string    `db:"session_uid" json:"session_uid"`
 	TrackID         int       `db:"track_id" json:"track_id"`
 	TrackName       string    `db:"track_name" json:"track_name"`
 	SessionType     string    `db:"session_type" json:"session_type"`
 	Weather         string    `db:"weather" json:"weather"`
+	WeatherForecast string    `db:"weather_forecast" json:"weather_forecast"`
 	TotalLaps       int       `db:"total_laps" json:"total_laps"`
 	AIDifficulty    int       `db:"ai_difficulty" json:"ai_difficulty"`
 	SessionDuration int       `db:"session_duration" json:"session_duration"`

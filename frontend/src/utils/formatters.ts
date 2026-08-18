@@ -99,3 +99,29 @@ export function getSessionBadgeClass(typeStr?: string): string {
   if (lower.includes('practice') || lower.includes('fp')) return 'badge-green';
   return 'badge-gray';
 }
+
+/**
+ * Formats a raw session UID (string, decimal number, signed/negative int64, or Hex)
+ * into a clean 16-character uppercase Hex string e.g. "0x48D7F9B1E038C41A".
+ */
+export function formatSessionUID(uid?: string | number | null): string {
+  if (!uid && uid !== 0) return '0x0000000000000000';
+  if (typeof uid === 'string') {
+    const trimmed = uid.trim();
+    if (trimmed.startsWith('0x') || trimmed.startsWith('0X')) {
+      return `0x${trimmed.slice(2).toUpperCase()}`;
+    }
+    try {
+      const big = BigInt.asUintN(64, BigInt(trimmed));
+      return `0x${big.toString(16).toUpperCase().padStart(16, '0')}`;
+    } catch {
+      return trimmed;
+    }
+  }
+  try {
+    const big = BigInt.asUintN(64, BigInt(Math.trunc(uid)));
+    return `0x${big.toString(16).toUpperCase().padStart(16, '0')}`;
+  } catch {
+    return String(uid);
+  }
+}

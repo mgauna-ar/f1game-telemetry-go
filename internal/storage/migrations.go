@@ -20,11 +20,12 @@ var migrations = []Migration{
 		SQL: `
 CREATE TABLE IF NOT EXISTS sessions (
     id               INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_uid      INTEGER UNIQUE NOT NULL,
+    session_uid      TEXT UNIQUE NOT NULL,
     track_id         INTEGER NOT NULL,
     track_name       TEXT NOT NULL,
     session_type     TEXT NOT NULL,
     weather          TEXT,
+    weather_forecast TEXT DEFAULT '',
     total_laps       INTEGER DEFAULT 0,
     ai_difficulty    INTEGER DEFAULT 0,
     session_duration INTEGER DEFAULT 0,
@@ -42,6 +43,14 @@ CREATE TABLE IF NOT EXISTS participants (
     race_number     INTEGER,
     ai_controlled   BOOLEAN,
     nationality     INTEGER,
+    grid_position   INTEGER DEFAULT 0,
+    position        INTEGER DEFAULT 0,
+    points          INTEGER DEFAULT 0,
+    total_race_time REAL DEFAULT 0,
+    penalties_time  INTEGER DEFAULT 0,
+    num_penalties   INTEGER DEFAULT 0,
+    result_reason   INTEGER DEFAULT 0,
+    num_pit_stops   INTEGER DEFAULT 0,
     created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(session_id, car_index)
 );
@@ -56,7 +65,11 @@ CREATE TABLE IF NOT EXISTS laps (
     sector2_ms        INTEGER,
     sector3_ms        INTEGER,
     is_valid          BOOLEAN DEFAULT 1,
+    sector1_valid     BOOLEAN DEFAULT 1,
+    sector2_valid     BOOLEAN DEFAULT 1,
+    sector3_valid     BOOLEAN DEFAULT 1,
     tyre_compound     TEXT,
+    actual_compound   TEXT DEFAULT '',
     fuel_load         REAL,
     max_speed_kmh     REAL,
     penalties_seconds INTEGER DEFAULT 0,
@@ -94,25 +107,6 @@ CREATE TABLE IF NOT EXISTS session_tags (
 
 CREATE INDEX IF NOT EXISTS idx_session_tags_session ON session_tags(session_id);
 CREATE INDEX IF NOT EXISTS idx_session_tags_tag ON session_tags(tag_id);
-`,
-	},
-	{
-		Version: 2,
-		Name:    "official_classification_and_sector_validity",
-		SQL: `
-ALTER TABLE participants ADD COLUMN grid_position INTEGER DEFAULT 0;
-ALTER TABLE participants ADD COLUMN position INTEGER DEFAULT 0;
-ALTER TABLE participants ADD COLUMN points INTEGER DEFAULT 0;
-ALTER TABLE participants ADD COLUMN total_race_time REAL DEFAULT 0;
-ALTER TABLE participants ADD COLUMN penalties_time INTEGER DEFAULT 0;
-ALTER TABLE participants ADD COLUMN num_penalties INTEGER DEFAULT 0;
-ALTER TABLE participants ADD COLUMN result_reason INTEGER DEFAULT 0;
-ALTER TABLE participants ADD COLUMN num_pit_stops INTEGER DEFAULT 0;
-
-ALTER TABLE laps ADD COLUMN actual_compound TEXT DEFAULT '';
-ALTER TABLE laps ADD COLUMN sector1_valid BOOLEAN DEFAULT 1;
-ALTER TABLE laps ADD COLUMN sector2_valid BOOLEAN DEFAULT 1;
-ALTER TABLE laps ADD COLUMN sector3_valid BOOLEAN DEFAULT 1;
 `,
 	},
 }

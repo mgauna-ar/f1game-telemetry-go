@@ -30,7 +30,7 @@ func TestHandleGetParticipants(t *testing.T) {
 
 	// Create a session and add participants
 	session := &storage.Session{
-		SessionUID:   123456789,
+		SessionUID:   storage.FormatSessionUID(123456789),
 		TrackID:      11,
 		TrackName:    "Monza",
 		SessionType:  "Race",
@@ -103,7 +103,7 @@ func TestHandleDeleteSession(t *testing.T) {
 	ctx := context.Background()
 
 	session := &storage.Session{
-		SessionUID:   987654321,
+		SessionUID:   storage.FormatSessionUID(987654321),
 		TrackID:      1,
 		TrackName:    "Melbourne",
 		SessionType:  "Race",
@@ -217,7 +217,7 @@ func TestHandleSessionTags(t *testing.T) {
 	ctx := context.Background()
 
 	session := &storage.Session{
-		SessionUID:   555444333,
+		SessionUID:   storage.FormatSessionUID(555444333),
 		TrackID:      1,
 		TrackName:    "Melbourne",
 		SessionType:  "Race",
@@ -291,7 +291,7 @@ func TestHandleExportAndImportSession(t *testing.T) {
 	ctx := context.Background()
 
 	session := &storage.Session{
-		SessionUID:   99887711,
+		SessionUID:   storage.FormatSessionUID(99887711),
 		TrackID:      11,
 		TrackName:    "Monza",
 		SessionType:  "Race",
@@ -358,7 +358,7 @@ func TestHandleGetLapsWithCarIndexFilter(t *testing.T) {
 	ctx := context.Background()
 
 	session := &storage.Session{
-		SessionUID:   555666777,
+		SessionUID:   storage.FormatSessionUID(555666777),
 		TrackID:      11,
 		TrackName:    "Monza",
 		SessionType:  "Race",

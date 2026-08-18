@@ -228,4 +228,15 @@ export const history = {
     assigned: 'Asignadas',
     unassigned: 'Sin Asignar',
   },
+  forecast: {
+    title: 'Evolución y Pronóstico del Clima',
+    startWeather: 'Clima Inicial',
+    rainProbability: 'Prob. Lluvia',
+    trackTemp: 'Pista',
+    airTemp: 'Ambiente',
+    timeline: 'Línea de Tiempo',
+    noForecast: 'Clima Estable • Sin evolución dinámica registrada',
+    minutesOffset: '+{mins}m',
+    current: 'Inicio',
+  },
 };

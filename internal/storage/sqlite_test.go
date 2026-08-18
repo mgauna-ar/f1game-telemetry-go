@@ -19,7 +19,7 @@ func createTestSession(t *testing.T, repo *Repository) *Session {
 	t.Helper()
 	ctx := context.Background()
 	s := &Session{
-		SessionUID:   123456789,
+		SessionUID:   FormatSessionUID(123456789),
 		TrackID:      11,
 		TrackName:    "Monza",
 		SessionType:  "Race",
@@ -476,8 +476,9 @@ func TestUpdateSessionMetadataDynamicWeather(t *testing.T) {
 	ctx := context.Background()
 
 	// Initial session with unknown info
+	uid := FormatSessionUID(99887766)
 	s := &Session{
-		SessionUID:   99887766,
+		SessionUID:   uid,
 		TrackID:      -1,
 		TrackName:    "Unknown",
 		SessionType:  "Unknown",
@@ -488,8 +489,8 @@ func TestUpdateSessionMetadataDynamicWeather(t *testing.T) {
 		t.Fatalf("failed to save initial session: %v", err)
 	}
 
-	// 1. Resolve from Unknown to Monza / Race / Clear with totalLaps 53, difficulty 95, duration 3600
-	if err := repo.UpdateSessionMetadata(ctx, 99887766, 11, "Monza", "Race", "Clear", 53, 95, 3600); err != nil {
+	// 1. Resolve from Unknown to Monza / Race / Heavy Rain with totalLaps 53, difficulty 95, duration 3600
+	if err := repo.UpdateSessionMetadata(ctx, uid, 11, "Monza", "Race", "Heavy Rain", "", 53, 95, 3600); err != nil {
 		t.Fatalf("UpdateSessionMetadata failed: %v", err)
 	}
 
@@ -500,15 +501,16 @@ func TestUpdateSessionMetadataDynamicWeather(t *testing.T) {
 	if len(sessions) != 1 {
 		t.Fatalf("expected 1 session, got %d", len(sessions))
 	}
-	if sessions[0].TrackName != "Monza" || sessions[0].SessionType != "Race" || sessions[0].Weather != "Clear" {
-		t.Errorf("expected Monza/Race/Clear, got %s/%s/%s", sessions[0].TrackName, sessions[0].SessionType, sessions[0].Weather)
+	if sessions[0].TrackName != "Monza" || sessions[0].SessionType != "Race" || sessions[0].Weather != "Heavy Rain" {
+		t.Errorf("expected Monza/Race/Heavy Rain, got %s/%s/%s", sessions[0].TrackName, sessions[0].SessionType, sessions[0].Weather)
 	}
 	if sessions[0].TotalLaps != 53 || sessions[0].AIDifficulty != 95 || sessions[0].SessionDuration != 3600 {
 		t.Errorf("expected 53 laps / 95 diff / 3600 duration, got %d/%d/%d", sessions[0].TotalLaps, sessions[0].AIDifficulty, sessions[0].SessionDuration)
 	}
 
-	// 2. Dynamic live weather changes to "Light Rain" (preserving laps/difficulty/duration)
-	if err := repo.UpdateSessionMetadata(ctx, 99887766, 11, "Monza", "Race", "Light Rain", 0, 0, 0); err != nil {
+	// 2. Weather updates throughout race to "Light Rain" with forecast JSON (initial weather "Heavy Rain" preserved)
+	forecastJSON := `[{"TimeOffset":5,"Weather":3,"RainPercentage":60}]`
+	if err := repo.UpdateSessionMetadata(ctx, uid, 11, "Monza", "Race", "Light Rain", forecastJSON, 0, 0, 0); err != nil {
 		t.Fatalf("UpdateSessionMetadata dynamic weather failed: %v", err)
 	}
 
@@ -516,14 +518,17 @@ func TestUpdateSessionMetadataDynamicWeather(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetSessions failed: %v", err)
 	}
-	if sessionsAfter[0].Weather != "Light Rain" {
-		t.Errorf("expected dynamic weather to update to Light Rain, got %s", sessionsAfter[0].Weather)
+	if sessionsAfter[0].Weather != "Heavy Rain" {
+		t.Errorf("expected initial weather Heavy Rain to be preserved, got %s", sessionsAfter[0].Weather)
+	}
+	if sessionsAfter[0].WeatherForecast != forecastJSON {
+		t.Errorf("expected weather forecast %s, got %s", forecastJSON, sessionsAfter[0].WeatherForecast)
 	}
 	if sessionsAfter[0].TrackName != "Monza" {
 		t.Errorf("expected track name to remain Monza, got %s", sessionsAfter[0].TrackName)
 	}
 	if sessionsAfter[0].TotalLaps != 53 || sessionsAfter[0].AIDifficulty != 95 {
-		t.Errorf("expected retained total_laps 53 / difficulty 95, got %d/%d", sessionsAfter[0].TotalLaps, sessionsAfter[0].AIDifficulty)
+		t.Errorf("expected laps and difficulty to be preserved")
 	}
 }
 
@@ -598,7 +603,7 @@ func TestTagOperations(t *testing.T) {
 
 	// 1. Create a second session
 	session2 := &Session{
-		SessionUID:   987654321,
+		SessionUID:   FormatSessionUID(987654321),
 		TrackID:      12,
 		TrackName:    "Spa",
 		SessionType:  "Race",
@@ -833,14 +838,14 @@ func TestVersionedMigrations(t *testing.T) {
 	repo := setupTestRepo(t)
 	db := repo.DB()
 
-	// Verify schema_version table has recorded latest version (2)
+	// Verify schema_version table has recorded latest version (1)
 	var maxVersion int
 	err := db.Get(&maxVersion, "SELECT MAX(version) FROM schema_version")
 	if err != nil {
 		t.Fatalf("failed to query schema_version: %v", err)
 	}
-	if maxVersion != 2 {
-		t.Errorf("expected schema_version 2, got %d", maxVersion)
+	if maxVersion != 1 {
+		t.Errorf("expected schema_version 1, got %d", maxVersion)
 	}
 
 	// Running Migrate again should be idempotent
