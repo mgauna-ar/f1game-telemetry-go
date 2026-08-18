@@ -169,6 +169,7 @@ export function useTelemetry(wsUrl?: string) {
   const participantsRef = useRef<ParticipantData[]>([]);
   const prevLapsRef = useRef<LapData[]>([]);
   const prevSafetyCarRef = useRef<number>(0);
+  const sessionUidRef = useRef<number | string | null>(null);
 
   useEffect(() => {
     selectedCarIndexRef.current = selectedCarIndex;
@@ -232,6 +233,23 @@ export function useTelemetry(wsUrl?: string) {
             const data = JSON.parse(event.data);
             const header = data.Header as PacketHeader;
             if (!header) return;
+
+            if (header.SessionUID && sessionUidRef.current !== null && sessionUidRef.current !== header.SessionUID) {
+              setParticipants([]);
+              setAllLaps([]);
+              setAllMotion([]);
+              setAllCarStatus([]);
+              setAllCarDamage([]);
+              setAllTelemetry([]);
+              setAllTelemetry2([]);
+              setEvents([]);
+              setHistory([]);
+              setTrackPath([]);
+              prevLapsRef.current = [];
+            }
+            if (header.SessionUID) {
+              sessionUidRef.current = header.SessionUID;
+            }
 
             const playerIdx = header.PlayerCarIndex !== undefined ? header.PlayerCarIndex : 0;
             setPlayerCarIndex(playerIdx);
@@ -477,8 +495,33 @@ export function useTelemetry(wsUrl?: string) {
             else if (header.PacketId === 4) {
               const pkt = data as PacketParticipantsData;
               if (pkt.Participants && pkt.Participants.length > 0) {
-                const activeCount = pkt.NumActiveCars && pkt.NumActiveCars > 0 ? pkt.NumActiveCars : pkt.Participants.length;
-                setParticipants(pkt.Participants.slice(0, activeCount));
+                // In F1 UDP, participants occupy fixed array indices 0..MaxCars-1.
+                // An active grid of 20 cars has valid data at indices 0..19.
+                // When a car retires, NumActiveCars may decrease, but the car remains in slot 0..19.
+                // Unused tail slots (20..23) have empty name/number.
+                // Find the highest populated slot index to avoid truncating valid drivers.
+                let maxPopulatedIndex = -1;
+                for (let i = 0; i < pkt.Participants.length; i++) {
+                  const p = pkt.Participants[i];
+                  const hasName = typeof p.Name === 'string' && p.Name.replace(/\0/g, '').trim().length > 0;
+                  const hasNumber = p.RaceNumber !== undefined && p.RaceNumber > 0;
+                  const hasDriverId = p.DriverId !== undefined && p.DriverId !== 255 && p.DriverId > 0;
+                  if (hasName || hasNumber || hasDriverId) {
+                    maxPopulatedIndex = i;
+                  }
+                }
+
+                const validCount = Math.max(
+                  pkt.NumActiveCars || 0,
+                  maxPopulatedIndex >= 0 ? maxPopulatedIndex + 1 : 0
+                );
+
+                if (validCount > 0) {
+                  setParticipants((prev) => {
+                    const targetCount = Math.max(prev.length, validCount);
+                    return pkt.Participants.slice(0, targetCount);
+                  });
+                }
               }
             }
             // PacketID 7: Car Status Data
@@ -526,7 +569,7 @@ export function useTelemetry(wsUrl?: string) {
               if (pkt.LapData) {
                 setAllLaps(pkt.LapData);
 
-                // Synthetic Event Detection for Pit Stops and Retirements
+                // Synthetic Event Detection for Pit Stops, Penalties, and Retirements
                 pkt.LapData.forEach((lap, idx) => {
                   const prev = prevLapsRef.current[idx];
                   if (!prev) return;
@@ -556,6 +599,30 @@ export function useTelemetry(wsUrl?: string) {
                       eventCode: 'PENA',
                       type: 'penalty',
                       description: `${dName} received +${added}s penalty (Lap ${lap.CurrentLapNum})`,
+                      vehicleIdx: idx,
+                      driverName: dName,
+                      lapNum: lap.CurrentLapNum,
+                      severity: 'danger',
+                      sessionTime: header.SessionTime,
+                    });
+                  }
+
+                  // Retirement / DNF / DSQ transition
+                  const prevStatus = prev.ResultStatus ?? 2;
+                  const currentStatus = lap.ResultStatus ?? 2;
+                  if (
+                    (prevStatus !== 7 && prevStatus !== 4 && prevStatus !== 5) &&
+                    (currentStatus === 7 || currentStatus === 4 || currentStatus === 5)
+                  ) {
+                    const p = participantsRef.current[idx];
+                    const dName = parseDriverName(p?.Name, `Car #${idx + 1}`, p?.DriverId);
+                    const isDsq = currentStatus === 5;
+                    addEvent({
+                      eventCode: isDsq ? 'DSQ' : 'RTMT',
+                      type: isDsq ? 'penalty' : 'retirement',
+                      description: isDsq
+                        ? `${dName} was disqualified from the session`
+                        : `${dName} retired from the session (Lap ${lap.CurrentLapNum})`,
                       vehicleIdx: idx,
                       driverName: dName,
                       lapNum: lap.CurrentLapNum,

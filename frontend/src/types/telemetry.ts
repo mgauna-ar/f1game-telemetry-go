@@ -157,6 +157,7 @@ export interface PacketHeader {
   GameYear?: number;
   PacketId: number;
   SessionTime: number;
+  SessionUID?: number | string;
   PlayerCarIndex: number;
 }
 

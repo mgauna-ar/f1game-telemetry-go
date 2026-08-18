@@ -154,8 +154,8 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 
 	lapData := p.LapData[lt.carIndex]
 
-	// Filter out inactive cars if ResultStatus is available (2 = Active, 3 = Finished)
-	if lapData.ResultStatus != 0 && lapData.ResultStatus != 2 && lapData.ResultStatus != 3 {
+	// Filter out truly inactive cars (ResultStatus == 1 is Inactive) when no lap is active
+	if lapData.ResultStatus == 1 && lt.currentLap == nil {
 		return
 	}
 
@@ -253,9 +253,9 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 			updated = true
 		}
 
-		// If car has finished session (ResultStatus == 3), finalize lap and flush telemetry
+		// If car has finished session, retired, or DNF (ResultStatus >= 3), finalize lap and flush telemetry
 		lastLapTimeMS := int(lapData.LastLapTimeInMS)
-		if resStatus == 3 && lt.currentLap.LapTimeMS == 0 && lastLapTimeMS > 0 {
+		if resStatus >= 3 && lt.currentLap.LapTimeMS == 0 && lastLapTimeMS > 0 {
 			lt.finalizeCurrentLap(ctx, lastLapTimeMS)
 			return
 		}

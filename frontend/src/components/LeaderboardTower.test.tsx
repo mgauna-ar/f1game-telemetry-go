@@ -142,4 +142,72 @@ describe('LeaderboardTower', () => {
     expect(screen.getByText('2W')).toBeInTheDocument();
     expect(screen.getByText('DT')).toBeInTheDocument();
   });
+
+  it('preserves timed driver position with RET badge when driver retires during qualifying', () => {
+    const laps: LapData[] = [
+      { LastLapTimeInMS: 0, CurrentLapTimeInMS: 60000, CarPosition: 3, CurrentLapNum: 2, PitStatus: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, CurrentLapInvalid: 0, ResultStatus: 2 }, // Verstappen (No time, Active)
+      { LastLapTimeInMS: 75000, CurrentLapTimeInMS: 0, CarPosition: 2, CurrentLapNum: 3, PitStatus: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, CurrentLapInvalid: 0, ResultStatus: 7 }, // Hamilton (1:15.000, Retired)
+      { LastLapTimeInMS: 74000, CurrentLapTimeInMS: 12000, CarPosition: 1, CurrentLapNum: 3, PitStatus: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, CurrentLapInvalid: 0, ResultStatus: 2 }, // Norris (1:14.000, Active)
+    ];
+
+    const carStatuses: CarStatusData[] = [
+      { VisualTyreCompound: 16, FuelInTank: 10, ERSStoreEnergy: 1000, ERSDeployMode: 1 },
+      { VisualTyreCompound: 16, FuelInTank: 10, ERSStoreEnergy: 1000, ERSDeployMode: 1 },
+      { VisualTyreCompound: 16, FuelInTank: 10, ERSStoreEnergy: 1000, ERSDeployMode: 1 },
+    ];
+
+    render(
+      <LeaderboardTower
+        session={qualySession}
+        participants={participants}
+        laps={laps}
+        carStatuses={carStatuses}
+        playerCarIndex={0}
+        selectedCarIndex={0}
+        onSelectCar={() => {}}
+      />
+    );
+
+    const driverNames = screen.getAllByText(/Verstappen|Hamilton|Norris/).map(el => el.textContent);
+    // Norris (1:14.000) P1, Hamilton (1:15.000, RET) P2, Verstappen (No time) P3
+    expect(driverNames).toEqual(['Lando Norris', 'Lewis Hamilton', 'Max Verstappen']);
+    // Hamilton has RET badge
+    expect(screen.getByText('RET')).toBeInTheDocument();
+    // Norris has time displayed
+    expect(screen.getByText('1:14.000')).toBeInTheDocument();
+    // Hamilton has time displayed
+    expect(screen.getByText('1:15.000')).toBeInTheDocument();
+  });
+
+  it('ranks un-timed retired driver at bottom with RET badge in qualifying', () => {
+    const laps: LapData[] = [
+      { LastLapTimeInMS: 0, CurrentLapTimeInMS: 0, CarPosition: 3, CurrentLapNum: 1, PitStatus: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, CurrentLapInvalid: 0, ResultStatus: 7 }, // Verstappen (No time, Retired)
+      { LastLapTimeInMS: 75000, CurrentLapTimeInMS: 10000, CarPosition: 2, CurrentLapNum: 3, PitStatus: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, CurrentLapInvalid: 0, ResultStatus: 2 }, // Hamilton (1:15.000, Active)
+      { LastLapTimeInMS: 74000, CurrentLapTimeInMS: 12000, CarPosition: 1, CurrentLapNum: 3, PitStatus: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, CurrentLapInvalid: 0, ResultStatus: 2 }, // Norris (1:14.000, Active)
+    ];
+
+    const carStatuses: CarStatusData[] = [
+      { VisualTyreCompound: 16, FuelInTank: 10, ERSStoreEnergy: 1000, ERSDeployMode: 1 },
+      { VisualTyreCompound: 16, FuelInTank: 10, ERSStoreEnergy: 1000, ERSDeployMode: 1 },
+      { VisualTyreCompound: 16, FuelInTank: 10, ERSStoreEnergy: 1000, ERSDeployMode: 1 },
+    ];
+
+    render(
+      <LeaderboardTower
+        session={qualySession}
+        participants={participants}
+        laps={laps}
+        carStatuses={carStatuses}
+        playerCarIndex={0}
+        selectedCarIndex={0}
+        onSelectCar={() => {}}
+      />
+    );
+
+    const driverNames = screen.getAllByText(/Verstappen|Hamilton|Norris/).map(el => el.textContent);
+    // Norris (1:14.000) P1, Hamilton (1:15.000) P2, Verstappen (No time, RET) P3
+    expect(driverNames).toEqual(['Lando Norris', 'Lewis Hamilton', 'Max Verstappen']);
+    expect(screen.getByText('RET')).toBeInTheDocument();
+    expect(screen.getByText('NO TIME')).toBeInTheDocument();
+  });
 });

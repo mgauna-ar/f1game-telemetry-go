@@ -388,3 +388,117 @@ func TestStintProgressionAndCompoundMapping(t *testing.T) {
 		t.Errorf("expected compound MEDIUM, got %s", manager.lapTrackers[0].lastCompound)
 	}
 }
+
+func TestSessionManagerDriverRetirement(t *testing.T) {
+	ctx := context.Background()
+	repo, err := storage.NewRepository(":memory:")
+	if err != nil {
+		t.Fatalf("Failed to create memory DB: %v", err)
+	}
+	defer repo.Close()
+
+	manager := NewSessionManager(repo)
+	manager.Start(ctx)
+	defer manager.Close(ctx)
+
+	sessionUID := uint64(111222333)
+	sessionHeader := packets.PacketHeader{
+		PacketFormat: 2026,
+		SessionUID:   sessionUID,
+		PacketId:     packets.PacketIDSession,
+	}
+
+	sessionPacket := &packets.PacketSessionData{
+		Header:      sessionHeader,
+		TrackId:     1,
+		SessionType: 5, // Q1
+	}
+	manager.ProcessPacket(ctx, sessionPacket)
+
+	// 1. Initial 3 participants
+	partHeader := sessionHeader
+	partHeader.PacketId = packets.PacketIDParticipants
+	partPacket := &packets.PacketParticipantsData{
+		Header:        partHeader,
+		NumActiveCars: 3,
+	}
+	copy(partPacket.Participants[0].Name[:], "Max Verstappen")
+	partPacket.Participants[0].DriverId = 1
+	partPacket.Participants[0].RaceNumber = 1
+
+	copy(partPacket.Participants[1].Name[:], "Lewis Hamilton")
+	partPacket.Participants[1].DriverId = 2
+	partPacket.Participants[1].RaceNumber = 44
+
+	copy(partPacket.Participants[2].Name[:], "Charles Leclerc")
+	partPacket.Participants[2].DriverId = 3
+	partPacket.Participants[2].RaceNumber = 16
+
+	manager.ProcessPacket(ctx, partPacket)
+
+	// 2. Initial LapData for all 3 cars (Active)
+	lapHeader := sessionHeader
+	lapHeader.PacketId = packets.PacketIDLapData
+	lapPacket := &packets.PacketLapData{Header: lapHeader}
+	for i := 0; i < 3; i++ {
+		lapPacket.LapData[i].CurrentLapNum = 1
+		lapPacket.LapData[i].ResultStatus = 2 // Active
+		lapPacket.LapData[i].CarPosition = uint8(i + 1)
+	}
+	manager.ProcessPacket(ctx, lapPacket)
+
+	// 3. Driver at index 1 (Hamilton) completes a lap (1:15.000), then retires (ResultStatus = 7)
+	// Game decrements NumActiveCars to 2
+	partPacket.NumActiveCars = 2
+	manager.ProcessPacket(ctx, partPacket)
+
+	// LapData with Hamilton retired and Leclerc completing lap 1
+	lapPacket.LapData[0].CurrentLapNum = 1
+	lapPacket.LapData[0].ResultStatus = 2
+	lapPacket.LapData[0].LastLapTimeInMS = 74000
+
+	lapPacket.LapData[1].CurrentLapNum = 1
+	lapPacket.LapData[1].ResultStatus = 7 // Retired
+	lapPacket.LapData[1].LastLapTimeInMS = 75000
+
+	lapPacket.LapData[2].CurrentLapNum = 2 // Leclerc on lap 2
+	lapPacket.LapData[2].ResultStatus = 2
+	lapPacket.LapData[2].LastLapTimeInMS = 76000
+
+	manager.ProcessPacket(ctx, lapPacket)
+
+	// 4. Verify participants table in DB still has 3 participants (Leclerc not cut off)
+	participants, err := repo.GetParticipantsBySession(ctx, manager.currentSession.ID)
+	if err != nil {
+		t.Fatalf("GetParticipantsBySession() error = %v", err)
+	}
+	if len(participants) != 3 {
+		t.Fatalf("expected 3 participants retained after retirement, got %d", len(participants))
+	}
+
+	// 5. Verify Hamilton's lap was recorded with ResultStatus = 7
+	car1Idx := 1
+	lapsCar1, err := repo.GetLapsBySession(ctx, manager.currentSession.ID, &car1Idx)
+	if err != nil {
+		t.Fatalf("GetLapsBySession() for Car 1 error = %v", err)
+	}
+	if len(lapsCar1) == 0 {
+		t.Fatalf("expected at least 1 lap for Car 1")
+	}
+	if lapsCar1[0].ResultStatus != 7 {
+		t.Errorf("expected Car 1 ResultStatus to be 7 (Retired), got %d", lapsCar1[0].ResultStatus)
+	}
+
+	// 6. Verify Leclerc (Car 2) lap 1 was also recorded despite NumActiveCars = 2
+	car2Idx := 2
+	lapsCar2, err := repo.GetLapsBySession(ctx, manager.currentSession.ID, &car2Idx)
+	if err != nil {
+		t.Fatalf("GetLapsBySession() for Car 2 error = %v", err)
+	}
+	if len(lapsCar2) == 0 {
+		t.Fatalf("expected at least 1 lap for Car 2 (Leclerc)")
+	}
+	if lapsCar2[0].LapTimeMS != 76000 {
+		t.Errorf("expected Car 2 lap time 76000 ms, got %d", lapsCar2[0].LapTimeMS)
+	}
+}

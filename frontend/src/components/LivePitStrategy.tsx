@@ -57,7 +57,28 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = ({
 
   drivers.sort((a, b) => a.position - b.position);
 
-  const getPitStatusBadge = (pitStatus?: number, timerMs?: number, timeInLaneMs?: number) => {
+  const getPitStatusBadge = (pitStatus?: number, timerMs?: number, timeInLaneMs?: number, resultStatus?: number) => {
+    if (resultStatus === 7) {
+      return (
+        <span className="pit-badge-lane mono" style={{ color: '#FF4D4D', borderColor: 'rgba(255, 77, 77, 0.4)' }}>
+          {t('live.statusRetired')}
+        </span>
+      );
+    }
+    if (resultStatus === 4) {
+      return (
+        <span className="pit-badge-lane mono" style={{ color: '#FF4D4D', borderColor: 'rgba(255, 77, 77, 0.4)' }}>
+          {t('live.statusDnf')}
+        </span>
+      );
+    }
+    if (resultStatus === 5) {
+      return (
+        <span className="pit-badge-lane mono" style={{ color: '#FF3333', borderColor: 'rgba(255, 51, 51, 0.6)' }}>
+          {t('live.statusDsq')}
+        </span>
+      );
+    }
     if (pitStatus === 1) {
       return (
         <span className="pit-badge-lane mono">
@@ -208,7 +229,7 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = ({
                   </td>
                   <td className="mono text-center font-semibold">{d.lap?.NumPitStops ?? 0}</td>
                   <td className="text-right">
-                    {getPitStatusBadge(d.lap?.PitStatus, d.lap?.PitStopTimerInMS, d.lap?.PitLaneTimeInLaneInMS)}
+                    {getPitStatusBadge(d.lap?.PitStatus, d.lap?.PitStopTimerInMS, d.lap?.PitLaneTimeInLaneInMS, d.lap?.ResultStatus)}
                   </td>
                 </tr>
               );

@@ -31,7 +31,7 @@ func NewSessionManager(repo *storage.Repository) *SessionManager {
 		repo:          repo,
 		batchWriter:   bw,
 		lapTrackers:   trackers,
-		numActiveCars: packets.MaxCars,
+		numActiveCars: 0,
 	}
 }
 
@@ -65,7 +65,7 @@ func (sm *SessionManager) ProcessPacket(ctx context.Context, pkt packets.Packet)
 		sm.handleNewSession(ctx, header)
 	}
 
-	maxCars := sm.numActiveCars
+	maxCars := packets.MaxCarsForFormat(header.PacketFormat)
 	if maxCars <= 0 || maxCars > packets.MaxCars {
 		maxCars = packets.MaxCars
 	}
@@ -127,6 +127,7 @@ func (sm *SessionManager) handleNewSession(ctx context.Context, header packets.P
 	}
 
 	sm.currentSessionUID = header.SessionUID
+	sm.numActiveCars = 0
 
 	// Create a new session in storage
 	sm.currentSession = &storage.Session{
@@ -180,14 +181,39 @@ func (sm *SessionManager) handleParticipantsData(ctx context.Context, p *packets
 		return
 	}
 
-	numActive := int(p.NumActiveCars)
-	if numActive <= 0 || numActive > packets.MaxCars {
-		numActive = packets.MaxCars
+	maxCars := packets.MaxCarsForFormat(p.Header.PacketFormat)
+	lastValid := 0
+	for i := 0; i < maxCars && i < len(p.Participants); i++ {
+		pd := p.Participants[i]
+		if pd.NameString() != "" || pd.RaceNumber > 0 || (pd.DriverId != 255 && pd.DriverId > 0) {
+			lastValid = i + 1
+		}
 	}
-	sm.numActiveCars = numActive
 
-	participants := make([]storage.Participant, 0, numActive)
-	for i := 0; i < numActive; i++ {
+	numActive := int(p.NumActiveCars)
+	if lastValid > numActive {
+		numActive = lastValid
+	}
+	if numActive <= 0 {
+		numActive = lastValid
+	}
+	if numActive > maxCars {
+		numActive = maxCars
+	}
+	if sm.numActiveCars == 0 || numActive > sm.numActiveCars {
+		sm.numActiveCars = numActive
+	}
+
+	saveCount := sm.numActiveCars
+	if saveCount <= 0 {
+		saveCount = numActive
+	}
+	if saveCount <= 0 || saveCount > maxCars {
+		saveCount = maxCars
+	}
+
+	participants := make([]storage.Participant, 0, saveCount)
+	for i := 0; i < saveCount; i++ {
 		pd := p.Participants[i]
 		participants = append(participants, storage.Participant{
 			CarIndex:     i,

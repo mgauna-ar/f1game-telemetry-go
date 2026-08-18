@@ -106,13 +106,28 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
       result.sort((a, b) => {
         const timeA = bestLapTimesRef.current[a.carIndex] || (a.lap?.LastLapTimeInMS || 0);
         const timeB = bestLapTimesRef.current[b.carIndex] || (b.lap?.LastLapTimeInMS || 0);
+        const resA = a.lap?.ResultStatus ?? 2;
+        const resB = b.lap?.ResultStatus ?? 2;
 
+        // Disqualified drivers at the very bottom
+        const isDsqA = resA === 5;
+        const isDsqB = resB === 5;
+        if (isDsqA !== isDsqB) return isDsqA ? 1 : -1;
+
+        // Both set lap times: rank strictly by best lap time ascending
         if (timeA > 0 && timeB > 0) {
           if (timeA !== timeB) return timeA - timeB;
           return a.carIndex - b.carIndex;
         }
+
+        // Driver with a time always ranks ahead of driver without time
         if (timeA > 0 && timeB === 0) return -1;
         if (timeA === 0 && timeB > 0) return 1;
+
+        // Both without lap time: check retired/DNF vs active un-timed
+        const isRetA = resA === 7 || resA === 4 || resA === 6;
+        const isRetB = resB === 7 || resB === 4 || resB === 6;
+        if (isRetA !== isRetB) return isRetA ? 1 : -1;
 
         return a.carIndex - b.carIndex;
       });
@@ -121,7 +136,19 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
         d.position = idx + 1;
       });
     } else {
-      result.sort((a, b) => a.position - b.position);
+      result.sort((a, b) => {
+        const resA = a.lap?.ResultStatus ?? 2;
+        const resB = b.lap?.ResultStatus ?? 2;
+        const isDsqA = resA === 5;
+        const isDsqB = resB === 5;
+        if (isDsqA !== isDsqB) return isDsqA ? 1 : -1;
+
+        const isRetA = resA === 7 || resA === 4;
+        const isRetB = resB === 7 || resB === 4;
+        if (isRetA !== isRetB) return isRetA ? 1 : -1;
+
+        return a.position - b.position;
+      });
     }
 
     return result;
@@ -156,7 +183,7 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
   const poleTimeMs = isQualy && p1BestLap > 0 ? p1BestLap : 0;
 
   const formatTime = (ms?: number) => {
-    if (!ms || ms <= 0) return 'NO TIME';
+    if (!ms || ms <= 0) return t('live.noTime');
     const mins = Math.floor(ms / 60000);
     const secs = Math.floor((ms % 60000) / 1000);
     const millis = ms % 1000;
@@ -173,7 +200,7 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
   const formatDelta = (msPart?: number, minsPart?: number) => {
     if (msPart === undefined && minsPart === undefined) return '--';
     const totalMs = (minsPart || 0) * 60000 + (msPart || 0);
-    if (totalMs === 0) return 'LEADER';
+    if (totalMs === 0) return t('live.leaderBadge');
     return `+${(totalMs / 1000).toFixed(3)}s`;
   };
 
@@ -228,18 +255,62 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
     return <>{elements}</>;
   };
 
-  const getDriverStatusBadge = (status?: number, pitStatus?: number) => {
+  const getDriverStatusBadge = (status?: number, pitStatus?: number, resultStatus?: number) => {
+    if (resultStatus === 7) {
+      return (
+        <span className="driver-status-badge status-retired" title={t('live.penaltyTypes.retired')}>
+          {t('live.statusRetired')}
+        </span>
+      );
+    }
+    if (resultStatus === 4) {
+      return (
+        <span className="driver-status-badge status-dnf" title={t('live.statusDnf')}>
+          {t('live.statusDnf')}
+        </span>
+      );
+    }
+    if (resultStatus === 5) {
+      return (
+        <span className="driver-status-badge status-dsq" title={t('live.penaltyTypes.disqualified')}>
+          {t('live.statusDsq')}
+        </span>
+      );
+    }
+    if (resultStatus === 6) {
+      return (
+        <span className="driver-status-badge status-nc">
+          {t('live.statusNc')}
+        </span>
+      );
+    }
+    if (resultStatus === 3) {
+      return (
+        <span className="driver-status-badge status-finished">
+          {t('live.statusFinished')}
+        </span>
+      );
+    }
+
     if (pitStatus === 1 || pitStatus === 2) {
-      return <span className="driver-status-badge status-pit"><Wrench size={10} style={{ display: 'inline', marginRight: '2px' }} /> PIT</span>;
+      return (
+        <span className="driver-status-badge status-pit">
+          <Wrench size={10} style={{ display: 'inline', marginRight: '2px' }} /> {t('live.statusPit')}
+        </span>
+      );
     }
     if (status === 1) {
-      return <span className="driver-status-badge status-hotlap"><Flame size={10} style={{ display: 'inline', marginRight: '2px' }} /> HOTLAP</span>;
+      return (
+        <span className="driver-status-badge status-hotlap">
+          <Flame size={10} style={{ display: 'inline', marginRight: '2px' }} /> {t('live.statusHotlap')}
+        </span>
+      );
     }
     if (status === 3) {
-      return <span className="driver-status-badge status-outlap">OUT LAP</span>;
+      return <span className="driver-status-badge status-outlap">{t('live.statusOutlap')}</span>;
     }
     if (status === 0) {
-      return <span className="driver-status-badge status-garage">GARAGE</span>;
+      return <span className="driver-status-badge status-garage">{t('live.statusGarage')}</span>;
     }
     return null;
   };
@@ -286,10 +357,10 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
               <span className="tower-name" style={{ fontSize: '0.82rem' }}>{driver.name}</span>
               <span className="tower-number mono" style={{ fontSize: '0.68rem' }}>#{driver.raceNumber}</span>
-              {driver.isPlayer && <span className="player-tag">YOU</span>}
+              {driver.isPlayer && <span className="player-tag">{t('live.youChip')}</span>}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '1px', flexWrap: 'wrap' }}>
-              {getDriverStatusBadge(driver.lap?.DriverStatus, driver.lap?.PitStatus)}
+              {getDriverStatusBadge(driver.lap?.DriverStatus, driver.lap?.PitStatus, driver.lap?.ResultStatus)}
               {getPenaltyBadge(driver.lap)}
               {driver.telemetry2?.ActiveAeroMode === 1 && (
                 <span
@@ -358,9 +429,17 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
             ) : (
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: '0.8rem', fontWeight: 600, color: overallIndex === 0 ? 'var(--accent-primary)' : 'inherit' }}>
-                  {overallIndex === 0 ? t('live.leaderBadge') : formatDelta(driver.lap?.DeltaToRaceLeaderMSPart, driver.lap?.DeltaToRaceLeaderMinutesPart)}
+                  {overallIndex === 0
+                    ? t('live.leaderBadge')
+                    : driver.lap?.ResultStatus === 7
+                    ? t('live.statusRetired')
+                    : driver.lap?.ResultStatus === 4
+                    ? t('live.statusDnf')
+                    : driver.lap?.ResultStatus === 5
+                    ? t('live.statusDsq')
+                    : formatDelta(driver.lap?.DeltaToRaceLeaderMSPart, driver.lap?.DeltaToRaceLeaderMinutesPart)}
                 </div>
-                {overallIndex > 0 && driver.lap?.DeltaToCarInFrontMSPart !== undefined && (
+                {overallIndex > 0 && !(driver.lap?.ResultStatus === 7 || driver.lap?.ResultStatus === 4 || driver.lap?.ResultStatus === 5) && driver.lap?.DeltaToCarInFrontMSPart !== undefined && (
                   <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
                     INT {formatDelta(driver.lap.DeltaToCarInFrontMSPart, driver.lap.DeltaToCarInFrontMinutesPart)}
                   </div>

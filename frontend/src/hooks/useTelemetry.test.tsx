@@ -96,7 +96,7 @@ describe('useTelemetry', () => {
     expect(screen.getByTestId('motion-x')).toHaveTextContent('-100.5');
   });
 
-  it('slices participants to NumActiveCars', () => {
+  it('retains all participants without truncating when NumActiveCars drops on retirement', () => {
     let wsInstance: MockWebSocket | undefined;
     (globalThis as any).WebSocket = function (url: string) {
       wsInstance = new MockWebSocket(url);
@@ -110,11 +110,12 @@ describe('useTelemetry', () => {
 
     render(<ParticipantsTestComponent />);
 
+    // Initial packet with 4 active cars
     act(() => {
       if (wsInstance?.onmessage) {
         wsInstance.onmessage({
           data: JSON.stringify({
-            Header: { PacketId: 4, SessionTime: 1.0, PlayerCarIndex: 0 },
+            Header: { PacketId: 4, SessionTime: 1.0, SessionUID: 12345, PlayerCarIndex: 0 },
             NumActiveCars: 4,
             Participants: [
               { DriverId: 9, Name: 'Max Verstappen' },
@@ -129,6 +130,29 @@ describe('useTelemetry', () => {
       }
     });
 
+    expect(screen.getByTestId('count')).toHaveTextContent('4');
+
+    // Subsequent packet when 1 driver retires (NumActiveCars drops to 3)
+    act(() => {
+      if (wsInstance?.onmessage) {
+        wsInstance.onmessage({
+          data: JSON.stringify({
+            Header: { PacketId: 4, SessionTime: 2.0, SessionUID: 12345, PlayerCarIndex: 0 },
+            NumActiveCars: 3,
+            Participants: [
+              { DriverId: 9, Name: 'Max Verstappen' },
+              { DriverId: 7, Name: 'Lewis Hamilton' },
+              { DriverId: 22, Name: 'Charles Leclerc' },
+              { DriverId: 10, Name: 'Lando Norris' },
+              { DriverId: 0, Name: '' },
+              { DriverId: 0, Name: '' },
+            ]
+          })
+        });
+      }
+    });
+
+    // Must still retain all 4 drivers
     expect(screen.getByTestId('count')).toHaveTextContent('4');
   });
 });

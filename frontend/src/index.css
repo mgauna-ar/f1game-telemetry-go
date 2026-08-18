@@ -946,6 +946,11 @@ h1 {
 .status-hotlap { background: rgba(255, 51, 51, 0.2); color: #FF3333; }
 .status-outlap { background: rgba(51, 153, 255, 0.2); color: #3399FF; }
 .status-garage { background: rgba(255, 255, 255, 0.1); color: #888; }
+.status-retired { background: rgba(255, 77, 77, 0.25); color: #FF4D4D; border: 1px solid rgba(255, 77, 77, 0.45); }
+.status-dnf { background: rgba(255, 77, 77, 0.25); color: #FF4D4D; border: 1px solid rgba(255, 77, 77, 0.45); }
+.status-dsq { background: rgba(0, 0, 0, 0.6); color: #FF3333; border: 1px solid #FF3333; }
+.status-finished { background: rgba(51, 204, 102, 0.25); color: #33CC66; border: 1px solid rgba(51, 204, 102, 0.45); }
+.status-nc { background: rgba(160, 160, 160, 0.2); color: #A0A0A0; border: 1px solid rgba(160, 160, 160, 0.4); }
 
 .driver-penalty-badge {
   font-size: 0.65rem;
