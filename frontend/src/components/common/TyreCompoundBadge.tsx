@@ -13,11 +13,15 @@ export const TyreCompoundBadge: React.FC<TyreCompoundBadgeProps> = ({ compound }
   let color = '#FFFFFF';
   let bg = 'rgba(255, 255, 255, 0.15)';
 
-  if (str === String(TYRE_COMPOUND_IDS.SOFT) || str.includes('SOFT') || str === 'S') {
+  if (str === String(TYRE_COMPOUND_IDS.INTERMEDIATE) || str.includes('INTER') || str === 'I') {
+    label = 'I';
+    color = '#2ed573';
+    bg = 'rgba(46, 213, 115, 0.2)';
+  } else if (str === String(TYRE_COMPOUND_IDS.SOFT) || str.includes('SOFT') || str === 'S') {
     label = 'S';
     color = '#ff4757';
     bg = 'rgba(255, 71, 87, 0.2)';
-  } else if (str === String(TYRE_COMPOUND_IDS.MEDIUM) || str.includes('MED') || str === 'M') {
+  } else if (str === String(TYRE_COMPOUND_IDS.MEDIUM) || str.includes('MEDIUM') || str === 'MED' || str === 'M') {
     label = 'M';
     color = '#ffd200';
     bg = 'rgba(255, 210, 0, 0.2)';
@@ -25,10 +29,6 @@ export const TyreCompoundBadge: React.FC<TyreCompoundBadgeProps> = ({ compound }
     label = 'H';
     color = '#FFFFFF';
     bg = 'rgba(255, 255, 255, 0.2)';
-  } else if (str === String(TYRE_COMPOUND_IDS.INTERMEDIATE) || str.includes('INTER') || str === 'I') {
-    label = 'I';
-    color = '#2ed573';
-    bg = 'rgba(46, 213, 115, 0.2)';
   } else if (str === String(TYRE_COMPOUND_IDS.WET) || str.includes('WET') || str === 'W') {
     label = 'W';
     color = '#1e90ff';

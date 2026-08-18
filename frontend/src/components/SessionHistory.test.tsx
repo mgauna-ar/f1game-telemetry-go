@@ -680,5 +680,57 @@ describe('SessionHistory Component', () => {
       expect(screen.getByText('Session imported successfully!')).toBeInTheDocument();
     });
   });
+
+  it('navigates to the Tyre Strategy & Stints tab within a selected session', async () => {
+    const mockSessions = [
+      { id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', total_laps: 5, session_duration: 5400, created_at: '2026-08-10T14:00:00Z' },
+    ];
+
+    const mockParticipants = [
+      { id: 10, session_id: 1, car_index: 0, name: 'Lewis Hamilton', driver_id: 2, team_id: 1, race_number: 44, ai_controlled: false },
+    ];
+
+    const mockLaps = [
+      { id: 201, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 90100, is_valid: true, tyre_compound: 'MEDIUM', stint: 1 },
+      { id: 202, session_id: 1, car_index: 0, lap_number: 2, lap_time_ms: 89500, is_valid: true, tyre_compound: 'MEDIUM', stint: 1 },
+      { id: 203, session_id: 1, car_index: 0, lap_number: 3, lap_time_ms: 88500, is_valid: true, tyre_compound: 'HARD', stint: 2 },
+    ];
+
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url === '/api/sessions') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSessions) });
+      if (url === '/api/tags') return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      if (url === '/api/sessions/1/participants') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockParticipants) });
+      if (url === '/api/sessions/1/laps') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockLaps) });
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    });
+
+    render(
+      <I18nProvider>
+        <SessionHistory />
+      </I18nProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Silverstone').length).toBeGreaterThan(0);
+    });
+
+    // Select the session
+    const selectBtn = screen.getByRole('button', { name: /^Explore$/i });
+    fireEvent.click(selectBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Tyre Strategy & Stints')).toBeInTheDocument();
+    });
+
+    // Click on Tyre Strategy & Stints tab
+    const stintsTabBtn = screen.getByText('Tyre Strategy & Stints');
+    fireEvent.click(stintsTabBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Field Tyre Strategy Timeline')).toBeInTheDocument();
+      expect(screen.getByText('Tyre Degradation & Stint Pace Curves')).toBeInTheDocument();
+    });
+  });
 });
+
 

@@ -18,10 +18,12 @@ import {
   Download,
   Upload,
   CheckCircle,
+  Layers,
 } from 'lucide-react';
 import { SessionTableView } from './session_history/SessionTableView';
 import { SessionClassificationTab } from './session_history/SessionClassificationTab';
 import { SessionLapChartsTab } from './session_history/SessionLapChartsTab';
+import { SessionStintStrategyTab } from './session_history/SessionStintStrategyTab';
 import { SessionSectorMatrixTab } from './session_history/SessionSectorMatrixTab';
 import { TagBadge } from './session_history/TagBadge';
 import { TagManagerModal } from './session_history/TagManagerModal';
@@ -86,8 +88,8 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
   const [stagedSlotA, setStagedSlotA] = useState<StagedLap | null>(null);
   const [stagedSlotB, setStagedSlotB] = useState<StagedLap | null>(null);
 
-  // Active Sub-Tab in Session Detail ('classification' | 'charts' | 'sectors')
-  const [activeDetailTab, setActiveDetailTab] = useState<'classification' | 'charts' | 'sectors'>('classification');
+  // Active Sub-Tab in Session Detail ('classification' | 'charts' | 'stints' | 'sectors')
+  const [activeDetailTab, setActiveDetailTab] = useState<'classification' | 'charts' | 'stints' | 'sectors'>('classification');
 
   // AI Race Engineer Context Hook
   const { openChat, setSessionDebriefContext, setContextMode } = useRaceEngineer();
@@ -430,11 +432,15 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
     let color = '#FFFFFF';
     let bg = 'rgba(255, 255, 255, 0.15)';
 
-    if (str === '16' || str.includes('SOFT') || str === 'S') {
+    if (str === '7' || str.includes('INTER') || str === 'I') {
+      label = 'I';
+      color = '#33FF33';
+      bg = 'rgba(51, 255, 51, 0.15)';
+    } else if (str === '16' || str.includes('SOFT') || str === 'S') {
       label = 'S';
       color = '#FF3333';
       bg = 'rgba(255, 51, 51, 0.15)';
-    } else if (str === '17' || str.includes('MEDIUM') || str === 'M') {
+    } else if (str === '17' || str.includes('MEDIUM') || str === 'MED' || str === 'M') {
       label = 'M';
       color = '#FFD700';
       bg = 'rgba(255, 215, 0, 0.15)';
@@ -442,10 +448,6 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
       label = 'H';
       color = '#FFFFFF';
       bg = 'rgba(255, 255, 255, 0.15)';
-    } else if (str === '7' || str.includes('INTER') || str === 'I') {
-      label = 'I';
-      color = '#33FF33';
-      bg = 'rgba(51, 255, 51, 0.15)';
     } else if (str === '8' || str.includes('WET') || str === 'W') {
       label = 'W';
       color = '#3399FF';
@@ -1247,6 +1249,15 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
             </button>
 
             <button
+              className={`nav-tab ${activeDetailTab === 'stints' ? 'active' : ''}`}
+              onClick={() => setActiveDetailTab('stints')}
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', padding: '0.6rem 1.2rem' }}
+            >
+              <Layers size={16} />
+              <span>{t('history.detail.tabStints')}</span>
+            </button>
+
+            <button
               className={`nav-tab ${activeDetailTab === 'sectors' ? 'active' : ''}`}
               onClick={() => setActiveDetailTab('sectors')}
               style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', padding: '0.6rem 1.2rem' }}
@@ -1288,6 +1299,13 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
               driverStandings={driverStandings}
               totalSessionLaps={totalSessionLaps}
               formatLapTime={formatLapTime}
+            />
+          ) : activeDetailTab === 'stints' ? (
+            <SessionStintStrategyTab
+              driverStandings={driverStandings}
+              totalSessionLaps={totalSessionLaps}
+              formatLapTime={formatLapTime}
+              renderTyreBadge={renderTyreBadge}
             />
           ) : (
             <SessionSectorMatrixTab
