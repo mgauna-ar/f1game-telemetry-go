@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { ShieldAlert, Flag, Zap, Swords, Wrench, AlertTriangle, Radio, Trash2 } from 'lucide-react';
 import type { RaceEvent, SessionData } from '../hooks/useTelemetry';
+import { SAFETY_CAR_STATUS, TIME_CONSTANTS } from '../constants/f1';
 import { useI18n } from '../context/I18nContext';
 import { getLocalizedRaceEventDescription, getLocalizedPenaltyTag } from '../utils/raceEvents';
 
@@ -25,21 +26,21 @@ export const RaceControlFeed: React.FC<RaceControlFeedProps> = ({
 
   const getSafetyCarStatusBadge = (scStatus?: number) => {
     switch (scStatus) {
-      case 1:
+      case SAFETY_CAR_STATUS.FULL:
         return (
           <span className="sc-status-pill full-sc">
             <AlertTriangle size={13} />
             SAFETY CAR
           </span>
         );
-      case 2:
+      case SAFETY_CAR_STATUS.VIRTUAL:
         return (
           <span className="sc-status-pill vsc">
             <AlertTriangle size={13} />
             VIRTUAL SC
           </span>
         );
-      case 3:
+      case SAFETY_CAR_STATUS.FORMATION_LAP:
         return (
           <span className="sc-status-pill formation">
             <Flag size={13} />
@@ -76,8 +77,8 @@ export const RaceControlFeed: React.FC<RaceControlFeedProps> = ({
 
   const formatEventTime = (timestamp: number, sessionTime?: number) => {
     if (sessionTime !== undefined && sessionTime > 0) {
-      const mins = Math.floor(sessionTime / 60);
-      const secs = Math.floor(sessionTime % 60);
+      const mins = Math.floor(sessionTime / TIME_CONSTANTS.SECONDS_PER_MINUTE);
+      const secs = Math.floor(sessionTime % TIME_CONSTANTS.SECONDS_PER_MINUTE);
       return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
     const d = new Date(timestamp);

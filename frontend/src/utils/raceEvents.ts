@@ -1,4 +1,5 @@
 import type { RaceEvent } from '../types/telemetry';
+import { PENALTY_TYPES } from '../constants/f1';
 
 export function getLocalizedRaceEventDescription(
   evt: RaceEvent,
@@ -22,17 +23,17 @@ export function getLocalizedRaceEventDescription(
           ? ` (${infringement})`
           : '';
 
-      if (evt.penaltyType === 0) {
+      if (evt.penaltyType === PENALTY_TYPES.DRIVE_THROUGH) {
         return t('live.events.driveThrough', { driver, reason });
       }
-      if (evt.penaltyType === 1) {
+      if (evt.penaltyType === PENALTY_TYPES.STOP_GO) {
         const seconds =
           evt.penaltyTime !== undefined && evt.penaltyTime > 0 && evt.penaltyTime < 255
             ? evt.penaltyTime
             : 10;
         return t('live.events.stopGo', { driver, seconds, reason });
       }
-      if (evt.penaltyType === 2) {
+      if (evt.penaltyType === PENALTY_TYPES.GRID_PENALTY) {
         const places =
           evt.placesGained ||
           (evt.penaltyTime !== undefined && evt.penaltyTime > 0 && evt.penaltyTime < 255
@@ -40,35 +41,35 @@ export function getLocalizedRaceEventDescription(
             : 3);
         return t('live.events.gridPenalty', { driver, places, reason });
       }
-      if (evt.penaltyType === 3) {
+      if (evt.penaltyType === PENALTY_TYPES.PENALTY_REMINDER) {
         return t('live.events.penaltyReminder', { driver, reason });
       }
-      if (evt.penaltyType === 4) {
+      if (evt.penaltyType === PENALTY_TYPES.TIME_PENALTY) {
         const seconds =
           evt.penaltyTime !== undefined && evt.penaltyTime > 0 && evt.penaltyTime < 255
             ? evt.penaltyTime
             : 5;
         return t('live.events.timePenalty', { driver, seconds, reason });
       }
-      if (evt.penaltyType === 5) {
+      if (evt.penaltyType === PENALTY_TYPES.WARNING) {
         return t('live.events.warning', { driver, reason });
       }
-      if (evt.penaltyType === 6) {
+      if (evt.penaltyType === PENALTY_TYPES.DISQUALIFIED) {
         return t('live.events.disqualified', { driver, reason });
       }
-      if (evt.penaltyType === 7) {
+      if (evt.penaltyType === PENALTY_TYPES.REMOVED_FORMATION) {
         return t('live.events.removedFormation', { driver, reason });
       }
-      if (evt.penaltyType === 8) {
+      if (evt.penaltyType === PENALTY_TYPES.PARKED_TOO_LONG) {
         return t('live.events.parkedTooLong', { driver, reason });
       }
-      if (evt.penaltyType === 9) {
+      if (evt.penaltyType === PENALTY_TYPES.TYRE_REGULATIONS) {
         return t('live.events.tyreRegulations', { driver, reason });
       }
-      if (evt.penaltyType !== undefined && evt.penaltyType >= 10 && evt.penaltyType <= 15) {
+      if (evt.penaltyType !== undefined && evt.penaltyType >= PENALTY_TYPES.LAP_INVALIDATED_MIN && evt.penaltyType <= PENALTY_TYPES.LAP_INVALIDATED_MAX) {
         return t('live.events.lapInvalidated', { driver, reason });
       }
-      if (evt.penaltyType === 16) {
+      if (evt.penaltyType === PENALTY_TYPES.RETIRED) {
         return t('live.events.retirement', { driver });
       }
       if (evt.penaltyTime !== undefined && evt.penaltyTime > 0 && evt.penaltyTime < 255) {
@@ -130,26 +131,26 @@ export function getLocalizedPenaltyTag(
   t: (key: string, params?: Record<string, string | number>) => string
 ): string {
   if (evt.type === 'penalty') {
-    if (evt.penaltyType === 0) return t('live.penaltyTypes.driveThrough').toUpperCase();
-    if (evt.penaltyType === 1) return t('live.penaltyTypes.stopGo').toUpperCase();
-    if (evt.penaltyType === 2) return t('live.penaltyTypes.gridPenalty').toUpperCase();
-    if (evt.penaltyType === 3) return t('live.penaltyTypes.penaltyReminder').toUpperCase();
-    if (evt.penaltyType === 4) {
+    if (evt.penaltyType === PENALTY_TYPES.DRIVE_THROUGH) return t('live.penaltyTypes.driveThrough').toUpperCase();
+    if (evt.penaltyType === PENALTY_TYPES.STOP_GO) return t('live.penaltyTypes.stopGo').toUpperCase();
+    if (evt.penaltyType === PENALTY_TYPES.GRID_PENALTY) return t('live.penaltyTypes.gridPenalty').toUpperCase();
+    if (evt.penaltyType === PENALTY_TYPES.PENALTY_REMINDER) return t('live.penaltyTypes.penaltyReminder').toUpperCase();
+    if (evt.penaltyType === PENALTY_TYPES.TIME_PENALTY) {
       if (evt.penaltyTime !== undefined && evt.penaltyTime > 0 && evt.penaltyTime < 255) {
         return `${evt.penaltyTime}S ${t('live.penaltyTypes.timePenalty').toUpperCase()}`;
       }
       return t('live.penaltyTypes.timePenalty').toUpperCase();
     }
-    if (evt.penaltyType === 5) return t('live.penaltyTypes.warning').toUpperCase();
-    if (evt.penaltyType === 6) return t('live.penaltyTypes.disqualified').toUpperCase();
-    if (evt.penaltyType === 7) return t('live.penaltyTypes.removedFormation').toUpperCase();
-    if (evt.penaltyType === 8) return t('live.penaltyTypes.parkedTooLong').toUpperCase();
-    if (evt.penaltyType === 9) return t('live.penaltyTypes.tyreRegulations').toUpperCase();
-    if (evt.penaltyType !== undefined && evt.penaltyType >= 10 && evt.penaltyType <= 15) {
+    if (evt.penaltyType === PENALTY_TYPES.WARNING) return t('live.penaltyTypes.warning').toUpperCase();
+    if (evt.penaltyType === PENALTY_TYPES.DISQUALIFIED) return t('live.penaltyTypes.disqualified').toUpperCase();
+    if (evt.penaltyType === PENALTY_TYPES.REMOVED_FORMATION) return t('live.penaltyTypes.removedFormation').toUpperCase();
+    if (evt.penaltyType === PENALTY_TYPES.PARKED_TOO_LONG) return t('live.penaltyTypes.parkedTooLong').toUpperCase();
+    if (evt.penaltyType === PENALTY_TYPES.TYRE_REGULATIONS) return t('live.penaltyTypes.tyreRegulations').toUpperCase();
+    if (evt.penaltyType !== undefined && evt.penaltyType >= PENALTY_TYPES.LAP_INVALIDATED_MIN && evt.penaltyType <= PENALTY_TYPES.LAP_INVALIDATED_MAX) {
       return t('live.penaltyTypes.lapInvalidated').toUpperCase();
     }
-    if (evt.penaltyType === 16) return t('live.penaltyTypes.retired').toUpperCase();
-    if (evt.penaltyType === 17) return t('live.penaltyTypes.blackFlagTimer').toUpperCase();
+    if (evt.penaltyType === PENALTY_TYPES.RETIRED) return t('live.penaltyTypes.retired').toUpperCase();
+    if (evt.penaltyType === PENALTY_TYPES.BLACK_FLAG_TIMER) return t('live.penaltyTypes.blackFlagTimer').toUpperCase();
     return t('live.penaltyTypes.penalty').toUpperCase();
   }
   return evt.type.replace('_', ' ').toUpperCase();

@@ -87,12 +87,12 @@ func SessionTypeName(sessionType uint8) string {
 }
 
 var weatherNames = map[uint8]string{
-	0: "Clear",
-	1: "Light Cloud",
-	2: "Overcast",
-	3: "Light Rain",
-	4: "Heavy Rain",
-	5: "Storm",
+	WeatherClear:      "Clear",
+	WeatherLightCloud: "Light Cloud",
+	WeatherOvercast:   "Overcast",
+	WeatherLightRain:  "Light Rain",
+	WeatherHeavyRain:  "Heavy Rain",
+	WeatherStorm:      "Storm",
 }
 
 // WeatherName returns the human-readable string for weather state.

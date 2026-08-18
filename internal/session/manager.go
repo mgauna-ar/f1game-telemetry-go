@@ -133,7 +133,7 @@ func (sm *SessionManager) handleNewSession(ctx context.Context, header packets.P
 	sm.currentSession = &storage.Session{
 		SessionUID:      int64(header.SessionUID),
 		PacketFormat:    int(header.PacketFormat),
-		TrackID:         -1,
+		TrackID:         packets.UnknownTrackID,
 		TrackName:       "Unknown",
 		SessionType:     "Unknown",
 		Weather:         "Unknown",
@@ -185,7 +185,7 @@ func (sm *SessionManager) handleParticipantsData(ctx context.Context, p *packets
 	lastValid := 0
 	for i := 0; i < maxCars && i < len(p.Participants); i++ {
 		pd := p.Participants[i]
-		if pd.NameString() != "" || pd.RaceNumber > 0 || (pd.DriverId != 255 && pd.DriverId > 0) {
+		if pd.NameString() != "" || pd.RaceNumber > 0 || (pd.DriverId != packets.InvalidDriverID && pd.DriverId > 0) {
 			lastValid = i + 1
 		}
 	}

@@ -42,7 +42,7 @@ func NewLapTracker(repo *storage.Repository, batchWriter *TelemetryBatchWriter, 
 		carIndex:              carIndex,
 		currentStintNum:       1,
 		stintIncrementedInLap: 0,
-		sampleBuffer:          make([]storage.TelemetrySample, 0, 1800),
+		sampleBuffer:          make([]storage.TelemetrySample, 0, packets.DefaultTelemetrySampleCapacity),
 	}
 }
 
@@ -98,7 +98,7 @@ func (lt *LapTracker) ProcessCarStatus(p *packets.PacketCarStatusData) {
 	}
 	cs := p.CarStatusData[lt.carIndex]
 	lt.lastERSDeploy = float64(cs.ERSDeployedThisLap)
-	lt.lastERSStoreEnergy = float64((cs.ERSStoreEnergy / 4000000.0) * 100.0)
+	lt.lastERSStoreEnergy = float64((cs.ERSStoreEnergy / packets.MaxERSStoreEnergyJoules) * 100.0)
 	lt.lastERSDeployMode = int(cs.ERSDeployMode)
 
 	tyreAge := int(cs.TyresAgeLaps)
@@ -154,8 +154,8 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 
 	lapData := p.LapData[lt.carIndex]
 
-	// Filter out truly inactive cars (ResultStatus == 1 is Inactive) when no lap is active
-	if lapData.ResultStatus == 1 && lt.currentLap == nil {
+	// Filter out truly inactive cars (ResultStatus == ResultStatusInactive) when no lap is active
+	if lapData.ResultStatus == packets.ResultStatusInactive && lt.currentLap == nil {
 		return
 	}
 
@@ -169,8 +169,8 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 	lt.lastPitStops = pitStops
 
 	newLapNum := int(lapData.CurrentLapNum)
-	// Sanity check: F1 sessions never exceed 120 laps
-	if newLapNum <= 0 || newLapNum > 120 {
+	// Sanity check: F1 sessions never exceed MaxSessionLapsSanity laps
+	if newLapNum <= 0 || newLapNum > packets.MaxSessionLapsSanity {
 		return
 	}
 
@@ -220,8 +220,8 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 			}
 		}
 
-		s1 := int(lapData.Sector1TimeMSPart) + int(lapData.Sector1TimeMinutesPart)*60000
-		s2 := int(lapData.Sector2TimeMSPart) + int(lapData.Sector2TimeMinutesPart)*60000
+		s1 := int(lapData.Sector1TimeMSPart) + int(lapData.Sector1TimeMinutesPart)*packets.MillisPerMinute
+		s2 := int(lapData.Sector2TimeMSPart) + int(lapData.Sector2TimeMinutesPart)*packets.MillisPerMinute
 		isValid := lapData.CurrentLapInvalid == 0
 		penalties := int(lapData.Penalties)
 		pos := int(lapData.CarPosition)
@@ -253,9 +253,9 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 			updated = true
 		}
 
-		// If car has finished session, retired, or DNF (ResultStatus >= 3), finalize lap and flush telemetry
+		// If car has finished session, retired, or DNF (ResultStatus >= ResultStatusFinished), finalize lap and flush telemetry
 		lastLapTimeMS := int(lapData.LastLapTimeInMS)
-		if resStatus >= 3 && lt.currentLap.LapTimeMS == 0 && lastLapTimeMS > 0 {
+		if resStatus >= int(packets.ResultStatusFinished) && lt.currentLap.LapTimeMS == 0 && lastLapTimeMS > 0 {
 			lt.finalizeCurrentLap(ctx, lastLapTimeMS)
 			return
 		}
@@ -265,7 +265,7 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 		}
 
 		// If car has finished or retired, flush any remaining in-memory telemetry
-		if resStatus >= 3 && len(lt.sampleBuffer) > 0 {
+		if resStatus >= int(packets.ResultStatusFinished) && len(lt.sampleBuffer) > 0 {
 			lt.FlushCurrentLap()
 		}
 	}
@@ -289,12 +289,12 @@ func (lt *LapTracker) ProcessSessionHistory(ctx context.Context, session *storag
 		lapData := p.LapHistoryData[i]
 		lapNum := i + 1
 		lapTime := int(lapData.LapTimeInMS)
-		s1 := int(lapData.Sector1TimeMSPart) + int(lapData.Sector1TimeMinutesPart)*60000
-		s2 := int(lapData.Sector2TimeMSPart) + int(lapData.Sector2TimeMinutesPart)*60000
-		s3 := int(lapData.Sector3TimeMSPart) + int(lapData.Sector3TimeMinutesPart)*60000
+		s1 := int(lapData.Sector1TimeMSPart) + int(lapData.Sector1TimeMinutesPart)*packets.MillisPerMinute
+		s2 := int(lapData.Sector2TimeMSPart) + int(lapData.Sector2TimeMinutesPart)*packets.MillisPerMinute
+		s3 := int(lapData.Sector3TimeMSPart) + int(lapData.Sector3TimeMinutesPart)*packets.MillisPerMinute
 
 		if lapTime > 0 || s1 > 0 || s2 > 0 || s3 > 0 {
-			isValid := (lapData.LapValidBitFlags & 0x01) != 0
+			isValid := (lapData.LapValidBitFlags & packets.LapValidBitFlag) != 0
 
 			lap := &storage.Lap{
 				SessionID: session.ID,
@@ -350,7 +350,7 @@ func (lt *LapTracker) ProcessTelemetry(ctx context.Context, session *storage.Ses
 	}
 
 	if lt.sampleBuffer == nil {
-		lt.sampleBuffer = make([]storage.TelemetrySample, 0, 1800)
+		lt.sampleBuffer = make([]storage.TelemetrySample, 0, packets.DefaultTelemetrySampleCapacity)
 	}
 	lt.sampleBuffer = append(lt.sampleBuffer, sample)
 }
@@ -373,7 +373,7 @@ func (lt *LapTracker) startNewLap(ctx context.Context, sessionID int64, lapNum i
 		IsValid:   true,
 		Stint:     stint,
 	}
-	lt.sampleBuffer = make([]storage.TelemetrySample, 0, 1800)
+	lt.sampleBuffer = make([]storage.TelemetrySample, 0, packets.DefaultTelemetrySampleCapacity)
 
 	if err := lt.repo.SaveLap(ctx, lt.currentLap, false); err != nil {
 		log.Printf("[LapTracker] Error starting new lap: %v", err)

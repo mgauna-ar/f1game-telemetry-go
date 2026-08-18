@@ -51,17 +51,17 @@ func VisualTyreCompoundName(compound uint8) string {
 // ActualTyreCompoundName returns the human-readable F1 compound identifier (C1-C5, etc.).
 func ActualTyreCompoundName(compound uint8) string {
 	switch compound {
-	case 16:
+	case ActualCompoundC5:
 		return "C5"
-	case 17:
+	case ActualCompoundC4:
 		return "C4"
-	case 18:
+	case ActualCompoundC3:
 		return "C3"
-	case 19:
+	case ActualCompoundC2:
 		return "C2"
-	case 20:
+	case ActualCompoundC1:
 		return "C1"
-	case 21:
+	case ActualCompoundC0:
 		return "C0"
 	case CompoundInter:
 		return "INTERMEDIATE"

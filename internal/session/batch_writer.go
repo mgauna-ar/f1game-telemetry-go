@@ -26,11 +26,18 @@ type TelemetryBatchWriter struct {
 	done    chan struct{}
 }
 
+const (
+	// DefaultBatchChannelCapacity is the maximum number of lap payloads buffered for async writing.
+	DefaultBatchChannelCapacity = 128
+	// DefaultBatchWriteTimeout is the timeout for writing a lap telemetry blob to storage.
+	DefaultBatchWriteTimeout = 5 * time.Second
+)
+
 // NewTelemetryBatchWriter creates and initializes a new TelemetryBatchWriter.
 func NewTelemetryBatchWriter(repo *storage.Repository) *TelemetryBatchWriter {
 	return &TelemetryBatchWriter{
 		repo:    repo,
-		lapChan: make(chan LapTelemetryPayload, 128),
+		lapChan: make(chan LapTelemetryPayload, DefaultBatchChannelCapacity),
 		done:    make(chan struct{}),
 	}
 }
@@ -70,7 +77,7 @@ func (bw *TelemetryBatchWriter) EnqueueLap(lapID int64, samples []storage.Teleme
 	case bw.lapChan <- payload:
 	default:
 		log.Printf("[BatchWriter] WARNING: Lap telemetry queue full, writing directly for lap %d", lapID)
-		writeCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		writeCtx, cancel := context.WithTimeout(context.Background(), DefaultBatchWriteTimeout)
 		_ = bw.repo.SaveLapTelemetryBlob(writeCtx, lapID, samples)
 		cancel()
 	}
@@ -99,7 +106,7 @@ func (bw *TelemetryBatchWriter) drainDirect(ctx context.Context) {
 	for {
 		select {
 		case payload := <-bw.lapChan:
-			writeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+			writeCtx, cancel := context.WithTimeout(ctx, DefaultBatchWriteTimeout)
 			if err := bw.repo.SaveLapTelemetryBlob(writeCtx, payload.LapID, payload.Samples); err != nil {
 				log.Printf("[BatchWriter] Error writing lap telemetry blob for lap %d: %v", payload.LapID, err)
 			}
@@ -117,7 +124,7 @@ func (bw *TelemetryBatchWriter) worker(ctx context.Context) {
 			bw.drainDirect(context.Background())
 			return
 		case payload := <-bw.lapChan:
-			writeCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			writeCtx, cancel := context.WithTimeout(context.Background(), DefaultBatchWriteTimeout)
 			if err := bw.repo.SaveLapTelemetryBlob(writeCtx, payload.LapID, payload.Samples); err != nil {
 				log.Printf("[BatchWriter] Error writing lap telemetry blob for lap %d: %v", payload.LapID, err)
 			}

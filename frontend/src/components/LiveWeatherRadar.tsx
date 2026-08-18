@@ -1,6 +1,7 @@
 import React from 'react';
 import { Cloud, Sun, CloudRain, CloudLightning, CloudDrizzle, Thermometer, Droplets, TrendingUp, TrendingDown, Minus, Wind } from 'lucide-react';
 import type { SessionData, WeatherForecastSample } from '../hooks/useTelemetry';
+import { WEATHER_CODES, SESSION_TYPES } from '../constants/f1';
 import { useI18n } from '../context/I18nContext';
 
 interface LiveWeatherRadarProps {
@@ -9,48 +10,48 @@ interface LiveWeatherRadarProps {
 
 export const LiveWeatherRadar: React.FC<LiveWeatherRadarProps> = ({ session }) => {
   const { t } = useI18n();
-  const weatherCode = session?.Weather ?? 0;
+  const weatherCode = session?.Weather ?? WEATHER_CODES.CLEAR;
   const trackTemp = session?.TrackTemperature ?? 28;
   const airTemp = session?.AirTemperature ?? 22;
 
   const getWeatherMeta = (wCode: number) => {
     switch (wCode) {
-      case 0:
+      case WEATHER_CODES.CLEAR:
         return {
           name: t('live.weatherClearSunny'),
           icon: <Sun size={18} color="#FFD700" />,
           rainLikelihood: '0%',
           dry: true,
         };
-      case 1:
+      case WEATHER_CODES.LIGHT_CLOUD:
         return {
           name: t('live.weatherLightCloud'),
           icon: <Sun size={18} color="#FFE680" />,
           rainLikelihood: '5%',
           dry: true,
         };
-      case 2:
+      case WEATHER_CODES.OVERCAST:
         return {
           name: t('live.weatherOvercast'),
           icon: <Cloud size={18} color="#B0C4DE" />,
           rainLikelihood: '20%',
           dry: true,
         };
-      case 3:
+      case WEATHER_CODES.LIGHT_RAIN:
         return {
           name: t('live.weatherLightRain'),
           icon: <CloudDrizzle size={18} color="#33CCFF" />,
           rainLikelihood: '60%',
           inter: true,
         };
-      case 4:
+      case WEATHER_CODES.HEAVY_RAIN:
         return {
           name: t('live.weatherHeavyRain'),
           icon: <CloudRain size={18} color="#0099FF" />,
           rainLikelihood: '90%',
           wet: true,
         };
-      case 5:
+      case WEATHER_CODES.STORM:
         return {
           name: t('live.weatherStorm'),
           icon: <CloudLightning size={18} color="#FF3366" />,
@@ -85,54 +86,54 @@ export const LiveWeatherRadar: React.FC<LiveWeatherRadarProps> = ({ session }) =
       ? session.WeatherForecastSamples
       : [
           {
-            SessionType: session?.SessionType ?? 10,
+            SessionType: session?.SessionType ?? SESSION_TYPES.SPRINT_Q1,
             TimeOffset: 0,
             Weather: weatherCode,
             TrackTemperature: trackTemp,
             TrackTemperatureChange: 0,
             AirTemperature: airTemp,
             AirTemperatureChange: 0,
-            RainPercentage: weatherCode >= 4 ? 85 : weatherCode === 3 ? 45 : 0,
+            RainPercentage: weatherCode >= WEATHER_CODES.HEAVY_RAIN ? 85 : weatherCode === WEATHER_CODES.LIGHT_RAIN ? 45 : 0,
           },
           {
-            SessionType: session?.SessionType ?? 10,
+            SessionType: session?.SessionType ?? SESSION_TYPES.SPRINT_Q1,
             TimeOffset: 5,
             Weather: weatherCode,
             TrackTemperature: trackTemp,
             TrackTemperatureChange: 0,
             AirTemperature: airTemp,
             AirTemperatureChange: 0,
-            RainPercentage: weatherCode >= 4 ? 90 : weatherCode === 3 ? 55 : 5,
+            RainPercentage: weatherCode >= WEATHER_CODES.HEAVY_RAIN ? 90 : weatherCode === WEATHER_CODES.LIGHT_RAIN ? 55 : 5,
           },
           {
-            SessionType: session?.SessionType ?? 10,
+            SessionType: session?.SessionType ?? SESSION_TYPES.SPRINT_Q1,
             TimeOffset: 10,
             Weather: weatherCode,
             TrackTemperature: trackTemp,
             TrackTemperatureChange: 1,
             AirTemperature: airTemp,
             AirTemperatureChange: 0,
-            RainPercentage: weatherCode >= 4 ? 95 : weatherCode === 3 ? 65 : 10,
+            RainPercentage: weatherCode >= WEATHER_CODES.HEAVY_RAIN ? 95 : weatherCode === WEATHER_CODES.LIGHT_RAIN ? 65 : 10,
           },
           {
-            SessionType: session?.SessionType ?? 10,
+            SessionType: session?.SessionType ?? SESSION_TYPES.SPRINT_Q1,
             TimeOffset: 15,
             Weather: weatherCode,
             TrackTemperature: trackTemp,
             TrackTemperatureChange: 1,
             AirTemperature: airTemp,
             AirTemperatureChange: 1,
-            RainPercentage: weatherCode >= 4 ? 80 : weatherCode === 3 ? 40 : 15,
+            RainPercentage: weatherCode >= WEATHER_CODES.HEAVY_RAIN ? 80 : weatherCode === WEATHER_CODES.LIGHT_RAIN ? 40 : 15,
           },
         ];
 
   const currentWeather = getWeatherMeta(weatherCode);
 
   const getRecommendedTyre = (rainPct: number, wCode: number) => {
-    if (rainPct >= 70 || wCode >= 4) {
+    if (rainPct >= 70 || wCode >= WEATHER_CODES.HEAVY_RAIN) {
       return { label: t('live.fullWet'), color: '#0099FF', bg: 'rgba(0, 153, 255, 0.15)' };
     }
-    if (rainPct >= 35 || wCode === 3) {
+    if (rainPct >= 35 || wCode === WEATHER_CODES.LIGHT_RAIN) {
       return { label: t('live.intermediate'), color: '#33FF66', bg: 'rgba(51, 255, 102, 0.15)' };
     }
     return { label: t('live.slickDry'), color: '#FFD700', bg: 'rgba(255, 215, 0, 0.12)' };

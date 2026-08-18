@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useTelemetry } from '../hooks/useTelemetry';
 import { useRaceEngineer } from '../context/RaceEngineerContext';
+import { SAFETY_CAR_STATUS } from '../constants/f1';
 import { SessionHeader } from './SessionHeader';
 import { LeaderboardTower } from './LeaderboardTower';
 import { RaceControlFeed } from './RaceControlFeed';
@@ -35,9 +36,9 @@ export const Dashboard: React.FC = () => {
           : `Weather code: ${session.Weather ?? 0}`;
 
       const scStatus =
-        session.SafetyCarStatus === 1
+        session.SafetyCarStatus === SAFETY_CAR_STATUS.FULL
           ? 'Full Safety Car'
-          : session.SafetyCarStatus === 2
+          : session.SafetyCarStatus === SAFETY_CAR_STATUS.VIRTUAL
           ? 'Virtual Safety Car'
           : 'Track Clear (Green)';
 

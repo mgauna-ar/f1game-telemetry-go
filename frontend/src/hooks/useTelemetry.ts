@@ -12,7 +12,13 @@ import type {
   PacketHeader,
   TelemetrySample,
 } from '../types/telemetry';
-import { F1_DRIVER_NAMES } from '../constants/f1';
+import {
+  F1_DRIVER_NAMES,
+  PACKET_IDS,
+  SAFETY_CAR_STATUS,
+  RESULT_STATUS,
+  PIT_STATUS,
+} from '../constants/f1';
 
 export type {
   CarTelemetryData,
@@ -258,8 +264,8 @@ export function useTelemetry(wsUrl?: string) {
               setPacketFormat(header.PacketFormat);
             }
 
-            // PacketID 1: Session Data
-            if (header.PacketId === 1) {
+            // Session Data Packet
+            if (header.PacketId === PACKET_IDS.SESSION) {
               const pkt = data as PacketSessionData;
               setSession({
                 Weather: pkt.Weather,
@@ -288,13 +294,13 @@ export function useTelemetry(wsUrl?: string) {
                 const scStatus = pkt.SafetyCarStatus;
                 let desc = 'Track Clear (Green Flag)';
                 let sev: RaceEvent['severity'] = 'success';
-                if (scStatus === 1) {
+                if (scStatus === SAFETY_CAR_STATUS.FULL) {
                   desc = 'Full Safety Car Deployed';
                   sev = 'warning';
-                } else if (scStatus === 2) {
+                } else if (scStatus === SAFETY_CAR_STATUS.VIRTUAL) {
                   desc = 'Virtual Safety Car Deployed';
                   sev = 'warning';
-                } else if (scStatus === 3) {
+                } else if (scStatus === SAFETY_CAR_STATUS.FORMATION_LAP) {
                   desc = 'Formation Lap In Progress';
                   sev = 'info';
                 }
@@ -308,8 +314,8 @@ export function useTelemetry(wsUrl?: string) {
                 prevSafetyCarRef.current = scStatus;
               }
             }
-            // PacketID 3: Event Data
-            else if (header.PacketId === 3) {
+            // Event Data Packet
+            else if (header.PacketId === PACKET_IDS.EVENT) {
               const pkt = data as PacketEventData;
               const code = pkt.EventCode;
               const vIdx = pkt.VehicleIdx ?? 0;
@@ -491,8 +497,8 @@ export function useTelemetry(wsUrl?: string) {
                   break;
               }
             }
-            // PacketID 4: Participants Data
-            else if (header.PacketId === 4) {
+            // Participants Data Packet
+            else if (header.PacketId === PACKET_IDS.PARTICIPANTS) {
               const pkt = data as PacketParticipantsData;
               if (pkt.Participants && pkt.Participants.length > 0) {
                 // In F1 UDP, participants occupy fixed array indices 0..MaxCars-1.
@@ -524,22 +530,22 @@ export function useTelemetry(wsUrl?: string) {
                 }
               }
             }
-            // PacketID 7: Car Status Data
-            else if (header.PacketId === 7) {
+            // Car Status Data Packet
+            else if (header.PacketId === PACKET_IDS.CAR_STATUS) {
               const pkt = data as PacketCarStatusData;
               if (pkt.CarStatusData) {
                 setAllCarStatus(pkt.CarStatusData);
               }
             }
-            // PacketID 10: Car Damage Data
-            else if (header.PacketId === 10) {
+            // Car Damage Data Packet
+            else if (header.PacketId === PACKET_IDS.CAR_DAMAGE) {
               const pkt = data as PacketCarDamageData;
               if (pkt.CarDamageData) {
                 setAllCarDamage(pkt.CarDamageData);
               }
             }
-            // PacketID 6: Car Telemetry Data
-            else if (header.PacketId === 6) {
+            // Car Telemetry Data Packet
+            else if (header.PacketId === PACKET_IDS.CAR_TELEMETRY) {
               const pkt = data as PacketCarTelemetryData;
               if (pkt.CarTelemetryData) {
                 setAllTelemetry(pkt.CarTelemetryData);
@@ -556,15 +562,15 @@ export function useTelemetry(wsUrl?: string) {
                 }
               }
             }
-            // PacketID 16: Car Telemetry 2 Data (Active Aero & Boost for 2026)
-            else if (header.PacketId === 16) {
+            // Car Telemetry 2 Data Packet (Active Aero & Boost for 2026)
+            else if (header.PacketId === PACKET_IDS.CAR_TELEMETRY_2) {
               const pkt = data as PacketCarTelemetry2Data;
               if (pkt.CarTelemetry2Data) {
                 setAllTelemetry2(pkt.CarTelemetry2Data);
               }
             }
-            // PacketID 2: Lap Data
-            else if (header.PacketId === 2) {
+            // Lap Data Packet
+            else if (header.PacketId === PACKET_IDS.LAP_DATA) {
               const pkt = data as PacketLapData;
               if (pkt.LapData) {
                 setAllLaps(pkt.LapData);
@@ -575,7 +581,7 @@ export function useTelemetry(wsUrl?: string) {
                   if (!prev) return;
 
                   // Pit entry transition
-                  if (prev.PitStatus === 0 && (lap.PitStatus === 1 || lap.PitStatus === 2)) {
+                  if (prev.PitStatus === PIT_STATUS.NONE && (lap.PitStatus === PIT_STATUS.PITTING || lap.PitStatus === PIT_STATUS.IN_PIT_AREA)) {
                     const p = participantsRef.current[idx];
                     const dName = parseDriverName(p?.Name, `Car #${idx + 1}`, p?.DriverId);
                     addEvent({
@@ -608,15 +614,15 @@ export function useTelemetry(wsUrl?: string) {
                   }
 
                   // Retirement / DNF / DSQ transition
-                  const prevStatus = prev.ResultStatus ?? 2;
-                  const currentStatus = lap.ResultStatus ?? 2;
+                  const prevStatus = prev.ResultStatus ?? RESULT_STATUS.ACTIVE;
+                  const currentStatus = lap.ResultStatus ?? RESULT_STATUS.ACTIVE;
                   if (
-                    (prevStatus !== 7 && prevStatus !== 4 && prevStatus !== 5) &&
-                    (currentStatus === 7 || currentStatus === 4 || currentStatus === 5)
+                    (prevStatus !== RESULT_STATUS.RETIRED && prevStatus !== RESULT_STATUS.DNF && prevStatus !== RESULT_STATUS.DSQ) &&
+                    (currentStatus === RESULT_STATUS.RETIRED || currentStatus === RESULT_STATUS.DNF || currentStatus === RESULT_STATUS.DSQ)
                   ) {
                     const p = participantsRef.current[idx];
                     const dName = parseDriverName(p?.Name, `Car #${idx + 1}`, p?.DriverId);
-                    const isDsq = currentStatus === 5;
+                    const isDsq = currentStatus === RESULT_STATUS.DSQ;
                     addEvent({
                       eventCode: isDsq ? 'DSQ' : 'RTMT',
                       type: isDsq ? 'penalty' : 'retirement',
@@ -635,8 +641,8 @@ export function useTelemetry(wsUrl?: string) {
                 prevLapsRef.current = pkt.LapData;
               }
             }
-            // PacketID 0: Motion Data
-            else if (header.PacketId === 0) {
+            // Motion Data Packet
+            else if (header.PacketId === PACKET_IDS.MOTION) {
               const pkt = data as PacketMotionData;
               if (pkt.CarMotionData) {
                 setAllMotion(pkt.CarMotionData);

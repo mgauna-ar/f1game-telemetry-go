@@ -1,7 +1,13 @@
 import React from 'react';
 import { Wrench } from 'lucide-react';
 import { parseDriverName } from '../hooks/useTelemetry';
-import { TEAM_COLORS, TYRE_COMPOUNDS } from '../constants/f1';
+import {
+  TEAM_COLORS,
+  TYRE_COMPOUNDS,
+  RESULT_STATUS,
+  PIT_STATUS,
+  TYRE_COMPOUND_IDS,
+} from '../constants/f1';
 import type { ParticipantData, LapData, CarStatusData, SessionData } from '../types/telemetry';
 import { useI18n } from '../context/I18nContext';
 
@@ -58,28 +64,28 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = ({
   drivers.sort((a, b) => a.position - b.position);
 
   const getPitStatusBadge = (pitStatus?: number, timerMs?: number, timeInLaneMs?: number, resultStatus?: number) => {
-    if (resultStatus === 7) {
+    if (resultStatus === RESULT_STATUS.RETIRED) {
       return (
         <span className="pit-badge-lane mono" style={{ color: '#FF4D4D', borderColor: 'rgba(255, 77, 77, 0.4)' }}>
           {t('live.statusRetired')}
         </span>
       );
     }
-    if (resultStatus === 4) {
+    if (resultStatus === RESULT_STATUS.DNF) {
       return (
         <span className="pit-badge-lane mono" style={{ color: '#FF4D4D', borderColor: 'rgba(255, 77, 77, 0.4)' }}>
           {t('live.statusDnf')}
         </span>
       );
     }
-    if (resultStatus === 5) {
+    if (resultStatus === RESULT_STATUS.DSQ) {
       return (
         <span className="pit-badge-lane mono" style={{ color: '#FF3333', borderColor: 'rgba(255, 51, 51, 0.6)' }}>
           {t('live.statusDsq')}
         </span>
       );
     }
-    if (pitStatus === 1) {
+    if (pitStatus === PIT_STATUS.PITTING) {
       return (
         <span className="pit-badge-lane mono">
           <span className="pit-live-dot" />
@@ -87,7 +93,7 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = ({
         </span>
       );
     }
-    if (pitStatus === 2) {
+    if (pitStatus === PIT_STATUS.IN_PIT_AREA) {
       return (
         <span className="pit-badge-box mono">
           <span className="pit-live-dot box" />
@@ -105,7 +111,7 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = ({
     return { label: 'M', color: '#FFD700', bg: 'rgba(255, 215, 0, 0.15)' };
   };
 
-  const activePitsCount = laps.filter((l) => l && (l.PitStatus === 1 || l.PitStatus === 2)).length;
+  const activePitsCount = laps.filter((l) => l && (l.PitStatus === PIT_STATUS.PITTING || l.PitStatus === PIT_STATUS.IN_PIT_AREA)).length;
 
   return (
     <div className="glass-panel race-hub-card live-pit-strategy-panel">
@@ -185,7 +191,7 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = ({
           </thead>
           <tbody>
             {drivers.map((d) => {
-              const tyreCompound = d.status?.VisualTyreCompound ?? 17;
+              const tyreCompound = d.status?.VisualTyreCompound ?? TYRE_COMPOUND_IDS.MEDIUM;
               const tyreMeta = getTyreMeta(tyreCompound);
               const tyreAge = d.status?.TyresAgeLaps ?? 0;
               const teamColor = TEAM_COLORS[d.teamId] || 'var(--accent-primary)';

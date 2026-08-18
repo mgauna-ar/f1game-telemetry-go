@@ -21,7 +21,7 @@ import { detectTrackTurns, getTurnContextAtDistance } from '../utils/trackTurns'
 import { ComparatorTrackMap } from './ComparatorTrackMap';
 import { useRaceEngineer } from '../context/RaceEngineerContext';
 import { useI18n } from '../context/I18nContext';
-import { ERS_MODE_NAMES } from '../constants/f1';
+import { ERS_MODE_NAMES, TELEMETRY_DOWNSAMPLE_LIMITS } from '../constants/f1';
 import { formatTime } from '../utils/formatters';
 
 import { SlotCard } from './lap_comparator/SlotCard';
@@ -226,11 +226,11 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
   useEffect(() => {
     if (lapAId !== '') {
       setLoadingA(true);
-      fetch(`/api/laps/${lapAId}/telemetry?maxPoints=800`)
+      fetch(`/api/laps/${lapAId}/telemetry?maxPoints=${TELEMETRY_DOWNSAMPLE_LIMITS.DEFAULT_MAX_POINTS}`)
         .then((res) => res.json())
         .then((data) => {
           const samples: TelemetrySamplePoint[] = data || [];
-          setRawTelemetryA(samples.length > 850 ? lttbDownsample(samples, 800) : samples);
+          setRawTelemetryA(samples.length > TELEMETRY_DOWNSAMPLE_LIMITS.BUFFER_THRESHOLD ? lttbDownsample(samples, TELEMETRY_DOWNSAMPLE_LIMITS.DEFAULT_MAX_POINTS) : samples);
         })
         .catch((err) => console.error('Failed to fetch telemetry A', err))
         .finally(() => setLoadingA(false));
@@ -241,11 +241,11 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
   useEffect(() => {
     if (lapBId !== '') {
       setLoadingB(true);
-      fetch(`/api/laps/${lapBId}/telemetry?maxPoints=800`)
+      fetch(`/api/laps/${lapBId}/telemetry?maxPoints=${TELEMETRY_DOWNSAMPLE_LIMITS.DEFAULT_MAX_POINTS}`)
         .then((res) => res.json())
         .then((data) => {
           const samples: TelemetrySamplePoint[] = data || [];
-          setRawTelemetryB(samples.length > 850 ? lttbDownsample(samples, 800) : samples);
+          setRawTelemetryB(samples.length > TELEMETRY_DOWNSAMPLE_LIMITS.BUFFER_THRESHOLD ? lttbDownsample(samples, TELEMETRY_DOWNSAMPLE_LIMITS.DEFAULT_MAX_POINTS) : samples);
         })
         .catch((err) => console.error('Failed to fetch telemetry B', err))
         .finally(() => setLoadingB(false));

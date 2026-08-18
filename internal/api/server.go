@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,6 +17,18 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
+)
+
+const (
+	// DefaultTagColor is the default accent color used when creating tags without a color.
+	DefaultTagColor = "#06b6d4"
+	// MaxImportPayloadSize is the maximum size allowed for importing session files (100 MB).
+	MaxImportPayloadSize = 100 << 20
+)
+
+var (
+	// ZstdMagicHeader represents the 4-byte standard magic header for Zstandard compressed streams (0xFD2FB528 in little-endian).
+	ZstdMagicHeader = []byte{0x28, 0xB5, 0x2F, 0xFD}
 )
 
 // Server handles HTTP requests for the API and serves the frontend.
@@ -266,7 +279,7 @@ func (s *Server) handleCreateTag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if color == "" {
-		color = "#06b6d4" // Default cyan
+		color = DefaultTagColor
 	}
 
 	tag := storage.Tag{
@@ -306,7 +319,7 @@ func (s *Server) handleUpdateTag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if color == "" {
-		color = "#06b6d4"
+		color = DefaultTagColor
 	}
 
 	tag := storage.Tag{
@@ -394,7 +407,7 @@ func (s *Server) handleAddSessionTag(w http.ResponseWriter, r *http.Request) {
 		}
 		color := strings.TrimSpace(req.Color)
 		if color == "" {
-			color = "#06b6d4"
+			color = DefaultTagColor
 		}
 		tag := storage.Tag{
 			Name:  name,
@@ -542,15 +555,15 @@ func (s *Server) handleExportSession(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleImportSession(w http.ResponseWriter, r *http.Request) {
-	// Limit request size to 100MB
-	r.Body = http.MaxBytesReader(w, r.Body, 100<<20)
+	// Limit request size to MaxImportPayloadSize
+	r.Body = http.MaxBytesReader(w, r.Body, MaxImportPayloadSize)
 
 	var data []byte
 	var err error
 
 	// Check if multipart form
 	if strings.HasPrefix(r.Header.Get("Content-Type"), "multipart/form-data") {
-		err := r.ParseMultipartForm(100 << 20)
+		err := r.ParseMultipartForm(MaxImportPayloadSize)
 		if err != nil {
 			http.Error(w, "Failed to parse multipart form", http.StatusBadRequest)
 			return
@@ -579,8 +592,8 @@ func (s *Server) handleImportSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Decompress if zstd compressed (magic number: 0x28, 0xB5, 0x2F, 0xFD)
-	if len(data) >= 4 && data[0] == 0x28 && data[1] == 0xB5 && data[2] == 0x2F && data[3] == 0xFD {
+	// Decompress if zstd compressed
+	if bytes.HasPrefix(data, ZstdMagicHeader) {
 		decompressed, err := storage.DecompressRaw(data)
 		if err != nil {
 			http.Error(w, "Failed to decompress .f1session file", http.StatusBadRequest)

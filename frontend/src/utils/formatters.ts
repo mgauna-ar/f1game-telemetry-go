@@ -1,11 +1,13 @@
+import { TIME_CONSTANTS } from '../constants/f1';
+
 /**
  * Formats milliseconds into lap time string "M:SS.mmm" or "--:--.---" if invalid.
  */
 export function formatLapTime(ms?: number): string {
   if (!ms || ms <= 0) return '--:--.---';
-  const mins = Math.floor(ms / 60000);
-  const secs = Math.floor((ms % 60000) / 1000);
-  const millis = Math.floor(ms % 1000);
+  const mins = Math.floor(ms / TIME_CONSTANTS.MS_PER_MINUTE);
+  const secs = Math.floor((ms % TIME_CONSTANTS.MS_PER_MINUTE) / TIME_CONSTANTS.MS_PER_SECOND);
+  const millis = Math.floor(ms % TIME_CONSTANTS.MS_PER_SECOND);
   return `${mins}:${secs.toString().padStart(2, '0')}.${millis.toString().padStart(3, '0')}`;
 }
 
@@ -19,7 +21,7 @@ export const formatTime = formatLapTime;
  */
 export function formatSectorTime(ms?: number): string {
   if (!ms || ms <= 0) return '-';
-  return `${(ms / 1000).toFixed(3)}s`;
+  return `${(ms / TIME_CONSTANTS.MS_PER_SECOND).toFixed(3)}s`;
 }
 
 /**
@@ -27,12 +29,12 @@ export function formatSectorTime(ms?: number): string {
  */
 export function formatGapTime(gapMs?: number): string {
   if (gapMs === undefined || gapMs === null || gapMs <= 0) return 'LEADER';
-  if (gapMs >= 60000) {
-    const mins = Math.floor(gapMs / 60000);
-    const secs = ((gapMs % 60000) / 1000).toFixed(3);
+  if (gapMs >= TIME_CONSTANTS.MS_PER_MINUTE) {
+    const mins = Math.floor(gapMs / TIME_CONSTANTS.MS_PER_MINUTE);
+    const secs = ((gapMs % TIME_CONSTANTS.MS_PER_MINUTE) / TIME_CONSTANTS.MS_PER_SECOND).toFixed(3);
     return `+${mins}:${secs.padStart(6, '0')}`;
   }
-  return `+${(gapMs / 1000).toFixed(3)}s`;
+  return `+${(gapMs / TIME_CONSTANTS.MS_PER_SECOND).toFixed(3)}s`;
 }
 
 /**
@@ -40,9 +42,9 @@ export function formatGapTime(gapMs?: number): string {
  */
 export function formatDuration(ms?: number): string {
   if (!ms || ms <= 0) return '--:--';
-  const hours = Math.floor(ms / 3600000);
-  const mins = Math.floor((ms % 3600000) / 60000);
-  const secs = Math.floor((ms % 60000) / 1000);
+  const hours = Math.floor(ms / TIME_CONSTANTS.MS_PER_HOUR);
+  const mins = Math.floor((ms % TIME_CONSTANTS.MS_PER_HOUR) / TIME_CONSTANTS.MS_PER_MINUTE);
+  const secs = Math.floor((ms % TIME_CONSTANTS.MS_PER_MINUTE) / TIME_CONSTANTS.MS_PER_SECOND);
   if (hours > 0) {
     return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   }
