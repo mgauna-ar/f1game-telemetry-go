@@ -1,33 +1,22 @@
 package packets
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
 )
 
-// LapPosition contains the position data for a single car at a given point.
-type LapPosition struct {
-	X float32
-	Y float32
-	Z float32
-}
+const (
+	MaxNumLapsInLapPositions = 50
+)
 
-// LapPositionsCarData contains position data for a single car over the lap.
-type LapPositionsCarData struct {
-	NumPositions uint8
-	Positions    [60]LapPosition
-}
-
-// PacketLapPositionsData contains lap position data for all cars. Packet ID: 15.
+// PacketLapPositionsData contains lap positions history for all cars. Packet ID: 15.
 type PacketLapPositionsData struct {
-	Header              PacketHeader
-	LapPositionsCarData [MaxCars]LapPositionsCarData
+	Header                PacketHeader                             `json:"Header"`
+	NumLaps               uint8                                    `json:"NumLaps"`
+	LapStart              uint8                                    `json:"LapStart"`
+	PositionForVehicleIdx [MaxNumLapsInLapPositions][MaxCars]uint8 `json:"PositionForVehicleIdx"`
 }
 
 func (p PacketLapPositionsData) GetHeader() PacketHeader { return p.Header }
-
-const LapPositionsCarDataStructSize = 721
 
 // DecodeLapPositions decodes a PacketLapPositionsData from raw bytes.
 func DecodeLapPositions(data []byte) (*PacketLapPositionsData, error) {
@@ -40,17 +29,23 @@ func DecodeLapPositions(data []byte) (*PacketLapPositionsData, error) {
 	pkt.Header = header
 
 	payload := data[headerLen:]
-	maxCars := MaxCarsForFormat(header.PacketFormat)
-	itemSize := PerCarItemSize(payload, header, LapPositionsCarDataStructSize, 0)
+	if len(payload) < 2 {
+		return nil, fmt.Errorf("data too short for lap positions payload: got %d bytes", len(payload))
+	}
 
-	for i := 0; i < maxCars && i < MaxCars; i++ {
-		offset := i * itemSize
-		if offset+LapPositionsCarDataStructSize > len(payload) {
+	pkt.NumLaps = payload[0]
+	pkt.LapStart = payload[1]
+
+	matrixBytes := payload[2:]
+	maxCars := MaxCarsForFormat(header.PacketFormat)
+
+	for lap := 0; lap < MaxNumLapsInLapPositions; lap++ {
+		lapOffset := lap * maxCars
+		if lapOffset+maxCars > len(matrixBytes) {
 			break
 		}
-		r := bytes.NewReader(payload[offset : offset+LapPositionsCarDataStructSize])
-		if err := binary.Read(r, binary.LittleEndian, &pkt.LapPositionsCarData[i]); err != nil {
-			return nil, fmt.Errorf("failed to decode lap positions for car %d: %w", i, err)
+		for car := 0; car < maxCars && car < MaxCars; car++ {
+			pkt.PositionForVehicleIdx[lap][car] = matrixBytes[lapOffset+car]
 		}
 	}
 

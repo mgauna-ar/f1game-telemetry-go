@@ -14,21 +14,24 @@ type LapTracker struct {
 	batchWriter *TelemetryBatchWriter
 	carIndex    int
 
-	currentLapNum         int
-	currentLap            *storage.Lap
-	sampleBuffer          []storage.TelemetrySample
-	lastLapDistance       float64
-	lastWorldPosX         float64
-	lastWorldPosY         float64
-	lastWorldPosZ         float64
-	lastERSDeploy         float64
-	lastERSStoreEnergy    float64
-	lastERSDeployMode     int
-	currentStintNum       int
-	lastTyreAge           int
-	lastPitStops          int
-	lastCompound          string
-	stintIncrementedInLap int
+	currentLapNum           int
+	currentLap              *storage.Lap
+	sampleBuffer            []storage.TelemetrySample
+	lastLapDistance         float64
+	lastWorldPosX           float64
+	lastWorldPosY           float64
+	lastWorldPosZ           float64
+	lastERSDeploy           float64
+	lastERSStoreEnergy      float64
+	lastERSDeployMode       int
+	lastActiveAeroMode      int
+	lastActiveAeroAvailable int
+	lastOvertakeActive      int
+	currentStintNum         int
+	lastTyreAge             int
+	lastPitStops            int
+	lastCompound            string
+	stintIncrementedInLap   int
 }
 
 // NewLapTracker creates a new LapTracker.
@@ -59,6 +62,9 @@ func (lt *LapTracker) Reset() {
 	lt.lastERSDeploy = 0
 	lt.lastERSStoreEnergy = 0
 	lt.lastERSDeployMode = 0
+	lt.lastActiveAeroMode = 0
+	lt.lastActiveAeroAvailable = 0
+	lt.lastOvertakeActive = 0
 	lt.currentStintNum = 1
 	lt.lastTyreAge = 0
 	lt.lastPitStops = 0
@@ -123,6 +129,17 @@ func (lt *LapTracker) ProcessCarStatus(p *packets.PacketCarStatusData) {
 			lt.currentLap.TyreCompound = newComp
 		}
 	}
+}
+
+// ProcessCarTelemetry2 updates Active Aero and Boost / Overtake state for 2026 regulations.
+func (lt *LapTracker) ProcessCarTelemetry2(p *packets.PacketCarTelemetry2Data) {
+	if lt.carIndex >= packets.MaxCars || lt.carIndex >= len(p.CarTelemetry2Data) {
+		return
+	}
+	t2 := p.CarTelemetry2Data[lt.carIndex]
+	lt.lastActiveAeroMode = int(t2.ActiveAeroMode)
+	lt.lastActiveAeroAvailable = int(t2.ActiveAeroAvailable)
+	lt.lastOvertakeActive = int(t2.OvertakeActive)
 }
 
 // ProcessLapData processes the LapData packet to detect lap transitions.
@@ -313,21 +330,24 @@ func (lt *LapTracker) ProcessTelemetry(ctx context.Context, session *storage.Ses
 	}
 
 	sample := storage.TelemetrySample{
-		LapDistance:    storage.SanitizeFloat(lt.lastLapDistance),
-		SessionTime:    storage.SanitizeFloat(float64(p.Header.SessionTime)),
-		Speed:          int(carData.Speed),
-		Throttle:       storage.SanitizeFloat(float64(carData.Throttle)),
-		Brake:          storage.SanitizeFloat(float64(carData.Brake)),
-		Steer:          storage.SanitizeFloat(float64(carData.Steer)),
-		Gear:           int(carData.Gear),
-		EngineRPM:      int(carData.EngineRPM),
-		DRS:            carData.DRS == 1,
-		ERSDeploy:      storage.SanitizeFloat(lt.lastERSDeploy),
-		ERSStoreEnergy: storage.SanitizeFloat(lt.lastERSStoreEnergy),
-		ERSDeployMode:  lt.lastERSDeployMode,
-		WorldPosX:      storage.SanitizeFloat(lt.lastWorldPosX),
-		WorldPosY:      storage.SanitizeFloat(lt.lastWorldPosY),
-		WorldPosZ:      storage.SanitizeFloat(lt.lastWorldPosZ),
+		LapDistance:         storage.SanitizeFloat(lt.lastLapDistance),
+		SessionTime:         storage.SanitizeFloat(float64(p.Header.SessionTime)),
+		Speed:               int(carData.Speed),
+		Throttle:            storage.SanitizeFloat(float64(carData.Throttle)),
+		Brake:               storage.SanitizeFloat(float64(carData.Brake)),
+		Steer:               storage.SanitizeFloat(float64(carData.Steer)),
+		Gear:                int(carData.Gear),
+		EngineRPM:           int(carData.EngineRPM),
+		DRS:                 carData.DRS == 1,
+		ERSDeploy:           storage.SanitizeFloat(lt.lastERSDeploy),
+		ERSStoreEnergy:      storage.SanitizeFloat(lt.lastERSStoreEnergy),
+		ERSDeployMode:       lt.lastERSDeployMode,
+		WorldPosX:           storage.SanitizeFloat(lt.lastWorldPosX),
+		WorldPosY:           storage.SanitizeFloat(lt.lastWorldPosY),
+		WorldPosZ:           storage.SanitizeFloat(lt.lastWorldPosZ),
+		ActiveAeroMode:      lt.lastActiveAeroMode,
+		ActiveAeroAvailable: lt.lastActiveAeroAvailable,
+		OvertakeActive:      lt.lastOvertakeActive,
 	}
 
 	if lt.sampleBuffer == nil {

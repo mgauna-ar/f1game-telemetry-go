@@ -8,32 +8,33 @@ import (
 
 // FinalClassificationData contains final classification data for a single car.
 type FinalClassificationData struct {
-	Position          uint8
-	NumLaps           uint8
-	GridPosition      uint8
-	Points            uint8
-	NumPitStops       uint8
-	ResultStatus      uint8
-	BestLapTimeInMS   uint32
-	TotalRaceTime     float64
-	PenaltiesTime     uint8
-	NumPenalties      uint8
-	NumTyreStints     uint8
-	TyreStintsActual  [8]uint8
-	TyreStintsVisual  [8]uint8
-	TyreStintsEndLaps [8]uint8
+	Position          uint8    `json:"Position"`
+	NumLaps           uint8    `json:"NumLaps"`
+	GridPosition      uint8    `json:"GridPosition"`
+	Points            uint8    `json:"Points"`
+	NumPitStops       uint8    `json:"NumPitStops"`
+	ResultStatus      uint8    `json:"ResultStatus"`
+	ResultReason      uint8    `json:"ResultReason"`
+	BestLapTimeInMS   uint32   `json:"BestLapTimeInMS"`
+	TotalRaceTime     float64  `json:"TotalRaceTime"`
+	PenaltiesTime     uint8    `json:"PenaltiesTime"`
+	NumPenalties      uint8    `json:"NumPenalties"`
+	NumTyreStints     uint8    `json:"NumTyreStints"`
+	TyreStintsActual  [8]uint8 `json:"TyreStintsActual"`
+	TyreStintsVisual  [8]uint8 `json:"TyreStintsVisual"`
+	TyreStintsEndLaps [8]uint8 `json:"TyreStintsEndLaps"`
 }
 
 // PacketFinalClassificationData contains final classification for all cars. Packet ID: 8.
 type PacketFinalClassificationData struct {
-	Header             PacketHeader
-	NumCars            uint8
-	ClassificationData [MaxCars]FinalClassificationData
+	Header             PacketHeader                     `json:"Header"`
+	NumCars            uint8                            `json:"NumCars"`
+	ClassificationData [MaxCars]FinalClassificationData `json:"ClassificationData"`
 }
 
 func (p PacketFinalClassificationData) GetHeader() PacketHeader { return p.Header }
 
-const FinalClassificationStructSize = 45
+const FinalClassificationStructSize = 46
 
 // DecodeFinalClassification decodes a PacketFinalClassificationData from raw bytes.
 func DecodeFinalClassification(data []byte) (*PacketFinalClassificationData, error) {
@@ -54,12 +55,7 @@ func DecodeFinalClassification(data []byte) (*PacketFinalClassificationData, err
 	carsPayload := payload[1:]
 
 	maxCars := MaxCarsForFormat(header.PacketFormat)
-	itemSize := FinalClassificationStructSize
-	if maxCars > 0 && len(carsPayload)%maxCars == 0 && len(carsPayload)/maxCars >= FinalClassificationStructSize {
-		itemSize = len(carsPayload) / maxCars
-	} else if len(carsPayload)%MaxCars == 0 && len(carsPayload)/MaxCars >= FinalClassificationStructSize {
-		itemSize = len(carsPayload) / MaxCars
-	}
+	itemSize := PerCarItemSize(carsPayload, header, FinalClassificationStructSize, 0)
 
 	numToRead := int(pkt.NumCars)
 	if numToRead <= 0 || numToRead > maxCars {

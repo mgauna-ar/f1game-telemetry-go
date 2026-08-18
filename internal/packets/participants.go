@@ -8,20 +8,29 @@ import (
 	"strings"
 )
 
-// ParticipantData contains data for a single participant.
+// LiveryColour represents the RGB value of a livery color.
+type LiveryColour struct {
+	Red   uint8 `json:"Red"`
+	Green uint8 `json:"Green"`
+	Blue  uint8 `json:"Blue"`
+}
+
+// ParticipantData contains unified data for a single participant.
 type ParticipantData struct {
-	AIControlled    uint8
-	DriverId        uint8
-	NetworkId       uint8
-	TeamId          uint8
-	MyTeam          uint8
-	RaceNumber      uint8
-	Nationality     uint8
-	Name            [48]byte
-	YourTelemetry   uint8
-	ShowOnlineNames uint8
-	TechLevel       uint16
-	Platform        uint8
+	AIControlled    uint8           `json:"AIControlled"`
+	DriverId        uint16          `json:"DriverId"`
+	NetworkId       uint16          `json:"NetworkId"`
+	TeamId          uint16          `json:"TeamId"`
+	MyTeam          uint8           `json:"MyTeam"`
+	RaceNumber      uint8           `json:"RaceNumber"`
+	Nationality     uint8           `json:"Nationality"`
+	Name            [32]byte        `json:"-"`
+	YourTelemetry   uint8           `json:"YourTelemetry"`
+	ShowOnlineNames uint8           `json:"ShowOnlineNames"`
+	TechLevel       uint16          `json:"TechLevel"`
+	Platform        uint8           `json:"Platform"`
+	NumColours      uint8           `json:"NumColours"`
+	LiveryColours   [4]LiveryColour `json:"LiveryColours"`
 }
 
 // NameString returns the participant name as a Go string, trimming null bytes.
@@ -34,9 +43,6 @@ func (p ParticipantData) NameString() string {
 }
 
 // MarshalJSON implements json.Marshaler for ParticipantData.
-// Go's encoding/json encodes [N]byte arrays as base64 strings by default,
-// which produces garbled driver names on the frontend. This custom marshaler
-// serializes the Name field as a proper UTF-8 string instead.
 func (p ParticipantData) MarshalJSON() ([]byte, error) {
 	type participantAlias ParticipantData
 	return json.Marshal(struct {
@@ -50,18 +56,17 @@ func (p ParticipantData) MarshalJSON() ([]byte, error) {
 
 // PacketParticipantsData contains data for all participants. Packet ID: 4.
 type PacketParticipantsData struct {
-	Header        PacketHeader
-	NumActiveCars uint8
-	Participants  [MaxCars]ParticipantData
+	Header        PacketHeader             `json:"Header"`
+	NumActiveCars uint8                    `json:"NumActiveCars"`
+	Participants  [MaxCars]ParticipantData `json:"Participants"`
 }
 
 func (p PacketParticipantsData) GetHeader() PacketHeader { return p.Header }
 
 const (
-	ParticipantStructSize2025 = 60
-	ParticipantStructSize2026 = 57
-	ParticipantNameLen2025    = 48
-	ParticipantNameLen2026    = 32
+	ParticipantStructSize2025 = 57
+	ParticipantStructSize2026 = 60
+	ParticipantNameLen        = 32
 )
 
 // DecodeParticipants decodes a PacketParticipantsData from raw bytes.
@@ -82,18 +87,14 @@ func DecodeParticipants(data []byte) (*PacketParticipantsData, error) {
 	pkt.NumActiveCars = payload[0]
 	carsPayload := payload[1:]
 
+	is2026 := header.PacketFormat >= PacketFormat2026
 	maxCars := MaxCarsForFormat(header.PacketFormat)
 	structSize := ParticipantStructSize2025
-	if header.PacketFormat >= PacketFormat2026 {
+	if is2026 {
 		structSize = ParticipantStructSize2026
 	}
 
-	itemSize := structSize
-	if maxCars > 0 && len(carsPayload)%maxCars == 0 && len(carsPayload)/maxCars >= structSize {
-		itemSize = len(carsPayload) / maxCars
-	} else if len(carsPayload)%MaxCars == 0 && len(carsPayload)/MaxCars >= structSize {
-		itemSize = len(carsPayload) / MaxCars
-	}
+	itemSize := PerCarItemSize(carsPayload, header, structSize, 0)
 
 	for i := 0; i < maxCars && i < MaxCars; i++ {
 		offset := i * itemSize
@@ -101,38 +102,53 @@ func DecodeParticipants(data []byte) (*PacketParticipantsData, error) {
 			break
 		}
 
-		carBytes := carsPayload[offset : offset+itemSize]
+		carBytes := carsPayload[offset : offset+structSize]
 		var p ParticipantData
-		p.AIControlled = carBytes[0]
-		p.DriverId = carBytes[1]
-		p.NetworkId = carBytes[2]
-		p.TeamId = carBytes[3]
-		p.MyTeam = carBytes[4]
-		p.RaceNumber = carBytes[5]
-		p.Nationality = carBytes[6]
 
-		nameOffset := 7
-		nameLen := ParticipantNameLen2025
-		if header.PacketFormat >= PacketFormat2026 {
-			nameLen = ParticipantNameLen2026
-		}
-
-		if nameOffset+nameLen <= len(carBytes) {
-			copy(p.Name[:], carBytes[nameOffset:nameOffset+nameLen])
-		}
-
-		afterName := nameOffset + nameLen
-		if afterName < len(carBytes) {
-			p.YourTelemetry = carBytes[afterName]
-		}
-		if afterName+1 < len(carBytes) {
-			p.ShowOnlineNames = carBytes[afterName+1]
-		}
-		if afterName+3 < len(carBytes) {
-			p.TechLevel = binary.LittleEndian.Uint16(carBytes[afterName+2 : afterName+4])
-		}
-		if afterName+4 < len(carBytes) {
-			p.Platform = carBytes[afterName+4]
+		if is2026 {
+			// 2026: DriverId, NetworkId, TeamId are uint16
+			p.AIControlled = carBytes[0]
+			p.DriverId = binary.LittleEndian.Uint16(carBytes[1:3])
+			p.NetworkId = binary.LittleEndian.Uint16(carBytes[3:5])
+			p.TeamId = binary.LittleEndian.Uint16(carBytes[5:7])
+			p.MyTeam = carBytes[7]
+			p.RaceNumber = carBytes[8]
+			p.Nationality = carBytes[9]
+			copy(p.Name[:], carBytes[10:10+ParticipantNameLen])
+			p.YourTelemetry = carBytes[42]
+			p.ShowOnlineNames = carBytes[43]
+			p.TechLevel = binary.LittleEndian.Uint16(carBytes[44:46])
+			p.Platform = carBytes[46]
+			p.NumColours = carBytes[47]
+			for c := 0; c < 4; c++ {
+				p.LiveryColours[c] = LiveryColour{
+					Red:   carBytes[48+c*3],
+					Green: carBytes[48+c*3+1],
+					Blue:  carBytes[48+c*3+2],
+				}
+			}
+		} else {
+			// 2025: DriverId, NetworkId, TeamId are uint8
+			p.AIControlled = carBytes[0]
+			p.DriverId = uint16(carBytes[1])
+			p.NetworkId = uint16(carBytes[2])
+			p.TeamId = uint16(carBytes[3])
+			p.MyTeam = carBytes[4]
+			p.RaceNumber = carBytes[5]
+			p.Nationality = carBytes[6]
+			copy(p.Name[:], carBytes[7:7+ParticipantNameLen])
+			p.YourTelemetry = carBytes[39]
+			p.ShowOnlineNames = carBytes[40]
+			p.TechLevel = binary.LittleEndian.Uint16(carBytes[41:43])
+			p.Platform = carBytes[43]
+			p.NumColours = carBytes[44]
+			for c := 0; c < 4; c++ {
+				p.LiveryColours[c] = LiveryColour{
+					Red:   carBytes[45+c*3],
+					Green: carBytes[45+c*3+1],
+					Blue:  carBytes[45+c*3+2],
+				}
+			}
 		}
 
 		pkt.Participants[i] = p

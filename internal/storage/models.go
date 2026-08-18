@@ -62,21 +62,24 @@ type Lap struct {
 
 // TelemetrySample represents a single telemetry snapshot within a lap.
 type TelemetrySample struct {
-	LapDistance    float64 `json:"lap_distance"`
-	SessionTime    float64 `json:"session_time"`
-	Speed          int     `json:"speed"`
-	Throttle       float64 `json:"throttle"`
-	Brake          float64 `json:"brake"`
-	Steer          float64 `json:"steer"`
-	Gear           int     `json:"gear"`
-	EngineRPM      int     `json:"engine_rpm"`
-	DRS            bool    `json:"drs"`
-	ERSDeploy      float64 `json:"ers_deploy"`
-	ERSStoreEnergy float64 `json:"ers_store_energy"`
-	ERSDeployMode  int     `json:"ers_deploy_mode"`
-	WorldPosX      float64 `json:"world_pos_x"`
-	WorldPosY      float64 `json:"world_pos_y"`
-	WorldPosZ      float64 `json:"world_pos_z"`
+	LapDistance         float64 `json:"lap_distance"`
+	SessionTime         float64 `json:"session_time"`
+	Speed               int     `json:"speed"`
+	Throttle            float64 `json:"throttle"`
+	Brake               float64 `json:"brake"`
+	Steer               float64 `json:"steer"`
+	Gear                int     `json:"gear"`
+	EngineRPM           int     `json:"engine_rpm"`
+	DRS                 bool    `json:"drs"`
+	ERSDeploy           float64 `json:"ers_deploy"`
+	ERSStoreEnergy      float64 `json:"ers_store_energy"`
+	ERSDeployMode       int     `json:"ers_deploy_mode"`
+	WorldPosX           float64 `json:"world_pos_x"`
+	WorldPosY           float64 `json:"world_pos_y"`
+	WorldPosZ           float64 `json:"world_pos_z"`
+	ActiveAeroMode      int     `json:"active_aero_mode,omitempty"`
+	ActiveAeroAvailable int     `json:"active_aero_available,omitempty"`
+	OvertakeActive      int     `json:"overtake_active,omitempty"`
 }
 
 // Participant represents a driver/participant in a session.

@@ -2,13 +2,25 @@ export const TEAM_COLORS: Record<number, string> = {
   0: '#00D2BE', // Mercedes-AMG Petronas
   1: '#DC0000', // Scuderia Ferrari HP
   2: '#3671C6', // Oracle Red Bull Racing
-  3: '#229971', // Aston Martin Aramco
-  4: '#0090FF', // BWT Alpine
-  5: '#002B30', // Stake F1 Team Kick Sauber (Green/Black)
-  6: '#6CD3BF', // MoneyGram Haas F1 Team (Silver/Red/White)
-  7: '#64C4FF', // Williams Racing
+  3: '#64C4FF', // Williams Racing
+  4: '#229971', // Aston Martin Aramco
+  5: '#0090FF', // BWT Alpine
+  6: '#6692FF', // Visa Cash App RB
+  7: '#6CD3BF', // MoneyGram Haas F1 Team
   8: '#FF8000', // McLaren
-  9: '#6692FF', // Visa Cash App RB
+  9: '#002B30', // Stake F1 Team Kick Sauber
+  // 2026 Teams
+  476: '#00D2BE', // Mercedes '26
+  477: '#DC0000', // Ferrari '26
+  478: '#3671C6', // Red Bull Racing '26
+  479: '#64C4FF', // Williams '26
+  480: '#229971', // Aston Martin '26
+  481: '#0090FF', // Alpine '26
+  482: '#6692FF', // RB '26
+  483: '#6CD3BF', // Haas '26
+  484: '#FF8000', // McLaren '26
+  485: '#C0C0C0', // Audi '26
+  486: '#D4AF37', // Cadillac '26
 };
 
 export const TYRE_COMPOUNDS: Record<number, { label: string; color: string; bg: string }> = {
@@ -23,49 +35,71 @@ export const ERS_DEPLOY_MODES: Record<number, string> = {
   0: 'NONE',
   1: 'MEDIUM',
   2: 'HOTLAP',
-  3: 'OVERTAKE',
+  3: 'BOOST',
 };
 
 export const ERS_MODE_NAMES: Record<number, string> = {
   0: 'Off',
   1: 'Medium',
   2: 'Hotlap',
-  3: 'Overtake',
+  3: 'Boost',
 };
 
 export const F1_DRIVER_NAMES: Record<number, string> = {
   0: 'Carlos Sainz',
-  1: 'Daniil Kvyat',
   2: 'Daniel Ricciardo',
   3: 'Fernando Alonso',
-  6: 'Kimi Räikkönen',
+  4: 'Felipe Massa',
   7: 'Lewis Hamilton',
   9: 'Max Verstappen',
-  10: 'Lando Norris',
-  11: 'Sergio Pérez',
-  12: 'Valtteri Bottas',
-  14: 'Esteban Ocon',
-  15: 'Lance Stroll',
-  17: 'George Russell',
-  19: 'Alexander Albon',
-  20: 'Nicholas Latifi',
-  21: 'Pierre Gasly',
+  10: 'Nico Hülkenberg',
+  11: 'Kevin Magnussen',
+  14: 'Sergio Pérez',
+  15: 'Valtteri Bottas',
+  17: 'Esteban Ocon',
+  19: 'Lance Stroll',
   22: 'Charles Leclerc',
-  23: 'Zhou Guanyu',
-  24: 'Mick Schumacher',
-  25: 'Kevin Magnussen',
-  26: 'Yuki Tsunoda',
-  27: 'Logan Sargeant',
-  28: 'Oscar Piastri',
-  29: 'Liam Lawson',
-  30: 'Nyck de Vries',
-  31: 'Felipe Drugovich',
-  32: 'Théo Pourchaire',
-  33: 'Oliver Bearman',
-  34: 'Kimi Antonelli',
-  35: 'Jack Doohan',
-  36: 'Gabriel Bortoleto',
-  37: 'Isack Hadjar',
+  50: 'George Russell',
+  54: 'Lando Norris',
+  58: 'Charles Leclerc',
+  59: 'Pierre Gasly',
+  62: 'Alexander Albon',
+  80: 'Guanyu Zhou',
+  90: 'Michael Schumacher',
+  94: 'Yuki Tsunoda',
+  102: 'Aidan Jackson',
+  109: 'Jenson Button',
+  110: 'David Coulthard',
+  112: 'Oscar Piastri',
+  113: 'Liam Lawson',
+  116: 'Richard Verschoor',
+  123: 'Enzo Fittipaldi',
+  125: 'Mark Webber',
+  126: 'Jacques Villeneuve',
+  132: 'Logan Sargeant',
+  136: 'Jack Doohan',
+  145: 'Zane Maloney',
+  146: 'Victor Martins',
+  147: 'Oliver Bearman',
+  148: 'Jak Crawford',
+  149: 'Isack Hadjar',
+  152: 'Roman Stanek',
+  153: 'Kush Maini',
+  156: 'Brendon Leigh',
+  157: 'David Tonizza',
+  158: 'Jarno Opmeer',
+  159: 'Lucas Blakeley',
+  160: 'Paul Aron',
+  161: 'Gabriel Bortoleto',
+  162: 'Franco Colapinto',
+  163: 'Taylor Barnard',
+  164: 'Joshua Dürksen',
+  165: 'Andrea-Kimi Antonelli',
+  166: 'Ritomo Miyata',
+  167: 'Rafael Villagómez',
+  168: 'Zak O’Sullivan',
+  169: 'Pepe Martí',
+  170: 'Sonny Hayes',
 };
 
 export const WEATHER_TYPES: Record<number, string> = {

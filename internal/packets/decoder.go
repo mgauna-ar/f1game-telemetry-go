@@ -43,6 +43,8 @@ func Decode(data []byte) (Packet, error) {
 		return DecodeTimeTrial(data)
 	case PacketIDLapPositions:
 		return DecodeLapPositions(data)
+	case PacketIDCarTelemetry2:
+		return DecodeCarTelemetry2(data)
 	default:
 		return nil, fmt.Errorf("unknown packet ID: %d", header.PacketId)
 	}

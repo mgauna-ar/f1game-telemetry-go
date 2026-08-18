@@ -134,6 +134,7 @@ func shouldBroadcastPacket(pktID uint8) bool {
 		packets.PacketIDEvent,
 		packets.PacketIDParticipants,
 		packets.PacketIDCarTelemetry,
+		packets.PacketIDCarTelemetry2,
 		packets.PacketIDCarStatus,
 		packets.PacketIDCarDamage:
 		return true

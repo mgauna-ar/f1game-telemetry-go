@@ -7,37 +7,41 @@ import (
 )
 
 // PacketMotionExData contains extended motion data for the player's car. Packet ID: 13.
-// This packet does not contain per-car arrays; it has detailed physics data for the player only.
 type PacketMotionExData struct {
-	Header                 PacketHeader
-	SuspensionPosition     [4]float32
-	SuspensionVelocity     [4]float32
-	SuspensionAcceleration [4]float32
-	WheelSpeed             [4]float32
-	WheelSlipRatio         [4]float32
-	WheelSlipAngle         [4]float32
-	WheelLatForce          [4]float32
-	WheelLongForce         [4]float32
-	HeightOfCOGAboveGround float32
-	LocalVelocityX         float32
-	LocalVelocityY         float32
-	LocalVelocityZ         float32
-	AngularVelocityX       float32
-	AngularVelocityY       float32
-	AngularVelocityZ       float32
-	AngularAccelerationX   float32
-	AngularAccelerationY   float32
-	AngularAccelerationZ   float32
-	FrontWheelsAngle       float32
-	WheelVertForce         [4]float32
-	FrontAeroHeight        float32
-	RearAeroHeight         float32
-	FrontRollAngle         float32
-	RearRollAngle          float32
-	ChassisPitch           float32
+	Header                 PacketHeader `json:"Header"`
+	SuspensionPosition     [4]float32   `json:"SuspensionPosition"`
+	SuspensionVelocity     [4]float32   `json:"SuspensionVelocity"`
+	SuspensionAcceleration [4]float32   `json:"SuspensionAcceleration"`
+	WheelSpeed             [4]float32   `json:"WheelSpeed"`
+	WheelSlipRatio         [4]float32   `json:"WheelSlipRatio"`
+	WheelSlipAngle         [4]float32   `json:"WheelSlipAngle"`
+	WheelLatForce          [4]float32   `json:"WheelLatForce"`
+	WheelLongForce         [4]float32   `json:"WheelLongForce"`
+	HeightOfCOGAboveGround float32      `json:"HeightOfCOGAboveGround"`
+	LocalVelocityX         float32      `json:"LocalVelocityX"`
+	LocalVelocityY         float32      `json:"LocalVelocityY"`
+	LocalVelocityZ         float32      `json:"LocalVelocityZ"`
+	AngularVelocityX       float32      `json:"AngularVelocityX"`
+	AngularVelocityY       float32      `json:"AngularVelocityY"`
+	AngularVelocityZ       float32      `json:"AngularVelocityZ"`
+	AngularAccelerationX   float32      `json:"AngularAccelerationX"`
+	AngularAccelerationY   float32      `json:"AngularAccelerationY"`
+	AngularAccelerationZ   float32      `json:"AngularAccelerationZ"`
+	FrontWheelsAngle       float32      `json:"FrontWheelsAngle"`
+	WheelVertForce         [4]float32   `json:"WheelVertForce"`
+	FrontAeroHeight        float32      `json:"FrontAeroHeight"`
+	RearAeroHeight         float32      `json:"RearAeroHeight"`
+	FrontRollAngle         float32      `json:"FrontRollAngle"`
+	RearRollAngle          float32      `json:"RearRollAngle"`
+	ChassisYaw             float32      `json:"ChassisYaw"`
+	ChassisPitch           float32      `json:"ChassisPitch"`
+	WheelCamber            [4]float32   `json:"WheelCamber"`
+	WheelCamberGain        [4]float32   `json:"WheelCamberGain"`
 }
 
 func (p PacketMotionExData) GetHeader() PacketHeader { return p.Header }
+
+const MotionExStructSize = 244
 
 // DecodeMotionEx decodes a PacketMotionExData from raw bytes.
 func DecodeMotionEx(data []byte) (*PacketMotionExData, error) {

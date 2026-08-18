@@ -98,6 +98,12 @@ func (sm *SessionManager) ProcessPacket(ctx context.Context, pkt packets.Packet)
 				tracker.ProcessTelemetry(ctx, sm.currentSession, p)
 			}
 		}
+	case *packets.PacketCarTelemetry2Data:
+		for i := 0; i < maxCars; i++ {
+			if tracker, ok := sm.lapTrackers[i]; ok {
+				tracker.ProcessCarTelemetry2(p)
+			}
+		}
 	case *packets.PacketParticipantsData:
 		sm.handleParticipantsData(ctx, p)
 	case *packets.PacketSessionHistoryData:

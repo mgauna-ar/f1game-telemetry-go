@@ -1,7 +1,6 @@
 package packets
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"math"
@@ -9,41 +8,42 @@ import (
 
 // CarSetupData contains setup data for a single car.
 type CarSetupData struct {
-	FrontWing              uint8
-	RearWing               uint8
-	OnThrottle             uint8
-	OffThrottle            uint8
-	FrontCamber            float32
-	RearCamber             float32
-	FrontToe               float32
-	RearToe                float32
-	FrontSuspension        uint8
-	RearSuspension         uint8
-	FrontAntiRollBar       uint8
-	RearAntiRollBar        uint8
-	FrontSuspensionHeight  uint8
-	RearSuspensionHeight   uint8
-	BrakePressure          uint8
-	BrakeBias              uint8
-	RearLeftTyrePressure   float32
-	RearRightTyrePressure  float32
-	FrontLeftTyrePressure  float32
-	FrontRightTyrePressure float32
-	Ballast                uint8
-	FuelLoad               float32
+	FrontWing              uint8   `json:"FrontWing"`
+	RearWing               uint8   `json:"RearWing"`
+	OnThrottle             uint8   `json:"OnThrottle"`
+	OffThrottle            uint8   `json:"OffThrottle"`
+	FrontCamber            float32 `json:"FrontCamber"`
+	RearCamber             float32 `json:"RearCamber"`
+	FrontToe               float32 `json:"FrontToe"`
+	RearToe                float32 `json:"RearToe"`
+	FrontSuspension        uint8   `json:"FrontSuspension"`
+	RearSuspension         uint8   `json:"RearSuspension"`
+	FrontAntiRollBar       uint8   `json:"FrontAntiRollBar"`
+	RearAntiRollBar        uint8   `json:"RearAntiRollBar"`
+	FrontSuspensionHeight  uint8   `json:"FrontSuspensionHeight"`
+	RearSuspensionHeight   uint8   `json:"RearSuspensionHeight"`
+	BrakePressure          uint8   `json:"BrakePressure"`
+	BrakeBias              uint8   `json:"BrakeBias"`
+	EngineBraking          uint8   `json:"EngineBraking"`
+	RearLeftTyrePressure   float32 `json:"RearLeftTyrePressure"`
+	RearRightTyrePressure  float32 `json:"RearRightTyrePressure"`
+	FrontLeftTyrePressure  float32 `json:"FrontLeftTyrePressure"`
+	FrontRightTyrePressure float32 `json:"FrontRightTyrePressure"`
+	Ballast                uint8   `json:"Ballast"`
+	FuelLoad               float32 `json:"FuelLoad"`
 }
 
 // PacketCarSetupData contains car setup data for all cars. Packet ID: 5.
 type PacketCarSetupData struct {
-	Header             PacketHeader
-	CarSetupData       [MaxCars]CarSetupData
-	NextFrontWingValue float32
+	Header             PacketHeader          `json:"Header"`
+	CarSetupData       [MaxCars]CarSetupData `json:"CarSetupData"`
+	NextFrontWingValue float32               `json:"NextFrontWingValue"`
 }
 
 func (p PacketCarSetupData) GetHeader() PacketHeader { return p.Header }
 
 const (
-	CarSetupStructSize  = 49
+	CarSetupStructSize  = 50
 	CarSetupTrailerSize = 4
 )
 
@@ -58,7 +58,6 @@ func DecodeCarSetup(data []byte) (*PacketCarSetupData, error) {
 	pkt.Header = header
 
 	payload := data[headerLen:]
-
 	maxCars := MaxCarsForFormat(header.PacketFormat)
 	itemSize := PerCarItemSize(payload, header, CarSetupStructSize, CarSetupTrailerSize)
 
@@ -68,7 +67,7 @@ func DecodeCarSetup(data []byte) (*PacketCarSetupData, error) {
 			break
 		}
 
-		carBytes := payload[offset : offset+itemSize]
+		carBytes := payload[offset : offset+CarSetupStructSize]
 		var cs CarSetupData
 
 		cs.FrontWing = carBytes[0]
@@ -87,35 +86,20 @@ func DecodeCarSetup(data []byte) (*PacketCarSetupData, error) {
 		cs.RearSuspensionHeight = carBytes[25]
 		cs.BrakePressure = carBytes[26]
 		cs.BrakeBias = carBytes[27]
-
-		if len(carBytes) >= 44 {
-			cs.RearLeftTyrePressure = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[28:32]))
-			cs.RearRightTyrePressure = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[32:36]))
-			cs.FrontLeftTyrePressure = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[36:40]))
-			cs.FrontRightTyrePressure = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[40:44]))
-		}
-
-		ballastOffset := 44
-		fuelOffset := 45
-		if itemSize >= 50 && len(carBytes) >= 50 {
-			ballastOffset = 45
-			fuelOffset = 46
-		}
-
-		if ballastOffset < len(carBytes) {
-			cs.Ballast = carBytes[ballastOffset]
-		}
-		if fuelOffset+4 <= len(carBytes) {
-			cs.FuelLoad = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[fuelOffset : fuelOffset+4]))
-		}
+		cs.EngineBraking = carBytes[28]
+		cs.RearLeftTyrePressure = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[29:33]))
+		cs.RearRightTyrePressure = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[33:37]))
+		cs.FrontLeftTyrePressure = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[37:41]))
+		cs.FrontRightTyrePressure = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[41:45]))
+		cs.Ballast = carBytes[45]
+		cs.FuelLoad = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[46:50]))
 
 		pkt.CarSetupData[i] = cs
 	}
 
 	tailOffset := maxCars * itemSize
-	if tailOffset+4 <= len(payload) {
-		rTail := bytes.NewReader(payload[tailOffset:])
-		_ = binary.Read(rTail, binary.LittleEndian, &pkt.NextFrontWingValue)
+	if tailOffset+CarSetupTrailerSize <= len(payload) {
+		pkt.NextFrontWingValue = math.Float32frombits(binary.LittleEndian.Uint32(payload[tailOffset : tailOffset+4]))
 	}
 
 	return &pkt, nil

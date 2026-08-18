@@ -10,29 +10,26 @@ import (
 
 // CarTelemetryData contains telemetry data for a single car.
 type CarTelemetryData struct {
-	Speed                   uint16
-	Throttle                float32
-	Steer                   float32
-	Brake                   float32
-	Clutch                  uint8
-	Gear                    int8
-	EngineRPM               uint16
-	DRS                     uint8
-	RevLightsPercent        uint8
-	RevLightsBitValue       uint16
-	BrakesTemperature       [4]uint16
-	TyresSurfaceTemperature [4]uint8
-	TyresInnerTemperature   [4]uint8
-	EngineTemperature       uint16
-	TyresPressure           [4]float32
-	SurfaceType             [4]uint8
+	Speed                   uint16     `json:"Speed"`
+	Throttle                float32    `json:"Throttle"`
+	Steer                   float32    `json:"Steer"`
+	Brake                   float32    `json:"Brake"`
+	Clutch                  uint8      `json:"Clutch"`
+	Gear                    int8       `json:"Gear"`
+	EngineRPM               uint16     `json:"EngineRPM"`
+	DRS                     uint8      `json:"DRS"`
+	RevLightsPercent        uint8      `json:"RevLightsPercent"`
+	RevLightsBitValue       uint16     `json:"RevLightsBitValue"`
+	BrakesTemperature       [4]uint16  `json:"BrakesTemperature"`
+	TyresSurfaceTemperature [4]uint8   `json:"TyresSurfaceTemperature"`
+	TyresInnerTemperature   [4]uint8   `json:"TyresInnerTemperature"`
+	EngineTemperature       uint16     `json:"EngineTemperature"`
+	TyresPressure           [4]float32 `json:"TyresPressure"`
+	SurfaceType             [4]uint8   `json:"SurfaceType"`
 }
 
 // MarshalJSON implements json.Marshaler for CarTelemetryData.
-// Go's encoding/json encodes [N]uint8 arrays as base64 strings by default,
-// which produces garbled data on the frontend. This custom marshaler converts
-// TyresSurfaceTemperature, TyresInnerTemperature, and SurfaceType to integer
-// arrays so they serialize as proper JSON number arrays.
+// Converts uint8 arrays to integer arrays so they serialize as JSON number arrays rather than base64.
 func (c CarTelemetryData) MarshalJSON() ([]byte, error) {
 	type telemetryAlias CarTelemetryData
 
@@ -55,38 +52,22 @@ func (c CarTelemetryData) MarshalJSON() ([]byte, error) {
 
 // PacketCarTelemetryData contains telemetry data for all cars. Packet ID: 6.
 type PacketCarTelemetryData struct {
-	Header                       PacketHeader
-	CarTelemetryData             [MaxCars]CarTelemetryData
-	MFDPanelIndex                uint8
-	MFDPanelIndexSecondaryPlayer uint8
-	SuggestedGear                int8
+	Header                       PacketHeader              `json:"Header"`
+	CarTelemetryData             [MaxCars]CarTelemetryData `json:"CarTelemetryData"`
+	MFDPanelIndex                uint8                     `json:"MFDPanelIndex"`
+	MFDPanelIndexSecondaryPlayer uint8                     `json:"MFDPanelIndexSecondaryPlayer"`
+	SuggestedGear                int8                      `json:"SuggestedGear"`
 }
 
 func (p PacketCarTelemetryData) GetHeader() PacketHeader { return p.Header }
 
 const (
-	CarTelemetryStructSize  = 60
-	CarTelemetryTrailerSize = 3
-
-	OffsetTelemetrySpeed             = 0
-	OffsetTelemetryThrottle          = 2
-	OffsetTelemetrySteer             = 6
-	OffsetTelemetryBrake             = 10
-	OffsetTelemetryClutch            = 14
-	OffsetTelemetryGear              = 15
-	OffsetTelemetryEngineRPM         = 16
-	OffsetTelemetryDRS               = 18
-	OffsetTelemetryRevLightsPercent  = 19
-	OffsetTelemetryRevLightsBitValue = 20
-	OffsetTelemetryBrakesTemp        = 22
-	OffsetTelemetryTyresSurfaceTemp  = 30
-	OffsetTelemetryTyresInnerTemp    = 34
-	OffsetTelemetryEngineTemp        = 38
-	OffsetTelemetryPressures         = 40
-	OffsetTelemetrySurfaceType       = 56
+	CarTelemetryStructSize2025 = 60
+	CarTelemetryStructSize2026 = 59
+	CarTelemetryTrailerSize    = 3
 )
 
-// DecodeCarTelemetry decodes a PacketCarTelemetryData from raw bytes.
+// DecodeCarTelemetry decodes a PacketCarTelemetryData from raw bytes (supporting both 2025 and 2026 formats).
 func DecodeCarTelemetry(data []byte) (*PacketCarTelemetryData, error) {
 	header, headerLen, err := DecodeHeaderWithOffset(data)
 	if err != nil {
@@ -97,43 +78,55 @@ func DecodeCarTelemetry(data []byte) (*PacketCarTelemetryData, error) {
 	pkt.Header = header
 
 	payload := data[headerLen:]
+	is2026 := header.PacketFormat >= PacketFormat2026
 	maxCars := MaxCarsForFormat(header.PacketFormat)
-	itemSize := PerCarItemSize(payload, header, CarTelemetryStructSize, CarTelemetryTrailerSize)
+	structSize := CarTelemetryStructSize2025
+	if is2026 {
+		structSize = CarTelemetryStructSize2026
+	}
+
+	itemSize := PerCarItemSize(payload, header, structSize, CarTelemetryTrailerSize)
 
 	for i := 0; i < maxCars && i < MaxCars; i++ {
 		offset := i * itemSize
-		if offset+CarTelemetryStructSize > len(payload) {
+		if offset+structSize > len(payload) {
 			break
 		}
 
-		carBytes := payload[offset : offset+itemSize]
+		carBytes := payload[offset : offset+structSize]
 		var c CarTelemetryData
 
-		c.Speed = binary.LittleEndian.Uint16(carBytes[OffsetTelemetrySpeed : OffsetTelemetrySpeed+2])
-		c.Throttle = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[OffsetTelemetryThrottle : OffsetTelemetryThrottle+4]))
-		c.Steer = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[OffsetTelemetrySteer : OffsetTelemetrySteer+4]))
-		c.Brake = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[OffsetTelemetryBrake : OffsetTelemetryBrake+4]))
-		c.Clutch = carBytes[OffsetTelemetryClutch]
-		c.Gear = int8(carBytes[OffsetTelemetryGear])
-		c.EngineRPM = binary.LittleEndian.Uint16(carBytes[OffsetTelemetryEngineRPM : OffsetTelemetryEngineRPM+2])
-		c.DRS = carBytes[OffsetTelemetryDRS]
-		c.RevLightsPercent = carBytes[OffsetTelemetryRevLightsPercent]
-		c.RevLightsBitValue = binary.LittleEndian.Uint16(carBytes[OffsetTelemetryRevLightsBitValue : OffsetTelemetryRevLightsBitValue+2])
+		c.Speed = binary.LittleEndian.Uint16(carBytes[0:2])
+		c.Throttle = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[2:6]))
+		c.Steer = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[6:10]))
+		c.Brake = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[10:14]))
+		c.Clutch = carBytes[14]
+		c.Gear = int8(carBytes[15])
+		c.EngineRPM = binary.LittleEndian.Uint16(carBytes[16:18])
+		c.DRS = carBytes[18]
+		c.RevLightsPercent = carBytes[19]
+		c.RevLightsBitValue = binary.LittleEndian.Uint16(carBytes[20:22])
 
 		for b := 0; b < 4; b++ {
-			c.BrakesTemperature[b] = binary.LittleEndian.Uint16(carBytes[OffsetTelemetryBrakesTemp+b*2 : OffsetTelemetryBrakesTemp+2+b*2])
+			c.BrakesTemperature[b] = binary.LittleEndian.Uint16(carBytes[22+b*2 : 24+b*2])
 		}
-		copy(c.TyresSurfaceTemperature[:], carBytes[OffsetTelemetryTyresSurfaceTemp:OffsetTelemetryTyresSurfaceTemp+4])
-		copy(c.TyresInnerTemperature[:], carBytes[OffsetTelemetryTyresInnerTemp:OffsetTelemetryTyresInnerTemp+4])
+		copy(c.TyresSurfaceTemperature[:], carBytes[30:34])
+		copy(c.TyresInnerTemperature[:], carBytes[34:38])
 
-		c.EngineTemperature = binary.LittleEndian.Uint16(carBytes[OffsetTelemetryEngineTemp : OffsetTelemetryEngineTemp+2])
-		for p := 0; p < 4; p++ {
-			if OffsetTelemetryPressures+(p+1)*4 <= len(carBytes) {
-				c.TyresPressure[p] = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[OffsetTelemetryPressures+p*4 : OffsetTelemetryPressures+(p+1)*4]))
+		if is2026 {
+			// In 2026: EngineTemperature is uint8 (1 byte), pressure at 39, surface type at 55
+			c.EngineTemperature = uint16(carBytes[38])
+			for p := 0; p < 4; p++ {
+				c.TyresPressure[p] = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[39+p*4 : 43+p*4]))
 			}
-		}
-		if OffsetTelemetrySurfaceType+4 <= len(carBytes) {
-			copy(c.SurfaceType[:], carBytes[OffsetTelemetrySurfaceType:OffsetTelemetrySurfaceType+4])
+			copy(c.SurfaceType[:], carBytes[55:59])
+		} else {
+			// In 2025: EngineTemperature is uint16 (2 bytes), pressure at 40, surface type at 56
+			c.EngineTemperature = binary.LittleEndian.Uint16(carBytes[38:40])
+			for p := 0; p < 4; p++ {
+				c.TyresPressure[p] = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[40+p*4 : 44+p*4]))
+			}
+			copy(c.SurfaceType[:], carBytes[56:60])
 		}
 
 		pkt.CarTelemetryData[i] = c

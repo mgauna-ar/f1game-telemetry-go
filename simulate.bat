@@ -19,5 +19,7 @@ echo.
 echo Streaming synthetic telemetry packets for testing...
 echo Press Ctrl+C to stop the simulator at any time.
 echo.
-"%~dp0bin\simulator.exe" -session race
+set ARGS=%*
+if "%ARGS%"=="" set ARGS=-session race
+"%~dp0bin\simulator.exe" %ARGS%
 pause

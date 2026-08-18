@@ -8,38 +8,39 @@ import (
 
 // CarDamageData contains damage data for a single car.
 type CarDamageData struct {
-	TyresWear            [4]float32
-	TyresDamage          [4]uint8
-	BrakesDamage         [4]uint8
-	FrontLeftWingDamage  uint8
-	FrontRightWingDamage uint8
-	RearWingDamage       uint8
-	FloorDamage          uint8
-	DiffuserDamage       uint8
-	SidepodDamage        uint8
-	DRSFault             uint8
-	ERSFault             uint8
-	GearBoxDamage        uint8
-	EngineDamage         uint8
-	EngineMGUHWear       uint8
-	EngineESWear         uint8
-	EngineCEWear         uint8
-	EngineICEWear        uint8
-	EngineMGUKWear       uint8
-	EngineTCWear         uint8
-	EngineBlown          uint8
-	EngineSeized         uint8
+	TyresWear            [4]float32 `json:"TyresWear"`
+	TyresDamage          [4]uint8   `json:"TyresDamage"`
+	BrakesDamage         [4]uint8   `json:"BrakesDamage"`
+	TyreBlisters         [4]uint8   `json:"TyreBlisters"`
+	FrontLeftWingDamage  uint8      `json:"FrontLeftWingDamage"`
+	FrontRightWingDamage uint8      `json:"FrontRightWingDamage"`
+	RearWingDamage       uint8      `json:"RearWingDamage"`
+	FloorDamage          uint8      `json:"FloorDamage"`
+	DiffuserDamage       uint8      `json:"DiffuserDamage"`
+	SidepodDamage        uint8      `json:"SidepodDamage"`
+	DRSFault             uint8      `json:"DRSFault"`
+	ERSFault             uint8      `json:"ERSFault"`
+	GearBoxDamage        uint8      `json:"GearBoxDamage"`
+	EngineDamage         uint8      `json:"EngineDamage"`
+	EngineMGUHWear       uint8      `json:"EngineMGUHWear"`
+	EngineESWear         uint8      `json:"EngineESWear"`
+	EngineCEWear         uint8      `json:"EngineCEWear"`
+	EngineICEWear        uint8      `json:"EngineICEWear"`
+	EngineMGUKWear       uint8      `json:"EngineMGUKWear"`
+	EngineTCWear         uint8      `json:"EngineTCWear"`
+	EngineBlown          uint8      `json:"EngineBlown"`
+	EngineSeized         uint8      `json:"EngineSeized"`
 }
 
 // PacketCarDamageData contains car damage data for all cars. Packet ID: 10.
 type PacketCarDamageData struct {
-	Header        PacketHeader
-	CarDamageData [MaxCars]CarDamageData
+	Header        PacketHeader           `json:"Header"`
+	CarDamageData [MaxCars]CarDamageData `json:"CarDamageData"`
 }
 
 func (p PacketCarDamageData) GetHeader() PacketHeader { return p.Header }
 
-const CarDamageStructSize = 42
+const CarDamageStructSize = 46
 
 // DecodeCarDamage decodes a PacketCarDamageData from raw bytes.
 func DecodeCarDamage(data []byte) (*PacketCarDamageData, error) {

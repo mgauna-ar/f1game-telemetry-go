@@ -24,8 +24,8 @@ const (
 
 type driverInfo struct {
 	name         string
-	driverID     uint8
-	teamID       uint8
+	driverID     uint16
+	teamID       uint16
 	raceNumber   uint8
 	aiControlled uint8
 	nationality  uint8
@@ -33,58 +33,58 @@ type driverInfo struct {
 
 var drivers2025 = []driverInfo{
 	// 20 Active Drivers (10 Teams)
-	{"Max Verstappen", 9, 0, 1, 0, 5},
-	{"Sergio Perez", 11, 0, 11, 1, 52},
-	{"Lewis Hamilton", 7, 4, 44, 1, 12},
-	{"Charles Leclerc", 22, 4, 16, 1, 18},
-	{"Lando Norris", 10, 2, 4, 1, 12},
-	{"Oscar Piastri", 28, 2, 81, 1, 2},
-	{"George Russell", 17, 1, 63, 1, 12},
-	{"Kimi Antonelli", 34, 1, 12, 1, 18},
-	{"Fernando Alonso", 3, 3, 14, 1, 56},
-	{"Lance Stroll", 15, 3, 18, 1, 14},
-	{"Pierre Gasly", 21, 5, 10, 1, 13},
-	{"Jack Doohan", 35, 5, 7, 1, 2},
-	{"Alexander Albon", 19, 6, 23, 1, 54},
-	{"Carlos Sainz", 0, 6, 55, 1, 56},
-	{"Yuki Tsunoda", 26, 7, 22, 1, 19},
-	{"Liam Lawson", 29, 7, 30, 1, 46},
-	{"Nico Hulkenberg", 13, 8, 27, 1, 15},
-	{"Gabriel Bortoleto", 36, 8, 5, 1, 10},
-	{"Esteban Ocon", 14, 9, 31, 1, 13},
-	{"Oliver Bearman", 33, 9, 87, 1, 12},
+	{"Max Verstappen", 9, 2, 1, 0, 22},           // Red Bull Racing
+	{"Sergio Pérez", 14, 2, 11, 1, 52},           // Red Bull Racing
+	{"Lewis Hamilton", 7, 1, 44, 1, 10},          // Ferrari
+	{"Charles Leclerc", 58, 1, 16, 1, 53},        // Ferrari
+	{"Lando Norris", 54, 8, 4, 1, 10},            // McLaren
+	{"Oscar Piastri", 112, 8, 81, 1, 3},          // McLaren
+	{"George Russell", 50, 0, 63, 1, 10},         // Mercedes
+	{"Andrea-Kimi Antonelli", 165, 0, 12, 1, 41}, // Mercedes
+	{"Fernando Alonso", 3, 4, 14, 1, 77},         // Aston Martin
+	{"Lance Stroll", 19, 4, 18, 1, 13},           // Aston Martin
+	{"Pierre Gasly", 59, 5, 10, 1, 28},           // Alpine
+	{"Jack Doohan", 136, 5, 7, 1, 3},             // Alpine
+	{"Alexander Albon", 62, 3, 23, 1, 80},        // Williams
+	{"Carlos Sainz", 0, 3, 55, 1, 77},            // Williams
+	{"Yuki Tsunoda", 94, 6, 22, 1, 43},           // RB
+	{"Liam Lawson", 113, 6, 30, 1, 54},           // RB
+	{"Nico Hülkenberg", 10, 9, 27, 1, 29},        // Kick Sauber
+	{"Gabriel Bortoleto", 161, 9, 5, 1, 9},       // Kick Sauber
+	{"Esteban Ocon", 17, 7, 31, 1, 28},           // Haas
+	{"Oliver Bearman", 147, 7, 87, 1, 10},        // Haas
 	// 2 Spectators / Observers (Inactive)
-	{"Observer 1", 255, 255, 0, 1, 0},
-	{"Observer 2", 255, 255, 0, 1, 0},
+	{"Observer 1", 65535, 65535, 0, 1, 0},
+	{"Observer 2", 65535, 65535, 0, 1, 0},
 }
 
 var drivers2026 = []driverInfo{
 	// 22 Active Drivers (11 Teams)
-	{"Max Verstappen", 9, 0, 1, 0, 5},
-	{"Sergio Perez", 11, 0, 11, 1, 52},
-	{"Lewis Hamilton", 7, 4, 44, 1, 12},
-	{"Charles Leclerc", 22, 4, 16, 1, 18},
-	{"Lando Norris", 10, 2, 4, 1, 12},
-	{"Oscar Piastri", 28, 2, 81, 1, 2},
-	{"George Russell", 17, 1, 63, 1, 12},
-	{"Kimi Antonelli", 34, 1, 12, 1, 18},
-	{"Fernando Alonso", 3, 3, 14, 1, 56},
-	{"Lance Stroll", 15, 3, 18, 1, 14},
-	{"Pierre Gasly", 21, 5, 10, 1, 13},
-	{"Jack Doohan", 35, 5, 7, 1, 2},
-	{"Alexander Albon", 19, 6, 23, 1, 54},
-	{"Carlos Sainz", 0, 6, 55, 1, 56},
-	{"Yuki Tsunoda", 26, 7, 22, 1, 19},
-	{"Liam Lawson", 29, 7, 30, 1, 46},
-	{"Nico Hulkenberg", 13, 8, 27, 1, 15},
-	{"Gabriel Bortoleto", 36, 8, 5, 1, 10},
-	{"Esteban Ocon", 14, 9, 31, 1, 13},
-	{"Oliver Bearman", 33, 9, 87, 1, 12},
-	{"Colton Herta", 40, 10, 26, 1, 54},
-	{"Alex Palou", 41, 10, 10, 1, 56},
+	{"Max Verstappen", 9, 478, 1, 0, 22},           // Red Bull Racing '26
+	{"Liam Lawson", 113, 478, 30, 1, 54},           // Red Bull Racing '26
+	{"Lewis Hamilton", 7, 477, 44, 1, 10},          // Ferrari '26
+	{"Charles Leclerc", 58, 477, 16, 1, 53},        // Ferrari '26
+	{"Lando Norris", 54, 484, 4, 1, 10},            // McLaren '26
+	{"Oscar Piastri", 112, 484, 81, 1, 3},          // McLaren '26
+	{"George Russell", 50, 476, 63, 1, 10},         // Mercedes '26
+	{"Andrea-Kimi Antonelli", 165, 476, 12, 1, 41}, // Mercedes '26
+	{"Fernando Alonso", 3, 480, 14, 1, 77},         // Aston Martin '26
+	{"Lance Stroll", 19, 480, 18, 1, 13},           // Aston Martin '26
+	{"Pierre Gasly", 59, 481, 10, 1, 28},           // Alpine '26
+	{"Jack Doohan", 136, 481, 7, 1, 3},             // Alpine '26
+	{"Alexander Albon", 62, 479, 23, 1, 80},        // Williams '26
+	{"Carlos Sainz", 0, 479, 55, 1, 77},            // Williams '26
+	{"Yuki Tsunoda", 94, 482, 22, 1, 43},           // RB '26
+	{"Isack Hadjar", 149, 482, 6, 1, 28},           // RB '26
+	{"Nico Hülkenberg", 10, 485, 27, 1, 29},        // Audi '26
+	{"Gabriel Bortoleto", 161, 485, 5, 1, 9},       // Audi '26
+	{"Esteban Ocon", 17, 483, 31, 1, 28},           // Haas '26
+	{"Oliver Bearman", 147, 483, 87, 1, 10},        // Haas '26
+	{"Franco Colapinto", 162, 486, 43, 1, 2},       // Cadillac '26
+	{"Sergio Pérez", 14, 486, 11, 1, 52},           // Cadillac '26
 	// 2 Spectators / Observers (Inactive)
-	{"Observer 1", 255, 255, 0, 1, 0},
-	{"Observer 2", 255, 255, 0, 1, 0},
+	{"Observer 1", 65535, 65535, 0, 1, 0},
+	{"Observer 2", 65535, 65535, 0, 1, 0},
 }
 
 func main() {
@@ -239,12 +239,15 @@ func main() {
 				totalLaps = 0
 			}
 
+			// 1a. Session Data Packet (ID: 1)
 			sessionPkt := packets.PacketSessionData{
 				Header:                    header,
 				TrackId:                   0, // Melbourne
 				SessionType:               sessionType,
 				TotalLaps:                 totalLaps,
+				TrackLength:               5278,
 				SessionTimeLeft:           sessionTimeLeft,
+				SessionDuration:           3600,
 				TrackTemperature:          32,
 				AirTemperature:            24,
 				Weather:                   0, // Clear
@@ -253,16 +256,16 @@ func main() {
 				PitStopWindowLatestLap:    22,
 				PitStopRejoinPosition:     7,
 				NumWeatherForecastSamples: 4,
+				Sector2LapDistanceStart:   1750.0,
+				Sector3LapDistanceStart:   3500.0,
 			}
 			sessionPkt.WeatherForecastSamples[0] = packets.WeatherForecastSample{
-				SessionType:            sessionType,
-				TimeOffset:             0,
-				Weather:                0,
-				TrackTemperature:       32,
-				TrackTemperatureChange: 0,
-				AirTemperature:         24,
-				AirTemperatureChange:   0,
-				RainPercentage:         0,
+				SessionType:      sessionType,
+				TimeOffset:       0,
+				Weather:          0,
+				TrackTemperature: 32,
+				AirTemperature:   24,
+				RainPercentage:   0,
 			}
 			sessionPkt.WeatherForecastSamples[1] = packets.WeatherForecastSample{
 				SessionType:            sessionType,
@@ -271,7 +274,6 @@ func main() {
 				TrackTemperature:       31,
 				TrackTemperatureChange: -1,
 				AirTemperature:         24,
-				AirTemperatureChange:   0,
 				RainPercentage:         5,
 			}
 			sessionPkt.WeatherForecastSamples[2] = packets.WeatherForecastSample{
@@ -294,8 +296,19 @@ func main() {
 				AirTemperatureChange:   -1,
 				RainPercentage:         65,
 			}
+
+			if packetFormat >= packets.PacketFormat2026 {
+				sessionPkt.ActiveAeroTrackStatus = 0 // Full
+				sessionPkt.NumActiveAeroZonesFull = 2
+				sessionPkt.ActiveAeroZonesFull[0] = packets.ActiveAeroZone{ZoneStart: 0.1, ZoneEnd: 0.25}
+				sessionPkt.ActiveAeroZonesFull[1] = packets.ActiveAeroZone{ZoneStart: 0.6, ZoneEnd: 0.8}
+				sessionPkt.NumDRSZones = 2
+				sessionPkt.DRSZones[0] = packets.DRSZone{ZoneStart: 0.1, ZoneEnd: 0.25}
+				sessionPkt.DRSZones[1] = packets.DRSZone{ZoneStart: 0.6, ZoneEnd: 0.8}
+			}
+
 			sessionPkt.Header.PacketId = packets.PacketIDSession
-			sendSessionPacket(conn, &sessionPkt)
+			sendSessionPacket(conn, &sessionPkt, packetFormat)
 
 			// 1b. Periodic Event Packet (ID: 3)
 			if frameID%120 == 40 {
@@ -353,7 +366,7 @@ func main() {
 
 			// 1c. Participants Data Packet (ID: 4)
 			if frameID == 1 || frameID%100 == 0 {
-				sendParticipantsPacket(conn, header, numActiveCars, totalSlots, activeDrivers)
+				sendParticipantsPacket(conn, header, numActiveCars, totalSlots, activeDrivers, packetFormat)
 			}
 
 			// 2. Motion Packet (ID: 0)
@@ -363,15 +376,18 @@ func main() {
 					off := -float64(i) * 0.08
 					a := angle + off
 					motionCars[i] = packets.CarMotionData{
-						WorldPositionX: float32(300.0 * math.Sin(a)),
-						WorldPositionY: posY,
-						WorldPositionZ: float32(150.0 * math.Cos(2*a)),
-						WorldVelocityX: float32(math.Cos(a) * 30),
-						WorldVelocityZ: float32(-math.Sin(a) * 30),
+						WorldPositionX:     float32(300.0 * math.Sin(a)),
+						WorldPositionY:     posY,
+						WorldPositionZ:     float32(150.0 * math.Cos(2*a)),
+						WorldVelocityX:     float32(math.Cos(a) * 30),
+						WorldVelocityZ:     float32(-math.Sin(a) * 30),
+						GForceLateral:      float32(1.8 * math.Sin(a)),
+						GForceLongitudinal: float32(0.5 * math.Cos(a)),
+						GForceVertical:     0.1,
 					}
 				}
 			}
-			sendMotionPacket(conn, header, totalSlots, motionCars)
+			sendMotionPacket(conn, header, totalSlots, motionCars, packetFormat)
 
 			// 3. Car Telemetry Packet (ID: 6)
 			telemetryCars := make([]packets.CarTelemetryData, totalSlots)
@@ -391,10 +407,32 @@ func main() {
 						EngineRPM:         uint16(float64(rpm) * factor),
 						DRS:               uint8(i % 2),
 						EngineTemperature: uint16(90 + i),
+						TyresPressure:     [4]float32{22.5, 22.5, 23.5, 23.5},
 					}
 				}
 			}
-			sendTelemetryPacket(conn, header, totalSlots, telemetryCars)
+			sendTelemetryPacket(conn, header, totalSlots, telemetryCars, packetFormat)
+
+			// 3b. Car Telemetry 2 Packet (ID: 16) - 2026 Only
+			if packetFormat >= packets.PacketFormat2026 {
+				telemetry2Cars := make([]packets.CarTelemetry2Data, totalSlots)
+				for i := 0; i < totalSlots; i++ {
+					if i < numActiveCars {
+						var aeroMode uint8 = 0
+						if speedKmh > 220 {
+							aeroMode = 1 // Straight mode
+						}
+						telemetry2Cars[i] = packets.CarTelemetry2Data{
+							ActiveAeroMode:      aeroMode,
+							ActiveAeroAvailable: 1,
+							OvertakeAvailable:   1,
+							OvertakeActive:      uint8((i + int(frameID/40)) % 2),
+							Regulations2026:     1,
+						}
+					}
+				}
+				sendCarTelemetry2Packet(conn, header, totalSlots, telemetry2Cars)
+			}
 
 			// 4. Lap Data Packet (ID: 2)
 			lapCars := make([]packets.LapData, totalSlots)
@@ -460,19 +498,20 @@ func main() {
 				for i := 0; i < totalSlots; i++ {
 					if i < numActiveCars {
 						statusCars[i] = packets.CarStatusData{
-							FuelInTank:         float32(48.0 - float64(i)*0.8),
-							FuelCapacity:       110.0,
-							VisualTyreCompound: compounds[i%len(compounds)],
-							TyresAgeLaps:       uint8(3 + i*2),
-							ERSStoreEnergy:     float32(4000000.0 * (1.0 - float64(i)*0.03)),
-							ERSDeployMode:      uint8(i % 4),
+							FuelInTank:            float32(48.0 - float64(i)*0.8),
+							FuelCapacity:          110.0,
+							VisualTyreCompound:    compounds[i%len(compounds)],
+							TyresAgeLaps:          uint8(3 + i*2),
+							ERSStoreEnergy:        float32(4000000.0 * (1.0 - float64(i)*0.03)),
+							ERSDeployMode:         uint8(i % 4),
+							ERSHarvestLimitPerLap: 2000000.0,
 						}
 					}
 				}
-				sendCarStatusPacket(conn, header, totalSlots, statusCars)
+				sendCarStatusPacket(conn, header, totalSlots, statusCars, packetFormat)
 			}
 
-			// 7. Car Damage Packet (ID: 10)
+			// 6. Car Damage Packet (ID: 10)
 			if frameID == 1 || frameID%20 == 0 {
 				damageCars := make([]packets.CarDamageData, totalSlots)
 				for i := 0; i < totalSlots; i++ {
@@ -501,6 +540,7 @@ func main() {
 							TyresWear:            [4]float32{rlWear, rrWear, flWear, frWear},
 							TyresDamage:          [4]uint8{uint8(i % 3), uint8(i % 2), uint8((i * 3) % 15), uint8((i * 2) % 20)},
 							BrakesDamage:         [4]uint8{uint8((i * 4) % 30), uint8((i * 4) % 30), uint8((i * 5) % 40), uint8((i * 5) % 40)},
+							TyreBlisters:         [4]uint8{0, 0, uint8(i % 5), uint8(i % 5)},
 							FrontLeftWingDamage:  uint8((i * 9) % 55),
 							FrontRightWingDamage: uint8((i * 13) % 40),
 							RearWingDamage:       uint8((i * 5) % 30),
@@ -528,9 +568,103 @@ func main() {
 	}
 }
 
-func sendSessionPacket(conn *net.UDPConn, pkt *packets.PacketSessionData) {
+func sendSessionPacket(conn *net.UDPConn, pkt *packets.PacketSessionData, format uint16) {
 	var buf bytes.Buffer
-	_ = binary.Write(&buf, binary.LittleEndian, pkt)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.Header)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.Weather)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.TrackTemperature)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.AirTemperature)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.TotalLaps)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.TrackLength)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.SessionType)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.TrackId)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.Formula)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.SessionTimeLeft)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.SessionDuration)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.PitSpeedLimit)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.GamePaused)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.IsSpectating)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.SpectatorCarIndex)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.SliProNativeSupport)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.NumMarshalZones)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.MarshalZones)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.SafetyCarStatus)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.NetworkGame)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.NumWeatherForecastSamples)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.WeatherForecastSamples)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.ForecastAccuracy)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.AIDifficulty)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.SeasonLinkIdentifier)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.WeekendLinkIdentifier)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.SessionLinkIdentifier)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.PitStopWindowIdealLap)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.PitStopWindowLatestLap)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.PitStopRejoinPosition)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.SteeringAssist)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.BrakingAssist)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.GearboxAssist)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.PitAssist)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.PitReleaseAssist)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.ERSAssist)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.DRSAssist)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.DynamicRacingLine)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.DynamicRacingLineType)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.GameMode)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.RuleSet)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.TimeOfDay)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.SessionLength)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.SpeedUnitsLeadPlayer)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.TemperatureUnitsLeadPlayer)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.SpeedUnitsSecondaryPlayer)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.TemperatureUnitsSecondaryPlayer)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.NumSafetyCarPeriods)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.NumVirtualSafetyCarPeriods)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.NumRedFlagPeriods)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.EqualCarPerformance)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.RecoveryMode)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.FlashbackLimit)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.SurfaceType)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.LowFuelMode)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.RaceStarts)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.TyreTemperature)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.PitLaneTyreSim)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.CarDamage)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.CarDamageRate)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.Collisions)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.CollisionsOffForFirstLapOnly)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.MPUnsafePitRelease)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.MPOffForGriefing)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.CornerCuttingStringency)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.ParcFermeRules)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.PitStopExperience)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.SafetyCar)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.SafetyCarExperience)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.FormationLap)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.FormationLapExperience)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.RedFlags)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.AffectsLicenceLevelSolo)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.AffectsLicenceLevelMP)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.NumSessionsInWeekend)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.WeekendStructure)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.Sector2LapDistanceStart)
+	_ = binary.Write(&buf, binary.LittleEndian, pkt.Sector3LapDistanceStart)
+
+	if format >= packets.PacketFormat2026 {
+		_ = binary.Write(&buf, binary.LittleEndian, pkt.ActiveAeroTrackStatus)
+		_ = binary.Write(&buf, binary.LittleEndian, pkt.NumActiveAeroZonesFull)
+		_ = binary.Write(&buf, binary.LittleEndian, pkt.ActiveAeroZonesFull)
+		_ = binary.Write(&buf, binary.LittleEndian, pkt.NumActiveAeroZonesPartial)
+		_ = binary.Write(&buf, binary.LittleEndian, pkt.ActiveAeroZonesPartial)
+		_ = binary.Write(&buf, binary.LittleEndian, pkt.NumDRSZones)
+		_ = binary.Write(&buf, binary.LittleEndian, pkt.DRSZones)
+		_ = binary.Write(&buf, binary.LittleEndian, pkt.StartReactionTime)
+		_ = binary.Write(&buf, binary.LittleEndian, pkt.AntiLockBrakesAssist)
+		_ = binary.Write(&buf, binary.LittleEndian, pkt.TractionControlAssist)
+		_ = binary.Write(&buf, binary.LittleEndian, pkt.DynamicRacingLineHiVis)
+		_ = binary.Write(&buf, binary.LittleEndian, pkt.DynamicRacingLineColourBlind)
+		_ = binary.Write(&buf, binary.LittleEndian, pkt.RecurringRewindPrompt)
+	}
+
 	_, _ = conn.Write(buf.Bytes())
 }
 
@@ -540,66 +674,174 @@ func sendEventPacket(conn *net.UDPConn, pkt *packets.PacketEventData) {
 	_, _ = conn.Write(buf.Bytes())
 }
 
-func sendParticipantsPacket(conn *net.UDPConn, header packets.PacketHeader, numActiveCars, totalSlots int, drivers []driverInfo) {
+func sendParticipantsPacket(conn *net.UDPConn, header packets.PacketHeader, numActiveCars, totalSlots int, drivers []driverInfo, format uint16) {
 	var buf bytes.Buffer
 	header.PacketId = packets.PacketIDParticipants
 	_ = binary.Write(&buf, binary.LittleEndian, header)
 	_ = binary.Write(&buf, binary.LittleEndian, uint8(numActiveCars))
 
-	nameLen := packets.ParticipantNameLen2025
-	if header.PacketFormat >= packets.PacketFormat2026 {
-		nameLen = packets.ParticipantNameLen2026
-	}
+	nameLen := packets.ParticipantNameLen
 
 	for i := 0; i < totalSlots; i++ {
 		d := drivers[i]
 		_ = binary.Write(&buf, binary.LittleEndian, d.aiControlled)
-		_ = binary.Write(&buf, binary.LittleEndian, d.driverID)
-		_ = binary.Write(&buf, binary.LittleEndian, uint8(0)) // NetworkId
-		_ = binary.Write(&buf, binary.LittleEndian, d.teamID)
-		_ = binary.Write(&buf, binary.LittleEndian, uint8(0)) // MyTeam
-		_ = binary.Write(&buf, binary.LittleEndian, d.raceNumber)
-		_ = binary.Write(&buf, binary.LittleEndian, d.nationality)
 
-		nameBytes := make([]byte, nameLen)
-		copy(nameBytes, d.name)
-		buf.Write(nameBytes)
+		if format >= packets.PacketFormat2026 {
+			_ = binary.Write(&buf, binary.LittleEndian, d.driverID)
+			_ = binary.Write(&buf, binary.LittleEndian, uint16(0)) // NetworkId
+			_ = binary.Write(&buf, binary.LittleEndian, d.teamID)
+		} else {
+			_ = binary.Write(&buf, binary.LittleEndian, uint8(d.driverID))
+			_ = binary.Write(&buf, binary.LittleEndian, uint8(0)) // NetworkId
+			_ = binary.Write(&buf, binary.LittleEndian, uint8(d.teamID))
+		}
 
-		_ = binary.Write(&buf, binary.LittleEndian, uint8(1))     // YourTelemetry
-		_ = binary.Write(&buf, binary.LittleEndian, uint8(1))     // ShowOnlineNames
-		_ = binary.Write(&buf, binary.LittleEndian, uint16(1000)) // TechLevel
-		_ = binary.Write(&buf, binary.LittleEndian, uint8(1))     // Platform
+		_ = binary.Write(&buf, binary.LittleEndian, d.raceNumber) // in 2026 MyTeam is byte 7, RaceNumber is byte 8
+		if format >= packets.PacketFormat2026 {
+			// for 2026: AIControlled (1), DriverId (2), NetworkId (2), TeamId (2), MyTeam (1), RaceNumber (1), Nationality (1)
+			// wait: in 2026: AIControlled (0), DriverId (1..3), NetworkId (3..5), TeamId (5..7), MyTeam (7), RaceNumber (8), Nationality (9)
+			// let's adjust:
+		}
+	}
+	// Let's write the exact byte loop
+	buf.Reset()
+	_ = binary.Write(&buf, binary.LittleEndian, header)
+	_ = binary.Write(&buf, binary.LittleEndian, uint8(numActiveCars))
 
-		if header.PacketFormat >= packets.PacketFormat2026 {
-			// 2026 format extra padding (ParticipantStructSize2026 is 57 bytes, 44 written so far)
-			extra := make([]byte, packets.ParticipantStructSize2026-44)
-			buf.Write(extra)
+	for i := 0; i < totalSlots; i++ {
+		d := drivers[i]
+		if format >= packets.PacketFormat2026 {
+			_ = binary.Write(&buf, binary.LittleEndian, d.aiControlled)
+			_ = binary.Write(&buf, binary.LittleEndian, d.driverID)
+			_ = binary.Write(&buf, binary.LittleEndian, uint16(0))
+			_ = binary.Write(&buf, binary.LittleEndian, d.teamID)
+			_ = binary.Write(&buf, binary.LittleEndian, uint8(0)) // MyTeam
+			_ = binary.Write(&buf, binary.LittleEndian, d.raceNumber)
+			_ = binary.Write(&buf, binary.LittleEndian, d.nationality)
+
+			nameBytes := make([]byte, nameLen)
+			copy(nameBytes, d.name)
+			buf.Write(nameBytes)
+
+			_ = binary.Write(&buf, binary.LittleEndian, uint8(1))     // YourTelemetry
+			_ = binary.Write(&buf, binary.LittleEndian, uint8(1))     // ShowOnlineNames
+			_ = binary.Write(&buf, binary.LittleEndian, uint16(1000)) // TechLevel
+			_ = binary.Write(&buf, binary.LittleEndian, uint8(1))     // Platform
+			_ = binary.Write(&buf, binary.LittleEndian, uint8(4))     // NumColours
+			_ = binary.Write(&buf, binary.LittleEndian, [4]packets.LiveryColour{
+				{Red: 255, Green: 0, Blue: 0},
+				{Red: 0, Green: 255, Blue: 0},
+				{Red: 0, Green: 0, Blue: 255},
+				{Red: 255, Green: 255, Blue: 255},
+			})
+		} else {
+			_ = binary.Write(&buf, binary.LittleEndian, d.aiControlled)
+			_ = binary.Write(&buf, binary.LittleEndian, uint8(d.driverID))
+			_ = binary.Write(&buf, binary.LittleEndian, uint8(0))
+			_ = binary.Write(&buf, binary.LittleEndian, uint8(d.teamID))
+			_ = binary.Write(&buf, binary.LittleEndian, uint8(0)) // MyTeam
+			_ = binary.Write(&buf, binary.LittleEndian, d.raceNumber)
+			_ = binary.Write(&buf, binary.LittleEndian, d.nationality)
+
+			nameBytes := make([]byte, nameLen)
+			copy(nameBytes, d.name)
+			buf.Write(nameBytes)
+
+			_ = binary.Write(&buf, binary.LittleEndian, uint8(1))     // YourTelemetry
+			_ = binary.Write(&buf, binary.LittleEndian, uint8(1))     // ShowOnlineNames
+			_ = binary.Write(&buf, binary.LittleEndian, uint16(1000)) // TechLevel
+			_ = binary.Write(&buf, binary.LittleEndian, uint8(1))     // Platform
+			_ = binary.Write(&buf, binary.LittleEndian, uint8(4))     // NumColours
+			_ = binary.Write(&buf, binary.LittleEndian, [4]packets.LiveryColour{
+				{Red: 255, Green: 0, Blue: 0},
+				{Red: 0, Green: 255, Blue: 0},
+				{Red: 0, Green: 0, Blue: 255},
+				{Red: 255, Green: 255, Blue: 255},
+			})
 		}
 	}
 	_, _ = conn.Write(buf.Bytes())
 }
 
-func sendMotionPacket(conn *net.UDPConn, header packets.PacketHeader, numCars int, cars []packets.CarMotionData) {
+func sendMotionPacket(conn *net.UDPConn, header packets.PacketHeader, numCars int, cars []packets.CarMotionData, format uint16) {
 	var buf bytes.Buffer
 	header.PacketId = packets.PacketIDMotion
 	_ = binary.Write(&buf, binary.LittleEndian, header)
 	for i := 0; i < numCars; i++ {
-		_ = binary.Write(&buf, binary.LittleEndian, cars[i])
+		c := cars[i]
+		_ = binary.Write(&buf, binary.LittleEndian, c.WorldPositionX)
+		_ = binary.Write(&buf, binary.LittleEndian, c.WorldPositionY)
+		_ = binary.Write(&buf, binary.LittleEndian, c.WorldPositionZ)
+		_ = binary.Write(&buf, binary.LittleEndian, c.WorldVelocityX)
+		_ = binary.Write(&buf, binary.LittleEndian, c.WorldVelocityY)
+		_ = binary.Write(&buf, binary.LittleEndian, c.WorldVelocityZ)
+		_ = binary.Write(&buf, binary.LittleEndian, c.WorldForwardDirX)
+		_ = binary.Write(&buf, binary.LittleEndian, c.WorldForwardDirY)
+		_ = binary.Write(&buf, binary.LittleEndian, c.WorldForwardDirZ)
+		_ = binary.Write(&buf, binary.LittleEndian, c.WorldRightDirX)
+		_ = binary.Write(&buf, binary.LittleEndian, c.WorldRightDirY)
+		_ = binary.Write(&buf, binary.LittleEndian, c.WorldRightDirZ)
+
+		if format >= packets.PacketFormat2026 {
+			_ = binary.Write(&buf, binary.LittleEndian, int16(c.GForceLateral*1000.0))
+			_ = binary.Write(&buf, binary.LittleEndian, int16(c.GForceLongitudinal*1000.0))
+			_ = binary.Write(&buf, binary.LittleEndian, int16(c.GForceVertical*1000.0))
+		} else {
+			_ = binary.Write(&buf, binary.LittleEndian, c.GForceLateral)
+			_ = binary.Write(&buf, binary.LittleEndian, c.GForceLongitudinal)
+			_ = binary.Write(&buf, binary.LittleEndian, c.GForceVertical)
+		}
+
+		_ = binary.Write(&buf, binary.LittleEndian, c.Yaw)
+		_ = binary.Write(&buf, binary.LittleEndian, c.Pitch)
+		_ = binary.Write(&buf, binary.LittleEndian, c.Roll)
 	}
 	_, _ = conn.Write(buf.Bytes())
 }
 
-func sendTelemetryPacket(conn *net.UDPConn, header packets.PacketHeader, numCars int, cars []packets.CarTelemetryData) {
+func sendTelemetryPacket(conn *net.UDPConn, header packets.PacketHeader, numCars int, cars []packets.CarTelemetryData, format uint16) {
 	var buf bytes.Buffer
 	header.PacketId = packets.PacketIDCarTelemetry
 	_ = binary.Write(&buf, binary.LittleEndian, header)
 	for i := 0; i < numCars; i++ {
-		_ = binary.Write(&buf, binary.LittleEndian, cars[i])
+		c := cars[i]
+		_ = binary.Write(&buf, binary.LittleEndian, c.Speed)
+		_ = binary.Write(&buf, binary.LittleEndian, c.Throttle)
+		_ = binary.Write(&buf, binary.LittleEndian, c.Steer)
+		_ = binary.Write(&buf, binary.LittleEndian, c.Brake)
+		_ = binary.Write(&buf, binary.LittleEndian, c.Clutch)
+		_ = binary.Write(&buf, binary.LittleEndian, c.Gear)
+		_ = binary.Write(&buf, binary.LittleEndian, c.EngineRPM)
+		_ = binary.Write(&buf, binary.LittleEndian, c.DRS)
+		_ = binary.Write(&buf, binary.LittleEndian, c.RevLightsPercent)
+		_ = binary.Write(&buf, binary.LittleEndian, c.RevLightsBitValue)
+		_ = binary.Write(&buf, binary.LittleEndian, c.BrakesTemperature)
+		_ = binary.Write(&buf, binary.LittleEndian, c.TyresSurfaceTemperature)
+		_ = binary.Write(&buf, binary.LittleEndian, c.TyresInnerTemperature)
+
+		if format >= packets.PacketFormat2026 {
+			_ = binary.Write(&buf, binary.LittleEndian, uint8(c.EngineTemperature))
+		} else {
+			_ = binary.Write(&buf, binary.LittleEndian, c.EngineTemperature)
+		}
+
+		_ = binary.Write(&buf, binary.LittleEndian, c.TyresPressure)
+		_ = binary.Write(&buf, binary.LittleEndian, c.SurfaceType)
 	}
 	// Trailer: MFDPanelIndex, MFDPanelIndexSecondaryPlayer, SuggestedGear
 	_ = binary.Write(&buf, binary.LittleEndian, uint8(255))
 	_ = binary.Write(&buf, binary.LittleEndian, uint8(255))
 	_ = binary.Write(&buf, binary.LittleEndian, int8(0))
+	_, _ = conn.Write(buf.Bytes())
+}
+
+func sendCarTelemetry2Packet(conn *net.UDPConn, header packets.PacketHeader, numCars int, cars []packets.CarTelemetry2Data) {
+	var buf bytes.Buffer
+	header.PacketId = packets.PacketIDCarTelemetry2
+	_ = binary.Write(&buf, binary.LittleEndian, header)
+	for i := 0; i < numCars; i++ {
+		_ = binary.Write(&buf, binary.LittleEndian, cars[i])
+	}
 	_, _ = conn.Write(buf.Bytes())
 }
 
@@ -616,12 +858,42 @@ func sendLapDataPacket(conn *net.UDPConn, header packets.PacketHeader, numCars i
 	_, _ = conn.Write(buf.Bytes())
 }
 
-func sendCarStatusPacket(conn *net.UDPConn, header packets.PacketHeader, numCars int, status []packets.CarStatusData) {
+func sendCarStatusPacket(conn *net.UDPConn, header packets.PacketHeader, numCars int, status []packets.CarStatusData, format uint16) {
 	var buf bytes.Buffer
 	header.PacketId = packets.PacketIDCarStatus
 	_ = binary.Write(&buf, binary.LittleEndian, header)
 	for i := 0; i < numCars; i++ {
-		_ = binary.Write(&buf, binary.LittleEndian, status[i])
+		s := status[i]
+		_ = binary.Write(&buf, binary.LittleEndian, s.TractionControl)
+		_ = binary.Write(&buf, binary.LittleEndian, s.AntiLockBrakes)
+		_ = binary.Write(&buf, binary.LittleEndian, s.FuelMix)
+		_ = binary.Write(&buf, binary.LittleEndian, s.FrontBrakeBias)
+		_ = binary.Write(&buf, binary.LittleEndian, s.PitLimiterStatus)
+		_ = binary.Write(&buf, binary.LittleEndian, s.FuelInTank)
+		_ = binary.Write(&buf, binary.LittleEndian, s.FuelCapacity)
+		_ = binary.Write(&buf, binary.LittleEndian, s.FuelRemainingLaps)
+		_ = binary.Write(&buf, binary.LittleEndian, s.MaxRPM)
+		_ = binary.Write(&buf, binary.LittleEndian, s.IdleRPM)
+		_ = binary.Write(&buf, binary.LittleEndian, s.MaxGears)
+		_ = binary.Write(&buf, binary.LittleEndian, s.DRSAllowed)
+		_ = binary.Write(&buf, binary.LittleEndian, s.DRSActivationDistance)
+		_ = binary.Write(&buf, binary.LittleEndian, s.ActualTyreCompound)
+		_ = binary.Write(&buf, binary.LittleEndian, s.VisualTyreCompound)
+		_ = binary.Write(&buf, binary.LittleEndian, s.TyresAgeLaps)
+		_ = binary.Write(&buf, binary.LittleEndian, s.VehicleFIAFlags)
+		_ = binary.Write(&buf, binary.LittleEndian, s.EnginePowerICE)
+		_ = binary.Write(&buf, binary.LittleEndian, s.EnginePowerMGUK)
+		_ = binary.Write(&buf, binary.LittleEndian, s.ERSStoreEnergy)
+		_ = binary.Write(&buf, binary.LittleEndian, s.ERSDeployMode)
+		_ = binary.Write(&buf, binary.LittleEndian, s.ERSHarvestedThisLapMGUK)
+		_ = binary.Write(&buf, binary.LittleEndian, s.ERSHarvestedThisLapMGUH)
+
+		if format >= packets.PacketFormat2026 {
+			_ = binary.Write(&buf, binary.LittleEndian, s.ERSHarvestLimitPerLap)
+		}
+
+		_ = binary.Write(&buf, binary.LittleEndian, s.ERSDeployedThisLap)
+		_ = binary.Write(&buf, binary.LittleEndian, s.NetworkPaused)
 	}
 	_, _ = conn.Write(buf.Bytes())
 }

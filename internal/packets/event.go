@@ -26,25 +26,22 @@ const (
 	EventStopGoServed       = "SGSV"
 	EventFlashback          = "FLBK"
 	EventButtonStatus       = "BUTN"
+	EventRedFlag            = "RDFL"
 	EventOvertake           = "OVTK"
 	EventSafetyCarStatus    = "SCAR"
 	EventCollision          = "COLL"
 )
 
-// EventDataDetails is a union-like struct holding event-specific data.
-// The interpretation depends on the event code. The raw bytes are stored
-// and can be parsed further based on the event type.
+// EventDataDetails holds the raw 12 bytes of event payload union.
 type EventDataDetails struct {
 	Data [12]byte
 }
 
 // PacketEventData contains event data. Packet ID: 3.
-// The EventStringCode identifies the event type, and EventDetails contains
-// event-specific data whose interpretation depends on the event code.
 type PacketEventData struct {
-	Header          PacketHeader
-	EventStringCode [4]uint8
-	EventDetails    EventDataDetails
+	Header          PacketHeader     `json:"Header"`
+	EventStringCode [4]uint8         `json:"EventStringCode"`
+	EventDetails    EventDataDetails `json:"EventDetails"`
 }
 
 func (p PacketEventData) GetHeader() PacketHeader { return p.Header }
@@ -56,67 +53,112 @@ func (p PacketEventData) EventCode() string {
 
 // FastestLapEventData contains data specific to the fastest lap event.
 type FastestLapEventData struct {
-	VehicleIdx uint8
-	LapTime    float32
+	VehicleIdx uint8   `json:"VehicleIdx"`
+	LapTime    float32 `json:"LapTime"`
 }
 
 // RetirementEventData contains data specific to the retirement event.
 type RetirementEventData struct {
-	VehicleIdx uint8
+	VehicleIdx uint8 `json:"VehicleIdx"`
+	Reason     uint8 `json:"Reason"`
+}
+
+// DRSDisabledEventData contains data for DRS disabled event.
+type DRSDisabledEventData struct {
+	Reason uint8 `json:"Reason"`
 }
 
 // TeamMateInPitsEventData contains data specific to the teammate in pits event.
 type TeamMateInPitsEventData struct {
-	VehicleIdx uint8
+	VehicleIdx uint8 `json:"VehicleIdx"`
 }
 
 // RaceWinnerEventData contains data specific to the race winner event.
 type RaceWinnerEventData struct {
-	VehicleIdx uint8
+	VehicleIdx uint8 `json:"VehicleIdx"`
 }
 
 // PenaltyEventData contains data specific to the penalty event.
 type PenaltyEventData struct {
-	PenaltyType      uint8
-	InfringementType uint8
-	VehicleIdx       uint8
-	OtherVehicleIdx  uint8
-	Time             uint8
-	LapNum           uint8
-	PlacesGained     uint8
+	PenaltyType      uint8 `json:"PenaltyType"`
+	InfringementType uint8 `json:"InfringementType"`
+	VehicleIdx       uint8 `json:"VehicleIdx"`
+	OtherVehicleIdx  uint8 `json:"OtherVehicleIdx"`
+	Time             uint8 `json:"Time"`
+	LapNum           uint8 `json:"LapNum"`
+	PlacesGained     uint8 `json:"PlacesGained"`
 }
 
 // SpeedTrapEventData contains data specific to the speed trap event.
 type SpeedTrapEventData struct {
-	VehicleIdx                 uint8
-	Speed                      float32
-	IsOverallFastestInSession  uint8
-	IsDriverFastestInSession   uint8
-	FastestVehicleIdxInSession uint8
-	FastestSpeedInSession      float32
+	VehicleIdx                 uint8   `json:"VehicleIdx"`
+	Speed                      float32 `json:"Speed"`
+	IsOverallFastestInSession  uint8   `json:"IsOverallFastestInSession"`
+	IsDriverFastestInSession   uint8   `json:"IsDriverFastestInSession"`
+	FastestVehicleIdxInSession uint8   `json:"FastestVehicleIdxInSession"`
+	FastestSpeedInSession      float32 `json:"FastestSpeedInSession"`
 }
 
 // StartLightsEventData contains data specific to the start lights event.
 type StartLightsEventData struct {
-	NumLights uint8
+	NumLights uint8 `json:"NumLights"`
+}
+
+// DriveThroughPenaltyServedEventData contains data for drive through penalty served.
+type DriveThroughPenaltyServedEventData struct {
+	VehicleIdx uint8 `json:"VehicleIdx"`
+}
+
+// StopGoPenaltyServedEventData contains data for stop go penalty served.
+type StopGoPenaltyServedEventData struct {
+	VehicleIdx uint8   `json:"VehicleIdx"`
+	StopTime   float32 `json:"StopTime"`
+}
+
+// FlashbackEventData contains data for flashback activated.
+type FlashbackEventData struct {
+	FlashbackFrameIdentifier uint32  `json:"FlashbackFrameIdentifier"`
+	FlashbackSessionTime     float32 `json:"FlashbackSessionTime"`
+}
+
+// ButtonsEventData contains data for button pressed.
+type ButtonsEventData struct {
+	ButtonStatus uint32 `json:"ButtonStatus"`
 }
 
 // OvertakeEventData contains data specific to the overtake event.
 type OvertakeEventData struct {
-	OvertakingVehicleIdx     uint8
-	BeingOvertakenVehicleIdx uint8
+	OvertakingVehicleIdx     uint8 `json:"OvertakingVehicleIdx"`
+	BeingOvertakenVehicleIdx uint8 `json:"BeingOvertakenVehicleIdx"`
+}
+
+// SafetyCarEventData contains data for safety car events.
+type SafetyCarEventData struct {
+	SafetyCarType uint8 `json:"SafetyCarType"`
+	EventType     uint8 `json:"EventType"`
+}
+
+// CollisionEventData contains data for collision events.
+type CollisionEventData struct {
+	Vehicle1Idx uint8 `json:"Vehicle1Idx"`
+	Vehicle2Idx uint8 `json:"Vehicle2Idx"`
+	Severity    uint8 `json:"Severity"`
 }
 
 type eventJSON struct {
-	Header          PacketHeader
-	EventCode       string
-	VehicleIdx      *uint8   `json:"VehicleIdx,omitempty"`
-	OtherVehicleIdx *uint8   `json:"OtherVehicleIdx,omitempty"`
-	LapTime         *float32 `json:"LapTime,omitempty"`
-	Speed           *float32 `json:"Speed,omitempty"`
-	PenaltyType     *uint8   `json:"PenaltyType,omitempty"`
-	PenaltyTime     *uint8   `json:"PenaltyTime,omitempty"`
-	LapNum          *uint8   `json:"LapNum,omitempty"`
+	Header          PacketHeader `json:"Header"`
+	EventCode       string       `json:"EventCode"`
+	VehicleIdx      *uint8       `json:"VehicleIdx,omitempty"`
+	OtherVehicleIdx *uint8       `json:"OtherVehicleIdx,omitempty"`
+	LapTime         *float32     `json:"LapTime,omitempty"`
+	Speed           *float32     `json:"Speed,omitempty"`
+	PenaltyType     *uint8       `json:"PenaltyType,omitempty"`
+	PenaltyTime     *uint8       `json:"PenaltyTime,omitempty"`
+	LapNum          *uint8       `json:"LapNum,omitempty"`
+	Reason          *uint8       `json:"Reason,omitempty"`
+	SafetyCarType   *uint8       `json:"SafetyCarType,omitempty"`
+	EventType       *uint8       `json:"EventType,omitempty"`
+	Severity        *uint8       `json:"Severity,omitempty"`
 }
 
 func (p PacketEventData) MarshalJSON() ([]byte, error) {
@@ -133,8 +175,14 @@ func (p PacketEventData) MarshalJSON() ([]byte, error) {
 			ej.VehicleIdx = &d.VehicleIdx
 			ej.LapTime = &d.LapTime
 		}
-	case EventRetirement, EventTeamMateInPits, EventRaceWinner:
+	case EventRetirement:
 		var d RetirementEventData
+		if err := binary.Read(r, binary.LittleEndian, &d); err == nil {
+			ej.VehicleIdx = &d.VehicleIdx
+			ej.Reason = &d.Reason
+		}
+	case EventTeamMateInPits, EventRaceWinner, EventDriveThroughServed:
+		var d TeamMateInPitsEventData
 		if err := binary.Read(r, binary.LittleEndian, &d); err == nil {
 			ej.VehicleIdx = &d.VehicleIdx
 		}
@@ -158,6 +206,19 @@ func (p PacketEventData) MarshalJSON() ([]byte, error) {
 		if err := binary.Read(r, binary.LittleEndian, &d); err == nil {
 			ej.VehicleIdx = &d.OvertakingVehicleIdx
 			ej.OtherVehicleIdx = &d.BeingOvertakenVehicleIdx
+		}
+	case EventSafetyCarStatus:
+		var d SafetyCarEventData
+		if err := binary.Read(r, binary.LittleEndian, &d); err == nil {
+			ej.SafetyCarType = &d.SafetyCarType
+			ej.EventType = &d.EventType
+		}
+	case EventCollision:
+		var d CollisionEventData
+		if err := binary.Read(r, binary.LittleEndian, &d); err == nil {
+			ej.VehicleIdx = &d.Vehicle1Idx
+			ej.OtherVehicleIdx = &d.Vehicle2Idx
+			ej.Severity = &d.Severity
 		}
 	}
 	return json.Marshal(ej)

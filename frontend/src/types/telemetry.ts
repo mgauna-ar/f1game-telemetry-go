@@ -152,6 +152,20 @@ export interface PacketHeader {
   PlayerCarIndex: number;
 }
 
+export interface CarTelemetry2Data {
+  ActiveAeroMode: number;
+  ActiveAeroAvailable: number;
+  ActiveAeroActivationDistance: number;
+  OvertakeAvailable: number;
+  OvertakeActive: number;
+  OvertakeActivationDistance: number;
+  Regulations2026: number;
+  DrivingWrongWay: number;
+}
+
 export interface TelemetrySample extends CarTelemetryData {
   SessionTime: number;
+  active_aero_mode?: number;
+  active_aero_available?: number;
+  overtake_active?: number;
 }
