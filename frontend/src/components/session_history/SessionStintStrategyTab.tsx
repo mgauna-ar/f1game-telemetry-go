@@ -348,7 +348,7 @@ export const SessionStintStrategyTab: React.FC<SessionStintStrategyTabProps> = (
 
     let globalMaxAge = 0;
     // Map: tyreAge -> { tyreAge, [driverKey]: lapTimeSec }
-    const ageDataMap: Record<number, Record<string, any>> = {};
+    const ageDataMap: Record<number, { tyreAge: number; [key: string]: any }> = {};
     const driverPointSeries: Record<string, Array<{ age: number; timeSec: number }>> = {};
 
     activeDrivers.forEach((d) => {
