@@ -4,16 +4,20 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
 )
 
 func setupTestServer(t *testing.T) (*Server, *storage.Repository) {
 	t.Helper()
-	repo, err := storage.NewRepository("file::memory:?cache=shared&_busy_timeout=5000")
+	dbPath := filepath.Join(t.TempDir(), fmt.Sprintf("test_%d.db", time.Now().UnixNano()))
+	repo, err := storage.NewRepository(dbPath)
 	if err != nil {
 		t.Fatalf("failed to create repo: %v", err)
 	}
@@ -320,8 +324,8 @@ func TestHandleExportAndImportSession(t *testing.T) {
 		t.Fatalf("failed to save lap telemetry: %v", err)
 	}
 
-	// 1. GET /api/sessions/1/export
-	req := httptest.NewRequest(http.MethodGet, "/api/sessions/1/export", nil)
+	// 1. GET /api/sessions/{id}/export
+	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/sessions/%d/export", session.ID), nil)
 	rec := httptest.NewRecorder()
 	server.router.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -333,11 +337,12 @@ func TestHandleExportAndImportSession(t *testing.T) {
 		t.Fatalf("expected non-empty exported bytes")
 	}
 
-	// 2. POST /api/sessions/import
+	// 2. POST /api/sessions/import on a fresh server
+	freshServer, _ := setupTestServer(t)
 	importReq := httptest.NewRequest(http.MethodPost, "/api/sessions/import", bytes.NewReader(exportedBytes))
 	importReq.Header.Set("Content-Type", "application/octet-stream")
 	importRec := httptest.NewRecorder()
-	server.router.ServeHTTP(importRec, importReq)
+	freshServer.router.ServeHTTP(importRec, importReq)
 
 	if importRec.Code != http.StatusCreated {
 		t.Fatalf("expected 201 Created for import, got %d (%s)", importRec.Code, importRec.Body.String())
@@ -418,5 +423,144 @@ func TestHandleGetLapsWithCarIndexFilter(t *testing.T) {
 	json.NewDecoder(recCar1.Body).Decode(&car1Laps)
 	if len(car1Laps) != 1 {
 		t.Fatalf("expected 1 lap for car 1, got %d", len(car1Laps))
+	}
+}
+
+func TestExportSessionBatchAndImportZip(t *testing.T) {
+	server, repo := setupTestServer(t)
+	ctx := context.Background()
+
+	s1 := &storage.Session{
+		SessionUID:   storage.FormatSessionUID(333111),
+		TrackID:      1,
+		TrackName:    "Melbourne",
+		SessionType:  "Race",
+		PacketFormat: 2026,
+	}
+	_ = repo.SaveSession(ctx, s1)
+
+	s2 := &storage.Session{
+		SessionUID:   storage.FormatSessionUID(333222),
+		TrackID:      2,
+		TrackName:    "Monaco",
+		SessionType:  "Qualifying",
+		PacketFormat: 2026,
+	}
+	_ = repo.SaveSession(ctx, s2)
+
+	// 1. POST /api/sessions/export-batch
+	exportReqBody, _ := json.Marshal(map[string]any{
+		"session_ids": []int64{s1.ID, s2.ID},
+	})
+	exportReq := httptest.NewRequest(http.MethodPost, "/api/sessions/export-batch", bytes.NewReader(exportReqBody))
+	exportReq.Header.Set("Content-Type", "application/json")
+	exportRec := httptest.NewRecorder()
+	server.router.ServeHTTP(exportRec, exportReq)
+
+	if exportRec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for export-batch, got %d (%s)", exportRec.Code, exportRec.Body.String())
+	}
+	if exportRec.Header().Get("Content-Type") != "application/zip" {
+		t.Fatalf("expected application/zip Content-Type, got %s", exportRec.Header().Get("Content-Type"))
+	}
+
+	zipData := exportRec.Body.Bytes()
+	if len(zipData) == 0 {
+		t.Fatalf("expected non-empty zip data")
+	}
+
+	// 2. Import zip on a fresh server
+	freshServer, _ := setupTestServer(t)
+	importReq := httptest.NewRequest(http.MethodPost, "/api/sessions/import", bytes.NewReader(zipData))
+	importReq.Header.Set("Content-Type", "application/zip")
+	importRec := httptest.NewRecorder()
+	freshServer.router.ServeHTTP(importRec, importReq)
+
+	if importRec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for batch import, got %d (%s)", importRec.Code, importRec.Body.String())
+	}
+
+	var importResp ImportBatchResponse
+	if err := json.NewDecoder(importRec.Body).Decode(&importResp); err != nil {
+		t.Fatalf("failed to decode import response: %v", err)
+	}
+
+	if importResp.Total != 2 || importResp.Imported != 2 || importResp.Skipped != 0 {
+		t.Errorf("unexpected import response: %+v", importResp)
+	}
+
+	// 3. Re-importing into the same server should skip both (duplicates)
+	dupImportReq := httptest.NewRequest(http.MethodPost, "/api/sessions/import", bytes.NewReader(zipData))
+	dupImportRec := httptest.NewRecorder()
+	freshServer.router.ServeHTTP(dupImportRec, dupImportReq)
+
+	var dupResp ImportBatchResponse
+	_ = json.NewDecoder(dupImportRec.Body).Decode(&dupResp)
+	if dupResp.Total != 2 || dupResp.Skipped != 2 || dupResp.Imported != 0 {
+		t.Errorf("expected 2 skipped for duplicate import, got %+v", dupResp)
+	}
+}
+
+func TestBatchDeleteAndAssignTagsAPI(t *testing.T) {
+	server, repo := setupTestServer(t)
+	ctx := context.Background()
+
+	s1 := &storage.Session{
+		SessionUID:   storage.FormatSessionUID(555111),
+		TrackID:      5,
+		TrackName:    "Silverstone",
+		SessionType:  "Race",
+		PacketFormat: 2026,
+	}
+	_ = repo.SaveSession(ctx, s1)
+
+	s2 := &storage.Session{
+		SessionUID:   storage.FormatSessionUID(555222),
+		TrackID:      6,
+		TrackName:    "Spa",
+		SessionType:  "Race",
+		PacketFormat: 2026,
+	}
+	_ = repo.SaveSession(ctx, s2)
+
+	tag := &storage.Tag{Name: "League Alpha", Color: "#8b5cf6"}
+	_ = repo.CreateTag(ctx, tag)
+
+	// 1. Batch Assign Tags
+	tagReqBody, _ := json.Marshal(BatchTagsRequest{
+		SessionIDs: []int64{s1.ID, s2.ID},
+		TagID:      tag.ID,
+	})
+	tagReq := httptest.NewRequest(http.MethodPost, "/api/sessions/batch-tags", bytes.NewReader(tagReqBody))
+	tagReq.Header.Set("Content-Type", "application/json")
+	tagRec := httptest.NewRecorder()
+	server.router.ServeHTTP(tagRec, tagReq)
+
+	if tagRec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for batch-tags, got %d (%s)", tagRec.Code, tagRec.Body.String())
+	}
+
+	tagsOnS1, _ := repo.GetTagsBySession(ctx, s1.ID)
+	if len(tagsOnS1) != 1 || tagsOnS1[0].Name != "League Alpha" {
+		t.Errorf("expected tag assigned to s1, got %v", tagsOnS1)
+	}
+
+	// 2. Batch Delete Sessions
+	delReqBody, _ := json.Marshal(BatchDeleteRequest{
+		SessionIDs: []int64{s1.ID, s2.ID},
+	})
+	delReq := httptest.NewRequest(http.MethodPost, "/api/sessions/batch-delete", bytes.NewReader(delReqBody))
+	delReq.Header.Set("Content-Type", "application/json")
+	delRec := httptest.NewRecorder()
+	server.router.ServeHTTP(delRec, delReq)
+
+	if delRec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for batch-delete, got %d (%s)", delRec.Code, delRec.Body.String())
+	}
+
+	var delResp map[string]any
+	json.NewDecoder(delRec.Body).Decode(&delResp)
+	if delResp["status"] != "success" || delResp["deleted_count"] != float64(2) {
+		t.Errorf("unexpected delete response: %+v", delResp)
 	}
 }

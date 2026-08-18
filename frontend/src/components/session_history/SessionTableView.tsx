@@ -11,6 +11,9 @@ import { TIME_CONSTANTS } from '../../constants/f1';
 
 interface SessionTableViewProps {
   sessions: Session[];
+  selectedSessionIds?: Set<number>;
+  onToggleSelectSession?: (sessionId: number) => void;
+  onToggleSelectAll?: () => void;
   onSelectSession: (session: Session) => void;
   onRequestDelete: (session: Session) => void;
   onExportSession?: (session: Session) => void;
@@ -24,6 +27,9 @@ interface SessionTableViewProps {
 
 export const SessionTableView: React.FC<SessionTableViewProps> = ({
   sessions,
+  selectedSessionIds,
+  onToggleSelectSession,
+  onToggleSelectAll,
   onSelectSession,
   onRequestDelete,
   onExportSession,
@@ -35,6 +41,16 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
   onOpenTagManager,
 }) => {
   const { t } = useI18n();
+
+  const isAllSelected = sessions.length > 0 && sessions.every((s) => selectedSessionIds?.has(s.id));
+  const isSomeSelected = !isAllSelected && sessions.some((s) => selectedSessionIds?.has(s.id));
+
+  const selectAllRef = React.useRef<HTMLInputElement>(null);
+  React.useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = isSomeSelected;
+    }
+  }, [isSomeSelected]);
 
   const renderSortIndicator = (field: string) => {
     if (!onToggleSort) return null;
@@ -48,6 +64,36 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
         <table className="history-table">
           <thead>
             <tr>
+              {onToggleSelectSession && (
+                <th style={{ width: '42px', textAlign: 'center', padding: '0 0.4rem', verticalAlign: 'middle' }}>
+                  <label
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      width: '100%',
+                      height: '100%',
+                      padding: '0.4rem 0',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      ref={selectAllRef}
+                      checked={isAllSelected}
+                      onChange={() => onToggleSelectAll && onToggleSelectAll()}
+                      title={isAllSelected ? t('history.batch.deselectAll') : t('history.batch.selectAll')}
+                      style={{
+                        cursor: 'pointer',
+                        accentColor: 'var(--accent-secondary, #00f2fe)',
+                        width: '16px',
+                        height: '16px',
+                        margin: 0,
+                      }}
+                    />
+                  </label>
+                </th>
+              )}
               <th
                 style={{ cursor: onToggleSort ? 'pointer' : 'default' }}
                 onClick={() => onToggleSort && onToggleSort('date')}
@@ -95,13 +141,61 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
               const formattedDurationStr = session.session_duration && session.session_duration > 0
                 ? formatDuration(session.session_duration * TIME_CONSTANTS.MS_PER_SECOND)
                 : '-';
+              const isSelected = selectedSessionIds?.has(session.id) || false;
 
               return (
                 <tr
                   key={session.id}
                   onClick={() => onSelectSession(session)}
-                  style={{ cursor: 'pointer' }}
+                  style={{
+                    cursor: 'pointer',
+                    backgroundColor: isSelected ? 'rgba(0, 242, 254, 0.08)' : undefined,
+                    transition: 'background-color 0.15s ease',
+                  }}
                 >
+                  {onToggleSelectSession && (
+                    <td
+                      onClick={(e) => {
+                        e.stopPropagation();
+                      }}
+                      style={{
+                        width: '42px',
+                        textAlign: 'center',
+                        padding: 0,
+                        verticalAlign: 'middle',
+                      }}
+                    >
+                      <label
+                        onClick={(e) => {
+                          e.stopPropagation();
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: '100%',
+                          minHeight: '44px',
+                          cursor: 'pointer',
+                          padding: '0.6rem 0.4rem',
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => {
+                            onToggleSelectSession(session.id);
+                          }}
+                          style={{
+                            cursor: 'pointer',
+                            accentColor: 'var(--accent-secondary, #00f2fe)',
+                            width: '16px',
+                            height: '16px',
+                            margin: 0,
+                          }}
+                        />
+                      </label>
+                    </td>
+                  )}
                   <td style={{ color: 'var(--text-primary)' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Clock size={14} color="var(--text-muted)" />

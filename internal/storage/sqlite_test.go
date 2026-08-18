@@ -2,12 +2,17 @@ package storage
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"path/filepath"
 	"testing"
+	"time"
 )
 
 func setupTestRepo(t *testing.T) *Repository {
 	t.Helper()
-	repo, err := NewRepository("file::memory:?cache=shared&_busy_timeout=5000")
+	dbPath := filepath.Join(t.TempDir(), fmt.Sprintf("test_%d.db", time.Now().UnixNano()))
+	repo, err := NewRepository(dbPath)
 	if err != nil {
 		t.Fatalf("failed to create repo: %v", err)
 	}
@@ -1110,5 +1115,101 @@ func TestGetSessionsActualDuration(t *testing.T) {
 	// For qualifying, duration must be the scheduled 1080s (18m), not the 320s sum of 4 laps!
 	if qualyByID.SessionDuration != 1080 {
 		t.Errorf("expected 1080s (18m) for Short Qualifying session, got %d", qualyByID.SessionDuration)
+	}
+}
+
+func TestBatchOperationsAndDuplicateImport(t *testing.T) {
+	repo := setupTestRepo(t)
+	ctx := context.Background()
+
+	// 1. Create two sessions
+	s1 := &Session{
+		SessionUID:   FormatSessionUID(111111),
+		TrackID:      1,
+		TrackName:    "Melbourne",
+		SessionType:  "Race",
+		PacketFormat: 2026,
+	}
+	if err := repo.SaveSession(ctx, s1); err != nil {
+		t.Fatalf("SaveSession s1 failed: %v", err)
+	}
+
+	s2 := &Session{
+		SessionUID:   FormatSessionUID(222222),
+		TrackID:      2,
+		TrackName:    "Paul Ricard",
+		SessionType:  "Race",
+		PacketFormat: 2026,
+	}
+	if err := repo.SaveSession(ctx, s2); err != nil {
+		t.Fatalf("SaveSession s2 failed: %v", err)
+	}
+
+	// Test GetSessionByUID
+	foundS1, err := repo.GetSessionByUID(ctx, s1.SessionUID)
+	if err != nil || foundS1 == nil {
+		t.Fatalf("GetSessionByUID s1 failed: %v", err)
+	}
+	if foundS1.ID != s1.ID {
+		t.Errorf("expected ID %d, got %d", s1.ID, foundS1.ID)
+	}
+
+	missing, err := repo.GetSessionByUID(ctx, "0x9999999999999999")
+	if err != nil || missing != nil {
+		t.Errorf("expected nil for missing session, got %v, err: %v", missing, err)
+	}
+
+	// Test AddTagToSessions
+	tag := &Tag{Name: "Multi Tag", Color: "#10b981"}
+	if err := repo.CreateTag(ctx, tag); err != nil {
+		t.Fatalf("CreateTag failed: %v", err)
+	}
+
+	if err := repo.AddTagToSessions(ctx, []int64{s1.ID, s2.ID}, tag.ID); err != nil {
+		t.Fatalf("AddTagToSessions failed: %v", err)
+	}
+
+	tags1, _ := repo.GetTagsBySession(ctx, s1.ID)
+	tags2, _ := repo.GetTagsBySession(ctx, s2.ID)
+	if len(tags1) != 1 || tags1[0].Name != "Multi Tag" {
+		t.Errorf("expected Multi Tag on s1, got %v", tags1)
+	}
+	if len(tags2) != 1 || tags2[0].Name != "Multi Tag" {
+		t.Errorf("expected Multi Tag on s2, got %v", tags2)
+	}
+
+	// Test Duplicate Import Skip
+	pkg, err := repo.ExportSession(ctx, s1.ID)
+	if err != nil {
+		t.Fatalf("ExportSession failed: %v", err)
+	}
+
+	// Attempt importing into the SAME repository (duplicate UID)
+	dupID, err := repo.ImportSession(ctx, pkg)
+	if !errors.Is(err, ErrSessionAlreadyExists) {
+		t.Errorf("expected ErrSessionAlreadyExists, got err: %v, id: %d", err, dupID)
+	}
+
+	// Import with allowDuplicateUID = true
+	newID, err := repo.ImportSessionWithOptions(ctx, pkg, true)
+	if err != nil {
+		t.Fatalf("ImportSessionWithOptions(allowDuplicateUID=true) failed: %v", err)
+	}
+	if newID == s1.ID {
+		t.Errorf("expected new session ID for duplicate copy, got %d", newID)
+	}
+
+	// Test DeleteSessions
+	deletedCount, err := repo.DeleteSessions(ctx, []int64{s1.ID, s2.ID, newID})
+	if err != nil {
+		t.Fatalf("DeleteSessions failed: %v", err)
+	}
+	if deletedCount != 3 {
+		t.Errorf("expected 3 sessions deleted, got %d", deletedCount)
+	}
+
+	sessionsRemaining, _ := repo.GetSessions(ctx)
+	if len(sessionsRemaining) != 0 {
+		t.Errorf("expected 0 sessions remaining, got %d", len(sessionsRemaining))
 	}
 }

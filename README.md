@@ -25,10 +25,11 @@
 
 ### 📊 Session History & League Management
 * **Data Table Explorer:** Streamlined session repository featuring sortable metadata (Date/Time, Track with High-DPI country flag badges, Type/Format, Duration, Tags, Weather, and Actions), fast filters, and 4-tab session deep-dive: Official Classification, Lap Progression & Gap Charts, Tyre Strategy & Stints, and Sector & Speed Matrix.
+* **Batch Operations & Floating Action Dock:** Multi-select sessions via table checkboxes with indeterminate select-all to trigger bulk operations from the floating glassmorphic dock: **Export ZIP** (bundling selected sessions as `.f1session` packages inside a `.zip`), **Batch Deletion**, and **Batch Tag Assignment**.
+* **Session Portability & Multi-File Import:** 1-click export of individual sessions (`.f1session`) or bulk ZIP archives (`.zip`), and multi-file drag-and-drop import supporting `.zip` extraction and multiple `.f1session` files with duplicate detection and toast summary reports.
 * **Tyre Strategy & Stints Analytics:** Interactive field stint Gantt timeline with hover telemetry stats, pit markers, and tyre degradation & pace curves plotted by tyre age with calculated deg rates (s/lap).
 * **Country Flag Visual Identity & Search:** Crisp vector SVG country flags with localized hover tooltips across all views (Session History, Comparator, Live Wall, AI Engineer), with country name and ISO code search support (e.g., searching `Italy`, `ITA`, or `Monza`).
 * **Multi-Tag Organization:** Categorize sessions by league (e.g. *WOR*, *AOR*, *PSGL*), tier, or custom wet/dry setups with motorsport color chips and horizontal filter bar.
-* **Session Portability:** 1-click export and import of complete sessions via compressed `.f1session` packages.
 
 
 ### 🤖 AI Race Engineer (EN / ES)

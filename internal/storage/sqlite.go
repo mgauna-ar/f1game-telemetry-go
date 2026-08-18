@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"strings"
@@ -764,16 +765,97 @@ func (r *Repository) ExportSession(ctx context.Context, sessionID int64) (*Expor
 	}, nil
 }
 
+// GetSessionByUID retrieves a session by its hex session UID. Returns nil, nil if not found.
+func (r *Repository) GetSessionByUID(ctx context.Context, sessionUID string) (*Session, error) {
+	var session Session
+	query := `SELECT id, session_uid, track_id, track_name, session_type, weather, weather_forecast, total_laps, ai_difficulty, session_duration, packet_format, created_at FROM sessions WHERE session_uid = ?`
+	if err := r.db.GetContext(ctx, &session, query, sessionUID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get session by uid: %w", err)
+	}
+	tags, err := r.GetTagsBySession(ctx, session.ID)
+	if err == nil {
+		session.Tags = tags
+	}
+	return &session, nil
+}
+
+// DeleteSessions deletes multiple sessions by their IDs in a single transaction.
+func (r *Repository) DeleteSessions(ctx context.Context, sessionIDs []int64) (int64, error) {
+	if len(sessionIDs) == 0 {
+		return 0, nil
+	}
+	query, args, err := sqlx.In(`DELETE FROM sessions WHERE id IN (?)`, sessionIDs)
+	if err != nil {
+		return 0, fmt.Errorf("failed to build delete query: %w", err)
+	}
+	query = r.db.Rebind(query)
+	res, err := r.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return 0, fmt.Errorf("failed to delete sessions: %w", err)
+	}
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get rows affected: %w", err)
+	}
+	_, _ = r.db.ExecContext(ctx, `PRAGMA wal_checkpoint(TRUNCATE);`)
+	return rowsAffected, nil
+}
+
+// AddTagToSessions links a tag to multiple sessions.
+func (r *Repository) AddTagToSessions(ctx context.Context, sessionIDs []int64, tagID int64) error {
+	if len(sessionIDs) == 0 || tagID <= 0 {
+		return nil
+	}
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to start transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.PrepareContext(ctx, `INSERT OR IGNORE INTO session_tags (session_id, tag_id) VALUES (?, ?)`)
+	if err != nil {
+		return fmt.Errorf("failed to prepare statement: %w", err)
+	}
+	defer stmt.Close()
+
+	for _, sID := range sessionIDs {
+		if _, err := stmt.ExecContext(ctx, sID, tagID); err != nil {
+			return fmt.Errorf("failed to add tag %d to session %d: %w", tagID, sID, err)
+		}
+	}
+	return tx.Commit()
+}
+
 // ImportSession imports a session package into SQLite and returns the newly assigned session ID.
+// If allowDuplicateUID is false and a session with the same session_uid already exists, it returns ErrSessionAlreadyExists.
 func (r *Repository) ImportSession(ctx context.Context, pkg *ExportedSessionPackage) (int64, error) {
+	return r.ImportSessionWithOptions(ctx, pkg, false)
+}
+
+// ImportSessionWithOptions imports a session package with configurable duplicate handling.
+func (r *Repository) ImportSessionWithOptions(ctx context.Context, pkg *ExportedSessionPackage, allowDuplicateUID bool) (int64, error) {
 	if pkg == nil {
 		return 0, fmt.Errorf("cannot import nil session package")
 	}
 
-	// Generate a unique session_uid to prevent conflicts with existing local sessions
 	sessionUID := pkg.Session.SessionUID
 	if sessionUID == "" || sessionUID == "0" || sessionUID == "0x0000000000000000" {
 		sessionUID = FormatSessionUID(uint64(time.Now().UnixNano()))
+	} else {
+		existing, err := r.GetSessionByUID(ctx, sessionUID)
+		if err != nil {
+			return 0, fmt.Errorf("failed to check existing session: %w", err)
+		}
+		if existing != nil {
+			if !allowDuplicateUID {
+				return existing.ID, ErrSessionAlreadyExists
+			}
+			// Generate a unique session_uid to prevent conflicts with existing local sessions
+			sessionUID = FormatSessionUID(uint64(time.Now().UnixNano()))
+		}
 	}
 
 	newSession := &Session{

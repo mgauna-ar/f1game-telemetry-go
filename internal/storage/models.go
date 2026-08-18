@@ -1,9 +1,13 @@
 package storage
 
 import (
+	"errors"
 	"fmt"
 	"time"
 )
+
+// ErrSessionAlreadyExists is returned when attempting to import a session that is already present in the repository.
+var ErrSessionAlreadyExists = errors.New("session already exists in database")
 
 // FormatSessionUID formats a uint64 session UID into a standard hexadecimal string (e.g. 0x00000000075BCD15).
 func FormatSessionUID(uid uint64) string {

@@ -46,6 +46,7 @@ import type {
   Tag,
 } from '../types/session';
 import { SessionComparatorDock } from './session_history/SessionComparatorDock';
+import { SessionBatchDock } from './session_history/SessionBatchDock';
 
 export type { Session, Participant, Lap, StagedLap, DriverStanding, NavigationComparatorPayload, Tag };
 
@@ -61,7 +62,14 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
 
   // Import / Export & Toast State
   const [importingSession, setImportingSession] = useState<boolean>(false);
-  const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+
+  // Batch Operations State
+  const [selectedSessionIds, setSelectedSessionIds] = useState<Set<number>>(new Set());
+  const [isExportingBatch, setIsExportingBatch] = useState<boolean>(false);
+  const [showBatchDeleteModal, setShowBatchDeleteModal] = useState<boolean>(false);
+  const [showBatchTagModal, setShowBatchTagModal] = useState<boolean>(false);
+  const [batchSelectedTagId, setBatchSelectedTagId] = useState<number | null>(null);
 
   // Tags State
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
@@ -276,6 +284,41 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
     }
   };
 
+  const handleToggleSelectSession = (sessionId: number) => {
+    setSelectedSessionIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(sessionId)) {
+        next.delete(sessionId);
+      } else {
+        next.add(sessionId);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleSelectAll = () => {
+    const allFilteredIds = filteredSessions.map((s) => s.id);
+    const areAllSelected = allFilteredIds.length > 0 && allFilteredIds.every((id) => selectedSessionIds.has(id));
+
+    if (areAllSelected) {
+      setSelectedSessionIds((prev) => {
+        const next = new Set(prev);
+        allFilteredIds.forEach((id) => next.delete(id));
+        return next;
+      });
+    } else {
+      setSelectedSessionIds((prev) => {
+        const next = new Set(prev);
+        allFilteredIds.forEach((id) => next.add(id));
+        return next;
+      });
+    }
+  };
+
+  const handleClearSelection = () => {
+    setSelectedSessionIds(new Set());
+  };
+
   const handleExportSession = async (sessionToExport: Session) => {
     try {
       const res = await fetch(`/api/sessions/${sessionToExport.id}/export`);
@@ -300,12 +343,54 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
     }
   };
 
-  const handleImportFile = async (file: File) => {
-    if (!file) return;
+  const handleBatchExport = async () => {
+    const ids = Array.from(selectedSessionIds);
+    if (ids.length === 0) return;
+
+    if (ids.length === 1) {
+      const single = sessions.find((s) => s.id === ids[0]);
+      if (single) {
+        await handleExportSession(single);
+        return;
+      }
+    }
+
+    setIsExportingBatch(true);
+    try {
+      const res = await fetch('/api/sessions/export-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_ids: ids }),
+      });
+      if (!res.ok) throw new Error('Failed to export batch sessions');
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const dateStr = new Date().toISOString().split('T')[0];
+      a.download = `f1_sessions_export_${dateStr}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      setToastMessage({ type: 'success', text: t('history.batch.exportZip', { count: ids.length }) });
+    } catch (err: any) {
+      console.error('Error exporting batch:', err);
+      setToastMessage({ type: 'error', text: `${t('history.exportError') || 'Export error'}: ${err.message || err}` });
+    } finally {
+      setIsExportingBatch(false);
+    }
+  };
+
+  const handleImportFiles = async (files: FileList | File[]) => {
+    if (!files || files.length === 0) return;
     setImportingSession(true);
     try {
       const formData = new FormData();
-      formData.append('file', file);
+      for (let i = 0; i < files.length; i++) {
+        formData.append('files', files[i]);
+      }
       const res = await fetch('/api/sessions/import', {
         method: 'POST',
         body: formData,
@@ -316,14 +401,70 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
         throw new Error(errorText || 'Import failed');
       }
 
-      setToastMessage({ type: 'success', text: t('history.importSuccess') });
+      const data = await res.json();
+      if (data && typeof data.total === 'number') {
+        const summaryText = t('history.batch.importSummary', {
+          imported: data.imported ?? 0,
+          skipped: data.skipped ?? 0,
+          failed: data.failed ?? 0,
+        });
+        setToastMessage({ type: (data.imported ?? 0) > 0 ? 'success' : 'info', text: summaryText });
+      } else {
+        setToastMessage({ type: 'success', text: t('history.importSuccess') });
+      }
+
       await fetchSessions();
       await fetchTags();
     } catch (err: any) {
-      console.error('Error importing session:', err);
+      console.error('Error importing session(s):', err);
       setToastMessage({ type: 'error', text: `${t('history.importError')}: ${err.message || err}` });
     } finally {
       setImportingSession(false);
+    }
+  };
+
+  const handleExecuteBatchDelete = async () => {
+    const ids = Array.from(selectedSessionIds);
+    if (ids.length === 0) return;
+
+    try {
+      const res = await fetch('/api/sessions/batch-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_ids: ids }),
+      });
+      if (!res.ok) throw new Error('Failed to delete sessions');
+
+      setSessions((prev) => prev.filter((s) => !selectedSessionIds.has(s.id)));
+      setSelectedSessionIds(new Set());
+      setShowBatchDeleteModal(false);
+      setToastMessage({ type: 'success', text: t('history.batch.deleteSelected', { count: ids.length }) });
+      await fetchSessions();
+    } catch (err: any) {
+      console.error('Error batch deleting sessions:', err);
+      setToastMessage({ type: 'error', text: `Delete error: ${err.message || err}` });
+    }
+  };
+
+  const handleExecuteBatchTag = async () => {
+    const ids = Array.from(selectedSessionIds);
+    if (ids.length === 0 || !batchSelectedTagId) return;
+
+    try {
+      const res = await fetch('/api/sessions/batch-tags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ session_ids: ids, tag_id: batchSelectedTagId }),
+      });
+      if (!res.ok) throw new Error('Failed to assign tags');
+
+      setShowBatchTagModal(false);
+      setBatchSelectedTagId(null);
+      setToastMessage({ type: 'success', text: t('history.batch.tagSelected') });
+      await fetchSessions();
+    } catch (err: any) {
+      console.error('Error assigning batch tag:', err);
+      setToastMessage({ type: 'error', text: `Tag assignment error: ${err.message || err}` });
     }
   };
 
@@ -1014,12 +1155,13 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
               >
                 <input
                   type="file"
-                  accept=".f1session"
+                  multiple
+                  accept=".f1session,.zip"
                   style={{ display: 'none' }}
                   disabled={importingSession}
                   onChange={(e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      handleImportFile(e.target.files[0]);
+                    if (e.target.files && e.target.files.length > 0) {
+                      handleImportFiles(e.target.files);
                       e.target.value = '';
                     }
                   }}
@@ -1090,6 +1232,9 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
           ) : (
             <SessionTableView
               sessions={filteredSessions}
+              selectedSessionIds={selectedSessionIds}
+              onToggleSelectSession={handleToggleSelectSession}
+              onToggleSelectAll={handleToggleSelectAll}
               onSelectSession={selectSession}
               onRequestDelete={(s) => setSessionToDelete(s)}
               onExportSession={handleExportSession}
@@ -1319,6 +1464,18 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
         </div>
       )}
 
+      {/* SESSION BATCH ACTION DOCK */}
+      {!selectedSession && (
+        <SessionBatchDock
+          selectedCount={selectedSessionIds.size}
+          isExporting={isExportingBatch}
+          onExportZip={handleBatchExport}
+          onOpenBatchTagModal={() => setShowBatchTagModal(true)}
+          onRequestBatchDelete={() => setShowBatchDeleteModal(true)}
+          onClearSelection={handleClearSelection}
+        />
+      )}
+
       {/* COMPARATOR STAGING DOCK */}
       <SessionComparatorDock
         stagedA={stagedSlotA}
@@ -1331,7 +1488,7 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
         formatLapTime={formatLapTime}
       />
 
-      {/* CONFIRM DELETE MODAL */}
+      {/* CONFIRM SINGLE DELETE MODAL */}
       {sessionToDelete && (
         <div className="modal-overlay" onClick={() => setSessionToDelete(null)}>
           <div
@@ -1400,6 +1557,160 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
         </div>
       )}
 
+      {/* CONFIRM BATCH DELETE MODAL */}
+      {showBatchDeleteModal && (
+        <div className="modal-overlay" onClick={() => setShowBatchDeleteModal(false)}>
+          <div
+            className="modal-container glass-panel"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '480px', padding: '1.75rem', borderRadius: 'var(--radius-lg)' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#ff4d4f' }}>
+                <AlertTriangle size={24} />
+                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>
+                  {t('history.batch.confirmDeleteTitle')}
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowBatchDeleteModal(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: '1.5', margin: '0 0 1.25rem 0' }}>
+              {t('history.batch.confirmDeleteBody', { count: selectedSessionIds.size })}
+            </p>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              <button
+                className="nav-tab"
+                onClick={() => setShowBatchDeleteModal(false)}
+                style={{ padding: '0.5rem 1.2rem' }}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                className="nav-tab active"
+                onClick={handleExecuteBatchDelete}
+                style={{
+                  padding: '0.5rem 1.2rem',
+                  background: 'linear-gradient(135deg, #ff4d4f, #d9363e)',
+                  borderColor: '#ff4d4f',
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <Trash2 size={14} /> {t('history.batch.deleteSelected', { count: selectedSessionIds.size })}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BATCH TAG ASSIGNMENT MODAL */}
+      {showBatchTagModal && (
+        <div className="modal-overlay" onClick={() => setShowBatchTagModal(false)}>
+          <div
+            className="modal-container glass-panel"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '480px', padding: '1.75rem', borderRadius: 'var(--radius-lg)' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--accent-secondary)' }}>
+                <TagBadge tag={{ id: 0, name: 'TAGS', color: '#00f2fe' }} size="xs" />
+                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>
+                  {t('history.batch.tagModalTitle', { count: selectedSessionIds.size })}
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowBatchTagModal(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '0.75rem' }}>
+                {t('history.batch.tagSelectPlaceholder')}
+              </p>
+              {availableTags.length === 0 ? (
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  {t('history.tags.noTagsAvailable')}
+                </p>
+              ) : (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {availableTags.map((tag) => {
+                    const isSelected = batchSelectedTagId === tag.id;
+                    return (
+                      <button
+                        key={tag.id}
+                        type="button"
+                        onClick={() => setBatchSelectedTagId(isSelected ? null : tag.id)}
+                        style={{
+                          background: isSelected ? tag.color : 'rgba(255, 255, 255, 0.05)',
+                          color: isSelected ? '#000' : 'var(--text-primary)',
+                          border: `1px solid ${tag.color}`,
+                          borderRadius: '20px',
+                          padding: '0.4rem 0.85rem',
+                          fontSize: '0.85rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            backgroundColor: isSelected ? '#000' : tag.color,
+                          }}
+                        />
+                        {tag.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              <button
+                className="nav-tab"
+                onClick={() => {
+                  setShowBatchTagModal(false);
+                  setBatchSelectedTagId(null);
+                }}
+                style={{ padding: '0.5rem 1.2rem' }}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                className="nav-tab active"
+                disabled={!batchSelectedTagId}
+                onClick={handleExecuteBatchTag}
+                style={{
+                  padding: '0.5rem 1.2rem',
+                  opacity: batchSelectedTagId ? 1 : 0.5,
+                  cursor: batchSelectedTagId ? 'pointer' : 'not-allowed',
+                }}
+              >
+                {t('history.batch.applyTag')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* TAG MANAGER MODAL */}
       <TagManagerModal
         session={sessionToManageTags}
@@ -1419,8 +1730,13 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
             bottom: '2rem',
             left: '2rem',
             zIndex: 1000,
-            background: toastMessage.type === 'success' ? 'rgba(16, 185, 129, 0.95)' : 'rgba(239, 68, 68, 0.95)',
-            color: '#fff',
+            background:
+              toastMessage.type === 'success'
+                ? 'rgba(16, 185, 129, 0.95)'
+                : toastMessage.type === 'info'
+                ? 'rgba(0, 242, 254, 0.95)'
+                : 'rgba(239, 68, 68, 0.95)',
+            color: toastMessage.type === 'info' ? '#000' : '#fff',
             padding: '0.75rem 1.25rem',
             borderRadius: 'var(--radius-md)',
             boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
@@ -1433,7 +1749,7 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
             animation: 'fadeIn 0.2s ease-in-out',
           }}
         >
-          {toastMessage.type === 'success' ? <CheckCircle size={18} /> : <AlertTriangle size={18} />}
+          {toastMessage.type === 'error' ? <AlertTriangle size={18} /> : <CheckCircle size={18} />}
           <span>{toastMessage.text}</span>
         </div>
       )}

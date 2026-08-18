@@ -731,6 +731,140 @@ describe('SessionHistory Component', () => {
       expect(screen.getByText('Tyre Degradation & Stint Pace Curves')).toBeInTheDocument();
     });
   });
+
+  it('supports multi-session selection, batch ZIP export, and batch deletion', async () => {
+    const mockSessions = [
+      { id: 1, session_uid: '1001', track_name: 'Monza', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' },
+      { id: 2, session_uid: '1002', track_name: 'Spa', session_type: 'Race', weather: 'Light Rain', created_at: '2026-08-11T14:00:00Z' },
+    ];
+
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url === '/api/sessions') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSessions) });
+      if (url === '/api/tags') return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      if (url === '/api/sessions/export-batch') {
+        return Promise.resolve({
+          ok: true,
+          blob: () => Promise.resolve(new Blob(['dummy-zip-data'], { type: 'application/zip' })),
+        });
+      }
+      if (url === '/api/sessions/batch-delete') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ status: 'success', deleted_count: 2 }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    });
+
+    const createObjectURLMock = vi.fn(() => 'blob:http://localhost/dummy-zip');
+    const revokeObjectURLMock = vi.fn();
+    globalThis.URL.createObjectURL = createObjectURLMock;
+    globalThis.URL.revokeObjectURL = revokeObjectURLMock;
+
+    render(
+      <I18nProvider>
+        <SessionHistory />
+      </I18nProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Monza').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Spa').length).toBeGreaterThan(0);
+    });
+
+    // 1. Select all via header checkbox
+    const selectAllCheckbox = screen.getByTitle('Select all sessions');
+    fireEvent.click(selectAllCheckbox);
+
+    // 2. Batch dock should appear with "2 sessions selected" and "Export ZIP (2)"
+    await waitFor(() => {
+      expect(screen.getByText('2 sessions selected')).toBeInTheDocument();
+      expect(screen.getByText('Export ZIP (2)')).toBeInTheDocument();
+      expect(screen.getByText('Delete (2)')).toBeInTheDocument();
+    });
+
+    // 3. Trigger Batch Export
+    const exportZipBtn = screen.getByText('Export ZIP (2)');
+    fireEvent.click(exportZipBtn);
+
+    await waitFor(() => {
+      const exportCall = (globalThis.fetch as any).mock.calls.find((call: any[]) => call[0] === '/api/sessions/export-batch');
+      expect(exportCall).toBeTruthy();
+      const parsedBody = JSON.parse(exportCall[1].body);
+      expect(parsedBody.session_ids).toHaveLength(2);
+      expect(parsedBody.session_ids).toContain(1);
+      expect(parsedBody.session_ids).toContain(2);
+      expect(createObjectURLMock).toHaveBeenCalled();
+    });
+
+    // 4. Click Delete (2) to open batch delete modal
+    const deleteBatchBtn = screen.getByText('Delete (2)');
+    fireEvent.click(deleteBatchBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Confirm Batch Deletion')).toBeInTheDocument();
+    });
+
+    // 5. Confirm batch deletion inside modal
+    const modalDeleteBtn = screen.getAllByText('Delete (2)')[1];
+    fireEvent.click(modalDeleteBtn);
+
+    await waitFor(() => {
+      const deleteCall = (globalThis.fetch as any).mock.calls.find((call: any[]) => call[0] === '/api/sessions/batch-delete');
+      expect(deleteCall).toBeTruthy();
+      const parsedBody = JSON.parse(deleteCall[1].body);
+      expect(parsedBody.session_ids).toHaveLength(2);
+      expect(parsedBody.session_ids).toContain(1);
+      expect(parsedBody.session_ids).toContain(2);
+    });
+  });
+
+  it('handles multi-file / ZIP batch import with summary toast', async () => {
+    const mockSessions = [
+      { id: 1, session_uid: '1001', track_name: 'Monza', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' },
+    ];
+
+    globalThis.fetch = vi.fn().mockImplementation((url: string, options?: any) => {
+      if (url === '/api/sessions') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSessions) });
+      if (url === '/api/tags') return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      if (url === '/api/sessions/import' && options?.method === 'POST') {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({
+            status: 'success',
+            total: 3,
+            imported: 2,
+            skipped: 1,
+            failed: 0,
+            session_ids: [2, 3],
+          }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    });
+
+    const { container } = render(
+      <I18nProvider>
+        <SessionHistory />
+      </I18nProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Monza').length).toBeGreaterThan(0);
+    });
+
+    // Upload files via hidden file input
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    expect(fileInput).toBeTruthy();
+    const file1 = new File(['data1'], 'monza.f1session', { type: 'application/octet-stream' });
+    const file2 = new File(['data2'], 'spa.f1session', { type: 'application/octet-stream' });
+    fireEvent.change(fileInput, { target: { files: [file1, file2] } });
+
+    await waitFor(() => {
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions/import', expect.any(Object));
+      expect(screen.getByText(/Import completed: 2 imported, 1 skipped, 0 failed/i)).toBeInTheDocument();
+    });
+  });
 });
 
 
