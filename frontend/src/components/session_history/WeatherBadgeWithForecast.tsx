@@ -43,7 +43,7 @@ const getWeatherIcon = (weatherNameOrCode?: string | number, size = 14) => {
   return <CloudSun size={size} color="var(--text-secondary)" />;
 };
 
-const getWeatherLabel = (weatherNameOrCode?: string | number, t?: (key: string) => string): string => {
+const getWeatherLabel = (weatherNameOrCode?: string | number): string => {
   if (typeof weatherNameOrCode === 'string' && weatherNameOrCode && weatherNameOrCode !== 'Unknown') {
     return weatherNameOrCode;
   }
@@ -183,7 +183,7 @@ export const WeatherBadgeWithForecast: React.FC<WeatherBadgeWithForecastProps> =
               const rainPercent = sample.RainPercentage ?? sample.rain_percentage ?? 0;
               const trackTemp = sample.TrackTemperature ?? sample.track_temperature;
               const airTemp = sample.AirTemperature ?? sample.air_temperature;
-              const conditionName = getWeatherLabel(weatherVal, t);
+              const conditionName = getWeatherLabel(weatherVal);
 
               return (
                 <div

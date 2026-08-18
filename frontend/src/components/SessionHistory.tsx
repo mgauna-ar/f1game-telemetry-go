@@ -3,7 +3,6 @@ import {
   Calendar,
   Search,
   Trophy,
-  CloudSun,
   Flag,
   Users,
   ArrowLeft,

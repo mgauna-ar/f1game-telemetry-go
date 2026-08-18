@@ -51,14 +51,22 @@ export interface CarMotionData {
 }
 
 export interface WeatherForecastSample {
-  SessionType: number;
-  TimeOffset: number; // in minutes (0, 5, 10, 15, 30)
-  Weather: number; // 0: Clear, 1: Light Cloud, 2: Overcast, 3: Light Rain, 4: Heavy Rain, 5: Storm
-  TrackTemperature: number;
-  TrackTemperatureChange: number; // 0 = up, 1 = down, 2 = no change
-  AirTemperature: number;
-  AirTemperatureChange: number;
-  RainPercentage: number;
+  SessionType?: number;
+  session_type?: number;
+  TimeOffset?: number; // in minutes (0, 5, 10, 15, 30)
+  time_offset?: number;
+  Weather?: number; // 0: Clear, 1: Light Cloud, 2: Overcast, 3: Light Rain, 4: Heavy Rain, 5: Storm
+  weather?: number;
+  TrackTemperature?: number;
+  track_temperature?: number;
+  TrackTemperatureChange?: number; // 0 = up, 1 = down, 2 = no change
+  track_temperature_change?: number;
+  AirTemperature?: number;
+  air_temperature?: number;
+  AirTemperatureChange?: number;
+  air_temperature_change?: number;
+  RainPercentage?: number;
+  rain_percentage?: number;
 }
 
 export interface SessionData {

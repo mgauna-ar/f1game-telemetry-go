@@ -1,21 +1,5 @@
-export interface WeatherForecastSample {
-  SessionType?: number;
-  session_type?: number;
-  TimeOffset?: number;
-  time_offset?: number;
-  Weather?: number;
-  weather?: number;
-  TrackTemperature?: number;
-  track_temperature?: number;
-  TrackTemperatureChange?: number;
-  track_temperature_change?: number;
-  AirTemperature?: number;
-  air_temperature?: number;
-  AirTemperatureChange?: number;
-  air_temperature_change?: number;
-  RainPercentage?: number;
-  rain_percentage?: number;
-}
+import type { WeatherForecastSample } from './telemetry';
+export type { WeatherForecastSample };
 
 export interface Tag {
   id: number;

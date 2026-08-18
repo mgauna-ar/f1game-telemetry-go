@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import React from 'react';
 import { WeatherBadgeWithForecast } from './WeatherBadgeWithForecast';
 import { I18nProvider } from '../../context/I18nProvider';
 import type { Session } from '../../types/session';

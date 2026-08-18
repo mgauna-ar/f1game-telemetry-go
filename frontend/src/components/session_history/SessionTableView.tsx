@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, CloudSun, ChevronRight, Trash2, ArrowUpDown, Plus, Download } from 'lucide-react';
+import { Clock, ChevronRight, Trash2, ArrowUpDown, Plus, Download } from 'lucide-react';
 import type { Session } from '../SessionHistory';
 import { useI18n } from '../../context/I18nContext';
 import { TagBadge } from './TagBadge';

@@ -222,8 +222,8 @@ export const LiveWeatherRadar: React.FC<LiveWeatherRadarProps> = ({ session }) =
       {/* Timeline Forecast Grid */}
       <div className="weather-forecast-grid">
         {forecastSamples.slice(0, 4).map((sample, idx) => {
-          const meta = getWeatherMeta(sample.Weather);
-          const offsetLabel = sample.TimeOffset === 0 ? t('live.now') : `+${sample.TimeOffset} MIN`;
+          const meta = getWeatherMeta(sample.Weather ?? 0);
+          const offsetLabel = sample.TimeOffset === 0 ? t('live.now') : `+${sample.TimeOffset ?? idx * 5} MIN`;
           const rain = sample.RainPercentage || 0;
           const barColor = getRainBarColor(rain);
 
@@ -253,10 +253,10 @@ export const LiveWeatherRadar: React.FC<LiveWeatherRadarProps> = ({ session }) =
               {/* Temp Trends */}
               <div className="forecast-temp-row mono">
                 <span title={t('common.trackTemp')}>
-                  T: {sample.TrackTemperature}°C {getTempTrendIcon(sample.TrackTemperatureChange)}
+                  T: {sample.TrackTemperature ?? '-'}°C {getTempTrendIcon(sample.TrackTemperatureChange ?? 0)}
                 </span>
                 <span title={t('common.airTemp')}>
-                  A: {sample.AirTemperature}°C {getTempTrendIcon(sample.AirTemperatureChange)}
+                  A: {sample.AirTemperature ?? '-'}°C {getTempTrendIcon(sample.AirTemperatureChange ?? 0)}
                 </span>
               </div>
             </div>
