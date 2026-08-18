@@ -4,7 +4,6 @@ import {
   Download,
   ExternalLink,
   X,
-  CheckCircle,
   Package,
   HardDrive,
   ShieldCheck,
