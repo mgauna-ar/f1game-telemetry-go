@@ -421,7 +421,7 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
     return `${mins}:${secs.toString().padStart(2, '0')}.${millis.toString().padStart(3, '0')}`;
   };
 
-  const renderTyreBadge = (compoundRaw?: string) => {
+  const renderTyreBadge = (compoundRaw?: string, actualCompound?: string) => {
     if (!compoundRaw || compoundRaw.trim() === '') {
       return <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>-</span>;
     }
@@ -454,10 +454,12 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
       bg = 'rgba(51, 153, 255, 0.15)';
     }
 
+    const titleText = actualCompound ? `Tyre: ${compoundRaw} (${actualCompound})` : `Tyre Compound: ${compoundRaw}`;
+
     return (
       <div
         className="tyre-badge mono"
-        title={`Tyre Compound: ${compoundRaw}`}
+        title={titleText}
         style={{ color, backgroundColor: bg, borderColor: color }}
       >
         {label}
@@ -471,8 +473,8 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
     }
 
     const sortedLaps = [...driverLaps].sort((a, b) => a.lap_number - b.lap_number);
-    const stints: { compound: string; count: number; stintId: number }[] = [];
-    let currentStint: { compound: string; count: number; stintId: number } | null = null;
+    const stints: { compound: string; actualCompound?: string; count: number; stintId: number }[] = [];
+    let currentStint: { compound: string; actualCompound?: string; count: number; stintId: number } | null = null;
 
     sortedLaps.forEach((lap) => {
       const raw = lap.tyre_compound?.trim();
@@ -486,10 +488,13 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
         currentStint.compound.toUpperCase() !== raw.toUpperCase();
 
       if (isNewStint || !currentStint) {
-        currentStint = { compound: raw, count: 1, stintId: lapStint };
+        currentStint = { compound: raw, actualCompound: lap.actual_compound, count: 1, stintId: lapStint };
         stints.push(currentStint);
       } else {
         currentStint.count += 1;
+        if (!currentStint.actualCompound && lap.actual_compound) {
+          currentStint.actualCompound = lap.actual_compound;
+        }
       }
     });
 
@@ -499,11 +504,11 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
 
     return (
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
-        {stints.map(({ compound, count }, idx) => (
+        {stints.map(({ compound, actualCompound, count }, idx) => (
           <React.Fragment key={idx}>
             {idx > 0 && <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', margin: '0 1px' }}>➔</span>}
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-              {renderTyreBadge(compound)}
+              {renderTyreBadge(compound, actualCompound)}
               <span className="mono" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
                 {count}L
               </span>
@@ -616,9 +621,13 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
             ? l.lap_time_ms - (l.sector1_ms + l.sector2_ms)
             : 0;
 
-        if (l.sector1_ms !== undefined && l.sector1_ms > 0 && l.sector1_ms < s1) s1 = l.sector1_ms;
-        if (l.sector2_ms !== undefined && l.sector2_ms > 0 && l.sector2_ms < s2) s2 = l.sector2_ms;
-        if (lapS3 > 0 && lapS3 < s3) s3 = lapS3;
+        const isS1Valid = l.sector1_valid ?? true;
+        const isS2Valid = l.sector2_valid ?? true;
+        const isS3Valid = l.sector3_valid ?? true;
+
+        if (isS1Valid && l.sector1_ms !== undefined && l.sector1_ms > 0 && l.sector1_ms < s1) s1 = l.sector1_ms;
+        if (isS2Valid && l.sector2_ms !== undefined && l.sector2_ms > 0 && l.sector2_ms < s2) s2 = l.sector2_ms;
+        if (isS3Valid && lapS3 > 0 && lapS3 < s3) s3 = lapS3;
       }
     });
 
@@ -674,22 +683,29 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
         (sortedRawLaps.length > 0 ? sortedRawLaps[sortedRawLaps.length - 1] : null);
       const lastLapTimeMS = lastCompletedLap && lastCompletedLap.lap_time_ms > 0 ? lastCompletedLap.lap_time_ms : 0;
 
-      const totalRaceTimeMS = driverLaps.reduce((acc, l) => acc + (l.lap_time_ms > 0 ? l.lap_time_ms : 0), 0);
-      const penaltySeconds = driverLaps.reduce((maxPen, l) => Math.max(maxPen, l.penalties_seconds || 0), 0);
+      const officialTotalTimeMS = p.total_race_time && p.total_race_time > 0 ? Math.round(p.total_race_time * 1000) : 0;
+      const officialPenaltiesSec = p.penalties_time !== undefined && p.penalties_time > 0 ? p.penalties_time : 0;
+      const penaltySeconds = officialPenaltiesSec > 0 ? officialPenaltiesSec : driverLaps.reduce((maxPen, l) => Math.max(maxPen, l.penalties_seconds || 0), 0);
+      const totalRaceTimeMS = officialTotalTimeMS > 0 ? officialTotalTimeMS : driverLaps.reduce((acc, l) => acc + (l.lap_time_ms > 0 ? l.lap_time_ms : 0), 0);
       const totalRaceTimeWithPenalties = totalRaceTimeMS + penaltySeconds * 1000;
 
       const lapWithPos = [...sortedRawLaps].reverse().find((l) => l.car_position && l.car_position > 0);
-      const officialPos = lapWithPos ? lapWithPos.car_position! : 0;
+      const officialPos = p.position && p.position > 0 ? p.position : (lapWithPos ? lapWithPos.car_position! : 0);
+      const gridPosition = p.grid_position && p.grid_position > 0 ? p.grid_position : 0;
+      const positionsGained = gridPosition > 0 && officialPos > 0 ? gridPosition - officialPos : undefined;
+      const points = p.points !== undefined && p.points > 0 ? p.points : 0;
+      const resultReason = p.result_reason !== undefined ? p.result_reason : 0;
+      const pitStopsCount = p.num_pit_stops !== undefined && p.num_pit_stops > 0 ? p.num_pit_stops : 0;
 
       const lapWithStatus = [...sortedRawLaps].reverse().find((l) => l.result_status !== undefined && l.result_status > 0);
       const resStatus = lapWithStatus ? lapWithStatus.result_status! : 0;
 
-      const isDSQ = resStatus === 5;
-      const isDNF = resStatus === 4 || resStatus === 6 || resStatus === 7 || (isRaceSession && maxRaceLaps > 5 && completedLaps.length < maxRaceLaps);
+      const isDSQ = resStatus === 5 || resultReason === 6;
+      const isDNF = resStatus === 4 || resStatus === 6 || resStatus === 7 || resultReason === 1 || resultReason === 3 || resultReason === 8 || (isRaceSession && maxRaceLaps > 5 && completedLaps.length < maxRaceLaps);
 
       const maxSpeed = driverLaps.reduce((max, l) => Math.max(max, l.max_speed_kmh || 0), 0);
 
-      // Best Sectors per driver
+      // Best Sectors per driver (accounting for sector validity flags)
       let bestS1MS = 0;
       let bestS2MS = 0;
       let bestS3MS = 0;
@@ -702,9 +718,13 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
             ? l.lap_time_ms - (l.sector1_ms + l.sector2_ms)
             : 0;
 
-        if (l.sector1_ms !== undefined && l.sector1_ms > 0 && (bestS1MS === 0 || l.sector1_ms < bestS1MS)) bestS1MS = l.sector1_ms;
-        if (l.sector2_ms !== undefined && l.sector2_ms > 0 && (bestS2MS === 0 || l.sector2_ms < bestS2MS)) bestS2MS = l.sector2_ms;
-        if (lapS3 > 0 && (bestS3MS === 0 || lapS3 < bestS3MS)) bestS3MS = lapS3;
+        const isS1Valid = l.sector1_valid ?? true;
+        const isS2Valid = l.sector2_valid ?? true;
+        const isS3Valid = l.sector3_valid ?? true;
+
+        if (isS1Valid && l.sector1_ms !== undefined && l.sector1_ms > 0 && (bestS1MS === 0 || l.sector1_ms < bestS1MS)) bestS1MS = l.sector1_ms;
+        if (isS2Valid && l.sector2_ms !== undefined && l.sector2_ms > 0 && (bestS2MS === 0 || l.sector2_ms < bestS2MS)) bestS2MS = l.sector2_ms;
+        if (isS3Valid && lapS3 > 0 && (bestS3MS === 0 || lapS3 < bestS3MS)) bestS3MS = lapS3;
       });
 
       const theoreticalBestMS = bestS1MS > 0 && bestS2MS > 0 && bestS3MS > 0 ? bestS1MS + bestS2MS + bestS3MS : 0;
@@ -720,6 +740,11 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
         penaltySeconds,
         totalRaceTimeWithPenalties,
         officialPos,
+        gridPosition,
+        positionsGained,
+        points,
+        resultReason,
+        pitStopsCount,
         isDNF,
         isDSQ,
         maxSpeed,

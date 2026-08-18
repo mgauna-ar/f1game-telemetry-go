@@ -833,14 +833,14 @@ func TestVersionedMigrations(t *testing.T) {
 	repo := setupTestRepo(t)
 	db := repo.DB()
 
-	// Verify schema_version table has recorded version 1
+	// Verify schema_version table has recorded latest version (2)
 	var maxVersion int
 	err := db.Get(&maxVersion, "SELECT MAX(version) FROM schema_version")
 	if err != nil {
 		t.Fatalf("failed to query schema_version: %v", err)
 	}
-	if maxVersion != 1 {
-		t.Errorf("expected schema_version 1, got %d", maxVersion)
+	if maxVersion != 2 {
+		t.Errorf("expected schema_version 2, got %d", maxVersion)
 	}
 
 	// Running Migrate again should be idempotent

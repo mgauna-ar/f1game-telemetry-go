@@ -96,6 +96,25 @@ CREATE INDEX IF NOT EXISTS idx_session_tags_session ON session_tags(session_id);
 CREATE INDEX IF NOT EXISTS idx_session_tags_tag ON session_tags(tag_id);
 `,
 	},
+	{
+		Version: 2,
+		Name:    "official_classification_and_sector_validity",
+		SQL: `
+ALTER TABLE participants ADD COLUMN grid_position INTEGER DEFAULT 0;
+ALTER TABLE participants ADD COLUMN position INTEGER DEFAULT 0;
+ALTER TABLE participants ADD COLUMN points INTEGER DEFAULT 0;
+ALTER TABLE participants ADD COLUMN total_race_time REAL DEFAULT 0;
+ALTER TABLE participants ADD COLUMN penalties_time INTEGER DEFAULT 0;
+ALTER TABLE participants ADD COLUMN num_penalties INTEGER DEFAULT 0;
+ALTER TABLE participants ADD COLUMN result_reason INTEGER DEFAULT 0;
+ALTER TABLE participants ADD COLUMN num_pit_stops INTEGER DEFAULT 0;
+
+ALTER TABLE laps ADD COLUMN actual_compound TEXT DEFAULT '';
+ALTER TABLE laps ADD COLUMN sector1_valid BOOLEAN DEFAULT 1;
+ALTER TABLE laps ADD COLUMN sector2_valid BOOLEAN DEFAULT 1;
+ALTER TABLE laps ADD COLUMN sector3_valid BOOLEAN DEFAULT 1;
+`,
+	},
 }
 
 // Migrate runs all pending migrations in version order.

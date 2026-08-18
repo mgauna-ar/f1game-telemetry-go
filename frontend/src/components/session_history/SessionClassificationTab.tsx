@@ -7,7 +7,7 @@ import {
   Award,
   GitCompare,
 } from 'lucide-react';
-import { TEAM_COLORS } from '../../constants/f1';
+import { TEAM_COLORS, RESULT_REASONS } from '../../constants/f1';
 import type { Session, Lap, DriverStanding, StagedLap } from '../../types/session';
 import { useI18n } from '../../context/I18nContext';
 
@@ -28,7 +28,7 @@ interface SessionClassificationTabProps {
   onSendToComparator?: (sessionId: number, lapId: number, slot: 'A' | 'B') => void;
   formatLapTime: (ms: number) => string;
   formatTotalDuration: (ms: number) => string;
-  renderTyreBadge: (compoundRaw?: string) => React.ReactNode;
+  renderTyreBadge: (compoundRaw?: string, actualCompound?: string) => React.ReactNode;
   renderDriverTyreStints: (laps: Lap[]) => React.ReactNode;
 }
 
@@ -165,11 +165,12 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
               <thead>
                 {isRaceSession ? (
                   <tr>
-                    <th style={{ width: '38px', paddingLeft: '0.65rem' }}>{t('history.classification.headers.pos')}</th>
+                    <th style={{ width: '55px', paddingLeft: '0.65rem' }}>{t('history.classification.headers.pos')}</th>
                     <th style={{ minWidth: '140px' }}>{t('history.classification.headers.driver')}</th>
                     <th style={{ minWidth: '110px' }}>{t('history.classification.headers.timeGap')}</th>
                     <th style={{ width: '45px', textAlign: 'center' }}>{t('history.classification.headers.laps')}</th>
                     <th style={{ minWidth: '120px' }}>{t('history.classification.headers.tyreStints')}</th>
+                    <th style={{ width: '45px', textAlign: 'center' }}>{t('history.classification.headers.points')}</th>
                     <th style={{ minWidth: '95px' }}>{t('history.classification.headers.fastestLap')}</th>
                     <th style={{ minWidth: '65px' }}>{t('history.classification.headers.s1')}</th>
                     <th style={{ minWidth: '65px' }}>{t('history.classification.headers.s2')}</th>
@@ -205,13 +206,25 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                     driver.bestLapTimeMS > 0 &&
                     driver.bestLapTimeMS === sessionFastestLapMS;
 
-                  // Time / Gap formatted string
+                  // Time / Gap formatted string with rich DNF reasons
                   let timeGapDisplay = '--';
                   if (isRaceSession) {
                     if (driver.isDSQ) {
-                      timeGapDisplay = 'DSQ';
+                      timeGapDisplay = driver.resultReason === RESULT_REASONS.BLACK_FLAGGED
+                        ? `DSQ (${t('history.classification.reasons.blackFlag')})`
+                        : 'DSQ';
                     } else if (driver.isDNF) {
-                      timeGapDisplay = 'DNF';
+                      if (driver.resultReason === RESULT_REASONS.TERMINAL_DAMAGE) {
+                        timeGapDisplay = `DNF (${t('history.classification.reasons.terminalDamage')})`;
+                      } else if (driver.resultReason === RESULT_REASONS.MECHANICAL_FAILURE) {
+                        timeGapDisplay = `DNF (${t('history.classification.reasons.mechanicalFailure')})`;
+                      } else if (driver.resultReason === RESULT_REASONS.RETIRED) {
+                        timeGapDisplay = `DNF (${t('history.classification.reasons.retired')})`;
+                      } else if (driver.resultReason === RESULT_REASONS.NOT_ENOUGH_LAPS) {
+                        timeGapDisplay = `DNF (${t('history.classification.reasons.notEnoughLaps')})`;
+                      } else {
+                        timeGapDisplay = 'DNF';
+                      }
                     } else if (isLeader) {
                       timeGapDisplay = formatTotalDuration(driver.totalRaceTimeWithPenalties ?? 0);
                     } else if (driverStandings.length > 0) {
@@ -259,17 +272,45 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                         onClick={() => onToggleDriverExpand(driver.participant.car_index)}
                         style={{ cursor: 'pointer' }}
                       >
-                        {/* Position */}
+                        {/* Position & Grid Delta */}
                         <td style={{ paddingLeft: '0.65rem' }}>
-                          <div
-                            className="mono"
-                            style={{
-                              fontWeight: 700,
-                              fontSize: '0.85rem',
-                              color: driver.position === 1 ? '#ffd700' : driver.position <= 3 ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                            }}
-                          >
-                            P{driver.position}
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                            <span
+                              className="mono"
+                              style={{
+                                fontWeight: 700,
+                                fontSize: '0.85rem',
+                                color: driver.position === 1 ? '#ffd700' : driver.position <= 3 ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                              }}
+                            >
+                              P{driver.position}
+                            </span>
+                            {isRaceSession && driver.positionsGained !== undefined && (
+                              <span
+                                className="mono"
+                                title={t('history.classification.gridTooltip', {
+                                  grid: driver.gridPosition,
+                                  finish: driver.position,
+                                  delta: driver.positionsGained > 0 ? `+${driver.positionsGained}` : `${driver.positionsGained}`,
+                                })}
+                                style={{
+                                  fontSize: '0.68rem',
+                                  fontWeight: 800,
+                                  color:
+                                    driver.positionsGained > 0
+                                      ? '#52c41a'
+                                      : driver.positionsGained < 0
+                                      ? '#ff4d4f'
+                                      : 'var(--text-muted)',
+                                }}
+                              >
+                                {driver.positionsGained > 0
+                                  ? `▲${driver.positionsGained}`
+                                  : driver.positionsGained < 0
+                                  ? `▼${Math.abs(driver.positionsGained)}`
+                                  : '-'}
+                              </span>
+                            )}
                           </div>
                         </td>
 
@@ -333,6 +374,27 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
 
                             {/* Tyre Stints */}
                             <td>{renderDriverTyreStints(driver.laps)}</td>
+
+                            {/* Points */}
+                            <td className="mono" style={{ textAlign: 'center', fontSize: '0.82rem' }}>
+                              {(driver.points ?? 0) > 0 ? (
+                                <span
+                                  style={{
+                                    fontWeight: 700,
+                                    color: 'var(--accent-primary)',
+                                    backgroundColor: 'rgba(255, 215, 0, 0.12)',
+                                    border: '1px solid rgba(255, 215, 0, 0.3)',
+                                    borderRadius: '3px',
+                                    padding: '1px 5px',
+                                    fontSize: '0.72rem',
+                                  }}
+                                >
+                                  {driver.points}
+                                </span>
+                              ) : (
+                                <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>0</span>
+                              )}
+                            </td>
 
                             {/* Fastest Lap of Driver */}
                             <td className="mono" style={{ fontWeight: 700, fontSize: '0.82rem', whiteSpace: 'nowrap', color: isOverallFastestLap ? 'var(--accent-purple)' : 'var(--accent-tertiary)' }}>
@@ -583,7 +645,7 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                                           </td>
                                           <td style={{ padding: '6px 8px' }}>
                                             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                                              {renderTyreBadge(lap.tyre_compound)}
+                                              {renderTyreBadge(lap.tyre_compound, lap.actual_compound)}
                                               {lap.stint && lap.stint > 0 && (
                                                 <span
                                                   className="mono"

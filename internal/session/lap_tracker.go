@@ -308,9 +308,10 @@ func (lt *LapTracker) ProcessSessionHistory(ctx context.Context, session *storag
 		s2 := int(lapData.Sector2TimeMSPart) + int(lapData.Sector2TimeMinutesPart)*packets.MillisPerMinute
 		s3 := int(lapData.Sector3TimeMSPart) + int(lapData.Sector3TimeMinutesPart)*packets.MillisPerMinute
 
-		// Determine stint number and visual compound from TyreStintHistoryData
+		// Determine stint number, visual compound, and actual compound from TyreStintHistoryData
 		stintNum := 1
 		compoundName := ""
+		actualCompoundName := ""
 		if numStints > 0 {
 			for s := 0; s < numStints; s++ {
 				stintInfo := p.TyreStintHistoryData[s]
@@ -325,6 +326,7 @@ func (lt *LapTracker) ProcessSessionHistory(ctx context.Context, session *storag
 				if lapNum >= stintStartLap && lapNum <= stintEndLap {
 					stintNum = s + 1
 					compoundName = packets.VisualTyreCompoundName(stintInfo.TyreVisualCompound)
+					actualCompoundName = packets.ActualTyreCompoundName(stintInfo.TyreActualCompound)
 					break
 				}
 			}
@@ -332,18 +334,25 @@ func (lt *LapTracker) ProcessSessionHistory(ctx context.Context, session *storag
 
 		if lapTime > 0 || s1 > 0 || s2 > 0 || s3 > 0 {
 			isValid := (lapData.LapValidBitFlags & packets.LapValidBitFlag) != 0
+			s1Valid := (lapData.LapValidBitFlags & packets.Sector1ValidBitFlag) != 0
+			s2Valid := (lapData.LapValidBitFlags & packets.Sector2ValidBitFlag) != 0
+			s3Valid := (lapData.LapValidBitFlags & packets.Sector3ValidBitFlag) != 0
 
 			lap := &storage.Lap{
-				SessionID:    session.ID,
-				CarIndex:     lt.carIndex,
-				LapNumber:    lapNum,
-				LapTimeMS:    lapTime,
-				Sector1MS:    s1,
-				Sector2MS:    s2,
-				Sector3MS:    s3,
-				IsValid:      isValid,
-				Stint:        stintNum,
-				TyreCompound: compoundName,
+				SessionID:      session.ID,
+				CarIndex:       lt.carIndex,
+				LapNumber:      lapNum,
+				LapTimeMS:      lapTime,
+				Sector1MS:      s1,
+				Sector2MS:      s2,
+				Sector3MS:      s3,
+				IsValid:        isValid,
+				Stint:          stintNum,
+				TyreCompound:   compoundName,
+				ActualCompound: actualCompoundName,
+				Sector1Valid:   s1Valid,
+				Sector2Valid:   s2Valid,
+				Sector3Valid:   s3Valid,
 			}
 			_ = lt.repo.SaveLap(ctx, lap, true)
 		}

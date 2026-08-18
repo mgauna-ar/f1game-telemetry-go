@@ -57,6 +57,10 @@ type Lap struct {
 	CarPosition      int       `db:"car_position" json:"car_position"`
 	ResultStatus     int       `db:"result_status" json:"result_status"`
 	Stint            int       `db:"stint" json:"stint"`
+	ActualCompound   string    `db:"actual_compound" json:"actual_compound"`
+	Sector1Valid     bool      `db:"sector1_valid" json:"sector1_valid"`
+	Sector2Valid     bool      `db:"sector2_valid" json:"sector2_valid"`
+	Sector3Valid     bool      `db:"sector3_valid" json:"sector3_valid"`
 	CreatedAt        time.Time `db:"created_at" json:"created_at"`
 	HasTelemetry     bool      `db:"has_telemetry" json:"has_telemetry"`
 	SampleCount      int       `db:"sample_count" json:"sample_count"`
@@ -86,16 +90,24 @@ type TelemetrySample struct {
 
 // Participant represents a driver/participant in a session.
 type Participant struct {
-	ID           int64     `db:"id" json:"id"`
-	SessionID    int64     `db:"session_id" json:"session_id"`
-	CarIndex     int       `db:"car_index" json:"car_index"`
-	Name         string    `db:"name" json:"name"`
-	DriverID     int       `db:"driver_id" json:"driver_id"`
-	TeamID       int       `db:"team_id" json:"team_id"`
-	RaceNumber   int       `db:"race_number" json:"race_number"`
-	AIControlled bool      `db:"ai_controlled" json:"ai_controlled"`
-	Nationality  int       `db:"nationality" json:"nationality"`
-	CreatedAt    time.Time `db:"created_at" json:"created_at"`
+	ID            int64     `db:"id" json:"id"`
+	SessionID     int64     `db:"session_id" json:"session_id"`
+	CarIndex      int       `db:"car_index" json:"car_index"`
+	Name          string    `db:"name" json:"name"`
+	DriverID      int       `db:"driver_id" json:"driver_id"`
+	TeamID        int       `db:"team_id" json:"team_id"`
+	RaceNumber    int       `db:"race_number" json:"race_number"`
+	AIControlled  bool      `db:"ai_controlled" json:"ai_controlled"`
+	Nationality   int       `db:"nationality" json:"nationality"`
+	GridPosition  int       `db:"grid_position" json:"grid_position"`
+	Position      int       `db:"position" json:"position"`
+	Points        int       `db:"points" json:"points"`
+	TotalRaceTime float64   `db:"total_race_time" json:"total_race_time"`
+	PenaltiesTime int       `db:"penalties_time" json:"penalties_time"`
+	NumPenalties  int       `db:"num_penalties" json:"num_penalties"`
+	ResultReason  int       `db:"result_reason" json:"result_reason"`
+	NumPitStops   int       `db:"num_pit_stops" json:"num_pit_stops"`
+	CreatedAt     time.Time `db:"created_at" json:"created_at"`
 }
 
 // LapTelemetryBlob represents the compressed telemetry payload for a single lap.

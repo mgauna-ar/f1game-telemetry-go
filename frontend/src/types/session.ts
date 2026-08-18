@@ -27,6 +27,14 @@ export interface Participant {
   race_number: number;
   ai_controlled: boolean;
   nationality?: number;
+  grid_position?: number;
+  position?: number;
+  points?: number;
+  total_race_time?: number;
+  penalties_time?: number;
+  num_penalties?: number;
+  result_reason?: number;
+  num_pit_stops?: number;
 }
 
 export interface Lap {
@@ -40,6 +48,10 @@ export interface Lap {
   sector3_ms?: number;
   is_valid: boolean;
   tyre_compound?: string;
+  actual_compound?: string;
+  sector1_valid?: boolean;
+  sector2_valid?: boolean;
+  sector3_valid?: boolean;
   fuel_load?: number;
   max_speed_kmh?: number;
   penalties_seconds?: number;
@@ -77,6 +89,10 @@ export interface DriverStanding {
   penaltySeconds?: number;
   totalRaceTimeWithPenalties?: number;
   officialPos?: number;
+  gridPosition?: number;
+  positionsGained?: number;
+  points?: number;
+  resultReason?: number;
   isDNF: boolean;
   isDSQ: boolean;
   maxSpeed: number;

@@ -243,11 +243,26 @@ func (sm *SessionManager) handleFinalClassification(ctx context.Context, p *pack
 		maxCars = packets.MaxCars
 	}
 
+	participantsToUpdate := make([]storage.Participant, 0, maxCars)
+
 	for i := 0; i < maxCars && i < int(p.NumCars) && i < len(p.ClassificationData); i++ {
 		cls := p.ClassificationData[i]
 		if cls.NumLaps == 0 && cls.ResultStatus == packets.ResultStatusInactive {
 			continue
 		}
+
+		participantsToUpdate = append(participantsToUpdate, storage.Participant{
+			SessionID:     sm.currentSession.ID,
+			CarIndex:      i,
+			GridPosition:  int(cls.GridPosition),
+			Position:      int(cls.Position),
+			Points:        int(cls.Points),
+			TotalRaceTime: cls.TotalRaceTime,
+			PenaltiesTime: int(cls.PenaltiesTime),
+			NumPenalties:  int(cls.NumPenalties),
+			ResultReason:  int(cls.ResultReason),
+			NumPitStops:   int(cls.NumPitStops),
+		})
 
 		numStints := int(cls.NumTyreStints)
 		if numStints > packets.MaxTyreStints {
@@ -266,6 +281,7 @@ func (sm *SessionManager) handleFinalClassification(ctx context.Context, p *pack
 					stintEndLap = packets.MaxSessionLapsSanity
 				}
 				compName := packets.VisualTyreCompoundName(cls.TyreStintsVisual[s])
+				actualCompName := packets.ActualTyreCompoundName(cls.TyreStintsActual[s])
 
 				for lapNum := stintStartLap; lapNum <= stintEndLap && lapNum <= int(cls.NumLaps); lapNum++ {
 					lap := &storage.Lap{
@@ -274,6 +290,7 @@ func (sm *SessionManager) handleFinalClassification(ctx context.Context, p *pack
 						LapNumber:        lapNum,
 						Stint:            stintNum,
 						TyreCompound:     compName,
+						ActualCompound:   actualCompName,
 						CarPosition:      int(cls.Position),
 						ResultStatus:     int(cls.ResultStatus),
 						PenaltiesSeconds: int(cls.PenaltiesTime),
@@ -282,5 +299,9 @@ func (sm *SessionManager) handleFinalClassification(ctx context.Context, p *pack
 				}
 			}
 		}
+	}
+
+	if len(participantsToUpdate) > 0 {
+		_ = sm.repo.SaveParticipants(ctx, sm.currentSession.ID, participantsToUpdate)
 	}
 }

@@ -174,8 +174,8 @@ func (r *Repository) SaveLap(ctx context.Context, l *Lap, mergeMode bool) error 
 	var query string
 	if mergeMode {
 		query = `
-			INSERT INTO laps (session_id, car_index, lap_number, lap_time_ms, sector1_ms, sector2_ms, sector3_ms, is_valid, tyre_compound, fuel_load, max_speed_kmh, penalties_seconds, car_position, result_status, stint)
-			VALUES (:session_id, :car_index, :lap_number, :lap_time_ms, :sector1_ms, :sector2_ms, :sector3_ms, :is_valid, :tyre_compound, :fuel_load, :max_speed_kmh, :penalties_seconds, :car_position, :result_status, :stint)
+			INSERT INTO laps (session_id, car_index, lap_number, lap_time_ms, sector1_ms, sector2_ms, sector3_ms, is_valid, tyre_compound, fuel_load, max_speed_kmh, penalties_seconds, car_position, result_status, stint, actual_compound, sector1_valid, sector2_valid, sector3_valid)
+			VALUES (:session_id, :car_index, :lap_number, :lap_time_ms, :sector1_ms, :sector2_ms, :sector3_ms, :is_valid, :tyre_compound, :fuel_load, :max_speed_kmh, :penalties_seconds, :car_position, :result_status, :stint, :actual_compound, :sector1_valid, :sector2_valid, :sector3_valid)
 			ON CONFLICT(session_id, car_index, lap_number) DO UPDATE SET
 				lap_time_ms = CASE WHEN excluded.lap_time_ms > 0 THEN excluded.lap_time_ms ELSE laps.lap_time_ms END,
 				sector1_ms = CASE WHEN excluded.sector1_ms > 0 THEN excluded.sector1_ms ELSE laps.sector1_ms END,
@@ -186,13 +186,17 @@ func (r *Repository) SaveLap(ctx context.Context, l *Lap, mergeMode bool) error 
 				stint = CASE WHEN excluded.stint > 0 THEN excluded.stint ELSE laps.stint END,
 				car_position = CASE WHEN excluded.car_position > 0 THEN excluded.car_position ELSE laps.car_position END,
 				result_status = CASE WHEN excluded.result_status > 0 THEN excluded.result_status ELSE laps.result_status END,
-				penalties_seconds = CASE WHEN excluded.penalties_seconds > 0 THEN excluded.penalties_seconds ELSE laps.penalties_seconds END
+				penalties_seconds = CASE WHEN excluded.penalties_seconds > 0 THEN excluded.penalties_seconds ELSE laps.penalties_seconds END,
+				actual_compound = CASE WHEN excluded.actual_compound != '' THEN excluded.actual_compound ELSE laps.actual_compound END,
+				sector1_valid = excluded.sector1_valid,
+				sector2_valid = excluded.sector2_valid,
+				sector3_valid = excluded.sector3_valid
 			RETURNING id
 		`
 	} else {
 		query = `
-			INSERT INTO laps (session_id, car_index, lap_number, lap_time_ms, sector1_ms, sector2_ms, sector3_ms, is_valid, tyre_compound, fuel_load, max_speed_kmh, penalties_seconds, car_position, result_status, stint)
-			VALUES (:session_id, :car_index, :lap_number, :lap_time_ms, :sector1_ms, :sector2_ms, :sector3_ms, :is_valid, :tyre_compound, :fuel_load, :max_speed_kmh, :penalties_seconds, :car_position, :result_status, :stint)
+			INSERT INTO laps (session_id, car_index, lap_number, lap_time_ms, sector1_ms, sector2_ms, sector3_ms, is_valid, tyre_compound, fuel_load, max_speed_kmh, penalties_seconds, car_position, result_status, stint, actual_compound, sector1_valid, sector2_valid, sector3_valid)
+			VALUES (:session_id, :car_index, :lap_number, :lap_time_ms, :sector1_ms, :sector2_ms, :sector3_ms, :is_valid, :tyre_compound, :fuel_load, :max_speed_kmh, :penalties_seconds, :car_position, :result_status, :stint, :actual_compound, :sector1_valid, :sector2_valid, :sector3_valid)
 			ON CONFLICT(session_id, car_index, lap_number) DO UPDATE SET
 				lap_time_ms = CASE WHEN excluded.lap_time_ms > 0 THEN excluded.lap_time_ms ELSE laps.lap_time_ms END,
 				sector1_ms = CASE WHEN excluded.sector1_ms > 0 THEN excluded.sector1_ms ELSE laps.sector1_ms END,
@@ -205,7 +209,11 @@ func (r *Repository) SaveLap(ctx context.Context, l *Lap, mergeMode bool) error 
 				penalties_seconds = CASE WHEN excluded.penalties_seconds > 0 THEN excluded.penalties_seconds ELSE laps.penalties_seconds END,
 				car_position = CASE WHEN excluded.car_position > 0 THEN excluded.car_position ELSE laps.car_position END,
 				result_status = CASE WHEN excluded.result_status > 0 THEN excluded.result_status ELSE laps.result_status END,
-				stint = CASE WHEN excluded.stint > 0 THEN excluded.stint ELSE laps.stint END
+				stint = CASE WHEN excluded.stint > 0 THEN excluded.stint ELSE laps.stint END,
+				actual_compound = CASE WHEN excluded.actual_compound != '' THEN excluded.actual_compound ELSE laps.actual_compound END,
+				sector1_valid = excluded.sector1_valid,
+				sector2_valid = excluded.sector2_valid,
+				sector3_valid = excluded.sector3_valid
 			RETURNING id
 		`
 	}
@@ -575,15 +583,23 @@ func (r *Repository) SaveParticipants(ctx context.Context, sessionID int64, part
 	}
 
 	query := `
-		INSERT INTO participants (session_id, car_index, name, driver_id, team_id, race_number, ai_controlled, nationality)
-		VALUES (:session_id, :car_index, :name, :driver_id, :team_id, :race_number, :ai_controlled, :nationality)
+		INSERT INTO participants (session_id, car_index, name, driver_id, team_id, race_number, ai_controlled, nationality, grid_position, position, points, total_race_time, penalties_time, num_penalties, result_reason, num_pit_stops)
+		VALUES (:session_id, :car_index, :name, :driver_id, :team_id, :race_number, :ai_controlled, :nationality, :grid_position, :position, :points, :total_race_time, :penalties_time, :num_penalties, :result_reason, :num_pit_stops)
 		ON CONFLICT(session_id, car_index) DO UPDATE SET
-			name = excluded.name,
-			driver_id = excluded.driver_id,
-			team_id = excluded.team_id,
-			race_number = excluded.race_number,
+			name = CASE WHEN excluded.name != '' THEN excluded.name ELSE participants.name END,
+			driver_id = CASE WHEN excluded.driver_id > 0 THEN excluded.driver_id ELSE participants.driver_id END,
+			team_id = CASE WHEN excluded.team_id > 0 THEN excluded.team_id ELSE participants.team_id END,
+			race_number = CASE WHEN excluded.race_number > 0 THEN excluded.race_number ELSE participants.race_number END,
 			ai_controlled = excluded.ai_controlled,
-			nationality = excluded.nationality
+			nationality = CASE WHEN excluded.nationality > 0 THEN excluded.nationality ELSE participants.nationality END,
+			grid_position = CASE WHEN excluded.grid_position > 0 THEN excluded.grid_position ELSE participants.grid_position END,
+			position = CASE WHEN excluded.position > 0 THEN excluded.position ELSE participants.position END,
+			points = CASE WHEN excluded.points > 0 THEN excluded.points ELSE participants.points END,
+			total_race_time = CASE WHEN excluded.total_race_time > 0 THEN excluded.total_race_time ELSE participants.total_race_time END,
+			penalties_time = CASE WHEN excluded.penalties_time > 0 THEN excluded.penalties_time ELSE participants.penalties_time END,
+			num_penalties = CASE WHEN excluded.num_penalties > 0 THEN excluded.num_penalties ELSE participants.num_penalties END,
+			result_reason = CASE WHEN excluded.result_reason > 0 THEN excluded.result_reason ELSE participants.result_reason END,
+			num_pit_stops = CASE WHEN excluded.num_pit_stops > 0 THEN excluded.num_pit_stops ELSE participants.num_pit_stops END
 	`
 
 	stmt, err := tx.PrepareNamedContext(ctx, query)
