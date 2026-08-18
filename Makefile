@@ -23,17 +23,15 @@ build-embedded: build-frontend
 ## build-all: Cross-compile standalone binaries for Windows, macOS, and Linux
 build-all: build-frontend
 	@mkdir -p $(BUILD_DIR)
+	@go run ./scripts/build_windows_resources.go
 	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o $(BUILD_DIR)/$(BINARY_NAME)_windows_amd64.exe ./cmd/server
 	CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build -ldflags="-s -w" -o $(BUILD_DIR)/$(BINARY_NAME)_windows_arm64.exe ./cmd/server
+	@go run ./scripts/build_windows_resources.go -clean
 	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o $(BUILD_DIR)/$(BINARY_NAME)_darwin_arm64 ./cmd/server
 	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o $(BUILD_DIR)/$(BINARY_NAME)_darwin_amd64 ./cmd/server
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o $(BUILD_DIR)/$(BINARY_NAME)_linux_amd64 ./cmd/server
 	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o $(BUILD_DIR)/$(BINARY_NAME)_linux_arm64 ./cmd/server
 	@echo "All standalone binaries built successfully in $(BUILD_DIR)/"
-
-## windows-resources: Regenerate Windows .ico and embeddable .syso icon resources
-windows-resources:
-	go run ./scripts/build_windows_resources.go
 
 ## run: Build and run the server
 run: build

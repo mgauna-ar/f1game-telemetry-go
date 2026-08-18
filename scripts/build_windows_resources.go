@@ -3,20 +3,45 @@ package main
 import (
 	"bytes"
 	"encoding/binary"
+	"flag"
 	"fmt"
 	"image"
 	"image/draw"
 	_ "image/png"
 	"os"
 	"os/exec"
+	"path/filepath"
 )
 
 func main() {
+	cleanFlag := flag.Bool("clean", false, "Remove all generated .syso and .ico files from cmd/server")
+	flag.Parse()
+
+	if *cleanFlag {
+		cleanResources()
+		return
+	}
+
+	generateResources()
+}
+
+func cleanResources() {
+	files, _ := filepath.Glob("cmd/server/*.syso")
+	icoFiles, _ := filepath.Glob("cmd/server/*.ico")
+	manifestFiles, _ := filepath.Glob("cmd/server/*.manifest")
+	all := append(append(files, icoFiles...), manifestFiles...)
+
+	for _, f := range all {
+		_ = os.Remove(f)
+	}
+	fmt.Println("Cleaned up Windows resource files from cmd/server/")
+}
+
+func generateResources() {
 	pngPath := "frontend/public/apple-touch-icon.png"
 	icoPath := "cmd/server/app.ico"
 	manifestPath := "cmd/server/app.manifest"
 
-	fmt.Println("1. Generating app.ico from", pngPath)
 	pngBytes, err := os.ReadFile(pngPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to read PNG: %v\n", err)
@@ -64,9 +89,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "failed to write ICO: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Println("   Created", icoPath)
 
-	fmt.Println("2. Generating app.manifest")
 	manifestXML := `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
   <assemblyIdentity
@@ -85,7 +108,6 @@ func main() {
   </trustInfo>
   <compatibility xmlns="urn:schemas-microsoft-com:compatibility.v1">
     <application>
-      <!-- Windows 10 & Windows 11 -->
       <supportedOS Id="{8e0f7a12-bfb3-4fe8-b9a5-48fd50a15a9a}"/>
     </application>
   </compatibility>
@@ -102,10 +124,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "failed to write manifest: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Println("   Created", manifestPath)
 
-	fmt.Println("3. Compiling Windows .syso resource files")
-	architectures := []string{"amd64", "arm64", "386"}
+	architectures := []string{"amd64", "arm64"}
 	for _, arch := range architectures {
 		outFile := fmt.Sprintf("cmd/server/rsrc_windows_%s.syso", arch)
 		cmd := exec.Command("go", "run", "github.com/akavel/rsrc@latest",
@@ -120,10 +140,10 @@ func main() {
 			fmt.Fprintf(os.Stderr, "failed to generate syso for %s: %v\n", arch, err)
 			os.Exit(1)
 		}
-		fmt.Println("   Generated", outFile)
 	}
 
-	// Clean up temporary manifest
+	// Clean up temp ICO and manifest files, leaving only the syso files
+	_ = os.Remove(icoPath)
 	_ = os.Remove(manifestPath)
-	fmt.Println("All Windows icon and resource files generated successfully!")
+	fmt.Println("Generated Windows .syso resource files in cmd/server/")
 }

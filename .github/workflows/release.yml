@@ -84,11 +84,19 @@ jobs:
             BUILD_TMP="build_${GOOS}_${GOARCH}"
             mkdir -p "${BUILD_TMP}"
 
+            if [ "${GOOS}" = "windows" ]; then
+              go run ./scripts/build_windows_resources.go
+            fi
+
             CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} go build \
               -trimpath \
               -ldflags="${LDFLAGS}" \
               -o "${BUILD_TMP}/${BIN_NAME}" \
               ./cmd/server
+
+            if [ "${GOOS}" = "windows" ]; then
+              go run ./scripts/build_windows_resources.go -clean
+            fi
 
             if [[ "${ARCHIVE_NAME}" == *.zip ]]; then
               (cd "${BUILD_TMP}" && zip -9 "../../dist_release/${ARCHIVE_NAME}" "${BIN_NAME}")
