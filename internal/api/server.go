@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -19,6 +20,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/gorilla/websocket"
 
+	"github.com/mgauna/f1game-telemetry-go/frontend"
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
 )
 
@@ -118,16 +120,50 @@ func (s *Server) routes() {
 		r.Post("/ai/models", s.handleAIFetchModels)
 	})
 
-	// Serve static files from frontend with SPA fallback
-	frontendDir := "./frontend/dist"
-	fs := http.FileServer(http.Dir(frontendDir))
+	// Serve static files from embedded frontend with SPA fallback
+	distFS := frontend.DistFS()
+	fileServer := http.FileServer(http.FS(distFS))
+
 	s.router.Get("/*", func(w http.ResponseWriter, r *http.Request) {
-		path := filepath.Join(frontendDir, r.URL.Path)
-		if info, err := os.Stat(path); os.IsNotExist(err) || (err == nil && info.IsDir()) {
-			http.ServeFile(w, r, filepath.Join(frontendDir, "index.html"))
+		reqPath := strings.TrimPrefix(filepath.Clean(r.URL.Path), "/")
+		if reqPath == "" || reqPath == "." {
+			reqPath = "index.html"
+		}
+
+		// 1. Try opening requested path in embedded filesystem
+		if f, err := distFS.Open(reqPath); err == nil {
+			stat, statErr := f.Stat()
+			f.Close()
+			if statErr == nil && !stat.IsDir() {
+				if strings.HasPrefix(reqPath, "assets/") {
+					w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+				}
+				fileServer.ServeHTTP(w, r)
+				return
+			}
+		}
+
+		// 2. Try disk fallback (useful during active frontend development)
+		diskPath := filepath.Join("./frontend/dist", reqPath)
+		if stat, err := os.Stat(diskPath); err == nil && !stat.IsDir() {
+			http.ServeFile(w, r, diskPath)
 			return
 		}
-		fs.ServeHTTP(w, r)
+
+		// 3. SPA Fallback: Serve embedded index.html
+		if indexData, err := fs.ReadFile(distFS, "index.html"); err == nil && len(indexData) > 0 {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.Write(indexData)
+			return
+		}
+
+		// 4. Disk index.html fallback
+		if _, err := os.Stat("./frontend/dist/index.html"); err == nil {
+			http.ServeFile(w, r, "./frontend/dist/index.html")
+			return
+		}
+
+		http.Error(w, "F1 Telemetry Dashboard not found. Build the frontend with 'npm run build' inside frontend/ directory.", http.StatusNotFound)
 	})
 }
 

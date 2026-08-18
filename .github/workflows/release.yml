@@ -1,0 +1,117 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release Tag Name (e.g. v1.0.0)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build and Publish Release Assets
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Determine Version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.tag_name }}" ]; then
+            TAG="${{ github.event.inputs.tag_name }}"
+          elif [ -n "${{ github.ref_name }}" ]; then
+            TAG="${{ github.ref_name }}"
+          else
+            TAG="v0.0.0-$(git rev-parse --short HEAD)"
+          fi
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "commit=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "date=$(date -u +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Frontend Dependencies & Build Web UI
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+          cd ..
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      - name: Build Standalone Multi-Platform Binaries
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+          COMMIT: ${{ steps.version.outputs.commit }}
+          BUILD_DATE: ${{ steps.version.outputs.date }}
+        run: |
+          mkdir -p dist_release
+
+          LDFLAGS="-s -w -X main.version=${TAG} -X main.commit=${COMMIT} -X main.date=${BUILD_DATE}"
+
+          TARGETS=(
+            "windows/amd64/f1telemetry_${TAG}_windows_amd64.zip/f1telemetry.exe"
+            "windows/arm64/f1telemetry_${TAG}_windows_arm64.zip/f1telemetry.exe"
+            "darwin/arm64/f1telemetry_${TAG}_darwin_arm64.zip/f1telemetry"
+            "darwin/amd64/f1telemetry_${TAG}_darwin_amd64.zip/f1telemetry"
+            "linux/amd64/f1telemetry_${TAG}_linux_amd64.tar.gz/f1telemetry"
+            "linux/arm64/f1telemetry_${TAG}_linux_arm64.tar.gz/f1telemetry"
+          )
+
+          for TARGET in "${TARGETS[@]}"; do
+            IFS="/" read -r GOOS GOARCH ARCHIVE_NAME BIN_NAME <<< "$TARGET"
+            echo "==> Compiling for ${GOOS}/${GOARCH} -> ${ARCHIVE_NAME}"
+
+            BUILD_TMP="build_${GOOS}_${GOARCH}"
+            mkdir -p "${BUILD_TMP}"
+
+            CGO_ENABLED=0 GOOS=${GOOS} GOARCH=${GOARCH} go build \
+              -trimpath \
+              -ldflags="${LDFLAGS}" \
+              -o "${BUILD_TMP}/${BIN_NAME}" \
+              ./cmd/server
+
+            if [[ "${ARCHIVE_NAME}" == *.zip ]]; then
+              (cd "${BUILD_TMP}" && zip -9 "../../dist_release/${ARCHIVE_NAME}" "${BIN_NAME}")
+            else
+              tar -czf "dist_release/${ARCHIVE_NAME}" -C "${BUILD_TMP}" "${BIN_NAME}"
+            fi
+
+            rm -rf "${BUILD_TMP}"
+          done
+
+      - name: Generate SHA-256 Checksums
+        run: |
+          cd dist_release
+          sha256sum * > checksums.txt
+          cat checksums.txt
+          cd ..
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: "F1 Telemetry Analyzer ${{ steps.version.outputs.tag }}"
+          files: dist_release/*
+          generate_release_notes: true
+          draft: false
+          prerelease: false

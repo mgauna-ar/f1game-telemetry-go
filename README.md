@@ -41,47 +41,51 @@
 
 ## 🚀 Quick Start
 
-### Prerequisites
+### 🏎️ For Gamers & League Racers (Zero Setup Required)
+
+**No programming knowledge, Go, or Node.js required!**
+
+1. Go to **[GitHub Releases](../../releases/latest)** and download the archive for your operating system:
+   * **Windows:** `f1telemetry_vX.X.X_windows_amd64.zip` (or `windows_arm64.zip`)
+   * **macOS:** `f1telemetry_vX.X.X_darwin_arm64.zip` (Apple Silicon M1-M4) or `darwin_amd64.zip` (Intel)
+   * **Linux:** `f1telemetry_vX.X.X_linux_amd64.tar.gz` (or `linux_arm64.tar.gz`)
+2. Extract the archive.
+3. **Double-click `f1telemetry.exe`** (or run `./f1telemetry` on Mac/Linux).
+4. Your default web browser will automatically open **[http://localhost:8080](http://localhost:8080)** with the full pit wall dashboard ready!
+
+---
+
+### 💻 For Developers (Running from Source)
+
+#### Prerequisites
 * [Go 1.21+](https://go.dev/dl/)
 * [Node.js 18+](https://nodejs.org/)
 
----
-
-### Windows
-
-**Option A — One-Click Setup (Recommended):**
-Double-click `run.bat` or run:
+#### One-Click Developer Launch (Windows)
 ```powershell
 .\run.bat
 ```
-*This automatically unblocks scripts, installs frontend dependencies on first run, and launches both backend and frontend servers.*
+*Installs frontend dependencies on first run and starts both backend and frontend development servers.*
 
-**Option B — Manual Setup:**
-```powershell
-# 1. Start Backend (Terminal 1)
-go run ./cmd/server
-
-# 2. Start Frontend (Terminal 2)
-cd frontend
-npm install
-npm run dev
-```
-
----
-
-### macOS / Linux
-
+#### Single-Binary Embedded Build (All Platforms)
 ```bash
-# 1. Start Backend (Terminal 1)
-make run
+# Build the complete standalone binary containing embedded web assets:
+make build-embedded
 
-# 2. Start Frontend (Terminal 2)
-cd frontend
-npm install
-npm run dev
+# Run the single binary:
+./bin/f1telemetry
 ```
 
-Open **[http://localhost:5173](http://localhost:5173)** in your browser to access the dashboard.
+#### Hot-Reload Dev Mode
+```bash
+# Terminal 1: Backend
+make run      # or: go run ./cmd/server
+
+# Terminal 2: Frontend (Hot Reload)
+cd frontend && npm install && npm run dev
+```
+
+Open **[http://localhost:5173](http://localhost:5173)** in your browser for live Vite development.
 
 ---
 

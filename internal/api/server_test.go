@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -562,5 +563,42 @@ func TestBatchDeleteAndAssignTagsAPI(t *testing.T) {
 	json.NewDecoder(delRec.Body).Decode(&delResp)
 	if delResp["status"] != "success" || delResp["deleted_count"] != float64(2) {
 		t.Errorf("unexpected delete response: %+v", delResp)
+	}
+}
+
+func TestHandleEmbeddedFrontendAndSPAFallback(t *testing.T) {
+	server, _ := setupTestServer(t)
+
+	// 1. Request root path "/"
+	reqRoot := httptest.NewRequest(http.MethodGet, "/", nil)
+	recRoot := httptest.NewRecorder()
+	server.router.ServeHTTP(recRoot, reqRoot)
+
+	if recRoot.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for root path, got %d", recRoot.Code)
+	}
+	if !strings.Contains(recRoot.Header().Get("Content-Type"), "text/html") {
+		t.Errorf("expected text/html content type, got %s", recRoot.Header().Get("Content-Type"))
+	}
+
+	// 2. Request SPA client route "/comparator" -> should fallback to index.html with 200 OK
+	reqSPA := httptest.NewRequest(http.MethodGet, "/comparator", nil)
+	recSPA := httptest.NewRecorder()
+	server.router.ServeHTTP(recSPA, reqSPA)
+
+	if recSPA.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for SPA fallback route, got %d", recSPA.Code)
+	}
+	if !strings.Contains(recSPA.Header().Get("Content-Type"), "text/html") {
+		t.Errorf("expected text/html content type for SPA fallback, got %s", recSPA.Header().Get("Content-Type"))
+	}
+
+	// 3. Request static icon/manifest file e.g. "/favicon.svg"
+	reqFavicon := httptest.NewRequest(http.MethodGet, "/favicon.svg", nil)
+	recFavicon := httptest.NewRecorder()
+	server.router.ServeHTTP(recFavicon, reqFavicon)
+
+	if recFavicon.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for favicon.svg, got %d", recFavicon.Code)
 	}
 }
