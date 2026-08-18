@@ -253,21 +253,20 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 			updated = true
 		}
 
-		// If car has finished session (ResultStatus == 3), update lap time and sector 3 if not yet finalized
+		// If car has finished session (ResultStatus == 3), finalize lap and flush telemetry
 		lastLapTimeMS := int(lapData.LastLapTimeInMS)
 		if resStatus == 3 && lt.currentLap.LapTimeMS == 0 && lastLapTimeMS > 0 {
-			lt.currentLap.LapTimeMS = lastLapTimeMS
-			if lt.currentLap.Sector1MS > 0 && lt.currentLap.Sector2MS > 0 && lt.currentLap.Sector3MS == 0 {
-				s3 := lastLapTimeMS - (lt.currentLap.Sector1MS + lt.currentLap.Sector2MS)
-				if s3 > 0 {
-					lt.currentLap.Sector3MS = s3
-				}
-			}
-			updated = true
+			lt.finalizeCurrentLap(ctx, lastLapTimeMS)
+			return
 		}
 
 		if updated {
 			_ = lt.repo.SaveLap(ctx, lt.currentLap, false)
+		}
+
+		// If car has finished or retired, flush any remaining in-memory telemetry
+		if resStatus >= 3 && len(lt.sampleBuffer) > 0 {
+			lt.FlushCurrentLap()
 		}
 	}
 }

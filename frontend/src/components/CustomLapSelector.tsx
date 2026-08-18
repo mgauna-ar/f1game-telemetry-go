@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Search, X, ChevronDown, ChevronUp, Check, Award, Star, AlertTriangle, Filter } from 'lucide-react';
+import { Search, X, ChevronDown, ChevronUp, Check, Award, Star, AlertTriangle, Filter, Activity, Clock } from 'lucide-react';
 import type { Lap, Participant } from '../types/session';
 import { formatLapTime as formatTime, formatSectorTime as formatSector } from '../utils/formatters';
 import { TyreCompoundBadge } from './common/TyreCompoundBadge';
+import { useI18n } from '../context/I18nContext';
 
 export type { Lap, Participant };
 
@@ -25,10 +26,12 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
   disabled = false,
   placeholder,
 }) => {
+  const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDriverCarIndex, setSelectedDriverCarIndex] = useState<number | 'ALL'>('ALL');
   const [validOnly, setValidOnly] = useState(false);
+  const [telemetryOnly, setTelemetryOnly] = useState(false);
   const [sortMode, setSortMode] = useState<'fastest' | 'lap_num'>('fastest');
 
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -111,6 +114,11 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
           return false;
         }
 
+        // Telemetry only filter
+        if (telemetryOnly && l.has_telemetry === false) {
+          return false;
+        }
+
         // Driver tab filter
         if (selectedDriverCarIndex !== 'ALL') {
           if ((l.car_index ?? -1) !== selectedDriverCarIndex) return false;
@@ -150,7 +158,7 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
         // Chronological order
         return a.lap_number - b.lap_number;
       });
-  }, [laps, validOnly, selectedDriverCarIndex, searchQuery, participants, sortMode]);
+  }, [laps, validOnly, telemetryOnly, selectedDriverCarIndex, searchQuery, participants, sortMode]);
 
 
   const slotColor = slot === 'A' ? '#ff4757' : '#00d2d3';
@@ -187,7 +195,25 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
               </span>
               {!selectedLap.is_valid && (
                 <span style={{ fontSize: '0.65rem', background: 'rgba(255, 71, 87, 0.2)', color: '#ff4757', padding: '1px 4px', borderRadius: '3px' }}>
-                  Invalid
+                  {t('comparator.invalid')}
+                </span>
+              )}
+              {selectedLap.has_telemetry === false && (
+                <span
+                  style={{
+                    fontSize: '0.65rem',
+                    background: 'rgba(243, 156, 18, 0.15)',
+                    color: '#f39c12',
+                    padding: '1px 4px',
+                    borderRadius: '3px',
+                    border: '1px solid rgba(243, 156, 18, 0.3)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '2px',
+                  }}
+                  title={t('comparator.charts.noTelemetryWarning')}
+                >
+                  <Clock size={9} /> {t('comparator.charts.timingOnly')}
                 </span>
               )}
             </div>
@@ -205,12 +231,12 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
         )}
       </button>
 
-      {/* Floating Popover Menu */}
+      {/* Popover Dropdown */}
       {isOpen && (
-        <div ref={popoverRef} className={`custom-lap-popover slot-${slot.toLowerCase()}`} role="listbox">
-          {/* Search Bar */}
-          <div className="custom-lap-search-wrapper">
-            <Search size={14} color="var(--text-muted)" />
+        <div ref={popoverRef} className="custom-lap-popover" style={{ zIndex: 110 }}>
+          {/* Search Header */}
+          <div className="custom-lap-search-header">
+            <Search size={13} color="var(--text-muted)" />
             <input
               type="text"
               className="custom-lap-search-input"
@@ -222,16 +248,15 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
             {searchQuery && (
               <button
                 type="button"
-                className="custom-session-clear-btn"
                 onClick={() => setSearchQuery('')}
-                title="Clear search"
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0 }}
               >
-                <X size={12} />
+                <X size={13} />
               </button>
             )}
           </div>
 
-          {/* Driver Filter Tabs (if more than 1 driver) */}
+          {/* Driver Filter Horizontal Tabs */}
           {driversWithLaps.length > 1 && (
             <div className="custom-lap-driver-tabs">
               <button
@@ -254,27 +279,49 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
             </div>
           )}
 
-          {/* Quick Toolbar (Valid only toggle & sort mode) */}
-          <div className="custom-lap-toolbar">
-            <button
-              type="button"
-              onClick={() => setValidOnly((prev) => !prev)}
-              style={{
-                background: validOnly ? (slot === 'A' ? 'rgba(255, 71, 87, 0.15)' : 'rgba(0, 210, 211, 0.15)') : 'transparent',
-                border: validOnly ? (slot === 'A' ? '1px solid #ff4757' : '1px solid #00d2d3') : '1px solid rgba(255,255,255,0.1)',
-                color: validOnly ? slotColor : 'var(--text-muted)',
-                borderRadius: '4px',
-                padding: '2px 6px',
-                fontSize: '0.68rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '3px',
-              }}
-            >
-              <Filter size={10} /> Valid Only
-            </button>
+          {/* Quick Toolbar (Valid only toggle, Telemetry only toggle & sort mode) */}
+          <div className="custom-lap-toolbar" style={{ flexWrap: 'wrap', gap: '0.4rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <button
+                type="button"
+                onClick={() => setValidOnly((prev) => !prev)}
+                style={{
+                  background: validOnly ? (slot === 'A' ? 'rgba(255, 71, 87, 0.15)' : 'rgba(0, 210, 211, 0.15)') : 'transparent',
+                  border: validOnly ? (slot === 'A' ? '1px solid #ff4757' : '1px solid #00d2d3') : '1px solid rgba(255,255,255,0.1)',
+                  color: validOnly ? slotColor : 'var(--text-muted)',
+                  borderRadius: '4px',
+                  padding: '2px 6px',
+                  fontSize: '0.68rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                }}
+              >
+                <Filter size={10} /> Valid Only
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTelemetryOnly((prev) => !prev)}
+                style={{
+                  background: telemetryOnly ? (slot === 'A' ? 'rgba(255, 71, 87, 0.15)' : 'rgba(0, 210, 211, 0.15)') : 'transparent',
+                  border: telemetryOnly ? (slot === 'A' ? '1px solid #ff4757' : '1px solid #00d2d3') : '1px solid rgba(255,255,255,0.1)',
+                  color: telemetryOnly ? slotColor : 'var(--text-muted)',
+                  borderRadius: '4px',
+                  padding: '2px 6px',
+                  fontSize: '0.68rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '3px',
+                }}
+              >
+                <Activity size={10} /> {t('comparator.charts.filterTelemetryOnly')}
+              </button>
+            </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)' }}>Sort:</span>
@@ -353,6 +400,44 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', flexShrink: 0 }}>
+                        {lap.has_telemetry ? (
+                          <span
+                            style={{
+                              fontSize: '0.60rem',
+                              fontWeight: 700,
+                              background: 'rgba(0, 210, 211, 0.12)',
+                              color: '#00d2d3',
+                              border: '1px solid rgba(0, 210, 211, 0.3)',
+                              padding: '1px 4px',
+                              borderRadius: '3px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '2px',
+                            }}
+                            title={t('comparator.charts.telemetryAvailable')}
+                          >
+                            <Activity size={9} /> {t('comparator.charts.telemetryAvailable')}
+                          </span>
+                        ) : (
+                          <span
+                            style={{
+                              fontSize: '0.60rem',
+                              fontWeight: 600,
+                              background: 'rgba(255, 255, 255, 0.05)',
+                              color: 'var(--text-muted)',
+                              border: '1px solid rgba(255, 255, 255, 0.1)',
+                              padding: '1px 4px',
+                              borderRadius: '3px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '2px',
+                            }}
+                            title={t('comparator.charts.noTelemetryWarning')}
+                          >
+                            <Clock size={9} /> {t('comparator.charts.timingOnly')}
+                          </span>
+                        )}
+
                         {isSessionBest && (
                           <span
                             style={{

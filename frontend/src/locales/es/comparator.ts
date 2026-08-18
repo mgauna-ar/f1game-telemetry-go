@@ -50,6 +50,13 @@ export const comparator = {
     selectSessionAndLaps: 'Selecciona una sesión y dos vueltas arriba para comparar telemetría.',
     loadingTelemetry: 'Cargando datos de telemetría...',
     selectBothLaps: 'Selecciona Vuelta A y Vuelta B para generar los gráficos de comparación.',
+    timeDeltaRequiresBoth: 'El gráfico de Delta de Tiempo requiere telemetría continua de ambas vueltas. {driver} solo tiene datos de sectores/tiempos.',
+    noTelemetryInSlot: '{driver}: Solo datos de tiempos (sin telemetría continua)',
+    noTelemetryBoth: 'La telemetría continua no está disponible para ninguna de las vueltas seleccionadas (solo datos de tiempos).',
+    telemetryAvailable: 'Telemetría',
+    timingOnly: 'Solo Tiempos',
+    filterTelemetryOnly: 'Solo con telemetría',
+    noTelemetryWarning: 'Telemetría no registrada para esta vuelta (solo tiempos)',
   },
   metrics: {
     timeDelta: 'Delta de Tiempo',
@@ -64,6 +71,7 @@ export const comparator = {
     maxSpeed: 'Velocidad Máx',
     minSpeed: 'Velocidad Mín de Vértice',
     fullThrottle: '% Acelerador a Fondo',
+    telemetryStatus: 'Estado de Telemetría',
   },
   dropdown: {
     searchSessions: 'Buscar sesiones...',
@@ -89,5 +97,7 @@ export const comparator = {
     title: 'Selector Rápido de Pilotos',
     subtitle: 'Selecciona un piloto para cargar rápidamente su mejor vuelta válida en Slot A o Slot B',
     noDrivers: 'No hay pilotos disponibles en las sesiones actuales',
+    telemetryBadge: 'Telemetría',
+    timingOnlyBadge: 'Solo tiempos',
   },
 };

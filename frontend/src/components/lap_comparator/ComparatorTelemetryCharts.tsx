@@ -1,5 +1,5 @@
 import React from 'react';
-import { ZoomIn, RotateCcw } from 'lucide-react';
+import { ZoomIn, RotateCcw, Clock } from 'lucide-react';
 import {
   LineChart,
   Line,
@@ -84,6 +84,11 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
 }) => {
   const { t } = useI18n();
 
+  const hasDataA = comparisonData.some((p) => p.speedA !== null && p.speedA !== undefined);
+  const hasDataB = comparisonData.some((p) => p.speedB !== null && p.speedB !== undefined);
+  const hasDeltaData = comparisonData.some((p) => p.time_delta !== null && p.time_delta !== undefined);
+  const hasAnyTelemetry = hasDataA || hasDataB;
+
   const is2026 = formatA === 2026 || formatB === 2026;
   const hasActiveAeroData =
     is2026 ||
@@ -98,7 +103,7 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       {/* Synchronized Track Distance Zoom Toolbar */}
-      {comparisonData.length > 0 && (
+      {comparisonData.length > 0 && hasAnyTelemetry && (
         <div
           style={{
             display: 'flex',
@@ -214,7 +219,7 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
       )}
 
       {/* TELEMETRY CHARTS STACK */}
-      {comparisonData.length > 0 ? (
+      {comparisonData.length > 0 && hasAnyTelemetry ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           {/* 1. TIME DELTA CHART */}
           <div className="glass-panel" style={{ height: '300px', display: 'flex', flexDirection: 'column' }}>
@@ -227,32 +232,58 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
               </span>
             </div>
             <div style={{ flex: 1, minHeight: 0 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} syncId="comparatorSync" onMouseMove={onMouseMove} onMouseLeave={() => onHoverDistanceChange(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                  <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
-                  <YAxis
-                    stroke="#666"
-                    tick={{ fill: '#999', fontSize: 11 }}
-                    domain={['auto', 'auto']}
-                    tickFormatter={(v) => (typeof v === 'number' && Number.isFinite(v) ? `${v > 0 ? '+' : ''}${v.toFixed(2)}s` : '')}
-                  />
-                  <Tooltip
-                    {...compactTooltipProps}
-                    formatter={(val: any) =>
-                      val !== null && val !== undefined && Number.isFinite(Number(val))
-                        ? [`${Number(val) > 0 ? '+' : ''}${Number(val).toFixed(3)}s`, `Time Delta (${nameA} vs ${nameB})`]
-                        : ['-', `Time Delta (${nameA} vs ${nameB})`]
-                    }
-                  />
-                  <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" />
-                  {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
-                  {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
-                  {hoverDistance !== null && <ReferenceLine x={hoverDistance} stroke="#ffd200" strokeWidth={2} strokeDasharray="3 3" />}
-                  <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '2px' }} iconSize={10} />
-                  <Line type="monotone" dataKey="time_delta" name="Time Delta" stroke="#f1c40f" dot={false} strokeWidth={2.5} isAnimationActive={false} />
-                </LineChart>
-              </ResponsiveContainer>
+              {hasDeltaData ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData} syncId="comparatorSync" onMouseMove={onMouseMove} onMouseLeave={() => onHoverDistanceChange(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                    <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
+                    <YAxis
+                      stroke="#666"
+                      tick={{ fill: '#999', fontSize: 11 }}
+                      domain={['auto', 'auto']}
+                      tickFormatter={(v) => (typeof v === 'number' && Number.isFinite(v) ? `${v > 0 ? '+' : ''}${v.toFixed(2)}s` : '')}
+                    />
+                    <Tooltip
+                      {...compactTooltipProps}
+                      formatter={(val: any) =>
+                        val !== null && val !== undefined && Number.isFinite(Number(val))
+                          ? [`${Number(val) > 0 ? '+' : ''}${Number(val).toFixed(3)}s`, `Time Delta (${nameA} vs ${nameB})`]
+                          : ['-', `Time Delta (${nameA} vs ${nameB})`]
+                      }
+                    />
+                    <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" />
+                    {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
+                    {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
+                    {hoverDistance !== null && <ReferenceLine x={hoverDistance} stroke="#ffd200" strokeWidth={2} strokeDasharray="3 3" />}
+                    <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '2px' }} iconSize={10} />
+                    <Line type="monotone" dataKey="time_delta" name="Time Delta" stroke="#f1c40f" dot={false} strokeWidth={2.5} isAnimationActive={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div
+                  style={{
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'rgba(0,0,0,0.2)',
+                    borderRadius: '6px',
+                    border: '1px dashed rgba(243, 156, 18, 0.35)',
+                    padding: '1.5rem',
+                    textAlign: 'center',
+                    gap: '0.5rem',
+                  }}
+                >
+                  <Clock size={28} color="#f39c12" />
+                  <span style={{ fontWeight: 600, fontSize: '0.88rem', color: '#f39c12' }}>
+                    {t('comparator.charts.timeDeltaRequiresBoth', { driver: !hasDataB ? nameB : nameA })}
+                  </span>
+                  <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                    {t('comparator.charts.noTelemetryInSlot', { driver: !hasDataB ? nameB : nameA })}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -559,6 +590,8 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
               ? t('comparator.charts.selectSessionAndLaps')
               : loadingA || loadingB
               ? t('comparator.charts.loadingTelemetry')
+              : comparisonData.length > 0 && !hasAnyTelemetry
+              ? t('comparator.charts.noTelemetryBoth')
               : t('comparator.charts.selectBothLaps')}
           </p>
         </div>

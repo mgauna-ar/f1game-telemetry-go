@@ -1,5 +1,5 @@
 import React from 'react';
-import { Zap, Search, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Zap, Search, X, ChevronDown, ChevronUp, Activity, Clock } from 'lucide-react';
 import type { Participant, Lap } from '../../types/session';
 import { TEAM_COLORS } from '../../constants/f1';
 import { formatTime, getRankBadgeStyle } from '../../utils/formatters';
@@ -349,6 +349,47 @@ export const QuickSelectLeaderboard: React.FC<QuickSelectLeaderboardProps> = ({
                         </span>
                         {p.bestLap?.tyre_compound && (
                           <span style={{ flexShrink: 0 }}><TyreCompoundBadge compound={p.bestLap.tyre_compound} /></span>
+                        )}
+                        {p.bestLap && (
+                          p.bestLap.has_telemetry ? (
+                            <span
+                              style={{
+                                fontSize: '0.60rem',
+                                fontWeight: 700,
+                                background: 'rgba(0, 210, 211, 0.12)',
+                                color: '#00d2d3',
+                                border: '1px solid rgba(0, 210, 211, 0.3)',
+                                padding: '1px 4px',
+                                borderRadius: '3px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '2px',
+                                flexShrink: 0,
+                              }}
+                              title={t('comparator.quickSelect.telemetryBadge')}
+                            >
+                              <Activity size={9} /> {t('comparator.quickSelect.telemetryBadge')}
+                            </span>
+                          ) : (
+                            <span
+                              style={{
+                                fontSize: '0.60rem',
+                                fontWeight: 600,
+                                background: 'rgba(255, 255, 255, 0.05)',
+                                color: 'var(--text-muted)',
+                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                padding: '1px 4px',
+                                borderRadius: '3px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '2px',
+                                flexShrink: 0,
+                              }}
+                              title={t('comparator.charts.noTelemetryWarning')}
+                            >
+                              <Clock size={9} /> {t('comparator.quickSelect.timingOnlyBadge')}
+                            </span>
+                          )
                         )}
                       </div>
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Award, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Award, ArrowUpRight, ArrowDownRight, Activity, Clock } from 'lucide-react';
 import type { Lap, Participant } from '../../types/session';
 import { formatTime } from '../../utils/formatters';
 import { useI18n } from '../../context/I18nContext';
@@ -17,18 +17,35 @@ interface ComparatorMetricsSummaryProps {
   s3Delta: number | null;
 }
 
-export const SectorDeltaBadge: React.FC<{ label: string; msA?: number; msB?: number }> = ({ label, msA, msB }) => {
-  if (!msA || !msB) return null;
-  const deltaMs = msA - msB;
+export const SectorDeltaBadge: React.FC<{ label: string; deltaMs: number | null }> = ({ label, deltaMs }) => {
+  if (deltaMs === null || deltaMs === undefined) return null;
   const isFaster = deltaMs < 0;
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', background: 'rgba(0,0,0,0.3)', padding: '0.25rem 0.6rem', borderRadius: '4px' }}>
-      <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>{label}:</span>
-      <span style={{ fontWeight: 'bold', fontFamily: 'var(--font-mono)', color: isFaster ? '#ff4757' : deltaMs > 0 ? '#00d2d3' : '#fff' }}>
-        {deltaMs > 0 ? '+' : ''}{(deltaMs / 1000).toFixed(3)}s
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.3rem',
+        background: 'rgba(0,0,0,0.3)',
+        padding: '0.35rem 0.6rem',
+        borderRadius: '6px',
+        border: '1px solid rgba(255,255,255,0.05)',
+      }}
+    >
+      <span style={{ color: 'var(--text-muted)' }}>{label}:</span>
+      <span
+        style={{
+          color: deltaMs === 0 ? 'var(--text-muted)' : isFaster ? '#ff4757' : '#00d2d3',
+          fontFamily: 'var(--font-mono)',
+          fontWeight: 'bold',
+          display: 'flex',
+          alignItems: 'center',
+        }}
+      >
+        {deltaMs === 0 ? '0.000s' : `${(deltaMs / 1000).toFixed(3)}s`}
+        {deltaMs !== 0 && (isFaster ? <ArrowDownRight size={14} /> : <ArrowUpRight size={14} />)}
       </span>
-      {isFaster ? <ArrowUpRight size={14} color="#ff4757" /> : deltaMs > 0 ? <ArrowDownRight size={14} color="#00d2d3" /> : null}
     </div>
   );
 };
@@ -41,81 +58,58 @@ export const ComparatorMetricsSummary: React.FC<ComparatorMetricsSummaryProps> =
   driverA,
   driverB,
   totalDeltaMs,
+  s1Delta,
+  s2Delta,
+  s3Delta,
 }) => {
   const { t } = useI18n();
-  const isLapAComplete = Boolean(lapAObj && lapAObj.is_valid && lapAObj.lap_time_ms > 0 && lapAObj.sector3_ms && lapAObj.sector3_ms > 0);
-  const isLapBComplete = Boolean(lapBObj && lapBObj.is_valid && lapBObj.lap_time_ms > 0 && lapBObj.sector3_ms && lapBObj.sector3_ms > 0);
-  const areBothLapsComplete = isLapAComplete && isLapBComplete;
+
+  // Completed valid checks (must have positive lap time and sector 3)
+  const isLapAComplete = Boolean(lapAObj?.is_valid && lapAObj?.lap_time_ms > 0 && lapAObj?.sector3_ms && lapAObj.sector3_ms > 0);
+  const isLapBComplete = Boolean(lapBObj?.is_valid && lapBObj?.lap_time_ms > 0 && lapBObj?.sector3_ms && lapBObj.sector3_ms > 0);
+  const isBothComplete = isLapAComplete && isLapBComplete;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      {/* Comparison Summary Banner */}
-      {lapAObj && lapBObj && (
+      {/* Top Banner: Total Delta Summary */}
+      {isBothComplete && totalDeltaMs !== null && (
         <div
           className="glass-panel"
           style={{
-            padding: '0.75rem 1.25rem',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            padding: '1rem 1.5rem',
             background:
-              !areBothLapsComplete || totalDeltaMs === null
-                ? 'rgba(243, 156, 18, 0.12)'
-                : totalDeltaMs < 0
-                ? 'rgba(255, 71, 87, 0.12)'
+              totalDeltaMs < 0
+                ? 'linear-gradient(90deg, rgba(255,71,87,0.15) 0%, rgba(255,71,87,0.02) 100%)'
                 : totalDeltaMs > 0
-                ? 'rgba(0, 210, 211, 0.12)'
+                ? 'linear-gradient(90deg, rgba(0,210,211,0.15) 0%, rgba(0,210,211,0.02) 100%)'
                 : 'rgba(255,255,255,0.05)',
-            border: `1px solid ${
-              !areBothLapsComplete || totalDeltaMs === null
-                ? 'rgba(243, 156, 18, 0.35)'
-                : totalDeltaMs < 0
-                ? 'rgba(255, 71, 87, 0.35)'
-                : totalDeltaMs > 0
-                ? 'rgba(0, 210, 211, 0.35)'
-                : 'rgba(255,255,255,0.1)'
-            }`,
+            borderLeft: `4px solid ${totalDeltaMs < 0 ? '#ff4757' : totalDeltaMs > 0 ? '#00d2d3' : '#ffd700'}`,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <Award
-              color={!areBothLapsComplete || totalDeltaMs === null ? '#f39c12' : totalDeltaMs < 0 ? '#ff4757' : '#00d2d3'}
-              size={24}
-            />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <Award size={28} color={totalDeltaMs < 0 ? '#ff4757' : totalDeltaMs > 0 ? '#00d2d3' : '#ffd700'} />
             <div>
-              <div style={{ fontWeight: 'bold', fontSize: '1rem', color: '#fff' }}>
-                {!areBothLapsComplete ? (
-                  <span style={{ color: '#f39c12' }}>
-                    {!isLapAComplete && !isLapBComplete
-                      ? t('comparator.bothIncomplete')
-                      : !isLapAComplete
-                      ? t('comparator.lapAIncomplete')
-                      : t('comparator.lapBIncomplete')}
-                  </span>
-                ) : totalDeltaMs !== null && totalDeltaMs < 0 ? (
-                  <span style={{ color: '#ff4757' }}>
-                    {t('comparator.lapAFaster', { delta: (Math.abs(totalDeltaMs) / 1000).toFixed(3) })}
-                  </span>
-                ) : totalDeltaMs !== null && totalDeltaMs > 0 ? (
-                  <span style={{ color: '#00d2d3' }}>
-                    {t('comparator.lapBFaster', { delta: (Math.abs(totalDeltaMs) / 1000).toFixed(3) })}
-                  </span>
-                ) : (
-                  <span>{t('comparator.identicalLapTimes')}</span>
-                )}
+              <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>
+                {totalDeltaMs < 0
+                  ? t('comparator.metrics.fasterLapA', { driver: nameA, delta: Math.abs(totalDeltaMs / 1000).toFixed(3) })
+                  : totalDeltaMs > 0
+                  ? t('comparator.metrics.fasterLapB', { driver: nameB, delta: (totalDeltaMs / 1000).toFixed(3) })
+                  : t('comparator.metrics.identicalTime')}
               </div>
-
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                {nameA} ({isLapAComplete ? formatTime(lapAObj.lap_time_ms) : t('comparator.incomplete')}) vs {nameB} ({isLapBComplete ? formatTime(lapBObj.lap_time_ms) : t('comparator.incomplete')})
+              <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                {nameA} ({formatTime(lapAObj?.lap_time_ms)}) vs {nameB} ({formatTime(lapBObj?.lap_time_ms)})
               </span>
             </div>
           </div>
 
           {/* Quick Sector Delta Badges */}
           <div style={{ display: 'flex', gap: '1rem', fontSize: '0.85rem' }}>
-            <SectorDeltaBadge label="S1 Delta" msA={lapAObj.sector1_ms} msB={lapBObj.sector1_ms} />
-            <SectorDeltaBadge label="S2 Delta" msA={lapAObj.sector2_ms} msB={lapBObj.sector2_ms} />
-            <SectorDeltaBadge label="S3 Delta" msA={lapAObj.sector3_ms} msB={lapBObj.sector3_ms} />
+            <SectorDeltaBadge label="S1 Delta" deltaMs={s1Delta} />
+            <SectorDeltaBadge label="S2 Delta" deltaMs={s2Delta} />
+            <SectorDeltaBadge label="S3 Delta" deltaMs={s3Delta} />
           </div>
         </div>
       )}
@@ -129,13 +123,22 @@ export const ComparatorMetricsSummary: React.FC<ComparatorMetricsSummaryProps> =
           </h3>
           {lapAObj ? (
             <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              <div style={{ fontSize: '1.2rem', fontWeight: 'bold', fontFamily: 'var(--font-mono)', color: '#fff' }}>
+              <div style={{ fontSize: '1.2rem', fontWeight: 'bold', fontFamily: 'var(--font-mono)', color: '#fff', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.3rem' }}>
                 {isLapAComplete ? formatTime(lapAObj.lap_time_ms) : '--:--.---'}
                 {!lapAObj.is_valid ? (
-                  <span style={{ fontSize: '0.75rem', color: '#ff4757', marginLeft: '0.5rem' }}>⚠️ {t('comparator.invalid')}</span>
+                  <span style={{ fontSize: '0.75rem', color: '#ff4757' }}>⚠️ {t('comparator.invalid')}</span>
                 ) : !isLapAComplete ? (
-                  <span style={{ fontSize: '0.75rem', color: '#f39c12', marginLeft: '0.5rem' }}>⚠️ {t('comparator.incomplete')}</span>
+                  <span style={{ fontSize: '0.75rem', color: '#f39c12' }}>⚠️ {t('comparator.incomplete')}</span>
                 ) : null}
+                {lapAObj.has_telemetry ? (
+                  <span style={{ fontSize: '0.70rem', color: '#00d2d3', background: 'rgba(0, 210, 211, 0.12)', border: '1px solid rgba(0, 210, 211, 0.3)', padding: '1px 5px', borderRadius: '3px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                    <Activity size={10} /> {t('comparator.charts.telemetryAvailable')}
+                  </span>
+                ) : (
+                  <span style={{ fontSize: '0.70rem', color: '#f39c12', background: 'rgba(243, 156, 18, 0.12)', border: '1px solid rgba(243, 156, 18, 0.3)', padding: '1px 5px', borderRadius: '3px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                    <Clock size={10} /> {t('comparator.charts.timingOnly')}
+                  </span>
+                )}
               </div>
               <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                 {t('common.driver')}: <strong style={{ color: '#fff' }}>{driverA?.name || `Car ${lapAObj.car_index ?? '?'}`}</strong> #{driverA?.race_number ?? ''}
@@ -169,13 +172,22 @@ export const ComparatorMetricsSummary: React.FC<ComparatorMetricsSummaryProps> =
           </h3>
           {lapBObj ? (
             <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              <div style={{ fontSize: '1.2rem', fontWeight: 'bold', fontFamily: 'var(--font-mono)', color: '#fff' }}>
+              <div style={{ fontSize: '1.2rem', fontWeight: 'bold', fontFamily: 'var(--font-mono)', color: '#fff', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.3rem' }}>
                 {isLapBComplete ? formatTime(lapBObj.lap_time_ms) : '--:--.---'}
                 {!lapBObj.is_valid ? (
-                  <span style={{ fontSize: '0.75rem', color: '#ff4757', marginLeft: '0.5rem' }}>⚠️ {t('comparator.invalid')}</span>
+                  <span style={{ fontSize: '0.75rem', color: '#ff4757' }}>⚠️ {t('comparator.invalid')}</span>
                 ) : !isLapBComplete ? (
-                  <span style={{ fontSize: '0.75rem', color: '#f39c12', marginLeft: '0.5rem' }}>⚠️ {t('comparator.incomplete')}</span>
+                  <span style={{ fontSize: '0.75rem', color: '#f39c12' }}>⚠️ {t('comparator.incomplete')}</span>
                 ) : null}
+                {lapBObj.has_telemetry ? (
+                  <span style={{ fontSize: '0.70rem', color: '#00d2d3', background: 'rgba(0, 210, 211, 0.12)', border: '1px solid rgba(0, 210, 211, 0.3)', padding: '1px 5px', borderRadius: '3px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                    <Activity size={10} /> {t('comparator.charts.telemetryAvailable')}
+                  </span>
+                ) : (
+                  <span style={{ fontSize: '0.70rem', color: '#f39c12', background: 'rgba(243, 156, 18, 0.12)', border: '1px solid rgba(243, 156, 18, 0.3)', padding: '1px 5px', borderRadius: '3px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                    <Clock size={10} /> {t('comparator.charts.timingOnly')}
+                  </span>
+                )}
               </div>
               <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                 {t('common.driver')}: <strong style={{ color: '#fff' }}>{driverB?.name || `Car ${lapBObj.car_index ?? '?'}`}</strong> #{driverB?.race_number ?? ''}

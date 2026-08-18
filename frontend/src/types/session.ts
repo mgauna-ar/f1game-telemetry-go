@@ -47,6 +47,8 @@ export interface Lap {
   result_status?: number;
   stint?: number;
   created_at?: string;
+  has_telemetry?: boolean;
+  sample_count?: number;
 }
 
 export interface StagedLap {

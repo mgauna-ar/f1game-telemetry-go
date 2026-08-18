@@ -58,6 +58,8 @@ type Lap struct {
 	ResultStatus     int       `db:"result_status" json:"result_status"`
 	Stint            int       `db:"stint" json:"stint"`
 	CreatedAt        time.Time `db:"created_at" json:"created_at"`
+	HasTelemetry     bool      `db:"has_telemetry" json:"has_telemetry"`
+	SampleCount      int       `db:"sample_count" json:"sample_count"`
 }
 
 // TelemetrySample represents a single telemetry snapshot within a lap.

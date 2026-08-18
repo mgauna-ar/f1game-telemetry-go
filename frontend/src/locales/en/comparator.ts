@@ -50,6 +50,13 @@ export const comparator = {
     selectSessionAndLaps: 'Select a session and two laps above to compare telemetry.',
     loadingTelemetry: 'Loading telemetry data...',
     selectBothLaps: 'Select Lap A and Lap B to generate comparison charts.',
+    timeDeltaRequiresBoth: 'Time Delta chart requires continuous telemetry from both laps. {driver} only has sector timing data.',
+    noTelemetryInSlot: '{driver}: Timing data only (no continuous telemetry)',
+    noTelemetryBoth: 'Continuous telemetry is not available for either of the selected laps (timing data only).',
+    telemetryAvailable: 'Telemetry',
+    timingOnly: 'Timing Only',
+    filterTelemetryOnly: 'Laps with telemetry only',
+    noTelemetryWarning: 'Telemetry not recorded for this lap (timing data only)',
   },
   metrics: {
     timeDelta: 'Time Delta',
@@ -64,6 +71,7 @@ export const comparator = {
     maxSpeed: 'Max Speed',
     minSpeed: 'Min Apex Speed',
     fullThrottle: 'Full Throttle %',
+    telemetryStatus: 'Telemetry Status',
   },
   dropdown: {
     searchSessions: 'Search sessions...',
@@ -89,5 +97,7 @@ export const comparator = {
     title: 'Quick Select Drivers',
     subtitle: 'Select a driver to quickly load their fastest valid lap into Slot A or Slot B',
     noDrivers: 'No drivers available in current sessions',
+    telemetryBadge: 'Telemetry',
+    timingOnlyBadge: 'Timing only',
   },
 };

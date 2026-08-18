@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { Clock } from 'lucide-react';
 import type { Session, Participant, Lap } from '../../types/session';
 import { SessionSelectorDropdown } from './SessionSelectorDropdown';
 import { CustomLapSelector } from '../CustomLapSelector';
+import { useI18n } from '../../context/I18nContext';
 
 interface SlotCardProps {
   slot: 'A' | 'B';
@@ -50,6 +52,9 @@ export const SlotCard: React.FC<SlotCardProps> = ({
   isRestrictedCircuit = false,
   restrictedTrackName,
 }) => {
+  const { t } = useI18n();
+  const selectedLap = useMemo(() => laps.find((l) => l.id === selectedLapId), [laps, selectedLapId]);
+
   return (
     <div className={`comparator-slot-card slot-${slot.toLowerCase()}`}>
       <div className="slot-card-header">
@@ -105,6 +110,27 @@ export const SlotCard: React.FC<SlotCardProps> = ({
         disabled={!selectedSession}
         placeholder={`Select Lap ${slot}...`}
       />
+
+      {/* Timing Only Warning Badge */}
+      {selectedLap && selectedLap.has_telemetry === false && (
+        <div
+          style={{
+            marginTop: '0.45rem',
+            padding: '0.3rem 0.6rem',
+            borderRadius: '4px',
+            background: 'rgba(243, 156, 18, 0.1)',
+            border: '1px solid rgba(243, 156, 18, 0.3)',
+            color: '#f39c12',
+            fontSize: '0.72rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.35rem',
+          }}
+        >
+          <Clock size={12} />
+          <span>{t('comparator.charts.noTelemetryWarning')}</span>
+        </div>
+      )}
     </div>
   );
 };

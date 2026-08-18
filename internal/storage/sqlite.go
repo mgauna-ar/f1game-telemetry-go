@@ -189,18 +189,18 @@ func (r *Repository) SaveLap(ctx context.Context, l *Lap, mergeMode bool) error 
 			INSERT INTO laps (session_id, car_index, lap_number, lap_time_ms, sector1_ms, sector2_ms, sector3_ms, is_valid, tyre_compound, fuel_load, max_speed_kmh, penalties_seconds, car_position, result_status, stint)
 			VALUES (:session_id, :car_index, :lap_number, :lap_time_ms, :sector1_ms, :sector2_ms, :sector3_ms, :is_valid, :tyre_compound, :fuel_load, :max_speed_kmh, :penalties_seconds, :car_position, :result_status, :stint)
 			ON CONFLICT(session_id, car_index, lap_number) DO UPDATE SET
-				lap_time_ms = excluded.lap_time_ms,
-				sector1_ms = excluded.sector1_ms,
-				sector2_ms = excluded.sector2_ms,
-				sector3_ms = excluded.sector3_ms,
+				lap_time_ms = CASE WHEN excluded.lap_time_ms > 0 THEN excluded.lap_time_ms ELSE laps.lap_time_ms END,
+				sector1_ms = CASE WHEN excluded.sector1_ms > 0 THEN excluded.sector1_ms ELSE laps.sector1_ms END,
+				sector2_ms = CASE WHEN excluded.sector2_ms > 0 THEN excluded.sector2_ms ELSE laps.sector2_ms END,
+				sector3_ms = CASE WHEN excluded.sector3_ms > 0 THEN excluded.sector3_ms ELSE laps.sector3_ms END,
 				is_valid = excluded.is_valid,
-				tyre_compound = excluded.tyre_compound,
-				fuel_load = excluded.fuel_load,
+				tyre_compound = CASE WHEN excluded.tyre_compound != '' THEN excluded.tyre_compound ELSE laps.tyre_compound END,
+				fuel_load = CASE WHEN excluded.fuel_load > 0 THEN excluded.fuel_load ELSE laps.fuel_load END,
 				max_speed_kmh = CASE WHEN excluded.max_speed_kmh > laps.max_speed_kmh THEN excluded.max_speed_kmh ELSE laps.max_speed_kmh END,
-				penalties_seconds = excluded.penalties_seconds,
-				car_position = excluded.car_position,
-				result_status = excluded.result_status,
-				stint = excluded.stint
+				penalties_seconds = CASE WHEN excluded.penalties_seconds > 0 THEN excluded.penalties_seconds ELSE laps.penalties_seconds END,
+				car_position = CASE WHEN excluded.car_position > 0 THEN excluded.car_position ELSE laps.car_position END,
+				result_status = CASE WHEN excluded.result_status > 0 THEN excluded.result_status ELSE laps.result_status END,
+				stint = CASE WHEN excluded.stint > 0 THEN excluded.stint ELSE laps.stint END
 			RETURNING id
 		`
 	}
@@ -474,18 +474,26 @@ func (r *Repository) GetLapsBySession(ctx context.Context, sessionID int64, carI
 
 	if carIndex != nil {
 		query = `
-			SELECT * FROM laps 
-			WHERE session_id = ? AND car_index = ?
-			  AND (lap_time_ms > 0 OR EXISTS (SELECT 1 FROM lap_telemetry WHERE lap_id = laps.id))
-			ORDER BY lap_number ASC
+			SELECT laps.*, 
+			       COALESCE(lt.sample_count, 0) AS sample_count,
+			       CASE WHEN lt.lap_id IS NOT NULL AND lt.sample_count > 0 THEN 1 ELSE 0 END AS has_telemetry
+			FROM laps 
+			LEFT JOIN lap_telemetry lt ON lt.lap_id = laps.id
+			WHERE laps.session_id = ? AND laps.car_index = ?
+			  AND (laps.lap_time_ms > 0 OR lt.lap_id IS NOT NULL)
+			ORDER BY laps.lap_number ASC
 		`
 		args = []any{sessionID, *carIndex}
 	} else {
 		query = `
-			SELECT * FROM laps 
-			WHERE session_id = ? 
-			  AND (lap_time_ms > 0 OR EXISTS (SELECT 1 FROM lap_telemetry WHERE lap_id = laps.id))
-			ORDER BY car_index ASC, lap_number ASC
+			SELECT laps.*, 
+			       COALESCE(lt.sample_count, 0) AS sample_count,
+			       CASE WHEN lt.lap_id IS NOT NULL AND lt.sample_count > 0 THEN 1 ELSE 0 END AS has_telemetry
+			FROM laps 
+			LEFT JOIN lap_telemetry lt ON lt.lap_id = laps.id
+			WHERE laps.session_id = ? 
+			  AND (laps.lap_time_ms > 0 OR lt.lap_id IS NOT NULL)
+			ORDER BY laps.car_index ASC, laps.lap_number ASC
 		`
 		args = []any{sessionID}
 	}
@@ -535,7 +543,14 @@ func (r *Repository) DeleteTelemetryByLap(ctx context.Context, lapID int64) erro
 // GetLapByID retrieves a single lap by its ID.
 func (r *Repository) GetLapByID(ctx context.Context, lapID int64) (*Lap, error) {
 	var lap Lap
-	query := `SELECT * FROM laps WHERE id = ?`
+	query := `
+		SELECT laps.*, 
+		       COALESCE(lt.sample_count, 0) AS sample_count,
+		       CASE WHEN lt.lap_id IS NOT NULL AND lt.sample_count > 0 THEN 1 ELSE 0 END AS has_telemetry
+		FROM laps 
+		LEFT JOIN lap_telemetry lt ON lt.lap_id = laps.id
+		WHERE laps.id = ?
+	`
 	if err := r.db.GetContext(ctx, &lap, query, lapID); err != nil {
 		return nil, fmt.Errorf("failed to get lap: %w", err)
 	}

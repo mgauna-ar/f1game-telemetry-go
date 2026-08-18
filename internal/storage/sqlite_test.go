@@ -848,3 +848,90 @@ func TestVersionedMigrations(t *testing.T) {
 		t.Fatalf("second Migrate call failed: %v", err)
 	}
 }
+
+func TestLapHasTelemetry(t *testing.T) {
+	repo := setupTestRepo(t)
+	session := createTestSession(t, repo)
+	ctx := context.Background()
+
+	// Lap 1 with telemetry
+	lap1 := &Lap{
+		SessionID: session.ID,
+		CarIndex:  0,
+		LapNumber: 1,
+		LapTimeMS: 80000,
+		Sector1MS: 26000,
+		Sector2MS: 27000,
+		Sector3MS: 27000,
+		IsValid:   true,
+	}
+	if err := repo.SaveLap(ctx, lap1, false); err != nil {
+		t.Fatalf("failed to save lap1: %v", err)
+	}
+
+	samples := []TelemetrySample{
+		{LapDistance: 0, SessionTime: 10, Speed: 200},
+		{LapDistance: 50, SessionTime: 11, Speed: 220},
+	}
+	if err := repo.SaveLapTelemetryBlob(ctx, lap1.ID, samples); err != nil {
+		t.Fatalf("failed to save telemetry: %v", err)
+	}
+
+	// Lap 2 without telemetry (timing only)
+	lap2 := &Lap{
+		SessionID: session.ID,
+		CarIndex:  1,
+		LapNumber: 1,
+		LapTimeMS: 81000,
+		Sector1MS: 26500,
+		Sector2MS: 27200,
+		Sector3MS: 27300,
+		IsValid:   true,
+	}
+	if err := repo.SaveLap(ctx, lap2, false); err != nil {
+		t.Fatalf("failed to save lap2: %v", err)
+	}
+
+	laps, err := repo.GetLapsBySession(ctx, session.ID, nil)
+	if err != nil {
+		t.Fatalf("GetLapsBySession failed: %v", err)
+	}
+	if len(laps) != 2 {
+		t.Fatalf("expected 2 laps, got %d", len(laps))
+	}
+
+	for _, l := range laps {
+		if l.ID == lap1.ID {
+			if !l.HasTelemetry {
+				t.Errorf("expected lap1 HasTelemetry = true, got false")
+			}
+			if l.SampleCount != 2 {
+				t.Errorf("expected lap1 SampleCount = 2, got %d", l.SampleCount)
+			}
+		} else if l.ID == lap2.ID {
+			if l.HasTelemetry {
+				t.Errorf("expected lap2 HasTelemetry = false, got true")
+			}
+			if l.SampleCount != 0 {
+				t.Errorf("expected lap2 SampleCount = 0, got %d", l.SampleCount)
+			}
+		}
+	}
+
+	// Test GetLapByID
+	single1, err := repo.GetLapByID(ctx, lap1.ID)
+	if err != nil {
+		t.Fatalf("GetLapByID failed: %v", err)
+	}
+	if !single1.HasTelemetry || single1.SampleCount != 2 {
+		t.Errorf("GetLapByID lap1 expected has_telemetry=true sample_count=2, got %v, %d", single1.HasTelemetry, single1.SampleCount)
+	}
+
+	single2, err := repo.GetLapByID(ctx, lap2.ID)
+	if err != nil {
+		t.Fatalf("GetLapByID failed: %v", err)
+	}
+	if single2.HasTelemetry || single2.SampleCount != 0 {
+		t.Errorf("GetLapByID lap2 expected has_telemetry=false sample_count=0, got %v, %d", single2.HasTelemetry, single2.SampleCount)
+	}
+}
