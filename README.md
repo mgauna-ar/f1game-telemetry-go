@@ -55,6 +55,11 @@
 3. **Double-click `f1telemetry.exe`** (or run `./f1telemetry` on Mac/Linux).
 4. Your default web browser will automatically open **[http://localhost:8080](http://localhost:8080)** with the full pit wall dashboard ready!
 
+> [!NOTE]
+> **First-time launch on Windows / macOS:**
+> * **Windows:** Because this is a newly released open-source binary without a commercial code-signing certificate, Windows SmartScreen may show a prompt (*"Windows protected your PC"*). Click **"More info"** → **"Run anyway"**, or right-click `f1telemetry.exe` → **Properties** → check **"Unblock"**.
+> * **macOS:** macOS Gatekeeper blocks downloaded unsigned binaries by default. Remove the quarantine flag by running: `xattr -d com.apple.quarantine ./f1telemetry` (or right-click `f1telemetry` in Finder → select **Open**).
+
 ---
 
 ### 💻 For Developers (Running from Source)
@@ -101,7 +106,7 @@ To stream telemetry from your game (PC, PlayStation, or Xbox):
    * **UDP Format:** `2025` *(or `2026` for Season Pack DLC)*
    * **UDP IP Address:** IP address of the machine running this application (`127.0.0.1` if playing on the same PC)
    * **UDP Port:** `20777`
-   * **UDP Send Rate:** `20Hz` or higher
+   * **UDP Send Rate:** `20Hz` *(Recommended for optimal storage savings and smooth 60 FPS charts; 60Hz is also fully supported)*
 
 ---
 
