@@ -291,12 +291,36 @@ const SVG_FLAGS: Record<string, React.ReactNode> = {
       <path fill="#ffffff" d="M220 180h200v40H220z" opacity="0.85"/>
     </svg>
   ),
-
   // Qatar (QA)
   qa: (
     <svg viewBox="0 0 640 480" className="country-flag-svg" aria-hidden="true">
       <path fill="#8d1b3d" d="M0 0h640v480H0z"/>
       <path fill="#ffffff" d="M0 0h180l60 26.6-60 26.7 60 26.7-60 26.7 60 26.6-60 26.7 60 26.7-60 26.7 60 26.6-60 26.7 60 26.7-60 26.7 60 26.6-60 26.7H0z"/>
+    </svg>
+  ),
+
+  // Argentina (AR)
+  ar: (
+    <svg viewBox="0 0 640 480" className="country-flag-svg" aria-hidden="true">
+      <path fill="#74acdf" d="M0 0h640v160H0z"/>
+      <path fill="#ffffff" d="M0 160h640v160H0z"/>
+      <path fill="#74acdf" d="M0 320h640v160H0z"/>
+      {/* Sol de Mayo */}
+      <g transform="translate(320, 240)">
+        {Array.from({ length: 16 }).map((_, i) => (
+          <polygon
+            key={i}
+            transform={`rotate(${i * 22.5})`}
+            points="0,-54 -5,-30 5,-30"
+            fill="#f6b40e"
+          />
+        ))}
+        <circle cx="0" cy="0" r="26" fill="#f6b40e" stroke="#853406" strokeWidth="1.5" />
+        <circle cx="-8" cy="-4" r="2.5" fill="#853406" />
+        <circle cx="8" cy="-4" r="2.5" fill="#853406" />
+        <path d="M-8 8 Q 0 14 8 8" stroke="#853406" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+        <circle cx="0" cy="2" r="1.5" fill="#853406" />
+      </g>
     </svg>
   ),
 };

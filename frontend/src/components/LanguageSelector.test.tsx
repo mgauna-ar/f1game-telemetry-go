@@ -17,11 +17,11 @@ describe('LanguageSelector Component', () => {
 
     const btn = screen.getByTestId('language-selector-btn');
     expect(btn).toBeInTheDocument();
-    expect(btn).toHaveTextContent('🇬🇧');
+    expect(btn.querySelector('[data-country="gb"]')).toBeInTheDocument();
     expect(btn).toHaveTextContent('EN');
   });
 
-  it('opens language dropdown when clicked and shows available locales including Spanish (Argentina 🇦🇷)', () => {
+  it('opens language dropdown when clicked and shows available locales including Spanish (Argentina)', () => {
     render(
       <I18nProvider>
         <LanguageSelector />
@@ -36,12 +36,12 @@ describe('LanguageSelector Component', () => {
 
     const esOption = screen.getByTestId('lang-option-es');
     expect(esOption).toBeInTheDocument();
-    expect(esOption).toHaveTextContent('🇦🇷');
+    expect(esOption.querySelector('[data-country="ar"]')).toBeInTheDocument();
     expect(esOption).toHaveTextContent('Español (Latinoamérica)');
 
     const enOption = screen.getByTestId('lang-option-en');
     expect(enOption).toBeInTheDocument();
-    expect(enOption).toHaveTextContent('🇬🇧');
+    expect(enOption.querySelector('[data-country="gb"]')).toBeInTheDocument();
     expect(enOption).toHaveTextContent('English');
   });
 
@@ -62,7 +62,7 @@ describe('LanguageSelector Component', () => {
     expect(screen.queryByTestId('language-dropdown-menu')).not.toBeInTheDocument();
 
     // Trigger button should now show Argentina flag and ES
-    expect(btn).toHaveTextContent('🇦🇷');
+    expect(btn.querySelector('[data-country="ar"]')).toBeInTheDocument();
     expect(btn).toHaveTextContent('ES');
     expect(localStorage.getItem('f1_telemetry_language')).toBe('es');
   });

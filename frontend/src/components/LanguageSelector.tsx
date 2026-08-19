@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Globe, Check, ChevronDown } from 'lucide-react';
 import { useI18n } from '../context/I18nContext';
 import type { LocaleCode } from '../locales';
+import { CountryFlag } from './CountryFlag';
 
 export const LanguageSelector: React.FC = () => {
   const { locale, setLocale, availableLocales, currentLocaleInfo } = useI18n();
@@ -40,7 +41,14 @@ export const LanguageSelector: React.FC = () => {
         data-testid="language-selector-btn"
       >
         <Globe size={14} className="lang-icon" />
-        <span className="lang-flag">{currentLocaleInfo.flag}</span>
+        <span className="lang-flag">
+          <CountryFlag
+            countryCode={currentLocaleInfo.countryCode || (currentLocaleInfo.code === 'es' ? 'ar' : 'gb')}
+            width={16}
+            height={12}
+            showTooltip={false}
+          />
+        </span>
         <span className="lang-code mono">{currentLocaleInfo.code.toUpperCase()}</span>
         <ChevronDown size={13} className={`lang-chevron ${isOpen ? 'open' : ''}`} />
       </button>
@@ -59,7 +67,14 @@ export const LanguageSelector: React.FC = () => {
                 onClick={() => handleSelect(loc.code)}
                 data-testid={`lang-option-${loc.code}`}
               >
-                <span className="lang-item-flag">{loc.flag}</span>
+                <span className="lang-item-flag">
+                  <CountryFlag
+                    countryCode={loc.countryCode || (loc.code === 'es' ? 'ar' : 'gb')}
+                    width={18}
+                    height={13}
+                    showTooltip={false}
+                  />
+                </span>
                 <span className="lang-item-label">{loc.label}</span>
                 {isSelected && <Check size={14} className="lang-item-check" />}
               </button>

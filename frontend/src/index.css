@@ -680,7 +680,8 @@ h1 {
 }
 
 .lang-flag {
-  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
   line-height: 1;
 }
 
@@ -758,7 +759,8 @@ h1 {
 }
 
 .lang-item-flag {
-  font-size: 1.1rem;
+  display: inline-flex;
+  align-items: center;
   line-height: 1;
 }
 

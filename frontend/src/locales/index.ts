@@ -38,12 +38,13 @@ export interface LocaleInfo {
   code: LocaleCode;
   name: string;
   label: string;
+  countryCode: string;
   flag: string;
 }
 
 export const availableLocales: LocaleInfo[] = [
-  { code: 'en', name: 'English', label: 'English', flag: '🇬🇧' },
-  { code: 'es', name: 'Español (Latinoamérica)', label: 'Español (Latinoamérica)', flag: '🇦🇷' },
+  { code: 'en', name: 'English', label: 'English', countryCode: 'gb', flag: '🇬🇧' },
+  { code: 'es', name: 'Español (Latinoamérica)', label: 'Español (Latinoamérica)', countryCode: 'ar', flag: '🇦🇷' },
 ];
 
 export const dictionaries: Record<LocaleCode, LocaleDictionary> = {

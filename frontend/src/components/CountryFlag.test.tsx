@@ -18,6 +18,19 @@ describe('CountryFlag & TrackFlag Components', () => {
     expect(flag).toHaveAttribute('title', 'Australia');
   });
 
+  it('renders Argentina SVG flag correctly', () => {
+    render(
+      <I18nProvider>
+        <CountryFlag countryCode="ar" />
+      </I18nProvider>
+    );
+
+    const flag = screen.getByTestId('track-country-flag');
+    expect(flag).toBeInTheDocument();
+    expect(flag).toHaveAttribute('data-country', 'ar');
+    expect(flag).toHaveAttribute('title', 'Argentina');
+  });
+
   it('shows tooltip on mouse enter and hides on mouse leave', () => {
     render(
       <I18nProvider>

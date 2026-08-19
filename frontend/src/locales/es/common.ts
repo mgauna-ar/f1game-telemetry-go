@@ -95,6 +95,7 @@ export const common = {
     pt: 'Portugal',
     sa: 'Arabia Saudita',
     qa: 'Catar',
+    ar: 'Argentina',
     unknown: 'Internacional / Desconocido',
   },
   updates: {
