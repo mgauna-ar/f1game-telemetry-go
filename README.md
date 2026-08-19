@@ -7,6 +7,8 @@
 [![Vite](https://img.shields.io/badge/Vite-5-646CFF?style=flat&logo=vite)](https://vitejs.dev/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
+![F1 Telemetry Dashboard Demo](docs/assets/demo.gif)
+
 ---
 
 ## ✨ Key Features
