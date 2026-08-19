@@ -375,8 +375,12 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
   // Calculate high-performance merged telemetry comparison points (resampled every 5 meters)
   const comparisonData = useMemo<MergedTelemetryPoint[]>(() => {
     if (rawTelemetryA.length === 0 && rawTelemetryB.length === 0) return [];
-    return calculateMergedComparison(rawTelemetryA, rawTelemetryB, 5);
-  }, [rawTelemetryA, rawTelemetryB]);
+    return calculateMergedComparison(rawTelemetryA, rawTelemetryB, {
+      stepMeters: 5,
+      lapTimeMsA: lapAObj?.lap_time_ms,
+      lapTimeMsB: lapBObj?.lap_time_ms,
+    });
+  }, [rawTelemetryA, rawTelemetryB, lapAObj?.lap_time_ms, lapBObj?.lap_time_ms]);
 
   // Detected track turns and apexes
   const detectedTurns = useMemo(() => detectTrackTurns(comparisonData), [comparisonData]);

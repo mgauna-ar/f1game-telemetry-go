@@ -263,18 +263,21 @@ describe('deltaCalculation utility', () => {
       { lap_distance: 5887.3, session_time: 1079.811, speed: 285, throttle: 1, brake: 0 },
     ];
 
-    const merged = calculateMergedComparison(lapA, lapB, 50);
-    expect(merged.length).toBeGreaterThan(0);
-    expect(merged[0].time_delta).toBe(0);
-    // Delta should remain smooth and < 1.5s across the entire lap, NOT +180s!
-    for (const pt of merged) {
+    // Test both with default signature and with ComparisonOptions object
+    const mergedWithOptions = calculateMergedComparison(lapA, lapB, {
+      stepMeters: 50,
+      lapTimeMsA: 89393,
+      lapTimeMsB: 89687,
+    });
+    expect(mergedWithOptions.length).toBeGreaterThan(0);
+    expect(mergedWithOptions[0].time_delta).toBe(0);
+    for (const pt of mergedWithOptions) {
       if (pt.time_delta !== null) {
         expect(Math.abs(pt.time_delta)).toBeLessThan(2.0);
       }
     }
-    // Lap A is slightly faster (~0.3s)
-    const lastPt = merged[merged.length - 1];
-    expect(lastPt.time_delta).toBeLessThan(0);
+    const lastOptPt = mergedWithOptions[mergedWithOptions.length - 1];
+    expect(lastOptPt.time_delta).toBeLessThan(0);
   });
 
   it('keeps both traces and delta continuous across finish line when laps have >70m distance difference', () => {

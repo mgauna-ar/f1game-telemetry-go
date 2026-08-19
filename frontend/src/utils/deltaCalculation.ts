@@ -28,29 +28,32 @@ export interface MergedTelemetryPoint {
   worldZ?: number | null;
 }
 
-interface LapSegment {
-  startIdx: number;
-  endIdx: number;
-  minDist: number;
-  maxDist: number;
-  span: number;
+export interface NormalizeTelemetryOptions {
+  expectedLapTimeMs?: number;
+  trackLength?: number;
 }
 
 /**
- * Cleans telemetry samples for comparison:
- * - Sanitizes non-finite/NaN values and dropout anomalies
- * - Partitions into contiguous lap segments and isolates the true completed lap attempt
- * - Trims stationary / pre-start countdown freeze samples
- * - Filters isolated distance spike noise
- * - Deduplicates monotonic points for binary search interpolation
- * - Synthesizes / aligns 0m start anchor
+ * Deterministically normalizes telemetry samples for a single lap attempt:
+ * - When expectedLapTimeMs is provided (> 0), uses deterministic backward slicing:
+ *   t_start = t_end - (expectedLapTimeMs / 1000)
+ *   Discards all out-laps, garage samples, and pre-start countdowns with zero threshold guesswork.
+ * - Deduplicates monotonic distance points for clean binary search interpolation.
+ * - Synthesizes 0.0m start anchor at t_relative = 0.000s.
+ * - Scales relative time smoothly from 0.000s to the official lap duration.
  */
 export function normalizeTelemetrySeries(
-  samples: TelemetrySamplePoint[]
+  samples: TelemetrySamplePoint[],
+  options?: number | NormalizeTelemetryOptions
 ): TelemetrySamplePoint[] {
   if (!samples || samples.length === 0) return [];
 
-  // Step 1: Filter non-finite numbers and uninitialized distance dropouts
+  const expectedLapTimeMs =
+    typeof options === 'number'
+      ? options
+      : options?.expectedLapTimeMs;
+
+  // Step 1: Filter non-finite numbers and valid distance samples
   const validSamples = samples.filter(
     (s) =>
       s &&
@@ -58,135 +61,91 @@ export function normalizeTelemetrySeries(
       Number.isFinite(s.session_time) &&
       typeof s.lap_distance === 'number' &&
       Number.isFinite(s.lap_distance) &&
-      (s.lap_distance ?? 0) >= 0 &&
-      // Drop uninitialized distance dropouts where car is traveling at speed on track
+      s.lap_distance >= 0 &&
+      // Filter out isolated uninitialized distance dropouts
       !((s.lap_distance ?? 0) <= 0.05 && (s.speed ?? 0) > 30 && (s.session_time ?? 0) > 5.0)
   );
-  if (validSamples.length < 2) return [];
 
+  if (validSamples.length === 0) return [];
+
+  // Sort chronologically by session_time
   const sorted = [...validSamples].sort((a, b) => a.session_time - b.session_time);
-  if (sorted.length < 2) return [];
+  if (sorted.length === 0) return [];
 
-  // Step 2: Partition sorted samples into contiguous monotonically progressing segments
-  const segments: LapSegment[] = [];
-  let segStart = 0;
-
-  for (let i = 1; i < sorted.length; i++) {
-    const prevDist = sorted[i - 1].lap_distance || 0;
-    const currDist = sorted[i].lap_distance || 0;
-    const prevTime = sorted[i - 1].session_time || 0;
-    const currTime = sorted[i].session_time || 0;
-
-    // Check if curr is an isolated dropout/glitch (only if time gap is within normal sample interval < 1.0s)
-    if (
-      currTime - prevTime < 1.0 &&
-      (prevDist - currDist > 200 || currDist < prevDist * 0.35) &&
-      i + 1 < sorted.length
-    ) {
-      const nextDist = sorted[i + 1].lap_distance || 0;
-      const nextTime = sorted[i + 1].session_time || 0;
-      if (nextDist >= prevDist - 50.0 && nextTime - prevTime < 1.0) {
+  // Filter isolated distance jump spikes (1-sample telemetry glitches)
+  const cleaned: TelemetrySamplePoint[] = [];
+  for (let i = 0; i < sorted.length; i++) {
+    if (i > 0 && i + 1 < sorted.length) {
+      const prevD = sorted[i - 1].lap_distance ?? 0;
+      const currD = sorted[i].lap_distance ?? 0;
+      const nextD = sorted[i + 1].lap_distance ?? 0;
+      if (currD - prevD > 250 && nextD < currD - 150 && nextD >= prevD - 20) {
         continue;
       }
     }
+    cleaned.push(sorted[i]);
+  }
+  if (cleaned.length === 0) return [];
 
-    // Reset condition: persistent sudden drop in distance or time reversal
-    const isDrop =
-      (prevDist > 20 && (currDist < 15 || currDist < prevDist * 0.5)) ||
-      prevDist - currDist > 30 ||
-      currTime < prevTime;
+  let movingSamples: TelemetrySamplePoint[];
 
-    if (isDrop) {
-      if (i > segStart) {
-        let minD = sorted[segStart].lap_distance || 0;
-        let maxD = sorted[segStart].lap_distance || 0;
-        for (let k = segStart; k < i; k++) {
-          const d = sorted[k].lap_distance || 0;
-          if (d < minD) minD = d;
-          if (d > maxD) maxD = d;
+  // Deterministic Backward Windowing when expectedLapTimeMs is known
+  if (expectedLapTimeMs && expectedLapTimeMs > 0) {
+    const lapDurationSec = expectedLapTimeMs / 1000;
+    const lastSample = cleaned[cleaned.length - 1];
+    const tEnd = lastSample.session_time;
+    const tStart = tEnd - lapDurationSec;
+
+    // Slice samples falling within the flying lap window [tStart - 0.25, tEnd + 0.1]
+    const lapWindow = cleaned.filter(
+      (s) => s.session_time >= tStart - 0.25 && s.session_time <= tEnd + 0.1
+    );
+
+    let actualStartIdx = 0;
+    for (let i = 0; i < lapWindow.length; i++) {
+      if (lapWindow[i].session_time >= tStart - 0.05) {
+        actualStartIdx = i;
+        break;
+      }
+    }
+
+    movingSamples = lapWindow.slice(actualStartIdx);
+  } else {
+    // Fallback for live/uncompleted laps: find largest contiguous distance segment
+    let bestStart = 0;
+    let bestEnd = cleaned.length;
+    let maxDistSpan = 0;
+    let curStart = 0;
+
+    for (let i = 1; i < cleaned.length; i++) {
+      const prevD = cleaned[i - 1].lap_distance || 0;
+      const curD = cleaned[i].lap_distance || 0;
+      const prevT = cleaned[i - 1].session_time || 0;
+      const curT = cleaned[i].session_time || 0;
+
+      if ((prevD > 20 && curD < 15) || prevD - curD > 30 || curT < prevT) {
+        const span = (cleaned[i - 1].lap_distance || 0) - (cleaned[curStart].lap_distance || 0);
+        if (span > maxDistSpan) {
+          maxDistSpan = span;
+          bestStart = curStart;
+          bestEnd = i;
         }
-        segments.push({
-          startIdx: segStart,
-          endIdx: i,
-          minDist: minD,
-          maxDist: maxD,
-          span: maxD - minD,
-        });
-      }
-      segStart = i;
-    }
-  }
-
-  // Add final segment
-  if (segStart < sorted.length) {
-    let minD = sorted[segStart].lap_distance || 0;
-    let maxD = sorted[segStart].lap_distance || 0;
-    for (let k = segStart; k < sorted.length; k++) {
-      const d = sorted[k].lap_distance || 0;
-      if (d < minD) minD = d;
-      if (d > maxD) maxD = d;
-    }
-    segments.push({
-      startIdx: segStart,
-      endIdx: sorted.length,
-      minDist: minD,
-      maxDist: maxD,
-      span: maxD - minD,
-    });
-  }
-
-  if (segments.length === 0) return [];
-
-  // Step 3: Select the best segment representing the completed lap attempt
-  let maxSpan = 0;
-  for (const seg of segments) {
-    if (seg.span > maxSpan) maxSpan = seg.span;
-  }
-
-  let bestSegIdx = -1;
-  for (let idx = segments.length - 1; idx >= 0; idx--) {
-    const seg = segments[idx];
-    if (seg.span >= maxSpan * 0.7 && (seg.span > 1000 || seg.span === maxSpan)) {
-      bestSegIdx = idx;
-      break;
-    }
-  }
-  if (bestSegIdx === -1) {
-    for (let idx = 0; idx < segments.length; idx++) {
-      if (segments[idx].span === maxSpan) {
-        bestSegIdx = idx;
-        break;
+        curStart = i;
       }
     }
-  }
 
-  const selected = sorted.slice(segments[bestSegIdx].startIdx, segments[bestSegIdx].endIdx);
-  if (selected.length < 2) return [];
-
-  // Step 4: Advance past stationary / flat freeze samples at the start
-  const minDist = segments[bestSegIdx].minDist;
-  let firstMovingIdx = -1;
-  for (let i = 0; i < selected.length; i++) {
-    if ((selected[i].lap_distance || 0) > minDist + 15.0 || (selected[i].speed || 0) > 10) {
-      firstMovingIdx = i;
-      break;
+    const lastSpan = (cleaned[cleaned.length - 1].lap_distance || 0) - (cleaned[curStart].lap_distance || 0);
+    if (lastSpan >= maxDistSpan) {
+      bestStart = curStart;
+      bestEnd = cleaned.length;
     }
+
+    movingSamples = cleaned.slice(bestStart, bestEnd);
   }
 
-  let actualStart = 0;
-  if (firstMovingIdx > 0) {
-    for (let i = firstMovingIdx - 1; i >= 0; i--) {
-      if ((selected[i].lap_distance || 0) <= minDist + 5.0) {
-        actualStart = i;
-        break;
-      }
-    }
-  }
+  if (movingSamples.length === 0) return [];
 
-  const movingSamples = selected.slice(actualStart);
-  if (movingSamples.length < 2) return [];
-
-  // Step 5: Deduplicate and filter out isolated distance spike noise
+  // Deduplicate points so distance is strictly monotonic
   const deduped: TelemetrySamplePoint[] = [movingSamples[0]];
   for (let i = 1; i < movingSamples.length; i++) {
     const curr = movingSamples[i];
@@ -194,7 +153,7 @@ export function normalizeTelemetrySeries(
     const currDist = curr.lap_distance ?? 0;
     const prevDist = prev.lap_distance ?? 0;
 
-    // Check if curr is an isolated distance jump spike
+    // Filter isolated distance jump spikes
     if (currDist - prevDist > 250 && i + 1 < movingSamples.length) {
       const nextDist = movingSamples[i + 1].lap_distance ?? 0;
       if (nextDist < currDist - 150 && nextDist >= prevDist) {
@@ -207,15 +166,13 @@ export function normalizeTelemetrySeries(
     }
   }
 
-  if (deduped.length < 2) return [];
+  if (deduped.length === 0) return [];
 
-  // Step 6: Calibrate 0m start point & time
+  // Calibrate start timestamp t=0.000s at 0.0m
   const firstSample = deduped[0];
   const firstDist = firstSample.lap_distance ?? 0;
   let startTime = firstSample.session_time;
 
-  // Only project time offset to zero for flying laps crossing the start line at speed
-  // For standing grid starts (e.g. Lap 1 of a race), time starts at firstSample.session_time (t=0)
   if (firstDist > 0 && firstDist <= 25.0) {
     const rawSpeed = Number(firstSample.speed) || 0;
     if (rawSpeed > 30) {
@@ -227,7 +184,7 @@ export function normalizeTelemetrySeries(
 
   const result: TelemetrySamplePoint[] = [];
 
-  // Always synthesize a clean 0.0m anchor if the first sample is not exactly at 0m
+  // Synthesize clean 0.0m anchor
   if (firstDist > 0.05) {
     result.push({
       ...firstSample,
@@ -321,29 +278,52 @@ function interpolateAtDistance(
   return Number.isFinite(interpolated) ? interpolated : v1;
 }
 
+export interface ComparisonOptions {
+  stepMeters?: number;
+  targetTrackLength?: number;
+  lapTimeMsA?: number;
+  lapTimeMsB?: number;
+}
+
 /**
- * Merges two normalized telemetry series onto a common distance grid.
+ * Merges two normalized telemetry series onto a common distance grid and calculates precise time delta.
  */
 export function calculateMergedComparison(
   rawA: TelemetrySamplePoint[],
   rawB: TelemetrySamplePoint[],
-  stepMeters: number = 5,
-  targetTrackLength?: number
+  stepMetersOrOptions: number | ComparisonOptions = 5,
+  targetTrackLength?: number,
+  lapTimeMsA?: number,
+  lapTimeMsB?: number
 ): MergedTelemetryPoint[] {
-  let normA = normalizeTelemetrySeries(rawA);
-  let normB = normalizeTelemetrySeries(rawB);
+  let stepMeters = 5;
+  let trackLength = targetTrackLength;
+  let timeMsA = lapTimeMsA;
+  let timeMsB = lapTimeMsB;
+
+  if (typeof stepMetersOrOptions === 'object' && stepMetersOrOptions !== null) {
+    stepMeters = stepMetersOrOptions.stepMeters ?? 5;
+    trackLength = stepMetersOrOptions.targetTrackLength;
+    timeMsA = stepMetersOrOptions.lapTimeMsA;
+    timeMsB = stepMetersOrOptions.lapTimeMsB;
+  } else if (typeof stepMetersOrOptions === 'number') {
+    stepMeters = stepMetersOrOptions;
+  }
+
+  let normA = normalizeTelemetrySeries(rawA, timeMsA);
+  let normB = normalizeTelemetrySeries(rawB, timeMsB);
 
   if (normA.length === 0 && normB.length === 0) return [];
 
-  if (targetTrackLength && targetTrackLength > 0) {
+  if (trackLength && trackLength > 0) {
     const endA = normA.length > 0 ? normA[normA.length - 1].lap_distance : 0;
     const endB = normB.length > 0 ? normB[normB.length - 1].lap_distance : 0;
-    if (endA > 0 && Math.abs(endA - targetTrackLength) > 100) {
-      const scaleA = targetTrackLength / endA;
+    if (endA > 0 && Math.abs(endA - trackLength) > 100) {
+      const scaleA = trackLength / endA;
       normA = normA.map((s) => ({ ...s, lap_distance: Math.round(s.lap_distance * scaleA * 10) / 10 }));
     }
-    if (endB > 0 && Math.abs(endB - targetTrackLength) > 100) {
-      const scaleB = targetTrackLength / endB;
+    if (endB > 0 && Math.abs(endB - trackLength) > 100) {
+      const scaleB = trackLength / endB;
       normB = normB.map((s) => ({ ...s, lap_distance: Math.round(s.lap_distance * scaleB * 10) / 10 }));
     }
   }
@@ -354,10 +334,9 @@ export function calculateMergedComparison(
   const rangeStart = 0;
   let rangeEnd: number;
 
-  if (targetTrackLength && targetTrackLength > 0) {
-    rangeEnd = targetTrackLength;
+  if (trackLength && trackLength > 0) {
+    rangeEnd = trackLength;
   } else if (normA.length > 0 && normB.length > 0) {
-    // Extend across the full lap distance to the finish line
     rangeEnd = Math.max(endA, endB);
   } else if (normA.length > 0) {
     rangeEnd = endA;
@@ -418,7 +397,6 @@ export function calculateMergedComparison(
     const boostActiveA = normA.length > 0 ? interpolateAtDistance(normA, 'overtake_active', dist, rangeEnd) : null;
     const boostActiveB = normB.length > 0 ? interpolateAtDistance(normB, 'overtake_active', dist, rangeEnd) : null;
 
-    // For 3D world coordinates, prefer whichever series has raw telemetry at this distance
     const hasRawA = normA.length > 0 && dist >= (normA[0].lap_distance ?? 0);
     const hasRawB = normB.length > 0 && dist >= (normB[0].lap_distance ?? 0);
 
@@ -468,7 +446,7 @@ export function calculateMergedComparison(
     });
   }
 
-  // Fail-safe initial delta offset zeroing: find first non-null delta and calibrate
+  // Calibrate initial delta at 0m to 0.000s
   const firstValidPoint = result.find((p) => p.time_delta !== null && typeof p.time_delta === 'number' && Number.isFinite(p.time_delta));
   const firstValidDelta = firstValidPoint?.time_delta;
   if (typeof firstValidDelta === 'number' && Number.isFinite(firstValidDelta) && Math.abs(firstValidDelta) > 0.0001) {
