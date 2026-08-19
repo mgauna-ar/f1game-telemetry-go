@@ -601,4 +601,12 @@ func TestHandleEmbeddedFrontendAndSPAFallback(t *testing.T) {
 	if recFavicon.Code != http.StatusOK {
 		t.Fatalf("expected 200 OK for favicon.svg, got %d", recFavicon.Code)
 	}
+
+	// 4. Test path cleaning logic with forward slashes
+	reqClean := httptest.NewRequest(http.MethodGet, "///assets/../favicon.svg", nil)
+	recClean := httptest.NewRecorder()
+	server.router.ServeHTTP(recClean, reqClean)
+	if recClean.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for cleaned path, got %d", recClean.Code)
+	}
 }

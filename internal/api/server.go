@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -129,7 +130,7 @@ func (s *Server) routes() {
 	fileServer := http.FileServer(http.FS(distFS))
 
 	s.router.Get("/*", func(w http.ResponseWriter, r *http.Request) {
-		reqPath := strings.TrimPrefix(filepath.Clean(r.URL.Path), "/")
+		reqPath := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
 		if reqPath == "" || reqPath == "." {
 			reqPath = "index.html"
 		}
@@ -148,7 +149,7 @@ func (s *Server) routes() {
 		}
 
 		// 2. Try disk fallback (useful during active frontend development)
-		diskPath := filepath.Join("./frontend/dist", reqPath)
+		diskPath := filepath.Join("./frontend/dist", filepath.FromSlash(reqPath))
 		if stat, err := os.Stat(diskPath); err == nil && !stat.IsDir() {
 			http.ServeFile(w, r, diskPath)
 			return
