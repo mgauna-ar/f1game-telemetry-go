@@ -41,9 +41,10 @@ var (
 
 // Server handles HTTP requests for the API and serves the frontend.
 type Server struct {
-	router *chi.Mux
-	repo   *storage.Repository
-	hub    *Hub
+	router   *chi.Mux
+	repo     *storage.Repository
+	hub      *Hub
+	staticFS fs.FS
 }
 
 var upgrader = websocket.Upgrader{
@@ -52,12 +53,18 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-// NewServer creates a new API server.
+// NewServer creates a new API server with the default embedded frontend filesystem.
 func NewServer(repo *storage.Repository, hub *Hub) *Server {
+	return NewServerWithFS(repo, hub, frontend.DistFS())
+}
+
+// NewServerWithFS creates a new API server with a custom static filesystem (useful for testing).
+func NewServerWithFS(repo *storage.Repository, hub *Hub, staticFS fs.FS) *Server {
 	s := &Server{
-		router: chi.NewRouter(),
-		repo:   repo,
-		hub:    hub,
+		router:   chi.NewRouter(),
+		repo:     repo,
+		hub:      hub,
+		staticFS: staticFS,
 	}
 
 	s.router.Use(middleware.Logger)
@@ -125,8 +132,13 @@ func (s *Server) routes() {
 		r.Get("/system/check-updates", s.handleCheckUpdates)
 	})
 
-	// Serve static files from embedded frontend with SPA fallback
-	distFS := frontend.DistFS()
+	// Serve static files from embedded frontend (or custom staticFS) with SPA fallback
+	var distFS fs.FS
+	if s.staticFS != nil {
+		distFS = s.staticFS
+	} else {
+		distFS = frontend.DistFS()
+	}
 	fileServer := http.FileServer(http.FS(distFS))
 
 	s.router.Get("/*", func(w http.ResponseWriter, r *http.Request) {
@@ -135,7 +147,7 @@ func (s *Server) routes() {
 			reqPath = "index.html"
 		}
 
-		// 1. Try opening requested path in embedded filesystem
+		// 1. Try opening requested path in static filesystem
 		if f, err := distFS.Open(reqPath); err == nil {
 			stat, statErr := f.Stat()
 			f.Close()
@@ -155,7 +167,7 @@ func (s *Server) routes() {
 			return
 		}
 
-		// 3. SPA Fallback: Serve embedded index.html
+		// 3. SPA Fallback: Serve embedded/mock index.html
 		if indexData, err := fs.ReadFile(distFS, "index.html"); err == nil && len(indexData) > 0 {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			w.Write(indexData)

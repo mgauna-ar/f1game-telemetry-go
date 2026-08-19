@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/fstest"
 	"time"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
@@ -25,7 +26,21 @@ func setupTestServer(t *testing.T) (*Server, *storage.Repository) {
 	t.Cleanup(func() { repo.Close() })
 
 	hub := NewHub()
-	server := NewServer(repo, hub)
+	mockFS := fstest.MapFS{
+		"index.html": &fstest.MapFile{
+			Data: []byte("<!doctype html><html><head><title>F1 Telemetry</title></head><body><div id=\"root\"></div></body></html>"),
+			Mode: 0644,
+		},
+		"favicon.svg": &fstest.MapFile{
+			Data: []byte("<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>"),
+			Mode: 0644,
+		},
+		"assets/index.js": &fstest.MapFile{
+			Data: []byte("console.log('f1-telemetry');"),
+			Mode: 0644,
+		},
+	}
+	server := NewServerWithFS(repo, hub, mockFS)
 	return server, repo
 }
 
@@ -569,7 +584,7 @@ func TestBatchDeleteAndAssignTagsAPI(t *testing.T) {
 func TestHandleEmbeddedFrontendAndSPAFallback(t *testing.T) {
 	server, _ := setupTestServer(t)
 
-	// 1. Request root path "/"
+	// 1. Request root path "/" -> serves index.html with 200 OK
 	reqRoot := httptest.NewRequest(http.MethodGet, "/", nil)
 	recRoot := httptest.NewRecorder()
 	server.router.ServeHTTP(recRoot, reqRoot)
