@@ -127,13 +127,6 @@ describe('SessionStintStrategyTab Component', () => {
 
     expect(screen.getByText('Tyre Degradation & Stint Pace Curves')).toBeInTheDocument();
     expect(screen.getByText('All Compounds')).toBeInTheDocument();
-    expect(screen.getByText('Filter In/Out Laps (>118% pace)')).toBeInTheDocument();
-
-    // Toggle outlier filter checkbox
-    const outlierCheckbox = screen.getByRole('checkbox');
-    expect(outlierCheckbox).toBeChecked();
-    fireEvent.click(outlierCheckbox);
-    expect(outlierCheckbox).not.toBeChecked();
 
     // Filter by compound button
     const hardCompoundBtn = screen.getByRole('button', { name: /HARD/i });

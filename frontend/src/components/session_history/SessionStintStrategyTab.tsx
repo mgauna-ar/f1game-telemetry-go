@@ -147,9 +147,6 @@ export const SessionStintStrategyTab: React.FC<SessionStintStrategyTabProps> = (
   // Compound filter for degradation curves ('ALL' or specific compound)
   const [selectedCompound, setSelectedCompound] = useState<string>('ALL');
 
-  // Outlier filter toggle
-  const [filterOutliers, setFilterOutliers] = useState<boolean>(true);
-
   // Hovered stint in Gantt timeline
   const [hoveredStint, setHoveredStint] = useState<{
     driverIndex: number;
@@ -174,19 +171,6 @@ export const SessionStintStrategyTab: React.FC<SessionStintStrategyTabProps> = (
   const clearAllDrivers = () => {
     setSelectedDrivers({});
   };
-
-  // Find fastest valid lap time in session to establish outlier ceiling
-  const sessionBestLapMS = useMemo(() => {
-    let best = Infinity;
-    driverStandings.forEach((d) => {
-      if (d.bestLapTimeMS > 0 && d.bestLapTimeMS < best) {
-        best = d.bestLapTimeMS;
-      }
-    });
-    return best < Infinity ? best : 90000;
-  }, [driverStandings]);
-
-  const outlierThresholdMS = sessionBestLapMS * 1.18; // > 118% of session best is considered slow/in/out lap
 
   // 1. Process all drivers and extract complete Stint structures
   const driverStintsData: DriverStintData[] = useMemo(() => {
@@ -367,24 +351,21 @@ export const SessionStintStrategyTab: React.FC<SessionStintStrategyTabProps> = (
           }
 
           if (lap.lap_time_ms > 0) {
-            // Outlier check
-            if (!filterOutliers || lap.lap_time_ms <= outlierThresholdMS) {
-              const sec = parseFloat((lap.lap_time_ms / 1000).toFixed(3));
-              const key = `driver_${carIdx}_stint_${stint.stintIndex}`;
+            const sec = parseFloat((lap.lap_time_ms / 1000).toFixed(3));
+            const key = `driver_${carIdx}_stint_${stint.stintIndex}`;
 
-              if (!ageDataMap[tyreAge]) {
-                ageDataMap[tyreAge] = { tyreAge };
-              }
-              ageDataMap[tyreAge][key] = sec;
-              ageDataMap[tyreAge][`${key}_compound`] = stint.compound;
-              ageDataMap[tyreAge][`${key}_rawMS`] = lap.lap_time_ms;
-              ageDataMap[tyreAge][`${key}_lapNum`] = lap.lap_number;
-
-              if (!driverPointSeries[key]) {
-                driverPointSeries[key] = [];
-              }
-              driverPointSeries[key].push({ age: tyreAge, timeSec: sec });
+            if (!ageDataMap[tyreAge]) {
+              ageDataMap[tyreAge] = { tyreAge };
             }
+            ageDataMap[tyreAge][key] = sec;
+            ageDataMap[tyreAge][`${key}_compound`] = stint.compound;
+            ageDataMap[tyreAge][`${key}_rawMS`] = lap.lap_time_ms;
+            ageDataMap[tyreAge][`${key}_lapNum`] = lap.lap_number;
+
+            if (!driverPointSeries[key]) {
+              driverPointSeries[key] = [];
+            }
+            driverPointSeries[key].push({ age: tyreAge, timeSec: sec });
           }
         });
       });
@@ -406,7 +387,7 @@ export const SessionStintStrategyTab: React.FC<SessionStintStrategyTabProps> = (
       maxTyreAge: globalMaxAge,
       degradationRates: rates,
     };
-  }, [driverStintsData, selectedDrivers, selectedCompound, filterOutliers, outlierThresholdMS]);
+  }, [driverStintsData, selectedDrivers, selectedCompound]);
 
   // Unique compounds used in this session for filter pills
   const sessionCompounds = useMemo(() => {
@@ -776,17 +757,6 @@ export const SessionStintStrategyTab: React.FC<SessionStintStrategyTabProps> = (
                 );
               })}
             </div>
-
-            {/* Outlier Filter Toggle */}
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-              <input
-                type="checkbox"
-                checked={filterOutliers}
-                onChange={(e) => setFilterOutliers(e.target.checked)}
-                style={{ accentColor: 'var(--accent-primary)', cursor: 'pointer' }}
-              />
-              <span>{t('history.stints.degradation.filterOutliers')}</span>
-            </label>
           </div>
         </div>
 
@@ -915,15 +885,16 @@ export const SessionStintStrategyTab: React.FC<SessionStintStrategyTabProps> = (
                   {...compactTooltipProps}
                   labelFormatter={(age) => `${t('history.stints.degradation.tyreAgeAxis')}: ${age} Laps`}
                   formatter={(val: any, name: any, item: any) => {
-                    const key = String(name);
-                    const rawMS = item.payload[`${key}_rawMS`];
-                    const comp = item.payload[`${key}_compound`];
-                    const lapNum = item.payload[`${key}_lapNum`];
+                    const key = String(item?.dataKey || name);
+                    const rawMS = item?.payload ? item.payload[`${key}_rawMS`] : undefined;
+                    const comp = item?.payload ? item.payload[`${key}_compound`] : undefined;
+                    const lapNum = item?.payload ? item.payload[`${key}_lapNum`] : undefined;
                     const timeStr = rawMS ? formatLapTime(rawMS) : `${val}s`;
 
                     const [, carIdxStr, , stintIdxStr] = key.split('_');
                     const driver = driverStandings.find((d) => String(d.participant.car_index) === carIdxStr);
-                    const label = `${driver?.participant.name || 'Driver'} (Stint ${stintIdxStr} • ${comp || 'Tyre'} • Race L${lapNum})`;
+                    const driverName = driver?.participant.name || (typeof name === 'string' ? name.split(' ')[0] : 'Driver');
+                    const label = `${driverName} (Stint ${stintIdxStr || '1'} • ${comp || 'Tyre'} • Race L${lapNum ?? '?'})`;
                     return [timeStr, label];
                   }}
                 />

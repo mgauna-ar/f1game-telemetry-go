@@ -49,7 +49,6 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
 }) => {
   const { t } = useI18n();
   const [activeChart, setActiveChart] = useState<'pace' | 'position' | 'gap'>('pace');
-  const [filterOutliers, setFilterOutliers] = useState<boolean>(true);
 
   // Selected driver car_indices for visibility (default to top 5)
   const [selectedDrivers, setSelectedDrivers] = useState<Record<number, boolean>>(() => {
@@ -82,20 +81,7 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
 
   const activeDriverStandings = driverStandings.filter((d) => selectedDrivers[d.participant.car_index]);
 
-  // Find median / fastest lap time to filter outliers (pit in/out laps)
-  const sessionBestLapMS = useMemo(() => {
-    let best = Infinity;
-    driverStandings.forEach((d) => {
-      if (d.bestLapTimeMS > 0 && d.bestLapTimeMS < best) {
-        best = d.bestLapTimeMS;
-      }
-    });
-    return best < Infinity ? best : 90000;
-  }, [driverStandings]);
-
-  const outlierThresholdMS = sessionBestLapMS * 1.18; // > 118% of session best is considered pit-in/out or slow lap
-
-  // 1. Build Lap Progression Data
+  // 1. Build Lap Progression Data (always includes all recorded laps)
   const lapProgressionData = useMemo(() => {
     if (totalSessionLaps === 0 || driverStandings.length === 0) return [];
 
@@ -109,12 +95,10 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
         const lap = driver.laps.find((l) => l.lap_number === lapNum);
 
         if (lap && lap.lap_time_ms > 0) {
-          if (!filterOutliers || lap.lap_time_ms <= outlierThresholdMS) {
-            // Convert to seconds for cleaner chart scales
-            point[`driver_${carIdx}`] = parseFloat((lap.lap_time_ms / 1000).toFixed(3));
-            point[`driver_${carIdx}_tyre`] = lap.tyre_compound;
-            point[`driver_${carIdx}_rawMS`] = lap.lap_time_ms;
-          }
+          // Convert to seconds for cleaner chart scales
+          point[`driver_${carIdx}`] = parseFloat((lap.lap_time_ms / 1000).toFixed(3));
+          point[`driver_${carIdx}_tyre`] = lap.tyre_compound;
+          point[`driver_${carIdx}_rawMS`] = lap.lap_time_ms;
         }
       });
 
@@ -122,7 +106,7 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
     }
 
     return data;
-  }, [driverStandings, totalSessionLaps, filterOutliers, outlierThresholdMS]);
+  }, [driverStandings, totalSessionLaps]);
 
   // 2. Build Position Progression Data
   const positionProgressionData = useMemo(() => {
@@ -233,17 +217,6 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
             <span>{t('history.progression.paceGap')}</span>
           </button>
         </div>
-
-        {/* Outlier Filter Toggle */}
-        <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-          <input
-            type="checkbox"
-            checked={filterOutliers}
-            onChange={(e) => setFilterOutliers(e.target.checked)}
-            style={{ accentColor: 'var(--accent-primary)', cursor: 'pointer' }}
-          />
-          <span>{t('history.progression.filterOutliers')}</span>
-        </label>
       </div>
 
       {/* Driver Visibility Filter Chips */}
@@ -344,10 +317,11 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
                         {...compactTooltipProps}
                         labelFormatter={(lap) => `Lap ${lap}`}
                         formatter={(val: any, name: any, item: any) => {
-                          const driverIdx = String(name).replace('driver_', '');
+                          const dataKey = String(item?.dataKey || name);
+                          const driverIdx = dataKey.replace('driver_', '');
                           const driver = driverStandings.find((d) => String(d.participant.car_index) === driverIdx);
-                          const rawMS = item.payload[`driver_${driverIdx}_rawMS`];
-                          const tyre = item.payload[`driver_${driverIdx}_tyre`];
+                          const rawMS = item?.payload ? item.payload[`driver_${driverIdx}_rawMS`] : undefined;
+                          const tyre = item?.payload ? item.payload[`driver_${driverIdx}_tyre`] : undefined;
                           const timeStr = rawMS ? formatLapTime(rawMS) : `${val}s`;
                           return [`${timeStr} (${tyre || 'Tyre'})`, driver?.participant.name || name];
                         }}
