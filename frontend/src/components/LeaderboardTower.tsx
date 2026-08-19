@@ -1,6 +1,7 @@
 import React from 'react';
 import { Trophy, Wrench, Flame } from 'lucide-react';
 import { parseDriverName } from '../hooks/useTelemetry';
+import { filterActiveLiveParticipants } from '../utils/driverFilter';
 import type { ParticipantData, LapData, CarStatusData, SessionData, CarTelemetry2Data } from '../types/telemetry';
 import {
   TEAM_COLORS,
@@ -84,34 +85,9 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
       }
     });
 
-    const activeParticipants = participants
-      .map((p, idx) => ({ p, idx }))
-      .filter(({ p, idx }) => {
-        const isPlayer = idx === playerCarIndex;
-        if (isPlayer) return true;
+    const activeParticipants = filterActiveLiveParticipants(participants, laps, playerCarIndex);
 
-        const isHuman = p.AIControlled === 0 && Boolean(p.Name && typeof p.Name === 'string' && p.Name.trim() !== '');
-        if (isHuman) return true;
-
-        const lap = laps[idx];
-        if (!lap) return false;
-
-        const resStatus = lap.ResultStatus !== undefined ? lap.ResultStatus : ((lap.CarPosition ?? 0) > 0 ? RESULT_STATUS.ACTIVE : RESULT_STATUS.INVALID);
-        const hasValidStatus =
-          resStatus === RESULT_STATUS.ACTIVE ||
-          resStatus === RESULT_STATUS.FINISHED ||
-          resStatus === RESULT_STATUS.DNF ||
-          resStatus === RESULT_STATUS.DSQ;
-
-        const hasTimes = (lap.LastLapTimeInMS ?? 0) > 0 || (lap.CurrentLapTimeInMS ?? 0) > 0;
-        const hasPosition = (lap.CarPosition ?? 0) > 0;
-        const hasLeftGarage = (lap.DriverStatus ?? DRIVER_STATUS.IN_GARAGE) !== DRIVER_STATUS.IN_GARAGE;
-        const hasDistance = (lap.LapDistance ?? 0) > 0 && (lap.CurrentLapNum ?? 0) >= 1;
-
-        return hasValidStatus && (hasTimes || hasPosition || hasLeftGarage || hasDistance);
-      });
-
-    const drivers: ProcessedDriver[] = activeParticipants.map(({ p, idx }) => {
+    const drivers: ProcessedDriver[] = activeParticipants.map(({ participant: p, carIndex: idx }) => {
       const lap = laps[idx];
       const carStatus = carStatuses[idx];
       const telemetry2 = telemetry2List?.[idx];

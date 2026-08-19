@@ -32,6 +32,7 @@ import { F1FormatBadge } from './F1FormatBadge';
 import { WeatherBadgeWithForecast } from './session_history/WeatherBadgeWithForecast';
 import { TrackFlag } from './TrackFlag';
 import { getTrackInfo } from '../constants/f1';
+import { filterActiveHistoricalParticipants } from '../utils/driverFilter';
 
 import { useRaceEngineer } from '../context/RaceEngineerContext';
 import { useI18n } from '../context/I18nContext';
@@ -812,17 +813,7 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
 
     const rawStandings = (
       participants.length > 0
-        ? participants.filter((p) => {
-            const rawDriverLaps = lapsByCar[p.car_index] || [];
-            const hasCompletedLaps = rawDriverLaps.some((l) => l.lap_time_ms > 0);
-            const hasSectors = rawDriverLaps.some((l) => (l.sector1_ms ?? 0) > 0 || (l.sector2_ms ?? 0) > 0 || (l.sector3_ms ?? 0) > 0);
-            const hasTelemetry = rawDriverLaps.some((l) => l.has_telemetry && (l.sample_count ?? 0) > 10);
-            const isHuman = !p.ai_controlled && p.name.trim() !== '';
-            const hasOfficialResult = (p.total_race_time ?? 0) > 0 || (p.points ?? 0) > 0 || (isRaceSession && (p.position ?? 0) > 0);
-
-            // Retain human drivers and any AI drivers who actually participated in the session
-            return isHuman || hasCompletedLaps || hasSectors || hasTelemetry || hasOfficialResult;
-          })
+        ? filterActiveHistoricalParticipants(participants, laps, isRaceSession)
         : Object.keys(lapsByCar).map((idxStr): Participant => ({
             id: Number(idxStr),
             session_id: selectedSession.id,

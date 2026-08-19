@@ -17,6 +17,7 @@ import type { TelemetrySamplePoint } from '../utils/downsample';
 import { calculateMergedComparison } from '../utils/deltaCalculation';
 import type { MergedTelemetryPoint } from '../utils/deltaCalculation';
 import { buildTelemetryContext } from '../utils/aiTelemetrySummary';
+import { filterActiveHistoricalParticipants } from '../utils/driverFilter';
 import { detectTrackTurns, getTurnContextAtDistance } from '../utils/trackTurns';
 import { ComparatorTrackMap } from './ComparatorTrackMap';
 import { TrackFlag } from './TrackFlag';
@@ -482,14 +483,7 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
   // Active participants for Session A with best laps
   const activeParticipantsA = useMemo(() => {
     if (participantsA.length === 0 || lapsA.length === 0) return [];
-    return participantsA
-      .filter((p) => {
-        const driverLaps = lapsA.filter((l) => (l.car_index ?? -1) === p.car_index);
-        const hasCompletedLaps = driverLaps.some((l) => l.lap_time_ms > 0);
-        const hasTelemetry = driverLaps.some((l) => l.has_telemetry && (l.sample_count ?? 0) > 10);
-        const isHuman = !p.ai_controlled && p.name.trim() !== '';
-        return isHuman || hasCompletedLaps || hasTelemetry || (p.total_race_time ?? 0) > 0;
-      })
+    return filterActiveHistoricalParticipants(participantsA, lapsA)
       .map((p) => {
         const driverLaps = lapsA
           .filter((l) => (l.car_index ?? -1) === p.car_index && l.is_valid && l.lap_time_ms > 0)
@@ -502,14 +496,7 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
   // Active participants for Session B with best laps
   const activeParticipantsB = useMemo(() => {
     if (participantsB.length === 0 || lapsB.length === 0) return [];
-    return participantsB
-      .filter((p) => {
-        const driverLaps = lapsB.filter((l) => (l.car_index ?? -1) === p.car_index);
-        const hasCompletedLaps = driverLaps.some((l) => l.lap_time_ms > 0);
-        const hasTelemetry = driverLaps.some((l) => l.has_telemetry && (l.sample_count ?? 0) > 10);
-        const isHuman = !p.ai_controlled && p.name.trim() !== '';
-        return isHuman || hasCompletedLaps || hasTelemetry || (p.total_race_time ?? 0) > 0;
-      })
+    return filterActiveHistoricalParticipants(participantsB, lapsB)
       .map((p) => {
         const driverLaps = lapsB
           .filter((l) => (l.car_index ?? -1) === p.car_index && l.is_valid && l.lap_time_ms > 0)
