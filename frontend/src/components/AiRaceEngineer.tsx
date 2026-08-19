@@ -17,11 +17,17 @@ import {
   Sparkles,
   Flag,
   CloudRain,
+  Key,
+  AlertTriangle,
+  Radio,
+  WifiOff,
+  ExternalLink,
 } from 'lucide-react';
-import { useRaceEngineer, type AIConfig } from '../context/RaceEngineerContext';
+import { useRaceEngineer, type AIConfig, type ChatMessage } from '../context/RaceEngineerContext';
 import { useI18n } from '../context/I18nContext';
 import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
 import { TrackFlag } from './TrackFlag';
+import { AI_PROVIDER_URLS } from '../constants/f1';
 
 
 export interface AiRaceEngineerProps {
@@ -51,6 +57,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
     liveContext,
     messages,
     sendMessage,
+    retryLastMessage,
     clearMessages,
     isGenerating,
     stopGenerating,
@@ -109,6 +116,89 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
   const handlePromptChipClick = (prompt: string) => {
     if (isGenerating) return;
     sendMessage(prompt);
+  };
+
+  // Render rich error card for failed AI transmissions
+  const renderErrorCard = (m: ChatMessage) => {
+    const code = m.errorCode || 'GENERIC_ERROR';
+    const providerKey = (m.errorProvider || config.provider) as keyof typeof AI_PROVIDER_URLS;
+    const providerInfo = AI_PROVIDER_URLS[providerKey] || AI_PROVIDER_URLS.gemini;
+
+    let icon = <AlertTriangle size={15} color="#ff4b4b" />;
+    let title = t('ai_engineer.errors.genericErrorTitle');
+    let desc = m.errorRaw || t('ai_engineer.errors.genericErrorDesc');
+    let isWarning = false;
+
+    if (code === 'MISSING_API_KEY') {
+      icon = <Key size={15} color="#ffd200" />;
+      title = t('ai_engineer.errors.missingKeyTitle');
+      desc = t('ai_engineer.errors.missingKeyDesc');
+      isWarning = true;
+    } else if (code === 'MODEL_OVERLOADED') {
+      icon = <Radio size={15} color="#ff8000" className="animate-pulse" />;
+      title = t('ai_engineer.errors.modelOverloadedTitle');
+      desc = t('ai_engineer.errors.modelOverloadedDesc');
+      isWarning = true;
+    } else if (code === 'QUOTA_EXCEEDED') {
+      icon = <AlertTriangle size={15} color="#ff4b4b" />;
+      title = t('ai_engineer.errors.quotaExceededTitle');
+      desc = t('ai_engineer.errors.quotaExceededDesc');
+    } else if (code === 'INVALID_API_KEY') {
+      icon = <Key size={15} color="#ff4b4b" />;
+      title = t('ai_engineer.errors.invalidKeyTitle');
+      desc = t('ai_engineer.errors.invalidKeyDesc');
+    } else if (code === 'MODEL_NOT_FOUND') {
+      icon = <AlertTriangle size={15} color="#ffd200" />;
+      title = t('ai_engineer.errors.modelNotFoundTitle');
+      desc = t('ai_engineer.errors.modelNotFoundDesc');
+      isWarning = true;
+    } else if (code === 'NETWORK_ERROR') {
+      icon = <WifiOff size={15} color="#ff4b4b" />;
+      title = t('ai_engineer.errors.networkErrorTitle');
+      desc = t('ai_engineer.errors.networkErrorDesc');
+    }
+
+    return (
+      <div className={`ai-error-card ${isWarning ? 'ai-error-card-warning' : ''}`} data-testid="ai-error-card">
+        <div className="ai-error-card-header">
+          <div className="ai-error-card-icon-wrapper">{icon}</div>
+          <div className="ai-error-card-title">{title}</div>
+        </div>
+        <div className="ai-error-card-desc">{desc}</div>
+        <div className="ai-error-card-actions">
+          {m.canRetry && (
+            <button
+              type="button"
+              className="ai-error-action-btn ai-error-action-primary"
+              onClick={() => retryLastMessage(m.id)}
+              disabled={isGenerating}
+            >
+              <RefreshCw size={11} className={isGenerating ? 'animate-spin' : ''} />
+              <span>{t('ai_engineer.retry')}</span>
+            </button>
+          )}
+          {providerInfo && (code === 'MISSING_API_KEY' || code === 'INVALID_API_KEY' || code === 'QUOTA_EXCEEDED') && (
+            <a
+              href={providerInfo.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ai-error-action-btn ai-error-action-primary"
+            >
+              <span>{t('ai_engineer.errors.getKeyButton', { provider: providerInfo.name })}</span>
+              <ExternalLink size={11} />
+            </a>
+          )}
+          <button
+            type="button"
+            className="ai-error-action-btn ai-error-action-secondary"
+            onClick={() => setShowSettings(true)}
+          >
+            <Settings size={11} />
+            <span>{t('ai_engineer.openSettings')}</span>
+          </button>
+        </div>
+      </div>
+    );
   };
 
   // Adaptive quick prompt chips
@@ -421,16 +511,16 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
 
       {/* Embedded Settings Drawer within widget */}
       {showSettings && (
-        <div className="ai-widget-settings-panel glass-panel">
+        <div className="ai-widget-settings-panel glass-panel" data-testid="ai-settings-panel">
           <div className="ai-settings-header">
-            <h4>AI Engineer Settings</h4>
+            <h4>{t('ai_engineer.settings')}</h4>
             <button className="ai-btn-icon" onClick={() => setShowSettings(false)}>
               <X size={14} />
             </button>
           </div>
 
           <div className="ai-settings-body">
-            <label className="readout-label">Provider</label>
+            <label className="readout-label">{t('ai_engineer.provider')}</label>
             <select
               className="ui-select"
               value={config.provider}
@@ -451,15 +541,15 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
                 fetchAvailableModels(updatedConfig);
               }}
             >
-              <option value="gemini">Google Gemini (Recommended)</option>
-              <option value="openai">OpenAI (GPT-4o-mini / GPT-4o)</option>
-              <option value="custom">OpenAI-Compatible Custom (Ollama / Groq)</option>
+              <option value="gemini">{t('ai_engineer.geminiOption')}</option>
+              <option value="openai">{t('ai_engineer.openaiOption')}</option>
+              <option value="custom">{t('ai_engineer.customOption')}</option>
             </select>
 
             <label className="readout-label" style={{ marginTop: '0.65rem' }}>
-              API Key
+              {t('ai_engineer.apiKey')}
               {config.provider === 'gemini' && serverConfigStatus?.hasGeminiEnvKey && (
-                <span className="ai-env-badge">Server .env active</span>
+                <span className="ai-env-badge">{t('ai_engineer.serverEnvActive')}</span>
               )}
             </label>
             <div className="ai-input-with-icon">
@@ -469,8 +559,8 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
                 placeholder={
                   (config.provider === 'gemini' && serverConfigStatus?.hasGeminiEnvKey) ||
                   (config.provider === 'openai' && serverConfigStatus?.hasOpenAIEnvKey)
-                    ? 'Using server key (or enter custom key)'
-                    : 'Enter your API key...'
+                    ? t('ai_engineer.usingServerKey')
+                    : t('ai_engineer.enterApiKey')
                 }
                 value={config.apiKey}
                 onChange={(e) => {
@@ -488,8 +578,29 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
               </button>
             </div>
 
+            {/* Direct Link to Get API Key for selected provider */}
+            {AI_PROVIDER_URLS[config.provider] && (
+              <div className="ai-settings-key-link">
+                <a
+                  href={AI_PROVIDER_URLS[config.provider].url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <span>
+                    {t(
+                      AI_PROVIDER_URLS[config.provider].freeTier
+                        ? 'ai_engineer.getFreeApiKey'
+                        : 'ai_engineer.getApiKey',
+                      { provider: AI_PROVIDER_URLS[config.provider].name }
+                    )}
+                  </span>
+                  <ExternalLink size={11} />
+                </a>
+              </div>
+            )}
+
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.65rem' }}>
-              <label className="readout-label" style={{ margin: 0 }}>Model</label>
+              <label className="readout-label" style={{ margin: 0 }}>{t('ai_engineer.model')}</label>
               <button
                 type="button"
                 className="ai-link-btn"
@@ -497,7 +608,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
                 disabled={isLoadingModels}
                 title="Query available models from API"
               >
-                <RefreshCw size={11} className={isLoadingModels ? 'animate-spin' : ''} /> Refresh Models
+                <RefreshCw size={11} className={isLoadingModels ? 'animate-spin' : ''} /> {t('ai_engineer.refreshModels')}
               </button>
             </div>
 
@@ -548,7 +659,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
 
             <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
               <button className="btn-primary" style={{ padding: '0.35rem 0.8rem', fontSize: '0.75rem' }} onClick={() => setShowSettings(false)}>
-                Done
+                {t('ai_engineer.done')}
               </button>
             </div>
           </div>
@@ -580,10 +691,12 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
             <div className={`ai-message-bubble ${m.role === 'user' ? 'ai-user-bubble' : 'ai-assistant-bubble'}`}>
               <div className="ai-message-meta">
                 {m.role === 'assistant' ? <Bot size={12} color="#00f2fe" /> : null}
-                <span>{m.role === 'assistant' ? 'Race Engineer' : 'You'}</span>
+                <span>{m.role === 'assistant' ? t('ai_engineer.roleEngineer') : t('ai_engineer.roleYou')}</span>
               </div>
               <div className="ai-message-body">
-                {m.content ? (
+                {m.errorCode ? (
+                  renderErrorCard(m)
+                ) : m.content ? (
                   renderFormattedMarkdown(m.content)
                 ) : isGenerating && m.role === 'assistant' ? (
                   <div className="ai-typing-indicator">
@@ -607,12 +720,12 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
             className="ai-chat-input"
             placeholder={
               contextMode === 'comparator' || (hasLapsSelected && activeComparatorContext)
-                ? 'Ask engineer about telemetry deltas...'
+                ? t('ai_engineer.placeholderComparator')
                 : contextMode === 'session_debrief'
-                ? 'Ask about session pace, stints, or strategy...'
+                ? t('ai_engineer.placeholderDebrief')
                 : contextMode === 'live'
-                ? 'Ask about live weather, SC, or tyre windows...'
-                : 'Ask your Race Engineer...'
+                ? t('ai_engineer.placeholderLive')
+                : t('ai_engineer.placeholderGeneral')
             }
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
@@ -633,7 +746,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
               type="submit"
               className="ai-btn-submit"
               disabled={!inputMessage.trim()}
-              title="Send to Race Engineer"
+              title={t('ai_engineer.send')}
             >
               <Send size={14} />
             </button>

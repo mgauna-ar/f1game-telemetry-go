@@ -95,6 +95,8 @@ export function getTranslation(
   }
 
   return Object.entries(params).reduce((acc, [k, v]) => {
-    return acc.replaceAll(`{${k}}`, String(v));
+    return acc
+      .replaceAll(`{{${k}}}`, String(v))
+      .replaceAll(`{${k}}`, String(v));
   }, value);
 }

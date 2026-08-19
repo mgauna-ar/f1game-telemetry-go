@@ -12,6 +12,173 @@ import (
 	"time"
 )
 
+// parseGeminiError converts a non-200 Gemini API response into a structured AIStreamError.
+func parseGeminiError(statusCode int, body []byte) *AIStreamError {
+	var gErr struct {
+		Error struct {
+			Code    int    `json:"code"`
+			Message string `json:"message"`
+			Status  string `json:"status"`
+		} `json:"error"`
+	}
+	_ = json.Unmarshal(body, &gErr)
+
+	rawMsg := gErr.Error.Message
+	if rawMsg == "" {
+		rawMsg = strings.TrimSpace(string(body))
+	}
+	statusStr := strings.ToUpper(gErr.Error.Status)
+	lowerRaw := strings.ToLower(rawMsg)
+
+	if statusCode == http.StatusServiceUnavailable ||
+		statusStr == "UNAVAILABLE" ||
+		strings.Contains(lowerRaw, "overloaded") ||
+		strings.Contains(lowerRaw, "high demand") ||
+		strings.Contains(lowerRaw, "temporarily unavailable") {
+		return &AIStreamError{
+			StatusCode: statusCode,
+			Code:       AIErrorModelOverloaded,
+			Message:    "The AI model is temporarily overloaded due to high demand. Please try again in a few moments or switch to another model.",
+			RawMessage: rawMsg,
+			Provider:   "gemini",
+		}
+	}
+
+	if statusCode == http.StatusTooManyRequests ||
+		statusStr == "RESOURCE_EXHAUSTED" ||
+		strings.Contains(lowerRaw, "quota") ||
+		strings.Contains(lowerRaw, "resource has been exhausted") ||
+		strings.Contains(lowerRaw, "rate limit") {
+		return &AIStreamError{
+			StatusCode: statusCode,
+			Code:       AIErrorQuotaExceeded,
+			Message:    "API rate limit or quota exceeded for your current tier. Please check your usage at Google AI Studio or configure a new key.",
+			RawMessage: rawMsg,
+			Provider:   "gemini",
+		}
+	}
+
+	if statusCode == http.StatusUnauthorized ||
+		statusCode == http.StatusForbidden ||
+		(statusCode == http.StatusBadRequest && (strings.Contains(lowerRaw, "api_key") || strings.Contains(lowerRaw, "api key") || strings.Contains(lowerRaw, "key not valid") || strings.Contains(lowerRaw, "invalid_argument"))) {
+		if strings.Contains(lowerRaw, "api_key") || strings.Contains(lowerRaw, "api key") || strings.Contains(lowerRaw, "key not valid") || statusCode == http.StatusUnauthorized || statusCode == http.StatusForbidden {
+			return &AIStreamError{
+				StatusCode: statusCode,
+				Code:       AIErrorInvalidAPIKey,
+				Message:    "The provided Gemini API key is invalid or unauthorized. Please verify your API key in Settings.",
+				RawMessage: rawMsg,
+				Provider:   "gemini",
+			}
+		}
+	}
+
+	if statusCode == http.StatusNotFound || statusStr == "NOT_FOUND" || strings.Contains(lowerRaw, "not found") {
+		return &AIStreamError{
+			StatusCode: statusCode,
+			Code:       AIErrorModelNotFound,
+			Message:    "The selected Gemini model is not available or unsupported. Try selecting an active model from Settings.",
+			RawMessage: rawMsg,
+			Provider:   "gemini",
+		}
+	}
+
+	return &AIStreamError{
+		StatusCode: statusCode,
+		Code:       AIErrorGeneric,
+		Message:    rawMsg,
+		RawMessage: rawMsg,
+		Provider:   "gemini",
+	}
+}
+
+// parseOpenAIError converts a non-200 OpenAI API response into a structured AIStreamError.
+func parseOpenAIError(statusCode int, body []byte, providerName string) *AIStreamError {
+	if providerName == "" {
+		providerName = "openai"
+	}
+	var oErr struct {
+		Error struct {
+			Message string `json:"message"`
+			Type    string `json:"type"`
+			Code    string `json:"code"`
+		} `json:"error"`
+	}
+	_ = json.Unmarshal(body, &oErr)
+
+	rawMsg := oErr.Error.Message
+	if rawMsg == "" {
+		rawMsg = strings.TrimSpace(string(body))
+	}
+	errCode := strings.ToLower(oErr.Error.Code)
+	errType := strings.ToLower(oErr.Error.Type)
+	lowerRaw := strings.ToLower(rawMsg)
+
+	if statusCode == http.StatusServiceUnavailable ||
+		statusCode == http.StatusBadGateway ||
+		statusCode == http.StatusGatewayTimeout ||
+		strings.Contains(lowerRaw, "overloaded") ||
+		strings.Contains(lowerRaw, "high demand") ||
+		strings.Contains(lowerRaw, "server is currently overloaded") {
+		return &AIStreamError{
+			StatusCode: statusCode,
+			Code:       AIErrorModelOverloaded,
+			Message:    "The AI model is temporarily overloaded due to high demand. Please try again shortly.",
+			RawMessage: rawMsg,
+			Provider:   providerName,
+		}
+	}
+
+	if statusCode == http.StatusTooManyRequests ||
+		errCode == "insufficient_quota" ||
+		errCode == "rate_limit_exceeded" ||
+		errType == "insufficient_quota" ||
+		strings.Contains(lowerRaw, "quota") ||
+		strings.Contains(lowerRaw, "rate limit") {
+		return &AIStreamError{
+			StatusCode: statusCode,
+			Code:       AIErrorQuotaExceeded,
+			Message:    "API rate limit or quota exceeded for your current account tier. Please check your billing/usage details.",
+			RawMessage: rawMsg,
+			Provider:   providerName,
+		}
+	}
+
+	if statusCode == http.StatusUnauthorized ||
+		statusCode == http.StatusForbidden ||
+		errCode == "invalid_api_key" ||
+		strings.Contains(lowerRaw, "incorrect api key") ||
+		strings.Contains(lowerRaw, "invalid api key") {
+		return &AIStreamError{
+			StatusCode: statusCode,
+			Code:       AIErrorInvalidAPIKey,
+			Message:    "The provided API key is invalid or expired. Please verify your API key in Settings.",
+			RawMessage: rawMsg,
+			Provider:   providerName,
+		}
+	}
+
+	if statusCode == http.StatusNotFound ||
+		errCode == "model_not_found" ||
+		strings.Contains(lowerRaw, "does not exist") ||
+		strings.Contains(lowerRaw, "not found") {
+		return &AIStreamError{
+			StatusCode: statusCode,
+			Code:       AIErrorModelNotFound,
+			Message:    "The selected model is not available or unsupported for your account. Please select a different model in Settings.",
+			RawMessage: rawMsg,
+			Provider:   providerName,
+		}
+	}
+
+	return &AIStreamError{
+		StatusCode: statusCode,
+		Code:       AIErrorGeneric,
+		Message:    rawMsg,
+		RawMessage: rawMsg,
+		Provider:   providerName,
+	}
+}
+
 // fetchGeminiModels queries Gemini API for available active generative chat models.
 func fetchGeminiModels(ctx context.Context, apiKey string) ([]AIModelItem, error) {
 	client := &http.Client{Timeout: 15 * time.Second}
@@ -30,7 +197,7 @@ func fetchGeminiModels(ctx context.Context, apiKey string) ([]AIModelItem, error
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("gemini API error (status %d): %s", resp.StatusCode, string(body))
+		return nil, parseGeminiError(resp.StatusCode, body)
 	}
 
 	var geminiResp struct {
@@ -112,7 +279,7 @@ func fetchOpenAIModels(ctx context.Context, baseURL, apiKey string) ([]AIModelIt
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("API error (status %d): %s", resp.StatusCode, string(body))
+		return nil, parseOpenAIError(resp.StatusCode, body, "openai")
 	}
 
 	var openAIResp struct {
@@ -220,7 +387,7 @@ func streamGemini(ctx context.Context, apiKey, model, systemPrompt string, messa
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("gemini API error (status %d): %s", resp.StatusCode, string(body))
+		return parseGeminiError(resp.StatusCode, body)
 	}
 
 	reader := bufio.NewReader(resp.Body)
@@ -335,7 +502,7 @@ func streamOpenAI(ctx context.Context, baseURL, apiKey, model, systemPrompt stri
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("openAI API error (status %d): %s", resp.StatusCode, string(body))
+		return parseOpenAIError(resp.StatusCode, body, "openai")
 	}
 
 	reader := bufio.NewReader(resp.Body)

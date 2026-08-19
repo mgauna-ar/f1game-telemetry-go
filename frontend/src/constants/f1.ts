@@ -356,3 +356,33 @@ export const getTrackInfo = (trackIdOrName?: number | string | null): TrackInfo 
   return null;
 };
 
+export const AI_ERROR_CODES = {
+  MISSING_API_KEY: 'MISSING_API_KEY',
+  MODEL_OVERLOADED: 'MODEL_OVERLOADED',
+  QUOTA_EXCEEDED: 'QUOTA_EXCEEDED',
+  INVALID_API_KEY: 'INVALID_API_KEY',
+  MODEL_NOT_FOUND: 'MODEL_NOT_FOUND',
+  NETWORK_ERROR: 'NETWORK_ERROR',
+  GENERIC_ERROR: 'GENERIC_ERROR',
+} as const;
+
+export type AIErrorCode = (typeof AI_ERROR_CODES)[keyof typeof AI_ERROR_CODES];
+
+export const AI_PROVIDER_URLS: Record<string, { name: string; url: string; freeTier: boolean }> = {
+  gemini: {
+    name: 'Google AI Studio',
+    url: 'https://aistudio.google.com/app/apikey',
+    freeTier: true,
+  },
+  openai: {
+    name: 'OpenAI Platform',
+    url: 'https://platform.openai.com/api-keys',
+    freeTier: false,
+  },
+  custom: {
+    name: 'Groq Console',
+    url: 'https://console.groq.com/keys',
+    freeTier: true,
+  },
+};
+

@@ -6,6 +6,11 @@ export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: Date;
+  errorCode?: string;
+  errorProvider?: string;
+  errorRaw?: string;
+  canRetry?: boolean;
+  lastPrompt?: string;
 }
 
 export interface AIConfig {
@@ -63,6 +68,7 @@ export interface RaceEngineerContextValue {
   // Chat messaging
   messages: ChatMessage[];
   sendMessage: (customPrompt?: string) => Promise<void>;
+  retryLastMessage: (assistantMsgId?: string) => Promise<void>;
   clearMessages: () => void;
   isGenerating: boolean;
   stopGenerating: () => void;
@@ -119,6 +125,7 @@ const defaultFallbackContext: RaceEngineerContextValue = {
   setLiveContext: () => {},
   messages: [],
   sendMessage: async () => {},
+  retryLastMessage: async () => {},
   clearMessages: () => {},
   isGenerating: false,
   stopGenerating: () => {},

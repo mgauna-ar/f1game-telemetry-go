@@ -61,7 +61,13 @@ func (s *Server) handleAIFetchModels(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if apiKey == "" && provider != "custom" {
-		http.Error(w, fmt.Sprintf("No API Key configured for %s", provider), http.StatusUnauthorized)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		_ = json.NewEncoder(w).Encode(AIErrorPayload{
+			Error:    fmt.Sprintf("No API Key configured for %s", provider),
+			Code:     AIErrorMissingAPIKey,
+			Provider: provider,
+		})
 		return
 	}
 
@@ -75,7 +81,23 @@ func (s *Server) handleAIFetchModels(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		w.Header().Set("Content-Type", "application/json")
+		statusCode := http.StatusInternalServerError
+		payload := AIErrorPayload{
+			Error:    err.Error(),
+			Code:     AIErrorGeneric,
+			Provider: provider,
+		}
+		if aiErr, ok := err.(*AIStreamError); ok {
+			if aiErr.StatusCode > 0 {
+				statusCode = aiErr.StatusCode
+			}
+			payload.Code = aiErr.Code
+			payload.Message = aiErr.Message
+			payload.Provider = aiErr.Provider
+		}
+		w.WriteHeader(statusCode)
+		_ = json.NewEncoder(w).Encode(payload)
 		return
 	}
 
@@ -107,7 +129,13 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if apiKey == "" && provider != "custom" {
-		http.Error(w, fmt.Sprintf("No API Key provided for %s. Please configure it in settings or set the environment variable.", provider), http.StatusUnauthorized)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		_ = json.NewEncoder(w).Encode(AIErrorPayload{
+			Error:    fmt.Sprintf("No API Key provided for %s. Please configure it in settings or set the environment variable.", provider),
+			Code:     AIErrorMissingAPIKey,
+			Provider: provider,
+		})
 		return
 	}
 
@@ -149,7 +177,17 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 
 	if streamErr != nil {
 		log.Printf("[AI Chat] Error during streaming: %v", streamErr)
-		errPayload, _ := json.Marshal(map[string]string{"error": streamErr.Error()})
+		payload := AIErrorPayload{
+			Error:    streamErr.Error(),
+			Code:     AIErrorGeneric,
+			Provider: provider,
+		}
+		if aiErr, ok := streamErr.(*AIStreamError); ok {
+			payload.Code = aiErr.Code
+			payload.Message = aiErr.Message
+			payload.Provider = aiErr.Provider
+		}
+		errPayload, _ := json.Marshal(payload)
 		fmt.Fprintf(w, "data: %s\n\n", string(errPayload))
 		flusher.Flush()
 	}

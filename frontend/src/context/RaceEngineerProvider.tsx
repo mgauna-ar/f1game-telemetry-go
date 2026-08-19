@@ -382,10 +382,36 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       role: 'assistant',
       content: '',
       timestamp: new Date(),
+      lastPrompt: text,
     };
 
     const nextMessages = [...messages, userMsg, assistantMsg];
     setMessages(nextMessages);
+
+    // Pre-check if API key is missing before making network requests
+    const hasServerKey =
+      (config.provider === 'gemini' && serverConfigStatus?.hasGeminiEnvKey) ||
+      (config.provider === 'openai' && serverConfigStatus?.hasOpenAIEnvKey);
+
+    if (!config.apiKey && !hasServerKey && config.provider !== 'custom') {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantMsgId
+            ? {
+                ...m,
+                content: '',
+                errorCode: 'MISSING_API_KEY',
+                errorProvider: config.provider,
+                errorRaw: `No API key configured for ${config.provider}.`,
+                canRetry: false,
+                lastPrompt: text,
+              }
+            : m
+        )
+      );
+      return;
+    }
+
     setIsGenerating(true);
 
     const controller = new AbortController();
@@ -416,8 +442,26 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       });
 
       if (!res.ok) {
-        // Direct Client-Side Fallback if Gemini
-        if (config.provider === 'gemini' && config.apiKey) {
+        let errCode = 'GENERIC_ERROR';
+        let errMsg = `Server responded with status ${res.status}`;
+        let errProvider = config.provider;
+        let isStructuredAIError = false;
+
+        const errRaw = await res.text().catch(() => '');
+        try {
+          const errJson = JSON.parse(errRaw);
+          errMsg = errJson.message || errJson.error || errMsg;
+          if (errJson.code) {
+            errCode = errJson.code;
+            isStructuredAIError = true;
+          }
+          if (errJson.provider) errProvider = errJson.provider;
+        } catch {
+          if (errRaw.trim()) errMsg = errRaw.trim();
+        }
+
+        // Direct Client-Side Fallback only if Gemini and backend API route is not implemented (e.g. standalone static SPA 404/502)
+        if (config.provider === 'gemini' && config.apiKey && !isStructuredAIError && (res.status === 404 || res.status === 502)) {
           const systemPrompt = buildClientSideSystemPrompt();
           const geminiContents = apiMessages.map((m) => ({
             role: m.role === 'assistant' ? 'model' : 'user',
@@ -445,7 +489,28 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
           if (!geminiRes.ok) {
             const errText = await geminiRes.text();
-            throw new Error(`Gemini API error (status ${geminiRes.status}): ${errText}`);
+            let parsedGeminiErr = `Gemini API error (${geminiRes.status})`;
+            let gCode = 'GENERIC_ERROR';
+            try {
+              const gJson = JSON.parse(errText);
+              parsedGeminiErr = gJson.error?.message || parsedGeminiErr;
+              const gStatus = gJson.error?.status;
+              if (geminiRes.status === 503 || gStatus === 'UNAVAILABLE' || parsedGeminiErr.toLowerCase().includes('overloaded')) {
+                gCode = 'MODEL_OVERLOADED';
+              } else if (geminiRes.status === 429 || gStatus === 'RESOURCE_EXHAUSTED' || parsedGeminiErr.toLowerCase().includes('quota')) {
+                gCode = 'QUOTA_EXCEEDED';
+              } else if (geminiRes.status === 400 || geminiRes.status === 401 || geminiRes.status === 403) {
+                gCode = 'INVALID_API_KEY';
+              } else if (geminiRes.status === 404) {
+                gCode = 'MODEL_NOT_FOUND';
+              }
+            } catch {
+              // Ignore json parse
+            }
+            const customErr: any = new Error(parsedGeminiErr);
+            customErr.errorCode = gCode;
+            customErr.provider = 'gemini';
+            throw customErr;
           }
 
           const reader = geminiRes.body?.getReader();
@@ -474,7 +539,7 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
                       accumulated += chunk;
                       setMessages((prev) =>
                         prev.map((m) =>
-                          m.id === assistantMsgId ? { ...m, content: accumulated } : m
+                          m.id === assistantMsgId ? { ...m, content: accumulated, errorCode: undefined } : m
                         )
                       );
                     }
@@ -488,15 +553,10 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
           return;
         }
 
-        const errRaw = await res.text().catch(() => '');
-        let errMsg = `Server responded with status ${res.status}`;
-        try {
-          const errJson = JSON.parse(errRaw);
-          errMsg = errJson.error || errJson.message || errMsg;
-        } catch {
-          if (errRaw.trim()) errMsg = errRaw.trim();
-        }
-        throw new Error(errMsg);
+        const customErr: any = new Error(errMsg);
+        customErr.errorCode = errCode;
+        customErr.provider = errProvider;
+        throw customErr;
       }
 
       const reader = res.body?.getReader();
@@ -521,7 +581,10 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
               try {
                 const parsed = JSON.parse(dataStr);
                 if (parsed.error) {
-                  throw new Error(parsed.error);
+                  const customErr: any = new Error(parsed.error);
+                  customErr.errorCode = parsed.code || 'GENERIC_ERROR';
+                  customErr.provider = parsed.provider || config.provider;
+                  throw customErr;
                 }
                 const chunkText =
                   parsed.text ??
@@ -533,12 +596,12 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
                   accumulated += chunkText;
                   setMessages((prev) =>
                     prev.map((m) =>
-                      m.id === assistantMsgId ? { ...m, content: accumulated } : m
+                      m.id === assistantMsgId ? { ...m, content: accumulated, errorCode: undefined } : m
                     )
                   );
                 }
               } catch (e: any) {
-                if (e.message && !e.message.includes('JSON')) {
+                if (e.errorCode || (e.message && !e.message.includes('JSON'))) {
                   throw e;
                 }
               }
@@ -560,13 +623,39 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
           )
         );
       } else {
+        let code = err.errorCode;
         const errMsg = err.message || 'Unknown communication error with AI service.';
+        const lowerMsg = errMsg.toLowerCase();
+
+        if (!code) {
+          if (lowerMsg.includes('overloaded') || lowerMsg.includes('high demand') || lowerMsg.includes('503')) {
+            code = 'MODEL_OVERLOADED';
+          } else if (lowerMsg.includes('quota') || lowerMsg.includes('rate limit') || lowerMsg.includes('429')) {
+            code = 'QUOTA_EXCEEDED';
+          } else if (lowerMsg.includes('api key') || lowerMsg.includes('unauthorized') || lowerMsg.includes('401') || lowerMsg.includes('key not valid')) {
+            code = 'INVALID_API_KEY';
+          } else if (lowerMsg.includes('not found') || lowerMsg.includes('404')) {
+            code = 'MODEL_NOT_FOUND';
+          } else if (err.name === 'TypeError' || lowerMsg.includes('failed to fetch') || lowerMsg.includes('network')) {
+            code = 'NETWORK_ERROR';
+          } else {
+            code = 'GENERIC_ERROR';
+          }
+        }
+
+        const canRetry = code === 'MODEL_OVERLOADED' || code === 'NETWORK_ERROR' || code === 'GENERIC_ERROR';
+
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantMsgId
               ? {
                   ...m,
-                  content: `⚠️ **Radio Transmission Error:**\n\n${errMsg}\n\n*Please verify your API key and provider configuration in settings.*`,
+                  content: '',
+                  errorCode: code,
+                  errorProvider: err.provider || config.provider,
+                  errorRaw: errMsg,
+                  canRetry,
+                  lastPrompt: text,
                 }
               : m
           )
@@ -576,7 +665,35 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       setIsGenerating(false);
       abortControllerRef.current = null;
     }
-  }, [buildClientSideSystemPrompt, buildCurrentBackendContext, config, isGenerating, messages]);
+  }, [buildClientSideSystemPrompt, buildCurrentBackendContext, config, isGenerating, messages, serverConfigStatus]);
+
+  const retryLastMessage = useCallback(async (assistantMsgId?: string) => {
+    if (isGenerating) return;
+
+    let promptToRetry = '';
+    if (assistantMsgId) {
+      const target = messages.find((m) => m.id === assistantMsgId);
+      if (target?.lastPrompt) {
+        promptToRetry = target.lastPrompt;
+      }
+    }
+
+    if (!promptToRetry) {
+      for (let i = messages.length - 1; i >= 0; i--) {
+        if (messages[i].role === 'user' && messages[i].content) {
+          promptToRetry = messages[i].content;
+          break;
+        }
+      }
+    }
+
+    if (promptToRetry) {
+      if (assistantMsgId) {
+        setMessages((prev) => prev.filter((m) => m.id !== assistantMsgId));
+      }
+      await sendMessage(promptToRetry);
+    }
+  }, [isGenerating, messages, sendMessage]);
 
   const stopGenerating = useCallback(() => {
     if (abortControllerRef.current) {
@@ -630,6 +747,7 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setLiveContext,
     messages,
     sendMessage,
+    retryLastMessage,
     clearMessages,
     isGenerating,
     stopGenerating,
@@ -651,6 +769,7 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     liveContext,
     messages,
     sendMessage,
+    retryLastMessage,
     clearMessages,
     isGenerating,
     stopGenerating,

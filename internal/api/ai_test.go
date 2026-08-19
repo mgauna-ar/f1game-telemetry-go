@@ -211,3 +211,66 @@ func TestHandleAIFetchModels_Validation(t *testing.T) {
 		}
 	})
 }
+
+func TestParseGeminiError(t *testing.T) {
+	t.Run("overloaded 503", func(t *testing.T) {
+		body := []byte(`{"error": {"code": 503, "message": "The model is overloaded. Please try again later.", "status": "UNAVAILABLE"}}`)
+		err := parseGeminiError(503, body)
+		if err.Code != AIErrorModelOverloaded {
+			t.Errorf("expected code %s, got %s", AIErrorModelOverloaded, err.Code)
+		}
+		if err.Provider != "gemini" {
+			t.Errorf("expected provider gemini, got %s", err.Provider)
+		}
+	})
+
+	t.Run("quota exhausted 429", func(t *testing.T) {
+		body := []byte(`{"error": {"code": 429, "message": "Resource has been exhausted (e.g. check quota).", "status": "RESOURCE_EXHAUSTED"}}`)
+		err := parseGeminiError(429, body)
+		if err.Code != AIErrorQuotaExceeded {
+			t.Errorf("expected code %s, got %s", AIErrorQuotaExceeded, err.Code)
+		}
+	})
+
+	t.Run("invalid api key 400", func(t *testing.T) {
+		body := []byte(`{"error": {"code": 400, "message": "API key not valid. Please pass a valid API key.", "status": "INVALID_ARGUMENT"}}`)
+		err := parseGeminiError(400, body)
+		if err.Code != AIErrorInvalidAPIKey {
+			t.Errorf("expected code %s, got %s", AIErrorInvalidAPIKey, err.Code)
+		}
+	})
+
+	t.Run("model not found 404", func(t *testing.T) {
+		body := []byte(`{"error": {"code": 404, "message": "models/nonexistent is not found", "status": "NOT_FOUND"}}`)
+		err := parseGeminiError(404, body)
+		if err.Code != AIErrorModelNotFound {
+			t.Errorf("expected code %s, got %s", AIErrorModelNotFound, err.Code)
+		}
+	})
+}
+
+func TestParseOpenAIError(t *testing.T) {
+	t.Run("insufficient quota 429", func(t *testing.T) {
+		body := []byte(`{"error": {"message": "You exceeded your current quota, please check your plan and billing details.", "type": "insufficient_quota", "code": "insufficient_quota"}}`)
+		err := parseOpenAIError(429, body, "openai")
+		if err.Code != AIErrorQuotaExceeded {
+			t.Errorf("expected code %s, got %s", AIErrorQuotaExceeded, err.Code)
+		}
+	})
+
+	t.Run("invalid key 401", func(t *testing.T) {
+		body := []byte(`{"error": {"message": "Incorrect API key provided", "type": "invalid_request_error", "code": "invalid_api_key"}}`)
+		err := parseOpenAIError(401, body, "openai")
+		if err.Code != AIErrorInvalidAPIKey {
+			t.Errorf("expected code %s, got %s", AIErrorInvalidAPIKey, err.Code)
+		}
+	})
+
+	t.Run("overloaded 503", func(t *testing.T) {
+		body := []byte(`{"error": {"message": "The server is currently overloaded with other requests.", "type": "server_error"}}`)
+		err := parseOpenAIError(503, body, "openai")
+		if err.Code != AIErrorModelOverloaded {
+			t.Errorf("expected code %s, got %s", AIErrorModelOverloaded, err.Code)
+		}
+	})
+}

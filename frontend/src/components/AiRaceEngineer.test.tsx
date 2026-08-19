@@ -123,8 +123,108 @@ describe('AiRaceEngineer Component', () => {
     const settingsBtn = screen.getByRole('button', { name: /Settings/i });
     fireEvent.click(settingsBtn);
 
-    expect(screen.getByText('AI Engineer Settings')).toBeInTheDocument();
+    expect(screen.getByText('AI Settings')).toBeInTheDocument();
     expect(screen.getByText('Provider')).toBeInTheDocument();
     expect(screen.getByText(/Google Gemini/)).toBeInTheDocument();
+
+    // Verify direct API key creation link is present in settings
+    const keyLink = screen.getByText(/Get a free API key at Google AI Studio/i);
+    expect(keyLink).toBeInTheDocument();
+    expect(keyLink.closest('a')).toHaveAttribute('href', 'https://aistudio.google.com/app/apikey');
+  });
+
+  it('displays a friendly missing API key card with links when no key is configured', async () => {
+    // Setup config status with NO server key
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url === '/api/ai/config-status') {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              has_gemini_env_key: false,
+              has_openai_env_key: false,
+              default_provider: 'gemini',
+              default_model: 'gemini-flash-lite-latest',
+            }),
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
+
+    render(
+      <RaceEngineerProvider>
+        <AiRaceEngineer isOpenOverride={true} />
+      </RaceEngineerProvider>
+    );
+
+    // Send a message without an API key
+    const input = screen.getByPlaceholderText('Ask your Race Engineer...');
+    fireEvent.change(input, { target: { value: 'Analyze tyre deg' } });
+    fireEvent.submit(input.closest('form')!);
+
+    // Expect the missing key alert card
+    const errorCard = await screen.findByTestId('ai-error-card');
+    expect(errorCard).toBeInTheDocument();
+    expect(screen.getByText(/Radio Link Disconnected: Missing API Key/i)).toBeInTheDocument();
+    expect(screen.getByText(/Get Free Key at Google AI Studio/i)).toBeInTheDocument();
+    expect(screen.getByText('Configure in Settings')).toBeInTheDocument();
+  });
+
+  it('displays model overloaded error card with retry button on high demand error', async () => {
+    localStorage.setItem(
+      'f1_ai_engineer_config',
+      JSON.stringify({
+        provider: 'gemini',
+        apiKey: 'test-gemini-key',
+        model: 'gemini-flash-lite-latest',
+        providerKeys: { gemini: 'test-gemini-key' },
+      })
+    );
+
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url === '/api/ai/config-status') {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              has_gemini_env_key: true,
+              has_openai_env_key: false,
+              default_provider: 'gemini',
+              default_model: 'gemini-flash-lite-latest',
+            }),
+        });
+      }
+      if (url === '/api/ai/chat') {
+        return Promise.resolve({
+          ok: false,
+          status: 503,
+          text: () =>
+            Promise.resolve(
+              JSON.stringify({
+                error: 'The model is overloaded. Please try again later.',
+                code: 'MODEL_OVERLOADED',
+                provider: 'gemini',
+              })
+            ),
+        });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+    });
+
+    render(
+      <RaceEngineerProvider>
+        <AiRaceEngineer isOpenOverride={true} />
+      </RaceEngineerProvider>
+    );
+
+    const input = screen.getByPlaceholderText('Ask your Race Engineer...');
+    fireEvent.change(input, { target: { value: 'Strategy advice' } });
+    fireEvent.submit(input.closest('form')!);
+
+    const errorCard = await screen.findByTestId('ai-error-card');
+    expect(errorCard).toBeInTheDocument();
+    expect(screen.getByText(/Pit Wall Radio Congested: High Demand/i)).toBeInTheDocument();
+    expect(screen.getByText(/Retry Transmission/i)).toBeInTheDocument();
+    expect(screen.getByText('Configure in Settings')).toBeInTheDocument();
   });
 });

@@ -99,3 +99,39 @@ type AIModelItem struct {
 type AIFetchModelsResponse struct {
 	Models []AIModelItem `json:"models"`
 }
+
+// AI error code constants
+const (
+	AIErrorMissingAPIKey   = "MISSING_API_KEY"
+	AIErrorModelOverloaded = "MODEL_OVERLOADED"
+	AIErrorQuotaExceeded   = "QUOTA_EXCEEDED"
+	AIErrorInvalidAPIKey   = "INVALID_API_KEY"
+	AIErrorModelNotFound   = "MODEL_NOT_FOUND"
+	AIErrorNetworkError    = "NETWORK_ERROR"
+	AIErrorGeneric         = "GENERIC_ERROR"
+)
+
+// AIErrorPayload represents a structured error returned in SSE or JSON responses.
+type AIErrorPayload struct {
+	Error           string `json:"error"`
+	Code            string `json:"code,omitempty"`
+	Provider        string `json:"provider,omitempty"`
+	Message         string `json:"message,omitempty"`
+	SuggestedAction string `json:"suggested_action,omitempty"`
+}
+
+// AIStreamError represents a classified upstream AI service error.
+type AIStreamError struct {
+	StatusCode int
+	Code       string
+	Message    string
+	RawMessage string
+	Provider   string
+}
+
+func (e *AIStreamError) Error() string {
+	if e.Message != "" {
+		return e.Message
+	}
+	return e.RawMessage
+}
