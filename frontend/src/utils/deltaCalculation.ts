@@ -77,18 +77,23 @@ export function normalizeTelemetrySeries(
     const prevTime = sorted[i - 1].session_time || 0;
     const currTime = sorted[i].session_time || 0;
 
-    // Check if curr is an isolated dropout/glitch
-    if ((prevDist - currDist > 200 || currDist < prevDist * 0.35) && i + 1 < sorted.length) {
+    // Check if curr is an isolated dropout/glitch (only if time gap is within normal sample interval < 1.0s)
+    if (
+      currTime - prevTime < 1.0 &&
+      (prevDist - currDist > 200 || currDist < prevDist * 0.35) &&
+      i + 1 < sorted.length
+    ) {
       const nextDist = sorted[i + 1].lap_distance || 0;
-      if (nextDist >= prevDist - 50.0) {
+      const nextTime = sorted[i + 1].session_time || 0;
+      if (nextDist >= prevDist - 50.0 && nextTime - prevTime < 1.0) {
         continue;
       }
     }
 
     // Reset condition: persistent sudden drop in distance or time reversal
     const isDrop =
-      (prevDist > 100 && (currDist < 50 || currDist < prevDist * 0.35)) ||
-      prevDist - currDist > 500 ||
+      (prevDist > 20 && (currDist < 15 || currDist < prevDist * 0.5)) ||
+      prevDist - currDist > 30 ||
       currTime < prevTime;
 
     if (isDrop) {

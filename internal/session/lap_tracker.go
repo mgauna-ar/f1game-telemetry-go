@@ -48,7 +48,7 @@ func NewLapTracker(repo *storage.Repository, batchWriter *TelemetryBatchWriter, 
 
 // Reset clears the lap tracker state for a new session, flushing any in-progress lap telemetry.
 func (lt *LapTracker) Reset() {
-	if lt.currentLap != nil && lt.currentLap.ID > 0 && len(lt.sampleBuffer) > 0 && lt.batchWriter != nil {
+	if lt.currentLap != nil && lt.currentLap.ID > 0 && len(lt.sampleBuffer) > 10 && lt.batchWriter != nil {
 		lt.batchWriter.EnqueueLap(lt.currentLap.ID, lt.sampleBuffer)
 	}
 
@@ -74,7 +74,7 @@ func (lt *LapTracker) Reset() {
 
 // FlushCurrentLap flushes any in-memory telemetry buffer for the current active lap.
 func (lt *LapTracker) FlushCurrentLap() {
-	if lt.currentLap != nil && lt.currentLap.ID > 0 && len(lt.sampleBuffer) > 0 && lt.batchWriter != nil {
+	if lt.currentLap != nil && lt.currentLap.ID > 0 && len(lt.sampleBuffer) > 10 && lt.batchWriter != nil {
 		lt.batchWriter.EnqueueLap(lt.currentLap.ID, lt.sampleBuffer)
 		lt.sampleBuffer = nil
 	}
@@ -219,6 +219,12 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 		// Detect distance reset/restart during the same lap number (e.g. flashback or garage reset)
 		if prevDistance > 500 && (currDistance < 100 || currDistance < prevDistance*0.3) {
 			log.Printf("[LapTracker] Lap restart detected for Car %d on Lap %d (distance %.1fm -> %.1fm). Purging in-memory telemetry.", lt.carIndex, lt.currentLapNum, prevDistance, currDistance)
+			lt.sampleBuffer = lt.sampleBuffer[:0]
+			if lt.currentLap.ID > 0 {
+				_ = lt.repo.DeleteTelemetryByLap(ctx, lt.currentLap.ID)
+			}
+		} else if prevDistance < 0 && currDistance >= 0 && lt.currentLapNum == 1 {
+			log.Printf("[LapTracker] Out-lap to flying lap start line crossing detected for Car %d on Lap 1 (distance %.1fm -> %.1fm). Purging out-lap buffer.", lt.carIndex, prevDistance, currDistance)
 			lt.sampleBuffer = lt.sampleBuffer[:0]
 			if lt.currentLap.ID > 0 {
 				_ = lt.repo.DeleteTelemetryByLap(ctx, lt.currentLap.ID)

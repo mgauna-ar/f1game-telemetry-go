@@ -210,4 +210,48 @@ describe('LeaderboardTower', () => {
     expect(screen.getByText('RET')).toBeInTheDocument();
     expect(screen.getByText('NO TIME')).toBeInTheDocument();
   });
+
+  it('filters out inactive AI placeholder drivers in multiplayer lobby when only humans are racing', () => {
+    // 2 human players (Car 0 and Car 1) and 2 AI placeholder slots (Car 2 and Car 3) with no activity
+    const mixedParticipants: ParticipantData[] = [
+      { AIControlled: 0, DriverId: 255, TeamId: 476, RaceNumber: 99, Nationality: 1, Name: 'LC-LEMAC' },
+      { AIControlled: 0, DriverId: 255, TeamId: 485, RaceNumber: 32, Nationality: 1, Name: 'LC-iL.Magno' },
+      { AIControlled: 1, DriverId: 54, TeamId: 484, RaceNumber: 4, Nationality: 1, Name: 'Lando Norris' },
+      { AIControlled: 1, DriverId: 9, TeamId: 478, RaceNumber: 33, Nationality: 1, Name: 'Max Verstappen' },
+    ];
+
+    const mixedLaps: LapData[] = [
+      { LastLapTimeInMS: 89393, CurrentLapTimeInMS: 10000, CarPosition: 1, CurrentLapNum: 2, PitStatus: 0, Sector1TimeMSPart: 28000, Sector2TimeMSPart: 37000, CurrentLapInvalid: 0, ResultStatus: 2, DriverStatus: 1, LapDistance: 500 },
+      { LastLapTimeInMS: 89753, CurrentLapTimeInMS: 12000, CarPosition: 2, CurrentLapNum: 2, PitStatus: 0, Sector1TimeMSPart: 28200, Sector2TimeMSPart: 36500, CurrentLapInvalid: 0, ResultStatus: 2, DriverStatus: 1, LapDistance: 480 },
+      // AI slots with Inactive / InGarage status and no times
+      { LastLapTimeInMS: 0, CurrentLapTimeInMS: 0, CarPosition: 0, CurrentLapNum: 1, PitStatus: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, CurrentLapInvalid: 0, ResultStatus: 1, DriverStatus: 0, LapDistance: -5000 },
+      { LastLapTimeInMS: 0, CurrentLapTimeInMS: 0, CarPosition: 0, CurrentLapNum: 1, PitStatus: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, CurrentLapInvalid: 0, ResultStatus: 1, DriverStatus: 0, LapDistance: -5000 },
+    ];
+
+    const mixedCarStatuses: CarStatusData[] = [
+      { VisualTyreCompound: 16, TyresAgeLaps: 1, FuelInTank: 10, ERSStoreEnergy: 1000, ERSDeployMode: 1 },
+      { VisualTyreCompound: 16, TyresAgeLaps: 1, FuelInTank: 10, ERSStoreEnergy: 1000, ERSDeployMode: 1 },
+      { VisualTyreCompound: 16, TyresAgeLaps: 0, FuelInTank: 0, ERSStoreEnergy: 0, ERSDeployMode: 0 },
+      { VisualTyreCompound: 16, TyresAgeLaps: 0, FuelInTank: 0, ERSStoreEnergy: 0, ERSDeployMode: 0 },
+    ];
+
+    render(
+      <LeaderboardTower
+        session={qualySession}
+        participants={mixedParticipants}
+        laps={mixedLaps}
+        carStatuses={mixedCarStatuses}
+        playerCarIndex={0}
+        selectedCarIndex={0}
+        onSelectCar={() => {}}
+      />
+    );
+
+    // Only the 2 human drivers should be displayed
+    expect(screen.getByText('LC-LEMAC')).toBeInTheDocument();
+    expect(screen.getByText('LC-iL.Magno')).toBeInTheDocument();
+    expect(screen.queryByText('Lando Norris')).not.toBeInTheDocument();
+    expect(screen.queryByText('Max Verstappen')).not.toBeInTheDocument();
+    expect(screen.getByText('2 CARS')).toBeInTheDocument();
+  });
 });

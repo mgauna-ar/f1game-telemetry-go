@@ -6,6 +6,7 @@ import {
   TYRE_COMPOUNDS,
   RESULT_STATUS,
   PIT_STATUS,
+  DRIVER_STATUS,
   TYRE_COMPOUND_IDS,
 } from '../constants/f1';
 import type { ParticipantData, LapData, CarStatusData, SessionData } from '../types/telemetry';
@@ -40,8 +41,35 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = ({
   // Check if current lap is inside the pit stop window
   const isWindowOpen = currentLeaderLap >= idealLap && currentLeaderLap <= latestLap;
 
-  // Build sorted field data
-  const drivers = participants.map((p, idx) => {
+  // Build sorted field data for active drivers
+  const activeParticipants = participants
+    .map((p, idx) => ({ p, idx }))
+    .filter(({ p, idx }) => {
+      const isPlayer = idx === playerCarIndex;
+      if (isPlayer) return true;
+
+      const isHuman = p.AIControlled === 0 && Boolean(p.Name && typeof p.Name === 'string' && p.Name.trim() !== '');
+      if (isHuman) return true;
+
+      const lap = laps[idx];
+      if (!lap) return false;
+
+      const resStatus = lap.ResultStatus !== undefined ? lap.ResultStatus : ((lap.CarPosition ?? 0) > 0 ? RESULT_STATUS.ACTIVE : RESULT_STATUS.INVALID);
+      const hasValidStatus =
+        resStatus === RESULT_STATUS.ACTIVE ||
+        resStatus === RESULT_STATUS.FINISHED ||
+        resStatus === RESULT_STATUS.DNF ||
+        resStatus === RESULT_STATUS.DSQ;
+
+      const hasTimes = (lap.LastLapTimeInMS ?? 0) > 0 || (lap.CurrentLapTimeInMS ?? 0) > 0;
+      const hasPosition = (lap.CarPosition ?? 0) > 0;
+      const hasLeftGarage = (lap.DriverStatus ?? DRIVER_STATUS.IN_GARAGE) !== DRIVER_STATUS.IN_GARAGE;
+      const hasDistance = (lap.LapDistance ?? 0) > 0 && (lap.CurrentLapNum ?? 0) >= 1;
+
+      return hasValidStatus && (hasTimes || hasPosition || hasLeftGarage || hasDistance);
+    });
+
+  const drivers = activeParticipants.map(({ p, idx }) => {
     const lap = laps[idx];
     const status = carStatuses[idx];
     const rawName = p.Name;

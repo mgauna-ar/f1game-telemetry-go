@@ -812,7 +812,17 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
 
     const rawStandings = (
       participants.length > 0
-        ? participants
+        ? participants.filter((p) => {
+            const rawDriverLaps = lapsByCar[p.car_index] || [];
+            const hasCompletedLaps = rawDriverLaps.some((l) => l.lap_time_ms > 0);
+            const hasSectors = rawDriverLaps.some((l) => (l.sector1_ms ?? 0) > 0 || (l.sector2_ms ?? 0) > 0 || (l.sector3_ms ?? 0) > 0);
+            const hasTelemetry = rawDriverLaps.some((l) => l.has_telemetry && (l.sample_count ?? 0) > 10);
+            const isHuman = !p.ai_controlled && p.name.trim() !== '';
+            const hasOfficialResult = (p.total_race_time ?? 0) > 0 || (p.points ?? 0) > 0 || (isRaceSession && (p.position ?? 0) > 0);
+
+            // Retain human drivers and any AI drivers who actually participated in the session
+            return isHuman || hasCompletedLaps || hasSectors || hasTelemetry || hasOfficialResult;
+          })
         : Object.keys(lapsByCar).map((idxStr): Participant => ({
             id: Number(idxStr),
             session_id: selectedSession.id,
@@ -1041,7 +1051,7 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
     return laps.reduce((max, l) => (l.lap_time_ms > 0 && l.lap_number > max ? l.lap_number : max), 0);
   }, [laps]);
 
-  const totalDriversCount = Math.max(participants.length, driverStandings.length);
+  const totalDriversCount = driverStandings.length;
 
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '1.5rem 2rem' }}>

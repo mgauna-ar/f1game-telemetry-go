@@ -234,6 +234,49 @@ describe('deltaCalculation utility', () => {
     }
   });
 
+  it('accurately normalizes qualifying lap with 89.7m garage sample and 175s out-lap', () => {
+    // Lap A (Silverstone Lap 1): starts with garage sample at 89.7m (t=0.274), out-lap (-5800m to -0.1m), then flying lap (0.2m to 5890.7m, t=175.463 to 264.856, dur=89.393s)
+    const lapA: TelemetrySamplePoint[] = [
+      { lap_distance: 89.7, session_time: 0.274, speed: 0, throttle: 0, brake: 0 },
+      { lap_distance: -5801.0, session_time: 0.355, speed: 0, throttle: 0, brake: 0 },
+      { lap_distance: -500.0, session_time: 160.0, speed: 200, throttle: 1, brake: 0 },
+      { lap_distance: -1.0, session_time: 175.4, speed: 280, throttle: 1, brake: 0 },
+      ...Array.from({ length: 60 }, (_, i) => ({
+        lap_distance: 0.2 + i * 100, // 0.2m to ~5900m
+        session_time: 175.463 + i * 1.515,
+        speed: 280,
+        throttle: 1,
+        brake: 0,
+      })),
+      { lap_distance: 5890.7, session_time: 264.856, speed: 290, throttle: 1, brake: 0 },
+    ];
+
+    // Lap B (Silverstone Lap 2): clean flying lap 1.4m to 5887.3m, t=990.124 to 1079.811 (dur=89.687s)
+    const lapB: TelemetrySamplePoint[] = [
+      ...Array.from({ length: 60 }, (_, i) => ({
+        lap_distance: 1.4 + i * 100,
+        session_time: 990.124 + i * 1.520,
+        speed: 275,
+        throttle: 1,
+        brake: 0,
+      })),
+      { lap_distance: 5887.3, session_time: 1079.811, speed: 285, throttle: 1, brake: 0 },
+    ];
+
+    const merged = calculateMergedComparison(lapA, lapB, 50);
+    expect(merged.length).toBeGreaterThan(0);
+    expect(merged[0].time_delta).toBe(0);
+    // Delta should remain smooth and < 1.5s across the entire lap, NOT +180s!
+    for (const pt of merged) {
+      if (pt.time_delta !== null) {
+        expect(Math.abs(pt.time_delta)).toBeLessThan(2.0);
+      }
+    }
+    // Lap A is slightly faster (~0.3s)
+    const lastPt = merged[merged.length - 1];
+    expect(lastPt.time_delta).toBeLessThan(0);
+  });
+
   it('keeps both traces and delta continuous across finish line when laps have >70m distance difference', () => {
     // Lap A: 5320m total distance
     const lapA: TelemetrySamplePoint[] = Array.from({ length: 107 }, (_, i) => ({

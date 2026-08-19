@@ -84,7 +84,34 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
       }
     });
 
-    const drivers: ProcessedDriver[] = participants.map((p, idx) => {
+    const activeParticipants = participants
+      .map((p, idx) => ({ p, idx }))
+      .filter(({ p, idx }) => {
+        const isPlayer = idx === playerCarIndex;
+        if (isPlayer) return true;
+
+        const isHuman = p.AIControlled === 0 && Boolean(p.Name && typeof p.Name === 'string' && p.Name.trim() !== '');
+        if (isHuman) return true;
+
+        const lap = laps[idx];
+        if (!lap) return false;
+
+        const resStatus = lap.ResultStatus !== undefined ? lap.ResultStatus : ((lap.CarPosition ?? 0) > 0 ? RESULT_STATUS.ACTIVE : RESULT_STATUS.INVALID);
+        const hasValidStatus =
+          resStatus === RESULT_STATUS.ACTIVE ||
+          resStatus === RESULT_STATUS.FINISHED ||
+          resStatus === RESULT_STATUS.DNF ||
+          resStatus === RESULT_STATUS.DSQ;
+
+        const hasTimes = (lap.LastLapTimeInMS ?? 0) > 0 || (lap.CurrentLapTimeInMS ?? 0) > 0;
+        const hasPosition = (lap.CarPosition ?? 0) > 0;
+        const hasLeftGarage = (lap.DriverStatus ?? DRIVER_STATUS.IN_GARAGE) !== DRIVER_STATUS.IN_GARAGE;
+        const hasDistance = (lap.LapDistance ?? 0) > 0 && (lap.CurrentLapNum ?? 0) >= 1;
+
+        return hasValidStatus && (hasTimes || hasPosition || hasLeftGarage || hasDistance);
+      });
+
+    const drivers: ProcessedDriver[] = activeParticipants.map(({ p, idx }) => {
       const lap = laps[idx];
       const carStatus = carStatuses[idx];
       const telemetry2 = telemetry2List?.[idx];
@@ -477,17 +504,19 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
         </span>
       </div>
 
-      {/* 2 Parallel Columns Grid (P1-P11 Left | P12-P22 Right) */}
-      <div className="tower-two-cols-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
-        {/* Left Column: P1 to P11 */}
+      {/* Dynamic Columns Grid (1 Column if <= 11 drivers, 2 Columns if > 11 drivers) */}
+      <div className="tower-two-cols-grid" style={{ display: 'grid', gridTemplateColumns: col2Drivers.length > 0 ? 'repeat(2, 1fr)' : '1fr', gap: '1rem' }}>
+        {/* Left Column: P1 to P11 (or all drivers if <= 11) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           {col1Drivers.map((driver, idx) => renderDriverRow(driver, idx, 0))}
         </div>
 
-        {/* Right Column: P12 to P22 */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          {col2Drivers.map((driver, idx) => renderDriverRow(driver, idx, 1))}
-        </div>
+        {/* Right Column: P12+ (only rendered if > 11 drivers) */}
+        {col2Drivers.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {col2Drivers.map((driver, idx) => renderDriverRow(driver, idx, 1))}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -531,7 +531,7 @@ func (r *Repository) GetLapsBySession(ctx context.Context, sessionID int64, carI
 			FROM laps 
 			LEFT JOIN lap_telemetry lt ON lt.lap_id = laps.id
 			WHERE laps.session_id = ? AND laps.car_index = ?
-			  AND (laps.lap_time_ms > 0 OR lt.lap_id IS NOT NULL)
+			  AND (laps.lap_time_ms > 0 OR (lt.lap_id IS NOT NULL AND lt.sample_count > 10))
 			ORDER BY laps.lap_number ASC
 		`
 		args = []any{sessionID, *carIndex}
@@ -543,7 +543,7 @@ func (r *Repository) GetLapsBySession(ctx context.Context, sessionID int64, carI
 			FROM laps 
 			LEFT JOIN lap_telemetry lt ON lt.lap_id = laps.id
 			WHERE laps.session_id = ? 
-			  AND (laps.lap_time_ms > 0 OR lt.lap_id IS NOT NULL)
+			  AND (laps.lap_time_ms > 0 OR (lt.lap_id IS NOT NULL AND lt.sample_count > 10))
 			ORDER BY laps.car_index ASC, laps.lap_number ASC
 		`
 		args = []any{sessionID}
