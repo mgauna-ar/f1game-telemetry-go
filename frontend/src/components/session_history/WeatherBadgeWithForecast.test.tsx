@@ -102,4 +102,40 @@ describe('WeatherBadgeWithForecast', () => {
     }
     expect(screen.getByText(/Weather Evolution & Forecast/i)).toBeInTheDocument();
   });
+
+  it('hides forecast popover on mouse leave', () => {
+    render(
+      <I18nProvider>
+        <WeatherBadgeWithForecast session={mockSession} />
+      </I18nProvider>
+    );
+
+    const trigger = screen.getByText('Heavy Rain').closest('.weather-badge-container');
+    expect(trigger).toBeTruthy();
+
+    if (trigger) {
+      fireEvent.mouseEnter(trigger);
+      expect(screen.getByText(/Weather Evolution & Forecast/i)).toBeInTheDocument();
+
+      fireEvent.mouseLeave(trigger);
+      expect(screen.queryByText(/Weather Evolution & Forecast/i)).not.toBeInTheDocument();
+    }
+  });
+
+  it('renders temperature chips and rain percentage properly in popover', () => {
+    render(
+      <I18nProvider>
+        <WeatherBadgeWithForecast session={mockSession} />
+      </I18nProvider>
+    );
+
+    const trigger = screen.getByText('Heavy Rain').closest('.weather-badge-container');
+    if (trigger) {
+      fireEvent.mouseEnter(trigger);
+    }
+
+    expect(screen.getByText('21/28°C')).toBeInTheDocument();
+    expect(screen.getByText('90%')).toBeInTheDocument();
+    expect(screen.getByText('75%')).toBeInTheDocument();
+  });
 });
