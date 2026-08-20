@@ -809,8 +809,6 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
       lapsByCar[cIdx].push(l);
     });
 
-    const maxRaceLaps = laps.reduce((max, l) => (l.lap_time_ms > 0 && l.lap_number > max ? l.lap_number : max), 0);
-
     const rawStandings = (
       participants.length > 0
         ? filterActiveHistoricalParticipants(participants, laps, isRaceSession)
