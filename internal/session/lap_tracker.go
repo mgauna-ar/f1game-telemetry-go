@@ -264,9 +264,9 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 			updated = true
 		}
 
-		// If car has finished session, retired, or DNF (ResultStatus >= ResultStatusFinished), finalize lap and flush telemetry
+		// If car has finished session on Lap 1 without a lap transition (e.g. 1-lap sprint / time trial), finalize Lap 1
 		lastLapTimeMS := int(lapData.LastLapTimeInMS)
-		if resStatus >= int(packets.ResultStatusFinished) && lt.currentLap.LapTimeMS == 0 && lastLapTimeMS > 0 {
+		if resStatus >= int(packets.ResultStatusFinished) && lt.currentLapNum == 1 && lt.currentLap.LapTimeMS == 0 && lastLapTimeMS > 0 {
 			lt.finalizeCurrentLap(ctx, lastLapTimeMS)
 			return
 		}
@@ -343,6 +343,15 @@ func (lt *LapTracker) ProcessSessionHistory(ctx context.Context, session *storag
 			s1Valid := (lapData.LapValidBitFlags & packets.Sector1ValidBitFlag) != 0
 			s2Valid := (lapData.LapValidBitFlags & packets.Sector2ValidBitFlag) != 0
 			s3Valid := (lapData.LapValidBitFlags & packets.Sector3ValidBitFlag) != 0
+
+			// If LapValidBitFlags is 0 but the lap has a valid completed lap time,
+			// it indicates unpopulated validity bitmask from Qualifying/Practice UDP packets.
+			if lapData.LapValidBitFlags == 0 && lapTime > 0 {
+				isValid = true
+				s1Valid = s1 > 0
+				s2Valid = s2 > 0
+				s3Valid = s3 > 0
+			}
 
 			lap := &storage.Lap{
 				SessionID:      session.ID,

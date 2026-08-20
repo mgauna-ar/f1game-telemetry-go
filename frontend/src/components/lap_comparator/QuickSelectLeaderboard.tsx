@@ -478,8 +478,16 @@ export const QuickSelectLeaderboard: React.FC<QuickSelectLeaderboardProps> = ({
                             onClick={() => {
                               const targetLaps = lapsA;
                               const driverLaps = targetLaps
-                                .filter((l) => (l.car_index ?? -1) === p.car_index && l.is_valid && l.lap_time_ms > 0)
-                                .sort((a, b) => a.lap_time_ms - b.lap_time_ms);
+                                .filter((l) => (l.car_index ?? -1) === p.car_index && l.lap_time_ms > 0 && (l.is_valid || (l.sector1_ms ?? 0) > 0))
+                                .sort((a, b) => {
+                                  const aValid = a.is_valid ? 1 : 0;
+                                  const bValid = b.is_valid ? 1 : 0;
+                                  if (aValid !== bValid) return bValid - aValid;
+                                  if (a.lap_time_ms !== b.lap_time_ms) return a.lap_time_ms - b.lap_time_ms;
+                                  const scoreA = (a.has_telemetry ? 10 : 0) + ((a.sector1_ms ?? 0) > 0 ? 5 : 0);
+                                  const scoreB = (b.has_telemetry ? 10 : 0) + ((b.sector1_ms ?? 0) > 0 ? 5 : 0);
+                                  return scoreB - scoreA;
+                                });
                               if (driverLaps.length > 0) onSetLapA(driverLaps[0].id);
                             }}
                             style={{
@@ -503,8 +511,16 @@ export const QuickSelectLeaderboard: React.FC<QuickSelectLeaderboardProps> = ({
                           onClick={() => {
                             const targetLaps = lapsB;
                             const driverLaps = targetLaps
-                              .filter((l) => (l.car_index ?? -1) === p.car_index && l.is_valid && l.lap_time_ms > 0)
-                              .sort((a, b) => a.lap_time_ms - b.lap_time_ms);
+                              .filter((l) => (l.car_index ?? -1) === p.car_index && l.lap_time_ms > 0 && (l.is_valid || (l.sector1_ms ?? 0) > 0))
+                              .sort((a, b) => {
+                                const aValid = a.is_valid ? 1 : 0;
+                                const bValid = b.is_valid ? 1 : 0;
+                                if (aValid !== bValid) return bValid - aValid;
+                                if (a.lap_time_ms !== b.lap_time_ms) return a.lap_time_ms - b.lap_time_ms;
+                                const scoreA = (a.has_telemetry ? 10 : 0) + ((a.sector1_ms ?? 0) > 0 ? 5 : 0);
+                                const scoreB = (b.has_telemetry ? 10 : 0) + ((b.sector1_ms ?? 0) > 0 ? 5 : 0);
+                                return scoreB - scoreA;
+                              });
                             if (driverLaps.length > 0) onSetLapB(driverLaps[0].id);
                           }}
                           style={{
@@ -526,7 +542,7 @@ export const QuickSelectLeaderboard: React.FC<QuickSelectLeaderboardProps> = ({
                     </div>
 
                     {/* Bottom Row: Sector Timings */}
-                    {p.bestLap && (p.bestLap.sector1_ms || p.bestLap.sector2_ms || p.bestLap.sector3_ms) && (
+                    {p.bestLap && Boolean(p.bestLap.sector1_ms || p.bestLap.sector2_ms || p.bestLap.sector3_ms) && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.66rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
                         {p.bestLap.sector1_ms ? (
                           <span style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '1px 4px', borderRadius: '3px' }}>

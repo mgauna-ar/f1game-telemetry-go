@@ -179,7 +179,17 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
           if (preloadedLapAId && list.some((l) => l.id === preloadedLapAId)) {
             setLapAId(preloadedLapAId);
           } else if (list.length > 0) {
-            const valid = list.filter((l) => l.is_valid && l.lap_time_ms > 0).sort((a, b) => a.lap_time_ms - b.lap_time_ms);
+            const valid = list
+              .filter((l) => l.lap_time_ms > 0 && (l.is_valid || (l.sector1_ms ?? 0) > 0))
+              .sort((a, b) => {
+                const aValid = a.is_valid ? 1 : 0;
+                const bValid = b.is_valid ? 1 : 0;
+                if (aValid !== bValid) return bValid - aValid;
+                if (a.lap_time_ms !== b.lap_time_ms) return a.lap_time_ms - b.lap_time_ms;
+                const scoreA = (a.has_telemetry ? 10 : 0) + ((a.sector1_ms ?? 0) > 0 ? 5 : 0);
+                const scoreB = (b.has_telemetry ? 10 : 0) + ((b.sector1_ms ?? 0) > 0 ? 5 : 0);
+                return scoreB - scoreA;
+              });
             const best = valid.length > 0 ? valid[0] : list[0];
             setLapAId(best.id);
           } else {
@@ -208,7 +218,17 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
           if (preloadedLapBId && list.some((l) => l.id === preloadedLapBId)) {
             setLapBId(preloadedLapBId);
           } else if (list.length > 0) {
-            const valid = list.filter((l) => l.is_valid && l.lap_time_ms > 0).sort((a, b) => a.lap_time_ms - b.lap_time_ms);
+            const valid = list
+              .filter((l) => l.lap_time_ms > 0 && (l.is_valid || (l.sector1_ms ?? 0) > 0))
+              .sort((a, b) => {
+                const aValid = a.is_valid ? 1 : 0;
+                const bValid = b.is_valid ? 1 : 0;
+                if (aValid !== bValid) return bValid - aValid;
+                if (a.lap_time_ms !== b.lap_time_ms) return a.lap_time_ms - b.lap_time_ms;
+                const scoreA = (a.has_telemetry ? 10 : 0) + ((a.sector1_ms ?? 0) > 0 ? 5 : 0);
+                const scoreB = (b.has_telemetry ? 10 : 0) + ((b.sector1_ms ?? 0) > 0 ? 5 : 0);
+                return scoreB - scoreA;
+              });
             if (valid.length > 1 && sessionAId === sessionBId) {
               setLapBId(valid[1].id);
             } else if (valid.length > 0) {
@@ -490,8 +510,16 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
     return filterActiveHistoricalParticipants(participantsA, lapsA)
       .map((p) => {
         const driverLaps = lapsA
-          .filter((l) => (l.car_index ?? -1) === p.car_index && l.is_valid && l.lap_time_ms > 0)
-          .sort((a, b) => a.lap_time_ms - b.lap_time_ms);
+          .filter((l) => (l.car_index ?? -1) === p.car_index && l.lap_time_ms > 0 && (l.is_valid || (l.sector1_ms ?? 0) > 0))
+          .sort((a, b) => {
+            const aValid = a.is_valid ? 1 : 0;
+            const bValid = b.is_valid ? 1 : 0;
+            if (aValid !== bValid) return bValid - aValid;
+            if (a.lap_time_ms !== b.lap_time_ms) return a.lap_time_ms - b.lap_time_ms;
+            const scoreA = (a.has_telemetry ? 10 : 0) + ((a.sector1_ms ?? 0) > 0 ? 5 : 0);
+            const scoreB = (b.has_telemetry ? 10 : 0) + ((b.sector1_ms ?? 0) > 0 ? 5 : 0);
+            return scoreB - scoreA;
+          });
         const bestLap = driverLaps.length > 0 ? driverLaps[0] : null;
         return { ...p, bestLap };
       });
@@ -503,8 +531,16 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
     return filterActiveHistoricalParticipants(participantsB, lapsB)
       .map((p) => {
         const driverLaps = lapsB
-          .filter((l) => (l.car_index ?? -1) === p.car_index && l.is_valid && l.lap_time_ms > 0)
-          .sort((a, b) => a.lap_time_ms - b.lap_time_ms);
+          .filter((l) => (l.car_index ?? -1) === p.car_index && l.lap_time_ms > 0 && (l.is_valid || (l.sector1_ms ?? 0) > 0))
+          .sort((a, b) => {
+            const aValid = a.is_valid ? 1 : 0;
+            const bValid = b.is_valid ? 1 : 0;
+            if (aValid !== bValid) return bValid - aValid;
+            if (a.lap_time_ms !== b.lap_time_ms) return a.lap_time_ms - b.lap_time_ms;
+            const scoreA = (a.has_telemetry ? 10 : 0) + ((a.sector1_ms ?? 0) > 0 ? 5 : 0);
+            const scoreB = (b.has_telemetry ? 10 : 0) + ((b.sector1_ms ?? 0) > 0 ? 5 : 0);
+            return scoreB - scoreA;
+          });
         const bestLap = driverLaps.length > 0 ? driverLaps[0] : null;
         return { ...p, bestLap };
       });

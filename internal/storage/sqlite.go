@@ -185,16 +185,32 @@ func (r *Repository) SaveLap(ctx context.Context, l *Lap, mergeMode bool) error 
 				sector1_ms = CASE WHEN excluded.sector1_ms > 0 THEN excluded.sector1_ms ELSE laps.sector1_ms END,
 				sector2_ms = CASE WHEN excluded.sector2_ms > 0 THEN excluded.sector2_ms ELSE laps.sector2_ms END,
 				sector3_ms = CASE WHEN excluded.sector3_ms > 0 THEN excluded.sector3_ms ELSE laps.sector3_ms END,
-				is_valid = excluded.is_valid,
+				is_valid = CASE 
+					WHEN excluded.is_valid = 1 THEN 1 
+					WHEN laps.is_valid = 1 AND laps.lap_time_ms > 0 THEN 1 
+					ELSE excluded.is_valid 
+				END,
 				tyre_compound = CASE WHEN excluded.tyre_compound != '' THEN excluded.tyre_compound ELSE laps.tyre_compound END,
 				stint = CASE WHEN excluded.stint > 0 THEN excluded.stint ELSE laps.stint END,
 				car_position = CASE WHEN excluded.car_position > 0 THEN excluded.car_position ELSE laps.car_position END,
 				result_status = CASE WHEN excluded.result_status > 0 THEN excluded.result_status ELSE laps.result_status END,
 				penalties_seconds = CASE WHEN excluded.penalties_seconds > 0 THEN excluded.penalties_seconds ELSE laps.penalties_seconds END,
 				actual_compound = CASE WHEN excluded.actual_compound != '' THEN excluded.actual_compound ELSE laps.actual_compound END,
-				sector1_valid = excluded.sector1_valid,
-				sector2_valid = excluded.sector2_valid,
-				sector3_valid = excluded.sector3_valid
+				sector1_valid = CASE 
+					WHEN excluded.sector1_valid = 1 THEN 1 
+					WHEN laps.sector1_valid = 1 AND laps.sector1_ms > 0 THEN 1 
+					ELSE excluded.sector1_valid 
+				END,
+				sector2_valid = CASE 
+					WHEN excluded.sector2_valid = 1 THEN 1 
+					WHEN laps.sector2_valid = 1 AND laps.sector2_ms > 0 THEN 1 
+					ELSE excluded.sector2_valid 
+				END,
+				sector3_valid = CASE 
+					WHEN excluded.sector3_valid = 1 THEN 1 
+					WHEN laps.sector3_valid = 1 AND laps.sector3_ms > 0 THEN 1 
+					ELSE excluded.sector3_valid 
+				END
 			RETURNING id
 		`
 	} else {
@@ -531,7 +547,7 @@ func (r *Repository) GetLapsBySession(ctx context.Context, sessionID int64, carI
 			FROM laps 
 			LEFT JOIN lap_telemetry lt ON lt.lap_id = laps.id
 			WHERE laps.session_id = ? AND laps.car_index = ?
-			  AND (laps.lap_time_ms > 0 OR (lt.lap_id IS NOT NULL AND lt.sample_count > 10))
+			  AND (laps.lap_time_ms > 0 OR laps.result_status >= 3 OR (lt.lap_id IS NOT NULL AND lt.sample_count > 10))
 			ORDER BY laps.lap_number ASC
 		`
 		args = []any{sessionID, *carIndex}
@@ -543,7 +559,7 @@ func (r *Repository) GetLapsBySession(ctx context.Context, sessionID int64, carI
 			FROM laps 
 			LEFT JOIN lap_telemetry lt ON lt.lap_id = laps.id
 			WHERE laps.session_id = ? 
-			  AND (laps.lap_time_ms > 0 OR (lt.lap_id IS NOT NULL AND lt.sample_count > 10))
+			  AND (laps.lap_time_ms > 0 OR laps.result_status >= 3 OR (lt.lap_id IS NOT NULL AND lt.sample_count > 10))
 			ORDER BY laps.car_index ASC, laps.lap_number ASC
 		`
 		args = []any{sessionID}

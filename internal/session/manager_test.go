@@ -751,3 +751,67 @@ func TestFinalClassificationStintConsolidation(t *testing.T) {
 		t.Errorf("Lap 3 expected ResultStatus Finished, got %d", laps[2].ResultStatus)
 	}
 }
+
+func TestMultiLapFinishDoesNotCreatePhantomLap(t *testing.T) {
+	repo, err := storage.NewRepository("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("failed to create repo: %v", err)
+	}
+	defer repo.Close()
+
+	manager := NewSessionManager(repo)
+	ctx := context.Background()
+
+	sessionHeader := packets.PacketHeader{
+		PacketFormat: 2026,
+		PacketId:     packets.PacketIDSession,
+		SessionUID:   999777111,
+	}
+
+	sessionPacket := &packets.PacketSessionData{
+		Header:      sessionHeader,
+		TrackId:     17,
+		SessionType: packets.SessionShortQ,
+	}
+	manager.ProcessPacket(ctx, sessionPacket)
+
+	lapHeader := sessionHeader
+	lapHeader.PacketId = packets.PacketIDLapData
+
+	// Lap 1: Active
+	lapPacket := &packets.PacketLapData{Header: lapHeader}
+	lapPacket.LapData[0].CurrentLapNum = 1
+	lapPacket.LapData[0].ResultStatus = packets.ResultStatusActive
+	manager.ProcessPacket(ctx, lapPacket)
+
+	// Lap 2 transition (Lap 1 completed in 65000ms)
+	lapPacket.LapData[0].CurrentLapNum = 2
+	lapPacket.LapData[0].LastLapTimeInMS = 65000
+	manager.ProcessPacket(ctx, lapPacket)
+
+	// Session finishes on Lap 2 (in-lap): ResultStatus = 3 (Finished), LastLapTimeInMS remains 65000 (Lap 1 time)
+	lapPacket.LapData[0].CurrentLapNum = 2
+	lapPacket.LapData[0].ResultStatus = packets.ResultStatusFinished
+	lapPacket.LapData[0].LastLapTimeInMS = 65000
+	manager.ProcessPacket(ctx, lapPacket)
+
+	carIdx := 0
+	laps, err := repo.GetLapsBySession(ctx, manager.currentSession.ID, &carIdx)
+	if err != nil {
+		t.Fatalf("GetLapsBySession error: %v", err)
+	}
+
+	// Should only have 1 completed lap (Lap 1 with 65000ms). Lap 2 was not completed and should NOT have 65000ms.
+	completedLaps := 0
+	for _, l := range laps {
+		if l.LapTimeMS > 0 {
+			completedLaps++
+			if l.LapNumber != 1 {
+				t.Errorf("expected completed lap to be Lap 1, got Lap %d with time %d", l.LapNumber, l.LapTimeMS)
+			}
+		}
+	}
+	if completedLaps != 1 {
+		t.Errorf("expected exactly 1 completed lap, got %d", completedLaps)
+	}
+}
