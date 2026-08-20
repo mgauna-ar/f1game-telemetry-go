@@ -122,20 +122,40 @@ describe('WeatherBadgeWithForecast', () => {
     }
   });
 
-  it('renders temperature chips and rain percentage properly in popover', () => {
+  it('filters weekend forecast samples by the current session type (e.g. Q1)', () => {
+    const weekendSession: Session = {
+      id: 4,
+      session_uid: '0x123',
+      track_name: 'Madrid',
+      session_type: 'Qualifying 1',
+      weather: 'Light Cloud',
+      created_at: '2026-08-17T23:31:00Z',
+      weather_forecast: JSON.stringify([
+        { SessionType: 5, TimeOffset: 0, Weather: 1, RainPercentage: 9, TrackTemperature: 32, AirTemperature: 23 },
+        { SessionType: 5, TimeOffset: 5, Weather: 1, RainPercentage: 9, TrackTemperature: 32, AirTemperature: 23 },
+        { SessionType: 5, TimeOffset: 10, Weather: 1, RainPercentage: 10, TrackTemperature: 32, AirTemperature: 23 },
+        { SessionType: 6, TimeOffset: 0, Weather: 2, RainPercentage: 25, TrackTemperature: 30, AirTemperature: 22 },
+        { SessionType: 15, TimeOffset: 0, Weather: 4, RainPercentage: 80, TrackTemperature: 25, AirTemperature: 20 },
+      ]),
+    };
+
     render(
       <I18nProvider>
-        <WeatherBadgeWithForecast session={mockSession} />
+        <WeatherBadgeWithForecast session={weekendSession} />
       </I18nProvider>
     );
 
-    const trigger = screen.getByText('Heavy Rain').closest('.weather-badge-container');
+    const trigger = screen.getByText('Light Cloud').closest('.weather-badge-container');
     if (trigger) {
       fireEvent.mouseEnter(trigger);
     }
 
-    expect(screen.getByText('21/28°C')).toBeInTheDocument();
-    expect(screen.getByText('90%')).toBeInTheDocument();
-    expect(screen.getByText('75%')).toBeInTheDocument();
+    // Should show 3 timelines for Q1 (not all 5 weekend samples)
+    expect(screen.getByText(/Weather Evolution & Forecast/i)).toBeInTheDocument();
+    expect(screen.getAllByText('9%')).toHaveLength(2);
+    expect(screen.getByText('10%')).toBeInTheDocument();
+    // 25% (Q2) and 80% (Race) should NOT be in the document
+    expect(screen.queryByText('25%')).not.toBeInTheDocument();
+    expect(screen.queryByText('80%')).not.toBeInTheDocument();
   });
 });

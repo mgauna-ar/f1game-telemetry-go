@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"strings"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
@@ -323,7 +324,7 @@ func (sm *SessionManager) handleFinalClassification(ctx context.Context, p *pack
 				}
 			}
 		}
-		if cls.Position == 1 && cls.TotalRaceTime > 0 {
+		if isRaceSessionType(sm.currentSession.SessionType) && cls.Position == 1 && cls.TotalRaceTime > 0 {
 			sm.currentSession.SessionDuration = int(cls.TotalRaceTime)
 		}
 	}
@@ -335,4 +336,12 @@ func (sm *SessionManager) handleFinalClassification(ctx context.Context, p *pack
 	if sm.currentSession.SessionDuration > 0 {
 		_ = sm.repo.UpdateSessionMetadata(ctx, sm.currentSession.SessionUID, sm.currentSession.TrackID, sm.currentSession.TrackName, sm.currentSession.SessionType, sm.currentSession.Weather, sm.currentSession.WeatherForecast, sm.currentSession.TotalLaps, sm.currentSession.AIDifficulty, sm.currentSession.SessionDuration)
 	}
+}
+
+func isRaceSessionType(sessionType string) bool {
+	lower := strings.ToLower(sessionType)
+	if strings.Contains(lower, "qualifying") || strings.Contains(lower, "practice") || strings.Contains(lower, "shootout") || strings.Contains(lower, "time trial") {
+		return false
+	}
+	return strings.Contains(lower, "race")
 }

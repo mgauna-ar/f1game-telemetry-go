@@ -6,8 +6,6 @@ import { TagBadge } from './TagBadge';
 import { F1FormatBadge } from '../F1FormatBadge';
 import { TrackFlag } from '../TrackFlag';
 import { WeatherBadgeWithForecast } from './WeatherBadgeWithForecast';
-import { formatDuration } from '../../utils/formatters';
-import { TIME_CONSTANTS } from '../../constants/f1';
 
 interface SessionTableViewProps {
   sessions: Session[];
@@ -121,15 +119,6 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
                   {renderSortIndicator('type')}
                 </div>
               </th>
-              <th
-                style={{ cursor: onToggleSort ? 'pointer' : 'default' }}
-                onClick={() => onToggleSort && onToggleSort('duration')}
-              >
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                  <span>{t('history.table.duration')}</span>
-                  {renderSortIndicator('duration')}
-                </div>
-              </th>
               <th>{t('history.tags.title')}</th>
               <th>{t('history.table.weather')}</th>
               <th style={{ textAlign: 'right' }}>{t('history.table.actions')}</th>
@@ -138,9 +127,6 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
           <tbody>
             {sessions.map((session) => {
               const sessionTags = session.tags || [];
-              const formattedDurationStr = session.session_duration && session.session_duration > 0
-                ? formatDuration(session.session_duration * TIME_CONSTANTS.MS_PER_SECOND)
-                : '-';
               const isSelected = selectedSessionIds?.has(session.id) || false;
 
               return (
@@ -217,11 +203,6 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
                         {session.session_type || 'RACE'}
                       </span>
                     </div>
-                  </td>
-                  <td className="mono">
-                    <span style={{ color: formattedDurationStr !== '-' ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
-                      {formattedDurationStr}
-                    </span>
                   </td>
                   <td onClick={(e) => e.stopPropagation()}>
                     <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px', minWidth: '120px' }}>

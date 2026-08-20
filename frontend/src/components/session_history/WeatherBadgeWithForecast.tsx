@@ -11,7 +11,7 @@ import {
   Thermometer,
 } from 'lucide-react';
 import type { Session, WeatherForecastSample } from '../../types/session';
-import { WEATHER_CODES, WEATHER_TYPES } from '../../constants/f1';
+import { WEATHER_CODES, WEATHER_TYPES, getSessionTypeCode } from '../../constants/f1';
 import { useI18n } from '../../context/I18nContext';
 
 interface WeatherBadgeWithForecastProps {
@@ -111,19 +111,41 @@ export const WeatherBadgeWithForecast: React.FC<WeatherBadgeWithForecastProps> =
 
   const forecastSamples = useMemo<WeatherForecastSample[]>(() => {
     if (!session.weather_forecast) return [];
+    let raw: WeatherForecastSample[] = [];
     if (Array.isArray(session.weather_forecast)) {
-      return session.weather_forecast;
-    }
-    if (typeof session.weather_forecast === 'string' && session.weather_forecast.trim()) {
+      raw = session.weather_forecast;
+    } else if (typeof session.weather_forecast === 'string' && session.weather_forecast.trim()) {
       try {
         const parsed = JSON.parse(session.weather_forecast);
-        if (Array.isArray(parsed)) return parsed;
+        if (Array.isArray(parsed)) raw = parsed;
       } catch {
         return [];
       }
     }
-    return [];
-  }, [session.weather_forecast]);
+    if (raw.length === 0) return [];
+
+    // Filter samples for this session's specific type if available
+    const sessionCode = getSessionTypeCode(session.session_type);
+    if (sessionCode > 0) {
+      const matched = raw.filter((s) => (s.SessionType ?? s.session_type) === sessionCode);
+      if (matched.length > 0) {
+        return matched;
+      }
+    }
+
+    // Fallback: If no session type match or SessionType is not populated,
+    // take the first group of samples before TimeOffset resets to 0 (avoiding concatenated weekend samples)
+    const firstGroup: WeatherForecastSample[] = [];
+    for (let i = 0; i < raw.length; i++) {
+      const s = raw[i];
+      const offset = s.TimeOffset ?? s.time_offset ?? 0;
+      if (i > 0 && offset === 0) {
+        break; // Next session in the weekend starts
+      }
+      firstGroup.push(s);
+    }
+    return firstGroup.length > 0 ? firstGroup : raw;
+  }, [session.weather_forecast, session.session_type]);
 
   const initialWeatherLabel = session.weather
     ? getWeatherLabel(session.weather, t)

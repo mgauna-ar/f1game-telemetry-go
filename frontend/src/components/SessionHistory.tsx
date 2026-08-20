@@ -752,8 +752,6 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
         comp = (a.session_type || '').localeCompare(b.session_type || '');
       } else if (sortField === 'laps') {
         comp = (a.total_laps || 0) - (b.total_laps || 0);
-      } else if (sortField === 'duration') {
-        comp = (a.session_duration || 0) - (b.session_duration || 0);
       } else {
         // date
         comp = new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();

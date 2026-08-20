@@ -81,10 +81,21 @@ export const LiveWeatherRadar: React.FC<LiveWeatherRadarProps> = ({ session }) =
     return <Minus size={11} color="var(--text-muted)" />;
   };
 
-  const forecastSamples: WeatherForecastSample[] =
-    session?.WeatherForecastSamples && session.WeatherForecastSamples.length > 0
-      ? session.WeatherForecastSamples
-      : [
+  const forecastSamples: WeatherForecastSample[] = React.useMemo(() => {
+    if (session?.WeatherForecastSamples && session.WeatherForecastSamples.length > 0) {
+      const raw = session.WeatherForecastSamples;
+      if (session.SessionType !== undefined && session.SessionType > 0) {
+        const matched = raw.filter((s) => s.SessionType === session.SessionType);
+        if (matched.length > 0) return matched;
+      }
+      const firstGroup: WeatherForecastSample[] = [];
+      for (let i = 0; i < raw.length; i++) {
+        if (i > 0 && raw[i].TimeOffset === 0) break;
+        firstGroup.push(raw[i]);
+      }
+      return firstGroup.length > 0 ? firstGroup : raw;
+    }
+    return [
           {
             SessionType: session?.SessionType ?? SESSION_TYPES.SPRINT_Q1,
             TimeOffset: 0,
@@ -126,6 +137,7 @@ export const LiveWeatherRadar: React.FC<LiveWeatherRadarProps> = ({ session }) =
             RainPercentage: weatherCode >= WEATHER_CODES.HEAVY_RAIN ? 80 : weatherCode === WEATHER_CODES.LIGHT_RAIN ? 40 : 15,
           },
         ];
+  }, [session?.WeatherForecastSamples, session?.SessionType, weatherCode, trackTemp, airTemp]);
 
   const currentWeather = getWeatherMeta(weatherCode);
 

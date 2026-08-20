@@ -52,10 +52,8 @@ describe('SessionHistory Component', () => {
     await waitFor(() => {
       expect(screen.getByText('Date & Time')).toBeInTheDocument();
       expect(screen.getByText('Track Name')).toBeInTheDocument();
-      expect(screen.getByText('Duration')).toBeInTheDocument();
       expect(screen.getAllByText('Silverstone').length).toBeGreaterThan(0);
       expect(screen.getAllByText('Spa-Francorchamps').length).toBeGreaterThan(0);
-      expect(screen.getByText('1:30:00')).toBeInTheDocument();
     });
   });
 

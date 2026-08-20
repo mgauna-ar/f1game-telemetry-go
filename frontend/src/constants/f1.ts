@@ -126,6 +126,32 @@ export const SESSION_TYPES = {
   EQUAL_SPRINT_RACE: 20,
 } as const;
 
+export const getSessionTypeCode = (sessionTypeStr?: string): number => {
+  if (!sessionTypeStr) return 0;
+  const s = sessionTypeStr.trim().toLowerCase();
+  if (s.includes('sprint shootout 1') || s.includes('sprint q1') || s === 'sq1') return SESSION_TYPES.SPRINT_Q1;
+  if (s.includes('sprint shootout 2') || s.includes('sprint q2') || s === 'sq2') return SESSION_TYPES.SPRINT_Q2;
+  if (s.includes('sprint shootout 3') || s.includes('sprint q3') || s === 'sq3') return SESSION_TYPES.SPRINT_Q3;
+  if (s.includes('short sprint')) return SESSION_TYPES.SHORT_SPRINT_Q;
+  if (s.includes('one-shot sprint') || s.includes('os sprint')) return SESSION_TYPES.OS_SPRINT_Q;
+  if (s.includes('sprint race') || s === 'sprint') return SESSION_TYPES.SPRINT_RACE;
+  if (s.includes('equal sprint')) return SESSION_TYPES.EQUAL_SPRINT_RACE;
+  if (s.includes('qualifying 1') || s === 'q1') return SESSION_TYPES.Q1;
+  if (s.includes('qualifying 2') || s === 'q2') return SESSION_TYPES.Q2;
+  if (s.includes('qualifying 3') || s === 'q3') return SESSION_TYPES.Q3;
+  if (s.includes('short qualifying') || s.includes('short q')) return SESSION_TYPES.SHORT_Q;
+  if (s.includes('one-shot qualifying') || s.includes('osq')) return SESSION_TYPES.OSQ;
+  if (s.includes('practice 1') || s === 'fp1' || s === 'p1') return SESSION_TYPES.P1;
+  if (s.includes('practice 2') || s === 'fp2' || s === 'p2') return SESSION_TYPES.P2;
+  if (s.includes('practice 3') || s === 'fp3' || s === 'p3') return SESSION_TYPES.P3;
+  if (s.includes('short practice') || s.includes('short p')) return SESSION_TYPES.SHORT_P;
+  if (s.includes('time trial')) return SESSION_TYPES.TIME_TRIAL;
+  if (s.includes('race 2')) return SESSION_TYPES.RACE_2;
+  if (s.includes('race 3')) return SESSION_TYPES.RACE_3;
+  if (s.includes('race')) return SESSION_TYPES.RACE;
+  return 0;
+};
+
 export const TIME_CONSTANTS = {
   MS_PER_SECOND: 1000,
   MS_PER_MINUTE: 60000,
