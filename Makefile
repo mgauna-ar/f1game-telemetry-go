@@ -1,4 +1,4 @@
-.PHONY: build run dev test lint clean help fmt
+.PHONY: build run run-embedded build-frontend build-embedded build-all dev test test-short lint clean help fmt simulate install-hooks
 
 BINARY_NAME=f1telemetry
 BUILD_DIR=bin
@@ -35,6 +35,10 @@ build-all: build-frontend
 
 ## run: Build and run the server
 run: build
+	./$(BUILD_DIR)/$(BINARY_NAME)
+
+## run-embedded: Build standalone binary with embedded frontend and run it
+run-embedded: build-embedded
 	./$(BUILD_DIR)/$(BINARY_NAME)
 
 ## dev: Run with go run (development mode)
