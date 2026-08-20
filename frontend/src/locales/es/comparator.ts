@@ -57,6 +57,9 @@ export const comparator = {
     timingOnly: 'Solo Tiempos',
     filterTelemetryOnly: 'Solo con telemetría',
     noTelemetryWarning: 'Telemetría no registrada para esta vuelta (solo tiempos)',
+    ersRestrictedSingle: 'Telemetría de ERS no disponible para {name} (restringida en el juego)',
+    ersRestrictedBoth: 'Telemetría de ERS no disponible para ambos pilotos (restringida en el juego)',
+    packetLossDetected: 'Corte de señal/paquetes detectado (+{meters}m) en vuelta de {name}',
   },
   metrics: {
     timeDelta: 'Delta de Tiempo',

@@ -1,5 +1,5 @@
-import React from 'react';
-import { ZoomIn, RotateCcw, Clock } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { ZoomIn, RotateCcw, Clock, AlertTriangle } from 'lucide-react';
 import {
   LineChart,
   Line,
@@ -99,6 +99,46 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
         (p.boostActiveA !== null && p.boostActiveA !== undefined) ||
         (p.boostActiveB !== null && p.boostActiveB !== undefined)
     );
+
+  const isErsRestrictedA =
+    hasDataA &&
+    chartData.length > 0 &&
+    chartData.every(
+      (p) =>
+        (p.ersBatteryA === null || p.ersBatteryA === undefined || p.ersBatteryA === 0) &&
+        (p.ersDeployModeA === null || p.ersDeployModeA === undefined || p.ersDeployModeA === 0)
+    );
+
+  const isErsRestrictedB =
+    hasDataB &&
+    chartData.length > 0 &&
+    chartData.every(
+      (p) =>
+        (p.ersBatteryB === null || p.ersBatteryB === undefined || p.ersBatteryB === 0) &&
+        (p.ersDeployModeB === null || p.ersDeployModeB === undefined || p.ersDeployModeB === 0)
+    );
+
+  const maxGapA = useMemo(() => {
+    let max = 0;
+    for (let i = 1; i < comparisonData.length; i++) {
+      if (comparisonData[i - 1].speedA !== null && comparisonData[i].speedA !== null) {
+        const gap = comparisonData[i].lap_distance - comparisonData[i - 1].lap_distance;
+        if (gap > max) max = gap;
+      }
+    }
+    return max >= 100 ? Math.round(max) : 0;
+  }, [comparisonData]);
+
+  const maxGapB = useMemo(() => {
+    let max = 0;
+    for (let i = 1; i < comparisonData.length; i++) {
+      if (comparisonData[i - 1].speedB !== null && comparisonData[i].speedB !== null) {
+        const gap = comparisonData[i].lap_distance - comparisonData[i - 1].lap_distance;
+        if (gap > max) max = gap;
+      }
+    }
+    return max >= 100 ? Math.round(max) : 0;
+  }, [comparisonData]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -223,10 +263,44 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           {/* 1. TIME DELTA CHART */}
           <div className="glass-panel" style={{ height: '300px', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-              <h3 style={{ margin: 0, fontSize: '1rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                ⏱️ {t('comparator.charts.timeDelta')}
-              </h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem', flexWrap: 'wrap', gap: '0.4rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                <h3 style={{ margin: 0, fontSize: '1rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  ⏱️ {t('comparator.charts.timeDelta')}
+                </h3>
+                {(maxGapA > 0 || maxGapB > 0) && (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '0.72rem',
+                      color: '#f39c12',
+                      background: 'rgba(243, 156, 18, 0.15)',
+                      border: '1px solid rgba(243, 156, 18, 0.35)',
+                      padding: '1px 6px',
+                      borderRadius: '4px',
+                      fontWeight: 600,
+                    }}
+                    title={
+                      maxGapA > 0 && maxGapB > 0
+                        ? `${t('comparator.charts.packetLossDetected', { meters: maxGapA, name: nameA })} | ${t('comparator.charts.packetLossDetected', { meters: maxGapB, name: nameB })}`
+                        : maxGapA > 0
+                        ? t('comparator.charts.packetLossDetected', { meters: maxGapA, name: nameA })
+                        : t('comparator.charts.packetLossDetected', { meters: maxGapB, name: nameB })
+                    }
+                  >
+                    <AlertTriangle size={11} />
+                    <span>
+                      {maxGapA > 0 && maxGapB > 0
+                        ? `+${Math.max(maxGapA, maxGapB)}m Gap`
+                        : maxGapA > 0
+                        ? t('comparator.charts.packetLossDetected', { meters: maxGapA, name: nameA })
+                        : t('comparator.charts.packetLossDetected', { meters: maxGapB, name: nameB })}
+                    </span>
+                  </span>
+                )}
+              </div>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                 {t('comparator.charts.timeDeltaSub', { driverA: nameA, driverB: nameB })}
               </span>
@@ -289,9 +363,43 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
 
           {/* 2. SPEED CHART */}
           <div className="glass-panel" style={{ height: '300px', display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#fff' }}>
-              🏎️ {t('comparator.charts.speed')}
-            </h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem', flexWrap: 'wrap', gap: '0.4rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1rem', color: '#fff' }}>
+                🏎️ {t('comparator.charts.speed')}
+              </h3>
+              {(maxGapA > 0 || maxGapB > 0) && (
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '0.72rem',
+                    color: '#f39c12',
+                    background: 'rgba(243, 156, 18, 0.15)',
+                    border: '1px solid rgba(243, 156, 18, 0.35)',
+                    padding: '1px 6px',
+                    borderRadius: '4px',
+                    fontWeight: 600,
+                  }}
+                  title={
+                    maxGapA > 0 && maxGapB > 0
+                      ? `${t('comparator.charts.packetLossDetected', { meters: maxGapA, name: nameA })} | ${t('comparator.charts.packetLossDetected', { meters: maxGapB, name: nameB })}`
+                      : maxGapA > 0
+                      ? t('comparator.charts.packetLossDetected', { meters: maxGapA, name: nameA })
+                      : t('comparator.charts.packetLossDetected', { meters: maxGapB, name: nameB })
+                  }
+                >
+                  <AlertTriangle size={11} />
+                  <span>
+                    {maxGapA > 0 && maxGapB > 0
+                      ? `+${Math.max(maxGapA, maxGapB)}m Gap`
+                      : maxGapA > 0
+                      ? t('comparator.charts.packetLossDetected', { meters: maxGapA, name: nameA })
+                      : t('comparator.charts.packetLossDetected', { meters: maxGapB, name: nameB })}
+                  </span>
+                </span>
+              )}
+            </div>
             <div style={{ flex: 1, minHeight: 0 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData} syncId="comparatorSync" onMouseMove={onMouseMove} onMouseLeave={() => onHoverDistanceChange(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
@@ -456,9 +564,36 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
 
           {/* 7. INDIVIDUAL ERS BATTERY CHART */}
           <div className="glass-panel" style={{ height: '280px', display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ marginBottom: '0.25rem', fontSize: '1rem', color: '#38ef7d', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              ⚡ {t('comparator.charts.ersBattery')}
-            </h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem', flexWrap: 'wrap', gap: '0.4rem' }}>
+              <h3 style={{ margin: 0, fontSize: '1rem', color: '#38ef7d', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                ⚡ {t('comparator.charts.ersBattery')}
+              </h3>
+              {(isErsRestrictedA || isErsRestrictedB) && (
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '0.72rem',
+                    color: '#ffa502',
+                    background: 'rgba(255, 165, 2, 0.15)',
+                    border: '1px solid rgba(255, 165, 2, 0.4)',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    fontWeight: 600,
+                  }}
+                >
+                  <AlertTriangle size={11} />
+                  <span>
+                    {isErsRestrictedA && isErsRestrictedB
+                      ? t('comparator.charts.ersRestrictedBoth', { nameA, nameB })
+                      : isErsRestrictedA
+                      ? t('comparator.charts.ersRestrictedSingle', { name: nameA })
+                      : t('comparator.charts.ersRestrictedSingle', { name: nameB })}
+                  </span>
+                </span>
+              )}
+            </div>
             <div style={{ flex: 1, minHeight: 0 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData} syncId="comparatorSync" onMouseMove={onMouseMove} onMouseLeave={() => onHoverDistanceChange(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
@@ -489,10 +624,37 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
 
           {/* 8. INDIVIDUAL ERS DEPLOY MODE CHART */}
           <div className="glass-panel" style={{ height: '300px', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-              <h3 style={{ margin: 0, fontSize: '1rem', color: '#bd93f9', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                🚀 {t('comparator.charts.ersDeployMode')}
-              </h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem', flexWrap: 'wrap', gap: '0.4rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                <h3 style={{ margin: 0, fontSize: '1rem', color: '#bd93f9', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  🚀 {t('comparator.charts.ersDeployMode')}
+                </h3>
+                {(isErsRestrictedA || isErsRestrictedB) && (
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '0.72rem',
+                      color: '#ffa502',
+                      background: 'rgba(255, 165, 2, 0.15)',
+                      border: '1px solid rgba(255, 165, 2, 0.4)',
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <AlertTriangle size={11} />
+                    <span>
+                      {isErsRestrictedA && isErsRestrictedB
+                        ? t('comparator.charts.ersRestrictedBoth', { nameA, nameB })
+                        : isErsRestrictedA
+                        ? t('comparator.charts.ersRestrictedSingle', { name: nameA })
+                        : t('comparator.charts.ersRestrictedSingle', { name: nameB })}
+                    </span>
+                  </span>
+                )}
+              </div>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                 {is2026 ? t('comparator.charts.ersDeployModesSub2026') : t('comparator.charts.ersDeployModesSub')}
               </span>

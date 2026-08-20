@@ -57,6 +57,9 @@ export const comparator = {
     timingOnly: 'Timing Only',
     filterTelemetryOnly: 'Laps with telemetry only',
     noTelemetryWarning: 'Telemetry not recorded for this lap (timing data only)',
+    ersRestrictedSingle: 'ERS telemetry unavailable for {name} (restricted in game settings)',
+    ersRestrictedBoth: 'ERS telemetry unavailable for both drivers (restricted in game settings)',
+    packetLossDetected: 'Signal gap / Packet loss detected (+{meters}m) in {name}\'s lap',
   },
   metrics: {
     timeDelta: 'Time Delta',
