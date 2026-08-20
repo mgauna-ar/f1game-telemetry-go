@@ -31,7 +31,7 @@ import { TagFilterBar } from './session_history/TagFilterBar';
 import { F1FormatBadge } from './F1FormatBadge';
 import { WeatherBadgeWithForecast } from './session_history/WeatherBadgeWithForecast';
 import { TrackFlag } from './TrackFlag';
-import { getTrackInfo } from '../constants/f1';
+import { getTrackInfo, RESULT_STATUS, RESULT_REASONS } from '../constants/f1';
 import { filterActiveHistoricalParticipants } from '../utils/driverFilter';
 
 import { useRaceEngineer } from '../context/RaceEngineerContext';
@@ -860,8 +860,18 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
       const lapWithStatus = [...sortedRawLaps].reverse().find((l) => l.result_status !== undefined && l.result_status > 0);
       const resStatus = lapWithStatus ? lapWithStatus.result_status! : 0;
 
-      const isDSQ = resStatus === 5 || resultReason === 6;
-      const isDNF = resStatus === 4 || resStatus === 6 || resStatus === 7 || resultReason === 1 || resultReason === 3 || resultReason === 8 || (isRaceSession && maxRaceLaps > 5 && completedLaps.length < maxRaceLaps);
+      const isDSQ = resStatus === RESULT_STATUS.DSQ || resultReason === RESULT_REASONS.BLACK_FLAGGED;
+      const isFinished = resStatus === RESULT_STATUS.FINISHED || resultReason === RESULT_REASONS.FINISHED;
+      const isDNF =
+        !isDSQ &&
+        !isFinished &&
+        (resStatus === RESULT_STATUS.DNF ||
+          resStatus === RESULT_STATUS.NOT_CLASSIFIED ||
+          resStatus === RESULT_STATUS.RETIRED ||
+          resultReason === RESULT_REASONS.RETIRED ||
+          resultReason === RESULT_REASONS.TERMINAL_DAMAGE ||
+          resultReason === RESULT_REASONS.MECHANICAL_FAILURE ||
+          resultReason === RESULT_REASONS.NOT_ENOUGH_LAPS);
 
       const maxSpeed = driverLaps.reduce((max, l) => Math.max(max, l.max_speed_kmh || 0), 0);
 
@@ -920,11 +930,12 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
       rawStandings.sort((a, b) => {
         if (a.isDSQ !== b.isDSQ) return a.isDSQ ? 1 : -1;
         if (a.isDNF !== b.isDNF) return a.isDNF ? 1 : -1;
-        if (b.laps.length !== a.laps.length) return b.laps.length - a.laps.length;
 
         if (a.officialPos > 0 && b.officialPos > 0) return a.officialPos - b.officialPos;
         if (a.officialPos > 0 && b.officialPos === 0) return -1;
         if (a.officialPos === 0 && b.officialPos > 0) return 1;
+
+        if (b.laps.length !== a.laps.length) return b.laps.length - a.laps.length;
 
         return (a.totalRaceTimeWithPenalties ?? 0) - (b.totalRaceTimeWithPenalties ?? 0);
       });
