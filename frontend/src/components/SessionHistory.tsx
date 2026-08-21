@@ -31,7 +31,7 @@ import { TagFilterBar } from './session_history/TagFilterBar';
 import { F1FormatBadge } from './F1FormatBadge';
 import { WeatherBadgeWithForecast } from './session_history/WeatherBadgeWithForecast';
 import { TrackFlag } from './TrackFlag';
-import { getTrackInfo, RESULT_STATUS, RESULT_REASONS } from '../constants/f1';
+import { RESULT_STATUS, RESULT_REASONS } from '../constants/f1';
 import { filterActiveHistoricalParticipants } from '../utils/driverFilter';
 
 import { useRaceEngineer } from '../context/RaceEngineerContext';
@@ -49,6 +49,12 @@ import type {
 import { SessionComparatorDock } from './session_history/SessionComparatorDock';
 import { SessionBatchDock } from './session_history/SessionBatchDock';
 
+import { useSessionList } from '../hooks/useSessionList';
+import { useSessionFilters } from '../hooks/useSessionFilters';
+import { useSessionTags } from '../hooks/useSessionTags';
+import { useBatchOperations } from '../hooks/useBatchOperations';
+import { useLapStaging } from '../hooks/useLapStaging';
+
 export type { Session, Participant, Lap, StagedLap, DriverStanding, NavigationComparatorPayload, Tag };
 
 interface SessionHistoryProps {
@@ -57,34 +63,6 @@ interface SessionHistoryProps {
 
 export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComparator }) => {
   const { t } = useI18n();
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [loadingSessions, setLoadingSessions] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Import / Export & Toast State
-  const [importingSession, setImportingSession] = useState<boolean>(false);
-  const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
-
-  // Batch Operations State
-  const [selectedSessionIds, setSelectedSessionIds] = useState<Set<number>>(new Set());
-  const [isExportingBatch, setIsExportingBatch] = useState<boolean>(false);
-  const [showBatchDeleteModal, setShowBatchDeleteModal] = useState<boolean>(false);
-  const [showBatchTagModal, setShowBatchTagModal] = useState<boolean>(false);
-  const [batchSelectedTagId, setBatchSelectedTagId] = useState<number | null>(null);
-
-  // Tags State
-  const [availableTags, setAvailableTags] = useState<Tag[]>([]);
-  const [selectedTagId, setSelectedTagId] = useState<number | null>(null);
-  const [sessionToManageTags, setSessionToManageTags] = useState<Session | null>(null);
-
-  // Search & Filters
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [sessionTypeFilter, setSessionTypeFilter] = useState<string>('ALL');
-  const [circuitFilter, setCircuitFilter] = useState<string>('ALL');
-
-  // Sorting
-  const [sortField, setSortField] = useState<string>('date');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   // Selected Session Detail state
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
@@ -93,403 +71,105 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
   const [laps, setLaps] = useState<Lap[]>([]);
   const [expandedDrivers, setExpandedDrivers] = useState<Record<number, boolean>>({});
 
-  // Staged Laps for Comparator Dock
-  const [stagedSlotA, setStagedSlotA] = useState<StagedLap | null>(null);
-  const [stagedSlotB, setStagedSlotB] = useState<StagedLap | null>(null);
-
   // Active Sub-Tab in Session Detail ('classification' | 'charts' | 'stints' | 'sectors')
   const [activeDetailTab, setActiveDetailTab] = useState<'classification' | 'charts' | 'stints' | 'sectors'>('classification');
 
   // AI Race Engineer Context Hook
   const { openChat, setSessionDebriefContext, setContextMode } = useRaceEngineer();
 
-  // Staged Lap Handlers
-  const handleStageLap = (lap: Lap, driver: DriverStanding, slot: 'A' | 'B') => {
-    if (!selectedSession) return;
-    const staged: StagedLap = {
-      sessionId: selectedSession.id,
-      sessionName: selectedSession.track_name,
-      lapId: lap.id,
-      lapNumber: lap.lap_number,
-      lapTimeMS: lap.lap_time_ms,
-      driverName: driver.participant.name,
-      teamId: driver.participant.team_id,
-      raceNumber: driver.participant.race_number,
-      tyreCompound: lap.tyre_compound,
-    };
+  // Hook 1: Session list state & deletion
+  const {
+    sessions,
+    setSessions,
+    loadingSessions,
+    error,
+    sessionToDelete,
+    setSessionToDelete,
+    deletingSessionId,
+    fetchSessions,
+    confirmDeleteSession,
+  } = useSessionList();
 
-    if (slot === 'A') {
-      if (stagedSlotA?.lapId === lap.id) {
-        setStagedSlotA(null);
-      } else {
-        setStagedSlotA(staged);
-      }
-    } else {
-      if (stagedSlotB?.lapId === lap.id) {
-        setStagedSlotB(null);
-      } else {
-        setStagedSlotB(staged);
-      }
-    }
-  };
+  // Hook 2: Tags management
+  const {
+    availableTags,
+    selectedTagId,
+    setSelectedTagId,
+    sessionToManageTags,
+    setSessionToManageTags,
+    fetchTags,
+    handleAddTag,
+    handleRemoveTag,
+    handleDeleteGlobalTag,
+    sessionCountByTag,
+  } = useSessionTags({
+    sessions,
+    setSessions,
+    selectedSession,
+    setSelectedSession,
+  });
 
-  const handleSwapStagedSlots = () => {
-    const temp = stagedSlotA;
-    setStagedSlotA(stagedSlotB);
-    setStagedSlotB(temp);
-  };
+  // Hook 3: Filters, Search & Sorting
+  const {
+    searchQuery,
+    setSearchQuery,
+    sessionTypeFilter,
+    setSessionTypeFilter,
+    circuitFilter,
+    setCircuitFilter,
+    sortField,
+    sortOrder,
+    handleToggleSort,
+    uniqueCircuits,
+    filteredSessions,
+  } = useSessionFilters({
+    sessions,
+    selectedTagId,
+  });
 
-  const handleClearStagedA = () => setStagedSlotA(null);
-  const handleClearStagedB = () => setStagedSlotB(null);
-  const handleClearAllStaged = () => {
-    setStagedSlotA(null);
-    setStagedSlotB(null);
-  };
+  // Hook 4: Batch Operations & Import/Export
+  const {
+    selectedSessionIds,
+    isExportingBatch,
+    showBatchDeleteModal,
+    setShowBatchDeleteModal,
+    showBatchTagModal,
+    setShowBatchTagModal,
+    batchSelectedTagId,
+    setBatchSelectedTagId,
+    importingSession,
+    toastMessage,
+    handleToggleSelectSession,
+    handleToggleSelectAll,
+    handleClearSelection,
+    handleExportSession,
+    handleBatchExport,
+    handleImportFiles,
+    handleExecuteBatchDelete,
+    handleExecuteBatchTag,
+  } = useBatchOperations({
+    sessions,
+    filteredSessions,
+    setSessions,
+    fetchSessions,
+    fetchTags,
+  });
 
-  const handleLaunchComparison = () => {
-    if (!stagedSlotA && !stagedSlotB) return;
-    if (onNavigateToComparator) {
-      onNavigateToComparator({
-        sessionAId: stagedSlotA ? stagedSlotA.sessionId : undefined,
-        lapAId: stagedSlotA ? stagedSlotA.lapId : undefined,
-        sessionBId: stagedSlotB ? stagedSlotB.sessionId : undefined,
-        lapBId: stagedSlotB ? stagedSlotB.lapId : undefined,
-        sessionId: stagedSlotA ? stagedSlotA.sessionId : stagedSlotB?.sessionId,
-        lapId: stagedSlotA ? stagedSlotA.lapId : stagedSlotB?.lapId,
-        slot: stagedSlotA ? 'A' : 'B',
-      });
-    }
-  };
-
-  // Deletion State & Handler
-  const [sessionToDelete, setSessionToDelete] = useState<Session | null>(null);
-  const [deletingSessionId, setDeletingSessionId] = useState<number | null>(null);
-
-  const confirmDeleteSession = async () => {
-    if (!sessionToDelete) return;
-    const targetId = sessionToDelete.id;
-    setDeletingSessionId(targetId);
-    try {
-      const res = await fetch(`/api/sessions/${targetId}`, {
-        method: 'DELETE',
-      });
-      if (!res.ok) throw new Error('Failed to delete session');
-
-      setSessions((prev) => prev.filter((s) => s.id !== targetId));
-      if (selectedSession && selectedSession.id === targetId) {
-        setSelectedSession(null);
-      }
-      setSessionToDelete(null);
-    } catch (err: any) {
-      console.error('Error deleting session:', err);
-      alert(`Error deleting session: ${err.message || err}`);
-    } finally {
-      setDeletingSessionId(null);
-    }
-  };
-
-  useEffect(() => {
-    fetchSessions();
-    fetchTags();
-  }, []);
-
-  const fetchTags = async () => {
-    try {
-      const res = await fetch('/api/tags');
-      if (res.ok) {
-        const data: Tag[] = await res.json();
-        setAvailableTags(data || []);
-      }
-    } catch (err) {
-      console.error('Error fetching tags:', err);
-    }
-  };
-
-  const handleAddTag = async (sessionId: number, tagId?: number, newTag?: { name: string; color: string }) => {
-    try {
-      const payload = tagId ? { tag_id: tagId } : newTag;
-      const res = await fetch(`/api/sessions/${sessionId}/tags`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error('Failed to add tag');
-      const updatedTags: Tag[] = await res.json();
-
-      setSessions((prev) =>
-        prev.map((s) => (s.id === sessionId ? { ...s, tags: updatedTags } : s))
-      );
-      if (selectedSession && selectedSession.id === sessionId) {
-        setSelectedSession((prev) => (prev ? { ...prev, tags: updatedTags } : null));
-      }
-      if (sessionToManageTags && sessionToManageTags.id === sessionId) {
-        setSessionToManageTags((prev) => (prev ? { ...prev, tags: updatedTags } : null));
-      }
-      fetchTags();
-    } catch (err: any) {
-      console.error('Error adding tag:', err);
-    }
-  };
-
-  const handleRemoveTag = async (sessionId: number, tagId: number) => {
-    try {
-      const res = await fetch(`/api/sessions/${sessionId}/tags/${tagId}`, {
-        method: 'DELETE',
-      });
-      if (!res.ok) throw new Error('Failed to remove tag');
-      const updatedTags: Tag[] = await res.json();
-
-      setSessions((prev) =>
-        prev.map((s) => (s.id === sessionId ? { ...s, tags: updatedTags } : s))
-      );
-      if (selectedSession && selectedSession.id === sessionId) {
-        setSelectedSession((prev) => (prev ? { ...prev, tags: updatedTags } : null));
-      }
-      if (sessionToManageTags && sessionToManageTags.id === sessionId) {
-        setSessionToManageTags((prev) => (prev ? { ...prev, tags: updatedTags } : null));
-      }
-    } catch (err: any) {
-      console.error('Error removing tag:', err);
-    }
-  };
-
-  const handleDeleteGlobalTag = async (tagId: number) => {
-    try {
-      const res = await fetch(`/api/tags/${tagId}`, {
-        method: 'DELETE',
-      });
-      if (!res.ok) throw new Error('Failed to delete tag');
-
-      setAvailableTags((prev) => prev.filter((t) => t.id !== tagId));
-      setSessions((prev) =>
-        prev.map((s) => ({
-          ...s,
-          tags: (s.tags || []).filter((t) => t.id !== tagId),
-        }))
-      );
-      if (selectedSession) {
-        setSelectedSession((prev) =>
-          prev ? { ...prev, tags: (prev.tags || []).filter((t) => t.id !== tagId) } : null
-        );
-      }
-      if (sessionToManageTags) {
-        setSessionToManageTags((prev) =>
-          prev ? { ...prev, tags: (prev.tags || []).filter((t) => t.id !== tagId) } : null
-        );
-      }
-      if (selectedTagId === tagId) {
-        setSelectedTagId(null);
-      }
-    } catch (err: any) {
-      console.error('Error deleting tag:', err);
-    }
-  };
-
-  const handleToggleSelectSession = (sessionId: number) => {
-    setSelectedSessionIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(sessionId)) {
-        next.delete(sessionId);
-      } else {
-        next.add(sessionId);
-      }
-      return next;
-    });
-  };
-
-  const handleToggleSelectAll = () => {
-    const allFilteredIds = filteredSessions.map((s) => s.id);
-    const areAllSelected = allFilteredIds.length > 0 && allFilteredIds.every((id) => selectedSessionIds.has(id));
-
-    if (areAllSelected) {
-      setSelectedSessionIds((prev) => {
-        const next = new Set(prev);
-        allFilteredIds.forEach((id) => next.delete(id));
-        return next;
-      });
-    } else {
-      setSelectedSessionIds((prev) => {
-        const next = new Set(prev);
-        allFilteredIds.forEach((id) => next.add(id));
-        return next;
-      });
-    }
-  };
-
-  const handleClearSelection = () => {
-    setSelectedSessionIds(new Set());
-  };
-
-  const handleExportSession = async (sessionToExport: Session) => {
-    try {
-      const res = await fetch(`/api/sessions/${sessionToExport.id}/export`);
-      if (!res.ok) throw new Error('Failed to export session');
-
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-
-      const dateStr = sessionToExport.created_at ? new Date(sessionToExport.created_at).toISOString().split('T')[0] : 'date';
-      const cleanTrack = (sessionToExport.track_name || 'track').replace(/[^a-zA-Z0-9]/g, '_');
-      const cleanType = (sessionToExport.session_type || 'session').replace(/[^a-zA-Z0-9]/g, '_');
-      a.download = `${cleanTrack}_${cleanType}_${dateStr}.f1session`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (err: any) {
-      console.error('Error exporting session:', err);
-      setToastMessage({ type: 'error', text: `${t('history.exportError') || 'Export error'}: ${err.message || err}` });
-    }
-  };
-
-  const handleBatchExport = async () => {
-    const ids = Array.from(selectedSessionIds);
-    if (ids.length === 0) return;
-
-    if (ids.length === 1) {
-      const single = sessions.find((s) => s.id === ids[0]);
-      if (single) {
-        await handleExportSession(single);
-        return;
-      }
-    }
-
-    setIsExportingBatch(true);
-    try {
-      const res = await fetch('/api/sessions/export-batch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_ids: ids }),
-      });
-      if (!res.ok) throw new Error('Failed to export batch sessions');
-
-      const blob = await res.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const dateStr = new Date().toISOString().split('T')[0];
-      a.download = `f1_sessions_export_${dateStr}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-      setToastMessage({ type: 'success', text: t('history.batch.exportZip', { count: ids.length }) });
-    } catch (err: any) {
-      console.error('Error exporting batch:', err);
-      setToastMessage({ type: 'error', text: `${t('history.exportError') || 'Export error'}: ${err.message || err}` });
-    } finally {
-      setIsExportingBatch(false);
-    }
-  };
-
-  const handleImportFiles = async (files: FileList | File[]) => {
-    if (!files || files.length === 0) return;
-    setImportingSession(true);
-    try {
-      const formData = new FormData();
-      for (let i = 0; i < files.length; i++) {
-        formData.append('files', files[i]);
-      }
-      const res = await fetch('/api/sessions/import', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const errorText = await res.text();
-        throw new Error(errorText || 'Import failed');
-      }
-
-      const data = await res.json();
-      if (data && typeof data.total === 'number') {
-        const summaryText = t('history.batch.importSummary', {
-          imported: data.imported ?? 0,
-          skipped: data.skipped ?? 0,
-          failed: data.failed ?? 0,
-        });
-        setToastMessage({ type: (data.imported ?? 0) > 0 ? 'success' : 'info', text: summaryText });
-      } else {
-        setToastMessage({ type: 'success', text: t('history.importSuccess') });
-      }
-
-      await fetchSessions();
-      await fetchTags();
-    } catch (err: any) {
-      console.error('Error importing session(s):', err);
-      setToastMessage({ type: 'error', text: `${t('history.importError')}: ${err.message || err}` });
-    } finally {
-      setImportingSession(false);
-    }
-  };
-
-  const handleExecuteBatchDelete = async () => {
-    const ids = Array.from(selectedSessionIds);
-    if (ids.length === 0) return;
-
-    try {
-      const res = await fetch('/api/sessions/batch-delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_ids: ids }),
-      });
-      if (!res.ok) throw new Error('Failed to delete sessions');
-
-      setSessions((prev) => prev.filter((s) => !selectedSessionIds.has(s.id)));
-      setSelectedSessionIds(new Set());
-      setShowBatchDeleteModal(false);
-      setToastMessage({ type: 'success', text: t('history.batch.deleteSelected', { count: ids.length }) });
-      await fetchSessions();
-    } catch (err: any) {
-      console.error('Error batch deleting sessions:', err);
-      setToastMessage({ type: 'error', text: `Delete error: ${err.message || err}` });
-    }
-  };
-
-  const handleExecuteBatchTag = async () => {
-    const ids = Array.from(selectedSessionIds);
-    if (ids.length === 0 || !batchSelectedTagId) return;
-
-    try {
-      const res = await fetch('/api/sessions/batch-tags', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_ids: ids, tag_id: batchSelectedTagId }),
-      });
-      if (!res.ok) throw new Error('Failed to assign tags');
-
-      setShowBatchTagModal(false);
-      setBatchSelectedTagId(null);
-      setToastMessage({ type: 'success', text: t('history.batch.tagSelected') });
-      await fetchSessions();
-    } catch (err: any) {
-      console.error('Error assigning batch tag:', err);
-      setToastMessage({ type: 'error', text: `Tag assignment error: ${err.message || err}` });
-    }
-  };
-
-  useEffect(() => {
-    if (toastMessage) {
-      const timer = setTimeout(() => setToastMessage(null), 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [toastMessage]);
-
-  const fetchSessions = async () => {
-    setLoadingSessions(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/sessions');
-      if (!res.ok) throw new Error('Failed to fetch sessions');
-      const data: Session[] = await res.json();
-      setSessions(data || []);
-    } catch (err: any) {
-      setError(err.message || 'Error loading sessions');
-    } finally {
-      setLoadingSessions(false);
-    }
-  };
+  // Hook 5: Lap Staging for Comparator Dock
+  const {
+    stagedSlotA,
+    setStagedSlotA,
+    stagedSlotB,
+    setStagedSlotB,
+    handleStageLap,
+    handleSwapStagedSlots,
+    handleClearStagedA,
+    handleClearStagedB,
+    handleClearAllStaged,
+    handleLaunchComparison,
+  } = useLapStaging({
+    onNavigateToComparator,
+  });
 
   const selectSession = async (session: Session) => {
     setSelectedSession(session);
@@ -531,15 +211,6 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
       ...prev,
       [carIndex]: !prev[carIndex],
     }));
-  };
-
-  const handleToggleSort = (field: string) => {
-    if (sortField === field) {
-      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortField(field);
-      setSortOrder('asc');
-    }
   };
 
   const formatLapTime = (ms: number) => {
@@ -683,85 +354,6 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
     if (lower.includes('practice') || lower.includes('fp')) return 'badge-green';
     return 'badge-gray';
   };
-
-  // Distinct track circuits list for filter dropdown
-  const uniqueCircuits = useMemo(() => {
-    const set = new Set<string>();
-    sessions.forEach((s) => {
-      if (s.track_name) set.add(s.track_name);
-    });
-    return Array.from(set).sort();
-  }, [sessions]);
-
-  // Session count per tag for filter badges
-  const sessionCountByTag = useMemo(() => {
-    const counts: Record<number, number> = {};
-    sessions.forEach((s) => {
-      (s.tags || []).forEach((t) => {
-        counts[t.id] = (counts[t.id] || 0) + 1;
-      });
-    });
-    return counts;
-  }, [sessions]);
-
-  // Session filtering and sorting logic
-  const filteredSessions = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-
-    const list = sessions.filter((s) => {
-      const trackInfo = getTrackInfo(s.track_name);
-      const localizedCountry = trackInfo ? (t as any)(`common.countries.${trackInfo.countryCode}`) : '';
-      const countryMatches = trackInfo && (
-        trackInfo.countryIso3.toLowerCase().includes(query) ||
-        trackInfo.countryCode.toLowerCase().includes(query) ||
-        (typeof localizedCountry === 'string' && localizedCountry.toLowerCase().includes(query)) ||
-        (trackInfo.aliases && trackInfo.aliases.some((a) => a.toLowerCase().includes(query)))
-      );
-
-      const matchesSearch =
-        !query ||
-        s.track_name?.toLowerCase().includes(query) ||
-        Boolean(countryMatches) ||
-        s.session_type?.toLowerCase().includes(query) ||
-        String(s.id).includes(query) ||
-        (s.tags && s.tags.some((t) => t.name.toLowerCase().includes(query)));
-
-      const matchesType =
-        sessionTypeFilter === 'ALL' ||
-        s.session_type?.toLowerCase().includes(sessionTypeFilter.toLowerCase());
-
-      const matchesCircuit =
-        circuitFilter === 'ALL' ||
-        s.track_name?.toLowerCase() === circuitFilter.toLowerCase();
-
-      const matchesTag =
-        selectedTagId === null ||
-        (s.tags && s.tags.some((t) => t.id === selectedTagId));
-
-      return matchesSearch && matchesType && matchesCircuit && matchesTag;
-    });
-
-
-    list.sort((a, b) => {
-      let comp = 0;
-      if (sortField === 'id') {
-        comp = a.id - b.id;
-      } else if (sortField === 'track') {
-        comp = (a.track_name || '').localeCompare(b.track_name || '');
-      } else if (sortField === 'type') {
-        comp = (a.session_type || '').localeCompare(b.session_type || '');
-      } else if (sortField === 'laps') {
-        comp = (a.total_laps || 0) - (b.total_laps || 0);
-      } else {
-        // date
-        comp = new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime();
-      }
-      return sortOrder === 'asc' ? comp : -comp;
-    });
-
-    return list;
-  }, [sessions, searchQuery, sessionTypeFilter, circuitFilter, selectedTagId, sortField, sortOrder, t]);
-
 
   const isRaceSession = !!selectedSession?.session_type?.toLowerCase().includes('race');
 
@@ -1440,7 +1032,7 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
               onToggleDriverExpand={toggleDriverExpand}
               stagedA={stagedSlotA}
               stagedB={stagedSlotB}
-              onStageLap={handleStageLap}
+              onStageLap={(lap, driver, slot) => handleStageLap(selectedSession, lap, driver, slot)}
               onSendToComparator={onNavigateToComparator}
               formatLapTime={formatLapTime}
               formatTotalDuration={formatTotalDuration}
@@ -1539,7 +1131,13 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
               </button>
               <button
                 className="nav-tab active"
-                onClick={confirmDeleteSession}
+                onClick={() =>
+                  confirmDeleteSession((id) => {
+                    if (selectedSession && selectedSession.id === id) {
+                      setSelectedSession(null);
+                    }
+                  })
+                }
                 disabled={deletingSessionId === sessionToDelete.id}
                 style={{
                   padding: '0.5rem 1.2rem',

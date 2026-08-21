@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   X,
   Gauge,
@@ -11,26 +11,24 @@ import {
   Sparkles,
 } from 'lucide-react';
 
-import type { Session, Participant, Lap, NavigationComparatorPayload } from '../types/session';
-import { lttbDownsample } from '../utils/downsample';
-import type { TelemetrySamplePoint } from '../utils/downsample';
-import { calculateMergedComparison } from '../utils/deltaCalculation';
-import type { MergedTelemetryPoint } from '../utils/deltaCalculation';
+import type { NavigationComparatorPayload } from '../types/session';
 import { buildTelemetryContext } from '../utils/aiTelemetrySummary';
-import { filterActiveHistoricalParticipants } from '../utils/driverFilter';
-import { detectTrackTurns, getTurnContextAtDistance } from '../utils/trackTurns';
+import { getTurnContextAtDistance } from '../utils/trackTurns';
 import { ComparatorTrackMap } from './ComparatorTrackMap';
 import { TrackFlag } from './TrackFlag';
 import { useRaceEngineer } from '../context/RaceEngineerContext';
 import { useI18n } from '../context/I18nContext';
-import { ERS_MODE_NAMES, TELEMETRY_DOWNSAMPLE_LIMITS, getTrackInfo } from '../constants/f1';
+import { ERS_MODE_NAMES } from '../constants/f1';
 import { formatTime } from '../utils/formatters';
-
 
 import { SlotCard } from './lap_comparator/SlotCard';
 import { QuickSelectLeaderboard } from './lap_comparator/QuickSelectLeaderboard';
 import { ComparatorMetricsSummary } from './lap_comparator/ComparatorMetricsSummary';
 import { ComparatorTelemetryCharts } from './lap_comparator/ComparatorTelemetryCharts';
+
+import { useComparatorSessions } from '../hooks/useComparatorSessions';
+import { useSlotTelemetry } from '../hooks/useSlotTelemetry';
+import { useMergedTelemetry } from '../hooks/useMergedTelemetry';
 
 export interface LapComparatorProps {
   initialPreload?: NavigationComparatorPayload | null;
@@ -39,53 +37,96 @@ export interface LapComparatorProps {
 export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) => {
   const { t } = useI18n();
   const { setComparatorContext, setContextMode, openChat } = useRaceEngineer();
-  const [sessions, setSessions] = useState<Session[]>([]);
 
-  // Dual session IDs & Synchronization link
-  const [sessionAId, setSessionAId] = useState<number | ''>(() => {
-    if (initialPreload?.sessionAId) return initialPreload.sessionAId;
-    if (initialPreload?.sessionId && (!initialPreload?.slot || initialPreload?.slot === 'A')) return initialPreload.sessionId;
-    return '';
+  // Hook 1: Session selection & Synchronization link
+  const {
+    sessions,
+    sessionAId,
+    setSessionAId,
+    sessionBId,
+    setSessionBId,
+    isLinkedSessions,
+    isSessionADropdownOpen,
+    setIsSessionADropdownOpen,
+    sessionASearchQuery,
+    setSessionASearchQuery,
+    sessionATypeTab,
+    setSessionATypeTab,
+    sessionADropdownRef,
+    isSessionBDropdownOpen,
+    setIsSessionBDropdownOpen,
+    sessionBSearchQuery,
+    setSessionBSearchQuery,
+    sessionBTypeTab,
+    setSessionBTypeTab,
+    sessionBDropdownRef,
+    handleSelectSessionA,
+    handleSelectSessionB,
+    toggleSessionLink,
+    selectedSessionAObj,
+    selectedSessionBObj,
+    filteredDropdownSessionsA,
+    filteredDropdownSessionsB,
+  } = useComparatorSessions({ initialPreload });
+
+  // Hook 2: Slot A telemetry & laps loader
+  const slotA = useSlotTelemetry({
+    sessionId: sessionAId,
+    preloadLapId: initialPreload?.lapAId || (initialPreload?.slot === 'A' ? initialPreload?.lapId : undefined),
+    defaultDriverName: 'Lap A',
   });
 
-  const [sessionBId, setSessionBId] = useState<number | ''>(() => {
-    if (initialPreload?.sessionBId) return initialPreload.sessionBId;
-    if (initialPreload?.sessionId && initialPreload?.slot === 'B') return initialPreload.sessionId;
-    if (initialPreload?.sessionAId) return initialPreload.sessionAId;
-    if (initialPreload?.sessionId) return initialPreload.sessionId;
-    return '';
+  // Hook 2 (reused): Slot B telemetry & laps loader
+  const slotB = useSlotTelemetry({
+    sessionId: sessionBId,
+    preloadLapId: initialPreload?.lapBId || (initialPreload?.slot === 'B' ? initialPreload?.lapId : undefined),
+    isSlotB: true,
+    isSameSessionAsSlotA: sessionAId === sessionBId,
+    defaultDriverName: 'Lap B',
   });
 
-  const [isLinkedSessions, setIsLinkedSessions] = useState(true);
+  // Hook 3: Merged telemetry & delta computations
+  const {
+    comparisonData,
+    detectedTurns,
+    chartData,
+    sector1Distance,
+    sector2Distance,
+    totalDeltaMs,
+    s1Delta,
+    s2Delta,
+    s3Delta,
+    hoverDistance,
+    setHoverDistance,
+    zoomDomain,
+    setZoomDomain,
+    handleMouseMove,
+  } = useMergedTelemetry({
+    rawTelemetryA: slotA.rawTelemetry,
+    rawTelemetryB: slotB.rawTelemetry,
+    lapAObj: slotA.selectedLap,
+    lapBObj: slotB.selectedLap,
+  });
 
-  // Dropdown UI states
-  const [isSessionADropdownOpen, setIsSessionADropdownOpen] = useState(false);
-  const [sessionASearchQuery, setSessionASearchQuery] = useState('');
-  const [sessionATypeTab, setSessionATypeTab] = useState<'ALL' | 'RACE' | 'SPRINT' | 'QUALI' | 'PRACTICE'>('ALL');
-  const sessionADropdownRef = useRef<HTMLDivElement>(null);
-
-  const [isSessionBDropdownOpen, setIsSessionBDropdownOpen] = useState(false);
-  const [sessionBSearchQuery, setSessionBSearchQuery] = useState('');
-  const [sessionBTypeTab, setSessionBTypeTab] = useState<'ALL' | 'RACE' | 'SPRINT' | 'QUALI' | 'PRACTICE'>('ALL');
-  const sessionBDropdownRef = useRef<HTMLDivElement>(null);
-
-  // Slot A Data
-  const [lapsA, setLapsA] = useState<Lap[]>([]);
-  const [participantsA, setParticipantsA] = useState<Participant[]>([]);
-  const [lapAId, setLapAId] = useState<number | ''>('');
-  const [rawTelemetryA, setRawTelemetryA] = useState<TelemetrySamplePoint[]>([]);
-  const [loadingA, setLoadingA] = useState(false);
-
-  // Slot B Data
-  const [lapsB, setLapsB] = useState<Lap[]>([]);
-  const [participantsB, setParticipantsB] = useState<Participant[]>([]);
-  const [lapBId, setLapBId] = useState<number | ''>('');
-  const [rawTelemetryB, setRawTelemetryB] = useState<TelemetrySamplePoint[]>([]);
-  const [loadingB, setLoadingB] = useState(false);
-
-  // Inspection & Zoom state
-  const [hoverDistance, setHoverDistance] = useState<number | null>(null);
-  const [zoomDomain, setZoomDomain] = useState<[number, number] | null>(null);
+  // Aliases for clear JSX consumption
+  const lapAObj = slotA.selectedLap;
+  const lapBObj = slotB.selectedLap;
+  const driverA = slotA.driver;
+  const driverB = slotB.driver;
+  const nameA = slotA.driverName;
+  const nameB = slotB.driverName;
+  const lapAId = slotA.lapId;
+  const lapBId = slotB.lapId;
+  const lapsA = slotA.laps;
+  const lapsB = slotB.laps;
+  const participantsA = slotA.participants;
+  const participantsB = slotB.participants;
+  const loadingA = slotA.loading;
+  const loadingB = slotB.loading;
+  const activeParticipantsA = slotA.activeParticipants;
+  const activeParticipantsB = slotB.activeParticipants;
+  const setLapAId = slotA.setLapId;
+  const setLapBId = slotB.setLapId;
 
   // Quick Select Leaderboard State
   const [isQuickSelectOpen, setIsQuickSelectOpen] = useState<boolean>(() => {
@@ -106,353 +147,6 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
       // ignore localStorage write errors
     }
   }, [isQuickSelectOpen]);
-
-  // Fetch available sessions
-  const fetchSessions = useCallback(() => {
-    fetch('/api/sessions')
-      .then((res) => res.json())
-      .then((data) => {
-        const sessionList = data || [];
-        setSessions(sessionList);
-      })
-      .catch((err) => console.error('Failed to fetch sessions', err));
-  }, []);
-
-  useEffect(() => {
-    fetchSessions();
-  }, [fetchSessions]);
-
-  // Handle Session A Selection
-  const handleSelectSessionA = (sessionId: number) => {
-    setSessionAId(sessionId);
-    setLapAId('');
-    setIsSessionADropdownOpen(false);
-    if (isLinkedSessions) {
-      setSessionBId(sessionId);
-      setLapBId('');
-    } else {
-      const newSessionA = sessions.find((s) => s.id === sessionId);
-      const currentSessionB = sessions.find((s) => s.id === sessionBId);
-      if (newSessionA && currentSessionB && newSessionA.track_name.toLowerCase() !== currentSessionB.track_name.toLowerCase()) {
-        setSessionBId(sessionId);
-        setLapBId('');
-      }
-    }
-  };
-
-  // Handle Session B Selection
-  const handleSelectSessionB = (sessionId: number) => {
-    setSessionBId(sessionId);
-    setLapBId('');
-    setIsSessionBDropdownOpen(false);
-    if (isLinkedSessions && sessionId !== sessionAId) {
-      setIsLinkedSessions(false);
-    }
-  };
-
-  // Toggle Linked Sessions
-  const toggleSessionLink = () => {
-    if (!isLinkedSessions) {
-      setIsLinkedSessions(true);
-      setSessionBId(sessionAId);
-      setLapBId('');
-    } else {
-      setIsLinkedSessions(false);
-    }
-  };
-
-  // Load Session A details (participants, laps)
-  useEffect(() => {
-    if (sessionAId !== '') {
-      fetch(`/api/sessions/${sessionAId}/participants`)
-        .then((res) => res.json())
-        .then((data) => setParticipantsA(data || []))
-        .catch((err) => console.error('Failed to fetch participants A', err));
-
-      fetch(`/api/sessions/${sessionAId}/laps`)
-        .then((res) => res.json())
-        .then((data) => {
-          const list: Lap[] = data || [];
-          setLapsA(list);
-
-          const preloadedLapAId = initialPreload?.lapAId || (initialPreload?.slot === 'A' ? initialPreload?.lapId : undefined);
-          if (preloadedLapAId && list.some((l) => l.id === preloadedLapAId)) {
-            setLapAId(preloadedLapAId);
-          } else if (list.length > 0) {
-            const valid = list
-              .filter((l) => l.lap_time_ms > 0 && (l.is_valid || (l.sector1_ms ?? 0) > 0))
-              .sort((a, b) => {
-                const aValid = a.is_valid ? 1 : 0;
-                const bValid = b.is_valid ? 1 : 0;
-                if (aValid !== bValid) return bValid - aValid;
-                if (a.lap_time_ms !== b.lap_time_ms) return a.lap_time_ms - b.lap_time_ms;
-                const scoreA = (a.has_telemetry ? 10 : 0) + ((a.sector1_ms ?? 0) > 0 ? 5 : 0);
-                const scoreB = (b.has_telemetry ? 10 : 0) + ((b.sector1_ms ?? 0) > 0 ? 5 : 0);
-                return scoreB - scoreA;
-              });
-            const best = valid.length > 0 ? valid[0] : list[0];
-            setLapAId(best.id);
-          } else {
-            setLapAId('');
-          }
-        })
-        .catch((err) => console.error('Failed to fetch laps A', err));
-    }
-  }, [sessionAId, initialPreload]);
-
-  // Load Session B details (participants, laps)
-  useEffect(() => {
-    if (sessionBId !== '') {
-      fetch(`/api/sessions/${sessionBId}/participants`)
-        .then((res) => res.json())
-        .then((data) => setParticipantsB(data || []))
-        .catch((err) => console.error('Failed to fetch participants B', err));
-
-      fetch(`/api/sessions/${sessionBId}/laps`)
-        .then((res) => res.json())
-        .then((data) => {
-          const list: Lap[] = data || [];
-          setLapsB(list);
-
-          const preloadedLapBId = initialPreload?.lapBId || (initialPreload?.slot === 'B' ? initialPreload?.lapId : undefined);
-          if (preloadedLapBId && list.some((l) => l.id === preloadedLapBId)) {
-            setLapBId(preloadedLapBId);
-          } else if (list.length > 0) {
-            const valid = list
-              .filter((l) => l.lap_time_ms > 0 && (l.is_valid || (l.sector1_ms ?? 0) > 0))
-              .sort((a, b) => {
-                const aValid = a.is_valid ? 1 : 0;
-                const bValid = b.is_valid ? 1 : 0;
-                if (aValid !== bValid) return bValid - aValid;
-                if (a.lap_time_ms !== b.lap_time_ms) return a.lap_time_ms - b.lap_time_ms;
-                const scoreA = (a.has_telemetry ? 10 : 0) + ((a.sector1_ms ?? 0) > 0 ? 5 : 0);
-                const scoreB = (b.has_telemetry ? 10 : 0) + ((b.sector1_ms ?? 0) > 0 ? 5 : 0);
-                return scoreB - scoreA;
-              });
-            if (valid.length > 1 && sessionAId === sessionBId) {
-              setLapBId(valid[1].id);
-            } else if (valid.length > 0) {
-              const best = valid.length > 0 ? valid[0] : list[0];
-              setLapBId(best.id);
-            } else {
-              setLapBId(list[0].id);
-            }
-          } else {
-            setLapBId('');
-          }
-        })
-        .catch((err) => console.error('Failed to fetch laps B', err));
-    }
-  }, [sessionBId, sessionAId, initialPreload]);
-
-  // Load Lap A Telemetry (Server-side LTTB downsampled with ?maxPoints=800)
-  useEffect(() => {
-    if (lapAId !== '') {
-      setLoadingA(true);
-      fetch(`/api/laps/${lapAId}/telemetry?maxPoints=${TELEMETRY_DOWNSAMPLE_LIMITS.DEFAULT_MAX_POINTS}`)
-        .then((res) => res.json())
-        .then((data) => {
-          const samples: TelemetrySamplePoint[] = data || [];
-          setRawTelemetryA(samples.length > TELEMETRY_DOWNSAMPLE_LIMITS.BUFFER_THRESHOLD ? lttbDownsample(samples, TELEMETRY_DOWNSAMPLE_LIMITS.DEFAULT_MAX_POINTS) : samples);
-        })
-        .catch((err) => console.error('Failed to fetch telemetry A', err))
-        .finally(() => setLoadingA(false));
-    }
-  }, [lapAId]);
-
-  // Load Lap B Telemetry (Server-side LTTB downsampled with ?maxPoints=800)
-  useEffect(() => {
-    if (lapBId !== '') {
-      setLoadingB(true);
-      fetch(`/api/laps/${lapBId}/telemetry?maxPoints=${TELEMETRY_DOWNSAMPLE_LIMITS.DEFAULT_MAX_POINTS}`)
-        .then((res) => res.json())
-        .then((data) => {
-          const samples: TelemetrySamplePoint[] = data || [];
-          setRawTelemetryB(samples.length > TELEMETRY_DOWNSAMPLE_LIMITS.BUFFER_THRESHOLD ? lttbDownsample(samples, TELEMETRY_DOWNSAMPLE_LIMITS.DEFAULT_MAX_POINTS) : samples);
-        })
-        .catch((err) => console.error('Failed to fetch telemetry B', err))
-        .finally(() => setLoadingB(false));
-    }
-  }, [lapBId]);
-
-  // Selected session objects
-  const selectedSessionAObj = useMemo(() => sessions.find((s) => s.id === sessionAId), [sessions, sessionAId]);
-  const selectedSessionBObj = useMemo(() => sessions.find((s) => s.id === sessionBId), [sessions, sessionBId]);
-
-  // Filtered Sessions for Dropdown A
-  const filteredDropdownSessionsA = useMemo(() => {
-    const query = sessionASearchQuery.trim().toLowerCase();
-    return sessions.filter((s) => {
-      const trackInfo = getTrackInfo(s.track_name);
-      const localizedCountry = trackInfo ? (t as any)(`common.countries.${trackInfo.countryCode}`) : '';
-      const countryMatches = trackInfo && (
-        trackInfo.countryIso3.toLowerCase().includes(query) ||
-        trackInfo.countryCode.toLowerCase().includes(query) ||
-        (typeof localizedCountry === 'string' && localizedCountry.toLowerCase().includes(query)) ||
-        (trackInfo.aliases && trackInfo.aliases.some((a) => a.toLowerCase().includes(query)))
-      );
-
-      const matchesSearch =
-        !query ||
-        s.track_name.toLowerCase().includes(query) ||
-        Boolean(countryMatches) ||
-        s.session_type.toLowerCase().includes(query) ||
-        new Date(s.created_at).toLocaleDateString().toLowerCase().includes(query) ||
-        (s.tags && s.tags.some((t) => t.name.toLowerCase().includes(query)));
-
-      if (!matchesSearch) return false;
-
-      if (sessionATypeTab === 'ALL') return true;
-      const lower = s.session_type.toLowerCase();
-      if (sessionATypeTab === 'SPRINT') return lower.includes('sprint');
-      if (sessionATypeTab === 'RACE') return lower.includes('race') && !lower.includes('sprint');
-      if (sessionATypeTab === 'QUALI') return (lower.includes('qual') || lower.includes('q1') || lower.includes('q2') || lower.includes('q3')) && !lower.includes('sprint');
-      if (sessionATypeTab === 'PRACTICE') return lower.includes('practice') || lower.includes('fp') || lower.includes('p1') || lower.includes('p2') || lower.includes('p3');
-      return true;
-    });
-  }, [sessions, sessionASearchQuery, sessionATypeTab, t]);
-
-  // Filtered Sessions for Dropdown B (Strictly restricted to same circuit as Session A)
-  const filteredDropdownSessionsB = useMemo(() => {
-    const query = sessionBSearchQuery.trim().toLowerCase();
-    return sessions.filter((s) => {
-      if (selectedSessionAObj && s.track_name.toLowerCase() !== selectedSessionAObj.track_name.toLowerCase()) {
-        return false;
-      }
-
-      const trackInfo = getTrackInfo(s.track_name);
-      const localizedCountry = trackInfo ? (t as any)(`common.countries.${trackInfo.countryCode}`) : '';
-      const countryMatches = trackInfo && (
-        trackInfo.countryIso3.toLowerCase().includes(query) ||
-        trackInfo.countryCode.toLowerCase().includes(query) ||
-        (typeof localizedCountry === 'string' && localizedCountry.toLowerCase().includes(query)) ||
-        (trackInfo.aliases && trackInfo.aliases.some((a) => a.toLowerCase().includes(query)))
-      );
-
-      const matchesSearch =
-        !query ||
-        s.track_name.toLowerCase().includes(query) ||
-        Boolean(countryMatches) ||
-        s.session_type.toLowerCase().includes(query) ||
-        new Date(s.created_at).toLocaleDateString().toLowerCase().includes(query) ||
-        (s.tags && s.tags.some((t) => t.name.toLowerCase().includes(query)));
-
-      if (!matchesSearch) return false;
-
-      if (sessionBTypeTab === 'ALL') return true;
-      const lower = s.session_type.toLowerCase();
-      if (sessionBTypeTab === 'SPRINT') return lower.includes('sprint');
-      if (sessionBTypeTab === 'RACE') return lower.includes('race') && !lower.includes('sprint');
-      if (sessionBTypeTab === 'QUALI') return (lower.includes('qual') || lower.includes('q1') || lower.includes('q2') || lower.includes('q3')) && !lower.includes('sprint');
-      if (sessionBTypeTab === 'PRACTICE') return lower.includes('practice') || lower.includes('fp') || lower.includes('p1') || lower.includes('p2') || lower.includes('p3');
-      return true;
-    });
-  }, [sessions, selectedSessionAObj, sessionBSearchQuery, sessionBTypeTab, t]);
-
-
-  // Click outside & Escape key listeners for session dropdowns
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (sessionADropdownRef.current && !sessionADropdownRef.current.contains(event.target as Node)) {
-        setIsSessionADropdownOpen(false);
-      }
-      if (sessionBDropdownRef.current && !sessionBDropdownRef.current.contains(event.target as Node)) {
-        setIsSessionBDropdownOpen(false);
-      }
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsSessionADropdownOpen(false);
-        setIsSessionBDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, []);
-
-  // Selected lap objects
-  const lapAObj = useMemo(() => lapsA.find((l) => l.id === lapAId), [lapsA, lapAId]);
-  const lapBObj = useMemo(() => lapsB.find((l) => l.id === lapBId), [lapsB, lapBId]);
-
-  // Driver details for lap A & B
-  const driverA = useMemo(
-    () => (lapAObj?.car_index !== undefined ? participantsA.find((p) => p.car_index === lapAObj.car_index) : undefined),
-    [lapAObj, participantsA]
-  );
-  const driverB = useMemo(
-    () => (lapBObj?.car_index !== undefined ? participantsB.find((p) => p.car_index === lapBObj.car_index) : undefined),
-    [lapBObj, participantsB]
-  );
-
-  const nameA = useMemo(() => (driverA ? `#${driverA.race_number} ${driverA.name}` : 'Lap A'), [driverA]);
-  const nameB = useMemo(() => (driverB ? `#${driverB.race_number} ${driverB.name}` : 'Lap B'), [driverB]);
-
-  // Calculate high-performance merged telemetry comparison points (resampled every 5 meters)
-  const comparisonData = useMemo<MergedTelemetryPoint[]>(() => {
-    if (rawTelemetryA.length === 0 && rawTelemetryB.length === 0) return [];
-    return calculateMergedComparison(rawTelemetryA, rawTelemetryB, {
-      stepMeters: 5,
-      lapTimeMsA: lapAObj?.lap_time_ms,
-      lapTimeMsB: lapBObj?.lap_time_ms,
-    });
-  }, [rawTelemetryA, rawTelemetryB, lapAObj?.lap_time_ms, lapBObj?.lap_time_ms]);
-
-  // Detected track turns and apexes
-  const detectedTurns = useMemo(() => detectTrackTurns(comparisonData), [comparisonData]);
-
-  // Filtered telemetry points based on active distance zoom domain
-  const chartData = useMemo(() => {
-    if (!zoomDomain || comparisonData.length === 0) return comparisonData;
-    return comparisonData.filter(
-      (p) => p.lap_distance >= zoomDomain[0] && p.lap_distance <= zoomDomain[1]
-    );
-  }, [comparisonData, zoomDomain]);
-
-  // Sector Split Distances for Track Map and Chart Reference Lines
-  const { sector1Distance, sector2Distance } = useMemo(() => {
-    if (comparisonData.length === 0) {
-      return { sector1Distance: null, sector2Distance: null };
-    }
-
-    const maxDist = comparisonData[comparisonData.length - 1].lap_distance || 1;
-    const lapObj = (lapAObj?.sector1_ms && lapAObj?.sector2_ms)
-      ? lapAObj
-      : ((lapBObj?.sector1_ms && lapBObj?.sector2_ms) ? lapBObj : null);
-
-    let calculatedS1: number | null = null;
-    let calculatedS2: number | null = null;
-
-    if (lapObj && lapObj.sector1_ms && lapObj.sector2_ms) {
-      const s1Time = lapObj.sector1_ms / 1000;
-      const s2Time = (lapObj.sector1_ms + lapObj.sector2_ms) / 1000;
-      const useTimeA = lapObj === lapAObj;
-
-      for (const p of comparisonData) {
-        const timeVal = useTimeA ? p.timeA : p.timeB;
-        if (timeVal !== null && Number.isFinite(timeVal)) {
-          if (calculatedS1 === null && timeVal >= s1Time) {
-            calculatedS1 = p.lap_distance;
-          }
-          if (calculatedS2 === null && timeVal >= s2Time) {
-            calculatedS2 = p.lap_distance;
-          }
-        }
-      }
-    }
-
-    const s1 = calculatedS1 !== null && calculatedS1 > 0 && calculatedS1 < maxDist ? calculatedS1 : Math.round((maxDist / 3) * 10) / 10;
-    const s2 = calculatedS2 !== null && calculatedS2 > s1 && calculatedS2 < maxDist ? calculatedS2 : Math.round(((maxDist * 2) / 3) * 10) / 10;
-
-    return {
-      sector1Distance: s1,
-      sector2Distance: s2,
-    };
-  }, [comparisonData, lapAObj, lapBObj]);
 
   // Telemetry summary context for AI Race Engineer
   const telemetryContext = useMemo(() => {
@@ -475,76 +169,6 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
     setComparatorContext(telemetryContext);
     setContextMode('comparator');
   }, [telemetryContext, setComparatorContext, setContextMode]);
-
-  // Overall time delta calculation
-  const totalDeltaMs = useMemo(() => {
-    if (!lapAObj?.lap_time_ms || !lapBObj?.lap_time_ms) return null;
-    return lapAObj.lap_time_ms - lapBObj.lap_time_ms;
-  }, [lapAObj, lapBObj]);
-
-  // Sector time deltas (A vs B)
-  const s1Delta = useMemo(() => {
-    if (lapAObj?.sector1_ms && lapBObj?.sector1_ms) {
-      return lapAObj.sector1_ms - lapBObj.sector1_ms;
-    }
-    return null;
-  }, [lapAObj, lapBObj]);
-
-  const s2Delta = useMemo(() => {
-    if (lapAObj?.sector2_ms && lapBObj?.sector2_ms) {
-      return lapAObj.sector2_ms - lapBObj.sector2_ms;
-    }
-    return null;
-  }, [lapAObj, lapBObj]);
-
-  const s3Delta = useMemo(() => {
-    if (lapAObj?.sector3_ms && lapBObj?.sector3_ms) {
-      return lapAObj.sector3_ms - lapBObj.sector3_ms;
-    }
-    return null;
-  }, [lapAObj, lapBObj]);
-
-  // Active participants for Session A with best laps
-  const activeParticipantsA = useMemo(() => {
-    if (participantsA.length === 0 || lapsA.length === 0) return [];
-    return filterActiveHistoricalParticipants(participantsA, lapsA)
-      .map((p) => {
-        const driverLaps = lapsA
-          .filter((l) => (l.car_index ?? -1) === p.car_index && l.lap_time_ms > 0 && (l.is_valid || (l.sector1_ms ?? 0) > 0))
-          .sort((a, b) => {
-            const aValid = a.is_valid ? 1 : 0;
-            const bValid = b.is_valid ? 1 : 0;
-            if (aValid !== bValid) return bValid - aValid;
-            if (a.lap_time_ms !== b.lap_time_ms) return a.lap_time_ms - b.lap_time_ms;
-            const scoreA = (a.has_telemetry ? 10 : 0) + ((a.sector1_ms ?? 0) > 0 ? 5 : 0);
-            const scoreB = (b.has_telemetry ? 10 : 0) + ((b.sector1_ms ?? 0) > 0 ? 5 : 0);
-            return scoreB - scoreA;
-          });
-        const bestLap = driverLaps.length > 0 ? driverLaps[0] : null;
-        return { ...p, bestLap };
-      });
-  }, [participantsA, lapsA]);
-
-  // Active participants for Session B with best laps
-  const activeParticipantsB = useMemo(() => {
-    if (participantsB.length === 0 || lapsB.length === 0) return [];
-    return filterActiveHistoricalParticipants(participantsB, lapsB)
-      .map((p) => {
-        const driverLaps = lapsB
-          .filter((l) => (l.car_index ?? -1) === p.car_index && l.lap_time_ms > 0 && (l.is_valid || (l.sector1_ms ?? 0) > 0))
-          .sort((a, b) => {
-            const aValid = a.is_valid ? 1 : 0;
-            const bValid = b.is_valid ? 1 : 0;
-            if (aValid !== bValid) return bValid - aValid;
-            if (a.lap_time_ms !== b.lap_time_ms) return a.lap_time_ms - b.lap_time_ms;
-            const scoreA = (a.has_telemetry ? 10 : 0) + ((a.sector1_ms ?? 0) > 0 ? 5 : 0);
-            const scoreB = (b.has_telemetry ? 10 : 0) + ((b.sector1_ms ?? 0) > 0 ? 5 : 0);
-            return scoreB - scoreA;
-          });
-        const bestLap = driverLaps.length > 0 ? driverLaps[0] : null;
-        return { ...p, bestLap };
-      });
-  }, [participantsB, lapsB]);
 
   // Quick Select Leaderboard data computation
   const quickSelectData = useMemo(() => {
@@ -627,31 +251,6 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
     setLapAId('');
     setLapBId('');
   };
-
-  // Recharts hover crosshair handler
-  const handleMouseMove = useCallback((state: any) => {
-    if (!state) {
-      setHoverDistance(null);
-      return;
-    }
-
-    let dist: number | null = null;
-    if (state.activeLabel !== undefined && state.activeLabel !== null) {
-      const num = Number(state.activeLabel);
-      if (!isNaN(num)) {
-        dist = num;
-      }
-    }
-
-    if (dist === null && state.activePayload && state.activePayload.length > 0) {
-      const p = state.activePayload[0]?.payload?.lap_distance;
-      if (typeof p === 'number') {
-        dist = p;
-      }
-    }
-
-    setHoverDistance(dist);
-  }, []);
 
   return (
     <div className="dashboard-grid" style={{ paddingTop: 0 }}>

@@ -1,0 +1,182 @@
+import { useState, useMemo, useCallback } from 'react';
+import type { Lap } from '../types/session';
+import type { TelemetrySamplePoint } from '../utils/downsample';
+import { calculateMergedComparison, type MergedTelemetryPoint } from '../utils/deltaCalculation';
+import { detectTrackTurns, type TrackTurn } from '../utils/trackTurns';
+
+export interface UseMergedTelemetryOptions {
+  rawTelemetryA: TelemetrySamplePoint[];
+  rawTelemetryB: TelemetrySamplePoint[];
+  lapAObj?: Lap;
+  lapBObj?: Lap;
+  stepMeters?: number;
+}
+
+export interface UseMergedTelemetryReturn {
+  comparisonData: MergedTelemetryPoint[];
+  detectedTurns: TrackTurn[];
+  chartData: MergedTelemetryPoint[];
+  sector1Distance: number | null;
+  sector2Distance: number | null;
+  totalDeltaMs: number | null;
+  s1Delta: number | null;
+  s2Delta: number | null;
+  s3Delta: number | null;
+  hoverDistance: number | null;
+  setHoverDistance: React.Dispatch<React.SetStateAction<number | null>>;
+  zoomDomain: [number, number] | null;
+  setZoomDomain: React.Dispatch<React.SetStateAction<[number, number] | null>>;
+  handleMouseMove: (state: any) => void;
+}
+
+export function useMergedTelemetry({
+  rawTelemetryA,
+  rawTelemetryB,
+  lapAObj,
+  lapBObj,
+  stepMeters = 5,
+}: UseMergedTelemetryOptions): UseMergedTelemetryReturn {
+  const [hoverDistance, setHoverDistance] = useState<number | null>(null);
+  const [zoomDomain, setZoomDomain] = useState<[number, number] | null>(null);
+
+  // Calculate high-performance merged telemetry comparison points (resampled every stepMeters)
+  const comparisonData = useMemo<MergedTelemetryPoint[]>(() => {
+    if (rawTelemetryA.length === 0 && rawTelemetryB.length === 0) return [];
+    return calculateMergedComparison(rawTelemetryA, rawTelemetryB, {
+      stepMeters,
+      lapTimeMsA: lapAObj?.lap_time_ms,
+      lapTimeMsB: lapBObj?.lap_time_ms,
+    });
+  }, [rawTelemetryA, rawTelemetryB, lapAObj?.lap_time_ms, lapBObj?.lap_time_ms, stepMeters]);
+
+  // Detected track turns and apexes
+  const detectedTurns = useMemo(() => detectTrackTurns(comparisonData), [comparisonData]);
+
+  // Filtered telemetry points based on active distance zoom domain
+  const chartData = useMemo(() => {
+    if (!zoomDomain || comparisonData.length === 0) return comparisonData;
+    return comparisonData.filter(
+      (p) => p.lap_distance >= zoomDomain[0] && p.lap_distance <= zoomDomain[1]
+    );
+  }, [comparisonData, zoomDomain]);
+
+  // Sector Split Distances for Track Map and Chart Reference Lines
+  const { sector1Distance, sector2Distance } = useMemo(() => {
+    if (comparisonData.length === 0) {
+      return { sector1Distance: null, sector2Distance: null };
+    }
+
+    const maxDist = comparisonData[comparisonData.length - 1].lap_distance || 1;
+    const lapObj =
+      lapAObj?.sector1_ms && lapAObj?.sector2_ms
+        ? lapAObj
+        : lapBObj?.sector1_ms && lapBObj?.sector2_ms
+        ? lapBObj
+        : null;
+
+    let calculatedS1: number | null = null;
+    let calculatedS2: number | null = null;
+
+    if (lapObj && lapObj.sector1_ms && lapObj.sector2_ms) {
+      const s1Time = lapObj.sector1_ms / 1000;
+      const s2Time = (lapObj.sector1_ms + lapObj.sector2_ms) / 1000;
+      const useTimeA = lapObj === lapAObj;
+
+      for (const p of comparisonData) {
+        const timeVal = useTimeA ? p.timeA : p.timeB;
+        if (timeVal !== null && Number.isFinite(timeVal)) {
+          if (calculatedS1 === null && timeVal >= s1Time) {
+            calculatedS1 = p.lap_distance;
+          }
+          if (calculatedS2 === null && timeVal >= s2Time) {
+            calculatedS2 = p.lap_distance;
+          }
+        }
+      }
+    }
+
+    const s1 =
+      calculatedS1 !== null && calculatedS1 > 0 && calculatedS1 < maxDist
+        ? calculatedS1
+        : Math.round((maxDist / 3) * 10) / 10;
+    const s2 =
+      calculatedS2 !== null && calculatedS2 > s1 && calculatedS2 < maxDist
+        ? calculatedS2
+        : Math.round(((maxDist * 2) / 3) * 10) / 10;
+
+    return {
+      sector1Distance: s1,
+      sector2Distance: s2,
+    };
+  }, [comparisonData, lapAObj, lapBObj]);
+
+  // Overall time delta calculation (A - B)
+  const totalDeltaMs = useMemo(() => {
+    if (!lapAObj?.lap_time_ms || !lapBObj?.lap_time_ms) return null;
+    return lapAObj.lap_time_ms - lapBObj.lap_time_ms;
+  }, [lapAObj, lapBObj]);
+
+  // Sector time deltas (A vs B)
+  const s1Delta = useMemo(() => {
+    if (lapAObj?.sector1_ms && lapBObj?.sector1_ms) {
+      return lapAObj.sector1_ms - lapBObj.sector1_ms;
+    }
+    return null;
+  }, [lapAObj, lapBObj]);
+
+  const s2Delta = useMemo(() => {
+    if (lapAObj?.sector2_ms && lapBObj?.sector2_ms) {
+      return lapAObj.sector2_ms - lapBObj.sector2_ms;
+    }
+    return null;
+  }, [lapAObj, lapBObj]);
+
+  const s3Delta = useMemo(() => {
+    if (lapAObj?.sector3_ms && lapBObj?.sector3_ms) {
+      return lapAObj.sector3_ms - lapBObj.sector3_ms;
+    }
+    return null;
+  }, [lapAObj, lapBObj]);
+
+  // Recharts hover crosshair handler
+  const handleMouseMove = useCallback((state: any) => {
+    if (!state) {
+      setHoverDistance(null);
+      return;
+    }
+
+    let dist: number | null = null;
+    if (state.activeLabel !== undefined && state.activeLabel !== null) {
+      const num = Number(state.activeLabel);
+      if (!isNaN(num)) {
+        dist = num;
+      }
+    }
+
+    if (dist === null && state.activePayload && state.activePayload.length > 0) {
+      const p = state.activePayload[0]?.payload?.lap_distance;
+      if (typeof p === 'number') {
+        dist = p;
+      }
+    }
+
+    setHoverDistance(dist);
+  }, []);
+
+  return {
+    comparisonData,
+    detectedTurns,
+    chartData,
+    sector1Distance,
+    sector2Distance,
+    totalDeltaMs,
+    s1Delta,
+    s2Delta,
+    s3Delta,
+    hoverDistance,
+    setHoverDistance,
+    zoomDomain,
+    setZoomDomain,
+    handleMouseMove,
+  };
+}
