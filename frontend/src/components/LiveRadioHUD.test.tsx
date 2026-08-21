@@ -60,6 +60,22 @@ describe('LiveRadioHUD Component', () => {
     expect(screen.getByText('Space')).toBeInTheDocument();
   });
 
+  it('renders compact minimized pill when radio is disabled (OFF)', () => {
+    const disabledRadio = {
+      ...mockRadio,
+      isRadioEnabled: false,
+    };
+
+    renderWithI18n(<LiveRadioHUD radio={disabledRadio} />);
+
+    const turnOnBtn = screen.getByTitle(/Turn On Radio|Encender Radio/i);
+    expect(turnOnBtn).toBeInTheDocument();
+    expect(screen.getByText(/Turn On Radio|Encender Radio/i)).toBeInTheDocument();
+
+    fireEvent.click(turnOnBtn);
+    expect(mockRadio.setIsRadioEnabled).toHaveBeenCalledWith(true);
+  });
+
   it('renders transmitting state when PTT is active', () => {
     const transmittingRadio = {
       ...mockRadio,
@@ -86,13 +102,22 @@ describe('LiveRadioHUD Component', () => {
     expect(screen.getByText(/"Copy, boxing this lap."/i)).toBeInTheDocument();
   });
 
-  it('toggles mute on volume button click', () => {
+  it('turns off radio on power button click', () => {
+    renderWithI18n(<LiveRadioHUD radio={mockRadio} />);
+
+    const powerBtn = screen.getByTitle(/Turn Off Radio|Apagar Radio/i);
+    fireEvent.click(powerBtn);
+
+    expect(mockRadio.setIsRadioEnabled).toHaveBeenCalledWith(false);
+  });
+
+  it('mutes audio volume on volume button click', () => {
     renderWithI18n(<LiveRadioHUD radio={mockRadio} />);
 
     const muteBtn = screen.getByTitle(/Mute Radio|Silenciar Radio/i);
     fireEvent.click(muteBtn);
 
-    expect(mockRadio.setIsRadioEnabled).toHaveBeenCalledWith(false);
+    expect(mockRadio.setVolume).toHaveBeenCalledWith(0);
   });
 
   it('opens and closes settings panel', () => {

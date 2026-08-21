@@ -11,6 +11,8 @@ import {
   BellRing,
   Play,
   Languages,
+  Power,
+  Check,
 } from 'lucide-react';
 import { useI18n } from '../context/I18nContext';
 import {
@@ -115,6 +117,32 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
           >
             <X className="w-5 h-5" />
           </button>
+        </div>
+
+        {/* Master Enable/Disable Card */}
+        <div className="radio-master-toggle-card">
+          <div className="radio-master-toggle-info">
+            <div className="radio-master-toggle-title-row">
+              <Power className={`w-4 h-4 ${radio.isRadioEnabled ? 'text-emerald-400' : 'text-slate-500'}`} />
+              <span className="radio-master-toggle-title">
+                {t('ai_engineer.radio.masterToggle')}
+              </span>
+              <span className={`radio-master-status-badge ${radio.isRadioEnabled ? 'status-active' : 'status-off'}`}>
+                {radio.isRadioEnabled ? 'ON' : 'OFF'}
+              </span>
+            </div>
+            <p className="radio-master-toggle-desc">
+              {t('ai_engineer.radio.masterToggleDesc')}
+            </p>
+          </div>
+          <label className="radio-switch">
+            <input
+              type="checkbox"
+              checked={radio.isRadioEnabled}
+              onChange={(e) => radio.setIsRadioEnabled(e.target.checked)}
+            />
+            <span className="radio-switch-slider" />
+          </label>
         </div>
 
         {/* 1. Persona Selection (Style / Attitude) */}
@@ -453,9 +481,10 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="radio-btn-save"
+            className="radio-btn-done"
           >
-            {t('ai_engineer.done')}
+            <Check className="w-4 h-4" />
+            <span>{t('ai_engineer.done')}</span>
           </button>
         </div>
       </div>

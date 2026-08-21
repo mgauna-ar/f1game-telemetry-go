@@ -100,6 +100,11 @@ export const ai_engineer = {
     settings: 'Radio Settings',
     pttHint: 'Hold {key} or mapped wheel button to talk',
     notSupported: 'Speech Recognition is not supported in this browser.',
+    masterToggle: 'Live Voice Race Engineer',
+    masterToggleDesc: 'Enables Push-to-Talk speech recognition and proactive pit wall alerts',
+    radioOff: 'RADIO OFF',
+    turnOn: 'Turn On Radio',
+    turnOff: 'Turn Off Radio',
   },
   personas: {
     title: 'Race Engineer Persona',

@@ -100,6 +100,11 @@ export const ai_engineer = {
     settings: 'Configuración de Radio',
     pttHint: 'Mantené presionado {key} o el botón del volante para hablar',
     notSupported: 'El reconocimiento de voz no está soportado en este navegador.',
+    masterToggle: 'Ingeniero de Voz en Vivo',
+    masterToggleDesc: 'Habilita la comunicación por Push-to-Talk y alertas de boxes',
+    radioOff: 'RADIO APAGADA',
+    turnOn: 'Encender Radio',
+    turnOff: 'Apagar Radio',
   },
   personas: {
     title: 'Personalidad del Ingeniero',

@@ -592,19 +592,200 @@
 }
 
 .radio-btn-done {
-  padding: 8px 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 22px;
   border-radius: var(--radius-md, 10px);
-  background: #ffffff;
-  border: none;
-  color: #0a0e17;
+  background: linear-gradient(135deg, #00f2fe, #00c6ff);
+  border: 1px solid rgba(0, 242, 254, 0.6);
+  color: #060b13;
   font-family: var(--font-display, 'Titillium Web', sans-serif);
   font-weight: 800;
-  font-size: 0.82rem;
+  font-size: 0.84rem;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 242, 254, 0.35);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.radio-btn-done:hover {
+  background: linear-gradient(135deg, #38f9d7, #00f2fe);
+  border-color: #38f9d7;
+  box-shadow: 0 6px 20px rgba(0, 242, 254, 0.55);
+  transform: translateY(-1px);
+}
+
+.radio-btn-done:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(0, 242, 254, 0.3);
+}
+
+/* ── Master Enable/Disable Switch Card ───────────────────────────────────── */
+.radio-master-toggle-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-lg, 12px);
+  transition: all 0.2s ease;
+}
+
+.radio-master-toggle-card:hover {
+  border-color: rgba(0, 242, 254, 0.35);
+  background: linear-gradient(135deg, rgba(0, 242, 254, 0.06), rgba(255, 255, 255, 0.02));
+}
+
+.radio-master-toggle-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.radio-master-toggle-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.radio-master-toggle-title {
+  font-family: var(--font-display, 'Titillium Web', sans-serif);
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-primary, #ffffff);
+  letter-spacing: 0.5px;
+}
+
+.radio-master-status-badge {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+
+.radio-master-status-badge.status-active {
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.5);
+  color: #10b981;
+}
+
+.radio-master-status-badge.status-off {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #ef4444;
+}
+
+.radio-master-toggle-desc {
+  font-size: 0.76rem;
+  color: var(--text-secondary, rgba(255, 255, 255, 0.65));
+  margin: 0;
+}
+
+/* Master Switch Toggle Button */
+.radio-switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 26px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.radio-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.radio-switch-slider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 9999px;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.radio-switch-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: #ffffff;
+  border-radius: 50%;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.radio-switch input:checked + .radio-switch-slider {
+  background: linear-gradient(135deg, #10b981, #059669);
+  border-color: #10b981;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+}
+
+.radio-switch input:checked + .radio-switch-slider:before {
+  transform: translateX(22px);
+  background-color: #ffffff;
+}
+
+/* ── Minimized Pill (State OFF) ──────────────────────────────────────────── */
+.live-radio-pill.state-off {
+  padding: 6px 12px 6px 10px;
+  background: rgba(12, 16, 24, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+  gap: 8px;
+  opacity: 0.82;
+  transition: all 0.25s ease;
+}
+
+.live-radio-pill.state-off:hover {
+  opacity: 1;
+  border-color: rgba(0, 242, 254, 0.4);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6), 0 0 15px rgba(0, 242, 254, 0.15);
+}
+
+.live-radio-power-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: 9999px;
+  padding: 4px 12px 4px 8px;
+  color: #10b981;
+  font-family: var(--font-display, 'Titillium Web', sans-serif);
+  font-weight: 700;
+  font-size: 0.78rem;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.radio-btn-done:hover {
-  background: #00f2fe;
-  box-shadow: 0 0 18px rgba(0, 242, 254, 0.4);
+.live-radio-power-btn:hover {
+  background: rgba(16, 185, 129, 0.25);
+  border-color: #10b981;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
 }
+
+.live-radio-power-text {
+  letter-spacing: 0.3px;
+}
+
+.live-radio-btn.btn-power-off:hover {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.12);
+}
+

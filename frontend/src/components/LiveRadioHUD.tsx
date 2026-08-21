@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import {
   Radio,
   Mic,
-  MicOff,
   Volume2,
   VolumeX,
   Settings,
   Loader2,
+  Power,
 } from 'lucide-react';
 import { useI18n } from '../context/I18nContext';
 import { RADIO_PERSONAS } from '../constants/f1';
@@ -36,14 +36,49 @@ export const LiveRadioHUD: React.FC<LiveRadioHUDProps> = ({ radio }) => {
 
   const personaInfo = getPersonaLabel();
 
+  // If radio is disabled, render compact minimized pill
+  if (!radio.isRadioEnabled) {
+    return (
+      <>
+        <div className="live-radio-hud-container">
+          <div className="live-radio-pill state-off">
+            <button
+              type="button"
+              onClick={() => radio.setIsRadioEnabled(true)}
+              className="live-radio-power-btn"
+              title={t('ai_engineer.radio.turnOn')}
+            >
+              <Power className="w-3.5 h-3.5" />
+              <span className="live-radio-power-text">
+                {t('ai_engineer.radio.turnOn')}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsSettingsOpen(true)}
+              className="live-radio-btn"
+              title={t('ai_engineer.radio.settings')}
+            >
+              <Settings className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+
+        <RadioSettingsPanel
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          radio={radio}
+        />
+      </>
+    );
+  }
+
   // State class determination
   let stateClass = '';
   let statusText = t('ai_engineer.radio.idle');
 
-  if (!radio.isRadioEnabled) {
-    stateClass = 'state-muted';
-    statusText = t('ai_engineer.radio.mute');
-  } else if (radio.radioState === 'transmitting') {
+  if (radio.radioState === 'transmitting') {
     stateClass = 'state-transmitting';
     statusText = t('ai_engineer.radio.transmitting');
   } else if (radio.radioState === 'processing') {
@@ -67,10 +102,8 @@ export const LiveRadioHUD: React.FC<LiveRadioHUDProps> = ({ radio }) => {
               <Loader2 className="w-5 h-5 animate-spin" />
             ) : radio.radioState === 'speaking' ? (
               <Radio className="w-5 h-5 animate-pulse" />
-            ) : radio.isRadioEnabled ? (
-              <Radio className="w-5 h-5" />
             ) : (
-              <MicOff className="w-5 h-5" />
+              <Radio className="w-5 h-5" />
             )}
           </div>
 
@@ -116,18 +149,28 @@ export const LiveRadioHUD: React.FC<LiveRadioHUDProps> = ({ radio }) => {
 
           {/* Quick Action Controls */}
           <div className="live-radio-actions">
-            {/* Mute / Unmute */}
+            {/* Mute / Unmute Volume */}
             <button
               type="button"
-              onClick={() => radio.setIsRadioEnabled(!radio.isRadioEnabled)}
+              onClick={() => radio.setVolume(radio.volume > 0 ? 0 : 0.8)}
               className="live-radio-btn"
-              title={radio.isRadioEnabled ? t('ai_engineer.radio.mute') : t('ai_engineer.radio.unmute')}
+              title={radio.volume > 0 ? t('ai_engineer.radio.mute') : t('ai_engineer.radio.unmute')}
             >
-              {radio.isRadioEnabled ? (
+              {radio.volume > 0 ? (
                 <Volume2 className="w-4 h-4" />
               ) : (
                 <VolumeX className="w-4 h-4" style={{ color: '#ef4444' }} />
               )}
+            </button>
+
+            {/* Turn Off Power Button */}
+            <button
+              type="button"
+              onClick={() => radio.setIsRadioEnabled(false)}
+              className="live-radio-btn btn-power-off"
+              title={t('ai_engineer.radio.turnOff')}
+            >
+              <Power className="w-4 h-4" />
             </button>
 
             {/* Settings Gear */}
