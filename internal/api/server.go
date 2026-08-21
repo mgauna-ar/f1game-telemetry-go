@@ -42,7 +42,7 @@ var (
 // Server handles HTTP requests for the API and serves the frontend.
 type Server struct {
 	router   *chi.Mux
-	repo     *storage.Repository
+	repo     storage.Repository
 	hub      *Hub
 	staticFS fs.FS
 }
@@ -54,12 +54,12 @@ var upgrader = websocket.Upgrader{
 }
 
 // NewServer creates a new API server with the default embedded frontend filesystem.
-func NewServer(repo *storage.Repository, hub *Hub) *Server {
+func NewServer(repo storage.Repository, hub *Hub) *Server {
 	return NewServerWithFS(repo, hub, frontend.DistFS())
 }
 
 // NewServerWithFS creates a new API server with a custom static filesystem (useful for testing).
-func NewServerWithFS(repo *storage.Repository, hub *Hub, staticFS fs.FS) *Server {
+func NewServerWithFS(repo storage.Repository, hub *Hub, staticFS fs.FS) *Server {
 	s := &Server{
 		router:   chi.NewRouter(),
 		repo:     repo,

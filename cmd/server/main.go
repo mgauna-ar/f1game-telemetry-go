@@ -64,7 +64,7 @@ func main() {
 	printStartupBanner(version, commit, localURL, lanURL, udpAddr, dbPath)
 
 	// 2. Setup Storage
-	repo, err := storage.NewRepository(dbPath)
+	repo, err := storage.NewSQLiteRepository(dbPath)
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}

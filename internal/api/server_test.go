@@ -16,10 +16,10 @@ import (
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
 )
 
-func setupTestServer(t *testing.T) (*Server, *storage.Repository) {
+func setupTestServer(t *testing.T) (*Server, storage.Repository) {
 	t.Helper()
 	dbPath := filepath.Join(t.TempDir(), fmt.Sprintf("test_%d.db", time.Now().UnixNano()))
-	repo, err := storage.NewRepository(dbPath)
+	repo, err := storage.NewSQLiteRepository(dbPath)
 	if err != nil {
 		t.Fatalf("failed to create repo: %v", err)
 	}

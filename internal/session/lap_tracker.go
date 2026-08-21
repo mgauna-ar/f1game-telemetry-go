@@ -10,7 +10,7 @@ import (
 
 // LapTracker monitors a car's lap progress and buffers telemetry samples in memory for compressed persistence.
 type LapTracker struct {
-	repo        *storage.Repository
+	repo        storage.Repository
 	batchWriter *TelemetryBatchWriter
 	carIndex    int
 
@@ -35,7 +35,7 @@ type LapTracker struct {
 }
 
 // NewLapTracker creates a new LapTracker.
-func NewLapTracker(repo *storage.Repository, batchWriter *TelemetryBatchWriter, carIndex int) *LapTracker {
+func NewLapTracker(repo storage.Repository, batchWriter *TelemetryBatchWriter, carIndex int) *LapTracker {
 	return &LapTracker{
 		repo:                  repo,
 		batchWriter:           batchWriter,

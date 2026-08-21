@@ -17,7 +17,7 @@ type LapTelemetryPayload struct {
 
 // TelemetryBatchWriter handles asynchronous compressed writing of lap telemetry blobs.
 type TelemetryBatchWriter struct {
-	repo    *storage.Repository
+	repo    storage.Repository
 	lapChan chan LapTelemetryPayload
 
 	mu      sync.Mutex
@@ -34,7 +34,7 @@ const (
 )
 
 // NewTelemetryBatchWriter creates and initializes a new TelemetryBatchWriter.
-func NewTelemetryBatchWriter(repo *storage.Repository) *TelemetryBatchWriter {
+func NewTelemetryBatchWriter(repo storage.Repository) *TelemetryBatchWriter {
 	return &TelemetryBatchWriter{
 		repo:    repo,
 		lapChan: make(chan LapTelemetryPayload, DefaultBatchChannelCapacity),

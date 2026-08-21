@@ -9,10 +9,10 @@ import (
 	"time"
 )
 
-func setupTestRepo(t *testing.T) *Repository {
+func setupTestRepo(t *testing.T) *SQLiteRepository {
 	t.Helper()
 	dbPath := filepath.Join(t.TempDir(), fmt.Sprintf("test_%d.db", time.Now().UnixNano()))
-	repo, err := NewRepository(dbPath)
+	repo, err := NewSQLiteRepository(dbPath)
 	if err != nil {
 		t.Fatalf("failed to create repo: %v", err)
 	}
@@ -20,7 +20,7 @@ func setupTestRepo(t *testing.T) *Repository {
 	return repo
 }
 
-func createTestSession(t *testing.T, repo *Repository) *Session {
+func createTestSession(t *testing.T, repo *SQLiteRepository) *Session {
 	t.Helper()
 	ctx := context.Background()
 	s := &Session{

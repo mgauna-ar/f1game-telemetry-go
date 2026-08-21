@@ -10,7 +10,7 @@ import (
 
 func TestSessionManagerIntegration(t *testing.T) {
 	// 1. Setup in-memory DB
-	repo, err := storage.NewRepository("file::memory:?cache=shared")
+	repo, err := storage.NewSQLiteRepository("file::memory:?cache=shared")
 	if err != nil {
 		t.Fatalf("failed to create repo: %v", err)
 	}
@@ -110,7 +110,7 @@ func TestSessionManagerIntegration(t *testing.T) {
 }
 
 func TestSessionManagerParticipants(t *testing.T) {
-	repo, err := storage.NewRepository("file::memory:?cache=shared")
+	repo, err := storage.NewSQLiteRepository("file::memory:?cache=shared")
 	if err != nil {
 		t.Fatalf("failed to create repo: %v", err)
 	}
@@ -213,7 +213,7 @@ func TestSessionManagerParticipants(t *testing.T) {
 }
 
 func TestSessionManagerHighBitSessionUIDAndLapValidation(t *testing.T) {
-	repo, err := storage.NewRepository("file::memory:?cache=shared")
+	repo, err := storage.NewSQLiteRepository("file::memory:?cache=shared")
 	if err != nil {
 		t.Fatalf("failed to create repo: %v", err)
 	}
@@ -271,7 +271,7 @@ func TestSessionManagerHighBitSessionUIDAndLapValidation(t *testing.T) {
 }
 
 func TestFinalLapFinalizationOnSessionFinish(t *testing.T) {
-	repo, err := storage.NewRepository("file::memory:?cache=shared")
+	repo, err := storage.NewSQLiteRepository("file::memory:?cache=shared")
 	if err != nil {
 		t.Fatalf("failed to create repo: %v", err)
 	}
@@ -325,7 +325,7 @@ func TestFinalLapFinalizationOnSessionFinish(t *testing.T) {
 }
 
 func TestStintProgressionAndCompoundMapping(t *testing.T) {
-	repo, err := storage.NewRepository("file::memory:?cache=shared")
+	repo, err := storage.NewSQLiteRepository("file::memory:?cache=shared")
 	if err != nil {
 		t.Fatalf("failed to create repo: %v", err)
 	}
@@ -391,7 +391,7 @@ func TestStintProgressionAndCompoundMapping(t *testing.T) {
 
 func TestSessionManagerDriverRetirement(t *testing.T) {
 	ctx := context.Background()
-	repo, err := storage.NewRepository(":memory:")
+	repo, err := storage.NewSQLiteRepository(":memory:")
 	if err != nil {
 		t.Fatalf("Failed to create memory DB: %v", err)
 	}
@@ -505,7 +505,7 @@ func TestSessionManagerDriverRetirement(t *testing.T) {
 
 func TestQualyMultiStintSameCompoundDetection(t *testing.T) {
 	ctx := context.Background()
-	repo, err := storage.NewRepository(":memory:")
+	repo, err := storage.NewSQLiteRepository(":memory:")
 	if err != nil {
 		t.Fatalf("failed to create repo: %v", err)
 	}
@@ -591,7 +591,7 @@ func TestQualyMultiStintSameCompoundDetection(t *testing.T) {
 
 func TestSessionHistoryStintParsingAndStorage(t *testing.T) {
 	ctx := context.Background()
-	repo, err := storage.NewRepository(":memory:")
+	repo, err := storage.NewSQLiteRepository(":memory:")
 	if err != nil {
 		t.Fatalf("failed to create repo: %v", err)
 	}
@@ -683,7 +683,7 @@ func TestSessionHistoryStintParsingAndStorage(t *testing.T) {
 
 func TestFinalClassificationStintConsolidation(t *testing.T) {
 	ctx := context.Background()
-	repo, err := storage.NewRepository(":memory:")
+	repo, err := storage.NewSQLiteRepository(":memory:")
 	if err != nil {
 		t.Fatalf("failed to create repo: %v", err)
 	}
@@ -762,7 +762,7 @@ func TestFinalClassificationStintConsolidation(t *testing.T) {
 }
 
 func TestMultiLapFinishDoesNotCreatePhantomLap(t *testing.T) {
-	repo, err := storage.NewRepository("file::memory:?cache=shared")
+	repo, err := storage.NewSQLiteRepository("file::memory:?cache=shared")
 	if err != nil {
 		t.Fatalf("failed to create repo: %v", err)
 	}

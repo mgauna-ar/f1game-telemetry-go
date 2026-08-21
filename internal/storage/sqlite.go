@@ -57,13 +57,16 @@ func decompressJSON[T any](compressed []byte, out *T) error {
 	return nil
 }
 
-// Repository handles database operations using SQLite.
-type Repository struct {
+// Compile-time check that SQLiteRepository implements Repository.
+var _ Repository = (*SQLiteRepository)(nil)
+
+// SQLiteRepository handles database operations using SQLite.
+type SQLiteRepository struct {
 	db *sqlx.DB
 }
 
-// NewRepository creates a new SQLite repository and applies migrations.
-func NewRepository(dbPath string) (*Repository, error) {
+// NewSQLiteRepository creates a new SQLite repository and applies migrations.
+func NewSQLiteRepository(dbPath string) (*SQLiteRepository, error) {
 	dsn := dbPath
 	if !strings.Contains(dsn, "_pragma=") && !strings.Contains(dsn, "_busy_timeout=") {
 		sep := "?"
@@ -88,7 +91,7 @@ func NewRepository(dbPath string) (*Repository, error) {
 		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)
 	}
 
-	repo := &Repository{db: db}
+	repo := &SQLiteRepository{db: db}
 	if err := Migrate(db); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
@@ -98,13 +101,13 @@ func NewRepository(dbPath string) (*Repository, error) {
 }
 
 // DB returns the underlying sqlx.DB instance.
-func (r *Repository) DB() *sqlx.DB {
+func (r *SQLiteRepository) DB() *sqlx.DB {
 	return r.db
 }
 
 // SaveSession inserts a new session or ignores if the session_uid already exists.
 // Updates the ID of the passed Session struct if successful.
-func (r *Repository) SaveSession(ctx context.Context, s *Session) error {
+func (r *SQLiteRepository) SaveSession(ctx context.Context, s *Session) error {
 	query := `
 		INSERT INTO sessions (session_uid, track_id, track_name, session_type, weather, weather_forecast, total_laps, ai_difficulty, session_duration, packet_format)
 		VALUES (:session_uid, :track_id, :track_name, :session_type, :weather, :weather_forecast, :total_laps, :ai_difficulty, :session_duration, :packet_format)
@@ -135,7 +138,7 @@ func (r *Repository) SaveSession(ctx context.Context, s *Session) error {
 }
 
 // UpdateSessionMetadata updates the track name, session type, initial weather, weather forecast, total laps, ai difficulty, and session duration for a given session_uid.
-func (r *Repository) UpdateSessionMetadata(ctx context.Context, sessionUID string, trackID int, trackName, sessionType, weather, weatherForecast string, totalLaps, aiDifficulty, sessionDuration int) error {
+func (r *SQLiteRepository) UpdateSessionMetadata(ctx context.Context, sessionUID string, trackID int, trackName, sessionType, weather, weatherForecast string, totalLaps, aiDifficulty, sessionDuration int) error {
 	query := `
 		UPDATE sessions 
 		SET 
@@ -169,7 +172,7 @@ func (r *Repository) UpdateSessionMetadata(ctx context.Context, sessionUID strin
 // SaveLap inserts or updates a lap.
 // If mergeMode is true (e.g. SessionHistory packets), it updates timing fields only if the new value is > 0.
 // If mergeMode is false (e.g. live LapTracker), it overwrites fields with the latest lap tracker state.
-func (r *Repository) SaveLap(ctx context.Context, l *Lap, mergeMode bool) error {
+func (r *SQLiteRepository) SaveLap(ctx context.Context, l *Lap, mergeMode bool) error {
 	l.FuelLoad = SanitizeFloat(l.FuelLoad)
 	l.MaxSpeedKMH = SanitizeFloat(l.MaxSpeedKMH)
 
@@ -253,7 +256,7 @@ func (r *Repository) SaveLap(ctx context.Context, l *Lap, mergeMode bool) error 
 }
 
 // SaveLapTelemetryBlob compresses and saves the telemetry samples for a given lap ID.
-func (r *Repository) SaveLapTelemetryBlob(ctx context.Context, lapID int64, samples []TelemetrySample) error {
+func (r *SQLiteRepository) SaveLapTelemetryBlob(ctx context.Context, lapID int64, samples []TelemetrySample) error {
 	if len(samples) == 0 || lapID <= 0 {
 		return nil
 	}
@@ -292,7 +295,7 @@ func (r *Repository) SaveLapTelemetryBlob(ctx context.Context, lapID int64, samp
 }
 
 // DeleteSession deletes a session and all its associated data in cascading fashion.
-func (r *Repository) DeleteSession(ctx context.Context, sessionID int64) error {
+func (r *SQLiteRepository) DeleteSession(ctx context.Context, sessionID int64) error {
 	res, err := r.db.ExecContext(ctx, `DELETE FROM sessions WHERE id = ?`, sessionID)
 	if err != nil {
 		return fmt.Errorf("failed to delete session: %w", err)
@@ -321,7 +324,7 @@ type sessionTagJoinRow struct {
 }
 
 // GetSessions retrieves all valid recorded sessions with their tags, ordered by most recent first.
-func (r *Repository) GetSessions(ctx context.Context) ([]Session, error) {
+func (r *SQLiteRepository) GetSessions(ctx context.Context) ([]Session, error) {
 	var sessions []Session
 	query := `
 		SELECT 
@@ -406,7 +409,7 @@ func (r *Repository) GetSessions(ctx context.Context) ([]Session, error) {
 }
 
 // GetAllTags retrieves all available global tags.
-func (r *Repository) GetAllTags(ctx context.Context) ([]Tag, error) {
+func (r *SQLiteRepository) GetAllTags(ctx context.Context) ([]Tag, error) {
 	var tags []Tag
 	query := `SELECT id, name, color, created_at FROM tags ORDER BY name ASC`
 	if err := r.db.SelectContext(ctx, &tags, query); err != nil {
@@ -419,7 +422,7 @@ func (r *Repository) GetAllTags(ctx context.Context) ([]Tag, error) {
 }
 
 // CreateTag inserts a new tag or returns existing if conflict.
-func (r *Repository) CreateTag(ctx context.Context, t *Tag) error {
+func (r *SQLiteRepository) CreateTag(ctx context.Context, t *Tag) error {
 	query := `
 		INSERT INTO tags (name, color)
 		VALUES (:name, :color)
@@ -441,7 +444,7 @@ func (r *Repository) CreateTag(ctx context.Context, t *Tag) error {
 }
 
 // UpdateTag updates an existing tag's name and color.
-func (r *Repository) UpdateTag(ctx context.Context, t *Tag) error {
+func (r *SQLiteRepository) UpdateTag(ctx context.Context, t *Tag) error {
 	query := `UPDATE tags SET name = ?, color = ? WHERE id = ?`
 	res, err := r.db.ExecContext(ctx, query, t.Name, t.Color, t.ID)
 	if err != nil {
@@ -458,7 +461,7 @@ func (r *Repository) UpdateTag(ctx context.Context, t *Tag) error {
 }
 
 // DeleteTag deletes a tag by its ID.
-func (r *Repository) DeleteTag(ctx context.Context, tagID int64) error {
+func (r *SQLiteRepository) DeleteTag(ctx context.Context, tagID int64) error {
 	res, err := r.db.ExecContext(ctx, `DELETE FROM tags WHERE id = ?`, tagID)
 	if err != nil {
 		return fmt.Errorf("failed to delete tag: %w", err)
@@ -476,7 +479,7 @@ func (r *Repository) DeleteTag(ctx context.Context, tagID int64) error {
 }
 
 // GetTagsBySession retrieves all tags associated with a specific session ID.
-func (r *Repository) GetTagsBySession(ctx context.Context, sessionID int64) ([]Tag, error) {
+func (r *SQLiteRepository) GetTagsBySession(ctx context.Context, sessionID int64) ([]Tag, error) {
 	var tags []Tag
 	query := `
 		SELECT t.id, t.name, t.color, t.created_at
@@ -495,7 +498,7 @@ func (r *Repository) GetTagsBySession(ctx context.Context, sessionID int64) ([]T
 }
 
 // AddTagToSession links a tag to a session.
-func (r *Repository) AddTagToSession(ctx context.Context, sessionID, tagID int64) error {
+func (r *SQLiteRepository) AddTagToSession(ctx context.Context, sessionID, tagID int64) error {
 	query := `INSERT OR IGNORE INTO session_tags (session_id, tag_id) VALUES (?, ?)`
 	if _, err := r.db.ExecContext(ctx, query, sessionID, tagID); err != nil {
 		return fmt.Errorf("failed to link tag to session: %w", err)
@@ -504,7 +507,7 @@ func (r *Repository) AddTagToSession(ctx context.Context, sessionID, tagID int64
 }
 
 // RemoveTagFromSession unlinks a tag from a session.
-func (r *Repository) RemoveTagFromSession(ctx context.Context, sessionID, tagID int64) error {
+func (r *SQLiteRepository) RemoveTagFromSession(ctx context.Context, sessionID, tagID int64) error {
 	query := `DELETE FROM session_tags WHERE session_id = ? AND tag_id = ?`
 	if _, err := r.db.ExecContext(ctx, query, sessionID, tagID); err != nil {
 		return fmt.Errorf("failed to unlink tag from session: %w", err)
@@ -513,7 +516,7 @@ func (r *Repository) RemoveTagFromSession(ctx context.Context, sessionID, tagID 
 }
 
 // SetSessionTags replaces all tags for a session with the provided tag IDs.
-func (r *Repository) SetSessionTags(ctx context.Context, sessionID int64, tagIDs []int64) error {
+func (r *SQLiteRepository) SetSessionTags(ctx context.Context, sessionID int64, tagIDs []int64) error {
 	tx, err := r.db.Beginx()
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -534,7 +537,7 @@ func (r *Repository) SetSessionTags(ctx context.Context, sessionID int64, tagIDs
 }
 
 // GetLapsBySession retrieves laps for a given session, optionally filtered by carIndex.
-func (r *Repository) GetLapsBySession(ctx context.Context, sessionID int64, carIndex *int) ([]Lap, error) {
+func (r *SQLiteRepository) GetLapsBySession(ctx context.Context, sessionID int64, carIndex *int) ([]Lap, error) {
 	var laps []Lap
 	var query string
 	var args []any
@@ -577,7 +580,7 @@ func (r *Repository) GetLapsBySession(ctx context.Context, sessionID int64, carI
 }
 
 // GetTelemetryByLap retrieves time-series telemetry data for a specific lap.
-func (r *Repository) GetTelemetryByLap(ctx context.Context, lapID int64) ([]TelemetrySample, error) {
+func (r *SQLiteRepository) GetTelemetryByLap(ctx context.Context, lapID int64) ([]TelemetrySample, error) {
 	query := `SELECT data FROM lap_telemetry WHERE lap_id = ?`
 	var compressed []byte
 	err := r.db.GetContext(ctx, &compressed, query, lapID)
@@ -599,7 +602,7 @@ func (r *Repository) GetTelemetryByLap(ctx context.Context, lapID int64) ([]Tele
 }
 
 // DeleteTelemetryByLap deletes all telemetry samples for a given lap ID.
-func (r *Repository) DeleteTelemetryByLap(ctx context.Context, lapID int64) error {
+func (r *SQLiteRepository) DeleteTelemetryByLap(ctx context.Context, lapID int64) error {
 	query := `DELETE FROM lap_telemetry WHERE lap_id = ?`
 	if _, err := r.db.ExecContext(ctx, query, lapID); err != nil {
 		return fmt.Errorf("failed to delete telemetry for lap %d: %w", lapID, err)
@@ -608,7 +611,7 @@ func (r *Repository) DeleteTelemetryByLap(ctx context.Context, lapID int64) erro
 }
 
 // GetLapByID retrieves a single lap by its ID.
-func (r *Repository) GetLapByID(ctx context.Context, lapID int64) (*Lap, error) {
+func (r *SQLiteRepository) GetLapByID(ctx context.Context, lapID int64) (*Lap, error) {
 	var lap Lap
 	query := `
 		SELECT laps.*, 
@@ -626,7 +629,7 @@ func (r *Repository) GetLapByID(ctx context.Context, lapID int64) (*Lap, error) 
 }
 
 // SaveParticipants upserts participants for a given session.
-func (r *Repository) SaveParticipants(ctx context.Context, sessionID int64, participants []Participant) error {
+func (r *SQLiteRepository) SaveParticipants(ctx context.Context, sessionID int64, participants []Participant) error {
 	if len(participants) == 0 {
 		return nil
 	}
@@ -678,7 +681,7 @@ func (r *Repository) SaveParticipants(ctx context.Context, sessionID int64, part
 }
 
 // GetParticipantsBySession retrieves all participants for a given session.
-func (r *Repository) GetParticipantsBySession(ctx context.Context, sessionID int64) ([]Participant, error) {
+func (r *SQLiteRepository) GetParticipantsBySession(ctx context.Context, sessionID int64) ([]Participant, error) {
 	var participants []Participant
 	query := `SELECT * FROM participants WHERE session_id = ? ORDER BY car_index ASC`
 	if err := r.db.SelectContext(ctx, &participants, query, sessionID); err != nil {
@@ -691,7 +694,7 @@ func (r *Repository) GetParticipantsBySession(ctx context.Context, sessionID int
 }
 
 // GetSessionByID retrieves a session by its database ID.
-func (r *Repository) GetSessionByID(ctx context.Context, sessionID int64) (*Session, error) {
+func (r *SQLiteRepository) GetSessionByID(ctx context.Context, sessionID int64) (*Session, error) {
 	var session Session
 	query := `
 		SELECT 
@@ -742,7 +745,7 @@ func (r *Repository) GetSessionByID(ctx context.Context, sessionID int64) (*Sess
 }
 
 // ExportSession generates a fully self-contained package of a session with all its telemetry.
-func (r *Repository) ExportSession(ctx context.Context, sessionID int64) (*ExportedSessionPackage, error) {
+func (r *SQLiteRepository) ExportSession(ctx context.Context, sessionID int64) (*ExportedSessionPackage, error) {
 	session, err := r.GetSessionByID(ctx, sessionID)
 	if err != nil {
 		return nil, err
@@ -785,7 +788,7 @@ func (r *Repository) ExportSession(ctx context.Context, sessionID int64) (*Expor
 }
 
 // GetSessionByUID retrieves a session by its hex session UID. Returns nil, nil if not found.
-func (r *Repository) GetSessionByUID(ctx context.Context, sessionUID string) (*Session, error) {
+func (r *SQLiteRepository) GetSessionByUID(ctx context.Context, sessionUID string) (*Session, error) {
 	var session Session
 	query := `SELECT id, session_uid, track_id, track_name, session_type, weather, weather_forecast, total_laps, ai_difficulty, session_duration, packet_format, created_at FROM sessions WHERE session_uid = ?`
 	if err := r.db.GetContext(ctx, &session, query, sessionUID); err != nil {
@@ -802,7 +805,7 @@ func (r *Repository) GetSessionByUID(ctx context.Context, sessionUID string) (*S
 }
 
 // DeleteSessions deletes multiple sessions by their IDs in a single transaction.
-func (r *Repository) DeleteSessions(ctx context.Context, sessionIDs []int64) (int64, error) {
+func (r *SQLiteRepository) DeleteSessions(ctx context.Context, sessionIDs []int64) (int64, error) {
 	if len(sessionIDs) == 0 {
 		return 0, nil
 	}
@@ -824,7 +827,7 @@ func (r *Repository) DeleteSessions(ctx context.Context, sessionIDs []int64) (in
 }
 
 // AddTagToSessions links a tag to multiple sessions.
-func (r *Repository) AddTagToSessions(ctx context.Context, sessionIDs []int64, tagID int64) error {
+func (r *SQLiteRepository) AddTagToSessions(ctx context.Context, sessionIDs []int64, tagID int64) error {
 	if len(sessionIDs) == 0 || tagID <= 0 {
 		return nil
 	}
@@ -850,12 +853,12 @@ func (r *Repository) AddTagToSessions(ctx context.Context, sessionIDs []int64, t
 
 // ImportSession imports a session package into SQLite and returns the newly assigned session ID.
 // If allowDuplicateUID is false and a session with the same session_uid already exists, it returns ErrSessionAlreadyExists.
-func (r *Repository) ImportSession(ctx context.Context, pkg *ExportedSessionPackage) (int64, error) {
+func (r *SQLiteRepository) ImportSession(ctx context.Context, pkg *ExportedSessionPackage) (int64, error) {
 	return r.ImportSessionWithOptions(ctx, pkg, false)
 }
 
 // ImportSessionWithOptions imports a session package with configurable duplicate handling.
-func (r *Repository) ImportSessionWithOptions(ctx context.Context, pkg *ExportedSessionPackage, allowDuplicateUID bool) (int64, error) {
+func (r *SQLiteRepository) ImportSessionWithOptions(ctx context.Context, pkg *ExportedSessionPackage, allowDuplicateUID bool) (int64, error) {
 	if pkg == nil {
 		return 0, fmt.Errorf("cannot import nil session package")
 	}
@@ -928,7 +931,7 @@ func (r *Repository) ImportSessionWithOptions(ctx context.Context, pkg *Exported
 }
 
 // Close closes the database connection.
-func (r *Repository) Close() error {
+func (r *SQLiteRepository) Close() error {
 	if r.db != nil {
 		_, _ = r.db.Exec("PRAGMA wal_checkpoint(TRUNCATE);")
 		return r.db.Close()

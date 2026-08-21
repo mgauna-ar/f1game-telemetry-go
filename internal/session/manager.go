@@ -13,7 +13,7 @@ import (
 // SessionManager orchestrates the processing of F1 telemetry packets.
 // It detects new sessions and routes lap and telemetry data to LapTrackers for all active cars.
 type SessionManager struct {
-	repo          *storage.Repository
+	repo          storage.Repository
 	batchWriter   *TelemetryBatchWriter
 	lapTrackers   map[int]*LapTracker
 	numActiveCars int
@@ -23,7 +23,7 @@ type SessionManager struct {
 }
 
 // NewSessionManager creates a new SessionManager.
-func NewSessionManager(repo *storage.Repository) *SessionManager {
+func NewSessionManager(repo storage.Repository) *SessionManager {
 	bw := NewTelemetryBatchWriter(repo)
 	trackers := make(map[int]*LapTracker)
 	for i := 0; i < packets.MaxCars; i++ {
