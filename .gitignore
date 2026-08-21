@@ -35,3 +35,6 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+
+# AI Agent Working Files
+.plans/
