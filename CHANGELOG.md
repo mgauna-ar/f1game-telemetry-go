@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.0.0-rc.1] - 2026-08-19
+## [1.0.0] - 2026-08-21
 
 ### Added
 - **Zero-Dependency Standalone Releases**: Single native executable with embedded production React frontend (`//go:embed`), auto-launching default browser on startup with zero prerequisites (no Go or Node.js required by end users).
@@ -43,5 +43,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/mgauna/f1game-telemetry-go/compare/v1.0.0-rc.1...HEAD
-[1.0.0-rc.1]: https://github.com/mgauna/f1game-telemetry-go/releases/tag/v1.0.0-rc.1
+[Unreleased]: https://github.com/mgauna-ar/f1game-telemetry-go/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/mgauna-ar/f1game-telemetry-go/releases/tag/v1.0.0

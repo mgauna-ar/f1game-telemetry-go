@@ -57,7 +57,7 @@ make build-embedded
 1. Open [`CHANGELOG.md`](CHANGELOG.md).
 2. Move items from `[Unreleased]` into a new version header:
    ```markdown
-   ## [1.0.0-rc.1] - 2026-08-19
+   ## [1.0.0] - 2026-08-21
    ### Added
    - Description of new features...
    ```
@@ -73,18 +73,18 @@ All release archives and checksums are compiled and published **automatically** 
 ```bash
 # 1. Commit any changelog and version updates
 git add .
-git commit -m "chore(release): prepare v1.0.0-rc.1"
+git commit -m "chore(release): prepare v1.0.0"
 git push origin main
 
 # 2. Create and push the annotated git tag
-git tag v1.0.0-rc.1
-git push origin v1.0.0-rc.1
+git tag v1.0.0
+git push origin v1.0.0
 ```
 
 ### Option B: Via GitHub Actions Web UI
 1. Navigate to **Actions** → **Release** workflow.
 2. Click **Run workflow**.
-3. Enter the tag name (e.g. `v1.0.0-rc.1`).
+3. Enter the tag name (e.g. `v1.0.0`).
 4. Click **Run workflow**.
 
 ---
