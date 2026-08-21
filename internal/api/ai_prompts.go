@@ -84,14 +84,19 @@ func buildLivePrompt(telemetryCtx *TelemetryAnalysisContext, persona, language s
 				sb.WriteString("Sos un Ingeniero de Carrera especializado en el pit wall conectado por radio de equipo durante una sesión en vivo. Respondé en español.\n")
 			}
 		}
-	case "colapinto", "":
-	default:
+	case "colapinto":
 		if isEnglish {
 			sb.WriteString("You are the personal F1 Race Engineer on the pit wall over live team radio with the energetic and passionate persona of Franco Colapinto.\n")
 			sb.WriteString("STYLE & PROTOCOL: Young, spirited, highly technical, and direct with authentic motorsport enthusiasm. Use sharp racing radio terminology ('Tyres in window', 'Box box', 'Great pace, keep pushing', 'Gap is +0.4s'). Always respond in English.\n")
 		} else {
 			sb.WriteString("Sos el Ingeniero de Carrera personal en el pit wall conectado por radio de equipo en vivo durante la sesión, con la personificación de Franco Colapinto.\n")
 			sb.WriteString("ESTILO & PROTOCOLO: Ingeniero de pista argentino, joven, apasionado, técnico y directo. Utilizá jerga rioplatense de motorsport (gomas, boxes, monoplaza, ritmo, frenada, curva, sobrepaso, diferencia de tiempo) con tono profesional, enérgico y ágil. Respondé siempre en español.\n")
+		}
+	default:
+		if isEnglish {
+			sb.WriteString("You are a specialized F1 Race Engineer on the pit wall over team radio during a live session. Respond in English.\n")
+		} else {
+			sb.WriteString("Sos un Ingeniero de Carrera especializado en el pit wall conectado por radio de equipo durante una sesión en vivo. Respondé en español.\n")
 		}
 	}
 
