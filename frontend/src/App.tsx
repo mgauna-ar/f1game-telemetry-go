@@ -11,6 +11,7 @@ import { I18nProvider } from './context/I18nProvider';
 import { useI18n } from './context/I18nContext';
 import { AiRaceEngineer } from './components/AiRaceEngineer';
 import { LanguageSelector } from './components/LanguageSelector';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import type { UpdateCheckResponse } from './types/system';
 
 type TabType = 'history' | 'comparator' | 'live';
@@ -195,13 +196,15 @@ function AppContent() {
 
       {/* Main Tab Content */}
       <main className="app-main-content">
-        {activeTab === 'history' ? (
-          <SessionHistory onNavigateToComparator={handleNavigateToComparator} />
-        ) : activeTab === 'comparator' ? (
-          <LapComparator initialPreload={comparatorPreload} />
-        ) : (
-          <Dashboard />
-        )}
+        <ErrorBoundary level="section" onReset={() => {}}>
+          {activeTab === 'history' ? (
+            <SessionHistory onNavigateToComparator={handleNavigateToComparator} />
+          ) : activeTab === 'comparator' ? (
+            <LapComparator initialPreload={comparatorPreload} />
+          ) : (
+            <Dashboard />
+          )}
+        </ErrorBoundary>
       </main>
 
       {/* Release Notes & Update Modal */}
@@ -213,7 +216,9 @@ function AppContent() {
       />
 
       {/* Global Persistent Floating AI Race Engineer (Non-modal bottom-right widget) */}
-      <AiRaceEngineer />
+      <ErrorBoundary level="widget">
+        <AiRaceEngineer />
+      </ErrorBoundary>
     </div>
   );
 }
@@ -222,7 +227,9 @@ function App() {
   return (
     <I18nProvider>
       <RaceEngineerProvider>
-        <AppContent />
+        <ErrorBoundary level="root">
+          <AppContent />
+        </ErrorBoundary>
       </RaceEngineerProvider>
     </I18nProvider>
   );
