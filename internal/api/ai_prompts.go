@@ -98,7 +98,10 @@ func buildLivePrompt(telemetryCtx *TelemetryAnalysisContext, persona, language s
 
 	sb.WriteString("\nCRITICAL RADIO CONSTRAINTS:\n")
 	sb.WriteString("1. MAXIMUM 2 SHORT SENTENCES per radio message. This is pit-to-car radio communication — be ultra-concise, direct, and actionable with zero filler phrases or markdown lists.\n")
-	sb.WriteString("2. Provide tactical advice on tyre wear, rival gaps, weather/safety car status, or pit windows based on the live data.\n\n")
+	sb.WriteString("2. PROACTIVE CALLS VS DRIVER REPLIES:\n")
+	sb.WriteString("   - When issuing a PROACTIVE ALERT or PIT WALL BROADCAST (Safety Car, VSC, flags, tyre wear, rain forecast, rival threat, box call), you are INITIATING the call. NEVER say 'Entendido', 'Te copio', 'Copiado', 'Copy', 'Understood', or 'Roger' on proactive alerts, because the driver did not speak! Announce the event and command directly.\n")
+	sb.WriteString("   - ONLY use 'Entendido', 'Te copio', 'Copy', or 'Roger' when the driver explicitly spoke first to ask a question or give a report.\n")
+	sb.WriteString("3. Provide sharp tactical advice on tyre wear, rival gaps, weather/safety car status, or pit windows based on the live data.\n\n")
 
 	sb.WriteString("### LIVE SESSION TELEMETRY & PIT WALL DATA:\n")
 	if telemetryCtx != nil && telemetryCtx.LiveSummary != "" {

@@ -122,7 +122,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
     if (maxWear >= RADIO_ALERT_CONSTANTS.PUNCTURE_THRESHOLD && !lastPuncturedRef.current) {
       lastPuncturedRef.current = true;
       triggerAlertSafe(
-        `[CRITICAL TELEMETRY ALERT: Critical tyre puncture or severe tyre failure! Wear is at ${Math.round(maxWear)}%. Order the driver to box immediately.]`,
+        `[PROACTIVE PIT WALL CALL: Critical tyre puncture / tyre failure on car! Wear is at ${Math.round(maxWear)}%. You are initiating this call — do NOT say 'Entendido' or 'Copy'. Order driver to box immediately.]`,
         true
       );
       return;
@@ -133,7 +133,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
       if (maxWear >= threshold && !triggeredWearThresholdsRef.current.has(threshold)) {
         triggeredWearThresholdsRef.current.add(threshold);
         triggerAlertSafe(
-          `[TELEMETRY ALERT: Tyre wear reached ${Math.round(maxWear)}% (stint age: ${currentTyreAge} laps). Provide immediate tyre management and strategic advice.]`,
+          `[PROACTIVE PIT WALL CALL: Tyre wear reached ${Math.round(maxWear)}% (stint age: ${currentTyreAge} laps). You are initiating this call — do NOT say 'Entendido' or 'Copy'. Provide immediate tyre management directive.]`,
           false
         );
         break;
@@ -154,12 +154,12 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
 
       if (scStatus === SAFETY_CAR_STATUS.FULL) {
         triggerAlertSafe(
-          `[CRITICAL TELEMETRY ALERT: Full Safety Car deployed! Tell driver: Safety Car deployed, delta positive, prepare for pit window.]`,
+          `[PROACTIVE PIT WALL CALL: Full Safety Car deployed! You are initiating this call — do NOT say 'Entendido' or 'Copy'. Directly announce Safety Car in pista / on track, maintain delta positive, stand by for pit stop window.]`,
           true
         );
       } else if (scStatus === SAFETY_CAR_STATUS.VIRTUAL) {
         triggerAlertSafe(
-          `[CRITICAL TELEMETRY ALERT: Virtual Safety Car (VSC) deployed! Tell driver: VSC deployed, maintain delta, no overtaking.]`,
+          `[PROACTIVE PIT WALL CALL: Virtual Safety Car (VSC) deployed! You are initiating this call — do NOT say 'Entendido' or 'Copy'. Directly announce VSC deployed, maintain delta, no overtaking.]`,
           true
         );
       }
@@ -170,7 +170,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
     if (redFlagCount > lastRedFlagCountRef.current) {
       lastRedFlagCountRef.current = redFlagCount;
       triggerAlertSafe(
-        `[CRITICAL TELEMETRY ALERT: Red Flag deployed! Session stopped. Instruct driver to return to pit lane slowly.]`,
+        `[PROACTIVE PIT WALL CALL: Red Flag deployed! Session stopped. You are initiating this call — do NOT say 'Entendido' or 'Copy'. Instruct driver to return to pit lane slowly.]`,
         true
       );
     }
@@ -186,7 +186,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
         const rainPct = imminentRain.RainPercentage ?? imminentRain.rain_percentage ?? 50;
         const timeOff = imminentRain.TimeOffset ?? imminentRain.time_offset ?? 5;
         triggerAlertSafe(
-          `[WEATHER ALERT: Radar detects ${rainPct}% chance of rain in the next ${timeOff} minutes. Advise driver on tyre crossover window.]`,
+          `[PROACTIVE PIT WALL CALL: Weather radar confirms ${rainPct}% chance of rain in the next ${timeOff} minutes. You are initiating this call — do NOT say 'Entendido' or 'Copy'. Advise driver directly on tyre crossover strategy.]`,
           false
         );
       }
@@ -238,7 +238,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
         }
 
         triggerAlertSafe(
-          `[RIVAL TELEMETRY ALERT: Car behind is within DRS range (<1.0s gap).${extraContext} Give driver tactical defense advice.]`,
+          `[PROACTIVE PIT WALL CALL: Car behind is within DRS range (<1.0s gap).${extraContext} You are initiating this call — do NOT say 'Entendido' or 'Copy'. Give driver immediate defensive advice.]`,
           false
         );
         return;
@@ -272,7 +272,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
         }
 
         triggerAlertSafe(
-          `[OVERTAKE TELEMETRY ALERT: You are closing in on the car ahead (P${playerPos - 1}) in DRS range.${aheadExtra} Instruct driver to push for the overtake.]`,
+          `[PROACTIVE PIT WALL CALL: Closing in on car ahead (P${playerPos - 1}) in DRS range.${aheadExtra} You are initiating this call — do NOT say 'Entendido' or 'Copy'. Direct driver to attack.]`,
           false
         );
       }
