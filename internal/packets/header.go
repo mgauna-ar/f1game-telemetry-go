@@ -81,9 +81,9 @@ func MaxCarsForFormat(packetFormat uint16) int {
 }
 
 // PerCarItemSize calculates the per-car byte stride based on packet payload length and format car count.
-func PerCarItemSize(payload []byte, header PacketHeader, structSize int, trailer int) int {
+func PerCarItemSize(payload []byte, header PacketHeader, structSize, trailer int) int {
 	maxCars := MaxCarsForFormat(header.PacketFormat)
-	if len(payload) <= 0 || maxCars <= 0 {
+	if len(payload) == 0 || maxCars <= 0 {
 		return structSize
 	}
 

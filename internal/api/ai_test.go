@@ -12,7 +12,7 @@ import (
 func TestHandleAIConfigStatus(t *testing.T) {
 	server, _ := setupTestServer(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/ai/config-status", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/ai/config-status", http.NoBody)
 	rec := httptest.NewRecorder()
 	server.router.ServeHTTP(rec, req)
 

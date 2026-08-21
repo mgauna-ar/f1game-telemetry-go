@@ -421,7 +421,7 @@ func (lt *LapTracker) ProcessTelemetry(ctx context.Context, session *storage.Ses
 	lt.sampleBuffer = append(lt.sampleBuffer, sample)
 }
 
-func (lt *LapTracker) startNewLap(ctx context.Context, sessionID int64, lapNum int, carIndex int) {
+func (lt *LapTracker) startNewLap(ctx context.Context, sessionID int64, lapNum, carIndex int) {
 	// If there are uncommitted samples from a previous lap, flush them
 	if lt.currentLap != nil && lt.currentLap.ID > 0 && len(lt.sampleBuffer) > 0 && lt.batchWriter != nil {
 		lt.batchWriter.EnqueueLap(lt.currentLap.ID, lt.sampleBuffer)

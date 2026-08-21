@@ -677,11 +677,12 @@ func TestTagOperations(t *testing.T) {
 		t.Fatalf("GetSessions failed: %v", err)
 	}
 	for _, s := range allSessions {
-		if s.ID == session1.ID {
+		switch s.ID {
+		case session1.ID:
 			if len(s.Tags) != 2 {
 				t.Errorf("expected session1 to have 2 tags in GetSessions, got %d", len(s.Tags))
 			}
-		} else if s.ID == session2.ID {
+		case session2.ID:
 			if len(s.Tags) != 0 {
 				t.Errorf("expected session2 to have 0 tags, got %d", len(s.Tags))
 			}
@@ -911,14 +912,15 @@ func TestLapHasTelemetry(t *testing.T) {
 	}
 
 	for _, l := range laps {
-		if l.ID == lap1.ID {
+		switch l.ID {
+		case lap1.ID:
 			if !l.HasTelemetry {
 				t.Errorf("expected lap1 HasTelemetry = true, got false")
 			}
 			if l.SampleCount != 2 {
 				t.Errorf("expected lap1 SampleCount = 2, got %d", l.SampleCount)
 			}
-		} else if l.ID == lap2.ID {
+		case lap2.ID:
 			if l.HasTelemetry {
 				t.Errorf("expected lap2 HasTelemetry = false, got true")
 			}

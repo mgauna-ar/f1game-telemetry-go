@@ -161,7 +161,7 @@ func (s *Server) routes() {
 		}
 
 		// 2. Try disk fallback (useful during active frontend development)
-		diskPath := filepath.Join("./frontend/dist", filepath.FromSlash(reqPath))
+		diskPath := filepath.Join("frontend", "dist", filepath.FromSlash(reqPath))
 		if stat, err := os.Stat(diskPath); err == nil && !stat.IsDir() {
 			http.ServeFile(w, r, diskPath)
 			return
@@ -170,7 +170,7 @@ func (s *Server) routes() {
 		// 3. SPA Fallback: Serve embedded/mock index.html
 		if indexData, err := fs.ReadFile(distFS, "index.html"); err == nil && len(indexData) > 0 {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			w.Write(indexData)
+			_, _ = w.Write(indexData)
 			return
 		}
 
@@ -205,7 +205,7 @@ func (s *Server) handleGetSessions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(sessions)
+	_ = json.NewEncoder(w).Encode(sessions)
 }
 
 func (s *Server) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
@@ -228,7 +228,7 @@ func (s *Server) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"success"}`))
+	_, _ = w.Write([]byte(`{"status":"success"}`))
 }
 
 func (s *Server) handleGetParticipants(w http.ResponseWriter, r *http.Request) {
@@ -247,7 +247,7 @@ func (s *Server) handleGetParticipants(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(participants)
+	_ = json.NewEncoder(w).Encode(participants)
 }
 
 func (s *Server) handleGetLaps(w http.ResponseWriter, r *http.Request) {
@@ -271,7 +271,7 @@ func (s *Server) handleGetLaps(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(laps)
+	_ = json.NewEncoder(w).Encode(laps)
 }
 
 func (s *Server) handleGetTelemetry(w http.ResponseWriter, r *http.Request) {
@@ -298,7 +298,7 @@ func (s *Server) handleGetTelemetry(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(telemetry)
+	_ = json.NewEncoder(w).Encode(telemetry)
 }
 
 // Tag request payloads
@@ -324,7 +324,7 @@ func (s *Server) handleGetTags(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(tags)
+	_ = json.NewEncoder(w).Encode(tags)
 }
 
 func (s *Server) handleCreateTag(w http.ResponseWriter, r *http.Request) {
@@ -357,7 +357,7 @@ func (s *Server) handleCreateTag(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(tag)
+	_ = json.NewEncoder(w).Encode(tag)
 }
 
 func (s *Server) handleUpdateTag(w http.ResponseWriter, r *http.Request) {
@@ -401,7 +401,7 @@ func (s *Server) handleUpdateTag(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(tag)
+	_ = json.NewEncoder(w).Encode(tag)
 }
 
 func (s *Server) handleDeleteTag(w http.ResponseWriter, r *http.Request) {
@@ -424,7 +424,7 @@ func (s *Server) handleDeleteTag(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(`{"status":"success"}`))
+	_, _ = w.Write([]byte(`{"status":"success"}`))
 }
 
 func (s *Server) handleGetSessionTags(w http.ResponseWriter, r *http.Request) {
@@ -443,7 +443,7 @@ func (s *Server) handleGetSessionTags(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(tags)
+	_ = json.NewEncoder(w).Encode(tags)
 }
 
 func (s *Server) handleAddSessionTag(w http.ResponseWriter, r *http.Request) {
@@ -497,7 +497,7 @@ func (s *Server) handleAddSessionTag(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(tags)
+	_ = json.NewEncoder(w).Encode(tags)
 }
 
 func (s *Server) handleSetSessionTags(w http.ResponseWriter, r *http.Request) {
@@ -531,7 +531,7 @@ func (s *Server) handleSetSessionTags(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(tags)
+	_ = json.NewEncoder(w).Encode(tags)
 }
 
 func (s *Server) handleRemoveSessionTag(w http.ResponseWriter, r *http.Request) {
@@ -562,7 +562,7 @@ func (s *Server) handleRemoveSessionTag(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(tags)
+	_ = json.NewEncoder(w).Encode(tags)
 }
 
 func sanitizeFilename(s string) string {
@@ -610,10 +610,10 @@ func (s *Server) handleExportSession(w http.ResponseWriter, r *http.Request) {
 	)
 
 	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
 	w.Header().Set("Content-Length", strconv.Itoa(len(compressed)))
 	w.WriteHeader(http.StatusOK)
-	w.Write(compressed)
+	_, _ = w.Write(compressed)
 }
 
 // ExportBatchRequest defines the payload for batch session export.
@@ -623,26 +623,16 @@ type ExportBatchRequest struct {
 
 func (s *Server) handleExportSessionBatch(w http.ResponseWriter, r *http.Request) {
 	var sessionIDs []int64
-
-	if r.Method == http.MethodPost && strings.Contains(r.Header.Get("Content-Type"), "application/json") {
+	if r.Header.Get("Content-Type") == "application/json" {
 		var req ExportBatchRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err == nil {
 			sessionIDs = req.SessionIDs
 		}
-	}
-
-	if len(sessionIDs) == 0 {
-		idsParam := r.URL.Query().Get("ids")
-		if idsParam == "" {
-			idsParam = r.URL.Query().Get("session_ids")
-		}
-		if idsParam != "" {
-			parts := strings.Split(idsParam, ",")
-			for _, p := range parts {
-				p = strings.TrimSpace(p)
-				if id, err := strconv.ParseInt(p, 10, 64); err == nil {
-					sessionIDs = append(sessionIDs, id)
-				}
+	} else if r.URL.Query().Get("ids") != "" {
+		parts := strings.Split(r.URL.Query().Get("ids"), ",")
+		for _, p := range parts {
+			if id, err := strconv.ParseInt(strings.TrimSpace(p), 10, 64); err == nil {
+				sessionIDs = append(sessionIDs, id)
 			}
 		}
 	}
@@ -653,45 +643,46 @@ func (s *Server) handleExportSessionBatch(w http.ResponseWriter, r *http.Request
 	}
 
 	var buf bytes.Buffer
-	zipWriter := zip.NewWriter(&buf)
+	zw := zip.NewWriter(&buf)
 
 	exportedCount := 0
 	for _, id := range sessionIDs {
 		pkg, err := s.repo.ExportSession(r.Context(), id)
 		if err != nil {
-			log.Printf("ExportBatch: skipping session %d: %v", id, err)
+			log.Printf("Failed to export session %d for batch: %v", id, err)
 			continue
 		}
 
 		rawJSON, err := json.Marshal(pkg)
 		if err != nil {
-			log.Printf("ExportBatch: failed to marshal session %d: %v", id, err)
+			log.Printf("Failed to marshal exported package for session %d: %v", id, err)
 			continue
 		}
 
 		compressed := storage.CompressRaw(rawJSON)
-		entryName := fmt.Sprintf("%s_%s_%s_%d.f1session",
+		filename := fmt.Sprintf("%s_%s_%s_%d.f1session",
 			sanitizeFilename(pkg.Session.TrackName),
 			sanitizeFilename(pkg.Session.SessionType),
 			pkg.Session.CreatedAt.Format("2006-01-02"),
-			pkg.Session.ID,
+			id,
 		)
 
-		fWriter, err := zipWriter.Create(entryName)
+		f, err := zw.Create(filename)
 		if err != nil {
-			log.Printf("ExportBatch: failed to create zip entry for session %d: %v", id, err)
+			log.Printf("Failed to create zip entry for session %d: %v", id, err)
 			continue
 		}
 
-		if _, err := fWriter.Write(compressed); err != nil {
-			log.Printf("ExportBatch: failed to write zip entry for session %d: %v", id, err)
+		if _, err := f.Write(compressed); err != nil {
+			log.Printf("Failed to write compressed data into zip for session %d: %v", id, err)
 			continue
 		}
+
 		exportedCount++
 	}
 
-	if err := zipWriter.Close(); err != nil {
-		http.Error(w, "Failed to build zip archive", http.StatusInternalServerError)
+	if err := zw.Close(); err != nil {
+		http.Error(w, "Failed to finalize zip archive", http.StatusInternalServerError)
 		return
 	}
 
@@ -704,10 +695,10 @@ func (s *Server) handleExportSessionBatch(w http.ResponseWriter, r *http.Request
 	filename := fmt.Sprintf("f1_sessions_export_%s.zip", time.Now().Format("2006-01-02"))
 
 	w.Header().Set("Content-Type", "application/zip")
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
 	w.Header().Set("Content-Length", strconv.Itoa(len(zipBytes)))
 	w.WriteHeader(http.StatusOK)
-	w.Write(zipBytes)
+	_, _ = w.Write(zipBytes)
 }
 
 // ImportDetail represents the outcome for a single imported session file.
@@ -885,16 +876,15 @@ func (s *Server) handleImportSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	if resp.Total == 1 && resp.Imported == 1 {
+	switch {
+	case resp.Total == 1 && resp.Imported == 1:
 		w.WriteHeader(http.StatusCreated)
-	} else if resp.Imported > 0 {
+	case resp.Imported > 0, resp.Skipped > 0:
 		w.WriteHeader(http.StatusOK)
-	} else if resp.Skipped > 0 {
-		w.WriteHeader(http.StatusOK)
-	} else {
+	default:
 		w.WriteHeader(http.StatusBadRequest)
 	}
-	json.NewEncoder(w).Encode(resp)
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 // BatchDeleteRequest defines payload for deleting multiple sessions.
@@ -923,7 +913,7 @@ func (s *Server) handleBatchDeleteSessions(w http.ResponseWriter, r *http.Reques
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]any{
+	_ = json.NewEncoder(w).Encode(map[string]any{
 		"status":        "success",
 		"deleted_count": deletedCount,
 	})
@@ -955,7 +945,7 @@ func (s *Server) handleBatchAssignTags(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]any{
+	_ = json.NewEncoder(w).Encode(map[string]any{
 		"status": "success",
 	})
 }

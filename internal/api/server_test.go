@@ -29,15 +29,15 @@ func setupTestServer(t *testing.T) (*Server, *storage.Repository) {
 	mockFS := fstest.MapFS{
 		"index.html": &fstest.MapFile{
 			Data: []byte("<!doctype html><html><head><title>F1 Telemetry</title></head><body><div id=\"root\"></div></body></html>"),
-			Mode: 0644,
+			Mode: 0o644,
 		},
 		"favicon.svg": &fstest.MapFile{
 			Data: []byte("<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>"),
-			Mode: 0644,
+			Mode: 0o644,
 		},
 		"assets/index.js": &fstest.MapFile{
 			Data: []byte("console.log('f1-telemetry');"),
-			Mode: 0644,
+			Mode: 0o644,
 		},
 	}
 	server := NewServerWithFS(repo, hub, mockFS)
@@ -96,7 +96,7 @@ func TestHandleGetParticipants(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodGet, tt.url, nil)
+			req := httptest.NewRequest(http.MethodGet, tt.url, http.NoBody)
 			rec := httptest.NewRecorder()
 			server.router.ServeHTTP(rec, req)
 
@@ -158,7 +158,7 @@ func TestHandleDeleteSession(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest(http.MethodDelete, tt.url, nil)
+			req := httptest.NewRequest(http.MethodDelete, tt.url, http.NoBody)
 			rec := httptest.NewRecorder()
 			server.router.ServeHTTP(rec, req)
 
@@ -173,14 +173,16 @@ func TestHandleTagsCRUD(t *testing.T) {
 	server, _ := setupTestServer(t)
 
 	// 1. Initially GET /api/tags -> empty array
-	req := httptest.NewRequest(http.MethodGet, "/api/tags", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/tags", http.NoBody)
 	rec := httptest.NewRecorder()
 	server.router.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", rec.Code)
 	}
 	var tags []storage.Tag
-	json.NewDecoder(rec.Body).Decode(&tags)
+	if err := json.NewDecoder(rec.Body).Decode(&tags); err != nil {
+		t.Fatalf("failed to decode tags: %v", err)
+	}
 	if len(tags) != 0 {
 		t.Fatalf("expected 0 tags initially, got %d", len(tags))
 	}
@@ -195,7 +197,9 @@ func TestHandleTagsCRUD(t *testing.T) {
 		t.Fatalf("expected 201 Created, got %d (%s)", rec.Code, rec.Body.String())
 	}
 	var createdTag storage.Tag
-	json.NewDecoder(rec.Body).Decode(&createdTag)
+	if err := json.NewDecoder(rec.Body).Decode(&createdTag); err != nil {
+		t.Fatalf("failed to decode created tag: %v", err)
+	}
 	if createdTag.ID == 0 || createdTag.Name != "WOR League" || createdTag.Color != "#ef4444" {
 		t.Errorf("unexpected created tag: %+v", createdTag)
 	}
@@ -210,13 +214,15 @@ func TestHandleTagsCRUD(t *testing.T) {
 		t.Fatalf("expected 200 OK, got %d (%s)", rec.Code, rec.Body.String())
 	}
 	var updatedTag storage.Tag
-	json.NewDecoder(rec.Body).Decode(&updatedTag)
+	if err := json.NewDecoder(rec.Body).Decode(&updatedTag); err != nil {
+		t.Fatalf("failed to decode updated tag: %v", err)
+	}
 	if updatedTag.Name != "WOR Tier 1" || updatedTag.Color != "#06b6d4" {
 		t.Errorf("unexpected updated tag: %+v", updatedTag)
 	}
 
 	// 4. DELETE /api/tags/{id} -> Delete tag
-	req = httptest.NewRequest(http.MethodDelete, "/api/tags/1", nil)
+	req = httptest.NewRequest(http.MethodDelete, "/api/tags/1", http.NoBody)
 	rec = httptest.NewRecorder()
 	server.router.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -224,7 +230,7 @@ func TestHandleTagsCRUD(t *testing.T) {
 	}
 
 	// 5. DELETE non-existent tag -> 404
-	req = httptest.NewRequest(http.MethodDelete, "/api/tags/999", nil)
+	req = httptest.NewRequest(http.MethodDelete, "/api/tags/999", http.NoBody)
 	rec = httptest.NewRecorder()
 	server.router.ServeHTTP(rec, req)
 	if rec.Code != http.StatusNotFound {
@@ -258,34 +264,40 @@ func TestHandleSessionTags(t *testing.T) {
 		t.Fatalf("expected 200 OK, got %d (%s)", rec.Code, rec.Body.String())
 	}
 	var sessionTags []storage.Tag
-	json.NewDecoder(rec.Body).Decode(&sessionTags)
+	if err := json.NewDecoder(rec.Body).Decode(&sessionTags); err != nil {
+		t.Fatalf("failed to decode session tags: %v", err)
+	}
 	if len(sessionTags) != 1 || sessionTags[0].Name != "AOR League" {
 		t.Fatalf("expected 1 tag with name AOR League, got %+v", sessionTags)
 	}
 
 	// 2. GET /api/sessions/1/tags
-	req = httptest.NewRequest(http.MethodGet, "/api/sessions/1/tags", nil)
+	req = httptest.NewRequest(http.MethodGet, "/api/sessions/1/tags", http.NoBody)
 	rec = httptest.NewRecorder()
 	server.router.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200 OK, got %d", rec.Code)
 	}
 	var getTags []storage.Tag
-	json.NewDecoder(rec.Body).Decode(&getTags)
+	if err := json.NewDecoder(rec.Body).Decode(&getTags); err != nil {
+		t.Fatalf("failed to decode getTags: %v", err)
+	}
 	if len(getTags) != 1 {
 		t.Fatalf("expected 1 tag, got %d", len(getTags))
 	}
 
 	// 3. Remove tag from session: DELETE /api/sessions/1/tags/{tagId}
 	tagID := sessionTags[0].ID
-	req = httptest.NewRequest(http.MethodDelete, "/api/sessions/1/tags/"+string(rune('0'+tagID)), nil)
+	req = httptest.NewRequest(http.MethodDelete, "/api/sessions/1/tags/"+string(rune('0'+tagID)), http.NoBody)
 	rec = httptest.NewRecorder()
 	server.router.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200 OK, got %d (%s)", rec.Code, rec.Body.String())
 	}
 	var tagsAfterRemove []storage.Tag
-	json.NewDecoder(rec.Body).Decode(&tagsAfterRemove)
+	if err := json.NewDecoder(rec.Body).Decode(&tagsAfterRemove); err != nil {
+		t.Fatalf("failed to decode tags after remove: %v", err)
+	}
 	if len(tagsAfterRemove) != 0 {
 		t.Fatalf("expected 0 tags after remove, got %d", len(tagsAfterRemove))
 	}
@@ -300,7 +312,9 @@ func TestHandleSessionTags(t *testing.T) {
 		t.Fatalf("expected 200 OK, got %d (%s)", rec.Code, rec.Body.String())
 	}
 	var tagsAfterPut []storage.Tag
-	json.NewDecoder(rec.Body).Decode(&tagsAfterPut)
+	if err := json.NewDecoder(rec.Body).Decode(&tagsAfterPut); err != nil {
+		t.Fatalf("failed to decode tags after put: %v", err)
+	}
 	if len(tagsAfterPut) != 1 {
 		t.Fatalf("expected 1 tag after put, got %d", len(tagsAfterPut))
 	}
@@ -341,7 +355,7 @@ func TestHandleExportAndImportSession(t *testing.T) {
 	}
 
 	// 1. GET /api/sessions/{id}/export
-	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/sessions/%d/export", session.ID), nil)
+	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/sessions/%d/export", session.ID), http.NoBody)
 	rec := httptest.NewRecorder()
 	server.router.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
@@ -403,40 +417,46 @@ func TestHandleGetLapsWithCarIndexFilter(t *testing.T) {
 	_ = repo.SaveLap(ctx, lap1_1, false)
 
 	// 1. Get all laps (no filter)
-	reqAll := httptest.NewRequest(http.MethodGet, "/api/sessions/1/laps", nil)
+	reqAll := httptest.NewRequest(http.MethodGet, "/api/sessions/1/laps", http.NoBody)
 	recAll := httptest.NewRecorder()
 	server.router.ServeHTTP(recAll, reqAll)
 	if recAll.Code != http.StatusOK {
 		t.Fatalf("expected 200 OK, got %d", recAll.Code)
 	}
 	var allLaps []storage.Lap
-	json.NewDecoder(recAll.Body).Decode(&allLaps)
+	if err := json.NewDecoder(recAll.Body).Decode(&allLaps); err != nil {
+		t.Fatalf("failed to decode allLaps: %v", err)
+	}
 	if len(allLaps) != 3 {
 		t.Fatalf("expected 3 laps in total, got %d", len(allLaps))
 	}
 
 	// 2. Filter by carIndex=0
-	reqCar0 := httptest.NewRequest(http.MethodGet, "/api/sessions/1/laps?carIndex=0", nil)
+	reqCar0 := httptest.NewRequest(http.MethodGet, "/api/sessions/1/laps?carIndex=0", http.NoBody)
 	recCar0 := httptest.NewRecorder()
 	server.router.ServeHTTP(recCar0, reqCar0)
 	if recCar0.Code != http.StatusOK {
 		t.Fatalf("expected 200 OK, got %d", recCar0.Code)
 	}
 	var car0Laps []storage.Lap
-	json.NewDecoder(recCar0.Body).Decode(&car0Laps)
+	if err := json.NewDecoder(recCar0.Body).Decode(&car0Laps); err != nil {
+		t.Fatalf("failed to decode car0Laps: %v", err)
+	}
 	if len(car0Laps) != 2 {
 		t.Fatalf("expected 2 laps for car 0, got %d", len(car0Laps))
 	}
 
 	// 3. Filter by carIndex=1
-	reqCar1 := httptest.NewRequest(http.MethodGet, "/api/sessions/1/laps?carIndex=1", nil)
+	reqCar1 := httptest.NewRequest(http.MethodGet, "/api/sessions/1/laps?carIndex=1", http.NoBody)
 	recCar1 := httptest.NewRecorder()
 	server.router.ServeHTTP(recCar1, reqCar1)
 	if recCar1.Code != http.StatusOK {
 		t.Fatalf("expected 200 OK, got %d", recCar1.Code)
 	}
 	var car1Laps []storage.Lap
-	json.NewDecoder(recCar1.Body).Decode(&car1Laps)
+	if err := json.NewDecoder(recCar1.Body).Decode(&car1Laps); err != nil {
+		t.Fatalf("failed to decode car1Laps: %v", err)
+	}
 	if len(car1Laps) != 1 {
 		t.Fatalf("expected 1 lap for car 1, got %d", len(car1Laps))
 	}
@@ -575,7 +595,9 @@ func TestBatchDeleteAndAssignTagsAPI(t *testing.T) {
 	}
 
 	var delResp map[string]any
-	json.NewDecoder(delRec.Body).Decode(&delResp)
+	if err := json.NewDecoder(delRec.Body).Decode(&delResp); err != nil {
+		t.Fatalf("failed to decode delResp: %v", err)
+	}
 	if delResp["status"] != "success" || delResp["deleted_count"] != float64(2) {
 		t.Errorf("unexpected delete response: %+v", delResp)
 	}
@@ -585,7 +607,7 @@ func TestHandleEmbeddedFrontendAndSPAFallback(t *testing.T) {
 	server, _ := setupTestServer(t)
 
 	// 1. Request root path "/" -> serves index.html with 200 OK
-	reqRoot := httptest.NewRequest(http.MethodGet, "/", nil)
+	reqRoot := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	recRoot := httptest.NewRecorder()
 	server.router.ServeHTTP(recRoot, reqRoot)
 
@@ -597,7 +619,7 @@ func TestHandleEmbeddedFrontendAndSPAFallback(t *testing.T) {
 	}
 
 	// 2. Request SPA client route "/comparator" -> should fallback to index.html with 200 OK
-	reqSPA := httptest.NewRequest(http.MethodGet, "/comparator", nil)
+	reqSPA := httptest.NewRequest(http.MethodGet, "/comparator", http.NoBody)
 	recSPA := httptest.NewRecorder()
 	server.router.ServeHTTP(recSPA, reqSPA)
 
@@ -609,7 +631,7 @@ func TestHandleEmbeddedFrontendAndSPAFallback(t *testing.T) {
 	}
 
 	// 3. Request static icon/manifest file e.g. "/favicon.svg"
-	reqFavicon := httptest.NewRequest(http.MethodGet, "/favicon.svg", nil)
+	reqFavicon := httptest.NewRequest(http.MethodGet, "/favicon.svg", http.NoBody)
 	recFavicon := httptest.NewRecorder()
 	server.router.ServeHTTP(recFavicon, reqFavicon)
 
@@ -618,7 +640,7 @@ func TestHandleEmbeddedFrontendAndSPAFallback(t *testing.T) {
 	}
 
 	// 4. Test path cleaning logic with forward slashes
-	reqClean := httptest.NewRequest(http.MethodGet, "///assets/../favicon.svg", nil)
+	reqClean := httptest.NewRequest(http.MethodGet, "///assets/../favicon.svg", http.NoBody)
 	recClean := httptest.NewRecorder()
 	server.router.ServeHTTP(recClean, reqClean)
 	if recClean.Code != http.StatusOK {

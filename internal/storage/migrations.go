@@ -130,25 +130,27 @@ func Migrate(db *sqlx.DB) error {
 	}
 
 	for _, m := range migrations {
-		if m.Version > currentVersion {
-			tx, err := db.Beginx()
-			if err != nil {
-				return fmt.Errorf("failed to begin transaction for migration %d (%s): %w", m.Version, m.Name, err)
-			}
+		if m.Version <= currentVersion {
+			continue
+		}
 
-			if _, err := tx.Exec(m.SQL); err != nil {
-				_ = tx.Rollback()
-				return fmt.Errorf("failed to execute migration %d (%s): %w", m.Version, m.Name, err)
-			}
+		tx, err := db.Beginx()
+		if err != nil {
+			return fmt.Errorf("failed to begin transaction for migration %d (%s): %w", m.Version, m.Name, err)
+		}
 
-			if _, err := tx.Exec("INSERT INTO schema_version (version, name) VALUES (?, ?)", m.Version, m.Name); err != nil {
-				_ = tx.Rollback()
-				return fmt.Errorf("failed to record schema_version %d (%s): %w", m.Version, m.Name, err)
-			}
+		if _, err := tx.Exec(m.SQL); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("failed to execute migration %d (%s): %w", m.Version, m.Name, err)
+		}
 
-			if err := tx.Commit(); err != nil {
-				return fmt.Errorf("failed to commit migration %d (%s): %w", m.Version, m.Name, err)
-			}
+		if _, err := tx.Exec("INSERT INTO schema_version (version, name) VALUES (?, ?)", m.Version, m.Name); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("failed to record schema_version %d (%s): %w", m.Version, m.Name, err)
+		}
+
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("failed to commit migration %d (%s): %w", m.Version, m.Name, err)
 		}
 	}
 

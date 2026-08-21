@@ -63,16 +63,16 @@ func main() {
 
 	printStartupBanner(version, commit, localURL, lanURL, udpAddr, dbPath)
 
-	// 2. Setup Context with cancellation
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// 3. Setup Storage
+	// 2. Setup Storage
 	repo, err := storage.NewRepository(dbPath)
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
 	defer repo.Close()
+
+	// 3. Setup Context with cancellation
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	// 4. Setup WebSocket Hub
 	hub := api.NewHub()

@@ -1,0 +1,55 @@
+version: "2"
+linters:
+  enable:
+    - gocritic
+    - misspell
+    - prealloc
+  settings:
+    errcheck:
+      check-type-assertions: true
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+    misspell:
+      locale: US
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - misspell
+        text: '`tyre` is a misspelling of `tire`'
+      - linters:
+          - misspell
+        text: '`Tyre` is a misspelling of `Tire`'
+      - linters:
+          - misspell
+        text: '`tyres` is a misspelling of `tires`'
+      - linters:
+          - misspell
+        text: '`Sargeant` is a misspelling of `Sergeant`'
+    paths:
+      - vendor
+      - frontend
+      - third_party$
+      - builtin$
+      - examples$
+issues:
+  max-issues-per-linter: 50
+  max-same-issues: 5
+formatters:
+  enable:
+    - gofmt
+  exclusions:
+    generated: lax
+    paths:
+      - vendor
+      - frontend
+      - third_party$
+      - builtin$
+      - examples$

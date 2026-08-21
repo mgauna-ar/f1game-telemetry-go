@@ -68,7 +68,7 @@ func TestHandleGetSystemVersion(t *testing.T) {
 	server, _ := setupTestServer(t)
 	SetAppVersion("v1.2.0", "fedcba9", "2026-08-18")
 
-	req := httptest.NewRequest(http.MethodGet, "/api/system/version", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/system/version", http.NoBody)
 	rec := httptest.NewRecorder()
 	server.router.ServeHTTP(rec, req)
 

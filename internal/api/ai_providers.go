@@ -184,7 +184,7 @@ func fetchGeminiModels(ctx context.Context, apiKey string) ([]AIModelItem, error
 	client := &http.Client{Timeout: 15 * time.Second}
 	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models?key=%s", apiKey)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -263,7 +263,7 @@ func fetchOpenAIModels(ctx context.Context, baseURL, apiKey string) ([]AIModelIt
 	url := strings.TrimRight(baseURL, "/") + "/models"
 
 	client := &http.Client{Timeout: 15 * time.Second}
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -343,7 +343,7 @@ func streamGemini(ctx context.Context, apiKey, model, systemPrompt string, messa
 		GenerationConfig  map[string]interface{}   `json:"generationConfig,omitempty"`
 	}
 
-	var contents []GeminiContent
+	contents := make([]GeminiContent, 0, len(messages))
 	for _, m := range messages {
 		role := "user"
 		if m.Role == "assistant" {
@@ -456,9 +456,11 @@ func streamOpenAI(ctx context.Context, baseURL, apiKey, model, systemPrompt stri
 		systemRole = "developer"
 	}
 
-	openAIMessages := []OpenAIMessage{
-		{Role: systemRole, Content: systemPrompt},
-	}
+	openAIMessages := make([]OpenAIMessage, 0, 1+len(messages))
+	openAIMessages = append(openAIMessages, OpenAIMessage{
+		Role:    systemRole,
+		Content: systemPrompt,
+	})
 	for _, m := range messages {
 		role := m.Role
 		if role == "" {

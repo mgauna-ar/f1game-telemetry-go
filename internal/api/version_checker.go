@@ -123,7 +123,7 @@ func FetchGitHubReleases(ctx context.Context, repo string) ([]GitHubRelease, err
 	}
 
 	url := fmt.Sprintf("https://api.github.com/repos/%s/releases?per_page=10", repo)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -155,7 +155,7 @@ func FetchGitHubReleases(ctx context.Context, repo string) ([]GitHubRelease, err
 }
 
 // CheckForUpdates evaluates available releases against currentVersion.
-func CheckForUpdates(ctx context.Context, repo string, currentVer string, includePrerelease bool) (*UpdateCheckResponse, error) {
+func CheckForUpdates(ctx context.Context, repo, currentVer string, includePrerelease bool) (*UpdateCheckResponse, error) {
 	releases, err := FetchGitHubReleases(ctx, repo)
 	if err != nil {
 		return nil, err
@@ -199,13 +199,14 @@ func CheckForUpdates(ctx context.Context, repo string, currentVer string, includ
 	for _, a := range targetRelease.Assets {
 		platform := "other"
 		lower := strings.ToLower(a.Name)
-		if strings.Contains(lower, "windows") || strings.HasSuffix(lower, ".exe") {
+		switch {
+		case strings.Contains(lower, "windows") || strings.HasSuffix(lower, ".exe"):
 			platform = "windows"
-		} else if strings.Contains(lower, "darwin") || strings.Contains(lower, "mac") {
+		case strings.Contains(lower, "darwin") || strings.Contains(lower, "mac"):
 			platform = "macos"
-		} else if strings.Contains(lower, "linux") {
+		case strings.Contains(lower, "linux"):
 			platform = "linux"
-		} else if strings.Contains(lower, "checksum") {
+		case strings.Contains(lower, "checksum"):
 			platform = "checksums"
 		}
 
@@ -279,7 +280,7 @@ func CompareSemVer(v1, v2 string) int {
 	return 0
 }
 
-func splitVersionAndPre(v string) (string, string) {
+func splitVersionAndPre(v string) (core, pre string) {
 	if idx := strings.Index(v, "-"); idx != -1 {
 		return v[:idx], v[idx+1:]
 	}
@@ -305,7 +306,7 @@ func comparePreRelease(pre1, pre2 string) int {
 	}
 
 	// Extract numeric counter if present (e.g. beta.1 vs beta.2)
-	re := regexp.MustCompile(`^([a-zA-Z]+)(?:\.([0-9]+))?`)
+	re := regexp.MustCompile(`^([a-zA-Z]+)(?:\.(\d+))?`)
 	m1 := re.FindStringSubmatch(pre1)
 	m2 := re.FindStringSubmatch(pre2)
 
@@ -332,7 +333,7 @@ func comparePreRelease(pre1, pre2 string) int {
 
 func (s *Server) handleGetSystemVersion(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(GetAppVersion())
+	_ = json.NewEncoder(w).Encode(GetAppVersion())
 }
 
 func (s *Server) handleCheckUpdates(w http.ResponseWriter, r *http.Request) {
@@ -352,7 +353,7 @@ func (s *Server) handleCheckUpdates(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Return 200 with update_available: false on network/offline errors to avoid breaking UI
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(UpdateCheckResponse{
+		_ = json.NewEncoder(w).Encode(UpdateCheckResponse{
 			UpdateAvailable: false,
 			CurrentVersion:  ver.Version,
 		})
@@ -360,5 +361,5 @@ func (s *Server) handleCheckUpdates(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	_ = json.NewEncoder(w).Encode(resp)
 }

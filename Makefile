@@ -58,9 +58,9 @@ test:
 test-short:
 	go test ./... -race
 
-## lint: Run go vet
+## lint: Run golangci-lint (or go vet as fallback)
 lint:
-	go vet ./...
+	golangci-lint run ./... || go vet ./...
 
 ## clean: Remove build artifacts
 clean:

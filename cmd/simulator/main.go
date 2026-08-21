@@ -107,11 +107,11 @@ func main() {
 
 	// Parse format mode
 	var (
-		packetFormat  uint16       = packets.PacketFormat2026
-		gameYear      uint8        = 26
-		numActiveCars int          = 22
-		totalSlots    int          = packets.MaxCars2026 // 24
-		activeDrivers []driverInfo = drivers2026
+		packetFormat  uint16 = packets.PacketFormat2026
+		gameYear      uint8  = 26
+		numActiveCars        = 22
+		totalSlots           = packets.MaxCars2026 // 24
+		activeDrivers        = drivers2026
 	)
 
 	if strings.TrimSpace(*formatFlag) == "2025" || strings.TrimSpace(*formatFlag) == "25" {
@@ -447,13 +447,14 @@ func main() {
 					var totalWarnings uint8 = 0
 					var driveThrough uint8 = 0
 
-					if i == 2 {
+					switch i {
+					case 2:
 						penalties = 5
-					} else if i == 5 {
+					case 5:
 						penalties = 3
-					} else if i == 7 {
+					case 7:
 						totalWarnings = 2
-					} else if i == 11 {
+					case 11:
 						driveThrough = 1
 					}
 
@@ -515,51 +516,52 @@ func main() {
 			if frameID == 1 || frameID%20 == 0 {
 				damageCars := make([]packets.CarDamageData, totalSlots)
 				for i := 0; i < totalSlots; i++ {
-					if i < numActiveCars {
-						baseWear := float32(15.0 + float64(lapNum)*2.5 + float64(i)*1.8)
-						if baseWear > 95.0 {
-							baseWear = 95.0
-						}
-						flWear := baseWear + float32(i%3)*2.0
-						frWear := baseWear + float32(i%2)*3.0
-						rlWear := baseWear * 0.95
-						rrWear := baseWear * 0.92
+					if i >= numActiveCars {
+						continue
+					}
+					baseWear := float32(15.0 + float64(lapNum)*2.5 + float64(i)*1.8)
+					if baseWear > 95.0 {
+						baseWear = 95.0
+					}
+					flWear := baseWear + float32(i%3)*2.0
+					frWear := baseWear + float32(i%2)*3.0
+					rlWear := baseWear * 0.95
+					rrWear := baseWear * 0.92
 
-						var drsFault, ersFault, blown, seized uint8
-						if i == 5 {
-							drsFault = 1
-						}
-						if i == 8 {
-							ersFault = 1
-						}
-						if i == 19 {
-							blown = 1
-						}
+					var drsFault, ersFault, blown, seized uint8
+					if i == 5 {
+						drsFault = 1
+					}
+					if i == 8 {
+						ersFault = 1
+					}
+					if i == 19 {
+						blown = 1
+					}
 
-						damageCars[i] = packets.CarDamageData{
-							TyresWear:            [4]float32{rlWear, rrWear, flWear, frWear},
-							TyresDamage:          [4]uint8{uint8(i % 3), uint8(i % 2), uint8((i * 3) % 15), uint8((i * 2) % 20)},
-							BrakesDamage:         [4]uint8{uint8((i * 4) % 30), uint8((i * 4) % 30), uint8((i * 5) % 40), uint8((i * 5) % 40)},
-							TyreBlisters:         [4]uint8{0, 0, uint8(i % 5), uint8(i % 5)},
-							FrontLeftWingDamage:  uint8((i * 9) % 55),
-							FrontRightWingDamage: uint8((i * 13) % 40),
-							RearWingDamage:       uint8((i * 5) % 30),
-							FloorDamage:          uint8((i * 7) % 35),
-							DiffuserDamage:       uint8((i * 4) % 25),
-							SidepodDamage:        uint8((i * 6) % 30),
-							DRSFault:             drsFault,
-							ERSFault:             ersFault,
-							GearBoxDamage:        uint8((i * 3) % 25),
-							EngineDamage:         uint8((i * 2) % 20),
-							EngineMGUHWear:       uint8(10 + i*3),
-							EngineESWear:         uint8(8 + i*2),
-							EngineCEWear:         uint8(5 + i*2),
-							EngineICEWear:        uint8(12 + i*3),
-							EngineMGUKWear:       uint8(14 + i*3),
-							EngineTCWear:         uint8(11 + i*3),
-							EngineBlown:          blown,
-							EngineSeized:         seized,
-						}
+					damageCars[i] = packets.CarDamageData{
+						TyresWear:            [4]float32{rlWear, rrWear, flWear, frWear},
+						TyresDamage:          [4]uint8{uint8(i % 3), uint8(i % 2), uint8((i * 3) % 15), uint8((i * 2) % 20)},
+						BrakesDamage:         [4]uint8{uint8((i * 4) % 30), uint8((i * 4) % 30), uint8((i * 5) % 40), uint8((i * 5) % 40)},
+						TyreBlisters:         [4]uint8{0, 0, uint8(i % 5), uint8(i % 5)},
+						FrontLeftWingDamage:  uint8((i * 9) % 55),
+						FrontRightWingDamage: uint8((i * 13) % 40),
+						RearWingDamage:       uint8((i * 5) % 30),
+						FloorDamage:          uint8((i * 7) % 35),
+						DiffuserDamage:       uint8((i * 4) % 25),
+						SidepodDamage:        uint8((i * 6) % 30),
+						DRSFault:             drsFault,
+						ERSFault:             ersFault,
+						GearBoxDamage:        uint8((i * 3) % 25),
+						EngineDamage:         uint8((i * 2) % 20),
+						EngineMGUHWear:       uint8(10 + i*3),
+						EngineESWear:         uint8(8 + i*2),
+						EngineCEWear:         uint8(5 + i*2),
+						EngineICEWear:        uint8(12 + i*3),
+						EngineMGUKWear:       uint8(14 + i*3),
+						EngineTCWear:         uint8(11 + i*3),
+						EngineBlown:          blown,
+						EngineSeized:         seized,
 					}
 				}
 				sendCarDamagePacket(conn, header, totalSlots, damageCars)
@@ -712,32 +714,6 @@ func sendParticipantsPacket(conn *net.UDPConn, header packets.PacketHeader, numA
 	_ = binary.Write(&buf, binary.LittleEndian, uint8(numActiveCars))
 
 	nameLen := packets.ParticipantNameLen
-
-	for i := 0; i < totalSlots; i++ {
-		d := drivers[i]
-		_ = binary.Write(&buf, binary.LittleEndian, d.aiControlled)
-
-		if format >= packets.PacketFormat2026 {
-			_ = binary.Write(&buf, binary.LittleEndian, d.driverID)
-			_ = binary.Write(&buf, binary.LittleEndian, uint16(0)) // NetworkId
-			_ = binary.Write(&buf, binary.LittleEndian, d.teamID)
-		} else {
-			_ = binary.Write(&buf, binary.LittleEndian, uint8(d.driverID))
-			_ = binary.Write(&buf, binary.LittleEndian, uint8(0)) // NetworkId
-			_ = binary.Write(&buf, binary.LittleEndian, uint8(d.teamID))
-		}
-
-		_ = binary.Write(&buf, binary.LittleEndian, d.raceNumber) // in 2026 MyTeam is byte 7, RaceNumber is byte 8
-		if format >= packets.PacketFormat2026 {
-			// for 2026: AIControlled (1), DriverId (2), NetworkId (2), TeamId (2), MyTeam (1), RaceNumber (1), Nationality (1)
-			// wait: in 2026: AIControlled (0), DriverId (1..3), NetworkId (3..5), TeamId (5..7), MyTeam (7), RaceNumber (8), Nationality (9)
-			// let's adjust:
-		}
-	}
-	// Let's write the exact byte loop
-	buf.Reset()
-	_ = binary.Write(&buf, binary.LittleEndian, header)
-	_ = binary.Write(&buf, binary.LittleEndian, uint8(numActiveCars))
 
 	for i := 0; i < totalSlots; i++ {
 		d := drivers[i]
@@ -942,13 +918,6 @@ func sendCarDamagePacket(conn *net.UDPConn, header packets.PacketHeader, numCars
 func sendSessionHistoryPacket(conn *net.UDPConn, pkt *packets.PacketSessionHistoryData) {
 	var buf bytes.Buffer
 	pkt.Header.PacketId = packets.PacketIDSessionHistory
-	_ = binary.Write(&buf, binary.LittleEndian, pkt)
-	_, _ = conn.Write(buf.Bytes())
-}
-
-func sendFinalClassificationPacket(conn *net.UDPConn, pkt *packets.PacketFinalClassificationData) {
-	var buf bytes.Buffer
-	pkt.Header.PacketId = packets.PacketIDFinalClassification
 	_ = binary.Write(&buf, binary.LittleEndian, pkt)
 	_, _ = conn.Write(buf.Bytes())
 }

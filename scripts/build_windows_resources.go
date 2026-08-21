@@ -61,9 +61,9 @@ func generateResources() {
 
 	var icoBuf bytes.Buffer
 	// ICO Header
-	binary.Write(&icoBuf, binary.LittleEndian, uint16(0)) // Reserved
-	binary.Write(&icoBuf, binary.LittleEndian, uint16(1)) // Type 1 = ICO
-	binary.Write(&icoBuf, binary.LittleEndian, uint16(1)) // 1 Image count
+	_ = binary.Write(&icoBuf, binary.LittleEndian, uint16(0)) // Reserved
+	_ = binary.Write(&icoBuf, binary.LittleEndian, uint16(1)) // Type 1 = ICO
+	_ = binary.Write(&icoBuf, binary.LittleEndian, uint16(1)) // 1 Image count
 
 	// Icon Directory Entry
 	widthByte := byte(w)
@@ -76,16 +76,16 @@ func generateResources() {
 	}
 	icoBuf.WriteByte(widthByte)
 	icoBuf.WriteByte(heightByte)
-	icoBuf.WriteByte(0)                                               // Colors
-	icoBuf.WriteByte(0)                                               // Reserved
-	binary.Write(&icoBuf, binary.LittleEndian, uint16(1))             // Planes
-	binary.Write(&icoBuf, binary.LittleEndian, uint16(32))            // BPP
-	binary.Write(&icoBuf, binary.LittleEndian, uint32(len(pngBytes))) // Size
-	binary.Write(&icoBuf, binary.LittleEndian, uint32(6+16))          // Offset (6 byte header + 16 byte entry)
+	icoBuf.WriteByte(0)                                                   // Colors
+	icoBuf.WriteByte(0)                                                   // Reserved
+	_ = binary.Write(&icoBuf, binary.LittleEndian, uint16(1))             // Planes
+	_ = binary.Write(&icoBuf, binary.LittleEndian, uint16(32))            // BPP
+	_ = binary.Write(&icoBuf, binary.LittleEndian, uint32(len(pngBytes))) // Size
+	_ = binary.Write(&icoBuf, binary.LittleEndian, uint32(6+16))          // Offset (6 byte header + 16 byte entry)
 
 	icoBuf.Write(pngBytes)
 
-	if err := os.WriteFile(icoPath, icoBuf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(icoPath, icoBuf.Bytes(), 0o644); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to write ICO: %v\n", err)
 		os.Exit(1)
 	}
@@ -120,7 +120,7 @@ func generateResources() {
   </application>
 </assembly>
 `
-	if err := os.WriteFile(manifestPath, []byte(manifestXML), 0644); err != nil {
+	if err := os.WriteFile(manifestPath, []byte(manifestXML), 0o644); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to write manifest: %v\n", err)
 		os.Exit(1)
 	}

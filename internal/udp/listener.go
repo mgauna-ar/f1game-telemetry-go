@@ -60,7 +60,7 @@ func (l *Listener) Ready() <-chan struct{} {
 }
 
 // Listen starts listening for UDP packets. It blocks until the context is
-// cancelled or an unrecoverable error occurs.
+// canceled or an unrecoverable error occurs.
 func (l *Listener) Listen(ctx context.Context) error {
 	udpAddr, err := net.ResolveUDPAddr("udp", l.addr)
 	if err != nil {
@@ -81,7 +81,7 @@ func (l *Listener) Listen(ctx context.Context) error {
 
 	log.Printf("[UDP] Listening on %s", conn.LocalAddr().String())
 
-	// Close the connection when context is cancelled to unblock ReadFromUDP.
+	// Close the connection when context is canceled to unblock ReadFromUDP.
 	go func() {
 		<-ctx.Done()
 		conn.Close()
@@ -91,7 +91,7 @@ func (l *Listener) Listen(ctx context.Context) error {
 	for {
 		n, _, err := conn.ReadFromUDP(buf)
 		if err != nil {
-			// Check if context was cancelled (graceful shutdown).
+			// Check if context was canceled (graceful shutdown).
 			select {
 			case <-ctx.Done():
 				log.Println("[UDP] Shutting down listener")

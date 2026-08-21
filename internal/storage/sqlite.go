@@ -495,7 +495,7 @@ func (r *Repository) GetTagsBySession(ctx context.Context, sessionID int64) ([]T
 }
 
 // AddTagToSession links a tag to a session.
-func (r *Repository) AddTagToSession(ctx context.Context, sessionID int64, tagID int64) error {
+func (r *Repository) AddTagToSession(ctx context.Context, sessionID, tagID int64) error {
 	query := `INSERT OR IGNORE INTO session_tags (session_id, tag_id) VALUES (?, ?)`
 	if _, err := r.db.ExecContext(ctx, query, sessionID, tagID); err != nil {
 		return fmt.Errorf("failed to link tag to session: %w", err)
@@ -504,7 +504,7 @@ func (r *Repository) AddTagToSession(ctx context.Context, sessionID int64, tagID
 }
 
 // RemoveTagFromSession unlinks a tag from a session.
-func (r *Repository) RemoveTagFromSession(ctx context.Context, sessionID int64, tagID int64) error {
+func (r *Repository) RemoveTagFromSession(ctx context.Context, sessionID, tagID int64) error {
 	query := `DELETE FROM session_tags WHERE session_id = ? AND tag_id = ?`
 	if _, err := r.db.ExecContext(ctx, query, sessionID, tagID); err != nil {
 		return fmt.Errorf("failed to unlink tag from session: %w", err)
@@ -518,7 +518,7 @@ func (r *Repository) SetSessionTags(ctx context.Context, sessionID int64, tagIDs
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	if _, err := tx.ExecContext(ctx, `DELETE FROM session_tags WHERE session_id = ?`, sessionID); err != nil {
 		return fmt.Errorf("failed to clear existing session tags: %w", err)
@@ -658,7 +658,7 @@ func (r *Repository) SaveParticipants(ctx context.Context, sessionID int64, part
 
 	stmt, err := tx.PrepareNamedContext(ctx, query)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		return fmt.Errorf("failed to prepare participants statement: %w", err)
 	}
 	defer stmt.Close()
@@ -666,7 +666,7 @@ func (r *Repository) SaveParticipants(ctx context.Context, sessionID int64, part
 	for i := range participants {
 		participants[i].SessionID = sessionID
 		if _, err := stmt.ExecContext(ctx, participants[i]); err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			return fmt.Errorf("failed to save participant at index %d: %w", participants[i].CarIndex, err)
 		}
 	}
@@ -683,6 +683,9 @@ func (r *Repository) GetParticipantsBySession(ctx context.Context, sessionID int
 	query := `SELECT * FROM participants WHERE session_id = ? ORDER BY car_index ASC`
 	if err := r.db.SelectContext(ctx, &participants, query, sessionID); err != nil {
 		return nil, fmt.Errorf("failed to get participants: %w", err)
+	}
+	if participants == nil {
+		participants = []Participant{}
 	}
 	return participants, nil
 }
@@ -829,7 +832,7 @@ func (r *Repository) AddTagToSessions(ctx context.Context, sessionIDs []int64, t
 	if err != nil {
 		return fmt.Errorf("failed to start transaction: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	stmt, err := tx.PrepareContext(ctx, `INSERT OR IGNORE INTO session_tags (session_id, tag_id) VALUES (?, ?)`)
 	if err != nil {
