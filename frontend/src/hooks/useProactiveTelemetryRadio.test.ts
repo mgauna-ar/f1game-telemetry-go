@@ -65,7 +65,7 @@ describe('useProactiveTelemetryRadio hook', () => {
 
     expect(onTriggerAlert).toHaveBeenCalledTimes(1);
     expect(onTriggerAlert).toHaveBeenCalledWith(
-      expect.stringContaining('puncture or severe tyre failure'),
+      expect.stringContaining('tyre puncture / tyre failure'),
       true
     );
   });
