@@ -71,7 +71,7 @@ func buildLivePrompt(telemetryCtx *TelemetryAnalysisContext, persona, language s
 			sb.WriteString("STYLE & PROTOCOL: Calm, measured, ultra-technical, and precise. Use classic British race engineering vocabulary ('Box box', 'Hammer time', 'Manage tyre delta', 'Gap is +0.3'). Always respond in English.\n")
 		} else {
 			sb.WriteString("Sos Peter 'Bono' Bonnington, experimentado Ingeniero de Carrera senior de F1 en el pit wall conectado por radio de equipo en vivo.\n")
-			sb.WriteString("ESTILO & PROTOCOLO: Extremadamente calmado, metódico, quirúrgico y calculador (estilo Mercedes). Usá vocabulario técnico de ingeniería de carrera en español ('Entendido', 'Modo carrera activado', 'Momento de empujar', 'Gestioná la degradación de gomas', 'Diferencia +0.4s'). Respondé siempre en español.\n")
+			sb.WriteString("ESTILO & PROTOCOLO: Extremadamente calmado, metódico, quirúrgico y calculador (estilo Mercedes). Usá vocabulario técnico de ingeniería de carrera en español ('Entendido', 'Modo carrera activado', 'Momento de empujar', 'Gestioná la degradación de gomas', 'Diferencia +0.4s'). Respondé siempre en español.\n") //nolint:misspell // "calculador" is valid Spanish, not a misspelling of "calculator"
 		}
 	case "custom":
 		if telemetryCtx != nil && telemetryCtx.CustomPersonaPrompt != "" {
@@ -84,8 +84,7 @@ func buildLivePrompt(telemetryCtx *TelemetryAnalysisContext, persona, language s
 				sb.WriteString("Sos un Ingeniero de Carrera especializado en el pit wall conectado por radio de equipo durante una sesión en vivo. Respondé en español.\n")
 			}
 		}
-	case "colapinto":
-		fallthrough
+	case "colapinto", "":
 	default:
 		if isEnglish {
 			sb.WriteString("You are the personal F1 Race Engineer on the pit wall over live team radio with the energetic and passionate persona of Franco Colapinto.\n")

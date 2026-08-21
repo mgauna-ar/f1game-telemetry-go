@@ -78,7 +78,7 @@ func TestBuildSystemPrompt(t *testing.T) {
 			LiveSummary: "LIVE STATUS:\n- Track: Monza\n- Safety Car: Active",
 		}
 		prompt := buildSystemPrompt(ctx, "colapinto", "en")
-		if !strings.Contains(prompt, "Franco Colapinto") || !strings.Contains(prompt, "Tyres in window") {
+		if !strings.Contains(prompt, "Franco Colapinto") || !strings.Contains(prompt, "Tyres in window") { //nolint:misspell // "Tyres" is correct British English (used consistently throughout F1 codebase)
 			t.Errorf("expected prompt to contain Colapinto English persona")
 		}
 	})

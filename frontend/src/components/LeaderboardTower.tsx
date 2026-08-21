@@ -165,7 +165,7 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
     }
 
     return result;
-  }, [participants, laps, carStatuses, playerCarIndex, isQualy, sessionKey]);
+  }, [participants, laps, carStatuses, telemetry2List, playerCarIndex, isQualy, sessionKey]);
 
   // Detect position updates for flash animations
   React.useEffect(() => {

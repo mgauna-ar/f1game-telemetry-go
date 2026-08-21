@@ -158,7 +158,7 @@ func generateUUID() string {
 }
 
 // resolveVoice determines the appropriate neural voice name based on voice, persona, language, or defaults.
-func resolveVoice(voice, persona, language string) (string, string) {
+func resolveVoice(voice, persona, language string) (voiceName, lang string) {
 	v := strings.TrimSpace(voice)
 	p := strings.ToLower(strings.TrimSpace(persona))
 	l := strings.ToLower(strings.TrimSpace(language))
@@ -257,7 +257,7 @@ func SynthesizeEdgeNeuralTTS(ctx context.Context, text, voice, rate, pitch strin
 
 	// 1. Send speech.config message
 	configMsg := fmt.Sprintf(
-		"Content-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n{\"context\":{\"synthesis\":{\"audio\":{\"metadataoptions\":{\"sentenceBoundaryEnabled\":\"false\",\"wordBoundaryEnabled\":\"false\"},\"outputFormat\":\"%s\"}}}}",
+		"Content-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n{\"context\":{\"synthesis\":{\"audio\":{\"metadataoptions\":{\"sentenceBoundaryEnabled\":\"false\",\"wordBoundaryEnabled\":\"false\"},\"outputFormat\":%q}}}}",
 		defaultAudioFormat,
 	)
 	if err := conn.WriteMessage(websocket.TextMessage, []byte(configMsg)); err != nil {

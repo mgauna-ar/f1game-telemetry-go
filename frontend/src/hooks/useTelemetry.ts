@@ -509,6 +509,7 @@ export function useTelemetry(wsUrl?: string) {
                 let maxPopulatedIndex = -1;
                 for (let i = 0; i < pkt.Participants.length; i++) {
                   const p = pkt.Participants[i];
+                  // oxlint-disable-next-line no-control-regex -- \0 strips null padding from fixed-length UDP strings
                   const hasName = typeof p.Name === 'string' && p.Name.replace(/\0/g, '').trim().length > 0;
                   const hasNumber = p.RaceNumber !== undefined && p.RaceNumber > 0;
                   const hasDriverId = p.DriverId !== undefined && p.DriverId !== 255 && p.DriverId > 0;

@@ -149,7 +149,7 @@ func TestHandleAITTS_Validation(t *testing.T) {
 	server := &Server{}
 
 	// 1. Method Not Allowed (GET)
-	req := httptest.NewRequest(http.MethodGet, "/api/ai/tts", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/ai/tts", http.NoBody)
 	w := httptest.NewRecorder()
 	server.handleAITTS(w, req)
 	if w.Code != http.StatusMethodNotAllowed {

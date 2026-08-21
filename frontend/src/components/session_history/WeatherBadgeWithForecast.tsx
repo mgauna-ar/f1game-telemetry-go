@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Sun,
@@ -159,7 +159,7 @@ export const WeatherBadgeWithForecast: React.FC<WeatherBadgeWithForecastProps> =
     return forecastSamples.some((s) => (s.Weather ?? s.weather) !== first);
   }, [forecastSamples]);
 
-  const calculatePosition = () => {
+  const calculatePosition = useCallback(() => {
     if (!triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
     const popoverWidth = 340;
@@ -196,7 +196,7 @@ export const WeatherBadgeWithForecast: React.FC<WeatherBadgeWithForecastProps> =
       left: posLeft,
       placement,
     });
-  };
+  }, [forecastSamples.length]);
 
   const handleMouseEnter = () => {
     if (forecastSamples.length > 0) {
@@ -223,7 +223,7 @@ export const WeatherBadgeWithForecast: React.FC<WeatherBadgeWithForecastProps> =
       window.removeEventListener('scroll', handleScrollOrResize, true);
       window.removeEventListener('resize', handleScrollOrResize);
     };
-  }, [isHovered, forecastSamples.length]);
+  }, [isHovered, calculatePosition]);
 
   return (
     <div
