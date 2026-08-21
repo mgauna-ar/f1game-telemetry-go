@@ -39,6 +39,12 @@
 * **Bilingual Coaching:** Full native support in **English 🇬🇧** and **Español (Latinoamérica) 🇦🇷** using authentic motorsport terminology.
 * **LLM Provider Flexibility:** Works out-of-the-box with Google Gemini (default) or OpenAI / custom LLM endpoints (configured directly in UI settings).
 
+### 🎙️ Interactive Voice Race Engineer (Live Sessions)
+* **Push-to-Talk Radio:** Talk to your engineer hands-free over live team radio using `Space` or a **steering wheel button** (Gamepad API with interactive button-learning). FOM-style harmonic radio *beeps* play before/after each transmission.
+* **Proactive Pit Wall Watcher:** Automatically calls you over the radio without prompting — alerts on tyre wear thresholds (40 / 60 / 75% & punctures), rival DRS threats with compound and damage context, Safety Car / VSC / Red Flag deployments, and rain radar crossover windows.
+* **Engineer Personas & Language-Filtered Neural Voices:** Choose between **Franco Colapinto 🇦🇷**, **Bono 🇬🇧**, or a fully **Custom** persona. Each persona has language-specific neural TTS voices (Spanish: *Tomás*, *Jorge*, *Álvaro*; English: *Ryan*, *Guy*) — the voice dropdown filters automatically to match the selected radio language.
+* **Master Enable/Disable:** Toggle the radio ON/OFF from the `⚙️` settings panel or directly via the `⚡ Power` button on the HUD. When OFF, the HUD collapses to a compact non-intrusive pill; all PTT, mic access, and background AI calls are fully paused.
+
 ---
 
 ## 🚀 Quick Start
@@ -116,11 +122,23 @@ You don't need the game open to test and explore the dashboard! Use the built-in
 
 ```bash
 # Linux / macOS:
-make simulate                # Simulate a full Race (default)
+make simulate                # Simulate a full Race (default F1 2026, 24-car grid)
 make simulate SESSION=quali  # Simulate a Qualifying session
+make simulate FORMAT=2025    # Use F1 2025 format (22-car grid)
 
 # Windows:
 .\simulate.bat               # Or: go run ./cmd/simulator -session race
+```
+
+#### Scenario Flags (for testing the Voice Race Engineer)
+
+Trigger specific in-race situations to test proactive radio alerts without waiting for them to happen naturally:
+
+```bash
+go run ./cmd/simulator -scenario wear      # Tyres start at 38.5% → triggers tyre deg alerts quickly
+go run ./cmd/simulator -scenario sc        # Deploys a Full Safety Car → tests SC radio call
+go run ./cmd/simulator -scenario vsc       # Deploys Virtual Safety Car (VSC)
+go run ./cmd/simulator -scenario rain      # Injects rain forecast → tests weather crossover alert
 ```
 
 ---
