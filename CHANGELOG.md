@@ -15,6 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.1] - 2026-08-21
+
+### Fixed
+- **Position Progression & Dynamic Standings**: Fixed a bug where final classification packets (`PacketFinalClassificationData`) overwrote every past lap's `car_position` in SQLite with the driver's final finishing position, causing flat horizontal lines in historical session charts.
+- **Race Progression Dynamic Reconstruction**: Enhanced `SessionLapChartsTab` to dynamically compute running race order from cumulative elapsed race times (`sum(lap_time_ms)`) or dynamic positions, accurately reflecting on-track overtakes, pit stop overcuts/undercuts, and lead changes for all historical sessions.
+- **Qualifying & Practice Progression**: Dynamically calculates running standings order across laps based on each driver's best valid lap time achieved up to that lap.
+- **Gap to Leader Evolution**: Dynamically calculates the true session leader at each specific lap $k$ and computes accurate positive deltas (`+X.XXXs`) relative to that lap's actual leader.
+
+---
+
 ## [1.0.0] - 2026-08-21
 
 ### Added
@@ -43,5 +53,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/mgauna-ar/f1game-telemetry-go/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/mgauna-ar/f1game-telemetry-go/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/mgauna-ar/f1game-telemetry-go/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/mgauna-ar/f1game-telemetry-go/releases/tag/v1.0.0
