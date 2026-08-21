@@ -200,6 +200,9 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 
 	// Case 3: Completed a lap (normal increment: newLapNum == lt.currentLapNum + 1)
 	if newLapNum == lt.currentLapNum+1 {
+		if lt.currentLap != nil && lapData.CarPosition > 0 {
+			lt.currentLap.CarPosition = int(lapData.CarPosition)
+		}
 		lt.finalizeCurrentLap(ctx, int(lapData.LastLapTimeInMS))
 		lt.startNewLap(ctx, session.ID, newLapNum, lt.carIndex)
 		return

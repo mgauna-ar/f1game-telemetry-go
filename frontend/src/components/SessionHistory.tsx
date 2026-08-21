@@ -1452,6 +1452,7 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
               driverStandings={driverStandings}
               totalSessionLaps={totalSessionLaps}
               formatLapTime={formatLapTime}
+              isRaceSession={isRaceSession}
             />
           ) : activeDetailTab === 'stints' ? (
             <SessionStintStrategyTab

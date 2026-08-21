@@ -316,7 +316,6 @@ func (sm *SessionManager) handleFinalClassification(ctx context.Context, p *pack
 						Stint:            stintNum,
 						TyreCompound:     compName,
 						ActualCompound:   actualCompName,
-						CarPosition:      int(cls.Position),
 						ResultStatus:     int(cls.ResultStatus),
 						PenaltiesSeconds: int(cls.PenaltiesTime),
 					}

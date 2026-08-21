@@ -128,4 +128,100 @@ describe('SessionLapChartsTab Component', () => {
     fireEvent.click(selectAllBtn);
     expect(screen.getByText(/Lap-by-Lap Pace Evolution/i)).toBeInTheDocument();
   });
+
+  it('renders position progression with accurate position changes in race mode', () => {
+    render(
+      <I18nProvider>
+        <SessionLapChartsTab
+          driverStandings={mockDriverStandings}
+          totalSessionLaps={3}
+          formatLapTime={formatLapTime}
+          isRaceSession={true}
+        />
+      </I18nProvider>
+    );
+
+    // Switch to Position chart
+    const posBtn = screen.getByRole('button', { name: /Position Lap Chart/i });
+    fireEvent.click(posBtn);
+    expect(screen.getByText(/Position Progression/i)).toBeInTheDocument();
+  });
+
+  it('renders position progression in qualifying mode based on best lap up to each lap', () => {
+    const qualyStandings: DriverStanding[] = [
+      {
+        position: 1,
+        participant: {
+          id: 1,
+          session_id: 101,
+          car_index: 0,
+          name: 'Max Verstappen',
+          driver_id: 1,
+          team_id: 9,
+          race_number: 1,
+          ai_controlled: false,
+        },
+        bestLapTimeMS: 86500,
+        bestLap: null,
+        laps: [
+          { id: 1, session_id: 101, car_index: 0, lap_number: 1, lap_time_ms: 88500, is_valid: true, tyre_compound: 'SOFT' }, // P1 (88.5s)
+          { id: 2, session_id: 101, car_index: 0, lap_number: 2, lap_time_ms: 110000, is_valid: true, tyre_compound: 'SOFT' }, // In-lap
+          { id: 3, session_id: 101, car_index: 0, lap_number: 3, lap_time_ms: 86500, is_valid: true, tyre_compound: 'SOFT' }, // P1 (86.5s)
+        ],
+        bestS1MS: 28000,
+        bestS2MS: 32000,
+        bestS3MS: 26500,
+        maxSpeed: 330,
+        isDSQ: false,
+        isDNF: false,
+      },
+      {
+        position: 2,
+        participant: {
+          id: 2,
+          session_id: 101,
+          car_index: 1,
+          name: 'Lando Norris',
+          driver_id: 3,
+          team_id: 3,
+          race_number: 4,
+          ai_controlled: false,
+        },
+        bestLapTimeMS: 87000,
+        bestLap: null,
+        laps: [
+          { id: 4, session_id: 101, car_index: 1, lap_number: 1, lap_time_ms: 89000, is_valid: true, tyre_compound: 'SOFT' }, // P2 (89.0s)
+          { id: 5, session_id: 101, car_index: 1, lap_number: 2, lap_time_ms: 87000, is_valid: true, tyre_compound: 'SOFT' }, // Takes P1 (87.0s vs 88.5s)
+          { id: 6, session_id: 101, car_index: 1, lap_number: 3, lap_time_ms: 115000, is_valid: true, tyre_compound: 'SOFT' }, // Drops to P2 after Max 86.5s
+        ],
+        bestS1MS: 28100,
+        bestS2MS: 32200,
+        bestS3MS: 26700,
+        maxSpeed: 328,
+        isDSQ: false,
+        isDNF: false,
+      },
+    ];
+
+    render(
+      <I18nProvider>
+        <SessionLapChartsTab
+          driverStandings={qualyStandings}
+          totalSessionLaps={3}
+          formatLapTime={formatLapTime}
+          isRaceSession={false}
+        />
+      </I18nProvider>
+    );
+
+    // Switch to Position chart
+    const posBtn = screen.getByRole('button', { name: /Position Lap Chart/i });
+    fireEvent.click(posBtn);
+    expect(screen.getByText(/Position Progression/i)).toBeInTheDocument();
+
+    // Switch to Gap chart
+    const gapBtn = screen.getByRole('button', { name: /Gap to Leader Evolution/i });
+    fireEvent.click(gapBtn);
+    expect(screen.getByText(/Gap to Leader Delta/i)).toBeInTheDocument();
+  });
 });

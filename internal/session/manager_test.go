@@ -707,10 +707,10 @@ func TestFinalClassificationStintConsolidation(t *testing.T) {
 	}
 	manager.ProcessPacket(ctx, sessionPacket)
 
-	// Pre-create 3 laps for Car 0
-	_ = repo.SaveLap(ctx, &storage.Lap{SessionID: manager.currentSession.ID, CarIndex: 0, LapNumber: 1, LapTimeMS: 80000, Stint: 1}, false)
-	_ = repo.SaveLap(ctx, &storage.Lap{SessionID: manager.currentSession.ID, CarIndex: 0, LapNumber: 2, LapTimeMS: 81000, Stint: 1}, false)
-	_ = repo.SaveLap(ctx, &storage.Lap{SessionID: manager.currentSession.ID, CarIndex: 0, LapNumber: 3, LapTimeMS: 82000, Stint: 1}, false)
+	// Pre-create 3 laps for Car 0 with distinct per-lap positions (e.g. P3 -> P2 -> P1)
+	_ = repo.SaveLap(ctx, &storage.Lap{SessionID: manager.currentSession.ID, CarIndex: 0, LapNumber: 1, LapTimeMS: 80000, Stint: 1, CarPosition: 3}, false)
+	_ = repo.SaveLap(ctx, &storage.Lap{SessionID: manager.currentSession.ID, CarIndex: 0, LapNumber: 2, LapTimeMS: 81000, Stint: 1, CarPosition: 2}, false)
+	_ = repo.SaveLap(ctx, &storage.Lap{SessionID: manager.currentSession.ID, CarIndex: 0, LapNumber: 3, LapTimeMS: 82000, Stint: 1, CarPosition: 1}, false)
 
 	clsHeader := sessionHeader
 	clsHeader.PacketId = packets.PacketIDFinalClassification
@@ -749,6 +749,15 @@ func TestFinalClassificationStintConsolidation(t *testing.T) {
 	}
 	if laps[2].ResultStatus != int(packets.ResultStatusFinished) {
 		t.Errorf("Lap 3 expected ResultStatus Finished, got %d", laps[2].ResultStatus)
+	}
+	if laps[0].CarPosition != 3 {
+		t.Errorf("Lap 1 expected CarPosition 3, got %d", laps[0].CarPosition)
+	}
+	if laps[1].CarPosition != 2 {
+		t.Errorf("Lap 2 expected CarPosition 2, got %d", laps[1].CarPosition)
+	}
+	if laps[2].CarPosition != 1 {
+		t.Errorf("Lap 3 expected CarPosition 1, got %d", laps[2].CarPosition)
 	}
 }
 
