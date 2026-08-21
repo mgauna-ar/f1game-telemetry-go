@@ -412,3 +412,80 @@ export const AI_PROVIDER_URLS: Record<string, { name: string; url: string; freeT
   },
 };
 
+export const RADIO_PERSONAS = {
+  COLAPINTO: 'colapinto',
+  BONO: 'bono',
+  CUSTOM: 'custom',
+} as const;
+
+export type RadioPersona = (typeof RADIO_PERSONAS)[keyof typeof RADIO_PERSONAS];
+
+export const RADIO_LANGUAGES = {
+  AUTO: 'auto',
+  ES: 'es',
+  EN: 'en',
+} as const;
+
+export type RadioLanguage = (typeof RADIO_LANGUAGES)[keyof typeof RADIO_LANGUAGES];
+
+export const RADIO_AUDIO_CONSTANTS = {
+  BEEP_START_FREQ_1: 800,
+  BEEP_START_FREQ_2: 1200,
+  BEEP_START_DURATION_S: 0.08,
+  BEEP_END_FREQ_START: 750,
+  BEEP_END_FREQ_END: 350,
+  BEEP_END_DURATION_S: 0.12,
+  BEEP_GAIN: 0.15,
+  FILTER_CENTER_FREQ_HZ: 1400,
+  FILTER_Q: 1.2,
+  DEFAULT_VOLUME: 0.8,
+  DEFAULT_SPEECH_RATE: 1.05,
+  DISTORTION_AMOUNT: 15,
+} as const;
+
+export const RADIO_NEURAL_VOICES = {
+  COLAPINTO: 'es-AR-TomasNeural',
+  BONO: 'en-GB-RyanNeural',
+  SPANISH_ALVARO: 'es-ES-AlvaroNeural',
+  MEXICAN_JORGE: 'es-MX-JorgeNeural',
+  AMERICAN_GUY: 'en-US-GuyNeural',
+} as const;
+
+export const RADIO_SPANISH_VOICES = [
+  { id: 'es-AR-TomasNeural', translationKey: 'tomas' },
+  { id: 'es-MX-JorgeNeural', translationKey: 'jorge' },
+  { id: 'es-ES-AlvaroNeural', translationKey: 'alvaro' },
+] as const;
+
+export const RADIO_ENGLISH_VOICES = [
+  { id: 'en-GB-RyanNeural', translationKey: 'ryan' },
+  { id: 'en-US-GuyNeural', translationKey: 'guy' },
+] as const;
+
+export const RADIO_STORAGE_KEYS = {
+  PERSONA: 'f1_radio_persona',
+  LANGUAGE: 'f1_radio_language',
+  CUSTOM_PROMPT: 'f1_radio_custom_prompt',
+  GAMEPAD_MAPPING: 'f1_radio_gamepad_mapping',
+  KEYBOARD_KEY: 'f1_radio_keyboard_key',
+  BEEPS_ENABLED: 'f1_radio_beeps_enabled',
+  FILTER_ENABLED: 'f1_radio_filter_enabled',
+  VOLUME: 'f1_radio_volume',
+  NEURAL_VOICE: 'f1_radio_neural_voice',
+  ALERTS_ENABLED: 'f1_radio_alerts_enabled',
+  ALERTS_TYRE: 'f1_radio_alerts_tyre',
+  ALERTS_RIVAL: 'f1_radio_alerts_rival',
+  ALERTS_TRACK: 'f1_radio_alerts_track',
+} as const;
+
+export const RADIO_ALERT_CONSTANTS = {
+  TYRE_WEAR_THRESHOLDS: [40, 60, 75] as const,
+  PUNCTURE_THRESHOLD: 95,
+  RIVAL_DRS_GAP_SECONDS: 1.0,
+  RIVAL_PACE_DELTA_SECONDS: 0.4,
+  RAIN_PROBABILITY_THRESHOLD: 50,
+  COOLDOWN_NON_CRITICAL_MS: 45000,
+  DEFAULT_KEYBOARD_KEY: 'Space',
+} as const;
+
+

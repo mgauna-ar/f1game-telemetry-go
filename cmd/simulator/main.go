@@ -90,7 +90,10 @@ var drivers2026 = []driverInfo{
 func main() {
 	sessionFlag := flag.String("session", getEnv("F1T_SESSION_TYPE", "race"), "Session type to simulate: race, quali, q1, q2, q3, practice, timetrial")
 	formatFlag := flag.String("format", getEnv("F1T_PACKET_FORMAT", "2026"), "F1 UDP packet format: 2025 (20 active cars + 2 observers) or 2026 (22 active cars + 2 observers, default)")
+	scenarioFlag := flag.String("scenario", getEnv("F1T_SCENARIO", "default"), "Simulation scenario: default, wear / tyre-wear, sc / safetycar, vsc, rain")
 	flag.Parse()
+
+	scenario := strings.ToLower(strings.TrimSpace(*scenarioFlag))
 
 	targetAddr := getEnv("F1T_UDP_ADDR", defaultTargetUDP)
 
@@ -155,7 +158,9 @@ func main() {
 	fmt.Println("=================================")
 	fmt.Printf("Simulating Session Mode: %s (Type ID: %d)\n", sessionModeName, sessionType)
 	fmt.Printf("Telemetry Packet Format: F1 %d (%d Active Grid Cars + 2 Observers = %d Slots, Year %d)\n", packetFormat, numActiveCars, totalSlots, gameYear)
+	fmt.Printf("Active Scenario:         %s\n", scenario)
 	fmt.Printf("Sending synthetic UDP telemetry to %s at 20Hz...\n", targetAddr)
+	fmt.Println("👉 Tip: Press [Space] in browser Live Session to talk to your Race Engineer via Push-to-Talk!")
 	fmt.Println("Press Ctrl+C to stop.")
 
 	stopSignal := make(chan os.Signal, 1)
@@ -239,6 +244,13 @@ func main() {
 				totalLaps = 0
 			}
 
+			scMode := uint8(0)
+			if (scenario == "sc" || scenario == "safetycar") && sessionTime >= 4.0 && sessionTime < 60.0 {
+				scMode = packets.SafetyCarFull
+			} else if scenario == "vsc" && sessionTime >= 4.0 && sessionTime < 60.0 {
+				scMode = packets.SafetyCarVirtual
+			}
+
 			// 1a. Session Data Packet (ID: 1)
 			sessionPkt := packets.PacketSessionData{
 				Header:                    header,
@@ -251,7 +263,7 @@ func main() {
 				TrackTemperature:          32,
 				AirTemperature:            24,
 				Weather:                   0, // Clear
-				SafetyCarStatus:           0, // Green Flag
+				SafetyCarStatus:           scMode,
 				PitStopWindowIdealLap:     16,
 				PitStopWindowLatestLap:    22,
 				PitStopRejoinPosition:     7,
@@ -259,6 +271,14 @@ func main() {
 				Sector2LapDistanceStart:   1750.0,
 				Sector3LapDistanceStart:   3500.0,
 			}
+
+			rainPctSample1 := uint8(5)
+			timeOffsetSample1 := uint8(5)
+			if scenario == "rain" {
+				rainPctSample1 = 85
+				timeOffsetSample1 = 2
+			}
+
 			sessionPkt.WeatherForecastSamples[0] = packets.WeatherForecastSample{
 				SessionType:      sessionType,
 				TimeOffset:       0,
@@ -269,12 +289,12 @@ func main() {
 			}
 			sessionPkt.WeatherForecastSamples[1] = packets.WeatherForecastSample{
 				SessionType:            sessionType,
-				TimeOffset:             5,
+				TimeOffset:             timeOffsetSample1,
 				Weather:                1,
 				TrackTemperature:       31,
 				TrackTemperatureChange: -1,
 				AirTemperature:         24,
-				RainPercentage:         5,
+				RainPercentage:         rainPctSample1,
 			}
 			sessionPkt.WeatherForecastSamples[2] = packets.WeatherForecastSample{
 				SessionType:            sessionType,
@@ -520,6 +540,9 @@ func main() {
 						continue
 					}
 					baseWear := float32(15.0 + float64(lapNum)*2.5 + float64(i)*1.8)
+					if i == 0 && (scenario == "wear" || scenario == "tyre-wear") {
+						baseWear = float32(38.5 + float64(sessionTime)*0.5)
+					}
 					if baseWear > 95.0 {
 						baseWear = 95.0
 					}

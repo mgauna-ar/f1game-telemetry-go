@@ -161,7 +161,7 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
-	systemPrompt := buildSystemPrompt(req.Context)
+	systemPrompt := buildSystemPrompt(req.Context, req.Persona, req.Language)
 
 	var streamErr error
 	if provider == "gemini" {

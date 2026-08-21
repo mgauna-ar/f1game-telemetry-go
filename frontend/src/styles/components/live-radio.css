@@ -1,0 +1,610 @@
+/* ==========================================================================
+   LIVE RADIO & INTERACTIVE RACE ENGINEER STYLES
+   ========================================================================== */
+
+/* ── Live Radio Floating HUD (Bottom-Left) ────────────────────────────────── */
+.live-radio-hud-container {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  user-select: none;
+  pointer-events: auto;
+}
+
+.live-radio-pill {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px 8px 12px;
+  background: linear-gradient(135deg, rgba(14, 18, 28, 0.96), rgba(10, 30, 48, 0.96));
+  border: 1px solid rgba(0, 242, 254, 0.35);
+  border-radius: var(--radius-full, 9999px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 242, 254, 0.15);
+  color: var(--text-primary, #ffffff);
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.live-radio-pill:hover {
+  border-color: rgba(0, 242, 254, 0.6);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.7), 0 0 25px rgba(0, 242, 254, 0.25);
+}
+
+/* ── State: Transmitting (PTT Active) ────────────────────────────────────── */
+.live-radio-pill.state-transmitting {
+  border-color: rgba(239, 68, 68, 0.8);
+  background: linear-gradient(135deg, rgba(40, 12, 18, 0.96), rgba(24, 8, 12, 0.96));
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.75), 0 0 30px rgba(239, 68, 68, 0.45);
+  animation: live-radio-red-pulse 1.4s infinite;
+}
+
+@keyframes live-radio-red-pulse {
+  0% { box-shadow: 0 0 15px rgba(239, 68, 68, 0.3); }
+  50% { box-shadow: 0 0 35px rgba(239, 68, 68, 0.6); border-color: #ef4444; }
+  100% { box-shadow: 0 0 15px rgba(239, 68, 68, 0.3); }
+}
+
+/* ── State: Processing in Pit Wall ───────────────────────────────────────── */
+.live-radio-pill.state-processing {
+  border-color: rgba(245, 158, 11, 0.7);
+  background: linear-gradient(135deg, rgba(32, 24, 10, 0.96), rgba(20, 15, 8, 0.96));
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7), 0 0 25px rgba(245, 158, 11, 0.3);
+}
+
+/* ── State: Engineer Speaking ────────────────────────────────────────────── */
+.live-radio-pill.state-speaking {
+  border-color: rgba(16, 185, 129, 0.8);
+  background: linear-gradient(135deg, rgba(10, 32, 24, 0.96), rgba(8, 24, 18, 0.96));
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.75), 0 0 30px rgba(16, 185, 129, 0.4);
+}
+
+/* ── State: Muted ────────────────────────────────────────────────────────── */
+.live-radio-pill.state-muted {
+  opacity: 0.6;
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(15, 18, 24, 0.9);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+}
+
+/* ── Radio Icon Box ──────────────────────────────────────────────────────── */
+.live-radio-icon-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(0, 242, 254, 0.12);
+  border: 1px solid rgba(0, 242, 254, 0.3);
+  color: #00f2fe;
+  flex-shrink: 0;
+}
+
+.state-transmitting .live-radio-icon-box {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #ef4444;
+}
+
+.state-processing .live-radio-icon-box {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.5);
+  color: #f59e0b;
+}
+
+.state-speaking .live-radio-icon-box {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: rgba(16, 185, 129, 0.5);
+  color: #10b981;
+}
+
+.state-muted .live-radio-icon-box {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary, #94a3b8);
+}
+
+/* ── Radio Info & Typography ─────────────────────────────────────────────── */
+.live-radio-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 140px;
+}
+
+.live-radio-status-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.live-radio-status-label {
+  font-family: var(--font-display, 'Titillium Web', sans-serif);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.live-radio-flag {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.live-radio-subtitle {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.70rem;
+  color: var(--text-secondary, #94a3b8);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.live-radio-key-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  border-radius: 4px;
+  background: rgba(0, 242, 254, 0.15);
+  border: 1px solid rgba(0, 242, 254, 0.35);
+  color: #00f2fe;
+}
+
+/* ── Equalizer Waveform Bars ─────────────────────────────────────────────── */
+.live-radio-equalizer {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 16px;
+  padding: 0 4px;
+  margin-left: 2px;
+}
+
+.live-radio-eq-bar {
+  width: 3px;
+  border-radius: 2px;
+  background-color: #00f2fe;
+  animation: live-radio-eq 0.8s ease-in-out infinite alternate;
+}
+
+.state-transmitting .live-radio-eq-bar {
+  background-color: #ef4444;
+}
+
+.state-speaking .live-radio-eq-bar {
+  background-color: #10b981;
+}
+
+.live-radio-eq-bar:nth-child(1) { height: 40%; animation-delay: 0.1s; }
+.live-radio-eq-bar:nth-child(2) { height: 90%; animation-delay: 0.3s; }
+.live-radio-eq-bar:nth-child(3) { height: 65%; animation-delay: 0.2s; }
+.live-radio-eq-bar:nth-child(4) { height: 35%; animation-delay: 0.4s; }
+
+@keyframes live-radio-eq {
+  0% { transform: scaleY(0.3); }
+  100% { transform: scaleY(1); }
+}
+
+/* ── Quick Action Buttons ────────────────────────────────────────────────── */
+.live-radio-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 8px;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+  margin-left: 4px;
+}
+
+.live-radio-btn {
+  background: transparent;
+  border: none;
+  padding: 6px;
+  border-radius: 6px;
+  color: var(--text-secondary, #94a3b8);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.live-radio-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.live-radio-btn.btn-active {
+  color: #00f2fe;
+  background: rgba(0, 242, 254, 0.1);
+}
+
+/* ==========================================================================
+   RADIO SETTINGS MODAL / PANEL STYLES
+   ========================================================================== */
+
+.radio-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: radio-fade-in 0.2s ease-out;
+}
+
+.radio-modal-dialog {
+  position: relative;
+  width: 100%;
+  max-width: 580px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: linear-gradient(145deg, rgba(16, 20, 30, 0.98), rgba(10, 14, 22, 0.98));
+  border: 1px solid rgba(0, 242, 254, 0.25);
+  border-radius: var(--radius-lg, 16px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.85), 0 0 35px rgba(0, 242, 254, 0.12);
+  padding: 24px;
+  color: var(--text-primary, #ffffff);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+@keyframes radio-fade-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.radio-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 14px;
+}
+
+.radio-modal-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.radio-modal-header-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: rgba(0, 242, 254, 0.12);
+  border: 1px solid rgba(0, 242, 254, 0.3);
+  color: #00f2fe;
+}
+
+.radio-modal-title {
+  font-family: var(--font-display, 'Titillium Web', sans-serif);
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #ffffff;
+}
+
+.radio-modal-subtitle {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #94a3b8);
+}
+
+.radio-modal-close-btn {
+  background: transparent;
+  border: none;
+  padding: 8px;
+  border-radius: 8px;
+  color: var(--text-secondary, #94a3b8);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.radio-modal-close-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.radio-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.radio-section-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-display, 'Titillium Web', sans-serif);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #00f2fe;
+}
+
+/* ── Persona Cards Grid ─────────────────────────────────────────────────── */
+.radio-persona-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 600px) {
+  .radio-persona-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.radio-persona-card {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md, 12px);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: inherit;
+}
+
+.radio-persona-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.radio-persona-card.card-active {
+  background: rgba(0, 242, 254, 0.12);
+  border-color: rgba(0, 242, 254, 0.6);
+  box-shadow: 0 0 20px rgba(0, 242, 254, 0.15);
+}
+
+.radio-persona-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.radio-persona-name {
+  font-family: var(--font-display, 'Titillium Web', sans-serif);
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #ffffff;
+}
+
+.radio-persona-desc {
+  font-size: 0.72rem;
+  color: var(--text-secondary, #94a3b8);
+  line-height: 1.4;
+}
+
+.radio-custom-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-md, 10px);
+  color: #ffffff;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.radio-custom-textarea:focus {
+  border-color: #00f2fe;
+}
+
+/* ── PTT Controls Grid ──────────────────────────────────────────────────── */
+.radio-ptt-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 600px) {
+  .radio-ptt-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.radio-ptt-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md, 12px);
+}
+
+.radio-ptt-box-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--text-secondary, #94a3b8);
+}
+
+.radio-ptt-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.radio-btn-map {
+  flex: 1;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.radio-btn-map:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.radio-btn-map.btn-learning {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.6);
+  color: #f59e0b;
+  animation: live-radio-learning-pulse 1s infinite alternate;
+}
+
+@keyframes live-radio-learning-pulse {
+  0% { box-shadow: 0 0 5px rgba(245, 158, 11, 0.2); }
+  100% { box-shadow: 0 0 15px rgba(245, 158, 11, 0.5); }
+}
+
+.radio-btn-clear {
+  padding: 8px 10px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  color: #ef4444;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.radio-btn-clear:hover {
+  background: rgba(239, 68, 68, 0.25);
+}
+
+.radio-select-key {
+  width: 100%;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 0.75rem;
+  outline: none;
+  cursor: pointer;
+}
+
+.radio-select-key:focus {
+  border-color: #00f2fe;
+}
+
+/* ── Toggle Switches & Sliders ───────────────────────────────────────────── */
+.radio-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md, 10px);
+  font-size: 0.78rem;
+  color: var(--text-primary, #ffffff);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.radio-toggle-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.radio-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: #00f2fe;
+  cursor: pointer;
+}
+
+.radio-slider-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md, 10px);
+}
+
+.radio-slider-input {
+  flex: 1;
+  accent-color: #00f2fe;
+  cursor: pointer;
+}
+
+/* ── Footer Actions ──────────────────────────────────────────────────────── */
+.radio-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding-top: 16px;
+  margin-top: 6px;
+}
+
+.radio-btn-test {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: var(--radius-md, 10px);
+  background: rgba(0, 242, 254, 0.12);
+  border: 1px solid rgba(0, 242, 254, 0.35);
+  color: #00f2fe;
+  font-family: var(--font-display, 'Titillium Web', sans-serif);
+  font-weight: 700;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.radio-btn-test:hover {
+  background: rgba(0, 242, 254, 0.22);
+  border-color: #00f2fe;
+  box-shadow: 0 0 15px rgba(0, 242, 254, 0.25);
+}
+
+.radio-btn-done {
+  padding: 8px 24px;
+  border-radius: var(--radius-md, 10px);
+  background: #ffffff;
+  border: none;
+  color: #0a0e17;
+  font-family: var(--font-display, 'Titillium Web', sans-serif);
+  font-weight: 800;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.radio-btn-done:hover {
+  background: #00f2fe;
+  box-shadow: 0 0 18px rgba(0, 242, 254, 0.4);
+}

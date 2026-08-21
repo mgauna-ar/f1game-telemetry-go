@@ -126,6 +126,7 @@ func (s *Server) routes() {
 		r.Post("/ai/chat", s.handleAIChat)
 		r.Get("/ai/config-status", s.handleAIConfigStatus)
 		r.Post("/ai/models", s.handleAIFetchModels)
+		r.Post("/ai/tts", s.handleAITTS)
 
 		// System & Version Updates routes
 		r.Get("/system/version", s.handleGetSystemVersion)

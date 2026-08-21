@@ -35,7 +35,7 @@ func TestHandleAIConfigStatus(t *testing.T) {
 
 func TestBuildSystemPrompt(t *testing.T) {
 	t.Run("nil context", func(t *testing.T) {
-		prompt := buildSystemPrompt(nil)
+		prompt := buildSystemPrompt(nil, "", "")
 		if !strings.Contains(prompt, "Race Engineer") {
 			t.Errorf("expected prompt to contain role definition")
 		}
@@ -49,7 +49,7 @@ func TestBuildSystemPrompt(t *testing.T) {
 			ContextMode:    "session_debrief",
 			SessionSummary: "SESSION OVERVIEW:\n- Circuit: Silverstone\n- Session Type: Race\n- P1: Verstappen (Best: 1:28.120)",
 		}
-		prompt := buildSystemPrompt(ctx)
+		prompt := buildSystemPrompt(ctx, "", "")
 		if !strings.Contains(prompt, "session debrief") {
 			t.Errorf("expected prompt to be session debrief prompt")
 		}
@@ -58,17 +58,62 @@ func TestBuildSystemPrompt(t *testing.T) {
 		}
 	})
 
-	t.Run("live session mode", func(t *testing.T) {
+	t.Run("live session mode - colapinto persona in Spanish", func(t *testing.T) {
 		ctx := &TelemetryAnalysisContext{
 			ContextMode: "live",
 			LiveSummary: "LIVE STATUS:\n- Track: Monza\n- Safety Car: Active\n- Rain: 85% in 5 min",
 		}
-		prompt := buildSystemPrompt(ctx)
-		if !strings.Contains(prompt, "active F1 Race Engineer on the pit wall") {
-			t.Errorf("expected prompt to be live pit wall prompt")
+		prompt := buildSystemPrompt(ctx, "colapinto", "es")
+		if !strings.Contains(prompt, "argentino") || !strings.Contains(prompt, "gomas") {
+			t.Errorf("expected prompt to contain Argentine motorsport persona")
 		}
-		if !strings.Contains(prompt, "Safety Car: Active") {
-			t.Errorf("expected live summary to be included in prompt")
+		if !strings.Contains(prompt, "MAXIMUM 2 SHORT SENTENCES") {
+			t.Errorf("expected prompt to contain brevity constraint")
+		}
+	})
+
+	t.Run("live session mode - colapinto persona in English", func(t *testing.T) {
+		ctx := &TelemetryAnalysisContext{
+			ContextMode: "live",
+			LiveSummary: "LIVE STATUS:\n- Track: Monza\n- Safety Car: Active",
+		}
+		prompt := buildSystemPrompt(ctx, "colapinto", "en")
+		if !strings.Contains(prompt, "Franco Colapinto") || !strings.Contains(prompt, "Tyres in window") {
+			t.Errorf("expected prompt to contain Colapinto English persona")
+		}
+	})
+
+	t.Run("live session mode - bono persona in English", func(t *testing.T) {
+		ctx := &TelemetryAnalysisContext{
+			ContextMode: "live",
+			LiveSummary: "LIVE STATUS:\n- Track: Silverstone\n- Gap: +1.2s",
+		}
+		prompt := buildSystemPrompt(ctx, "bono", "en")
+		if !strings.Contains(prompt, "Peter 'Bono' Bonnington") || !strings.Contains(prompt, "Hammer time") {
+			t.Errorf("expected prompt to contain Bono English persona")
+		}
+	})
+
+	t.Run("live session mode - bono persona in Spanish", func(t *testing.T) {
+		ctx := &TelemetryAnalysisContext{
+			ContextMode: "live",
+			LiveSummary: "LIVE STATUS:\n- Track: Silverstone\n- Gap: +1.2s",
+		}
+		prompt := buildSystemPrompt(ctx, "bono", "es")
+		if !strings.Contains(prompt, "Peter 'Bono' Bonnington") || !strings.Contains(prompt, "Modo carrera") {
+			t.Errorf("expected prompt to contain Bono Spanish persona")
+		}
+	})
+
+	t.Run("live session mode - custom persona", func(t *testing.T) {
+		ctx := &TelemetryAnalysisContext{
+			ContextMode:         "live",
+			LiveSummary:         "LIVE STATUS:\n- Track: Spa",
+			CustomPersonaPrompt: "You are an aggressive Red Bull strategist.",
+		}
+		prompt := buildSystemPrompt(ctx, "custom", "en")
+		if !strings.Contains(prompt, "aggressive Red Bull strategist") {
+			t.Errorf("expected prompt to contain custom persona prompt")
 		}
 	})
 
@@ -98,15 +143,15 @@ func TestBuildSystemPrompt(t *testing.T) {
 			ApexSpeedSummary:  "Lap B carries 4 km/h more speed in Stowe.",
 			ZoomedRange: &ZoomedRangeInfo{
 				StartDistanceMeters: 1200,
-				EndDistanceMeters:   1900,
+				EndDistanceMeters:   1600,
 				Description:         "Copse & Maggotts/Becketts",
-				DeltaInSegment:      -0.120,
-				SpeedDiffAtApex:     3.5,
-				BrakingDiffMeters:   5.0,
+				DeltaInSegment:      -0.082,
+				SpeedDiffAtApex:     3.4,
+				BrakingDiffMeters:   8.0,
 			},
 		}
 
-		prompt := buildSystemPrompt(ctx)
+		prompt := buildSystemPrompt(ctx, "", "")
 		if !strings.Contains(prompt, "Silverstone") {
 			t.Errorf("expected track name Silverstone in prompt")
 		}
@@ -137,7 +182,7 @@ func TestBuildSystemPrompt(t *testing.T) {
 			FasterLap:         "Lap A",
 		}
 
-		prompt := buildSystemPrompt(ctx)
+		prompt := buildSystemPrompt(ctx, "", "")
 		if !strings.Contains(prompt, "Cross-Session Comparison") {
 			t.Errorf("expected prompt to mention Cross-Session Comparison")
 		}

@@ -49,6 +49,10 @@ type TelemetryAnalysisContext struct {
 	ThrottleSummary  string `json:"throttle_summary,omitempty"`
 	ERSDRSSummary    string `json:"ers_drs_summary,omitempty"`
 
+	// Custom persona prompt definition if custom persona is selected
+	CustomPersonaPrompt string `json:"custom_persona_prompt,omitempty"`
+	Language            string `json:"language,omitempty"` // "es", "en", or ""
+
 	// Zoomed section info if user is zoomed in
 	ZoomedRange *ZoomedRangeInfo `json:"zoomed_range,omitempty"`
 }
@@ -69,6 +73,8 @@ type AIChatRequest struct {
 	APIKey   string                    `json:"api_key,omitempty"`
 	BaseURL  string                    `json:"base_url,omitempty"`
 	Model    string                    `json:"model,omitempty"`
+	Persona  string                    `json:"persona,omitempty"`  // "colapinto", "bono", "custom"
+	Language string                    `json:"language,omitempty"` // "es", "en"
 	Messages []AIChatMessage           `json:"messages"`
 	Context  *TelemetryAnalysisContext `json:"context,omitempty"`
 }

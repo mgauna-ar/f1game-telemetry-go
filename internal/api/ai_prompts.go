@@ -5,14 +5,14 @@ import (
 	"strings"
 )
 
-// buildSystemPrompt constructs a rich system prompt tailored for an elite F1 Race Engineer based on context mode.
-func buildSystemPrompt(telemetryCtx *TelemetryAnalysisContext) string {
+// buildSystemPrompt constructs a rich system prompt tailored for an elite F1 Race Engineer based on context mode, persona, and language.
+func buildSystemPrompt(telemetryCtx *TelemetryAnalysisContext, persona, language string) string {
 	if telemetryCtx != nil && (telemetryCtx.ContextMode == "session_debrief" || (telemetryCtx.SessionSummary != "" && telemetryCtx.LapAName == "")) {
 		return buildSessionDebriefPrompt(telemetryCtx)
 	}
 
 	if telemetryCtx != nil && (telemetryCtx.ContextMode == "live" || telemetryCtx.LiveSummary != "") {
-		return buildLivePrompt(telemetryCtx)
+		return buildLivePrompt(telemetryCtx, persona, language)
 	}
 
 	return buildComparatorPrompt(telemetryCtx)
@@ -40,21 +40,72 @@ func buildSessionDebriefPrompt(telemetryCtx *TelemetryAnalysisContext) string {
 	return sb.String()
 }
 
-func buildLivePrompt(telemetryCtx *TelemetryAnalysisContext) string {
+func buildLivePrompt(telemetryCtx *TelemetryAnalysisContext, persona, language string) string {
 	var sb strings.Builder
-	sb.WriteString("You are the active F1 Race Engineer on the pit wall over team radio during a live race or session.\n")
-	sb.WriteString("Provide immediate tactical advice, weather updates, safety car restart strategy, tyre crossover windows, and gap management.\n\n")
-	sb.WriteString("COMMUNICATION STYLE & ROLE RULES:\n")
-	sb.WriteString("1. Maintain an urgent, clear, radio-concise tone suited for real-time in-car communication.\n")
-	sb.WriteString("2. Always respond in the language used by the user / driver (e.g. if Spanish, reply in Spanish; if English, reply in English).\n")
-	sb.WriteString("3. Highlight critical safety flags, weather precipitation forecasts, and optimal box/pit windows.\n\n")
+
+	lang := strings.ToLower(strings.TrimSpace(language))
+	if lang == "" && telemetryCtx != nil {
+		lang = strings.ToLower(strings.TrimSpace(telemetryCtx.Language))
+	}
+
+	personaNormalized := strings.ToLower(strings.TrimSpace(persona))
+	if personaNormalized == "" {
+		personaNormalized = "colapinto"
+	}
+
+	// If language is unspecified, default to persona's native language
+	if lang == "" {
+		if personaNormalized == "bono" {
+			lang = "en"
+		} else {
+			lang = "es"
+		}
+	}
+
+	isEnglish := strings.HasPrefix(lang, "en")
+
+	switch personaNormalized {
+	case "bono":
+		if isEnglish {
+			sb.WriteString("You are Peter 'Bono' Bonnington, senior F1 Race Engineer on the pit wall over live team radio.\n")
+			sb.WriteString("STYLE & PROTOCOL: Calm, measured, ultra-technical, and precise. Use classic British race engineering vocabulary ('Box box', 'Hammer time', 'Manage tyre delta', 'Gap is +0.3'). Always respond in English.\n")
+		} else {
+			sb.WriteString("Sos Peter 'Bono' Bonnington, experimentado Ingeniero de Carrera senior de F1 en el pit wall conectado por radio de equipo en vivo.\n")
+			sb.WriteString("ESTILO & PROTOCOLO: Extremadamente calmado, metódico, quirúrgico y calculador (estilo Mercedes). Usá vocabulario técnico de ingeniería de carrera en español ('Entendido', 'Modo carrera activado', 'Momento de empujar', 'Gestioná la degradación de gomas', 'Diferencia +0.4s'). Respondé siempre en español.\n")
+		}
+	case "custom":
+		if telemetryCtx != nil && telemetryCtx.CustomPersonaPrompt != "" {
+			sb.WriteString(telemetryCtx.CustomPersonaPrompt)
+			sb.WriteString("\n")
+		} else {
+			if isEnglish {
+				sb.WriteString("You are a specialized F1 Race Engineer on the pit wall over team radio during a live session. Respond in English.\n")
+			} else {
+				sb.WriteString("Sos un Ingeniero de Carrera especializado en el pit wall conectado por radio de equipo durante una sesión en vivo. Respondé en español.\n")
+			}
+		}
+	case "colapinto":
+		fallthrough
+	default:
+		if isEnglish {
+			sb.WriteString("You are the personal F1 Race Engineer on the pit wall over live team radio with the energetic and passionate persona of Franco Colapinto.\n")
+			sb.WriteString("STYLE & PROTOCOL: Young, spirited, highly technical, and direct with authentic motorsport enthusiasm. Use sharp racing radio terminology ('Tyres in window', 'Box box', 'Great pace, keep pushing', 'Gap is +0.4s'). Always respond in English.\n")
+		} else {
+			sb.WriteString("Sos el Ingeniero de Carrera personal en el pit wall conectado por radio de equipo en vivo durante la sesión, con la personificación de Franco Colapinto.\n")
+			sb.WriteString("ESTILO & PROTOCOLO: Ingeniero de pista argentino, joven, apasionado, técnico y directo. Utilizá jerga rioplatense de motorsport (gomas, boxes, monoplaza, ritmo, frenada, curva, sobrepaso, diferencia de tiempo) con tono profesional, enérgico y ágil. Respondé siempre en español.\n")
+		}
+	}
+
+	sb.WriteString("\nCRITICAL RADIO CONSTRAINTS:\n")
+	sb.WriteString("1. MAXIMUM 2 SHORT SENTENCES per radio message. This is pit-to-car radio communication — be ultra-concise, direct, and actionable with zero filler phrases or markdown lists.\n")
+	sb.WriteString("2. Provide tactical advice on tyre wear, rival gaps, weather/safety car status, or pit windows based on the live data.\n\n")
 
 	sb.WriteString("### LIVE SESSION TELEMETRY & PIT WALL DATA:\n")
-	if telemetryCtx.LiveSummary != "" {
+	if telemetryCtx != nil && telemetryCtx.LiveSummary != "" {
 		sb.WriteString(telemetryCtx.LiveSummary)
 		sb.WriteString("\n")
 	}
-	if telemetryCtx.CustomPrompt != "" {
+	if telemetryCtx != nil && telemetryCtx.CustomPrompt != "" {
 		fmt.Fprintf(&sb, "\nLive Strategy Notes: %s\n", telemetryCtx.CustomPrompt)
 	}
 	return sb.String()
