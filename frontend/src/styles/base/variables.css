@@ -1,0 +1,36 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap');
+
+:root {
+  /* Color Palette - Premium Dark/Neon */
+  --bg-dark: hsl(222, 47%, 7%);
+  --bg-panel: hsla(222, 47%, 11%, 0.7);
+  --bg-glass: hsla(222, 47%, 15%, 0.4);
+  
+  --accent-primary: hsl(351, 100%, 55%); /* F1 Red */
+  --accent-glow: hsla(351, 100%, 55%, 0.3);
+  --accent-secondary: hsl(199, 89%, 48%); /* Neon Blue */
+  --accent-secondary-glow: hsla(199, 89%, 48%, 0.3);
+  --accent-tertiary: hsl(150, 100%, 40%); /* Green / Valid */
+  --accent-warning: hsl(45, 100%, 50%); /* Yellow / Sector */
+  --accent-purple: hsl(280, 100%, 65%); /* Fastest Sector */
+
+  --text-primary: hsl(0, 0%, 98%);
+  --text-secondary: hsl(215, 20%, 65%);
+  --text-muted: hsl(215, 15%, 45%);
+
+  --border-color: hsla(0, 0%, 100%, 0.08);
+  --border-highlight: hsla(0, 0%, 100%, 0.15);
+
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-full: 9999px;
+
+  --font-sans: 'Inter', sans-serif;
+  --font-display: 'Outfit', sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* Easing */
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+}

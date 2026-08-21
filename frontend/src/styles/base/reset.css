@@ -1,0 +1,20 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-dark);
+  color: var(--text-primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  /* Ambient background glow */
+  background-image: 
+    radial-gradient(circle at 15% 50%, var(--accent-glow), transparent 25%),
+    radial-gradient(circle at 85% 30%, var(--accent-secondary-glow), transparent 25%);
+  background-attachment: fixed;
+  overflow-x: hidden;
+}

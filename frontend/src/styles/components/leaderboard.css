@@ -1,0 +1,597 @@
+/* Session Header Styling */
+.session-header-panel {
+  grid-column: span 12;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  background: var(--bg-glass);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.session-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.badge-red { background: rgba(255, 51, 51, 0.2); color: #FF3333; border: 1px solid rgba(255, 51, 51, 0.4); }
+.badge-purple { background: rgba(176, 38, 255, 0.2); color: #D670FF; border: 1px solid rgba(176, 38, 255, 0.4); }
+.badge-green { background: rgba(51, 255, 102, 0.15); color: #33FF66; border: 1px solid rgba(51, 255, 102, 0.3); }
+.badge-yellow { background: rgba(255, 204, 0, 0.2); color: #FFCC00; border: 1px solid rgba(255, 204, 0, 0.5); }
+.badge-orange { background: rgba(255, 128, 0, 0.2); color: #FF8000; border: 1px solid rgba(255, 128, 0, 0.4); }
+.badge-blue { background: rgba(51, 153, 255, 0.2); color: #3399FF; border: 1px solid rgba(51, 153, 255, 0.4); }
+.badge-gray { background: rgba(255, 255, 255, 0.1); color: #BBB; border: 1px solid rgba(255, 255, 255, 0.15); }
+.badge-f1-2026 { background: rgba(0, 242, 254, 0.12); color: #00f2fe; border: 1px solid rgba(0, 242, 254, 0.35); }
+.badge-f1-2025 { background: rgba(168, 85, 247, 0.12); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.35); }
+
+.glow-yellow { animation: pulse-yellow 1.5s infinite; }
+@keyframes pulse-yellow {
+  0% { box-shadow: 0 0 5px rgba(255, 204, 0, 0.4); }
+  50% { box-shadow: 0 0 18px rgba(255, 204, 0, 0.8); }
+  100% { box-shadow: 0 0 5px rgba(255, 204, 0, 0.4); }
+}
+
+.header-stat-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-color);
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+}
+
+.stat-label {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.stat-value {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Leaderboard Tower Styling */
+.leaderboard-tower {
+  grid-column: span 5;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: 720px;
+}
+
+.leaderboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 0.75rem;
+}
+
+.tower-scroll-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  padding-right: 4px;
+  flex: 1;
+  min-height: 0;
+}
+
+.tower-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+}
+
+.tower-row:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--border-highlight);
+}
+
+.tower-row-selected {
+  background: rgba(255, 51, 51, 0.12) !important;
+  border-color: var(--accent-primary) !important;
+  box-shadow: 0 0 12px rgba(255, 51, 51, 0.2);
+}
+
+.tower-row-player {
+  border-left-color: var(--accent-tertiary);
+}
+
+.team-bar {
+  width: 4px;
+  height: 26px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.tower-pos {
+  font-size: 0.9rem;
+  font-weight: 700;
+  width: 24px;
+  text-align: center;
+  color: var(--text-primary);
+}
+
+.tower-driver-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.tower-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tower-number {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.player-tag {
+  background: var(--accent-tertiary);
+  color: #000;
+  font-size: 0.6rem;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+}
+
+.driver-status-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+.status-pit { background: rgba(255, 204, 0, 0.2); color: #FFCC00; }
+.status-hotlap { background: rgba(255, 51, 51, 0.2); color: #FF3333; }
+.status-outlap { background: rgba(51, 153, 255, 0.2); color: #3399FF; }
+.status-garage { background: rgba(255, 255, 255, 0.1); color: #888; }
+.status-retired { background: rgba(255, 77, 77, 0.25); color: #FF4D4D; border: 1px solid rgba(255, 77, 77, 0.45); }
+.status-dnf { background: rgba(255, 77, 77, 0.25); color: #FF4D4D; border: 1px solid rgba(255, 77, 77, 0.45); }
+.status-dsq { background: rgba(0, 0, 0, 0.6); color: #FF3333; border: 1px solid #FF3333; }
+.status-finished { background: rgba(51, 204, 102, 0.25); color: #33CC66; border: 1px solid rgba(51, 204, 102, 0.45); }
+.status-nc { background: rgba(160, 160, 160, 0.2); color: #A0A0A0; border: 1px solid rgba(160, 160, 160, 0.4); }
+
+.driver-penalty-badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  padding: 1px 5px;
+  border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.penalty-time {
+  background: rgba(255, 51, 51, 0.25);
+  color: #FF3333;
+  border: 1px solid rgba(255, 51, 51, 0.6);
+}
+
+.penalty-drivethrough,
+.penalty-stopgo {
+  background: rgba(255, 153, 0, 0.25);
+  color: #FF9900;
+  border: 1px solid rgba(255, 153, 0, 0.6);
+}
+
+.driver-warning-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(255, 204, 0, 0.15);
+  color: #FFCC00;
+  border: 1px solid rgba(255, 204, 0, 0.35);
+}
+
+.tyre-laps-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.tyre-badge {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.tyre-badge-large {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 2px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: 800;
+  box-shadow: 0 0 10px currentColor;
+}
+
+.tower-time-col {
+  font-size: 0.8rem;
+  min-width: 75px;
+}
+
+.elimination-line {
+  margin: 4px 0;
+  border-bottom: 2px dashed #FF3333;
+  text-align: center;
+  position: relative;
+}
+.elimination-line span {
+  background: var(--bg-dark);
+  color: #FF3333;
+  font-size: 0.6rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* Car Status Widget */
+.car-status-widget {
+  grid-column: span 7;
+}
+.status-widget-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.5rem;
+}
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+.status-card {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.status-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.ers-mode-badge {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+.mode-none { background: rgba(255,255,255,0.1); color: #888; }
+.mode-medium { background: rgba(51,153,255,0.2); color: #3399FF; }
+.mode-hotlap { background: rgba(255,204,0,0.2); color: #FFCC00; }
+.mode-overtake { background: rgba(255,51,51,0.25); color: #FF3333; box-shadow: 0 0 8px rgba(255,51,51,0.5); }
+
+.ers-fill {
+  background-color: #33FFCC;
+  color: #33FFCC;
+}
+.fuel-fill {
+  background-color: #FF9933;
+  color: #FF9933;
+}
+
+/* Responsive Mobile & Tablet Layout Adjustments */
+@media (max-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr !important;
+    padding: 1rem !important;
+    gap: 1rem !important;
+  }
+
+  .session-header-panel {
+    grid-column: span 12 !important;
+  }
+
+  .dash-hero-row,
+  .dash-middle-row,
+  .dash-bottom-row {
+    grid-template-columns: 1fr !important;
+    gap: 1rem !important;
+  }
+
+  .dash-hero-tower,
+  .dash-hero-right,
+  .dash-track-map-panel,
+  .dash-status-col,
+  .dash-telemetry-col,
+  .dash-trace-col,
+  .dash-setup-col {
+    grid-column: span 12 !important;
+  }
+
+  .leaderboard-tower {
+    max-height: 420px !important;
+  }
+
+  .car-setup-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .comparator-cards-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .comparator-card-panel,
+  .comparator-map-panel {
+    grid-column: span 12 !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-grid {
+    padding: 0.75rem !important;
+    gap: 0.75rem !important;
+  }
+
+  .glass-panel {
+    padding: 1rem !important;
+  }
+
+  .session-header-panel {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 1rem !important;
+  }
+
+  .speedometer-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .speedometer,
+  .gauges,
+  .indicators {
+    grid-column: span 12 !important;
+  }
+
+  .status-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .car-setup-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .lap-timing-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .speedometer .readout-value {
+    font-size: 3.5rem !important;
+  }
+
+  .readout-value {
+    font-size: 2rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  h1 {
+    font-size: 1.75rem !important;
+  }
+
+  .nav-tabs {
+    flex-wrap: wrap !important;
+    gap: 0.5rem !important;
+    padding: 0.5rem !important;
+  }
+
+  .nav-tab {
+    padding: 0.5rem 1rem !important;
+    font-size: 0.85rem !important;
+  }
+
+  .lap-timing-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+.map-hover-marker {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: #fff;
+  border: 2px solid #000;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  box-shadow: 0 0 10px 4px rgba(255, 255, 255, 0.5);
+  animation: pulse-marker 1.5s infinite;
+  z-index: 10;
+}
+
+@keyframes pulse-marker {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(255, 255, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
+  }
+}
+
+/* Tower Mode Switcher Tabs */
+.tower-tabs {
+  display: flex;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  padding: 3px;
+  gap: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tower-tab-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  padding: 5px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.tower-tab-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.tower-tab-btn.active {
+  color: #000;
+  background: var(--accent-primary);
+  font-weight: 700;
+}
+
+/* Grid Position Delta Badge */
+.grid-delta-badge {
+  font-size: 0.62rem;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  padding: 0px 4px;
+  border-radius: 3px;
+  margin-top: 1px;
+}
+
+.delta-gain {
+  color: #00E676;
+  background: rgba(0, 230, 118, 0.15);
+}
+
+.delta-loss {
+  color: #FF5252;
+  background: rgba(255, 82, 82, 0.15);
+}
+
+.delta-same {
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Sector & Speed Trap Pills */
+.sector-pill {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.speed-trap-pill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  background: rgba(51, 204, 255, 0.1);
+  border: 1px solid rgba(51, 204, 255, 0.3);
+  color: #33CCFF;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* Flash Animations on Position Changes */
+.flash-pos-up {
+  animation: flash-up-anim 1.2s ease-out;
+}
+
+.flash-pos-down {
+  animation: flash-down-anim 1.2s ease-out;
+}
+
+@keyframes flash-up-anim {
+  0% {
+    background-color: rgba(0, 230, 118, 0.35);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@keyframes flash-down-anim {
+  0% {
+    background-color: rgba(255, 82, 82, 0.35);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.spin-icon {
+  animation: spin 3s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 900px) {
+  .tower-two-cols-grid {
+    grid-template-columns: 1fr !important;
+  }
+}

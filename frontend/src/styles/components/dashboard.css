@@ -1,0 +1,235 @@
+/* Live Telemetry Layout */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.header {
+  grid-column: span 12;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 1rem;
+}
+
+/* Data Readouts */
+.readout-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.readout-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+
+.readout-value {
+  font-size: 2.5rem;
+  font-weight: 800;
+  font-family: var(--font-display);
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+
+.readout-unit {
+  font-size: 1rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* Speedometer specific */
+.speedometer {
+  grid-column: span 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.speedometer .readout-value {
+  font-size: 5rem;
+  line-height: 1;
+  text-shadow: 0 0 20px var(--accent-glow);
+  color: var(--accent-primary);
+}
+
+/* Bar Gauges (Throttle/Brake) */
+.gauges {
+  grid-column: span 4;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.5rem;
+}
+
+.bar-container {
+  width: 100%;
+  height: 24px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  position: relative;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  transition: width 0.1s linear;
+  box-shadow: 0 0 10px currentColor;
+}
+
+.throttle-fill {
+  background-color: var(--accent-tertiary);
+  color: var(--accent-tertiary);
+}
+
+.brake-fill {
+  background-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+/* Inputs & DRS */
+.indicators {
+  grid-column: span 4;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.indicator-box {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  transition: all 0.2s;
+}
+
+.indicator-box.active-drs {
+  background: hsla(150, 100%, 20%, 0.4);
+  border-color: var(--accent-tertiary);
+  color: var(--accent-tertiary);
+  box-shadow: 0 0 15px hsla(150, 100%, 40%, 0.2);
+}
+
+/* Gear Indicator */
+.gear-display {
+  font-size: 4rem;
+  font-family: var(--font-display);
+  font-weight: 800;
+  text-align: center;
+  width: 100px;
+  height: 100px;
+  line-height: 100px;
+  border-radius: var(--radius-md);
+  background: rgba(0, 0, 0, 0.5);
+  border: 2px solid var(--border-highlight);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
+}
+
+/* Status dots */
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-live {
+  background-color: var(--accent-primary);
+  box-shadow: 0 0 10px var(--accent-primary);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  50% { transform: scale(1.1); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+/* RPM LEDs */
+.rpm-leds {
+  display: flex;
+  gap: 4px;
+  margin-top: 1rem;
+  width: 100%;
+  justify-content: center;
+}
+
+.rpm-led {
+  flex: 1;
+  height: 12px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.1);
+  max-width: 30px;
+  transition: background-color 0.05s;
+}
+
+.rpm-led.green { background: var(--accent-tertiary); box-shadow: 0 0 8px var(--accent-tertiary); }
+.rpm-led.red { background: var(--accent-primary); box-shadow: 0 0 8px var(--accent-primary); }
+.rpm-led.blue { background: var(--accent-secondary); box-shadow: 0 0 8px var(--accent-secondary); }
+
+/* History Table */
+.history-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 6px;
+  margin-top: 0.75rem;
+}
+
+.history-table th {
+  text-align: left;
+  padding: 0 0.55rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.history-table td {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 0.6rem 0.55rem;
+  font-size: 0.84rem;
+  vertical-align: middle;
+}
+
+.history-table tr td:first-child {
+  border-top-left-radius: var(--radius-sm);
+  border-bottom-left-radius: var(--radius-sm);
+}
+
+.history-table tr td:last-child {
+  border-top-right-radius: var(--radius-sm);
+  border-bottom-right-radius: var(--radius-sm);
+}
+
+.history-table tr:hover td {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* Utility */
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
