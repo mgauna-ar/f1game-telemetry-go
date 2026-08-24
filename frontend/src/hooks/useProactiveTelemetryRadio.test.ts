@@ -132,7 +132,7 @@ describe('useProactiveTelemetryRadio hook', () => {
 
     expect(onTriggerAlert).toHaveBeenCalledTimes(1);
     expect(onTriggerAlert).toHaveBeenCalledWith(
-      expect.stringContaining('1.0s gap'),
+      expect.stringContaining('DRS threat'),
       false
     );
     expect(onTriggerAlert).toHaveBeenCalledWith(
@@ -383,6 +383,193 @@ describe('useProactiveTelemetryRadio hook', () => {
       expect.stringContaining('elimination danger zone with under 5 minutes left'),
       true
     );
+  });
+
+  it('triggers front wing damage warning when damage crosses threshold', async () => {
+    const onTriggerAlert = vi.fn().mockResolvedValue(undefined);
+
+    const carDamage = {
+      FrontLeftWingDamage: 25, // 25% damage >= 15% default threshold
+      FrontRightWingDamage: 0,
+      TyresWear: [0, 0, 0, 0],
+    } as any;
+
+    renderHook(() =>
+      useProactiveTelemetryRadio({
+        carDamage,
+        onTriggerAlert,
+      })
+    );
+
+    expect(onTriggerAlert).toHaveBeenCalledTimes(1);
+    expect(onTriggerAlert).toHaveBeenCalledWith(
+      expect.stringContaining('Front wing endplate/flap damage detected (25%)'),
+      false
+    );
+  });
+
+  it('triggers critical emergency alert when front wing damage is severe (>=40%)', async () => {
+    const onTriggerAlert = vi.fn().mockResolvedValue(undefined);
+
+    const carDamage = {
+      FrontLeftWingDamage: 45, // 45% damage >= 40% critical threshold
+      FrontRightWingDamage: 0,
+      TyresWear: [0, 0, 0, 0],
+    } as any;
+
+    renderHook(() =>
+      useProactiveTelemetryRadio({
+        carDamage,
+        onTriggerAlert,
+      })
+    );
+
+    expect(onTriggerAlert).toHaveBeenCalledTimes(1);
+    expect(onTriggerAlert).toHaveBeenCalledWith(
+      expect.stringContaining('Severe front wing damage detected (45% loss)'),
+      true
+    );
+  });
+
+  it('triggers ERS low battery reserve alert when battery drops below threshold', async () => {
+    const onTriggerAlert = vi.fn().mockResolvedValue(undefined);
+
+    const carStatus = {
+      ERSStoreEnergy: 400000, // 400,000 / 4,000,000 = 10% (< 15% default)
+      EngineCoolantTemperature: 100,
+      TyresAgeLaps: 5,
+    } as any;
+
+    renderHook(() =>
+      useProactiveTelemetryRadio({
+        carStatus,
+        onTriggerAlert,
+      })
+    );
+
+    expect(onTriggerAlert).toHaveBeenCalledTimes(1);
+    expect(onTriggerAlert).toHaveBeenCalledWith(
+      expect.stringContaining('ERS battery reserve is low at 10%'),
+      false
+    );
+  });
+
+  it('triggers brake disc overheat alert when brake temps exceed threshold', async () => {
+    const onTriggerAlert = vi.fn().mockResolvedValue(undefined);
+
+    const telemetry = {
+      BrakesTemperature: [950, 940, 880, 890], // Front brakes > 900°C default
+      Brake: 0,
+      Steer: 0,
+    } as any;
+
+    renderHook(() =>
+      useProactiveTelemetryRadio({
+        telemetry,
+        onTriggerAlert,
+      })
+    );
+
+    expect(onTriggerAlert).toHaveBeenCalledTimes(1);
+    expect(onTriggerAlert).toHaveBeenCalledWith(
+      expect.stringContaining('Brake disc temperatures are critically high at 950°C'),
+      false
+    );
+  });
+
+  it('triggers fuel delta deficit warning and recommends Lift and Coast', async () => {
+    const onTriggerAlert = vi.fn().mockResolvedValue(undefined);
+
+    const carStatus = {
+      FuelRemainingLaps: -1.2, // -1.2 laps deficit (< -0.6 laps default threshold)
+    } as any;
+
+    const lap = {
+      CurrentLapNum: 10,
+    } as any;
+
+    renderHook(() =>
+      useProactiveTelemetryRadio({
+        carStatus,
+        lap,
+        onTriggerAlert,
+      })
+    );
+
+    expect(onTriggerAlert).toHaveBeenCalledTimes(1);
+    expect(onTriggerAlert).toHaveBeenCalledWith(
+      expect.stringContaining('Fuel target delta is negative (-1.2 laps)'),
+      false
+    );
+  });
+
+  it('triggers track limits corner cutting warning before penalty', async () => {
+    const onTriggerAlert = vi.fn().mockResolvedValue(undefined);
+
+    const lap = {
+      CornerCuttingWarnings: 2, // 2 warnings >= 2 default threshold
+      CurrentLapNum: 8,
+      Penalties: 0,
+    } as any;
+
+    renderHook(() =>
+      useProactiveTelemetryRadio({
+        lap,
+        onTriggerAlert,
+      })
+    );
+
+    expect(onTriggerAlert).toHaveBeenCalledTimes(1);
+    expect(onTriggerAlert).toHaveBeenCalledWith(
+      expect.stringContaining('Driver has accumulated 2 track limits / corner cutting warnings'),
+      true
+    );
+  });
+
+  it('allows independent per-system alerts without blocking each other by global cooldown', async () => {
+    const onTriggerAlert = vi.fn().mockResolvedValue(undefined);
+
+    // Initial alert from damage
+    const carDamage = {
+      FrontLeftWingDamage: 25,
+      FrontRightWingDamage: 0,
+      TyresWear: [0, 0, 0, 0],
+    } as any;
+
+    const { rerender } = renderHook(
+      ({ carDamage, carStatus, telemetry }) =>
+        useProactiveTelemetryRadio({
+          carDamage,
+          carStatus,
+          telemetry,
+          onTriggerAlert,
+        }),
+      {
+        initialProps: {
+          carDamage,
+          carStatus: undefined,
+          telemetry: undefined,
+        },
+      }
+    );
+
+    expect(onTriggerAlert).toHaveBeenCalledTimes(1);
+
+    // Second alert from ERS category immediately afterwards (different subsystem)
+    const carStatus = {
+      ERSStoreEnergy: 400000, // 10%
+      EngineCoolantTemperature: 100,
+      TyresAgeLaps: 5,
+    } as any;
+
+    rerender({
+      carDamage,
+      carStatus,
+      telemetry: undefined,
+    });
+
+    // ERS alert fires because it has its own category cooldown!
+    expect(onTriggerAlert).toHaveBeenCalledTimes(2);
   });
 });
 

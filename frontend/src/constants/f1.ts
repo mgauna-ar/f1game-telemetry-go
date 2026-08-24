@@ -575,6 +575,56 @@ export const RADIO_STORAGE_KEYS = {
   ALERTS_RIVAL: 'f1_radio_alerts_rival',
   ALERTS_PIT_WINDOW: 'f1_radio_alerts_pit_window',
   ALERTS_TRACK: 'f1_radio_alerts_track',
+  // New granular subsystem toggles & storage keys
+  ALERTS_DAMAGE: 'f1_radio_alerts_damage',
+  ALERTS_ERS: 'f1_radio_alerts_ers',
+  ALERTS_BRAKES: 'f1_radio_alerts_brakes',
+  ALERTS_FUEL: 'f1_radio_alerts_fuel',
+  ALERTS_QUALY: 'f1_radio_alerts_qualy',
+  ALERTS_FLAGS_PENS: 'f1_radio_alerts_flags_pens',
+  WING_DAMAGE_WARN_PCT: 'f1_radio_wing_damage_warn_pct',
+  FLOOR_DAMAGE_WARN_PCT: 'f1_radio_floor_damage_warn_pct',
+  ENGINE_WEAR_WARN_PCT: 'f1_radio_engine_wear_warn_pct',
+  ERS_LOW_PCT: 'f1_radio_ers_low_pct',
+  ENGINE_OVERHEAT_C: 'f1_radio_engine_overheat_c',
+  BRAKE_OVERHEAT_C: 'f1_radio_brake_overheat_c',
+  BRAKE_COLD_C: 'f1_radio_brake_cold_c',
+  FUEL_DELTA_LAPS: 'f1_radio_fuel_delta_laps',
+  UNDERCUT_GAP_SEC: 'f1_radio_undercut_gap_sec',
+  RIVAL_AHEAD_GAP_SEC: 'f1_radio_rival_ahead_gap_sec',
+  QUALY_CLEAN_AIR_SEC: 'f1_radio_qualy_clean_air_sec',
+  CORNER_CUT_WARN_THRESHOLD: 'f1_radio_corner_cut_warn_threshold',
+  RAIN_PROB_PCT: 'f1_radio_rain_prob_pct',
+  TYRE_OVERHEAT_C: 'f1_radio_tyre_overheat_c',
+  TYRE_COLD_C: 'f1_radio_tyre_cold_c',
+  TRIGGER_PRESET: 'f1_radio_trigger_preset',
+  // Sub-alert toggle keys
+  SUB_ALERT_TYRE_WEAR: 'f1_radio_sub_tyre_wear',
+  SUB_ALERT_TYRE_PUNCTURE: 'f1_radio_sub_tyre_puncture',
+  SUB_ALERT_TYRE_THERMAL: 'f1_radio_sub_tyre_thermal',
+  SUB_ALERT_TYRE_COLD: 'f1_radio_sub_tyre_cold',
+  SUB_ALERT_DAMAGE_WING: 'f1_radio_sub_damage_wing',
+  SUB_ALERT_DAMAGE_FLOOR: 'f1_radio_sub_damage_floor',
+  SUB_ALERT_DAMAGE_ENGINE: 'f1_radio_sub_damage_engine',
+  SUB_ALERT_DAMAGE_FAULTS: 'f1_radio_sub_damage_faults',
+  SUB_ALERT_ERS_LOW: 'f1_radio_sub_ers_low',
+  SUB_ALERT_ENGINE_TEMP: 'f1_radio_sub_engine_temp',
+  SUB_ALERT_BRAKE_TEMP: 'f1_radio_sub_brake_temp',
+  SUB_ALERT_BRAKE_COLD: 'f1_radio_sub_brake_cold',
+  SUB_ALERT_FUEL_DELTA: 'f1_radio_sub_fuel_delta',
+  SUB_ALERT_UNDERCUT: 'f1_radio_sub_undercut',
+  SUB_ALERT_PIT_WINDOW: 'f1_radio_sub_pit_window',
+  SUB_ALERT_RIVAL_DEFEND: 'f1_radio_sub_rival_defend',
+  SUB_ALERT_RIVAL_ATTACK: 'f1_radio_sub_rival_attack',
+  SUB_ALERT_QUALY_TRAFFIC: 'f1_radio_sub_qualy_traffic',
+  SUB_ALERT_QUALY_INVALID: 'f1_radio_sub_qualy_invalid',
+  SUB_ALERT_QUALY_TIME: 'f1_radio_sub_qualy_time',
+  SUB_ALERT_QUALY_ELIM: 'f1_radio_sub_qualy_elim',
+  SUB_ALERT_SAFETY_CAR: 'f1_radio_sub_safety_car',
+  SUB_ALERT_RED_FLAG: 'f1_radio_sub_red_flag',
+  SUB_ALERT_RAIN: 'f1_radio_sub_rain',
+  SUB_ALERT_TRACK_LIMITS: 'f1_radio_sub_track_limits',
+  SUB_ALERT_PENALTIES: 'f1_radio_sub_penalties',
 } as const;
 
 export const RADIO_ALERT_CONSTANTS = {
@@ -584,8 +634,10 @@ export const RADIO_ALERT_CONSTANTS = {
   PUNCTURE_THRESHOLD: 95,
   RIVAL_DRS_GAP_SECONDS: 1.0,
   DEFAULT_RIVAL_GAP_SEC: 1.0,
+  DEFAULT_RIVAL_AHEAD_GAP_SEC: 1.2,
   RIVAL_PACE_DELTA_SECONDS: 0.4,
   RAIN_PROBABILITY_THRESHOLD: 50,
+  DEFAULT_RAIN_PROB_PCT: 50,
   DEFAULT_RAIN_HORIZON_MIN: 5,
   COOLDOWN_NON_CRITICAL_MS: 45000,
   DEFAULT_KEYBOARD_KEY: 'Space',
@@ -595,14 +647,43 @@ export const RADIO_ALERT_CONSTANTS = {
     MINIMAL: 90,
   } as const,
   TYRE_TEMP_OVERHEAT_C: 115,
+  DEFAULT_TYRE_OVERHEAT_C: 115,
   TYRE_TEMP_COLD_C: 85,
+  DEFAULT_TYRE_COLD_C: 85,
   SMART_DISCRETION_BRAKE_THRESHOLD: 50,
   SMART_DISCRETION_STEER_THRESHOLD: 0.45,
-  // Qualifying specific alert constants
+  // Mechanical & Aero Damage defaults
+  DEFAULT_WING_DAMAGE_WARN_PCT: 20,
+  CRITICAL_WING_DAMAGE_PCT: 40,
+  DEFAULT_FLOOR_DAMAGE_WARN_PCT: 25,
+  DEFAULT_ENGINE_WEAR_WARN_PCT: 70,
+  // ERS & Engine defaults
+  DEFAULT_ERS_LOW_PCT: 15,
+  DEFAULT_ENGINE_OVERHEAT_C: 125,
+  MAX_ERS_JOULES: 4000000.0,
+  // Brake defaults
+  DEFAULT_BRAKE_OVERHEAT_C: 900,
+  DEFAULT_BRAKE_COLD_C: 200,
+  // Fuel & Strategy defaults
+  DEFAULT_FUEL_DELTA_LAPS: -0.5,
+  DEFAULT_UNDERCUT_GAP_SEC: 2.5,
+  // Qualifying defaults
   QUALY_CLEAN_AIR_MIN_GAP_SEC: 4.0,
+  DEFAULT_QUALY_CLEAN_AIR_SEC: 4.0,
   QUALY_CLEAN_AIR_DISTANCE_METERS: 250,
   QUALY_SESSION_TIME_WARN_SEC: 180,
   QUALY_OUTLAP_SECTOR_TRIGGER: 3,
+  // Flags & Penalties defaults
+  DEFAULT_CORNER_CUT_WARN_THRESHOLD: 2,
+} as const;
+
+export type RadioTriggerPreset = 'immersive' | 'coaching' | 'minimal' | 'custom';
+
+export const RADIO_TRIGGER_PRESETS = {
+  IMMERSIVE: 'immersive',
+  COACHING: 'coaching',
+  MINIMAL: 'minimal',
+  CUSTOM: 'custom',
 } as const;
 
 

@@ -5,15 +5,16 @@ import {
   RADIO_LANGUAGES,
   RADIO_AUDIO_CONSTANTS,
   RADIO_ALERT_CONSTANTS,
+  RADIO_TRIGGER_PRESETS,
   type RadioPersona,
   type RadioLanguage,
+  type RadioTriggerPreset,
 } from '../constants/f1';
 import {
   playRadioBeep,
   speakRadioResponse,
   stopRadioSpeech,
   getSpeechRecognitionClass,
-  isSpeechRecognitionSupported,
   type ISpeechRecognition,
 } from '../utils/radioAudio';
 import { useGamepadPTT, type GamepadMapping } from './useGamepadPTT';
@@ -56,33 +57,138 @@ export interface UseRadioControllerReturn {
   setSpeechPitch: (pitch: number) => void;
   neuralVoice: string;
   setNeuralVoice: (v: string) => void;
+
   // Trigger & Discretion settings
   smartDiscretionEnabled: boolean;
   setSmartDiscretionEnabled: (enabled: boolean) => void;
   chatterCooldownSeconds: number;
   setChatterCooldownSeconds: (sec: number) => void;
-  tyreWearWarningPct: number;
-  setTyreWearWarningPct: (pct: number) => void;
-  tyreWearCriticalPct: number;
-  setTyreWearCriticalPct: (pct: number) => void;
-  rivalGapThresholdSec: number;
-  setRivalGapThresholdSec: (sec: number) => void;
-  rainHorizonMin: number;
-  setRainHorizonMin: (min: number) => void;
-  // Tactical Alert category toggles
+  triggerPreset: RadioTriggerPreset;
+  applyTriggerPreset: (preset: RadioTriggerPreset) => void;
+  resetTriggerDefaults: () => void;
+
+  // Subsystem master switches
   tyreAlertsEnabled: boolean;
   setTyreAlertsEnabled: (enabled: boolean) => void;
   thermalAlertsEnabled: boolean;
   setThermalAlertsEnabled: (enabled: boolean) => void;
+  damageAlertsEnabled: boolean;
+  setDamageAlertsEnabled: (enabled: boolean) => void;
+  ersAlertsEnabled: boolean;
+  setErsAlertsEnabled: (enabled: boolean) => void;
+  brakesAlertsEnabled: boolean;
+  setBrakesAlertsEnabled: (enabled: boolean) => void;
+  fuelAlertsEnabled: boolean;
+  setFuelAlertsEnabled: (enabled: boolean) => void;
   rivalAlertsEnabled: boolean;
   setRivalAlertsEnabled: (enabled: boolean) => void;
   pitWindowAlertsEnabled: boolean;
   setPitWindowAlertsEnabled: (enabled: boolean) => void;
   trackAlertsEnabled: boolean;
   setTrackAlertsEnabled: (enabled: boolean) => void;
+  qualyAlertsEnabled: boolean;
+  setQualyAlertsEnabled: (enabled: boolean) => void;
+  flagsPensAlertsEnabled: boolean;
+  setFlagsPensAlertsEnabled: (enabled: boolean) => void;
+
+  // Sub-alert individual toggles
+  subTyreWear: boolean;
+  setSubTyreWear: (enabled: boolean) => void;
+  subTyrePuncture: boolean;
+  setSubTyrePuncture: (enabled: boolean) => void;
+  subTyreThermal: boolean;
+  setSubTyreThermal: (enabled: boolean) => void;
+  subTyreCold: boolean;
+  setSubTyreCold: (enabled: boolean) => void;
+  subDamageWing: boolean;
+  setSubDamageWing: (enabled: boolean) => void;
+  subDamageFloor: boolean;
+  setSubDamageFloor: (enabled: boolean) => void;
+  subDamageEngine: boolean;
+  setSubDamageEngine: (enabled: boolean) => void;
+  subDamageFaults: boolean;
+  setSubDamageFaults: (enabled: boolean) => void;
+  subErsLow: boolean;
+  setSubErsLow: (enabled: boolean) => void;
+  subEngineTemp: boolean;
+  setSubEngineTemp: (enabled: boolean) => void;
+  subBrakeTemp: boolean;
+  setSubBrakeTemp: (enabled: boolean) => void;
+  subBrakeCold: boolean;
+  setSubBrakeCold: (enabled: boolean) => void;
+  subFuelDelta: boolean;
+  setSubFuelDelta: (enabled: boolean) => void;
+  subUndercut: boolean;
+  setSubUndercut: (enabled: boolean) => void;
+  subPitWindow: boolean;
+  setSubPitWindow: (enabled: boolean) => void;
+  subRivalDefend: boolean;
+  setSubRivalDefend: (enabled: boolean) => void;
+  subRivalAttack: boolean;
+  setSubRivalAttack: (enabled: boolean) => void;
+  subQualyTraffic: boolean;
+  setSubQualyTraffic: (enabled: boolean) => void;
+  subQualyInvalid: boolean;
+  setSubQualyInvalid: (enabled: boolean) => void;
+  subQualyTime: boolean;
+  setSubQualyTime: (enabled: boolean) => void;
+  subQualyElim: boolean;
+  setSubQualyElim: (enabled: boolean) => void;
+  subSafetyCar: boolean;
+  setSubSafetyCar: (enabled: boolean) => void;
+  subRedFlag: boolean;
+  setSubRedFlag: (enabled: boolean) => void;
+  subRain: boolean;
+  setSubRain: (enabled: boolean) => void;
+  subTrackLimits: boolean;
+  setSubTrackLimits: (enabled: boolean) => void;
+  subPenalties: boolean;
+  setSubPenalties: (enabled: boolean) => void;
+
+  // Granular thresholds
+  tyreWearWarningPct: number;
+  setTyreWearWarningPct: (pct: number) => void;
+  tyreWearCriticalPct: number;
+  setTyreWearCriticalPct: (pct: number) => void;
+  tyreOverheatC: number;
+  setTyreOverheatC: (temp: number) => void;
+  tyreColdC: number;
+  setTyreColdC: (temp: number) => void;
+  wingDamageWarnPct: number;
+  setWingDamageWarnPct: (pct: number) => void;
+  floorDamageWarnPct: number;
+  setFloorDamageWarnPct: (pct: number) => void;
+  engineWearWarnPct: number;
+  setEngineWearWarnPct: (pct: number) => void;
+  ersLowPct: number;
+  setErsLowPct: (pct: number) => void;
+  engineOverheatC: number;
+  setEngineOverheatC: (temp: number) => void;
+  brakeOverheatC: number;
+  setBrakeOverheatC: (temp: number) => void;
+  brakeColdC: number;
+  setBrakeColdC: (temp: number) => void;
+  fuelDeltaLaps: number;
+  setFuelDeltaLaps: (laps: number) => void;
+  undercutGapSec: number;
+  setUndercutGapSec: (sec: number) => void;
+  rivalGapThresholdSec: number;
+  setRivalGapThresholdSec: (sec: number) => void;
+  rivalAheadGapSec: number;
+  setRivalAheadGapSec: (sec: number) => void;
+  qualyCleanAirSec: number;
+  setQualyCleanAirSec: (sec: number) => void;
+  cornerCutWarnThreshold: number;
+  setCornerCutWarnThreshold: (count: number) => void;
+  rainHorizonMin: number;
+  setRainHorizonMin: (min: number) => void;
+  rainProbPct: number;
+  setRainProbPct: (pct: number) => void;
+
   lastTranscript: string | null;
   lastResponse: string | null;
   error: string | null;
+
   // PTT props passed through from useGamepadPTT
   isPTTActive: boolean;
   isLearning: boolean;
@@ -94,8 +200,10 @@ export interface UseRadioControllerReturn {
   setMappedKey: (key: string) => void;
   gamepadConnected: boolean;
   gamepadName: string | null;
+
   // Actions
   testRadioTransmission: () => Promise<void>;
+  testTriggerAlert: (triggerType: string) => Promise<void>;
   stopRadio: () => void;
   speakMessage: (text: string, forceInterrupt?: boolean) => Promise<void>;
 }
@@ -289,6 +397,146 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
       return 5;
     }
   });
+
+  // Subsystem master switches
+  const [damageAlertsEnabled, setDamageAlertsEnabledState] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    try {
+      const v = localStorage.getItem(RADIO_STORAGE_KEYS.ALERTS_DAMAGE);
+      return v !== null ? v === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const [ersAlertsEnabled, setErsAlertsEnabledState] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    try {
+      const v = localStorage.getItem(RADIO_STORAGE_KEYS.ALERTS_ERS);
+      return v !== null ? v === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const [brakesAlertsEnabled, setBrakesAlertsEnabledState] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    try {
+      const v = localStorage.getItem(RADIO_STORAGE_KEYS.ALERTS_BRAKES);
+      return v !== null ? v === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const [fuelAlertsEnabled, setFuelAlertsEnabledState] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    try {
+      const v = localStorage.getItem(RADIO_STORAGE_KEYS.ALERTS_FUEL);
+      return v !== null ? v === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const [qualyAlertsEnabled, setQualyAlertsEnabledState] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    try {
+      const v = localStorage.getItem(RADIO_STORAGE_KEYS.ALERTS_QUALY);
+      return v !== null ? v === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const [flagsPensAlertsEnabled, setFlagsPensAlertsEnabledState] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return true;
+    try {
+      const v = localStorage.getItem(RADIO_STORAGE_KEYS.ALERTS_FLAGS_PENS);
+      return v !== null ? v === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  // Preset state
+  const [triggerPreset, setTriggerPresetState] = useState<RadioTriggerPreset>(() => {
+    if (typeof window === 'undefined') return RADIO_TRIGGER_PRESETS.IMMERSIVE;
+    try {
+      const saved = localStorage.getItem(RADIO_STORAGE_KEYS.TRIGGER_PRESET) as RadioTriggerPreset;
+      if (saved && Object.values(RADIO_TRIGGER_PRESETS).includes(saved)) return saved;
+      return RADIO_TRIGGER_PRESETS.IMMERSIVE;
+    } catch {
+      return RADIO_TRIGGER_PRESETS.IMMERSIVE;
+    }
+  });
+
+  // Sub-alert individual toggles
+  const initSub = (key: string, def = true): boolean => {
+    if (typeof window === 'undefined') return def;
+    try {
+      const v = localStorage.getItem(key);
+      return v !== null ? v === 'true' : def;
+    } catch {
+      return def;
+    }
+  };
+
+  const [subTyreWear, setSubTyreWearState] = useState<boolean>(() => initSub(RADIO_STORAGE_KEYS.SUB_ALERT_TYRE_WEAR));
+  const [subTyrePuncture, setSubTyrePunctureState] = useState<boolean>(() => initSub(RADIO_STORAGE_KEYS.SUB_ALERT_TYRE_PUNCTURE));
+  const [subTyreThermal, setSubTyreThermalState] = useState<boolean>(() => initSub(RADIO_STORAGE_KEYS.SUB_ALERT_TYRE_THERMAL));
+  const [subTyreCold, setSubTyreColdState] = useState<boolean>(() => initSub(RADIO_STORAGE_KEYS.SUB_ALERT_TYRE_COLD));
+  const [subDamageWing, setSubDamageWingState] = useState<boolean>(() => initSub(RADIO_STORAGE_KEYS.SUB_ALERT_DAMAGE_WING));
+  const [subDamageFloor, setSubDamageFloorState] = useState<boolean>(() => initSub(RADIO_STORAGE_KEYS.SUB_ALERT_DAMAGE_FLOOR));
+  const [subDamageEngine, setSubDamageEngineState] = useState<boolean>(() => initSub(RADIO_STORAGE_KEYS.SUB_ALERT_DAMAGE_ENGINE));
+  const [subDamageFaults, setSubDamageFaultsState] = useState<boolean>(() => initSub(RADIO_STORAGE_KEYS.SUB_ALERT_DAMAGE_FAULTS));
+  const [subErsLow, setSubErsLowState] = useState<boolean>(() => initSub(RADIO_STORAGE_KEYS.SUB_ALERT_ERS_LOW));
+  const [subEngineTemp, setSubEngineTempState] = useState<boolean>(() => initSub(RADIO_STORAGE_KEYS.SUB_ALERT_ENGINE_TEMP));
+  const [subBrakeTemp, setSubBrakeTempState] = useState<boolean>(() => initSub(RADIO_STORAGE_KEYS.SUB_ALERT_BRAKE_TEMP));
+  const [subBrakeCold, setSubBrakeColdState] = useState<boolean>(() => initSub(RADIO_STORAGE_KEYS.SUB_ALERT_BRAKE_COLD));
+  const [subFuelDelta, setSubFuelDeltaState] = useState<boolean>(() => initSub(RADIO_STORAGE_KEYS.SUB_ALERT_FUEL_DELTA));
+  const [subUndercut, setSubUndercutState] = useState<boolean>(() => initSub(RADIO_STORAGE_KEYS.SUB_ALERT_UNDERCUT));
+  const [subPitWindow, setSubPitWindowState] = useState<boolean>(() => initSub(RADIO_STORAGE_KEYS.SUB_ALERT_PIT_WINDOW));
+  const [subRivalDefend, setSubRivalDefendState] = useState<boolean>(() => initSub(RADIO_STORAGE_KEYS.SUB_ALERT_RIVAL_DEFEND));
+  const [subRivalAttack, setSubRivalAttackState] = useState<boolean>(() => initSub(RADIO_STORAGE_KEYS.SUB_ALERT_RIVAL_ATTACK));
+  const [subQualyTraffic, setSubQualyTrafficState] = useState<boolean>(() => initSub(RADIO_STORAGE_KEYS.SUB_ALERT_QUALY_TRAFFIC));
+  const [subQualyInvalid, setSubQualyInvalidState] = useState<boolean>(() => initSub(RADIO_STORAGE_KEYS.SUB_ALERT_QUALY_INVALID));
+  const [subQualyTime, setSubQualyTimeState] = useState<boolean>(() => initSub(RADIO_STORAGE_KEYS.SUB_ALERT_QUALY_TIME));
+  const [subQualyElim, setSubQualyElimState] = useState<boolean>(() => initSub(RADIO_STORAGE_KEYS.SUB_ALERT_QUALY_ELIM));
+  const [subSafetyCar, setSubSafetyCarState] = useState<boolean>(() => initSub(RADIO_STORAGE_KEYS.SUB_ALERT_SAFETY_CAR));
+  const [subRedFlag, setSubRedFlagState] = useState<boolean>(() => initSub(RADIO_STORAGE_KEYS.SUB_ALERT_RED_FLAG));
+  const [subRain, setSubRainState] = useState<boolean>(() => initSub(RADIO_STORAGE_KEYS.SUB_ALERT_RAIN));
+  const [subTrackLimits, setSubTrackLimitsState] = useState<boolean>(() => initSub(RADIO_STORAGE_KEYS.SUB_ALERT_TRACK_LIMITS));
+  const [subPenalties, setSubPenaltiesState] = useState<boolean>(() => initSub(RADIO_STORAGE_KEYS.SUB_ALERT_PENALTIES));
+
+  // Granular thresholds
+  const initNum = (key: string, def: number): number => {
+    if (typeof window === 'undefined') return def;
+    try {
+      const v = localStorage.getItem(key);
+      if (!v) return def;
+      const parsed = parseFloat(v);
+      return isNaN(parsed) ? def : parsed;
+    } catch {
+      return def;
+    }
+  };
+
+  const [tyreOverheatC, setTyreOverheatCState] = useState<number>(() => initNum(RADIO_STORAGE_KEYS.TYRE_OVERHEAT_C, RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_OVERHEAT_C));
+  const [tyreColdC, setTyreColdCState] = useState<number>(() => initNum(RADIO_STORAGE_KEYS.TYRE_COLD_C, RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_COLD_C));
+  const [wingDamageWarnPct, setWingDamageWarnPctState] = useState<number>(() => initNum(RADIO_STORAGE_KEYS.WING_DAMAGE_WARN_PCT, RADIO_ALERT_CONSTANTS.DEFAULT_WING_DAMAGE_WARN_PCT));
+  const [floorDamageWarnPct, setFloorDamageWarnPctState] = useState<number>(() => initNum(RADIO_STORAGE_KEYS.FLOOR_DAMAGE_WARN_PCT, RADIO_ALERT_CONSTANTS.DEFAULT_FLOOR_DAMAGE_WARN_PCT));
+  const [engineWearWarnPct, setEngineWearWarnPctState] = useState<number>(() => initNum(RADIO_STORAGE_KEYS.ENGINE_WEAR_WARN_PCT, RADIO_ALERT_CONSTANTS.DEFAULT_ENGINE_WEAR_WARN_PCT));
+  const [ersLowPct, setErsLowPctState] = useState<number>(() => initNum(RADIO_STORAGE_KEYS.ERS_LOW_PCT, RADIO_ALERT_CONSTANTS.DEFAULT_ERS_LOW_PCT));
+  const [engineOverheatC, setEngineOverheatCState] = useState<number>(() => initNum(RADIO_STORAGE_KEYS.ENGINE_OVERHEAT_C, RADIO_ALERT_CONSTANTS.DEFAULT_ENGINE_OVERHEAT_C));
+  const [brakeOverheatC, setBrakeOverheatCState] = useState<number>(() => initNum(RADIO_STORAGE_KEYS.BRAKE_OVERHEAT_C, RADIO_ALERT_CONSTANTS.DEFAULT_BRAKE_OVERHEAT_C));
+  const [brakeColdC, setBrakeColdCState] = useState<number>(() => initNum(RADIO_STORAGE_KEYS.BRAKE_COLD_C, RADIO_ALERT_CONSTANTS.DEFAULT_BRAKE_COLD_C));
+  const [fuelDeltaLaps, setFuelDeltaLapsState] = useState<number>(() => initNum(RADIO_STORAGE_KEYS.FUEL_DELTA_LAPS, RADIO_ALERT_CONSTANTS.DEFAULT_FUEL_DELTA_LAPS));
+  const [undercutGapSec, setUndercutGapSecState] = useState<number>(() => initNum(RADIO_STORAGE_KEYS.UNDERCUT_GAP_SEC, RADIO_ALERT_CONSTANTS.DEFAULT_UNDERCUT_GAP_SEC));
+  const [rivalAheadGapSec, setRivalAheadGapSecState] = useState<number>(() => initNum(RADIO_STORAGE_KEYS.RIVAL_AHEAD_GAP_SEC, RADIO_ALERT_CONSTANTS.DEFAULT_RIVAL_AHEAD_GAP_SEC));
+  const [qualyCleanAirSec, setQualyCleanAirSecState] = useState<number>(() => initNum(RADIO_STORAGE_KEYS.QUALY_CLEAN_AIR_SEC, RADIO_ALERT_CONSTANTS.DEFAULT_QUALY_CLEAN_AIR_SEC));
+  const [cornerCutWarnThreshold, setCornerCutWarnThresholdState] = useState<number>(() => initNum(RADIO_STORAGE_KEYS.CORNER_CUT_WARN_THRESHOLD, RADIO_ALERT_CONSTANTS.DEFAULT_CORNER_CUT_WARN_THRESHOLD));
+  const [rainProbPct, setRainProbPctState] = useState<number>(() => initNum(RADIO_STORAGE_KEYS.RAIN_PROB_PCT, RADIO_ALERT_CONSTANTS.DEFAULT_RAIN_PROB_PCT));
 
   // Alert Category toggles
   const [tyreAlertsEnabled, setTyreAlertsEnabledState] = useState<boolean>(() => {
@@ -494,6 +742,7 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
     } catch {}
   }, []);
 
+  // Subsystem setters
   const setTyreAlertsEnabled = useCallback((enabled: boolean) => {
     setTyreAlertsEnabledState(enabled);
     try {
@@ -505,6 +754,34 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
     setThermalAlertsEnabledState(enabled);
     try {
       localStorage.setItem(RADIO_STORAGE_KEYS.ALERTS_THERMAL, String(enabled));
+    } catch {}
+  }, []);
+
+  const setDamageAlertsEnabled = useCallback((enabled: boolean) => {
+    setDamageAlertsEnabledState(enabled);
+    try {
+      localStorage.setItem(RADIO_STORAGE_KEYS.ALERTS_DAMAGE, String(enabled));
+    } catch {}
+  }, []);
+
+  const setErsAlertsEnabled = useCallback((enabled: boolean) => {
+    setErsAlertsEnabledState(enabled);
+    try {
+      localStorage.setItem(RADIO_STORAGE_KEYS.ALERTS_ERS, String(enabled));
+    } catch {}
+  }, []);
+
+  const setBrakesAlertsEnabled = useCallback((enabled: boolean) => {
+    setBrakesAlertsEnabledState(enabled);
+    try {
+      localStorage.setItem(RADIO_STORAGE_KEYS.ALERTS_BRAKES, String(enabled));
+    } catch {}
+  }, []);
+
+  const setFuelAlertsEnabled = useCallback((enabled: boolean) => {
+    setFuelAlertsEnabledState(enabled);
+    try {
+      localStorage.setItem(RADIO_STORAGE_KEYS.ALERTS_FUEL, String(enabled));
     } catch {}
   }, []);
 
@@ -528,6 +805,251 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
       localStorage.setItem(RADIO_STORAGE_KEYS.ALERTS_TRACK, String(enabled));
     } catch {}
   }, []);
+
+  const setQualyAlertsEnabled = useCallback((enabled: boolean) => {
+    setQualyAlertsEnabledState(enabled);
+    try {
+      localStorage.setItem(RADIO_STORAGE_KEYS.ALERTS_QUALY, String(enabled));
+    } catch {}
+  }, []);
+
+  const setFlagsPensAlertsEnabled = useCallback((enabled: boolean) => {
+    setFlagsPensAlertsEnabledState(enabled);
+    try {
+      localStorage.setItem(RADIO_STORAGE_KEYS.ALERTS_FLAGS_PENS, String(enabled));
+    } catch {}
+  }, []);
+
+  // Sub-toggle setters
+  const createSubSetter = (key: string, setter: (v: boolean) => void) => (enabled: boolean) => {
+    setter(enabled);
+    try {
+      localStorage.setItem(key, String(enabled));
+    } catch {}
+  };
+
+  const setSubTyreWear = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_TYRE_WEAR, setSubTyreWearState), []);
+  const setSubTyrePuncture = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_TYRE_PUNCTURE, setSubTyrePunctureState), []);
+  const setSubTyreThermal = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_TYRE_THERMAL, setSubTyreThermalState), []);
+  const setSubTyreCold = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_TYRE_COLD, setSubTyreColdState), []);
+  const setSubDamageWing = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_DAMAGE_WING, setSubDamageWingState), []);
+  const setSubDamageFloor = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_DAMAGE_FLOOR, setSubDamageFloorState), []);
+  const setSubDamageEngine = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_DAMAGE_ENGINE, setSubDamageEngineState), []);
+  const setSubDamageFaults = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_DAMAGE_FAULTS, setSubDamageFaultsState), []);
+  const setSubErsLow = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_ERS_LOW, setSubErsLowState), []);
+  const setSubEngineTemp = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_ENGINE_TEMP, setSubEngineTempState), []);
+  const setSubBrakeTemp = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_BRAKE_TEMP, setSubBrakeTempState), []);
+  const setSubBrakeCold = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_BRAKE_COLD, setSubBrakeColdState), []);
+  const setSubFuelDelta = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_FUEL_DELTA, setSubFuelDeltaState), []);
+  const setSubUndercut = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_UNDERCUT, setSubUndercutState), []);
+  const setSubPitWindow = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_PIT_WINDOW, setSubPitWindowState), []);
+  const setSubRivalDefend = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_RIVAL_DEFEND, setSubRivalDefendState), []);
+  const setSubRivalAttack = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_RIVAL_ATTACK, setSubRivalAttackState), []);
+  const setSubQualyTraffic = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_QUALY_TRAFFIC, setSubQualyTrafficState), []);
+  const setSubQualyInvalid = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_QUALY_INVALID, setSubQualyInvalidState), []);
+  const setSubQualyTime = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_QUALY_TIME, setSubQualyTimeState), []);
+  const setSubQualyElim = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_QUALY_ELIM, setSubQualyElimState), []);
+  const setSubSafetyCar = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_SAFETY_CAR, setSubSafetyCarState), []);
+  const setSubRedFlag = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_RED_FLAG, setSubRedFlagState), []);
+  const setSubRain = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_RAIN, setSubRainState), []);
+  const setSubTrackLimits = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_TRACK_LIMITS, setSubTrackLimitsState), []);
+  const setSubPenalties = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_PENALTIES, setSubPenaltiesState), []);
+
+  // Threshold setters
+  const createNumSetter = (key: string, setter: (v: number) => void, min: number, max: number) => (val: number) => {
+    const clamped = Math.max(min, Math.min(max, val));
+    setter(clamped);
+    try {
+      localStorage.setItem(key, String(clamped));
+    } catch {}
+  };
+
+  const setTyreOverheatC = useCallback(createNumSetter(RADIO_STORAGE_KEYS.TYRE_OVERHEAT_C, setTyreOverheatCState, 90, 140), []);
+  const setTyreColdC = useCallback(createNumSetter(RADIO_STORAGE_KEYS.TYRE_COLD_C, setTyreColdCState, 60, 100), []);
+  const setWingDamageWarnPct = useCallback(createNumSetter(RADIO_STORAGE_KEYS.WING_DAMAGE_WARN_PCT, setWingDamageWarnPctState, 5, 50), []);
+  const setFloorDamageWarnPct = useCallback(createNumSetter(RADIO_STORAGE_KEYS.FLOOR_DAMAGE_WARN_PCT, setFloorDamageWarnPctState, 10, 50), []);
+  const setEngineWearWarnPct = useCallback(createNumSetter(RADIO_STORAGE_KEYS.ENGINE_WEAR_WARN_PCT, setEngineWearWarnPctState, 40, 95), []);
+  const setErsLowPct = useCallback(createNumSetter(RADIO_STORAGE_KEYS.ERS_LOW_PCT, setErsLowPctState, 5, 40), []);
+  const setEngineOverheatC = useCallback(createNumSetter(RADIO_STORAGE_KEYS.ENGINE_OVERHEAT_C, setEngineOverheatCState, 100, 150), []);
+  const setBrakeOverheatC = useCallback(createNumSetter(RADIO_STORAGE_KEYS.BRAKE_OVERHEAT_C, setBrakeOverheatCState, 600, 1200), []);
+  const setBrakeColdC = useCallback(createNumSetter(RADIO_STORAGE_KEYS.BRAKE_COLD_C, setBrakeColdCState, 50, 400), []);
+  const setFuelDeltaLaps = useCallback(createNumSetter(RADIO_STORAGE_KEYS.FUEL_DELTA_LAPS, setFuelDeltaLapsState, -3.0, 0.0), []);
+  const setUndercutGapSec = useCallback(createNumSetter(RADIO_STORAGE_KEYS.UNDERCUT_GAP_SEC, setUndercutGapSecState, 1.0, 5.0), []);
+  const setRivalAheadGapSec = useCallback(createNumSetter(RADIO_STORAGE_KEYS.RIVAL_AHEAD_GAP_SEC, setRivalAheadGapSecState, 0.5, 3.0), []);
+  const setQualyCleanAirSec = useCallback(createNumSetter(RADIO_STORAGE_KEYS.QUALY_CLEAN_AIR_SEC, setQualyCleanAirSecState, 1.5, 7.0), []);
+  const setCornerCutWarnThreshold = useCallback(createNumSetter(RADIO_STORAGE_KEYS.CORNER_CUT_WARN_THRESHOLD, setCornerCutWarnThresholdState, 1, 3), []);
+  const setRainProbPct = useCallback(createNumSetter(RADIO_STORAGE_KEYS.RAIN_PROB_PCT, setRainProbPctState, 20, 80), []);
+
+  // Presets applicator
+  const applyTriggerPreset = useCallback((preset: RadioTriggerPreset) => {
+    setTriggerPresetState(preset);
+    try {
+      localStorage.setItem(RADIO_STORAGE_KEYS.TRIGGER_PRESET, preset);
+    } catch {}
+
+    if (preset === RADIO_TRIGGER_PRESETS.IMMERSIVE) {
+      setTyreAlertsEnabled(true);
+      setDamageAlertsEnabled(true);
+      setErsAlertsEnabled(false);
+      setBrakesAlertsEnabled(false);
+      setFuelAlertsEnabled(true);
+      setRivalAlertsEnabled(true);
+      setQualyAlertsEnabled(true);
+      setFlagsPensAlertsEnabled(true);
+      setChatterCooldownSeconds(RADIO_ALERT_CONSTANTS.CHATTER_PRESETS.NORMAL);
+      setSubTyreWear(true);
+      setSubTyrePuncture(true);
+      setSubTyreThermal(false);
+      setSubTyreCold(false);
+      setSubDamageWing(true);
+      setSubDamageFaults(true);
+      setSubUndercut(true);
+      setSubSafetyCar(true);
+      setSubRedFlag(true);
+      setSubRain(true);
+      setSubPenalties(true);
+      setSubQualyInvalid(true);
+    } else if (preset === RADIO_TRIGGER_PRESETS.COACHING) {
+      setTyreAlertsEnabled(true);
+      setDamageAlertsEnabled(true);
+      setErsAlertsEnabled(true);
+      setBrakesAlertsEnabled(true);
+      setFuelAlertsEnabled(true);
+      setRivalAlertsEnabled(true);
+      setQualyAlertsEnabled(true);
+      setFlagsPensAlertsEnabled(true);
+      setChatterCooldownSeconds(RADIO_ALERT_CONSTANTS.CHATTER_PRESETS.TALKATIVE);
+      setSubTyreWear(true);
+      setSubTyrePuncture(true);
+      setSubTyreThermal(true);
+      setSubTyreCold(true);
+      setSubDamageWing(true);
+      setSubDamageFloor(true);
+      setSubDamageEngine(true);
+      setSubDamageFaults(true);
+      setSubErsLow(true);
+      setSubEngineTemp(true);
+      setSubBrakeTemp(true);
+      setSubBrakeCold(true);
+      setSubFuelDelta(true);
+      setSubUndercut(true);
+      setSubPitWindow(true);
+      setSubRivalDefend(true);
+      setSubRivalAttack(true);
+      setSubQualyTraffic(true);
+      setSubQualyInvalid(true);
+      setSubQualyTime(true);
+      setSubQualyElim(true);
+      setSubSafetyCar(true);
+      setSubRedFlag(true);
+      setSubRain(true);
+      setSubTrackLimits(true);
+      setSubPenalties(true);
+    } else if (preset === RADIO_TRIGGER_PRESETS.MINIMAL) {
+      setTyreAlertsEnabled(true);
+      setDamageAlertsEnabled(true);
+      setErsAlertsEnabled(false);
+      setBrakesAlertsEnabled(false);
+      setFuelAlertsEnabled(false);
+      setRivalAlertsEnabled(false);
+      setQualyAlertsEnabled(false);
+      setFlagsPensAlertsEnabled(true);
+      setChatterCooldownSeconds(RADIO_ALERT_CONSTANTS.CHATTER_PRESETS.MINIMAL);
+      setSubTyreWear(false);
+      setSubTyrePuncture(true);
+      setSubTyreThermal(false);
+      setSubTyreCold(false);
+      setSubDamageWing(true);
+      setSubDamageFloor(false);
+      setSubDamageEngine(false);
+      setSubDamageFaults(true);
+      setSubSafetyCar(true);
+      setSubRedFlag(true);
+      setSubRain(false);
+      setSubPenalties(true);
+    }
+  }, [
+    setTyreAlertsEnabled,
+    setDamageAlertsEnabled,
+    setErsAlertsEnabled,
+    setBrakesAlertsEnabled,
+    setFuelAlertsEnabled,
+    setRivalAlertsEnabled,
+    setQualyAlertsEnabled,
+    setFlagsPensAlertsEnabled,
+    setChatterCooldownSeconds,
+    setSubTyreWear,
+    setSubTyrePuncture,
+    setSubTyreThermal,
+    setSubTyreCold,
+    setSubDamageWing,
+    setSubDamageFloor,
+    setSubDamageEngine,
+    setSubDamageFaults,
+    setSubErsLow,
+    setSubEngineTemp,
+    setSubBrakeTemp,
+    setSubBrakeCold,
+    setSubFuelDelta,
+    setSubUndercut,
+    setSubPitWindow,
+    setSubRivalDefend,
+    setSubRivalAttack,
+    setSubQualyTraffic,
+    setSubQualyInvalid,
+    setSubQualyTime,
+    setSubQualyElim,
+    setSubSafetyCar,
+    setSubRedFlag,
+    setSubRain,
+    setSubTrackLimits,
+    setSubPenalties,
+  ]);
+
+  // Reset to factory defaults
+  const resetTriggerDefaults = useCallback(() => {
+    applyTriggerPreset(RADIO_TRIGGER_PRESETS.IMMERSIVE);
+    setTyreWearWarningPct(RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_WARN_PCT);
+    setTyreWearCriticalPct(RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_CRIT_PCT);
+    setTyreOverheatC(RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_OVERHEAT_C);
+    setTyreColdC(RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_COLD_C);
+    setWingDamageWarnPct(RADIO_ALERT_CONSTANTS.DEFAULT_WING_DAMAGE_WARN_PCT);
+    setFloorDamageWarnPct(RADIO_ALERT_CONSTANTS.DEFAULT_FLOOR_DAMAGE_WARN_PCT);
+    setEngineWearWarnPct(RADIO_ALERT_CONSTANTS.DEFAULT_ENGINE_WEAR_WARN_PCT);
+    setErsLowPct(RADIO_ALERT_CONSTANTS.DEFAULT_ERS_LOW_PCT);
+    setEngineOverheatC(RADIO_ALERT_CONSTANTS.DEFAULT_ENGINE_OVERHEAT_C);
+    setBrakeOverheatC(RADIO_ALERT_CONSTANTS.DEFAULT_BRAKE_OVERHEAT_C);
+    setBrakeColdC(RADIO_ALERT_CONSTANTS.DEFAULT_BRAKE_COLD_C);
+    setFuelDeltaLaps(RADIO_ALERT_CONSTANTS.DEFAULT_FUEL_DELTA_LAPS);
+    setUndercutGapSec(RADIO_ALERT_CONSTANTS.DEFAULT_UNDERCUT_GAP_SEC);
+    setRivalGapThresholdSec(RADIO_ALERT_CONSTANTS.DEFAULT_RIVAL_GAP_SEC);
+    setRivalAheadGapSec(RADIO_ALERT_CONSTANTS.DEFAULT_RIVAL_AHEAD_GAP_SEC);
+    setQualyCleanAirSec(RADIO_ALERT_CONSTANTS.DEFAULT_QUALY_CLEAN_AIR_SEC);
+    setCornerCutWarnThreshold(RADIO_ALERT_CONSTANTS.DEFAULT_CORNER_CUT_WARN_THRESHOLD);
+    setRainHorizonMin(RADIO_ALERT_CONSTANTS.DEFAULT_RAIN_HORIZON_MIN);
+    setRainProbPct(RADIO_ALERT_CONSTANTS.DEFAULT_RAIN_PROB_PCT);
+  }, [
+    applyTriggerPreset,
+    setTyreWearWarningPct,
+    setTyreWearCriticalPct,
+    setTyreOverheatC,
+    setTyreColdC,
+    setWingDamageWarnPct,
+    setFloorDamageWarnPct,
+    setEngineWearWarnPct,
+    setErsLowPct,
+    setEngineOverheatC,
+    setBrakeOverheatC,
+    setBrakeColdC,
+    setFuelDeltaLaps,
+    setUndercutGapSec,
+    setRivalGapThresholdSec,
+    setRivalAheadGapSec,
+    setQualyCleanAirSec,
+    setCornerCutWarnThreshold,
+    setRainHorizonMin,
+    setRainProbPct,
+  ]);
 
   // Compute effective radio language based on setting and current UI locale
   const effectiveLanguage: 'es' | 'en' =
@@ -559,7 +1081,6 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
     setRadioState('idle');
   }, []);
 
-  // Play spoken response through radio audio pipeline
   const speakMessage = useCallback(
     async (text: string, forceInterrupt = false) => {
       if (!isRadioEnabled || !text.trim()) return;
@@ -570,7 +1091,9 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
 
       setRadioState('speaking');
       setLastResponse(text);
-      onResponseReceived?.(text);
+      if (onResponseReceived) {
+        onResponseReceived(text);
+      }
 
       const rateStr = speechRate >= 0 ? `+${speechRate}%` : `${speechRate}%`;
       const pitchStr = speechPitch >= 0 ? `+${speechPitch}Hz` : `${speechPitch}Hz`;
@@ -593,226 +1116,86 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
         },
       });
     },
-    [isRadioEnabled, beepsEnabled, filterEnabled, staticFxEnabled, volume, speechRate, speechPitch, neuralVoice, persona, effectiveLanguage, onResponseReceived, stopRadio]
+    [
+      isRadioEnabled,
+      stopRadio,
+      onResponseReceived,
+      speechRate,
+      speechPitch,
+      volume,
+      neuralVoice,
+      persona,
+      effectiveLanguage,
+      beepsEnabled,
+      filterEnabled,
+      staticFxEnabled,
+    ]
   );
 
-  // Send driver transcript to LLM backend
-  const processTranscript = useCallback(
-    async (transcript: string) => {
-      if (!transcript.trim()) {
-        setRadioState('idle');
-        return;
+  // Audio test for specific trigger types
+  const testTriggerAlert = useCallback(
+    async (triggerType: string) => {
+      const isEs = effectiveLanguage === 'es';
+      let sampleText = '';
+      switch (triggerType) {
+        case 'tyres':
+        case 'tyre_wear':
+          sampleText = isEs
+            ? '[PROACTIVE PIT WALL CALL: Desgaste en la delantera izquierda llegó al 45%. Cuidá la tracción en salida de curvas lentas.]'
+            : '[PROACTIVE PIT WALL CALL: Tyre wear reached 45% on front left. Manage traction out of slow turns.]';
+          break;
+        case 'damage':
+        case 'damage_wing':
+          sampleText = isEs
+            ? '[PROACTIVE PIT WALL CALL: Daño en el alerón delantero detectado. Vas a sentir subviraje en curva media y rápida.]'
+            : '[PROACTIVE PIT WALL CALL: Front wing flap damage detected. Expect understeer in medium and high speed corners.]';
+          break;
+        case 'ers':
+        case 'ers_low':
+          sampleText = isEs
+            ? '[PROACTIVE PIT WALL CALL: Reserva de batería baja al 12%. Cambiá a modo None en rectas para recargar.]'
+            : '[PROACTIVE PIT WALL CALL: ERS battery reserve is low at 12%. Switch to None mode on straights to harvest.]';
+          break;
+        case 'brakes':
+        case 'brakes_overheat':
+          sampleText = isEs
+            ? '[PROACTIVE PIT WALL CALL: Los discos de freno están a 950°C en la curva 1. Pasá el balance hacia adelante y levantá antes.]'
+            : '[PROACTIVE PIT WALL CALL: Brake temps critically high at 950°C. Move brake bias forward and lift earlier.]';
+          break;
+        case 'fuel':
+        case 'fuel_delta':
+          sampleText = isEs
+            ? '[PROACTIVE PIT WALL CALL: Estamos a menos 0.8 vueltas del target de combustible. Hacé Lift and Coast en frenadas fuertes.]'
+            : '[PROACTIVE PIT WALL CALL: Fuel target deficit is -0.8 laps below target. Introduce Lift and Coast into heavy braking.]';
+          break;
+        case 'rivals':
+        case 'rival_defend':
+          sampleText = isEs
+            ? '[PROACTIVE PIT WALL CALL: Rival detrás a menos de 0.8 segundos con DRS. Cubrí la cuerda interna en la frenada.]'
+            : '[PROACTIVE PIT WALL CALL: Car behind is within 0.8 seconds in DRS zone. Defend the inside line into Turn 1.]';
+          break;
+        case 'qualy':
+        case 'qualy_traffic':
+          sampleText = isEs
+            ? '[PROACTIVE PIT WALL CALL: Tráfico en el Sector 3 antes de abrir vuelta. Frená el ritmo para armar 4 segundos de aire limpio.]'
+            : '[PROACTIVE PIT WALL CALL: Traffic ahead in Sector 3 before hot lap. Slow down to build 4 seconds of clean air.]';
+          break;
+        case 'flags':
+        case 'flags_sc':
+          sampleText = isEs
+            ? '[PROACTIVE PIT WALL CALL: ¡Safety Car en pista! Mantené el delta positivo y estate atento a la orden de boxes.]'
+            : '[PROACTIVE PIT WALL CALL: Safety Car deployed! Maintain delta positive and stand by for pit call.]';
+          break;
+        default:
+          sampleText = isEs
+            ? '[PROACTIVE PIT WALL CALL: Canal de radio verificado. Telemetría y enlace del muro de boxes operando al 100%.]'
+            : '[PROACTIVE PIT WALL CALL: Radio check confirmed. Pit wall telemetry link active and operational.]';
       }
 
-      setRadioState('processing');
-      setError(null);
-
-      // Load AI config from localStorage if available
-      let aiProvider = 'gemini';
-      let aiApiKey = '';
-      let aiModel = 'gemini-flash-lite-latest';
-      let aiBaseUrl = '';
-
-      try {
-        const savedConfig = localStorage.getItem('f1_ai_engineer_config');
-        if (savedConfig) {
-          const parsed = JSON.parse(savedConfig);
-          if (parsed.provider) aiProvider = parsed.provider;
-          if (parsed.providerKeys?.[aiProvider]) {
-            aiApiKey = parsed.providerKeys[aiProvider];
-          } else if (parsed.apiKey) {
-            aiApiKey = parsed.apiKey;
-          }
-          if (parsed.providerModels?.[aiProvider]) {
-            aiModel = parsed.providerModels[aiProvider];
-          } else if (parsed.model) {
-            aiModel = parsed.model;
-          }
-          if (parsed.baseUrl) aiBaseUrl = parsed.baseUrl;
-        }
-      } catch {}
-
-      // Build live telemetry context snapshot
-      const liveSummary = getLiveTelemetrySummary ? getLiveTelemetrySummary() : '';
-      const ctxPayload = {
-        context_mode: 'live',
-        live_summary: liveSummary,
-        custom_persona_prompt: persona === RADIO_PERSONAS.CUSTOM ? customPrompt : undefined,
-        driver_callsign: driverCallsign || undefined,
-        ...(telemetryContext || {}),
-      };
-
-      const abortController = new AbortController();
-      activeAbortControllerRef.current = abortController;
-
-      try {
-        const response = await fetch('/api/ai/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            persona,
-            language: effectiveLanguage,
-            provider: aiProvider,
-            api_key: aiApiKey,
-            model: aiModel,
-            base_url: aiBaseUrl,
-            messages: [{ role: 'user', content: transcript }],
-            context: ctxPayload,
-          }),
-          signal: abortController.signal,
-        });
-
-        if (!response.ok) {
-          let errDetail = `AI Service returned ${response.status}`;
-          try {
-            const errJson = await response.json();
-            if (errJson.error) errDetail = errJson.error;
-          } catch {}
-
-          // If missing API key, provide helpful radio response
-          if (response.status === 401 || errDetail.toLowerCase().includes('api key')) {
-            const keyMsg = effectiveLanguage === 'es'
-              ? 'Atento, necesitas configurar tu API Key en los ajustes del Ingeniero IA para recibir telemetría por radio.'
-              : 'Copy that. Please configure your API Key in AI Engineer settings to enable radio debriefs.';
-            setError('API Key not configured in AI Engineer settings');
-            await speakMessage(keyMsg);
-            return;
-          }
-
-          throw new Error(errDetail);
-        }
-
-        let fullText = '';
-        if (response.body) {
-          const reader = response.body.getReader();
-          const decoder = new TextDecoder();
-          let done = false;
-
-          while (!done) {
-            const { value, done: readerDone } = await reader.read();
-            done = readerDone;
-            if (value) {
-              const chunk = decoder.decode(value, { stream: true });
-              const lines = chunk.split('\n');
-              for (const line of lines) {
-                if (line.startsWith('data: ') && line !== 'data: [DONE]') {
-                  try {
-                    const parsed = JSON.parse(line.substring(6));
-                    if (parsed.text) fullText += parsed.text;
-                    else if (parsed.content) fullText += parsed.content;
-                    else if (parsed.error) {
-                      throw new Error(parsed.error);
-                    }
-                  } catch (e: any) {
-                    if (e.message && !e.message.includes('JSON')) {
-                      throw e;
-                    }
-                  }
-                }
-              }
-            }
-          }
-        } else {
-          const json = await response.json();
-          fullText = json.content || json.text || '';
-        }
-
-        const cleanedResponse = fullText.trim();
-        if (cleanedResponse) {
-          await speakMessage(cleanedResponse);
-        } else {
-          setRadioState('idle');
-        }
-      } catch (err: any) {
-        if (err.name !== 'AbortError') {
-          console.warn('[Live Radio] AI Error:', err);
-          setError(err.message || 'Error processing radio message');
-          setRadioState('idle');
-        }
-      } finally {
-        activeAbortControllerRef.current = null;
-      }
+      await speakMessage(sampleText, true);
     },
-    [persona, effectiveLanguage, customPrompt, driverCallsign, telemetryContext, getLiveTelemetrySummary, speakMessage]
+    [effectiveLanguage, speakMessage]
   );
-
-  // Push-to-Talk handlers
-  const handlePTTDown = useCallback(async () => {
-    if (!isRadioEnabled) return;
-
-    stopRadio();
-    setRadioState('transmitting');
-    currentTranscriptRef.current = '';
-
-    if (beepsEnabled) {
-      playRadioBeep('start', volume);
-    }
-
-    if (isSpeechRecognitionSupported()) {
-      const SpeechRecClass = getSpeechRecognitionClass();
-      if (SpeechRecClass) {
-        const recognition = new SpeechRecClass();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = getRecognitionLang();
-
-        recognition.onresult = (event: any) => {
-          let fullTranscript = '';
-          for (let i = 0; i < event.results.length; ++i) {
-            fullTranscript += event.results[i][0]?.transcript || '';
-          }
-          currentTranscriptRef.current = fullTranscript;
-          if (fullTranscript) {
-            setLastTranscript(fullTranscript);
-          }
-        };
-
-        recognition.onerror = (e: any) => {
-          console.warn('[Live Radio] SpeechRecognition error:', e);
-        };
-
-        try {
-          recognition.start();
-          recognitionRef.current = recognition;
-        } catch {
-          // Ignore start error if already active
-        }
-      }
-    }
-  }, [isRadioEnabled, beepsEnabled, volume, getRecognitionLang, stopRadio]);
-
-  const handlePTTUp = useCallback(async () => {
-    if (!isRadioEnabled) return;
-
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch {}
-      recognitionRef.current = null;
-    }
-
-    if (beepsEnabled) {
-      playRadioBeep('end', volume);
-    }
-
-    // Give a short 200ms grace period for recognition engine to flush final results
-    setTimeout(() => {
-      const finalTranscript = currentTranscriptRef.current.trim();
-      setLastTranscript(finalTranscript || null);
-      if (finalTranscript) {
-        onTranscriptReceived?.(finalTranscript);
-        processTranscript(finalTranscript);
-      } else {
-        setRadioState('idle');
-      }
-    }, 200);
-  }, [isRadioEnabled, beepsEnabled, volume, onTranscriptReceived, processTranscript]);
-
-  const gamepadPTT = useGamepadPTT({
-    onPTTDown: handlePTTDown,
-    onPTTUp: handlePTTUp,
-    enabled: isRadioEnabled,
-  });
 
   const testRadioTransmission = useCallback(async () => {
     let sampleMessage = '';
@@ -835,6 +1218,168 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
     }
     await speakMessage(sampleMessage, true);
   }, [effectiveLanguage, persona, speakMessage]);
+
+  // Handle Gamepad PTT
+  const onPTTPress = useCallback(() => {
+    if (!isRadioEnabled || radioState === 'transmitting') return;
+    stopRadioSpeech();
+    currentTranscriptRef.current = '';
+    setError(null);
+    setRadioState('transmitting');
+
+    if (beepsEnabled) {
+      playRadioBeep('start');
+    }
+
+    const SpeechRec = getSpeechRecognitionClass();
+    if (!SpeechRec) {
+      setError('Speech recognition not supported in browser');
+      setRadioState('idle');
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRec();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = getRecognitionLang();
+
+      recognition.onresult = (event: any) => {
+        let transcript = '';
+        for (let i = 0; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+        }
+        currentTranscriptRef.current = transcript;
+        setLastTranscript(transcript);
+        if (onTranscriptReceived) {
+          onTranscriptReceived(transcript);
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        if (event.error !== 'no-speech') {
+          setError(`Speech recognition error: ${event.error}`);
+        }
+      };
+
+      recognition.onend = () => {
+        recognitionRef.current = null;
+      };
+
+      recognition.start();
+      recognitionRef.current = recognition;
+    } catch (err: any) {
+      setError(err?.message || 'Failed to start speech recognition');
+      setRadioState('idle');
+    }
+  }, [isRadioEnabled, radioState, beepsEnabled, getRecognitionLang, onTranscriptReceived]);
+
+  const onPTTRelease = useCallback(async () => {
+    if (radioState !== 'transmitting') return;
+
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {}
+      recognitionRef.current = null;
+    }
+
+    if (beepsEnabled) {
+      await playRadioBeep('end');
+    }
+
+    const finalTranscript = currentTranscriptRef.current.trim();
+    if (!finalTranscript) {
+      setRadioState('idle');
+      return;
+    }
+
+    setRadioState('processing');
+
+    try {
+      const abortController = new AbortController();
+      activeAbortControllerRef.current = abortController;
+
+      const liveContext = getLiveTelemetrySummary ? getLiveTelemetrySummary() : '';
+      const prompt = `[DRIVER RADIO TRANSMISSION]: "${finalTranscript}"\n\n${liveContext}`;
+
+      const response = await fetch('/api/ai/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt,
+          mode: 'live',
+          telemetry: telemetryContext,
+          persona,
+          customPrompt: persona === RADIO_PERSONAS.CUSTOM ? customPrompt : undefined,
+          driverCallsign: driverCallsign || undefined,
+          language: effectiveLanguage,
+        }),
+        signal: abortController.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error(`AI Service returned status ${response.status}`);
+      }
+
+      // Read SSE stream
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let fullReply = '';
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              if (data === '[DONE]') continue;
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.content) {
+                  fullReply += parsed.content;
+                }
+              } catch {
+                fullReply += data;
+              }
+            }
+          }
+        }
+      }
+
+      if (fullReply.trim()) {
+        await speakMessage(fullReply.trim());
+      } else {
+        setRadioState('idle');
+      }
+    } catch (err: any) {
+      if (err.name !== 'AbortError') {
+        setError(err?.message || 'Error processing radio response');
+      }
+      setRadioState('idle');
+    } finally {
+      activeAbortControllerRef.current = null;
+    }
+  }, [
+    radioState,
+    beepsEnabled,
+    getLiveTelemetrySummary,
+    telemetryContext,
+    persona,
+    customPrompt,
+    driverCallsign,
+    effectiveLanguage,
+    speakMessage,
+  ]);
+
+  const gamepadPTT = useGamepadPTT({
+    enabled: isRadioEnabled,
+    onPTTDown: onPTTPress,
+    onPTTUp: onPTTRelease,
+  });
 
   return {
     radioState,
@@ -867,24 +1412,124 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
     setSmartDiscretionEnabled,
     chatterCooldownSeconds,
     setChatterCooldownSeconds,
-    tyreWearWarningPct,
-    setTyreWearWarningPct,
-    tyreWearCriticalPct,
-    setTyreWearCriticalPct,
-    rivalGapThresholdSec,
-    setRivalGapThresholdSec,
-    rainHorizonMin,
-    setRainHorizonMin,
+    triggerPreset,
+    applyTriggerPreset,
+    resetTriggerDefaults,
+    // Subsystems
     tyreAlertsEnabled,
     setTyreAlertsEnabled,
     thermalAlertsEnabled,
     setThermalAlertsEnabled,
+    damageAlertsEnabled,
+    setDamageAlertsEnabled,
+    ersAlertsEnabled,
+    setErsAlertsEnabled,
+    brakesAlertsEnabled,
+    setBrakesAlertsEnabled,
+    fuelAlertsEnabled,
+    setFuelAlertsEnabled,
     rivalAlertsEnabled,
     setRivalAlertsEnabled,
     pitWindowAlertsEnabled,
     setPitWindowAlertsEnabled,
     trackAlertsEnabled,
     setTrackAlertsEnabled,
+    qualyAlertsEnabled,
+    setQualyAlertsEnabled,
+    flagsPensAlertsEnabled,
+    setFlagsPensAlertsEnabled,
+    // Sub-toggles
+    subTyreWear,
+    setSubTyreWear,
+    subTyrePuncture,
+    setSubTyrePuncture,
+    subTyreThermal,
+    setSubTyreThermal,
+    subTyreCold,
+    setSubTyreCold,
+    subDamageWing,
+    setSubDamageWing,
+    subDamageFloor,
+    setSubDamageFloor,
+    subDamageEngine,
+    setSubDamageEngine,
+    subDamageFaults,
+    setSubDamageFaults,
+    subErsLow,
+    setSubErsLow,
+    subEngineTemp,
+    setSubEngineTemp,
+    subBrakeTemp,
+    setSubBrakeTemp,
+    subBrakeCold,
+    setSubBrakeCold,
+    subFuelDelta,
+    setSubFuelDelta,
+    subUndercut,
+    setSubUndercut,
+    subPitWindow,
+    setSubPitWindow,
+    subRivalDefend,
+    setSubRivalDefend,
+    subRivalAttack,
+    setSubRivalAttack,
+    subQualyTraffic,
+    setSubQualyTraffic,
+    subQualyInvalid,
+    setSubQualyInvalid,
+    subQualyTime,
+    setSubQualyTime,
+    subQualyElim,
+    setSubQualyElim,
+    subSafetyCar,
+    setSubSafetyCar,
+    subRedFlag,
+    setSubRedFlag,
+    subRain,
+    setSubRain,
+    subTrackLimits,
+    setSubTrackLimits,
+    subPenalties,
+    setSubPenalties,
+    // Granular thresholds
+    tyreWearWarningPct,
+    setTyreWearWarningPct,
+    tyreWearCriticalPct,
+    setTyreWearCriticalPct,
+    tyreOverheatC,
+    setTyreOverheatC,
+    tyreColdC,
+    setTyreColdC,
+    wingDamageWarnPct,
+    setWingDamageWarnPct,
+    floorDamageWarnPct,
+    setFloorDamageWarnPct,
+    engineWearWarnPct,
+    setEngineWearWarnPct,
+    ersLowPct,
+    setErsLowPct,
+    engineOverheatC,
+    setEngineOverheatC,
+    brakeOverheatC,
+    setBrakeOverheatC,
+    brakeColdC,
+    setBrakeColdC,
+    fuelDeltaLaps,
+    setFuelDeltaLaps,
+    undercutGapSec,
+    setUndercutGapSec,
+    rivalGapThresholdSec,
+    setRivalGapThresholdSec,
+    rivalAheadGapSec,
+    setRivalAheadGapSec,
+    qualyCleanAirSec,
+    setQualyCleanAirSec,
+    cornerCutWarnThreshold,
+    setCornerCutWarnThreshold,
+    rainHorizonMin,
+    setRainHorizonMin,
+    rainProbPct,
+    setRainProbPct,
     lastTranscript,
     lastResponse,
     error,
@@ -901,6 +1546,7 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
     gamepadName: gamepadPTT.gamepadName,
     // Actions
     testRadioTransmission,
+    testTriggerAlert,
     stopRadio,
     speakMessage,
   };

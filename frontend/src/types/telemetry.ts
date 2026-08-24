@@ -131,6 +131,8 @@ export interface ParticipantData {
 export interface CarStatusData {
   FuelInTank: number;
   FuelCapacity?: number;
+  FuelRemainingLaps?: number;
+  EngineCoolantTemperature?: number;
   VisualTyreCompound: number;
   ActualTyreCompound?: number;
   TyresAgeLaps?: number;

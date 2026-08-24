@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useRadioController } from './useRadioController';
-import { RADIO_PERSONAS, RADIO_STORAGE_KEYS } from '../constants/f1';
+import { RADIO_PERSONAS, RADIO_STORAGE_KEYS, RADIO_ALERT_CONSTANTS, RADIO_TRIGGER_PRESETS } from '../constants/f1';
 import * as radioAudio from '../utils/radioAudio';
 
 describe('useRadioController hook', () => {
@@ -181,5 +181,63 @@ describe('useRadioController hook', () => {
     expect(result.current.rainHorizonMin).toBe(8);
     expect(result.current.thermalAlertsEnabled).toBe(true);
     expect(result.current.pitWindowAlertsEnabled).toBe(true);
+  });
+
+  it('applies quick style presets and configures all subsystems accordingly', () => {
+    const { result } = renderHook(() => useRadioController());
+
+    // Apply Coaching preset (all active, chatter 20s)
+    act(() => {
+      result.current.applyTriggerPreset(RADIO_TRIGGER_PRESETS.COACHING);
+    });
+
+    expect(result.current.triggerPreset).toBe(RADIO_TRIGGER_PRESETS.COACHING);
+    expect(result.current.damageAlertsEnabled).toBe(true);
+    expect(result.current.ersAlertsEnabled).toBe(true);
+    expect(result.current.brakesAlertsEnabled).toBe(true);
+    expect(result.current.fuelAlertsEnabled).toBe(true);
+    expect(result.current.chatterCooldownSeconds).toBe(20);
+    expect(result.current.subDamageFloor).toBe(true);
+    expect(result.current.subErsLow).toBe(true);
+
+    // Apply Minimal preset (critical alerts only, chatter 90s)
+    act(() => {
+      result.current.applyTriggerPreset(RADIO_TRIGGER_PRESETS.MINIMAL);
+    });
+
+    expect(result.current.triggerPreset).toBe(RADIO_TRIGGER_PRESETS.MINIMAL);
+    expect(result.current.ersAlertsEnabled).toBe(false);
+    expect(result.current.brakesAlertsEnabled).toBe(false);
+    expect(result.current.chatterCooldownSeconds).toBe(90);
+    expect(result.current.subDamageFloor).toBe(false);
+    expect(result.current.subDamageWing).toBe(true); // Retains critical damage
+  });
+
+  it('resets trigger defaults back to factory settings', () => {
+    const { result } = renderHook(() => useRadioController());
+
+    act(() => {
+      result.current.setWingDamageWarnPct(40);
+      result.current.setTyreOverheatC(130);
+      result.current.resetTriggerDefaults();
+    });
+
+    expect(result.current.triggerPreset).toBe(RADIO_TRIGGER_PRESETS.IMMERSIVE);
+    expect(result.current.wingDamageWarnPct).toBe(RADIO_ALERT_CONSTANTS.DEFAULT_WING_DAMAGE_WARN_PCT);
+    expect(result.current.tyreOverheatC).toBe(RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_OVERHEAT_C);
+  });
+
+  it('triggers audio tests for specific subsystems', async () => {
+    const { result } = renderHook(() => useRadioController());
+
+    act(() => {
+      result.current.setRadioLanguage('es');
+    });
+
+    await act(async () => {
+      await result.current.testTriggerAlert('damage');
+    });
+
+    expect(result.current.lastResponse).toContain('alerón delantero');
   });
 });

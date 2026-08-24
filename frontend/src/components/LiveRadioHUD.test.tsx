@@ -71,7 +71,7 @@ const mockRadio: UseRadioControllerReturn = {
   testRadioTransmission: vi.fn().mockResolvedValue(undefined),
   stopRadio: vi.fn(),
   speakMessage: vi.fn().mockResolvedValue(undefined),
-};
+} as unknown as UseRadioControllerReturn;
 
 const renderWithI18n = (ui: React.ReactElement) => {
   return render(<I18nProvider>{ui}</I18nProvider>);

@@ -18,6 +18,14 @@ import {
   Flame,
   Activity,
   Gauge,
+  Zap,
+  Fuel,
+  Timer,
+  Flag,
+  RotateCcw,
+  ChevronDown,
+  ChevronUp,
+  Volume1,
 } from 'lucide-react';
 import { useI18n } from '../context/I18nContext';
 import {
@@ -25,7 +33,7 @@ import {
   RADIO_LANGUAGES,
   RADIO_SPANISH_VOICES,
   RADIO_ENGLISH_VOICES,
-  RADIO_ALERT_CONSTANTS,
+  RADIO_TRIGGER_PRESETS,
   type RadioLanguage,
 } from '../constants/f1';
 import type { UseRadioControllerReturn } from '../hooks/useRadioController';
@@ -45,6 +53,23 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
 }) => {
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<SettingsTab>('persona');
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
+    tyres: true,
+    damage: false,
+    ers: false,
+    brakes: false,
+    fuel: false,
+    rivals: false,
+    qualy: false,
+    flags: false,
+  });
+
+  const toggleCategory = (cat: string) => {
+    setExpandedCategories((prev) => ({
+      ...prev,
+      [cat]: !prev[cat],
+    }));
+  };
 
   if (!isOpen) return null;
 
@@ -249,115 +274,62 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
               {t('ai_engineer.radioLanguage.title')} & {t('ai_engineer.neuralVoice.title')}
             </label>
 
-            <div className="radio-ptt-grid">
-              {/* Radio Language Selector */}
-              <div className="radio-ptt-box">
-                <div className="radio-ptt-box-header">
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Languages className="w-4 h-4" style={{ color: '#00f2fe' }} />
-                    {t('ai_engineer.radioLanguage.title')}
-                  </span>
-                  <span className="live-radio-key-badge">
-                    {radio.effectiveLanguage === 'es' ? '🇦🇷 ES' : '🇬🇧 EN'}
-                  </span>
-                </div>
-
+            <div className="radio-voice-grid">
+              {/* Radio Language */}
+              <div className="radio-select-box">
+                <label className="radio-select-label">
+                  {t('ai_engineer.radioLanguage.title')}
+                </label>
                 <select
                   value={radio.radioLanguage}
                   onChange={(e) => radio.setRadioLanguage(e.target.value as RadioLanguage)}
-                  className="radio-select-key"
+                  className="radio-select-input"
                 >
-                  <option value={RADIO_LANGUAGES.AUTO}>{t('ai_engineer.radioLanguage.auto')}</option>
-                  <option value={RADIO_LANGUAGES.ES}>{t('ai_engineer.radioLanguage.es')}</option>
-                  <option value={RADIO_LANGUAGES.EN}>{t('ai_engineer.radioLanguage.en')}</option>
+                  <option value={RADIO_LANGUAGES.AUTO}>
+                    {t('ai_engineer.radioLanguage.auto')}
+                  </option>
+                  <option value={RADIO_LANGUAGES.ES}>
+                    {t('ai_engineer.radioLanguage.es')}
+                  </option>
+                  <option value={RADIO_LANGUAGES.EN}>
+                    {t('ai_engineer.radioLanguage.en')}
+                  </option>
                 </select>
               </div>
 
-              {/* Neural Voice Selector */}
-              <div className="radio-ptt-box">
-                <div className="radio-ptt-box-header">
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Volume2 className="w-4 h-4" style={{ color: '#00f2fe' }} />
-                    {t('ai_engineer.neuralVoice.title')}
-                  </span>
-                </div>
-
+              {/* Neural Voice */}
+              <div className="radio-select-box">
+                <label className="radio-select-label">
+                  {t('ai_engineer.neuralVoice.title')}
+                </label>
                 <select
                   value={radio.neuralVoice}
                   onChange={(e) => radio.setNeuralVoice(e.target.value)}
-                  className="radio-select-key"
+                  className="radio-select-input"
                 >
-                  <option value="">
-                    {t('ai_engineer.neuralVoice.auto')} ({radio.effectiveLanguage === 'es' ? '🇦🇷 Tomás' : '🇬🇧 Ryan'})
-                  </option>
+                  <option value="">{t('ai_engineer.neuralVoice.auto')}</option>
                   {radio.effectiveLanguage === 'es'
-                    ? RADIO_SPANISH_VOICES.map((v) => (
-                        <option key={v.id} value={v.id}>
-                          {t(`ai_engineer.neuralVoice.${v.translationKey}`)}
+                    ? RADIO_SPANISH_VOICES.map((voice) => (
+                        <option key={voice.id} value={voice.id}>
+                          {t(`ai_engineer.neuralVoice.${voice.translationKey}`)}
                         </option>
                       ))
-                    : RADIO_ENGLISH_VOICES.map((v) => (
-                        <option key={v.id} value={v.id}>
-                          {t(`ai_engineer.neuralVoice.${v.translationKey}`)}
+                    : RADIO_ENGLISH_VOICES.map((voice) => (
+                        <option key={voice.id} value={voice.id}>
+                          {t(`ai_engineer.neuralVoice.${voice.translationKey}`)}
                         </option>
                       ))}
                 </select>
               </div>
             </div>
 
-            {/* Speech Rate & Pitch Sliders */}
-            <div className="radio-ptt-grid" style={{ marginTop: '6px' }}>
-              {/* Speech Rate */}
-              <div className="radio-ptt-box">
-                <div className="radio-ptt-box-header">
-                  <span>{t('ai_engineer.audio.speechRate')}</span>
-                  <span className="radio-badge-val">
-                    {radio.speechRate > 0 ? `+${radio.speechRate}%` : `${radio.speechRate}%`}
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={-20}
-                  max={30}
-                  step={5}
-                  value={radio.speechRate}
-                  onChange={(e) => radio.setSpeechRate(parseInt(e.target.value, 10))}
-                  className="radio-slider-input"
-                />
-              </div>
+            {/* Audio Effects Toggles */}
+            <label className="radio-section-label" style={{ marginTop: '12px' }}>
+              <Sliders className="w-3.5 h-3.5" />
+              {t('ai_engineer.audio.title')}
+            </label>
 
-              {/* Vocal Pitch */}
-              <div className="radio-ptt-box">
-                <div className="radio-ptt-box-header">
-                  <span>{t('ai_engineer.audio.speechPitch')}</span>
-                  <span className="radio-badge-val">
-                    {radio.speechPitch > 0 ? `+${radio.speechPitch}Hz` : `${radio.speechPitch}Hz`}
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={-20}
-                  max={20}
-                  step={2}
-                  value={radio.speechPitch}
-                  onChange={(e) => radio.setSpeechPitch(parseInt(e.target.value, 10))}
-                  className="radio-slider-input"
-                />
-              </div>
-            </div>
-
-            {/* Radio Sound Effects */}
-            <div className="radio-ptt-grid" style={{ marginTop: '6px' }}>
-              <label className="radio-toggle-row">
-                <span>{t('ai_engineer.audio.staticNoise')}</span>
-                <input
-                  type="checkbox"
-                  checked={radio.staticFxEnabled}
-                  onChange={(e) => radio.setStaticFxEnabled(e.target.checked)}
-                  className="radio-checkbox"
-                />
-              </label>
-
+            <div className="radio-effects-grid">
               <label className="radio-toggle-row">
                 <span>{t('ai_engineer.audio.beeps')}</span>
                 <input
@@ -367,17 +339,27 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
                   className="radio-checkbox"
                 />
               </label>
-            </div>
 
-            <label className="radio-toggle-row" style={{ marginTop: '6px' }}>
-              <span>{t('ai_engineer.audio.cockpitFilter')}</span>
-              <input
-                type="checkbox"
-                checked={radio.filterEnabled}
-                onChange={(e) => radio.setFilterEnabled(e.target.checked)}
-                className="radio-checkbox"
-              />
-            </label>
+              <label className="radio-toggle-row">
+                <span>{t('ai_engineer.audio.cockpitFilter')}</span>
+                <input
+                  type="checkbox"
+                  checked={radio.filterEnabled}
+                  onChange={(e) => radio.setFilterEnabled(e.target.checked)}
+                  className="radio-checkbox"
+                />
+              </label>
+
+              <label className="radio-toggle-row">
+                <span>{t('ai_engineer.audio.staticNoise')}</span>
+                <input
+                  type="checkbox"
+                  checked={radio.staticFxEnabled}
+                  onChange={(e) => radio.setStaticFxEnabled(e.target.checked)}
+                  className="radio-checkbox"
+                />
+              </label>
+            </div>
 
             {/* Volume Slider */}
             <div className="radio-slider-box" style={{ marginTop: '6px' }}>
@@ -487,10 +469,60 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
           </div>
         )}
 
-        {/* TAB 3: Proactive Triggers & Discretion */}
+        {/* TAB 3: Discretion & Presets */}
         {activeTab === 'triggers' && (
           <div className="radio-section">
-            <label className="radio-section-label">
+            {/* Quick Style Presets Banner */}
+            <div className="radio-preset-banner">
+              <div className="radio-preset-header-row">
+                <span className="radio-preset-title">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  {t('ai_engineer.triggers.presetsTitle')}
+                </span>
+                <button
+                  type="button"
+                  onClick={radio.resetTriggerDefaults}
+                  className="radio-btn-reset"
+                  title={t('ai_engineer.triggers.resetDefaults')}
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>{t('ai_engineer.triggers.resetDefaults')}</span>
+                </button>
+              </div>
+
+              <div className="radio-preset-grid">
+                <button
+                  type="button"
+                  onClick={() => radio.applyTriggerPreset(RADIO_TRIGGER_PRESETS.IMMERSIVE)}
+                  className={`radio-preset-chip ${radio.triggerPreset === RADIO_TRIGGER_PRESETS.IMMERSIVE ? 'chip-active' : ''}`}
+                >
+                  🏁 {t('ai_engineer.triggers.immersive')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => radio.applyTriggerPreset(RADIO_TRIGGER_PRESETS.COACHING)}
+                  className={`radio-preset-chip ${radio.triggerPreset === RADIO_TRIGGER_PRESETS.COACHING ? 'chip-active' : ''}`}
+                >
+                  ⚡ {t('ai_engineer.triggers.coaching')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => radio.applyTriggerPreset(RADIO_TRIGGER_PRESETS.MINIMAL)}
+                  className={`radio-preset-chip ${radio.triggerPreset === RADIO_TRIGGER_PRESETS.MINIMAL ? 'chip-active' : ''}`}
+                >
+                  🤫 {t('ai_engineer.triggers.minimalPreset')}
+                </button>
+              </div>
+
+              <p className="radio-preset-desc">
+                {radio.triggerPreset === RADIO_TRIGGER_PRESETS.IMMERSIVE && t('ai_engineer.triggers.immersiveDesc')}
+                {radio.triggerPreset === RADIO_TRIGGER_PRESETS.COACHING && t('ai_engineer.triggers.coachingDesc')}
+                {radio.triggerPreset === RADIO_TRIGGER_PRESETS.MINIMAL && t('ai_engineer.triggers.minimalDesc')}
+                {radio.triggerPreset === RADIO_TRIGGER_PRESETS.CUSTOM && t('ai_engineer.triggers.customPreset')}
+              </p>
+            </div>
+
+            <label className="radio-section-label" style={{ marginTop: '10px' }}>
               <ShieldAlert className="w-3.5 h-3.5" />
               {t('ai_engineer.triggers.title')}
             </label>
@@ -517,31 +549,6 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
                 <span>{t('ai_engineer.triggers.chatterFrequency')}</span>
                 <span className="radio-badge-val">{radio.chatterCooldownSeconds}s</span>
               </div>
-
-              <div className="radio-preset-grid">
-                <button
-                  type="button"
-                  onClick={() => radio.setChatterCooldownSeconds(RADIO_ALERT_CONSTANTS.CHATTER_PRESETS.TALKATIVE)}
-                  className={`radio-preset-chip ${radio.chatterCooldownSeconds === 20 ? 'chip-active' : ''}`}
-                >
-                  {t('ai_engineer.triggers.talkative')} (20s)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => radio.setChatterCooldownSeconds(RADIO_ALERT_CONSTANTS.CHATTER_PRESETS.NORMAL)}
-                  className={`radio-preset-chip ${radio.chatterCooldownSeconds === 45 ? 'chip-active' : ''}`}
-                >
-                  {t('ai_engineer.triggers.normal')} (45s)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => radio.setChatterCooldownSeconds(RADIO_ALERT_CONSTANTS.CHATTER_PRESETS.MINIMAL)}
-                  className={`radio-preset-chip ${radio.chatterCooldownSeconds === 90 ? 'chip-active' : ''}`}
-                >
-                  {t('ai_engineer.triggers.minimal')} (90s)
-                </button>
-              </div>
-
               <input
                 type="range"
                 min={10}
@@ -553,170 +560,922 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
                 style={{ marginTop: '4px' }}
               />
             </div>
-
-            {/* Granular Thresholds */}
-            <div className="radio-ptt-grid" style={{ marginTop: '6px' }}>
-              {/* Tyre Wear Warning % */}
-              <div className="radio-ptt-box">
-                <div className="radio-ptt-box-header">
-                  <span>{t('ai_engineer.triggers.wearWarningPct')}</span>
-                  <span className="radio-badge-val">{radio.tyreWearWarningPct}%</span>
-                </div>
-                <input
-                  type="range"
-                  min={20}
-                  max={60}
-                  step={5}
-                  value={radio.tyreWearWarningPct}
-                  onChange={(e) => radio.setTyreWearWarningPct(parseInt(e.target.value, 10))}
-                  className="radio-slider-input"
-                />
-              </div>
-
-              {/* Tyre Wear Critical % */}
-              <div className="radio-ptt-box">
-                <div className="radio-ptt-box-header">
-                  <span>{t('ai_engineer.triggers.wearCriticalPct')}</span>
-                  <span className="radio-badge-val">{radio.tyreWearCriticalPct}%</span>
-                </div>
-                <input
-                  type="range"
-                  min={60}
-                  max={90}
-                  step={5}
-                  value={radio.tyreWearCriticalPct}
-                  onChange={(e) => radio.setTyreWearCriticalPct(parseInt(e.target.value, 10))}
-                  className="radio-slider-input"
-                />
-              </div>
-            </div>
-
-            <div className="radio-ptt-grid" style={{ marginTop: '6px' }}>
-              {/* Rival Gap Buffer (seconds) */}
-              <div className="radio-ptt-box">
-                <div className="radio-ptt-box-header">
-                  <span>{t('ai_engineer.triggers.rivalGapThreshold')}</span>
-                  <span className="radio-badge-val">{radio.rivalGapThresholdSec.toFixed(1)}s</span>
-                </div>
-                <input
-                  type="range"
-                  min={0.5}
-                  max={2.5}
-                  step={0.1}
-                  value={radio.rivalGapThresholdSec}
-                  onChange={(e) => radio.setRivalGapThresholdSec(parseFloat(e.target.value))}
-                  className="radio-slider-input"
-                />
-              </div>
-
-              {/* Rain Horizon (minutes) */}
-              <div className="radio-ptt-box">
-                <div className="radio-ptt-box-header">
-                  <span>{t('ai_engineer.triggers.rainHorizon')}</span>
-                  <span className="radio-badge-val">{radio.rainHorizonMin} min</span>
-                </div>
-                <input
-                  type="range"
-                  min={2}
-                  max={12}
-                  step={1}
-                  value={radio.rainHorizonMin}
-                  onChange={(e) => radio.setRainHorizonMin(parseInt(e.target.value, 10))}
-                  className="radio-slider-input"
-                />
-              </div>
-            </div>
           </div>
         )}
 
-        {/* TAB 4: Tactical Coaching Categories */}
+        {/* TAB 4: Telemetry Triggers (8 Accordion Subsystems) */}
         {activeTab === 'tactical' && (
           <div className="radio-section">
-            <label className="radio-section-label">
-              <BellRing className="w-3.5 h-3.5" />
-              {t('ai_engineer.proactiveAlerts.title')}
-            </label>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <div>
+                <label className="radio-section-label" style={{ margin: 0 }}>
+                  <BellRing className="w-3.5 h-3.5" />
+                  {t('ai_engineer.proactiveAlerts.title')}
+                </label>
+                <p style={{ fontSize: '0.71rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
+                  {t('ai_engineer.proactiveAlerts.subtitle')}
+                </p>
+              </div>
+            </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {/* Tyre Wear */}
-              <label className="radio-toggle-row">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Gauge className="w-4 h-4 text-cyan-400" />
-                  <span>{t('ai_engineer.proactiveAlerts.tyreWear')}</span>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={radio.tyreAlertsEnabled}
-                  onChange={(e) => radio.setTyreAlertsEnabled(e.target.checked)}
-                  className="radio-checkbox"
-                />
-              </label>
-
-              {/* Tyre Thermal Window & Overheating */}
-              <label className="radio-toggle-row">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Flame className="w-4 h-4 text-amber-400" />
-                  <div>
-                    <span>{t('ai_engineer.proactiveAlerts.tyreThermal')}</span>
-                    <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: 0 }}>
-                      {t('ai_engineer.proactiveAlerts.tyreThermalDesc')}
-                    </p>
+            <div className="radio-accordion-container">
+              {/* 1. TYRES */}
+              <div className={`radio-accordion-card ${expandedCategories.tyres ? 'card-open' : ''}`}>
+                <div className="radio-accordion-header" onClick={() => toggleCategory('tyres')}>
+                  <div className="radio-accordion-title-group">
+                    <div className="radio-accordion-icon-box text-cyan-400">
+                      <Gauge className="w-4 h-4" />
+                    </div>
+                    <div className="radio-accordion-title-col">
+                      <span className="radio-accordion-title">{t('ai_engineer.proactiveAlerts.tyresTitle')}</span>
+                      <span className="radio-accordion-subtitle">{t('ai_engineer.proactiveAlerts.tyresDesc')}</span>
+                    </div>
+                  </div>
+                  <div className="radio-accordion-actions" onClick={(e) => e.stopPropagation()}>
+                    <label className="radio-switch">
+                      <input
+                        type="checkbox"
+                        checked={radio.tyreAlertsEnabled}
+                        onChange={(e) => radio.setTyreAlertsEnabled(e.target.checked)}
+                      />
+                      <span className="radio-switch-slider" />
+                    </label>
+                    <div onClick={() => toggleCategory('tyres')}>
+                      {expandedCategories.tyres ? <ChevronUp className="w-4 h-4 radio-accordion-chevron" /> : <ChevronDown className="w-4 h-4 radio-accordion-chevron" />}
+                    </div>
                   </div>
                 </div>
-                <input
-                  type="checkbox"
-                  checked={radio.thermalAlertsEnabled}
-                  onChange={(e) => radio.setThermalAlertsEnabled(e.target.checked)}
-                  className="radio-checkbox"
-                />
-              </label>
 
-              {/* Rival Battles & DRS */}
-              <label className="radio-toggle-row">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Activity className="w-4 h-4 text-emerald-400" />
-                  <span>{t('ai_engineer.proactiveAlerts.rivalGaps')}</span>
-                </div>
-                <input
-                  type="checkbox"
-                  checked={radio.rivalAlertsEnabled}
-                  onChange={(e) => radio.setRivalAlertsEnabled(e.target.checked)}
-                  className="radio-checkbox"
-                />
-              </label>
+                {expandedCategories.tyres && (
+                  <div className="radio-accordion-body">
+                    <div className="radio-sub-toggles-grid">
+                      <label className="radio-sub-toggle-item">
+                        <span>{t('ai_engineer.proactiveAlerts.tyreWearWarning')}</span>
+                        <input
+                          type="checkbox"
+                          checked={radio.subTyreWear}
+                          onChange={(e) => radio.setSubTyreWear(e.target.checked)}
+                          className="radio-checkbox"
+                        />
+                      </label>
+                      <label className="radio-sub-toggle-item">
+                        <span>{t('ai_engineer.proactiveAlerts.tyrePuncture')}</span>
+                        <input
+                          type="checkbox"
+                          checked={radio.subTyrePuncture}
+                          onChange={(e) => radio.setSubTyrePuncture(e.target.checked)}
+                          className="radio-checkbox"
+                        />
+                      </label>
+                      <label className="radio-sub-toggle-item">
+                        <span>{t('ai_engineer.proactiveAlerts.tyreThermalOverheat')}</span>
+                        <input
+                          type="checkbox"
+                          checked={radio.subTyreThermal}
+                          onChange={(e) => radio.setSubTyreThermal(e.target.checked)}
+                          className="radio-checkbox"
+                        />
+                      </label>
+                      <label className="radio-sub-toggle-item">
+                        <span>{t('ai_engineer.proactiveAlerts.tyreCold')}</span>
+                        <input
+                          type="checkbox"
+                          checked={radio.subTyreCold}
+                          onChange={(e) => radio.setSubTyreCold(e.target.checked)}
+                          className="radio-checkbox"
+                        />
+                      </label>
+                    </div>
 
-              {/* Pit Stop Window & Undercut */}
-              <label className="radio-toggle-row">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <ShieldAlert className="w-4 h-4 text-purple-400" />
-                  <div>
-                    <span>{t('ai_engineer.proactiveAlerts.pitWindow')}</span>
-                    <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: 0 }}>
-                      {t('ai_engineer.proactiveAlerts.pitWindowDesc')}
-                    </p>
+                    <div className="radio-ptt-grid">
+                      <div className="radio-ptt-box">
+                        <div className="radio-ptt-box-header">
+                          <span>{t('ai_engineer.triggers.wearWarningPct')}</span>
+                          <span className="radio-badge-val">{radio.tyreWearWarningPct}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={15}
+                          max={60}
+                          step={5}
+                          value={radio.tyreWearWarningPct}
+                          onChange={(e) => radio.setTyreWearWarningPct(parseInt(e.target.value, 10))}
+                          className="radio-slider-input"
+                        />
+                      </div>
+                      <div className="radio-ptt-box">
+                        <div className="radio-ptt-box-header">
+                          <span>{t('ai_engineer.triggers.wearCriticalPct')}</span>
+                          <span className="radio-badge-val">{radio.tyreWearCriticalPct}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={60}
+                          max={90}
+                          step={5}
+                          value={radio.tyreWearCriticalPct}
+                          onChange={(e) => radio.setTyreWearCriticalPct(parseInt(e.target.value, 10))}
+                          className="radio-slider-input"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="radio-ptt-grid">
+                      <div className="radio-ptt-box">
+                        <div className="radio-ptt-box-header">
+                          <span>{t('ai_engineer.proactiveAlerts.tyreOverheatThreshold')}</span>
+                          <span className="radio-badge-val">{radio.tyreOverheatC}°C</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={95}
+                          max={135}
+                          step={1}
+                          value={radio.tyreOverheatC}
+                          onChange={(e) => radio.setTyreOverheatC(parseInt(e.target.value, 10))}
+                          className="radio-slider-input"
+                        />
+                      </div>
+                      <div className="radio-ptt-box">
+                        <div className="radio-ptt-box-header">
+                          <span>{t('ai_engineer.proactiveAlerts.tyreColdThreshold')}</span>
+                          <span className="radio-badge-val">{radio.tyreColdC}°C</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={65}
+                          max={95}
+                          step={1}
+                          value={radio.tyreColdC}
+                          onChange={(e) => radio.setTyreColdC(parseInt(e.target.value, 10))}
+                          className="radio-slider-input"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => radio.testTriggerAlert('tyres')}
+                      className="radio-test-mini-btn"
+                    >
+                      <Volume1 className="w-3.5 h-3.5" />
+                      <span>{t('ai_engineer.proactiveAlerts.testSubsystem')}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* 2. DAMAGE & AERO */}
+              <div className={`radio-accordion-card ${expandedCategories.damage ? 'card-open' : ''}`}>
+                <div className="radio-accordion-header" onClick={() => toggleCategory('damage')}>
+                  <div className="radio-accordion-title-group">
+                    <div className="radio-accordion-icon-box text-rose-400">
+                      <ShieldAlert className="w-4 h-4" />
+                    </div>
+                    <div className="radio-accordion-title-col">
+                      <span className="radio-accordion-title">{t('ai_engineer.proactiveAlerts.damageTitle')}</span>
+                      <span className="radio-accordion-subtitle">{t('ai_engineer.proactiveAlerts.damageDesc')}</span>
+                    </div>
+                  </div>
+                  <div className="radio-accordion-actions" onClick={(e) => e.stopPropagation()}>
+                    <label className="radio-switch">
+                      <input
+                        type="checkbox"
+                        checked={radio.damageAlertsEnabled}
+                        onChange={(e) => radio.setDamageAlertsEnabled(e.target.checked)}
+                      />
+                      <span className="radio-switch-slider" />
+                    </label>
+                    <div onClick={() => toggleCategory('damage')}>
+                      {expandedCategories.damage ? <ChevronUp className="w-4 h-4 radio-accordion-chevron" /> : <ChevronDown className="w-4 h-4 radio-accordion-chevron" />}
+                    </div>
                   </div>
                 </div>
-                <input
-                  type="checkbox"
-                  checked={radio.pitWindowAlertsEnabled}
-                  onChange={(e) => radio.setPitWindowAlertsEnabled(e.target.checked)}
-                  className="radio-checkbox"
-                />
-              </label>
 
-              {/* Track Conditions & SC */}
-              <label className="radio-toggle-row">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Radio className="w-4 h-4 text-rose-400" />
-                  <span>{t('ai_engineer.proactiveAlerts.trackConditions')}</span>
+                {expandedCategories.damage && (
+                  <div className="radio-accordion-body">
+                    <div className="radio-sub-toggles-grid">
+                      <label className="radio-sub-toggle-item">
+                        <span>{t('ai_engineer.proactiveAlerts.damageWing')}</span>
+                        <input
+                          type="checkbox"
+                          checked={radio.subDamageWing}
+                          onChange={(e) => radio.setSubDamageWing(e.target.checked)}
+                          className="radio-checkbox"
+                        />
+                      </label>
+                      <label className="radio-sub-toggle-item">
+                        <span>{t('ai_engineer.proactiveAlerts.damageFloor')}</span>
+                        <input
+                          type="checkbox"
+                          checked={radio.subDamageFloor}
+                          onChange={(e) => radio.setSubDamageFloor(e.target.checked)}
+                          className="radio-checkbox"
+                        />
+                      </label>
+                      <label className="radio-sub-toggle-item">
+                        <span>{t('ai_engineer.proactiveAlerts.damageEngine')}</span>
+                        <input
+                          type="checkbox"
+                          checked={radio.subDamageEngine}
+                          onChange={(e) => radio.setSubDamageEngine(e.target.checked)}
+                          className="radio-checkbox"
+                        />
+                      </label>
+                      <label className="radio-sub-toggle-item">
+                        <span>{t('ai_engineer.proactiveAlerts.damageFaults')}</span>
+                        <input
+                          type="checkbox"
+                          checked={radio.subDamageFaults}
+                          onChange={(e) => radio.setSubDamageFaults(e.target.checked)}
+                          className="radio-checkbox"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="radio-ptt-grid">
+                      <div className="radio-ptt-box">
+                        <div className="radio-ptt-box-header">
+                          <span>{t('ai_engineer.proactiveAlerts.wingThreshold')}</span>
+                          <span className="radio-badge-val">{radio.wingDamageWarnPct}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={10}
+                          max={45}
+                          step={5}
+                          value={radio.wingDamageWarnPct}
+                          onChange={(e) => radio.setWingDamageWarnPct(parseInt(e.target.value, 10))}
+                          className="radio-slider-input"
+                        />
+                      </div>
+                      <div className="radio-ptt-box">
+                        <div className="radio-ptt-box-header">
+                          <span>{t('ai_engineer.proactiveAlerts.floorThreshold')}</span>
+                          <span className="radio-badge-val">{radio.floorDamageWarnPct}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={15}
+                          max={50}
+                          step={5}
+                          value={radio.floorDamageWarnPct}
+                          onChange={(e) => radio.setFloorDamageWarnPct(parseInt(e.target.value, 10))}
+                          className="radio-slider-input"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="radio-ptt-box" style={{ marginTop: '2px' }}>
+                      <div className="radio-ptt-box-header">
+                        <span>{t('ai_engineer.proactiveAlerts.engineWearThreshold')}</span>
+                        <span className="radio-badge-val">{radio.engineWearWarnPct}%</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={50}
+                        max={90}
+                        step={5}
+                        value={radio.engineWearWarnPct}
+                        onChange={(e) => radio.setEngineWearWarnPct(parseInt(e.target.value, 10))}
+                        className="radio-slider-input"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => radio.testTriggerAlert('damage')}
+                      className="radio-test-mini-btn"
+                    >
+                      <Volume1 className="w-3.5 h-3.5" />
+                      <span>{t('ai_engineer.proactiveAlerts.testSubsystem')}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* 3. ERS & POWER UNIT */}
+              <div className={`radio-accordion-card ${expandedCategories.ers ? 'card-open' : ''}`}>
+                <div className="radio-accordion-header" onClick={() => toggleCategory('ers')}>
+                  <div className="radio-accordion-title-group">
+                    <div className="radio-accordion-icon-box text-amber-400">
+                      <Zap className="w-4 h-4" />
+                    </div>
+                    <div className="radio-accordion-title-col">
+                      <span className="radio-accordion-title">{t('ai_engineer.proactiveAlerts.ersTitle')}</span>
+                      <span className="radio-accordion-subtitle">{t('ai_engineer.proactiveAlerts.ersDesc')}</span>
+                    </div>
+                  </div>
+                  <div className="radio-accordion-actions" onClick={(e) => e.stopPropagation()}>
+                    <label className="radio-switch">
+                      <input
+                        type="checkbox"
+                        checked={radio.ersAlertsEnabled}
+                        onChange={(e) => radio.setErsAlertsEnabled(e.target.checked)}
+                      />
+                      <span className="radio-switch-slider" />
+                    </label>
+                    <div onClick={() => toggleCategory('ers')}>
+                      {expandedCategories.ers ? <ChevronUp className="w-4 h-4 radio-accordion-chevron" /> : <ChevronDown className="w-4 h-4 radio-accordion-chevron" />}
+                    </div>
+                  </div>
                 </div>
-                <input
-                  type="checkbox"
-                  checked={radio.trackAlertsEnabled}
-                  onChange={(e) => radio.setTrackAlertsEnabled(e.target.checked)}
-                  className="radio-checkbox"
-                />
-              </label>
+
+                {expandedCategories.ers && (
+                  <div className="radio-accordion-body">
+                    <div className="radio-sub-toggles-grid">
+                      <label className="radio-sub-toggle-item">
+                        <span>{t('ai_engineer.proactiveAlerts.ersLow')}</span>
+                        <input
+                          type="checkbox"
+                          checked={radio.subErsLow}
+                          onChange={(e) => radio.setSubErsLow(e.target.checked)}
+                          className="radio-checkbox"
+                        />
+                      </label>
+                      <label className="radio-sub-toggle-item">
+                        <span>{t('ai_engineer.proactiveAlerts.engineTemp')}</span>
+                        <input
+                          type="checkbox"
+                          checked={radio.subEngineTemp}
+                          onChange={(e) => radio.setSubEngineTemp(e.target.checked)}
+                          className="radio-checkbox"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="radio-ptt-grid">
+                      <div className="radio-ptt-box">
+                        <div className="radio-ptt-box-header">
+                          <span>{t('ai_engineer.proactiveAlerts.ersLowThreshold')}</span>
+                          <span className="radio-badge-val">{radio.ersLowPct}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={8}
+                          max={35}
+                          step={1}
+                          value={radio.ersLowPct}
+                          onChange={(e) => radio.setErsLowPct(parseInt(e.target.value, 10))}
+                          className="radio-slider-input"
+                        />
+                      </div>
+                      <div className="radio-ptt-box">
+                        <div className="radio-ptt-box-header">
+                          <span>{t('ai_engineer.proactiveAlerts.engineTempThreshold')}</span>
+                          <span className="radio-badge-val">{radio.engineOverheatC}°C</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={115}
+                          max={145}
+                          step={1}
+                          value={radio.engineOverheatC}
+                          onChange={(e) => radio.setEngineOverheatC(parseInt(e.target.value, 10))}
+                          className="radio-slider-input"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => radio.testTriggerAlert('ers')}
+                      className="radio-test-mini-btn"
+                    >
+                      <Volume1 className="w-3.5 h-3.5" />
+                      <span>{t('ai_engineer.proactiveAlerts.testSubsystem')}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* 4. BRAKES */}
+              <div className={`radio-accordion-card ${expandedCategories.brakes ? 'card-open' : ''}`}>
+                <div className="radio-accordion-header" onClick={() => toggleCategory('brakes')}>
+                  <div className="radio-accordion-title-group">
+                    <div className="radio-accordion-icon-box text-orange-400">
+                      <Activity className="w-4 h-4" />
+                    </div>
+                    <div className="radio-accordion-title-col">
+                      <span className="radio-accordion-title">{t('ai_engineer.proactiveAlerts.brakesTitle')}</span>
+                      <span className="radio-accordion-subtitle">{t('ai_engineer.proactiveAlerts.brakesDesc')}</span>
+                    </div>
+                  </div>
+                  <div className="radio-accordion-actions" onClick={(e) => e.stopPropagation()}>
+                    <label className="radio-switch">
+                      <input
+                        type="checkbox"
+                        checked={radio.brakesAlertsEnabled}
+                        onChange={(e) => radio.setBrakesAlertsEnabled(e.target.checked)}
+                      />
+                      <span className="radio-switch-slider" />
+                    </label>
+                    <div onClick={() => toggleCategory('brakes')}>
+                      {expandedCategories.brakes ? <ChevronUp className="w-4 h-4 radio-accordion-chevron" /> : <ChevronDown className="w-4 h-4 radio-accordion-chevron" />}
+                    </div>
+                  </div>
+                </div>
+
+                {expandedCategories.brakes && (
+                  <div className="radio-accordion-body">
+                    <div className="radio-sub-toggles-grid">
+                      <label className="radio-sub-toggle-item">
+                        <span>{t('ai_engineer.proactiveAlerts.brakeOverheat')}</span>
+                        <input
+                          type="checkbox"
+                          checked={radio.subBrakeTemp}
+                          onChange={(e) => radio.setSubBrakeTemp(e.target.checked)}
+                          className="radio-checkbox"
+                        />
+                      </label>
+                      <label className="radio-sub-toggle-item">
+                        <span>{t('ai_engineer.proactiveAlerts.brakeCold')}</span>
+                        <input
+                          type="checkbox"
+                          checked={radio.subBrakeCold}
+                          onChange={(e) => radio.setSubBrakeCold(e.target.checked)}
+                          className="radio-checkbox"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="radio-ptt-grid">
+                      <div className="radio-ptt-box">
+                        <div className="radio-ptt-box-header">
+                          <span>{t('ai_engineer.proactiveAlerts.brakeOverheatThreshold')}</span>
+                          <span className="radio-badge-val">{radio.brakeOverheatC}°C</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={700}
+                          max={1150}
+                          step={25}
+                          value={radio.brakeOverheatC}
+                          onChange={(e) => radio.setBrakeOverheatC(parseInt(e.target.value, 10))}
+                          className="radio-slider-input"
+                        />
+                      </div>
+                      <div className="radio-ptt-box">
+                        <div className="radio-ptt-box-header">
+                          <span>{t('ai_engineer.proactiveAlerts.brakeColdThreshold')}</span>
+                          <span className="radio-badge-val">{radio.brakeColdC}°C</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={100}
+                          max={350}
+                          step={25}
+                          value={radio.brakeColdC}
+                          onChange={(e) => radio.setBrakeColdC(parseInt(e.target.value, 10))}
+                          className="radio-slider-input"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => radio.testTriggerAlert('brakes')}
+                      className="radio-test-mini-btn"
+                    >
+                      <Volume1 className="w-3.5 h-3.5" />
+                      <span>{t('ai_engineer.proactiveAlerts.testSubsystem')}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* 5. FUEL & STRATEGY */}
+              <div className={`radio-accordion-card ${expandedCategories.fuel ? 'card-open' : ''}`}>
+                <div className="radio-accordion-header" onClick={() => toggleCategory('fuel')}>
+                  <div className="radio-accordion-title-group">
+                    <div className="radio-accordion-icon-box text-emerald-400">
+                      <Fuel className="w-4 h-4" />
+                    </div>
+                    <div className="radio-accordion-title-col">
+                      <span className="radio-accordion-title">{t('ai_engineer.proactiveAlerts.fuelTitle')}</span>
+                      <span className="radio-accordion-subtitle">{t('ai_engineer.proactiveAlerts.fuelDesc')}</span>
+                    </div>
+                  </div>
+                  <div className="radio-accordion-actions" onClick={(e) => e.stopPropagation()}>
+                    <label className="radio-switch">
+                      <input
+                        type="checkbox"
+                        checked={radio.fuelAlertsEnabled}
+                        onChange={(e) => radio.setFuelAlertsEnabled(e.target.checked)}
+                      />
+                      <span className="radio-switch-slider" />
+                    </label>
+                    <div onClick={() => toggleCategory('fuel')}>
+                      {expandedCategories.fuel ? <ChevronUp className="w-4 h-4 radio-accordion-chevron" /> : <ChevronDown className="w-4 h-4 radio-accordion-chevron" />}
+                    </div>
+                  </div>
+                </div>
+
+                {expandedCategories.fuel && (
+                  <div className="radio-accordion-body">
+                    <div className="radio-sub-toggles-grid">
+                      <label className="radio-sub-toggle-item">
+                        <span>{t('ai_engineer.proactiveAlerts.fuelDelta')}</span>
+                        <input
+                          type="checkbox"
+                          checked={radio.subFuelDelta}
+                          onChange={(e) => radio.setSubFuelDelta(e.target.checked)}
+                          className="radio-checkbox"
+                        />
+                      </label>
+                      <label className="radio-sub-toggle-item">
+                        <span>{t('ai_engineer.proactiveAlerts.undercut')}</span>
+                        <input
+                          type="checkbox"
+                          checked={radio.subUndercut}
+                          onChange={(e) => radio.setSubUndercut(e.target.checked)}
+                          className="radio-checkbox"
+                        />
+                      </label>
+                      <label className="radio-sub-toggle-item">
+                        <span>{t('ai_engineer.proactiveAlerts.pitWindow')}</span>
+                        <input
+                          type="checkbox"
+                          checked={radio.subPitWindow}
+                          onChange={(e) => radio.setSubPitWindow(e.target.checked)}
+                          className="radio-checkbox"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="radio-ptt-grid">
+                      <div className="radio-ptt-box">
+                        <div className="radio-ptt-box-header">
+                          <span>{t('ai_engineer.proactiveAlerts.fuelDeltaThreshold')}</span>
+                          <span className="radio-badge-val">{radio.fuelDeltaLaps.toFixed(1)} v</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={-2.5}
+                          max={-0.2}
+                          step={0.1}
+                          value={radio.fuelDeltaLaps}
+                          onChange={(e) => radio.setFuelDeltaLaps(parseFloat(e.target.value))}
+                          className="radio-slider-input"
+                        />
+                      </div>
+                      <div className="radio-ptt-box">
+                        <div className="radio-ptt-box-header">
+                          <span>{t('ai_engineer.proactiveAlerts.undercutThreshold')}</span>
+                          <span className="radio-badge-val">{radio.undercutGapSec.toFixed(1)}s</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={1.0}
+                          max={4.5}
+                          step={0.2}
+                          value={radio.undercutGapSec}
+                          onChange={(e) => radio.setUndercutGapSec(parseFloat(e.target.value))}
+                          className="radio-slider-input"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => radio.testTriggerAlert('fuel')}
+                      className="radio-test-mini-btn"
+                    >
+                      <Volume1 className="w-3.5 h-3.5" />
+                      <span>{t('ai_engineer.proactiveAlerts.testSubsystem')}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* 6. RIVALS & DRS */}
+              <div className={`radio-accordion-card ${expandedCategories.rivals ? 'card-open' : ''}`}>
+                <div className="radio-accordion-header" onClick={() => toggleCategory('rivals')}>
+                  <div className="radio-accordion-title-group">
+                    <div className="radio-accordion-icon-box text-purple-400">
+                      <Flame className="w-4 h-4" />
+                    </div>
+                    <div className="radio-accordion-title-col">
+                      <span className="radio-accordion-title">{t('ai_engineer.proactiveAlerts.rivalsTitle')}</span>
+                      <span className="radio-accordion-subtitle">{t('ai_engineer.proactiveAlerts.rivalsDesc')}</span>
+                    </div>
+                  </div>
+                  <div className="radio-accordion-actions" onClick={(e) => e.stopPropagation()}>
+                    <label className="radio-switch">
+                      <input
+                        type="checkbox"
+                        checked={radio.rivalAlertsEnabled}
+                        onChange={(e) => radio.setRivalAlertsEnabled(e.target.checked)}
+                      />
+                      <span className="radio-switch-slider" />
+                    </label>
+                    <div onClick={() => toggleCategory('rivals')}>
+                      {expandedCategories.rivals ? <ChevronUp className="w-4 h-4 radio-accordion-chevron" /> : <ChevronDown className="w-4 h-4 radio-accordion-chevron" />}
+                    </div>
+                  </div>
+                </div>
+
+                {expandedCategories.rivals && (
+                  <div className="radio-accordion-body">
+                    <div className="radio-sub-toggles-grid">
+                      <label className="radio-sub-toggle-item">
+                        <span>{t('ai_engineer.proactiveAlerts.rivalDefend')}</span>
+                        <input
+                          type="checkbox"
+                          checked={radio.subRivalDefend}
+                          onChange={(e) => radio.setSubRivalDefend(e.target.checked)}
+                          className="radio-checkbox"
+                        />
+                      </label>
+                      <label className="radio-sub-toggle-item">
+                        <span>{t('ai_engineer.proactiveAlerts.rivalAttack')}</span>
+                        <input
+                          type="checkbox"
+                          checked={radio.subRivalAttack}
+                          onChange={(e) => radio.setSubRivalAttack(e.target.checked)}
+                          className="radio-checkbox"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="radio-ptt-grid">
+                      <div className="radio-ptt-box">
+                        <div className="radio-ptt-box-header">
+                          <span>{t('ai_engineer.proactiveAlerts.rivalDefendThreshold')}</span>
+                          <span className="radio-badge-val">{radio.rivalGapThresholdSec.toFixed(1)}s</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0.5}
+                          max={2.5}
+                          step={0.1}
+                          value={radio.rivalGapThresholdSec}
+                          onChange={(e) => radio.setRivalGapThresholdSec(parseFloat(e.target.value))}
+                          className="radio-slider-input"
+                        />
+                      </div>
+                      <div className="radio-ptt-box">
+                        <div className="radio-ptt-box-header">
+                          <span>{t('ai_engineer.proactiveAlerts.rivalAttackThreshold')}</span>
+                          <span className="radio-badge-val">{radio.rivalAheadGapSec.toFixed(1)}s</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={0.5}
+                          max={2.5}
+                          step={0.1}
+                          value={radio.rivalAheadGapSec}
+                          onChange={(e) => radio.setRivalAheadGapSec(parseFloat(e.target.value))}
+                          className="radio-slider-input"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => radio.testTriggerAlert('rivals')}
+                      className="radio-test-mini-btn"
+                    >
+                      <Volume1 className="w-3.5 h-3.5" />
+                      <span>{t('ai_engineer.proactiveAlerts.testSubsystem')}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* 7. QUALY & PRACTICE */}
+              <div className={`radio-accordion-card ${expandedCategories.qualy ? 'card-open' : ''}`}>
+                <div className="radio-accordion-header" onClick={() => toggleCategory('qualy')}>
+                  <div className="radio-accordion-title-group">
+                    <div className="radio-accordion-icon-box text-sky-400">
+                      <Timer className="w-4 h-4" />
+                    </div>
+                    <div className="radio-accordion-title-col">
+                      <span className="radio-accordion-title">{t('ai_engineer.proactiveAlerts.qualyTitle')}</span>
+                      <span className="radio-accordion-subtitle">{t('ai_engineer.proactiveAlerts.qualyDesc')}</span>
+                    </div>
+                  </div>
+                  <div className="radio-accordion-actions" onClick={(e) => e.stopPropagation()}>
+                    <label className="radio-switch">
+                      <input
+                        type="checkbox"
+                        checked={radio.qualyAlertsEnabled}
+                        onChange={(e) => radio.setQualyAlertsEnabled(e.target.checked)}
+                      />
+                      <span className="radio-switch-slider" />
+                    </label>
+                    <div onClick={() => toggleCategory('qualy')}>
+                      {expandedCategories.qualy ? <ChevronUp className="w-4 h-4 radio-accordion-chevron" /> : <ChevronDown className="w-4 h-4 radio-accordion-chevron" />}
+                    </div>
+                  </div>
+                </div>
+
+                {expandedCategories.qualy && (
+                  <div className="radio-accordion-body">
+                    <div className="radio-sub-toggles-grid">
+                      <label className="radio-sub-toggle-item">
+                        <span>{t('ai_engineer.proactiveAlerts.qualyTraffic')}</span>
+                        <input
+                          type="checkbox"
+                          checked={radio.subQualyTraffic}
+                          onChange={(e) => radio.setSubQualyTraffic(e.target.checked)}
+                          className="radio-checkbox"
+                        />
+                      </label>
+                      <label className="radio-sub-toggle-item">
+                        <span>{t('ai_engineer.proactiveAlerts.qualyInvalid')}</span>
+                        <input
+                          type="checkbox"
+                          checked={radio.subQualyInvalid}
+                          onChange={(e) => radio.setSubQualyInvalid(e.target.checked)}
+                          className="radio-checkbox"
+                        />
+                      </label>
+                      <label className="radio-sub-toggle-item">
+                        <span>{t('ai_engineer.proactiveAlerts.qualyTime')}</span>
+                        <input
+                          type="checkbox"
+                          checked={radio.subQualyTime}
+                          onChange={(e) => radio.setSubQualyTime(e.target.checked)}
+                          className="radio-checkbox"
+                        />
+                      </label>
+                      <label className="radio-sub-toggle-item">
+                        <span>{t('ai_engineer.proactiveAlerts.qualyElimination')}</span>
+                        <input
+                          type="checkbox"
+                          checked={radio.subQualyElim}
+                          onChange={(e) => radio.setSubQualyElim(e.target.checked)}
+                          className="radio-checkbox"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="radio-ptt-box">
+                      <div className="radio-ptt-box-header">
+                        <span>{t('ai_engineer.proactiveAlerts.qualyCleanAirThreshold')}</span>
+                        <span className="radio-badge-val">{radio.qualyCleanAirSec.toFixed(1)}s</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={2.0}
+                        max={6.0}
+                        step={0.5}
+                        value={radio.qualyCleanAirSec}
+                        onChange={(e) => radio.setQualyCleanAirSec(parseFloat(e.target.value))}
+                        className="radio-slider-input"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => radio.testTriggerAlert('qualy')}
+                      className="radio-test-mini-btn"
+                    >
+                      <Volume1 className="w-3.5 h-3.5" />
+                      <span>{t('ai_engineer.proactiveAlerts.testSubsystem')}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* 8. FLAGS & PENALTIES */}
+              <div className={`radio-accordion-card ${expandedCategories.flags ? 'card-open' : ''}`}>
+                <div className="radio-accordion-header" onClick={() => toggleCategory('flags')}>
+                  <div className="radio-accordion-title-group">
+                    <div className="radio-accordion-icon-box text-yellow-400">
+                      <Flag className="w-4 h-4" />
+                    </div>
+                    <div className="radio-accordion-title-col">
+                      <span className="radio-accordion-title">{t('ai_engineer.proactiveAlerts.flagsTitle')}</span>
+                      <span className="radio-accordion-subtitle">{t('ai_engineer.proactiveAlerts.flagsDesc')}</span>
+                    </div>
+                  </div>
+                  <div className="radio-accordion-actions" onClick={(e) => e.stopPropagation()}>
+                    <label className="radio-switch">
+                      <input
+                        type="checkbox"
+                        checked={radio.flagsPensAlertsEnabled}
+                        onChange={(e) => radio.setFlagsPensAlertsEnabled(e.target.checked)}
+                      />
+                      <span className="radio-switch-slider" />
+                    </label>
+                    <div onClick={() => toggleCategory('flags')}>
+                      {expandedCategories.flags ? <ChevronUp className="w-4 h-4 radio-accordion-chevron" /> : <ChevronDown className="w-4 h-4 radio-accordion-chevron" />}
+                    </div>
+                  </div>
+                </div>
+
+                {expandedCategories.flags && (
+                  <div className="radio-accordion-body">
+                    <div className="radio-sub-toggles-grid">
+                      <label className="radio-sub-toggle-item">
+                        <span>{t('ai_engineer.proactiveAlerts.safetyCar')}</span>
+                        <input
+                          type="checkbox"
+                          checked={radio.subSafetyCar}
+                          onChange={(e) => radio.setSubSafetyCar(e.target.checked)}
+                          className="radio-checkbox"
+                        />
+                      </label>
+                      <label className="radio-sub-toggle-item">
+                        <span>{t('ai_engineer.proactiveAlerts.redFlag')}</span>
+                        <input
+                          type="checkbox"
+                          checked={radio.subRedFlag}
+                          onChange={(e) => radio.setSubRedFlag(e.target.checked)}
+                          className="radio-checkbox"
+                        />
+                      </label>
+                      <label className="radio-sub-toggle-item">
+                        <span>{t('ai_engineer.proactiveAlerts.rainRadar')}</span>
+                        <input
+                          type="checkbox"
+                          checked={radio.subRain}
+                          onChange={(e) => radio.setSubRain(e.target.checked)}
+                          className="radio-checkbox"
+                        />
+                      </label>
+                      <label className="radio-sub-toggle-item">
+                        <span>{t('ai_engineer.proactiveAlerts.trackLimits')}</span>
+                        <input
+                          type="checkbox"
+                          checked={radio.subTrackLimits}
+                          onChange={(e) => radio.setSubTrackLimits(e.target.checked)}
+                          className="radio-checkbox"
+                        />
+                      </label>
+                      <label className="radio-sub-toggle-item">
+                        <span>{t('ai_engineer.proactiveAlerts.penalties')}</span>
+                        <input
+                          type="checkbox"
+                          checked={radio.subPenalties}
+                          onChange={(e) => radio.setSubPenalties(e.target.checked)}
+                          className="radio-checkbox"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="radio-ptt-grid">
+                      <div className="radio-ptt-box">
+                        <div className="radio-ptt-box-header">
+                          <span>{t('ai_engineer.proactiveAlerts.rainHorizonThreshold')}</span>
+                          <span className="radio-badge-val">{radio.rainHorizonMin} min</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={2}
+                          max={15}
+                          step={1}
+                          value={radio.rainHorizonMin}
+                          onChange={(e) => radio.setRainHorizonMin(parseInt(e.target.value, 10))}
+                          className="radio-slider-input"
+                        />
+                      </div>
+                      <div className="radio-ptt-box">
+                        <div className="radio-ptt-box-header">
+                          <span>{t('ai_engineer.proactiveAlerts.rainProbThreshold')}</span>
+                          <span className="radio-badge-val">{radio.rainProbPct}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min={25}
+                          max={75}
+                          step={5}
+                          value={radio.rainProbPct}
+                          onChange={(e) => radio.setRainProbPct(parseInt(e.target.value, 10))}
+                          className="radio-slider-input"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="radio-ptt-box" style={{ marginTop: '2px' }}>
+                      <div className="radio-ptt-box-header">
+                        <span>{t('ai_engineer.proactiveAlerts.cornerCutThreshold')}</span>
+                        <span className="radio-badge-val">{radio.cornerCutWarnThreshold} avisos</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={1}
+                        max={3}
+                        step={1}
+                        value={radio.cornerCutWarnThreshold}
+                        onChange={(e) => radio.setCornerCutWarnThreshold(parseInt(e.target.value, 10))}
+                        className="radio-slider-input"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => radio.testTriggerAlert('flags')}
+                      className="radio-test-mini-btn"
+                    >
+                      <Volume1 className="w-3.5 h-3.5" />
+                      <span>{t('ai_engineer.proactiveAlerts.testSubsystem')}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
