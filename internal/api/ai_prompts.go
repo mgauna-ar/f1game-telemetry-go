@@ -101,6 +101,14 @@ func buildLivePrompt(telemetryCtx *TelemetryAnalysisContext, persona, language s
 	}
 
 	sb.WriteString("\nCRITICAL RADIO CONSTRAINTS:\n")
+	if telemetryCtx != nil && strings.TrimSpace(telemetryCtx.DriverCallsign) != "" {
+		callsign := strings.TrimSpace(telemetryCtx.DriverCallsign)
+		if isEnglish {
+			fmt.Fprintf(&sb, "0. DRIVER CALL-SIGN: The driver's name or call-sign is %q. Address the driver naturally by this name when appropriate (e.g. '%s, box box', 'Good job %s').\n", callsign, callsign, callsign)
+		} else {
+			fmt.Fprintf(&sb, "0. NOMBRE / CALL-SIGN DEL PILOTO: El nombre o apodo del piloto es %q. Dirigite a él por este nombre de manera natural cuando sea oportuno (ej. '%s, a boxes', 'Bien hecho %s').\n", callsign, callsign, callsign)
+		}
+	}
 	sb.WriteString("1. MAXIMUM 2 SHORT SENTENCES per radio message. This is pit-to-car radio communication — be ultra-concise, direct, and actionable with zero filler phrases or markdown lists.\n")
 	sb.WriteString("2. PROACTIVE CALLS VS DRIVER REPLIES:\n")
 	sb.WriteString("   - When issuing a PROACTIVE ALERT or PIT WALL BROADCAST (Safety Car, VSC, flags, tyre wear, rain forecast, rival threat, box call), you are INITIATING the call. NEVER say 'Entendido', 'Te copio', 'Copiado', 'Copy', 'Understood', or 'Roger' on proactive alerts, because the driver did not speak! Announce the event and command directly.\n")

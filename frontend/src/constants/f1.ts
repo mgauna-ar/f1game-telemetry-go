@@ -441,6 +441,9 @@ export const RADIO_AUDIO_CONSTANTS = {
   DEFAULT_VOLUME: 0.8,
   DEFAULT_SPEECH_RATE: 1.05,
   DISTORTION_AMOUNT: 15,
+  DEFAULT_SPEECH_RATE_PERCENT: 0,
+  DEFAULT_SPEECH_PITCH_HZ: 0,
+  RADIO_STATIC_GAIN: 0.035,
 } as const;
 
 export const RADIO_NEURAL_VOICES = {
@@ -466,26 +469,51 @@ export const RADIO_STORAGE_KEYS = {
   PERSONA: 'f1_radio_persona',
   LANGUAGE: 'f1_radio_language',
   CUSTOM_PROMPT: 'f1_radio_custom_prompt',
+  DRIVER_CALLSIGN: 'f1_radio_driver_callsign',
   GAMEPAD_MAPPING: 'f1_radio_gamepad_mapping',
   KEYBOARD_KEY: 'f1_radio_keyboard_key',
   BEEPS_ENABLED: 'f1_radio_beeps_enabled',
   FILTER_ENABLED: 'f1_radio_filter_enabled',
+  STATIC_FX_ENABLED: 'f1_radio_static_fx_enabled',
   VOLUME: 'f1_radio_volume',
+  SPEECH_RATE: 'f1_radio_speech_rate',
+  SPEECH_PITCH: 'f1_radio_speech_pitch',
   NEURAL_VOICE: 'f1_radio_neural_voice',
   ALERTS_ENABLED: 'f1_radio_alerts_enabled',
+  SMART_DISCRETION_ENABLED: 'f1_radio_smart_discretion_enabled',
+  CHATTER_COOLDOWN_SEC: 'f1_radio_chatter_cooldown_sec',
+  TYRE_WEAR_WARN_PCT: 'f1_radio_tyre_wear_warn_pct',
+  TYRE_WEAR_CRIT_PCT: 'f1_radio_tyre_wear_crit_pct',
+  RIVAL_GAP_THRESHOLD_SEC: 'f1_radio_rival_gap_threshold_sec',
+  RAIN_HORIZON_MIN: 'f1_radio_rain_horizon_min',
   ALERTS_TYRE: 'f1_radio_alerts_tyre',
+  ALERTS_THERMAL: 'f1_radio_alerts_thermal',
   ALERTS_RIVAL: 'f1_radio_alerts_rival',
+  ALERTS_PIT_WINDOW: 'f1_radio_alerts_pit_window',
   ALERTS_TRACK: 'f1_radio_alerts_track',
 } as const;
 
 export const RADIO_ALERT_CONSTANTS = {
   TYRE_WEAR_THRESHOLDS: [40, 60, 75] as const,
+  DEFAULT_TYRE_WARN_PCT: 40,
+  DEFAULT_TYRE_CRIT_PCT: 75,
   PUNCTURE_THRESHOLD: 95,
   RIVAL_DRS_GAP_SECONDS: 1.0,
+  DEFAULT_RIVAL_GAP_SEC: 1.0,
   RIVAL_PACE_DELTA_SECONDS: 0.4,
   RAIN_PROBABILITY_THRESHOLD: 50,
+  DEFAULT_RAIN_HORIZON_MIN: 5,
   COOLDOWN_NON_CRITICAL_MS: 45000,
   DEFAULT_KEYBOARD_KEY: 'Space',
+  CHATTER_PRESETS: {
+    TALKATIVE: 20,
+    NORMAL: 45,
+    MINIMAL: 90,
+  } as const,
+  TYRE_TEMP_OVERHEAT_C: 115,
+  TYRE_TEMP_COLD_C: 85,
+  SMART_DISCRETION_BRAKE_THRESHOLD: 50,
+  SMART_DISCRETION_STEER_THRESHOLD: 0.45,
 } as const;
 
 

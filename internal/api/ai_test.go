@@ -117,6 +117,28 @@ func TestBuildSystemPrompt(t *testing.T) {
 		}
 	})
 
+	t.Run("live session mode - with driver call-sign", func(t *testing.T) {
+		ctxEn := &TelemetryAnalysisContext{
+			ContextMode:    "live",
+			LiveSummary:    "LIVE STATUS:\n- Track: Silverstone",
+			DriverCallsign: "Max",
+		}
+		promptEn := buildSystemPrompt(ctxEn, "bono", "en")
+		if !strings.Contains(promptEn, `DRIVER CALL-SIGN: The driver's name or call-sign is "Max"`) {
+			t.Errorf("expected prompt to contain English driver call-sign directive")
+		}
+
+		ctxEs := &TelemetryAnalysisContext{
+			ContextMode:    "live",
+			LiveSummary:    "LIVE STATUS:\n- Track: Monza",
+			DriverCallsign: "Franco",
+		}
+		promptEs := buildSystemPrompt(ctxEs, "colapinto", "es")
+		if !strings.Contains(promptEs, `NOMBRE / CALL-SIGN DEL PILOTO: El nombre o apodo del piloto es "Franco"`) {
+			t.Errorf("expected prompt to contain Spanish driver call-sign directive")
+		}
+	})
+
 	t.Run("with telemetry context and zoom", func(t *testing.T) {
 		ctx := &TelemetryAnalysisContext{
 			TrackName:         "Silverstone",

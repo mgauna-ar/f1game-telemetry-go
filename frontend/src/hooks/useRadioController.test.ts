@@ -119,4 +119,67 @@ describe('useRadioController hook', () => {
 
     expect(result.current.lastResponse).toContain('Modo carrera activado');
   });
+
+  it('updates driver callsign and stores in localStorage', () => {
+    const { result } = renderHook(() => useRadioController());
+
+    act(() => {
+      result.current.setDriverCallsign('Max');
+    });
+
+    expect(result.current.driverCallsign).toBe('Max');
+    expect(localStorage.getItem(RADIO_STORAGE_KEYS.DRIVER_CALLSIGN)).toBe('Max');
+  });
+
+  it('updates speech rate and pitch with clamping and passes to speakRadioResponse', async () => {
+    const { result } = renderHook(() => useRadioController());
+
+    act(() => {
+      result.current.setSpeechRate(15);
+      result.current.setSpeechPitch(-6);
+      result.current.setStaticFxEnabled(true);
+    });
+
+    expect(result.current.speechRate).toBe(15);
+    expect(result.current.speechPitch).toBe(-6);
+    expect(localStorage.getItem(RADIO_STORAGE_KEYS.SPEECH_RATE)).toBe('15');
+    expect(localStorage.getItem(RADIO_STORAGE_KEYS.SPEECH_PITCH)).toBe('-6');
+
+    await act(async () => {
+      await result.current.speakMessage('Box this lap');
+    });
+
+    expect(radioAudio.speakRadioResponse).toHaveBeenCalledWith(
+      'Box this lap',
+      expect.objectContaining({
+        rate: '+15%',
+        pitch: '-6Hz',
+        enableStaticFx: true,
+      })
+    );
+  });
+
+  it('manages trigger thresholds, chatter cooldown, and smart discretion', () => {
+    const { result } = renderHook(() => useRadioController());
+
+    act(() => {
+      result.current.setSmartDiscretionEnabled(false);
+      result.current.setChatterCooldownSeconds(30);
+      result.current.setTyreWearWarningPct(35);
+      result.current.setTyreWearCriticalPct(70);
+      result.current.setRivalGapThresholdSec(1.5);
+      result.current.setRainHorizonMin(8);
+      result.current.setThermalAlertsEnabled(true);
+      result.current.setPitWindowAlertsEnabled(true);
+    });
+
+    expect(result.current.smartDiscretionEnabled).toBe(false);
+    expect(result.current.chatterCooldownSeconds).toBe(30);
+    expect(result.current.tyreWearWarningPct).toBe(35);
+    expect(result.current.tyreWearCriticalPct).toBe(70);
+    expect(result.current.rivalGapThresholdSec).toBe(1.5);
+    expect(result.current.rainHorizonMin).toBe(8);
+    expect(result.current.thermalAlertsEnabled).toBe(true);
+    expect(result.current.pitWindowAlertsEnabled).toBe(true);
+  });
 });

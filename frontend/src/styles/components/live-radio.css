@@ -789,3 +789,98 @@
   background: rgba(239, 68, 68, 0.12);
 }
 
+/* ── Multi-Tab Navigation in Settings ─────────────────────────────────────── */
+.radio-tabs-nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 8px;
+  margin-bottom: 6px;
+  overflow-x: auto;
+}
+
+.radio-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md, 8px);
+  color: var(--text-secondary, #94a3b8);
+  font-family: var(--font-display, 'Titillium Web', sans-serif);
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.radio-tab-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.radio-tab-btn.tab-active {
+  background: rgba(0, 242, 254, 0.12);
+  border-color: rgba(0, 242, 254, 0.4);
+  color: #00f2fe;
+}
+
+/* ── Driver Call-sign Input ──────────────────────────────────────────────── */
+.radio-input-field {
+  width: 100%;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-md, 8px);
+  color: #ffffff;
+  font-size: 0.78rem;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.radio-input-field:focus {
+  border-color: #00f2fe;
+}
+
+/* ── Preset Chips Grid ───────────────────────────────────────────────────── */
+.radio-preset-grid {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.radio-preset-chip {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-secondary, #94a3b8);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.radio-preset-chip:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.radio-preset-chip.chip-active {
+  background: rgba(0, 242, 254, 0.15);
+  border-color: rgba(0, 242, 254, 0.5);
+  color: #00f2fe;
+}
+
+.radio-badge-val {
+  font-family: var(--font-mono, monospace);
+  font-weight: 700;
+  color: #00f2fe;
+  font-size: 0.75rem;
+}
+
+

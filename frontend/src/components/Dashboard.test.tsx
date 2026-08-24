@@ -28,14 +28,16 @@ describe('Dashboard', () => {
     });
   });
 
-  it('renders waiting state when disconnected from backend', () => {
+  it('renders waiting state when disconnected from backend and still mounts LiveRadioHUD', () => {
     render(<Dashboard />);
     expect(screen.getByText(/CONNECTING TO BACKEND/i)).toBeInTheDocument();
     expect(screen.getByText(/Connecting to Telemetry Bridge/i)).toBeInTheDocument();
     expect(screen.getAllByText(/20777/i).length).toBeGreaterThan(0);
+    // Voice Radio HUD is active and available even when disconnected
+    expect(screen.getByText(/RADIO STANDBY|RADIO EN ESPERA/i)).toBeInTheDocument();
   });
 
-  it('renders waiting state when connected to backend but session data is null', () => {
+  it('renders waiting state when connected to backend but session data is null and still mounts LiveRadioHUD', () => {
     (useTelemetry as any).mockReturnValue({
       session: null,
       participants: [],
@@ -59,6 +61,8 @@ describe('Dashboard', () => {
     expect(screen.getByText(/BACKEND CONNECTED/i)).toBeInTheDocument();
     expect(screen.getByText(/Waiting for Live Session Telemetry/i)).toBeInTheDocument();
     expect(screen.getByText(/In-Game Telemetry Settings/i)).toBeInTheDocument();
+    // Voice Radio HUD is active and available
+    expect(screen.getByText(/RADIO STANDBY|RADIO EN ESPERA/i)).toBeInTheDocument();
   });
 
   it('renders full live Race Control Hub when connected and session data is received', () => {
@@ -123,5 +127,8 @@ describe('Dashboard', () => {
 
     // Event Feed content
     expect(screen.getByText(/Max Verstappen set the fastest lap/i)).toBeInTheDocument();
+
+    // Voice Radio HUD is active
+    expect(screen.getByText(/RADIO STANDBY|RADIO EN ESPERA/i)).toBeInTheDocument();
   });
 });

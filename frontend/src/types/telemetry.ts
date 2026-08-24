@@ -8,6 +8,11 @@ export interface CarTelemetryData {
   EngineRPM: number;
   DRS: number;
   RevLightsPercent: number;
+  BrakesTemperature?: [number, number, number, number];
+  TyresSurfaceTemperature?: [number, number, number, number];
+  TyresInnerTemperature?: [number, number, number, number];
+  EngineTemperature?: number;
+  TyresPressure?: [number, number, number, number];
 }
 
 export interface LapData {

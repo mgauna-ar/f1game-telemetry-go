@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import {
   RADIO_ALERT_CONSTANTS,
   SAFETY_CAR_STATUS,
+  PIT_STATUS,
   RADIO_STORAGE_KEYS,
 } from '../constants/f1';
 import type {
@@ -31,8 +32,16 @@ export interface UseProactiveTelemetryRadioOptions {
 
 export interface ProactiveAlertSettings {
   tyreAlertsEnabled: boolean;
+  thermalAlertsEnabled: boolean;
   rivalAlertsEnabled: boolean;
+  pitWindowAlertsEnabled: boolean;
   trackAlertsEnabled: boolean;
+  smartDiscretionEnabled: boolean;
+  chatterCooldownSeconds: number;
+  tyreWearWarningPct: number;
+  tyreWearCriticalPct: number;
+  rivalGapThresholdSec: number;
+  rainHorizonMin: number;
 }
 
 export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOptions = {}) {
@@ -46,6 +55,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
     allCarDamage = [],
     carStatus,
     allCarStatus = [],
+    telemetry,
     onTriggerAlert,
   } = options;
 
@@ -56,25 +66,68 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
   const lastRedFlagCountRef = useRef<number>(0);
   const lastCooldownTimestampRef = useRef<number>(0);
   const lastRivalAlertTimestampRef = useRef<number>(0);
+  const lastThermalAlertTimestampRef = useRef<number>(0);
+  const lastUndercutRivalIndexRef = useRef<number>(-1);
   const lastPuncturedRef = useRef<boolean>(false);
   const lastRainAlertRef = useRef<boolean>(false);
 
   // Settings from localStorage
   const getAlertSettings = useCallback((): ProactiveAlertSettings => {
     if (typeof window === 'undefined') {
-      return { tyreAlertsEnabled: true, rivalAlertsEnabled: true, trackAlertsEnabled: true };
+      return {
+        tyreAlertsEnabled: true,
+        thermalAlertsEnabled: true,
+        rivalAlertsEnabled: true,
+        pitWindowAlertsEnabled: true,
+        trackAlertsEnabled: true,
+        smartDiscretionEnabled: true,
+        chatterCooldownSeconds: RADIO_ALERT_CONSTANTS.CHATTER_PRESETS.NORMAL,
+        tyreWearWarningPct: RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_WARN_PCT,
+        tyreWearCriticalPct: RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_CRIT_PCT,
+        rivalGapThresholdSec: RADIO_ALERT_CONSTANTS.DEFAULT_RIVAL_GAP_SEC,
+        rainHorizonMin: RADIO_ALERT_CONSTANTS.DEFAULT_RAIN_HORIZON_MIN,
+      };
     }
     try {
       const tyre = localStorage.getItem(RADIO_STORAGE_KEYS.ALERTS_TYRE);
+      const thermal = localStorage.getItem(RADIO_STORAGE_KEYS.ALERTS_THERMAL);
       const rival = localStorage.getItem(RADIO_STORAGE_KEYS.ALERTS_RIVAL);
+      const pitWindow = localStorage.getItem(RADIO_STORAGE_KEYS.ALERTS_PIT_WINDOW);
       const track = localStorage.getItem(RADIO_STORAGE_KEYS.ALERTS_TRACK);
+      const discretion = localStorage.getItem(RADIO_STORAGE_KEYS.SMART_DISCRETION_ENABLED);
+      const chatter = localStorage.getItem(RADIO_STORAGE_KEYS.CHATTER_COOLDOWN_SEC);
+      const wearWarn = localStorage.getItem(RADIO_STORAGE_KEYS.TYRE_WEAR_WARN_PCT);
+      const wearCrit = localStorage.getItem(RADIO_STORAGE_KEYS.TYRE_WEAR_CRIT_PCT);
+      const rivalGap = localStorage.getItem(RADIO_STORAGE_KEYS.RIVAL_GAP_THRESHOLD_SEC);
+      const rainHoriz = localStorage.getItem(RADIO_STORAGE_KEYS.RAIN_HORIZON_MIN);
+
       return {
         tyreAlertsEnabled: tyre !== null ? tyre === 'true' : true,
+        thermalAlertsEnabled: thermal !== null ? thermal === 'true' : true,
         rivalAlertsEnabled: rival !== null ? rival === 'true' : true,
+        pitWindowAlertsEnabled: pitWindow !== null ? pitWindow === 'true' : true,
         trackAlertsEnabled: track !== null ? track === 'true' : true,
+        smartDiscretionEnabled: discretion !== null ? discretion === 'true' : true,
+        chatterCooldownSeconds: chatter ? parseInt(chatter, 10) || 45 : 45,
+        tyreWearWarningPct: wearWarn ? parseInt(wearWarn, 10) || 40 : 40,
+        tyreWearCriticalPct: wearCrit ? parseInt(wearCrit, 10) || 75 : 75,
+        rivalGapThresholdSec: rivalGap ? parseFloat(rivalGap) || 1.0 : 1.0,
+        rainHorizonMin: rainHoriz ? parseInt(rainHoriz, 10) || 5 : 5,
       };
     } catch {
-      return { tyreAlertsEnabled: true, rivalAlertsEnabled: true, trackAlertsEnabled: true };
+      return {
+        tyreAlertsEnabled: true,
+        thermalAlertsEnabled: true,
+        rivalAlertsEnabled: true,
+        pitWindowAlertsEnabled: true,
+        trackAlertsEnabled: true,
+        smartDiscretionEnabled: true,
+        chatterCooldownSeconds: RADIO_ALERT_CONSTANTS.CHATTER_PRESETS.NORMAL,
+        tyreWearWarningPct: RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_WARN_PCT,
+        tyreWearCriticalPct: RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_CRIT_PCT,
+        rivalGapThresholdSec: RADIO_ALERT_CONSTANTS.DEFAULT_RIVAL_GAP_SEC,
+        rainHorizonMin: RADIO_ALERT_CONSTANTS.DEFAULT_RAIN_HORIZON_MIN,
+      };
     }
   }, []);
 
@@ -82,10 +135,22 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
     async (contextPrompt: string, isCritical: boolean) => {
       if (!enabled || !isRadioEnabled || !onTriggerAlert) return;
 
+      const settings = getAlertSettings();
+
+      // Smart Driving Discretion: Suppress non-critical radio calls while driver is in heavy braking or tight cornering
+      if (!isCritical && settings.smartDiscretionEnabled && telemetry) {
+        const brakeActive = (telemetry.Brake ?? 0) > RADIO_ALERT_CONSTANTS.SMART_DISCRETION_BRAKE_THRESHOLD;
+        const heavySteer = Math.abs(telemetry.Steer ?? 0) > RADIO_ALERT_CONSTANTS.SMART_DISCRETION_STEER_THRESHOLD;
+        if (brakeActive || heavySteer) {
+          return; // Suppress distracting voice call during corner entry / heavy braking
+        }
+      }
+
       const now = Date.now();
+      const cooldownMs = (settings.chatterCooldownSeconds || 45) * 1000;
       if (!isCritical) {
         const timeSinceLastAlert = now - lastCooldownTimestampRef.current;
-        if (timeSinceLastAlert < RADIO_ALERT_CONSTANTS.COOLDOWN_NON_CRITICAL_MS) {
+        if (timeSinceLastAlert < cooldownMs) {
           return; // Suppressed by cooldown
         }
       }
@@ -93,7 +158,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
       lastCooldownTimestampRef.current = now;
       await onTriggerAlert(contextPrompt, isCritical);
     },
-    [enabled, isRadioEnabled, onTriggerAlert]
+    [enabled, isRadioEnabled, telemetry, getAlertSettings, onTriggerAlert]
   );
 
   // 1. Monitor Tyre Wear & Stint Resets
@@ -128,8 +193,12 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
       return;
     }
 
-    // Wear thresholds (40%, 60%, 75%)
-    for (const threshold of RADIO_ALERT_CONSTANTS.TYRE_WEAR_THRESHOLDS) {
+    // Configurable wear thresholds (Warning % & Critical %)
+    const activeThresholds = [settings.tyreWearWarningPct, settings.tyreWearCriticalPct].filter(
+      (v, idx, self) => typeof v === 'number' && v > 0 && self.indexOf(v) === idx
+    );
+
+    for (const threshold of activeThresholds) {
       if (maxWear >= threshold && !triggeredWearThresholdsRef.current.has(threshold)) {
         triggeredWearThresholdsRef.current.add(threshold);
         triggerAlertSafe(
@@ -141,7 +210,41 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
     }
   }, [enabled, isRadioEnabled, carDamage, carStatus, getAlertSettings, triggerAlertSafe]);
 
-  // 2. Monitor Track Conditions (Safety Car, Red Flag, Rain)
+  // 2. Monitor Tyre Thermal Window & Overheating
+  useEffect(() => {
+    if (!enabled || !isRadioEnabled || !telemetry || !carStatus) return;
+    const settings = getAlertSettings();
+    if (!settings.thermalAlertsEnabled) return;
+
+    const now = Date.now();
+    const cooldownMs = (settings.chatterCooldownSeconds || 45) * 1000;
+    if (now - lastThermalAlertTimestampRef.current < cooldownMs) {
+      return;
+    }
+
+    const surfTemps = telemetry.TyresSurfaceTemperature || [0, 0, 0, 0];
+    const maxSurfTemp = Math.max(...surfTemps);
+    const rearMaxTemp = Math.max(surfTemps[2] || 0, surfTemps[3] || 0);
+
+    if (rearMaxTemp >= RADIO_ALERT_CONSTANTS.TYRE_TEMP_OVERHEAT_C) {
+      lastThermalAlertTimestampRef.current = now;
+      triggerAlertSafe(
+        `[PROACTIVE PIT WALL CALL: Rear tyre surface temperatures are overheating at ${Math.round(rearMaxTemp)}°C! You are initiating this call — do NOT say 'Entendido' or 'Copy'. Advise driver to manage traction out of corners to cool the rears.]`,
+        false
+      );
+      return;
+    }
+
+    if (maxSurfTemp > 0 && maxSurfTemp <= RADIO_ALERT_CONSTANTS.TYRE_TEMP_COLD_C && (carStatus.TyresAgeLaps || 0) < 2) {
+      lastThermalAlertTimestampRef.current = now;
+      triggerAlertSafe(
+        `[PROACTIVE PIT WALL CALL: Tyre temperatures are cold (${Math.round(maxSurfTemp)}°C). You are initiating this call — do NOT say 'Entendido' or 'Copy'. Advise driver to weave and build tyre temperature.]`,
+        false
+      );
+    }
+  }, [enabled, isRadioEnabled, telemetry, carStatus, getAlertSettings, triggerAlertSafe]);
+
+  // 3. Monitor Track Conditions (Safety Car, Red Flag, Rain)
   useEffect(() => {
     if (!enabled || !isRadioEnabled || !session) return;
     const settings = getAlertSettings();
@@ -178,13 +281,14 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
     // Rain Forecast check
     if (session.WeatherForecastSamples && session.WeatherForecastSamples.length > 0) {
       const imminentRain = session.WeatherForecastSamples.find(
-        (s) => ((s.RainPercentage ?? s.rain_percentage ?? 0) >= RADIO_ALERT_CONSTANTS.RAIN_PROBABILITY_THRESHOLD) &&
-               ((s.TimeOffset ?? s.time_offset ?? 0) <= 5)
+        (s) =>
+          ((s.RainPercentage ?? s.rain_percentage ?? 0) >= RADIO_ALERT_CONSTANTS.RAIN_PROBABILITY_THRESHOLD) &&
+          ((s.TimeOffset ?? s.time_offset ?? 0) <= settings.rainHorizonMin)
       );
       if (imminentRain && !lastRainAlertRef.current) {
         lastRainAlertRef.current = true;
         const rainPct = imminentRain.RainPercentage ?? imminentRain.rain_percentage ?? 50;
-        const timeOff = imminentRain.TimeOffset ?? imminentRain.time_offset ?? 5;
+        const timeOff = imminentRain.TimeOffset ?? imminentRain.time_offset ?? settings.rainHorizonMin;
         triggerAlertSafe(
           `[PROACTIVE PIT WALL CALL: Weather radar confirms ${rainPct}% chance of rain in the next ${timeOff} minutes. You are initiating this call — do NOT say 'Entendido' or 'Copy'. Advise driver directly on tyre crossover strategy.]`,
           false
@@ -193,30 +297,54 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
     }
   }, [enabled, isRadioEnabled, session, getAlertSettings, triggerAlertSafe]);
 
-  // 3. Monitor Rival & Gaps (Car behind DRS threat, tyre differences, car damage, approaching car ahead)
+  // 4. Monitor Rival Battles, Gaps & Pit Stop Window Undercut
   useEffect(() => {
     if (!enabled || !isRadioEnabled || !lap || allLaps.length === 0) return;
     const settings = getAlertSettings();
-    if (!settings.rivalAlertsEnabled) return;
 
     const now = Date.now();
-    if (now - lastRivalAlertTimestampRef.current < RADIO_ALERT_CONSTANTS.COOLDOWN_NON_CRITICAL_MS) {
+    const cooldownMs = (settings.chatterCooldownSeconds || 45) * 1000;
+    if (now - lastRivalAlertTimestampRef.current < cooldownMs) {
       return;
     }
 
     const playerPos = lap.CarPosition;
     if (!playerPos || playerPos <= 0) return;
 
+    // Pit Window & Undercut detection
+    if (settings.pitWindowAlertsEnabled) {
+      const carBehindIdx = allLaps.findIndex((l) => l && l.CarPosition === playerPos + 1);
+      if (carBehindIdx >= 0 && carBehindIdx !== lastUndercutRivalIndexRef.current) {
+        const rivalLap = allLaps[carBehindIdx];
+        if (rivalLap && rivalLap.PitStatus === PIT_STATUS.PITTING) {
+          const distanceDelta = (lap.TotalDistance || 0) - (rivalLap.TotalDistance || 0);
+          // If rival was within ~3 seconds (~200m)
+          if (distanceDelta > 0 && distanceDelta < 200) {
+            lastUndercutRivalIndexRef.current = carBehindIdx;
+            lastRivalAlertTimestampRef.current = now;
+            triggerAlertSafe(
+              `[PROACTIVE PIT WALL CALL: Car behind (P${playerPos + 1}) has pitted for an undercut attempt! You are initiating this call — do NOT say 'Entendido' or 'Copy'. Push now on the in-lap.]`,
+              true
+            );
+            return;
+          }
+        }
+      }
+    }
+
+    if (!settings.rivalAlertsEnabled) return;
+
     // Find car behind (playerPosition + 1)
     const carBehindIndex = allLaps.findIndex((l) => l && l.CarPosition === playerPos + 1);
+    const maxGapDistanceMeters = settings.rivalGapThresholdSec * 65; // approx 65m per second at speed
+
     if (carBehindIndex >= 0) {
       const rivalLap = allLaps[carBehindIndex];
       const rivalStatus = allCarStatus[carBehindIndex];
       const rivalDamage = allCarDamage[carBehindIndex];
 
-      // Calculate approximate gap in distance or lap times
       const distanceDelta = (lap.TotalDistance || 0) - (rivalLap.TotalDistance || 0);
-      const isDrsZone = distanceDelta > 0 && distanceDelta < 65; // ~1.0s gap at racing speed
+      const isDrsZone = distanceDelta > 0 && distanceDelta < maxGapDistanceMeters;
 
       if (isDrsZone) {
         lastRivalAlertTimestampRef.current = now;
@@ -238,7 +366,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
         }
 
         triggerAlertSafe(
-          `[PROACTIVE PIT WALL CALL: Car behind is within DRS range (<1.0s gap).${extraContext} You are initiating this call — do NOT say 'Entendido' or 'Copy'. Give driver immediate defensive advice.]`,
+          `[PROACTIVE PIT WALL CALL: Car behind is within ${settings.rivalGapThresholdSec.toFixed(1)}s gap (<${Math.round(distanceDelta)}m).${extraContext} You are initiating this call — do NOT say 'Entendido' or 'Copy'. Give driver immediate defensive advice.]`,
           false
         );
         return;
@@ -253,7 +381,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
       const aheadDamage = allCarDamage[carAheadIndex];
 
       const distanceDeltaAhead = (aheadLap.TotalDistance || 0) - (lap.TotalDistance || 0);
-      const isCatchingAhead = distanceDeltaAhead > 0 && distanceDeltaAhead < 60;
+      const isCatchingAhead = distanceDeltaAhead > 0 && distanceDeltaAhead < maxGapDistanceMeters;
 
       if (isCatchingAhead) {
         lastRivalAlertTimestampRef.current = now;
@@ -272,7 +400,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
         }
 
         triggerAlertSafe(
-          `[PROACTIVE PIT WALL CALL: Closing in on car ahead (P${playerPos - 1}) in DRS range.${aheadExtra} You are initiating this call — do NOT say 'Entendido' or 'Copy'. Direct driver to attack.]`,
+          `[PROACTIVE PIT WALL CALL: Closing in on car ahead (P${playerPos - 1}) within ${settings.rivalGapThresholdSec.toFixed(1)}s.${aheadExtra} You are initiating this call — do NOT say 'Entendido' or 'Copy'. Direct driver to attack.]`,
           false
         );
       }

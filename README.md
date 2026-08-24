@@ -41,9 +41,13 @@
 
 ### 🎙️ Interactive Voice Race Engineer (Live Sessions)
 * **Push-to-Talk Radio:** Talk to your engineer hands-free over live team radio using `Space` or a **steering wheel button** (Gamepad API with interactive button-learning). FOM-style harmonic radio *beeps* play before/after each transmission.
-* **Proactive Pit Wall Watcher:** Automatically calls you over the radio without prompting — alerts on tyre wear thresholds (40 / 60 / 75% & punctures), rival DRS threats with compound and damage context, Safety Car / VSC / Red Flag deployments, and rain radar crossover windows.
+* **Driver Call-Sign Personalization:** Set a custom driver name or call-sign (e.g. *Franco*, *Max*, *Chief*) so the pit wall naturally addresses you by name across all voice prompts and live updates.
+* **Proactive Pit Wall Watcher & Tactical Coaching:** Automatically calls you over the radio without prompting — alerts on tyre wear thresholds (customizable warning & critical %), tyre thermal window & overheating (>115°C rear temps), rival DRS threats with compound & damage context, pit stop window / rival undercut attempts, Safety Car / VSC / Red Flag deployments, and rain radar crossover windows.
+* **Smart Driving Discretion:** Suppresses non-critical pit wall calls during heavy braking (>50% brake pressure) or mid-corner apex steering (`|Steer| > 0.45`), holding messages until the driver reaches the straight line.
+* **Configurable Chatter & Threshold Engine:** Choose from chatter cooldown presets (*Talkative* 20s, *Normal* 45s, *Minimal* 90s) or custom sliders (10s–120s), granular tyre wear %, rival gap buffers (0.5s–2.5s), and rain radar horizons (2–12 min).
+* **Audio Realism & Zero-Latency Caching:** Speech rate (-20% to +30%) and vocal pitch modulation sliders, analog cockpit static & squelch background FX, and instant in-memory audio caching for frequent pit wall radio calls.
 * **Engineer Personas & Language-Filtered Neural Voices:** Choose between **Franco Colapinto 🇦🇷**, **Bono 🇬🇧**, or a fully **Custom** persona. Each persona has language-specific neural TTS voices (Spanish: *Tomás*, *Jorge*, *Álvaro*; English: *Ryan*, *Guy*) — the voice dropdown filters automatically to match the selected radio language.
-* **Master Enable/Disable:** Toggle the radio ON/OFF from the `⚙️` settings panel or directly via the `⚡ Power` button on the HUD. When OFF, the HUD collapses to a compact non-intrusive pill; all PTT, mic access, and background AI calls are fully paused.
+* **4-Tab Glassmorphic Settings Dialog & Master Toggle:** Comprehensive modal organizing settings into *Persona & Driver*, *Voice & Audio Realism*, *Proactive Triggers & Discretion*, and *Tactical Coaching*. Toggle the radio ON/OFF from settings or via the `⚡ Power` button on the HUD (collapsing into a compact pill and pausing all PTT, mic access, and background calls).
 
 ---
 

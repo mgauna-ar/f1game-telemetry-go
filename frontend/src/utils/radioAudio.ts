@@ -2,10 +2,25 @@ import { RADIO_AUDIO_CONSTANTS } from '../constants/f1';
 
 let audioCtx: AudioContext | null = null;
 let activeSourceNode: AudioBufferSourceNode | null = null;
+let activeStaticSourceNode: AudioBufferSourceNode | null = null;
+let activeStaticGainNode: GainNode | null = null;
+
+// Zero-latency in-memory cache for synthesized audio chunks
+const ttsAudioMemoryCache = new Map<string, ArrayBuffer>();
 
 export function _resetAudioContextForTesting(): void {
   audioCtx = null;
   activeSourceNode = null;
+  activeStaticSourceNode = null;
+  activeStaticGainNode = null;
+  ttsAudioMemoryCache.clear();
+}
+
+/**
+ * Clears the client-side audio memory cache.
+ */
+export function clearRadioAudioCache(): void {
+  ttsAudioMemoryCache.clear();
 }
 
 /**
@@ -53,6 +68,24 @@ export function makeDistortionCurve(amount: number = RADIO_AUDIO_CONSTANTS.DISTO
     }
   }
   return curve;
+}
+
+/**
+ * Generates an audio buffer containing filtered white noise to emulate analog cockpit radio squelch/static.
+ */
+export function createStaticNoiseBuffer(ctx: AudioContext, durationSeconds = 3): AudioBuffer {
+  const bufferSize = ctx.sampleRate * durationSeconds;
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+
+  let lastOut = 0.0;
+  for (let i = 0; i < bufferSize; i++) {
+    const white = Math.random() * 2 - 1;
+    // Pink noise / mild lowpass filter integration for natural radio hiss
+    lastOut = (lastOut + 0.02 * white) / 1.02;
+    data[i] = lastOut * 3.5;
+  }
+  return buffer;
 }
 
 /**
@@ -140,6 +173,7 @@ export interface RadioSpeechOptions {
   volume?: number;
   enableBeeps?: boolean;
   enableCockpitFilter?: boolean;
+  enableStaticFx?: boolean;
   voice?: string;
   persona?: string;
   language?: string;
@@ -161,6 +195,7 @@ export async function playRadioAudioBuffer(
     volume = RADIO_AUDIO_CONSTANTS.DEFAULT_VOLUME,
     enableBeeps = true,
     enableCockpitFilter = true,
+    enableStaticFx = true,
     onStart,
     onEnd,
     onError,
@@ -183,19 +218,48 @@ export async function playRadioAudioBuffer(
       arrayBuffer.slice(0),
       (audioBuffer) => {
         try {
+          const now = ctx.currentTime;
           const source = ctx.createBufferSource();
           source.buffer = audioBuffer;
           activeSourceNode = source;
 
           const masterGain = ctx.createGain();
-          masterGain.gain.setValueAtTime(Math.max(0, Math.min(1, volume)), ctx.currentTime);
+          masterGain.gain.setValueAtTime(Math.max(0, Math.min(1, volume)), now);
+
+          // Subtle radio background static hiss during speech
+          if (enableStaticFx) {
+            try {
+              const staticBuf = createStaticNoiseBuffer(ctx, 3);
+              const staticSource = ctx.createBufferSource();
+              staticSource.buffer = staticBuf;
+              staticSource.loop = true;
+
+              const staticFilter = ctx.createBiquadFilter();
+              staticFilter.type = 'bandpass';
+              staticFilter.frequency.setValueAtTime(RADIO_AUDIO_CONSTANTS.FILTER_CENTER_FREQ_HZ, now);
+              staticFilter.Q.setValueAtTime(RADIO_AUDIO_CONSTANTS.FILTER_Q, now);
+
+              const staticGain = ctx.createGain();
+              const targetStaticGain = RADIO_AUDIO_CONSTANTS.RADIO_STATIC_GAIN * Math.max(0, Math.min(1, volume));
+              staticGain.gain.setValueAtTime(0.001, now);
+              staticGain.gain.exponentialRampToValueAtTime(targetStaticGain, now + 0.05);
+
+              staticSource.connect(staticFilter);
+              staticFilter.connect(staticGain);
+              staticGain.connect(masterGain);
+
+              staticSource.start(now);
+              activeStaticSourceNode = staticSource;
+              activeStaticGainNode = staticGain;
+            } catch {}
+          }
 
           if (enableCockpitFilter) {
             // Bandpass filter to emulate band-limited cockpit radio
             const bandpass = ctx.createBiquadFilter();
             bandpass.type = 'bandpass';
-            bandpass.frequency.setValueAtTime(RADIO_AUDIO_CONSTANTS.FILTER_CENTER_FREQ_HZ, ctx.currentTime);
-            bandpass.Q.setValueAtTime(RADIO_AUDIO_CONSTANTS.FILTER_Q, ctx.currentTime);
+            bandpass.frequency.setValueAtTime(RADIO_AUDIO_CONSTANTS.FILTER_CENTER_FREQ_HZ, now);
+            bandpass.Q.setValueAtTime(RADIO_AUDIO_CONSTANTS.FILTER_Q, now);
 
             // Waveshaper distortion
             const distortion = ctx.createWaveShaper();
@@ -212,7 +276,7 @@ export async function playRadioAudioBuffer(
           masterGain.connect(ctx.destination);
 
           source.onended = async () => {
-            activeSourceNode = null;
+            stopRadioSpeech();
             if (enableBeeps) {
               await playRadioBeep('end', volume);
             }
@@ -223,13 +287,13 @@ export async function playRadioAudioBuffer(
           onStart?.();
           source.start(0);
         } catch (err) {
-          activeSourceNode = null;
+          stopRadioSpeech();
           onError?.(err);
           resolve();
         }
       },
       (decodeErr) => {
-        activeSourceNode = null;
+        stopRadioSpeech();
         onError?.(decodeErr);
         resolve();
       }
@@ -239,7 +303,7 @@ export async function playRadioAudioBuffer(
 
 /**
  * Requests speech synthesis from the Go backend (Microsoft Edge Neural TTS)
- * and plays it with F1 radio sound effects and callbacks.
+ * and plays it with F1 radio sound effects, static ambience, and callbacks.
  */
 export async function speakRadioResponse(
   text: string,
@@ -254,16 +318,24 @@ export async function speakRadioResponse(
     onError,
   } = options;
 
-  if (!text.trim()) return;
+  const trimmed = text.trim();
+  if (!trimmed) return;
 
   stopRadioSpeech();
+
+  const cacheKey = `${voice || 'default'}|${persona}|${language || ''}|${rate}|${pitch}|${trimmed}`;
+  const cached = ttsAudioMemoryCache.get(cacheKey);
+  if (cached) {
+    await playRadioAudioBuffer(cached, options);
+    return;
+  }
 
   try {
     const response = await fetch('/api/ai/tts', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        text,
+        text: trimmed,
         voice: voice || undefined,
         persona,
         language,
@@ -277,6 +349,7 @@ export async function speakRadioResponse(
     }
 
     const audioBuffer = await response.arrayBuffer();
+    ttsAudioMemoryCache.set(cacheKey, audioBuffer);
     await playRadioAudioBuffer(audioBuffer, options);
   } catch (err) {
     console.warn('[Radio Audio] Neural TTS playback failed:', err);
@@ -285,7 +358,7 @@ export async function speakRadioResponse(
 }
 
 /**
- * Stops any ongoing radio audio playback immediately.
+ * Stops any ongoing radio audio playback and background static immediately.
  */
 export function stopRadioSpeech(): void {
   if (activeSourceNode) {
@@ -294,6 +367,19 @@ export function stopRadioSpeech(): void {
       activeSourceNode.disconnect();
     } catch {}
     activeSourceNode = null;
+  }
+  if (activeStaticSourceNode) {
+    try {
+      activeStaticSourceNode.stop();
+      activeStaticSourceNode.disconnect();
+    } catch {}
+    activeStaticSourceNode = null;
+  }
+  if (activeStaticGainNode) {
+    try {
+      activeStaticGainNode.disconnect();
+    } catch {}
+    activeStaticGainNode = null;
   }
 }
 

@@ -227,5 +227,65 @@ describe('radioAudio utils', () => {
       }
       await playPromise;
     });
+
+    it('uses memory cache on repeated speakRadioResponse calls without refetching', async () => {
+      const mockBuffer = new ArrayBuffer(512);
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        arrayBuffer: vi.fn().mockResolvedValue(mockBuffer),
+      } as unknown as Response);
+
+      const mockAudioContext = {
+        currentTime: 0,
+        destination: {},
+        state: 'running',
+        decodeAudioData: vi.fn((_buf, success) => {
+          success({} as AudioBuffer);
+        }),
+        createBufferSource: vi.fn(() => {
+          const src = {
+            buffer: null,
+            connect: vi.fn(),
+            start: vi.fn(() => {
+              setTimeout(() => src.onended?.(), 5);
+            }),
+            stop: vi.fn(),
+            disconnect: vi.fn(),
+            onended: null as (() => void) | null,
+          };
+          return src;
+        }),
+        createGain: vi.fn(() => ({
+          gain: { setValueAtTime: vi.fn() },
+          connect: vi.fn(),
+        })),
+        createBiquadFilter: vi.fn(() => ({
+          type: 'bandpass',
+          frequency: { setValueAtTime: vi.fn() },
+          Q: { setValueAtTime: vi.fn() },
+          connect: vi.fn(),
+        })),
+        createWaveShaper: vi.fn(() => ({
+          curve: null,
+          oversample: '',
+          connect: vi.fn(),
+        })),
+        resume: vi.fn().mockResolvedValue(undefined),
+      };
+
+      class MockAudioContext {
+        constructor() {
+          return mockAudioContext;
+        }
+      }
+      (window as any).AudioContext = MockAudioContext;
+
+      await speakRadioResponse('Safety Car deployed', { enableBeeps: false, enableStaticFx: false });
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+
+      // Second call with same message & settings should hit memory cache
+      await speakRadioResponse('Safety Car deployed', { enableBeeps: false, enableStaticFx: false });
+      expect(globalThis.fetch).toHaveBeenCalledTimes(1); // No new network call
+    });
   });
 });

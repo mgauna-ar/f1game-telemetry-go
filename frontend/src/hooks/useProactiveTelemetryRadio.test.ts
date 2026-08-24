@@ -132,12 +132,98 @@ describe('useProactiveTelemetryRadio hook', () => {
 
     expect(onTriggerAlert).toHaveBeenCalledTimes(1);
     expect(onTriggerAlert).toHaveBeenCalledWith(
-      expect.stringContaining('DRS range'),
+      expect.stringContaining('1.0s gap'),
       false
     );
     expect(onTriggerAlert).toHaveBeenCalledWith(
       expect.stringContaining('front wing damage'),
       false
+    );
+  });
+
+  it('suppresses non-critical alerts when Smart Driving Discretion is active during heavy braking', async () => {
+    const onTriggerAlert = vi.fn().mockResolvedValue(undefined);
+
+    const carDamage = {
+      TyresWear: [45, 38, 30, 29],
+    } as unknown as CarDamageData;
+
+    const carStatus = {
+      TyresAgeLaps: 12,
+    } as unknown as CarStatusData;
+
+    const telemetry = {
+      Brake: 80, // Heavy braking zone
+      Steer: 0.1,
+    } as any;
+
+    renderHook(() =>
+      useProactiveTelemetryRadio({
+        carDamage,
+        carStatus,
+        telemetry,
+        onTriggerAlert,
+      })
+    );
+
+    // Suppressed because driver is braking hard
+    expect(onTriggerAlert).not.toHaveBeenCalled();
+  });
+
+  it('triggers rear tyre thermal overheating alert when temps exceed 115°C', async () => {
+    const onTriggerAlert = vi.fn().mockResolvedValue(undefined);
+
+    const carStatus = {
+      TyresAgeLaps: 8,
+    } as unknown as CarStatusData;
+
+    const telemetry = {
+      TyresSurfaceTemperature: [100, 102, 118, 119], // Overheated rears
+      Brake: 0,
+      Steer: 0,
+    } as any;
+
+    renderHook(() =>
+      useProactiveTelemetryRadio({
+        carStatus,
+        telemetry,
+        onTriggerAlert,
+      })
+    );
+
+    expect(onTriggerAlert).toHaveBeenCalledTimes(1);
+    expect(onTriggerAlert).toHaveBeenCalledWith(
+      expect.stringContaining('Rear tyre surface temperatures are overheating'),
+      false
+    );
+  });
+
+  it('triggers undercut alert when car behind boxes', async () => {
+    const onTriggerAlert = vi.fn().mockResolvedValue(undefined);
+
+    const playerLap = {
+      CarPosition: 2,
+      TotalDistance: 6000,
+    } as unknown as LapData;
+
+    const rivalLap = {
+      CarPosition: 3,
+      TotalDistance: 5920, // 80m behind
+      PitStatus: 1, // Pitting!
+    } as unknown as LapData;
+
+    renderHook(() =>
+      useProactiveTelemetryRadio({
+        lap: playerLap,
+        allLaps: [playerLap, rivalLap],
+        onTriggerAlert,
+      })
+    );
+
+    expect(onTriggerAlert).toHaveBeenCalledTimes(1);
+    expect(onTriggerAlert).toHaveBeenCalledWith(
+      expect.stringContaining('undercut attempt'),
+      true
     );
   });
 });

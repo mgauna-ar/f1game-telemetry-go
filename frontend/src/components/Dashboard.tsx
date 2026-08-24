@@ -37,7 +37,9 @@ export const Dashboard: React.FC = () => {
   const { setLiveContext, setContextMode } = useRaceEngineer();
 
   const getLiveTelemetrySummary = useCallback(() => {
-    if (!session) return '';
+    if (!session) {
+      return 'STATUS: Pit lane / Garage. Waiting for live telemetry packet stream from game.';
+    }
     const scStatus =
       session.SafetyCarStatus === SAFETY_CAR_STATUS.FULL
         ? 'Full Safety Car'
@@ -70,7 +72,7 @@ export const Dashboard: React.FC = () => {
   });
 
   const handleProactiveAlert = useCallback(
-    async (alertContext: string, isCritical: boolean) => {
+    async (alertContext: string, _isCritical: boolean) => {
       // Trigger voice transmission with LLM generation
       const liveSummary = getLiveTelemetrySummary();
 
@@ -80,22 +82,15 @@ export const Dashboard: React.FC = () => {
       let aiBaseUrl = '';
 
       try {
-        const savedConfig = localStorage.getItem('f1_ai_engineer_config');
-        if (savedConfig) {
-          const parsed = JSON.parse(savedConfig);
-          if (parsed.provider) aiProvider = parsed.provider;
-          if (parsed.providerKeys?.[aiProvider]) {
-            aiApiKey = parsed.providerKeys[aiProvider];
-          } else if (parsed.apiKey) {
-            aiApiKey = parsed.apiKey;
-          }
-          if (parsed.providerModels?.[aiProvider]) {
-            aiModel = parsed.providerModels[aiProvider];
-          } else if (parsed.model) {
-            aiModel = parsed.model;
-          }
-          if (parsed.baseUrl) aiBaseUrl = parsed.baseUrl;
-        }
+        const storedProvider = localStorage.getItem('f1_ai_provider');
+        const storedKey = localStorage.getItem('f1_ai_api_key');
+        const storedModel = localStorage.getItem('f1_ai_model');
+        const storedBaseUrl = localStorage.getItem('f1_ai_base_url');
+
+        if (storedProvider) aiProvider = storedProvider;
+        if (storedKey) aiApiKey = storedKey;
+        if (storedModel) aiModel = storedModel;
+        if (storedBaseUrl) aiBaseUrl = storedBaseUrl;
       } catch {}
 
       try {
@@ -103,65 +98,67 @@ export const Dashboard: React.FC = () => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            persona: radio.persona,
-            language: radio.effectiveLanguage,
             provider: aiProvider,
             api_key: aiApiKey,
             model: aiModel,
             base_url: aiBaseUrl,
-            messages: [{ role: 'user', content: alertContext }],
+            persona: radio.persona,
+            language: radio.effectiveLanguage,
+            messages: [
+              {
+                role: 'user',
+                content: alertContext,
+              },
+            ],
             context: {
               context_mode: 'live',
               live_summary: liveSummary,
               custom_persona_prompt: radio.customPrompt || undefined,
+              driver_callsign: radio.driverCallsign || undefined,
             },
           }),
         });
 
         if (!response.ok) return;
 
+        const reader = response.body?.getReader();
+        if (!reader) return;
+
+        const decoder = new TextDecoder();
         let fullText = '';
-        if (response.body) {
-          const reader = response.body.getReader();
-          const decoder = new TextDecoder();
-          let done = false;
-          while (!done) {
-            const { value, done: readerDone } = await reader.read();
-            done = readerDone;
-            if (value) {
-              const chunk = decoder.decode(value, { stream: true });
-              const lines = chunk.split('\n');
-              for (const line of lines) {
-                if (line.startsWith('data: ') && line !== 'data: [DONE]') {
-                  try {
-                    const parsed = JSON.parse(line.substring(6));
-                    if (parsed.text) fullText += parsed.text;
-                    else if (parsed.content) fullText += parsed.content;
-                  } catch {}
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const data = line.slice(6);
+              if (data === '[DONE]') break;
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.delta) {
+                  fullText += parsed.delta;
                 }
-              }
+              } catch {}
             }
           }
-        } else {
-          const json = await response.json();
-          fullText = json.content || json.text || '';
         }
 
-        const cleaned = fullText.trim();
-        if (cleaned) {
-          await radio.speakMessage(cleaned, isCritical);
+        if (fullText.trim()) {
+          radio.speakMessage(fullText.trim());
         }
-      } catch {
-        // Suppress proactive fetch error
+      } catch (err) {
+        console.warn('Proactive radio call generation failed:', err);
       }
     },
-    [radio, getLiveTelemetrySummary]
+    [getLiveTelemetrySummary, radio]
   );
 
   useProactiveTelemetryRadio({
-    enabled: connected && !!session,
-    isRadioEnabled: radio.isRadioEnabled,
-    playerCarIndex,
     session,
     lap: allLaps[playerCarIndex] || lap,
     allLaps,
@@ -211,7 +208,12 @@ export const Dashboard: React.FC = () => {
   }, [connected, session, participants, playerCarIndex, selectedCarIndex, setLiveContext, setContextMode]);
 
   if (!connected || !session) {
-    return <WaitingForData connected={connected} />;
+    return (
+      <div className="telemetry-waiting-wrapper" style={{ position: 'relative', width: '100%' }}>
+        <WaitingForData connected={connected} />
+        <LiveRadioHUD radio={radio} />
+      </div>
+    );
   }
 
   return (

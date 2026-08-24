@@ -52,6 +52,7 @@ type TelemetryAnalysisContext struct {
 	// Custom persona prompt definition if custom persona is selected
 	CustomPersonaPrompt string `json:"custom_persona_prompt,omitempty"`
 	Language            string `json:"language,omitempty"` // "es", "en", or ""
+	DriverCallsign      string `json:"driver_callsign,omitempty"`
 
 	// Zoomed section info if user is zoomed in
 	ZoomedRange *ZoomedRangeInfo `json:"zoomed_range,omitempty"`
