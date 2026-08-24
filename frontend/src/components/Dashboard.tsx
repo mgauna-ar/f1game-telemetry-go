@@ -19,6 +19,7 @@ import { WaitingForData } from './WaitingForData';
 import { LiveRadioHUD } from './LiveRadioHUD';
 import { useRadioController } from '../hooks/useRadioController';
 import { useProactiveTelemetryRadio } from '../hooks/useProactiveTelemetryRadio';
+import { formatProactiveFallbackSpeech } from '../utils/radioAudio';
 
 const getDriverStatusLabel = (status?: number): string => {
   switch (status) {
@@ -180,110 +181,23 @@ export const Dashboard: React.FC = () => {
 
   const handleProactiveAlert = useCallback(
     async (alertContext: string, _isCritical: boolean, emotion?: { rateModifier?: number; pitchModifier?: number }) => {
-      // Trigger voice transmission with LLM generation
-      const liveSummary = getLiveTelemetrySummary();
+      // Instant zero-latency pit wall radio call with persona-specific phrasing & randomized variety
+      const speech = formatProactiveFallbackSpeech(
+        alertContext,
+        radio.effectiveLanguage,
+        radio.persona,
+        radio.driverCallsign
+      );
 
-      let aiProvider = 'gemini';
-      let aiApiKey = '';
-      let aiModel = 'gemini-flash-lite-latest';
-      let aiBaseUrl = '';
-
-      try {
-        const storedProvider = localStorage.getItem('f1_ai_provider');
-        const storedKey = localStorage.getItem('f1_ai_api_key');
-        const storedModel = localStorage.getItem('f1_ai_model');
-        const storedBaseUrl = localStorage.getItem('f1_ai_base_url');
-
-        if (storedProvider) aiProvider = storedProvider;
-        if (storedKey) aiApiKey = storedKey;
-        if (storedModel) aiModel = storedModel;
-        if (storedBaseUrl) aiBaseUrl = storedBaseUrl;
-      } catch {}
-
-      const trackInfo = session?.TrackId !== undefined ? getTrackInfo(session.TrackId) : null;
-      const trackName = trackInfo?.name || (session?.TrackId !== undefined ? (TRACK_NAMES[session.TrackId] || `Track #${session.TrackId}`) : 'F1 Circuit');
-      const sessionName = getSessionTypeName(session?.SessionType);
-
-      const urgencyLevel = _isCritical ? 'critical' : 'high';
-      const incidentStatus =
-        session?.SafetyCarStatus === SAFETY_CAR_STATUS.FULL
-          ? 'safety_car'
-          : session?.SafetyCarStatus === SAFETY_CAR_STATUS.VIRTUAL
-          ? 'vsc'
-          : session?.NumRedFlagPeriods && session.NumRedFlagPeriods > 0
-          ? 'red_flag'
-          : 'clear';
-
-      try {
-        const response = await fetch('/api/ai/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            provider: aiProvider,
-            api_key: aiApiKey,
-            model: aiModel,
-            base_url: aiBaseUrl,
-            persona: radio.persona,
-            language: radio.effectiveLanguage,
-            messages: [
-              {
-                role: 'user',
-                content: alertContext,
-              },
-            ],
-            context: {
-              context_mode: 'live',
-              track_name: trackName,
-              session_type: sessionName,
-              live_summary: liveSummary,
-              custom_persona_prompt: radio.customPrompt || undefined,
-              driver_callsign: radio.driverCallsign || undefined,
-              urgency_level: urgencyLevel,
-              incident_status: incidentStatus,
-            },
-          }),
-        });
-
-        if (!response.ok) return;
-
-        const reader = response.body?.getReader();
-        if (!reader) return;
-
-        const decoder = new TextDecoder();
-        let fullText = '';
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n');
-
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6);
-              if (data === '[DONE]') break;
-              try {
-                const parsed = JSON.parse(data);
-                if (parsed.delta) {
-                  fullText += parsed.delta;
-                }
-              } catch {}
-            }
-          }
-        }
-
-        if (fullText.trim()) {
-          radio.speakMessage(fullText.trim(), false, emotion);
-        }
-      } catch (err) {
-        console.warn('Proactive radio call generation failed:', err);
+      if (speech) {
+        radio.speakMessage(speech, false, emotion);
       }
     },
-    [getLiveTelemetrySummary, radio, session]
+    [radio]
   );
 
   useProactiveTelemetryRadio({
+    isRadioEnabled: radio.isRadioEnabled,
     session,
     lap: allLaps[playerCarIndex] || lap,
     allLaps,

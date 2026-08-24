@@ -6,6 +6,7 @@ import {
   playRadioAudioBuffer,
   stopRadioSpeech,
   cleanRadioSpeechText,
+  formatProactiveFallbackSpeech,
   isSpeechRecognitionSupported,
   getRadioAnalyserNode,
   connectMicrophoneToAnalyser,
@@ -47,6 +48,43 @@ describe('radioAudio utils', () => {
     it('handles empty or blank input gracefully', () => {
       expect(cleanRadioSpeechText('')).toBe('');
       expect(cleanRadioSpeechText('   ')).toBe('');
+    });
+  });
+
+  describe('formatProactiveFallbackSpeech', () => {
+    it('formats safety car alert in Spanish and English with driver callsign', () => {
+      const scPrompt = '[PROACTIVE PIT WALL CALL: Full Safety Car deployed! You are initiating this call — do NOT say "Entendido" or "Copy". Directly announce Safety Car in pista / on track, maintain delta positive, stand by for pit stop window.]';
+      
+      const speechEs = formatProactiveFallbackSpeech(scPrompt, 'es', 'colapinto', 'Franco');
+      expect(speechEs).toContain('Safety Car');
+      expect(speechEs).toContain('Franco');
+
+      const speechEn = formatProactiveFallbackSpeech(scPrompt, 'en', 'bono', 'Lewis');
+      expect(speechEn).toContain('Safety Car');
+      expect(speechEn).toContain('Lewis');
+    });
+
+    it('formats VSC and Red Flag alerts authentically', () => {
+      const vscPrompt = '[PROACTIVE PIT WALL CALL: Virtual Safety Car (VSC) deployed! Directly announce VSC deployed, maintain delta, no overtaking.]';
+      expect(formatProactiveFallbackSpeech(vscPrompt, 'es', 'bono')).toMatch(/VSC|Virtual Safety Car/i);
+      expect(formatProactiveFallbackSpeech(vscPrompt, 'en', 'bono')).toMatch(/VSC|Virtual Safety Car/i);
+
+      const redFlagPrompt = '[PROACTIVE PIT WALL CALL: Red Flag deployed! Session stopped.]';
+      expect(formatProactiveFallbackSpeech(redFlagPrompt, 'es', 'bono')).toMatch(/Bandera roja/i);
+      expect(formatProactiveFallbackSpeech(redFlagPrompt, 'en', 'bono')).toMatch(/Red flag/i);
+    });
+
+    it('formats critical tyre puncture alerts', () => {
+      const puncturePrompt = '[PROACTIVE PIT WALL CALL: Critical tyre puncture on car! Wear is at 96%. Order driver to box immediately.]';
+      const speech = formatProactiveFallbackSpeech(puncturePrompt, 'es', 'bono', 'Mateo');
+      expect(speech.toLowerCase()).toContain('pinchazo');
+      expect(speech).toContain('Mateo');
+    });
+
+    it('formats general directives cleanly as fallback', () => {
+      const directivePrompt = '[PROACTIVE PIT WALL CALL: Clean Air Pit Window — Pit window offers clean air on rejoin.]';
+      const speech = formatProactiveFallbackSpeech(directivePrompt, 'es', 'bono', 'Driver');
+      expect(speech).toContain('Driver, Clean Air Pit Window — Pit window offers clean air on rejoin.');
     });
   });
 

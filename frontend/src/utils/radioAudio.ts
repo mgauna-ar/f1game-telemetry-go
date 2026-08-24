@@ -507,6 +507,20 @@ export function cleanRadioSpeechText(text: string): string {
   return cleaned.trim();
 }
 
+import { getProactiveRadioSpeech } from './radioPhrases';
+
+/**
+ * Generates an authentic, localized pit wall radio speech message with persona-specific phrasing.
+ */
+export function formatProactiveFallbackSpeech(
+  alertContext: string,
+  language: 'es' | 'en' = 'es',
+  persona: import('../constants/f1').RadioPersona = 'bono',
+  driverCallsign?: string
+): string {
+  return getProactiveRadioSpeech(alertContext, language, persona, driverCallsign);
+}
+
 /**
  * Requests speech synthesis from the Go backend (Microsoft Edge Neural TTS)
  * and plays it with F1 radio sound effects, static ambience, and callbacks.

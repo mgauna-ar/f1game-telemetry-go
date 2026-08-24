@@ -4,6 +4,7 @@ import { history as enHistory } from './en/history';
 import { comparator as enComparator } from './en/comparator';
 import { live as enLive } from './en/live';
 import { ai_engineer as enAiEngineer } from './en/ai_engineer';
+import { radio_phrases as enRadioPhrases } from './en/radio_phrases';
 
 import { common as esCommon } from './es/common';
 import { nav as esNav } from './es/nav';
@@ -11,6 +12,7 @@ import { history as esHistory } from './es/history';
 import { comparator as esComparator } from './es/comparator';
 import { live as esLive } from './es/live';
 import { ai_engineer as esAiEngineer } from './es/ai_engineer';
+import { radio_phrases as esRadioPhrases } from './es/radio_phrases';
 
 export const en = {
   common: enCommon,
@@ -19,6 +21,7 @@ export const en = {
   comparator: enComparator,
   live: enLive,
   ai_engineer: enAiEngineer,
+  radio_phrases: enRadioPhrases,
 };
 
 export const es = {
@@ -28,6 +31,7 @@ export const es = {
   comparator: esComparator,
   live: esLive,
   ai_engineer: esAiEngineer,
+  radio_phrases: esRadioPhrases,
 };
 
 export type LocaleCode = 'en' | 'es';
