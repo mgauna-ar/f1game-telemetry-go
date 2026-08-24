@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/api"
+	"github.com/mgauna/f1game-telemetry-go/internal/input"
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 	"github.com/mgauna/f1game-telemetry-go/internal/session"
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
@@ -80,8 +81,13 @@ func main() {
 	engineerHub := api.NewHub()
 	go engineerHub.Run()
 
-	// 5. Setup API Server
+	// 5. Setup API Server & Global Input Manager
+	inputMgr := input.NewManager()
+	inputMgr.Start(ctx)
+
 	apiServer := api.NewServer(repo, telemetryHub, engineerHub)
+	apiServer.SetInputManager(inputMgr)
+
 	srv := &http.Server{
 		Addr:    httpAddr,
 		Handler: apiServer.Router(),
@@ -156,6 +162,7 @@ func main() {
 	log.Println("Shutting down F1 Telemetry Analyzer...")
 
 	cancel() // Stop UDP listener and packet loop
+	inputMgr.Stop()
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutdownCancel()

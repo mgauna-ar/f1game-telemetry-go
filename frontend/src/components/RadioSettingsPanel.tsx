@@ -34,6 +34,7 @@ import {
   RADIO_SPANISH_VOICES,
   RADIO_ENGLISH_VOICES,
   RADIO_TRIGGER_PRESETS,
+  RADIO_PTT_MODES,
   type RadioLanguage,
 } from '../constants/f1';
 import type { UseRadioControllerReturn } from '../hooks/useRadioController';
@@ -403,6 +404,73 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
               <Gamepad2 className="w-3.5 h-3.5" />
               {t('ai_engineer.ptt.title')}
             </label>
+
+            {/* PTT Activation Mode (Hold vs Toggle) */}
+            <div className="radio-select-box" style={{ marginTop: '6px', marginBottom: '8px' }}>
+              <label className="radio-select-label">
+                {t('ai_engineer.ptt.mode')}
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '4px' }}>
+                <button
+                  type="button"
+                  onClick={() => radio.setPTTMode(RADIO_PTT_MODES.HOLD)}
+                  className={`radio-tab-btn ${radio.pttMode === RADIO_PTT_MODES.HOLD ? 'tab-active' : ''}`}
+                  style={{ justifyContent: 'center', padding: '7px 8px', fontSize: '0.78rem' }}
+                >
+                  🔘 {t('ai_engineer.ptt.modeHold')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => radio.setPTTMode(RADIO_PTT_MODES.TOGGLE)}
+                  className={`radio-tab-btn ${radio.pttMode === RADIO_PTT_MODES.TOGGLE ? 'tab-active' : ''}`}
+                  style={{ justifyContent: 'center', padding: '7px 8px', fontSize: '0.78rem' }}
+                >
+                  🔀 {t('ai_engineer.ptt.modeToggle')}
+                </button>
+              </div>
+              <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: '4px 0 0 2px' }}>
+                {radio.pttMode === RADIO_PTT_MODES.HOLD
+                  ? t('ai_engineer.ptt.modeHoldDesc')
+                  : t('ai_engineer.ptt.modeToggleDesc')}
+              </p>
+            </div>
+
+            {/* Global OS Background Status Badge */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '6px 10px',
+                borderRadius: '6px',
+                backgroundColor: radio.globalActive ? 'rgba(16, 185, 129, 0.1)' : 'rgba(148, 163, 184, 0.08)',
+                border: `1px solid ${radio.globalActive ? 'rgba(16, 185, 129, 0.25)' : 'rgba(148, 163, 184, 0.15)'}`,
+                marginBottom: '10px',
+                fontSize: '0.74rem',
+              }}
+            >
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span
+                  style={{
+                    width: '7px',
+                    height: '7px',
+                    borderRadius: '50%',
+                    backgroundColor: radio.globalActive ? '#10b981' : '#94a3b8',
+                  }}
+                />
+                <strong style={{ color: radio.globalActive ? '#34d399' : '#94a3b8' }}>
+                  {t('ai_engineer.ptt.globalSupport')}:
+                </strong>
+                <span style={{ color: 'var(--text-secondary)' }}>
+                  {radio.globalActive ? t('ai_engineer.ptt.globalActive') : t('ai_engineer.ptt.globalInactive')}
+                </span>
+              </span>
+              {radio.globalMapping && (radio.globalMapping.device_name || radio.globalMapping.key_name) && (
+                <span className="live-radio-key-badge" style={{ fontSize: '0.68rem', padding: '2px 6px' }}>
+                  {radio.globalMapping.device_name || 'Device'}: {radio.globalMapping.key_name || (radio.globalMapping.button_index !== undefined ? `B${radio.globalMapping.button_index + 1}` : '')}
+                </span>
+              )}
+            </div>
 
             <div className="radio-ptt-grid">
               {/* Gamepad Steering Wheel Mapping */}

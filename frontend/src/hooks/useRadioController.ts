@@ -9,6 +9,7 @@ import {
   type RadioPersona,
   type RadioLanguage,
   type RadioTriggerPreset,
+  type RadioPTTMode,
 } from '../constants/f1';
 import {
   playRadioBeep,
@@ -18,7 +19,7 @@ import {
   getSpeechRecognitionClass,
   type ISpeechRecognition,
 } from '../utils/radioAudio';
-import { useGamepadPTT, type GamepadMapping } from './useGamepadPTT';
+import { useGamepadPTT, type GamepadMapping, type GlobalPTTMapping } from './useGamepadPTT';
 import { useI18n } from '../context/I18nContext';
 import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
 
@@ -201,6 +202,10 @@ export interface UseRadioControllerReturn {
   setMappedKey: (key: string) => void;
   gamepadConnected: boolean;
   gamepadName: string | null;
+  pttMode: RadioPTTMode;
+  setPTTMode: (mode: RadioPTTMode) => void;
+  globalActive: boolean;
+  globalMapping: GlobalPTTMapping | null;
 
   // Actions
   testRadioTransmission: () => Promise<void>;
@@ -1608,6 +1613,10 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
     setMappedKey: gamepadPTT.setMappedKey,
     gamepadConnected: gamepadPTT.gamepadConnected,
     gamepadName: gamepadPTT.gamepadName,
+    pttMode: gamepadPTT.pttMode,
+    setPTTMode: gamepadPTT.setPTTMode,
+    globalActive: gamepadPTT.globalActive,
+    globalMapping: gamepadPTT.globalMapping,
     // Actions
     testRadioTransmission,
     testTriggerAlert,

@@ -554,11 +554,20 @@ export const RADIO_ENGLISH_VOICES = [
   { id: 'en-US-GuyNeural', translationKey: 'guy' },
 ] as const;
 
+export const RADIO_PTT_MODES = {
+  HOLD: 'hold',
+  TOGGLE: 'toggle',
+} as const;
+
+export type RadioPTTMode = (typeof RADIO_PTT_MODES)[keyof typeof RADIO_PTT_MODES];
+
 export const RADIO_STORAGE_KEYS = {
   PERSONA: 'f1_radio_persona',
   LANGUAGE: 'f1_radio_language',
   CUSTOM_PROMPT: 'f1_radio_custom_prompt',
   DRIVER_CALLSIGN: 'f1_radio_driver_callsign',
+  PTT_MODE: 'f1_radio_ptt_mode',
+  GLOBAL_PTT_MAPPING: 'f1_radio_global_ptt_mapping',
   GAMEPAD_MAPPING: 'f1_radio_gamepad_mapping',
   KEYBOARD_KEY: 'f1_radio_keyboard_key',
   BEEPS_ENABLED: 'f1_radio_beeps_enabled',

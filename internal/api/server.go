@@ -22,6 +22,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/mgauna/f1game-telemetry-go/frontend"
+	"github.com/mgauna/f1game-telemetry-go/internal/input"
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
 )
 
@@ -45,6 +46,7 @@ type Server struct {
 	repo         storage.Repository
 	telemetryHub *Hub
 	engineerHub  *Hub
+	inputManager input.Manager
 	staticFS     fs.FS
 }
 
@@ -69,6 +71,8 @@ func NewServerWithFS(repo storage.Repository, telemetryHub, engineerHub *Hub, st
 		staticFS:     staticFS,
 	}
 
+	s.SetInputManager(input.NewManager())
+
 	s.router.Use(middleware.Logger)
 	s.router.Use(middleware.Recoverer)
 	s.router.Use(func(next http.Handler) http.Handler {
@@ -87,6 +91,26 @@ func NewServerWithFS(repo storage.Repository, telemetryHub, engineerHub *Hub, st
 	s.routes()
 
 	return s
+}
+
+// SetInputManager configures the global input manager and forwards PTT state events to engineerHub.
+func (s *Server) SetInputManager(mgr input.Manager) {
+	s.inputManager = mgr
+	if mgr != nil && s.engineerHub != nil {
+		go func() {
+			for evt := range mgr.Events() {
+				payload, err := json.Marshal(map[string]any{
+					"type":      "ptt_event",
+					"state":     evt.State,
+					"mapping":   evt.Mapping,
+					"timestamp": evt.Timestamp,
+				})
+				if err == nil && s.engineerHub != nil {
+					s.engineerHub.Broadcast(payload)
+				}
+			}
+		}()
+	}
 }
 
 // Router returns the underlying Chi router.
@@ -130,6 +154,12 @@ func (s *Server) routes() {
 		r.Get("/ai/config-status", s.handleAIConfigStatus)
 		r.Post("/ai/models", s.handleAIFetchModels)
 		r.Post("/ai/tts", s.handleAITTS)
+
+		// Global Push-to-Talk (PTT) routes
+		r.Get("/ai/ptt/config", s.handleGetPTTConfig)
+		r.Post("/ai/ptt/config", s.handleSetPTTConfig)
+		r.Post("/ai/ptt/learn", s.handleStartPTTLearn)
+		r.Post("/ai/ptt/learn/cancel", s.handleCancelPTTLearn)
 
 		// System & Version Updates routes
 		r.Get("/system/version", s.handleGetSystemVersion)

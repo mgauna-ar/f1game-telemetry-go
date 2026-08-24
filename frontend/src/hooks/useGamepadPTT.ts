@@ -1,9 +1,23 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { RADIO_STORAGE_KEYS, RADIO_ALERT_CONSTANTS } from '../constants/f1';
+import {
+  RADIO_STORAGE_KEYS,
+  RADIO_ALERT_CONSTANTS,
+  RADIO_PTT_MODES,
+  type RadioPTTMode,
+} from '../constants/f1';
 
 export interface GamepadMapping {
   gamepadIndex: number;
   buttonIndex: number;
+}
+
+export interface GlobalPTTMapping {
+  device_type: 'joystick' | 'keyboard' | 'none';
+  device_index?: number;
+  button_index?: number;
+  key_code?: number;
+  key_name?: string;
+  device_name?: string;
 }
 
 export interface UseGamepadPTTOptions {
@@ -23,6 +37,10 @@ export interface UseGamepadPTTReturn {
   setMappedKey: (key: string) => void;
   gamepadConnected: boolean;
   gamepadName: string | null;
+  pttMode: RadioPTTMode;
+  setPTTMode: (mode: RadioPTTMode) => void;
+  globalActive: boolean;
+  globalMapping: GlobalPTTMapping | null;
 }
 
 export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTTReturn {
@@ -32,6 +50,27 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
   const [isLearning, setIsLearning] = useState(false);
   const [gamepadConnected, setGamepadConnected] = useState(false);
   const [gamepadName, setGamepadName] = useState<string | null>(null);
+  const [globalActive, setGlobalActive] = useState<boolean>(false);
+  const [globalMapping, setGlobalMapping] = useState<GlobalPTTMapping | null>(null);
+
+  // Load PTT Mode (hold vs toggle)
+  const [pttMode, setPTTModeState] = useState<RadioPTTMode>(() => {
+    if (typeof window === 'undefined') return RADIO_PTT_MODES.HOLD;
+    try {
+      const saved = localStorage.getItem(RADIO_STORAGE_KEYS.PTT_MODE) as RadioPTTMode;
+      if (saved && Object.values(RADIO_PTT_MODES).includes(saved)) return saved;
+      return RADIO_PTT_MODES.HOLD;
+    } catch {
+      return RADIO_PTT_MODES.HOLD;
+    }
+  });
+
+  const setPTTMode = useCallback((mode: RadioPTTMode) => {
+    setPTTModeState(mode);
+    try {
+      localStorage.setItem(RADIO_STORAGE_KEYS.PTT_MODE, mode);
+    } catch {}
+  }, []);
 
   // Load initial gamepad mapping
   const [mappedGamepadButton, setMappedGamepadButtonState] = useState<GamepadMapping | null>(() => {
@@ -62,31 +101,37 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
       } else {
         localStorage.removeItem(RADIO_STORAGE_KEYS.GAMEPAD_MAPPING);
       }
-    } catch {
-      // Ignore storage errors
-    }
+    } catch {}
   }, []);
 
   const setMappedKey = useCallback((key: string) => {
     setMappedKeyState(key);
     try {
       localStorage.setItem(RADIO_STORAGE_KEYS.KEYBOARD_KEY, key);
-    } catch {
-      // Ignore storage errors
-    }
+    } catch {}
   }, []);
 
-  const startLearning = useCallback(() => {
-    setIsLearning(true);
-  }, []);
-
-  const cancelLearning = useCallback(() => {
-    setIsLearning(false);
+  // Sync initial global config from backend
+  useEffect(() => {
+    fetch('/api/ai/ptt/config')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && data.status === 'ok') {
+          setGlobalActive(!!data.is_active);
+          if (data.mapping) {
+            setGlobalMapping(data.mapping);
+          }
+        }
+      })
+      .catch(() => {});
   }, []);
 
   // Use refs for stable access in animation frame / event listeners
   const isPTTActiveRef = useRef(isPTTActive);
   isPTTActiveRef.current = isPTTActive;
+
+  const pttModeRef = useRef(pttMode);
+  pttModeRef.current = pttMode;
 
   const mappedGamepadRef = useRef(mappedGamepadButton);
   mappedGamepadRef.current = mappedGamepadButton;
@@ -118,14 +163,112 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
     }
   }, []);
 
-  // Keyboard Event Handlers
+  const handleGlobalPTTEvent = useCallback(
+    (state: 'down' | 'up') => {
+      if (!enabledRef.current) return;
+
+      if (pttModeRef.current === RADIO_PTT_MODES.HOLD) {
+        updatePTTState(state === 'down');
+      } else if (pttModeRef.current === RADIO_PTT_MODES.TOGGLE) {
+        if (state === 'down') {
+          updatePTTState(!isPTTActiveRef.current);
+        }
+      }
+    },
+    [updatePTTState]
+  );
+
+  const startLearning = useCallback(() => {
+    setIsLearning(true);
+    // Notify backend to start native OS scanning
+    fetch('/api/ai/ptt/learn', { method: 'POST' }).catch(() => {});
+  }, []);
+
+  const cancelLearning = useCallback(() => {
+    setIsLearning(false);
+    // Notify backend to cancel native OS scanning
+    fetch('/api/ai/ptt/learn/cancel', { method: 'POST' }).catch(() => {});
+  }, []);
+
+  // Listen to /ws/engineer WebSocket for backend global PTT events
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws/engineer`;
+
+    let ws: WebSocket | null = null;
+    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
+    let isCleanedUp = false;
+
+    const connectWS = () => {
+      if (isCleanedUp) return;
+      try {
+        ws = new WebSocket(wsUrl);
+
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'ptt_event' && (data.state === 'down' || data.state === 'up')) {
+              handleGlobalPTTEvent(data.state);
+            } else if (data.type === 'ptt_learned' && data.mapping) {
+              setGlobalMapping(data.mapping);
+              setIsLearning(false);
+
+              if (data.mapping.device_type === 'joystick' && data.mapping.button_index !== undefined) {
+                setMappedGamepadButton({
+                  gamepadIndex: data.mapping.device_index ?? 0,
+                  buttonIndex: data.mapping.button_index,
+                });
+              } else if (data.mapping.device_type === 'keyboard' && data.mapping.key_name) {
+                setMappedKey(data.mapping.key_name);
+              }
+            }
+          } catch {}
+        };
+
+        ws.onclose = () => {
+          if (!isCleanedUp) {
+            reconnectTimeout = setTimeout(connectWS, 2500);
+          }
+        };
+
+        ws.onerror = () => {
+          if (ws) ws.close();
+        };
+      } catch {
+        if (!isCleanedUp) {
+          reconnectTimeout = setTimeout(connectWS, 2500);
+        }
+      }
+    };
+
+    connectWS();
+
+    return () => {
+      isCleanedUp = true;
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (ws) {
+        ws.onclose = null;
+        ws.close();
+      }
+    };
+  }, [handleGlobalPTTEvent, setMappedGamepadButton, setMappedKey]);
+
+  // Keyboard Event Handlers (Browser Fallback)
   useEffect(() => {
     if (!enabled) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore when typing inside input / textarea
       const target = e.target as HTMLElement | null;
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
+
+      if (isLearningRef.current) {
+        e.preventDefault();
+        setMappedKey(e.code === 'Space' ? 'Space' : e.key.toUpperCase());
+        cancelLearning();
         return;
       }
 
@@ -136,7 +279,11 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
 
       if (isKeyMatch && !keyboardPressedRef.current) {
         keyboardPressedRef.current = true;
-        updatePTTState(true);
+        if (pttModeRef.current === RADIO_PTT_MODES.HOLD) {
+          updatePTTState(true);
+        } else if (pttModeRef.current === RADIO_PTT_MODES.TOGGLE) {
+          updatePTTState(!isPTTActiveRef.current);
+        }
       }
     };
 
@@ -153,8 +300,10 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
 
       if (isKeyMatch) {
         keyboardPressedRef.current = false;
-        if (!gamepadPressedRef.current) {
-          updatePTTState(false);
+        if (pttModeRef.current === RADIO_PTT_MODES.HOLD) {
+          if (!gamepadPressedRef.current) {
+            updatePTTState(false);
+          }
         }
       }
     };
@@ -166,9 +315,9 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [enabled, mappedKey, updatePTTState]);
+  }, [enabled, mappedKey, updatePTTState, cancelLearning, setMappedKey]);
 
-  // Gamepad Polling Loop via requestAnimationFrame
+  // Gamepad Polling Loop via requestAnimationFrame (Browser Fallback)
   useEffect(() => {
     if (!enabled) return;
 
@@ -196,7 +345,21 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
           for (let bIdx = 0; bIdx < gp.buttons.length; bIdx++) {
             if (gp.buttons[bIdx].pressed) {
               setMappedGamepadButton({ gamepadIndex: gIdx, buttonIndex: bIdx });
-              setIsLearning(false);
+              // Also inform backend of joystick mapping
+              fetch('/api/ai/ptt/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  mapping: {
+                    device_type: 'joystick',
+                    device_index: gIdx,
+                    button_index: bIdx,
+                    device_name: gp.id,
+                    key_name: `Button ${bIdx + 1}`,
+                  },
+                }),
+              }).catch(() => {});
+              cancelLearning();
               break;
             }
           }
@@ -219,10 +382,16 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
 
       if (isAnyGamepadButtonPressed !== gamepadPressedRef.current) {
         gamepadPressedRef.current = isAnyGamepadButtonPressed;
-        if (isAnyGamepadButtonPressed) {
-          updatePTTState(true);
-        } else if (!keyboardPressedRef.current) {
-          updatePTTState(false);
+        if (pttModeRef.current === RADIO_PTT_MODES.HOLD) {
+          if (isAnyGamepadButtonPressed) {
+            updatePTTState(true);
+          } else if (!keyboardPressedRef.current) {
+            updatePTTState(false);
+          }
+        } else if (pttModeRef.current === RADIO_PTT_MODES.TOGGLE) {
+          if (isAnyGamepadButtonPressed) {
+            updatePTTState(!isPTTActiveRef.current);
+          }
         }
       }
 
@@ -234,7 +403,7 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
     return () => {
       cancelAnimationFrame(animationFrameId);
     };
-  }, [enabled, setMappedGamepadButton, updatePTTState]);
+  }, [enabled, setMappedGamepadButton, updatePTTState, cancelLearning]);
 
   return {
     isPTTActive,
@@ -247,5 +416,9 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
     setMappedKey,
     gamepadConnected,
     gamepadName,
+    pttMode,
+    setPTTMode,
+    globalActive,
+    globalMapping,
   };
 }

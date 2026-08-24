@@ -42,7 +42,7 @@
 * **LLM Provider Flexibility:** Works out-of-the-box with Google Gemini (default) or OpenAI / custom LLM endpoints (configured directly in UI settings).
 
 ### 🎙️ Interactive Voice Race Engineer (Live Sessions)
-* **Push-to-Talk Radio:** Talk to your engineer hands-free over live team radio using `Space` or a **steering wheel button** (Gamepad API with interactive button-learning). FOM-style harmonic radio *beeps* play before/after each transmission.
+* **Global Push-to-Talk Radio (In-Game / Background Support):** Talk to your engineer hands-free over live team radio while driving in full-screen mode. The Go backend captures steering wheel buttons (Fanatec, Logitech, Moza, Simagic, etc. via DirectInput) and global keyboard shortcuts at the OS level on Windows. Supports configurable **Hold-to-Talk** (classic F1) and **Toggle On/Off** modes, interactive button learning via web UI, and FOM-style harmonic radio *beeps* on press and release.
 * **Driver Call-Sign Personalization:** Set a custom driver name or call-sign (e.g. *Franco*, *Max*, *Chief*) so the pit wall naturally addresses you by name across all voice prompts and live updates.
 * **Proactive Pit Wall Watcher & 8 Telemetry Subsystems:** Automatically calls you over the radio without prompting across 8 categorized subsystems with independent per-category cooldowns and instant Emergency Bypass for critical safety events:
   - *Tyre Wear & Overheating:* Granular wear % and critical % sliders, critical puncture bypass (>=95%), and thermal window (>115°C overheat & cold tyre alerts).
