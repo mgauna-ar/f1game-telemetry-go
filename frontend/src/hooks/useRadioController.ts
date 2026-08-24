@@ -1305,12 +1305,13 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
     }
 
     if (beepsEnabled) {
-      await playRadioBeep('end');
+      // Play end beep asynchronously in background without blocking the AI request
+      playRadioBeep('end').catch(() => {});
     }
 
-    // Allow Web Speech API up to 250ms to dispatch final onresult audio buffers
+    // Only if transcript is not yet available, wait a very brief 80ms for final Web Speech API chunk
     if (!currentTranscriptRef.current.trim()) {
-      await new Promise((resolve) => setTimeout(resolve, 250));
+      await new Promise((resolve) => setTimeout(resolve, 80));
     }
 
     const finalTranscript = currentTranscriptRef.current.trim();

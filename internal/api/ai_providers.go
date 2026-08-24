@@ -363,7 +363,8 @@ func streamGemini(ctx context.Context, apiKey, model, systemPrompt string, messa
 		},
 		Contents: contents,
 		GenerationConfig: map[string]interface{}{
-			"temperature": 0.35,
+			"temperature":     0.35,
+			"maxOutputTokens": 200,
 		},
 	}
 
@@ -473,9 +474,10 @@ func streamOpenAI(ctx context.Context, baseURL, apiKey, model, systemPrompt stri
 	}
 
 	reqMap := map[string]interface{}{
-		"model":    model,
-		"messages": openAIMessages,
-		"stream":   true,
+		"model":      model,
+		"messages":   openAIMessages,
+		"stream":     true,
+		"max_tokens": 200,
 	}
 	if !isReasoningModel {
 		reqMap["temperature"] = 0.4
