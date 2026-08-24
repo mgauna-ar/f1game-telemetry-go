@@ -15,6 +15,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.0] - 2026-08-24
+
+### Added
+- **Interactive Voice Race Engineer & Push-to-Talk (PTT)**: Two-way radio via Gamepad/wheel and keyboard `Space`, realistic cockpit audio FX, FOM harmonic beeps, driver call-sign personalization, and multi-language neural voices (Bono, Colapinto, Custom).
+- **Proactive Pit Wall Telemetry Watcher**: Real-time server-side insight engine monitoring 9 subsystems (tyres, damage, ERS, brakes, fuel, rivals/DRS, coaching, qualy, and weather) with smart driving discretion and 2025/2026 regulation awareness.
+- **Voice Cockpit Mode**: Distraction-free live dashboard mode with 0% DOM/canvas rendering overhead and vital telemetry strip for high-FPS sim rigs and VR.
+- **10Hz Telemetry Broadcaster & Store**: Consolidated 10Hz live snapshot streaming and decoupled Zustand store for optimal UI performance.
+- **System Version & Update Checker**: In-app version indicator in top navigation bar and OS-filtered release asset downloads.
+
+### Fixed
+- **Qualifying Tyre Stints**: Corrected stint progression during qualifying sessions via tyre set change events (`PacketTyreSets`).
+
+---
+
 ## [1.0.1] - 2026-08-21
 
 ### Fixed
@@ -53,6 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/mgauna-ar/f1game-telemetry-go/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/mgauna-ar/f1game-telemetry-go/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/mgauna-ar/f1game-telemetry-go/compare/v1.0.1...v1.1.0
 [1.0.1]: https://github.com/mgauna-ar/f1game-telemetry-go/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/mgauna-ar/f1game-telemetry-go/releases/tag/v1.0.0

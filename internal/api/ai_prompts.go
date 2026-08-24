@@ -138,7 +138,7 @@ func buildLivePrompt(telemetryCtx *TelemetryAnalysisContext, persona, language s
 			}
 		case "high":
 			if isEnglish {
-				sb.WriteString("\n⚡ URGENCY: HIGH TACTICAL FOCUS! Immediate tactical execution needed (undercut defence, close battle in DRS, lap invalidation). Short and decisive.\n")
+				sb.WriteString("\n⚡ URGENCY: HIGH TACTICAL FOCUS! Immediate tactical execution needed (undercut defense, close battle in DRS, lap invalidation). Short and decisive.\n")
 			} else {
 				sb.WriteString("\n⚡ URGENCIA: ¡ALTA PRIORIDAD TÁCTICA! Ejecución táctica inmediata (defensa de undercut, rival pegado en DRS, vuelta anulada). Tajante y resolutivo.\n")
 			}
@@ -154,19 +154,20 @@ func buildLivePrompt(telemetryCtx *TelemetryAnalysisContext, persona, language s
 	// Incident Status Injection
 	if telemetryCtx != nil && telemetryCtx.IncidentStatus != "" {
 		inc := strings.ToLower(strings.TrimSpace(telemetryCtx.IncidentStatus))
-		if strings.Contains(inc, "safety_car") || inc == "full_sc" {
+		switch {
+		case strings.Contains(inc, "safety_car") || inc == "full_sc":
 			if isEnglish {
 				sb.WriteString("\n⚠️ TRACK INCIDENT: FULL SAFETY CAR ACTIVE. Remind driver to match delta positive, warm tyres/brakes, and stay alert for pit commands.\n")
 			} else {
 				sb.WriteString("\n⚠️ INCIDENTE EN PISTA: AUTO DE SEGURIDAD EN PISTA. Recordale al piloto mantener delta positivo, calentar gomas/frenos y esperar orden de boxes. Usá 'Auto de seguridad en pista'.\n")
 			}
-		} else if strings.Contains(inc, "vsc") {
+		case strings.Contains(inc, "vsc"):
 			if isEnglish {
 				sb.WriteString("\n⚠️ TRACK INCIDENT: VIRTUAL SAFETY CAR (VSC). Remind driver to keep delta positive and observe no overtaking.\n")
 			} else {
 				sb.WriteString("\n⚠️ INCIDENTE EN PISTA: AUTO DE SEGURIDAD VIRTUAL (VSC EN PISTA). Recordale mantener delta positivo y prohibido sobrepasos. Usá 'Auto de seguridad virtual' o 'VSC en pista'.\n")
 			}
-		} else if strings.Contains(inc, "red_flag") {
+		case strings.Contains(inc, "red_flag"):
 			if isEnglish {
 				sb.WriteString("\n🚩 TRACK INCIDENT: RED FLAG (SESSION SUSPENDED). Instruct driver to bring the car safely back to pit lane.\n")
 			} else {
@@ -190,7 +191,8 @@ func buildLivePrompt(telemetryCtx *TelemetryAnalysisContext, persona, language s
 	isPractice := strings.Contains(sessionType, "practice") || strings.Contains(sessionType, "fp1") || strings.Contains(sessionType, "fp2") || strings.Contains(sessionType, "fp3") || strings.Contains(sessionType, "p1") || strings.Contains(sessionType, "p2") || strings.Contains(sessionType, "p3")
 
 	sb.WriteString("\nSESSION PROTOCOL DIRECTIVES:\n")
-	if isQualy {
+	switch {
+	case isQualy:
 		if isEnglish {
 			fmt.Fprintf(&sb, "4. QUALIFYING PROTOCOL (Active Session: %s at %s):\n", telemetryCtx.SessionType, trackName)
 			sb.WriteString("   - Focus 100% on single-lap flying pace, delta to cutoff/pole, out-lap tyre preparation, traffic clean air gaps, and remaining session clock.\n")
@@ -200,7 +202,7 @@ func buildLivePrompt(telemetryCtx *TelemetryAnalysisContext, persona, language s
 			sb.WriteString("   - Enfocate 100% en el ritmo de vuelta rápida lanzada, diferencias con el tiempo de corte/pole, preparación térmica de gomas en out-lap, huecos de aire limpio sin tráfico y tiempo restante de sesión.\n")
 			sb.WriteString("   - NO hables de estrategias de undercut en boxes, degradación de carrera ni gestión de combustible a 20 vueltas.\n\n")
 		}
-	} else if isPractice {
+	case isPractice:
 		if isEnglish {
 			fmt.Fprintf(&sb, "4. FREE PRACTICE PROTOCOL (Active Session: %s at %s):\n", telemetryCtx.SessionType, trackName)
 			sb.WriteString("   - Focus on vehicle setup feedback, corner entry/exit balance, stint tyre degradation rates, and pace consistency.\n")
@@ -210,7 +212,7 @@ func buildLivePrompt(telemetryCtx *TelemetryAnalysisContext, persona, language s
 			sb.WriteString("   - Enfocate en el balance y puesta a punto del monoplaza, comportamiento en frenada y tracción, degradación de neumáticos por stint y consistencia de ritmo.\n")
 			sb.WriteString("   - NO trates a los otros autos en pista como peleas por posición de carrera ni pidas maniobras defensivas agresivas.\n\n")
 		}
-	} else {
+	default:
 		if isEnglish {
 			sb.WriteString("4. RACE PROTOCOL:\n")
 			sb.WriteString("   - Provide sharp tactical advice on tyre degradation, rival gaps, pit window undercuts, Safety Car restarts, and fuel/ERS deployment.\n\n")

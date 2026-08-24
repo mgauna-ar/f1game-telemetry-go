@@ -55,12 +55,12 @@ var upgrader = websocket.Upgrader{
 }
 
 // NewServer creates a new API server with the default embedded frontend filesystem.
-func NewServer(repo storage.Repository, telemetryHub *Hub, engineerHub *Hub) *Server {
+func NewServer(repo storage.Repository, telemetryHub, engineerHub *Hub) *Server {
 	return NewServerWithFS(repo, telemetryHub, engineerHub, frontend.DistFS())
 }
 
 // NewServerWithFS creates a new API server with a custom static filesystem (useful for testing).
-func NewServerWithFS(repo storage.Repository, telemetryHub *Hub, engineerHub *Hub, staticFS fs.FS) *Server {
+func NewServerWithFS(repo storage.Repository, telemetryHub, engineerHub *Hub, staticFS fs.FS) *Server {
 	s := &Server{
 		router:       chi.NewRouter(),
 		repo:         repo,
