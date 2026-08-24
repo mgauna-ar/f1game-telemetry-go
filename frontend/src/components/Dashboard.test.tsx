@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { vi } from 'vitest';
 import { Dashboard } from './Dashboard';
 import { useTelemetry } from '../hooks/useTelemetry';
@@ -131,4 +131,71 @@ describe('Dashboard', () => {
     // Voice Radio HUD is active
     expect(screen.getByText(/RADIO STANDBY|RADIO EN ESPERA/i)).toBeInTheDocument();
   });
+
+  it('switches to Voice Cockpit mode and unmounts 2x2 dashboard modules to save sim racing FPS', async () => {
+    (useTelemetry as any).mockReturnValue({
+      session: {
+        TrackId: 0,
+        SessionType: 15,
+        Weather: 0,
+        TrackTemperature: 32,
+        AirTemperature: 24,
+        TotalLaps: 58,
+        TrackLength: 5303,
+        SessionTimeLeft: 3600,
+        SessionDuration: 7200,
+        SafetyCarStatus: 0,
+      },
+      participants: [
+        { Name: 'Max Verstappen', DriverId: 9, TeamId: 0, RaceNumber: 1, AIControlled: 0 },
+      ],
+      allLaps: [
+        { CarPosition: 1, CurrentLapNum: 5, CurrentLapTimeInMS: 81234, LastLapTimeInMS: 80950, Sector: 1 },
+      ],
+      allCarStatus: [
+        { VisualTyreCompound: 17, TyresAgeLaps: 5, FuelInTank: 45, ERSStoreEnergy: 3500000 },
+      ],
+      allCarDamage: [],
+      allTelemetry: [],
+      events: [],
+      clearEvents: vi.fn(),
+      telemetry: null,
+      lap: { CarPosition: 1, CurrentLapNum: 5, CurrentLapTimeInMS: 81234, LastLapTimeInMS: 80950, Sector: 1 },
+      motion: null,
+      trackPath: [],
+      connected: true,
+      playerCarIndex: 0,
+      selectedCarIndex: 0,
+      setSelectedCarIndex: vi.fn(),
+      history: [],
+    });
+
+    render(<Dashboard />);
+
+    // Initially in Race Control mode
+    expect(screen.getByText(/Weather Radar & Track Evolution/i)).toBeInTheDocument();
+
+    // Click Voice Cockpit toggle
+    const cockpitToggleBtn = screen.getByTestId('live-view-toggle-cockpit');
+    fireEvent.click(cockpitToggleBtn);
+
+    // Voice Cockpit container is now mounted
+    expect(screen.getByTestId('voice-cockpit-container')).toBeInTheDocument();
+    expect(screen.getByText(/POWERTRAIN & STRATEGY/i)).toBeInTheDocument();
+
+    // 2x2 Race control modules are unmounted!
+    expect(screen.queryByText(/Weather Radar & Track Evolution/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Pit Strategy & Field Tyre Matrix/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Live Sector Performance & Speed Traps/i)).not.toBeInTheDocument();
+
+    // Verify localStorage was updated
+    expect(localStorage.getItem('f1_live_view_mode')).toBe('cockpit');
+
+    // Switch back to Race Control
+    const dashboardToggleBtn = screen.getByTestId('live-view-toggle-dashboard');
+    fireEvent.click(dashboardToggleBtn);
+    expect(screen.getByText(/Weather Radar & Track Evolution/i)).toBeInTheDocument();
+    expect(localStorage.getItem('f1_live_view_mode')).toBe('dashboard');
+  });
 });
+

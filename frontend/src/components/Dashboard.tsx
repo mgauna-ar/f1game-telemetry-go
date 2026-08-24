@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTelemetry } from '../hooks/useTelemetry';
 import { useTelemetryStore } from '../store/useTelemetryStore';
 import { useRaceEngineer } from '../context/RaceEngineerContext';
@@ -8,7 +8,10 @@ import {
   getTrackInfo,
   TRACK_NAMES,
   getSessionTypeName,
+  LIVE_VIEW_MODES,
+  STORAGE_KEY_LIVE_VIEW_MODE,
 } from '../constants/f1';
+import type { LiveViewMode } from '../constants/f1';
 import { SessionHeader } from './SessionHeader';
 import { LeaderboardTower } from './LeaderboardTower';
 import { RaceControlFeed } from './RaceControlFeed';
@@ -17,6 +20,7 @@ import { LivePitStrategy } from './LivePitStrategy';
 import { LiveSectorTracker } from './LiveSectorTracker';
 import { WaitingForData } from './WaitingForData';
 import { LiveRadioHUD } from './LiveRadioHUD';
+import { VoiceCockpitView } from './VoiceCockpitView';
 import { useRadioController } from '../hooks/useRadioController';
 import { useProactiveTelemetryRadio } from '../hooks/useProactiveTelemetryRadio';
 import { formatProactiveFallbackSpeech } from '../utils/radioAudio';
@@ -44,6 +48,27 @@ const formatSessionClock = (seconds?: number): string => {
 };
 
 export const Dashboard: React.FC = () => {
+  const [viewMode, setViewMode] = useState<LiveViewMode>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_LIVE_VIEW_MODE);
+      if (saved === LIVE_VIEW_MODES.COCKPIT || saved === LIVE_VIEW_MODES.DASHBOARD) {
+        return saved;
+      }
+    } catch {
+      // Ignore localStorage access errors
+    }
+    return LIVE_VIEW_MODES.DASHBOARD;
+  });
+
+  const handleViewModeChange = useCallback((mode: LiveViewMode) => {
+    setViewMode(mode);
+    try {
+      localStorage.setItem(STORAGE_KEY_LIVE_VIEW_MODE, mode);
+    } catch {
+      // Ignore localStorage write errors
+    }
+  }, []);
+
   const {
     session = null,
     participants = [],
@@ -262,19 +287,82 @@ export const Dashboard: React.FC = () => {
     return () => clearInterval(interval);
   }, [setLiveContext, setContextMode]);
 
+  const playerLap = allLaps[playerCarIndex] || lap;
+  const playerCarStatus = allCarStatus[playerCarIndex] || carStatus;
+  const playerCarDamage = allCarDamage[playerCarIndex] || carDamage;
+  const playerTelemetry = allTelemetry[playerCarIndex] || telemetry;
+  const playerTelemetry2 = allTelemetry2[playerCarIndex] || null;
+
   if (!connected || !session) {
     return (
       <div className="telemetry-waiting-wrapper" style={{ position: 'relative', width: '100%' }}>
-        <WaitingForData connected={connected} />
-        <LiveRadioHUD radio={radio} />
+        {/* Header with View Mode Switcher in Standby */}
+        <SessionHeader
+          session={session}
+          connected={connected}
+          packetFormat={packetFormat}
+          viewMode={viewMode}
+          onViewModeChange={handleViewModeChange}
+        />
+        {viewMode === LIVE_VIEW_MODES.COCKPIT ? (
+          <VoiceCockpitView
+            radio={radio}
+            session={session}
+            lap={playerLap}
+            carStatus={playerCarStatus}
+            carDamage={playerCarDamage}
+            telemetry={playerTelemetry}
+            telemetry2={playerTelemetry2}
+            packetFormat={packetFormat}
+            connected={connected}
+          />
+        ) : (
+          <>
+            <WaitingForData connected={connected} />
+            <LiveRadioHUD radio={radio} />
+          </>
+        )}
       </div>
     );
   }
 
+  // Voice Cockpit View (0% unneeded widget DOM/Canvas overhead for sim racing)
+  if (viewMode === LIVE_VIEW_MODES.COCKPIT) {
+    return (
+      <div className="voice-cockpit-layout" style={{ position: 'relative', width: '100%' }}>
+        <SessionHeader
+          session={session}
+          connected={connected}
+          packetFormat={packetFormat}
+          viewMode={viewMode}
+          onViewModeChange={handleViewModeChange}
+        />
+        <VoiceCockpitView
+          radio={radio}
+          session={session}
+          lap={playerLap}
+          carStatus={playerCarStatus}
+          carDamage={playerCarDamage}
+          telemetry={playerTelemetry}
+          telemetry2={playerTelemetry2}
+          packetFormat={packetFormat}
+          connected={connected}
+        />
+      </div>
+    );
+  }
+
+  // Full Race Control Dashboard View
   return (
     <div className="dashboard-grid race-control-dashboard">
       {/* Session Top Header */}
-      <SessionHeader session={session} connected={connected} packetFormat={packetFormat} />
+      <SessionHeader
+        session={session}
+        connected={connected}
+        packetFormat={packetFormat}
+        viewMode={viewMode}
+        onViewModeChange={handleViewModeChange}
+      />
 
       {/* Hero Upper Section: Full-Width Leaderboard Tower (Span 12) */}
       <div className="dash-hero-row" style={{ gridColumn: 'span 12' }}>
@@ -331,3 +419,4 @@ export const Dashboard: React.FC = () => {
     </div>
   );
 };
+

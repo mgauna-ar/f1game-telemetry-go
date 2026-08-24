@@ -14,10 +14,12 @@
 ## ✨ Key Features
 
 ### ⏱️ Live Pit Wall & Race Control Hub
+* **Dual View Modes (Race Control vs Voice Cockpit):** Toggle seamlessly between the full 2×2 Race Control Dashboard and a distraction-free **Voice Cockpit Hub** with 0% unneeded widget DOM/Canvas overhead, designed for high-FPS sim racing rigs and VR.
 * **Live Incident Feed:** Real-time event ticker tracking overtakes, penalties, fastest laps, pit stops, and Safety Car / VSC deployments with flag indicators.
 * **Weather Radar & Tyre Strategy:** Live precipitation forecast (+5m to +30m), air/track temperatures, and tyre compound crossover advice.
 * **Live Leaderboard Tower:** Full-grid timing tower with interval deltas, tyre compounds, pit status, and Qualifying elimination cut-off lines.
 * **Sector Tracker & Speed Traps:** Live purple/green sector splits, theoretical ultimate best lap record, and top speed rankings.
+
 
 ### 🔍 Telemetry Comparator & Track Map
 * **Side-by-Side Analysis:** Compare any two laps (personal bests, rival drivers, or cross-session runs) across Speed, Throttle, Brake, ERS, Gear traces, and 2026 **Active Aero** (`Corner` vs `Straight` mode) & **Boost** deployment.

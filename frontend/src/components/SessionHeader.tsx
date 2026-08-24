@@ -1,14 +1,17 @@
-import { Flag, CloudSun, Thermometer, ShieldAlert, Timer } from 'lucide-react';
+import { Flag, CloudSun, Thermometer, ShieldAlert, Timer, LayoutDashboard, Mic } from 'lucide-react';
 import type { SessionData } from '../hooks/useTelemetry';
 import { useI18n } from '../context/I18nContext';
 import { F1FormatBadge } from './F1FormatBadge';
 import { TrackFlag } from './TrackFlag';
-import { TRACK_NAMES, getTrackInfo } from '../constants/f1';
+import { TRACK_NAMES, getTrackInfo, LIVE_VIEW_MODES } from '../constants/f1';
+import type { LiveViewMode } from '../constants/f1';
 
 interface SessionHeaderProps {
   session: SessionData | null;
   connected: boolean;
   packetFormat?: number | null;
+  viewMode?: LiveViewMode;
+  onViewModeChange?: (mode: LiveViewMode) => void;
 }
 
 const WEATHER_NAMES: Record<number, string> = {
@@ -39,7 +42,13 @@ const SESSION_TYPES: Record<number, { label: string; isRace: boolean; isQualy: b
   20: { label: 'EQUAL SPRINT RACE', isRace: true, isQualy: false, isSprint: true },
 };
 
-export const SessionHeader: React.FC<SessionHeaderProps> = ({ session, connected, packetFormat }) => {
+export const SessionHeader: React.FC<SessionHeaderProps> = ({
+  session,
+  connected,
+  packetFormat,
+  viewMode = LIVE_VIEW_MODES.DASHBOARD,
+  onViewModeChange,
+}) => {
   const { t } = useI18n();
   const trackInfo = session?.TrackId !== undefined ? getTrackInfo(session.TrackId) : null;
   const trackName = trackInfo?.name || (session?.TrackId !== undefined ? (TRACK_NAMES[session.TrackId] || `Track #${session.TrackId}`) : 'Albert Park');
@@ -112,7 +121,33 @@ export const SessionHeader: React.FC<SessionHeaderProps> = ({ session, connected
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
+        {/* Live View Mode Segmented Switcher */}
+        {onViewModeChange && (
+          <div className="live-view-mode-toggle" role="group" aria-label="Live View Mode">
+            <button
+              type="button"
+              className={`live-view-toggle-btn ${viewMode === LIVE_VIEW_MODES.DASHBOARD ? 'active' : ''}`}
+              onClick={() => onViewModeChange(LIVE_VIEW_MODES.DASHBOARD)}
+              title={t('live.viewModeDashboard')}
+              data-testid="live-view-toggle-dashboard"
+            >
+              <LayoutDashboard size={14} />
+              <span>{t('live.viewModeDashboard')}</span>
+            </button>
+            <button
+              type="button"
+              className={`live-view-toggle-btn ${viewMode === LIVE_VIEW_MODES.COCKPIT ? 'active' : ''}`}
+              onClick={() => onViewModeChange(LIVE_VIEW_MODES.COCKPIT)}
+              title={t('live.viewModeCockpit')}
+              data-testid="live-view-toggle-cockpit"
+            >
+              <Mic size={14} />
+              <span>{t('live.viewModeCockpit')}</span>
+            </button>
+          </div>
+        )}
+
         {/* Session Progress / Timer */}
         <div className="header-stat-box">
           <Timer size={16} color="var(--text-secondary)" />
@@ -162,4 +197,5 @@ export const SessionHeader: React.FC<SessionHeaderProps> = ({ session, connected
     </header>
   );
 };
+
 

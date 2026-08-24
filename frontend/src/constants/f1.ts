@@ -691,4 +691,13 @@ export const RADIO_TRIGGER_PRESETS = {
   CUSTOM: 'custom',
 } as const;
 
+export const LIVE_VIEW_MODES = {
+  DASHBOARD: 'dashboard',
+  COCKPIT: 'cockpit',
+} as const;
+
+export type LiveViewMode = (typeof LIVE_VIEW_MODES)[keyof typeof LIVE_VIEW_MODES];
+
+export const STORAGE_KEY_LIVE_VIEW_MODE = 'f1_live_view_mode';
+
 
