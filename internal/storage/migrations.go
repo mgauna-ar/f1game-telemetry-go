@@ -109,6 +109,13 @@ CREATE INDEX IF NOT EXISTS idx_session_tags_session ON session_tags(session_id);
 CREATE INDEX IF NOT EXISTS idx_session_tags_tag ON session_tags(tag_id);
 `,
 	},
+	{
+		Version: 2,
+		Name:    "heal_ai_controlled_participants",
+		SQL: `
+UPDATE participants SET ai_controlled = 1 WHERE driver_id > 0 AND driver_id != 255;
+`,
+	},
 }
 
 // Migrate runs all pending migrations in version order.

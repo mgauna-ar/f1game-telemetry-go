@@ -82,13 +82,20 @@ export interface HistoricalDriverFilterParams {
 
 /**
  * Determines whether a participant is active in a historical/saved session.
- * - Always includes human players.
- * - For AI drivers, only includes them if they completed laps, set sector times, have telemetry, or have official race classifications.
+ * - Always includes human players who were present in the session lobby.
+ * - For AI drivers, strictly requires completed laps, sector times, or recorded telemetry.
+ * - In non-race sessions (Qualifying, Practice, Time Trial), inactive AI with 0 laps/times are strictly excluded.
  */
 export function isHistoricalDriverActive(params: HistoricalDriverFilterParams): boolean {
   const { participant, driverLaps = [], isRaceSession = false } = params;
 
-  const isHuman = !participant.ai_controlled && Boolean(participant.name && participant.name.trim() !== '');
+  // In F1 telemetry, official AI drivers have driver_id > 0 and != 255, or ai_controlled = true.
+  // Custom multiplayer lobby players have driver_id == 255 or 0 and ai_controlled = false.
+  const isAI =
+    Boolean(participant.ai_controlled) ||
+    (participant.driver_id !== undefined && participant.driver_id > 0 && participant.driver_id !== 255);
+
+  const isHuman = !isAI && Boolean(participant.name && participant.name.trim() !== '');
   if (isHuman) return true;
 
   const hasCompletedLaps = driverLaps.some((l) => l.lap_time_ms > 0);
@@ -101,7 +108,14 @@ export function isHistoricalDriverActive(params: HistoricalDriverFilterParams): 
     (participant.points ?? 0) > 0 ||
     (isRaceSession && (participant.position ?? 0) > 0);
 
-  return hasCompletedLaps || hasSectors || hasTelemetry || hasOfficialResult;
+  // For race sessions: include AI drivers with activity or official classification
+  if (isRaceSession) {
+    return hasCompletedLaps || hasSectors || hasTelemetry || hasOfficialResult;
+  }
+
+  // For non-race sessions (Qualifying, Practice, Time Trial):
+  // Inactive AI drivers who never set a lap, sector, or telemetry are strictly filtered out
+  return hasCompletedLaps || hasSectors || hasTelemetry;
 }
 
 /**

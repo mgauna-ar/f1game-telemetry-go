@@ -844,14 +844,14 @@ func TestVersionedMigrations(t *testing.T) {
 	repo := setupTestRepo(t)
 	db := repo.DB()
 
-	// Verify schema_version table has recorded latest version (1)
+	// Verify schema_version table has recorded latest version
 	var maxVersion int
 	err := db.Get(&maxVersion, "SELECT MAX(version) FROM schema_version")
 	if err != nil {
 		t.Fatalf("failed to query schema_version: %v", err)
 	}
-	if maxVersion != 1 {
-		t.Errorf("expected schema_version 1, got %d", maxVersion)
+	if maxVersion != len(migrations) {
+		t.Errorf("expected schema_version %d, got %d", len(migrations), maxVersion)
 	}
 
 	// Running Migrate again should be idempotent
@@ -1213,5 +1213,92 @@ func TestBatchOperationsAndDuplicateImport(t *testing.T) {
 	sessionsRemaining, _ := repo.GetSessions(ctx)
 	if len(sessionsRemaining) != 0 {
 		t.Errorf("expected 0 sessions remaining, got %d", len(sessionsRemaining))
+	}
+}
+
+func TestSaveParticipantsPreservesAIControlled(t *testing.T) {
+	repo := setupTestRepo(t)
+	session := createTestSession(t, repo)
+	ctx := context.Background()
+
+	// 1. Initial participant data with AIControlled = true for AI driver
+	initial := []Participant{
+		{CarIndex: 0, Name: "LC-iL.Magno", DriverID: 255, TeamID: 0, RaceNumber: 32, AIControlled: false},
+		{CarIndex: 1, Name: "Gabriel Bortoleto", DriverID: 161, TeamID: 9, RaceNumber: 5, AIControlled: true},
+	}
+	if err := repo.SaveParticipants(ctx, session.ID, initial); err != nil {
+		t.Fatalf("SaveParticipants failed: %v", err)
+	}
+
+	// 2. Final classification update where Name is empty and AIControlled is false (default)
+	classificationUpdate := []Participant{
+		{CarIndex: 0, Position: 1, GridPosition: 1, TotalRaceTime: 120.5, Points: 25},
+		{CarIndex: 1, Position: 18, GridPosition: 18, TotalRaceTime: 0, Points: 0},
+	}
+	if err := repo.SaveParticipants(ctx, session.ID, classificationUpdate); err != nil {
+		t.Fatalf("SaveParticipants classification update failed: %v", err)
+	}
+
+	// 3. Verify that Bortoleto is STILL AIControlled = true and name is preserved
+	participants, err := repo.GetParticipantsBySession(ctx, session.ID)
+	if err != nil {
+		t.Fatalf("GetParticipantsBySession failed: %v", err)
+	}
+
+	if len(participants) != 2 {
+		t.Fatalf("expected 2 participants, got %d", len(participants))
+	}
+
+	bortoleto := participants[1]
+	if bortoleto.Name != "Gabriel Bortoleto" {
+		t.Errorf("expected name Gabriel Bortoleto, got %s", bortoleto.Name)
+	}
+	if !bortoleto.AIControlled {
+		t.Errorf("expected Bortoleto AIControlled = true, got false (was overwritten!)")
+	}
+	if bortoleto.Position != 18 {
+		t.Errorf("expected Bortoleto Position = 18, got %d", bortoleto.Position)
+	}
+}
+
+func TestMigrationHealAIControlled(t *testing.T) {
+	repo := setupTestRepo(t)
+	session := createTestSession(t, repo)
+	ctx := context.Background()
+
+	// Directly insert a row with corrupted ai_controlled = 0 for an official AI driver (driver_id = 149 - Hadjar)
+	_, err := repo.db.ExecContext(ctx, `
+		INSERT INTO participants (session_id, car_index, name, driver_id, team_id, race_number, ai_controlled, nationality)
+		VALUES (?, 5, 'Isack Hadjar', 149, 6, 6, 0, 1)
+	`, session.ID)
+	if err != nil {
+		t.Fatalf("manual insert failed: %v", err)
+	}
+
+	// Run migration SQL
+	_, err = repo.db.ExecContext(ctx, `UPDATE participants SET ai_controlled = 1 WHERE driver_id > 0 AND driver_id != 255;`)
+	if err != nil {
+		t.Fatalf("migration exec failed: %v", err)
+	}
+
+	// Verify Hadjar is healed
+	participants, err := repo.GetParticipantsBySession(ctx, session.ID)
+	if err != nil {
+		t.Fatalf("GetParticipantsBySession failed: %v", err)
+	}
+
+	var hadjar *Participant
+	for i := range participants {
+		if participants[i].DriverID == 149 {
+			hadjar = &participants[i]
+			break
+		}
+	}
+
+	if hadjar == nil {
+		t.Fatalf("Hadjar participant not found")
+	}
+	if !hadjar.AIControlled {
+		t.Errorf("expected Hadjar to have ai_controlled = true after heal migration, got false")
 	}
 }

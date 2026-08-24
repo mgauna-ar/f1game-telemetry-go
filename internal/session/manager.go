@@ -112,6 +112,10 @@ func (sm *SessionManager) ProcessPacket(ctx context.Context, pkt packets.Packet)
 		if tracker, ok := sm.lapTrackers[int(p.CarIdx)]; ok {
 			tracker.ProcessSessionHistory(ctx, sm.currentSession, p)
 		}
+	case *packets.PacketTyreSetsData:
+		if tracker, ok := sm.lapTrackers[int(p.CarIdx)]; ok {
+			tracker.ProcessTyreSets(p)
+		}
 	case *packets.PacketFinalClassificationData:
 		sm.handleFinalClassification(ctx, p)
 	}
@@ -299,11 +303,20 @@ func (sm *SessionManager) handleFinalClassification(ctx context.Context, p *pack
 				stintNum := s + 1
 				stintStartLap := 1
 				if s > 0 {
-					stintStartLap = int(cls.TyreStintsEndLaps[s-1]) + 1
+					prevEnd := int(cls.TyreStintsEndLaps[s-1])
+					if prevEnd > 0 && prevEnd != 255 {
+						stintStartLap = prevEnd + 1
+					} else {
+						stintStartLap = s + 1
+					}
 				}
 				stintEndLap := int(cls.TyreStintsEndLaps[s])
 				if stintEndLap == 255 || stintEndLap == 0 {
-					stintEndLap = packets.MaxSessionLapsSanity
+					if s == numStints-1 {
+						stintEndLap = packets.MaxSessionLapsSanity
+					} else {
+						stintEndLap = stintStartLap
+					}
 				}
 				compName := packets.VisualTyreCompoundName(cls.TyreStintsVisual[s])
 				actualCompName := packets.ActualTyreCompoundName(cls.TyreStintsActual[s])

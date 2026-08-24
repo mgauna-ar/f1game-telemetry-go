@@ -31,6 +31,7 @@ type LapTracker struct {
 	lastTyreAge             int
 	lastPitStops            int
 	lastCompound            string
+	lastFittedTyreSetIdx    int
 	stintIncrementedInLap   int
 }
 
@@ -41,6 +42,7 @@ func NewLapTracker(repo storage.Repository, batchWriter *TelemetryBatchWriter, c
 		batchWriter:           batchWriter,
 		carIndex:              carIndex,
 		currentStintNum:       1,
+		lastFittedTyreSetIdx:  -1,
 		stintIncrementedInLap: 0,
 		sampleBuffer:          make([]storage.TelemetrySample, 0, packets.DefaultTelemetrySampleCapacity),
 	}
@@ -69,6 +71,7 @@ func (lt *LapTracker) Reset() {
 	lt.lastTyreAge = 0
 	lt.lastPitStops = 0
 	lt.lastCompound = ""
+	lt.lastFittedTyreSetIdx = -1
 	lt.stintIncrementedInLap = 0
 }
 
@@ -91,6 +94,51 @@ func (lt *LapTracker) ProcessMotion(p *packets.PacketMotionData) {
 	lt.lastWorldPosZ = float64(motion.WorldPositionZ)
 }
 
+// ProcessTyreSets tracks tyre set swaps (e.g. changing sets inside the garage or pit stops).
+func (lt *LapTracker) ProcessTyreSets(p *packets.PacketTyreSetsData) {
+	if p == nil || int(p.CarIdx) != lt.carIndex {
+		return
+	}
+	fittedIdx := int(p.FittedIdx)
+	if fittedIdx < 0 || fittedIdx >= len(p.TyreSetData) {
+		return
+	}
+
+	fittedSet := p.TyreSetData[fittedIdx]
+	newComp := packets.VisualTyreCompoundName(fittedSet.VisualTyreCompound)
+	actualComp := packets.ActualTyreCompoundName(fittedSet.ActualTyreCompound)
+
+	// If fitted tyre set index changed, increment stint
+	if lt.lastFittedTyreSetIdx >= 0 && fittedIdx != lt.lastFittedTyreSetIdx {
+		if lt.stintIncrementedInLap != lt.currentLapNum {
+			lt.currentStintNum++
+			lt.stintIncrementedInLap = lt.currentLapNum
+			log.Printf("[LapTracker] Stint %d detected via PacketTyreSets for Car %d (FittedSet %d -> %d, Compound: %s)",
+				lt.currentStintNum, lt.carIndex, lt.lastFittedTyreSetIdx, fittedIdx, newComp)
+		}
+	}
+	lt.lastFittedTyreSetIdx = fittedIdx
+
+	if newComp != "" {
+		lt.lastCompound = newComp
+	}
+
+	if lt.currentLap != nil {
+		if lt.currentStintNum <= 0 {
+			lt.currentStintNum = 1
+		}
+		if lt.currentLap.Stint < lt.currentStintNum {
+			lt.currentLap.Stint = lt.currentStintNum
+		}
+		if newComp != "" {
+			lt.currentLap.TyreCompound = newComp
+		}
+		if actualComp != "" && actualComp != "UNKNOWN" {
+			lt.currentLap.ActualCompound = actualComp
+		}
+	}
+}
+
 // ProcessCarStatus updates fuel load, ERS status, tyre compounds, and stint tracking.
 func (lt *LapTracker) ProcessCarStatus(p *packets.PacketCarStatusData) {
 	if lt.carIndex >= packets.MaxCars || lt.carIndex >= len(p.CarStatusData) {
@@ -103,6 +151,7 @@ func (lt *LapTracker) ProcessCarStatus(p *packets.PacketCarStatusData) {
 
 	tyreAge := int(cs.TyresAgeLaps)
 	newComp := packets.VisualTyreCompoundName(cs.VisualTyreCompound)
+	actualComp := packets.ActualTyreCompoundName(cs.ActualTyreCompound)
 
 	// Detect tyre set change / stint increment (avoid duplicate stint increments in same lap)
 	// A new stint is started when:
@@ -132,6 +181,9 @@ func (lt *LapTracker) ProcessCarStatus(p *packets.PacketCarStatusData) {
 		lt.currentLap.FuelLoad = float64(cs.FuelInTank)
 		if newComp != "" {
 			lt.currentLap.TyreCompound = newComp
+		}
+		if actualComp != "" && actualComp != "UNKNOWN" {
+			lt.currentLap.ActualCompound = actualComp
 		}
 	}
 }
@@ -326,11 +378,20 @@ func (lt *LapTracker) ProcessSessionHistory(ctx context.Context, session *storag
 				stintInfo := p.TyreStintHistoryData[s]
 				stintStartLap := 1
 				if s > 0 {
-					stintStartLap = int(p.TyreStintHistoryData[s-1].EndLap) + 1
+					prevEnd := int(p.TyreStintHistoryData[s-1].EndLap)
+					if prevEnd > 0 && prevEnd != 255 {
+						stintStartLap = prevEnd + 1
+					} else {
+						stintStartLap = s + 1
+					}
 				}
 				stintEndLap := int(stintInfo.EndLap)
 				if stintEndLap == 255 || stintEndLap == 0 {
-					stintEndLap = packets.MaxSessionLapsSanity
+					if s == numStints-1 {
+						stintEndLap = packets.MaxSessionLapsSanity
+					} else {
+						stintEndLap = stintStartLap
+					}
 				}
 				if lapNum >= stintStartLap && lapNum <= stintEndLap {
 					stintNum = s + 1

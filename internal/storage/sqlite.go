@@ -647,7 +647,7 @@ func (r *SQLiteRepository) SaveParticipants(ctx context.Context, sessionID int64
 			driver_id = CASE WHEN excluded.driver_id > 0 THEN excluded.driver_id ELSE participants.driver_id END,
 			team_id = CASE WHEN excluded.team_id > 0 THEN excluded.team_id ELSE participants.team_id END,
 			race_number = CASE WHEN excluded.race_number > 0 THEN excluded.race_number ELSE participants.race_number END,
-			ai_controlled = excluded.ai_controlled,
+			ai_controlled = CASE WHEN excluded.name != '' THEN excluded.ai_controlled ELSE participants.ai_controlled END,
 			nationality = CASE WHEN excluded.nationality > 0 THEN excluded.nationality ELSE participants.nationality END,
 			grid_position = CASE WHEN excluded.grid_position > 0 THEN excluded.grid_position ELSE participants.grid_position END,
 			position = CASE WHEN excluded.position > 0 THEN excluded.position ELSE participants.position END,

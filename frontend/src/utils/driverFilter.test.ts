@@ -203,16 +203,37 @@ describe('driverFilter utility', () => {
       ).toBe(true);
     });
 
-    it('filters out AI drivers with 0 laps, 0 sectors, and no telemetry', () => {
+    it('filters out AI drivers with 0 laps, 0 sectors, and no telemetry in qualifying sessions', () => {
       expect(
         isHistoricalDriverActive({
           participant: inactiveAI,
           driverLaps: [],
+          isRaceSession: false,
+        })
+      ).toBe(false);
+
+      // Even if ai_controlled was corrupted to false, driver_id identifies them as official AI
+      const corruptedAI: Participant = {
+        id: 4,
+        session_id: 100,
+        car_index: 3,
+        name: 'BORTOLETO',
+        driver_id: 161,
+        team_id: 9,
+        race_number: 5,
+        ai_controlled: false,
+      };
+
+      expect(
+        isHistoricalDriverActive({
+          participant: corruptedAI,
+          driverLaps: [],
+          isRaceSession: false,
         })
       ).toBe(false);
     });
 
-    it('filterActiveHistoricalParticipants filters full grid correctly', () => {
+    it('filterActiveHistoricalParticipants filters full grid correctly in qualifying and race', () => {
       const participants: Participant[] = [humanParticipant, aiWithLaps, inactiveAI];
       const laps: Lap[] = [
         {
@@ -233,9 +254,9 @@ describe('driverFilter utility', () => {
         },
       ];
 
-      const active = filterActiveHistoricalParticipants(participants, laps);
-      expect(active).toHaveLength(2);
-      expect(active.map((p) => p.name)).toEqual(['LC-LEMAC', 'Max Verstappen']);
+      const activeQualy = filterActiveHistoricalParticipants(participants, laps, false);
+      expect(activeQualy).toHaveLength(2);
+      expect(activeQualy.map((p) => p.name)).toEqual(['LC-LEMAC', 'Max Verstappen']);
     });
   });
 });

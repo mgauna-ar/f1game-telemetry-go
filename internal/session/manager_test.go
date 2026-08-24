@@ -824,3 +824,102 @@ func TestMultiLapFinishDoesNotCreatePhantomLap(t *testing.T) {
 		t.Errorf("expected exactly 1 completed lap, got %d", completedLaps)
 	}
 }
+
+func TestQualyTyreSetsFittedIndexStintDetection(t *testing.T) {
+	ctx := context.Background()
+	repo, err := storage.NewSQLiteRepository(":memory:")
+	if err != nil {
+		t.Fatalf("failed to create repo: %v", err)
+	}
+	defer repo.Close()
+
+	manager := NewSessionManager(repo)
+	manager.Start(ctx)
+	defer manager.Close(ctx)
+
+	sessionHeader := packets.PacketHeader{
+		PacketFormat:   2026,
+		PacketId:       packets.PacketIDSession,
+		SessionUID:     1122334455,
+		PlayerCarIndex: 0,
+	}
+
+	sessionPacket := &packets.PacketSessionData{
+		Header:      sessionHeader,
+		TrackId:     1,
+		SessionType: packets.SessionQ1,
+	}
+	manager.ProcessPacket(ctx, sessionPacket)
+
+	// Start Lap 1 for Car 0
+	lapHeader := sessionHeader
+	lapHeader.PacketId = packets.PacketIDLapData
+	lapPkt := &packets.PacketLapData{Header: lapHeader}
+	lapPkt.LapData[0].CurrentLapNum = 1
+	lapPkt.LapData[0].ResultStatus = packets.ResultStatusActive
+	manager.ProcessPacket(ctx, lapPkt)
+
+	// 1. Initial Tyre Set mounted (FittedIdx = 0, Soft C5)
+	tyreSetsHeader := sessionHeader
+	tyreSetsHeader.PacketId = packets.PacketIDTyreSets
+	tyreSetsPkt := &packets.PacketTyreSetsData{
+		Header:    tyreSetsHeader,
+		CarIdx:    0,
+		FittedIdx: 0,
+	}
+	tyreSetsPkt.TyreSetData[0] = packets.TyreSetData{
+		ActualTyreCompound: packets.ActualCompoundC5,
+		VisualTyreCompound: packets.CompoundSoft,
+		Fitted:             1,
+	}
+	tyreSetsPkt.TyreSetData[1] = packets.TyreSetData{
+		ActualTyreCompound: packets.ActualCompoundC5,
+		VisualTyreCompound: packets.CompoundSoft,
+		Fitted:             0,
+	}
+	tyreSetsPkt.TyreSetData[2] = packets.TyreSetData{
+		ActualTyreCompound: packets.ActualCompoundC5,
+		VisualTyreCompound: packets.CompoundSoft,
+		Fitted:             0,
+	}
+	manager.ProcessPacket(ctx, tyreSetsPkt)
+
+	if manager.lapTrackers[0].currentStintNum != 1 {
+		t.Fatalf("expected Stint 1 initially, got %d", manager.lapTrackers[0].currentStintNum)
+	}
+
+	// Complete Lap 1 (78000ms), start Lap 2
+	lapPkt.LapData[0].CurrentLapNum = 2
+	lapPkt.LapData[0].LastLapTimeInMS = 78000
+	manager.ProcessPacket(ctx, lapPkt)
+
+	// 2. Driver changes to Tyre Set 2 in garage (FittedIdx = 1, Soft C5, both age 0)
+	tyreSetsPkt.FittedIdx = 1
+	manager.ProcessPacket(ctx, tyreSetsPkt)
+
+	if manager.lapTrackers[0].currentStintNum != 2 {
+		t.Fatalf("expected Stint 2 after fitted set changed to index 1 in garage, got %d", manager.lapTrackers[0].currentStintNum)
+	}
+
+	// Complete Lap 2 (77500ms), start Lap 3
+	lapPkt.LapData[0].CurrentLapNum = 3
+	lapPkt.LapData[0].LastLapTimeInMS = 77500
+	manager.ProcessPacket(ctx, lapPkt)
+
+	// 3. Driver changes to Tyre Set 3 in garage (FittedIdx = 2, Soft C5)
+	tyreSetsPkt.FittedIdx = 2
+	manager.ProcessPacket(ctx, tyreSetsPkt)
+
+	if manager.lapTrackers[0].currentStintNum != 3 {
+		t.Fatalf("expected Stint 3 after fitted set changed to index 2 in garage, got %d", manager.lapTrackers[0].currentStintNum)
+	}
+
+	// Complete Lap 3 (77200ms), start Lap 4 on same set (Stint remains 3)
+	lapPkt.LapData[0].CurrentLapNum = 4
+	lapPkt.LapData[0].LastLapTimeInMS = 77200
+	manager.ProcessPacket(ctx, lapPkt)
+
+	if manager.lapTrackers[0].currentStintNum != 3 {
+		t.Fatalf("expected Stint 3 to persist on lap 4, got %d", manager.lapTrackers[0].currentStintNum)
+	}
+}
