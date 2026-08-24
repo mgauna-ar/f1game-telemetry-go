@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useProactiveTelemetryRadio } from './useProactiveTelemetryRadio';
-import { SAFETY_CAR_STATUS } from '../constants/f1';
+import { SAFETY_CAR_STATUS, F1_FORMATS } from '../constants/f1';
 import type { SessionData, LapData, CarDamageData, CarStatusData } from '../types/telemetry';
 
 describe('useProactiveTelemetryRadio hook', () => {
@@ -570,6 +570,154 @@ describe('useProactiveTelemetryRadio hook', () => {
 
     // ERS alert fires because it has its own category cooldown!
     expect(onTriggerAlert).toHaveBeenCalledTimes(2);
+  });
+
+  describe('2026 regulations specific triggers', () => {
+    it('triggers Active Aero fault alert instead of DRS fault in 2026 format', async () => {
+      const onTriggerAlert = vi.fn().mockResolvedValue(undefined);
+
+      const carDamage = {
+        DRSFault: 1,
+        TyresWear: [0, 0, 0, 0],
+      } as any;
+
+      renderHook(() =>
+        useProactiveTelemetryRadio({
+          packetFormat: F1_FORMATS.FORMAT_2026,
+          carDamage,
+          onTriggerAlert,
+        })
+      );
+
+      expect(onTriggerAlert).toHaveBeenCalledTimes(1);
+      expect(onTriggerAlert).toHaveBeenCalledWith(
+        expect.stringContaining('Active Aero flap fault detected! Straight mode / aerodynamic wing adjustment unavailable'),
+        true
+      );
+    });
+
+    it('triggers Override/Boost threat defend alert instead of DRS in 2026 format', async () => {
+      const onTriggerAlert = vi.fn().mockResolvedValue(undefined);
+
+      const playerLap = {
+        CarPosition: 2,
+        TotalDistance: 5000,
+      } as unknown as LapData;
+
+      const rivalLap = {
+        CarPosition: 3,
+        TotalDistance: 4960, // 40m behind -> within 65m
+      } as unknown as LapData;
+
+      renderHook(() =>
+        useProactiveTelemetryRadio({
+          packetFormat: F1_FORMATS.FORMAT_2026,
+          lap: playerLap,
+          allLaps: [playerLap, rivalLap],
+          onTriggerAlert,
+        })
+      );
+
+      expect(onTriggerAlert).toHaveBeenCalledTimes(1);
+      expect(onTriggerAlert).toHaveBeenCalledWith(
+        expect.stringContaining('Override/Boost attack threat'),
+        false
+      );
+      expect(onTriggerAlert).not.toHaveBeenCalledWith(
+        expect.stringContaining('DRS threat'),
+        false
+      );
+    });
+
+    it('triggers attack alert with Straight Mode and Boost deployment advice in 2026 format', async () => {
+      const onTriggerAlert = vi.fn().mockResolvedValue(undefined);
+
+      const playerLap = {
+        CarPosition: 3,
+        TotalDistance: 5000,
+      } as unknown as LapData;
+
+      const rivalLap = {
+        CarPosition: 2,
+        TotalDistance: 5040, // 40m ahead -> within catching distance
+      } as unknown as LapData;
+
+      const telemetry2 = {
+        OvertakeAvailable: 1,
+      } as any;
+
+      renderHook(() =>
+        useProactiveTelemetryRadio({
+          packetFormat: F1_FORMATS.FORMAT_2026,
+          lap: playerLap,
+          allLaps: [playerLap, rivalLap],
+          telemetry2,
+          onTriggerAlert,
+        })
+      );
+
+      expect(onTriggerAlert).toHaveBeenCalledTimes(1);
+      expect(onTriggerAlert).toHaveBeenCalledWith(
+        expect.stringContaining('Override Boost is available!'),
+        false
+      );
+      expect(onTriggerAlert).toHaveBeenCalledWith(
+        expect.stringContaining('Straight Mode and Boost deployment'),
+        false
+      );
+    });
+
+    it('triggers 2026 ERS low battery warning with Lift & Coast for MGU-K regen', async () => {
+      const onTriggerAlert = vi.fn().mockResolvedValue(undefined);
+
+      const carStatus = {
+        ERSStoreEnergy: 400000, // 10%
+        TyresAgeLaps: 5,
+      } as any;
+
+      renderHook(() =>
+        useProactiveTelemetryRadio({
+          packetFormat: F1_FORMATS.FORMAT_2026,
+          carStatus,
+          onTriggerAlert,
+        })
+      );
+
+      expect(onTriggerAlert).toHaveBeenCalledTimes(1);
+      expect(onTriggerAlert).toHaveBeenCalledWith(
+        expect.stringContaining('limit Override/Boost usage and use Lift & Coast for MGU-K regeneration'),
+        false
+      );
+    });
+
+    it('triggers 2026 tyre overheat at default 110°C threshold with narrower tyre traction advice', async () => {
+      const onTriggerAlert = vi.fn().mockResolvedValue(undefined);
+
+      const carStatus = {
+        TyresAgeLaps: 5,
+      } as any;
+
+      const telemetry = {
+        TyresSurfaceTemperature: [100, 100, 112, 111], // 112°C (> 110°C, but < 115°C)
+        Brake: 0,
+        Steer: 0,
+      } as any;
+
+      renderHook(() =>
+        useProactiveTelemetryRadio({
+          packetFormat: F1_FORMATS.FORMAT_2026,
+          carStatus,
+          telemetry,
+          onTriggerAlert,
+        })
+      );
+
+      expect(onTriggerAlert).toHaveBeenCalledTimes(1);
+      expect(onTriggerAlert).toHaveBeenCalledWith(
+        expect.stringContaining('Manage traction out of corners to protect the narrower rear tyres'),
+        false
+      );
+    });
   });
 });
 

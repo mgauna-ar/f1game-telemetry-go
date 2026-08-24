@@ -291,6 +291,9 @@ export const Dashboard: React.FC = () => {
     carStatus: allCarStatus[playerCarIndex] || carStatus,
     allCarStatus,
     telemetry,
+    telemetry2: allTelemetry2[playerCarIndex] || null,
+    allTelemetry2,
+    packetFormat,
     events,
     onTriggerAlert: handleProactiveAlert,
   });

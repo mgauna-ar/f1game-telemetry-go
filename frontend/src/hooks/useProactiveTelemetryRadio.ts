@@ -10,6 +10,7 @@ import {
   isPracticeSession,
   isRaceSession,
   getSessionTypeName,
+  F1_FORMATS,
 } from '../constants/f1';
 import type {
   SessionData,
@@ -17,6 +18,7 @@ import type {
   CarDamageData,
   CarStatusData,
   CarTelemetryData,
+  CarTelemetry2Data,
   RaceEvent,
 } from '../types/telemetry';
 
@@ -32,6 +34,9 @@ export interface UseProactiveTelemetryRadioOptions {
   carStatus?: CarStatusData | null;
   allCarStatus?: CarStatusData[];
   telemetry?: CarTelemetryData | null;
+  telemetry2?: CarTelemetry2Data | null;
+  allTelemetry2?: CarTelemetry2Data[];
+  packetFormat?: number | null;
   events?: RaceEvent[];
   onTriggerAlert?: (alertContext: string, isCritical: boolean) => Promise<void>;
 }
@@ -115,8 +120,13 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
     carStatus,
     allCarStatus = [],
     telemetry,
+    telemetry2,
+    allTelemetry2 = [],
+    packetFormat,
     onTriggerAlert,
   } = options;
+
+  const is2026 = packetFormat === F1_FORMATS.FORMAT_2026 || session?.PacketFormat === F1_FORMATS.FORMAT_2026;
 
   // Track triggered states to avoid repeats
   const triggeredWearThresholdsRef = useRef<Set<number>>(new Set());
@@ -348,10 +358,16 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
       const maxSurfTemp = Math.max(...surfTemps);
       const rearMaxTemp = Math.max(surfTemps[2] || 0, surfTemps[3] || 0);
 
-      if (settings.subTyreThermal && rearMaxTemp >= settings.tyreOverheatC) {
+      const hasCustomOverheat = typeof window !== 'undefined' && localStorage.getItem(RADIO_STORAGE_KEYS.TYRE_OVERHEAT_C) !== null;
+      const effectiveOverheatC = is2026 && !hasCustomOverheat ? 110 : settings.tyreOverheatC;
+
+      if (settings.subTyreThermal && rearMaxTemp >= effectiveOverheatC) {
+        const advice = is2026
+          ? `Rear tyre surface temperatures are overheating at ${Math.round(rearMaxTemp)}°C (limit: ${effectiveOverheatC}°C)! Manage traction out of corners to protect the narrower rear tyres.`
+          : `Rear tyre surface temperatures are overheating at ${Math.round(rearMaxTemp)}°C (limit: ${effectiveOverheatC}°C)! Advise driver to manage traction out of corners to cool the rears.`;
         triggerAlertSafe(
           'tyres',
-          `[PROACTIVE PIT WALL CALL: Rear tyre surface temperatures are overheating at ${Math.round(rearMaxTemp)}°C (limit: ${settings.tyreOverheatC}°C)! You are initiating this call — do NOT say 'Entendido' or 'Copy'. Advise driver to manage traction out of corners to cool the rears.]`,
+          `[PROACTIVE PIT WALL CALL: ${advice} You are initiating this call — do NOT say 'Entendido' or 'Copy'.]`,
           false
         );
         return;
@@ -365,7 +381,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
         );
       }
     }
-  }, [enabled, isRadioEnabled, carDamage, carStatus, telemetry, getAlertSettings, triggerAlertSafe]);
+  }, [enabled, isRadioEnabled, carDamage, carStatus, telemetry, is2026, getAlertSettings, triggerAlertSafe]);
 
   // 2. Monitor Aero Damage & Mechanical Components (Front Wing, Floor, Engine Wear, Faults)
   useEffect(() => {
@@ -435,9 +451,12 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
     if (settings.subDamageFaults) {
       if (carDamage.DRSFault === 1 && !lastDrsFaultAlertRef.current) {
         lastDrsFaultAlertRef.current = true;
+        const faultMsg = is2026
+          ? `Active Aero flap fault detected! Straight mode / aerodynamic wing adjustment unavailable. You are initiating this call — do NOT say 'Entendido' or 'Copy'. Inform driver Active Aero straight mode is currently offline.`
+          : `DRS flap fault detected! Rear wing flap cannot deploy. You are initiating this call — do NOT say 'Entendido' or 'Copy'. Inform driver DRS is currently unavailable.`;
         triggerAlertSafe(
           'damage',
-          `[PROACTIVE PIT WALL CALL: DRS flap fault detected! Rear wing flap cannot deploy. You are initiating this call — do NOT say 'Entendido' or 'Copy'. Inform driver DRS is currently unavailable.]`,
+          `[PROACTIVE PIT WALL CALL: ${faultMsg}]`,
           true
         );
         return;
@@ -451,7 +470,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
         );
       }
     }
-  }, [enabled, isRadioEnabled, carDamage, getAlertSettings, triggerAlertSafe]);
+  }, [enabled, isRadioEnabled, carDamage, is2026, getAlertSettings, triggerAlertSafe]);
 
   // 3. Monitor ERS Battery Reserve & Engine Core Temperature
   useEffect(() => {
@@ -467,9 +486,12 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
       const ersPct = (storeEnergy / RADIO_ALERT_CONSTANTS.MAX_ERS_JOULES) * 100;
       if (ersPct <= settings.ersLowPct && currentLapNum !== lastErsLowAlertLapRef.current && (lap?.DriverStatus === DRIVER_STATUS.FLYING_LAP || isRace)) {
         lastErsLowAlertLapRef.current = currentLapNum;
+        const ersMsg = is2026
+          ? `ERS battery reserve is low at ${Math.round(ersPct)}%! You are initiating this call — do NOT say 'Entendido' or 'Copy'. Advise driver to limit Override/Boost usage and use Lift & Coast for MGU-K regeneration on straights.`
+          : `ERS battery reserve is low at ${Math.round(ersPct)}%! You are initiating this call — do NOT say 'Entendido' or 'Copy'. Advise driver to switch deploy mode to None or Harvest on straights.`;
         triggerAlertSafe(
           'ers',
-          `[PROACTIVE PIT WALL CALL: ERS battery reserve is low at ${Math.round(ersPct)}%! You are initiating this call — do NOT say 'Entendido' or 'Copy'. Advise driver to switch deploy mode to None or Harvest on straights.]`,
+          `[PROACTIVE PIT WALL CALL: ${ersMsg}]`,
           false
         );
       }
@@ -487,7 +509,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
         );
       }
     }
-  }, [enabled, isRadioEnabled, carStatus, telemetry, lap, isRace, getAlertSettings, triggerAlertSafe]);
+  }, [enabled, isRadioEnabled, carStatus, telemetry, lap, isRace, is2026, getAlertSettings, triggerAlertSafe]);
 
   // 4. Monitor Braking System & Temperatures
   useEffect(() => {
@@ -620,9 +642,12 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
           if (lastDrsWarningIndexRef.current !== carBehindIndex) {
             lastDrsWarningIndexRef.current = carBehindIndex;
             const gapSec = (distanceDelta / 65).toFixed(1);
+            const defendMsg = is2026
+              ? `Defend! Car behind (P${playerPos + 1}) is within Override/Boost attack threat (${gapSec}s gap).${extraContext} You are initiating this call — do NOT say 'Entendido' or 'Copy'. Direct driver to defend line on straight/braking and prepare defense.`
+              : `Defend! Car behind (P${playerPos + 1}) is within DRS threat (${gapSec}s gap).${extraContext} You are initiating this call — do NOT say 'Entendido' or 'Copy'. Direct driver to defend line on straight/braking.`;
             triggerAlertSafe(
               'rivals',
-              `[PROACTIVE PIT WALL CALL: Defend! Car behind (P${playerPos + 1}) is within DRS threat (${gapSec}s gap).${extraContext} You are initiating this call — do NOT say 'Entendido' or 'Copy'. Direct driver to defend line on straight/braking.]`,
+              `[PROACTIVE PIT WALL CALL: ${defendMsg}]`,
               false
             );
             return;
@@ -648,15 +673,19 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
             tyreContext = ` Car ahead tyre age: ${rivalStatus.TyresAgeLaps} laps (Compound: ${rivalStatus.ActualTyreCompound}).`;
           }
           const gapSec = (distanceDelta / 65).toFixed(1);
+          const overtakeBoostAvailable = telemetry2?.OvertakeAvailable === 1;
+          const attackMsg = is2026
+            ? `We are catching car ahead (P${playerPos - 1}), gap is ${gapSec}s.${tyreContext}${overtakeBoostAvailable ? ' Override Boost is available!' : ''} You are initiating this call — do NOT say 'Entendido' or 'Copy'. Direct driver to prepare overtake using Straight Mode and Boost deployment.`
+            : `We are catching car ahead (P${playerPos - 1}), gap is ${gapSec}s.${tyreContext} You are initiating this call — do NOT say 'Entendido' or 'Copy'. Direct driver to prepare overtake / deployment.`;
           triggerAlertSafe(
             'rivals',
-            `[PROACTIVE PIT WALL CALL: We are catching car ahead (P${playerPos - 1}), gap is ${gapSec}s.${tyreContext} You are initiating this call — do NOT say 'Entendido' or 'Copy'. Direct driver to prepare overtake / deployment.]`,
+            `[PROACTIVE PIT WALL CALL: ${attackMsg}]`,
             false
           );
         }
       }
     }
-  }, [enabled, isRadioEnabled, isRace, lap, allLaps, allCarStatus, allCarDamage, carStatus, getAlertSettings, triggerAlertSafe]);
+  }, [enabled, isRadioEnabled, isRace, lap, allLaps, allCarStatus, allCarDamage, carStatus, telemetry2, is2026, getAlertSettings, triggerAlertSafe]);
 
   // 7. Qualifying & Practice Suite: Lap Invalidation, Out-Lap Clean Air Traffic, Session Clock & Elimination Risk
   useEffect(() => {
