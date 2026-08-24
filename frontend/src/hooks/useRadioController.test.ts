@@ -94,12 +94,12 @@ describe('useRadioController hook', () => {
     expect(result.current.effectiveLanguage).toBe('en');
     expect(localStorage.getItem(RADIO_STORAGE_KEYS.LANGUAGE)).toBe('en');
 
-    // Test transmission with Colapinto in English
+    // Test transmission with default Bono in English
     await act(async () => {
       await result.current.testRadioTransmission();
     });
 
-    expect(result.current.lastResponse).toContain('Radio check mate');
+    expect(result.current.lastResponse).toContain('Hammer time');
   });
 
   it('supports Bono persona speaking Spanish', async () => {
