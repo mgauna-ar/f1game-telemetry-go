@@ -7,6 +7,9 @@ import {
   stopRadioSpeech,
   cleanRadioSpeechText,
   isSpeechRecognitionSupported,
+  getRadioAnalyserNode,
+  connectMicrophoneToAnalyser,
+  disconnectMicrophoneFromAnalyser,
   _resetAudioContextForTesting,
 } from './radioAudio';
 
@@ -318,6 +321,44 @@ describe('radioAudio utils', () => {
       // Second call with same message & settings should hit memory cache
       await speakRadioResponse('Safety Car deployed', { enableBeeps: false, enableStaticFx: false });
       expect(globalThis.fetch).toHaveBeenCalledTimes(1); // No new network call
+    });
+
+    it('manages analyser node and microphone connection', () => {
+      const mockAnalyser = {
+        fftSize: 64,
+        smoothingTimeConstant: 0.8,
+        frequencyBinCount: 32,
+        getByteFrequencyData: vi.fn(),
+      };
+      const mockMicSource = {
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+      };
+
+      const mockAudioContext = {
+        state: 'running',
+        createAnalyser: vi.fn(() => mockAnalyser),
+        createMediaStreamSource: vi.fn(() => mockMicSource),
+      };
+
+      class MockAudioContext {
+        constructor() {
+          return mockAudioContext;
+        }
+      }
+      (window as any).AudioContext = MockAudioContext;
+
+      _resetAudioContextForTesting();
+      const analyser = getRadioAnalyserNode();
+      expect(analyser).toBeDefined();
+
+      const mockStream = {} as MediaStream;
+      connectMicrophoneToAnalyser(mockStream);
+      expect(mockAudioContext.createMediaStreamSource).toHaveBeenCalledWith(mockStream);
+      expect(mockMicSource.connect).toHaveBeenCalledWith(mockAnalyser);
+
+      disconnectMicrophoneFromAnalyser();
+      expect(mockMicSource.disconnect).toHaveBeenCalled();
     });
   });
 });

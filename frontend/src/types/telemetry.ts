@@ -193,3 +193,22 @@ export interface TelemetrySample extends CarTelemetryData {
   active_aero_available?: number;
   overtake_active?: number;
 }
+
+export interface TelemetryInsight {
+  id: string;
+  type: string;
+  category: 'pit_strategy' | 'coaching' | 'weather' | 'teammate';
+  title: string;
+  message: string;
+  urgency: 'low' | 'medium' | 'high' | 'critical';
+  timestamp: number;
+  car_index: number;
+  session_time: number;
+  metadata?: Record<string, any>;
+}
+
+export interface PacketInsightData {
+  Header: PacketHeader;
+  Insight: TelemetryInsight;
+}
+

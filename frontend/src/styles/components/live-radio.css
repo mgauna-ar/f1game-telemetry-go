@@ -194,6 +194,14 @@
   margin-left: 2px;
 }
 
+.live-radio-waveform-canvas {
+  display: block;
+  height: 18px;
+  width: 36px;
+  margin-left: 2px;
+  flex-shrink: 0;
+}
+
 .live-radio-eq-bar {
   width: 3px;
   border-radius: 3px;

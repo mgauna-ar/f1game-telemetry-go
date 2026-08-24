@@ -102,9 +102,10 @@ func main() {
 		}()
 	}
 
-	// 7. Setup Session Manager
+	// 7. Setup Session Manager & Insight Engine
 	sessionManager := session.NewSessionManager(repo)
 	sessionManager.Start(ctx)
+	insightEngine := api.NewInsightEngine(hub, repo)
 
 	// 8. Setup UDP Listener
 	listener := udp.NewListener(udpAddr, udp.DefaultBufferSize)
@@ -131,6 +132,9 @@ func main() {
 
 				// Process packet for storage/state
 				sessionManager.ProcessPacket(ctx, pkt)
+
+				// Process packet for proactive insights
+				insightEngine.ProcessPacket(ctx, pkt)
 
 				// Broadcast relevant real-time telemetry packets to WebSockets
 				if shouldBroadcastPacket(pkt.GetHeader().PacketId) {
@@ -214,7 +218,8 @@ func shouldBroadcastPacket(pktID uint8) bool {
 		packets.PacketIDCarTelemetry,
 		packets.PacketIDCarTelemetry2,
 		packets.PacketIDCarStatus,
-		packets.PacketIDCarDamage:
+		packets.PacketIDCarDamage,
+		packets.PacketIDInsight:
 		return true
 	default:
 		return false

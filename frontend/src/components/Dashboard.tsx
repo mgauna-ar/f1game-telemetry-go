@@ -56,6 +56,7 @@ export const Dashboard: React.FC = () => {
     carDamage = null,
     events = [],
     clearEvents = () => {},
+    latestInsight = null,
     connected = false,
     playerCarIndex = 0,
     selectedCarIndex = 0,
@@ -178,7 +179,7 @@ export const Dashboard: React.FC = () => {
   });
 
   const handleProactiveAlert = useCallback(
-    async (alertContext: string, _isCritical: boolean) => {
+    async (alertContext: string, _isCritical: boolean, emotion?: { rateModifier?: number; pitchModifier?: number }) => {
       // Trigger voice transmission with LLM generation
       const liveSummary = getLiveTelemetrySummary();
 
@@ -273,7 +274,7 @@ export const Dashboard: React.FC = () => {
         }
 
         if (fullText.trim()) {
-          radio.speakMessage(fullText.trim());
+          radio.speakMessage(fullText.trim(), false, emotion);
         }
       } catch (err) {
         console.warn('Proactive radio call generation failed:', err);
@@ -295,6 +296,7 @@ export const Dashboard: React.FC = () => {
     allTelemetry2,
     packetFormat,
     events,
+    latestInsight,
     onTriggerAlert: handleProactiveAlert,
   });
 

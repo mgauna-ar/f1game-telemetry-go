@@ -206,7 +206,7 @@ export interface UseRadioControllerReturn {
   testRadioTransmission: () => Promise<void>;
   testTriggerAlert: (triggerType: string) => Promise<void>;
   stopRadio: () => void;
-  speakMessage: (text: string, forceInterrupt?: boolean) => Promise<void>;
+  speakMessage: (text: string, forceInterrupt?: boolean, emotion?: { rateModifier?: number; pitchModifier?: number }) => Promise<void>;
 }
 
 export function useRadioController(options: UseRadioControllerOptions = {}): UseRadioControllerReturn {
@@ -1097,7 +1097,7 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
   }, []);
 
   const speakMessage = useCallback(
-    async (text: string, forceInterrupt = false) => {
+    async (text: string, forceInterrupt = false, emotion?: { rateModifier?: number; pitchModifier?: number }) => {
       const cleaned = cleanRadioSpeechText(text);
       if (!isRadioEnabled || !cleaned) return;
 
@@ -1111,8 +1111,10 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
         onResponseReceived(cleaned);
       }
 
-      const rateStr = speechRate >= 0 ? `+${speechRate}%` : `${speechRate}%`;
-      const pitchStr = speechPitch >= 0 ? `+${speechPitch}Hz` : `${speechPitch}Hz`;
+      const effectiveRate = speechRate + (emotion?.rateModifier || 0);
+      const effectivePitch = speechPitch + (emotion?.pitchModifier || 0);
+      const rateStr = effectiveRate >= 0 ? `+${effectiveRate}%` : `${effectiveRate}%`;
+      const pitchStr = effectivePitch >= 0 ? `+${effectivePitch}Hz` : `${effectivePitch}Hz`;
 
       await speakRadioResponse(cleaned, {
         volume,

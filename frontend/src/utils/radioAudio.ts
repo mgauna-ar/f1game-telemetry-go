@@ -4,6 +4,14 @@ let audioCtx: AudioContext | null = null;
 let activeSourceNode: AudioBufferSourceNode | null = null;
 let activeStaticSourceNode: AudioBufferSourceNode | null = null;
 let activeStaticGainNode: GainNode | null = null;
+let activeWorkletNode: AudioNode | null = null;
+let activeMasterGainNode: GainNode | null = null;
+let activeExtraNodes: AudioNode[] = [];
+let activePlaybackResolve: (() => void) | null = null;
+let sharedAnalyserNode: AnalyserNode | null = null;
+let micSourceNode: MediaStreamAudioSourceNode | null = null;
+let workletLoaded = false;
+let workletLoadingPromise: Promise<boolean> | null = null;
 
 // Zero-latency in-memory cache for synthesized audio chunks
 const ttsAudioMemoryCache = new Map<string, ArrayBuffer>();
@@ -13,6 +21,14 @@ export function _resetAudioContextForTesting(): void {
   activeSourceNode = null;
   activeStaticSourceNode = null;
   activeStaticGainNode = null;
+  activeWorkletNode = null;
+  activeMasterGainNode = null;
+  activeExtraNodes = [];
+  activePlaybackResolve = null;
+  sharedAnalyserNode = null;
+  micSourceNode = null;
+  workletLoaded = false;
+  workletLoadingPromise = null;
   ttsAudioMemoryCache.clear();
 }
 
@@ -47,6 +63,78 @@ export function getAudioContext(): AudioContext | null {
   }
 
   return audioCtx;
+}
+
+/**
+ * Returns a shared AnalyserNode for real-time waveform visualizers.
+ */
+export function getRadioAnalyserNode(): AnalyserNode | null {
+  const ctx = getAudioContext();
+  if (!ctx || typeof ctx.createAnalyser !== 'function') return null;
+
+  if (!sharedAnalyserNode) {
+    try {
+      sharedAnalyserNode = ctx.createAnalyser();
+      sharedAnalyserNode.fftSize = RADIO_AUDIO_CONSTANTS.ANALYZER_FFT_SIZE;
+      sharedAnalyserNode.smoothingTimeConstant = 0.8;
+    } catch {
+      return null;
+    }
+  }
+  return sharedAnalyserNode;
+}
+
+/**
+ * Connects a live microphone MediaStream to the shared AnalyserNode for real-time PTT waveform rendering.
+ */
+export function connectMicrophoneToAnalyser(stream: MediaStream): void {
+  const ctx = getAudioContext();
+  const analyser = getRadioAnalyserNode();
+  if (!ctx || !analyser || !stream) return;
+
+  try {
+    disconnectMicrophoneFromAnalyser();
+    micSourceNode = ctx.createMediaStreamSource(stream);
+    micSourceNode.connect(analyser);
+  } catch {}
+}
+
+/**
+ * Disconnects the microphone stream from the AnalyserNode.
+ */
+export function disconnectMicrophoneFromAnalyser(): void {
+  if (micSourceNode) {
+    try {
+      micSourceNode.disconnect();
+    } catch {}
+    micSourceNode = null;
+  }
+}
+
+/**
+ * Loads the AudioWorklet radio processor module.
+ */
+export async function initRadioWorklet(ctx: AudioContext): Promise<boolean> {
+  if (workletLoaded) return true;
+  if (workletLoadingPromise) return workletLoadingPromise;
+
+  if (!ctx.audioWorklet || typeof ctx.audioWorklet.addModule !== 'function') {
+    return false;
+  }
+
+  workletLoadingPromise = ctx.audioWorklet
+    .addModule('/radio-processor.js')
+    .then(() => {
+      workletLoaded = true;
+      return true;
+    })
+    .catch((err) => {
+      console.warn('[Radio Audio] AudioWorklet not available, falling back to Web Audio nodes:', err);
+      workletLoaded = false;
+      return false;
+    });
+
+  return workletLoadingPromise;
 }
 
 /**
@@ -106,7 +194,14 @@ export function playRadioBeep(
       const now = ctx.currentTime;
       const masterGain = ctx.createGain();
       masterGain.gain.setValueAtTime(RADIO_AUDIO_CONSTANTS.BEEP_GAIN * volume, now);
-      masterGain.connect(ctx.destination);
+
+      const analyser = getRadioAnalyserNode();
+      if (analyser) {
+        masterGain.connect(analyser);
+        analyser.connect(ctx.destination);
+      } else {
+        masterGain.connect(ctx.destination);
+      }
 
       if (type === 'start') {
         const osc1 = ctx.createOscillator();
@@ -213,7 +308,15 @@ export async function playRadioAudioBuffer(
     await playRadioBeep('start', volume);
   }
 
+  // Ensure AudioWorklet initialization in background
+  if (!workletLoaded) {
+    initRadioWorklet(ctx).catch(() => {});
+  }
+  const hasWorklet = workletLoaded;
+
   return new Promise((resolve) => {
+    activePlaybackResolve = resolve;
+
     ctx.decodeAudioData(
       arrayBuffer.slice(0),
       (audioBuffer) => {
@@ -225,55 +328,83 @@ export async function playRadioAudioBuffer(
 
           const masterGain = ctx.createGain();
           masterGain.gain.setValueAtTime(Math.max(0, Math.min(1, volume)), now);
+          activeMasterGainNode = masterGain;
 
-          // Subtle radio background static hiss during speech
-          if (enableStaticFx) {
+          // 1. Helmet Simulation & Spatial EQ filter chain
+          const helmetHighCut = ctx.createBiquadFilter();
+          helmetHighCut.type = 'lowpass';
+          helmetHighCut.frequency?.setValueAtTime?.(RADIO_AUDIO_CONSTANTS.HELMET_HIGHCUT_FREQ_HZ, now);
+
+          const helmetWarmth = ctx.createBiquadFilter();
+          helmetWarmth.type = 'peaking';
+          helmetWarmth.frequency?.setValueAtTime?.(RADIO_AUDIO_CONSTANTS.HELMET_WARMTH_FREQ_HZ, now);
+          helmetWarmth.gain?.setValueAtTime?.(RADIO_AUDIO_CONSTANTS.HELMET_WARMTH_GAIN_DB, now);
+          helmetWarmth.Q?.setValueAtTime?.(1.2, now);
+
+          activeExtraNodes.push(helmetHighCut, helmetWarmth);
+
+          // 2. AudioWorklet processing or classic Node processing
+          if (hasWorklet && enableStaticFx && typeof window !== 'undefined' && 'AudioWorkletNode' in window) {
             try {
-              const staticBuf = createStaticNoiseBuffer(ctx, 3);
-              const staticSource = ctx.createBufferSource();
-              staticSource.buffer = staticBuf;
-              staticSource.loop = true;
+              const workletNode = new (window as any).AudioWorkletNode(ctx, 'f1-radio-processor');
+              activeWorkletNode = workletNode;
+              const staticParam = workletNode.parameters?.get('staticLevel');
+              if (staticParam) {
+                staticParam.setValueAtTime(enableStaticFx ? 0.04 : 0.0, now);
+              }
+              const distParam = workletNode.parameters?.get('distortion');
+              if (distParam) {
+                distParam.setValueAtTime(enableCockpitFilter ? 0.15 : 0.0, now);
+              }
+              const activeParam = workletNode.parameters?.get('active');
+              if (activeParam) {
+                activeParam.setValueAtTime(1, now);
+              }
 
-              const staticFilter = ctx.createBiquadFilter();
-              staticFilter.type = 'bandpass';
-              staticFilter.frequency.setValueAtTime(RADIO_AUDIO_CONSTANTS.FILTER_CENTER_FREQ_HZ, now);
-              staticFilter.Q.setValueAtTime(RADIO_AUDIO_CONSTANTS.FILTER_Q, now);
-
-              const staticGain = ctx.createGain();
-              const targetStaticGain = RADIO_AUDIO_CONSTANTS.RADIO_STATIC_GAIN * Math.max(0, Math.min(1, volume));
-              staticGain.gain.setValueAtTime(0.001, now);
-              staticGain.gain.exponentialRampToValueAtTime(targetStaticGain, now + 0.05);
-
-              staticSource.connect(staticFilter);
-              staticFilter.connect(staticGain);
-              staticGain.connect(masterGain);
-
-              staticSource.start(now);
-              activeStaticSourceNode = staticSource;
-              activeStaticGainNode = staticGain;
-            } catch {}
-          }
-
-          if (enableCockpitFilter) {
-            // Bandpass filter to emulate band-limited cockpit radio
-            const bandpass = ctx.createBiquadFilter();
-            bandpass.type = 'bandpass';
-            bandpass.frequency.setValueAtTime(RADIO_AUDIO_CONSTANTS.FILTER_CENTER_FREQ_HZ, now);
-            bandpass.Q.setValueAtTime(RADIO_AUDIO_CONSTANTS.FILTER_Q, now);
-
-            // Waveshaper distortion
-            const distortion = ctx.createWaveShaper();
-            distortion.curve = makeDistortionCurve(RADIO_AUDIO_CONSTANTS.DISTORTION_AMOUNT) as any;
-            distortion.oversample = '2x';
-
-            source.connect(bandpass);
-            bandpass.connect(distortion);
-            distortion.connect(masterGain);
+              source.connect(workletNode);
+              workletNode.connect(helmetHighCut);
+            } catch {
+              // Fallback to classic graph
+              connectClassicRadioGraph(ctx, masterGain, enableStaticFx, volume, now);
+              source.connect(helmetHighCut);
+            }
           } else {
-            source.connect(masterGain);
+            // Classic node graph
+            if (enableStaticFx) {
+              connectClassicRadioGraph(ctx, masterGain, enableStaticFx, volume, now);
+            }
+
+            if (enableCockpitFilter) {
+              const bandpass = ctx.createBiquadFilter();
+              bandpass.type = 'bandpass';
+              bandpass.frequency.setValueAtTime(RADIO_AUDIO_CONSTANTS.FILTER_CENTER_FREQ_HZ, now);
+              bandpass.Q.setValueAtTime(RADIO_AUDIO_CONSTANTS.FILTER_Q, now);
+
+              const distortion = ctx.createWaveShaper();
+              distortion.curve = makeDistortionCurve(RADIO_AUDIO_CONSTANTS.DISTORTION_AMOUNT) as any;
+              distortion.oversample = '2x';
+
+              activeExtraNodes.push(bandpass, distortion);
+
+              source.connect(bandpass);
+              bandpass.connect(distortion);
+              distortion.connect(helmetHighCut);
+            } else {
+              source.connect(helmetHighCut);
+            }
           }
 
-          masterGain.connect(ctx.destination);
+          helmetHighCut.connect(helmetWarmth);
+          helmetWarmth.connect(masterGain);
+
+          // 3. Connect master output through shared AnalyserNode to destination
+          const analyser = getRadioAnalyserNode();
+          if (analyser) {
+            masterGain.connect(analyser);
+            analyser.connect(ctx.destination);
+          } else {
+            masterGain.connect(ctx.destination);
+          }
 
           source.onended = async () => {
             stopRadioSpeech();
@@ -281,7 +412,11 @@ export async function playRadioAudioBuffer(
               await playRadioBeep('end', volume);
             }
             onEnd?.();
-            resolve();
+            if (activePlaybackResolve) {
+              const res = activePlaybackResolve;
+              activePlaybackResolve = null;
+              res();
+            }
           };
 
           onStart?.();
@@ -289,16 +424,60 @@ export async function playRadioAudioBuffer(
         } catch (err) {
           stopRadioSpeech();
           onError?.(err);
-          resolve();
+          if (activePlaybackResolve) {
+            const res = activePlaybackResolve;
+            activePlaybackResolve = null;
+            res();
+          }
         }
       },
       (decodeErr) => {
         stopRadioSpeech();
         onError?.(decodeErr);
-        resolve();
+        if (activePlaybackResolve) {
+          const res = activePlaybackResolve;
+          activePlaybackResolve = null;
+          res();
+        }
       }
     );
   });
+}
+
+function connectClassicRadioGraph(
+  ctx: AudioContext,
+  masterGain: GainNode,
+  enableStaticFx: boolean,
+  volume: number,
+  now: number
+) {
+  if (enableStaticFx) {
+    try {
+      const staticBuf = createStaticNoiseBuffer(ctx, 3);
+      const staticSource = ctx.createBufferSource();
+      staticSource.buffer = staticBuf;
+      staticSource.loop = true;
+
+      const staticFilter = ctx.createBiquadFilter();
+      staticFilter.type = 'bandpass';
+      staticFilter.frequency.setValueAtTime(RADIO_AUDIO_CONSTANTS.FILTER_CENTER_FREQ_HZ, now);
+      staticFilter.Q.setValueAtTime(RADIO_AUDIO_CONSTANTS.FILTER_Q, now);
+
+      const staticGain = ctx.createGain();
+      const targetStaticGain = RADIO_AUDIO_CONSTANTS.RADIO_STATIC_GAIN * Math.max(0, Math.min(1, volume));
+      staticGain.gain.setValueAtTime(0.001, now);
+      staticGain.gain.exponentialRampToValueAtTime(targetStaticGain, now + 0.05);
+
+      staticSource.connect(staticFilter);
+      staticFilter.connect(staticGain);
+      staticGain.connect(masterGain);
+
+      staticSource.start(now);
+      activeStaticSourceNode = staticSource;
+      activeStaticGainNode = staticGain;
+      activeExtraNodes.push(staticFilter);
+    } catch {}
+  }
 }
 
 /**
@@ -390,6 +569,7 @@ export async function speakRadioResponse(
 export function stopRadioSpeech(): void {
   if (activeSourceNode) {
     try {
+      activeSourceNode.onended = null;
       activeSourceNode.stop();
       activeSourceNode.disconnect();
     } catch {}
@@ -407,6 +587,37 @@ export function stopRadioSpeech(): void {
       activeStaticGainNode.disconnect();
     } catch {}
     activeStaticGainNode = null;
+  }
+  if (activeWorkletNode) {
+    try {
+      const activeParam = (activeWorkletNode as any).parameters?.get('active');
+      if (activeParam && audioCtx) {
+        activeParam.setValueAtTime(0, audioCtx.currentTime);
+      }
+      activeWorkletNode.disconnect();
+    } catch {}
+    activeWorkletNode = null;
+  }
+  if (activeMasterGainNode) {
+    try {
+      if (audioCtx) {
+        activeMasterGainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+      }
+      activeMasterGainNode.disconnect();
+    } catch {}
+    activeMasterGainNode = null;
+  }
+  for (const node of activeExtraNodes) {
+    try {
+      node.disconnect();
+    } catch {}
+  }
+  activeExtraNodes = [];
+
+  if (activePlaybackResolve) {
+    const res = activePlaybackResolve;
+    activePlaybackResolve = null;
+    res();
   }
 }
 

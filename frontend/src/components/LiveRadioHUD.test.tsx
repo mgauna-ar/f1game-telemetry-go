@@ -164,4 +164,26 @@ describe('LiveRadioHUD Component', () => {
 
     expect(screen.queryByText(/Franco Colapinto/i)).not.toBeInTheDocument();
   });
+
+  it('renders audio waveform or equalizer element during transmitting or speaking', () => {
+    const transmittingRadio = {
+      ...mockRadio,
+      radioState: 'transmitting' as const,
+      lastTranscript: 'Box this lap',
+    };
+
+    const { unmount } = renderWithI18n(<LiveRadioHUD radio={transmittingRadio} />);
+    const waveform = screen.queryByTestId('live-radio-waveform') || screen.queryByTestId('live-radio-equalizer-fallback');
+    expect(waveform).toBeInTheDocument();
+    unmount();
+
+    const speakingRadio = {
+      ...mockRadio,
+      radioState: 'speaking' as const,
+      lastResponse: 'Copy driver',
+    };
+    renderWithI18n(<LiveRadioHUD radio={speakingRadio} />);
+    const speakingWaveform = screen.queryByTestId('live-radio-waveform') || screen.queryByTestId('live-radio-equalizer-fallback');
+    expect(speakingWaveform).toBeInTheDocument();
+  });
 });

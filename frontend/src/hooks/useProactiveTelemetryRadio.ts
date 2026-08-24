@@ -38,7 +38,8 @@ export interface UseProactiveTelemetryRadioOptions {
   allTelemetry2?: CarTelemetry2Data[];
   packetFormat?: number | null;
   events?: RaceEvent[];
-  onTriggerAlert?: (alertContext: string, isCritical: boolean) => Promise<void>;
+  latestInsight?: import('../types/telemetry').TelemetryInsight | null;
+  onTriggerAlert?: (alertContext: string, isCritical: boolean, emotion?: { rateModifier?: number; pitchModifier?: number }) => Promise<void>;
 }
 
 export interface ProactiveAlertSettings {
@@ -122,6 +123,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
     telemetry,
     telemetry2,
     packetFormat,
+    latestInsight,
     onTriggerAlert,
   } = options;
 
@@ -265,7 +267,12 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
   }, []);
 
   const triggerAlertSafe = useCallback(
-    async (category: string, contextPrompt: string, isCritical: boolean) => {
+    async (
+      category: string,
+      contextPrompt: string,
+      isCritical: boolean,
+      emotion?: { rateModifier?: number; pitchModifier?: number }
+    ) => {
       if (!enabled || !isRadioEnabled || !onTriggerAlert) return;
 
       const settings = getAlertSettings();
@@ -290,7 +297,11 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
       }
 
       lastCooldownByCategoryRef.current[category] = now;
-      await onTriggerAlert(contextPrompt, isCritical);
+      if (emotion !== undefined) {
+        await onTriggerAlert(contextPrompt, isCritical, emotion);
+      } else {
+        await onTriggerAlert(contextPrompt, isCritical);
+      }
     },
     [enabled, isRadioEnabled, telemetry, getAlertSettings, onTriggerAlert]
   );
@@ -861,6 +872,33 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
       }
     }
   }, [enabled, isRadioEnabled, session, lap, isRace, getAlertSettings, triggerAlertSafe]);
+
+  // 9. Monitor Server-Side Telemetry Insights (Predictive Pit Strategy, Micro-Sector Coaching, Dynamic Weather, Teammate)
+  const lastInsightIdRef = useRef<string>('');
+  useEffect(() => {
+    if (!enabled || !isRadioEnabled || !latestInsight || latestInsight.id === lastInsightIdRef.current) return;
+    lastInsightIdRef.current = latestInsight.id;
+
+    const settings = getAlertSettings();
+    let isCategoryEnabled = true;
+
+    if (latestInsight.category === 'pit_strategy' && !settings.pitWindowAlertsEnabled) isCategoryEnabled = false;
+    if (latestInsight.category === 'coaching' && !settings.qualyAlertsEnabled) isCategoryEnabled = false;
+    if (latestInsight.category === 'weather' && !settings.subRain) isCategoryEnabled = false;
+    if (latestInsight.category === 'teammate' && !settings.rivalAlertsEnabled) isCategoryEnabled = false;
+
+    if (!isCategoryEnabled) return;
+
+    const isCritical = latestInsight.urgency === 'critical' || latestInsight.urgency === 'high';
+    const emotion = isCritical ? { rateModifier: 12, pitchModifier: 5 } : { rateModifier: 0, pitchModifier: 0 };
+
+    triggerAlertSafe(
+      latestInsight.category,
+      `[PROACTIVE PIT WALL CALL: ${latestInsight.title} — ${latestInsight.message} You are initiating this call — do NOT say 'Entendido' or 'Copy'.]`,
+      isCritical,
+      emotion
+    );
+  }, [enabled, isRadioEnabled, latestInsight, getAlertSettings, triggerAlertSafe]);
 }
 
 
