@@ -874,6 +874,10 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
   // 9. Monitor Server-Side Telemetry Directives via Dedicated Engineer WebSocket
   const lastDirectiveIdRef = useRef<string>('');
   const wsRef = useRef<WebSocket | null>(null);
+  const triggerAlertSafeRef = useRef(triggerAlertSafe);
+  triggerAlertSafeRef.current = triggerAlertSafe;
+  const getAlertSettingsRef = useRef(getAlertSettings);
+  getAlertSettingsRef.current = getAlertSettings;
 
   useEffect(() => {
     // Lazy load: Only connect to /ws/engineer if radio is actually enabled and active
@@ -906,7 +910,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
         
         lastDirectiveIdRef.current = directive.id;
 
-        const settings = getAlertSettings();
+        const settings = getAlertSettingsRef.current();
         let isCategoryEnabled = true;
 
         if (directive.category === 'pit_strategy' && !settings.pitWindowAlertsEnabled) isCategoryEnabled = false;
@@ -919,7 +923,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
         const isCritical = directive.urgency === 'critical' || directive.urgency === 'high';
         const emotion = isCritical ? { rateModifier: 12, pitchModifier: 5 } : { rateModifier: 0, pitchModifier: 0 };
 
-        triggerAlertSafe(
+        triggerAlertSafeRef.current(
           directive.category,
           `[PROACTIVE PIT WALL CALL: ${directive.title} — ${directive.message} You are initiating this call — do NOT say 'Entendido' or 'Copy'.]`,
           isCritical,
@@ -943,7 +947,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
         wsRef.current = null;
       }
     };
-  }, [enabled, isRadioEnabled, getAlertSettings, triggerAlertSafe]);
+  }, [enabled, isRadioEnabled]);
 }
 
 
