@@ -7,15 +7,11 @@ echo.
 echo [1/4] Unblocking project script files...
 powershell -NoProfile -ExecutionPolicy Bypass -Command "Unblock-File -Path '%~dp0*.bat' -ErrorAction SilentlyContinue" 2>nul
 
-if not exist "%~dp0frontend\node_modules\" (
-    echo [2/4] Installing Frontend dependencies...
-    cd /d "%~dp0frontend"
-    call npm install
-    cd /d "%~dp0"
-    echo.
-) else (
-    echo [2/4] Frontend dependencies found.
-)
+echo [2/4] Verifying and updating frontend dependencies...
+cd /d "%~dp0frontend"
+call npm install --prefer-offline --no-audit --no-fund
+cd /d "%~dp0"
+echo.
 
 echo [3/4] Building and Starting Backend Server...
 if not exist "%~dp0bin" mkdir "%~dp0bin"
