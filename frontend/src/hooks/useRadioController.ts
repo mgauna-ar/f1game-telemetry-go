@@ -1276,6 +1276,7 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
 
       recognition.onerror = (event: any) => {
         if (event.error !== 'no-speech') {
+          console.warn('[Live Radio] Speech recognition error:', event.error);
           setError(`Speech recognition error: ${event.error}`);
         }
       };
@@ -1287,6 +1288,7 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
       recognition.start();
       recognitionRef.current = recognition;
     } catch (err: any) {
+      console.warn('[Live Radio] Failed to start speech recognition:', err);
       setError(err?.message || 'Failed to start speech recognition');
       setRadioState('idle');
     }
@@ -1304,6 +1306,11 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
 
     if (beepsEnabled) {
       await playRadioBeep('end');
+    }
+
+    // Allow Web Speech API up to 250ms to dispatch final onresult audio buffers
+    if (!currentTranscriptRef.current.trim()) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
     }
 
     const finalTranscript = currentTranscriptRef.current.trim();
@@ -1326,15 +1333,20 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
       let aiBaseUrl = '';
 
       try {
-        const storedProvider = localStorage.getItem('f1_ai_provider');
-        const storedKey = localStorage.getItem('f1_ai_api_key');
-        const storedModel = localStorage.getItem('f1_ai_model');
-        const storedBaseUrl = localStorage.getItem('f1_ai_base_url');
-
-        if (storedProvider) aiProvider = storedProvider;
-        if (storedKey) aiApiKey = storedKey;
-        if (storedModel) aiModel = storedModel;
-        if (storedBaseUrl) aiBaseUrl = storedBaseUrl;
+        const storedConfig = localStorage.getItem('f1_ai_engineer_config');
+        if (storedConfig) {
+          const parsed = JSON.parse(storedConfig);
+          if (parsed.provider) aiProvider = parsed.provider;
+          if (parsed.apiKey) aiApiKey = parsed.apiKey;
+          if (parsed.model) aiModel = parsed.model;
+          if (parsed.baseUrl) aiBaseUrl = parsed.baseUrl;
+          if (parsed.providerKeys && parsed.provider && parsed.providerKeys[parsed.provider]) {
+            aiApiKey = parsed.providerKeys[parsed.provider];
+          }
+          if (parsed.providerModels && parsed.provider && parsed.providerModels[parsed.provider]) {
+            aiModel = parsed.providerModels[parsed.provider];
+          }
+        }
       } catch {}
 
       const response = await fetch('/api/ai/chat', {
@@ -1385,9 +1397,13 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
               if (data === '[DONE]') continue;
               try {
                 const parsed = JSON.parse(data);
-                if (parsed.content) {
-                  fullReply += parsed.content;
-                }
+                const chunkText =
+                  parsed.text ??
+                  parsed.content ??
+                  parsed.delta?.content ??
+                  parsed.candidates?.[0]?.content?.parts?.[0]?.text ??
+                  '';
+                fullReply += chunkText;
               } catch {
                 fullReply += data;
               }
@@ -1403,6 +1419,7 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
       }
     } catch (err: any) {
       if (err.name !== 'AbortError') {
+        console.warn('[Live Radio] Error processing response:', err);
         setError(err?.message || 'Error processing radio response');
       }
       setRadioState('idle');
