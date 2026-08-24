@@ -543,7 +543,7 @@
 /* ── Multi-Tab Navigation in Settings ─────────────────────────────────────── */
 .radio-tabs-nav {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 6px;
   background: rgba(0, 0, 0, 0.45);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -554,7 +554,7 @@
 
 @media (max-width: 660px) {
   .radio-tabs-nav {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr;
   }
 }
 

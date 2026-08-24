@@ -695,190 +695,216 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
     } catch {}
   }, []);
 
+  const markCustomTriggerPreset = useCallback(() => {
+    setTriggerPresetState(RADIO_TRIGGER_PRESETS.CUSTOM);
+    try {
+      localStorage.setItem(RADIO_STORAGE_KEYS.TRIGGER_PRESET, RADIO_TRIGGER_PRESETS.CUSTOM);
+    } catch {}
+  }, []);
+
   const setSmartDiscretionEnabled = useCallback((enabled: boolean) => {
     setSmartDiscretionEnabledState(enabled);
+    markCustomTriggerPreset();
     try {
       localStorage.setItem(RADIO_STORAGE_KEYS.SMART_DISCRETION_ENABLED, String(enabled));
     } catch {}
-  }, []);
+  }, [markCustomTriggerPreset]);
 
   const setChatterCooldownSeconds = useCallback((sec: number) => {
     const clamped = Math.max(10, Math.min(180, sec));
     setChatterCooldownSecondsState(clamped);
+    markCustomTriggerPreset();
     try {
       localStorage.setItem(RADIO_STORAGE_KEYS.CHATTER_COOLDOWN_SEC, String(clamped));
     } catch {}
-  }, []);
+  }, [markCustomTriggerPreset]);
 
   const setTyreWearWarningPct = useCallback((pct: number) => {
     const clamped = Math.max(10, Math.min(60, pct));
     setTyreWearWarningPctState(clamped);
+    markCustomTriggerPreset();
     try {
       localStorage.setItem(RADIO_STORAGE_KEYS.TYRE_WEAR_WARN_PCT, String(clamped));
     } catch {}
-  }, []);
+  }, [markCustomTriggerPreset]);
 
   const setTyreWearCriticalPct = useCallback((pct: number) => {
     const clamped = Math.max(50, Math.min(90, pct));
     setTyreWearCriticalPctState(clamped);
+    markCustomTriggerPreset();
     try {
       localStorage.setItem(RADIO_STORAGE_KEYS.TYRE_WEAR_CRIT_PCT, String(clamped));
     } catch {}
-  }, []);
+  }, [markCustomTriggerPreset]);
 
   const setRivalGapThresholdSec = useCallback((sec: number) => {
     const clamped = Math.max(0.5, Math.min(3.0, sec));
     setRivalGapThresholdSecState(clamped);
+    markCustomTriggerPreset();
     try {
       localStorage.setItem(RADIO_STORAGE_KEYS.RIVAL_GAP_THRESHOLD_SEC, String(clamped));
     } catch {}
-  }, []);
+  }, [markCustomTriggerPreset]);
 
   const setRainHorizonMin = useCallback((min: number) => {
     const clamped = Math.max(1, Math.min(15, min));
     setRainHorizonMinState(clamped);
+    markCustomTriggerPreset();
     try {
       localStorage.setItem(RADIO_STORAGE_KEYS.RAIN_HORIZON_MIN, String(clamped));
     } catch {}
-  }, []);
+  }, [markCustomTriggerPreset]);
 
   // Subsystem setters
   const setTyreAlertsEnabled = useCallback((enabled: boolean) => {
     setTyreAlertsEnabledState(enabled);
+    markCustomTriggerPreset();
     try {
       localStorage.setItem(RADIO_STORAGE_KEYS.ALERTS_TYRE, String(enabled));
     } catch {}
-  }, []);
+  }, [markCustomTriggerPreset]);
 
   const setThermalAlertsEnabled = useCallback((enabled: boolean) => {
     setThermalAlertsEnabledState(enabled);
+    markCustomTriggerPreset();
     try {
       localStorage.setItem(RADIO_STORAGE_KEYS.ALERTS_THERMAL, String(enabled));
     } catch {}
-  }, []);
+  }, [markCustomTriggerPreset]);
 
   const setDamageAlertsEnabled = useCallback((enabled: boolean) => {
     setDamageAlertsEnabledState(enabled);
+    markCustomTriggerPreset();
     try {
       localStorage.setItem(RADIO_STORAGE_KEYS.ALERTS_DAMAGE, String(enabled));
     } catch {}
-  }, []);
+  }, [markCustomTriggerPreset]);
 
   const setErsAlertsEnabled = useCallback((enabled: boolean) => {
     setErsAlertsEnabledState(enabled);
+    markCustomTriggerPreset();
     try {
       localStorage.setItem(RADIO_STORAGE_KEYS.ALERTS_ERS, String(enabled));
     } catch {}
-  }, []);
+  }, [markCustomTriggerPreset]);
 
   const setBrakesAlertsEnabled = useCallback((enabled: boolean) => {
     setBrakesAlertsEnabledState(enabled);
+    markCustomTriggerPreset();
     try {
       localStorage.setItem(RADIO_STORAGE_KEYS.ALERTS_BRAKES, String(enabled));
     } catch {}
-  }, []);
+  }, [markCustomTriggerPreset]);
 
   const setFuelAlertsEnabled = useCallback((enabled: boolean) => {
     setFuelAlertsEnabledState(enabled);
+    markCustomTriggerPreset();
     try {
       localStorage.setItem(RADIO_STORAGE_KEYS.ALERTS_FUEL, String(enabled));
     } catch {}
-  }, []);
+  }, [markCustomTriggerPreset]);
 
   const setRivalAlertsEnabled = useCallback((enabled: boolean) => {
     setRivalAlertsEnabledState(enabled);
+    markCustomTriggerPreset();
     try {
       localStorage.setItem(RADIO_STORAGE_KEYS.ALERTS_RIVAL, String(enabled));
     } catch {}
-  }, []);
+  }, [markCustomTriggerPreset]);
 
   const setPitWindowAlertsEnabled = useCallback((enabled: boolean) => {
     setPitWindowAlertsEnabledState(enabled);
+    markCustomTriggerPreset();
     try {
       localStorage.setItem(RADIO_STORAGE_KEYS.ALERTS_PIT_WINDOW, String(enabled));
     } catch {}
-  }, []);
+  }, [markCustomTriggerPreset]);
 
   const setTrackAlertsEnabled = useCallback((enabled: boolean) => {
     setTrackAlertsEnabledState(enabled);
+    markCustomTriggerPreset();
     try {
       localStorage.setItem(RADIO_STORAGE_KEYS.ALERTS_TRACK, String(enabled));
     } catch {}
-  }, []);
+  }, [markCustomTriggerPreset]);
 
   const setQualyAlertsEnabled = useCallback((enabled: boolean) => {
     setQualyAlertsEnabledState(enabled);
+    markCustomTriggerPreset();
     try {
       localStorage.setItem(RADIO_STORAGE_KEYS.ALERTS_QUALY, String(enabled));
     } catch {}
-  }, []);
+  }, [markCustomTriggerPreset]);
 
   const setFlagsPensAlertsEnabled = useCallback((enabled: boolean) => {
     setFlagsPensAlertsEnabledState(enabled);
+    markCustomTriggerPreset();
     try {
       localStorage.setItem(RADIO_STORAGE_KEYS.ALERTS_FLAGS_PENS, String(enabled));
     } catch {}
-  }, []);
+  }, [markCustomTriggerPreset]);
 
   // Sub-toggle setters
   const createSubSetter = (key: string, setter: (v: boolean) => void) => (enabled: boolean) => {
     setter(enabled);
+    markCustomTriggerPreset();
     try {
       localStorage.setItem(key, String(enabled));
     } catch {}
   };
 
-  const setSubTyreWear = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_TYRE_WEAR, setSubTyreWearState), []);
-  const setSubTyrePuncture = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_TYRE_PUNCTURE, setSubTyrePunctureState), []);
-  const setSubTyreThermal = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_TYRE_THERMAL, setSubTyreThermalState), []);
-  const setSubTyreCold = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_TYRE_COLD, setSubTyreColdState), []);
-  const setSubDamageWing = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_DAMAGE_WING, setSubDamageWingState), []);
-  const setSubDamageFloor = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_DAMAGE_FLOOR, setSubDamageFloorState), []);
-  const setSubDamageEngine = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_DAMAGE_ENGINE, setSubDamageEngineState), []);
-  const setSubDamageFaults = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_DAMAGE_FAULTS, setSubDamageFaultsState), []);
-  const setSubErsLow = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_ERS_LOW, setSubErsLowState), []);
-  const setSubEngineTemp = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_ENGINE_TEMP, setSubEngineTempState), []);
-  const setSubBrakeTemp = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_BRAKE_TEMP, setSubBrakeTempState), []);
-  const setSubBrakeCold = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_BRAKE_COLD, setSubBrakeColdState), []);
-  const setSubFuelDelta = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_FUEL_DELTA, setSubFuelDeltaState), []);
-  const setSubUndercut = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_UNDERCUT, setSubUndercutState), []);
-  const setSubPitWindow = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_PIT_WINDOW, setSubPitWindowState), []);
-  const setSubRivalDefend = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_RIVAL_DEFEND, setSubRivalDefendState), []);
-  const setSubRivalAttack = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_RIVAL_ATTACK, setSubRivalAttackState), []);
-  const setSubQualyTraffic = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_QUALY_TRAFFIC, setSubQualyTrafficState), []);
-  const setSubQualyInvalid = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_QUALY_INVALID, setSubQualyInvalidState), []);
-  const setSubQualyTime = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_QUALY_TIME, setSubQualyTimeState), []);
-  const setSubQualyElim = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_QUALY_ELIM, setSubQualyElimState), []);
-  const setSubSafetyCar = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_SAFETY_CAR, setSubSafetyCarState), []);
-  const setSubRedFlag = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_RED_FLAG, setSubRedFlagState), []);
-  const setSubRain = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_RAIN, setSubRainState), []);
-  const setSubTrackLimits = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_TRACK_LIMITS, setSubTrackLimitsState), []);
-  const setSubPenalties = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_PENALTIES, setSubPenaltiesState), []);
+  const setSubTyreWear = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_TYRE_WEAR, setSubTyreWearState), [markCustomTriggerPreset]);
+  const setSubTyrePuncture = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_TYRE_PUNCTURE, setSubTyrePunctureState), [markCustomTriggerPreset]);
+  const setSubTyreThermal = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_TYRE_THERMAL, setSubTyreThermalState), [markCustomTriggerPreset]);
+  const setSubTyreCold = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_TYRE_COLD, setSubTyreColdState), [markCustomTriggerPreset]);
+  const setSubDamageWing = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_DAMAGE_WING, setSubDamageWingState), [markCustomTriggerPreset]);
+  const setSubDamageFloor = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_DAMAGE_FLOOR, setSubDamageFloorState), [markCustomTriggerPreset]);
+  const setSubDamageEngine = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_DAMAGE_ENGINE, setSubDamageEngineState), [markCustomTriggerPreset]);
+  const setSubDamageFaults = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_DAMAGE_FAULTS, setSubDamageFaultsState), [markCustomTriggerPreset]);
+  const setSubErsLow = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_ERS_LOW, setSubErsLowState), [markCustomTriggerPreset]);
+  const setSubEngineTemp = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_ENGINE_TEMP, setSubEngineTempState), [markCustomTriggerPreset]);
+  const setSubBrakeTemp = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_BRAKE_TEMP, setSubBrakeTempState), [markCustomTriggerPreset]);
+  const setSubBrakeCold = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_BRAKE_COLD, setSubBrakeColdState), [markCustomTriggerPreset]);
+  const setSubFuelDelta = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_FUEL_DELTA, setSubFuelDeltaState), [markCustomTriggerPreset]);
+  const setSubUndercut = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_UNDERCUT, setSubUndercutState), [markCustomTriggerPreset]);
+  const setSubPitWindow = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_PIT_WINDOW, setSubPitWindowState), [markCustomTriggerPreset]);
+  const setSubRivalDefend = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_RIVAL_DEFEND, setSubRivalDefendState), [markCustomTriggerPreset]);
+  const setSubRivalAttack = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_RIVAL_ATTACK, setSubRivalAttackState), [markCustomTriggerPreset]);
+  const setSubQualyTraffic = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_QUALY_TRAFFIC, setSubQualyTrafficState), [markCustomTriggerPreset]);
+  const setSubQualyInvalid = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_QUALY_INVALID, setSubQualyInvalidState), [markCustomTriggerPreset]);
+  const setSubQualyTime = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_QUALY_TIME, setSubQualyTimeState), [markCustomTriggerPreset]);
+  const setSubQualyElim = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_QUALY_ELIM, setSubQualyElimState), [markCustomTriggerPreset]);
+  const setSubSafetyCar = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_SAFETY_CAR, setSubSafetyCarState), [markCustomTriggerPreset]);
+  const setSubRedFlag = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_RED_FLAG, setSubRedFlagState), [markCustomTriggerPreset]);
+  const setSubRain = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_RAIN, setSubRainState), [markCustomTriggerPreset]);
+  const setSubTrackLimits = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_TRACK_LIMITS, setSubTrackLimitsState), [markCustomTriggerPreset]);
+  const setSubPenalties = useCallback(createSubSetter(RADIO_STORAGE_KEYS.SUB_ALERT_PENALTIES, setSubPenaltiesState), [markCustomTriggerPreset]);
 
   // Threshold setters
   const createNumSetter = (key: string, setter: (v: number) => void, min: number, max: number) => (val: number) => {
     const clamped = Math.max(min, Math.min(max, val));
     setter(clamped);
+    markCustomTriggerPreset();
     try {
       localStorage.setItem(key, String(clamped));
     } catch {}
   };
 
-  const setTyreOverheatC = useCallback(createNumSetter(RADIO_STORAGE_KEYS.TYRE_OVERHEAT_C, setTyreOverheatCState, 90, 140), []);
-  const setTyreColdC = useCallback(createNumSetter(RADIO_STORAGE_KEYS.TYRE_COLD_C, setTyreColdCState, 60, 100), []);
-  const setWingDamageWarnPct = useCallback(createNumSetter(RADIO_STORAGE_KEYS.WING_DAMAGE_WARN_PCT, setWingDamageWarnPctState, 5, 50), []);
-  const setFloorDamageWarnPct = useCallback(createNumSetter(RADIO_STORAGE_KEYS.FLOOR_DAMAGE_WARN_PCT, setFloorDamageWarnPctState, 10, 50), []);
-  const setEngineWearWarnPct = useCallback(createNumSetter(RADIO_STORAGE_KEYS.ENGINE_WEAR_WARN_PCT, setEngineWearWarnPctState, 40, 95), []);
-  const setErsLowPct = useCallback(createNumSetter(RADIO_STORAGE_KEYS.ERS_LOW_PCT, setErsLowPctState, 5, 40), []);
-  const setEngineOverheatC = useCallback(createNumSetter(RADIO_STORAGE_KEYS.ENGINE_OVERHEAT_C, setEngineOverheatCState, 100, 150), []);
-  const setBrakeOverheatC = useCallback(createNumSetter(RADIO_STORAGE_KEYS.BRAKE_OVERHEAT_C, setBrakeOverheatCState, 600, 1200), []);
-  const setBrakeColdC = useCallback(createNumSetter(RADIO_STORAGE_KEYS.BRAKE_COLD_C, setBrakeColdCState, 50, 400), []);
-  const setFuelDeltaLaps = useCallback(createNumSetter(RADIO_STORAGE_KEYS.FUEL_DELTA_LAPS, setFuelDeltaLapsState, -3.0, 0.0), []);
-  const setUndercutGapSec = useCallback(createNumSetter(RADIO_STORAGE_KEYS.UNDERCUT_GAP_SEC, setUndercutGapSecState, 1.0, 5.0), []);
-  const setRivalAheadGapSec = useCallback(createNumSetter(RADIO_STORAGE_KEYS.RIVAL_AHEAD_GAP_SEC, setRivalAheadGapSecState, 0.5, 3.0), []);
-  const setQualyCleanAirSec = useCallback(createNumSetter(RADIO_STORAGE_KEYS.QUALY_CLEAN_AIR_SEC, setQualyCleanAirSecState, 1.5, 7.0), []);
-  const setCornerCutWarnThreshold = useCallback(createNumSetter(RADIO_STORAGE_KEYS.CORNER_CUT_WARN_THRESHOLD, setCornerCutWarnThresholdState, 1, 3), []);
-  const setRainProbPct = useCallback(createNumSetter(RADIO_STORAGE_KEYS.RAIN_PROB_PCT, setRainProbPctState, 20, 80), []);
+  const setTyreOverheatC = useCallback(createNumSetter(RADIO_STORAGE_KEYS.TYRE_OVERHEAT_C, setTyreOverheatCState, 90, 140), [markCustomTriggerPreset]);
+  const setTyreColdC = useCallback(createNumSetter(RADIO_STORAGE_KEYS.TYRE_COLD_C, setTyreColdCState, 60, 100), [markCustomTriggerPreset]);
+  const setWingDamageWarnPct = useCallback(createNumSetter(RADIO_STORAGE_KEYS.WING_DAMAGE_WARN_PCT, setWingDamageWarnPctState, 5, 50), [markCustomTriggerPreset]);
+  const setFloorDamageWarnPct = useCallback(createNumSetter(RADIO_STORAGE_KEYS.FLOOR_DAMAGE_WARN_PCT, setFloorDamageWarnPctState, 10, 50), [markCustomTriggerPreset]);
+  const setEngineWearWarnPct = useCallback(createNumSetter(RADIO_STORAGE_KEYS.ENGINE_WEAR_WARN_PCT, setEngineWearWarnPctState, 40, 95), [markCustomTriggerPreset]);
+  const setErsLowPct = useCallback(createNumSetter(RADIO_STORAGE_KEYS.ERS_LOW_PCT, setErsLowPctState, 5, 40), [markCustomTriggerPreset]);
+  const setEngineOverheatC = useCallback(createNumSetter(RADIO_STORAGE_KEYS.ENGINE_OVERHEAT_C, setEngineOverheatCState, 100, 150), [markCustomTriggerPreset]);
+  const setBrakeOverheatC = useCallback(createNumSetter(RADIO_STORAGE_KEYS.BRAKE_OVERHEAT_C, setBrakeOverheatCState, 600, 1200), [markCustomTriggerPreset]);
+  const setBrakeColdC = useCallback(createNumSetter(RADIO_STORAGE_KEYS.BRAKE_COLD_C, setBrakeColdCState, 50, 400), [markCustomTriggerPreset]);
+  const setFuelDeltaLaps = useCallback(createNumSetter(RADIO_STORAGE_KEYS.FUEL_DELTA_LAPS, setFuelDeltaLapsState, -3.0, 0.0), [markCustomTriggerPreset]);
+  const setUndercutGapSec = useCallback(createNumSetter(RADIO_STORAGE_KEYS.UNDERCUT_GAP_SEC, setUndercutGapSecState, 1.0, 5.0), [markCustomTriggerPreset]);
+  const setRivalAheadGapSec = useCallback(createNumSetter(RADIO_STORAGE_KEYS.RIVAL_AHEAD_GAP_SEC, setRivalAheadGapSecState, 0.5, 3.0), [markCustomTriggerPreset]);
+  const setQualyCleanAirSec = useCallback(createNumSetter(RADIO_STORAGE_KEYS.QUALY_CLEAN_AIR_SEC, setQualyCleanAirSecState, 1.5, 7.0), [markCustomTriggerPreset]);
+  const setCornerCutWarnThreshold = useCallback(createNumSetter(RADIO_STORAGE_KEYS.CORNER_CUT_WARN_THRESHOLD, setCornerCutWarnThresholdState, 1, 3), [markCustomTriggerPreset]);
+  const setRainProbPct = useCallback(createNumSetter(RADIO_STORAGE_KEYS.RAIN_PROB_PCT, setRainProbPctState, 20, 80), [markCustomTriggerPreset]);
 
   // Presets applicator
   const applyTriggerPreset = useCallback((preset: RadioTriggerPreset) => {
@@ -887,169 +913,157 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
       localStorage.setItem(RADIO_STORAGE_KEYS.TRIGGER_PRESET, preset);
     } catch {}
 
+    const saveMaster = (setter: (v: boolean) => void, key: string, val: boolean) => {
+      setter(val);
+      try { localStorage.setItem(key, String(val)); } catch {}
+    };
+    const saveSub = (setter: (v: boolean) => void, key: string, val: boolean) => {
+      setter(val);
+      try { localStorage.setItem(key, String(val)); } catch {}
+    };
+    const saveCooldown = (sec: number) => {
+      setChatterCooldownSecondsState(sec);
+      try { localStorage.setItem(RADIO_STORAGE_KEYS.CHATTER_COOLDOWN_SEC, String(sec)); } catch {}
+    };
+
     if (preset === RADIO_TRIGGER_PRESETS.IMMERSIVE) {
-      setTyreAlertsEnabled(true);
-      setDamageAlertsEnabled(true);
-      setErsAlertsEnabled(false);
-      setBrakesAlertsEnabled(false);
-      setFuelAlertsEnabled(true);
-      setRivalAlertsEnabled(true);
-      setQualyAlertsEnabled(true);
-      setFlagsPensAlertsEnabled(true);
-      setChatterCooldownSeconds(RADIO_ALERT_CONSTANTS.CHATTER_PRESETS.NORMAL);
-      setSubTyreWear(true);
-      setSubTyrePuncture(true);
-      setSubTyreThermal(false);
-      setSubTyreCold(false);
-      setSubDamageWing(true);
-      setSubDamageFaults(true);
-      setSubUndercut(true);
-      setSubSafetyCar(true);
-      setSubRedFlag(true);
-      setSubRain(true);
-      setSubPenalties(true);
-      setSubQualyInvalid(true);
+      saveMaster(setTyreAlertsEnabledState, RADIO_STORAGE_KEYS.ALERTS_TYRE, true);
+      saveMaster(setDamageAlertsEnabledState, RADIO_STORAGE_KEYS.ALERTS_DAMAGE, true);
+      saveMaster(setErsAlertsEnabledState, RADIO_STORAGE_KEYS.ALERTS_ERS, false);
+      saveMaster(setBrakesAlertsEnabledState, RADIO_STORAGE_KEYS.ALERTS_BRAKES, false);
+      saveMaster(setFuelAlertsEnabledState, RADIO_STORAGE_KEYS.ALERTS_FUEL, true);
+      saveMaster(setRivalAlertsEnabledState, RADIO_STORAGE_KEYS.ALERTS_RIVAL, true);
+      saveMaster(setQualyAlertsEnabledState, RADIO_STORAGE_KEYS.ALERTS_QUALY, true);
+      saveMaster(setFlagsPensAlertsEnabledState, RADIO_STORAGE_KEYS.ALERTS_FLAGS_PENS, true);
+      saveCooldown(RADIO_ALERT_CONSTANTS.CHATTER_PRESETS.NORMAL);
+      saveSub(setSubTyreWearState, RADIO_STORAGE_KEYS.SUB_ALERT_TYRE_WEAR, true);
+      saveSub(setSubTyrePunctureState, RADIO_STORAGE_KEYS.SUB_ALERT_TYRE_PUNCTURE, true);
+      saveSub(setSubTyreThermalState, RADIO_STORAGE_KEYS.SUB_ALERT_TYRE_THERMAL, false);
+      saveSub(setSubTyreColdState, RADIO_STORAGE_KEYS.SUB_ALERT_TYRE_COLD, false);
+      saveSub(setSubDamageWingState, RADIO_STORAGE_KEYS.SUB_ALERT_DAMAGE_WING, true);
+      saveSub(setSubDamageFloorState, RADIO_STORAGE_KEYS.SUB_ALERT_DAMAGE_FLOOR, false);
+      saveSub(setSubDamageEngineState, RADIO_STORAGE_KEYS.SUB_ALERT_DAMAGE_ENGINE, false);
+      saveSub(setSubDamageFaultsState, RADIO_STORAGE_KEYS.SUB_ALERT_DAMAGE_FAULTS, true);
+      saveSub(setSubErsLowState, RADIO_STORAGE_KEYS.SUB_ALERT_ERS_LOW, false);
+      saveSub(setSubEngineTempState, RADIO_STORAGE_KEYS.SUB_ALERT_ENGINE_TEMP, false);
+      saveSub(setSubBrakeTempState, RADIO_STORAGE_KEYS.SUB_ALERT_BRAKE_TEMP, false);
+      saveSub(setSubBrakeColdState, RADIO_STORAGE_KEYS.SUB_ALERT_BRAKE_COLD, false);
+      saveSub(setSubFuelDeltaState, RADIO_STORAGE_KEYS.SUB_ALERT_FUEL_DELTA, false);
+      saveSub(setSubUndercutState, RADIO_STORAGE_KEYS.SUB_ALERT_UNDERCUT, true);
+      saveSub(setSubPitWindowState, RADIO_STORAGE_KEYS.SUB_ALERT_PIT_WINDOW, false);
+      saveSub(setSubRivalDefendState, RADIO_STORAGE_KEYS.SUB_ALERT_RIVAL_DEFEND, false);
+      saveSub(setSubRivalAttackState, RADIO_STORAGE_KEYS.SUB_ALERT_RIVAL_ATTACK, false);
+      saveSub(setSubQualyTrafficState, RADIO_STORAGE_KEYS.SUB_ALERT_QUALY_TRAFFIC, false);
+      saveSub(setSubQualyInvalidState, RADIO_STORAGE_KEYS.SUB_ALERT_QUALY_INVALID, true);
+      saveSub(setSubQualyTimeState, RADIO_STORAGE_KEYS.SUB_ALERT_QUALY_TIME, false);
+      saveSub(setSubQualyElimState, RADIO_STORAGE_KEYS.SUB_ALERT_QUALY_ELIM, false);
+      saveSub(setSubSafetyCarState, RADIO_STORAGE_KEYS.SUB_ALERT_SAFETY_CAR, true);
+      saveSub(setSubRedFlagState, RADIO_STORAGE_KEYS.SUB_ALERT_RED_FLAG, true);
+      saveSub(setSubRainState, RADIO_STORAGE_KEYS.SUB_ALERT_RAIN, true);
+      saveSub(setSubTrackLimitsState, RADIO_STORAGE_KEYS.SUB_ALERT_TRACK_LIMITS, false);
+      saveSub(setSubPenaltiesState, RADIO_STORAGE_KEYS.SUB_ALERT_PENALTIES, true);
     } else if (preset === RADIO_TRIGGER_PRESETS.COACHING) {
-      setTyreAlertsEnabled(true);
-      setDamageAlertsEnabled(true);
-      setErsAlertsEnabled(true);
-      setBrakesAlertsEnabled(true);
-      setFuelAlertsEnabled(true);
-      setRivalAlertsEnabled(true);
-      setQualyAlertsEnabled(true);
-      setFlagsPensAlertsEnabled(true);
-      setChatterCooldownSeconds(RADIO_ALERT_CONSTANTS.CHATTER_PRESETS.TALKATIVE);
-      setSubTyreWear(true);
-      setSubTyrePuncture(true);
-      setSubTyreThermal(true);
-      setSubTyreCold(true);
-      setSubDamageWing(true);
-      setSubDamageFloor(true);
-      setSubDamageEngine(true);
-      setSubDamageFaults(true);
-      setSubErsLow(true);
-      setSubEngineTemp(true);
-      setSubBrakeTemp(true);
-      setSubBrakeCold(true);
-      setSubFuelDelta(true);
-      setSubUndercut(true);
-      setSubPitWindow(true);
-      setSubRivalDefend(true);
-      setSubRivalAttack(true);
-      setSubQualyTraffic(true);
-      setSubQualyInvalid(true);
-      setSubQualyTime(true);
-      setSubQualyElim(true);
-      setSubSafetyCar(true);
-      setSubRedFlag(true);
-      setSubRain(true);
-      setSubTrackLimits(true);
-      setSubPenalties(true);
+      saveMaster(setTyreAlertsEnabledState, RADIO_STORAGE_KEYS.ALERTS_TYRE, true);
+      saveMaster(setDamageAlertsEnabledState, RADIO_STORAGE_KEYS.ALERTS_DAMAGE, true);
+      saveMaster(setErsAlertsEnabledState, RADIO_STORAGE_KEYS.ALERTS_ERS, true);
+      saveMaster(setBrakesAlertsEnabledState, RADIO_STORAGE_KEYS.ALERTS_BRAKES, true);
+      saveMaster(setFuelAlertsEnabledState, RADIO_STORAGE_KEYS.ALERTS_FUEL, true);
+      saveMaster(setRivalAlertsEnabledState, RADIO_STORAGE_KEYS.ALERTS_RIVAL, true);
+      saveMaster(setQualyAlertsEnabledState, RADIO_STORAGE_KEYS.ALERTS_QUALY, true);
+      saveMaster(setFlagsPensAlertsEnabledState, RADIO_STORAGE_KEYS.ALERTS_FLAGS_PENS, true);
+      saveCooldown(RADIO_ALERT_CONSTANTS.CHATTER_PRESETS.TALKATIVE);
+      saveSub(setSubTyreWearState, RADIO_STORAGE_KEYS.SUB_ALERT_TYRE_WEAR, true);
+      saveSub(setSubTyrePunctureState, RADIO_STORAGE_KEYS.SUB_ALERT_TYRE_PUNCTURE, true);
+      saveSub(setSubTyreThermalState, RADIO_STORAGE_KEYS.SUB_ALERT_TYRE_THERMAL, true);
+      saveSub(setSubTyreColdState, RADIO_STORAGE_KEYS.SUB_ALERT_TYRE_COLD, true);
+      saveSub(setSubDamageWingState, RADIO_STORAGE_KEYS.SUB_ALERT_DAMAGE_WING, true);
+      saveSub(setSubDamageFloorState, RADIO_STORAGE_KEYS.SUB_ALERT_DAMAGE_FLOOR, true);
+      saveSub(setSubDamageEngineState, RADIO_STORAGE_KEYS.SUB_ALERT_DAMAGE_ENGINE, true);
+      saveSub(setSubDamageFaultsState, RADIO_STORAGE_KEYS.SUB_ALERT_DAMAGE_FAULTS, true);
+      saveSub(setSubErsLowState, RADIO_STORAGE_KEYS.SUB_ALERT_ERS_LOW, true);
+      saveSub(setSubEngineTempState, RADIO_STORAGE_KEYS.SUB_ALERT_ENGINE_TEMP, true);
+      saveSub(setSubBrakeTempState, RADIO_STORAGE_KEYS.SUB_ALERT_BRAKE_TEMP, true);
+      saveSub(setSubBrakeColdState, RADIO_STORAGE_KEYS.SUB_ALERT_BRAKE_COLD, true);
+      saveSub(setSubFuelDeltaState, RADIO_STORAGE_KEYS.SUB_ALERT_FUEL_DELTA, true);
+      saveSub(setSubUndercutState, RADIO_STORAGE_KEYS.SUB_ALERT_UNDERCUT, true);
+      saveSub(setSubPitWindowState, RADIO_STORAGE_KEYS.SUB_ALERT_PIT_WINDOW, true);
+      saveSub(setSubRivalDefendState, RADIO_STORAGE_KEYS.SUB_ALERT_RIVAL_DEFEND, true);
+      saveSub(setSubRivalAttackState, RADIO_STORAGE_KEYS.SUB_ALERT_RIVAL_ATTACK, true);
+      saveSub(setSubQualyTrafficState, RADIO_STORAGE_KEYS.SUB_ALERT_QUALY_TRAFFIC, true);
+      saveSub(setSubQualyInvalidState, RADIO_STORAGE_KEYS.SUB_ALERT_QUALY_INVALID, true);
+      saveSub(setSubQualyTimeState, RADIO_STORAGE_KEYS.SUB_ALERT_QUALY_TIME, true);
+      saveSub(setSubQualyElimState, RADIO_STORAGE_KEYS.SUB_ALERT_QUALY_ELIM, true);
+      saveSub(setSubSafetyCarState, RADIO_STORAGE_KEYS.SUB_ALERT_SAFETY_CAR, true);
+      saveSub(setSubRedFlagState, RADIO_STORAGE_KEYS.SUB_ALERT_RED_FLAG, true);
+      saveSub(setSubRainState, RADIO_STORAGE_KEYS.SUB_ALERT_RAIN, true);
+      saveSub(setSubTrackLimitsState, RADIO_STORAGE_KEYS.SUB_ALERT_TRACK_LIMITS, true);
+      saveSub(setSubPenaltiesState, RADIO_STORAGE_KEYS.SUB_ALERT_PENALTIES, true);
     } else if (preset === RADIO_TRIGGER_PRESETS.MINIMAL) {
-      setTyreAlertsEnabled(true);
-      setDamageAlertsEnabled(true);
-      setErsAlertsEnabled(false);
-      setBrakesAlertsEnabled(false);
-      setFuelAlertsEnabled(false);
-      setRivalAlertsEnabled(false);
-      setQualyAlertsEnabled(false);
-      setFlagsPensAlertsEnabled(true);
-      setChatterCooldownSeconds(RADIO_ALERT_CONSTANTS.CHATTER_PRESETS.MINIMAL);
-      setSubTyreWear(false);
-      setSubTyrePuncture(true);
-      setSubTyreThermal(false);
-      setSubTyreCold(false);
-      setSubDamageWing(true);
-      setSubDamageFloor(false);
-      setSubDamageEngine(false);
-      setSubDamageFaults(true);
-      setSubSafetyCar(true);
-      setSubRedFlag(true);
-      setSubRain(false);
-      setSubPenalties(true);
+      saveMaster(setTyreAlertsEnabledState, RADIO_STORAGE_KEYS.ALERTS_TYRE, true);
+      saveMaster(setDamageAlertsEnabledState, RADIO_STORAGE_KEYS.ALERTS_DAMAGE, true);
+      saveMaster(setErsAlertsEnabledState, RADIO_STORAGE_KEYS.ALERTS_ERS, false);
+      saveMaster(setBrakesAlertsEnabledState, RADIO_STORAGE_KEYS.ALERTS_BRAKES, false);
+      saveMaster(setFuelAlertsEnabledState, RADIO_STORAGE_KEYS.ALERTS_FUEL, false);
+      saveMaster(setRivalAlertsEnabledState, RADIO_STORAGE_KEYS.ALERTS_RIVAL, false);
+      saveMaster(setQualyAlertsEnabledState, RADIO_STORAGE_KEYS.ALERTS_QUALY, false);
+      saveMaster(setFlagsPensAlertsEnabledState, RADIO_STORAGE_KEYS.ALERTS_FLAGS_PENS, true);
+      saveCooldown(RADIO_ALERT_CONSTANTS.CHATTER_PRESETS.MINIMAL);
+      saveSub(setSubTyreWearState, RADIO_STORAGE_KEYS.SUB_ALERT_TYRE_WEAR, false);
+      saveSub(setSubTyrePunctureState, RADIO_STORAGE_KEYS.SUB_ALERT_TYRE_PUNCTURE, true);
+      saveSub(setSubTyreThermalState, RADIO_STORAGE_KEYS.SUB_ALERT_TYRE_THERMAL, false);
+      saveSub(setSubTyreColdState, RADIO_STORAGE_KEYS.SUB_ALERT_TYRE_COLD, false);
+      saveSub(setSubDamageWingState, RADIO_STORAGE_KEYS.SUB_ALERT_DAMAGE_WING, true);
+      saveSub(setSubDamageFloorState, RADIO_STORAGE_KEYS.SUB_ALERT_DAMAGE_FLOOR, false);
+      saveSub(setSubDamageEngineState, RADIO_STORAGE_KEYS.SUB_ALERT_DAMAGE_ENGINE, false);
+      saveSub(setSubDamageFaultsState, RADIO_STORAGE_KEYS.SUB_ALERT_DAMAGE_FAULTS, true);
+      saveSub(setSubErsLowState, RADIO_STORAGE_KEYS.SUB_ALERT_ERS_LOW, false);
+      saveSub(setSubEngineTempState, RADIO_STORAGE_KEYS.SUB_ALERT_ENGINE_TEMP, false);
+      saveSub(setSubBrakeTempState, RADIO_STORAGE_KEYS.SUB_ALERT_BRAKE_TEMP, false);
+      saveSub(setSubBrakeColdState, RADIO_STORAGE_KEYS.SUB_ALERT_BRAKE_COLD, false);
+      saveSub(setSubFuelDeltaState, RADIO_STORAGE_KEYS.SUB_ALERT_FUEL_DELTA, false);
+      saveSub(setSubUndercutState, RADIO_STORAGE_KEYS.SUB_ALERT_UNDERCUT, false);
+      saveSub(setSubPitWindowState, RADIO_STORAGE_KEYS.SUB_ALERT_PIT_WINDOW, false);
+      saveSub(setSubRivalDefendState, RADIO_STORAGE_KEYS.SUB_ALERT_RIVAL_DEFEND, false);
+      saveSub(setSubRivalAttackState, RADIO_STORAGE_KEYS.SUB_ALERT_RIVAL_ATTACK, false);
+      saveSub(setSubQualyTrafficState, RADIO_STORAGE_KEYS.SUB_ALERT_QUALY_TRAFFIC, false);
+      saveSub(setSubQualyInvalidState, RADIO_STORAGE_KEYS.SUB_ALERT_QUALY_INVALID, false);
+      saveSub(setSubQualyTimeState, RADIO_STORAGE_KEYS.SUB_ALERT_QUALY_TIME, false);
+      saveSub(setSubQualyElimState, RADIO_STORAGE_KEYS.SUB_ALERT_QUALY_ELIM, false);
+      saveSub(setSubSafetyCarState, RADIO_STORAGE_KEYS.SUB_ALERT_SAFETY_CAR, true);
+      saveSub(setSubRedFlagState, RADIO_STORAGE_KEYS.SUB_ALERT_RED_FLAG, true);
+      saveSub(setSubRainState, RADIO_STORAGE_KEYS.SUB_ALERT_RAIN, false);
+      saveSub(setSubTrackLimitsState, RADIO_STORAGE_KEYS.SUB_ALERT_TRACK_LIMITS, false);
+      saveSub(setSubPenaltiesState, RADIO_STORAGE_KEYS.SUB_ALERT_PENALTIES, true);
     }
-  }, [
-    setTyreAlertsEnabled,
-    setDamageAlertsEnabled,
-    setErsAlertsEnabled,
-    setBrakesAlertsEnabled,
-    setFuelAlertsEnabled,
-    setRivalAlertsEnabled,
-    setQualyAlertsEnabled,
-    setFlagsPensAlertsEnabled,
-    setChatterCooldownSeconds,
-    setSubTyreWear,
-    setSubTyrePuncture,
-    setSubTyreThermal,
-    setSubTyreCold,
-    setSubDamageWing,
-    setSubDamageFloor,
-    setSubDamageEngine,
-    setSubDamageFaults,
-    setSubErsLow,
-    setSubEngineTemp,
-    setSubBrakeTemp,
-    setSubBrakeCold,
-    setSubFuelDelta,
-    setSubUndercut,
-    setSubPitWindow,
-    setSubRivalDefend,
-    setSubRivalAttack,
-    setSubQualyTraffic,
-    setSubQualyInvalid,
-    setSubQualyTime,
-    setSubQualyElim,
-    setSubSafetyCar,
-    setSubRedFlag,
-    setSubRain,
-    setSubTrackLimits,
-    setSubPenalties,
-  ]);
+  }, []);
 
   // Reset to factory defaults
   const resetTriggerDefaults = useCallback(() => {
     applyTriggerPreset(RADIO_TRIGGER_PRESETS.IMMERSIVE);
-    setTyreWearWarningPct(RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_WARN_PCT);
-    setTyreWearCriticalPct(RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_CRIT_PCT);
-    setTyreOverheatC(RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_OVERHEAT_C);
-    setTyreColdC(RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_COLD_C);
-    setWingDamageWarnPct(RADIO_ALERT_CONSTANTS.DEFAULT_WING_DAMAGE_WARN_PCT);
-    setFloorDamageWarnPct(RADIO_ALERT_CONSTANTS.DEFAULT_FLOOR_DAMAGE_WARN_PCT);
-    setEngineWearWarnPct(RADIO_ALERT_CONSTANTS.DEFAULT_ENGINE_WEAR_WARN_PCT);
-    setErsLowPct(RADIO_ALERT_CONSTANTS.DEFAULT_ERS_LOW_PCT);
-    setEngineOverheatC(RADIO_ALERT_CONSTANTS.DEFAULT_ENGINE_OVERHEAT_C);
-    setBrakeOverheatC(RADIO_ALERT_CONSTANTS.DEFAULT_BRAKE_OVERHEAT_C);
-    setBrakeColdC(RADIO_ALERT_CONSTANTS.DEFAULT_BRAKE_COLD_C);
-    setFuelDeltaLaps(RADIO_ALERT_CONSTANTS.DEFAULT_FUEL_DELTA_LAPS);
-    setUndercutGapSec(RADIO_ALERT_CONSTANTS.DEFAULT_UNDERCUT_GAP_SEC);
-    setRivalGapThresholdSec(RADIO_ALERT_CONSTANTS.DEFAULT_RIVAL_GAP_SEC);
-    setRivalAheadGapSec(RADIO_ALERT_CONSTANTS.DEFAULT_RIVAL_AHEAD_GAP_SEC);
-    setQualyCleanAirSec(RADIO_ALERT_CONSTANTS.DEFAULT_QUALY_CLEAN_AIR_SEC);
-    setCornerCutWarnThreshold(RADIO_ALERT_CONSTANTS.DEFAULT_CORNER_CUT_WARN_THRESHOLD);
-    setRainHorizonMin(RADIO_ALERT_CONSTANTS.DEFAULT_RAIN_HORIZON_MIN);
-    setRainProbPct(RADIO_ALERT_CONSTANTS.DEFAULT_RAIN_PROB_PCT);
-  }, [
-    applyTriggerPreset,
-    setTyreWearWarningPct,
-    setTyreWearCriticalPct,
-    setTyreOverheatC,
-    setTyreColdC,
-    setWingDamageWarnPct,
-    setFloorDamageWarnPct,
-    setEngineWearWarnPct,
-    setErsLowPct,
-    setEngineOverheatC,
-    setBrakeOverheatC,
-    setBrakeColdC,
-    setFuelDeltaLaps,
-    setUndercutGapSec,
-    setRivalGapThresholdSec,
-    setRivalAheadGapSec,
-    setQualyCleanAirSec,
-    setCornerCutWarnThreshold,
-    setRainHorizonMin,
-    setRainProbPct,
-  ]);
+    const saveNum = (setter: (v: number) => void, key: string, val: number) => {
+      setter(val);
+      try { localStorage.setItem(key, String(val)); } catch {}
+    };
+    saveNum(setTyreWearWarningPctState, RADIO_STORAGE_KEYS.TYRE_WEAR_WARN_PCT, RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_WARN_PCT);
+    saveNum(setTyreWearCriticalPctState, RADIO_STORAGE_KEYS.TYRE_WEAR_CRIT_PCT, RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_CRIT_PCT);
+    saveNum(setTyreOverheatCState, RADIO_STORAGE_KEYS.TYRE_OVERHEAT_C, RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_OVERHEAT_C);
+    saveNum(setTyreColdCState, RADIO_STORAGE_KEYS.TYRE_COLD_C, RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_COLD_C);
+    saveNum(setWingDamageWarnPctState, RADIO_STORAGE_KEYS.WING_DAMAGE_WARN_PCT, RADIO_ALERT_CONSTANTS.DEFAULT_WING_DAMAGE_WARN_PCT);
+    saveNum(setFloorDamageWarnPctState, RADIO_STORAGE_KEYS.FLOOR_DAMAGE_WARN_PCT, RADIO_ALERT_CONSTANTS.DEFAULT_FLOOR_DAMAGE_WARN_PCT);
+    saveNum(setEngineWearWarnPctState, RADIO_STORAGE_KEYS.ENGINE_WEAR_WARN_PCT, RADIO_ALERT_CONSTANTS.DEFAULT_ENGINE_WEAR_WARN_PCT);
+    saveNum(setErsLowPctState, RADIO_STORAGE_KEYS.ERS_LOW_PCT, RADIO_ALERT_CONSTANTS.DEFAULT_ERS_LOW_PCT);
+    saveNum(setEngineOverheatCState, RADIO_STORAGE_KEYS.ENGINE_OVERHEAT_C, RADIO_ALERT_CONSTANTS.DEFAULT_ENGINE_OVERHEAT_C);
+    saveNum(setBrakeOverheatCState, RADIO_STORAGE_KEYS.BRAKE_OVERHEAT_C, RADIO_ALERT_CONSTANTS.DEFAULT_BRAKE_OVERHEAT_C);
+    saveNum(setBrakeColdCState, RADIO_STORAGE_KEYS.BRAKE_COLD_C, RADIO_ALERT_CONSTANTS.DEFAULT_BRAKE_COLD_C);
+    saveNum(setFuelDeltaLapsState, RADIO_STORAGE_KEYS.FUEL_DELTA_LAPS, RADIO_ALERT_CONSTANTS.DEFAULT_FUEL_DELTA_LAPS);
+    saveNum(setUndercutGapSecState, RADIO_STORAGE_KEYS.UNDERCUT_GAP_SEC, RADIO_ALERT_CONSTANTS.DEFAULT_UNDERCUT_GAP_SEC);
+    saveNum(setRivalAheadGapSecState, RADIO_STORAGE_KEYS.RIVAL_AHEAD_GAP_SEC, 1.0);
+    saveNum(setRivalGapThresholdSecState, RADIO_STORAGE_KEYS.RIVAL_GAP_THRESHOLD_SEC, 1.0);
+    saveNum(setQualyCleanAirSecState, RADIO_STORAGE_KEYS.QUALY_CLEAN_AIR_SEC, RADIO_ALERT_CONSTANTS.DEFAULT_QUALY_CLEAN_AIR_SEC);
+    saveNum(setCornerCutWarnThresholdState, RADIO_STORAGE_KEYS.CORNER_CUT_WARN_THRESHOLD, RADIO_ALERT_CONSTANTS.DEFAULT_CORNER_CUT_WARN_THRESHOLD);
+    saveNum(setRainHorizonMinState, RADIO_STORAGE_KEYS.RAIN_HORIZON_MIN, 5);
+    saveNum(setRainProbPctState, RADIO_STORAGE_KEYS.RAIN_PROB_PCT, 40);
+  }, [applyTriggerPreset]);
 
   // Compute effective radio language based on setting and current UI locale
   const effectiveLanguage: 'es' | 'en' =

@@ -44,7 +44,7 @@ export interface RadioSettingsPanelProps {
   radio: UseRadioControllerReturn;
 }
 
-type SettingsTab = 'persona' | 'audio' | 'triggers' | 'tactical';
+type SettingsTab = 'persona' | 'audio' | 'tactical';
 
 export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
   isOpen,
@@ -151,15 +151,6 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
 
           <button
             type="button"
-            className={`radio-tab-btn ${activeTab === 'triggers' ? 'tab-active' : ''}`}
-            onClick={() => setActiveTab('triggers')}
-          >
-            <ShieldAlert className="w-3.5 h-3.5" />
-            {t('ai_engineer.tabs.triggers')}
-          </button>
-
-          <button
-            type="button"
             className={`radio-tab-btn ${activeTab === 'tactical' ? 'tab-active' : ''}`}
             onClick={() => setActiveTab('tactical')}
           >
@@ -180,15 +171,14 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
               {/* Colapinto */}
               <button
                 type="button"
+                className={`radio-persona-card ${radio.persona === RADIO_PERSONAS.COLAPINTO ? 'card-active' : ''}`}
                 onClick={() => radio.setPersona(RADIO_PERSONAS.COLAPINTO)}
-                className={`radio-persona-card ${
-                  radio.persona === RADIO_PERSONAS.COLAPINTO ? 'card-active' : ''
-                }`}
               >
                 <div className="radio-persona-header">
                   <span className="radio-persona-name">
-                    🇦🇷 {t('ai_engineer.personas.colapinto.name')}
+                    {t('ai_engineer.personas.colapinto.name')}
                   </span>
+                  <span>🇦🇷</span>
                 </div>
                 <p className="radio-persona-desc">
                   {t('ai_engineer.personas.colapinto.desc')}
@@ -198,15 +188,14 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
               {/* Bono */}
               <button
                 type="button"
+                className={`radio-persona-card ${radio.persona === RADIO_PERSONAS.BONO ? 'card-active' : ''}`}
                 onClick={() => radio.setPersona(RADIO_PERSONAS.BONO)}
-                className={`radio-persona-card ${
-                  radio.persona === RADIO_PERSONAS.BONO ? 'card-active' : ''
-                }`}
               >
                 <div className="radio-persona-header">
                   <span className="radio-persona-name">
-                    🇬🇧 {t('ai_engineer.personas.bono.name')}
+                    {t('ai_engineer.personas.bono.name')}
                   </span>
+                  <span>🇬🇧</span>
                 </div>
                 <p className="radio-persona-desc">
                   {t('ai_engineer.personas.bono.desc')}
@@ -216,15 +205,14 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
               {/* Custom */}
               <button
                 type="button"
+                className={`radio-persona-card ${radio.persona === RADIO_PERSONAS.CUSTOM ? 'card-active' : ''}`}
                 onClick={() => radio.setPersona(RADIO_PERSONAS.CUSTOM)}
-                className={`radio-persona-card ${
-                  radio.persona === RADIO_PERSONAS.CUSTOM ? 'card-active' : ''
-                }`}
               >
                 <div className="radio-persona-header">
                   <span className="radio-persona-name">
-                    ⚙️ {t('ai_engineer.personas.custom.name')}
+                    {t('ai_engineer.personas.custom.name')}
                   </span>
+                  <span>🛠️</span>
                 </div>
                 <p className="radio-persona-desc">
                   {t('ai_engineer.personas.custom.desc')}
@@ -232,9 +220,12 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
               </button>
             </div>
 
-            {/* Custom Persona Prompt Textarea */}
+            {/* Custom Prompt Textarea (Conditional) */}
             {radio.persona === RADIO_PERSONAS.CUSTOM && (
               <div className="radio-section" style={{ marginTop: '4px' }}>
+                <label className="radio-section-label">
+                  {t('ai_engineer.personas.custom.name')}
+                </label>
                 <textarea
                   value={radio.customPrompt}
                   onChange={(e) => radio.setCustomPrompt(e.target.value)}
@@ -245,7 +236,7 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
               </div>
             )}
 
-            {/* Driver Call-sign */}
+            {/* Driver Call-sign / Nickname */}
             <div className="radio-section" style={{ marginTop: '10px' }}>
               <label className="radio-section-label">
                 <User className="w-3.5 h-3.5" />
@@ -256,17 +247,17 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
                 value={radio.driverCallsign}
                 onChange={(e) => radio.setDriverCallsign(e.target.value)}
                 placeholder={t('ai_engineer.driverCallsign.placeholder')}
+                maxLength={32}
                 className="radio-input-field"
-                maxLength={30}
               />
-              <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+              <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: '4px 0 0 2px' }}>
                 {t('ai_engineer.driverCallsign.desc')}
               </p>
             </div>
           </div>
         )}
 
-        {/* TAB 2: Voice, Audio Realism & PTT */}
+        {/* TAB 2: Voice, Audio Realism & PTT Controls */}
         {activeTab === 'audio' && (
           <div className="radio-section">
             <label className="radio-section-label">
@@ -275,7 +266,6 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
             </label>
 
             <div className="radio-voice-grid">
-              {/* Radio Language */}
               <div className="radio-select-box">
                 <label className="radio-select-label">
                   {t('ai_engineer.radioLanguage.title')}
@@ -285,19 +275,12 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
                   onChange={(e) => radio.setRadioLanguage(e.target.value as RadioLanguage)}
                   className="radio-select-input"
                 >
-                  <option value={RADIO_LANGUAGES.AUTO}>
-                    {t('ai_engineer.radioLanguage.auto')}
-                  </option>
-                  <option value={RADIO_LANGUAGES.ES}>
-                    {t('ai_engineer.radioLanguage.es')}
-                  </option>
-                  <option value={RADIO_LANGUAGES.EN}>
-                    {t('ai_engineer.radioLanguage.en')}
-                  </option>
+                  <option value={RADIO_LANGUAGES.AUTO}>{t('ai_engineer.radioLanguage.auto')}</option>
+                  <option value={RADIO_LANGUAGES.ES}>{t('ai_engineer.radioLanguage.es')}</option>
+                  <option value={RADIO_LANGUAGES.EN}>{t('ai_engineer.radioLanguage.en')}</option>
                 </select>
               </div>
 
-              {/* Neural Voice */}
               <div className="radio-select-box">
                 <label className="radio-select-label">
                   {t('ai_engineer.neuralVoice.title')}
@@ -309,16 +292,8 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
                 >
                   <option value="">{t('ai_engineer.neuralVoice.auto')}</option>
                   {radio.effectiveLanguage === 'es'
-                    ? RADIO_SPANISH_VOICES.map((voice) => (
-                        <option key={voice.id} value={voice.id}>
-                          {t(`ai_engineer.neuralVoice.${voice.translationKey}`)}
-                        </option>
-                      ))
-                    : RADIO_ENGLISH_VOICES.map((voice) => (
-                        <option key={voice.id} value={voice.id}>
-                          {t(`ai_engineer.neuralVoice.${voice.translationKey}`)}
-                        </option>
-                      ))}
+                    ? RADIO_SPANISH_VOICES.map((v) => <option key={v.id} value={v.id}>{t(`ai_engineer.neuralVoice.${v.translationKey}`)}</option>)
+                    : RADIO_ENGLISH_VOICES.map((v) => <option key={v.id} value={v.id}>{t(`ai_engineer.neuralVoice.${v.translationKey}`)}</option>)}
                 </select>
               </div>
             </div>
@@ -361,78 +336,111 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
               </label>
             </div>
 
-            {/* Volume Slider */}
+            {/* Volume & Audio Settings */}
             <div className="radio-slider-box" style={{ marginTop: '6px' }}>
               {radio.volume > 0 ? (
                 <Volume2 className="w-4 h-4" style={{ color: '#00f2fe', flexShrink: 0 }} />
               ) : (
                 <VolumeX className="w-4 h-4" style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
               )}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                  <span>{t('ai_engineer.audio.volume')}</span>
-                  <span className="radio-badge-val">
-                    {Math.round(radio.volume * 100)}%
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  value={radio.volume}
-                  onChange={(e) => radio.setVolume(parseFloat(e.target.value))}
-                  className="radio-slider-input"
-                />
-              </div>
+              <span style={{ fontSize: '0.74rem', minWidth: '120px' }}>
+                {t('ai_engineer.audio.volume')}:
+              </span>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={radio.volume}
+                onChange={(e) => radio.setVolume(parseFloat(e.target.value))}
+                className="radio-slider-input"
+              />
+              <span className="radio-badge-val" style={{ minWidth: '35px', textAlign: 'right' }}>
+                {Math.round(radio.volume * 100)}%
+              </span>
             </div>
 
-            {/* PTT Controls */}
+            {/* Speech Rate Slider (-20% to +30%) */}
+            <div className="radio-slider-box">
+              <span style={{ fontSize: '0.74rem', minWidth: '136px' }}>
+                {t('ai_engineer.audio.speechRate')}:
+              </span>
+              <input
+                type="range"
+                min="-20"
+                max="30"
+                step="5"
+                value={radio.speechRate}
+                onChange={(e) => radio.setSpeechRate(parseInt(e.target.value, 10))}
+                className="radio-slider-input"
+              />
+              <span className="radio-badge-val" style={{ minWidth: '45px', textAlign: 'right' }}>
+                {radio.speechRate > 0 ? `+${radio.speechRate}%` : `${radio.speechRate}%`}
+              </span>
+            </div>
+
+            {/* Speech Pitch Slider (-20Hz to +20Hz) */}
+            <div className="radio-slider-box">
+              <span style={{ fontSize: '0.74rem', minWidth: '136px' }}>
+                {t('ai_engineer.audio.speechPitch')}:
+              </span>
+              <input
+                type="range"
+                min="-20"
+                max="20"
+                step="2"
+                value={radio.speechPitch}
+                onChange={(e) => radio.setSpeechPitch(parseInt(e.target.value, 10))}
+                className="radio-slider-input"
+              />
+              <span className="radio-badge-val" style={{ minWidth: '45px', textAlign: 'right' }}>
+                {radio.speechPitch > 0 ? `+${radio.speechPitch}Hz` : `${radio.speechPitch}Hz`}
+              </span>
+            </div>
+
+            {/* Push-to-Talk Controls */}
             <label className="radio-section-label" style={{ marginTop: '12px' }}>
               <Gamepad2 className="w-3.5 h-3.5" />
               {t('ai_engineer.ptt.title')}
             </label>
 
             <div className="radio-ptt-grid">
-              {/* Gamepad / Wheel Mapping */}
+              {/* Gamepad Steering Wheel Mapping */}
               <div className="radio-ptt-box">
                 <div className="radio-ptt-box-header">
                   <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Gamepad2 className="w-4 h-4" style={{ color: '#00f2fe' }} />
-                    {radio.gamepadConnected ? t('ai_engineer.ptt.gamepadConnected') : t('ai_engineer.ptt.noGamepad')}
+                    {radio.gamepadConnected ? (
+                      <span className="text-emerald-400 font-semibold truncate" title={radio.gamepadName || ''}>
+                        {radio.gamepadName || t('ai_engineer.ptt.gamepadConnected')}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">
+                        {t('ai_engineer.ptt.gamepadNotDetected')}
+                      </span>
+                    )}
                   </span>
                 </div>
 
                 <div className="radio-ptt-row">
-                  {radio.isLearning ? (
-                    <button
-                      type="button"
-                      onClick={radio.cancelLearning}
-                      className="radio-btn-map btn-learning"
-                    >
-                      {t('ai_engineer.ptt.learning')} ({t('ai_engineer.ptt.cancelLearning')})
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={radio.startLearning}
-                      className="radio-btn-map"
-                    >
-                      {radio.mappedGamepadButton
-                        ? t('ai_engineer.ptt.mappedButton', {
-                            btn: String(radio.mappedGamepadButton.buttonIndex),
-                            gp: String(radio.mappedGamepadButton.gamepadIndex),
-                          })
-                        : t('ai_engineer.ptt.mapWheelButton')}
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={radio.isLearning ? radio.cancelLearning : radio.startLearning}
+                    className={`radio-btn-map ${radio.isLearning ? 'btn-learning' : ''}`}
+                  >
+                    {radio.isLearning
+                      ? t('ai_engineer.ptt.learning')
+                      : radio.mappedGamepadButton
+                        ? `${t('ai_engineer.ptt.btnMapped')}: B${radio.mappedGamepadButton.buttonIndex} (Pad ${radio.mappedGamepadButton.gamepadIndex})`
+                        : t('ai_engineer.ptt.mapGamepadBtn')}
+                  </button>
 
                   {radio.mappedGamepadButton && (
                     <button
                       type="button"
                       onClick={() => radio.setMappedGamepadButton(null)}
                       className="radio-btn-clear"
-                      title={t('ai_engineer.ptt.clearMapping')}
+                      title={t('ai_engineer.ptt.clearGamepad')}
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -447,32 +455,28 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
                     <Keyboard className="w-4 h-4" style={{ color: '#00f2fe' }} />
                     {t('ai_engineer.ptt.keyboardKey')}
                   </span>
-                  <span className="live-radio-key-badge">
-                    {radio.mappedKey}
-                  </span>
+                  <span className="live-radio-key-badge">{radio.mappedKey}</span>
                 </div>
-
                 <select
                   value={radio.mappedKey}
                   onChange={(e) => radio.setMappedKey(e.target.value)}
                   className="radio-select-key"
                 >
-                  <option value="Space">Space (Barra Espaciadora)</option>
+                  <option value="Space">Space</option>
                   <option value="KeyT">T Key</option>
                   <option value="KeyR">R Key</option>
                   <option value="KeyV">V Key</option>
                   <option value="CapsLock">Caps Lock</option>
-                  <option value="F12">F12</option>
                 </select>
               </div>
             </div>
           </div>
         )}
 
-        {/* TAB 3: Discretion & Presets */}
-        {activeTab === 'triggers' && (
+        {/* TAB 3: Telemetry Triggers, Presets & Tactical Coaching */}
+        {activeTab === 'tactical' && (
           <div className="radio-section">
-            {/* Quick Style Presets Banner */}
+            {/* Quick Style Presets & Calibration Banner */}
             <div className="radio-preset-banner">
               <div className="radio-preset-header-row">
                 <span className="radio-preset-title">
@@ -512,74 +516,70 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
                 >
                   🤫 {t('ai_engineer.triggers.minimalPreset')}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => radio.applyTriggerPreset(RADIO_TRIGGER_PRESETS.CUSTOM)}
+                  className={`radio-preset-chip ${radio.triggerPreset === RADIO_TRIGGER_PRESETS.CUSTOM ? 'chip-active' : ''}`}
+                >
+                  🛠️ {t('ai_engineer.triggers.customPreset')}
+                </button>
               </div>
 
               <p className="radio-preset-desc">
                 {radio.triggerPreset === RADIO_TRIGGER_PRESETS.IMMERSIVE && t('ai_engineer.triggers.immersiveDesc')}
                 {radio.triggerPreset === RADIO_TRIGGER_PRESETS.COACHING && t('ai_engineer.triggers.coachingDesc')}
                 {radio.triggerPreset === RADIO_TRIGGER_PRESETS.MINIMAL && t('ai_engineer.triggers.minimalDesc')}
-                {radio.triggerPreset === RADIO_TRIGGER_PRESETS.CUSTOM && t('ai_engineer.triggers.customPreset')}
+                {radio.triggerPreset === RADIO_TRIGGER_PRESETS.CUSTOM && t('ai_engineer.triggers.customDesc')}
               </p>
             </div>
 
-            <label className="radio-section-label" style={{ marginTop: '10px' }}>
-              <ShieldAlert className="w-3.5 h-3.5" />
-              {t('ai_engineer.triggers.title')}
-            </label>
+            {/* Smart Discretion & Engineer Chatter Row */}
+            <div className="radio-voice-grid" style={{ marginBottom: '6px' }}>
+              <label className="radio-toggle-row" style={{ height: '100%', boxSizing: 'border-box' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                  <span style={{ fontWeight: 700, fontSize: '0.78rem' }}>{t('ai_engineer.triggers.smartDiscretion')}</span>
+                  <span style={{ fontSize: '0.70rem', color: 'var(--text-secondary)' }}>
+                    {t('ai_engineer.triggers.smartDiscretionDesc')}
+                  </span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={radio.smartDiscretionEnabled}
+                  onChange={(e) => radio.setSmartDiscretionEnabled(e.target.checked)}
+                  className="radio-checkbox"
+                />
+              </label>
 
-            {/* Smart Driving Discretion Toggle */}
-            <label className="radio-toggle-row">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <span style={{ fontWeight: 700 }}>{t('ai_engineer.triggers.smartDiscretion')}</span>
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                  {t('ai_engineer.triggers.smartDiscretionDesc')}
-                </span>
+              <div className="radio-ptt-box">
+                <div className="radio-ptt-box-header">
+                  <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>{t('ai_engineer.triggers.chatterFrequency')}</span>
+                  <span className="radio-badge-val">{radio.chatterCooldownSeconds}s</span>
+                </div>
+                <input
+                  type="range"
+                  min={10}
+                  max={120}
+                  step={5}
+                  value={radio.chatterCooldownSeconds}
+                  onChange={(e) => radio.setChatterCooldownSeconds(parseInt(e.target.value, 10))}
+                  className="radio-slider-input"
+                  style={{ marginTop: '6px' }}
+                />
               </div>
-              <input
-                type="checkbox"
-                checked={radio.smartDiscretionEnabled}
-                onChange={(e) => radio.setSmartDiscretionEnabled(e.target.checked)}
-                className="radio-checkbox"
-              />
-            </label>
-
-            {/* Engineer Chatter Cooldown Presets */}
-            <div className="radio-ptt-box" style={{ marginTop: '8px' }}>
-              <div className="radio-ptt-box-header">
-                <span>{t('ai_engineer.triggers.chatterFrequency')}</span>
-                <span className="radio-badge-val">{radio.chatterCooldownSeconds}s</span>
-              </div>
-              <input
-                type="range"
-                min={10}
-                max={120}
-                step={5}
-                value={radio.chatterCooldownSeconds}
-                onChange={(e) => radio.setChatterCooldownSeconds(parseInt(e.target.value, 10))}
-                className="radio-slider-input"
-                style={{ marginTop: '4px' }}
-              />
             </div>
-          </div>
-        )}
 
-        {/* TAB 4: Telemetry Triggers (8 Accordion Subsystems) */}
-        {activeTab === 'tactical' && (
-          <div className="radio-section">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            {/* Subsystems Accordion Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '6px 0 2px' }}>
               <div>
                 <label className="radio-section-label" style={{ margin: 0 }}>
                   <BellRing className="w-3.5 h-3.5" />
                   {t('ai_engineer.proactiveAlerts.title')}
                 </label>
-                <p style={{ fontSize: '0.71rem', color: 'var(--text-secondary)', margin: '2px 0 0 0' }}>
-                  {t('ai_engineer.proactiveAlerts.subtitle')}
-                </p>
               </div>
             </div>
 
             <div className="radio-accordion-container">
-              {/* 1. TYRES */}
+              {/* TYRES Accordion Item */}
               <div className={`radio-accordion-card ${expandedCategories.tyres ? 'card-open' : ''}`}>
                 <div className="radio-accordion-header" onClick={() => toggleCategory('tyres')}>
                   <div className="radio-accordion-title-group">
