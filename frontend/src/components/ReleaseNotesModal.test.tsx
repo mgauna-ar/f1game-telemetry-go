@@ -133,7 +133,9 @@ describe('ReleaseNotesModal', () => {
     expect(screen.getByText('Built on 2026-08-24')).toBeInTheDocument();
   });
 
-  it('renders dev banner title and no downloads when in development mode', () => {
+  it('renders dev banner title, latest stable version info, and OS-filtered downloads in development mode', () => {
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)');
+
     const mockSystemVersion = {
       version: 'dev',
       commit: '48f0b96',
@@ -147,7 +149,25 @@ describe('ReleaseNotesModal', () => {
         <ReleaseNotesModal
           isOpen={true}
           onClose={() => {}}
-          updateData={{ update_available: false, current_version: 'dev' }}
+          updateData={{
+            update_available: false,
+            current_version: 'dev',
+            latest_version: 'v1.0.1',
+            assets: [
+              {
+                name: 'f1telemetry_v1.0.1_darwin_arm64.zip',
+                size: 14680064,
+                download_url: 'https://example.com/mac.zip',
+                platform: 'macos',
+              },
+              {
+                name: 'f1telemetry_v1.0.1_windows_amd64.zip',
+                size: 15728640,
+                download_url: 'https://example.com/win.zip',
+                platform: 'windows',
+              },
+            ],
+          }}
           systemVersion={mockSystemVersion}
         />
       </I18nProvider>
@@ -156,6 +176,9 @@ describe('ReleaseNotesModal', () => {
     expect(screen.getByText('dev')).toBeInTheDocument();
     expect(screen.getByText('Development Build')).toBeInTheDocument();
     expect(screen.getByText('Commit: 48f0b96')).toBeInTheDocument();
-    expect(screen.queryByText(/Download Release Packages/i)).not.toBeInTheDocument();
+    expect(screen.getByText('Latest Stable Release: v1.0.1')).toBeInTheDocument();
+    // Only macOS download should be visible
+    expect(screen.getByText('macOS (Apple Silicon M1–M4)')).toBeInTheDocument();
+    expect(screen.queryByText('Windows (64-bit x64)')).not.toBeInTheDocument();
   });
 });

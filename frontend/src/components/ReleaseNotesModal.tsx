@@ -241,6 +241,12 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
                   <span>{t('common.updates.buildDate', { date: systemVersion.build_date })}</span>
                 </>
               )}
+              {isDev && effectiveData.latest_version && (
+                <>
+                  <span className="meta-sep">•</span>
+                  <span>{t('common.updates.latestStableRelease', { version: effectiveData.latest_version })}</span>
+                </>
+              )}
               {!isDev && effectiveData.published_at && (
                 <>
                   <span className="meta-sep">•</span>
@@ -254,9 +260,9 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
             </div>
           </div>
 
-          {effectiveData.html_url && (
+          {(effectiveData.html_url || isDev) && (
             <a
-              href={effectiveData.html_url}
+              href={effectiveData.html_url || 'https://github.com/mgauna-ar/f1game-telemetry-go/releases'}
               target="_blank"
               rel="noopener noreferrer"
               className="release-github-link-btn"
@@ -269,10 +275,10 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
 
         {/* Modal Body */}
         <div className="release-modal-body">
-          {/* Download Packages Section (ONLY shown when a new update is available, filtered to user's OS) */}
-          {effectiveData.update_available && (() => {
+          {/* Download Packages Section (Filtered strictly to user's OS) */}
+          {effectiveData.assets && effectiveData.assets.length > 0 && (() => {
             const userOS = detectUserOS();
-            const filteredAssets = (effectiveData.assets || []).filter((asset) => {
+            const filteredAssets = effectiveData.assets.filter((asset) => {
               if (userOS === 'other') return true;
               return asset.platform === userOS;
             });
@@ -283,7 +289,11 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
               <div className="release-downloads-section">
                 <div className="release-section-title">
                   <Download size={14} className="text-cyan" />
-                  <span>{t('common.updates.downloadTitle')}</span>
+                  <span>
+                    {isDev && effectiveData.latest_version
+                      ? `${t('common.updates.downloadTitle')} (${effectiveData.latest_version})`
+                      : t('common.updates.downloadTitle')}
+                  </span>
                 </div>
                 <div className="release-assets-grid">
                   {filteredAssets.map((asset, index) => (

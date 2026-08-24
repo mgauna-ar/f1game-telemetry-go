@@ -127,6 +127,7 @@ export const common = {
     dontRemind: 'No recordarme de nuevo para esta versión',
     upToDateTitle: '¡Estás al día!',
     upToDateDesc: 'Actualmente estás usando la última versión disponible ({version}).',
+    latestStableRelease: 'Última versión estable: {version}',
   },
   releaseNotes: 'Notas de la versión',
 };
