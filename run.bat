@@ -25,7 +25,7 @@ if errorlevel 1 (
     pause
     exit /b 1
 )
-start "F1 Telemetry Backend" /d "%~dp0" cmd /k "bin\server.exe"
+start "F1 Telemetry Backend" /d "%~dp0" cmd /k "bin\server.exe -no-browser"
 
 echo [4/4] Starting Web Dashboard...
 start "F1 Telemetry Frontend" /d "%~dp0frontend" cmd /k "npm run dev"
@@ -33,6 +33,10 @@ start "F1 Telemetry Frontend" /d "%~dp0frontend" cmd /k "npm run dev"
 for /f "usebackq tokens=*" %%i in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "(Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' } | Select-Object -ExpandProperty IPAddress -First 1)"`) do set "LOCAL_IP=%%i"
 
 if "%LOCAL_IP%"=="" set "LOCAL_IP=<YOUR-IP>"
+
+:: Wait 1.5 seconds for Vite dev server to bind, then open the browser to port 5173
+timeout /t 2 /nobreak >nul 2>&1
+start http://localhost:5173
 
 echo.
 echo ===================================================
