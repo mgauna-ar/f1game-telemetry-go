@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -110,7 +109,11 @@ func main() {
 	sessionManager.Start(ctx)
 	engineerEngine := api.NewEngineerEngine(engineerHub, repo)
 
-	// 8. Setup UDP Listener
+	// 8. Setup 10Hz Live Telemetry Snapshot Broadcaster
+	liveBroadcaster := session.NewLiveBroadcaster(telemetryHub)
+	liveBroadcaster.Start(ctx, 100*time.Millisecond)
+
+	// 9. Setup UDP Listener
 	listener := udp.NewListener(udpAddr, udp.DefaultBufferSize)
 	go func() {
 		if err := listener.Listen(ctx); err != nil {
@@ -119,7 +122,7 @@ func main() {
 	}()
 	<-listener.Ready() // Wait for socket to bind
 
-	// 9. Packet Processing Loop
+	// 10. Packet Processing Loop
 	go func() {
 		log.Printf("Ready to receive telemetry on UDP %s (F1 2025/2026)...", udpAddr)
 		for {
@@ -139,12 +142,8 @@ func main() {
 				// Process packet for proactive insights
 				engineerEngine.ProcessPacket(ctx, pkt)
 
-				// Broadcast relevant real-time telemetry packets to WebSockets
-				if shouldBroadcastPacket(pkt.GetHeader().PacketId) {
-					if js, err := json.Marshal(pkt); err == nil {
-						telemetryHub.Broadcast(js)
-					}
-				}
+				// Process packet for 10Hz live snapshot WebSocket broadcasting
+				liveBroadcaster.ProcessPacket(pkt)
 			}
 		}
 	}()
@@ -208,24 +207,6 @@ func extractPort(addr, fallback string) string {
 		}
 	}
 	return fallback
-}
-
-// shouldBroadcastPacket returns true if the packet should be broadcast over WebSockets to live clients.
-func shouldBroadcastPacket(pktID uint8) bool {
-	switch pktID {
-	case packets.PacketIDMotion,
-		packets.PacketIDSession,
-		packets.PacketIDLapData,
-		packets.PacketIDEvent,
-		packets.PacketIDParticipants,
-		packets.PacketIDCarTelemetry,
-		packets.PacketIDCarTelemetry2,
-		packets.PacketIDCarStatus,
-		packets.PacketIDCarDamage:
-		return true
-	default:
-		return false
-	}
 }
 
 func getEnv(key, fallback string) string {

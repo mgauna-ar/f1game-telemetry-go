@@ -16,6 +16,7 @@ export const PACKET_IDS = {
   TIME_TRIAL: 14,
   LAP_POSITIONS: 15,
   CAR_TELEMETRY_2: 16,
+  LIVE_SNAPSHOT: 255,
 } as const;
 
 export const TYRE_COMPOUND_IDS = {

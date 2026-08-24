@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect } from 'react';
+import { useTelemetryStore, connectTelemetryWebSocket, parseDriverName } from '../store/useTelemetryStore';
 import type {
   CarTelemetryData,
   LapData,
@@ -11,14 +12,9 @@ import type {
   CarDamageData,
   PacketHeader,
   TelemetrySample,
+  CarTelemetry2Data,
 } from '../types/telemetry';
-import {
-  F1_DRIVER_NAMES,
-  PACKET_IDS,
-  SAFETY_CAR_STATUS,
-  RESULT_STATUS,
-  PIT_STATUS,
-} from '../constants/f1';
+import { F1_DRIVER_NAMES } from '../constants/f1';
 
 export type {
   CarTelemetryData,
@@ -32,662 +28,44 @@ export type {
   CarDamageData,
   PacketHeader,
   TelemetrySample,
+  CarTelemetry2Data,
 };
 
-export { F1_DRIVER_NAMES };
+export { F1_DRIVER_NAMES, parseDriverName };
 
-interface PacketCarTelemetryData {
-  Header: PacketHeader;
-  CarTelemetryData: CarTelemetryData[];
-}
-
-interface PacketLapData {
-  Header: PacketHeader;
-  LapData: LapData[];
-}
-
-interface PacketMotionData {
-  Header: PacketHeader;
-  CarMotionData: CarMotionData[];
-}
-
-interface PacketSessionData {
-  Header: PacketHeader;
-  Weather: number;
-  TrackTemperature: number;
-  AirTemperature: number;
-  TotalLaps: number;
-  TrackLength: number;
-  SessionType: number;
-  TrackId: number;
-  SessionTimeLeft: number;
-  SessionDuration: number;
-  SafetyCarStatus: number;
-  PitStopWindowIdealLap?: number;
-  PitStopWindowLatestLap?: number;
-  PitStopRejoinPosition?: number;
-  NumWeatherForecastSamples?: number;
-  WeatherForecastSamples?: WeatherForecastSample[];
-  NumSafetyCarPeriods?: number;
-  NumVirtualSafetyCarPeriods?: number;
-  NumRedFlagPeriods?: number;
-}
-
-interface PacketEventData {
-  Header: PacketHeader;
-  EventCode: string;
-  VehicleIdx?: number;
-  OtherVehicleIdx?: number;
-  LapTime?: number;
-  Speed?: number;
-  PenaltyType?: number;
-  PenaltyTime?: number;
-  InfringementType?: number;
-  PlacesGained?: number;
-  LapNum?: number;
-}
-
-interface PacketParticipantsData {
-  Header: PacketHeader;
-  NumActiveCars: number;
-  Participants: ParticipantData[];
-}
-
-interface PacketCarStatusData {
-  Header: PacketHeader;
-  CarStatusData: CarStatusData[];
-}
-
-interface PacketCarDamageData {
-  Header: PacketHeader;
-  CarDamageData: CarDamageData[];
-}
-
-interface PacketCarTelemetry2Data {
-  Header: PacketHeader;
-  CarTelemetry2Data: import('../types/telemetry').CarTelemetry2Data[];
-}
-
-export function parseDriverName(rawName: string | number[] | undefined, defaultName: string, driverId?: number): string {
-  let nameStr = '';
-  if (typeof rawName === 'string') {
-    // Go's encoding/json marshals [48]byte as base64 strings.
-    // Detect base64: only contains A-Za-z0-9+/= and is longer than a typical plain name.
-    if (rawName.length > 20 && /^[A-Za-z0-9+/=]+$/.test(rawName)) {
-      try {
-        const decoded = atob(rawName);
-        // Extract up to the first null byte
-        const nullIdx = decoded.indexOf('\0');
-        const candidate = (nullIdx !== -1 ? decoded.slice(0, nullIdx) : decoded).trim();
-        // Only accept if all characters are printable ASCII (0x20-0x7E)
-        if (candidate.length > 0 && /^[\x20-\x7E]+$/.test(candidate)) {
-          nameStr = candidate;
-        }
-      } catch {
-        // atob() failed — not valid base64, fall through to raw string handling
-      }
-    }
-
-    // Fall through: try raw string with null-byte search if base64 didn't produce a name
-    if (!nameStr) {
-      const nullIdx = rawName.indexOf('\0');
-      nameStr = (nullIdx !== -1 ? rawName.slice(0, nullIdx) : rawName).trim();
-    }
-  } else if (Array.isArray(rawName)) {
-    const nullIdx = rawName.indexOf(0);
-    const validBytes = nullIdx !== -1 ? rawName.slice(0, nullIdx) : rawName;
-    nameStr = validBytes.map(c => String.fromCharCode(c)).join('').trim();
-  }
-
-  if (nameStr && nameStr.length > 0) {
-    return nameStr;
-  }
-
-  if (driverId !== undefined && F1_DRIVER_NAMES[driverId]) {
-    return F1_DRIVER_NAMES[driverId];
-  }
-
-  return defaultName;
-}
+const EMPTY_TRACK_PATH: { x: number; z: number }[] = [];
+const EMPTY_MOTION: CarMotionData[] = [];
+const EMPTY_HISTORY: TelemetrySample[] = [];
 
 export function useTelemetry(wsUrl?: string) {
-  const [session, setSession] = useState<SessionData | null>(null);
-  const [participants, setParticipants] = useState<ParticipantData[]>([]);
-  const [allLaps, setAllLaps] = useState<LapData[]>([]);
-  const [allMotion, setAllMotion] = useState<CarMotionData[]>([]);
-  const [allCarStatus, setAllCarStatus] = useState<CarStatusData[]>([]);
-  const [allCarDamage, setAllCarDamage] = useState<CarDamageData[]>([]);
-  const [allTelemetry, setAllTelemetry] = useState<CarTelemetryData[]>([]);
-  const [allTelemetry2, setAllTelemetry2] = useState<import('../types/telemetry').CarTelemetry2Data[]>([]);
-  const [events, setEvents] = useState<RaceEvent[]>([]);
-  
-  const [playerCarIndex, setPlayerCarIndex] = useState<number>(0);
-  const [selectedCarIndex, setSelectedCarIndex] = useState<number>(0);
-  const [packetFormat, setPacketFormat] = useState<number | null>(null);
-
-  const [connected, setConnected] = useState(false);
-  const [history, setHistory] = useState<TelemetrySample[]>([]);
-  const [trackPath, setTrackPath] = useState<{ x: number; z: number }[]>([]);
-
-  const ws = useRef<WebSocket | null>(null);
-  const historyRef = useRef<TelemetrySample[]>([]);
-  const selectedCarIndexRef = useRef<number>(0);
-  const participantsRef = useRef<ParticipantData[]>([]);
-  const prevLapsRef = useRef<LapData[]>([]);
-  const prevSafetyCarRef = useRef<number>(0);
-  const sessionUidRef = useRef<number | string | null>(null);
-
   useEffect(() => {
-    selectedCarIndexRef.current = selectedCarIndex;
-  }, [selectedCarIndex]);
-
-  useEffect(() => {
-    participantsRef.current = participants;
-  }, [participants]);
-
-  const addEvent = (event: Omit<RaceEvent, 'id' | 'timestamp'>) => {
-    const newEvt: RaceEvent = {
-      ...event,
-      id: `${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-      timestamp: Date.now(),
-    };
-    setEvents((prev) => [newEvt, ...prev].slice(0, 80));
-  };
-
-  const clearEvents = () => {
-    setEvents([]);
-  };
-
-  useEffect(() => {
-    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
-    let isUnmounted = false;
-
-    const getTargetUrl = () => {
-      if (wsUrl) return wsUrl;
-      if (typeof window === 'undefined') return 'ws://localhost:8080/ws';
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      return `${protocol}//${window.location.host}/ws`;
-    };
-
-    const connect = () => {
-      if (isUnmounted) return;
-
-      const targetUrl = getTargetUrl();
-      try {
-        const socket = new WebSocket(targetUrl);
-        ws.current = socket;
-
-        socket.onopen = () => {
-          if (!isUnmounted) setConnected(true);
-        };
-
-        socket.onclose = () => {
-          if (!isUnmounted) {
-            setConnected(false);
-            reconnectTimer = setTimeout(connect, 2000);
-          }
-        };
-
-        socket.onerror = () => {
-          if (!isUnmounted) {
-            setConnected(false);
-          }
-        };
-
-        socket.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            const header = data.Header as PacketHeader;
-            if (!header) return;
-
-            if (header.SessionUID && sessionUidRef.current !== null && sessionUidRef.current !== header.SessionUID) {
-              setParticipants([]);
-              setAllLaps([]);
-              setAllMotion([]);
-              setAllCarStatus([]);
-              setAllCarDamage([]);
-              setAllTelemetry([]);
-              setAllTelemetry2([]);
-              setEvents([]);
-              setHistory([]);
-              setTrackPath([]);
-              prevLapsRef.current = [];
-            }
-            if (header.SessionUID) {
-              sessionUidRef.current = header.SessionUID;
-            }
-
-            const playerIdx = header.PlayerCarIndex !== undefined ? header.PlayerCarIndex : 0;
-            setPlayerCarIndex(playerIdx);
-
-            if (header.PacketFormat) {
-              setPacketFormat(header.PacketFormat);
-            }
-
-            // Session Data Packet
-            if (header.PacketId === PACKET_IDS.SESSION) {
-              const pkt = data as PacketSessionData;
-              setSession({
-                Weather: pkt.Weather,
-                TrackTemperature: pkt.TrackTemperature,
-                AirTemperature: pkt.AirTemperature,
-                TotalLaps: pkt.TotalLaps,
-                TrackLength: pkt.TrackLength,
-                SessionType: pkt.SessionType,
-                TrackId: pkt.TrackId,
-                SessionTimeLeft: pkt.SessionTimeLeft,
-                SessionDuration: pkt.SessionDuration,
-                SafetyCarStatus: pkt.SafetyCarStatus,
-                PitStopWindowIdealLap: pkt.PitStopWindowIdealLap,
-                PitStopWindowLatestLap: pkt.PitStopWindowLatestLap,
-                PitStopRejoinPosition: pkt.PitStopRejoinPosition,
-                NumWeatherForecastSamples: pkt.NumWeatherForecastSamples,
-                WeatherForecastSamples: pkt.WeatherForecastSamples?.slice(0, pkt.NumWeatherForecastSamples || 4),
-                NumSafetyCarPeriods: pkt.NumSafetyCarPeriods,
-                NumVirtualSafetyCarPeriods: pkt.NumVirtualSafetyCarPeriods,
-                NumRedFlagPeriods: pkt.NumRedFlagPeriods,
-                PacketFormat: header.PacketFormat,
-              });
-
-              // Track Safety Car status change events
-              if (prevSafetyCarRef.current !== pkt.SafetyCarStatus) {
-                const scStatus = pkt.SafetyCarStatus;
-                let desc = 'Track Clear (Green Flag)';
-                let sev: RaceEvent['severity'] = 'success';
-                if (scStatus === SAFETY_CAR_STATUS.FULL) {
-                  desc = 'Full Safety Car Deployed';
-                  sev = 'warning';
-                } else if (scStatus === SAFETY_CAR_STATUS.VIRTUAL) {
-                  desc = 'Virtual Safety Car Deployed';
-                  sev = 'warning';
-                } else if (scStatus === SAFETY_CAR_STATUS.FORMATION_LAP) {
-                  desc = 'Formation Lap In Progress';
-                  sev = 'info';
-                }
-                addEvent({
-                  eventCode: 'SCAR',
-                  type: 'flag',
-                  description: desc,
-                  severity: sev,
-                  sessionTime: header.SessionTime,
-                });
-                prevSafetyCarRef.current = scStatus;
-              }
-            }
-            // Event Data Packet
-            else if (header.PacketId === PACKET_IDS.EVENT) {
-              const pkt = data as PacketEventData;
-              const code = pkt.EventCode;
-              const vIdx = pkt.VehicleIdx ?? 0;
-              const driver = participantsRef.current[vIdx];
-              const driverName = parseDriverName(driver?.Name, `Car #${vIdx + 1}`, driver?.DriverId);
-
-              switch (code) {
-                case 'FTLP':
-                  addEvent({
-                    eventCode: 'FTLP',
-                    type: 'fastest_lap',
-                    description: `${driverName} set the fastest lap (${(pkt.LapTime || 0).toFixed(3)}s)`,
-                    vehicleIdx: vIdx,
-                    driverName,
-                    lapTime: pkt.LapTime,
-                    severity: 'purple',
-                    sessionTime: header.SessionTime,
-                  });
-                  break;
-                case 'OVTK': {
-                  const targetIdx = pkt.OtherVehicleIdx ?? 0;
-                  const targetDriver = participantsRef.current[targetIdx];
-                  const targetName = parseDriverName(targetDriver?.Name, `Car #${targetIdx + 1}`, targetDriver?.DriverId);
-                  addEvent({
-                    eventCode: 'OVTK',
-                    type: 'overtake',
-                    description: `${driverName} overtook ${targetName}`,
-                    vehicleIdx: vIdx,
-                    driverName,
-                    otherVehicleIdx: targetIdx,
-                    targetDriverName: targetName,
-                    severity: 'info',
-                    sessionTime: header.SessionTime,
-                  });
-                  break;
-                }
-                case 'PENA': {
-                  const targetIdx = pkt.OtherVehicleIdx !== undefined && pkt.OtherVehicleIdx < 255 ? pkt.OtherVehicleIdx : undefined;
-                  const targetDriver = targetIdx !== undefined ? participantsRef.current[targetIdx] : undefined;
-                  const targetName = targetDriver ? parseDriverName(targetDriver?.Name, `Car #${(targetIdx ?? 0) + 1}`, targetDriver?.DriverId) : undefined;
-                  const isSevere = pkt.PenaltyType === 6 || (pkt.PenaltyTime !== undefined && pkt.PenaltyTime >= 10 && pkt.PenaltyTime < 255);
-                  addEvent({
-                    eventCode: 'PENA',
-                    type: 'penalty',
-                    description: `${driverName} received a penalty`,
-                    vehicleIdx: vIdx,
-                    driverName,
-                    otherVehicleIdx: targetIdx,
-                    targetDriverName: targetName,
-                    lapNum: pkt.LapNum,
-                    penaltyType: pkt.PenaltyType,
-                    infringementType: pkt.InfringementType,
-                    penaltyTime: pkt.PenaltyTime,
-                    placesGained: pkt.PlacesGained,
-                    severity: isSevere ? 'danger' : 'warning',
-                    sessionTime: header.SessionTime,
-                  });
-                  break;
-                }
-                case 'SPTP':
-                  addEvent({
-                    eventCode: 'SPTP',
-                    type: 'speed_trap',
-                    description: `${driverName} triggered speed trap at ${(pkt.Speed || 0).toFixed(1)} km/h`,
-                    vehicleIdx: vIdx,
-                    driverName,
-                    speed: pkt.Speed,
-                    severity: 'success',
-                    sessionTime: header.SessionTime,
-                  });
-                  break;
-                case 'TMPT':
-                  addEvent({
-                    eventCode: 'TMPT',
-                    type: 'pit',
-                    description: `${driverName} entered the pit lane`,
-                    vehicleIdx: vIdx,
-                    driverName,
-                    severity: 'warning',
-                    sessionTime: header.SessionTime,
-                  });
-                  break;
-                case 'RTMT':
-                  addEvent({
-                    eventCode: 'RTMT',
-                    type: 'retirement',
-                    description: `${driverName} retired from the session`,
-                    vehicleIdx: vIdx,
-                    driverName,
-                    severity: 'danger',
-                    sessionTime: header.SessionTime,
-                  });
-                  break;
-                case 'DTSV':
-                  addEvent({
-                    eventCode: 'DTSV',
-                    type: 'penalty',
-                    description: `${driverName} served Drive Through penalty`,
-                    vehicleIdx: vIdx,
-                    driverName,
-                    severity: 'info',
-                    sessionTime: header.SessionTime,
-                  });
-                  break;
-                case 'SGSV':
-                  addEvent({
-                    eventCode: 'SGSV',
-                    type: 'penalty',
-                    description: `${driverName} served Stop & Go penalty`,
-                    vehicleIdx: vIdx,
-                    driverName,
-                    severity: 'info',
-                    sessionTime: header.SessionTime,
-                  });
-                  break;
-                case 'COLL': {
-                  const targetIdx = pkt.OtherVehicleIdx ?? 0;
-                  const targetDriver = participantsRef.current[targetIdx];
-                  const targetName = parseDriverName(targetDriver?.Name, `Car #${targetIdx + 1}`, targetDriver?.DriverId);
-                  addEvent({
-                    eventCode: 'COLL',
-                    type: 'penalty',
-                    description: `Collision between ${driverName} and ${targetName}`,
-                    vehicleIdx: vIdx,
-                    driverName,
-                    otherVehicleIdx: targetIdx,
-                    targetDriverName: targetName,
-                    severity: 'danger',
-                    sessionTime: header.SessionTime,
-                  });
-                  break;
-                }
-                case 'RDFL':
-                  addEvent({
-                    eventCode: 'RDFL',
-                    type: 'flag',
-                    description: 'Red Flag deployed!',
-                    severity: 'danger',
-                    sessionTime: header.SessionTime,
-                  });
-                  break;
-                case 'SSTA':
-                  addEvent({
-                    eventCode: 'SSTA',
-                    type: 'general',
-                    description: 'Session Started',
-                    severity: 'success',
-                    sessionTime: header.SessionTime,
-                  });
-                  break;
-                case 'SEND':
-                  addEvent({
-                    eventCode: 'SEND',
-                    type: 'general',
-                    description: 'Session Ended',
-                    severity: 'info',
-                    sessionTime: header.SessionTime,
-                  });
-                  break;
-                case 'CHQF':
-                  addEvent({
-                    eventCode: 'CHQF',
-                    type: 'flag',
-                    description: 'Chequered Flag waved',
-                    severity: 'info',
-                    sessionTime: header.SessionTime,
-                  });
-                  break;
-                case 'RCWN':
-                  addEvent({
-                    eventCode: 'RCWN',
-                    type: 'general',
-                    description: `${driverName} won the race!`,
-                    vehicleIdx: vIdx,
-                    driverName,
-                    severity: 'success',
-                    sessionTime: header.SessionTime,
-                  });
-                  break;
-              }
-            }
-            // Participants Data Packet
-            else if (header.PacketId === PACKET_IDS.PARTICIPANTS) {
-              const pkt = data as PacketParticipantsData;
-              if (pkt.Participants && pkt.Participants.length > 0) {
-                // In F1 UDP, participants occupy fixed array indices 0..MaxCars-1.
-                // An active grid of 20 cars has valid data at indices 0..19.
-                // When a car retires, NumActiveCars may decrease, but the car remains in slot 0..19.
-                // Unused tail slots (20..23) have empty name/number.
-                // Find the highest populated slot index to avoid truncating valid drivers.
-                let maxPopulatedIndex = -1;
-                for (let i = 0; i < pkt.Participants.length; i++) {
-                  const p = pkt.Participants[i];
-                  // oxlint-disable-next-line no-control-regex -- \0 strips null padding from fixed-length UDP strings
-                  const hasName = typeof p.Name === 'string' && p.Name.replace(/\0/g, '').trim().length > 0;
-                  const hasNumber = p.RaceNumber !== undefined && p.RaceNumber > 0;
-                  const hasDriverId = p.DriverId !== undefined && p.DriverId !== 255 && p.DriverId > 0;
-                  if (hasName || hasNumber || hasDriverId) {
-                    maxPopulatedIndex = i;
-                  }
-                }
-
-                const validCount = Math.max(
-                  pkt.NumActiveCars || 0,
-                  maxPopulatedIndex >= 0 ? maxPopulatedIndex + 1 : 0
-                );
-
-                if (validCount > 0) {
-                  setParticipants((prev) => {
-                    const targetCount = Math.max(prev.length, validCount);
-                    return pkt.Participants.slice(0, targetCount);
-                  });
-                }
-              }
-            }
-            // Car Status Data Packet
-            else if (header.PacketId === PACKET_IDS.CAR_STATUS) {
-              const pkt = data as PacketCarStatusData;
-              if (pkt.CarStatusData) {
-                setAllCarStatus(pkt.CarStatusData);
-              }
-            }
-            // Car Damage Data Packet
-            else if (header.PacketId === PACKET_IDS.CAR_DAMAGE) {
-              const pkt = data as PacketCarDamageData;
-              if (pkt.CarDamageData) {
-                setAllCarDamage(pkt.CarDamageData);
-              }
-            }
-            // Car Telemetry Data Packet
-            else if (header.PacketId === PACKET_IDS.CAR_TELEMETRY) {
-              const pkt = data as PacketCarTelemetryData;
-              if (pkt.CarTelemetryData) {
-                setAllTelemetry(pkt.CarTelemetryData);
-                const activeIdx = selectedCarIndexRef.current < pkt.CarTelemetryData.length ? selectedCarIndexRef.current : playerIdx;
-                const current = pkt.CarTelemetryData[activeIdx] || pkt.CarTelemetryData[playerIdx];
-
-                if (current) {
-                  const sample: TelemetrySample = {
-                    ...current,
-                    SessionTime: header.SessionTime,
-                  };
-                  historyRef.current = [...historyRef.current.slice(-99), sample];
-                  setHistory(historyRef.current);
-                }
-              }
-            }
-            // Car Telemetry 2 Data Packet (Active Aero & Boost for 2026)
-            else if (header.PacketId === PACKET_IDS.CAR_TELEMETRY_2) {
-              const pkt = data as PacketCarTelemetry2Data;
-              if (pkt.CarTelemetry2Data) {
-                setAllTelemetry2(pkt.CarTelemetry2Data);
-              }
-            }
-            // Lap Data Packet
-            else if (header.PacketId === PACKET_IDS.LAP_DATA) {
-              const pkt = data as PacketLapData;
-              if (pkt.LapData) {
-                setAllLaps(pkt.LapData);
-
-                // Synthetic Event Detection for Pit Stops, Penalties, and Retirements
-                pkt.LapData.forEach((lap, idx) => {
-                  const prev = prevLapsRef.current[idx];
-                  if (!prev) return;
-
-                  // Pit entry transition
-                  if (prev.PitStatus === PIT_STATUS.NONE && (lap.PitStatus === PIT_STATUS.PITTING || lap.PitStatus === PIT_STATUS.IN_PIT_AREA)) {
-                    const p = participantsRef.current[idx];
-                    const dName = parseDriverName(p?.Name, `Car #${idx + 1}`, p?.DriverId);
-                    addEvent({
-                      eventCode: 'TMPT',
-                      type: 'pit',
-                      description: `${dName} entered the pit lane (Lap ${lap.CurrentLapNum})`,
-                      vehicleIdx: idx,
-                      driverName: dName,
-                      lapNum: lap.CurrentLapNum,
-                      severity: 'warning',
-                      sessionTime: header.SessionTime,
-                    });
-                  }
-
-                  // New penalty received
-                  if ((lap.Penalties || 0) > (prev.Penalties || 0)) {
-                    const added = (lap.Penalties || 0) - (prev.Penalties || 0);
-                    const p = participantsRef.current[idx];
-                    const dName = parseDriverName(p?.Name, `Car #${idx + 1}`, p?.DriverId);
-                    addEvent({
-                      eventCode: 'PENA',
-                      type: 'penalty',
-                      description: `${dName} received +${added}s penalty (Lap ${lap.CurrentLapNum})`,
-                      vehicleIdx: idx,
-                      driverName: dName,
-                      lapNum: lap.CurrentLapNum,
-                      severity: 'danger',
-                      sessionTime: header.SessionTime,
-                    });
-                  }
-
-                  // Retirement / DNF / DSQ transition
-                  const prevStatus = prev.ResultStatus ?? RESULT_STATUS.ACTIVE;
-                  const currentStatus = lap.ResultStatus ?? RESULT_STATUS.ACTIVE;
-                  if (
-                    (prevStatus !== RESULT_STATUS.RETIRED && prevStatus !== RESULT_STATUS.DNF && prevStatus !== RESULT_STATUS.DSQ) &&
-                    (currentStatus === RESULT_STATUS.RETIRED || currentStatus === RESULT_STATUS.DNF || currentStatus === RESULT_STATUS.DSQ)
-                  ) {
-                    const p = participantsRef.current[idx];
-                    const dName = parseDriverName(p?.Name, `Car #${idx + 1}`, p?.DriverId);
-                    const isDsq = currentStatus === RESULT_STATUS.DSQ;
-                    addEvent({
-                      eventCode: isDsq ? 'DSQ' : 'RTMT',
-                      type: isDsq ? 'penalty' : 'retirement',
-                      description: isDsq
-                        ? `${dName} was disqualified from the session`
-                        : `${dName} retired from the session (Lap ${lap.CurrentLapNum})`,
-                      vehicleIdx: idx,
-                      driverName: dName,
-                      lapNum: lap.CurrentLapNum,
-                      severity: 'danger',
-                      sessionTime: header.SessionTime,
-                    });
-                  }
-                });
-
-                prevLapsRef.current = pkt.LapData;
-              }
-            }
-            // Motion Data Packet
-            else if (header.PacketId === PACKET_IDS.MOTION) {
-              const pkt = data as PacketMotionData;
-              if (pkt.CarMotionData) {
-                setAllMotion(pkt.CarMotionData);
-                const playerMotion = pkt.CarMotionData[playerIdx];
-                if (playerMotion) {
-                  setTrackPath((prev) => {
-                    const last = prev[prev.length - 1];
-                    if (!last || Math.abs(last.x - playerMotion.WorldPositionX) > 1.0 || Math.abs(last.z - playerMotion.WorldPositionZ) > 1.0) {
-                      return [...prev, { x: playerMotion.WorldPositionX, z: playerMotion.WorldPositionZ }];
-                    }
-                    return prev;
-                  });
-                }
-              }
-            }
-          } catch (err) {
-            console.error('Failed to parse telemetry packet:', err);
-          }
-        };
-      } catch {
-        if (!isUnmounted) {
-          setConnected(false);
-          reconnectTimer = setTimeout(connect, 2000);
-        }
-      }
-    };
-
-    connect();
-
+    const disconnect = connectTelemetryWebSocket(wsUrl);
     return () => {
-      isUnmounted = true;
-      if (reconnectTimer) clearTimeout(reconnectTimer);
-      if (ws.current) {
-        ws.current.onclose = null; // Prevent onclose reconnect loop on clean unmount
-        ws.current.close();
-      }
+      disconnect();
     };
   }, [wsUrl]);
 
+  const session = useTelemetryStore((s) => s.session);
+  const participants = useTelemetryStore((s) => s.participants);
+  const allLaps = useTelemetryStore((s) => s.allLaps);
+  const allCarStatus = useTelemetryStore((s) => s.allCarStatus);
+  const allCarDamage = useTelemetryStore((s) => s.allCarDamage);
+  const allTelemetry = useTelemetryStore((s) => s.allTelemetry);
+  const allTelemetry2 = useTelemetryStore((s) => s.allTelemetry2);
+  const events = useTelemetryStore((s) => s.events);
+  const playerCarIndex = useTelemetryStore((s) => s.playerCarIndex);
+  const selectedCarIndex = useTelemetryStore((s) => s.selectedCarIndex);
+  const setSelectedCarIndex = useTelemetryStore((s) => s.setSelectedCarIndex);
+  const clearEvents = useTelemetryStore((s) => s.clearEvents);
+  const packetFormat = useTelemetryStore((s) => s.packetFormat);
+  const connected = useTelemetryStore((s) => s.connected);
+
   const maxCars = Math.max(participants.length, allCarStatus.length, allLaps.length, allTelemetry.length, 22);
   const activeIdx = selectedCarIndex >= 0 && selectedCarIndex < maxCars ? selectedCarIndex : playerCarIndex;
+
   const telemetry = allTelemetry[activeIdx] || null;
   const lap = allLaps[activeIdx] || null;
-  const motion = allMotion[activeIdx] || null;
+  const motion: CarMotionData | null = null;
   const carStatus = allCarStatus[activeIdx] || null;
   const carDamage = allCarDamage[activeIdx] || null;
   const telemetry2 = allTelemetry2[activeIdx] || null;
@@ -696,7 +74,7 @@ export function useTelemetry(wsUrl?: string) {
     session,
     participants,
     allLaps,
-    allMotion,
+    allMotion: EMPTY_MOTION,
     allCarStatus,
     allCarDamage,
     allTelemetry,
@@ -707,9 +85,9 @@ export function useTelemetry(wsUrl?: string) {
     motion,
     carStatus,
     carDamage,
-    trackPath,
+    trackPath: EMPTY_TRACK_PATH,
     connected,
-    history,
+    history: EMPTY_HISTORY,
     events,
     clearEvents,
     playerCarIndex,
@@ -718,5 +96,3 @@ export function useTelemetry(wsUrl?: string) {
     packetFormat,
   };
 }
-
-

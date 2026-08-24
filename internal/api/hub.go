@@ -168,3 +168,10 @@ func (h *Hub) Broadcast(msg []byte) {
 		// Broadcast channel full: don't block telemetry loop
 	}
 }
+
+// ClientCount returns the number of active connected clients.
+func (h *Hub) ClientCount() int {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return len(h.clients)
+}

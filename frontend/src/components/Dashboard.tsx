@@ -1,5 +1,6 @@
 import React, { useEffect, useCallback } from 'react';
 import { useTelemetry } from '../hooks/useTelemetry';
+import { useTelemetryStore } from '../store/useTelemetryStore';
 import { useRaceEngineer } from '../context/RaceEngineerContext';
 import {
   SAFETY_CAR_STATUS,
@@ -171,7 +172,7 @@ export const Dashboard: React.FC = () => {
     if (warningsSummary) lines.push(warningsSummary);
 
     return lines.join('\n');
-  }, [session, allLaps, allCarStatus, allCarDamage, allTelemetry2, telemetry, playerCarIndex, lap, carStatus, carDamage]);
+  }, [session, allLaps, allCarStatus, allCarDamage, allTelemetry, telemetry, playerCarIndex, lap, carStatus, carDamage]);
 
   const radio = useRadioController({
     getLiveTelemetrySummary,
@@ -299,20 +300,26 @@ export const Dashboard: React.FC = () => {
   });
 
   useEffect(() => {
-    if (connected && session) {
-      const trackInfo = session.TrackId !== undefined ? getTrackInfo(session.TrackId) : null;
-      const trackName = trackInfo?.name || (session.TrackId !== undefined ? (TRACK_NAMES[session.TrackId] || `Track #${session.TrackId}`) : 'F1 Circuit');
-      const sessionName = getSessionTypeName(session.SessionType);
+    setContextMode('live');
+
+    const updateContext = () => {
+      const state = useTelemetryStore.getState();
+      const currentSession = state.session;
+      if (!state.connected || !currentSession) return;
+
+      const trackInfo = currentSession.TrackId !== undefined ? getTrackInfo(currentSession.TrackId) : null;
+      const trackName = trackInfo?.name || (currentSession.TrackId !== undefined ? (TRACK_NAMES[currentSession.TrackId] || `Track #${currentSession.TrackId}`) : 'F1 Circuit');
+      const sessionName = getSessionTypeName(currentSession.SessionType);
 
       const weatherDesc =
-        session.WeatherForecastSamples && session.WeatherForecastSamples.length > 0
-          ? `Forecast: ${session.WeatherForecastSamples.length} forecast updates available`
-          : `Weather code: ${session.Weather ?? 0}`;
+        currentSession.WeatherForecastSamples && currentSession.WeatherForecastSamples.length > 0
+          ? `Forecast: ${currentSession.WeatherForecastSamples.length} forecast updates available`
+          : `Weather code: ${currentSession.Weather ?? 0}`;
 
       const scStatus =
-        session.SafetyCarStatus === SAFETY_CAR_STATUS.FULL
+        currentSession.SafetyCarStatus === SAFETY_CAR_STATUS.FULL
           ? 'Full Safety Car'
-          : session.SafetyCarStatus === SAFETY_CAR_STATUS.VIRTUAL
+          : currentSession.SafetyCarStatus === SAFETY_CAR_STATUS.VIRTUAL
           ? 'Virtual Safety Car'
           : 'Track Clear (Green)';
 
@@ -320,11 +327,11 @@ export const Dashboard: React.FC = () => {
 - Track: ${trackName}
 - Session: ${sessionName}
 - Safety Car Status: ${scStatus}
-- Track Temp: ${session.TrackTemperature || 0}°C | Air Temp: ${session.AirTemperature || 0}°C
+- Track Temp: ${currentSession.TrackTemperature || 0}°C | Air Temp: ${currentSession.AirTemperature || 0}°C
 - ${weatherDesc}
-- Active Cars: ${participants.length} drivers
-- Player Car Index: #${playerCarIndex + 1}
-- Selected Car Focus: #${selectedCarIndex + 1}
+- Active Cars: ${state.participants.length} drivers
+- Player Car Index: #${state.playerCarIndex + 1}
+- Selected Car Focus: #${state.selectedCarIndex + 1}
 `;
 
       setLiveContext({
@@ -334,9 +341,12 @@ export const Dashboard: React.FC = () => {
         weatherSummary: weatherDesc,
         liveSummary,
       });
-      setContextMode('live');
-    }
-  }, [connected, session, participants, playerCarIndex, selectedCarIndex, setLiveContext, setContextMode]);
+    };
+
+    updateContext();
+    const interval = setInterval(updateContext, 1000);
+    return () => clearInterval(interval);
+  }, [setLiveContext, setContextMode]);
 
   if (!connected || !session) {
     return (

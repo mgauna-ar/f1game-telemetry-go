@@ -1,5 +1,6 @@
 import { render, screen, act } from '@testing-library/react';
 import { useTelemetry, parseDriverName } from './useTelemetry';
+import { useTelemetryStore } from '../store/useTelemetryStore';
 
 // Mock the WebSocket
 class MockWebSocket {
@@ -19,16 +20,19 @@ beforeAll(() => {
   (globalThis as any).WebSocket = MockWebSocket;
 });
 
+beforeEach(() => {
+  useTelemetryStore.getState().resetSession();
+});
+
 // A simple test component to use the hook
 function TestComponent({ wsUrl }: { wsUrl: string }) {
-  const { telemetry, lap, motion, connected } = useTelemetry(wsUrl);
+  const { telemetry, lap, connected } = useTelemetry(wsUrl);
 
   return (
     <div>
       <div data-testid="status">{connected ? 'CONNECTED' : 'DISCONNECTED'}</div>
       <div data-testid="speed">{telemetry?.Speed || 0}</div>
       <div data-testid="lap">{lap?.CurrentLapNum || 0}</div>
-      <div data-testid="motion-x">{motion?.WorldPositionX || 0}</div>
     </div>
   );
 }
@@ -39,7 +43,42 @@ describe('useTelemetry', () => {
     expect(screen.getByTestId('status')).toHaveTextContent('DISCONNECTED');
   });
 
-  it('parses telemetry packets correctly', () => {
+  it('parses 10Hz live snapshot packets correctly', () => {
+    let wsInstance: MockWebSocket | undefined;
+    (globalThis as any).WebSocket = function (url: string) {
+      wsInstance = new MockWebSocket(url);
+      return wsInstance;
+    };
+
+    render(<TestComponent wsUrl="ws://localhost:8080/ws" />);
+
+    act(() => {
+      if (wsInstance?.onopen) wsInstance.onopen();
+    });
+    expect(screen.getByTestId('status')).toHaveTextContent('CONNECTED');
+
+    // Send a 10Hz Live Snapshot packet (PacketId 255)
+    act(() => {
+      if (wsInstance?.onmessage) {
+        wsInstance.onmessage({
+          data: JSON.stringify({
+            Header: { PacketId: 255, SessionTime: 10.0, PlayerCarIndex: 0, PacketFormat: 2026 },
+            CarTelemetry: {
+              CarTelemetryData: [{ Speed: 320 }],
+            },
+            LapData: {
+              LapData: [{ CurrentLapNum: 12 }],
+            },
+          }),
+        });
+      }
+    });
+
+    expect(screen.getByTestId('speed')).toHaveTextContent('320');
+    expect(screen.getByTestId('lap')).toHaveTextContent('12');
+  });
+
+  it('parses legacy individual telemetry packets correctly', () => {
     let wsInstance: MockWebSocket | undefined;
     (globalThis as any).WebSocket = function (url: string) {
       wsInstance = new MockWebSocket(url);
@@ -60,40 +99,14 @@ describe('useTelemetry', () => {
           data: JSON.stringify({
             Header: { PacketId: 6, SessionTime: 1.0, PlayerCarIndex: 0 },
             CarTelemetryData: [
-              { Speed: 315 }
-            ]
-          })
+              { Speed: 315 },
+            ],
+          }),
         });
       }
     });
 
     expect(screen.getByTestId('speed')).toHaveTextContent('315');
-  });
-
-  it('parses motion packets correctly', () => {
-    let wsInstance: MockWebSocket | undefined;
-    (globalThis as any).WebSocket = function (url: string) {
-      wsInstance = new MockWebSocket(url);
-      return wsInstance;
-    };
-
-    render(<TestComponent wsUrl="ws://localhost:8080/ws" />);
-
-    // Send a mock Motion packet
-    act(() => {
-      if (wsInstance?.onmessage) {
-        wsInstance.onmessage({
-          data: JSON.stringify({
-            Header: { PacketId: 0, SessionTime: 1.0, PlayerCarIndex: 0 },
-            CarMotionData: [
-              { WorldPositionX: -100.5, WorldPositionY: 10.0, WorldPositionZ: 200.5 }
-            ]
-          })
-        });
-      }
-    });
-
-    expect(screen.getByTestId('motion-x')).toHaveTextContent('-100.5');
   });
 
   it('retains all participants without truncating when NumActiveCars drops on retirement', () => {
@@ -110,44 +123,48 @@ describe('useTelemetry', () => {
 
     render(<ParticipantsTestComponent />);
 
-    // Initial packet with 4 active cars
+    // Initial snapshot with 4 active cars
     act(() => {
       if (wsInstance?.onmessage) {
         wsInstance.onmessage({
           data: JSON.stringify({
-            Header: { PacketId: 4, SessionTime: 1.0, SessionUID: 12345, PlayerCarIndex: 0 },
-            NumActiveCars: 4,
-            Participants: [
-              { DriverId: 9, Name: 'Max Verstappen' },
-              { DriverId: 7, Name: 'Lewis Hamilton' },
-              { DriverId: 22, Name: 'Charles Leclerc' },
-              { DriverId: 10, Name: 'Lando Norris' },
-              { DriverId: 0, Name: '' },
-              { DriverId: 0, Name: '' },
-            ]
-          })
+            Header: { PacketId: 255, SessionTime: 1.0, SessionUID: 12345, PlayerCarIndex: 0 },
+            Participants: {
+              NumActiveCars: 4,
+              Participants: [
+                { DriverId: 9, Name: 'Max Verstappen' },
+                { DriverId: 7, Name: 'Lewis Hamilton' },
+                { DriverId: 22, Name: 'Charles Leclerc' },
+                { DriverId: 10, Name: 'Lando Norris' },
+                { DriverId: 0, Name: '' },
+                { DriverId: 0, Name: '' },
+              ],
+            },
+          }),
         });
       }
     });
 
     expect(screen.getByTestId('count')).toHaveTextContent('4');
 
-    // Subsequent packet when 1 driver retires (NumActiveCars drops to 3)
+    // Subsequent snapshot when 1 driver retires (NumActiveCars drops to 3)
     act(() => {
       if (wsInstance?.onmessage) {
         wsInstance.onmessage({
           data: JSON.stringify({
-            Header: { PacketId: 4, SessionTime: 2.0, SessionUID: 12345, PlayerCarIndex: 0 },
-            NumActiveCars: 3,
-            Participants: [
-              { DriverId: 9, Name: 'Max Verstappen' },
-              { DriverId: 7, Name: 'Lewis Hamilton' },
-              { DriverId: 22, Name: 'Charles Leclerc' },
-              { DriverId: 10, Name: 'Lando Norris' },
-              { DriverId: 0, Name: '' },
-              { DriverId: 0, Name: '' },
-            ]
-          })
+            Header: { PacketId: 255, SessionTime: 2.0, SessionUID: 12345, PlayerCarIndex: 0 },
+            Participants: {
+              NumActiveCars: 3,
+              Participants: [
+                { DriverId: 9, Name: 'Max Verstappen' },
+                { DriverId: 7, Name: 'Lewis Hamilton' },
+                { DriverId: 22, Name: 'Charles Leclerc' },
+                { DriverId: 10, Name: 'Lando Norris' },
+                { DriverId: 0, Name: '' },
+                { DriverId: 0, Name: '' },
+              ],
+            },
+          }),
         });
       }
     });
@@ -178,5 +195,3 @@ describe('parseDriverName', () => {
     expect(parseDriverName('', 'Driver 99', 999)).toBe('Driver 99');
   });
 });
-
-
