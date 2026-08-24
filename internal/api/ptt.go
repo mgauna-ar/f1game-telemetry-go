@@ -100,6 +100,6 @@ func (s *Server) handleCancelPTTLearn(w http.ResponseWriter, r *http.Request) {
 	s.inputManager.CancelLearning()
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]string{
-		"status": "learning_cancelled",
+		"status": "learning_canceled",
 	})
 }

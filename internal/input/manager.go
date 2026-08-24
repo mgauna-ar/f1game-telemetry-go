@@ -89,11 +89,12 @@ func (b *BaseManager) GetMapping() Mapping {
 func (b *BaseManager) SetMapping(m Mapping) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if m.DeviceType == DeviceTypeJoystick {
+	switch m.DeviceType {
+	case DeviceTypeJoystick:
 		b.joyMap = m
-	} else if m.DeviceType == DeviceTypeKeyboard {
+	case DeviceTypeKeyboard:
 		b.keyMap = m
-	} else {
+	default:
 		b.joyMap = Mapping{DeviceType: DeviceTypeNone, DeviceIndex: -1, ButtonIndex: -1}
 	}
 	b.isDown = false // Reset state on mapping change

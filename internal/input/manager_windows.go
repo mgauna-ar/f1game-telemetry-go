@@ -18,8 +18,6 @@ var (
 
 	modUser32            = syscall.NewLazyDLL("user32.dll")
 	procGetAsyncKeyState = modUser32.NewProc("GetAsyncKeyState")
-	procGetKeyNameTextW  = modUser32.NewProc("GetKeyNameTextW")
-	procMapVirtualKeyW   = modUser32.NewProc("MapVirtualKeyW")
 )
 
 const (
@@ -279,7 +277,7 @@ func (w *WindowsManager) getJoystickName(devIdx int) string {
 	)
 	if ret == joyErrNoError {
 		name := syscall.UTF16ToString(caps.szPname[:])
-		if len(name) > 0 {
+		if name != "" {
 			return name
 		}
 	}
