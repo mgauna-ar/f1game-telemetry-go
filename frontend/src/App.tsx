@@ -8,7 +8,7 @@ import { useI18n } from './context/I18nContext';
 import { AiRaceEngineer } from './components/AiRaceEngineer';
 import { LanguageSelector } from './components/LanguageSelector';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
-import type { UpdateCheckResponse } from './types/system';
+import type { UpdateCheckResponse, SystemVersion } from './types/system';
 
 const SessionHistory = lazy(() =>
   import('./components/SessionHistory').then((m) => ({ default: m.SessionHistory }))
@@ -44,8 +44,9 @@ function AppContent() {
 
   const { setContextMode } = useRaceEngineer();
 
-  // Update checking state
+  // Update checking & version state
   const [updateInfo, setUpdateInfo] = useState<UpdateCheckResponse | null>(null);
+  const [systemVersion, setSystemVersion] = useState<SystemVersion | null>(null);
   const [isReleaseModalOpen, setIsReleaseModalOpen] = useState(false);
   const [dismissedVersion, setDismissedVersion] = useState<string | null>(() => {
     try {
@@ -57,10 +58,17 @@ function AppContent() {
 
   const checkUpdates = useCallback(async () => {
     try {
-      const res = await fetch('/api/system/check-updates');
-      if (res.ok) {
-        const data: UpdateCheckResponse = await res.json();
+      const [updateRes, versionRes] = await Promise.allSettled([
+        fetch('/api/system/check-updates'),
+        fetch('/api/system/version'),
+      ]);
+      if (updateRes.status === 'fulfilled' && updateRes.value.ok) {
+        const data: UpdateCheckResponse = await updateRes.value.json();
         setUpdateInfo(data);
+      }
+      if (versionRes.status === 'fulfilled' && versionRes.value.ok) {
+        const verData: SystemVersion = await versionRes.value.json();
+        setSystemVersion(verData);
       }
     } catch {
       // Ignore update check failures when offline
@@ -198,6 +206,32 @@ function AppContent() {
             </button>
           )}
 
+          {/* Active Application Version Badge */}
+          <button
+            type="button"
+            className={`mono nav-version-badge ${
+              systemVersion?.is_dev || (updateInfo?.current_version && updateInfo.current_version.startsWith('dev'))
+                ? 'dev'
+                : systemVersion?.is_beta || (updateInfo?.current_version && (updateInfo.current_version.includes('beta') || updateInfo.current_version.includes('rc')))
+                ? 'beta'
+                : ''
+            }`}
+            onClick={() => setIsReleaseModalOpen(true)}
+            title={
+              systemVersion
+                ? `Commit: ${systemVersion.commit}${
+                    systemVersion.build_date && systemVersion.build_date !== 'unknown'
+                      ? ` • Built: ${systemVersion.build_date}`
+                      : ''
+                  }`
+                : t('nav.currentVersion')
+            }
+            aria-label={t('nav.aboutApp')}
+            data-testid="nav-version-badge"
+          >
+            <span>{systemVersion?.version || updateInfo?.current_version || 'dev'}</span>
+          </button>
+
           <LanguageSelector />
           <span className="mono nav-port-badge">{t('nav.portBadge')} 20777</span>
         </div>
@@ -225,6 +259,7 @@ function AppContent() {
             isOpen={isReleaseModalOpen}
             onClose={() => setIsReleaseModalOpen(false)}
             updateData={updateInfo}
+            systemVersion={systemVersion}
             onDismissVersion={handleDismissVersion}
           />
         )}

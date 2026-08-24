@@ -100,4 +100,29 @@ describe('ReleaseNotesModal', () => {
     expect(onDismiss).toHaveBeenCalledWith('v1.0.0-beta.2');
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it('renders commit and build date when systemVersion is provided', () => {
+    const mockSystemVersion = {
+      version: 'v1.0.1',
+      commit: 'abc1234',
+      build_date: '2026-08-24',
+      is_dev: false,
+      is_beta: false,
+    };
+
+    render(
+      <I18nProvider>
+        <ReleaseNotesModal
+          isOpen={true}
+          onClose={() => {}}
+          updateData={null}
+          systemVersion={mockSystemVersion}
+        />
+      </I18nProvider>
+    );
+
+    expect(screen.getByText('v1.0.1')).toBeInTheDocument();
+    expect(screen.getByText('Commit: abc1234')).toBeInTheDocument();
+    expect(screen.getByText('Built on 2026-08-24')).toBeInTheDocument();
+  });
 });

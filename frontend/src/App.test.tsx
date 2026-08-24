@@ -75,4 +75,11 @@ describe('App Navigation and Tab Bar', () => {
     const tabs = screen.getAllByRole('tab');
     expect(tabs[1]).toHaveClass('active');
   });
+
+  it('renders active version badge in navigation header', async () => {
+    render(<App />);
+
+    const versionBadge = await screen.findByTestId('nav-version-badge');
+    expect(versionBadge).toBeInTheDocument();
+  });
 });

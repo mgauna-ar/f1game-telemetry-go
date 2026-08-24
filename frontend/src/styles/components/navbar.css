@@ -251,6 +251,52 @@
   letter-spacing: 0.04em;
 }
 
+.nav-version-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary, #94a3b8);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  padding: 4px 9px;
+  border-radius: var(--radius-sm, 6px);
+  cursor: pointer;
+  letter-spacing: 0.03em;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  outline: none;
+}
+
+.nav-version-badge:hover {
+  background: rgba(255, 255, 255, 0.09);
+  color: var(--text-primary, #ffffff);
+  border-color: rgba(255, 255, 255, 0.22);
+  transform: translateY(-1px);
+}
+
+.nav-version-badge.dev {
+  color: #38bdf8;
+  border-color: rgba(56, 189, 248, 0.3);
+  background: rgba(56, 189, 248, 0.08);
+}
+
+.nav-version-badge.dev:hover {
+  background: rgba(56, 189, 248, 0.15);
+  border-color: rgba(56, 189, 248, 0.55);
+}
+
+.nav-version-badge.beta {
+  color: #fbbf24;
+  border-color: rgba(251, 191, 36, 0.3);
+  background: rgba(251, 191, 36, 0.08);
+}
+
+.nav-version-badge.beta:hover {
+  background: rgba(251, 191, 36, 0.15);
+  border-color: rgba(251, 191, 36, 0.55);
+}
+
 /* Language Selector */
 .lang-selector-container {
   position: relative;

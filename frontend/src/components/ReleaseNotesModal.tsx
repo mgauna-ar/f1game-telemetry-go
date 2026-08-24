@@ -9,12 +9,13 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { useI18n } from '../context/I18nContext';
-import type { UpdateCheckResponse, ReleaseAsset } from '../types/system';
+import type { UpdateCheckResponse, ReleaseAsset, SystemVersion } from '../types/system';
 
 interface ReleaseNotesModalProps {
   isOpen: boolean;
   onClose: () => void;
   updateData: UpdateCheckResponse | null;
+  systemVersion?: SystemVersion | null;
   onDismissVersion?: (version: string) => void;
 }
 
@@ -22,18 +23,24 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
   isOpen,
   onClose,
   updateData,
+  systemVersion,
   onDismissVersion,
 }) => {
   const { t } = useI18n();
   const [dontRemind, setDontRemind] = useState(false);
 
-  if (!isOpen || !updateData) {
+  if (!isOpen || (!updateData && !systemVersion)) {
     return null;
   }
 
+  const effectiveData: UpdateCheckResponse = updateData || {
+    update_available: false,
+    current_version: systemVersion?.version || 'dev',
+  };
+
   const handleClose = () => {
-    if (dontRemind && updateData.latest_version && onDismissVersion) {
-      onDismissVersion(updateData.latest_version);
+    if (dontRemind && effectiveData.latest_version && onDismissVersion) {
+      onDismissVersion(effectiveData.latest_version);
     }
     onClose();
   };
@@ -143,7 +150,8 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
     });
   };
 
-  const isUpToDate = !updateData.update_available && !updateData.is_prerelease;
+  const isUpToDate = !effectiveData.update_available && !effectiveData.is_prerelease;
+  const isDev = systemVersion?.is_dev || effectiveData.current_version === 'dev';
 
   return (
     <div className="release-modal-overlay" onClick={handleClose} role="dialog" aria-modal="true">
@@ -178,9 +186,13 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
           <div className="release-version-info">
             <div className="release-tag-title">
               <span className="release-tag-name mono">
-                {updateData.latest_version || updateData.current_version}
+                {effectiveData.latest_version || effectiveData.current_version}
               </span>
-              {updateData.is_prerelease ? (
+              {isDev ? (
+                <span className="release-badge prerelease">
+                  {t('common.updates.devBadge')}
+                </span>
+              ) : effectiveData.is_prerelease ? (
                 <span className="release-badge prerelease">
                   {t('common.updates.prereleaseBadge')}
                 </span>
@@ -191,13 +203,25 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
               )}
             </div>
             <div className="release-meta-row mono text-xs text-muted">
-              <span>{t('common.updates.currentVersion', { version: updateData.current_version })}</span>
-              {updateData.published_at && (
+              <span>{t('common.updates.currentVersion', { version: effectiveData.current_version })}</span>
+              {systemVersion?.commit && systemVersion.commit !== 'none' && (
+                <>
+                  <span className="meta-sep">•</span>
+                  <span>{t('common.updates.commit', { commit: systemVersion.commit })}</span>
+                </>
+              )}
+              {systemVersion?.build_date && systemVersion.build_date !== 'unknown' && (
+                <>
+                  <span className="meta-sep">•</span>
+                  <span>{t('common.updates.buildDate', { date: systemVersion.build_date })}</span>
+                </>
+              )}
+              {effectiveData.published_at && (
                 <>
                   <span className="meta-sep">•</span>
                   <span>
                     {t('common.updates.publishedOn', {
-                      date: new Date(updateData.published_at).toLocaleDateString(),
+                      date: new Date(effectiveData.published_at).toLocaleDateString(),
                     })}
                   </span>
                 </>
@@ -205,9 +229,9 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
             </div>
           </div>
 
-          {updateData.html_url && (
+          {effectiveData.html_url && (
             <a
-              href={updateData.html_url}
+              href={effectiveData.html_url}
               target="_blank"
               rel="noopener noreferrer"
               className="release-github-link-btn"
@@ -221,14 +245,14 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
         {/* Modal Body */}
         <div className="release-modal-body">
           {/* Download Packages Section */}
-          {updateData.assets && updateData.assets.length > 0 && (
+          {effectiveData.assets && effectiveData.assets.length > 0 && (
             <div className="release-downloads-section">
               <div className="release-section-title">
                 <Download size={14} className="text-cyan" />
                 <span>{t('common.updates.downloadTitle')}</span>
               </div>
               <div className="release-assets-grid">
-                {updateData.assets.map((asset, index) => (
+                {effectiveData.assets.map((asset, index) => (
                   <a
                     key={index}
                     href={asset.download_url}
@@ -259,13 +283,13 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
               <Package size={14} className="text-cyan" />
               <span>{t('common.releaseNotes')}</span>
             </div>
-            {renderReleaseNotes(updateData.release_notes)}
+            {renderReleaseNotes(effectiveData.release_notes)}
           </div>
         </div>
 
         {/* Modal Footer */}
         <div className="release-modal-footer">
-          {updateData.update_available && (
+          {effectiveData.update_available && (
             <label className="release-dont-remind-label">
               <input
                 type="checkbox"
