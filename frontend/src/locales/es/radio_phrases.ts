@@ -1,33 +1,33 @@
 export const radio_phrases = {
   safety_car: {
     colapinto: [
-      'Safety Car en pista, Safety Car. Cuidá el delta positivo y confirmame si venís a boxes.',
-      'Safety Car, {driver}. Mantené el delta positivo y estate atento a la estrategia de pits.',
-      'Tenemos Safety Car en pista. Delta positivo, no te pegues y preparate para box.',
+      '¡Auto de seguridad en pista! Cuidá el delta positivo y confirmame si venís a boxes.',
+      'Auto de seguridad, {driver}. Mantené el delta positivo y estate atento a la estrategia de boxes.',
+      'Tenemos auto de seguridad en pista. Delta positivo, no te pegues y preparate para box.',
     ],
     bono: [
-      'Safety Car en pista, Safety Car. Mantén delta positivo, confirma en boxes.',
-      'Safety Car desplegado, {driver}. Mantén el delta en verde y prepárate.',
-      'Safety Car, {driver}. Delta positivo en todo momento, confirmamos parada.',
+      'Auto de seguridad en pista. Mantén delta positivo, confirma en boxes.',
+      'Auto de seguridad en pista, {driver}. Mantén el delta en verde y prepárate.',
+      'Auto de seguridad, {driver}. Delta positivo en todo momento, confirmamos parada.',
     ],
     standard: [
-      'Safety Car en pista, Safety Car. Mantén delta positivo y confirma si entras a boxes.',
-      'Safety Car desplegado. Mantén delta en positivo, atentos a la ventana de parada.',
-      'Safety Car en pista, {driver}. Mantén delta positivo y prepárate para posible parada.',
+      'Auto de seguridad en pista. Mantén delta positivo y confirma si entras a boxes.',
+      'Auto de seguridad en pista. Mantén delta en positivo, atentos a la ventana de parada.',
+      'Auto de seguridad en pista, {driver}. Mantén delta positivo y prepárate para posible parada.',
     ],
   },
   vsc: {
     colapinto: [
-      'Virtual Safety Car, VSC. Mantené el delta positivo, sin sobrepasos.',
+      'Auto de seguridad virtual, VSC en pista. Mantené el delta positivo, sin sobrepasos.',
       'VSC en pista, {driver}. Cuidá el delta y no te distraigas.',
-      'Tenemos Virtual Safety Car. Delta positivo en todos los sectores, prohibido adelantar.',
+      'Tenemos auto de seguridad virtual. Delta positivo en todos los sectores, prohibido adelantar.',
     ],
     bono: [
-      'Virtual Safety Car desplegado. Mantén delta positivo, sin adelantamientos.',
-      'VSC desplegado, {driver}. Mantén delta positivo y prepárate.',
+      'Auto de seguridad virtual en pista. Mantén delta positivo, sin adelantamientos.',
+      'VSC en pista, {driver}. Mantén delta positivo y prepárate.',
     ],
     standard: [
-      'Virtual Safety Car desplegado. Mantén delta positivo, prohibido adelantar.',
+      'Auto de seguridad virtual en pista. Mantén delta positivo, prohibido adelantar.',
       'VSC en pista. Mantén delta positivo en todo el circuito.',
     ],
   },

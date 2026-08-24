@@ -204,7 +204,7 @@ func TestBuildSystemPrompt(t *testing.T) {
 		if !strings.Contains(promptEs, "EMERGENCIA CRÍTICA") {
 			t.Errorf("expected prompt to contain critical urgency in Spanish, got: %s", promptEs)
 		}
-		if !strings.Contains(promptEs, "SAFETY CAR COMPLETO ACTIVO") {
+		if !strings.Contains(promptEs, "AUTO DE SEGURIDAD EN PISTA") {
 			t.Errorf("expected prompt to contain full safety car incident directive in Spanish, got: %s", promptEs)
 		}
 	})

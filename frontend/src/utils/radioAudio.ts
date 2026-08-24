@@ -510,6 +510,28 @@ export function cleanRadioSpeechText(text: string): string {
 import { getProactiveRadioSpeech } from './radioPhrases';
 
 /**
+ * Normalizes motorsport terminology for natural Spanish TTS pronunciation,
+ * converting raw English / literal Spanglish terms into authentic Latin American / Spanish phrases.
+ */
+export function normalizeSpanishRadioSpeech(text: string): string {
+  if (!text) return '';
+  let result = text;
+
+  // 1. SC & VSC terminology (prevents "safti car desplegado" pronunciation)
+  result = result.replace(/\bVirtual\s+Safety\s+Car\s+desplegado\b/gi, 'Auto de seguridad virtual en pista');
+  result = result.replace(/\b(?:Full\s+)?Safety\s+Car\s+desplegado\b/gi, 'Auto de seguridad en pista');
+  result = result.replace(/\bVirtual\s+Safety\s+Car\b/gi, 'Auto de seguridad virtual');
+  result = result.replace(/\b(?:Full\s+)?Safety\s+Car\b/gi, 'Auto de seguridad');
+  result = result.replace(/\bSafety\s+Car\s+in\s+pista\b/gi, 'Auto de seguridad en pista');
+
+  // 2. Remove robotic 'desplegado' translations
+  result = result.replace(/\bVSC\s+desplegado\b/gi, 'VSC en pista');
+  result = result.replace(/\bBandera\s+roja\s+desplegada\b/gi, 'Bandera roja en pista');
+
+  return result;
+}
+
+/**
  * Generates an authentic, localized pit wall radio speech message with persona-specific phrasing.
  */
 export function formatProactiveFallbackSpeech(
@@ -538,7 +560,10 @@ export async function speakRadioResponse(
     onError,
   } = options;
 
-  const cleaned = cleanRadioSpeechText(text);
+  let cleaned = cleanRadioSpeechText(text);
+  if (language === 'es' || (!language && persona === 'colapinto')) {
+    cleaned = normalizeSpanishRadioSpeech(cleaned);
+  }
   if (!cleaned) return;
 
   stopRadioSpeech();

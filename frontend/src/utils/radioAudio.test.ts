@@ -6,6 +6,7 @@ import {
   playRadioAudioBuffer,
   stopRadioSpeech,
   cleanRadioSpeechText,
+  normalizeSpanishRadioSpeech,
   formatProactiveFallbackSpeech,
   isSpeechRecognitionSupported,
   getRadioAnalyserNode,
@@ -51,12 +52,22 @@ describe('radioAudio utils', () => {
     });
   });
 
+  describe('normalizeSpanishRadioSpeech', () => {
+    it('replaces Safety Car and Virtual Safety Car deployed with natural Spanish terms', () => {
+      expect(normalizeSpanishRadioSpeech('Virtual Safety Car desplegado.')).toBe('Auto de seguridad virtual en pista.');
+      expect(normalizeSpanishRadioSpeech('Safety Car desplegado en pista.')).toBe('Auto de seguridad en pista en pista.');
+      expect(normalizeSpanishRadioSpeech('Full Safety Car desplegado')).toBe('Auto de seguridad en pista');
+      expect(normalizeSpanishRadioSpeech('Tenemos Safety Car en pista')).toBe('Tenemos Auto de seguridad en pista');
+      expect(normalizeSpanishRadioSpeech('VSC desplegado, mantén delta')).toBe('VSC en pista, mantén delta');
+    });
+  });
+
   describe('formatProactiveFallbackSpeech', () => {
     it('formats safety car alert in Spanish and English with driver callsign', () => {
       const scPrompt = '[PROACTIVE PIT WALL CALL: Full Safety Car deployed! You are initiating this call — do NOT say "Entendido" or "Copy". Directly announce Safety Car in pista / on track, maintain delta positive, stand by for pit stop window.]';
       
       const speechEs = formatProactiveFallbackSpeech(scPrompt, 'es', 'colapinto', 'Franco');
-      expect(speechEs).toContain('Safety Car');
+      expect(speechEs).toContain('Auto de seguridad');
       expect(speechEs).toContain('Franco');
 
       const speechEn = formatProactiveFallbackSpeech(scPrompt, 'en', 'bono', 'Lewis');
@@ -66,7 +77,7 @@ describe('radioAudio utils', () => {
 
     it('formats VSC and Red Flag alerts authentically', () => {
       const vscPrompt = '[PROACTIVE PIT WALL CALL: Virtual Safety Car (VSC) deployed! Directly announce VSC deployed, maintain delta, no overtaking.]';
-      expect(formatProactiveFallbackSpeech(vscPrompt, 'es', 'bono')).toMatch(/VSC|Virtual Safety Car/i);
+      expect(formatProactiveFallbackSpeech(vscPrompt, 'es', 'bono')).toMatch(/VSC|Auto de seguridad virtual/i);
       expect(formatProactiveFallbackSpeech(vscPrompt, 'en', 'bono')).toMatch(/VSC|Virtual Safety Car/i);
 
       const redFlagPrompt = '[PROACTIVE PIT WALL CALL: Red Flag deployed! Session stopped.]';

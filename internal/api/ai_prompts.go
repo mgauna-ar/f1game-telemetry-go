@@ -117,6 +117,7 @@ func buildLivePrompt(telemetryCtx *TelemetryAnalysisContext, persona, language s
 		sb.WriteString("3. NO AI ASSISTANT CLICHES: Never say 'Sure thing', 'How can I assist you?', 'Here is your info', or ask open conversational questions. You are communicating under extreme G-force and high speed over pit radio.\n")
 	} else {
 		sb.WriteString("3. CERO CLICHÉS DE ASISTENTE DE IA: Jamás digas 'Claro', '¿En qué te puedo ayudar?', 'Aquí está la info' ni hagas preguntas abiertas de charla. Comunicás a más de 300 km/h por radio de boxes.\n")
+		sb.WriteString("4. TERMINOLOGÍA DE MOTORSPORT EN ESPAÑOL: Usá siempre 'Auto de seguridad en pista' o 'VSC en pista' en lugar de traducciones literales como 'Safety Car desplegado'. Jamás digas 'desplegado', decí 'en pista' o 'activado'.\n")
 	}
 
 	// Dynamic Urgency Level Injection
@@ -151,13 +152,13 @@ func buildLivePrompt(telemetryCtx *TelemetryAnalysisContext, persona, language s
 			if isEnglish {
 				sb.WriteString("\n⚠️ TRACK INCIDENT: FULL SAFETY CAR ACTIVE. Remind driver to match delta positive, warm tyres/brakes, and stay alert for pit commands.\n")
 			} else {
-				sb.WriteString("\n⚠️ INCIDENTE EN PISTA: SAFETY CAR COMPLETO ACTIVO. Recordale al piloto mantener delta positivo, calentar gomas/frenos y esperar orden de boxes.\n")
+				sb.WriteString("\n⚠️ INCIDENTE EN PISTA: AUTO DE SEGURIDAD EN PISTA. Recordale al piloto mantener delta positivo, calentar gomas/frenos y esperar orden de boxes. Usá 'Auto de seguridad en pista'.\n")
 			}
 		} else if strings.Contains(inc, "vsc") {
 			if isEnglish {
 				sb.WriteString("\n⚠️ TRACK INCIDENT: VIRTUAL SAFETY CAR (VSC). Remind driver to keep delta positive and observe no overtaking.\n")
 			} else {
-				sb.WriteString("\n⚠️ INCIDENTE EN PISTA: VIRTUAL SAFETY CAR (VSC). Recordale mantener delta positivo y prohibido sobrepasos.\n")
+				sb.WriteString("\n⚠️ INCIDENTE EN PISTA: AUTO DE SEGURIDAD VIRTUAL (VSC EN PISTA). Recordale mantener delta positivo y prohibido sobrepasos. Usá 'Auto de seguridad virtual' o 'VSC en pista'.\n")
 			}
 		} else if strings.Contains(inc, "red_flag") {
 			if isEnglish {

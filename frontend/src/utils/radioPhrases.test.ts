@@ -91,7 +91,7 @@ describe('radioPhrases', () => {
     it('formats safety car with Franco Colapinto persona and Spanish callsign', () => {
       const prompt = '[PROACTIVE PIT WALL CALL: Full Safety Car deployed! Maintain delta positive.]';
       const speech = getProactiveRadioSpeech(prompt, 'es', 'colapinto', 'Franco');
-      expect(speech).toContain('Safety Car');
+      expect(speech.toLowerCase()).toContain('auto de seguridad');
       expect(speech).toContain('Franco');
       expect(speech.toLowerCase()).toContain('delta');
     });

@@ -1201,7 +1201,7 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
         case 'flags':
         case 'flags_sc':
           sampleText = isEs
-            ? '¡Safety Car en pista! Mantené el delta positivo y estate atento a la orden de boxes.'
+            ? '¡Auto de seguridad en pista! Mantené el delta positivo y estate atento a la orden de boxes.'
             : 'Safety Car deployed! Maintain delta positive and stand by for pit call.';
           break;
         default:
