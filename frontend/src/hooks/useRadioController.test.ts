@@ -20,11 +20,11 @@ describe('useRadioController hook', () => {
     vi.restoreAllMocks();
   });
 
-  it('initializes with default Colapinto persona and idle state', () => {
+  it('initializes with default Bono persona and idle state', () => {
     const { result } = renderHook(() => useRadioController());
 
     expect(result.current.radioState).toBe('idle');
-    expect(result.current.persona).toBe(RADIO_PERSONAS.COLAPINTO);
+    expect(result.current.persona).toBe(RADIO_PERSONAS.BONO);
     expect(result.current.isRadioEnabled).toBe(true);
     expect(result.current.beepsEnabled).toBe(true);
     expect(result.current.filterEnabled).toBe(true);
@@ -34,11 +34,11 @@ describe('useRadioController hook', () => {
     const { result } = renderHook(() => useRadioController());
 
     act(() => {
-      result.current.setPersona(RADIO_PERSONAS.BONO);
+      result.current.setPersona(RADIO_PERSONAS.COLAPINTO);
     });
 
-    expect(result.current.persona).toBe(RADIO_PERSONAS.BONO);
-    expect(localStorage.getItem(RADIO_STORAGE_KEYS.PERSONA)).toBe(RADIO_PERSONAS.BONO);
+    expect(result.current.persona).toBe(RADIO_PERSONAS.COLAPINTO);
+    expect(localStorage.getItem(RADIO_STORAGE_KEYS.PERSONA)).toBe(RADIO_PERSONAS.COLAPINTO);
   });
 
   it('updates volume with clamping', () => {

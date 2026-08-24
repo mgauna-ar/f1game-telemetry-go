@@ -54,7 +54,7 @@
 * **Quick Style Presets & Granular Controls:** Switch instantly between *Inmersivo F1*, *Coaching Pro*, *Mínimo*, or *Personalizado*, with a 1-click Reset to Defaults button and individual audio test preview buttons for every single subsystem.
 * **Smart Driving Discretion:** Suppresses non-critical pit wall calls during heavy braking (>50% brake pressure) or mid-corner apex steering (`|Steer| > 0.45`), holding messages until the driver reaches the straight line.
 * **Audio Realism & Zero-Latency Caching:** Speech rate (-20% to +30%) and vocal pitch modulation sliders, analog cockpit static & squelch background FX, and instant in-memory audio caching for frequent pit wall radio calls.
-* **Engineer Personas & Language-Filtered Neural Voices:** Choose between **Franco Colapinto 🇦🇷**, **Bono 🇬🇧**, or a fully **Custom** persona. Each persona has language-specific neural TTS voices (Spanish: *Tomás*, *Jorge*, *Álvaro*; English: *Ryan*, *Guy*) — the voice dropdown filters automatically to match the selected radio language.
+* **Engineer Personas & Language-Filtered Neural Voices:** Choose between **Bono 🇬🇧**, **Franco Colapinto 🇦🇷**, or a fully **Custom** persona. Each persona has language-specific neural TTS voices (Spanish: *Tomás*, *Jorge*, *Álvaro*; English: *Ryan*, *Guy*) — the voice dropdown filters automatically to match the selected radio language.
 * **4-Tab Glassmorphic Settings Dialog & Master Toggle:** Comprehensive modal organizing settings into *Persona & Driver*, *Voice & Audio Realism*, *Proactive Triggers & Discretion*, and *Tactical Coaching (8 Accordion Subsystems)*. Toggle the radio ON/OFF from settings or via the `⚡ Power` button on the HUD (collapsing into a compact pill and pausing all PTT, mic access, and background calls).
 
 ---

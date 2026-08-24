@@ -230,13 +230,13 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
   });
 
   const [persona, setPersonaState] = useState<RadioPersona>(() => {
-    if (typeof window === 'undefined') return RADIO_PERSONAS.COLAPINTO;
+    if (typeof window === 'undefined') return RADIO_PERSONAS.BONO;
     try {
       const saved = localStorage.getItem(RADIO_STORAGE_KEYS.PERSONA) as RadioPersona;
       if (saved && Object.values(RADIO_PERSONAS).includes(saved)) return saved;
-      return RADIO_PERSONAS.COLAPINTO;
+      return RADIO_PERSONAS.BONO;
     } catch {
-      return RADIO_PERSONAS.COLAPINTO;
+      return RADIO_PERSONAS.BONO;
     }
   });
 

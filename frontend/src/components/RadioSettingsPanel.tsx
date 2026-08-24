@@ -168,23 +168,6 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
             </label>
 
             <div className="radio-persona-grid">
-              {/* Colapinto */}
-              <button
-                type="button"
-                className={`radio-persona-card ${radio.persona === RADIO_PERSONAS.COLAPINTO ? 'card-active' : ''}`}
-                onClick={() => radio.setPersona(RADIO_PERSONAS.COLAPINTO)}
-              >
-                <div className="radio-persona-header">
-                  <span className="radio-persona-name">
-                    {t('ai_engineer.personas.colapinto.name')}
-                  </span>
-                  <span>🇦🇷</span>
-                </div>
-                <p className="radio-persona-desc">
-                  {t('ai_engineer.personas.colapinto.desc')}
-                </p>
-              </button>
-
               {/* Bono */}
               <button
                 type="button"
@@ -199,6 +182,23 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
                 </div>
                 <p className="radio-persona-desc">
                   {t('ai_engineer.personas.bono.desc')}
+                </p>
+              </button>
+
+              {/* Colapinto */}
+              <button
+                type="button"
+                className={`radio-persona-card ${radio.persona === RADIO_PERSONAS.COLAPINTO ? 'card-active' : ''}`}
+                onClick={() => radio.setPersona(RADIO_PERSONAS.COLAPINTO)}
+              >
+                <div className="radio-persona-header">
+                  <span className="radio-persona-name">
+                    {t('ai_engineer.personas.colapinto.name')}
+                  </span>
+                  <span>🇦🇷</span>
+                </div>
+                <p className="radio-persona-desc">
+                  {t('ai_engineer.personas.colapinto.desc')}
                 </p>
               </button>
 

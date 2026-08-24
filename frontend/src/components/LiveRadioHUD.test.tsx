@@ -10,7 +10,7 @@ const mockRadio: UseRadioControllerReturn = {
   radioState: 'idle',
   isRadioEnabled: true,
   setIsRadioEnabled: vi.fn(),
-  persona: RADIO_PERSONAS.COLAPINTO,
+  persona: RADIO_PERSONAS.BONO,
   setPersona: vi.fn(),
   radioLanguage: 'auto',
   setRadioLanguage: vi.fn(),

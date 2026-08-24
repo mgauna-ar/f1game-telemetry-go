@@ -66,6 +66,14 @@ func TestResolveVoice(t *testing.T) {
 			expectedName: "es-ES-AlvaroNeural",
 			expectedLang: "es-ES",
 		},
+		{
+			name:         "Default fallback without parameters resolves to Bono British",
+			voice:        "",
+			persona:      "",
+			language:     "",
+			expectedName: VoiceBonoBritish,
+			expectedLang: "en-GB",
+		},
 	}
 
 	for _, tt := range tests {

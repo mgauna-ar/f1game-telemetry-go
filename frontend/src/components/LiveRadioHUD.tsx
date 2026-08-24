@@ -24,13 +24,13 @@ export const LiveRadioHUD: React.FC<LiveRadioHUDProps> = ({ radio }) => {
   const getPersonaLabel = () => {
     const langFlag = radio.effectiveLanguage === 'es' ? '🇦🇷' : '🇬🇧';
     switch (radio.persona) {
-      case RADIO_PERSONAS.BONO:
-        return { name: 'Bono', flag: langFlag };
+      case RADIO_PERSONAS.COLAPINTO:
+        return { name: 'Colapinto', flag: langFlag };
       case RADIO_PERSONAS.CUSTOM:
         return { name: t('ai_engineer.personas.custom.name'), flag: '⚙️' };
-      case RADIO_PERSONAS.COLAPINTO:
+      case RADIO_PERSONAS.BONO:
       default:
-        return { name: 'Colapinto', flag: langFlag };
+        return { name: 'Bono', flag: langFlag };
     }
   };
 

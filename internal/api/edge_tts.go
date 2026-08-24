@@ -179,12 +179,15 @@ func resolveVoice(voice, persona, language string) (voiceName, lang string) {
 		return VoiceColapintoArgentine, "es-AR"
 	}
 
+	if p == "colapinto" {
+		return VoiceColapintoArgentine, "es-AR"
+	}
 	if p == "bono" {
 		return VoiceBonoBritish, "en-GB"
 	}
 
-	// Default to Colapinto (Argentine Male)
-	return VoiceColapintoArgentine, "es-AR"
+	// Default to Bono (British Male)
+	return VoiceBonoBritish, "en-GB"
 }
 
 // buildSSML constructs a valid W3C SSML payload.

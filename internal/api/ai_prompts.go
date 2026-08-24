@@ -50,15 +50,15 @@ func buildLivePrompt(telemetryCtx *TelemetryAnalysisContext, persona, language s
 
 	personaNormalized := strings.ToLower(strings.TrimSpace(persona))
 	if personaNormalized == "" {
-		personaNormalized = "colapinto"
+		personaNormalized = "bono"
 	}
 
 	// If language is unspecified, default to persona's native language
 	if lang == "" {
-		if personaNormalized == "bono" {
-			lang = "en"
-		} else {
+		if personaNormalized == "colapinto" {
 			lang = "es"
+		} else {
+			lang = "en"
 		}
 	}
 

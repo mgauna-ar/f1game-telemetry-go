@@ -338,7 +338,7 @@ export async function speakRadioResponse(
 ): Promise<void> {
   const {
     voice,
-    persona = 'colapinto',
+    persona = 'bono',
     language,
     rate = '+0%',
     pitch = '+0Hz',

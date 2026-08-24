@@ -117,6 +117,17 @@ func TestBuildSystemPrompt(t *testing.T) {
 		}
 	})
 
+	t.Run("live session mode - default persona falls back to bono", func(t *testing.T) {
+		ctx := &TelemetryAnalysisContext{
+			ContextMode: "live",
+			LiveSummary: "LIVE STATUS:\n- Track: Silverstone\n- Gap: +1.2s",
+		}
+		prompt := buildSystemPrompt(ctx, "", "")
+		if !strings.Contains(prompt, "Peter 'Bono' Bonnington") || !strings.Contains(prompt, "Hammer time") {
+			t.Errorf("expected default prompt to be Bono English persona")
+		}
+	})
+
 	t.Run("live session mode - with driver call-sign", func(t *testing.T) {
 		ctxEn := &TelemetryAnalysisContext{
 			ContextMode:    "live",

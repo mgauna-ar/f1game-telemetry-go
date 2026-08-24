@@ -497,8 +497,8 @@ export const AI_PROVIDER_URLS: Record<string, { name: string; url: string; freeT
 };
 
 export const RADIO_PERSONAS = {
-  COLAPINTO: 'colapinto',
   BONO: 'bono',
+  COLAPINTO: 'colapinto',
   CUSTOM: 'custom',
 } as const;
 
