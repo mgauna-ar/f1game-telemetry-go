@@ -1315,19 +1315,47 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
       activeAbortControllerRef.current = abortController;
 
       const liveContext = getLiveTelemetrySummary ? getLiveTelemetrySummary() : '';
-      const prompt = `[DRIVER RADIO TRANSMISSION]: "${finalTranscript}"\n\n${liveContext}`;
+
+      let aiProvider = 'gemini';
+      let aiApiKey = '';
+      let aiModel = 'gemini-flash-lite-latest';
+      let aiBaseUrl = '';
+
+      try {
+        const storedProvider = localStorage.getItem('f1_ai_provider');
+        const storedKey = localStorage.getItem('f1_ai_api_key');
+        const storedModel = localStorage.getItem('f1_ai_model');
+        const storedBaseUrl = localStorage.getItem('f1_ai_base_url');
+
+        if (storedProvider) aiProvider = storedProvider;
+        if (storedKey) aiApiKey = storedKey;
+        if (storedModel) aiModel = storedModel;
+        if (storedBaseUrl) aiBaseUrl = storedBaseUrl;
+      } catch {}
 
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt,
-          mode: 'live',
-          telemetry: telemetryContext,
+          provider: aiProvider,
+          api_key: aiApiKey,
+          model: aiModel,
+          base_url: aiBaseUrl,
           persona,
-          customPrompt: persona === RADIO_PERSONAS.CUSTOM ? customPrompt : undefined,
-          driverCallsign: driverCallsign || undefined,
           language: effectiveLanguage,
+          messages: [
+            {
+              role: 'user',
+              content: `[DRIVER RADIO TRANSMISSION]: "${finalTranscript}"`,
+            },
+          ],
+          context: {
+            context_mode: 'live',
+            live_summary: liveContext,
+            custom_persona_prompt: persona === RADIO_PERSONAS.CUSTOM ? customPrompt : undefined,
+            driver_callsign: driverCallsign || undefined,
+            urgency_level: 'normal',
+          },
         }),
         signal: abortController.signal,
       });

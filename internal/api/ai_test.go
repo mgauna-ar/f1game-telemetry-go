@@ -175,6 +175,29 @@ func TestBuildSystemPrompt(t *testing.T) {
 		}
 	})
 
+	t.Run("live session mode - dynamic urgency and incident status", func(t *testing.T) {
+		ctxCrit := &TelemetryAnalysisContext{
+			ContextMode:    "live",
+			UrgencyLevel:   "critical",
+			IncidentStatus: "safety_car",
+		}
+		promptEn := buildSystemPrompt(ctxCrit, "bono", "en")
+		if !strings.Contains(promptEn, "CRITICAL EMERGENCY") {
+			t.Errorf("expected prompt to contain critical urgency in English, got: %s", promptEn)
+		}
+		if !strings.Contains(promptEn, "FULL SAFETY CAR ACTIVE") {
+			t.Errorf("expected prompt to contain full safety car incident directive in English, got: %s", promptEn)
+		}
+
+		promptEs := buildSystemPrompt(ctxCrit, "colapinto", "es")
+		if !strings.Contains(promptEs, "EMERGENCIA CRÍTICA") {
+			t.Errorf("expected prompt to contain critical urgency in Spanish, got: %s", promptEs)
+		}
+		if !strings.Contains(promptEs, "SAFETY CAR COMPLETO ACTIVO") {
+			t.Errorf("expected prompt to contain full safety car incident directive in Spanish, got: %s", promptEs)
+		}
+	})
+
 	t.Run("with telemetry context and zoom", func(t *testing.T) {
 		ctx := &TelemetryAnalysisContext{
 			TrackName:         "Silverstone",

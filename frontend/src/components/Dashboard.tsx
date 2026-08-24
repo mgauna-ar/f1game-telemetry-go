@@ -79,33 +79,98 @@ export const Dashboard: React.FC = () => {
         ? 'Full Safety Car'
         : session.SafetyCarStatus === SAFETY_CAR_STATUS.VIRTUAL
         ? 'Virtual Safety Car'
+        : session.NumRedFlagPeriods && session.NumRedFlagPeriods > 0
+        ? 'Red Flag (Suspended)'
         : 'Track Clear (Green)';
 
     const playerLap = allLaps[playerCarIndex] || lap;
     const playerStatus = allCarStatus[playerCarIndex] || carStatus;
     const playerDamage = allCarDamage[playerCarIndex] || carDamage;
+    const playerTelemetry = allTelemetry2[playerCarIndex] || telemetry;
     const playerRunStatus = getDriverStatusLabel(playerLap?.DriverStatus);
     const lapValidity = playerLap?.CurrentLapInvalid === 1 ? 'INVALIDATED (Track Limits Exceeded)' : 'Valid';
 
-    let tyreWearSummary = 'Tyre wear normal';
+    let tyreWearSummary = 'Tyres: Normal wear';
     if (playerDamage && playerDamage.TyresWear) {
-      const maxWear = Math.round(Math.max(...playerDamage.TyresWear));
-      tyreWearSummary = `Max tyre wear: ${maxWear}%`;
+      const wears = playerDamage.TyresWear.map((w: number) => Math.round(w || 0));
+      const maxWear = Math.max(...wears);
+      tyreWearSummary = `Tyres Wear: FL ${wears[0]}% | FR ${wears[1]}% | RL ${wears[2]}% | RR ${wears[3]}% (Peak: ${maxWear}%)`;
     }
 
-    return `LIVE PIT WALL TELEMETRY:
-- Track: ${trackName}
-- Session: ${sessionName}
-- Session Time Remaining: ${sessionTimeLeftFormatted}
-- Safety Car Status: ${scStatus}
-- Track Temp: ${session.TrackTemperature || 0}°C | Air Temp: ${session.AirTemperature || 0}°C
-- Player Position: P${playerLap?.CarPosition || 1}
-- Current Lap: ${playerLap?.CurrentLapNum || 1} / ${session.TotalLaps || 'N/A'}
-- Driver Run Status: ${playerRunStatus}
-- Current Lap Validity: ${lapValidity}
-- ${tyreWearSummary} (Tyre age: ${playerStatus?.TyresAgeLaps || 0} laps)
-`;
-  }, [session, allLaps, allCarStatus, allCarDamage, playerCarIndex, lap, carStatus, carDamage]);
+    let tyreTempsSummary = '';
+    if (playerTelemetry?.TyresSurfaceTemperature) {
+      const surf = playerTelemetry.TyresSurfaceTemperature;
+      const inner = playerTelemetry.TyresInnerTemperature || [];
+      tyreTempsSummary = `- Tyre Surface Temps: FL ${Math.round(surf[0] || 0)}°C, FR ${Math.round(surf[1] || 0)}°C, RL ${Math.round(surf[2] || 0)}°C, RR ${Math.round(surf[3] || 0)}°C`;
+      if (inner.length >= 4) {
+        tyreTempsSummary += ` (Inner: FL ${Math.round(inner[0] || 0)}°C, FR ${Math.round(inner[1] || 0)}°C, RL ${Math.round(inner[2] || 0)}°C, RR ${Math.round(inner[3] || 0)}°C)`;
+      }
+    }
+
+    let brakesSummary = '';
+    if (playerTelemetry?.BrakesTemperature) {
+      const brk = playerTelemetry.BrakesTemperature;
+      brakesSummary = `- Brake Temps: FL ${Math.round(brk[0] || 0)}°C, FR ${Math.round(brk[1] || 0)}°C, RL ${Math.round(brk[2] || 0)}°C, RR ${Math.round(brk[3] || 0)}°C`;
+    }
+
+    let engineSummary = '';
+    if (playerTelemetry?.EngineTemperature) {
+      engineSummary = `- Engine Core Temp: ${Math.round(playerTelemetry.EngineTemperature)}°C`;
+    }
+
+    let ersSummary = '';
+    if (playerStatus) {
+      const storeEnergy = playerStatus.ERSStoreEnergy !== undefined ? playerStatus.ERSStoreEnergy : (playerStatus as any).ErsStoreEnergy;
+      if (storeEnergy !== undefined) {
+        const ersPct = Math.round((storeEnergy / 4000000) * 100);
+        ersSummary = `- ERS Battery: ${ersPct}% | Deploy Mode: ${playerStatus.ERSDeployMode ?? 0}`;
+      }
+    }
+
+    let fuelSummary = '';
+    if (playerStatus && typeof playerStatus.FuelRemainingLaps === 'number') {
+      fuelSummary = `- Fuel Remaining Delta: ${playerStatus.FuelRemainingLaps.toFixed(1)} laps (${(playerStatus.FuelInTank || 0).toFixed(1)} kg)`;
+    }
+
+    let aeroDamageSummary = '';
+    if (playerDamage) {
+      const flWing = Math.round(playerDamage.FrontLeftWingDamage || 0);
+      const frWing = Math.round(playerDamage.FrontRightWingDamage || 0);
+      const floor = Math.round((playerDamage.FloorDamage || 0) + (playerDamage.DiffuserDamage || 0));
+      if (flWing > 0 || frWing > 0 || floor > 0) {
+        aeroDamageSummary = `- Aero Damage: Front Wing L:${flWing}% R:${frWing}% | Floor/Diffuser: ${floor}%`;
+      }
+    }
+
+    let warningsSummary = '';
+    if (playerLap) {
+      warningsSummary = `- Track Limits / Warnings: ${playerLap.CornerCuttingWarnings ?? playerLap.TotalWarnings ?? 0} warnings | Penalties: ${playerLap.Penalties ?? 0}s`;
+    }
+
+    const lines = [
+      'LIVE PIT WALL TELEMETRY:',
+      `- Track: ${trackName}`,
+      `- Session: ${sessionName}`,
+      `- Session Time Remaining: ${sessionTimeLeftFormatted}`,
+      `- Safety Car Status: ${scStatus}`,
+      `- Track Temp: ${session.TrackTemperature || 0}°C | Air Temp: ${session.AirTemperature || 0}°C`,
+      `- Player Position: P${playerLap?.CarPosition || 1}`,
+      `- Current Lap: ${playerLap?.CurrentLapNum || 1} / ${session.TotalLaps || 'N/A'}`,
+      `- Driver Run Status: ${playerRunStatus}`,
+      `- Current Lap Validity: ${lapValidity}`,
+      `- ${tyreWearSummary} (Tyre age: ${playerStatus?.TyresAgeLaps || 0} laps)`,
+    ];
+
+    if (tyreTempsSummary) lines.push(tyreTempsSummary);
+    if (brakesSummary) lines.push(brakesSummary);
+    if (engineSummary) lines.push(engineSummary);
+    if (ersSummary) lines.push(ersSummary);
+    if (fuelSummary) lines.push(fuelSummary);
+    if (aeroDamageSummary) lines.push(aeroDamageSummary);
+    if (warningsSummary) lines.push(warningsSummary);
+
+    return lines.join('\n');
+  }, [session, allLaps, allCarStatus, allCarDamage, allTelemetry2, telemetry, playerCarIndex, lap, carStatus, carDamage]);
 
   const radio = useRadioController({
     getLiveTelemetrySummary,
@@ -137,6 +202,16 @@ export const Dashboard: React.FC = () => {
       const trackName = trackInfo?.name || (session?.TrackId !== undefined ? (TRACK_NAMES[session.TrackId] || `Track #${session.TrackId}`) : 'F1 Circuit');
       const sessionName = getSessionTypeName(session?.SessionType);
 
+      const urgencyLevel = _isCritical ? 'critical' : 'high';
+      const incidentStatus =
+        session?.SafetyCarStatus === SAFETY_CAR_STATUS.FULL
+          ? 'safety_car'
+          : session?.SafetyCarStatus === SAFETY_CAR_STATUS.VIRTUAL
+          ? 'vsc'
+          : session?.NumRedFlagPeriods && session.NumRedFlagPeriods > 0
+          ? 'red_flag'
+          : 'clear';
+
       try {
         const response = await fetch('/api/ai/chat', {
           method: 'POST',
@@ -161,6 +236,8 @@ export const Dashboard: React.FC = () => {
               live_summary: liveSummary,
               custom_persona_prompt: radio.customPrompt || undefined,
               driver_callsign: radio.driverCallsign || undefined,
+              urgency_level: urgencyLevel,
+              incident_status: incidentStatus,
             },
           }),
         });
