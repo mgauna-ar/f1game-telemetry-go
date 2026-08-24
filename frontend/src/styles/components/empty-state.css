@@ -3,13 +3,14 @@
    ========================================================================== */
 
 .telemetry-waiting-container {
-  min-height: calc(100vh - 120px);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2rem 1.5rem;
+  padding: 1.5rem 0;
+  width: 100%;
   animation: fadeIn 0.3s ease-out;
 }
+
 
 .waiting-hero-card {
   max-width: 840px;
