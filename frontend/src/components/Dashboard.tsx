@@ -48,6 +48,7 @@ export const Dashboard: React.FC = () => {
     allLaps = [],
     allCarStatus = [],
     allCarDamage = [],
+    allTelemetry = [],
     allTelemetry2 = [],
     telemetry = null,
     lap = null,
@@ -86,7 +87,7 @@ export const Dashboard: React.FC = () => {
     const playerLap = allLaps[playerCarIndex] || lap;
     const playerStatus = allCarStatus[playerCarIndex] || carStatus;
     const playerDamage = allCarDamage[playerCarIndex] || carDamage;
-    const playerTelemetry = allTelemetry2[playerCarIndex] || telemetry;
+    const playerTelemetry = allTelemetry[playerCarIndex] || telemetry;
     const playerRunStatus = getDriverStatusLabel(playerLap?.DriverStatus);
     const lapValidity = playerLap?.CurrentLapInvalid === 1 ? 'INVALIDATED (Track Limits Exceeded)' : 'Valid';
 
