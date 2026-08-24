@@ -3,7 +3,13 @@ import {
   RADIO_ALERT_CONSTANTS,
   SAFETY_CAR_STATUS,
   PIT_STATUS,
+  DRIVER_STATUS,
+  SESSION_TYPES,
   RADIO_STORAGE_KEYS,
+  isQualifyingSession,
+  isPracticeSession,
+  isRaceSession,
+  getSessionTypeName,
 } from '../constants/f1';
 import type {
   SessionData,
@@ -70,6 +76,16 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
   const lastUndercutRivalIndexRef = useRef<number>(-1);
   const lastPuncturedRef = useRef<boolean>(false);
   const lastRainAlertRef = useRef<boolean>(false);
+
+  // Qualifying & Session specific refs
+  const lastInvalidLapNumRef = useRef<number>(-1);
+  const lastOutLapCheckedRef = useRef<number>(-1);
+  const lastSessionTimeWarnedRef = useRef<boolean>(false);
+  const lastEliminationDangerWarnedRef = useRef<boolean>(false);
+
+  const isQualy = isQualifyingSession(session?.SessionType);
+  const isPractice = isPracticeSession(session?.SessionType);
+  const isRace = isRaceSession(session?.SessionType) || (!isQualy && !isPractice);
 
   // Settings from localStorage
   const getAlertSettings = useCallback((): ProactiveAlertSettings => {
@@ -250,25 +266,27 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
     const settings = getAlertSettings();
     if (!settings.trackAlertsEnabled) return;
 
-    // Safety Car / VSC status change
-    const scStatus = session.SafetyCarStatus ?? SAFETY_CAR_STATUS.CLEAR;
-    if (scStatus !== lastSafetyCarStatusRef.current) {
-      lastSafetyCarStatusRef.current = scStatus;
+    // Safety Car / VSC status change (Race only)
+    if (isRace) {
+      const scStatus = session.SafetyCarStatus ?? SAFETY_CAR_STATUS.CLEAR;
+      if (scStatus !== lastSafetyCarStatusRef.current) {
+        lastSafetyCarStatusRef.current = scStatus;
 
-      if (scStatus === SAFETY_CAR_STATUS.FULL) {
-        triggerAlertSafe(
-          `[PROACTIVE PIT WALL CALL: Full Safety Car deployed! You are initiating this call — do NOT say 'Entendido' or 'Copy'. Directly announce Safety Car in pista / on track, maintain delta positive, stand by for pit stop window.]`,
-          true
-        );
-      } else if (scStatus === SAFETY_CAR_STATUS.VIRTUAL) {
-        triggerAlertSafe(
-          `[PROACTIVE PIT WALL CALL: Virtual Safety Car (VSC) deployed! You are initiating this call — do NOT say 'Entendido' or 'Copy'. Directly announce VSC deployed, maintain delta, no overtaking.]`,
-          true
-        );
+        if (scStatus === SAFETY_CAR_STATUS.FULL) {
+          triggerAlertSafe(
+            `[PROACTIVE PIT WALL CALL: Full Safety Car deployed! You are initiating this call — do NOT say 'Entendido' or 'Copy'. Directly announce Safety Car in pista / on track, maintain delta positive, stand by for pit stop window.]`,
+            true
+          );
+        } else if (scStatus === SAFETY_CAR_STATUS.VIRTUAL) {
+          triggerAlertSafe(
+            `[PROACTIVE PIT WALL CALL: Virtual Safety Car (VSC) deployed! You are initiating this call — do NOT say 'Entendido' or 'Copy'. Directly announce VSC deployed, maintain delta, no overtaking.]`,
+            true
+          );
+        }
       }
     }
 
-    // Red Flag period count change
+    // Red Flag period count change (Active in all sessions)
     const redFlagCount = session.NumRedFlagPeriods || 0;
     if (redFlagCount > lastRedFlagCountRef.current) {
       lastRedFlagCountRef.current = redFlagCount;
@@ -278,7 +296,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
       );
     }
 
-    // Rain Forecast check
+    // Rain Forecast check (Active in all sessions)
     if (session.WeatherForecastSamples && session.WeatherForecastSamples.length > 0) {
       const imminentRain = session.WeatherForecastSamples.find(
         (s) =>
@@ -295,11 +313,93 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
         );
       }
     }
-  }, [enabled, isRadioEnabled, session, getAlertSettings, triggerAlertSafe]);
+  }, [enabled, isRadioEnabled, session, isRace, getAlertSettings, triggerAlertSafe]);
 
-  // 4. Monitor Rival Battles, Gaps & Pit Stop Window Undercut
+  // 4. Qualifying & Practice Suite: Lap Invalidation, Out-Lap Clean Air Traffic, Session Clock & Elimination Risk
   useEffect(() => {
-    if (!enabled || !isRadioEnabled || !lap || allLaps.length === 0) return;
+    if (!enabled || !isRadioEnabled || !lap) return;
+
+    // 4.1 Lap Invalidation Alert (Qualifying & Practice & Race)
+    if (lap.CurrentLapInvalid === 1 && lap.CurrentLapNum !== lastInvalidLapNumRef.current) {
+      lastInvalidLapNumRef.current = lap.CurrentLapNum;
+      const isPushing = lap.DriverStatus === DRIVER_STATUS.FLYING_LAP || isQualy;
+      if (isPushing) {
+        triggerAlertSafe(
+          `[PROACTIVE PIT WALL CALL: Lap ${lap.CurrentLapNum} deleted for track limits! You are initiating this call — do NOT say 'Entendido' or 'Copy'. Inform driver lap is invalid, recharge ERS and reset for next flying attempt.]`,
+          true
+        );
+        return;
+      }
+    }
+
+    // 4.2 Qualifying Out-Lap Clean Air & Traffic Detection
+    if (isQualy && lap.DriverStatus === DRIVER_STATUS.OUT_LAP && allLaps.length > 0) {
+      // If driver is in Sector 3 (Sector index 2 or distance nearing end of lap), evaluate traffic ahead
+      const isFinalSector = (lap.Sector ?? 0) >= 2 || (session?.TrackLength && (lap.LapDistance || 0) > session.TrackLength * 0.7);
+      if (isFinalSector && lastOutLapCheckedRef.current !== lap.CurrentLapNum) {
+        // Find car closest ahead on track
+        const playerTrackDist = lap.TotalDistance || 0;
+        let minAheadDelta = 99999;
+
+        for (const rival of allLaps) {
+          if (!rival || rival === lap || !rival.TotalDistance) continue;
+          const deltaDist = rival.TotalDistance - playerTrackDist;
+          if (deltaDist > 10 && deltaDist < minAheadDelta) {
+            minAheadDelta = deltaDist;
+          }
+        }
+
+        if (minAheadDelta < RADIO_ALERT_CONSTANTS.QUALY_CLEAN_AIR_DISTANCE_METERS) {
+          lastOutLapCheckedRef.current = lap.CurrentLapNum;
+          const gapEstSec = (minAheadDelta / 60).toFixed(1);
+          triggerAlertSafe(
+            `[PROACTIVE PIT WALL CALL: Traffic ahead before starting hot lap — car ahead is only ~${gapEstSec}s away (<${Math.round(minAheadDelta)}m). You are initiating this call — do NOT say 'Entendido' or 'Copy'. Direct driver to slow down in final sector to build at least 4-5s of clean air.]`,
+            true
+          );
+          return;
+        } else if (minAheadDelta >= RADIO_ALERT_CONSTANTS.QUALY_CLEAN_AIR_DISTANCE_METERS && minAheadDelta < 9000) {
+          lastOutLapCheckedRef.current = lap.CurrentLapNum;
+          triggerAlertSafe(
+            `[PROACTIVE PIT WALL CALL: Track is clear ahead with clean air gap. You are initiating this call — do NOT say 'Entendido' or 'Copy'. Instruct driver to prepare front tyres and launch out of the final turn.]`,
+            false
+          );
+          return;
+        }
+      }
+    }
+
+    // 4.3 Qualifying / Practice Session Clock Final Run Warning (Under 3 Minutes)
+    if ((isQualy || isPractice) && session && session.SessionTimeLeft > 0) {
+      if (session.SessionTimeLeft <= RADIO_ALERT_CONSTANTS.QUALY_SESSION_TIME_WARN_SEC && !lastSessionTimeWarnedRef.current) {
+        lastSessionTimeWarnedRef.current = true;
+        const sessionName = getSessionTypeName(session.SessionType);
+        triggerAlertSafe(
+          `[PROACTIVE PIT WALL CALL: Under 3 minutes remaining in ${sessionName}! You are initiating this call — do NOT say 'Entendido' or 'Copy'. Direct driver to leave pit lane now for final flying lap before the chequered flag.]`,
+          true
+        );
+        return;
+      }
+    }
+
+    // 4.4 Qualifying Elimination Danger Warning (Under 5 Minutes & in Cutoff Zone)
+    if (isQualy && session && session.SessionTimeLeft > 0 && session.SessionTimeLeft <= 300 && !lastEliminationDangerWarnedRef.current) {
+      const playerPos = lap.CarPosition;
+      const isQ1Danger = (session.SessionType === SESSION_TYPES.Q1 || session.SessionType === SESSION_TYPES.SPRINT_Q1) && playerPos >= 15;
+      const isQ2Danger = (session.SessionType === SESSION_TYPES.Q2 || session.SessionType === SESSION_TYPES.SPRINT_Q2) && playerPos >= 10;
+
+      if (isQ1Danger || isQ2Danger) {
+        lastEliminationDangerWarnedRef.current = true;
+        triggerAlertSafe(
+          `[PROACTIVE PIT WALL CALL: We are in P${playerPos} in the elimination danger zone with under 5 minutes left! You are initiating this call — do NOT say 'Entendido' or 'Copy'. We need a clean, maximized lap to make the cutoff.]`,
+          true
+        );
+      }
+    }
+  }, [enabled, isRadioEnabled, lap, allLaps, session, isQualy, isPractice, triggerAlertSafe]);
+
+  // 5. Monitor Rival Battles, Gaps & Pit Stop Window Undercut (Race only)
+  useEffect(() => {
+    if (!enabled || !isRadioEnabled || !isRace || !lap || allLaps.length === 0) return;
     const settings = getAlertSettings();
 
     const now = Date.now();
@@ -311,7 +411,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
     const playerPos = lap.CarPosition;
     if (!playerPos || playerPos <= 0) return;
 
-    // Pit Window & Undercut detection
+    // Pit Window & Undercut detection (Race only)
     if (settings.pitWindowAlertsEnabled) {
       const carBehindIdx = allLaps.findIndex((l) => l && l.CarPosition === playerPos + 1);
       if (carBehindIdx >= 0 && carBehindIdx !== lastUndercutRivalIndexRef.current) {
@@ -408,6 +508,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
   }, [
     enabled,
     isRadioEnabled,
+    isRace,
     lap,
     allLaps,
     carStatus,
@@ -417,3 +518,4 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
     triggerAlertSafe,
   ]);
 }
+

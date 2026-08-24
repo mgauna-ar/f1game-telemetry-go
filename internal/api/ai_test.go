@@ -139,6 +139,42 @@ func TestBuildSystemPrompt(t *testing.T) {
 		}
 	})
 
+	t.Run("live session mode - qualifying session protocol", func(t *testing.T) {
+		ctxQualy := &TelemetryAnalysisContext{
+			ContextMode: "live",
+			SessionType: "Qualifying 3 (Q3)",
+			TrackName:   "Silverstone",
+			LiveSummary: "LIVE STATUS:\n- Track: Silverstone\n- Session: Qualifying 3 (Q3)",
+		}
+		promptEn := buildSystemPrompt(ctxQualy, "bono", "en")
+		if !strings.Contains(promptEn, "QUALIFYING PROTOCOL") || !strings.Contains(promptEn, "single-lap flying pace") {
+			t.Errorf("expected prompt to contain English qualifying protocol, got: %s", promptEn)
+		}
+
+		promptEs := buildSystemPrompt(ctxQualy, "colapinto", "es")
+		if !strings.Contains(promptEs, "PROTOCOLO DE CLASIFICACIÓN / QUALY") || !strings.Contains(promptEs, "vuelta rápida lanzada") {
+			t.Errorf("expected prompt to contain Spanish qualifying protocol, got: %s", promptEs)
+		}
+	})
+
+	t.Run("live session mode - practice session protocol", func(t *testing.T) {
+		ctxPractice := &TelemetryAnalysisContext{
+			ContextMode: "live",
+			SessionType: "Practice 2 (FP2)",
+			TrackName:   "Monza",
+			LiveSummary: "LIVE STATUS:\n- Track: Monza\n- Session: Practice 2 (FP2)",
+		}
+		promptEn := buildSystemPrompt(ctxPractice, "bono", "en")
+		if !strings.Contains(promptEn, "FREE PRACTICE PROTOCOL") || !strings.Contains(promptEn, "setup feedback") {
+			t.Errorf("expected prompt to contain English practice protocol, got: %s", promptEn)
+		}
+
+		promptEs := buildSystemPrompt(ctxPractice, "colapinto", "es")
+		if !strings.Contains(promptEs, "PROTOCOLO DE PRÁCTICAS LIBRES") || !strings.Contains(promptEs, "puesta a punto") {
+			t.Errorf("expected prompt to contain Spanish practice protocol, got: %s", promptEs)
+		}
+	})
+
 	t.Run("with telemetry context and zoom", func(t *testing.T) {
 		ctx := &TelemetryAnalysisContext{
 			TrackName:         "Silverstone",

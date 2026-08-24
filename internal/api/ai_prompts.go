@@ -113,7 +113,50 @@ func buildLivePrompt(telemetryCtx *TelemetryAnalysisContext, persona, language s
 	sb.WriteString("2. PROACTIVE CALLS VS DRIVER REPLIES:\n")
 	sb.WriteString("   - When issuing a PROACTIVE ALERT or PIT WALL BROADCAST (Safety Car, VSC, flags, tyre wear, rain forecast, rival threat, box call), you are INITIATING the call. NEVER say 'Entendido', 'Te copio', 'Copiado', 'Copy', 'Understood', or 'Roger' on proactive alerts, because the driver did not speak! Announce the event and command directly.\n")
 	sb.WriteString("   - ONLY use 'Entendido', 'Te copio', 'Copy', or 'Roger' when the driver explicitly spoke first to ask a question or give a report.\n")
-	sb.WriteString("3. Provide sharp tactical advice on tyre wear, rival gaps, weather/safety car status, or pit windows based on the live data.\n\n")
+	// Detect session type mode (Qualifying vs Practice vs Race)
+	sessionType := ""
+	trackName := ""
+	if telemetryCtx != nil {
+		sessionType = strings.ToLower(telemetryCtx.SessionType)
+		trackName = telemetryCtx.TrackName
+	}
+	if trackName == "" {
+		trackName = "F1 Circuit"
+	}
+
+	isQualy := strings.Contains(sessionType, "qual") || strings.Contains(sessionType, "shootout") || strings.Contains(sessionType, "q1") || strings.Contains(sessionType, "q2") || strings.Contains(sessionType, "q3") || strings.Contains(sessionType, "sq1") || strings.Contains(sessionType, "sq2") || strings.Contains(sessionType, "sq3")
+	isPractice := strings.Contains(sessionType, "practice") || strings.Contains(sessionType, "fp1") || strings.Contains(sessionType, "fp2") || strings.Contains(sessionType, "fp3") || strings.Contains(sessionType, "p1") || strings.Contains(sessionType, "p2") || strings.Contains(sessionType, "p3")
+
+	sb.WriteString("\nSESSION PROTOCOL DIRECTIVES:\n")
+	if isQualy {
+		if isEnglish {
+			fmt.Fprintf(&sb, "3. QUALIFYING PROTOCOL (Active Session: %s at %s):\n", telemetryCtx.SessionType, trackName)
+			sb.WriteString("   - Focus 100% on single-lap flying pace, delta to cutoff/pole, out-lap tyre preparation, traffic clean air gaps, and remaining session clock.\n")
+			sb.WriteString("   - DO NOT discuss pit stop undercut strategies, tyre degradation over 20 laps, or race stint management.\n\n")
+		} else {
+			fmt.Fprintf(&sb, "3. PROTOCOLO DE CLASIFICACIÓN / QUALY (Sesión Activa: %s en %s):\n", telemetryCtx.SessionType, trackName)
+			sb.WriteString("   - Enfocate 100% en el ritmo de vuelta rápida lanzada, diferencias con el tiempo de corte/pole, preparación térmica de gomas en out-lap, huecos de aire limpio sin tráfico y tiempo restante de sesión.\n")
+			sb.WriteString("   - NO hables de estrategias de undercut en boxes, degradación de carrera ni gestión de combustible a 20 vueltas.\n\n")
+		}
+	} else if isPractice {
+		if isEnglish {
+			fmt.Fprintf(&sb, "3. FREE PRACTICE PROTOCOL (Active Session: %s at %s):\n", telemetryCtx.SessionType, trackName)
+			sb.WriteString("   - Focus on vehicle setup feedback, corner entry/exit balance, stint tyre degradation rates, and pace consistency.\n")
+			sb.WriteString("   - DO NOT treat on-track cars as position battles or call for aggressive wheel-to-wheel defense.\n\n")
+		} else {
+			fmt.Fprintf(&sb, "3. PROTOCOLO DE PRÁCTICAS LIBRES (Sesión Activa: %s en %s):\n", telemetryCtx.SessionType, trackName)
+			sb.WriteString("   - Enfocate en el balance y puesta a punto del monoplaza, comportamiento en frenada y tracción, degradación de neumáticos por stint y consistencia de ritmo.\n")
+			sb.WriteString("   - NO trates a los otros autos en pista como peleas por posición de carrera ni pidas maniobras defensivas agresivas.\n\n")
+		}
+	} else {
+		if isEnglish {
+			sb.WriteString("3. RACE PROTOCOL:\n")
+			sb.WriteString("   - Provide sharp tactical advice on tyre degradation, rival gaps, pit window undercuts, Safety Car restarts, and fuel/ERS deployment.\n\n")
+		} else {
+			sb.WriteString("3. PROTOCOLO DE CARRERA:\n")
+			sb.WriteString("   - Brindá asesoramiento táctico sobre degradación de neumáticos, diferencias con rivales, ventanas de parada en boxes/undercut, relanzamientos de Safety Car y uso de ERS en sobrepasos.\n\n")
+		}
+	}
 
 	sb.WriteString("### LIVE SESSION TELEMETRY & PIT WALL DATA:\n")
 	if telemetryCtx != nil && telemetryCtx.LiveSummary != "" {

@@ -1,7 +1,13 @@
 import React, { useEffect, useCallback } from 'react';
 import { useTelemetry } from '../hooks/useTelemetry';
 import { useRaceEngineer } from '../context/RaceEngineerContext';
-import { SAFETY_CAR_STATUS } from '../constants/f1';
+import {
+  SAFETY_CAR_STATUS,
+  DRIVER_STATUS,
+  getTrackInfo,
+  TRACK_NAMES,
+  getSessionTypeName,
+} from '../constants/f1';
 import { SessionHeader } from './SessionHeader';
 import { LeaderboardTower } from './LeaderboardTower';
 import { RaceControlFeed } from './RaceControlFeed';
@@ -12,6 +18,28 @@ import { WaitingForData } from './WaitingForData';
 import { LiveRadioHUD } from './LiveRadioHUD';
 import { useRadioController } from '../hooks/useRadioController';
 import { useProactiveTelemetryRadio } from '../hooks/useProactiveTelemetryRadio';
+
+const getDriverStatusLabel = (status?: number): string => {
+  switch (status) {
+    case DRIVER_STATUS.FLYING_LAP:
+      return 'Flying Lap (Hot Lap)';
+    case DRIVER_STATUS.OUT_LAP:
+      return 'Out-Lap (Warming tyres / Building gap)';
+    case DRIVER_STATUS.IN_LAP:
+      return 'In-Lap (Returning to box)';
+    case DRIVER_STATUS.IN_GARAGE:
+      return 'In Garage / Pit Lane';
+    default:
+      return 'On Track';
+  }
+};
+
+const formatSessionClock = (seconds?: number): string => {
+  if (seconds === undefined || seconds === null || seconds <= 0) return 'N/A';
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+};
 
 export const Dashboard: React.FC = () => {
   const {
@@ -40,6 +68,12 @@ export const Dashboard: React.FC = () => {
     if (!session) {
       return 'STATUS: Pit lane / Garage. Waiting for live telemetry packet stream from game.';
     }
+
+    const trackInfo = session.TrackId !== undefined ? getTrackInfo(session.TrackId) : null;
+    const trackName = trackInfo?.name || (session.TrackId !== undefined ? (TRACK_NAMES[session.TrackId] || `Track #${session.TrackId}`) : 'F1 Circuit');
+    const sessionName = getSessionTypeName(session.SessionType);
+    const sessionTimeLeftFormatted = formatSessionClock(session.SessionTimeLeft);
+
     const scStatus =
       session.SafetyCarStatus === SAFETY_CAR_STATUS.FULL
         ? 'Full Safety Car'
@@ -50,6 +84,8 @@ export const Dashboard: React.FC = () => {
     const playerLap = allLaps[playerCarIndex] || lap;
     const playerStatus = allCarStatus[playerCarIndex] || carStatus;
     const playerDamage = allCarDamage[playerCarIndex] || carDamage;
+    const playerRunStatus = getDriverStatusLabel(playerLap?.DriverStatus);
+    const lapValidity = playerLap?.CurrentLapInvalid === 1 ? 'INVALIDATED (Track Limits Exceeded)' : 'Valid';
 
     let tyreWearSummary = 'Tyre wear normal';
     if (playerDamage && playerDamage.TyresWear) {
@@ -58,11 +94,15 @@ export const Dashboard: React.FC = () => {
     }
 
     return `LIVE PIT WALL TELEMETRY:
-- Track ID: #${session.TrackId ?? 0}
+- Track: ${trackName}
+- Session: ${sessionName}
+- Session Time Remaining: ${sessionTimeLeftFormatted}
 - Safety Car Status: ${scStatus}
 - Track Temp: ${session.TrackTemperature || 0}°C | Air Temp: ${session.AirTemperature || 0}°C
 - Player Position: P${playerLap?.CarPosition || 1}
 - Current Lap: ${playerLap?.CurrentLapNum || 1} / ${session.TotalLaps || 'N/A'}
+- Driver Run Status: ${playerRunStatus}
+- Current Lap Validity: ${lapValidity}
 - ${tyreWearSummary} (Tyre age: ${playerStatus?.TyresAgeLaps || 0} laps)
 `;
   }, [session, allLaps, allCarStatus, allCarDamage, playerCarIndex, lap, carStatus, carDamage]);
@@ -93,6 +133,10 @@ export const Dashboard: React.FC = () => {
         if (storedBaseUrl) aiBaseUrl = storedBaseUrl;
       } catch {}
 
+      const trackInfo = session?.TrackId !== undefined ? getTrackInfo(session.TrackId) : null;
+      const trackName = trackInfo?.name || (session?.TrackId !== undefined ? (TRACK_NAMES[session.TrackId] || `Track #${session.TrackId}`) : 'F1 Circuit');
+      const sessionName = getSessionTypeName(session?.SessionType);
+
       try {
         const response = await fetch('/api/ai/chat', {
           method: 'POST',
@@ -112,6 +156,8 @@ export const Dashboard: React.FC = () => {
             ],
             context: {
               context_mode: 'live',
+              track_name: trackName,
+              session_type: sessionName,
               live_summary: liveSummary,
               custom_persona_prompt: radio.customPrompt || undefined,
               driver_callsign: radio.driverCallsign || undefined,
@@ -155,7 +201,7 @@ export const Dashboard: React.FC = () => {
         console.warn('Proactive radio call generation failed:', err);
       }
     },
-    [getLiveTelemetrySummary, radio]
+    [getLiveTelemetrySummary, radio, session]
   );
 
   useProactiveTelemetryRadio({
@@ -173,6 +219,10 @@ export const Dashboard: React.FC = () => {
 
   useEffect(() => {
     if (connected && session) {
+      const trackInfo = session.TrackId !== undefined ? getTrackInfo(session.TrackId) : null;
+      const trackName = trackInfo?.name || (session.TrackId !== undefined ? (TRACK_NAMES[session.TrackId] || `Track #${session.TrackId}`) : 'F1 Circuit');
+      const sessionName = getSessionTypeName(session.SessionType);
+
       const weatherDesc =
         session.WeatherForecastSamples && session.WeatherForecastSamples.length > 0
           ? `Forecast: ${session.WeatherForecastSamples.length} forecast updates available`
@@ -186,8 +236,8 @@ export const Dashboard: React.FC = () => {
           : 'Track Clear (Green)';
 
       const liveSummary = `LIVE PIT WALL TELEMETRY:
-- Track ID: #${session.TrackId ?? 0}
-- Session Type: #${session.SessionType ?? 0}
+- Track: ${trackName}
+- Session: ${sessionName}
 - Safety Car Status: ${scStatus}
 - Track Temp: ${session.TrackTemperature || 0}°C | Air Temp: ${session.AirTemperature || 0}°C
 - ${weatherDesc}
@@ -197,8 +247,8 @@ export const Dashboard: React.FC = () => {
 `;
 
       setLiveContext({
-        trackName: `Track #${session.TrackId ?? 0}`,
-        sessionType: 'Live Race',
+        trackName,
+        sessionType: sessionName,
         safetyCarStatus: scStatus,
         weatherSummary: weatherDesc,
         liveSummary,

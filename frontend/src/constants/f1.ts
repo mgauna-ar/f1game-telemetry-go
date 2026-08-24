@@ -126,6 +126,90 @@ export const SESSION_TYPES = {
   EQUAL_SPRINT_RACE: 20,
 } as const;
 
+export const isQualifyingSession = (sessionType?: number): boolean => {
+  if (sessionType === undefined || sessionType === null) return false;
+  return (
+    sessionType === SESSION_TYPES.Q1 ||
+    sessionType === SESSION_TYPES.Q2 ||
+    sessionType === SESSION_TYPES.Q3 ||
+    sessionType === SESSION_TYPES.SHORT_Q ||
+    sessionType === SESSION_TYPES.OSQ ||
+    sessionType === SESSION_TYPES.SPRINT_Q1 ||
+    sessionType === SESSION_TYPES.SPRINT_Q2 ||
+    sessionType === SESSION_TYPES.SPRINT_Q3 ||
+    sessionType === SESSION_TYPES.SHORT_SPRINT_Q ||
+    sessionType === SESSION_TYPES.OS_SPRINT_Q
+  );
+};
+
+export const isPracticeSession = (sessionType?: number): boolean => {
+  if (sessionType === undefined || sessionType === null) return false;
+  return (
+    sessionType === SESSION_TYPES.P1 ||
+    sessionType === SESSION_TYPES.P2 ||
+    sessionType === SESSION_TYPES.P3 ||
+    sessionType === SESSION_TYPES.SHORT_P
+  );
+};
+
+export const isRaceSession = (sessionType?: number): boolean => {
+  if (sessionType === undefined || sessionType === null) return false;
+  return (
+    sessionType === SESSION_TYPES.RACE ||
+    sessionType === SESSION_TYPES.RACE_2 ||
+    sessionType === SESSION_TYPES.RACE_3 ||
+    sessionType === SESSION_TYPES.SPRINT_RACE ||
+    sessionType === SESSION_TYPES.EQUAL_SPRINT_RACE
+  );
+};
+
+export const getSessionTypeName = (sessionType?: number): string => {
+  switch (sessionType) {
+    case SESSION_TYPES.P1:
+      return 'Practice 1 (FP1)';
+    case SESSION_TYPES.P2:
+      return 'Practice 2 (FP2)';
+    case SESSION_TYPES.P3:
+      return 'Practice 3 (FP3)';
+    case SESSION_TYPES.SHORT_P:
+      return 'Short Practice';
+    case SESSION_TYPES.Q1:
+      return 'Qualifying 1 (Q1)';
+    case SESSION_TYPES.Q2:
+      return 'Qualifying 2 (Q2)';
+    case SESSION_TYPES.Q3:
+      return 'Qualifying 3 (Q3)';
+    case SESSION_TYPES.SHORT_Q:
+      return 'Short Qualifying';
+    case SESSION_TYPES.OSQ:
+      return 'One-Shot Qualifying';
+    case SESSION_TYPES.SPRINT_Q1:
+      return 'Sprint Shootout 1 (SQ1)';
+    case SESSION_TYPES.SPRINT_Q2:
+      return 'Sprint Shootout 2 (SQ2)';
+    case SESSION_TYPES.SPRINT_Q3:
+      return 'Sprint Shootout 3 (SQ3)';
+    case SESSION_TYPES.SHORT_SPRINT_Q:
+      return 'Short Sprint Shootout';
+    case SESSION_TYPES.OS_SPRINT_Q:
+      return 'One-Shot Sprint Shootout';
+    case SESSION_TYPES.RACE:
+      return 'Grand Prix Race';
+    case SESSION_TYPES.RACE_2:
+      return 'Race 2';
+    case SESSION_TYPES.RACE_3:
+      return 'Race 3';
+    case SESSION_TYPES.TIME_TRIAL:
+      return 'Time Trial';
+    case SESSION_TYPES.SPRINT_RACE:
+      return 'Sprint Race';
+    case SESSION_TYPES.EQUAL_SPRINT_RACE:
+      return 'Equal Sprint Race';
+    default:
+      return 'Live Session';
+  }
+};
+
 export const getSessionTypeCode = (sessionTypeStr?: string): number => {
   if (!sessionTypeStr) return 0;
   const s = sessionTypeStr.trim().toLowerCase();
@@ -514,6 +598,11 @@ export const RADIO_ALERT_CONSTANTS = {
   TYRE_TEMP_COLD_C: 85,
   SMART_DISCRETION_BRAKE_THRESHOLD: 50,
   SMART_DISCRETION_STEER_THRESHOLD: 0.45,
+  // Qualifying specific alert constants
+  QUALY_CLEAN_AIR_MIN_GAP_SEC: 4.0,
+  QUALY_CLEAN_AIR_DISTANCE_METERS: 250,
+  QUALY_SESSION_TIME_WARN_SEC: 180,
+  QUALY_OUTLAP_SECTOR_TRIGGER: 3,
 } as const;
 
 

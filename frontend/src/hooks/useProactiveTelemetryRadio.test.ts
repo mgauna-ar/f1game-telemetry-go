@@ -198,8 +198,12 @@ describe('useProactiveTelemetryRadio hook', () => {
     );
   });
 
-  it('triggers undercut alert when car behind boxes', async () => {
+  it('triggers undercut alert when car behind boxes in a Race session', async () => {
     const onTriggerAlert = vi.fn().mockResolvedValue(undefined);
+
+    const session = {
+      SessionType: 15, // Race
+    } as unknown as SessionData;
 
     const playerLap = {
       CarPosition: 2,
@@ -214,6 +218,7 @@ describe('useProactiveTelemetryRadio hook', () => {
 
     renderHook(() =>
       useProactiveTelemetryRadio({
+        session,
         lap: playerLap,
         allLaps: [playerLap, rivalLap],
         onTriggerAlert,
@@ -226,4 +231,158 @@ describe('useProactiveTelemetryRadio hook', () => {
       true
     );
   });
+
+  it('suppresses undercut and DRS battle alerts when in a Qualifying session', async () => {
+    const onTriggerAlert = vi.fn().mockResolvedValue(undefined);
+
+    const session = {
+      SessionType: 5, // Q1
+    } as unknown as SessionData;
+
+    const playerLap = {
+      CarPosition: 2,
+      TotalDistance: 6000,
+    } as unknown as LapData;
+
+    const rivalLap = {
+      CarPosition: 3,
+      TotalDistance: 5920, // 80m behind
+      PitStatus: 1, // Pitting
+    } as unknown as LapData;
+
+    renderHook(() =>
+      useProactiveTelemetryRadio({
+        session,
+        lap: playerLap,
+        allLaps: [playerLap, rivalLap],
+        onTriggerAlert,
+      })
+    );
+
+    // Should NOT trigger race undercut call during Qualifying
+    expect(onTriggerAlert).not.toHaveBeenCalled();
+  });
+
+  it('triggers lap invalidation alert when driver exceeds track limits during Qualifying', async () => {
+    const onTriggerAlert = vi.fn().mockResolvedValue(undefined);
+
+    const session = {
+      SessionType: 7, // Q3
+    } as unknown as SessionData;
+
+    const playerLap = {
+      CurrentLapNum: 4,
+      CurrentLapInvalid: 1, // Invalidated
+      DriverStatus: 1, // Flying lap
+    } as unknown as LapData;
+
+    renderHook(() =>
+      useProactiveTelemetryRadio({
+        session,
+        lap: playerLap,
+        allLaps: [playerLap],
+        onTriggerAlert,
+      })
+    );
+
+    expect(onTriggerAlert).toHaveBeenCalledTimes(1);
+    expect(onTriggerAlert).toHaveBeenCalledWith(
+      expect.stringContaining('deleted for track limits'),
+      true
+    );
+  });
+
+  it('triggers out-lap traffic alert in Qualifying when car ahead is within 4s in sector 3', async () => {
+    const onTriggerAlert = vi.fn().mockResolvedValue(undefined);
+
+    const session = {
+      SessionType: 6, // Q2
+      TrackLength: 5891,
+    } as unknown as SessionData;
+
+    const playerLap = {
+      CurrentLapNum: 2,
+      DriverStatus: 3, // Out-lap
+      Sector: 2, // Sector 3 (0-indexed 2)
+      LapDistance: 4500,
+      TotalDistance: 4500,
+    } as unknown as LapData;
+
+    const rivalLap = {
+      CurrentLapNum: 2,
+      TotalDistance: 4620, // 120m ahead (<250m clean air threshold)
+    } as unknown as LapData;
+
+    renderHook(() =>
+      useProactiveTelemetryRadio({
+        session,
+        lap: playerLap,
+        allLaps: [playerLap, rivalLap],
+        onTriggerAlert,
+      })
+    );
+
+    expect(onTriggerAlert).toHaveBeenCalledTimes(1);
+    expect(onTriggerAlert).toHaveBeenCalledWith(
+      expect.stringContaining('Traffic ahead before starting hot lap'),
+      true
+    );
+  });
+
+  it('triggers session time warning when under 3 minutes remain in Qualifying', async () => {
+    const onTriggerAlert = vi.fn().mockResolvedValue(undefined);
+
+    const session = {
+      SessionType: 5, // Q1
+      SessionTimeLeft: 170, // 2m 50s left (<180s)
+    } as unknown as SessionData;
+
+    const playerLap = {
+      CurrentLapNum: 5,
+      DriverStatus: 0, // In garage
+    } as unknown as LapData;
+
+    renderHook(() =>
+      useProactiveTelemetryRadio({
+        session,
+        lap: playerLap,
+        onTriggerAlert,
+      })
+    );
+
+    expect(onTriggerAlert).toHaveBeenCalledTimes(1);
+    expect(onTriggerAlert).toHaveBeenCalledWith(
+      expect.stringContaining('Under 3 minutes remaining in Qualifying 1 (Q1)'),
+      true
+    );
+  });
+
+  it('triggers elimination danger alert when in Q1 and position is P16 with under 5 min left', async () => {
+    const onTriggerAlert = vi.fn().mockResolvedValue(undefined);
+
+    const session = {
+      SessionType: 5, // Q1
+      SessionTimeLeft: 240, // 4 mins left
+    } as unknown as SessionData;
+
+    const playerLap = {
+      CarPosition: 16, // Danger zone!
+      CurrentLapNum: 3,
+    } as unknown as LapData;
+
+    renderHook(() =>
+      useProactiveTelemetryRadio({
+        session,
+        lap: playerLap,
+        onTriggerAlert,
+      })
+    );
+
+    expect(onTriggerAlert).toHaveBeenCalledTimes(1);
+    expect(onTriggerAlert).toHaveBeenCalledWith(
+      expect.stringContaining('elimination danger zone with under 5 minutes left'),
+      true
+    );
+  });
 });
+
