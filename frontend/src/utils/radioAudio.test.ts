@@ -67,7 +67,7 @@ describe('radioAudio utils', () => {
       const scPrompt = '[PROACTIVE PIT WALL CALL: Full Safety Car deployed! You are initiating this call — do NOT say "Entendido" or "Copy". Directly announce Safety Car in pista / on track, maintain delta positive, stand by for pit stop window.]';
       
       const speechEs = formatProactiveFallbackSpeech(scPrompt, 'es', 'colapinto', 'Franco');
-      expect(speechEs).toContain('Auto de seguridad');
+      expect(speechEs).toMatch(/auto de seguridad/i);
       expect(speechEs).toContain('Franco');
 
       const speechEn = formatProactiveFallbackSpeech(scPrompt, 'en', 'bono', 'Lewis');

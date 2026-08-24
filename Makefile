@@ -3,6 +3,11 @@
 BINARY_NAME=f1telemetry
 BUILD_DIR=bin
 
+VERSION ?= $(shell git describe --tags --always 2>/dev/null || echo dev)
+COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
+DATE ?= $(shell date -u +%Y-%m-%d)
+LDFLAGS=-s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)
+
 ## help: Show this help message
 help:
 	@echo 'Usage:'
@@ -10,7 +15,7 @@ help:
 
 ## build: Build the server binary
 build:
-	go build -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/server
+	go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/server
 
 ## build-frontend: Build the production React frontend
 build-frontend:
@@ -18,19 +23,19 @@ build-frontend:
 
 ## build-embedded: Build standalone single-binary with embedded frontend
 build-embedded: build-frontend
-	go build -ldflags="-s -w -X main.version=$$(git describe --tags --always 2>/dev/null || echo dev) -X main.commit=$$(git rev-parse --short HEAD 2>/dev/null || echo none) -X main.date=$$(date -u +%Y-%m-%d)" -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/server
+	go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/server
 
 ## build-all: Cross-compile standalone binaries for Windows, macOS, and Linux
 build-all: build-frontend
 	@mkdir -p $(BUILD_DIR)
 	@go run ./scripts/build_windows_resources.go
-	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o $(BUILD_DIR)/$(BINARY_NAME)_windows_amd64.exe ./cmd/server
-	CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build -ldflags="-s -w" -o $(BUILD_DIR)/$(BINARY_NAME)_windows_arm64.exe ./cmd/server
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)_windows_amd64.exe ./cmd/server
+	CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)_windows_arm64.exe ./cmd/server
 	@go run ./scripts/build_windows_resources.go -clean
-	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o $(BUILD_DIR)/$(BINARY_NAME)_darwin_arm64 ./cmd/server
-	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o $(BUILD_DIR)/$(BINARY_NAME)_darwin_amd64 ./cmd/server
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o $(BUILD_DIR)/$(BINARY_NAME)_linux_amd64 ./cmd/server
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o $(BUILD_DIR)/$(BINARY_NAME)_linux_arm64 ./cmd/server
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)_darwin_arm64 ./cmd/server
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)_darwin_amd64 ./cmd/server
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)_linux_amd64 ./cmd/server
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)_linux_arm64 ./cmd/server
 	@echo "All standalone binaries built successfully in $(BUILD_DIR)/"
 
 ## run: Build and run the server

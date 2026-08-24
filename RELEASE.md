@@ -110,7 +110,7 @@ When triggered, the [`.github/workflows/release.yml`](.github/workflows/release.
 
 After GitHub Actions finishes (typically ~1-2 minutes):
 
-1. Open the release page: `https://github.com/mgauna/f1game-telemetry-go/releases/tag/vX.X.X`.
+1. Open the release page: `https://github.com/mgauna-ar/f1game-telemetry-go/releases/tag/vX.X.X`.
 2. Download the archive for your operating system.
 3. Extract and launch `f1telemetry` / `f1telemetry.exe`.
 4. Verify:

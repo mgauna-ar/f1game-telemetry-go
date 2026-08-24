@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -14,7 +15,7 @@ import (
 
 const (
 	// DefaultGitHubRepo is the upstream repository to check for releases.
-	DefaultGitHubRepo = "mgauna/f1game-telemetry-go"
+	DefaultGitHubRepo = "mgauna-ar/f1game-telemetry-go"
 	// ReleaseCacheTTL is the duration release check responses are cached in-memory.
 	ReleaseCacheTTL = 1 * time.Hour
 )
@@ -351,6 +352,7 @@ func (s *Server) handleCheckUpdates(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := CheckForUpdates(r.Context(), repo, ver.Version, includePrerelease)
 	if err != nil {
+		log.Printf("[Updater] Update check failed for repo %q: %v", repo, err)
 		// Return 200 with update_available: false on network/offline errors to avoid breaking UI
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(UpdateCheckResponse{

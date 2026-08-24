@@ -92,7 +92,7 @@ func TestCheckForUpdatesWithMockReleases(t *testing.T) {
 			TagName:     "v1.0.0",
 			Name:        "F1 Telemetry Analyzer v1.0.0",
 			Body:        "Initial stable release",
-			HTMLURL:     "https://github.com/mgauna/f1game-telemetry-go/releases/tag/v1.0.0",
+			HTMLURL:     "https://github.com/mgauna-ar/f1game-telemetry-go/releases/tag/v1.0.0",
 			Draft:       false,
 			Prerelease:  false,
 			PublishedAt: "2026-08-18T20:00:00Z",
@@ -110,7 +110,7 @@ func TestCheckForUpdatesWithMockReleases(t *testing.T) {
 	releaseCacheMutex.Unlock()
 
 	ctx := context.Background()
-	res, err := CheckForUpdates(ctx, "mgauna/f1game-telemetry-go", "v0.9.0", false)
+	res, err := CheckForUpdates(ctx, "mgauna-ar/f1game-telemetry-go", "v0.9.0", false)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
