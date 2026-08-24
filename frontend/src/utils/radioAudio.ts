@@ -302,6 +302,33 @@ export async function playRadioAudioBuffer(
 }
 
 /**
+ * Sanitizes voice engineer speech text by removing internal debug tags,
+ * proactive prompt headers (e.g. [PROACTIVE PIT WALL CALL: ...]), and bracketed instructions.
+ */
+export function cleanRadioSpeechText(text: string): string {
+  if (!text) return '';
+  let cleaned = text.trim();
+
+  // Strip leading [PROACTIVE PIT WALL CALL: ...] or [PROACTIVE PIT WALL CALL] tag
+  cleaned = cleaned.replace(/^\[PROACTIVE(?:\s+PIT\s+WALL(?:\s+CALL)?)?\]?:?\s*/i, '');
+
+  // Strip leading PROACTIVE PIT WALL CALL: or PROACTIVE PIT WALL:
+  cleaned = cleaned.replace(/^PROACTIVE(?:\s+PIT\s+WALL(?:\s+CALL)?)?:?\s*/i, '');
+
+  // If there's a trailing bracket remaining from opening bracket, e.g. "Message]"
+  if (cleaned.endsWith(']') && !cleaned.includes('[')) {
+    cleaned = cleaned.slice(0, -1);
+  }
+
+  // If the whole string is still wrapped in [...], strip surrounding brackets
+  if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
+    cleaned = cleaned.slice(1, -1);
+  }
+
+  return cleaned.trim();
+}
+
+/**
  * Requests speech synthesis from the Go backend (Microsoft Edge Neural TTS)
  * and plays it with F1 radio sound effects, static ambience, and callbacks.
  */
@@ -318,12 +345,12 @@ export async function speakRadioResponse(
     onError,
   } = options;
 
-  const trimmed = text.trim();
-  if (!trimmed) return;
+  const cleaned = cleanRadioSpeechText(text);
+  if (!cleaned) return;
 
   stopRadioSpeech();
 
-  const cacheKey = `${voice || 'default'}|${persona}|${language || ''}|${rate}|${pitch}|${trimmed}`;
+  const cacheKey = `${voice || 'default'}|${persona}|${language || ''}|${rate}|${pitch}|${cleaned}`;
   const cached = ttsAudioMemoryCache.get(cacheKey);
   if (cached) {
     await playRadioAudioBuffer(cached, options);
@@ -335,7 +362,7 @@ export async function speakRadioResponse(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        text: trimmed,
+        text: cleaned,
         voice: voice || undefined,
         persona,
         language,

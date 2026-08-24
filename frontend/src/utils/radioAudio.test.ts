@@ -5,6 +5,7 @@ import {
   speakRadioResponse,
   playRadioAudioBuffer,
   stopRadioSpeech,
+  cleanRadioSpeechText,
   isSpeechRecognitionSupported,
   _resetAudioContextForTesting,
 } from './radioAudio';
@@ -13,6 +14,37 @@ describe('radioAudio utils', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     _resetAudioContextForTesting();
+  });
+
+  describe('cleanRadioSpeechText', () => {
+    it('strips [PROACTIVE PIT WALL CALL: ...] prefix and brackets', () => {
+      expect(
+        cleanRadioSpeechText(
+          '[PROACTIVE PIT WALL CALL: Desgaste en la delantera izquierda llegó al 45%. Cuidá la tracción en salida de curvas lentas.]'
+        )
+      ).toBe('Desgaste en la delantera izquierda llegó al 45%. Cuidá la tracción en salida de curvas lentas.');
+
+      expect(
+        cleanRadioSpeechText(
+          '[PROACTIVE PIT WALL CALL: Front wing flap damage detected. Expect understeer in medium and high speed corners.]'
+        )
+      ).toBe('Front wing flap damage detected. Expect understeer in medium and high speed corners.');
+    });
+
+    it('strips leading [PROACTIVE PIT WALL CALL] without brackets', () => {
+      expect(cleanRadioSpeechText('[PROACTIVE PIT WALL CALL] Box box box')).toBe('Box box box');
+      expect(cleanRadioSpeechText('[PROACTIVE PIT WALL CALL: Box box box')).toBe('Box box box');
+    });
+
+    it('retains regular radio messages unaltered', () => {
+      expect(cleanRadioSpeechText('Box this lap, confirm tyres.')).toBe('Box this lap, confirm tyres.');
+      expect(cleanRadioSpeechText('  Radio check, loud and clear.  ')).toBe('Radio check, loud and clear.');
+    });
+
+    it('handles empty or blank input gracefully', () => {
+      expect(cleanRadioSpeechText('')).toBe('');
+      expect(cleanRadioSpeechText('   ')).toBe('');
+    });
   });
 
   describe('makeDistortionCurve', () => {

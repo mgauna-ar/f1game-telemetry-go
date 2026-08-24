@@ -121,7 +121,6 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
     allCarStatus = [],
     telemetry,
     telemetry2,
-    allTelemetry2 = [],
     packetFormat,
     onTriggerAlert,
   } = options;

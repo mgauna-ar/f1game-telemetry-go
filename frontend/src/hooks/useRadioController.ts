@@ -14,6 +14,7 @@ import {
   playRadioBeep,
   speakRadioResponse,
   stopRadioSpeech,
+  cleanRadioSpeechText,
   getSpeechRecognitionClass,
   type ISpeechRecognition,
 } from '../utils/radioAudio';
@@ -1097,22 +1098,23 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
 
   const speakMessage = useCallback(
     async (text: string, forceInterrupt = false) => {
-      if (!isRadioEnabled || !text.trim()) return;
+      const cleaned = cleanRadioSpeechText(text);
+      if (!isRadioEnabled || !cleaned) return;
 
       if (forceInterrupt) {
         stopRadio();
       }
 
       setRadioState('speaking');
-      setLastResponse(text);
+      setLastResponse(cleaned);
       if (onResponseReceived) {
-        onResponseReceived(text);
+        onResponseReceived(cleaned);
       }
 
       const rateStr = speechRate >= 0 ? `+${speechRate}%` : `${speechRate}%`;
       const pitchStr = speechPitch >= 0 ? `+${speechPitch}Hz` : `${speechPitch}Hz`;
 
-      await speakRadioResponse(text, {
+      await speakRadioResponse(cleaned, {
         volume,
         voice: neuralVoice || undefined,
         persona,
@@ -1155,55 +1157,55 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
         case 'tyres':
         case 'tyre_wear':
           sampleText = isEs
-            ? '[PROACTIVE PIT WALL CALL: Desgaste en la delantera izquierda llegó al 45%. Cuidá la tracción en salida de curvas lentas.]'
-            : '[PROACTIVE PIT WALL CALL: Tyre wear reached 45% on front left. Manage traction out of slow turns.]';
+            ? 'Desgaste en la delantera izquierda llegó al 45%. Cuidá la tracción en salida de curvas lentas.'
+            : 'Tyre wear reached 45% on front left. Manage traction out of slow turns.';
           break;
         case 'damage':
         case 'damage_wing':
           sampleText = isEs
-            ? '[PROACTIVE PIT WALL CALL: Daño en el alerón delantero detectado. Vas a sentir subviraje en curva media y rápida.]'
-            : '[PROACTIVE PIT WALL CALL: Front wing flap damage detected. Expect understeer in medium and high speed corners.]';
+            ? 'Daño en el alerón delantero detectado. Vas a sentir subviraje en curva media y rápida.'
+            : 'Front wing flap damage detected. Expect understeer in medium and high speed corners.';
           break;
         case 'ers':
         case 'ers_low':
           sampleText = isEs
-            ? '[PROACTIVE PIT WALL CALL: Reserva de batería baja al 12%. Cambiá a modo None en rectas para recargar.]'
-            : '[PROACTIVE PIT WALL CALL: ERS battery reserve is low at 12%. Switch to None mode on straights to harvest.]';
+            ? 'Reserva de batería baja al 12%. Cambiá a modo None en rectas para recargar.'
+            : 'ERS battery reserve is low at 12%. Switch to None mode on straights to harvest.';
           break;
         case 'brakes':
         case 'brakes_overheat':
           sampleText = isEs
-            ? '[PROACTIVE PIT WALL CALL: Los discos de freno están a 950°C en la curva 1. Pasá el balance hacia adelante y levantá antes.]'
-            : '[PROACTIVE PIT WALL CALL: Brake temps critically high at 950°C. Move brake bias forward and lift earlier.]';
+            ? 'Los discos de freno están a 950°C en la curva 1. Pasá el balance hacia adelante y levantá antes.'
+            : 'Brake temps critically high at 950°C. Move brake bias forward and lift earlier.';
           break;
         case 'fuel':
         case 'fuel_delta':
           sampleText = isEs
-            ? '[PROACTIVE PIT WALL CALL: Estamos a menos 0.8 vueltas del target de combustible. Hacé Lift and Coast en frenadas fuertes.]'
-            : '[PROACTIVE PIT WALL CALL: Fuel target deficit is -0.8 laps below target. Introduce Lift and Coast into heavy braking.]';
+            ? 'Estamos a menos 0.8 vueltas del target de combustible. Hacé Lift and Coast en frenadas fuertes.'
+            : 'Fuel target deficit is -0.8 laps below target. Introduce Lift and Coast into heavy braking.';
           break;
         case 'rivals':
         case 'rival_defend':
           sampleText = isEs
-            ? '[PROACTIVE PIT WALL CALL: Rival detrás a menos de 0.8 segundos con DRS. Cubrí la cuerda interna en la frenada.]'
-            : '[PROACTIVE PIT WALL CALL: Car behind is within 0.8 seconds in DRS zone. Defend the inside line into Turn 1.]';
+            ? 'Rival detrás a menos de 0.8 segundos con DRS. Cubrí la cuerda interna en la frenada.'
+            : 'Car behind is within 0.8 seconds in DRS zone. Defend the inside line into Turn 1.';
           break;
         case 'qualy':
         case 'qualy_traffic':
           sampleText = isEs
-            ? '[PROACTIVE PIT WALL CALL: Tráfico en el Sector 3 antes de abrir vuelta. Frená el ritmo para armar 4 segundos de aire limpio.]'
-            : '[PROACTIVE PIT WALL CALL: Traffic ahead in Sector 3 before hot lap. Slow down to build 4 seconds of clean air.]';
+            ? 'Tráfico en el Sector 3 antes de abrir vuelta. Frená el ritmo para armar 4 segundos de aire limpio.'
+            : 'Traffic ahead in Sector 3 before hot lap. Slow down to build 4 seconds of clean air.';
           break;
         case 'flags':
         case 'flags_sc':
           sampleText = isEs
-            ? '[PROACTIVE PIT WALL CALL: ¡Safety Car en pista! Mantené el delta positivo y estate atento a la orden de boxes.]'
-            : '[PROACTIVE PIT WALL CALL: Safety Car deployed! Maintain delta positive and stand by for pit call.]';
+            ? '¡Safety Car en pista! Mantené el delta positivo y estate atento a la orden de boxes.'
+            : 'Safety Car deployed! Maintain delta positive and stand by for pit call.';
           break;
         default:
           sampleText = isEs
-            ? '[PROACTIVE PIT WALL CALL: Canal de radio verificado. Telemetría y enlace del muro de boxes operando al 100%.]'
-            : '[PROACTIVE PIT WALL CALL: Radio check confirmed. Pit wall telemetry link active and operational.]';
+            ? 'Canal de radio verificado. Telemetría y enlace del muro de boxes operando al 100%.'
+            : 'Radio check confirmed. Pit wall telemetry link active and operational.';
       }
 
       await speakMessage(sampleText, true);

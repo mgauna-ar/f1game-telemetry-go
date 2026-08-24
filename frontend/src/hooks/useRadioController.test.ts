@@ -227,7 +227,7 @@ describe('useRadioController hook', () => {
     expect(result.current.tyreOverheatC).toBe(RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_OVERHEAT_C);
   });
 
-  it('triggers audio tests for specific subsystems', async () => {
+  it('triggers audio tests for specific subsystems without proactive debug prefixes', async () => {
     const { result } = renderHook(() => useRadioController());
 
     act(() => {
@@ -239,5 +239,10 @@ describe('useRadioController hook', () => {
     });
 
     expect(result.current.lastResponse).toContain('alerón delantero');
+    expect(result.current.lastResponse).not.toContain('PROACTIVE');
+    expect(result.current.lastResponse).not.toContain('PIT WALL');
+    expect(result.current.lastResponse).toBe(
+      'Daño en el alerón delantero detectado. Vas a sentir subviraje en curva media y rápida.'
+    );
   });
 });
