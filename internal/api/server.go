@@ -41,10 +41,11 @@ var (
 
 // Server handles HTTP requests for the API and serves the frontend.
 type Server struct {
-	router   *chi.Mux
-	repo     storage.Repository
-	hub      *Hub
-	staticFS fs.FS
+	router       *chi.Mux
+	repo         storage.Repository
+	telemetryHub *Hub
+	engineerHub  *Hub
+	staticFS     fs.FS
 }
 
 var upgrader = websocket.Upgrader{
@@ -54,17 +55,18 @@ var upgrader = websocket.Upgrader{
 }
 
 // NewServer creates a new API server with the default embedded frontend filesystem.
-func NewServer(repo storage.Repository, hub *Hub) *Server {
-	return NewServerWithFS(repo, hub, frontend.DistFS())
+func NewServer(repo storage.Repository, telemetryHub *Hub, engineerHub *Hub) *Server {
+	return NewServerWithFS(repo, telemetryHub, engineerHub, frontend.DistFS())
 }
 
 // NewServerWithFS creates a new API server with a custom static filesystem (useful for testing).
-func NewServerWithFS(repo storage.Repository, hub *Hub, staticFS fs.FS) *Server {
+func NewServerWithFS(repo storage.Repository, telemetryHub *Hub, engineerHub *Hub, staticFS fs.FS) *Server {
 	s := &Server{
-		router:   chi.NewRouter(),
-		repo:     repo,
-		hub:      hub,
-		staticFS: staticFS,
+		router:       chi.NewRouter(),
+		repo:         repo,
+		telemetryHub: telemetryHub,
+		engineerHub:  engineerHub,
+		staticFS:     staticFS,
 	}
 
 	s.router.Use(middleware.Logger)
@@ -94,6 +96,7 @@ func (s *Server) Router() *chi.Mux {
 
 func (s *Server) routes() {
 	s.router.Get("/ws", s.handleWebSocket)
+	s.router.Get("/ws/engineer", s.handleEngineerWebSocket)
 
 	// API routes
 	s.router.Route("/api", func(r chi.Router) {
@@ -192,8 +195,22 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	client := NewClient(s.hub, conn)
-	s.hub.Register(client)
+	client := NewClient(s.telemetryHub, conn)
+	s.telemetryHub.Register(client)
+
+	go client.WritePump()
+	go client.ReadPump()
+}
+
+func (s *Server) handleEngineerWebSocket(w http.ResponseWriter, r *http.Request) {
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Printf("[WebSocket] Engineer Upgrade error: %v", err)
+		return
+	}
+
+	client := NewClient(s.engineerHub, conn)
+	s.engineerHub.Register(client)
 
 	go client.WritePump()
 	go client.ReadPump()

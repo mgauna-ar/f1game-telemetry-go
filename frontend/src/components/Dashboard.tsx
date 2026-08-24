@@ -56,7 +56,6 @@ export const Dashboard: React.FC = () => {
     carDamage = null,
     events = [],
     clearEvents = () => {},
-    latestInsight = null,
     connected = false,
     playerCarIndex = 0,
     selectedCarIndex = 0,
@@ -296,7 +295,6 @@ export const Dashboard: React.FC = () => {
     allTelemetry2,
     packetFormat,
     events,
-    latestInsight,
     onTriggerAlert: handleProactiveAlert,
   });
 

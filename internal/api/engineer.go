@@ -12,17 +12,17 @@ import (
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
 )
 
-// TelemetryInsightCategory represents categories of proactive intelligence.
-type TelemetryInsightCategory string
+// EngineerDirectiveCategory represents categories of proactive intelligence.
+type EngineerDirectiveCategory string
 
 const (
-	InsightCategoryPitStrategy TelemetryInsightCategory = "pit_strategy"
-	InsightCategoryCoaching    TelemetryInsightCategory = "coaching"
-	InsightCategoryWeather     TelemetryInsightCategory = "weather"
-	InsightCategoryTeammate    TelemetryInsightCategory = "teammate"
+	DirectiveCategoryPitStrategy EngineerDirectiveCategory = "pit_strategy"
+	DirectiveCategoryCoaching    EngineerDirectiveCategory = "coaching"
+	DirectiveCategoryWeather     EngineerDirectiveCategory = "weather"
+	DirectiveCategoryTeammate    EngineerDirectiveCategory = "teammate"
 )
 
-// Urgency levels for insights
+// Urgency levels for directives
 const (
 	UrgencyLow      = "low"
 	UrgencyMedium   = "medium"
@@ -30,42 +30,36 @@ const (
 	UrgencyCritical = "critical"
 )
 
-// Analytical constants for Insight Engine
+// Analytical constants for Directive Engine
 const (
 	DefaultPitLaneLossSeconds    = 21.0
 	CleanAirTrafficWindowSeconds = 3.0
 	SectorTimeLossThresholdSec   = 0.35
 	TeammateGapThresholdSec      = 2.5
-	DefaultInsightCooldownMs     = 45_000
+	DefaultDirectiveCooldownMs   = 45_000
 	WeatherRainTransitionProbPct = 60
 )
 
-// TelemetryInsight represents an intelligent contextual prompt or alert generated server-side.
-type TelemetryInsight struct {
-	ID          string                   `json:"id"`
-	Type        string                   `json:"type"` // "insight"
-	Category    TelemetryInsightCategory `json:"category"`
-	Title       string                   `json:"title"`
-	Message     string                   `json:"message"`
-	Urgency     string                   `json:"urgency"` // "low", "medium", "high", "critical"
-	Timestamp   int64                    `json:"timestamp"`
-	CarIndex    int                      `json:"car_index"`
-	SessionTime float32                  `json:"session_time"`
-	Metadata    map[string]any           `json:"metadata,omitempty"`
+// EngineerDirective represents an intelligent contextual prompt or alert generated server-side.
+type EngineerDirective struct {
+	ID          string                    `json:"id"`
+	Type        string                    `json:"type"` // "directive"
+	Category    EngineerDirectiveCategory `json:"category"`
+	Title       string                    `json:"title"`
+	Message     string                    `json:"message"`
+	Urgency     string                    `json:"urgency"` // "low", "medium", "high", "critical"
+	Timestamp   int64                     `json:"timestamp"`
+	CarIndex    int                       `json:"car_index"`
+	SessionTime float32                   `json:"session_time"`
+	Metadata    map[string]any            `json:"metadata,omitempty"`
 }
 
-// PacketInsight wraps a TelemetryInsight with standard packet header for WebSocket broadcasting.
-type PacketInsight struct {
-	Header  packets.PacketHeader `json:"Header"`
-	Insight TelemetryInsight     `json:"Insight"`
-}
-
-// InsightEngine handles server-side analytical processing and broadcasts insights.
-type InsightEngine struct {
-	mu           sync.RWMutex
-	hub          *Hub
-	repo         storage.Repository
-	lastInsights map[string]int64 // Key -> timestamp ms
+// EngineerEngine handles server-side analytical processing and broadcasts directives.
+type EngineerEngine struct {
+	mu             sync.RWMutex
+	hub            *Hub
+	repo           storage.Repository
+	lastDirectives map[string]int64 // Key -> timestamp ms
 
 	// Tracked session state
 	currentSessionUID uint64
@@ -84,12 +78,12 @@ type InsightEngine struct {
 	lastWeatherAlert   int
 }
 
-// NewInsightEngine creates a new InsightEngine instance.
-func NewInsightEngine(hub *Hub, repo storage.Repository) *InsightEngine {
-	return &InsightEngine{
+// NewEngineerEngine creates a new EngineerEngine instance.
+func NewEngineerEngine(hub *Hub, repo storage.Repository) *EngineerEngine {
+	return &EngineerEngine{
 		hub:                hub,
 		repo:               repo,
-		lastInsights:       make(map[string]int64),
+		lastDirectives:     make(map[string]int64),
 		teammateCarIndex:   -1,
 		playerTeamID:       -1,
 		lastPittedCarIndex: -1,
@@ -97,12 +91,12 @@ func NewInsightEngine(hub *Hub, repo storage.Repository) *InsightEngine {
 }
 
 // Reset clears state when a new session starts.
-func (e *InsightEngine) Reset(sessionUID uint64) {
+func (e *EngineerEngine) Reset(sessionUID uint64) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
 	e.currentSessionUID = sessionUID
-	e.lastInsights = make(map[string]int64)
+	e.lastDirectives = make(map[string]int64)
 	e.teammateCarIndex = -1
 	e.playerTeamID = -1
 	e.bestSector1MS = 0
@@ -113,8 +107,8 @@ func (e *InsightEngine) Reset(sessionUID uint64) {
 	e.lastWeatherAlert = 0
 }
 
-// ProcessPacket inspects incoming telemetry packets and evaluates proactive insights.
-func (e *InsightEngine) ProcessPacket(ctx context.Context, pkt packets.Packet) {
+// ProcessPacket inspects incoming telemetry packets and evaluates proactive directives.
+func (e *EngineerEngine) ProcessPacket(ctx context.Context, pkt packets.Packet) {
 	if pkt == nil {
 		return
 	}
@@ -127,7 +121,7 @@ func (e *InsightEngine) ProcessPacket(ctx context.Context, pkt packets.Packet) {
 	e.mu.Lock()
 	if e.currentSessionUID != header.SessionUID {
 		e.currentSessionUID = header.SessionUID
-		e.lastInsights = make(map[string]int64)
+		e.lastDirectives = make(map[string]int64)
 		e.teammateCarIndex = -1
 		e.playerTeamID = -1
 		e.bestSector1MS = 0
@@ -149,7 +143,7 @@ func (e *InsightEngine) ProcessPacket(ctx context.Context, pkt packets.Packet) {
 	}
 }
 
-func (e *InsightEngine) processParticipants(p *packets.PacketParticipantsData) {
+func (e *EngineerEngine) processParticipants(p *packets.PacketParticipantsData) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -170,7 +164,7 @@ func (e *InsightEngine) processParticipants(p *packets.PacketParticipantsData) {
 	}
 }
 
-func (e *InsightEngine) processLapData(header packets.PacketHeader, p *packets.PacketLapData) {
+func (e *EngineerEngine) processLapData(header packets.PacketHeader, p *packets.PacketLapData) {
 	playerIdx := int(header.PlayerCarIndex)
 	if playerIdx >= len(p.LapData) {
 		return
@@ -197,8 +191,8 @@ func (e *InsightEngine) processLapData(header packets.PacketHeader, p *packets.P
 	if int(playerLap.Sector) == 1 && s1 > 0 && e.bestSector1MS > 0 && currentLap == e.lastLapNumber {
 		deltaS1 := float64(s1-e.bestSector1MS) / 1000.0
 		if deltaS1 >= SectorTimeLossThresholdSec {
-			e.emitInsightLocked(header, TelemetryInsight{
-				Category:    InsightCategoryCoaching,
+			e.emitDirectiveLocked(header, EngineerDirective{
+				Category:    DirectiveCategoryCoaching,
 				Title:       "Sector 1 Delta",
 				Message:     fmt.Sprintf("Time lost in Sector 1 (+%.2fs vs personal best). Focus on apex speed and smooth steering input.", deltaS1),
 				Urgency:     UrgencyMedium,
@@ -216,8 +210,8 @@ func (e *InsightEngine) processLapData(header packets.PacketHeader, p *packets.P
 	if int(playerLap.Sector) == 2 && s2 > 0 && e.bestSector2MS > 0 && currentLap == e.lastLapNumber {
 		deltaS2 := float64(s2-e.bestSector2MS) / 1000.0
 		if deltaS2 >= SectorTimeLossThresholdSec {
-			e.emitInsightLocked(header, TelemetryInsight{
-				Category:    InsightCategoryCoaching,
+			e.emitDirectiveLocked(header, EngineerDirective{
+				Category:    DirectiveCategoryCoaching,
 				Title:       "Sector 2 Delta",
 				Message:     fmt.Sprintf("Time lost in Sector 2 (+%.2fs vs personal best). Prioritize corner exit traction.", deltaS2),
 				Urgency:     UrgencyMedium,
@@ -245,8 +239,8 @@ func (e *InsightEngine) processLapData(header packets.PacketHeader, p *packets.P
 			gapSec := distDelta / 65.0 // Average race speed approximation
 
 			if gapSec > 0 && gapSec < TeammateGapThresholdSec {
-				e.emitInsightLocked(header, TelemetryInsight{
-					Category:    InsightCategoryTeammate,
+				e.emitDirectiveLocked(header, EngineerDirective{
+					Category:    DirectiveCategoryTeammate,
 					Title:       "Teammate Ahead",
 					Message:     fmt.Sprintf("Teammate is P%d, %.1fs ahead. Pace delta is favorable. Free to race, keep it clean.", teammatePos, gapSec),
 					Urgency:     UrgencyMedium,
@@ -263,8 +257,8 @@ func (e *InsightEngine) processLapData(header packets.PacketHeader, p *packets.P
 		// Teammate Pit Status change
 		if teammateLap.PitStatus == packets.PitStatusPitting && e.lastPittedCarIndex != e.teammateCarIndex {
 			e.lastPittedCarIndex = e.teammateCarIndex
-			e.emitInsightLocked(header, TelemetryInsight{
-				Category:    InsightCategoryTeammate,
+			e.emitDirectiveLocked(header, EngineerDirective{
+				Category:    DirectiveCategoryTeammate,
 				Title:       "Teammate Pitting",
 				Message:     fmt.Sprintf("Teammate in P%d is pitting now. Focus on clean in-lap.", teammatePos),
 				Urgency:     UrgencyHigh,
@@ -294,8 +288,8 @@ func (e *InsightEngine) processLapData(header packets.PacketHeader, p *packets.P
 		}
 
 		if trafficCount == 0 && currentLap%5 == 0 {
-			e.emitInsightLocked(header, TelemetryInsight{
-				Category:    InsightCategoryPitStrategy,
+			e.emitDirectiveLocked(header, EngineerDirective{
+				Category:    DirectiveCategoryPitStrategy,
 				Title:       "Clean Air Pit Window",
 				Message:     "Pit window offers clean air on rejoin. Ideal opportunity for undercut/overcut strategy.",
 				Urgency:     UrgencyLow,
@@ -306,7 +300,7 @@ func (e *InsightEngine) processLapData(header packets.PacketHeader, p *packets.P
 	}
 }
 
-func (e *InsightEngine) processSessionData(header packets.PacketHeader, p *packets.PacketSessionData) {
+func (e *EngineerEngine) processSessionData(header packets.PacketHeader, p *packets.PacketSessionData) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -323,8 +317,8 @@ func (e *InsightEngine) processSessionData(header packets.PacketHeader, p *packe
 
 		if rainPct >= WeatherRainTransitionProbPct && timeOffset <= 10 && e.lastWeatherAlert != timeOffset {
 			e.lastWeatherAlert = timeOffset
-			e.emitInsightLocked(header, TelemetryInsight{
-				Category:    InsightCategoryWeather,
+			e.emitDirectiveLocked(header, EngineerDirective{
+				Category:    DirectiveCategoryWeather,
 				Title:       "Weather Transition",
 				Message:     fmt.Sprintf("Radar confirms %d%% rain in %d minutes. Prepare tyre strategy for crossover window.", rainPct, timeOffset),
 				Urgency:     UrgencyHigh,
@@ -340,29 +334,20 @@ func (e *InsightEngine) processSessionData(header packets.PacketHeader, p *packe
 	}
 }
 
-func (e *InsightEngine) emitInsightLocked(header packets.PacketHeader, insight TelemetryInsight, dedupKey string) {
+func (e *EngineerEngine) emitDirectiveLocked(header packets.PacketHeader, directive EngineerDirective, dedupKey string) {
 	now := time.Now().UnixMilli()
-	lastTime, exists := e.lastInsights[dedupKey]
-	if exists && now-lastTime < DefaultInsightCooldownMs {
+	lastTime, exists := e.lastDirectives[dedupKey]
+	if exists && now-lastTime < DefaultDirectiveCooldownMs {
 		return
 	}
-	e.lastInsights[dedupKey] = now
+	e.lastDirectives[dedupKey] = now
 
-	insight.ID = fmt.Sprintf("insight_%d_%s", now, dedupKey)
-	insight.Type = "insight"
-	insight.Timestamp = now
-
-	// Construct packet header for synthetic insight
-	insightHeader := header
-	insightHeader.PacketId = packets.PacketIDInsight
-
-	pkt := PacketInsight{
-		Header:  insightHeader,
-		Insight: insight,
-	}
+	directive.ID = fmt.Sprintf("directive_%d_%s", now, dedupKey)
+	directive.Type = "directive"
+	directive.Timestamp = now
 
 	if e.hub != nil {
-		if data, err := json.Marshal(pkt); err == nil {
+		if data, err := json.Marshal(directive); err == nil {
 			e.hub.Broadcast(data)
 		}
 	}

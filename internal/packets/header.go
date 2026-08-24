@@ -129,7 +129,6 @@ const (
 	PacketIDTimeTrial           uint8 = 14
 	PacketIDLapPositions        uint8 = 15
 	PacketIDCarTelemetry2       uint8 = 16
-	PacketIDInsight             uint8 = 250
 )
 
 // DriverNames maps official EA driver ID to human-readable driver name.

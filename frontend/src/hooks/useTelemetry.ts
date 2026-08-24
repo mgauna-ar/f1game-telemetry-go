@@ -160,8 +160,6 @@ export function useTelemetry(wsUrl?: string) {
   const [allTelemetry, setAllTelemetry] = useState<CarTelemetryData[]>([]);
   const [allTelemetry2, setAllTelemetry2] = useState<import('../types/telemetry').CarTelemetry2Data[]>([]);
   const [events, setEvents] = useState<RaceEvent[]>([]);
-  const [latestInsight, setLatestInsight] = useState<import('../types/telemetry').TelemetryInsight | null>(null);
-  const [insights, setInsights] = useState<import('../types/telemetry').TelemetryInsight[]>([]);
   
   const [playerCarIndex, setPlayerCarIndex] = useState<number>(0);
   const [selectedCarIndex, setSelectedCarIndex] = useState<number>(0);
@@ -251,8 +249,6 @@ export function useTelemetry(wsUrl?: string) {
               setAllTelemetry([]);
               setAllTelemetry2([]);
               setEvents([]);
-              setLatestInsight(null);
-              setInsights([]);
               setHistory([]);
               setTrackPath([]);
               prevLapsRef.current = [];
@@ -663,14 +659,6 @@ export function useTelemetry(wsUrl?: string) {
                 }
               }
             }
-            // Insight Packet (Server-side proactive intelligence)
-            else if (header.PacketId === PACKET_IDS.INSIGHT) {
-              const pkt = data as import('../types/telemetry').PacketInsightData;
-              if (pkt.Insight) {
-                setLatestInsight(pkt.Insight);
-                setInsights((prev) => [pkt.Insight, ...prev].slice(0, 30));
-              }
-            }
           } catch (err) {
             console.error('Failed to parse telemetry packet:', err);
           }
@@ -724,8 +712,6 @@ export function useTelemetry(wsUrl?: string) {
     history,
     events,
     clearEvents,
-    latestInsight,
-    insights,
     playerCarIndex,
     selectedCarIndex,
     setSelectedCarIndex,

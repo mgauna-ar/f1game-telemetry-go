@@ -7,9 +7,9 @@ import (
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 )
 
-func TestInsightEngine_ProcessPackets(t *testing.T) {
+func TestEngineerEngine_ProcessPackets(t *testing.T) {
 	hub := NewHub()
-	engine := NewInsightEngine(hub, nil)
+	engine := NewEngineerEngine(hub, nil)
 
 	ctx := context.Background()
 	header := packets.PacketHeader{

@@ -74,12 +74,15 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// 4. Setup WebSocket Hub
-	hub := api.NewHub()
-	go hub.Run()
+	// 4. Setup WebSocket Hubs
+	telemetryHub := api.NewHub()
+	go telemetryHub.Run()
+
+	engineerHub := api.NewHub()
+	go engineerHub.Run()
 
 	// 5. Setup API Server
-	apiServer := api.NewServer(repo, hub)
+	apiServer := api.NewServer(repo, telemetryHub, engineerHub)
 	srv := &http.Server{
 		Addr:    httpAddr,
 		Handler: apiServer.Router(),
@@ -102,10 +105,10 @@ func main() {
 		}()
 	}
 
-	// 7. Setup Session Manager & Insight Engine
+	// 7. Setup Session Manager & Engineer Engine
 	sessionManager := session.NewSessionManager(repo)
 	sessionManager.Start(ctx)
-	insightEngine := api.NewInsightEngine(hub, repo)
+	engineerEngine := api.NewEngineerEngine(engineerHub, repo)
 
 	// 8. Setup UDP Listener
 	listener := udp.NewListener(udpAddr, udp.DefaultBufferSize)
@@ -134,12 +137,12 @@ func main() {
 				sessionManager.ProcessPacket(ctx, pkt)
 
 				// Process packet for proactive insights
-				insightEngine.ProcessPacket(ctx, pkt)
+				engineerEngine.ProcessPacket(ctx, pkt)
 
 				// Broadcast relevant real-time telemetry packets to WebSockets
 				if shouldBroadcastPacket(pkt.GetHeader().PacketId) {
 					if js, err := json.Marshal(pkt); err == nil {
-						hub.Broadcast(js)
+						telemetryHub.Broadcast(js)
 					}
 				}
 			}
@@ -218,8 +221,7 @@ func shouldBroadcastPacket(pktID uint8) bool {
 		packets.PacketIDCarTelemetry,
 		packets.PacketIDCarTelemetry2,
 		packets.PacketIDCarStatus,
-		packets.PacketIDCarDamage,
-		packets.PacketIDInsight:
+		packets.PacketIDCarDamage:
 		return true
 	default:
 		return false

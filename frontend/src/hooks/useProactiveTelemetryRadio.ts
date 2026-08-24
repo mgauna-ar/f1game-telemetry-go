@@ -38,7 +38,6 @@ export interface UseProactiveTelemetryRadioOptions {
   allTelemetry2?: CarTelemetry2Data[];
   packetFormat?: number | null;
   events?: RaceEvent[];
-  latestInsight?: import('../types/telemetry').TelemetryInsight | null;
   onTriggerAlert?: (alertContext: string, isCritical: boolean, emotion?: { rateModifier?: number; pitchModifier?: number }) => Promise<void>;
 }
 
@@ -123,7 +122,6 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
     telemetry,
     telemetry2,
     packetFormat,
-    latestInsight,
     onTriggerAlert,
   } = options;
 
@@ -873,32 +871,79 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
     }
   }, [enabled, isRadioEnabled, session, lap, isRace, getAlertSettings, triggerAlertSafe]);
 
-  // 9. Monitor Server-Side Telemetry Insights (Predictive Pit Strategy, Micro-Sector Coaching, Dynamic Weather, Teammate)
-  const lastInsightIdRef = useRef<string>('');
+  // 9. Monitor Server-Side Telemetry Directives via Dedicated Engineer WebSocket
+  const lastDirectiveIdRef = useRef<string>('');
+  const wsRef = useRef<WebSocket | null>(null);
+
   useEffect(() => {
-    if (!enabled || !isRadioEnabled || !latestInsight || latestInsight.id === lastInsightIdRef.current) return;
-    lastInsightIdRef.current = latestInsight.id;
+    // Lazy load: Only connect to /ws/engineer if radio is actually enabled and active
+    if (!enabled || !isRadioEnabled) {
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+      return;
+    }
 
-    const settings = getAlertSettings();
-    let isCategoryEnabled = true;
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      return; // Already connected
+    }
 
-    if (latestInsight.category === 'pit_strategy' && !settings.pitWindowAlertsEnabled) isCategoryEnabled = false;
-    if (latestInsight.category === 'coaching' && !settings.qualyAlertsEnabled) isCategoryEnabled = false;
-    if (latestInsight.category === 'weather' && !settings.subRain) isCategoryEnabled = false;
-    if (latestInsight.category === 'teammate' && !settings.rivalAlertsEnabled) isCategoryEnabled = false;
+    const host = window.location.host;
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    let wsUrl = `${protocol}//${host}/ws/engineer`;
+    if (import.meta.env.DEV) {
+      wsUrl = `ws://localhost:8080/ws/engineer`;
+    }
 
-    if (!isCategoryEnabled) return;
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
 
-    const isCritical = latestInsight.urgency === 'critical' || latestInsight.urgency === 'high';
-    const emotion = isCritical ? { rateModifier: 12, pitchModifier: 5 } : { rateModifier: 0, pitchModifier: 0 };
+    ws.onmessage = (event) => {
+      try {
+        const directive = JSON.parse(event.data) as import('../types/telemetry').EngineerDirective;
+        if (!directive || directive.type !== 'directive' || directive.id === lastDirectiveIdRef.current) return;
+        
+        lastDirectiveIdRef.current = directive.id;
 
-    triggerAlertSafe(
-      latestInsight.category,
-      `[PROACTIVE PIT WALL CALL: ${latestInsight.title} — ${latestInsight.message} You are initiating this call — do NOT say 'Entendido' or 'Copy'.]`,
-      isCritical,
-      emotion
-    );
-  }, [enabled, isRadioEnabled, latestInsight, getAlertSettings, triggerAlertSafe]);
+        const settings = getAlertSettings();
+        let isCategoryEnabled = true;
+
+        if (directive.category === 'pit_strategy' && !settings.pitWindowAlertsEnabled) isCategoryEnabled = false;
+        if (directive.category === 'coaching' && !settings.qualyAlertsEnabled) isCategoryEnabled = false;
+        if (directive.category === 'weather' && !settings.subRain) isCategoryEnabled = false;
+        if (directive.category === 'teammate' && !settings.rivalAlertsEnabled) isCategoryEnabled = false;
+
+        if (!isCategoryEnabled) return;
+
+        const isCritical = directive.urgency === 'critical' || directive.urgency === 'high';
+        const emotion = isCritical ? { rateModifier: 12, pitchModifier: 5 } : { rateModifier: 0, pitchModifier: 0 };
+
+        triggerAlertSafe(
+          directive.category,
+          `[PROACTIVE PIT WALL CALL: ${directive.title} — ${directive.message} You are initiating this call — do NOT say 'Entendido' or 'Copy'.]`,
+          isCritical,
+          emotion
+        );
+      } catch (err) {
+        console.error('Failed to parse engineer directive:', err);
+      }
+    };
+
+    ws.onclose = () => {
+      // Allow it to reconnect on next tick if still enabled
+      if (wsRef.current === ws) {
+        wsRef.current = null;
+      }
+    };
+
+    return () => {
+      if (wsRef.current === ws) {
+        ws.close();
+        wsRef.current = null;
+      }
+    };
+  }, [enabled, isRadioEnabled, getAlertSettings, triggerAlertSafe]);
 }
 
 

@@ -194,7 +194,7 @@ export interface TelemetrySample extends CarTelemetryData {
   overtake_active?: number;
 }
 
-export interface TelemetryInsight {
+export interface EngineerDirective {
   id: string;
   type: string;
   category: 'pit_strategy' | 'coaching' | 'weather' | 'teammate';
@@ -207,8 +207,4 @@ export interface TelemetryInsight {
   metadata?: Record<string, any>;
 }
 
-export interface PacketInsightData {
-  Header: PacketHeader;
-  Insight: TelemetryInsight;
-}
 
