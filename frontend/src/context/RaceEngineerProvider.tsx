@@ -276,16 +276,16 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         session_summary: sessionDebriefContext.summaryText,
       };
     }
-    if (contextMode === 'live' && liveContext) {
+    if (contextMode === 'live') {
       return {
         context_mode: 'live',
         language: locale,
-        track_name: liveContext.trackName,
-        session_type: liveContext.sessionType || 'Race',
-        live_summary: liveContext.liveSummary,
+        track_name: liveContext?.trackName || '',
+        session_type: liveContext?.sessionType || 'Live Session',
+        live_summary: liveContext?.liveSummary || 'Live pit wall telemetry standby. Awaiting live packet stream from game.',
       };
     }
-    if (comparatorContext) {
+    if (contextMode === 'comparator' && comparatorContext) {
       return {
         context_mode: 'comparator',
         language: locale,
@@ -317,17 +317,19 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         `### SESSION CLASSIFICATION & TIMING DATA:\n${sessionDebriefContext.summaryText}`
       );
     }
-    if (contextMode === 'live' && liveContext) {
+    if (contextMode === 'live') {
+      const liveData = liveContext?.liveSummary
+        ? `\n\n### LIVE TELEMETRY DATA:\n${liveContext.liveSummary}`
+        : '\n\n### LIVE STATUS:\nStanding by for live on-track telemetry. Assist the driver with session preparation, track layout advice, setup theory, and strategy planning.';
       return (
         'You are the active F1 Race Engineer on the pit wall over team radio during a live session.\n' +
         'Provide immediate tactical advice, weather updates, safety car restart strategy, and tyre crossover advice.\n\n' +
         'COMMUNICATION STYLE & ROLE RULES:\n' +
         '1. Maintain an urgent, clear, radio-concise tone suited for real-time in-car communication.\n' +
-        `2. ${langInstruction}\n\n` +
-        `### LIVE TELEMETRY DATA:\n${liveContext.liveSummary}`
+        `2. ${langInstruction}${liveData}`
       );
     }
-    if (comparatorContext) {
+    if (contextMode === 'comparator' && comparatorContext) {
       let p =
         'You are the personal F1 Race Engineer and exclusive telemetry analyst for the DRIVER OF LAP A (the primary selected driver).\n' +
         'Your role is to speak directly to your driver (Lap A) over the team radio to analyze their performance and give actionable advice to beat Lap B (the benchmark).\n\n' +

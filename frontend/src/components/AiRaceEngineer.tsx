@@ -79,8 +79,11 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
   const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
+  // Effective context mode: if propTelemetryContext is passed directly as prop, it's comparator mode. Otherwise, it follows contextMode.
+  const effectiveMode = propTelemetryContext ? 'comparator' : contextMode;
+
   // Sync prop telemetry context if passed
-  const activeComparatorContext = propTelemetryContext || comparatorContext;
+  const activeComparatorContext = propTelemetryContext || (effectiveMode === 'comparator' ? comparatorContext : null);
   const hasLapsSelected = propHasLapsSelected ?? Boolean(activeComparatorContext?.lap_a_name && activeComparatorContext?.lap_b_name);
   const isZoomActive = propIsZoomActive ?? Boolean(activeComparatorContext?.zoomed_range);
 
@@ -203,39 +206,61 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
 
   // Adaptive quick prompt chips
   const adaptivePromptChips = useMemo(() => {
-    if (contextMode === 'comparator' || (hasLapsSelected && activeComparatorContext)) {
-      const chips = [
+    if (effectiveMode === 'comparator') {
+      if (hasLapsSelected && activeComparatorContext) {
+        const chips = [
+          {
+            id: 'delta-loss',
+            icon: <Zap size={13} style={{ color: '#ffd200' }} />,
+            label: t('ai_engineer.chips.deltaLossLabel'),
+            prompt: t('ai_engineer.chips.deltaLossPrompt'),
+          },
+          {
+            id: 'braking-traction',
+            icon: <Gauge size={13} style={{ color: '#ff4b4b' }} />,
+            label: t('ai_engineer.chips.brakingTractionLabel'),
+            prompt: t('ai_engineer.chips.brakingTractionPrompt'),
+          },
+          {
+            id: 'ers-drs',
+            icon: <Cpu size={13} style={{ color: '#00f2fe' }} />,
+            label: t('ai_engineer.chips.ersDrsLabel'),
+            prompt: t('ai_engineer.chips.ersDrsPrompt'),
+          },
+        ];
+        if (isZoomActive) {
+          chips.unshift({
+            id: 'zoomed-analysis',
+            icon: <ZoomIn size={13} style={{ color: '#38ef7d' }} />,
+            label: t('ai_engineer.chips.zoomedAnalysisLabel'),
+            prompt: t('ai_engineer.chips.zoomedAnalysisPrompt'),
+          });
+        }
+        return chips;
+      }
+      return [
         {
-          id: 'delta-loss',
-          icon: <Zap size={13} style={{ color: '#ffd200' }} />,
-          label: t('ai_engineer.chips.deltaLossLabel'),
-          prompt: t('ai_engineer.chips.deltaLossPrompt'),
-        },
-        {
-          id: 'braking-traction',
+          id: 'gen-trail-braking',
           icon: <Gauge size={13} style={{ color: '#ff4b4b' }} />,
-          label: t('ai_engineer.chips.brakingTractionLabel'),
-          prompt: t('ai_engineer.chips.brakingTractionPrompt'),
+          label: t('ai_engineer.chips.genTrailBrakingLabel'),
+          prompt: t('ai_engineer.chips.genTrailBrakingPrompt'),
         },
         {
-          id: 'ers-drs',
+          id: 'gen-tyre-management',
+          icon: <Zap size={13} style={{ color: '#ffd200' }} />,
+          label: t('ai_engineer.chips.genTyreManagementLabel'),
+          prompt: t('ai_engineer.chips.genTyreManagementPrompt'),
+        },
+        {
+          id: 'gen-ers',
           icon: <Cpu size={13} style={{ color: '#00f2fe' }} />,
-          label: t('ai_engineer.chips.ersDrsLabel'),
-          prompt: t('ai_engineer.chips.ersDrsPrompt'),
+          label: t('ai_engineer.chips.genErsLabel'),
+          prompt: t('ai_engineer.chips.genErsPrompt'),
         },
       ];
-      if (isZoomActive) {
-        chips.unshift({
-          id: 'zoomed-analysis',
-          icon: <ZoomIn size={13} style={{ color: '#38ef7d' }} />,
-          label: t('ai_engineer.chips.zoomedAnalysisLabel'),
-          prompt: t('ai_engineer.chips.zoomedAnalysisPrompt'),
-        });
-      }
-      return chips;
     }
 
-    if (contextMode === 'session_debrief' && sessionDebriefContext) {
+    if (effectiveMode === 'session_debrief' && sessionDebriefContext) {
       return [
         {
           id: 'debrief-overview',
@@ -258,7 +283,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
       ];
     }
 
-    if (contextMode === 'live' && liveContext) {
+    if (effectiveMode === 'live') {
       return [
         {
           id: 'live-weather',
@@ -302,41 +327,43 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
         prompt: t('ai_engineer.chips.genErsPrompt'),
       },
     ];
-  }, [contextMode, activeComparatorContext, hasLapsSelected, isZoomActive, sessionDebriefContext, liveContext, t]);
+  }, [effectiveMode, activeComparatorContext, hasLapsSelected, isZoomActive, sessionDebriefContext, liveContext, t]);
 
   // Context Mode Badge label & color
   const contextBadgeInfo = useMemo(() => {
-    if (contextMode === 'comparator' || (hasLapsSelected && activeComparatorContext)) {
+    if (effectiveMode === 'comparator') {
+      const hasLaps = hasLapsSelected && activeComparatorContext;
       return {
-        label: 'Comparator',
-        sub: activeComparatorContext?.track_name || 'Laps Selected',
-        track: activeComparatorContext?.track_name,
+        label: t('ai_engineer.badges.comparator'),
+        sub: hasLaps ? (activeComparatorContext?.track_name || t('ai_engineer.selectLaps')) : t('ai_engineer.selectLaps'),
+        track: hasLaps ? activeComparatorContext?.track_name : null,
         color: '#00f2fe',
       };
     }
-    if (contextMode === 'session_debrief' && sessionDebriefContext) {
+    if (effectiveMode === 'session_debrief' && sessionDebriefContext) {
       return {
-        label: 'Debrief',
-        sub: sessionDebriefContext.trackName,
+        label: t('ai_engineer.badges.debrief'),
+        sub: sessionDebriefContext.trackName || t('ai_engineer.modeDebrief'),
         track: sessionDebriefContext.trackName,
         color: '#ffd700',
       };
     }
-    if (contextMode === 'live' && liveContext) {
+    if (effectiveMode === 'live') {
+      const hasTrack = liveContext?.trackName && liveContext.trackName !== 'F1 Pit Wall';
       return {
-        label: 'Live Wall',
-        sub: liveContext.trackName || 'Active Session',
-        track: liveContext.trackName,
+        label: t('ai_engineer.badges.liveWall'),
+        sub: hasTrack ? liveContext.trackName : t('ai_engineer.liveSessionStandby'),
+        track: hasTrack ? liveContext.trackName : null,
         color: '#38ef7d',
       };
     }
     return {
-      label: 'Standby',
-      sub: 'Telemetry Ready',
+      label: t('ai_engineer.badges.standby'),
+      sub: t('ai_engineer.telemetryReady'),
       track: null,
       color: 'var(--text-secondary)',
     };
-  }, [contextMode, activeComparatorContext, hasLapsSelected, sessionDebriefContext, liveContext]);
+  }, [effectiveMode, activeComparatorContext, hasLapsSelected, sessionDebriefContext, liveContext, t]);
 
 
   const renderFormattedMarkdown = (content: string) => {
@@ -719,11 +746,11 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
             type="text"
             className="ai-chat-input"
             placeholder={
-              contextMode === 'comparator' || (hasLapsSelected && activeComparatorContext)
+              effectiveMode === 'comparator'
                 ? t('ai_engineer.placeholderComparator')
-                : contextMode === 'session_debrief'
+                : effectiveMode === 'session_debrief'
                 ? t('ai_engineer.placeholderDebrief')
-                : contextMode === 'live'
+                : effectiveMode === 'live'
                 ? t('ai_engineer.placeholderLive')
                 : t('ai_engineer.placeholderGeneral')
             }

@@ -244,7 +244,16 @@ export const Dashboard: React.FC = () => {
     const updateContext = () => {
       const state = useTelemetryStore.getState();
       const currentSession = state.session;
-      if (!state.connected || !currentSession) return;
+      if (!state.connected || !currentSession) {
+        setLiveContext({
+          trackName: 'F1 Pit Wall',
+          sessionType: 'Standby',
+          safetyCarStatus: 'Track Clear (Green)',
+          weatherSummary: 'Standby',
+          liveSummary: 'STATUS: Pit lane / Garage. Waiting for live telemetry packet stream from game.',
+        });
+        return;
+      }
 
       const trackInfo = currentSession.TrackId !== undefined ? getTrackInfo(currentSession.TrackId) : null;
       const trackName = trackInfo?.name || (currentSession.TrackId !== undefined ? (TRACK_NAMES[currentSession.TrackId] || `Track #${currentSession.TrackId}`) : 'F1 Circuit');
@@ -260,18 +269,11 @@ export const Dashboard: React.FC = () => {
           ? 'Full Safety Car'
           : currentSession.SafetyCarStatus === SAFETY_CAR_STATUS.VIRTUAL
           ? 'Virtual Safety Car'
+          : currentSession.NumRedFlagPeriods && currentSession.NumRedFlagPeriods > 0
+          ? 'Red Flag (Suspended)'
           : 'Track Clear (Green)';
 
-      const liveSummary = `LIVE PIT WALL TELEMETRY:
-- Track: ${trackName}
-- Session: ${sessionName}
-- Safety Car Status: ${scStatus}
-- Track Temp: ${currentSession.TrackTemperature || 0}°C | Air Temp: ${currentSession.AirTemperature || 0}°C
-- ${weatherDesc}
-- Active Cars: ${state.participants.length} drivers
-- Player Car Index: #${state.playerCarIndex + 1}
-- Selected Car Focus: #${state.selectedCarIndex + 1}
-`;
+      const liveSummary = getLiveTelemetrySummary();
 
       setLiveContext({
         trackName,
@@ -285,7 +287,7 @@ export const Dashboard: React.FC = () => {
     updateContext();
     const interval = setInterval(updateContext, 1000);
     return () => clearInterval(interval);
-  }, [setLiveContext, setContextMode]);
+  }, [setLiveContext, setContextMode, getLiveTelemetrySummary]);
 
   const playerLap = allLaps[playerCarIndex] || lap;
   const playerCarStatus = allCarStatus[playerCarIndex] || carStatus;

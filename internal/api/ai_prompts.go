@@ -15,6 +15,10 @@ func buildSystemPrompt(telemetryCtx *TelemetryAnalysisContext, persona, language
 		return buildLivePrompt(telemetryCtx, persona, language)
 	}
 
+	if telemetryCtx != nil && telemetryCtx.ContextMode == "general" {
+		return buildGeneralPrompt(telemetryCtx, language)
+	}
+
 	return buildComparatorPrompt(telemetryCtx)
 }
 
@@ -218,9 +222,31 @@ func buildLivePrompt(telemetryCtx *TelemetryAnalysisContext, persona, language s
 	if telemetryCtx != nil && telemetryCtx.LiveSummary != "" {
 		sb.WriteString(telemetryCtx.LiveSummary)
 		sb.WriteString("\n")
+	} else {
+		sb.WriteString("Standing by for live on-track telemetry. Assist the driver with session preparation, track layout advice, vehicle setup theory, or strategy planning.\n")
 	}
 	if telemetryCtx != nil && telemetryCtx.CustomPrompt != "" {
 		fmt.Fprintf(&sb, "\nLive Strategy Notes: %s\n", telemetryCtx.CustomPrompt)
+	}
+	return sb.String()
+}
+
+func buildGeneralPrompt(telemetryCtx *TelemetryAnalysisContext, language string) string {
+	var sb strings.Builder
+	sb.WriteString("You are the personal F1 Race Engineer.\n")
+	sb.WriteString("Help the driver with telemetry interpretation, driving coaching, vehicle setup theory, and racing strategy.\n")
+	lang := strings.ToLower(strings.TrimSpace(language))
+	if lang == "" && telemetryCtx != nil {
+		lang = strings.ToLower(strings.TrimSpace(telemetryCtx.Language))
+	}
+	if strings.HasPrefix(lang, "es") {
+		sb.WriteString("Respond always in Spanish using standard Latin American / Argentina motorsport terminology (gomas, boxes, monoplaza, ritmo, frenada, curva, sobrepaso, puesta a punto).\n")
+	} else {
+		sb.WriteString("Respond in English using professional F1 terminology.\n")
+	}
+	sb.WriteString("Use structured, clear Markdown with concise technical bullet points.\n")
+	if telemetryCtx != nil && telemetryCtx.CustomPrompt != "" {
+		fmt.Fprintf(&sb, "\nContext Notes: %s\n", telemetryCtx.CustomPrompt)
 	}
 	return sb.String()
 }

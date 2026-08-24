@@ -1,7 +1,9 @@
+import { useEffect } from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi, describe, it, beforeEach, expect } from 'vitest';
 import { AiRaceEngineer } from './AiRaceEngineer';
 import { RaceEngineerProvider } from '../context/RaceEngineerProvider';
+import { useRaceEngineer } from '../context/RaceEngineerContext';
 import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
 
 describe('AiRaceEngineer Component', () => {
@@ -226,5 +228,71 @@ describe('AiRaceEngineer Component', () => {
     expect(screen.getByText(/Pit Wall Radio Congested: High Demand/i)).toBeInTheDocument();
     expect(screen.getByText(/Retry Transmission/i)).toBeInTheDocument();
     expect(screen.getByText('Configure in Settings')).toBeInTheDocument();
+  });
+
+  it('renders Live Wall badge and live prompt chips when in live mode even if comparator context was populated', async () => {
+    const TestLiveHarness = () => {
+      const { setContextMode, setComparatorContext, setLiveContext } = useRaceEngineer();
+
+      useEffect(() => {
+        setComparatorContext(mockTelemetryContext);
+        setLiveContext({
+          trackName: 'Silverstone',
+          sessionType: 'Race',
+          liveSummary: 'Live race ongoing',
+        });
+        setContextMode('live');
+      }, [setComparatorContext, setLiveContext, setContextMode]);
+
+      return <AiRaceEngineer isOpenOverride={true} />;
+    };
+
+    render(
+      <RaceEngineerProvider>
+        <TestLiveHarness />
+      </RaceEngineerProvider>
+    );
+
+    expect(screen.getByText('AI Race Engineer')).toBeInTheDocument();
+    // Must show Live Wall badge (not Comparator!)
+    expect(screen.getByText('Live Wall')).toBeInTheDocument();
+    // Must show Live chips (not comparator chips!)
+    expect(screen.getByText('Safety Car & Pit Strategy')).toBeInTheDocument();
+    expect(screen.getByText('Weather & Crossover')).toBeInTheDocument();
+    expect(screen.getByText('Current Sector Pace')).toBeInTheDocument();
+    // Must not show comparator chips
+    expect(screen.queryByText('Where was time lost?')).toBeNull();
+    // Must show live placeholder
+    expect(screen.getByPlaceholderText(/Ask about live weather, SC, or tyre windows/i)).toBeInTheDocument();
+  });
+
+  it('renders Debrief badge and debrief chips when in session_debrief mode', async () => {
+    const TestDebriefHarness = () => {
+      const { setContextMode, setSessionDebriefContext } = useRaceEngineer();
+
+      useEffect(() => {
+        setSessionDebriefContext({
+          trackName: 'Spa-Francorchamps',
+          sessionType: 'Race',
+          driverCount: 20,
+          summaryText: 'P1: Verstappen, P2: Norris',
+        });
+        setContextMode('session_debrief');
+      }, [setSessionDebriefContext, setContextMode]);
+
+      return <AiRaceEngineer isOpenOverride={true} />;
+    };
+
+    render(
+      <RaceEngineerProvider>
+        <TestDebriefHarness />
+      </RaceEngineerProvider>
+    );
+
+    expect(screen.getByText('Debrief')).toBeInTheDocument();
+    expect(screen.getByText(/Spa-Francorchamps/)).toBeInTheDocument();
+    expect(screen.getByText('Session Pace Overview')).toBeInTheDocument();
+    expect(screen.getByText('Tyre Stint Degradation')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Ask about session pace, stints, or strategy/i)).toBeInTheDocument();
   });
 });
