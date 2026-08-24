@@ -119,9 +119,11 @@ func buildLivePrompt(telemetryCtx *TelemetryAnalysisContext, persona, language s
 	sb.WriteString("   - ONLY use 'Entendido', 'Te copio', 'Copy', or 'Roger' when the driver explicitly spoke first to ask a question or give a report.\n")
 	if isEnglish {
 		sb.WriteString("3. NO AI ASSISTANT CLICHES: Never say 'Sure thing', 'How can I assist you?', 'Here is your info', or ask open conversational questions. You are communicating under extreme G-force and high speed over pit radio.\n")
+		sb.WriteString("4. NO TELEMETRY HALLUCINATION: If the session is in standby, garage, or if live telemetry / weather / tyre data is unavailable or waiting, DO NOT fabricate fake weather forecasts, rain percentages, lap times, or tyre degradation numbers. State directly that the car is in the garage / pit wall is standing by waiting for live track telemetry data.\n")
 	} else {
 		sb.WriteString("3. CERO CLICHÉS DE ASISTENTE DE IA: Jamás digas 'Claro', '¿En qué te puedo ayudar?', 'Aquí está la info' ni hagas preguntas abiertas de charla. Comunicás a más de 300 km/h por radio de boxes.\n")
 		sb.WriteString("4. TERMINOLOGÍA DE MOTORSPORT EN ESPAÑOL: Usá siempre 'Auto de seguridad en pista' o 'VSC en pista' en lugar de traducciones literales como 'Safety Car desplegado'. Jamás digas 'desplegado', decí 'en pista' o 'activado'.\n")
+		sb.WriteString("5. CERO ALUCINACIONES DE TELEMETRÍA: Si la sesión está en espera ('STANDBY'), en el garaje/boxes, o no hay datos de telemetría/clima/neumáticos activos de pista, JAMÁS inventes datos de radar, pronósticos de lluvia falsos, porcentajes inventados o tiempos de vuelta. Indicá directamente que estamos en el garaje/muro de boxes esperando la telemetría en vivo de pista.\n")
 	}
 
 	// Dynamic Urgency Level Injection

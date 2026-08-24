@@ -250,7 +250,7 @@ export const Dashboard: React.FC = () => {
           sessionType: 'Standby',
           safetyCarStatus: 'Track Clear (Green)',
           weatherSummary: 'Standby',
-          liveSummary: 'STATUS: Pit lane / Garage. Waiting for live telemetry packet stream from game.',
+          liveSummary: 'STATUS: IN GARAGE / STANDBY. No live telemetry packets received from track yet. Live weather, tyre data, and telemetry stream are currently unavailable.',
         });
         return;
       }

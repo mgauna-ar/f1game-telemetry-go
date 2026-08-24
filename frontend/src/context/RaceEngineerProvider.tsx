@@ -318,15 +318,22 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       );
     }
     if (contextMode === 'live') {
-      const liveData = liveContext?.liveSummary
-        ? `\n\n### LIVE TELEMETRY DATA:\n${liveContext.liveSummary}`
-        : '\n\n### LIVE STATUS:\nStanding by for live on-track telemetry. Assist the driver with session preparation, track layout advice, setup theory, and strategy planning.';
+      const isStandby = !liveContext || liveContext.sessionType === 'Standby' || !liveContext.liveSummary || liveContext.liveSummary.includes('STANDBY') || liveContext.liveSummary.includes('Waiting for live');
+      const liveData = !isStandby
+        ? `\n\n### LIVE TELEMETRY DATA:\n${liveContext?.liveSummary}`
+        : '\n\n### LIVE STATUS: STANDBY / IN GARAGE (NO TELEMETRY PACKETS YET)\nNo live telemetry packets received from track yet. Live weather radar, tyre temperatures, and gap deltas are currently unavailable.\nCRITICAL: DO NOT invent fake rain percentages, temperatures, or stint data. Inform the driver directly that we are standing by in the garage/pit wall waiting for live track telemetry.';
+
+      const antiHallucination =
+        locale === 'es'
+          ? '\n3. CERO ALUCINACIONES: Si estamos en espera en boxes (sin telemetría activa de pista), indicá que estamos en espera y que aún no hay datos de radar o pista disponibles. No inventes números ni porcentajes.'
+          : '\n3. NO TELEMETRY HALLUCINATIONS: If in garage/standby with no live telemetry, state that we are standing by and live data is not yet available. Do not invent numbers or weather percentages.';
+
       return (
         'You are the active F1 Race Engineer on the pit wall over team radio during a live session.\n' +
         'Provide immediate tactical advice, weather updates, safety car restart strategy, and tyre crossover advice.\n\n' +
         'COMMUNICATION STYLE & ROLE RULES:\n' +
         '1. Maintain an urgent, clear, radio-concise tone suited for real-time in-car communication.\n' +
-        `2. ${langInstruction}${liveData}`
+        `2. ${langInstruction}${antiHallucination}${liveData}`
       );
     }
     if (contextMode === 'comparator' && comparatorContext) {

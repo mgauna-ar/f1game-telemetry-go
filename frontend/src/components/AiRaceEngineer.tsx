@@ -284,6 +284,29 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
     }
 
     if (effectiveMode === 'live') {
+      const isStandby = !liveContext || liveContext.sessionType === 'Standby' || !liveContext.liveSummary || liveContext.liveSummary.includes('STANDBY') || liveContext.liveSummary.includes('Waiting for live');
+      if (isStandby) {
+        return [
+          {
+            id: 'live-radio-check',
+            icon: <Radio size={13} style={{ color: '#00f2fe' }} />,
+            label: t('ai_engineer.chips.liveRadioCheckLabel'),
+            prompt: t('ai_engineer.chips.liveRadioCheckPrompt'),
+          },
+          {
+            id: 'live-prep',
+            icon: <Gauge size={13} style={{ color: '#ffd200' }} />,
+            label: t('ai_engineer.chips.livePrepLabel'),
+            prompt: t('ai_engineer.chips.livePrepPrompt'),
+          },
+          {
+            id: 'live-strategy-plan',
+            icon: <Flag size={13} style={{ color: '#38ef7d' }} />,
+            label: t('ai_engineer.chips.liveTacticalPlanLabel'),
+            prompt: t('ai_engineer.chips.liveTacticalPlanPrompt'),
+          },
+        ];
+      }
       return [
         {
           id: 'live-weather',

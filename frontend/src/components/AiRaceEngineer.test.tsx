@@ -266,6 +266,36 @@ describe('AiRaceEngineer Component', () => {
     expect(screen.getByPlaceholderText(/Ask about live weather, SC, or tyre windows/i)).toBeInTheDocument();
   });
 
+  it('renders Live Wall badge and standby prompt chips when in live standby mode without active telemetry', async () => {
+    const TestLiveStandbyHarness = () => {
+      const { setContextMode, setLiveContext } = useRaceEngineer();
+
+      useEffect(() => {
+        setLiveContext({
+          trackName: 'F1 Pit Wall',
+          sessionType: 'Standby',
+          liveSummary: 'STATUS: IN GARAGE / STANDBY. No live telemetry packets received from track yet.',
+        });
+        setContextMode('live');
+      }, [setLiveContext, setContextMode]);
+
+      return <AiRaceEngineer isOpenOverride={true} />;
+    };
+
+    render(
+      <RaceEngineerProvider>
+        <TestLiveStandbyHarness />
+      </RaceEngineerProvider>
+    );
+
+    expect(screen.getByText('Live Wall')).toBeInTheDocument();
+    expect(screen.getByText('Radio Check')).toBeInTheDocument();
+    expect(screen.getByText('Session Setup Prep')).toBeInTheDocument();
+    expect(screen.getByText('Tactical Plan')).toBeInTheDocument();
+    // Must not show active race chips when in standby
+    expect(screen.queryByText('Current Sector Pace')).toBeNull();
+  });
+
   it('renders Debrief badge and debrief chips when in session_debrief mode', async () => {
     const TestDebriefHarness = () => {
       const { setContextMode, setSessionDebriefContext } = useRaceEngineer();
