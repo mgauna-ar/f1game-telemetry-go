@@ -36,14 +36,18 @@ export default defineConfig({
       output: {
         manualChunks(id: string) {
           if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom') || id.includes('scheduler')) {
+            if (id.includes('lucide-react')) {
+              return 'vendor-lucide'
+            }
+            if (
+              id.includes('/react/') ||
+              id.includes('/react-dom/') ||
+              id.includes('/scheduler/')
+            ) {
               return 'vendor-react'
             }
             if (id.includes('recharts') || id.includes('d3-') || id.includes('victory-vendor')) {
               return 'vendor-recharts'
-            }
-            if (id.includes('lucide-react')) {
-              return 'vendor-lucide'
             }
             return 'vendor'
           }

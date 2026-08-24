@@ -30,10 +30,10 @@ describe('App Navigation and Tab Bar', () => {
     expect(tabs[2]).toHaveTextContent(/Live Session/i);
   });
 
-  it('defaults to Session History on initial launch', () => {
+  it('defaults to Session History on initial launch', async () => {
     render(<App />);
 
-    expect(screen.getByTestId('session-history-view')).toBeInTheDocument();
+    expect(await screen.findByTestId('session-history-view')).toBeInTheDocument();
     expect(screen.queryByTestId('lap-comparator-view')).not.toBeInTheDocument();
     expect(screen.queryByTestId('dashboard-view')).not.toBeInTheDocument();
 
@@ -43,35 +43,35 @@ describe('App Navigation and Tab Bar', () => {
     expect(tabs[2]).not.toHaveClass('active');
   });
 
-  it('switches to Lap Comparator when clicked and persists to localStorage', () => {
+  it('switches to Lap Comparator when clicked and persists to localStorage', async () => {
     render(<App />);
 
     const comparatorTab = screen.getByRole('tab', { name: /Lap Comparator/i });
     fireEvent.click(comparatorTab);
 
-    expect(screen.getByTestId('lap-comparator-view')).toBeInTheDocument();
+    expect(await screen.findByTestId('lap-comparator-view')).toBeInTheDocument();
     expect(screen.queryByTestId('session-history-view')).not.toBeInTheDocument();
     expect(comparatorTab).toHaveClass('active');
     expect(localStorage.getItem('f1_active_tab')).toBe('comparator');
   });
 
-  it('switches to Live Session when clicked and persists to localStorage', () => {
+  it('switches to Live Session when clicked and persists to localStorage', async () => {
     render(<App />);
 
     const liveTab = screen.getByRole('tab', { name: /Live Session/i });
     fireEvent.click(liveTab);
 
-    expect(screen.getByTestId('dashboard-view')).toBeInTheDocument();
+    expect(await screen.findByTestId('dashboard-view')).toBeInTheDocument();
     expect(screen.queryByTestId('session-history-view')).not.toBeInTheDocument();
     expect(liveTab).toHaveClass('active');
     expect(localStorage.getItem('f1_active_tab')).toBe('live');
   });
 
-  it('restores saved tab from localStorage on mount', () => {
+  it('restores saved tab from localStorage on mount', async () => {
     localStorage.setItem('f1_active_tab', 'comparator');
     render(<App />);
 
-    expect(screen.getByTestId('lap-comparator-view')).toBeInTheDocument();
+    expect(await screen.findByTestId('lap-comparator-view')).toBeInTheDocument();
     const tabs = screen.getAllByRole('tab');
     expect(tabs[1]).toHaveClass('active');
   });

@@ -1,10 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { Calendar, GitCompare, Radio, Sparkles } from 'lucide-react';
 import { F1TelemetryLogo } from './components/F1TelemetryLogo';
-import { Dashboard } from './components/Dashboard';
-import { LapComparator } from './components/LapComparator';
-import { SessionHistory } from './components/SessionHistory';
-import { ReleaseNotesModal } from './components/ReleaseNotesModal';
 import { RaceEngineerProvider } from './context/RaceEngineerProvider';
 import { useRaceEngineer } from './context/RaceEngineerContext';
 import { I18nProvider } from './context/I18nProvider';
@@ -13,6 +9,19 @@ import { AiRaceEngineer } from './components/AiRaceEngineer';
 import { LanguageSelector } from './components/LanguageSelector';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import type { UpdateCheckResponse } from './types/system';
+
+const SessionHistory = lazy(() =>
+  import('./components/SessionHistory').then((m) => ({ default: m.SessionHistory }))
+);
+const LapComparator = lazy(() =>
+  import('./components/LapComparator').then((m) => ({ default: m.LapComparator }))
+);
+const Dashboard = lazy(() =>
+  import('./components/Dashboard').then((m) => ({ default: m.Dashboard }))
+);
+const ReleaseNotesModal = lazy(() =>
+  import('./components/ReleaseNotesModal').then((m) => ({ default: m.ReleaseNotesModal }))
+);
 
 type TabType = 'history' | 'comparator' | 'live';
 
@@ -197,23 +206,29 @@ function AppContent() {
       {/* Main Tab Content */}
       <main className="app-main-content">
         <ErrorBoundary level="section" onReset={() => {}}>
-          {activeTab === 'history' ? (
-            <SessionHistory onNavigateToComparator={handleNavigateToComparator} />
-          ) : activeTab === 'comparator' ? (
-            <LapComparator initialPreload={comparatorPreload} />
-          ) : (
-            <Dashboard />
-          )}
+          <Suspense fallback={<div className="loading-state" />}>
+            {activeTab === 'history' ? (
+              <SessionHistory onNavigateToComparator={handleNavigateToComparator} />
+            ) : activeTab === 'comparator' ? (
+              <LapComparator initialPreload={comparatorPreload} />
+            ) : (
+              <Dashboard />
+            )}
+          </Suspense>
         </ErrorBoundary>
       </main>
 
       {/* Release Notes & Update Modal */}
-      <ReleaseNotesModal
-        isOpen={isReleaseModalOpen}
-        onClose={() => setIsReleaseModalOpen(false)}
-        updateData={updateInfo}
-        onDismissVersion={handleDismissVersion}
-      />
+      <Suspense fallback={null}>
+        {isReleaseModalOpen && (
+          <ReleaseNotesModal
+            isOpen={isReleaseModalOpen}
+            onClose={() => setIsReleaseModalOpen(false)}
+            updateData={updateInfo}
+            onDismissVersion={handleDismissVersion}
+          />
+        )}
+      </Suspense>
 
       {/* Global Persistent Floating AI Race Engineer (Non-modal bottom-right widget) */}
       <ErrorBoundary level="widget">
