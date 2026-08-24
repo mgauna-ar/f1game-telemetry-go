@@ -26,8 +26,13 @@ func TestCompareSemVer(t *testing.T) {
 		{"v1.0.0-beta.1", "v1.0.0", -1},       // Pre-release < Stable
 		{"v1.0.0-beta.2", "v1.0.0-beta.1", 1}, // Beta 2 > Beta 1
 		{"v1.0.0-beta.1", "v1.0.0-beta.2", -1},
-		{"v1.0.0-rc.1", "v1.0.0-beta.5", 1}, // rc > beta
-		{"v0.9.0", "v1.0.0-beta.1", -1},     // Major version overrides pre-release
+		{"v1.0.0-rc.1", "v1.0.0-beta.5", 1},  // rc > beta
+		{"v0.9.0", "v1.0.0-beta.1", -1},      // Major version overrides pre-release
+		{"v1.0.1", "v1.0.1-35-g48f0b96", -1}, // Official tag 1.0.1 is older than local dev build with 35 commits ahead
+		{"v1.0.1-35-g48f0b96", "v1.0.1", 1},
+		{"v1.0.2", "v1.0.1-35-g48f0b96", 1}, // Newer minor/patch tag 1.0.2 is greater than 1.0.1+35 commits
+		{"v1.0.1-35-g48f0b96", "v1.0.1-10-g1234567", 1},
+		{"v1.0.1-10-g1234567", "v1.0.1-35-g48f0b96", -1},
 	}
 
 	for _, tt := range tests {
@@ -61,6 +66,15 @@ func TestAppVersionState(t *testing.T) {
 	verDev := GetAppVersion()
 	if !verDev.IsDev {
 		t.Errorf("expected IsDev = true for dev version")
+	}
+
+	SetAppVersion("v1.0.1-35-g48f0b96", "48f0b96", "2026-08-24")
+	verGitDesc := GetAppVersion()
+	if !verGitDesc.IsDev {
+		t.Errorf("expected IsDev = true for git describe post-tag version")
+	}
+	if verGitDesc.IsBeta {
+		t.Errorf("expected IsBeta = false for git describe dev build")
 	}
 }
 

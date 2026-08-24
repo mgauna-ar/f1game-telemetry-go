@@ -19,6 +19,16 @@ interface ReleaseNotesModalProps {
   onDismissVersion?: (version: string) => void;
 }
 
+export function detectUserOS(): 'macos' | 'windows' | 'linux' | 'other' {
+  if (typeof window === 'undefined' || !window.navigator) return 'other';
+  const ua = (window.navigator.userAgent || '').toLowerCase();
+  const platform = (window.navigator.platform || '').toLowerCase();
+  if (ua.includes('mac') || ua.includes('darwin') || platform.includes('mac')) return 'macos';
+  if (ua.includes('win') || platform.includes('win')) return 'windows';
+  if (ua.includes('linux') || ua.includes('x11') || platform.includes('linux')) return 'linux';
+  return 'other';
+}
+
 export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
   isOpen,
   onClose,
@@ -64,19 +74,27 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
     }
   };
 
-  const getPlatformLabel = (platform: ReleaseAsset['platform']) => {
-    switch (platform) {
-      case 'windows':
-        return t('common.updates.windowsPkg');
-      case 'macos':
-        return t('common.updates.macPkg');
-      case 'linux':
-        return t('common.updates.linuxPkg');
-      case 'checksums':
-        return t('common.updates.checksumsPkg');
-      default:
-        return 'Archive';
+  const getAssetArchitectureLabel = (asset: ReleaseAsset) => {
+    const lower = asset.name.toLowerCase();
+    if (asset.platform === 'checksums' || lower.includes('checksum')) {
+      return t('common.updates.checksumsPkg');
     }
+    if (asset.platform === 'macos') {
+      if (lower.includes('arm64')) return t('common.updates.macArmPkg');
+      if (lower.includes('amd64') || lower.includes('x86_64')) return t('common.updates.macIntelPkg');
+      return t('common.updates.macPkg');
+    }
+    if (asset.platform === 'windows') {
+      if (lower.includes('arm64')) return t('common.updates.winArmPkg');
+      if (lower.includes('amd64') || lower.includes('x64')) return t('common.updates.winX64Pkg');
+      return t('common.updates.windowsPkg');
+    }
+    if (asset.platform === 'linux') {
+      if (lower.includes('arm64')) return t('common.updates.linuxArmPkg');
+      if (lower.includes('amd64') || lower.includes('x64')) return t('common.updates.linuxX64Pkg');
+      return t('common.updates.linuxPkg');
+    }
+    return asset.name;
   };
 
   // Simple Markdown renderer for changelog body
@@ -150,7 +168,6 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
     });
   };
 
-  const isUpToDate = !effectiveData.update_available && !effectiveData.is_prerelease;
   const isDev = systemVersion?.is_dev || effectiveData.current_version === 'dev';
 
   return (
@@ -164,10 +181,18 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
             </div>
             <div>
               <div className="release-modal-title">
-                {isUpToDate ? t('common.updates.upToDateTitle') : t('common.updates.title')}
+                {isDev
+                  ? t('common.updates.devTitle')
+                  : effectiveData.update_available
+                  ? t('common.updates.title')
+                  : t('common.updates.upToDateTitle')}
               </div>
               <div className="release-modal-subtitle">
-                {t('common.updates.subtitle')}
+                {isDev
+                  ? t('common.updates.devSubtitle')
+                  : effectiveData.update_available
+                  ? t('common.updates.subtitle')
+                  : t('common.updates.upToDateDesc', { version: effectiveData.current_version })}
               </div>
             </div>
           </div>
@@ -186,7 +211,7 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
           <div className="release-version-info">
             <div className="release-tag-title">
               <span className="release-tag-name mono">
-                {effectiveData.latest_version || effectiveData.current_version}
+                {isDev ? 'dev' : effectiveData.latest_version || effectiveData.current_version}
               </span>
               {isDev ? (
                 <span className="release-badge prerelease">
@@ -203,10 +228,10 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
               )}
             </div>
             <div className="release-meta-row mono text-xs text-muted">
-              <span>{t('common.updates.currentVersion', { version: effectiveData.current_version })}</span>
+              {!isDev && <span>{t('common.updates.currentVersion', { version: effectiveData.current_version })}</span>}
               {systemVersion?.commit && systemVersion.commit !== 'none' && (
                 <>
-                  <span className="meta-sep">•</span>
+                  {!isDev && <span className="meta-sep">•</span>}
                   <span>{t('common.updates.commit', { commit: systemVersion.commit })}</span>
                 </>
               )}
@@ -216,7 +241,7 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
                   <span>{t('common.updates.buildDate', { date: systemVersion.build_date })}</span>
                 </>
               )}
-              {effectiveData.published_at && (
+              {!isDev && effectiveData.published_at && (
                 <>
                   <span className="meta-sep">•</span>
                   <span>
@@ -244,47 +269,59 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
 
         {/* Modal Body */}
         <div className="release-modal-body">
-          {/* Download Packages Section */}
-          {effectiveData.assets && effectiveData.assets.length > 0 && (
-            <div className="release-downloads-section">
+          {/* Download Packages Section (ONLY shown when a new update is available, filtered to user's OS) */}
+          {effectiveData.update_available && (() => {
+            const userOS = detectUserOS();
+            const filteredAssets = (effectiveData.assets || []).filter((asset) => {
+              if (userOS === 'other') return true;
+              return asset.platform === userOS;
+            });
+
+            if (filteredAssets.length === 0) return null;
+
+            return (
+              <div className="release-downloads-section">
+                <div className="release-section-title">
+                  <Download size={14} className="text-cyan" />
+                  <span>{t('common.updates.downloadTitle')}</span>
+                </div>
+                <div className="release-assets-grid">
+                  {filteredAssets.map((asset, index) => (
+                    <a
+                      key={index}
+                      href={asset.download_url}
+                      download
+                      className="release-asset-card"
+                    >
+                      <div className="release-asset-icon-box">
+                        {getPlatformIcon(asset.platform)}
+                      </div>
+                      <div className="release-asset-details">
+                        <div className="release-asset-label font-medium">
+                          {getAssetArchitectureLabel(asset)}
+                        </div>
+                        <div className="release-asset-name mono text-xs text-muted">
+                          {asset.name} {asset.size > 0 && `(${formatSize(asset.size)})`}
+                        </div>
+                      </div>
+                      <Download size={14} className="release-asset-dl-icon" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Release Notes Changelog Body (when available) */}
+          {effectiveData.release_notes && (
+            <div className="release-changelog-section">
               <div className="release-section-title">
-                <Download size={14} className="text-cyan" />
-                <span>{t('common.updates.downloadTitle')}</span>
+                <Package size={14} className="text-cyan" />
+                <span>{t('common.releaseNotes')}</span>
               </div>
-              <div className="release-assets-grid">
-                {effectiveData.assets.map((asset, index) => (
-                  <a
-                    key={index}
-                    href={asset.download_url}
-                    download
-                    className="release-asset-card"
-                  >
-                    <div className="release-asset-icon-box">
-                      {getPlatformIcon(asset.platform)}
-                    </div>
-                    <div className="release-asset-details">
-                      <div className="release-asset-label font-medium">
-                        {getPlatformLabel(asset.platform)}
-                      </div>
-                      <div className="release-asset-name mono text-xs text-muted">
-                        {asset.name} {asset.size > 0 && `(${formatSize(asset.size)})`}
-                      </div>
-                    </div>
-                    <Download size={14} className="release-asset-dl-icon" />
-                  </a>
-                ))}
-              </div>
+              {renderReleaseNotes(effectiveData.release_notes)}
             </div>
           )}
-
-          {/* Release Notes Changelog Body */}
-          <div className="release-changelog-section">
-            <div className="release-section-title">
-              <Package size={14} className="text-cyan" />
-              <span>{t('common.releaseNotes')}</span>
-            </div>
-            {renderReleaseNotes(effectiveData.release_notes)}
-          </div>
         </div>
 
         {/* Modal Footer */}

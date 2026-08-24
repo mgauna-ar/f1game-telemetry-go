@@ -52,8 +52,8 @@ func SetAppVersion(ver, commit, date string) {
 	if v == "" {
 		v = "dev"
 	}
-	isDev := v == "dev" || strings.HasPrefix(v, "dev-") || v == ""
-	isBeta := strings.Contains(strings.ToLower(v), "beta") || strings.Contains(strings.ToLower(v), "rc") || strings.Contains(strings.ToLower(v), "alpha")
+	isDev := v == "dev" || strings.HasPrefix(v, "dev-") || strings.Contains(v, "-g") || strings.HasSuffix(v, "-dev") || v == ""
+	isBeta := !isDev && (strings.Contains(strings.ToLower(v), "beta") || strings.Contains(strings.ToLower(v), "rc") || strings.Contains(strings.ToLower(v), "alpha"))
 
 	currentAppVersion = AppVersion{
 		Version:   v,
@@ -219,9 +219,9 @@ func CheckForUpdates(ctx context.Context, repo, currentVer string, includePrerel
 		})
 	}
 
-	// Compare versions: if dev, update is always available if any release exists
+	// If dev build, do not trigger update available notification
 	if currentVer == "dev" || currentVer == "" {
-		res.UpdateAvailable = true
+		res.UpdateAvailable = false
 		return res, nil
 	}
 
@@ -267,7 +267,25 @@ func CompareSemVer(v1, v2 string) int {
 		}
 	}
 
-	// If core versions are identical, a release WITHOUT a pre-release tag is greater than one WITH a pre-release tag
+	// If core versions are identical:
+	// 1. Check if either is a git-describe post-release build (e.g. "1.0.1-35-g48f0b96")
+	post1 := isPostReleaseBuild(pre1)
+	post2 := isPostReleaseBuild(pre2)
+
+	if post1 && !post2 {
+		// v1 is a post-release build ahead of v2 -> v1 > v2
+		return 1
+	}
+	if !post1 && post2 {
+		// v2 is a post-release build ahead of v1 -> v1 < v2
+		return -1
+	}
+	if post1 && post2 {
+		return comparePostRelease(pre1, pre2)
+	}
+
+	// 2. Standard SemVer pre-release rules (e.g. beta, rc, alpha)
+	// A release WITHOUT a pre-release tag is greater than one WITH a pre-release tag
 	if pre1 == "" && pre2 != "" {
 		return 1
 	}
@@ -279,6 +297,32 @@ func CompareSemVer(v1, v2 string) int {
 	}
 
 	return 0
+}
+
+func isPostReleaseBuild(pre string) bool {
+	if pre == "" {
+		return false
+	}
+	// Matches git describe pattern: e.g. "35-g48f0b96", "1-gabc123" or "dev"
+	re := regexp.MustCompile(`^\d+-g[0-9a-fA-F]+`)
+	return re.MatchString(pre) || strings.HasPrefix(pre, "dev")
+}
+
+func comparePostRelease(pre1, pre2 string) int {
+	re := regexp.MustCompile(`^(\d+)`)
+	m1 := re.FindStringSubmatch(pre1)
+	m2 := re.FindStringSubmatch(pre2)
+	if len(m1) > 1 && len(m2) > 1 {
+		n1, _ := strconv.Atoi(m1[1])
+		n2, _ := strconv.Atoi(m2[1])
+		if n1 > n2 {
+			return 1
+		}
+		if n1 < n2 {
+			return -1
+		}
+	}
+	return strings.Compare(pre1, pre2)
 }
 
 func splitVersionAndPre(v string) (core, pre string) {

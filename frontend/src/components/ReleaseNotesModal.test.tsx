@@ -43,7 +43,10 @@ describe('ReleaseNotesModal', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders release details, assets, and markdown notes when open', () => {
+  it('renders release details, filtered assets, and markdown notes when open', () => {
+    // Force macOS userAgent
+    vi.spyOn(navigator, 'userAgent', 'get').mockReturnValue('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)');
+
     render(
       <I18nProvider>
         <ReleaseNotesModal
@@ -57,7 +60,11 @@ describe('ReleaseNotesModal', () => {
     expect(screen.getByText('v1.0.0-beta.2')).toBeInTheDocument();
     expect(screen.getByText('Features')).toBeInTheDocument();
     expect(screen.getByText('Added active aero chart')).toBeInTheDocument();
-    expect(screen.getByText('f1telemetry_v1.0.0-beta.2_windows_amd64.zip (15.0 MB)')).toBeInTheDocument();
+    // Only macOS package should be visible
+    expect(screen.getByText('f1telemetry_v1.0.0-beta.2_darwin_arm64.zip (14.0 MB)')).toBeInTheDocument();
+    expect(screen.getByText('macOS (Apple Silicon M1–M4)')).toBeInTheDocument();
+    // Windows package should NOT be rendered
+    expect(screen.queryByText('f1telemetry_v1.0.0-beta.2_windows_amd64.zip (15.0 MB)')).not.toBeInTheDocument();
   });
 
   it('calls onClose when close button is clicked', () => {
@@ -124,5 +131,31 @@ describe('ReleaseNotesModal', () => {
     expect(screen.getByText('v1.0.1')).toBeInTheDocument();
     expect(screen.getByText('Commit: abc1234')).toBeInTheDocument();
     expect(screen.getByText('Built on 2026-08-24')).toBeInTheDocument();
+  });
+
+  it('renders dev banner title and no downloads when in development mode', () => {
+    const mockSystemVersion = {
+      version: 'dev',
+      commit: '48f0b96',
+      build_date: '2026-08-24',
+      is_dev: true,
+      is_beta: false,
+    };
+
+    render(
+      <I18nProvider>
+        <ReleaseNotesModal
+          isOpen={true}
+          onClose={() => {}}
+          updateData={{ update_available: false, current_version: 'dev' }}
+          systemVersion={mockSystemVersion}
+        />
+      </I18nProvider>
+    );
+
+    expect(screen.getByText('dev')).toBeInTheDocument();
+    expect(screen.getByText('Development Build')).toBeInTheDocument();
+    expect(screen.getByText('Commit: 48f0b96')).toBeInTheDocument();
+    expect(screen.queryByText(/Download Release Packages/i)).not.toBeInTheDocument();
   });
 });

@@ -3,7 +3,7 @@
 BINARY_NAME=f1telemetry
 BUILD_DIR=bin
 
-VERSION ?= $(shell git describe --tags --always 2>/dev/null || echo dev)
+VERSION ?= $(shell git describe --tags --exact-match 2>/dev/null || echo dev)
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
 DATE ?= $(shell date -u +%Y-%m-%d)
 LDFLAGS=-s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)

@@ -101,6 +101,8 @@ export const common = {
   updates: {
     title: "What's New",
     subtitle: 'Release Notes & Direct Downloads',
+    devTitle: 'F1 Telemetry Analyzer',
+    devSubtitle: 'Local Development Build',
     updateAvailable: 'New Update Available',
     latestVersion: 'Version {version}',
     currentVersion: 'Current: {version}',
@@ -114,12 +116,19 @@ export const common = {
     windowsPkg: 'Windows (x64 / ARM64)',
     macPkg: 'macOS (Apple Silicon / Intel)',
     linuxPkg: 'Linux (x64 / ARM64)',
+    macArmPkg: 'macOS (Apple Silicon M1–M4)',
+    macIntelPkg: 'macOS (Intel x64)',
+    winX64Pkg: 'Windows (64-bit x64)',
+    winArmPkg: 'Windows (ARM64)',
+    linuxX64Pkg: 'Linux (64-bit x64)',
+    linuxArmPkg: 'Linux (ARM64)',
     checksumsPkg: 'SHA-256 Checksums',
     viewOnGitHub: 'View on GitHub',
     dontRemind: "Don't notify me again for this version",
     upToDateTitle: 'You are up to date!',
     upToDateDesc: 'You are currently running the latest version ({version}).',
   },
+  releaseNotes: 'Release Notes',
 };
 
 
