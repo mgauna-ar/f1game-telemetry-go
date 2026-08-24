@@ -137,7 +137,8 @@ func (w *WindowsManager) pollLoop(ctx context.Context) {
 func (w *WindowsManager) tick() {
 	w.mu.Lock()
 	isLearning := w.isLearning
-	currentMapping := w.currentMap
+	joyMapping := w.joyMap
+	keyMapping := w.keyMap
 	wasDown := w.isDown
 	w.mu.Unlock()
 
@@ -145,7 +146,11 @@ func (w *WindowsManager) tick() {
 	if isLearning {
 		if learned, ok := w.scanForAnyInput(); ok {
 			w.mu.Lock()
-			w.currentMap = learned
+			if learned.DeviceType == DeviceTypeJoystick {
+				w.joyMap = learned
+			} else {
+				w.keyMap = learned
+			}
 			w.isDown = false
 			w.isLearning = false
 			if w.learnChan != nil {
@@ -159,14 +164,18 @@ func (w *WindowsManager) tick() {
 		return
 	}
 
-	// 2. Normal Mode: Poll the configured target
-	isCurrentlyDown := false
-
-	if currentMapping.DeviceType == DeviceTypeJoystick {
-		isCurrentlyDown = w.checkJoystickButton(currentMapping.DeviceIndex, currentMapping.ButtonIndex)
-	} else if currentMapping.DeviceType == DeviceTypeKeyboard {
-		isCurrentlyDown = w.checkKeyboardKey(currentMapping.KeyCode)
+	// 2. Normal Mode: Poll both joystick (if mapped) and keyboard (if mapped)
+	isJoyDown := false
+	if joyMapping.DeviceType == DeviceTypeJoystick && joyMapping.DeviceIndex >= 0 && joyMapping.ButtonIndex >= 0 {
+		isJoyDown = w.checkJoystickButton(joyMapping.DeviceIndex, joyMapping.ButtonIndex)
 	}
+
+	isKeyDown := false
+	if keyMapping.KeyCode > 0 {
+		isKeyDown = w.checkKeyboardKey(keyMapping.KeyCode)
+	}
+
+	isCurrentlyDown := isJoyDown || isKeyDown
 
 	if isCurrentlyDown != wasDown {
 		w.mu.Lock()

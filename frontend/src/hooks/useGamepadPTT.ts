@@ -43,6 +43,62 @@ export interface UseGamepadPTTReturn {
   globalMapping: GlobalPTTMapping | null;
 }
 
+export function getVKCodeForName(keyName: string): number {
+  switch (keyName) {
+    case 'Space':
+    case ' ':
+    case 'Spacebar':
+      return 0x20;
+    case 'CapsLock':
+      return 0x14;
+    case 'KeyT':
+    case 'T':
+      return 0x54;
+    case 'KeyR':
+    case 'R':
+      return 0x52;
+    case 'KeyV':
+    case 'V':
+      return 0x56;
+    case 'KeyB':
+    case 'B':
+      return 0x42;
+    case 'KeyC':
+    case 'C':
+      return 0x43;
+    case 'F1':
+      return 0x70;
+    case 'F2':
+      return 0x71;
+    case 'F3':
+      return 0x72;
+    case 'F4':
+      return 0x73;
+    case 'F5':
+      return 0x74;
+    case 'F6':
+      return 0x75;
+    case 'F7':
+      return 0x76;
+    case 'F8':
+      return 0x77;
+    case 'F9':
+      return 0x78;
+    case 'F10':
+      return 0x79;
+    case 'F11':
+      return 0x7A;
+    case 'F12':
+      return 0x7B;
+    default:
+      if (keyName.length === 1) {
+        const code = keyName.toUpperCase().charCodeAt(0);
+        if (code >= 0x41 && code <= 0x5A) return code;
+      }
+      return 0x20;
+  }
+}
+
 export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTTReturn {
   const { onPTTDown, onPTTUp, enabled = true } = options;
 
@@ -98,8 +154,30 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
     try {
       if (mapping) {
         localStorage.setItem(RADIO_STORAGE_KEYS.GAMEPAD_MAPPING, JSON.stringify(mapping));
+        fetch('/api/ai/ptt/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mapping: {
+              device_type: 'joystick',
+              device_index: mapping.gamepadIndex,
+              button_index: mapping.buttonIndex,
+              key_name: `Button ${mapping.buttonIndex + 1}`,
+              device_name: 'Controller / Wheel',
+            },
+          }),
+        }).catch(() => {});
       } else {
         localStorage.removeItem(RADIO_STORAGE_KEYS.GAMEPAD_MAPPING);
+        fetch('/api/ai/ptt/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mapping: {
+              device_type: 'none',
+            },
+          }),
+        }).catch(() => {});
       }
     } catch {}
   }, []);
@@ -108,10 +186,22 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
     setMappedKeyState(key);
     try {
       localStorage.setItem(RADIO_STORAGE_KEYS.KEYBOARD_KEY, key);
+      fetch('/api/ai/ptt/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mapping: {
+            device_type: 'keyboard',
+            key_code: getVKCodeForName(key),
+            key_name: key,
+            device_name: 'Keyboard',
+          },
+        }),
+      }).catch(() => {});
     } catch {}
   }, []);
 
-  // Sync initial global config from backend
+  // Sync initial global config to/from backend
   useEffect(() => {
     fetch('/api/ai/ptt/config')
       .then((res) => (res.ok ? res.json() : null))
@@ -124,6 +214,21 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
         }
       })
       .catch(() => {});
+
+    // Ensure backend knows the saved key
+    const initialKey = localStorage.getItem(RADIO_STORAGE_KEYS.KEYBOARD_KEY) || RADIO_ALERT_CONSTANTS.DEFAULT_KEYBOARD_KEY;
+    fetch('/api/ai/ptt/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mapping: {
+          device_type: 'keyboard',
+          key_code: getVKCodeForName(initialKey),
+          key_name: initialKey,
+          device_name: 'Keyboard',
+        },
+      }),
+    }).catch(() => {});
   }, []);
 
   // Use refs for stable access in animation frame / event listeners
@@ -166,6 +271,11 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
   const handleGlobalPTTEvent = useCallback(
     (state: 'down' | 'up') => {
       if (!enabledRef.current) return;
+
+      // If the browser currently has active DOM keyboard/gamepad focus, ignore background WebSocket events to prevent jitter/race conditions
+      if (keyboardPressedRef.current || gamepadPressedRef.current) {
+        return;
+      }
 
       if (pttModeRef.current === RADIO_PTT_MODES.HOLD) {
         updatePTTState(state === 'down');
@@ -273,16 +383,21 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
       }
 
       const isKeyMatch =
-        (mappedKey === 'Space' && (e.code === 'Space' || e.key === ' ')) ||
+        (mappedKey === 'Space' && (e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar')) ||
         e.code === mappedKey ||
         e.key.toLowerCase() === mappedKey.toLowerCase();
 
-      if (isKeyMatch && !keyboardPressedRef.current) {
-        keyboardPressedRef.current = true;
-        if (pttModeRef.current === RADIO_PTT_MODES.HOLD) {
-          updatePTTState(true);
-        } else if (pttModeRef.current === RADIO_PTT_MODES.TOGGLE) {
-          updatePTTState(!isPTTActiveRef.current);
+      if (isKeyMatch) {
+        if (e.code === 'Space' || e.key === ' ') {
+          e.preventDefault();
+        }
+        if (!keyboardPressedRef.current) {
+          keyboardPressedRef.current = true;
+          if (pttModeRef.current === RADIO_PTT_MODES.HOLD) {
+            updatePTTState(true);
+          } else if (pttModeRef.current === RADIO_PTT_MODES.TOGGLE) {
+            updatePTTState(!isPTTActiveRef.current);
+          }
         }
       }
     };
@@ -294,7 +409,7 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
       }
 
       const isKeyMatch =
-        (mappedKey === 'Space' && (e.code === 'Space' || e.key === ' ')) ||
+        (mappedKey === 'Space' && (e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar')) ||
         e.code === mappedKey ||
         e.key.toLowerCase() === mappedKey.toLowerCase();
 

@@ -47,7 +47,8 @@ type Manager interface {
 // BaseManager provides shared storage and state management for platform implementations.
 type BaseManager struct {
 	mu           sync.RWMutex
-	currentMap   Mapping
+	joyMap       Mapping
+	keyMap       Mapping
 	isDown       bool
 	isLearning   bool
 	learnChan    chan Mapping
@@ -58,29 +59,43 @@ type BaseManager struct {
 // NewBaseManager initializes a BaseManager.
 func NewBaseManager() *BaseManager {
 	return &BaseManager{
-		currentMap: Mapping{
+		keyMap: Mapping{
 			DeviceType: DeviceTypeKeyboard,
 			KeyCode:    0x20, // VK_SPACE
 			KeyName:    "Space",
 			DeviceName: "Keyboard",
+		},
+		joyMap: Mapping{
+			DeviceType:  DeviceTypeNone,
+			DeviceIndex: -1,
+			ButtonIndex: -1,
 		},
 		eventChan:    make(chan Event, 64),
 		pollInterval: 20 * time.Millisecond, // 50Hz polling
 	}
 }
 
-// GetMapping returns the active mapping.
+// GetMapping returns the primary active mapping.
 func (b *BaseManager) GetMapping() Mapping {
 	b.mu.RLock()
 	defer b.mu.RUnlock()
-	return b.currentMap
+	if b.joyMap.DeviceType == DeviceTypeJoystick {
+		return b.joyMap
+	}
+	return b.keyMap
 }
 
-// SetMapping updates the active mapping.
+// SetMapping updates either the joystick or keyboard mapping based on DeviceType.
 func (b *BaseManager) SetMapping(m Mapping) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	b.currentMap = m
+	if m.DeviceType == DeviceTypeJoystick {
+		b.joyMap = m
+	} else if m.DeviceType == DeviceTypeKeyboard {
+		b.keyMap = m
+	} else {
+		b.joyMap = Mapping{DeviceType: DeviceTypeNone, DeviceIndex: -1, ButtonIndex: -1}
+	}
 	b.isDown = false // Reset state on mapping change
 }
 
@@ -91,9 +106,7 @@ func (b *BaseManager) Events() <-chan Event {
 
 // EmitEvent safely pushes an event to the event channel without blocking.
 func (b *BaseManager) EmitEvent(state string) {
-	b.mu.RLock()
-	m := b.currentMap
-	b.mu.RUnlock()
+	m := b.GetMapping()
 
 	evt := Event{
 		State:     state,
