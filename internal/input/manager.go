@@ -56,13 +56,13 @@ type BaseManager struct {
 	pollInterval time.Duration
 }
 
-// NewBaseManager initializes a BaseManager.
+// NewBaseManager initializes a BaseManager without any default active key.
 func NewBaseManager() *BaseManager {
 	return &BaseManager{
 		keyMap: Mapping{
-			DeviceType: DeviceTypeKeyboard,
-			KeyCode:    0x20, // VK_SPACE
-			KeyName:    "Space",
+			DeviceType: DeviceTypeNone,
+			KeyCode:    0,
+			KeyName:    "None",
 			DeviceName: "Keyboard",
 		},
 		joyMap: Mapping{
@@ -91,11 +91,20 @@ func (b *BaseManager) SetMapping(m Mapping) {
 	defer b.mu.Unlock()
 	switch m.DeviceType {
 	case DeviceTypeJoystick:
-		b.joyMap = m
+		if m.DeviceIndex >= 0 && m.ButtonIndex >= 0 {
+			b.joyMap = m
+		} else {
+			b.joyMap = Mapping{DeviceType: DeviceTypeNone, DeviceIndex: -1, ButtonIndex: -1}
+		}
 	case DeviceTypeKeyboard:
-		b.keyMap = m
+		if m.KeyCode > 0 && m.KeyName != "None" {
+			b.keyMap = m
+		} else {
+			b.keyMap = Mapping{DeviceType: DeviceTypeNone, KeyCode: 0, KeyName: "None", DeviceName: "Keyboard"}
+		}
 	default:
 		b.joyMap = Mapping{DeviceType: DeviceTypeNone, DeviceIndex: -1, ButtonIndex: -1}
+		b.keyMap = Mapping{DeviceType: DeviceTypeNone, KeyCode: 0, KeyName: "None", DeviceName: "Keyboard"}
 	}
 	b.isDown = false // Reset state on mapping change
 }

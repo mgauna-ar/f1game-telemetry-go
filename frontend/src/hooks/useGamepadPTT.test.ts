@@ -13,22 +13,38 @@ describe('useGamepadPTT hook', () => {
     localStorage.clear();
   });
 
-  it('initializes with default keyboard key Space and null gamepad mapping', () => {
+  it('initializes with default keyboard key None and null gamepad mapping', () => {
     const { result } = renderHook(() => useGamepadPTT());
 
     expect(result.current.isPTTActive).toBe(false);
     expect(result.current.isLearning).toBe(false);
-    expect(result.current.mappedKey).toBe('Space');
+    expect(result.current.mappedKey).toBe('None');
     expect(result.current.mappedGamepadButton).toBeNull();
   });
 
-  it('triggers PTT on Space keydown and releases on keyup', () => {
+  it('does not trigger PTT on Space keydown when mappedKey is None', () => {
+    const onPTTDown = vi.fn();
+    const { result } = renderHook(() => useGamepadPTT({ onPTTDown }));
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space', key: ' ' }));
+    });
+
+    expect(result.current.isPTTActive).toBe(false);
+    expect(onPTTDown).not.toHaveBeenCalled();
+  });
+
+  it('triggers PTT on mapped keydown (e.g. Space) and releases on keyup when explicitly configured', () => {
     const onPTTDown = vi.fn();
     const onPTTUp = vi.fn();
 
     const { result } = renderHook(() =>
       useGamepadPTT({ onPTTDown, onPTTUp })
     );
+
+    act(() => {
+      result.current.setMappedKey('Space');
+    });
 
     act(() => {
       window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space', key: ' ' }));

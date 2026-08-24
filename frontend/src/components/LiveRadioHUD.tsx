@@ -226,10 +226,23 @@ export const LiveRadioHUD: React.FC<LiveRadioHUDProps> = ({ radio }) => {
                 </span>
               ) : (
                 <>
-                  <span className="live-radio-key-badge">
-                    {radio.mappedKey}
-                  </span>
-                  <span>{t('ai_engineer.radio.pttHint', { key: radio.mappedKey })}</span>
+                  {radio.mappedKey && radio.mappedKey !== 'None' ? (
+                    <>
+                      <span className="live-radio-key-badge">
+                        {radio.mappedKey}
+                      </span>
+                      <span>{t('ai_engineer.radio.pttHint', { key: radio.mappedKey })}</span>
+                    </>
+                  ) : radio.mappedGamepadButton ? (
+                    <>
+                      <span className="live-radio-key-badge">
+                        B{radio.mappedGamepadButton.buttonIndex + 1}
+                      </span>
+                      <span>{t('ai_engineer.radio.pttHint', { key: `Button ${radio.mappedGamepadButton.buttonIndex + 1}` })}</span>
+                    </>
+                  ) : (
+                    <span>{t('ai_engineer.ptt.title')}</span>
+                  )}
                 </>
               )}
             </span>

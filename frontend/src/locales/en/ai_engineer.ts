@@ -157,6 +157,8 @@ export const ai_engineer = {
     globalActive: 'Active (Works in background while playing F1)',
     globalInactive: 'Browser Only',
     globalMapped: '{device}: {key}',
+    noKey: 'None (Disabled)',
+    unassigned: 'Unassigned',
   },
   tabs: {
     persona: 'Persona & Driver',

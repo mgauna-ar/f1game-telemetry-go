@@ -523,13 +523,16 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
                     <Keyboard className="w-4 h-4" style={{ color: '#00f2fe' }} />
                     {t('ai_engineer.ptt.keyboardKey')}
                   </span>
-                  <span className="live-radio-key-badge">{radio.mappedKey}</span>
+                  <span className="live-radio-key-badge">
+                    {radio.mappedKey === 'None' ? t('ai_engineer.ptt.unassigned') : radio.mappedKey}
+                  </span>
                 </div>
                 <select
                   value={radio.mappedKey}
                   onChange={(e) => radio.setMappedKey(e.target.value)}
                   className="radio-select-key"
                 >
+                  <option value="None">🚫 {t('ai_engineer.ptt.noKey')}</option>
                   <option value="Space">Space</option>
                   <option value="KeyT">T Key</option>
                   <option value="KeyR">R Key</option>

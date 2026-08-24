@@ -9,8 +9,8 @@ func TestBaseManager_SetAndGetMapping(t *testing.T) {
 	bm := NewBaseManager()
 
 	initial := bm.GetMapping()
-	if initial.DeviceType != DeviceTypeKeyboard || initial.KeyName != "Space" {
-		t.Errorf("Expected initial mapping to be Space, got %+v", initial)
+	if initial.DeviceType != DeviceTypeNone || initial.KeyName != "None" {
+		t.Errorf("Expected initial mapping to be None, got %+v", initial)
 	}
 
 	custom := Mapping{
@@ -38,8 +38,8 @@ func TestBaseManager_EmitEvent(t *testing.T) {
 		if evt.State != "down" {
 			t.Errorf("Expected event state down, got %s", evt.State)
 		}
-		if evt.Mapping.KeyName != "Space" {
-			t.Errorf("Expected mapping Space, got %s", evt.Mapping.KeyName)
+		if evt.Mapping.KeyName != "None" {
+			t.Errorf("Expected mapping None, got %s", evt.Mapping.KeyName)
 		}
 		if evt.Timestamp <= 0 {
 			t.Errorf("Expected non-zero timestamp, got %d", evt.Timestamp)

@@ -44,6 +44,7 @@ export interface UseGamepadPTTReturn {
 }
 
 export function getVKCodeForName(keyName: string): number {
+  if (!keyName || keyName === 'None') return 0;
   switch (keyName) {
     case 'Space':
     case ' ':
@@ -95,7 +96,7 @@ export function getVKCodeForName(keyName: string): number {
         const code = keyName.toUpperCase().charCodeAt(0);
         if (code >= 0x41 && code <= 0x5A) return code;
       }
-      return 0x20;
+      return 0;
   }
 }
 
@@ -186,12 +187,13 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
     setMappedKeyState(key);
     try {
       localStorage.setItem(RADIO_STORAGE_KEYS.KEYBOARD_KEY, key);
+      const isNone = !key || key === 'None';
       fetch('/api/ai/ptt/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           mapping: {
-            device_type: 'keyboard',
+            device_type: isNone ? 'none' : 'keyboard',
             key_code: getVKCodeForName(key),
             key_name: key,
             device_name: 'Keyboard',
@@ -217,12 +219,13 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
 
     // Ensure backend knows the saved key
     const initialKey = localStorage.getItem(RADIO_STORAGE_KEYS.KEYBOARD_KEY) || RADIO_ALERT_CONSTANTS.DEFAULT_KEYBOARD_KEY;
+    const isInitialNone = !initialKey || initialKey === 'None';
     fetch('/api/ai/ptt/config', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         mapping: {
-          device_type: 'keyboard',
+          device_type: isInitialNone ? 'none' : 'keyboard',
           key_code: getVKCodeForName(initialKey),
           key_name: initialKey,
           device_name: 'Keyboard',
@@ -244,29 +247,24 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
   const isLearningRef = useRef(isLearning);
   isLearningRef.current = isLearning;
 
-  const onPTTDownRef = useRef(onPTTDown);
-  onPTTDownRef.current = onPTTDown;
-
-  const onPTTUpRef = useRef(onPTTUp);
-  onPTTUpRef.current = onPTTUp;
-
   const enabledRef = useRef(enabled);
   enabledRef.current = enabled;
 
   const keyboardPressedRef = useRef(false);
   const gamepadPressedRef = useRef(false);
 
-  // Trigger PTT state changes
-  const updatePTTState = useCallback((newActive: boolean) => {
-    if (newActive !== isPTTActiveRef.current) {
-      setIsPTTActive(newActive);
-      if (newActive) {
-        onPTTDownRef.current?.();
+  const updatePTTState = useCallback(
+    (nextState: boolean) => {
+      if (isPTTActiveRef.current === nextState) return;
+      setIsPTTActive(nextState);
+      if (nextState) {
+        onPTTDown?.();
       } else {
-        onPTTUpRef.current?.();
+        onPTTUp?.();
       }
-    }
-  }, []);
+    },
+    [onPTTDown, onPTTUp]
+  );
 
   const handleGlobalPTTEvent = useCallback(
     (state: 'down' | 'up') => {
@@ -382,10 +380,11 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
         return;
       }
 
+      if (!mappedKey || mappedKey === 'None') return;
+
       const isKeyMatch =
         (mappedKey === 'Space' && (e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar')) ||
-        e.code === mappedKey ||
-        e.key.toLowerCase() === mappedKey.toLowerCase();
+        (mappedKey !== 'Space' && (e.code === mappedKey || e.key.toLowerCase() === mappedKey.toLowerCase()));
 
       if (isKeyMatch) {
         if (e.code === 'Space' || e.key === ' ') {
@@ -408,10 +407,11 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
         return;
       }
 
+      if (!mappedKey || mappedKey === 'None') return;
+
       const isKeyMatch =
         (mappedKey === 'Space' && (e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar')) ||
-        e.code === mappedKey ||
-        e.key.toLowerCase() === mappedKey.toLowerCase();
+        (mappedKey !== 'Space' && (e.code === mappedKey || e.key.toLowerCase() === mappedKey.toLowerCase()));
 
       if (isKeyMatch) {
         keyboardPressedRef.current = false;

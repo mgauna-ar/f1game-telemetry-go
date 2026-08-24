@@ -157,6 +157,8 @@ export const ai_engineer = {
     globalActive: 'Activo (Funciona mientras jugás al F1 a pantalla completa)',
     globalInactive: 'Solo Navegador',
     globalMapped: '{device}: {key}',
+    noKey: 'Ninguna (Desactivada)',
+    unassigned: 'Sin Asignar',
   },
   tabs: {
     persona: 'Persona y Piloto',
