@@ -2091,3 +2091,152 @@
   line-height: 1.35;
 }
 
+/* ==========================================================================
+   SESSION HEADER & COCKPIT STANDBY STYLES
+   ========================================================================== */
+
+.session-header-standby {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.standby-header-pulse {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(0, 242, 254, 0.1);
+  border: 1px solid rgba(0, 242, 254, 0.3);
+  box-shadow: 0 0 14px rgba(0, 242, 254, 0.2);
+  flex-shrink: 0;
+}
+
+.voice-cockpit-standby-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  background: linear-gradient(165deg, rgba(14, 20, 32, 0.75) 0%, rgba(8, 12, 20, 0.85) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-lg, 16px);
+  padding: 1.5rem 1.75rem;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.standby-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.standby-radar-mini {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0, 242, 254, 0.15) 0%, rgba(0, 0, 0, 0.4) 100%);
+  border: 1.5px solid rgba(0, 242, 254, 0.4);
+  box-shadow: 0 0 20px rgba(0, 242, 254, 0.25);
+  flex-shrink: 0;
+}
+
+.standby-panel-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.standby-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.standby-title {
+  font-family: var(--font-display, 'Titillium Web', sans-serif);
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.standby-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-secondary, #94a3b8);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.voice-cockpit-standby-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+@media (max-width: 900px) {
+  .voice-cockpit-standby-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.standby-status-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md, 10px);
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.standby-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.standby-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.standby-card-label {
+  font-family: var(--font-display, 'Titillium Web', sans-serif);
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: var(--text-secondary, #94a3b8);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.standby-card-val {
+  font-size: 0.85rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.standby-card-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted, #64748b);
+  line-height: 1.3;
+}
+
+

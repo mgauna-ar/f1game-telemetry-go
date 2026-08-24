@@ -1,4 +1,4 @@
-import { Flag, CloudSun, Thermometer, ShieldAlert, Timer, LayoutDashboard, Mic } from 'lucide-react';
+import { Flag, CloudSun, Thermometer, ShieldAlert, Timer, LayoutDashboard, Mic, Radio } from 'lucide-react';
 import type { SessionData } from '../hooks/useTelemetry';
 import { useI18n } from '../context/I18nContext';
 import { F1FormatBadge } from './F1FormatBadge';
@@ -50,10 +50,76 @@ export const SessionHeader: React.FC<SessionHeaderProps> = ({
   onViewModeChange,
 }) => {
   const { t } = useI18n();
-  const trackInfo = session?.TrackId !== undefined ? getTrackInfo(session.TrackId) : null;
-  const trackName = trackInfo?.name || (session?.TrackId !== undefined ? (TRACK_NAMES[session.TrackId] || `Track #${session.TrackId}`) : 'Albert Park');
-  const sessionInfo = session?.SessionType !== undefined ? (SESSION_TYPES[session.SessionType] || { label: 'LIVE SESSION', isRace: false, isQualy: false }) : { label: 'LIVE SESSION', isRace: false, isQualy: false };
-  const weatherText = session?.Weather !== undefined ? (WEATHER_NAMES[session.Weather] || 'Clear') : 'Clear ☀️';
+
+  // If no active session yet (waiting for data)
+  if (!session) {
+    return (
+      <header className="header session-header-panel session-header-standby">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'nowrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div className="standby-header-pulse">
+              <Radio size={18} className="text-cyan-400" />
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'nowrap' }}>
+                <h1 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 800, whiteSpace: 'nowrap' }}>
+                  {t('live.liveHub')}
+                </h1>
+                <span className={`session-badge ${connected ? 'badge-green' : 'badge-yellow'}`}>
+                  {connected ? t('live.backendConnected') : t('live.connectingToBackend')}
+                </span>
+              </div>
+              <p className="mono" style={{ color: 'var(--text-secondary)', margin: '2px 0 0 0', fontSize: '0.80rem' }}>
+                {t('live.commandCenter')} • UDP 20777
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'nowrap' }}>
+          {/* Live View Mode Segmented Switcher */}
+          {onViewModeChange && (
+            <div className="live-view-mode-toggle" role="group" aria-label="Live View Mode">
+              <button
+                type="button"
+                className={`live-view-toggle-btn ${viewMode === LIVE_VIEW_MODES.DASHBOARD ? 'active' : ''}`}
+                onClick={() => onViewModeChange(LIVE_VIEW_MODES.DASHBOARD)}
+                title={t('live.viewModeDashboard')}
+                data-testid="live-view-toggle-dashboard"
+              >
+                <LayoutDashboard size={14} />
+                <span>{t('live.viewModeDashboard')}</span>
+              </button>
+              <button
+                type="button"
+                className={`live-view-toggle-btn ${viewMode === LIVE_VIEW_MODES.COCKPIT ? 'active' : ''}`}
+                onClick={() => onViewModeChange(LIVE_VIEW_MODES.COCKPIT)}
+                title={t('live.viewModeCockpit')}
+                data-testid="live-view-toggle-cockpit"
+              >
+                <Mic size={14} />
+                <span>{t('live.viewModeCockpit')}</span>
+              </button>
+            </div>
+          )}
+
+          {/* WebSocket Connection Status */}
+          <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255, 255, 255, 0.03)', padding: '6px 12px', borderRadius: '8px', whiteSpace: 'nowrap' }}>
+            <span className={`status-dot ${connected ? 'status-live' : ''}`} />
+            <span className="mono" style={{ marginLeft: '8px', color: connected ? 'var(--accent-primary)' : 'var(--text-muted)', fontSize: '0.82rem', fontWeight: 600 }}>
+              {connected ? t('live.liveStatus') : t('live.reconnecting')}
+            </span>
+          </div>
+        </div>
+      </header>
+    );
+  }
+
+  // Active Session rendering
+  const trackInfo = getTrackInfo(session.TrackId);
+  const trackName = trackInfo?.name || TRACK_NAMES[session.TrackId] || `Track #${session.TrackId}`;
+  const sessionInfo = SESSION_TYPES[session.SessionType] || { label: 'LIVE SESSION', isRace: false, isQualy: false };
+  const weatherText = WEATHER_NAMES[session.Weather] || 'Clear ☀️';
   const effectiveFormat = packetFormat || session?.PacketFormat;
 
   const formatSeconds = (secs: number) => {
@@ -64,7 +130,7 @@ export const SessionHeader: React.FC<SessionHeaderProps> = ({
   };
 
   const renderSafetyCarBadge = () => {
-    if (!session || session.SafetyCarStatus === 0) {
+    if (session.SafetyCarStatus === 0) {
       return (
         <span className="session-badge badge-green">
           <Flag size={14} /> {t('live.greenFlag')}
@@ -107,7 +173,7 @@ export const SessionHeader: React.FC<SessionHeaderProps> = ({
       <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <TrackFlag track={session?.TrackId ?? trackName} width={26} height={18} />
+            <TrackFlag track={session.TrackId} width={26} height={18} />
             <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 800 }}>{trackName}</h1>
 
             <F1FormatBadge format={effectiveFormat} size="sm" />
@@ -121,7 +187,7 @@ export const SessionHeader: React.FC<SessionHeaderProps> = ({
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
         {/* Live View Mode Segmented Switcher */}
         {onViewModeChange && (
           <div className="live-view-mode-toggle" role="group" aria-label="Live View Mode">
@@ -154,12 +220,12 @@ export const SessionHeader: React.FC<SessionHeaderProps> = ({
           {sessionInfo.isRace ? (
             <div>
               <div className="stat-label">{t('live.totalLaps')}</div>
-              <div className="stat-value mono">{session?.TotalLaps ? `${session.TotalLaps} ${t('common.laps').toUpperCase()}` : 'TIME TRIAL'}</div>
+              <div className="stat-value mono">{session.TotalLaps ? `${session.TotalLaps} ${t('common.laps').toUpperCase()}` : 'TIME TRIAL'}</div>
             </div>
           ) : (
             <div>
               <div className="stat-label">{t('live.timeRemaining')}</div>
-              <div className="stat-value mono">{session?.SessionTimeLeft ? formatSeconds(session.SessionTimeLeft) : '--:--'}</div>
+              <div className="stat-value mono">{session.SessionTimeLeft ? formatSeconds(session.SessionTimeLeft) : '--:--'}</div>
             </div>
           )}
         </div>
@@ -178,7 +244,7 @@ export const SessionHeader: React.FC<SessionHeaderProps> = ({
           <div>
             <div className="stat-label">{t('live.trackAirTemp')}</div>
             <div className="stat-value mono">
-              {session ? `${session.TrackTemperature}°C / ${session.AirTemperature}°C` : '--°C / --°C'}
+              {`${session.TrackTemperature}°C / ${session.AirTemperature}°C`}
             </div>
           </div>
         </div>
@@ -197,5 +263,6 @@ export const SessionHeader: React.FC<SessionHeaderProps> = ({
     </header>
   );
 };
+
 
 

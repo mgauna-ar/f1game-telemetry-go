@@ -201,15 +201,16 @@
 
 /* Guide Cards */
 .waiting-guide-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1.25rem;
+  display: flex;
+  justify-content: center;
   width: 100%;
-  margin-bottom: 1.75rem;
+  max-width: 480px;
+  margin: 0 auto 1.75rem;
   text-align: left;
 }
 
 .waiting-guide-card {
+  width: 100%;
   background: rgba(0, 0, 0, 0.35);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
@@ -217,6 +218,7 @@
   display: flex;
   flex-direction: column;
 }
+
 
 .guide-card-header {
   display: flex;

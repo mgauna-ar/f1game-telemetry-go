@@ -30,7 +30,7 @@ describe('Dashboard', () => {
 
   it('renders waiting state when disconnected from backend and still mounts LiveRadioHUD', () => {
     render(<Dashboard />);
-    expect(screen.getByText(/CONNECTING TO BACKEND/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/CONNECTING TO BACKEND/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Connecting to Telemetry Bridge/i)).toBeInTheDocument();
     expect(screen.getAllByText(/20777/i).length).toBeGreaterThan(0);
     // Voice Radio HUD is active and available even when disconnected
@@ -58,12 +58,13 @@ describe('Dashboard', () => {
     });
 
     render(<Dashboard />);
-    expect(screen.getByText(/BACKEND CONNECTED/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/BACKEND CONNECTED/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/Waiting for Live Session Telemetry/i)).toBeInTheDocument();
     expect(screen.getByText(/In-Game Telemetry Settings/i)).toBeInTheDocument();
     // Voice Radio HUD is active and available
     expect(screen.getByText(/RADIO STANDBY|RADIO EN ESPERA/i)).toBeInTheDocument();
   });
+
 
   it('renders full live Race Control Hub when connected and session data is received', () => {
     (useTelemetry as any).mockReturnValue({

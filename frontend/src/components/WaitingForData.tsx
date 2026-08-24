@@ -1,5 +1,5 @@
 import React from 'react';
-import { Radio, WifiOff, Activity, CheckCircle2, Terminal, Info, Zap } from 'lucide-react';
+import { Radio, WifiOff, Activity, CheckCircle2, Info } from 'lucide-react';
 import { useI18n } from '../context/I18nContext';
 
 interface WaitingForDataProps {
@@ -48,7 +48,7 @@ export const WaitingForData: React.FC<WaitingForDataProps> = ({ connected }) => 
           </p>
         </div>
 
-        {/* Quick Setup / Checklist Guide */}
+        {/* In-Game Telemetry Settings Checklist */}
         <div className="waiting-guide-grid">
           <div className="waiting-guide-card">
             <div className="guide-card-header">
@@ -78,26 +78,8 @@ export const WaitingForData: React.FC<WaitingForDataProps> = ({ connected }) => 
               </li>
             </ul>
           </div>
-
-          <div className="waiting-guide-card">
-            <div className="guide-card-header">
-              <Terminal size={16} className="guide-icon-accent" />
-              <span>{t('live.packetSimulatorShortcut')}</span>
-            </div>
-            <p className="guide-desc">
-              {t('live.packetSimulatorDesc')}
-            </p>
-            <div className="guide-code-snippet mono">
-              <code>make simulate</code>
-              <span className="guide-code-or">{t('live.or')}</span>
-              <code>simulate.bat</code>
-            </div>
-            <div className="guide-sub-note">
-              <Zap size={13} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
-              <span>{t('live.packetSimulatorSubNote')}</span>
-            </div>
-          </div>
         </div>
+
 
         {/* Live Listening Footer */}
         <div className="waiting-footer-info">

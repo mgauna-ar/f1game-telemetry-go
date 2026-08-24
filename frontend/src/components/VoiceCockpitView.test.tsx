@@ -326,13 +326,41 @@ describe('VoiceCockpitView', () => {
     expect(screen.getByText(/SAFETY CAR DEPLOYED — DELTA POSITIVE/i)).toBeInTheDocument();
   });
 
-  it('displays aero damage when present', () => {
+  it('displays standby panel when disconnected or waiting for session', () => {
     renderWithI18n(
       <VoiceCockpitView
         radio={mockRadio}
         session={null}
         lap={null}
         carStatus={null}
+        carDamage={null}
+        telemetry={null}
+        connected={true}
+      />
+    );
+
+    expect(screen.getByTestId('voice-cockpit-standby-panel')).toBeInTheDocument();
+    expect(screen.getByText(/Waiting for Live Session Telemetry/i)).toBeInTheDocument();
+    expect(screen.getByText(/UDP TELEMETRY BRIDGE/i)).toBeInTheDocument();
+  });
+
+  it('displays aero damage when present in an active session', () => {
+    renderWithI18n(
+      <VoiceCockpitView
+        radio={mockRadio}
+        session={{
+          TrackId: 0,
+          TotalLaps: 58,
+          SessionType: 15,
+        } as any}
+        lap={{
+          CarPosition: 2,
+          CurrentLapNum: 5,
+        } as any}
+        carStatus={{
+          ActualTyreCompound: 16,
+          TyresAgeLaps: 5,
+        } as any}
         carDamage={{
           TyresWear: [45, 50, 42, 44],
           FrontLeftWingDamage: 35,
@@ -344,9 +372,11 @@ describe('VoiceCockpitView', () => {
       />
     );
 
+    expect(screen.getByTestId('voice-cockpit-vitals-grid')).toBeInTheDocument();
     expect(screen.getByText(/Front Wing/i)).toBeInTheDocument();
     expect(screen.getByText(/35% \/ 10%/i)).toBeInTheDocument();
     expect(screen.getByText(/15%/i)).toBeInTheDocument();
   });
 });
+
 

@@ -294,17 +294,16 @@ export const Dashboard: React.FC = () => {
   const playerTelemetry2 = allTelemetry2[playerCarIndex] || null;
 
   if (!connected || !session) {
-    return (
-      <div className="telemetry-waiting-wrapper" style={{ position: 'relative', width: '100%' }}>
-        {/* Header with View Mode Switcher in Standby */}
-        <SessionHeader
-          session={session}
-          connected={connected}
-          packetFormat={packetFormat}
-          viewMode={viewMode}
-          onViewModeChange={handleViewModeChange}
-        />
-        {viewMode === LIVE_VIEW_MODES.COCKPIT ? (
+    if (viewMode === LIVE_VIEW_MODES.COCKPIT) {
+      return (
+        <div className="voice-cockpit-layout" style={{ position: 'relative', width: '100%' }}>
+          <SessionHeader
+            session={session}
+            connected={connected}
+            packetFormat={packetFormat}
+            viewMode={viewMode}
+            onViewModeChange={handleViewModeChange}
+          />
           <VoiceCockpitView
             radio={radio}
             session={session}
@@ -316,15 +315,26 @@ export const Dashboard: React.FC = () => {
             packetFormat={packetFormat}
             connected={connected}
           />
-        ) : (
-          <>
-            <WaitingForData connected={connected} />
-            <LiveRadioHUD radio={radio} />
-          </>
-        )}
+        </div>
+      );
+    }
+
+    return (
+      <div className="telemetry-waiting-wrapper" style={{ position: 'relative', width: '100%' }}>
+        {/* Header with View Mode Switcher in Standby */}
+        <SessionHeader
+          session={session}
+          connected={connected}
+          packetFormat={packetFormat}
+          viewMode={viewMode}
+          onViewModeChange={handleViewModeChange}
+        />
+        <WaitingForData connected={connected} />
+        <LiveRadioHUD radio={radio} />
       </div>
     );
   }
+
 
   // Voice Cockpit View (0% unneeded widget DOM/Canvas overhead for sim racing)
   if (viewMode === LIVE_VIEW_MODES.COCKPIT) {
