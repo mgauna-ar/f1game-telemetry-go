@@ -482,17 +482,26 @@ function connectClassicRadioGraph(
 
 /**
  * Sanitizes voice engineer speech text by removing internal debug tags,
- * proactive prompt headers (e.g. [PROACTIVE PIT WALL CALL: ...]), and bracketed instructions.
+ * proactive prompt headers (e.g. [PROACTIVE PIT WALL CALL: ...]),
+ * LLM system instructions (e.g. You are initiating this call...), and bracketed instructions.
  */
 export function cleanRadioSpeechText(text: string): string {
   if (!text) return '';
   let cleaned = text.trim();
 
-  // Strip leading [PROACTIVE PIT WALL CALL: ...] or [PROACTIVE PIT WALL CALL] tag
-  cleaned = cleaned.replace(/^\[PROACTIVE(?:\s+PIT\s+WALL(?:\s+CALL)?)?\]?:?\s*/i, '');
-
-  // Strip leading PROACTIVE PIT WALL CALL: or PROACTIVE PIT WALL:
+  // Strip leading [PROACTIVE PIT WALL CALL: ...] or [PROACTIVE PIT WALL CALL] or similar
+  cleaned = cleaned.replace(/^\[PROACTIVE(?:\s+PIT\s+WALL(?:\s+CALL)?)?:\s*/i, '');
+  cleaned = cleaned.replace(/^\[PROACTIVE(?:\s+PIT\s+WALL(?:\s+CALL)?)?\]:?\s*/i, '');
   cleaned = cleaned.replace(/^PROACTIVE(?:\s+PIT\s+WALL(?:\s+CALL)?)?:?\s*/i, '');
+
+  // Strip [DRIVER RADIO TRANSMISSION]: or [PIT WALL BROADCAST]:
+  cleaned = cleaned.replace(/^\[(?:DRIVER\s+RADIO\s+TRANSMISSION|PIT\s+WALL\s+BROADCAST)\]:?\s*/i, '');
+
+  // Strip internal prompt instructions directed to LLMs
+  cleaned = cleaned.replace(/\s*You are initiating this call(?:—|--|-|:|\.).*$/i, '');
+  cleaned = cleaned.replace(/\s*You are initiating this call.*$/i, '');
+  cleaned = cleaned.replace(/\s*do NOT say\s+['"][^'"]+['"]\s+or\s+['"][^'"]+['"][^.]*\.?/gi, '');
+  cleaned = cleaned.replace(/\s*do NOT say\s+[^.]*\.?/gi, '');
 
   // If there's a trailing bracket remaining from opening bracket, e.g. "Message]"
   if (cleaned.endsWith(']') && !cleaned.includes('[')) {
@@ -503,6 +512,9 @@ export function cleanRadioSpeechText(text: string): string {
   if (cleaned.startsWith('[') && cleaned.endsWith(']')) {
     cleaned = cleaned.slice(1, -1);
   }
+
+  // Strip leading colons, hyphens, em-dashes, or whitespace left over from header tags
+  cleaned = cleaned.replace(/^[:\-\s—–]+/, '');
 
   return cleaned.trim();
 }

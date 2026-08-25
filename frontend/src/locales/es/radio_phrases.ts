@@ -359,6 +359,90 @@ export const radio_phrases = {
       'Radar meteorológico confirma lluvia en los próximos minutos, {driver}.',
     ],
   },
+  sector_delta: {
+    colapinto: [
+      'Se nos fue tiempo en el sector, {driver}. Meté foco en el radio de giro y salí prolijo con la tracción.',
+      'Perdimos unas décimas en el parcial, {driver}. Redondeá la curva y dale gas progresivo.',
+    ],
+    bono: [
+      'Tiempo perdido en este sector, {driver}. Prioriza la velocidad de vértice y la salida de curva.',
+      'Pérdida de delta en el sector. Suaviza la dirección y cuida la tracción en aceleración.',
+    ],
+    standard: [
+      'Tiempo cedido en este sector. Prioriza velocidad de vértice y tracción.',
+      'Pérdida de tiempo en el sector, {driver}. Enfócate en la salida de curva.',
+    ],
+  },
+  teammate_ahead: {
+    colapinto: [
+      'Tenemos al compañero adelante, {driver}. Venís con mejor ritmo, podés pasarlo pero limpito sin toques.',
+      'Compañero de equipo adelante, {driver}. Dale para adelante con cuidado.',
+    ],
+    bono: [
+      'Compañero de equipo por delante, {driver}. El delta de ritmo es favorable, vía libre para competir con limpieza.',
+      'Compañero adelante en posición de pelea. Mantén la maniobra limpia.',
+    ],
+    standard: [
+      'Compañero de equipo por delante. Ritmo favorable, libre para competir de manera limpia.',
+      'Compañero de equipo adelante en pista, {driver}. Maniobra limpia.',
+    ],
+  },
+  teammate_pitting: {
+    colapinto: [
+      'Tu compañero entra a boxes en esta vuelta, {driver}. Meté una vuelta limpia con aire limpio.',
+      'Compañero parando en boxes, {driver}. Dale con todo.',
+    ],
+    bono: [
+      'Tu compañero de equipo entra a boxes ahora. Concéntrate en tu vuelta de entrada.',
+      'Compañero en boxes, {driver}. Pista libre para tu stint.',
+    ],
+    standard: [
+      'Compañero de equipo en boxes. Concéntrate en tu vuelta.',
+      'Tu compañero entra a boxes ahora, {driver}. Maximiza el ritmo.',
+    ],
+  },
+  pit_clean_air: {
+    colapinto: [
+      'Si paramos ahora salimos con aire limpio, {driver}. Gran oportunidad de undercut.',
+      'Aire limpio garantizado en la salida de boxes, {driver}. Atento a la orden de box.',
+    ],
+    bono: [
+      'La ventana de parada ofrece aire limpio al reingreso. Momento óptimo para undercut o extensión.',
+      'Ventana de parada abierta con aire limpio garantizado, {driver}.',
+    ],
+    standard: [
+      'Ventana de boxes con aire limpio disponible. Oportunidad óptima de estrategia.',
+      'Reingreso con aire limpio disponible en boxes, {driver}.',
+    ],
+  },
+  ers_fault: {
+    colapinto: [
+      'Falla en el sistema ERS, {driver}. Nos quedamos sin la potencia híbrida, bancame que revisamos el reinicio.',
+      'Se cayó el despliegue del ERS, {driver}. Manejá en modo térmico por ahora.',
+    ],
+    bono: [
+      'Fallo en el despliegue del ERS detectado. Potencia eléctrica desactivada, espera protocolo de reinicio.',
+      'Falla en el sistema híbrido, {driver}. Despliegue eléctrico fuera de servicio.',
+    ],
+    standard: [
+      'Fallo en el despliegue del ERS. Potencia eléctrica fuera de línea, espera protocolo de reinicio.',
+      'Falla de potencia eléctrica ERS, {driver}. Atento a instrucciones en volante.',
+    ],
+  },
+  aero_fault: {
+    colapinto: [
+      'Falla en el alerón y la aerodinámica activa, {driver}. No abre el modo de rectas.',
+      'Problema con el alerón móvil, {driver}. El DRS o Straight Mode no responde.',
+    ],
+    bono: [
+      'Fallo en el sistema aerodinámico activo. El modo de rectas no está disponible.',
+      'Falla en el alerón móvil / DRS, {driver}. Ajuste aerodinámico bloqueado.',
+    ],
+    standard: [
+      'Fallo en el sistema aerodinámico activo / DRS. Ajuste de alerón no disponible.',
+      'Falla en mecanismo de alerón móvil, {driver}. Modo de rectas fuera de servicio.',
+    ],
+  },
   directive: {
     standard: ['{clean_text}'],
   },

@@ -352,6 +352,84 @@ export const radio_phrases = {
       'Imminent rain detected on radar, {driver}. Prepare for track conditions changing.',
     ],
   },
+  sector_delta: {
+    bono: [
+      'Delta loss in this sector, {driver}. Focus on apex speed and smooth exit traction.',
+      'Time lost in sector vs personal best. Keep steering inputs smooth.',
+    ],
+    colapinto: [
+      'We lost time in this sector, {driver}. Focus on apex speed and get on the power cleanly.',
+    ],
+    standard: [
+      'Time lost in sector vs personal best. Prioritize corner exit traction.',
+      'Sector delta loss, {driver}. Focus on minimum corner speed.',
+    ],
+  },
+  teammate_ahead: {
+    bono: [
+      'Teammate ahead, {driver}. Pace delta is favorable, free to race, keep it clean.',
+      'Teammate is ahead on track. Clean racing only, {driver}.',
+    ],
+    colapinto: [
+      'Teammate ahead, {driver}. We have the pace, free to race but keep it clean.',
+    ],
+    standard: [
+      'Teammate ahead. Pace delta is favorable, free to race.',
+      'Teammate ahead on track, {driver}. Keep the battle clean.',
+    ],
+  },
+  teammate_pitting: {
+    bono: [
+      'Teammate is pitting now, {driver}. Focus on a clean in-lap.',
+      'Teammate in the pit lane. Track is clear for your run.',
+    ],
+    colapinto: [
+      'Teammate is boxing now, {driver}. Keep pushing with clean air.',
+    ],
+    standard: [
+      'Teammate is pitting now. Focus on a clean lap.',
+      'Teammate in boxes, {driver}. Maximize your pace.',
+    ],
+  },
+  pit_clean_air: {
+    bono: [
+      'Pit window offers clean air on rejoin, {driver}. Prime opportunity for undercut.',
+      'Clean air window open on pit exit. Stand by for box call.',
+    ],
+    colapinto: [
+      'Clean air on pit exit if we box now, {driver}. Good undercut chance.',
+    ],
+    standard: [
+      'Pit window offers clean air on rejoin. Ideal opportunity for undercut strategy.',
+      'Clean air available on pit exit, {driver}. Strategy window open.',
+    ],
+  },
+  ers_fault: {
+    bono: [
+      'Hybrid ERS deployment failure detected, {driver}. Electric boost offline, stand by for reset protocol.',
+      'ERS failure on power unit. Electric boost unavailable.',
+    ],
+    colapinto: [
+      'ERS failure, {driver}. Electric boost is offline, stand by for system reset.',
+    ],
+    standard: [
+      'Hybrid ERS deployment failure detected. Electric boost offline.',
+      'Power unit ERS fault, {driver}. Stand by for system reset instructions.',
+    ],
+  },
+  aero_fault: {
+    bono: [
+      'Active Aero straight mode fault detected, {driver}. Wing adjustment unavailable.',
+      'DRS or Active Aero flap fault. Straight mode is currently offline.',
+    ],
+    colapinto: [
+      'Active Aero flap issue, {driver}. Straight mode is not deploying.',
+    ],
+    standard: [
+      'Active Aero or DRS flap fault detected. Wing adjustment currently unavailable.',
+      'Aerodynamic flap fault, {driver}. Straight mode offline.',
+    ],
+  },
   directive: {
     standard: ['{clean_text}'],
   },

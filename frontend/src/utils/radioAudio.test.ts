@@ -22,7 +22,7 @@ describe('radioAudio utils', () => {
   });
 
   describe('cleanRadioSpeechText', () => {
-    it('strips [PROACTIVE PIT WALL CALL: ...] prefix and brackets', () => {
+    it('strips [PROACTIVE PIT WALL CALL: ...] prefix, brackets, and prompt instructions', () => {
       expect(
         cleanRadioSpeechText(
           '[PROACTIVE PIT WALL CALL: Desgaste en la delantera izquierda llegó al 45%. Cuidá la tracción en salida de curvas lentas.]'
@@ -31,7 +31,7 @@ describe('radioAudio utils', () => {
 
       expect(
         cleanRadioSpeechText(
-          '[PROACTIVE PIT WALL CALL: Front wing flap damage detected. Expect understeer in medium and high speed corners.]'
+          '[PROACTIVE PIT WALL CALL: Front wing flap damage detected. Expect understeer in medium and high speed corners. You are initiating this call — do NOT say \'Entendido\' or \'Copy\'. Order driver to box immediately.]'
         )
       ).toBe('Front wing flap damage detected. Expect understeer in medium and high speed corners.');
     });
@@ -39,6 +39,7 @@ describe('radioAudio utils', () => {
     it('strips leading [PROACTIVE PIT WALL CALL] without brackets', () => {
       expect(cleanRadioSpeechText('[PROACTIVE PIT WALL CALL] Box box box')).toBe('Box box box');
       expect(cleanRadioSpeechText('[PROACTIVE PIT WALL CALL: Box box box')).toBe('Box box box');
+      expect(cleanRadioSpeechText('[DRIVER RADIO TRANSMISSION]: "Radio check"')).toBe('"Radio check"');
     });
 
     it('retains regular radio messages unaltered', () => {
@@ -92,10 +93,19 @@ describe('radioAudio utils', () => {
       expect(speech).toContain('Mateo');
     });
 
-    it('formats general directives cleanly as fallback', () => {
-      const directivePrompt = '[PROACTIVE PIT WALL CALL: Clean Air Pit Window — Pit window offers clean air on rejoin.]';
+    it('formats clean air pit window and new categories authentically', () => {
+      const directivePrompt = '[PROACTIVE PIT WALL CALL: Clean Air Pit Window — Pit window offers clean air on rejoin. You are initiating this call — do NOT say "Entendido" or "Copy".]';
       const speech = formatProactiveFallbackSpeech(directivePrompt, 'es', 'bono', 'Driver');
-      expect(speech).toContain('Driver, Clean Air Pit Window — Pit window offers clean air on rejoin.');
+      expect(speech).toMatch(/ventana de parada|aire limpio/i);
+      expect(speech).toContain('Driver');
+      expect(speech).not.toContain('You are initiating this call');
+    });
+
+    it('formats general directives cleanly without debug prompt instructions as fallback', () => {
+      const customDirective = '[PROACTIVE PIT WALL CALL: System Test Notification — All telemetry channels nominal. You are initiating this call — do NOT say "Entendido" or "Copy".]';
+      const speech = formatProactiveFallbackSpeech(customDirective, 'es', 'bono', 'Driver');
+      expect(speech).toContain('Driver, System Test Notification — All telemetry channels nominal.');
+      expect(speech).not.toContain('You are initiating this call');
     });
   });
 

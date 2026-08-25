@@ -53,12 +53,46 @@ describe('radioPhrases', () => {
       ).toBe('ers_low');
 
       expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Hybrid ERS deployment failure detected on power unit! Electric boost offline.]')
+      ).toBe('ers_fault');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Active Aero flap fault detected! Straight mode unavailable.]')
+      ).toBe('aero_fault');
+
+      expect(
         detectAlertCategory('[PROACTIVE PIT WALL CALL: Rival behind within 1.0s behind with DRS active.]')
       ).toBe('rival_defend');
 
       expect(
         detectAlertCategory('[PROACTIVE PIT WALL CALL: Rival within 1.0s ahead in DRS range. Attack now.]')
       ).toBe('rival_attack');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: We are catching car ahead (P2), gap is 0.8s. Prepare overtake using Straight Mode and Boost deployment.]')
+      ).toBe('rival_attack');
+    });
+
+    it('detects coaching, teammate, and pit strategy scenarios', () => {
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Sector 1 Delta — Time lost in Sector 1 (+0.42s vs personal best). Focus on apex speed.]')
+      ).toBe('sector_delta');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Teammate Ahead — Teammate is P2, 1.4s ahead. Free to race.]')
+      ).toBe('teammate_ahead');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Teammate Pitting — Teammate in P2 is pitting now.]')
+      ).toBe('teammate_pitting');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Clean Air Pit Window — Pit window offers clean air on rejoin.]')
+      ).toBe('pit_clean_air');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Pit stop window is now open (Lap 14). Stand by for box call.]')
+      ).toBe('pit_window_open');
     });
 
     it('detects qualifying and race control scenarios', () => {
@@ -76,6 +110,10 @@ describe('radioPhrases', () => {
 
       expect(
         detectAlertCategory('[PROACTIVE PIT WALL CALL: Weather radar confirms 85% chance of rain in 2 minutes!]')
+      ).toBe('weather_rain');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Weather Transition — Radar confirms 70% rain in 5 minutes.]')
       ).toBe('weather_rain');
     });
   });
@@ -103,10 +141,19 @@ describe('radioPhrases', () => {
       expect(speech).not.toContain('{driver}');
     });
 
-    it('handles generic server-side directives cleanly', () => {
-      const directive = '[PROACTIVE PIT WALL CALL: Sector 1 Delta — Time lost in Sector 1 (+0.42s). Focus on apex speed.]';
-      const speech = getProactiveRadioSpeech(directive, 'es', 'bono', 'Driver');
-      expect(speech).toContain('Driver, Sector 1 Delta — Time lost in Sector 1 (+0.42s). Focus on apex speed.');
+    it('formats sector delta coaching authentically', () => {
+      const directive = '[PROACTIVE PIT WALL CALL: Sector 1 Delta — Time lost in Sector 1 (+0.42s). Focus on apex speed. You are initiating this call — do NOT say "Entendido" or "Copy".]';
+      const speech = getProactiveRadioSpeech(directive, 'es', 'colapinto', 'Franco');
+      expect(speech).toContain('Franco');
+      expect(speech.toLowerCase()).toMatch(/sector|parcial|tiempo/i);
+      expect(speech).not.toContain('You are initiating this call');
+    });
+
+    it('handles generic server-side directives cleanly as fallback', () => {
+      const customDirective = '[PROACTIVE PIT WALL CALL: General Pit Alert — Green green green. You are initiating this call — do NOT say "Entendido" or "Copy".]';
+      const speech = getProactiveRadioSpeech(customDirective, 'es', 'bono', 'Driver');
+      expect(speech).toContain('Driver, General Pit Alert — Green green green.');
+      expect(speech).not.toContain('You are initiating this call');
     });
   });
 
@@ -114,8 +161,8 @@ describe('radioPhrases', () => {
     it('has standard phrase pools for all categories in Spanish and English locales', () => {
       const esCategories = Object.keys(RADIO_PHRASE_CATALOG.es) as (keyof typeof RADIO_PHRASE_CATALOG.es)[];
       const enCategories = Object.keys(RADIO_PHRASE_CATALOG.en) as (keyof typeof RADIO_PHRASE_CATALOG.en)[];
-      expect(esCategories.length).toBeGreaterThanOrEqual(28);
-      expect(enCategories.length).toBeGreaterThanOrEqual(28);
+      expect(esCategories.length).toBeGreaterThanOrEqual(30);
+      expect(enCategories.length).toBeGreaterThanOrEqual(30);
 
       for (const cat of esCategories) {
         expect(RADIO_PHRASE_CATALOG.es[cat].standard.length).toBeGreaterThan(0);

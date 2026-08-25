@@ -21,7 +21,7 @@ export function detectAlertCategory(alertContext: string): RadioAlertCategory {
 
   // 1. SC / VSC / Red Flag
   if (
-    lower.includes('full safety car deployed') ||
+    lower.includes('full safety car') ||
     lower.includes('safety car in pista') ||
     (lower.includes('safety car') && !lower.includes('virtual'))
   ) {
@@ -38,7 +38,11 @@ export function detectAlertCategory(alertContext: string): RadioAlertCategory {
   if (lower.includes('puncture') || lower.includes('tyre failure') || lower.includes('pinchazo')) {
     return 'tyre_puncture';
   }
-  if (lower.includes('surface temperature is critically high') || (lower.includes('overheat') && lower.includes('tyre'))) {
+  if (
+    lower.includes('surface temperature') ||
+    lower.includes('overheating') ||
+    (lower.includes('overheat') && lower.includes('tyre'))
+  ) {
     return 'tyre_overheat';
   }
   if (lower.includes('cold') && (lower.includes('tyre') || lower.includes('tyres') || lower.includes('goma'))) {
@@ -48,17 +52,42 @@ export function detectAlertCategory(alertContext: string): RadioAlertCategory {
     return 'tyre_wear';
   }
 
-  // 3. Damage & Mechanical
+  // 3. Damage & Mechanical Faults
   if (lower.includes('front wing') || lower.includes('wing flap') || lower.includes('wing damage') || lower.includes('alerón')) {
     return 'wing_damage';
   }
   if (lower.includes('floor') || lower.includes('diffuser') || lower.includes('fondo plano')) {
     return 'floor_damage';
   }
-  if (lower.includes('engine component wear') || lower.includes('engine internal') || lower.includes('engine wear')) {
+  if (
+    lower.includes('engine component wear') ||
+    lower.includes('engine internal') ||
+    lower.includes('gearbox component wear') ||
+    lower.includes('engine wear')
+  ) {
     return 'engine_wear';
   }
-  if (lower.includes('drs fault') || lower.includes('straight mode failure') || lower.includes('mechanical fault')) {
+  if (
+    lower.includes('straight mode fault') ||
+    lower.includes('straight mode failure') ||
+    lower.includes('straight mode is currently offline') ||
+    lower.includes('straight mode unavailable') ||
+    lower.includes('active aero flap fault') ||
+    lower.includes('active aero fault') ||
+    lower.includes('drs flap fault') ||
+    lower.includes('drs fault')
+  ) {
+    return 'aero_fault';
+  }
+  if (
+    lower.includes('ers deployment failure') ||
+    lower.includes('ers fault') ||
+    lower.includes('electric boost offline') ||
+    lower.includes('hybrid ers')
+  ) {
+    return 'ers_fault';
+  }
+  if (lower.includes('mechanical fault')) {
     return 'mechanical_fault';
   }
 
@@ -66,13 +95,13 @@ export function detectAlertCategory(alertContext: string): RadioAlertCategory {
   if (lower.includes('ers battery') || lower.includes('low battery reserve') || lower.includes('low battery') || lower.includes('batería')) {
     return 'ers_low';
   }
-  if (lower.includes('radiator') || lower.includes('water/oil temperature') || lower.includes('radiador')) {
+  if (lower.includes('radiator') || lower.includes('water/oil temperature') || lower.includes('engine core water') || lower.includes('radiador')) {
     return 'radiator_overheat';
   }
   if (
     lower.includes('brake disc') ||
     lower.includes('brake fade') ||
-    (lower.includes('brake') && lower.includes('hot')) ||
+    (lower.includes('brake') && (lower.includes('hot') || lower.includes('high'))) ||
     lower.includes('frenos sobrecalentados')
   ) {
     return 'brake_overheat';
@@ -88,24 +117,53 @@ export function detectAlertCategory(alertContext: string): RadioAlertCategory {
   if (lower.includes('undercut')) {
     return 'undercut_window';
   }
+  if (lower.includes('clean air pit window') || lower.includes('clean air on rejoin')) {
+    return 'pit_clean_air';
+  }
   if (
-    lower.includes('pit stop window is open') ||
-    lower.includes('pit window is open') ||
-    lower.includes('pit window open') ||
+    lower.includes('pit stop window') ||
+    lower.includes('pit window') ||
     lower.includes('ventana de parada')
   ) {
     return 'pit_window_open';
   }
 
-  // 6. Rivals & DRS
-  if (lower.includes('within 1.0s behind') || lower.includes('drs threat') || lower.includes('defend') || lower.includes('defiende')) {
+  // 6. Rivals & DRS / Attack / Defend
+  if (
+    lower.includes('defend') ||
+    lower.includes('defiende') ||
+    (lower.includes('behind') && (lower.includes('drs') || lower.includes('boost') || lower.includes('threat')))
+  ) {
     return 'rival_defend';
   }
-  if (lower.includes('within 1.0s ahead') || lower.includes('attack') || lower.includes('mode overtake') || lower.includes('modo ataque')) {
+  if (
+    lower.includes('catching car ahead') ||
+    lower.includes('prepare overtake') ||
+    lower.includes('overtake / deployment') ||
+    lower.includes('override boost is available') ||
+    (lower.includes('ahead') && (lower.includes('attack') || lower.includes('overtake') || lower.includes('modo ataque')))
+  ) {
     return 'rival_attack';
   }
 
-  // 7. Qualifying
+  // 7. Coaching & Teammate (Backend Directives)
+  if (
+    lower.includes('sector 1 delta') ||
+    lower.includes('sector 2 delta') ||
+    lower.includes('sector 3 delta') ||
+    lower.includes('time lost in sector') ||
+    lower.includes('personal best')
+  ) {
+    return 'sector_delta';
+  }
+  if (lower.includes('teammate is pitting') || (lower.includes('teammate in p') && lower.includes('pitting'))) {
+    return 'teammate_pitting';
+  }
+  if (lower.includes('teammate is p') || lower.includes('teammate ahead') || lower.includes('teammate is ahead')) {
+    return 'teammate_ahead';
+  }
+
+  // 8. Qualifying & Practice
   if (lower.includes('traffic ahead before starting hot lap') || (lower.includes('traffic ahead') && lower.includes('out-lap'))) {
     return 'qualy_traffic';
   }
@@ -122,14 +180,14 @@ export function detectAlertCategory(alertContext: string): RadioAlertCategory {
     return 'qualy_elimination_danger';
   }
 
-  // 8. Flags & Penalties
+  // 9. Flags & Penalties
   if (lower.includes('track limits / corner cutting warnings') || lower.includes('corner cutting warnings') || lower.includes('límites de pista')) {
     return 'track_limits_warnings';
   }
   if (lower.includes('time penalty by the stewards') || lower.includes('assessed a') || lower.includes('penalización') || lower.includes('sanción')) {
     return 'penalties_incurred';
   }
-  if (lower.includes('weather radar') || lower.includes('chance of rain') || lower.includes('lluvia')) {
+  if (lower.includes('weather radar') || lower.includes('radar confirms') || lower.includes('chance of rain') || lower.includes('lluvia')) {
     return 'weather_rain';
   }
 
@@ -203,7 +261,6 @@ function interpolateCallsign(template: string, driverCallsign?: string, rawConte
 
 function formatGenericDirective(alertContext: string, driverCallsign?: string): string {
   const callsignPrefix = driverCallsign?.trim() ? `${driverCallsign.trim()}, ` : '';
-  let cleaned = cleanRadioSpeechText(alertContext);
-  cleaned = cleaned.replace(/\s*You are initiating this call.*$/i, '').trim();
+  const cleaned = cleanRadioSpeechText(alertContext);
   return `${callsignPrefix}${cleaned}`;
 }
