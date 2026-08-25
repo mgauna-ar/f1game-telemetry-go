@@ -210,4 +210,55 @@ export interface EngineerDirective {
   metadata?: Record<string, any>;
 }
 
+export type RadioAlertCategory =
+  | 'safety_car'
+  | 'vsc'
+  | 'red_flag'
+  | 'tyre_puncture'
+  | 'tyre_wear'
+  | 'tyre_overheat'
+  | 'tyre_cold'
+  | 'wing_damage'
+  | 'floor_damage'
+  | 'engine_wear'
+  | 'mechanical_fault'
+  | 'ers_fault'
+  | 'aero_fault'
+  | 'ers_low'
+  | 'radiator_overheat'
+  | 'brake_overheat'
+  | 'brake_cold'
+  | 'fuel_deficit'
+  | 'undercut_window'
+  | 'pit_clean_air'
+  | 'pit_window_open'
+  | 'rival_defend'
+  | 'rival_attack'
+  | 'sector_delta'
+  | 'teammate_ahead'
+  | 'teammate_pitting'
+  | 'qualy_traffic'
+  | 'qualy_clean_air'
+  | 'qualy_deleted_lap'
+  | 'qualy_session_time'
+  | 'qualy_elimination_danger'
+  | 'track_limits_warnings'
+  | 'penalties_incurred'
+  | 'weather_rain'
+  | 'directive';
+
+export interface RadioAlertPayload {
+  category: RadioAlertCategory;
+  isCritical?: boolean;
+  alertKey?: string;
+  subsystem?: string;
+  message?: string;
+  emotion?: {
+    rateModifier?: number;
+    pitchModifier?: number;
+  };
+  metadata?: Record<string, any>;
+}
+
+
 

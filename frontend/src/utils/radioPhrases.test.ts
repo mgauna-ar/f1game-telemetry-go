@@ -149,6 +149,26 @@ describe('radioPhrases', () => {
       expect(speech).not.toContain('You are initiating this call');
     });
 
+    it('processes structured RadioAlertPayload directly without regex parsing', () => {
+      const payload: import('../types/telemetry').RadioAlertPayload = {
+        category: 'safety_car',
+        isCritical: true,
+        message: 'Full Safety Car deployed! Maintain delta.',
+      };
+      const speech = getProactiveRadioSpeech(payload, 'es', 'colapinto', 'Franco');
+      expect(speech.toLowerCase()).toContain('auto de seguridad');
+      expect(speech).toContain('Franco');
+
+      const tyrePayload: import('../types/telemetry').RadioAlertPayload = {
+        category: 'tyre_puncture',
+        isCritical: true,
+        message: 'Critical tyre puncture!',
+      };
+      const tyreSpeech = getProactiveRadioSpeech(tyrePayload, 'en', 'bono', 'Lewis');
+      expect(tyreSpeech.toLowerCase()).toContain('puncture');
+      expect(tyreSpeech).toContain('Lewis');
+    });
+
     it('handles generic server-side directives cleanly as fallback', () => {
       const customDirective = '[PROACTIVE PIT WALL CALL: General Pit Alert — Green green green. You are initiating this call — do NOT say "Entendido" or "Copy".]';
       const speech = getProactiveRadioSpeech(customDirective, 'es', 'bono', 'Driver');

@@ -101,6 +101,17 @@ describe('radioAudio utils', () => {
       expect(speech).not.toContain('You are initiating this call');
     });
 
+    it('formats structured RadioAlertPayload objects directly', () => {
+      const payload: import('../types/telemetry').RadioAlertPayload = {
+        category: 'pit_clean_air',
+        isCritical: false,
+        message: 'Clean Air Pit Window — Pit window offers clean air on rejoin.',
+      };
+      const speech = formatProactiveFallbackSpeech(payload, 'es', 'bono', 'Driver');
+      expect(speech).toMatch(/ventana de parada|aire limpio/i);
+      expect(speech).toContain('Driver');
+    });
+
     it('formats general directives cleanly without debug prompt instructions as fallback', () => {
       const customDirective = '[PROACTIVE PIT WALL CALL: System Test Notification — All telemetry channels nominal. You are initiating this call — do NOT say "Entendido" or "Copy".]';
       const speech = formatProactiveFallbackSpeech(customDirective, 'es', 'bono', 'Driver');

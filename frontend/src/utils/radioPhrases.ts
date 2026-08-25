@@ -1,8 +1,9 @@
 import { cleanRadioSpeechText } from './radioAudio';
 import type { RadioPersona } from '../constants/f1';
 import { en, es, type LocaleCode } from '../locales';
+import type { RadioAlertPayload, RadioAlertCategory } from '../types/telemetry';
 
-export type RadioAlertCategory = keyof typeof en.radio_phrases;
+export type { RadioAlertCategory };
 
 export const RADIO_PHRASE_CATALOG = {
   get es() {
@@ -196,19 +197,26 @@ export function detectAlertCategory(alertContext: string): RadioAlertCategory {
 
 /**
  * Returns a randomized authentic phrase tailored to the driver's persona, language, and callsign.
+ * Supports both structured typed RadioAlertPayload and legacy alert strings.
  */
 export function getProactiveRadioSpeech(
-  alertContext: string,
+  input: RadioAlertPayload | string,
   language: LocaleCode = 'es',
   persona: RadioPersona = 'bono',
   driverCallsign?: string
 ): string {
-  const category = detectAlertCategory(alertContext);
+  const category: RadioAlertCategory =
+    typeof input === 'object' && input.category
+      ? input.category
+      : detectAlertCategory(typeof input === 'string' ? input : '');
+
+  const rawContext = typeof input === 'object' ? (input.message || '') : input;
+
   const localeDict = language === 'en' ? en.radio_phrases : es.radio_phrases;
   const catPool = (localeDict as Record<string, { bono?: string[]; colapinto?: string[]; standard: string[] }>)[category];
 
   if (!catPool) {
-    return formatGenericDirective(alertContext, driverCallsign);
+    return formatGenericDirective(rawContext, driverCallsign);
   }
 
   // Pick persona pool, falling back to standard
@@ -228,7 +236,7 @@ export function getProactiveRadioSpeech(
   const selectedTemplate = pool[randomIndex] || pool[0];
 
   // Interpolate call-sign
-  return interpolateCallsign(selectedTemplate, driverCallsign, alertContext);
+  return interpolateCallsign(selectedTemplate, driverCallsign, rawContext);
 }
 
 function interpolateCallsign(template: string, driverCallsign?: string, rawContext?: string): string {

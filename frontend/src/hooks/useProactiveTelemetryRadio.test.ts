@@ -37,7 +37,10 @@ describe('useProactiveTelemetryRadio hook', () => {
 
     expect(onTriggerAlert).toHaveBeenCalledTimes(1);
     expect(onTriggerAlert).toHaveBeenCalledWith(
-      expect.stringContaining('Tyre wear reached 42%'),
+      expect.objectContaining({
+        category: 'tyre_wear',
+        message: expect.stringContaining('Tyre wear reached 42%'),
+      }),
       false
     );
   });
@@ -65,7 +68,10 @@ describe('useProactiveTelemetryRadio hook', () => {
 
     expect(onTriggerAlert).toHaveBeenCalledTimes(1);
     expect(onTriggerAlert).toHaveBeenCalledWith(
-      expect.stringContaining('tyre puncture / tyre failure'),
+      expect.objectContaining({
+        category: 'tyre_puncture',
+        message: expect.stringContaining('tyre puncture / tyre failure'),
+      }),
       true
     );
   });
@@ -86,7 +92,10 @@ describe('useProactiveTelemetryRadio hook', () => {
 
     expect(onTriggerAlert).toHaveBeenCalledTimes(1);
     expect(onTriggerAlert).toHaveBeenCalledWith(
-      expect.stringContaining('Full Safety Car deployed'),
+      expect.objectContaining({
+        category: 'safety_car',
+        message: expect.stringContaining('Full Safety Car deployed'),
+      }),
       true
     );
   });
@@ -132,11 +141,16 @@ describe('useProactiveTelemetryRadio hook', () => {
 
     expect(onTriggerAlert).toHaveBeenCalledTimes(1);
     expect(onTriggerAlert).toHaveBeenCalledWith(
-      expect.stringContaining('DRS threat'),
+      expect.objectContaining({
+        category: 'rival_defend',
+        message: expect.stringContaining('DRS threat'),
+      }),
       false
     );
     expect(onTriggerAlert).toHaveBeenCalledWith(
-      expect.stringContaining('front wing damage'),
+      expect.objectContaining({
+        message: expect.stringContaining('front wing damage'),
+      }),
       false
     );
   });
@@ -193,7 +207,10 @@ describe('useProactiveTelemetryRadio hook', () => {
 
     expect(onTriggerAlert).toHaveBeenCalledTimes(1);
     expect(onTriggerAlert).toHaveBeenCalledWith(
-      expect.stringContaining('Rear tyre surface temperatures are overheating'),
+      expect.objectContaining({
+        category: 'tyre_overheat',
+        message: expect.stringContaining('Rear tyre surface temperatures are overheating'),
+      }),
       false
     );
   });
@@ -227,7 +244,10 @@ describe('useProactiveTelemetryRadio hook', () => {
 
     expect(onTriggerAlert).toHaveBeenCalledTimes(1);
     expect(onTriggerAlert).toHaveBeenCalledWith(
-      expect.stringContaining('undercut attempt'),
+      expect.objectContaining({
+        category: 'undercut_window',
+        message: expect.stringContaining('undercut attempt'),
+      }),
       true
     );
   });
@@ -287,7 +307,10 @@ describe('useProactiveTelemetryRadio hook', () => {
 
     expect(onTriggerAlert).toHaveBeenCalledTimes(1);
     expect(onTriggerAlert).toHaveBeenCalledWith(
-      expect.stringContaining('deleted for track limits'),
+      expect.objectContaining({
+        category: 'qualy_deleted_lap',
+        message: expect.stringContaining('deleted for track limits'),
+      }),
       true
     );
   });
@@ -324,7 +347,10 @@ describe('useProactiveTelemetryRadio hook', () => {
 
     expect(onTriggerAlert).toHaveBeenCalledTimes(1);
     expect(onTriggerAlert).toHaveBeenCalledWith(
-      expect.stringContaining('Traffic ahead before starting hot lap'),
+      expect.objectContaining({
+        category: 'qualy_traffic',
+        message: expect.stringContaining('Traffic ahead before starting hot lap'),
+      }),
       true
     );
   });
@@ -352,7 +378,10 @@ describe('useProactiveTelemetryRadio hook', () => {
 
     expect(onTriggerAlert).toHaveBeenCalledTimes(1);
     expect(onTriggerAlert).toHaveBeenCalledWith(
-      expect.stringContaining('Under 3 minutes remaining in Qualifying 1 (Q1)'),
+      expect.objectContaining({
+        category: 'qualy_session_time',
+        message: expect.stringContaining('Under 3 minutes remaining in Qualifying 1 (Q1)'),
+      }),
       true
     );
   });
@@ -380,7 +409,10 @@ describe('useProactiveTelemetryRadio hook', () => {
 
     expect(onTriggerAlert).toHaveBeenCalledTimes(1);
     expect(onTriggerAlert).toHaveBeenCalledWith(
-      expect.stringContaining('elimination danger zone with under 5 minutes left'),
+      expect.objectContaining({
+        category: 'qualy_elimination_danger',
+        message: expect.stringContaining('elimination danger zone with under 5 minutes left'),
+      }),
       true
     );
   });
@@ -403,7 +435,10 @@ describe('useProactiveTelemetryRadio hook', () => {
 
     expect(onTriggerAlert).toHaveBeenCalledTimes(1);
     expect(onTriggerAlert).toHaveBeenCalledWith(
-      expect.stringContaining('Front wing endplate/flap damage detected (25%)'),
+      expect.objectContaining({
+        category: 'wing_damage',
+        message: expect.stringContaining('Front wing endplate/flap damage detected (25%)'),
+      }),
       false
     );
   });
@@ -426,7 +461,10 @@ describe('useProactiveTelemetryRadio hook', () => {
 
     expect(onTriggerAlert).toHaveBeenCalledTimes(1);
     expect(onTriggerAlert).toHaveBeenCalledWith(
-      expect.stringContaining('Severe front wing damage detected (45% loss)'),
+      expect.objectContaining({
+        category: 'wing_damage',
+        message: expect.stringContaining('Severe front wing damage detected (45% loss)'),
+      }),
       true
     );
   });
@@ -449,7 +487,10 @@ describe('useProactiveTelemetryRadio hook', () => {
 
     expect(onTriggerAlert).toHaveBeenCalledTimes(1);
     expect(onTriggerAlert).toHaveBeenCalledWith(
-      expect.stringContaining('ERS battery reserve is low at 10%'),
+      expect.objectContaining({
+        category: 'ers_low',
+        message: expect.stringContaining('ERS battery reserve is low at 10%'),
+      }),
       false
     );
   });
@@ -472,7 +513,10 @@ describe('useProactiveTelemetryRadio hook', () => {
 
     expect(onTriggerAlert).toHaveBeenCalledTimes(1);
     expect(onTriggerAlert).toHaveBeenCalledWith(
-      expect.stringContaining('Brake disc temperatures are critically high at 950°C'),
+      expect.objectContaining({
+        category: 'brake_overheat',
+        message: expect.stringContaining('Brake disc temperatures are critically high at 950°C'),
+      }),
       false
     );
   });
@@ -482,6 +526,7 @@ describe('useProactiveTelemetryRadio hook', () => {
 
     const carStatus = {
       FuelRemainingLaps: -1.2, // -1.2 laps deficit (< -0.6 laps default threshold)
+      TyresAgeLaps: 5,
     } as any;
 
     const lap = {
@@ -498,7 +543,10 @@ describe('useProactiveTelemetryRadio hook', () => {
 
     expect(onTriggerAlert).toHaveBeenCalledTimes(1);
     expect(onTriggerAlert).toHaveBeenCalledWith(
-      expect.stringContaining('Fuel target delta is negative (-1.2 laps)'),
+      expect.objectContaining({
+        category: 'fuel_deficit',
+        message: expect.stringContaining('Fuel target delta is negative (-1.2 laps)'),
+      }),
       false
     );
   });
@@ -521,7 +569,10 @@ describe('useProactiveTelemetryRadio hook', () => {
 
     expect(onTriggerAlert).toHaveBeenCalledTimes(1);
     expect(onTriggerAlert).toHaveBeenCalledWith(
-      expect.stringContaining('Driver has accumulated 2 track limits / corner cutting warnings'),
+      expect.objectContaining({
+        category: 'track_limits_warnings',
+        message: expect.stringContaining('Driver has accumulated 2 track limits / corner cutting warnings'),
+      }),
       true
     );
   });
@@ -591,7 +642,10 @@ describe('useProactiveTelemetryRadio hook', () => {
 
       expect(onTriggerAlert).toHaveBeenCalledTimes(1);
       expect(onTriggerAlert).toHaveBeenCalledWith(
-        expect.stringContaining('Active Aero flap fault detected! Straight mode / aerodynamic wing adjustment unavailable'),
+        expect.objectContaining({
+          category: 'aero_fault',
+          message: expect.stringContaining('Active Aero flap fault detected! Straight mode / aerodynamic wing adjustment unavailable'),
+        }),
         true
       );
     });
@@ -620,11 +674,16 @@ describe('useProactiveTelemetryRadio hook', () => {
 
       expect(onTriggerAlert).toHaveBeenCalledTimes(1);
       expect(onTriggerAlert).toHaveBeenCalledWith(
-        expect.stringContaining('Override/Boost attack threat'),
+        expect.objectContaining({
+          category: 'rival_defend',
+          message: expect.stringContaining('Override/Boost attack threat'),
+        }),
         false
       );
       expect(onTriggerAlert).not.toHaveBeenCalledWith(
-        expect.stringContaining('DRS threat'),
+        expect.objectContaining({
+          message: expect.stringContaining('DRS threat'),
+        }),
         false
       );
     });
@@ -658,11 +717,17 @@ describe('useProactiveTelemetryRadio hook', () => {
 
       expect(onTriggerAlert).toHaveBeenCalledTimes(1);
       expect(onTriggerAlert).toHaveBeenCalledWith(
-        expect.stringContaining('Override Boost is available!'),
+        expect.objectContaining({
+          category: 'rival_attack',
+          message: expect.stringContaining('Override Boost is available!'),
+        }),
         false
       );
       expect(onTriggerAlert).toHaveBeenCalledWith(
-        expect.stringContaining('Straight Mode and Boost deployment'),
+        expect.objectContaining({
+          category: 'rival_attack',
+          message: expect.stringContaining('Straight Mode and Boost deployment'),
+        }),
         false
       );
     });
@@ -685,7 +750,10 @@ describe('useProactiveTelemetryRadio hook', () => {
 
       expect(onTriggerAlert).toHaveBeenCalledTimes(1);
       expect(onTriggerAlert).toHaveBeenCalledWith(
-        expect.stringContaining('limit Override/Boost usage and use Lift & Coast for MGU-K regeneration'),
+        expect.objectContaining({
+          category: 'ers_low',
+          message: expect.stringContaining('limit Override/Boost usage and use Lift & Coast for MGU-K regeneration'),
+        }),
         false
       );
     });
@@ -714,7 +782,10 @@ describe('useProactiveTelemetryRadio hook', () => {
 
       expect(onTriggerAlert).toHaveBeenCalledTimes(1);
       expect(onTriggerAlert).toHaveBeenCalledWith(
-        expect.stringContaining('Manage traction out of corners to protect the narrower rear tyres'),
+        expect.objectContaining({
+          category: 'tyre_overheat',
+          message: expect.stringContaining('Manage traction out of corners to protect the narrower rear tyres'),
+        }),
         false
       );
     });
@@ -855,7 +926,10 @@ describe('useProactiveTelemetryRadio hook', () => {
       // Fires once on out-lap
       expect(onTriggerAlert).toHaveBeenCalledTimes(1);
       expect(onTriggerAlert).toHaveBeenCalledWith(
-        expect.stringContaining('Tyre temperatures are cold'),
+        expect.objectContaining({
+          category: 'tyre_cold',
+          message: expect.stringContaining('Tyre temperatures are cold'),
+        }),
         false
       );
 

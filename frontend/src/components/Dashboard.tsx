@@ -205,17 +205,19 @@ export const Dashboard: React.FC = () => {
   });
 
   const handleProactiveAlert = useCallback(
-    async (alertContext: string, _isCritical: boolean, emotion?: { rateModifier?: number; pitchModifier?: number }) => {
+    async (payload: import('../types/telemetry').RadioAlertPayload | string, _isCritical = false, emotion?: { rateModifier?: number; pitchModifier?: number }) => {
       // Instant zero-latency pit wall radio call with persona-specific phrasing & randomized variety
       const speech = formatProactiveFallbackSpeech(
-        alertContext,
+        payload,
         radio.effectiveLanguage,
         radio.persona,
         radio.driverCallsign
       );
 
+      const em = typeof payload === 'object' && payload.emotion ? payload.emotion : emotion;
+
       if (speech) {
-        radio.speakMessage(speech, false, emotion);
+        radio.speakMessage(speech, false, em);
       }
     },
     [radio]

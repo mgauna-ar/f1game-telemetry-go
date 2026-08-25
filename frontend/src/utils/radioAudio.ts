@@ -545,14 +545,15 @@ export function normalizeSpanishRadioSpeech(text: string): string {
 
 /**
  * Generates an authentic, localized pit wall radio speech message with persona-specific phrasing.
+ * Supports both structured RadioAlertPayload and legacy string contexts.
  */
 export function formatProactiveFallbackSpeech(
-  alertContext: string,
+  input: import('../types/telemetry').RadioAlertPayload | string,
   language: 'es' | 'en' = 'es',
   persona: import('../constants/f1').RadioPersona = 'bono',
   driverCallsign?: string
 ): string {
-  return getProactiveRadioSpeech(alertContext, language, persona, driverCallsign);
+  return getProactiveRadioSpeech(input, language, persona, driverCallsign);
 }
 
 /**
