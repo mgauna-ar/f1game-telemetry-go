@@ -720,5 +720,288 @@ describe('useProactiveTelemetryRadio hook', () => {
     });
   });
 
+  describe('Contextual DrivingPhase & Intelligent Suppression', () => {
+    it('suppresses cold tyre alert when car is in garage or stationary in boxes', async () => {
+      const onTriggerAlert = vi.fn().mockResolvedValue(undefined);
+
+      const lap = {
+        DriverStatus: 0, // IN_GARAGE
+        PitStatus: 2, // IN_PIT_AREA
+        CurrentLapNum: 1,
+      } as unknown as LapData;
+
+      const carStatus = {
+        TyresAgeLaps: 0,
+      } as unknown as CarStatusData;
+
+      const telemetry = {
+        TyresSurfaceTemperature: [60, 60, 62, 63], // Cold tyres (< 85°C)
+        Speed: 0,
+      } as any;
+
+      renderHook(() =>
+        useProactiveTelemetryRadio({
+          lap,
+          carStatus,
+          telemetry,
+          onTriggerAlert,
+        })
+      );
+
+      // Should NOT fire cold tyre alert in garage
+      expect(onTriggerAlert).not.toHaveBeenCalled();
+    });
+
+    it('suppresses cold tyre alert when car is driving through pit lane', async () => {
+      const onTriggerAlert = vi.fn().mockResolvedValue(undefined);
+
+      const lap = {
+        PitStatus: 1, // PITTING
+        PitLaneTimerActive: 1,
+        CurrentLapNum: 1,
+      } as unknown as LapData;
+
+      const carStatus = {
+        TyresAgeLaps: 0,
+      } as unknown as CarStatusData;
+
+      const telemetry = {
+        TyresSurfaceTemperature: [65, 65, 66, 68],
+        Speed: 60,
+      } as any;
+
+      renderHook(() =>
+        useProactiveTelemetryRadio({
+          lap,
+          carStatus,
+          telemetry,
+          onTriggerAlert,
+        })
+      );
+
+      expect(onTriggerAlert).not.toHaveBeenCalled();
+    });
+
+    it('suppresses cold tyre alert at beginning of out-lap (<30% track completion)', async () => {
+      const onTriggerAlert = vi.fn().mockResolvedValue(undefined);
+
+      const session = {
+        TrackLength: 5000,
+      } as unknown as SessionData;
+
+      const lap = {
+        DriverStatus: 3, // OUT_LAP
+        LapDistance: 500, // 500 / 5000 = 10% (< 30% threshold)
+        CurrentLapNum: 1,
+      } as unknown as LapData;
+
+      const carStatus = {
+        TyresAgeLaps: 0,
+      } as unknown as CarStatusData;
+
+      const telemetry = {
+        TyresSurfaceTemperature: [70, 70, 72, 74], // Cold (< 85°C)
+        Speed: 200,
+      } as any;
+
+      renderHook(() =>
+        useProactiveTelemetryRadio({
+          session,
+          lap,
+          carStatus,
+          telemetry,
+          onTriggerAlert,
+        })
+      );
+
+      expect(onTriggerAlert).not.toHaveBeenCalled();
+    });
+
+    it('triggers cold tyre alert mid-out-lap (>=30% track completion) and deduplicates for that phase', async () => {
+      const onTriggerAlert = vi.fn().mockResolvedValue(undefined);
+
+      const session = {
+        TrackLength: 5000,
+      } as unknown as SessionData;
+
+      const lap = {
+        DriverStatus: 3, // OUT_LAP
+        LapDistance: 2000, // 2000 / 5000 = 40% (>= 30% threshold)
+        CurrentLapNum: 1,
+      } as unknown as LapData;
+
+      const carStatus = {
+        TyresAgeLaps: 0,
+      } as unknown as CarStatusData;
+
+      const telemetry = {
+        TyresSurfaceTemperature: [70, 70, 72, 74], // Cold (< 85°C)
+        Speed: 200,
+      } as any;
+
+      const { rerender } = renderHook(
+        (props) => useProactiveTelemetryRadio(props),
+        {
+          initialProps: {
+            session,
+            lap,
+            carStatus,
+            telemetry,
+            onTriggerAlert,
+          },
+        }
+      );
+
+      // Fires once on out-lap
+      expect(onTriggerAlert).toHaveBeenCalledTimes(1);
+      expect(onTriggerAlert).toHaveBeenCalledWith(
+        expect.stringContaining('Tyre temperatures are cold'),
+        false
+      );
+
+      // Rerender on the same out-lap -> dedup blocks repeated call
+      rerender({
+        session,
+        lap: { ...lap, LapDistance: 2500 } as any,
+        carStatus,
+        telemetry,
+        onTriggerAlert,
+      });
+
+      expect(onTriggerAlert).toHaveBeenCalledTimes(1);
+    });
+
+    it('suppresses low ERS battery alert when on out-lap or in-lap (intentional harvesting)', async () => {
+      const onTriggerAlert = vi.fn().mockResolvedValue(undefined);
+
+      const outLap = {
+        DriverStatus: 3, // OUT_LAP
+        CurrentLapNum: 1,
+      } as unknown as LapData;
+
+      const carStatus = {
+        ERSStoreEnergy: 400000, // 10% (<15%)
+      } as unknown as CarStatusData;
+
+      renderHook(() =>
+        useProactiveTelemetryRadio({
+          lap: outLap,
+          carStatus,
+          onTriggerAlert,
+        })
+      );
+
+      expect(onTriggerAlert).not.toHaveBeenCalled();
+    });
+
+    it('suppresses rival defend/attack calls for 1 lap after an in-race pit stop', async () => {
+      const onTriggerAlert = vi.fn().mockResolvedValue(undefined);
+
+      const session = {
+        SessionType: 15, // Race
+      } as unknown as SessionData;
+
+      const playerLap = {
+        CarPosition: 3,
+        TotalDistance: 15000,
+        NumPitStops: 1, // Just pitted!
+        DriverStatus: 4, // On track
+      } as unknown as LapData;
+
+      const rivalLap = {
+        CarPosition: 4,
+        TotalDistance: 14960, // 40m behind (in DRS range)
+      } as unknown as LapData;
+
+      const carStatus = {
+        TyresAgeLaps: 1, // Fresh tyres on lap 1 of stint after pit stop
+      } as unknown as CarStatusData;
+
+      renderHook(() =>
+        useProactiveTelemetryRadio({
+          session,
+          lap: playerLap,
+          allLaps: [playerLap, rivalLap],
+          carStatus,
+          onTriggerAlert,
+        })
+      );
+
+      // Defend call suppressed because driver just rejoined from pit stop on fresh/cold tyres
+      expect(onTriggerAlert).not.toHaveBeenCalled();
+    });
+
+    it('suppresses non-critical alerts when game is paused', async () => {
+      const onTriggerAlert = vi.fn().mockResolvedValue(undefined);
+
+      const session = {
+        GamePaused: 1, // Paused!
+      } as unknown as SessionData;
+
+      const carDamage = {
+        TyresWear: [45, 38, 30, 29],
+      } as unknown as CarDamageData;
+
+      const carStatus = {
+        TyresAgeLaps: 12,
+      } as unknown as CarStatusData;
+
+      renderHook(() =>
+        useProactiveTelemetryRadio({
+          session,
+          carDamage,
+          carStatus,
+          onTriggerAlert,
+        })
+      );
+
+      expect(onTriggerAlert).not.toHaveBeenCalled();
+    });
+
+    it('resets all alert states when session UID changes', async () => {
+      const onTriggerAlert = vi.fn().mockResolvedValue(undefined);
+
+      const carDamage = {
+        TyresWear: [45, 38, 30, 29],
+      } as unknown as CarDamageData;
+
+      const carStatus = {
+        TyresAgeLaps: 12,
+      } as unknown as CarStatusData;
+
+      const session1 = {
+        SessionUID: '0x11111111',
+      } as unknown as SessionData;
+
+      const { rerender } = renderHook(
+        (props) => useProactiveTelemetryRadio(props),
+        {
+          initialProps: {
+            session: session1,
+            carDamage,
+            carStatus,
+            onTriggerAlert,
+          },
+        }
+      );
+
+      expect(onTriggerAlert).toHaveBeenCalledTimes(1);
+
+      // Transition to new session
+      const session2 = {
+        SessionUID: '0x22222222',
+      } as unknown as SessionData;
+
+      rerender({
+        session: session2,
+        carDamage,
+        carStatus,
+        onTriggerAlert,
+      });
+
+      // After session reset, the alert can fire fresh for the new session!
+      expect(onTriggerAlert).toHaveBeenCalledTimes(2);
+    });
+  });
 });
 

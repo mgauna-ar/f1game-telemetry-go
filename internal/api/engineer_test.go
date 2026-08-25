@@ -70,4 +70,51 @@ func TestEngineerEngine_ProcessPackets(t *testing.T) {
 	if engine.teammateCarIndex != -1 {
 		t.Fatalf("expected teammateCarIndex=-1 after reset, got %d", engine.teammateCarIndex)
 	}
+
+	// 4. Test phase suppression: coaching directives must NOT emit when player is in garage or pit lane
+	engine.Reset(111222333)
+	engine.bestSector1MS = 28000
+	engine.lastLapNumber = 2
+
+	// In garage
+	garageLapPkt := &packets.PacketLapData{
+		Header: packets.PacketHeader{
+			PacketFormat:   packets.PacketFormat2026,
+			SessionUID:     111222333,
+			SessionTime:    200.0,
+			PlayerCarIndex: 0,
+		},
+		LapData: [packets.MaxCars]packets.LapData{
+			{
+				CurrentLapNum:     2,
+				Sector1TimeMSPart: 29000, // +1.0s loss
+				Sector:            1,
+				DriverStatus:      packets.DriverStatusInGarage,
+				PitStatus:         packets.PitStatusInPitArea,
+			},
+		},
+	}
+	engine.ProcessPacket(ctx, garageLapPkt)
+	if _, exists := engine.lastDirectives["coaching_s1"]; exists {
+		t.Fatalf("expected coaching_s1 directive to be suppressed while in garage")
+	}
+
+	// Paused session
+	engine.Reset(444555666)
+	pausedSessionPkt := &packets.PacketSessionData{
+		Header: packets.PacketHeader{
+			PacketFormat:   packets.PacketFormat2026,
+			SessionUID:     444555666,
+			PlayerCarIndex: 0,
+		},
+		GamePaused:                1,
+		NumWeatherForecastSamples: 1,
+		WeatherForecastSamples: [packets.MaxWeatherForecastSamples]packets.WeatherForecastSample{
+			{TimeOffset: 5, RainPercentage: 80},
+		},
+	}
+	engine.ProcessPacket(ctx, pausedSessionPkt)
+	if _, exists := engine.lastDirectives["weather_rain_5"]; exists {
+		t.Fatalf("expected weather directive to be suppressed when game is paused")
+	}
 }

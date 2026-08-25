@@ -12,6 +12,8 @@ import {
   getSessionTypeName,
   F1_FORMATS,
 } from '../constants/f1';
+import { DrivingPhase, ALERT_PHASE_RULES } from '../constants/drivingPhaseRules';
+import { useDrivingPhase } from './useDrivingPhase';
 import type {
   SessionData,
   LapData,
@@ -38,7 +40,11 @@ export interface UseProactiveTelemetryRadioOptions {
   allTelemetry2?: CarTelemetry2Data[];
   packetFormat?: number | null;
   events?: RaceEvent[];
-  onTriggerAlert?: (alertContext: string, isCritical: boolean, emotion?: { rateModifier?: number; pitchModifier?: number }) => Promise<void>;
+  onTriggerAlert?: (
+    alertContext: string,
+    isCritical: boolean,
+    emotion?: { rateModifier?: number; pitchModifier?: number }
+  ) => Promise<void>;
 }
 
 export interface ProactiveAlertSettings {
@@ -127,9 +133,24 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
 
   const is2026 = packetFormat === F1_FORMATS.FORMAT_2026 || session?.PacketFormat === F1_FORMATS.FORMAT_2026;
 
-  // Track triggered states to avoid repeats
-  const triggeredWearThresholdsRef = useRef<Set<number>>(new Set());
+  // Derive centralized DrivingPhase and context
+  const {
+    phase,
+    phaseChangedThisTick,
+    lapDistancePct,
+    isGamePaused,
+    sessionUID,
+  } = useDrivingPhase({ session, lap, telemetry });
+
+  // Contextual Deduplication references
+  const stintSaidKeysRef = useRef<Set<string>>(new Set());
+  const phaseSaidKeysRef = useRef<Set<string>>(new Set());
+  const lapSaidKeysRef = useRef<Map<string, number>>(new Map());
+
+  // Stint & Session State Tracking
+  const lastSessionUIDRef = useRef<string>('');
   const lastStintLapAgeRef = useRef<number>(0);
+  const triggeredWearThresholdsRef = useRef<Set<number>>(new Set());
   const lastSafetyCarStatusRef = useRef<number>(SAFETY_CAR_STATUS.CLEAR);
   const lastRedFlagCountRef = useRef<number>(0);
   const lastUndercutRivalIndexRef = useRef<number>(-1);
@@ -167,6 +188,52 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
 
   // Independent per-system cooldown timestamps
   const lastCooldownByCategoryRef = useRef<Record<string, number>>({});
+
+  // 0. Handle Session Transitions (Reset all state when sessionUID changes)
+  useEffect(() => {
+    if (sessionUID && lastSessionUIDRef.current !== '' && lastSessionUIDRef.current !== sessionUID) {
+      stintSaidKeysRef.current.clear();
+      phaseSaidKeysRef.current.clear();
+      lapSaidKeysRef.current.clear();
+      triggeredWearThresholdsRef.current.clear();
+      lastCooldownByCategoryRef.current = {};
+      lastStintLapAgeRef.current = 0;
+      lastSafetyCarStatusRef.current = SAFETY_CAR_STATUS.CLEAR;
+      lastRedFlagCountRef.current = 0;
+      lastUndercutRivalIndexRef.current = -1;
+      lastDrsWarningIndexRef.current = -1;
+      lastCarAheadWarningIndexRef.current = -1;
+      lastPuncturedRef.current = false;
+      lastRainAlertRef.current = false;
+      lastWingDamageAlertRef.current = 0;
+      lastFloorDamageAlertRef.current = false;
+      lastEngineWearAlertRef.current = false;
+      lastDrsFaultAlertRef.current = false;
+      lastErsFaultAlertRef.current = false;
+      lastErsLowAlertLapRef.current = -1;
+      lastEngineOverheatAlertRef.current = 0;
+      lastBrakeOverheatAlertRef.current = 0;
+      lastBrakeColdAlertRef.current = 0;
+      lastFuelDeltaAlertLapRef.current = -1;
+      lastPitWindowWarnedLapRef.current = -1;
+      lastCornerCutWarningsRef.current = 0;
+      lastPenaltiesCountRef.current = 0;
+      lastInvalidLapNumRef.current = -1;
+      lastOutLapCheckedRef.current = -1;
+      lastSessionTimeWarnedRef.current = false;
+      lastEliminationDangerWarnedRef.current = false;
+    }
+    if (sessionUID) {
+      lastSessionUIDRef.current = sessionUID;
+    }
+  }, [sessionUID]);
+
+  // Reset phase-scoped dedup keys when driving phase transitions
+  useEffect(() => {
+    if (phaseChangedThisTick) {
+      phaseSaidKeysRef.current.clear();
+    }
+  }, [phaseChangedThisTick]);
 
   const isQualy = isQualifyingSession(session?.SessionType);
   const isPractice = isPracticeSession(session?.SessionType);
@@ -266,6 +333,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
 
   const triggerAlertSafe = useCallback(
     async (
+      alertKey: string,
       category: string,
       contextPrompt: string,
       isCritical: boolean,
@@ -273,9 +341,62 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
     ) => {
       if (!enabled || !isRadioEnabled || !onTriggerAlert) return;
 
+      // 1. Game Paused: suppress non-critical calls
+      if (isGamePaused && !isCritical) {
+        return;
+      }
+
+      // 2. Driving Phase & Rule Check
+      const rule = ALERT_PHASE_RULES[alertKey];
+      if (rule) {
+        // Phase whitelist validation
+        if (rule.validPhases.length > 0 && !rule.validPhases.includes(phase)) {
+          return; // Suppressed: alert not valid in current driving phase
+        }
+
+        // Out-lap distance guard
+        if (
+          phase === DrivingPhase.OUT_LAP &&
+          rule.minLapDistancePct !== undefined &&
+          lapDistancePct < rule.minLapDistancePct
+        ) {
+          return; // Suppressed: driver has not reached required out-lap distance
+        }
+
+        // Post-pit suppression guard (suppress rival calls for N laps after an in-race pit stop)
+        const numPitStops = lap?.NumPitStops ?? 0;
+        const tyreAge = carStatus?.TyresAgeLaps;
+        if (
+          rule.suppressAfterPitForLaps !== undefined &&
+          numPitStops > 0 &&
+          typeof tyreAge === 'number' &&
+          tyreAge <= rule.suppressAfterPitForLaps &&
+          isRace
+        ) {
+          return; // Suppressed: driver recently exited pit
+        }
+
+        // Contextual Deduplication
+        const currentLapNum = lap?.CurrentLapNum ?? 1;
+        if (rule.dedupScope === 'stint') {
+          if (stintSaidKeysRef.current.has(alertKey)) {
+            return; // Already said this stint
+          }
+        } else if (rule.dedupScope === 'phase') {
+          if (phaseSaidKeysRef.current.has(alertKey)) {
+            return; // Already said in this driving phase
+          }
+        } else if (rule.dedupScope === 'lap') {
+          const lastLap = lapSaidKeysRef.current.get(alertKey);
+          if (lastLap !== undefined && lastLap === currentLapNum) {
+            return; // Already said on this lap
+          }
+        }
+      }
+
       const settings = getAlertSettings();
 
-      // Smart Driving Discretion: Suppress non-critical radio calls while driver is in heavy braking or tight cornering
+      // 3. Smart Driving Discretion: Suppress non-critical radio calls while driver is in heavy braking or tight cornering
       if (!isCritical && settings.smartDiscretionEnabled && telemetry) {
         const brakeActive = (telemetry.Brake ?? 0) > RADIO_ALERT_CONSTANTS.SMART_DISCRETION_BRAKE_THRESHOLD;
         const heavySteer = Math.abs(telemetry.Steer ?? 0) > RADIO_ALERT_CONSTANTS.SMART_DISCRETION_STEER_THRESHOLD;
@@ -284,6 +405,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
         }
       }
 
+      // 4. Chatter Cooldowns (per-category anti-spam)
       const now = Date.now();
       const cooldownMs = (settings.chatterCooldownSeconds || 45) * 1000;
       if (!isCritical) {
@@ -294,14 +416,38 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
         }
       }
 
+      // Record dedup marks & cooldown timestamp
+      if (rule) {
+        if (rule.dedupScope === 'stint') {
+          stintSaidKeysRef.current.add(alertKey);
+        } else if (rule.dedupScope === 'phase') {
+          phaseSaidKeysRef.current.add(alertKey);
+        } else if (rule.dedupScope === 'lap') {
+          const currentLapNum = lap?.CurrentLapNum ?? 1;
+          lapSaidKeysRef.current.set(alertKey, currentLapNum);
+        }
+      }
       lastCooldownByCategoryRef.current[category] = now;
+
       if (emotion !== undefined) {
         await onTriggerAlert(contextPrompt, isCritical, emotion);
       } else {
         await onTriggerAlert(contextPrompt, isCritical);
       }
     },
-    [enabled, isRadioEnabled, telemetry, getAlertSettings, onTriggerAlert]
+    [
+      enabled,
+      isRadioEnabled,
+      isGamePaused,
+      phase,
+      lapDistancePct,
+      carStatus,
+      isRace,
+      lap,
+      telemetry,
+      getAlertSettings,
+      onTriggerAlert,
+    ]
   );
 
   // 1. Monitor Tyre Wear, Punctures, Thermal Overheating & Cold Tyres
@@ -314,9 +460,10 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
 
     // 1.1 Tyre Wear & Punctures (Requires carDamage)
     if (carDamage && carStatus) {
-      // Reset wear thresholds if car pitted (tyre age reset)
+      // Reset wear thresholds and stint said keys if car pitted (tyre age reset)
       if (currentTyreAge <= 1 && lastStintLapAgeRef.current > 3) {
         triggeredWearThresholdsRef.current.clear();
+        stintSaidKeysRef.current.clear();
         lastPuncturedRef.current = false;
       }
       lastStintLapAgeRef.current = currentTyreAge;
@@ -333,6 +480,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
       if (settings.subTyrePuncture && maxWear >= RADIO_ALERT_CONSTANTS.PUNCTURE_THRESHOLD && !lastPuncturedRef.current) {
         lastPuncturedRef.current = true;
         triggerAlertSafe(
+          'tyre_puncture',
           'tyres',
           `[PROACTIVE PIT WALL CALL: Critical tyre puncture / tyre failure on car! Wear is at ${Math.round(maxWear)}%. You are initiating this call — do NOT say 'Entendido' or 'Copy'. Order driver to box immediately.]`,
           true
@@ -350,6 +498,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
           if (maxWear >= threshold && !triggeredWearThresholdsRef.current.has(threshold)) {
             triggeredWearThresholdsRef.current.add(threshold);
             triggerAlertSafe(
+              'tyre_wear',
               'tyres',
               `[PROACTIVE PIT WALL CALL: Tyre wear reached ${Math.round(maxWear)}% (stint age: ${currentTyreAge} laps). You are initiating this call — do NOT say 'Entendido' or 'Copy'. Provide immediate tyre management directive.]`,
               false
@@ -374,6 +523,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
           ? `Rear tyre surface temperatures are overheating at ${Math.round(rearMaxTemp)}°C (limit: ${effectiveOverheatC}°C)! Manage traction out of corners to protect the narrower rear tyres.`
           : `Rear tyre surface temperatures are overheating at ${Math.round(rearMaxTemp)}°C (limit: ${effectiveOverheatC}°C)! Advise driver to manage traction out of corners to cool the rears.`;
         triggerAlertSafe(
+          'tyre_overheat',
           'tyres',
           `[PROACTIVE PIT WALL CALL: ${advice} You are initiating this call — do NOT say 'Entendido' or 'Copy'.]`,
           false
@@ -383,13 +533,14 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
 
       if (settings.subTyreCold && maxSurfTemp > 0 && maxSurfTemp <= settings.tyreColdC && currentTyreAge < 2) {
         triggerAlertSafe(
+          'tyre_cold',
           'tyres',
           `[PROACTIVE PIT WALL CALL: Tyre temperatures are cold (${Math.round(maxSurfTemp)}°C, target: >${settings.tyreColdC}°C). You are initiating this call — do NOT say 'Entendido' or 'Copy'. Advise driver to weave and build tyre temperature.]`,
           false
         );
       }
     }
-  }, [enabled, isRadioEnabled, carDamage, carStatus, telemetry, is2026, getAlertSettings, triggerAlertSafe]);
+  }, [enabled, isRadioEnabled, carDamage, carStatus, telemetry, session, is2026, getAlertSettings, triggerAlertSafe]);
 
   // 2. Monitor Aero Damage & Mechanical Components (Front Wing, Floor, Engine Wear, Faults)
   useEffect(() => {
@@ -406,6 +557,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
       if (maxWing >= RADIO_ALERT_CONSTANTS.CRITICAL_WING_DAMAGE_PCT && lastWingDamageAlertRef.current < RADIO_ALERT_CONSTANTS.CRITICAL_WING_DAMAGE_PCT) {
         lastWingDamageAlertRef.current = maxWing;
         triggerAlertSafe(
+          'damage_wing',
           'damage',
           `[PROACTIVE PIT WALL CALL: Severe front wing damage detected (${Math.round(maxWing)}% loss)! Massive aero loss on front axle. You are initiating this call — do NOT say 'Entendido' or 'Copy'. Order driver to box for front wing replacement.]`,
           true
@@ -414,6 +566,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
       } else if (maxWing >= settings.wingDamageWarnPct && lastWingDamageAlertRef.current < settings.wingDamageWarnPct) {
         lastWingDamageAlertRef.current = maxWing;
         triggerAlertSafe(
+          'damage_wing',
           'damage',
           `[PROACTIVE PIT WALL CALL: Front wing endplate/flap damage detected (${Math.round(maxWing)}%). Expect understeer in medium-to-high speed corners. You are initiating this call — do NOT say 'Entendido' or 'Copy'. Adjust brake bias or diff accordingly.]`,
           false
@@ -428,6 +581,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
       if (floorDiffDamage >= settings.floorDamageWarnPct && !lastFloorDamageAlertRef.current) {
         lastFloorDamageAlertRef.current = true;
         triggerAlertSafe(
+          'damage_floor',
           'damage',
           `[PROACTIVE PIT WALL CALL: Underfloor/diffuser aerodynamic damage confirmed (${Math.round(floorDiffDamage)}%). Downforce levels and high-speed stability are compromised. You are initiating this call — do NOT say 'Entendido' or 'Copy'.]`,
           false
@@ -447,6 +601,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
       if (maxEngineWear >= settings.engineWearWarnPct && !lastEngineWearAlertRef.current) {
         lastEngineWearAlertRef.current = true;
         triggerAlertSafe(
+          'damage_engine',
           'damage',
           `[PROACTIVE PIT WALL CALL: Power unit / gearbox component wear reached ${Math.round(maxEngineWear)}%! You are initiating this call — do NOT say 'Entendido' or 'Copy'. Advise driver to short shift and avoid aggressive kerb riding.]`,
           false
@@ -463,6 +618,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
           ? `Active Aero flap fault detected! Straight mode / aerodynamic wing adjustment unavailable. You are initiating this call — do NOT say 'Entendido' or 'Copy'. Inform driver Active Aero straight mode is currently offline.`
           : `DRS flap fault detected! Rear wing flap cannot deploy. You are initiating this call — do NOT say 'Entendido' or 'Copy'. Inform driver DRS is currently unavailable.`;
         triggerAlertSafe(
+          'damage_faults',
           'damage',
           `[PROACTIVE PIT WALL CALL: ${faultMsg}]`,
           true
@@ -472,13 +628,14 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
       if (carDamage.ERSFault === 1 && !lastErsFaultAlertRef.current) {
         lastErsFaultAlertRef.current = true;
         triggerAlertSafe(
+          'damage_faults',
           'damage',
           `[PROACTIVE PIT WALL CALL: Hybrid ERS deployment failure detected on power unit! Electric boost offline. You are initiating this call — do NOT say 'Entendido' or 'Copy'. Stand by for system reset protocol.]`,
           true
         );
       }
     }
-  }, [enabled, isRadioEnabled, carDamage, is2026, getAlertSettings, triggerAlertSafe]);
+  }, [enabled, isRadioEnabled, carDamage, session, is2026, getAlertSettings, triggerAlertSafe]);
 
   // 3. Monitor ERS Battery Reserve & Engine Core Temperature
   useEffect(() => {
@@ -498,6 +655,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
           ? `ERS battery reserve is low at ${Math.round(ersPct)}%! You are initiating this call — do NOT say 'Entendido' or 'Copy'. Advise driver to limit Override/Boost usage and use Lift & Coast for MGU-K regeneration on straights.`
           : `ERS battery reserve is low at ${Math.round(ersPct)}%! You are initiating this call — do NOT say 'Entendido' or 'Copy'. Advise driver to switch deploy mode to None or Harvest on straights.`;
         triggerAlertSafe(
+          'ers_low',
           'ers',
           `[PROACTIVE PIT WALL CALL: ${ersMsg}]`,
           false
@@ -511,6 +669,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
       if (telemetry.EngineTemperature >= settings.engineOverheatC && now - lastEngineOverheatAlertRef.current > 60000) {
         lastEngineOverheatAlertRef.current = now;
         triggerAlertSafe(
+          'engine_temp',
           'ers',
           `[PROACTIVE PIT WALL CALL: Engine core water/oil temperatures are high at ${Math.round(telemetry.EngineTemperature)}°C (limit: ${settings.engineOverheatC}°C)! You are initiating this call — do NOT say 'Entendido' or 'Copy'. Advise driver to pull out of dirty air on the straights to cool the power unit.]`,
           false
@@ -533,6 +692,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
     if (settings.subBrakeTemp && maxBrakeTemp >= settings.brakeOverheatC && now - lastBrakeOverheatAlertRef.current > 45000) {
       lastBrakeOverheatAlertRef.current = now;
       triggerAlertSafe(
+        'brake_hot',
         'brakes',
         `[PROACTIVE PIT WALL CALL: Brake disc temperatures are critically high at ${Math.round(maxBrakeTemp)}°C (fade threshold: ${settings.brakeOverheatC}°C)! You are initiating this call — do NOT say 'Entendido' or 'Copy'. Advise driver to manage braking zones and adjust brake bias.]`,
         false
@@ -546,6 +706,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
       if (isFormationOrSC) {
         lastBrakeColdAlertRef.current = now;
         triggerAlertSafe(
+          'brake_cold',
           'brakes',
           `[PROACTIVE PIT WALL CALL: Brake temperatures are cold (${Math.round(maxBrakeTemp)}°C, optimal: >${settings.brakeColdC}°C). You are initiating this call — do NOT say 'Entendido' or 'Copy'. Advise driver to drag brakes and build temperature before the restart.]`,
           false
@@ -574,6 +735,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
           if (distanceDelta > 0 && distanceDelta < maxUndercutDist) {
             lastUndercutRivalIndexRef.current = carBehindIdx;
             triggerAlertSafe(
+              'undercut',
               'fuel',
               `[PROACTIVE PIT WALL CALL: Car behind (P${playerPos + 1}) has just pitted for an undercut attempt! You are initiating this call — do NOT say 'Entendido' or 'Copy'. Push hard now on the in-lap to defend track position.]`,
               true
@@ -588,6 +750,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
     if (settings.subPitWindow && session && session.PitStopWindowIdealLap && session.PitStopWindowIdealLap === currentLapNum && lastPitWindowWarnedLapRef.current !== currentLapNum) {
       lastPitWindowWarnedLapRef.current = currentLapNum;
       triggerAlertSafe(
+        'pit_window',
         'fuel',
         `[PROACTIVE PIT WALL CALL: Pit stop window is now open (Lap ${currentLapNum}). Target rejoin position P${session.PitStopRejoinPosition || playerPos || 1}. You are initiating this call — do NOT say 'Entendido' or 'Copy'. Stand by for box call.]`,
         false
@@ -601,6 +764,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
       if (fuelDelta <= settings.fuelDeltaLaps && lastFuelDeltaAlertLapRef.current !== currentLapNum) {
         lastFuelDeltaAlertLapRef.current = currentLapNum;
         triggerAlertSafe(
+          'fuel_delta',
           'fuel',
           `[PROACTIVE PIT WALL CALL: Fuel target delta is negative (${fuelDelta.toFixed(1)} laps). You are initiating this call — do NOT say 'Entendido' or 'Copy'. Direct driver to introduce Lift & Coast into Turn 1 and heavy braking zones.]`,
           false
@@ -654,6 +818,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
               ? `Defend! Car behind (P${playerPos + 1}) is within Override/Boost attack threat (${gapSec}s gap).${extraContext} You are initiating this call — do NOT say 'Entendido' or 'Copy'. Direct driver to defend line on straight/braking and prepare defense.`
               : `Defend! Car behind (P${playerPos + 1}) is within DRS threat (${gapSec}s gap).${extraContext} You are initiating this call — do NOT say 'Entendido' or 'Copy'. Direct driver to defend line on straight/braking.`;
             triggerAlertSafe(
+              'rival_defend',
               'rivals',
               `[PROACTIVE PIT WALL CALL: ${defendMsg}]`,
               false
@@ -686,6 +851,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
             ? `We are catching car ahead (P${playerPos - 1}), gap is ${gapSec}s.${tyreContext}${overtakeBoostAvailable ? ' Override Boost is available!' : ''} You are initiating this call — do NOT say 'Entendido' or 'Copy'. Direct driver to prepare overtake using Straight Mode and Boost deployment.`
             : `We are catching car ahead (P${playerPos - 1}), gap is ${gapSec}s.${tyreContext} You are initiating this call — do NOT say 'Entendido' or 'Copy'. Direct driver to prepare overtake / deployment.`;
           triggerAlertSafe(
+            'rival_attack',
             'rivals',
             `[PROACTIVE PIT WALL CALL: ${attackMsg}]`,
             false
@@ -707,6 +873,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
       const isPushing = lap.DriverStatus === DRIVER_STATUS.FLYING_LAP || isQualy;
       if (isPushing) {
         triggerAlertSafe(
+          'qualy_invalid',
           'qualy',
           `[PROACTIVE PIT WALL CALL: Lap ${lap.CurrentLapNum} deleted for track limits! You are initiating this call — do NOT say 'Entendido' or 'Copy'. Inform driver lap is invalid, recharge ERS and reset for next flying attempt.]`,
           true
@@ -735,6 +902,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
           lastOutLapCheckedRef.current = lap.CurrentLapNum;
           const gapEstSec = (minAheadDelta / 60).toFixed(1);
           triggerAlertSafe(
+            'qualy_traffic',
             'qualy',
             `[PROACTIVE PIT WALL CALL: Traffic ahead before starting hot lap — car ahead is only ~${gapEstSec}s away (<${Math.round(minAheadDelta)}m). You are initiating this call — do NOT say 'Entendido' or 'Copy'. Direct driver to slow down in final sector to build at least 4-5s of clean air.]`,
             true
@@ -743,6 +911,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
         } else if (minAheadDelta >= maxCleanAirDist && minAheadDelta < 9000) {
           lastOutLapCheckedRef.current = lap.CurrentLapNum;
           triggerAlertSafe(
+            'qualy_traffic',
             'qualy',
             `[PROACTIVE PIT WALL CALL: Track is clear ahead with clean air gap. You are initiating this call — do NOT say 'Entendido' or 'Copy'. Instruct driver to prepare front tyres and launch out of the final turn.]`,
             false
@@ -758,6 +927,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
         lastSessionTimeWarnedRef.current = true;
         const sessionName = getSessionTypeName(session.SessionType);
         triggerAlertSafe(
+          'qualy_time',
           'qualy',
           `[PROACTIVE PIT WALL CALL: Under ${Math.round(settings.qualyTimeWarnSec / 60)} minutes remaining in ${sessionName}! You are initiating this call — do NOT say 'Entendido' or 'Copy'. Direct driver to leave pit lane now for final flying lap before the chequered flag.]`,
           true
@@ -775,6 +945,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
       if (isQ1Danger || isQ2Danger) {
         lastEliminationDangerWarnedRef.current = true;
         triggerAlertSafe(
+          'qualy_elim',
           'qualy',
           `[PROACTIVE PIT WALL CALL: We are in P${playerPos} in the elimination danger zone with under 5 minutes left! You are initiating this call — do NOT say 'Entendido' or 'Copy'. We need a clean, maximized lap to make the cutoff.]`,
           true
@@ -797,12 +968,14 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
 
         if (scStatus === SAFETY_CAR_STATUS.FULL) {
           triggerAlertSafe(
+            'flags_sc',
             'flags',
             `[PROACTIVE PIT WALL CALL: Full Safety Car deployed! You are initiating this call — do NOT say 'Entendido' or 'Copy'. Directly announce Safety Car in pista / on track, maintain delta positive, stand by for pit stop window.]`,
             true
           );
         } else if (scStatus === SAFETY_CAR_STATUS.VIRTUAL) {
           triggerAlertSafe(
+            'flags_sc',
             'flags',
             `[PROACTIVE PIT WALL CALL: Virtual Safety Car (VSC) deployed! You are initiating this call — do NOT say 'Entendido' or 'Copy'. Directly announce VSC deployed, maintain delta, no overtaking.]`,
             true
@@ -817,6 +990,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
       if (redFlagCount > lastRedFlagCountRef.current) {
         lastRedFlagCountRef.current = redFlagCount;
         triggerAlertSafe(
+          'flags_red',
           'flags',
           `[PROACTIVE PIT WALL CALL: Red Flag deployed! Session stopped. You are initiating this call — do NOT say 'Entendido' or 'Copy'. Instruct driver to return to pit lane slowly.]`,
           true
@@ -836,6 +1010,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
         const rainPct = imminentRain.RainPercentage ?? imminentRain.rain_percentage ?? 50;
         const timeOff = imminentRain.TimeOffset ?? imminentRain.time_offset ?? settings.rainHorizonMin;
         triggerAlertSafe(
+          'flags_rain',
           'flags',
           `[PROACTIVE PIT WALL CALL: Weather radar confirms ${rainPct}% chance of rain in the next ${timeOff} minutes. You are initiating this call — do NOT say 'Entendido' or 'Copy'. Advise driver directly on tyre crossover strategy.]`,
           false
@@ -849,6 +1024,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
       if (cutWarnings >= settings.cornerCutWarnThreshold && cutWarnings > lastCornerCutWarningsRef.current) {
         lastCornerCutWarningsRef.current = cutWarnings;
         triggerAlertSafe(
+          'track_limits',
           'flags',
           `[PROACTIVE PIT WALL CALL: Driver has accumulated ${cutWarnings} track limits / corner cutting warnings (threshold: 3 warnings -> 3s time penalty)! You are initiating this call — do NOT say 'Entendido' or 'Copy'. Sternly warn driver to keep all four wheels within white lines.]`,
           true
@@ -863,6 +1039,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
       if (penalties > 0 && penalties > lastPenaltiesCountRef.current) {
         lastPenaltiesCountRef.current = penalties;
         triggerAlertSafe(
+          'penalties',
           'flags',
           `[PROACTIVE PIT WALL CALL: Driver has been assessed a ${penalties}-second time penalty by the stewards for track limits / infringement! You are initiating this call — do NOT say 'Entendido' or 'Copy'. Inform driver penalty will be served at the next pit stop.]`,
           true
@@ -907,7 +1084,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
       try {
         const directive = JSON.parse(event.data) as import('../types/telemetry').EngineerDirective;
         if (!directive || directive.type !== 'directive' || directive.id === lastDirectiveIdRef.current) return;
-        
+
         lastDirectiveIdRef.current = directive.id;
 
         const settings = getAlertSettingsRef.current();
@@ -924,6 +1101,7 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
         const emotion = isCritical ? { rateModifier: 12, pitchModifier: 5 } : { rateModifier: 0, pitchModifier: 0 };
 
         triggerAlertSafeRef.current(
+          'backend_directive',
           directive.category,
           `[PROACTIVE PIT WALL CALL: ${directive.title} — ${directive.message} You are initiating this call — do NOT say 'Entendido' or 'Copy'.]`,
           isCritical,
@@ -949,5 +1127,3 @@ export function useProactiveTelemetryRadio(options: UseProactiveTelemetryRadioOp
     };
   }, [enabled, isRadioEnabled]);
 }
-
-

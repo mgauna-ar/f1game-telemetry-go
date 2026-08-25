@@ -164,6 +164,20 @@ func (e *EngineerEngine) processParticipants(p *packets.PacketParticipantsData) 
 	}
 }
 
+// isPlayerOnTrack returns true if the player is actively driving on track (not in garage or pit lane).
+func (e *EngineerEngine) isPlayerOnTrack(playerLap *packets.LapData) bool {
+	if playerLap.DriverStatus == packets.DriverStatusInGarage {
+		return false
+	}
+	if playerLap.PitStatus == packets.PitStatusInPitArea || playerLap.PitStatus == packets.PitStatusPitting {
+		return false
+	}
+	if playerLap.PitLaneTimerActive == 1 {
+		return false
+	}
+	return true
+}
+
 func (e *EngineerEngine) processLapData(header packets.PacketHeader, p *packets.PacketLapData) {
 	playerIdx := int(header.PlayerCarIndex)
 	if playerIdx >= len(p.LapData) {
@@ -176,59 +190,64 @@ func (e *EngineerEngine) processLapData(header packets.PacketHeader, p *packets.
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	// 1. Sector Coaching Analysis
-	s1 := int(playerLap.Sector1TimeMSPart)
-	s2 := int(playerLap.Sector2TimeMSPart)
+	// Suppress on-track directives if the player is in the garage or pit lane
+	onTrack := e.isPlayerOnTrack(&playerLap)
 
-	if s1 > 0 && (e.bestSector1MS == 0 || s1 < e.bestSector1MS) {
-		e.bestSector1MS = s1
-	}
-	if s2 > 0 && (e.bestSector2MS == 0 || s2 < e.bestSector2MS) {
-		e.bestSector2MS = s2
-	}
+	// 1. Sector Coaching Analysis (Only when actively pushing on track)
+	if onTrack && playerLap.DriverStatus != packets.DriverStatusInLap && playerLap.DriverStatus != packets.DriverStatusOutLap {
+		s1 := int(playerLap.Sector1TimeMSPart)
+		s2 := int(playerLap.Sector2TimeMSPart)
 
-	// Check sector 1 loss on sector 2 entry
-	if int(playerLap.Sector) == 1 && s1 > 0 && e.bestSector1MS > 0 && currentLap == e.lastLapNumber {
-		deltaS1 := float64(s1-e.bestSector1MS) / 1000.0
-		if deltaS1 >= SectorTimeLossThresholdSec {
-			e.emitDirectiveLocked(header, EngineerDirective{
-				Category:    DirectiveCategoryCoaching,
-				Title:       "Sector 1 Delta",
-				Message:     fmt.Sprintf("Time lost in Sector 1 (+%.2fs vs personal best). Focus on apex speed and smooth steering input.", deltaS1),
-				Urgency:     UrgencyMedium,
-				SessionTime: header.SessionTime,
-				CarIndex:    playerIdx,
-				Metadata: map[string]any{
-					"sector": 1,
-					"delta":  deltaS1,
-				},
-			}, "coaching_s1")
+		if s1 > 0 && (e.bestSector1MS == 0 || s1 < e.bestSector1MS) {
+			e.bestSector1MS = s1
 		}
-	}
+		if s2 > 0 && (e.bestSector2MS == 0 || s2 < e.bestSector2MS) {
+			e.bestSector2MS = s2
+		}
 
-	// Check sector 2 loss on sector 3 entry
-	if int(playerLap.Sector) == 2 && s2 > 0 && e.bestSector2MS > 0 && currentLap == e.lastLapNumber {
-		deltaS2 := float64(s2-e.bestSector2MS) / 1000.0
-		if deltaS2 >= SectorTimeLossThresholdSec {
-			e.emitDirectiveLocked(header, EngineerDirective{
-				Category:    DirectiveCategoryCoaching,
-				Title:       "Sector 2 Delta",
-				Message:     fmt.Sprintf("Time lost in Sector 2 (+%.2fs vs personal best). Prioritize corner exit traction.", deltaS2),
-				Urgency:     UrgencyMedium,
-				SessionTime: header.SessionTime,
-				CarIndex:    playerIdx,
-				Metadata: map[string]any{
-					"sector": 2,
-					"delta":  deltaS2,
-				},
-			}, "coaching_s2")
+		// Check sector 1 loss on sector 2 entry
+		if int(playerLap.Sector) == 1 && s1 > 0 && e.bestSector1MS > 0 && currentLap == e.lastLapNumber {
+			deltaS1 := float64(s1-e.bestSector1MS) / 1000.0
+			if deltaS1 >= SectorTimeLossThresholdSec {
+				e.emitDirectiveLocked(header, EngineerDirective{
+					Category:    DirectiveCategoryCoaching,
+					Title:       "Sector 1 Delta",
+					Message:     fmt.Sprintf("Time lost in Sector 1 (+%.2fs vs personal best). Focus on apex speed and smooth steering input.", deltaS1),
+					Urgency:     UrgencyMedium,
+					SessionTime: header.SessionTime,
+					CarIndex:    playerIdx,
+					Metadata: map[string]any{
+						"sector": 1,
+						"delta":  deltaS1,
+					},
+				}, "coaching_s1")
+			}
+		}
+
+		// Check sector 2 loss on sector 3 entry
+		if int(playerLap.Sector) == 2 && s2 > 0 && e.bestSector2MS > 0 && currentLap == e.lastLapNumber {
+			deltaS2 := float64(s2-e.bestSector2MS) / 1000.0
+			if deltaS2 >= SectorTimeLossThresholdSec {
+				e.emitDirectiveLocked(header, EngineerDirective{
+					Category:    DirectiveCategoryCoaching,
+					Title:       "Sector 2 Delta",
+					Message:     fmt.Sprintf("Time lost in Sector 2 (+%.2fs vs personal best). Prioritize corner exit traction.", deltaS2),
+					Urgency:     UrgencyMedium,
+					SessionTime: header.SessionTime,
+					CarIndex:    playerIdx,
+					Metadata: map[string]any{
+						"sector": 2,
+						"delta":  deltaS2,
+					},
+				}, "coaching_s2")
+			}
 		}
 	}
 
 	e.lastLapNumber = currentLap
 
-	// 2. Teammate Context Analysis
-	if e.teammateCarIndex >= 0 && e.teammateCarIndex < len(p.LapData) {
+	// 2. Teammate Context Analysis (Only if player is on track)
+	if onTrack && e.teammateCarIndex >= 0 && e.teammateCarIndex < len(p.LapData) {
 		teammateLap := p.LapData[e.teammateCarIndex]
 		playerPos := int(playerLap.CarPosition)
 		teammatePos := int(teammateLap.CarPosition)
@@ -269,7 +288,7 @@ func (e *EngineerEngine) processLapData(header packets.PacketHeader, p *packets.
 	}
 
 	// 3. Predictive Pit Strategy (Traffic Window & Overcut / Undercut)
-	if playerLap.PitStatus == packets.PitStatusNone && currentLap > 3 {
+	if onTrack && playerLap.DriverStatus != packets.DriverStatusOutLap && playerLap.DriverStatus != packets.DriverStatusInLap && playerLap.PitStatus == packets.PitStatusNone && currentLap > 3 {
 		// Calculate traffic window on potential pit stop
 		playerDist := float64(playerLap.TotalDistance)
 		estPitLossMeters := DefaultPitLaneLossSeconds * 65.0
@@ -301,6 +320,10 @@ func (e *EngineerEngine) processLapData(header packets.PacketHeader, p *packets.
 }
 
 func (e *EngineerEngine) processSessionData(header packets.PacketHeader, p *packets.PacketSessionData) {
+	if p.GamePaused == 1 || p.NumRedFlagPeriods > 0 {
+		return
+	}
+
 	e.mu.Lock()
 	defer e.mu.Unlock()
 

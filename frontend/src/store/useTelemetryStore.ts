@@ -78,6 +78,7 @@ export interface LiveSnapshotData {
     NumSafetyCarPeriods?: number;
     NumVirtualSafetyCarPeriods?: number;
     NumRedFlagPeriods?: number;
+    GamePaused?: number;
   };
   Participants?: {
     NumActiveCars: number;
@@ -221,6 +222,8 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
           NumVirtualSafetyCarPeriods: s.NumVirtualSafetyCarPeriods,
           NumRedFlagPeriods: s.NumRedFlagPeriods,
           PacketFormat: header.PacketFormat,
+          GamePaused: s.GamePaused,
+          SessionUID: header.SessionUID,
         };
 
         if (prevSafetyCarStatus !== s.SafetyCarStatus) {

@@ -689,6 +689,10 @@ export const RADIO_ALERT_CONSTANTS = {
   QUALY_OUTLAP_SECTOR_TRIGGER: 3,
   // Flags & Penalties defaults
   DEFAULT_CORNER_CUT_WARN_THRESHOLD: 2,
+  // Phase & Contextual Filtering defaults
+  MIN_OUT_LAP_DISTANCE_PCT: 0.3,
+  POST_PIT_SUPPRESSION_LAPS: 1,
+  SPEED_GARAGE_MAX_KMH: 5,
 } as const;
 
 export type RadioTriggerPreset = 'immersive' | 'coaching' | 'minimal' | 'custom';

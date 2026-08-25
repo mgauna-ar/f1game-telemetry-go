@@ -41,6 +41,7 @@ export interface LapData {
   TotalWarnings?: number;
   CornerCuttingWarnings?: number;
   GridPosition?: number;
+  PitLaneTimerActive?: number;
   PitLaneTimeInLaneInMS?: number;
   PitStopTimerInMS?: number;
   SpeedTrapFastestSpeed?: number;
@@ -94,6 +95,8 @@ export interface SessionData {
   NumVirtualSafetyCarPeriods?: number;
   NumRedFlagPeriods?: number;
   PacketFormat?: number;
+  GamePaused?: number;
+  SessionUID?: string | number;
 }
 
 export interface RaceEvent {
