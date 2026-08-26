@@ -1,15 +1,14 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Lap } from '../types/session';
-import type { TelemetrySamplePoint } from '../utils/downsample';
-import { calculateMergedComparison, type MergedTelemetryPoint } from '../utils/deltaCalculation';
-import { detectTrackTurns, type TrackTurn } from '../utils/trackTurns';
+import type { MergedTelemetryPoint, TrackTurn, ComparatorResponse } from '../types/comparator';
 
 export interface UseMergedTelemetryOptions {
-  rawTelemetryA: TelemetrySamplePoint[];
-  rawTelemetryB: TelemetrySamplePoint[];
+  lapAId?: number | '';
+  lapBId?: number | '';
   lapAObj?: Lap;
   lapBObj?: Lap;
   stepMeters?: number;
+  targetTrackLength?: number;
 }
 
 export interface UseMergedTelemetryReturn {
@@ -27,30 +26,63 @@ export interface UseMergedTelemetryReturn {
   zoomDomain: [number, number] | null;
   setZoomDomain: React.Dispatch<React.SetStateAction<[number, number] | null>>;
   handleMouseMove: (state: any) => void;
+  loading: boolean;
 }
 
 export function useMergedTelemetry({
-  rawTelemetryA,
-  rawTelemetryB,
+  lapAId,
+  lapBId,
   lapAObj,
   lapBObj,
   stepMeters = 5,
+  targetTrackLength,
 }: UseMergedTelemetryOptions): UseMergedTelemetryReturn {
+  const [comparisonData, setComparisonData] = useState<MergedTelemetryPoint[]>([]);
+  const [detectedTurns, setDetectedTurns] = useState<TrackTurn[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
   const [hoverDistance, setHoverDistance] = useState<number | null>(null);
   const [zoomDomain, setZoomDomain] = useState<[number, number] | null>(null);
 
-  // Calculate high-performance merged telemetry comparison points (resampled every stepMeters)
-  const comparisonData = useMemo<MergedTelemetryPoint[]>(() => {
-    if (rawTelemetryA.length === 0 && rawTelemetryB.length === 0) return [];
-    return calculateMergedComparison(rawTelemetryA, rawTelemetryB, {
-      stepMeters,
-      lapTimeMsA: lapAObj?.lap_time_ms,
-      lapTimeMsB: lapBObj?.lap_time_ms,
-    });
-  }, [rawTelemetryA, rawTelemetryB, lapAObj?.lap_time_ms, lapBObj?.lap_time_ms, stepMeters]);
+  // Fetch merged comparison telemetry from Go backend endpoint with server-side caching
+  useEffect(() => {
+    if (!lapAId && !lapBId) {
+      setComparisonData([]);
+      setDetectedTurns([]);
+      setLoading(false);
+      return;
+    }
 
-  // Detected track turns and apexes
-  const detectedTurns = useMemo(() => detectTrackTurns(comparisonData), [comparisonData]);
+    const controller = new AbortController();
+    setLoading(true);
+
+    const params = new URLSearchParams();
+    if (lapAId) params.set('lapA', String(lapAId));
+    if (lapBId) params.set('lapB', String(lapBId));
+    if (stepMeters) params.set('stepMeters', String(stepMeters));
+    if (targetTrackLength && targetTrackLength > 0) params.set('targetTrackLength', String(targetTrackLength));
+
+    fetch(`/api/comparator/merge?${params.toString()}`, { signal: controller.signal })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        return res.json();
+      })
+      .then((data: ComparatorResponse) => {
+        setComparisonData(data.points || []);
+        setDetectedTurns(data.turns || []);
+      })
+      .catch((err) => {
+        if (err.name !== 'AbortError') {
+          console.error('Failed to fetch comparator merged telemetry', err);
+          setComparisonData([]);
+          setDetectedTurns([]);
+        }
+      })
+      .finally(() => setLoading(false));
+
+    return () => {
+      controller.abort();
+    };
+  }, [lapAId, lapBId, stepMeters, targetTrackLength]);
 
   // Filtered telemetry points based on active distance zoom domain
   const chartData = useMemo(() => {
@@ -84,7 +116,7 @@ export function useMergedTelemetry({
 
       for (const p of comparisonData) {
         const timeVal = useTimeA ? p.timeA : p.timeB;
-        if (timeVal !== null && Number.isFinite(timeVal)) {
+        if (timeVal !== null && timeVal !== undefined && Number.isFinite(timeVal)) {
           if (calculatedS1 === null && timeVal >= s1Time) {
             calculatedS1 = p.lap_distance;
           }
@@ -178,5 +210,6 @@ export function useMergedTelemetry({
     zoomDomain,
     setZoomDomain,
     handleMouseMove,
+    loading,
   };
 }

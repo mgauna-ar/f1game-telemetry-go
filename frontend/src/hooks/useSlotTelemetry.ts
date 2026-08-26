@@ -1,8 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { Participant, Lap } from '../types/session';
-import { lttbDownsample, type TelemetrySamplePoint } from '../utils/downsample';
 import { filterActiveHistoricalParticipants } from '../utils/driverFilter';
-import { TELEMETRY_DOWNSAMPLE_LIMITS } from '../constants/f1';
 
 export interface UseSlotTelemetryOptions {
   sessionId: number | '';
@@ -23,8 +21,6 @@ export interface UseSlotTelemetryReturn {
   setParticipants: React.Dispatch<React.SetStateAction<Participant[]>>;
   lapId: number | '';
   setLapId: React.Dispatch<React.SetStateAction<number | ''>>;
-  rawTelemetry: TelemetrySamplePoint[];
-  setRawTelemetry: React.Dispatch<React.SetStateAction<TelemetrySamplePoint[]>>;
   loading: boolean;
   selectedLap: Lap | undefined;
   driver: Participant | undefined;
@@ -42,78 +38,58 @@ export function useSlotTelemetry({
   const [laps, setLaps] = useState<Lap[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [lapId, setLapId] = useState<number | ''>('');
-  const [rawTelemetry, setRawTelemetry] = useState<TelemetrySamplePoint[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
 
   // Load participants & laps when sessionId changes
   useEffect(() => {
     if (sessionId !== '') {
-      fetch(`/api/sessions/${sessionId}/participants`)
-        .then((res) => res.json())
-        .then((data) => setParticipants(data || []))
-        .catch((err) => console.error('Failed to fetch participants', err));
+      setLoading(true);
+      Promise.all([
+        fetch(`/api/sessions/${sessionId}/participants`)
+          .then((res) => res.json())
+          .then((data) => setParticipants(data || []))
+          .catch((err) => console.error('Failed to fetch participants', err)),
+        fetch(`/api/sessions/${sessionId}/laps`)
+          .then((res) => res.json())
+          .then((data) => {
+            const list: Lap[] = data || [];
+            setLaps(list);
 
-      fetch(`/api/sessions/${sessionId}/laps`)
-        .then((res) => res.json())
-        .then((data) => {
-          const list: Lap[] = data || [];
-          setLaps(list);
+            if (preloadLapId && list.some((l) => l.id === preloadLapId)) {
+              setLapId(preloadLapId);
+            } else if (list.length > 0) {
+              const valid = list
+                .filter((l) => l.lap_time_ms > 0 && (l.is_valid || (l.sector1_ms ?? 0) > 0))
+                .sort((a, b) => {
+                  const aValid = a.is_valid ? 1 : 0;
+                  const bValid = b.is_valid ? 1 : 0;
+                  if (aValid !== bValid) return bValid - aValid;
+                  if (a.lap_time_ms !== b.lap_time_ms) return a.lap_time_ms - b.lap_time_ms;
+                  const scoreA = (a.has_telemetry ? 10 : 0) + ((a.sector1_ms ?? 0) > 0 ? 5 : 0);
+                  const scoreB = (b.has_telemetry ? 10 : 0) + ((b.sector1_ms ?? 0) > 0 ? 5 : 0);
+                  return scoreB - scoreA;
+                });
 
-          if (preloadLapId && list.some((l) => l.id === preloadLapId)) {
-            setLapId(preloadLapId);
-          } else if (list.length > 0) {
-            const valid = list
-              .filter((l) => l.lap_time_ms > 0 && (l.is_valid || (l.sector1_ms ?? 0) > 0))
-              .sort((a, b) => {
-                const aValid = a.is_valid ? 1 : 0;
-                const bValid = b.is_valid ? 1 : 0;
-                if (aValid !== bValid) return bValid - aValid;
-                if (a.lap_time_ms !== b.lap_time_ms) return a.lap_time_ms - b.lap_time_ms;
-                const scoreA = (a.has_telemetry ? 10 : 0) + ((a.sector1_ms ?? 0) > 0 ? 5 : 0);
-                const scoreB = (b.has_telemetry ? 10 : 0) + ((b.sector1_ms ?? 0) > 0 ? 5 : 0);
-                return scoreB - scoreA;
-              });
-
-            if (isSlotB && isSameSessionAsSlotA && valid.length > 1) {
-              setLapId(valid[1].id);
-            } else if (valid.length > 0) {
-              setLapId(valid[0].id);
+              if (isSlotB && isSameSessionAsSlotA && valid.length > 1) {
+                setLapId(valid[1].id);
+              } else if (valid.length > 0) {
+                setLapId(valid[0].id);
+              } else {
+                setLapId(list[0].id);
+              }
             } else {
-              setLapId(list[0].id);
+              setLapId('');
             }
-          } else {
-            setLapId('');
-          }
-        })
-        .catch((err) => console.error('Failed to fetch laps', err));
+          })
+          .catch((err) => console.error('Failed to fetch laps', err)),
+      ]).finally(() => setLoading(false));
     } else {
       setParticipants([]);
       setLaps([]);
       setLapId('');
-      setRawTelemetry([]);
+      setLoading(false);
     }
   }, [sessionId, preloadLapId, isSlotB, isSameSessionAsSlotA]);
-
-  // Load Lap Telemetry (Server-side LTTB downsampled with ?maxPoints=800)
-  useEffect(() => {
-    if (lapId !== '') {
-      setLoading(true);
-      fetch(`/api/laps/${lapId}/telemetry?maxPoints=${TELEMETRY_DOWNSAMPLE_LIMITS.DEFAULT_MAX_POINTS}`)
-        .then((res) => res.json())
-        .then((data) => {
-          const samples: TelemetrySamplePoint[] = data || [];
-          setRawTelemetry(
-            samples.length > TELEMETRY_DOWNSAMPLE_LIMITS.BUFFER_THRESHOLD
-              ? lttbDownsample(samples, TELEMETRY_DOWNSAMPLE_LIMITS.DEFAULT_MAX_POINTS)
-              : samples
-          );
-        })
-        .catch((err) => console.error('Failed to fetch telemetry', err))
-        .finally(() => setLoading(false));
-    } else {
-      setRawTelemetry([]);
-    }
-  }, [lapId]);
 
   // Selected lap object
   const selectedLap = useMemo(() => laps.find((l) => l.id === lapId), [laps, lapId]);
@@ -156,8 +132,6 @@ export function useSlotTelemetry({
     setParticipants,
     lapId,
     setLapId,
-    rawTelemetry,
-    setRawTelemetry,
     loading,
     selectedLap,
     driver,

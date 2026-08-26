@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildTelemetryContext } from './aiTelemetrySummary';
-import type { MergedTelemetryPoint } from './deltaCalculation';
+import type { MergedTelemetryPoint } from '../types/comparator';
 
 describe('buildTelemetryContext', () => {
   it('returns null if either lap is missing or comparison data is empty', () => {

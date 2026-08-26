@@ -42,13 +42,14 @@ var (
 
 // Server handles HTTP requests for the API and serves the frontend.
 type Server struct {
-	router         *chi.Mux
-	repo           storage.Repository
-	telemetryHub   *Hub
-	engineerHub    *Hub
-	engineerEngine *EngineerEngine
-	inputManager   input.Manager
-	staticFS       fs.FS
+	router          *chi.Mux
+	repo            storage.Repository
+	telemetryHub    *Hub
+	engineerHub     *Hub
+	engineerEngine  *EngineerEngine
+	inputManager    input.Manager
+	staticFS        fs.FS
+	comparatorCache *ComparatorLRUCache
 }
 
 var upgrader = websocket.Upgrader{
@@ -65,11 +66,12 @@ func NewServer(repo storage.Repository, telemetryHub, engineerHub *Hub) *Server 
 // NewServerWithFS creates a new API server with a custom static filesystem (useful for testing).
 func NewServerWithFS(repo storage.Repository, telemetryHub, engineerHub *Hub, staticFS fs.FS) *Server {
 	s := &Server{
-		router:       chi.NewRouter(),
-		repo:         repo,
-		telemetryHub: telemetryHub,
-		engineerHub:  engineerHub,
-		staticFS:     staticFS,
+		router:          chi.NewRouter(),
+		repo:            repo,
+		telemetryHub:    telemetryHub,
+		engineerHub:     engineerHub,
+		staticFS:        staticFS,
+		comparatorCache: NewComparatorLRUCache(ComparatorCacheCapacity),
 	}
 
 	s.router.Use(middleware.Logger)
@@ -140,6 +142,7 @@ func (s *Server) routes() {
 		r.Post("/sessions/import", s.handleImportSession)
 		r.Post("/sessions/batch-tags", s.handleBatchAssignTags)
 		r.Get("/laps/{id}/telemetry", s.handleGetTelemetry)
+		r.Get("/comparator/merge", s.handleComparatorMerge)
 
 		// Tag routes
 		r.Get("/tags", s.handleGetTags)

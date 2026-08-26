@@ -101,9 +101,10 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
     zoomDomain,
     setZoomDomain,
     handleMouseMove,
+    loading: isMergedLoading,
   } = useMergedTelemetry({
-    rawTelemetryA: slotA.rawTelemetry,
-    rawTelemetryB: slotB.rawTelemetry,
+    lapAId: slotA.lapId,
+    lapBId: slotB.lapId,
     lapAObj: slotA.selectedLap,
     lapBObj: slotB.selectedLap,
   });
@@ -161,9 +162,10 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
       zoomDomain,
       selectedSessionBObj?.session_type || selectedSessionAObj?.session_type,
       selectedSessionAObj?.weather,
-      selectedSessionBObj?.weather
+      selectedSessionBObj?.weather,
+      detectedTurns
     );
-  }, [selectedSessionAObj, selectedSessionBObj, lapAObj, lapBObj, nameA, nameB, comparisonData, zoomDomain]);
+  }, [selectedSessionAObj, selectedSessionBObj, lapAObj, lapBObj, nameA, nameB, comparisonData, zoomDomain, detectedTurns]);
 
   useEffect(() => {
     setComparatorContext(telemetryContext);
@@ -622,8 +624,8 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
               sector1Distance={sector1Distance}
               sector2Distance={sector2Distance}
               sessionAId={sessionAId}
-              loadingA={loadingA}
-              loadingB={loadingB}
+              loadingA={isMergedLoading || loadingA}
+              loadingB={isMergedLoading || loadingB}
               onMouseMove={handleMouseMove}
             />
           </div>
@@ -669,6 +671,7 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
 
                 <ComparatorTrackMap
                   data={comparisonData}
+                  turns={detectedTurns}
                   activeDistance={hoverDistance}
                   height={380}
                   sector1Distance={sector1Distance}

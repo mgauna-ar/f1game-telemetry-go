@@ -1,5 +1,4 @@
-import type { MergedTelemetryPoint } from './deltaCalculation';
-import { detectTrackTurns, type TrackTurn } from './trackTurns';
+import type { MergedTelemetryPoint, TrackTurn } from '../types/comparator';
 import { formatLapTime, formatSectorTime } from './formatters';
 
 export interface LapInfo {
@@ -66,7 +65,8 @@ export function buildTelemetryContext(
   zoomDomain: [number, number] | null,
   sessionTypeB?: string,
   weatherA?: string,
-  weatherB?: string
+  weatherB?: string,
+  turns: TrackTurn[] = []
 ): TelemetryContextPayload | null {
   if (!lapA || !lapB || comparisonData.length === 0) {
     return null;
@@ -132,12 +132,10 @@ export function buildTelemetryContext(
     }
   }
 
-  // Track turns detection
-  const detectedTurns = detectTrackTurns(comparisonData);
   const getTurnLabel = (dist: number): string => {
     let closestTurn: TrackTurn | null = null;
     let minDist = 130;
-    for (const turn of detectedTurns) {
+    for (const turn of turns) {
       const diff = Math.abs(turn.distance - dist);
       if (diff < minDist) {
         minDist = diff;
@@ -186,7 +184,7 @@ export function buildTelemetryContext(
       const speedDiffAtApex = (minSpdZoomA < 900 && minSpdZoomB < 900) ? minSpdZoomA - minSpdZoomB : 0;
 
       // Find any turns within zoom range
-      const turnsInZoom = detectedTurns
+      const turnsInZoom = turns
         .filter((t) => t.distance >= startM && t.distance <= endM)
         .map((t) => t.name);
 

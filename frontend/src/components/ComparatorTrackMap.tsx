@@ -1,9 +1,9 @@
 import React, { useRef, useEffect } from 'react';
-import type { MergedTelemetryPoint } from '../utils/deltaCalculation';
-import { detectTrackTurns, type TrackTurn } from '../utils/trackTurns';
+import type { MergedTelemetryPoint, TrackTurn } from '../types/comparator';
 
 interface ComparatorTrackMapProps {
   data: MergedTelemetryPoint[];
+  turns?: TrackTurn[];
   activeDistance?: number | null;
   height?: number;
   sector1Distance?: number | null;
@@ -13,6 +13,7 @@ interface ComparatorTrackMapProps {
 
 export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
   data,
+  turns = [],
   activeDistance,
   height = 360,
   sector1Distance,
@@ -277,8 +278,8 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
       if (s2MidPoint) drawSectorRegionBadge(s2MidPoint, 'S2', '#9b59b6');
       if (s3MidPoint) drawSectorRegionBadge(s3MidPoint, 'S3', '#2ecc71');
 
-      // Detect and draw clean track corner apex dots & interactive hover callout
-      const detectedTurns = detectTrackTurns(validPoints);
+      // Use pre-computed track corner apex dots & interactive hover callout
+      const detectedTurns = turns;
       turnHitboxesRef.current = [];
 
       let activeHoverTurnItem: {
@@ -437,7 +438,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
     return () => {
       if (observer) observer.disconnect();
     };
-  }, [data, activeDistance, height, sector1Distance, sector2Distance]);
+  }, [data, turns, activeDistance, height, sector1Distance, sector2Distance]);
 
   // Handle canvas click to jump to turn or track position
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {

@@ -387,24 +387,22 @@ describe('LapComparator Component', () => {
       { id: 2, session_id: 1, car_index: 1, name: 'Driver Two', race_number: 2, driver_id: 2, team_id: 2, ai_controlled: false, nationality: 2 }
     ];
 
-    const mockTelemetryA = [
-      { lap_distance: 0, session_time: 100, speed: 250, throttle: 1, brake: 0, steer: 0, gear: 6, ers_store_energy: 80, ers_deploy_mode: 1, world_pos_x: 10, world_pos_z: 10 },
-      { lap_distance: 2500, session_time: 145, speed: 280, throttle: 1, brake: 0, steer: 0.1, gear: 7, ers_store_energy: 60, ers_deploy_mode: 2, world_pos_x: 50, world_pos_z: 50 },
-      { lap_distance: 5320, session_time: 190, speed: 290, throttle: 1, brake: 0, steer: 0, gear: 8, ers_store_energy: 40, ers_deploy_mode: 2, world_pos_x: 10, world_pos_z: 10 }
-    ];
-
-    const mockTelemetryB = [
-      { lap_distance: 10, session_time: 200, speed: 245, throttle: 1, brake: 0, steer: 0, gear: 6, ers_store_energy: 85, ers_deploy_mode: 1, world_pos_x: 10, world_pos_z: 10 },
-      { lap_distance: 2500, session_time: 245.5, speed: 275, throttle: 1, brake: 0, steer: 0.1, gear: 7, ers_store_energy: 65, ers_deploy_mode: 2, world_pos_x: 50, world_pos_z: 50 },
-      { lap_distance: 5240, session_time: 291, speed: 285, throttle: 1, brake: 0, steer: 0, gear: 8, ers_store_energy: 45, ers_deploy_mode: 2, world_pos_x: 10, world_pos_z: 10 }
+    const mockMergedPoints = [
+      { lap_distance: 0, time_delta: 0, timeA: 0, timeB: 0, speedA: 250, speedB: 245, throttleA: 1, throttleB: 1, brakeA: 0, brakeB: 0, steerA: 0, steerB: 0, gearA: 6, gearB: 6, ersBatteryA: 80, ersBatteryB: 85, ersDeployModeA: 1, ersDeployModeB: 1, worldX: 10, worldZ: 10 },
+      { lap_distance: 2500, time_delta: -0.5, timeA: 45, timeB: 45.5, speedA: 280, speedB: 275, throttleA: 1, throttleB: 1, brakeA: 0, brakeB: 0, steerA: 0.1, steerB: 0.1, gearA: 7, gearB: 7, ersBatteryA: 60, ersBatteryB: 65, ersDeployModeA: 2, ersDeployModeB: 2, worldX: 50, worldZ: 50 },
+      { lap_distance: 5320, time_delta: -1.0, timeA: 90, timeB: 91, speedA: 290, speedB: 285, throttleA: 1, throttleB: 1, brakeA: 0, brakeB: 0, steerA: 0, steerB: 0, gearA: 8, gearB: 8, ersBatteryA: 40, ersBatteryB: 45, ersDeployModeA: 2, ersDeployModeB: 2, worldX: 10, worldZ: 10 }
     ];
 
     globalThis.fetch = vi.fn().mockImplementation((url: string) => {
       if (url === '/api/sessions') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSessions) });
       if (url === '/api/sessions/1/laps') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockLaps) });
       if (url === '/api/sessions/1/participants') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockParticipants) });
-      if (url.includes('/api/laps/501/telemetry')) return Promise.resolve({ ok: true, json: () => Promise.resolve(mockTelemetryA) });
-      if (url.includes('/api/laps/502/telemetry')) return Promise.resolve({ ok: true, json: () => Promise.resolve(mockTelemetryB) });
+      if (url.includes('/api/comparator/merge')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ points: mockMergedPoints, turns: [] }),
+        });
+      }
       return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
     });
 

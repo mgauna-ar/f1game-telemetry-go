@@ -11,7 +11,7 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from 'recharts';
-import type { MergedTelemetryPoint } from '../../utils/deltaCalculation';
+import type { MergedTelemetryPoint } from '../../types/comparator';
 import { getErsModeName } from '../../constants/f1';
 import { useI18n } from '../../context/I18nContext';
 

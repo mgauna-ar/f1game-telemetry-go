@@ -44,7 +44,8 @@ This file (`.agents/AGENTS.md`) contains workspace-specific rules and context th
     - Hex session UID representation (`0x...`), interactive **Weather Evolution & Forecast** timeline hover popovers with rain chance bars and temperatures, multi-attribute filtering & country/ISO-aware search.
 
     **2) Lap Comparator**
-    - Side-by-side Slot A & Slot B cards with flag badges, tag-aware session search, link/cross-session toggle, quick-select leaderboard, enlarged track map sidebar.
+    - **Server-Side Distance Normalization & Merging Engine (`GET /api/comparator/merge`):** High-performance Go backend merges telemetry series into uniform distance-resampled grids (default 5m step), calculating precise time deltas, speed deltas, and telemetry channels with in-memory LRU caching (`ComparatorLRUCache` 128 items). Automatic track turn & outward normal detection (`detectTrackTurns`) executes server-side, eliminating heavy browser processing and multi-megabyte JSON payloads.
+    - Side-by-side Slot A & Slot B cards with flag badges, tag-aware session search, link/cross-session toggle, quick-select leaderboard, enlarged track map sidebar with interactive apex markers.
     - Separated throttle/brake charts, ERS battery/mode steps with year-aware labels — 2025: *Overtake* vs 2026: *Boost*.
     - Dedicated **Active Aero (Corner/Straight Mode) & Boost** step charts when analyzing 2026 sessions.
 
