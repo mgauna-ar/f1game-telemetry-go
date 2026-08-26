@@ -42,12 +42,13 @@ var (
 
 // Server handles HTTP requests for the API and serves the frontend.
 type Server struct {
-	router       *chi.Mux
-	repo         storage.Repository
-	telemetryHub *Hub
-	engineerHub  *Hub
-	inputManager input.Manager
-	staticFS     fs.FS
+	router         *chi.Mux
+	repo           storage.Repository
+	telemetryHub   *Hub
+	engineerHub    *Hub
+	engineerEngine *EngineerEngine
+	inputManager   input.Manager
+	staticFS       fs.FS
 }
 
 var upgrader = websocket.Upgrader{
@@ -71,8 +72,6 @@ func NewServerWithFS(repo storage.Repository, telemetryHub, engineerHub *Hub, st
 		staticFS:     staticFS,
 	}
 
-	s.SetInputManager(input.NewManager())
-
 	s.router.Use(middleware.Logger)
 	s.router.Use(middleware.Recoverer)
 	s.router.Use(func(next http.Handler) http.Handler {
@@ -91,6 +90,11 @@ func NewServerWithFS(repo storage.Repository, telemetryHub, engineerHub *Hub, st
 	s.routes()
 
 	return s
+}
+
+// SetEngineerEngine attaches the EngineerEngine instance to the API server.
+func (s *Server) SetEngineerEngine(engine *EngineerEngine) {
+	s.engineerEngine = engine
 }
 
 // SetInputManager configures the global input manager and forwards PTT state events to engineerHub.
@@ -154,6 +158,8 @@ func (s *Server) routes() {
 		r.Get("/ai/config-status", s.handleAIConfigStatus)
 		r.Post("/ai/models", s.handleAIFetchModels)
 		r.Post("/ai/tts", s.handleAITTS)
+		r.Get("/ai/engineer/config", s.handleGetEngineerConfig)
+		r.Post("/ai/engineer/config", s.handleSetEngineerConfig)
 
 		// Global Push-to-Talk (PTT) routes
 		r.Get("/ai/ptt/config", s.handleGetPTTConfig)
@@ -995,5 +1001,33 @@ func (s *Server) handleBatchAssignTags(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"status": "success",
+	})
+}
+
+func (s *Server) handleGetEngineerConfig(w http.ResponseWriter, r *http.Request) {
+	var cfg EngineerConfig
+	if s.engineerEngine != nil {
+		cfg = s.engineerEngine.GetConfig()
+	} else {
+		cfg = DefaultEngineerConfig()
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(cfg)
+}
+
+func (s *Server) handleSetEngineerConfig(w http.ResponseWriter, r *http.Request) {
+	var req EngineerConfig
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, fmt.Sprintf("Invalid config payload: %v", err), http.StatusBadRequest)
+		return
+	}
+	if s.engineerEngine != nil {
+		s.engineerEngine.SetConfig(req)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"status": "success",
+		"config": req,
 	})
 }

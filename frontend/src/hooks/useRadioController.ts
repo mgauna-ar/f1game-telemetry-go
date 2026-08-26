@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   RADIO_STORAGE_KEYS,
   RADIO_PERSONAS,
@@ -1242,15 +1242,54 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
     await speakMessage(sampleMessage, true);
   }, [effectiveLanguage, persona, speakMessage]);
 
+  const getLiveTelemetrySummaryRef = useRef(getLiveTelemetrySummary);
+  getLiveTelemetrySummaryRef.current = getLiveTelemetrySummary;
+
+  const onTranscriptReceivedRef = useRef(onTranscriptReceived);
+  onTranscriptReceivedRef.current = onTranscriptReceived;
+
+  const onResponseReceivedRef = useRef(onResponseReceived);
+  onResponseReceivedRef.current = onResponseReceived;
+
+  const telemetryContextRef = useRef(telemetryContext);
+  telemetryContextRef.current = telemetryContext;
+
+  const personaRef = useRef(persona);
+  personaRef.current = persona;
+
+  const customPromptRef = useRef(customPrompt);
+  customPromptRef.current = customPrompt;
+
+  const driverCallsignRef = useRef(driverCallsign);
+  driverCallsignRef.current = driverCallsign;
+
+  const effectiveLanguageRef = useRef(effectiveLanguage);
+  effectiveLanguageRef.current = effectiveLanguage;
+
+  const speakMessageRef = useRef(speakMessage);
+  speakMessageRef.current = speakMessage;
+
+  const getRecognitionLangRef = useRef(getRecognitionLang);
+  getRecognitionLangRef.current = getRecognitionLang;
+
+  const isRadioEnabledRef = useRef(isRadioEnabled);
+  isRadioEnabledRef.current = isRadioEnabled;
+
+  const radioStateRef = useRef(radioState);
+  radioStateRef.current = radioState;
+
+  const beepsEnabledRef = useRef(beepsEnabled);
+  beepsEnabledRef.current = beepsEnabled;
+
   // Handle Gamepad PTT
   const onPTTPress = useCallback(() => {
-    if (!isRadioEnabled || radioState === 'transmitting') return;
+    if (!isRadioEnabledRef.current || radioStateRef.current === 'transmitting') return;
     stopRadioSpeech();
     currentTranscriptRef.current = '';
     setError(null);
     setRadioState('transmitting');
 
-    if (beepsEnabled) {
+    if (beepsEnabledRef.current) {
       playRadioBeep('start');
     }
 
@@ -1265,7 +1304,7 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
       const recognition = new SpeechRec();
       recognition.continuous = false;
       recognition.interimResults = true;
-      recognition.lang = getRecognitionLang();
+      recognition.lang = getRecognitionLangRef.current();
 
       recognition.onresult = (event: any) => {
         let transcript = '';
@@ -1274,8 +1313,8 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
         }
         currentTranscriptRef.current = transcript;
         setLastTranscript(transcript);
-        if (onTranscriptReceived) {
-          onTranscriptReceived(transcript);
+        if (onTranscriptReceivedRef.current) {
+          onTranscriptReceivedRef.current(transcript);
         }
       };
 
@@ -1297,10 +1336,10 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
       setError(err?.message || 'Failed to start speech recognition');
       setRadioState('idle');
     }
-  }, [isRadioEnabled, radioState, beepsEnabled, getRecognitionLang, onTranscriptReceived]);
+  }, []);
 
   const onPTTRelease = useCallback(async () => {
-    if (radioState !== 'transmitting') return;
+    if (radioStateRef.current !== 'transmitting') return;
 
     if (recognitionRef.current) {
       try {
@@ -1309,7 +1348,7 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
       recognitionRef.current = null;
     }
 
-    if (beepsEnabled) {
+    if (beepsEnabledRef.current) {
       // Play end beep asynchronously in background without blocking the AI request
       playRadioBeep('end').catch(() => {});
     }
@@ -1331,7 +1370,7 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
       const abortController = new AbortController();
       activeAbortControllerRef.current = abortController;
 
-      const liveContext = getLiveTelemetrySummary ? getLiveTelemetrySummary() : '';
+      const liveContext = getLiveTelemetrySummaryRef.current ? getLiveTelemetrySummaryRef.current() : '';
 
       let aiProvider = 'gemini';
       let aiApiKey = '';
@@ -1355,6 +1394,11 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
         }
       } catch {}
 
+      const currentPersona = personaRef.current;
+      const currentLanguage = effectiveLanguageRef.current;
+      const currentCustomPrompt = customPromptRef.current;
+      const currentDriverCallsign = driverCallsignRef.current;
+
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1363,8 +1407,8 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
           api_key: aiApiKey,
           model: aiModel,
           base_url: aiBaseUrl,
-          persona,
-          language: effectiveLanguage,
+          persona: currentPersona,
+          language: currentLanguage,
           messages: [
             {
               role: 'user',
@@ -1374,8 +1418,8 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
           context: {
             context_mode: 'live',
             live_summary: liveContext,
-            custom_persona_prompt: persona === RADIO_PERSONAS.CUSTOM ? customPrompt : undefined,
-            driver_callsign: driverCallsign || undefined,
+            custom_persona_prompt: currentPersona === RADIO_PERSONAS.CUSTOM ? currentCustomPrompt : undefined,
+            driver_callsign: currentDriverCallsign || undefined,
             urgency_level: 'normal',
           },
         }),
@@ -1419,7 +1463,10 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
       }
 
       if (fullReply.trim()) {
-        await speakMessage(fullReply.trim());
+        if (onResponseReceivedRef.current) {
+          onResponseReceivedRef.current(fullReply.trim());
+        }
+        await speakMessageRef.current(fullReply.trim());
       } else {
         setRadioState('idle');
       }
@@ -1432,23 +1479,152 @@ export function useRadioController(options: UseRadioControllerOptions = {}): Use
     } finally {
       activeAbortControllerRef.current = null;
     }
-  }, [
-    radioState,
-    beepsEnabled,
-    getLiveTelemetrySummary,
-    telemetryContext,
-    persona,
-    customPrompt,
-    driverCallsign,
-    effectiveLanguage,
-    speakMessage,
-  ]);
+  }, []);
 
   const gamepadPTT = useGamepadPTT({
     enabled: isRadioEnabled,
     onPTTDown: onPTTPress,
     onPTTUp: onPTTRelease,
   });
+
+  // Sync proactive radio settings with Go Backend EngineerEngine
+  useEffect(() => {
+    const configPayload: import('../types/telemetry').EngineerConfig = {
+      chatter_cooldown_ms: chatterCooldownSeconds * 1000,
+      smart_discretion_enabled: smartDiscretionEnabled,
+      tyre_wear_warn_pct: tyreWearWarningPct,
+      tyre_wear_crit_pct: tyreWearCriticalPct,
+      tyre_overheat_c: tyreOverheatC,
+      tyre_cold_c: tyreColdC,
+      wing_damage_warn_pct: wingDamageWarnPct,
+      wing_damage_crit_pct: 40.0,
+      floor_damage_warn_pct: floorDamageWarnPct,
+      engine_wear_warn_pct: engineWearWarnPct,
+      ers_low_pct: ersLowPct,
+      engine_overheat_c: engineOverheatC,
+      brake_overheat_c: brakeOverheatC,
+      brake_cold_c: brakeColdC,
+      fuel_delta_laps: fuelDeltaLaps,
+      undercut_gap_sec: undercutGapSec,
+      rival_gap_sec: rivalGapThresholdSec,
+      rival_ahead_gap_sec: rivalAheadGapSec,
+      qualy_clean_air_sec: qualyCleanAirSec,
+      qualy_time_warn_sec: 180.0,
+      corner_cut_warn_threshold: cornerCutWarnThreshold,
+      rain_horizon_min: rainHorizonMin,
+      rain_prob_pct: rainProbPct,
+      enabled_categories: {
+        tyres: tyreAlertsEnabled,
+        damage: damageAlertsEnabled,
+        ers: ersAlertsEnabled,
+        brakes: brakesAlertsEnabled,
+        fuel: fuelAlertsEnabled,
+        rivals: rivalAlertsEnabled,
+        qualy: qualyAlertsEnabled,
+        flags: flagsPensAlertsEnabled,
+        pit_strategy: pitWindowAlertsEnabled,
+        coaching: qualyAlertsEnabled,
+        weather: trackAlertsEnabled && subRain,
+        teammate: rivalAlertsEnabled,
+        tyre_wear: subTyreWear,
+        tyre_puncture: subTyrePuncture,
+        tyre_overheat: subTyreThermal,
+        tyre_cold: subTyreCold,
+        wing_damage: subDamageWing,
+        floor_damage: subDamageFloor,
+        engine_wear: subDamageEngine,
+        damage_faults: subDamageFaults,
+        ers_low: subErsLow,
+        engine_temp: subEngineTemp,
+        brake_hot: subBrakeTemp,
+        brake_cold: subBrakeCold,
+        fuel_delta: subFuelDelta,
+        undercut: subUndercut,
+        pit_window: subPitWindow,
+        rival_defend: subRivalDefend,
+        rival_attack: subRivalAttack,
+        qualy_traffic: subQualyTraffic,
+        qualy_invalid: subQualyInvalid,
+        qualy_time: subQualyTime,
+        qualy_elim: subQualyElim,
+        flags_sc: subSafetyCar,
+        flags_red: subRedFlag,
+        flags_rain: subRain,
+        track_limits: subTrackLimits,
+        penalties: subPenalties,
+      },
+    };
+
+    const timer = setTimeout(() => {
+      fetch('/api/ai/engineer/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(configPayload),
+      }).catch(() => {
+        // Ignore network errors
+      });
+    }, 150);
+
+    return () => clearTimeout(timer);
+  }, [
+    chatterCooldownSeconds,
+    smartDiscretionEnabled,
+    tyreWearWarningPct,
+    tyreWearCriticalPct,
+    tyreOverheatC,
+    tyreColdC,
+    wingDamageWarnPct,
+    floorDamageWarnPct,
+    engineWearWarnPct,
+    ersLowPct,
+    engineOverheatC,
+    brakeOverheatC,
+    brakeColdC,
+    fuelDeltaLaps,
+    undercutGapSec,
+    rivalGapThresholdSec,
+    rivalAheadGapSec,
+    qualyCleanAirSec,
+    cornerCutWarnThreshold,
+    rainHorizonMin,
+    rainProbPct,
+    tyreAlertsEnabled,
+    damageAlertsEnabled,
+    ersAlertsEnabled,
+    brakesAlertsEnabled,
+    fuelAlertsEnabled,
+    rivalAlertsEnabled,
+    qualyAlertsEnabled,
+    flagsPensAlertsEnabled,
+    pitWindowAlertsEnabled,
+    trackAlertsEnabled,
+    subTyreWear,
+    subTyrePuncture,
+    subTyreThermal,
+    subTyreCold,
+    subDamageWing,
+    subDamageFloor,
+    subDamageEngine,
+    subDamageFaults,
+    subErsLow,
+    subEngineTemp,
+    subBrakeTemp,
+    subBrakeCold,
+    subFuelDelta,
+    subUndercut,
+    subPitWindow,
+    subRivalDefend,
+    subRivalAttack,
+    subQualyTraffic,
+    subQualyInvalid,
+    subQualyTime,
+    subQualyElim,
+    subSafetyCar,
+    subRedFlag,
+    subRain,
+    subTrackLimits,
+    subPenalties,
+  ]);
 
   return {
     radioState,

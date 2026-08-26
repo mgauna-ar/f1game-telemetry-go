@@ -75,18 +75,21 @@ func main() {
 	defer cancel()
 
 	// 4. Setup WebSocket Hubs
-	telemetryHub := api.NewHub()
+	telemetryHub := api.NewHub("Telemetry")
 	go telemetryHub.Run()
 
-	engineerHub := api.NewHub()
+	engineerHub := api.NewHub("Engineer")
 	go engineerHub.Run()
 
-	// 5. Setup API Server & Global Input Manager
+	// 5. Setup API Server, Global Input Manager & Engineer Engine
 	inputMgr := input.NewManager()
 	inputMgr.Start(ctx)
 
+	engineerEngine := api.NewEngineerEngine(engineerHub, repo)
+
 	apiServer := api.NewServer(repo, telemetryHub, engineerHub)
 	apiServer.SetInputManager(inputMgr)
+	apiServer.SetEngineerEngine(engineerEngine)
 
 	srv := &http.Server{
 		Addr:    httpAddr,
@@ -110,10 +113,9 @@ func main() {
 		}()
 	}
 
-	// 7. Setup Session Manager & Engineer Engine
+	// 7. Setup Session Manager
 	sessionManager := session.NewSessionManager(repo)
 	sessionManager.Start(ctx)
-	engineerEngine := api.NewEngineerEngine(engineerHub, repo)
 
 	// 8. Setup 10Hz Live Telemetry Snapshot Broadcaster
 	liveBroadcaster := session.NewLiveBroadcaster(telemetryHub)

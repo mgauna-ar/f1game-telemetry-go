@@ -25,6 +25,10 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
+      '/ws/engineer': {
+        target: 'ws://localhost:8080',
+        ws: true,
+      },
       '/ws': {
         target: 'ws://localhost:8080',
         ws: true,

@@ -86,6 +86,37 @@ func SessionTypeName(sessionType uint8) string {
 	return fmt.Sprintf("Unknown Session (%d)", sessionType)
 }
 
+// IsRaceSession returns true if the given session type is any race session variant.
+func IsRaceSession(sessionType uint8) bool {
+	return sessionType == SessionRace ||
+		sessionType == SessionRace2 ||
+		sessionType == SessionRace3 ||
+		sessionType == SessionSprintRace ||
+		sessionType == SessionEqualSprintRace
+}
+
+// IsQualifyingSession returns true if the given session type is any qualifying or shootout session variant.
+func IsQualifyingSession(sessionType uint8) bool {
+	return sessionType == SessionQ1 ||
+		sessionType == SessionQ2 ||
+		sessionType == SessionQ3 ||
+		sessionType == SessionShortQ ||
+		sessionType == SessionOSQ ||
+		sessionType == SessionSprintQ1 ||
+		sessionType == SessionSprintQ2 ||
+		sessionType == SessionSprintQ3 ||
+		sessionType == SessionShortSprintQ ||
+		sessionType == SessionOSSprintQ
+}
+
+// IsPracticeSession returns true if the given session type is any practice session variant.
+func IsPracticeSession(sessionType uint8) bool {
+	return sessionType == SessionP1 ||
+		sessionType == SessionP2 ||
+		sessionType == SessionP3 ||
+		sessionType == SessionShortP
+}
+
 var weatherNames = map[uint8]string{
 	WeatherClear:      "Clear",
 	WeatherLightCloud: "Light Cloud",

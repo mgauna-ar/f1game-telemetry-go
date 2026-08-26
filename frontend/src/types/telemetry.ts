@@ -197,10 +197,25 @@ export interface TelemetrySample extends CarTelemetryData {
   overtake_active?: number;
 }
 
+export type EngineerDirectiveCategory =
+  | 'pit_strategy'
+  | 'coaching'
+  | 'weather'
+  | 'teammate'
+  | 'tyres'
+  | 'damage'
+  | 'ers'
+  | 'brakes'
+  | 'fuel'
+  | 'rivals'
+  | 'qualy'
+  | 'flags';
+
 export interface EngineerDirective {
   id: string;
   type: string;
-  category: 'pit_strategy' | 'coaching' | 'weather' | 'teammate';
+  category: EngineerDirectiveCategory;
+  sub_alert?: string;
   title: string;
   message: string;
   urgency: 'low' | 'medium' | 'high' | 'critical';
@@ -208,6 +223,33 @@ export interface EngineerDirective {
   car_index: number;
   session_time: number;
   metadata?: Record<string, any>;
+}
+
+export interface EngineerConfig {
+  chatter_cooldown_ms: number;
+  smart_discretion_enabled: boolean;
+  tyre_wear_warn_pct: number;
+  tyre_wear_crit_pct: number;
+  tyre_overheat_c: number;
+  tyre_cold_c: number;
+  wing_damage_warn_pct: number;
+  wing_damage_crit_pct: number;
+  floor_damage_warn_pct: number;
+  engine_wear_warn_pct: number;
+  ers_low_pct: number;
+  engine_overheat_c: number;
+  brake_overheat_c: number;
+  brake_cold_c: number;
+  fuel_delta_laps: number;
+  undercut_gap_sec: number;
+  rival_gap_sec: number;
+  rival_ahead_gap_sec: number;
+  qualy_clean_air_sec: number;
+  qualy_time_warn_sec: number;
+  corner_cut_warn_threshold: number;
+  rain_horizon_min: number;
+  rain_prob_pct: number;
+  enabled_categories?: Record<string, boolean>;
 }
 
 export type RadioAlertCategory =

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTelemetry } from '../hooks/useTelemetry';
 import { useTelemetryStore } from '../store/useTelemetryStore';
 import { useRaceEngineer } from '../context/RaceEngineerContext';
@@ -93,28 +93,31 @@ export const Dashboard: React.FC = () => {
   const { setLiveContext, setContextMode } = useRaceEngineer();
 
   const getLiveTelemetrySummary = useCallback(() => {
-    if (!session) {
+    const state = useTelemetryStore.getState();
+    const currentSession = state.session;
+    if (!currentSession) {
       return 'STATUS: Pit lane / Garage. Waiting for live telemetry packet stream from game.';
     }
 
-    const trackInfo = session.TrackId !== undefined ? getTrackInfo(session.TrackId) : null;
-    const trackName = trackInfo?.name || (session.TrackId !== undefined ? (TRACK_NAMES[session.TrackId] || `Track #${session.TrackId}`) : 'F1 Circuit');
-    const sessionName = getSessionTypeName(session.SessionType);
-    const sessionTimeLeftFormatted = formatSessionClock(session.SessionTimeLeft);
+    const trackInfo = currentSession.TrackId !== undefined ? getTrackInfo(currentSession.TrackId) : null;
+    const trackName = trackInfo?.name || (currentSession.TrackId !== undefined ? (TRACK_NAMES[currentSession.TrackId] || `Track #${currentSession.TrackId}`) : 'F1 Circuit');
+    const sessionName = getSessionTypeName(currentSession.SessionType);
+    const sessionTimeLeftFormatted = formatSessionClock(currentSession.SessionTimeLeft);
 
     const scStatus =
-      session.SafetyCarStatus === SAFETY_CAR_STATUS.FULL
+      currentSession.SafetyCarStatus === SAFETY_CAR_STATUS.FULL
         ? 'Full Safety Car'
-        : session.SafetyCarStatus === SAFETY_CAR_STATUS.VIRTUAL
+        : currentSession.SafetyCarStatus === SAFETY_CAR_STATUS.VIRTUAL
         ? 'Virtual Safety Car'
-        : session.NumRedFlagPeriods && session.NumRedFlagPeriods > 0
+        : currentSession.NumRedFlagPeriods && currentSession.NumRedFlagPeriods > 0
         ? 'Red Flag (Suspended)'
         : 'Track Clear (Green)';
 
-    const playerLap = allLaps[playerCarIndex] || lap;
-    const playerStatus = allCarStatus[playerCarIndex] || carStatus;
-    const playerDamage = allCarDamage[playerCarIndex] || carDamage;
-    const playerTelemetry = allTelemetry[playerCarIndex] || telemetry;
+    const pIdx = state.playerCarIndex || 0;
+    const playerLap = state.allLaps[pIdx] || null;
+    const playerStatus = state.allCarStatus[pIdx] || null;
+    const playerDamage = state.allCarDamage[pIdx] || null;
+    const playerTelemetry = state.allTelemetry[pIdx] || null;
     const playerRunStatus = getDriverStatusLabel(playerLap?.DriverStatus);
     const lapValidity = playerLap?.CurrentLapInvalid === 1 ? 'INVALIDATED (Track Limits Exceeded)' : 'Valid';
 
@@ -181,9 +184,9 @@ export const Dashboard: React.FC = () => {
       `- Session: ${sessionName}`,
       `- Session Time Remaining: ${sessionTimeLeftFormatted}`,
       `- Safety Car Status: ${scStatus}`,
-      `- Track Temp: ${session.TrackTemperature || 0}°C | Air Temp: ${session.AirTemperature || 0}°C`,
+      `- Track Temp: ${currentSession.TrackTemperature || 0}°C | Air Temp: ${currentSession.AirTemperature || 0}°C`,
       `- Player Position: P${playerLap?.CarPosition || 1}`,
-      `- Current Lap: ${playerLap?.CurrentLapNum || 1} / ${session.TotalLaps || 'N/A'}`,
+      `- Current Lap: ${playerLap?.CurrentLapNum || 1} / ${currentSession.TotalLaps || 'N/A'}`,
       `- Driver Run Status: ${playerRunStatus}`,
       `- Current Lap Validity: ${lapValidity}`,
       `- ${tyreWearSummary} (Tyre age: ${playerStatus?.TyresAgeLaps || 0} laps)`,
@@ -198,45 +201,37 @@ export const Dashboard: React.FC = () => {
     if (warningsSummary) lines.push(warningsSummary);
 
     return lines.join('\n');
-  }, [session, allLaps, allCarStatus, allCarDamage, allTelemetry, telemetry, playerCarIndex, lap, carStatus, carDamage]);
+  }, []);
 
   const radio = useRadioController({
     getLiveTelemetrySummary,
   });
 
+  const radioRef = useRef(radio);
+  radioRef.current = radio;
+
   const handleProactiveAlert = useCallback(
     async (payload: import('../types/telemetry').RadioAlertPayload | string, _isCritical = false, emotion?: { rateModifier?: number; pitchModifier?: number }) => {
+      const r = radioRef.current;
       // Instant zero-latency pit wall radio call with persona-specific phrasing & randomized variety
       const speech = formatProactiveFallbackSpeech(
         payload,
-        radio.effectiveLanguage,
-        radio.persona,
-        radio.driverCallsign
+        r.effectiveLanguage,
+        r.persona,
+        r.driverCallsign
       );
 
       const em = typeof payload === 'object' && payload.emotion ? payload.emotion : emotion;
 
       if (speech) {
-        radio.speakMessage(speech, false, em);
+        r.speakMessage(speech, false, em);
       }
     },
-    [radio]
+    []
   );
 
   useProactiveTelemetryRadio({
     isRadioEnabled: radio.isRadioEnabled,
-    session,
-    lap: allLaps[playerCarIndex] || lap,
-    allLaps,
-    carDamage: allCarDamage[playerCarIndex] || carDamage,
-    allCarDamage,
-    carStatus: allCarStatus[playerCarIndex] || carStatus,
-    allCarStatus,
-    telemetry,
-    telemetry2: allTelemetry2[playerCarIndex] || null,
-    allTelemetry2,
-    packetFormat,
-    events,
     onTriggerAlert: handleProactiveAlert,
   });
 

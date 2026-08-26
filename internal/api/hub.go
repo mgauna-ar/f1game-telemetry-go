@@ -19,7 +19,7 @@ const (
 	pingPeriod = (pongWait * 9) / 10
 
 	// Maximum message size allowed from peer.
-	maxMessageSize = 512
+	maxMessageSize = 4096
 
 	// Channel buffer size per client.
 	clientSendBufferSize = 256
@@ -56,6 +56,9 @@ func (c *Client) ReadPump() {
 	for {
 		_, _, err := c.conn.ReadMessage()
 		if err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure, websocket.CloseNormalClosure) {
+				log.Printf("[%s WebSocket] Read error: %v", c.hub.name, err)
+			}
 			break
 		}
 	}
@@ -98,6 +101,7 @@ func (c *Client) WritePump() {
 
 // Hub maintains the set of active WebSocket clients and broadcasts messages to them.
 type Hub struct {
+	name       string
 	clients    map[*Client]bool
 	broadcast  chan []byte
 	register   chan *Client
@@ -105,9 +109,14 @@ type Hub struct {
 	mu         sync.RWMutex
 }
 
-// NewHub creates a new WebSocket Hub.
-func NewHub() *Hub {
+// NewHub creates a new WebSocket Hub with an optional name tag.
+func NewHub(name ...string) *Hub {
+	hubName := "Telemetry"
+	if len(name) > 0 && name[0] != "" {
+		hubName = name[0]
+	}
 	return &Hub{
+		name:       hubName,
 		broadcast:  make(chan []byte, 1024),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
@@ -134,7 +143,7 @@ func (h *Hub) Run() {
 			h.clients[client] = true
 			total := len(h.clients)
 			h.mu.Unlock()
-			log.Printf("[WebSocket] Client connected. Total: %d", total)
+			log.Printf("[%s WebSocket] Client connected. Total: %d", h.name, total)
 		case client := <-h.unregister:
 			h.mu.Lock()
 			if _, ok := h.clients[client]; ok {
@@ -142,7 +151,7 @@ func (h *Hub) Run() {
 				close(client.send)
 				total := len(h.clients)
 				h.mu.Unlock()
-				log.Printf("[WebSocket] Client disconnected. Total: %d", total)
+				log.Printf("[%s WebSocket] Client disconnected. Total: %d", h.name, total)
 			} else {
 				h.mu.Unlock()
 			}

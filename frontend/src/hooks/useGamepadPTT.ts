@@ -5,6 +5,7 @@ import {
   RADIO_PTT_MODES,
   type RadioPTTMode,
 } from '../constants/f1';
+import { subscribeEngineerWebSocket } from '../utils/engineerSocket';
 
 export interface GamepadMapping {
   gamepadIndex: number;
@@ -235,6 +236,12 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
   }, []);
 
   // Use refs for stable access in animation frame / event listeners
+  const onPTTDownRef = useRef(onPTTDown);
+  onPTTDownRef.current = onPTTDown;
+
+  const onPTTUpRef = useRef(onPTTUp);
+  onPTTUpRef.current = onPTTUp;
+
   const isPTTActiveRef = useRef(isPTTActive);
   isPTTActiveRef.current = isPTTActive;
 
@@ -253,38 +260,32 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
   const keyboardPressedRef = useRef(false);
   const gamepadPressedRef = useRef(false);
 
-  const updatePTTState = useCallback(
-    (nextState: boolean) => {
-      if (isPTTActiveRef.current === nextState) return;
-      setIsPTTActive(nextState);
-      if (nextState) {
-        onPTTDown?.();
-      } else {
-        onPTTUp?.();
-      }
-    },
-    [onPTTDown, onPTTUp]
-  );
+  const updatePTTState = useCallback((nextState: boolean) => {
+    if (isPTTActiveRef.current === nextState) return;
+    setIsPTTActive(nextState);
+    if (nextState) {
+      onPTTDownRef.current?.();
+    } else {
+      onPTTUpRef.current?.();
+    }
+  }, []);
 
-  const handleGlobalPTTEvent = useCallback(
-    (state: 'down' | 'up') => {
-      if (!enabledRef.current) return;
+  const handleGlobalPTTEvent = useCallback((state: 'down' | 'up') => {
+    if (!enabledRef.current) return;
 
-      // If the browser currently has active DOM keyboard/gamepad focus, ignore background WebSocket events to prevent jitter/race conditions
-      if (keyboardPressedRef.current || gamepadPressedRef.current) {
-        return;
-      }
+    // If the browser currently has active DOM keyboard/gamepad focus, ignore background WebSocket events to prevent jitter/race conditions
+    if (keyboardPressedRef.current || gamepadPressedRef.current) {
+      return;
+    }
 
-      if (pttModeRef.current === RADIO_PTT_MODES.HOLD) {
-        updatePTTState(state === 'down');
-      } else if (pttModeRef.current === RADIO_PTT_MODES.TOGGLE) {
-        if (state === 'down') {
-          updatePTTState(!isPTTActiveRef.current);
-        }
+    if (pttModeRef.current === RADIO_PTT_MODES.HOLD) {
+      updatePTTState(state === 'down');
+    } else if (pttModeRef.current === RADIO_PTT_MODES.TOGGLE) {
+      if (state === 'down') {
+        updatePTTState(!isPTTActiveRef.current);
       }
-    },
-    [updatePTTState]
-  );
+    }
+  }, [updatePTTState]);
 
   const startLearning = useCallback(() => {
     setIsLearning(true);
@@ -298,70 +299,37 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
     fetch('/api/ai/ptt/learn/cancel', { method: 'POST' }).catch(() => {});
   }, []);
 
-  // Listen to /ws/engineer WebSocket for backend global PTT events
+  const handleGlobalPTTEventRef = useRef(handleGlobalPTTEvent);
+  handleGlobalPTTEventRef.current = handleGlobalPTTEvent;
+
+  const setMappedGamepadButtonRef = useRef(setMappedGamepadButton);
+  setMappedGamepadButtonRef.current = setMappedGamepadButton;
+
+  const setMappedKeyRef = useRef(setMappedKey);
+  setMappedKeyRef.current = setMappedKey;
+
+  // Listen to /ws/engineer WebSocket for backend global PTT events via singleton connection
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (!enabled) return;
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/engineer`;
+    return subscribeEngineerWebSocket((data) => {
+      if (data.type === 'ptt_event' && (data.state === 'down' || data.state === 'up')) {
+        handleGlobalPTTEventRef.current?.(data.state);
+      } else if (data.type === 'ptt_learned' && data.mapping) {
+        setGlobalMapping(data.mapping);
+        setIsLearning(false);
 
-    let ws: WebSocket | null = null;
-    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
-    let isCleanedUp = false;
-
-    const connectWS = () => {
-      if (isCleanedUp) return;
-      try {
-        ws = new WebSocket(wsUrl);
-
-        ws.onmessage = (event) => {
-          try {
-            const data = JSON.parse(event.data);
-            if (data.type === 'ptt_event' && (data.state === 'down' || data.state === 'up')) {
-              handleGlobalPTTEvent(data.state);
-            } else if (data.type === 'ptt_learned' && data.mapping) {
-              setGlobalMapping(data.mapping);
-              setIsLearning(false);
-
-              if (data.mapping.device_type === 'joystick' && data.mapping.button_index !== undefined) {
-                setMappedGamepadButton({
-                  gamepadIndex: data.mapping.device_index ?? 0,
-                  buttonIndex: data.mapping.button_index,
-                });
-              } else if (data.mapping.device_type === 'keyboard' && data.mapping.key_name) {
-                setMappedKey(data.mapping.key_name);
-              }
-            }
-          } catch {}
-        };
-
-        ws.onclose = () => {
-          if (!isCleanedUp) {
-            reconnectTimeout = setTimeout(connectWS, 2500);
-          }
-        };
-
-        ws.onerror = () => {
-          if (ws) ws.close();
-        };
-      } catch {
-        if (!isCleanedUp) {
-          reconnectTimeout = setTimeout(connectWS, 2500);
+        if (data.mapping.device_type === 'joystick' && data.mapping.button_index !== undefined) {
+          setMappedGamepadButtonRef.current?.({
+            gamepadIndex: data.mapping.device_index ?? 0,
+            buttonIndex: data.mapping.button_index,
+          });
+        } else if (data.mapping.device_type === 'keyboard' && data.mapping.key_name) {
+          setMappedKeyRef.current?.(data.mapping.key_name);
         }
       }
-    };
-
-    connectWS();
-
-    return () => {
-      isCleanedUp = true;
-      if (reconnectTimeout) clearTimeout(reconnectTimeout);
-      if (ws) {
-        ws.onclose = null;
-        ws.close();
-      }
-    };
-  }, [handleGlobalPTTEvent, setMappedGamepadButton, setMappedKey]);
+    });
+  }, [enabled]);
 
   // Keyboard Event Handlers (Browser Fallback)
   useEffect(() => {

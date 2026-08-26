@@ -246,8 +246,14 @@ func main() {
 
 			scMode := uint8(0)
 			if (scenario == "sc" || scenario == "safetycar") && sessionTime >= 4.0 && sessionTime < 60.0 {
+				if sessionTime >= 4.0 && sessionTime < 4.1 {
+					log.Println("[Simulator Scenario: SC] Full Safety Car deployed!")
+				}
 				scMode = packets.SafetyCarFull
 			} else if scenario == "vsc" && sessionTime >= 4.0 && sessionTime < 60.0 {
+				if sessionTime >= 4.0 && sessionTime < 4.1 {
+					log.Println("[Simulator Scenario: VSC] Virtual Safety Car deployed!")
+				}
 				scMode = packets.SafetyCarVirtual
 			}
 
@@ -275,6 +281,9 @@ func main() {
 			rainPctSample1 := uint8(5)
 			timeOffsetSample1 := uint8(5)
 			if scenario == "rain" {
+				if sessionTime >= 2.0 && sessionTime < 2.1 {
+					log.Println("[Simulator Scenario: Rain] Rain forecast injected: 85% probability in 2 minutes!")
+				}
 				rainPctSample1 = 85
 				timeOffsetSample1 = 2
 			}
@@ -481,7 +490,16 @@ func main() {
 					gridPos := uint8((i+3)%numActiveCars + 1)
 					speedTrap := float32(322.5 - float64(i)*1.1)
 
+					driverStatus := packets.DriverStatusOnTrack
+					if isQualifying {
+						driverStatus = packets.DriverStatusFlyingLap
+					}
+					if pitStatus == 1 {
+						driverStatus = packets.DriverStatusInLap
+					}
+
 					lapCars[i] = packets.LapData{
+						DriverStatus:                driverStatus,
 						CurrentLapTimeInMS:          lapTimeMs + gapMs,
 						LastLapTimeInMS:             uint32(85432 + i*220),
 						Sector1TimeMSPart:           uint16(28120 + i*100),
@@ -491,7 +509,7 @@ func main() {
 						TotalDistance:               totalDistance - float32(i*15),
 						CarPosition:                 uint8(i + 1),
 						GridPosition:                gridPos,
-						ResultStatus:                2, // Active
+						ResultStatus:                packets.ResultStatusActive,
 						DeltaToRaceLeaderMSPart:     uint16(gapMs),
 						DeltaToCarInFrontMSPart:     uint16(350),
 						PitStatus:                   pitStatus,
@@ -506,7 +524,8 @@ func main() {
 				} else {
 					// Observers / Spectators
 					lapCars[i] = packets.LapData{
-						ResultStatus: 0, // Inactive
+						DriverStatus: packets.DriverStatusInGarage,
+						ResultStatus: packets.ResultStatusInactive,
 					}
 				}
 			}
@@ -546,10 +565,14 @@ func main() {
 					if baseWear > 95.0 {
 						baseWear = 95.0
 					}
-					flWear := baseWear + float32(i%3)*2.0
-					frWear := baseWear + float32(i%2)*3.0
+					flWear := baseWear + float32((i+1)%3)*1.5
+					frWear := baseWear + float32((i+1)%2)*2.5
 					rlWear := baseWear * 0.95
 					rrWear := baseWear * 0.92
+
+					if i == 0 && (scenario == "wear" || scenario == "tyre-wear") && frameID%100 == 0 {
+						log.Printf("[Simulator Scenario: %s] Player tyre wear: FL=%.1f%%, FR=%.1f%% (time: %.1fs)", scenario, flWear, frWear, sessionTime)
+					}
 
 					var drsFault, ersFault, blown, seized uint8
 					if i == 5 {
