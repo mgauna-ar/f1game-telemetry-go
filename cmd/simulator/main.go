@@ -87,45 +87,46 @@ var drivers2026 = []driverInfo{
 	{"Observer 2", 65535, 65535, 0, 1, 0},
 }
 
-func main() {
+// SimulatorConfig holds the configuration options for the telemetry simulator.
+type SimulatorConfig struct {
+	TargetAddr      string
+	SessionFlag     string
+	FormatFlag      string
+	Scenario        string
+	PacketFormat    uint16
+	GameYear        uint8
+	NumActiveCars   int
+	TotalSlots      int
+	ActiveDrivers   []driverInfo
+	SessionType     uint8
+	SessionModeName string
+	IsQualifying    bool
+}
+
+// loadSimulatorConfig parses CLI flags and environment variables.
+func loadSimulatorConfig() SimulatorConfig {
 	sessionFlag := flag.String("session", getEnv("F1T_SESSION_TYPE", "race"), "Session type to simulate: race, quali, q1, q2, q3, practice, timetrial")
 	formatFlag := flag.String("format", getEnv("F1T_PACKET_FORMAT", "2026"), "F1 UDP packet format: 2025 (20 active cars + 2 observers) or 2026 (22 active cars + 2 observers, default)")
 	scenarioFlag := flag.String("scenario", getEnv("F1T_SCENARIO", "default"), "Simulation scenario: default, wear / tyre-wear, sc / safetycar, vsc, rain")
 	flag.Parse()
 
 	scenario := strings.ToLower(strings.TrimSpace(*scenarioFlag))
-
 	targetAddr := getEnv("F1T_UDP_ADDR", defaultTargetUDP)
 
-	udpAddr, err := net.ResolveUDPAddr("udp", targetAddr)
-	if err != nil {
-		log.Fatalf("Failed to resolve target address %s: %v", targetAddr, err)
-	}
-
-	conn, err := net.DialUDP("udp", nil, udpAddr)
-	if err != nil {
-		log.Fatalf("Failed to dial UDP: %v", err)
-	}
-	defer conn.Close()
-
-	// Parse format mode
-	var (
-		packetFormat  uint16 = packets.PacketFormat2026
-		gameYear      uint8  = 26
-		numActiveCars        = 22
-		totalSlots           = packets.MaxCars2026 // 24
-		activeDrivers        = drivers2026
-	)
+	packetFormat := uint16(packets.PacketFormat2026)
+	gameYear := uint8(26)
+	numActiveCars := 22
+	totalSlots := packets.MaxCars2026
+	activeDrivers := drivers2026
 
 	if strings.TrimSpace(*formatFlag) == "2025" || strings.TrimSpace(*formatFlag) == "25" {
 		packetFormat = packets.PacketFormat2025
 		gameYear = 25
 		numActiveCars = 20
-		totalSlots = packets.MaxCars2025 // 22
+		totalSlots = packets.MaxCars2025
 		activeDrivers = drivers2025
 	}
 
-	// Parse session mode
 	var sessionType uint8
 	var sessionModeName string
 	isQualifying := false
@@ -154,12 +155,53 @@ func main() {
 		sessionModeName = "Race"
 	}
 
+	return SimulatorConfig{
+		TargetAddr:      targetAddr,
+		SessionFlag:     *sessionFlag,
+		FormatFlag:      *formatFlag,
+		Scenario:        scenario,
+		PacketFormat:    packetFormat,
+		GameYear:        gameYear,
+		NumActiveCars:   numActiveCars,
+		TotalSlots:      totalSlots,
+		ActiveDrivers:   activeDrivers,
+		SessionType:     sessionType,
+		SessionModeName: sessionModeName,
+		IsQualifying:    isQualifying,
+	}
+}
+
+type simState struct {
+	frameID         uint32
+	sessionUID      uint64
+	sessionTime     float32
+	angle           float64
+	lapTimeMs       uint32
+	lapNum          uint8
+	totalDistance   float32
+	sessionTimeLeft uint16
+}
+
+func main() {
+	cfg := loadSimulatorConfig()
+
+	udpAddr, err := net.ResolveUDPAddr("udp", cfg.TargetAddr)
+	if err != nil {
+		log.Fatalf("Failed to resolve target address %s: %v", cfg.TargetAddr, err)
+	}
+
+	conn, err := net.DialUDP("udp", nil, udpAddr)
+	if err != nil {
+		log.Fatalf("Failed to dial UDP: %v", err)
+	}
+	defer conn.Close()
+
 	fmt.Println("🏎️  F1 Telemetry Packet Simulator")
 	fmt.Println("=================================")
-	fmt.Printf("Simulating Session Mode: %s (Type ID: %d)\n", sessionModeName, sessionType)
-	fmt.Printf("Telemetry Packet Format: F1 %d (%d Active Grid Cars + 2 Observers = %d Slots, Year %d)\n", packetFormat, numActiveCars, totalSlots, gameYear)
-	fmt.Printf("Active Scenario:         %s\n", scenario)
-	fmt.Printf("Sending synthetic UDP telemetry to %s at 20Hz...\n", targetAddr)
+	fmt.Printf("Simulating Session Mode: %s (Type ID: %d)\n", cfg.SessionModeName, cfg.SessionType)
+	fmt.Printf("Telemetry Packet Format: F1 %d (%d Active Grid Cars + 2 Observers = %d Slots, Year %d)\n", cfg.PacketFormat, cfg.NumActiveCars, cfg.TotalSlots, cfg.GameYear)
+	fmt.Printf("Active Scenario:         %s\n", cfg.Scenario)
+	fmt.Printf("Sending synthetic UDP telemetry to %s at 20Hz...\n", cfg.TargetAddr)
 	fmt.Println("👉 Tip: Press [Space] in browser Live Session to talk to your Race Engineer via Push-to-Talk!")
 	fmt.Println("Press Ctrl+C to stop.")
 
@@ -169,20 +211,14 @@ func main() {
 	ticker := time.NewTicker(sendInterval)
 	defer ticker.Stop()
 
-	var (
-		frameID         uint32
-		sessionUID      uint64 = 987654321
-		sessionTime     float32
-		angle           float64
-		lapTimeMs       uint32
-		lapNum          uint8 = 1
-		totalDistance   float32
-		sessionTimeLeft uint16
-	)
-	if isQualifying {
-		sessionTimeLeft = 720 // 12 minutes
+	st := &simState{
+		sessionUID: 987654321,
+		lapNum:     1,
+	}
+	if cfg.IsQualifying {
+		st.sessionTimeLeft = 720 // 12 minutes
 	} else {
-		sessionTimeLeft = 2400
+		st.sessionTimeLeft = 2400
 	}
 
 	for {
@@ -191,465 +227,509 @@ func main() {
 			fmt.Println("\nStopping simulator...")
 			return
 		case <-ticker.C:
-			frameID++
-			sessionTime += 0.05
-			lapTimeMs += 50
-			if frameID%20 == 0 && sessionTimeLeft > 0 {
-				sessionTimeLeft--
+			st.frameID++
+			st.sessionTime += 0.05
+			st.lapTimeMs += 50
+			if st.frameID%20 == 0 && st.sessionTimeLeft > 0 {
+				st.sessionTimeLeft--
 			}
 
-			// 1. Calculate simulated motion & track trajectory (ellipse loop)
-			angle += 0.02
-			if angle >= 2*math.Pi {
-				angle -= 2 * math.Pi
-				lapNum++
-				lapTimeMs = 0
+			// Simulated motion & track trajectory (ellipse loop)
+			st.angle += 0.02
+			if st.angle >= 2*math.Pi {
+				st.angle -= 2 * math.Pi
+				st.lapNum++
+				st.lapTimeMs = 0
 			}
 
-			posY := float32(5.0 * math.Sin(angle*0.5))
-
-			speedKmh := uint16(120.0 + 180.0*(0.5+0.5*math.Sin(angle*2)))
-			rpm := uint16(6000 + 7500*(0.5+0.5*math.Sin(angle*4)))
+			posY := float32(5.0 * math.Sin(st.angle*0.5))
+			speedKmh := uint16(120.0 + 180.0*(0.5+0.5*math.Sin(st.angle*2)))
+			rpm := uint16(6000 + 7500*(0.5+0.5*math.Sin(st.angle*4)))
 			gear := int8(1 + int(speedKmh)/40)
 			if gear > 8 {
 				gear = 8
 			}
 
-			throttle := float32(0.5 + 0.5*math.Sin(angle*2))
+			throttle := float32(0.5 + 0.5*math.Sin(st.angle*2))
 			brake := float32(0.0)
 			if throttle < 0.3 {
 				brake = 0.8
 			}
 
-			lapDist := float32((angle / (2 * math.Pi)) * 5000.0)
-			totalDistance += 5.0
+			lapDist := float32((st.angle / (2 * math.Pi)) * 5000.0)
+			st.totalDistance += 5.0
 
 			// Common Header
 			header := packets.PacketHeader{
-				PacketFormat:            packetFormat,
-				GameYear:                gameYear,
+				PacketFormat:            cfg.PacketFormat,
+				GameYear:                cfg.GameYear,
 				GameMajorVersion:        1,
 				GameMinorVersion:        0,
 				PacketVersion:           1,
-				SessionUID:              sessionUID,
-				SessionTime:             sessionTime,
-				FrameIdentifier:         frameID,
-				OverallFrameIdentifier:  frameID,
+				SessionUID:              st.sessionUID,
+				SessionTime:             st.sessionTime,
+				FrameIdentifier:         st.frameID,
+				OverallFrameIdentifier:  st.frameID,
 				PlayerCarIndex:          0,
 				SecondaryPlayerCarIndex: 255,
 			}
 
-			var totalLaps uint8 = 58
-			if isQualifying {
-				totalLaps = 0
-			}
-
-			scMode := uint8(0)
-			if (scenario == "sc" || scenario == "safetycar") && sessionTime >= 4.0 && sessionTime < 60.0 {
-				if sessionTime >= 4.0 && sessionTime < 4.1 {
-					log.Println("[Simulator Scenario: SC] Full Safety Car deployed!")
-				}
-				scMode = packets.SafetyCarFull
-			} else if scenario == "vsc" && sessionTime >= 4.0 && sessionTime < 60.0 {
-				if sessionTime >= 4.0 && sessionTime < 4.1 {
-					log.Println("[Simulator Scenario: VSC] Virtual Safety Car deployed!")
-				}
-				scMode = packets.SafetyCarVirtual
-			}
-
 			// 1a. Session Data Packet (ID: 1)
-			sessionPkt := packets.PacketSessionData{
-				Header:                    header,
-				TrackId:                   0, // Melbourne
-				SessionType:               sessionType,
-				TotalLaps:                 totalLaps,
-				TrackLength:               5278,
-				SessionTimeLeft:           sessionTimeLeft,
-				SessionDuration:           3600,
-				TrackTemperature:          32,
-				AirTemperature:            24,
-				Weather:                   0, // Clear
-				SafetyCarStatus:           scMode,
-				PitStopWindowIdealLap:     16,
-				PitStopWindowLatestLap:    22,
-				PitStopRejoinPosition:     7,
-				NumWeatherForecastSamples: 4,
-				Sector2LapDistanceStart:   1750.0,
-				Sector3LapDistanceStart:   3500.0,
-			}
-
-			rainPctSample1 := uint8(5)
-			timeOffsetSample1 := uint8(5)
-			if scenario == "rain" {
-				if sessionTime >= 2.0 && sessionTime < 2.1 {
-					log.Println("[Simulator Scenario: Rain] Rain forecast injected: 85% probability in 2 minutes!")
-				}
-				rainPctSample1 = 85
-				timeOffsetSample1 = 2
-			}
-
-			sessionPkt.WeatherForecastSamples[0] = packets.WeatherForecastSample{
-				SessionType:      sessionType,
-				TimeOffset:       0,
-				Weather:          0,
-				TrackTemperature: 32,
-				AirTemperature:   24,
-				RainPercentage:   0,
-			}
-			sessionPkt.WeatherForecastSamples[1] = packets.WeatherForecastSample{
-				SessionType:            sessionType,
-				TimeOffset:             timeOffsetSample1,
-				Weather:                1,
-				TrackTemperature:       31,
-				TrackTemperatureChange: -1,
-				AirTemperature:         24,
-				RainPercentage:         rainPctSample1,
-			}
-			sessionPkt.WeatherForecastSamples[2] = packets.WeatherForecastSample{
-				SessionType:            sessionType,
-				TimeOffset:             15,
-				Weather:                2,
-				TrackTemperature:       30,
-				TrackTemperatureChange: -1,
-				AirTemperature:         23,
-				AirTemperatureChange:   -1,
-				RainPercentage:         20,
-			}
-			sessionPkt.WeatherForecastSamples[3] = packets.WeatherForecastSample{
-				SessionType:            sessionType,
-				TimeOffset:             30,
-				Weather:                3,
-				TrackTemperature:       28,
-				TrackTemperatureChange: -2,
-				AirTemperature:         22,
-				AirTemperatureChange:   -1,
-				RainPercentage:         65,
-			}
-
-			if packetFormat >= packets.PacketFormat2026 {
-				sessionPkt.ActiveAeroTrackStatus = 0 // Full
-				sessionPkt.NumActiveAeroZonesFull = 2
-				sessionPkt.ActiveAeroZonesFull[0] = packets.ActiveAeroZone{ZoneStart: 0.1, ZoneEnd: 0.25}
-				sessionPkt.ActiveAeroZonesFull[1] = packets.ActiveAeroZone{ZoneStart: 0.6, ZoneEnd: 0.8}
-				sessionPkt.NumDRSZones = 2
-				sessionPkt.DRSZones[0] = packets.DRSZone{ZoneStart: 0.1, ZoneEnd: 0.25}
-				sessionPkt.DRSZones[1] = packets.DRSZone{ZoneStart: 0.6, ZoneEnd: 0.8}
-			}
-
-			sessionPkt.Header.PacketId = packets.PacketIDSession
-			sendSessionPacket(conn, &sessionPkt, packetFormat)
+			sessionPkt := buildSessionPacket(cfg, st, header)
+			sendSessionPacket(conn, &sessionPkt, cfg.PacketFormat)
 
 			// 1b. Periodic Event Packet (ID: 3)
-			if frameID%120 == 40 {
-				var evtPkt packets.PacketEventData
-				evtPkt.Header = header
-				evtPkt.Header.PacketId = packets.PacketIDEvent
-
-				switch (frameID / 120) % 5 {
-				case 0:
-					copy(evtPkt.EventStringCode[:], packets.EventFastestLap)
-					var d packets.FastestLapEventData
-					d.VehicleIdx = 0
-					d.LapTime = 84.821
-					var b bytes.Buffer
-					_ = binary.Write(&b, binary.LittleEndian, d)
-					copy(evtPkt.EventDetails.Data[:], b.Bytes())
-				case 1:
-					copy(evtPkt.EventStringCode[:], packets.EventOvertake)
-					var d packets.OvertakeEventData
-					d.OvertakingVehicleIdx = 4
-					d.BeingOvertakenVehicleIdx = 2
-					var b bytes.Buffer
-					_ = binary.Write(&b, binary.LittleEndian, d)
-					copy(evtPkt.EventDetails.Data[:], b.Bytes())
-				case 2:
-					copy(evtPkt.EventStringCode[:], packets.EventPenaltyIssued)
-					var d packets.PenaltyEventData
-					d.PenaltyType = 0
-					d.InfringementType = 0
-					d.VehicleIdx = 2
-					d.Time = 5
-					d.LapNum = lapNum
-					var b bytes.Buffer
-					_ = binary.Write(&b, binary.LittleEndian, d)
-					copy(evtPkt.EventDetails.Data[:], b.Bytes())
-				case 3:
-					copy(evtPkt.EventStringCode[:], packets.EventSpeedTrapTriggered)
-					var d packets.SpeedTrapEventData
-					d.VehicleIdx = 0
-					d.Speed = 334.8
-					d.IsOverallFastestInSession = 1
-					var b bytes.Buffer
-					_ = binary.Write(&b, binary.LittleEndian, d)
-					copy(evtPkt.EventDetails.Data[:], b.Bytes())
-				case 4:
-					copy(evtPkt.EventStringCode[:], packets.EventTeamMateInPits)
-					var d packets.TeamMateInPitsEventData
-					d.VehicleIdx = 1
-					var b bytes.Buffer
-					_ = binary.Write(&b, binary.LittleEndian, d)
-					copy(evtPkt.EventDetails.Data[:], b.Bytes())
-				}
+			if st.frameID%120 == 40 {
+				evtPkt := buildEventPacket(header, st.frameID, st.lapNum)
 				sendEventPacket(conn, &evtPkt)
 			}
 
 			// 1c. Participants Data Packet (ID: 4)
-			if frameID == 1 || frameID%100 == 0 {
-				sendParticipantsPacket(conn, header, numActiveCars, totalSlots, activeDrivers, packetFormat)
+			if st.frameID == 1 || st.frameID%100 == 0 {
+				sendParticipantsPacket(conn, header, cfg.NumActiveCars, cfg.TotalSlots, cfg.ActiveDrivers, cfg.PacketFormat)
 			}
 
 			// 2. Motion Packet (ID: 0)
-			motionCars := make([]packets.CarMotionData, totalSlots)
-			for i := 0; i < totalSlots; i++ {
-				if i < numActiveCars {
-					off := -float64(i) * 0.08
-					a := angle + off
-					motionCars[i] = packets.CarMotionData{
-						WorldPositionX:     float32(300.0 * math.Sin(a)),
-						WorldPositionY:     posY,
-						WorldPositionZ:     float32(150.0 * math.Cos(2*a)),
-						WorldVelocityX:     float32(math.Cos(a) * 30),
-						WorldVelocityZ:     float32(-math.Sin(a) * 30),
-						GForceLateral:      float32(1.8 * math.Sin(a)),
-						GForceLongitudinal: float32(0.5 * math.Cos(a)),
-						GForceVertical:     0.1,
-					}
-				}
-			}
-			sendMotionPacket(conn, header, totalSlots, motionCars, packetFormat)
+			motionCars := buildMotionCars(cfg, st.angle, posY)
+			sendMotionPacket(conn, header, cfg.TotalSlots, motionCars, cfg.PacketFormat)
 
 			// 3. Car Telemetry Packet (ID: 6)
-			telemetryCars := make([]packets.CarTelemetryData, totalSlots)
-			for i := 0; i < totalSlots; i++ {
-				if i < numActiveCars {
-					factor := 1.0 - float64(i)*0.02
-					if factor < 0.5 {
-						factor = 0.5
-					}
-					a := angle - float64(i)*0.08
-					telemetryCars[i] = packets.CarTelemetryData{
-						Speed:             uint16(float64(speedKmh) * factor),
-						Throttle:          float32(float64(throttle) * factor),
-						Steer:             float32(math.Sin(a)),
-						Brake:             float32(float64(brake) * (1.0 + float64(i)*0.02)),
-						Gear:              gear,
-						EngineRPM:         uint16(float64(rpm) * factor),
-						DRS:               uint8(i % 2),
-						EngineTemperature: uint16(90 + i),
-						TyresPressure:     [4]float32{22.5, 22.5, 23.5, 23.5},
-					}
-				}
-			}
-			sendTelemetryPacket(conn, header, totalSlots, telemetryCars, packetFormat)
+			telemetryCars := buildTelemetryCars(cfg, st.angle, speedKmh, rpm, gear, throttle, brake)
+			sendTelemetryPacket(conn, header, cfg.TotalSlots, telemetryCars, cfg.PacketFormat)
 
 			// 3b. Car Telemetry 2 Packet (ID: 16) - 2026 Only
-			if packetFormat >= packets.PacketFormat2026 {
-				telemetry2Cars := make([]packets.CarTelemetry2Data, totalSlots)
-				for i := 0; i < totalSlots; i++ {
-					if i < numActiveCars {
-						var aeroMode uint8 = 0
-						if speedKmh > 220 {
-							aeroMode = 1 // Straight mode
-						}
-						telemetry2Cars[i] = packets.CarTelemetry2Data{
-							ActiveAeroMode:      aeroMode,
-							ActiveAeroAvailable: 1,
-							OvertakeAvailable:   1,
-							OvertakeActive:      uint8((i + int(frameID/40)) % 2),
-							Regulations2026:     1,
-						}
-					}
-				}
-				sendCarTelemetry2Packet(conn, header, totalSlots, telemetry2Cars)
+			if cfg.PacketFormat >= packets.PacketFormat2026 {
+				telemetry2Cars := buildTelemetry2Cars(cfg, speedKmh, st.frameID)
+				sendCarTelemetry2Packet(conn, header, cfg.TotalSlots, telemetry2Cars)
 			}
 
 			// 4. Lap Data Packet (ID: 2)
-			lapCars := make([]packets.LapData, totalSlots)
-			for i := 0; i < totalSlots; i++ {
-				if i < numActiveCars {
-					gapMs := uint32(i * 350)
-					var pitStatus uint8 = 0
-					if i >= numActiveCars-4 {
-						pitStatus = 1
-					}
-					var penalties uint8 = 0
-					var totalWarnings uint8 = 0
-					var driveThrough uint8 = 0
-
-					switch i {
-					case 2:
-						penalties = 5
-					case 5:
-						penalties = 3
-					case 7:
-						totalWarnings = 2
-					case 11:
-						driveThrough = 1
-					}
-
-					gridPos := uint8((i+3)%numActiveCars + 1)
-					speedTrap := float32(322.5 - float64(i)*1.1)
-
-					driverStatus := packets.DriverStatusOnTrack
-					if isQualifying {
-						driverStatus = packets.DriverStatusFlyingLap
-					}
-					if pitStatus == 1 {
-						driverStatus = packets.DriverStatusInLap
-					}
-
-					numStops := uint8(0)
-					if lapNum > 1 {
-						numStops = uint8(i / 8)
-					}
-
-					lapCars[i] = packets.LapData{
-						DriverStatus:                driverStatus,
-						CurrentLapTimeInMS:          lapTimeMs + gapMs,
-						LastLapTimeInMS:             uint32(85432 + i*220),
-						Sector1TimeMSPart:           uint16(28120 + i*100),
-						Sector2TimeMSPart:           uint16(31450 + i*90),
-						CurrentLapNum:               lapNum,
-						LapDistance:                 lapDist,
-						TotalDistance:               totalDistance - float32(i*15),
-						CarPosition:                 uint8(i + 1),
-						GridPosition:                gridPos,
-						ResultStatus:                packets.ResultStatusActive,
-						DeltaToRaceLeaderMSPart:     uint16(gapMs),
-						DeltaToCarInFrontMSPart:     uint16(350),
-						PitStatus:                   pitStatus,
-						NumPitStops:                 numStops,
-						PitLaneTimeInLaneInMS:       uint16(21500 + i*400),
-						SpeedTrapFastestSpeed:       speedTrap,
-						SpeedTrapFastestLap:         uint8(1 + (i % 3)),
-						Penalties:                   penalties,
-						TotalWarnings:               totalWarnings,
-						NumUnservedDriveThroughPens: driveThrough,
-					}
-				} else {
-					// Observers / Spectators
-					lapCars[i] = packets.LapData{
-						DriverStatus: packets.DriverStatusInGarage,
-						ResultStatus: packets.ResultStatusInactive,
-					}
-				}
-			}
-			sendLapDataPacket(conn, header, totalSlots, lapCars)
+			lapCars := buildLapCars(cfg, st, lapDist)
+			sendLapDataPacket(conn, header, cfg.TotalSlots, lapCars)
 
 			// 5. Car Status Packet (ID: 7)
-			if frameID == 1 || frameID%20 == 0 {
-				statusCars := make([]packets.CarStatusData, totalSlots)
-				compounds := []uint8{16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18}
-				for i := 0; i < totalSlots; i++ {
-					if i < numActiveCars {
-						statusCars[i] = packets.CarStatusData{
-							FuelInTank:            float32(48.0 - float64(i)*0.8),
-							FuelCapacity:          110.0,
-							VisualTyreCompound:    compounds[i%len(compounds)],
-							TyresAgeLaps:          uint8(3 + i*2),
-							ERSStoreEnergy:        float32(4000000.0 * (1.0 - float64(i)*0.03)),
-							ERSDeployMode:         uint8(i % 4),
-							ERSHarvestLimitPerLap: 2000000.0,
-						}
-					}
-				}
-				sendCarStatusPacket(conn, header, totalSlots, statusCars, packetFormat)
+			if st.frameID == 1 || st.frameID%20 == 0 {
+				statusCars := buildCarStatusCars(cfg)
+				sendCarStatusPacket(conn, header, cfg.TotalSlots, statusCars, cfg.PacketFormat)
 			}
 
 			// 6. Car Damage Packet (ID: 10)
-			if frameID == 1 || frameID%20 == 0 {
-				damageCars := make([]packets.CarDamageData, totalSlots)
-				for i := 0; i < totalSlots; i++ {
-					if i >= numActiveCars {
-						continue
-					}
-					baseWear := float32(15.0 + float64(lapNum)*2.5 + float64(i)*1.8)
-					if i == 0 && (scenario == "wear" || scenario == "tyre-wear") {
-						baseWear = float32(38.5 + float64(sessionTime)*0.5)
-					}
-					if baseWear > 95.0 {
-						baseWear = 95.0
-					}
-					flWear := baseWear + float32((i+1)%3)*1.5
-					frWear := baseWear + float32((i+1)%2)*2.5
-					rlWear := baseWear * 0.95
-					rrWear := baseWear * 0.92
-
-					if i == 0 && (scenario == "wear" || scenario == "tyre-wear") && frameID%100 == 0 {
-						log.Printf("[Simulator Scenario: %s] Player tyre wear: FL=%.1f%%, FR=%.1f%% (time: %.1fs)", scenario, flWear, frWear, sessionTime)
-					}
-
-					var drsFault, ersFault, blown, seized uint8
-					if i == 5 {
-						drsFault = 1
-					}
-					if i == 8 {
-						ersFault = 1
-					}
-					if i == 19 {
-						blown = 1
-					}
-
-					damageCars[i] = packets.CarDamageData{
-						TyresWear:            [4]float32{rlWear, rrWear, flWear, frWear},
-						TyresDamage:          [4]uint8{uint8(i % 3), uint8(i % 2), uint8((i * 3) % 15), uint8((i * 2) % 20)},
-						BrakesDamage:         [4]uint8{uint8((i * 4) % 30), uint8((i * 4) % 30), uint8((i * 5) % 40), uint8((i * 5) % 40)},
-						TyreBlisters:         [4]uint8{0, 0, uint8(i % 5), uint8(i % 5)},
-						FrontLeftWingDamage:  uint8((i * 9) % 55),
-						FrontRightWingDamage: uint8((i * 13) % 40),
-						RearWingDamage:       uint8((i * 5) % 30),
-						FloorDamage:          uint8((i * 7) % 35),
-						DiffuserDamage:       uint8((i * 4) % 25),
-						SidepodDamage:        uint8((i * 6) % 30),
-						DRSFault:             drsFault,
-						ERSFault:             ersFault,
-						GearBoxDamage:        uint8((i * 3) % 25),
-						EngineDamage:         uint8((i * 2) % 20),
-						EngineMGUHWear:       uint8(10 + i*3),
-						EngineESWear:         uint8(8 + i*2),
-						EngineCEWear:         uint8(5 + i*2),
-						EngineICEWear:        uint8(12 + i*3),
-						EngineMGUKWear:       uint8(14 + i*3),
-						EngineTCWear:         uint8(11 + i*3),
-						EngineBlown:          blown,
-						EngineSeized:         seized,
-					}
-				}
-				sendCarDamagePacket(conn, header, totalSlots, damageCars)
+			if st.frameID == 1 || st.frameID%20 == 0 {
+				damageCars := buildCarDamageCars(cfg, st)
+				sendCarDamagePacket(conn, header, cfg.TotalSlots, damageCars)
 			}
 
 			// 7. Session History Packet (ID: 11) - sent every 100 frames (~5s) for active cars
-			if frameID%100 == 0 {
-				compounds := []uint8{16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18}
-				for carIdx := 0; carIdx < numActiveCars && carIdx < 5; carIdx++ {
-					histHeader := header
-					histHeader.PacketId = packets.PacketIDSessionHistory
-					histPkt := &packets.PacketSessionHistoryData{
-						Header:        histHeader,
-						CarIdx:        uint8(carIdx),
-						NumLaps:       lapNum,
-						NumTyreStints: 1,
-					}
-					histPkt.TyreStintHistoryData[0] = packets.TyreStintHistoryData{
-						EndLap:             255,
-						TyreVisualCompound: compounds[carIdx%len(compounds)],
-					}
-					if lapNum > 1 {
-						for l := uint8(1); l < lapNum; l++ {
-							histPkt.LapHistoryData[l-1] = packets.LapHistoryData{
-								LapTimeInMS:       uint32(85432 + carIdx*220),
-								Sector1TimeMSPart: uint16(28120 + carIdx*100),
-								Sector2TimeMSPart: uint16(31450 + carIdx*90),
-								Sector3TimeMSPart: uint16(25862 + carIdx*30),
-								LapValidBitFlags:  1,
-							}
-						}
-					}
+			if st.frameID%100 == 0 {
+				for carIdx := 0; carIdx < cfg.NumActiveCars && carIdx < 5; carIdx++ {
+					histPkt := buildSessionHistoryPacket(header, carIdx, st.lapNum)
 					sendSessionHistoryPacket(conn, histPkt)
 				}
 			}
 		}
 	}
+}
+
+func buildSessionPacket(cfg SimulatorConfig, st *simState, header packets.PacketHeader) packets.PacketSessionData {
+	var totalLaps uint8 = 58
+	if cfg.IsQualifying {
+		totalLaps = 0
+	}
+
+	scMode := uint8(0)
+	if (cfg.Scenario == "sc" || cfg.Scenario == "safetycar") && st.sessionTime >= 4.0 && st.sessionTime < 60.0 {
+		if st.sessionTime >= 4.0 && st.sessionTime < 4.1 {
+			log.Println("[Simulator Scenario: SC] Full Safety Car deployed!")
+		}
+		scMode = packets.SafetyCarFull
+	} else if cfg.Scenario == "vsc" && st.sessionTime >= 4.0 && st.sessionTime < 60.0 {
+		if st.sessionTime >= 4.0 && st.sessionTime < 4.1 {
+			log.Println("[Simulator Scenario: VSC] Virtual Safety Car deployed!")
+		}
+		scMode = packets.SafetyCarVirtual
+	}
+
+	sessionPkt := packets.PacketSessionData{
+		Header:                    header,
+		TrackId:                   0, // Melbourne
+		SessionType:               cfg.SessionType,
+		TotalLaps:                 totalLaps,
+		TrackLength:               5278,
+		SessionTimeLeft:           st.sessionTimeLeft,
+		SessionDuration:           3600,
+		TrackTemperature:          32,
+		AirTemperature:            24,
+		Weather:                   0, // Clear
+		SafetyCarStatus:           scMode,
+		PitStopWindowIdealLap:     16,
+		PitStopWindowLatestLap:    22,
+		PitStopRejoinPosition:     7,
+		NumWeatherForecastSamples: 4,
+		Sector2LapDistanceStart:   1750.0,
+		Sector3LapDistanceStart:   3500.0,
+	}
+
+	rainPctSample1 := uint8(5)
+	timeOffsetSample1 := uint8(5)
+	if cfg.Scenario == "rain" {
+		if st.sessionTime >= 2.0 && st.sessionTime < 2.1 {
+			log.Println("[Simulator Scenario: Rain] Rain forecast injected: 85% probability in 2 minutes!")
+		}
+		rainPctSample1 = 85
+		timeOffsetSample1 = 2
+	}
+
+	sessionPkt.WeatherForecastSamples[0] = packets.WeatherForecastSample{
+		SessionType:      cfg.SessionType,
+		TimeOffset:       0,
+		Weather:          0,
+		TrackTemperature: 32,
+		AirTemperature:   24,
+		RainPercentage:   0,
+	}
+	sessionPkt.WeatherForecastSamples[1] = packets.WeatherForecastSample{
+		SessionType:            cfg.SessionType,
+		TimeOffset:             timeOffsetSample1,
+		Weather:                1,
+		TrackTemperature:       31,
+		TrackTemperatureChange: -1,
+		AirTemperature:         24,
+		RainPercentage:         rainPctSample1,
+	}
+	sessionPkt.WeatherForecastSamples[2] = packets.WeatherForecastSample{
+		SessionType:            cfg.SessionType,
+		TimeOffset:             15,
+		Weather:                2,
+		TrackTemperature:       30,
+		TrackTemperatureChange: -1,
+		AirTemperature:         23,
+		AirTemperatureChange:   -1,
+		RainPercentage:         20,
+	}
+	sessionPkt.WeatherForecastSamples[3] = packets.WeatherForecastSample{
+		SessionType:            cfg.SessionType,
+		TimeOffset:             30,
+		Weather:                3,
+		TrackTemperature:       28,
+		TrackTemperatureChange: -2,
+		AirTemperature:         22,
+		AirTemperatureChange:   -1,
+		RainPercentage:         65,
+	}
+
+	if cfg.PacketFormat >= packets.PacketFormat2026 {
+		sessionPkt.ActiveAeroTrackStatus = 0 // Full
+		sessionPkt.NumActiveAeroZonesFull = 2
+		sessionPkt.ActiveAeroZonesFull[0] = packets.ActiveAeroZone{ZoneStart: 0.1, ZoneEnd: 0.25}
+		sessionPkt.ActiveAeroZonesFull[1] = packets.ActiveAeroZone{ZoneStart: 0.6, ZoneEnd: 0.8}
+		sessionPkt.NumDRSZones = 2
+		sessionPkt.DRSZones[0] = packets.DRSZone{ZoneStart: 0.1, ZoneEnd: 0.25}
+		sessionPkt.DRSZones[1] = packets.DRSZone{ZoneStart: 0.6, ZoneEnd: 0.8}
+	}
+
+	sessionPkt.Header.PacketId = packets.PacketIDSession
+	return sessionPkt
+}
+
+func buildEventPacket(header packets.PacketHeader, frameID uint32, lapNum uint8) packets.PacketEventData {
+	var evtPkt packets.PacketEventData
+	evtPkt.Header = header
+	evtPkt.Header.PacketId = packets.PacketIDEvent
+
+	switch (frameID / 120) % 5 {
+	case 0:
+		copy(evtPkt.EventStringCode[:], packets.EventFastestLap)
+		var d packets.FastestLapEventData
+		d.VehicleIdx = 0
+		d.LapTime = 84.821
+		var b bytes.Buffer
+		_ = binary.Write(&b, binary.LittleEndian, d)
+		copy(evtPkt.EventDetails.Data[:], b.Bytes())
+	case 1:
+		copy(evtPkt.EventStringCode[:], packets.EventOvertake)
+		var d packets.OvertakeEventData
+		d.OvertakingVehicleIdx = 4
+		d.BeingOvertakenVehicleIdx = 2
+		var b bytes.Buffer
+		_ = binary.Write(&b, binary.LittleEndian, d)
+		copy(evtPkt.EventDetails.Data[:], b.Bytes())
+	case 2:
+		copy(evtPkt.EventStringCode[:], packets.EventPenaltyIssued)
+		var d packets.PenaltyEventData
+		d.PenaltyType = 0
+		d.InfringementType = 0
+		d.VehicleIdx = 2
+		d.Time = 5
+		d.LapNum = lapNum
+		var b bytes.Buffer
+		_ = binary.Write(&b, binary.LittleEndian, d)
+		copy(evtPkt.EventDetails.Data[:], b.Bytes())
+	case 3:
+		copy(evtPkt.EventStringCode[:], packets.EventSpeedTrapTriggered)
+		var d packets.SpeedTrapEventData
+		d.VehicleIdx = 0
+		d.Speed = 334.8
+		d.IsOverallFastestInSession = 1
+		var b bytes.Buffer
+		_ = binary.Write(&b, binary.LittleEndian, d)
+		copy(evtPkt.EventDetails.Data[:], b.Bytes())
+	case 4:
+		copy(evtPkt.EventStringCode[:], packets.EventTeamMateInPits)
+		var d packets.TeamMateInPitsEventData
+		d.VehicleIdx = 1
+		var b bytes.Buffer
+		_ = binary.Write(&b, binary.LittleEndian, d)
+		copy(evtPkt.EventDetails.Data[:], b.Bytes())
+	}
+	return evtPkt
+}
+
+func buildMotionCars(cfg SimulatorConfig, angle float64, posY float32) []packets.CarMotionData {
+	motionCars := make([]packets.CarMotionData, cfg.TotalSlots)
+	for i := 0; i < cfg.TotalSlots; i++ {
+		if i < cfg.NumActiveCars {
+			off := -float64(i) * 0.08
+			a := angle + off
+			motionCars[i] = packets.CarMotionData{
+				WorldPositionX:     float32(300.0 * math.Sin(a)),
+				WorldPositionY:     posY,
+				WorldPositionZ:     float32(150.0 * math.Cos(2*a)),
+				WorldVelocityX:     float32(math.Cos(a) * 30),
+				WorldVelocityZ:     float32(-math.Sin(a) * 30),
+				GForceLateral:      float32(1.8 * math.Sin(a)),
+				GForceLongitudinal: float32(0.5 * math.Cos(a)),
+				GForceVertical:     0.1,
+			}
+		}
+	}
+	return motionCars
+}
+
+func buildTelemetryCars(cfg SimulatorConfig, angle float64, speedKmh, rpm uint16, gear int8, throttle, brake float32) []packets.CarTelemetryData {
+	telemetryCars := make([]packets.CarTelemetryData, cfg.TotalSlots)
+	for i := 0; i < cfg.TotalSlots; i++ {
+		if i < cfg.NumActiveCars {
+			factor := 1.0 - float64(i)*0.02
+			if factor < 0.5 {
+				factor = 0.5
+			}
+			a := angle - float64(i)*0.08
+			telemetryCars[i] = packets.CarTelemetryData{
+				Speed:             uint16(float64(speedKmh) * factor),
+				Throttle:          float32(float64(throttle) * factor),
+				Steer:             float32(math.Sin(a)),
+				Brake:             float32(float64(brake) * (1.0 + float64(i)*0.02)),
+				Gear:              gear,
+				EngineRPM:         uint16(float64(rpm) * factor),
+				DRS:               uint8(i % 2),
+				EngineTemperature: uint16(90 + i),
+				TyresPressure:     [4]float32{22.5, 22.5, 23.5, 23.5},
+			}
+		}
+	}
+	return telemetryCars
+}
+
+func buildTelemetry2Cars(cfg SimulatorConfig, speedKmh uint16, frameID uint32) []packets.CarTelemetry2Data {
+	telemetry2Cars := make([]packets.CarTelemetry2Data, cfg.TotalSlots)
+	for i := 0; i < cfg.TotalSlots; i++ {
+		if i < cfg.NumActiveCars {
+			var aeroMode uint8 = 0
+			if speedKmh > 220 {
+				aeroMode = 1 // Straight mode
+			}
+			telemetry2Cars[i] = packets.CarTelemetry2Data{
+				ActiveAeroMode:      aeroMode,
+				ActiveAeroAvailable: 1,
+				OvertakeAvailable:   1,
+				OvertakeActive:      uint8((i + int(frameID/40)) % 2),
+				Regulations2026:     1,
+			}
+		}
+	}
+	return telemetry2Cars
+}
+
+func buildLapCars(cfg SimulatorConfig, st *simState, lapDist float32) []packets.LapData {
+	lapCars := make([]packets.LapData, cfg.TotalSlots)
+	for i := 0; i < cfg.TotalSlots; i++ {
+		if i < cfg.NumActiveCars {
+			gapMs := uint32(i * 350)
+			var pitStatus uint8 = 0
+			if i >= cfg.NumActiveCars-4 {
+				pitStatus = 1
+			}
+			var penalties uint8 = 0
+			var totalWarnings uint8 = 0
+			var driveThrough uint8 = 0
+
+			switch i {
+			case 2:
+				penalties = 5
+			case 5:
+				penalties = 3
+			case 7:
+				totalWarnings = 2
+			case 11:
+				driveThrough = 1
+			}
+
+			gridPos := uint8((i+3)%cfg.NumActiveCars + 1)
+			speedTrap := float32(322.5 - float64(i)*1.1)
+
+			driverStatus := packets.DriverStatusOnTrack
+			if cfg.IsQualifying {
+				driverStatus = packets.DriverStatusFlyingLap
+			}
+			if pitStatus == 1 {
+				driverStatus = packets.DriverStatusInLap
+			}
+
+			numStops := uint8(0)
+			if st.lapNum > 1 {
+				numStops = uint8(i / 8)
+			}
+
+			lapCars[i] = packets.LapData{
+				DriverStatus:                driverStatus,
+				CurrentLapTimeInMS:          st.lapTimeMs + gapMs,
+				LastLapTimeInMS:             uint32(85432 + i*220),
+				Sector1TimeMSPart:           uint16(28120 + i*100),
+				Sector2TimeMSPart:           uint16(31450 + i*90),
+				CurrentLapNum:               st.lapNum,
+				LapDistance:                 lapDist,
+				TotalDistance:               st.totalDistance - float32(i*15),
+				CarPosition:                 uint8(i + 1),
+				GridPosition:                gridPos,
+				ResultStatus:                packets.ResultStatusActive,
+				DeltaToRaceLeaderMSPart:     uint16(gapMs),
+				DeltaToCarInFrontMSPart:     uint16(350),
+				PitStatus:                   pitStatus,
+				NumPitStops:                 numStops,
+				PitLaneTimeInLaneInMS:       uint16(21500 + i*400),
+				SpeedTrapFastestSpeed:       speedTrap,
+				SpeedTrapFastestLap:         uint8(1 + (i % 3)),
+				Penalties:                   penalties,
+				TotalWarnings:               totalWarnings,
+				NumUnservedDriveThroughPens: driveThrough,
+			}
+		} else {
+			// Observers / Spectators
+			lapCars[i] = packets.LapData{
+				DriverStatus: packets.DriverStatusInGarage,
+				ResultStatus: packets.ResultStatusInactive,
+			}
+		}
+	}
+	return lapCars
+}
+
+func buildCarStatusCars(cfg SimulatorConfig) []packets.CarStatusData {
+	statusCars := make([]packets.CarStatusData, cfg.TotalSlots)
+	compounds := []uint8{16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18}
+	for i := 0; i < cfg.TotalSlots; i++ {
+		if i < cfg.NumActiveCars {
+			statusCars[i] = packets.CarStatusData{
+				FuelInTank:            float32(48.0 - float64(i)*0.8),
+				FuelCapacity:          110.0,
+				VisualTyreCompound:    compounds[i%len(compounds)],
+				TyresAgeLaps:          uint8(3 + i*2),
+				ERSStoreEnergy:        float32(4000000.0 * (1.0 - float64(i)*0.03)),
+				ERSDeployMode:         uint8(i % 4),
+				ERSHarvestLimitPerLap: 2000000.0,
+			}
+		}
+	}
+	return statusCars
+}
+
+func buildCarDamageCars(cfg SimulatorConfig, st *simState) []packets.CarDamageData {
+	damageCars := make([]packets.CarDamageData, cfg.TotalSlots)
+	for i := 0; i < cfg.TotalSlots; i++ {
+		if i >= cfg.NumActiveCars {
+			continue
+		}
+		baseWear := float32(15.0 + float64(st.lapNum)*2.5 + float64(i)*1.8)
+		if i == 0 && (cfg.Scenario == "wear" || cfg.Scenario == "tyre-wear") {
+			baseWear = float32(38.5 + float64(st.sessionTime)*0.5)
+		}
+		if baseWear > 95.0 {
+			baseWear = 95.0
+		}
+		flWear := baseWear + float32((i+1)%3)*1.5
+		frWear := baseWear + float32((i+1)%2)*2.5
+		rlWear := baseWear * 0.95
+		rrWear := baseWear * 0.92
+
+		if i == 0 && (cfg.Scenario == "wear" || cfg.Scenario == "tyre-wear") && st.frameID%100 == 0 {
+			log.Printf("[Simulator Scenario: %s] Player tyre wear: FL=%.1f%%, FR=%.1f%% (time: %.1fs)", cfg.Scenario, flWear, frWear, st.sessionTime)
+		}
+
+		var drsFault, ersFault, blown, seized uint8
+		if i == 5 {
+			drsFault = 1
+		}
+		if i == 8 {
+			ersFault = 1
+		}
+		if i == 19 {
+			blown = 1
+		}
+
+		damageCars[i] = packets.CarDamageData{
+			TyresWear:            [4]float32{rlWear, rrWear, flWear, frWear},
+			TyresDamage:          [4]uint8{uint8(i % 3), uint8(i % 2), uint8((i * 3) % 15), uint8((i * 2) % 20)},
+			BrakesDamage:         [4]uint8{uint8((i * 4) % 30), uint8((i * 4) % 30), uint8((i * 5) % 40), uint8((i * 5) % 40)},
+			TyreBlisters:         [4]uint8{0, 0, uint8(i % 5), uint8(i % 5)},
+			FrontLeftWingDamage:  uint8((i * 9) % 55),
+			FrontRightWingDamage: uint8((i * 13) % 40),
+			RearWingDamage:       uint8((i * 5) % 30),
+			FloorDamage:          uint8((i * 7) % 35),
+			DiffuserDamage:       uint8((i * 4) % 25),
+			SidepodDamage:        uint8((i * 6) % 30),
+			DRSFault:             drsFault,
+			ERSFault:             ersFault,
+			GearBoxDamage:        uint8((i * 3) % 25),
+			EngineDamage:         uint8((i * 2) % 20),
+			EngineMGUHWear:       uint8(10 + i*3),
+			EngineESWear:         uint8(8 + i*2),
+			EngineCEWear:         uint8(5 + i*2),
+			EngineICEWear:        uint8(12 + i*3),
+			EngineMGUKWear:       uint8(14 + i*3),
+			EngineTCWear:         uint8(11 + i*3),
+			EngineBlown:          blown,
+			EngineSeized:         seized,
+		}
+	}
+	return damageCars
+}
+
+func buildSessionHistoryPacket(header packets.PacketHeader, carIdx int, lapNum uint8) *packets.PacketSessionHistoryData {
+	compounds := []uint8{16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18}
+	histHeader := header
+	histHeader.PacketId = packets.PacketIDSessionHistory
+	histPkt := &packets.PacketSessionHistoryData{
+		Header:        histHeader,
+		CarIdx:        uint8(carIdx),
+		NumLaps:       lapNum,
+		NumTyreStints: 1,
+	}
+	histPkt.TyreStintHistoryData[0] = packets.TyreStintHistoryData{
+		EndLap:             255,
+		TyreVisualCompound: compounds[carIdx%len(compounds)],
+	}
+	if lapNum > 1 {
+		for l := uint8(1); l < lapNum; l++ {
+			histPkt.LapHistoryData[l-1] = packets.LapHistoryData{
+				LapTimeInMS:       uint32(85432 + carIdx*220),
+				Sector1TimeMSPart: uint16(28120 + carIdx*100),
+				Sector2TimeMSPart: uint16(31450 + carIdx*90),
+				Sector3TimeMSPart: uint16(25862 + carIdx*30),
+				LapValidBitFlags:  1,
+			}
+		}
+	}
+	return histPkt
 }
 
 func sendSessionPacket(conn *net.UDPConn, pkt *packets.PacketSessionData, format uint16) {

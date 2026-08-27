@@ -537,7 +537,7 @@ func (r *SQLiteRepository) RemoveTagFromSession(ctx context.Context, sessionID, 
 
 // SetSessionTags replaces all tags for a session with the provided tag IDs.
 func (r *SQLiteRepository) SetSessionTags(ctx context.Context, sessionID int64, tagIDs []int64) error {
-	tx, err := r.db.Beginx()
+	tx, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}

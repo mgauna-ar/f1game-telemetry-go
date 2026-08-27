@@ -115,8 +115,8 @@ export const RaceControlFeed: React.FC<RaceControlFeedProps> = React.memo((props
             <button
               onClick={onClearEvents}
               className="btn-feed-clear"
-              title="Clear feed events"
-              aria-label="Clear all race control events"
+              title={t('live.clearFeedEvents')}
+              aria-label={t('live.clearFeedEvents')}
             >
               <Trash2 size={13} />
             </button>

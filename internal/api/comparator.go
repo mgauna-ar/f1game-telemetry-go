@@ -167,9 +167,14 @@ func (c *ComparatorLRUCache) Clear() {
 // - Filters non-finite and negative distance samples.
 // - Chronologically sorts by session_time.
 // - Filters isolated distance spikes.
-// - Slices deterministic flying lap window when expectedLapTimeMs > 0.
+// normalizeTelemetrySeries normalizes raw telemetry samples for comparison:
+// - Filters non-finite and negative distance samples.
+// - Chronologically sorts by session_time.
+// - Filters isolated distance spikes.
+// - Isolates the contiguous lap attempt from start line to finish line.
 // - Deduplicates monotonic distances.
-// - Synthesizes 0.0m anchor and zero-calibrates relative start time.
+// - Zero-calibrates start line crossing (t=0.000s at d=0.0m).
+// - Harmonizes elapsed time with official lap duration when expectedLapTimeMs > 0.
 // - Optionally scales distances if targetTrackLength > 0.
 func normalizeTelemetrySeries(samples []storage.TelemetrySample, expectedLapTimeMs int, targetTrackLength float64) []storage.TelemetrySample {
 	if len(samples) == 0 {
@@ -216,76 +221,19 @@ func normalizeTelemetrySeries(samples []storage.TelemetrySample, expectedLapTime
 		return []storage.TelemetrySample{}
 	}
 
-	var movingSamples []storage.TelemetrySample
-
-	// Deterministic Backward Windowing when expectedLapTimeMs is known
-	if expectedLapTimeMs > 0 {
-		lapDurationSec := float64(expectedLapTimeMs) / 1000.0
-		lastSample := cleaned[len(cleaned)-1]
-		tEnd := lastSample.SessionTime
-		tStart := tEnd - lapDurationSec
-
-		// Slice samples falling within flying lap window [tStart - 0.25, tEnd + 0.1]
-		var lapWindow []storage.TelemetrySample
-		for _, s := range cleaned {
-			if s.SessionTime >= tStart-0.25 && s.SessionTime <= tEnd+0.1 {
-				lapWindow = append(lapWindow, s)
-			}
+	// Isolate the contiguous lap attempt starting near 0m and progressing to finish
+	startIdx := 0
+	for i := 0; i < len(cleaned); i++ {
+		if i > 0 && cleaned[i-1].LapDistance > 500 && cleaned[i].LapDistance < 100 {
+			startIdx = i
 		}
-
-		actualStartIdx := 0
-		for i, s := range lapWindow {
-			if s.SessionTime >= tStart-0.05 {
-				actualStartIdx = i
-				break
-			}
+	}
+	movingSamples := cleaned[startIdx:]
+	for i := 1; i < len(movingSamples); i++ {
+		if movingSamples[i-1].LapDistance > 500 && movingSamples[i].LapDistance < 100 {
+			movingSamples = movingSamples[:i]
+			break
 		}
-		if actualStartIdx < len(lapWindow) {
-			movingSamples = lapWindow[actualStartIdx:]
-		} else {
-			movingSamples = lapWindow
-		}
-
-		// Discard any previous-lap tail samples (where distance dropped near the start)
-		for i := 1; i < len(movingSamples); i++ {
-			prevD := movingSamples[i-1].LapDistance
-			currD := movingSamples[i].LapDistance
-			if (prevD > 100 && currD < 100) || (prevD-currD > 500) {
-				movingSamples = movingSamples[i:]
-				break
-			}
-		}
-	} else {
-		// Fallback for live/uncompleted laps: find largest contiguous distance segment
-		bestStart := 0
-		bestEnd := len(cleaned)
-		maxDistSpan := 0.0
-		curStart := 0
-
-		for i := 1; i < len(cleaned); i++ {
-			prevD := cleaned[i-1].LapDistance
-			curD := cleaned[i].LapDistance
-			prevT := cleaned[i-1].SessionTime
-			curT := cleaned[i].SessionTime
-
-			if (prevD > 20 && curD < 15) || (prevD-curD > 30) || (curT < prevT) {
-				span := cleaned[i-1].LapDistance - cleaned[curStart].LapDistance
-				if span > maxDistSpan {
-					maxDistSpan = span
-					bestStart = curStart
-					bestEnd = i
-				}
-				curStart = i
-			}
-		}
-
-		lastSpan := cleaned[len(cleaned)-1].LapDistance - cleaned[curStart].LapDistance
-		if lastSpan >= maxDistSpan {
-			bestStart = curStart
-			bestEnd = len(cleaned)
-		}
-
-		movingSamples = cleaned[bestStart:bestEnd]
 	}
 
 	if len(movingSamples) == 0 {
@@ -316,44 +264,89 @@ func normalizeTelemetrySeries(samples []storage.TelemetrySample, expectedLapTime
 		return []storage.TelemetrySample{}
 	}
 
-	// Calibrate start timestamp t=0.000s at 0.0m
+	// Calibrate start line crossing (t = 0.000s at d = 0.0m)
 	firstSample := deduped[0]
 	firstDist := firstSample.LapDistance
-	startTime := firstSample.SessionTime
+	firstTime := firstSample.SessionTime
+	firstSpeed := float64(firstSample.Speed)
 
-	if firstDist > 0 && firstDist <= 25.0 {
-		rawSpeed := float64(firstSample.Speed)
-		if rawSpeed > 30 {
-			speedMS := (rawSpeed * 1000.0) / 3600.0
-			timeOffsetToZero := firstDist / speedMS
-			startTime = firstSample.SessionTime - timeOffsetToZero
+	startTime := firstTime
+	if firstDist > 0 {
+		speedMS := firstSpeed * 1000.0 / 3600.0
+		if speedMS < 10.0 {
+			speedMS = 10.0
+		}
+		timeOffsetToZero := firstDist / speedMS
+		startTime = firstTime - timeOffsetToZero
+	}
+
+	// Compute raw elapsed duration and end distance
+	lastSample := deduped[len(deduped)-1]
+	lastDist := lastSample.LapDistance
+	lastTimeElapsed := lastSample.SessionTime - startTime
+	lastSpeed := float64(lastSample.Speed)
+
+	endDist := lastDist
+	if targetTrackLength > 0 && targetTrackLength > lastDist {
+		endDist = targetTrackLength
+	}
+
+	rawTotalDuration := lastTimeElapsed
+	if endDist > lastDist {
+		lastSpeedMS := lastSpeed * 1000.0 / 3600.0
+		if lastSpeedMS < 10.0 {
+			lastSpeedMS = 10.0
+		}
+		rawTotalDuration += (endDist - lastDist) / lastSpeedMS
+	}
+
+	// Reconcile time scale with official lap duration when expectedLapTimeMs is provided
+	timeScale := 1.0
+	if expectedLapTimeMs > 0 && rawTotalDuration > 0 {
+		officialDuration := float64(expectedLapTimeMs) / 1000.0
+		ratio := officialDuration / rawTotalDuration
+		if ratio >= 0.85 && ratio <= 1.15 {
+			timeScale = ratio
 		}
 	}
 
-	result := make([]storage.TelemetrySample, 0, len(deduped)+1)
+	result := make([]storage.TelemetrySample, 0, len(deduped)+2)
 
-	// Synthesize clean 0.0m anchor
+	// Synthesize clean start anchor at d = 0.0m, t = 0.000s
 	if firstDist > 0.05 {
-		synth := firstSample
-		synth.LapDistance = 0
-		synth.SessionTime = 0
-		result = append(result, synth)
+		synthStart := firstSample
+		synthStart.LapDistance = 0.0
+		synthStart.SessionTime = 0.0
+		result = append(result, synthStart)
 	}
 
 	for _, s := range deduped {
 		dist := s.LapDistance
-		timeNorm := math.Max(0, s.SessionTime-startTime)
+		elapsed := math.Max(0, (s.SessionTime-startTime)*timeScale)
 		resSample := s
 		resSample.LapDistance = math.Round(dist*10) / 10
-		resSample.SessionTime = math.Round(timeNorm*1000) / 1000
+		resSample.SessionTime = math.Round(elapsed*1000) / 1000
 		result = append(result, resSample)
+	}
+
+	// Synthesize clean finish anchor at finish line if expectedLapTimeMs is known
+	if expectedLapTimeMs > 0 {
+		officialDuration := float64(expectedLapTimeMs) / 1000.0
+		synthEnd := lastSample
+		synthEnd.LapDistance = math.Round(endDist*10) / 10
+		synthEnd.SessionTime = math.Round(officialDuration*1000) / 1000
+		if len(result) > 0 && result[len(result)-1].LapDistance < synthEnd.LapDistance {
+			result = append(result, synthEnd)
+		} else if len(result) > 0 {
+			result[len(result)-1].SessionTime = synthEnd.SessionTime
+		}
 	}
 
 	// Optional track length scaling
 	if targetTrackLength > 0 && len(result) > 0 {
-		endDist := result[len(result)-1].LapDistance
-		if endDist > 0 && math.Abs(endDist-targetTrackLength) > 100 {
-			scale := targetTrackLength / endDist
+		currentEnd := result[len(result)-1].LapDistance
+		if currentEnd > 0 && math.Abs(currentEnd-targetTrackLength) > 100 {
+			scale := targetTrackLength / currentEnd
 			for i := range result {
 				result[i].LapDistance = math.Round(result[i].LapDistance*scale*10) / 10
 			}

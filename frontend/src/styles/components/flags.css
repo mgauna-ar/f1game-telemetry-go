@@ -40,7 +40,7 @@
   position: absolute;
   bottom: calc(100% + 6px);
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, 3px);
   background: rgba(15, 18, 25, 0.96);
   color: var(--text-primary, #ffffff);
   font-size: 0.72rem;
@@ -53,9 +53,17 @@
   white-space: nowrap;
   pointer-events: none;
   z-index: 1000;
-  animation: flagTooltipFade 0.15s cubic-bezier(0.16, 1, 0.3, 1);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s cubic-bezier(0.16, 1, 0.3, 1), transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.15s ease;
+}
+
+.track-flag-wrapper:hover .track-flag-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
 }
 
 .track-flag-tooltip::after {
@@ -67,15 +75,4 @@
   border-width: 4px;
   border-style: solid;
   border-color: rgba(15, 18, 25, 0.96) transparent transparent transparent;
-}
-
-@keyframes flagTooltipFade {
-  from {
-    opacity: 0;
-    transform: translate(-50%, 3px);
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, 0);
-  }
 }

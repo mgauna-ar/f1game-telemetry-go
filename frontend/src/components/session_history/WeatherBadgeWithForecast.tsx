@@ -20,24 +20,48 @@ interface WeatherBadgeWithForecastProps {
   className?: string;
 }
 
-const parseWeatherCode = (str: string): number => {
-  const s = str.toLowerCase();
-  if (s.includes('storm') || s.includes('thunder') || s.includes('tormenta')) return WEATHER_CODES.STORM;
-  if (s.includes('heavy rain') || s.includes('lluvia intensa') || s === 'rain') return WEATHER_CODES.HEAVY_RAIN;
-  if (s.includes('light rain') || s.includes('drizzle') || s.includes('lluvia ligera')) return WEATHER_CODES.LIGHT_RAIN;
-  if (s.includes('overcast') || s.includes('cloudy') || s.includes('nublado')) return WEATHER_CODES.OVERCAST;
-  if (s.includes('light cloud') || s.includes('partly') || s.includes('ligeramente nublado')) return WEATHER_CODES.LIGHT_CLOUD;
-  if (s.includes('clear') || s.includes('despejado') || s.includes('sunny') || s.includes('soleado')) return WEATHER_CODES.CLEAR;
-  return WEATHER_CODES.CLEAR;
+const WEATHER_STRING_TO_CODE: Record<string, number> = {
+  clear: WEATHER_CODES.CLEAR,
+  despejado: WEATHER_CODES.CLEAR,
+  sunny: WEATHER_CODES.CLEAR,
+  soleado: WEATHER_CODES.CLEAR,
+  light_cloud: WEATHER_CODES.LIGHT_CLOUD,
+  'light cloud': WEATHER_CODES.LIGHT_CLOUD,
+  'ligeramente nublado': WEATHER_CODES.LIGHT_CLOUD,
+  partly: WEATHER_CODES.LIGHT_CLOUD,
+  overcast: WEATHER_CODES.OVERCAST,
+  cloudy: WEATHER_CODES.OVERCAST,
+  nublado: WEATHER_CODES.OVERCAST,
+  light_rain: WEATHER_CODES.LIGHT_RAIN,
+  'light rain': WEATHER_CODES.LIGHT_RAIN,
+  drizzle: WEATHER_CODES.LIGHT_RAIN,
+  'lluvia ligera': WEATHER_CODES.LIGHT_RAIN,
+  heavy_rain: WEATHER_CODES.HEAVY_RAIN,
+  'heavy rain': WEATHER_CODES.HEAVY_RAIN,
+  rain: WEATHER_CODES.HEAVY_RAIN,
+  'lluvia intensa': WEATHER_CODES.HEAVY_RAIN,
+  storm: WEATHER_CODES.STORM,
+  thunder: WEATHER_CODES.STORM,
+  tormenta: WEATHER_CODES.STORM,
+};
+
+const parseWeatherCode = (val?: string | number): number => {
+  if (typeof val === 'number' && Number.isFinite(val)) {
+    return val >= WEATHER_CODES.CLEAR && val <= WEATHER_CODES.STORM ? val : WEATHER_CODES.CLEAR;
+  }
+  if (!val || typeof val !== 'string') {
+    return WEATHER_CODES.CLEAR;
+  }
+  const trimmed = val.trim().toLowerCase();
+  const numeric = Number(trimmed);
+  if (!Number.isNaN(numeric) && numeric >= WEATHER_CODES.CLEAR && numeric <= WEATHER_CODES.STORM) {
+    return numeric;
+  }
+  return WEATHER_STRING_TO_CODE[trimmed] ?? WEATHER_CODES.CLEAR;
 };
 
 const getWeatherIcon = (weatherNameOrCode?: string | number, size = 14) => {
-  const code =
-    typeof weatherNameOrCode === 'number'
-      ? weatherNameOrCode
-      : typeof weatherNameOrCode === 'string'
-        ? parseWeatherCode(weatherNameOrCode)
-        : WEATHER_CODES.CLEAR;
+  const code = parseWeatherCode(weatherNameOrCode);
 
   switch (code) {
     case WEATHER_CODES.CLEAR:
@@ -61,12 +85,7 @@ const getWeatherLabel = (
   weatherNameOrCode?: string | number,
   t?: (key: string, params?: Record<string, any>) => string
 ): string => {
-  const code =
-    typeof weatherNameOrCode === 'number'
-      ? weatherNameOrCode
-      : typeof weatherNameOrCode === 'string'
-        ? parseWeatherCode(weatherNameOrCode)
-        : WEATHER_CODES.CLEAR;
+  const code = parseWeatherCode(weatherNameOrCode);
 
   if (t) {
     switch (code) {

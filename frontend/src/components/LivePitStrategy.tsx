@@ -7,6 +7,7 @@ import {
   RESULT_STATUS,
   PIT_STATUS,
   TYRE_COMPOUND_IDS,
+  DEFAULT_PIT_STRATEGY_DEFAULTS,
 } from '../constants/f1';
 import { TyreCompoundBadge } from './common/TyreCompoundBadge';
 import type { ParticipantData, LapData, CarStatusData, SessionData } from '../types/telemetry';
@@ -43,9 +44,9 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = React.memo((props
 
   const { t } = useI18n();
 
-  const idealLap = session?.PitStopWindowIdealLap || 18;
-  const latestLap = session?.PitStopWindowLatestLap || 24;
-  const rejoinPos = session?.PitStopRejoinPosition || 6;
+  const idealLap = session?.PitStopWindowIdealLap || DEFAULT_PIT_STRATEGY_DEFAULTS.IDEAL_LAP;
+  const latestLap = session?.PitStopWindowLatestLap || DEFAULT_PIT_STRATEGY_DEFAULTS.LATEST_LAP;
+  const rejoinPos = session?.PitStopRejoinPosition || DEFAULT_PIT_STRATEGY_DEFAULTS.REJOIN_POSITION;
   const currentLeaderLap = Math.max(...laps.map((l) => l?.CurrentLapNum || 0), 1);
 
   // Check if current lap is inside the pit stop window

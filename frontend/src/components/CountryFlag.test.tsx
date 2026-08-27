@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import { I18nProvider } from '../context/I18nProvider';
 import { CountryFlag } from './CountryFlag';
@@ -31,22 +31,26 @@ describe('CountryFlag & TrackFlag Components', () => {
     expect(flag).toHaveAttribute('title', 'Argentina');
   });
 
-  it('shows tooltip on mouse enter and hides on mouse leave', () => {
+  it('renders tooltip with localized text when showTooltip is enabled', () => {
     render(
       <I18nProvider>
         <CountryFlag countryCode="gb" />
       </I18nProvider>
     );
 
-    const flag = screen.getByTestId('track-country-flag');
-    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
-
-    fireEvent.mouseEnter(flag);
     const tooltip = screen.getByRole('tooltip');
     expect(tooltip).toBeInTheDocument();
     expect(tooltip).toHaveTextContent('United Kingdom');
+    expect(tooltip).toHaveClass('track-flag-tooltip');
+  });
 
-    fireEvent.mouseLeave(flag);
+  it('omits tooltip element when showTooltip is false', () => {
+    render(
+      <I18nProvider>
+        <CountryFlag countryCode="gb" showTooltip={false} />
+      </I18nProvider>
+    );
+
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
   });
 

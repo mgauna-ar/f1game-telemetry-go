@@ -61,8 +61,8 @@ describe('LapComparator Component', () => {
 
     // Both sessions should be listed in the dropdown menu
     await waitFor(() => {
-      expect(screen.getByText('Monaco')).toBeInTheDocument();
-      expect(screen.getByText('Spa-Francorchamps')).toBeInTheDocument();
+      expect(screen.getByText('Monaco', { selector: '.custom-session-track' })).toBeInTheDocument();
+      expect(screen.getByText('Spa-Francorchamps', { selector: '.custom-session-track' })).toBeInTheDocument();
     });
     expect(screen.getByText('Sprint Race')).toHaveClass('badge-orange');
   });
@@ -91,25 +91,25 @@ describe('LapComparator Component', () => {
     fireEvent.click(trigger);
 
     await waitFor(() => {
-      expect(screen.getByText('Monaco')).toBeInTheDocument();
+      expect(screen.getByText('Monaco', { selector: '.custom-session-track' })).toBeInTheDocument();
     });
 
     // Search for "Silverstone"
     const searchInput = screen.getByPlaceholderText('Search track, type, date...');
     fireEvent.change(searchInput, { target: { value: 'Silverstone' } });
 
-    expect(screen.getByText('Silverstone')).toBeInTheDocument();
-    expect(screen.queryByText('Monaco')).not.toBeInTheDocument();
-    expect(screen.queryByText('Spa-Francorchamps')).not.toBeInTheDocument();
+    expect(screen.getByText('Silverstone', { selector: '.custom-session-track' })).toBeInTheDocument();
+    expect(screen.queryByText('Monaco', { selector: '.custom-session-track' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Spa-Francorchamps', { selector: '.custom-session-track' })).not.toBeInTheDocument();
 
     // Clear search and filter by "Sprint" tab
     fireEvent.change(searchInput, { target: { value: '' } });
     const sprintTab = screen.getByRole('button', { name: 'Sprint' });
     fireEvent.click(sprintTab);
 
-    expect(screen.getByText('Spa-Francorchamps')).toBeInTheDocument();
-    expect(screen.queryByText('Monaco')).not.toBeInTheDocument();
-    expect(screen.queryByText('Silverstone')).not.toBeInTheDocument();
+    expect(screen.getByText('Spa-Francorchamps', { selector: '.custom-session-track' })).toBeInTheDocument();
+    expect(screen.queryByText('Monaco', { selector: '.custom-session-track' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Silverstone', { selector: '.custom-session-track' })).not.toBeInTheDocument();
   });
 
   it('selects session, auto-selects laps and displays driver quick selects and custom lap triggers', async () => {
@@ -151,10 +151,10 @@ describe('LapComparator Component', () => {
     fireEvent.click(trigger);
 
     await waitFor(() => {
-      expect(screen.getByText('Monaco')).toBeInTheDocument();
+      expect(screen.getByText('Monaco', { selector: '.custom-session-track' })).toBeInTheDocument();
     });
 
-    const monacoOption = screen.getByText('Monaco');
+    const monacoOption = screen.getByText('Monaco', { selector: '.custom-session-track' });
     fireEvent.click(monacoOption);
 
     // Verify Session A and Session B triggers display Monaco (linked)

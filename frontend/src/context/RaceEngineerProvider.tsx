@@ -142,7 +142,10 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // Fetch server status on mount
   useEffect(() => {
     fetch('/api/ai/config-status')
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
       .then((data) => {
         setServerConfigStatus({
           hasGeminiEnvKey: data.has_gemini_env_key,

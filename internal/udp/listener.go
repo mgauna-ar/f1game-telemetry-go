@@ -30,9 +30,11 @@ type Listener struct {
 	bufferSize int
 	packets    chan RawPacket
 
-	mu    sync.RWMutex
-	conn  *net.UDPConn
-	ready chan struct{} // closed when the listener is ready to receive packets
+	mu        sync.RWMutex
+	conn      *net.UDPConn
+	closeOnce sync.Once
+	ready     chan struct{} // closed when the listener is ready to receive packets
+	bufPool   sync.Pool
 }
 
 // NewListener creates a new UDP listener with the given address and buffer size.
@@ -40,12 +42,17 @@ func NewListener(addr string, bufferSize int) *Listener {
 	if bufferSize <= 0 {
 		bufferSize = DefaultBufferSize
 	}
-	return &Listener{
+	l := &Listener{
 		addr:       addr,
 		bufferSize: bufferSize,
 		packets:    make(chan RawPacket, 2048),
 		ready:      make(chan struct{}),
 	}
+	l.bufPool.New = func() any {
+		b := make([]byte, l.bufferSize)
+		return &b
+	}
+	return l
 }
 
 // Packets returns a read-only channel that receives parsed raw packets.
@@ -62,6 +69,8 @@ func (l *Listener) Ready() <-chan struct{} {
 // Listen starts listening for UDP packets. It blocks until the context is
 // canceled or an unrecoverable error occurs.
 func (l *Listener) Listen(ctx context.Context) error {
+	defer close(l.packets)
+
 	udpAddr, err := net.ResolveUDPAddr("udp", l.addr)
 	if err != nil {
 		return fmt.Errorf("resolve UDP address %q: %w", l.addr, err)
@@ -84,10 +93,13 @@ func (l *Listener) Listen(ctx context.Context) error {
 	// Close the connection when context is canceled to unblock ReadFromUDP.
 	go func() {
 		<-ctx.Done()
-		conn.Close()
+		_ = l.closeConn()
 	}()
 
-	buf := make([]byte, l.bufferSize)
+	bufPtr := l.bufPool.Get().(*[]byte)
+	defer l.bufPool.Put(bufPtr)
+	buf := *bufPtr
+
 	for {
 		n, _, err := conn.ReadFromUDP(buf)
 		if err != nil {
@@ -124,14 +136,23 @@ func (l *Listener) Listen(ctx context.Context) error {
 	}
 }
 
+// closeConn closes the underlying UDP connection once.
+func (l *Listener) closeConn() error {
+	var err error
+	l.closeOnce.Do(func() {
+		l.mu.RLock()
+		conn := l.conn
+		l.mu.RUnlock()
+		if conn != nil {
+			err = conn.Close()
+		}
+	})
+	return err
+}
+
 // Close closes the UDP connection.
 func (l *Listener) Close() error {
-	l.mu.RLock()
-	defer l.mu.RUnlock()
-	if l.conn != nil {
-		return l.conn.Close()
-	}
-	return nil
+	return l.closeConn()
 }
 
 // Addr returns the local address the listener is bound to.

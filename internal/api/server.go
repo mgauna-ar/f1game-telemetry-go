@@ -640,6 +640,34 @@ func sanitizeFilename(s string) string {
 	return string(result)
 }
 
+// marshalAndCompressSessionPackage serializes and compresses an ExportedSessionPackage and builds its canonical filename.
+func marshalAndCompressSessionPackage(pkg *storage.ExportedSessionPackage, suffixID int64) ([]byte, string, error) {
+	rawJSON, err := json.Marshal(pkg)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to marshal session package: %w", err)
+	}
+
+	compressed := storage.CompressRaw(rawJSON)
+
+	var filename string
+	if suffixID > 0 {
+		filename = fmt.Sprintf("%s_%s_%s_%d.f1session",
+			sanitizeFilename(pkg.Session.TrackName),
+			sanitizeFilename(pkg.Session.SessionType),
+			pkg.Session.CreatedAt.Format("2006-01-02"),
+			suffixID,
+		)
+	} else {
+		filename = fmt.Sprintf("%s_%s_%s.f1session",
+			sanitizeFilename(pkg.Session.TrackName),
+			sanitizeFilename(pkg.Session.SessionType),
+			pkg.Session.CreatedAt.Format("2006-01-02"),
+		)
+	}
+
+	return compressed, filename, nil
+}
+
 func (s *Server) handleExportSession(w http.ResponseWriter, r *http.Request) {
 	sessionIDStr := chi.URLParam(r, "id")
 	sessionID, err := strconv.ParseInt(sessionIDStr, 10, 64)
@@ -655,19 +683,11 @@ func (s *Server) handleExportSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rawJSON, err := json.Marshal(pkg)
+	compressed, filename, err := marshalAndCompressSessionPackage(pkg, 0)
 	if err != nil {
 		http.Error(w, "Failed to encode session package", http.StatusInternalServerError)
 		return
 	}
-
-	compressed := storage.CompressRaw(rawJSON)
-
-	filename := fmt.Sprintf("%s_%s_%s.f1session",
-		sanitizeFilename(pkg.Session.TrackName),
-		sanitizeFilename(pkg.Session.SessionType),
-		pkg.Session.CreatedAt.Format("2006-01-02"),
-	)
 
 	w.Header().Set("Content-Type", "application/octet-stream")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
@@ -713,19 +733,11 @@ func (s *Server) handleExportSessionBatch(w http.ResponseWriter, r *http.Request
 			continue
 		}
 
-		rawJSON, err := json.Marshal(pkg)
+		compressed, filename, err := marshalAndCompressSessionPackage(pkg, id)
 		if err != nil {
 			log.Printf("Failed to marshal exported package for session %d: %v", id, err)
 			continue
 		}
-
-		compressed := storage.CompressRaw(rawJSON)
-		filename := fmt.Sprintf("%s_%s_%s_%d.f1session",
-			sanitizeFilename(pkg.Session.TrackName),
-			sanitizeFilename(pkg.Session.SessionType),
-			pkg.Session.CreatedAt.Format("2006-01-02"),
-			id,
-		)
 
 		f, err := zw.Create(filename)
 		if err != nil {

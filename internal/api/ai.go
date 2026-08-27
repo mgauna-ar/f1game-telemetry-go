@@ -38,6 +38,36 @@ func (s *Server) handleAIConfigStatus(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// resolveAIProviderAndKey normalizes the provider and retrieves the active API key (from payload or env).
+func resolveAIProviderAndKey(reqProvider, reqAPIKey string) (provider, apiKey string) {
+	provider = strings.ToLower(strings.TrimSpace(reqProvider))
+	if provider == "" {
+		provider = "gemini"
+	}
+
+	apiKey = strings.TrimSpace(reqAPIKey)
+	if apiKey == "" {
+		if provider == "gemini" {
+			apiKey = strings.TrimSpace(os.Getenv("GEMINI_API_KEY"))
+		} else {
+			apiKey = strings.TrimSpace(os.Getenv("OPENAI_API_KEY"))
+		}
+	}
+	return provider, apiKey
+}
+
+// resolveDefaultModel returns the requested model or default model for the provider.
+func resolveDefaultModel(provider, reqModel string) string {
+	model := strings.TrimSpace(reqModel)
+	if model != "" {
+		return model
+	}
+	if provider == "gemini" {
+		return "gemini-flash-lite-latest"
+	}
+	return "gpt-4o-mini"
+}
+
 // handleAIFetchModels queries the provider API for available active text-generation models.
 func (s *Server) handleAIFetchModels(w http.ResponseWriter, r *http.Request) {
 	var req AIFetchModelsRequest
@@ -46,19 +76,7 @@ func (s *Server) handleAIFetchModels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	provider := strings.ToLower(strings.TrimSpace(req.Provider))
-	if provider == "" {
-		provider = "gemini"
-	}
-
-	apiKey := strings.TrimSpace(req.APIKey)
-	if apiKey == "" {
-		if provider == "gemini" {
-			apiKey = strings.TrimSpace(os.Getenv("GEMINI_API_KEY"))
-		} else {
-			apiKey = strings.TrimSpace(os.Getenv("OPENAI_API_KEY"))
-		}
-	}
+	provider, apiKey := resolveAIProviderAndKey(req.Provider, req.APIKey)
 
 	if apiKey == "" && provider != "custom" {
 		w.Header().Set("Content-Type", "application/json")
@@ -114,19 +132,7 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Resolve Provider and API Key
-	provider := strings.ToLower(strings.TrimSpace(req.Provider))
-	if provider == "" {
-		provider = "gemini"
-	}
-
-	apiKey := strings.TrimSpace(req.APIKey)
-	if apiKey == "" {
-		if provider == "gemini" {
-			apiKey = strings.TrimSpace(os.Getenv("GEMINI_API_KEY"))
-		} else {
-			apiKey = strings.TrimSpace(os.Getenv("OPENAI_API_KEY"))
-		}
-	}
+	provider, apiKey := resolveAIProviderAndKey(req.Provider, req.APIKey)
 
 	if apiKey == "" && provider != "custom" {
 		w.Header().Set("Content-Type", "application/json")
@@ -140,14 +146,7 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Model fallback defaults
-	model := strings.TrimSpace(req.Model)
-	if model == "" {
-		if provider == "gemini" {
-			model = "gemini-flash-lite-latest"
-		} else {
-			model = "gpt-4o-mini"
-		}
-	}
+	model := resolveDefaultModel(provider, req.Model)
 
 	// Setup SSE streaming headers
 	flusher, ok := w.(http.Flusher)

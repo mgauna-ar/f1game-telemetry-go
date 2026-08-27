@@ -23,19 +23,20 @@ import { VoiceCockpitView } from './VoiceCockpitView';
 import { useRadioController } from '../hooks/useRadioController';
 import { useProactiveTelemetryRadio } from '../hooks/useProactiveTelemetryRadio';
 import { formatProactiveFallbackSpeech } from '../utils/radioAudio';
+import { useI18n } from '../context/I18nContext';
 
-const getDriverStatusLabel = (status?: number): string => {
+const getDriverStatusLabel = (status?: number, t?: (key: string) => string): string => {
   switch (status) {
     case DRIVER_STATUS.FLYING_LAP:
-      return 'Flying Lap (Hot Lap)';
+      return t ? t('live.driverFlyingLap') : 'Flying Lap (Hot Lap)';
     case DRIVER_STATUS.OUT_LAP:
-      return 'Out-Lap (Warming tyres / Building gap)';
+      return t ? t('live.driverOutLap') : 'Out-Lap (Warming tyres / Building gap)';
     case DRIVER_STATUS.IN_LAP:
-      return 'In-Lap (Returning to box)';
+      return t ? t('live.driverInLap') : 'In-Lap (Returning to box)';
     case DRIVER_STATUS.IN_GARAGE:
-      return 'In Garage / Pit Lane';
+      return t ? t('live.driverInGarage') : 'In Garage / Pit Lane';
     default:
-      return 'On Track';
+      return t ? t('live.driverOnTrack') : 'On Track';
   }
 };
 
@@ -78,6 +79,7 @@ export const Dashboard: React.FC = () => {
   const session = useTelemetryStore((s) => s.session);
   const connected = useTelemetryStore((s) => s.connected);
   const packetFormat = useTelemetryStore((s) => s.packetFormat);
+  const { t } = useI18n();
 
   const { setLiveContext, setContextMode } = useRaceEngineerActions();
 
@@ -107,7 +109,7 @@ export const Dashboard: React.FC = () => {
     const playerStatus = state.allCarStatus[pIdx] || null;
     const playerDamage = state.allCarDamage[pIdx] || null;
     const playerTelemetry = state.allTelemetry[pIdx] || null;
-    const playerRunStatus = getDriverStatusLabel(playerLap?.DriverStatus);
+    const playerRunStatus = getDriverStatusLabel(playerLap?.DriverStatus, t);
     const lapValidity = playerLap?.CurrentLapInvalid === 1 ? 'INVALIDATED (Track Limits Exceeded)' : 'Valid';
 
     let tyreWearSummary = 'Tyres: Normal wear';
@@ -190,7 +192,7 @@ export const Dashboard: React.FC = () => {
     if (warningsSummary) lines.push(warningsSummary);
 
     return lines.join('\n');
-  }, []);
+  }, [t]);
 
   const radio = useRadioController({
     getLiveTelemetrySummary,

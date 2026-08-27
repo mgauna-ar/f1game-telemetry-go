@@ -1,5 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import type { MergedTelemetryPoint, TrackTurn } from '../types/comparator';
+import { TRACK_MAP_CONSTANTS } from '../constants/f1';
 
 interface ComparatorTrackMapProps {
   data: MergedTelemetryPoint[];
@@ -15,7 +16,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
   data,
   turns = [],
   activeDistance,
-  height = 360,
+  height = TRACK_MAP_CONSTANTS.DEFAULT_HEIGHT,
   sector1Distance,
   sector2Distance,
   onSelectDistance,
@@ -77,7 +78,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
 
       const rangeX = maxX - minX || 1;
       const rangeZ = maxZ - minZ || 1;
-      const padding = 28;
+      const padding = TRACK_MAP_CONSTANTS.PADDING;
 
       const availableW = rectWidth - padding * 2;
       const availableH = rectHeight - padding * 2;
@@ -135,7 +136,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
       }
 
       // Draw subtle track line background shadow for depth
-      ctx.lineWidth = 5.5;
+      ctx.lineWidth = TRACK_MAP_CONSTANTS.SHADOW_LINE_WIDTH;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
@@ -152,7 +153,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
       ctx.stroke();
 
       // Draw track line segments with speed delta colors
-      ctx.lineWidth = 3.5;
+      ctx.lineWidth = TRACK_MAP_CONSTANTS.LINE_WIDTH;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
 
@@ -299,13 +300,13 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         const isNearHover =
           activeDistance !== undefined &&
           activeDistance !== null &&
-          Math.abs(turn.distance - activeDistance) < 40;
+          Math.abs(turn.distance - activeDistance) < TRACK_MAP_CONSTANTS.APEX_NEAR_DISTANCE;
 
         turnHitboxesRef.current.push({
           turn,
           x: apexX,
           y: apexY,
-          radius: 12,
+          radius: TRACK_MAP_CONSTANTS.APEX_HOVER_RADIUS,
         });
 
         if (isNearHover) {
@@ -477,7 +478,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
       }
     }
 
-    if (minCanvasDist < 30) {
+    if (minCanvasDist < TRACK_MAP_CONSTANTS.CLICK_MAX_DISTANCE) {
       onSelectDistance(closestPoint.lap_distance);
     }
   };
@@ -518,7 +519,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
       }
     }
 
-    if (minCanvasDist < 30) {
+    if (minCanvasDist < TRACK_MAP_CONSTANTS.CLICK_MAX_DISTANCE) {
       onSelectDistance(closestPoint.lap_distance);
     }
   };

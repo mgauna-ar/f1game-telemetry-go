@@ -216,8 +216,9 @@ func TestCalculateMergedComparison(t *testing.T) {
 		if finalPt.LapDistance != 5000.0 {
 			t.Errorf("expected final distance 5000m, got %f", finalPt.LapDistance)
 		}
-		if finalPt.TimeDelta == nil || *finalPt.TimeDelta >= 0.0 {
-			t.Errorf("expected Lap A to be faster (time_delta < 0), got %v", finalPt.TimeDelta)
+		expectedDelta := float64(88000-89000) / 1000.0 // -1.000s
+		if finalPt.TimeDelta == nil || math.Abs(*finalPt.TimeDelta-expectedDelta) > 0.005 {
+			t.Errorf("expected final delta %f, got %v", expectedDelta, finalPt.TimeDelta)
 		}
 		if finalPt.SpeedA == nil || finalPt.SpeedB == nil {
 			t.Fatal("expected valid speedA and speedB")

@@ -142,6 +142,7 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
     setBatchSelectedTagId,
     importingSession,
     toastMessage,
+    setToastMessage,
     handleToggleSelectSession,
     handleToggleSelectAll,
     handleClearSelection,
@@ -715,11 +716,17 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
         deletingSessionId={deletingSessionId}
         onCancel={() => setSessionToDelete(null)}
         onConfirm={() =>
-          confirmDeleteSession((id) => {
-            if (selectedSession && selectedSession.id === id) {
-              setSelectedSession(null);
+          confirmDeleteSession(
+            (id) => {
+              if (selectedSession && selectedSession.id === id) {
+                setSelectedSession(null);
+              }
+              setToastMessage({ type: 'success', text: t('history.batch.deleteSelected', { count: 1 }) });
+            },
+            (err) => {
+              setToastMessage({ type: 'error', text: `${t('history.deleteError') || 'Delete error'}: ${err.message || err}` });
             }
-          })
+          )
         }
       />
 

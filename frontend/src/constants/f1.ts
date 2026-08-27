@@ -713,4 +713,25 @@ export type LiveViewMode = (typeof LIVE_VIEW_MODES)[keyof typeof LIVE_VIEW_MODES
 
 export const STORAGE_KEY_LIVE_VIEW_MODE = 'f1_live_view_mode';
 
+export const DEFAULT_PIT_STRATEGY_DEFAULTS = {
+  IDEAL_LAP: 18,
+  LATEST_LAP: 24,
+  REJOIN_POSITION: 6,
+} as const;
+
+export const DEFAULT_WEATHER_DEFAULTS = {
+  TRACK_TEMP: 28,
+  AIR_TEMP: 22,
+} as const;
+
+export const TRACK_MAP_CONSTANTS = {
+  PADDING: 28,
+  LINE_WIDTH: 3.5,
+  SHADOW_LINE_WIDTH: 5.5,
+  DEFAULT_HEIGHT: 360,
+  APEX_HOVER_RADIUS: 12,
+  APEX_NEAR_DISTANCE: 40,
+  CLICK_MAX_DISTANCE: 30,
+} as const;
+
 

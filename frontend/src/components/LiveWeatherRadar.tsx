@@ -1,7 +1,7 @@
 import React from 'react';
 import { Cloud, Sun, CloudRain, CloudLightning, CloudDrizzle, Thermometer, Droplets, TrendingUp, TrendingDown, Minus, Wind } from 'lucide-react';
 import type { SessionData, WeatherForecastSample } from '../hooks/useTelemetry';
-import { WEATHER_CODES, SESSION_TYPES } from '../constants/f1';
+import { WEATHER_CODES, SESSION_TYPES, DEFAULT_WEATHER_DEFAULTS } from '../constants/f1';
 import { useI18n } from '../context/I18nContext';
 
 import { useTelemetryStore } from '../store/useTelemetryStore';
@@ -16,8 +16,8 @@ export const LiveWeatherRadar: React.FC<LiveWeatherRadarProps> = React.memo((pro
 
   const { t } = useI18n();
   const weatherCode = session?.Weather ?? WEATHER_CODES.CLEAR;
-  const trackTemp = session?.TrackTemperature ?? 28;
-  const airTemp = session?.AirTemperature ?? 22;
+  const trackTemp = session?.TrackTemperature ?? DEFAULT_WEATHER_DEFAULTS.TRACK_TEMP;
+  const airTemp = session?.AirTemperature ?? DEFAULT_WEATHER_DEFAULTS.AIR_TEMP;
 
   const getWeatherMeta = (wCode: number) => {
     switch (wCode) {

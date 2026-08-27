@@ -35,8 +35,17 @@ const (
 	defaultDBPath   = "f1telemetry.db"
 )
 
-func main() {
-	// 1. CLI Flags
+// ServerConfig holds the runtime configuration parameters for the server.
+type ServerConfig struct {
+	UDPAddr     string
+	HTTPAddr    string
+	DBPath      string
+	NoBrowser   bool
+	ShowVersion bool
+}
+
+// loadServerConfig parses CLI flags and environment variable fallbacks.
+func loadServerConfig() ServerConfig {
 	udpFlag := flag.String("udp", getEnv("F1T_UDP_ADDR", defaultUDPAddr), "UDP listen address for F1 telemetry packets")
 	httpFlag := flag.String("http", getEnv("F1T_HTTP_ADDR", defaultHTTPAddr), "HTTP server address for Web Dashboard and API")
 	dbFlag := flag.String("db", getEnv("F1T_DB_PATH", defaultDBPath), "Path to SQLite database file")
@@ -44,27 +53,35 @@ func main() {
 	versionFlag := flag.Bool("version", false, "Print version information and exit")
 	flag.Parse()
 
-	if *versionFlag {
+	return ServerConfig{
+		UDPAddr:     *udpFlag,
+		HTTPAddr:    *httpFlag,
+		DBPath:      *dbFlag,
+		NoBrowser:   *noBrowserFlag,
+		ShowVersion: *versionFlag,
+	}
+}
+
+func main() {
+	cfg := loadServerConfig()
+
+	if cfg.ShowVersion {
 		fmt.Printf("F1 Telemetry Analyzer %s (commit: %s, built: %s)\n", version, commit, date)
 		os.Exit(0)
 	}
 
-	udpAddr := *udpFlag
-	httpAddr := *httpFlag
-	dbPath := *dbFlag
-
 	api.SetAppVersion(version, commit, date)
 
 	// Calculate display URLs
-	port := extractPort(httpAddr, "8080")
+	port := extractPort(cfg.HTTPAddr, "8080")
 	localURL := fmt.Sprintf("http://localhost:%s", port)
 	lanIP := system.GetLocalIP()
 	lanURL := fmt.Sprintf("http://%s:%s", lanIP, port)
 
-	printStartupBanner(version, commit, localURL, lanURL, udpAddr, dbPath)
+	printStartupBanner(version, commit, localURL, lanURL, cfg.UDPAddr, cfg.DBPath)
 
 	// 2. Setup Storage
-	repo, err := storage.NewSQLiteRepository(dbPath)
+	repo, err := storage.NewSQLiteRepository(cfg.DBPath)
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
@@ -92,7 +109,7 @@ func main() {
 	apiServer.SetEngineerEngine(engineerEngine)
 
 	srv := &http.Server{
-		Addr:    httpAddr,
+		Addr:    cfg.HTTPAddr,
 		Handler: apiServer.Router(),
 	}
 
@@ -103,7 +120,7 @@ func main() {
 	}()
 
 	// 6. Auto-launch browser if not disabled
-	if !*noBrowserFlag {
+	if !cfg.NoBrowser {
 		go func() {
 			// Small delay to allow HTTP server socket bind
 			time.Sleep(350 * time.Millisecond)
@@ -122,7 +139,7 @@ func main() {
 	liveBroadcaster.Start(ctx, 100*time.Millisecond)
 
 	// 9. Setup UDP Listener
-	listener := udp.NewListener(udpAddr, udp.DefaultBufferSize)
+	listener := udp.NewListener(cfg.UDPAddr, udp.DefaultBufferSize)
 	go func() {
 		if err := listener.Listen(ctx); err != nil {
 			log.Fatalf("UDP listener error: %v", err)
@@ -132,12 +149,15 @@ func main() {
 
 	// 10. Packet Processing Loop
 	go func() {
-		log.Printf("Ready to receive telemetry on UDP %s (F1 2025/2026)...", udpAddr)
+		log.Printf("Ready to receive telemetry on UDP %s (F1 2025/2026)...", cfg.UDPAddr)
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case rawPkt := <-listener.Packets():
+			case rawPkt, ok := <-listener.Packets():
+				if !ok {
+					return
+				}
 				pkt, err := packets.Decode(rawPkt.Data)
 				if err != nil {
 					// Ignore unknown packets or decode errors to avoid log spam

@@ -61,7 +61,7 @@ export function useSessionFilters({
 
     const list = sessions.filter((s) => {
       const trackInfo = getTrackInfo(s.track_name);
-      const localizedCountry = trackInfo ? (t as any)(`common.countries.${trackInfo.countryCode}`) : '';
+      const localizedCountry = trackInfo ? t(`common.countries.${trackInfo.countryCode}`) : '';
       const countryMatches =
         trackInfo &&
         (trackInfo.countryIso3.toLowerCase().includes(query) ||

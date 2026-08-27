@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useI18n } from '../context/I18nContext';
 
 export interface CountryFlagProps {
@@ -354,7 +354,6 @@ export const CountryFlag: React.FC<CountryFlagProps> = ({
   tooltipText,
 }) => {
   const { t } = useI18n();
-  const [isHovered, setIsHovered] = useState(false);
 
   const normalizedCode = countryCode ? countryCode.trim().toLowerCase() : '';
   const hasValidFlag = Boolean(normalizedCode && SVG_FLAGS[normalizedCode]);
@@ -363,16 +362,13 @@ export const CountryFlag: React.FC<CountryFlagProps> = ({
   // Resolve localized country name
   const localizedName =
     tooltipText ||
-    (hasValidFlag ? (t as any)(`common.countries.${normalizedCode}`) : (t as any)('common.countries.unknown')) ||
+    (hasValidFlag ? t(`common.countries.${normalizedCode}`) : t('common.countries.unknown')) ||
     'International / Unknown';
-
 
   return (
     <span
       className={`track-flag-wrapper ${className}`}
       style={{ width: `${width}px`, height: `${height}px` }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
       title={localizedName}
       data-testid="track-country-flag"
       data-country={normalizedCode || 'unknown'}
@@ -382,7 +378,7 @@ export const CountryFlag: React.FC<CountryFlagProps> = ({
       <span className="track-flag-box">
         {flagSvg}
       </span>
-      {showTooltip && isHovered && (
+      {showTooltip && (
         <span className="track-flag-tooltip" role="tooltip">
           {localizedName}
         </span>

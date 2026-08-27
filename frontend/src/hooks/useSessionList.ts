@@ -10,7 +10,10 @@ export interface UseSessionListReturn {
   setSessionToDelete: React.Dispatch<React.SetStateAction<Session | null>>;
   deletingSessionId: number | null;
   fetchSessions: () => Promise<void>;
-  confirmDeleteSession: (onDeleted?: (deletedId: number) => void) => Promise<void>;
+  confirmDeleteSession: (
+    onDeleted?: (deletedId: number) => void,
+    onError?: (err: any) => void
+  ) => Promise<void>;
 }
 
 export function useSessionList(): UseSessionListReturn {
@@ -36,7 +39,10 @@ export function useSessionList(): UseSessionListReturn {
   }, []);
 
   const confirmDeleteSession = useCallback(
-    async (onDeleted?: (deletedId: number) => void) => {
+    async (
+      onDeleted?: (deletedId: number) => void,
+      onError?: (err: any) => void
+    ) => {
       if (!sessionToDelete) return;
       const targetId = sessionToDelete.id;
       setDeletingSessionId(targetId);
@@ -53,7 +59,10 @@ export function useSessionList(): UseSessionListReturn {
         setSessionToDelete(null);
       } catch (err: any) {
         console.error('Error deleting session:', err);
-        alert(`Error deleting session: ${err.message || err}`);
+        setError(err.message || 'Failed to delete session');
+        if (onError) {
+          onError(err);
+        }
       } finally {
         setDeletingSessionId(null);
       }
