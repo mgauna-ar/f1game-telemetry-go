@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import {
   LineChart,
   Line,
@@ -11,10 +11,11 @@ import {
 } from 'recharts';
 import { TrendingUp, Award, Layers, Filter, Activity, Clock } from 'lucide-react';
 import { TEAM_COLORS } from '../../constants/f1';
-import type { DriverStanding } from '../../types/session';
+import type { DriverStanding, ProgressionResponse } from '../../types/session';
 import { useI18n } from '../../context/I18nContext';
 
 interface SessionLapChartsTabProps {
+  progressionData?: ProgressionResponse | null;
   driverStandings: DriverStanding[];
   totalSessionLaps: number;
   formatLapTime: (ms: number) => string;
@@ -44,10 +45,11 @@ const compactTooltipProps = {
 };
 
 export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
+  progressionData,
   driverStandings,
   totalSessionLaps,
   formatLapTime,
-  isRaceSession = true,
+  isRaceSession: _isRaceSession = true,
 }) => {
   const { t } = useI18n();
   const [activeChart, setActiveChart] = useState<'pace' | 'position' | 'gap'>('pace');
@@ -82,223 +84,10 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
 
   const activeDriverStandings = driverStandings.filter((d) => selectedDrivers[d.participant.car_index]);
 
-  // Check if recorded car_position has real dynamic per-lap variation across drivers
-  const hasDynamicCarPositions = useMemo(() => {
-    let hasVariation = false;
-    driverStandings.forEach((driver) => {
-      const positions = driver.laps
-        .filter((l) => l.car_position !== undefined && l.car_position > 0)
-        .map((l) => l.car_position!);
-      if (positions.length > 1) {
-        const first = positions[0];
-        if (positions.some((p) => p !== first)) {
-          hasVariation = true;
-        }
-      }
-    });
-    return hasVariation;
-  }, [driverStandings]);
-
-  // 1. Build Lap Progression Data (always includes all recorded laps)
-  const lapProgressionData = useMemo(() => {
-    if (totalSessionLaps === 0 || driverStandings.length === 0) return [];
-
-    const data: Array<{ lapNumber: number; [key: string]: any }> = [];
-
-    for (let lapNum = 1; lapNum <= totalSessionLaps; lapNum++) {
-      const point: { lapNumber: number; [key: string]: any } = { lapNumber: lapNum };
-
-      driverStandings.forEach((driver) => {
-        const carIdx = driver.participant.car_index;
-        const lap = driver.laps.find((l) => l.lap_number === lapNum);
-
-        if (lap && lap.lap_time_ms > 0) {
-          // Convert to seconds for cleaner chart scales
-          point[`driver_${carIdx}`] = parseFloat((lap.lap_time_ms / 1000).toFixed(3));
-          point[`driver_${carIdx}_tyre`] = lap.tyre_compound;
-          point[`driver_${carIdx}_rawMS`] = lap.lap_time_ms;
-        }
-      });
-
-      data.push(point);
-    }
-
-    return data;
-  }, [driverStandings, totalSessionLaps]);
-
-  // 2. Build Position Progression Data
-  const positionProgressionData = useMemo(() => {
-    if (totalSessionLaps === 0 || driverStandings.length === 0) return [];
-
-    const data: Array<{ lapNumber: number; [key: string]: any }> = [];
-
-    for (let lapNum = 1; lapNum <= totalSessionLaps; lapNum++) {
-      const point: { lapNumber: number; [key: string]: any } = { lapNumber: lapNum };
-
-      if (isRaceSession) {
-        // Race mode: evaluate active drivers who completed this lap
-        const activeDriversAtLap: Array<{
-          carIdx: number;
-          cumulativeMS: number;
-          hasLap: boolean;
-          directPos?: number;
-          gridPosition: number;
-        }> = [];
-
-        driverStandings.forEach((driver) => {
-          const lapsUpTo = driver.laps.filter((l) => l.lap_number <= lapNum && l.lap_time_ms > 0);
-          const currentLap = driver.laps.find((l) => l.lap_number === lapNum);
-          const hasCurrentLap = !!(currentLap && currentLap.lap_time_ms > 0);
-          const totalMS = lapsUpTo.reduce((sum, l) => sum + l.lap_time_ms, 0);
-          const directPos = currentLap?.car_position;
-
-          if (hasCurrentLap) {
-            activeDriversAtLap.push({
-              carIdx: driver.participant.car_index,
-              cumulativeMS: totalMS,
-              hasLap: true,
-              directPos: directPos && directPos > 0 ? directPos : undefined,
-              gridPosition: driver.gridPosition || driver.officialPos || driver.participant.car_index + 1,
-            });
-          }
-        });
-
-        // Sort by dynamic in-game position if recorded, or by cumulative race time
-        const sorted = [...activeDriversAtLap].sort((a, b) => {
-          if (hasDynamicCarPositions && a.directPos && b.directPos) {
-            return a.directPos - b.directPos;
-          }
-          if (a.cumulativeMS !== b.cumulativeMS) {
-            return a.cumulativeMS - b.cumulativeMS;
-          }
-          return a.gridPosition - b.gridPosition;
-        });
-
-        sorted.forEach((item, index) => {
-          point[`driver_${item.carIdx}`] = hasDynamicCarPositions && item.directPos ? item.directPos : index + 1;
-        });
-      } else {
-        // Qualifying / Practice mode: evaluate classification by best valid lap time up to this lap
-        const activeDriversAtLap: Array<{
-          carIdx: number;
-          bestTimeMS: number;
-          hasLap: boolean;
-          gridPosition: number;
-        }> = [];
-
-        driverStandings.forEach((driver) => {
-          const lapsUpTo = driver.laps.filter((l) => l.lap_number <= lapNum && l.lap_time_ms > 0);
-          const validLapsUpTo = lapsUpTo.filter((l) => l.is_valid);
-          const consideredLaps = validLapsUpTo.length > 0 ? validLapsUpTo : lapsUpTo;
-          const hasDrivenUpTo = lapsUpTo.length > 0;
-
-          if (hasDrivenUpTo) {
-            const bestTimeMS = consideredLaps.reduce(
-              (min, l) => (l.lap_time_ms < min ? l.lap_time_ms : min),
-              consideredLaps[0].lap_time_ms
-            );
-
-            activeDriversAtLap.push({
-              carIdx: driver.participant.car_index,
-              bestTimeMS,
-              hasLap: driver.laps.some((l) => l.lap_number === lapNum),
-              gridPosition: driver.gridPosition || driver.officialPos || driver.participant.car_index + 1,
-            });
-          }
-        });
-
-        const sorted = [...activeDriversAtLap].sort((a, b) => {
-          if (a.bestTimeMS !== b.bestTimeMS) {
-            return a.bestTimeMS - b.bestTimeMS;
-          }
-          return a.gridPosition - b.gridPosition;
-        });
-
-        sorted.forEach((item, index) => {
-          point[`driver_${item.carIdx}`] = index + 1;
-        });
-      }
-
-      data.push(point);
-    }
-
-    return data;
-  }, [driverStandings, totalSessionLaps, isRaceSession, hasDynamicCarPositions]);
-
-  // 3. Build Gap to Leader Data
-  const gapToLeaderData = useMemo(() => {
-    if (totalSessionLaps === 0 || driverStandings.length === 0) return [];
-
-    const data: Array<{ lapNumber: number; [key: string]: any }> = [];
-
-    for (let lapNum = 1; lapNum <= totalSessionLaps; lapNum++) {
-      const point: { lapNumber: number; [key: string]: any } = { lapNumber: lapNum };
-
-      if (isRaceSession) {
-        const completedDrivers: Array<{ carIdx: number; cumulativeMS: number }> = [];
-
-        driverStandings.forEach((driver) => {
-          const lapsUpTo = driver.laps.filter((l) => l.lap_number <= lapNum && l.lap_time_ms > 0);
-          const hasCurrentLap = driver.laps.some((l) => l.lap_number === lapNum && l.lap_time_ms > 0);
-
-          if (hasCurrentLap && lapsUpTo.length === lapNum) {
-            const cumulativeMS = lapsUpTo.reduce((sum, l) => sum + l.lap_time_ms, 0);
-            completedDrivers.push({
-              carIdx: driver.participant.car_index,
-              cumulativeMS,
-            });
-          }
-        });
-
-        if (completedDrivers.length > 0) {
-          const leaderCumMS = completedDrivers.reduce(
-            (min, d) => (d.cumulativeMS < min ? d.cumulativeMS : min),
-            completedDrivers[0].cumulativeMS
-          );
-
-          completedDrivers.forEach((driver) => {
-            const gapSec = Math.max(0, (driver.cumulativeMS - leaderCumMS) / 1000);
-            point[`driver_${driver.carIdx}`] = parseFloat(gapSec.toFixed(3));
-          });
-        }
-      } else {
-        const driversWithTimes: Array<{ carIdx: number; bestTimeMS: number }> = [];
-
-        driverStandings.forEach((driver) => {
-          const lapsUpTo = driver.laps.filter((l) => l.lap_number <= lapNum && l.lap_time_ms > 0);
-          const validLapsUpTo = lapsUpTo.filter((l) => l.is_valid);
-          const consideredLaps = validLapsUpTo.length > 0 ? validLapsUpTo : lapsUpTo;
-
-          if (consideredLaps.length > 0) {
-            const bestTimeMS = consideredLaps.reduce(
-              (min, l) => (l.lap_time_ms < min ? l.lap_time_ms : min),
-              consideredLaps[0].lap_time_ms
-            );
-            driversWithTimes.push({
-              carIdx: driver.participant.car_index,
-              bestTimeMS,
-            });
-          }
-        });
-
-        if (driversWithTimes.length > 0) {
-          const leaderBestMS = driversWithTimes.reduce(
-            (min, d) => (d.bestTimeMS < min ? d.bestTimeMS : min),
-            driversWithTimes[0].bestTimeMS
-          );
-
-          driversWithTimes.forEach((driver) => {
-            const gapSec = Math.max(0, (driver.bestTimeMS - leaderBestMS) / 1000);
-            point[`driver_${driver.carIdx}`] = parseFloat(gapSec.toFixed(3));
-          });
-        }
-      }
-
-      data.push(point);
-    }
-
-    return data;
-  }, [driverStandings, totalSessionLaps, isRaceSession]);
+  // Direct consumption of server-computed progression matrices
+  const lapProgressionData = progressionData?.lap_pace || [];
+  const positionProgressionData = progressionData?.positions || [];
+  const gapToLeaderData = progressionData?.gap_to_leader || [];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>

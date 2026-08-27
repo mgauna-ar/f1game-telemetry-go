@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { Zap, Gauge, Award, Layers } from 'lucide-react';
 import { TEAM_COLORS } from '../../constants/f1';
-import type { DriverStanding } from '../../types/session';
+import type { DriverStanding, ClassificationResponse } from '../../types/session';
 import { useI18n } from '../../context/I18nContext';
 
 interface SessionSectorMatrixTabProps {
+  classificationData?: ClassificationResponse | null;
   driverStandings: DriverStanding[];
   sessionBestS1: number;
   sessionBestS2: number;
@@ -13,6 +14,7 @@ interface SessionSectorMatrixTabProps {
 }
 
 export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
+  classificationData,
   driverStandings,
   sessionBestS1,
   sessionBestS2,
@@ -41,46 +43,48 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
   }, [driverStandings, sessionBestS3]);
 
   // Absolute theoretical best lap of the entire session
-  const ultimateSessionLapMS =
-    sessionBestS1 > 0 && sessionBestS2 > 0 && sessionBestS3 > 0
-      ? sessionBestS1 + sessionBestS2 + sessionBestS3
-      : 0;
+  const ultimateSessionLapMS = classificationData?.ultimate_theoretical_ms ?? 0;
 
   // Actual best lap of the session
   const actualSessionBestLap = useMemo<{ bestMS: number; driver: DriverStanding | null }>(() => {
-    let best = Infinity;
-    let holder: DriverStanding | null = null;
-    driverStandings.forEach((d) => {
-      if (d.bestLapTimeMS > 0 && d.bestLapTimeMS < best) {
-        best = d.bestLapTimeMS;
-        holder = d;
-      }
-    });
-    return { bestMS: best < Infinity ? best : 0, driver: holder };
-  }, [driverStandings]);
+    if (classificationData && classificationData.actual_best_lap_ms > 0) {
+      const holder =
+        driverStandings.find(
+          (d) =>
+            d.driver_name === classificationData.actual_best_lap_driver ||
+            d.participant.name === classificationData.actual_best_lap_driver
+        ) || null;
+      return { bestMS: classificationData.actual_best_lap_ms, driver: holder };
+    }
+    return { bestMS: 0, driver: null };
+  }, [classificationData, driverStandings]);
 
   const ultimateDeltaMS =
     actualSessionBestLap.bestMS > 0 && ultimateSessionLapMS > 0
       ? actualSessionBestLap.bestMS - ultimateSessionLapMS
       : 0;
 
-  // Compute maximum top speed across all drivers from telemetry laps
+  // Maximum top speed across all drivers from server speed rankings
   const speedRankings = useMemo(() => {
-    return [...driverStandings]
-      .map((d) => {
-        let maxSpeed = 0;
-        if ((d as any).maxSpeed > 0) {
-          maxSpeed = (d as any).maxSpeed;
-        } else if (d.bestLapTimeMS > 0) {
-          maxSpeed = Math.round(310 + (d.participant.car_index % 25));
-        }
-        return {
-          ...d,
-          maxSpeed,
-        };
-      })
-      .sort((a, b) => b.maxSpeed - a.maxSpeed);
-  }, [driverStandings]);
+    if (!classificationData?.speed_rankings) return [];
+    return classificationData.speed_rankings.map((sr) => {
+      const d = driverStandings.find((ds) => ds.participant.car_index === sr.car_index);
+      return {
+        ...d,
+        participant: d?.participant || {
+          id: sr.car_index,
+          session_id: 0,
+          car_index: sr.car_index,
+          name: sr.driver_name,
+          driver_id: 0,
+          team_id: sr.team_id,
+          race_number: 0,
+          ai_controlled: false,
+        },
+        maxSpeed: sr.max_speed,
+      };
+    });
+  }, [classificationData, driverStandings]);
 
   const maxOverallSpeed = speedRankings.length > 0 ? speedRankings[0].maxSpeed : 350;
 

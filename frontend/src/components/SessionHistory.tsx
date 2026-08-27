@@ -31,8 +31,6 @@ import { TagFilterBar } from './session_history/TagFilterBar';
 import { F1FormatBadge } from './F1FormatBadge';
 import { WeatherBadgeWithForecast } from './session_history/WeatherBadgeWithForecast';
 import { TrackFlag } from './TrackFlag';
-import { RESULT_STATUS, RESULT_REASONS } from '../constants/f1';
-import { filterActiveHistoricalParticipants } from '../utils/driverFilter';
 
 import { useRaceEngineer } from '../context/RaceEngineerContext';
 import { useI18n } from '../context/I18nContext';
@@ -45,6 +43,9 @@ import type {
   DriverStanding,
   NavigationComparatorPayload,
   Tag,
+  ClassificationResponse,
+  ProgressionResponse,
+  StintsResponse,
 } from '../types/session';
 import { SessionComparatorDock } from './session_history/SessionComparatorDock';
 import { SessionBatchDock } from './session_history/SessionBatchDock';
@@ -67,7 +68,9 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
   // Selected Session Detail state
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [loadingDetail, setLoadingDetail] = useState<boolean>(false);
-  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [classificationData, setClassificationData] = useState<ClassificationResponse | null>(null);
+  const [progressionData, setProgressionData] = useState<ProgressionResponse | null>(null);
+  const [stintsData, setStintsData] = useState<StintsResponse | null>(null);
   const [laps, setLaps] = useState<Lap[]>([]);
   const [expandedDrivers, setExpandedDrivers] = useState<Record<number, boolean>>({});
 
@@ -180,12 +183,16 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
     setActiveDetailTab('classification');
 
     try {
-      const [partsRes, lapsRes] = await Promise.all([
-        fetch(`/api/sessions/${session.id}/participants`),
+      const [classRes, progRes, stintsRes, lapsRes] = await Promise.all([
+        fetch(`/api/sessions/${session.id}/classification`),
+        fetch(`/api/sessions/${session.id}/progression`),
+        fetch(`/api/sessions/${session.id}/stints`),
         fetch(`/api/sessions/${session.id}/laps`),
       ]);
 
-      const partsData = partsRes.ok ? await partsRes.json() : [];
+      const classData: ClassificationResponse | null = classRes.ok ? await classRes.json() : null;
+      const progData: ProgressionResponse | null = progRes.ok ? await progRes.json() : null;
+      const stintsDataRes: StintsResponse | null = stintsRes.ok ? await stintsRes.json() : null;
       const lapsData = lapsRes.ok ? await lapsRes.json() : [];
 
       const normalizedLaps: Lap[] = (lapsData || []).map((l: Lap) => {
@@ -197,7 +204,9 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
         return { ...l, sector3_ms: s3 };
       });
 
-      setParticipants(partsData || []);
+      setClassificationData(classData);
+      setProgressionData(progData);
+      setStintsData(stintsDataRes);
       setLaps(normalizedLaps);
     } catch (err: any) {
       console.error('Error fetching session details:', err);
@@ -357,204 +366,54 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
 
   const isRaceSession = !!selectedSession?.session_type?.toLowerCase().includes('race');
 
-  // Sector Records across entire session
-  const { sessionBestS1, sessionBestS2, sessionBestS3 } = useMemo(() => {
-    let s1 = Infinity;
-    let s2 = Infinity;
-    let s3 = Infinity;
-    laps.forEach((l) => {
-      if (l.is_valid && l.lap_time_ms > 0) {
-        const lapS3 =
-          l.sector3_ms !== undefined && l.sector3_ms > 0
-            ? l.sector3_ms
-            : l.sector1_ms && l.sector2_ms && l.sector1_ms > 0 && l.sector2_ms > 0
-            ? l.lap_time_ms - (l.sector1_ms + l.sector2_ms)
-            : 0;
+  // Sector Records across entire session (from server classification)
+  const sessionBestS1 = classificationData?.session_best_s1_ms ?? 0;
+  const sessionBestS2 = classificationData?.session_best_s2_ms ?? 0;
+  const sessionBestS3 = classificationData?.session_best_s3_ms ?? 0;
 
-        const isS1Valid = l.sector1_valid ?? true;
-        const isS2Valid = l.sector2_valid ?? true;
-        const isS3Valid = l.sector3_valid ?? true;
-
-        if (isS1Valid && l.sector1_ms !== undefined && l.sector1_ms > 0 && l.sector1_ms < s1) s1 = l.sector1_ms;
-        if (isS2Valid && l.sector2_ms !== undefined && l.sector2_ms > 0 && l.sector2_ms < s2) s2 = l.sector2_ms;
-        if (isS3Valid && lapS3 > 0 && lapS3 < s3) s3 = lapS3;
-      }
-    });
-
-    return {
-      sessionBestS1: s1 < Infinity ? s1 : 0,
-      sessionBestS2: s2 < Infinity ? s2 : 0,
-      sessionBestS3: s3 < Infinity ? s3 : 0,
-    };
-  }, [laps]);
-
-  // Driver standings calculation for selected session
+  // Driver standings for selected session (from server classification)
   const driverStandings: DriverStanding[] = useMemo(() => {
-    if (!selectedSession) return [];
+    if (!selectedSession || !classificationData?.standings) return [];
 
-    const lapsByCar: Record<number, Lap[]> = {};
-    laps.forEach((l) => {
-      const cIdx = l.car_index ?? 0;
-      if (!lapsByCar[cIdx]) lapsByCar[cIdx] = [];
-      lapsByCar[cIdx].push(l);
-    });
-
-    const rawStandings = (
-      participants.length > 0
-        ? filterActiveHistoricalParticipants(participants, laps, isRaceSession)
-        : Object.keys(lapsByCar).map((idxStr): Participant => ({
-            id: Number(idxStr),
-            session_id: selectedSession.id,
-            car_index: Number(idxStr),
-            name: `Driver ${Number(idxStr) + 1}`,
-            driver_id: 0,
-            team_id: 0,
-            race_number: Number(idxStr) + 1,
-            ai_controlled: false,
-          }))
-    ).map((p: Participant) => {
-      const rawDriverLaps = lapsByCar[p.car_index] || [];
-      const sortedRawLaps = [...rawDriverLaps].sort((a, b) => a.lap_number - b.lap_number);
-      const completedLaps = sortedRawLaps.filter((l) => l.lap_time_ms > 0);
-      const driverLaps = completedLaps.length > 0 ? completedLaps : sortedRawLaps;
-      const validLaps = driverLaps.filter((l) => l.is_valid && l.lap_time_ms > 0);
-
-      let bestLap: Lap | null = null;
-      if (validLaps.length > 0) {
-        bestLap = validLaps.reduce((prev, curr) => (curr.lap_time_ms < prev.lap_time_ms ? curr : prev), validLaps[0]);
-      } else if (driverLaps.length > 0) {
-        bestLap = driverLaps.reduce((prev, curr) => (curr.lap_time_ms < prev.lap_time_ms ? curr : prev), driverLaps[0]);
-      }
-
-      const lastCompletedLap =
-        [...completedLaps].reverse().find((l) => l.lap_time_ms > 0) ||
-        (sortedRawLaps.length > 0 ? sortedRawLaps[sortedRawLaps.length - 1] : null);
-      const lastLapTimeMS = lastCompletedLap && lastCompletedLap.lap_time_ms > 0 ? lastCompletedLap.lap_time_ms : 0;
-
-      const officialTotalTimeMS = p.total_race_time && p.total_race_time > 0 ? Math.round(p.total_race_time * 1000) : 0;
-      const officialPenaltiesSec = p.penalties_time !== undefined && p.penalties_time > 0 ? p.penalties_time : 0;
-      const penaltySeconds = officialPenaltiesSec > 0 ? officialPenaltiesSec : driverLaps.reduce((maxPen, l) => Math.max(maxPen, l.penalties_seconds || 0), 0);
-      const totalRaceTimeMS = officialTotalTimeMS > 0 ? officialTotalTimeMS : driverLaps.reduce((acc, l) => acc + (l.lap_time_ms > 0 ? l.lap_time_ms : 0), 0);
-      const totalRaceTimeWithPenalties = totalRaceTimeMS + penaltySeconds * 1000;
-
-      const lapWithPos = [...sortedRawLaps].reverse().find((l) => l.car_position && l.car_position > 0);
-      const officialPos = p.position && p.position > 0 ? p.position : (lapWithPos ? lapWithPos.car_position! : 0);
-      const gridPosition = p.grid_position && p.grid_position > 0 ? p.grid_position : 0;
-      const positionsGained = gridPosition > 0 && officialPos > 0 ? gridPosition - officialPos : undefined;
-      const points = p.points !== undefined && p.points > 0 ? p.points : 0;
-      const resultReason = p.result_reason !== undefined ? p.result_reason : 0;
-      const pitStopsCount = p.num_pit_stops !== undefined && p.num_pit_stops > 0 ? p.num_pit_stops : 0;
-
-      const lapWithStatus = [...sortedRawLaps].reverse().find((l) => l.result_status !== undefined && l.result_status > 0);
-      const resStatus = lapWithStatus ? lapWithStatus.result_status! : 0;
-
-      const isDSQ = resStatus === RESULT_STATUS.DSQ || resultReason === RESULT_REASONS.BLACK_FLAGGED;
-      const isFinished = resStatus === RESULT_STATUS.FINISHED || resultReason === RESULT_REASONS.FINISHED;
-      const isDNF =
-        !isDSQ &&
-        !isFinished &&
-        (resStatus === RESULT_STATUS.DNF ||
-          resStatus === RESULT_STATUS.NOT_CLASSIFIED ||
-          resStatus === RESULT_STATUS.RETIRED ||
-          resultReason === RESULT_REASONS.RETIRED ||
-          resultReason === RESULT_REASONS.TERMINAL_DAMAGE ||
-          resultReason === RESULT_REASONS.MECHANICAL_FAILURE ||
-          resultReason === RESULT_REASONS.NOT_ENOUGH_LAPS);
-
-      const maxSpeed = driverLaps.reduce((max, l) => Math.max(max, l.max_speed_kmh || 0), 0);
-
-      // Best Sectors per driver (accounting for sector validity flags)
-      let bestS1MS = 0;
-      let bestS2MS = 0;
-      let bestS3MS = 0;
-
-      validLaps.forEach((l) => {
-        const lapS3 =
-          l.sector3_ms !== undefined && l.sector3_ms > 0
-            ? l.sector3_ms
-            : l.sector1_ms && l.sector2_ms && l.sector1_ms > 0 && l.sector2_ms > 0
-            ? l.lap_time_ms - (l.sector1_ms + l.sector2_ms)
-            : 0;
-
-        const isS1Valid = l.sector1_valid ?? true;
-        const isS2Valid = l.sector2_valid ?? true;
-        const isS3Valid = l.sector3_valid ?? true;
-
-        if (isS1Valid && l.sector1_ms !== undefined && l.sector1_ms > 0 && (bestS1MS === 0 || l.sector1_ms < bestS1MS)) bestS1MS = l.sector1_ms;
-        if (isS2Valid && l.sector2_ms !== undefined && l.sector2_ms > 0 && (bestS2MS === 0 || l.sector2_ms < bestS2MS)) bestS2MS = l.sector2_ms;
-        if (isS3Valid && lapS3 > 0 && (bestS3MS === 0 || lapS3 < bestS3MS)) bestS3MS = lapS3;
-      });
-
-      const theoreticalBestMS = bestS1MS > 0 && bestS2MS > 0 && bestS3MS > 0 ? bestS1MS + bestS2MS + bestS3MS : 0;
-
+    return classificationData.standings.map((s) => {
+      const p: Participant = s.participant || {
+        id: s.car_index ?? 0,
+        session_id: selectedSession.id,
+        car_index: s.car_index ?? 0,
+        name: s.driver_name || '',
+        driver_id: 0,
+        team_id: s.team_id ?? 0,
+        race_number: s.race_number ?? 0,
+        ai_controlled: s.ai_controlled ?? false,
+        position: s.position,
+        grid_position: s.grid_position,
+        points: s.points,
+        result_reason: s.result_reason,
+      };
       return {
+        ...s,
         participant: p,
-        laps: driverLaps,
-        bestLap,
-        bestLapTimeMS: bestLap ? bestLap.lap_time_ms : Infinity,
-        lastLap: lastCompletedLap,
-        lastLapTimeMS,
-        totalRaceTimeMS,
-        penaltySeconds,
-        totalRaceTimeWithPenalties,
-        officialPos,
-        gridPosition,
-        positionsGained,
-        points,
-        resultReason,
-        pitStopsCount,
-        isDNF,
-        isDSQ,
-        maxSpeed,
-        bestS1MS,
-        bestS2MS,
-        bestS3MS,
-        theoreticalBestMS,
+        bestLap: s.best_lap || s.bestLap || null,
+        bestLapTimeMS: s.best_lap_time_ms ?? s.bestLapTimeMS ?? 0,
+        lastLap: s.last_lap || s.lastLap || null,
+        lastLapTimeMS: s.last_lap_time_ms ?? s.lastLapTimeMS ?? 0,
+        totalRaceTimeMS: s.total_race_time_ms ?? s.totalRaceTimeMS ?? 0,
+        totalRaceTimeWithPenalties: s.total_with_penalties_ms ?? s.totalRaceTimeWithPenalties ?? 0,
+        penaltySeconds: s.penalty_seconds ?? s.penaltySeconds ?? 0,
+        officialPos: s.position,
+        gridPosition: s.grid_position,
+        positionsGained: s.positions_gained,
+        isDNF: s.is_dnf ?? s.isDNF ?? false,
+        isDSQ: s.is_dsq ?? s.isDSQ ?? false,
+        maxSpeed: s.max_speed ?? s.maxSpeed ?? 0,
+        bestS1MS: s.best_s1_ms ?? s.bestS1MS ?? 0,
+        bestS2MS: s.best_s2_ms ?? s.bestS2MS ?? 0,
+        bestS3MS: s.best_s3_ms ?? s.bestS3MS ?? 0,
+        theoreticalBestMS: s.theoretical_best_ms ?? s.theoreticalBestMS ?? 0,
+        laps: s.laps || [],
       };
     });
-
-    // Sort standings
-    if (isRaceSession) {
-      rawStandings.sort((a, b) => {
-        if (a.isDSQ !== b.isDSQ) return a.isDSQ ? 1 : -1;
-        if (a.isDNF !== b.isDNF) return a.isDNF ? 1 : -1;
-
-        if (a.officialPos > 0 && b.officialPos > 0) return a.officialPos - b.officialPos;
-        if (a.officialPos > 0 && b.officialPos === 0) return -1;
-        if (a.officialPos === 0 && b.officialPos > 0) return 1;
-
-        if (b.laps.length !== a.laps.length) return b.laps.length - a.laps.length;
-
-        return (a.totalRaceTimeWithPenalties ?? 0) - (b.totalRaceTimeWithPenalties ?? 0);
-      });
-    } else {
-      rawStandings.sort((a, b) => {
-        if (a.isDSQ !== b.isDSQ) return a.isDSQ ? 1 : -1;
-
-        const timeA = a.bestLapTimeMS;
-        const timeB = b.bestLapTimeMS;
-
-        if (timeA !== Infinity && timeB !== Infinity) {
-          if (timeA !== timeB) return timeA - timeB;
-        } else if (timeA !== Infinity && timeB === Infinity) {
-          return -1;
-        } else if (timeA === Infinity && timeB !== Infinity) {
-          return 1;
-        }
-
-        if (a.officialPos > 0 && b.officialPos > 0) return a.officialPos - b.officialPos;
-        if (a.officialPos > 0 && b.officialPos === 0) return -1;
-        if (a.officialPos === 0 && b.officialPos > 0) return 1;
-
-        return a.participant.car_index - b.participant.car_index;
-      });
-    }
-
-    return rawStandings.map((d, index) => ({
-      ...d,
-      position: index + 1,
-    }));
-  }, [selectedSession, participants, laps, isRaceSession]);
+  }, [classificationData, selectedSession]);
 
   // Helper to format tyre stints for debrief
   const getStintsText = (driverLaps: Lap[]) => {
@@ -637,9 +496,15 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
   }, [selectedSession, driverStandings, sessionBestS1, sessionBestS2, sessionBestS3, isRaceSession, setSessionDebriefContext, setContextMode]);
 
   const totalSessionLaps = useMemo(() => {
+    if (progressionData && progressionData.total_session_laps > 0) {
+      return progressionData.total_session_laps;
+    }
+    if (selectedSession?.total_laps && selectedSession.total_laps > 0) {
+      return selectedSession.total_laps;
+    }
     if (!laps || laps.length === 0) return 0;
     return laps.reduce((max, l) => (l.lap_time_ms > 0 && l.lap_number > max ? l.lap_number : max), 0);
-  }, [laps]);
+  }, [progressionData, selectedSession, laps]);
 
   const totalDriversCount = driverStandings.length;
 
@@ -1041,6 +906,7 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
             />
           ) : activeDetailTab === 'charts' ? (
             <SessionLapChartsTab
+              progressionData={progressionData}
               driverStandings={driverStandings}
               totalSessionLaps={totalSessionLaps}
               formatLapTime={formatLapTime}
@@ -1048,6 +914,7 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
             />
           ) : activeDetailTab === 'stints' ? (
             <SessionStintStrategyTab
+              stintsData={stintsData}
               driverStandings={driverStandings}
               totalSessionLaps={totalSessionLaps}
               formatLapTime={formatLapTime}
@@ -1055,6 +922,7 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
             />
           ) : (
             <SessionSectorMatrixTab
+              classificationData={classificationData}
               driverStandings={driverStandings}
               sessionBestS1={sessionBestS1}
               sessionBestS2={sessionBestS2}

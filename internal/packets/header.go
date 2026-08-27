@@ -31,20 +31,18 @@ const (
 // VisualTyreCompoundName returns the human-readable visual tyre compound name.
 func VisualTyreCompoundName(compound uint8) string {
 	switch compound {
-	case CompoundSoft, CompoundClassicS:
-		return "SOFT"
+	case CompoundSoft, CompoundClassicS, CompoundSuperSoft:
+		return CompoundNameSoft
 	case CompoundMedium, CompoundClassicM:
-		return "MEDIUM"
+		return CompoundNameMedium
 	case CompoundHard, CompoundClassicH:
-		return "HARD"
+		return CompoundNameHard
 	case CompoundInter:
-		return "INTERMEDIATE"
+		return CompoundNameIntermediate
 	case CompoundWet:
-		return "WET"
-	case CompoundSuperSoft:
-		return "SOFT"
+		return CompoundNameWet
 	default:
-		return "MEDIUM"
+		return CompoundNameMedium
 	}
 }
 
@@ -189,12 +187,45 @@ var TeamNames = map[uint16]string{
 	484: "McLaren '26", 485: "Audi '26", 486: "Cadillac '26",
 }
 
+// TeamColors maps official EA team ID to hex color code.
+var TeamColors = map[uint16]string{
+	0:   "#00D2BE", // Mercedes
+	1:   "#DC0000", // Ferrari
+	2:   "#3671C6", // Red Bull Racing
+	3:   "#64C4FF", // Williams
+	4:   "#229971", // Aston Martin
+	5:   "#0090FF", // Alpine
+	6:   "#6692FF", // RB
+	7:   "#6CD3BF", // Haas
+	8:   "#FF8000", // McLaren
+	9:   "#002B30", // Sauber
+	476: "#00D2BE", // Mercedes '26
+	477: "#DC0000", // Ferrari '26
+	478: "#3671C6", // Red Bull Racing '26
+	479: "#64C4FF", // Williams '26
+	480: "#229971", // Aston Martin '26
+	481: "#0090FF", // Alpine '26
+	482: "#6692FF", // RB '26
+	483: "#6CD3BF", // Haas '26
+	484: "#FF8000", // McLaren '26
+	485: "#C0C0C0", // Audi '26
+	486: "#D4AF37", // Cadillac '26
+}
+
 // TeamName returns the team name for the given team ID.
 func TeamName(id uint16) string {
 	if name, ok := TeamNames[id]; ok {
 		return name
 	}
 	return fmt.Sprintf("Team %d", id)
+}
+
+// TeamColor returns the hex color string for the given team ID.
+func TeamColor(id uint16) string {
+	if col, ok := TeamColors[id]; ok {
+		return col
+	}
+	return "#00f2fe"
 }
 
 // PacketHeader is the header present at the start of every UDP packet.

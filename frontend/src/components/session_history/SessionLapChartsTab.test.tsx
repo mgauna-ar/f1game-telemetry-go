@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import { SessionLapChartsTab } from './SessionLapChartsTab';
 import { I18nProvider } from '../../context/I18nProvider';
-import type { DriverStanding } from '../../types/session';
+import type { DriverStanding, ProgressionResponse } from '../../types/session';
 
 describe('SessionLapChartsTab Component', () => {
   const mockDriverStandings: DriverStanding[] = [
@@ -22,7 +22,7 @@ describe('SessionLapChartsTab Component', () => {
       bestLap: null,
       laps: [
         { id: 1, session_id: 100, car_index: 0, lap_number: 1, lap_time_ms: 88500, is_valid: true, tyre_compound: 'MEDIUM', car_position: 1 },
-        { id: 2, session_id: 100, car_index: 0, lap_number: 2, lap_time_ms: 115000, is_valid: true, tyre_compound: 'MEDIUM', car_position: 1 }, // Pit in-lap
+        { id: 2, session_id: 100, car_index: 0, lap_number: 2, lap_time_ms: 115000, is_valid: true, tyre_compound: 'MEDIUM', car_position: 1 },
         { id: 3, session_id: 100, car_index: 0, lap_number: 3, lap_time_ms: 87500, is_valid: true, tyre_compound: 'HARD', car_position: 1 },
       ],
       bestS1MS: 28000,
@@ -60,6 +60,29 @@ describe('SessionLapChartsTab Component', () => {
     },
   ];
 
+  const mockProgressionData: ProgressionResponse = {
+    lap_pace: [
+      { lapNumber: 1, driver_0: 88.5, driver_1: 89.0 },
+      { lapNumber: 2, driver_0: 115.0, driver_1: 88.9 },
+      { lapNumber: 3, driver_0: 87.5, driver_1: 87.9 },
+    ],
+    positions: [
+      { lapNumber: 1, driver_0: 1, driver_1: 2 },
+      { lapNumber: 2, driver_0: 2, driver_1: 1 },
+      { lapNumber: 3, driver_0: 1, driver_1: 2 },
+    ],
+    gap_to_leader: [
+      { lapNumber: 1, driver_0: 0.0, driver_1: 0.5 },
+      { lapNumber: 2, driver_0: 26.1, driver_1: 0.0 },
+      { lapNumber: 3, driver_0: 0.0, driver_1: 0.4 },
+    ],
+    drivers: [
+      { car_index: 0, driver_name: 'Max Verstappen', race_number: 1, team_id: 9, team_color: '#3671C6' },
+      { car_index: 1, driver_name: 'Lewis Hamilton', race_number: 44, team_id: 1, team_color: '#DC0000' },
+    ],
+    total_session_laps: 3,
+  };
+
   const formatLapTime = (ms: number) => {
     if (!ms || ms <= 0) return '--:--.---';
     const min = Math.floor(ms / 60000);
@@ -71,6 +94,7 @@ describe('SessionLapChartsTab Component', () => {
     render(
       <I18nProvider>
         <SessionLapChartsTab
+          progressionData={mockProgressionData}
           driverStandings={mockDriverStandings}
           totalSessionLaps={3}
           formatLapTime={formatLapTime}
@@ -91,6 +115,7 @@ describe('SessionLapChartsTab Component', () => {
     render(
       <I18nProvider>
         <SessionLapChartsTab
+          progressionData={mockProgressionData}
           driverStandings={mockDriverStandings}
           totalSessionLaps={3}
           formatLapTime={formatLapTime}
@@ -113,6 +138,7 @@ describe('SessionLapChartsTab Component', () => {
     render(
       <I18nProvider>
         <SessionLapChartsTab
+          progressionData={mockProgressionData}
           driverStandings={mockDriverStandings}
           totalSessionLaps={3}
           formatLapTime={formatLapTime}
@@ -129,10 +155,11 @@ describe('SessionLapChartsTab Component', () => {
     expect(screen.getByText(/Lap-by-Lap Pace Evolution/i)).toBeInTheDocument();
   });
 
-  it('renders position progression with accurate position changes in race mode', () => {
+  it('renders position progression in race mode', () => {
     render(
       <I18nProvider>
         <SessionLapChartsTab
+          progressionData={mockProgressionData}
           driverStandings={mockDriverStandings}
           totalSessionLaps={3}
           formatLapTime={formatLapTime}
@@ -147,66 +174,12 @@ describe('SessionLapChartsTab Component', () => {
     expect(screen.getByText(/Position Progression/i)).toBeInTheDocument();
   });
 
-  it('renders position progression in qualifying mode based on best lap up to each lap', () => {
-    const qualyStandings: DriverStanding[] = [
-      {
-        position: 1,
-        participant: {
-          id: 1,
-          session_id: 101,
-          car_index: 0,
-          name: 'Max Verstappen',
-          driver_id: 1,
-          team_id: 9,
-          race_number: 1,
-          ai_controlled: false,
-        },
-        bestLapTimeMS: 86500,
-        bestLap: null,
-        laps: [
-          { id: 1, session_id: 101, car_index: 0, lap_number: 1, lap_time_ms: 88500, is_valid: true, tyre_compound: 'SOFT' }, // P1 (88.5s)
-          { id: 2, session_id: 101, car_index: 0, lap_number: 2, lap_time_ms: 110000, is_valid: true, tyre_compound: 'SOFT' }, // In-lap
-          { id: 3, session_id: 101, car_index: 0, lap_number: 3, lap_time_ms: 86500, is_valid: true, tyre_compound: 'SOFT' }, // P1 (86.5s)
-        ],
-        bestS1MS: 28000,
-        bestS2MS: 32000,
-        bestS3MS: 26500,
-        maxSpeed: 330,
-        isDSQ: false,
-        isDNF: false,
-      },
-      {
-        position: 2,
-        participant: {
-          id: 2,
-          session_id: 101,
-          car_index: 1,
-          name: 'Lando Norris',
-          driver_id: 3,
-          team_id: 3,
-          race_number: 4,
-          ai_controlled: false,
-        },
-        bestLapTimeMS: 87000,
-        bestLap: null,
-        laps: [
-          { id: 4, session_id: 101, car_index: 1, lap_number: 1, lap_time_ms: 89000, is_valid: true, tyre_compound: 'SOFT' }, // P2 (89.0s)
-          { id: 5, session_id: 101, car_index: 1, lap_number: 2, lap_time_ms: 87000, is_valid: true, tyre_compound: 'SOFT' }, // Takes P1 (87.0s vs 88.5s)
-          { id: 6, session_id: 101, car_index: 1, lap_number: 3, lap_time_ms: 115000, is_valid: true, tyre_compound: 'SOFT' }, // Drops to P2 after Max 86.5s
-        ],
-        bestS1MS: 28100,
-        bestS2MS: 32200,
-        bestS3MS: 26700,
-        maxSpeed: 328,
-        isDSQ: false,
-        isDNF: false,
-      },
-    ];
-
+  it('renders position progression in qualifying mode', () => {
     render(
       <I18nProvider>
         <SessionLapChartsTab
-          driverStandings={qualyStandings}
+          progressionData={mockProgressionData}
+          driverStandings={mockDriverStandings}
           totalSessionLaps={3}
           formatLapTime={formatLapTime}
           isRaceSession={false}

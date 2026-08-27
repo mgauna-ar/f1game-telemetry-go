@@ -19,11 +19,12 @@ import {
   Zap,
 } from 'lucide-react';
 import { TEAM_COLORS, TYRE_COMPOUNDS, TYRE_COMPOUND_IDS } from '../../constants/f1';
-import type { DriverStanding, Lap } from '../../types/session';
+import type { DriverStanding, Lap, StintsResponse } from '../../types/session';
 import { useI18n } from '../../context/I18nContext';
 import { TyreCompoundBadge } from '../common/TyreCompoundBadge';
 
 interface SessionStintStrategyTabProps {
+  stintsData?: StintsResponse | null;
   driverStandings: DriverStanding[];
   totalSessionLaps: number;
   formatLapTime: (ms: number) => string;
@@ -42,6 +43,7 @@ export interface DriverStint {
   avgLapTimeMS: number;
   bestLapTimeMS: number;
   hasPitStopAfter: boolean;
+  degSlopeSecPerLap?: number | null;
 }
 
 export interface DriverStintData {
@@ -95,43 +97,12 @@ const getCompoundColor = (compound?: string): string => {
   return '#A0A0A0';
 };
 
-const normalizeCompoundName = (raw?: string): string => {
-  if (!raw) return 'UNKNOWN';
-  const str = raw.toUpperCase().trim();
-  if (str === String(TYRE_COMPOUND_IDS.INTERMEDIATE) || str.includes('INTER') || str === 'I') return 'INTERMEDIATE';
-  if (str === String(TYRE_COMPOUND_IDS.SOFT) || str.includes('SOFT') || str === 'S') return 'SOFT';
-  if (str === String(TYRE_COMPOUND_IDS.MEDIUM) || str.includes('MEDIUM') || str === 'MED' || str === 'M') return 'MEDIUM';
-  if (str === String(TYRE_COMPOUND_IDS.HARD) || str.includes('HARD') || str === 'H') return 'HARD';
-  if (str === String(TYRE_COMPOUND_IDS.WET) || str.includes('WET') || str === 'W') return 'WET';
-  return str;
-};
-
-// Helper: Simple Linear Regression for degradation rate (slope: ms per lap)
-const calculateDegradationSlope = (dataPoints: Array<{ age: number; timeSec: number }>): number | null => {
-  if (dataPoints.length < 3) return null;
-  const n = dataPoints.length;
-  let sumX = 0;
-  let sumY = 0;
-  let sumXY = 0;
-  let sumXX = 0;
-
-  for (const pt of dataPoints) {
-    sumX += pt.age;
-    sumY += pt.timeSec;
-    sumXY += pt.age * pt.timeSec;
-    sumXX += pt.age * pt.age;
-  }
-
-  const denominator = n * sumXX - sumX * sumX;
-  if (denominator === 0) return null;
-  const slope = (n * sumXY - sumX * sumY) / denominator;
-  return slope;
-};
-
 export const SessionStintStrategyTab: React.FC<SessionStintStrategyTabProps> = ({
+  stintsData,
   driverStandings,
   totalSessionLaps,
   formatLapTime,
+  renderTyreBadge: _renderTyreBadge,
 }) => {
   const { t } = useI18n();
 
@@ -172,93 +143,64 @@ export const SessionStintStrategyTab: React.FC<SessionStintStrategyTabProps> = (
     setSelectedDrivers({});
   };
 
-  // 1. Process all drivers and extract complete Stint structures
+  // 1. Process server-computed Stint structures with driverStandings metadata
   const driverStintsData: DriverStintData[] = useMemo(() => {
-    return driverStandings.map((driver) => {
-      const sortedLaps = [...driver.laps].sort((a, b) => a.lap_number - b.lap_number);
-      const rawStints: DriverStint[] = [];
-      let currentStint: DriverStint | null = null;
+    if (!stintsData?.drivers) return [];
 
-      sortedLaps.forEach((lap) => {
-        const rawComp = lap.tyre_compound || 'UNKNOWN';
-        const normComp = normalizeCompoundName(rawComp);
-        const lapStintId = lap.stint && lap.stint > 0 ? lap.stint : 0;
-
-        const isNewStint =
-          !currentStint ||
-          (lapStintId > 0 && currentStint.stintId > 0 && lapStintId !== currentStint.stintId) ||
-          currentStint.compound !== normComp;
-
-        if (isNewStint || !currentStint) {
-          if (currentStint) {
-            currentStint.hasPitStopAfter = true;
-          }
-          currentStint = {
-            stintIndex: rawStints.length + 1,
-            stintId: lapStintId,
-            compound: normComp,
-            actualCompound: lap.actual_compound,
-            startLap: lap.lap_number,
-            endLap: lap.lap_number,
-            totalLaps: 1,
-            laps: [lap],
-            avgLapTimeMS: lap.lap_time_ms > 0 ? lap.lap_time_ms : 0,
-            bestLapTimeMS: lap.lap_time_ms > 0 ? lap.lap_time_ms : 0,
-            hasPitStopAfter: false,
-          };
-          rawStints.push(currentStint);
-        } else {
-          currentStint.endLap = lap.lap_number;
-          currentStint.totalLaps += 1;
-          currentStint.laps.push(lap);
-          if (!currentStint.actualCompound && lap.actual_compound) {
-            currentStint.actualCompound = lap.actual_compound;
-          }
-        }
-      });
-
-      // Calculate averages and bests per stint
-      rawStints.forEach((s) => {
-        const validLaps = s.laps.filter((l) => l.lap_time_ms > 0);
-        if (validLaps.length > 0) {
-          const sum = validLaps.reduce((acc, l) => acc + l.lap_time_ms, 0);
-          s.avgLapTimeMS = Math.round(sum / validLaps.length);
-          s.bestLapTimeMS = Math.min(...validLaps.map((l) => l.lap_time_ms));
-        }
-      });
-
-      const strategyString =
-        rawStints.length > 0
-          ? rawStints.map((s) => `${s.compound.charAt(0)} (${s.totalLaps}L)`).join(' ➔ ')
-          : 'N/A';
-
-      const totalPits = Math.max(0, rawStints.length - 1);
+    return stintsData.drivers.map((d) => {
+      const standing =
+        driverStandings.find((ds) => ds.participant.car_index === d.car_index) || {
+          position: d.position,
+          participant: {
+            id: d.car_index,
+            session_id: 0,
+            car_index: d.car_index,
+            name: d.driver_name,
+            driver_id: 0,
+            team_id: d.team_id,
+            race_number: d.race_number,
+            ai_controlled: false,
+          },
+          laps: [],
+          bestLap: null,
+          bestLapTimeMS: 0,
+          isDNF: false,
+          isDSQ: false,
+          maxSpeed: 0,
+          bestS1MS: 0,
+          bestS2MS: 0,
+          bestS3MS: 0,
+        };
 
       return {
-        driver,
-        stints: rawStints,
-        strategyString,
-        totalStints: rawStints.length,
-        totalPits,
+        driver: standing,
+        stints: d.stints.map((s) => ({
+          stintIndex: s.stint_index,
+          stintId: s.stint_id,
+          compound: s.compound,
+          actualCompound: s.actual_compound,
+          startLap: s.start_lap,
+          endLap: s.end_lap,
+          totalLaps: s.total_laps,
+          laps: s.laps || [],
+          avgLapTimeMS: s.avg_lap_time_ms,
+          bestLapTimeMS: s.best_lap_time_ms,
+          hasPitStopAfter: s.has_pit_stop_after,
+          degSlopeSecPerLap: s.deg_slope_sec_per_lap ?? null,
+        })),
+        strategyString: d.strategy_string,
+        totalStints: d.total_stints,
+        totalPits: d.total_pits,
       };
     });
-  }, [driverStandings]);
+  }, [stintsData, driverStandings]);
 
-  // Determine effective maximum lap count for Gantt width scaling
-  const effectiveMaxLaps = useMemo(() => {
-    if (totalSessionLaps > 0) return totalSessionLaps;
-    let maxLap = 1;
-    driverStintsData.forEach((d) => {
-      d.stints.forEach((s) => {
-        if (s.endLap > maxLap) maxLap = s.endLap;
-      });
-    });
-    return maxLap;
-  }, [totalSessionLaps, driverStintsData]);
+  // Effective maximum lap count for Gantt width scaling
+  const effectiveMaxLaps = stintsData?.effective_max_laps || totalSessionLaps || 1;
 
-  // 2. Summary KPI Metrics
+  // 2. Summary KPI Metrics directly from server
   const strategyKPIs = useMemo(() => {
-    if (driverStintsData.length === 0) {
+    if (!stintsData?.kpis) {
       return {
         mostPopularStrategy: 'N/A',
         mostPopularCount: 0,
@@ -268,139 +210,57 @@ export const SessionStintStrategyTab: React.FC<SessionStintStrategyTabProps> = (
       };
     }
 
-    // A. Most popular strategy pattern (e.g. M ➔ H)
-    const strategyCounts: Record<string, number> = {};
-    let totalPitsSum = 0;
-    driverStintsData.forEach((d) => {
-      if (d.stints.length > 0) {
-        const pattern = d.stints.map((s) => s.compound.charAt(0)).join(' ➔ ');
-        strategyCounts[pattern] = (strategyCounts[pattern] || 0) + 1;
-        totalPitsSum += d.totalPits;
-      }
-    });
-
-    let topStrategy = 'N/A';
-    let topCount = 0;
-    Object.entries(strategyCounts).forEach(([strat, count]) => {
-      if (count > topCount) {
-        topStrategy = strat;
-        topCount = count;
-      }
-    });
-
-    // B. Longest single stint
     let longestStint: { driver: DriverStanding; stint: DriverStint } | null = null;
-    driverStintsData.forEach((d) => {
-      d.stints.forEach((s) => {
-        if (!longestStint || s.totalLaps > longestStint.stint.totalLaps) {
-          longestStint = { driver: d.driver, stint: s };
-        }
-      });
-    });
-
-    // C. Best lap by compound
-    const bestLaps: Record<string, { timeMS: number; driverName: string }> = {};
-    driverStintsData.forEach((d) => {
-      d.stints.forEach((s) => {
-        s.laps.forEach((l) => {
-          if (l.lap_time_ms > 0 && l.is_valid) {
-            const comp = s.compound;
-            if (!bestLaps[comp] || l.lap_time_ms < bestLaps[comp].timeMS) {
-              bestLaps[comp] = {
-                timeMS: l.lap_time_ms,
-                driverName: d.driver.participant.name,
-              };
-            }
-          }
-        });
-      });
-    });
-
-    return {
-      mostPopularStrategy: topStrategy,
-      mostPopularCount: topCount,
-      longestStintDriver: longestStint,
-      bestLapsByCompound: bestLaps,
-      totalFieldPitStops: totalPitsSum,
-    };
-  }, [driverStintsData]);
-
-  // 3. Prepare Tyre Degradation & Pace Curves Data (Plotted by Tyre Age)
-  const { degradationData, maxTyreAge, degradationRates } = useMemo(() => {
-    // Collect all active drivers
-    const activeDrivers = driverStintsData.filter((d) => selectedDrivers[d.driver.participant.car_index]);
-
-    let globalMaxAge = 0;
-    // Map: tyreAge -> { tyreAge, [driverKey]: lapTimeSec }
-    const ageDataMap: Record<number, { tyreAge: number; [key: string]: any }> = {};
-    const driverPointSeries: Record<string, Array<{ age: number; timeSec: number }>> = {};
-
-    activeDrivers.forEach((d) => {
-      const carIdx = d.driver.participant.car_index;
-
-      d.stints.forEach((stint) => {
-        // Filter by compound if not 'ALL'
-        if (selectedCompound !== 'ALL' && stint.compound !== selectedCompound) {
-          return;
-        }
-
-        stint.laps.forEach((lap, lapIndexInStint) => {
-          const tyreAge = lapIndexInStint + 1; // 1-indexed tyre age
-          if (tyreAge > globalMaxAge) {
-            globalMaxAge = tyreAge;
-          }
-
-          if (lap.lap_time_ms > 0) {
-            const sec = parseFloat((lap.lap_time_ms / 1000).toFixed(3));
-            const key = `driver_${carIdx}_stint_${stint.stintIndex}`;
-
-            if (!ageDataMap[tyreAge]) {
-              ageDataMap[tyreAge] = { tyreAge };
-            }
-            ageDataMap[tyreAge][key] = sec;
-            ageDataMap[tyreAge][`${key}_compound`] = stint.compound;
-            ageDataMap[tyreAge][`${key}_rawMS`] = lap.lap_time_ms;
-            ageDataMap[tyreAge][`${key}_lapNum`] = lap.lap_number;
-
-            if (!driverPointSeries[key]) {
-              driverPointSeries[key] = [];
-            }
-            driverPointSeries[key].push({ age: tyreAge, timeSec: sec });
-          }
-        });
-      });
-    });
-
-    const dataArray: Array<{ tyreAge: number; [key: string]: any }> = [];
-    for (let age = 1; age <= globalMaxAge; age++) {
-      dataArray.push(ageDataMap[age] || { tyreAge: age });
+    if (stintsData.kpis.longest_stint) {
+      const dMatch = driverStintsData.find(
+        (d) => d.driver.participant.car_index === stintsData.kpis.longest_stint!.car_index
+      );
+      const sMatch = dMatch?.stints.find(
+        (s) => s.totalLaps === stintsData.kpis.longest_stint!.total_laps
+      );
+      if (dMatch && sMatch) {
+        longestStint = { driver: dMatch.driver, stint: sMatch };
+      } else if (dMatch && dMatch.stints.length > 0) {
+        longestStint = { driver: dMatch.driver, stint: dMatch.stints[0] };
+      }
     }
 
-    // Compute degradation slope rates
-    const rates: Record<string, number | null> = {};
-    Object.entries(driverPointSeries).forEach(([key, points]) => {
-      rates[key] = calculateDegradationSlope(points);
+    const bestLaps: Record<string, { timeMS: number; driverName: string }> = {};
+    Object.entries(stintsData.kpis.best_laps_by_compound || {}).forEach(([comp, best]) => {
+      bestLaps[comp] = {
+        timeMS: best.time_ms,
+        driverName: best.driver_name,
+      };
     });
 
     return {
-      degradationData: dataArray,
-      maxTyreAge: globalMaxAge,
-      degradationRates: rates,
+      mostPopularStrategy: stintsData.kpis.most_popular_strategy || 'N/A',
+      mostPopularCount: stintsData.kpis.most_popular_count || 0,
+      longestStintDriver: longestStint,
+      bestLapsByCompound: bestLaps,
+      totalFieldPitStops: stintsData.kpis.total_field_pit_stops || 0,
     };
-  }, [driverStintsData, selectedDrivers, selectedCompound]);
+  }, [stintsData, driverStintsData]);
+
+  // 3. Degradation & Pace Curves Data directly from server
+  const { degradationData, maxTyreAge, degradationRates } = useMemo(() => {
+    if (!stintsData) {
+      return {
+        degradationData: [] as Array<{ tyreAge: number; [key: string]: any }>,
+        maxTyreAge: 0,
+        degradationRates: {} as Record<string, number | null>,
+      };
+    }
+
+    return {
+      degradationData: stintsData.degradation_data || [],
+      maxTyreAge: stintsData.max_tyre_age || 0,
+      degradationRates: stintsData.degradation_rates || {},
+    };
+  }, [stintsData]);
 
   // Unique compounds used in this session for filter pills
-  const sessionCompounds = useMemo(() => {
-    const set = new Set<string>();
-    driverStintsData.forEach((d) => {
-      d.stints.forEach((s) => {
-        if (s.compound && s.compound !== 'UNKNOWN') {
-          set.add(s.compound);
-        }
-      });
-    });
-    return Array.from(set);
-  }, [driverStintsData]);
+  const sessionCompounds = stintsData?.session_compounds || [];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>

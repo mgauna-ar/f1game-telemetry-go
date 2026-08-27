@@ -1,5 +1,7 @@
 package packets
 
+import "strings"
+
 // Result status constants (Car / Lap classification status)
 const (
 	ResultStatusInvalid       uint8 = 0
@@ -62,6 +64,31 @@ const (
 	ActiveAeroStraightMode uint8 = 1
 )
 
+// Result reason constants
+const (
+	ResultReasonInvalid           uint8 = 0
+	ResultReasonRetired           uint8 = 1
+	ResultReasonFinished          uint8 = 2
+	ResultReasonTerminalDamage    uint8 = 3
+	ResultReasonInactive          uint8 = 4
+	ResultReasonNotEnoughLaps     uint8 = 5
+	ResultReasonBlackFlagged      uint8 = 6
+	ResultReasonRedFlagged        uint8 = 7
+	ResultReasonMechanicalFailure uint8 = 8
+	ResultReasonSessionSkipped    uint8 = 9
+	ResultReasonSessionSimulated  uint8 = 10
+)
+
+// Tyre compound name constants
+const (
+	CompoundNameSoft         = "SOFT"
+	CompoundNameMedium       = "MEDIUM"
+	CompoundNameHard         = "HARD"
+	CompoundNameIntermediate = "INTERMEDIATE"
+	CompoundNameWet          = "WET"
+	CompoundNameUnknown      = "UNKNOWN"
+)
+
 // Unit conversion, protocol limits, and buffer defaults
 const (
 	MillisPerMinute                      = 60_000
@@ -76,3 +103,25 @@ const (
 	Sector3ValidBitFlag            uint8 = 0x08
 	MaxTyreStints                        = 8
 )
+
+// NormalizeCompoundName normalizes raw or visual tyre compound string/ID to standard uppercase compound name.
+func NormalizeCompoundName(raw string) string {
+	if raw == "" {
+		return CompoundNameUnknown
+	}
+	s := strings.ToUpper(strings.TrimSpace(raw))
+	switch {
+	case s == "16" || strings.Contains(s, "SOFT") || s == "S":
+		return CompoundNameSoft
+	case s == "17" || strings.Contains(s, "MEDIUM") || strings.Contains(s, "MED") || s == "M":
+		return CompoundNameMedium
+	case s == "18" || strings.Contains(s, "HARD") || s == "H":
+		return CompoundNameHard
+	case s == "7" || strings.Contains(s, "INTER") || s == "I":
+		return CompoundNameIntermediate
+	case s == "8" || strings.Contains(s, "WET") || s == "W":
+		return CompoundNameWet
+	default:
+		return s
+	}
+}
