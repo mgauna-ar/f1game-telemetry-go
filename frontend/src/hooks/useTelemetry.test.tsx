@@ -172,6 +172,61 @@ describe('useTelemetry', () => {
     // Must still retain all 4 drivers
     expect(screen.getByTestId('count')).toHaveTextContent('4');
   });
+
+  it('ingests server-synthesized live events from LiveSnapshot packet', () => {
+    let wsInstance: MockWebSocket | undefined;
+    (globalThis as any).WebSocket = function (url: string) {
+      wsInstance = new MockWebSocket(url);
+      return wsInstance;
+    };
+
+    function EventsTestComponent() {
+      const { events } = useTelemetry('ws://localhost:8080/ws');
+      return (
+        <div>
+          <div data-testid="event-count">{events.length}</div>
+          <div data-testid="latest-desc">{events[0]?.description || 'none'}</div>
+          <div data-testid="latest-code">{events[0]?.eventCode || 'none'}</div>
+        </div>
+      );
+    }
+
+    render(<EventsTestComponent />);
+
+    act(() => {
+      if (wsInstance?.onmessage) {
+        wsInstance.onmessage({
+          data: JSON.stringify({
+            Header: { PacketId: 255, SessionTime: 10.0, SessionUID: 12345, PlayerCarIndex: 0 },
+            Events: [
+              {
+                eventCode: 'SCAR',
+                type: 'flag',
+                description: 'Full Safety Car Deployed',
+                severity: 'warning',
+                sessionTime: 10.0,
+              },
+              {
+                eventCode: 'TMPT',
+                type: 'pit',
+                description: 'Franco Colapinto entered the pit lane (Lap 12)',
+                vehicleIdx: 0,
+                driverName: 'Franco Colapinto',
+                lapNum: 12,
+                severity: 'warning',
+                sessionTime: 10.0,
+              },
+            ],
+          }),
+        });
+      }
+    });
+
+    expect(screen.getByTestId('event-count')).toHaveTextContent('2');
+    // Events are added prepended, so the second event in the list was added last and is at index 0
+    expect(screen.getByTestId('latest-code')).toHaveTextContent('TMPT');
+    expect(screen.getByTestId('latest-desc')).toHaveTextContent('Franco Colapinto entered the pit lane (Lap 12)');
+  });
 });
 
 describe('parseDriverName', () => {

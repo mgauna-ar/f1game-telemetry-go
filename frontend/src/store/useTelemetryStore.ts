@@ -14,9 +14,6 @@ import type {
 import {
   F1_DRIVER_NAMES,
   PACKET_IDS,
-  SAFETY_CAR_STATUS,
-  RESULT_STATUS,
-  PIT_STATUS,
 } from '../constants/f1';
 
 export function parseDriverName(rawName: string | number[] | undefined, defaultName: string, driverId?: number): string {
@@ -99,6 +96,8 @@ export interface LiveSnapshotData {
   CarDamage?: {
     CarDamageData: CarDamageData[];
   };
+  Events?: RaceEvent[];
+  ActiveCarCount?: number;
 }
 
 interface TelemetryState {
@@ -124,8 +123,6 @@ interface TelemetryState {
 }
 
 // Internal tracking references outside Zustand state to prevent extra subscriber triggers
-let prevLapsCache: LapData[] = [];
-let prevSafetyCarStatus = 0;
 let lastSessionUID: string | number | null = null;
 let participantsCache: ParticipantData[] = [];
 
@@ -159,8 +156,6 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
   clearEvents: () => set({ events: [] }),
 
   resetSession: () => {
-    prevLapsCache = [];
-    prevSafetyCarStatus = 0;
     participantsCache = [];
     set({
       session: null,
@@ -225,30 +220,6 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
           GamePaused: s.GamePaused,
           SessionUID: header.SessionUID,
         };
-
-        if (prevSafetyCarStatus !== s.SafetyCarStatus) {
-          const scStatus = s.SafetyCarStatus;
-          let desc = 'Track Clear (Green Flag)';
-          let sev: RaceEvent['severity'] = 'success';
-          if (scStatus === SAFETY_CAR_STATUS.FULL) {
-            desc = 'Full Safety Car Deployed';
-            sev = 'warning';
-          } else if (scStatus === SAFETY_CAR_STATUS.VIRTUAL) {
-            desc = 'Virtual Safety Car Deployed';
-            sev = 'warning';
-          } else if (scStatus === SAFETY_CAR_STATUS.FORMATION_LAP) {
-            desc = 'Formation Lap In Progress';
-            sev = 'info';
-          }
-          get().addEvent({
-            eventCode: 'SCAR',
-            type: 'flag',
-            description: desc,
-            severity: sev,
-            sessionTime: header.SessionTime,
-          });
-          prevSafetyCarStatus = scStatus;
-        }
       }
 
       // Handle Participants
@@ -265,6 +236,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
           }
         }
         const validCount = Math.max(
+          snapshot.ActiveCarCount || 0,
           snapshot.Participants.NumActiveCars || 0,
           maxPopulatedIndex >= 0 ? maxPopulatedIndex + 1 : 0
         );
@@ -275,76 +247,16 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
         }
       }
 
-      // Handle LapData & Synthetic events
+      // Handle LapData
       if (snapshot.LapData?.LapData) {
-        const laps = snapshot.LapData.LapData;
-        partial.allLaps = laps;
+        partial.allLaps = snapshot.LapData.LapData;
+      }
 
-        laps.forEach((lap, idx) => {
-          const prev = prevLapsCache[idx];
-          if (!prev) return;
-
-          // Pit entry transition
-          if (prev.PitStatus === PIT_STATUS.NONE && (lap.PitStatus === PIT_STATUS.PITTING || lap.PitStatus === PIT_STATUS.IN_PIT_AREA)) {
-            const p = participantsCache[idx];
-            const dName = parseDriverName(p?.Name, `Car #${idx + 1}`, p?.DriverId);
-            get().addEvent({
-              eventCode: 'TMPT',
-              type: 'pit',
-              description: `${dName} entered the pit lane (Lap ${lap.CurrentLapNum})`,
-              vehicleIdx: idx,
-              driverName: dName,
-              lapNum: lap.CurrentLapNum,
-              severity: 'warning',
-              sessionTime: header.SessionTime,
-            });
-          }
-
-          // New penalty received
-          if ((lap.Penalties || 0) > (prev.Penalties || 0)) {
-            const added = (lap.Penalties || 0) - (prev.Penalties || 0);
-            const p = participantsCache[idx];
-            const dName = parseDriverName(p?.Name, `Car #${idx + 1}`, p?.DriverId);
-            get().addEvent({
-              eventCode: 'PENA',
-              type: 'penalty',
-              description: `${dName} received +${added}s penalty (Lap ${lap.CurrentLapNum})`,
-              vehicleIdx: idx,
-              driverName: dName,
-              lapNum: lap.CurrentLapNum,
-              severity: 'danger',
-              sessionTime: header.SessionTime,
-            });
-          }
-
-          // Retirement / DNF / DSQ transition
-          const prevStatus = prev.ResultStatus ?? RESULT_STATUS.ACTIVE;
-          const currentStatus = lap.ResultStatus ?? RESULT_STATUS.ACTIVE;
-          if (
-            prevStatus !== RESULT_STATUS.RETIRED &&
-            prevStatus !== RESULT_STATUS.DNF &&
-            prevStatus !== RESULT_STATUS.DSQ &&
-            (currentStatus === RESULT_STATUS.RETIRED || currentStatus === RESULT_STATUS.DNF || currentStatus === RESULT_STATUS.DSQ)
-          ) {
-            const p = participantsCache[idx];
-            const dName = parseDriverName(p?.Name, `Car #${idx + 1}`, p?.DriverId);
-            const isDsq = currentStatus === RESULT_STATUS.DSQ;
-            get().addEvent({
-              eventCode: isDsq ? 'DSQ' : 'RTMT',
-              type: isDsq ? 'penalty' : 'retirement',
-              description: isDsq
-                ? `${dName} was disqualified from the session`
-                : `${dName} retired from the session (Lap ${lap.CurrentLapNum})`,
-              vehicleIdx: idx,
-              driverName: dName,
-              lapNum: lap.CurrentLapNum,
-              severity: 'danger',
-              sessionTime: header.SessionTime,
-            });
-          }
-        });
-
-        prevLapsCache = laps;
+      // Handle Server Synthetic Events
+      if (snapshot.Events && snapshot.Events.length > 0) {
+        for (const evt of snapshot.Events) {
+          get().addEvent(evt);
+        }
       }
 
       if (snapshot.CarTelemetry?.CarTelemetryData) {
@@ -579,7 +491,6 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
       participantsCache = data.Participants;
       set({ participants: data.Participants, playerCarIndex: playerIdx });
     } else if (header.PacketId === PACKET_IDS.LAP_DATA && data.LapData) {
-      prevLapsCache = data.LapData;
       set({ allLaps: data.LapData, playerCarIndex: playerIdx });
     } else if (header.PacketId === PACKET_IDS.CAR_TELEMETRY && data.CarTelemetryData) {
       set({ allTelemetry: data.CarTelemetryData, playerCarIndex: playerIdx });
