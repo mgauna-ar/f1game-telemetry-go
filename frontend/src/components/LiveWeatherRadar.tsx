@@ -4,11 +4,16 @@ import type { SessionData, WeatherForecastSample } from '../hooks/useTelemetry';
 import { WEATHER_CODES, SESSION_TYPES } from '../constants/f1';
 import { useI18n } from '../context/I18nContext';
 
+import { useTelemetryStore } from '../store/useTelemetryStore';
+
 interface LiveWeatherRadarProps {
-  session: SessionData | null;
+  session?: SessionData | null;
 }
 
-export const LiveWeatherRadar: React.FC<LiveWeatherRadarProps> = ({ session }) => {
+export const LiveWeatherRadar: React.FC<LiveWeatherRadarProps> = React.memo((props) => {
+  const storeSession = useTelemetryStore((s) => s.session);
+  const session = props.session !== undefined ? props.session : storeSession;
+
   const { t } = useI18n();
   const weatherCode = session?.Weather ?? WEATHER_CODES.CLEAR;
   const trackTemp = session?.TrackTemperature ?? 28;
@@ -277,4 +282,7 @@ export const LiveWeatherRadar: React.FC<LiveWeatherRadarProps> = ({ session }) =
       </div>
     </div>
   );
-};
+});
+
+LiveWeatherRadar.displayName = 'LiveWeatherRadar';
+

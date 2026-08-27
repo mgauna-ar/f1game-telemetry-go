@@ -5,17 +5,23 @@ import { SAFETY_CAR_STATUS, TIME_CONSTANTS } from '../constants/f1';
 import { useI18n } from '../context/I18nContext';
 import { getLocalizedRaceEventDescription, getLocalizedPenaltyTag } from '../utils/raceEvents';
 
+import { useTelemetryStore } from '../store/useTelemetryStore';
+
 interface RaceControlFeedProps {
-  events: RaceEvent[];
-  session: SessionData | null;
+  events?: RaceEvent[];
+  session?: SessionData | null;
   onClearEvents?: () => void;
 }
 
-export const RaceControlFeed: React.FC<RaceControlFeedProps> = ({
-  events = [],
-  session = null,
-  onClearEvents,
-}) => {
+export const RaceControlFeed: React.FC<RaceControlFeedProps> = React.memo((props) => {
+  const storeEvents = useTelemetryStore((s) => s.events);
+  const storeSession = useTelemetryStore((s) => s.session);
+  const storeClearEvents = useTelemetryStore((s) => s.clearEvents);
+
+  const events = props.events !== undefined ? props.events : storeEvents;
+  const session = props.session !== undefined ? props.session : storeSession;
+  const onClearEvents = props.onClearEvents !== undefined ? props.onClearEvents : storeClearEvents;
+
   const { t } = useI18n();
   const [filter, setFilter] = useState<'all' | 'flag' | 'penalty' | 'overtake' | 'fastest_lap'>('all');
 
@@ -192,4 +198,7 @@ export const RaceControlFeed: React.FC<RaceControlFeedProps> = ({
       </div>
     </div>
   );
-};
+});
+
+RaceControlFeed.displayName = 'RaceControlFeed';
+

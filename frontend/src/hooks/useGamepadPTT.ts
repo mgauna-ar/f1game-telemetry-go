@@ -298,6 +298,8 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
 
   const keyboardPressedRef = useRef(false);
   const gamepadPressedRef = useRef(false);
+  const lastGamepadConnectedRef = useRef(false);
+  const lastGamepadNameRef = useRef<string | null>(null);
 
   const updatePTTState = useCallback((nextState: boolean) => {
     if (isPTTActiveRef.current === nextState) return;
@@ -485,8 +487,14 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
         }
       }
 
-      setGamepadConnected(hasConnected);
-      setGamepadName(activeGamepadName);
+      if (lastGamepadConnectedRef.current !== hasConnected) {
+        lastGamepadConnectedRef.current = hasConnected;
+        setGamepadConnected(hasConnected);
+      }
+      if (lastGamepadNameRef.current !== activeGamepadName) {
+        lastGamepadNameRef.current = activeGamepadName;
+        setGamepadName(activeGamepadName);
+      }
 
       if (isAnyGamepadButtonPressed !== gamepadPressedRef.current) {
         gamepadPressedRef.current = isAnyGamepadButtonPressed;

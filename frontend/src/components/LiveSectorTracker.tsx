@@ -5,19 +5,23 @@ import { TEAM_COLORS } from '../constants/f1';
 import type { ParticipantData, LapData } from '../types/telemetry';
 import { useI18n } from '../context/I18nContext';
 
+import { useTelemetryStore } from '../store/useTelemetryStore';
+
 interface LiveSectorTrackerProps {
-  participants: ParticipantData[];
-  laps: LapData[];
-  selectedCarIndex: number;
-  playerCarIndex: number;
+  participants?: ParticipantData[];
+  laps?: LapData[];
+  selectedCarIndex?: number;
+  playerCarIndex?: number;
 }
 
-export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = ({
-  participants = [],
-  laps = [],
-  selectedCarIndex = 0,
-  playerCarIndex: _playerCarIndex = 0,
-}) => {
+export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((props) => {
+  const storeParticipants = useTelemetryStore((s) => s.participants);
+  const storeLaps = useTelemetryStore((s) => s.allLaps);
+  const storeSelectedCarIndex = useTelemetryStore((s) => s.selectedCarIndex);
+  const participants = props.participants !== undefined ? props.participants : storeParticipants;
+  const laps = props.laps !== undefined ? props.laps : storeLaps;
+  const selectedCarIndex = props.selectedCarIndex !== undefined ? props.selectedCarIndex : storeSelectedCarIndex;
+
   const { t } = useI18n();
 
   const formatTime = (ms?: number) => {
@@ -286,4 +290,7 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = ({
       </div>
     </div>
   );
-};
+});
+
+LiveSectorTracker.displayName = 'LiveSectorTracker';
+

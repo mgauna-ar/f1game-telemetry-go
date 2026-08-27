@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useTelemetry } from '../hooks/useTelemetry';
-import { useTelemetryStore } from '../store/useTelemetryStore';
+import { useTelemetryStore, connectTelemetryWebSocket } from '../store/useTelemetryStore';
 import { useRaceEngineerActions } from '../context/RaceEngineerContext';
 import {
   SAFETY_CAR_STATUS,
@@ -69,26 +68,16 @@ export const Dashboard: React.FC = () => {
     }
   }, []);
 
-  const {
-    session = null,
-    participants = [],
-    allLaps = [],
-    allCarStatus = [],
-    allCarDamage = [],
-    allTelemetry = [],
-    allTelemetry2 = [],
-    telemetry = null,
-    lap = null,
-    carStatus = null,
-    carDamage = null,
-    events = [],
-    clearEvents = () => {},
-    connected = false,
-    playerCarIndex = 0,
-    selectedCarIndex = 0,
-    setSelectedCarIndex = () => {},
-    packetFormat,
-  } = useTelemetry();
+  useEffect(() => {
+    const disconnect = connectTelemetryWebSocket();
+    return () => {
+      disconnect();
+    };
+  }, []);
+
+  const session = useTelemetryStore((s) => s.session);
+  const connected = useTelemetryStore((s) => s.connected);
+  const packetFormat = useTelemetryStore((s) => s.packetFormat);
 
   const { setLiveContext, setContextMode } = useRaceEngineerActions();
 
@@ -286,12 +275,6 @@ export const Dashboard: React.FC = () => {
     return () => clearInterval(interval);
   }, [setLiveContext, setContextMode, getLiveTelemetrySummary]);
 
-  const playerLap = allLaps[playerCarIndex] || lap;
-  const playerCarStatus = allCarStatus[playerCarIndex] || carStatus;
-  const playerCarDamage = allCarDamage[playerCarIndex] || carDamage;
-  const playerTelemetry = allTelemetry[playerCarIndex] || telemetry;
-  const playerTelemetry2 = allTelemetry2[playerCarIndex] || null;
-
   if (!connected || !session) {
     return (
       <div className="voice-cockpit-layout" style={{ position: 'relative', width: '100%' }}>
@@ -304,17 +287,7 @@ export const Dashboard: React.FC = () => {
           onViewModeChange={handleViewModeChange}
         />
         {viewMode === LIVE_VIEW_MODES.COCKPIT ? (
-          <VoiceCockpitView
-            radio={radio}
-            session={session}
-            lap={playerLap}
-            carStatus={playerCarStatus}
-            carDamage={playerCarDamage}
-            telemetry={playerTelemetry}
-            telemetry2={playerTelemetry2}
-            packetFormat={packetFormat}
-            connected={connected}
-          />
+          <VoiceCockpitView radio={radio} />
         ) : (
           <>
             <WaitingForData connected={connected} />
@@ -324,8 +297,6 @@ export const Dashboard: React.FC = () => {
       </div>
     );
   }
-
-
 
   // Voice Cockpit View (0% unneeded widget DOM/Canvas overhead for sim racing)
   if (viewMode === LIVE_VIEW_MODES.COCKPIT) {
@@ -338,17 +309,7 @@ export const Dashboard: React.FC = () => {
           viewMode={viewMode}
           onViewModeChange={handleViewModeChange}
         />
-        <VoiceCockpitView
-          radio={radio}
-          session={session}
-          lap={playerLap}
-          carStatus={playerCarStatus}
-          carDamage={playerCarDamage}
-          telemetry={playerTelemetry}
-          telemetry2={playerTelemetry2}
-          packetFormat={packetFormat}
-          connected={connected}
-        />
+        <VoiceCockpitView radio={radio} />
       </div>
     );
   }
@@ -367,51 +328,29 @@ export const Dashboard: React.FC = () => {
 
       {/* Hero Upper Section: Full-Width Leaderboard Tower (Span 12) */}
       <div className="dash-hero-row" style={{ gridColumn: 'span 12' }}>
-        <LeaderboardTower
-          session={session}
-          participants={participants}
-          laps={allLaps}
-          carStatuses={allCarStatus}
-          telemetry2List={allTelemetry2}
-          playerCarIndex={playerCarIndex}
-          selectedCarIndex={selectedCarIndex}
-          onSelectCar={setSelectedCarIndex}
-        />
+        <LeaderboardTower />
       </div>
 
       {/* Main 2x2 Race Control Hub */}
       <div className="race-control-hub-grid" style={{ gridColumn: 'span 12' }}>
         {/* Top-Left: Real-time Race Control & Incidents Stream */}
         <div className="hub-grid-cell">
-          <RaceControlFeed events={events} session={session} onClearEvents={clearEvents} />
+          <RaceControlFeed />
         </div>
 
         {/* Top-Right: Weather Radar & Track Evolution */}
         <div className="hub-grid-cell">
-          <LiveWeatherRadar session={session} />
+          <LiveWeatherRadar />
         </div>
 
         {/* Bottom-Left: Field Tyre Matrix & Pit Strategy Windows */}
         <div className="hub-grid-cell">
-          <LivePitStrategy
-            session={session}
-            participants={participants}
-            laps={allLaps}
-            carStatuses={allCarStatus}
-            selectedCarIndex={selectedCarIndex}
-            playerCarIndex={playerCarIndex}
-            onSelectCar={setSelectedCarIndex}
-          />
+          <LivePitStrategy />
         </div>
 
         {/* Bottom-Right: Live Sector Performance & Speed Traps */}
         <div className="hub-grid-cell">
-          <LiveSectorTracker
-            participants={participants}
-            laps={allLaps}
-            selectedCarIndex={selectedCarIndex}
-            playerCarIndex={playerCarIndex}
-          />
+          <LiveSectorTracker />
         </div>
       </div>
 

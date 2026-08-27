@@ -37,6 +37,11 @@ const EMPTY_TRACK_PATH: { x: number; z: number }[] = [];
 const EMPTY_MOTION: CarMotionData[] = [];
 const EMPTY_HISTORY: TelemetrySample[] = [];
 
+/**
+ * @deprecated Prefer using fine-grained selectors directly from `useTelemetryStore`
+ * (e.g. `useTelemetryStore((s) => s.session)`) to avoid triggering unnecessary component
+ * re-renders on every 10Hz telemetry update.
+ */
 export function useTelemetry(wsUrl?: string) {
   useEffect(() => {
     const disconnect = connectTelemetryWebSocket(wsUrl);

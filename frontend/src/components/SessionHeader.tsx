@@ -1,3 +1,4 @@
+import React from 'react';
 import { Flag, CloudSun, Thermometer, ShieldAlert, Timer, LayoutDashboard, Mic, Radio } from 'lucide-react';
 import type { SessionData } from '../hooks/useTelemetry';
 import { useI18n } from '../context/I18nContext';
@@ -6,9 +7,11 @@ import { TrackFlag } from './TrackFlag';
 import { TRACK_NAMES, getTrackInfo, LIVE_VIEW_MODES } from '../constants/f1';
 import type { LiveViewMode } from '../constants/f1';
 
+import { useTelemetryStore } from '../store/useTelemetryStore';
+
 interface SessionHeaderProps {
-  session: SessionData | null;
-  connected: boolean;
+  session?: SessionData | null;
+  connected?: boolean;
   packetFormat?: number | null;
   viewMode?: LiveViewMode;
   onViewModeChange?: (mode: LiveViewMode) => void;
@@ -42,13 +45,17 @@ const SESSION_TYPES: Record<number, { label: string; isRace: boolean; isQualy: b
   20: { label: 'EQUAL SPRINT RACE', isRace: true, isQualy: false, isSprint: true },
 };
 
-export const SessionHeader: React.FC<SessionHeaderProps> = ({
-  session,
-  connected,
-  packetFormat,
-  viewMode = LIVE_VIEW_MODES.DASHBOARD,
-  onViewModeChange,
-}) => {
+export const SessionHeader: React.FC<SessionHeaderProps> = React.memo((props) => {
+  const storeSession = useTelemetryStore((s) => s.session);
+  const storeConnected = useTelemetryStore((s) => s.connected);
+  const storePacketFormat = useTelemetryStore((s) => s.packetFormat);
+
+  const session = props.session !== undefined ? props.session : storeSession;
+  const connected = props.connected !== undefined ? props.connected : storeConnected;
+  const packetFormat = props.packetFormat !== undefined ? props.packetFormat : storePacketFormat;
+  const viewMode = props.viewMode ?? LIVE_VIEW_MODES.DASHBOARD;
+  const onViewModeChange = props.onViewModeChange;
+
   const { t } = useI18n();
 
   // If no active session yet (waiting for data)
@@ -262,7 +269,10 @@ export const SessionHeader: React.FC<SessionHeaderProps> = ({
       </div>
     </header>
   );
-};
+});
+
+SessionHeader.displayName = 'SessionHeader';
+
 
 
 

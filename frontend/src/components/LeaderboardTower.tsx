@@ -14,18 +14,19 @@ import {
   TIME_CONSTANTS,
 } from '../constants/f1';
 import { useI18n } from '../context/I18nContext';
+import { useTelemetryStore } from '../store/useTelemetryStore';
 
 export { TEAM_COLORS, TYRE_COMPOUNDS };
 
 interface LeaderboardTowerProps {
-  session: SessionData | null;
-  participants: ParticipantData[];
-  laps: LapData[];
-  carStatuses: CarStatusData[];
+  session?: SessionData | null;
+  participants?: ParticipantData[];
+  laps?: LapData[];
+  carStatuses?: CarStatusData[];
   telemetry2List?: CarTelemetry2Data[];
-  playerCarIndex: number;
-  selectedCarIndex: number;
-  onSelectCar: (index: number) => void;
+  playerCarIndex?: number;
+  selectedCarIndex?: number;
+  onSelectCar?: (index: number) => void;
 }
 
 interface ProcessedDriver {
@@ -42,16 +43,25 @@ interface ProcessedDriver {
   isPlayer: boolean;
 }
 
-export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
-  session = null,
-  participants = [],
-  laps = [],
-  carStatuses = [],
-  telemetry2List = [],
-  playerCarIndex = 0,
-  selectedCarIndex = 0,
-  onSelectCar = () => {},
-}) => {
+export const LeaderboardTower: React.FC<LeaderboardTowerProps> = React.memo((props) => {
+  const storeSession = useTelemetryStore((s) => s.session);
+  const storeParticipants = useTelemetryStore((s) => s.participants);
+  const storeLaps = useTelemetryStore((s) => s.allLaps);
+  const storeCarStatuses = useTelemetryStore((s) => s.allCarStatus);
+  const storeTelemetry2List = useTelemetryStore((s) => s.allTelemetry2);
+  const storePlayerCarIndex = useTelemetryStore((s) => s.playerCarIndex);
+  const storeSelectedCarIndex = useTelemetryStore((s) => s.selectedCarIndex);
+  const setSelectedCarIndex = useTelemetryStore((s) => s.setSelectedCarIndex);
+
+  const session = props.session !== undefined ? props.session : storeSession;
+  const participants = props.participants !== undefined ? props.participants : storeParticipants;
+  const laps = props.laps !== undefined ? props.laps : storeLaps;
+  const carStatuses = props.carStatuses !== undefined ? props.carStatuses : storeCarStatuses;
+  const telemetry2List = props.telemetry2List !== undefined ? props.telemetry2List : storeTelemetry2List;
+  const playerCarIndex = props.playerCarIndex !== undefined ? props.playerCarIndex : storePlayerCarIndex;
+  const selectedCarIndex = props.selectedCarIndex !== undefined ? props.selectedCarIndex : storeSelectedCarIndex;
+  const onSelectCar = props.onSelectCar !== undefined ? props.onSelectCar : setSelectedCarIndex;
+
   const { t } = useI18n();
   const isQualy = session?.SessionType !== undefined && 
     ((session.SessionType >= SESSION_TYPES.Q1 && session.SessionType <= SESSION_TYPES.OSQ) || 
@@ -62,6 +72,7 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
   // Position flash animations on position changes
   const prevPosMapRef = React.useRef<Record<number, number>>({});
   const [posFlashMap, setPosFlashMap] = React.useState<Record<number, 'up' | 'down'>>({});
+  const flashTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Track best lap times per car during qualifying session
   const bestLapTimesRef = React.useRef<Record<number, number>>({});
@@ -69,8 +80,8 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
 
   const sessionKey = `${session?.SessionType}_${session?.TrackId}`;
 
-  // Build unified driver entries
-  const displayDrivers: ProcessedDriver[] = React.useMemo(() => {
+  // Update best lap times per car in effect instead of mutating ref inside useMemo
+  React.useEffect(() => {
     if (lastSessionKeyRef.current !== sessionKey) {
       bestLapTimesRef.current = {};
       lastSessionKeyRef.current = sessionKey;
@@ -81,6 +92,23 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
         const currentBest = bestLapTimesRef.current[idx] || 0;
         if (currentBest === 0 || lap.LastLapTimeInMS < currentBest) {
           bestLapTimesRef.current[idx] = lap.LastLapTimeInMS;
+        }
+      }
+    });
+  }, [laps, sessionKey]);
+
+  // Build unified driver entries
+  const displayDrivers: ProcessedDriver[] = React.useMemo(() => {
+    // Pure computation of best lap times for this calculation
+    const effectiveBestTimes: Record<number, number> = { ...bestLapTimesRef.current };
+    if (lastSessionKeyRef.current !== sessionKey) {
+      Object.keys(effectiveBestTimes).forEach((k) => delete effectiveBestTimes[Number(k)]);
+    }
+    laps.forEach((lap, idx) => {
+      if (lap && lap.LastLapTimeInMS > 0) {
+        const currentBest = effectiveBestTimes[idx] || 0;
+        if (currentBest === 0 || lap.LastLapTimeInMS < currentBest) {
+          effectiveBestTimes[idx] = lap.LastLapTimeInMS;
         }
       }
     });
@@ -117,8 +145,8 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
     // Sort drivers
     if (isQualy) {
       result.sort((a, b) => {
-        const timeA = bestLapTimesRef.current[a.carIndex] || (a.lap?.LastLapTimeInMS || 0);
-        const timeB = bestLapTimesRef.current[b.carIndex] || (b.lap?.LastLapTimeInMS || 0);
+        const timeA = effectiveBestTimes[a.carIndex] || (a.lap?.LastLapTimeInMS || 0);
+        const timeB = effectiveBestTimes[b.carIndex] || (b.lap?.LastLapTimeInMS || 0);
         const resA = a.lap?.ResultStatus ?? RESULT_STATUS.ACTIVE;
         const resB = b.lap?.ResultStatus ?? RESULT_STATUS.ACTIVE;
 
@@ -167,12 +195,12 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
     return result;
   }, [participants, laps, carStatuses, telemetry2List, playerCarIndex, isQualy, sessionKey]);
 
-  // Detect position updates for flash animations
+  // Detect position updates for flash animations with stabilized timers
   React.useEffect(() => {
     const newFlash: Record<number, 'up' | 'down'> = {};
     let hasChanges = false;
 
-    displayDrivers.forEach(d => {
+    displayDrivers.forEach((d) => {
       const prevPos = prevPosMapRef.current[d.carIndex];
       if (prevPos !== undefined && prevPos !== d.position) {
         newFlash[d.carIndex] = d.position < prevPos ? 'up' : 'down';
@@ -182,13 +210,24 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
     });
 
     if (hasChanges) {
-      setPosFlashMap(prev => ({ ...prev, ...newFlash }));
-      const timer = setTimeout(() => {
+      if (flashTimerRef.current) {
+        clearTimeout(flashTimerRef.current);
+      }
+      setPosFlashMap((prev) => ({ ...prev, ...newFlash }));
+      flashTimerRef.current = setTimeout(() => {
         setPosFlashMap({});
+        flashTimerRef.current = null;
       }, 1200);
-      return () => clearTimeout(timer);
     }
   }, [displayDrivers]);
+
+  React.useEffect(() => {
+    return () => {
+      if (flashTimerRef.current) {
+        clearTimeout(flashTimerRef.current);
+      }
+    };
+  }, []);
 
   // Find Pole Position lap time in Qualifying
   const p1CarIndex = displayDrivers[0]?.carIndex;
@@ -487,7 +526,6 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
           {col1Drivers.map((driver, idx) => renderDriverRow(driver, idx, 0))}
         </div>
 
-        {/* Right Column: P12+ (only rendered if > 11 drivers) */}
         {col2Drivers.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             {col2Drivers.map((driver, idx) => renderDriverRow(driver, idx, 1))}
@@ -496,4 +534,7 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = ({
       </div>
     </div>
   );
-};
+});
+
+LeaderboardTower.displayName = 'LeaderboardTower';
+

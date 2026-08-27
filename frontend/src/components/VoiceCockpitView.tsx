@@ -43,16 +43,18 @@ import type {
   CarTelemetry2Data,
 } from '../types/telemetry';
 
+import { useTelemetryStore } from '../store/useTelemetryStore';
+
 export interface VoiceCockpitViewProps {
   radio: UseRadioControllerReturn;
-  session: SessionData | null;
-  lap: LapData | null;
-  carStatus: CarStatusData | null;
-  carDamage: CarDamageData | null;
-  telemetry: CarTelemetryData | null;
+  session?: SessionData | null;
+  lap?: LapData | null;
+  carStatus?: CarStatusData | null;
+  carDamage?: CarDamageData | null;
+  telemetry?: CarTelemetryData | null;
   telemetry2?: CarTelemetry2Data | null;
   packetFormat?: number | null;
-  connected: boolean;
+  connected?: boolean;
 }
 
 const HeroWaveformCanvas: React.FC<{ radioState: 'transmitting' | 'speaking' | 'idle' | 'processing' }> = ({
@@ -174,17 +176,27 @@ const HeroWaveformCanvas: React.FC<{ radioState: 'transmitting' | 'speaking' | '
   );
 };
 
-export const VoiceCockpitView: React.FC<VoiceCockpitViewProps> = ({
-  radio,
-  session,
-  lap,
-  carStatus,
-  carDamage,
-  telemetry,
-  telemetry2,
-  packetFormat,
-  connected,
-}) => {
+export const VoiceCockpitView: React.FC<VoiceCockpitViewProps> = React.memo((props) => {
+  const storeSession = useTelemetryStore((s) => s.session);
+  const storePlayerIndex = useTelemetryStore((s) => s.playerCarIndex);
+  const storeLap = useTelemetryStore((s) => s.allLaps[storePlayerIndex] || null);
+  const storeCarStatus = useTelemetryStore((s) => s.allCarStatus[storePlayerIndex] || null);
+  const storeCarDamage = useTelemetryStore((s) => s.allCarDamage[storePlayerIndex] || null);
+  const storeTelemetry = useTelemetryStore((s) => s.allTelemetry[storePlayerIndex] || null);
+  const storeTelemetry2 = useTelemetryStore((s) => s.allTelemetry2[storePlayerIndex] || null);
+  const storePacketFormat = useTelemetryStore((s) => s.packetFormat);
+  const storeConnected = useTelemetryStore((s) => s.connected);
+
+  const radio = props.radio;
+  const session = props.session !== undefined ? props.session : storeSession;
+  const lap = props.lap !== undefined ? props.lap : storeLap;
+  const carStatus = props.carStatus !== undefined ? props.carStatus : storeCarStatus;
+  const carDamage = props.carDamage !== undefined ? props.carDamage : storeCarDamage;
+  const telemetry = props.telemetry !== undefined ? props.telemetry : storeTelemetry;
+  const telemetry2 = props.telemetry2 !== undefined ? props.telemetry2 : storeTelemetry2;
+  const packetFormat = props.packetFormat !== undefined ? props.packetFormat : storePacketFormat;
+  const connected = props.connected !== undefined ? props.connected : storeConnected;
+
   const { t } = useI18n();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
@@ -674,4 +686,7 @@ export const VoiceCockpitView: React.FC<VoiceCockpitViewProps> = ({
       />
     </div>
   );
-};
+});
+
+VoiceCockpitView.displayName = 'VoiceCockpitView';
+

@@ -1,14 +1,16 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi } from 'vitest';
 import { Dashboard } from './Dashboard';
-import { useTelemetry } from '../hooks/useTelemetry';
+import { useTelemetryStore } from '../store/useTelemetryStore';
+import * as storeModule from '../store/useTelemetryStore';
 
-// Mock the hook
-vi.mock('../hooks/useTelemetry');
+// Mock connectTelemetryWebSocket to avoid actual network calls
+vi.spyOn(storeModule, 'connectTelemetryWebSocket').mockReturnValue(() => {});
 
 describe('Dashboard', () => {
   beforeEach(() => {
-    (useTelemetry as any).mockReturnValue({
+    useTelemetryStore.getState().resetSession();
+    useTelemetryStore.setState({
       session: null,
       participants: [],
       allLaps: [],
@@ -16,15 +18,9 @@ describe('Dashboard', () => {
       allCarDamage: [],
       allTelemetry: [],
       events: [],
-      clearEvents: vi.fn(),
-      telemetry: null,
-      lap: null,
-      motion: null,
-      trackPath: [],
       connected: false,
       playerCarIndex: 0,
       selectedCarIndex: 0,
-      history: [],
     });
   });
 
@@ -38,7 +34,7 @@ describe('Dashboard', () => {
   });
 
   it('renders waiting state when connected to backend but session data is null and still mounts LiveRadioHUD', () => {
-    (useTelemetry as any).mockReturnValue({
+    useTelemetryStore.setState({
       session: null,
       participants: [],
       allLaps: [],
@@ -46,15 +42,9 @@ describe('Dashboard', () => {
       allCarDamage: [],
       allTelemetry: [],
       events: [],
-      clearEvents: vi.fn(),
-      telemetry: null,
-      lap: null,
-      motion: null,
-      trackPath: [],
       connected: true,
       playerCarIndex: 0,
       selectedCarIndex: 0,
-      history: [],
     });
 
     render(<Dashboard />);
@@ -65,9 +55,8 @@ describe('Dashboard', () => {
     expect(screen.getByText(/RADIO STANDBY|RADIO EN ESPERA/i)).toBeInTheDocument();
   });
 
-
   it('renders full live Race Control Hub when connected and session data is received', () => {
-    (useTelemetry as any).mockReturnValue({
+    useTelemetryStore.setState({
       session: {
         TrackId: 0,
         SessionType: 15,
@@ -85,13 +74,13 @@ describe('Dashboard', () => {
       },
       participants: [
         { Name: 'Max Verstappen', DriverId: 9, TeamId: 0, RaceNumber: 1, AIControlled: 0 },
-      ],
+      ] as any[],
       allLaps: [
         { CarPosition: 1, CurrentLapNum: 5, CurrentLapTimeInMS: 81234, LastLapTimeInMS: 80950, Sector: 1, SpeedTrapFastestSpeed: 334.5 },
-      ],
+      ] as any[],
       allCarStatus: [
         { VisualTyreCompound: 17, TyresAgeLaps: 5, FuelInTank: 45, ERSStoreEnergy: 3500000 },
-      ],
+      ] as any[],
       allCarDamage: [],
       allTelemetry: [],
       events: [
@@ -104,16 +93,9 @@ describe('Dashboard', () => {
           severity: 'purple',
         },
       ],
-      clearEvents: vi.fn(),
-      telemetry: null,
-      lap: { CarPosition: 1, CurrentLapNum: 5, CurrentLapTimeInMS: 81234, LastLapTimeInMS: 80950, Sector: 1 },
-      motion: null,
-      trackPath: [],
       connected: true,
       playerCarIndex: 0,
       selectedCarIndex: 0,
-      setSelectedCarIndex: vi.fn(),
-      history: [],
     });
 
     render(<Dashboard />);
@@ -134,7 +116,7 @@ describe('Dashboard', () => {
   });
 
   it('switches to Voice Cockpit mode and unmounts 2x2 dashboard modules to save sim racing FPS', async () => {
-    (useTelemetry as any).mockReturnValue({
+    useTelemetryStore.setState({
       session: {
         TrackId: 0,
         SessionType: 15,
@@ -149,26 +131,19 @@ describe('Dashboard', () => {
       },
       participants: [
         { Name: 'Max Verstappen', DriverId: 9, TeamId: 0, RaceNumber: 1, AIControlled: 0 },
-      ],
+      ] as any[],
       allLaps: [
         { CarPosition: 1, CurrentLapNum: 5, CurrentLapTimeInMS: 81234, LastLapTimeInMS: 80950, Sector: 1 },
-      ],
+      ] as any[],
       allCarStatus: [
         { VisualTyreCompound: 17, TyresAgeLaps: 5, FuelInTank: 45, ERSStoreEnergy: 3500000 },
-      ],
+      ] as any[],
       allCarDamage: [],
       allTelemetry: [],
       events: [],
-      clearEvents: vi.fn(),
-      telemetry: null,
-      lap: { CarPosition: 1, CurrentLapNum: 5, CurrentLapTimeInMS: 81234, LastLapTimeInMS: 80950, Sector: 1 },
-      motion: null,
-      trackPath: [],
       connected: true,
       playerCarIndex: 0,
       selectedCarIndex: 0,
-      setSelectedCarIndex: vi.fn(),
-      history: [],
     });
 
     render(<Dashboard />);

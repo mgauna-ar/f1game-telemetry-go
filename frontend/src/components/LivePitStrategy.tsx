@@ -12,25 +12,35 @@ import {
 import type { ParticipantData, LapData, CarStatusData, SessionData } from '../types/telemetry';
 import { useI18n } from '../context/I18nContext';
 
+import { useTelemetryStore } from '../store/useTelemetryStore';
+
 interface LivePitStrategyProps {
-  session: SessionData | null;
-  participants: ParticipantData[];
-  laps: LapData[];
-  carStatuses: CarStatusData[];
-  selectedCarIndex: number;
-  playerCarIndex: number;
-  onSelectCar: (index: number) => void;
+  session?: SessionData | null;
+  participants?: ParticipantData[];
+  laps?: LapData[];
+  carStatuses?: CarStatusData[];
+  selectedCarIndex?: number;
+  playerCarIndex?: number;
+  onSelectCar?: (index: number) => void;
 }
 
-export const LivePitStrategy: React.FC<LivePitStrategyProps> = ({
-  session,
-  laps = [],
-  carStatuses = [],
-  participants = [],
-  playerCarIndex = 0,
-  selectedCarIndex = 0,
-  onSelectCar,
-}) => {
+export const LivePitStrategy: React.FC<LivePitStrategyProps> = React.memo((props) => {
+  const storeSession = useTelemetryStore((s) => s.session);
+  const storeParticipants = useTelemetryStore((s) => s.participants);
+  const storeLaps = useTelemetryStore((s) => s.allLaps);
+  const storeCarStatuses = useTelemetryStore((s) => s.allCarStatus);
+  const storePlayerCarIndex = useTelemetryStore((s) => s.playerCarIndex);
+  const storeSelectedCarIndex = useTelemetryStore((s) => s.selectedCarIndex);
+  const setSelectedCarIndex = useTelemetryStore((s) => s.setSelectedCarIndex);
+
+  const session = props.session !== undefined ? props.session : storeSession;
+  const participants = props.participants !== undefined ? props.participants : storeParticipants;
+  const laps = props.laps !== undefined ? props.laps : storeLaps;
+  const carStatuses = props.carStatuses !== undefined ? props.carStatuses : storeCarStatuses;
+  const playerCarIndex = props.playerCarIndex !== undefined ? props.playerCarIndex : storePlayerCarIndex;
+  const selectedCarIndex = props.selectedCarIndex !== undefined ? props.selectedCarIndex : storeSelectedCarIndex;
+  const onSelectCar = props.onSelectCar !== undefined ? props.onSelectCar : setSelectedCarIndex;
+
   const { t } = useI18n();
 
   const idealLap = session?.PitStopWindowIdealLap || 18;
@@ -248,4 +258,7 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = ({
       </div>
     </div>
   );
-};
+});
+
+LivePitStrategy.displayName = 'LivePitStrategy';
+
