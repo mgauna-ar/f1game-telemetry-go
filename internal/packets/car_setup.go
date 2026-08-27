@@ -54,50 +54,21 @@ func DecodeCarSetup(data []byte) (*PacketCarSetupData, error) {
 		return nil, fmt.Errorf("failed to decode header in car setup: %w", err)
 	}
 
-	var pkt PacketCarSetupData
-	pkt.Header = header
-
 	payload := data[headerLen:]
-	maxCars := MaxCarsForFormat(header.PacketFormat)
-	itemSize := PerCarItemSize(payload, header, CarSetupStructSize, CarSetupTrailerSize)
-
-	for i := 0; i < maxCars && i < MaxCars; i++ {
-		offset := i * itemSize
-		if offset+CarSetupStructSize > len(payload) {
-			break
-		}
-
-		carBytes := payload[offset : offset+CarSetupStructSize]
-		var cs CarSetupData
-
-		cs.FrontWing = carBytes[0]
-		cs.RearWing = carBytes[1]
-		cs.OnThrottle = carBytes[2]
-		cs.OffThrottle = carBytes[3]
-		cs.FrontCamber = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[4:8]))
-		cs.RearCamber = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[8:12]))
-		cs.FrontToe = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[12:16]))
-		cs.RearToe = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[16:20]))
-		cs.FrontSuspension = carBytes[20]
-		cs.RearSuspension = carBytes[21]
-		cs.FrontAntiRollBar = carBytes[22]
-		cs.RearAntiRollBar = carBytes[23]
-		cs.FrontSuspensionHeight = carBytes[24]
-		cs.RearSuspensionHeight = carBytes[25]
-		cs.BrakePressure = carBytes[26]
-		cs.BrakeBias = carBytes[27]
-		cs.EngineBraking = carBytes[28]
-		cs.RearLeftTyrePressure = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[29:33]))
-		cs.RearRightTyrePressure = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[33:37]))
-		cs.FrontLeftTyrePressure = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[37:41]))
-		cs.FrontRightTyrePressure = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[41:45]))
-		cs.Ballast = carBytes[45]
-		cs.FuelLoad = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[46:50]))
-
-		pkt.CarSetupData[i] = cs
+	cars, err := DecodePerCarBinary[CarSetupData](payload, header, CarSetupStructSize, CarSetupTrailerSize, 0, 0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode car setup: %w", err)
 	}
 
+	pkt := PacketCarSetupData{
+		Header:       header,
+		CarSetupData: cars,
+	}
+
+	maxCars := MaxCarsForFormat(header.PacketFormat)
+	itemSize := PerCarItemSize(payload, header, CarSetupStructSize, CarSetupTrailerSize)
 	tailOffset := maxCars * itemSize
+
 	if tailOffset+CarSetupTrailerSize <= len(payload) {
 		pkt.NextFrontWingValue = math.Float32frombits(binary.LittleEndian.Uint32(payload[tailOffset : tailOffset+4]))
 	}

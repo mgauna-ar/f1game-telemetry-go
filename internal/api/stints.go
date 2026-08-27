@@ -79,225 +79,139 @@ type StintKPIs struct {
 	TotalFieldPitStops  int                        `json:"total_field_pit_stops"`
 }
 
-type degRegressionPoint struct {
-	age     float64
-	timeSec float64
+// partitionDriverStints partitions contiguous laps of a single driver into distinct tyre stints.
+func partitionDriverStints(driverLaps []storage.Lap, usedCompoundsSet map[string]bool) (stints []DriverStint, maxDriverLap int) {
+	var rawStints []*DriverStint
+	var currentStint *DriverStint
+	maxDriverLap = 0
+
+	for _, l := range driverLaps {
+		rawComp := strings.TrimSpace(l.TyreCompound)
+		if rawComp == "" {
+			rawComp = packets.CompoundNameUnknown
+		}
+		normComp := packets.NormalizeCompoundName(rawComp)
+		if normComp != packets.CompoundNameUnknown {
+			usedCompoundsSet[normComp] = true
+		}
+		lapStintID := l.Stint
+
+		isNewStint := currentStint == nil ||
+			(lapStintID > 0 && currentStint.StintID > 0 && lapStintID != currentStint.StintID) ||
+			currentStint.Compound != normComp
+
+		if isNewStint {
+			if currentStint != nil {
+				currentStint.HasPitStopAfter = true
+			}
+			currentStint = &DriverStint{
+				StintIndex:      len(rawStints) + 1,
+				StintID:         lapStintID,
+				Compound:        normComp,
+				ActualCompound:  l.ActualCompound,
+				StartLap:        l.LapNumber,
+				EndLap:          l.LapNumber,
+				TotalLaps:       1,
+				HasPitStopAfter: false,
+				Laps:            []storage.Lap{l},
+			}
+			rawStints = append(rawStints, currentStint)
+		} else {
+			currentStint.EndLap = l.LapNumber
+			currentStint.TotalLaps++
+			currentStint.Laps = append(currentStint.Laps, l)
+			if currentStint.ActualCompound == "" && l.ActualCompound != "" {
+				currentStint.ActualCompound = l.ActualCompound
+			}
+		}
+
+		if l.LapNumber > maxDriverLap {
+			maxDriverLap = l.LapNumber
+		}
+	}
+
+	finalStints := make([]DriverStint, len(rawStints))
+	for sIdx, s := range rawStints {
+		var validLaps []storage.Lap
+		var degPoints []degRegressionPoint
+
+		for lapIndexInStint, l := range s.Laps {
+			if l.LapTimeMS > 0 {
+				validLaps = append(validLaps, l)
+				sec := float64(l.LapTimeMS) / 1000.0
+				degPoints = append(degPoints, degRegressionPoint{
+					age:     float64(lapIndexInStint + 1),
+					timeSec: sec,
+				})
+			}
+		}
+
+		if len(validLaps) > 0 {
+			sum := int64(0)
+			best := validLaps[0].LapTimeMS
+			for _, l := range validLaps {
+				sum += int64(l.LapTimeMS)
+				if l.LapTimeMS < best {
+					best = l.LapTimeMS
+				}
+			}
+			s.AvgLapTimeMS = int(sum / int64(len(validLaps)))
+			s.BestLapTimeMS = best
+		}
+		s.DegSlopeSecPerLap = calculateDegradationSlope(degPoints)
+		finalStints[sIdx] = *s
+	}
+
+	return finalStints, maxDriverLap
 }
 
-// calculateDegradationSlope computes the Ordinary Least Squares (OLS) linear regression slope.
-// slope = (N * sum(XY) - sum(X) * sum(Y)) / (N * sum(X^2) - (sum(X))^2)
-func calculateDegradationSlope(points []degRegressionPoint) *float64 {
-	n := float64(len(points))
-	if n < 3 {
-		return nil
+// buildDriverStintData constructs DriverStintData for a driver including strategy string.
+func buildDriverStintData(p storage.Participant, pIdx int, driverLaps []storage.Lap, usedCompoundsSet map[string]bool) (data DriverStintData, maxLap int) {
+	finalStints, maxLap := partitionDriverStints(driverLaps, usedCompoundsSet)
+
+	strategyString := "N/A"
+	if len(finalStints) > 0 {
+		parts := make([]string, len(finalStints))
+		for i, s := range finalStints {
+			compInitial := "?"
+			if s.Compound != "" {
+				compInitial = string(s.Compound[0])
+			}
+			parts[i] = fmt.Sprintf("%s (%dL)", compInitial, s.TotalLaps)
+		}
+		strategyString = strings.Join(parts, " ➔ ")
 	}
-	var sumX, sumY, sumXY, sumXX float64
-	for _, pt := range points {
-		sumX += pt.age
-		sumY += pt.timeSec
-		sumXY += pt.age * pt.timeSec
-		sumXX += pt.age * pt.age
+
+	totalPits := len(finalStints) - 1
+	if totalPits < 0 {
+		totalPits = 0
 	}
-	denom := n*sumXX - sumX*sumX
-	if denom == 0 {
-		return nil
+
+	driverName := p.Name
+	if strings.TrimSpace(driverName) == "" {
+		driverName = packets.DriverName(uint16(p.DriverID))
 	}
-	slope := (n*sumXY - sumX*sumY) / denom
-	rounded := math.Round(slope*1000.0) / 1000.0
-	return &rounded
+
+	pos := p.Position
+	if pos == 0 {
+		pos = pIdx + 1
+	}
+
+	return DriverStintData{
+		CarIndex:       p.CarIndex,
+		DriverName:     driverName,
+		RaceNumber:     p.RaceNumber,
+		TeamID:         p.TeamID,
+		Position:       pos,
+		StrategyString: strategyString,
+		TotalStints:    len(finalStints),
+		TotalPits:      totalPits,
+		Stints:         finalStints,
+	}, maxLap
 }
 
-// computeSessionStints executes server-side stint strategy analysis, partitioning, OLS regression, and KPIs.
-func computeSessionStints(session *storage.Session, participants []storage.Participant, laps []storage.Lap) *StintsResponse {
-	isRaceSession := session != nil && strings.Contains(strings.ToLower(session.SessionType), "race")
-
-	// 1. Group laps by CarIndex
-	lapsByCar := make(map[int][]storage.Lap)
-	for _, l := range laps {
-		storage.DeriveSector3(&l)
-		lapsByCar[l.CarIndex] = append(lapsByCar[l.CarIndex], l)
-	}
-	for carIdx := range lapsByCar {
-		sort.SliceStable(lapsByCar[carIdx], func(i, j int) bool {
-			return lapsByCar[carIdx][i].LapNumber < lapsByCar[carIdx][j].LapNumber
-		})
-	}
-
-	// 2. Prepare participants list
-	effectiveParticipants := participants
-	if len(effectiveParticipants) == 0 {
-		for carIdx := range lapsByCar {
-			effectiveParticipants = append(effectiveParticipants, storage.Participant{
-				SessionID:    session.ID,
-				CarIndex:     carIdx,
-				Name:         fmt.Sprintf("Driver %d", carIdx+1),
-				RaceNumber:   carIdx + 1,
-				DriverID:     carIdx + 1,
-				TeamID:       0,
-				AIControlled: false,
-			})
-		}
-		sort.Slice(effectiveParticipants, func(i, j int) bool {
-			return effectiveParticipants[i].CarIndex < effectiveParticipants[j].CarIndex
-		})
-	}
-
-	var activeParticipants []storage.Participant
-	for _, p := range effectiveParticipants {
-		if isHistoricalParticipantActive(&p, lapsByCar[p.CarIndex], isRaceSession) {
-			activeParticipants = append(activeParticipants, p)
-		}
-	}
-
-	// Sort active participants by standing / position
-	sort.SliceStable(activeParticipants, func(i, j int) bool {
-		posA := activeParticipants[i].Position
-		posB := activeParticipants[j].Position
-		if posA > 0 && posB > 0 && posA != posB {
-			return posA < posB
-		}
-		if posA > 0 && posB == 0 {
-			return true
-		}
-		if posA == 0 && posB > 0 {
-			return false
-		}
-		return activeParticipants[i].CarIndex < activeParticipants[j].CarIndex
-	})
-
-	// 3. Partition Stints per Driver
-	driverStintsData := make([]DriverStintData, 0, len(activeParticipants))
-	effectiveMaxLaps := 1
-	if session != nil && session.TotalLaps > 0 {
-		effectiveMaxLaps = session.TotalLaps
-	}
-	usedCompoundsSet := make(map[string]bool)
-
-	for pIdx, p := range activeParticipants {
-		driverLaps := lapsByCar[p.CarIndex]
-		var rawStints []*DriverStint
-		var currentStint *DriverStint
-
-		for _, l := range driverLaps {
-			rawComp := strings.TrimSpace(l.TyreCompound)
-			if rawComp == "" {
-				rawComp = packets.CompoundNameUnknown
-			}
-			normComp := packets.NormalizeCompoundName(rawComp)
-			if normComp != packets.CompoundNameUnknown {
-				usedCompoundsSet[normComp] = true
-			}
-			lapStintID := l.Stint
-
-			isNewStint := currentStint == nil ||
-				(lapStintID > 0 && currentStint.StintID > 0 && lapStintID != currentStint.StintID) ||
-				currentStint.Compound != normComp
-
-			if isNewStint {
-				if currentStint != nil {
-					currentStint.HasPitStopAfter = true
-				}
-				currentStint = &DriverStint{
-					StintIndex:      len(rawStints) + 1,
-					StintID:         lapStintID,
-					Compound:        normComp,
-					ActualCompound:  l.ActualCompound,
-					StartLap:        l.LapNumber,
-					EndLap:          l.LapNumber,
-					TotalLaps:       1,
-					HasPitStopAfter: false,
-					Laps:            []storage.Lap{l},
-				}
-				rawStints = append(rawStints, currentStint)
-			} else {
-				currentStint.EndLap = l.LapNumber
-				currentStint.TotalLaps++
-				currentStint.Laps = append(currentStint.Laps, l)
-				if currentStint.ActualCompound == "" && l.ActualCompound != "" {
-					currentStint.ActualCompound = l.ActualCompound
-				}
-			}
-
-			if l.LapNumber > effectiveMaxLaps {
-				effectiveMaxLaps = l.LapNumber
-			}
-		}
-
-		// Calculate timing stats and regression for each stint
-		finalStints := make([]DriverStint, len(rawStints))
-		for sIdx, s := range rawStints {
-			var validLaps []storage.Lap
-			var degPoints []degRegressionPoint
-
-			for lapIndexInStint, l := range s.Laps {
-				if l.LapTimeMS > 0 {
-					validLaps = append(validLaps, l)
-					sec := float64(l.LapTimeMS) / 1000.0
-					degPoints = append(degPoints, degRegressionPoint{
-						age:     float64(lapIndexInStint + 1),
-						timeSec: sec,
-					})
-				}
-			}
-
-			if len(validLaps) > 0 {
-				sum := int64(0)
-				best := validLaps[0].LapTimeMS
-				for _, l := range validLaps {
-					sum += int64(l.LapTimeMS)
-					if l.LapTimeMS < best {
-						best = l.LapTimeMS
-					}
-				}
-				s.AvgLapTimeMS = int(sum / int64(len(validLaps)))
-				s.BestLapTimeMS = best
-			}
-			s.DegSlopeSecPerLap = calculateDegradationSlope(degPoints)
-			finalStints[sIdx] = *s
-		}
-
-		strategyString := "N/A"
-		if len(finalStints) > 0 {
-			parts := make([]string, len(finalStints))
-			for i, s := range finalStints {
-				compInitial := "?"
-				if s.Compound != "" {
-					compInitial = string(s.Compound[0])
-				}
-				parts[i] = fmt.Sprintf("%s (%dL)", compInitial, s.TotalLaps)
-			}
-			strategyString = strings.Join(parts, " ➔ ")
-		}
-
-		totalPits := len(finalStints) - 1
-		if totalPits < 0 {
-			totalPits = 0
-		}
-
-		driverName := p.Name
-		if strings.TrimSpace(driverName) == "" {
-			driverName = packets.DriverName(uint16(p.DriverID))
-		}
-
-		pos := p.Position
-		if pos == 0 {
-			pos = pIdx + 1
-		}
-
-		driverStintsData = append(driverStintsData, DriverStintData{
-			CarIndex:       p.CarIndex,
-			DriverName:     driverName,
-			RaceNumber:     p.RaceNumber,
-			TeamID:         p.TeamID,
-			Position:       pos,
-			StrategyString: strategyString,
-			TotalStints:    len(finalStints),
-			TotalPits:      totalPits,
-			Stints:         finalStints,
-		})
-	}
-
-	// 4. Compute Strategy KPIs
+// buildStrategyKPIs calculates session-wide strategy KPIs including most popular strategy and compound records.
+func buildStrategyKPIs(driverStintsData []DriverStintData) StintKPIs {
 	strategyCounts := make(map[string]int)
 	totalFieldPitStops := 0
 	bestLapsByCompound := make(map[string]CompoundBestLap)
@@ -353,18 +267,20 @@ func computeSessionStints(session *storage.Session, participants []storage.Parti
 		}
 	}
 
-	kpis := StintKPIs{
+	return StintKPIs{
 		MostPopularStrategy: mostPopularStrategy,
 		MostPopularCount:    mostPopularCount,
 		LongestStint:        longestStint,
 		BestLapsByCompound:  bestLapsByCompound,
 		TotalFieldPitStops:  totalFieldPitStops,
 	}
+}
 
-	// 5. Build Degradation Data Matrix by Tyre Age
-	globalMaxAge := 0
+// buildDegradationData produces a tyre degradation matrix indexed by tyre age and stint regression slopes.
+func buildDegradationData(driverStintsData []DriverStintData) (degradationData []map[string]any, rates map[string]*float64, globalMaxAge int) {
+	globalMaxAge = 0
 	ageDataMap := make(map[int]map[string]any)
-	rates := make(map[string]*float64)
+	rates = make(map[string]*float64)
 
 	for _, d := range driverStintsData {
 		carIdx := d.CarIndex
@@ -392,7 +308,7 @@ func computeSessionStints(session *storage.Session, participants []storage.Parti
 		}
 	}
 
-	degradationData := make([]map[string]any, 0, globalMaxAge)
+	degradationData = make([]map[string]any, 0, globalMaxAge)
 	for age := 1; age <= globalMaxAge; age++ {
 		if pt, ok := ageDataMap[age]; ok {
 			degradationData = append(degradationData, pt)
@@ -400,6 +316,58 @@ func computeSessionStints(session *storage.Session, participants []storage.Parti
 			degradationData = append(degradationData, map[string]any{"tyreAge": age})
 		}
 	}
+
+	return degradationData, rates, globalMaxAge
+}
+
+// computeSessionStints executes server-side stint strategy analysis, partitioning, OLS regression, and KPIs.
+func computeSessionStints(session *storage.Session, participants []storage.Participant, laps []storage.Lap) *StintsResponse {
+	isRaceSession := session != nil && strings.Contains(strings.ToLower(session.SessionType), "race")
+
+	// 1. Group laps by car
+	lapsByCar, _ := groupLapsByCar(laps)
+
+	// 2. Prepare active participants
+	activeParticipants := buildEffectiveParticipants(session, participants, lapsByCar, isRaceSession)
+
+	// Sort active participants by standing / position
+	sort.SliceStable(activeParticipants, func(i, j int) bool {
+		posA := activeParticipants[i].Position
+		posB := activeParticipants[j].Position
+		if posA > 0 && posB > 0 && posA != posB {
+			return posA < posB
+		}
+		if posA > 0 && posB == 0 {
+			return true
+		}
+		if posA == 0 && posB > 0 {
+			return false
+		}
+		return activeParticipants[i].CarIndex < activeParticipants[j].CarIndex
+	})
+
+	// 3. Partition Stints per Driver
+	driverStintsData := make([]DriverStintData, 0, len(activeParticipants))
+	effectiveMaxLaps := 1
+	if session != nil && session.TotalLaps > 0 {
+		effectiveMaxLaps = session.TotalLaps
+	}
+	usedCompoundsSet := make(map[string]bool)
+
+	for pIdx, p := range activeParticipants {
+		driverLaps := lapsByCar[p.CarIndex]
+		driverStint, maxLap := buildDriverStintData(p, pIdx, driverLaps, usedCompoundsSet)
+		driverStintsData = append(driverStintsData, driverStint)
+		if maxLap > effectiveMaxLaps {
+			effectiveMaxLaps = maxLap
+		}
+	}
+
+	// 4. Compute Strategy KPIs
+	kpis := buildStrategyKPIs(driverStintsData)
+
+	// 5. Build Degradation Data Matrix by Tyre Age
+	degradationData, rates, globalMaxAge := buildDegradationData(driverStintsData)
 
 	sessionCompounds := make([]string, 0, len(usedCompoundsSet))
 	for comp := range usedCompoundsSet {

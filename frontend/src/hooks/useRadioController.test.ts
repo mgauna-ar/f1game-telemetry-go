@@ -1,12 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useRadioController } from './useRadioController';
+import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
 import { RADIO_PERSONAS, RADIO_STORAGE_KEYS, RADIO_ALERT_CONSTANTS, RADIO_TRIGGER_PRESETS } from '../constants/f1';
 import * as radioAudio from '../utils/radioAudio';
 
 describe('useRadioController hook', () => {
   beforeEach(() => {
     localStorage.clear();
+    useRadioSettingsStore.getState().resetStoreToDefaults();
     vi.clearAllMocks();
     vi.spyOn(radioAudio, 'playRadioBeep').mockResolvedValue();
     vi.spyOn(radioAudio, 'speakRadioResponse').mockImplementation(async (_text, opts) => {
@@ -17,6 +19,7 @@ describe('useRadioController hook', () => {
 
   afterEach(() => {
     localStorage.clear();
+    useRadioSettingsStore.getState().resetStoreToDefaults();
     vi.restoreAllMocks();
   });
 

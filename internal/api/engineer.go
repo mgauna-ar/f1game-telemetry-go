@@ -991,6 +991,32 @@ func (e *EngineerEngine) processLapData(header packets.PacketHeader, p *packets.
 	isQualy := e.isQualifyingSessionLocked()
 
 	// 1. Sector Coaching Analysis (Sector 1 & 2 Delta vs PB)
+	e.evalSectorCoachingLocked(header, playerLap, currentLap, isRace)
+	e.lastLapNumber = currentLap
+
+	// 2. Teammate Proximity & Teammate Pitting
+	e.evalTeammateProximityLocked(header, playerLap, p, playerPos)
+
+	// 3. Lap Invalidation & Qualifying Out-Lap Traffic
+	e.evalQualifyingOutLapAndLimitsLocked(header, playerLap, p, playerIdx, currentLap, isQualy)
+
+	// 4. Undercut Threat Detection
+	e.evalUndercutThreatLocked(header, playerLap, p, playerIdx, playerPos, isRace)
+
+	// 5. Pit Stop Window Opening
+	e.evalPitStopWindowLocked(header, currentLap, playerPos, isRace)
+
+	// 6. Rival Defend & Attack Opportunities
+	e.evalRivalsDirectivesLocked(header, playerLap, p, playerIdx, playerPos, isRace, is2026)
+
+	// 7. Track Limits & Steward Penalties
+	e.evalTrackLimitsAndPenaltiesLocked(header, playerLap)
+
+	// 8. Clean Air Pit Window (Predictive)
+	e.evalCleanAirPitWindowLocked(header, playerLap, p, playerIdx, currentLap, isRace)
+}
+
+func (e *EngineerEngine) evalSectorCoachingLocked(header packets.PacketHeader, playerLap packets.LapData, currentLap int, isRace bool) {
 	isSectorCoachingPhase := (e.currentPhase == PhaseFlyingLap || (e.currentPhase == PhaseRacing && isRace)) &&
 		e.currentPhase != PhaseSafetyCar &&
 		e.currentPhase != PhaseInLap &&
@@ -1002,90 +1028,95 @@ func (e *EngineerEngine) processLapData(header packets.PacketHeader, p *packets.
 		playerLap.DriverStatus != packets.DriverStatusInGarage &&
 		playerLap.PitStatus == packets.PitStatusNone
 
-	if isSectorCoachingPhase && isCompetitiveDriver {
-		s1 := int(playerLap.Sector1TimeMSPart) + int(playerLap.Sector1TimeMinutesPart)*packets.MillisPerMinute
-		s2 := int(playerLap.Sector2TimeMSPart) + int(playerLap.Sector2TimeMinutesPart)*packets.MillisPerMinute
+	if !isSectorCoachingPhase || !isCompetitiveDriver {
+		return
+	}
 
-		if s1 > 0 && (e.bestSector1MS == 0 || s1 < e.bestSector1MS) {
-			e.bestSector1MS = s1
-		}
-		if s2 > 0 && (e.bestSector2MS == 0 || s2 < e.bestSector2MS) {
-			e.bestSector2MS = s2
-		}
+	s1 := int(playerLap.Sector1TimeMSPart) + int(playerLap.Sector1TimeMinutesPart)*packets.MillisPerMinute
+	s2 := int(playerLap.Sector2TimeMSPart) + int(playerLap.Sector2TimeMinutesPart)*packets.MillisPerMinute
 
-		if int(playerLap.Sector) == 1 && s1 > 0 && e.bestSector1MS > 0 && currentLap == e.lastLapNumber {
-			deltaS1 := float64(s1-e.bestSector1MS) / 1000.0
-			if deltaS1 >= SectorTimeLossThresholdSec {
-				e.emitDirectiveLocked(header, EngineerDirective{
-					Category: DirectiveCategoryCoaching,
-					SubAlert: "sector_delta",
-					Title:    "Sector 1 Delta",
-					Message:  fmt.Sprintf("Time lost in Sector 1 (+%.2fs vs personal best). Focus on apex speed and smooth steering input.", deltaS1),
-					Urgency:  UrgencyMedium,
-					Metadata: map[string]any{
-						"sector": 1,
-						"delta":  deltaS1,
-					},
-				}, "coaching_s1")
-			}
-		}
+	if s1 > 0 && (e.bestSector1MS == 0 || s1 < e.bestSector1MS) {
+		e.bestSector1MS = s1
+	}
+	if s2 > 0 && (e.bestSector2MS == 0 || s2 < e.bestSector2MS) {
+		e.bestSector2MS = s2
+	}
 
-		if int(playerLap.Sector) == 2 && s2 > 0 && e.bestSector2MS > 0 && currentLap == e.lastLapNumber {
-			deltaS2 := float64(s2-e.bestSector2MS) / 1000.0
-			if deltaS2 >= SectorTimeLossThresholdSec {
-				e.emitDirectiveLocked(header, EngineerDirective{
-					Category: DirectiveCategoryCoaching,
-					SubAlert: "sector_delta",
-					Title:    "Sector 2 Delta",
-					Message:  fmt.Sprintf("Time lost in Sector 2 (+%.2fs vs personal best). Prioritize corner exit traction.", deltaS2),
-					Urgency:  UrgencyMedium,
-					Metadata: map[string]any{
-						"sector": 2,
-						"delta":  deltaS2,
-					},
-				}, "coaching_s2")
-			}
+	if int(playerLap.Sector) == 1 && s1 > 0 && e.bestSector1MS > 0 && currentLap == e.lastLapNumber {
+		deltaS1 := float64(s1-e.bestSector1MS) / 1000.0
+		if deltaS1 >= SectorTimeLossThresholdSec {
+			e.emitDirectiveLocked(header, EngineerDirective{
+				Category: DirectiveCategoryCoaching,
+				SubAlert: "sector_delta",
+				Title:    "Sector 1 Delta",
+				Message:  fmt.Sprintf("Time lost in Sector 1 (+%.2fs vs personal best). Focus on apex speed and smooth steering input.", deltaS1),
+				Urgency:  UrgencyMedium,
+				Metadata: map[string]any{
+					"sector": 1,
+					"delta":  deltaS1,
+				},
+			}, "coaching_s1")
 		}
 	}
-	e.lastLapNumber = currentLap
 
-	// 2. Teammate Proximity & Teammate Pitting
-	if e.teammateCarIndex >= 0 && e.teammateCarIndex < len(p.LapData) {
-		teammateLap := p.LapData[e.teammateCarIndex]
-		teammatePos := int(teammateLap.CarPosition)
-
-		if playerPos > 0 && teammatePos > 0 && math.Abs(float64(playerPos-teammatePos)) == 1 {
-			distDelta := float64(teammateLap.TotalDistance - playerLap.TotalDistance)
-			gapSec := distDelta / AverageRaceSpeedMetersPerSec
-
-			if gapSec > 0 && gapSec < TeammateGapThresholdSec {
-				e.emitDirectiveLocked(header, EngineerDirective{
-					Category: DirectiveCategoryTeammate,
-					SubAlert: "teammate_ahead",
-					Title:    "Teammate Ahead",
-					Message:  fmt.Sprintf("Teammate is P%d, %.1fs ahead. Pace delta is favorable. Free to race, keep it clean.", teammatePos, gapSec),
-					Urgency:  UrgencyMedium,
-					Metadata: map[string]any{
-						"teammate_pos": teammatePos,
-						"gap_sec":      gapSec,
-					},
-				}, "teammate_ahead")
-			}
+	if int(playerLap.Sector) == 2 && s2 > 0 && e.bestSector2MS > 0 && currentLap == e.lastLapNumber {
+		deltaS2 := float64(s2-e.bestSector2MS) / 1000.0
+		if deltaS2 >= SectorTimeLossThresholdSec {
+			e.emitDirectiveLocked(header, EngineerDirective{
+				Category: DirectiveCategoryCoaching,
+				SubAlert: "sector_delta",
+				Title:    "Sector 2 Delta",
+				Message:  fmt.Sprintf("Time lost in Sector 2 (+%.2fs vs personal best). Prioritize corner exit traction.", deltaS2),
+				Urgency:  UrgencyMedium,
+				Metadata: map[string]any{
+					"sector": 2,
+					"delta":  deltaS2,
+				},
+			}, "coaching_s2")
 		}
+	}
+}
 
-		if teammateLap.PitStatus == packets.PitStatusPitting && e.lastPittedCarIndex != e.teammateCarIndex {
-			e.lastPittedCarIndex = e.teammateCarIndex
+func (e *EngineerEngine) evalTeammateProximityLocked(header packets.PacketHeader, playerLap packets.LapData, p *packets.PacketLapData, playerPos int) {
+	if e.teammateCarIndex < 0 || e.teammateCarIndex >= len(p.LapData) {
+		return
+	}
+	teammateLap := p.LapData[e.teammateCarIndex]
+	teammatePos := int(teammateLap.CarPosition)
+
+	if playerPos > 0 && teammatePos > 0 && math.Abs(float64(playerPos-teammatePos)) == 1 {
+		distDelta := float64(teammateLap.TotalDistance - playerLap.TotalDistance)
+		gapSec := distDelta / AverageRaceSpeedMetersPerSec
+
+		if gapSec > 0 && gapSec < TeammateGapThresholdSec {
 			e.emitDirectiveLocked(header, EngineerDirective{
 				Category: DirectiveCategoryTeammate,
-				SubAlert: "teammate_pitting",
-				Title:    "Teammate Pitting",
-				Message:  fmt.Sprintf("Teammate in P%d is pitting now. Focus on clean in-lap.", teammatePos),
-				Urgency:  UrgencyHigh,
-			}, "teammate_pitting")
+				SubAlert: "teammate_ahead",
+				Title:    "Teammate Ahead",
+				Message:  fmt.Sprintf("Teammate is P%d, %.1fs ahead. Pace delta is favorable. Free to race, keep it clean.", teammatePos, gapSec),
+				Urgency:  UrgencyMedium,
+				Metadata: map[string]any{
+					"teammate_pos": teammatePos,
+					"gap_sec":      gapSec,
+				},
+			}, "teammate_ahead")
 		}
 	}
 
-	// 3. Lap Invalidation (Track Limits)
+	if teammateLap.PitStatus == packets.PitStatusPitting && e.lastPittedCarIndex != e.teammateCarIndex {
+		e.lastPittedCarIndex = e.teammateCarIndex
+		e.emitDirectiveLocked(header, EngineerDirective{
+			Category: DirectiveCategoryTeammate,
+			SubAlert: "teammate_pitting",
+			Title:    "Teammate Pitting",
+			Message:  fmt.Sprintf("Teammate in P%d is pitting now. Focus on clean in-lap.", teammatePos),
+			Urgency:  UrgencyHigh,
+		}, "teammate_pitting")
+	}
+}
+
+func (e *EngineerEngine) evalQualifyingOutLapAndLimitsLocked(header packets.PacketHeader, playerLap packets.LapData, p *packets.PacketLapData, playerIdx, currentLap int, isQualy bool) {
+	// Lap Invalidation (Track Limits)
 	if playerLap.CurrentLapInvalid == 1 && currentLap != e.lastInvalidLapNum {
 		e.lastInvalidLapNum = currentLap
 		isPushing := playerLap.DriverStatus == packets.DriverStatusFlyingLap || (isQualy && playerLap.DriverStatus != packets.DriverStatusInLap && playerLap.DriverStatus != packets.DriverStatusOutLap)
@@ -1100,7 +1131,7 @@ func (e *EngineerEngine) processLapData(header packets.PacketHeader, p *packets.
 		}
 	}
 
-	// 4. Qualifying Out-Lap Clean Air / Traffic Detection
+	// Qualifying Out-Lap Clean Air / Traffic Detection
 	if isQualy && playerLap.DriverStatus == packets.DriverStatusOutLap {
 		isFinalSector := playerLap.Sector >= 2 || (e.latestSession != nil && e.latestSession.TrackLength > 0 && playerLap.LapDistance > float32(e.latestSession.TrackLength)*0.7)
 		if isFinalSector && e.lastOutLapChecked != currentLap {
@@ -1144,149 +1175,160 @@ func (e *EngineerEngine) processLapData(header packets.PacketHeader, p *packets.
 			}
 		}
 	}
+}
 
-	// 5. Race: Undercut Threat Detection
-	if isRace && playerPos > 0 && e.currentPhase != PhaseSafetyCar && (e.latestSession == nil || e.latestSession.SafetyCarStatus == packets.SafetyCarNone) {
-		for i, rival := range p.LapData {
-			if i == playerIdx || int(rival.CarPosition) != playerPos+1 {
-				continue
+func (e *EngineerEngine) evalUndercutThreatLocked(header packets.PacketHeader, playerLap packets.LapData, p *packets.PacketLapData, playerIdx, playerPos int, isRace bool) {
+	if !isRace || playerPos <= 0 || e.currentPhase == PhaseSafetyCar || (e.latestSession != nil && e.latestSession.SafetyCarStatus != packets.SafetyCarNone) {
+		return
+	}
+
+	for i, rival := range p.LapData {
+		if i == playerIdx || int(rival.CarPosition) != playerPos+1 {
+			continue
+		}
+		if rival.PitStatus == packets.PitStatusPitting && e.lastUndercutRivalIndex != i {
+			distDelta := playerLap.TotalDistance - rival.TotalDistance
+			maxUndercutDist := e.config.UndercutGapSec * AverageRaceSpeedMetersPerSec
+			if distDelta > 0 && distDelta < maxUndercutDist {
+				e.lastUndercutRivalIndex = i
+				e.emitDirectiveLocked(header, EngineerDirective{
+					Category: DirectiveCategoryPitStrategy,
+					SubAlert: "undercut_window",
+					Title:    "Undercut Threat",
+					Message:  fmt.Sprintf("Car behind (P%d) has just pitted for an undercut attempt! Push hard now on the in-lap to defend track position.", playerPos+1),
+					Urgency:  UrgencyCritical,
+				}, "undercut")
 			}
-			if rival.PitStatus == packets.PitStatusPitting && e.lastUndercutRivalIndex != i {
-				distDelta := playerLap.TotalDistance - rival.TotalDistance
-				maxUndercutDist := e.config.UndercutGapSec * AverageRaceSpeedMetersPerSec
-				if distDelta > 0 && distDelta < maxUndercutDist {
-					e.lastUndercutRivalIndex = i
-					e.emitDirectiveLocked(header, EngineerDirective{
-						Category: DirectiveCategoryPitStrategy,
-						SubAlert: "undercut_window",
-						Title:    "Undercut Threat",
-						Message:  fmt.Sprintf("Car behind (P%d) has just pitted for an undercut attempt! Push hard now on the in-lap to defend track position.", playerPos+1),
-						Urgency:  UrgencyCritical,
-					}, "undercut")
+		}
+	}
+}
+
+func (e *EngineerEngine) evalPitStopWindowLocked(header packets.PacketHeader, currentLap, playerPos int, isRace bool) {
+	if !isRace || e.currentPhase == PhaseSafetyCar || e.latestSession == nil || e.latestSession.SafetyCarStatus != packets.SafetyCarNone || e.latestSession.PitStopWindowIdealLap <= 0 {
+		return
+	}
+
+	idealLap := int(e.latestSession.PitStopWindowIdealLap)
+	if idealLap == currentLap && e.lastPitWindowWarnedLap != currentLap {
+		e.lastPitWindowWarnedLap = currentLap
+		rejoinPos := int(e.latestSession.PitStopRejoinPosition)
+		if rejoinPos == 0 {
+			rejoinPos = playerPos
+		}
+		if rejoinPos == 0 {
+			rejoinPos = 1
+		}
+		e.emitDirectiveLocked(header, EngineerDirective{
+			Category: DirectiveCategoryPitStrategy,
+			SubAlert: "pit_window_open",
+			Title:    "Pit Stop Window",
+			Message:  fmt.Sprintf("Pit stop window is now open (Lap %d). Target rejoin position P%d.", currentLap, rejoinPos),
+			Urgency:  UrgencyLow,
+		}, "pit_window")
+	}
+}
+
+func (e *EngineerEngine) evalRivalsDirectivesLocked(header packets.PacketHeader, playerLap packets.LapData, p *packets.PacketLapData, playerIdx, playerPos int, isRace, is2026 bool) {
+	if !isRace || playerPos <= 0 || e.currentPhase != PhaseRacing || (e.latestSession != nil && e.latestSession.SafetyCarStatus != packets.SafetyCarNone) {
+		return
+	}
+
+	// Defend: Car Behind (playerPos + 1)
+	maxDefendDist := e.config.RivalGapSec * AverageRaceSpeedMetersPerSec
+	for i, rival := range p.LapData {
+		if i == playerIdx || int(rival.CarPosition) != playerPos+1 {
+			continue
+		}
+		distDelta := playerLap.TotalDistance - rival.TotalDistance
+		if distDelta > 0 && distDelta < maxDefendDist && e.lastDrsWarningIndex != i {
+			e.lastDrsWarningIndex = i
+			gapSec := distDelta / AverageRaceSpeedMetersPerSec
+
+			var extraContext string
+			if e.latestStatus != nil && i < len(e.latestStatus.CarStatusData) {
+				rivalStatus := e.latestStatus.CarStatusData[i]
+				playerStatus := e.getPlayerCarStatusLocked()
+				if playerStatus != nil && rivalStatus.ActualTyreCompound > 0 && playerStatus.ActualTyreCompound > 0 && rivalStatus.ActualTyreCompound != playerStatus.ActualTyreCompound {
+					extraContext += fmt.Sprintf(" Rival is on different compound (Compound ID: %d, tyre age: %d laps).", rivalStatus.ActualTyreCompound, rivalStatus.TyresAgeLaps)
 				}
 			}
-		}
-	}
+			if e.latestDamage != nil && i < len(e.latestDamage.CarDamageData) {
+				rivalDamage := e.latestDamage.CarDamageData[i]
+				rivalWing := float32(rivalDamage.FrontLeftWingDamage + rivalDamage.FrontRightWingDamage)
+				if rivalWing > RivalDamageWingThresholdPct {
+					extraContext += " Note: Car behind has front wing damage."
+				}
+			}
 
-	// 6. Race: Pit Stop Window Opening
-	if isRace && e.currentPhase != PhaseSafetyCar && e.latestSession != nil && e.latestSession.SafetyCarStatus == packets.SafetyCarNone && e.latestSession.PitStopWindowIdealLap > 0 {
-		idealLap := int(e.latestSession.PitStopWindowIdealLap)
-		if idealLap == currentLap && e.lastPitWindowWarnedLap != currentLap {
-			e.lastPitWindowWarnedLap = currentLap
-			rejoinPos := int(e.latestSession.PitStopRejoinPosition)
-			if rejoinPos == 0 {
-				rejoinPos = playerPos
+			var defendMsg string
+			if is2026 {
+				defendMsg = fmt.Sprintf("Defend! Car behind (P%d) is within Override/Boost attack threat (%.1fs gap).%s", playerPos+1, gapSec, extraContext)
+			} else {
+				defendMsg = fmt.Sprintf("Defend! Car behind (P%d) is within DRS threat (%.1fs gap).%s", playerPos+1, gapSec, extraContext)
 			}
-			if rejoinPos == 0 {
-				rejoinPos = 1
-			}
+
 			e.emitDirectiveLocked(header, EngineerDirective{
-				Category: DirectiveCategoryPitStrategy,
-				SubAlert: "pit_window_open",
-				Title:    "Pit Stop Window",
-				Message:  fmt.Sprintf("Pit stop window is now open (Lap %d). Target rejoin position P%d.", currentLap, rejoinPos),
-				Urgency:  UrgencyLow,
-			}, "pit_window")
+				Category: DirectiveCategoryRivals,
+				SubAlert: "rival_defend",
+				Title:    "Defend Position",
+				Message:  defendMsg,
+				Urgency:  UrgencyMedium,
+				Metadata: map[string]any{
+					"rival_pos": playerPos + 1,
+					"gap_sec":   gapSec,
+				},
+			}, "rival_defend")
 		}
 	}
 
-	// 7. Race: Rival Defend & Attack Opportunities
-	if isRace && playerPos > 0 && e.currentPhase == PhaseRacing && (e.latestSession == nil || e.latestSession.SafetyCarStatus == packets.SafetyCarNone) {
-		// Defend: Car Behind (playerPos + 1)
-		maxDefendDist := e.config.RivalGapSec * AverageRaceSpeedMetersPerSec
+	// Attack: Car Ahead (playerPos - 1)
+	if playerPos > 1 {
+		maxAttackDist := e.config.RivalAheadGapSec * AverageRaceSpeedMetersPerSec
 		for i, rival := range p.LapData {
-			if i == playerIdx || int(rival.CarPosition) != playerPos+1 {
+			if i == playerIdx || int(rival.CarPosition) != playerPos-1 {
 				continue
 			}
-			distDelta := playerLap.TotalDistance - rival.TotalDistance
-			if distDelta > 0 && distDelta < maxDefendDist && e.lastDrsWarningIndex != i {
-				e.lastDrsWarningIndex = i
+			distDelta := rival.TotalDistance - playerLap.TotalDistance
+			if distDelta > 0 && distDelta < maxAttackDist && e.lastCarAheadWarningIndex != i {
+				e.lastCarAheadWarningIndex = i
 				gapSec := distDelta / AverageRaceSpeedMetersPerSec
 
-				var extraContext string
+				var tyreContext string
 				if e.latestStatus != nil && i < len(e.latestStatus.CarStatusData) {
 					rivalStatus := e.latestStatus.CarStatusData[i]
-					playerStatus := e.getPlayerCarStatusLocked()
-					if playerStatus != nil && rivalStatus.ActualTyreCompound > 0 && playerStatus.ActualTyreCompound > 0 && rivalStatus.ActualTyreCompound != playerStatus.ActualTyreCompound {
-						extraContext += fmt.Sprintf(" Rival is on different compound (Compound ID: %d, tyre age: %d laps).", rivalStatus.ActualTyreCompound, rivalStatus.TyresAgeLaps)
-					}
-				}
-				if e.latestDamage != nil && i < len(e.latestDamage.CarDamageData) {
-					rivalDamage := e.latestDamage.CarDamageData[i]
-					rivalWing := float32(rivalDamage.FrontLeftWingDamage + rivalDamage.FrontRightWingDamage)
-					if rivalWing > RivalDamageWingThresholdPct {
-						extraContext += " Note: Car behind has front wing damage."
-					}
+					tyreContext = fmt.Sprintf(" Car ahead tyre age: %d laps (Compound: %d).", rivalStatus.TyresAgeLaps, rivalStatus.ActualTyreCompound)
 				}
 
-				var defendMsg string
+				var attackMsg string
 				if is2026 {
-					defendMsg = fmt.Sprintf("Defend! Car behind (P%d) is within Override/Boost attack threat (%.1fs gap).%s", playerPos+1, gapSec, extraContext)
+					telemetry2 := e.getPlayerTelemetry2Locked()
+					var boostContext string
+					if telemetry2 != nil && telemetry2.OvertakeAvailable == 1 {
+						boostContext = " Override Boost is available!"
+					}
+					attackMsg = fmt.Sprintf("We are catching car ahead (P%d), gap is %.1fs.%s%s Direct driver to prepare overtake using Straight Mode and Boost deployment.", playerPos-1, gapSec, tyreContext, boostContext)
 				} else {
-					defendMsg = fmt.Sprintf("Defend! Car behind (P%d) is within DRS threat (%.1fs gap).%s", playerPos+1, gapSec, extraContext)
+					attackMsg = fmt.Sprintf("We are catching car ahead (P%d), gap is %.1fs.%s", playerPos-1, gapSec, tyreContext)
 				}
 
 				e.emitDirectiveLocked(header, EngineerDirective{
 					Category: DirectiveCategoryRivals,
-					SubAlert: "rival_defend",
-					Title:    "Defend Position",
-					Message:  defendMsg,
+					SubAlert: "rival_attack",
+					Title:    "Attack Opportunity",
+					Message:  attackMsg,
 					Urgency:  UrgencyMedium,
 					Metadata: map[string]any{
-						"rival_pos": playerPos + 1,
+						"rival_pos": playerPos - 1,
 						"gap_sec":   gapSec,
 					},
-				}, "rival_defend")
-			}
-		}
-
-		// Attack: Car Ahead (playerPos - 1)
-		if playerPos > 1 {
-			maxAttackDist := e.config.RivalAheadGapSec * AverageRaceSpeedMetersPerSec
-			for i, rival := range p.LapData {
-				if i == playerIdx || int(rival.CarPosition) != playerPos-1 {
-					continue
-				}
-				distDelta := rival.TotalDistance - playerLap.TotalDistance
-				if distDelta > 0 && distDelta < maxAttackDist && e.lastCarAheadWarningIndex != i {
-					e.lastCarAheadWarningIndex = i
-					gapSec := distDelta / AverageRaceSpeedMetersPerSec
-
-					var tyreContext string
-					if e.latestStatus != nil && i < len(e.latestStatus.CarStatusData) {
-						rivalStatus := e.latestStatus.CarStatusData[i]
-						tyreContext = fmt.Sprintf(" Car ahead tyre age: %d laps (Compound: %d).", rivalStatus.TyresAgeLaps, rivalStatus.ActualTyreCompound)
-					}
-
-					var attackMsg string
-					if is2026 {
-						telemetry2 := e.getPlayerTelemetry2Locked()
-						var boostContext string
-						if telemetry2 != nil && telemetry2.OvertakeAvailable == 1 {
-							boostContext = " Override Boost is available!"
-						}
-						attackMsg = fmt.Sprintf("We are catching car ahead (P%d), gap is %.1fs.%s%s Direct driver to prepare overtake using Straight Mode and Boost deployment.", playerPos-1, gapSec, tyreContext, boostContext)
-					} else {
-						attackMsg = fmt.Sprintf("We are catching car ahead (P%d), gap is %.1fs.%s", playerPos-1, gapSec, tyreContext)
-					}
-
-					e.emitDirectiveLocked(header, EngineerDirective{
-						Category: DirectiveCategoryRivals,
-						SubAlert: "rival_attack",
-						Title:    "Attack Opportunity",
-						Message:  attackMsg,
-						Urgency:  UrgencyMedium,
-						Metadata: map[string]any{
-							"rival_pos": playerPos - 1,
-							"gap_sec":   gapSec,
-						},
-					}, "rival_attack")
-				}
+				}, "rival_attack")
 			}
 		}
 	}
+}
 
-	// 8. Track Limits Corner Cutting Warnings
+func (e *EngineerEngine) evalTrackLimitsAndPenaltiesLocked(header packets.PacketHeader, playerLap packets.LapData) {
+	// Track Limits Corner Cutting Warnings
 	cutWarnings := playerLap.CornerCuttingWarnings
 	if int(cutWarnings) >= e.config.CornerCutWarnThreshold && cutWarnings > e.lastCornerCutWarnings {
 		e.lastCornerCutWarnings = cutWarnings
@@ -1299,7 +1341,7 @@ func (e *EngineerEngine) processLapData(header packets.PacketHeader, p *packets.
 		}, "track_limits")
 	}
 
-	// 9. Steward Time Penalties
+	// Steward Time Penalties
 	penalties := playerLap.Penalties
 	if penalties > 0 && penalties > e.lastPenaltiesCount {
 		e.lastPenaltiesCount = penalties
@@ -1311,34 +1353,37 @@ func (e *EngineerEngine) processLapData(header packets.PacketHeader, p *packets.
 			Urgency:  UrgencyCritical,
 		}, "penalties")
 	}
+}
 
-	// 10. Clean Air Pit Window (Predictive)
-	if isRace && e.currentPhase == PhaseRacing && (e.latestSession == nil || e.latestSession.SafetyCarStatus == packets.SafetyCarNone) &&
-		playerLap.DriverStatus != packets.DriverStatusOutLap && playerLap.DriverStatus != packets.DriverStatusInLap && playerLap.PitStatus == packets.PitStatusNone && currentLap > 3 {
-		playerDist := float64(playerLap.TotalDistance)
-		estPitLossMeters := DefaultPitLaneLossSeconds * AverageRaceSpeedMetersPerSec
-		rejoinDist := playerDist - estPitLossMeters
+func (e *EngineerEngine) evalCleanAirPitWindowLocked(header packets.PacketHeader, playerLap packets.LapData, p *packets.PacketLapData, playerIdx, currentLap int, isRace bool) {
+	if !isRace || e.currentPhase != PhaseRacing || (e.latestSession != nil && e.latestSession.SafetyCarStatus != packets.SafetyCarNone) ||
+		playerLap.DriverStatus == packets.DriverStatusOutLap || playerLap.DriverStatus == packets.DriverStatusInLap || playerLap.PitStatus != packets.PitStatusNone || currentLap <= 3 {
+		return
+	}
 
-		trafficCount := 0
-		for i, rival := range p.LapData {
-			if i == playerIdx || rival.TotalDistance == 0 {
-				continue
-			}
-			rivalDist := float64(rival.TotalDistance)
-			if math.Abs(rivalDist-rejoinDist) < CleanAirTrafficWindowSeconds*AverageRaceSpeedMetersPerSec {
-				trafficCount++
-			}
+	playerDist := float64(playerLap.TotalDistance)
+	estPitLossMeters := DefaultPitLaneLossSeconds * AverageRaceSpeedMetersPerSec
+	rejoinDist := playerDist - estPitLossMeters
+
+	trafficCount := 0
+	for i, rival := range p.LapData {
+		if i == playerIdx || rival.TotalDistance == 0 {
+			continue
 		}
-
-		if trafficCount == 0 && currentLap%5 == 0 {
-			e.emitDirectiveLocked(header, EngineerDirective{
-				Category: DirectiveCategoryPitStrategy,
-				SubAlert: "pit_clean_air",
-				Title:    "Clean Air Pit Window",
-				Message:  "Pit window offers clean air on rejoin. Ideal opportunity for undercut/overcut strategy.",
-				Urgency:  UrgencyLow,
-			}, "pit_clean_air")
+		rivalDist := float64(rival.TotalDistance)
+		if math.Abs(rivalDist-rejoinDist) < CleanAirTrafficWindowSeconds*AverageRaceSpeedMetersPerSec {
+			trafficCount++
 		}
+	}
+
+	if trafficCount == 0 && currentLap%5 == 0 {
+		e.emitDirectiveLocked(header, EngineerDirective{
+			Category: DirectiveCategoryPitStrategy,
+			SubAlert: "pit_clean_air",
+			Title:    "Clean Air Pit Window",
+			Message:  "Pit window offers clean air on rejoin. Ideal opportunity for undercut/overcut strategy.",
+			Urgency:  UrgencyLow,
+		}, "pit_clean_air")
 	}
 }
 

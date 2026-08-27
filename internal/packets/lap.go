@@ -65,30 +65,25 @@ func DecodeLapData(data []byte) (*PacketLapData, error) {
 		return nil, fmt.Errorf("failed to decode header in lap data: %w", err)
 	}
 
-	var pkt PacketLapData
-	pkt.Header = header
-
 	payload := data[headerLen:]
-
 	if len(payload) < LapDataStructSize {
 		return nil, fmt.Errorf("data too short for lap payload: got %d bytes", len(payload))
 	}
 
-	maxCars := MaxCarsForFormat(header.PacketFormat)
-	itemSize := PerCarItemSize(payload, header, LapDataStructSize, LapDataTrailerSize)
-
-	for i := 0; i < maxCars && i < MaxCars; i++ {
-		offset := i * itemSize
-		if offset+LapDataStructSize > len(payload) {
-			break
-		}
-		r := bytes.NewReader(payload[offset : offset+LapDataStructSize])
-		if err := binary.Read(r, binary.LittleEndian, &pkt.LapData[i]); err != nil {
-			return nil, fmt.Errorf("failed to decode lap data for car %d: %w", i, err)
-		}
+	cars, err := DecodePerCarBinary[LapData](payload, header, LapDataStructSize, LapDataTrailerSize, 0, 0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode lap data: %w", err)
 	}
 
+	pkt := PacketLapData{
+		Header:  header,
+		LapData: cars,
+	}
+
+	maxCars := MaxCarsForFormat(header.PacketFormat)
+	itemSize := PerCarItemSize(payload, header, LapDataStructSize, LapDataTrailerSize)
 	tailOffset := maxCars * itemSize
+
 	if tailOffset < len(payload) {
 		rTail := bytes.NewReader(payload[tailOffset:])
 		if rTail.Len() >= 1 {

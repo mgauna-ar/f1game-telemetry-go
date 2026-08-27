@@ -2,35 +2,26 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Calendar,
   Search,
-  Trophy,
   Flag,
-  Users,
   ArrowLeft,
   Filter,
   RefreshCw,
-  Zap,
   X,
   Trash2,
   AlertTriangle,
-  Sparkles,
-  TrendingUp,
-  Plus,
-  Download,
   Upload,
   CheckCircle,
-  Layers,
 } from 'lucide-react';
 import { SessionTableView } from './session_history/SessionTableView';
 import { SessionClassificationTab } from './session_history/SessionClassificationTab';
 import { SessionLapChartsTab } from './session_history/SessionLapChartsTab';
 import { SessionStintStrategyTab } from './session_history/SessionStintStrategyTab';
 import { SessionSectorMatrixTab } from './session_history/SessionSectorMatrixTab';
+import { SessionDetailHeader } from './session_history/SessionDetailHeader';
+import { DeleteSessionModal } from './session_history/DeleteSessionModal';
 import { TagBadge } from './session_history/TagBadge';
 import { TagManagerModal } from './session_history/TagManagerModal';
 import { TagFilterBar } from './session_history/TagFilterBar';
-import { F1FormatBadge } from './F1FormatBadge';
-import { WeatherBadgeWithForecast } from './session_history/WeatherBadgeWithForecast';
-import { TrackFlag } from './TrackFlag';
 
 import { useRaceEngineerActions } from '../context/RaceEngineerContext';
 import { useI18n } from '../context/I18nContext';
@@ -739,165 +730,20 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
       {/* VIEW 2: SELECTED SESSION DETAIL EXPLORER */}
       {selectedSession && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          {/* Header Metadata Card */}
-          <div className="glass-panel session-header-panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-                <TrackFlag track={selectedSession.track_name} width={26} height={18} />
-                <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 800 }}>{selectedSession.track_name}</h1>
-                <F1FormatBadge format={selectedSession.packet_format} size="sm" />
-                <span className={`session-badge ${getSessionBadgeClass(selectedSession.session_type)}`}>
-                  {selectedSession.session_type}
-                </span>
-              </div>
-
-              <p style={{ color: 'var(--text-secondary)', margin: '4px 0 0 0', fontSize: '0.85rem' }}>
-                {t('history.detail.recordedOn', { date: formatDate(selectedSession.created_at) })}
-              </p>
-
-              {/* Tags & Manage Tags Button */}
-              <div className="session-card-tags-row" style={{ paddingTop: '6px' }}>
-                {(selectedSession.tags || []).map((tag) => (
-                  <TagBadge
-                    key={tag.id}
-                    tag={tag}
-                    size="sm"
-                    onRemove={() => handleRemoveTag(selectedSession.id, tag.id)}
-                  />
-                ))}
-
-                <button
-                  type="button"
-                  onClick={() => setSessionToManageTags(selectedSession)}
-                  className="session-add-tag-btn"
-                  title={t('history.tags.manageTags')}
-                >
-                  <Plus size={12} />
-                  <span>{(selectedSession.tags || []).length === 0 ? t('history.tags.addTag') : t('history.tags.manageTags')}</span>
-                </button>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-              <div className="header-stat-box">
-                <div>
-                  <div className="stat-label">{t('history.detail.weather')}</div>
-                  <WeatherBadgeWithForecast session={selectedSession} />
-                </div>
-              </div>
-
-              <div className="header-stat-box">
-                <Flag size={16} color="var(--text-secondary)" />
-                <div>
-                  <div className="stat-label">{t('history.detail.totalLaps')}</div>
-                  <div className="stat-value mono">{t('history.detail.lapsCount', { count: totalSessionLaps })}</div>
-                </div>
-              </div>
-
-              <div className="header-stat-box">
-                <Users size={16} color="var(--text-secondary)" />
-                <div>
-                  <div className="stat-label">{t('history.detail.drivers')}</div>
-                  <div className="stat-value mono">{t('history.detail.driversCount', { count: totalDriversCount })}</div>
-                </div>
-              </div>
-
-              {/* AI Race Engineer Debrief Button */}
-              <button
-                className="nav-tab active"
-                onClick={() => openChat()}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '0.6rem 1rem',
-                  cursor: 'pointer',
-                  fontSize: '0.85rem',
-                  background: 'linear-gradient(135deg, rgba(0, 242, 254, 0.25), rgba(176, 38, 255, 0.25))',
-                  borderColor: 'rgba(0, 242, 254, 0.4)',
-                  color: '#fff',
-                }}
-              >
-                <Sparkles size={15} color="#ffd700" /> {t('history.detail.aiDebrief')}
-              </button>
-
-              {/* Export Session Button */}
-              <button
-                className="nav-tab"
-                title={t('history.detail.exportThis')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '0.6rem 1rem',
-                  color: 'var(--accent-secondary)',
-                  borderColor: 'rgba(0, 242, 254, 0.3)',
-                  cursor: 'pointer',
-                  fontSize: '0.85rem',
-                }}
-                onClick={() => handleExportSession(selectedSession)}
-              >
-                <Download size={15} /> {t('common.export')}
-              </button>
-
-              <button
-                className="nav-tab"
-                title={t('history.detail.deleteThis')}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '0.6rem 1rem',
-                  color: '#ff4d4f',
-                  borderColor: 'rgba(255, 77, 79, 0.3)',
-                  cursor: 'pointer',
-                  fontSize: '0.85rem',
-                }}
-                onClick={() => setSessionToDelete(selectedSession)}
-              >
-                <Trash2 size={15} /> {t('common.delete')}
-              </button>
-            </div>
-          </div>
-
-          {/* Sub-Navigation Tabs inside Session Detail */}
-          <div className="glass-panel" style={{ padding: '0.5rem 1rem', display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>
-            <button
-              className={`nav-tab ${activeDetailTab === 'classification' ? 'active' : ''}`}
-              onClick={() => setActiveDetailTab('classification')}
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', padding: '0.6rem 1.2rem' }}
-            >
-              <Trophy size={16} />
-              <span>{t('history.detail.tabClassification')}</span>
-            </button>
-
-            <button
-              className={`nav-tab ${activeDetailTab === 'charts' ? 'active' : ''}`}
-              onClick={() => setActiveDetailTab('charts')}
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', padding: '0.6rem 1.2rem' }}
-            >
-              <TrendingUp size={16} />
-              <span>{t('history.detail.tabProgression')}</span>
-            </button>
-
-            <button
-              className={`nav-tab ${activeDetailTab === 'stints' ? 'active' : ''}`}
-              onClick={() => setActiveDetailTab('stints')}
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', padding: '0.6rem 1.2rem' }}
-            >
-              <Layers size={16} />
-              <span>{t('history.detail.tabStints')}</span>
-            </button>
-
-            <button
-              className={`nav-tab ${activeDetailTab === 'sectors' ? 'active' : ''}`}
-              onClick={() => setActiveDetailTab('sectors')}
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', padding: '0.6rem 1.2rem' }}
-            >
-              <Zap size={16} />
-              <span>{t('history.detail.tabSectors')}</span>
-            </button>
-          </div>
+          <SessionDetailHeader
+            session={selectedSession}
+            activeDetailTab={activeDetailTab}
+            setActiveDetailTab={setActiveDetailTab}
+            totalSessionLaps={totalSessionLaps}
+            totalDriversCount={totalDriversCount}
+            onOpenAiDebrief={() => openChat()}
+            onExportSession={() => handleExportSession(selectedSession)}
+            onRequestDelete={() => setSessionToDelete(selectedSession)}
+            onOpenTagManager={() => setSessionToManageTags(selectedSession)}
+            onRemoveTag={(tagId) => handleRemoveTag(selectedSession.id, tagId)}
+            formatDate={formatDate}
+            getSessionBadgeClass={getSessionBadgeClass}
+          />
 
           {/* Detail Tab Contents */}
           {loadingDetail ? (
@@ -980,79 +826,18 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
       />
 
       {/* CONFIRM SINGLE DELETE MODAL */}
-      {sessionToDelete && (
-        <div className="modal-overlay" onClick={() => setSessionToDelete(null)}>
-          <div
-            className="modal-container glass-panel"
-            onClick={(e) => e.stopPropagation()}
-            style={{ maxWidth: '480px', padding: '1.75rem', borderRadius: 'var(--radius-lg)' }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#ff4d4f' }}>
-                <AlertTriangle size={24} />
-                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>
-                  {t('history.modal.confirmTitle')}
-                </h3>
-              </div>
-              <button
-                onClick={() => setSessionToDelete(null)}
-                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: '1.5', margin: '0 0 1.25rem 0' }}>
-              {t('history.modal.confirmBody', {
-                id: sessionToDelete.id,
-                track: sessionToDelete.track_name,
-                type: sessionToDelete.session_type,
-              })}
-            </p>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
-              <button
-                className="nav-tab"
-                onClick={() => setSessionToDelete(null)}
-                disabled={deletingSessionId === sessionToDelete.id}
-                style={{ padding: '0.5rem 1.2rem' }}
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                className="nav-tab active"
-                onClick={() =>
-                  confirmDeleteSession((id) => {
-                    if (selectedSession && selectedSession.id === id) {
-                      setSelectedSession(null);
-                    }
-                  })
-                }
-                disabled={deletingSessionId === sessionToDelete.id}
-                style={{
-                  padding: '0.5rem 1.2rem',
-                  background: 'linear-gradient(135deg, #ff4d4f, #d9363e)',
-                  borderColor: '#ff4d4f',
-                  color: '#fff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
-              >
-                {deletingSessionId === sessionToDelete.id ? (
-                  <>
-                    <RefreshCw size={14} className="animate-spin" /> {t('common.deleting')}
-                  </>
-                ) : (
-                  <>
-                    <Trash2 size={14} /> {t('common.deleteSession')}
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DeleteSessionModal
+        session={sessionToDelete}
+        deletingSessionId={deletingSessionId}
+        onCancel={() => setSessionToDelete(null)}
+        onConfirm={() =>
+          confirmDeleteSession((id) => {
+            if (selectedSession && selectedSession.id === id) {
+              setSelectedSession(null);
+            }
+          })
+        }
+      />
 
       {/* CONFIRM BATCH DELETE MODAL */}
       {showBatchDeleteModal && (

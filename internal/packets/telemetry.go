@@ -67,6 +67,42 @@ const (
 	CarTelemetryTrailerSize    = 3
 )
 
+func decodeCarTelemetryCar(carBytes []byte, is2026 bool) (CarTelemetryData, error) {
+	var c CarTelemetryData
+	c.Speed = binary.LittleEndian.Uint16(carBytes[0:2])
+	c.Throttle = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[2:6]))
+	c.Steer = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[6:10]))
+	c.Brake = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[10:14]))
+	c.Clutch = carBytes[14]
+	c.Gear = int8(carBytes[15])
+	c.EngineRPM = binary.LittleEndian.Uint16(carBytes[16:18])
+	c.DRS = carBytes[18]
+	c.RevLightsPercent = carBytes[19]
+	c.RevLightsBitValue = binary.LittleEndian.Uint16(carBytes[20:22])
+
+	for b := 0; b < 4; b++ {
+		c.BrakesTemperature[b] = binary.LittleEndian.Uint16(carBytes[22+b*2 : 24+b*2])
+	}
+	copy(c.TyresSurfaceTemperature[:], carBytes[30:34])
+	copy(c.TyresInnerTemperature[:], carBytes[34:38])
+
+	if is2026 {
+		c.EngineTemperature = uint16(carBytes[38])
+		for p := 0; p < 4; p++ {
+			c.TyresPressure[p] = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[39+p*4 : 43+p*4]))
+		}
+		copy(c.SurfaceType[:], carBytes[55:59])
+	} else {
+		c.EngineTemperature = binary.LittleEndian.Uint16(carBytes[38:40])
+		for p := 0; p < 4; p++ {
+			c.TyresPressure[p] = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[40+p*4 : 44+p*4]))
+		}
+		copy(c.SurfaceType[:], carBytes[56:60])
+	}
+
+	return c, nil
+}
+
 // DecodeCarTelemetry decodes a PacketCarTelemetryData from raw bytes (supporting both 2025 and 2026 formats).
 func DecodeCarTelemetry(data []byte) (*PacketCarTelemetryData, error) {
 	header, headerLen, err := DecodeHeaderWithOffset(data)
@@ -74,65 +110,26 @@ func DecodeCarTelemetry(data []byte) (*PacketCarTelemetryData, error) {
 		return nil, fmt.Errorf("failed to decode header in car telemetry: %w", err)
 	}
 
-	var pkt PacketCarTelemetryData
-	pkt.Header = header
-
 	payload := data[headerLen:]
-	is2026 := header.PacketFormat >= PacketFormat2026
-	maxCars := MaxCarsForFormat(header.PacketFormat)
 	structSize := CarTelemetryStructSize2025
-	if is2026 {
+	if header.PacketFormat >= PacketFormat2026 {
 		structSize = CarTelemetryStructSize2026
 	}
 
-	itemSize := PerCarItemSize(payload, header, structSize, CarTelemetryTrailerSize)
-
-	for i := 0; i < maxCars && i < MaxCars; i++ {
-		offset := i * itemSize
-		if offset+structSize > len(payload) {
-			break
-		}
-
-		carBytes := payload[offset : offset+structSize]
-		var c CarTelemetryData
-
-		c.Speed = binary.LittleEndian.Uint16(carBytes[0:2])
-		c.Throttle = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[2:6]))
-		c.Steer = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[6:10]))
-		c.Brake = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[10:14]))
-		c.Clutch = carBytes[14]
-		c.Gear = int8(carBytes[15])
-		c.EngineRPM = binary.LittleEndian.Uint16(carBytes[16:18])
-		c.DRS = carBytes[18]
-		c.RevLightsPercent = carBytes[19]
-		c.RevLightsBitValue = binary.LittleEndian.Uint16(carBytes[20:22])
-
-		for b := 0; b < 4; b++ {
-			c.BrakesTemperature[b] = binary.LittleEndian.Uint16(carBytes[22+b*2 : 24+b*2])
-		}
-		copy(c.TyresSurfaceTemperature[:], carBytes[30:34])
-		copy(c.TyresInnerTemperature[:], carBytes[34:38])
-
-		if is2026 {
-			// In 2026: EngineTemperature is uint8 (1 byte), pressure at 39, surface type at 55
-			c.EngineTemperature = uint16(carBytes[38])
-			for p := 0; p < 4; p++ {
-				c.TyresPressure[p] = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[39+p*4 : 43+p*4]))
-			}
-			copy(c.SurfaceType[:], carBytes[55:59])
-		} else {
-			// In 2025: EngineTemperature is uint16 (2 bytes), pressure at 40, surface type at 56
-			c.EngineTemperature = binary.LittleEndian.Uint16(carBytes[38:40])
-			for p := 0; p < 4; p++ {
-				c.TyresPressure[p] = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[40+p*4 : 44+p*4]))
-			}
-			copy(c.SurfaceType[:], carBytes[56:60])
-		}
-
-		pkt.CarTelemetryData[i] = c
+	cars, err := DecodePerCarCustom[CarTelemetryData](payload, header, structSize, CarTelemetryTrailerSize, 0, 0, decodeCarTelemetryCar)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode car telemetry: %w", err)
 	}
 
+	pkt := PacketCarTelemetryData{
+		Header:           header,
+		CarTelemetryData: cars,
+	}
+
+	maxCars := MaxCarsForFormat(header.PacketFormat)
+	itemSize := PerCarItemSize(payload, header, structSize, CarTelemetryTrailerSize)
 	tailOffset := maxCars * itemSize
+
 	if tailOffset < len(payload) {
 		rTail := bytes.NewReader(payload[tailOffset:])
 		if rTail.Len() >= 1 {

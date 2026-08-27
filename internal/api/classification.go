@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"sort"
 	"strconv"
@@ -75,342 +74,229 @@ type SpeedRanking struct {
 	DeltaToTop float32 `json:"delta_to_top"`
 }
 
-// isHistoricalParticipantActive determines whether a participant should be included in session classification.
-func isHistoricalParticipantActive(p *storage.Participant, driverLaps []storage.Lap, isRace bool) bool {
-	isAI := p.AIControlled || (p.DriverID > 0 && p.DriverID != int(packets.InvalidDriverID))
-	isHuman := !isAI && strings.TrimSpace(p.Name) != ""
-	if isHuman {
-		return true
-	}
-
-	hasCompletedLaps := false
-	hasSectors := false
-	hasTelemetry := false
-	for _, l := range driverLaps {
-		if l.LapTimeMS > 0 {
-			hasCompletedLaps = true
-		}
-		if l.Sector1MS > 0 || l.Sector2MS > 0 || l.Sector3MS > 0 {
-			hasSectors = true
-		}
-		if l.HasTelemetry && l.SampleCount > 10 {
-			hasTelemetry = true
-		}
-	}
-
-	hasOfficialResult := p.TotalRaceTime > 0 || p.Points > 0 || (isRace && p.Position > 0)
-	if isRace {
-		return hasCompletedLaps || hasSectors || hasTelemetry || hasOfficialResult
-	}
-	return hasCompletedLaps || hasSectors || hasTelemetry
-}
-
-// computeStintsSummary formats tyre stint transitions (e.g. "SOFT (14) → MEDIUM (22)").
-func computeStintsSummary(laps []storage.Lap) string {
-	if len(laps) == 0 {
-		return ""
-	}
-	type stintEntry struct {
-		compound string
-		count    int
-		stintID  int
-	}
-	var stints []*stintEntry
-	for _, l := range laps {
-		raw := strings.TrimSpace(l.TyreCompound)
-		if raw == "" {
-			continue
-		}
-		stintID := l.Stint
-		normComp := packets.NormalizeCompoundName(raw)
-		if len(stints) == 0 || (stintID > 0 && stints[len(stints)-1].stintID > 0 && stintID != stints[len(stints)-1].stintID) || stints[len(stints)-1].compound != normComp {
-			stints = append(stints, &stintEntry{compound: normComp, count: 1, stintID: stintID})
-		} else {
-			stints[len(stints)-1].count++
-		}
-	}
-	if len(stints) == 0 {
-		return ""
-	}
-	parts := make([]string, len(stints))
-	for i, s := range stints {
-		parts[i] = fmt.Sprintf("%s (%d)", s.compound, s.count)
-	}
-	return strings.Join(parts, " → ")
-}
-
-// computeSessionClassification executes server-side classification calculation for a given session.
-func computeSessionClassification(session *storage.Session, participants []storage.Participant, laps []storage.Lap) *ClassificationResponse {
-	isRaceSession := session != nil && strings.Contains(strings.ToLower(session.SessionType), "race")
-
-	// 1. Group laps by CarIndex
-	lapsByCar := make(map[int][]storage.Lap)
-	for _, l := range laps {
-		storage.DeriveSector3(&l)
-		lapsByCar[l.CarIndex] = append(lapsByCar[l.CarIndex], l)
-	}
-	for carIdx := range lapsByCar {
-		sort.SliceStable(lapsByCar[carIdx], func(i, j int) bool {
-			return lapsByCar[carIdx][i].LapNumber < lapsByCar[carIdx][j].LapNumber
-		})
-	}
-
-	// 2. Prepare participants list (fallback if empty)
-	effectiveParticipants := participants
-	if len(effectiveParticipants) == 0 {
-		for carIdx := range lapsByCar {
-			effectiveParticipants = append(effectiveParticipants, storage.Participant{
-				SessionID:    session.ID,
-				CarIndex:     carIdx,
-				Name:         fmt.Sprintf("Driver %d", carIdx+1),
-				RaceNumber:   carIdx + 1,
-				DriverID:     carIdx + 1,
-				TeamID:       0,
-				AIControlled: false,
-			})
-		}
-		sort.Slice(effectiveParticipants, func(i, j int) bool {
-			return effectiveParticipants[i].CarIndex < effectiveParticipants[j].CarIndex
-		})
-	}
-
-	// Filter active participants
-	var activeParticipants []storage.Participant
-	for _, p := range effectiveParticipants {
-		if isHistoricalParticipantActive(&p, lapsByCar[p.CarIndex], isRaceSession) {
-			activeParticipants = append(activeParticipants, p)
-		}
-	}
-
-	// 3. Compute Session-Wide Best Sectors
-	sessionBestS1MS := 0
-	sessionBestS2MS := 0
-	sessionBestS3MS := 0
+// computeSessionBestSectors determines the best valid sector times and overall ultimate theoretical lap.
+func computeSessionBestSectors(laps []storage.Lap) (s1, s2, s3, ultimate int) {
 	for _, l := range laps {
 		if l.IsValid && l.LapTimeMS > 0 {
-			if l.Sector1Valid && l.Sector1MS > 0 && (sessionBestS1MS == 0 || l.Sector1MS < sessionBestS1MS) {
-				sessionBestS1MS = l.Sector1MS
+			if l.Sector1Valid && l.Sector1MS > 0 && (s1 == 0 || l.Sector1MS < s1) {
+				s1 = l.Sector1MS
 			}
-			if l.Sector2Valid && l.Sector2MS > 0 && (sessionBestS2MS == 0 || l.Sector2MS < sessionBestS2MS) {
-				sessionBestS2MS = l.Sector2MS
+			if l.Sector2Valid && l.Sector2MS > 0 && (s2 == 0 || l.Sector2MS < s2) {
+				s2 = l.Sector2MS
 			}
-			if l.Sector3Valid && l.Sector3MS > 0 && (sessionBestS3MS == 0 || l.Sector3MS < sessionBestS3MS) {
-				sessionBestS3MS = l.Sector3MS
+			if l.Sector3Valid && l.Sector3MS > 0 && (s3 == 0 || l.Sector3MS < s3) {
+				s3 = l.Sector3MS
 			}
 		}
 	}
+	if s1 > 0 && s2 > 0 && s3 > 0 {
+		ultimate = s1 + s2 + s3
+	}
+	return s1, s2, s3, ultimate
+}
 
-	ultimateTheoreticalMS := 0
-	if sessionBestS1MS > 0 && sessionBestS2MS > 0 && sessionBestS3MS > 0 {
-		ultimateTheoreticalMS = sessionBestS1MS + sessionBestS2MS + sessionBestS3MS
+// buildDriverStanding creates a DriverStanding record by aggregating a driver's completed and valid laps.
+func buildDriverStanding(p storage.Participant, driverLaps []storage.Lap) DriverStanding {
+	var completedLaps []storage.Lap
+	var validLaps []storage.Lap
+	maxSpeed := float32(0.0)
+
+	for _, l := range driverLaps {
+		if l.LapTimeMS > 0 {
+			completedLaps = append(completedLaps, l)
+		}
+		if l.IsValid && l.LapTimeMS > 0 {
+			validLaps = append(validLaps, l)
+		}
+		if float32(l.MaxSpeedKMH) > maxSpeed {
+			maxSpeed = float32(l.MaxSpeedKMH)
+		}
 	}
 
-	// 4. Compute driver standings entries
-	rawStandings := make([]DriverStanding, 0, len(activeParticipants))
-	for _, p := range activeParticipants {
-		driverLaps := lapsByCar[p.CarIndex]
-		if driverLaps == nil {
-			driverLaps = []storage.Lap{}
+	// Best lap selection
+	var bestLap *storage.Lap
+	bestLapTimeMS := 0
+	if len(validLaps) > 0 {
+		best := validLaps[0]
+		for _, l := range validLaps[1:] {
+			if l.LapTimeMS < best.LapTimeMS {
+				best = l
+			}
 		}
+		bestLap = &best
+		bestLapTimeMS = best.LapTimeMS
+	} else if len(completedLaps) > 0 {
+		best := completedLaps[0]
+		for _, l := range completedLaps[1:] {
+			if l.LapTimeMS < best.LapTimeMS {
+				best = l
+			}
+		}
+		bestLap = &best
+		bestLapTimeMS = best.LapTimeMS
+	}
 
-		var completedLaps []storage.Lap
-		var validLaps []storage.Lap
-		maxSpeed := float32(0.0)
+	bestLapNumber := 0
+	var bestLapID int64
+	bestLapS1 := 0
+	bestLapS2 := 0
+	bestLapS3 := 0
+	if bestLap != nil {
+		bestLapNumber = bestLap.LapNumber
+		bestLapID = bestLap.ID
+		bestLapS1 = bestLap.Sector1MS
+		bestLapS2 = bestLap.Sector2MS
+		bestLapS3 = bestLap.Sector3MS
+	}
+
+	// Last completed lap
+	var lastLap *storage.Lap
+	lastLapTimeMS := 0
+	if len(completedLaps) > 0 {
+		last := completedLaps[len(completedLaps)-1]
+		lastLap = &last
+		lastLapTimeMS = last.LapTimeMS
+	} else if len(driverLaps) > 0 {
+		last := driverLaps[len(driverLaps)-1]
+		lastLap = &last
+		lastLapTimeMS = last.LapTimeMS
+	}
+
+	// Official times and penalties
+	officialTotalTimeMS := int64(p.TotalRaceTime * 1000.0)
+	officialPenaltiesSec := p.PenaltiesTime
+	penaltySeconds := officialPenaltiesSec
+	if penaltySeconds == 0 {
 		for _, l := range driverLaps {
-			if l.LapTimeMS > 0 {
-				completedLaps = append(completedLaps, l)
-			}
-			if l.IsValid && l.LapTimeMS > 0 {
-				validLaps = append(validLaps, l)
-			}
-			if float32(l.MaxSpeedKMH) > maxSpeed {
-				maxSpeed = float32(l.MaxSpeedKMH)
+			if l.PenaltiesSeconds > penaltySeconds {
+				penaltySeconds = l.PenaltiesSeconds
 			}
 		}
-
-		// Best lap selection
-		var bestLap *storage.Lap
-		bestLapTimeMS := 0
-		if len(validLaps) > 0 {
-			best := validLaps[0]
-			for _, l := range validLaps[1:] {
-				if l.LapTimeMS < best.LapTimeMS {
-					best = l
-				}
-			}
-			bestLap = &best
-			bestLapTimeMS = best.LapTimeMS
-		} else if len(completedLaps) > 0 {
-			best := completedLaps[0]
-			for _, l := range completedLaps[1:] {
-				if l.LapTimeMS < best.LapTimeMS {
-					best = l
-				}
-			}
-			bestLap = &best
-			bestLapTimeMS = best.LapTimeMS
-		}
-
-		bestLapNumber := 0
-		var bestLapID int64
-		bestLapS1 := 0
-		bestLapS2 := 0
-		bestLapS3 := 0
-		if bestLap != nil {
-			bestLapNumber = bestLap.LapNumber
-			bestLapID = bestLap.ID
-			bestLapS1 = bestLap.Sector1MS
-			bestLapS2 = bestLap.Sector2MS
-			bestLapS3 = bestLap.Sector3MS
-		}
-
-		// Last completed lap
-		var lastLap *storage.Lap
-		lastLapTimeMS := 0
-		if len(completedLaps) > 0 {
-			last := completedLaps[len(completedLaps)-1]
-			lastLap = &last
-			lastLapTimeMS = last.LapTimeMS
-		} else if len(driverLaps) > 0 {
-			last := driverLaps[len(driverLaps)-1]
-			lastLap = &last
-			lastLapTimeMS = last.LapTimeMS
-		}
-
-		// Official times and penalties
-		officialTotalTimeMS := int64(p.TotalRaceTime * 1000.0)
-		officialPenaltiesSec := p.PenaltiesTime
-		penaltySeconds := officialPenaltiesSec
-		if penaltySeconds == 0 {
-			for _, l := range driverLaps {
-				if l.PenaltiesSeconds > penaltySeconds {
-					penaltySeconds = l.PenaltiesSeconds
-				}
-			}
-		}
-
-		totalRaceTimeMS := officialTotalTimeMS
-		if totalRaceTimeMS == 0 {
-			sum := int64(0)
-			for _, l := range completedLaps {
-				sum += int64(l.LapTimeMS)
-			}
-			totalRaceTimeMS = sum
-		}
-		totalWithPenaltiesMS := totalRaceTimeMS + int64(penaltySeconds*1000)
-
-		// Dynamic and official positions
-		officialPos := p.Position
-		if officialPos == 0 {
-			for i := len(driverLaps) - 1; i >= 0; i-- {
-				if driverLaps[i].CarPosition > 0 {
-					officialPos = driverLaps[i].CarPosition
-					break
-				}
-			}
-		}
-
-		gridPosition := p.GridPosition
-		var positionsGained *int
-		if gridPosition > 0 && officialPos > 0 {
-			gained := gridPosition - officialPos
-			positionsGained = &gained
-		}
-
-		points := float32(p.Points)
-		resultReason := p.ResultReason
-		pitStopsCount := p.NumPitStops
-
-		// DNF / DSQ status derivation
-		resStatus := uint8(p.ResultStatus)
-		if resStatus == 0 {
-			for i := len(driverLaps) - 1; i >= 0; i-- {
-				if driverLaps[i].ResultStatus > 0 {
-					resStatus = uint8(driverLaps[i].ResultStatus)
-					break
-				}
-			}
-		}
-
-		isDSQ := resStatus == packets.ResultStatusDSQ || uint8(resultReason) == packets.ResultReasonBlackFlagged
-		isDNF := !isDSQ && (resStatus == packets.ResultStatusDNF ||
-			resStatus == packets.ResultStatusNotClassified ||
-			resStatus == packets.ResultStatusRetired ||
-			(resStatus != packets.ResultStatusFinished && (uint8(resultReason) == packets.ResultReasonRetired ||
-				uint8(resultReason) == packets.ResultReasonTerminalDamage ||
-				uint8(resultReason) == packets.ResultReasonMechanicalFailure ||
-				uint8(resultReason) == packets.ResultReasonNotEnoughLaps)))
-
-		// Best personal sectors
-		bestS1MS := 0
-		bestS2MS := 0
-		bestS3MS := 0
-		for _, l := range validLaps {
-			if l.Sector1Valid && l.Sector1MS > 0 && (bestS1MS == 0 || l.Sector1MS < bestS1MS) {
-				bestS1MS = l.Sector1MS
-			}
-			if l.Sector2Valid && l.Sector2MS > 0 && (bestS2MS == 0 || l.Sector2MS < bestS2MS) {
-				bestS2MS = l.Sector2MS
-			}
-			if l.Sector3Valid && l.Sector3MS > 0 && (bestS3MS == 0 || l.Sector3MS < bestS3MS) {
-				bestS3MS = l.Sector3MS
-			}
-		}
-		theoreticalBestMS := 0
-		if bestS1MS > 0 && bestS2MS > 0 && bestS3MS > 0 {
-			theoreticalBestMS = bestS1MS + bestS2MS + bestS3MS
-		}
-
-		driverName := p.Name
-		if strings.TrimSpace(driverName) == "" {
-			driverName = packets.DriverName(uint16(p.DriverID))
-		}
-		teamName := packets.TeamName(uint16(p.TeamID))
-
-		pCopy := p
-		rawStandings = append(rawStandings, DriverStanding{
-			CarIndex:             p.CarIndex,
-			DriverName:           driverName,
-			TeamName:             teamName,
-			TeamID:               p.TeamID,
-			RaceNumber:           p.RaceNumber,
-			GridPosition:         gridPosition,
-			PositionsGained:      positionsGained,
-			BestLapTimeMS:        bestLapTimeMS,
-			BestLapNumber:        bestLapNumber,
-			BestLapID:            bestLapID,
-			BestLapS1MS:          bestLapS1,
-			BestLapS2MS:          bestLapS2,
-			BestLapS3MS:          bestLapS3,
-			LastLapTimeMS:        lastLapTimeMS,
-			TotalRaceTimeMS:      totalRaceTimeMS,
-			PenaltySeconds:       penaltySeconds,
-			TotalWithPenaltiesMS: totalWithPenaltiesMS,
-			Points:               points,
-			IsDNF:                isDNF,
-			IsDSQ:                isDSQ,
-			ResultReason:         resultReason,
-			MaxSpeed:             maxSpeed,
-			BestS1MS:             bestS1MS,
-			BestS2MS:             bestS2MS,
-			BestS3MS:             bestS3MS,
-			TheoreticalBestMS:    theoreticalBestMS,
-			LapsCompleted:        len(completedLaps),
-			PitStopsCount:        pitStopsCount,
-			StintsSummary:        computeStintsSummary(driverLaps),
-			AIControlled:         p.AIControlled,
-			BestLap:              bestLap,
-			LastLap:              lastLap,
-			Participant:          &pCopy,
-			Laps:                 driverLaps,
-		})
 	}
 
-	// 5. Sort Standings
+	totalRaceTimeMS := officialTotalTimeMS
+	if totalRaceTimeMS == 0 {
+		sum := int64(0)
+		for _, l := range completedLaps {
+			sum += int64(l.LapTimeMS)
+		}
+		totalRaceTimeMS = sum
+	}
+	totalWithPenaltiesMS := totalRaceTimeMS + int64(penaltySeconds*1000)
+
+	// Dynamic and official positions
+	officialPos := p.Position
+	if officialPos == 0 {
+		for i := len(driverLaps) - 1; i >= 0; i-- {
+			if driverLaps[i].CarPosition > 0 {
+				officialPos = driverLaps[i].CarPosition
+				break
+			}
+		}
+	}
+
+	gridPosition := p.GridPosition
+	var positionsGained *int
+	if gridPosition > 0 && officialPos > 0 {
+		gained := gridPosition - officialPos
+		positionsGained = &gained
+	}
+
+	points := float32(p.Points)
+	resultReason := p.ResultReason
+	pitStopsCount := p.NumPitStops
+
+	// DNF / DSQ status derivation
+	resStatus := uint8(p.ResultStatus)
+	if resStatus == 0 {
+		for i := len(driverLaps) - 1; i >= 0; i-- {
+			if driverLaps[i].ResultStatus > 0 {
+				resStatus = uint8(driverLaps[i].ResultStatus)
+				break
+			}
+		}
+	}
+
+	isDSQ := resStatus == packets.ResultStatusDSQ || uint8(resultReason) == packets.ResultReasonBlackFlagged
+	isDNF := !isDSQ && (resStatus == packets.ResultStatusDNF ||
+		resStatus == packets.ResultStatusNotClassified ||
+		resStatus == packets.ResultStatusRetired ||
+		(resStatus != packets.ResultStatusFinished && (uint8(resultReason) == packets.ResultReasonRetired ||
+			uint8(resultReason) == packets.ResultReasonTerminalDamage ||
+			uint8(resultReason) == packets.ResultReasonMechanicalFailure ||
+			uint8(resultReason) == packets.ResultReasonNotEnoughLaps)))
+
+	// Best personal sectors
+	bestS1MS := 0
+	bestS2MS := 0
+	bestS3MS := 0
+	for _, l := range validLaps {
+		if l.Sector1Valid && l.Sector1MS > 0 && (bestS1MS == 0 || l.Sector1MS < bestS1MS) {
+			bestS1MS = l.Sector1MS
+		}
+		if l.Sector2Valid && l.Sector2MS > 0 && (bestS2MS == 0 || l.Sector2MS < bestS2MS) {
+			bestS2MS = l.Sector2MS
+		}
+		if l.Sector3Valid && l.Sector3MS > 0 && (bestS3MS == 0 || l.Sector3MS < bestS3MS) {
+			bestS3MS = l.Sector3MS
+		}
+	}
+	theoreticalBestMS := 0
+	if bestS1MS > 0 && bestS2MS > 0 && bestS3MS > 0 {
+		theoreticalBestMS = bestS1MS + bestS2MS + bestS3MS
+	}
+
+	driverName := p.Name
+	if strings.TrimSpace(driverName) == "" {
+		driverName = packets.DriverName(uint16(p.DriverID))
+	}
+	teamName := packets.TeamName(uint16(p.TeamID))
+
+	pCopy := p
+	return DriverStanding{
+		CarIndex:             p.CarIndex,
+		DriverName:           driverName,
+		TeamName:             teamName,
+		TeamID:               p.TeamID,
+		RaceNumber:           p.RaceNumber,
+		GridPosition:         gridPosition,
+		PositionsGained:      positionsGained,
+		BestLapTimeMS:        bestLapTimeMS,
+		BestLapNumber:        bestLapNumber,
+		BestLapID:            bestLapID,
+		BestLapS1MS:          bestLapS1,
+		BestLapS2MS:          bestLapS2,
+		BestLapS3MS:          bestLapS3,
+		LastLapTimeMS:        lastLapTimeMS,
+		TotalRaceTimeMS:      totalRaceTimeMS,
+		PenaltySeconds:       penaltySeconds,
+		TotalWithPenaltiesMS: totalWithPenaltiesMS,
+		Points:               points,
+		IsDNF:                isDNF,
+		IsDSQ:                isDSQ,
+		ResultReason:         resultReason,
+		MaxSpeed:             maxSpeed,
+		BestS1MS:             bestS1MS,
+		BestS2MS:             bestS2MS,
+		BestS3MS:             bestS3MS,
+		TheoreticalBestMS:    theoreticalBestMS,
+		LapsCompleted:        len(completedLaps),
+		PitStopsCount:        pitStopsCount,
+		StintsSummary:        computeStintsSummary(driverLaps),
+		AIControlled:         p.AIControlled,
+		BestLap:              bestLap,
+		LastLap:              lastLap,
+		Participant:          &pCopy,
+		Laps:                 driverLaps,
+	}
+}
+
+// sortClassificationStandings sorts standing entries according to race or timed session rules.
+func sortClassificationStandings(standings []DriverStanding, isRaceSession bool) {
 	if isRaceSession {
-		sort.SliceStable(rawStandings, func(i, j int) bool {
-			a := &rawStandings[i]
-			b := &rawStandings[j]
+		sort.SliceStable(standings, func(i, j int) bool {
+			a := &standings[i]
+			b := &standings[j]
 
 			if a.IsDSQ != b.IsDSQ {
 				return !a.IsDSQ
@@ -437,9 +323,9 @@ func computeSessionClassification(session *storage.Session, participants []stora
 			return a.TotalWithPenaltiesMS < b.TotalWithPenaltiesMS
 		})
 	} else {
-		sort.SliceStable(rawStandings, func(i, j int) bool {
-			a := &rawStandings[i]
-			b := &rawStandings[j]
+		sort.SliceStable(standings, func(i, j int) bool {
+			a := &standings[i]
+			b := &standings[j]
 
 			if a.IsDSQ != b.IsDSQ {
 				return !a.IsDSQ
@@ -468,53 +354,57 @@ func computeSessionClassification(session *storage.Session, participants []stora
 			return a.CarIndex < b.CarIndex
 		})
 	}
+}
 
-	// 6. Assign Positions, Gaps to Leader, and Intervals
-	actualBestLapMS := 0
-	actualBestLapDriver := ""
+// assignClassificationPositionsAndGaps assigns rank positions, gaps to leader, and intervals.
+func assignClassificationPositionsAndGaps(standings []DriverStanding, isRaceSession bool) (actualBestLapMS int, actualBestLapDriver string) {
+	actualBestLapMS = 0
+	actualBestLapDriver = ""
 
-	for i := range rawStandings {
+	for i := range standings {
 		pos := i + 1
-		rawStandings[i].Position = pos
-		if rawStandings[i].Participant != nil {
-			rawStandings[i].Participant.Position = pos
+		standings[i].Position = pos
+		if standings[i].Participant != nil {
+			standings[i].Participant.Position = pos
 		}
 
-		// Track overall actual fastest lap of the session
-		if rawStandings[i].BestLapTimeMS > 0 && (actualBestLapMS == 0 || rawStandings[i].BestLapTimeMS < actualBestLapMS) {
-			actualBestLapMS = rawStandings[i].BestLapTimeMS
-			actualBestLapDriver = rawStandings[i].DriverName
+		if standings[i].BestLapTimeMS > 0 && (actualBestLapMS == 0 || standings[i].BestLapTimeMS < actualBestLapMS) {
+			actualBestLapMS = standings[i].BestLapTimeMS
+			actualBestLapDriver = standings[i].DriverName
 		}
 
-		// Gap and interval calculations
 		if i == 0 {
-			rawStandings[i].GapToLeaderMS = 0
-			rawStandings[i].IntervalMS = 0
+			standings[i].GapToLeaderMS = 0
+			standings[i].IntervalMS = 0
 		} else {
-			leader := &rawStandings[0]
-			prev := &rawStandings[i-1]
+			leader := &standings[0]
+			prev := &standings[i-1]
 
 			if isRaceSession {
-				if rawStandings[i].TotalWithPenaltiesMS > 0 && leader.TotalWithPenaltiesMS > 0 {
-					rawStandings[i].GapToLeaderMS = rawStandings[i].TotalWithPenaltiesMS - leader.TotalWithPenaltiesMS
+				if standings[i].TotalWithPenaltiesMS > 0 && leader.TotalWithPenaltiesMS > 0 {
+					standings[i].GapToLeaderMS = standings[i].TotalWithPenaltiesMS - leader.TotalWithPenaltiesMS
 				}
-				if rawStandings[i].TotalWithPenaltiesMS > 0 && prev.TotalWithPenaltiesMS > 0 {
-					rawStandings[i].IntervalMS = rawStandings[i].TotalWithPenaltiesMS - prev.TotalWithPenaltiesMS
+				if standings[i].TotalWithPenaltiesMS > 0 && prev.TotalWithPenaltiesMS > 0 {
+					standings[i].IntervalMS = standings[i].TotalWithPenaltiesMS - prev.TotalWithPenaltiesMS
 				}
 			} else {
-				if rawStandings[i].BestLapTimeMS > 0 && leader.BestLapTimeMS > 0 {
-					rawStandings[i].GapToLeaderMS = int64(rawStandings[i].BestLapTimeMS - leader.BestLapTimeMS)
+				if standings[i].BestLapTimeMS > 0 && leader.BestLapTimeMS > 0 {
+					standings[i].GapToLeaderMS = int64(standings[i].BestLapTimeMS - leader.BestLapTimeMS)
 				}
-				if rawStandings[i].BestLapTimeMS > 0 && prev.BestLapTimeMS > 0 {
-					rawStandings[i].IntervalMS = int64(rawStandings[i].BestLapTimeMS - prev.BestLapTimeMS)
+				if standings[i].BestLapTimeMS > 0 && prev.BestLapTimeMS > 0 {
+					standings[i].IntervalMS = int64(standings[i].BestLapTimeMS - prev.BestLapTimeMS)
 				}
 			}
 		}
 	}
 
-	// 7. Compute Speed Trap Rankings
-	speedRankings := make([]SpeedRanking, len(rawStandings))
-	for i, d := range rawStandings {
+	return actualBestLapMS, actualBestLapDriver
+}
+
+// rankSpeedTraps computes and ranks top speeds across all drivers.
+func rankSpeedTraps(standings []DriverStanding) []SpeedRanking {
+	speedRankings := make([]SpeedRanking, len(standings))
+	for i, d := range standings {
 		speed := d.MaxSpeed
 		if speed <= 0 && d.BestLapTimeMS > 0 {
 			speed = float32(310 + (d.CarIndex % 25))
@@ -526,9 +416,11 @@ func computeSessionClassification(session *storage.Session, participants []stora
 			MaxSpeed:   speed,
 		}
 	}
+
 	sort.SliceStable(speedRankings, func(i, j int) bool {
 		return speedRankings[i].MaxSpeed > speedRankings[j].MaxSpeed
 	})
+
 	maxOverallSpeed := float32(0.0)
 	if len(speedRankings) > 0 {
 		maxOverallSpeed = speedRankings[0].MaxSpeed
@@ -539,12 +431,44 @@ func computeSessionClassification(session *storage.Session, participants []stora
 		}
 	}
 
+	return speedRankings
+}
+
+// computeSessionClassification executes server-side classification calculation for a given session.
+func computeSessionClassification(session *storage.Session, participants []storage.Participant, laps []storage.Lap) *ClassificationResponse {
+	isRaceSession := session != nil && strings.Contains(strings.ToLower(session.SessionType), "race")
+
+	// 1. Group laps by car
+	lapsByCar, _ := groupLapsByCar(laps)
+
+	// 2. Prepare active participants
+	activeParticipants := buildEffectiveParticipants(session, participants, lapsByCar, isRaceSession)
+
+	// 3. Compute session-wide best sectors
+	s1, s2, s3, ultimate := computeSessionBestSectors(laps)
+
+	// 4. Compute standings per driver
+	standings := make([]DriverStanding, 0, len(activeParticipants))
+	for _, p := range activeParticipants {
+		driverLaps := lapsByCar[p.CarIndex]
+		standings = append(standings, buildDriverStanding(p, driverLaps))
+	}
+
+	// 5. Sort standings
+	sortClassificationStandings(standings, isRaceSession)
+
+	// 6. Assign positions and calculate gaps
+	actualBestLapMS, actualBestLapDriver := assignClassificationPositionsAndGaps(standings, isRaceSession)
+
+	// 7. Rank speed traps
+	speedRankings := rankSpeedTraps(standings)
+
 	return &ClassificationResponse{
-		Standings:             rawStandings,
-		SessionBestS1MS:       sessionBestS1MS,
-		SessionBestS2MS:       sessionBestS2MS,
-		SessionBestS3MS:       sessionBestS3MS,
-		UltimateTheoreticalMS: ultimateTheoreticalMS,
+		Standings:             standings,
+		SessionBestS1MS:       s1,
+		SessionBestS2MS:       s2,
+		SessionBestS3MS:       s3,
+		UltimateTheoreticalMS: ultimate,
 		ActualBestLapMS:       actualBestLapMS,
 		ActualBestLapDriver:   actualBestLapDriver,
 		SpeedRankings:         speedRankings,

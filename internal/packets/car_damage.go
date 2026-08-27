@@ -1,8 +1,6 @@
 package packets
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
 )
 
@@ -49,23 +47,13 @@ func DecodeCarDamage(data []byte) (*PacketCarDamageData, error) {
 		return nil, fmt.Errorf("failed to decode header in car damage: %w", err)
 	}
 
-	var pkt PacketCarDamageData
-	pkt.Header = header
-
-	payload := data[headerLen:]
-	maxCars := MaxCarsForFormat(header.PacketFormat)
-	itemSize := PerCarItemSize(payload, header, CarDamageStructSize, 0)
-
-	for i := 0; i < maxCars && i < MaxCars; i++ {
-		offset := i * itemSize
-		if offset+CarDamageStructSize > len(payload) {
-			break
-		}
-		r := bytes.NewReader(payload[offset : offset+CarDamageStructSize])
-		if err := binary.Read(r, binary.LittleEndian, &pkt.CarDamageData[i]); err != nil {
-			return nil, fmt.Errorf("failed to decode car damage for car %d: %w", i, err)
-		}
+	cars, err := DecodePerCarBinary[CarDamageData](data[headerLen:], header, CarDamageStructSize, 0, 0, 0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode car damage: %w", err)
 	}
 
-	return &pkt, nil
+	return &PacketCarDamageData{
+		Header:        header,
+		CarDamageData: cars,
+	}, nil
 }

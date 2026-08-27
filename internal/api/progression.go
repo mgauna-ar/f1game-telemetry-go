@@ -32,58 +32,8 @@ type ProgressionDriverMeta struct {
 	TeamColor  string `json:"team_color"`
 }
 
-// computeSessionProgression executes server-side progression matrix calculation for a session.
-func computeSessionProgression(session *storage.Session, participants []storage.Participant, laps []storage.Lap) *ProgressionResponse {
-	isRaceSession := session != nil && strings.Contains(strings.ToLower(session.SessionType), "race")
-
-	// 1. Group laps by CarIndex
-	lapsByCar := make(map[int][]storage.Lap)
-	totalSessionLaps := 0
-	for _, l := range laps {
-		storage.DeriveSector3(&l)
-		lapsByCar[l.CarIndex] = append(lapsByCar[l.CarIndex], l)
-		if l.LapTimeMS > 0 && l.LapNumber > totalSessionLaps {
-			totalSessionLaps = l.LapNumber
-		}
-	}
-	if totalSessionLaps == 0 && session != nil && session.TotalLaps > 0 {
-		totalSessionLaps = session.TotalLaps
-	}
-
-	for carIdx := range lapsByCar {
-		sort.SliceStable(lapsByCar[carIdx], func(i, j int) bool {
-			return lapsByCar[carIdx][i].LapNumber < lapsByCar[carIdx][j].LapNumber
-		})
-	}
-
-	// 2. Prepare participants list
-	effectiveParticipants := participants
-	if len(effectiveParticipants) == 0 {
-		for carIdx := range lapsByCar {
-			effectiveParticipants = append(effectiveParticipants, storage.Participant{
-				SessionID:    session.ID,
-				CarIndex:     carIdx,
-				Name:         fmt.Sprintf("Driver %d", carIdx+1),
-				RaceNumber:   carIdx + 1,
-				DriverID:     carIdx + 1,
-				TeamID:       0,
-				AIControlled: false,
-			})
-		}
-		sort.Slice(effectiveParticipants, func(i, j int) bool {
-			return effectiveParticipants[i].CarIndex < effectiveParticipants[j].CarIndex
-		})
-	}
-
-	var activeParticipants []storage.Participant
-	for _, p := range effectiveParticipants {
-		if isHistoricalParticipantActive(&p, lapsByCar[p.CarIndex], isRaceSession) {
-			activeParticipants = append(activeParticipants, p)
-		}
-	}
-
-	// 3. Check for dynamic position changes in recorded data
-	hasDynamicCarPositions := false
+// detectDynamicCarPositions checks if recorded laps contain real-time positions that changed during the session.
+func detectDynamicCarPositions(activeParticipants []storage.Participant, lapsByCar map[int][]storage.Lap) bool {
 	for _, p := range activeParticipants {
 		var positions []int
 		for _, l := range lapsByCar[p.CarIndex] {
@@ -95,17 +45,16 @@ func computeSessionProgression(session *storage.Session, participants []storage.
 			first := positions[0]
 			for _, pos := range positions[1:] {
 				if pos != first {
-					hasDynamicCarPositions = true
-					break
+					return true
 				}
 			}
 		}
-		if hasDynamicCarPositions {
-			break
-		}
 	}
+	return false
+}
 
-	// 4. Build Lap Pace Matrix
+// buildLapPaceMatrix generates the lap pace data point for every session lap across active drivers.
+func buildLapPaceMatrix(totalSessionLaps int, activeParticipants []storage.Participant, lapsByCar map[int][]storage.Lap) []map[string]any {
 	lapPace := make([]map[string]any, 0, totalSessionLaps)
 	for lapNum := 1; lapNum <= totalSessionLaps; lapNum++ {
 		point := map[string]any{"lapNumber": lapNum}
@@ -124,9 +73,19 @@ func computeSessionProgression(session *storage.Session, participants []storage.
 		}
 		lapPace = append(lapPace, point)
 	}
+	return lapPace
+}
 
-	// 5. Build Position Progression Matrix
+// buildPositionProgression calculates standing positions at each lap for race or qualifying sessions.
+func buildPositionProgression(
+	totalSessionLaps int,
+	activeParticipants []storage.Participant,
+	lapsByCar map[int][]storage.Lap,
+	isRaceSession bool,
+	hasDynamicCarPositions bool,
+) []map[string]any {
 	positions := make([]map[string]any, 0, totalSessionLaps)
+
 	for lapNum := 1; lapNum <= totalSessionLaps; lapNum++ {
 		point := map[string]any{"lapNumber": lapNum}
 
@@ -252,8 +211,18 @@ func computeSessionProgression(session *storage.Session, participants []storage.
 		positions = append(positions, point)
 	}
 
-	// 6. Build Gap to Leader Matrix
+	return positions
+}
+
+// buildGapToLeaderMatrix calculates the time delta (seconds) to the leader at each lap.
+func buildGapToLeaderMatrix(
+	totalSessionLaps int,
+	activeParticipants []storage.Participant,
+	lapsByCar map[int][]storage.Lap,
+	isRaceSession bool,
+) []map[string]any {
 	gapToLeader := make([]map[string]any, 0, totalSessionLaps)
+
 	for lapNum := 1; lapNum <= totalSessionLaps; lapNum++ {
 		point := map[string]any{"lapNumber": lapNum}
 
@@ -353,7 +322,11 @@ func computeSessionProgression(session *storage.Session, participants []storage.
 		gapToLeader = append(gapToLeader, point)
 	}
 
-	// 7. Drivers Metadata
+	return gapToLeader
+}
+
+// buildProgressionDriverMeta creates the driver identity and team color styling metadata array.
+func buildProgressionDriverMeta(activeParticipants []storage.Participant) []ProgressionDriverMeta {
 	drivers := make([]ProgressionDriverMeta, 0, len(activeParticipants))
 	for _, p := range activeParticipants {
 		name := p.Name
@@ -369,6 +342,37 @@ func computeSessionProgression(session *storage.Session, participants []storage.
 			TeamColor:  color,
 		})
 	}
+	return drivers
+}
+
+// computeSessionProgression executes server-side progression matrix calculation for a session.
+func computeSessionProgression(session *storage.Session, participants []storage.Participant, laps []storage.Lap) *ProgressionResponse {
+	isRaceSession := session != nil && strings.Contains(strings.ToLower(session.SessionType), "race")
+
+	// 1. Group laps by car & determine total session laps
+	lapsByCar, maxRecordedLap := groupLapsByCar(laps)
+	totalSessionLaps := maxRecordedLap
+	if totalSessionLaps == 0 && session != nil && session.TotalLaps > 0 {
+		totalSessionLaps = session.TotalLaps
+	}
+
+	// 2. Prepare active participants
+	activeParticipants := buildEffectiveParticipants(session, participants, lapsByCar, isRaceSession)
+
+	// 3. Dynamic position detection
+	hasDynamicCarPositions := detectDynamicCarPositions(activeParticipants, lapsByCar)
+
+	// 4. Lap Pace Matrix
+	lapPace := buildLapPaceMatrix(totalSessionLaps, activeParticipants, lapsByCar)
+
+	// 5. Position Progression Matrix
+	positions := buildPositionProgression(totalSessionLaps, activeParticipants, lapsByCar, isRaceSession, hasDynamicCarPositions)
+
+	// 6. Gap to Leader Matrix
+	gapToLeader := buildGapToLeaderMatrix(totalSessionLaps, activeParticipants, lapsByCar, isRaceSession)
+
+	// 7. Drivers Metadata
+	drivers := buildProgressionDriverMeta(activeParticipants)
 
 	return &ProgressionResponse{
 		LapPace:          lapPace,

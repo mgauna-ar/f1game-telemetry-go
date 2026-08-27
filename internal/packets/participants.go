@@ -69,6 +69,54 @@ const (
 	ParticipantNameLen        = 32
 )
 
+func decodeParticipantCar(carBytes []byte, is2026 bool) (ParticipantData, error) {
+	var p ParticipantData
+	if is2026 {
+		p.AIControlled = carBytes[0]
+		p.DriverId = binary.LittleEndian.Uint16(carBytes[1:3])
+		p.NetworkId = binary.LittleEndian.Uint16(carBytes[3:5])
+		p.TeamId = binary.LittleEndian.Uint16(carBytes[5:7])
+		p.MyTeam = carBytes[7]
+		p.RaceNumber = carBytes[8]
+		p.Nationality = carBytes[9]
+		copy(p.Name[:], carBytes[10:10+ParticipantNameLen])
+		p.YourTelemetry = carBytes[42]
+		p.ShowOnlineNames = carBytes[43]
+		p.TechLevel = binary.LittleEndian.Uint16(carBytes[44:46])
+		p.Platform = carBytes[46]
+		p.NumColours = carBytes[47]
+		for c := 0; c < 4; c++ {
+			p.LiveryColours[c] = LiveryColour{
+				Red:   carBytes[48+c*3],
+				Green: carBytes[48+c*3+1],
+				Blue:  carBytes[48+c*3+2],
+			}
+		}
+	} else {
+		p.AIControlled = carBytes[0]
+		p.DriverId = uint16(carBytes[1])
+		p.NetworkId = uint16(carBytes[2])
+		p.TeamId = uint16(carBytes[3])
+		p.MyTeam = carBytes[4]
+		p.RaceNumber = carBytes[5]
+		p.Nationality = carBytes[6]
+		copy(p.Name[:], carBytes[7:7+ParticipantNameLen])
+		p.YourTelemetry = carBytes[39]
+		p.ShowOnlineNames = carBytes[40]
+		p.TechLevel = binary.LittleEndian.Uint16(carBytes[41:43])
+		p.Platform = carBytes[43]
+		p.NumColours = carBytes[44]
+		for c := 0; c < 4; c++ {
+			p.LiveryColours[c] = LiveryColour{
+				Red:   carBytes[45+c*3],
+				Green: carBytes[45+c*3+1],
+				Blue:  carBytes[45+c*3+2],
+			}
+		}
+	}
+	return p, nil
+}
+
 // DecodeParticipants decodes a PacketParticipantsData from raw bytes.
 func DecodeParticipants(data []byte) (*PacketParticipantsData, error) {
 	header, headerLen, err := DecodeHeaderWithOffset(data)
@@ -76,83 +124,25 @@ func DecodeParticipants(data []byte) (*PacketParticipantsData, error) {
 		return nil, fmt.Errorf("failed to decode header in participants: %w", err)
 	}
 
-	var pkt PacketParticipantsData
-	pkt.Header = header
-
 	payload := data[headerLen:]
 	if len(payload) < 1 {
 		return nil, fmt.Errorf("data too short for participants payload: got %d bytes", len(payload))
 	}
 
-	pkt.NumActiveCars = payload[0]
-	carsPayload := payload[1:]
-
-	is2026 := header.PacketFormat >= PacketFormat2026
-	maxCars := MaxCarsForFormat(header.PacketFormat)
+	numActive := payload[0]
 	structSize := ParticipantStructSize2025
-	if is2026 {
+	if header.PacketFormat >= PacketFormat2026 {
 		structSize = ParticipantStructSize2026
 	}
 
-	itemSize := PerCarItemSize(carsPayload, header, structSize, 0)
-
-	for i := 0; i < maxCars && i < MaxCars; i++ {
-		offset := i * itemSize
-		if offset+structSize > len(carsPayload) {
-			break
-		}
-
-		carBytes := carsPayload[offset : offset+structSize]
-		var p ParticipantData
-
-		if is2026 {
-			// 2026: DriverId, NetworkId, TeamId are uint16
-			p.AIControlled = carBytes[0]
-			p.DriverId = binary.LittleEndian.Uint16(carBytes[1:3])
-			p.NetworkId = binary.LittleEndian.Uint16(carBytes[3:5])
-			p.TeamId = binary.LittleEndian.Uint16(carBytes[5:7])
-			p.MyTeam = carBytes[7]
-			p.RaceNumber = carBytes[8]
-			p.Nationality = carBytes[9]
-			copy(p.Name[:], carBytes[10:10+ParticipantNameLen])
-			p.YourTelemetry = carBytes[42]
-			p.ShowOnlineNames = carBytes[43]
-			p.TechLevel = binary.LittleEndian.Uint16(carBytes[44:46])
-			p.Platform = carBytes[46]
-			p.NumColours = carBytes[47]
-			for c := 0; c < 4; c++ {
-				p.LiveryColours[c] = LiveryColour{
-					Red:   carBytes[48+c*3],
-					Green: carBytes[48+c*3+1],
-					Blue:  carBytes[48+c*3+2],
-				}
-			}
-		} else {
-			// 2025: DriverId, NetworkId, TeamId are uint8
-			p.AIControlled = carBytes[0]
-			p.DriverId = uint16(carBytes[1])
-			p.NetworkId = uint16(carBytes[2])
-			p.TeamId = uint16(carBytes[3])
-			p.MyTeam = carBytes[4]
-			p.RaceNumber = carBytes[5]
-			p.Nationality = carBytes[6]
-			copy(p.Name[:], carBytes[7:7+ParticipantNameLen])
-			p.YourTelemetry = carBytes[39]
-			p.ShowOnlineNames = carBytes[40]
-			p.TechLevel = binary.LittleEndian.Uint16(carBytes[41:43])
-			p.Platform = carBytes[43]
-			p.NumColours = carBytes[44]
-			for c := 0; c < 4; c++ {
-				p.LiveryColours[c] = LiveryColour{
-					Red:   carBytes[45+c*3],
-					Green: carBytes[45+c*3+1],
-					Blue:  carBytes[45+c*3+2],
-				}
-			}
-		}
-
-		pkt.Participants[i] = p
+	cars, err := DecodePerCarCustom[ParticipantData](payload, header, structSize, 0, 1, 0, decodeParticipantCar)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode participants: %w", err)
 	}
 
-	return &pkt, nil
+	return &PacketParticipantsData{
+		Header:        header,
+		NumActiveCars: numActive,
+		Participants:  cars,
+	}, nil
 }

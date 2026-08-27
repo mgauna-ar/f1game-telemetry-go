@@ -1,8 +1,6 @@
 package packets
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
 )
 
@@ -43,35 +41,20 @@ func DecodeFinalClassification(data []byte) (*PacketFinalClassificationData, err
 		return nil, fmt.Errorf("failed to decode header in final classification: %w", err)
 	}
 
-	var pkt PacketFinalClassificationData
-	pkt.Header = header
-
 	payload := data[headerLen:]
 	if len(payload) < 1 {
 		return nil, fmt.Errorf("data too short for final classification payload: got %d bytes", len(payload))
 	}
 
-	pkt.NumCars = payload[0]
-	carsPayload := payload[1:]
-
-	maxCars := MaxCarsForFormat(header.PacketFormat)
-	itemSize := PerCarItemSize(carsPayload, header, FinalClassificationStructSize, 0)
-
-	numToRead := int(pkt.NumCars)
-	if numToRead <= 0 || numToRead > maxCars {
-		numToRead = maxCars
+	numCars := payload[0]
+	cars, err := DecodePerCarBinary[FinalClassificationData](payload, header, FinalClassificationStructSize, 0, 1, int(numCars))
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode final classification: %w", err)
 	}
 
-	for i := 0; i < numToRead && i < MaxCars; i++ {
-		offset := i * itemSize
-		if offset+FinalClassificationStructSize > len(carsPayload) {
-			break
-		}
-		r := bytes.NewReader(carsPayload[offset : offset+FinalClassificationStructSize])
-		if err := binary.Read(r, binary.LittleEndian, &pkt.ClassificationData[i]); err != nil {
-			return nil, fmt.Errorf("failed to decode classification data for car %d: %w", i, err)
-		}
-	}
-
-	return &pkt, nil
+	return &PacketFinalClassificationData{
+		Header:             header,
+		NumCars:            numCars,
+		ClassificationData: cars,
+	}, nil
 }
