@@ -1,13 +1,23 @@
 import React from 'react';
-import { TYRE_COMPOUND_IDS } from '../../constants/f1';
+import { TYRE_COMPOUNDS, TYRE_COMPOUND_IDS } from '../../constants/f1';
 
-interface TyreCompoundBadgeProps {
-  compound?: string;
+export interface TyreCompoundBadgeProps {
+  compound?: string | number;
+  actualCompound?: string;
+  className?: string;
+  style?: React.CSSProperties;
+  title?: string;
 }
 
-export const TyreCompoundBadge: React.FC<TyreCompoundBadgeProps> = ({ compound }) => {
-  if (!compound) return null;
-  const str = compound.toUpperCase().trim();
+export const TyreCompoundBadge: React.FC<TyreCompoundBadgeProps> = ({
+  compound,
+  actualCompound,
+  className = 'tyre-badge-mini',
+  style,
+  title,
+}) => {
+  if (compound === undefined || compound === null || compound === '') return null;
+  const str = String(compound).toUpperCase().trim();
 
   let label = str.charAt(0);
   let color = '#FFFFFF';
@@ -33,15 +43,25 @@ export const TyreCompoundBadge: React.FC<TyreCompoundBadgeProps> = ({ compound }
     label = 'W';
     color = '#1e90ff';
     bg = 'rgba(30, 144, 255, 0.2)';
+  } else if (typeof compound === 'number' && TYRE_COMPOUNDS[compound]) {
+    const meta = TYRE_COMPOUNDS[compound];
+    label = meta.label;
+    color = meta.color;
+    bg = meta.bg;
   }
+
+  const defaultTitle = actualCompound
+    ? `Tyre: ${compound} (${actualCompound})`
+    : `Tyre Compound: ${compound}`;
 
   return (
     <span
-      className="tyre-badge-mini"
-      style={{ color, backgroundColor: bg, borderColor: color }}
-      title={`Tyre Compound: ${compound}`}
+      className={`${className} mono`}
+      style={{ color, backgroundColor: bg, borderColor: color, ...style }}
+      title={title || defaultTitle}
     >
       {label}
     </span>
   );
 };
+

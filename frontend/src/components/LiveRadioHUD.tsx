@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   Radio,
   Mic,
@@ -11,109 +11,12 @@ import {
 import { useI18n } from '../context/I18nContext';
 import { RADIO_PERSONAS } from '../constants/f1';
 import { RadioSettingsPanel } from './RadioSettingsPanel';
-import { getRadioAnalyserNode } from '../utils/radioAudio';
+import { RadioWaveformCanvas } from './common/RadioWaveformCanvas';
 import type { UseRadioControllerReturn } from '../hooks/useRadioController';
 
 export interface LiveRadioHUDProps {
   radio: UseRadioControllerReturn;
 }
-
-const RadioWaveformCanvas: React.FC<{ radioState: 'transmitting' | 'speaking' }> = ({ radioState }) => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [hasCanvasCtx, setHasCanvasCtx] = useState(true);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      setHasCanvasCtx(false);
-      return;
-    }
-
-    let animId: number;
-    const analyser = getRadioAnalyserNode();
-    const bufferLength = analyser ? analyser.frequencyBinCount : 32;
-    const dataArray = new Uint8Array(bufferLength);
-
-    const barCount = 6;
-    const barWidth = 3;
-    const gap = 3;
-    const isTransmitting = radioState === 'transmitting';
-
-    const render = () => {
-      if (analyser) {
-        analyser.getByteFrequencyData(dataArray);
-      }
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      for (let i = 0; i < barCount; i++) {
-        // Sample frequency bins across range
-        const binIndex = Math.min(bufferLength - 1, Math.floor((i / barCount) * (bufferLength / 2)));
-        const rawVal = dataArray[binIndex] || 0;
-        
-        // Calculate height with minimum floor so bars remain softly visible
-        const norm = rawVal / 255;
-        const barHeight = Math.max(3, norm * canvas.height * 0.95);
-        const x = i * (barWidth + gap);
-        const y = canvas.height - barHeight;
-
-        // Gradient & Glow
-        const gradient = ctx.createLinearGradient(0, y, 0, canvas.height);
-        if (isTransmitting) {
-          gradient.addColorStop(0, '#ef4444');
-          gradient.addColorStop(1, '#991b1b');
-          ctx.shadowColor = 'rgba(239, 68, 68, 0.6)';
-        } else {
-          gradient.addColorStop(0, '#34d399');
-          gradient.addColorStop(1, '#059669');
-          ctx.shadowColor = 'rgba(16, 185, 129, 0.6)';
-        }
-        ctx.shadowBlur = 4;
-
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        if (typeof ctx.roundRect === 'function') {
-          ctx.roundRect(x, y, barWidth, barHeight, 2);
-        } else {
-          ctx.rect(x, y, barWidth, barHeight);
-        }
-        ctx.fill();
-      }
-
-      animId = requestAnimationFrame(render);
-    };
-
-    render();
-
-    return () => {
-      if (animId) cancelAnimationFrame(animId);
-    };
-  }, [radioState]);
-
-  if (!hasCanvasCtx) {
-    return (
-      <div className="live-radio-equalizer" data-testid="live-radio-equalizer-fallback">
-        <span className="live-radio-eq-bar" />
-        <span className="live-radio-eq-bar" />
-        <span className="live-radio-eq-bar" />
-        <span className="live-radio-eq-bar" />
-      </div>
-    );
-  }
-
-  return (
-    <canvas
-      ref={canvasRef}
-      width={36}
-      height={18}
-      className="live-radio-waveform-canvas"
-      data-testid="live-radio-waveform"
-    />
-  );
-};
 
 export const LiveRadioHUD: React.FC<LiveRadioHUDProps> = ({ radio }) => {
   const { t } = useI18n();
@@ -250,7 +153,17 @@ export const LiveRadioHUD: React.FC<LiveRadioHUDProps> = ({ radio }) => {
 
           {/* Real-time Waveform visualization when speaking or transmitting */}
           {(radio.radioState === 'transmitting' || radio.radioState === 'speaking') && (
-            <RadioWaveformCanvas radioState={radio.radioState} />
+            <RadioWaveformCanvas
+              radioState={radio.radioState}
+              width={36}
+              height={18}
+              barCount={6}
+              gap={3}
+              className="live-radio-waveform-canvas"
+              testId="live-radio-waveform"
+              fallbackTestId="live-radio-equalizer-fallback"
+              fallbackClassName="live-radio-equalizer"
+            />
           )}
 
           {/* Quick Action Controls */}

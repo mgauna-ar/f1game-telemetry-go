@@ -26,17 +26,26 @@ import { TagFilterBar } from './session_history/TagFilterBar';
 import { useRaceEngineerActions } from '../context/RaceEngineerContext';
 import { useI18n } from '../context/I18nContext';
 
-import type {
-  Session,
-  Participant,
-  Lap,
-  StagedLap,
-  DriverStanding,
-  NavigationComparatorPayload,
-  Tag,
-  ClassificationResponse,
-  ProgressionResponse,
-  StintsResponse,
+import { TyreCompoundBadge } from './common/TyreCompoundBadge';
+import {
+  formatLapTime,
+  formatTotalDuration,
+  formatDate,
+  getSessionBadgeClass,
+} from '../utils/formatters';
+
+import {
+  type Session,
+  type Participant,
+  type Lap,
+  type StagedLap,
+  type DriverStanding,
+  type NavigationComparatorPayload,
+  type Tag,
+  type ClassificationResponse,
+  type ProgressionResponse,
+  type StintsResponse,
+  normalizeDriverStanding,
 } from '../types/session';
 import { SessionComparatorDock } from './session_history/SessionComparatorDock';
 import { SessionBatchDock } from './session_history/SessionBatchDock';
@@ -234,71 +243,8 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
     }));
   };
 
-  const formatLapTime = (ms: number) => {
-    if (!ms || ms <= 0) return '--:--.---';
-    const mins = Math.floor(ms / 60000);
-    const secs = Math.floor((ms % 60000) / 1000);
-    const millis = ms % 1000;
-    return `${mins}:${secs.toString().padStart(2, '0')}.${millis.toString().padStart(3, '0')}`;
-  };
-
-  const formatTotalDuration = (ms: number) => {
-    if (!ms || ms <= 0) return '--:--.---';
-    const hrs = Math.floor(ms / 3600000);
-    const mins = Math.floor((ms % 3600000) / 60000);
-    const secs = Math.floor((ms % 60000) / 1000);
-    const millis = ms % 1000;
-
-    if (hrs > 0) {
-      return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${millis.toString().padStart(3, '0')}`;
-    }
-    return `${mins}:${secs.toString().padStart(2, '0')}.${millis.toString().padStart(3, '0')}`;
-  };
-
   const renderTyreBadge = (compoundRaw?: string, actualCompound?: string) => {
-    if (!compoundRaw || compoundRaw.trim() === '') {
-      return <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>-</span>;
-    }
-
-    const str = compoundRaw.trim().toUpperCase();
-
-    let label = str;
-    let color = '#FFFFFF';
-    let bg = 'rgba(255, 255, 255, 0.15)';
-
-    if (str === '7' || str.includes('INTER') || str === 'I') {
-      label = 'I';
-      color = '#33FF33';
-      bg = 'rgba(51, 255, 51, 0.15)';
-    } else if (str === '16' || str.includes('SOFT') || str === 'S') {
-      label = 'S';
-      color = '#FF3333';
-      bg = 'rgba(255, 51, 51, 0.15)';
-    } else if (str === '17' || str.includes('MEDIUM') || str === 'MED' || str === 'M') {
-      label = 'M';
-      color = '#FFD700';
-      bg = 'rgba(255, 215, 0, 0.15)';
-    } else if (str === '18' || str.includes('HARD') || str === 'H') {
-      label = 'H';
-      color = '#FFFFFF';
-      bg = 'rgba(255, 255, 255, 0.15)';
-    } else if (str === '8' || str.includes('WET') || str === 'W') {
-      label = 'W';
-      color = '#3399FF';
-      bg = 'rgba(51, 153, 255, 0.15)';
-    }
-
-    const titleText = actualCompound ? `Tyre: ${compoundRaw} (${actualCompound})` : `Tyre Compound: ${compoundRaw}`;
-
-    return (
-      <div
-        className="tyre-badge mono"
-        title={titleText}
-        style={{ color, backgroundColor: bg, borderColor: color }}
-      >
-        {label}
-      </div>
-    );
+    return <TyreCompoundBadge compound={compoundRaw} actualCompound={actualCompound} className="tyre-badge" />;
   };
 
   const renderDriverTyreStints = (driverLaps: Lap[]) => {
@@ -342,7 +288,7 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
           <React.Fragment key={idx}>
             {idx > 0 && <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', margin: '0 1px' }}>➔</span>}
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-              {renderTyreBadge(compound, actualCompound)}
+              <TyreCompoundBadge compound={compound} actualCompound={actualCompound} className="tyre-badge" />
               <span className="mono" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
                 {count}L
               </span>
@@ -351,29 +297,6 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
         ))}
       </div>
     );
-  };
-
-  const formatDate = (dateStr?: string) => {
-    if (!dateStr) return 'Unknown Date';
-    try {
-      const date = new Date(dateStr);
-      return date.toLocaleString(undefined, {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-      });
-    } catch {
-      return dateStr;
-    }
-  };
-
-  const getSessionBadgeClass = (typeStr?: string) => {
-    if (!typeStr) return 'badge-gray';
-    const lower = typeStr.toLowerCase();
-    if (lower.includes('sprint')) return 'badge-orange';
-    if (lower.includes('race')) return 'badge-red';
-    if (lower.includes('qual') || lower.includes('q1') || lower.includes('q2') || lower.includes('q3')) return 'badge-purple';
-    if (lower.includes('practice') || lower.includes('fp')) return 'badge-green';
-    return 'badge-gray';
   };
 
   const isRaceSession = !!selectedSession?.session_type?.toLowerCase().includes('race');
@@ -386,46 +309,7 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
   // Driver standings for selected session (from server classification)
   const driverStandings: DriverStanding[] = useMemo(() => {
     if (!selectedSession || !classificationData?.standings) return [];
-
-    return classificationData.standings.map((s) => {
-      const p: Participant = s.participant || {
-        id: s.car_index ?? 0,
-        session_id: selectedSession.id,
-        car_index: s.car_index ?? 0,
-        name: s.driver_name || '',
-        driver_id: 0,
-        team_id: s.team_id ?? 0,
-        race_number: s.race_number ?? 0,
-        ai_controlled: s.ai_controlled ?? false,
-        position: s.position,
-        grid_position: s.grid_position,
-        points: s.points,
-        result_reason: s.result_reason,
-        result_status: 0,
-      };
-      return {
-        ...s,
-        participant: p,
-        bestLap: s.best_lap || s.bestLap || null,
-        bestLapTimeMS: s.best_lap_time_ms ?? s.bestLapTimeMS ?? 0,
-        lastLap: s.last_lap || s.lastLap || null,
-        lastLapTimeMS: s.last_lap_time_ms ?? s.lastLapTimeMS ?? 0,
-        totalRaceTimeMS: s.total_race_time_ms ?? s.totalRaceTimeMS ?? 0,
-        totalRaceTimeWithPenalties: s.total_with_penalties_ms ?? s.totalRaceTimeWithPenalties ?? 0,
-        penaltySeconds: s.penalty_seconds ?? s.penaltySeconds ?? 0,
-        officialPos: s.position,
-        gridPosition: s.grid_position,
-        positionsGained: s.positions_gained,
-        isDNF: s.is_dnf ?? s.isDNF ?? false,
-        isDSQ: s.is_dsq ?? s.isDSQ ?? false,
-        maxSpeed: s.max_speed ?? s.maxSpeed ?? 0,
-        bestS1MS: s.best_s1_ms ?? s.bestS1MS ?? 0,
-        bestS2MS: s.best_s2_ms ?? s.bestS2MS ?? 0,
-        bestS3MS: s.best_s3_ms ?? s.bestS3MS ?? 0,
-        theoreticalBestMS: s.theoretical_best_ms ?? s.theoreticalBestMS ?? 0,
-        laps: s.laps || [],
-      };
-    });
+    return classificationData.standings.map((s) => normalizeDriverStanding(s, selectedSession.id));
   }, [classificationData, selectedSession]);
 
   // Helper to format tyre stints for debrief

@@ -22,6 +22,12 @@ describe('useLapStaging Hook', () => {
   };
 
   const mockDriver: DriverStanding = {
+    carIndex: 0,
+    driverName: 'Lewis Hamilton',
+    teamName: 'Mercedes',
+    teamId: 1,
+    raceNumber: 44,
+    position: 1,
     participant: {
       id: 1,
       session_id: 42,
@@ -39,7 +45,6 @@ describe('useLapStaging Hook', () => {
     lastLapTimeMS: 88500,
     totalRaceTimeMS: 88500,
     penaltySeconds: 0,
-    officialPos: 1,
     isDNF: false,
     isDSQ: false,
     maxSpeed: 320,
@@ -47,7 +52,6 @@ describe('useLapStaging Hook', () => {
     bestS2MS: 32000,
     bestS3MS: 28500,
     theoreticalBestMS: 88500,
-    position: 1,
   };
 
   it('stages lap into Slot A and Slot B', () => {

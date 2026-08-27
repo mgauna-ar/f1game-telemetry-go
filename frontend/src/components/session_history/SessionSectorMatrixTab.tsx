@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Zap, Gauge, Award, Layers } from 'lucide-react';
 import { TEAM_COLORS } from '../../constants/f1';
+import { formatSectorTime } from '../../utils/formatters';
 import type { DriverStanding, ClassificationResponse } from '../../types/session';
 import { useI18n } from '../../context/I18nContext';
 
@@ -24,10 +25,7 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
   const { t } = useI18n();
   const [sectorView, setSectorView] = useState<'ALL' | 'S1' | 'S2' | 'S3'>('ALL');
 
-  const formatSectorTime = (ms: number) => {
-    if (!ms || ms <= 0) return '--.---';
-    return (ms / 1000).toFixed(3);
-  };
+  const formatSector = (ms: number) => formatSectorTime(ms, false);
 
   // Find which driver holds each purple sector
   const s1Holder: DriverStanding | null = useMemo(() => {
@@ -51,7 +49,7 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
       const holder =
         driverStandings.find(
           (d) =>
-            d.driver_name === classificationData.actual_best_lap_driver ||
+            d.driverName === classificationData.actual_best_lap_driver ||
             d.participant.name === classificationData.actual_best_lap_driver
         ) || null;
       return { bestMS: classificationData.actual_best_lap_ms, driver: holder };
@@ -142,7 +140,7 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-purple)' }}>{t('history.sectors.s1Record')}</span>
               <span className="mono sector-purple" style={{ padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
-                {formatSectorTime(sessionBestS1)}
+                {formatSector(sessionBestS1)}
               </span>
             </div>
             <div style={{ marginTop: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -156,7 +154,7 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-purple)' }}>{t('history.sectors.s2Record')}</span>
               <span className="mono sector-purple" style={{ padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
-                {formatSectorTime(sessionBestS2)}
+                {formatSector(sessionBestS2)}
               </span>
             </div>
             <div style={{ marginTop: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -170,7 +168,7 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-purple)' }}>{t('history.sectors.s3Record')}</span>
               <span className="mono sector-purple" style={{ padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
-                {formatSectorTime(sessionBestS3)}
+                {formatSector(sessionBestS3)}
               </span>
             </div>
             <div style={{ marginTop: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -255,7 +253,7 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
                         <td className="mono">
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <span className={s1Delta === 0 && driver.bestS1MS > 0 ? 'sector-purple' : 'sector-green'}>
-                              {formatSectorTime(driver.bestS1MS)}
+                              {formatSector(driver.bestS1MS)}
                             </span>
                             {s1Delta > 0 && (
                               <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
@@ -270,7 +268,7 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
                         <td className="mono">
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <span className={s2Delta === 0 && driver.bestS2MS > 0 ? 'sector-purple' : 'sector-green'}>
-                              {formatSectorTime(driver.bestS2MS)}
+                              {formatSector(driver.bestS2MS)}
                             </span>
                             {s2Delta > 0 && (
                               <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
@@ -285,7 +283,7 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
                         <td className="mono">
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                             <span className={s3Delta === 0 && driver.bestS3MS > 0 ? 'sector-purple' : 'sector-green'}>
-                              {formatSectorTime(driver.bestS3MS)}
+                              {formatSector(driver.bestS3MS)}
                             </span>
                             {s3Delta > 0 && (
                               <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>

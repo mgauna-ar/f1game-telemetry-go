@@ -17,11 +17,12 @@ export function formatLapTime(ms?: number): string {
 export const formatTime = formatLapTime;
 
 /**
- * Formats milliseconds into sector time string "SS.mmm s" or "-" if invalid.
+ * Formats milliseconds into sector time string "SS.mmm s" or "-" / "--.---" if invalid.
  */
-export function formatSectorTime(ms?: number): string {
-  if (!ms || ms <= 0) return '-';
-  return `${(ms / TIME_CONSTANTS.MS_PER_SECOND).toFixed(3)}s`;
+export function formatSectorTime(ms?: number, includeUnit = true): string {
+  if (!ms || ms <= 0) return includeUnit ? '-' : '--.---';
+  const val = (ms / TIME_CONSTANTS.MS_PER_SECOND).toFixed(3);
+  return includeUnit ? `${val}s` : val;
 }
 
 /**
@@ -49,6 +50,38 @@ export function formatDuration(ms?: number): string {
     return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   }
   return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Formats total race duration into H:MM:SS.mmm or M:SS.mmm format.
+ */
+export function formatTotalDuration(ms?: number): string {
+  if (!ms || ms <= 0) return '--:--.---';
+  const hrs = Math.floor(ms / TIME_CONSTANTS.MS_PER_HOUR);
+  const mins = Math.floor((ms % TIME_CONSTANTS.MS_PER_HOUR) / TIME_CONSTANTS.MS_PER_MINUTE);
+  const secs = Math.floor((ms % TIME_CONSTANTS.MS_PER_MINUTE) / TIME_CONSTANTS.MS_PER_SECOND);
+  const millis = Math.floor(ms % TIME_CONSTANTS.MS_PER_SECOND);
+
+  if (hrs > 0) {
+    return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${millis.toString().padStart(3, '0')}`;
+  }
+  return `${mins}:${secs.toString().padStart(2, '0')}.${millis.toString().padStart(3, '0')}`;
+}
+
+/**
+ * Formats ISO date string into a localized medium date + short time.
+ */
+export function formatDate(dateStr?: string): string {
+  if (!dateStr) return 'Unknown Date';
+  try {
+    const date = new Date(dateStr);
+    return date.toLocaleString(undefined, {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    });
+  } catch {
+    return dateStr;
+  }
 }
 
 /**

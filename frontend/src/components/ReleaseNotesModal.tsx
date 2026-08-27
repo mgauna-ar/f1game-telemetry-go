@@ -9,6 +9,8 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { useI18n } from '../context/I18nContext';
+import { renderSimpleMarkdown } from '../utils/markdown';
+import { detectUserOS } from '../utils/system';
 import type { UpdateCheckResponse, ReleaseAsset, SystemVersion } from '../types/system';
 
 interface ReleaseNotesModalProps {
@@ -17,16 +19,6 @@ interface ReleaseNotesModalProps {
   updateData: UpdateCheckResponse | null;
   systemVersion?: SystemVersion | null;
   onDismissVersion?: (version: string) => void;
-}
-
-export function detectUserOS(): 'macos' | 'windows' | 'linux' | 'other' {
-  if (typeof window === 'undefined' || !window.navigator) return 'other';
-  const ua = (window.navigator.userAgent || '').toLowerCase();
-  const platform = (window.navigator.platform || '').toLowerCase();
-  if (ua.includes('mac') || ua.includes('darwin') || platform.includes('mac')) return 'macos';
-  if (ua.includes('win') || platform.includes('win')) return 'windows';
-  if (ua.includes('linux') || ua.includes('x11') || platform.includes('linux')) return 'linux';
-  return 'other';
 }
 
 export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
@@ -100,71 +92,17 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
   // Simple Markdown renderer for changelog body
   const renderReleaseNotes = (notes: string | undefined) => {
     if (!notes) return <p className="text-muted">No release notes available.</p>;
-
-    const lines = notes.split('\n');
-    return (
-      <div className="release-notes-content">
-        {lines.map((line, idx) => {
-          const trimmed = line.trim();
-          if (!trimmed) return <div key={idx} className="rn-spacer" />;
-
-          // Headings
-          if (trimmed.startsWith('### ')) {
-            return (
-              <h4 key={idx} className="rn-heading-3">
-                {trimmed.replace('### ', '')}
-              </h4>
-            );
-          }
-          if (trimmed.startsWith('## ')) {
-            return (
-              <h3 key={idx} className="rn-heading-2">
-                {trimmed.replace('## ', '')}
-              </h3>
-            );
-          }
-          if (trimmed.startsWith('# ')) {
-            return (
-              <h2 key={idx} className="rn-heading-1">
-                {trimmed.replace('# ', '')}
-              </h2>
-            );
-          }
-
-          // Bullet points
-          if (trimmed.startsWith('* ') || trimmed.startsWith('- ')) {
-            const bulletText = trimmed.substring(2);
-            return (
-              <div key={idx} className="rn-bullet-item">
-                <span className="rn-bullet-dot">•</span>
-                <span className="rn-bullet-text">{formatInlineMarkdown(bulletText)}</span>
-              </div>
-            );
-          }
-
-          // Standard paragraph
-          return (
-            <p key={idx} className="rn-paragraph">
-              {formatInlineMarkdown(trimmed)}
-            </p>
-          );
-        })}
-      </div>
-    );
-  };
-
-  const formatInlineMarkdown = (text: string) => {
-    // Format bold **text**
-    const parts = text.split(/(\*\*[^*]+\*\*)/g);
-    return parts.map((part, i) => {
-      if (part.startsWith('**') && part.endsWith('**')) {
-        return (
-          <strong key={i} className="text-white font-semibold">
-            {part.slice(2, -2)}
-          </strong>
-        );
-      }
-      return part;
+    return renderSimpleMarkdown(notes, {
+      containerClassName: 'release-notes-content',
+      heading1ClassName: 'rn-heading-1',
+      heading2ClassName: 'rn-heading-2',
+      heading3ClassName: 'rn-heading-3',
+      heading4ClassName: 'rn-heading-4',
+      bulletItemClassName: 'rn-bullet-item',
+      bulletDotClassName: 'rn-bullet-dot',
+      bulletTextClassName: 'rn-bullet-text',
+      paragraphClassName: 'rn-paragraph',
+      spacerClassName: 'rn-spacer',
     });
   };
 

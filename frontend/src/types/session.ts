@@ -92,7 +92,7 @@ export interface SpeedRanking {
   delta_to_top: number;
 }
 
-export interface DriverStanding {
+export interface RawDriverStanding {
   position: number;
   car_index?: number;
   driver_name?: string;
@@ -107,9 +107,6 @@ export interface DriverStanding {
   best_lap_s1_ms?: number;
   best_lap_s2_ms?: number;
   best_lap_s3_ms?: number;
-  best_s1_ms?: number;
-  best_s2_ms?: number;
-  best_s3_ms?: number;
   last_lap_time_ms?: number;
   total_race_time_ms?: number;
   total_with_penalties_ms?: number;
@@ -127,23 +124,35 @@ export interface DriverStanding {
   gap_to_leader_ms?: number;
   interval_ms?: number;
   pit_stops_count?: number;
-  participant: Participant;
-  laps: Lap[];
-  bestLap: Lap | null;
-  bestLapTimeMS: number;
-  lastLap?: Lap | null;
-  lastLapTimeMS?: number;
-  totalRaceTimeMS?: number;
-  totalTimeMS?: number;
-  penaltySeconds?: number;
-  totalRaceTimeWithPenalties?: number;
-  officialPos?: number;
+  participant?: Participant;
+  laps?: Lap[];
+  points?: number;
+}
+
+export interface DriverStanding {
+  position: number;
+  carIndex: number;
+  driverName: string;
+  teamName: string;
+  teamId: number;
+  raceNumber: number;
   gridPosition?: number;
   positionsGained?: number;
+  bestLapTimeMS: number;
+  bestLapNumber?: number;
+  bestLapId?: number;
+  bestLapS1MS?: number;
+  bestLapS2MS?: number;
+  bestLapS3MS?: number;
+  lastLapTimeMS?: number;
+  totalRaceTimeMS?: number;
+  totalWithPenaltiesMS?: number;
+  totalRaceTimeWithPenalties?: number;
+  penaltySeconds?: number;
   points?: number;
-  resultReason?: number;
   isDNF: boolean;
   isDSQ: boolean;
+  resultReason?: number;
   maxSpeed: number;
   bestS1MS: number;
   bestS2MS: number;
@@ -151,12 +160,78 @@ export interface DriverStanding {
   theoreticalBestMS?: number;
   gapToLeaderMS?: number;
   intervalMS?: number;
-  stints?: { compound: string; laps: number }[];
+  lapsCompleted?: number;
   pitStopsCount?: number;
+  stintsSummary?: string;
+  aiControlled?: boolean;
+  bestLap?: Lap | null;
+  lastLap?: Lap | null;
+  participant: Participant;
+  laps: Lap[];
+}
+
+export function normalizeDriverStanding(s: RawDriverStanding | DriverStanding, sessionId: number): DriverStanding {
+  const raw = s as any;
+  const p: Participant = raw.participant || {
+    id: raw.car_index ?? raw.carIndex ?? 0,
+    session_id: sessionId,
+    car_index: raw.car_index ?? raw.carIndex ?? 0,
+    name: raw.driver_name ?? raw.driverName ?? '',
+    driver_id: 0,
+    team_id: raw.team_id ?? raw.teamId ?? 0,
+    race_number: raw.race_number ?? raw.raceNumber ?? 0,
+    ai_controlled: raw.ai_controlled ?? raw.aiControlled ?? false,
+    position: raw.position ?? 0,
+    grid_position: raw.grid_position ?? raw.gridPosition,
+    points: raw.points,
+    result_reason: raw.result_reason ?? raw.resultReason,
+    result_status: 0,
+  };
+  const totalWithPenalties = raw.total_with_penalties_ms ?? raw.totalWithPenaltiesMS ?? raw.totalRaceTimeWithPenalties ?? 0;
+  return {
+    position: raw.position ?? 0,
+    carIndex: raw.car_index ?? raw.carIndex ?? p.car_index,
+    driverName: raw.driver_name ?? raw.driverName ?? p.name,
+    teamName: raw.team_name ?? raw.teamName ?? '',
+    teamId: raw.team_id ?? raw.teamId ?? p.team_id,
+    raceNumber: raw.race_number ?? raw.raceNumber ?? p.race_number,
+    gridPosition: raw.grid_position ?? raw.gridPosition ?? p.grid_position,
+    positionsGained: raw.positions_gained ?? raw.positionsGained,
+    bestLapTimeMS: raw.best_lap_time_ms ?? raw.bestLapTimeMS ?? 0,
+    bestLapNumber: raw.best_lap_number ?? raw.bestLapNumber,
+    bestLapId: raw.best_lap_id ?? raw.bestLapId,
+    bestLapS1MS: raw.best_lap_s1_ms ?? raw.bestLapS1MS,
+    bestLapS2MS: raw.best_lap_s2_ms ?? raw.bestLapS2MS,
+    bestLapS3MS: raw.best_lap_s3_ms ?? raw.bestLapS3MS,
+    lastLapTimeMS: raw.last_lap_time_ms ?? raw.lastLapTimeMS ?? 0,
+    totalRaceTimeMS: raw.total_race_time_ms ?? raw.totalRaceTimeMS ?? 0,
+    totalWithPenaltiesMS: totalWithPenalties,
+    totalRaceTimeWithPenalties: totalWithPenalties,
+    penaltySeconds: raw.penalty_seconds ?? raw.penaltySeconds ?? 0,
+    points: raw.points,
+    isDNF: raw.is_dnf ?? raw.isDNF ?? false,
+    isDSQ: raw.is_dsq ?? raw.isDSQ ?? false,
+    resultReason: raw.result_reason ?? raw.resultReason,
+    maxSpeed: raw.max_speed ?? raw.maxSpeed ?? 0,
+    bestS1MS: raw.best_s1_ms ?? raw.bestS1MS ?? 0,
+    bestS2MS: raw.best_s2_ms ?? raw.bestS2MS ?? 0,
+    bestS3MS: raw.best_s3_ms ?? raw.bestS3MS ?? 0,
+    theoreticalBestMS: raw.theoretical_best_ms ?? raw.theoreticalBestMS ?? 0,
+    gapToLeaderMS: raw.gap_to_leader_ms ?? raw.gapToLeaderMS,
+    intervalMS: raw.interval_ms ?? raw.intervalMS,
+    lapsCompleted: raw.laps_completed ?? raw.lapsCompleted ?? (raw.laps?.length || 0),
+    pitStopsCount: raw.pit_stops_count ?? raw.pitStopsCount,
+    stintsSummary: raw.stints_summary ?? raw.stintsSummary,
+    aiControlled: raw.ai_controlled ?? raw.aiControlled ?? p.ai_controlled,
+    bestLap: raw.best_lap ?? raw.bestLap ?? null,
+    lastLap: raw.last_lap ?? raw.lastLap ?? null,
+    participant: p,
+    laps: raw.laps || [],
+  };
 }
 
 export interface ClassificationResponse {
-  standings: DriverStanding[];
+  standings: RawDriverStanding[];
   session_best_s1_ms: number;
   session_best_s2_ms: number;
   session_best_s3_ms: number;
@@ -182,7 +257,7 @@ export interface ProgressionResponse {
   total_session_laps: number;
 }
 
-export interface DriverStint {
+export interface RawDriverStint {
   stint_index: number;
   stint_id: number;
   compound: string;
@@ -197,6 +272,21 @@ export interface DriverStint {
   laps?: Lap[];
 }
 
+export interface DriverStint {
+  stintIndex: number;
+  stintId: number;
+  compound: string;
+  actualCompound?: string;
+  startLap: number;
+  endLap: number;
+  totalLaps: number;
+  avgLapTimeMS: number;
+  bestLapTimeMS: number;
+  hasPitStopAfter: boolean;
+  degSlopeSecPerLap?: number | null;
+  laps?: Lap[];
+}
+
 export interface DriverStintData {
   car_index: number;
   driver_name: string;
@@ -206,7 +296,7 @@ export interface DriverStintData {
   strategy_string: string;
   total_stints: number;
   total_pits: number;
-  stints: DriverStint[];
+  stints: RawDriverStint[];
 }
 
 export interface StintLongestSummary {

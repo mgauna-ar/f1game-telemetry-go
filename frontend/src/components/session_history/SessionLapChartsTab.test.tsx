@@ -8,6 +8,11 @@ describe('SessionLapChartsTab Component', () => {
   const mockDriverStandings: DriverStanding[] = [
     {
       position: 1,
+      carIndex: 0,
+      driverName: 'Max Verstappen',
+      teamName: 'Red Bull',
+      teamId: 9,
+      raceNumber: 1,
       participant: {
         id: 1,
         session_id: 100,
@@ -34,6 +39,11 @@ describe('SessionLapChartsTab Component', () => {
     },
     {
       position: 2,
+      carIndex: 1,
+      driverName: 'Lewis Hamilton',
+      teamName: 'Mercedes',
+      teamId: 1,
+      raceNumber: 44,
       participant: {
         id: 2,
         session_id: 100,

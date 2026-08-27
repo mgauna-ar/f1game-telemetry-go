@@ -15,19 +15,6 @@ const (
 	PacketFormat2026 = 2026
 )
 
-// Tyre compound constants
-const (
-	CompoundInter     uint8 = 7
-	CompoundWet       uint8 = 8
-	CompoundSoft      uint8 = 16
-	CompoundMedium    uint8 = 17
-	CompoundHard      uint8 = 18
-	CompoundSuperSoft uint8 = 19
-	CompoundClassicS  uint8 = 20
-	CompoundClassicM  uint8 = 21
-	CompoundClassicH  uint8 = 22
-)
-
 // VisualTyreCompoundName returns the human-readable visual tyre compound name.
 func VisualTyreCompoundName(compound uint8) string {
 	switch compound {
@@ -107,28 +94,6 @@ func PerCarItemSize(payload []byte, header PacketHeader, structSize, trailer int
 
 	return structSize
 }
-
-// Packet IDs
-const (
-	PacketIDMotion              uint8 = 0
-	PacketIDSession             uint8 = 1
-	PacketIDLapData             uint8 = 2
-	PacketIDEvent               uint8 = 3
-	PacketIDParticipants        uint8 = 4
-	PacketIDCarSetup            uint8 = 5
-	PacketIDCarTelemetry        uint8 = 6
-	PacketIDCarStatus           uint8 = 7
-	PacketIDFinalClassification uint8 = 8
-	PacketIDLobbyInfo           uint8 = 9
-	PacketIDCarDamage           uint8 = 10
-	PacketIDSessionHistory      uint8 = 11
-	PacketIDTyreSets            uint8 = 12
-	PacketIDMotionEx            uint8 = 13
-	PacketIDTimeTrial           uint8 = 14
-	PacketIDLapPositions        uint8 = 15
-	PacketIDCarTelemetry2       uint8 = 16
-	PacketIDLiveSnapshot        uint8 = 255
-)
 
 // DriverNames maps official EA driver ID to human-readable driver name.
 var DriverNames = map[uint16]string{

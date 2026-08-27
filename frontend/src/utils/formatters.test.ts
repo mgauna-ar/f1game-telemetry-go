@@ -4,6 +4,8 @@ import {
   formatSectorTime,
   formatGapTime,
   formatDuration,
+  formatTotalDuration,
+  formatDate,
   formatSessionUID,
   getSessionBadgeClass,
 } from './formatters';
@@ -47,12 +49,17 @@ describe('formatters', () => {
   });
 
   describe('formatSectorTime', () => {
-    it('formats ms to seconds', () => {
+    it('formats ms to seconds with unit by default', () => {
       expect(formatSectorTime(28724)).toBe('28.724s');
     });
 
-    it('returns dash for zero ms', () => {
+    it('returns dash for zero ms with unit', () => {
       expect(formatSectorTime(0)).toBe('-');
+    });
+
+    it('formats ms without unit when requested', () => {
+      expect(formatSectorTime(28724, false)).toBe('28.724');
+      expect(formatSectorTime(0, false)).toBe('--.---');
     });
   });
 
@@ -78,6 +85,32 @@ describe('formatters', () => {
 
     it('formats minutes:seconds', () => {
       expect(formatDuration(125000)).toBe('2:05');
+    });
+  });
+
+  describe('formatTotalDuration', () => {
+    it('formats hours:minutes:seconds.millis', () => {
+      expect(formatTotalDuration(3661234)).toBe('1:01:01.234');
+    });
+
+    it('formats minutes:seconds.millis', () => {
+      expect(formatTotalDuration(125456)).toBe('2:05.456');
+    });
+
+    it('returns dashes for invalid or zero ms', () => {
+      expect(formatTotalDuration(0)).toBe('--:--.---');
+    });
+  });
+
+  describe('formatDate', () => {
+    it('formats ISO date string without errors', () => {
+      const res = formatDate('2026-06-01T14:30:00Z');
+      expect(res).toBeTruthy();
+      expect(res).not.toBe('Unknown Date');
+    });
+
+    it('returns Unknown Date for empty date', () => {
+      expect(formatDate(undefined)).toBe('Unknown Date');
     });
   });
 

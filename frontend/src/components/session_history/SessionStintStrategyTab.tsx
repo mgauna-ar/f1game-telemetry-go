@@ -19,7 +19,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { TEAM_COLORS, TYRE_COMPOUNDS, TYRE_COMPOUND_IDS } from '../../constants/f1';
-import type { DriverStanding, Lap, StintsResponse } from '../../types/session';
+import type { DriverStanding, DriverStint, StintsResponse } from '../../types/session';
 import { useI18n } from '../../context/I18nContext';
 import { TyreCompoundBadge } from '../common/TyreCompoundBadge';
 
@@ -31,20 +31,7 @@ interface SessionStintStrategyTabProps {
   renderTyreBadge: (compound?: string, actualCompound?: string) => React.ReactNode;
 }
 
-export interface DriverStint {
-  stintIndex: number;
-  stintId: number;
-  compound: string;
-  actualCompound?: string;
-  startLap: number;
-  endLap: number;
-  totalLaps: number;
-  laps: Lap[];
-  avgLapTimeMS: number;
-  bestLapTimeMS: number;
-  hasPitStopAfter: boolean;
-  degSlopeSecPerLap?: number | null;
-}
+export type { DriverStint };
 
 export interface DriverStintData {
   driver: DriverStanding;
@@ -151,6 +138,11 @@ export const SessionStintStrategyTab: React.FC<SessionStintStrategyTabProps> = (
       const standing =
         driverStandings.find((ds) => ds.participant.car_index === d.car_index) || {
           position: d.position,
+          carIndex: d.car_index,
+          driverName: d.driver_name,
+          teamName: '',
+          teamId: d.team_id,
+          raceNumber: d.race_number,
           participant: {
             id: d.car_index,
             session_id: 0,

@@ -228,7 +228,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
         let maxPopulatedIndex = -1;
         for (let i = 0; i < pList.length; i++) {
           const p = pList[i];
-          const hasName = typeof p.Name === 'string' && p.Name.replace(/\0/g, '').trim().length > 0;
+          const hasName = typeof p.Name === 'string' && p.Name.split('\0').join('').trim().length > 0;
           const hasNumber = p.RaceNumber !== undefined && p.RaceNumber > 0;
           const hasDriverId = p.DriverId !== undefined && p.DriverId !== 255 && p.DriverId > 0;
           if (hasName || hasNumber || hasDriverId) {

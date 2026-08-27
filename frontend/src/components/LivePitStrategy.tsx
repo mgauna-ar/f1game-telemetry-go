@@ -4,11 +4,11 @@ import { parseDriverName } from '../hooks/useTelemetry';
 import { filterActiveLiveParticipants } from '../utils/driverFilter';
 import {
   TEAM_COLORS,
-  TYRE_COMPOUNDS,
   RESULT_STATUS,
   PIT_STATUS,
   TYRE_COMPOUND_IDS,
 } from '../constants/f1';
+import { TyreCompoundBadge } from './common/TyreCompoundBadge';
 import type { ParticipantData, LapData, CarStatusData, SessionData } from '../types/telemetry';
 import { useI18n } from '../context/I18nContext';
 
@@ -117,13 +117,6 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = React.memo((props
     return <span className="pit-badge-track mono">{t('live.trackStatus')}</span>;
   };
 
-  const getTyreMeta = (compoundId?: number) => {
-    if (compoundId !== undefined && TYRE_COMPOUNDS[compoundId]) {
-      return TYRE_COMPOUNDS[compoundId];
-    }
-    return { label: 'M', color: '#FFD700', bg: 'rgba(255, 215, 0, 0.15)' };
-  };
-
   const activePitsCount = laps.filter((l) => l && (l.PitStatus === PIT_STATUS.PITTING || l.PitStatus === PIT_STATUS.IN_PIT_AREA)).length;
 
   return (
@@ -205,7 +198,6 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = React.memo((props
           <tbody>
             {drivers.map((d) => {
               const tyreCompound = d.status?.VisualTyreCompound ?? TYRE_COMPOUND_IDS.MEDIUM;
-              const tyreMeta = getTyreMeta(tyreCompound);
               const tyreAge = d.status?.TyresAgeLaps ?? 0;
               const teamColor = TEAM_COLORS[d.teamId] || 'var(--accent-primary)';
 
@@ -226,16 +218,7 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = React.memo((props
                     </div>
                   </td>
                   <td className="text-center">
-                    <span
-                      className="tyre-badge-mini mono"
-                      style={{
-                        color: tyreMeta.color,
-                        backgroundColor: tyreMeta.bg,
-                        borderColor: tyreMeta.color,
-                      }}
-                    >
-                      {tyreMeta.label}
-                    </span>
+                    <TyreCompoundBadge compound={tyreCompound} />
                   </td>
                   <td className="mono text-center font-semibold">
                     <span

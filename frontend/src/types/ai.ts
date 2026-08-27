@@ -1,8 +1,13 @@
 export interface ChatMessage {
   id: string;
-  role: 'user' | 'assistant';
+  role: 'user' | 'assistant' | 'system';
   content: string;
-  timestamp: number;
+  timestamp: Date;
+  errorCode?: string;
+  errorProvider?: string;
+  errorRaw?: string;
+  canRetry?: boolean;
+  lastPrompt?: string;
 }
 
 export type RaceEngineerMode = 'live' | 'comparator' | 'session_debrief' | 'general';

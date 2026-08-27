@@ -8,6 +8,11 @@ describe('SessionSectorMatrixTab Component', () => {
   const mockDriverStandings: DriverStanding[] = [
     {
       position: 1,
+      carIndex: 0,
+      driverName: 'Max Verstappen',
+      teamName: 'Red Bull',
+      teamId: 2,
+      raceNumber: 1,
       participant: {
         id: 1,
         session_id: 100,
@@ -31,6 +36,11 @@ describe('SessionSectorMatrixTab Component', () => {
     },
     {
       position: 2,
+      carIndex: 1,
+      driverName: 'Lewis Hamilton',
+      teamName: 'Mercedes',
+      teamId: 0,
+      raceNumber: 44,
       participant: {
         id: 2,
         session_id: 100,

@@ -1,6 +1,44 @@
 package packets
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+)
+
+// Packet IDs
+const (
+	PacketIDMotion              uint8 = 0
+	PacketIDSession             uint8 = 1
+	PacketIDLapData             uint8 = 2
+	PacketIDEvent               uint8 = 3
+	PacketIDParticipants        uint8 = 4
+	PacketIDCarSetup            uint8 = 5
+	PacketIDCarTelemetry        uint8 = 6
+	PacketIDCarStatus           uint8 = 7
+	PacketIDFinalClassification uint8 = 8
+	PacketIDLobbyInfo           uint8 = 9
+	PacketIDCarDamage           uint8 = 10
+	PacketIDSessionHistory      uint8 = 11
+	PacketIDTyreSets            uint8 = 12
+	PacketIDMotionEx            uint8 = 13
+	PacketIDTimeTrial           uint8 = 14
+	PacketIDLapPositions        uint8 = 15
+	PacketIDCarTelemetry2       uint8 = 16
+	PacketIDLiveSnapshot        uint8 = 255
+)
+
+// Tyre compound constants
+const (
+	CompoundInter     uint8 = 7
+	CompoundWet       uint8 = 8
+	CompoundSoft      uint8 = 16
+	CompoundMedium    uint8 = 17
+	CompoundHard      uint8 = 18
+	CompoundSuperSoft uint8 = 19
+	CompoundClassicS  uint8 = 20
+	CompoundClassicM  uint8 = 21
+	CompoundClassicH  uint8 = 22
+)
 
 // Result status constants (Car / Lap classification status)
 const (
@@ -111,15 +149,15 @@ func NormalizeCompoundName(raw string) string {
 	}
 	s := strings.ToUpper(strings.TrimSpace(raw))
 	switch {
-	case s == "16" || strings.Contains(s, "SOFT") || s == "S":
+	case s == strconv.Itoa(int(CompoundSoft)) || strings.Contains(s, "SOFT") || s == "S":
 		return CompoundNameSoft
-	case s == "17" || strings.Contains(s, "MEDIUM") || strings.Contains(s, "MED") || s == "M":
+	case s == strconv.Itoa(int(CompoundMedium)) || strings.Contains(s, "MEDIUM") || strings.Contains(s, "MED") || s == "M":
 		return CompoundNameMedium
-	case s == "18" || strings.Contains(s, "HARD") || s == "H":
+	case s == strconv.Itoa(int(CompoundHard)) || strings.Contains(s, "HARD") || s == "H":
 		return CompoundNameHard
-	case s == "7" || strings.Contains(s, "INTER") || s == "I":
+	case s == strconv.Itoa(int(CompoundInter)) || strings.Contains(s, "INTER") || s == "I":
 		return CompoundNameIntermediate
-	case s == "8" || strings.Contains(s, "WET") || s == "W":
+	case s == strconv.Itoa(int(CompoundWet)) || strings.Contains(s, "WET") || s == "W":
 		return CompoundNameWet
 	default:
 		return s

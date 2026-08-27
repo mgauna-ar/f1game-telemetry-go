@@ -27,6 +27,7 @@ import { useRaceEngineer, type AIConfig, type ChatMessage } from '../context/Rac
 import { useI18n } from '../context/I18nContext';
 import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
 import { TrackFlag } from './TrackFlag';
+import { renderSimpleMarkdown } from '../utils/markdown';
 import { AI_PROVIDER_URLS } from '../constants/f1';
 
 
@@ -390,86 +391,15 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
 
 
   const renderFormattedMarkdown = (content: string) => {
-    const lines = content.split('\n');
-    return (
-      <div className="chat-markdown">
-        {lines.map((line, idx) => {
-          if (!line.trim()) {
-            return <div key={idx} style={{ height: '0.35rem' }} />;
-          }
-
-          if (line.startsWith('### ')) {
-            return (
-              <h4 key={idx} className="chat-h4">
-                {line.substring(4)}
-              </h4>
-            );
-          }
-
-          if (line.startsWith('## ')) {
-            return (
-              <h3 key={idx} className="chat-h3">
-                {line.substring(3)}
-              </h3>
-            );
-          }
-
-          if (line.startsWith('- ') || line.startsWith('* ')) {
-            return (
-              <div key={idx} className="chat-bullet">
-                <span className="chat-bullet-dot">•</span>
-                <span>{parseInlineFormatting(line.substring(2))}</span>
-              </div>
-            );
-          }
-
-          if (/^\d+\.\s/.test(line)) {
-            const match = line.match(/^(\d+)\.\s(.*)$/);
-            if (match) {
-              return (
-                <div key={idx} className="chat-bullet">
-                  <span className="chat-bullet-num mono">{match[1]}.</span>
-                  <span>{parseInlineFormatting(match[2])}</span>
-                </div>
-              );
-            }
-          }
-
-          return (
-            <p key={idx} className="chat-p">
-              {parseInlineFormatting(line)}
-            </p>
-          );
-        })}
-      </div>
-    );
-  };
-
-  const parseInlineFormatting = (text: string): React.ReactNode => {
-    const parts: React.ReactNode[] = [];
-    let cur = text;
-    let match: RegExpExecArray | null;
-
-    const boldRegex = /\*\*(.*?)\*\*/g;
-    let lastIdx = 0;
-
-    while ((match = boldRegex.exec(cur)) !== null) {
-      if (match.index > lastIdx) {
-        parts.push(cur.substring(lastIdx, match.index));
-      }
-      parts.push(
-        <strong key={`b-${match.index}`} style={{ color: '#fff', fontWeight: 600 }}>
-          {match[1]}
-        </strong>
-      );
-      lastIdx = match.index + match[0].length;
-    }
-
-    if (lastIdx < cur.length) {
-      parts.push(cur.substring(lastIdx));
-    }
-
-    return parts.length > 0 ? parts : text;
+    return renderSimpleMarkdown(content, {
+      containerClassName: 'chat-markdown',
+      heading2ClassName: 'chat-h3',
+      heading3ClassName: 'chat-h4',
+      bulletItemClassName: 'chat-bullet',
+      bulletDotClassName: 'chat-bullet-dot',
+      paragraphClassName: 'chat-p',
+      strongStyle: { color: '#fff', fontWeight: 600 },
+    });
   };
 
   // If closed: render Floating Action Button (FAB)

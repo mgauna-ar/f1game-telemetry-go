@@ -8,6 +8,7 @@ import {
   GitCompare,
 } from 'lucide-react';
 import { TEAM_COLORS, RESULT_REASONS, RESULT_STATUS } from '../../constants/f1';
+import { formatSectorTime } from '../../utils/formatters';
 import type { Session, Lap, DriverStanding, StagedLap } from '../../types/session';
 import { useI18n } from '../../context/I18nContext';
 
@@ -64,10 +65,7 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
     return fastest < Infinity ? fastest : 0;
   }, [driverStandings]);
 
-  const formatSectorTime = (ms: number) => {
-    if (!ms || ms <= 0) return '--.---';
-    return (ms / 1000).toFixed(3);
-  };
+  const formatSector = (ms: number) => formatSectorTime(ms, false);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -427,7 +425,7 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                                 className={isS1Purple ? 'sector-purple' : isS1Green ? 'sector-green' : ''}
                                 style={{ padding: '2px 4px', borderRadius: '3px' }}
                               >
-                                {formatSectorTime(bestLapS1)}
+                                {formatSector(bestLapS1)}
                               </span>
                             </td>
 
@@ -437,7 +435,7 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                                 className={isS2Purple ? 'sector-purple' : isS2Green ? 'sector-green' : ''}
                                 style={{ padding: '2px 4px', borderRadius: '3px' }}
                               >
-                                {formatSectorTime(bestLapS2)}
+                                {formatSector(bestLapS2)}
                               </span>
                             </td>
 
@@ -447,7 +445,7 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                                 className={isS3Purple ? 'sector-purple' : isS3Green ? 'sector-green' : ''}
                                 style={{ padding: '2px 4px', borderRadius: '3px' }}
                               >
-                                {formatSectorTime(bestLapS3)}
+                                {formatSector(bestLapS3)}
                               </span>
                             </td>
 
@@ -501,7 +499,7 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                                 className={isS1Purple ? 'sector-purple' : isS1Green ? 'sector-green' : ''}
                                 style={{ padding: '2px 4px', borderRadius: '3px' }}
                               >
-                                {formatSectorTime(bestLapS1)}
+                                {formatSector(bestLapS1)}
                               </span>
                             </td>
 
@@ -511,7 +509,7 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                                 className={isS2Purple ? 'sector-purple' : isS2Green ? 'sector-green' : ''}
                                 style={{ padding: '2px 4px', borderRadius: '3px' }}
                               >
-                                {formatSectorTime(bestLapS2)}
+                                {formatSector(bestLapS2)}
                               </span>
                             </td>
 
@@ -521,7 +519,7 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                                 className={isS3Purple ? 'sector-purple' : isS3Green ? 'sector-green' : ''}
                                 style={{ padding: '2px 4px', borderRadius: '3px' }}
                               >
-                                {formatSectorTime(bestLapS3)}
+                                {formatSector(bestLapS3)}
                               </span>
                             </td>
 
@@ -622,17 +620,17 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                                           </td>
                                           <td className="mono" style={{ padding: '6px 8px' }}>
                                             <span className={s1Purple ? 'sector-purple' : s1Green ? 'sector-green' : ''}>
-                                              {formatSectorTime(s1)}
+                                              {formatSector(s1)}
                                             </span>
                                           </td>
                                           <td className="mono" style={{ padding: '6px 8px' }}>
                                             <span className={s2Purple ? 'sector-purple' : s2Green ? 'sector-green' : ''}>
-                                              {formatSectorTime(s2)}
+                                              {formatSector(s2)}
                                             </span>
                                           </td>
                                           <td className="mono" style={{ padding: '6px 8px' }}>
                                             <span className={s3Purple ? 'sector-purple' : s3Green ? 'sector-green' : ''}>
-                                              {formatSectorTime(s3)}
+                                              {formatSector(s3)}
                                             </span>
                                           </td>
                                           <td className="mono" style={{ padding: '6px 8px', color: 'var(--text-secondary)' }}>

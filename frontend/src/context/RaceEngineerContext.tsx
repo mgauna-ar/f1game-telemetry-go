@@ -1,17 +1,8 @@
 import { createContext, useContext } from 'react';
 import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
+import type { ChatMessage } from '../types/ai';
 
-export interface ChatMessage {
-  id: string;
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  timestamp: Date;
-  errorCode?: string;
-  errorProvider?: string;
-  errorRaw?: string;
-  canRetry?: boolean;
-  lastPrompt?: string;
-}
+export type { ChatMessage };
 
 export interface AIConfig {
   provider: 'gemini' | 'openai' | 'custom';
