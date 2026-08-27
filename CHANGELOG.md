@@ -9,14 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Planned
-- Custom user telemetry layouts and modular telemetry gauge docks.
-- Voice-activated debrief triggers for the AI Race Engineer.
-
----
-
-## [1.1.0] - 2026-08-24
-
 ### Added
 - **Interactive Voice Race Engineer & Push-to-Talk (PTT)**: Two-way radio via Gamepad/wheel and keyboard `Space`, realistic cockpit audio FX, FOM harmonic beeps, driver call-sign personalization, and multi-language neural voices (Bono, Colapinto, Custom).
 - **Proactive Pit Wall Telemetry Watcher**: Real-time server-side insight engine monitoring 9 subsystems (tyres, damage, ERS, brakes, fuel, rivals/DRS, coaching, qualy, and weather) with smart driving discretion and 2025/2026 regulation awareness.

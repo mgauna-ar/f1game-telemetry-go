@@ -291,6 +291,7 @@ func (sm *SessionManager) handleFinalClassification(ctx context.Context, p *pack
 			NumPenalties:  int(cls.NumPenalties),
 			ResultReason:  int(cls.ResultReason),
 			NumPitStops:   int(cls.NumPitStops),
+			ResultStatus:  int(cls.ResultStatus),
 		})
 
 		numStints := int(cls.NumTyreStints)

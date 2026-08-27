@@ -1302,3 +1302,52 @@ func TestMigrationHealAIControlled(t *testing.T) {
 		t.Errorf("expected Hadjar to have ai_controlled = true after heal migration, got false")
 	}
 }
+
+func TestMigrationAddResultStatusToParticipants(t *testing.T) {
+	repo := setupTestRepo(t)
+	session := createTestSession(t, repo)
+	ctx := context.Background()
+
+	participants := []Participant{
+		{
+			SessionID:    session.ID,
+			CarIndex:     0,
+			Name:         "Max Verstappen",
+			DriverID:     1,
+			TeamID:       2,
+			RaceNumber:   1,
+			Position:     1,
+			ResultStatus: 3, // Finished
+		},
+		{
+			SessionID:    session.ID,
+			CarIndex:     1,
+			Name:         "Charles Leclerc",
+			DriverID:     3,
+			TeamID:       1,
+			RaceNumber:   16,
+			Position:     2,
+			ResultStatus: 4, // DNF
+		},
+	}
+
+	if err := repo.SaveParticipants(ctx, session.ID, participants); err != nil {
+		t.Fatalf("SaveParticipants failed: %v", err)
+	}
+
+	saved, err := repo.GetParticipantsBySession(ctx, session.ID)
+	if err != nil {
+		t.Fatalf("GetParticipantsBySession failed: %v", err)
+	}
+
+	if len(saved) != 2 {
+		t.Fatalf("expected 2 participants, got %d", len(saved))
+	}
+
+	if saved[0].ResultStatus != 3 {
+		t.Errorf("expected Max Verstappen ResultStatus = 3 (Finished), got %d", saved[0].ResultStatus)
+	}
+	if saved[1].ResultStatus != 4 {
+		t.Errorf("expected Charles Leclerc ResultStatus = 4 (DNF), got %d", saved[1].ResultStatus)
+	}
+}

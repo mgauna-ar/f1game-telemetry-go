@@ -120,6 +120,7 @@ type Participant struct {
 	NumPenalties  int       `db:"num_penalties" json:"num_penalties"`
 	ResultReason  int       `db:"result_reason" json:"result_reason"`
 	NumPitStops   int       `db:"num_pit_stops" json:"num_pit_stops"`
+	ResultStatus  int       `db:"result_status" json:"result_status"`
 	CreatedAt     time.Time `db:"created_at" json:"created_at"`
 }
 

@@ -322,23 +322,24 @@ func computeSessionClassification(session *storage.Session, participants []stora
 		pitStopsCount := p.NumPitStops
 
 		// DNF / DSQ status derivation
-		resStatus := uint8(0)
-		for i := len(driverLaps) - 1; i >= 0; i-- {
-			if driverLaps[i].ResultStatus > 0 {
-				resStatus = uint8(driverLaps[i].ResultStatus)
-				break
+		resStatus := uint8(p.ResultStatus)
+		if resStatus == 0 {
+			for i := len(driverLaps) - 1; i >= 0; i-- {
+				if driverLaps[i].ResultStatus > 0 {
+					resStatus = uint8(driverLaps[i].ResultStatus)
+					break
+				}
 			}
 		}
 
 		isDSQ := resStatus == packets.ResultStatusDSQ || uint8(resultReason) == packets.ResultReasonBlackFlagged
-		isFinished := resStatus == packets.ResultStatusFinished || uint8(resultReason) == packets.ResultReasonFinished
-		isDNF := !isDSQ && !isFinished && (resStatus == packets.ResultStatusDNF ||
+		isDNF := !isDSQ && (resStatus == packets.ResultStatusDNF ||
 			resStatus == packets.ResultStatusNotClassified ||
 			resStatus == packets.ResultStatusRetired ||
-			uint8(resultReason) == packets.ResultReasonRetired ||
-			uint8(resultReason) == packets.ResultReasonTerminalDamage ||
-			uint8(resultReason) == packets.ResultReasonMechanicalFailure ||
-			uint8(resultReason) == packets.ResultReasonNotEnoughLaps)
+			(resStatus != packets.ResultStatusFinished && (uint8(resultReason) == packets.ResultReasonRetired ||
+				uint8(resultReason) == packets.ResultReasonTerminalDamage ||
+				uint8(resultReason) == packets.ResultReasonMechanicalFailure ||
+				uint8(resultReason) == packets.ResultReasonNotEnoughLaps)))
 
 		// Best personal sectors
 		bestS1MS := 0

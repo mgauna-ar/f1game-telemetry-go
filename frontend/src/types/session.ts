@@ -42,6 +42,7 @@ export interface Participant {
   num_penalties?: number;
   result_reason?: number;
   num_pit_stops?: number;
+  result_status?: number;
 }
 
 export interface Lap {

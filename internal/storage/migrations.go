@@ -116,6 +116,29 @@ CREATE INDEX IF NOT EXISTS idx_session_tags_tag ON session_tags(tag_id);
 UPDATE participants SET ai_controlled = 1 WHERE driver_id > 0 AND driver_id != 255;
 `,
 	},
+	{
+		Version: 3,
+		Name:    "add_result_status_to_participants",
+		SQL: `
+ALTER TABLE participants ADD COLUMN result_status INTEGER DEFAULT 0;
+UPDATE participants
+SET result_status = (
+    SELECT l.result_status
+    FROM laps l
+    WHERE l.session_id = participants.session_id
+      AND l.car_index = participants.car_index
+      AND l.result_status > 0
+    ORDER BY l.lap_number DESC
+    LIMIT 1
+)
+WHERE EXISTS (
+    SELECT 1 FROM laps l
+    WHERE l.session_id = participants.session_id
+      AND l.car_index = participants.car_index
+      AND l.result_status > 0
+);
+`,
+	},
 }
 
 // Migrate runs all pending migrations in version order.

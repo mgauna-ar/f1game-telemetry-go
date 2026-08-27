@@ -640,8 +640,8 @@ func (r *SQLiteRepository) SaveParticipants(ctx context.Context, sessionID int64
 	}
 
 	query := `
-		INSERT INTO participants (session_id, car_index, name, driver_id, team_id, race_number, ai_controlled, nationality, grid_position, position, points, total_race_time, penalties_time, num_penalties, result_reason, num_pit_stops)
-		VALUES (:session_id, :car_index, :name, :driver_id, :team_id, :race_number, :ai_controlled, :nationality, :grid_position, :position, :points, :total_race_time, :penalties_time, :num_penalties, :result_reason, :num_pit_stops)
+		INSERT INTO participants (session_id, car_index, name, driver_id, team_id, race_number, ai_controlled, nationality, grid_position, position, points, total_race_time, penalties_time, num_penalties, result_reason, num_pit_stops, result_status)
+		VALUES (:session_id, :car_index, :name, :driver_id, :team_id, :race_number, :ai_controlled, :nationality, :grid_position, :position, :points, :total_race_time, :penalties_time, :num_penalties, :result_reason, :num_pit_stops, :result_status)
 		ON CONFLICT(session_id, car_index) DO UPDATE SET
 			name = CASE WHEN excluded.name != '' THEN excluded.name ELSE participants.name END,
 			driver_id = CASE WHEN excluded.driver_id > 0 THEN excluded.driver_id ELSE participants.driver_id END,
@@ -656,7 +656,8 @@ func (r *SQLiteRepository) SaveParticipants(ctx context.Context, sessionID int64
 			penalties_time = CASE WHEN excluded.penalties_time > 0 THEN excluded.penalties_time ELSE participants.penalties_time END,
 			num_penalties = CASE WHEN excluded.num_penalties > 0 THEN excluded.num_penalties ELSE participants.num_penalties END,
 			result_reason = CASE WHEN excluded.result_reason > 0 THEN excluded.result_reason ELSE participants.result_reason END,
-			num_pit_stops = CASE WHEN excluded.num_pit_stops > 0 THEN excluded.num_pit_stops ELSE participants.num_pit_stops END
+			num_pit_stops = CASE WHEN excluded.num_pit_stops > 0 THEN excluded.num_pit_stops ELSE participants.num_pit_stops END,
+			result_status = CASE WHEN excluded.result_status > 0 THEN excluded.result_status ELSE participants.result_status END
 	`
 
 	stmt, err := tx.PrepareNamedContext(ctx, query)

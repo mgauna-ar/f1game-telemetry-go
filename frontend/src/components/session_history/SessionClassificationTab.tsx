@@ -7,7 +7,7 @@ import {
   Award,
   GitCompare,
 } from 'lucide-react';
-import { TEAM_COLORS, RESULT_REASONS } from '../../constants/f1';
+import { TEAM_COLORS, RESULT_REASONS, RESULT_STATUS } from '../../constants/f1';
 import type { Session, Lap, DriverStanding, StagedLap } from '../../types/session';
 import { useI18n } from '../../context/I18nContext';
 
@@ -214,11 +214,12 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
                         ? `DSQ (${t('history.classification.reasons.blackFlag')})`
                         : 'DSQ';
                     } else if (driver.isDNF) {
+                      const lastLapStatus = driver.laps?.[driver.laps.length - 1]?.result_status ?? driver.participant?.result_status;
                       if (driver.resultReason === RESULT_REASONS.TERMINAL_DAMAGE) {
                         timeGapDisplay = `DNF (${t('history.classification.reasons.terminalDamage')})`;
                       } else if (driver.resultReason === RESULT_REASONS.MECHANICAL_FAILURE) {
                         timeGapDisplay = `DNF (${t('history.classification.reasons.mechanicalFailure')})`;
-                      } else if (driver.resultReason === RESULT_REASONS.RETIRED) {
+                      } else if (driver.resultReason === RESULT_REASONS.RETIRED || lastLapStatus === RESULT_STATUS.RETIRED) {
                         timeGapDisplay = `DNF (${t('history.classification.reasons.retired')})`;
                       } else if (driver.resultReason === RESULT_REASONS.NOT_ENOUGH_LAPS) {
                         timeGapDisplay = `DNF (${t('history.classification.reasons.notEnoughLaps')})`;

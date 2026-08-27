@@ -389,6 +389,7 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
         grid_position: s.grid_position,
         points: s.points,
         result_reason: s.result_reason,
+        result_status: 0,
       };
       return {
         ...s,

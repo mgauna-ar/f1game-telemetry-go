@@ -249,3 +249,165 @@ func TestHandleGetSessionClassification_Endpoint(t *testing.T) {
 		}
 	})
 }
+
+func TestComputeSessionClassification_DNFWithResultReasonFinished(t *testing.T) {
+	session := &storage.Session{
+		ID:          10,
+		TrackName:   "Zandvoort",
+		SessionType: "Race",
+		TotalLaps:   36,
+	}
+
+	participants := []storage.Participant{
+		// P1 Winner: 36 laps completed, Finished
+		{CarIndex: 0, Name: "Winner", DriverID: 1, TeamID: 1, RaceNumber: 1, Position: 1, TotalRaceTime: 3000.0, ResultReason: int(packets.ResultReasonFinished), ResultStatus: int(packets.ResultStatusFinished)},
+		// P2 Lapped finisher: 35 laps completed, Finished (+1 lap)
+		{CarIndex: 1, Name: "Lapped Finisher", DriverID: 2, TeamID: 2, RaceNumber: 2, Position: 2, TotalRaceTime: 3050.0, ResultReason: int(packets.ResultReasonFinished), ResultStatus: int(packets.ResultStatusFinished)},
+		// P3 DNF with ResultStatus DNF and ResultReason Finished (e.g. disconnected or retired without terminal damage)
+		{CarIndex: 2, Name: "Disconnect Driver", DriverID: 3, TeamID: 3, RaceNumber: 3, Position: 3, TotalRaceTime: 2000.0, ResultReason: int(packets.ResultReasonFinished), ResultStatus: int(packets.ResultStatusDNF)},
+		// P4 Retired with ResultStatus Retired and ResultReason Finished
+		{CarIndex: 3, Name: "Box Retire Driver", DriverID: 4, TeamID: 4, RaceNumber: 4, Position: 4, TotalRaceTime: 2500.0, ResultReason: int(packets.ResultReasonFinished), ResultStatus: int(packets.ResultStatusRetired)},
+		// P5 Crash DNF with ResultStatus DNF and ResultReason TerminalDamage
+		{CarIndex: 4, Name: "Crash Driver", DriverID: 5, TeamID: 5, RaceNumber: 5, Position: 5, TotalRaceTime: 1500.0, ResultReason: int(packets.ResultReasonTerminalDamage), ResultStatus: int(packets.ResultStatusDNF)},
+	}
+
+	laps := []storage.Lap{
+		// Winner (36 laps)
+		{SessionID: 10, CarIndex: 0, LapNumber: 1, LapTimeMS: 80000, IsValid: true, ResultStatus: int(packets.ResultStatusFinished)},
+		{SessionID: 10, CarIndex: 0, LapNumber: 36, LapTimeMS: 80000, IsValid: true, ResultStatus: int(packets.ResultStatusFinished)},
+		// Lapped Finisher (35 laps)
+		{SessionID: 10, CarIndex: 1, LapNumber: 1, LapTimeMS: 81000, IsValid: true, ResultStatus: int(packets.ResultStatusFinished)},
+		{SessionID: 10, CarIndex: 1, LapNumber: 35, LapTimeMS: 81000, IsValid: true, ResultStatus: int(packets.ResultStatusFinished)},
+		// Disconnect Driver (20 laps completed, lap 21 DNF with 0ms)
+		{SessionID: 10, CarIndex: 2, LapNumber: 1, LapTimeMS: 82000, IsValid: true, ResultStatus: int(packets.ResultStatusDNF)},
+		{SessionID: 10, CarIndex: 2, LapNumber: 21, LapTimeMS: 0, IsValid: false, ResultStatus: int(packets.ResultStatusDNF)},
+		// Box Retire Driver (30 laps completed, lap 31 Retired with 0ms)
+		{SessionID: 10, CarIndex: 3, LapNumber: 1, LapTimeMS: 82000, IsValid: true, ResultStatus: int(packets.ResultStatusRetired)},
+		{SessionID: 10, CarIndex: 3, LapNumber: 31, LapTimeMS: 0, IsValid: false, ResultStatus: int(packets.ResultStatusRetired)},
+		// Crash Driver (10 laps completed, lap 11 DNF with 0ms)
+		{SessionID: 10, CarIndex: 4, LapNumber: 1, LapTimeMS: 83000, IsValid: true, ResultStatus: int(packets.ResultStatusDNF)},
+		{SessionID: 10, CarIndex: 4, LapNumber: 11, LapTimeMS: 0, IsValid: false, ResultStatus: int(packets.ResultStatusDNF)},
+	}
+
+	resp := computeSessionClassification(session, participants, laps)
+	if resp == nil {
+		t.Fatal("expected non-nil response")
+	}
+
+	if len(resp.Standings) != 5 {
+		t.Fatalf("expected 5 standings, got %d", len(resp.Standings))
+	}
+
+	// Winner: Finished, not DNF
+	if resp.Standings[0].DriverName != "Winner" || resp.Standings[0].IsDNF {
+		t.Errorf("Winner should be P1 and not DNF, got P%d (isDNF: %v)", resp.Standings[0].Position, resp.Standings[0].IsDNF)
+	}
+
+	// Lapped Finisher: Finished, not DNF
+	if resp.Standings[1].DriverName != "Lapped Finisher" || resp.Standings[1].IsDNF {
+		t.Errorf("Lapped Finisher should be P2 and not DNF, got P%d (isDNF: %v)", resp.Standings[1].Position, resp.Standings[1].IsDNF)
+	}
+
+	// All remaining 3 drivers MUST be marked DNF
+	for i := 2; i < 5; i++ {
+		if !resp.Standings[i].IsDNF {
+			t.Errorf("Standings[%d] %s expected IsDNF=true, got IsDNF=false", i, resp.Standings[i].DriverName)
+		}
+	}
+}
+
+func TestComputeSessionClassification_RealSession28(t *testing.T) {
+	ctx := context.Background()
+	repo, err := storage.NewSQLiteRepository("../../f1telemetry.db")
+	if err != nil {
+		t.Skip("f1telemetry.db not found or not accessible, skipping real session test")
+	}
+
+	session, err := repo.GetSessionByID(ctx, 28)
+	if err != nil {
+		t.Skip("Session 28 not found in f1telemetry.db")
+	}
+
+	participants, err := repo.GetParticipantsBySession(ctx, 28)
+	if err != nil {
+		t.Fatalf("failed to get participants: %v", err)
+	}
+
+	laps, err := repo.GetLapsBySession(ctx, 28, nil)
+	if err != nil {
+		t.Fatalf("failed to get laps: %v", err)
+	}
+
+	resp := computeSessionClassification(session, participants, laps)
+	if resp == nil {
+		t.Fatal("expected non-nil response")
+	}
+
+	if len(resp.Standings) != 20 {
+		t.Fatalf("expected 20 drivers in session 28, got %d", len(resp.Standings))
+	}
+
+	// P1 to P10 MUST be NOT DNF (all completed 36 laps)
+	for i := 0; i < 10; i++ {
+		st := resp.Standings[i]
+		if st.IsDNF {
+			t.Errorf("P%d (%s) expected IsDNF=false, got true", st.Position, st.DriverName)
+		}
+	}
+
+	// P11 to P20 MUST be DNF for all non-finishing drivers
+	for i := 10; i < 20; i++ {
+		st := resp.Standings[i]
+		if !st.IsDNF {
+			t.Errorf("P%d (%s) expected IsDNF=true, got false", st.Position, st.DriverName)
+		}
+	}
+}
+
+func TestComputeSessionClassification_RealSession30(t *testing.T) {
+	ctx := context.Background()
+	repo, err := storage.NewSQLiteRepository("../../f1telemetry.db")
+	if err != nil {
+		t.Skip("f1telemetry.db not found or not accessible, skipping real session test")
+	}
+
+	session, err := repo.GetSessionByID(ctx, 30)
+	if err != nil {
+		t.Skip("Session 30 not found in f1telemetry.db")
+	}
+
+	participants, err := repo.GetParticipantsBySession(ctx, 30)
+	if err != nil {
+		t.Fatalf("failed to get participants: %v", err)
+	}
+
+	laps, err := repo.GetLapsBySession(ctx, 30, nil)
+	if err != nil {
+		t.Fatalf("failed to get laps: %v", err)
+	}
+
+	resp := computeSessionClassification(session, participants, laps)
+	if resp == nil {
+		t.Fatal("expected non-nil response")
+	}
+
+	if len(resp.Standings) != 15 {
+		t.Fatalf("expected 15 active drivers in session 30, got %d", len(resp.Standings))
+	}
+
+	// P1 to P10 MUST be NOT DNF (including Gaby-Fullmetal at P10 who finished lapped)
+	for i := 0; i < 10; i++ {
+		st := resp.Standings[i]
+		if st.IsDNF {
+			t.Errorf("P%d (%s) expected IsDNF=false, got true", st.Position, st.DriverName)
+		}
+	}
+
+	// P11 to P15 MUST be DNF (ENT Weighted, RLS_Rafuxo666, RLS_EdoPizarro, Griziem, HRL DocBryan)
+	for i := 10; i < 15; i++ {
+		st := resp.Standings[i]
+		if !st.IsDNF {
+			t.Errorf("P%d (%s) expected IsDNF=true, got false", st.Position, st.DriverName)
+		}
+	}
+}
