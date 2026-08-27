@@ -96,7 +96,11 @@ func (l *Listener) Listen(ctx context.Context) error {
 		_ = l.closeConn()
 	}()
 
-	bufPtr := l.bufPool.Get().(*[]byte)
+	bufPtr, ok := l.bufPool.Get().(*[]byte)
+	if !ok || bufPtr == nil {
+		empty := make([]byte, l.bufferSize)
+		bufPtr = &empty
+	}
 	defer l.bufPool.Put(bufPtr)
 	buf := *bufPtr
 

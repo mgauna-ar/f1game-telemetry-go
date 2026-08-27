@@ -641,7 +641,7 @@ func sanitizeFilename(s string) string {
 }
 
 // marshalAndCompressSessionPackage serializes and compresses an ExportedSessionPackage and builds its canonical filename.
-func marshalAndCompressSessionPackage(pkg *storage.ExportedSessionPackage, suffixID int64) ([]byte, string, error) {
+func marshalAndCompressSessionPackage(pkg *storage.ExportedSessionPackage, suffixID int64) (data []byte, filename string, err error) {
 	rawJSON, err := json.Marshal(pkg)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to marshal session package: %w", err)
@@ -649,7 +649,6 @@ func marshalAndCompressSessionPackage(pkg *storage.ExportedSessionPackage, suffi
 
 	compressed := storage.CompressRaw(rawJSON)
 
-	var filename string
 	if suffixID > 0 {
 		filename = fmt.Sprintf("%s_%s_%s_%d.f1session",
 			sanitizeFilename(pkg.Session.TrackName),
