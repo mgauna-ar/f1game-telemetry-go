@@ -714,3 +714,235 @@ func TestEngineerEngine_DeduplicationScopesAndOutLapGuard(t *testing.T) {
 		t.Fatalf("expected stintKeys['tyre_wear'] to be reset to false after pit stop")
 	}
 }
+
+func TestEngineerEngine_SectorCoaching_InLapSuppression(t *testing.T) {
+	hub := NewHub()
+	engine := NewEngineerEngine(hub, nil)
+	ctx := context.Background()
+	header := createTestHeader(packets.PacketFormat2026, 444, 0)
+
+	// 1. Qualifying Session
+	sessionPkt := &packets.PacketSessionData{
+		Header:      header,
+		SessionType: packets.SessionQ1,
+	}
+	engine.ProcessPacket(ctx, sessionPkt)
+
+	// Establish PB on flying lap 1 (Sector 1 = 28.000s)
+	lapFlying := &packets.PacketLapData{
+		Header: header,
+		LapData: [packets.MaxCars]packets.LapData{
+			{CurrentLapNum: 1, Sector1TimeMSPart: 28000, Sector: 1, CarPosition: 1, TotalDistance: 1000, DriverStatus: packets.DriverStatusFlyingLap},
+		},
+	}
+	engine.ProcessPacket(ctx, lapFlying)
+
+	if engine.bestSector1MS != 28000 {
+		t.Fatalf("expected bestSector1MS=28000, got %d", engine.bestSector1MS)
+	}
+
+	// Flying lap 2: delta loss (+1.5s slower = 29.500s) -> Should trigger coaching_s1
+	lapFlying2 := &packets.PacketLapData{
+		Header: header,
+		LapData: [packets.MaxCars]packets.LapData{
+			{CurrentLapNum: 2, Sector1TimeMSPart: 29500, Sector: 1, CarPosition: 1, TotalDistance: 6000, DriverStatus: packets.DriverStatusFlyingLap},
+		},
+	}
+	engine.ProcessPacket(ctx, lapFlying2) // sets lastLapNumber = 2
+	engine.ProcessPacket(ctx, lapFlying2) // second packet triggers delta check
+
+	if _, exists := engine.lastDirectives["coaching_s1"]; !exists {
+		t.Fatalf("expected coaching_s1 directive on flying lap with delta loss")
+	}
+	delete(engine.lastDirectives, "coaching_s1")
+	delete(engine.lastDirectives, string(DirectiveCategoryCoaching))
+
+	// In-Lap (Lap 3): Driver slowing down to enter boxes (Sector 1 = 45.000s, DriverStatus = InLap) -> MUST BE SUPPRESSED
+	lapInLap := &packets.PacketLapData{
+		Header: header,
+		LapData: [packets.MaxCars]packets.LapData{
+			{CurrentLapNum: 3, Sector1TimeMSPart: 45000, Sector: 1, CarPosition: 1, TotalDistance: 11000, DriverStatus: packets.DriverStatusInLap},
+		},
+	}
+	engine.ProcessPacket(ctx, lapInLap)
+	engine.ProcessPacket(ctx, lapInLap)
+
+	if _, exists := engine.lastDirectives["coaching_s1"]; exists {
+		t.Fatalf("expected coaching_s1 directive to be SUPPRESSED on in-lap, but it fired")
+	}
+
+	// Out-Lap (Lap 4): Driver leaving pit lane (Sector 1 = 40.000s, DriverStatus = OutLap) -> MUST BE SUPPRESSED
+	lapOutLap := &packets.PacketLapData{
+		Header: header,
+		LapData: [packets.MaxCars]packets.LapData{
+			{CurrentLapNum: 4, Sector1TimeMSPart: 40000, Sector: 1, CarPosition: 1, TotalDistance: 16000, DriverStatus: packets.DriverStatusOutLap},
+		},
+	}
+	engine.ProcessPacket(ctx, lapOutLap)
+	engine.ProcessPacket(ctx, lapOutLap)
+
+	if _, exists := engine.lastDirectives["coaching_s1"]; exists {
+		t.Fatalf("expected coaching_s1 directive to be SUPPRESSED on out-lap, but it fired")
+	}
+}
+
+func TestEngineerEngine_SafetyCar_PitStrategySuppression(t *testing.T) {
+	hub := NewHub()
+	engine := NewEngineerEngine(hub, nil)
+	ctx := context.Background()
+	header := createTestHeader(packets.PacketFormat2026, 555, 0)
+
+	// Race Session under Safety Car
+	sessionPkt := &packets.PacketSessionData{
+		Header:                header,
+		SessionType:           packets.SessionRace,
+		SafetyCarStatus:       packets.SafetyCarFull,
+		PitStopWindowIdealLap: 5,
+	}
+	engine.ProcessPacket(ctx, sessionPkt)
+
+	// Lap data where car behind pits (normally would trigger undercut_window)
+	// and lap is multiple of 5 (normally would trigger clean air pit window)
+	// and ideal pit window lap matches currentLap
+	lapPkt := &packets.PacketLapData{
+		Header: header,
+		LapData: [packets.MaxCars]packets.LapData{
+			{CurrentLapNum: 5, CarPosition: 1, TotalDistance: 10000, DriverStatus: packets.DriverStatusOnTrack, PitStatus: packets.PitStatusNone},
+			{CurrentLapNum: 5, CarPosition: 2, TotalDistance: 9900, DriverStatus: packets.DriverStatusOnTrack, PitStatus: packets.PitStatusPitting},
+		},
+	}
+	engine.ProcessPacket(ctx, lapPkt)
+
+	if _, exists := engine.lastDirectives["undercut"]; exists {
+		t.Fatalf("expected undercut directive to be SUPPRESSED under Safety Car, but it fired")
+	}
+	if _, exists := engine.lastDirectives["pit_clean_air"]; exists {
+		t.Fatalf("expected pit_clean_air directive to be SUPPRESSED under Safety Car, but it fired")
+	}
+	if _, exists := engine.lastDirectives["pit_window"]; exists {
+		t.Fatalf("expected pit_window directive to be SUPPRESSED under Safety Car, but it fired")
+	}
+	if _, exists := engine.lastDirectives["rival_defend"]; exists {
+		t.Fatalf("expected rival_defend directive to be SUPPRESSED under Safety Car, but it fired")
+	}
+
+	// Now switch Safety Car off (green flag racing)
+	sessionPktGreen := &packets.PacketSessionData{
+		Header:          header,
+		SessionType:     packets.SessionRace,
+		SafetyCarStatus: packets.SafetyCarNone,
+	}
+	engine.ProcessPacket(ctx, sessionPktGreen)
+
+	// Reset cooldowns
+	engine.lastDirectives = make(map[string]int64)
+
+	// In green flag race, rival pitting within undercut window should trigger undercut alert with PitStrategy category
+	lapPktGreen := &packets.PacketLapData{
+		Header: header,
+		LapData: [packets.MaxCars]packets.LapData{
+			{CurrentLapNum: 6, CarPosition: 1, TotalDistance: 12000, DriverStatus: packets.DriverStatusOnTrack, PitStatus: packets.PitStatusNone},
+			{CurrentLapNum: 6, CarPosition: 2, TotalDistance: 11950, DriverStatus: packets.DriverStatusOnTrack, PitStatus: packets.PitStatusPitting},
+		},
+	}
+	engine.ProcessPacket(ctx, lapPktGreen)
+
+	if _, exists := engine.lastDirectives["undercut"]; !exists {
+		t.Fatalf("expected undercut directive to be emitted under green flag racing")
+	}
+}
+
+func TestEngineerEngine_DeriveDrivingPhase(t *testing.T) {
+	engine := NewEngineerEngine(NewHub(), nil)
+
+	tests := []struct {
+		name      string
+		session   *packets.PacketSessionData
+		lap       *packets.LapData
+		telemetry *packets.CarTelemetryData
+		expected  DrivingPhase
+	}{
+		{
+			name:     "Red flag",
+			session:  &packets.PacketSessionData{NumRedFlagPeriods: 1, SessionType: packets.SessionRace},
+			expected: PhaseRedFlag,
+		},
+		{
+			name:     "In garage explicit",
+			session:  &packets.PacketSessionData{SessionType: packets.SessionQ1},
+			lap:      &packets.LapData{DriverStatus: packets.DriverStatusInGarage},
+			expected: PhaseInGarage,
+		},
+		{
+			name:      "In pit area stationary",
+			session:   &packets.PacketSessionData{SessionType: packets.SessionRace},
+			lap:       &packets.LapData{DriverStatus: packets.DriverStatusOnTrack, PitStatus: packets.PitStatusInPitArea},
+			telemetry: &packets.CarTelemetryData{Speed: 0},
+			expected:  PhaseInGarage,
+		},
+		{
+			name:      "Pit lane active timer",
+			session:   &packets.PacketSessionData{SessionType: packets.SessionRace},
+			lap:       &packets.LapData{DriverStatus: packets.DriverStatusOnTrack, PitLaneTimerActive: 1},
+			telemetry: &packets.CarTelemetryData{Speed: 60},
+			expected:  PhasePitLane,
+		},
+		{
+			name:     "Safety Car Virtual",
+			session:  &packets.PacketSessionData{SessionType: packets.SessionRace, SafetyCarStatus: packets.SafetyCarVirtual},
+			lap:      &packets.LapData{DriverStatus: packets.DriverStatusOnTrack},
+			expected: PhaseSafetyCar,
+		},
+		{
+			name:     "Safety Car Full",
+			session:  &packets.PacketSessionData{SessionType: packets.SessionRace, SafetyCarStatus: packets.SafetyCarFull},
+			lap:      &packets.LapData{DriverStatus: packets.DriverStatusOnTrack},
+			expected: PhaseSafetyCar,
+		},
+		{
+			name:     "Formation lap",
+			session:  &packets.PacketSessionData{SessionType: packets.SessionRace, SafetyCarStatus: packets.SafetyCarFormationLap},
+			lap:      &packets.LapData{DriverStatus: packets.DriverStatusOnTrack},
+			expected: PhaseFormationLap,
+		},
+		{
+			name:     "Qualifying Out-Lap",
+			session:  &packets.PacketSessionData{SessionType: packets.SessionQ2},
+			lap:      &packets.LapData{DriverStatus: packets.DriverStatusOutLap},
+			expected: PhaseOutLap,
+		},
+		{
+			name:     "Qualifying In-Lap",
+			session:  &packets.PacketSessionData{SessionType: packets.SessionQ3},
+			lap:      &packets.LapData{DriverStatus: packets.DriverStatusInLap},
+			expected: PhaseInLap,
+		},
+		{
+			name:     "Qualifying Flying-Lap",
+			session:  &packets.PacketSessionData{SessionType: packets.SessionQ1},
+			lap:      &packets.LapData{DriverStatus: packets.DriverStatusFlyingLap},
+			expected: PhaseFlyingLap,
+		},
+		{
+			name:     "Race Normal Racing",
+			session:  &packets.PacketSessionData{SessionType: packets.SessionRace, SafetyCarStatus: packets.SafetyCarNone},
+			lap:      &packets.LapData{DriverStatus: packets.DriverStatusOnTrack},
+			expected: PhaseRacing,
+		},
+		{
+			name:     "Qualifying Unknown DriverStatus",
+			session:  &packets.PacketSessionData{SessionType: packets.SessionQ1, SafetyCarStatus: packets.SafetyCarNone},
+			lap:      &packets.LapData{DriverStatus: 99},
+			expected: PhaseUnknown,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := engine.deriveDrivingPhase(tt.session, tt.lap, tt.telemetry)
+			if got != tt.expected {
+				t.Errorf("deriveDrivingPhase() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}

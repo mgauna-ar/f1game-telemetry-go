@@ -161,7 +161,7 @@ var alertPhaseRules = map[string]AlertPhaseRule{
 		DedupScope:  DedupScopeStint,
 	},
 	"brake_cold": {
-		ValidPhases: []DrivingPhase{PhaseFormationLap, PhaseSafetyCar},
+		ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseSafetyCar},
 		DedupScope:  DedupScopePhase,
 	},
 	"fuel_delta": {
@@ -169,11 +169,11 @@ var alertPhaseRules = map[string]AlertPhaseRule{
 		DedupScope:  DedupScopeLap,
 	},
 	"undercut": {
-		ValidPhases: []DrivingPhase{PhaseRacing, PhaseInLap, PhaseSafetyCar},
+		ValidPhases: []DrivingPhase{PhaseRacing, PhaseInLap},
 		DedupScope:  DedupScopeStint,
 	},
 	"pit_window": {
-		ValidPhases: []DrivingPhase{PhaseRacing, PhaseInLap, PhaseSafetyCar},
+		ValidPhases: []DrivingPhase{PhaseRacing, PhaseInLap},
 		DedupScope:  DedupScopeLap,
 	},
 	"rival_defend": {
@@ -196,11 +196,11 @@ var alertPhaseRules = map[string]AlertPhaseRule{
 		DedupScope:        DedupScopeLap,
 	},
 	"qualy_time": {
-		ValidPhases: []DrivingPhase{PhaseInGarage, PhasePitLane, PhaseOutLap, PhaseFlyingLap, PhaseRacing},
+		ValidPhases: []DrivingPhase{PhaseInGarage, PhasePitLane, PhaseOutLap, PhaseFlyingLap, PhaseInLap},
 		DedupScope:  DedupScopePhase,
 	},
 	"qualy_elim": {
-		ValidPhases: []DrivingPhase{PhaseInGarage, PhasePitLane, PhaseOutLap, PhaseFlyingLap, PhaseRacing},
+		ValidPhases: []DrivingPhase{PhaseInGarage, PhasePitLane, PhaseOutLap, PhaseFlyingLap, PhaseInLap},
 		DedupScope:  DedupScopePhase,
 	},
 	"flags_sc": {
@@ -240,7 +240,7 @@ var alertPhaseRules = map[string]AlertPhaseRule{
 		DedupScope:  DedupScopeNone,
 	},
 	"pit_clean_air": {
-		ValidPhases: []DrivingPhase{PhaseRacing, PhaseInLap, PhaseSafetyCar},
+		ValidPhases: []DrivingPhase{PhaseRacing},
 		DedupScope:  DedupScopeNone,
 	},
 }
@@ -626,15 +626,15 @@ func (e *EngineerEngine) deriveDrivingPhase(session *packets.PacketSessionData, 
 		return PhaseFlyingLap
 	}
 
-	// 9. Racing
-	if playerLap != nil && playerLap.DriverStatus == packets.DriverStatusOnTrack {
-		return PhaseRacing
-	}
+	// 9. Racing (only in race sessions or generic OnTrack if session is unspecified)
 	if session != nil && packets.IsRaceSession(session.SessionType) {
 		return PhaseRacing
 	}
+	if session == nil && playerLap != nil && playerLap.DriverStatus == packets.DriverStatusOnTrack {
+		return PhaseRacing
+	}
 
-	return PhaseRacing
+	return PhaseUnknown
 }
 
 func (e *EngineerEngine) calculateLapDistancePct(session *packets.PacketSessionData, playerLap *packets.LapData) float32 {
@@ -991,9 +991,20 @@ func (e *EngineerEngine) processLapData(header packets.PacketHeader, p *packets.
 	isQualy := e.isQualifyingSessionLocked()
 
 	// 1. Sector Coaching Analysis (Sector 1 & 2 Delta vs PB)
-	if e.currentPhase == PhaseFlyingLap || e.currentPhase == PhaseRacing {
-		s1 := int(playerLap.Sector1TimeMSPart)
-		s2 := int(playerLap.Sector2TimeMSPart)
+	isSectorCoachingPhase := (e.currentPhase == PhaseFlyingLap || (e.currentPhase == PhaseRacing && isRace)) &&
+		e.currentPhase != PhaseSafetyCar &&
+		e.currentPhase != PhaseInLap &&
+		e.currentPhase != PhaseOutLap &&
+		e.currentPhase != PhasePitLane &&
+		e.currentPhase != PhaseInGarage
+	isCompetitiveDriver := playerLap.DriverStatus != packets.DriverStatusInLap &&
+		playerLap.DriverStatus != packets.DriverStatusOutLap &&
+		playerLap.DriverStatus != packets.DriverStatusInGarage &&
+		playerLap.PitStatus == packets.PitStatusNone
+
+	if isSectorCoachingPhase && isCompetitiveDriver {
+		s1 := int(playerLap.Sector1TimeMSPart) + int(playerLap.Sector1TimeMinutesPart)*packets.MillisPerMinute
+		s2 := int(playerLap.Sector2TimeMSPart) + int(playerLap.Sector2TimeMinutesPart)*packets.MillisPerMinute
 
 		if s1 > 0 && (e.bestSector1MS == 0 || s1 < e.bestSector1MS) {
 			e.bestSector1MS = s1
@@ -1077,7 +1088,7 @@ func (e *EngineerEngine) processLapData(header packets.PacketHeader, p *packets.
 	// 3. Lap Invalidation (Track Limits)
 	if playerLap.CurrentLapInvalid == 1 && currentLap != e.lastInvalidLapNum {
 		e.lastInvalidLapNum = currentLap
-		isPushing := playerLap.DriverStatus == packets.DriverStatusFlyingLap || isQualy
+		isPushing := playerLap.DriverStatus == packets.DriverStatusFlyingLap || (isQualy && playerLap.DriverStatus != packets.DriverStatusInLap && playerLap.DriverStatus != packets.DriverStatusOutLap)
 		if isPushing {
 			e.emitDirectiveLocked(header, EngineerDirective{
 				Category: DirectiveCategoryQualifying,
@@ -1135,7 +1146,7 @@ func (e *EngineerEngine) processLapData(header packets.PacketHeader, p *packets.
 	}
 
 	// 5. Race: Undercut Threat Detection
-	if isRace && playerPos > 0 {
+	if isRace && playerPos > 0 && e.currentPhase != PhaseSafetyCar && (e.latestSession == nil || e.latestSession.SafetyCarStatus == packets.SafetyCarNone) {
 		for i, rival := range p.LapData {
 			if i == playerIdx || int(rival.CarPosition) != playerPos+1 {
 				continue
@@ -1146,7 +1157,7 @@ func (e *EngineerEngine) processLapData(header packets.PacketHeader, p *packets.
 				if distDelta > 0 && distDelta < maxUndercutDist {
 					e.lastUndercutRivalIndex = i
 					e.emitDirectiveLocked(header, EngineerDirective{
-						Category: DirectiveCategoryFuel,
+						Category: DirectiveCategoryPitStrategy,
 						SubAlert: "undercut_window",
 						Title:    "Undercut Threat",
 						Message:  fmt.Sprintf("Car behind (P%d) has just pitted for an undercut attempt! Push hard now on the in-lap to defend track position.", playerPos+1),
@@ -1158,7 +1169,7 @@ func (e *EngineerEngine) processLapData(header packets.PacketHeader, p *packets.
 	}
 
 	// 6. Race: Pit Stop Window Opening
-	if isRace && e.latestSession != nil && e.latestSession.PitStopWindowIdealLap > 0 {
+	if isRace && e.currentPhase != PhaseSafetyCar && e.latestSession != nil && e.latestSession.SafetyCarStatus == packets.SafetyCarNone && e.latestSession.PitStopWindowIdealLap > 0 {
 		idealLap := int(e.latestSession.PitStopWindowIdealLap)
 		if idealLap == currentLap && e.lastPitWindowWarnedLap != currentLap {
 			e.lastPitWindowWarnedLap = currentLap
@@ -1180,7 +1191,7 @@ func (e *EngineerEngine) processLapData(header packets.PacketHeader, p *packets.
 	}
 
 	// 7. Race: Rival Defend & Attack Opportunities
-	if isRace && playerPos > 0 {
+	if isRace && playerPos > 0 && e.currentPhase == PhaseRacing && (e.latestSession == nil || e.latestSession.SafetyCarStatus == packets.SafetyCarNone) {
 		// Defend: Car Behind (playerPos + 1)
 		maxDefendDist := e.config.RivalGapSec * AverageRaceSpeedMetersPerSec
 		for i, rival := range p.LapData {
@@ -1302,7 +1313,8 @@ func (e *EngineerEngine) processLapData(header packets.PacketHeader, p *packets.
 	}
 
 	// 10. Clean Air Pit Window (Predictive)
-	if isRace && playerLap.DriverStatus != packets.DriverStatusOutLap && playerLap.DriverStatus != packets.DriverStatusInLap && playerLap.PitStatus == packets.PitStatusNone && currentLap > 3 {
+	if isRace && e.currentPhase == PhaseRacing && (e.latestSession == nil || e.latestSession.SafetyCarStatus == packets.SafetyCarNone) &&
+		playerLap.DriverStatus != packets.DriverStatusOutLap && playerLap.DriverStatus != packets.DriverStatusInLap && playerLap.PitStatus == packets.PitStatusNone && currentLap > 3 {
 		playerDist := float64(playerLap.TotalDistance)
 		estPitLossMeters := DefaultPitLaneLossSeconds * AverageRaceSpeedMetersPerSec
 		rejoinDist := playerDist - estPitLossMeters
