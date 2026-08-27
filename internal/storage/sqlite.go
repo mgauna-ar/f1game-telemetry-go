@@ -108,6 +108,10 @@ func (r *SQLiteRepository) DB() *sqlx.DB {
 // SaveSession inserts a new session or ignores if the session_uid already exists.
 // Updates the ID of the passed Session struct if successful.
 func (r *SQLiteRepository) SaveSession(ctx context.Context, s *Session) error {
+	return saveSession(ctx, r.db, s)
+}
+
+func saveSession(ctx context.Context, db sqlx.ExtContext, s *Session) error {
 	query := `
 		INSERT INTO sessions (session_uid, track_id, track_name, session_type, weather, weather_forecast, total_laps, ai_difficulty, session_duration, packet_format)
 		VALUES (:session_uid, :track_id, :track_name, :session_type, :weather, :weather_forecast, :total_laps, :ai_difficulty, :session_duration, :packet_format)
@@ -123,7 +127,7 @@ func (r *SQLiteRepository) SaveSession(ctx context.Context, s *Session) error {
 			packet_format = excluded.packet_format
 		RETURNING id
 	`
-	rows, err := r.db.NamedQueryContext(ctx, query, s)
+	rows, err := sqlx.NamedQueryContext(ctx, db, query, s)
 	if err != nil {
 		return fmt.Errorf("failed to save session: %w", err)
 	}
@@ -173,6 +177,10 @@ func (r *SQLiteRepository) UpdateSessionMetadata(ctx context.Context, sessionUID
 // If mergeMode is true (e.g. SessionHistory packets), it updates timing fields only if the new value is > 0.
 // If mergeMode is false (e.g. live LapTracker), it overwrites fields with the latest lap tracker state.
 func (r *SQLiteRepository) SaveLap(ctx context.Context, l *Lap, mergeMode bool) error {
+	return saveLap(ctx, r.db, l, mergeMode)
+}
+
+func saveLap(ctx context.Context, db sqlx.ExtContext, l *Lap, mergeMode bool) error {
 	l.FuelLoad = SanitizeFloat(l.FuelLoad)
 	l.MaxSpeedKMH = SanitizeFloat(l.MaxSpeedKMH)
 
@@ -241,7 +249,7 @@ func (r *SQLiteRepository) SaveLap(ctx context.Context, l *Lap, mergeMode bool) 
 		`
 	}
 
-	rows, err := r.db.NamedQueryContext(ctx, query, l)
+	rows, err := sqlx.NamedQueryContext(ctx, db, query, l)
 	if err != nil {
 		return fmt.Errorf("failed to save lap: %w", err)
 	}
@@ -257,6 +265,10 @@ func (r *SQLiteRepository) SaveLap(ctx context.Context, l *Lap, mergeMode bool) 
 
 // SaveLapTelemetryBlob compresses and saves the telemetry samples for a given lap ID.
 func (r *SQLiteRepository) SaveLapTelemetryBlob(ctx context.Context, lapID int64, samples []TelemetrySample) error {
+	return saveLapTelemetryBlob(ctx, r.db, lapID, samples)
+}
+
+func saveLapTelemetryBlob(ctx context.Context, db sqlx.ExtContext, lapID int64, samples []TelemetrySample) error {
 	if len(samples) == 0 || lapID <= 0 {
 		return nil
 	}
@@ -287,7 +299,7 @@ func (r *SQLiteRepository) SaveLapTelemetryBlob(ctx context.Context, lapID int64
 			data = excluded.data,
 			created_at = CURRENT_TIMESTAMP
 	`
-	_, err = r.db.ExecContext(ctx, query, lapID, len(samples), compressed)
+	_, err = db.ExecContext(ctx, query, lapID, len(samples), compressed)
 	if err != nil {
 		return fmt.Errorf("failed to save lap telemetry blob: %w", err)
 	}
@@ -306,7 +318,7 @@ func (r *SQLiteRepository) DeleteSession(ctx context.Context, sessionID int64) e
 		return fmt.Errorf("failed to check rows affected: %w", err)
 	}
 	if rowsAffected == 0 {
-		return fmt.Errorf("session not found")
+		return ErrSessionNotFound
 	}
 
 	// Fast checkpoint to consolidate WAL log and keep disk files clean (<1ms)
@@ -423,13 +435,17 @@ func (r *SQLiteRepository) GetAllTags(ctx context.Context) ([]Tag, error) {
 
 // CreateTag inserts a new tag or returns existing if conflict.
 func (r *SQLiteRepository) CreateTag(ctx context.Context, t *Tag) error {
+	return createTag(ctx, r.db, t)
+}
+
+func createTag(ctx context.Context, db sqlx.ExtContext, t *Tag) error {
 	query := `
 		INSERT INTO tags (name, color)
 		VALUES (:name, :color)
 		ON CONFLICT(name) DO UPDATE SET color = excluded.color
 		RETURNING id, created_at
 	`
-	rows, err := r.db.NamedQueryContext(ctx, query, t)
+	rows, err := sqlx.NamedQueryContext(ctx, db, query, t)
 	if err != nil {
 		return fmt.Errorf("failed to create tag: %w", err)
 	}
@@ -455,7 +471,7 @@ func (r *SQLiteRepository) UpdateTag(ctx context.Context, t *Tag) error {
 		return fmt.Errorf("failed to check rows affected: %w", err)
 	}
 	if rowsAffected == 0 {
-		return fmt.Errorf("tag not found")
+		return ErrTagNotFound
 	}
 	return nil
 }
@@ -472,7 +488,7 @@ func (r *SQLiteRepository) DeleteTag(ctx context.Context, tagID int64) error {
 		return fmt.Errorf("failed to check rows affected: %w", err)
 	}
 	if rowsAffected == 0 {
-		return fmt.Errorf("tag not found")
+		return ErrTagNotFound
 	}
 
 	return nil
@@ -499,8 +515,12 @@ func (r *SQLiteRepository) GetTagsBySession(ctx context.Context, sessionID int64
 
 // AddTagToSession links a tag to a session.
 func (r *SQLiteRepository) AddTagToSession(ctx context.Context, sessionID, tagID int64) error {
+	return addTagToSession(ctx, r.db, sessionID, tagID)
+}
+
+func addTagToSession(ctx context.Context, db sqlx.ExtContext, sessionID, tagID int64) error {
 	query := `INSERT OR IGNORE INTO session_tags (session_id, tag_id) VALUES (?, ?)`
-	if _, err := r.db.ExecContext(ctx, query, sessionID, tagID); err != nil {
+	if _, err := db.ExecContext(ctx, query, sessionID, tagID); err != nil {
 		return fmt.Errorf("failed to link tag to session: %w", err)
 	}
 	return nil
@@ -634,9 +654,22 @@ func (r *SQLiteRepository) SaveParticipants(ctx context.Context, sessionID int64
 		return nil
 	}
 
-	tx, err := r.db.Beginx()
+	tx, err := r.db.BeginTxx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if err := saveParticipants(ctx, tx, sessionID, participants); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func saveParticipants(ctx context.Context, db sqlx.ExtContext, sessionID int64, participants []Participant) error {
+	if len(participants) == 0 {
+		return nil
 	}
 
 	query := `
@@ -660,23 +693,11 @@ func (r *SQLiteRepository) SaveParticipants(ctx context.Context, sessionID int64
 			result_status = CASE WHEN excluded.result_status > 0 THEN excluded.result_status ELSE participants.result_status END
 	`
 
-	stmt, err := tx.PrepareNamedContext(ctx, query)
-	if err != nil {
-		_ = tx.Rollback()
-		return fmt.Errorf("failed to prepare participants statement: %w", err)
-	}
-	defer stmt.Close()
-
 	for i := range participants {
 		participants[i].SessionID = sessionID
-		if _, err := stmt.ExecContext(ctx, participants[i]); err != nil {
-			_ = tx.Rollback()
+		if _, err := sqlx.NamedExecContext(ctx, db, query, &participants[i]); err != nil {
 			return fmt.Errorf("failed to save participant at index %d: %w", participants[i].CarIndex, err)
 		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit participants transaction: %w", err)
 	}
 	return nil
 }
@@ -858,7 +879,7 @@ func (r *SQLiteRepository) ImportSession(ctx context.Context, pkg *ExportedSessi
 	return r.ImportSessionWithOptions(ctx, pkg, false)
 }
 
-// ImportSessionWithOptions imports a session package with configurable duplicate handling.
+// ImportSessionWithOptions imports a session package with configurable duplicate handling in an atomic transaction.
 func (r *SQLiteRepository) ImportSessionWithOptions(ctx context.Context, pkg *ExportedSessionPackage, allowDuplicateUID bool) (int64, error) {
 	if pkg == nil {
 		return 0, fmt.Errorf("cannot import nil session package")
@@ -881,6 +902,12 @@ func (r *SQLiteRepository) ImportSessionWithOptions(ctx context.Context, pkg *Ex
 		}
 	}
 
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
 	newSession := &Session{
 		SessionUID:      sessionUID,
 		TrackID:         pkg.Session.TrackID,
@@ -895,21 +922,21 @@ func (r *SQLiteRepository) ImportSessionWithOptions(ctx context.Context, pkg *Ex
 		CreatedAt:       pkg.Session.CreatedAt,
 	}
 
-	if err := r.SaveSession(ctx, newSession); err != nil {
+	if err := saveSession(ctx, tx, newSession); err != nil {
 		return 0, fmt.Errorf("failed to save imported session: %w", err)
 	}
 
 	// Import and link tags
 	for _, tag := range pkg.Tags {
 		t := Tag{Name: tag.Name, Color: tag.Color}
-		if err := r.CreateTag(ctx, &t); err == nil {
-			_ = r.AddTagToSession(ctx, newSession.ID, t.ID)
+		if err := createTag(ctx, tx, &t); err == nil {
+			_ = addTagToSession(ctx, tx, newSession.ID, t.ID)
 		}
 	}
 
 	// Import participants
 	if len(pkg.Participants) > 0 {
-		if err := r.SaveParticipants(ctx, newSession.ID, pkg.Participants); err != nil {
+		if err := saveParticipants(ctx, tx, newSession.ID, pkg.Participants); err != nil {
 			return 0, fmt.Errorf("failed to save imported participants: %w", err)
 		}
 	}
@@ -918,14 +945,18 @@ func (r *SQLiteRepository) ImportSessionWithOptions(ctx context.Context, pkg *Ex
 	for _, lapPkg := range pkg.Laps {
 		lap := lapPkg.Lap
 		lap.SessionID = newSession.ID
-		if err := r.SaveLap(ctx, &lap, false); err != nil {
+		if err := saveLap(ctx, tx, &lap, false); err != nil {
 			return 0, fmt.Errorf("failed to save imported lap %d: %w", lap.LapNumber, err)
 		}
 		if len(lapPkg.Telemetry) > 0 {
-			if err := r.SaveLapTelemetryBlob(ctx, lap.ID, lapPkg.Telemetry); err != nil {
+			if err := saveLapTelemetryBlob(ctx, tx, lap.ID, lapPkg.Telemetry); err != nil {
 				return 0, fmt.Errorf("failed to save imported lap telemetry for lap %d: %w", lap.LapNumber, err)
 			}
 		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("failed to commit imported session: %w", err)
 	}
 
 	return newSession.ID, nil

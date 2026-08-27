@@ -42,53 +42,76 @@ export function useSlotTelemetry({
 
   // Load participants & laps when sessionId changes
   useEffect(() => {
-    if (sessionId !== '') {
-      setLoading(true);
-      Promise.all([
-        fetch(`/api/sessions/${sessionId}/participants`)
-          .then((res) => res.json())
-          .then((data) => setParticipants(data || []))
-          .catch((err) => console.error('Failed to fetch participants', err)),
-        fetch(`/api/sessions/${sessionId}/laps`)
-          .then((res) => res.json())
-          .then((data) => {
-            const list: Lap[] = data || [];
-            setLaps(list);
-
-            if (preloadLapId && list.some((l) => l.id === preloadLapId)) {
-              setLapId(preloadLapId);
-            } else if (list.length > 0) {
-              const valid = list
-                .filter((l) => l.lap_time_ms > 0 && (l.is_valid || (l.sector1_ms ?? 0) > 0))
-                .sort((a, b) => {
-                  const aValid = a.is_valid ? 1 : 0;
-                  const bValid = b.is_valid ? 1 : 0;
-                  if (aValid !== bValid) return bValid - aValid;
-                  if (a.lap_time_ms !== b.lap_time_ms) return a.lap_time_ms - b.lap_time_ms;
-                  const scoreA = (a.has_telemetry ? 10 : 0) + ((a.sector1_ms ?? 0) > 0 ? 5 : 0);
-                  const scoreB = (b.has_telemetry ? 10 : 0) + ((b.sector1_ms ?? 0) > 0 ? 5 : 0);
-                  return scoreB - scoreA;
-                });
-
-              if (isSlotB && isSameSessionAsSlotA && valid.length > 1) {
-                setLapId(valid[1].id);
-              } else if (valid.length > 0) {
-                setLapId(valid[0].id);
-              } else {
-                setLapId(list[0].id);
-              }
-            } else {
-              setLapId('');
-            }
-          })
-          .catch((err) => console.error('Failed to fetch laps', err)),
-      ]).finally(() => setLoading(false));
-    } else {
+    if (sessionId === '') {
       setParticipants([]);
       setLaps([]);
       setLapId('');
       setLoading(false);
+      return;
     }
+
+    const controller = new AbortController();
+    const { signal } = controller;
+
+    setLoading(true);
+    Promise.all([
+      fetch(`/api/sessions/${sessionId}/participants`, { signal })
+        .then((res) => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.json();
+        })
+        .then((data) => {
+          if (!signal.aborted) setParticipants(data || []);
+        })
+        .catch((err) => {
+          if (err.name !== 'AbortError') console.error('Failed to fetch participants', err);
+        }),
+      fetch(`/api/sessions/${sessionId}/laps`, { signal })
+        .then((res) => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.json();
+        })
+        .then((data) => {
+          if (signal.aborted) return;
+          const list: Lap[] = data || [];
+          setLaps(list);
+
+          if (preloadLapId && list.some((l) => l.id === preloadLapId)) {
+            setLapId(preloadLapId);
+          } else if (list.length > 0) {
+            const valid = list
+              .filter((l) => l.lap_time_ms > 0 && (l.is_valid || (l.sector1_ms ?? 0) > 0))
+              .sort((a, b) => {
+                const aValid = a.is_valid ? 1 : 0;
+                const bValid = b.is_valid ? 1 : 0;
+                if (aValid !== bValid) return bValid - aValid;
+                if (a.lap_time_ms !== b.lap_time_ms) return a.lap_time_ms - b.lap_time_ms;
+                const scoreA = (a.has_telemetry ? 10 : 0) + ((a.sector1_ms ?? 0) > 0 ? 5 : 0);
+                const scoreB = (b.has_telemetry ? 10 : 0) + ((b.sector1_ms ?? 0) > 0 ? 5 : 0);
+                return scoreB - scoreA;
+              });
+
+            if (isSlotB && isSameSessionAsSlotA && valid.length > 1) {
+              setLapId(valid[1].id);
+            } else if (valid.length > 0) {
+              setLapId(valid[0].id);
+            } else {
+              setLapId(list[0].id);
+            }
+          } else {
+            setLapId('');
+          }
+        })
+        .catch((err) => {
+          if (err.name !== 'AbortError') console.error('Failed to fetch laps', err);
+        }),
+    ]).finally(() => {
+      if (!signal.aborted) setLoading(false);
+    });
+
+    return () => {
+      controller.abort();
+    };
   }, [sessionId, preloadLapId, isSlotB, isSameSessionAsSlotA]);
 
   // Selected lap object

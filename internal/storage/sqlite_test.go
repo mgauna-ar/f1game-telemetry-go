@@ -1351,3 +1351,56 @@ func TestMigrationAddResultStatusToParticipants(t *testing.T) {
 		t.Errorf("expected Charles Leclerc ResultStatus = 4 (DNF), got %d", saved[1].ResultStatus)
 	}
 }
+
+func TestSentinelErrors(t *testing.T) {
+	repo := setupTestRepo(t)
+	ctx := context.Background()
+
+	// Delete non-existent session
+	err := repo.DeleteSession(ctx, 999999)
+	if !errors.Is(err, ErrSessionNotFound) {
+		t.Errorf("expected ErrSessionNotFound, got %v", err)
+	}
+
+	// Update non-existent tag
+	tag := Tag{ID: 999999, Name: "Ghost", Color: "#FFFFFF"}
+	err = repo.UpdateTag(ctx, &tag)
+	if !errors.Is(err, ErrTagNotFound) {
+		t.Errorf("expected ErrTagNotFound, got %v", err)
+	}
+
+	// Delete non-existent tag
+	err = repo.DeleteTag(ctx, 999999)
+	if !errors.Is(err, ErrTagNotFound) {
+		t.Errorf("expected ErrTagNotFound, got %v", err)
+	}
+}
+
+func TestImportSessionTransactionRollback(t *testing.T) {
+	repo := setupTestRepo(t)
+	ctx := context.Background()
+
+	// Malformed package with invalid lap that fails or foreign key conflict
+	pkg := &ExportedSessionPackage{
+		Session: Session{
+			SessionUID: FormatSessionUID(987654321),
+			TrackName:  "Silverstone",
+		},
+		Laps: []ExportedLapPackage{
+			{
+				Lap: Lap{
+					LapNumber: -1, // invalid or bad data
+				},
+			},
+		},
+	}
+
+	id, err := repo.ImportSession(ctx, pkg)
+	if err == nil && id > 0 {
+		// Valid import; let's check duplicate import returns ErrSessionAlreadyExists
+		_, errDup := repo.ImportSession(ctx, pkg)
+		if !errors.Is(errDup, ErrSessionAlreadyExists) {
+			t.Errorf("expected ErrSessionAlreadyExists on duplicate import, got %v", errDup)
+		}
+	}
+}

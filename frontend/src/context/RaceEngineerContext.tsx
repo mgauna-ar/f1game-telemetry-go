@@ -46,7 +46,7 @@ export interface LiveContextPayload {
   liveSummary: string;
 }
 
-export interface RaceEngineerContextValue {
+export interface RaceEngineerActionsContextValue {
   isOpen: boolean;
   openChat: (initialPrompt?: string) => void;
   closeChat: () => void;
@@ -65,12 +65,10 @@ export interface RaceEngineerContextValue {
   liveContext: LiveContextPayload | null;
   setLiveContext: (ctx: LiveContextPayload | null) => void;
   
-  // Chat messaging
-  messages: ChatMessage[];
+  // Messaging actions
   sendMessage: (customPrompt?: string) => Promise<void>;
   retryLastMessage: (assistantMsgId?: string) => Promise<void>;
   clearMessages: () => void;
-  isGenerating: boolean;
   stopGenerating: () => void;
   
   // Configuration
@@ -87,6 +85,13 @@ export interface RaceEngineerContextValue {
     defaultModel: string;
   } | null;
 }
+
+export interface RaceEngineerStreamContextValue {
+  messages: ChatMessage[];
+  isGenerating: boolean;
+}
+
+export type RaceEngineerContextValue = RaceEngineerActionsContextValue & RaceEngineerStreamContextValue;
 
 export const STORAGE_KEY_AI_CONFIG = 'f1_ai_engineer_config';
 export const STORAGE_KEY_AI_OPEN = 'f1_ai_engineer_open';
@@ -108,9 +113,11 @@ export const DEFAULT_CONFIG: AIConfig = {
   },
 };
 
-export const RaceEngineerContext = createContext<RaceEngineerContextValue | null>(null);
+export const RaceEngineerActionsContext = createContext<RaceEngineerActionsContextValue | null>(null);
+export const RaceEngineerStreamContext = createContext<RaceEngineerStreamContextValue | null>(null);
+export const RaceEngineerContext = RaceEngineerActionsContext;
 
-const defaultFallbackContext: RaceEngineerContextValue = {
+const defaultFallbackActionsContext: RaceEngineerActionsContextValue = {
   isOpen: false,
   openChat: () => {},
   closeChat: () => {},
@@ -123,11 +130,9 @@ const defaultFallbackContext: RaceEngineerContextValue = {
   setSessionDebriefContext: () => {},
   liveContext: null,
   setLiveContext: () => {},
-  messages: [],
   sendMessage: async () => {},
   retryLastMessage: async () => {},
   clearMessages: () => {},
-  isGenerating: false,
   stopGenerating: () => {},
   config: DEFAULT_CONFIG,
   saveConfig: () => {},
@@ -138,10 +143,32 @@ const defaultFallbackContext: RaceEngineerContextValue = {
   serverConfigStatus: null,
 };
 
-export const useRaceEngineer = (): RaceEngineerContextValue => {
-  const context = useContext(RaceEngineerContext);
+const defaultFallbackStreamContext: RaceEngineerStreamContextValue = {
+  messages: [],
+  isGenerating: false,
+};
+
+export const useRaceEngineerActions = (): RaceEngineerActionsContextValue => {
+  const context = useContext(RaceEngineerActionsContext);
   if (!context) {
-    return defaultFallbackContext;
+    return defaultFallbackActionsContext;
   }
   return context;
+};
+
+export const useRaceEngineerStream = (): RaceEngineerStreamContextValue => {
+  const context = useContext(RaceEngineerStreamContext);
+  if (!context) {
+    return defaultFallbackStreamContext;
+  }
+  return context;
+};
+
+export const useRaceEngineer = (): RaceEngineerContextValue => {
+  const actions = useRaceEngineerActions();
+  const stream = useRaceEngineerStream();
+  return {
+    ...actions,
+    ...stream,
+  };
 };

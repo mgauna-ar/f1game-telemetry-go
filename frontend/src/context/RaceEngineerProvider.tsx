@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
 import { useI18n } from './I18nContext';
 import {
-  RaceEngineerContext,
+  RaceEngineerActionsContext,
+  RaceEngineerStreamContext,
   DEFAULT_CONFIG,
   STORAGE_KEY_AI_CONFIG,
   STORAGE_KEY_AI_OPEN,
@@ -12,7 +13,8 @@ import {
   type ContextMode,
   type SessionDebriefContextPayload,
   type LiveContextPayload,
-  type RaceEngineerContextValue,
+  type RaceEngineerActionsContextValue,
+  type RaceEngineerStreamContextValue,
 } from './RaceEngineerContext';
 
 export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -741,7 +743,7 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setIsOpen((prev) => !prev);
   }, []);
 
-  const value = useMemo<RaceEngineerContextValue>(() => ({
+  const actionsValue = useMemo<RaceEngineerActionsContextValue>(() => ({
     isOpen,
     openChat,
     closeChat,
@@ -754,11 +756,9 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setSessionDebriefContext,
     liveContext,
     setLiveContext,
-    messages,
     sendMessage,
     retryLastMessage,
     clearMessages,
-    isGenerating,
     stopGenerating,
     config,
     saveConfig,
@@ -776,11 +776,9 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     comparatorContext,
     sessionDebriefContext,
     liveContext,
-    messages,
     sendMessage,
     retryLastMessage,
     clearMessages,
-    isGenerating,
     stopGenerating,
     config,
     saveConfig,
@@ -791,9 +789,16 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     serverConfigStatus,
   ]);
 
+  const streamValue = useMemo<RaceEngineerStreamContextValue>(() => ({
+    messages,
+    isGenerating,
+  }), [messages, isGenerating]);
+
   return (
-    <RaceEngineerContext.Provider value={value}>
-      {children}
-    </RaceEngineerContext.Provider>
+    <RaceEngineerActionsContext.Provider value={actionsValue}>
+      <RaceEngineerStreamContext.Provider value={streamValue}>
+        {children}
+      </RaceEngineerStreamContext.Provider>
+    </RaceEngineerActionsContext.Provider>
   );
 };

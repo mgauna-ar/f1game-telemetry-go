@@ -75,20 +75,35 @@ export function useComparatorSessions({
   const [sessionBSearchQuery, setSessionBSearchQuery] = useState('');
   const [sessionBTypeTab, setSessionBTypeTab] = useState<SessionTypeTab>('ALL');
   const sessionBDropdownRef = useRef<HTMLDivElement | null>(null);
+  const fetchAbortControllerRef = useRef<AbortController | null>(null);
 
   // Fetch available sessions
   const fetchSessions = useCallback(() => {
-    fetch('/api/sessions')
-      .then((res) => res.json())
-      .then((data) => {
-        const sessionList = data || [];
-        setSessions(sessionList);
+    fetchAbortControllerRef.current?.abort();
+    const controller = new AbortController();
+    fetchAbortControllerRef.current = controller;
+
+    fetch('/api/sessions', { signal: controller.signal })
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
       })
-      .catch((err) => console.error('Failed to fetch sessions', err));
+      .then((data) => {
+        if (!controller.signal.aborted) {
+          const sessionList = data || [];
+          setSessions(sessionList);
+        }
+      })
+      .catch((err) => {
+        if (err.name !== 'AbortError') console.error('Failed to fetch sessions', err);
+      });
   }, []);
 
   useEffect(() => {
     fetchSessions();
+    return () => {
+      fetchAbortControllerRef.current?.abort();
+    };
   }, [fetchSessions]);
 
   // Handle Session A Selection

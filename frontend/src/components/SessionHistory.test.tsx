@@ -1095,9 +1095,9 @@ describe('SessionHistory Component', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Explore$/i }));
 
     await waitFor(() => {
-      expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions/42/classification');
-      expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions/42/progression');
-      expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions/42/stints');
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions/42/classification', expect.anything());
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions/42/progression', expect.anything());
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions/42/stints', expect.anything());
       expect(screen.getAllByText('Charles Leclerc').length).toBeGreaterThan(0);
     });
 

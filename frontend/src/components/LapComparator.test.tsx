@@ -53,7 +53,7 @@ describe('LapComparator Component', () => {
 
     // Wait for sessions to be fetched
     await waitFor(() => {
-      expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions');
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions', expect.anything());
     });
 
     // Open Session A dropdown
@@ -84,7 +84,7 @@ describe('LapComparator Component', () => {
     render(<LapComparator />);
 
     await waitFor(() => {
-      expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions');
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions', expect.anything());
     });
 
     const trigger = screen.getByTestId('session-selector-trigger');
@@ -143,7 +143,7 @@ describe('LapComparator Component', () => {
     render(<LapComparator />);
 
     await waitFor(() => {
-      expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions');
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions', expect.anything());
     });
 
     // Open dropdown and select Monaco session
@@ -195,7 +195,7 @@ describe('LapComparator Component', () => {
     render(<LapComparator />);
 
     await waitFor(() => {
-      expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions');
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions', expect.anything());
     });
 
     // Select Spa Practice 1 for Session A
@@ -256,7 +256,7 @@ describe('LapComparator Component', () => {
     render(<LapComparator />);
 
     await waitFor(() => {
-      expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions');
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions', expect.anything());
     });
 
     fireEvent.click(screen.getByTestId('session-selector-trigger'));
@@ -321,7 +321,7 @@ describe('LapComparator Component', () => {
     render(<LapComparator />);
 
     await waitFor(() => {
-      expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions');
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions', expect.anything());
     });
 
     fireEvent.click(screen.getByTestId('session-selector-trigger'));

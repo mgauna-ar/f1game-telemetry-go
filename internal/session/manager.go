@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"strings"
+	"sync"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
@@ -20,6 +21,7 @@ type SessionManager struct {
 
 	currentSessionUID uint64
 	currentSession    *storage.Session
+	closeOnce         sync.Once
 }
 
 // NewSessionManager creates a new SessionManager.
@@ -46,12 +48,14 @@ func (sm *SessionManager) Start(ctx context.Context) {
 
 // Close gracefully flushes all remaining data and shuts down workers.
 func (sm *SessionManager) Close(ctx context.Context) {
-	for _, tracker := range sm.lapTrackers {
-		tracker.FlushCurrentLap()
-	}
-	if sm.batchWriter != nil {
-		sm.batchWriter.Close(ctx)
-	}
+	sm.closeOnce.Do(func() {
+		for _, tracker := range sm.lapTrackers {
+			tracker.FlushCurrentLap()
+		}
+		if sm.batchWriter != nil {
+			sm.batchWriter.Close(ctx)
+		}
+	})
 }
 
 // ProcessPacket receives a decoded packet and processes it.

@@ -47,11 +47,9 @@ export function useLapStaging({ onNavigateToComparator }: UseLapStagingOptions =
   );
 
   const handleSwapStagedSlots = useCallback(() => {
-    setStagedSlotA((prevA) => {
-      setStagedSlotB(prevA);
-      return stagedSlotB;
-    });
-  }, [stagedSlotB]);
+    setStagedSlotA(stagedSlotB);
+    setStagedSlotB(stagedSlotA);
+  }, [stagedSlotA, stagedSlotB]);
 
   const handleClearStagedA = useCallback(() => setStagedSlotA(null), []);
   const handleClearStagedB = useCallback(() => setStagedSlotB(null), []);

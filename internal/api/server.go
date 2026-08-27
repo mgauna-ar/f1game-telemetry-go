@@ -277,7 +277,7 @@ func (s *Server) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.repo.DeleteSession(r.Context(), sessionID); err != nil {
-		if err.Error() == "session not found" {
+		if errors.Is(err, storage.ErrSessionNotFound) {
 			http.Error(w, "Session not found", http.StatusNotFound)
 			return
 		}
@@ -451,7 +451,7 @@ func (s *Server) handleUpdateTag(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.repo.UpdateTag(r.Context(), &tag); err != nil {
-		if err.Error() == "tag not found" {
+		if errors.Is(err, storage.ErrTagNotFound) {
 			http.Error(w, "Tag not found", http.StatusNotFound)
 			return
 		}
@@ -473,7 +473,7 @@ func (s *Server) handleDeleteTag(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.repo.DeleteTag(r.Context(), tagID); err != nil {
-		if err.Error() == "tag not found" {
+		if errors.Is(err, storage.ErrTagNotFound) {
 			http.Error(w, "Tag not found", http.StatusNotFound)
 			return
 		}

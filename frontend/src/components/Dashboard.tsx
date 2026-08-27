@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTelemetry } from '../hooks/useTelemetry';
 import { useTelemetryStore } from '../store/useTelemetryStore';
-import { useRaceEngineer } from '../context/RaceEngineerContext';
+import { useRaceEngineerActions } from '../context/RaceEngineerContext';
 import {
   SAFETY_CAR_STATUS,
   DRIVER_STATUS,
@@ -90,7 +90,7 @@ export const Dashboard: React.FC = () => {
     packetFormat,
   } = useTelemetry();
 
-  const { setLiveContext, setContextMode } = useRaceEngineer();
+  const { setLiveContext, setContextMode } = useRaceEngineerActions();
 
   const getLiveTelemetrySummary = useCallback(() => {
     const state = useTelemetryStore.getState();

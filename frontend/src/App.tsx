@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { Calendar, GitCompare, Radio, Sparkles } from 'lucide-react';
 import { F1TelemetryLogo } from './components/F1TelemetryLogo';
 import { RaceEngineerProvider } from './context/RaceEngineerProvider';
-import { useRaceEngineer } from './context/RaceEngineerContext';
+import { useRaceEngineerActions } from './context/RaceEngineerContext';
 import { I18nProvider } from './context/I18nProvider';
 import { useI18n } from './context/I18nContext';
 import { AiRaceEngineer } from './components/AiRaceEngineer';
@@ -42,7 +42,7 @@ function AppContent() {
     return 'history';
   });
 
-  const { setContextMode } = useRaceEngineer();
+  const { setContextMode } = useRaceEngineerActions();
 
   // Update checking & version state
   const [updateInfo, setUpdateInfo] = useState<UpdateCheckResponse | null>(null);

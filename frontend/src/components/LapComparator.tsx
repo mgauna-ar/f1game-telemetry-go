@@ -16,7 +16,7 @@ import { buildTelemetryContext } from '../utils/aiTelemetrySummary';
 import { getTurnContextAtDistance } from '../utils/trackTurns';
 import { ComparatorTrackMap } from './ComparatorTrackMap';
 import { TrackFlag } from './TrackFlag';
-import { useRaceEngineer } from '../context/RaceEngineerContext';
+import { useRaceEngineerActions } from '../context/RaceEngineerContext';
 import { useI18n } from '../context/I18nContext';
 import { ERS_MODE_NAMES } from '../constants/f1';
 import { formatTime } from '../utils/formatters';
@@ -36,7 +36,7 @@ export interface LapComparatorProps {
 
 export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) => {
   const { t } = useI18n();
-  const { setComparatorContext, setContextMode, openChat } = useRaceEngineer();
+  const { setComparatorContext, setContextMode, openChat } = useRaceEngineerActions();
 
   // Hook 1: Session selection & Synchronization link
   const {

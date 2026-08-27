@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Calendar,
   Search,
@@ -32,7 +32,7 @@ import { F1FormatBadge } from './F1FormatBadge';
 import { WeatherBadgeWithForecast } from './session_history/WeatherBadgeWithForecast';
 import { TrackFlag } from './TrackFlag';
 
-import { useRaceEngineer } from '../context/RaceEngineerContext';
+import { useRaceEngineerActions } from '../context/RaceEngineerContext';
 import { useI18n } from '../context/I18nContext';
 
 import type {
@@ -78,7 +78,7 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
   const [activeDetailTab, setActiveDetailTab] = useState<'classification' | 'charts' | 'stints' | 'sectors'>('classification');
 
   // AI Race Engineer Context Hook
-  const { openChat, setSessionDebriefContext, setContextMode } = useRaceEngineer();
+  const { openChat, setSessionDebriefContext, setContextMode } = useRaceEngineerActions();
 
   // Hook 1: Session list state & deletion
   const {
@@ -174,7 +174,20 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
     onNavigateToComparator,
   });
 
+  const sessionDetailAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      sessionDetailAbortRef.current?.abort();
+    };
+  }, []);
+
   const selectSession = async (session: Session) => {
+    sessionDetailAbortRef.current?.abort();
+    const controller = new AbortController();
+    sessionDetailAbortRef.current = controller;
+    const { signal } = controller;
+
     setSelectedSession(session);
     setLoadingDetail(true);
     setExpandedDrivers({});
@@ -184,16 +197,20 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
 
     try {
       const [classRes, progRes, stintsRes, lapsRes] = await Promise.all([
-        fetch(`/api/sessions/${session.id}/classification`),
-        fetch(`/api/sessions/${session.id}/progression`),
-        fetch(`/api/sessions/${session.id}/stints`),
-        fetch(`/api/sessions/${session.id}/laps`),
+        fetch(`/api/sessions/${session.id}/classification`, { signal }),
+        fetch(`/api/sessions/${session.id}/progression`, { signal }),
+        fetch(`/api/sessions/${session.id}/stints`, { signal }),
+        fetch(`/api/sessions/${session.id}/laps`, { signal }),
       ]);
+
+      if (signal.aborted) return;
 
       const classData: ClassificationResponse | null = classRes.ok ? await classRes.json() : null;
       const progData: ProgressionResponse | null = progRes.ok ? await progRes.json() : null;
       const stintsDataRes: StintsResponse | null = stintsRes.ok ? await stintsRes.json() : null;
       const lapsData = lapsRes.ok ? await lapsRes.json() : [];
+
+      if (signal.aborted) return;
 
       const normalizedLaps: Lap[] = (lapsData || []).map((l: Lap) => {
         let s3 = l.sector3_ms || 0;
@@ -209,9 +226,13 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
       setStintsData(stintsDataRes);
       setLaps(normalizedLaps);
     } catch (err: any) {
-      console.error('Error fetching session details:', err);
+      if (err.name !== 'AbortError') {
+        console.error('Error fetching session details:', err);
+      }
     } finally {
-      setLoadingDetail(false);
+      if (!signal.aborted) {
+        setLoadingDetail(false);
+      }
     }
   };
 

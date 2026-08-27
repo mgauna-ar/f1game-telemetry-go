@@ -271,6 +271,104 @@ type PacketSessionData struct {
 
 func (p PacketSessionData) GetHeader() PacketHeader { return p.Header }
 
+// sessionData2025 represents the binary payload structure for universal 2025/2026 base fields.
+type sessionData2025 struct {
+	Weather                         uint8
+	TrackTemperature                int8
+	AirTemperature                  int8
+	TotalLaps                       uint8
+	TrackLength                     uint16
+	SessionType                     uint8
+	TrackId                         int8
+	Formula                         uint8
+	SessionTimeLeft                 uint16
+	SessionDuration                 uint16
+	PitSpeedLimit                   uint8
+	GamePaused                      uint8
+	IsSpectating                    uint8
+	SpectatorCarIndex               uint8
+	SliProNativeSupport             uint8
+	NumMarshalZones                 uint8
+	MarshalZones                    [MaxMarshalZonesPerLap]MarshalZone
+	SafetyCarStatus                 uint8
+	NetworkGame                     uint8
+	NumWeatherForecastSamples       uint8
+	WeatherForecastSamples          [MaxWeatherForecastSamples]WeatherForecastSample
+	ForecastAccuracy                uint8
+	AIDifficulty                    uint8
+	SeasonLinkIdentifier            uint32
+	WeekendLinkIdentifier           uint32
+	SessionLinkIdentifier           uint32
+	PitStopWindowIdealLap           uint8
+	PitStopWindowLatestLap          uint8
+	PitStopRejoinPosition           uint8
+	SteeringAssist                  uint8
+	BrakingAssist                   uint8
+	GearboxAssist                   uint8
+	PitAssist                       uint8
+	PitReleaseAssist                uint8
+	ERSAssist                       uint8
+	DRSAssist                       uint8
+	DynamicRacingLine               uint8
+	DynamicRacingLineType           uint8
+	GameMode                        uint8
+	RuleSet                         uint8
+	TimeOfDay                       uint32
+	SessionLength                   uint8
+	SpeedUnitsLeadPlayer            uint8
+	TemperatureUnitsLeadPlayer      uint8
+	SpeedUnitsSecondaryPlayer       uint8
+	TemperatureUnitsSecondaryPlayer uint8
+	NumSafetyCarPeriods             uint8
+	NumVirtualSafetyCarPeriods      uint8
+	NumRedFlagPeriods               uint8
+	EqualCarPerformance             uint8
+	RecoveryMode                    uint8
+	FlashbackLimit                  uint8
+	SurfaceType                     uint8
+	LowFuelMode                     uint8
+	RaceStarts                      uint8
+	TyreTemperature                 uint8
+	PitLaneTyreSim                  uint8
+	CarDamage                       uint8
+	CarDamageRate                   uint8
+	Collisions                      uint8
+	CollisionsOffForFirstLapOnly    uint8
+	MPUnsafePitRelease              uint8
+	MPOffForGriefing                uint8
+	CornerCuttingStringency         uint8
+	ParcFermeRules                  uint8
+	PitStopExperience               uint8
+	SafetyCar                       uint8
+	SafetyCarExperience             uint8
+	FormationLap                    uint8
+	FormationLapExperience          uint8
+	RedFlags                        uint8
+	AffectsLicenceLevelSolo         uint8
+	AffectsLicenceLevelMP           uint8
+	NumSessionsInWeekend            uint8
+	WeekendStructure                [MaxSessionsInWeekend]uint8
+	Sector2LapDistanceStart         float32
+	Sector3LapDistanceStart         float32
+}
+
+// sessionData2026Ext represents the binary payload structure for 2026 regulation extensions.
+type sessionData2026Ext struct {
+	ActiveAeroTrackStatus        uint8
+	NumActiveAeroZonesFull       uint8
+	ActiveAeroZonesFull          [MaxActiveAeroZonesPerLap]ActiveAeroZone
+	NumActiveAeroZonesPartial    uint8
+	ActiveAeroZonesPartial       [MaxActiveAeroZonesPerLap]ActiveAeroZone
+	NumDRSZones                  uint8
+	DRSZones                     [MaxDRSZonesPerLap]DRSZone
+	StartReactionTime            float32
+	AntiLockBrakesAssist         uint8
+	TractionControlAssist        uint8
+	DynamicRacingLineHiVis       uint8
+	DynamicRacingLineColourBlind uint8
+	RecurringRewindPrompt        uint8
+}
+
 // DecodeSession decodes a PacketSessionData from raw bytes (supporting both 2025 and 2026 formats).
 func DecodeSession(data []byte) (*PacketSessionData, error) {
 	header, headerLen, err := DecodeHeaderWithOffset(data)
@@ -278,108 +376,114 @@ func DecodeSession(data []byte) (*PacketSessionData, error) {
 		return nil, fmt.Errorf("failed to decode header in session: %w", err)
 	}
 
-	var pkt PacketSessionData
-	pkt.Header = header
-
 	payload := data[headerLen:]
 	r := bytes.NewReader(payload)
 
-	// Decode universal 2025/2026 fields
-	if err := binary.Read(r, binary.LittleEndian, &pkt.Weather); err != nil {
-		return nil, fmt.Errorf("failed to decode session weather: %w", err)
+	var base sessionData2025
+	if err := binary.Read(r, binary.LittleEndian, &base); err != nil {
+		return nil, fmt.Errorf("failed to decode session payload: %w", err)
 	}
-	_ = binary.Read(r, binary.LittleEndian, &pkt.TrackTemperature)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.AirTemperature)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.TotalLaps)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.TrackLength)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.SessionType)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.TrackId)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.Formula)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.SessionTimeLeft)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.SessionDuration)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.PitSpeedLimit)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.GamePaused)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.IsSpectating)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.SpectatorCarIndex)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.SliProNativeSupport)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.NumMarshalZones)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.MarshalZones)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.SafetyCarStatus)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.NetworkGame)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.NumWeatherForecastSamples)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.WeatherForecastSamples)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.ForecastAccuracy)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.AIDifficulty)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.SeasonLinkIdentifier)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.WeekendLinkIdentifier)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.SessionLinkIdentifier)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.PitStopWindowIdealLap)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.PitStopWindowLatestLap)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.PitStopRejoinPosition)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.SteeringAssist)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.BrakingAssist)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.GearboxAssist)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.PitAssist)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.PitReleaseAssist)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.ERSAssist)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.DRSAssist)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.DynamicRacingLine)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.DynamicRacingLineType)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.GameMode)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.RuleSet)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.TimeOfDay)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.SessionLength)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.SpeedUnitsLeadPlayer)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.TemperatureUnitsLeadPlayer)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.SpeedUnitsSecondaryPlayer)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.TemperatureUnitsSecondaryPlayer)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.NumSafetyCarPeriods)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.NumVirtualSafetyCarPeriods)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.NumRedFlagPeriods)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.EqualCarPerformance)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.RecoveryMode)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.FlashbackLimit)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.SurfaceType)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.LowFuelMode)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.RaceStarts)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.TyreTemperature)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.PitLaneTyreSim)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.CarDamage)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.CarDamageRate)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.Collisions)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.CollisionsOffForFirstLapOnly)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.MPUnsafePitRelease)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.MPOffForGriefing)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.CornerCuttingStringency)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.ParcFermeRules)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.PitStopExperience)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.SafetyCar)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.SafetyCarExperience)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.FormationLap)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.FormationLapExperience)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.RedFlags)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.AffectsLicenceLevelSolo)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.AffectsLicenceLevelMP)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.NumSessionsInWeekend)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.WeekendStructure)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.Sector2LapDistanceStart)
-	_ = binary.Read(r, binary.LittleEndian, &pkt.Sector3LapDistanceStart)
 
-	// Decode 2026 additional extensions if present
+	pkt := PacketSessionData{
+		Header:                          header,
+		Weather:                         base.Weather,
+		TrackTemperature:                base.TrackTemperature,
+		AirTemperature:                  base.AirTemperature,
+		TotalLaps:                       base.TotalLaps,
+		TrackLength:                     base.TrackLength,
+		SessionType:                     base.SessionType,
+		TrackId:                         base.TrackId,
+		Formula:                         base.Formula,
+		SessionTimeLeft:                 base.SessionTimeLeft,
+		SessionDuration:                 base.SessionDuration,
+		PitSpeedLimit:                   base.PitSpeedLimit,
+		GamePaused:                      base.GamePaused,
+		IsSpectating:                    base.IsSpectating,
+		SpectatorCarIndex:               base.SpectatorCarIndex,
+		SliProNativeSupport:             base.SliProNativeSupport,
+		NumMarshalZones:                 base.NumMarshalZones,
+		MarshalZones:                    base.MarshalZones,
+		SafetyCarStatus:                 base.SafetyCarStatus,
+		NetworkGame:                     base.NetworkGame,
+		NumWeatherForecastSamples:       base.NumWeatherForecastSamples,
+		WeatherForecastSamples:          base.WeatherForecastSamples,
+		ForecastAccuracy:                base.ForecastAccuracy,
+		AIDifficulty:                    base.AIDifficulty,
+		SeasonLinkIdentifier:            base.SeasonLinkIdentifier,
+		WeekendLinkIdentifier:           base.WeekendLinkIdentifier,
+		SessionLinkIdentifier:           base.SessionLinkIdentifier,
+		PitStopWindowIdealLap:           base.PitStopWindowIdealLap,
+		PitStopWindowLatestLap:          base.PitStopWindowLatestLap,
+		PitStopRejoinPosition:           base.PitStopRejoinPosition,
+		SteeringAssist:                  base.SteeringAssist,
+		BrakingAssist:                   base.BrakingAssist,
+		GearboxAssist:                   base.GearboxAssist,
+		PitAssist:                       base.PitAssist,
+		PitReleaseAssist:                base.PitReleaseAssist,
+		ERSAssist:                       base.ERSAssist,
+		DRSAssist:                       base.DRSAssist,
+		DynamicRacingLine:               base.DynamicRacingLine,
+		DynamicRacingLineType:           base.DynamicRacingLineType,
+		GameMode:                        base.GameMode,
+		RuleSet:                         base.RuleSet,
+		TimeOfDay:                       base.TimeOfDay,
+		SessionLength:                   base.SessionLength,
+		SpeedUnitsLeadPlayer:            base.SpeedUnitsLeadPlayer,
+		TemperatureUnitsLeadPlayer:      base.TemperatureUnitsLeadPlayer,
+		SpeedUnitsSecondaryPlayer:       base.SpeedUnitsSecondaryPlayer,
+		TemperatureUnitsSecondaryPlayer: base.TemperatureUnitsSecondaryPlayer,
+		NumSafetyCarPeriods:             base.NumSafetyCarPeriods,
+		NumVirtualSafetyCarPeriods:      base.NumVirtualSafetyCarPeriods,
+		NumRedFlagPeriods:               base.NumRedFlagPeriods,
+		EqualCarPerformance:             base.EqualCarPerformance,
+		RecoveryMode:                    base.RecoveryMode,
+		FlashbackLimit:                  base.FlashbackLimit,
+		SurfaceType:                     base.SurfaceType,
+		LowFuelMode:                     base.LowFuelMode,
+		RaceStarts:                      base.RaceStarts,
+		TyreTemperature:                 base.TyreTemperature,
+		PitLaneTyreSim:                  base.PitLaneTyreSim,
+		CarDamage:                       base.CarDamage,
+		CarDamageRate:                   base.CarDamageRate,
+		Collisions:                      base.Collisions,
+		CollisionsOffForFirstLapOnly:    base.CollisionsOffForFirstLapOnly,
+		MPUnsafePitRelease:              base.MPUnsafePitRelease,
+		MPOffForGriefing:                base.MPOffForGriefing,
+		CornerCuttingStringency:         base.CornerCuttingStringency,
+		ParcFermeRules:                  base.ParcFermeRules,
+		PitStopExperience:               base.PitStopExperience,
+		SafetyCar:                       base.SafetyCar,
+		SafetyCarExperience:             base.SafetyCarExperience,
+		FormationLap:                    base.FormationLap,
+		FormationLapExperience:          base.FormationLapExperience,
+		RedFlags:                        base.RedFlags,
+		AffectsLicenceLevelSolo:         base.AffectsLicenceLevelSolo,
+		AffectsLicenceLevelMP:           base.AffectsLicenceLevelMP,
+		NumSessionsInWeekend:            base.NumSessionsInWeekend,
+		WeekendStructure:                base.WeekendStructure,
+		Sector2LapDistanceStart:         base.Sector2LapDistanceStart,
+		Sector3LapDistanceStart:         base.Sector3LapDistanceStart,
+	}
+
+	// Decode 2026 additional extensions if present in payload
 	if r.Len() > 0 {
-		_ = binary.Read(r, binary.LittleEndian, &pkt.ActiveAeroTrackStatus)
-		_ = binary.Read(r, binary.LittleEndian, &pkt.NumActiveAeroZonesFull)
-		_ = binary.Read(r, binary.LittleEndian, &pkt.ActiveAeroZonesFull)
-		_ = binary.Read(r, binary.LittleEndian, &pkt.NumActiveAeroZonesPartial)
-		_ = binary.Read(r, binary.LittleEndian, &pkt.ActiveAeroZonesPartial)
-		_ = binary.Read(r, binary.LittleEndian, &pkt.NumDRSZones)
-		_ = binary.Read(r, binary.LittleEndian, &pkt.DRSZones)
-		_ = binary.Read(r, binary.LittleEndian, &pkt.StartReactionTime)
-		_ = binary.Read(r, binary.LittleEndian, &pkt.AntiLockBrakesAssist)
-		_ = binary.Read(r, binary.LittleEndian, &pkt.TractionControlAssist)
-		_ = binary.Read(r, binary.LittleEndian, &pkt.DynamicRacingLineHiVis)
-		_ = binary.Read(r, binary.LittleEndian, &pkt.DynamicRacingLineColourBlind)
-		_ = binary.Read(r, binary.LittleEndian, &pkt.RecurringRewindPrompt)
+		var ext sessionData2026Ext
+		if err := binary.Read(r, binary.LittleEndian, &ext); err != nil {
+			return nil, fmt.Errorf("failed to decode session 2026 extensions: %w", err)
+		}
+		pkt.ActiveAeroTrackStatus = ext.ActiveAeroTrackStatus
+		pkt.NumActiveAeroZonesFull = ext.NumActiveAeroZonesFull
+		pkt.ActiveAeroZonesFull = ext.ActiveAeroZonesFull
+		pkt.NumActiveAeroZonesPartial = ext.NumActiveAeroZonesPartial
+		pkt.ActiveAeroZonesPartial = ext.ActiveAeroZonesPartial
+		pkt.NumDRSZones = ext.NumDRSZones
+		pkt.DRSZones = ext.DRSZones
+		pkt.StartReactionTime = ext.StartReactionTime
+		pkt.AntiLockBrakesAssist = ext.AntiLockBrakesAssist
+		pkt.TractionControlAssist = ext.TractionControlAssist
+		pkt.DynamicRacingLineHiVis = ext.DynamicRacingLineHiVis
+		pkt.DynamicRacingLineColourBlind = ext.DynamicRacingLineColourBlind
+		pkt.RecurringRewindPrompt = ext.RecurringRewindPrompt
 	}
 
 	return &pkt, nil

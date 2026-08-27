@@ -498,6 +498,11 @@ func main() {
 						driverStatus = packets.DriverStatusInLap
 					}
 
+					numStops := uint8(0)
+					if lapNum > 1 {
+						numStops = uint8(i / 8)
+					}
+
 					lapCars[i] = packets.LapData{
 						DriverStatus:                driverStatus,
 						CurrentLapTimeInMS:          lapTimeMs + gapMs,
@@ -513,7 +518,7 @@ func main() {
 						DeltaToRaceLeaderMSPart:     uint16(gapMs),
 						DeltaToCarInFrontMSPart:     uint16(350),
 						PitStatus:                   pitStatus,
-						NumPitStops:                 uint8(i / 8),
+						NumPitStops:                 numStops,
 						PitLaneTimeInLaneInMS:       uint16(21500 + i*400),
 						SpeedTrapFastestSpeed:       speedTrap,
 						SpeedTrapFastestLap:         uint8(1 + (i % 3)),
