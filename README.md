@@ -88,11 +88,11 @@
 * [Go 1.21+](https://go.dev/dl/)
 * [Node.js 18+](https://nodejs.org/)
 
-#### One-Click Developer Launch (Windows)
+#### One-Click Standalone Launch (Windows)
 ```powershell
 .\run.bat
 ```
-*Installs frontend dependencies on first run and starts both backend and frontend development servers.*
+*Installs dependencies if needed, builds the embedded web assets, compiles, and launches the standalone single-binary application with automatic browser opening.*
 
 #### Single-Binary Embedded Build (All Platforms)
 ```bash

@@ -22,7 +22,7 @@ This file (`.agents/AGENTS.md`) contains workspace-specific rules and context th
     5. **Production Build:** Run `npm run build` in `frontend/` (`tsc -b && vite build`) to verify zero TypeScript compiler errors and bundle integrity.
     6. Always report actual test pass counts, linter output, and execution results in the final user response.
 *   **Packet Simulation:** Use `make simulate` (defaults to F1 2026 24-car grid, or `make simulate FORMAT=2025` for 22-car grid) or `simulate.bat` (`cmd/simulator/main.go -format 2026/2025`) to generate synthetic live UDP telemetry packets (Motion, Telemetry, LapData, ParticipantsData, CarDamage, Event, Session with weather forecasts) at 20Hz without needing the physical F1 game. Use `-scenario <name>` flag to trigger specific in-race situations for testing the Voice Race Engineer: `wear` (tyres start at 38.5% → fires tyre deg alerts), `sc` (Full Safety Car), `vsc` (Virtual Safety Car), `rain` (rain forecast injection).
-*   **Windows Helpers:** `run.bat` automated setup script (installs frontend deps if missing, launches backend and frontend concurrently, opens browser). `simulate.bat` shortcut for UDP simulator.
+*   **Windows Helpers:** `run.bat` automated setup script (installs frontend deps if missing, builds production assets, compiles and launches the standalone single-binary embedded application, auto-opens browser). `simulate.bat` shortcut for UDP simulator.
 *   **React Frontend:** Use `vitest` and `@testing-library/react` (`jsdom`) for component and hook testing (like the `useTelemetry` hook).
 
 
