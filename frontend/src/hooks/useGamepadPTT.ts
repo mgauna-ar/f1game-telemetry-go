@@ -204,35 +204,74 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
     } catch {}
   }, []);
 
-  // Sync initial global config to/from backend
+  // Sync initial global config to/from backend:
+  // Reads current backend mapping; if backend is empty (e.g. server restart) but client has saved mapping, re-hydrates backend.
   useEffect(() => {
     fetch('/api/ai/ptt/config')
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data && data.status === 'ok') {
-          setGlobalActive(!!data.is_active);
-          if (data.mapping) {
-            setGlobalMapping(data.mapping);
-          }
+        if (!data || data.status !== 'ok') return;
+        setGlobalActive(!!data.is_active);
+
+        if (data.mapping && data.mapping.device_type !== 'none') {
+          // Backend already has an active mapping
+          setGlobalMapping(data.mapping);
+          return;
+        }
+
+        // Server has no active mapping (fresh start / restart). Re-hydrate from localStorage if available.
+        const savedJoy = localStorage.getItem(RADIO_STORAGE_KEYS.GAMEPAD_MAPPING);
+        if (savedJoy) {
+          try {
+            const parsedJoy: GamepadMapping = JSON.parse(savedJoy);
+            if (parsedJoy && parsedJoy.buttonIndex >= 0) {
+              fetch('/api/ai/ptt/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  mapping: {
+                    device_type: 'joystick',
+                    device_index: parsedJoy.gamepadIndex,
+                    button_index: parsedJoy.buttonIndex,
+                    key_name: `Button ${parsedJoy.buttonIndex + 1}`,
+                    device_name: 'Controller / Wheel',
+                  },
+                }),
+              })
+                .then((res) => (res.ok ? res.json() : null))
+                .then((resData) => {
+                  if (resData?.mapping) setGlobalMapping(resData.mapping);
+                })
+                .catch(() => {});
+              return;
+            }
+          } catch {}
+        }
+
+        const savedKey = localStorage.getItem(RADIO_STORAGE_KEYS.KEYBOARD_KEY);
+        if (savedKey && savedKey !== 'None') {
+          fetch('/api/ai/ptt/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              mapping: {
+                device_type: 'keyboard',
+                key_code: getVKCodeForName(savedKey),
+                key_name: savedKey,
+                device_name: 'Keyboard',
+              },
+            }),
+          })
+            .then((res) => (res.ok ? res.json() : null))
+            .then((resData) => {
+              if (resData?.mapping) setGlobalMapping(resData.mapping);
+            })
+            .catch(() => {});
+        } else if (data.mapping) {
+          setGlobalMapping(data.mapping);
         }
       })
       .catch(() => {});
-
-    // Ensure backend knows the saved key
-    const initialKey = localStorage.getItem(RADIO_STORAGE_KEYS.KEYBOARD_KEY) || RADIO_ALERT_CONSTANTS.DEFAULT_KEYBOARD_KEY;
-    const isInitialNone = !initialKey || initialKey === 'None';
-    fetch('/api/ai/ptt/config', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        mapping: {
-          device_type: isInitialNone ? 'none' : 'keyboard',
-          key_code: getVKCodeForName(initialKey),
-          key_name: initialKey,
-          device_name: 'Keyboard',
-        },
-      }),
-    }).catch(() => {});
   }, []);
 
   // Use refs for stable access in animation frame / event listeners
@@ -428,20 +467,6 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
           for (let bIdx = 0; bIdx < gp.buttons.length; bIdx++) {
             if (gp.buttons[bIdx].pressed) {
               setMappedGamepadButton({ gamepadIndex: gIdx, buttonIndex: bIdx });
-              // Also inform backend of joystick mapping
-              fetch('/api/ai/ptt/config', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  mapping: {
-                    device_type: 'joystick',
-                    device_index: gIdx,
-                    button_index: bIdx,
-                    device_name: gp.id,
-                    key_name: `Button ${bIdx + 1}`,
-                  },
-                }),
-              }).catch(() => {});
               cancelLearning();
               break;
             }

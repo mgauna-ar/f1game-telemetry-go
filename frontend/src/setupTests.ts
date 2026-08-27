@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom';
+import { vi } from 'vitest';
 
 const localStorageMock = (() => {
   let store: Record<string, string> = {};
@@ -33,22 +34,13 @@ if (typeof globalThis !== 'undefined') {
     writable: true,
   });
 
-  // Polyfill/wrap fetch in Node/JSDOM environment for relative API URLs
-  const originalFetch = globalThis.fetch;
-  if (typeof originalFetch === 'function') {
-    globalThis.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
-      let url = input;
-      if (typeof input === 'string' && input.startsWith('/')) {
-        url = `http://localhost:8080${input}`;
-      }
-      return originalFetch(url, init).catch(() => {
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: async () => ({ configured: false }),
-          text: async () => '',
-        } as Response);
-      });
-    };
-  }
+  // Mock fetch in Node/JSDOM test environment to ensure tests are isolated and never leak HTTP traffic to a running backend
+  globalThis.fetch = vi.fn().mockImplementation(() => {
+    return Promise.resolve({
+      ok: true,
+      status: 200,
+      json: async () => ({ status: 'ok', configured: false }),
+      text: async () => '',
+    } as Response);
+  });
 }
