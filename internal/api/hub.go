@@ -1,7 +1,7 @@
 package api
 
 import (
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -57,7 +57,7 @@ func (c *Client) ReadPump() {
 		_, _, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure, websocket.CloseNormalClosure) {
-				log.Printf("[%s WebSocket] Read error: %v", c.hub.name, err)
+				slog.Error("WebSocket read error", "hub", c.hub.name, "error", err)
 			}
 			break
 		}
@@ -143,7 +143,7 @@ func (h *Hub) Run() {
 			h.clients[client] = true
 			total := len(h.clients)
 			h.mu.Unlock()
-			log.Printf("[%s WebSocket] Client connected. Total: %d", h.name, total)
+			slog.Info("WebSocket client connected", "hub", h.name, "total", total)
 		case client := <-h.unregister:
 			h.mu.Lock()
 			if _, ok := h.clients[client]; ok {
@@ -151,7 +151,7 @@ func (h *Hub) Run() {
 				close(client.send)
 				total := len(h.clients)
 				h.mu.Unlock()
-				log.Printf("[%s WebSocket] Client disconnected. Total: %d", h.name, total)
+				slog.Info("WebSocket client disconnected", "hub", h.name, "total", total)
 			} else {
 				h.mu.Unlock()
 			}
@@ -174,13 +174,18 @@ func (h *Hub) Broadcast(msg []byte) {
 	select {
 	case h.broadcast <- msg:
 	default:
-		// Broadcast channel full: don't block telemetry loop
+		// Drop message if broadcast channel is congested
 	}
 }
 
-// ClientCount returns the number of active connected clients.
+// ClientCount returns the current number of connected WebSocket clients.
 func (h *Hub) ClientCount() int {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	return len(h.clients)
+}
+
+// ClientsCount is an alias for ClientCount.
+func (h *Hub) ClientsCount() int {
+	return h.ClientCount()
 }

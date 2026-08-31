@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 	"path"
@@ -40,8 +40,17 @@ var (
 	ZipMagicHeader = []byte{0x50, 0x4B, 0x03, 0x04}
 )
 
+// ServerConfig holds the runtime configuration parameters for the API server.
+type ServerConfig struct {
+	GeminiAPIKey string
+	OpenAIAPIKey string
+	LLMModel     string
+	LLMProvider  string
+}
+
 // Server handles HTTP requests for the API and serves the frontend.
 type Server struct {
+	config          ServerConfig
 	router          *chi.Mux
 	repo            storage.Repository
 	telemetryHub    *Hub
@@ -59,13 +68,14 @@ var upgrader = websocket.Upgrader{
 }
 
 // NewServer creates a new API server with the default embedded frontend filesystem.
-func NewServer(repo storage.Repository, telemetryHub, engineerHub *Hub) *Server {
-	return NewServerWithFS(repo, telemetryHub, engineerHub, frontend.DistFS())
+func NewServer(repo storage.Repository, telemetryHub, engineerHub *Hub, config ServerConfig) *Server {
+	return NewServerWithFS(repo, telemetryHub, engineerHub, frontend.DistFS(), config)
 }
 
 // NewServerWithFS creates a new API server with a custom static filesystem (useful for testing).
-func NewServerWithFS(repo storage.Repository, telemetryHub, engineerHub *Hub, staticFS fs.FS) *Server {
+func NewServerWithFS(repo storage.Repository, telemetryHub, engineerHub *Hub, staticFS fs.FS, config ServerConfig) *Server {
 	s := &Server{
+		config:          config,
 		router:          chi.NewRouter(),
 		repo:            repo,
 		telemetryHub:    telemetryHub,
@@ -125,59 +135,80 @@ func (s *Server) Router() *chi.Mux {
 }
 
 func (s *Server) routes() {
-	s.router.Get("/ws", s.handleWebSocket)
-	s.router.Get("/ws/engineer", s.handleEngineerWebSocket)
+	s.setupWebSocketRoutes()
 
 	// API routes
 	s.router.Route("/api", func(r chi.Router) {
-		// Session routes
-		r.Get("/sessions", s.handleGetSessions)
-		r.Delete("/sessions/{id}", s.handleDeleteSession)
-		r.Post("/sessions/batch-delete", s.handleBatchDeleteSessions)
-		r.Get("/sessions/{id}/participants", s.handleGetParticipants)
-		r.Get("/sessions/{id}/laps", s.handleGetLaps)
-		r.Get("/sessions/{id}/classification", s.handleGetSessionClassification)
-		r.Get("/sessions/{id}/progression", s.handleGetSessionProgression)
-		r.Get("/sessions/{id}/stints", s.handleGetSessionStints)
-		r.Get("/sessions/{id}/export", s.handleExportSession)
-		r.Post("/sessions/export-batch", s.handleExportSessionBatch)
-		r.Get("/sessions/export-batch", s.handleExportSessionBatch)
-		r.Post("/sessions/import", s.handleImportSession)
-		r.Post("/sessions/batch-tags", s.handleBatchAssignTags)
-		r.Get("/laps/{id}/telemetry", s.handleGetTelemetry)
-		r.Get("/comparator/merge", s.handleComparatorMerge)
-
-		// Tag routes
-		r.Get("/tags", s.handleGetTags)
-		r.Post("/tags", s.handleCreateTag)
-		r.Put("/tags/{id}", s.handleUpdateTag)
-		r.Delete("/tags/{id}", s.handleDeleteTag)
-
-		// Session-Tag routes
-		r.Get("/sessions/{id}/tags", s.handleGetSessionTags)
-		r.Post("/sessions/{id}/tags", s.handleAddSessionTag)
-		r.Put("/sessions/{id}/tags", s.handleSetSessionTags)
-		r.Delete("/sessions/{id}/tags/{tagId}", s.handleRemoveSessionTag)
-
-		// AI Race Engineer routes
-		r.Post("/ai/chat", s.handleAIChat)
-		r.Get("/ai/config-status", s.handleAIConfigStatus)
-		r.Post("/ai/models", s.handleAIFetchModels)
-		r.Post("/ai/tts", s.handleAITTS)
-		r.Get("/ai/engineer/config", s.handleGetEngineerConfig)
-		r.Post("/ai/engineer/config", s.handleSetEngineerConfig)
-
-		// Global Push-to-Talk (PTT) routes
-		r.Get("/ai/ptt/config", s.handleGetPTTConfig)
-		r.Post("/ai/ptt/config", s.handleSetPTTConfig)
-		r.Post("/ai/ptt/learn", s.handleStartPTTLearn)
-		r.Post("/ai/ptt/learn/cancel", s.handleCancelPTTLearn)
-
-		// System & Version Updates routes
-		r.Get("/system/version", s.handleGetSystemVersion)
-		r.Get("/system/check-updates", s.handleCheckUpdates)
+		s.setupSessionRoutes(r)
+		s.setupComparatorRoutes(r)
+		s.setupAIRoutes(r)
+		s.setupSystemRoutes(r)
 	})
 
+	s.setupStaticRoutes()
+}
+
+func (s *Server) setupWebSocketRoutes() {
+	s.router.Get("/ws", s.handleWebSocket)
+	s.router.Get("/ws/engineer", s.handleEngineerWebSocket)
+}
+
+func (s *Server) setupSessionRoutes(r chi.Router) {
+	// Session routes
+	r.Get("/sessions", s.handleGetSessions)
+	r.Delete("/sessions/{id}", s.handleDeleteSession)
+	r.Post("/sessions/batch-delete", s.handleBatchDeleteSessions)
+	r.Get("/sessions/{id}/participants", s.handleGetParticipants)
+	r.Get("/sessions/{id}/laps", s.handleGetLaps)
+	r.Get("/sessions/{id}/classification", s.handleGetSessionClassification)
+	r.Get("/sessions/{id}/progression", s.handleGetSessionProgression)
+	r.Get("/sessions/{id}/stints", s.handleGetSessionStints)
+	r.Get("/sessions/{id}/export", s.handleExportSession)
+	r.Post("/sessions/export-batch", s.handleExportSessionBatch)
+	r.Get("/sessions/export-batch", s.handleExportSessionBatch)
+	r.Post("/sessions/import", s.handleImportSession)
+	r.Post("/sessions/batch-tags", s.handleBatchAssignTags)
+	r.Get("/laps/{id}/telemetry", s.handleGetTelemetry)
+
+	// Tag routes
+	r.Get("/tags", s.handleGetTags)
+	r.Post("/tags", s.handleCreateTag)
+	r.Put("/tags/{id}", s.handleUpdateTag)
+	r.Delete("/tags/{id}", s.handleDeleteTag)
+
+	// Session-Tag routes
+	r.Get("/sessions/{id}/tags", s.handleGetSessionTags)
+	r.Post("/sessions/{id}/tags", s.handleAddSessionTag)
+	r.Put("/sessions/{id}/tags", s.handleSetSessionTags)
+	r.Delete("/sessions/{id}/tags/{tagId}", s.handleRemoveSessionTag)
+}
+
+func (s *Server) setupComparatorRoutes(r chi.Router) {
+	r.Get("/comparator/merge", s.handleComparatorMerge)
+}
+
+func (s *Server) setupAIRoutes(r chi.Router) {
+	// AI Race Engineer routes
+	r.Post("/ai/chat", s.handleAIChat)
+	r.Get("/ai/config-status", s.handleAIConfigStatus)
+	r.Post("/ai/models", s.handleAIFetchModels)
+	r.Post("/ai/tts", s.handleAITTS)
+	r.Get("/ai/engineer/config", s.handleGetEngineerConfig)
+	r.Post("/ai/engineer/config", s.handleSetEngineerConfig)
+
+	// Global Push-to-Talk (PTT) routes
+	r.Get("/ai/ptt/config", s.handleGetPTTConfig)
+	r.Post("/ai/ptt/config", s.handleSetPTTConfig)
+	r.Post("/ai/ptt/learn", s.handleStartPTTLearn)
+	r.Post("/ai/ptt/learn/cancel", s.handleCancelPTTLearn)
+}
+
+func (s *Server) setupSystemRoutes(r chi.Router) {
+	r.Get("/system/version", s.handleGetSystemVersion)
+	r.Get("/system/check-updates", s.handleCheckUpdates)
+}
+
+func (s *Server) setupStaticRoutes() {
 	// Serve static files from embedded frontend (or custom staticFS) with SPA fallback
 	var distFS fs.FS
 	if s.staticFS != nil {
@@ -196,7 +227,7 @@ func (s *Server) routes() {
 		// 1. Try opening requested path in static filesystem
 		if f, err := distFS.Open(reqPath); err == nil {
 			stat, statErr := f.Stat()
-			f.Close()
+			_ = f.Close()
 			if statErr == nil && !stat.IsDir() {
 				if strings.HasPrefix(reqPath, "assets/") {
 					w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
@@ -226,14 +257,14 @@ func (s *Server) routes() {
 			return
 		}
 
-		http.Error(w, "F1 Telemetry Dashboard not found. Build the frontend with 'npm run build' inside frontend/ directory.", http.StatusNotFound)
+		writeJSONError(w, "F1 Telemetry Dashboard not found. Build the frontend with 'npm run build' inside frontend/ directory.", http.StatusNotFound)
 	})
 }
 
 func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("[WebSocket] Upgrade error: %v", err)
+		slog.Error("WebSocket upgrade error", "hub", "telemetry", "error", err)
 		return
 	}
 
@@ -247,7 +278,7 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleEngineerWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("[WebSocket] Engineer Upgrade error: %v", err)
+		slog.Error("WebSocket upgrade error", "hub", "engineer", "error", err)
 		return
 	}
 
@@ -261,60 +292,56 @@ func (s *Server) handleEngineerWebSocket(w http.ResponseWriter, r *http.Request)
 func (s *Server) handleGetSessions(w http.ResponseWriter, r *http.Request) {
 	sessions, err := s.repo.GetSessions(r.Context())
 	if err != nil {
-		http.Error(w, "Failed to get sessions", http.StatusInternalServerError)
+		writeJSONError(w, "Failed to get sessions", http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(sessions)
+	writeJSON(w, http.StatusOK, sessions)
 }
 
 func (s *Server) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
 	sessionIDStr := chi.URLParam(r, "id")
 	sessionID, err := strconv.ParseInt(sessionIDStr, 10, 64)
 	if err != nil {
-		http.Error(w, "Invalid session ID", http.StatusBadRequest)
+		writeJSONError(w, "Invalid session ID", http.StatusBadRequest)
 		return
 	}
 
 	if err := s.repo.DeleteSession(r.Context(), sessionID); err != nil {
 		if errors.Is(err, storage.ErrSessionNotFound) {
-			http.Error(w, "Session not found", http.StatusNotFound)
+			writeJSONError(w, "Session not found", http.StatusNotFound)
 			return
 		}
-		log.Printf("Error deleting session %d: %v", sessionID, err)
-		http.Error(w, "Failed to delete session", http.StatusInternalServerError)
+		slog.Error("Failed to delete session", "sessionID", sessionID, "error", err)
+		writeJSONError(w, "Failed to delete session", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(`{"status":"success"}`))
+	writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
 }
 
 func (s *Server) handleGetParticipants(w http.ResponseWriter, r *http.Request) {
 	sessionIDStr := chi.URLParam(r, "id")
 	sessionID, err := strconv.ParseInt(sessionIDStr, 10, 64)
 	if err != nil {
-		http.Error(w, "Invalid session ID", http.StatusBadRequest)
+		writeJSONError(w, "Invalid session ID", http.StatusBadRequest)
 		return
 	}
 
 	participants, err := s.repo.GetParticipantsBySession(r.Context(), sessionID)
 	if err != nil {
-		log.Printf("Error getting participants: %v", err)
-		http.Error(w, "Failed to get participants", http.StatusInternalServerError)
+		slog.Error("Failed to get participants", "sessionID", sessionID, "error", err)
+		writeJSONError(w, "Failed to get participants", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(participants)
+	writeJSON(w, http.StatusOK, participants)
 }
 
 func (s *Server) handleGetLaps(w http.ResponseWriter, r *http.Request) {
 	sessionIDStr := chi.URLParam(r, "id")
 	sessionID, err := strconv.ParseInt(sessionIDStr, 10, 64)
 	if err != nil {
-		http.Error(w, "Invalid session ID", http.StatusBadRequest)
+		writeJSONError(w, "Invalid session ID", http.StatusBadRequest)
 		return
 	}
 
@@ -327,24 +354,23 @@ func (s *Server) handleGetLaps(w http.ResponseWriter, r *http.Request) {
 
 	laps, err := s.repo.GetLapsBySession(r.Context(), sessionID, carIndex)
 	if err != nil {
-		http.Error(w, "Failed to get laps", http.StatusInternalServerError)
+		writeJSONError(w, "Failed to get laps", http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(laps)
+	writeJSON(w, http.StatusOK, laps)
 }
 
 func (s *Server) handleGetTelemetry(w http.ResponseWriter, r *http.Request) {
 	lapIDStr := chi.URLParam(r, "id")
 	lapID, err := strconv.ParseInt(lapIDStr, 10, 64)
 	if err != nil {
-		http.Error(w, "Invalid lap ID", http.StatusBadRequest)
+		writeJSONError(w, "Invalid lap ID", http.StatusBadRequest)
 		return
 	}
 
 	telemetry, err := s.repo.GetTelemetryByLap(r.Context(), lapID)
 	if err != nil {
-		http.Error(w, "Failed to get telemetry", http.StatusInternalServerError)
+		writeJSONError(w, "Failed to get telemetry", http.StatusInternalServerError)
 		return
 	}
 
@@ -357,8 +383,7 @@ func (s *Server) handleGetTelemetry(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(telemetry)
+	writeJSON(w, http.StatusOK, telemetry)
 }
 
 // Tag request payloads
@@ -380,24 +405,23 @@ type setSessionTagsRequest struct {
 func (s *Server) handleGetTags(w http.ResponseWriter, r *http.Request) {
 	tags, err := s.repo.GetAllTags(r.Context())
 	if err != nil {
-		http.Error(w, "Failed to get tags", http.StatusInternalServerError)
+		writeJSONError(w, "Failed to get tags", http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(tags)
+	writeJSON(w, http.StatusOK, tags)
 }
 
 func (s *Server) handleCreateTag(w http.ResponseWriter, r *http.Request) {
 	var req createTagRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		writeJSONError(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
 
 	name := strings.TrimSpace(req.Name)
 	color := strings.TrimSpace(req.Color)
 	if name == "" {
-		http.Error(w, "Tag name is required", http.StatusBadRequest)
+		writeJSONError(w, "Tag name is required", http.StatusBadRequest)
 		return
 	}
 	if color == "" {
@@ -410,34 +434,32 @@ func (s *Server) handleCreateTag(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.repo.CreateTag(r.Context(), &tag); err != nil {
-		log.Printf("Error creating tag: %v", err)
-		http.Error(w, "Failed to create tag", http.StatusInternalServerError)
+		slog.Error("Failed to create tag", "error", err)
+		writeJSONError(w, "Failed to create tag", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(tag)
+	writeJSON(w, http.StatusCreated, tag)
 }
 
 func (s *Server) handleUpdateTag(w http.ResponseWriter, r *http.Request) {
 	tagIDStr := chi.URLParam(r, "id")
 	tagID, err := strconv.ParseInt(tagIDStr, 10, 64)
 	if err != nil {
-		http.Error(w, "Invalid tag ID", http.StatusBadRequest)
+		writeJSONError(w, "Invalid tag ID", http.StatusBadRequest)
 		return
 	}
 
 	var req createTagRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		writeJSONError(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
 
 	name := strings.TrimSpace(req.Name)
 	color := strings.TrimSpace(req.Color)
 	if name == "" {
-		http.Error(w, "Tag name is required", http.StatusBadRequest)
+		writeJSONError(w, "Tag name is required", http.StatusBadRequest)
 		return
 	}
 	if color == "" {
@@ -452,71 +474,67 @@ func (s *Server) handleUpdateTag(w http.ResponseWriter, r *http.Request) {
 
 	if err := s.repo.UpdateTag(r.Context(), &tag); err != nil {
 		if errors.Is(err, storage.ErrTagNotFound) {
-			http.Error(w, "Tag not found", http.StatusNotFound)
+			writeJSONError(w, "Tag not found", http.StatusNotFound)
 			return
 		}
-		log.Printf("Error updating tag %d: %v", tagID, err)
-		http.Error(w, "Failed to update tag", http.StatusInternalServerError)
+		slog.Error("Failed to update tag", "tagID", tagID, "error", err)
+		writeJSONError(w, "Failed to update tag", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(tag)
+	writeJSON(w, http.StatusOK, tag)
 }
 
 func (s *Server) handleDeleteTag(w http.ResponseWriter, r *http.Request) {
 	tagIDStr := chi.URLParam(r, "id")
 	tagID, err := strconv.ParseInt(tagIDStr, 10, 64)
 	if err != nil {
-		http.Error(w, "Invalid tag ID", http.StatusBadRequest)
+		writeJSONError(w, "Invalid tag ID", http.StatusBadRequest)
 		return
 	}
 
 	if err := s.repo.DeleteTag(r.Context(), tagID); err != nil {
 		if errors.Is(err, storage.ErrTagNotFound) {
-			http.Error(w, "Tag not found", http.StatusNotFound)
+			writeJSONError(w, "Tag not found", http.StatusNotFound)
 			return
 		}
-		log.Printf("Error deleting tag %d: %v", tagID, err)
-		http.Error(w, "Failed to delete tag", http.StatusInternalServerError)
+		slog.Error("Failed to delete tag", "tagID", tagID, "error", err)
+		writeJSONError(w, "Failed to delete tag", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(`{"status":"success"}`))
+	writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
 }
 
 func (s *Server) handleGetSessionTags(w http.ResponseWriter, r *http.Request) {
 	sessionIDStr := chi.URLParam(r, "id")
 	sessionID, err := strconv.ParseInt(sessionIDStr, 10, 64)
 	if err != nil {
-		http.Error(w, "Invalid session ID", http.StatusBadRequest)
+		writeJSONError(w, "Invalid session ID", http.StatusBadRequest)
 		return
 	}
 
 	tags, err := s.repo.GetTagsBySession(r.Context(), sessionID)
 	if err != nil {
-		log.Printf("Error getting session tags: %v", err)
-		http.Error(w, "Failed to get session tags", http.StatusInternalServerError)
+		slog.Error("Failed to get session tags", "sessionID", sessionID, "error", err)
+		writeJSONError(w, "Failed to get session tags", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(tags)
+	writeJSON(w, http.StatusOK, tags)
 }
 
 func (s *Server) handleAddSessionTag(w http.ResponseWriter, r *http.Request) {
 	sessionIDStr := chi.URLParam(r, "id")
 	sessionID, err := strconv.ParseInt(sessionIDStr, 10, 64)
 	if err != nil {
-		http.Error(w, "Invalid session ID", http.StatusBadRequest)
+		writeJSONError(w, "Invalid session ID", http.StatusBadRequest)
 		return
 	}
 
 	var req addSessionTagRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		writeJSONError(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
 
@@ -524,7 +542,7 @@ func (s *Server) handleAddSessionTag(w http.ResponseWriter, r *http.Request) {
 	if tagID == 0 {
 		name := strings.TrimSpace(req.Name)
 		if name == "" {
-			http.Error(w, "Tag ID or Tag Name is required", http.StatusBadRequest)
+			writeJSONError(w, "Tag ID or Tag Name is required", http.StatusBadRequest)
 			return
 		}
 		color := strings.TrimSpace(req.Color)
@@ -536,41 +554,39 @@ func (s *Server) handleAddSessionTag(w http.ResponseWriter, r *http.Request) {
 			Color: color,
 		}
 		if err := s.repo.CreateTag(r.Context(), &tag); err != nil {
-			log.Printf("Error creating tag on demand: %v", err)
-			http.Error(w, "Failed to create tag", http.StatusInternalServerError)
+			slog.Error("Failed to create tag on demand", "error", err)
+			writeJSONError(w, "Failed to create tag", http.StatusInternalServerError)
 			return
 		}
 		tagID = tag.ID
 	}
 
 	if err := s.repo.AddTagToSession(r.Context(), sessionID, tagID); err != nil {
-		log.Printf("Error adding tag to session: %v", err)
-		http.Error(w, "Failed to add tag to session", http.StatusInternalServerError)
+		slog.Error("Failed to add tag to session", "sessionID", sessionID, "tagID", tagID, "error", err)
+		writeJSONError(w, "Failed to add tag to session", http.StatusInternalServerError)
 		return
 	}
 
 	tags, err := s.repo.GetTagsBySession(r.Context(), sessionID)
 	if err != nil {
-		http.Error(w, "Failed to retrieve updated tags", http.StatusInternalServerError)
+		writeJSONError(w, "Failed to retrieve updated tags", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(tags)
+	writeJSON(w, http.StatusOK, tags)
 }
 
 func (s *Server) handleSetSessionTags(w http.ResponseWriter, r *http.Request) {
 	sessionIDStr := chi.URLParam(r, "id")
 	sessionID, err := strconv.ParseInt(sessionIDStr, 10, 64)
 	if err != nil {
-		http.Error(w, "Invalid session ID", http.StatusBadRequest)
+		writeJSONError(w, "Invalid session ID", http.StatusBadRequest)
 		return
 	}
 
 	var req setSessionTagsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		writeJSONError(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
 
@@ -579,50 +595,48 @@ func (s *Server) handleSetSessionTags(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := s.repo.SetSessionTags(r.Context(), sessionID, req.TagIDs); err != nil {
-		log.Printf("Error setting session tags: %v", err)
-		http.Error(w, "Failed to set session tags", http.StatusInternalServerError)
+		slog.Error("Failed to set session tags", "sessionID", sessionID, "error", err)
+		writeJSONError(w, "Failed to set session tags", http.StatusInternalServerError)
 		return
 	}
 
 	tags, err := s.repo.GetTagsBySession(r.Context(), sessionID)
 	if err != nil {
-		http.Error(w, "Failed to retrieve updated tags", http.StatusInternalServerError)
+		writeJSONError(w, "Failed to retrieve updated tags", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(tags)
+	writeJSON(w, http.StatusOK, tags)
 }
 
 func (s *Server) handleRemoveSessionTag(w http.ResponseWriter, r *http.Request) {
 	sessionIDStr := chi.URLParam(r, "id")
 	sessionID, err := strconv.ParseInt(sessionIDStr, 10, 64)
 	if err != nil {
-		http.Error(w, "Invalid session ID", http.StatusBadRequest)
+		writeJSONError(w, "Invalid session ID", http.StatusBadRequest)
 		return
 	}
 
 	tagIDStr := chi.URLParam(r, "tagId")
 	tagID, err := strconv.ParseInt(tagIDStr, 10, 64)
 	if err != nil {
-		http.Error(w, "Invalid tag ID", http.StatusBadRequest)
+		writeJSONError(w, "Invalid tag ID", http.StatusBadRequest)
 		return
 	}
 
 	if err := s.repo.RemoveTagFromSession(r.Context(), sessionID, tagID); err != nil {
-		log.Printf("Error removing tag %d from session %d: %v", tagID, sessionID, err)
-		http.Error(w, "Failed to remove tag from session", http.StatusInternalServerError)
+		slog.Error("Failed to remove tag from session", "sessionID", sessionID, "tagID", tagID, "error", err)
+		writeJSONError(w, "Failed to remove tag from session", http.StatusInternalServerError)
 		return
 	}
 
 	tags, err := s.repo.GetTagsBySession(r.Context(), sessionID)
 	if err != nil {
-		http.Error(w, "Failed to retrieve updated tags", http.StatusInternalServerError)
+		writeJSONError(w, "Failed to retrieve updated tags", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(tags)
+	writeJSON(w, http.StatusOK, tags)
 }
 
 func sanitizeFilename(s string) string {
@@ -671,20 +685,20 @@ func (s *Server) handleExportSession(w http.ResponseWriter, r *http.Request) {
 	sessionIDStr := chi.URLParam(r, "id")
 	sessionID, err := strconv.ParseInt(sessionIDStr, 10, 64)
 	if err != nil {
-		http.Error(w, "Invalid session ID", http.StatusBadRequest)
+		writeJSONError(w, "Invalid session ID", http.StatusBadRequest)
 		return
 	}
 
 	pkg, err := s.repo.ExportSession(r.Context(), sessionID)
 	if err != nil {
-		log.Printf("Error exporting session %d: %v", sessionID, err)
-		http.Error(w, "Failed to export session", http.StatusInternalServerError)
+		slog.Error("Failed to export session", "sessionID", sessionID, "error", err)
+		writeJSONError(w, "Failed to export session", http.StatusInternalServerError)
 		return
 	}
 
 	compressed, filename, err := marshalAndCompressSessionPackage(pkg, 0)
 	if err != nil {
-		http.Error(w, "Failed to encode session package", http.StatusInternalServerError)
+		writeJSONError(w, "Failed to encode session package", http.StatusInternalServerError)
 		return
 	}
 
@@ -717,7 +731,7 @@ func (s *Server) handleExportSessionBatch(w http.ResponseWriter, r *http.Request
 	}
 
 	if len(sessionIDs) == 0 {
-		http.Error(w, "No session IDs provided for export", http.StatusBadRequest)
+		writeJSONError(w, "No session IDs provided for export", http.StatusBadRequest)
 		return
 	}
 
@@ -728,24 +742,24 @@ func (s *Server) handleExportSessionBatch(w http.ResponseWriter, r *http.Request
 	for _, id := range sessionIDs {
 		pkg, err := s.repo.ExportSession(r.Context(), id)
 		if err != nil {
-			log.Printf("Failed to export session %d for batch: %v", id, err)
+			slog.Warn("Failed to export session for batch", "sessionID", id, "error", err)
 			continue
 		}
 
 		compressed, filename, err := marshalAndCompressSessionPackage(pkg, id)
 		if err != nil {
-			log.Printf("Failed to marshal exported package for session %d: %v", id, err)
+			slog.Warn("Failed to marshal exported package for session", "sessionID", id, "error", err)
 			continue
 		}
 
 		f, err := zw.Create(filename)
 		if err != nil {
-			log.Printf("Failed to create zip entry for session %d: %v", id, err)
+			slog.Warn("Failed to create zip entry for session", "sessionID", id, "error", err)
 			continue
 		}
 
 		if _, err := f.Write(compressed); err != nil {
-			log.Printf("Failed to write compressed data into zip for session %d: %v", id, err)
+			slog.Warn("Failed to write compressed data into zip for session", "sessionID", id, "error", err)
 			continue
 		}
 
@@ -753,12 +767,12 @@ func (s *Server) handleExportSessionBatch(w http.ResponseWriter, r *http.Request
 	}
 
 	if err := zw.Close(); err != nil {
-		http.Error(w, "Failed to finalize zip archive", http.StatusInternalServerError)
+		writeJSONError(w, "Failed to finalize zip archive", http.StatusInternalServerError)
 		return
 	}
 
 	if exportedCount == 0 {
-		http.Error(w, "No valid sessions found to export", http.StatusNotFound)
+		writeJSONError(w, "No valid sessions found to export", http.StatusNotFound)
 		return
 	}
 
@@ -822,7 +836,7 @@ func (s *Server) handleImportSession(w http.ResponseWriter, r *http.Request) {
 	contentType := r.Header.Get("Content-Type")
 	if strings.HasPrefix(contentType, "multipart/form-data") {
 		if err := r.ParseMultipartForm(MaxImportPayloadSize); err != nil {
-			http.Error(w, "Failed to parse multipart form", http.StatusBadRequest)
+			writeJSONError(w, "Failed to parse multipart form", http.StatusBadRequest)
 			return
 		}
 		if r.MultipartForm != nil && r.MultipartForm.File != nil {
@@ -844,7 +858,7 @@ func (s *Server) handleImportSession(w http.ResponseWriter, r *http.Request) {
 	} else {
 		data, err := io.ReadAll(r.Body)
 		if err != nil {
-			http.Error(w, "Failed to read request body", http.StatusBadRequest)
+			writeJSONError(w, "Failed to read request body", http.StatusBadRequest)
 			return
 		}
 		if len(data) > 0 {
@@ -853,7 +867,7 @@ func (s *Server) handleImportSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(items) == 0 {
-		http.Error(w, "Empty file payload", http.StatusBadRequest)
+		writeJSONError(w, "Empty file payload", http.StatusBadRequest)
 		return
 	}
 
@@ -863,7 +877,7 @@ func (s *Server) handleImportSession(w http.ResponseWriter, r *http.Request) {
 		if bytes.HasPrefix(item.data, ZipMagicHeader) || strings.HasSuffix(strings.ToLower(item.name), ".zip") {
 			zr, err := zip.NewReader(bytes.NewReader(item.data), int64(len(item.data)))
 			if err != nil {
-				log.Printf("Error opening zip archive %s: %v", item.name, err)
+				slog.Warn("Failed to open zip archive", "file", item.name, "error", err)
 				continue
 			}
 			for _, zf := range zr.File {
@@ -889,7 +903,7 @@ func (s *Server) handleImportSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(sessionFiles) == 0 {
-		http.Error(w, "No valid session files found in payload", http.StatusBadRequest)
+		writeJSONError(w, "No valid session files found in payload", http.StatusBadRequest)
 		return
 	}
 
@@ -946,16 +960,13 @@ func (s *Server) handleImportSession(w http.ResponseWriter, r *http.Request) {
 		resp.SessionID = resp.SessionIDs[0]
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	switch {
-	case resp.Total == 1 && resp.Imported == 1:
-		w.WriteHeader(http.StatusCreated)
-	case resp.Imported > 0, resp.Skipped > 0:
-		w.WriteHeader(http.StatusOK)
-	default:
-		w.WriteHeader(http.StatusBadRequest)
+	statusCode := http.StatusOK
+	if resp.Total == 1 && resp.Imported == 1 {
+		statusCode = http.StatusCreated
+	} else if resp.Imported == 0 && resp.Skipped == 0 {
+		statusCode = http.StatusBadRequest
 	}
-	_ = json.NewEncoder(w).Encode(resp)
+	writeJSON(w, statusCode, resp)
 }
 
 // BatchDeleteRequest defines payload for deleting multiple sessions.
@@ -966,25 +977,23 @@ type BatchDeleteRequest struct {
 func (s *Server) handleBatchDeleteSessions(w http.ResponseWriter, r *http.Request) {
 	var req BatchDeleteRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		writeJSONError(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
 
 	if len(req.SessionIDs) == 0 {
-		http.Error(w, "No session IDs specified for deletion", http.StatusBadRequest)
+		writeJSONError(w, "No session IDs specified for deletion", http.StatusBadRequest)
 		return
 	}
 
 	deletedCount, err := s.repo.DeleteSessions(r.Context(), req.SessionIDs)
 	if err != nil {
-		log.Printf("Error deleting sessions batch: %v", err)
-		http.Error(w, "Failed to delete sessions", http.StatusInternalServerError)
+		slog.Error("Failed to delete sessions batch", "error", err)
+		writeJSONError(w, "Failed to delete sessions", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(map[string]any{
+	writeJSON(w, http.StatusOK, map[string]any{
 		"status":        "success",
 		"deleted_count": deletedCount,
 	})
@@ -999,24 +1008,22 @@ type BatchTagsRequest struct {
 func (s *Server) handleBatchAssignTags(w http.ResponseWriter, r *http.Request) {
 	var req BatchTagsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request payload", http.StatusBadRequest)
+		writeJSONError(w, "Invalid request payload", http.StatusBadRequest)
 		return
 	}
 
 	if len(req.SessionIDs) == 0 || req.TagID <= 0 {
-		http.Error(w, "Session IDs and valid Tag ID are required", http.StatusBadRequest)
+		writeJSONError(w, "Session IDs and valid Tag ID are required", http.StatusBadRequest)
 		return
 	}
 
 	if err := s.repo.AddTagToSessions(r.Context(), req.SessionIDs, req.TagID); err != nil {
-		log.Printf("Error assigning tag %d to sessions: %v", req.TagID, err)
-		http.Error(w, "Failed to assign tags to sessions", http.StatusInternalServerError)
+		slog.Error("Failed to assign tags to sessions", "tagID", req.TagID, "error", err)
+		writeJSONError(w, "Failed to assign tags to sessions", http.StatusInternalServerError)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(map[string]any{
+	writeJSON(w, http.StatusOK, map[string]any{
 		"status": "success",
 	})
 }
@@ -1028,22 +1035,19 @@ func (s *Server) handleGetEngineerConfig(w http.ResponseWriter, r *http.Request)
 	} else {
 		cfg = DefaultEngineerConfig()
 	}
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(cfg)
+	writeJSON(w, http.StatusOK, cfg)
 }
 
 func (s *Server) handleSetEngineerConfig(w http.ResponseWriter, r *http.Request) {
 	var req EngineerConfig
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, fmt.Sprintf("Invalid config payload: %v", err), http.StatusBadRequest)
+		writeJSONError(w, fmt.Sprintf("Invalid config payload: %v", err), http.StatusBadRequest)
 		return
 	}
 	if s.engineerEngine != nil {
 		s.engineerEngine.SetConfig(req)
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(map[string]any{
+	writeJSON(w, http.StatusOK, map[string]any{
 		"status": "success",
 		"config": req,
 	})

@@ -3,7 +3,7 @@ package session
 import (
 	"context"
 	"encoding/json"
-	"log"
+	"log/slog"
 	"strings"
 	"sync"
 
@@ -127,7 +127,7 @@ func (sm *SessionManager) ProcessPacket(ctx context.Context, pkt packets.Packet)
 
 func (sm *SessionManager) handleNewSession(ctx context.Context, header packets.PacketHeader) {
 	uidHex := storage.FormatSessionUID(header.SessionUID)
-	log.Printf("[Session] New session detected: %s (raw %d)", uidHex, header.SessionUID)
+	slog.Info("New session detected", "sessionUID", uidHex, "rawUID", header.SessionUID, "packetFormat", header.PacketFormat)
 
 	// Flush in-flight samples from the previous session
 	if sm.batchWriter != nil {
@@ -157,7 +157,7 @@ func (sm *SessionManager) handleNewSession(ctx context.Context, header packets.P
 	}
 
 	if err := sm.repo.SaveSession(ctx, sm.currentSession); err != nil {
-		log.Printf("[Session] Error saving new session: %v", err)
+		slog.Error("Failed to save new session", "sessionUID", uidHex, "error", err)
 	}
 }
 
@@ -207,7 +207,7 @@ func (sm *SessionManager) updateSessionInfo(ctx context.Context, p *packets.Pack
 	}
 
 	if err := sm.repo.UpdateSessionMetadata(ctx, uidHex, int(p.TrackId), trackName, sessionType, weatherStr, forecastJSON, totalLaps, aiDifficulty, sessionDuration); err != nil {
-		log.Printf("[Session] Error updating session metadata: %v", err)
+		slog.Error("Failed to update session metadata", "sessionUID", uidHex, "error", err)
 	}
 }
 
@@ -262,7 +262,7 @@ func (sm *SessionManager) handleParticipantsData(ctx context.Context, p *packets
 	}
 
 	if err := sm.repo.SaveParticipants(ctx, sm.currentSession.ID, participants); err != nil {
-		log.Printf("[Session] Error saving participants: %v", err)
+		slog.Error("Failed to save participants", "sessionID", sm.currentSession.ID, "error", err)
 	}
 }
 

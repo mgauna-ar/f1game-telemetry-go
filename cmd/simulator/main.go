@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"flag"
 	"fmt"
-	"log"
+	"log/slog"
 	"math"
 	"net"
 	"os"
@@ -187,12 +187,14 @@ func main() {
 
 	udpAddr, err := net.ResolveUDPAddr("udp", cfg.TargetAddr)
 	if err != nil {
-		log.Fatalf("Failed to resolve target address %s: %v", cfg.TargetAddr, err)
+		slog.Error("Failed to resolve target address", "targetAddr", cfg.TargetAddr, "error", err)
+		os.Exit(1)
 	}
 
 	conn, err := net.DialUDP("udp", nil, udpAddr)
 	if err != nil {
-		log.Fatalf("Failed to dial UDP: %v", err)
+		slog.Error("Failed to dial UDP", "error", err)
+		os.Exit(1)
 	}
 	defer conn.Close()
 
@@ -339,12 +341,12 @@ func buildSessionPacket(cfg SimulatorConfig, st *simState, header packets.Packet
 	scMode := uint8(0)
 	if (cfg.Scenario == "sc" || cfg.Scenario == "safetycar") && st.sessionTime >= 4.0 && st.sessionTime < 60.0 {
 		if st.sessionTime >= 4.0 && st.sessionTime < 4.1 {
-			log.Println("[Simulator Scenario: SC] Full Safety Car deployed!")
+			slog.Info("Full Safety Car deployed", "scenario", "sc")
 		}
 		scMode = packets.SafetyCarFull
 	} else if cfg.Scenario == "vsc" && st.sessionTime >= 4.0 && st.sessionTime < 60.0 {
 		if st.sessionTime >= 4.0 && st.sessionTime < 4.1 {
-			log.Println("[Simulator Scenario: VSC] Virtual Safety Car deployed!")
+			slog.Info("Virtual Safety Car deployed", "scenario", "vsc")
 		}
 		scMode = packets.SafetyCarVirtual
 	}
@@ -373,7 +375,7 @@ func buildSessionPacket(cfg SimulatorConfig, st *simState, header packets.Packet
 	timeOffsetSample1 := uint8(5)
 	if cfg.Scenario == "rain" {
 		if st.sessionTime >= 2.0 && st.sessionTime < 2.1 {
-			log.Println("[Simulator Scenario: Rain] Rain forecast injected: 85% probability in 2 minutes!")
+			slog.Info("Rain forecast injected", "scenario", "rain", "probability", "85%", "timeToRain", "2m")
 		}
 		rainPctSample1 = 85
 		timeOffsetSample1 = 2
@@ -662,7 +664,7 @@ func buildCarDamageCars(cfg SimulatorConfig, st *simState) []packets.CarDamageDa
 		rrWear := baseWear * 0.92
 
 		if i == 0 && (cfg.Scenario == "wear" || cfg.Scenario == "tyre-wear") && st.frameID%100 == 0 {
-			log.Printf("[Simulator Scenario: %s] Player tyre wear: FL=%.1f%%, FR=%.1f%% (time: %.1fs)", cfg.Scenario, flWear, frWear, st.sessionTime)
+			slog.Info("Player tyre wear update", "scenario", cfg.Scenario, "flWear", flWear, "frWear", frWear, "sessionTime", st.sessionTime)
 		}
 
 		var drsFault, ersFault, blown, seized uint8

@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -377,8 +377,7 @@ func comparePreRelease(pre1, pre2 string) int {
 // HTTP Handlers
 
 func (s *Server) handleGetSystemVersion(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(GetAppVersion())
+	writeJSON(w, http.StatusOK, GetAppVersion())
 }
 
 func (s *Server) handleCheckUpdates(w http.ResponseWriter, r *http.Request) {
@@ -396,16 +395,14 @@ func (s *Server) handleCheckUpdates(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := CheckForUpdates(r.Context(), repo, ver.Version, includePrerelease)
 	if err != nil {
-		log.Printf("[Updater] Update check failed for repo %q: %v", repo, err)
+		slog.Warn("Update check failed", "repo", repo, "error", err)
 		// Return 200 with update_available: false on network/offline errors to avoid breaking UI
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(UpdateCheckResponse{
+		writeJSON(w, http.StatusOK, UpdateCheckResponse{
 			UpdateAvailable: false,
 			CurrentVersion:  ver.Version,
 		})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(resp)
+	writeJSON(w, http.StatusOK, resp)
 }

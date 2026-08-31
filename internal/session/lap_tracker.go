@@ -2,7 +2,7 @@ package session
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"sync"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
@@ -121,8 +121,7 @@ func (lt *LapTracker) ProcessTyreSets(p *packets.PacketTyreSetsData) {
 		if lt.stintIncrementedInLap != lt.currentLapNum {
 			lt.currentStintNum++
 			lt.stintIncrementedInLap = lt.currentLapNum
-			log.Printf("[LapTracker] Stint %d detected via PacketTyreSets for Car %d (FittedSet %d -> %d, Compound: %s)",
-				lt.currentStintNum, lt.carIndex, lt.lastFittedTyreSetIdx, fittedIdx, newComp)
+			slog.Info("Stint detected via PacketTyreSets", "stint", lt.currentStintNum, "carIndex", lt.carIndex, "fittedSet", fittedIdx, "prevFittedSet", lt.lastFittedTyreSetIdx, "compound", newComp)
 		}
 	}
 	lt.lastFittedTyreSetIdx = fittedIdx
@@ -171,7 +170,7 @@ func (lt *LapTracker) ProcessCarStatus(p *packets.PacketCarStatusData) {
 	if tyreChanged && lt.stintIncrementedInLap != lt.currentLapNum {
 		lt.currentStintNum++
 		lt.stintIncrementedInLap = lt.currentLapNum
-		log.Printf("[LapTracker] Stint %d detected for Car %d (Compound: %s, Tyre Age: %d -> %d)", lt.currentStintNum, lt.carIndex, newComp, lt.lastTyreAge, tyreAge)
+		slog.Info("Stint detected", "stint", lt.currentStintNum, "carIndex", lt.carIndex, "compound", newComp, "prevTyreAge", lt.lastTyreAge, "tyreAge", tyreAge)
 	}
 
 	lt.lastTyreAge = tyreAge
@@ -250,13 +249,13 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 	if pitStops > lt.lastPitStops && lt.stintIncrementedInLap != newLapNum {
 		lt.currentStintNum++
 		lt.stintIncrementedInLap = newLapNum
-		log.Printf("[LapTracker] Pit stop detected for Car %d (Stint %d, pit stops %d -> %d)", lt.carIndex, lt.currentStintNum, lt.lastPitStops, pitStops)
+		slog.Info("Pit stop detected", "carIndex", lt.carIndex, "stint", lt.currentStintNum, "prevPitStops", lt.lastPitStops, "pitStops", pitStops)
 	}
 	lt.lastPitStops = pitStops
 
 	// Case 2: Session restarted or rewound in game (Flashback / restart session)
 	if newLapNum < lt.currentLapNum {
-		log.Printf("[LapTracker] Session reset detected for Car %d (Lap %d -> Lap %d)", lt.carIndex, lt.currentLapNum, newLapNum)
+		slog.Info("Session reset detected", "carIndex", lt.carIndex, "prevLap", lt.currentLapNum, "newLap", newLapNum)
 		lt.currentLap = nil
 		lt.mu.Lock()
 		lt.sampleBuffer = lt.sampleBuffer[:0]
@@ -284,7 +283,7 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 
 	// Case 4: Unexpected jump in lap number (> +1)
 	if newLapNum > lt.currentLapNum+1 {
-		log.Printf("[LapTracker] Lap jump detected for Car %d (Lap %d -> Lap %d), re-syncing", lt.carIndex, lt.currentLapNum, newLapNum)
+		slog.Info("Lap jump detected, re-syncing", "carIndex", lt.carIndex, "prevLap", lt.currentLapNum, "newLap", newLapNum)
 		lt.currentLap = nil
 		lt.mu.Lock()
 		lt.sampleBuffer = lt.sampleBuffer[:0]
@@ -297,7 +296,7 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 	if lt.currentLap != nil {
 		// Detect distance reset/restart during the same lap number (e.g. flashback or garage reset)
 		if prevDistance > 500 && (currDistance < 100 || currDistance < prevDistance*0.3) {
-			log.Printf("[LapTracker] Lap restart detected for Car %d on Lap %d (distance %.1fm -> %.1fm). Purging in-memory telemetry.", lt.carIndex, lt.currentLapNum, prevDistance, currDistance)
+			slog.Info("Lap restart detected", "carIndex", lt.carIndex, "lap", lt.currentLapNum, "prevDistance", prevDistance, "currDistance", currDistance)
 			lt.mu.Lock()
 			lt.sampleBuffer = lt.sampleBuffer[:0]
 			lt.mu.Unlock()
@@ -305,7 +304,7 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 				_ = lt.repo.DeleteTelemetryByLap(ctx, lt.currentLap.ID)
 			}
 		} else if prevDistance < 0 && currDistance >= 0 && lt.currentLapNum == 1 {
-			log.Printf("[LapTracker] Out-lap to flying lap start line crossing detected for Car %d on Lap 1 (distance %.1fm -> %.1fm). Purging out-lap buffer.", lt.carIndex, prevDistance, currDistance)
+			slog.Info("Out-lap to flying lap transition detected", "carIndex", lt.carIndex, "prevDistance", prevDistance, "currDistance", currDistance)
 			lt.mu.Lock()
 			lt.sampleBuffer = lt.sampleBuffer[:0]
 			lt.mu.Unlock()
@@ -535,7 +534,7 @@ func (lt *LapTracker) startNewLap(ctx context.Context, sessionID int64, lapNum, 
 	lt.mu.Unlock()
 
 	if err := lt.repo.SaveLap(ctx, lt.currentLap, false); err != nil {
-		log.Printf("[LapTracker] Error starting new lap: %v", err)
+		slog.Error("Failed to start new lap", "lapNumber", lt.currentLap.LapNumber, "carIndex", lt.carIndex, "error", err)
 	}
 }
 
@@ -549,7 +548,7 @@ func (lt *LapTracker) finalizeCurrentLap(ctx context.Context, lapTimeMS int) {
 		storage.DeriveSector3(lt.currentLap)
 
 		if err := lt.repo.SaveLap(ctx, lt.currentLap, false); err != nil {
-			log.Printf("[LapTracker] Error finalizing lap: %v", err)
+			slog.Error("Failed to finalize lap", "lapNumber", lt.currentLap.LapNumber, "carIndex", lt.carIndex, "error", err)
 		}
 
 		// Enqueue the lap's samples into the asynchronous batch writer
@@ -560,8 +559,8 @@ func (lt *LapTracker) finalizeCurrentLap(ctx context.Context, lapTimeMS int) {
 		}
 		lt.mu.Unlock()
 
-		log.Printf("[LapTracker] Lap %d completed in %d ms (Car %d)", lt.currentLap.LapNumber, lapTimeMS, lt.carIndex)
+		slog.Info("Lap completed", "lapNumber", lt.currentLap.LapNumber, "lapTimeMS", lapTimeMS, "carIndex", lt.carIndex)
 	} else {
-		log.Printf("[LapTracker] Lap %d ended without valid lap time (Car %d)", lt.currentLap.LapNumber, lt.carIndex)
+		slog.Info("Lap ended without valid lap time", "lapNumber", lt.currentLap.LapNumber, "carIndex", lt.carIndex)
 	}
 }

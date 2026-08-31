@@ -10,27 +10,89 @@ import (
 )
 
 func TestHandleAIConfigStatus(t *testing.T) {
-	server, _ := setupTestServer(t)
+	t.Run("default empty config", func(t *testing.T) {
+		server, _ := setupTestServer(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/ai/config-status", http.NoBody)
-	rec := httptest.NewRecorder()
-	server.router.ServeHTTP(rec, req)
+		req := httptest.NewRequest(http.MethodGet, "/api/ai/config-status", http.NoBody)
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected status 200, got %d", rec.Code)
-	}
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected status 200, got %d", rec.Code)
+		}
 
-	var status AIConfigStatusResponse
-	if err := json.NewDecoder(rec.Body).Decode(&status); err != nil {
-		t.Fatalf("failed to decode config status response: %v", err)
-	}
+		var status AIConfigStatusResponse
+		if err := json.NewDecoder(rec.Body).Decode(&status); err != nil {
+			t.Fatalf("failed to decode config status response: %v", err)
+		}
 
-	if status.DefaultProvider == "" {
-		t.Errorf("expected default provider to be populated")
-	}
-	if status.DefaultModel == "" {
-		t.Errorf("expected default model to be populated")
-	}
+		if status.HasGeminiEnvKey || status.HasOpenAIEnvKey {
+			t.Errorf("expected no env keys configured")
+		}
+		if status.DefaultProvider != "gemini" {
+			t.Errorf("expected default provider gemini, got %s", status.DefaultProvider)
+		}
+		if status.DefaultModel != "gemini-flash-lite-latest" {
+			t.Errorf("expected default model gemini-flash-lite-latest, got %s", status.DefaultModel)
+		}
+	})
+
+	t.Run("injected gemini and openai keys", func(t *testing.T) {
+		server := NewServer(nil, nil, nil, ServerConfig{
+			GeminiAPIKey: "test-gemini-key",
+			OpenAIAPIKey: "test-openai-key",
+			LLMModel:     "custom-model",
+			LLMProvider:  "custom-provider",
+		})
+
+		req := httptest.NewRequest(http.MethodGet, "/api/ai/config-status", http.NoBody)
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected status 200, got %d", rec.Code)
+		}
+
+		var status AIConfigStatusResponse
+		if err := json.NewDecoder(rec.Body).Decode(&status); err != nil {
+			t.Fatalf("failed to decode config status response: %v", err)
+		}
+
+		if !status.HasGeminiEnvKey {
+			t.Errorf("expected HasGeminiEnvKey to be true")
+		}
+		if !status.HasOpenAIEnvKey {
+			t.Errorf("expected HasOpenAIEnvKey to be true")
+		}
+		if status.DefaultModel != "custom-model" {
+			t.Errorf("expected default model custom-model, got %s", status.DefaultModel)
+		}
+		if status.DefaultProvider != "custom-provider" {
+			t.Errorf("expected default provider custom-provider, got %s", status.DefaultProvider)
+		}
+	})
+
+	t.Run("injected openai only falls back to openai provider", func(t *testing.T) {
+		server := NewServer(nil, nil, nil, ServerConfig{
+			OpenAIAPIKey: "test-openai-key",
+		})
+
+		req := httptest.NewRequest(http.MethodGet, "/api/ai/config-status", http.NoBody)
+		rec := httptest.NewRecorder()
+		server.router.ServeHTTP(rec, req)
+
+		var status AIConfigStatusResponse
+		if err := json.NewDecoder(rec.Body).Decode(&status); err != nil {
+			t.Fatalf("failed to decode config status response: %v", err)
+		}
+
+		if status.DefaultProvider != "openai" {
+			t.Errorf("expected default provider openai, got %s", status.DefaultProvider)
+		}
+		if status.DefaultModel != "gpt-4o-mini" {
+			t.Errorf("expected default model gpt-4o-mini, got %s", status.DefaultModel)
+		}
+	})
 }
 
 func TestBuildSystemPrompt(t *testing.T) {

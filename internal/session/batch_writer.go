@@ -2,7 +2,7 @@ package session
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"sync"
 	"time"
 
@@ -29,11 +29,11 @@ type TelemetryBatchWriter struct {
 const (
 	// DefaultBatchChannelCapacity is the maximum number of lap payloads buffered for async writing.
 	DefaultBatchChannelCapacity = 128
-	// DefaultBatchWriteTimeout is the timeout for writing a lap telemetry blob to storage.
+	// DefaultBatchWriteTimeout is the maximum time allowed for writing a single lap blob.
 	DefaultBatchWriteTimeout = 5 * time.Second
 )
 
-// NewTelemetryBatchWriter creates and initializes a new TelemetryBatchWriter.
+// NewTelemetryBatchWriter creates an unstarted batch writer.
 func NewTelemetryBatchWriter(repo storage.Repository) *TelemetryBatchWriter {
 	return &TelemetryBatchWriter{
 		repo:    repo,
@@ -42,10 +42,10 @@ func NewTelemetryBatchWriter(repo storage.Repository) *TelemetryBatchWriter {
 	}
 }
 
-// Start launches the background worker goroutine for batch writes.
+// Start spawns the background worker goroutine.
 func (bw *TelemetryBatchWriter) Start(ctx context.Context) {
 	bw.mu.Lock()
-	if bw.started || bw.stopped {
+	if bw.started {
 		bw.mu.Unlock()
 		return
 	}
@@ -55,7 +55,8 @@ func (bw *TelemetryBatchWriter) Start(ctx context.Context) {
 	go bw.worker(ctx)
 }
 
-// EnqueueLap queues a completed lap's telemetry samples for asynchronous compressed writing.
+// EnqueueLap queues a completed lap's telemetry samples for asynchronous saving.
+// If the channel is full (e.g. storage bottleneck), it writes synchronously to avoid data loss.
 func (bw *TelemetryBatchWriter) EnqueueLap(lapID int64, samples []storage.TelemetrySample) {
 	if lapID <= 0 || len(samples) == 0 {
 		return
@@ -76,7 +77,7 @@ func (bw *TelemetryBatchWriter) EnqueueLap(lapID int64, samples []storage.Teleme
 	select {
 	case bw.lapChan <- payload:
 	default:
-		log.Printf("[BatchWriter] WARNING: Lap telemetry queue full, writing directly for lap %d", lapID)
+		slog.Warn("Lap telemetry queue full, writing directly", "lapID", lapID)
 		writeCtx, cancel := context.WithTimeout(context.Background(), DefaultBatchWriteTimeout)
 		_ = bw.repo.SaveLapTelemetryBlob(writeCtx, lapID, samples)
 		cancel()
@@ -108,7 +109,7 @@ func (bw *TelemetryBatchWriter) drainDirect(ctx context.Context) {
 		case payload := <-bw.lapChan:
 			writeCtx, cancel := context.WithTimeout(ctx, DefaultBatchWriteTimeout)
 			if err := bw.repo.SaveLapTelemetryBlob(writeCtx, payload.LapID, payload.Samples); err != nil {
-				log.Printf("[BatchWriter] Error writing lap telemetry blob for lap %d: %v", payload.LapID, err)
+				slog.Error("Failed to write lap telemetry blob", "lapID", payload.LapID, "error", err)
 			}
 			cancel()
 		default:
@@ -126,7 +127,7 @@ func (bw *TelemetryBatchWriter) worker(ctx context.Context) {
 		case payload := <-bw.lapChan:
 			writeCtx, cancel := context.WithTimeout(context.Background(), DefaultBatchWriteTimeout)
 			if err := bw.repo.SaveLapTelemetryBlob(writeCtx, payload.LapID, payload.Samples); err != nil {
-				log.Printf("[BatchWriter] Error writing lap telemetry blob for lap %d: %v", payload.LapID, err)
+				slog.Error("Failed to write lap telemetry blob", "lapID", payload.LapID, "error", err)
 			}
 			cancel()
 		}

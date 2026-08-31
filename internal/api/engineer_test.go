@@ -568,7 +568,7 @@ func TestEngineerEngine_SmartDiscretionSuppression(t *testing.T) {
 func TestEngineerEngine_ConfigEndpoints(t *testing.T) {
 	hub := NewHub()
 	engine := NewEngineerEngine(hub, nil)
-	server := NewServer(nil, nil, hub)
+	server := NewServer(nil, nil, hub, ServerConfig{})
 	server.SetEngineerEngine(engine)
 
 	// 1. GET /api/ai/engineer/config

@@ -11,7 +11,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 	"sync"
@@ -325,18 +325,18 @@ func SynthesizeEdgeNeuralTTS(ctx context.Context, text, voice, rate, pitch strin
 // handleAITTS handles POST /api/ai/tts HTTP requests and streams back the synthesized MP3 audio.
 func (s *Server) handleAITTS(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		writeJSONError(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	var req AITTSRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, fmt.Sprintf("Invalid request payload: %v", err), http.StatusBadRequest)
+		writeJSONError(w, fmt.Sprintf("Invalid request payload: %v", err), http.StatusBadRequest)
 		return
 	}
 
 	if strings.TrimSpace(req.Text) == "" {
-		http.Error(w, "Field 'text' is required", http.StatusBadRequest)
+		writeJSONError(w, "Field 'text' is required", http.StatusBadRequest)
 		return
 	}
 
@@ -344,8 +344,8 @@ func (s *Server) handleAITTS(w http.ResponseWriter, r *http.Request) {
 
 	audioBytes, err := SynthesizeEdgeNeuralTTS(r.Context(), req.Text, voiceName, req.Rate, req.Pitch)
 	if err != nil {
-		log.Printf("[AI TTS] Synthesis error: %v", err)
-		http.Error(w, fmt.Sprintf("Speech synthesis failed: %v", err), http.StatusBadGateway)
+		slog.Error("Speech synthesis failed", "voice", voiceName, "error", err)
+		writeJSONError(w, fmt.Sprintf("Speech synthesis failed: %v", err), http.StatusBadGateway)
 		return
 	}
 

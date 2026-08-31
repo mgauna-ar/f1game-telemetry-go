@@ -40,7 +40,7 @@ func setupTestServer(t *testing.T) (*Server, storage.Repository) {
 			Mode: 0o644,
 		},
 	}
-	server := NewServerWithFS(repo, hub, hub, mockFS)
+	server := NewServerWithFS(repo, hub, hub, mockFS, ServerConfig{})
 	return server, repo
 }
 

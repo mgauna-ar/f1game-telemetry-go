@@ -3,7 +3,7 @@ package udp
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"sync"
 
@@ -45,7 +45,7 @@ func NewListener(addr string, bufferSize int) *Listener {
 	l := &Listener{
 		addr:       addr,
 		bufferSize: bufferSize,
-		packets:    make(chan RawPacket, 2048),
+		packets:    make(chan RawPacket, 1024),
 		ready:      make(chan struct{}),
 	}
 	l.bufPool.New = func() any {
@@ -55,25 +55,22 @@ func NewListener(addr string, bufferSize int) *Listener {
 	return l
 }
 
-// Packets returns a read-only channel that receives parsed raw packets.
+// Packets returns the read-only channel of received packets.
 func (l *Listener) Packets() <-chan RawPacket {
 	return l.packets
 }
 
-// Ready returns a channel that is closed when the listener has bound
-// to its address and is ready to receive packets.
+// Ready returns a channel that is closed when the UDP listener is bound and ready.
 func (l *Listener) Ready() <-chan struct{} {
 	return l.ready
 }
 
-// Listen starts listening for UDP packets. It blocks until the context is
-// canceled or an unrecoverable error occurs.
+// Listen starts listening for UDP packets and blocks until the context is canceled
+// or an unrecoverable error occurs.
 func (l *Listener) Listen(ctx context.Context) error {
-	defer close(l.packets)
-
 	udpAddr, err := net.ResolveUDPAddr("udp", l.addr)
 	if err != nil {
-		return fmt.Errorf("resolve UDP address %q: %w", l.addr, err)
+		return fmt.Errorf("resolve UDP address %s: %w", l.addr, err)
 	}
 
 	conn, err := net.ListenUDP("udp", udpAddr)
@@ -88,7 +85,7 @@ func (l *Listener) Listen(ctx context.Context) error {
 	// Signal that the listener is ready.
 	close(l.ready)
 
-	log.Printf("[UDP] Listening on %s", conn.LocalAddr().String())
+	slog.Info("UDP listener listening", "addr", conn.LocalAddr().String())
 
 	// Close the connection when context is canceled to unblock ReadFromUDP.
 	go func() {
@@ -110,7 +107,7 @@ func (l *Listener) Listen(ctx context.Context) error {
 			// Check if context was canceled (graceful shutdown).
 			select {
 			case <-ctx.Done():
-				log.Println("[UDP] Shutting down listener")
+				slog.Info("Shutting down UDP listener")
 				return nil
 			default:
 				return fmt.Errorf("read UDP: %w", err)
@@ -118,7 +115,7 @@ func (l *Listener) Listen(ctx context.Context) error {
 		}
 
 		if n < minPacketSize {
-			log.Printf("[UDP] Dropping packet: too small (%d bytes, minimum %d)", n, minPacketSize)
+			slog.Warn("Dropping UDP packet: too small", "bytes", n, "minBytes", minPacketSize)
 			continue
 		}
 
@@ -135,7 +132,7 @@ func (l *Listener) Listen(ctx context.Context) error {
 		select {
 		case l.packets <- packet:
 		default:
-			log.Println("[UDP] WARNING: packet channel full, dropping packet")
+			slog.Warn("UDP packet channel full, dropping packet")
 		}
 	}
 }
@@ -154,18 +151,17 @@ func (l *Listener) closeConn() error {
 	return err
 }
 
-// Close closes the UDP connection.
-func (l *Listener) Close() error {
-	return l.closeConn()
-}
-
-// Addr returns the local address the listener is bound to.
-// Returns an empty string if the listener is not yet started.
+// Addr returns the local address the listener is bound to, or empty if not bound.
 func (l *Listener) Addr() string {
 	l.mu.RLock()
 	defer l.mu.RUnlock()
-	if l.conn != nil {
-		return l.conn.LocalAddr().String()
+	if l.conn == nil {
+		return ""
 	}
-	return ""
+	return l.conn.LocalAddr().String()
+}
+
+// Close closes the UDP connection.
+func (l *Listener) Close() error {
+	return l.closeConn()
 }

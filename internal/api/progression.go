@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"fmt"
 	"math"
 	"net/http"
@@ -389,13 +388,13 @@ func (s *Server) handleGetSessionProgression(w http.ResponseWriter, r *http.Requ
 	idStr := chi.URLParam(r, "id")
 	sessionID, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		http.Error(w, "invalid session id", http.StatusBadRequest)
+		writeJSONError(w, "invalid session id", http.StatusBadRequest)
 		return
 	}
 
 	session, err := s.repo.GetSessionByID(ctx, sessionID)
 	if err != nil {
-		http.Error(w, "session not found", http.StatusNotFound)
+		writeJSONError(w, "session not found", http.StatusNotFound)
 		return
 	}
 
@@ -410,6 +409,5 @@ func (s *Server) handleGetSessionProgression(w http.ResponseWriter, r *http.Requ
 	}
 
 	resp := computeSessionProgression(session, participants, laps)
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(resp)
+	writeJSON(w, http.StatusOK, resp)
 }

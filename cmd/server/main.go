@@ -4,7 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -37,11 +37,15 @@ const (
 
 // ServerConfig holds the runtime configuration parameters for the server.
 type ServerConfig struct {
-	UDPAddr     string
-	HTTPAddr    string
-	DBPath      string
-	NoBrowser   bool
-	ShowVersion bool
+	UDPAddr      string
+	HTTPAddr     string
+	DBPath       string
+	NoBrowser    bool
+	ShowVersion  bool
+	GeminiAPIKey string
+	OpenAIAPIKey string
+	LLMModel     string
+	LLMProvider  string
 }
 
 // loadServerConfig parses CLI flags and environment variable fallbacks.
@@ -54,15 +58,21 @@ func loadServerConfig() ServerConfig {
 	flag.Parse()
 
 	return ServerConfig{
-		UDPAddr:     *udpFlag,
-		HTTPAddr:    *httpFlag,
-		DBPath:      *dbFlag,
-		NoBrowser:   *noBrowserFlag,
-		ShowVersion: *versionFlag,
+		UDPAddr:      *udpFlag,
+		HTTPAddr:     *httpFlag,
+		DBPath:       *dbFlag,
+		NoBrowser:    *noBrowserFlag,
+		ShowVersion:  *versionFlag,
+		GeminiAPIKey: getEnv("GEMINI_API_KEY", ""),
+		OpenAIAPIKey: getEnv("OPENAI_API_KEY", ""),
+		LLMModel:     getEnv("LLM_MODEL", ""),
+		LLMProvider:  getEnv("LLM_PROVIDER", ""),
 	}
 }
 
 func main() {
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo})))
+
 	cfg := loadServerConfig()
 
 	if cfg.ShowVersion {
@@ -83,7 +93,8 @@ func main() {
 	// 2. Setup Storage
 	repo, err := storage.NewSQLiteRepository(cfg.DBPath)
 	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
+		slog.Error("Failed to initialize database", "dbPath", cfg.DBPath, "error", err)
+		os.Exit(1)
 	}
 	defer repo.Close()
 
@@ -104,7 +115,14 @@ func main() {
 
 	engineerEngine := api.NewEngineerEngine(engineerHub, repo)
 
-	apiServer := api.NewServer(repo, telemetryHub, engineerHub)
+	apiConfig := api.ServerConfig{
+		GeminiAPIKey: cfg.GeminiAPIKey,
+		OpenAIAPIKey: cfg.OpenAIAPIKey,
+		LLMModel:     cfg.LLMModel,
+		LLMProvider:  cfg.LLMProvider,
+	}
+
+	apiServer := api.NewServer(repo, telemetryHub, engineerHub, apiConfig)
 	apiServer.SetInputManager(inputMgr)
 	apiServer.SetEngineerEngine(engineerEngine)
 
@@ -115,7 +133,8 @@ func main() {
 
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("HTTP server error: %v", err)
+			slog.Error("HTTP server error", "error", err)
+			os.Exit(1)
 		}
 	}()
 
@@ -125,7 +144,7 @@ func main() {
 			// Small delay to allow HTTP server socket bind
 			time.Sleep(350 * time.Millisecond)
 			if err := system.OpenBrowser(localURL); err != nil {
-				log.Printf("Note: Could not automatically open browser: %v. Please open %s manually.", err, localURL)
+				slog.Warn("Could not automatically open browser", "url", localURL, "error", err)
 			}
 		}()
 	}
@@ -142,14 +161,15 @@ func main() {
 	listener := udp.NewListener(cfg.UDPAddr, udp.DefaultBufferSize)
 	go func() {
 		if err := listener.Listen(ctx); err != nil {
-			log.Fatalf("UDP listener error: %v", err)
+			slog.Error("UDP listener error", "addr", cfg.UDPAddr, "error", err)
+			os.Exit(1)
 		}
 	}()
 	<-listener.Ready() // Wait for socket to bind
 
 	// 10. Packet Processing Loop
 	go func() {
-		log.Printf("Ready to receive telemetry on UDP %s (F1 2025/2026)...", cfg.UDPAddr)
+		slog.Info("Ready to receive telemetry", "udpAddr", cfg.UDPAddr, "format", "F1 2025/2026")
 		for {
 			select {
 			case <-ctx.Done():
@@ -181,7 +201,7 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 	fmt.Println()
-	log.Println("Shutting down F1 Telemetry Analyzer...")
+	slog.Info("Shutting down F1 Telemetry Analyzer...")
 
 	cancel() // Stop UDP listener and packet loop
 	inputMgr.Stop()
@@ -193,10 +213,10 @@ func main() {
 	sessionManager.Close(shutdownCtx)
 
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Printf("HTTP server shutdown error: %v", err)
+		slog.Error("HTTP server shutdown error", "error", err)
 	}
 
-	log.Println("Shutdown complete. See you on track!")
+	slog.Info("Shutdown complete. See you on track!")
 }
 
 func printStartupBanner(ver, cmt, localURL, lanURL, udpAddr, dbPath string) {

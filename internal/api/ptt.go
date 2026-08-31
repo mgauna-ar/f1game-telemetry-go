@@ -22,12 +22,11 @@ type PTTSetConfigRequest struct {
 
 func (s *Server) handleGetPTTConfig(w http.ResponseWriter, r *http.Request) {
 	if s.inputManager == nil {
-		http.Error(w, "Input manager not available", http.StatusServiceUnavailable)
+		writeJSONError(w, "Input manager not available", http.StatusServiceUnavailable)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(PTTConfigResponse{
+	writeJSON(w, http.StatusOK, PTTConfigResponse{
 		Status:   "ok",
 		Mapping:  s.inputManager.GetMapping(),
 		IsActive: s.inputManager.IsActive(),
@@ -36,20 +35,19 @@ func (s *Server) handleGetPTTConfig(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleSetPTTConfig(w http.ResponseWriter, r *http.Request) {
 	if s.inputManager == nil {
-		http.Error(w, "Input manager not available", http.StatusServiceUnavailable)
+		writeJSONError(w, "Input manager not available", http.StatusServiceUnavailable)
 		return
 	}
 
 	var req PTTSetConfigRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid payload", http.StatusBadRequest)
+		writeJSONError(w, "Invalid payload", http.StatusBadRequest)
 		return
 	}
 
 	s.inputManager.SetMapping(req.Mapping)
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(PTTConfigResponse{
+	writeJSON(w, http.StatusOK, PTTConfigResponse{
 		Status:   "ok",
 		Mapping:  s.inputManager.GetMapping(),
 		IsActive: s.inputManager.IsActive(),
@@ -58,13 +56,13 @@ func (s *Server) handleSetPTTConfig(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleStartPTTLearn(w http.ResponseWriter, r *http.Request) {
 	if s.inputManager == nil {
-		http.Error(w, "Input manager not available", http.StatusServiceUnavailable)
+		writeJSONError(w, "Input manager not available", http.StatusServiceUnavailable)
 		return
 	}
 
 	ch, err := s.inputManager.StartLearning(r.Context())
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		writeJSONError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -85,21 +83,19 @@ func (s *Server) handleStartPTTLearn(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]string{
+	writeJSON(w, http.StatusOK, map[string]string{
 		"status": "learning_started",
 	})
 }
 
 func (s *Server) handleCancelPTTLearn(w http.ResponseWriter, r *http.Request) {
 	if s.inputManager == nil {
-		http.Error(w, "Input manager not available", http.StatusServiceUnavailable)
+		writeJSONError(w, "Input manager not available", http.StatusServiceUnavailable)
 		return
 	}
 
 	s.inputManager.CancelLearning()
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]string{
+	writeJSON(w, http.StatusOK, map[string]string{
 		"status": "learning_canceled",
 	})
 }

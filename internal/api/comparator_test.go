@@ -436,7 +436,7 @@ func TestHandleComparatorMerge(t *testing.T) {
 		t.Fatalf("failed to save telemetry2: %v", err)
 	}
 
-	server := NewServer(repo, nil, nil)
+	server := NewServer(repo, nil, nil, ServerConfig{})
 
 	t.Run("merges both laps via HTTP endpoint", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/comparator/merge?lapA=%d&lapB=%d&stepMeters=50", lap1.ID, lap2.ID), http.NoBody)

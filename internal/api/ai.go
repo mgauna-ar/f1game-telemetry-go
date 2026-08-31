@@ -3,16 +3,15 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
-	"os"
 	"strings"
 )
 
 // handleAIConfigStatus returns the status of server-configured AI keys.
 func (s *Server) handleAIConfigStatus(w http.ResponseWriter, r *http.Request) {
-	geminiKey := strings.TrimSpace(os.Getenv("GEMINI_API_KEY"))
-	openaiKey := strings.TrimSpace(os.Getenv("OPENAI_API_KEY"))
+	geminiKey := strings.TrimSpace(s.config.GeminiAPIKey)
+	openaiKey := strings.TrimSpace(s.config.OpenAIAPIKey)
 
 	defaultProvider := "gemini"
 	defaultModel := "gemini-flash-lite-latest"
@@ -22,15 +21,14 @@ func (s *Server) handleAIConfigStatus(w http.ResponseWriter, r *http.Request) {
 		defaultModel = "gpt-4o-mini"
 	}
 
-	if envModel := os.Getenv("LLM_MODEL"); envModel != "" {
-		defaultModel = envModel
+	if s.config.LLMModel != "" {
+		defaultModel = s.config.LLMModel
 	}
-	if envProvider := os.Getenv("LLM_PROVIDER"); envProvider != "" {
-		defaultProvider = envProvider
+	if s.config.LLMProvider != "" {
+		defaultProvider = s.config.LLMProvider
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(AIConfigStatusResponse{
+	writeJSON(w, http.StatusOK, AIConfigStatusResponse{
 		HasGeminiEnvKey: geminiKey != "",
 		HasOpenAIEnvKey: openaiKey != "",
 		DefaultProvider: defaultProvider,
@@ -38,8 +36,8 @@ func (s *Server) handleAIConfigStatus(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// resolveAIProviderAndKey normalizes the provider and retrieves the active API key (from payload or env).
-func resolveAIProviderAndKey(reqProvider, reqAPIKey string) (provider, apiKey string) {
+// resolveAIProviderAndKey normalizes the provider and retrieves the active API key (from payload or server config).
+func (s *Server) resolveAIProviderAndKey(reqProvider, reqAPIKey string) (provider, apiKey string) {
 	provider = strings.ToLower(strings.TrimSpace(reqProvider))
 	if provider == "" {
 		provider = "gemini"
@@ -48,9 +46,9 @@ func resolveAIProviderAndKey(reqProvider, reqAPIKey string) (provider, apiKey st
 	apiKey = strings.TrimSpace(reqAPIKey)
 	if apiKey == "" {
 		if provider == "gemini" {
-			apiKey = strings.TrimSpace(os.Getenv("GEMINI_API_KEY"))
+			apiKey = strings.TrimSpace(s.config.GeminiAPIKey)
 		} else {
-			apiKey = strings.TrimSpace(os.Getenv("OPENAI_API_KEY"))
+			apiKey = strings.TrimSpace(s.config.OpenAIAPIKey)
 		}
 	}
 	return provider, apiKey
@@ -72,16 +70,14 @@ func resolveDefaultModel(provider, reqModel string) string {
 func (s *Server) handleAIFetchModels(w http.ResponseWriter, r *http.Request) {
 	var req AIFetchModelsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, fmt.Sprintf("Invalid payload: %v", err), http.StatusBadRequest)
+		writeJSONError(w, fmt.Sprintf("Invalid payload: %v", err), http.StatusBadRequest)
 		return
 	}
 
-	provider, apiKey := resolveAIProviderAndKey(req.Provider, req.APIKey)
+	provider, apiKey := s.resolveAIProviderAndKey(req.Provider, req.APIKey)
 
 	if apiKey == "" && provider != "custom" {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusUnauthorized)
-		_ = json.NewEncoder(w).Encode(AIErrorPayload{
+		writeJSON(w, http.StatusUnauthorized, AIErrorPayload{
 			Error:    fmt.Sprintf("No API Key configured for %s", provider),
 			Code:     AIErrorMissingAPIKey,
 			Provider: provider,
@@ -99,7 +95,6 @@ func (s *Server) handleAIFetchModels(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
 		statusCode := http.StatusInternalServerError
 		payload := AIErrorPayload{
 			Error:    err.Error(),
@@ -114,30 +109,26 @@ func (s *Server) handleAIFetchModels(w http.ResponseWriter, r *http.Request) {
 			payload.Message = aiErr.Message
 			payload.Provider = aiErr.Provider
 		}
-		w.WriteHeader(statusCode)
-		_ = json.NewEncoder(w).Encode(payload)
+		writeJSON(w, statusCode, payload)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(AIFetchModelsResponse{Models: models})
+	writeJSON(w, http.StatusOK, AIFetchModelsResponse{Models: models})
 }
 
 // handleAIChat handles streaming LLM chat requests for Lap Comparator telemetry analysis.
 func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 	var req AIChatRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, fmt.Sprintf("Invalid request payload: %v", err), http.StatusBadRequest)
+		writeJSONError(w, fmt.Sprintf("Invalid request payload: %v", err), http.StatusBadRequest)
 		return
 	}
 
 	// Resolve Provider and API Key
-	provider, apiKey := resolveAIProviderAndKey(req.Provider, req.APIKey)
+	provider, apiKey := s.resolveAIProviderAndKey(req.Provider, req.APIKey)
 
 	if apiKey == "" && provider != "custom" {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusUnauthorized)
-		_ = json.NewEncoder(w).Encode(AIErrorPayload{
+		writeJSON(w, http.StatusUnauthorized, AIErrorPayload{
 			Error:    fmt.Sprintf("No API Key provided for %s. Please configure it in settings or set the environment variable.", provider),
 			Code:     AIErrorMissingAPIKey,
 			Provider: provider,
@@ -151,7 +142,7 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 	// Setup SSE streaming headers
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
+		writeJSONError(w, "Streaming unsupported", http.StatusInternalServerError)
 		return
 	}
 
@@ -175,7 +166,7 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if streamErr != nil {
-		log.Printf("[AI Chat] Error during streaming: %v", streamErr)
+		slog.Error("Error during AI chat streaming", "provider", provider, "error", streamErr)
 		payload := AIErrorPayload{
 			Error:    streamErr.Error(),
 			Code:     AIErrorGeneric,

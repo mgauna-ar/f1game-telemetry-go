@@ -2,7 +2,6 @@ package api
 
 import (
 	"container/list"
-	"encoding/json"
 	"fmt"
 	"math"
 	"net/http"
@@ -920,8 +919,7 @@ func (s *Server) handleComparatorMerge(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if lapAID <= 0 && lapBID <= 0 {
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(ComparatorResponse{
+		writeJSON(w, http.StatusOK, ComparatorResponse{
 			Points: []MergedTelemetryPoint{},
 			Turns:  []TrackTurn{},
 		})
@@ -931,8 +929,7 @@ func (s *Server) handleComparatorMerge(w http.ResponseWriter, r *http.Request) {
 	cacheKey := fmt.Sprintf("%d:%d:%.2f:%.2f", lapAID, lapBID, stepMeters, targetTrackLength)
 	if s.comparatorCache != nil {
 		if cached, found := s.comparatorCache.Get(cacheKey); found {
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(cached)
+			writeJSON(w, http.StatusOK, cached)
 			return
 		}
 	}
@@ -1013,6 +1010,5 @@ func (s *Server) handleComparatorMerge(w http.ResponseWriter, r *http.Request) {
 		s.comparatorCache.Put(cacheKey, response)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(response)
+	writeJSON(w, http.StatusOK, response)
 }

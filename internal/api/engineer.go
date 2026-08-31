@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"math"
 	"sync"
 	"time"
@@ -848,7 +848,7 @@ func (e *EngineerEngine) emitDirectiveLocked(header packets.PacketHeader, direct
 
 	if e.hub != nil {
 		if data, err := json.Marshal(directive); err == nil {
-			log.Printf("[Engineer Engine] Proactive Directive emitted [%s / %s] (%s): %s", directive.Category, directive.SubAlert, directive.Urgency, directive.Message)
+			slog.Info("Proactive directive emitted", "category", string(directive.Category), "subAlert", directive.SubAlert, "urgency", string(directive.Urgency), "message", directive.Message)
 			e.hub.Broadcast(data)
 		}
 	}
