@@ -1,4 +1,4 @@
-package api
+package ai
 
 // AIChatMessage represents a message in the conversation.
 type AIChatMessage struct {

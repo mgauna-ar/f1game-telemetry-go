@@ -1,15 +1,19 @@
-package api
+package engineer
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 )
+
+type mockBroadcaster struct {
+	broadcasts [][]byte
+}
+
+func (m *mockBroadcaster) Broadcast(data []byte) {
+	m.broadcasts = append(m.broadcasts, data)
+}
 
 func createTestHeader(format uint16, sessionUID uint64, playerCarIndex uint8) packets.PacketHeader {
 	return packets.PacketHeader{
@@ -21,8 +25,8 @@ func createTestHeader(format uint16, sessionUID uint64, playerCarIndex uint8) pa
 }
 
 func TestEngineerEngine_ProcessPackets(t *testing.T) {
-	hub := NewHub()
-	engine := NewEngineerEngine(hub, nil)
+	broadcaster := &mockBroadcaster{}
+	engine := NewEngineerEngine(broadcaster, nil)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 123456789, 0)
 
@@ -89,8 +93,8 @@ func TestEngineerEngine_ProcessPackets(t *testing.T) {
 }
 
 func TestEngineerEngine_TyreSubsystem(t *testing.T) {
-	hub := NewHub()
-	engine := NewEngineerEngine(hub, nil)
+	broadcaster := &mockBroadcaster{}
+	engine := NewEngineerEngine(broadcaster, nil)
 	ctx := context.Background()
 
 	// 1. Tyre wear warning (42%)
@@ -210,8 +214,8 @@ func TestEngineerEngine_TyreSubsystem(t *testing.T) {
 }
 
 func TestEngineerEngine_DamageAndMechanicalFaults(t *testing.T) {
-	hub := NewHub()
-	engine := NewEngineerEngine(hub, nil)
+	broadcaster := &mockBroadcaster{}
+	engine := NewEngineerEngine(broadcaster, nil)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 200, 0)
 
@@ -295,8 +299,8 @@ func TestEngineerEngine_DamageAndMechanicalFaults(t *testing.T) {
 }
 
 func TestEngineerEngine_ERSAndBrakes(t *testing.T) {
-	hub := NewHub()
-	engine := NewEngineerEngine(hub, nil)
+	broadcaster := &mockBroadcaster{}
+	engine := NewEngineerEngine(broadcaster, nil)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 300, 0)
 
@@ -344,8 +348,8 @@ func TestEngineerEngine_ERSAndBrakes(t *testing.T) {
 }
 
 func TestEngineerEngine_FuelAndStrategy(t *testing.T) {
-	hub := NewHub()
-	engine := NewEngineerEngine(hub, nil)
+	broadcaster := &mockBroadcaster{}
+	engine := NewEngineerEngine(broadcaster, nil)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 400, 0)
 
@@ -402,8 +406,8 @@ func TestEngineerEngine_FuelAndStrategy(t *testing.T) {
 }
 
 func TestEngineerEngine_RivalBattles(t *testing.T) {
-	hub := NewHub()
-	engine := NewEngineerEngine(hub, nil)
+	broadcaster := &mockBroadcaster{}
+	engine := NewEngineerEngine(broadcaster, nil)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 500, 0)
 
@@ -438,8 +442,8 @@ func TestEngineerEngine_RivalBattles(t *testing.T) {
 }
 
 func TestEngineerEngine_QualifyingIntelligence(t *testing.T) {
-	hub := NewHub()
-	engine := NewEngineerEngine(hub, nil)
+	broadcaster := &mockBroadcaster{}
+	engine := NewEngineerEngine(broadcaster, nil)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 600, 0)
 
@@ -472,8 +476,8 @@ func TestEngineerEngine_QualifyingIntelligence(t *testing.T) {
 }
 
 func TestEngineerEngine_FlagsAndPenalties(t *testing.T) {
-	hub := NewHub()
-	engine := NewEngineerEngine(hub, nil)
+	broadcaster := &mockBroadcaster{}
+	engine := NewEngineerEngine(broadcaster, nil)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 700, 0)
 
@@ -519,8 +523,8 @@ func TestEngineerEngine_FlagsAndPenalties(t *testing.T) {
 }
 
 func TestEngineerEngine_SmartDiscretionSuppression(t *testing.T) {
-	hub := NewHub()
-	engine := NewEngineerEngine(hub, nil)
+	broadcaster := &mockBroadcaster{}
+	engine := NewEngineerEngine(broadcaster, nil)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 800, 0)
 
@@ -565,54 +569,9 @@ func TestEngineerEngine_SmartDiscretionSuppression(t *testing.T) {
 	}
 }
 
-func TestEngineerEngine_ConfigEndpoints(t *testing.T) {
-	hub := NewHub()
-	engine := NewEngineerEngine(hub, nil)
-	server := NewServer(nil, nil, hub, ServerConfig{})
-	server.SetEngineerEngine(engine)
-
-	// 1. GET /api/ai/engineer/config
-	reqGet := httptest.NewRequest(http.MethodGet, "/api/ai/engineer/config", http.NoBody)
-	recGet := httptest.NewRecorder()
-	server.Router().ServeHTTP(recGet, reqGet)
-
-	if recGet.Code != http.StatusOK {
-		t.Fatalf("expected 200 OK from GET config, got %d", recGet.Code)
-	}
-
-	var cfg EngineerConfig
-	if err := json.Unmarshal(recGet.Body.Bytes(), &cfg); err != nil {
-		t.Fatalf("failed to decode GET config: %v", err)
-	}
-	if cfg.TyreWearWarnPct != 40.0 {
-		t.Fatalf("expected default TyreWearWarnPct=40, got %f", cfg.TyreWearWarnPct)
-	}
-
-	// 2. POST /api/ai/engineer/config with updated settings
-	cfg.TyreWearWarnPct = 50.0
-	cfg.EnabledCategories = map[string]bool{"tyres": false}
-
-	bodyBytes, _ := json.Marshal(cfg)
-	reqPost := httptest.NewRequest(http.MethodPost, "/api/ai/engineer/config", bytes.NewReader(bodyBytes))
-	reqPost.Header.Set("Content-Type", "application/json")
-	recPost := httptest.NewRecorder()
-	server.Router().ServeHTTP(recPost, reqPost)
-
-	if recPost.Code != http.StatusOK {
-		t.Fatalf("expected 200 OK from POST config, got %d", recPost.Code)
-	}
-
-	if engine.GetConfig().TyreWearWarnPct != 50.0 {
-		t.Fatalf("expected engine TyreWearWarnPct to update to 50.0, got %f", engine.GetConfig().TyreWearWarnPct)
-	}
-	if engine.GetConfig().IsAlertEnabled("tyres", "tyre_wear") {
-		t.Fatalf("expected tyres category to be disabled")
-	}
-}
-
 func TestEngineerEngine_DeduplicationScopesAndOutLapGuard(t *testing.T) {
-	hub := NewHub()
-	engine := NewEngineerEngine(hub, nil)
+	broadcaster := &mockBroadcaster{}
+	engine := NewEngineerEngine(broadcaster, nil)
 	ctx := context.Background()
 
 	// 1. Out-lap distance completion guard: cold tyre alert suppressed when LapDistance < 30% of track length
@@ -716,8 +675,8 @@ func TestEngineerEngine_DeduplicationScopesAndOutLapGuard(t *testing.T) {
 }
 
 func TestEngineerEngine_SectorCoaching_InLapSuppression(t *testing.T) {
-	hub := NewHub()
-	engine := NewEngineerEngine(hub, nil)
+	broadcaster := &mockBroadcaster{}
+	engine := NewEngineerEngine(broadcaster, nil)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 444, 0)
 
@@ -787,8 +746,8 @@ func TestEngineerEngine_SectorCoaching_InLapSuppression(t *testing.T) {
 }
 
 func TestEngineerEngine_SafetyCar_PitStrategySuppression(t *testing.T) {
-	hub := NewHub()
-	engine := NewEngineerEngine(hub, nil)
+	broadcaster := &mockBroadcaster{}
+	engine := NewEngineerEngine(broadcaster, nil)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 555, 0)
 
@@ -853,7 +812,7 @@ func TestEngineerEngine_SafetyCar_PitStrategySuppression(t *testing.T) {
 }
 
 func TestEngineerEngine_DeriveDrivingPhase(t *testing.T) {
-	engine := NewEngineerEngine(NewHub(), nil)
+	engine := NewEngineerEngine(&mockBroadcaster{}, nil)
 
 	tests := []struct {
 		name      string

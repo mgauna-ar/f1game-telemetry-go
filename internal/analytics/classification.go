@@ -1,12 +1,9 @@
-package api
+package analytics
 
 import (
-	"net/http"
 	"sort"
-	"strconv"
 	"strings"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
 )
@@ -281,7 +278,7 @@ func buildDriverStanding(p storage.Participant, driverLaps []storage.Lap) Driver
 		TheoreticalBestMS:    theoreticalBestMS,
 		LapsCompleted:        len(completedLaps),
 		PitStopsCount:        pitStopsCount,
-		StintsSummary:        computeStintsSummary(driverLaps),
+		StintsSummary:        ComputeStintsSummary(driverLaps),
 		AIControlled:         p.AIControlled,
 		BestLap:              bestLap,
 		LastLap:              lastLap,
@@ -433,15 +430,15 @@ func rankSpeedTraps(standings []DriverStanding) []SpeedRanking {
 	return speedRankings
 }
 
-// computeSessionClassification executes server-side classification calculation for a given session.
-func computeSessionClassification(session *storage.Session, participants []storage.Participant, laps []storage.Lap) *ClassificationResponse {
+// ComputeSessionClassification executes server-side classification calculation for a given session.
+func ComputeSessionClassification(session *storage.Session, participants []storage.Participant, laps []storage.Lap) *ClassificationResponse {
 	isRaceSession := session != nil && strings.Contains(strings.ToLower(session.SessionType), "race")
 
 	// 1. Group laps by car
-	lapsByCar, _ := groupLapsByCar(laps)
+	lapsByCar, _ := GroupLapsByCar(laps)
 
 	// 2. Prepare active participants
-	activeParticipants := buildEffectiveParticipants(session, participants, lapsByCar, isRaceSession)
+	activeParticipants := BuildEffectiveParticipants(session, participants, lapsByCar, isRaceSession)
 
 	// 3. Compute session-wide best sectors
 	s1, s2, s3, ultimate := computeSessionBestSectors(laps)
@@ -472,34 +469,4 @@ func computeSessionClassification(session *storage.Session, participants []stora
 		ActualBestLapDriver:   actualBestLapDriver,
 		SpeedRankings:         speedRankings,
 	}
-}
-
-// handleGetSessionClassification serves GET /api/sessions/{id}/classification
-func (s *Server) handleGetSessionClassification(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	idStr := chi.URLParam(r, "id")
-	sessionID, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		writeJSONError(w, "invalid session id", http.StatusBadRequest)
-		return
-	}
-
-	session, err := s.repo.GetSessionByID(ctx, sessionID)
-	if err != nil {
-		writeJSONError(w, "session not found", http.StatusNotFound)
-		return
-	}
-
-	participants, pErr := s.repo.GetParticipantsBySession(ctx, sessionID)
-	if pErr != nil {
-		participants = []storage.Participant{}
-	}
-
-	laps, lErr := s.repo.GetLapsBySession(ctx, sessionID, nil)
-	if lErr != nil {
-		laps = []storage.Lap{}
-	}
-
-	resp := computeSessionClassification(session, participants, laps)
-	writeJSON(w, http.StatusOK, resp)
 }

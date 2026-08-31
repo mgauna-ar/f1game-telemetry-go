@@ -1,11 +1,7 @@
-package api
+package analytics
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
@@ -45,7 +41,7 @@ func TestComputeSessionClassification_Race(t *testing.T) {
 		{SessionID: 1, CarIndex: 4, LapNumber: 2, LapTimeMS: 0, ResultStatus: int(packets.ResultStatusDSQ), TyreCompound: "SOFT", Stint: 1},
 	}
 
-	resp := computeSessionClassification(session, participants, laps)
+	resp := ComputeSessionClassification(session, participants, laps)
 	if resp == nil {
 		t.Fatal("expected non-nil response")
 	}
@@ -141,7 +137,7 @@ func TestComputeSessionClassification_Qualifying(t *testing.T) {
 		{SessionID: 2, CarIndex: 2, LapNumber: 1, LapTimeMS: 72800, IsValid: true, Sector1Valid: true, Sector2Valid: true, Sector3Valid: true, Sector1MS: 19200, Sector2MS: 33100, Sector3MS: 20500},
 	}
 
-	resp := computeSessionClassification(session, participants, laps)
+	resp := ComputeSessionClassification(session, participants, laps)
 	if resp == nil {
 		t.Fatal("expected non-nil response")
 	}
@@ -164,90 +160,6 @@ func TestComputeSessionClassification_Qualifying(t *testing.T) {
 	if resp.Standings[2].GapToLeaderMS != 1300 {
 		t.Errorf("expected Norris gap to pole +1300ms, got %d", resp.Standings[2].GapToLeaderMS)
 	}
-}
-
-func TestHandleGetSessionClassification_Endpoint(t *testing.T) {
-	server, repo := setupTestServer(t)
-	ctx := context.Background()
-
-	session := &storage.Session{
-		SessionUID:   storage.FormatSessionUID(999999),
-		TrackID:      3,
-		TrackName:    "Bahrain",
-		SessionType:  "Race",
-		PacketFormat: 2025,
-	}
-	if err := repo.SaveSession(ctx, session); err != nil {
-		t.Fatalf("failed to create session: %v", err)
-	}
-
-	participants := []storage.Participant{
-		{CarIndex: 0, Name: "Oscar Piastri", DriverID: 112, TeamID: 8, RaceNumber: 81, AIControlled: false},
-	}
-	if err := repo.SaveParticipants(ctx, session.ID, participants); err != nil {
-		t.Fatalf("failed to save participants: %v", err)
-	}
-
-	lap := &storage.Lap{
-		SessionID:    session.ID,
-		CarIndex:     0,
-		LapNumber:    1,
-		LapTimeMS:    92000,
-		Sector1MS:    29000,
-		Sector2MS:    35000,
-		Sector3MS:    28000,
-		IsValid:      true,
-		Sector1Valid: true,
-		Sector2Valid: true,
-		Sector3Valid: true,
-		MaxSpeedKMH:  320.0,
-		TyreCompound: "SOFT",
-	}
-	if err := repo.SaveLap(ctx, lap, false); err != nil {
-		t.Fatalf("failed to save lap: %v", err)
-	}
-
-	t.Run("valid session classification returns 200 OK", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/sessions/%d/classification", session.ID), http.NoBody)
-		rec := httptest.NewRecorder()
-		server.Router().ServeHTTP(rec, req)
-
-		if rec.Code != http.StatusOK {
-			t.Fatalf("expected 200 OK, got %d", rec.Code)
-		}
-
-		var resp ClassificationResponse
-		if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-			t.Fatalf("failed to parse JSON: %v", err)
-		}
-
-		if len(resp.Standings) != 1 {
-			t.Fatalf("expected 1 standing, got %d", len(resp.Standings))
-		}
-		if resp.Standings[0].DriverName != "Oscar Piastri" {
-			t.Errorf("expected Oscar Piastri, got %s", resp.Standings[0].DriverName)
-		}
-	})
-
-	t.Run("non-existent session returns 404", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/api/sessions/9999/classification", http.NoBody)
-		rec := httptest.NewRecorder()
-		server.Router().ServeHTTP(rec, req)
-
-		if rec.Code != http.StatusNotFound {
-			t.Errorf("expected 404, got %d", rec.Code)
-		}
-	})
-
-	t.Run("invalid session ID returns 400", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/api/sessions/abc/classification", http.NoBody)
-		rec := httptest.NewRecorder()
-		server.Router().ServeHTTP(rec, req)
-
-		if rec.Code != http.StatusBadRequest {
-			t.Errorf("expected 400, got %d", rec.Code)
-		}
-	})
 }
 
 func TestComputeSessionClassification_DNFWithResultReasonFinished(t *testing.T) {
@@ -289,7 +201,7 @@ func TestComputeSessionClassification_DNFWithResultReasonFinished(t *testing.T) 
 		{SessionID: 10, CarIndex: 4, LapNumber: 11, LapTimeMS: 0, IsValid: false, ResultStatus: int(packets.ResultStatusDNF)},
 	}
 
-	resp := computeSessionClassification(session, participants, laps)
+	resp := ComputeSessionClassification(session, participants, laps)
 	if resp == nil {
 		t.Fatal("expected non-nil response")
 	}
@@ -338,7 +250,7 @@ func TestComputeSessionClassification_RealSession28(t *testing.T) {
 		t.Fatalf("failed to get laps: %v", err)
 	}
 
-	resp := computeSessionClassification(session, participants, laps)
+	resp := ComputeSessionClassification(session, participants, laps)
 	if resp == nil {
 		t.Fatal("expected non-nil response")
 	}
@@ -386,7 +298,7 @@ func TestComputeSessionClassification_RealSession30(t *testing.T) {
 		t.Fatalf("failed to get laps: %v", err)
 	}
 
-	resp := computeSessionClassification(session, participants, laps)
+	resp := ComputeSessionClassification(session, participants, laps)
 	if resp == nil {
 		t.Fatal("expected non-nil response")
 	}

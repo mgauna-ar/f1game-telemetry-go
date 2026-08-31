@@ -1,4 +1,4 @@
-package api
+package ai
 
 import (
 	"bytes"
@@ -7,11 +7,9 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
-	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"strings"
 	"sync"
@@ -157,8 +155,8 @@ func generateUUID() string {
 	return hex.EncodeToString(b)
 }
 
-// resolveVoice determines the appropriate neural voice name based on voice, persona, language, or defaults.
-func resolveVoice(voice, persona, language string) (voiceName, lang string) {
+// ResolveVoice determines the appropriate neural voice name based on voice, persona, language, or defaults.
+func ResolveVoice(voice, persona, language string) (voiceName, lang string) {
 	v := strings.TrimSpace(voice)
 	p := strings.ToLower(strings.TrimSpace(persona))
 	l := strings.ToLower(strings.TrimSpace(language))
@@ -190,8 +188,8 @@ func resolveVoice(voice, persona, language string) (voiceName, lang string) {
 	return VoiceBonoBritish, "en-GB"
 }
 
-// buildSSML constructs a valid W3C SSML payload.
-func buildSSML(text, voice, lang, rate, pitch string) string {
+// BuildSSML constructs a valid W3C SSML payload.
+func BuildSSML(text, voice, lang, rate, pitch string) string {
 	if rate == "" {
 		rate = "+0%"
 	}
@@ -220,7 +218,7 @@ func SynthesizeEdgeNeuralTTS(ctx context.Context, text, voice, rate, pitch strin
 		return nil, errors.New("empty text for synthesis")
 	}
 
-	voiceName, lang := resolveVoice(voice, "", "")
+	voiceName, lang := ResolveVoice(voice, "", "")
 	cacheKey := fmt.Sprintf("%s|%s|%s|%s", voiceName, rate, pitch, trimmed)
 
 	if cached, ok := globalTTSCache.Get(cacheKey); ok && len(cached) > 0 {
@@ -268,7 +266,7 @@ func SynthesizeEdgeNeuralTTS(ctx context.Context, text, voice, rate, pitch strin
 	}
 
 	// 2. Send SSML message
-	ssml := buildSSML(trimmed, voiceName, lang, rate, pitch)
+	ssml := BuildSSML(trimmed, voiceName, lang, rate, pitch)
 	ssmlMsg := fmt.Sprintf(
 		"X-RequestId:%s\r\nContent-Type:application/ssml+xml\r\nPath:ssml\r\n\r\n%s",
 		reqID,
@@ -320,38 +318,4 @@ func SynthesizeEdgeNeuralTTS(ctx context.Context, text, voice, rate, pitch strin
 
 	globalTTSCache.Set(cacheKey, audioData)
 	return audioData, nil
-}
-
-// handleAITTS handles POST /api/ai/tts HTTP requests and streams back the synthesized MP3 audio.
-func (s *Server) handleAITTS(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		writeJSONError(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	var req AITTSRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, fmt.Sprintf("Invalid request payload: %v", err), http.StatusBadRequest)
-		return
-	}
-
-	if strings.TrimSpace(req.Text) == "" {
-		writeJSONError(w, "Field 'text' is required", http.StatusBadRequest)
-		return
-	}
-
-	voiceName, _ := resolveVoice(req.Voice, req.Persona, req.Language)
-
-	audioBytes, err := SynthesizeEdgeNeuralTTS(r.Context(), req.Text, voiceName, req.Rate, req.Pitch)
-	if err != nil {
-		slog.Error("Speech synthesis failed", "voice", voiceName, "error", err)
-		writeJSONError(w, fmt.Sprintf("Speech synthesis failed: %v", err), http.StatusBadGateway)
-		return
-	}
-
-	w.Header().Set("Content-Type", "audio/mpeg")
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(audioBytes)))
-	w.Header().Set("Cache-Control", "public, max-age=86400")
-	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(audioBytes)
 }

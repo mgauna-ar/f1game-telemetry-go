@@ -1,12 +1,12 @@
-package api
+package ai
 
 import (
 	"fmt"
 	"strings"
 )
 
-// buildSystemPrompt constructs a rich system prompt tailored for an elite F1 Race Engineer based on context mode, persona, and language.
-func buildSystemPrompt(telemetryCtx *TelemetryAnalysisContext, persona, language string) string {
+// BuildSystemPrompt constructs a rich system prompt tailored for an elite F1 Race Engineer based on context mode, persona, and language.
+func BuildSystemPrompt(telemetryCtx *TelemetryAnalysisContext, persona, language string) string {
 	if telemetryCtx != nil && (telemetryCtx.ContextMode == "session_debrief" || (telemetryCtx.SessionSummary != "" && telemetryCtx.LapAName == "")) {
 		return buildSessionDebriefPrompt(telemetryCtx)
 	}

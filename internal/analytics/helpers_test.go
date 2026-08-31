@@ -1,4 +1,4 @@
-package api
+package analytics
 
 import (
 	"testing"
@@ -13,7 +13,7 @@ func TestGroupLapsByCar(t *testing.T) {
 		{CarIndex: 1, LapNumber: 1, LapTimeMS: 91000},
 	}
 
-	lapsByCar, maxLap := groupLapsByCar(laps)
+	lapsByCar, maxLap := GroupLapsByCar(laps)
 	if maxLap != 2 {
 		t.Fatalf("expected maxLap 2, got %d", maxLap)
 	}
@@ -32,7 +32,7 @@ func TestBuildEffectiveParticipants(t *testing.T) {
 	}
 
 	// Case 1: Empty participants -> should create synthetic participants
-	active := buildEffectiveParticipants(&storage.Session{ID: 100}, nil, lapsByCar, true)
+	active := BuildEffectiveParticipants(&storage.Session{ID: 100}, nil, lapsByCar, true)
 	if len(active) != 2 {
 		t.Fatalf("expected 2 synthetic active participants, got %d", len(active))
 	}
@@ -45,7 +45,7 @@ func TestBuildEffectiveParticipants(t *testing.T) {
 		{CarIndex: 0, Name: "Player", AIControlled: false},
 		{CarIndex: 1, Name: "", AIControlled: false, DriverID: 0},
 	}
-	activeProvided := buildEffectiveParticipants(&storage.Session{ID: 100}, existing, lapsByCar, false)
+	activeProvided := BuildEffectiveParticipants(&storage.Session{ID: 100}, existing, lapsByCar, false)
 	if len(activeProvided) != 2 {
 		t.Fatalf("expected 2 active participants, got %d", len(activeProvided))
 	}
@@ -58,7 +58,7 @@ func TestComputeStintsSummary(t *testing.T) {
 		{TyreCompound: "MEDIUM", Stint: 2},
 	}
 
-	summary := computeStintsSummary(laps)
+	summary := ComputeStintsSummary(laps)
 	expected := "SOFT (2) → MEDIUM (1)"
 	if summary != expected {
 		t.Fatalf("expected %q, got %q", expected, summary)

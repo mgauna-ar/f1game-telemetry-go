@@ -1,4 +1,4 @@
-package api
+package ai
 
 import (
 	"bufio"
@@ -12,8 +12,8 @@ import (
 	"time"
 )
 
-// parseGeminiError converts a non-200 Gemini API response into a structured AIStreamError.
-func parseGeminiError(statusCode int, body []byte) *AIStreamError {
+// ParseGeminiError converts a non-200 Gemini API response into a structured AIStreamError.
+func ParseGeminiError(statusCode int, body []byte) *AIStreamError {
 	var gErr struct {
 		Error struct {
 			Code    int    `json:"code"`
@@ -91,8 +91,8 @@ func parseGeminiError(statusCode int, body []byte) *AIStreamError {
 	}
 }
 
-// parseOpenAIError converts a non-200 OpenAI API response into a structured AIStreamError.
-func parseOpenAIError(statusCode int, body []byte, providerName string) *AIStreamError {
+// ParseOpenAIError converts a non-200 OpenAI API response into a structured AIStreamError.
+func ParseOpenAIError(statusCode int, body []byte, providerName string) *AIStreamError {
 	if providerName == "" {
 		providerName = "openai"
 	}
@@ -179,8 +179,8 @@ func parseOpenAIError(statusCode int, body []byte, providerName string) *AIStrea
 	}
 }
 
-// fetchGeminiModels queries Gemini API for available active generative chat models.
-func fetchGeminiModels(ctx context.Context, apiKey string) ([]AIModelItem, error) {
+// FetchGeminiModels queries Gemini API for available active generative chat models.
+func FetchGeminiModels(ctx context.Context, apiKey string) ([]AIModelItem, error) {
 	client := &http.Client{Timeout: 15 * time.Second}
 	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models?key=%s", apiKey)
 
@@ -197,7 +197,7 @@ func fetchGeminiModels(ctx context.Context, apiKey string) ([]AIModelItem, error
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, parseGeminiError(resp.StatusCode, body)
+		return nil, ParseGeminiError(resp.StatusCode, body)
 	}
 
 	var geminiResp struct {
@@ -255,8 +255,8 @@ func fetchGeminiModels(ctx context.Context, apiKey string) ([]AIModelItem, error
 	return models, nil
 }
 
-// fetchOpenAIModels queries OpenAI or compatible endpoints for available text models.
-func fetchOpenAIModels(ctx context.Context, baseURL, apiKey string) ([]AIModelItem, error) {
+// FetchOpenAIModels queries OpenAI or compatible endpoints for available text models.
+func FetchOpenAIModels(ctx context.Context, baseURL, apiKey string) ([]AIModelItem, error) {
 	if baseURL == "" {
 		baseURL = "https://api.openai.com/v1"
 	}
@@ -279,7 +279,7 @@ func fetchOpenAIModels(ctx context.Context, baseURL, apiKey string) ([]AIModelIt
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, parseOpenAIError(resp.StatusCode, body, "openai")
+		return nil, ParseOpenAIError(resp.StatusCode, body, "openai")
 	}
 
 	var openAIResp struct {
@@ -319,8 +319,8 @@ func fetchOpenAIModels(ctx context.Context, baseURL, apiKey string) ([]AIModelIt
 	return models, nil
 }
 
-// streamGemini performs streaming request to Google Gemini API with SSE.
-func streamGemini(ctx context.Context, apiKey, model, systemPrompt string, messages []AIChatMessage, w http.ResponseWriter, flusher http.Flusher) error {
+// StreamGemini performs streaming request to Google Gemini API with SSE.
+func StreamGemini(ctx context.Context, apiKey, model, systemPrompt string, messages []AIChatMessage, w http.ResponseWriter, flusher http.Flusher) error {
 	modelClean := strings.TrimPrefix(strings.TrimSpace(model), "models/")
 	if modelClean == "" {
 		modelClean = "gemini-flash-lite-latest"
@@ -388,7 +388,7 @@ func streamGemini(ctx context.Context, apiKey, model, systemPrompt string, messa
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return parseGeminiError(resp.StatusCode, body)
+		return ParseGeminiError(resp.StatusCode, body)
 	}
 
 	reader := bufio.NewReader(resp.Body)
@@ -442,8 +442,8 @@ func streamGemini(ctx context.Context, apiKey, model, systemPrompt string, messa
 	return nil
 }
 
-// streamOpenAI performs streaming request to OpenAI or compatible API.
-func streamOpenAI(ctx context.Context, baseURL, apiKey, model, systemPrompt string, messages []AIChatMessage, w http.ResponseWriter, flusher http.Flusher) error {
+// StreamOpenAI performs streaming request to OpenAI or compatible API.
+func StreamOpenAI(ctx context.Context, baseURL, apiKey, model, systemPrompt string, messages []AIChatMessage, w http.ResponseWriter, flusher http.Flusher) error {
 	endpoint := strings.TrimRight(baseURL, "/") + "/chat/completions"
 
 	type OpenAIMessage struct {
@@ -506,7 +506,7 @@ func streamOpenAI(ctx context.Context, baseURL, apiKey, model, systemPrompt stri
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return parseOpenAIError(resp.StatusCode, body, "openai")
+		return ParseOpenAIError(resp.StatusCode, body, "openai")
 	}
 
 	reader := bufio.NewReader(resp.Body)

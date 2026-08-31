@@ -1,103 +1,42 @@
-package api
+package ai
 
 import (
-	"bytes"
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 )
 
-func TestHandleAIConfigStatus(t *testing.T) {
-	t.Run("default empty config", func(t *testing.T) {
-		server, _ := setupTestServer(t)
+func TestResolveDefaultModel(t *testing.T) {
+	if m := ResolveDefaultModel("gemini", ""); m != "gemini-flash-lite-latest" {
+		t.Errorf("expected gemini-flash-lite-latest, got %s", m)
+	}
+	if m := ResolveDefaultModel("openai", ""); m != "gpt-4o-mini" {
+		t.Errorf("expected gpt-4o-mini, got %s", m)
+	}
+	if m := ResolveDefaultModel("gemini", "custom-model"); m != "custom-model" {
+		t.Errorf("expected custom-model, got %s", m)
+	}
+}
 
-		req := httptest.NewRequest(http.MethodGet, "/api/ai/config-status", http.NoBody)
-		rec := httptest.NewRecorder()
-		server.router.ServeHTTP(rec, req)
+func TestResolveProviderAndKey(t *testing.T) {
+	p, k := ResolveProviderAndKey("gemini", "req-key", "env-gem", "env-oai")
+	if p != "gemini" || k != "req-key" {
+		t.Errorf("expected gemini & req-key, got %s & %s", p, k)
+	}
 
-		if rec.Code != http.StatusOK {
-			t.Fatalf("expected status 200, got %d", rec.Code)
-		}
+	p, k = ResolveProviderAndKey("", "", "env-gem", "env-oai")
+	if p != "gemini" || k != "env-gem" {
+		t.Errorf("expected gemini & env-gem, got %s & %s", p, k)
+	}
 
-		var status AIConfigStatusResponse
-		if err := json.NewDecoder(rec.Body).Decode(&status); err != nil {
-			t.Fatalf("failed to decode config status response: %v", err)
-		}
-
-		if status.HasGeminiEnvKey || status.HasOpenAIEnvKey {
-			t.Errorf("expected no env keys configured")
-		}
-		if status.DefaultProvider != "gemini" {
-			t.Errorf("expected default provider gemini, got %s", status.DefaultProvider)
-		}
-		if status.DefaultModel != "gemini-flash-lite-latest" {
-			t.Errorf("expected default model gemini-flash-lite-latest, got %s", status.DefaultModel)
-		}
-	})
-
-	t.Run("injected gemini and openai keys", func(t *testing.T) {
-		server := NewServer(nil, nil, nil, ServerConfig{
-			GeminiAPIKey: "test-gemini-key",
-			OpenAIAPIKey: "test-openai-key",
-			LLMModel:     "custom-model",
-			LLMProvider:  "custom-provider",
-		})
-
-		req := httptest.NewRequest(http.MethodGet, "/api/ai/config-status", http.NoBody)
-		rec := httptest.NewRecorder()
-		server.router.ServeHTTP(rec, req)
-
-		if rec.Code != http.StatusOK {
-			t.Fatalf("expected status 200, got %d", rec.Code)
-		}
-
-		var status AIConfigStatusResponse
-		if err := json.NewDecoder(rec.Body).Decode(&status); err != nil {
-			t.Fatalf("failed to decode config status response: %v", err)
-		}
-
-		if !status.HasGeminiEnvKey {
-			t.Errorf("expected HasGeminiEnvKey to be true")
-		}
-		if !status.HasOpenAIEnvKey {
-			t.Errorf("expected HasOpenAIEnvKey to be true")
-		}
-		if status.DefaultModel != "custom-model" {
-			t.Errorf("expected default model custom-model, got %s", status.DefaultModel)
-		}
-		if status.DefaultProvider != "custom-provider" {
-			t.Errorf("expected default provider custom-provider, got %s", status.DefaultProvider)
-		}
-	})
-
-	t.Run("injected openai only falls back to openai provider", func(t *testing.T) {
-		server := NewServer(nil, nil, nil, ServerConfig{
-			OpenAIAPIKey: "test-openai-key",
-		})
-
-		req := httptest.NewRequest(http.MethodGet, "/api/ai/config-status", http.NoBody)
-		rec := httptest.NewRecorder()
-		server.router.ServeHTTP(rec, req)
-
-		var status AIConfigStatusResponse
-		if err := json.NewDecoder(rec.Body).Decode(&status); err != nil {
-			t.Fatalf("failed to decode config status response: %v", err)
-		}
-
-		if status.DefaultProvider != "openai" {
-			t.Errorf("expected default provider openai, got %s", status.DefaultProvider)
-		}
-		if status.DefaultModel != "gpt-4o-mini" {
-			t.Errorf("expected default model gpt-4o-mini, got %s", status.DefaultModel)
-		}
-	})
+	p, k = ResolveProviderAndKey("openai", "", "env-gem", "env-oai")
+	if p != "openai" || k != "env-oai" {
+		t.Errorf("expected openai & env-oai, got %s & %s", p, k)
+	}
 }
 
 func TestBuildSystemPrompt(t *testing.T) {
 	t.Run("nil context", func(t *testing.T) {
-		prompt := buildSystemPrompt(nil, "", "")
+		prompt := BuildSystemPrompt(nil, "", "")
 		if !strings.Contains(prompt, "Race Engineer") {
 			t.Errorf("expected prompt to contain role definition")
 		}
@@ -111,7 +50,7 @@ func TestBuildSystemPrompt(t *testing.T) {
 			ContextMode:    "session_debrief",
 			SessionSummary: "SESSION OVERVIEW:\n- Circuit: Silverstone\n- Session Type: Race\n- P1: Verstappen (Best: 1:28.120)",
 		}
-		prompt := buildSystemPrompt(ctx, "", "")
+		prompt := BuildSystemPrompt(ctx, "", "")
 		if !strings.Contains(prompt, "session debrief") {
 			t.Errorf("expected prompt to be session debrief prompt")
 		}
@@ -125,7 +64,7 @@ func TestBuildSystemPrompt(t *testing.T) {
 			ContextMode: "live",
 			LiveSummary: "LIVE STATUS:\n- Track: Monza\n- Safety Car: Active\n- Rain: 85% in 5 min",
 		}
-		prompt := buildSystemPrompt(ctx, "colapinto", "es")
+		prompt := BuildSystemPrompt(ctx, "colapinto", "es")
 		if !strings.Contains(prompt, "argentino") || !strings.Contains(prompt, "gomas") {
 			t.Errorf("expected prompt to contain Argentine motorsport persona")
 		}
@@ -139,7 +78,7 @@ func TestBuildSystemPrompt(t *testing.T) {
 			ContextMode: "live",
 			LiveSummary: "LIVE STATUS:\n- Track: Monza\n- Safety Car: Active",
 		}
-		prompt := buildSystemPrompt(ctx, "colapinto", "en")
+		prompt := BuildSystemPrompt(ctx, "colapinto", "en")
 		if !strings.Contains(prompt, "Franco Colapinto") || !strings.Contains(prompt, "Tyres in window") { //nolint:misspell // "Tyres" is correct British English (used consistently throughout F1 codebase)
 			t.Errorf("expected prompt to contain Colapinto English persona")
 		}
@@ -150,7 +89,7 @@ func TestBuildSystemPrompt(t *testing.T) {
 			ContextMode: "live",
 			LiveSummary: "LIVE STATUS:\n- Track: Silverstone\n- Gap: +1.2s",
 		}
-		prompt := buildSystemPrompt(ctx, "bono", "en")
+		prompt := BuildSystemPrompt(ctx, "bono", "en")
 		if !strings.Contains(prompt, "Peter 'Bono' Bonnington") || !strings.Contains(prompt, "Hammer time") {
 			t.Errorf("expected prompt to contain Bono English persona")
 		}
@@ -161,7 +100,7 @@ func TestBuildSystemPrompt(t *testing.T) {
 			ContextMode: "live",
 			LiveSummary: "LIVE STATUS:\n- Track: Silverstone\n- Gap: +1.2s",
 		}
-		prompt := buildSystemPrompt(ctx, "bono", "es")
+		prompt := BuildSystemPrompt(ctx, "bono", "es")
 		if !strings.Contains(prompt, "Peter 'Bono' Bonnington") || !strings.Contains(prompt, "Modo carrera") {
 			t.Errorf("expected prompt to contain Bono Spanish persona")
 		}
@@ -173,7 +112,7 @@ func TestBuildSystemPrompt(t *testing.T) {
 			LiveSummary:         "LIVE STATUS:\n- Track: Spa",
 			CustomPersonaPrompt: "You are an aggressive Red Bull strategist.",
 		}
-		prompt := buildSystemPrompt(ctx, "custom", "en")
+		prompt := BuildSystemPrompt(ctx, "custom", "en")
 		if !strings.Contains(prompt, "aggressive Red Bull strategist") {
 			t.Errorf("expected prompt to contain custom persona prompt")
 		}
@@ -184,7 +123,7 @@ func TestBuildSystemPrompt(t *testing.T) {
 			ContextMode: "live",
 			LiveSummary: "LIVE STATUS:\n- Track: Silverstone\n- Gap: +1.2s",
 		}
-		prompt := buildSystemPrompt(ctx, "", "")
+		prompt := BuildSystemPrompt(ctx, "", "")
 		if !strings.Contains(prompt, "Peter 'Bono' Bonnington") || !strings.Contains(prompt, "Hammer time") {
 			t.Errorf("expected default prompt to be Bono English persona")
 		}
@@ -196,7 +135,7 @@ func TestBuildSystemPrompt(t *testing.T) {
 			LiveSummary:    "LIVE STATUS:\n- Track: Silverstone",
 			DriverCallsign: "Max",
 		}
-		promptEn := buildSystemPrompt(ctxEn, "bono", "en")
+		promptEn := BuildSystemPrompt(ctxEn, "bono", "en")
 		if !strings.Contains(promptEn, `DRIVER CALL-SIGN: The driver's name or call-sign is "Max"`) {
 			t.Errorf("expected prompt to contain English driver call-sign directive")
 		}
@@ -206,7 +145,7 @@ func TestBuildSystemPrompt(t *testing.T) {
 			LiveSummary:    "LIVE STATUS:\n- Track: Monza",
 			DriverCallsign: "Franco",
 		}
-		promptEs := buildSystemPrompt(ctxEs, "colapinto", "es")
+		promptEs := BuildSystemPrompt(ctxEs, "colapinto", "es")
 		if !strings.Contains(promptEs, `NOMBRE / CALL-SIGN DEL PILOTO: El nombre o apodo del piloto es "Franco"`) {
 			t.Errorf("expected prompt to contain Spanish driver call-sign directive")
 		}
@@ -219,12 +158,12 @@ func TestBuildSystemPrompt(t *testing.T) {
 			TrackName:   "Silverstone",
 			LiveSummary: "LIVE STATUS:\n- Track: Silverstone\n- Session: Qualifying 3 (Q3)",
 		}
-		promptEn := buildSystemPrompt(ctxQualy, "bono", "en")
+		promptEn := BuildSystemPrompt(ctxQualy, "bono", "en")
 		if !strings.Contains(promptEn, "QUALIFYING PROTOCOL") || !strings.Contains(promptEn, "single-lap flying pace") {
 			t.Errorf("expected prompt to contain English qualifying protocol, got: %s", promptEn)
 		}
 
-		promptEs := buildSystemPrompt(ctxQualy, "colapinto", "es")
+		promptEs := BuildSystemPrompt(ctxQualy, "colapinto", "es")
 		if !strings.Contains(promptEs, "PROTOCOLO DE CLASIFICACIÓN / QUALY") || !strings.Contains(promptEs, "vuelta rápida lanzada") {
 			t.Errorf("expected prompt to contain Spanish qualifying protocol, got: %s", promptEs)
 		}
@@ -237,12 +176,12 @@ func TestBuildSystemPrompt(t *testing.T) {
 			TrackName:   "Monza",
 			LiveSummary: "LIVE STATUS:\n- Track: Monza\n- Session: Practice 2 (FP2)",
 		}
-		promptEn := buildSystemPrompt(ctxPractice, "bono", "en")
+		promptEn := BuildSystemPrompt(ctxPractice, "bono", "en")
 		if !strings.Contains(promptEn, "FREE PRACTICE PROTOCOL") || !strings.Contains(promptEn, "setup feedback") {
 			t.Errorf("expected prompt to contain English practice protocol, got: %s", promptEn)
 		}
 
-		promptEs := buildSystemPrompt(ctxPractice, "colapinto", "es")
+		promptEs := BuildSystemPrompt(ctxPractice, "colapinto", "es")
 		if !strings.Contains(promptEs, "PROTOCOLO DE PRÁCTICAS LIBRES") || !strings.Contains(promptEs, "puesta a punto") {
 			t.Errorf("expected prompt to contain Spanish practice protocol, got: %s", promptEs)
 		}
@@ -254,7 +193,7 @@ func TestBuildSystemPrompt(t *testing.T) {
 			UrgencyLevel:   "critical",
 			IncidentStatus: "safety_car",
 		}
-		promptEn := buildSystemPrompt(ctxCrit, "bono", "en")
+		promptEn := BuildSystemPrompt(ctxCrit, "bono", "en")
 		if !strings.Contains(promptEn, "CRITICAL EMERGENCY") {
 			t.Errorf("expected prompt to contain critical urgency in English, got: %s", promptEn)
 		}
@@ -262,7 +201,7 @@ func TestBuildSystemPrompt(t *testing.T) {
 			t.Errorf("expected prompt to contain full safety car incident directive in English, got: %s", promptEn)
 		}
 
-		promptEs := buildSystemPrompt(ctxCrit, "colapinto", "es")
+		promptEs := BuildSystemPrompt(ctxCrit, "colapinto", "es")
 		if !strings.Contains(promptEs, "EMERGENCIA CRÍTICA") {
 			t.Errorf("expected prompt to contain critical urgency in Spanish, got: %s", promptEs)
 		}
@@ -305,7 +244,7 @@ func TestBuildSystemPrompt(t *testing.T) {
 			},
 		}
 
-		prompt := buildSystemPrompt(ctx, "", "")
+		prompt := BuildSystemPrompt(ctx, "", "")
 		if !strings.Contains(prompt, "Silverstone") {
 			t.Errorf("expected track name Silverstone in prompt")
 		}
@@ -336,7 +275,7 @@ func TestBuildSystemPrompt(t *testing.T) {
 			FasterLap:         "Lap A",
 		}
 
-		prompt := buildSystemPrompt(ctx, "", "")
+		prompt := BuildSystemPrompt(ctx, "", "")
 		if !strings.Contains(prompt, "Cross-Session Comparison") {
 			t.Errorf("expected prompt to mention Cross-Session Comparison")
 		}
@@ -349,72 +288,10 @@ func TestBuildSystemPrompt(t *testing.T) {
 	})
 }
 
-func TestHandleAIChat_Validation(t *testing.T) {
-	server, _ := setupTestServer(t)
-
-	t.Run("invalid json payload", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/api/ai/chat", strings.NewReader("not a json"))
-		rec := httptest.NewRecorder()
-		server.router.ServeHTTP(rec, req)
-
-		if rec.Code != http.StatusBadRequest {
-			t.Errorf("expected 400 Bad Request, got %d", rec.Code)
-		}
-	})
-
-	t.Run("missing api key with no env key", func(t *testing.T) {
-		payload := AIChatRequest{
-			Provider: "gemini",
-			APIKey:   "",
-			Messages: []AIChatMessage{
-				{Role: "user", Content: "Analiza el sector 1"},
-			},
-		}
-		body, _ := json.Marshal(payload)
-		req := httptest.NewRequest(http.MethodPost, "/api/ai/chat", bytes.NewReader(body))
-		rec := httptest.NewRecorder()
-		server.router.ServeHTTP(rec, req)
-
-		// Unless GEMINI_API_KEY is in host environment, this should return 401 Unauthorized
-		if rec.Code != http.StatusUnauthorized && rec.Code != http.StatusOK {
-			t.Errorf("expected 401 or 200 (if host env set), got %d", rec.Code)
-		}
-	})
-}
-
-func TestHandleAIFetchModels_Validation(t *testing.T) {
-	server, _ := setupTestServer(t)
-
-	t.Run("invalid json payload", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodPost, "/api/ai/models", strings.NewReader("bad"))
-		rec := httptest.NewRecorder()
-		server.router.ServeHTTP(rec, req)
-
-		if rec.Code != http.StatusBadRequest {
-			t.Errorf("expected 400 Bad Request, got %d", rec.Code)
-		}
-	})
-
-	t.Run("missing api key", func(t *testing.T) {
-		payload := AIFetchModelsRequest{
-			Provider: "gemini",
-			APIKey:   "",
-		}
-		body, _ := json.Marshal(payload)
-		req := httptest.NewRequest(http.MethodPost, "/api/ai/models", bytes.NewReader(body))
-		rec := httptest.NewRecorder()
-		server.router.ServeHTTP(rec, req)
-
-		if rec.Code != http.StatusUnauthorized && rec.Code != http.StatusOK {
-			t.Errorf("expected 401 or 200 (if host env set), got %d", rec.Code)
-		}
-	})
-}
-
 func TestParseGeminiError(t *testing.T) {
 	t.Run("overloaded 503", func(t *testing.T) {
 		body := []byte(`{"error": {"code": 503, "message": "The model is overloaded. Please try again later.", "status": "UNAVAILABLE"}}`)
-		err := parseGeminiError(503, body)
+		err := ParseGeminiError(503, body)
 		if err.Code != AIErrorModelOverloaded {
 			t.Errorf("expected code %s, got %s", AIErrorModelOverloaded, err.Code)
 		}
@@ -425,7 +302,7 @@ func TestParseGeminiError(t *testing.T) {
 
 	t.Run("quota exhausted 429", func(t *testing.T) {
 		body := []byte(`{"error": {"code": 429, "message": "Resource has been exhausted (e.g. check quota).", "status": "RESOURCE_EXHAUSTED"}}`)
-		err := parseGeminiError(429, body)
+		err := ParseGeminiError(429, body)
 		if err.Code != AIErrorQuotaExceeded {
 			t.Errorf("expected code %s, got %s", AIErrorQuotaExceeded, err.Code)
 		}
@@ -433,7 +310,7 @@ func TestParseGeminiError(t *testing.T) {
 
 	t.Run("invalid api key 400", func(t *testing.T) {
 		body := []byte(`{"error": {"code": 400, "message": "API key not valid. Please pass a valid API key.", "status": "INVALID_ARGUMENT"}}`)
-		err := parseGeminiError(400, body)
+		err := ParseGeminiError(400, body)
 		if err.Code != AIErrorInvalidAPIKey {
 			t.Errorf("expected code %s, got %s", AIErrorInvalidAPIKey, err.Code)
 		}
@@ -441,7 +318,7 @@ func TestParseGeminiError(t *testing.T) {
 
 	t.Run("model not found 404", func(t *testing.T) {
 		body := []byte(`{"error": {"code": 404, "message": "models/nonexistent is not found", "status": "NOT_FOUND"}}`)
-		err := parseGeminiError(404, body)
+		err := ParseGeminiError(404, body)
 		if err.Code != AIErrorModelNotFound {
 			t.Errorf("expected code %s, got %s", AIErrorModelNotFound, err.Code)
 		}
@@ -451,7 +328,7 @@ func TestParseGeminiError(t *testing.T) {
 func TestParseOpenAIError(t *testing.T) {
 	t.Run("insufficient quota 429", func(t *testing.T) {
 		body := []byte(`{"error": {"message": "You exceeded your current quota, please check your plan and billing details.", "type": "insufficient_quota", "code": "insufficient_quota"}}`)
-		err := parseOpenAIError(429, body, "openai")
+		err := ParseOpenAIError(429, body, "openai")
 		if err.Code != AIErrorQuotaExceeded {
 			t.Errorf("expected code %s, got %s", AIErrorQuotaExceeded, err.Code)
 		}
@@ -459,7 +336,7 @@ func TestParseOpenAIError(t *testing.T) {
 
 	t.Run("invalid key 401", func(t *testing.T) {
 		body := []byte(`{"error": {"message": "Incorrect API key provided", "type": "invalid_request_error", "code": "invalid_api_key"}}`)
-		err := parseOpenAIError(401, body, "openai")
+		err := ParseOpenAIError(401, body, "openai")
 		if err.Code != AIErrorInvalidAPIKey {
 			t.Errorf("expected code %s, got %s", AIErrorInvalidAPIKey, err.Code)
 		}
@@ -467,7 +344,7 @@ func TestParseOpenAIError(t *testing.T) {
 
 	t.Run("overloaded 503", func(t *testing.T) {
 		body := []byte(`{"error": {"message": "The server is currently overloaded with other requests.", "type": "server_error"}}`)
-		err := parseOpenAIError(503, body, "openai")
+		err := ParseOpenAIError(503, body, "openai")
 		if err.Code != AIErrorModelOverloaded {
 			t.Errorf("expected code %s, got %s", AIErrorModelOverloaded, err.Code)
 		}

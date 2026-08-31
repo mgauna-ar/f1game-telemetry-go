@@ -1,11 +1,6 @@
-package api
+package analytics
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
@@ -13,11 +8,11 @@ import (
 
 func TestCalculateDegradationSlope(t *testing.T) {
 	t.Run("returns nil for less than 3 points", func(t *testing.T) {
-		pts := []degRegressionPoint{
-			{age: 1, timeSec: 88.0},
-			{age: 2, timeSec: 88.5},
+		pts := []DegRegressionPoint{
+			{Age: 1, TimeSec: 88.0},
+			{Age: 2, TimeSec: 88.5},
 		}
-		res := calculateDegradationSlope(pts)
+		res := CalculateDegradationSlope(pts)
 		if res != nil {
 			t.Errorf("expected nil for N=2, got %v", *res)
 		}
@@ -26,13 +21,13 @@ func TestCalculateDegradationSlope(t *testing.T) {
 	t.Run("calculates correct positive degradation slope", func(t *testing.T) {
 		// Perfect linear degradation: time = 88.0 + 0.2 * (age - 1)
 		// Age 1: 88.0s, Age 2: 88.2s, Age 3: 88.4s, Age 4: 88.6s
-		pts := []degRegressionPoint{
-			{age: 1, timeSec: 88.0},
-			{age: 2, timeSec: 88.2},
-			{age: 3, timeSec: 88.4},
-			{age: 4, timeSec: 88.6},
+		pts := []DegRegressionPoint{
+			{Age: 1, TimeSec: 88.0},
+			{Age: 2, TimeSec: 88.2},
+			{Age: 3, TimeSec: 88.4},
+			{Age: 4, TimeSec: 88.6},
 		}
-		res := calculateDegradationSlope(pts)
+		res := CalculateDegradationSlope(pts)
 		if res == nil {
 			t.Fatal("expected non-nil slope")
 		}
@@ -71,7 +66,7 @@ func TestComputeSessionStints(t *testing.T) {
 		{SessionID: 30, CarIndex: 1, LapNumber: 5, LapTimeMS: 88300, TyreCompound: "HARD", Stint: 2, IsValid: true},
 	}
 
-	resp := computeSessionStints(session, participants, laps)
+	resp := ComputeSessionStints(session, participants, laps)
 	if resp == nil {
 		t.Fatal("expected non-nil response")
 	}
@@ -134,45 +129,4 @@ func TestComputeSessionStints(t *testing.T) {
 	if len(resp.SessionCompounds) != 3 {
 		t.Errorf("expected 3 compounds (HARD, MEDIUM, SOFT), got %v", resp.SessionCompounds)
 	}
-}
-
-func TestHandleGetSessionStints_Endpoint(t *testing.T) {
-	server, repo := setupTestServer(t)
-	ctx := context.Background()
-
-	session := &storage.Session{
-		SessionUID:   storage.FormatSessionUID(777777),
-		TrackID:      1,
-		TrackName:    "Albert Park",
-		SessionType:  "Race",
-		PacketFormat: 2025,
-	}
-	if err := repo.SaveSession(ctx, session); err != nil {
-		t.Fatalf("failed to create session: %v", err)
-	}
-
-	t.Run("valid stints returns 200 OK", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/sessions/%d/stints", session.ID), http.NoBody)
-		rec := httptest.NewRecorder()
-		server.Router().ServeHTTP(rec, req)
-
-		if rec.Code != http.StatusOK {
-			t.Fatalf("expected 200 OK, got %d", rec.Code)
-		}
-
-		var resp StintsResponse
-		if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-			t.Fatalf("failed to parse JSON: %v", err)
-		}
-	})
-
-	t.Run("non-existent session returns 404", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/api/sessions/9999/stints", http.NoBody)
-		rec := httptest.NewRecorder()
-		server.Router().ServeHTTP(rec, req)
-
-		if rec.Code != http.StatusNotFound {
-			t.Errorf("expected 404, got %d", rec.Code)
-		}
-	})
 }

@@ -1,14 +1,11 @@
-package api
+package analytics
 
 import (
 	"fmt"
 	"math"
-	"net/http"
 	"sort"
-	"strconv"
 	"strings"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
 )
@@ -132,15 +129,15 @@ func partitionDriverStints(driverLaps []storage.Lap, usedCompoundsSet map[string
 	finalStints := make([]DriverStint, len(rawStints))
 	for sIdx, s := range rawStints {
 		var validLaps []storage.Lap
-		var degPoints []degRegressionPoint
+		var degPoints []DegRegressionPoint
 
 		for lapIndexInStint, l := range s.Laps {
 			if l.LapTimeMS > 0 {
 				validLaps = append(validLaps, l)
 				sec := float64(l.LapTimeMS) / 1000.0
-				degPoints = append(degPoints, degRegressionPoint{
-					age:     float64(lapIndexInStint + 1),
-					timeSec: sec,
+				degPoints = append(degPoints, DegRegressionPoint{
+					Age:     float64(lapIndexInStint + 1),
+					TimeSec: sec,
 				})
 			}
 		}
@@ -157,7 +154,7 @@ func partitionDriverStints(driverLaps []storage.Lap, usedCompoundsSet map[string
 			s.AvgLapTimeMS = int(sum / int64(len(validLaps)))
 			s.BestLapTimeMS = best
 		}
-		s.DegSlopeSecPerLap = calculateDegradationSlope(degPoints)
+		s.DegSlopeSecPerLap = CalculateDegradationSlope(degPoints)
 		finalStints[sIdx] = *s
 	}
 
@@ -319,15 +316,15 @@ func buildDegradationData(driverStintsData []DriverStintData) (degradationData [
 	return degradationData, rates, globalMaxAge
 }
 
-// computeSessionStints executes server-side stint strategy analysis, partitioning, OLS regression, and KPIs.
-func computeSessionStints(session *storage.Session, participants []storage.Participant, laps []storage.Lap) *StintsResponse {
+// ComputeSessionStints executes server-side stint strategy analysis, partitioning, OLS regression, and KPIs.
+func ComputeSessionStints(session *storage.Session, participants []storage.Participant, laps []storage.Lap) *StintsResponse {
 	isRaceSession := session != nil && strings.Contains(strings.ToLower(session.SessionType), "race")
 
 	// 1. Group laps by car
-	lapsByCar, _ := groupLapsByCar(laps)
+	lapsByCar, _ := GroupLapsByCar(laps)
 
 	// 2. Prepare active participants
-	activeParticipants := buildEffectiveParticipants(session, participants, lapsByCar, isRaceSession)
+	activeParticipants := BuildEffectiveParticipants(session, participants, lapsByCar, isRaceSession)
 
 	// Sort active participants by standing / position
 	sort.SliceStable(activeParticipants, func(i, j int) bool {
@@ -383,34 +380,4 @@ func computeSessionStints(session *storage.Session, participants []storage.Parti
 		SessionCompounds: sessionCompounds,
 		EffectiveMaxLaps: effectiveMaxLaps,
 	}
-}
-
-// handleGetSessionStints serves GET /api/sessions/{id}/stints
-func (s *Server) handleGetSessionStints(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	idStr := chi.URLParam(r, "id")
-	sessionID, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		writeJSONError(w, "invalid session id", http.StatusBadRequest)
-		return
-	}
-
-	session, err := s.repo.GetSessionByID(ctx, sessionID)
-	if err != nil {
-		writeJSONError(w, "session not found", http.StatusNotFound)
-		return
-	}
-
-	participants, pErr := s.repo.GetParticipantsBySession(ctx, sessionID)
-	if pErr != nil {
-		participants = []storage.Participant{}
-	}
-
-	laps, lErr := s.repo.GetLapsBySession(ctx, sessionID, nil)
-	if lErr != nil {
-		laps = []storage.Lap{}
-	}
-
-	resp := computeSessionStints(session, participants, laps)
-	writeJSON(w, http.StatusOK, resp)
 }

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/api"
+	"github.com/mgauna/f1game-telemetry-go/internal/engineer"
 	"github.com/mgauna/f1game-telemetry-go/internal/input"
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 	"github.com/mgauna/f1game-telemetry-go/internal/session"
@@ -113,7 +114,7 @@ func main() {
 	inputMgr := input.NewManager()
 	inputMgr.Start(ctx)
 
-	engineerEngine := api.NewEngineerEngine(engineerHub, repo)
+	engineerEngine := engineer.NewEngineerEngine(engineerHub, repo)
 
 	apiConfig := api.ServerConfig{
 		GeminiAPIKey: cfg.GeminiAPIKey,

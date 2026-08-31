@@ -1,11 +1,6 @@
-package api
+package analytics
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
@@ -35,7 +30,7 @@ func TestComputeSessionProgression_Race(t *testing.T) {
 		{SessionID: 10, CarIndex: 1, LapNumber: 3, LapTimeMS: 87900, TyreCompound: "HARD", IsValid: true},
 	}
 
-	resp := computeSessionProgression(session, participants, laps)
+	resp := ComputeSessionProgression(session, participants, laps)
 	if resp == nil {
 		t.Fatal("expected non-nil response")
 	}
@@ -112,7 +107,7 @@ func TestComputeSessionProgression_Qualifying(t *testing.T) {
 		{SessionID: 20, CarIndex: 1, LapNumber: 3, LapTimeMS: 115000, IsValid: true},
 	}
 
-	resp := computeSessionProgression(session, participants, laps)
+	resp := ComputeSessionProgression(session, participants, laps)
 	if resp == nil {
 		t.Fatal("expected non-nil response")
 	}
@@ -130,45 +125,4 @@ func TestComputeSessionProgression_Qualifying(t *testing.T) {
 	if resp.Positions[2]["driver_0"] != 1 || resp.Positions[2]["driver_1"] != 2 {
 		t.Errorf("lap 3 qualy positions expected Max 1, Lando 2, got %v and %v", resp.Positions[2]["driver_0"], resp.Positions[2]["driver_1"])
 	}
-}
-
-func TestHandleGetSessionProgression_Endpoint(t *testing.T) {
-	server, repo := setupTestServer(t)
-	ctx := context.Background()
-
-	session := &storage.Session{
-		SessionUID:   storage.FormatSessionUID(888888),
-		TrackID:      5,
-		TrackName:    "Interlagos",
-		SessionType:  "Race",
-		PacketFormat: 2025,
-	}
-	if err := repo.SaveSession(ctx, session); err != nil {
-		t.Fatalf("failed to create session: %v", err)
-	}
-
-	t.Run("valid progression returns 200 OK", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/sessions/%d/progression", session.ID), http.NoBody)
-		rec := httptest.NewRecorder()
-		server.Router().ServeHTTP(rec, req)
-
-		if rec.Code != http.StatusOK {
-			t.Fatalf("expected 200 OK, got %d", rec.Code)
-		}
-
-		var resp ProgressionResponse
-		if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-			t.Fatalf("failed to parse JSON: %v", err)
-		}
-	})
-
-	t.Run("non-existent session returns 404", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/api/sessions/9999/progression", http.NoBody)
-		rec := httptest.NewRecorder()
-		server.Router().ServeHTTP(rec, req)
-
-		if rec.Code != http.StatusNotFound {
-			t.Errorf("expected 404, got %d", rec.Code)
-		}
-	})
 }

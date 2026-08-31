@@ -1,14 +1,11 @@
-package api
+package analytics
 
 import (
 	"fmt"
 	"math"
-	"net/http"
 	"sort"
-	"strconv"
 	"strings"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
 )
@@ -344,19 +341,19 @@ func buildProgressionDriverMeta(activeParticipants []storage.Participant) []Prog
 	return drivers
 }
 
-// computeSessionProgression executes server-side progression matrix calculation for a session.
-func computeSessionProgression(session *storage.Session, participants []storage.Participant, laps []storage.Lap) *ProgressionResponse {
+// ComputeSessionProgression executes server-side progression matrix calculation for a session.
+func ComputeSessionProgression(session *storage.Session, participants []storage.Participant, laps []storage.Lap) *ProgressionResponse {
 	isRaceSession := session != nil && strings.Contains(strings.ToLower(session.SessionType), "race")
 
 	// 1. Group laps by car & determine total session laps
-	lapsByCar, maxRecordedLap := groupLapsByCar(laps)
+	lapsByCar, maxRecordedLap := GroupLapsByCar(laps)
 	totalSessionLaps := maxRecordedLap
 	if totalSessionLaps == 0 && session != nil && session.TotalLaps > 0 {
 		totalSessionLaps = session.TotalLaps
 	}
 
 	// 2. Prepare active participants
-	activeParticipants := buildEffectiveParticipants(session, participants, lapsByCar, isRaceSession)
+	activeParticipants := BuildEffectiveParticipants(session, participants, lapsByCar, isRaceSession)
 
 	// 3. Dynamic position detection
 	hasDynamicCarPositions := detectDynamicCarPositions(activeParticipants, lapsByCar)
@@ -380,34 +377,4 @@ func computeSessionProgression(session *storage.Session, participants []storage.
 		Drivers:          drivers,
 		TotalSessionLaps: totalSessionLaps,
 	}
-}
-
-// handleGetSessionProgression serves GET /api/sessions/{id}/progression
-func (s *Server) handleGetSessionProgression(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	idStr := chi.URLParam(r, "id")
-	sessionID, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		writeJSONError(w, "invalid session id", http.StatusBadRequest)
-		return
-	}
-
-	session, err := s.repo.GetSessionByID(ctx, sessionID)
-	if err != nil {
-		writeJSONError(w, "session not found", http.StatusNotFound)
-		return
-	}
-
-	participants, pErr := s.repo.GetParticipantsBySession(ctx, sessionID)
-	if pErr != nil {
-		participants = []storage.Participant{}
-	}
-
-	laps, lErr := s.repo.GetLapsBySession(ctx, sessionID, nil)
-	if lErr != nil {
-		laps = []storage.Lap{}
-	}
-
-	resp := computeSessionProgression(session, participants, laps)
-	writeJSON(w, http.StatusOK, resp)
 }

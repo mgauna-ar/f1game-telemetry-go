@@ -1,0 +1,166 @@
+package engineer
+
+import (
+	"fmt"
+	"math"
+	"sync"
+
+	"github.com/mgauna/f1game-telemetry-go/internal/packets"
+)
+
+// TyresRule manages tyre wear alerts, thermal overheating, cold tyres, and puncture bypass.
+type TyresRule struct {
+	mu                      sync.Mutex
+	triggeredWearThresholds map[float32]bool
+	lastPunctured           bool
+}
+
+// NewTyresRule creates a new TyresRule.
+func NewTyresRule() *TyresRule {
+	return &TyresRule{
+		triggeredWearThresholds: make(map[float32]bool),
+	}
+}
+
+func (r *TyresRule) Name() string {
+	return "tyres"
+}
+
+func (r *TyresRule) Category() string {
+	return string(DirectiveCategoryTyres)
+}
+
+func (r *TyresRule) ValidPhases() []DrivingPhase {
+	return []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar}
+}
+
+func (r *TyresRule) DedupScope() DedupScope {
+	return DedupScopeStint
+}
+
+func (r *TyresRule) Reset(scope DedupScope) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if scope == DedupScopeStint || scope == DedupScopeNone {
+		r.triggeredWearThresholds = make(map[float32]bool)
+		r.lastPunctured = false
+	}
+}
+
+func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	var directives []Directive
+
+	// 1. Wear and Puncture (from CarDamageData)
+	dmg := ctx.PlayerDamage()
+	if dmg != nil && (ctx.Packet == nil || isPacketType[*packets.PacketCarDamageData](ctx.Packet)) {
+		var maxWear float32
+		for _, w := range dmg.TyresWear {
+			if w > maxWear {
+				maxWear = w
+			}
+		}
+
+		// Critical puncture (Emergency bypass)
+		if maxWear >= PunctureWearThresholdPct && !r.lastPunctured {
+			r.lastPunctured = true
+			directives = append(directives, Directive{
+				ID:       "tyre_puncture",
+				Category: DirectiveCategoryTyres,
+				SubAlert: "tyre_puncture",
+				Title:    "Critical Tyre Puncture",
+				Message:  fmt.Sprintf("Critical tyre puncture / tyre failure on car! Wear is at %d%%. Order driver to box immediately.", int(math.Round(float64(maxWear)))),
+				Urgency:  UrgencyCritical,
+			})
+		} else if maxWear < PunctureWearThresholdPct {
+			// Wear warning / critical thresholds
+			activeThresholds := []float32{ctx.Config.TyreWearWarnPct, ctx.Config.TyreWearCritPct}
+			currentTyreAge := 0
+			if status := ctx.PlayerStatus(); status != nil {
+				currentTyreAge = int(status.TyresAgeLaps)
+			}
+
+			for _, th := range activeThresholds {
+				if th <= 0 || maxWear < th || r.triggeredWearThresholds[th] {
+					continue
+				}
+				r.triggeredWearThresholds[th] = true
+				urgency := UrgencyLow
+				if maxWear >= ctx.Config.TyreWearCritPct {
+					urgency = UrgencyHigh
+				}
+				directives = append(directives, Directive{
+					ID:       "tyre_wear",
+					Category: DirectiveCategoryTyres,
+					SubAlert: "tyre_wear",
+					Title:    "Tyre Wear Alert",
+					Message:  fmt.Sprintf("Tyre wear reached %d%% (stint age: %d laps).", int(math.Round(float64(maxWear))), currentTyreAge),
+					Urgency:  urgency,
+					Metadata: map[string]any{
+						"wear_pct":  maxWear,
+						"tyre_age":  currentTyreAge,
+						"threshold": th,
+					},
+				})
+				break
+			}
+		}
+	}
+
+	// 2. Thermal Overheating & Cold Tires (from CarTelemetryData)
+	tele := ctx.PlayerTelemetry()
+	if tele != nil && (ctx.Packet == nil || isPacketType[*packets.PacketCarTelemetryData](ctx.Packet)) {
+		var maxSurfTemp float32
+		var rearMaxTemp float32
+		for i, t := range tele.TyresSurfaceTemperature {
+			val := float32(t)
+			if val > maxSurfTemp {
+				maxSurfTemp = val
+			}
+			if (i == 2 || i == 3) && val > rearMaxTemp { // Rear Left / Rear Right
+				rearMaxTemp = val
+			}
+		}
+
+		currentTyreAge := 0
+		if status := ctx.PlayerStatus(); status != nil {
+			currentTyreAge = int(status.TyresAgeLaps)
+		}
+
+		overheatLimit := ctx.Config.TyreOverheatC
+		if ctx.Is2026() && overheatLimit == OverheatRearTyres2025C {
+			overheatLimit = OverheatRearTyres2026C
+		}
+
+		if rearMaxTemp >= overheatLimit {
+			var advice string
+			if ctx.Is2026() {
+				advice = fmt.Sprintf("Rear tyre surface temperatures are overheating at %d°C (limit: %d°C)! Manage traction out of corners to protect the narrower rear tyres.", int(math.Round(float64(rearMaxTemp))), int(overheatLimit))
+			} else {
+				advice = fmt.Sprintf("Rear tyre surface temperatures are overheating at %d°C (limit: %d°C)! Advise driver to manage traction out of corners to cool the rears.", int(math.Round(float64(rearMaxTemp))), int(overheatLimit))
+			}
+			directives = append(directives, Directive{
+				ID:       "tyre_overheat",
+				Category: DirectiveCategoryTyres,
+				SubAlert: "tyre_overheat",
+				Title:    "Tyre Overheating",
+				Message:  advice,
+				Urgency:  UrgencyMedium,
+			})
+		} else if maxSurfTemp > 0 && maxSurfTemp <= ctx.Config.TyreColdC && currentTyreAge < 2 {
+			directives = append(directives, Directive{
+				ID:       "tyre_cold",
+				Category: DirectiveCategoryTyres,
+				SubAlert: "tyre_cold",
+				Title:    "Cold Tyre Temperature",
+				Message:  fmt.Sprintf("Tyre temperatures are cold (%d°C, target: >%d°C). Advise driver to weave and build tyre temperature.", int(math.Round(float64(maxSurfTemp))), int(ctx.Config.TyreColdC)),
+				Urgency:  UrgencyLow,
+			})
+		}
+	}
+
+	return directives
+}

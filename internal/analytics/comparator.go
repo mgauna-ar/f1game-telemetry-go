@@ -1,12 +1,10 @@
-package api
+package analytics
 
 import (
 	"container/list"
 	"fmt"
 	"math"
-	"net/http"
 	"sort"
-	"strconv"
 	"sync"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
@@ -162,11 +160,7 @@ func (c *ComparatorLRUCache) Clear() {
 	c.order.Init()
 }
 
-// normalizeTelemetrySeries normalizes raw telemetry samples for comparison:
-// - Filters non-finite and negative distance samples.
-// - Chronologically sorts by session_time.
-// - Filters isolated distance spikes.
-// normalizeTelemetrySeries normalizes raw telemetry samples for comparison:
+// NormalizeTelemetrySeries normalizes raw telemetry samples for comparison:
 // - Filters non-finite and negative distance samples.
 // - Chronologically sorts by session_time.
 // - Filters isolated distance spikes.
@@ -175,7 +169,7 @@ func (c *ComparatorLRUCache) Clear() {
 // - Zero-calibrates start line crossing (t=0.000s at d=0.0m).
 // - Harmonizes elapsed time with official lap duration when expectedLapTimeMs > 0.
 // - Optionally scales distances if targetTrackLength > 0.
-func normalizeTelemetrySeries(samples []storage.TelemetrySample, expectedLapTimeMs int, targetTrackLength float64) []storage.TelemetrySample {
+func NormalizeTelemetrySeries(samples []storage.TelemetrySample, expectedLapTimeMs int, targetTrackLength float64) []storage.TelemetrySample {
 	if len(samples) == 0 {
 		return []storage.TelemetrySample{}
 	}
@@ -492,8 +486,8 @@ func roundPtr(v *float64, decimals int) *float64 {
 	return &rounded
 }
 
-// calculateMergedComparison merges two raw telemetry series onto a uniform distance grid and computes channel deltas.
-func calculateMergedComparison(
+// CalculateMergedComparison merges two raw telemetry series onto a uniform distance grid and computes channel deltas.
+func CalculateMergedComparison(
 	rawA, rawB []storage.TelemetrySample,
 	stepMeters float64,
 	targetTrackLength float64,
@@ -503,8 +497,8 @@ func calculateMergedComparison(
 		stepMeters = DefaultComparatorStepMeters
 	}
 
-	normA := normalizeTelemetrySeries(rawA, lapTimeMsA, targetTrackLength)
-	normB := normalizeTelemetrySeries(rawB, lapTimeMsB, targetTrackLength)
+	normA := NormalizeTelemetrySeries(rawA, lapTimeMsA, targetTrackLength)
+	normB := NormalizeTelemetrySeries(rawB, lapTimeMsB, targetTrackLength)
 
 	if len(normA) == 0 && len(normB) == 0 {
 		return []MergedTelemetryPoint{}
@@ -708,8 +702,8 @@ func calculateMergedComparison(
 	return result
 }
 
-// detectTrackTurns detects corner apexes and outward normal vectors along a track trajectory.
-func detectTrackTurns(points []MergedTelemetryPoint) []TrackTurn {
+// DetectTrackTurns detects corner apexes and outward normal vectors along a track trajectory.
+func DetectTrackTurns(points []MergedTelemetryPoint) []TrackTurn {
 	valid := make([]MergedTelemetryPoint, 0, len(points))
 	for _, p := range points {
 		if p.WorldX != nil && p.WorldZ != nil && (*p.WorldX != 0 || *p.WorldZ != 0) {
@@ -885,130 +879,4 @@ func detectTrackTurns(points []MergedTelemetryPoint) []TrackTurn {
 	}
 
 	return turns
-}
-
-// handleComparatorMerge handles GET /api/comparator/merge?lapA={id}&lapB={id}&stepMeters=5&targetTrackLength=0
-func (s *Server) handleComparatorMerge(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	q := r.URL.Query()
-
-	var lapAID, lapBID int64
-	if lapAStr := q.Get("lapA"); lapAStr != "" {
-		if id, err := strconv.ParseInt(lapAStr, 10, 64); err == nil {
-			lapAID = id
-		}
-	}
-	if lapBStr := q.Get("lapB"); lapBStr != "" {
-		if id, err := strconv.ParseInt(lapBStr, 10, 64); err == nil {
-			lapBID = id
-		}
-	}
-
-	stepMeters := DefaultComparatorStepMeters
-	if stepStr := q.Get("stepMeters"); stepStr != "" {
-		if val, err := strconv.ParseFloat(stepStr, 64); err == nil && val >= MinComparatorStepMeters && val <= MaxComparatorStepMeters {
-			stepMeters = val
-		}
-	}
-
-	var targetTrackLength float64
-	if lengthStr := q.Get("targetTrackLength"); lengthStr != "" {
-		if val, err := strconv.ParseFloat(lengthStr, 64); err == nil && val > 0 {
-			targetTrackLength = val
-		}
-	}
-
-	if lapAID <= 0 && lapBID <= 0 {
-		writeJSON(w, http.StatusOK, ComparatorResponse{
-			Points: []MergedTelemetryPoint{},
-			Turns:  []TrackTurn{},
-		})
-		return
-	}
-
-	cacheKey := fmt.Sprintf("%d:%d:%.2f:%.2f", lapAID, lapBID, stepMeters, targetTrackLength)
-	if s.comparatorCache != nil {
-		if cached, found := s.comparatorCache.Get(cacheKey); found {
-			writeJSON(w, http.StatusOK, cached)
-			return
-		}
-	}
-
-	var rawA, rawB []storage.TelemetrySample
-	var lapTimeMsA, lapTimeMsB int
-	var metaA, metaB *ComparatorLapMeta
-
-	if lapAID > 0 {
-		lapA, err := s.repo.GetLapByID(ctx, lapAID)
-		if err == nil && lapA != nil {
-			lapTimeMsA = lapA.LapTimeMS
-			driverName := fmt.Sprintf("Lap #%d", lapA.LapNumber)
-			participants, pErr := s.repo.GetParticipantsBySession(ctx, lapA.SessionID)
-			if pErr == nil {
-				for _, p := range participants {
-					if p.CarIndex == lapA.CarIndex {
-						driverName = fmt.Sprintf("#%d %s", p.RaceNumber, p.Name)
-						break
-					}
-				}
-			}
-			metaA = &ComparatorLapMeta{
-				LapID:     lapA.ID,
-				LapTimeMS: lapA.LapTimeMS,
-				Driver:    driverName,
-				Compound:  lapA.TyreCompound,
-				TyreAge:   lapA.Stint,
-			}
-		}
-
-		samples, sErr := s.repo.GetTelemetryByLap(ctx, lapAID)
-		if sErr == nil && len(samples) > 0 {
-			rawA = TrimTelemetryToLastLapAttempt(samples)
-		}
-	}
-
-	if lapBID > 0 {
-		lapB, err := s.repo.GetLapByID(ctx, lapBID)
-		if err == nil && lapB != nil {
-			lapTimeMsB = lapB.LapTimeMS
-			driverName := fmt.Sprintf("Lap #%d", lapB.LapNumber)
-			participants, pErr := s.repo.GetParticipantsBySession(ctx, lapB.SessionID)
-			if pErr == nil {
-				for _, p := range participants {
-					if p.CarIndex == lapB.CarIndex {
-						driverName = fmt.Sprintf("#%d %s", p.RaceNumber, p.Name)
-						break
-					}
-				}
-			}
-			metaB = &ComparatorLapMeta{
-				LapID:     lapB.ID,
-				LapTimeMS: lapB.LapTimeMS,
-				Driver:    driverName,
-				Compound:  lapB.TyreCompound,
-				TyreAge:   lapB.Stint,
-			}
-		}
-
-		samples, sErr := s.repo.GetTelemetryByLap(ctx, lapBID)
-		if sErr == nil && len(samples) > 0 {
-			rawB = TrimTelemetryToLastLapAttempt(samples)
-		}
-	}
-
-	points := calculateMergedComparison(rawA, rawB, stepMeters, targetTrackLength, lapTimeMsA, lapTimeMsB)
-	turns := detectTrackTurns(points)
-
-	response := &ComparatorResponse{
-		Points: points,
-		Turns:  turns,
-		LapA:   metaA,
-		LapB:   metaB,
-	}
-
-	if s.comparatorCache != nil {
-		s.comparatorCache.Put(cacheKey, response)
-	}
-
-	writeJSON(w, http.StatusOK, response)
 }

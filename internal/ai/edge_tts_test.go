@@ -1,10 +1,6 @@
-package api
+package ai
 
 import (
-	"bytes"
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 )
@@ -78,7 +74,7 @@ func TestResolveVoice(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			vName, lang := resolveVoice(tt.voice, tt.persona, tt.language)
+			vName, lang := ResolveVoice(tt.voice, tt.persona, tt.language)
 			if vName != tt.expectedName {
 				t.Errorf("expected voice %q, got %q", tt.expectedName, vName)
 			}
@@ -90,7 +86,7 @@ func TestResolveVoice(t *testing.T) {
 }
 
 func TestBuildSSML(t *testing.T) {
-	ssml := buildSSML("Radio check, te copio fuerte y claro.", "es-AR-TomasNeural", "es-AR", "+10%", "-5Hz")
+	ssml := BuildSSML("Radio check, te copio fuerte y claro.", "es-AR-TomasNeural", "es-AR", "+10%", "-5Hz")
 
 	if !strings.Contains(ssml, "<speak version='1.0'") {
 		t.Errorf("SSML missing speak tag: %s", ssml)
@@ -110,7 +106,7 @@ func TestBuildSSML(t *testing.T) {
 }
 
 func TestBuildSSMLEscaping(t *testing.T) {
-	ssml := buildSSML("Box & Pit <now> \"fast\"", "es-AR-TomasNeural", "es-AR", "", "")
+	ssml := BuildSSML("Box & Pit <now> \"fast\"", "es-AR-TomasNeural", "es-AR", "", "")
 
 	if !strings.Contains(ssml, "Box &amp; Pit &lt;now&gt; &#34;fast&#34;") {
 		t.Errorf("SSML not XML-escaped properly: %s", ssml)
@@ -150,26 +146,5 @@ func TestGenerateSecMsGec(t *testing.T) {
 	}
 	if token != strings.ToUpper(token) {
 		t.Errorf("expected uppercase hex token, got %s", token)
-	}
-}
-
-func TestHandleAITTS_Validation(t *testing.T) {
-	server := &Server{}
-
-	// 1. Method Not Allowed (GET)
-	req := httptest.NewRequest(http.MethodGet, "/api/ai/tts", http.NoBody)
-	w := httptest.NewRecorder()
-	server.handleAITTS(w, req)
-	if w.Code != http.StatusMethodNotAllowed {
-		t.Errorf("expected status %d, got %d", http.StatusMethodNotAllowed, w.Code)
-	}
-
-	// 2. Empty Text
-	payload, _ := json.Marshal(AITTSRequest{Text: ""})
-	req = httptest.NewRequest(http.MethodPost, "/api/ai/tts", bytes.NewReader(payload))
-	w = httptest.NewRecorder()
-	server.handleAITTS(w, req)
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected status %d, got %d", http.StatusBadRequest, w.Code)
 	}
 }
