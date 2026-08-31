@@ -1,9 +1,9 @@
 package packets
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
-	"math"
 )
 
 // CarMotionData contains motion physics data for a single car.
@@ -41,58 +41,92 @@ const (
 	CarMotionStructSize2026 = 54
 )
 
-func decodeMotionCar(carBytes []byte, is2026 bool) (CarMotionData, error) {
-	var cmd CarMotionData
-	cmd.WorldPositionX = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[0:4]))
-	cmd.WorldPositionY = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[4:8]))
-	cmd.WorldPositionZ = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[8:12]))
-	cmd.WorldVelocityX = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[12:16]))
-	cmd.WorldVelocityY = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[16:20]))
-	cmd.WorldVelocityZ = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[20:24]))
-	cmd.WorldForwardDirX = int16(binary.LittleEndian.Uint16(carBytes[24:26]))
-	cmd.WorldForwardDirY = int16(binary.LittleEndian.Uint16(carBytes[26:28]))
-	cmd.WorldForwardDirZ = int16(binary.LittleEndian.Uint16(carBytes[28:30]))
-	cmd.WorldRightDirX = int16(binary.LittleEndian.Uint16(carBytes[30:32]))
-	cmd.WorldRightDirY = int16(binary.LittleEndian.Uint16(carBytes[32:34]))
-	cmd.WorldRightDirZ = int16(binary.LittleEndian.Uint16(carBytes[34:36]))
-
-	if is2026 {
-		lat := int16(binary.LittleEndian.Uint16(carBytes[36:38]))
-		long := int16(binary.LittleEndian.Uint16(carBytes[38:40]))
-		vert := int16(binary.LittleEndian.Uint16(carBytes[40:42]))
-		cmd.GForceLateral = float32(lat) / 1000.0
-		cmd.GForceLongitudinal = float32(long) / 1000.0
-		cmd.GForceVertical = float32(vert) / 1000.0
-
-		cmd.Yaw = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[42:46]))
-		cmd.Pitch = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[46:50]))
-		cmd.Roll = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[50:54]))
-	} else {
-		cmd.GForceLateral = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[36:40]))
-		cmd.GForceLongitudinal = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[40:44]))
-		cmd.GForceVertical = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[44:48]))
-
-		cmd.Yaw = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[48:52]))
-		cmd.Pitch = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[52:56]))
-		cmd.Roll = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[56:60]))
-	}
-
-	return cmd, nil
+type rawMotionCar2025 struct {
+	WorldPositionX     float32
+	WorldPositionY     float32
+	WorldPositionZ     float32
+	WorldVelocityX     float32
+	WorldVelocityY     float32
+	WorldVelocityZ     float32
+	WorldForwardDirX   int16
+	WorldForwardDirY   int16
+	WorldForwardDirZ   int16
+	WorldRightDirX     int16
+	WorldRightDirY     int16
+	WorldRightDirZ     int16
+	GForceLateral      float32
+	GForceLongitudinal float32
+	GForceVertical     float32
+	Yaw                float32
+	Pitch              float32
+	Roll               float32
 }
 
-// DecodeMotion decodes a PacketMotionData from raw bytes (supporting both 2025 and 2026 formats).
-func DecodeMotion(data []byte) (*PacketMotionData, error) {
-	header, headerLen, err := DecodeHeaderWithOffset(data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode header in motion: %w", err)
+type rawMotionCar2026 struct {
+	WorldPositionX     float32
+	WorldPositionY     float32
+	WorldPositionZ     float32
+	WorldVelocityX     float32
+	WorldVelocityY     float32
+	WorldVelocityZ     float32
+	WorldForwardDirX   int16
+	WorldForwardDirY   int16
+	WorldForwardDirZ   int16
+	WorldRightDirX     int16
+	WorldRightDirY     int16
+	WorldRightDirZ     int16
+	GForceLateral      int16
+	GForceLongitudinal int16
+	GForceVertical     int16
+	Yaw                float32
+	Pitch              float32
+	Roll               float32
+}
+
+func decodeMotionCar(carBytes []byte, is2026 bool) (CarMotionData, error) {
+	r := bytes.NewReader(carBytes)
+	if is2026 {
+		var raw rawMotionCar2026
+		if err := binary.Read(r, binary.LittleEndian, &raw); err != nil {
+			return CarMotionData{}, err
+		}
+		return CarMotionData{
+			WorldPositionX:     raw.WorldPositionX,
+			WorldPositionY:     raw.WorldPositionY,
+			WorldPositionZ:     raw.WorldPositionZ,
+			WorldVelocityX:     raw.WorldVelocityX,
+			WorldVelocityY:     raw.WorldVelocityY,
+			WorldVelocityZ:     raw.WorldVelocityZ,
+			WorldForwardDirX:   raw.WorldForwardDirX,
+			WorldForwardDirY:   raw.WorldForwardDirY,
+			WorldForwardDirZ:   raw.WorldForwardDirZ,
+			WorldRightDirX:     raw.WorldRightDirX,
+			WorldRightDirY:     raw.WorldRightDirY,
+			WorldRightDirZ:     raw.WorldRightDirZ,
+			GForceLateral:      float32(raw.GForceLateral) / 1000.0,
+			GForceLongitudinal: float32(raw.GForceLongitudinal) / 1000.0,
+			GForceVertical:     float32(raw.GForceVertical) / 1000.0,
+			Yaw:                raw.Yaw,
+			Pitch:              raw.Pitch,
+			Roll:               raw.Roll,
+		}, nil
 	}
 
+	var raw rawMotionCar2025
+	if err := binary.Read(r, binary.LittleEndian, &raw); err != nil {
+		return CarMotionData{}, err
+	}
+	return CarMotionData(raw), nil
+}
+
+// DecodeMotion decodes a PacketMotionData from header and payload bytes (supporting both 2025 and 2026 formats).
+func DecodeMotion(header PacketHeader, payload []byte) (*PacketMotionData, error) {
 	structSize := CarMotionStructSize2025
 	if header.PacketFormat >= PacketFormat2026 {
 		structSize = CarMotionStructSize2026
 	}
 
-	cars, err := DecodePerCarCustom[CarMotionData](data[headerLen:], header, structSize, 0, 0, 0, decodeMotionCar)
+	cars, err := DecodePerCarCustom[CarMotionData](payload, header, structSize, 0, 0, 0, decodeMotionCar)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode motion: %w", err)
 	}

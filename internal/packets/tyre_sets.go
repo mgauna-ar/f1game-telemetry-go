@@ -31,12 +31,23 @@ type PacketTyreSetsData struct {
 
 func (p PacketTyreSetsData) GetHeader() PacketHeader { return p.Header }
 
-// DecodeTyreSets decodes a PacketTyreSetsData from raw bytes.
-func DecodeTyreSets(data []byte) (*PacketTyreSetsData, error) {
-	var pkt PacketTyreSetsData
-	err := binary.Read(bytes.NewReader(data), binary.LittleEndian, &pkt)
+type rawTyreSetsPayload struct {
+	CarIdx      uint8
+	TyreSetData [MaxTyreSets]TyreSetData
+	FittedIdx   uint8
+}
+
+// DecodeTyreSets decodes a PacketTyreSetsData from header and payload bytes.
+func DecodeTyreSets(header PacketHeader, payload []byte) (*PacketTyreSetsData, error) {
+	var raw rawTyreSetsPayload
+	err := binary.Read(bytes.NewReader(payload), binary.LittleEndian, &raw)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode tyre sets packet: %w", err)
 	}
-	return &pkt, nil
+	return &PacketTyreSetsData{
+		Header:      header,
+		CarIdx:      raw.CarIdx,
+		TyreSetData: raw.TyreSetData,
+		FittedIdx:   raw.FittedIdx,
+	}, nil
 }

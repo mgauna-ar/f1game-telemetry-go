@@ -34,14 +34,8 @@ func (p PacketFinalClassificationData) GetHeader() PacketHeader { return p.Heade
 
 const FinalClassificationStructSize = 46
 
-// DecodeFinalClassification decodes a PacketFinalClassificationData from raw bytes.
-func DecodeFinalClassification(data []byte) (*PacketFinalClassificationData, error) {
-	header, headerLen, err := DecodeHeaderWithOffset(data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode header in final classification: %w", err)
-	}
-
-	payload := data[headerLen:]
+// DecodeFinalClassification decodes a PacketFinalClassificationData from header and payload bytes.
+func DecodeFinalClassification(header PacketHeader, payload []byte) (*PacketFinalClassificationData, error) {
 	if len(payload) < 1 {
 		return nil, fmt.Errorf("data too short for final classification payload: got %d bytes", len(payload))
 	}

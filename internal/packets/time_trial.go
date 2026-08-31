@@ -37,66 +37,95 @@ const (
 	TimeTrialDataSetSize2026 = 25
 )
 
-func decodeTimeTrialDataSet(r *bytes.Reader, is2026 bool) (TimeTrialDataSet, error) {
-	var ds TimeTrialDataSet
-	if err := binary.Read(r, binary.LittleEndian, &ds.CarIdx); err != nil {
-		return ds, err
-	}
-	if is2026 {
-		if err := binary.Read(r, binary.LittleEndian, &ds.TeamId); err != nil {
-			return ds, err
-		}
-	} else {
-		var t8 uint8
-		if err := binary.Read(r, binary.LittleEndian, &t8); err != nil {
-			return ds, err
-		}
-		ds.TeamId = uint16(t8)
-	}
-	_ = binary.Read(r, binary.LittleEndian, &ds.LapTimeInMS)
-	_ = binary.Read(r, binary.LittleEndian, &ds.Sector1TimeInMS)
-	_ = binary.Read(r, binary.LittleEndian, &ds.Sector2TimeInMS)
-	_ = binary.Read(r, binary.LittleEndian, &ds.Sector3TimeInMS)
-	_ = binary.Read(r, binary.LittleEndian, &ds.TractionControl)
-	_ = binary.Read(r, binary.LittleEndian, &ds.GearboxAssist)
-	_ = binary.Read(r, binary.LittleEndian, &ds.AntiLockBrakes)
-	_ = binary.Read(r, binary.LittleEndian, &ds.EqualCarPerformance)
-	_ = binary.Read(r, binary.LittleEndian, &ds.CustomSetup)
-	_ = binary.Read(r, binary.LittleEndian, &ds.Valid)
-	return ds, nil
+type rawTimeTrialDataSet2025 struct {
+	CarIdx              uint8
+	TeamId              uint8
+	LapTimeInMS         uint32
+	Sector1TimeInMS     uint32
+	Sector2TimeInMS     uint32
+	Sector3TimeInMS     uint32
+	TractionControl     uint8
+	GearboxAssist       uint8
+	AntiLockBrakes      uint8
+	EqualCarPerformance uint8
+	CustomSetup         uint8
+	Valid               uint8
 }
 
-// DecodeTimeTrial decodes a PacketTimeTrialData from raw bytes.
-func DecodeTimeTrial(data []byte) (*PacketTimeTrialData, error) {
-	header, headerLen, err := DecodeHeaderWithOffset(data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode header in time trial: %w", err)
+type rawTimeTrialDataSet2026 struct {
+	CarIdx              uint8
+	TeamId              uint16
+	LapTimeInMS         uint32
+	Sector1TimeInMS     uint32
+	Sector2TimeInMS     uint32
+	Sector3TimeInMS     uint32
+	TractionControl     uint8
+	GearboxAssist       uint8
+	AntiLockBrakes      uint8
+	EqualCarPerformance uint8
+	CustomSetup         uint8
+	Valid               uint8
+}
+
+type rawTimeTrialPayload2025 struct {
+	PlayerSessionBest rawTimeTrialDataSet2025
+	PersonalBest      rawTimeTrialDataSet2025
+	Rival             rawTimeTrialDataSet2025
+}
+
+type rawTimeTrialPayload2026 struct {
+	PlayerSessionBest rawTimeTrialDataSet2026
+	PersonalBest      rawTimeTrialDataSet2026
+	Rival             rawTimeTrialDataSet2026
+}
+
+func convertTimeTrial2025(raw rawTimeTrialDataSet2025) TimeTrialDataSet {
+	return TimeTrialDataSet{
+		CarIdx:              raw.CarIdx,
+		TeamId:              uint16(raw.TeamId),
+		LapTimeInMS:         raw.LapTimeInMS,
+		Sector1TimeInMS:     raw.Sector1TimeInMS,
+		Sector2TimeInMS:     raw.Sector2TimeInMS,
+		Sector3TimeInMS:     raw.Sector3TimeInMS,
+		TractionControl:     raw.TractionControl,
+		GearboxAssist:       raw.GearboxAssist,
+		AntiLockBrakes:      raw.AntiLockBrakes,
+		EqualCarPerformance: raw.EqualCarPerformance,
+		CustomSetup:         raw.CustomSetup,
+		Valid:               raw.Valid,
 	}
+}
 
-	var pkt PacketTimeTrialData
-	pkt.Header = header
+func convertTimeTrial2026(raw rawTimeTrialDataSet2026) TimeTrialDataSet {
+	return TimeTrialDataSet(raw)
+}
 
-	payload := data[headerLen:]
-	is2026 := header.PacketFormat >= PacketFormat2026
+// DecodeTimeTrial decodes a PacketTimeTrialData from header and payload bytes.
+func DecodeTimeTrial(header PacketHeader, payload []byte) (*PacketTimeTrialData, error) {
 	r := bytes.NewReader(payload)
+	is2026 := header.PacketFormat >= PacketFormat2026
 
-	ds1, err := decodeTimeTrialDataSet(r, is2026)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode player session best in time trial: %w", err)
+	if is2026 {
+		var raw rawTimeTrialPayload2026
+		if err := binary.Read(r, binary.LittleEndian, &raw); err != nil {
+			return nil, fmt.Errorf("failed to decode time trial payload: %w", err)
+		}
+		return &PacketTimeTrialData{
+			Header:                   header,
+			PlayerSessionBestDataSet: convertTimeTrial2026(raw.PlayerSessionBest),
+			PersonalBestDataSet:      convertTimeTrial2026(raw.PersonalBest),
+			RivalDataSet:             convertTimeTrial2026(raw.Rival),
+		}, nil
 	}
-	pkt.PlayerSessionBestDataSet = ds1
 
-	ds2, err := decodeTimeTrialDataSet(r, is2026)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode personal best in time trial: %w", err)
+	var raw rawTimeTrialPayload2025
+	if err := binary.Read(r, binary.LittleEndian, &raw); err != nil {
+		return nil, fmt.Errorf("failed to decode time trial payload: %w", err)
 	}
-	pkt.PersonalBestDataSet = ds2
-
-	ds3, err := decodeTimeTrialDataSet(r, is2026)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode rival data in time trial: %w", err)
-	}
-	pkt.RivalDataSet = ds3
-
-	return &pkt, nil
+	return &PacketTimeTrialData{
+		Header:                   header,
+		PlayerSessionBestDataSet: convertTimeTrial2025(raw.PlayerSessionBest),
+		PersonalBestDataSet:      convertTimeTrial2025(raw.PersonalBest),
+		RivalDataSet:             convertTimeTrial2025(raw.Rival),
+	}, nil
 }

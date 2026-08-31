@@ -58,14 +58,8 @@ const (
 	LapDataTrailerSize = 2
 )
 
-// DecodeLapData decodes a PacketLapData from raw bytes.
-func DecodeLapData(data []byte) (*PacketLapData, error) {
-	header, headerLen, err := DecodeHeaderWithOffset(data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode header in lap data: %w", err)
-	}
-
-	payload := data[headerLen:]
+// DecodeLapData decodes a PacketLapData from header and payload bytes.
+func DecodeLapData(header PacketHeader, payload []byte) (*PacketLapData, error) {
 	if len(payload) < LapDataStructSize {
 		return nil, fmt.Errorf("data too short for lap payload: got %d bytes", len(payload))
 	}

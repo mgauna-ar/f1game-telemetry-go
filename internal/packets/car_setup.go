@@ -1,9 +1,9 @@
 package packets
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
-	"math"
 )
 
 // CarSetupData contains setup data for a single car.
@@ -47,14 +47,8 @@ const (
 	CarSetupTrailerSize = 4
 )
 
-// DecodeCarSetup decodes a PacketCarSetupData from raw bytes.
-func DecodeCarSetup(data []byte) (*PacketCarSetupData, error) {
-	header, headerLen, err := DecodeHeaderWithOffset(data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode header in car setup: %w", err)
-	}
-
-	payload := data[headerLen:]
+// DecodeCarSetup decodes a PacketCarSetupData from header and payload bytes.
+func DecodeCarSetup(header PacketHeader, payload []byte) (*PacketCarSetupData, error) {
 	cars, err := DecodePerCarBinary[CarSetupData](payload, header, CarSetupStructSize, CarSetupTrailerSize, 0, 0)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode car setup: %w", err)
@@ -70,7 +64,8 @@ func DecodeCarSetup(data []byte) (*PacketCarSetupData, error) {
 	tailOffset := maxCars * itemSize
 
 	if tailOffset+CarSetupTrailerSize <= len(payload) {
-		pkt.NextFrontWingValue = math.Float32frombits(binary.LittleEndian.Uint32(payload[tailOffset : tailOffset+4]))
+		r := bytes.NewReader(payload[tailOffset : tailOffset+CarSetupTrailerSize])
+		_ = binary.Read(r, binary.LittleEndian, &pkt.NextFrontWingValue)
 	}
 
 	return &pkt, nil

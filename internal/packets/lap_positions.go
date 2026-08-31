@@ -18,17 +18,11 @@ type PacketLapPositionsData struct {
 
 func (p PacketLapPositionsData) GetHeader() PacketHeader { return p.Header }
 
-// DecodeLapPositions decodes a PacketLapPositionsData from raw bytes.
-func DecodeLapPositions(data []byte) (*PacketLapPositionsData, error) {
-	header, headerLen, err := DecodeHeaderWithOffset(data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode header in lap positions: %w", err)
-	}
-
+// DecodeLapPositions decodes a PacketLapPositionsData from header and payload bytes.
+func DecodeLapPositions(header PacketHeader, payload []byte) (*PacketLapPositionsData, error) {
 	var pkt PacketLapPositionsData
 	pkt.Header = header
 
-	payload := data[headerLen:]
 	if len(payload) < 2 {
 		return nil, fmt.Errorf("data too short for lap positions payload: got %d bytes", len(payload))
 	}

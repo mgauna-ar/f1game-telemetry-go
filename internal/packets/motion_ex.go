@@ -43,12 +43,73 @@ func (p PacketMotionExData) GetHeader() PacketHeader { return p.Header }
 
 const MotionExStructSize = 244
 
-// DecodeMotionEx decodes a PacketMotionExData from raw bytes.
-func DecodeMotionEx(data []byte) (*PacketMotionExData, error) {
-	var pkt PacketMotionExData
-	err := binary.Read(bytes.NewReader(data), binary.LittleEndian, &pkt)
+type rawMotionExPayload struct {
+	SuspensionPosition     [4]float32
+	SuspensionVelocity     [4]float32
+	SuspensionAcceleration [4]float32
+	WheelSpeed             [4]float32
+	WheelSlipRatio         [4]float32
+	WheelSlipAngle         [4]float32
+	WheelLatForce          [4]float32
+	WheelLongForce         [4]float32
+	HeightOfCOGAboveGround float32
+	LocalVelocityX         float32
+	LocalVelocityY         float32
+	LocalVelocityZ         float32
+	AngularVelocityX       float32
+	AngularVelocityY       float32
+	AngularVelocityZ       float32
+	AngularAccelerationX   float32
+	AngularAccelerationY   float32
+	AngularAccelerationZ   float32
+	FrontWheelsAngle       float32
+	WheelVertForce         [4]float32
+	FrontAeroHeight        float32
+	RearAeroHeight         float32
+	FrontRollAngle         float32
+	RearRollAngle          float32
+	ChassisYaw             float32
+	ChassisPitch           float32
+	WheelCamber            [4]float32
+	WheelCamberGain        [4]float32
+}
+
+// DecodeMotionEx decodes a PacketMotionExData from header and payload bytes.
+func DecodeMotionEx(header PacketHeader, payload []byte) (*PacketMotionExData, error) {
+	var raw rawMotionExPayload
+	err := binary.Read(bytes.NewReader(payload), binary.LittleEndian, &raw)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode motion ex packet: %w", err)
 	}
-	return &pkt, nil
+	return &PacketMotionExData{
+		Header:                 header,
+		SuspensionPosition:     raw.SuspensionPosition,
+		SuspensionVelocity:     raw.SuspensionVelocity,
+		SuspensionAcceleration: raw.SuspensionAcceleration,
+		WheelSpeed:             raw.WheelSpeed,
+		WheelSlipRatio:         raw.WheelSlipRatio,
+		WheelSlipAngle:         raw.WheelSlipAngle,
+		WheelLatForce:          raw.WheelLatForce,
+		WheelLongForce:         raw.WheelLongForce,
+		HeightOfCOGAboveGround: raw.HeightOfCOGAboveGround,
+		LocalVelocityX:         raw.LocalVelocityX,
+		LocalVelocityY:         raw.LocalVelocityY,
+		LocalVelocityZ:         raw.LocalVelocityZ,
+		AngularVelocityX:       raw.AngularVelocityX,
+		AngularVelocityY:       raw.AngularVelocityY,
+		AngularVelocityZ:       raw.AngularVelocityZ,
+		AngularAccelerationX:   raw.AngularAccelerationX,
+		AngularAccelerationY:   raw.AngularAccelerationY,
+		AngularAccelerationZ:   raw.AngularAccelerationZ,
+		FrontWheelsAngle:       raw.FrontWheelsAngle,
+		WheelVertForce:         raw.WheelVertForce,
+		FrontAeroHeight:        raw.FrontAeroHeight,
+		RearAeroHeight:         raw.RearAeroHeight,
+		FrontRollAngle:         raw.FrontRollAngle,
+		RearRollAngle:          raw.RearRollAngle,
+		ChassisYaw:             raw.ChassisYaw,
+		ChassisPitch:           raw.ChassisPitch,
+		WheelCamber:            raw.WheelCamber,
+		WheelCamberGain:        raw.WheelCamberGain,
+	}, nil
 }

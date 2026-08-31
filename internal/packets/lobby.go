@@ -45,42 +45,62 @@ const (
 	LobbyNameLen            = 32
 )
 
-func decodeLobbyInfoCar(playerBytes []byte, is2026 bool) (LobbyInfoData, error) {
-	var li LobbyInfoData
-	if is2026 {
-		li.AIControlled = playerBytes[0]
-		li.TeamId = binary.LittleEndian.Uint16(playerBytes[1:3])
-		li.Nationality = playerBytes[3]
-		li.Platform = playerBytes[4]
-		copy(li.Name[:], playerBytes[5:5+LobbyNameLen])
-		li.CarNumber = playerBytes[37]
-		li.YourTelemetry = playerBytes[38]
-		li.ShowOnlineNames = playerBytes[39]
-		li.TechLevel = binary.LittleEndian.Uint16(playerBytes[40:42])
-		li.ReadyStatus = playerBytes[42]
-	} else {
-		li.AIControlled = playerBytes[0]
-		li.TeamId = uint16(playerBytes[1])
-		li.Nationality = playerBytes[2]
-		li.Platform = playerBytes[3]
-		copy(li.Name[:], playerBytes[4:4+LobbyNameLen])
-		li.CarNumber = playerBytes[36]
-		li.YourTelemetry = playerBytes[37]
-		li.ShowOnlineNames = playerBytes[38]
-		li.TechLevel = binary.LittleEndian.Uint16(playerBytes[39:41])
-		li.ReadyStatus = playerBytes[41]
-	}
-	return li, nil
+type rawLobbyInfo2025 struct {
+	AIControlled    uint8
+	TeamId          uint8
+	Nationality     uint8
+	Platform        uint8
+	Name            [LobbyNameLen]byte
+	CarNumber       uint8
+	YourTelemetry   uint8
+	ShowOnlineNames uint8
+	TechLevel       uint16
+	ReadyStatus     uint8
 }
 
-// DecodeLobbyInfo decodes a PacketLobbyInfoData from raw bytes.
-func DecodeLobbyInfo(data []byte) (*PacketLobbyInfoData, error) {
-	header, headerLen, err := DecodeHeaderWithOffset(data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode header in lobby info: %w", err)
+type rawLobbyInfo2026 struct {
+	AIControlled    uint8
+	TeamId          uint16
+	Nationality     uint8
+	Platform        uint8
+	Name            [LobbyNameLen]byte
+	CarNumber       uint8
+	YourTelemetry   uint8
+	ShowOnlineNames uint8
+	TechLevel       uint16
+	ReadyStatus     uint8
+}
+
+func decodeLobbyInfoCar(playerBytes []byte, is2026 bool) (LobbyInfoData, error) {
+	r := bytes.NewReader(playerBytes)
+	if is2026 {
+		var raw rawLobbyInfo2026
+		if err := binary.Read(r, binary.LittleEndian, &raw); err != nil {
+			return LobbyInfoData{}, err
+		}
+		return LobbyInfoData(raw), nil
 	}
 
-	payload := data[headerLen:]
+	var raw rawLobbyInfo2025
+	if err := binary.Read(r, binary.LittleEndian, &raw); err != nil {
+		return LobbyInfoData{}, err
+	}
+	return LobbyInfoData{
+		AIControlled:    raw.AIControlled,
+		TeamId:          uint16(raw.TeamId),
+		Nationality:     raw.Nationality,
+		Platform:        raw.Platform,
+		Name:            raw.Name,
+		CarNumber:       raw.CarNumber,
+		YourTelemetry:   raw.YourTelemetry,
+		ShowOnlineNames: raw.ShowOnlineNames,
+		TechLevel:       raw.TechLevel,
+		ReadyStatus:     raw.ReadyStatus,
+	}, nil
+}
+
+// DecodeLobbyInfo decodes a PacketLobbyInfoData from header and payload bytes.
+func DecodeLobbyInfo(header PacketHeader, payload []byte) (*PacketLobbyInfoData, error) {
 	if len(payload) < 1 {
 		return nil, fmt.Errorf("data too short for lobby info payload: got %d bytes", len(payload))
 	}

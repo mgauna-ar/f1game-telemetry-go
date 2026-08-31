@@ -228,12 +228,21 @@ func (p PacketEventData) MarshalJSON() ([]byte, error) {
 	return json.Marshal(ej)
 }
 
-// DecodeEvent decodes a PacketEventData from raw bytes.
-func DecodeEvent(data []byte) (*PacketEventData, error) {
-	var pkt PacketEventData
-	err := binary.Read(bytes.NewReader(data), binary.LittleEndian, &pkt)
+type rawEventPayload struct {
+	EventStringCode [4]uint8
+	EventDetails    EventDataDetails
+}
+
+// DecodeEvent decodes a PacketEventData from header and payload bytes.
+func DecodeEvent(header PacketHeader, payload []byte) (*PacketEventData, error) {
+	var raw rawEventPayload
+	err := binary.Read(bytes.NewReader(payload), binary.LittleEndian, &raw)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode event packet: %w", err)
 	}
-	return &pkt, nil
+	return &PacketEventData{
+		Header:          header,
+		EventStringCode: raw.EventStringCode,
+		EventDetails:    raw.EventDetails,
+	}, nil
 }

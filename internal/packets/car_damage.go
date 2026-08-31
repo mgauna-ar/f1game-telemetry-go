@@ -40,14 +40,9 @@ func (p PacketCarDamageData) GetHeader() PacketHeader { return p.Header }
 
 const CarDamageStructSize = 46
 
-// DecodeCarDamage decodes a PacketCarDamageData from raw bytes.
-func DecodeCarDamage(data []byte) (*PacketCarDamageData, error) {
-	header, headerLen, err := DecodeHeaderWithOffset(data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode header in car damage: %w", err)
-	}
-
-	cars, err := DecodePerCarBinary[CarDamageData](data[headerLen:], header, CarDamageStructSize, 0, 0, 0)
+// DecodeCarDamage decodes a PacketCarDamageData from header and payload bytes.
+func DecodeCarDamage(header PacketHeader, payload []byte) (*PacketCarDamageData, error) {
+	cars, err := DecodePerCarBinary[CarDamageData](payload, header, CarDamageStructSize, 0, 0, 0)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode car damage: %w", err)
 	}

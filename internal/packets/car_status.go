@@ -1,9 +1,9 @@
 package packets
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
-	"math"
 )
 
 // CarStatusData contains status data for a single car.
@@ -49,57 +49,114 @@ const (
 	CarStatusStructSize2026 = 59
 )
 
-func decodeCarStatusCar(carBytes []byte, is2026 bool) (CarStatusData, error) {
-	var cs CarStatusData
-	cs.TractionControl = carBytes[0]
-	cs.AntiLockBrakes = carBytes[1]
-	cs.FuelMix = carBytes[2]
-	cs.FrontBrakeBias = carBytes[3]
-	cs.PitLimiterStatus = carBytes[4]
-	cs.FuelInTank = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[5:9]))
-	cs.FuelCapacity = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[9:13]))
-	cs.FuelRemainingLaps = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[13:17]))
-	cs.MaxRPM = binary.LittleEndian.Uint16(carBytes[17:19])
-	cs.IdleRPM = binary.LittleEndian.Uint16(carBytes[19:21])
-	cs.MaxGears = carBytes[21]
-	cs.DRSAllowed = carBytes[22]
-	cs.DRSActivationDistance = binary.LittleEndian.Uint16(carBytes[23:25])
-	cs.ActualTyreCompound = carBytes[25]
-	cs.VisualTyreCompound = carBytes[26]
-	cs.TyresAgeLaps = carBytes[27]
-	cs.VehicleFIAFlags = int8(carBytes[28])
-	cs.EnginePowerICE = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[29:33]))
-	cs.EnginePowerMGUK = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[33:37]))
-	cs.ERSStoreEnergy = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[37:41]))
-	cs.ERSDeployMode = carBytes[41]
-	cs.ERSHarvestedThisLapMGUK = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[42:46]))
-	cs.ERSHarvestedThisLapMGUH = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[46:50]))
-
-	if is2026 {
-		cs.ERSHarvestLimitPerLap = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[50:54]))
-		cs.ERSDeployedThisLap = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[54:58]))
-		cs.NetworkPaused = carBytes[58]
-	} else {
-		cs.ERSDeployedThisLap = math.Float32frombits(binary.LittleEndian.Uint32(carBytes[50:54]))
-		cs.NetworkPaused = carBytes[54]
-	}
-
-	return cs, nil
+type rawCarStatus2025 struct {
+	TractionControl         uint8
+	AntiLockBrakes          uint8
+	FuelMix                 uint8
+	FrontBrakeBias          uint8
+	PitLimiterStatus        uint8
+	FuelInTank              float32
+	FuelCapacity            float32
+	FuelRemainingLaps       float32
+	MaxRPM                  uint16
+	IdleRPM                 uint16
+	MaxGears                uint8
+	DRSAllowed              uint8
+	DRSActivationDistance   uint16
+	ActualTyreCompound      uint8
+	VisualTyreCompound      uint8
+	TyresAgeLaps            uint8
+	VehicleFIAFlags         int8
+	EnginePowerICE          float32
+	EnginePowerMGUK         float32
+	ERSStoreEnergy          float32
+	ERSDeployMode           uint8
+	ERSHarvestedThisLapMGUK float32
+	ERSHarvestedThisLapMGUH float32
+	ERSDeployedThisLap      float32
+	NetworkPaused           uint8
 }
 
-// DecodeCarStatus decodes a PacketCarStatusData from raw bytes (supporting both 2025 and 2026 formats).
-func DecodeCarStatus(data []byte) (*PacketCarStatusData, error) {
-	header, headerLen, err := DecodeHeaderWithOffset(data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode header in car status: %w", err)
+type rawCarStatus2026 struct {
+	TractionControl         uint8
+	AntiLockBrakes          uint8
+	FuelMix                 uint8
+	FrontBrakeBias          uint8
+	PitLimiterStatus        uint8
+	FuelInTank              float32
+	FuelCapacity            float32
+	FuelRemainingLaps       float32
+	MaxRPM                  uint16
+	IdleRPM                 uint16
+	MaxGears                uint8
+	DRSAllowed              uint8
+	DRSActivationDistance   uint16
+	ActualTyreCompound      uint8
+	VisualTyreCompound      uint8
+	TyresAgeLaps            uint8
+	VehicleFIAFlags         int8
+	EnginePowerICE          float32
+	EnginePowerMGUK         float32
+	ERSStoreEnergy          float32
+	ERSDeployMode           uint8
+	ERSHarvestedThisLapMGUK float32
+	ERSHarvestedThisLapMGUH float32
+	ERSHarvestLimitPerLap   float32
+	ERSDeployedThisLap      float32
+	NetworkPaused           uint8
+}
+
+func decodeCarStatusCar(carBytes []byte, is2026 bool) (CarStatusData, error) {
+	r := bytes.NewReader(carBytes)
+	if is2026 {
+		var raw rawCarStatus2026
+		if err := binary.Read(r, binary.LittleEndian, &raw); err != nil {
+			return CarStatusData{}, err
+		}
+		return CarStatusData(raw), nil
 	}
 
+	var raw rawCarStatus2025
+	if err := binary.Read(r, binary.LittleEndian, &raw); err != nil {
+		return CarStatusData{}, err
+	}
+	return CarStatusData{
+		TractionControl:         raw.TractionControl,
+		AntiLockBrakes:          raw.AntiLockBrakes,
+		FuelMix:                 raw.FuelMix,
+		FrontBrakeBias:          raw.FrontBrakeBias,
+		PitLimiterStatus:        raw.PitLimiterStatus,
+		FuelInTank:              raw.FuelInTank,
+		FuelCapacity:            raw.FuelCapacity,
+		FuelRemainingLaps:       raw.FuelRemainingLaps,
+		MaxRPM:                  raw.MaxRPM,
+		IdleRPM:                 raw.IdleRPM,
+		MaxGears:                raw.MaxGears,
+		DRSAllowed:              raw.DRSAllowed,
+		DRSActivationDistance:   raw.DRSActivationDistance,
+		ActualTyreCompound:      raw.ActualTyreCompound,
+		VisualTyreCompound:      raw.VisualTyreCompound,
+		TyresAgeLaps:            raw.TyresAgeLaps,
+		VehicleFIAFlags:         raw.VehicleFIAFlags,
+		EnginePowerICE:          raw.EnginePowerICE,
+		EnginePowerMGUK:         raw.EnginePowerMGUK,
+		ERSStoreEnergy:          raw.ERSStoreEnergy,
+		ERSDeployMode:           raw.ERSDeployMode,
+		ERSHarvestedThisLapMGUK: raw.ERSHarvestedThisLapMGUK,
+		ERSHarvestedThisLapMGUH: raw.ERSHarvestedThisLapMGUH,
+		ERSDeployedThisLap:      raw.ERSDeployedThisLap,
+		NetworkPaused:           raw.NetworkPaused,
+	}, nil
+}
+
+// DecodeCarStatus decodes a PacketCarStatusData from header and payload bytes (supporting both 2025 and 2026 formats).
+func DecodeCarStatus(header PacketHeader, payload []byte) (*PacketCarStatusData, error) {
 	structSize := CarStatusStructSize2025
 	if header.PacketFormat >= PacketFormat2026 {
 		structSize = CarStatusStructSize2026
 	}
 
-	cars, err := DecodePerCarCustom[CarStatusData](data[headerLen:], header, structSize, 0, 0, 0, decodeCarStatusCar)
+	cars, err := DecodePerCarCustom[CarStatusData](payload, header, structSize, 0, 0, 0, decodeCarStatusCar)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode car status: %w", err)
 	}

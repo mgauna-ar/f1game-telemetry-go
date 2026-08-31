@@ -125,7 +125,7 @@ func TestDecodeMotion2025And2026(t *testing.T) {
 				t.Fatalf("Constructed buffer size %d does not match expected spec size %d", buf.Len(), tt.expectedSize)
 			}
 
-			pkt, err := DecodeMotion(buf.Bytes())
+			pkt, err := DecodeMotion(hdr, buf.Bytes()[HeaderSize:])
 			if err != nil {
 				t.Fatalf("DecodeMotion failed: %v", err)
 			}
@@ -285,7 +285,7 @@ func TestDecodeSession2025And2026(t *testing.T) {
 				t.Fatalf("Constructed session buffer size %d does not match expected spec size %d", buf.Len(), tt.expectedSize)
 			}
 
-			pkt, err := DecodeSession(buf.Bytes())
+			pkt, err := DecodeSession(hdr, buf.Bytes()[HeaderSize:])
 			if err != nil {
 				t.Fatalf("DecodeSession failed: %v", err)
 			}
@@ -382,7 +382,7 @@ func TestDecodeParticipants2025And2026(t *testing.T) {
 				t.Fatalf("Constructed participants buffer size %d does not match expected spec size %d", buf.Len(), tt.expectedSize)
 			}
 
-			pkt, err := DecodeParticipants(buf.Bytes())
+			pkt, err := DecodeParticipants(hdr, buf.Bytes()[HeaderSize:])
 			if err != nil {
 				t.Fatalf("DecodeParticipants failed: %v", err)
 			}
@@ -428,7 +428,7 @@ func TestDecodeCarTelemetry2(t *testing.T) {
 		t.Fatalf("Expected CarTelemetry2 buffer size 269, got %d", buf.Len())
 	}
 
-	pkt, err := DecodeCarTelemetry2(buf.Bytes())
+	pkt, err := DecodeCarTelemetry2(hdr, buf.Bytes()[HeaderSize:])
 	if err != nil {
 		t.Fatalf("DecodeCarTelemetry2 failed: %v", err)
 	}
@@ -494,7 +494,7 @@ func TestDecodeCarSetup2025And2026(t *testing.T) {
 				t.Fatalf("Constructed car setup buffer size %d does not match expected %d", buf.Len(), tt.expectedSize)
 			}
 
-			pkt, err := DecodeCarSetup(buf.Bytes())
+			pkt, err := DecodeCarSetup(hdr, buf.Bytes()[HeaderSize:])
 			if err != nil {
 				t.Fatalf("DecodeCarSetup failed: %v", err)
 			}
@@ -566,7 +566,7 @@ func TestDecodeCarTelemetry2025And2026(t *testing.T) {
 				t.Fatalf("Constructed car telemetry buffer size %d does not match expected %d", buf.Len(), tt.expectedSize)
 			}
 
-			pkt, err := DecodeCarTelemetry(buf.Bytes())
+			pkt, err := DecodeCarTelemetry(hdr, buf.Bytes()[HeaderSize:])
 			if err != nil {
 				t.Fatalf("DecodeCarTelemetry failed: %v", err)
 			}
@@ -638,7 +638,7 @@ func TestDecodeCarStatus2025And2026(t *testing.T) {
 				t.Fatalf("Constructed car status buffer size %d does not match expected %d", buf.Len(), tt.expectedSize)
 			}
 
-			pkt, err := DecodeCarStatus(buf.Bytes())
+			pkt, err := DecodeCarStatus(hdr, buf.Bytes()[HeaderSize:])
 			if err != nil {
 				t.Fatalf("DecodeCarStatus failed: %v", err)
 			}
@@ -700,7 +700,7 @@ func TestDecodeFinalClassification2025And2026(t *testing.T) {
 				t.Fatalf("Constructed classification buffer size %d does not match expected %d", buf.Len(), tt.expectedSize)
 			}
 
-			pkt, err := DecodeFinalClassification(buf.Bytes())
+			pkt, err := DecodeFinalClassification(hdr, buf.Bytes()[HeaderSize:])
 			if err != nil {
 				t.Fatalf("DecodeFinalClassification failed: %v", err)
 			}
@@ -767,7 +767,7 @@ func TestDecodeCarDamage2025And2026(t *testing.T) {
 				t.Fatalf("Constructed damage buffer size %d does not match expected %d", buf.Len(), tt.expectedSize)
 			}
 
-			pkt, err := DecodeCarDamage(buf.Bytes())
+			pkt, err := DecodeCarDamage(hdr, buf.Bytes()[HeaderSize:])
 			if err != nil {
 				t.Fatalf("DecodeCarDamage failed: %v", err)
 			}
@@ -795,7 +795,7 @@ func TestDecodeMotionEx(t *testing.T) {
 		t.Fatalf("Expected MotionEx buffer size 273, got %d", buf.Len())
 	}
 
-	pkt, err := DecodeMotionEx(buf.Bytes())
+	pkt, err := DecodeMotionEx(hdr, buf.Bytes()[HeaderSize:])
 	if err != nil {
 		t.Fatalf("DecodeMotionEx failed: %v", err)
 	}
@@ -847,7 +847,7 @@ func TestDecodeTimeTrial2025And2026(t *testing.T) {
 				t.Fatalf("Constructed time trial buffer size %d does not match %d", buf.Len(), tt.expectedSize)
 			}
 
-			pkt, err := DecodeTimeTrial(buf.Bytes())
+			pkt, err := DecodeTimeTrial(hdr, buf.Bytes()[HeaderSize:])
 			if err != nil {
 				t.Fatalf("DecodeTimeTrial failed: %v", err)
 			}
@@ -895,7 +895,7 @@ func TestDecodeLapPositions2025And2026(t *testing.T) {
 				t.Fatalf("Constructed lap positions buffer size %d does not match expected spec size %d", buf.Len(), tt.expectedSize)
 			}
 
-			pkt, err := DecodeLapPositions(buf.Bytes())
+			pkt, err := DecodeLapPositions(hdr, buf.Bytes()[HeaderSize:])
 			if err != nil {
 				t.Fatalf("DecodeLapPositions failed: %v", err)
 			}
@@ -907,5 +907,274 @@ func TestDecodeLapPositions2025And2026(t *testing.T) {
 				t.Errorf("Expected lap 0 car 0 pos 1, got %d", pkt.PositionForVehicleIdx[0][0])
 			}
 		})
+	}
+}
+
+func TestDecodeLapData2025And2026(t *testing.T) {
+	formats := []struct {
+		name         string
+		format       uint16
+		numCars      int
+		expectedSize int
+	}{
+		{"F1 2025 (22 cars, 1285 bytes)", PacketFormat2025, 22, 1285},
+		{"F1 2026 (24 cars, 1399 bytes)", PacketFormat2026, 24, 1399},
+	}
+
+	for _, tt := range formats {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := new(bytes.Buffer)
+			hdr := createHeader(PacketIDLapData, tt.format)
+			_ = binary.Write(buf, binary.LittleEndian, &hdr)
+
+			for i := 0; i < tt.numCars; i++ {
+				lap := LapData{
+					LastLapTimeInMS:              85000,
+					CurrentLapTimeInMS:           42000,
+					Sector1TimeMSPart:            28000,
+					Sector1TimeMinutesPart:       0,
+					Sector2TimeMSPart:            30000,
+					Sector2TimeMinutesPart:       0,
+					DeltaToCarInFrontMSPart:      1200,
+					DeltaToCarInFrontMinutesPart: 0,
+					DeltaToRaceLeaderMSPart:      3400,
+					DeltaToRaceLeaderMinutesPart: 0,
+					LapDistance:                  1500.0,
+					TotalDistance:                15000.0,
+					SafetyCarDelta:               0.5,
+					CarPosition:                  uint8(i + 1),
+					CurrentLapNum:                5,
+					PitStatus:                    0,
+					NumPitStops:                  0,
+					Sector:                       1,
+					CurrentLapInvalid:            0,
+					Penalties:                    0,
+					TotalWarnings:                1,
+					CornerCuttingWarnings:        1,
+					NumUnservedDriveThroughPens:  0,
+					NumUnservedStopGoPens:        0,
+					GridPosition:                 uint8(i + 1),
+					DriverStatus:                 4,
+					ResultStatus:                 2,
+					PitLaneTimerActive:           0,
+					PitLaneTimeInLaneInMS:        0,
+					PitStopTimerInMS:             0,
+					PitStopShouldServePen:        0,
+					SpeedTrapFastestSpeed:        320.5,
+					SpeedTrapFastestLap:          3,
+				}
+				_ = binary.Write(buf, binary.LittleEndian, &lap)
+			}
+
+			// Trailer: TimeTrialPBCarIdx, TimeTrialRivalCarIdx
+			_ = binary.Write(buf, binary.LittleEndian, uint8(255))
+			_ = binary.Write(buf, binary.LittleEndian, uint8(255))
+
+			if buf.Len() != tt.expectedSize {
+				t.Fatalf("Constructed lap data buffer size %d does not match expected spec size %d", buf.Len(), tt.expectedSize)
+			}
+
+			pkt, err := DecodeLapData(hdr, buf.Bytes()[HeaderSize:])
+			if err != nil {
+				t.Fatalf("DecodeLapData failed: %v", err)
+			}
+
+			if pkt.LapData[0].LastLapTimeInMS != 85000 {
+				t.Errorf("Car 0 LastLapTimeInMS expected 85000, got %d", pkt.LapData[0].LastLapTimeInMS)
+			}
+			if pkt.LapData[0].CarPosition != 1 {
+				t.Errorf("Car 0 CarPosition expected 1, got %d", pkt.LapData[0].CarPosition)
+			}
+		})
+	}
+}
+
+func TestDecodeEvent(t *testing.T) {
+	buf := new(bytes.Buffer)
+	hdr := createHeader(PacketIDEvent, PacketFormat2025)
+	_ = binary.Write(buf, binary.LittleEndian, &hdr)
+
+	// EventStringCode "FTLP" (Fastest Lap)
+	_ = binary.Write(buf, binary.LittleEndian, [4]uint8{'F', 'T', 'L', 'P'})
+	// FastestLapEventData (12 bytes)
+	_ = binary.Write(buf, binary.LittleEndian, uint8(3))       // VehicleIdx
+	_ = binary.Write(buf, binary.LittleEndian, float32(84.25)) // LapTime
+	_ = binary.Write(buf, binary.LittleEndian, [7]uint8{})     // padding
+
+	pkt, err := DecodeEvent(hdr, buf.Bytes()[HeaderSize:])
+	if err != nil {
+		t.Fatalf("DecodeEvent failed: %v", err)
+	}
+
+	if string(pkt.EventStringCode[:]) != "FTLP" {
+		t.Errorf("Expected EventStringCode FTLP, got %s", string(pkt.EventStringCode[:]))
+	}
+}
+
+func TestDecodeLobbyInfo2025And2026(t *testing.T) {
+	formats := []struct {
+		name         string
+		format       uint16
+		numPlayers   int
+		expectedSize int
+	}{
+		{"F1 2025 (22 players, 954 bytes)", PacketFormat2025, 22, 954},
+		{"F1 2026 (24 players, 1062 bytes)", PacketFormat2026, 24, 1062},
+	}
+
+	for _, tt := range formats {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := new(bytes.Buffer)
+			hdr := createHeader(PacketIDLobbyInfo, tt.format)
+			_ = binary.Write(buf, binary.LittleEndian, &hdr)
+
+			numPlayers := uint8(tt.numPlayers)
+			_ = binary.Write(buf, binary.LittleEndian, &numPlayers)
+
+			for i := 0; i < tt.numPlayers; i++ {
+				var name [32]byte
+				copy(name[:], "PlayerName")
+
+				if tt.format >= PacketFormat2026 {
+					_ = binary.Write(buf, binary.LittleEndian, uint8(0))      // AIControlled
+					_ = binary.Write(buf, binary.LittleEndian, uint16(476+i)) // TeamId (uint16)
+					_ = binary.Write(buf, binary.LittleEndian, uint8(10))     // Nationality
+					_ = binary.Write(buf, binary.LittleEndian, uint8(1))      // Platform
+					buf.Write(name[:])
+					_ = binary.Write(buf, binary.LittleEndian, uint8(i+1))  // CarNumber
+					_ = binary.Write(buf, binary.LittleEndian, uint8(1))    // YourTelemetry
+					_ = binary.Write(buf, binary.LittleEndian, uint8(1))    // ShowOnlineNames
+					_ = binary.Write(buf, binary.LittleEndian, uint16(500)) // TechLevel
+					_ = binary.Write(buf, binary.LittleEndian, uint8(1))    // ReadyStatus
+				} else {
+					_ = binary.Write(buf, binary.LittleEndian, uint8(0))  // AIControlled
+					_ = binary.Write(buf, binary.LittleEndian, uint8(i))  // TeamId (uint8)
+					_ = binary.Write(buf, binary.LittleEndian, uint8(10)) // Nationality
+					_ = binary.Write(buf, binary.LittleEndian, uint8(1))  // Platform
+					buf.Write(name[:])
+					_ = binary.Write(buf, binary.LittleEndian, uint8(i+1))  // CarNumber
+					_ = binary.Write(buf, binary.LittleEndian, uint8(1))    // YourTelemetry
+					_ = binary.Write(buf, binary.LittleEndian, uint8(1))    // ShowOnlineNames
+					_ = binary.Write(buf, binary.LittleEndian, uint16(500)) // TechLevel
+					_ = binary.Write(buf, binary.LittleEndian, uint8(1))    // ReadyStatus
+				}
+			}
+
+			if buf.Len() != tt.expectedSize {
+				t.Fatalf("Constructed lobby info buffer size %d does not match expected %d", buf.Len(), tt.expectedSize)
+			}
+
+			pkt, err := DecodeLobbyInfo(hdr, buf.Bytes()[HeaderSize:])
+			if err != nil {
+				t.Fatalf("DecodeLobbyInfo failed: %v", err)
+			}
+
+			if pkt.NumPlayers != numPlayers {
+				t.Errorf("Expected NumPlayers %d, got %d", numPlayers, pkt.NumPlayers)
+			}
+			if pkt.LobbyPlayers[0].NameString() != "PlayerName" {
+				t.Errorf("Expected PlayerName, got %s", pkt.LobbyPlayers[0].NameString())
+			}
+		})
+	}
+}
+
+func TestDecodeSessionHistory(t *testing.T) {
+	buf := new(bytes.Buffer)
+	hdr := createHeader(PacketIDSessionHistory, PacketFormat2025)
+	_ = binary.Write(buf, binary.LittleEndian, &hdr)
+
+	_ = binary.Write(buf, binary.LittleEndian, uint8(0)) // CarIdx
+	_ = binary.Write(buf, binary.LittleEndian, uint8(5)) // NumLaps
+	_ = binary.Write(buf, binary.LittleEndian, uint8(1)) // NumTyreStints
+	_ = binary.Write(buf, binary.LittleEndian, uint8(3)) // BestLapTimeLapNum
+	_ = binary.Write(buf, binary.LittleEndian, uint8(3)) // BestSector1LapNum
+	_ = binary.Write(buf, binary.LittleEndian, uint8(3)) // BestSector2LapNum
+	_ = binary.Write(buf, binary.LittleEndian, uint8(3)) // BestSector3LapNum
+
+	var laps [MaxLapHistoryEntries]LapHistoryData
+	laps[0] = LapHistoryData{LapTimeInMS: 85000, Sector1TimeMSPart: 28000, Sector2TimeMSPart: 30000, Sector3TimeMSPart: 27000, LapValidBitFlags: 0x0F}
+	_ = binary.Write(buf, binary.LittleEndian, &laps)
+
+	var stints [MaxTyreStintHistoryEntries]TyreStintHistoryData
+	stints[0] = TyreStintHistoryData{EndLap: 5, TyreActualCompound: 18, TyreVisualCompound: 16}
+	_ = binary.Write(buf, binary.LittleEndian, &stints)
+
+	pkt, err := DecodeSessionHistory(hdr, buf.Bytes()[HeaderSize:])
+	if err != nil {
+		t.Fatalf("DecodeSessionHistory failed: %v", err)
+	}
+
+	if pkt.NumLaps != 5 {
+		t.Errorf("Expected NumLaps 5, got %d", pkt.NumLaps)
+	}
+	if pkt.LapHistoryData[0].LapTimeInMS != 85000 {
+		t.Errorf("Expected LapTimeInMS 85000, got %d", pkt.LapHistoryData[0].LapTimeInMS)
+	}
+}
+
+func TestDecodeTyreSets(t *testing.T) {
+	buf := new(bytes.Buffer)
+	hdr := createHeader(PacketIDTyreSets, PacketFormat2025)
+	_ = binary.Write(buf, binary.LittleEndian, &hdr)
+
+	_ = binary.Write(buf, binary.LittleEndian, uint8(0)) // CarIdx
+
+	var sets [MaxTyreSets]TyreSetData
+	sets[0] = TyreSetData{ActualTyreCompound: 18, VisualTyreCompound: 16, Wear: 10, Available: 1, Fitted: 1}
+	_ = binary.Write(buf, binary.LittleEndian, &sets)
+
+	_ = binary.Write(buf, binary.LittleEndian, uint8(0)) // FittedIdx
+
+	pkt, err := DecodeTyreSets(hdr, buf.Bytes()[HeaderSize:])
+	if err != nil {
+		t.Fatalf("DecodeTyreSets failed: %v", err)
+	}
+
+	if pkt.CarIdx != 0 {
+		t.Errorf("Expected CarIdx 0, got %d", pkt.CarIdx)
+	}
+	if pkt.TyreSetData[0].Wear != 10 {
+		t.Errorf("Expected tyre set wear 10, got %d", pkt.TyreSetData[0].Wear)
+	}
+}
+
+func TestDecodeDispatcher(t *testing.T) {
+	buf := new(bytes.Buffer)
+	hdr := createHeader(PacketIDMotion, PacketFormat2025)
+	_ = binary.Write(buf, binary.LittleEndian, &hdr)
+
+	for i := 0; i < 22; i++ {
+		_ = binary.Write(buf, binary.LittleEndian, float32(100.0)) // X
+		_ = binary.Write(buf, binary.LittleEndian, float32(5.0))   // Y
+		_ = binary.Write(buf, binary.LittleEndian, float32(200.0)) // Z
+		_ = binary.Write(buf, binary.LittleEndian, float32(30.0))  // VelX
+		_ = binary.Write(buf, binary.LittleEndian, float32(0.0))   // VelY
+		_ = binary.Write(buf, binary.LittleEndian, float32(-30.0)) // VelZ
+		_ = binary.Write(buf, binary.LittleEndian, int16(1000))    // FwdX
+		_ = binary.Write(buf, binary.LittleEndian, int16(0))       // FwdY
+		_ = binary.Write(buf, binary.LittleEndian, int16(0))       // FwdZ
+		_ = binary.Write(buf, binary.LittleEndian, int16(0))       // RgtX
+		_ = binary.Write(buf, binary.LittleEndian, int16(1000))    // RgtY
+		_ = binary.Write(buf, binary.LittleEndian, int16(0))       // RgtZ
+		_ = binary.Write(buf, binary.LittleEndian, float32(1.5))   // Lat G
+		_ = binary.Write(buf, binary.LittleEndian, float32(-0.5))  // Long G
+		_ = binary.Write(buf, binary.LittleEndian, float32(0.1))   // Vert G
+		_ = binary.Write(buf, binary.LittleEndian, float32(0.5))   // Yaw
+		_ = binary.Write(buf, binary.LittleEndian, float32(0.1))   // Pitch
+		_ = binary.Write(buf, binary.LittleEndian, float32(0.2))   // Roll
+	}
+
+	pkt, err := Decode(buf.Bytes())
+	if err != nil {
+		t.Fatalf("Decode failed: %v", err)
+	}
+
+	motionPkt, ok := pkt.(*PacketMotionData)
+	if !ok {
+		t.Fatalf("Expected *PacketMotionData, got %T", pkt)
+	}
+	if motionPkt.CarMotionData[0].WorldPositionX != 100.0 {
+		t.Errorf("Car 0 WorldPositionX expected 100.0, got %f", motionPkt.CarMotionData[0].WorldPositionX)
 	}
 }

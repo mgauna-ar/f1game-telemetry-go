@@ -85,41 +85,43 @@ func Decode(data []byte) (Packet, error) {
 		return nil, err
 	}
 
+	payload := data[HeaderSize:]
+
 	switch header.PacketId {
 	case PacketIDMotion:
-		return DecodeMotion(data)
+		return DecodeMotion(header, payload)
 	case PacketIDSession:
-		return DecodeSession(data)
+		return DecodeSession(header, payload)
 	case PacketIDLapData:
-		return DecodeLapData(data)
+		return DecodeLapData(header, payload)
 	case PacketIDEvent:
-		return DecodeEvent(data)
+		return DecodeEvent(header, payload)
 	case PacketIDParticipants:
-		return DecodeParticipants(data)
+		return DecodeParticipants(header, payload)
 	case PacketIDCarSetup:
-		return DecodeCarSetup(data)
+		return DecodeCarSetup(header, payload)
 	case PacketIDCarTelemetry:
-		return DecodeCarTelemetry(data)
+		return DecodeCarTelemetry(header, payload)
 	case PacketIDCarStatus:
-		return DecodeCarStatus(data)
+		return DecodeCarStatus(header, payload)
 	case PacketIDFinalClassification:
-		return DecodeFinalClassification(data)
+		return DecodeFinalClassification(header, payload)
 	case PacketIDLobbyInfo:
-		return DecodeLobbyInfo(data)
+		return DecodeLobbyInfo(header, payload)
 	case PacketIDCarDamage:
-		return DecodeCarDamage(data)
+		return DecodeCarDamage(header, payload)
 	case PacketIDSessionHistory:
-		return DecodeSessionHistory(data)
+		return DecodeSessionHistory(header, payload)
 	case PacketIDTyreSets:
-		return DecodeTyreSets(data)
+		return DecodeTyreSets(header, payload)
 	case PacketIDMotionEx:
-		return DecodeMotionEx(data)
+		return DecodeMotionEx(header, payload)
 	case PacketIDTimeTrial:
-		return DecodeTimeTrial(data)
+		return DecodeTimeTrial(header, payload)
 	case PacketIDLapPositions:
-		return DecodeLapPositions(data)
+		return DecodeLapPositions(header, payload)
 	case PacketIDCarTelemetry2:
-		return DecodeCarTelemetry2(data)
+		return DecodeCarTelemetry2(header, payload)
 	default:
 		return nil, fmt.Errorf("unknown packet ID: %d", header.PacketId)
 	}

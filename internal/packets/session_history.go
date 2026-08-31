@@ -46,12 +46,35 @@ type PacketSessionHistoryData struct {
 
 func (p PacketSessionHistoryData) GetHeader() PacketHeader { return p.Header }
 
-// DecodeSessionHistory decodes a PacketSessionHistoryData from raw bytes.
-func DecodeSessionHistory(data []byte) (*PacketSessionHistoryData, error) {
-	var pkt PacketSessionHistoryData
-	err := binary.Read(bytes.NewReader(data), binary.LittleEndian, &pkt)
+type rawSessionHistoryPayload struct {
+	CarIdx               uint8
+	NumLaps              uint8
+	NumTyreStints        uint8
+	BestLapTimeLapNum    uint8
+	BestSector1LapNum    uint8
+	BestSector2LapNum    uint8
+	BestSector3LapNum    uint8
+	LapHistoryData       [MaxLapHistoryEntries]LapHistoryData
+	TyreStintHistoryData [MaxTyreStintHistoryEntries]TyreStintHistoryData
+}
+
+// DecodeSessionHistory decodes a PacketSessionHistoryData from header and payload bytes.
+func DecodeSessionHistory(header PacketHeader, payload []byte) (*PacketSessionHistoryData, error) {
+	var raw rawSessionHistoryPayload
+	err := binary.Read(bytes.NewReader(payload), binary.LittleEndian, &raw)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode session history packet: %w", err)
 	}
-	return &pkt, nil
+	return &PacketSessionHistoryData{
+		Header:               header,
+		CarIdx:               raw.CarIdx,
+		NumLaps:              raw.NumLaps,
+		NumTyreStints:        raw.NumTyreStints,
+		BestLapTimeLapNum:    raw.BestLapTimeLapNum,
+		BestSector1LapNum:    raw.BestSector1LapNum,
+		BestSector2LapNum:    raw.BestSector2LapNum,
+		BestSector3LapNum:    raw.BestSector3LapNum,
+		LapHistoryData:       raw.LapHistoryData,
+		TyreStintHistoryData: raw.TyreStintHistoryData,
+	}, nil
 }

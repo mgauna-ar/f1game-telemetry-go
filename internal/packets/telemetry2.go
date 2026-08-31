@@ -28,14 +28,9 @@ const (
 	CarTelemetry2StructSize = 10
 )
 
-// DecodeCarTelemetry2 decodes a PacketCarTelemetry2Data from raw bytes.
-func DecodeCarTelemetry2(data []byte) (*PacketCarTelemetry2Data, error) {
-	header, headerLen, err := DecodeHeaderWithOffset(data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode header in car telemetry 2: %w", err)
-	}
-
-	cars, err := DecodePerCarBinary[CarTelemetry2Data](data[headerLen:], header, CarTelemetry2StructSize, 0, 0, 0)
+// DecodeCarTelemetry2 decodes a PacketCarTelemetry2Data from header and payload bytes.
+func DecodeCarTelemetry2(header PacketHeader, payload []byte) (*PacketCarTelemetry2Data, error) {
+	cars, err := DecodePerCarBinary[CarTelemetry2Data](payload, header, CarTelemetry2StructSize, 0, 0, 0)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode car telemetry 2 data: %w", err)
 	}
