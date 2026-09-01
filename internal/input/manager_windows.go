@@ -88,17 +88,26 @@ func (w *WindowsManager) IsActive() bool {
 
 // Start begins polling connected controllers and keyboard state in a background goroutine.
 func (w *WindowsManager) Start(ctx context.Context) {
+	w.mu.Lock()
+	if w.cancelFunc != nil {
+		w.mu.Unlock()
+		return // already running
+	}
 	pollCtx, cancel := context.WithCancel(ctx)
 	w.cancelFunc = cancel
+	w.mu.Unlock()
 
 	go w.pollLoop(pollCtx)
 }
 
 // Stop terminates the polling loop.
 func (w *WindowsManager) Stop() {
+	w.mu.Lock()
 	if w.cancelFunc != nil {
 		w.cancelFunc()
+		w.cancelFunc = nil
 	}
+	w.mu.Unlock()
 	w.CancelLearning()
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -142,13 +143,12 @@ func TestBatchWriter_ContextCancellation(t *testing.T) {
 
 	bw.Start(workerCtx)
 
-	// Cancel worker context
+	// Enqueue sample and close
+	bw.EnqueueLap(999, []storage.TelemetrySample{{Speed: 150}})
 	cancel()
+	bw.Close(context.Background())
 
-	// Wait briefly for worker to complete
-	time.Sleep(50 * time.Millisecond)
-
-	// Writing after cancellation should not hang
+	// Writing after close should not hang or panic
 	bw.EnqueueLap(999, []storage.TelemetrySample{{Speed: 150}})
 }
 
@@ -183,18 +183,52 @@ func TestBatchWriter_CleanShutdownViaClose(t *testing.T) {
 
 	bw.EnqueueLap(lap.ID, samples)
 
-	// Close should drain the queue and close done channel
+	// Close should drain the queue and wait for worker to complete
 	bw.Close(ctx)
-
-	select {
-	case <-bw.done:
-		// Passed - channel is closed
-	case <-time.After(1 * time.Second):
-		t.Fatal("timed out waiting for batch writer done channel to close")
-	}
 
 	saved, err := repo.GetTelemetryByLap(ctx, lap.ID)
 	if err != nil || len(saved) != 2 {
 		t.Fatalf("expected 2 samples drained on close, got %d (err: %v)", len(saved), err)
 	}
+}
+
+func TestBatchWriter_ConcurrentEnqueueAndClose(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), fmt.Sprintf("test_bw_concurrent_%d.db", time.Now().UnixNano()))
+	repo, err := storage.NewSQLiteRepository(dbPath)
+	if err != nil {
+		t.Fatalf("failed to create repo: %v", err)
+	}
+	defer repo.Close()
+
+	session := &storage.Session{
+		SessionUID:   storage.FormatSessionUID(556677),
+		TrackID:      1,
+		TrackName:    "Monza",
+		SessionType:  "Race",
+		PacketFormat: 2025,
+	}
+	ctx := context.Background()
+	_ = repo.SaveSession(ctx, session)
+
+	bw := NewTelemetryBatchWriter(repo)
+	bw.Start(ctx)
+
+	var wg sync.WaitGroup
+	for i := 1; i <= 10; i++ {
+		lap := &storage.Lap{SessionID: session.ID, CarIndex: 0, LapNumber: i, LapTimeMS: 80000}
+		_ = repo.SaveLap(ctx, lap, false)
+		wg.Add(1)
+		go func(lapID int64) {
+			defer wg.Done()
+			for s := 0; s < 5; s++ {
+				bw.EnqueueLap(lapID, []storage.TelemetrySample{{Speed: 200, SessionTime: float64(s)}})
+			}
+		}(lap.ID)
+	}
+
+	wg.Wait()
+	bw.Close(ctx)
+
+	// Multiple Close calls should be safe and idempotent
+	bw.Close(ctx)
 }

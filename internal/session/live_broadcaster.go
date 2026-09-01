@@ -366,11 +366,15 @@ func (b *LiveBroadcaster) ProcessPacket(pkt packets.Packet) {
 
 // BroadcastSnapshot serializes and broadcasts the consolidated live snapshot if changes are pending.
 func (b *LiveBroadcaster) BroadcastSnapshot() {
+	b.mu.Lock()
 	if b.hub == nil || b.hub.ClientCount() == 0 {
+		// Clear pending events even with no clients to prevent unbounded growth
+		b.pendingEvents = nil
+		b.dirty = false
+		b.mu.Unlock()
 		return
 	}
 
-	b.mu.Lock()
 	if !b.dirty && len(b.pendingEvents) == 0 {
 		b.mu.Unlock()
 		return

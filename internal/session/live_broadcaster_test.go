@@ -104,13 +104,40 @@ func TestLiveBroadcaster_NoClients(t *testing.T) {
 	hub := &mockHub{clientCount: 0}
 	broadcaster := NewLiveBroadcaster(hub)
 
+	header := packets.PacketHeader{
+		PacketFormat: 2026,
+		PacketId:     packets.PacketIDSession,
+		SessionUID:   0xABC123,
+		SessionTime:  10.0,
+	}
+
+	// 1. Initial session: Green flag
 	broadcaster.ProcessPacket(&packets.PacketSessionData{
-		Header: packets.PacketHeader{PacketId: packets.PacketIDSession},
+		Header:          header,
+		SafetyCarStatus: packets.SafetyCarNone,
 	})
 
+	// 2. SC Deployed (creates a synthetic event in pendingEvents)
+	header.SessionTime = 12.0
+	broadcaster.ProcessPacket(&packets.PacketSessionData{
+		Header:          header,
+		SafetyCarStatus: packets.SafetyCarFull,
+	})
+
+	if len(broadcaster.pendingEvents) != 1 {
+		t.Fatalf("expected 1 pending event before broadcast, got %d", len(broadcaster.pendingEvents))
+	}
+
+	// Broadcast with 0 clients should clear pending events and dirty state
 	broadcaster.BroadcastSnapshot()
 	if hub.MessageCount() != 0 {
 		t.Errorf("expected 0 messages when no clients connected, got %d", hub.MessageCount())
+	}
+	if len(broadcaster.pendingEvents) != 0 {
+		t.Errorf("expected pendingEvents to be drained/cleared when no clients connected, got %d", len(broadcaster.pendingEvents))
+	}
+	if broadcaster.dirty {
+		t.Errorf("expected dirty to be false after BroadcastSnapshot")
 	}
 }
 
