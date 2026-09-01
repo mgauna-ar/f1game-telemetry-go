@@ -59,6 +59,8 @@ func (sm *SessionManager) Close(ctx context.Context) {
 }
 
 // ProcessPacket receives a decoded packet and processes it.
+// IMPORTANT: This method must only be called from a single goroutine (the UDP listener loop).
+// It is not safe for concurrent use.
 func (sm *SessionManager) ProcessPacket(ctx context.Context, pkt packets.Packet) {
 	header := pkt.GetHeader()
 

@@ -263,39 +263,17 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 	}
 
 	// Pit stop detection for active ongoing laps
-	pitStops := int(lapData.NumPitStops)
-	if pitStops > lt.stint.LastPitStops && lt.stint.StintIncrementedInLap != newLapNum {
-		lt.stint.CurrentStintNum++
-		lt.stint.StintIncrementedInLap = newLapNum
-		slog.Info("Pit stop detected", "carIndex", lt.carIndex, "stint", lt.stint.CurrentStintNum, "prevPitStops", lt.stint.LastPitStops, "pitStops", pitStops)
-	}
-	lt.stint.LastPitStops = pitStops
+	lt.handlePitDetection(lapData, newLapNum)
 
 	// Case 2: Session restarted or rewound in game (Flashback / restart session)
 	if newLapNum < lt.currentLapNum {
-		slog.Info("Session reset detected", "carIndex", lt.carIndex, "prevLap", lt.currentLapNum, "newLap", newLapNum)
-		lt.currentLap = nil
-		lt.mu.Lock()
-		lt.sampleBuffer = lt.sampleBuffer[:0]
-		lt.mu.Unlock()
-		lt.stint.LastPitStops = int(lapData.NumPitStops)
-		if lt.stint.LastPitStops > 0 {
-			lt.stint.CurrentStintNum = lt.stint.LastPitStops + 1
-		} else {
-			lt.stint.CurrentStintNum = 1
-		}
-		lt.stint.StintIncrementedInLap = newLapNum
-		lt.startNewLap(ctx, session.ID, newLapNum, lt.carIndex)
+		lt.handleSessionRestart(ctx, session, lapData, newLapNum)
 		return
 	}
 
 	// Case 3: Completed a lap (normal increment: newLapNum == lt.currentLapNum + 1)
 	if newLapNum == lt.currentLapNum+1 {
-		if lt.currentLap != nil && lapData.CarPosition > 0 {
-			lt.currentLap.CarPosition = int(lapData.CarPosition)
-		}
-		lt.finalizeCurrentLap(ctx, int(lapData.LastLapTimeInMS))
-		lt.startNewLap(ctx, session.ID, newLapNum, lt.carIndex)
+		lt.handleLapCompletion(ctx, session, lapData, newLapNum)
 		return
 	}
 
@@ -311,80 +289,120 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 	}
 
 	// Case 5: Same lap in progress
-	if lt.currentLap != nil {
-		// Detect distance reset/restart during the same lap number (e.g. flashback or garage reset)
-		if prevDistance > 500 && (currDistance < 100 || currDistance < prevDistance*0.3) {
-			slog.Info("Lap restart detected", "carIndex", lt.carIndex, "lap", lt.currentLapNum, "prevDistance", prevDistance, "currDistance", currDistance)
-			lt.mu.Lock()
-			lt.sampleBuffer = lt.sampleBuffer[:0]
-			lt.mu.Unlock()
-			if lt.currentLap.ID > 0 {
-				if err := lt.repo.DeleteTelemetryByLap(ctx, lt.currentLap.ID); err != nil {
-					slog.Error("Failed to delete telemetry on lap restart", "lapID", lt.currentLap.ID, "error", err)
-				}
-			}
-		} else if prevDistance < 0 && currDistance >= 0 && lt.currentLapNum == 1 {
-			slog.Info("Out-lap to flying lap transition detected", "carIndex", lt.carIndex, "prevDistance", prevDistance, "currDistance", currDistance)
-			lt.mu.Lock()
-			lt.sampleBuffer = lt.sampleBuffer[:0]
-			lt.mu.Unlock()
-			if lt.currentLap.ID > 0 {
-				if err := lt.repo.DeleteTelemetryByLap(ctx, lt.currentLap.ID); err != nil {
-					slog.Error("Failed to delete telemetry on flying lap transition", "lapID", lt.currentLap.ID, "error", err)
-				}
-			}
-		}
+	lt.updateActiveLap(ctx, lapData, prevDistance, currDistance)
+}
 
-		s1 := int(lapData.Sector1TimeMSPart) + int(lapData.Sector1TimeMinutesPart)*packets.MillisPerMinute
-		s2 := int(lapData.Sector2TimeMSPart) + int(lapData.Sector2TimeMinutesPart)*packets.MillisPerMinute
-		isValid := lapData.CurrentLapInvalid == 0
-		penalties := int(lapData.Penalties)
-		pos := int(lapData.CarPosition)
-		resStatus := int(lapData.ResultStatus)
+func (lt *LapTracker) handlePitDetection(lapData packets.LapData, newLapNum int) {
+	pitStops := int(lapData.NumPitStops)
+	if pitStops > lt.stint.LastPitStops && lt.stint.StintIncrementedInLap != newLapNum {
+		lt.stint.CurrentStintNum++
+		lt.stint.StintIncrementedInLap = newLapNum
+		slog.Info("Pit stop detected", "carIndex", lt.carIndex, "stint", lt.stint.CurrentStintNum, "prevPitStops", lt.stint.LastPitStops, "pitStops", pitStops)
+	}
+	lt.stint.LastPitStops = pitStops
+}
 
-		updated := false
-		if s1 > 0 && lt.currentLap.Sector1MS != s1 {
-			lt.currentLap.Sector1MS = s1
-			updated = true
-		}
-		if s2 > 0 && lt.currentLap.Sector2MS != s2 {
-			lt.currentLap.Sector2MS = s2
-			updated = true
-		}
-		if lt.currentLap.IsValid != isValid {
-			lt.currentLap.IsValid = isValid
-			updated = true
-		}
-		if penalties > 0 && lt.currentLap.PenaltiesSeconds != penalties {
-			lt.currentLap.PenaltiesSeconds = penalties
-			updated = true
-		}
-		if pos > 0 && lt.currentLap.CarPosition != pos {
-			lt.currentLap.CarPosition = pos
-			updated = true
-		}
-		if resStatus > 0 && lt.currentLap.ResultStatus != resStatus {
-			lt.currentLap.ResultStatus = resStatus
-			updated = true
-		}
+func (lt *LapTracker) handleSessionRestart(ctx context.Context, session *storage.Session, lapData packets.LapData, newLapNum int) {
+	slog.Info("Session reset detected", "carIndex", lt.carIndex, "prevLap", lt.currentLapNum, "newLap", newLapNum)
+	lt.currentLap = nil
+	lt.mu.Lock()
+	lt.sampleBuffer = lt.sampleBuffer[:0]
+	lt.mu.Unlock()
+	lt.stint.LastPitStops = int(lapData.NumPitStops)
+	if lt.stint.LastPitStops > 0 {
+		lt.stint.CurrentStintNum = lt.stint.LastPitStops + 1
+	} else {
+		lt.stint.CurrentStintNum = 1
+	}
+	lt.stint.StintIncrementedInLap = newLapNum
+	lt.startNewLap(ctx, session.ID, newLapNum, lt.carIndex)
+}
 
-		// If car has finished session on Lap 1 without a lap transition (e.g. 1-lap sprint / time trial), finalize Lap 1
-		lastLapTimeMS := int(lapData.LastLapTimeInMS)
-		if resStatus >= int(packets.ResultStatusFinished) && lt.currentLapNum == 1 && lt.currentLap.LapTimeMS == 0 && lastLapTimeMS > 0 {
-			lt.finalizeCurrentLap(ctx, lastLapTimeMS)
-			return
-		}
+func (lt *LapTracker) handleLapCompletion(ctx context.Context, session *storage.Session, lapData packets.LapData, newLapNum int) {
+	if lt.currentLap != nil && lapData.CarPosition > 0 {
+		lt.currentLap.CarPosition = int(lapData.CarPosition)
+	}
+	lt.finalizeCurrentLap(ctx, int(lapData.LastLapTimeInMS))
+	lt.startNewLap(ctx, session.ID, newLapNum, lt.carIndex)
+}
 
-		if updated {
-			if err := lt.repo.SaveLap(ctx, lt.currentLap, false); err != nil {
-				slog.Error("Failed to save updated lap data", "lapID", lt.currentLap.ID, "lapNumber", lt.currentLap.LapNumber, "carIndex", lt.carIndex, "error", err)
+func (lt *LapTracker) updateActiveLap(ctx context.Context, lapData packets.LapData, prevDistance, currDistance float64) {
+	if lt.currentLap == nil {
+		return
+	}
+
+	// Detect distance reset/restart during the same lap number (e.g. flashback or garage reset)
+	if prevDistance > 500 && (currDistance < 100 || currDistance < prevDistance*0.3) {
+		slog.Info("Lap restart detected", "carIndex", lt.carIndex, "lap", lt.currentLapNum, "prevDistance", prevDistance, "currDistance", currDistance)
+		lt.mu.Lock()
+		lt.sampleBuffer = lt.sampleBuffer[:0]
+		lt.mu.Unlock()
+		if lt.currentLap.ID > 0 {
+			if err := lt.repo.DeleteTelemetryByLap(ctx, lt.currentLap.ID); err != nil {
+				slog.Error("Failed to delete telemetry on lap restart", "lapID", lt.currentLap.ID, "error", err)
 			}
 		}
-
-		// If car has finished or retired, flush any remaining in-memory telemetry
-		if resStatus >= int(packets.ResultStatusFinished) {
-			lt.FlushCurrentLap()
+	} else if prevDistance < 0 && currDistance >= 0 && lt.currentLapNum == 1 {
+		slog.Info("Out-lap to flying lap transition detected", "carIndex", lt.carIndex, "prevDistance", prevDistance, "currDistance", currDistance)
+		lt.mu.Lock()
+		lt.sampleBuffer = lt.sampleBuffer[:0]
+		lt.mu.Unlock()
+		if lt.currentLap.ID > 0 {
+			if err := lt.repo.DeleteTelemetryByLap(ctx, lt.currentLap.ID); err != nil {
+				slog.Error("Failed to delete telemetry on flying lap transition", "lapID", lt.currentLap.ID, "error", err)
+			}
 		}
+	}
+
+	s1 := int(lapData.Sector1TimeMSPart) + int(lapData.Sector1TimeMinutesPart)*packets.MillisPerMinute
+	s2 := int(lapData.Sector2TimeMSPart) + int(lapData.Sector2TimeMinutesPart)*packets.MillisPerMinute
+	isValid := lapData.CurrentLapInvalid == 0
+	penalties := int(lapData.Penalties)
+	pos := int(lapData.CarPosition)
+	resStatus := int(lapData.ResultStatus)
+
+	updated := false
+	if s1 > 0 && lt.currentLap.Sector1MS != s1 {
+		lt.currentLap.Sector1MS = s1
+		updated = true
+	}
+	if s2 > 0 && lt.currentLap.Sector2MS != s2 {
+		lt.currentLap.Sector2MS = s2
+		updated = true
+	}
+	if lt.currentLap.IsValid != isValid {
+		lt.currentLap.IsValid = isValid
+		updated = true
+	}
+	if penalties > 0 && lt.currentLap.PenaltiesSeconds != penalties {
+		lt.currentLap.PenaltiesSeconds = penalties
+		updated = true
+	}
+	if pos > 0 && lt.currentLap.CarPosition != pos {
+		lt.currentLap.CarPosition = pos
+		updated = true
+	}
+	if resStatus > 0 && lt.currentLap.ResultStatus != resStatus {
+		lt.currentLap.ResultStatus = resStatus
+		updated = true
+	}
+
+	// If car has finished session on Lap 1 without a lap transition (e.g. 1-lap sprint / time trial), finalize Lap 1
+	lastLapTimeMS := int(lapData.LastLapTimeInMS)
+	if resStatus >= int(packets.ResultStatusFinished) && lt.currentLapNum == 1 && lt.currentLap.LapTimeMS == 0 && lastLapTimeMS > 0 {
+		lt.finalizeCurrentLap(ctx, lastLapTimeMS)
+		return
+	}
+
+	if updated {
+		if err := lt.repo.SaveLap(ctx, lt.currentLap, false); err != nil {
+			slog.Error("Failed to save updated lap data", "lapID", lt.currentLap.ID, "lapNumber", lt.currentLap.LapNumber, "carIndex", lt.carIndex, "error", err)
+		}
+	}
+
+	// If car has finished or retired, flush any remaining in-memory telemetry
+	if resStatus >= int(packets.ResultStatusFinished) {
+		lt.FlushCurrentLap()
 	}
 }
 

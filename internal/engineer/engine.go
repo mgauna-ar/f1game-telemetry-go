@@ -425,6 +425,108 @@ func (e *EngineerEngine) isRaceSessionLocked() bool {
 	return packets.IsRaceSession(e.latestSession.SessionType)
 }
 
+func (e *EngineerEngine) isGamePaused(isCritical bool) bool {
+	return e.latestSession != nil && e.latestSession.GamePaused == 1 && !isCritical
+}
+
+func (e *EngineerEngine) isPhaseAllowed(alertKey string) bool {
+	rule, hasRule := e.alertRules[alertKey]
+	if !hasRule {
+		return true
+	}
+
+	phaseAllowed := false
+	for _, vp := range rule.ValidPhases {
+		if vp == e.currentPhase {
+			phaseAllowed = true
+			break
+		}
+	}
+	if !phaseAllowed {
+		return false
+	}
+
+	if e.currentPhase == PhaseOutLap && rule.MinLapDistancePct > 0 {
+		lapDistPct := e.calculateLapDistancePct(e.latestSession, e.getPlayerLapDataLocked())
+		if lapDistPct < rule.MinLapDistancePct {
+			return false
+		}
+	}
+
+	if rule.SuppressAfterPitForLaps > 0 && e.isRaceSessionLocked() {
+		playerLap := e.getPlayerLapDataLocked()
+		playerStatus := e.getPlayerCarStatusLocked()
+		if playerLap != nil && playerStatus != nil {
+			if playerLap.NumPitStops > 0 && int(playerStatus.TyresAgeLaps) <= rule.SuppressAfterPitForLaps {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+func (e *EngineerEngine) isDeduplicated(alertKey string, isCritical bool) bool {
+	if isCritical {
+		return false
+	}
+
+	rule, hasRule := e.alertRules[alertKey]
+	if !hasRule {
+		return false
+	}
+
+	currentLapNum := 1
+	if pLap := e.getPlayerLapDataLocked(); pLap != nil && pLap.CurrentLapNum > 0 {
+		currentLapNum = int(pLap.CurrentLapNum)
+	}
+
+	switch rule.DedupScope {
+	case DedupScopeStint:
+		return e.stintKeys[alertKey]
+	case DedupScopePhase:
+		return e.phaseKeys[alertKey]
+	case DedupScopeLap:
+		if lastLap, exists := e.lapKeys[alertKey]; exists && lastLap == currentLapNum {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (e *EngineerEngine) isSmartDiscretionSuppressed(isCritical bool) bool {
+	if isCritical || !e.config.SmartDiscretionEnabled {
+		return false
+	}
+
+	playerTele := e.getPlayerTelemetryLocked()
+	if playerTele != nil {
+		brakeActive := playerTele.Brake > SmartDiscretionBrakeThreshold
+		heavySteer := math.Abs(float64(playerTele.Steer)) > SmartDiscretionSteerThreshold
+		if brakeActive || heavySteer {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (e *EngineerEngine) isChatterCooldownActive(category string, isCritical bool) bool {
+	if isCritical {
+		return false
+	}
+
+	now := time.Now().UnixMilli()
+	cooldownMs := int64(e.config.ChatterCooldownMs)
+	if cooldownMs <= 0 {
+		cooldownMs = DefaultDirectiveCooldownMs
+	}
+
+	lastTime, exists := e.lastDirectives[category]
+	return exists && now-lastTime < cooldownMs
+}
+
 func (e *EngineerEngine) canEmitDirectiveLocked(alertKey, category, urgency string) bool {
 	isCritical := urgency == UrgencyCritical || urgency == UrgencyHigh
 
@@ -434,85 +536,28 @@ func (e *EngineerEngine) canEmitDirectiveLocked(alertKey, category, urgency stri
 	}
 
 	// 1. Paused game check
-	if e.latestSession != nil && e.latestSession.GamePaused == 1 && !isCritical {
+	if e.isGamePaused(isCritical) {
 		return false
 	}
 
 	// 2. Driving phase rule validation
-	rule, hasRule := e.alertRules[alertKey]
-	if hasRule {
-		phaseAllowed := false
-		for _, vp := range rule.ValidPhases {
-			if vp == e.currentPhase {
-				phaseAllowed = true
-				break
-			}
-		}
-		if !phaseAllowed {
-			return false
-		}
-
-		if e.currentPhase == PhaseOutLap && rule.MinLapDistancePct > 0 {
-			lapDistPct := e.calculateLapDistancePct(e.latestSession, e.getPlayerLapDataLocked())
-			if lapDistPct < rule.MinLapDistancePct {
-				return false
-			}
-		}
-
-		if rule.SuppressAfterPitForLaps > 0 && e.isRaceSessionLocked() {
-			playerLap := e.getPlayerLapDataLocked()
-			playerStatus := e.getPlayerCarStatusLocked()
-			if playerLap != nil && playerStatus != nil {
-				if playerLap.NumPitStops > 0 && int(playerStatus.TyresAgeLaps) <= rule.SuppressAfterPitForLaps {
-					return false
-				}
-			}
-		}
-
-		currentLapNum := 1
-		if pLap := e.getPlayerLapDataLocked(); pLap != nil && pLap.CurrentLapNum > 0 {
-			currentLapNum = int(pLap.CurrentLapNum)
-		}
-
-		switch rule.DedupScope {
-		case DedupScopeStint:
-			if e.stintKeys[alertKey] && !isCritical {
-				return false
-			}
-		case DedupScopePhase:
-			if e.phaseKeys[alertKey] && !isCritical {
-				return false
-			}
-		case DedupScopeLap:
-			if lastLap, exists := e.lapKeys[alertKey]; exists && lastLap == currentLapNum && !isCritical {
-				return false
-			}
-		}
+	if !e.isPhaseAllowed(alertKey) {
+		return false
 	}
 
-	// 3. Smart Driving Discretion check
-	if !isCritical && e.config.SmartDiscretionEnabled {
-		playerTele := e.getPlayerTelemetryLocked()
-		if playerTele != nil {
-			brakeActive := playerTele.Brake > SmartDiscretionBrakeThreshold
-			heavySteer := math.Abs(float64(playerTele.Steer)) > SmartDiscretionSteerThreshold
-			if brakeActive || heavySteer {
-				return false
-			}
-		}
+	// 3. Deduplication check
+	if e.isDeduplicated(alertKey, isCritical) {
+		return false
 	}
 
-	// 4. Per-category chatter cooldown check
-	now := time.Now().UnixMilli()
-	cooldownMs := int64(e.config.ChatterCooldownMs)
-	if cooldownMs <= 0 {
-		cooldownMs = DefaultDirectiveCooldownMs
+	// 4. Smart Driving Discretion check
+	if e.isSmartDiscretionSuppressed(isCritical) {
+		return false
 	}
-	if !isCritical {
-		lastTime, exists := e.lastDirectives[category]
-		if exists && now-lastTime < cooldownMs {
-			return false
-		}
+
+	// 5. Per-category chatter cooldown check
+	if e.isChatterCooldownActive(category, isCritical) {
+		return false
 	}
 
 	return true

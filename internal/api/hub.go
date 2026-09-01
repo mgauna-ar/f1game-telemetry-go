@@ -156,15 +156,17 @@ func (h *Hub) Run() {
 				h.mu.Unlock()
 			}
 		case message := <-h.broadcast:
-			h.mu.RLock()
+			h.mu.Lock()
 			for client := range h.clients {
 				select {
 				case client.send <- message:
 				default:
-					// Slow or lagging client send buffer full: skip dropping message
+					// Slow or lagging client can't keep up — disconnect it
+					close(client.send)
+					delete(h.clients, client)
 				}
 			}
-			h.mu.RUnlock()
+			h.mu.Unlock()
 		}
 	}
 }

@@ -81,6 +81,13 @@ func main() {
 		os.Exit(0)
 	}
 
+	if err := run(cfg); err != nil {
+		slog.Error("Fatal application error", "error", err)
+		os.Exit(1)
+	}
+}
+
+func run(cfg ServerConfig) error {
 	api.SetAppVersion(version, commit, date)
 
 	// Calculate display URLs
@@ -91,31 +98,82 @@ func main() {
 
 	printStartupBanner(version, commit, localURL, lanURL, cfg.UDPAddr, cfg.DBPath)
 
-	// 2. Setup Storage
-	repo, err := storage.NewSQLiteRepository(cfg.DBPath)
+	// 1. Initialize Database
+	repo, err := initDatabase(cfg.DBPath)
 	if err != nil {
-		slog.Error("Failed to initialize database", "dbPath", cfg.DBPath, "error", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to initialize database on %s: %w", cfg.DBPath, err)
 	}
 	defer repo.Close()
 
-	// 3. Setup Context with cancellation
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// 4. Setup WebSocket Hubs
+	// 2. Setup WebSocket Hubs
 	telemetryHub := api.NewHub("Telemetry")
 	go telemetryHub.Run()
 
 	engineerHub := api.NewHub("Engineer")
 	go engineerHub.Run()
 
-	// 5. Setup API Server, Global Input Manager & Engineer Engine
+	// 3. Setup Input Manager & Engineer Engine
 	inputMgr := input.NewManager()
 	inputMgr.Start(ctx)
 
 	engineerEngine := engineer.NewEngineerEngine(engineerHub, repo)
 
+	// 4. Initialize HTTP Server with bound TCP listener
+	ln, srv, err := initHTTPServer(cfg, repo, telemetryHub, engineerHub, inputMgr, engineerEngine)
+	if err != nil {
+		return fmt.Errorf("failed to bind HTTP server on %s: %w", cfg.HTTPAddr, err)
+	}
+
+	go func() {
+		if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
+			slog.Error("HTTP server error", "error", err)
+		}
+	}()
+
+	// 5. Auto-launch browser if not disabled (port is guaranteed bound)
+	if !cfg.NoBrowser {
+		go func() {
+			if err := system.OpenBrowser(localURL); err != nil {
+				slog.Warn("Could not automatically open browser", "url", localURL, "error", err)
+			}
+		}()
+	}
+
+	// 6. Setup Session Manager and Live Broadcaster
+	sessionManager := session.NewSessionManager(repo)
+	sessionManager.Start(ctx)
+
+	liveBroadcaster := session.NewLiveBroadcaster(telemetryHub)
+	liveBroadcaster.Start(ctx, 100*time.Millisecond)
+
+	// 7. Setup UDP Listener
+	listener, err := initUDPListener(ctx, cfg.UDPAddr)
+	if err != nil {
+		return fmt.Errorf("failed to bind UDP listener on %s: %w", cfg.UDPAddr, err)
+	}
+
+	// 8. Start Packet Processing Loop
+	startPacketProcessing(ctx, listener, sessionManager, engineerEngine, liveBroadcaster, cfg.UDPAddr)
+
+	// 9. Wait for termination signal and handle graceful shutdown
+	runGracefulShutdown(cancel, inputMgr, sessionManager, srv)
+	return nil
+}
+
+func initDatabase(dbPath string) (storage.Repository, error) {
+	return storage.NewSQLiteRepository(dbPath)
+}
+
+func initHTTPServer(
+	cfg ServerConfig,
+	repo storage.Repository,
+	telemetryHub, engineerHub *api.Hub,
+	inputMgr input.Manager,
+	engineerEngine *engineer.EngineerEngine,
+) (net.Listener, *http.Server, error) {
 	apiConfig := api.ServerConfig{
 		GeminiAPIKey: cfg.GeminiAPIKey,
 		OpenAIAPIKey: cfg.OpenAIAPIKey,
@@ -132,45 +190,35 @@ func main() {
 		Handler: apiServer.Router(),
 	}
 
-	go func() {
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			slog.Error("HTTP server error", "error", err)
-			os.Exit(1)
-		}
-	}()
-
-	// 6. Auto-launch browser if not disabled
-	if !cfg.NoBrowser {
-		go func() {
-			// Small delay to allow HTTP server socket bind
-			time.Sleep(350 * time.Millisecond)
-			if err := system.OpenBrowser(localURL); err != nil {
-				slog.Warn("Could not automatically open browser", "url", localURL, "error", err)
-			}
-		}()
+	ln, err := net.Listen("tcp", cfg.HTTPAddr)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	// 7. Setup Session Manager
-	sessionManager := session.NewSessionManager(repo)
-	sessionManager.Start(ctx)
+	return ln, srv, nil
+}
 
-	// 8. Setup 10Hz Live Telemetry Snapshot Broadcaster
-	liveBroadcaster := session.NewLiveBroadcaster(telemetryHub)
-	liveBroadcaster.Start(ctx, 100*time.Millisecond)
-
-	// 9. Setup UDP Listener
-	listener := udp.NewListener(cfg.UDPAddr, udp.DefaultBufferSize)
+func initUDPListener(ctx context.Context, udpAddr string) (*udp.Listener, error) {
+	listener := udp.NewListener(udpAddr, udp.DefaultBufferSize)
 	go func() {
 		if err := listener.Listen(ctx); err != nil {
-			slog.Error("UDP listener error", "addr", cfg.UDPAddr, "error", err)
-			os.Exit(1)
+			slog.Error("UDP listener error", "addr", udpAddr, "error", err)
 		}
 	}()
 	<-listener.Ready() // Wait for socket to bind
+	return listener, nil
+}
 
-	// 10. Packet Processing Loop
+func startPacketProcessing(
+	ctx context.Context,
+	listener *udp.Listener,
+	sessionManager *session.SessionManager,
+	engineerEngine *engineer.EngineerEngine,
+	liveBroadcaster *session.LiveBroadcaster,
+	udpAddr string,
+) {
 	go func() {
-		slog.Info("Ready to receive telemetry", "udpAddr", cfg.UDPAddr, "format", "F1 2025/2026")
+		slog.Info("Ready to receive telemetry", "udpAddr", udpAddr, "format", "F1 2025/2026")
 		for {
 			select {
 			case <-ctx.Done():
@@ -181,23 +229,23 @@ func main() {
 				}
 				pkt, err := packets.Decode(rawPkt.Data)
 				if err != nil {
-					// Ignore unknown packets or decode errors to avoid log spam
 					continue
 				}
 
-				// Process packet for storage/state
 				sessionManager.ProcessPacket(ctx, pkt)
-
-				// Process packet for proactive insights
 				engineerEngine.ProcessPacket(ctx, pkt)
-
-				// Process packet for 10Hz live snapshot WebSocket broadcasting
 				liveBroadcaster.ProcessPacket(pkt)
 			}
 		}
 	}()
+}
 
-	// 10. Graceful Shutdown
+func runGracefulShutdown(
+	cancel context.CancelFunc,
+	inputMgr input.Manager,
+	sessionManager *session.SessionManager,
+	srv *http.Server,
+) {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
