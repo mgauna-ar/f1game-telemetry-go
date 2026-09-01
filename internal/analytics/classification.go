@@ -54,6 +54,7 @@ type DriverStanding struct {
 	LapsCompleted        int                  `json:"laps_completed"`
 	PitStopsCount        int                  `json:"pit_stops_count"`
 	StintsSummary        string               `json:"stints_summary"`
+	Stints               []StintInfo          `json:"stints"`
 	AIControlled         bool                 `json:"ai_controlled"`
 	BestLap              *storage.Lap         `json:"best_lap,omitempty"`
 	LastLap              *storage.Lap         `json:"last_lap,omitempty"`
@@ -91,6 +92,96 @@ func computeSessionBestSectors(laps []storage.Lap) (s1, s2, s3, ultimate int) {
 	return s1, s2, s3, ultimate
 }
 
+// findBestLap selects the fastest valid lap, or falls back to the fastest completed lap.
+func findBestLap(validLaps, completedLaps []storage.Lap) *storage.Lap {
+	if len(validLaps) > 0 {
+		best := validLaps[0]
+		for _, l := range validLaps[1:] {
+			if l.LapTimeMS < best.LapTimeMS {
+				best = l
+			}
+		}
+		return &best
+	} else if len(completedLaps) > 0 {
+		best := completedLaps[0]
+		for _, l := range completedLaps[1:] {
+			if l.LapTimeMS < best.LapTimeMS {
+				best = l
+			}
+		}
+		return &best
+	}
+	return nil
+}
+
+// computeOfficialTimes resolves total race time, penalties, and total time with penalties.
+func computeOfficialTimes(p storage.Participant, driverLaps, completedLaps []storage.Lap) (totalRaceTimeMS, totalWithPenaltiesMS int64, penaltySeconds int) {
+	officialTotalTimeMS := int64(p.TotalRaceTime * 1000.0)
+	officialPenaltiesSec := p.PenaltiesTime
+	penaltySeconds = officialPenaltiesSec
+	if penaltySeconds == 0 {
+		for _, l := range driverLaps {
+			if l.PenaltiesSeconds > penaltySeconds {
+				penaltySeconds = l.PenaltiesSeconds
+			}
+		}
+	}
+
+	totalRaceTimeMS = officialTotalTimeMS
+	if totalRaceTimeMS == 0 {
+		sum := int64(0)
+		for _, l := range completedLaps {
+			sum += int64(l.LapTimeMS)
+		}
+		totalRaceTimeMS = sum
+	}
+	totalWithPenaltiesMS = totalRaceTimeMS + int64(penaltySeconds*1000)
+	return totalRaceTimeMS, totalWithPenaltiesMS, penaltySeconds
+}
+
+// resolveResultStatus determines whether a driver is DNF or DSQ and extracts the result reason.
+func resolveResultStatus(p storage.Participant, driverLaps []storage.Lap) (isDNF, isDSQ bool, resultReason int) {
+	resStatus := uint8(p.ResultStatus)
+	if resStatus == 0 {
+		for i := len(driverLaps) - 1; i >= 0; i-- {
+			if driverLaps[i].ResultStatus > 0 {
+				resStatus = uint8(driverLaps[i].ResultStatus)
+				break
+			}
+		}
+	}
+
+	resultReason = p.ResultReason
+	isDSQ = resStatus == packets.ResultStatusDSQ || uint8(resultReason) == packets.ResultReasonBlackFlagged
+	isDNF = !isDSQ && (resStatus == packets.ResultStatusDNF ||
+		resStatus == packets.ResultStatusNotClassified ||
+		resStatus == packets.ResultStatusRetired ||
+		(resStatus != packets.ResultStatusFinished && (uint8(resultReason) == packets.ResultReasonRetired ||
+			uint8(resultReason) == packets.ResultReasonTerminalDamage ||
+			uint8(resultReason) == packets.ResultReasonMechanicalFailure ||
+			uint8(resultReason) == packets.ResultReasonNotEnoughLaps)))
+	return isDNF, isDSQ, resultReason
+}
+
+// computeBestPersonalSectors calculates personal best sector times and theoretical lap.
+func computeBestPersonalSectors(validLaps []storage.Lap) (bestS1MS, bestS2MS, bestS3MS, theoreticalBestMS int) {
+	for _, l := range validLaps {
+		if l.Sector1Valid && l.Sector1MS > 0 && (bestS1MS == 0 || l.Sector1MS < bestS1MS) {
+			bestS1MS = l.Sector1MS
+		}
+		if l.Sector2Valid && l.Sector2MS > 0 && (bestS2MS == 0 || l.Sector2MS < bestS2MS) {
+			bestS2MS = l.Sector2MS
+		}
+		if l.Sector3Valid && l.Sector3MS > 0 && (bestS3MS == 0 || l.Sector3MS < bestS3MS) {
+			bestS3MS = l.Sector3MS
+		}
+	}
+	if bestS1MS > 0 && bestS2MS > 0 && bestS3MS > 0 {
+		theoreticalBestMS = bestS1MS + bestS2MS + bestS3MS
+	}
+	return bestS1MS, bestS2MS, bestS3MS, theoreticalBestMS
+}
+
 // buildDriverStanding creates a DriverStanding record by aggregating a driver's completed and valid laps.
 func buildDriverStanding(p storage.Participant, driverLaps []storage.Lap) DriverStanding {
 	var completedLaps []storage.Lap
@@ -109,35 +200,15 @@ func buildDriverStanding(p storage.Participant, driverLaps []storage.Lap) Driver
 		}
 	}
 
-	// Best lap selection
-	var bestLap *storage.Lap
+	bestLap := findBestLap(validLaps, completedLaps)
 	bestLapTimeMS := 0
-	if len(validLaps) > 0 {
-		best := validLaps[0]
-		for _, l := range validLaps[1:] {
-			if l.LapTimeMS < best.LapTimeMS {
-				best = l
-			}
-		}
-		bestLap = &best
-		bestLapTimeMS = best.LapTimeMS
-	} else if len(completedLaps) > 0 {
-		best := completedLaps[0]
-		for _, l := range completedLaps[1:] {
-			if l.LapTimeMS < best.LapTimeMS {
-				best = l
-			}
-		}
-		bestLap = &best
-		bestLapTimeMS = best.LapTimeMS
-	}
-
 	bestLapNumber := 0
 	var bestLapID int64
 	bestLapS1 := 0
 	bestLapS2 := 0
 	bestLapS3 := 0
 	if bestLap != nil {
+		bestLapTimeMS = bestLap.LapTimeMS
 		bestLapNumber = bestLap.LapNumber
 		bestLapID = bestLap.ID
 		bestLapS1 = bestLap.Sector1MS
@@ -145,7 +216,6 @@ func buildDriverStanding(p storage.Participant, driverLaps []storage.Lap) Driver
 		bestLapS3 = bestLap.Sector3MS
 	}
 
-	// Last completed lap
 	var lastLap *storage.Lap
 	lastLapTimeMS := 0
 	if len(completedLaps) > 0 {
@@ -158,29 +228,10 @@ func buildDriverStanding(p storage.Participant, driverLaps []storage.Lap) Driver
 		lastLapTimeMS = last.LapTimeMS
 	}
 
-	// Official times and penalties
-	officialTotalTimeMS := int64(p.TotalRaceTime * 1000.0)
-	officialPenaltiesSec := p.PenaltiesTime
-	penaltySeconds := officialPenaltiesSec
-	if penaltySeconds == 0 {
-		for _, l := range driverLaps {
-			if l.PenaltiesSeconds > penaltySeconds {
-				penaltySeconds = l.PenaltiesSeconds
-			}
-		}
-	}
+	totalRaceTimeMS, totalWithPenaltiesMS, penaltySeconds := computeOfficialTimes(p, driverLaps, completedLaps)
+	isDNF, isDSQ, resultReason := resolveResultStatus(p, driverLaps)
+	bestS1MS, bestS2MS, bestS3MS, theoreticalBestMS := computeBestPersonalSectors(validLaps)
 
-	totalRaceTimeMS := officialTotalTimeMS
-	if totalRaceTimeMS == 0 {
-		sum := int64(0)
-		for _, l := range completedLaps {
-			sum += int64(l.LapTimeMS)
-		}
-		totalRaceTimeMS = sum
-	}
-	totalWithPenaltiesMS := totalRaceTimeMS + int64(penaltySeconds*1000)
-
-	// Dynamic and official positions
 	officialPos := p.Position
 	if officialPos == 0 {
 		for i := len(driverLaps) - 1; i >= 0; i-- {
@@ -196,50 +247,6 @@ func buildDriverStanding(p storage.Participant, driverLaps []storage.Lap) Driver
 	if gridPosition > 0 && officialPos > 0 {
 		gained := gridPosition - officialPos
 		positionsGained = &gained
-	}
-
-	points := float32(p.Points)
-	resultReason := p.ResultReason
-	pitStopsCount := p.NumPitStops
-
-	// DNF / DSQ status derivation
-	resStatus := uint8(p.ResultStatus)
-	if resStatus == 0 {
-		for i := len(driverLaps) - 1; i >= 0; i-- {
-			if driverLaps[i].ResultStatus > 0 {
-				resStatus = uint8(driverLaps[i].ResultStatus)
-				break
-			}
-		}
-	}
-
-	isDSQ := resStatus == packets.ResultStatusDSQ || uint8(resultReason) == packets.ResultReasonBlackFlagged
-	isDNF := !isDSQ && (resStatus == packets.ResultStatusDNF ||
-		resStatus == packets.ResultStatusNotClassified ||
-		resStatus == packets.ResultStatusRetired ||
-		(resStatus != packets.ResultStatusFinished && (uint8(resultReason) == packets.ResultReasonRetired ||
-			uint8(resultReason) == packets.ResultReasonTerminalDamage ||
-			uint8(resultReason) == packets.ResultReasonMechanicalFailure ||
-			uint8(resultReason) == packets.ResultReasonNotEnoughLaps)))
-
-	// Best personal sectors
-	bestS1MS := 0
-	bestS2MS := 0
-	bestS3MS := 0
-	for _, l := range validLaps {
-		if l.Sector1Valid && l.Sector1MS > 0 && (bestS1MS == 0 || l.Sector1MS < bestS1MS) {
-			bestS1MS = l.Sector1MS
-		}
-		if l.Sector2Valid && l.Sector2MS > 0 && (bestS2MS == 0 || l.Sector2MS < bestS2MS) {
-			bestS2MS = l.Sector2MS
-		}
-		if l.Sector3Valid && l.Sector3MS > 0 && (bestS3MS == 0 || l.Sector3MS < bestS3MS) {
-			bestS3MS = l.Sector3MS
-		}
-	}
-	theoreticalBestMS := 0
-	if bestS1MS > 0 && bestS2MS > 0 && bestS3MS > 0 {
-		theoreticalBestMS = bestS1MS + bestS2MS + bestS3MS
 	}
 
 	driverName := p.Name
@@ -267,7 +274,7 @@ func buildDriverStanding(p storage.Participant, driverLaps []storage.Lap) Driver
 		TotalRaceTimeMS:      totalRaceTimeMS,
 		PenaltySeconds:       penaltySeconds,
 		TotalWithPenaltiesMS: totalWithPenaltiesMS,
-		Points:               points,
+		Points:               float32(p.Points),
 		IsDNF:                isDNF,
 		IsDSQ:                isDSQ,
 		ResultReason:         resultReason,
@@ -277,8 +284,9 @@ func buildDriverStanding(p storage.Participant, driverLaps []storage.Lap) Driver
 		BestS3MS:             bestS3MS,
 		TheoreticalBestMS:    theoreticalBestMS,
 		LapsCompleted:        len(completedLaps),
-		PitStopsCount:        pitStopsCount,
+		PitStopsCount:        p.NumPitStops,
 		StintsSummary:        ComputeStintsSummary(driverLaps),
+		Stints:               ComputeStintsDetailed(driverLaps),
 		AIControlled:         p.AIControlled,
 		BestLap:              bestLap,
 		LastLap:              lastLap,

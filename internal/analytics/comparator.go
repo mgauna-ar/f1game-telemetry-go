@@ -169,12 +169,8 @@ func (c *ComparatorLRUCache) Clear() {
 // - Zero-calibrates start line crossing (t=0.000s at d=0.0m).
 // - Harmonizes elapsed time with official lap duration when expectedLapTimeMs > 0.
 // - Optionally scales distances if targetTrackLength > 0.
-func NormalizeTelemetrySeries(samples []storage.TelemetrySample, expectedLapTimeMs int, targetTrackLength float64) []storage.TelemetrySample {
-	if len(samples) == 0 {
-		return []storage.TelemetrySample{}
-	}
-
-	// 1. Filter non-finite numbers and valid distance samples
+// filterInvalidSamples removes non-finite values, negative distances, and initial dropouts.
+func filterInvalidSamples(samples []storage.TelemetrySample) []storage.TelemetrySample {
 	validSamples := make([]storage.TelemetrySample, 0, len(samples))
 	for _, s := range samples {
 		if math.IsNaN(s.SessionTime) || math.IsInf(s.SessionTime, 0) ||
@@ -188,61 +184,71 @@ func NormalizeTelemetrySeries(samples []storage.TelemetrySample, expectedLapTime
 		}
 		validSamples = append(validSamples, s)
 	}
-	if len(validSamples) == 0 {
-		return []storage.TelemetrySample{}
-	}
+	return validSamples
+}
 
-	// Sort chronologically by session_time
-	sort.SliceStable(validSamples, func(i, j int) bool {
-		return validSamples[i].SessionTime < validSamples[j].SessionTime
+// sortBySessionTime sorts samples chronologically by session time.
+func sortBySessionTime(samples []storage.TelemetrySample) []storage.TelemetrySample {
+	sorted := make([]storage.TelemetrySample, len(samples))
+	copy(sorted, samples)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		return sorted[i].SessionTime < sorted[j].SessionTime
 	})
+	return sorted
+}
 
-	// Filter isolated distance jump spikes (1-sample telemetry glitches)
-	cleaned := make([]storage.TelemetrySample, 0, len(validSamples))
-	for i := 0; i < len(validSamples); i++ {
-		if i > 0 && i+1 < len(validSamples) {
-			prevD := validSamples[i-1].LapDistance
-			currD := validSamples[i].LapDistance
-			nextD := validSamples[i+1].LapDistance
+// removeDistanceSpikes filters isolated 1-sample telemetry glitches where distance jumps and snaps back.
+func removeDistanceSpikes(samples []storage.TelemetrySample) []storage.TelemetrySample {
+	cleaned := make([]storage.TelemetrySample, 0, len(samples))
+	for i := 0; i < len(samples); i++ {
+		if i > 0 && i+1 < len(samples) {
+			prevD := samples[i-1].LapDistance
+			currD := samples[i].LapDistance
+			nextD := samples[i+1].LapDistance
 			if currD-prevD > 250 && nextD < currD-150 && nextD >= prevD-20 {
 				continue
 			}
 		}
-		cleaned = append(cleaned, validSamples[i])
+		cleaned = append(cleaned, samples[i])
 	}
-	if len(cleaned) == 0 {
+	return cleaned
+}
+
+// isolateLapAttempt isolates the contiguous lap attempt starting near 0m and progressing towards the finish.
+func isolateLapAttempt(samples []storage.TelemetrySample) []storage.TelemetrySample {
+	if len(samples) == 0 {
 		return []storage.TelemetrySample{}
 	}
-
-	// Isolate the contiguous lap attempt starting near 0m and progressing to finish
 	startIdx := 0
-	for i := 0; i < len(cleaned); i++ {
-		if i > 0 && cleaned[i-1].LapDistance > 500 && cleaned[i].LapDistance < 100 {
+	for i := 0; i < len(samples); i++ {
+		if i > 0 && samples[i-1].LapDistance > 500 && samples[i].LapDistance < 100 {
 			startIdx = i
 		}
 	}
-	movingSamples := cleaned[startIdx:]
+	movingSamples := samples[startIdx:]
 	for i := 1; i < len(movingSamples); i++ {
 		if movingSamples[i-1].LapDistance > 500 && movingSamples[i].LapDistance < 100 {
 			movingSamples = movingSamples[:i]
 			break
 		}
 	}
+	return movingSamples
+}
 
-	if len(movingSamples) == 0 {
+// deduplicateMonotonic ensures strictly monotonic distance progression across samples.
+func deduplicateMonotonic(samples []storage.TelemetrySample) []storage.TelemetrySample {
+	if len(samples) == 0 {
 		return []storage.TelemetrySample{}
 	}
-
-	// Deduplicate points so distance is strictly monotonic
-	deduped := []storage.TelemetrySample{movingSamples[0]}
-	for i := 1; i < len(movingSamples); i++ {
-		curr := movingSamples[i]
+	deduped := []storage.TelemetrySample{samples[0]}
+	for i := 1; i < len(samples); i++ {
+		curr := samples[i]
 		prev := deduped[len(deduped)-1]
 		currDist := curr.LapDistance
 		prevDist := prev.LapDistance
 
-		if currDist-prevDist > 250 && i+1 < len(movingSamples) {
-			nextDist := movingSamples[i+1].LapDistance
+		if currDist-prevDist > 250 && i+1 < len(samples) {
+			nextDist := samples[i+1].LapDistance
 			if nextDist < currDist-150 && nextDist >= prevDist {
 				continue
 			}
@@ -252,13 +258,16 @@ func NormalizeTelemetrySeries(samples []storage.TelemetrySample, expectedLapTime
 			deduped = append(deduped, curr)
 		}
 	}
+	return deduped
+}
 
-	if len(deduped) == 0 {
+// calibrateStartLine anchors the start line at t=0, d=0 and reconciles duration with official lap time.
+func calibrateStartLine(samples []storage.TelemetrySample, expectedLapTimeMs int, targetTrackLength float64) []storage.TelemetrySample {
+	if len(samples) == 0 {
 		return []storage.TelemetrySample{}
 	}
 
-	// Calibrate start line crossing (t = 0.000s at d = 0.0m)
-	firstSample := deduped[0]
+	firstSample := samples[0]
 	firstDist := firstSample.LapDistance
 	firstTime := firstSample.SessionTime
 	firstSpeed := float64(firstSample.Speed)
@@ -273,8 +282,7 @@ func NormalizeTelemetrySeries(samples []storage.TelemetrySample, expectedLapTime
 		startTime = firstTime - timeOffsetToZero
 	}
 
-	// Compute raw elapsed duration and end distance
-	lastSample := deduped[len(deduped)-1]
+	lastSample := samples[len(samples)-1]
 	lastDist := lastSample.LapDistance
 	lastTimeElapsed := lastSample.SessionTime - startTime
 	lastSpeed := float64(lastSample.Speed)
@@ -293,7 +301,6 @@ func NormalizeTelemetrySeries(samples []storage.TelemetrySample, expectedLapTime
 		rawTotalDuration += (endDist - lastDist) / lastSpeedMS
 	}
 
-	// Reconcile time scale with official lap duration when expectedLapTimeMs is provided
 	timeScale := 1.0
 	if expectedLapTimeMs > 0 && rawTotalDuration > 0 {
 		officialDuration := float64(expectedLapTimeMs) / 1000.0
@@ -303,9 +310,8 @@ func NormalizeTelemetrySeries(samples []storage.TelemetrySample, expectedLapTime
 		}
 	}
 
-	result := make([]storage.TelemetrySample, 0, len(deduped)+2)
+	result := make([]storage.TelemetrySample, 0, len(samples)+2)
 
-	// Synthesize clean start anchor at d = 0.0m, t = 0.000s
 	if firstDist > 0.05 {
 		synthStart := firstSample
 		synthStart.LapDistance = 0.0
@@ -313,7 +319,7 @@ func NormalizeTelemetrySeries(samples []storage.TelemetrySample, expectedLapTime
 		result = append(result, synthStart)
 	}
 
-	for _, s := range deduped {
+	for _, s := range samples {
 		dist := s.LapDistance
 		elapsed := math.Max(0, (s.SessionTime-startTime)*timeScale)
 		resSample := s
@@ -322,7 +328,6 @@ func NormalizeTelemetrySeries(samples []storage.TelemetrySample, expectedLapTime
 		result = append(result, resSample)
 	}
 
-	// Synthesize clean finish anchor at finish line if expectedLapTimeMs is known
 	if expectedLapTimeMs > 0 {
 		officialDuration := float64(expectedLapTimeMs) / 1000.0
 		synthEnd := lastSample
@@ -335,17 +340,60 @@ func NormalizeTelemetrySeries(samples []storage.TelemetrySample, expectedLapTime
 		}
 	}
 
-	// Optional track length scaling
-	if targetTrackLength > 0 && len(result) > 0 {
-		currentEnd := result[len(result)-1].LapDistance
-		if currentEnd > 0 && math.Abs(currentEnd-targetTrackLength) > 100 {
-			scale := targetTrackLength / currentEnd
-			for i := range result {
-				result[i].LapDistance = math.Round(result[i].LapDistance*scale*10) / 10
-			}
+	return result
+}
+
+// scaleToTrackLength scales lap sample distances if targetTrackLength differs significantly.
+func scaleToTrackLength(samples []storage.TelemetrySample, targetTrackLength float64) []storage.TelemetrySample {
+	if targetTrackLength <= 0 || len(samples) == 0 {
+		return samples
+	}
+	currentEnd := samples[len(samples)-1].LapDistance
+	if currentEnd > 0 && math.Abs(currentEnd-targetTrackLength) > 100 {
+		scale := targetTrackLength / currentEnd
+		for i := range samples {
+			samples[i].LapDistance = math.Round(samples[i].LapDistance*scale*10) / 10
 		}
 	}
+	return samples
+}
 
+// NormalizeTelemetrySeries conditions and aligns raw telemetry samples for accurate spatial comparison.
+// - Filters NaN/Inf numbers and telemetry spikes.
+// - Sorts chronologically.
+// - Isolates single flying lap.
+// - Guarantees strictly monotonic lap distances.
+// - Calibrates zero-distance start line.
+// - Harmonizes elapsed time with official lap duration when expectedLapTimeMs > 0.
+// - Optionally scales distances if targetTrackLength > 0.
+func NormalizeTelemetrySeries(samples []storage.TelemetrySample, expectedLapTimeMs int, targetTrackLength float64) []storage.TelemetrySample {
+	if len(samples) == 0 {
+		return []storage.TelemetrySample{}
+	}
+
+	result := filterInvalidSamples(samples)
+	if len(result) == 0 {
+		return []storage.TelemetrySample{}
+	}
+
+	result = sortBySessionTime(result)
+	result = removeDistanceSpikes(result)
+	if len(result) == 0 {
+		return []storage.TelemetrySample{}
+	}
+
+	result = isolateLapAttempt(result)
+	if len(result) == 0 {
+		return []storage.TelemetrySample{}
+	}
+
+	result = deduplicateMonotonic(result)
+	if len(result) == 0 {
+		return []storage.TelemetrySample{}
+	}
+
+	result = calibrateStartLine(result, expectedLapTimeMs, targetTrackLength)
+	result = scaleToTrackLength(result, targetTrackLength)
 	return result
 }
 

@@ -103,17 +103,19 @@ func IsHistoricalParticipantActive(p *storage.Participant, driverLaps []storage.
 	return hasCompletedLaps || hasSectors || hasTelemetry
 }
 
-// ComputeStintsSummary formats tyre stint transitions (e.g. "SOFT (14) → MEDIUM (22)").
-func ComputeStintsSummary(laps []storage.Lap) string {
+// StintInfo represents a single tyre stint with structured data for frontend consumption.
+type StintInfo struct {
+	Compound string `json:"compound"`
+	LapCount int    `json:"lap_count"`
+	StintID  int    `json:"stint_id"`
+}
+
+// ComputeStintsDetailed returns structured stint objects (compound, lap count, stint ID).
+func ComputeStintsDetailed(laps []storage.Lap) []StintInfo {
 	if len(laps) == 0 {
-		return ""
+		return []StintInfo{}
 	}
-	type stintEntry struct {
-		compound string
-		count    int
-		stintID  int
-	}
-	var stints []*stintEntry
+	var stints []StintInfo
 	for _, l := range laps {
 		raw := strings.TrimSpace(l.TyreCompound)
 		if raw == "" {
@@ -121,18 +123,27 @@ func ComputeStintsSummary(laps []storage.Lap) string {
 		}
 		stintID := l.Stint
 		normComp := packets.NormalizeCompoundName(raw)
-		if len(stints) == 0 || (stintID > 0 && stints[len(stints)-1].stintID > 0 && stintID != stints[len(stints)-1].stintID) || stints[len(stints)-1].compound != normComp {
-			stints = append(stints, &stintEntry{compound: normComp, count: 1, stintID: stintID})
+		if len(stints) == 0 || (stintID > 0 && stints[len(stints)-1].StintID > 0 && stintID != stints[len(stints)-1].StintID) || stints[len(stints)-1].Compound != normComp {
+			stints = append(stints, StintInfo{Compound: normComp, LapCount: 1, StintID: stintID})
 		} else {
-			stints[len(stints)-1].count++
+			stints[len(stints)-1].LapCount++
 		}
 	}
+	if len(stints) == 0 {
+		return []StintInfo{}
+	}
+	return stints
+}
+
+// ComputeStintsSummary formats tyre stint transitions (e.g. "SOFT (14) → MEDIUM (22)").
+func ComputeStintsSummary(laps []storage.Lap) string {
+	stints := ComputeStintsDetailed(laps)
 	if len(stints) == 0 {
 		return ""
 	}
 	parts := make([]string, len(stints))
 	for i, s := range stints {
-		parts[i] = fmt.Sprintf("%s (%d)", s.compound, s.count)
+		parts[i] = fmt.Sprintf("%s (%d)", s.Compound, s.LapCount)
 	}
 	return strings.Join(parts, " → ")
 }

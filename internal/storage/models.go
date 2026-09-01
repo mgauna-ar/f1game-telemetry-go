@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -103,6 +104,23 @@ type TelemetrySample struct {
 	ActiveAeroMode      int     `json:"active_aero_mode,omitempty"`
 	ActiveAeroAvailable int     `json:"active_aero_available,omitempty"`
 	OvertakeActive      int     `json:"overtake_active,omitempty"`
+}
+
+// MarshalJSON automatically sanitizes all float64 fields to guarantee valid JSON serialization.
+func (s TelemetrySample) MarshalJSON() ([]byte, error) {
+	type Alias TelemetrySample
+	clean := Alias(s)
+	clean.LapDistance = SanitizeFloat(clean.LapDistance)
+	clean.SessionTime = SanitizeFloat(clean.SessionTime)
+	clean.Throttle = SanitizeFloat(clean.Throttle)
+	clean.Brake = SanitizeFloat(clean.Brake)
+	clean.Steer = SanitizeFloat(clean.Steer)
+	clean.ERSDeploy = SanitizeFloat(clean.ERSDeploy)
+	clean.ERSStoreEnergy = SanitizeFloat(clean.ERSStoreEnergy)
+	clean.WorldPosX = SanitizeFloat(clean.WorldPosX)
+	clean.WorldPosY = SanitizeFloat(clean.WorldPosY)
+	clean.WorldPosZ = SanitizeFloat(clean.WorldPosZ)
+	return json.Marshal(clean)
 }
 
 // Participant represents a driver/participant in a session.

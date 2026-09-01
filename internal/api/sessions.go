@@ -1,7 +1,6 @@
 package api
 
 import (
-	"archive/zip"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -15,6 +14,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/mgauna/f1game-telemetry-go/internal/analytics"
+	"github.com/mgauna/f1game-telemetry-go/internal/session"
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
 )
 
@@ -382,48 +382,6 @@ func (s *Server) handleRemoveSessionTag(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusOK, tags)
 }
 
-func sanitizeFilename(s string) string {
-	var result []rune
-	for _, r := range s {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
-			result = append(result, r)
-		} else if r == ' ' {
-			result = append(result, '_')
-		}
-	}
-	if len(result) == 0 {
-		return "session"
-	}
-	return string(result)
-}
-
-// marshalAndCompressSessionPackage serializes and compresses an ExportedSessionPackage and builds its canonical filename.
-func marshalAndCompressSessionPackage(pkg *storage.ExportedSessionPackage, suffixID int64) (data []byte, filename string, err error) {
-	rawJSON, err := json.Marshal(pkg)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to marshal session package: %w", err)
-	}
-
-	compressed := storage.CompressRaw(rawJSON)
-
-	if suffixID > 0 {
-		filename = fmt.Sprintf("%s_%s_%s_%d.f1session",
-			sanitizeFilename(pkg.Session.TrackName),
-			sanitizeFilename(pkg.Session.SessionType),
-			pkg.Session.CreatedAt.Format("2006-01-02"),
-			suffixID,
-		)
-	} else {
-		filename = fmt.Sprintf("%s_%s_%s.f1session",
-			sanitizeFilename(pkg.Session.TrackName),
-			sanitizeFilename(pkg.Session.SessionType),
-			pkg.Session.CreatedAt.Format("2006-01-02"),
-		)
-	}
-
-	return compressed, filename, nil
-}
-
 func (s *Server) handleExportSession(w http.ResponseWriter, r *http.Request) {
 	sessionIDStr := chi.URLParam(r, "id")
 	sessionID, err := strconv.ParseInt(sessionIDStr, 10, 64)
@@ -439,7 +397,7 @@ func (s *Server) handleExportSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	compressed, filename, err := marshalAndCompressSessionPackage(pkg, 0)
+	compressed, filename, err := session.MarshalAndCompressSessionPackage(pkg, 0)
 	if err != nil {
 		writeJSONError(w, "Failed to encode session package", http.StatusInternalServerError)
 		return
@@ -479,37 +437,8 @@ func (s *Server) handleExportSessionBatch(w http.ResponseWriter, r *http.Request
 	}
 
 	var buf bytes.Buffer
-	zw := zip.NewWriter(&buf)
-
-	exportedCount := 0
-	for _, id := range sessionIDs {
-		pkg, err := s.repo.ExportSession(r.Context(), id)
-		if err != nil {
-			slog.Warn("Failed to export session for batch", "sessionID", id, "error", err)
-			continue
-		}
-
-		compressed, filename, err := marshalAndCompressSessionPackage(pkg, id)
-		if err != nil {
-			slog.Warn("Failed to marshal exported package for session", "sessionID", id, "error", err)
-			continue
-		}
-
-		f, err := zw.Create(filename)
-		if err != nil {
-			slog.Warn("Failed to create zip entry for session", "sessionID", id, "error", err)
-			continue
-		}
-
-		if _, err := f.Write(compressed); err != nil {
-			slog.Warn("Failed to write compressed data into zip for session", "sessionID", id, "error", err)
-			continue
-		}
-
-		exportedCount++
-	}
-
-	if err := zw.Close(); err != nil {
+	exportedCount, err := session.ExportSessionBatchToZip(r.Context(), s.repo, sessionIDs, &buf)
+	if err != nil {
 		writeJSONError(w, "Failed to finalize zip archive", http.StatusInternalServerError)
 		return
 	}
@@ -529,58 +458,12 @@ func (s *Server) handleExportSessionBatch(w http.ResponseWriter, r *http.Request
 	_, _ = w.Write(zipBytes)
 }
 
-// ImportDetail represents the outcome for a single imported session file.
-type ImportDetail struct {
-	Filename  string `json:"filename,omitempty"`
-	Status    string `json:"status"` // "imported", "skipped", "failed"
-	SessionID int64  `json:"session_id,omitempty"`
-	Reason    string `json:"reason,omitempty"`
-}
-
-// ImportBatchResponse represents the outcome summary for batch or single session import.
-type ImportBatchResponse struct {
-	Status     string         `json:"status"`
-	Total      int            `json:"total"`
-	Imported   int            `json:"imported"`
-	Skipped    int            `json:"skipped"`
-	Failed     int            `json:"failed"`
-	SessionIDs []int64        `json:"session_ids"`
-	SessionID  int64          `json:"session_id,omitempty"`
-	Details    []ImportDetail `json:"details"`
-}
-
-func parseSessionPackage(data []byte) (*storage.ExportedSessionPackage, error) {
-	if len(data) == 0 {
-		return nil, fmt.Errorf("empty session payload")
-	}
-	if bytes.HasPrefix(data, ZstdMagicHeader) {
-		decompressed, err := storage.DecompressRaw(data)
-		if err != nil {
-			return nil, fmt.Errorf("failed to decompress .f1session file: %w", err)
-		}
-		data = decompressed
-	}
-	var pkg storage.ExportedSessionPackage
-	if err := json.Unmarshal(data, &pkg); err != nil {
-		return nil, fmt.Errorf("invalid session package format: %w", err)
-	}
-	return &pkg, nil
-}
-
-func (s *Server) handleImportSession(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, MaxImportPayloadSize)
-
-	type fileItem struct {
-		name string
-		data []byte
-	}
-	var items []fileItem
-
+func parseUploadedFiles(r *http.Request) ([]session.FileItem, error) {
+	var items []session.FileItem
 	contentType := r.Header.Get("Content-Type")
 	if strings.HasPrefix(contentType, "multipart/form-data") {
 		if err := r.ParseMultipartForm(MaxImportPayloadSize); err != nil {
-			writeJSONError(w, "Failed to parse multipart form", http.StatusBadRequest)
-			return
+			return nil, fmt.Errorf("failed to parse multipart form: %w", err)
 		}
 		if r.MultipartForm != nil && r.MultipartForm.File != nil {
 			for _, fileHeaders := range r.MultipartForm.File {
@@ -594,19 +477,29 @@ func (s *Server) handleImportSession(w http.ResponseWriter, r *http.Request) {
 					if err != nil || len(data) == 0 {
 						continue
 					}
-					items = append(items, fileItem{name: fh.Filename, data: data})
+					items = append(items, session.FileItem{Name: fh.Filename, Data: data})
 				}
 			}
 		}
 	} else {
 		data, err := io.ReadAll(r.Body)
 		if err != nil {
-			writeJSONError(w, "Failed to read request body", http.StatusBadRequest)
-			return
+			return nil, fmt.Errorf("failed to read request body: %w", err)
 		}
 		if len(data) > 0 {
-			items = append(items, fileItem{name: "upload.f1session", data: data})
+			items = append(items, session.FileItem{Name: "upload.f1session", Data: data})
 		}
+	}
+	return items, nil
+}
+
+func (s *Server) handleImportSession(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, MaxImportPayloadSize)
+
+	items, err := parseUploadedFiles(r)
+	if err != nil {
+		writeJSONError(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	if len(items) == 0 {
@@ -614,94 +507,13 @@ func (s *Server) handleImportSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Expand any ZIP files into individual .f1session items
-	var sessionFiles []fileItem
-	for _, item := range items {
-		if bytes.HasPrefix(item.data, ZipMagicHeader) || strings.HasSuffix(strings.ToLower(item.name), ".zip") {
-			zr, err := zip.NewReader(bytes.NewReader(item.data), int64(len(item.data)))
-			if err != nil {
-				slog.Warn("Failed to open zip archive", "file", item.name, "error", err)
-				continue
-			}
-			for _, zf := range zr.File {
-				if zf.FileInfo().IsDir() {
-					continue
-				}
-				if !strings.HasSuffix(strings.ToLower(zf.Name), ".f1session") && !strings.HasSuffix(strings.ToLower(zf.Name), ".json") {
-					continue
-				}
-				rc, err := zf.Open()
-				if err != nil {
-					continue
-				}
-				zData, err := io.ReadAll(rc)
-				rc.Close()
-				if err == nil && len(zData) > 0 {
-					sessionFiles = append(sessionFiles, fileItem{name: zf.Name, data: zData})
-				}
-			}
-		} else {
-			sessionFiles = append(sessionFiles, item)
-		}
-	}
-
+	sessionFiles := session.ExpandZipFiles(items)
 	if len(sessionFiles) == 0 {
 		writeJSONError(w, "No valid session files found in payload", http.StatusBadRequest)
 		return
 	}
 
-	resp := ImportBatchResponse{
-		Status:     "success",
-		Total:      len(sessionFiles),
-		SessionIDs: make([]int64, 0),
-		Details:    make([]ImportDetail, 0, len(sessionFiles)),
-	}
-
-	for _, sf := range sessionFiles {
-		pkg, err := parseSessionPackage(sf.data)
-		if err != nil {
-			resp.Failed++
-			resp.Details = append(resp.Details, ImportDetail{
-				Filename: sf.name,
-				Status:   "failed",
-				Reason:   err.Error(),
-			})
-			continue
-		}
-
-		newID, err := s.repo.ImportSession(r.Context(), pkg)
-		if err != nil {
-			if errors.Is(err, storage.ErrSessionAlreadyExists) {
-				resp.Skipped++
-				resp.Details = append(resp.Details, ImportDetail{
-					Filename:  sf.name,
-					Status:    "skipped",
-					SessionID: newID,
-					Reason:    "Session already exists",
-				})
-			} else {
-				resp.Failed++
-				resp.Details = append(resp.Details, ImportDetail{
-					Filename: sf.name,
-					Status:   "failed",
-					Reason:   err.Error(),
-				})
-			}
-			continue
-		}
-
-		resp.Imported++
-		resp.SessionIDs = append(resp.SessionIDs, newID)
-		resp.Details = append(resp.Details, ImportDetail{
-			Filename:  sf.name,
-			Status:    "imported",
-			SessionID: newID,
-		})
-	}
-
-	if len(resp.SessionIDs) > 0 {
-		resp.SessionID = resp.SessionIDs[0]
-	}
+	resp := session.ImportSessionFiles(r.Context(), s.repo, sessionFiles)
 
 	statusCode := http.StatusOK
 	if resp.Total == 1 && resp.Imported == 1 {

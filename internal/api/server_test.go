@@ -13,6 +13,7 @@ import (
 	"testing/fstest"
 	"time"
 
+	sessionSvc "github.com/mgauna/f1game-telemetry-go/internal/session"
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
 )
 
@@ -516,7 +517,7 @@ func TestExportSessionBatchAndImportZip(t *testing.T) {
 		t.Fatalf("expected 200 OK for batch import, got %d (%s)", importRec.Code, importRec.Body.String())
 	}
 
-	var importResp ImportBatchResponse
+	var importResp sessionSvc.ImportBatchResponse
 	if err := json.NewDecoder(importRec.Body).Decode(&importResp); err != nil {
 		t.Fatalf("failed to decode import response: %v", err)
 	}
@@ -530,7 +531,7 @@ func TestExportSessionBatchAndImportZip(t *testing.T) {
 	dupImportRec := httptest.NewRecorder()
 	freshServer.router.ServeHTTP(dupImportRec, dupImportReq)
 
-	var dupResp ImportBatchResponse
+	var dupResp sessionSvc.ImportBatchResponse
 	_ = json.NewDecoder(dupImportRec.Body).Decode(&dupResp)
 	if dupResp.Total != 2 || dupResp.Skipped != 2 || dupResp.Imported != 0 {
 		t.Errorf("expected 2 skipped for duplicate import, got %+v", dupResp)

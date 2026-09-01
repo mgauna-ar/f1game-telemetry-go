@@ -64,3 +64,36 @@ func TestComputeStintsSummary(t *testing.T) {
 		t.Fatalf("expected %q, got %q", expected, summary)
 	}
 }
+
+func TestComputeStintsDetailed(t *testing.T) {
+	// Case 1: Empty laps
+	emptyResult := ComputeStintsDetailed(nil)
+	if len(emptyResult) != 0 {
+		t.Fatalf("expected empty stints for nil laps, got %d", len(emptyResult))
+	}
+
+	// Case 2: Multi-stint with stint IDs and compounds
+	laps := []storage.Lap{
+		{TyreCompound: "SOFT", Stint: 1},
+		{TyreCompound: "SOFT", Stint: 1},
+		{TyreCompound: "MEDIUM", Stint: 2},
+		{TyreCompound: "HARD", Stint: 3},
+		{TyreCompound: "HARD", Stint: 3},
+		{TyreCompound: "HARD", Stint: 3},
+	}
+
+	stints := ComputeStintsDetailed(laps)
+	if len(stints) != 3 {
+		t.Fatalf("expected 3 stints, got %d", len(stints))
+	}
+
+	if stints[0].Compound != "SOFT" || stints[0].LapCount != 2 || stints[0].StintID != 1 {
+		t.Errorf("unexpected stint 0: %+v", stints[0])
+	}
+	if stints[1].Compound != "MEDIUM" || stints[1].LapCount != 1 || stints[1].StintID != 2 {
+		t.Errorf("unexpected stint 1: %+v", stints[1])
+	}
+	if stints[2].Compound != "HARD" || stints[2].LapCount != 3 || stints[2].StintID != 3 {
+		t.Errorf("unexpected stint 2: %+v", stints[2])
+	}
+}

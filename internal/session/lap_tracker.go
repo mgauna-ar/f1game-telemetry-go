@@ -477,27 +477,27 @@ func (lt *LapTracker) ProcessTelemetry(ctx context.Context, session *storage.Ses
 
 	carData := p.CarTelemetryData[lt.carIndex]
 
-	speedKMH := storage.SanitizeFloat(float64(carData.Speed))
+	speedKMH := float64(carData.Speed)
 	if speedKMH > lt.currentLap.MaxSpeedKMH {
 		lt.currentLap.MaxSpeedKMH = speedKMH
 	}
 
 	sample := storage.TelemetrySample{
-		LapDistance:         storage.SanitizeFloat(lt.lastLapDistance),
-		SessionTime:         storage.SanitizeFloat(float64(p.Header.SessionTime)),
+		LapDistance:         lt.lastLapDistance,
+		SessionTime:         float64(p.Header.SessionTime),
 		Speed:               int(carData.Speed),
-		Throttle:            storage.SanitizeFloat(float64(carData.Throttle)),
-		Brake:               storage.SanitizeFloat(float64(carData.Brake)),
-		Steer:               storage.SanitizeFloat(float64(carData.Steer)),
+		Throttle:            float64(carData.Throttle),
+		Brake:               float64(carData.Brake),
+		Steer:               float64(carData.Steer),
 		Gear:                int(carData.Gear),
 		EngineRPM:           int(carData.EngineRPM),
 		DRS:                 carData.DRS == 1,
-		ERSDeploy:           storage.SanitizeFloat(lt.lastERSDeploy),
-		ERSStoreEnergy:      storage.SanitizeFloat(lt.lastERSStoreEnergy),
+		ERSDeploy:           lt.lastERSDeploy,
+		ERSStoreEnergy:      lt.lastERSStoreEnergy,
 		ERSDeployMode:       lt.lastERSDeployMode,
-		WorldPosX:           storage.SanitizeFloat(lt.lastWorldPosX),
-		WorldPosY:           storage.SanitizeFloat(lt.lastWorldPosY),
-		WorldPosZ:           storage.SanitizeFloat(lt.lastWorldPosZ),
+		WorldPosX:           lt.lastWorldPosX,
+		WorldPosY:           lt.lastWorldPosY,
+		WorldPosZ:           lt.lastWorldPosZ,
 		ActiveAeroMode:      lt.lastActiveAeroMode,
 		ActiveAeroAvailable: lt.lastActiveAeroAvailable,
 		OvertakeActive:      lt.lastOvertakeActive,

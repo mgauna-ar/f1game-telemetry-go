@@ -273,19 +273,6 @@ func saveLapTelemetryBlob(ctx context.Context, db sqlx.ExtContext, lapID int64, 
 		return nil
 	}
 
-	for i := range samples {
-		samples[i].LapDistance = SanitizeFloat(samples[i].LapDistance)
-		samples[i].SessionTime = SanitizeFloat(samples[i].SessionTime)
-		samples[i].Throttle = SanitizeFloat(samples[i].Throttle)
-		samples[i].Brake = SanitizeFloat(samples[i].Brake)
-		samples[i].Steer = SanitizeFloat(samples[i].Steer)
-		samples[i].ERSDeploy = SanitizeFloat(samples[i].ERSDeploy)
-		samples[i].ERSStoreEnergy = SanitizeFloat(samples[i].ERSStoreEnergy)
-		samples[i].WorldPosX = SanitizeFloat(samples[i].WorldPosX)
-		samples[i].WorldPosY = SanitizeFloat(samples[i].WorldPosY)
-		samples[i].WorldPosZ = SanitizeFloat(samples[i].WorldPosZ)
-	}
-
 	compressed, err := compressJSON(samples)
 	if err != nil {
 		return fmt.Errorf("failed to compress lap telemetry: %w", err)
