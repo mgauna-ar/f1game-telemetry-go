@@ -12,6 +12,7 @@ import { useI18n } from '../context/I18nContext';
 import { RADIO_PERSONAS } from '../constants/f1';
 import { RadioSettingsPanel } from './RadioSettingsPanel';
 import { RadioWaveformCanvas } from './common/RadioWaveformCanvas';
+import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
 import type { UseRadioControllerReturn } from '../hooks/useRadioController';
 
 export interface LiveRadioHUDProps {
@@ -21,6 +22,8 @@ export interface LiveRadioHUDProps {
 export const LiveRadioHUD: React.FC<LiveRadioHUDProps> = ({ radio }) => {
   const { t } = useI18n();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const volume = useRadioSettingsStore((s) => s.volume);
+  const setVolume = useRadioSettingsStore((s) => s.setVolume);
 
   const getPersonaLabel = () => {
     const langFlag = radio.effectiveLanguage === 'es' ? '🇦🇷' : '🇬🇧';
@@ -171,11 +174,11 @@ export const LiveRadioHUD: React.FC<LiveRadioHUDProps> = ({ radio }) => {
             {/* Mute / Unmute Volume */}
             <button
               type="button"
-              onClick={() => radio.setVolume(radio.volume > 0 ? 0 : 0.8)}
+              onClick={() => setVolume(volume > 0 ? 0 : 0.8)}
               className="live-radio-btn"
-              title={radio.volume > 0 ? t('ai_engineer.radio.mute') : t('ai_engineer.radio.unmute')}
+              title={volume > 0 ? t('ai_engineer.radio.mute') : t('ai_engineer.radio.unmute')}
             >
-              {radio.volume > 0 ? (
+              {volume > 0 ? (
                 <Volume2 className="w-4 h-4" />
               ) : (
                 <VolumeX className="w-4 h-4" style={{ color: '#ef4444' }} />

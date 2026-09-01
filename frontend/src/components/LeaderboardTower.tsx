@@ -14,7 +14,8 @@ import {
   TIME_CONSTANTS,
 } from '../constants/f1';
 import { useI18n } from '../context/I18nContext';
-import { useTelemetryStore } from '../store/useTelemetryStore';
+import { useSessionStatusStore } from '../store/useSessionStatusStore';
+import { useTelemetryDataStore } from '../store/useTelemetryDataStore';
 
 export { TEAM_COLORS, TYRE_COMPOUNDS };
 
@@ -44,14 +45,14 @@ interface ProcessedDriver {
 }
 
 export const LeaderboardTower: React.FC<LeaderboardTowerProps> = React.memo((props) => {
-  const storeSession = useTelemetryStore((s) => s.session);
-  const storeParticipants = useTelemetryStore((s) => s.participants);
-  const storeLaps = useTelemetryStore((s) => s.allLaps);
-  const storeCarStatuses = useTelemetryStore((s) => s.allCarStatus);
-  const storeTelemetry2List = useTelemetryStore((s) => s.allTelemetry2);
-  const storePlayerCarIndex = useTelemetryStore((s) => s.playerCarIndex);
-  const storeSelectedCarIndex = useTelemetryStore((s) => s.selectedCarIndex);
-  const setSelectedCarIndex = useTelemetryStore((s) => s.setSelectedCarIndex);
+  const storeSession = useSessionStatusStore((s) => s.session);
+  const storeParticipants = useSessionStatusStore((s) => s.participants);
+  const storeLaps = useTelemetryDataStore((s) => s.allLaps);
+  const storeCarStatuses = useTelemetryDataStore((s) => s.allCarStatus);
+  const storeTelemetry2List = useTelemetryDataStore((s) => s.allTelemetry2);
+  const storePlayerCarIndex = useTelemetryDataStore((s) => s.playerCarIndex);
+  const storeSelectedCarIndex = useTelemetryDataStore((s) => s.selectedCarIndex);
+  const setSelectedCarIndex = useTelemetryDataStore((s) => s.setSelectedCarIndex);
 
   const session = props.session !== undefined ? props.session : storeSession;
   const participants = props.participants !== undefined ? props.participants : storeParticipants;

@@ -4,8 +4,8 @@ import { parseDriverName } from '../hooks/useTelemetry';
 import { TEAM_COLORS } from '../constants/f1';
 import type { ParticipantData, LapData } from '../types/telemetry';
 import { useI18n } from '../context/I18nContext';
-
-import { useTelemetryStore } from '../store/useTelemetryStore';
+import { useSessionStatusStore } from '../store/useSessionStatusStore';
+import { useTelemetryDataStore } from '../store/useTelemetryDataStore';
 
 interface LiveSectorTrackerProps {
   participants?: ParticipantData[];
@@ -15,9 +15,9 @@ interface LiveSectorTrackerProps {
 }
 
 export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((props) => {
-  const storeParticipants = useTelemetryStore((s) => s.participants);
-  const storeLaps = useTelemetryStore((s) => s.allLaps);
-  const storeSelectedCarIndex = useTelemetryStore((s) => s.selectedCarIndex);
+  const storeParticipants = useSessionStatusStore((s) => s.participants);
+  const storeLaps = useTelemetryDataStore((s) => s.allLaps);
+  const storeSelectedCarIndex = useTelemetryDataStore((s) => s.selectedCarIndex);
   const participants = props.participants !== undefined ? props.participants : storeParticipants;
   const laps = props.laps !== undefined ? props.laps : storeLaps;
   const selectedCarIndex = props.selectedCarIndex !== undefined ? props.selectedCarIndex : storeSelectedCarIndex;

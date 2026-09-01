@@ -16,6 +16,7 @@ import {
   RADIO_PTT_MODES,
   type RadioLanguage,
 } from '../../constants/f1';
+import { useRadioSettingsStore } from '../../store/useRadioSettingsStore';
 import type { UseRadioControllerReturn } from '../../hooks/useRadioController';
 
 interface AudioSettingsTabProps {
@@ -24,6 +25,24 @@ interface AudioSettingsTabProps {
 
 export const AudioSettingsTab: React.FC<AudioSettingsTabProps> = ({ radio }) => {
   const { t } = useI18n();
+
+  // Settings from Zustand store with fine-grained selectors
+  const radioLanguage = useRadioSettingsStore((s) => s.radioLanguage);
+  const setRadioLanguage = useRadioSettingsStore((s) => s.setRadioLanguage);
+  const neuralVoice = useRadioSettingsStore((s) => s.neuralVoice);
+  const setNeuralVoice = useRadioSettingsStore((s) => s.setNeuralVoice);
+  const beepsEnabled = useRadioSettingsStore((s) => s.beepsEnabled);
+  const setBeepsEnabled = useRadioSettingsStore((s) => s.setBeepsEnabled);
+  const filterEnabled = useRadioSettingsStore((s) => s.filterEnabled);
+  const setFilterEnabled = useRadioSettingsStore((s) => s.setFilterEnabled);
+  const staticFxEnabled = useRadioSettingsStore((s) => s.staticFxEnabled);
+  const setStaticFxEnabled = useRadioSettingsStore((s) => s.setStaticFxEnabled);
+  const volume = useRadioSettingsStore((s) => s.volume);
+  const setVolume = useRadioSettingsStore((s) => s.setVolume);
+  const speechRate = useRadioSettingsStore((s) => s.speechRate);
+  const setSpeechRate = useRadioSettingsStore((s) => s.setSpeechRate);
+  const speechPitch = useRadioSettingsStore((s) => s.speechPitch);
+  const setSpeechPitch = useRadioSettingsStore((s) => s.setSpeechPitch);
 
   return (
     <div className="radio-section">
@@ -38,8 +57,8 @@ export const AudioSettingsTab: React.FC<AudioSettingsTabProps> = ({ radio }) => 
             {t('ai_engineer.radioLanguage.title')}
           </label>
           <select
-            value={radio.radioLanguage}
-            onChange={(e) => radio.setRadioLanguage(e.target.value as RadioLanguage)}
+            value={radioLanguage}
+            onChange={(e) => setRadioLanguage(e.target.value as RadioLanguage)}
             className="radio-select-input"
           >
             <option value={RADIO_LANGUAGES.AUTO}>{t('ai_engineer.radioLanguage.auto')}</option>
@@ -53,8 +72,8 @@ export const AudioSettingsTab: React.FC<AudioSettingsTabProps> = ({ radio }) => 
             {t('ai_engineer.neuralVoice.title')}
           </label>
           <select
-            value={radio.neuralVoice}
-            onChange={(e) => radio.setNeuralVoice(e.target.value)}
+            value={neuralVoice}
+            onChange={(e) => setNeuralVoice(e.target.value)}
             className="radio-select-input"
           >
             <option value="">{t('ai_engineer.neuralVoice.auto')}</option>
@@ -84,8 +103,8 @@ export const AudioSettingsTab: React.FC<AudioSettingsTabProps> = ({ radio }) => 
           <span>{t('ai_engineer.audio.beeps')}</span>
           <input
             type="checkbox"
-            checked={radio.beepsEnabled}
-            onChange={(e) => radio.setBeepsEnabled(e.target.checked)}
+            checked={beepsEnabled}
+            onChange={(e) => setBeepsEnabled(e.target.checked)}
             className="radio-checkbox"
           />
         </label>
@@ -94,8 +113,8 @@ export const AudioSettingsTab: React.FC<AudioSettingsTabProps> = ({ radio }) => 
           <span>{t('ai_engineer.audio.cockpitFilter')}</span>
           <input
             type="checkbox"
-            checked={radio.filterEnabled}
-            onChange={(e) => radio.setFilterEnabled(e.target.checked)}
+            checked={filterEnabled}
+            onChange={(e) => setFilterEnabled(e.target.checked)}
             className="radio-checkbox"
           />
         </label>
@@ -104,8 +123,8 @@ export const AudioSettingsTab: React.FC<AudioSettingsTabProps> = ({ radio }) => 
           <span>{t('ai_engineer.audio.staticNoise')}</span>
           <input
             type="checkbox"
-            checked={radio.staticFxEnabled}
-            onChange={(e) => radio.setStaticFxEnabled(e.target.checked)}
+            checked={staticFxEnabled}
+            onChange={(e) => setStaticFxEnabled(e.target.checked)}
             className="radio-checkbox"
           />
         </label>
@@ -113,7 +132,7 @@ export const AudioSettingsTab: React.FC<AudioSettingsTabProps> = ({ radio }) => 
 
       {/* Volume & Audio Settings */}
       <div className="radio-slider-box" style={{ marginTop: '6px' }}>
-        {radio.volume > 0 ? (
+        {volume > 0 ? (
           <Volume2 className="w-4 h-4" style={{ color: '#00f2fe', flexShrink: 0 }} />
         ) : (
           <VolumeX className="w-4 h-4" style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
@@ -126,12 +145,12 @@ export const AudioSettingsTab: React.FC<AudioSettingsTabProps> = ({ radio }) => 
           min="0"
           max="1"
           step="0.05"
-          value={radio.volume}
-          onChange={(e) => radio.setVolume(parseFloat(e.target.value))}
+          value={volume}
+          onChange={(e) => setVolume(parseFloat(e.target.value))}
           className="radio-slider-input"
         />
         <span className="radio-badge-val" style={{ minWidth: '35px', textAlign: 'right' }}>
-          {Math.round(radio.volume * 100)}%
+          {Math.round(volume * 100)}%
         </span>
       </div>
 
@@ -145,12 +164,12 @@ export const AudioSettingsTab: React.FC<AudioSettingsTabProps> = ({ radio }) => 
           min="-20"
           max="30"
           step="5"
-          value={radio.speechRate}
-          onChange={(e) => radio.setSpeechRate(parseInt(e.target.value, 10))}
+          value={speechRate}
+          onChange={(e) => setSpeechRate(parseInt(e.target.value, 10))}
           className="radio-slider-input"
         />
         <span className="radio-badge-val" style={{ minWidth: '45px', textAlign: 'right' }}>
-          {radio.speechRate > 0 ? `+${radio.speechRate}%` : `${radio.speechRate}%`}
+          {speechRate > 0 ? `+${speechRate}%` : `${speechRate}%`}
         </span>
       </div>
 
@@ -164,12 +183,12 @@ export const AudioSettingsTab: React.FC<AudioSettingsTabProps> = ({ radio }) => 
           min="-20"
           max="20"
           step="2"
-          value={radio.speechPitch}
-          onChange={(e) => radio.setSpeechPitch(parseInt(e.target.value, 10))}
+          value={speechPitch}
+          onChange={(e) => setSpeechPitch(parseInt(e.target.value, 10))}
           className="radio-slider-input"
         />
         <span className="radio-badge-val" style={{ minWidth: '45px', textAlign: 'right' }}>
-          {radio.speechPitch > 0 ? `+${radio.speechPitch}Hz` : `${radio.speechPitch}Hz`}
+          {speechPitch > 0 ? `+${speechPitch}Hz` : `${speechPitch}Hz`}
         </span>
       </div>
 
@@ -318,3 +337,4 @@ export const AudioSettingsTab: React.FC<AudioSettingsTabProps> = ({ radio }) => 
     </div>
   );
 };
+

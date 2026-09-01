@@ -3,15 +3,14 @@ import { Cloud, Sun, CloudRain, CloudLightning, CloudDrizzle, Thermometer, Dropl
 import type { SessionData, WeatherForecastSample } from '../hooks/useTelemetry';
 import { WEATHER_CODES, SESSION_TYPES, DEFAULT_WEATHER_DEFAULTS } from '../constants/f1';
 import { useI18n } from '../context/I18nContext';
-
-import { useTelemetryStore } from '../store/useTelemetryStore';
+import { useSessionStatusStore } from '../store/useSessionStatusStore';
 
 interface LiveWeatherRadarProps {
   session?: SessionData | null;
 }
 
 export const LiveWeatherRadar: React.FC<LiveWeatherRadarProps> = React.memo((props) => {
-  const storeSession = useTelemetryStore((s) => s.session);
+  const storeSession = useSessionStatusStore((s) => s.session);
   const session = props.session !== undefined ? props.session : storeSession;
 
   const { t } = useI18n();

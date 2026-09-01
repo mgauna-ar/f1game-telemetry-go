@@ -1,5 +1,7 @@
 import { useEffect } from 'react';
-import { useTelemetryStore, connectTelemetryWebSocket, parseDriverName } from '../store/useTelemetryStore';
+import { connectTelemetryWebSocket, parseDriverName } from '../store/useTelemetryStore';
+import { useSessionStatusStore } from '../store/useSessionStatusStore';
+import { useTelemetryDataStore } from '../store/useTelemetryDataStore';
 import type {
   CarTelemetryData,
   LapData,
@@ -38,9 +40,8 @@ const EMPTY_MOTION: CarMotionData[] = [];
 const EMPTY_HISTORY: TelemetrySample[] = [];
 
 /**
- * @deprecated Prefer using fine-grained selectors directly from `useTelemetryStore`
- * (e.g. `useTelemetryStore((s) => s.session)`) to avoid triggering unnecessary component
- * re-renders on every 10Hz telemetry update.
+ * @deprecated Prefer using fine-grained selectors directly from `useTelemetryDataStore` and `useSessionStatusStore`
+ * to avoid triggering unnecessary component re-renders on every 10Hz telemetry update.
  */
 export function useTelemetry(wsUrl?: string) {
   useEffect(() => {
@@ -50,20 +51,21 @@ export function useTelemetry(wsUrl?: string) {
     };
   }, [wsUrl]);
 
-  const session = useTelemetryStore((s) => s.session);
-  const participants = useTelemetryStore((s) => s.participants);
-  const allLaps = useTelemetryStore((s) => s.allLaps);
-  const allCarStatus = useTelemetryStore((s) => s.allCarStatus);
-  const allCarDamage = useTelemetryStore((s) => s.allCarDamage);
-  const allTelemetry = useTelemetryStore((s) => s.allTelemetry);
-  const allTelemetry2 = useTelemetryStore((s) => s.allTelemetry2);
-  const events = useTelemetryStore((s) => s.events);
-  const playerCarIndex = useTelemetryStore((s) => s.playerCarIndex);
-  const selectedCarIndex = useTelemetryStore((s) => s.selectedCarIndex);
-  const setSelectedCarIndex = useTelemetryStore((s) => s.setSelectedCarIndex);
-  const clearEvents = useTelemetryStore((s) => s.clearEvents);
-  const packetFormat = useTelemetryStore((s) => s.packetFormat);
-  const connected = useTelemetryStore((s) => s.connected);
+  const session = useSessionStatusStore((s) => s.session);
+  const participants = useSessionStatusStore((s) => s.participants);
+  const events = useSessionStatusStore((s) => s.events);
+  const clearEvents = useSessionStatusStore((s) => s.clearEvents);
+  const packetFormat = useSessionStatusStore((s) => s.packetFormat);
+  const connected = useSessionStatusStore((s) => s.connected);
+
+  const allLaps = useTelemetryDataStore((s) => s.allLaps);
+  const allCarStatus = useTelemetryDataStore((s) => s.allCarStatus);
+  const allCarDamage = useTelemetryDataStore((s) => s.allCarDamage);
+  const allTelemetry = useTelemetryDataStore((s) => s.allTelemetry);
+  const allTelemetry2 = useTelemetryDataStore((s) => s.allTelemetry2);
+  const playerCarIndex = useTelemetryDataStore((s) => s.playerCarIndex);
+  const selectedCarIndex = useTelemetryDataStore((s) => s.selectedCarIndex);
+  const setSelectedCarIndex = useTelemetryDataStore((s) => s.setSelectedCarIndex);
 
   const maxCars = Math.max(participants.length, allCarStatus.length, allLaps.length, allTelemetry.length, 22);
   const activeIdx = selectedCarIndex >= 0 && selectedCarIndex < maxCars ? selectedCarIndex : playerCarIndex;

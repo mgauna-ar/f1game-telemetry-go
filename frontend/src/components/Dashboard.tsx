@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useTelemetryStore, connectTelemetryWebSocket } from '../store/useTelemetryStore';
+import { connectTelemetryWebSocket } from '../store/useTelemetryStore';
+import { useSessionStatusStore } from '../store/useSessionStatusStore';
+import { useTelemetryDataStore } from '../store/useTelemetryDataStore';
 import { useRaceEngineerActions } from '../context/RaceEngineerContext';
 import {
   SAFETY_CAR_STATUS,
@@ -76,16 +78,17 @@ export const Dashboard: React.FC = () => {
     };
   }, []);
 
-  const session = useTelemetryStore((s) => s.session);
-  const connected = useTelemetryStore((s) => s.connected);
-  const packetFormat = useTelemetryStore((s) => s.packetFormat);
+  const session = useSessionStatusStore((s) => s.session);
+  const connected = useSessionStatusStore((s) => s.connected);
+  const packetFormat = useSessionStatusStore((s) => s.packetFormat);
   const { t } = useI18n();
 
   const { setLiveContext, setContextMode } = useRaceEngineerActions();
 
   const getLiveTelemetrySummary = useCallback(() => {
-    const state = useTelemetryStore.getState();
-    const currentSession = state.session;
+    const sessionState = useSessionStatusStore.getState();
+    const dataState = useTelemetryDataStore.getState();
+    const currentSession = sessionState.session;
     if (!currentSession) {
       return 'STATUS: Pit lane / Garage. Waiting for live telemetry packet stream from game.';
     }
@@ -104,11 +107,11 @@ export const Dashboard: React.FC = () => {
         ? 'Red Flag (Suspended)'
         : 'Track Clear (Green)';
 
-    const pIdx = state.playerCarIndex || 0;
-    const playerLap = state.allLaps[pIdx] || null;
-    const playerStatus = state.allCarStatus[pIdx] || null;
-    const playerDamage = state.allCarDamage[pIdx] || null;
-    const playerTelemetry = state.allTelemetry[pIdx] || null;
+    const pIdx = dataState.playerCarIndex || 0;
+    const playerLap = dataState.allLaps[pIdx] || null;
+    const playerStatus = dataState.allCarStatus[pIdx] || null;
+    const playerDamage = dataState.allCarDamage[pIdx] || null;
+    const playerTelemetry = dataState.allTelemetry[pIdx] || null;
     const playerRunStatus = getDriverStatusLabel(playerLap?.DriverStatus, t);
     const lapValidity = playerLap?.CurrentLapInvalid === 1 ? 'INVALIDATED (Track Limits Exceeded)' : 'Valid';
 
@@ -230,9 +233,9 @@ export const Dashboard: React.FC = () => {
     setContextMode('live');
 
     const updateContext = () => {
-      const state = useTelemetryStore.getState();
-      const currentSession = state.session;
-      if (!state.connected || !currentSession) {
+      const sessionState = useSessionStatusStore.getState();
+      const currentSession = sessionState.session;
+      if (!sessionState.connected || !currentSession) {
         setLiveContext({
           trackName: 'F1 Pit Wall',
           sessionType: 'Standby',
@@ -361,4 +364,3 @@ export const Dashboard: React.FC = () => {
     </div>
   );
 };
-

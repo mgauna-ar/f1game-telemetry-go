@@ -43,7 +43,9 @@ import type {
   CarTelemetry2Data,
 } from '../types/telemetry';
 
-import { useTelemetryStore } from '../store/useTelemetryStore';
+import { useSessionStatusStore } from '../store/useSessionStatusStore';
+import { useTelemetryDataStore } from '../store/useTelemetryDataStore';
+import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
 
 export interface VoiceCockpitViewProps {
   radio: UseRadioControllerReturn;
@@ -58,15 +60,19 @@ export interface VoiceCockpitViewProps {
 }
 
 export const VoiceCockpitView: React.FC<VoiceCockpitViewProps> = React.memo((props) => {
-  const storeSession = useTelemetryStore((s) => s.session);
-  const storePlayerIndex = useTelemetryStore((s) => s.playerCarIndex);
-  const storeLap = useTelemetryStore((s) => s.allLaps[storePlayerIndex] || null);
-  const storeCarStatus = useTelemetryStore((s) => s.allCarStatus[storePlayerIndex] || null);
-  const storeCarDamage = useTelemetryStore((s) => s.allCarDamage[storePlayerIndex] || null);
-  const storeTelemetry = useTelemetryStore((s) => s.allTelemetry[storePlayerIndex] || null);
-  const storeTelemetry2 = useTelemetryStore((s) => s.allTelemetry2[storePlayerIndex] || null);
-  const storePacketFormat = useTelemetryStore((s) => s.packetFormat);
-  const storeConnected = useTelemetryStore((s) => s.connected);
+  const storeSession = useSessionStatusStore((s) => s.session);
+  const storePacketFormat = useSessionStatusStore((s) => s.packetFormat);
+  const storeConnected = useSessionStatusStore((s) => s.connected);
+
+  const storePlayerIndex = useTelemetryDataStore((s) => s.playerCarIndex);
+  const storeLap = useTelemetryDataStore((s) => s.allLaps[storePlayerIndex] || null);
+  const storeCarStatus = useTelemetryDataStore((s) => s.allCarStatus[storePlayerIndex] || null);
+  const storeCarDamage = useTelemetryDataStore((s) => s.allCarDamage[storePlayerIndex] || null);
+  const storeTelemetry = useTelemetryDataStore((s) => s.allTelemetry[storePlayerIndex] || null);
+  const storeTelemetry2 = useTelemetryDataStore((s) => s.allTelemetry2[storePlayerIndex] || null);
+
+  const volume = useRadioSettingsStore((s) => s.volume);
+  const setVolume = useRadioSettingsStore((s) => s.setVolume);
 
   const radio = props.radio;
   const session = props.session !== undefined ? props.session : storeSession;
@@ -175,7 +181,7 @@ export const VoiceCockpitView: React.FC<VoiceCockpitViewProps> = React.memo((pro
   const hasAeroDamage = flWing > 0 || frWing > 0 || floorDamage > 0;
 
   // Active Aero / Boost (2026)
-  const activeAeroMode = telemetry2?.ActiveAeroMode;
+  const activeAeroMode = telemetry2?.ActiveAeroMode !== undefined ? telemetry2.ActiveAeroMode : (telemetry2 as any)?.ActiveAero;
   const boostActive = telemetry2 && typeof telemetry2.OvertakeActive === 'number' && telemetry2.OvertakeActive > 0;
 
   // Radio active status pill
@@ -246,12 +252,12 @@ export const VoiceCockpitView: React.FC<VoiceCockpitViewProps> = React.memo((pro
           <div className="voice-cockpit-controls">
             <button
               type="button"
-              onClick={() => radio.setVolume(radio.volume > 0 ? 0 : 0.8)}
+              onClick={() => setVolume(volume > 0 ? 0 : 0.8)}
               className="voice-cockpit-btn"
-              title={radio.volume > 0 ? t('ai_engineer.radio.mute') : t('ai_engineer.radio.unmute')}
+              title={volume > 0 ? t('ai_engineer.radio.mute') : t('ai_engineer.radio.unmute')}
               data-testid="voice-cockpit-mute-btn"
             >
-              {radio.volume > 0 ? <Volume2 size={16} /> : <VolumeX size={16} style={{ color: '#ef4444' }} />}
+              {volume > 0 ? <Volume2 size={16} /> : <VolumeX size={16} style={{ color: '#ef4444' }} />}
             </button>
 
             <button
@@ -434,6 +440,8 @@ export const VoiceCockpitView: React.FC<VoiceCockpitViewProps> = React.memo((pro
                   compound={
                     carStatus?.ActualTyreCompound !== undefined
                       ? String(carStatus.ActualTyreCompound)
+                      : carStatus?.VisualTyreCompound !== undefined
+                      ? String(carStatus.VisualTyreCompound)
                       : String(TYRE_COMPOUND_IDS.SOFT)
                   }
                 />

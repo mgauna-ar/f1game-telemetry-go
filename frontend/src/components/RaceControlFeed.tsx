@@ -4,8 +4,7 @@ import type { RaceEvent, SessionData } from '../hooks/useTelemetry';
 import { SAFETY_CAR_STATUS, TIME_CONSTANTS } from '../constants/f1';
 import { useI18n } from '../context/I18nContext';
 import { getLocalizedRaceEventDescription, getLocalizedPenaltyTag } from '../utils/raceEvents';
-
-import { useTelemetryStore } from '../store/useTelemetryStore';
+import { useSessionStatusStore } from '../store/useSessionStatusStore';
 
 interface RaceControlFeedProps {
   events?: RaceEvent[];
@@ -14,9 +13,9 @@ interface RaceControlFeedProps {
 }
 
 export const RaceControlFeed: React.FC<RaceControlFeedProps> = React.memo((props) => {
-  const storeEvents = useTelemetryStore((s) => s.events);
-  const storeSession = useTelemetryStore((s) => s.session);
-  const storeClearEvents = useTelemetryStore((s) => s.clearEvents);
+  const storeEvents = useSessionStatusStore((s) => s.events);
+  const storeSession = useSessionStatusStore((s) => s.session);
+  const storeClearEvents = useSessionStatusStore((s) => s.clearEvents);
 
   const events = props.events !== undefined ? props.events : storeEvents;
   const session = props.session !== undefined ? props.session : storeSession;

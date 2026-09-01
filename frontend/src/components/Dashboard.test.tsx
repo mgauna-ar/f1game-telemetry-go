@@ -1,7 +1,8 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi } from 'vitest';
 import { Dashboard } from './Dashboard';
-import { useTelemetryStore } from '../store/useTelemetryStore';
+import { useSessionStatusStore } from '../store/useSessionStatusStore';
+import { useTelemetryDataStore } from '../store/useTelemetryDataStore';
 import * as storeModule from '../store/useTelemetryStore';
 
 // Mock connectTelemetryWebSocket to avoid actual network calls
@@ -9,16 +10,21 @@ vi.spyOn(storeModule, 'connectTelemetryWebSocket').mockReturnValue(() => {});
 
 describe('Dashboard', () => {
   beforeEach(() => {
-    useTelemetryStore.getState().resetSession();
-    useTelemetryStore.setState({
+    useSessionStatusStore.getState().resetSession();
+    useTelemetryDataStore.getState().resetTelemetryData();
+    useSessionStatusStore.setState({
       session: null,
       participants: [],
+      events: [],
+      connected: false,
+      packetFormat: null,
+    });
+    useTelemetryDataStore.setState({
       allLaps: [],
       allCarStatus: [],
       allCarDamage: [],
       allTelemetry: [],
-      events: [],
-      connected: false,
+      allTelemetry2: [],
       playerCarIndex: 0,
       selectedCarIndex: 0,
     });
@@ -34,15 +40,19 @@ describe('Dashboard', () => {
   });
 
   it('renders waiting state when connected to backend but session data is null and still mounts LiveRadioHUD', () => {
-    useTelemetryStore.setState({
+    useSessionStatusStore.setState({
       session: null,
       participants: [],
+      events: [],
+      connected: true,
+      packetFormat: null,
+    });
+    useTelemetryDataStore.setState({
       allLaps: [],
       allCarStatus: [],
       allCarDamage: [],
       allTelemetry: [],
-      events: [],
-      connected: true,
+      allTelemetry2: [],
       playerCarIndex: 0,
       selectedCarIndex: 0,
     });
@@ -56,7 +66,7 @@ describe('Dashboard', () => {
   });
 
   it('renders full live Race Control Hub when connected and session data is received', () => {
-    useTelemetryStore.setState({
+    useSessionStatusStore.setState({
       session: {
         TrackId: 0,
         SessionType: 15,
@@ -75,14 +85,6 @@ describe('Dashboard', () => {
       participants: [
         { Name: 'Max Verstappen', DriverId: 9, TeamId: 0, RaceNumber: 1, AIControlled: 0 },
       ] as any[],
-      allLaps: [
-        { CarPosition: 1, CurrentLapNum: 5, CurrentLapTimeInMS: 81234, LastLapTimeInMS: 80950, Sector: 1, SpeedTrapFastestSpeed: 334.5 },
-      ] as any[],
-      allCarStatus: [
-        { VisualTyreCompound: 17, TyresAgeLaps: 5, FuelInTank: 45, ERSStoreEnergy: 3500000 },
-      ] as any[],
-      allCarDamage: [],
-      allTelemetry: [],
       events: [
         {
           id: '1',
@@ -94,6 +96,18 @@ describe('Dashboard', () => {
         },
       ],
       connected: true,
+    });
+
+    useTelemetryDataStore.setState({
+      allLaps: [
+        { CarPosition: 1, CurrentLapNum: 5, CurrentLapTimeInMS: 81234, LastLapTimeInMS: 80950, Sector: 1, SpeedTrapFastestSpeed: 334.5 },
+      ] as any[],
+      allCarStatus: [
+        { VisualTyreCompound: 17, TyresAgeLaps: 5, FuelInTank: 45, ERSStoreEnergy: 3500000 },
+      ] as any[],
+      allCarDamage: [],
+      allTelemetry: [],
+      allTelemetry2: [],
       playerCarIndex: 0,
       selectedCarIndex: 0,
     });
@@ -116,7 +130,7 @@ describe('Dashboard', () => {
   });
 
   it('switches to Voice Cockpit mode and unmounts 2x2 dashboard modules to save sim racing FPS', async () => {
-    useTelemetryStore.setState({
+    useSessionStatusStore.setState({
       session: {
         TrackId: 0,
         SessionType: 15,
@@ -132,6 +146,11 @@ describe('Dashboard', () => {
       participants: [
         { Name: 'Max Verstappen', DriverId: 9, TeamId: 0, RaceNumber: 1, AIControlled: 0 },
       ] as any[],
+      events: [],
+      connected: true,
+    });
+
+    useTelemetryDataStore.setState({
       allLaps: [
         { CarPosition: 1, CurrentLapNum: 5, CurrentLapTimeInMS: 81234, LastLapTimeInMS: 80950, Sector: 1 },
       ] as any[],
@@ -140,8 +159,7 @@ describe('Dashboard', () => {
       ] as any[],
       allCarDamage: [],
       allTelemetry: [],
-      events: [],
-      connected: true,
+      allTelemetry2: [],
       playerCarIndex: 0,
       selectedCarIndex: 0,
     });
@@ -174,4 +192,3 @@ describe('Dashboard', () => {
     expect(localStorage.getItem('f1_live_view_mode')).toBe('dashboard');
   });
 });
-

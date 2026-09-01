@@ -2,14 +2,27 @@ import React from 'react';
 import { Sparkles, User } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
 import { RADIO_PERSONAS } from '../../constants/f1';
-import type { UseRadioControllerReturn } from '../../hooks/useRadioController';
+import { useRadioSettingsStore } from '../../store/useRadioSettingsStore';
 
-interface PersonaSettingsTabProps {
-  radio: UseRadioControllerReturn;
+export interface PersonaSettingsTabProps {
+  radio?: {
+    persona?: any;
+    setPersona?: any;
+    customPrompt?: any;
+    setCustomPrompt?: any;
+    driverCallsign?: any;
+    setDriverCallsign?: any;
+  };
 }
 
-export const PersonaSettingsTab: React.FC<PersonaSettingsTabProps> = ({ radio }) => {
+export const PersonaSettingsTab: React.FC<PersonaSettingsTabProps> = () => {
   const { t } = useI18n();
+  const persona = useRadioSettingsStore((s) => s.persona);
+  const setPersona = useRadioSettingsStore((s) => s.setPersona);
+  const customPrompt = useRadioSettingsStore((s) => s.customPrompt);
+  const setCustomPrompt = useRadioSettingsStore((s) => s.setCustomPrompt);
+  const driverCallsign = useRadioSettingsStore((s) => s.driverCallsign);
+  const setDriverCallsign = useRadioSettingsStore((s) => s.setDriverCallsign);
 
   return (
     <div className="radio-section">
@@ -22,8 +35,8 @@ export const PersonaSettingsTab: React.FC<PersonaSettingsTabProps> = ({ radio })
         {/* Bono */}
         <button
           type="button"
-          className={`radio-persona-card ${radio.persona === RADIO_PERSONAS.BONO ? 'card-active' : ''}`}
-          onClick={() => radio.setPersona(RADIO_PERSONAS.BONO)}
+          className={`radio-persona-card ${persona === RADIO_PERSONAS.BONO ? 'card-active' : ''}`}
+          onClick={() => setPersona(RADIO_PERSONAS.BONO)}
         >
           <div className="radio-persona-header">
             <span className="radio-persona-name">
@@ -39,8 +52,8 @@ export const PersonaSettingsTab: React.FC<PersonaSettingsTabProps> = ({ radio })
         {/* Colapinto */}
         <button
           type="button"
-          className={`radio-persona-card ${radio.persona === RADIO_PERSONAS.COLAPINTO ? 'card-active' : ''}`}
-          onClick={() => radio.setPersona(RADIO_PERSONAS.COLAPINTO)}
+          className={`radio-persona-card ${persona === RADIO_PERSONAS.COLAPINTO ? 'card-active' : ''}`}
+          onClick={() => setPersona(RADIO_PERSONAS.COLAPINTO)}
         >
           <div className="radio-persona-header">
             <span className="radio-persona-name">
@@ -56,8 +69,8 @@ export const PersonaSettingsTab: React.FC<PersonaSettingsTabProps> = ({ radio })
         {/* Custom */}
         <button
           type="button"
-          className={`radio-persona-card ${radio.persona === RADIO_PERSONAS.CUSTOM ? 'card-active' : ''}`}
-          onClick={() => radio.setPersona(RADIO_PERSONAS.CUSTOM)}
+          className={`radio-persona-card ${persona === RADIO_PERSONAS.CUSTOM ? 'card-active' : ''}`}
+          onClick={() => setPersona(RADIO_PERSONAS.CUSTOM)}
         >
           <div className="radio-persona-header">
             <span className="radio-persona-name">
@@ -72,14 +85,14 @@ export const PersonaSettingsTab: React.FC<PersonaSettingsTabProps> = ({ radio })
       </div>
 
       {/* Custom Prompt Textarea (Conditional) */}
-      {radio.persona === RADIO_PERSONAS.CUSTOM && (
+      {persona === RADIO_PERSONAS.CUSTOM && (
         <div className="radio-section" style={{ marginTop: '4px' }}>
           <label className="radio-section-label">
             {t('ai_engineer.personas.custom.name')}
           </label>
           <textarea
-            value={radio.customPrompt}
-            onChange={(e) => radio.setCustomPrompt(e.target.value)}
+            value={customPrompt}
+            onChange={(e) => setCustomPrompt(e.target.value)}
             placeholder={t('ai_engineer.personas.custom.placeholder')}
             rows={3}
             className="radio-custom-textarea"
@@ -95,8 +108,8 @@ export const PersonaSettingsTab: React.FC<PersonaSettingsTabProps> = ({ radio })
         </label>
         <input
           type="text"
-          value={radio.driverCallsign}
-          onChange={(e) => radio.setDriverCallsign(e.target.value)}
+          value={driverCallsign}
+          onChange={(e) => setDriverCallsign(e.target.value)}
           placeholder={t('ai_engineer.driverCallsign.placeholder')}
           maxLength={32}
           className="radio-input-field"
@@ -108,3 +121,4 @@ export const PersonaSettingsTab: React.FC<PersonaSettingsTabProps> = ({ radio })
     </div>
   );
 };
+

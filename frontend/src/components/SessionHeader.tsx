@@ -7,7 +7,7 @@ import { TrackFlag } from './TrackFlag';
 import { TRACK_NAMES, getTrackInfo, LIVE_VIEW_MODES } from '../constants/f1';
 import type { LiveViewMode } from '../constants/f1';
 
-import { useTelemetryStore } from '../store/useTelemetryStore';
+import { useSessionStatusStore } from '../store/useSessionStatusStore';
 
 interface SessionHeaderProps {
   session?: SessionData | null;
@@ -46,9 +46,9 @@ const SESSION_TYPES: Record<number, { label: string; isRace: boolean; isQualy: b
 };
 
 export const SessionHeader: React.FC<SessionHeaderProps> = React.memo((props) => {
-  const storeSession = useTelemetryStore((s) => s.session);
-  const storeConnected = useTelemetryStore((s) => s.connected);
-  const storePacketFormat = useTelemetryStore((s) => s.packetFormat);
+  const storeSession = useSessionStatusStore((s) => s.session);
+  const storeConnected = useSessionStatusStore((s) => s.connected);
+  const storePacketFormat = useSessionStatusStore((s) => s.packetFormat);
 
   const session = props.session !== undefined ? props.session : storeSession;
   const connected = props.connected !== undefined ? props.connected : storeConnected;

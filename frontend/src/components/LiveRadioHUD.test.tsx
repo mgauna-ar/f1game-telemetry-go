@@ -4,6 +4,7 @@ import React from 'react';
 import { LiveRadioHUD } from './LiveRadioHUD';
 import { I18nProvider } from '../context/I18nProvider';
 import { RADIO_PERSONAS } from '../constants/f1';
+import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
 import type { UseRadioControllerReturn } from '../hooks/useRadioController';
 
 const mockRadio: UseRadioControllerReturn = {
@@ -11,20 +12,8 @@ const mockRadio: UseRadioControllerReturn = {
   isRadioEnabled: true,
   setIsRadioEnabled: vi.fn(),
   persona: RADIO_PERSONAS.BONO,
-  setPersona: vi.fn(),
-  radioLanguage: 'auto',
-  setRadioLanguage: vi.fn(),
+  driverCallsign: '',
   effectiveLanguage: 'es',
-  customPrompt: '',
-  setCustomPrompt: vi.fn(),
-  beepsEnabled: true,
-  setBeepsEnabled: vi.fn(),
-  filterEnabled: true,
-  setFilterEnabled: vi.fn(),
-  volume: 0.8,
-  setVolume: vi.fn(),
-  neuralVoice: '',
-  setNeuralVoice: vi.fn(),
   lastTranscript: null,
   lastResponse: null,
   error: null,
@@ -38,40 +27,17 @@ const mockRadio: UseRadioControllerReturn = {
   setMappedKey: vi.fn(),
   gamepadConnected: false,
   gamepadName: null,
-  driverCallsign: '',
-  setDriverCallsign: vi.fn(),
-  staticFxEnabled: true,
-  setStaticFxEnabled: vi.fn(),
-  speechRate: 0,
-  setSpeechRate: vi.fn(),
-  speechPitch: 0,
-  setSpeechPitch: vi.fn(),
-  smartDiscretionEnabled: true,
-  setSmartDiscretionEnabled: vi.fn(),
-  chatterCooldownSeconds: 45,
-  setChatterCooldownSeconds: vi.fn(),
-  tyreWearWarningPct: 40,
-  setTyreWearWarningPct: vi.fn(),
-  tyreWearCriticalPct: 75,
-  setTyreWearCriticalPct: vi.fn(),
-  rivalGapThresholdSec: 1.0,
-  setRivalGapThresholdSec: vi.fn(),
-  rainHorizonMin: 5,
-  setRainHorizonMin: vi.fn(),
-  tyreAlertsEnabled: true,
-  setTyreAlertsEnabled: vi.fn(),
-  thermalAlertsEnabled: true,
-  setThermalAlertsEnabled: vi.fn(),
-  rivalAlertsEnabled: true,
-  setRivalAlertsEnabled: vi.fn(),
-  pitWindowAlertsEnabled: true,
-  setPitWindowAlertsEnabled: vi.fn(),
-  trackAlertsEnabled: true,
-  setTrackAlertsEnabled: vi.fn(),
+  pttMode: 'hold',
+  setPTTMode: vi.fn(),
+  globalActive: false,
+  globalMapping: null,
   testRadioTransmission: vi.fn().mockResolvedValue(undefined),
+  testTriggerAlert: vi.fn().mockResolvedValue(undefined),
   stopRadio: vi.fn(),
   speakMessage: vi.fn().mockResolvedValue(undefined),
-} as unknown as UseRadioControllerReturn;
+  onPTTPress: vi.fn(),
+  onPTTRelease: vi.fn().mockResolvedValue(undefined),
+};
 
 const renderWithI18n = (ui: React.ReactElement) => {
   return render(<I18nProvider>{ui}</I18nProvider>);
@@ -80,6 +46,7 @@ const renderWithI18n = (ui: React.ReactElement) => {
 describe('LiveRadioHUD Component', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    useRadioSettingsStore.getState().resetStoreToDefaults();
   });
 
   it('renders idle standby state with Colapinto flag and PTT key', () => {
@@ -142,12 +109,13 @@ describe('LiveRadioHUD Component', () => {
   });
 
   it('mutes audio volume on volume button click', () => {
+    useRadioSettingsStore.setState({ volume: 0.8 });
     renderWithI18n(<LiveRadioHUD radio={mockRadio} />);
 
     const muteBtn = screen.getByTitle(/Mute Radio|Silenciar Radio/i);
     fireEvent.click(muteBtn);
 
-    expect(mockRadio.setVolume).toHaveBeenCalledWith(0);
+    expect(useRadioSettingsStore.getState().volume).toBe(0);
   });
 
   it('opens and closes settings panel', () => {
