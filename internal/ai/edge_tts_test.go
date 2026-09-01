@@ -148,3 +148,9 @@ func TestGenerateSecMsGec(t *testing.T) {
 		t.Errorf("expected uppercase hex token, got %s", token)
 	}
 }
+
+func TestClockSkewTracker_RefreshSkew(t *testing.T) {
+	tracker := &clockSkewTracker{}
+	// Calling refreshSkew directly should execute cleanly and handle any network timeout/warnings without panicking
+	tracker.refreshSkew()
+}

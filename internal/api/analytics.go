@@ -1,12 +1,12 @@
 package api
 
 import (
+	"log/slog"
 	"net/http"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/mgauna/f1game-telemetry-go/internal/analytics"
-	"github.com/mgauna/f1game-telemetry-go/internal/storage"
 )
 
 // handleGetSessionClassification serves GET /api/sessions/{id}/classification
@@ -27,12 +27,16 @@ func (s *Server) handleGetSessionClassification(w http.ResponseWriter, r *http.R
 
 	participants, pErr := s.repo.GetParticipantsBySession(ctx, sessionID)
 	if pErr != nil {
-		participants = []storage.Participant{}
+		slog.Error("Failed to fetch participants for classification", "sessionID", sessionID, "error", pErr)
+		writeJSONError(w, "failed to fetch participants", http.StatusInternalServerError)
+		return
 	}
 
 	laps, lErr := s.repo.GetLapsBySession(ctx, sessionID, nil)
 	if lErr != nil {
-		laps = []storage.Lap{}
+		slog.Error("Failed to fetch laps for classification", "sessionID", sessionID, "error", lErr)
+		writeJSONError(w, "failed to fetch laps", http.StatusInternalServerError)
+		return
 	}
 
 	resp := analytics.ComputeSessionClassification(session, participants, laps)
@@ -57,12 +61,16 @@ func (s *Server) handleGetSessionProgression(w http.ResponseWriter, r *http.Requ
 
 	participants, pErr := s.repo.GetParticipantsBySession(ctx, sessionID)
 	if pErr != nil {
-		participants = []storage.Participant{}
+		slog.Error("Failed to fetch participants for progression", "sessionID", sessionID, "error", pErr)
+		writeJSONError(w, "failed to fetch participants", http.StatusInternalServerError)
+		return
 	}
 
 	laps, lErr := s.repo.GetLapsBySession(ctx, sessionID, nil)
 	if lErr != nil {
-		laps = []storage.Lap{}
+		slog.Error("Failed to fetch laps for progression", "sessionID", sessionID, "error", lErr)
+		writeJSONError(w, "failed to fetch laps", http.StatusInternalServerError)
+		return
 	}
 
 	resp := analytics.ComputeSessionProgression(session, participants, laps)
@@ -87,12 +95,16 @@ func (s *Server) handleGetSessionStints(w http.ResponseWriter, r *http.Request) 
 
 	participants, pErr := s.repo.GetParticipantsBySession(ctx, sessionID)
 	if pErr != nil {
-		participants = []storage.Participant{}
+		slog.Error("Failed to fetch participants for stints", "sessionID", sessionID, "error", pErr)
+		writeJSONError(w, "failed to fetch participants", http.StatusInternalServerError)
+		return
 	}
 
 	laps, lErr := s.repo.GetLapsBySession(ctx, sessionID, nil)
 	if lErr != nil {
-		laps = []storage.Lap{}
+		slog.Error("Failed to fetch laps for stints", "sessionID", sessionID, "error", lErr)
+		writeJSONError(w, "failed to fetch laps", http.StatusInternalServerError)
+		return
 	}
 
 	resp := analytics.ComputeSessionStints(session, participants, laps)

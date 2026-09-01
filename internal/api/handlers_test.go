@@ -105,6 +105,32 @@ func TestHandlersAnalytics(t *testing.T) {
 			t.Errorf("expected 2 drivers, got %d", len(resp.Drivers))
 		}
 	})
+
+	t.Run("Analytics Error Handling - Invalid ID", func(t *testing.T) {
+		endpoints := []string{"classification", "progression", "stints"}
+		for _, ep := range endpoints {
+			req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/sessions/invalid-id/%s", ep), http.NoBody)
+			rec := httptest.NewRecorder()
+			server.Router().ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Errorf("%s: expected 400 Bad Request for invalid id, got %d", ep, rec.Code)
+			}
+		}
+	})
+
+	t.Run("Analytics Error Handling - Not Found", func(t *testing.T) {
+		endpoints := []string{"classification", "progression", "stints"}
+		for _, ep := range endpoints {
+			req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/sessions/99999999/%s", ep), http.NoBody)
+			rec := httptest.NewRecorder()
+			server.Router().ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusNotFound {
+				t.Errorf("%s: expected 404 Not Found, got %d", ep, rec.Code)
+			}
+		}
+	})
 }
 
 func TestHandlersComparator(t *testing.T) {

@@ -182,6 +182,8 @@ func (sm *SessionManager) updateSessionInfo(ctx context.Context, p *packets.Pack
 		}
 		if b, err := json.Marshal(samples); err == nil {
 			forecastJSON = string(b)
+		} else {
+			slog.Error("Failed to marshal weather forecast samples", "error", err)
 		}
 	}
 
@@ -337,7 +339,9 @@ func (sm *SessionManager) handleFinalClassification(ctx context.Context, p *pack
 						ResultStatus:     int(cls.ResultStatus),
 						PenaltiesSeconds: int(cls.PenaltiesTime),
 					}
-					_ = sm.repo.SaveLap(ctx, lap, true)
+					if err := sm.repo.SaveLap(ctx, lap, true); err != nil {
+						slog.Error("Failed to save lap during classification", "sessionID", sm.currentSession.ID, "lapNumber", lap.LapNumber, "carIndex", lap.CarIndex, "error", err)
+					}
 				}
 			}
 		}
@@ -347,11 +351,15 @@ func (sm *SessionManager) handleFinalClassification(ctx context.Context, p *pack
 	}
 
 	if len(participantsToUpdate) > 0 {
-		_ = sm.repo.SaveParticipants(ctx, sm.currentSession.ID, participantsToUpdate)
+		if err := sm.repo.SaveParticipants(ctx, sm.currentSession.ID, participantsToUpdate); err != nil {
+			slog.Error("Failed to save participants during classification", "sessionID", sm.currentSession.ID, "error", err)
+		}
 	}
 
 	if sm.currentSession.SessionDuration > 0 {
-		_ = sm.repo.UpdateSessionMetadata(ctx, sm.currentSession.SessionUID, sm.currentSession.TrackID, sm.currentSession.TrackName, sm.currentSession.SessionType, sm.currentSession.Weather, sm.currentSession.WeatherForecast, sm.currentSession.TotalLaps, sm.currentSession.AIDifficulty, sm.currentSession.SessionDuration)
+		if err := sm.repo.UpdateSessionMetadata(ctx, sm.currentSession.SessionUID, sm.currentSession.TrackID, sm.currentSession.TrackName, sm.currentSession.SessionType, sm.currentSession.Weather, sm.currentSession.WeatherForecast, sm.currentSession.TotalLaps, sm.currentSession.AIDifficulty, sm.currentSession.SessionDuration); err != nil {
+			slog.Error("Failed to update session metadata during classification", "sessionUID", sm.currentSession.SessionUID, "error", err)
+		}
 	}
 }
 

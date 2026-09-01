@@ -10,6 +10,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"sync"
@@ -113,17 +114,20 @@ func (c *clockSkewTracker) refreshSkew() {
 	client := &http.Client{Timeout: 3 * time.Second}
 	resp, err := client.Head(edgeTTSHeadURL)
 	if err != nil || resp == nil {
+		slog.Warn("Failed to query Edge TTS server for clock skew", "url", edgeTTSHeadURL, "error", err)
 		return
 	}
 	defer resp.Body.Close()
 
 	dateHeader := resp.Header.Get("Date")
 	if dateHeader == "" {
+		slog.Warn("Edge TTS server response missing Date header for clock skew", "url", edgeTTSHeadURL)
 		return
 	}
 
 	serverTime, err := http.ParseTime(dateHeader)
 	if err != nil {
+		slog.Warn("Failed to parse Date header from Edge TTS server", "dateHeader", dateHeader, "error", err)
 		return
 	}
 

@@ -1,6 +1,9 @@
 package ai
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 )
@@ -349,4 +352,28 @@ func TestParseOpenAIError(t *testing.T) {
 			t.Errorf("expected code %s, got %s", AIErrorModelOverloaded, err.Code)
 		}
 	})
+}
+
+func TestFetchOpenAIModels_ErrorHandling(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"error":{"message":"Incorrect API key provided","type":"invalid_request_error","code":"invalid_api_key"}}`))
+	}))
+	defer ts.Close()
+
+	models, err := FetchOpenAIModels(context.Background(), ts.URL, "bad-key")
+	if err == nil {
+		t.Fatalf("expected error from unauthorized response, got nil")
+	}
+	if models != nil {
+		t.Fatalf("expected nil models on error, got %v", models)
+	}
+
+	streamErr, ok := err.(*AIStreamError)
+	if !ok {
+		t.Fatalf("expected *AIStreamError, got %T: %v", err, err)
+	}
+	if streamErr.Code != AIErrorInvalidAPIKey {
+		t.Errorf("expected code %s, got %s", AIErrorInvalidAPIKey, streamErr.Code)
+	}
 }

@@ -196,7 +196,10 @@ func FetchGeminiModels(ctx context.Context, apiKey string) ([]AIModelItem, error
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read Gemini error response body (status %d): %w", resp.StatusCode, err)
+		}
 		return nil, ParseGeminiError(resp.StatusCode, body)
 	}
 
@@ -278,7 +281,10 @@ func FetchOpenAIModels(ctx context.Context, baseURL, apiKey string) ([]AIModelIt
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read OpenAI error response body (status %d): %w", resp.StatusCode, err)
+		}
 		return nil, ParseOpenAIError(resp.StatusCode, body, "openai")
 	}
 
@@ -387,7 +393,10 @@ func StreamGemini(ctx context.Context, apiKey, model, systemPrompt string, messa
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read Gemini error response body (status %d): %w", resp.StatusCode, err)
+		}
 		return ParseGeminiError(resp.StatusCode, body)
 	}
 
@@ -505,7 +514,10 @@ func StreamOpenAI(ctx context.Context, baseURL, apiKey, model, systemPrompt stri
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return fmt.Errorf("failed to read OpenAI error response body (status %d): %w", resp.StatusCode, err)
+		}
 		return ParseOpenAIError(resp.StatusCode, body, "openai")
 	}
 

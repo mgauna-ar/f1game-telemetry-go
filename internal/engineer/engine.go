@@ -546,9 +546,12 @@ func (e *EngineerEngine) emitDirectiveLocked(header packets.PacketHeader, direct
 	}
 
 	if e.broadcaster != nil {
-		if data, err := json.Marshal(directive); err == nil {
-			slog.Info("Proactive directive emitted", "category", string(directive.Category), "subAlert", directive.SubAlert, "urgency", string(directive.Urgency), "message", directive.Message)
-			e.broadcaster.Broadcast(data)
+		data, err := json.Marshal(directive)
+		if err != nil {
+			slog.Error("Failed to marshal engineer directive", "alertKey", alertKey, "error", err)
+			return
 		}
+		slog.Info("Proactive directive emitted", "category", string(directive.Category), "subAlert", directive.SubAlert, "urgency", string(directive.Urgency), "message", directive.Message)
+		e.broadcaster.Broadcast(data)
 	}
 }

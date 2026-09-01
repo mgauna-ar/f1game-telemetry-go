@@ -301,7 +301,9 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 			lt.sampleBuffer = lt.sampleBuffer[:0]
 			lt.mu.Unlock()
 			if lt.currentLap.ID > 0 {
-				_ = lt.repo.DeleteTelemetryByLap(ctx, lt.currentLap.ID)
+				if err := lt.repo.DeleteTelemetryByLap(ctx, lt.currentLap.ID); err != nil {
+					slog.Error("Failed to delete telemetry on lap restart", "lapID", lt.currentLap.ID, "error", err)
+				}
 			}
 		} else if prevDistance < 0 && currDistance >= 0 && lt.currentLapNum == 1 {
 			slog.Info("Out-lap to flying lap transition detected", "carIndex", lt.carIndex, "prevDistance", prevDistance, "currDistance", currDistance)
@@ -309,7 +311,9 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 			lt.sampleBuffer = lt.sampleBuffer[:0]
 			lt.mu.Unlock()
 			if lt.currentLap.ID > 0 {
-				_ = lt.repo.DeleteTelemetryByLap(ctx, lt.currentLap.ID)
+				if err := lt.repo.DeleteTelemetryByLap(ctx, lt.currentLap.ID); err != nil {
+					slog.Error("Failed to delete telemetry on flying lap transition", "lapID", lt.currentLap.ID, "error", err)
+				}
 			}
 		}
 
@@ -354,7 +358,9 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 		}
 
 		if updated {
-			_ = lt.repo.SaveLap(ctx, lt.currentLap, false)
+			if err := lt.repo.SaveLap(ctx, lt.currentLap, false); err != nil {
+				slog.Error("Failed to save updated lap data", "lapID", lt.currentLap.ID, "lapNumber", lt.currentLap.LapNumber, "carIndex", lt.carIndex, "error", err)
+			}
 		}
 
 		// If car has finished or retired, flush any remaining in-memory telemetry
@@ -460,7 +466,9 @@ func (lt *LapTracker) ProcessSessionHistory(ctx context.Context, session *storag
 				Sector2Valid:   s2Valid,
 				Sector3Valid:   s3Valid,
 			}
-			_ = lt.repo.SaveLap(ctx, lap, true)
+			if err := lt.repo.SaveLap(ctx, lap, true); err != nil {
+				slog.Error("Failed to save lap from session history", "lapNumber", lap.LapNumber, "carIndex", lt.carIndex, "error", err)
+			}
 		}
 	}
 }
