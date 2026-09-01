@@ -9,44 +9,70 @@ import (
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
 )
 
+// TelemetryWriter abstracts enqueuing completed lap telemetry samples for persistence.
+type TelemetryWriter interface {
+	EnqueueLap(lapID int64, samples []storage.TelemetrySample)
+}
+
+// CarMotionState tracks positional motion coordinates.
+type CarMotionState struct {
+	LastWorldPosX float64
+	LastWorldPosY float64
+	LastWorldPosZ float64
+}
+
+// CarERSState tracks energy recovery system status.
+type CarERSState struct {
+	LastDeploy      float64
+	LastStoreEnergy float64
+	LastDeployMode  int
+}
+
+// CarActiveAeroState tracks 2026 regulations Active Aero and Overtake/Boost state.
+type CarActiveAeroState struct {
+	LastActiveAeroMode      int
+	LastActiveAeroAvailable int
+	LastOvertakeActive      int
+}
+
+// CarStintState tracks tyre stints and compound information.
+type CarStintState struct {
+	CurrentStintNum       int
+	LastTyreAge           int
+	LastPitStops          int
+	LastCompound          string
+	LastFittedTyreSetIdx  int
+	StintIncrementedInLap int
+}
+
 // LapTracker monitors a car's lap progress and buffers telemetry samples in memory for compressed persistence.
 type LapTracker struct {
-	mu          sync.Mutex
-	repo        storage.Repository
-	batchWriter *TelemetryBatchWriter
-	carIndex    int
+	mu              sync.Mutex
+	repo            storage.Repository
+	writer          TelemetryWriter
+	carIndex        int
+	currentLapNum   int
+	currentLap      *storage.Lap
+	sampleBuffer    []storage.TelemetrySample
+	lastLapDistance float64
 
-	currentLapNum           int
-	currentLap              *storage.Lap
-	sampleBuffer            []storage.TelemetrySample
-	lastLapDistance         float64
-	lastWorldPosX           float64
-	lastWorldPosY           float64
-	lastWorldPosZ           float64
-	lastERSDeploy           float64
-	lastERSStoreEnergy      float64
-	lastERSDeployMode       int
-	lastActiveAeroMode      int
-	lastActiveAeroAvailable int
-	lastOvertakeActive      int
-	currentStintNum         int
-	lastTyreAge             int
-	lastPitStops            int
-	lastCompound            string
-	lastFittedTyreSetIdx    int
-	stintIncrementedInLap   int
+	motion     CarMotionState
+	ers        CarERSState
+	activeAero CarActiveAeroState
+	stint      CarStintState
 }
 
 // NewLapTracker creates a new LapTracker.
-func NewLapTracker(repo storage.Repository, batchWriter *TelemetryBatchWriter, carIndex int) *LapTracker {
+func NewLapTracker(repo storage.Repository, writer TelemetryWriter, carIndex int) *LapTracker {
 	return &LapTracker{
-		repo:                  repo,
-		batchWriter:           batchWriter,
-		carIndex:              carIndex,
-		currentStintNum:       1,
-		lastFittedTyreSetIdx:  -1,
-		stintIncrementedInLap: 0,
-		sampleBuffer:          make([]storage.TelemetrySample, 0, packets.DefaultTelemetrySampleCapacity),
+		repo:     repo,
+		writer:   writer,
+		carIndex: carIndex,
+		stint: CarStintState{
+			CurrentStintNum:      1,
+			LastFittedTyreSetIdx: -1,
+		},
+		sampleBuffer: make([]storage.TelemetrySample, 0, packets.DefaultTelemetrySampleCapacity),
 	}
 }
 
@@ -55,29 +81,21 @@ func (lt *LapTracker) Reset() {
 	lt.mu.Lock()
 	defer lt.mu.Unlock()
 
-	if lt.currentLap != nil && lt.currentLap.ID > 0 && len(lt.sampleBuffer) > 10 && lt.batchWriter != nil {
-		lt.batchWriter.EnqueueLap(lt.currentLap.ID, lt.sampleBuffer)
+	if lt.currentLap != nil && lt.currentLap.ID > 0 && len(lt.sampleBuffer) > 10 && lt.writer != nil {
+		lt.writer.EnqueueLap(lt.currentLap.ID, lt.sampleBuffer)
 	}
 
 	lt.currentLapNum = 0
 	lt.currentLap = nil
 	lt.sampleBuffer = nil
 	lt.lastLapDistance = 0
-	lt.lastWorldPosX = 0
-	lt.lastWorldPosY = 0
-	lt.lastWorldPosZ = 0
-	lt.lastERSDeploy = 0
-	lt.lastERSStoreEnergy = 0
-	lt.lastERSDeployMode = 0
-	lt.lastActiveAeroMode = 0
-	lt.lastActiveAeroAvailable = 0
-	lt.lastOvertakeActive = 0
-	lt.currentStintNum = 1
-	lt.lastTyreAge = 0
-	lt.lastPitStops = 0
-	lt.lastCompound = ""
-	lt.lastFittedTyreSetIdx = -1
-	lt.stintIncrementedInLap = 0
+	lt.motion = CarMotionState{}
+	lt.ers = CarERSState{}
+	lt.activeAero = CarActiveAeroState{}
+	lt.stint = CarStintState{
+		CurrentStintNum:      1,
+		LastFittedTyreSetIdx: -1,
+	}
 }
 
 // FlushCurrentLap flushes any in-memory telemetry buffer for the current active lap.
@@ -85,8 +103,8 @@ func (lt *LapTracker) FlushCurrentLap() {
 	lt.mu.Lock()
 	defer lt.mu.Unlock()
 
-	if lt.currentLap != nil && lt.currentLap.ID > 0 && len(lt.sampleBuffer) > 10 && lt.batchWriter != nil {
-		lt.batchWriter.EnqueueLap(lt.currentLap.ID, lt.sampleBuffer)
+	if lt.currentLap != nil && lt.currentLap.ID > 0 && len(lt.sampleBuffer) > 10 && lt.writer != nil {
+		lt.writer.EnqueueLap(lt.currentLap.ID, lt.sampleBuffer)
 		lt.sampleBuffer = nil
 	}
 }
@@ -97,9 +115,9 @@ func (lt *LapTracker) ProcessMotion(p *packets.PacketMotionData) {
 		return
 	}
 	motion := p.CarMotionData[lt.carIndex]
-	lt.lastWorldPosX = float64(motion.WorldPositionX)
-	lt.lastWorldPosY = float64(motion.WorldPositionY)
-	lt.lastWorldPosZ = float64(motion.WorldPositionZ)
+	lt.motion.LastWorldPosX = float64(motion.WorldPositionX)
+	lt.motion.LastWorldPosY = float64(motion.WorldPositionY)
+	lt.motion.LastWorldPosZ = float64(motion.WorldPositionZ)
 }
 
 // ProcessTyreSets tracks tyre set swaps (e.g. changing sets inside the garage or pit stops).
@@ -117,25 +135,25 @@ func (lt *LapTracker) ProcessTyreSets(p *packets.PacketTyreSetsData) {
 	actualComp := packets.ActualTyreCompoundName(fittedSet.ActualTyreCompound)
 
 	// If fitted tyre set index changed, increment stint
-	if lt.lastFittedTyreSetIdx >= 0 && fittedIdx != lt.lastFittedTyreSetIdx {
-		if lt.stintIncrementedInLap != lt.currentLapNum {
-			lt.currentStintNum++
-			lt.stintIncrementedInLap = lt.currentLapNum
-			slog.Info("Stint detected via PacketTyreSets", "stint", lt.currentStintNum, "carIndex", lt.carIndex, "fittedSet", fittedIdx, "prevFittedSet", lt.lastFittedTyreSetIdx, "compound", newComp)
+	if lt.stint.LastFittedTyreSetIdx >= 0 && fittedIdx != lt.stint.LastFittedTyreSetIdx {
+		if lt.stint.StintIncrementedInLap != lt.currentLapNum {
+			lt.stint.CurrentStintNum++
+			lt.stint.StintIncrementedInLap = lt.currentLapNum
+			slog.Info("Stint detected via PacketTyreSets", "stint", lt.stint.CurrentStintNum, "carIndex", lt.carIndex, "fittedSet", fittedIdx, "prevFittedSet", lt.stint.LastFittedTyreSetIdx, "compound", newComp)
 		}
 	}
-	lt.lastFittedTyreSetIdx = fittedIdx
+	lt.stint.LastFittedTyreSetIdx = fittedIdx
 
 	if newComp != "" {
-		lt.lastCompound = newComp
+		lt.stint.LastCompound = newComp
 	}
 
 	if lt.currentLap != nil {
-		if lt.currentStintNum <= 0 {
-			lt.currentStintNum = 1
+		if lt.stint.CurrentStintNum <= 0 {
+			lt.stint.CurrentStintNum = 1
 		}
-		if lt.currentLap.Stint < lt.currentStintNum {
-			lt.currentLap.Stint = lt.currentStintNum
+		if lt.currentLap.Stint < lt.stint.CurrentStintNum {
+			lt.currentLap.Stint = lt.stint.CurrentStintNum
 		}
 		if newComp != "" {
 			lt.currentLap.TyreCompound = newComp
@@ -152,9 +170,9 @@ func (lt *LapTracker) ProcessCarStatus(p *packets.PacketCarStatusData) {
 		return
 	}
 	cs := p.CarStatusData[lt.carIndex]
-	lt.lastERSDeploy = float64(cs.ERSDeployedThisLap)
-	lt.lastERSStoreEnergy = float64((cs.ERSStoreEnergy / packets.MaxERSStoreEnergyJoules) * 100.0)
-	lt.lastERSDeployMode = int(cs.ERSDeployMode)
+	lt.ers.LastDeploy = float64(cs.ERSDeployedThisLap)
+	lt.ers.LastStoreEnergy = float64((cs.ERSStoreEnergy / packets.MaxERSStoreEnergyJoules) * 100.0)
+	lt.ers.LastDeployMode = int(cs.ERSDeployMode)
 
 	tyreAge := int(cs.TyresAgeLaps)
 	newComp := packets.VisualTyreCompoundName(cs.VisualTyreCompound)
@@ -164,26 +182,26 @@ func (lt *LapTracker) ProcessCarStatus(p *packets.PacketCarStatusData) {
 	// A new stint is started when:
 	// 1) Tyre age drops (e.g. from 1+ laps to 0 or fewer laps when mounting a new/fresher set)
 	// 2) Visual tyre compound changes (e.g. Soft -> Medium)
-	tyreAgeDropped := lt.lastTyreAge > 0 && tyreAge < lt.lastTyreAge
-	compoundChanged := lt.lastCompound != "" && newComp != "" && newComp != lt.lastCompound
+	tyreAgeDropped := lt.stint.LastTyreAge > 0 && tyreAge < lt.stint.LastTyreAge
+	compoundChanged := lt.stint.LastCompound != "" && newComp != "" && newComp != lt.stint.LastCompound
 	tyreChanged := tyreAgeDropped || compoundChanged
-	if tyreChanged && lt.stintIncrementedInLap != lt.currentLapNum {
-		lt.currentStintNum++
-		lt.stintIncrementedInLap = lt.currentLapNum
-		slog.Info("Stint detected", "stint", lt.currentStintNum, "carIndex", lt.carIndex, "compound", newComp, "prevTyreAge", lt.lastTyreAge, "tyreAge", tyreAge)
+	if tyreChanged && lt.stint.StintIncrementedInLap != lt.currentLapNum {
+		lt.stint.CurrentStintNum++
+		lt.stint.StintIncrementedInLap = lt.currentLapNum
+		slog.Info("Stint detected", "stint", lt.stint.CurrentStintNum, "carIndex", lt.carIndex, "compound", newComp, "prevTyreAge", lt.stint.LastTyreAge, "tyreAge", tyreAge)
 	}
 
-	lt.lastTyreAge = tyreAge
+	lt.stint.LastTyreAge = tyreAge
 	if newComp != "" {
-		lt.lastCompound = newComp
+		lt.stint.LastCompound = newComp
 	}
 
 	if lt.currentLap != nil {
-		if lt.currentStintNum <= 0 {
-			lt.currentStintNum = 1
+		if lt.stint.CurrentStintNum <= 0 {
+			lt.stint.CurrentStintNum = 1
 		}
-		if lt.currentLap.Stint < lt.currentStintNum {
-			lt.currentLap.Stint = lt.currentStintNum
+		if lt.currentLap.Stint < lt.stint.CurrentStintNum {
+			lt.currentLap.Stint = lt.stint.CurrentStintNum
 		}
 		lt.currentLap.FuelLoad = float64(cs.FuelInTank)
 		if newComp != "" {
@@ -201,9 +219,9 @@ func (lt *LapTracker) ProcessCarTelemetry2(p *packets.PacketCarTelemetry2Data) {
 		return
 	}
 	t2 := p.CarTelemetry2Data[lt.carIndex]
-	lt.lastActiveAeroMode = int(t2.ActiveAeroMode)
-	lt.lastActiveAeroAvailable = int(t2.ActiveAeroAvailable)
-	lt.lastOvertakeActive = int(t2.OvertakeActive)
+	lt.activeAero.LastActiveAeroMode = int(t2.ActiveAeroMode)
+	lt.activeAero.LastActiveAeroAvailable = int(t2.ActiveAeroAvailable)
+	lt.activeAero.LastOvertakeActive = int(t2.OvertakeActive)
 }
 
 // ProcessLapData processes the LapData packet to detect lap transitions.
@@ -235,23 +253,23 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 
 	// Case 1: Initial lap tracker initialization (seed initial state silently without firing pit stop event)
 	if lt.currentLapNum == 0 {
-		lt.lastPitStops = int(lapData.NumPitStops)
-		if lt.lastPitStops > 0 {
-			lt.currentStintNum = lt.lastPitStops + 1
+		lt.stint.LastPitStops = int(lapData.NumPitStops)
+		if lt.stint.LastPitStops > 0 {
+			lt.stint.CurrentStintNum = lt.stint.LastPitStops + 1
 		}
-		lt.stintIncrementedInLap = newLapNum
+		lt.stint.StintIncrementedInLap = newLapNum
 		lt.startNewLap(ctx, session.ID, newLapNum, lt.carIndex)
 		return
 	}
 
 	// Pit stop detection for active ongoing laps
 	pitStops := int(lapData.NumPitStops)
-	if pitStops > lt.lastPitStops && lt.stintIncrementedInLap != newLapNum {
-		lt.currentStintNum++
-		lt.stintIncrementedInLap = newLapNum
-		slog.Info("Pit stop detected", "carIndex", lt.carIndex, "stint", lt.currentStintNum, "prevPitStops", lt.lastPitStops, "pitStops", pitStops)
+	if pitStops > lt.stint.LastPitStops && lt.stint.StintIncrementedInLap != newLapNum {
+		lt.stint.CurrentStintNum++
+		lt.stint.StintIncrementedInLap = newLapNum
+		slog.Info("Pit stop detected", "carIndex", lt.carIndex, "stint", lt.stint.CurrentStintNum, "prevPitStops", lt.stint.LastPitStops, "pitStops", pitStops)
 	}
-	lt.lastPitStops = pitStops
+	lt.stint.LastPitStops = pitStops
 
 	// Case 2: Session restarted or rewound in game (Flashback / restart session)
 	if newLapNum < lt.currentLapNum {
@@ -260,13 +278,13 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 		lt.mu.Lock()
 		lt.sampleBuffer = lt.sampleBuffer[:0]
 		lt.mu.Unlock()
-		lt.lastPitStops = int(lapData.NumPitStops)
-		if lt.lastPitStops > 0 {
-			lt.currentStintNum = lt.lastPitStops + 1
+		lt.stint.LastPitStops = int(lapData.NumPitStops)
+		if lt.stint.LastPitStops > 0 {
+			lt.stint.CurrentStintNum = lt.stint.LastPitStops + 1
 		} else {
-			lt.currentStintNum = 1
+			lt.stint.CurrentStintNum = 1
 		}
-		lt.stintIncrementedInLap = newLapNum
+		lt.stint.StintIncrementedInLap = newLapNum
 		lt.startNewLap(ctx, session.ID, newLapNum, lt.carIndex)
 		return
 	}
@@ -390,8 +408,8 @@ func (lt *LapTracker) ProcessSessionHistory(ctx context.Context, session *storag
 	}
 
 	// Synchronize tracker's current stint number if session history reports a higher stint
-	if numStints > lt.currentStintNum {
-		lt.currentStintNum = numStints
+	if numStints > lt.stint.CurrentStintNum {
+		lt.stint.CurrentStintNum = numStints
 	}
 
 	for i := 0; i < numLaps; i++ {
@@ -500,15 +518,15 @@ func (lt *LapTracker) ProcessTelemetry(ctx context.Context, session *storage.Ses
 		Gear:                int(carData.Gear),
 		EngineRPM:           int(carData.EngineRPM),
 		DRS:                 carData.DRS == 1,
-		ERSDeploy:           lt.lastERSDeploy,
-		ERSStoreEnergy:      lt.lastERSStoreEnergy,
-		ERSDeployMode:       lt.lastERSDeployMode,
-		WorldPosX:           lt.lastWorldPosX,
-		WorldPosY:           lt.lastWorldPosY,
-		WorldPosZ:           lt.lastWorldPosZ,
-		ActiveAeroMode:      lt.lastActiveAeroMode,
-		ActiveAeroAvailable: lt.lastActiveAeroAvailable,
-		OvertakeActive:      lt.lastOvertakeActive,
+		ERSDeploy:           lt.ers.LastDeploy,
+		ERSStoreEnergy:      lt.ers.LastStoreEnergy,
+		ERSDeployMode:       lt.ers.LastDeployMode,
+		WorldPosX:           lt.motion.LastWorldPosX,
+		WorldPosY:           lt.motion.LastWorldPosY,
+		WorldPosZ:           lt.motion.LastWorldPosZ,
+		ActiveAeroMode:      lt.activeAero.LastActiveAeroMode,
+		ActiveAeroAvailable: lt.activeAero.LastActiveAeroAvailable,
+		OvertakeActive:      lt.activeAero.LastOvertakeActive,
 	}
 
 	lt.mu.Lock()
@@ -522,12 +540,12 @@ func (lt *LapTracker) ProcessTelemetry(ctx context.Context, session *storage.Ses
 func (lt *LapTracker) startNewLap(ctx context.Context, sessionID int64, lapNum, carIndex int) {
 	lt.mu.Lock()
 	// If there are uncommitted samples from a previous lap, flush them
-	if lt.currentLap != nil && lt.currentLap.ID > 0 && len(lt.sampleBuffer) > 0 && lt.batchWriter != nil {
-		lt.batchWriter.EnqueueLap(lt.currentLap.ID, lt.sampleBuffer)
+	if lt.currentLap != nil && lt.currentLap.ID > 0 && len(lt.sampleBuffer) > 0 && lt.writer != nil {
+		lt.writer.EnqueueLap(lt.currentLap.ID, lt.sampleBuffer)
 	}
 
 	lt.currentLapNum = lapNum
-	stint := lt.currentStintNum
+	stint := lt.stint.CurrentStintNum
 	if stint <= 0 {
 		stint = 1
 	}
@@ -561,8 +579,8 @@ func (lt *LapTracker) finalizeCurrentLap(ctx context.Context, lapTimeMS int) {
 
 		// Enqueue the lap's samples into the asynchronous batch writer
 		lt.mu.Lock()
-		if len(lt.sampleBuffer) > 0 && lt.currentLap.ID > 0 && lt.batchWriter != nil {
-			lt.batchWriter.EnqueueLap(lt.currentLap.ID, lt.sampleBuffer)
+		if len(lt.sampleBuffer) > 0 && lt.currentLap.ID > 0 && lt.writer != nil {
+			lt.writer.EnqueueLap(lt.currentLap.ID, lt.sampleBuffer)
 			lt.sampleBuffer = nil
 		}
 		lt.mu.Unlock()

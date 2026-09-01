@@ -37,6 +37,19 @@ func (r *CoachingRule) DedupScope() DedupScope {
 	return DedupScopeLap
 }
 
+func (r *CoachingRule) AlertKeys() map[string]AlertKeyConfig {
+	return map[string]AlertKeyConfig{
+		"coaching_s1": {
+			ValidPhases: []DrivingPhase{PhaseFlyingLap, PhaseRacing},
+			DedupScope:  DedupScopeLap,
+		},
+		"coaching_s2": {
+			ValidPhases: []DrivingPhase{PhaseFlyingLap, PhaseRacing},
+			DedupScope:  DedupScopeLap,
+		},
+	}
+}
+
 func (r *CoachingRule) Reset(scope DedupScope) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

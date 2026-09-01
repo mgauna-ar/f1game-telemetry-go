@@ -39,6 +39,27 @@ func (r *DamageRule) DedupScope() DedupScope {
 	return DedupScopeStint
 }
 
+func (r *DamageRule) AlertKeys() map[string]AlertKeyConfig {
+	return map[string]AlertKeyConfig{
+		"damage_wing": {
+			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			DedupScope:  DedupScopeStint,
+		},
+		"damage_floor": {
+			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			DedupScope:  DedupScopeStint,
+		},
+		"damage_engine": {
+			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			DedupScope:  DedupScopeStint,
+		},
+		"damage_faults": {
+			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			DedupScope:  DedupScopeStint,
+		},
+	}
+}
+
 func (r *DamageRule) Reset(scope DedupScope) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

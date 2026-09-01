@@ -43,6 +43,19 @@ func (r *TeammateRule) DedupScope() DedupScope {
 	return DedupScopeNone
 }
 
+func (r *TeammateRule) AlertKeys() map[string]AlertKeyConfig {
+	return map[string]AlertKeyConfig{
+		"teammate_ahead": {
+			ValidPhases: []DrivingPhase{PhaseRacing, PhaseFlyingLap},
+			DedupScope:  DedupScopeNone,
+		},
+		"teammate_pitting": {
+			ValidPhases: []DrivingPhase{PhaseRacing, PhaseFlyingLap, PhaseOutLap, PhaseInLap, PhaseSafetyCar},
+			DedupScope:  DedupScopeNone,
+		},
+	}
+}
+
 func (r *TeammateRule) Reset(scope DedupScope) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

@@ -103,144 +103,16 @@ const (
 	DedupScopeNone  DedupScope = "none"
 )
 
-// AlertPhaseRule defines execution guards for an alert key.
-type AlertPhaseRule struct {
+// AlertKeyConfig defines execution guards and dedup scopes for an alert key.
+type AlertKeyConfig struct {
 	ValidPhases             []DrivingPhase
 	MinLapDistancePct       float32
 	SuppressAfterPitForLaps int
 	DedupScope              DedupScope
 }
 
-var alertPhaseRules = map[string]AlertPhaseRule{
-	"tyre_wear": {
-		ValidPhases: []DrivingPhase{PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
-		DedupScope:  DedupScopeStint,
-	},
-	"tyre_puncture": {
-		ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
-		DedupScope:  DedupScopeStint,
-	},
-	"tyre_overheat": {
-		ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseRacing, PhaseInLap},
-		DedupScope:  DedupScopeStint,
-	},
-	"tyre_cold": {
-		ValidPhases:       []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseSafetyCar},
-		MinLapDistancePct: MinOutLapDistanceCompletionPct,
-		DedupScope:        DedupScopePhase,
-	},
-	"damage_wing": {
-		ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
-		DedupScope:  DedupScopeStint,
-	},
-	"damage_floor": {
-		ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
-		DedupScope:  DedupScopeStint,
-	},
-	"damage_engine": {
-		ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
-		DedupScope:  DedupScopeStint,
-	},
-	"damage_faults": {
-		ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
-		DedupScope:  DedupScopeStint,
-	},
-	"ers_low": {
-		ValidPhases: []DrivingPhase{PhaseFlyingLap, PhaseRacing},
-		DedupScope:  DedupScopeLap,
-	},
-	"engine_temp": {
-		ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseRacing, PhaseInLap},
-		DedupScope:  DedupScopeStint,
-	},
-	"brake_hot": {
-		ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseRacing},
-		DedupScope:  DedupScopeStint,
-	},
-	"brake_cold": {
-		ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseSafetyCar},
-		DedupScope:  DedupScopePhase,
-	},
-	"fuel_delta": {
-		ValidPhases: []DrivingPhase{PhaseRacing, PhaseInLap, PhaseSafetyCar},
-		DedupScope:  DedupScopeLap,
-	},
-	"undercut": {
-		ValidPhases: []DrivingPhase{PhaseRacing, PhaseInLap},
-		DedupScope:  DedupScopeStint,
-	},
-	"pit_window": {
-		ValidPhases: []DrivingPhase{PhaseRacing, PhaseInLap},
-		DedupScope:  DedupScopeLap,
-	},
-	"rival_defend": {
-		ValidPhases:             []DrivingPhase{PhaseRacing},
-		SuppressAfterPitForLaps: PostPitSuppressionLaps,
-		DedupScope:              DedupScopeNone,
-	},
-	"rival_attack": {
-		ValidPhases:             []DrivingPhase{PhaseRacing},
-		SuppressAfterPitForLaps: PostPitSuppressionLaps,
-		DedupScope:              DedupScopeNone,
-	},
-	"qualy_invalid": {
-		ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFlyingLap},
-		DedupScope:  DedupScopeLap,
-	},
-	"qualy_traffic": {
-		ValidPhases:       []DrivingPhase{PhaseOutLap},
-		MinLapDistancePct: MinQualyOutLapDistancePct,
-		DedupScope:        DedupScopeLap,
-	},
-	"qualy_time": {
-		ValidPhases: []DrivingPhase{PhaseInGarage, PhasePitLane, PhaseOutLap, PhaseFlyingLap, PhaseInLap},
-		DedupScope:  DedupScopePhase,
-	},
-	"qualy_elim": {
-		ValidPhases: []DrivingPhase{PhaseInGarage, PhasePitLane, PhaseOutLap, PhaseFlyingLap, PhaseInLap},
-		DedupScope:  DedupScopePhase,
-	},
-	"flags_sc": {
-		ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar, PhaseRedFlag},
-		DedupScope:  DedupScopePhase,
-	},
-	"flags_red": {
-		ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar, PhaseRedFlag},
-		DedupScope:  DedupScopePhase,
-	},
-	"flags_rain": {
-		ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
-		DedupScope:  DedupScopePhase,
-	},
-	"track_limits": {
-		ValidPhases: []DrivingPhase{PhaseFlyingLap, PhaseRacing},
-		DedupScope:  DedupScopeLap,
-	},
-	"penalties": {
-		ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
-		DedupScope:  DedupScopeNone,
-	},
-	"coaching_s1": {
-		ValidPhases: []DrivingPhase{PhaseFlyingLap, PhaseRacing},
-		DedupScope:  DedupScopeLap,
-	},
-	"coaching_s2": {
-		ValidPhases: []DrivingPhase{PhaseFlyingLap, PhaseRacing},
-		DedupScope:  DedupScopeLap,
-	},
-	"teammate_ahead": {
-		ValidPhases: []DrivingPhase{PhaseRacing, PhaseFlyingLap},
-		DedupScope:  DedupScopeNone,
-	},
-	"teammate_pitting": {
-		ValidPhases: []DrivingPhase{PhaseRacing, PhaseFlyingLap, PhaseOutLap, PhaseInLap, PhaseSafetyCar},
-		DedupScope:  DedupScopeNone,
-	},
-	"pit_clean_air": {
-		ValidPhases: []DrivingPhase{PhaseRacing},
-		DedupScope:  DedupScopeNone,
-	},
-}
+// AlertPhaseRule is an alias for AlertKeyConfig for backwards compatibility.
+type AlertPhaseRule = AlertKeyConfig
 
 // EngineerConfig holds user-configurable thresholds and subsystem toggles.
 type EngineerConfig struct {
@@ -461,6 +333,9 @@ type EngineerRule interface {
 
 	// DedupScope returns the default deduplication scope.
 	DedupScope() DedupScope
+
+	// AlertKeys returns configuration for all alert keys emitted by this rule.
+	AlertKeys() map[string]AlertKeyConfig
 
 	// Evaluate inspects the context snapshot and returns zero or more directives.
 	Evaluate(ctx *EvaluationContext) []Directive

@@ -41,6 +41,28 @@ func (r *QualifyingRule) DedupScope() DedupScope {
 	return DedupScopePhase
 }
 
+func (r *QualifyingRule) AlertKeys() map[string]AlertKeyConfig {
+	return map[string]AlertKeyConfig{
+		"qualy_invalid": {
+			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFlyingLap},
+			DedupScope:  DedupScopeLap,
+		},
+		"qualy_traffic": {
+			ValidPhases:       []DrivingPhase{PhaseOutLap},
+			MinLapDistancePct: MinQualyOutLapDistancePct,
+			DedupScope:        DedupScopeLap,
+		},
+		"qualy_time": {
+			ValidPhases: []DrivingPhase{PhaseInGarage, PhasePitLane, PhaseOutLap, PhaseFlyingLap, PhaseInLap},
+			DedupScope:  DedupScopePhase,
+		},
+		"qualy_elim": {
+			ValidPhases: []DrivingPhase{PhaseInGarage, PhasePitLane, PhaseOutLap, PhaseFlyingLap, PhaseInLap},
+			DedupScope:  DedupScopePhase,
+		},
+	}
+}
+
 func (r *QualifyingRule) Reset(scope DedupScope) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

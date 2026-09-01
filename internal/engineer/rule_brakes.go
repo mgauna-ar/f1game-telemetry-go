@@ -3,16 +3,13 @@ package engineer
 import (
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 )
 
 // BrakesRule manages brake disc fade overheating and cold brake drag alerts.
 type BrakesRule struct {
-	mu                     sync.Mutex
-	lastBrakeOverheatAlert int64
-	lastBrakeColdAlert     int64
+	mu sync.Mutex
 }
 
 // NewBrakesRule creates a new BrakesRule.
@@ -36,16 +33,21 @@ func (r *BrakesRule) DedupScope() DedupScope {
 	return DedupScopeStint
 }
 
-func (r *BrakesRule) Reset(scope DedupScope) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+func (r *BrakesRule) AlertKeys() map[string]AlertKeyConfig {
+	return map[string]AlertKeyConfig{
+		"brake_hot": {
+			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseRacing},
+			DedupScope:  DedupScopeStint,
+		},
+		"brake_cold": {
+			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseSafetyCar},
+			DedupScope:  DedupScopePhase,
+		},
+	}
+}
 
-	if scope == DedupScopePhase || scope == DedupScopeNone {
-		r.lastBrakeColdAlert = 0
-	}
-	if scope == DedupScopeStint || scope == DedupScopeNone {
-		r.lastBrakeOverheatAlert = 0
-	}
+func (r *BrakesRule) Reset(scope DedupScope) {
+	// State is managed by engine deduplication & cooldowns
 }
 
 func (r *BrakesRule) Evaluate(ctx *EvaluationContext) []Directive {
@@ -71,13 +73,7 @@ func (r *BrakesRule) Evaluate(ctx *EvaluationContext) []Directive {
 		}
 	}
 
-	now := ctx.Now
-	if now == 0 {
-		now = time.Now().UnixMilli()
-	}
-
-	if maxBrakeTemp >= ctx.Config.BrakeOverheatC && (now-r.lastBrakeOverheatAlert > BrakeOverheatCooldownMs) {
-		r.lastBrakeOverheatAlert = now
+	if maxBrakeTemp >= ctx.Config.BrakeOverheatC {
 		directives = append(directives, Directive{
 			ID:       "brake_hot",
 			Category: DirectiveCategoryBrakes,
@@ -86,18 +82,15 @@ func (r *BrakesRule) Evaluate(ctx *EvaluationContext) []Directive {
 			Message:  fmt.Sprintf("Brake disc temperatures are critically high at %d°C (fade threshold: %d°C)!", int(maxBrakeTemp), int(ctx.Config.BrakeOverheatC)),
 			Urgency:  UrgencyMedium,
 		})
-	} else if maxBrakeTemp > 0 && maxBrakeTemp <= ctx.Config.BrakeColdC && (now-r.lastBrakeColdAlert > BrakeColdCooldownMs) {
-		if ctx.Phase == PhaseFormationLap || ctx.Phase == PhaseSafetyCar || ctx.Phase == PhaseOutLap {
-			r.lastBrakeColdAlert = now
-			directives = append(directives, Directive{
-				ID:       "brake_cold",
-				Category: DirectiveCategoryBrakes,
-				SubAlert: "brake_cold",
-				Title:    "Cold Brakes",
-				Message:  fmt.Sprintf("Brake temperatures are cold (%d°C, optimal: >%d°C).", int(maxBrakeTemp), int(ctx.Config.BrakeColdC)),
-				Urgency:  UrgencyLow,
-			})
-		}
+	} else if maxBrakeTemp > 0 && maxBrakeTemp <= ctx.Config.BrakeColdC {
+		directives = append(directives, Directive{
+			ID:       "brake_cold",
+			Category: DirectiveCategoryBrakes,
+			SubAlert: "brake_cold",
+			Title:    "Cold Brakes",
+			Message:  fmt.Sprintf("Brake temperatures are cold (%d°C, optimal: >%d°C).", int(maxBrakeTemp), int(ctx.Config.BrakeColdC)),
+			Urgency:  UrgencyLow,
+		})
 	}
 
 	return directives

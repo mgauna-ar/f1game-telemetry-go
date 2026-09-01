@@ -295,3 +295,31 @@ func TestERSRuleAndBrakesRule_Unit(t *testing.T) {
 		t.Fatalf("expected brake_overheat directive, got %+v", dirsBrakes)
 	}
 }
+
+func TestEngineerRules_AlertKeys(t *testing.T) {
+	rules := []EngineerRule{
+		NewTyresRule(),
+		NewDamageRule(),
+		NewERSRule(),
+		NewBrakesRule(),
+		NewFuelRule(),
+		NewRivalsRule(),
+		NewCoachingRule(),
+		NewQualifyingRule(),
+		NewFlagsRule(),
+		NewTeammateRule(),
+		NewTrafficRule(),
+	}
+
+	for _, rule := range rules {
+		keys := rule.AlertKeys()
+		if len(keys) == 0 {
+			t.Errorf("rule %q defined 0 alert keys", rule.Name())
+		}
+		for k, cfg := range keys {
+			if len(cfg.ValidPhases) == 0 {
+				t.Errorf("rule %q key %q has no valid phases", rule.Name(), k)
+			}
+		}
+	}
+}

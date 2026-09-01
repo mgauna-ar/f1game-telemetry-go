@@ -43,6 +43,31 @@ func (r *FlagsRule) DedupScope() DedupScope {
 	return DedupScopePhase
 }
 
+func (r *FlagsRule) AlertKeys() map[string]AlertKeyConfig {
+	return map[string]AlertKeyConfig{
+		"flags_sc": {
+			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar, PhaseRedFlag},
+			DedupScope:  DedupScopePhase,
+		},
+		"flags_red": {
+			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar, PhaseRedFlag},
+			DedupScope:  DedupScopePhase,
+		},
+		"flags_rain": {
+			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			DedupScope:  DedupScopePhase,
+		},
+		"track_limits": {
+			ValidPhases: []DrivingPhase{PhaseFlyingLap, PhaseRacing},
+			DedupScope:  DedupScopeLap,
+		},
+		"penalties": {
+			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			DedupScope:  DedupScopeNone,
+		},
+	}
+}
+
 func (r *FlagsRule) Reset(scope DedupScope) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

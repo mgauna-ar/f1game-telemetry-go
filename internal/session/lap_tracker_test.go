@@ -111,8 +111,8 @@ func TestLapTracker_PitStopDetection(t *testing.T) {
 	p.LapData[0].NumPitStops = 0
 	lt.ProcessLapData(ctx, session, p)
 
-	if lt.currentStintNum != 1 {
-		t.Fatalf("expected initial stint 1, got %d", lt.currentStintNum)
+	if lt.stint.CurrentStintNum != 1 {
+		t.Fatalf("expected initial stint 1, got %d", lt.stint.CurrentStintNum)
 	}
 
 	// Pit stop occurs on Lap 2
@@ -120,8 +120,8 @@ func TestLapTracker_PitStopDetection(t *testing.T) {
 	p.LapData[0].NumPitStops = 1
 	lt.ProcessLapData(ctx, session, p)
 
-	if lt.currentStintNum != 2 {
-		t.Errorf("expected stint 2 after pit stop on lap 2, got %d", lt.currentStintNum)
+	if lt.stint.CurrentStintNum != 2 {
+		t.Errorf("expected stint 2 after pit stop on lap 2, got %d", lt.stint.CurrentStintNum)
 	}
 
 	// Second pit stop in Lap 3
@@ -129,8 +129,8 @@ func TestLapTracker_PitStopDetection(t *testing.T) {
 	p.LapData[0].NumPitStops = 2
 	lt.ProcessLapData(ctx, session, p)
 
-	if lt.currentStintNum != 3 {
-		t.Errorf("expected stint 3 after second pit stop on lap 3, got %d", lt.currentStintNum)
+	if lt.stint.CurrentStintNum != 3 {
+		t.Errorf("expected stint 3 after second pit stop on lap 3, got %d", lt.stint.CurrentStintNum)
 	}
 }
 
@@ -178,10 +178,10 @@ func TestLapTracker_StintBoundaries(t *testing.T) {
 		cs1.CarStatusData[0].TyresAgeLaps = 5
 		lt.ProcessCarStatus(cs1)
 
-		if lt.lastCompound != "SOFT" {
-			t.Fatalf("expected lastCompound SOFT, got %s", lt.lastCompound)
+		if lt.stint.LastCompound != "SOFT" {
+			t.Fatalf("expected lastCompound SOFT, got %s", lt.stint.LastCompound)
 		}
-		initialStint := lt.currentStintNum
+		initialStint := lt.stint.CurrentStintNum
 
 		// Next lap compound change to MEDIUM (visual 17)
 		pLap.LapData[0].CurrentLapNum = 2
@@ -192,11 +192,11 @@ func TestLapTracker_StintBoundaries(t *testing.T) {
 		cs2.CarStatusData[0].TyresAgeLaps = 0
 		lt.ProcessCarStatus(cs2)
 
-		if lt.currentStintNum != initialStint+1 {
-			t.Errorf("expected stint to increment to %d, got %d", initialStint+1, lt.currentStintNum)
+		if lt.stint.CurrentStintNum != initialStint+1 {
+			t.Errorf("expected stint to increment to %d, got %d", initialStint+1, lt.stint.CurrentStintNum)
 		}
-		if lt.lastCompound != "MEDIUM" {
-			t.Errorf("expected lastCompound MEDIUM, got %s", lt.lastCompound)
+		if lt.stint.LastCompound != "MEDIUM" {
+			t.Errorf("expected lastCompound MEDIUM, got %s", lt.stint.LastCompound)
 		}
 	})
 
@@ -212,7 +212,7 @@ func TestLapTracker_StintBoundaries(t *testing.T) {
 		ts1.TyreSetData[0].VisualTyreCompound = 16
 		lt.ProcessTyreSets(ts1)
 
-		initialStint := lt.currentStintNum
+		initialStint := lt.stint.CurrentStintNum
 
 		// Fitted set changed to set 1 in lap 2
 		pLap.LapData[0].CurrentLapNum = 2
@@ -222,8 +222,8 @@ func TestLapTracker_StintBoundaries(t *testing.T) {
 		ts2.TyreSetData[1].VisualTyreCompound = 18 // HARD
 		lt.ProcessTyreSets(ts2)
 
-		if lt.currentStintNum != initialStint+1 {
-			t.Errorf("expected stint to increment via tyre sets to %d, got %d", initialStint+1, lt.currentStintNum)
+		if lt.stint.CurrentStintNum != initialStint+1 {
+			t.Errorf("expected stint to increment via tyre sets to %d, got %d", initialStint+1, lt.stint.CurrentStintNum)
 		}
 	})
 }

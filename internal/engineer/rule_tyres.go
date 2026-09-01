@@ -38,6 +38,28 @@ func (r *TyresRule) DedupScope() DedupScope {
 	return DedupScopeStint
 }
 
+func (r *TyresRule) AlertKeys() map[string]AlertKeyConfig {
+	return map[string]AlertKeyConfig{
+		"tyre_wear": {
+			ValidPhases: []DrivingPhase{PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			DedupScope:  DedupScopeStint,
+		},
+		"tyre_puncture": {
+			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			DedupScope:  DedupScopeStint,
+		},
+		"tyre_overheat": {
+			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseRacing, PhaseInLap},
+			DedupScope:  DedupScopeStint,
+		},
+		"tyre_cold": {
+			ValidPhases:       []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseSafetyCar},
+			MinLapDistancePct: MinOutLapDistanceCompletionPct,
+			DedupScope:        DedupScopePhase,
+		},
+	}
+}
+
 func (r *TyresRule) Reset(scope DedupScope) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

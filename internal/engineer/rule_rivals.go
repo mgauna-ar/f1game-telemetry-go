@@ -38,6 +38,21 @@ func (r *RivalsRule) DedupScope() DedupScope {
 	return DedupScopeNone
 }
 
+func (r *RivalsRule) AlertKeys() map[string]AlertKeyConfig {
+	return map[string]AlertKeyConfig{
+		"rival_defend": {
+			ValidPhases:             []DrivingPhase{PhaseRacing},
+			SuppressAfterPitForLaps: PostPitSuppressionLaps,
+			DedupScope:              DedupScopeNone,
+		},
+		"rival_attack": {
+			ValidPhases:             []DrivingPhase{PhaseRacing},
+			SuppressAfterPitForLaps: PostPitSuppressionLaps,
+			DedupScope:              DedupScopeNone,
+		},
+	}
+}
+
 func (r *RivalsRule) Reset(scope DedupScope) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

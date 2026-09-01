@@ -40,6 +40,23 @@ func (r *FuelRule) DedupScope() DedupScope {
 	return DedupScopeLap
 }
 
+func (r *FuelRule) AlertKeys() map[string]AlertKeyConfig {
+	return map[string]AlertKeyConfig{
+		"fuel_delta": {
+			ValidPhases: []DrivingPhase{PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			DedupScope:  DedupScopeLap,
+		},
+		"undercut": {
+			ValidPhases: []DrivingPhase{PhaseRacing, PhaseInLap},
+			DedupScope:  DedupScopeStint,
+		},
+		"pit_window": {
+			ValidPhases: []DrivingPhase{PhaseRacing, PhaseInLap},
+			DedupScope:  DedupScopeLap,
+		},
+	}
+}
+
 func (r *FuelRule) Reset(scope DedupScope) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

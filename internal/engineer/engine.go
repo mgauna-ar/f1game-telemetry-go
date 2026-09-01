@@ -20,6 +20,7 @@ type EngineerEngine struct {
 	repo           storage.Repository
 	config         EngineerConfig
 	rules          []EngineerRule
+	alertRules     map[string]AlertKeyConfig
 	lastDirectives map[string]int64 // alertKey/category -> timestamp ms
 
 	// Deduplication states
@@ -78,6 +79,13 @@ func NewEngineerEngine(broadcaster DirectiveBroadcaster, repo storage.Repository
 		NewFlagsRule(),
 		NewTeammateRule(),
 		NewTrafficRule(),
+	}
+
+	e.alertRules = make(map[string]AlertKeyConfig)
+	for _, rule := range e.rules {
+		for k, cfg := range rule.AlertKeys() {
+			e.alertRules[k] = cfg
+		}
 	}
 
 	return e
@@ -431,7 +439,7 @@ func (e *EngineerEngine) canEmitDirectiveLocked(alertKey, category, urgency stri
 	}
 
 	// 2. Driving phase rule validation
-	rule, hasRule := alertPhaseRules[alertKey]
+	rule, hasRule := e.alertRules[alertKey]
 	if hasRule {
 		phaseAllowed := false
 		for _, vp := range rule.ValidPhases {
@@ -517,7 +525,7 @@ func (e *EngineerEngine) emitDirectiveLocked(header packets.PacketHeader, direct
 	e.lastDirectives[category] = now
 	e.lastDirectives[alertKey] = now
 
-	if rule, hasRule := alertPhaseRules[alertKey]; hasRule {
+	if rule, hasRule := e.alertRules[alertKey]; hasRule {
 		currentLapNum := 1
 		if pLap := e.getPlayerLapDataLocked(); pLap != nil && pLap.CurrentLapNum > 0 {
 			currentLapNum = int(pLap.CurrentLapNum)

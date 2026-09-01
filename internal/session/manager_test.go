@@ -364,11 +364,11 @@ func TestStintProgressionAndCompoundMapping(t *testing.T) {
 	statusPacket.CarStatusData[0].TyresAgeLaps = 5
 	manager.ProcessPacket(ctx, statusPacket)
 
-	if manager.lapTrackers[0].currentStintNum != 1 {
-		t.Errorf("expected stint 1 at start, got %d", manager.lapTrackers[0].currentStintNum)
+	if manager.lapTrackers[0].stint.CurrentStintNum != 1 {
+		t.Errorf("expected stint 1 at start, got %d", manager.lapTrackers[0].stint.CurrentStintNum)
 	}
-	if manager.lapTrackers[0].lastCompound != "SOFT" {
-		t.Errorf("expected compound SOFT, got %s", manager.lapTrackers[0].lastCompound)
+	if manager.lapTrackers[0].stint.LastCompound != "SOFT" {
+		t.Errorf("expected compound SOFT, got %s", manager.lapTrackers[0].stint.LastCompound)
 	}
 
 	// Pit stop at Lap 10: switch to MEDIUM (compound 17) and NumPitStops = 1
@@ -381,11 +381,11 @@ func TestStintProgressionAndCompoundMapping(t *testing.T) {
 	manager.ProcessPacket(ctx, statusPacket)
 
 	// Stint should be exactly 2 (not 3 despite both pit stop increment and compound change)
-	if manager.lapTrackers[0].currentStintNum != 2 {
-		t.Errorf("expected stint 2 after single pit stop, got %d", manager.lapTrackers[0].currentStintNum)
+	if manager.lapTrackers[0].stint.CurrentStintNum != 2 {
+		t.Errorf("expected stint 2 after single pit stop, got %d", manager.lapTrackers[0].stint.CurrentStintNum)
 	}
-	if manager.lapTrackers[0].lastCompound != "MEDIUM" {
-		t.Errorf("expected compound MEDIUM, got %s", manager.lapTrackers[0].lastCompound)
+	if manager.lapTrackers[0].stint.LastCompound != "MEDIUM" {
+		t.Errorf("expected compound MEDIUM, got %s", manager.lapTrackers[0].stint.LastCompound)
 	}
 }
 
@@ -545,8 +545,8 @@ func TestQualyMultiStintSameCompoundDetection(t *testing.T) {
 	statusPkt.CarStatusData[0].TyresAgeLaps = 0 // New softs
 	manager.ProcessPacket(ctx, statusPkt)
 
-	if manager.lapTrackers[0].currentStintNum != 1 {
-		t.Fatalf("expected stint 1 for lap 1, got %d", manager.lapTrackers[0].currentStintNum)
+	if manager.lapTrackers[0].stint.CurrentStintNum != 1 {
+		t.Fatalf("expected stint 1 for lap 1, got %d", manager.lapTrackers[0].stint.CurrentStintNum)
 	}
 
 	// Flying lap (Lap 2) with tyre age 1
@@ -557,8 +557,8 @@ func TestQualyMultiStintSameCompoundDetection(t *testing.T) {
 	statusPkt.CarStatusData[0].TyresAgeLaps = 1
 	manager.ProcessPacket(ctx, statusPkt)
 
-	if manager.lapTrackers[0].currentStintNum != 1 {
-		t.Fatalf("expected stint 1 for lap 2, got %d", manager.lapTrackers[0].currentStintNum)
+	if manager.lapTrackers[0].stint.CurrentStintNum != 1 {
+		t.Fatalf("expected stint 1 for lap 2, got %d", manager.lapTrackers[0].stint.CurrentStintNum)
 	}
 
 	// --- Stint 2 (Softs): Return to garage, new Soft tyre set (tyreAge drops from 1 to 0) ---
@@ -569,8 +569,8 @@ func TestQualyMultiStintSameCompoundDetection(t *testing.T) {
 	statusPkt.CarStatusData[0].TyresAgeLaps = 0 // Fresh soft tyre set fitted
 	manager.ProcessPacket(ctx, statusPkt)
 
-	if manager.lapTrackers[0].currentStintNum != 2 {
-		t.Fatalf("expected stint 2 after new soft set in garage, got %d", manager.lapTrackers[0].currentStintNum)
+	if manager.lapTrackers[0].stint.CurrentStintNum != 2 {
+		t.Fatalf("expected stint 2 after new soft set in garage, got %d", manager.lapTrackers[0].stint.CurrentStintNum)
 	}
 
 	// --- Stint 3 (Softs): Another run on new Soft tyre set ---
@@ -584,8 +584,8 @@ func TestQualyMultiStintSameCompoundDetection(t *testing.T) {
 	statusPkt.CarStatusData[0].TyresAgeLaps = 0 // 3rd fresh soft tyre set fitted
 	manager.ProcessPacket(ctx, statusPkt)
 
-	if manager.lapTrackers[0].currentStintNum != 3 {
-		t.Fatalf("expected stint 3 after 3rd soft set in garage, got %d", manager.lapTrackers[0].currentStintNum)
+	if manager.lapTrackers[0].stint.CurrentStintNum != 3 {
+		t.Fatalf("expected stint 3 after 3rd soft set in garage, got %d", manager.lapTrackers[0].stint.CurrentStintNum)
 	}
 }
 
@@ -884,8 +884,8 @@ func TestQualyTyreSetsFittedIndexStintDetection(t *testing.T) {
 	}
 	manager.ProcessPacket(ctx, tyreSetsPkt)
 
-	if manager.lapTrackers[0].currentStintNum != 1 {
-		t.Fatalf("expected Stint 1 initially, got %d", manager.lapTrackers[0].currentStintNum)
+	if manager.lapTrackers[0].stint.CurrentStintNum != 1 {
+		t.Fatalf("expected Stint 1 initially, got %d", manager.lapTrackers[0].stint.CurrentStintNum)
 	}
 
 	// Complete Lap 1 (78000ms), start Lap 2
@@ -897,8 +897,8 @@ func TestQualyTyreSetsFittedIndexStintDetection(t *testing.T) {
 	tyreSetsPkt.FittedIdx = 1
 	manager.ProcessPacket(ctx, tyreSetsPkt)
 
-	if manager.lapTrackers[0].currentStintNum != 2 {
-		t.Fatalf("expected Stint 2 after fitted set changed to index 1 in garage, got %d", manager.lapTrackers[0].currentStintNum)
+	if manager.lapTrackers[0].stint.CurrentStintNum != 2 {
+		t.Fatalf("expected Stint 2 after fitted set changed to index 1 in garage, got %d", manager.lapTrackers[0].stint.CurrentStintNum)
 	}
 
 	// Complete Lap 2 (77500ms), start Lap 3
@@ -910,8 +910,8 @@ func TestQualyTyreSetsFittedIndexStintDetection(t *testing.T) {
 	tyreSetsPkt.FittedIdx = 2
 	manager.ProcessPacket(ctx, tyreSetsPkt)
 
-	if manager.lapTrackers[0].currentStintNum != 3 {
-		t.Fatalf("expected Stint 3 after fitted set changed to index 2 in garage, got %d", manager.lapTrackers[0].currentStintNum)
+	if manager.lapTrackers[0].stint.CurrentStintNum != 3 {
+		t.Fatalf("expected Stint 3 after fitted set changed to index 2 in garage, got %d", manager.lapTrackers[0].stint.CurrentStintNum)
 	}
 
 	// Complete Lap 3 (77200ms), start Lap 4 on same set (Stint remains 3)
@@ -919,7 +919,7 @@ func TestQualyTyreSetsFittedIndexStintDetection(t *testing.T) {
 	lapPkt.LapData[0].LastLapTimeInMS = 77200
 	manager.ProcessPacket(ctx, lapPkt)
 
-	if manager.lapTrackers[0].currentStintNum != 3 {
-		t.Fatalf("expected Stint 3 to persist on lap 4, got %d", manager.lapTrackers[0].currentStintNum)
+	if manager.lapTrackers[0].stint.CurrentStintNum != 3 {
+		t.Fatalf("expected Stint 3 to persist on lap 4, got %d", manager.lapTrackers[0].stint.CurrentStintNum)
 	}
 }

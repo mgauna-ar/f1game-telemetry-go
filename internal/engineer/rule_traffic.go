@@ -33,6 +33,15 @@ func (r *TrafficRule) DedupScope() DedupScope {
 	return DedupScopeNone
 }
 
+func (r *TrafficRule) AlertKeys() map[string]AlertKeyConfig {
+	return map[string]AlertKeyConfig{
+		"pit_clean_air": {
+			ValidPhases: []DrivingPhase{PhaseRacing},
+			DedupScope:  DedupScopeNone,
+		},
+	}
+}
+
 func (r *TrafficRule) Reset(scope DedupScope) {
 	// TrafficRule has no persistent dedup state beyond phase/lap
 }
