@@ -57,6 +57,25 @@ func decompressJSON[T any](compressed []byte, out *T) error {
 	return nil
 }
 
+const (
+	// defaultSessionDurationPlaceholder is the placeholder 2-hour session duration (7200s) emitted by F1 game.
+	defaultSessionDurationPlaceholder = 7200
+
+	// Lap query building blocks
+	lapSelectColumns = `laps.*, 
+		COALESCE(lt.sample_count, 0) AS sample_count,
+		CASE WHEN lt.lap_id IS NOT NULL AND lt.sample_count > 0 THEN 1 ELSE 0 END AS has_telemetry`
+
+	lapFromJoin = `FROM laps LEFT JOIN lap_telemetry lt ON lt.lap_id = laps.id`
+
+	lapValidFilter = `(laps.lap_time_ms > 0 OR laps.result_status >= 3 OR (lt.lap_id IS NOT NULL AND lt.sample_count > 10))`
+
+	// Session query building blocks
+	sessionValidFilter = `s.session_uid != '' AND s.session_uid != '0' AND s.session_uid != '0x0000000000000000'`
+
+	totalLapsFallback = `COALESCE(NULLIF(s.total_laps, 0), (SELECT MAX(l.lap_number) FROM laps l WHERE l.session_id = s.id), 0) AS total_laps`
+)
+
 // Compile-time check that SQLiteRepository implements Repository.
 var _ Repository = (*SQLiteRepository)(nil)
 
@@ -143,31 +162,32 @@ func saveSession(ctx context.Context, db sqlx.ExtContext, s *Session) error {
 
 // UpdateSessionMetadata updates the track name, session type, initial weather, weather forecast, total laps, ai difficulty, and session duration for a given session_uid.
 func (r *SQLiteRepository) UpdateSessionMetadata(ctx context.Context, sessionUID string, trackID int, trackName, sessionType, weather, weatherForecast string, totalLaps, aiDifficulty, sessionDuration int) error {
+	params := map[string]any{
+		"session_uid":      sessionUID,
+		"track_id":         trackID,
+		"track_name":       trackName,
+		"session_type":     sessionType,
+		"weather":          weather,
+		"weather_forecast": weatherForecast,
+		"total_laps":       totalLaps,
+		"ai_difficulty":    aiDifficulty,
+		"session_duration": sessionDuration,
+	}
+
 	query := `
 		UPDATE sessions 
 		SET 
-			track_id = CASE WHEN ? != -1 THEN ? ELSE track_id END,
-			track_name = CASE WHEN ? != '' AND ? != 'Unknown' THEN ? ELSE track_name END,
-			session_type = CASE WHEN ? != '' AND ? != 'Unknown' THEN ? ELSE session_type END,
-			weather = CASE WHEN (weather IS NULL OR weather = '' OR weather = 'Unknown') AND ? != '' AND ? != 'Unknown' THEN ? ELSE weather END,
-			weather_forecast = CASE WHEN ? != '' THEN ? ELSE weather_forecast END,
-			total_laps = CASE WHEN ? > 0 THEN ? ELSE total_laps END,
-			ai_difficulty = CASE WHEN ? > 0 THEN ? ELSE ai_difficulty END,
-			session_duration = CASE WHEN ? > 0 THEN ? ELSE session_duration END
-		WHERE session_uid = ?
+			track_id = CASE WHEN :track_id != -1 THEN :track_id ELSE track_id END,
+			track_name = CASE WHEN :track_name != '' AND :track_name != 'Unknown' THEN :track_name ELSE track_name END,
+			session_type = CASE WHEN :session_type != '' AND :session_type != 'Unknown' THEN :session_type ELSE session_type END,
+			weather = CASE WHEN (weather IS NULL OR weather = '' OR weather = 'Unknown') AND :weather != '' AND :weather != 'Unknown' THEN :weather ELSE weather END,
+			weather_forecast = CASE WHEN :weather_forecast != '' THEN :weather_forecast ELSE weather_forecast END,
+			total_laps = CASE WHEN :total_laps > 0 THEN :total_laps ELSE total_laps END,
+			ai_difficulty = CASE WHEN :ai_difficulty > 0 THEN :ai_difficulty ELSE ai_difficulty END,
+			session_duration = CASE WHEN :session_duration > 0 THEN :session_duration ELSE session_duration END
+		WHERE session_uid = :session_uid
 	`
-	_, err := r.db.ExecContext(ctx, query,
-		trackID, trackID,
-		trackName, trackName, trackName,
-		sessionType, sessionType, sessionType,
-		weather, weather, weather,
-		weatherForecast, weatherForecast,
-		totalLaps, totalLaps,
-		aiDifficulty, aiDifficulty,
-		sessionDuration, sessionDuration,
-		sessionUID,
-	)
-	if err != nil {
+	if _, err := r.db.NamedExecContext(ctx, query, params); err != nil {
 		return fmt.Errorf("failed to update session metadata: %w", err)
 	}
 	return nil
@@ -186,70 +206,71 @@ func saveLap(ctx context.Context, db sqlx.ExtContext, l *Lap, mergeMode bool) er
 
 	DeriveSector3(l)
 
-	var query string
+	mergeFlag := 0
 	if mergeMode {
-		query = `
-			INSERT INTO laps (session_id, car_index, lap_number, lap_time_ms, sector1_ms, sector2_ms, sector3_ms, is_valid, tyre_compound, fuel_load, max_speed_kmh, penalties_seconds, car_position, result_status, stint, actual_compound, sector1_valid, sector2_valid, sector3_valid)
-			VALUES (:session_id, :car_index, :lap_number, :lap_time_ms, :sector1_ms, :sector2_ms, :sector3_ms, :is_valid, :tyre_compound, :fuel_load, :max_speed_kmh, :penalties_seconds, :car_position, :result_status, :stint, :actual_compound, :sector1_valid, :sector2_valid, :sector3_valid)
-			ON CONFLICT(session_id, car_index, lap_number) DO UPDATE SET
-				lap_time_ms = CASE WHEN excluded.lap_time_ms > 0 THEN excluded.lap_time_ms ELSE laps.lap_time_ms END,
-				sector1_ms = CASE WHEN excluded.sector1_ms > 0 THEN excluded.sector1_ms ELSE laps.sector1_ms END,
-				sector2_ms = CASE WHEN excluded.sector2_ms > 0 THEN excluded.sector2_ms ELSE laps.sector2_ms END,
-				sector3_ms = CASE WHEN excluded.sector3_ms > 0 THEN excluded.sector3_ms ELSE laps.sector3_ms END,
-				is_valid = CASE 
-					WHEN excluded.is_valid = 1 THEN 1 
-					WHEN laps.is_valid = 1 AND laps.lap_time_ms > 0 THEN 1 
-					ELSE excluded.is_valid 
-				END,
-				tyre_compound = CASE WHEN excluded.tyre_compound != '' THEN excluded.tyre_compound ELSE laps.tyre_compound END,
-				stint = CASE WHEN excluded.stint > 0 THEN excluded.stint ELSE laps.stint END,
-				car_position = CASE WHEN excluded.car_position > 0 THEN excluded.car_position ELSE laps.car_position END,
-				result_status = CASE WHEN excluded.result_status > 0 THEN excluded.result_status ELSE laps.result_status END,
-				penalties_seconds = CASE WHEN excluded.penalties_seconds > 0 THEN excluded.penalties_seconds ELSE laps.penalties_seconds END,
-				actual_compound = CASE WHEN excluded.actual_compound != '' THEN excluded.actual_compound ELSE laps.actual_compound END,
-				sector1_valid = CASE 
-					WHEN excluded.sector1_valid = 1 THEN 1 
-					WHEN laps.sector1_valid = 1 AND laps.sector1_ms > 0 THEN 1 
-					ELSE excluded.sector1_valid 
-				END,
-				sector2_valid = CASE 
-					WHEN excluded.sector2_valid = 1 THEN 1 
-					WHEN laps.sector2_valid = 1 AND laps.sector2_ms > 0 THEN 1 
-					ELSE excluded.sector2_valid 
-				END,
-				sector3_valid = CASE 
-					WHEN excluded.sector3_valid = 1 THEN 1 
-					WHEN laps.sector3_valid = 1 AND laps.sector3_ms > 0 THEN 1 
-					ELSE excluded.sector3_valid 
-				END
-			RETURNING id
-		`
-	} else {
-		query = `
-			INSERT INTO laps (session_id, car_index, lap_number, lap_time_ms, sector1_ms, sector2_ms, sector3_ms, is_valid, tyre_compound, fuel_load, max_speed_kmh, penalties_seconds, car_position, result_status, stint, actual_compound, sector1_valid, sector2_valid, sector3_valid)
-			VALUES (:session_id, :car_index, :lap_number, :lap_time_ms, :sector1_ms, :sector2_ms, :sector3_ms, :is_valid, :tyre_compound, :fuel_load, :max_speed_kmh, :penalties_seconds, :car_position, :result_status, :stint, :actual_compound, :sector1_valid, :sector2_valid, :sector3_valid)
-			ON CONFLICT(session_id, car_index, lap_number) DO UPDATE SET
-				lap_time_ms = CASE WHEN excluded.lap_time_ms > 0 THEN excluded.lap_time_ms ELSE laps.lap_time_ms END,
-				sector1_ms = CASE WHEN excluded.sector1_ms > 0 THEN excluded.sector1_ms ELSE laps.sector1_ms END,
-				sector2_ms = CASE WHEN excluded.sector2_ms > 0 THEN excluded.sector2_ms ELSE laps.sector2_ms END,
-				sector3_ms = CASE WHEN excluded.sector3_ms > 0 THEN excluded.sector3_ms ELSE laps.sector3_ms END,
-				is_valid = excluded.is_valid,
-				tyre_compound = CASE WHEN excluded.tyre_compound != '' THEN excluded.tyre_compound ELSE laps.tyre_compound END,
-				fuel_load = CASE WHEN excluded.fuel_load > 0 THEN excluded.fuel_load ELSE laps.fuel_load END,
-				max_speed_kmh = CASE WHEN excluded.max_speed_kmh > laps.max_speed_kmh THEN excluded.max_speed_kmh ELSE laps.max_speed_kmh END,
-				penalties_seconds = CASE WHEN excluded.penalties_seconds > 0 THEN excluded.penalties_seconds ELSE laps.penalties_seconds END,
-				car_position = CASE WHEN excluded.car_position > 0 THEN excluded.car_position ELSE laps.car_position END,
-				result_status = CASE WHEN excluded.result_status > 0 THEN excluded.result_status ELSE laps.result_status END,
-				stint = CASE WHEN excluded.stint > 0 THEN excluded.stint ELSE laps.stint END,
-				actual_compound = CASE WHEN excluded.actual_compound != '' THEN excluded.actual_compound ELSE laps.actual_compound END,
-				sector1_valid = excluded.sector1_valid,
-				sector2_valid = excluded.sector2_valid,
-				sector3_valid = excluded.sector3_valid
-			RETURNING id
-		`
+		mergeFlag = 1
 	}
 
-	rows, err := sqlx.NamedQueryContext(ctx, db, query, l)
+	params := struct {
+		Lap
+		MergeMode int `db:"merge_mode"`
+	}{
+		Lap:       *l,
+		MergeMode: mergeFlag,
+	}
+
+	query := `
+		INSERT INTO laps (session_id, car_index, lap_number, lap_time_ms, sector1_ms, sector2_ms, sector3_ms, is_valid, tyre_compound, fuel_load, max_speed_kmh, penalties_seconds, car_position, result_status, stint, actual_compound, sector1_valid, sector2_valid, sector3_valid)
+		VALUES (:session_id, :car_index, :lap_number, :lap_time_ms, :sector1_ms, :sector2_ms, :sector3_ms, :is_valid, :tyre_compound, :fuel_load, :max_speed_kmh, :penalties_seconds, :car_position, :result_status, :stint, :actual_compound, :sector1_valid, :sector2_valid, :sector3_valid)
+		ON CONFLICT(session_id, car_index, lap_number) DO UPDATE SET
+			lap_time_ms = CASE WHEN excluded.lap_time_ms > 0 THEN excluded.lap_time_ms ELSE laps.lap_time_ms END,
+			sector1_ms = CASE WHEN excluded.sector1_ms > 0 THEN excluded.sector1_ms ELSE laps.sector1_ms END,
+			sector2_ms = CASE WHEN excluded.sector2_ms > 0 THEN excluded.sector2_ms ELSE laps.sector2_ms END,
+			sector3_ms = CASE WHEN excluded.sector3_ms > 0 THEN excluded.sector3_ms ELSE laps.sector3_ms END,
+			is_valid = CASE 
+				WHEN :merge_mode = 0 THEN excluded.is_valid
+				WHEN excluded.is_valid = 1 THEN 1 
+				WHEN laps.is_valid = 1 AND laps.lap_time_ms > 0 THEN 1 
+				ELSE excluded.is_valid 
+			END,
+			tyre_compound = CASE WHEN excluded.tyre_compound != '' THEN excluded.tyre_compound ELSE laps.tyre_compound END,
+			fuel_load = CASE 
+				WHEN :merge_mode = 1 THEN laps.fuel_load 
+				WHEN excluded.fuel_load > 0 THEN excluded.fuel_load 
+				ELSE laps.fuel_load 
+			END,
+			max_speed_kmh = CASE 
+				WHEN :merge_mode = 1 THEN laps.max_speed_kmh 
+				WHEN excluded.max_speed_kmh > laps.max_speed_kmh THEN excluded.max_speed_kmh 
+				ELSE laps.max_speed_kmh 
+			END,
+			penalties_seconds = CASE WHEN excluded.penalties_seconds > 0 THEN excluded.penalties_seconds ELSE laps.penalties_seconds END,
+			car_position = CASE WHEN excluded.car_position > 0 THEN excluded.car_position ELSE laps.car_position END,
+			result_status = CASE WHEN excluded.result_status > 0 THEN excluded.result_status ELSE laps.result_status END,
+			stint = CASE WHEN excluded.stint > 0 THEN excluded.stint ELSE laps.stint END,
+			actual_compound = CASE WHEN excluded.actual_compound != '' THEN excluded.actual_compound ELSE laps.actual_compound END,
+			sector1_valid = CASE 
+				WHEN :merge_mode = 0 THEN excluded.sector1_valid
+				WHEN excluded.sector1_valid = 1 THEN 1 
+				WHEN laps.sector1_valid = 1 AND laps.sector1_ms > 0 THEN 1 
+				ELSE excluded.sector1_valid 
+			END,
+			sector2_valid = CASE 
+				WHEN :merge_mode = 0 THEN excluded.sector2_valid
+				WHEN excluded.sector2_valid = 1 THEN 1 
+				WHEN laps.sector2_valid = 1 AND laps.sector2_ms > 0 THEN 1 
+				ELSE excluded.sector2_valid 
+			END,
+			sector3_valid = CASE 
+				WHEN :merge_mode = 0 THEN excluded.sector3_valid
+				WHEN excluded.sector3_valid = 1 THEN 1 
+				WHEN laps.sector3_valid = 1 AND laps.sector3_ms > 0 THEN 1 
+				ELSE excluded.sector3_valid 
+			END
+		RETURNING id
+	`
+
+	rows, err := sqlx.NamedQueryContext(ctx, db, query, params)
 	if err != nil {
 		return fmt.Errorf("failed to save lap: %w", err)
 	}
@@ -322,6 +343,106 @@ type sessionTagJoinRow struct {
 	Color     string `db:"color"`
 }
 
+// resolveSessionsDurationBatch computes effective session durations in Go.
+// For race sessions: participants.total_race_time -> leader laps sum -> session_duration -> 0.
+// For non-race sessions (Qualifying, Practice, Shootouts): scheduled session_duration -> leader laps sum -> 0.
+func (r *SQLiteRepository) resolveSessionsDurationBatch(ctx context.Context, sessions []Session) {
+	if len(sessions) == 0 {
+		return
+	}
+
+	var needRaceTimeIDs []int64
+	var needLapSumIDs []int64
+
+	for i := range sessions {
+		s := &sessions[i]
+		isRace := strings.Contains(s.SessionType, "Race")
+		hasValidDuration := s.SessionDuration > 0 && s.SessionDuration != defaultSessionDurationPlaceholder
+
+		if isRace {
+			needRaceTimeIDs = append(needRaceTimeIDs, s.ID)
+		} else if !hasValidDuration {
+			needLapSumIDs = append(needLapSumIDs, s.ID)
+		}
+	}
+
+	raceTimes := make(map[int64]int)
+	if len(needRaceTimeIDs) > 0 {
+		type raceTimeRow struct {
+			SessionID int64   `db:"session_id"`
+			MaxTime   float64 `db:"max_time"`
+		}
+		q, args, err := sqlx.In(`SELECT session_id, MAX(total_race_time) AS max_time FROM participants WHERE session_id IN (?) AND total_race_time > 0 GROUP BY session_id`, needRaceTimeIDs)
+		if err == nil {
+			var rows []raceTimeRow
+			if err := r.db.SelectContext(ctx, &rows, r.db.Rebind(q), args...); err == nil {
+				for _, row := range rows {
+					if row.MaxTime > 0 {
+						raceTimes[row.SessionID] = int(row.MaxTime)
+					}
+				}
+			}
+		}
+	}
+
+	for _, id := range needRaceTimeIDs {
+		if _, ok := raceTimes[id]; !ok {
+			needLapSumIDs = append(needLapSumIDs, id)
+		}
+	}
+
+	lapSums := make(map[int64]int)
+	if len(needLapSumIDs) > 0 {
+		type lapSumRow struct {
+			SessionID int64 `db:"session_id"`
+			LapSum    int   `db:"lap_sum"`
+		}
+		q, args, err := sqlx.In(`
+			SELECT session_id, MAX(car_sum) AS lap_sum FROM (
+				SELECT session_id, car_index, CAST(SUM(lap_time_ms) / 1000 AS INTEGER) AS car_sum
+				FROM laps
+				WHERE session_id IN (?) AND lap_time_ms > 0
+				GROUP BY session_id, car_index
+			)
+			GROUP BY session_id
+		`, needLapSumIDs)
+		if err == nil {
+			var rows []lapSumRow
+			if err := r.db.SelectContext(ctx, &rows, r.db.Rebind(q), args...); err == nil {
+				for _, row := range rows {
+					lapSums[row.SessionID] = row.LapSum
+				}
+			}
+		}
+	}
+
+	for i := range sessions {
+		s := &sessions[i]
+		isRace := strings.Contains(s.SessionType, "Race")
+		hasValidDuration := s.SessionDuration > 0 && s.SessionDuration != defaultSessionDurationPlaceholder
+
+		if isRace {
+			if rt, ok := raceTimes[s.ID]; ok && rt > 0 {
+				s.SessionDuration = rt
+			} else if ls, ok := lapSums[s.ID]; ok && ls > 0 {
+				s.SessionDuration = ls
+			} else if hasValidDuration {
+				// Keep s.SessionDuration
+			} else {
+				s.SessionDuration = 0
+			}
+		} else {
+			if hasValidDuration {
+				// Keep s.SessionDuration
+			} else if ls, ok := lapSums[s.ID]; ok && ls > 0 {
+				s.SessionDuration = ls
+			} else {
+				s.SessionDuration = 0
+			}
+		}
+	}
+}
+
 // GetSessions retrieves all valid recorded sessions with their tags, ordered by most recent first.
 func (r *SQLiteRepository) GetSessions(ctx context.Context) ([]Session, error) {
 	var sessions []Session
@@ -334,34 +455,13 @@ func (r *SQLiteRepository) GetSessions(ctx context.Context) ([]Session, error) {
 			s.session_type,
 			s.weather,
 			s.weather_forecast,
-			COALESCE(NULLIF(s.total_laps, 0), (SELECT MAX(l.lap_number) FROM laps l WHERE l.session_id = s.id), 0) AS total_laps,
+			` + totalLapsFallback + `,
 			s.ai_difficulty,
-			CASE 
-				-- For race sessions: use winner's total race time or sum of leader's completed laps
-				WHEN s.session_type LIKE '%Race%' THEN
-					CASE
-						WHEN EXISTS (SELECT 1 FROM participants p WHERE p.session_id = s.id AND p.total_race_time > 0)
-							THEN (SELECT CAST(MAX(p.total_race_time) AS INTEGER) FROM participants p WHERE p.session_id = s.id)
-						WHEN EXISTS (SELECT 1 FROM laps l WHERE l.session_id = s.id AND l.lap_time_ms > 0)
-							THEN (SELECT CAST(SUM(l.lap_time_ms) / 1000 AS INTEGER) FROM laps l WHERE l.session_id = s.id AND l.lap_time_ms > 0 GROUP BY l.car_index ORDER BY SUM(l.lap_time_ms) DESC LIMIT 1)
-						WHEN s.session_duration > 0 AND s.session_duration != 7200
-							THEN s.session_duration
-						ELSE 0
-					END
-				-- For non-race sessions (Qualifying, Practice, Shootouts): use scheduled session duration from packet (e.g. 18m, 12m, 60m)
-				ELSE
-					CASE
-						WHEN s.session_duration > 0 AND s.session_duration != 7200
-							THEN s.session_duration
-						WHEN EXISTS (SELECT 1 FROM laps l WHERE l.session_id = s.id AND l.lap_time_ms > 0)
-							THEN (SELECT CAST(SUM(l.lap_time_ms) / 1000 AS INTEGER) FROM laps l WHERE l.session_id = s.id AND l.lap_time_ms > 0 GROUP BY l.car_index ORDER BY SUM(l.lap_time_ms) DESC LIMIT 1)
-						ELSE 0
-					END
-			END AS session_duration,
+			s.session_duration,
 			s.packet_format,
 			s.created_at
 		FROM sessions s
-		WHERE s.session_uid != '' AND s.session_uid != '0' AND s.session_uid != '0x0000000000000000'
+		WHERE ` + sessionValidFilter + `
 		  AND (s.track_name != 'Unknown' OR EXISTS (SELECT 1 FROM laps l WHERE l.session_id = s.id))
 		ORDER BY s.created_at DESC
 	`
@@ -376,6 +476,8 @@ func (r *SQLiteRepository) GetSessions(ctx context.Context) ([]Session, error) {
 	if len(sessions) == 0 {
 		return sessions, nil
 	}
+
+	r.resolveSessionsDurationBatch(ctx, sessions)
 
 	// Fetch all tags for sessions
 	tagJoinQuery := `
@@ -546,33 +648,15 @@ func (r *SQLiteRepository) SetSessionTags(ctx context.Context, sessionID int64, 
 // GetLapsBySession retrieves laps for a given session, optionally filtered by carIndex.
 func (r *SQLiteRepository) GetLapsBySession(ctx context.Context, sessionID int64, carIndex *int) ([]Lap, error) {
 	var laps []Lap
-	var query string
-	var args []any
+	args := []any{sessionID}
+
+	query := `SELECT ` + lapSelectColumns + ` ` + lapFromJoin + ` WHERE laps.session_id = ? AND ` + lapValidFilter
 
 	if carIndex != nil {
-		query = `
-			SELECT laps.*, 
-			       COALESCE(lt.sample_count, 0) AS sample_count,
-			       CASE WHEN lt.lap_id IS NOT NULL AND lt.sample_count > 0 THEN 1 ELSE 0 END AS has_telemetry
-			FROM laps 
-			LEFT JOIN lap_telemetry lt ON lt.lap_id = laps.id
-			WHERE laps.session_id = ? AND laps.car_index = ?
-			  AND (laps.lap_time_ms > 0 OR laps.result_status >= 3 OR (lt.lap_id IS NOT NULL AND lt.sample_count > 10))
-			ORDER BY laps.lap_number ASC
-		`
-		args = []any{sessionID, *carIndex}
+		query += ` AND laps.car_index = ? ORDER BY laps.lap_number ASC`
+		args = append(args, *carIndex)
 	} else {
-		query = `
-			SELECT laps.*, 
-			       COALESCE(lt.sample_count, 0) AS sample_count,
-			       CASE WHEN lt.lap_id IS NOT NULL AND lt.sample_count > 0 THEN 1 ELSE 0 END AS has_telemetry
-			FROM laps 
-			LEFT JOIN lap_telemetry lt ON lt.lap_id = laps.id
-			WHERE laps.session_id = ? 
-			  AND (laps.lap_time_ms > 0 OR laps.result_status >= 3 OR (lt.lap_id IS NOT NULL AND lt.sample_count > 10))
-			ORDER BY laps.car_index ASC, laps.lap_number ASC
-		`
-		args = []any{sessionID}
+		query += ` ORDER BY laps.car_index ASC, laps.lap_number ASC`
 	}
 
 	if err := r.db.SelectContext(ctx, &laps, query, args...); err != nil {
@@ -620,14 +704,7 @@ func (r *SQLiteRepository) DeleteTelemetryByLap(ctx context.Context, lapID int64
 // GetLapByID retrieves a single lap by its ID.
 func (r *SQLiteRepository) GetLapByID(ctx context.Context, lapID int64) (*Lap, error) {
 	var lap Lap
-	query := `
-		SELECT laps.*, 
-		       COALESCE(lt.sample_count, 0) AS sample_count,
-		       CASE WHEN lt.lap_id IS NOT NULL AND lt.sample_count > 0 THEN 1 ELSE 0 END AS has_telemetry
-		FROM laps 
-		LEFT JOIN lap_telemetry lt ON lt.lap_id = laps.id
-		WHERE laps.id = ?
-	`
+	query := `SELECT ` + lapSelectColumns + ` ` + lapFromJoin + ` WHERE laps.id = ?`
 	if err := r.db.GetContext(ctx, &lap, query, lapID); err != nil {
 		return nil, fmt.Errorf("failed to get lap: %w", err)
 	}
@@ -714,30 +791,9 @@ func (r *SQLiteRepository) GetSessionByID(ctx context.Context, sessionID int64) 
 			s.session_type,
 			s.weather,
 			s.weather_forecast,
-			COALESCE(NULLIF(s.total_laps, 0), (SELECT MAX(l.lap_number) FROM laps l WHERE l.session_id = s.id), 0) AS total_laps,
+			` + totalLapsFallback + `,
 			s.ai_difficulty,
-			CASE 
-				-- For race sessions: use winner's total race time or sum of leader's completed laps
-				WHEN s.session_type LIKE '%Race%' THEN
-					CASE
-						WHEN EXISTS (SELECT 1 FROM participants p WHERE p.session_id = s.id AND p.total_race_time > 0)
-							THEN (SELECT CAST(MAX(p.total_race_time) AS INTEGER) FROM participants p WHERE p.session_id = s.id)
-						WHEN EXISTS (SELECT 1 FROM laps l WHERE l.session_id = s.id AND l.lap_time_ms > 0)
-							THEN (SELECT CAST(SUM(l.lap_time_ms) / 1000 AS INTEGER) FROM laps l WHERE l.session_id = s.id AND l.lap_time_ms > 0 GROUP BY l.car_index ORDER BY SUM(l.lap_time_ms) DESC LIMIT 1)
-						WHEN s.session_duration > 0 AND s.session_duration != 7200
-							THEN s.session_duration
-						ELSE 0
-					END
-				-- For non-race sessions (Qualifying, Practice, Shootouts): use scheduled session duration from packet (e.g. 18m, 12m, 60m)
-				ELSE
-					CASE
-						WHEN s.session_duration > 0 AND s.session_duration != 7200
-							THEN s.session_duration
-						WHEN EXISTS (SELECT 1 FROM laps l WHERE l.session_id = s.id AND l.lap_time_ms > 0)
-							THEN (SELECT CAST(SUM(l.lap_time_ms) / 1000 AS INTEGER) FROM laps l WHERE l.session_id = s.id AND l.lap_time_ms > 0 GROUP BY l.car_index ORDER BY SUM(l.lap_time_ms) DESC LIMIT 1)
-						ELSE 0
-					END
-			END AS session_duration,
+			s.session_duration,
 			s.packet_format,
 			s.created_at
 		FROM sessions s
@@ -746,6 +802,11 @@ func (r *SQLiteRepository) GetSessionByID(ctx context.Context, sessionID int64) 
 	if err := r.db.GetContext(ctx, &session, query, sessionID); err != nil {
 		return nil, fmt.Errorf("failed to get session by id: %w", err)
 	}
+
+	sessions := []Session{session}
+	r.resolveSessionsDurationBatch(ctx, sessions)
+	session = sessions[0]
+
 	tags, err := r.GetTagsBySession(ctx, sessionID)
 	if err == nil {
 		session.Tags = tags
