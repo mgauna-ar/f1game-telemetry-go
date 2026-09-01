@@ -1,6 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { useI18n } from './I18nContext';
 import { I18nProvider } from './I18nProvider';
+import { getTranslation, en, es } from '../locales';
 
 const TestComponent = () => {
   const { locale, setLocale, t, currentLocaleInfo } = useI18n();
@@ -81,5 +82,98 @@ describe('I18nContext and useI18n Hook', () => {
     expect(screen.getByTestId('current-locale')).toHaveTextContent('es');
     expect(screen.getByTestId('current-flag')).toHaveTextContent('🇦🇷');
     expect(screen.getByTestId('nav-history')).toHaveTextContent('Historial de Sesiones');
+  });
+
+  it('resolves all AI engineer proactive alert and PTT keys without returning raw translation keys', () => {
+    render(
+      <I18nProvider>
+        <TestComponent />
+      </I18nProvider>
+    );
+
+    // Test in English
+    const alertKeys = [
+      'ai_engineer.proactiveAlerts.tyreWearWarnThreshold',
+      'ai_engineer.proactiveAlerts.tyreWearCritThreshold',
+      'ai_engineer.proactiveAlerts.tyreOverheatTemp',
+      'ai_engineer.proactiveAlerts.tyreColdTemp',
+      'ai_engineer.proactiveAlerts.wingDamage',
+      'ai_engineer.proactiveAlerts.floorDamage',
+      'ai_engineer.proactiveAlerts.engineWear',
+      'ai_engineer.proactiveAlerts.mechanicalFaults',
+      'ai_engineer.proactiveAlerts.engineOverheat',
+      'ai_engineer.proactiveAlerts.wingDamageThreshold',
+      'ai_engineer.proactiveAlerts.floorDamageThreshold',
+      'ai_engineer.proactiveAlerts.engineWearThreshold',
+      'ai_engineer.proactiveAlerts.engineOverheatTemp',
+      'ai_engineer.proactiveAlerts.ersLowReserve',
+      'ai_engineer.proactiveAlerts.ersLowThreshold',
+      'ai_engineer.proactiveAlerts.brakeOverheatFade',
+      'ai_engineer.proactiveAlerts.brakeCold',
+      'ai_engineer.proactiveAlerts.brakeOverheatTemp',
+      'ai_engineer.proactiveAlerts.brakeColdTemp',
+      'ai_engineer.proactiveAlerts.fuelDeficitLiftCoast',
+      'ai_engineer.proactiveAlerts.fuelDeltaThreshold',
+      'ai_engineer.proactiveAlerts.undercutThreat',
+      'ai_engineer.proactiveAlerts.pitWindowOpen',
+      'ai_engineer.proactiveAlerts.rivalDefend',
+      'ai_engineer.proactiveAlerts.rivalAttack',
+      'ai_engineer.proactiveAlerts.undercutGapThreshold',
+      'ai_engineer.proactiveAlerts.rivalDefendGap',
+      'ai_engineer.proactiveAlerts.rivalAttackGap',
+      'ai_engineer.proactiveAlerts.qualyTraffic',
+      'ai_engineer.proactiveAlerts.qualyDeletedLap',
+      'ai_engineer.proactiveAlerts.qualySessionTime',
+      'ai_engineer.proactiveAlerts.qualyElimDanger',
+      'ai_engineer.proactiveAlerts.qualyCleanAirGap',
+      'ai_engineer.proactiveAlerts.safetyCarAlert',
+      'ai_engineer.proactiveAlerts.redFlagAlert',
+      'ai_engineer.proactiveAlerts.dynamicRainAlert',
+      'ai_engineer.proactiveAlerts.trackLimitsWarning',
+      'ai_engineer.proactiveAlerts.penaltiesIncurred',
+      'ai_engineer.proactiveAlerts.cornerCutLimit',
+      'ai_engineer.proactiveAlerts.rainHorizon',
+      'ai_engineer.proactiveAlerts.rainProbability',
+      'ai_engineer.ptt.gamepadNotDetected',
+      'ai_engineer.ptt.btnMapped',
+      'ai_engineer.ptt.mapGamepadBtn',
+      'ai_engineer.ptt.clearGamepad',
+    ];
+
+    for (const key of alertKeys) {
+      const enVal = getTranslation('en', key);
+      expect(enVal).not.toBe(key);
+      expect(typeof enVal).toBe('string');
+      expect(enVal.length).toBeGreaterThan(0);
+
+      const esVal = getTranslation('es', key);
+      expect(esVal).not.toBe(key);
+      expect(typeof esVal).toBe('string');
+      expect(esVal.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('verifies deep parity of keys between en and es dictionaries', () => {
+    const extractKeys = (obj: any, prefix = ''): string[] => {
+      let keys: string[] = [];
+      for (const k of Object.keys(obj)) {
+        const fullKey = prefix ? `${prefix}.${k}` : k;
+        if (typeof obj[k] === 'object' && obj[k] !== null && !Array.isArray(obj[k])) {
+          keys = keys.concat(extractKeys(obj[k], fullKey));
+        } else {
+          keys.push(fullKey);
+        }
+      }
+      return keys;
+    };
+
+    const enKeys = extractKeys(en).sort();
+    const esKeys = extractKeys(es).sort();
+
+    const missingInEs = enKeys.filter((k) => !esKeys.includes(k));
+    const missingInEn = esKeys.filter((k) => !enKeys.includes(k));
+
+    expect(missingInEs).toEqual([]);
+    expect(missingInEn).toEqual([]);
   });
 });
