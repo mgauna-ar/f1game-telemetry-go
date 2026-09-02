@@ -129,6 +129,8 @@ const (
 
 // Unit conversion, protocol limits, and buffer defaults
 const (
+	MillisPerSecond                      = 1000
+	SecondsPerMinute                     = 60
 	MillisPerMinute                      = 60_000
 	MaxERSStoreEnergyJoules              = 4_000_000.0 // 4 MJ standard F1 ERS store capacity
 	DefaultTelemetrySampleCapacity       = 1800        // Default buffer capacity for a single lap (~90s @ 20Hz)

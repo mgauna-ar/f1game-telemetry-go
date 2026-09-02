@@ -10,14 +10,13 @@ import (
 	"time"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
-	"github.com/mgauna/f1game-telemetry-go/internal/storage"
 )
 
 // EngineerEngine orchestrates server-side analytical rules and broadcasts directives.
 type EngineerEngine struct {
 	mu             sync.RWMutex
 	broadcaster    DirectiveBroadcaster
-	repo           storage.Repository
+	repo           SettingsStore
 	config         EngineerConfig
 	rules          []EngineerRule
 	alertRules     map[string]AlertKeyConfig
@@ -52,7 +51,7 @@ type EngineerEngine struct {
 }
 
 // NewEngineerEngine creates a new EngineerEngine instance with default rules.
-func NewEngineerEngine(broadcaster DirectiveBroadcaster, repo storage.Repository) *EngineerEngine {
+func NewEngineerEngine(broadcaster DirectiveBroadcaster, repo SettingsStore) *EngineerEngine {
 	e := &EngineerEngine{
 		broadcaster:      broadcaster,
 		repo:             repo,
@@ -193,7 +192,7 @@ func (e *EngineerEngine) ProcessPacket(ctx context.Context, pkt packets.Packet) 
 		if playerIdx < len(p.CarStatusData) {
 			status := p.CarStatusData[playerIdx]
 			currentTyreAge := int(status.TyresAgeLaps)
-			if currentTyreAge <= 1 && e.lastStintLapAge > 3 {
+			if currentTyreAge <= PitStopDetectionMaxTyreAgeLaps && e.lastStintLapAge > MinStintLapsForReset {
 				e.stintKeys = make(map[string]bool)
 				for _, r := range e.rules {
 					r.Reset(DedupScopeStint)
@@ -387,11 +386,11 @@ func (e *EngineerEngine) calculateLapDistancePct(session *packets.PacketSessionD
 	if playerLap != nil {
 		switch playerLap.Sector {
 		case 0:
-			return 0.15
+			return SectorMidpointFractionS1
 		case 1:
-			return 0.50
+			return SectorMidpointFractionS2
 		case 2:
-			return 0.85
+			return SectorMidpointFractionS3
 		}
 	}
 	return 0

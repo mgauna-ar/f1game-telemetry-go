@@ -108,7 +108,7 @@ func (r *QualifyingRule) Evaluate(ctx *EvaluationContext) []Directive {
 	if isQualy && playerLap != nil && playerLap.DriverStatus == packets.DriverStatusOutLap && ctx.LapData != nil &&
 		(ctx.Packet == nil || isPacketType[*packets.PacketLapData](ctx.Packet)) {
 		currentLap := int(playerLap.CurrentLapNum)
-		isFinalSector := playerLap.Sector >= 2 || (ctx.Session != nil && ctx.Session.TrackLength > 0 && playerLap.LapDistance > float32(ctx.Session.TrackLength)*0.7)
+		isFinalSector := playerLap.Sector >= 2 || (ctx.Session != nil && ctx.Session.TrackLength > 0 && playerLap.LapDistance > float32(ctx.Session.TrackLength)*FinalSectorTrackDistanceFraction)
 		if isFinalSector && r.lastOutLapChecked != currentLap {
 			playerTrackDist := playerLap.TotalDistance
 			var minAheadDelta float32 = MaxTrackDistanceDeltaInitial
@@ -118,7 +118,7 @@ func (r *QualifyingRule) Evaluate(ctx *EvaluationContext) []Directive {
 					continue
 				}
 				deltaDist := rival.TotalDistance - playerTrackDist
-				if deltaDist > 10 && deltaDist < minAheadDelta {
+				if deltaDist > MinTrafficAheadDistanceMeters && deltaDist < minAheadDelta {
 					minAheadDelta = deltaDist
 				}
 			}
@@ -159,7 +159,7 @@ func (r *QualifyingRule) Evaluate(ctx *EvaluationContext) []Directive {
 		if float32(ctx.Session.SessionTimeLeft) <= ctx.Config.QualyTimeWarnSec && !r.lastSessionTimeWarned {
 			r.lastSessionTimeWarned = true
 			sessionName := packets.SessionTypeName(ctx.Session.SessionType)
-			minRemaining := int(math.Round(float64(ctx.Config.QualyTimeWarnSec) / 60.0))
+			minRemaining := int(math.Round(float64(ctx.Config.QualyTimeWarnSec) / float64(packets.SecondsPerMinute)))
 			directives = append(directives, Directive{
 				ID:       "qualy_time",
 				Category: DirectiveCategoryQualifying,
@@ -176,8 +176,8 @@ func (r *QualifyingRule) Evaluate(ctx *EvaluationContext) []Directive {
 		(ctx.Packet == nil || isPacketType[*packets.PacketSessionData](ctx.Packet)) {
 		if playerLap != nil && playerLap.CarPosition > 0 {
 			playerPos := int(playerLap.CarPosition)
-			isQ1Danger := (ctx.Session.SessionType == packets.SessionQ1 || ctx.Session.SessionType == packets.SessionSprintQ1) && playerPos >= 15
-			isQ2Danger := (ctx.Session.SessionType == packets.SessionQ2 || ctx.Session.SessionType == packets.SessionSprintQ2) && playerPos >= 10
+			isQ1Danger := (ctx.Session.SessionType == packets.SessionQ1 || ctx.Session.SessionType == packets.SessionSprintQ1) && playerPos >= QualyQ1EliminationPositionThreshold
+			isQ2Danger := (ctx.Session.SessionType == packets.SessionQ2 || ctx.Session.SessionType == packets.SessionSprintQ2) && playerPos >= QualyQ2EliminationPositionThreshold
 			if isQ1Danger || isQ2Danger {
 				r.lastElimDangerWarned = true
 				sessionName := packets.SessionTypeName(ctx.Session.SessionType)

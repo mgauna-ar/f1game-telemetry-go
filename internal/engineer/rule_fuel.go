@@ -85,7 +85,7 @@ func (r *FuelRule) Evaluate(ctx *EvaluationContext) []Directive {
 	// 1. Fuel Target Deficit & Lift & Coast (from CarStatusData, race only)
 	status := ctx.PlayerStatus()
 	if status != nil && ctx.IsRaceSession() && (ctx.Packet == nil || isPacketType[*packets.PacketCarStatusData](ctx.Packet)) {
-		if status.FuelRemainingLaps <= ctx.Config.FuelDeltaLaps && currentLapNum > 3 && currentLapNum != r.lastFuelDeltaAlertLap {
+		if status.FuelRemainingLaps <= ctx.Config.FuelDeltaLaps && currentLapNum > MinFuelAlertLapNum && currentLapNum != r.lastFuelDeltaAlertLap {
 			r.lastFuelDeltaAlertLap = currentLapNum
 			directives = append(directives, Directive{
 				ID:       "fuel_delta",

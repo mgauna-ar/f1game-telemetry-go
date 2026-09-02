@@ -4,16 +4,20 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
-	"github.com/mgauna/f1game-telemetry-go/internal/storage"
 )
 
 // SettingKeyEngineerConfig is the key used in the SQLite settings table for engineer configuration.
 const SettingKeyEngineerConfig = "engineer_config"
 
+// SettingsStore abstracts getting and setting key-value configuration values.
+type SettingsStore interface {
+	GetSetting(ctx context.Context, key string) (string, error)
+	SetSetting(ctx context.Context, key, value string) error
+}
+
 // LoadEngineerConfig retrieves and deserializes the persisted EngineerConfig from SQLite settings.
 // Returns nil, nil if no setting is stored in the database.
-func LoadEngineerConfig(ctx context.Context, repo storage.Repository) (*EngineerConfig, error) {
+func LoadEngineerConfig(ctx context.Context, repo SettingsStore) (*EngineerConfig, error) {
 	if repo == nil {
 		return nil, nil
 	}
@@ -35,7 +39,7 @@ func LoadEngineerConfig(ctx context.Context, repo storage.Repository) (*Engineer
 }
 
 // SaveEngineerConfig serializes and persists the EngineerConfig to SQLite settings.
-func SaveEngineerConfig(ctx context.Context, repo storage.Repository, cfg EngineerConfig) error {
+func SaveEngineerConfig(ctx context.Context, repo SettingsStore, cfg EngineerConfig) error {
 	if repo == nil {
 		return nil
 	}

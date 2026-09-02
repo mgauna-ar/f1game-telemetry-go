@@ -101,8 +101,13 @@ func ExpandZipFiles(items []FileItem) []FileItem {
 	return sessionFiles
 }
 
+// SessionImporter abstracts importing a complete session package into storage.
+type SessionImporter interface {
+	ImportSession(ctx context.Context, pkg *storage.ExportedSessionPackage) (int64, error)
+}
+
 // ImportSessionFiles processes a list of session files, importing them into the repository.
-func ImportSessionFiles(ctx context.Context, repo storage.Repository, files []FileItem) ImportBatchResponse {
+func ImportSessionFiles(ctx context.Context, repo SessionImporter, files []FileItem) ImportBatchResponse {
 	resp := ImportBatchResponse{
 		Status:     "success",
 		Total:      len(files),

@@ -111,7 +111,7 @@ func (r *CoachingRule) Evaluate(ctx *EvaluationContext) []Directive {
 	var directives []Directive
 
 	if int(playerLap.Sector) == 1 && s1 > 0 && r.bestSector1MS > 0 && currentLap == r.lastLapNumber {
-		deltaS1 := float64(s1-r.bestSector1MS) / 1000.0
+		deltaS1 := float64(s1-r.bestSector1MS) / float64(packets.MillisPerSecond)
 		if deltaS1 >= SectorTimeLossThresholdSec {
 			directives = append(directives, Directive{
 				ID:       "coaching_s1",
@@ -129,7 +129,7 @@ func (r *CoachingRule) Evaluate(ctx *EvaluationContext) []Directive {
 	}
 
 	if int(playerLap.Sector) == 2 && s2 > 0 && r.bestSector2MS > 0 && currentLap == r.lastLapNumber {
-		deltaS2 := float64(s2-r.bestSector2MS) / 1000.0
+		deltaS2 := float64(s2-r.bestSector2MS) / float64(packets.MillisPerSecond)
 		if deltaS2 >= SectorTimeLossThresholdSec {
 			directives = append(directives, Directive{
 				ID:       "coaching_s2",

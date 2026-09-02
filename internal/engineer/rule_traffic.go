@@ -84,7 +84,7 @@ func (r *TrafficRule) Evaluate(ctx *EvaluationContext) []Directive {
 	}
 
 	var directives []Directive
-	if trafficCount == 0 && currentLap%5 == 0 {
+	if trafficCount == 0 && currentLap%CleanAirPeriodicLapModulo == 0 {
 		directives = append(directives, Directive{
 			ID:       "pit_clean_air",
 			Category: DirectiveCategoryPitStrategy,

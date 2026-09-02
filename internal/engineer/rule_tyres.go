@@ -142,7 +142,7 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 			if val > maxSurfTemp {
 				maxSurfTemp = val
 			}
-			if (i == 2 || i == 3) && val > rearMaxTemp { // Rear Left / Rear Right
+			if (i == TyreIndexRL || i == TyreIndexRR) && val > rearMaxTemp { // Rear Left / Rear Right
 				rearMaxTemp = val
 			}
 		}
@@ -172,7 +172,7 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 				Message:  advice,
 				Urgency:  UrgencyMedium,
 			})
-		} else if maxSurfTemp > 0 && maxSurfTemp <= ctx.Config.TyreColdC && currentTyreAge < 2 {
+		} else if maxSurfTemp > 0 && maxSurfTemp <= ctx.Config.TyreColdC && currentTyreAge < ColdTyresMaxAgeLaps {
 			directives = append(directives, Directive{
 				ID:       "tyre_cold",
 				Category: DirectiveCategoryTyres,

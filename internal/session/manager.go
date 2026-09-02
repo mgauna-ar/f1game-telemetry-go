@@ -11,10 +11,19 @@ import (
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
 )
 
+// SessionStorage abstracts persistence operations required by the session manager.
+type SessionStorage interface {
+	TelemetryBlobWriter
+	LapStorage
+	SaveSession(ctx context.Context, s *storage.Session) error
+	UpdateSessionMetadata(ctx context.Context, uidHex string, trackID int, trackName, sessionType, weather, forecastJSON string, totalLaps, aiDifficulty, sessionDuration int) error
+	SaveParticipants(ctx context.Context, sessionID int64, participants []storage.Participant) error
+}
+
 // SessionManager orchestrates the processing of F1 telemetry packets.
 // It detects new sessions and routes lap and telemetry data to LapTrackers for all active cars.
 type SessionManager struct {
-	repo          storage.Repository
+	repo          SessionStorage
 	batchWriter   *TelemetryBatchWriter
 	lapTrackers   map[int]*LapTracker
 	numActiveCars int
@@ -25,7 +34,7 @@ type SessionManager struct {
 }
 
 // NewSessionManager creates a new SessionManager.
-func NewSessionManager(repo storage.Repository) *SessionManager {
+func NewSessionManager(repo SessionStorage) *SessionManager {
 	bw := NewTelemetryBatchWriter(repo)
 	trackers := make(map[int]*LapTracker)
 	for i := 0; i < packets.MaxCars; i++ {

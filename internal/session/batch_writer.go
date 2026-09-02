@@ -9,6 +9,11 @@ import (
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
 )
 
+// TelemetryBlobWriter abstracts saving compressed lap telemetry samples.
+type TelemetryBlobWriter interface {
+	SaveLapTelemetryBlob(ctx context.Context, lapID int64, samples []storage.TelemetrySample) error
+}
+
 // LapTelemetryPayload represents a completed lap's telemetry samples ready for compressed storage.
 type LapTelemetryPayload struct {
 	LapID   int64
@@ -17,7 +22,7 @@ type LapTelemetryPayload struct {
 
 // TelemetryBatchWriter handles asynchronous compressed writing of lap telemetry blobs.
 type TelemetryBatchWriter struct {
-	repo    storage.Repository
+	repo    TelemetryBlobWriter
 	lapChan chan LapTelemetryPayload
 	flushCh chan chan struct{}
 	doneCh  chan struct{}
@@ -36,7 +41,7 @@ const (
 )
 
 // NewTelemetryBatchWriter creates an unstarted batch writer.
-func NewTelemetryBatchWriter(repo storage.Repository) *TelemetryBatchWriter {
+func NewTelemetryBatchWriter(repo TelemetryBlobWriter) *TelemetryBatchWriter {
 	return &TelemetryBatchWriter{
 		repo:    repo,
 		lapChan: make(chan LapTelemetryPayload, DefaultBatchChannelCapacity),

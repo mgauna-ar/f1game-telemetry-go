@@ -54,9 +54,14 @@ func MarshalAndCompressSessionPackage(pkg *storage.ExportedSessionPackage, suffi
 	return compressed, filename, nil
 }
 
+// SessionExporter abstracts exporting a complete session package.
+type SessionExporter interface {
+	ExportSession(ctx context.Context, sessionID int64) (*storage.ExportedSessionPackage, error)
+}
+
 // ExportSessionBatchToZip exports multiple sessions as a ZIP archive to the provided writer.
 // Returns the number of successfully exported sessions.
-func ExportSessionBatchToZip(ctx context.Context, repo storage.Repository, sessionIDs []int64, w io.Writer) (int, error) {
+func ExportSessionBatchToZip(ctx context.Context, repo SessionExporter, sessionIDs []int64, w io.Writer) (int, error) {
 	zw := zip.NewWriter(w)
 	exportedCount := 0
 

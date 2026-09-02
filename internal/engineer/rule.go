@@ -35,48 +35,6 @@ const (
 	UrgencyCritical = "critical"
 )
 
-// Analytical thresholds and timing constants for Engineer Directive Engine.
-const (
-	DefaultPitLaneLossSeconds      = 21.0
-	CleanAirTrafficWindowSeconds   = 3.0
-	SectorTimeLossThresholdSec     = 0.35
-	TeammateGapThresholdSec        = 2.5
-	DefaultDirectiveCooldownMs     = 45_000
-	WeatherRainTransitionProbPct   = 50
-	WeatherRainHorizonMinutes      = 5
-	PunctureWearThresholdPct       = 95.0
-	CriticalWingDamageThresholdPct = 40.0
-	OverheatRearTyres2025C         = 115.0
-	OverheatRearTyres2026C         = 110.0
-	ColdTyresTargetC               = 85.0
-	EngineOverheatDefaultC         = 125.0
-	BrakeOverheatDefaultC          = 900.0
-	BrakeColdDefaultC              = 200.0
-	FuelDeltaDeficitDefaultLaps    = -0.5
-	UndercutGapDefaultSec          = 2.5
-	RivalDefendGapDefaultSec       = 1.0
-	RivalAttackGapDefaultSec       = 1.2
-	QualyCleanAirDefaultSec        = 4.0
-	QualyTimeWarnDefaultSec        = 180.0
-	QualyElimDangerTimeSec         = 300.0
-	CornerCutWarnDefaultThreshold  = 2
-	SmartDiscretionBrakeThreshold  = 0.50
-	SmartDiscretionSteerThreshold  = 0.45
-	MinOutLapDistanceCompletionPct = 0.30
-	MinQualyOutLapDistancePct      = 0.50
-	PostPitSuppressionLaps         = 1
-	AverageRaceSpeedMetersPerSec   = 65.0
-	QualyOutLapSpeedMetersPerSec   = 60.0
-	SpeedGarageMaxKmh              = 5.0
-	MaxCleanAirDistanceMeters      = 9000.0
-	DefaultTrackLengthMeters       = 5000.0
-	EngineOverheatCooldownMs       = 60_000
-	BrakeOverheatCooldownMs        = 45_000
-	BrakeColdCooldownMs            = 60_000
-	RivalDamageWingThresholdPct    = 20.0
-	MaxTrackDistanceDeltaInitial   = 99999.0
-)
-
 // DrivingPhase represents the real-time operational context of the driver.
 type DrivingPhase string
 
@@ -310,11 +268,11 @@ func (ctx *EvaluationContext) CalculateLapDistancePct() float32 {
 	if playerLap != nil {
 		switch playerLap.Sector {
 		case 0:
-			return 0.15
+			return SectorMidpointFractionS1
 		case 1:
-			return 0.50
+			return SectorMidpointFractionS2
 		case 2:
-			return 0.85
+			return SectorMidpointFractionS3
 		}
 	}
 	return 0

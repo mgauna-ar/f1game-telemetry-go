@@ -44,13 +44,19 @@ type CarStintState struct {
 	StintIncrementedInLap int
 }
 
+// LapStorage abstracts storing completed lap records and clearing lap telemetry.
+type LapStorage interface {
+	SaveLap(ctx context.Context, lap *storage.Lap, allowOverride bool) error
+	DeleteTelemetryByLap(ctx context.Context, lapID int64) error
+}
+
 // Thread-safety contract: All Process* methods must be called from a single
 // goroutine (the UDP listener). FlushCurrentLap and Reset must only be called
 // after the Process* caller has stopped.
 //
 // LapTracker monitors a car's lap progress and buffers telemetry samples in memory for compressed persistence.
 type LapTracker struct {
-	repo            storage.Repository
+	repo            LapStorage
 	writer          TelemetryWriter
 	carIndex        int
 	currentLapNum   int
@@ -65,7 +71,7 @@ type LapTracker struct {
 }
 
 // NewLapTracker creates a new LapTracker.
-func NewLapTracker(repo storage.Repository, writer TelemetryWriter, carIndex int) *LapTracker {
+func NewLapTracker(repo LapStorage, writer TelemetryWriter, carIndex int) *LapTracker {
 	return &LapTracker{
 		repo:     repo,
 		writer:   writer,
