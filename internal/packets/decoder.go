@@ -82,7 +82,7 @@ func DecodePerCarCustom[T any](
 func Decode(data []byte) (Packet, error) {
 	header, err := DecodeHeader(data)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("decode header: %w", err)
 	}
 
 	payload := data[HeaderSize:]

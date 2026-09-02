@@ -41,7 +41,7 @@ func DecompressRaw(compressed []byte) ([]byte, error) {
 func compressJSON(data any) ([]byte, error) {
 	raw, err := json.Marshal(data)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("compress json marshal: %w", err)
 	}
 	return CompressRaw(raw), nil
 }
@@ -818,7 +818,7 @@ func (r *SQLiteRepository) GetSessionByID(ctx context.Context, sessionID int64) 
 func (r *SQLiteRepository) ExportSession(ctx context.Context, sessionID int64) (*ExportedSessionPackage, error) {
 	session, err := r.GetSessionByID(ctx, sessionID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("export session: get session: %w", err)
 	}
 
 	tags, err := r.GetTagsBySession(ctx, sessionID)

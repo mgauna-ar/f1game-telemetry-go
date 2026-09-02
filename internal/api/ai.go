@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
@@ -236,13 +237,19 @@ func (s *Server) handleStartPTTLearn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ch, err := s.inputManager.StartLearning(r.Context())
+	// Interactive button learning outlives this HTTP request (which immediately returns 200 OK
+	// with "learning_started"). We use context.Background() because net/http cancels r.Context()
+	// as soon as the HTTP handler returns.
+	ch, err := s.inputManager.StartLearning(context.Background())
 	if err != nil {
 		writeJSONError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	go func() {
+		timer := time.NewTimer(20 * time.Second)
+		defer timer.Stop()
+
 		select {
 		case m, ok := <-ch:
 			if ok {
@@ -254,7 +261,7 @@ func (s *Server) handleStartPTTLearn(w http.ResponseWriter, r *http.Request) {
 					s.engineerHub.Broadcast(payload)
 				}
 			}
-		case <-time.After(20 * time.Second):
+		case <-timer.C:
 			s.inputManager.CancelLearning()
 		}
 	}()

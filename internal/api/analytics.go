@@ -3,9 +3,7 @@ package api
 import (
 	"log/slog"
 	"net/http"
-	"strconv"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/mgauna/f1game-telemetry-go/internal/analytics"
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
 )
@@ -14,10 +12,8 @@ import (
 // Writes the appropriate HTTP error and returns ok=false if any step fails.
 func (s *Server) fetchSessionAnalyticsData(w http.ResponseWriter, r *http.Request, opName string) (*storage.Session, []storage.Participant, []storage.Lap, bool) {
 	ctx := r.Context()
-	idStr := chi.URLParam(r, "id")
-	sessionID, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		writeJSONError(w, "invalid session id", http.StatusBadRequest)
+	sessionID, ok := parseSessionID(w, r)
+	if !ok {
 		return nil, nil, nil, false
 	}
 

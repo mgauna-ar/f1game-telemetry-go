@@ -32,6 +32,20 @@ var (
 	ZipMagicHeader = []byte{0x50, 0x4B, 0x03, 0x04}
 )
 
+func parseSessionID(w http.ResponseWriter, r *http.Request) (int64, bool) {
+	return parseURLID(w, r, "id", "Invalid session ID")
+}
+
+func parseURLID(w http.ResponseWriter, r *http.Request, param, errMsg string) (int64, bool) {
+	idStr := chi.URLParam(r, param)
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		writeJSONError(w, errMsg, http.StatusBadRequest)
+		return 0, false
+	}
+	return id, true
+}
+
 func (s *Server) handleGetSessions(w http.ResponseWriter, r *http.Request) {
 	sessions, err := s.repo.GetSessions(r.Context())
 	if err != nil {
@@ -42,10 +56,8 @@ func (s *Server) handleGetSessions(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
-	sessionIDStr := chi.URLParam(r, "id")
-	sessionID, err := strconv.ParseInt(sessionIDStr, 10, 64)
-	if err != nil {
-		writeJSONError(w, "Invalid session ID", http.StatusBadRequest)
+	sessionID, ok := parseSessionID(w, r)
+	if !ok {
 		return
 	}
 
@@ -63,10 +75,8 @@ func (s *Server) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleGetParticipants(w http.ResponseWriter, r *http.Request) {
-	sessionIDStr := chi.URLParam(r, "id")
-	sessionID, err := strconv.ParseInt(sessionIDStr, 10, 64)
-	if err != nil {
-		writeJSONError(w, "Invalid session ID", http.StatusBadRequest)
+	sessionID, ok := parseSessionID(w, r)
+	if !ok {
 		return
 	}
 
@@ -81,10 +91,8 @@ func (s *Server) handleGetParticipants(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleGetLaps(w http.ResponseWriter, r *http.Request) {
-	sessionIDStr := chi.URLParam(r, "id")
-	sessionID, err := strconv.ParseInt(sessionIDStr, 10, 64)
-	if err != nil {
-		writeJSONError(w, "Invalid session ID", http.StatusBadRequest)
+	sessionID, ok := parseSessionID(w, r)
+	if !ok {
 		return
 	}
 
@@ -104,10 +112,8 @@ func (s *Server) handleGetLaps(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleGetTelemetry(w http.ResponseWriter, r *http.Request) {
-	lapIDStr := chi.URLParam(r, "id")
-	lapID, err := strconv.ParseInt(lapIDStr, 10, 64)
-	if err != nil {
-		writeJSONError(w, "Invalid lap ID", http.StatusBadRequest)
+	lapID, ok := parseURLID(w, r, "id", "Invalid lap ID")
+	if !ok {
 		return
 	}
 
@@ -186,10 +192,8 @@ func (s *Server) handleCreateTag(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleUpdateTag(w http.ResponseWriter, r *http.Request) {
-	tagIDStr := chi.URLParam(r, "id")
-	tagID, err := strconv.ParseInt(tagIDStr, 10, 64)
-	if err != nil {
-		writeJSONError(w, "Invalid tag ID", http.StatusBadRequest)
+	tagID, ok := parseURLID(w, r, "id", "Invalid tag ID")
+	if !ok {
 		return
 	}
 
@@ -229,10 +233,8 @@ func (s *Server) handleUpdateTag(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDeleteTag(w http.ResponseWriter, r *http.Request) {
-	tagIDStr := chi.URLParam(r, "id")
-	tagID, err := strconv.ParseInt(tagIDStr, 10, 64)
-	if err != nil {
-		writeJSONError(w, "Invalid tag ID", http.StatusBadRequest)
+	tagID, ok := parseURLID(w, r, "id", "Invalid tag ID")
+	if !ok {
 		return
 	}
 
@@ -250,10 +252,8 @@ func (s *Server) handleDeleteTag(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleGetSessionTags(w http.ResponseWriter, r *http.Request) {
-	sessionIDStr := chi.URLParam(r, "id")
-	sessionID, err := strconv.ParseInt(sessionIDStr, 10, 64)
-	if err != nil {
-		writeJSONError(w, "Invalid session ID", http.StatusBadRequest)
+	sessionID, ok := parseSessionID(w, r)
+	if !ok {
 		return
 	}
 
@@ -268,10 +268,8 @@ func (s *Server) handleGetSessionTags(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleAddSessionTag(w http.ResponseWriter, r *http.Request) {
-	sessionIDStr := chi.URLParam(r, "id")
-	sessionID, err := strconv.ParseInt(sessionIDStr, 10, 64)
-	if err != nil {
-		writeJSONError(w, "Invalid session ID", http.StatusBadRequest)
+	sessionID, ok := parseSessionID(w, r)
+	if !ok {
 		return
 	}
 
@@ -320,10 +318,8 @@ func (s *Server) handleAddSessionTag(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleSetSessionTags(w http.ResponseWriter, r *http.Request) {
-	sessionIDStr := chi.URLParam(r, "id")
-	sessionID, err := strconv.ParseInt(sessionIDStr, 10, 64)
-	if err != nil {
-		writeJSONError(w, "Invalid session ID", http.StatusBadRequest)
+	sessionID, ok := parseSessionID(w, r)
+	if !ok {
 		return
 	}
 
@@ -353,17 +349,13 @@ func (s *Server) handleSetSessionTags(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleRemoveSessionTag(w http.ResponseWriter, r *http.Request) {
-	sessionIDStr := chi.URLParam(r, "id")
-	sessionID, err := strconv.ParseInt(sessionIDStr, 10, 64)
-	if err != nil {
-		writeJSONError(w, "Invalid session ID", http.StatusBadRequest)
+	sessionID, ok := parseSessionID(w, r)
+	if !ok {
 		return
 	}
 
-	tagIDStr := chi.URLParam(r, "tagId")
-	tagID, err := strconv.ParseInt(tagIDStr, 10, 64)
-	if err != nil {
-		writeJSONError(w, "Invalid tag ID", http.StatusBadRequest)
+	tagID, ok := parseURLID(w, r, "tagId", "Invalid tag ID")
+	if !ok {
 		return
 	}
 
@@ -383,10 +375,8 @@ func (s *Server) handleRemoveSessionTag(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *Server) handleExportSession(w http.ResponseWriter, r *http.Request) {
-	sessionIDStr := chi.URLParam(r, "id")
-	sessionID, err := strconv.ParseInt(sessionIDStr, 10, 64)
-	if err != nil {
-		writeJSONError(w, "Invalid session ID", http.StatusBadRequest)
+	sessionID, ok := parseSessionID(w, r)
+	if !ok {
 		return
 	}
 
