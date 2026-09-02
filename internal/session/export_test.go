@@ -148,4 +148,20 @@ func TestExportSessionBatchToZip(t *testing.T) {
 			t.Errorf("unexpected track name %s in zip entry", parsed.Session.TrackName)
 		}
 	}
+
+	// Verify all sessions failing returns error and 0 count
+	failExporter := &mockSessionExporter{
+		errs: map[int64]error{
+			10: errors.New("not found"),
+			20: errors.New("not found"),
+		},
+	}
+	var failBuf bytes.Buffer
+	failCount, failErr := ExportSessionBatchToZip(ctx, failExporter, []int64{10, 20}, &failBuf)
+	if failErr == nil {
+		t.Errorf("expected error when all exports fail, got nil")
+	}
+	if failCount != 0 {
+		t.Errorf("expected count 0 when all exports fail, got %d", failCount)
+	}
 }

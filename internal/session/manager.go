@@ -289,7 +289,7 @@ func (sm *SessionManager) handleParticipantsData(ctx context.Context, p *packets
 	}
 
 	if err := sm.repo.SaveParticipants(ctx, sm.currentSession.ID, participants); err != nil {
-		slog.Error("Failed to save participants", "sessionID", sm.currentSession.ID, "error", err)
+		slog.Error("Failed to save participants", "sessionID", sm.currentSession.ID, "sessionUID", sm.currentSession.SessionUID, "error", err)
 	}
 }
 
@@ -365,7 +365,7 @@ func (sm *SessionManager) handleFinalClassification(ctx context.Context, p *pack
 						PenaltiesSeconds: int(cls.PenaltiesTime),
 					}
 					if err := sm.repo.SaveLap(ctx, lap, true); err != nil {
-						slog.Error("Failed to save lap during classification", "sessionID", sm.currentSession.ID, "lapNumber", lap.LapNumber, "carIndex", lap.CarIndex, "error", err)
+						slog.Error("Failed to save lap during classification", "sessionID", sm.currentSession.ID, "sessionUID", sm.currentSession.SessionUID, "lapNumber", lap.LapNumber, "carIndex", lap.CarIndex, "error", err)
 					}
 				}
 			}
@@ -377,13 +377,13 @@ func (sm *SessionManager) handleFinalClassification(ctx context.Context, p *pack
 
 	if len(participantsToUpdate) > 0 {
 		if err := sm.repo.SaveParticipants(ctx, sm.currentSession.ID, participantsToUpdate); err != nil {
-			slog.Error("Failed to save participants during classification", "sessionID", sm.currentSession.ID, "error", err)
+			slog.Error("Failed to save participants during classification", "sessionID", sm.currentSession.ID, "sessionUID", sm.currentSession.SessionUID, "error", err)
 		}
 	}
 
 	if sm.currentSession.SessionDuration > 0 {
 		if err := sm.repo.UpdateSessionMetadata(ctx, sm.currentSession.SessionUID, sm.currentSession.TrackID, sm.currentSession.TrackName, sm.currentSession.SessionType, sm.currentSession.Weather, sm.currentSession.WeatherForecast, sm.currentSession.TotalLaps, sm.currentSession.AIDifficulty, sm.currentSession.SessionDuration); err != nil {
-			slog.Error("Failed to update session metadata during classification", "sessionUID", sm.currentSession.SessionUID, "error", err)
+			slog.Error("Failed to update session metadata during classification", "sessionID", sm.currentSession.ID, "sessionUID", sm.currentSession.SessionUID, "error", err)
 		}
 	}
 }

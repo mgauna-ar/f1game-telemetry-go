@@ -161,5 +161,13 @@ func ImportSessionFiles(ctx context.Context, repo SessionImporter, files []FileI
 		resp.SessionID = resp.SessionIDs[0]
 	}
 
+	if resp.Failed > 0 {
+		if resp.Imported == 0 && resp.Skipped == 0 {
+			resp.Status = "error"
+		} else {
+			resp.Status = "partial_failure"
+		}
+	}
+
 	return resp
 }

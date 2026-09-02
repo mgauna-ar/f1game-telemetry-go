@@ -1,6 +1,8 @@
 package api
 
 import (
+	"database/sql"
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -19,7 +21,12 @@ func (s *Server) fetchSessionAnalyticsData(w http.ResponseWriter, r *http.Reques
 
 	session, err := s.repo.GetSessionByID(ctx, sessionID)
 	if err != nil {
-		writeJSONError(w, "session not found", http.StatusNotFound)
+		if errors.Is(err, sql.ErrNoRows) {
+			writeJSONError(w, "session not found", http.StatusNotFound)
+		} else {
+			slog.Error("Failed to fetch session for "+opName, "sessionID", sessionID, "error", err)
+			writeJSONError(w, "failed to fetch session", http.StatusInternalServerError)
+		}
 		return nil, nil, nil, false
 	}
 

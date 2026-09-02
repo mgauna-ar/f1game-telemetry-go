@@ -150,7 +150,10 @@ func (s *Server) handleAITTS(w http.ResponseWriter, r *http.Request) {
 // handleGetEngineerConfig returns active Race Engineer Engine rules and triggers configuration.
 func (s *Server) handleGetEngineerConfig(w http.ResponseWriter, r *http.Request) {
 	if s.repo != nil {
-		if cfg, err := engineer.LoadEngineerConfig(r.Context(), s.repo); err == nil && cfg != nil {
+		cfg, err := engineer.LoadEngineerConfig(r.Context(), s.repo)
+		if err != nil {
+			slog.Error("Failed to load engineer config from database", "error", err)
+		} else if cfg != nil {
 			writeJSON(w, http.StatusOK, *cfg)
 			return
 		}
@@ -174,6 +177,8 @@ func (s *Server) handleSetEngineerConfig(w http.ResponseWriter, r *http.Request)
 	if s.repo != nil {
 		if err := engineer.SaveEngineerConfig(r.Context(), s.repo, req); err != nil {
 			slog.Error("Failed to persist engineer config to database", "error", err)
+			writeJSONError(w, "Failed to persist engineer config", http.StatusInternalServerError)
+			return
 		}
 	}
 	if s.engineerEngine != nil {

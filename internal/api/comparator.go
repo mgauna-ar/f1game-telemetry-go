@@ -1,7 +1,10 @@
 package api
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 
@@ -62,58 +65,88 @@ func (s *Server) handleComparatorMerge(w http.ResponseWriter, r *http.Request) {
 
 	if lapAID > 0 {
 		lapA, err := s.repo.GetLapByID(ctx, lapAID)
-		if err == nil && lapA != nil {
-			lapTimeMsA = lapA.LapTimeMS
-			driverName := fmt.Sprintf("Lap #%d", lapA.LapNumber)
-			participants, pErr := s.repo.GetParticipantsBySession(ctx, lapA.SessionID)
-			if pErr == nil {
-				for _, p := range participants {
-					if p.CarIndex == lapA.CarIndex {
-						driverName = fmt.Sprintf("#%d %s", p.RaceNumber, p.Name)
-						break
-					}
-				}
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				writeJSONError(w, fmt.Sprintf("Lap A (%d) not found", lapAID), http.StatusNotFound)
+				return
 			}
-			metaA = &analytics.ComparatorLapMeta{
-				LapID:     lapA.ID,
-				LapTimeMS: lapA.LapTimeMS,
-				Driver:    driverName,
-				Compound:  lapA.TyreCompound,
-				TyreAge:   lapA.Stint,
+			slog.Error("Failed to get lap A for comparator merge", "lapID", lapAID, "error", err)
+			writeJSONError(w, fmt.Sprintf("Failed to get lap A (%d)", lapAID), http.StatusInternalServerError)
+			return
+		}
+		lapTimeMsA = lapA.LapTimeMS
+		driverName := fmt.Sprintf("Lap #%d", lapA.LapNumber)
+		participants, pErr := s.repo.GetParticipantsBySession(ctx, lapA.SessionID)
+		if pErr != nil {
+			slog.Error("Failed to get participants for comparator merge", "sessionID", lapA.SessionID, "lapID", lapAID, "error", pErr)
+			writeJSONError(w, "Failed to get participants", http.StatusInternalServerError)
+			return
+		}
+		for _, p := range participants {
+			if p.CarIndex == lapA.CarIndex {
+				driverName = fmt.Sprintf("#%d %s", p.RaceNumber, p.Name)
+				break
 			}
+		}
+		metaA = &analytics.ComparatorLapMeta{
+			LapID:     lapA.ID,
+			LapTimeMS: lapA.LapTimeMS,
+			Driver:    driverName,
+			Compound:  lapA.TyreCompound,
+			TyreAge:   lapA.Stint,
 		}
 
 		samples, sErr := s.repo.GetTelemetryByLap(ctx, lapAID)
-		if sErr == nil && len(samples) > 0 {
+		if sErr != nil {
+			slog.Error("Failed to get telemetry for comparator merge", "lapID", lapAID, "error", sErr)
+			writeJSONError(w, fmt.Sprintf("Failed to get telemetry for lap A (%d)", lapAID), http.StatusInternalServerError)
+			return
+		}
+		if len(samples) > 0 {
 			rawA = analytics.TrimTelemetryToLastLapAttempt(samples)
 		}
 	}
 
 	if lapBID > 0 {
 		lapB, err := s.repo.GetLapByID(ctx, lapBID)
-		if err == nil && lapB != nil {
-			lapTimeMsB = lapB.LapTimeMS
-			driverName := fmt.Sprintf("Lap #%d", lapB.LapNumber)
-			participants, pErr := s.repo.GetParticipantsBySession(ctx, lapB.SessionID)
-			if pErr == nil {
-				for _, p := range participants {
-					if p.CarIndex == lapB.CarIndex {
-						driverName = fmt.Sprintf("#%d %s", p.RaceNumber, p.Name)
-						break
-					}
-				}
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				writeJSONError(w, fmt.Sprintf("Lap B (%d) not found", lapBID), http.StatusNotFound)
+				return
 			}
-			metaB = &analytics.ComparatorLapMeta{
-				LapID:     lapB.ID,
-				LapTimeMS: lapB.LapTimeMS,
-				Driver:    driverName,
-				Compound:  lapB.TyreCompound,
-				TyreAge:   lapB.Stint,
+			slog.Error("Failed to get lap B for comparator merge", "lapID", lapBID, "error", err)
+			writeJSONError(w, fmt.Sprintf("Failed to get lap B (%d)", lapBID), http.StatusInternalServerError)
+			return
+		}
+		lapTimeMsB = lapB.LapTimeMS
+		driverName := fmt.Sprintf("Lap #%d", lapB.LapNumber)
+		participants, pErr := s.repo.GetParticipantsBySession(ctx, lapB.SessionID)
+		if pErr != nil {
+			slog.Error("Failed to get participants for comparator merge", "sessionID", lapB.SessionID, "lapID", lapBID, "error", pErr)
+			writeJSONError(w, "Failed to get participants", http.StatusInternalServerError)
+			return
+		}
+		for _, p := range participants {
+			if p.CarIndex == lapB.CarIndex {
+				driverName = fmt.Sprintf("#%d %s", p.RaceNumber, p.Name)
+				break
 			}
+		}
+		metaB = &analytics.ComparatorLapMeta{
+			LapID:     lapB.ID,
+			LapTimeMS: lapB.LapTimeMS,
+			Driver:    driverName,
+			Compound:  lapB.TyreCompound,
+			TyreAge:   lapB.Stint,
 		}
 
 		samples, sErr := s.repo.GetTelemetryByLap(ctx, lapBID)
-		if sErr == nil && len(samples) > 0 {
+		if sErr != nil {
+			slog.Error("Failed to get telemetry for comparator merge", "lapID", lapBID, "error", sErr)
+			writeJSONError(w, fmt.Sprintf("Failed to get telemetry for lap B (%d)", lapBID), http.StatusInternalServerError)
+			return
+		}
+		if len(samples) > 0 {
 			rawB = analytics.TrimTelemetryToLastLapAttempt(samples)
 		}
 	}

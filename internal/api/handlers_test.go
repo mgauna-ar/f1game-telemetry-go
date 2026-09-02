@@ -272,4 +272,60 @@ func TestHandlersAI(t *testing.T) {
 			t.Errorf("expected 400 Bad Request, got %d", rec.Code)
 		}
 	})
+
+	t.Run("POST /api/ai/engineer/config database failure returns 500", func(t *testing.T) {
+		failServer, failRepo := setupTestServer(t)
+		_ = failRepo.Close() // close underlying db to force storage failure
+
+		cfg := engineer.DefaultEngineerConfig()
+		cfgBytes, _ := json.Marshal(cfg)
+		postReq := httptest.NewRequest(http.MethodPost, "/api/ai/engineer/config", bytes.NewReader(cfgBytes))
+		postRec := httptest.NewRecorder()
+		failServer.Router().ServeHTTP(postRec, postReq)
+
+		if postRec.Code != http.StatusInternalServerError {
+			t.Errorf("expected 500 Internal Server Error when repo fails, got %d", postRec.Code)
+		}
+	})
+}
+
+func TestComparatorMerge_Errors(t *testing.T) {
+	server, _ := setupTestServer(t)
+
+	// Lap not found returns 404
+	req := httptest.NewRequest(http.MethodGet, "/api/comparator/merge?lapA=99999", http.NoBody)
+	rec := httptest.NewRecorder()
+	server.Router().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("expected 404 Not Found for non-existent lapA, got %d", rec.Code)
+	}
+
+	reqB := httptest.NewRequest(http.MethodGet, "/api/comparator/merge?lapB=99999", http.NoBody)
+	recB := httptest.NewRecorder()
+	server.Router().ServeHTTP(recB, reqB)
+
+	if recB.Code != http.StatusNotFound {
+		t.Errorf("expected 404 Not Found for non-existent lapB, got %d", recB.Code)
+	}
+}
+
+func TestSessionAnalytics_NotFound(t *testing.T) {
+	server, _ := setupTestServer(t)
+
+	endpoints := []string{
+		"/api/sessions/99999/classification",
+		"/api/sessions/99999/progression",
+		"/api/sessions/99999/stints",
+	}
+
+	for _, ep := range endpoints {
+		req := httptest.NewRequest(http.MethodGet, ep, http.NoBody)
+		rec := httptest.NewRecorder()
+		server.Router().ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusNotFound {
+			t.Errorf("expected 404 Not Found for %s, got %d", ep, rec.Code)
+		}
+	}
 }

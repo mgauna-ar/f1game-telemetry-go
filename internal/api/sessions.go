@@ -429,6 +429,10 @@ func (s *Server) handleExportSessionBatch(w http.ResponseWriter, r *http.Request
 	var buf bytes.Buffer
 	exportedCount, err := session.ExportSessionBatchToZip(r.Context(), s.repo, sessionIDs, &buf)
 	if err != nil {
+		if exportedCount == 0 {
+			writeJSONError(w, "No valid sessions found to export", http.StatusNotFound)
+			return
+		}
 		writeJSONError(w, "Failed to finalize zip archive", http.StatusInternalServerError)
 		return
 	}

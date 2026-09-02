@@ -96,5 +96,9 @@ func ExportSessionBatchToZip(ctx context.Context, repo SessionExporter, sessionI
 		return exportedCount, fmt.Errorf("failed to finalize zip archive: %w", err)
 	}
 
+	if exportedCount == 0 && len(sessionIDs) > 0 {
+		return 0, fmt.Errorf("no sessions were successfully exported")
+	}
+
 	return exportedCount, nil
 }

@@ -175,6 +175,9 @@ func TestImportSessionFiles(t *testing.T) {
 
 	resp := ImportSessionFiles(ctx, importer, files)
 
+	if resp.Status != "partial_failure" {
+		t.Errorf("expected status 'partial_failure', got %q", resp.Status)
+	}
 	if resp.Total != 4 {
 		t.Errorf("expected total 4, got %d", resp.Total)
 	}
@@ -209,5 +212,27 @@ func TestImportSessionFiles(t *testing.T) {
 	}
 	if resp.Details[3].Status != "failed" || resp.Details[3].Reason != "database disk full" {
 		t.Errorf("unexpected detail for item 3: %+v", resp.Details[3])
+	}
+
+	// Case: All files failed -> Status "error"
+	allFailFiles := []FileItem{
+		{Name: "session3.f1session", Data: data3},
+		{Name: "session4.f1session", Data: data4},
+	}
+	failResp := ImportSessionFiles(ctx, importer, allFailFiles)
+	if failResp.Status != "error" {
+		t.Errorf("expected status 'error' when all files fail, got %q", failResp.Status)
+	}
+
+	// Case: All files succeeded -> Status "success"
+	pkgSuccess := sampleExportPackage(5, "Red Bull Ring", "Race")
+	pkgSuccess.Session.SessionUID = storage.FormatSessionUID(5000)
+	dataSuccess, _, _ := MarshalAndCompressSessionPackage(pkgSuccess, 5)
+	successFiles := []FileItem{
+		{Name: "session5.f1session", Data: dataSuccess},
+	}
+	successResp := ImportSessionFiles(ctx, importer, successFiles)
+	if successResp.Status != "success" {
+		t.Errorf("expected status 'success' when all files succeed, got %q", successResp.Status)
 	}
 }

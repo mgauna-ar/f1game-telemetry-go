@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"sync"
@@ -327,4 +328,36 @@ func TestBatchWriter_RaceEnqueueDuringClose(t *testing.T) {
 	bw.Close(ctx)
 
 	wg.Wait()
+}
+
+type mockFailingBlobWriter struct {
+	fail bool
+}
+
+func (m *mockFailingBlobWriter) SaveLapTelemetryBlob(ctx context.Context, lapID int64, samples []storage.TelemetrySample) error {
+	if m.fail {
+		return errors.New("disk write failure")
+	}
+	return nil
+}
+
+func TestBatchWriter_ErrorCount(t *testing.T) {
+	mockWriter := &mockFailingBlobWriter{fail: true}
+	bw := NewTelemetryBatchWriter(mockWriter)
+	ctx := context.Background()
+	bw.Start(ctx)
+
+	if bw.ErrorCount() != 0 {
+		t.Errorf("expected initial error count 0, got %d", bw.ErrorCount())
+	}
+
+	bw.EnqueueLap(1, []storage.TelemetrySample{{Speed: 200}})
+	bw.EnqueueLap(2, []storage.TelemetrySample{{Speed: 210}})
+	bw.Flush(ctx)
+
+	if bw.ErrorCount() != 2 {
+		t.Errorf("expected error count 2 after failed writes, got %d", bw.ErrorCount())
+	}
+
+	bw.Close(ctx)
 }

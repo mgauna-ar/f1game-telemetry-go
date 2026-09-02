@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
@@ -26,6 +27,8 @@ type TelemetryBatchWriter struct {
 	lapChan chan LapTelemetryPayload
 	flushCh chan chan struct{}
 	doneCh  chan struct{}
+
+	errorCount atomic.Uint64
 
 	mu      sync.Mutex
 	started bool
@@ -136,11 +139,17 @@ func (bw *TelemetryBatchWriter) Close(ctx context.Context) {
 	}
 }
 
+// ErrorCount returns the total number of telemetry blob write errors encountered.
+func (bw *TelemetryBatchWriter) ErrorCount() uint64 {
+	return bw.errorCount.Load()
+}
+
 func (bw *TelemetryBatchWriter) writePayload(payload LapTelemetryPayload) {
 	writeCtx, cancel := context.WithTimeout(context.Background(), DefaultBatchWriteTimeout)
 	defer cancel()
 	if err := bw.repo.SaveLapTelemetryBlob(writeCtx, payload.LapID, payload.Samples); err != nil {
-		slog.Error("Failed to write lap telemetry blob", "lapID", payload.LapID, "error", err)
+		bw.errorCount.Add(1)
+		slog.Error("Failed to write lap telemetry blob", "lapID", payload.LapID, "sampleCount", len(payload.Samples), "error", err)
 	}
 }
 
@@ -167,7 +176,8 @@ func (bw *TelemetryBatchWriter) drainDirect(ctx context.Context) {
 			}
 			writeCtx, cancel := context.WithTimeout(ctx, DefaultBatchWriteTimeout)
 			if err := bw.repo.SaveLapTelemetryBlob(writeCtx, payload.LapID, payload.Samples); err != nil {
-				slog.Error("Failed to write lap telemetry blob", "lapID", payload.LapID, "error", err)
+				bw.errorCount.Add(1)
+				slog.Error("Failed to write lap telemetry blob", "lapID", payload.LapID, "sampleCount", len(payload.Samples), "error", err)
 			}
 			cancel()
 		default:

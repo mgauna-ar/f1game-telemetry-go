@@ -488,7 +488,7 @@ func (r *SQLiteRepository) GetSessions(ctx context.Context) ([]Session, error) {
 	`
 	var tagRows []sessionTagJoinRow
 	if err := r.db.SelectContext(ctx, &tagRows, tagJoinQuery); err != nil {
-		return sessions, nil
+		return nil, fmt.Errorf("failed to get session tags: %w", err)
 	}
 
 	tagsBySession := make(map[int64][]Tag)
@@ -676,7 +676,7 @@ func (r *SQLiteRepository) GetTelemetryByLap(ctx context.Context, lapID int64) (
 	var compressed []byte
 	err := r.db.GetContext(ctx, &compressed, query, lapID)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return []TelemetrySample{}, nil
 		}
 		return nil, fmt.Errorf("failed to get telemetry for lap %d: %w", lapID, err)
@@ -808,9 +808,10 @@ func (r *SQLiteRepository) GetSessionByID(ctx context.Context, sessionID int64) 
 	session = sessions[0]
 
 	tags, err := r.GetTagsBySession(ctx, sessionID)
-	if err == nil {
-		session.Tags = tags
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tags for session %d: %w", sessionID, err)
 	}
+	session.Tags = tags
 	return &session, nil
 }
 
@@ -840,7 +841,7 @@ func (r *SQLiteRepository) ExportSession(ctx context.Context, sessionID int64) (
 	for _, lap := range laps {
 		telemetry, err := r.GetTelemetryByLap(ctx, lap.ID)
 		if err != nil {
-			telemetry = []TelemetrySample{}
+			return nil, fmt.Errorf("failed to export telemetry for lap %d: %w", lap.ID, err)
 		}
 		lapPackages = append(lapPackages, ExportedLapPackage{
 			Lap:       lap,
@@ -868,9 +869,10 @@ func (r *SQLiteRepository) GetSessionByUID(ctx context.Context, sessionUID strin
 		return nil, fmt.Errorf("failed to get session by uid: %w", err)
 	}
 	tags, err := r.GetTagsBySession(ctx, session.ID)
-	if err == nil {
-		session.Tags = tags
+	if err != nil {
+		return nil, fmt.Errorf("failed to get tags for session %s: %w", sessionUID, err)
 	}
+	session.Tags = tags
 	return &session, nil
 }
 
@@ -977,8 +979,11 @@ func (r *SQLiteRepository) ImportSessionWithOptions(ctx context.Context, pkg *Ex
 	// Import and link tags
 	for _, tag := range pkg.Tags {
 		t := Tag{Name: tag.Name, Color: tag.Color}
-		if err := createTag(ctx, tx, &t); err == nil {
-			_ = addTagToSession(ctx, tx, newSession.ID, t.ID)
+		if err := createTag(ctx, tx, &t); err != nil {
+			return 0, fmt.Errorf("failed to create tag %q: %w", tag.Name, err)
+		}
+		if err := addTagToSession(ctx, tx, newSession.ID, t.ID); err != nil {
+			return 0, fmt.Errorf("failed to link tag %q to imported session: %w", tag.Name, err)
 		}
 	}
 
