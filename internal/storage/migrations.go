@@ -139,6 +139,16 @@ WHERE EXISTS (
 );
 `,
 	},
+	{
+		Version: 4,
+		Name:    "create_settings_table",
+		SQL: `
+CREATE TABLE IF NOT EXISTS settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+`,
+	},
 }
 
 // Migrate runs all pending migrations in version order.

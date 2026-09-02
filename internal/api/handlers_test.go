@@ -242,6 +242,13 @@ func TestHandlersAI(t *testing.T) {
 		if eng.GetConfig().ChatterCooldownMs != 30000 {
 			t.Errorf("expected chatter cooldown 30000, got %d", eng.GetConfig().ChatterCooldownMs)
 		}
+
+		// Verify persistence in SQLite across server/engine restart
+		eng2 := engineer.NewEngineerEngine(hub, repo)
+		server.SetEngineerEngine(eng2)
+		if eng2.GetConfig().ChatterCooldownMs != 30000 {
+			t.Errorf("expected restored chatter cooldown 30000, got %d", eng2.GetConfig().ChatterCooldownMs)
+		}
 	})
 
 	t.Run("POST /api/ai/tts validation", func(t *testing.T) {

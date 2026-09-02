@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"io/fs"
 	"net/http"
@@ -84,9 +85,14 @@ func NewServerWithFS(repo storage.Repository, telemetryHub, engineerHub *Hub, st
 	return s
 }
 
-// SetEngineerEngine attaches the EngineerEngine instance to the API server.
+// SetEngineerEngine attaches the EngineerEngine instance to the API server and restores persisted settings if available.
 func (s *Server) SetEngineerEngine(engine *engineer.EngineerEngine) {
 	s.engineerEngine = engine
+	if s.repo != nil && engine != nil {
+		if cfg, err := engineer.LoadEngineerConfig(context.Background(), s.repo); err == nil && cfg != nil {
+			engine.SetConfig(*cfg)
+		}
+	}
 }
 
 // SetInputManager configures the global input manager and forwards PTT state events to engineerHub.

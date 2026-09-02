@@ -1010,6 +1010,33 @@ func (r *SQLiteRepository) ImportSessionWithOptions(ctx context.Context, pkg *Ex
 	return newSession.ID, nil
 }
 
+// GetSetting retrieves a stored setting by key. Returns empty string and nil error if key is not found.
+func (r *SQLiteRepository) GetSetting(ctx context.Context, key string) (string, error) {
+	var val string
+	query := `SELECT value FROM settings WHERE key = ?`
+	err := r.db.GetContext(ctx, &val, query, key)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil
+		}
+		return "", fmt.Errorf("failed to get setting for key %q: %w", key, err)
+	}
+	return val, nil
+}
+
+// SetSetting upserts a key-value setting in SQLite.
+func (r *SQLiteRepository) SetSetting(ctx context.Context, key, value string) error {
+	query := `
+		INSERT INTO settings (key, value)
+		VALUES (?, ?)
+		ON CONFLICT(key) DO UPDATE SET value = excluded.value
+	`
+	if _, err := r.db.ExecContext(ctx, query, key, value); err != nil {
+		return fmt.Errorf("failed to set setting for key %q: %w", key, err)
+	}
+	return nil
+}
+
 // Close closes the database connection.
 func (r *SQLiteRepository) Close() error {
 	if r.db != nil {

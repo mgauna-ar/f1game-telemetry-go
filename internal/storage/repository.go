@@ -42,4 +42,8 @@ type Repository interface {
 	RemoveTagFromSession(ctx context.Context, sessionID, tagID int64) error
 	SetSessionTags(ctx context.Context, sessionID int64, tagIDs []int64) error
 	AddTagToSessions(ctx context.Context, sessionIDs []int64, tagID int64) error
+
+	// Settings
+	GetSetting(ctx context.Context, key string) (string, error)
+	SetSetting(ctx context.Context, key, value string) error
 }

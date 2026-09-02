@@ -1404,3 +1404,44 @@ func TestImportSessionTransactionRollback(t *testing.T) {
 		}
 	}
 }
+
+func TestSettingsOperations(t *testing.T) {
+	repo := setupTestRepo(t)
+	ctx := context.Background()
+
+	// 1. Getting a non-existent setting should return empty string without error
+	val, err := repo.GetSetting(ctx, "non_existent_key")
+	if err != nil {
+		t.Fatalf("GetSetting non_existent_key unexpected error: %v", err)
+	}
+	if val != "" {
+		t.Errorf("expected empty string for non_existent_key, got %q", val)
+	}
+
+	// 2. Setting a value
+	if err := repo.SetSetting(ctx, "engineer_config", `{"tyre_wear_warn_pct":45}`); err != nil {
+		t.Fatalf("SetSetting failed: %v", err)
+	}
+
+	// 3. Getting the value back
+	val, err = repo.GetSetting(ctx, "engineer_config")
+	if err != nil {
+		t.Fatalf("GetSetting failed: %v", err)
+	}
+	if val != `{"tyre_wear_warn_pct":45}` {
+		t.Errorf("expected %q, got %q", `{"tyre_wear_warn_pct":45}`, val)
+	}
+
+	// 4. Upserting updates existing value
+	if err := repo.SetSetting(ctx, "engineer_config", `{"tyre_wear_warn_pct":50}`); err != nil {
+		t.Fatalf("SetSetting update failed: %v", err)
+	}
+
+	val, err = repo.GetSetting(ctx, "engineer_config")
+	if err != nil {
+		t.Fatalf("GetSetting after update failed: %v", err)
+	}
+	if val != `{"tyre_wear_warn_pct":50}` {
+		t.Errorf("expected %q, got %q", `{"tyre_wear_warn_pct":50}`, val)
+	}
+}

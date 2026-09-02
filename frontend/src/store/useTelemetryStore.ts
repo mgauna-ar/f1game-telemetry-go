@@ -18,9 +18,9 @@ import {
 } from '../constants/f1';
 import { useTelemetryDataStore, type TelemetryDataState } from './useTelemetryDataStore';
 import { useSessionStatusStore, type SessionStatusState } from './useSessionStatusStore';
-import { createWebSocket, type WebSocketClient } from '../utils/websocketClient';
+import { connectTelemetryWebSocket } from '../utils/telemetrySocket';
 
-export { useTelemetryDataStore, useSessionStatusStore };
+export { useTelemetryDataStore, useSessionStatusStore, connectTelemetryWebSocket };
 export type { TelemetryDataState, SessionStatusState };
 
 export function parseDriverName(rawName: string | number[] | undefined, defaultName: string, driverId?: number): string {
@@ -546,37 +546,3 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
   },
 }));
 
-// Singleton WebSocket Manager
-let activeWsClient: WebSocketClient | null = null;
-let wsSubscribers = 0;
-
-export function connectTelemetryWebSocket(wsUrl?: string): () => void {
-  wsSubscribers++;
-
-  if (!activeWsClient) {
-    activeWsClient = createWebSocket(wsUrl || '/ws', {
-      onConnect: () => {
-        useTelemetryStore.getState().setConnected(true);
-      },
-      onDisconnect: () => {
-        useTelemetryStore.getState().setConnected(false);
-      },
-      onMessage: (data) => {
-        useTelemetryStore.getState().processIncomingMessage(data);
-      },
-    });
-  }
-
-  if (!activeWsClient.isConnected()) {
-    activeWsClient.connect();
-  }
-
-  return () => {
-    wsSubscribers = Math.max(0, wsSubscribers - 1);
-    if (wsSubscribers === 0 && activeWsClient) {
-      activeWsClient.disconnect();
-      activeWsClient = null;
-      useTelemetryStore.getState().setConnected(false);
-    }
-  };
-}

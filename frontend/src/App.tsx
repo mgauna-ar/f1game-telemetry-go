@@ -9,6 +9,7 @@ import { AiRaceEngineer } from './components/AiRaceEngineer';
 import { LanguageSelector } from './components/LanguageSelector';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { api } from './utils/apiClient';
+import { useRadioSettingsStore } from './store/useRadioSettingsStore';
 import type { UpdateCheckResponse, SystemVersion } from './types/system';
 
 const SessionHistory = lazy(() =>
@@ -76,6 +77,7 @@ function AppContent() {
 
   useEffect(() => {
     checkUpdates();
+    useRadioSettingsStore.getState().loadConfigFromBackend();
   }, [checkUpdates]);
 
   const handleDismissVersion = (version: string) => {
