@@ -1,5 +1,6 @@
 import { createWebSocket, type WebSocketClient } from './websocketClient';
 import { useTelemetryStore } from '../store/useTelemetryStore';
+import { useSessionStatusStore } from '../store/useSessionStatusStore';
 
 let activeWsClient: WebSocketClient | null = null;
 let wsSubscribers = 0;
@@ -21,10 +22,10 @@ export function connectTelemetryWebSocket(wsUrl?: string): () => void {
   if (!activeWsClient) {
     activeWsClient = createWebSocket(wsUrl || '/ws', {
       onConnect: () => {
-        useTelemetryStore.getState().setConnected(true);
+        useSessionStatusStore.getState().setConnected(true);
       },
       onDisconnect: () => {
-        useTelemetryStore.getState().setConnected(false);
+        useSessionStatusStore.getState().setConnected(false);
       },
       onMessage: (data) => {
         useTelemetryStore.getState().processIncomingMessage(data);
@@ -41,7 +42,7 @@ export function connectTelemetryWebSocket(wsUrl?: string): () => void {
     if (wsSubscribers === 0 && activeWsClient) {
       activeWsClient.disconnect();
       activeWsClient = null;
-      useTelemetryStore.getState().setConnected(false);
+      useSessionStatusStore.getState().setConnected(false);
     }
   };
 }

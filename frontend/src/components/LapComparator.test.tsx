@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { vi, describe, it, beforeEach, expect } from 'vitest';
 import { LapComparator } from './LapComparator';
+import { useSessionListStore } from '../store/useSessionListStore';
 
 // Mock Recharts to prevent canvas/DOM size errors in JSDOM
 vi.mock('recharts', () => ({
@@ -19,6 +20,7 @@ vi.mock('recharts', () => ({
 describe('LapComparator Component', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    useSessionListStore.getState().reset();
   });
 
   it('fetches sessions on mount, opens custom dropdown and displays session items with badges', async () => {

@@ -9,6 +9,7 @@ import { AiRaceEngineer } from './components/AiRaceEngineer';
 import { LanguageSelector } from './components/LanguageSelector';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { api } from './utils/apiClient';
+import { storage } from './utils/storage';
 import { useRadioSettingsStore } from './store/useRadioSettingsStore';
 import type { UpdateCheckResponse, SystemVersion } from './types/system';
 
@@ -33,13 +34,9 @@ const DISMISSED_UPDATE_KEY = 'f1_telemetry_dismissed_update';
 function AppContent() {
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<TabType>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved === 'history' || saved === 'comparator' || saved === 'live') {
-        return saved;
-      }
-    } catch {
-      // Ignore localStorage access issues
+    const saved = storage.get<string>(STORAGE_KEY, 'history');
+    if (saved === 'history' || saved === 'comparator' || saved === 'live') {
+      return saved;
     }
     return 'history';
   });
@@ -51,11 +48,7 @@ function AppContent() {
   const [systemVersion, setSystemVersion] = useState<SystemVersion | null>(null);
   const [isReleaseModalOpen, setIsReleaseModalOpen] = useState(false);
   const [dismissedVersion, setDismissedVersion] = useState<string | null>(() => {
-    try {
-      return localStorage.getItem(DISMISSED_UPDATE_KEY);
-    } catch {
-      return null;
-    }
+    return storage.get<string | null>(DISMISSED_UPDATE_KEY, null);
   });
 
   const checkUpdates = useCallback(async () => {
@@ -82,11 +75,7 @@ function AppContent() {
 
   const handleDismissVersion = (version: string) => {
     setDismissedVersion(version);
-    try {
-      localStorage.setItem(DISMISSED_UPDATE_KEY, version);
-    } catch {
-      // Ignore
-    }
+    storage.set(DISMISSED_UPDATE_KEY, version);
   };
 
   const [comparatorPreload, setComparatorPreload] = useState<{
@@ -100,11 +89,7 @@ function AppContent() {
   } | null>(null);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, activeTab);
-    } catch {
-      // Ignore localStorage write issues
-    }
+    storage.set(STORAGE_KEY, activeTab);
     if (activeTab === 'live') {
       setContextMode('live');
     } else if (activeTab === 'comparator') {

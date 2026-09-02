@@ -3,31 +3,36 @@ import { GitCompare, ArrowLeftRight, X, ChevronRight, Zap } from 'lucide-react';
 import { TEAM_COLORS } from '../../constants/f1';
 import type { StagedLap } from '../../types/session';
 import { useI18n } from '../../context/I18nContext';
+import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContext';
+import { formatLapTime as defaultFormatLapTime } from '../../utils/formatters';
 
 export type { StagedLap };
 
-interface SessionComparatorDockProps {
-  stagedA: StagedLap | null;
-  stagedB: StagedLap | null;
-  onClearA: () => void;
-  onClearB: () => void;
-  onClearAll: () => void;
-  onSwap: () => void;
-  onLaunch: () => void;
-  formatLapTime: (ms: number) => string;
+export interface SessionComparatorDockProps {
+  stagedA?: StagedLap | null;
+  stagedB?: StagedLap | null;
+  onClearA?: () => void;
+  onClearB?: () => void;
+  onClearAll?: () => void;
+  onSwap?: () => void;
+  onLaunch?: () => void;
+  formatLapTime?: (ms: number) => string;
 }
 
-export const SessionComparatorDock: React.FC<SessionComparatorDockProps> = ({
-  stagedA,
-  stagedB,
-  onClearA,
-  onClearB,
-  onClearAll,
-  onSwap,
-  onLaunch,
-  formatLapTime,
-}) => {
+export const SessionComparatorDock: React.FC<SessionComparatorDockProps> = (props) => {
   const { t } = useI18n();
+  const historyData = useSessionHistoryData();
+  const historyActions = useSessionHistoryActions();
+
+  const stagedA = props.stagedA !== undefined ? props.stagedA : historyData.stagedSlotA;
+  const stagedB = props.stagedB !== undefined ? props.stagedB : historyData.stagedSlotB;
+  const onClearA = props.onClearA ?? historyActions.handleClearStagedA;
+  const onClearB = props.onClearB ?? historyActions.handleClearStagedB;
+  const onClearAll = props.onClearAll ?? historyActions.handleClearAllStaged;
+  const onSwap = props.onSwap ?? historyActions.handleSwapStagedSlots;
+  const onLaunch = props.onLaunch ?? historyActions.handleLaunchComparison;
+  const formatLapTime = props.formatLapTime ?? defaultFormatLapTime;
+
   const hasAny = !!stagedA || !!stagedB;
   const hasBoth = !!stagedA && !!stagedB;
 

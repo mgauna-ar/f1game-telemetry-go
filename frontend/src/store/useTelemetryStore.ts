@@ -111,89 +111,25 @@ export interface LiveSnapshotData {
 }
 
 export interface TelemetryState {
-  session: SessionData | null;
-  participants: ParticipantData[];
-  allLaps: LapData[];
-  allCarStatus: CarStatusData[];
-  allCarDamage: CarDamageData[];
-  allTelemetry: CarTelemetryData[];
-  allTelemetry2: CarTelemetry2Data[];
-  allMotion: CarMotionData[];
-  events: RaceEvent[];
-  playerCarIndex: number;
-  selectedCarIndex: number;
-  packetFormat: number | null;
-  connected: boolean;
-
-  setSelectedCarIndex: (index: number) => void;
-  addEvent: (event: Omit<RaceEvent, 'id' | 'timestamp'>) => void;
-  clearEvents: () => void;
-  resetSession: () => void;
-  setConnected: (connected: boolean) => void;
   processIncomingMessage: (data: unknown) => void;
+  resetStore: () => void;
+  resetSession: () => void;
 }
 
 // Internal tracking references outside Zustand state to prevent extra subscriber triggers
 let lastSessionUID: string | number | null = null;
 let participantsCache: ParticipantData[] = [];
 
-export const useTelemetryStore = create<TelemetryState>((set, get) => ({
-  session: null,
-  participants: [],
-  allLaps: [],
-  allCarStatus: [],
-  allCarDamage: [],
-  allTelemetry: [],
-  allTelemetry2: [],
-  allMotion: [],
-  events: [],
-  playerCarIndex: 0,
-  selectedCarIndex: 0,
-  packetFormat: null,
-  connected: false,
-
-  setSelectedCarIndex: (index: number) => {
-    useTelemetryDataStore.getState().setSelectedCarIndex(index);
-    set({ selectedCarIndex: index });
-  },
-
-  addEvent: (event: Omit<RaceEvent, 'id' | 'timestamp'>) => {
-    useSessionStatusStore.getState().addEvent(event);
-    const newEvt: RaceEvent = {
-      ...event,
-      id: `${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
-      timestamp: Date.now(),
-    };
-    set((state) => ({
-      events: [newEvt, ...state.events].slice(0, 80),
-    }));
-  },
-
-  clearEvents: () => {
-    useSessionStatusStore.getState().clearEvents();
-    set({ events: [] });
+export const useTelemetryStore = create<TelemetryState>((_set, get) => ({
+  resetStore: () => {
+    participantsCache = [];
+    lastSessionUID = null;
+    useTelemetryDataStore.getState().resetTelemetryData();
+    useSessionStatusStore.getState().resetSession();
   },
 
   resetSession: () => {
-    participantsCache = [];
-    useTelemetryDataStore.getState().resetTelemetryData();
-    useSessionStatusStore.getState().resetSession();
-    set({
-      session: null,
-      participants: [],
-      allLaps: [],
-      allCarStatus: [],
-      allCarDamage: [],
-      allTelemetry: [],
-      allTelemetry2: [],
-      allMotion: [],
-      events: [],
-    });
-  },
-
-  setConnected: (connected: boolean) => {
-    useSessionStatusStore.getState().setConnected(connected);
-    set({ connected });
+    get().resetStore();
   },
 
   processIncomingMessage: (data: unknown) => {
@@ -204,7 +140,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
 
     // Detect session transition
     if (header.SessionUID && lastSessionUID !== null && lastSessionUID !== header.SessionUID) {
-      get().resetSession();
+      get().resetStore();
     }
     if (header.SessionUID) {
       lastSessionUID = header.SessionUID;
@@ -283,7 +219,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
       // Handle Server Synthetic Events
       if (snapshot.Events && snapshot.Events.length > 0) {
         for (const evt of snapshot.Events) {
-          get().addEvent(evt);
+          useSessionStatusStore.getState().addEvent(evt);
         }
       }
 
@@ -305,11 +241,6 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
 
       useTelemetryDataStore.getState().setTelemetryData(partialData);
       useSessionStatusStore.getState().setSessionStatus(partialStatus);
-
-      set({
-        ...partialData,
-        ...partialStatus,
-      });
       return;
     }
 
@@ -335,7 +266,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
 
       switch (code) {
         case 'FTLP':
-          get().addEvent({
+          useSessionStatusStore.getState().addEvent({
             eventCode: 'FTLP',
             type: 'fastest_lap',
             description: `${driverName} set the fastest lap (${(eventData.LapTime || 0).toFixed(3)}s)`,
@@ -350,7 +281,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
           const targetIdx = eventData.OtherVehicleIdx ?? 0;
           const targetDriver = participantsCache[targetIdx] || currentParticipants[targetIdx];
           const targetName = parseDriverName(targetDriver?.Name, `Car #${targetIdx + 1}`, targetDriver?.DriverId);
-          get().addEvent({
+          useSessionStatusStore.getState().addEvent({
             eventCode: 'OVTK',
             type: 'overtake',
             description: `${driverName} overtook ${targetName}`,
@@ -368,7 +299,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
           const targetDriver = targetIdx !== undefined ? (participantsCache[targetIdx] || currentParticipants[targetIdx]) : undefined;
           const targetName = targetDriver ? parseDriverName(targetDriver?.Name, `Car #${(targetIdx ?? 0) + 1}`, targetDriver?.DriverId) : undefined;
           const isSevere = eventData.PenaltyType === 6 || (eventData.PenaltyTime !== undefined && eventData.PenaltyTime >= 10 && eventData.PenaltyTime < 255);
-          get().addEvent({
+          useSessionStatusStore.getState().addEvent({
             eventCode: 'PENA',
             type: 'penalty',
             description: `${driverName} received a penalty`,
@@ -387,7 +318,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
           break;
         }
         case 'SPTP':
-          get().addEvent({
+          useSessionStatusStore.getState().addEvent({
             eventCode: 'SPTP',
             type: 'speed_trap',
             description: `${driverName} triggered speed trap at ${(eventData.Speed || 0).toFixed(1)} km/h`,
@@ -399,7 +330,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
           });
           break;
         case 'TMPT':
-          get().addEvent({
+          useSessionStatusStore.getState().addEvent({
             eventCode: 'TMPT',
             type: 'pit',
             description: `${driverName} entered the pit lane`,
@@ -410,7 +341,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
           });
           break;
         case 'RTMT':
-          get().addEvent({
+          useSessionStatusStore.getState().addEvent({
             eventCode: 'RTMT',
             type: 'retirement',
             description: `${driverName} retired from the session`,
@@ -421,7 +352,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
           });
           break;
         case 'DTSV':
-          get().addEvent({
+          useSessionStatusStore.getState().addEvent({
             eventCode: 'DTSV',
             type: 'penalty',
             description: `${driverName} served Drive Through penalty`,
@@ -432,7 +363,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
           });
           break;
         case 'SGSV':
-          get().addEvent({
+          useSessionStatusStore.getState().addEvent({
             eventCode: 'SGSV',
             type: 'penalty',
             description: `${driverName} served Stop & Go penalty`,
@@ -446,7 +377,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
           const targetIdx = eventData.OtherVehicleIdx ?? 0;
           const targetDriver = participantsCache[targetIdx] || currentParticipants[targetIdx];
           const targetName = parseDriverName(targetDriver?.Name, `Car #${targetIdx + 1}`, targetDriver?.DriverId);
-          get().addEvent({
+          useSessionStatusStore.getState().addEvent({
             eventCode: 'COLL',
             type: 'penalty',
             description: `Collision between ${driverName} and ${targetName}`,
@@ -460,7 +391,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
           break;
         }
         case 'RDFL':
-          get().addEvent({
+          useSessionStatusStore.getState().addEvent({
             eventCode: 'RDFL',
             type: 'flag',
             description: 'Red Flag deployed!',
@@ -469,7 +400,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
           });
           break;
         case 'SSTA':
-          get().addEvent({
+          useSessionStatusStore.getState().addEvent({
             eventCode: 'SSTA',
             type: 'general',
             description: 'Session Started',
@@ -478,7 +409,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
           });
           break;
         case 'CHQF':
-          get().addEvent({
+          useSessionStatusStore.getState().addEvent({
             eventCode: 'CHQF',
             type: 'flag',
             description: 'Chequered Flag waved',
@@ -487,7 +418,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
           });
           break;
         case 'RCWN':
-          get().addEvent({
+          useSessionStatusStore.getState().addEvent({
             eventCode: 'RCWN',
             type: 'general',
             description: `${driverName} won the race!`,
@@ -500,7 +431,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
         case 'FLG_':
           break;
         case 'STLG':
-          get().addEvent({
+          useSessionStatusStore.getState().addEvent({
             eventCode: 'STLG',
             type: 'general',
             description: 'Start lights countdown active',
@@ -509,7 +440,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
           });
           break;
         case 'LGOT':
-          get().addEvent({
+          useSessionStatusStore.getState().addEvent({
             eventCode: 'LGOT',
             type: 'general',
             description: 'LIGHTS OUT AND AWAY WE GO!',
@@ -518,7 +449,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
           });
           break;
         case 'SEND':
-          get().addEvent({
+          useSessionStatusStore.getState().addEvent({
             eventCode: 'SEND',
             type: 'general',
             description: 'Chequered flag — Session complete',
@@ -556,44 +487,37 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
       };
       useSessionStatusStore.getState().setSessionStatus({ session: sessionObj, packetFormat: pktFormat });
       useTelemetryDataStore.getState().setTelemetryData({ playerCarIndex: playerIdx });
-      set({ session: sessionObj, playerCarIndex: playerIdx, packetFormat: pktFormat });
     } else if (header.PacketId === PACKET_IDS.PARTICIPANTS) {
       const pData = data as { Participants?: ParticipantData[] };
       if (pData.Participants) {
         participantsCache = pData.Participants;
         useSessionStatusStore.getState().setSessionStatus({ participants: pData.Participants });
         useTelemetryDataStore.getState().setTelemetryData({ playerCarIndex: playerIdx });
-        set({ participants: pData.Participants, playerCarIndex: playerIdx });
       }
     } else if (header.PacketId === PACKET_IDS.LAP_DATA) {
       const lData = data as { LapData?: LapData[] };
       if (lData.LapData) {
         useTelemetryDataStore.getState().setTelemetryData({ allLaps: lData.LapData, playerCarIndex: playerIdx });
-        set({ allLaps: lData.LapData, playerCarIndex: playerIdx });
       }
     } else if (header.PacketId === PACKET_IDS.CAR_TELEMETRY) {
       const tData = data as { CarTelemetryData?: CarTelemetryData[] };
       if (tData.CarTelemetryData) {
         useTelemetryDataStore.getState().setTelemetryData({ allTelemetry: tData.CarTelemetryData, playerCarIndex: playerIdx });
-        set({ allTelemetry: tData.CarTelemetryData, playerCarIndex: playerIdx });
       }
     } else if (header.PacketId === PACKET_IDS.CAR_TELEMETRY_2) {
       const t2Data = data as { CarTelemetry2Data?: CarTelemetry2Data[] };
       if (t2Data.CarTelemetry2Data) {
         useTelemetryDataStore.getState().setTelemetryData({ allTelemetry2: t2Data.CarTelemetry2Data, playerCarIndex: playerIdx });
-        set({ allTelemetry2: t2Data.CarTelemetry2Data, playerCarIndex: playerIdx });
       }
     } else if (header.PacketId === PACKET_IDS.CAR_STATUS) {
       const sData = data as { CarStatusData?: CarStatusData[] };
       if (sData.CarStatusData) {
         useTelemetryDataStore.getState().setTelemetryData({ allCarStatus: sData.CarStatusData, playerCarIndex: playerIdx });
-        set({ allCarStatus: sData.CarStatusData, playerCarIndex: playerIdx });
       }
     } else if (header.PacketId === PACKET_IDS.CAR_DAMAGE) {
       const dData = data as { CarDamageData?: CarDamageData[] };
       if (dData.CarDamageData) {
         useTelemetryDataStore.getState().setTelemetryData({ allCarDamage: dData.CarDamageData, playerCarIndex: playerIdx });
-        set({ allCarDamage: dData.CarDamageData, playerCarIndex: playerIdx });
       }
     }
   },

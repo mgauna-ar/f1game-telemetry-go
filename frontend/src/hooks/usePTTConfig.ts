@@ -6,6 +6,7 @@ import {
   type RadioPTTMode,
 } from '../constants/f1';
 import { api } from '../utils/apiClient';
+import { storage } from '../utils/storage';
 
 export interface GamepadMapping {
   gamepadIndex: number;
@@ -102,83 +103,61 @@ export function usePTTConfig(): UsePTTConfigReturn {
 
   // Load PTT Mode (hold vs toggle)
   const [pttMode, setPTTModeState] = useState<RadioPTTMode>(() => {
-    if (typeof window === 'undefined') return RADIO_PTT_MODES.HOLD;
-    try {
-      const saved = localStorage.getItem(RADIO_STORAGE_KEYS.PTT_MODE) as RadioPTTMode;
-      if (saved && Object.values(RADIO_PTT_MODES).includes(saved)) return saved;
-      return RADIO_PTT_MODES.HOLD;
-    } catch {
-      return RADIO_PTT_MODES.HOLD;
-    }
+    const saved = storage.get<RadioPTTMode>(RADIO_STORAGE_KEYS.PTT_MODE, RADIO_PTT_MODES.HOLD);
+    if (Object.values(RADIO_PTT_MODES).includes(saved)) return saved;
+    return RADIO_PTT_MODES.HOLD;
   });
 
   const setPTTMode = useCallback((mode: RadioPTTMode) => {
     setPTTModeState(mode);
-    try {
-      localStorage.setItem(RADIO_STORAGE_KEYS.PTT_MODE, mode);
-    } catch {}
+    storage.set(RADIO_STORAGE_KEYS.PTT_MODE, mode);
   }, []);
 
   // Load initial gamepad mapping
   const [mappedGamepadButton, setMappedGamepadButtonState] = useState<GamepadMapping | null>(() => {
-    if (typeof window === 'undefined') return null;
-    try {
-      const saved = localStorage.getItem(RADIO_STORAGE_KEYS.GAMEPAD_MAPPING);
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
+    return storage.get<GamepadMapping | null>(RADIO_STORAGE_KEYS.GAMEPAD_MAPPING, null);
   });
 
   // Load initial keyboard key
   const [mappedKey, setMappedKeyState] = useState<string>(() => {
-    if (typeof window === 'undefined') return RADIO_ALERT_CONSTANTS.DEFAULT_KEYBOARD_KEY;
-    try {
-      return localStorage.getItem(RADIO_STORAGE_KEYS.KEYBOARD_KEY) || RADIO_ALERT_CONSTANTS.DEFAULT_KEYBOARD_KEY;
-    } catch {
-      return RADIO_ALERT_CONSTANTS.DEFAULT_KEYBOARD_KEY;
-    }
+    return storage.get<string>(RADIO_STORAGE_KEYS.KEYBOARD_KEY, RADIO_ALERT_CONSTANTS.DEFAULT_KEYBOARD_KEY);
   });
 
   const setMappedGamepadButton = useCallback((mapping: GamepadMapping | null) => {
     setMappedGamepadButtonState(mapping);
-    try {
-      if (mapping) {
-        localStorage.setItem(RADIO_STORAGE_KEYS.GAMEPAD_MAPPING, JSON.stringify(mapping));
-        api.post('/api/ai/ptt/config', {
-          mapping: {
-            device_type: 'joystick',
-            device_index: mapping.gamepadIndex,
-            button_index: mapping.buttonIndex,
-            key_name: `Button ${mapping.buttonIndex + 1}`,
-            device_name: 'Controller / Wheel',
-          },
-        }).catch(() => {});
-      } else {
-        localStorage.removeItem(RADIO_STORAGE_KEYS.GAMEPAD_MAPPING);
-        api.post('/api/ai/ptt/config', {
-          mapping: {
-            device_type: 'none',
-          },
-        }).catch(() => {});
-      }
-    } catch {}
+    if (mapping) {
+      storage.set(RADIO_STORAGE_KEYS.GAMEPAD_MAPPING, mapping);
+      api.post('/api/ai/ptt/config', {
+        mapping: {
+          device_type: 'joystick',
+          device_index: mapping.gamepadIndex,
+          button_index: mapping.buttonIndex,
+          key_name: `Button ${mapping.buttonIndex + 1}`,
+          device_name: 'Controller / Wheel',
+        },
+      }).catch(() => {});
+    } else {
+      storage.remove(RADIO_STORAGE_KEYS.GAMEPAD_MAPPING);
+      api.post('/api/ai/ptt/config', {
+        mapping: {
+          device_type: 'none',
+        },
+      }).catch(() => {});
+    }
   }, []);
 
   const setMappedKey = useCallback((key: string) => {
     setMappedKeyState(key);
-    try {
-      localStorage.setItem(RADIO_STORAGE_KEYS.KEYBOARD_KEY, key);
-      const isNone = !key || key === 'None';
-      api.post('/api/ai/ptt/config', {
-        mapping: {
-          device_type: isNone ? 'none' : 'keyboard',
-          key_code: getVKCodeForName(key),
-          key_name: key,
-          device_name: 'Keyboard',
-        },
-      }).catch(() => {});
-    } catch {}
+    storage.set(RADIO_STORAGE_KEYS.KEYBOARD_KEY, key);
+    const isNone = !key || key === 'None';
+    api.post('/api/ai/ptt/config', {
+      mapping: {
+        device_type: isNone ? 'none' : 'keyboard',
+        key_code: getVKCodeForName(key),
+        key_name: key,
+        device_name: 'Keyboard',
+      },
+    }).catch(() => {});
   }, []);
 
   const startLearning = useCallback(() => {
@@ -203,30 +182,25 @@ export function usePTTConfig(): UsePTTConfigReturn {
           return;
         }
 
-        const savedJoy = localStorage.getItem(RADIO_STORAGE_KEYS.GAMEPAD_MAPPING);
-        if (savedJoy) {
-          try {
-            const parsedJoy: GamepadMapping = JSON.parse(savedJoy);
-            if (parsedJoy && parsedJoy.buttonIndex >= 0) {
-              api.post<{ status?: string; mapping?: GlobalPTTMapping }>('/api/ai/ptt/config', {
-                mapping: {
-                  device_type: 'joystick',
-                  device_index: parsedJoy.gamepadIndex,
-                  button_index: parsedJoy.buttonIndex,
-                  key_name: `Button ${parsedJoy.buttonIndex + 1}`,
-                  device_name: 'Controller / Wheel',
-                },
-              })
-                .then((resData) => {
-                  if (resData?.mapping) setGlobalMapping(resData.mapping);
-                })
-                .catch(() => {});
-              return;
-            }
-          } catch {}
+        const parsedJoy = storage.get<GamepadMapping | null>(RADIO_STORAGE_KEYS.GAMEPAD_MAPPING, null);
+        if (parsedJoy && parsedJoy.buttonIndex >= 0) {
+          api.post<{ status?: string; mapping?: GlobalPTTMapping }>('/api/ai/ptt/config', {
+            mapping: {
+              device_type: 'joystick',
+              device_index: parsedJoy.gamepadIndex,
+              button_index: parsedJoy.buttonIndex,
+              key_name: `Button ${parsedJoy.buttonIndex + 1}`,
+              device_name: 'Controller / Wheel',
+            },
+          })
+            .then((resData) => {
+              if (resData?.mapping) setGlobalMapping(resData.mapping);
+            })
+            .catch(() => {});
+          return;
         }
 
-        const savedKey = localStorage.getItem(RADIO_STORAGE_KEYS.KEYBOARD_KEY);
+        const savedKey = storage.get<string>(RADIO_STORAGE_KEYS.KEYBOARD_KEY, '');
         if (savedKey && savedKey !== 'None') {
           api.post<{ status?: string; mapping?: GlobalPTTMapping }>('/api/ai/ptt/config', {
             mapping: {

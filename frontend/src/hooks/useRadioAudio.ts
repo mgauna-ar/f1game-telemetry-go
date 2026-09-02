@@ -8,6 +8,7 @@ import { useI18n } from '../context/I18nContext';
 import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
 import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
 import { api } from '../utils/apiClient';
+import { storage } from '../utils/storage';
 import { useSpeechRecognition } from './useSpeechRecognition';
 import { useTTSPlayback } from './useTTSPlayback';
 
@@ -191,22 +192,27 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
       let aiModel = 'gemini-flash-lite-latest';
       let aiBaseUrl = '';
 
-      try {
-        const storedConfig = localStorage.getItem('f1_ai_engineer_config');
-        if (storedConfig) {
-          const parsed = JSON.parse(storedConfig);
-          if (parsed.provider) aiProvider = parsed.provider;
-          if (parsed.apiKey) aiApiKey = parsed.apiKey;
-          if (parsed.model) aiModel = parsed.model;
-          if (parsed.baseUrl) aiBaseUrl = parsed.baseUrl;
-          if (parsed.providerKeys && parsed.provider && parsed.providerKeys[parsed.provider]) {
-            aiApiKey = parsed.providerKeys[parsed.provider];
-          }
-          if (parsed.providerModels && parsed.provider && parsed.providerModels[parsed.provider]) {
-            aiModel = parsed.providerModels[parsed.provider];
-          }
+      interface StoredAIConfig {
+        provider?: string;
+        apiKey?: string;
+        model?: string;
+        baseUrl?: string;
+        providerKeys?: Record<string, string>;
+        providerModels?: Record<string, string>;
+      }
+      const parsed = storage.get<StoredAIConfig | null>('f1_ai_engineer_config', null);
+      if (parsed) {
+        if (parsed.provider) aiProvider = parsed.provider;
+        if (parsed.apiKey) aiApiKey = parsed.apiKey;
+        if (parsed.model) aiModel = parsed.model;
+        if (parsed.baseUrl) aiBaseUrl = parsed.baseUrl;
+        if (parsed.providerKeys && parsed.provider && parsed.providerKeys[parsed.provider]) {
+          aiApiKey = parsed.providerKeys[parsed.provider];
         }
-      } catch {}
+        if (parsed.providerModels && parsed.provider && parsed.providerModels[parsed.provider]) {
+          aiModel = parsed.providerModels[parsed.provider];
+        }
+      }
 
       const currentPersona = personaRef.current;
       const currentLanguage = effectiveLanguageRef.current;

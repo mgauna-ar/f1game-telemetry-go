@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Session, NavigationComparatorPayload } from '../types/session';
 import { getTrackInfo } from '../constants/f1';
 import { useI18n } from '../context/I18nContext';
-import { api } from '../utils/apiClient';
+import { useSessionListStore } from '../store/useSessionListStore';
 
 export interface UseComparatorSessionsOptions {
   initialPreload?: NavigationComparatorPayload | null;
@@ -46,7 +46,10 @@ export function useComparatorSessions({
   initialPreload,
 }: UseComparatorSessionsOptions = {}): UseComparatorSessionsReturn {
   const { t } = useI18n();
-  const [sessions, setSessions] = useState<Session[]>([]);
+  const sessions = useSessionListStore((s) => s.sessions);
+  const setSessions = useSessionListStore((s) => s.setSessions) as unknown as React.Dispatch<React.SetStateAction<Session[]>>;
+  const error = useSessionListStore((s) => s.error);
+  const storeFetchSessions = useSessionListStore((s) => s.fetchSessions);
 
   // Dual session IDs & Synchronization link
   const [sessionAId, setSessionAId] = useState<number | ''>(() => {
@@ -73,35 +76,14 @@ export function useComparatorSessions({
   const [isSessionBDropdownOpen, setIsSessionBDropdownOpen] = useState(false);
   const [sessionBSearchQuery, setSessionBSearchQuery] = useState('');
   const [sessionBTypeTab, setSessionBTypeTab] = useState<SessionTypeTab>('ALL');
-  const [error, setError] = useState<string | null>(null);
-  const fetchAbortControllerRef = useRef<AbortController | null>(null);
 
-  // Fetch available sessions
+  // Fetch available sessions via shared store
   const fetchSessions = useCallback(() => {
-    fetchAbortControllerRef.current?.abort();
-    const controller = new AbortController();
-    fetchAbortControllerRef.current = controller;
-    setError(null);
-
-    api.get<Session[]>('/api/sessions', { signal: controller.signal })
-      .then((data) => {
-        if (!controller.signal.aborted) {
-          const sessionList = data || [];
-          setSessions(sessionList);
-        }
-      })
-      .catch((err) => {
-        if (err.name !== 'AbortError') {
-          setError(err.message || 'Failed to fetch sessions');
-        }
-      });
-  }, []);
+    storeFetchSessions();
+  }, [storeFetchSessions]);
 
   useEffect(() => {
     fetchSessions();
-    return () => {
-      fetchAbortControllerRef.current?.abort();
-    };
   }, [fetchSessions]);
 
   // Handle Session A Selection

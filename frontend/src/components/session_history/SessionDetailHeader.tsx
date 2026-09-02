@@ -12,42 +12,48 @@ import {
   Plus,
 } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
+import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContext';
+import { formatDate as defaultFormatDate, getSessionBadgeClass as defaultGetSessionBadgeClass } from '../../utils/formatters';
 import { TrackFlag } from '../TrackFlag';
 import { F1FormatBadge } from '../F1FormatBadge';
 import { TagBadge } from './TagBadge';
 import { WeatherBadgeWithForecast } from './WeatherBadgeWithForecast';
 import type { Session } from '../../types/session';
 
-interface SessionDetailHeaderProps {
-  session: Session;
-  activeDetailTab: 'classification' | 'charts' | 'stints' | 'sectors';
-  setActiveDetailTab: (tab: 'classification' | 'charts' | 'stints' | 'sectors') => void;
-  totalSessionLaps: number;
-  totalDriversCount: number;
-  onOpenAiDebrief: () => void;
-  onExportSession: () => void;
-  onRequestDelete: () => void;
-  onOpenTagManager: () => void;
-  onRemoveTag: (tagId: number) => void;
-  formatDate: (dateStr: string) => string;
-  getSessionBadgeClass: (type: string) => string;
+export interface SessionDetailHeaderProps {
+  session?: Session;
+  activeDetailTab?: 'classification' | 'charts' | 'stints' | 'sectors';
+  setActiveDetailTab?: (tab: 'classification' | 'charts' | 'stints' | 'sectors') => void;
+  totalSessionLaps?: number;
+  totalDriversCount?: number;
+  onOpenAiDebrief?: () => void;
+  onExportSession?: () => void;
+  onRequestDelete?: () => void;
+  onOpenTagManager?: () => void;
+  onRemoveTag?: (tagId: number) => void;
+  formatDate?: (dateStr: string) => string;
+  getSessionBadgeClass?: (type: string) => string;
 }
 
-export const SessionDetailHeader: React.FC<SessionDetailHeaderProps> = ({
-  session,
-  activeDetailTab,
-  setActiveDetailTab,
-  totalSessionLaps,
-  totalDriversCount,
-  onOpenAiDebrief,
-  onExportSession,
-  onRequestDelete,
-  onOpenTagManager,
-  onRemoveTag,
-  formatDate,
-  getSessionBadgeClass,
-}) => {
+export const SessionDetailHeader: React.FC<SessionDetailHeaderProps> = (props) => {
   const { t } = useI18n();
+  const historyData = useSessionHistoryData();
+  const historyActions = useSessionHistoryActions();
+
+  const session = props.session ?? historyData.selectedSession;
+  if (!session) return null;
+
+  const activeDetailTab = props.activeDetailTab ?? historyData.activeDetailTab;
+  const setActiveDetailTab = props.setActiveDetailTab ?? historyActions.setActiveDetailTab;
+  const totalSessionLaps = props.totalSessionLaps ?? historyData.totalSessionLaps;
+  const totalDriversCount = props.totalDriversCount ?? historyData.totalDriversCount;
+  const onOpenAiDebrief = props.onOpenAiDebrief ?? historyActions.onOpenAiDebrief;
+  const onExportSession = props.onExportSession ?? (() => historyActions.handleExportSession(session));
+  const onRequestDelete = props.onRequestDelete ?? (() => historyActions.setSessionToDelete(session));
+  const onOpenTagManager = props.onOpenTagManager ?? (() => historyActions.setSessionToManageTags(session));
+  const onRemoveTag = props.onRemoveTag ?? ((tagId: number) => historyActions.handleRemoveTag(session.id, tagId));
+  const formatDate = props.formatDate ?? defaultFormatDate;
+  const getSessionBadgeClass = props.getSessionBadgeClass ?? defaultGetSessionBadgeClass;
 
   return (
     <>
@@ -58,17 +64,18 @@ export const SessionDetailHeader: React.FC<SessionDetailHeaderProps> = ({
             <TrackFlag track={session.track_name} width={26} height={18} />
             <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 800 }}>{session.track_name}</h1>
             <F1FormatBadge format={session.packet_format} size="sm" />
-            <span className={`session-badge ${getSessionBadgeClass(session.session_type)}`}>
-              {session.session_type}
+            <span className={`badge ${getSessionBadgeClass(session.session_type)}`} style={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              {session.session_type || 'Unknown'}
             </span>
           </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginTop: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', flexWrap: 'wrap' }}>
+            <span>{formatDate(session.created_at)}</span>
+            <span>•</span>
+            <span className="mono" style={{ color: 'var(--text-muted)' }}>UID: {session.session_uid}</span>
+          </div>
 
-          <p style={{ color: 'var(--text-secondary)', margin: '4px 0 0 0', fontSize: '0.85rem' }}>
-            {t('history.detail.recordedOn', { date: formatDate(session.created_at) })}
-          </p>
-
-          {/* Tags & Manage Tags Button */}
-          <div className="session-card-tags-row" style={{ paddingTop: '6px' }}>
+          {/* Session Tags List */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '0.6rem' }}>
             {(session.tags || []).map((tag) => (
               <TagBadge
                 key={tag.id}

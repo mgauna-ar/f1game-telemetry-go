@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Calendar,
   Flag,
@@ -17,26 +17,22 @@ import { TagManagerModal } from './session_history/TagManagerModal';
 import { SessionComparatorDock } from './session_history/SessionComparatorDock';
 import { SessionBatchDock } from './session_history/SessionBatchDock';
 
-import { useRaceEngineerActions } from '../context/RaceEngineerContext';
 import { useI18n } from '../context/I18nContext';
-import { formatLapTime, formatDate, getSessionBadgeClass } from '../utils/formatters';
-
 import {
-  type Session,
-  type Participant,
-  type Lap,
-  type StagedLap,
-  type DriverStanding,
-  type NavigationComparatorPayload,
-  type Tag,
-} from '../types/session';
+  SessionHistoryProvider,
+  useSessionHistoryData,
+  useSessionHistoryActions,
+} from '../context/SessionHistoryContext';
 
-import { useSessionList } from '../hooks/useSessionList';
-import { useSessionFilters } from '../hooks/useSessionFilters';
-import { useSessionTags } from '../hooks/useSessionTags';
-import { useBatchOperations } from '../hooks/useBatchOperations';
-import { useLapStaging } from '../hooks/useLapStaging';
-import { useSessionDetail } from '../hooks/useSessionDetail';
+import type {
+  Session,
+  Participant,
+  Lap,
+  StagedLap,
+  DriverStanding,
+  NavigationComparatorPayload,
+  Tag,
+} from '../types/session';
 
 export type { Session, Participant, Lap, StagedLap, DriverStanding, NavigationComparatorPayload, Tag };
 
@@ -44,132 +40,44 @@ interface SessionHistoryProps {
   onNavigateToComparator?: (payload: NavigationComparatorPayload | number, lapId?: number, slot?: 'A' | 'B') => void;
 }
 
-export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComparator }) => {
+const SessionHistoryContent: React.FC = () => {
   const { t } = useI18n();
-
-  // AI Race Engineer Context Hook
-  const { openChat } = useRaceEngineerActions();
-
-  // Hook 1: Session list state & deletion
   const {
-    sessions,
-    setSessions,
+    filteredSessions,
     loadingSessions,
     error,
-    sessionToDelete,
-    setSessionToDelete,
-    deletingSessionId,
-    fetchSessions,
-    confirmDeleteSession,
-  } = useSessionList();
-
-  // Hook 2: Lap Staging for Comparator Dock
-  const {
-    stagedSlotA,
-    setStagedSlotA,
-    stagedSlotB,
-    setStagedSlotB,
-    handleStageLap,
-    handleSwapStagedSlots,
-    handleClearStagedA,
-    handleClearStagedB,
-    handleClearAllStaged,
-    handleLaunchComparison,
-  } = useLapStaging({
-    onNavigateToComparator,
-  });
-
-  // Hook 3: Session Detail state & actions
-  const {
-    selectedSession,
-    setSelectedSession,
-    loadingDetail,
-    detailError,
-    classificationData,
-    progressionData,
-    stintsData,
-    expandedDrivers,
-    toggleDriverExpand,
-    activeDetailTab,
-    setActiveDetailTab,
-    selectSession,
-    driverStandings,
-    sessionBestS1,
-    sessionBestS2,
-    sessionBestS3,
-    isRaceSession,
-    totalSessionLaps,
-    totalDriversCount,
-  } = useSessionDetail({
-    onClearStagedSlots: () => {
-      setStagedSlotA(null);
-      setStagedSlotB(null);
-    },
-  });
-
-  // Hook 4: Tags management
-  const {
-    availableTags,
+    searchQuery,
+    sessionTypeFilter,
+    circuitFilter,
     selectedTagId,
-    setSelectedTagId,
+    selectedSession,
+    sessionToDelete,
+    deletingSessionId,
     sessionToManageTags,
+    availableTags,
+    selectedSessionIds,
+    showBatchDeleteModal,
+    showBatchTagModal,
+    toastMessage,
+  } = useSessionHistoryData();
+
+  const {
+    setSelectedSession,
+    setStagedSlotA,
+    setStagedSlotB,
+    fetchSessions,
+    setSessionToDelete,
+    confirmDeleteSession,
     setSessionToManageTags,
-    fetchTags,
     handleAddTag,
     handleRemoveTag,
     handleDeleteGlobalTag,
-    sessionCountByTag,
-  } = useSessionTags({
-    sessions,
-    setSessions,
-    selectedSession,
-    setSelectedSession,
-  });
-
-  // Hook 5: Filters, Search & Sorting
-  const {
-    searchQuery,
-    setSearchQuery,
-    sessionTypeFilter,
-    setSessionTypeFilter,
-    circuitFilter,
-    setCircuitFilter,
-    sortField,
-    sortOrder,
-    handleToggleSort,
-    uniqueCircuits,
-    filteredSessions,
-  } = useSessionFilters({
-    sessions,
-    selectedTagId,
-  });
-
-  // Modal states for batch operations
-  const [showBatchDeleteModal, setShowBatchDeleteModal] = useState<boolean>(false);
-  const [showBatchTagModal, setShowBatchTagModal] = useState<boolean>(false);
-
-  // Hook 6: Batch Operations & Import/Export
-  const {
-    selectedSessionIds,
-    isExportingBatch,
-    importingSession,
-    toastMessage,
-    setToastMessage,
-    handleToggleSelectSession,
-    handleToggleSelectAll,
-    handleClearSelection,
-    handleExportSession,
-    handleBatchExport,
-    handleImportFiles,
+    setShowBatchDeleteModal,
+    setShowBatchTagModal,
     handleExecuteBatchDelete,
     handleExecuteBatchTag,
-  } = useBatchOperations({
-    sessions,
-    filteredSessions,
-    setSessions,
-    fetchSessions,
-    fetchTags,
-  });
+    setToastMessage,
+  } = useSessionHistoryActions();
 
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '1.5rem 2rem' }}>
@@ -203,28 +111,7 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
       {/* VIEW 1: SESSION LIST & FILTER TOOLBAR */}
       {!selectedSession && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          {/* Controls / Filter Bar */}
-          <SessionFilterToolbar
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            sessionTypeFilter={sessionTypeFilter}
-            setSessionTypeFilter={setSessionTypeFilter}
-            circuitFilter={circuitFilter}
-            setCircuitFilter={setCircuitFilter}
-            uniqueCircuits={uniqueCircuits}
-            importingSession={importingSession}
-            onImportFiles={handleImportFiles}
-            onRefresh={() => {
-              fetchSessions();
-              fetchTags();
-            }}
-            loadingSessions={loadingSessions}
-            availableTags={availableTags}
-            selectedTagId={selectedTagId}
-            onSelectTag={setSelectedTagId}
-            sessionCountByTag={sessionCountByTag}
-            totalSessionsCount={sessions.length}
-          />
+          <SessionFilterToolbar />
 
           {/* Session Content Table */}
           {loadingSessions ? (
@@ -252,80 +139,19 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
               </p>
             </div>
           ) : (
-            <SessionTableView
-              sessions={filteredSessions}
-              selectedSessionIds={selectedSessionIds}
-              onToggleSelectSession={handleToggleSelectSession}
-              onToggleSelectAll={handleToggleSelectAll}
-              onSelectSession={selectSession}
-              onRequestDelete={(s) => setSessionToDelete(s)}
-              onExportSession={handleExportSession}
-              formatDate={formatDate}
-              getSessionBadgeClass={getSessionBadgeClass}
-              sortField={sortField}
-              sortOrder={sortOrder}
-              onToggleSort={handleToggleSort}
-              onOpenTagManager={(s) => setSessionToManageTags(s)}
-            />
+            <SessionTableView />
           )}
         </div>
       )}
 
       {/* VIEW 2: SELECTED SESSION DETAIL EXPLORER */}
-      {selectedSession && (
-        <SessionDetailView
-          session={selectedSession}
-          activeDetailTab={activeDetailTab}
-          setActiveDetailTab={setActiveDetailTab}
-          loadingDetail={loadingDetail}
-          detailError={detailError}
-          classificationData={classificationData}
-          progressionData={progressionData}
-          stintsData={stintsData}
-          driverStandings={driverStandings}
-          sessionBestS1={sessionBestS1}
-          sessionBestS2={sessionBestS2}
-          sessionBestS3={sessionBestS3}
-          isRaceSession={isRaceSession}
-          totalSessionLaps={totalSessionLaps}
-          totalDriversCount={totalDriversCount}
-          expandedDrivers={expandedDrivers}
-          onToggleDriverExpand={toggleDriverExpand}
-          stagedA={stagedSlotA}
-          stagedB={stagedSlotB}
-          onStageLap={handleStageLap}
-          onNavigateToComparator={onNavigateToComparator}
-          onOpenAiDebrief={() => openChat()}
-          onExportSession={handleExportSession}
-          onRequestDelete={(s) => setSessionToDelete(s)}
-          onOpenTagManager={(s) => setSessionToManageTags(s)}
-          onRemoveTag={(tagId) => handleRemoveTag(selectedSession.id, tagId)}
-        />
-      )}
+      {selectedSession && <SessionDetailView />}
 
       {/* SESSION BATCH ACTION DOCK */}
-      {!selectedSession && (
-        <SessionBatchDock
-          selectedCount={selectedSessionIds.size}
-          isExporting={isExportingBatch}
-          onExportZip={handleBatchExport}
-          onOpenBatchTagModal={() => setShowBatchTagModal(true)}
-          onRequestBatchDelete={() => setShowBatchDeleteModal(true)}
-          onClearSelection={handleClearSelection}
-        />
-      )}
+      {!selectedSession && <SessionBatchDock />}
 
       {/* COMPARATOR STAGING DOCK */}
-      <SessionComparatorDock
-        stagedA={stagedSlotA}
-        stagedB={stagedSlotB}
-        onClearA={handleClearStagedA}
-        onClearB={handleClearStagedB}
-        onClearAll={handleClearAllStaged}
-        onSwap={handleSwapStagedSlots}
-        onLaunch={handleLaunchComparison}
-        formatLapTime={formatLapTime}
-      />
+      <SessionComparatorDock />
 
       {/* CONFIRM SINGLE DELETE MODAL */}
       <DeleteSessionModal
@@ -408,5 +234,13 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
         </div>
       )}
     </div>
+  );
+};
+
+export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComparator }) => {
+  return (
+    <SessionHistoryProvider onNavigateToComparator={onNavigateToComparator}>
+      <SessionHistoryContent />
+    </SessionHistoryProvider>
   );
 };

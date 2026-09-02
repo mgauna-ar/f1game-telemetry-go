@@ -4,6 +4,7 @@ import { SessionHistory } from './SessionHistory';
 import { RaceEngineerProvider } from '../context/RaceEngineerProvider';
 import { I18nProvider } from '../context/I18nProvider';
 import { AiRaceEngineer } from './AiRaceEngineer';
+import { useSessionListStore } from '../store/useSessionListStore';
 import type { Session, Participant, Lap, ClassificationResponse } from '../types/session';
 
 const makeMockClassification = (participants: Participant[], laps: Lap[]): ClassificationResponse => {
@@ -184,6 +185,7 @@ describe('SessionHistory Component', () => {
   beforeEach(() => {
     localStorage.clear();
     vi.restoreAllMocks();
+    useSessionListStore.getState().reset();
   });
 
   it('fetches and renders historical sessions and data table on mount', async () => {

@@ -2,46 +2,55 @@ import React from 'react';
 import { Search, Filter, RefreshCw, Upload } from 'lucide-react';
 import { TagFilterBar } from './TagFilterBar';
 import { useI18n } from '../../context/I18nContext';
+import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContext';
 import type { Tag } from '../../types/session';
 
-interface SessionFilterToolbarProps {
-  searchQuery: string;
-  setSearchQuery: (q: string) => void;
-  sessionTypeFilter: string;
-  setSessionTypeFilter: (type: string) => void;
-  circuitFilter: string;
-  setCircuitFilter: (circuit: string) => void;
-  uniqueCircuits: string[];
-  importingSession: boolean;
-  onImportFiles: (files: FileList) => void;
-  onRefresh: () => void;
-  loadingSessions: boolean;
-  availableTags: Tag[];
-  selectedTagId: number | null;
-  onSelectTag: (tagId: number | null) => void;
-  sessionCountByTag: Record<number, number>;
-  totalSessionsCount: number;
+export interface SessionFilterToolbarProps {
+  searchQuery?: string;
+  setSearchQuery?: (q: string) => void;
+  sessionTypeFilter?: string;
+  setSessionTypeFilter?: (type: string) => void;
+  circuitFilter?: string;
+  setCircuitFilter?: (circuit: string) => void;
+  uniqueCircuits?: string[];
+  importingSession?: boolean;
+  onImportFiles?: (files: FileList | File[]) => void;
+  onRefresh?: () => void;
+  loadingSessions?: boolean;
+  availableTags?: Tag[];
+  selectedTagId?: number | null;
+  onSelectTag?: (tagId: number | null) => void;
+  sessionCountByTag?: Record<number, number>;
+  totalSessionsCount?: number;
 }
 
-export const SessionFilterToolbar: React.FC<SessionFilterToolbarProps> = ({
-  searchQuery,
-  setSearchQuery,
-  sessionTypeFilter,
-  setSessionTypeFilter,
-  circuitFilter,
-  setCircuitFilter,
-  uniqueCircuits,
-  importingSession,
-  onImportFiles,
-  onRefresh,
-  loadingSessions,
-  availableTags,
-  selectedTagId,
-  onSelectTag,
-  sessionCountByTag,
-  totalSessionsCount,
-}) => {
+export const SessionFilterToolbar: React.FC<SessionFilterToolbarProps> = (props) => {
   const { t } = useI18n();
+  const historyData = useSessionHistoryData();
+  const historyActions = useSessionHistoryActions();
+
+  const searchQuery = props.searchQuery ?? historyData.searchQuery;
+  const setSearchQuery = props.setSearchQuery ?? historyActions.setSearchQuery;
+  const sessionTypeFilter = props.sessionTypeFilter ?? historyData.sessionTypeFilter;
+  const setSessionTypeFilter = props.setSessionTypeFilter ?? historyActions.setSessionTypeFilter;
+  const circuitFilter = props.circuitFilter ?? historyData.circuitFilter;
+  const setCircuitFilter = props.setCircuitFilter ?? historyActions.setCircuitFilter;
+  const uniqueCircuits = props.uniqueCircuits ?? historyData.uniqueCircuits;
+  const importingSession = props.importingSession ?? historyData.importingSession;
+  const onImportFiles = props.onImportFiles ?? historyActions.handleImportFiles;
+  const loadingSessions = props.loadingSessions ?? historyData.loadingSessions;
+  const availableTags = props.availableTags ?? historyData.availableTags;
+  const selectedTagId = props.selectedTagId !== undefined ? props.selectedTagId : historyData.selectedTagId;
+  const onSelectTag = props.onSelectTag ?? historyActions.setSelectedTagId;
+  const sessionCountByTag = props.sessionCountByTag ?? historyData.sessionCountByTag;
+  const totalSessionsCount = props.totalSessionsCount ?? historyData.sessions.length;
+
+  const onRefresh =
+    props.onRefresh ??
+    (() => {
+      historyActions.fetchSessions();
+      historyActions.fetchTags();
+    });
 
   return (
     <div className="glass-panel" style={{ padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>

@@ -2,43 +2,47 @@ import React from 'react';
 import { Clock, ChevronRight, Trash2, ArrowUpDown, Plus, Download } from 'lucide-react';
 import type { Session } from '../SessionHistory';
 import { useI18n } from '../../context/I18nContext';
+import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContext';
+import { formatDate as defaultFormatDate, getSessionBadgeClass as defaultGetSessionBadgeClass } from '../../utils/formatters';
 import { TagBadge } from './TagBadge';
 import { F1FormatBadge } from '../F1FormatBadge';
 import { TrackFlag } from '../TrackFlag';
 import { WeatherBadgeWithForecast } from './WeatherBadgeWithForecast';
 
-interface SessionTableViewProps {
-  sessions: Session[];
+export interface SessionTableViewProps {
+  sessions?: Session[];
   selectedSessionIds?: Set<number>;
   onToggleSelectSession?: (sessionId: number) => void;
   onToggleSelectAll?: () => void;
-  onSelectSession: (session: Session) => void;
-  onRequestDelete: (session: Session) => void;
+  onSelectSession?: (session: Session) => void;
+  onRequestDelete?: (session: Session) => void;
   onExportSession?: (session: Session) => void;
-  formatDate: (dateStr?: string) => string;
-  getSessionBadgeClass: (typeStr?: string) => string;
+  formatDate?: (dateStr?: string) => string;
+  getSessionBadgeClass?: (typeStr?: string) => string;
   sortField?: string;
   sortOrder?: 'asc' | 'desc';
   onToggleSort?: (field: string) => void;
-  onOpenTagManager: (session: Session) => void;
+  onOpenTagManager?: (session: Session) => void;
 }
 
-export const SessionTableView: React.FC<SessionTableViewProps> = ({
-  sessions,
-  selectedSessionIds,
-  onToggleSelectSession,
-  onToggleSelectAll,
-  onSelectSession,
-  onRequestDelete,
-  onExportSession,
-  formatDate,
-  getSessionBadgeClass,
-  sortField,
-  sortOrder,
-  onToggleSort,
-  onOpenTagManager,
-}) => {
+export const SessionTableView: React.FC<SessionTableViewProps> = (props) => {
   const { t } = useI18n();
+  const historyData = useSessionHistoryData();
+  const historyActions = useSessionHistoryActions();
+
+  const sessions = props.sessions ?? historyData.filteredSessions;
+  const selectedSessionIds = props.selectedSessionIds ?? historyData.selectedSessionIds;
+  const onToggleSelectSession = props.onToggleSelectSession ?? historyActions.handleToggleSelectSession;
+  const onToggleSelectAll = props.onToggleSelectAll ?? historyActions.handleToggleSelectAll;
+  const onSelectSession = props.onSelectSession ?? historyActions.selectSession;
+  const onRequestDelete = props.onRequestDelete ?? historyActions.setSessionToDelete;
+  const onExportSession = props.onExportSession ?? historyActions.handleExportSession;
+  const formatDate = props.formatDate ?? defaultFormatDate;
+  const getSessionBadgeClass = props.getSessionBadgeClass ?? defaultGetSessionBadgeClass;
+  const sortField = props.sortField ?? historyData.sortField;
+  const sortOrder = props.sortOrder ?? historyData.sortOrder;
+  const onToggleSort = props.onToggleSort ?? historyActions.handleToggleSort;
+  const onOpenTagManager = props.onOpenTagManager ?? historyActions.setSessionToManageTags;
 
   const isAllSelected = sessions.length > 0 && sessions.every((s) => selectedSessionIds?.has(s.id));
   const isSomeSelected = !isAllSelected && sessions.some((s) => selectedSessionIds?.has(s.id));
@@ -51,18 +55,19 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
   }, [isSomeSelected]);
 
   const renderSortIndicator = (field: string) => {
-    if (!onToggleSort) return null;
-    if (sortField !== field) return <ArrowUpDown size={12} color="var(--text-muted)" />;
-    return <span style={{ fontSize: '0.75rem', color: 'var(--accent-secondary)' }}>{sortOrder === 'asc' ? '▲' : '▼'}</span>;
+    if (sortField !== field) {
+      return <ArrowUpDown size={12} style={{ opacity: 0.3 }} />;
+    }
+    return <span style={{ color: 'var(--accent-secondary)' }}>{sortOrder === 'asc' ? '↑' : '↓'}</span>;
   };
 
   return (
-    <div className="glass-panel" style={{ padding: '1rem' }}>
+    <div className="glass-panel" style={{ padding: '0', overflow: 'hidden' }}>
       <div style={{ overflowX: 'auto' }}>
         <table className="history-table">
           <thead>
             <tr>
-              {onToggleSelectSession && (
+              {Boolean(onToggleSelectSession) && (
                 <th style={{ width: '42px', textAlign: 'center', padding: '0 0.4rem', verticalAlign: 'middle' }}>
                   <label
                     style={{
@@ -79,7 +84,7 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
                       type="checkbox"
                       ref={selectAllRef}
                       checked={isAllSelected}
-                      onChange={() => onToggleSelectAll && onToggleSelectAll()}
+                      onChange={() => onToggleSelectAll?.()}
                       title={isAllSelected ? t('history.batch.deselectAll') : t('history.batch.selectAll')}
                       style={{
                         cursor: 'pointer',
@@ -93,8 +98,8 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
                 </th>
               )}
               <th
-                style={{ cursor: onToggleSort ? 'pointer' : 'default' }}
-                onClick={() => onToggleSort && onToggleSort('date')}
+                style={{ cursor: 'pointer' }}
+                onClick={() => onToggleSort('date')}
               >
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                   <span>{t('history.table.dateTime')}</span>
@@ -102,8 +107,8 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
                 </div>
               </th>
               <th
-                style={{ cursor: onToggleSort ? 'pointer' : 'default' }}
-                onClick={() => onToggleSort && onToggleSort('track')}
+                style={{ cursor: 'pointer' }}
+                onClick={() => onToggleSort('track')}
               >
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                   <span>{t('history.table.trackName')}</span>
@@ -111,8 +116,8 @@ export const SessionTableView: React.FC<SessionTableViewProps> = ({
                 </div>
               </th>
               <th
-                style={{ cursor: onToggleSort ? 'pointer' : 'default' }}
-                onClick={() => onToggleSort && onToggleSort('type')}
+                style={{ cursor: 'pointer' }}
+                onClick={() => onToggleSort('type')}
               >
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                   <span>{t('history.table.sessionType')}</span>

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { connectTelemetryWebSocket, getTelemetryWebSocketClient } from './telemetrySocket';
 import { useTelemetryStore } from '../store/useTelemetryStore';
+import { useSessionStatusStore } from '../store/useSessionStatusStore';
 
 class MockWS {
   static instances: MockWS[] = [];
@@ -33,7 +34,7 @@ describe('telemetrySocket manager', () => {
     MockWS.instances = [];
     vi.stubGlobal('WebSocket', MockWS);
     useTelemetryStore.getState().resetSession();
-    useTelemetryStore.getState().setConnected(false);
+    useSessionStatusStore.getState().setConnected(false);
   });
 
   afterEach(() => {
@@ -47,7 +48,7 @@ describe('telemetrySocket manager', () => {
 
     // Trigger onopen
     ws.onopen?.();
-    expect(useTelemetryStore.getState().connected).toBe(true);
+    expect(useSessionStatusStore.getState().connected).toBe(true);
 
     const unsub2 = connectTelemetryWebSocket('/ws');
     // Re-uses same connection
@@ -55,12 +56,12 @@ describe('telemetrySocket manager', () => {
 
     // Unsubscribe first
     unsub1();
-    expect(useTelemetryStore.getState().connected).toBe(true);
+    expect(useSessionStatusStore.getState().connected).toBe(true);
     expect(getTelemetryWebSocketClient()).not.toBeNull();
 
     // Unsubscribe last
     unsub2();
-    expect(useTelemetryStore.getState().connected).toBe(false);
+    expect(useSessionStatusStore.getState().connected).toBe(false);
     expect(getTelemetryWebSocketClient()).toBeNull();
   });
 
@@ -78,8 +79,8 @@ describe('telemetrySocket manager', () => {
     };
 
     ws.onmessage?.({ data: JSON.stringify(mockEvent) });
-    expect(useTelemetryStore.getState().events.length).toBe(1);
-    expect(useTelemetryStore.getState().events[0].eventCode).toBe('RDFL');
+    expect(useSessionStatusStore.getState().events.length).toBe(1);
+    expect(useSessionStatusStore.getState().events[0].eventCode).toBe('RDFL');
 
     unsub();
   });

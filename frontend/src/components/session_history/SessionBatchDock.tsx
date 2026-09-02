@@ -1,25 +1,28 @@
 import React from 'react';
 import { Download, Tag, Trash2, X, RefreshCw, Layers } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
+import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContext';
 
-interface SessionBatchDockProps {
-  selectedCount: number;
+export interface SessionBatchDockProps {
+  selectedCount?: number;
   isExporting?: boolean;
-  onExportZip: () => void;
-  onOpenBatchTagModal: () => void;
-  onRequestBatchDelete: () => void;
-  onClearSelection: () => void;
+  onExportZip?: () => void;
+  onOpenBatchTagModal?: () => void;
+  onRequestBatchDelete?: () => void;
+  onClearSelection?: () => void;
 }
 
-export const SessionBatchDock: React.FC<SessionBatchDockProps> = ({
-  selectedCount,
-  isExporting = false,
-  onExportZip,
-  onOpenBatchTagModal,
-  onRequestBatchDelete,
-  onClearSelection,
-}) => {
+export const SessionBatchDock: React.FC<SessionBatchDockProps> = (props) => {
   const { t } = useI18n();
+  const historyData = useSessionHistoryData();
+  const historyActions = useSessionHistoryActions();
+
+  const selectedCount = props.selectedCount ?? historyData.selectedSessionIds.size;
+  const isExporting = props.isExporting ?? historyData.isExportingBatch;
+  const onExportZip = props.onExportZip ?? historyActions.handleBatchExport;
+  const onOpenBatchTagModal = props.onOpenBatchTagModal ?? (() => historyActions.setShowBatchTagModal(true));
+  const onRequestBatchDelete = props.onRequestBatchDelete ?? (() => historyActions.setShowBatchDeleteModal(true));
+  const onClearSelection = props.onClearSelection ?? historyActions.handleClearSelection;
 
   if (selectedCount <= 0) return null;
 

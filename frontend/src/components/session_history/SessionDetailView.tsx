@@ -7,7 +7,8 @@ import { SessionStintStrategyTab } from './SessionStintStrategyTab';
 import { SessionSectorMatrixTab } from './SessionSectorMatrixTab';
 import { TyreCompoundBadge } from '../common/TyreCompoundBadge';
 import { useI18n } from '../../context/I18nContext';
-import { formatLapTime, formatTotalDuration, formatDate, getSessionBadgeClass } from '../../utils/formatters';
+import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContext';
+import { formatLapTime, formatTotalDuration } from '../../utils/formatters';
 import type {
   Session,
   Lap,
@@ -19,64 +20,67 @@ import type {
   NavigationComparatorPayload,
 } from '../../types/session';
 
-interface SessionDetailViewProps {
-  session: Session;
-  activeDetailTab: 'classification' | 'charts' | 'stints' | 'sectors';
-  setActiveDetailTab: (tab: 'classification' | 'charts' | 'stints' | 'sectors') => void;
-  loadingDetail: boolean;
-  detailError: string | null;
-  classificationData: ClassificationResponse | null;
-  progressionData: ProgressionResponse | null;
-  stintsData: StintsResponse | null;
-  driverStandings: DriverStanding[];
-  sessionBestS1: number;
-  sessionBestS2: number;
-  sessionBestS3: number;
-  isRaceSession: boolean;
-  totalSessionLaps: number;
-  totalDriversCount: number;
-  expandedDrivers: Record<number, boolean>;
-  onToggleDriverExpand: (carIndex: number) => void;
-  stagedA: StagedLap | null;
-  stagedB: StagedLap | null;
-  onStageLap: (session: Session, lap: Lap, driver: DriverStanding, slot: 'A' | 'B') => void;
+export interface SessionDetailViewProps {
+  session?: Session;
+  activeDetailTab?: 'classification' | 'charts' | 'stints' | 'sectors';
+  setActiveDetailTab?: (tab: 'classification' | 'charts' | 'stints' | 'sectors') => void;
+  loadingDetail?: boolean;
+  detailError?: string | null;
+  classificationData?: ClassificationResponse | null;
+  progressionData?: ProgressionResponse | null;
+  stintsData?: StintsResponse | null;
+  driverStandings?: DriverStanding[];
+  sessionBestS1?: number;
+  sessionBestS2?: number;
+  sessionBestS3?: number;
+  isRaceSession?: boolean;
+  totalSessionLaps?: number;
+  totalDriversCount?: number;
+  expandedDrivers?: Record<number, boolean>;
+  onToggleDriverExpand?: (carIndex: number) => void;
+  stagedA?: StagedLap | null;
+  stagedB?: StagedLap | null;
+  onStageLap?: (session: Session, lap: Lap, driver: DriverStanding, slot: 'A' | 'B') => void;
   onNavigateToComparator?: (payload: NavigationComparatorPayload | number, lapId?: number, slot?: 'A' | 'B') => void;
-  onOpenAiDebrief: () => void;
-  onExportSession: (session: Session) => void;
-  onRequestDelete: (session: Session) => void;
-  onOpenTagManager: (session: Session) => void;
-  onRemoveTag: (tagId: number) => void;
+  onOpenAiDebrief?: () => void;
+  onExportSession?: (session: Session) => void;
+  onRequestDelete?: (session: Session) => void;
+  onOpenTagManager?: (session: Session) => void;
+  onRemoveTag?: (tagId: number) => void;
 }
 
-export const SessionDetailView: React.FC<SessionDetailViewProps> = ({
-  session,
-  activeDetailTab,
-  setActiveDetailTab,
-  loadingDetail,
-  detailError,
-  classificationData,
-  progressionData,
-  stintsData,
-  driverStandings,
-  sessionBestS1,
-  sessionBestS2,
-  sessionBestS3,
-  isRaceSession,
-  totalSessionLaps,
-  totalDriversCount,
-  expandedDrivers,
-  onToggleDriverExpand,
-  stagedA,
-  stagedB,
-  onStageLap,
-  onNavigateToComparator,
-  onOpenAiDebrief,
-  onExportSession,
-  onRequestDelete,
-  onOpenTagManager,
-  onRemoveTag,
-}) => {
+export const SessionDetailView: React.FC<SessionDetailViewProps> = (props) => {
   const { t } = useI18n();
+  const historyData = useSessionHistoryData();
+  const historyActions = useSessionHistoryActions();
+
+  const session = props.session ?? historyData.selectedSession;
+  if (!session) return null;
+
+  const activeDetailTab = props.activeDetailTab ?? historyData.activeDetailTab;
+  const setActiveDetailTab = props.setActiveDetailTab ?? historyActions.setActiveDetailTab;
+  const loadingDetail = props.loadingDetail ?? historyData.loadingDetail;
+  const detailError = props.detailError ?? historyData.detailError;
+  const classificationData = props.classificationData ?? historyData.classificationData;
+  const progressionData = props.progressionData ?? historyData.progressionData;
+  const stintsData = props.stintsData ?? historyData.stintsData;
+  const driverStandings = props.driverStandings ?? historyData.driverStandings;
+  const sessionBestS1 = props.sessionBestS1 ?? historyData.sessionBestS1;
+  const sessionBestS2 = props.sessionBestS2 ?? historyData.sessionBestS2;
+  const sessionBestS3 = props.sessionBestS3 ?? historyData.sessionBestS3;
+  const isRaceSession = props.isRaceSession ?? historyData.isRaceSession;
+  const totalSessionLaps = props.totalSessionLaps ?? historyData.totalSessionLaps;
+  const totalDriversCount = props.totalDriversCount ?? historyData.totalDriversCount;
+  const expandedDrivers = props.expandedDrivers ?? historyData.expandedDrivers;
+  const onToggleDriverExpand = props.onToggleDriverExpand ?? historyActions.toggleDriverExpand;
+  const stagedA = props.stagedA !== undefined ? props.stagedA : historyData.stagedSlotA;
+  const stagedB = props.stagedB !== undefined ? props.stagedB : historyData.stagedSlotB;
+  const onStageLap = props.onStageLap ?? historyActions.handleStageLap;
+  const onNavigateToComparator = props.onNavigateToComparator ?? historyActions.onNavigateToComparator;
+  const onExportSession = props.onExportSession ?? historyActions.handleExportSession;
+  const onRequestDelete = props.onRequestDelete ?? historyActions.setSessionToDelete;
+  const onOpenTagManager = props.onOpenTagManager ?? historyActions.setSessionToManageTags;
+  const onRemoveTag = props.onRemoveTag ?? ((tagId: number) => historyActions.handleRemoveTag(session.id, tagId));
 
   const renderTyreBadge = (compoundRaw?: string, actualCompound?: string) => {
     return <TyreCompoundBadge compound={compoundRaw} actualCompound={actualCompound} className="tyre-badge" />;
@@ -142,13 +146,10 @@ export const SessionDetailView: React.FC<SessionDetailViewProps> = ({
         setActiveDetailTab={setActiveDetailTab}
         totalSessionLaps={totalSessionLaps}
         totalDriversCount={totalDriversCount}
-        onOpenAiDebrief={onOpenAiDebrief}
         onExportSession={() => onExportSession(session)}
         onRequestDelete={() => onRequestDelete(session)}
         onOpenTagManager={() => onOpenTagManager(session)}
         onRemoveTag={(tagId) => onRemoveTag(tagId)}
-        formatDate={formatDate}
-        getSessionBadgeClass={getSessionBadgeClass}
       />
 
       {/* Detail Tab Contents */}

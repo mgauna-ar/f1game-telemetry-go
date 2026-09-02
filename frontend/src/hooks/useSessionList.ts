@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { Session } from '../types/session';
 import { api } from '../utils/apiClient';
+import { useSessionListStore } from '../store/useSessionListStore';
 
 export interface UseSessionListReturn {
   sessions: Session[];
@@ -18,25 +19,19 @@ export interface UseSessionListReturn {
 }
 
 export function useSessionList(): UseSessionListReturn {
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [loadingSessions, setLoadingSessions] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const sessions = useSessionListStore((s) => s.sessions);
+  const setSessions = useSessionListStore((s) => s.setSessions) as unknown as React.Dispatch<React.SetStateAction<Session[]>>;
+  const loadingSessions = useSessionListStore((s) => s.loading);
+  const error = useSessionListStore((s) => s.error);
+  const storeFetchSessions = useSessionListStore((s) => s.fetchSessions);
+  const invalidate = useSessionListStore((s) => s.invalidate);
+
   const [sessionToDelete, setSessionToDelete] = useState<Session | null>(null);
   const [deletingSessionId, setDeletingSessionId] = useState<number | null>(null);
 
   const fetchSessions = useCallback(async () => {
-    setLoadingSessions(true);
-    setError(null);
-    try {
-      const data = await api.get<Session[]>('/api/sessions');
-      setSessions(data || []);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Error loading sessions';
-      setError(msg);
-    } finally {
-      setLoadingSessions(false);
-    }
-  }, []);
+    await storeFetchSessions();
+  }, [storeFetchSessions]);
 
   const confirmDeleteSession = useCallback(
     async (
@@ -49,14 +44,13 @@ export function useSessionList(): UseSessionListReturn {
       try {
         await api.del(`/api/sessions/${targetId}`);
 
-        setSessions((prev) => prev.filter((s) => s.id !== targetId));
+        useSessionListStore.getState().setSessions((prev) => prev.filter((s) => s.id !== targetId));
+        invalidate();
         if (onDeleted) {
           onDeleted(targetId);
         }
         setSessionToDelete(null);
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Failed to delete session';
-        setError(msg);
         if (onError) {
           onError(err);
         }
@@ -64,7 +58,7 @@ export function useSessionList(): UseSessionListReturn {
         setDeletingSessionId(null);
       }
     },
-    [sessionToDelete]
+    [sessionToDelete, invalidate]
   );
 
   useEffect(() => {

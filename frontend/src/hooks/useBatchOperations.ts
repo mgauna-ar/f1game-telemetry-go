@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type { Session } from '../types/session';
 import { useI18n } from '../context/I18nContext';
 import { api } from '../utils/apiClient';
+import { useSessionListStore } from '../store/useSessionListStore';
 
 export interface UseBatchOperationsOptions {
   sessions: Session[];
@@ -170,6 +171,7 @@ export function useBatchOperations({
           setToastMessage({ type: 'success', text: t('history.importSuccess') });
         }
 
+        useSessionListStore.getState().invalidate();
         await fetchSessions();
         if (fetchTags) {
           await fetchTags();
@@ -194,6 +196,7 @@ export function useBatchOperations({
       setSessions((prev) => prev.filter((s) => !selectedSessionIds.has(s.id)));
       setSelectedSessionIds(new Set());
       setToastMessage({ type: 'success', text: t('history.batch.deleteSelected', { count: ids.length }) });
+      useSessionListStore.getState().invalidate();
       await fetchSessions();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -209,6 +212,7 @@ export function useBatchOperations({
       try {
         await api.post('/api/sessions/batch-tags', { session_ids: ids, tag_id: tagId });
         setToastMessage({ type: 'success', text: t('history.batch.tagSelected') });
+        useSessionListStore.getState().invalidate();
         await fetchSessions();
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);

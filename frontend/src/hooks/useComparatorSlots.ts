@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { storage } from '../utils/storage';
 
 interface UseComparatorSlotsProps {
   sessionAId: number | '';
@@ -25,23 +26,14 @@ export function useComparatorSlots({
 }: UseComparatorSlotsProps) {
   // Quick Select Leaderboard State
   const [isQuickSelectOpen, setIsQuickSelectOpen] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('f1_comparator_quick_select_open');
-      return saved !== null ? saved === 'true' : true;
-    } catch {
-      return true;
-    }
+    return storage.get<boolean>('f1_comparator_quick_select_open', true);
   });
 
   const [driverSearchQuery, setDriverSearchQuery] = useState<string>('');
   const [quickSelectSessionTab, setQuickSelectSessionTab] = useState<'ALL' | 'A' | 'B'>('ALL');
 
   useEffect(() => {
-    try {
-      localStorage.setItem('f1_comparator_quick_select_open', String(isQuickSelectOpen));
-    } catch {
-      // ignore localStorage write errors
-    }
+    storage.set('f1_comparator_quick_select_open', isQuickSelectOpen);
   }, [isQuickSelectOpen]);
 
   // Swap Slots handler
