@@ -2,6 +2,9 @@
 
 This document defines the formal release process, versioning rules, pre-flight checklists, and publishing workflows for **F1 Telemetry Analyzer**.
 
+> [!NOTE]
+> **Status:** Formal releases are currently in preparation. All ongoing development is tracked on the `main` branch. This document outlines the standard operating procedure that will govern upcoming releases.
+
 ---
 
 ## 📌 1. Semantic Versioning Conventions

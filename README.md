@@ -63,30 +63,15 @@
 
 ## 🚀 Quick Start
 
-### 🏎️ For Gamers & League Racers (Zero Setup Required)
+Standalone pre-compiled release packages will be published under GitHub Releases with upcoming releases. In the meantime, you can launch or build the standalone application in seconds.
 
-**No programming knowledge, Go, or Node.js required!**
-
-1. Go to **[GitHub Releases](../../releases/latest)** and download the archive for your operating system:
-   * **Windows:** `f1telemetry_vX.X.X_windows_amd64.zip` (or `windows_arm64.zip`)
-   * **macOS:** `f1telemetry_vX.X.X_darwin_arm64.zip` (Apple Silicon M1-M4) or `darwin_amd64.zip` (Intel)
-   * **Linux:** `f1telemetry_vX.X.X_linux_amd64.tar.gz` (or `linux_arm64.tar.gz`)
-2. Extract the archive.
-3. **Double-click `f1telemetry.exe`** (or run `./f1telemetry` on Mac/Linux).
-4. Your default web browser will automatically open **[http://localhost:8080](http://localhost:8080)** with the full pit wall dashboard ready!
-
-> [!NOTE]
-> **First-time launch on Windows / macOS:**
-> * **Windows:** Because this is a newly released open-source binary without a commercial code-signing certificate, Windows SmartScreen may show a prompt (*"Windows protected your PC"*). Click **"More info"** → **"Run anyway"**, or right-click `f1telemetry.exe` → **Properties** → check **"Unblock"**.
-> * **macOS:** macOS Gatekeeper blocks downloaded unsigned binaries by default. Remove the quarantine flag by running: `xattr -d com.apple.quarantine ./f1telemetry` (or right-click `f1telemetry` in Finder → select **Open**).
+### Prerequisites
+* [Go 1.21+](https://go.dev/dl/)
+* [Node.js 18+](https://nodejs.org/)
 
 ---
 
-### 💻 For Developers (Running from Source)
-
-#### Prerequisites
-* [Go 1.21+](https://go.dev/dl/)
-* [Node.js 18+](https://nodejs.org/)
+### 💻 Launching & Building
 
 #### One-Click Standalone Launch (Windows)
 ```powershell
