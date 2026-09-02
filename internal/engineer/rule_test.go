@@ -1,6 +1,7 @@
 package engineer
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
@@ -321,5 +322,867 @@ func TestEngineerRules_AlertKeys(t *testing.T) {
 				t.Errorf("rule %q key %q has no valid phases", rule.Name(), k)
 			}
 		}
+	}
+}
+
+func TestFuelRule_TableDriven(t *testing.T) {
+	cfg := DefaultEngineerConfig()
+
+	tests := []struct {
+		name         string
+		ctx          *EvaluationContext
+		wantAlerts   int
+		wantSubAlert string
+		wantUrgency  string
+	}{
+		{
+			name: "fuel target deficit triggers alert on lap > MinFuelAlertLapNum",
+			ctx: &EvaluationContext{
+				Status: &packets.PacketCarStatusData{
+					CarStatusData: [packets.MaxCars]packets.CarStatusData{
+						{FuelRemainingLaps: -0.8},
+					},
+				},
+				LapData: &packets.PacketLapData{
+					LapData: [packets.MaxCars]packets.LapData{
+						{CurrentLapNum: 4},
+					},
+				},
+				Config:         cfg,
+				PlayerCarIndex: 0,
+				Phase:          PhaseRacing,
+				Session: &packets.PacketSessionData{
+					SessionType: packets.SessionRace,
+				},
+			},
+			wantAlerts:   1,
+			wantSubAlert: "fuel_deficit",
+			wantUrgency:  UrgencyMedium,
+		},
+		{
+			name: "early lap fuel deficit suppressed by lap guard",
+			ctx: &EvaluationContext{
+				Status: &packets.PacketCarStatusData{
+					CarStatusData: [packets.MaxCars]packets.CarStatusData{
+						{FuelRemainingLaps: -0.8},
+					},
+				},
+				LapData: &packets.PacketLapData{
+					LapData: [packets.MaxCars]packets.LapData{
+						{CurrentLapNum: 2}, // <= MinFuelAlertLapNum (3)
+					},
+				},
+				Config:         cfg,
+				PlayerCarIndex: 0,
+				Phase:          PhaseRacing,
+				Session: &packets.PacketSessionData{
+					SessionType: packets.SessionRace,
+				},
+			},
+			wantAlerts: 0,
+		},
+		{
+			name: "practice session fuel deficit suppressed",
+			ctx: &EvaluationContext{
+				Status: &packets.PacketCarStatusData{
+					CarStatusData: [packets.MaxCars]packets.CarStatusData{
+						{FuelRemainingLaps: -0.8},
+					},
+				},
+				LapData: &packets.PacketLapData{
+					LapData: [packets.MaxCars]packets.LapData{
+						{CurrentLapNum: 5},
+					},
+				},
+				Config:         cfg,
+				PlayerCarIndex: 0,
+				Phase:          PhaseRacing,
+				Session: &packets.PacketSessionData{
+					SessionType: packets.SessionP1,
+				},
+			},
+			wantAlerts: 0,
+		},
+		{
+			name: "pit stop window open alert on ideal lap",
+			ctx: &EvaluationContext{
+				LapData: &packets.PacketLapData{
+					LapData: [packets.MaxCars]packets.LapData{
+						{CurrentLapNum: 12, CarPosition: 3},
+					},
+				},
+				Config:         cfg,
+				PlayerCarIndex: 0,
+				Phase:          PhaseRacing,
+				Session: &packets.PacketSessionData{
+					SessionType:           packets.SessionRace,
+					PitStopWindowIdealLap: 12,
+					PitStopRejoinPosition: 6,
+					SafetyCarStatus:       packets.SafetyCarNone,
+				},
+			},
+			wantAlerts:   1,
+			wantSubAlert: "pit_window_open",
+			wantUrgency:  UrgencyLow,
+		},
+		{
+			name: "pit stop window suppressed under safety car",
+			ctx: &EvaluationContext{
+				LapData: &packets.PacketLapData{
+					LapData: [packets.MaxCars]packets.LapData{
+						{CurrentLapNum: 12, CarPosition: 3},
+					},
+				},
+				Config:         cfg,
+				PlayerCarIndex: 0,
+				Phase:          PhaseSafetyCar,
+				Session: &packets.PacketSessionData{
+					SessionType:           packets.SessionRace,
+					PitStopWindowIdealLap: 12,
+					SafetyCarStatus:       packets.SafetyCarFull,
+				},
+			},
+			wantAlerts: 0,
+		},
+		{
+			name: "undercut threat from trailing rival pitting",
+			ctx: &EvaluationContext{
+				LapData: &packets.PacketLapData{
+					LapData: [packets.MaxCars]packets.LapData{
+						{CarPosition: 2, TotalDistance: 5000.0, CurrentLapNum: 10},
+						{CarPosition: 3, TotalDistance: 4950.0, PitStatus: packets.PitStatusPitting, CurrentLapNum: 10},
+					},
+				},
+				Config:         cfg,
+				PlayerCarIndex: 0,
+				Phase:          PhaseRacing,
+				Session: &packets.PacketSessionData{
+					SessionType:     packets.SessionRace,
+					SafetyCarStatus: packets.SafetyCarNone,
+				},
+			},
+			wantAlerts:   1,
+			wantSubAlert: "undercut_window",
+			wantUrgency:  UrgencyCritical,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rule := NewFuelRule()
+			dirs := rule.Evaluate(tt.ctx)
+			if len(dirs) != tt.wantAlerts {
+				t.Fatalf("expected %d directives, got %d (%+v)", tt.wantAlerts, len(dirs), dirs)
+			}
+			if tt.wantAlerts > 0 {
+				if dirs[0].SubAlert != tt.wantSubAlert {
+					t.Errorf("expected SubAlert=%s, got %s", tt.wantSubAlert, dirs[0].SubAlert)
+				}
+				if dirs[0].Urgency != tt.wantUrgency {
+					t.Errorf("expected Urgency=%s, got %s", tt.wantUrgency, dirs[0].Urgency)
+				}
+			}
+		})
+	}
+
+	t.Run("fuel rule lap dedup and reset", func(t *testing.T) {
+		rule := NewFuelRule()
+		ctx := &EvaluationContext{
+			Status: &packets.PacketCarStatusData{
+				CarStatusData: [packets.MaxCars]packets.CarStatusData{
+					{FuelRemainingLaps: -1.0},
+				},
+			},
+			LapData: &packets.PacketLapData{
+				LapData: [packets.MaxCars]packets.LapData{
+					{CurrentLapNum: 5},
+				},
+			},
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseRacing,
+			Session: &packets.PacketSessionData{
+				SessionType: packets.SessionRace,
+			},
+		}
+
+		dirs1 := rule.Evaluate(ctx)
+		if len(dirs1) != 1 {
+			t.Fatalf("expected 1 directive on first evaluation, got %d", len(dirs1))
+		}
+
+		dirs2 := rule.Evaluate(ctx)
+		if len(dirs2) != 0 {
+			t.Fatalf("expected 0 directives on repeated evaluation on same lap, got %d", len(dirs2))
+		}
+
+		rule.Reset(DedupScopeLap)
+		dirs3 := rule.Evaluate(ctx)
+		if len(dirs3) != 1 {
+			t.Fatalf("expected 1 directive after Reset(DedupScopeLap), got %d", len(dirs3))
+		}
+	})
+}
+
+func TestRivalsRule_TableDriven(t *testing.T) {
+	cfg := DefaultEngineerConfig()
+
+	t.Run("defend 2025 DRS threat with compound context", func(t *testing.T) {
+		rule := NewRivalsRule()
+		ctx := &EvaluationContext{
+			LapData: &packets.PacketLapData{
+				LapData: [packets.MaxCars]packets.LapData{
+					{CarPosition: 3, TotalDistance: 2000.0},
+					{CarPosition: 4, TotalDistance: 1960.0},
+				},
+			},
+			Status: &packets.PacketCarStatusData{
+				CarStatusData: [packets.MaxCars]packets.CarStatusData{
+					{ActualTyreCompound: 16, TyresAgeLaps: 10},
+					{ActualTyreCompound: 18, TyresAgeLaps: 2},
+				},
+			},
+			Damage: &packets.PacketCarDamageData{
+				CarDamageData: [packets.MaxCars]packets.CarDamageData{
+					{},
+					{FrontLeftWingDamage: 25},
+				},
+			},
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseRacing,
+			PacketFormat:   packets.PacketFormat2025,
+			Session: &packets.PacketSessionData{
+				SessionType:     packets.SessionRace,
+				SafetyCarStatus: packets.SafetyCarNone,
+			},
+		}
+
+		dirs := rule.Evaluate(ctx)
+		if len(dirs) != 1 {
+			t.Fatalf("expected 1 directive, got %d", len(dirs))
+		}
+		if dirs[0].SubAlert != "rival_defend" {
+			t.Errorf("expected rival_defend, got %s", dirs[0].SubAlert)
+		}
+		if !strings.Contains(dirs[0].Message, "DRS threat") {
+			t.Errorf("expected 2025 message to mention DRS threat: %s", dirs[0].Message)
+		}
+		if !strings.Contains(dirs[0].Message, "different compound") {
+			t.Errorf("expected message to mention different compound: %s", dirs[0].Message)
+		}
+		if !strings.Contains(dirs[0].Message, "front wing damage") {
+			t.Errorf("expected message to note rival front wing damage: %s", dirs[0].Message)
+		}
+	})
+
+	t.Run("defend 2026 Override/Boost threat", func(t *testing.T) {
+		rule := NewRivalsRule()
+		ctx := &EvaluationContext{
+			LapData: &packets.PacketLapData{
+				LapData: [packets.MaxCars]packets.LapData{
+					{CarPosition: 2, TotalDistance: 2000.0},
+					{CarPosition: 3, TotalDistance: 1960.0},
+				},
+			},
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseRacing,
+			PacketFormat:   packets.PacketFormat2026,
+			Session: &packets.PacketSessionData{
+				SessionType:     packets.SessionRace,
+				SafetyCarStatus: packets.SafetyCarNone,
+			},
+		}
+
+		dirs := rule.Evaluate(ctx)
+		if len(dirs) != 1 {
+			t.Fatalf("expected 1 directive, got %d", len(dirs))
+		}
+		if !strings.Contains(dirs[0].Message, "Override/Boost attack threat") {
+			t.Errorf("expected 2026 message to mention Override/Boost attack threat: %s", dirs[0].Message)
+		}
+	})
+
+	t.Run("attack 2026 with Boost available", func(t *testing.T) {
+		rule := NewRivalsRule()
+		ctx := &EvaluationContext{
+			LapData: &packets.PacketLapData{
+				LapData: [packets.MaxCars]packets.LapData{
+					{CarPosition: 2, TotalDistance: 2000.0},
+					{CarPosition: 1, TotalDistance: 2050.0},
+				},
+			},
+			Telemetry2: &packets.PacketCarTelemetry2Data{
+				CarTelemetry2Data: [packets.MaxCars]packets.CarTelemetry2Data{
+					{OvertakeAvailable: 1},
+				},
+			},
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseRacing,
+			PacketFormat:   packets.PacketFormat2026,
+			Session: &packets.PacketSessionData{
+				SessionType:     packets.SessionRace,
+				SafetyCarStatus: packets.SafetyCarNone,
+			},
+		}
+
+		dirs := rule.Evaluate(ctx)
+		if len(dirs) != 1 {
+			t.Fatalf("expected 1 directive, got %d", len(dirs))
+		}
+		if dirs[0].SubAlert != "rival_attack" {
+			t.Errorf("expected rival_attack, got %s", dirs[0].SubAlert)
+		}
+		if !strings.Contains(dirs[0].Message, "Override Boost is available!") {
+			t.Errorf("expected message to mention Override Boost is available: %s", dirs[0].Message)
+		}
+		if !strings.Contains(dirs[0].Message, "Straight Mode and Boost deployment") {
+			t.Errorf("expected message to mention Straight Mode and Boost: %s", dirs[0].Message)
+		}
+	})
+
+	t.Run("suppressed during Safety Car or non-racing phase", func(t *testing.T) {
+		rule := NewRivalsRule()
+		ctx := &EvaluationContext{
+			LapData: &packets.PacketLapData{
+				LapData: [packets.MaxCars]packets.LapData{
+					{CarPosition: 2, TotalDistance: 2000.0},
+					{CarPosition: 3, TotalDistance: 1980.0},
+				},
+			},
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseSafetyCar,
+			Session: &packets.PacketSessionData{
+				SessionType:     packets.SessionRace,
+				SafetyCarStatus: packets.SafetyCarFull,
+			},
+		}
+		if dirs := rule.Evaluate(ctx); len(dirs) != 0 {
+			t.Errorf("expected 0 directives under Safety Car, got %d", len(dirs))
+		}
+	})
+}
+
+func TestCoachingRule_TableDriven(t *testing.T) {
+	cfg := DefaultEngineerConfig()
+	rule := NewCoachingRule()
+
+	// Lap 1, Sector 0: establish baseline S1 = 25000ms
+	ctxLap1S0 := &EvaluationContext{
+		LapData: &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{
+					CurrentLapNum:     1,
+					Sector:            0,
+					Sector1TimeMSPart: 25000,
+					DriverStatus:      packets.DriverStatusFlyingLap,
+					PitStatus:         packets.PitStatusNone,
+				},
+			},
+		},
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseFlyingLap,
+	}
+	rule.Evaluate(ctxLap1S0)
+	if rule.GetBestSector1MS() != 25000 {
+		t.Fatalf("expected best S1 to be 25000, got %d", rule.GetBestSector1MS())
+	}
+
+	// Lap 1, Sector 1: establish baseline S2 = 27000ms
+	ctxLap1S1 := &EvaluationContext{
+		LapData: &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{
+					CurrentLapNum:     1,
+					Sector:            1,
+					Sector1TimeMSPart: 25000,
+					Sector2TimeMSPart: 27000,
+					DriverStatus:      packets.DriverStatusFlyingLap,
+					PitStatus:         packets.PitStatusNone,
+				},
+			},
+		},
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseFlyingLap,
+	}
+	rule.Evaluate(ctxLap1S1)
+
+	// Lap 2, Sector 1: S1 time was 25500ms (+0.50s delta vs 25000ms >= 0.35s threshold)
+	ctxLap2S1 := &EvaluationContext{
+		LapData: &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{
+					CurrentLapNum:     2,
+					Sector:            1,
+					Sector1TimeMSPart: 25500,
+					DriverStatus:      packets.DriverStatusFlyingLap,
+					PitStatus:         packets.PitStatusNone,
+				},
+			},
+		},
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseFlyingLap,
+	}
+	rule.Evaluate(ctxLap2S1)
+	dirsS1 := rule.Evaluate(ctxLap2S1)
+	if len(dirsS1) != 1 || dirsS1[0].SubAlert != "sector_delta" || dirsS1[0].ID != "coaching_s1" {
+		t.Fatalf("expected coaching_s1 directive, got %+v", dirsS1)
+	}
+
+	// Lap 2, Sector 2: S2 time was 27600ms (+0.60s delta vs 27000ms >= 0.35s threshold)
+	ctxLap2S2 := &EvaluationContext{
+		LapData: &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{
+					CurrentLapNum:     2,
+					Sector:            2,
+					Sector1TimeMSPart: 25500,
+					Sector2TimeMSPart: 27600,
+					DriverStatus:      packets.DriverStatusFlyingLap,
+					PitStatus:         packets.PitStatusNone,
+				},
+			},
+		},
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseFlyingLap,
+	}
+	dirsS2 := rule.Evaluate(ctxLap2S2)
+	if len(dirsS2) != 1 || dirsS2[0].SubAlert != "sector_delta" || dirsS2[0].ID != "coaching_s2" {
+		t.Fatalf("expected coaching_s2 directive, got %+v", dirsS2)
+	}
+
+	// Reset clears baseline
+	rule.Reset(DedupScopeNone)
+	if rule.GetBestSector1MS() != 0 {
+		t.Errorf("expected best S1 to be 0 after reset, got %d", rule.GetBestSector1MS())
+	}
+}
+
+func TestQualifyingRule_TableDriven(t *testing.T) {
+	cfg := DefaultEngineerConfig()
+
+	t.Run("lap invalidation on track limits", func(t *testing.T) {
+		rule := NewQualifyingRule()
+		ctx := &EvaluationContext{
+			LapData: &packets.PacketLapData{
+				LapData: [packets.MaxCars]packets.LapData{
+					{CurrentLapNum: 3, CurrentLapInvalid: 1, DriverStatus: packets.DriverStatusFlyingLap},
+				},
+			},
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseFlyingLap,
+			Session: &packets.PacketSessionData{
+				SessionType: packets.SessionQ1,
+			},
+		}
+		dirs := rule.Evaluate(ctx)
+		if len(dirs) != 1 || dirs[0].SubAlert != "qualy_deleted_lap" {
+			t.Fatalf("expected qualy_deleted_lap directive, got %+v", dirs)
+		}
+		dirsRepeat := rule.Evaluate(ctx)
+		if len(dirsRepeat) != 0 {
+			t.Fatalf("expected 0 directives for repeated invalidation on same lap, got %d", len(dirsRepeat))
+		}
+	})
+
+	t.Run("out-lap traffic ahead in final sector", func(t *testing.T) {
+		rule := NewQualifyingRule()
+		ctxTraffic := &EvaluationContext{
+			LapData: &packets.PacketLapData{
+				LapData: [packets.MaxCars]packets.LapData{
+					{CurrentLapNum: 1, DriverStatus: packets.DriverStatusOutLap, Sector: 2, TotalDistance: 5000.0},
+					{TotalDistance: 5080.0},
+				},
+			},
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseOutLap,
+			Session: &packets.PacketSessionData{
+				SessionType: packets.SessionQ2,
+			},
+		}
+		dirs := rule.Evaluate(ctxTraffic)
+		if len(dirs) != 1 || dirs[0].SubAlert != "qualy_traffic" || dirs[0].Urgency != UrgencyCritical {
+			t.Fatalf("expected critical qualy_traffic directive, got %+v", dirs)
+		}
+
+		rule.Reset(DedupScopeLap)
+		ctxClean := &EvaluationContext{
+			LapData: &packets.PacketLapData{
+				LapData: [packets.MaxCars]packets.LapData{
+					{CurrentLapNum: 1, DriverStatus: packets.DriverStatusOutLap, Sector: 2, TotalDistance: 5000.0},
+					{TotalDistance: 5350.0},
+				},
+			},
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseOutLap,
+			Session: &packets.PacketSessionData{
+				SessionType: packets.SessionQ2,
+			},
+		}
+		dirsClean := rule.Evaluate(ctxClean)
+		if len(dirsClean) != 1 || dirsClean[0].SubAlert != "qualy_clean_air" || dirsClean[0].Urgency != UrgencyLow {
+			t.Fatalf("expected low urgency qualy_clean_air directive, got %+v", dirsClean)
+		}
+	})
+
+	t.Run("session clock countdown warning", func(t *testing.T) {
+		rule := NewQualifyingRule()
+		ctx := &EvaluationContext{
+			Session: &packets.PacketSessionData{
+				SessionType:     packets.SessionQ3,
+				SessionTimeLeft: 120,
+			},
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseInGarage,
+		}
+		dirs := rule.Evaluate(ctx)
+		if len(dirs) != 1 || dirs[0].SubAlert != "qualy_session_time" {
+			t.Fatalf("expected qualy_session_time directive, got %+v", dirs)
+		}
+	})
+
+	t.Run("elimination danger zone in Q1", func(t *testing.T) {
+		rule := NewQualifyingRule()
+		ctx := &EvaluationContext{
+			LapData: &packets.PacketLapData{
+				LapData: [packets.MaxCars]packets.LapData{
+					{CarPosition: 17},
+				},
+			},
+			Session: &packets.PacketSessionData{
+				SessionType:     packets.SessionQ1,
+				SessionTimeLeft: 240,
+			},
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseFlyingLap,
+		}
+		dirs := rule.Evaluate(ctx)
+		if len(dirs) != 1 || dirs[0].SubAlert != "qualy_elimination_danger" {
+			t.Fatalf("expected qualy_elimination_danger directive, got %+v", dirs)
+		}
+	})
+}
+
+func TestTeammateRule_TableDriven(t *testing.T) {
+	cfg := DefaultEngineerConfig()
+
+	t.Run("teammate pitting alert", func(t *testing.T) {
+		rule := NewTeammateRule()
+		ctx := &EvaluationContext{
+			LapData: &packets.PacketLapData{
+				LapData: [packets.MaxCars]packets.LapData{
+					{CurrentLapNum: 10, TotalDistance: 5000.0, DriverStatus: packets.DriverStatusOnTrack},
+					{CurrentLapNum: 10, TotalDistance: 4800.0, PitStatus: packets.PitStatusPitting, DriverStatus: packets.DriverStatusOnTrack},
+				},
+			},
+			Config:           cfg,
+			PlayerCarIndex:   0,
+			TeammateCarIndex: 1,
+			Phase:            PhaseRacing,
+		}
+		dirs := rule.Evaluate(ctx)
+		if len(dirs) != 1 || dirs[0].SubAlert != "teammate_pitting" {
+			t.Fatalf("expected teammate_pitting directive, got %+v", dirs)
+		}
+	})
+
+	t.Run("teammate ahead proximity alert", func(t *testing.T) {
+		rule := NewTeammateRule()
+		ctx := &EvaluationContext{
+			LapData: &packets.PacketLapData{
+				LapData: [packets.MaxCars]packets.LapData{
+					{CurrentLapNum: 8, TotalDistance: 3000.0, DriverStatus: packets.DriverStatusOnTrack},
+					{CurrentLapNum: 8, TotalDistance: 3090.0, DriverStatus: packets.DriverStatusOnTrack},
+				},
+			},
+			Config:           cfg,
+			PlayerCarIndex:   0,
+			TeammateCarIndex: 1,
+			Phase:            PhaseRacing,
+		}
+		dirs := rule.Evaluate(ctx)
+		if len(dirs) != 1 || dirs[0].SubAlert != "teammate_proximity" {
+			t.Fatalf("expected teammate_proximity directive, got %+v", dirs)
+		}
+	})
+
+	t.Run("suppressed when player or teammate in garage", func(t *testing.T) {
+		rule := NewTeammateRule()
+		ctx := &EvaluationContext{
+			LapData: &packets.PacketLapData{
+				LapData: [packets.MaxCars]packets.LapData{
+					{CurrentLapNum: 1, DriverStatus: packets.DriverStatusInGarage},
+					{CurrentLapNum: 1, PitStatus: packets.PitStatusPitting},
+				},
+			},
+			Config:           cfg,
+			PlayerCarIndex:   0,
+			TeammateCarIndex: 1,
+			Phase:            PhaseInGarage,
+		}
+		dirs := rule.Evaluate(ctx)
+		if len(dirs) != 0 {
+			t.Fatalf("expected 0 directives when in garage, got %d", len(dirs))
+		}
+	})
+}
+
+func TestTrafficRule_TableDriven(t *testing.T) {
+	cfg := DefaultEngineerConfig()
+
+	t.Run("clean air pit rejoin opportunity on modulo lap", func(t *testing.T) {
+		rule := NewTrafficRule()
+		ctx := &EvaluationContext{
+			LapData: &packets.PacketLapData{
+				LapData: [packets.MaxCars]packets.LapData{
+					{CurrentLapNum: 5, TotalDistance: 10000.0},
+					{CurrentLapNum: 5, TotalDistance: 5000.0},
+				},
+			},
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseRacing,
+			Session: &packets.PacketSessionData{
+				SessionType:     packets.SessionRace,
+				SafetyCarStatus: packets.SafetyCarNone,
+				TrackLength:     5000,
+			},
+		}
+
+		dirs := rule.Evaluate(ctx)
+		if len(dirs) != 1 || dirs[0].SubAlert != "pit_clean_air" {
+			t.Fatalf("expected pit_clean_air directive, got %+v", dirs)
+		}
+	})
+
+	t.Run("traffic on rejoin suppresses clean air alert", func(t *testing.T) {
+		rule := NewTrafficRule()
+		ctx := &EvaluationContext{
+			LapData: &packets.PacketLapData{
+				LapData: [packets.MaxCars]packets.LapData{
+					{CurrentLapNum: 5, TotalDistance: 10000.0},
+					{CurrentLapNum: 5, TotalDistance: 8650.0},
+				},
+			},
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseRacing,
+			Session: &packets.PacketSessionData{
+				SessionType:     packets.SessionRace,
+				SafetyCarStatus: packets.SafetyCarNone,
+				TrackLength:     5000,
+			},
+		}
+
+		dirs := rule.Evaluate(ctx)
+		if len(dirs) != 0 {
+			t.Fatalf("expected 0 directives when rejoin is blocked by traffic, got %d", len(dirs))
+		}
+	})
+
+	t.Run("non-periodic lap produces no alert", func(t *testing.T) {
+		rule := NewTrafficRule()
+		ctx := &EvaluationContext{
+			LapData: &packets.PacketLapData{
+				LapData: [packets.MaxCars]packets.LapData{
+					{CurrentLapNum: 4, TotalDistance: 10000.0},
+				},
+			},
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseRacing,
+			Session: &packets.PacketSessionData{
+				SessionType:     packets.SessionRace,
+				SafetyCarStatus: packets.SafetyCarNone,
+				TrackLength:     5000,
+			},
+		}
+		if dirs := rule.Evaluate(ctx); len(dirs) != 0 {
+			t.Fatalf("expected 0 directives on non-periodic lap, got %d", len(dirs))
+		}
+	})
+}
+
+func TestERSRule_YearAware(t *testing.T) {
+	rule := NewERSRule()
+	cfg := DefaultEngineerConfig()
+
+	ctx2025 := &EvaluationContext{
+		Status: &packets.PacketCarStatusData{
+			CarStatusData: [packets.MaxCars]packets.CarStatusData{
+				{ERSStoreEnergy: 300_000.0},
+			},
+		},
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseRacing,
+		PacketFormat:   packets.PacketFormat2025,
+		Session: &packets.PacketSessionData{
+			SessionType: packets.SessionRace,
+		},
+	}
+	dirs2025 := rule.Evaluate(ctx2025)
+	if len(dirs2025) != 1 || !strings.Contains(dirs2025[0].Message, "None or Harvest") {
+		t.Fatalf("expected 2025 ERS message to mention None or Harvest: %+v", dirs2025)
+	}
+
+	ctx2026 := &EvaluationContext{
+		Status: &packets.PacketCarStatusData{
+			CarStatusData: [packets.MaxCars]packets.CarStatusData{
+				{ERSStoreEnergy: 300_000.0},
+			},
+		},
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseRacing,
+		PacketFormat:   packets.PacketFormat2026,
+		Session: &packets.PacketSessionData{
+			SessionType: packets.SessionRace,
+		},
+	}
+	dirs2026 := rule.Evaluate(ctx2026)
+	if len(dirs2026) != 1 || !strings.Contains(dirs2026[0].Message, "MGU-K regeneration") {
+		t.Fatalf("expected 2026 ERS message to mention MGU-K regeneration: %+v", dirs2026)
+	}
+
+	ctxEngineOverheat := &EvaluationContext{
+		Telemetry: &packets.PacketCarTelemetryData{
+			CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
+				{EngineTemperature: 130},
+			},
+		},
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseRacing,
+	}
+	dirsEngine := rule.Evaluate(ctxEngineOverheat)
+	if len(dirsEngine) != 1 || dirsEngine[0].SubAlert != "radiator_overheat" {
+		t.Fatalf("expected radiator_overheat directive, got %+v", dirsEngine)
+	}
+}
+
+func TestBrakesRule_FadeAndCold(t *testing.T) {
+	rule := NewBrakesRule()
+	cfg := DefaultEngineerConfig()
+
+	ctxFade := &EvaluationContext{
+		Telemetry: &packets.PacketCarTelemetryData{
+			CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
+				{BrakesTemperature: [4]uint16{950, 910, 800, 800}},
+			},
+		},
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseRacing,
+	}
+	dirsFade := rule.Evaluate(ctxFade)
+	if len(dirsFade) != 1 || dirsFade[0].SubAlert != "brake_overheat" {
+		t.Fatalf("expected brake_overheat directive, got %+v", dirsFade)
+	}
+
+	ctxCold := &EvaluationContext{
+		Telemetry: &packets.PacketCarTelemetryData{
+			CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
+				{BrakesTemperature: [4]uint16{80, 85, 70, 75}},
+			},
+		},
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseFormationLap,
+	}
+	dirsCold := rule.Evaluate(ctxCold)
+	if len(dirsCold) != 1 || dirsCold[0].SubAlert != "brake_cold" {
+		t.Fatalf("expected brake_cold directive, got %+v", dirsCold)
+	}
+}
+
+func TestTyresRule_ColdAndSuppression(t *testing.T) {
+	rule := NewTyresRule()
+	cfg := DefaultEngineerConfig()
+
+	ctxCold := &EvaluationContext{
+		Telemetry: &packets.PacketCarTelemetryData{
+			CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
+				{TyresSurfaceTemperature: [4]uint8{60, 65, 55, 58}},
+			},
+		},
+		Status: &packets.PacketCarStatusData{
+			CarStatusData: [packets.MaxCars]packets.CarStatusData{
+				{TyresAgeLaps: 0},
+			},
+		},
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseFormationLap,
+	}
+	dirs := rule.Evaluate(ctxCold)
+	if len(dirs) != 1 || dirs[0].SubAlert != "tyre_cold" {
+		t.Fatalf("expected tyre_cold directive, got %+v", dirs)
+	}
+}
+
+func TestDamageRule_EngineWear(t *testing.T) {
+	rule := NewDamageRule()
+	cfg := DefaultEngineerConfig()
+
+	ctxICE := &EvaluationContext{
+		Damage: &packets.PacketCarDamageData{
+			CarDamageData: [packets.MaxCars]packets.CarDamageData{
+				{EngineICEWear: 72},
+			},
+		},
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseRacing,
+	}
+	dirs := rule.Evaluate(ctxICE)
+	if len(dirs) != 1 || dirs[0].SubAlert != "engine_wear" {
+		t.Fatalf("expected engine_wear directive, got %+v", dirs)
+	}
+}
+
+func TestFlagsRule_VSCAndPenalties(t *testing.T) {
+	rule := NewFlagsRule()
+	cfg := DefaultEngineerConfig()
+
+	ctxVSC := &EvaluationContext{
+		Session: &packets.PacketSessionData{
+			SessionType:     packets.SessionRace,
+			SafetyCarStatus: packets.SafetyCarVirtual,
+		},
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseSafetyCar,
+	}
+	dirsVSC := rule.Evaluate(ctxVSC)
+	if len(dirsVSC) != 1 || dirsVSC[0].SubAlert != "vsc" {
+		t.Fatalf("expected vsc directive, got %+v", dirsVSC)
+	}
+
+	ctxDriveThrough := &EvaluationContext{
+		LapData: &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{NumUnservedDriveThroughPens: 1},
+			},
+		},
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseRacing,
+	}
+	dirsPnl := rule.Evaluate(ctxDriveThrough)
+	if len(dirsPnl) != 1 || dirsPnl[0].SubAlert != "penalties_incurred" || !strings.Contains(dirsPnl[0].Message, "Drive-through penalty") {
+		t.Fatalf("expected drive-through penalty directive, got %+v", dirsPnl)
 	}
 }
