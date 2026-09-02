@@ -13,51 +13,28 @@
 
 ## ✨ Key Features
 
-### ⏱️ Live Pit Wall & Race Control Hub
-* **Dual View Modes (Race Control vs Voice Cockpit):** Toggle seamlessly between the full 2×2 Race Control Dashboard and a distraction-free **Voice Cockpit Hub** with 0% unneeded widget DOM/Canvas overhead, designed for high-FPS sim racing rigs and VR.
-* **Live Incident Feed:** Real-time event ticker tracking overtakes, penalties, fastest laps, pit stops, and Safety Car / VSC deployments with flag indicators.
-* **Weather Radar & Tyre Strategy:** Live precipitation forecast (+5m to +30m), air/track temperatures, and tyre compound crossover advice.
-* **Live Leaderboard Tower:** Full-grid timing tower with interval deltas, tyre compounds, pit status, and Qualifying elimination cut-off lines.
-* **Sector Tracker & Speed Traps:** Live purple/green sector splits, theoretical ultimate best lap record, and top speed rankings.
+### ⏱️ Live Pit Wall & Race Control
+* **Dual View Modes:** Switch between the complete 2×2 Race Control Hub and a zero-overhead **Voice Cockpit Mode** built for maximum FPS on sim rigs and VR.
+* **Live Leaderboard & Timing Tower:** Full-grid timing tower with interval deltas, tyre compounds, pit status, and live Active Aero / Boost indicators.
+* **Dynamic Weather & Radar:** Live precipitation forecasts (+5m to +30m), track temperature trends, and tyre crossover recommendations.
+* **Real-Time Incidents & Sectors:** Instant ticker tracking overtakes, penalties, safety cars, sector splits, speed traps, and theoretical best laps.
 
-
-### 🔍 Telemetry Comparator & Track Map
-* **Side-by-Side Analysis:** Compare any two laps (personal bests, rival drivers, or cross-session runs) across Speed, Throttle, Brake, ERS, Gear traces, and 2026 **Active Aero** (`Corner` vs `Straight` mode) & **Boost** deployment.
-* **Format-Adaptive Modes:** Automatically adapts ERS Deploy Mode telemetry semantics between F1 2025 (*Overtake*) and F1 2026 (*Boost*).
-* **Interactive Track Map:** Sticky circuit visualizer with turn-by-turn badges, racing line synchronization, and real-time hover point readouts.
-* **Delta Coaching:** Instant visual gap charts and braking/apex speed difference indicators.
+### 🔍 Lap Comparator & Track Map
+* **Side-by-Side Telemetry:** Compare any two laps across Speed, Throttle, Brake, Gears, ERS, and 2026 Active Aero (`Corner` / `Straight` mode) & Boost traces.
+* **Interactive Track Visualizer:** Synchronized circuit map with turn badges, apex speed deltas, and racing line overlays.
+* **Server-Side Distance Merging:** High-performance distance-normalized grid (5m step) for pinpoint delta coaching.
 
 ### 📊 Session History & League Management
-* **Data Table Explorer & Server-Side Analytics:** Streamlined session repository featuring sortable metadata (Date/Time, Track with High-DPI country flag badges, Type/Format, Duration, Tags, Weather, and Actions), fast filters, and 4-tab session deep-dive powered by server-side analytics endpoints (`/classification`, `/progression`, `/stints`): Official Classification & Penalties, Lap Progression & Gap Charts, Tyre Strategy & Stint Degradation (OLS linear regression slopes), and Ultimate Theoretical Lap & Speed Traps.
-* **Batch Operations & Floating Action Dock:** Multi-select sessions via table checkboxes with indeterminate select-all to trigger bulk operations from the floating glassmorphic dock: **Export ZIP** (bundling selected sessions as `.f1session` packages inside a `.zip`), **Batch Deletion**, and **Batch Tag Assignment**.
-* **Session Portability & Multi-File Import:** 1-click export of individual sessions (`.f1session`) or bulk ZIP archives (`.zip`), and multi-file drag-and-drop import supporting `.zip` extraction and multiple `.f1session` files with duplicate detection and toast summary reports.
-* **Tyre Strategy & Stints Analytics:** Interactive field stint Gantt timeline with hover telemetry stats, pit markers, and tyre degradation & pace curves plotted by tyre age with calculated deg rates (s/lap).
-* **Country Flag Visual Identity & Search:** Crisp vector SVG country flags with localized hover tooltips across all views (Session History, Comparator, Live Wall, AI Engineer), with country name and ISO code search support (e.g., searching `Italy`, `ITA`, or `Monza`).
-* **Multi-Tag Organization:** Categorize sessions by league (e.g. *WOR*, *AOR*, *PSGL*), tier, or custom wet/dry setups with motorsport color chips and horizontal filter bar.
+* **4-Tab Deep Dive:** Detailed analysis for Official Classification & Penalties, Lap Progression & Gap Charts, Tyre Strategy & Stint Degradation, and Speed/Sector Matrix.
+* **League & Tag Organization:** Categorize sessions by league (*WOR*, *AOR*, *PSGL*) or weather setup with color chips and tag filtering.
+* **Batch Operations & Portability:** Multi-select sessions to export to ZIP, bulk delete, or batch tag. Drag-and-drop import with duplicate detection.
 
-
-### 🤖 AI Race Engineer (EN / ES)
-* **Real-Time Strategy & Post-Race Debriefs:** Streaming AI debriefs analyzing telemetry deltas, tyre degradation, braking points, and traction pickup.
-* **Bilingual Coaching:** Full native support in **English 🇬🇧** and **Español (Latinoamérica) 🇦🇷** using authentic motorsport terminology.
-* **LLM Provider Flexibility:** Works out-of-the-box with Google Gemini (default) or OpenAI / custom LLM endpoints (configured directly in UI settings).
-
-### 🎙️ Interactive Voice Race Engineer (Live Sessions)
-* **Global Push-to-Talk Radio (In-Game / Background Support):** Talk to your engineer hands-free over live team radio while driving in full-screen mode. The Go backend captures steering wheel buttons (Fanatec, Logitech, Moza, Simagic, etc. via DirectInput) and global keyboard shortcuts at the OS level on Windows. Supports configurable **Hold-to-Talk** (classic F1) and **Toggle On/Off** modes, interactive button learning via web UI, and FOM-style harmonic radio *beeps* on press and release.
-* **Driver Call-Sign Personalization:** Set a custom driver name or call-sign (e.g. *Franco*, *Max*, *Chief*) so the pit wall naturally addresses you by name across all voice prompts and live updates.
-* **Proactive Pit Wall Watcher & 8 Telemetry Subsystems:** Automatically calls you over the radio without prompting across 8 categorized subsystems with independent per-category cooldowns and instant Emergency Bypass for critical safety events:
-  - *Tyre Wear & Overheating:* Granular wear % and critical % sliders, critical puncture bypass (>=95%), and thermal window (>115°C overheat & cold tyre alerts).
-  - *Aero & Mechanical Damage:* Front wing flap warning & severe damage (>=40% box) thresholds, floor/diffuser downforce loss %, engine internal component wear %, and DRS/ERS mechanical failures.
-  - *ERS & Power Unit:* Low battery reserve % warning and radiator water/oil temp dirty air alerts.
-  - *Braking Systems:* Disc fade overheat temp threshold (°C) and cold brake drag warning on formation / SC restarts.
-  - *Fuel & Pit Strategy:* Target deficit delta (laps) with Lift & Coast directive, rival undercut threat within gap distance, and pit stop window opening.
-  - *Rival Battles & DRS:* Car behind inside DRS zone (<0.8–2.5s) with compound offset and damage notes, and catching car ahead overtake directive.
-  - *Qualifying & Shootouts:* Out-lap clean air traffic gap warning (<4s in sector 3), flying lap track limits invalidation, session countdown timer (<3 min), and Q1/Q2 elimination danger zone alerts.
-  - *Race Control & Flags:* Full SC, Virtual Safety Car, Red Flag session halts, weather radar rain horizon & probability thresholds, corner cutting warnings before penalty count, and steward penalties.
-* **Quick Style Presets & Granular Controls:** Switch instantly between *Inmersivo F1*, *Coaching Pro*, *Mínimo*, or *Personalizado*, with a 1-click Reset to Defaults button and individual audio test preview buttons for every single subsystem.
-* **Smart Driving Discretion:** Suppresses non-critical pit wall calls during heavy braking (>50% brake pressure) or mid-corner apex steering (`|Steer| > 0.45`), holding messages until the driver reaches the straight line.
-* **Audio Realism & Zero-Latency Caching:** Speech rate (-20% to +30%) and vocal pitch modulation sliders, analog cockpit static & squelch background FX, and instant in-memory audio caching for frequent pit wall radio calls.
-* **Engineer Personas & Language-Filtered Neural Voices:** Choose between **Bono 🇬🇧**, **Franco Colapinto 🇦🇷**, or a fully **Custom** persona. Each persona has language-specific neural TTS voices (Spanish: *Tomás*, *Jorge*, *Álvaro*; English: *Ryan*, *Guy*) — the voice dropdown filters automatically to match the selected radio language.
-* **4-Tab Glassmorphic Settings Dialog & Master Toggle:** Comprehensive modal organizing settings into *Persona & Driver*, *Voice & Audio Realism*, *Proactive Triggers & Discretion*, and *Tactical Coaching (8 Accordion Subsystems)*. Toggle the radio ON/OFF from settings or via the `⚡ Power` button on the HUD (collapsing into a compact pill and pausing all PTT, mic access, and background calls).
+### 🎙️ AI Race Engineer & Voice Radio
+* **Hands-Free Global Push-to-Talk (PTT):** DirectInput support for steering wheels (Fanatec, Logitech, Moza, Simagic) and global keyboard shortcuts while driving in full-screen.
+* **Proactive Pit Wall Calls:** Context-aware pit wall alerts for tyre wear/temperatures, aero damage, ERS deployment, fuel Lift & Coast, rival gaps, and safety cars.
+* **Smart Driving Discretion:** Automatically suppresses non-critical radio chatter during heavy braking or corner apexes until reaching the straight.
+* **Neural Voices & Personas:** Authentic pit wall personas (**Bono 🇬🇧**, **Franco Colapinto 🇦🇷**, or **Custom**) with realistic cockpit radio distortion, spatial audio filtering, and FOM harmonic beeps.
+* **Bilingual Strategy & Debriefs:** Native bilingual support in **English** and **Español (Latinoamérica)** with streaming AI post-session debriefs.
 
 ---
 
