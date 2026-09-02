@@ -5,9 +5,9 @@ import type { Session } from '../types/session';
 
 describe('useBatchOperations Hook', () => {
   let mockSessions: Session[];
-  let fetchSessions: any;
-  let fetchTags: any;
-  let setSessions: any;
+  let fetchSessions: () => Promise<void>;
+  let fetchTags: () => Promise<void>;
+  let setSessions: React.Dispatch<React.SetStateAction<Session[]>>;
 
   beforeEach(() => {
     mockSessions = [

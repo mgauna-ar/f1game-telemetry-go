@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Lap } from '../types/session';
 import type { MergedTelemetryPoint, TrackTurn, ComparatorResponse } from '../types/comparator';
+import type { RechartsMouseMoveState } from '../components/lap_comparator/charts/chartDefaults';
 import { api } from '../utils/apiClient';
 
 export interface UseMergedTelemetryOptions {
@@ -26,7 +27,7 @@ export interface UseMergedTelemetryReturn {
   setHoverDistance: React.Dispatch<React.SetStateAction<number | null>>;
   zoomDomain: [number, number] | null;
   setZoomDomain: React.Dispatch<React.SetStateAction<[number, number] | null>>;
-  handleMouseMove: (state: any) => void;
+  handleMouseMove: (state: RechartsMouseMoveState<MergedTelemetryPoint> | null) => void;
   loading: boolean;
 }
 
@@ -169,7 +170,7 @@ export function useMergedTelemetry({
   }, [lapAObj, lapBObj]);
 
   // Recharts hover crosshair handler
-  const handleMouseMove = useCallback((state: any) => {
+  const handleMouseMove = useCallback((state: RechartsMouseMoveState<MergedTelemetryPoint> | null) => {
     if (!state) {
       setHoverDistance(null);
       return;

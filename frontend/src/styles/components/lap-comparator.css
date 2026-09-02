@@ -379,3 +379,70 @@
   border: 1px solid currentColor;
   flex-shrink: 0;
 }
+
+/* Track Map & Legends */
+.track-map-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.track-map-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.track-map-legend {
+  position: absolute;
+  bottom: 6px;
+  display: flex;
+  gap: 6px;
+  font-size: 0.65rem;
+  background: rgba(10, 14, 22, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #ccc;
+  align-items: center;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.track-map-legend.legend-left {
+  left: 6px;
+}
+
+.track-map-legend.legend-right {
+  right: 6px;
+}
+
+.legend-lap-a {
+  color: #ff4757;
+  font-weight: bold;
+}
+
+.legend-lap-b {
+  color: #00d2d3;
+  font-weight: bold;
+}
+
+.legend-apex {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.legend-s1 {
+  color: #f39c12;
+  font-weight: 600;
+}
+
+.legend-s2 {
+  color: #9b59b6;
+  font-weight: 600;
+}
+
+.legend-s3 {
+  color: #2ecc71;
+  font-weight: 600;
+}
+

@@ -1,5 +1,4 @@
 import React from 'react';
-import { AlertTriangle } from 'lucide-react';
 import {
   LineChart,
   Line,
@@ -12,7 +11,8 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { useI18n } from '../../../context/I18nContext';
-import { compactTooltipProps, type CommonChartProps } from './chartDefaults';
+import { compactTooltipProps, type CommonChartProps, type RechartsMouseMoveState } from './chartDefaults';
+import type { MergedTelemetryPoint } from '../../../types/comparator';
 
 export interface ErsBatteryChartProps extends CommonChartProps {
   isErsRestrictedA: boolean;
@@ -42,32 +42,25 @@ export const ErsBatteryChart = React.memo<ErsBatteryChartProps>(({
         {(isErsRestrictedA || isErsRestrictedB) && (
           <span
             style={{
+              fontSize: '0.72rem',
+              fontWeight: 600,
+              padding: '2px 8px',
+              borderRadius: '4px',
+              backgroundColor: 'rgba(234, 179, 8, 0.15)',
+              color: '#facc15',
+              border: '1px solid rgba(234, 179, 8, 0.35)',
               display: 'inline-flex',
               alignItems: 'center',
               gap: '4px',
-              fontSize: '0.72rem',
-              color: '#ffa502',
-              background: 'rgba(255, 165, 2, 0.15)',
-              border: '1px solid rgba(255, 165, 2, 0.4)',
-              padding: '2px 8px',
-              borderRadius: '4px',
-              fontWeight: 600,
             }}
           >
-            <AlertTriangle size={11} />
-            <span>
-              {isErsRestrictedA && isErsRestrictedB
-                ? t('comparator.charts.ersRestrictedBoth', { nameA, nameB })
-                : isErsRestrictedA
-                ? t('comparator.charts.ersRestrictedSingle', { name: nameA })
-                : t('comparator.charts.ersRestrictedSingle', { name: nameB })}
-            </span>
+            ⚠️ {t('comparator.charts.ersTelemetryRestricted')}
           </span>
         )}
       </div>
       <div style={{ flex: 1, minHeight: 0 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} syncId="comparatorSync" onMouseMove={onMouseMove} onMouseLeave={() => onHoverDistanceChange(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
+          <LineChart data={chartData} syncId="comparatorSync" onMouseMove={(state) => onMouseMove(state as RechartsMouseMoveState<MergedTelemetryPoint>)} onMouseLeave={() => onHoverDistanceChange(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
             <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
             <YAxis
@@ -78,9 +71,10 @@ export const ErsBatteryChart = React.memo<ErsBatteryChartProps>(({
             />
             <Tooltip
               {...compactTooltipProps}
-              formatter={(val: any) =>
-                val !== null && val !== undefined && Number.isFinite(Number(val)) ? [`${Number(val).toFixed(1)}%`] : ['-']
-              }
+              formatter={(val: unknown) => {
+                const num = typeof val === 'number' ? val : Number(val);
+                return Number.isFinite(num) ? [`${num.toFixed(1)}%`] : ['-'];
+              }}
             />
             {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
             {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}

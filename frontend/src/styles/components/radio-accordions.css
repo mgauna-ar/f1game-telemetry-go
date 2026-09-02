@@ -1,0 +1,250 @@
+/* ==========================================================================
+   RADIO SETTINGS — TACTICAL ACCORDIONS & SUBSYSTEMS
+   ========================================================================== */
+
+/* ── Proactive Triggers Accordion & Subsystems ────────────────────────────── */
+.radio-preset-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--radius-md, 10px);
+  background: rgba(0, 242, 254, 0.03);
+  border: 1px solid rgba(0, 242, 254, 0.15);
+  margin-bottom: 12px;
+}
+
+.radio-preset-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.radio-preset-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #00f2fe;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.radio-btn-reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-secondary, #94a3b8);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.radio-btn-reset:hover {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #f87171;
+}
+
+.radio-preset-desc {
+  font-size: 0.73rem;
+  color: var(--text-secondary, #94a3b8);
+  margin: 0;
+  line-height: 1.35;
+}
+
+.radio-accordion-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.radio-accordion-card {
+  border-radius: var(--radius-md, 10px);
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.radio-accordion-card:hover {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.radio-accordion-card.card-open {
+  border-color: rgba(0, 242, 254, 0.25);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.radio-accordion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  cursor: pointer;
+  user-select: none;
+  background: rgba(255, 255, 255, 0.02);
+  transition: background 0.2s ease;
+}
+
+.radio-accordion-header:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.radio-accordion-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.radio-accordion-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+}
+
+.radio-accordion-title-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.radio-accordion-title {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  font-family: var(--font-display, 'Titillium Web', sans-serif);
+}
+
+.radio-accordion-subtitle {
+  font-size: 0.71rem;
+  color: var(--text-secondary, #94a3b8);
+  line-height: 1.25;
+}
+
+.radio-accordion-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.radio-accordion-chevron {
+  color: var(--text-secondary, #94a3b8);
+  transition: transform 0.2s ease;
+}
+
+.radio-accordion-body {
+  padding: 12px 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.radio-sub-toggles-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 8px;
+}
+
+.radio-sub-toggle-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.75rem;
+  color: #e2e8f0;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.radio-sub-toggle-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.radio-test-mini-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(0, 242, 254, 0.08);
+  border: 1px solid rgba(0, 242, 254, 0.25);
+  color: #00f2fe;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  align-self: flex-start;
+}
+
+.radio-test-mini-btn:hover {
+  background: rgba(0, 242, 254, 0.18);
+  border-color: #00f2fe;
+  box-shadow: 0 0 10px rgba(0, 242, 254, 0.25);
+}
+
+/* ==========================================================================
+   LIVE VIEW MODE TOGGLE (HEADER)
+   ========================================================================== */
+
+.live-view-mode-toggle {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-full, 9999px);
+  padding: 3px;
+  gap: 3px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.live-view-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: var(--radius-full, 9999px);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary, #94a3b8);
+  font-family: var(--font-display, 'Titillium Web', sans-serif);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+}
+
+.live-view-toggle-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.live-view-toggle-btn.active {
+  background: linear-gradient(135deg, rgba(0, 242, 254, 0.18) 0%, rgba(0, 198, 255, 0.08) 100%);
+  border-color: rgba(0, 242, 254, 0.45);
+  color: #00f2fe;
+  box-shadow: 0 2px 10px rgba(0, 242, 254, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+

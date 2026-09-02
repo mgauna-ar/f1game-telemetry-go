@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import type { MergedTelemetryPoint, TrackTurn } from '../types/comparator';
 import { TRACK_MAP_CONSTANTS } from '../constants/f1';
+import { useI18n } from '../context/I18nContext';
 
 interface ComparatorTrackMapProps {
   data: MergedTelemetryPoint[];
@@ -21,6 +22,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
   sector2Distance,
   onSelectDistance,
 }) => {
+  const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const markerRef = useRef<HTMLDivElement | null>(null);
@@ -63,7 +65,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         ctx.fillStyle = '#888';
         ctx.font = '12px Inter, sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('No track coordinate telemetry available for this lap', rectWidth / 2, rectHeight / 2);
+        ctx.fillText(t('comparator.noCoordinateData'), rectWidth / 2, rectHeight / 2);
         return;
       }
 
@@ -439,7 +441,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
     return () => {
       if (observer) observer.disconnect();
     };
-  }, [data, turns, activeDistance, height, sector1Distance, sector2Distance]);
+  }, [data, turns, activeDistance, height, sector1Distance, sector2Distance, t]);
 
   // Handle canvas click to jump to turn or track position
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -525,12 +527,13 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
   };
 
   return (
-    <div ref={containerRef} style={{ position: 'relative', width: '100%', height: `${height}px` }}>
+    <div ref={containerRef} className="track-map-wrapper" style={{ height: `${height}px` }}>
       <canvas
         ref={canvasRef}
         onClick={handleCanvasClick}
         onMouseMove={handleCanvasMouseMove}
-        style={{ width: '100%', height: '100%', display: 'block', cursor: onSelectDistance ? 'crosshair' : 'default' }}
+        className="track-map-canvas"
+        style={{ cursor: onSelectDistance ? 'crosshair' : 'default' }}
       />
 
       <div
@@ -544,49 +547,17 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
       />
 
       {/* Pace Gain Delta Legend */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: '6px',
-          left: '6px',
-          display: 'flex',
-          gap: '6px',
-          fontSize: '0.65rem',
-          background: 'rgba(10, 14, 22, 0.78)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          padding: '2px 6px',
-          borderRadius: '4px',
-          color: '#ccc',
-          alignItems: 'center',
-          backdropFilter: 'blur(4px)',
-        }}
-      >
-        <span style={{ color: '#ff4757', fontWeight: 'bold' }}>● Lap A Faster</span>
-        <span style={{ color: '#00d2d3', fontWeight: 'bold' }}>● Lap B Faster</span>
+      <div className="track-map-legend legend-left">
+        <span className="legend-lap-a">{t('comparator.legend.lapAFaster')}</span>
+        <span className="legend-lap-b">{t('comparator.legend.lapBFaster')}</span>
       </div>
 
       {/* Sector & Turn Legend */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: '6px',
-          right: '6px',
-          display: 'flex',
-          gap: '6px',
-          fontSize: '0.65rem',
-          background: 'rgba(10, 14, 22, 0.78)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          padding: '2px 6px',
-          borderRadius: '4px',
-          color: '#ccc',
-          alignItems: 'center',
-          backdropFilter: 'blur(4px)',
-        }}
-      >
-        <span style={{ color: '#ffffff', fontWeight: 600 }}>● Apex</span>
-        <span style={{ color: '#f39c12', fontWeight: 600 }}>● S1</span>
-        <span style={{ color: '#9b59b6', fontWeight: 600 }}>● S2</span>
-        <span style={{ color: '#2ecc71', fontWeight: 600 }}>● S3</span>
+      <div className="track-map-legend legend-right">
+        <span className="legend-apex">{t('comparator.legend.apex')}</span>
+        <span className="legend-s1">{t('comparator.legend.s1')}</span>
+        <span className="legend-s2">{t('comparator.legend.s2')}</span>
+        <span className="legend-s3">{t('comparator.legend.s3')}</span>
       </div>
     </div>
   );

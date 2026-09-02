@@ -28,6 +28,17 @@ export const comparator = {
   lapAFaster: 'Vuelta A es {delta}s más rápida que Vuelta B',
   lapBFaster: 'Vuelta B es {delta}s más rápida que Vuelta A',
   identicalLapTimes: 'Tiempos de vuelta idénticos',
+  defaultDriverB: 'Piloto B',
+  timeDelta: 'Diferencia de tiempo',
+  noCoordinateData: 'No hay telemetría de coordenadas de pista disponible para esta vuelta',
+  legend: {
+    lapAFaster: '● Vuelta A más rápida',
+    lapBFaster: '● Vuelta B más rápida',
+    apex: '● Vértice',
+    s1: '● S1',
+    s2: '● S2',
+    s3: '● S3',
+  },
   charts: {
     timeDelta: 'Delta de Tiempo (s)',
     timeDeltaSub: 'Por debajo de 0s = {driverA} Adelante | Por encima de 0s = {driverB} Adelante',

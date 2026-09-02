@@ -17,7 +17,7 @@ import { getCompoundColor, compactTooltipProps, type DriverStintData } from './s
 import type { DriverStanding } from '../../../types/session';
 
 interface DegradationCurvesProps {
-  degradationData: Array<{ tyreAge: number; [key: string]: any }>;
+  degradationData: Array<{ tyreAge: number; [key: string]: number | string | null | undefined }>;
   maxTyreAge: number;
   degradationRates: Record<string, number | null>;
   driverStintsData: DriverStintData[];
@@ -228,11 +228,12 @@ export const DegradationCurves: React.FC<DegradationCurvesProps> = ({
               <Tooltip
                 {...compactTooltipProps}
                 labelFormatter={(age) => `${t('history.stints.degradation.tyreAgeAxis')}: ${age} Laps`}
-                formatter={(val: any, name: any, item: any) => {
+                formatter={(val, name, item) => {
                   const key = String(item?.dataKey || name);
-                  const rawMS = item?.payload ? item.payload[`${key}_rawMS`] : undefined;
-                  const comp = item?.payload ? item.payload[`${key}_compound`] : undefined;
-                  const lapNum = item?.payload ? item.payload[`${key}_lapNum`] : undefined;
+                  const payload = item?.payload as Record<string, unknown> | undefined;
+                  const rawMS = payload ? (payload[`${key}_rawMS`] as number | undefined) : undefined;
+                  const comp = payload ? (payload[`${key}_compound`] as string | undefined) : undefined;
+                  const lapNum = payload ? (payload[`${key}_lapNum`] as number | undefined) : undefined;
                   const timeStr = rawMS ? formatLapTime(rawMS) : `${val}s`;
 
                   const [, carIdxStr, , stintIdxStr] = key.split('_');

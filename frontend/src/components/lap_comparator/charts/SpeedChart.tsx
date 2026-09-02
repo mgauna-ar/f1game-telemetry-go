@@ -12,7 +12,8 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { useI18n } from '../../../context/I18nContext';
-import { compactTooltipProps, type CommonChartProps } from './chartDefaults';
+import { compactTooltipProps, type CommonChartProps, type RechartsMouseMoveState } from './chartDefaults';
+import type { MergedTelemetryPoint } from '../../../types/comparator';
 
 export interface SpeedChartProps extends CommonChartProps {
   maxGapA: number;
@@ -74,7 +75,7 @@ export const SpeedChart = React.memo<SpeedChartProps>(({
       </div>
       <div style={{ flex: 1, minHeight: 0 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} syncId="comparatorSync" onMouseMove={onMouseMove} onMouseLeave={() => onHoverDistanceChange(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
+          <LineChart data={chartData} syncId="comparatorSync" onMouseMove={(state) => onMouseMove(state as RechartsMouseMoveState<MergedTelemetryPoint>)} onMouseLeave={() => onHoverDistanceChange(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
             <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
             <YAxis
@@ -85,9 +86,10 @@ export const SpeedChart = React.memo<SpeedChartProps>(({
             />
             <Tooltip
               {...compactTooltipProps}
-              formatter={(val: any) =>
-                val !== null && val !== undefined && Number.isFinite(Number(val)) ? [`${Math.round(Number(val))} km/h`] : ['-']
-              }
+              formatter={(val: unknown) => {
+                const num = typeof val === 'number' ? val : Number(val);
+                return Number.isFinite(num) ? [`${Math.round(num)} km/h`] : ['-'];
+              }}
             />
             {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
             {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}

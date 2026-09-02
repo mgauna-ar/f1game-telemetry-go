@@ -1,0 +1,112 @@
+/* ==========================================================================
+   AI RACE ENGINEER — ADAPTIVE PROMPT CHIPS
+   ========================================================================== */
+
+/* Prompt Chips Row */
+.ai-widget-chips-row {
+  display: flex;
+  gap: 6px;
+  padding: 0.55rem 0.85rem;
+  background: rgba(0, 0, 0, 0.25);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  overflow-x: auto;
+  flex-shrink: 0;
+}
+
+.ai-widget-chips-row::-webkit-scrollbar {
+  height: 3px;
+}
+
+.ai-widget-chips-row::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+}
+
+.ai-prompt-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  background: rgba(0, 242, 254, 0.08);
+  border: 1px solid rgba(0, 242, 254, 0.2);
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  flex-shrink: 0;
+}
+
+.ai-prompt-chip:hover:not(:disabled) {
+  background: rgba(0, 242, 254, 0.18);
+  border-color: #00f2fe;
+  color: #00f2fe;
+  transform: translateY(-1px);
+}
+
+.ai-prompt-chip:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+
+/* Quick Prompts Bar */
+.ai-quick-prompts-bar {
+  padding: 0.6rem 1rem;
+  background: hsla(222, 47%, 11%, 0.5);
+  border-top: 1px solid var(--border-color);
+}
+
+.ai-quick-prompts-scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.ai-quick-prompts-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+
+.ai-quick-prompts-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+.ai-chip-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: hsla(222, 47%, 16%, 0.6);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.ai-chip-btn:hover:not(:disabled) {
+  background: hsla(222, 47%, 22%, 0.8);
+  border-color: var(--accent-secondary);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.ai-chip-btn.zoom-highlight {
+  border-color: #38ef7d;
+  background: rgba(56, 239, 125, 0.1);
+  color: #38ef7d;
+}
+
+.ai-chip-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+

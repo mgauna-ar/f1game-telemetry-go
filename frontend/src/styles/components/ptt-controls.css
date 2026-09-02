@@ -1,0 +1,87 @@
+/* ==========================================================================
+   PUSH-TO-TALK (PTT) CONTROLS & BINDINGS
+   ========================================================================== */
+
+/* ── PTT Controls Grid ──────────────────────────────────────────────────── */
+.radio-ptt-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 600px) {
+  .radio-ptt-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.radio-ptt-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.01) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md, 12px);
+}
+
+.radio-ptt-box-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary, #94a3b8);
+}
+
+.radio-ptt-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.radio-btn-map {
+  flex: 1;
+  padding: 9px 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.radio-btn-map:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.radio-btn-map.btn-learning {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.6);
+  color: #f59e0b;
+  animation: live-radio-learning-pulse 1s infinite alternate;
+}
+
+@keyframes live-radio-learning-pulse {
+  0% { box-shadow: 0 0 5px rgba(245, 158, 11, 0.2); }
+  100% { box-shadow: 0 0 15px rgba(245, 158, 11, 0.5); }
+}
+
+.radio-btn-clear {
+  padding: 8px 10px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  color: #ef4444;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.radio-btn-clear:hover {
+  background: rgba(239, 68, 68, 0.25);
+}
+

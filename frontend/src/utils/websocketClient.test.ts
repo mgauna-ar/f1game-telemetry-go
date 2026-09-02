@@ -12,7 +12,7 @@ class MockWebSocket {
   readyState: number = 1;
   onopen: (() => void) | null = null;
   onclose: (() => void) | null = null;
-  onerror: ((err: any) => void) | null = null;
+  onerror: ((err: unknown) => void) | null = null;
   onmessage: ((event: { data: string }) => void) | null = null;
   sentData: string[] = [];
 
@@ -33,16 +33,14 @@ class MockWebSocket {
 }
 
 describe('websocketClient', () => {
-  const originalWebSocket = globalThis.WebSocket;
-
   beforeEach(() => {
     MockWebSocket.instances = [];
-    (globalThis as any).WebSocket = MockWebSocket;
+    vi.stubGlobal('WebSocket', MockWebSocket);
     vi.useFakeTimers();
   });
 
   afterEach(() => {
-    (globalThis as any).WebSocket = originalWebSocket;
+    vi.unstubAllGlobals();
     vi.useRealTimers();
   });
 

@@ -13,7 +13,8 @@ import {
 } from 'recharts';
 import { useI18n } from '../../../context/I18nContext';
 import { getErsModeName } from '../../../constants/f1';
-import { compactTooltipProps, type CommonChartProps } from './chartDefaults';
+import { compactTooltipProps, type CommonChartProps, type RechartsMouseMoveState } from './chartDefaults';
+import type { MergedTelemetryPoint } from '../../../types/comparator';
 
 export interface ErsDeployModeChartProps extends CommonChartProps {
   isErsRestrictedA: boolean;
@@ -79,7 +80,7 @@ export const ErsDeployModeChart = React.memo<ErsDeployModeChartProps>(({
       </div>
       <div style={{ flex: 1, minHeight: 0 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} syncId="comparatorSync" onMouseMove={onMouseMove} onMouseLeave={() => onHoverDistanceChange(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
+          <LineChart data={chartData} syncId="comparatorSync" onMouseMove={(state) => onMouseMove(state as RechartsMouseMoveState<MergedTelemetryPoint>)} onMouseLeave={() => onHoverDistanceChange(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
             <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
             <YAxis
@@ -91,9 +92,10 @@ export const ErsDeployModeChart = React.memo<ErsDeployModeChartProps>(({
             />
             <Tooltip
               {...compactTooltipProps}
-              formatter={(val: any, name?: any) => {
-                if (val === null || val === undefined || !Number.isFinite(Number(val))) return ['-', String(name ?? '')];
-                const modeNum = Math.round(Number(val));
+              formatter={(val: unknown, name?: string | number) => {
+                const num = typeof val === 'number' ? val : Number(val);
+                if (val === null || val === undefined || !Number.isFinite(num)) return ['-', String(name ?? '')];
+                const modeNum = Math.round(num);
                 const fmt = String(name ?? '').includes(nameA) ? formatA : formatB;
                 return [getErsModeName(modeNum, fmt), String(name ?? '')];
               }}

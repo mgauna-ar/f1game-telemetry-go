@@ -28,16 +28,14 @@ class MockWS {
 }
 
 describe('engineerSocket singleton', () => {
-  const originalWebSocket = globalThis.WebSocket;
-
   beforeEach(() => {
     MockWS.instances = [];
-    (globalThis as any).WebSocket = MockWS;
+    vi.stubGlobal('WebSocket', MockWS);
     vi.useFakeTimers();
   });
 
   afterEach(() => {
-    (globalThis as any).WebSocket = originalWebSocket;
+    vi.unstubAllGlobals();
     vi.useRealTimers();
   });
 

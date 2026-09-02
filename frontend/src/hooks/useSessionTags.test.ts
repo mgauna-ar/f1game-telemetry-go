@@ -10,9 +10,9 @@ describe('useSessionTags Hook', () => {
   ];
 
   let sessions: Session[];
-  let setSessions: any;
+  let setSessions: React.Dispatch<React.SetStateAction<Session[]>>;
   let selectedSession: Session | null;
-  let setSelectedSession: any;
+  let setSelectedSession: React.Dispatch<React.SetStateAction<Session | null>>;
 
   beforeEach(() => {
     sessions = [

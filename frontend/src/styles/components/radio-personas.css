@@ -1,0 +1,224 @@
+/* ── Persona Cards Grid ─────────────────────────────────────────────────── */
+.radio-persona-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 600px) {
+  .radio-persona-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.radio-persona-card {
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  padding: 14px 16px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.01) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md, 12px);
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  color: inherit;
+}
+
+.radio-persona-card:hover {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.025) 100%);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.radio-persona-card.card-active {
+  background: linear-gradient(145deg, rgba(0, 242, 254, 0.15) 0%, rgba(0, 198, 255, 0.05) 100%);
+  border-color: rgba(0, 242, 254, 0.65);
+  box-shadow: 0 0 20px rgba(0, 242, 254, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.radio-persona-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.radio-persona-name {
+  font-family: var(--font-display, 'Titillium Web', sans-serif);
+  font-weight: 800;
+  font-size: 0.90rem;
+  color: #ffffff;
+  letter-spacing: 0.2px;
+}
+
+.radio-persona-desc {
+  font-size: 0.74rem;
+  color: var(--text-secondary, #94a3b8);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.radio-custom-textarea {
+  width: 100%;
+  padding: 10px 14px;
+  background: #090d16;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-md, 10px);
+  color: #ffffff;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  resize: vertical;
+  outline: none;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.radio-custom-textarea:focus {
+  border-color: #00f2fe;
+  box-shadow: 0 0 14px rgba(0, 242, 254, 0.25);
+}
+
+/* ── Driver Call-sign Input ──────────────────────────────────────────────── */
+.radio-input-field {
+  width: 100%;
+  padding: 10px 14px;
+  background: #090d16;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-md, 10px);
+  color: #ffffff;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.82rem;
+  outline: none;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.radio-input-field:focus {
+  border-color: #00f2fe;
+  box-shadow: 0 0 14px rgba(0, 242, 254, 0.25);
+}
+
+
+/* ── Voice & Language Select Inputs ───────────────────────────────────────── */
+.radio-voice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 600px) {
+  .radio-voice-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.radio-select-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.01) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md, 12px);
+  transition: all 0.2s ease;
+}
+
+.radio-select-box:hover {
+  border-color: rgba(0, 242, 254, 0.25);
+  background: linear-gradient(145deg, rgba(0, 242, 254, 0.04) 0%, rgba(255, 255, 255, 0.015) 100%);
+}
+
+.radio-select-label {
+  font-family: var(--font-display, 'Titillium Web', sans-serif);
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--text-secondary, #94a3b8);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.radio-select-input {
+  width: 100%;
+  padding: 9px 12px;
+  background: #090d16;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2300f2fe' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  color: #ffffff;
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, sans-serif);
+  font-size: 0.80rem;
+  font-weight: 500;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 32px;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.radio-select-input:hover {
+  border-color: rgba(0, 242, 254, 0.4);
+  background-color: #0c121e;
+}
+
+.radio-select-input:focus {
+  border-color: #00f2fe;
+  box-shadow: 0 0 14px rgba(0, 242, 254, 0.25);
+  background-color: #0c121e;
+}
+
+.radio-select-input option {
+  background: #0d1322;
+  color: #ffffff;
+  padding: 8px 12px;
+}
+
+.radio-select-key {
+  width: 100%;
+  padding: 9px 12px;
+  background: #090d16;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2300f2fe' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: #ffffff;
+  font-size: 0.78rem;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 32px;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.radio-select-key:hover {
+  border-color: rgba(0, 242, 254, 0.4);
+  background-color: #0c121e;
+}
+
+.radio-select-key:focus {
+  border-color: #00f2fe;
+  box-shadow: 0 0 12px rgba(0, 242, 254, 0.25);
+  background-color: #0c121e;
+}
+
+.radio-select-key option {
+  background: #0d121e;
+  color: #ffffff;
+  padding: 8px 12px;
+}
+
+/* ── Effects Grid ─────────────────────────────────────────────────────────── */
+.radio-effects-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+

@@ -13,7 +13,7 @@ export interface UseSessionListReturn {
   fetchSessions: () => Promise<void>;
   confirmDeleteSession: (
     onDeleted?: (deletedId: number) => void,
-    onError?: (err: any) => void
+    onError?: (err: unknown) => void
   ) => Promise<void>;
 }
 
@@ -30,8 +30,9 @@ export function useSessionList(): UseSessionListReturn {
     try {
       const data = await api.get<Session[]>('/api/sessions');
       setSessions(data || []);
-    } catch (err: any) {
-      setError(err.message || 'Error loading sessions');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error loading sessions';
+      setError(msg);
     } finally {
       setLoadingSessions(false);
     }
@@ -40,7 +41,7 @@ export function useSessionList(): UseSessionListReturn {
   const confirmDeleteSession = useCallback(
     async (
       onDeleted?: (deletedId: number) => void,
-      onError?: (err: any) => void
+      onError?: (err: unknown) => void
     ) => {
       if (!sessionToDelete) return;
       const targetId = sessionToDelete.id;
@@ -53,8 +54,9 @@ export function useSessionList(): UseSessionListReturn {
           onDeleted(targetId);
         }
         setSessionToDelete(null);
-      } catch (err: any) {
-        setError(err.message || 'Failed to delete session');
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : 'Failed to delete session';
+        setError(msg);
         if (onError) {
           onError(err);
         }

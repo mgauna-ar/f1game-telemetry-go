@@ -154,12 +154,13 @@ describe('I18nContext and useI18n Hook', () => {
   });
 
   it('verifies deep parity of keys between en and es dictionaries', () => {
-    const extractKeys = (obj: any, prefix = ''): string[] => {
+    const extractKeys = (obj: Record<string, unknown>, prefix = ''): string[] => {
       let keys: string[] = [];
       for (const k of Object.keys(obj)) {
         const fullKey = prefix ? `${prefix}.${k}` : k;
-        if (typeof obj[k] === 'object' && obj[k] !== null && !Array.isArray(obj[k])) {
-          keys = keys.concat(extractKeys(obj[k], fullKey));
+        const val = obj[k];
+        if (typeof val === 'object' && val !== null && !Array.isArray(val)) {
+          keys = keys.concat(extractKeys(val as Record<string, unknown>, fullKey));
         } else {
           keys.push(fullKey);
         }

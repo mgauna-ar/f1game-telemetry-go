@@ -6,12 +6,12 @@ import { useRadioSettingsStore } from '../../store/useRadioSettingsStore';
 
 export interface PersonaSettingsTabProps {
   radio?: {
-    persona?: any;
-    setPersona?: any;
-    customPrompt?: any;
-    setCustomPrompt?: any;
-    driverCallsign?: any;
-    setDriverCallsign?: any;
+    persona?: string;
+    setPersona?: (persona: string) => void;
+    customPrompt?: string;
+    setCustomPrompt?: (prompt: string) => void;
+    driverCallsign?: string;
+    setDriverCallsign?: (callsign: string) => void;
   };
 }
 

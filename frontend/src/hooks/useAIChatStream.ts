@@ -257,9 +257,7 @@ export const useAIChatStream = ({
                           )
                         );
                       }
-                    } catch (e) {
-                      console.warn('Failed to parse SSE JSON chunk', e);
-                    }
+                    } catch {}
                   }
                 }
               }

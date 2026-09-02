@@ -120,6 +120,9 @@ export interface RawDriverStanding {
   is_dnf?: boolean;
   is_dsq?: boolean;
   max_speed?: number;
+  best_s1_ms?: number;
+  best_s2_ms?: number;
+  best_s3_ms?: number;
   theoretical_best_ms?: number;
   gap_to_leader_ms?: number;
   interval_ms?: number;
@@ -171,7 +174,7 @@ export interface DriverStanding {
 }
 
 export function normalizeDriverStanding(s: RawDriverStanding | DriverStanding, sessionId: number): DriverStanding {
-  const raw = s as any;
+  const raw = s as RawDriverStanding & Partial<DriverStanding>;
   const p: Participant = raw.participant || {
     id: raw.car_index ?? raw.carIndex ?? 0,
     session_id: sessionId,
@@ -250,9 +253,9 @@ export interface ProgressionDriverMeta {
 }
 
 export interface ProgressionResponse {
-  lap_pace: Array<{ lapNumber: number; [key: string]: any }>;
-  positions: Array<{ lapNumber: number; [key: string]: any }>;
-  gap_to_leader: Array<{ lapNumber: number; [key: string]: any }>;
+  lap_pace: Array<{ lapNumber: number; [key: string]: number | string | null | undefined }>;
+  positions: Array<{ lapNumber: number; [key: string]: number | string | null | undefined }>;
+  gap_to_leader: Array<{ lapNumber: number; [key: string]: number | string | null | undefined }>;
   drivers: ProgressionDriverMeta[];
   total_session_laps: number;
 }
@@ -324,7 +327,7 @@ export interface StintKPIs {
 export interface StintsResponse {
   drivers: DriverStintData[];
   kpis: StintKPIs;
-  degradation_data: Array<{ tyreAge: number; [key: string]: any }>;
+  degradation_data: Array<{ tyreAge: number; [key: string]: number | string | null | undefined }>;
   max_tyre_age: number;
   degradation_rates: Record<string, number | null>;
   session_compounds: string[];

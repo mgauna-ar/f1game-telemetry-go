@@ -79,10 +79,12 @@ export function useSessionDetail({ onClearStagedSlots }: UseSessionDetailProps =
       setProgressionData(progData);
       setStintsData(stintsDataRes);
       setLaps(normalizedLaps);
-    } catch (err: any) {
-      if (err.name !== 'AbortError') {
-        setDetailError(err.message || 'Error fetching session details');
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        return;
       }
+      const msg = err instanceof Error ? err.message : 'Error fetching session details';
+      setDetailError(msg);
     } finally {
       if (!signal.aborted) {
         setLoadingDetail(false);

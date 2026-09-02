@@ -22,16 +22,14 @@ class MockWebSocket {
 }
 
 describe('useProactiveTelemetryRadio WebSocket hook', () => {
-  const originalWebSocket = globalThis.WebSocket;
-
   beforeEach(() => {
     MockWebSocket.instances = [];
-    (globalThis as any).WebSocket = MockWebSocket;
+    vi.stubGlobal('WebSocket', MockWebSocket);
     vi.clearAllMocks();
   });
 
   afterEach(() => {
-    (globalThis as any).WebSocket = originalWebSocket;
+    vi.unstubAllGlobals();
   });
 
   it('connects to /ws/engineer when radio is enabled', () => {

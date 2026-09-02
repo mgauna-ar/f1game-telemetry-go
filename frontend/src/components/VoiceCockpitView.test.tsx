@@ -2,6 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { VoiceCockpitView } from './VoiceCockpitView';
 import type { UseRadioControllerReturn } from '../hooks/useRadioController';
+import type { SessionData, LapData, CarStatusData, CarDamageData, CarTelemetry2Data } from '../types/telemetry';
 import { I18nProvider } from '../context/I18nProvider';
 import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
 
@@ -116,19 +117,19 @@ describe('VoiceCockpitView', () => {
       TrackId: 0,
       TotalLaps: 58,
       SafetyCarStatus: 0,
-    } as any;
+    } as unknown as SessionData;
 
     const mockLap = {
       CarPosition: 3,
       CurrentLapNum: 14,
-    } as any;
+    } as unknown as LapData;
 
     const mockCarStatus = {
       VisualTyreCompound: 17, // Medium
       TyresAgeLaps: 12,
       FuelRemainingLaps: 1.4,
       ERSStoreEnergy: 2800000,
-    } as any;
+    } as unknown as CarStatusData;
 
     const mockCarDamage = {
       TyresWear: [18.4, 22.1, 15.0, 19.8],
@@ -138,7 +139,7 @@ describe('VoiceCockpitView', () => {
       DiffuserDamage: 0,
       SidepodDamage: 0,
       RearWingDamage: 0,
-    } as any;
+    } as unknown as CarDamageData;
 
     renderWithI18n(
       <VoiceCockpitView
@@ -175,11 +176,11 @@ describe('VoiceCockpitView', () => {
       TotalLaps: 58,
       SafetyCarStatus: 0,
       PacketFormat: 2026,
-    } as any;
+    } as unknown as SessionData;
 
     const mockTelemetry2 = {
       ActiveAeroMode: 1, // Straight mode active
-    } as any;
+    } as unknown as CarTelemetry2Data;
 
     renderWithI18n(
       <VoiceCockpitView
@@ -235,7 +236,7 @@ describe('VoiceCockpitView', () => {
         session={{
           TrackId: 0,
           SafetyCarStatus: 1, // Full SC
-        } as any}
+        } as unknown as SessionData}
         lap={null}
         carStatus={null}
         carDamage={null}

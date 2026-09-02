@@ -1,5 +1,10 @@
 import { useState, useRef, useCallback } from 'react';
-import { getSpeechRecognitionClass, type ISpeechRecognition } from '../utils/radioAudio';
+import {
+  getSpeechRecognitionClass,
+  type ISpeechRecognition,
+  type ISpeechRecognitionEvent,
+  type ISpeechRecognitionErrorEvent,
+} from '../utils/radioAudio';
 
 export interface UseSpeechRecognitionOptions {
   getLang?: () => string;
@@ -77,7 +82,7 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}):
       recognition.interimResults = true;
       recognition.lang = getLangRef.current ? getLangRef.current() : 'en-GB';
 
-      recognition.onresult = (event: any) => {
+      recognition.onresult = (event: ISpeechRecognitionEvent) => {
         let text = '';
         for (let i = 0; i < event.results.length; i++) {
           text += event.results[i][0].transcript;
@@ -89,9 +94,8 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}):
         }
       };
 
-      recognition.onerror = (event: any) => {
+      recognition.onerror = (event: ISpeechRecognitionErrorEvent) => {
         if (event.error !== 'no-speech') {
-          console.warn('[Live Radio] Speech recognition error:', event.error);
           setError(`Speech recognition error: ${event.error}`);
         }
       };
@@ -103,9 +107,9 @@ export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}):
       recognition.start();
       recognitionRef.current = recognition;
       return true;
-    } catch (err: any) {
-      console.warn('[Live Radio] Failed to start speech recognition:', err);
-      setError(err?.message || 'Failed to start speech recognition');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to start speech recognition';
+      setError(msg);
       return false;
     }
   }, [abortListening]);

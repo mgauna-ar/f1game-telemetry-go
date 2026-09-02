@@ -11,7 +11,8 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { useI18n } from '../../../context/I18nContext';
-import { compactTooltipProps, type CommonChartProps } from './chartDefaults';
+import { compactTooltipProps, type CommonChartProps, type RechartsMouseMoveState } from './chartDefaults';
+import type { MergedTelemetryPoint } from '../../../types/comparator';
 
 export const ActiveAeroChart = React.memo<CommonChartProps>(({
   chartData,
@@ -37,7 +38,7 @@ export const ActiveAeroChart = React.memo<CommonChartProps>(({
       </div>
       <div style={{ flex: 1, minHeight: 0 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} syncId="comparatorSync" onMouseMove={onMouseMove} onMouseLeave={() => onHoverDistanceChange(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
+          <LineChart data={chartData} syncId="comparatorSync" onMouseMove={(state) => onMouseMove(state as RechartsMouseMoveState<MergedTelemetryPoint>)} onMouseLeave={() => onHoverDistanceChange(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
             <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
             <YAxis
@@ -51,9 +52,10 @@ export const ActiveAeroChart = React.memo<CommonChartProps>(({
             />
             <Tooltip
               {...compactTooltipProps}
-              formatter={(val: any, name?: any) => {
-                if (val === null || val === undefined || !Number.isFinite(Number(val))) return ['-', String(name ?? '')];
-                const numericVal = Math.round(Number(val));
+              formatter={(val: unknown, name?: string | number) => {
+                const num = typeof val === 'number' ? val : Number(val);
+                if (val === null || val === undefined || !Number.isFinite(num)) return ['-', String(name ?? '')];
+                const numericVal = Math.round(num);
                 const labelName = String(name ?? '');
                 if (labelName.includes('Boost')) {
                   return [numericVal === 1 ? 'ACTIVE' : 'OFF', labelName];

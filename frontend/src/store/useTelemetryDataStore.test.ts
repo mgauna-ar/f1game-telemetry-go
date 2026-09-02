@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useTelemetryDataStore } from './useTelemetryDataStore';
+import type { CarTelemetryData, LapData } from '../types/telemetry';
 
 describe('useTelemetryDataStore', () => {
   beforeEach(() => {
@@ -26,7 +27,7 @@ describe('useTelemetryDataStore', () => {
   it('sets partial telemetry data', () => {
     useTelemetryDataStore.getState().setTelemetryData({
       playerCarIndex: 2,
-      allTelemetry: [{ Speed: 315 } as any],
+      allTelemetry: [{ Speed: 315 } as unknown as CarTelemetryData],
     });
 
     const state = useTelemetryDataStore.getState();
@@ -38,7 +39,7 @@ describe('useTelemetryDataStore', () => {
     useTelemetryDataStore.getState().setTelemetryData({
       playerCarIndex: 3,
       selectedCarIndex: 3,
-      allLaps: [{ CurrentLapNum: 10 } as any],
+      allLaps: [{ CurrentLapNum: 10 } as unknown as LapData],
     });
 
     useTelemetryDataStore.getState().resetTelemetryData();

@@ -218,14 +218,15 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
                       <Tooltip
                         {...compactTooltipProps}
                         labelFormatter={(lap) => `Lap ${lap}`}
-                        formatter={(val: any, name: any, item: any) => {
+                        formatter={(val, name, item) => {
                           const dataKey = String(item?.dataKey || name);
                           const driverIdx = dataKey.replace('driver_', '');
                           const driver = driverStandings.find((d) => String(d.participant.car_index) === driverIdx);
-                          const rawMS = item?.payload ? item.payload[`driver_${driverIdx}_rawMS`] : undefined;
-                          const tyre = item?.payload ? item.payload[`driver_${driverIdx}_tyre`] : undefined;
+                          const payload = item?.payload as Record<string, unknown> | undefined;
+                          const rawMS = payload ? (payload[`driver_${driverIdx}_rawMS`] as number | undefined) : undefined;
+                          const tyre = payload ? (payload[`driver_${driverIdx}_tyre`] as string | undefined) : undefined;
                           const timeStr = rawMS ? formatLapTime(rawMS) : `${val}s`;
-                          return [`${timeStr} (${tyre || 'Tyre'})`, driver?.participant.name || name];
+                          return [`${timeStr} (${tyre || 'Tyre'})`, driver?.participant.name || String(name)];
                         }}
                       />
                       <Legend />
@@ -278,10 +279,10 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
                       <Tooltip
                         {...compactTooltipProps}
                         labelFormatter={(lap) => `Lap ${lap}`}
-                        formatter={(val: any, name: any) => {
+                        formatter={(val: unknown, name: unknown) => {
                           const driverIdx = String(name).replace('driver_', '');
                           const driver = driverStandings.find((d) => String(d.participant.car_index) === driverIdx);
-                          return [`P${val}`, driver?.participant.name || name];
+                          return [`P${val}`, driver?.participant.name || String(name)];
                         }}
                       />
                       <Legend />
@@ -333,10 +334,11 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
                       <Tooltip
                         {...compactTooltipProps}
                         labelFormatter={(lap) => `Lap ${lap}`}
-                        formatter={(val: any, name: any) => {
+                        formatter={(val: unknown, name: unknown) => {
                           const driverIdx = String(name).replace('driver_', '');
                           const driver = driverStandings.find((d) => String(d.participant.car_index) === driverIdx);
-                          return [`+${Number(val).toFixed(3)}s`, driver?.participant.name || name];
+                          const num = typeof val === 'number' ? val : Number(val);
+                          return [`+${Number.isFinite(num) ? num.toFixed(3) : 0}s`, driver?.participant.name || String(name)];
                         }}
                       />
                       <Legend />

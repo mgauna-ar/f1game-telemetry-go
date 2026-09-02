@@ -282,10 +282,10 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
       } else {
         setRadioState('idle');
       }
-    } catch (err: any) {
-      if (err.name !== 'AbortError') {
-        console.warn('[Live Radio] Error processing response:', err);
-        setSpeechError(err?.message || 'Error processing radio response');
+    } catch (err: unknown) {
+      if (!(err instanceof Error && err.name === 'AbortError')) {
+        const msg = err instanceof Error ? err.message : 'Error processing radio response';
+        setSpeechError(msg);
       }
       setRadioState('idle');
     } finally {

@@ -12,7 +12,8 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { useI18n } from '../../../context/I18nContext';
-import { compactTooltipProps, type CommonChartProps } from './chartDefaults';
+import { compactTooltipProps, type CommonChartProps, type RechartsMouseMoveState } from './chartDefaults';
+import type { MergedTelemetryPoint } from '../../../types/comparator';
 
 export interface DeltaChartProps extends CommonChartProps {
   hasDeltaData: boolean;
@@ -82,7 +83,7 @@ export const DeltaChart = React.memo<DeltaChartProps>(({
       <div style={{ flex: 1, minHeight: 0 }}>
         {hasDeltaData ? (
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} syncId="comparatorSync" onMouseMove={onMouseMove} onMouseLeave={() => onHoverDistanceChange(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
+            <LineChart data={chartData} syncId="comparatorSync" onMouseMove={(state) => onMouseMove(state as RechartsMouseMoveState<MergedTelemetryPoint>)} onMouseLeave={() => onHoverDistanceChange(null)} margin={{ top: 5, right: 30, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
               <XAxis dataKey="lap_distance" type="number" domain={['dataMin', 'dataMax']} allowDataOverflow={true} stroke="#666" tick={{ fill: '#999', fontSize: 11 }} unit="m" />
               <YAxis
@@ -93,18 +94,19 @@ export const DeltaChart = React.memo<DeltaChartProps>(({
               />
               <Tooltip
                 {...compactTooltipProps}
-                formatter={(val: any) =>
-                  val !== null && val !== undefined && Number.isFinite(Number(val))
-                    ? [`${Number(val) > 0 ? '+' : ''}${Number(val).toFixed(3)}s`, `Time Delta (${nameA} vs ${nameB})`]
-                    : ['-', `Time Delta (${nameA} vs ${nameB})`]
-                }
+                formatter={(val: unknown) => {
+                  const num = typeof val === 'number' ? val : Number(val);
+                  return Number.isFinite(num)
+                    ? [`${num > 0 ? '+' : ''}${num.toFixed(3)}s`, `${t('comparator.timeDelta')} (${nameA} vs ${nameB})`]
+                    : ['-', `${t('comparator.timeDelta')} (${nameA} vs ${nameB})`];
+                }}
               />
               <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" />
               {sector1Distance && <ReferenceLine x={sector1Distance} stroke="#f39c12" strokeDasharray="3 3" label={{ value: 'S1', fill: '#f39c12', fontSize: 10, position: 'top' }} />}
               {sector2Distance && <ReferenceLine x={sector2Distance} stroke="#9b59b6" strokeDasharray="3 3" label={{ value: 'S2', fill: '#9b59b6', fontSize: 10, position: 'top' }} />}
               {hoverDistance !== null && <ReferenceLine x={hoverDistance} stroke="#ffd200" strokeWidth={2} strokeDasharray="3 3" />}
               <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '2px' }} iconSize={10} />
-              <Line type="monotone" dataKey="time_delta" name="Time Delta" stroke="#f1c40f" dot={false} strokeWidth={2.5} isAnimationActive={false} />
+              <Line type="monotone" dataKey="time_delta" name={t('comparator.timeDelta')} stroke="#f1c40f" dot={false} strokeWidth={2.5} isAnimationActive={false} />
             </LineChart>
           </ResponsiveContainer>
         ) : (
@@ -125,10 +127,10 @@ export const DeltaChart = React.memo<DeltaChartProps>(({
           >
             <Clock size={28} color="#f39c12" />
             <span style={{ fontWeight: 600, fontSize: '0.88rem', color: '#f39c12' }}>
-              {t('comparator.charts.timeDeltaRequiresBoth', { driver: !nameB ? 'Driver B' : nameB })}
+              {t('comparator.charts.timeDeltaRequiresBoth', { driver: !nameB ? t('comparator.defaultDriverB') : nameB })}
             </span>
             <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
-              {t('comparator.charts.noTelemetryInSlot', { driver: !nameB ? 'Driver B' : nameB })}
+              {t('comparator.charts.noTelemetryInSlot', { driver: !nameB ? t('comparator.defaultDriverB') : nameB })}
             </span>
           </div>
         )}

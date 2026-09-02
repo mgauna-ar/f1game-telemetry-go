@@ -110,9 +110,7 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
           };
         }
       }
-    } catch (e) {
-      console.warn('Failed to load AI config from localStorage', e);
-    }
+    } catch {}
     return DEFAULT_CONFIG;
   });
 
@@ -122,9 +120,7 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       if (typeof window !== 'undefined' && window.localStorage) {
         window.localStorage.setItem(STORAGE_KEY_AI_CONFIG, JSON.stringify(newConfig));
       }
-    } catch (e) {
-      console.warn('Failed to save AI config', e);
-    }
+    } catch {}
   }, []);
 
   // Composed Subsystems

@@ -136,7 +136,13 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
   useEffect(() => {
     if (!enabled) return;
 
-    return subscribeEngineerWebSocket((data) => {
+    return subscribeEngineerWebSocket((msg: unknown) => {
+      if (!msg || typeof msg !== 'object') return;
+      const data = msg as {
+        type?: string;
+        state?: string;
+        mapping?: GlobalPTTMapping;
+      };
       if (data.type === 'ptt_event' && (data.state === 'down' || data.state === 'up')) {
         handleGlobalPTTEventRef.current?.(data.state);
       } else if (data.type === 'ptt_learned' && data.mapping) {

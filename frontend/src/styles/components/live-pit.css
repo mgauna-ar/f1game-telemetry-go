@@ -1,0 +1,178 @@
+/* 3. Live Pit Strategy Styles */
+.active-pits-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  background: rgba(255, 215, 0, 0.15);
+  color: #ffd700;
+  border: 1px solid rgba(255, 215, 0, 0.35);
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+}
+
+.pit-strategy-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.65rem;
+  margin-bottom: 0.85rem;
+}
+
+.pit-kpi-box {
+  padding: 0.7rem;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-sm);
+}
+
+.pit-kpi-value {
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin: 2px 0;
+  line-height: 1.1;
+}
+
+.pit-kpi-sub {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.pit-matrix-table-container {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 220px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-sm);
+}
+
+.pit-matrix-table-container::-webkit-scrollbar {
+  width: 4px;
+}
+
+.pit-matrix-table-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+}
+
+.pit-matrix-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.pit-matrix-table th {
+  position: sticky;
+  top: 0;
+  background: rgba(18, 22, 28, 0.96);
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  z-index: 2;
+}
+
+.pit-matrix-row {
+  cursor: pointer;
+  transition: background 0.12s ease;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.pit-matrix-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.pit-matrix-row.selected {
+  background: rgba(0, 210, 211, 0.12);
+  border-left: 2px solid var(--accent-primary);
+}
+
+.pit-matrix-row.player {
+  background: rgba(51, 255, 119, 0.06);
+}
+
+.pit-matrix-table td {
+  padding: 0.4rem 0.6rem;
+}
+
+.pit-driver-cell {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.team-color-indicator {
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.pit-driver-name {
+  font-weight: 600;
+}
+
+.player-indicator-chip {
+  font-size: 0.58rem;
+  font-weight: 800;
+  background: rgba(51, 255, 119, 0.2);
+  color: #33ff77;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.tyre-badge-mini {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 0.72rem;
+  font-weight: 800;
+  border: 1px solid transparent;
+}
+
+.pit-badge-lane {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #ffd700;
+  background: rgba(255, 215, 0, 0.12);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.pit-badge-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #ff4d4d;
+  background: rgba(255, 77, 77, 0.15);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.pit-badge-track {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.pit-live-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #ffd700;
+  animation: pulse-dot 1s infinite ease-in-out;
+}
+
+.pit-live-dot.box {
+  background: #ff4d4d;
+}
+

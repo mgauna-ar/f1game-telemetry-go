@@ -1,4 +1,5 @@
 import { render, screen, act } from '@testing-library/react';
+import { vi, beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest';
 import { useTelemetry, parseDriverName } from './useTelemetry';
 import { useTelemetryStore } from '../store/useTelemetryStore';
 
@@ -7,7 +8,7 @@ class MockWebSocket {
   url: string;
   onopen: (() => void) | null = null;
   onclose: (() => void) | null = null;
-  onmessage: ((event: any) => void) | null = null;
+  onmessage: ((event: { data: string }) => void) | null = null;
 
   constructor(url: string) {
     this.url = url;
@@ -17,7 +18,11 @@ class MockWebSocket {
 }
 
 beforeAll(() => {
-  (globalThis as any).WebSocket = MockWebSocket;
+  vi.stubGlobal('WebSocket', MockWebSocket);
+});
+
+afterAll(() => {
+  vi.unstubAllGlobals();
 });
 
 beforeEach(() => {
@@ -45,10 +50,10 @@ describe('useTelemetry', () => {
 
   it('parses 10Hz live snapshot packets correctly', () => {
     let wsInstance: MockWebSocket | undefined;
-    (globalThis as any).WebSocket = function (url: string) {
+    vi.stubGlobal('WebSocket', function (url: string) {
       wsInstance = new MockWebSocket(url);
       return wsInstance;
-    };
+    });
 
     render(<TestComponent wsUrl="ws://localhost:8080/ws" />);
 
@@ -80,10 +85,10 @@ describe('useTelemetry', () => {
 
   it('parses legacy individual telemetry packets correctly', () => {
     let wsInstance: MockWebSocket | undefined;
-    (globalThis as any).WebSocket = function (url: string) {
+    vi.stubGlobal('WebSocket', function (url: string) {
       wsInstance = new MockWebSocket(url);
       return wsInstance;
-    };
+    });
 
     render(<TestComponent wsUrl="ws://localhost:8080/ws" />);
 
@@ -111,10 +116,10 @@ describe('useTelemetry', () => {
 
   it('retains all participants without truncating when NumActiveCars drops on retirement', () => {
     let wsInstance: MockWebSocket | undefined;
-    (globalThis as any).WebSocket = function (url: string) {
+    vi.stubGlobal('WebSocket', function (url: string) {
       wsInstance = new MockWebSocket(url);
       return wsInstance;
-    };
+    });
 
     function ParticipantsTestComponent() {
       const { participants } = useTelemetry('ws://localhost:8080/ws');
@@ -175,10 +180,10 @@ describe('useTelemetry', () => {
 
   it('ingests server-synthesized live events from LiveSnapshot packet', () => {
     let wsInstance: MockWebSocket | undefined;
-    (globalThis as any).WebSocket = function (url: string) {
+    vi.stubGlobal('WebSocket', function (url: string) {
       wsInstance = new MockWebSocket(url);
       return wsInstance;
-    };
+    });
 
     function EventsTestComponent() {
       const { events } = useTelemetry('ws://localhost:8080/ws');

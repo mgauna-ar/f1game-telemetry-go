@@ -11,7 +11,7 @@ export interface UseProactiveTelemetryRadioOptions {
     emotion?: { rateModifier?: number; pitchModifier?: number }
   ) => void;
   // Legacy props gracefully ignored (now handled server-side in Go backend)
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 const CATEGORY_MAP: Record<string, RadioAlertCategory> = {

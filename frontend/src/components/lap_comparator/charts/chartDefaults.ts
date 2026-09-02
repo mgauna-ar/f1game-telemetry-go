@@ -1,4 +1,13 @@
+import React from 'react';
 import type { MergedTelemetryPoint } from '../../../types/comparator';
+
+export interface RechartsMouseMoveState<T = unknown> {
+  activeTooltipIndex?: number | null | string;
+  activePayload?: Array<{ payload?: T; value?: unknown; dataKey?: unknown }>;
+  activeCoordinate?: { x?: number; y?: number };
+  activeLabel?: unknown;
+  isTooltipActive?: boolean;
+}
 
 export interface CommonChartProps {
   chartData: MergedTelemetryPoint[];
@@ -7,7 +16,7 @@ export interface CommonChartProps {
   sector1Distance: number | null;
   sector2Distance: number | null;
   hoverDistance: number | null;
-  onMouseMove: (state: any) => void;
+  onMouseMove: (state: RechartsMouseMoveState<MergedTelemetryPoint> | null) => void;
   onHoverDistanceChange: (dist: number | null) => void;
 }
 
@@ -38,5 +47,5 @@ export const compactTooltipProps = {
     zIndex: 100,
     pointerEvents: 'none' as const,
   },
-  labelFormatter: (label: any) => `${Math.round(Number(label))}m`,
+  labelFormatter: (label: React.ReactNode) => `${Math.round(Number(label))}m`,
 };

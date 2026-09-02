@@ -81,8 +81,13 @@ export function getTranslation(
   const dict = dictionaries[locale] || dictionaries.en;
   const fallbackDict = dictionaries.en;
 
-  const getNested = (obj: any, path: string) => {
-    return path.split('.').reduce((prev, curr) => prev && prev[curr], obj);
+  const getNested = (obj: Record<string, unknown> | undefined, path: string): unknown => {
+    return path.split('.').reduce<unknown>((prev, curr) => {
+      if (prev && typeof prev === 'object' && curr in prev) {
+        return (prev as Record<string, unknown>)[curr];
+      }
+      return undefined;
+    }, obj);
   };
 
   let value = getNested(dict, key);

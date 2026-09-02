@@ -1,0 +1,408 @@
+/* ==========================================================================
+   AI RACE ENGINEER — SETTINGS & CONFIG MODALS
+   ========================================================================== */
+
+/* Settings Embedded Panel */
+.ai-widget-settings-panel {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  background: rgba(12, 16, 24, 0.98) !important;
+  padding: 1rem !important;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  animation: ai-settings-slide 0.2s ease-out;
+}
+
+@keyframes ai-settings-slide {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.ai-input-with-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.ai-input-with-icon input {
+  padding-right: 32px;
+}
+
+.ai-input-action-btn {
+  position: absolute;
+  right: 6px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 3px;
+}
+
+.ai-input-action-btn:hover {
+  color: #fff;
+}
+
+.ai-link-btn {
+  background: none;
+  border: none;
+  color: #00f2fe;
+  font-size: 0.72rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ai-link-btn:hover {
+  text-decoration: underline;
+}
+
+.ai-error-text {
+  font-size: 0.72rem;
+  color: #ff4b4b;
+  margin-top: 4px;
+}
+
+
+/* Settings Overlay Card */
+.ai-settings-card {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  background: hsla(222, 47%, 10%, 0.98) !important;
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-highlight);
+  border-radius: var(--radius-md);
+  padding: 0.85rem !important;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.7);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  animation: slide-down 0.2s ease-out;
+}
+
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.ai-settings-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.ai-settings-header h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.ai-settings-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.ai-settings-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.ai-env-badge {
+  font-size: 0.68rem;
+  color: #38ef7d;
+  background: rgba(56, 239, 125, 0.12);
+  border: 1px solid rgba(56, 239, 125, 0.25);
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+}
+
+.ai-key-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.ai-key-input-wrapper input {
+  padding-right: 64px;
+}
+
+.ai-key-actions {
+  position: absolute;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ai-key-action-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 4px;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.ai-key-action-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ai-key-action-btn.delete {
+  color: #ff4b4b;
+}
+
+.ai-key-action-btn.delete:hover {
+  color: #ff7878;
+  background: rgba(255, 75, 75, 0.15);
+}
+
+/* Custom Searchable Session Dropdown */
+.custom-session-dropdown {
+  position: relative;
+  width: 100%;
+}
+
+.custom-session-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--border-color);
+  padding: 0.5rem 0.85rem;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+  text-align: left;
+}
+
+.custom-session-trigger:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.custom-session-trigger.is-open {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.custom-session-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 100%;
+  min-width: 340px;
+  max-width: 460px;
+  background: #0b111e;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--radius-md);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), 0 0 1px rgba(255, 255, 255, 0.3);
+  z-index: 1000;
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  box-sizing: border-box;
+  animation: fadeInDown 0.15s ease-out;
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.custom-session-search-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.custom-session-search-input {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 1.8rem 0.5rem 2.2rem;
+  font-size: 0.82rem;
+  color: #ffffff;
+  font-family: var(--font-sans);
+  outline: none;
+  transition: border-color 0.2s ease;
+  box-sizing: border-box;
+}
+
+.custom-session-search-input::placeholder {
+  color: #64748b;
+}
+
+.custom-session-search-input:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 8px rgba(255, 71, 87, 0.3);
+}
+
+.custom-session-search-icon {
+  position: absolute;
+  left: 0.75rem;
+  pointer-events: none;
+  color: #94a3b8;
+}
+
+.custom-session-clear-btn {
+  position: absolute;
+  right: 0.5rem;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: 4px;
+}
+
+.custom-session-clear-btn:hover {
+  color: #ffffff;
+}
+
+.custom-session-filter-tabs {
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.custom-session-filter-tab {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.25rem 0.65rem;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.custom-session-filter-tab:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.custom-session-filter-tab.active {
+  background: #ff4757;
+  color: #ffffff;
+  border-color: #ff4757;
+  font-weight: 700;
+}
+
+.custom-session-list {
+  max-height: 250px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding-right: 4px;
+}
+
+.custom-session-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.custom-session-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.custom-session-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.75rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+  width: 100%;
+  box-sizing: border-box;
+  gap: 0.75rem;
+  color: #ffffff;
+}
+
+.custom-session-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.custom-session-item.is-selected,
+.custom-session-item.selected {
+  background: rgba(0, 210, 211, 0.12);
+  border-color: rgba(0, 210, 211, 0.45);
+}
+
+.custom-session-item-header {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.custom-session-track {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #ffffff !important;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.custom-session-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+  font-size: 0.74rem;
+  color: #94a3b8;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.custom-session-meta-time {
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.custom-session-weather {
+  color: #cbd5e1;
+  font-size: 0.72rem;
+}

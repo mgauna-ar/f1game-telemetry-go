@@ -130,7 +130,7 @@ export interface TelemetryState {
   clearEvents: () => void;
   resetSession: () => void;
   setConnected: (connected: boolean) => void;
-  processIncomingMessage: (data: any) => void;
+  processIncomingMessage: (data: unknown) => void;
 }
 
 // Internal tracking references outside Zustand state to prevent extra subscriber triggers
@@ -196,9 +196,11 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
     set({ connected });
   },
 
-  processIncomingMessage: (data: any) => {
-    if (!data || !data.Header) return;
-    const header = data.Header as PacketHeader;
+  processIncomingMessage: (data: unknown) => {
+    if (!data || typeof data !== 'object') return;
+    const msg = data as { Header?: PacketHeader; [key: string]: unknown };
+    if (!msg.Header) return;
+    const header = msg.Header;
 
     // Detect session transition
     if (header.SessionUID && lastSessionUID !== null && lastSessionUID !== header.SessionUID) {
@@ -313,8 +315,20 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
 
     // 2. Real-time Event Data Packet
     if (header.PacketId === PACKET_IDS.EVENT) {
-      const code = data.EventCode;
-      const vIdx = data.VehicleIdx ?? 0;
+      const eventData = data as {
+        EventCode: string;
+        VehicleIdx?: number;
+        LapTime?: number;
+        OtherVehicleIdx?: number;
+        PenaltyType?: number;
+        PenaltyTime?: number;
+        InfringementType?: number;
+        PlacesGained?: number;
+        LapNum?: number;
+        Speed?: number;
+      };
+      const code = eventData.EventCode;
+      const vIdx = eventData.VehicleIdx ?? 0;
       const currentParticipants = useSessionStatusStore.getState().participants;
       const driver = participantsCache[vIdx] || currentParticipants[vIdx];
       const driverName = parseDriverName(driver?.Name, `Car #${vIdx + 1}`, driver?.DriverId);
@@ -324,16 +338,16 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
           get().addEvent({
             eventCode: 'FTLP',
             type: 'fastest_lap',
-            description: `${driverName} set the fastest lap (${(data.LapTime || 0).toFixed(3)}s)`,
+            description: `${driverName} set the fastest lap (${(eventData.LapTime || 0).toFixed(3)}s)`,
             vehicleIdx: vIdx,
             driverName,
-            lapTime: data.LapTime,
+            lapTime: eventData.LapTime,
             severity: 'purple',
             sessionTime: header.SessionTime,
           });
           break;
         case 'OVTK': {
-          const targetIdx = data.OtherVehicleIdx ?? 0;
+          const targetIdx = eventData.OtherVehicleIdx ?? 0;
           const targetDriver = participantsCache[targetIdx] || currentParticipants[targetIdx];
           const targetName = parseDriverName(targetDriver?.Name, `Car #${targetIdx + 1}`, targetDriver?.DriverId);
           get().addEvent({
@@ -350,10 +364,10 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
           break;
         }
         case 'PENA': {
-          const targetIdx = data.OtherVehicleIdx !== undefined && data.OtherVehicleIdx < 255 ? data.OtherVehicleIdx : undefined;
+          const targetIdx = eventData.OtherVehicleIdx !== undefined && eventData.OtherVehicleIdx < 255 ? eventData.OtherVehicleIdx : undefined;
           const targetDriver = targetIdx !== undefined ? (participantsCache[targetIdx] || currentParticipants[targetIdx]) : undefined;
           const targetName = targetDriver ? parseDriverName(targetDriver?.Name, `Car #${(targetIdx ?? 0) + 1}`, targetDriver?.DriverId) : undefined;
-          const isSevere = data.PenaltyType === 6 || (data.PenaltyTime !== undefined && data.PenaltyTime >= 10 && data.PenaltyTime < 255);
+          const isSevere = eventData.PenaltyType === 6 || (eventData.PenaltyTime !== undefined && eventData.PenaltyTime >= 10 && eventData.PenaltyTime < 255);
           get().addEvent({
             eventCode: 'PENA',
             type: 'penalty',
@@ -362,11 +376,11 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
             driverName,
             otherVehicleIdx: targetIdx,
             targetDriverName: targetName,
-            lapNum: data.LapNum,
-            penaltyType: data.PenaltyType,
-            infringementType: data.InfringementType,
-            penaltyTime: data.PenaltyTime,
-            placesGained: data.PlacesGained,
+            lapNum: eventData.LapNum,
+            penaltyType: eventData.PenaltyType,
+            infringementType: eventData.InfringementType,
+            penaltyTime: eventData.PenaltyTime,
+            placesGained: eventData.PlacesGained,
             severity: isSevere ? 'danger' : 'warning',
             sessionTime: header.SessionTime,
           });
@@ -376,10 +390,10 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
           get().addEvent({
             eventCode: 'SPTP',
             type: 'speed_trap',
-            description: `${driverName} triggered speed trap at ${(data.Speed || 0).toFixed(1)} km/h`,
+            description: `${driverName} triggered speed trap at ${(eventData.Speed || 0).toFixed(1)} km/h`,
             vehicleIdx: vIdx,
             driverName,
-            speed: data.Speed,
+            speed: eventData.Speed,
             severity: 'success',
             sessionTime: header.SessionTime,
           });
@@ -429,7 +443,7 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
           });
           break;
         case 'COLL': {
-          const targetIdx = data.OtherVehicleIdx ?? 0;
+          const targetIdx = eventData.OtherVehicleIdx ?? 0;
           const targetDriver = participantsCache[targetIdx] || currentParticipants[targetIdx];
           const targetName = parseDriverName(targetDriver?.Name, `Car #${targetIdx + 1}`, targetDriver?.DriverId);
           get().addEvent({
@@ -459,15 +473,6 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
             eventCode: 'SSTA',
             type: 'general',
             description: 'Session Started',
-            severity: 'success',
-            sessionTime: header.SessionTime,
-          });
-          break;
-        case 'SEND':
-          get().addEvent({
-            eventCode: 'SEND',
-            type: 'general',
-            description: 'Session Ended',
             severity: 'info',
             sessionTime: header.SessionTime,
           });
@@ -492,57 +497,104 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
             sessionTime: header.SessionTime,
           });
           break;
+        case 'FLG_':
+          break;
+        case 'STLG':
+          get().addEvent({
+            eventCode: 'STLG',
+            type: 'general',
+            description: 'Start lights countdown active',
+            severity: 'warning',
+            sessionTime: header.SessionTime,
+          });
+          break;
+        case 'LGOT':
+          get().addEvent({
+            eventCode: 'LGOT',
+            type: 'general',
+            description: 'LIGHTS OUT AND AWAY WE GO!',
+            severity: 'success',
+            sessionTime: header.SessionTime,
+          });
+          break;
+        case 'SEND':
+          get().addEvent({
+            eventCode: 'SEND',
+            type: 'general',
+            description: 'Chequered flag — Session complete',
+            severity: 'purple',
+            sessionTime: header.SessionTime,
+          });
+          break;
       }
       return;
     }
 
     // 3. Fallback compatibility for individual packet formats
     if (header.PacketId === PACKET_IDS.SESSION) {
+      const s = data as SessionData;
       const sessionObj = {
-        Weather: data.Weather,
-        TrackTemperature: data.TrackTemperature,
-        AirTemperature: data.AirTemperature,
-        TotalLaps: data.TotalLaps,
-        TrackLength: data.TrackLength,
-        SessionType: data.SessionType,
-        TrackId: data.TrackId,
-        SessionTimeLeft: data.SessionTimeLeft,
-        SessionDuration: data.SessionDuration,
-        SafetyCarStatus: data.SafetyCarStatus,
-        PitStopWindowIdealLap: data.PitStopWindowIdealLap,
-        PitStopWindowLatestLap: data.PitStopWindowLatestLap,
-        PitStopRejoinPosition: data.PitStopRejoinPosition,
-        NumWeatherForecastSamples: data.NumWeatherForecastSamples,
-        WeatherForecastSamples: data.WeatherForecastSamples?.slice(0, data.NumWeatherForecastSamples || 4),
-        NumSafetyCarPeriods: data.NumSafetyCarPeriods,
-        NumVirtualSafetyCarPeriods: data.NumVirtualSafetyCarPeriods,
-        NumRedFlagPeriods: data.NumRedFlagPeriods,
+        Weather: s.Weather,
+        TrackTemperature: s.TrackTemperature,
+        AirTemperature: s.AirTemperature,
+        TotalLaps: s.TotalLaps,
+        TrackLength: s.TrackLength,
+        SessionType: s.SessionType,
+        TrackId: s.TrackId,
+        SessionTimeLeft: s.SessionTimeLeft,
+        SessionDuration: s.SessionDuration,
+        SafetyCarStatus: s.SafetyCarStatus,
+        PitStopWindowIdealLap: s.PitStopWindowIdealLap,
+        PitStopWindowLatestLap: s.PitStopWindowLatestLap,
+        PitStopRejoinPosition: s.PitStopRejoinPosition,
+        NumWeatherForecastSamples: s.NumWeatherForecastSamples,
+        WeatherForecastSamples: s.WeatherForecastSamples?.slice(0, s.NumWeatherForecastSamples || 4),
+        NumSafetyCarPeriods: s.NumSafetyCarPeriods,
+        NumVirtualSafetyCarPeriods: s.NumVirtualSafetyCarPeriods,
+        NumRedFlagPeriods: s.NumRedFlagPeriods,
         PacketFormat: header.PacketFormat,
       };
       useSessionStatusStore.getState().setSessionStatus({ session: sessionObj, packetFormat: pktFormat });
       useTelemetryDataStore.getState().setTelemetryData({ playerCarIndex: playerIdx });
       set({ session: sessionObj, playerCarIndex: playerIdx, packetFormat: pktFormat });
-    } else if (header.PacketId === PACKET_IDS.PARTICIPANTS && data.Participants) {
-      participantsCache = data.Participants;
-      useSessionStatusStore.getState().setSessionStatus({ participants: data.Participants });
-      useTelemetryDataStore.getState().setTelemetryData({ playerCarIndex: playerIdx });
-      set({ participants: data.Participants, playerCarIndex: playerIdx });
-    } else if (header.PacketId === PACKET_IDS.LAP_DATA && data.LapData) {
-      useTelemetryDataStore.getState().setTelemetryData({ allLaps: data.LapData, playerCarIndex: playerIdx });
-      set({ allLaps: data.LapData, playerCarIndex: playerIdx });
-    } else if (header.PacketId === PACKET_IDS.CAR_TELEMETRY && data.CarTelemetryData) {
-      useTelemetryDataStore.getState().setTelemetryData({ allTelemetry: data.CarTelemetryData, playerCarIndex: playerIdx });
-      set({ allTelemetry: data.CarTelemetryData, playerCarIndex: playerIdx });
-    } else if (header.PacketId === PACKET_IDS.CAR_TELEMETRY_2 && data.CarTelemetry2Data) {
-      useTelemetryDataStore.getState().setTelemetryData({ allTelemetry2: data.CarTelemetry2Data, playerCarIndex: playerIdx });
-      set({ allTelemetry2: data.CarTelemetry2Data, playerCarIndex: playerIdx });
-    } else if (header.PacketId === PACKET_IDS.CAR_STATUS && data.CarStatusData) {
-      useTelemetryDataStore.getState().setTelemetryData({ allCarStatus: data.CarStatusData, playerCarIndex: playerIdx });
-      set({ allCarStatus: data.CarStatusData, playerCarIndex: playerIdx });
-    } else if (header.PacketId === PACKET_IDS.CAR_DAMAGE && data.CarDamageData) {
-      useTelemetryDataStore.getState().setTelemetryData({ allCarDamage: data.CarDamageData, playerCarIndex: playerIdx });
-      set({ allCarDamage: data.CarDamageData, playerCarIndex: playerIdx });
+    } else if (header.PacketId === PACKET_IDS.PARTICIPANTS) {
+      const pData = data as { Participants?: ParticipantData[] };
+      if (pData.Participants) {
+        participantsCache = pData.Participants;
+        useSessionStatusStore.getState().setSessionStatus({ participants: pData.Participants });
+        useTelemetryDataStore.getState().setTelemetryData({ playerCarIndex: playerIdx });
+        set({ participants: pData.Participants, playerCarIndex: playerIdx });
+      }
+    } else if (header.PacketId === PACKET_IDS.LAP_DATA) {
+      const lData = data as { LapData?: LapData[] };
+      if (lData.LapData) {
+        useTelemetryDataStore.getState().setTelemetryData({ allLaps: lData.LapData, playerCarIndex: playerIdx });
+        set({ allLaps: lData.LapData, playerCarIndex: playerIdx });
+      }
+    } else if (header.PacketId === PACKET_IDS.CAR_TELEMETRY) {
+      const tData = data as { CarTelemetryData?: CarTelemetryData[] };
+      if (tData.CarTelemetryData) {
+        useTelemetryDataStore.getState().setTelemetryData({ allTelemetry: tData.CarTelemetryData, playerCarIndex: playerIdx });
+        set({ allTelemetry: tData.CarTelemetryData, playerCarIndex: playerIdx });
+      }
+    } else if (header.PacketId === PACKET_IDS.CAR_TELEMETRY_2) {
+      const t2Data = data as { CarTelemetry2Data?: CarTelemetry2Data[] };
+      if (t2Data.CarTelemetry2Data) {
+        useTelemetryDataStore.getState().setTelemetryData({ allTelemetry2: t2Data.CarTelemetry2Data, playerCarIndex: playerIdx });
+        set({ allTelemetry2: t2Data.CarTelemetry2Data, playerCarIndex: playerIdx });
+      }
+    } else if (header.PacketId === PACKET_IDS.CAR_STATUS) {
+      const sData = data as { CarStatusData?: CarStatusData[] };
+      if (sData.CarStatusData) {
+        useTelemetryDataStore.getState().setTelemetryData({ allCarStatus: sData.CarStatusData, playerCarIndex: playerIdx });
+        set({ allCarStatus: sData.CarStatusData, playerCarIndex: playerIdx });
+      }
+    } else if (header.PacketId === PACKET_IDS.CAR_DAMAGE) {
+      const dData = data as { CarDamageData?: CarDamageData[] };
+      if (dData.CarDamageData) {
+        useTelemetryDataStore.getState().setTelemetryData({ allCarDamage: dData.CarDamageData, playerCarIndex: playerIdx });
+        set({ allCarDamage: dData.CarDamageData, playerCarIndex: playerIdx });
+      }
     }
   },
 }));
-

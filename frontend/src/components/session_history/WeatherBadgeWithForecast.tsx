@@ -83,7 +83,7 @@ const getWeatherIcon = (weatherNameOrCode?: string | number, size = 14) => {
 
 const getWeatherLabel = (
   weatherNameOrCode?: string | number,
-  t?: (key: string, params?: Record<string, any>) => string
+  t?: (key: string, params?: Record<string, string | number>) => string
 ): string => {
   const code = parseWeatherCode(weatherNameOrCode);
 

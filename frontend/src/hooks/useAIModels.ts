@@ -87,9 +87,8 @@ export const useAIModels = (config: AIConfig): UseAIModelsReturn => {
           defaultModel: data.default_model,
         });
       })
-      .catch((err) => {
+      .catch(() => {
         // AI config status is optional for local development
-        console.warn('Could not fetch AI config status', err);
       });
   }, []);
 

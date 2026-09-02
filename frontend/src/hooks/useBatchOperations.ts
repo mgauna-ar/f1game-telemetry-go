@@ -104,8 +104,9 @@ export function useBatchOperations({
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
-      } catch (err: any) {
-        setToastMessage({ type: 'error', text: `${t('history.exportError') || 'Export error'}: ${err.message || err}` });
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setToastMessage({ type: 'error', text: `${t('history.exportError') || 'Export error'}: ${msg}` });
       }
     },
     [t]
@@ -136,8 +137,9 @@ export function useBatchOperations({
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       setToastMessage({ type: 'success', text: t('history.batch.exportZip', { count: ids.length }) });
-    } catch (err: any) {
-      setToastMessage({ type: 'error', text: `${t('history.exportError') || 'Export error'}: ${err.message || err}` });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setToastMessage({ type: 'error', text: `${t('history.exportError') || 'Export error'}: ${msg}` });
     } finally {
       setIsExportingBatch(false);
     }
@@ -172,8 +174,9 @@ export function useBatchOperations({
         if (fetchTags) {
           await fetchTags();
         }
-      } catch (err: any) {
-        setToastMessage({ type: 'error', text: `${t('history.importError')}: ${err.message || err}` });
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setToastMessage({ type: 'error', text: `${t('history.importError')}: ${msg}` });
       } finally {
         setImportingSession(false);
       }
@@ -192,8 +195,9 @@ export function useBatchOperations({
       setSelectedSessionIds(new Set());
       setToastMessage({ type: 'success', text: t('history.batch.deleteSelected', { count: ids.length }) });
       await fetchSessions();
-    } catch (err: any) {
-      setToastMessage({ type: 'error', text: `Delete error: ${err.message || err}` });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setToastMessage({ type: 'error', text: `Delete error: ${msg}` });
     }
   }, [selectedSessionIds, setSessions, fetchSessions, t]);
 
@@ -206,8 +210,9 @@ export function useBatchOperations({
         await api.post('/api/sessions/batch-tags', { session_ids: ids, tag_id: tagId });
         setToastMessage({ type: 'success', text: t('history.batch.tagSelected') });
         await fetchSessions();
-      } catch (err: any) {
-        setToastMessage({ type: 'error', text: `Tag assignment error: ${err.message || err}` });
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setToastMessage({ type: 'error', text: `Tag assignment error: ${msg}` });
       }
     },
     [selectedSessionIds, fetchSessions, t]

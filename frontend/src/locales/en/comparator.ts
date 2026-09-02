@@ -28,6 +28,17 @@ export const comparator = {
   lapAFaster: 'Lap A is {delta}s faster than Lap B',
   lapBFaster: 'Lap B is {delta}s faster than Lap A',
   identicalLapTimes: 'Identical lap times',
+  defaultDriverB: 'Driver B',
+  timeDelta: 'Time Delta',
+  noCoordinateData: 'No track coordinate telemetry available for this lap',
+  legend: {
+    lapAFaster: '● Lap A Faster',
+    lapBFaster: '● Lap B Faster',
+    apex: '● Apex',
+    s1: '● S1',
+    s2: '● S2',
+    s3: '● S3',
+  },
   charts: {
     timeDelta: 'Time Delta (s)',
     timeDeltaSub: 'Below 0s = {driverA} Ahead | Above 0s = {driverB} Ahead',

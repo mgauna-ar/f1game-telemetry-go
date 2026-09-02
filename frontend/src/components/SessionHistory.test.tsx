@@ -4,9 +4,9 @@ import { SessionHistory } from './SessionHistory';
 import { RaceEngineerProvider } from '../context/RaceEngineerProvider';
 import { I18nProvider } from '../context/I18nProvider';
 import { AiRaceEngineer } from './AiRaceEngineer';
-import type { ClassificationResponse } from '../types/session';
+import type { Session, Participant, Lap, ClassificationResponse } from '../types/session';
 
-const makeMockClassification = (participants: any[], laps: any[]): ClassificationResponse => {
+const makeMockClassification = (participants: Participant[], laps: Lap[]): ClassificationResponse => {
   const standings = (participants.length > 0 ? participants : [{
     id: 1, session_id: 1, car_index: 0, name: 'Lewis Hamilton', driver_id: 2, team_id: 1, race_number: 44, ai_controlled: false
   }]).map((p) => {
@@ -22,9 +22,10 @@ const makeMockClassification = (participants: any[], laps: any[]): Classificatio
     const lastLap = completedLaps.length > 0 ? completedLaps[completedLaps.length - 1] : null;
     const totalTime = completedLaps.reduce((acc, l) => acc + l.lap_time_ms, 0);
 
-    const isDNF =
+    const isDNF = Boolean(
       pLaps.some((l) => l.result_status === 4 || l.result_status === 5) ||
-      (p.name && p.name.toLowerCase().includes('dnf'));
+      (typeof p.name === 'string' && p.name.toLowerCase().includes('dnf'))
+    );
     const isDSQ = pLaps.some((l) => l.result_status === 6);
 
     const pos = p.position || (pLaps.length > 0 ? pLaps[pLaps.length - 1].car_position || 0 : 0);
@@ -33,9 +34,9 @@ const makeMockClassification = (participants: any[], laps: any[]): Classificatio
     let bestS2 = 0;
     let bestS3 = 0;
     validLaps.forEach((l) => {
-      if (l.sector1_ms > 0 && (!bestS1 || l.sector1_ms < bestS1)) bestS1 = l.sector1_ms;
-      if (l.sector2_ms > 0 && (!bestS2 || l.sector2_ms < bestS2)) bestS2 = l.sector2_ms;
-      if (l.sector3_ms > 0 && (!bestS3 || l.sector3_ms < bestS3)) bestS3 = l.sector3_ms;
+      if (l.sector1_ms && l.sector1_ms > 0 && (!bestS1 || l.sector1_ms < bestS1)) bestS1 = l.sector1_ms;
+      if (l.sector2_ms && l.sector2_ms > 0 && (!bestS2 || l.sector2_ms < bestS2)) bestS2 = l.sector2_ms;
+      if (l.sector3_ms && l.sector3_ms > 0 && (!bestS3 || l.sector3_ms < bestS3)) bestS3 = l.sector3_ms;
     });
 
     const maxSpd = pLaps.reduce((max, l) => Math.max(max, l.max_speed_kmh || 0), 0);
@@ -86,17 +87,17 @@ const makeMockClassification = (participants: any[], laps: any[]): Classificatio
   standings.sort((a, b) => {
     if (a.is_dnf !== b.is_dnf) return a.is_dnf ? 1 : -1;
     if (a.position > 0 && b.position > 0) return a.position - b.position;
-    if (a.best_lap_time_ms > 0 && b.best_lap_time_ms > 0) return a.best_lap_time_ms - b.best_lap_time_ms;
-    return a.car_index - b.car_index;
+    if (a.best_lap_time_ms && b.best_lap_time_ms && a.best_lap_time_ms > 0 && b.best_lap_time_ms > 0) return a.best_lap_time_ms - b.best_lap_time_ms;
+    return (a.car_index ?? 0) - (b.car_index ?? 0);
   });
 
   standings.forEach((s, i) => {
     s.position = i + 1;
   });
 
-  const s1s = standings.map((s) => s.best_s1_ms).filter((v) => v > 0);
-  const s2s = standings.map((s) => s.best_s2_ms).filter((v) => v > 0);
-  const s3s = standings.map((s) => s.best_s3_ms).filter((v) => v > 0);
+  const s1s = standings.map((s) => s.best_s1_ms ?? 0).filter((v) => v > 0);
+  const s2s = standings.map((s) => s.best_s2_ms ?? 0).filter((v) => v > 0);
+  const s3s = standings.map((s) => s.best_s3_ms ?? 0).filter((v) => v > 0);
   const bestS1 = s1s.length > 0 ? Math.min(...s1s) : 0;
   const bestS2 = s2s.length > 0 ? Math.min(...s2s) : 0;
   const bestS3 = s3s.length > 0 ? Math.min(...s3s) : 0;
@@ -110,24 +111,24 @@ const makeMockClassification = (participants: any[], laps: any[]): Classificatio
     actual_best_lap_ms: standings[0]?.best_lap_time_ms || 0,
     actual_best_lap_driver: standings[0]?.driver_name || '',
     speed_rankings: standings.map((s) => ({
-      car_index: s.car_index,
-      driver_name: s.driver_name,
-      team_id: s.team_id,
-      max_speed: s.max_speed,
+      car_index: s.car_index ?? 0,
+      driver_name: s.driver_name ?? '',
+      team_id: s.team_id ?? 0,
+      max_speed: s.max_speed ?? 0,
       delta_to_top: 0,
     })),
   };
 };
 
 const setupFetchMock = (config: {
-  sessions?: any[];
-  participants?: any[];
-  laps?: any[];
-  classification?: any;
-  custom?: (url: string, options?: any) => Promise<any> | null;
+  sessions?: Session[];
+  participants?: Participant[];
+  laps?: Lap[];
+  classification?: ClassificationResponse;
+  custom?: (url: string, options?: RequestInit) => Promise<unknown> | null;
 }) => {
   const { sessions = [], participants = [], laps = [], classification, custom } = config;
-  globalThis.fetch = vi.fn().mockImplementation((url: string, options?: any) => {
+  globalThis.fetch = vi.fn().mockImplementation((url: string, options?: RequestInit) => {
     if (custom) {
       const res = custom(url, options);
       if (res !== null) return res;
@@ -901,9 +902,10 @@ describe('SessionHistory Component', () => {
     fireEvent.click(exportZipBtn);
 
     await waitFor(() => {
-      const exportCall = (globalThis.fetch as any).mock.calls.find((call: any[]) => call[0] === '/api/sessions/export-batch');
+      const fetchMock = vi.mocked(globalThis.fetch);
+      const exportCall = fetchMock.mock.calls.find((call) => call[0] === '/api/sessions/export-batch');
       expect(exportCall).toBeTruthy();
-      const parsedBody = JSON.parse(exportCall[1].body);
+      const parsedBody = JSON.parse(String((exportCall?.[1] as RequestInit | undefined)?.body ?? '{}'));
       expect(parsedBody.session_ids).toHaveLength(2);
       expect(parsedBody.session_ids).toContain(1);
       expect(parsedBody.session_ids).toContain(2);
@@ -923,9 +925,10 @@ describe('SessionHistory Component', () => {
     fireEvent.click(modalDeleteBtn);
 
     await waitFor(() => {
-      const deleteCall = (globalThis.fetch as any).mock.calls.find((call: any[]) => call[0] === '/api/sessions/batch-delete');
+      const fetchMock = vi.mocked(globalThis.fetch);
+      const deleteCall = fetchMock.mock.calls.find((call) => call[0] === '/api/sessions/batch-delete');
       expect(deleteCall).toBeTruthy();
-      const parsedBody = JSON.parse(deleteCall[1].body);
+      const parsedBody = JSON.parse(String((deleteCall?.[1] as RequestInit | undefined)?.body ?? '{}'));
       expect(parsedBody.session_ids).toHaveLength(2);
       expect(parsedBody.session_ids).toContain(1);
       expect(parsedBody.session_ids).toContain(2);

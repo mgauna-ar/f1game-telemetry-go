@@ -222,7 +222,7 @@ export interface EngineerDirective {
   timestamp: number;
   car_index: number;
   session_time: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface EngineerConfig {
@@ -299,7 +299,7 @@ export interface RadioAlertPayload {
     rateModifier?: number;
     pitchModifier?: number;
   };
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { connectTelemetryWebSocket, getTelemetryWebSocketClient } from './telemetrySocket';
 import { useTelemetryStore } from '../store/useTelemetryStore';
 
@@ -29,17 +29,15 @@ class MockWS {
 }
 
 describe('telemetrySocket manager', () => {
-  const originalWebSocket = globalThis.WebSocket;
-
   beforeEach(() => {
     MockWS.instances = [];
-    (globalThis as any).WebSocket = MockWS;
+    vi.stubGlobal('WebSocket', MockWS);
     useTelemetryStore.getState().resetSession();
     useTelemetryStore.getState().setConnected(false);
   });
 
   afterEach(() => {
-    (globalThis as any).WebSocket = originalWebSocket;
+    vi.unstubAllGlobals();
   });
 
   it('connects on first subscriber and disconnects when all unsubscribe', () => {

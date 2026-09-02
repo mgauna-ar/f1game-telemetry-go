@@ -168,7 +168,7 @@ export const VoiceCockpitView: React.FC<VoiceCockpitViewProps> = React.memo((pro
   };
 
   // ERS Energy
-  const storeEnergy = carStatus?.ERSStoreEnergy !== undefined ? carStatus.ERSStoreEnergy : (carStatus as any)?.ErsStoreEnergy;
+  const storeEnergy = carStatus?.ERSStoreEnergy;
   const ersPct = storeEnergy !== undefined ? Math.min(100, Math.max(0, Math.round((storeEnergy / 4000000) * 100))) : null;
 
   // Fuel remaining delta laps
@@ -181,7 +181,7 @@ export const VoiceCockpitView: React.FC<VoiceCockpitViewProps> = React.memo((pro
   const hasAeroDamage = flWing > 0 || frWing > 0 || floorDamage > 0;
 
   // Active Aero / Boost (2026)
-  const activeAeroMode = telemetry2?.ActiveAeroMode !== undefined ? telemetry2.ActiveAeroMode : (telemetry2 as any)?.ActiveAero;
+  const activeAeroMode = telemetry2?.ActiveAeroMode;
   const boostActive = telemetry2 && typeof telemetry2.OvertakeActive === 'number' && telemetry2.OvertakeActive > 0;
 
   // Radio active status pill

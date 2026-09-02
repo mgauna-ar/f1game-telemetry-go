@@ -1,6 +1,6 @@
 import { createWebSocket, type WebSocketClient } from './websocketClient';
 
-type EngineerMessageHandler = (data: any) => void;
+type EngineerMessageHandler = (data: unknown) => void;
 
 let activeClient: WebSocketClient | null = null;
 let engineerSubscribers = 0;

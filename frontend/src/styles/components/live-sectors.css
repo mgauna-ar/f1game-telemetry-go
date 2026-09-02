@@ -1,0 +1,229 @@
+/* 4. Live Sector Tracker Styles */
+.ultimate-lap-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  background: rgba(181, 126, 220, 0.15);
+  border: 1px solid rgba(181, 126, 220, 0.35);
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.ultimate-lap-chip .label {
+  color: var(--text-muted);
+  font-size: 0.68rem;
+}
+
+.ultimate-lap-chip .val {
+  color: #d8b4f8;
+  font-weight: 800;
+}
+
+.sector-purple-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.65rem;
+  margin-bottom: 0.85rem;
+}
+
+.sector-card {
+  padding: 0.75rem;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.sector-card.purple-s1, .sector-card.purple-s2 {
+  border-color: rgba(181, 126, 220, 0.3);
+  background: radial-gradient(circle at 90% 10%, rgba(181, 126, 220, 0.08), transparent 60%), rgba(0, 0, 0, 0.25);
+}
+
+.sector-card.fastest-lap-card {
+  border-color: rgba(255, 215, 0, 0.3);
+  background: radial-gradient(circle at 90% 10%, rgba(255, 215, 0, 0.08), transparent 60%), rgba(0, 0, 0, 0.25);
+}
+
+.sector-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.4rem;
+}
+
+.sector-badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #b57edc;
+}
+
+.sector-badge.fastest {
+  color: #ffd700;
+}
+
+.sector-time {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.sector-holder {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.team-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.holder-name {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sector-bottom-split {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.65rem;
+  flex: 1;
+}
+
+.selected-driver-sector-card, .speed-trap-card {
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-sm);
+  display: flex;
+  flex-direction: column;
+}
+
+.subcard-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 0.65rem;
+}
+
+.driver-splits-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.4rem;
+  flex: 1;
+  align-items: center;
+}
+
+.split-col {
+  display: flex;
+  flex-direction: column;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 0.5rem 0.4rem;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.split-label {
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.split-time {
+  font-size: 0.82rem;
+  font-weight: 700;
+  margin: 2px 0;
+}
+
+.split-delta {
+  font-size: 0.62rem;
+}
+
+.speed-trap-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  flex: 1;
+}
+
+.speed-trap-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.35rem 0.5rem;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+
+.speed-trap-item.selected {
+  background: rgba(0, 210, 211, 0.1);
+  border-left: 2px solid var(--accent-primary);
+}
+
+.speed-trap-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.speed-rank {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.speed-driver-name {
+  font-weight: 600;
+}
+
+.speed-trap-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.speed-val {
+  font-weight: 800;
+  color: #33ccff;
+}
+
+.speed-lap {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.speed-trap-empty {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 1rem 0;
+}
+
+@media (max-width: 768px) {
+  .weather-current-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .weather-forecast-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .sector-purple-grid {
+    grid-template-columns: 1fr;
+  }
+  .sector-bottom-split {
+    grid-template-columns: 1fr;
+  }
+  .pit-strategy-kpi-row {
+    grid-template-columns: 1fr;
+  }
+}

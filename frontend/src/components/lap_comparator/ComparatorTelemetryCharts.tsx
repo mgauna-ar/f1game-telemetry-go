@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { ZoomIn, RotateCcw } from 'lucide-react';
 import type { MergedTelemetryPoint } from '../../types/comparator';
 import { useI18n } from '../../context/I18nContext';
-import { type CommonChartProps } from './charts/chartDefaults';
+import { type CommonChartProps, type RechartsMouseMoveState } from './charts/chartDefaults';
 import { DeltaChart } from './charts/DeltaChart';
 import { SpeedChart } from './charts/SpeedChart';
 import { ThrottleChart } from './charts/ThrottleChart';
@@ -29,7 +29,7 @@ export interface ComparatorTelemetryChartsProps {
   sessionAId: number | '';
   loadingA: boolean;
   loadingB: boolean;
-  onMouseMove: (state: any) => void;
+  onMouseMove: (state: RechartsMouseMoveState<MergedTelemetryPoint> | null) => void;
 }
 
 export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps> = React.memo(({

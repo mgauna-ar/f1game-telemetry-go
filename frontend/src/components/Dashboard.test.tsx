@@ -1,6 +1,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi } from 'vitest';
 import { Dashboard } from './Dashboard';
+import type { ParticipantData, LapData, CarStatusData } from '../types/telemetry';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import { useTelemetryDataStore } from '../store/useTelemetryDataStore';
 import * as storeModule from '../store/useTelemetryStore';
@@ -84,7 +85,7 @@ describe('Dashboard', () => {
       },
       participants: [
         { Name: 'Max Verstappen', DriverId: 9, TeamId: 0, RaceNumber: 1, AIControlled: 0 },
-      ] as any[],
+      ] as unknown as ParticipantData[],
       events: [
         {
           id: '1',
@@ -101,10 +102,10 @@ describe('Dashboard', () => {
     useTelemetryDataStore.setState({
       allLaps: [
         { CarPosition: 1, CurrentLapNum: 5, CurrentLapTimeInMS: 81234, LastLapTimeInMS: 80950, Sector: 1, SpeedTrapFastestSpeed: 334.5 },
-      ] as any[],
+      ] as unknown as LapData[],
       allCarStatus: [
         { VisualTyreCompound: 17, TyresAgeLaps: 5, FuelInTank: 45, ERSStoreEnergy: 3500000 },
-      ] as any[],
+      ] as unknown as CarStatusData[],
       allCarDamage: [],
       allTelemetry: [],
       allTelemetry2: [],
@@ -145,7 +146,7 @@ describe('Dashboard', () => {
       },
       participants: [
         { Name: 'Max Verstappen', DriverId: 9, TeamId: 0, RaceNumber: 1, AIControlled: 0 },
-      ] as any[],
+      ] as unknown as ParticipantData[],
       events: [],
       connected: true,
     });
@@ -153,10 +154,10 @@ describe('Dashboard', () => {
     useTelemetryDataStore.setState({
       allLaps: [
         { CarPosition: 1, CurrentLapNum: 5, CurrentLapTimeInMS: 81234, LastLapTimeInMS: 80950, Sector: 1 },
-      ] as any[],
+      ] as unknown as LapData[],
       allCarStatus: [
         { VisualTyreCompound: 17, TyresAgeLaps: 5, FuelInTank: 45, ERSStoreEnergy: 3500000 },
-      ] as any[],
+      ] as unknown as CarStatusData[],
       allCarDamage: [],
       allTelemetry: [],
       allTelemetry2: [],

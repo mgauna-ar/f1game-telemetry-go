@@ -340,8 +340,9 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
               }
               setToastMessage({ type: 'success', text: t('history.batch.deleteSelected', { count: 1 }) });
             },
-            (err) => {
-              setToastMessage({ type: 'error', text: `${t('history.deleteError') || 'Delete error'}: ${err.message || err}` });
+            (err: unknown) => {
+              const msg = err instanceof Error ? err.message : String(err);
+              setToastMessage({ type: 'error', text: `${t('history.deleteError') || 'Delete error'}: ${msg}` });
             }
           )
         }

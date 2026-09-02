@@ -5,7 +5,7 @@ let audioCtx: AudioContext | null = null;
 let activeSourceNode: AudioBufferSourceNode | null = null;
 let activeStaticSourceNode: AudioBufferSourceNode | null = null;
 let activeStaticGainNode: GainNode | null = null;
-let activeWorkletNode: AudioNode | null = null;
+let activeWorkletNode: AudioWorkletNode | null = null;
 let activeMasterGainNode: GainNode | null = null;
 let activeExtraNodes: AudioNode[] = [];
 let activePlaybackResolve: (() => void) | null = null;
@@ -129,8 +129,7 @@ export async function initRadioWorklet(ctx: AudioContext): Promise<boolean> {
       workletLoaded = true;
       return true;
     })
-    .catch((err) => {
-      console.warn('[Radio Audio] AudioWorklet not available, falling back to Web Audio nodes:', err);
+    .catch(() => {
       workletLoaded = false;
       return false;
     });
@@ -142,9 +141,10 @@ export async function initRadioWorklet(ctx: AudioContext): Promise<boolean> {
  * Generates a non-linear distortion transfer curve for the WaveShaperNode
  * to emulate subtle cockpit radio saturation.
  */
-export function makeDistortionCurve(amount: number = RADIO_AUDIO_CONSTANTS.DISTORTION_AMOUNT): Float32Array {
+export function makeDistortionCurve(amount: number = RADIO_AUDIO_CONSTANTS.DISTORTION_AMOUNT): Float32Array<ArrayBuffer> {
   const nSamples = 256;
-  const curve = new Float32Array(nSamples);
+  const buffer = new ArrayBuffer(nSamples * Float32Array.BYTES_PER_ELEMENT);
+  const curve = new Float32Array(buffer);
   const deg = Math.PI / 180;
   const k = typeof amount === 'number' && amount > 0 ? amount : 0;
 
@@ -347,7 +347,7 @@ export async function playRadioAudioBuffer(
           // 2. AudioWorklet processing or classic Node processing
           if (hasWorklet && enableStaticFx && typeof window !== 'undefined' && 'AudioWorkletNode' in window) {
             try {
-              const workletNode = new (window as any).AudioWorkletNode(ctx, 'f1-radio-processor');
+              const workletNode = new AudioWorkletNode(ctx, 'f1-radio-processor');
               activeWorkletNode = workletNode;
               const staticParam = workletNode.parameters?.get('staticLevel');
               if (staticParam) {
@@ -382,7 +382,7 @@ export async function playRadioAudioBuffer(
               bandpass.Q.setValueAtTime(RADIO_AUDIO_CONSTANTS.FILTER_Q, now);
 
               const distortion = ctx.createWaveShaper();
-              distortion.curve = makeDistortionCurve(RADIO_AUDIO_CONSTANTS.DISTORTION_AMOUNT) as any;
+              distortion.curve = makeDistortionCurve(RADIO_AUDIO_CONSTANTS.DISTORTION_AMOUNT);
               distortion.oversample = '2x';
 
               activeExtraNodes.push(bandpass, distortion);
@@ -602,7 +602,6 @@ export async function speakRadioResponse(
     ttsAudioMemoryCache.set(cacheKey, audioBuffer);
     await playRadioAudioBuffer(audioBuffer, options);
   } catch (err) {
-    console.warn('[Radio Audio] Neural TTS playback failed:', err);
     onError?.(err);
   }
 }
@@ -634,7 +633,7 @@ export function stopRadioSpeech(): void {
   }
   if (activeWorkletNode) {
     try {
-      const activeParam = (activeWorkletNode as any).parameters?.get('active');
+      const activeParam = activeWorkletNode.parameters.get('active');
       if (activeParam && audioCtx) {
         activeParam.setValueAtTime(0, audioCtx.currentTime);
       }
@@ -673,6 +672,23 @@ export function isSpeechRecognitionSupported(): boolean {
   return 'SpeechRecognition' in window || 'webkitSpeechRecognition' in window;
 }
 
+export interface ISpeechRecognitionResult {
+  transcript: string;
+}
+
+export interface ISpeechRecognitionResultList {
+  length: number;
+  [index: number]: { [index: number]: ISpeechRecognitionResult };
+}
+
+export interface ISpeechRecognitionEvent {
+  results: ISpeechRecognitionResultList;
+}
+
+export interface ISpeechRecognitionErrorEvent {
+  error: string;
+}
+
 export interface ISpeechRecognition {
   continuous: boolean;
   interimResults: boolean;
@@ -680,8 +696,8 @@ export interface ISpeechRecognition {
   start: () => void;
   stop: () => void;
   abort: () => void;
-  onresult: ((event: any) => void) | null;
-  onerror: ((event: any) => void) | null;
+  onresult: ((event: ISpeechRecognitionEvent) => void) | null;
+  onerror: ((event: ISpeechRecognitionErrorEvent) => void) | null;
   onend: (() => void) | null;
 }
 

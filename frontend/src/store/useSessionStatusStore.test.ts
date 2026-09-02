@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useSessionStatusStore } from './useSessionStatusStore';
+import type { SessionData } from '../types/telemetry';
 
 describe('useSessionStatusStore', () => {
   beforeEach(() => {
@@ -20,7 +21,7 @@ describe('useSessionStatusStore', () => {
     expect(useSessionStatusStore.getState().connected).toBe(true);
   });
 
-  it('adds and clears race events', () => {
+  it('handles events queue correctly', () => {
     useSessionStatusStore.getState().addEvent({
       eventCode: 'FTLP',
       type: 'fastest_lap',
@@ -38,7 +39,7 @@ describe('useSessionStatusStore', () => {
 
   it('sets partial session status and resets cleanly', () => {
     useSessionStatusStore.getState().setSessionStatus({
-      session: { TrackId: 3, TotalLaps: 50 } as any,
+      session: { TrackId: 3, TotalLaps: 50 } as unknown as SessionData,
       packetFormat: 2026,
     });
 

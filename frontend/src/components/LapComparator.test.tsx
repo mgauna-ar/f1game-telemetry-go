@@ -4,8 +4,8 @@ import { LapComparator } from './LapComparator';
 
 // Mock Recharts to prevent canvas/DOM size errors in JSDOM
 vi.mock('recharts', () => ({
-  ResponsiveContainer: ({ children }: any) => <div>{children}</div>,
-  LineChart: ({ children }: any) => <div>LineChart {children}</div>,
+  ResponsiveContainer: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+  LineChart: ({ children }: { children?: React.ReactNode }) => <div>LineChart {children}</div>,
   Line: () => <div />,
   XAxis: () => <div />,
   YAxis: () => <div />,

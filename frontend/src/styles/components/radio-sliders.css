@@ -1,0 +1,237 @@
+/* ── Toggle Switches & Checkbox Overhaul ──────────────────────────────────── */
+.radio-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 14px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.01) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md, 12px);
+  font-size: 0.78rem;
+  color: var(--text-primary, #ffffff);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.radio-toggle-row:hover {
+  background: linear-gradient(145deg, rgba(0, 242, 254, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+  border-color: rgba(0, 242, 254, 0.28);
+}
+
+/* Modern Styled Switch Toggle for all checkboxes */
+.radio-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 38px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 9999px;
+  position: relative;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  flex-shrink: 0;
+  margin: 0;
+}
+
+.radio-checkbox:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-color: rgba(0, 242, 254, 0.4);
+}
+
+.radio-checkbox:checked {
+  background: linear-gradient(135deg, #00f2fe 0%, #00c6ff 100%);
+  border-color: #00f2fe;
+  box-shadow: 0 0 10px rgba(0, 242, 254, 0.45);
+}
+
+.radio-checkbox::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  background: #ffffff;
+  border-radius: 50%;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+.radio-checkbox:checked::before {
+  transform: translateX(18px);
+  background: #060b13;
+}
+
+/* ── Slider Controls Overhaul ────────────────────────────────────────────── */
+.radio-slider-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.035) 0%, rgba(255, 255, 255, 0.01) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-md, 12px);
+}
+
+.radio-slider-input {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.12);
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.radio-slider-input::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.radio-slider-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #00f2fe;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 10px rgba(0, 242, 254, 0.6), 0 2px 5px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  margin-top: -5px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.radio-slider-input::-webkit-slider-thumb:hover {
+  transform: scale(1.18);
+  box-shadow: 0 0 14px rgba(0, 242, 254, 0.9);
+}
+
+.radio-slider-input::-moz-range-track {
+  height: 6px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.radio-slider-input::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #00f2fe;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 10px rgba(0, 242, 254, 0.6);
+  cursor: pointer;
+}
+
+/* ── Preset Chips Grid ───────────────────────────────────────────────────── */
+.radio-preset-grid {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.radio-preset-chip {
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-size: 0.73rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-secondary, #94a3b8);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.radio-preset-chip:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.radio-preset-chip.chip-active {
+  background: linear-gradient(135deg, rgba(0, 242, 254, 0.2), rgba(0, 198, 255, 0.08));
+  border-color: #00f2fe;
+  color: #00f2fe;
+  box-shadow: 0 0 12px rgba(0, 242, 254, 0.25);
+}
+
+.radio-badge-val {
+  font-family: var(--font-mono, monospace);
+  font-weight: 800;
+  color: #00f2fe;
+  font-size: 0.76rem;
+  text-shadow: 0 0 8px rgba(0, 242, 254, 0.4);
+}
+
+/* ── Footer Actions ──────────────────────────────────────────────────────── */
+.radio-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 16px;
+  margin-top: 4px;
+}
+
+.radio-btn-test {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border-radius: var(--radius-md, 10px);
+  background: linear-gradient(135deg, rgba(0, 242, 254, 0.12), rgba(0, 198, 255, 0.05));
+  border: 1px solid rgba(0, 242, 254, 0.35);
+  color: #00f2fe;
+  font-family: var(--font-display, 'Titillium Web', sans-serif);
+  font-weight: 700;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.radio-btn-test:hover {
+  background: linear-gradient(135deg, rgba(0, 242, 254, 0.22), rgba(0, 198, 255, 0.12));
+  border-color: #00f2fe;
+  box-shadow: 0 0 18px rgba(0, 242, 254, 0.3);
+  transform: translateY(-1px);
+}
+
+.radio-btn-done {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 24px;
+  border-radius: var(--radius-md, 10px);
+  background: linear-gradient(135deg, #00f2fe 0%, #00c6ff 100%);
+  border: 1px solid rgba(0, 242, 254, 0.6);
+  color: #060b13;
+  font-family: var(--font-display, 'Titillium Web', sans-serif);
+  font-weight: 800;
+  font-size: 0.86rem;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 242, 254, 0.35);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.radio-btn-done:hover {
+  background: linear-gradient(135deg, #38f9d7 0%, #00f2fe 100%);
+  border-color: #38f9d7;
+  box-shadow: 0 6px 20px rgba(0, 242, 254, 0.55);
+  transform: translateY(-1px);
+}
+
+.radio-btn-done:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(0, 242, 254, 0.3);
+}
+

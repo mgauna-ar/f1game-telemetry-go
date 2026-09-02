@@ -1,0 +1,74 @@
+/* ==========================================================================
+   FFT WAVEFORM & EQUALIZER VISUALIZER
+   ========================================================================== */
+
+/* ── Equalizer Waveform Bars ─────────────────────────────────────────────── */
+.live-radio-equalizer {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 18px;
+  padding: 0 4px;
+  margin-left: 2px;
+}
+
+.live-radio-waveform-canvas {
+  display: block;
+  height: 18px;
+  width: 36px;
+  margin-left: 2px;
+  flex-shrink: 0;
+}
+
+.live-radio-eq-bar {
+  width: 3px;
+  border-radius: 3px;
+  background-color: #00f2fe;
+  box-shadow: 0 0 6px #00f2fe;
+  animation: live-radio-eq 0.75s ease-in-out infinite alternate;
+}
+
+.state-transmitting .live-radio-eq-bar {
+  background-color: #ef4444;
+  box-shadow: 0 0 6px #ef4444;
+}
+
+.state-speaking .live-radio-eq-bar {
+  background-color: #10b981;
+  box-shadow: 0 0 6px #10b981;
+}
+
+.live-radio-eq-bar:nth-child(1) { height: 45%; animation-delay: 0.1s; }
+.live-radio-eq-bar:nth-child(2) { height: 95%; animation-delay: 0.3s; }
+.live-radio-eq-bar:nth-child(3) { height: 70%; animation-delay: 0.2s; }
+.live-radio-eq-bar:nth-child(4) { height: 40%; animation-delay: 0.4s; }
+
+@keyframes live-radio-eq {
+  0% { transform: scaleY(0.25); }
+  100% { transform: scaleY(1); }
+}
+
+
+/* Waveform Box */
+.voice-cockpit-waveform-box {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-width: 200px;
+}
+
+.voice-cockpit-waveform-canvas {
+  width: 100%;
+  max-width: 320px;
+  height: 38px;
+  display: block;
+}
+
+.voice-cockpit-eq-fallback {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 28px;
+}
+

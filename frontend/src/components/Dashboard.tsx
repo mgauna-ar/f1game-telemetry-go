@@ -145,7 +145,7 @@ export const Dashboard: React.FC = () => {
 
     let ersSummary = '';
     if (playerStatus) {
-      const storeEnergy = playerStatus.ERSStoreEnergy !== undefined ? playerStatus.ERSStoreEnergy : (playerStatus as any).ErsStoreEnergy;
+      const storeEnergy = playerStatus.ERSStoreEnergy;
       if (storeEnergy !== undefined) {
         const ersPct = Math.round((storeEnergy / 4000000) * 100);
         ersSummary = `- ERS Battery: ${ersPct}% | Deploy Mode: ${playerStatus.ERSDeployMode ?? 0}`;

@@ -71,7 +71,7 @@ describe('useRadioSettingsStore and slices', () => {
     expect(postSpy).toHaveBeenCalled();
     const lastCall = postSpy.mock.calls[postSpy.mock.calls.length - 1];
     expect(lastCall[0]).toBe('/api/ai/engineer/config');
-    expect((lastCall[1] as any).tyre_wear_warn_pct).toBe(55);
+    expect((lastCall[1] as Record<string, unknown>).tyre_wear_warn_pct).toBe(55);
   });
 
   it('handles tactical settings toggles and switches preset to custom', () => {

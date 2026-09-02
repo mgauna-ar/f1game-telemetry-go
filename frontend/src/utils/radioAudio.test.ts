@@ -138,7 +138,7 @@ describe('radioAudio utils', () => {
 
   describe('playRadioBeep', () => {
     it('resolves cleanly even if Web Audio API is not available or mocked', async () => {
-      (window as any).AudioContext = undefined;
+      vi.stubGlobal('AudioContext', undefined);
       await expect(playRadioBeep('start')).resolves.toBeUndefined();
       await expect(playRadioBeep('end')).resolves.toBeUndefined();
     });
@@ -176,7 +176,7 @@ describe('radioAudio utils', () => {
         }
       }
 
-      (window as any).AudioContext = MockAudioContext;
+      vi.stubGlobal('AudioContext', MockAudioContext);
 
       const promise = playRadioBeep('start', 0.8);
       expect(mockAudioContext.createGain).toHaveBeenCalled();
@@ -243,7 +243,7 @@ describe('radioAudio utils', () => {
           return mockAudioContext;
         }
       }
-      (window as any).AudioContext = MockAudioContext;
+      vi.stubGlobal('AudioContext', MockAudioContext);
 
       const onStart = vi.fn();
       const onEnd = vi.fn();
@@ -320,7 +320,7 @@ describe('radioAudio utils', () => {
           return mockAudioContext;
         }
       }
-      (window as any).AudioContext = MockAudioContext;
+      vi.stubGlobal('AudioContext', MockAudioContext);
 
       const playPromise = playRadioAudioBuffer(new ArrayBuffer(100), { enableBeeps: false });
       stopRadioSpeech();
@@ -383,7 +383,7 @@ describe('radioAudio utils', () => {
           return mockAudioContext;
         }
       }
-      (window as any).AudioContext = MockAudioContext;
+      vi.stubGlobal('AudioContext', MockAudioContext);
 
       await speakRadioResponse('Safety Car deployed', { enableBeeps: false, enableStaticFx: false });
       expect(globalThis.fetch).toHaveBeenCalledTimes(1);
@@ -416,7 +416,7 @@ describe('radioAudio utils', () => {
           return mockAudioContext;
         }
       }
-      (window as any).AudioContext = MockAudioContext;
+      vi.stubGlobal('AudioContext', MockAudioContext);
 
       _resetAudioContextForTesting();
       const analyser = getRadioAnalyserNode();

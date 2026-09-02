@@ -160,7 +160,7 @@ export const SessionStintStrategyTab: React.FC<SessionStintStrategyTabProps> = (
   const { degradationData, maxTyreAge, degradationRates } = useMemo(() => {
     if (!stintsData) {
       return {
-        degradationData: [] as Array<{ tyreAge: number; [key: string]: any }>,
+        degradationData: [] as Array<{ tyreAge: number; [key: string]: number | string | null | undefined }>,
         maxTyreAge: 0,
         degradationRates: {} as Record<string, number | null>,
       };
