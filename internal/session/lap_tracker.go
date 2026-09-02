@@ -3,7 +3,6 @@ package session
 import (
 	"context"
 	"log/slog"
-	"sync"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
@@ -45,9 +44,12 @@ type CarStintState struct {
 	StintIncrementedInLap int
 }
 
+// Thread-safety contract: All Process* methods must be called from a single
+// goroutine (the UDP listener). FlushCurrentLap and Reset must only be called
+// after the Process* caller has stopped.
+//
 // LapTracker monitors a car's lap progress and buffers telemetry samples in memory for compressed persistence.
 type LapTracker struct {
-	mu              sync.Mutex
 	repo            storage.Repository
 	writer          TelemetryWriter
 	carIndex        int
@@ -78,9 +80,6 @@ func NewLapTracker(repo storage.Repository, writer TelemetryWriter, carIndex int
 
 // Reset clears the lap tracker state for a new session, flushing any in-progress lap telemetry.
 func (lt *LapTracker) Reset() {
-	lt.mu.Lock()
-	defer lt.mu.Unlock()
-
 	if lt.currentLap != nil && lt.currentLap.ID > 0 && len(lt.sampleBuffer) > 10 && lt.writer != nil {
 		lt.writer.EnqueueLap(lt.currentLap.ID, lt.sampleBuffer)
 	}
@@ -100,9 +99,6 @@ func (lt *LapTracker) Reset() {
 
 // FlushCurrentLap flushes any in-memory telemetry buffer for the current active lap.
 func (lt *LapTracker) FlushCurrentLap() {
-	lt.mu.Lock()
-	defer lt.mu.Unlock()
-
 	if lt.currentLap != nil && lt.currentLap.ID > 0 && len(lt.sampleBuffer) > 10 && lt.writer != nil {
 		lt.writer.EnqueueLap(lt.currentLap.ID, lt.sampleBuffer)
 		lt.sampleBuffer = nil
@@ -281,9 +277,7 @@ func (lt *LapTracker) ProcessLapData(ctx context.Context, session *storage.Sessi
 	if newLapNum > lt.currentLapNum+1 {
 		slog.Info("Lap jump detected, re-syncing", "carIndex", lt.carIndex, "prevLap", lt.currentLapNum, "newLap", newLapNum)
 		lt.currentLap = nil
-		lt.mu.Lock()
 		lt.sampleBuffer = lt.sampleBuffer[:0]
-		lt.mu.Unlock()
 		lt.startNewLap(ctx, session.ID, newLapNum, lt.carIndex)
 		return
 	}
@@ -305,9 +299,7 @@ func (lt *LapTracker) handlePitDetection(lapData packets.LapData, newLapNum int)
 func (lt *LapTracker) handleSessionRestart(ctx context.Context, session *storage.Session, lapData packets.LapData, newLapNum int) {
 	slog.Info("Session reset detected", "carIndex", lt.carIndex, "prevLap", lt.currentLapNum, "newLap", newLapNum)
 	lt.currentLap = nil
-	lt.mu.Lock()
 	lt.sampleBuffer = lt.sampleBuffer[:0]
-	lt.mu.Unlock()
 	lt.stint.LastPitStops = int(lapData.NumPitStops)
 	if lt.stint.LastPitStops > 0 {
 		lt.stint.CurrentStintNum = lt.stint.LastPitStops + 1
@@ -334,9 +326,7 @@ func (lt *LapTracker) updateActiveLap(ctx context.Context, lapData packets.LapDa
 	// Detect distance reset/restart during the same lap number (e.g. flashback or garage reset)
 	if prevDistance > 500 && (currDistance < 100 || currDistance < prevDistance*0.3) {
 		slog.Info("Lap restart detected", "carIndex", lt.carIndex, "lap", lt.currentLapNum, "prevDistance", prevDistance, "currDistance", currDistance)
-		lt.mu.Lock()
 		lt.sampleBuffer = lt.sampleBuffer[:0]
-		lt.mu.Unlock()
 		if lt.currentLap.ID > 0 {
 			if err := lt.repo.DeleteTelemetryByLap(ctx, lt.currentLap.ID); err != nil {
 				slog.Error("Failed to delete telemetry on lap restart", "lapID", lt.currentLap.ID, "error", err)
@@ -344,9 +334,7 @@ func (lt *LapTracker) updateActiveLap(ctx context.Context, lapData packets.LapDa
 		}
 	} else if prevDistance < 0 && currDistance >= 0 && lt.currentLapNum == 1 {
 		slog.Info("Out-lap to flying lap transition detected", "carIndex", lt.carIndex, "prevDistance", prevDistance, "currDistance", currDistance)
-		lt.mu.Lock()
 		lt.sampleBuffer = lt.sampleBuffer[:0]
-		lt.mu.Unlock()
 		if lt.currentLap.ID > 0 {
 			if err := lt.repo.DeleteTelemetryByLap(ctx, lt.currentLap.ID); err != nil {
 				slog.Error("Failed to delete telemetry on flying lap transition", "lapID", lt.currentLap.ID, "error", err)
@@ -547,16 +535,13 @@ func (lt *LapTracker) ProcessTelemetry(ctx context.Context, session *storage.Ses
 		OvertakeActive:      lt.activeAero.LastOvertakeActive,
 	}
 
-	lt.mu.Lock()
 	if lt.sampleBuffer == nil {
 		lt.sampleBuffer = make([]storage.TelemetrySample, 0, packets.DefaultTelemetrySampleCapacity)
 	}
 	lt.sampleBuffer = append(lt.sampleBuffer, sample)
-	lt.mu.Unlock()
 }
 
 func (lt *LapTracker) startNewLap(ctx context.Context, sessionID int64, lapNum, carIndex int) {
-	lt.mu.Lock()
 	// If there are uncommitted samples from a previous lap, flush them
 	if lt.currentLap != nil && lt.currentLap.ID > 0 && len(lt.sampleBuffer) > 0 && lt.writer != nil {
 		lt.writer.EnqueueLap(lt.currentLap.ID, lt.sampleBuffer)
@@ -575,7 +560,6 @@ func (lt *LapTracker) startNewLap(ctx context.Context, sessionID int64, lapNum, 
 		Stint:     stint,
 	}
 	lt.sampleBuffer = make([]storage.TelemetrySample, 0, packets.DefaultTelemetrySampleCapacity)
-	lt.mu.Unlock()
 
 	if err := lt.repo.SaveLap(ctx, lt.currentLap, false); err != nil {
 		slog.Error("Failed to start new lap", "lapNumber", lt.currentLap.LapNumber, "carIndex", lt.carIndex, "error", err)
@@ -596,12 +580,10 @@ func (lt *LapTracker) finalizeCurrentLap(ctx context.Context, lapTimeMS int) {
 		}
 
 		// Enqueue the lap's samples into the asynchronous batch writer
-		lt.mu.Lock()
 		if len(lt.sampleBuffer) > 0 && lt.currentLap.ID > 0 && lt.writer != nil {
 			lt.writer.EnqueueLap(lt.currentLap.ID, lt.sampleBuffer)
 			lt.sampleBuffer = nil
 		}
-		lt.mu.Unlock()
 
 		slog.Info("Lap completed", "lapNumber", lt.currentLap.LapNumber, "lapTimeMS", lapTimeMS, "carIndex", lt.carIndex)
 	} else {

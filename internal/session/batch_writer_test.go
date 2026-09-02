@@ -232,3 +232,69 @@ func TestBatchWriter_ConcurrentEnqueueAndClose(t *testing.T) {
 	// Multiple Close calls should be safe and idempotent
 	bw.Close(ctx)
 }
+
+func TestBatchWriter_QueueFullDrop(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), fmt.Sprintf("test_bw_drop_%d.db", time.Now().UnixNano()))
+	repo, err := storage.NewSQLiteRepository(dbPath)
+	if err != nil {
+		t.Fatalf("failed to create repo: %v", err)
+	}
+	defer repo.Close()
+
+	bw := NewTelemetryBatchWriter(repo)
+	ctx := context.Background()
+
+	// Fill the batch channel to capacity without starting the worker
+	for i := 1; i <= DefaultBatchChannelCapacity; i++ {
+		bw.EnqueueLap(int64(i), []storage.TelemetrySample{{Speed: 200}})
+	}
+
+	// Enqueuing beyond capacity should drop cleanly without blocking or panicking
+	bw.EnqueueLap(int64(DefaultBatchChannelCapacity+1), []storage.TelemetrySample{{Speed: 250}})
+
+	if len(bw.lapChan) != DefaultBatchChannelCapacity {
+		t.Errorf("expected channel len %d, got %d", DefaultBatchChannelCapacity, len(bw.lapChan))
+	}
+
+	bw.Close(ctx)
+}
+
+func TestBatchWriter_FlushWorker(t *testing.T) {
+	bw, repo, session, _, ctx := setupBatchWriterTest(t)
+	bw.Start(ctx)
+
+	lapIDs := make([]int64, 5)
+	for i := 0; i < 5; i++ {
+		lap := &storage.Lap{
+			SessionID: session.ID,
+			CarIndex:  0,
+			LapNumber: i + 1,
+			LapTimeMS: 85000 + i*1000,
+		}
+		if err := repo.SaveLap(ctx, lap, false); err != nil {
+			t.Fatalf("failed to save lap %d: %v", i+1, err)
+		}
+		lapIDs[i] = lap.ID
+		samples := []storage.TelemetrySample{
+			{LapDistance: 0.0, SessionTime: float64(i), Speed: 200 + i*10},
+			{LapDistance: 50.0, SessionTime: float64(i) + 0.5, Speed: 210 + i*10},
+		}
+		bw.EnqueueLap(lap.ID, samples)
+	}
+
+	// Flush while worker is running
+	bw.Flush(ctx)
+
+	for i, lapID := range lapIDs {
+		saved, err := repo.GetTelemetryByLap(ctx, lapID)
+		if err != nil {
+			t.Fatalf("failed to get telemetry for lap %d: %v", lapID, err)
+		}
+		if len(saved) != 2 {
+			t.Fatalf("expected 2 samples for lap %d, got %d", lapID, len(saved))
+		}
+		if saved[0].Speed != 200+i*10 {
+			t.Errorf("lap %d: expected speed %d, got %d", lapID, 200+i*10, saved[0].Speed)
+		}
+	}
+}

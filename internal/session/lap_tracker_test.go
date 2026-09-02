@@ -279,9 +279,7 @@ func TestLapTracker_SafetyCarLaps(t *testing.T) {
 		lt.ProcessTelemetry(ctx, session, tel)
 	}
 
-	lt.mu.Lock()
 	sampleCount := len(lt.sampleBuffer)
-	lt.mu.Unlock()
 
 	if sampleCount != 25 {
 		t.Errorf("expected 25 samples collected under SC, got %d", sampleCount)
@@ -333,9 +331,7 @@ func TestLapTracker_FormationAndOutLap(t *testing.T) {
 		p.LapData[0].LapDistance = 50.0
 		lt.ProcessLapData(ctx, session, p)
 
-		lt.mu.Lock()
 		count := len(lt.sampleBuffer)
-		lt.mu.Unlock()
 
 		if count != 0 {
 			t.Errorf("expected buffer reset after distance rewind, got %d samples", count)
@@ -358,9 +354,7 @@ func TestLapTracker_FormationAndOutLap(t *testing.T) {
 		p.LapData[0].LapDistance = 10.0
 		lt.ProcessLapData(ctx, session, p)
 
-		lt.mu.Lock()
 		count := len(lt.sampleBuffer)
-		lt.mu.Unlock()
 
 		if count != 0 {
 			t.Errorf("expected buffer reset when crossing into flying lap, got %d samples", count)
@@ -388,9 +382,6 @@ func TestLapTracker_TelemetryBufferAccumulation(t *testing.T) {
 		tel.CarTelemetryData[0].DRS = 1
 		lt.ProcessTelemetry(ctx, session, tel)
 	}
-
-	lt.mu.Lock()
-	defer lt.mu.Unlock()
 
 	if len(lt.sampleBuffer) != 50 {
 		t.Fatalf("expected 50 samples in buffer, got %d", len(lt.sampleBuffer))
@@ -462,9 +453,6 @@ func TestLapTracker_ProcessMotion(t *testing.T) {
 	tel.CarTelemetryData[0].Speed = 280
 	lt.ProcessTelemetry(ctx, session, tel)
 
-	lt.mu.Lock()
-	defer lt.mu.Unlock()
-
 	if len(lt.sampleBuffer) != 1 {
 		t.Fatalf("expected 1 sample, got %d", len(lt.sampleBuffer))
 	}
@@ -490,9 +478,6 @@ func TestLapTracker_ProcessCarTelemetry2(t *testing.T) {
 	tel := &packets.PacketCarTelemetryData{}
 	tel.CarTelemetryData[0].Speed = 310
 	lt.ProcessTelemetry(ctx, session, tel)
-
-	lt.mu.Lock()
-	defer lt.mu.Unlock()
 
 	if len(lt.sampleBuffer) != 1 {
 		t.Fatalf("expected 1 sample, got %d", len(lt.sampleBuffer))
