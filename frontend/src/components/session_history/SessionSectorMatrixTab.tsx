@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Zap, Gauge, Award, Layers } from 'lucide-react';
-import { TEAM_COLORS } from '../../constants/f1';
+import { TEAM_COLORS, DEFAULT_MAX_SPEED_FALLBACK_KPH } from '../../constants/f1';
+
 import { formatSectorTime } from '../../utils/formatters';
 import type { DriverStanding, ClassificationResponse } from '../../types/session';
 import { useI18n } from '../../context/I18nContext';
@@ -84,7 +85,8 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
     });
   }, [classificationData, driverStandings]);
 
-  const maxOverallSpeed = speedRankings.length > 0 ? speedRankings[0].maxSpeed : 350;
+  const maxOverallSpeed = speedRankings.length > 0 ? speedRankings[0].maxSpeed : DEFAULT_MAX_SPEED_FALLBACK_KPH;
+
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -134,8 +136,9 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
         </div>
 
         {/* Sector Component Breakdown Chips */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginTop: '1.5rem' }}>
+        <div className="sector-breakdown-grid">
           {/* Sector 1 Record */}
+
           <div className="glass-panel" style={{ padding: '0.85rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(176, 38, 255, 0.3)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-purple)' }}>{t('history.sectors.s1Record')}</span>
@@ -180,8 +183,9 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
       </div>
 
       {/* 2. SECTOR LEADERBOARD & SPEED TRAP GRID */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem' }}>
+      <div className="sector-matrix-grid">
         {/* Sector Leaderboards */}
+
         <div className="glass-panel" style={{ padding: '1.25rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
             <h4 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>

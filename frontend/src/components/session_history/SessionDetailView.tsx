@@ -114,8 +114,66 @@ export const SessionDetailView: React.FC<SessionDetailViewProps> = (props) => {
     );
   };
 
+  const renderDetailTabContent = () => {
+    switch (activeDetailTab) {
+      case 'classification':
+        return (
+          <SessionClassificationTab
+            session={session}
+            driverStandings={driverStandings}
+            isRaceSession={isRaceSession}
+            sessionBestS1={sessionBestS1}
+            sessionBestS2={sessionBestS2}
+            sessionBestS3={sessionBestS3}
+            expandedDrivers={expandedDrivers}
+            onToggleDriverExpand={onToggleDriverExpand}
+            stagedA={stagedA}
+            stagedB={stagedB}
+            onStageLap={(lap, driver, slot) => onStageLap(session, lap, driver, slot)}
+            onSendToComparator={onNavigateToComparator}
+            formatLapTime={formatLapTime}
+            formatTotalDuration={formatTotalDuration}
+            renderTyreBadge={renderTyreBadge}
+            renderDriverTyreStints={renderDriverTyreStints}
+          />
+        );
+      case 'charts':
+        return (
+          <SessionLapChartsTab
+            progressionData={progressionData}
+            driverStandings={driverStandings}
+            totalSessionLaps={totalSessionLaps}
+            formatLapTime={formatLapTime}
+            isRaceSession={isRaceSession}
+          />
+        );
+      case 'stints':
+        return (
+          <SessionStintStrategyTab
+            stintsData={stintsData}
+            driverStandings={driverStandings}
+            totalSessionLaps={totalSessionLaps}
+            formatLapTime={formatLapTime}
+            renderTyreBadge={renderTyreBadge}
+          />
+        );
+      case 'sectors':
+      default:
+        return (
+          <SessionSectorMatrixTab
+            classificationData={classificationData}
+            driverStandings={driverStandings}
+            sessionBestS1={sessionBestS1}
+            sessionBestS2={sessionBestS2}
+            sessionBestS3={sessionBestS3}
+            formatLapTime={formatLapTime}
+          />
+        );
+    }
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }} data-testid="session-detail-view">
       <SessionDetailHeader
         session={session}
         activeDetailTab={activeDetailTab}
@@ -130,8 +188,8 @@ export const SessionDetailView: React.FC<SessionDetailViewProps> = (props) => {
 
       {/* Detail Tab Contents */}
       {detailError && (
-        <div className="glass-panel" style={{ textAlign: 'center', padding: '1.5rem', borderColor: 'var(--accent-primary)' }}>
-          <p style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>{detailError}</p>
+        <div className="glass-panel" style={{ padding: '1rem', borderLeft: '4px solid var(--accent-primary)', background: 'rgba(255, 71, 87, 0.1)' }}>
+          <p style={{ margin: 0, color: '#ff4757', fontWeight: 600 }}>{detailError}</p>
         </div>
       )}
 
@@ -142,50 +200,8 @@ export const SessionDetailView: React.FC<SessionDetailViewProps> = (props) => {
             {t('history.detail.retrievingData')}
           </p>
         </div>
-      ) : activeDetailTab === 'classification' ? (
-        <SessionClassificationTab
-          session={session}
-          driverStandings={driverStandings}
-          isRaceSession={isRaceSession}
-          sessionBestS1={sessionBestS1}
-          sessionBestS2={sessionBestS2}
-          sessionBestS3={sessionBestS3}
-          expandedDrivers={expandedDrivers}
-          onToggleDriverExpand={onToggleDriverExpand}
-          stagedA={stagedA}
-          stagedB={stagedB}
-          onStageLap={(lap, driver, slot) => onStageLap(session, lap, driver, slot)}
-          onSendToComparator={onNavigateToComparator}
-          formatLapTime={formatLapTime}
-          formatTotalDuration={formatTotalDuration}
-          renderTyreBadge={renderTyreBadge}
-          renderDriverTyreStints={renderDriverTyreStints}
-        />
-      ) : activeDetailTab === 'charts' ? (
-        <SessionLapChartsTab
-          progressionData={progressionData}
-          driverStandings={driverStandings}
-          totalSessionLaps={totalSessionLaps}
-          formatLapTime={formatLapTime}
-          isRaceSession={isRaceSession}
-        />
-      ) : activeDetailTab === 'stints' ? (
-        <SessionStintStrategyTab
-          stintsData={stintsData}
-          driverStandings={driverStandings}
-          totalSessionLaps={totalSessionLaps}
-          formatLapTime={formatLapTime}
-          renderTyreBadge={renderTyreBadge}
-        />
       ) : (
-        <SessionSectorMatrixTab
-          classificationData={classificationData}
-          driverStandings={driverStandings}
-          sessionBestS1={sessionBestS1}
-          sessionBestS2={sessionBestS2}
-          sessionBestS3={sessionBestS3}
-          formatLapTime={formatLapTime}
-        />
+        renderDetailTabContent()
       )}
     </div>
   );

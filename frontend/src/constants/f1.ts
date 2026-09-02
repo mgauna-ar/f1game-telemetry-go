@@ -734,4 +734,9 @@ export const TRACK_MAP_CONSTANTS = {
   CLICK_MAX_DISTANCE: 30,
 } as const;
 
+export const MAX_ERS_STORE_ENERGY_J = 4_000_000;
+export const LEADERBOARD_COLUMN_SPLIT = 11;
+export const DEFAULT_MAX_SPEED_FALLBACK_KPH = 350;
+
+
 

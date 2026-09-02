@@ -25,8 +25,9 @@ export interface SessionTableViewProps {
   onOpenTagManager?: (session: Session) => void;
 }
 
-export const SessionTableView: React.FC<SessionTableViewProps> = (props) => {
+export const SessionTableView: React.FC<SessionTableViewProps> = React.memo((props) => {
   const { t } = useI18n();
+
   const historyData = useSessionHistoryData();
   const historyActions = useSessionHistoryActions();
 
@@ -304,4 +305,7 @@ export const SessionTableView: React.FC<SessionTableViewProps> = (props) => {
       </div>
     </div>
   );
-};
+});
+
+SessionTableView.displayName = 'SessionTableView';
+

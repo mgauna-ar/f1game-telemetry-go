@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Zap, Gauge, Target } from 'lucide-react';
 import { parseDriverName } from '../hooks/useTelemetry';
-import { TEAM_COLORS } from '../constants/f1';
+import { TEAM_COLORS, TIME_CONSTANTS } from '../constants/f1';
 import type { ParticipantData, LapData } from '../types/telemetry';
 import { useI18n } from '../context/I18nContext';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
@@ -26,9 +26,10 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((p
 
   const formatTime = (ms?: number) => {
     if (!ms || ms <= 0) return '--:--.---';
-    const mins = Math.floor(ms / 60000);
-    const secs = Math.floor((ms % 60000) / 1000);
-    const millis = ms % 1000;
+    const mins = Math.floor(ms / TIME_CONSTANTS.MS_PER_MINUTE);
+    const secs = Math.floor((ms % TIME_CONSTANTS.MS_PER_MINUTE) / TIME_CONSTANTS.MS_PER_SECOND);
+    const millis = ms % TIME_CONSTANTS.MS_PER_SECOND;
+
     if (mins > 0) {
       return `${mins}:${secs.toString().padStart(2, '0')}.${millis.toString().padStart(3, '0')}`;
     }

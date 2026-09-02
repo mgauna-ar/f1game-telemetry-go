@@ -446,3 +446,49 @@
   font-weight: 600;
 }
 
+/* Quick Select Driver Cards */
+.quick-select-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  transition: all 0.15s ease;
+}
+
+.quick-select-card[data-slot="a"] {
+  background: var(--color-slot-a-bg);
+  border-color: var(--color-slot-a-border);
+}
+
+.quick-select-card[data-slot="b"] {
+  background: var(--color-slot-b-bg);
+  border-color: var(--color-slot-b-border);
+}
+
+/* Comparator Header Sector Delta Badges */
+.comparator-sector-delta {
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.comparator-sector-delta[data-delta="faster-a"] {
+  background: var(--color-slot-a-bg);
+  color: var(--color-slot-a);
+}
+
+.comparator-sector-delta[data-delta="faster-b"] {
+  background: var(--color-slot-b-bg);
+  color: var(--color-slot-b);
+}
+
+.comparator-sector-delta[data-delta="equal"] {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+}
+
+

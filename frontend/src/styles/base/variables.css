@@ -21,6 +21,21 @@
   --border-color: hsla(0, 0%, 100%, 0.08);
   --border-highlight: hsla(0, 0%, 100%, 0.15);
 
+  /* Slot & Comparison Palette */
+  --color-slot-a: #ff4757;
+  --color-slot-a-bg: rgba(255, 71, 87, 0.08);
+  --color-slot-a-border: rgba(255, 71, 87, 0.4);
+  --color-slot-b: #00d2d3;
+  --color-slot-b-bg: rgba(0, 210, 211, 0.08);
+  --color-slot-b-border: rgba(0, 210, 211, 0.4);
+  --color-positive: #52c41a;
+  --color-negative: #ff4d4f;
+  --color-warning: #ffd700;
+  --color-sector-1: #f39c12;
+  --color-sector-2: #9b59b6;
+  --color-sector-3: #33ccff;
+
+
   --radius-sm: 8px;
   --radius-md: 16px;
   --radius-lg: 24px;

@@ -13,11 +13,36 @@ import {
   normalizeDriverStanding,
 } from '../types/session';
 
-interface UseSessionDetailProps {
+export interface UseSessionDetailProps {
   onClearStagedSlots?: () => void;
 }
 
-export function useSessionDetail({ onClearStagedSlots }: UseSessionDetailProps = {}) {
+export interface UseSessionDetailReturn {
+  selectedSession: Session | null;
+  setSelectedSession: React.Dispatch<React.SetStateAction<Session | null>>;
+
+  loadingDetail: boolean;
+  detailError: string | null;
+  classificationData: ClassificationResponse | null;
+  progressionData: ProgressionResponse | null;
+  stintsData: StintsResponse | null;
+  laps: Lap[];
+  expandedDrivers: Record<number, boolean>;
+  toggleDriverExpand: (carIndex: number) => void;
+  activeDetailTab: 'classification' | 'charts' | 'stints' | 'sectors';
+  setActiveDetailTab: (tab: 'classification' | 'charts' | 'stints' | 'sectors') => void;
+  selectSession: (session: Session) => Promise<void>;
+  driverStandings: DriverStanding[];
+  sessionBestS1: number;
+  sessionBestS2: number;
+  sessionBestS3: number;
+  isRaceSession: boolean;
+  totalSessionLaps: number;
+  totalDriversCount: number;
+}
+
+export function useSessionDetail({ onClearStagedSlots }: UseSessionDetailProps = {}): UseSessionDetailReturn {
+
   const [selectedSession, setSelectedSession] = useState<Session | null>(null);
   const [loadingDetail, setLoadingDetail] = useState<boolean>(false);
   const [detailError, setDetailError] = useState<string | null>(null);

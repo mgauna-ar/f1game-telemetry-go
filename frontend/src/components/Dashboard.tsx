@@ -11,7 +11,9 @@ import {
   getSessionTypeName,
   LIVE_VIEW_MODES,
   STORAGE_KEY_LIVE_VIEW_MODE,
+  MAX_ERS_STORE_ENERGY_J,
 } from '../constants/f1';
+
 import type { LiveViewMode } from '../constants/f1';
 import { SessionHeader } from './SessionHeader';
 import { LeaderboardTower } from './LeaderboardTower';
@@ -147,9 +149,10 @@ export const Dashboard: React.FC = () => {
     if (playerStatus) {
       const storeEnergy = playerStatus.ERSStoreEnergy;
       if (storeEnergy !== undefined) {
-        const ersPct = Math.round((storeEnergy / 4000000) * 100);
+        const ersPct = Math.round((storeEnergy / MAX_ERS_STORE_ENERGY_J) * 100);
         ersSummary = `- ERS Battery: ${ersPct}% | Deploy Mode: ${playerStatus.ERSDeployMode ?? 0}`;
       }
+
     }
 
     let fuelSummary = '';

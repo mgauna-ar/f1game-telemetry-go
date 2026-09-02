@@ -30,8 +30,9 @@ interface ClassificationRowProps {
   renderDriverTyreStints: (laps: Lap[]) => React.ReactNode;
 }
 
-export const ClassificationRow: React.FC<ClassificationRowProps> = ({
+export const ClassificationRow: React.FC<ClassificationRowProps> = React.memo(({
   session,
+
   driver,
   isLeader,
   isRaceSession,
@@ -434,4 +435,7 @@ export const ClassificationRow: React.FC<ClassificationRowProps> = ({
       )}
     </React.Fragment>
   );
-};
+});
+
+ClassificationRow.displayName = 'ClassificationRow';
+

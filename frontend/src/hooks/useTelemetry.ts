@@ -39,11 +39,38 @@ const EMPTY_TRACK_PATH: { x: number; z: number }[] = [];
 const EMPTY_MOTION: CarMotionData[] = [];
 const EMPTY_HISTORY: TelemetrySample[] = [];
 
+export interface UseTelemetryReturn {
+  session: SessionData | null;
+  participants: ParticipantData[];
+  allLaps: LapData[];
+  allMotion: CarMotionData[];
+  allCarStatus: CarStatusData[];
+  allCarDamage: CarDamageData[];
+  allTelemetry: CarTelemetryData[];
+  allTelemetry2: CarTelemetry2Data[];
+  telemetry: CarTelemetryData | null;
+  telemetry2: CarTelemetry2Data | null;
+  lap: LapData | null;
+  motion: CarMotionData | null;
+  carStatus: CarStatusData | null;
+  carDamage: CarDamageData | null;
+  trackPath: { x: number; z: number }[];
+  connected: boolean;
+  history: TelemetrySample[];
+  events: RaceEvent[];
+  clearEvents: () => void;
+  playerCarIndex: number;
+  selectedCarIndex: number;
+  setSelectedCarIndex: (index: number) => void;
+  packetFormat: number | null;
+}
+
 /**
  * @deprecated Prefer using fine-grained selectors directly from `useTelemetryDataStore` and `useSessionStatusStore`
  * to avoid triggering unnecessary component re-renders on every 10Hz telemetry update.
  */
-export function useTelemetry(wsUrl?: string) {
+export function useTelemetry(wsUrl?: string): UseTelemetryReturn {
+
   useEffect(() => {
     const disconnect = connectTelemetryWebSocket(wsUrl);
     return () => {

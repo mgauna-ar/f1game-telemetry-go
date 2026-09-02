@@ -20,41 +20,17 @@ import {
   getInitialRadioPresets,
   type RadioPresetsSlice,
 } from './slices/radioPresetsSlice';
+import type { EngineerConfig } from '../types/telemetry';
 
-export interface AIConfig {
-  chatter_cooldown_ms: number;
-  smart_discretion_enabled: boolean;
-  tyre_wear_warn_pct: number;
-  tyre_wear_crit_pct: number;
-  tyre_overheat_c: number;
-  tyre_cold_c: number;
-  wing_damage_warn_pct: number;
-  wing_damage_crit_pct: number;
-  floor_damage_warn_pct: number;
-  engine_wear_warn_pct: number;
-  ers_low_pct: number;
-  engine_overheat_c: number;
-  brake_overheat_c: number;
-  brake_cold_c: number;
-  fuel_delta_laps: number;
-  undercut_gap_sec: number;
-  rival_gap_sec: number;
-  rival_ahead_gap_sec: number;
-  qualy_clean_air_sec: number;
-  qualy_time_warn_sec: number;
-  corner_cut_warn_threshold: number;
-  rain_horizon_min: number;
-  rain_prob_pct: number;
-  enabled_categories: Record<string, boolean>;
-}
+export type AIConfig = EngineerConfig;
 
 export interface RadioSettingsState
   extends AudioSettingsSlice,
     AlertThresholdsSlice,
     TacticalSettingsSlice,
     RadioPresetsSlice {
-  aiConfig: AIConfig;
-  setAiConfig: (config: Partial<AIConfig>) => void;
+  aiConfig: EngineerConfig;
+  setAiConfig: (config: Partial<EngineerConfig>) => void;
   resetStoreToDefaults: () => void;
   syncConfigToBackend: (immediate?: boolean) => Promise<void>;
   loadConfigFromBackend: () => Promise<void>;
@@ -118,7 +94,8 @@ export function buildAIConfigFromValues(v: {
   subRain: boolean;
   subTrackLimits: boolean;
   subPenalties: boolean;
-}): AIConfig {
+}): EngineerConfig {
+
   return {
     chatter_cooldown_ms: v.chatterCooldownSeconds * 1000,
     smart_discretion_enabled: v.smartDiscretionEnabled,

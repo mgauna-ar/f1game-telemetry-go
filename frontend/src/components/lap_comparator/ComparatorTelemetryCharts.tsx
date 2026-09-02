@@ -289,14 +289,16 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
         </div>
       ) : (
         <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center' }}>
+
           <p style={{ color: 'var(--text-muted)', fontSize: '1rem', margin: 0 }}>
-            {!sessionAId
-              ? t('comparator.charts.selectSessionAndLaps')
-              : loadingA || loadingB
-              ? t('comparator.charts.loadingTelemetry')
-              : comparisonData.length > 0 && !hasAnyTelemetry
-              ? t('comparator.charts.noTelemetryBoth')
-              : t('comparator.charts.selectBothLaps')}
+            {getComparatorEmptyStateMessage(
+              sessionAId,
+              loadingA,
+              loadingB,
+              hasAnyTelemetry,
+              comparisonData.length > 0,
+              t
+            )}
           </p>
         </div>
       )}
@@ -304,4 +306,26 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
   );
 });
 
+const getComparatorEmptyStateMessage = (
+  sessionAId: number | '',
+
+  loadingA: boolean,
+  loadingB: boolean,
+  hasAnyTelemetry: boolean,
+  hasComparisonData: boolean,
+  t: (key: string) => string
+): string => {
+  if (!sessionAId) {
+    return t('comparator.charts.selectSessionAndLaps');
+  }
+  if (loadingA || loadingB) {
+    return t('comparator.charts.loadingTelemetry');
+  }
+  if (hasComparisonData && !hasAnyTelemetry) {
+    return t('comparator.charts.noTelemetryBoth');
+  }
+  return t('comparator.charts.selectBothLaps');
+};
+
 ComparatorTelemetryCharts.displayName = 'ComparatorTelemetryCharts';
+

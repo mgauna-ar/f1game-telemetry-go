@@ -303,3 +303,18 @@
   border: 1px solid rgba(51, 255, 119, 0.35);
   font-weight: 600;
 }
+
+/* Sector Matrix Grid Layouts */
+.sector-breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.sector-matrix-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 1.5rem;
+}
+

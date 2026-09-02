@@ -155,6 +155,13 @@ export const useRaceEngineerStream = (): RaceEngineerStreamContextValue => {
   return context;
 };
 
+/**
+ * @warning Convenience hook combining action and stream contexts.
+ * Because `useRaceEngineerStream` updates on every streaming token received from the LLM,
+ * consuming this hook causes the host component to re-render on every token chunk.
+ * For optimal render performance, prefer `useRaceEngineerActions()` for action callbacks
+ * and `useRaceEngineerStream()` only where live streaming state is actively rendered.
+ */
 export const useRaceEngineer = (): RaceEngineerContextValue => {
   const actions = useRaceEngineerActions();
   const stream = useRaceEngineerStream();
@@ -163,3 +170,4 @@ export const useRaceEngineer = (): RaceEngineerContextValue => {
     ...stream,
   };
 };
+

@@ -13,6 +13,17 @@ interface UseComparatorSlotsProps {
   isLinkedSessions: boolean;
 }
 
+export interface UseComparatorSlotsReturn {
+  isQuickSelectOpen: boolean;
+  setIsQuickSelectOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  driverSearchQuery: string;
+  setDriverSearchQuery: React.Dispatch<React.SetStateAction<string>>;
+  quickSelectSessionTab: 'ALL' | 'A' | 'B';
+  setQuickSelectSessionTab: React.Dispatch<React.SetStateAction<'ALL' | 'A' | 'B'>>;
+  handleSwapSlots: () => void;
+  handleClearSelections: () => void;
+}
+
 export function useComparatorSlots({
   sessionAId,
   setSessionAId,
@@ -23,7 +34,8 @@ export function useComparatorSlots({
   lapBId,
   setLapBId,
   isLinkedSessions,
-}: UseComparatorSlotsProps) {
+}: UseComparatorSlotsProps): UseComparatorSlotsReturn {
+
   // Quick Select Leaderboard State
   const [isQuickSelectOpen, setIsQuickSelectOpen] = useState<boolean>(() => {
     return storage.get<boolean>('f1_comparator_quick_select_open', true);
