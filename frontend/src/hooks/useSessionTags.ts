@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import type { Session, Tag } from '../types/session';
 import { api } from '../utils/apiClient';
+import { useToastStore } from '../store/useToastStore';
 
 export interface UseSessionTagsOptions {
   sessions: Session[];
@@ -58,8 +59,11 @@ export function useSessionTags({
           setSessionToManageTags((prev) => (prev ? { ...prev, tags: updatedTags } : null));
         }
         await fetchTags();
-      } catch {
-        // Handled silently
+      } catch (err: unknown) {
+        useToastStore.getState().showToast({
+          type: 'error',
+          message: err instanceof Error ? err.message : 'Failed to add tag',
+        });
       }
     },
     [selectedSession, sessionToManageTags, setSessions, setSelectedSession, fetchTags]
@@ -79,8 +83,11 @@ export function useSessionTags({
         if (sessionToManageTags && sessionToManageTags.id === sessionId) {
           setSessionToManageTags((prev) => (prev ? { ...prev, tags: updatedTags } : null));
         }
-      } catch {
-        // Handled silently
+      } catch (err: unknown) {
+        useToastStore.getState().showToast({
+          type: 'error',
+          message: err instanceof Error ? err.message : 'Failed to remove tag',
+        });
       }
     },
     [selectedSession, sessionToManageTags, setSessions, setSelectedSession]
@@ -111,8 +118,11 @@ export function useSessionTags({
         if (selectedTagId === tagId) {
           setSelectedTagId(null);
         }
-      } catch {
-        // Handled silently
+      } catch (err: unknown) {
+        useToastStore.getState().showToast({
+          type: 'error',
+          message: err instanceof Error ? err.message : 'Failed to delete tag',
+        });
       }
     },
     [selectedSession, sessionToManageTags, selectedTagId, setSessions, setSelectedSession]

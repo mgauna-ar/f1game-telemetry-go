@@ -2,6 +2,7 @@ import React from 'react';
 import { ShieldAlert } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
 import { SubsystemAccordion } from '../SubsystemAccordion';
+import { ThresholdSlider } from '../ThresholdSlider';
 import { useRadioSettingsStore } from '../../../store/useRadioSettingsStore';
 
 interface DamageAccordionProps {
@@ -100,69 +101,42 @@ export const DamageAccordion: React.FC<DamageAccordionProps> = ({
       </div>
 
       <div className="radio-ptt-grid">
-        <div className="radio-ptt-box">
-          <div className="radio-ptt-box-header">
-            <span>{t('ai_engineer.proactiveAlerts.wingDamageThreshold')}</span>
-            <span className="radio-badge-val">{wingDamageWarnPct}%</span>
-          </div>
-          <input
-            type="range"
-            min={5}
-            max={50}
-            step={5}
-            value={wingDamageWarnPct}
-            onChange={(e) => setWingDamageWarnPct(parseInt(e.target.value, 10))}
-            className="radio-slider-input"
-          />
-        </div>
-
-        <div className="radio-ptt-box">
-          <div className="radio-ptt-box-header">
-            <span>{t('ai_engineer.proactiveAlerts.floorDamageThreshold')}</span>
-            <span className="radio-badge-val">{floorDamageWarnPct}%</span>
-          </div>
-          <input
-            type="range"
-            min={10}
-            max={60}
-            step={5}
-            value={floorDamageWarnPct}
-            onChange={(e) => setFloorDamageWarnPct(parseInt(e.target.value, 10))}
-            className="radio-slider-input"
-          />
-        </div>
-
-        <div className="radio-ptt-box">
-          <div className="radio-ptt-box-header">
-            <span>{t('ai_engineer.proactiveAlerts.engineWearThreshold')}</span>
-            <span className="radio-badge-val">{engineWearWarnPct}%</span>
-          </div>
-          <input
-            type="range"
-            min={40}
-            max={90}
-            step={5}
-            value={engineWearWarnPct}
-            onChange={(e) => setEngineWearWarnPct(parseInt(e.target.value, 10))}
-            className="radio-slider-input"
-          />
-        </div>
-
-        <div className="radio-ptt-box">
-          <div className="radio-ptt-box-header">
-            <span>{t('ai_engineer.proactiveAlerts.engineOverheatTemp')}</span>
-            <span className="radio-badge-val">{engineOverheatC}°C</span>
-          </div>
-          <input
-            type="range"
-            min={105}
-            max={145}
-            step={5}
-            value={engineOverheatC}
-            onChange={(e) => setEngineOverheatC(parseInt(e.target.value, 10))}
-            className="radio-slider-input"
-          />
-        </div>
+        <ThresholdSlider
+          label={t('ai_engineer.proactiveAlerts.wingDamageThreshold')}
+          value={wingDamageWarnPct}
+          unit="%"
+          min={5}
+          max={50}
+          step={5}
+          onChange={setWingDamageWarnPct}
+        />
+        <ThresholdSlider
+          label={t('ai_engineer.proactiveAlerts.floorDamageThreshold')}
+          value={floorDamageWarnPct}
+          unit="%"
+          min={10}
+          max={60}
+          step={5}
+          onChange={setFloorDamageWarnPct}
+        />
+        <ThresholdSlider
+          label={t('ai_engineer.proactiveAlerts.engineWearThreshold')}
+          value={engineWearWarnPct}
+          unit="%"
+          min={40}
+          max={90}
+          step={5}
+          onChange={setEngineWearWarnPct}
+        />
+        <ThresholdSlider
+          label={t('ai_engineer.proactiveAlerts.engineOverheatTemp')}
+          value={engineOverheatC}
+          unit="°C"
+          min={105}
+          max={145}
+          step={5}
+          onChange={setEngineOverheatC}
+        />
       </div>
     </SubsystemAccordion>
   );

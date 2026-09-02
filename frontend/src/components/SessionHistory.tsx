@@ -4,8 +4,6 @@ import {
   Flag,
   ArrowLeft,
   RefreshCw,
-  AlertTriangle,
-  CheckCircle,
 } from 'lucide-react';
 import { SessionTableView } from './session_history/SessionTableView';
 import { SessionDetailView } from './session_history/SessionDetailView';
@@ -16,6 +14,7 @@ import { BatchTagModal } from './session_history/BatchTagModal';
 import { TagManagerModal } from './session_history/TagManagerModal';
 import { SessionComparatorDock } from './session_history/SessionComparatorDock';
 import { SessionBatchDock } from './session_history/SessionBatchDock';
+import { StandaloneToastContainer } from './common/ToastContainer';
 
 import { useI18n } from '../context/I18nContext';
 import {
@@ -58,7 +57,6 @@ const SessionHistoryContent: React.FC = () => {
     selectedSessionIds,
     showBatchDeleteModal,
     showBatchTagModal,
-    toastMessage,
   } = useSessionHistoryData();
 
   const {
@@ -202,37 +200,7 @@ const SessionHistoryContent: React.FC = () => {
         onClose={() => setSessionToManageTags(null)}
       />
 
-      {/* TOAST NOTIFICATION */}
-      {toastMessage && (
-        <div
-          style={{
-            position: 'fixed',
-            bottom: '2rem',
-            left: '2rem',
-            zIndex: 1000,
-            background:
-              toastMessage.type === 'success'
-                ? 'rgba(16, 185, 129, 0.95)'
-                : toastMessage.type === 'info'
-                ? 'rgba(0, 242, 254, 0.95)'
-                : 'rgba(239, 68, 68, 0.95)',
-            color: toastMessage.type === 'info' ? '#000' : '#fff',
-            padding: '0.75rem 1.25rem',
-            borderRadius: 'var(--radius-md)',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-            backdropFilter: 'blur(8px)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            fontSize: '0.9rem',
-            fontWeight: 600,
-            animation: 'fadeIn 0.2s ease-in-out',
-          }}
-        >
-          {toastMessage.type === 'error' ? <AlertTriangle size={18} /> : <CheckCircle size={18} />}
-          <span>{toastMessage.text}</span>
-        </div>
-      )}
+      <StandaloneToastContainer />
     </div>
   );
 };

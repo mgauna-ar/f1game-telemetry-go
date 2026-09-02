@@ -9,6 +9,7 @@ import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
 import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
 import { api } from '../utils/apiClient';
 import { storage } from '../utils/storage';
+import { readSSEStream } from '../utils/sseUtils';
 import { useSpeechRecognition } from './useSpeechRecognition';
 import { useTTSPlayback } from './useTTSPlayback';
 
@@ -249,36 +250,7 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
         throw new Error(`AI Service returned status ${response.status}`);
       }
 
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let fullReply = '';
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n');
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const data = line.slice(6);
-              if (data === '[DONE]') continue;
-              try {
-                const parsed = JSON.parse(data);
-                const chunkText =
-                  parsed.text ??
-                  parsed.content ??
-                  parsed.delta?.content ??
-                  parsed.candidates?.[0]?.content?.parts?.[0]?.text ??
-                  '';
-                fullReply += chunkText;
-              } catch {
-                fullReply += data;
-              }
-            }
-          }
-        }
-      }
+      const fullReply = await readSSEStream(response);
 
       if (fullReply.trim()) {
         if (onResponseReceivedRef.current) {

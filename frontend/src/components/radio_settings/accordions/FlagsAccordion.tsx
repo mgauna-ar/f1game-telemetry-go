@@ -2,6 +2,7 @@ import React from 'react';
 import { Flag } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
 import { SubsystemAccordion } from '../SubsystemAccordion';
+import { ThresholdSlider } from '../ThresholdSlider';
 import { useRadioSettingsStore } from '../../../store/useRadioSettingsStore';
 
 interface FlagsAccordionProps {
@@ -98,53 +99,32 @@ export const FlagsAccordion: React.FC<FlagsAccordionProps> = ({
       </div>
 
       <div className="radio-ptt-grid">
-        <div className="radio-ptt-box">
-          <div className="radio-ptt-box-header">
-            <span>{t('ai_engineer.proactiveAlerts.cornerCutLimit')}</span>
-            <span className="radio-badge-val">{cornerCutWarnThreshold}</span>
-          </div>
-          <input
-            type="range"
-            min={1}
-            max={3}
-            step={1}
-            value={cornerCutWarnThreshold}
-            onChange={(e) => setCornerCutWarnThreshold(parseInt(e.target.value, 10))}
-            className="radio-slider-input"
-          />
-        </div>
-
-        <div className="radio-ptt-box">
-          <div className="radio-ptt-box-header">
-            <span>{t('ai_engineer.proactiveAlerts.rainHorizon')}</span>
-            <span className="radio-badge-val">{rainHorizonMin} min</span>
-          </div>
-          <input
-            type="range"
-            min={5}
-            max={30}
-            step={5}
-            value={rainHorizonMin}
-            onChange={(e) => setRainHorizonMin(parseInt(e.target.value, 10))}
-            className="radio-slider-input"
-          />
-        </div>
-
-        <div className="radio-ptt-box">
-          <div className="radio-ptt-box-header">
-            <span>{t('ai_engineer.proactiveAlerts.rainProbability')}</span>
-            <span className="radio-badge-val">{rainProbPct}%</span>
-          </div>
-          <input
-            type="range"
-            min={20}
-            max={80}
-            step={5}
-            value={rainProbPct}
-            onChange={(e) => setRainProbPct(parseInt(e.target.value, 10))}
-            className="radio-slider-input"
-          />
-        </div>
+        <ThresholdSlider
+          label={t('ai_engineer.proactiveAlerts.cornerCutLimit')}
+          value={cornerCutWarnThreshold}
+          min={1}
+          max={3}
+          step={1}
+          onChange={setCornerCutWarnThreshold}
+        />
+        <ThresholdSlider
+          label={t('ai_engineer.proactiveAlerts.rainHorizon')}
+          value={rainHorizonMin}
+          unit=" min"
+          min={5}
+          max={30}
+          step={5}
+          onChange={setRainHorizonMin}
+        />
+        <ThresholdSlider
+          label={t('ai_engineer.proactiveAlerts.rainProbability')}
+          value={rainProbPct}
+          unit="%"
+          min={20}
+          max={80}
+          step={5}
+          onChange={setRainProbPct}
+        />
       </div>
     </SubsystemAccordion>
   );

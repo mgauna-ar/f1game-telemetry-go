@@ -3,6 +3,7 @@ import { Zap, Search, X, ChevronDown, ChevronUp, Activity, Clock } from 'lucide-
 import type { Participant, Lap } from '../../types/session';
 import { TEAM_COLORS } from '../../constants/f1';
 import { formatTime, getRankBadgeStyle } from '../../utils/formatters';
+import { sortLapsByQuality } from '../../utils/lapUtils';
 import { TyreCompoundBadge } from '../common/TyreCompoundBadge';
 import { useI18n } from '../../context/I18nContext';
 
@@ -476,18 +477,7 @@ export const QuickSelectLeaderboard: React.FC<QuickSelectLeaderboardProps> = ({
                           <button
                             type="button"
                             onClick={() => {
-                              const targetLaps = lapsA;
-                              const driverLaps = targetLaps
-                                .filter((l) => (l.car_index ?? -1) === p.car_index && l.lap_time_ms > 0 && (l.is_valid || (l.sector1_ms ?? 0) > 0))
-                                .sort((a, b) => {
-                                  const aValid = a.is_valid ? 1 : 0;
-                                  const bValid = b.is_valid ? 1 : 0;
-                                  if (aValid !== bValid) return bValid - aValid;
-                                  if (a.lap_time_ms !== b.lap_time_ms) return a.lap_time_ms - b.lap_time_ms;
-                                  const scoreA = (a.has_telemetry ? 10 : 0) + ((a.sector1_ms ?? 0) > 0 ? 5 : 0);
-                                  const scoreB = (b.has_telemetry ? 10 : 0) + ((b.sector1_ms ?? 0) > 0 ? 5 : 0);
-                                  return scoreB - scoreA;
-                                });
+                              const driverLaps = sortLapsByQuality(lapsA.filter((l) => (l.car_index ?? -1) === p.car_index));
                               if (driverLaps.length > 0) onSetLapA(driverLaps[0].id);
                             }}
                             style={{
@@ -509,18 +499,7 @@ export const QuickSelectLeaderboard: React.FC<QuickSelectLeaderboardProps> = ({
                         <button
                           type="button"
                           onClick={() => {
-                            const targetLaps = lapsB;
-                            const driverLaps = targetLaps
-                              .filter((l) => (l.car_index ?? -1) === p.car_index && l.lap_time_ms > 0 && (l.is_valid || (l.sector1_ms ?? 0) > 0))
-                              .sort((a, b) => {
-                                const aValid = a.is_valid ? 1 : 0;
-                                const bValid = b.is_valid ? 1 : 0;
-                                if (aValid !== bValid) return bValid - aValid;
-                                if (a.lap_time_ms !== b.lap_time_ms) return a.lap_time_ms - b.lap_time_ms;
-                                const scoreA = (a.has_telemetry ? 10 : 0) + ((a.sector1_ms ?? 0) > 0 ? 5 : 0);
-                                const scoreB = (b.has_telemetry ? 10 : 0) + ((b.sector1_ms ?? 0) > 0 ? 5 : 0);
-                                return scoreB - scoreA;
-                              });
+                            const driverLaps = sortLapsByQuality(lapsB.filter((l) => (l.car_index ?? -1) === p.car_index));
                             if (driverLaps.length > 0) onSetLapB(driverLaps[0].id);
                           }}
                           style={{

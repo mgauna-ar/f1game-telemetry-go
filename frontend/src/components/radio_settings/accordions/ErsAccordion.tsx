@@ -2,6 +2,7 @@ import React from 'react';
 import { Zap } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
 import { SubsystemAccordion } from '../SubsystemAccordion';
+import { ThresholdSlider } from '../ThresholdSlider';
 import { useRadioSettingsStore } from '../../../store/useRadioSettingsStore';
 
 interface ErsAccordionProps {
@@ -50,21 +51,15 @@ export const ErsAccordion: React.FC<ErsAccordionProps> = ({
       </div>
 
       <div className="radio-ptt-grid">
-        <div className="radio-ptt-box">
-          <div className="radio-ptt-box-header">
-            <span>{t('ai_engineer.proactiveAlerts.ersLowThreshold')}</span>
-            <span className="radio-badge-val">{ersLowPct}%</span>
-          </div>
-          <input
-            type="range"
-            min={5}
-            max={40}
-            step={5}
-            value={ersLowPct}
-            onChange={(e) => setErsLowPct(parseInt(e.target.value, 10))}
-            className="radio-slider-input"
-          />
-        </div>
+        <ThresholdSlider
+          label={t('ai_engineer.proactiveAlerts.ersLowThreshold')}
+          value={ersLowPct}
+          unit="%"
+          min={5}
+          max={40}
+          step={5}
+          onChange={setErsLowPct}
+        />
       </div>
     </SubsystemAccordion>
   );

@@ -9,6 +9,7 @@ import { TyreCompoundBadge } from '../common/TyreCompoundBadge';
 import { useI18n } from '../../context/I18nContext';
 import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContext';
 import { formatLapTime, formatTotalDuration } from '../../utils/formatters';
+import { groupLapsIntoStints } from '../../utils/lapUtils';
 import type {
   Session,
   Lap,
@@ -91,32 +92,7 @@ export const SessionDetailView: React.FC<SessionDetailViewProps> = (props) => {
       return <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>-</span>;
     }
 
-    const sortedLaps = [...driverLaps].sort((a, b) => a.lap_number - b.lap_number);
-    const stints: { compound: string; actualCompound?: string; count: number; stintId: number }[] = [];
-    let currentStint: { compound: string; actualCompound?: string; count: number; stintId: number } | null = null;
-
-    sortedLaps.forEach((lap) => {
-      const raw = lap.tyre_compound?.trim();
-      if (!raw) return;
-
-      const lapStint = lap.stint && lap.stint > 0 ? lap.stint : 0;
-
-      const isNewStint =
-        !currentStint ||
-        (lapStint > 0 && currentStint.stintId > 0 && lapStint !== currentStint.stintId) ||
-        currentStint.compound.toUpperCase() !== raw.toUpperCase();
-
-      if (isNewStint || !currentStint) {
-        currentStint = { compound: raw, actualCompound: lap.actual_compound, count: 1, stintId: lapStint };
-        stints.push(currentStint);
-      } else {
-        currentStint.count += 1;
-        if (!currentStint.actualCompound && lap.actual_compound) {
-          currentStint.actualCompound = lap.actual_compound;
-        }
-      }
-    });
-
+    const stints = groupLapsIntoStints(driverLaps);
     if (stints.length === 0) {
       return <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>-</span>;
     }

@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import type { Session } from '../types/session';
-import { getTrackInfo } from '../constants/f1';
 import { useI18n } from '../context/I18nContext';
+import { matchSessionSearch } from '../utils/sessionFilterUtils';
 
 export interface UseSessionFiltersOptions {
   sessions: Session[];
@@ -57,25 +57,8 @@ export function useSessionFilters({
 
   // Session filtering and sorting logic
   const filteredSessions = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-
     const list = sessions.filter((s) => {
-      const trackInfo = getTrackInfo(s.track_name);
-      const localizedCountry = trackInfo ? t(`common.countries.${trackInfo.countryCode}`) : '';
-      const countryMatches =
-        trackInfo &&
-        (trackInfo.countryIso3.toLowerCase().includes(query) ||
-          trackInfo.countryCode.toLowerCase().includes(query) ||
-          (typeof localizedCountry === 'string' && localizedCountry.toLowerCase().includes(query)) ||
-          (trackInfo.aliases && trackInfo.aliases.some((a) => a.toLowerCase().includes(query))));
-
-      const matchesSearch =
-        !query ||
-        s.track_name?.toLowerCase().includes(query) ||
-        Boolean(countryMatches) ||
-        s.session_type?.toLowerCase().includes(query) ||
-        String(s.id).includes(query) ||
-        (s.tags && s.tags.some((t) => t.name.toLowerCase().includes(query)));
+      const matchesSearch = matchSessionSearch(s, searchQuery, t);
 
       const matchesType =
         sessionTypeFilter === 'ALL' ||

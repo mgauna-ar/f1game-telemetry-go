@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { api } from '../utils/apiClient';
 import { formatLapTime } from '../utils/formatters';
+import { groupLapsIntoStints, formatStintsText } from '../utils/lapUtils';
 import { useRaceEngineerActions } from '../context/RaceEngineerContext';
 import {
   type Session,
@@ -66,6 +67,14 @@ export function useSessionDetail({ onClearStagedSlots }: UseSessionDetailProps =
       const stintsDataRes = stintsRes.status === 'fulfilled' ? stintsRes.value : null;
       const lapsData = lapsRes.status === 'fulfilled' ? lapsRes.value : [];
 
+      const rejectedReasons = [classRes, progRes, stintsRes, lapsRes]
+        .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
+        .map((r) => (r.reason instanceof Error ? r.reason.message : String(r.reason)));
+
+      if (rejectedReasons.length > 0 && !classData && lapsData.length === 0) {
+        setDetailError(rejectedReasons[0] || 'Error fetching session details');
+      }
+
       const normalizedLaps: Lap[] = (lapsData || []).map((l: Lap) => {
         let s3 = l.sector3_ms || 0;
         if (s3 <= 0 && l.lap_time_ms > 0 && l.sector1_ms && l.sector1_ms > 0 && l.sector2_ms && l.sector2_ms > 0) {
@@ -114,30 +123,7 @@ export function useSessionDetail({ onClearStagedSlots }: UseSessionDetailProps =
 
   // Helper to format tyre stints for debrief
   const getStintsText = (driverLaps: Lap[]) => {
-    if (!driverLaps || driverLaps.length === 0) return 'No stint data';
-    const sortedLaps = [...driverLaps].sort((a, b) => a.lap_number - b.lap_number);
-    const stints: { compound: string; count: number; stintId: number }[] = [];
-    let currentStint: { compound: string; count: number; stintId: number } | null = null;
-
-    sortedLaps.forEach((lap) => {
-      const raw = lap.tyre_compound?.trim();
-      if (!raw) return;
-      const lapStint = lap.stint && lap.stint > 0 ? lap.stint : 0;
-      const isNewStint =
-        !currentStint ||
-        (lapStint > 0 && currentStint.stintId > 0 && lapStint !== currentStint.stintId) ||
-        currentStint.compound.toUpperCase() !== raw.toUpperCase();
-
-      if (isNewStint || !currentStint) {
-        currentStint = { compound: raw, count: 1, stintId: lapStint };
-        stints.push(currentStint);
-      } else {
-        currentStint.count += 1;
-      }
-    });
-
-    if (stints.length === 0) return 'Unknown';
-    return stints.map((s) => `${s.compound} (${s.count}L)`).join(' ➔ ');
+    return formatStintsText(groupLapsIntoStints(driverLaps));
   };
 
   // Sync Session Debrief context to global AI Race Engineer

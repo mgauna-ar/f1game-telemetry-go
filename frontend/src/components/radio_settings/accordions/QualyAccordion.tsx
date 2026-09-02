@@ -2,6 +2,7 @@ import React from 'react';
 import { Timer } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
 import { SubsystemAccordion } from '../SubsystemAccordion';
+import { ThresholdSlider } from '../ThresholdSlider';
 import { useRadioSettingsStore } from '../../../store/useRadioSettingsStore';
 
 interface QualyAccordionProps {
@@ -83,21 +84,16 @@ export const QualyAccordion: React.FC<QualyAccordionProps> = ({
       </div>
 
       <div className="radio-ptt-grid">
-        <div className="radio-ptt-box">
-          <div className="radio-ptt-box-header">
-            <span>{t('ai_engineer.proactiveAlerts.qualyCleanAirGap')}</span>
-            <span className="radio-badge-val">{qualyCleanAirSec.toFixed(1)}s</span>
-          </div>
-          <input
-            type="range"
-            min={1.5}
-            max={7.0}
-            step={0.5}
-            value={qualyCleanAirSec}
-            onChange={(e) => setQualyCleanAirSec(parseFloat(e.target.value))}
-            className="radio-slider-input"
-          />
-        </div>
+        <ThresholdSlider
+          label={t('ai_engineer.proactiveAlerts.qualyCleanAirGap')}
+          value={qualyCleanAirSec}
+          unit="s"
+          min={1.5}
+          max={7.0}
+          step={0.5}
+          formatValue={(v) => `${v.toFixed(1)}s`}
+          onChange={setQualyCleanAirSec}
+        />
       </div>
     </SubsystemAccordion>
   );

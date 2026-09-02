@@ -1,6 +1,6 @@
 import React from 'react';
 
-interface ThresholdSliderProps {
+export interface ThresholdSliderProps {
   label: string;
   value: number;
   unit?: string;
@@ -10,6 +10,7 @@ interface ThresholdSliderProps {
   step?: number;
   onChange: (val: number) => void;
   description?: string;
+  formatValue?: (val: number) => string;
 }
 
 export const ThresholdSlider: React.FC<ThresholdSliderProps> = ({
@@ -22,14 +23,22 @@ export const ThresholdSlider: React.FC<ThresholdSliderProps> = ({
   step = 1,
   onChange,
   description,
+  formatValue,
 }) => {
+  const displayVal = formatValue ? formatValue(value) : `${prefix}${value}${unit}`;
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value;
+    const isFloat = (step && step % 1 !== 0) || raw.includes('.');
+    const parsed = isFloat ? parseFloat(raw) : parseInt(raw, 10);
+    onChange(Number.isFinite(parsed) ? parsed : 0);
+  };
+
   return (
-    <div className="radio-slider-box" style={{ flexDirection: 'column', alignItems: 'stretch', gap: '4px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: '0.74rem', color: 'var(--text-primary)' }}>{label}</span>
-        <span className="radio-badge-val" style={{ minWidth: '45px', textAlign: 'right' }}>
-          {prefix}{value}{unit}
-        </span>
+    <div className="radio-ptt-box">
+      <div className="radio-ptt-box-header">
+        <span>{label}</span>
+        <span className="radio-badge-val">{displayVal}</span>
       </div>
       <input
         type="range"
@@ -37,7 +46,7 @@ export const ThresholdSlider: React.FC<ThresholdSliderProps> = ({
         max={max}
         step={step}
         value={value}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
+        onChange={handleChange}
         className="radio-slider-input"
       />
       {description && (

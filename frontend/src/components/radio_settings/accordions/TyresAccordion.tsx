@@ -2,6 +2,7 @@ import React from 'react';
 import { Gauge } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
 import { SubsystemAccordion } from '../SubsystemAccordion';
+import { ThresholdSlider } from '../ThresholdSlider';
 import { useRadioSettingsStore } from '../../../store/useRadioSettingsStore';
 
 interface TyresAccordionProps {
@@ -89,69 +90,42 @@ export const TyresAccordion: React.FC<TyresAccordionProps> = ({
       </div>
 
       <div className="radio-ptt-grid">
-        <div className="radio-ptt-box">
-          <div className="radio-ptt-box-header">
-            <span>{t('ai_engineer.proactiveAlerts.tyreWearWarnThreshold')}</span>
-            <span className="radio-badge-val">{tyreWearWarningPct}%</span>
-          </div>
-          <input
-            type="range"
-            min={20}
-            max={80}
-            step={5}
-            value={tyreWearWarningPct}
-            onChange={(e) => setTyreWearWarningPct(parseInt(e.target.value, 10))}
-            className="radio-slider-input"
-          />
-        </div>
-
-        <div className="radio-ptt-box">
-          <div className="radio-ptt-box-header">
-            <span>{t('ai_engineer.proactiveAlerts.tyreWearCritThreshold')}</span>
-            <span className="radio-badge-val">{tyreWearCriticalPct}%</span>
-          </div>
-          <input
-            type="range"
-            min={50}
-            max={95}
-            step={5}
-            value={tyreWearCriticalPct}
-            onChange={(e) => setTyreWearCriticalPct(parseInt(e.target.value, 10))}
-            className="radio-slider-input"
-          />
-        </div>
-
-        <div className="radio-ptt-box">
-          <div className="radio-ptt-box-header">
-            <span>{t('ai_engineer.proactiveAlerts.tyreOverheatTemp')}</span>
-            <span className="radio-badge-val">{tyreOverheatC}°C</span>
-          </div>
-          <input
-            type="range"
-            min={90}
-            max={140}
-            step={5}
-            value={tyreOverheatC}
-            onChange={(e) => setTyreOverheatC(parseInt(e.target.value, 10))}
-            className="radio-slider-input"
-          />
-        </div>
-
-        <div className="radio-ptt-box">
-          <div className="radio-ptt-box-header">
-            <span>{t('ai_engineer.proactiveAlerts.tyreColdTemp')}</span>
-            <span className="radio-badge-val">{tyreColdC}°C</span>
-          </div>
-          <input
-            type="range"
-            min={50}
-            max={100}
-            step={5}
-            value={tyreColdC}
-            onChange={(e) => setTyreColdC(parseInt(e.target.value, 10))}
-            className="radio-slider-input"
-          />
-        </div>
+        <ThresholdSlider
+          label={t('ai_engineer.proactiveAlerts.tyreWearWarnThreshold')}
+          value={tyreWearWarningPct}
+          unit="%"
+          min={20}
+          max={80}
+          step={5}
+          onChange={setTyreWearWarningPct}
+        />
+        <ThresholdSlider
+          label={t('ai_engineer.proactiveAlerts.tyreWearCritThreshold')}
+          value={tyreWearCriticalPct}
+          unit="%"
+          min={50}
+          max={95}
+          step={5}
+          onChange={setTyreWearCriticalPct}
+        />
+        <ThresholdSlider
+          label={t('ai_engineer.proactiveAlerts.tyreOverheatTemp')}
+          value={tyreOverheatC}
+          unit="°C"
+          min={90}
+          max={140}
+          step={5}
+          onChange={setTyreOverheatC}
+        />
+        <ThresholdSlider
+          label={t('ai_engineer.proactiveAlerts.tyreColdTemp')}
+          value={tyreColdC}
+          unit="°C"
+          min={50}
+          max={100}
+          step={5}
+          onChange={setTyreColdC}
+        />
       </div>
     </SubsystemAccordion>
   );

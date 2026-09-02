@@ -3,6 +3,7 @@ import type { Session } from '../types/session';
 import { useI18n } from '../context/I18nContext';
 import { api } from '../utils/apiClient';
 import { useSessionListStore } from '../store/useSessionListStore';
+import { useToastStore } from '../store/useToastStore';
 
 export interface UseBatchOperationsOptions {
   sessions: Session[];
@@ -49,6 +50,10 @@ export function useBatchOperations({
 
   useEffect(() => {
     if (toastMessage) {
+      useToastStore.getState().showToast({
+        type: toastMessage.type,
+        message: toastMessage.text,
+      });
       const timer = setTimeout(() => setToastMessage(null), 4000);
       return () => clearTimeout(timer);
     }

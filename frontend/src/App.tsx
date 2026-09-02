@@ -8,6 +8,8 @@ import { useI18n } from './context/I18nContext';
 import { AiRaceEngineer } from './components/AiRaceEngineer';
 import { LanguageSelector } from './components/LanguageSelector';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
+import { ToastContainer } from './components/common/ToastContainer';
+import { ToastContext } from './context/ToastContext';
 import { api } from './utils/apiClient';
 import { storage } from './utils/storage';
 import { useRadioSettingsStore } from './store/useRadioSettingsStore';
@@ -251,6 +253,9 @@ function AppContent() {
         )}
       </Suspense>
 
+      {/* Global Toast Notifications */}
+      <ToastContainer />
+
       {/* Global Persistent Floating AI Race Engineer (Non-modal bottom-right widget) */}
       <ErrorBoundary level="widget">
         <AiRaceEngineer />
@@ -264,7 +269,9 @@ function App() {
     <I18nProvider>
       <RaceEngineerProvider>
         <ErrorBoundary level="root">
-          <AppContent />
+          <ToastContext.Provider value={true}>
+            <AppContent />
+          </ToastContext.Provider>
         </ErrorBoundary>
       </RaceEngineerProvider>
     </I18nProvider>

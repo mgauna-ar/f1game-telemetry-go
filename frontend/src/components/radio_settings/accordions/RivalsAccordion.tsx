@@ -2,6 +2,7 @@ import React from 'react';
 import { Activity } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
 import { SubsystemAccordion } from '../SubsystemAccordion';
+import { ThresholdSlider } from '../ThresholdSlider';
 import { useRadioSettingsStore } from '../../../store/useRadioSettingsStore';
 
 interface RivalsAccordionProps {
@@ -87,53 +88,36 @@ export const RivalsAccordion: React.FC<RivalsAccordionProps> = ({
       </div>
 
       <div className="radio-ptt-grid">
-        <div className="radio-ptt-box">
-          <div className="radio-ptt-box-header">
-            <span>{t('ai_engineer.proactiveAlerts.undercutGapThreshold')}</span>
-            <span className="radio-badge-val">{undercutGapSec.toFixed(1)}s</span>
-          </div>
-          <input
-            type="range"
-            min={1.0}
-            max={5.0}
-            step={0.5}
-            value={undercutGapSec}
-            onChange={(e) => setUndercutGapSec(parseFloat(e.target.value))}
-            className="radio-slider-input"
-          />
-        </div>
-
-        <div className="radio-ptt-box">
-          <div className="radio-ptt-box-header">
-            <span>{t('ai_engineer.proactiveAlerts.rivalDefendGap')}</span>
-            <span className="radio-badge-val">{rivalGapThresholdSec.toFixed(1)}s</span>
-          </div>
-          <input
-            type="range"
-            min={0.5}
-            max={3.0}
-            step={0.1}
-            value={rivalGapThresholdSec}
-            onChange={(e) => setRivalGapThresholdSec(parseFloat(e.target.value))}
-            className="radio-slider-input"
-          />
-        </div>
-
-        <div className="radio-ptt-box">
-          <div className="radio-ptt-box-header">
-            <span>{t('ai_engineer.proactiveAlerts.rivalAttackGap')}</span>
-            <span className="radio-badge-val">{rivalAheadGapSec.toFixed(1)}s</span>
-          </div>
-          <input
-            type="range"
-            min={0.5}
-            max={3.0}
-            step={0.1}
-            value={rivalAheadGapSec}
-            onChange={(e) => setRivalAheadGapSec(parseFloat(e.target.value))}
-            className="radio-slider-input"
-          />
-        </div>
+        <ThresholdSlider
+          label={t('ai_engineer.proactiveAlerts.undercutGapThreshold')}
+          value={undercutGapSec}
+          unit="s"
+          min={1.0}
+          max={5.0}
+          step={0.5}
+          formatValue={(v) => `${v.toFixed(1)}s`}
+          onChange={setUndercutGapSec}
+        />
+        <ThresholdSlider
+          label={t('ai_engineer.proactiveAlerts.rivalDefendGap')}
+          value={rivalGapThresholdSec}
+          unit="s"
+          min={0.5}
+          max={3.0}
+          step={0.1}
+          formatValue={(v) => `${v.toFixed(1)}s`}
+          onChange={setRivalGapThresholdSec}
+        />
+        <ThresholdSlider
+          label={t('ai_engineer.proactiveAlerts.rivalAttackGap')}
+          value={rivalAheadGapSec}
+          unit="s"
+          min={0.5}
+          max={3.0}
+          step={0.1}
+          formatValue={(v) => `${v.toFixed(1)}s`}
+          onChange={setRivalAheadGapSec}
+        />
       </div>
     </SubsystemAccordion>
   );

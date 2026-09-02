@@ -1,14 +1,14 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Session, NavigationComparatorPayload } from '../types/session';
-import { getTrackInfo } from '../constants/f1';
 import { useI18n } from '../context/I18nContext';
 import { useSessionListStore } from '../store/useSessionListStore';
+import { filterSessionsBySearch, type SessionTypeTab } from '../utils/sessionFilterUtils';
 
 export interface UseComparatorSessionsOptions {
   initialPreload?: NavigationComparatorPayload | null;
 }
 
-export type SessionTypeTab = 'ALL' | 'RACE' | 'SPRINT' | 'QUALI' | 'PRACTICE';
+export type { SessionTypeTab };
 
 export interface UseComparatorSessionsReturn {
   sessions: Session[];
@@ -136,76 +136,15 @@ export function useComparatorSessions({
 
   // Filtered Sessions for Dropdown A
   const filteredDropdownSessionsA = useMemo(() => {
-    const query = sessionASearchQuery.trim().toLowerCase();
-    return sessions.filter((s) => {
-      const trackInfo = getTrackInfo(s.track_name);
-      const localizedCountry = trackInfo ? t(`common.countries.${trackInfo.countryCode}`) : '';
-      const countryMatches =
-        trackInfo &&
-        (trackInfo.countryIso3.toLowerCase().includes(query) ||
-          trackInfo.countryCode.toLowerCase().includes(query) ||
-          (typeof localizedCountry === 'string' && localizedCountry.toLowerCase().includes(query)) ||
-          (trackInfo.aliases && trackInfo.aliases.some((a) => a.toLowerCase().includes(query))));
-
-      const matchesSearch =
-        !query ||
-        s.track_name.toLowerCase().includes(query) ||
-        Boolean(countryMatches) ||
-        s.session_type.toLowerCase().includes(query) ||
-        new Date(s.created_at).toLocaleDateString().toLowerCase().includes(query) ||
-        (s.tags && s.tags.some((t) => t.name.toLowerCase().includes(query)));
-
-      if (!matchesSearch) return false;
-
-      if (sessionATypeTab === 'ALL') return true;
-      const lower = s.session_type.toLowerCase();
-      if (sessionATypeTab === 'SPRINT') return lower.includes('sprint');
-      if (sessionATypeTab === 'RACE') return lower.includes('race') && !lower.includes('sprint');
-      if (sessionATypeTab === 'QUALI')
-        return (lower.includes('qual') || lower.includes('q1') || lower.includes('q2') || lower.includes('q3')) && !lower.includes('sprint');
-      if (sessionATypeTab === 'PRACTICE')
-        return lower.includes('practice') || lower.includes('fp') || lower.includes('p1') || lower.includes('p2') || lower.includes('p3');
-      return true;
-    });
+    return filterSessionsBySearch(sessions, sessionASearchQuery, sessionATypeTab, t);
   }, [sessions, sessionASearchQuery, sessionATypeTab, t]);
 
   // Filtered Sessions for Dropdown B (Strictly restricted to same circuit as Session A)
   const filteredDropdownSessionsB = useMemo(() => {
-    const query = sessionBSearchQuery.trim().toLowerCase();
-    return sessions.filter((s) => {
-      if (selectedSessionAObj && s.track_name.toLowerCase() !== selectedSessionAObj.track_name.toLowerCase()) {
-        return false;
-      }
-
-      const trackInfo = getTrackInfo(s.track_name);
-      const localizedCountry = trackInfo ? t(`common.countries.${trackInfo.countryCode}`) : '';
-      const countryMatches =
-        trackInfo &&
-        (trackInfo.countryIso3.toLowerCase().includes(query) ||
-          trackInfo.countryCode.toLowerCase().includes(query) ||
-          (typeof localizedCountry === 'string' && localizedCountry.toLowerCase().includes(query)) ||
-          (trackInfo.aliases && trackInfo.aliases.some((a) => a.toLowerCase().includes(query))));
-
-      const matchesSearch =
-        !query ||
-        s.track_name.toLowerCase().includes(query) ||
-        Boolean(countryMatches) ||
-        s.session_type.toLowerCase().includes(query) ||
-        new Date(s.created_at).toLocaleDateString().toLowerCase().includes(query) ||
-        (s.tags && s.tags.some((t) => t.name.toLowerCase().includes(query)));
-
-      if (!matchesSearch) return false;
-
-      if (sessionBTypeTab === 'ALL') return true;
-      const lower = s.session_type.toLowerCase();
-      if (sessionBTypeTab === 'SPRINT') return lower.includes('sprint');
-      if (sessionBTypeTab === 'RACE') return lower.includes('race') && !lower.includes('sprint');
-      if (sessionBTypeTab === 'QUALI')
-        return (lower.includes('qual') || lower.includes('q1') || lower.includes('q2') || lower.includes('q3')) && !lower.includes('sprint');
-      if (sessionBTypeTab === 'PRACTICE')
-        return lower.includes('practice') || lower.includes('fp') || lower.includes('p1') || lower.includes('p2') || lower.includes('p3');
-      return true;
-    });
+    const candidateSessions = selectedSessionAObj
+      ? sessions.filter((s) => s.track_name.toLowerCase() === selectedSessionAObj.track_name.toLowerCase())
+      : sessions;
+    return filterSessionsBySearch(candidateSessions, sessionBSearchQuery, sessionBTypeTab, t);
   }, [sessions, selectedSessionAObj, sessionBSearchQuery, sessionBTypeTab, t]);
 
   return {

@@ -29,6 +29,7 @@ export interface UseMergedTelemetryReturn {
   setZoomDomain: React.Dispatch<React.SetStateAction<[number, number] | null>>;
   handleMouseMove: (state: RechartsMouseMoveState<MergedTelemetryPoint> | null) => void;
   loading: boolean;
+  error: string | null;
 }
 
 export function useMergedTelemetry({
@@ -42,6 +43,7 @@ export function useMergedTelemetry({
   const [comparisonData, setComparisonData] = useState<MergedTelemetryPoint[]>([]);
   const [detectedTurns, setDetectedTurns] = useState<TrackTurn[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
   const [hoverDistance, setHoverDistance] = useState<number | null>(null);
   const [zoomDomain, setZoomDomain] = useState<[number, number] | null>(null);
 
@@ -50,12 +52,14 @@ export function useMergedTelemetry({
     if (!lapAId && !lapBId) {
       setComparisonData([]);
       setDetectedTurns([]);
+      setError(null);
       setLoading(false);
       return;
     }
 
     const controller = new AbortController();
     setLoading(true);
+    setError(null);
 
     api.get<ComparatorResponse>('/api/comparator/merge', {
       params: {
@@ -74,6 +78,7 @@ export function useMergedTelemetry({
         if (err.name !== 'AbortError') {
           setComparisonData([]);
           setDetectedTurns([]);
+          setError(err instanceof Error ? err.message : 'Error merging telemetry');
         }
       })
       .finally(() => setLoading(false));
@@ -210,5 +215,6 @@ export function useMergedTelemetry({
     setZoomDomain,
     handleMouseMove,
     loading,
+    error,
   };
 }

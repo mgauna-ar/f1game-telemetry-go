@@ -56,7 +56,7 @@ export interface RadioSettingsState
   aiConfig: AIConfig;
   setAiConfig: (config: Partial<AIConfig>) => void;
   resetStoreToDefaults: () => void;
-  syncConfigToBackend: () => Promise<void>;
+  syncConfigToBackend: (immediate?: boolean) => Promise<void>;
   loadConfigFromBackend: () => Promise<void>;
 }
 
@@ -188,6 +188,8 @@ export function getInitialRadioSettings() {
   };
 }
 
+let syncTimeout: ReturnType<typeof setTimeout> | null = null;
+
 export const useRadioSettingsStore = create<RadioSettingsState>((set, get, store) => ({
   ...createAudioSettingsSlice(set, get, store),
   ...createAlertThresholdsSlice(set, get, store),
@@ -210,12 +212,32 @@ export const useRadioSettingsStore = create<RadioSettingsState>((set, get, store
     set(initialSettings);
   },
 
-  syncConfigToBackend: async () => {
-    try {
-      await api.post('/api/ai/engineer/config', get().aiConfig);
-    } catch {
-      // ignore network error
+  syncConfigToBackend: async (immediate = false) => {
+    if (syncTimeout) {
+      clearTimeout(syncTimeout);
+      syncTimeout = null;
     }
+
+    const doSync = async () => {
+      try {
+        await api.post('/api/ai/engineer/config', get().aiConfig);
+      } catch {
+        // ignore network error
+      }
+    };
+
+    if (immediate) {
+      await doSync();
+      return;
+    }
+
+    return new Promise<void>((resolve) => {
+      syncTimeout = setTimeout(async () => {
+        await doSync();
+        syncTimeout = null;
+        resolve();
+      }, 500);
+    });
   },
 
   loadConfigFromBackend: async () => {

@@ -10,6 +10,7 @@ import { api } from '../utils/apiClient';
 
 describe('useRadioSettingsStore and slices', () => {
   beforeEach(() => {
+    vi.useFakeTimers();
     localStorage.clear();
     useRadioSettingsStore.getState().resetStoreToDefaults();
     vi.clearAllMocks();
@@ -19,6 +20,7 @@ describe('useRadioSettingsStore and slices', () => {
     localStorage.clear();
     useRadioSettingsStore.getState().resetStoreToDefaults();
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it('handles audio settings with localStorage persistence', () => {
@@ -58,7 +60,7 @@ describe('useRadioSettingsStore and slices', () => {
     expect(useRadioSettingsStore.getState().staticFxEnabled).toBe(false);
   });
 
-  it('handles alert thresholds without localStorage writes and syncs to backend', () => {
+  it('handles alert thresholds without localStorage writes and debounces sync to backend', () => {
     const postSpy = vi.spyOn(api, 'post').mockResolvedValue({ status: 'success' });
     const store = useRadioSettingsStore.getState();
 
@@ -68,19 +70,44 @@ describe('useRadioSettingsStore and slices', () => {
     // Should NOT write to localStorage for threshold
     expect(localStorage.getItem(RADIO_STORAGE_KEYS.TYRE_WEAR_WARN_PCT)).toBeNull();
 
-    expect(postSpy).toHaveBeenCalled();
+    // Debounced - should not have fired yet
+    expect(postSpy).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(500);
+
+    expect(postSpy).toHaveBeenCalledTimes(1);
     const lastCall = postSpy.mock.calls[postSpy.mock.calls.length - 1];
     expect(lastCall[0]).toBe('/api/ai/engineer/config');
     expect((lastCall[1] as Record<string, unknown>).tyre_wear_warn_pct).toBe(55);
   });
 
-  it('handles tactical settings toggles and switches preset to custom', () => {
+  it('debounces rapid changes into a single backend sync', () => {
+    const postSpy = vi.spyOn(api, 'post').mockResolvedValue({ status: 'success' });
+    const store = useRadioSettingsStore.getState();
+
+    store.setTyreWearWarningPct(40);
+    store.setTyreWearWarningPct(45);
+    store.setTyreWearWarningPct(50);
+    store.setTyreWearWarningPct(55);
+
+    expect(postSpy).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(500);
+
+    expect(postSpy).toHaveBeenCalledTimes(1);
+    const lastCall = postSpy.mock.calls[0];
+    expect((lastCall[1] as Record<string, unknown>).tyre_wear_warn_pct).toBe(55);
+  });
+
+  it('handles tactical settings toggles and debounces sync to backend', () => {
     const postSpy = vi.spyOn(api, 'post').mockResolvedValue({ status: 'success' });
     const store = useRadioSettingsStore.getState();
 
     store.setSubTyreThermal(false);
     expect(useRadioSettingsStore.getState().subTyreThermal).toBe(false);
     expect(useRadioSettingsStore.getState().triggerPreset).toBe(RADIO_TRIGGER_PRESETS.CUSTOM);
+
+    vi.advanceTimersByTime(500);
     expect(postSpy).toHaveBeenCalled();
   });
 
@@ -108,6 +135,7 @@ describe('useRadioSettingsStore and slices', () => {
     expect(useRadioSettingsStore.getState().subTyreWear).toBe(true);
     expect(useRadioSettingsStore.getState().subTyreThermal).toBe(false);
 
+    vi.advanceTimersByTime(500);
     expect(postSpy).toHaveBeenCalled();
   });
 

@@ -135,14 +135,14 @@ export function usePTTConfig(): UsePTTConfigReturn {
           key_name: `Button ${mapping.buttonIndex + 1}`,
           device_name: 'Controller / Wheel',
         },
-      }).catch(() => {});
+      }).catch((err) => console.warn('[usePTTConfig] Sync failed:', err));
     } else {
       storage.remove(RADIO_STORAGE_KEYS.GAMEPAD_MAPPING);
       api.post('/api/ai/ptt/config', {
         mapping: {
           device_type: 'none',
         },
-      }).catch(() => {});
+      }).catch((err) => console.warn('[usePTTConfig] Sync failed:', err));
     }
   }, []);
 
@@ -157,17 +157,17 @@ export function usePTTConfig(): UsePTTConfigReturn {
         key_name: key,
         device_name: 'Keyboard',
       },
-    }).catch(() => {});
+    }).catch((err) => console.warn('[usePTTConfig] Sync failed:', err));
   }, []);
 
   const startLearning = useCallback(() => {
     setIsLearning(true);
-    api.post('/api/ai/ptt/learn').catch(() => {});
+    api.post('/api/ai/ptt/learn').catch((err) => console.warn('[usePTTConfig] Sync failed:', err));
   }, []);
 
   const cancelLearning = useCallback(() => {
     setIsLearning(false);
-    api.post('/api/ai/ptt/learn/cancel').catch(() => {});
+    api.post('/api/ai/ptt/learn/cancel').catch((err) => console.warn('[usePTTConfig] Sync failed:', err));
   }, []);
 
   // Sync initial global config to/from backend
@@ -196,7 +196,7 @@ export function usePTTConfig(): UsePTTConfigReturn {
             .then((resData) => {
               if (resData?.mapping) setGlobalMapping(resData.mapping);
             })
-            .catch(() => {});
+            .catch((err) => console.warn('[usePTTConfig] Sync failed:', err));
           return;
         }
 
@@ -213,12 +213,12 @@ export function usePTTConfig(): UsePTTConfigReturn {
             .then((resData) => {
               if (resData?.mapping) setGlobalMapping(resData.mapping);
             })
-            .catch(() => {});
+            .catch((err) => console.warn('[usePTTConfig] Sync failed:', err));
         } else if (data.mapping) {
           setGlobalMapping(data.mapping);
         }
       })
-      .catch(() => {});
+      .catch((err) => console.warn('[usePTTConfig] Sync failed:', err));
   }, []);
 
   return {

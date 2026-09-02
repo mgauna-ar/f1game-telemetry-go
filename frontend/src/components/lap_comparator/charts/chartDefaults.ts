@@ -49,3 +49,17 @@ export const compactTooltipProps = {
   },
   labelFormatter: (label: React.ReactNode) => `${Math.round(Number(label))}m`,
 };
+
+export const CHART_COLORS = {
+  SLOT_A: '#ff4757',
+  SLOT_B: '#00d2d3',
+  SECTOR_1: '#f39c12',
+  SECTOR_2: '#9b59b6',
+  CURSOR: '#ffd200',
+  AXIS_STROKE: '#666666',
+  AXIS_TICK: '#999999',
+  GRID_STROKE: 'rgba(255, 255, 255, 0.08)',
+} as const;
+
+export const CHART_MARGIN = { top: 5, right: 30, left: 0, bottom: 0 } as const;
+

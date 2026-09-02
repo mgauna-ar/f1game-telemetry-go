@@ -2,6 +2,7 @@ import React from 'react';
 import { Fuel } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
 import { SubsystemAccordion } from '../SubsystemAccordion';
+import { ThresholdSlider } from '../ThresholdSlider';
 import { useRadioSettingsStore } from '../../../store/useRadioSettingsStore';
 
 interface FuelAccordionProps {
@@ -50,21 +51,15 @@ export const FuelAccordion: React.FC<FuelAccordionProps> = ({
       </div>
 
       <div className="radio-ptt-grid">
-        <div className="radio-ptt-box">
-          <div className="radio-ptt-box-header">
-            <span>{t('ai_engineer.proactiveAlerts.fuelDeltaThreshold')}</span>
-            <span className="radio-badge-val">{fuelDeltaLaps > 0 ? `+${fuelDeltaLaps}` : fuelDeltaLaps} laps</span>
-          </div>
-          <input
-            type="range"
-            min={-3.0}
-            max={0.0}
-            step={0.1}
-            value={fuelDeltaLaps}
-            onChange={(e) => setFuelDeltaLaps(parseFloat(e.target.value))}
-            className="radio-slider-input"
-          />
-        </div>
+        <ThresholdSlider
+          label={t('ai_engineer.proactiveAlerts.fuelDeltaThreshold')}
+          value={fuelDeltaLaps}
+          min={-3.0}
+          max={0.0}
+          step={0.1}
+          formatValue={(v) => `${v > 0 ? `+${v}` : v} laps`}
+          onChange={setFuelDeltaLaps}
+        />
       </div>
     </SubsystemAccordion>
   );

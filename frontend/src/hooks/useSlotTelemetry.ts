@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { Participant, Lap } from '../types/session';
 import { filterActiveHistoricalParticipants } from '../utils/driverFilter';
+import { sortLapsByQuality } from '../utils/lapUtils';
 import { api } from '../utils/apiClient';
 
 export interface UseSlotTelemetryOptions {
@@ -23,6 +24,7 @@ export interface UseSlotTelemetryReturn {
   lapId: number | '';
   setLapId: React.Dispatch<React.SetStateAction<number | ''>>;
   loading: boolean;
+  error: string | null;
   selectedLap: Lap | undefined;
   driver: Participant | undefined;
   driverName: string;
@@ -40,6 +42,7 @@ export function useSlotTelemetry({
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [lapId, setLapId] = useState<number | ''>('');
   const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Load participants & laps when sessionId changes
   useEffect(() => {
@@ -48,6 +51,7 @@ export function useSlotTelemetry({
       setLaps([]);
       setLapId('');
       setLoading(false);
+      setError(null);
       return;
     }
 
@@ -55,12 +59,17 @@ export function useSlotTelemetry({
     const { signal } = controller;
 
     setLoading(true);
+    setError(null);
     Promise.all([
       api.get<Participant[]>(`/api/sessions/${sessionId}/participants`, { signal })
         .then((data) => {
           if (!signal.aborted) setParticipants(data || []);
         })
-        .catch(() => {}),
+        .catch((err) => {
+          if (!signal.aborted && err.name !== 'AbortError') {
+            setError(err instanceof Error ? err.message : 'Error loading participants');
+          }
+        }),
       api.get<Lap[]>(`/api/sessions/${sessionId}/laps`, { signal })
         .then((data) => {
           if (signal.aborted) return;
@@ -70,18 +79,7 @@ export function useSlotTelemetry({
           if (preloadLapId && list.some((l) => l.id === preloadLapId)) {
             setLapId(preloadLapId);
           } else if (list.length > 0) {
-            const valid = list
-              .filter((l) => l.lap_time_ms > 0 && (l.is_valid || (l.sector1_ms ?? 0) > 0))
-              .sort((a, b) => {
-                const aValid = a.is_valid ? 1 : 0;
-                const bValid = b.is_valid ? 1 : 0;
-                if (aValid !== bValid) return bValid - aValid;
-                if (a.lap_time_ms !== b.lap_time_ms) return a.lap_time_ms - b.lap_time_ms;
-                const scoreA = (a.has_telemetry ? 10 : 0) + ((a.sector1_ms ?? 0) > 0 ? 5 : 0);
-                const scoreB = (b.has_telemetry ? 10 : 0) + ((b.sector1_ms ?? 0) > 0 ? 5 : 0);
-                return scoreB - scoreA;
-              });
-
+            const valid = sortLapsByQuality(list);
             if (isSlotB && isSameSessionAsSlotA && valid.length > 1) {
               setLapId(valid[1].id);
             } else if (valid.length > 0) {
@@ -93,7 +91,11 @@ export function useSlotTelemetry({
             setLapId('');
           }
         })
-        .catch(() => {}),
+        .catch((err) => {
+          if (!signal.aborted && err.name !== 'AbortError') {
+            setError(err instanceof Error ? err.message : 'Error loading laps');
+          }
+        }),
     ]).finally(() => {
       if (!signal.aborted) setLoading(false);
     });
@@ -121,17 +123,7 @@ export function useSlotTelemetry({
   const activeParticipants = useMemo(() => {
     if (participants.length === 0 || laps.length === 0) return [];
     return filterActiveHistoricalParticipants(participants, laps).map((p) => {
-      const driverLaps = laps
-        .filter((l) => (l.car_index ?? -1) === p.car_index && l.lap_time_ms > 0 && (l.is_valid || (l.sector1_ms ?? 0) > 0))
-        .sort((a, b) => {
-          const aValid = a.is_valid ? 1 : 0;
-          const bValid = b.is_valid ? 1 : 0;
-          if (aValid !== bValid) return bValid - aValid;
-          if (a.lap_time_ms !== b.lap_time_ms) return a.lap_time_ms - b.lap_time_ms;
-          const scoreA = (a.has_telemetry ? 10 : 0) + ((a.sector1_ms ?? 0) > 0 ? 5 : 0);
-          const scoreB = (b.has_telemetry ? 10 : 0) + ((b.sector1_ms ?? 0) > 0 ? 5 : 0);
-          return scoreB - scoreA;
-        });
+      const driverLaps = sortLapsByQuality(laps.filter((l) => (l.car_index ?? -1) === p.car_index));
       const bestLap = driverLaps.length > 0 ? driverLaps[0] : null;
       return { ...p, bestLap };
     });
@@ -145,6 +137,7 @@ export function useSlotTelemetry({
     lapId,
     setLapId,
     loading,
+    error,
     selectedLap,
     driver,
     driverName,
