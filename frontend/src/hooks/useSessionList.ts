@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { Session } from '../types/session';
+import { api } from '../utils/apiClient';
 
 export interface UseSessionListReturn {
   sessions: Session[];
@@ -27,9 +28,7 @@ export function useSessionList(): UseSessionListReturn {
     setLoadingSessions(true);
     setError(null);
     try {
-      const res = await fetch('/api/sessions');
-      if (!res.ok) throw new Error('Failed to fetch sessions');
-      const data: Session[] = await res.json();
+      const data = await api.get<Session[]>('/api/sessions');
       setSessions(data || []);
     } catch (err: any) {
       setError(err.message || 'Error loading sessions');
@@ -47,10 +46,7 @@ export function useSessionList(): UseSessionListReturn {
       const targetId = sessionToDelete.id;
       setDeletingSessionId(targetId);
       try {
-        const res = await fetch(`/api/sessions/${targetId}`, {
-          method: 'DELETE',
-        });
-        if (!res.ok) throw new Error('Failed to delete session');
+        await api.del(`/api/sessions/${targetId}`);
 
         setSessions((prev) => prev.filter((s) => s.id !== targetId));
         if (onDeleted) {
@@ -58,7 +54,6 @@ export function useSessionList(): UseSessionListReturn {
         }
         setSessionToDelete(null);
       } catch (err: any) {
-        console.error('Error deleting session:', err);
         setError(err.message || 'Failed to delete session');
         if (onError) {
           onError(err);

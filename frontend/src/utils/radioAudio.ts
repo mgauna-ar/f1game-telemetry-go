@@ -1,4 +1,5 @@
 import { RADIO_AUDIO_CONSTANTS } from '../constants/f1';
+import { api } from './apiClient';
 
 let audioCtx: AudioContext | null = null;
 let activeSourceNode: AudioBufferSourceNode | null = null;
@@ -589,24 +590,15 @@ export async function speakRadioResponse(
   }
 
   try {
-    const response = await fetch('/api/ai/tts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text: cleaned,
-        voice: voice || undefined,
-        persona,
-        language,
-        rate,
-        pitch,
-      }),
+    const audioBuffer = await api.postArrayBuffer('/api/ai/tts', {
+      text: cleaned,
+      voice: voice || undefined,
+      persona,
+      language,
+      rate,
+      pitch,
     });
 
-    if (!response.ok) {
-      throw new Error(`TTS server error: ${response.status}`);
-    }
-
-    const audioBuffer = await response.arrayBuffer();
     ttsAudioMemoryCache.set(cacheKey, audioBuffer);
     await playRadioAudioBuffer(audioBuffer, options);
   } catch (err) {

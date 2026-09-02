@@ -25,6 +25,7 @@ import { TagFilterBar } from './session_history/TagFilterBar';
 
 import { useRaceEngineerActions } from '../context/RaceEngineerContext';
 import { useI18n } from '../context/I18nContext';
+import { api } from '../utils/apiClient';
 
 import { TyreCompoundBadge } from './common/TyreCompoundBadge';
 import {
@@ -175,6 +176,7 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
     onNavigateToComparator,
   });
 
+  const [detailError, setDetailError] = useState<string | null>(null);
   const sessionDetailAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -191,27 +193,26 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
 
     setSelectedSession(session);
     setLoadingDetail(true);
+    setDetailError(null);
     setExpandedDrivers({});
     setStagedSlotA(null);
     setStagedSlotB(null);
     setActiveDetailTab('classification');
 
     try {
-      const [classRes, progRes, stintsRes, lapsRes] = await Promise.all([
-        fetch(`/api/sessions/${session.id}/classification`, { signal }),
-        fetch(`/api/sessions/${session.id}/progression`, { signal }),
-        fetch(`/api/sessions/${session.id}/stints`, { signal }),
-        fetch(`/api/sessions/${session.id}/laps`, { signal }),
+      const [classRes, progRes, stintsRes, lapsRes] = await Promise.allSettled([
+        api.get<ClassificationResponse>(`/api/sessions/${session.id}/classification`, { signal }),
+        api.get<ProgressionResponse>(`/api/sessions/${session.id}/progression`, { signal }),
+        api.get<StintsResponse>(`/api/sessions/${session.id}/stints`, { signal }),
+        api.get<Lap[]>(`/api/sessions/${session.id}/laps`, { signal }),
       ]);
 
       if (signal.aborted) return;
 
-      const classData: ClassificationResponse | null = classRes.ok ? await classRes.json() : null;
-      const progData: ProgressionResponse | null = progRes.ok ? await progRes.json() : null;
-      const stintsDataRes: StintsResponse | null = stintsRes.ok ? await stintsRes.json() : null;
-      const lapsData = lapsRes.ok ? await lapsRes.json() : [];
-
-      if (signal.aborted) return;
+      const classData = classRes.status === 'fulfilled' ? classRes.value : null;
+      const progData = progRes.status === 'fulfilled' ? progRes.value : null;
+      const stintsDataRes = stintsRes.status === 'fulfilled' ? stintsRes.value : null;
+      const lapsData = lapsRes.status === 'fulfilled' ? lapsRes.value : [];
 
       const normalizedLaps: Lap[] = (lapsData || []).map((l: Lap) => {
         let s3 = l.sector3_ms || 0;
@@ -228,7 +229,7 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
       setLaps(normalizedLaps);
     } catch (err: any) {
       if (err.name !== 'AbortError') {
-        console.error('Error fetching session details:', err);
+        setDetailError(err.message || 'Error fetching session details');
       }
     } finally {
       if (!signal.aborted) {
@@ -631,6 +632,11 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
           />
 
           {/* Detail Tab Contents */}
+          {detailError && (
+            <div className="glass-panel" style={{ textAlign: 'center', padding: '1.5rem', borderColor: 'var(--accent-primary)' }}>
+              <p style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>{detailError}</p>
+            </div>
+          )}
           {loadingDetail ? (
             <div className="glass-panel" style={{ textAlign: 'center', padding: '3rem' }}>
               <RefreshCw size={32} className="animate-spin" style={{ color: 'var(--accent-primary)', marginBottom: '1rem' }} />

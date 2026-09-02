@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Session } from '../types/session';
 import { useI18n } from '../context/I18nContext';
+import { api } from '../utils/apiClient';
 
 export interface UseBatchOperationsOptions {
   sessions: Session[];
@@ -99,10 +100,7 @@ export function useBatchOperations({
   const handleExportSession = useCallback(
     async (sessionToExport: Session) => {
       try {
-        const res = await fetch(`/api/sessions/${sessionToExport.id}/export`);
-        if (!res.ok) throw new Error('Failed to export session');
-
-        const blob = await res.blob();
+        const blob = await api.getBlob(`/api/sessions/${sessionToExport.id}/export`);
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -116,7 +114,6 @@ export function useBatchOperations({
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
       } catch (err: any) {
-        console.error('Error exporting session:', err);
         setToastMessage({ type: 'error', text: `${t('history.exportError') || 'Export error'}: ${err.message || err}` });
       }
     },
@@ -137,14 +134,7 @@ export function useBatchOperations({
 
     setIsExportingBatch(true);
     try {
-      const res = await fetch('/api/sessions/export-batch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_ids: ids }),
-      });
-      if (!res.ok) throw new Error('Failed to export batch sessions');
-
-      const blob = await res.blob();
+      const blob = await api.postBlob('/api/sessions/export-batch', { session_ids: ids });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -156,7 +146,6 @@ export function useBatchOperations({
       document.body.removeChild(a);
       setToastMessage({ type: 'success', text: t('history.batch.exportZip', { count: ids.length }) });
     } catch (err: any) {
-      console.error('Error exporting batch:', err);
       setToastMessage({ type: 'error', text: `${t('history.exportError') || 'Export error'}: ${err.message || err}` });
     } finally {
       setIsExportingBatch(false);
@@ -172,17 +161,11 @@ export function useBatchOperations({
         for (let i = 0; i < files.length; i++) {
           formData.append('files', files[i]);
         }
-        const res = await fetch('/api/sessions/import', {
-          method: 'POST',
-          body: formData,
-        });
+        const data = await api.postFormData<{ total?: number; imported?: number; skipped?: number; failed?: number }>(
+          '/api/sessions/import',
+          formData
+        );
 
-        if (!res.ok) {
-          const errorText = await res.text();
-          throw new Error(errorText || 'Import failed');
-        }
-
-        const data = await res.json();
         if (data && typeof data.total === 'number') {
           const summaryText = t('history.batch.importSummary', {
             imported: data.imported ?? 0,
@@ -199,7 +182,6 @@ export function useBatchOperations({
           await fetchTags();
         }
       } catch (err: any) {
-        console.error('Error importing session(s):', err);
         setToastMessage({ type: 'error', text: `${t('history.importError')}: ${err.message || err}` });
       } finally {
         setImportingSession(false);
@@ -213,12 +195,7 @@ export function useBatchOperations({
     if (ids.length === 0) return;
 
     try {
-      const res = await fetch('/api/sessions/batch-delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_ids: ids }),
-      });
-      if (!res.ok) throw new Error('Failed to delete sessions');
+      await api.post('/api/sessions/batch-delete', { session_ids: ids });
 
       setSessions((prev) => prev.filter((s) => !selectedSessionIds.has(s.id)));
       setSelectedSessionIds(new Set());
@@ -226,7 +203,6 @@ export function useBatchOperations({
       setToastMessage({ type: 'success', text: t('history.batch.deleteSelected', { count: ids.length }) });
       await fetchSessions();
     } catch (err: any) {
-      console.error('Error batch deleting sessions:', err);
       setToastMessage({ type: 'error', text: `Delete error: ${err.message || err}` });
     }
   }, [selectedSessionIds, setSessions, fetchSessions, t]);
@@ -236,19 +212,13 @@ export function useBatchOperations({
     if (ids.length === 0 || !batchSelectedTagId) return;
 
     try {
-      const res = await fetch('/api/sessions/batch-tags', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_ids: ids, tag_id: batchSelectedTagId }),
-      });
-      if (!res.ok) throw new Error('Failed to assign tags');
+      await api.post('/api/sessions/batch-tags', { session_ids: ids, tag_id: batchSelectedTagId });
 
       setShowBatchTagModal(false);
       setBatchSelectedTagId(null);
       setToastMessage({ type: 'success', text: t('history.batch.tagSelected') });
       await fetchSessions();
     } catch (err: any) {
-      console.error('Error assigning batch tag:', err);
       setToastMessage({ type: 'error', text: `Tag assignment error: ${err.message || err}` });
     }
   }, [selectedSessionIds, batchSelectedTagId, fetchSessions, t]);

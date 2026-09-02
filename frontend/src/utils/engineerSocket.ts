@@ -1,72 +1,26 @@
+import { createWebSocket, type WebSocketClient } from './websocketClient';
+
 type EngineerMessageHandler = (data: any) => void;
 
-let activeEngineerWs: WebSocket | null = null;
-let engineerReconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let activeClient: WebSocketClient | null = null;
 let engineerSubscribers = 0;
 const handlers = new Set<EngineerMessageHandler>();
 
-function getTargetEngineerUrl(customUrl?: string): string {
-  if (customUrl) return customUrl;
-  if (typeof window === 'undefined') return 'ws://localhost:8080/ws/engineer';
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${protocol}//${window.location.host}/ws/engineer`;
-}
-
-function connectEngineerWs(customUrl?: string) {
-  if (engineerSubscribers <= 0) return;
-  if (activeEngineerWs && activeEngineerWs.readyState !== WebSocket.CLOSED) {
-    return;
-  }
-
-  try {
-    const socket = new WebSocket(getTargetEngineerUrl(customUrl));
-    activeEngineerWs = socket;
-
-    socket.onopen = () => {
-      // Successfully connected to /ws/engineer
-    };
-
-    socket.onclose = () => {
-      activeEngineerWs = null;
-      if (engineerSubscribers > 0) {
-        if (!engineerReconnectTimer) {
-          engineerReconnectTimer = setTimeout(() => {
-            engineerReconnectTimer = null;
-            connectEngineerWs(customUrl);
-          }, 2000);
-        }
-      }
-    };
-
-    socket.onerror = () => {
-      // Browser automatically triggers onclose following onerror
-    };
-
-    socket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
+function getOrCreateClient(customUrl?: string): WebSocketClient {
+  if (!activeClient) {
+    activeClient = createWebSocket(customUrl || '/ws/engineer', {
+      onMessage: (data) => {
         handlers.forEach((handler) => {
           try {
             handler(data);
-          } catch (err) {
-            console.error('[EngineerWS] Handler execution error:', err);
+          } catch {
+            // Silently suppress handler execution exceptions to avoid crashing subscribers
           }
         });
-      } catch (err) {
-        console.error('[EngineerWS] Failed to parse message JSON:', err);
-      }
-    };
-  } catch {
-    activeEngineerWs = null;
-    if (engineerSubscribers > 0) {
-      if (!engineerReconnectTimer) {
-        engineerReconnectTimer = setTimeout(() => {
-          engineerReconnectTimer = null;
-          connectEngineerWs(customUrl);
-        }, 2000);
-      }
-    }
+      },
+    });
   }
+  return activeClient;
 }
 
 /**
@@ -77,24 +31,17 @@ export function subscribeEngineerWebSocket(handler: EngineerMessageHandler, cust
   handlers.add(handler);
   engineerSubscribers++;
 
-  if (!activeEngineerWs || activeEngineerWs.readyState === WebSocket.CLOSED) {
-    connectEngineerWs(customUrl);
+  const client = getOrCreateClient(customUrl);
+  if (!client.isConnected()) {
+    client.connect();
   }
 
   return () => {
     handlers.delete(handler);
     engineerSubscribers = Math.max(0, engineerSubscribers - 1);
-    if (engineerSubscribers === 0) {
-      if (engineerReconnectTimer) {
-        clearTimeout(engineerReconnectTimer);
-        engineerReconnectTimer = null;
-      }
-      if (activeEngineerWs) {
-        const wsToClose = activeEngineerWs;
-        activeEngineerWs = null;
-        wsToClose.onclose = null;
-        wsToClose.close();
-      }
+    if (engineerSubscribers === 0 && activeClient) {
+      activeClient.disconnect();
+      activeClient = null;
     }
   };
 }

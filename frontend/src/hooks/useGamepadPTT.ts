@@ -6,6 +6,7 @@ import {
   type RadioPTTMode,
 } from '../constants/f1';
 import { subscribeEngineerWebSocket } from '../utils/engineerSocket';
+import { api } from '../utils/apiClient';
 
 export interface GamepadMapping {
   gamepadIndex: number;
@@ -156,29 +157,21 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
     try {
       if (mapping) {
         localStorage.setItem(RADIO_STORAGE_KEYS.GAMEPAD_MAPPING, JSON.stringify(mapping));
-        fetch('/api/ai/ptt/config', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            mapping: {
-              device_type: 'joystick',
-              device_index: mapping.gamepadIndex,
-              button_index: mapping.buttonIndex,
-              key_name: `Button ${mapping.buttonIndex + 1}`,
-              device_name: 'Controller / Wheel',
-            },
-          }),
+        api.post('/api/ai/ptt/config', {
+          mapping: {
+            device_type: 'joystick',
+            device_index: mapping.gamepadIndex,
+            button_index: mapping.buttonIndex,
+            key_name: `Button ${mapping.buttonIndex + 1}`,
+            device_name: 'Controller / Wheel',
+          },
         }).catch(() => {});
       } else {
         localStorage.removeItem(RADIO_STORAGE_KEYS.GAMEPAD_MAPPING);
-        fetch('/api/ai/ptt/config', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            mapping: {
-              device_type: 'none',
-            },
-          }),
+        api.post('/api/ai/ptt/config', {
+          mapping: {
+            device_type: 'none',
+          },
         }).catch(() => {});
       }
     } catch {}
@@ -189,17 +182,13 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
     try {
       localStorage.setItem(RADIO_STORAGE_KEYS.KEYBOARD_KEY, key);
       const isNone = !key || key === 'None';
-      fetch('/api/ai/ptt/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mapping: {
-            device_type: isNone ? 'none' : 'keyboard',
-            key_code: getVKCodeForName(key),
-            key_name: key,
-            device_name: 'Keyboard',
-          },
-        }),
+      api.post('/api/ai/ptt/config', {
+        mapping: {
+          device_type: isNone ? 'none' : 'keyboard',
+          key_code: getVKCodeForName(key),
+          key_name: key,
+          device_name: 'Keyboard',
+        },
       }).catch(() => {});
     } catch {}
   }, []);
@@ -207,8 +196,7 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
   // Sync initial global config to/from backend:
   // Reads current backend mapping; if backend is empty (e.g. server restart) but client has saved mapping, re-hydrates backend.
   useEffect(() => {
-    fetch('/api/ai/ptt/config')
-      .then((res) => (res.ok ? res.json() : null))
+    api.get<{ status?: string; is_active?: boolean; mapping?: GlobalPTTMapping }>('/api/ai/ptt/config')
       .then((data) => {
         if (!data || data.status !== 'ok') return;
         setGlobalActive(!!data.is_active);
@@ -225,20 +213,15 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
           try {
             const parsedJoy: GamepadMapping = JSON.parse(savedJoy);
             if (parsedJoy && parsedJoy.buttonIndex >= 0) {
-              fetch('/api/ai/ptt/config', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  mapping: {
-                    device_type: 'joystick',
-                    device_index: parsedJoy.gamepadIndex,
-                    button_index: parsedJoy.buttonIndex,
-                    key_name: `Button ${parsedJoy.buttonIndex + 1}`,
-                    device_name: 'Controller / Wheel',
-                  },
-                }),
+              api.post<{ status?: string; mapping?: GlobalPTTMapping }>('/api/ai/ptt/config', {
+                mapping: {
+                  device_type: 'joystick',
+                  device_index: parsedJoy.gamepadIndex,
+                  button_index: parsedJoy.buttonIndex,
+                  key_name: `Button ${parsedJoy.buttonIndex + 1}`,
+                  device_name: 'Controller / Wheel',
+                },
               })
-                .then((res) => (res.ok ? res.json() : null))
                 .then((resData) => {
                   if (resData?.mapping) setGlobalMapping(resData.mapping);
                 })
@@ -250,19 +233,14 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
 
         const savedKey = localStorage.getItem(RADIO_STORAGE_KEYS.KEYBOARD_KEY);
         if (savedKey && savedKey !== 'None') {
-          fetch('/api/ai/ptt/config', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              mapping: {
-                device_type: 'keyboard',
-                key_code: getVKCodeForName(savedKey),
-                key_name: savedKey,
-                device_name: 'Keyboard',
-              },
-            }),
+          api.post<{ status?: string; mapping?: GlobalPTTMapping }>('/api/ai/ptt/config', {
+            mapping: {
+              device_type: 'keyboard',
+              key_code: getVKCodeForName(savedKey),
+              key_name: savedKey,
+              device_name: 'Keyboard',
+            },
           })
-            .then((res) => (res.ok ? res.json() : null))
             .then((resData) => {
               if (resData?.mapping) setGlobalMapping(resData.mapping);
             })
@@ -331,13 +309,13 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
   const startLearning = useCallback(() => {
     setIsLearning(true);
     // Notify backend to start native OS scanning
-    fetch('/api/ai/ptt/learn', { method: 'POST' }).catch(() => {});
+    api.post('/api/ai/ptt/learn').catch(() => {});
   }, []);
 
   const cancelLearning = useCallback(() => {
     setIsLearning(false);
     // Notify backend to cancel native OS scanning
-    fetch('/api/ai/ptt/learn/cancel', { method: 'POST' }).catch(() => {});
+    api.post('/api/ai/ptt/learn/cancel').catch(() => {});
   }, []);
 
   const handleGlobalPTTEventRef = useRef(handleGlobalPTTEvent);

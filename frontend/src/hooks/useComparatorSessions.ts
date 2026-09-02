@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import type { Session, NavigationComparatorPayload } from '../types/session';
 import { getTrackInfo } from '../constants/f1';
 import { useI18n } from '../context/I18nContext';
+import { api } from '../utils/apiClient';
 
 export interface UseComparatorSessionsOptions {
   initialPreload?: NavigationComparatorPayload | null;
@@ -12,6 +13,7 @@ export type SessionTypeTab = 'ALL' | 'RACE' | 'SPRINT' | 'QUALI' | 'PRACTICE';
 export interface UseComparatorSessionsReturn {
   sessions: Session[];
   setSessions: React.Dispatch<React.SetStateAction<Session[]>>;
+  error: string | null;
   sessionAId: number | '';
   setSessionAId: React.Dispatch<React.SetStateAction<number | ''>>;
   sessionBId: number | '';
@@ -74,6 +76,7 @@ export function useComparatorSessions({
   const [isSessionBDropdownOpen, setIsSessionBDropdownOpen] = useState(false);
   const [sessionBSearchQuery, setSessionBSearchQuery] = useState('');
   const [sessionBTypeTab, setSessionBTypeTab] = useState<SessionTypeTab>('ALL');
+  const [error, setError] = useState<string | null>(null);
   const sessionBDropdownRef = useRef<HTMLDivElement | null>(null);
   const fetchAbortControllerRef = useRef<AbortController | null>(null);
 
@@ -82,12 +85,9 @@ export function useComparatorSessions({
     fetchAbortControllerRef.current?.abort();
     const controller = new AbortController();
     fetchAbortControllerRef.current = controller;
+    setError(null);
 
-    fetch('/api/sessions', { signal: controller.signal })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
+    api.get<Session[]>('/api/sessions', { signal: controller.signal })
       .then((data) => {
         if (!controller.signal.aborted) {
           const sessionList = data || [];
@@ -95,7 +95,9 @@ export function useComparatorSessions({
         }
       })
       .catch((err) => {
-        if (err.name !== 'AbortError') console.error('Failed to fetch sessions', err);
+        if (err.name !== 'AbortError') {
+          setError(err.message || 'Failed to fetch sessions');
+        }
       });
   }, []);
 
@@ -256,6 +258,7 @@ export function useComparatorSessions({
   return {
     sessions,
     setSessions,
+    error,
     sessionAId,
     setSessionAId,
     sessionBId,

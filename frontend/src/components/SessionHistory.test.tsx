@@ -784,7 +784,7 @@ describe('SessionHistory Component', () => {
     fireEvent.click(exportBtn);
 
     await waitFor(() => {
-      expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions/1/export');
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions/1/export', expect.anything());
       expect(createObjectURLMock).toHaveBeenCalled();
     });
 

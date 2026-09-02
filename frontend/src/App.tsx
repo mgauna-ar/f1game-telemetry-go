@@ -8,6 +8,7 @@ import { useI18n } from './context/I18nContext';
 import { AiRaceEngineer } from './components/AiRaceEngineer';
 import { LanguageSelector } from './components/LanguageSelector';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
+import { api } from './utils/apiClient';
 import type { UpdateCheckResponse, SystemVersion } from './types/system';
 
 const SessionHistory = lazy(() =>
@@ -59,16 +60,14 @@ function AppContent() {
   const checkUpdates = useCallback(async () => {
     try {
       const [updateRes, versionRes] = await Promise.allSettled([
-        fetch('/api/system/check-updates'),
-        fetch('/api/system/version'),
+        api.get<UpdateCheckResponse>('/api/system/check-updates'),
+        api.get<SystemVersion>('/api/system/version'),
       ]);
-      if (updateRes.status === 'fulfilled' && updateRes.value.ok) {
-        const data: UpdateCheckResponse = await updateRes.value.json();
-        setUpdateInfo(data);
+      if (updateRes.status === 'fulfilled') {
+        setUpdateInfo(updateRes.value);
       }
-      if (versionRes.status === 'fulfilled' && versionRes.value.ok) {
-        const verData: SystemVersion = await versionRes.value.json();
-        setSystemVersion(verData);
+      if (versionRes.status === 'fulfilled') {
+        setSystemVersion(versionRes.value);
       }
     } catch {
       // Ignore update check failures when offline

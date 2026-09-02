@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
 import type { Session, Tag } from '../types/session';
+import { api } from '../utils/apiClient';
 
 export interface UseSessionTagsOptions {
   sessions: Session[];
@@ -34,13 +35,10 @@ export function useSessionTags({
 
   const fetchTags = useCallback(async () => {
     try {
-      const res = await fetch('/api/tags');
-      if (res.ok) {
-        const data: Tag[] = await res.json();
-        setAvailableTags(data || []);
-      }
-    } catch (err) {
-      console.error('Error fetching tags:', err);
+      const data = await api.get<Tag[]>('/api/tags');
+      setAvailableTags(data || []);
+    } catch {
+      // Ignore tag fetch failures
     }
   }, []);
 
@@ -48,13 +46,7 @@ export function useSessionTags({
     async (sessionId: number, tagId?: number, newTag?: { name: string; color: string }) => {
       try {
         const payload = tagId ? { tag_id: tagId } : newTag;
-        const res = await fetch(`/api/sessions/${sessionId}/tags`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        if (!res.ok) throw new Error('Failed to add tag');
-        const updatedTags: Tag[] = await res.json();
+        const updatedTags = await api.post<Tag[]>(`/api/sessions/${sessionId}/tags`, payload);
 
         setSessions((prev) =>
           prev.map((s) => (s.id === sessionId ? { ...s, tags: updatedTags } : s))
@@ -66,8 +58,8 @@ export function useSessionTags({
           setSessionToManageTags((prev) => (prev ? { ...prev, tags: updatedTags } : null));
         }
         await fetchTags();
-      } catch (err: any) {
-        console.error('Error adding tag:', err);
+      } catch {
+        // Handled silently
       }
     },
     [selectedSession, sessionToManageTags, setSessions, setSelectedSession, fetchTags]
@@ -76,11 +68,7 @@ export function useSessionTags({
   const handleRemoveTag = useCallback(
     async (sessionId: number, tagId: number) => {
       try {
-        const res = await fetch(`/api/sessions/${sessionId}/tags/${tagId}`, {
-          method: 'DELETE',
-        });
-        if (!res.ok) throw new Error('Failed to remove tag');
-        const updatedTags: Tag[] = await res.json();
+        const updatedTags = await api.del<Tag[]>(`/api/sessions/${sessionId}/tags/${tagId}`);
 
         setSessions((prev) =>
           prev.map((s) => (s.id === sessionId ? { ...s, tags: updatedTags } : s))
@@ -91,8 +79,8 @@ export function useSessionTags({
         if (sessionToManageTags && sessionToManageTags.id === sessionId) {
           setSessionToManageTags((prev) => (prev ? { ...prev, tags: updatedTags } : null));
         }
-      } catch (err: any) {
-        console.error('Error removing tag:', err);
+      } catch {
+        // Handled silently
       }
     },
     [selectedSession, sessionToManageTags, setSessions, setSelectedSession]
@@ -101,10 +89,7 @@ export function useSessionTags({
   const handleDeleteGlobalTag = useCallback(
     async (tagId: number) => {
       try {
-        const res = await fetch(`/api/tags/${tagId}`, {
-          method: 'DELETE',
-        });
-        if (!res.ok) throw new Error('Failed to delete tag');
+        await api.del(`/api/tags/${tagId}`);
 
         setAvailableTags((prev) => prev.filter((t) => t.id !== tagId));
         setSessions((prev) =>
@@ -126,8 +111,8 @@ export function useSessionTags({
         if (selectedTagId === tagId) {
           setSelectedTagId(null);
         }
-      } catch (err: any) {
-        console.error('Error deleting tag:', err);
+      } catch {
+        // Handled silently
       }
     },
     [selectedSession, sessionToManageTags, selectedTagId, setSessions, setSelectedSession]

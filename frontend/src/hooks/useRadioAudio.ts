@@ -14,6 +14,7 @@ import {
 import { useI18n } from '../context/I18nContext';
 import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
 import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
+import { api } from '../utils/apiClient';
 
 export type RadioState = 'idle' | 'transmitting' | 'processing' | 'speaking';
 
@@ -384,32 +385,27 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
       const currentCustomPrompt = customPromptRef.current;
       const currentDriverCallsign = driverCallsignRef.current;
 
-      const response = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          provider: aiProvider,
-          api_key: aiApiKey,
-          model: aiModel,
-          base_url: aiBaseUrl,
-          persona: currentPersona,
-          language: currentLanguage,
-          messages: [
-            {
-              role: 'user',
-              content: `[DRIVER RADIO TRANSMISSION]: "${finalTranscript}"`,
-            },
-          ],
-          context: {
-            context_mode: 'live',
-            live_summary: liveContext,
-            custom_persona_prompt: currentPersona === RADIO_PERSONAS.CUSTOM ? currentCustomPrompt : undefined,
-            driver_callsign: currentDriverCallsign || undefined,
-            urgency_level: 'normal',
+      const response = await api.stream('/api/ai/chat', {
+        provider: aiProvider,
+        api_key: aiApiKey,
+        model: aiModel,
+        base_url: aiBaseUrl,
+        persona: currentPersona,
+        language: currentLanguage,
+        messages: [
+          {
+            role: 'user',
+            content: `[DRIVER RADIO TRANSMISSION]: "${finalTranscript}"`,
           },
-        }),
-        signal: abortController.signal,
-      });
+        ],
+        context: {
+          context_mode: 'live',
+          live_summary: liveContext,
+          custom_persona_prompt: currentPersona === RADIO_PERSONAS.CUSTOM ? currentCustomPrompt : undefined,
+          driver_callsign: currentDriverCallsign || undefined,
+          urgency_level: 'normal',
+        },
+      }, abortController.signal);
 
       if (!response.ok) {
         throw new Error(`AI Service returned status ${response.status}`);

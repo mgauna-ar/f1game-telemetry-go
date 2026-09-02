@@ -108,8 +108,8 @@ export function useProactiveTelemetryRadio({
           isCritical,
           emotion
         );
-      } catch (err) {
-        console.error('Failed to process engineer directive from /ws/engineer:', err);
+      } catch {
+        // Silently ignore directive processing failure
       }
     });
   }, [active]);

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { Lap } from '../types/session';
 import type { MergedTelemetryPoint, TrackTurn, ComparatorResponse } from '../types/comparator';
+import { api } from '../utils/apiClient';
 
 export interface UseMergedTelemetryOptions {
   lapAId?: number | '';
@@ -55,24 +56,21 @@ export function useMergedTelemetry({
     const controller = new AbortController();
     setLoading(true);
 
-    const params = new URLSearchParams();
-    if (lapAId) params.set('lapA', String(lapAId));
-    if (lapBId) params.set('lapB', String(lapBId));
-    if (stepMeters) params.set('stepMeters', String(stepMeters));
-    if (targetTrackLength && targetTrackLength > 0) params.set('targetTrackLength', String(targetTrackLength));
-
-    fetch(`/api/comparator/merge?${params.toString()}`, { signal: controller.signal })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-        return res.json();
-      })
-      .then((data: ComparatorResponse) => {
+    api.get<ComparatorResponse>('/api/comparator/merge', {
+      params: {
+        lapA: lapAId || undefined,
+        lapB: lapBId || undefined,
+        stepMeters,
+        targetTrackLength: targetTrackLength && targetTrackLength > 0 ? targetTrackLength : undefined,
+      },
+      signal: controller.signal,
+    })
+      .then((data) => {
         setComparisonData(data.points || []);
         setDetectedTurns(data.turns || []);
       })
       .catch((err) => {
         if (err.name !== 'AbortError') {
-          console.error('Failed to fetch comparator merged telemetry', err);
           setComparisonData([]);
           setDetectedTurns([]);
         }

@@ -18,6 +18,7 @@ import {
 } from '../constants/f1';
 import { useTelemetryDataStore, type TelemetryDataState } from './useTelemetryDataStore';
 import { useSessionStatusStore, type SessionStatusState } from './useSessionStatusStore';
+import { createWebSocket, type WebSocketClient } from '../utils/websocketClient';
 
 export { useTelemetryDataStore, useSessionStatusStore };
 export type { TelemetryDataState, SessionStatusState };
@@ -546,70 +547,35 @@ export const useTelemetryStore = create<TelemetryState>((set, get) => ({
 }));
 
 // Singleton WebSocket Manager
-let activeWs: WebSocket | null = null;
-let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let activeWsClient: WebSocketClient | null = null;
 let wsSubscribers = 0;
 
 export function connectTelemetryWebSocket(wsUrl?: string): () => void {
   wsSubscribers++;
 
-  const getTargetUrl = () => {
-    if (wsUrl) return wsUrl;
-    if (typeof window === 'undefined') return 'ws://localhost:8080/ws';
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${protocol}//${window.location.host}/ws`;
-  };
-
-  const connect = () => {
-    if (wsSubscribers <= 0) return;
-    try {
-      const socket = new WebSocket(getTargetUrl());
-      activeWs = socket;
-
-      socket.onopen = () => {
+  if (!activeWsClient) {
+    activeWsClient = createWebSocket(wsUrl || '/ws', {
+      onConnect: () => {
         useTelemetryStore.getState().setConnected(true);
-      };
-
-      socket.onclose = () => {
+      },
+      onDisconnect: () => {
         useTelemetryStore.getState().setConnected(false);
-        if (wsSubscribers > 0) {
-          reconnectTimer = setTimeout(connect, 2000);
-        }
-      };
+      },
+      onMessage: (data) => {
+        useTelemetryStore.getState().processIncomingMessage(data);
+      },
+    });
+  }
 
-      socket.onerror = () => {
-        useTelemetryStore.getState().setConnected(false);
-      };
-
-      socket.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          useTelemetryStore.getState().processIncomingMessage(data);
-        } catch (err) {
-          console.error('Failed to parse telemetry packet:', err);
-        }
-      };
-    } catch {
-      useTelemetryStore.getState().setConnected(false);
-      if (wsSubscribers > 0) {
-        reconnectTimer = setTimeout(connect, 2000);
-      }
-    }
-  };
-
-  if (!activeWs || activeWs.readyState === WebSocket.CLOSED) {
-    connect();
+  if (!activeWsClient.isConnected()) {
+    activeWsClient.connect();
   }
 
   return () => {
     wsSubscribers = Math.max(0, wsSubscribers - 1);
-    if (wsSubscribers === 0) {
-      if (reconnectTimer) clearTimeout(reconnectTimer);
-      if (activeWs) {
-        activeWs.onclose = null;
-        activeWs.close();
-        activeWs = null;
-      }
+    if (wsSubscribers === 0 && activeWsClient) {
+      activeWsClient.disconnect();
+      activeWsClient = null;
       useTelemetryStore.getState().setConnected(false);
     }
   };

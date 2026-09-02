@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { Participant, Lap } from '../types/session';
 import { filterActiveHistoricalParticipants } from '../utils/driverFilter';
+import { api } from '../utils/apiClient';
 
 export interface UseSlotTelemetryOptions {
   sessionId: number | '';
@@ -55,22 +56,12 @@ export function useSlotTelemetry({
 
     setLoading(true);
     Promise.all([
-      fetch(`/api/sessions/${sessionId}/participants`, { signal })
-        .then((res) => {
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          return res.json();
-        })
+      api.get<Participant[]>(`/api/sessions/${sessionId}/participants`, { signal })
         .then((data) => {
           if (!signal.aborted) setParticipants(data || []);
         })
-        .catch((err) => {
-          if (err.name !== 'AbortError') console.error('Failed to fetch participants', err);
-        }),
-      fetch(`/api/sessions/${sessionId}/laps`, { signal })
-        .then((res) => {
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          return res.json();
-        })
+        .catch(() => {}),
+      api.get<Lap[]>(`/api/sessions/${sessionId}/laps`, { signal })
         .then((data) => {
           if (signal.aborted) return;
           const list: Lap[] = data || [];
@@ -102,9 +93,7 @@ export function useSlotTelemetry({
             setLapId('');
           }
         })
-        .catch((err) => {
-          if (err.name !== 'AbortError') console.error('Failed to fetch laps', err);
-        }),
+        .catch(() => {}),
     ]).finally(() => {
       if (!signal.aborted) setLoading(false);
     });

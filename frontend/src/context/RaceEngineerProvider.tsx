@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
 import { useI18n } from './I18nContext';
+import { api } from '../utils/apiClient';
 import {
   RaceEngineerActionsContext,
   RaceEngineerStreamContext,
@@ -141,11 +142,12 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   // Fetch server status on mount
   useEffect(() => {
-    fetch('/api/ai/config-status')
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
+    api.get<{
+      has_gemini_env_key: boolean;
+      has_openai_env_key: boolean;
+      default_provider: 'gemini' | 'openai';
+      default_model: string;
+    }>('/api/ai/config-status')
       .then((data) => {
         setServerConfigStatus({
           hasGeminiEnvKey: data.has_gemini_env_key,
@@ -221,32 +223,19 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       let data: { models: AIModelItem[] } | null = null;
 
       try {
-        const res = await fetch('/api/ai/models', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            provider: activeCfg.provider,
-            api_key: activeCfg.apiKey,
-            base_url: activeCfg.baseUrl,
-          }),
+        data = await api.post<{ models: AIModelItem[] }>('/api/ai/models', {
+          provider: activeCfg.provider,
+          api_key: activeCfg.apiKey,
+          base_url: activeCfg.baseUrl,
         });
-
-        if (res.ok) {
-          data = await res.json();
-        }
       } catch {
         // Fallback
       }
 
       if (!data && activeCfg.provider === 'gemini' && activeCfg.apiKey) {
-        const directRes = await fetch(
+        const gJson = await api.get<{ models?: any[] }>(
           `https://generativelanguage.googleapis.com/v1beta/models?key=${activeCfg.apiKey}`
         );
-        if (!directRes.ok) {
-          const directErr = await directRes.text();
-          throw new Error(directErr || `Google Gemini API Error (${directRes.status})`);
-        }
-        const gJson = await directRes.json();
         const gModels: AIModelItem[] = (gJson.models || [])
           .filter((m: any) => (m.supportedGenerationMethods || []).includes('generateContent'))
           .map((m: any) => ({
@@ -441,19 +430,14 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
       const backendContext = buildCurrentBackendContext();
 
-      const res = await fetch('/api/ai/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          provider: config.provider,
-          api_key: config.apiKey,
-          base_url: config.baseUrl,
-          model: config.model,
-          messages: apiMessages,
-          context: backendContext,
-        }),
-        signal: controller.signal,
-      });
+      const res = await api.stream('/api/ai/chat', {
+        provider: config.provider,
+        api_key: config.apiKey,
+        base_url: config.baseUrl,
+        model: config.model,
+        messages: apiMessages,
+        context: backendContext,
+      }, controller.signal);
 
       if (!res.ok) {
         let errCode = 'GENERIC_ERROR';
@@ -483,22 +467,18 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
           }));
 
           const cleanModel = config.model.replace(/^models\//, '');
-          const geminiRes = await fetch(
+          const geminiRes = await api.stream(
             `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:streamGenerateContent?alt=sse&key=${config.apiKey}`,
             {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                contents: geminiContents,
-                system_instruction: {
-                  parts: [{ text: systemPrompt }],
-                },
-                generationConfig: {
-                  temperature: 0.35,
-                },
-              }),
-              signal: controller.signal,
-            }
+              contents: geminiContents,
+              system_instruction: {
+                parts: [{ text: systemPrompt }],
+              },
+              generationConfig: {
+                temperature: 0.35,
+              },
+            },
+            controller.signal
           );
 
           if (!geminiRes.ok) {

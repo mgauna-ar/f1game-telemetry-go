@@ -10,6 +10,7 @@ import {
   type RadioLanguage,
   type RadioTriggerPreset,
 } from '../constants/f1';
+import { api } from '../utils/apiClient';
 
 function getStoredBool(key: string, def: boolean): boolean {
   if (typeof window === 'undefined') return def;
@@ -815,11 +816,7 @@ export const useRadioSettingsStore = create<RadioSettingsState>((set, get) => {
 
     syncConfigToBackend: async () => {
       try {
-        await fetch('/api/ai/engineer/config', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(get().aiConfig),
-        });
+        await api.post('/api/ai/engineer/config', get().aiConfig);
       } catch {
         // ignore network error
       }
