@@ -443,3 +443,45 @@ func TestLiveBroadcaster_SessionReset(t *testing.T) {
 		t.Errorf("expected 0 events on session reset, got %d", len(snapshot.Events))
 	}
 }
+
+func TestLiveBroadcaster_ConcurrentProcessAndBroadcast(t *testing.T) {
+	hub := &mockHub{clientCount: 1}
+	broadcaster := NewLiveBroadcaster(hub)
+
+	var wg sync.WaitGroup
+	// Goroutine 1: Continuous BroadcastSnapshot
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 100; i++ {
+			broadcaster.BroadcastSnapshot()
+			time.Sleep(50 * time.Microsecond)
+		}
+	}()
+
+	// Goroutines 2 & 3: Continuous ProcessPacket
+	for g := 0; g < 2; g++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := 0; i < 100; i++ {
+				broadcaster.ProcessPacket(&packets.PacketCarTelemetryData{
+					Header: packets.PacketHeader{
+						PacketFormat: 2026,
+						PacketId:     packets.PacketIDCarTelemetry,
+						SessionUID:   0x123,
+					},
+				})
+				broadcaster.ProcessPacket(&packets.PacketLapData{
+					Header: packets.PacketHeader{
+						PacketFormat: 2026,
+						PacketId:     packets.PacketIDLapData,
+						SessionUID:   0x123,
+					},
+				})
+			}
+		}()
+	}
+
+	wg.Wait()
+}

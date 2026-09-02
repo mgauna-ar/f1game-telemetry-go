@@ -121,7 +121,10 @@ func (e *EngineerEngine) SetConfig(cfg EngineerConfig) {
 func (e *EngineerEngine) Reset(sessionUID uint64) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	e.resetLocked(sessionUID)
+}
 
+func (e *EngineerEngine) resetLocked(sessionUID uint64) {
 	e.currentSessionUID = sessionUID
 	e.lastDirectives = make(map[string]int64)
 	e.stintKeys = make(map[string]bool)
@@ -159,9 +162,7 @@ func (e *EngineerEngine) ProcessPacket(ctx context.Context, pkt packets.Packet) 
 
 	e.mu.Lock()
 	if e.currentSessionUID != header.SessionUID {
-		e.mu.Unlock()
-		e.Reset(header.SessionUID)
-		e.mu.Lock()
+		e.resetLocked(header.SessionUID)
 	}
 	e.playerCarIndex = int(header.PlayerCarIndex)
 	e.packetFormat = header.PacketFormat

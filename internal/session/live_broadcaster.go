@@ -405,9 +405,11 @@ func (b *LiveBroadcaster) BroadcastSnapshot() {
 		ActiveCarCount: activeCarCount,
 	}
 	b.dirty = false
+
+	js, err := json.Marshal(snapshot)
 	b.mu.Unlock()
 
-	if js, err := json.Marshal(snapshot); err == nil {
+	if err == nil {
 		b.hub.Broadcast(js)
 	}
 }

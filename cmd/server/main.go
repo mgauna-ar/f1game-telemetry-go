@@ -31,9 +31,10 @@ var (
 )
 
 const (
-	defaultUDPAddr  = "0.0.0.0:20777"
-	defaultHTTPAddr = ":8080"
-	defaultDBPath   = "f1telemetry.db"
+	defaultUDPAddr           = "0.0.0.0:20777"
+	defaultHTTPAddr          = ":8080"
+	defaultDBPath            = "f1telemetry.db"
+	defaultUDPStartupTimeout = 5 * time.Second
 )
 
 // ServerConfig holds the runtime configuration parameters for the server.
@@ -205,8 +206,18 @@ func initUDPListener(ctx context.Context, udpAddr string) (*udp.Listener, error)
 			slog.Error("UDP listener error", "addr", udpAddr, "error", err)
 		}
 	}()
-	<-listener.Ready() // Wait for socket to bind
-	return listener, nil
+
+	select {
+	case <-listener.Ready():
+		if err := listener.Err(); err != nil {
+			return nil, fmt.Errorf("failed to bind UDP listener on %s: %w", udpAddr, err)
+		}
+		return listener, nil
+	case <-time.After(defaultUDPStartupTimeout):
+		return nil, fmt.Errorf("timed out waiting for UDP listener to bind on %s", udpAddr)
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 func startPacketProcessing(

@@ -126,3 +126,30 @@ func TestListenerGracefulShutdown(t *testing.T) {
 		t.Fatal("timed out waiting for listener to shut down")
 	}
 }
+
+func TestListenerErrorClosesReady(t *testing.T) {
+	// Use an invalid address that fails resolution
+	listener := NewListener("invalid-host-name-that-does-not-exist.local:99999", DefaultBufferSize)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- listener.Listen(ctx)
+	}()
+
+	select {
+	case <-listener.Ready():
+		if listener.Err() == nil {
+			t.Fatal("expected non-nil Err() on resolve failure")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for listener.Ready() to close on error")
+	}
+
+	err := <-errCh
+	if err == nil {
+		t.Fatal("expected Listen() to return an error, got nil")
+	}
+}

@@ -2,16 +2,20 @@ package engineer
 
 import (
 	"context"
+	"sync"
 	"testing"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 )
 
 type mockBroadcaster struct {
+	mu         sync.Mutex
 	broadcasts [][]byte
 }
 
 func (m *mockBroadcaster) Broadcast(data []byte) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.broadcasts = append(m.broadcasts, data)
 }
 
@@ -904,4 +908,34 @@ func TestEngineerEngine_DeriveDrivingPhase(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestEngineerEngine_ConcurrentSessionTransitions(t *testing.T) {
+	broadcaster := &mockBroadcaster{}
+	engine := NewEngineerEngine(broadcaster, nil)
+	ctx := context.Background()
+
+	var wg sync.WaitGroup
+	for g := 0; g < 5; g++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			for i := 0; i < 50; i++ {
+				sessionUID := uint64(1000 + (i % 3))
+				header := createTestHeader(packets.PacketFormat2026, sessionUID, 0)
+				sessionPkt := &packets.PacketSessionData{
+					Header:      header,
+					SessionType: packets.SessionRace,
+				}
+				engine.ProcessPacket(ctx, sessionPkt)
+
+				lapPkt := &packets.PacketLapData{
+					Header: header,
+				}
+				engine.ProcessPacket(ctx, lapPkt)
+			}
+		}(g)
+	}
+
+	wg.Wait()
 }

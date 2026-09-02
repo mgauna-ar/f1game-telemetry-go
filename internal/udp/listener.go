@@ -33,7 +33,9 @@ type Listener struct {
 	mu        sync.RWMutex
 	conn      *net.UDPConn
 	closeOnce sync.Once
-	ready     chan struct{} // closed when the listener is ready to receive packets
+	readyOnce sync.Once
+	listenErr error
+	ready     chan struct{} // closed when the listener is ready to receive packets or failed to bind
 	bufPool   sync.Pool
 }
 
@@ -60,9 +62,26 @@ func (l *Listener) Packets() <-chan RawPacket {
 	return l.packets
 }
 
-// Ready returns a channel that is closed when the UDP listener is bound and ready.
+// Ready returns a channel that is closed when the UDP listener is bound and ready,
+// or when initialization failed. Call Err() to check for startup errors.
 func (l *Listener) Ready() <-chan struct{} {
 	return l.ready
+}
+
+// Err returns any startup or listener error.
+func (l *Listener) Err() error {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+	return l.listenErr
+}
+
+func (l *Listener) markReady(err error) {
+	l.readyOnce.Do(func() {
+		l.mu.Lock()
+		l.listenErr = err
+		l.mu.Unlock()
+		close(l.ready)
+	})
 }
 
 // Listen starts listening for UDP packets and blocks until the context is canceled
@@ -70,12 +89,16 @@ func (l *Listener) Ready() <-chan struct{} {
 func (l *Listener) Listen(ctx context.Context) error {
 	udpAddr, err := net.ResolveUDPAddr("udp", l.addr)
 	if err != nil {
-		return fmt.Errorf("resolve UDP address %s: %w", l.addr, err)
+		resErr := fmt.Errorf("resolve UDP address %s: %w", l.addr, err)
+		l.markReady(resErr)
+		return resErr
 	}
 
 	conn, err := net.ListenUDP("udp", udpAddr)
 	if err != nil {
-		return fmt.Errorf("listen UDP on %s: %w", l.addr, err)
+		listenErr := fmt.Errorf("listen UDP on %s: %w", l.addr, err)
+		l.markReady(listenErr)
+		return listenErr
 	}
 
 	l.mu.Lock()
@@ -83,7 +106,7 @@ func (l *Listener) Listen(ctx context.Context) error {
 	l.mu.Unlock()
 
 	// Signal that the listener is ready.
-	close(l.ready)
+	l.markReady(nil)
 
 	slog.Info("UDP listener listening", "addr", conn.LocalAddr().String())
 

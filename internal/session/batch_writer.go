@@ -72,11 +72,10 @@ func (bw *TelemetryBatchWriter) EnqueueLap(lapID int64, samples []storage.Teleme
 	}
 
 	bw.mu.Lock()
+	defer bw.mu.Unlock()
 	if bw.stopped {
-		bw.mu.Unlock()
 		return
 	}
-	bw.mu.Unlock()
 
 	payload := LapTelemetryPayload{
 		LapID:   lapID,
@@ -127,9 +126,8 @@ func (bw *TelemetryBatchWriter) Close(ctx context.Context) {
 	bw.stopped = true
 	started := bw.started
 	close(bw.doneCh)
-	bw.mu.Unlock()
-
 	close(bw.lapChan)
+	bw.mu.Unlock()
 
 	if started {
 		bw.wg.Wait()

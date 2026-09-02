@@ -2,7 +2,9 @@ package session
 
 import (
 	"context"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
@@ -922,4 +924,55 @@ func TestQualyTyreSetsFittedIndexStintDetection(t *testing.T) {
 	if manager.lapTrackers[0].stint.CurrentStintNum != 3 {
 		t.Fatalf("expected Stint 3 to persist on lap 4, got %d", manager.lapTrackers[0].stint.CurrentStintNum)
 	}
+}
+
+func TestSessionManager_ConcurrentProcessPacketAndClose(t *testing.T) {
+	repo, err := storage.NewSQLiteRepository("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("failed to create repo: %v", err)
+	}
+	defer repo.Close()
+
+	manager := NewSessionManager(repo)
+	ctx := context.Background()
+	manager.Start(ctx)
+
+	sessionHeader := packets.PacketHeader{
+		PacketFormat:   2026,
+		PacketId:       packets.PacketIDSession,
+		SessionUID:     4455667788,
+		PlayerCarIndex: 0,
+	}
+	sessionPacket := &packets.PacketSessionData{
+		Header:      sessionHeader,
+		TrackId:     1,
+		SessionType: packets.SessionRace,
+	}
+	manager.ProcessPacket(ctx, sessionPacket)
+
+	var wg sync.WaitGroup
+	for g := 0; g < 4; g++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := 0; i < 50; i++ {
+				telemetryPacket := &packets.PacketCarTelemetryData{
+					Header: packets.PacketHeader{
+						PacketFormat:   2026,
+						PacketId:       packets.PacketIDCarTelemetry,
+						SessionUID:     4455667788,
+						PlayerCarIndex: 0,
+					},
+				}
+				telemetryPacket.CarTelemetryData[0].Speed = uint16(200 + i)
+				manager.ProcessPacket(ctx, telemetryPacket)
+				time.Sleep(100 * time.Microsecond)
+			}
+		}()
+	}
+
+	time.Sleep(2 * time.Millisecond)
+	manager.Close(ctx)
+
+	wg.Wait()
 }

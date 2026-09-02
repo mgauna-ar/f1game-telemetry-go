@@ -298,3 +298,33 @@ func TestBatchWriter_FlushWorker(t *testing.T) {
 		}
 	}
 }
+
+func TestBatchWriter_RaceEnqueueDuringClose(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), fmt.Sprintf("test_bw_race_%d.db", time.Now().UnixNano()))
+	repo, err := storage.NewSQLiteRepository(dbPath)
+	if err != nil {
+		t.Fatalf("failed to create repo: %v", err)
+	}
+	defer repo.Close()
+
+	bw := NewTelemetryBatchWriter(repo)
+	ctx := context.Background()
+	bw.Start(ctx)
+
+	var wg sync.WaitGroup
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			for j := 0; j < 50; j++ {
+				bw.EnqueueLap(int64(id*100+j+1), []storage.TelemetrySample{{Speed: 200}})
+				time.Sleep(100 * time.Microsecond)
+			}
+		}(i)
+	}
+
+	time.Sleep(2 * time.Millisecond)
+	bw.Close(ctx)
+
+	wg.Wait()
+}

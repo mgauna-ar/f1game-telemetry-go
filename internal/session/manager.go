@@ -30,6 +30,8 @@ type SessionManager struct {
 
 	currentSessionUID uint64
 	currentSession    *storage.Session
+	mu                sync.Mutex
+	closed            bool
 	closeOnce         sync.Once
 }
 
@@ -58,9 +60,13 @@ func (sm *SessionManager) Start(ctx context.Context) {
 // Close gracefully flushes all remaining data and shuts down workers.
 func (sm *SessionManager) Close(ctx context.Context) {
 	sm.closeOnce.Do(func() {
+		sm.mu.Lock()
+		sm.closed = true
 		for _, tracker := range sm.lapTrackers {
 			tracker.FlushCurrentLap()
 		}
+		sm.mu.Unlock()
+
 		if sm.batchWriter != nil {
 			sm.batchWriter.Close(ctx)
 		}
@@ -68,9 +74,17 @@ func (sm *SessionManager) Close(ctx context.Context) {
 }
 
 // ProcessPacket receives a decoded packet and processes it.
-// IMPORTANT: This method must only be called from a single goroutine (the UDP listener loop).
-// It is not safe for concurrent use.
 func (sm *SessionManager) ProcessPacket(ctx context.Context, pkt packets.Packet) {
+	if pkt == nil {
+		return
+	}
+
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	if sm.closed {
+		return
+	}
+
 	header := pkt.GetHeader()
 
 	if header.SessionUID == 0 {
