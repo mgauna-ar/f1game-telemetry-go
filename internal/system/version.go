@@ -72,19 +72,23 @@ func CompareSemVer(v1, v2 string) int {
 	return 0
 }
 
+var (
+	postReleasePattern = regexp.MustCompile(`^\d+-g[0-9a-fA-F]+`)
+	postReleaseDigits  = regexp.MustCompile(`^(\d+)`)
+	preReleasePattern  = regexp.MustCompile(`^([a-zA-Z]+)(?:\.(\d+))?`)
+)
+
 func isPostReleaseBuild(pre string) bool {
 	if pre == "" {
 		return false
 	}
 	// Matches git describe pattern: e.g. "35-g48f0b96", "1-gabc123" or "dev"
-	re := regexp.MustCompile(`^\d+-g[0-9a-fA-F]+`)
-	return re.MatchString(pre) || strings.HasPrefix(pre, "dev")
+	return postReleasePattern.MatchString(pre) || strings.HasPrefix(pre, "dev")
 }
 
 func comparePostRelease(pre1, pre2 string) int {
-	re := regexp.MustCompile(`^(\d+)`)
-	m1 := re.FindStringSubmatch(pre1)
-	m2 := re.FindStringSubmatch(pre2)
+	m1 := postReleaseDigits.FindStringSubmatch(pre1)
+	m2 := postReleaseDigits.FindStringSubmatch(pre2)
 	if len(m1) > 1 && len(m2) > 1 {
 		n1, _ := strconv.Atoi(m1[1])
 		n2, _ := strconv.Atoi(m2[1])
@@ -124,9 +128,8 @@ func comparePreRelease(pre1, pre2 string) int {
 	}
 
 	// Extract numeric counter if present (e.g. beta.1 vs beta.2)
-	re := regexp.MustCompile(`^([a-zA-Z]+)(?:\.(\d+))?`)
-	m1 := re.FindStringSubmatch(pre1)
-	m2 := re.FindStringSubmatch(pre2)
+	m1 := preReleasePattern.FindStringSubmatch(pre1)
+	m2 := preReleasePattern.FindStringSubmatch(pre2)
 
 	if len(m1) > 1 && len(m2) > 1 {
 		name1 := m1[1]

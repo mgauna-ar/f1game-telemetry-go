@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 )
@@ -1443,5 +1444,142 @@ func TestSettingsOperations(t *testing.T) {
 	}
 	if val != `{"tyre_wear_warn_pct":50}` {
 		t.Errorf("expected %q, got %q", `{"tyre_wear_warn_pct":50}`, val)
+	}
+}
+
+func TestExportSession_BatchQueryAndReadTransaction(t *testing.T) {
+	repo := setupTestRepo(t)
+	ctx := context.Background()
+
+	session := &Session{
+		SessionUID:  "0xBATCHEXPORT1",
+		TrackID:     1,
+		TrackName:   "Silverstone",
+		SessionType: "Race",
+	}
+	if err := repo.SaveSession(ctx, session); err != nil {
+		t.Fatalf("SaveSession failed: %v", err)
+	}
+
+	// Create 4 laps: 2 with telemetry, 2 without
+	var lapIDs []int64
+	for i := 1; i <= 4; i++ {
+		lap := &Lap{
+			SessionID: session.ID,
+			CarIndex:  0,
+			LapNumber: i,
+			LapTimeMS: 90000 + i*1000,
+			Sector1MS: 30000,
+			Sector2MS: 30000,
+			Sector3MS: 30000 + i*1000,
+			IsValid:   true,
+		}
+		if err := repo.SaveLap(ctx, lap, false); err != nil {
+			t.Fatalf("SaveLap %d failed: %v", i, err)
+		}
+		lapIDs = append(lapIDs, lap.ID)
+
+		if i%2 != 0 {
+			samples := []TelemetrySample{
+				{LapDistance: float64(i * 100), Speed: 250},
+			}
+			if err := repo.SaveLapTelemetryBlob(ctx, lap.ID, samples); err != nil {
+				t.Fatalf("SaveLapTelemetryBlob %d failed: %v", i, err)
+			}
+		}
+	}
+
+	pkg, err := repo.ExportSession(ctx, session.ID)
+	if err != nil {
+		t.Fatalf("ExportSession failed: %v", err)
+	}
+
+	if len(pkg.Laps) != 4 {
+		t.Fatalf("expected 4 laps in exported package, got %d", len(pkg.Laps))
+	}
+
+	for _, lapPkg := range pkg.Laps {
+		if lapPkg.Lap.LapNumber%2 != 0 {
+			if len(lapPkg.Telemetry) != 1 {
+				t.Errorf("lap %d expected 1 telemetry sample, got %d", lapPkg.Lap.LapNumber, len(lapPkg.Telemetry))
+			}
+		} else {
+			if len(lapPkg.Telemetry) != 0 {
+				t.Errorf("lap %d expected 0 telemetry samples, got %d", lapPkg.Lap.LapNumber, len(lapPkg.Telemetry))
+			}
+		}
+	}
+
+	// Corrupt one telemetry row to verify error propagation and rollback
+	_, err = repo.db.ExecContext(ctx, "UPDATE lap_telemetry SET data = ? WHERE lap_id = ?", []byte("corrupted_zstd_data"), lapIDs[0])
+	if err != nil {
+		t.Fatalf("failed to inject corrupted telemetry: %v", err)
+	}
+
+	_, err = repo.ExportSession(ctx, session.ID)
+	if err == nil {
+		t.Fatal("expected ExportSession to fail on corrupted telemetry BLOB, but got nil error")
+	}
+}
+
+func TestSQLiteRepository_ConcurrentReads(t *testing.T) {
+	repo := setupTestRepo(t)
+	ctx := context.Background()
+
+	session := &Session{
+		SessionUID:  "0xCONCURRENTREADS",
+		TrackID:     2,
+		TrackName:   "Spa",
+		SessionType: "Race",
+	}
+	if err := repo.SaveSession(ctx, session); err != nil {
+		t.Fatalf("SaveSession failed: %v", err)
+	}
+
+	for i := 1; i <= 5; i++ {
+		lap := &Lap{
+			SessionID: session.ID,
+			CarIndex:  0,
+			LapNumber: i,
+			LapTimeMS: 100000,
+			IsValid:   true,
+		}
+		if err := repo.SaveLap(ctx, lap, false); err != nil {
+			t.Fatalf("SaveLap failed: %v", err)
+		}
+		_ = repo.SaveLapTelemetryBlob(ctx, lap.ID, []TelemetrySample{{LapDistance: 100, Speed: 300}})
+	}
+
+	// Run concurrent reads across 8 goroutines to verify MaxOpenConns(4) pool handles concurrent queries cleanly
+	var wg sync.WaitGroup
+	errCh := make(chan error, 16)
+
+	for g := 0; g < 8; g++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			for iter := 0; iter < 10; iter++ {
+				if id%2 == 0 {
+					_, err := repo.ExportSession(ctx, session.ID)
+					if err != nil {
+						errCh <- fmt.Errorf("goroutine %d ExportSession: %w", id, err)
+						return
+					}
+				} else {
+					_, err := repo.GetLapsBySession(ctx, session.ID, nil)
+					if err != nil {
+						errCh <- fmt.Errorf("goroutine %d GetLapsBySession: %w", id, err)
+						return
+					}
+				}
+			}
+		}(g)
+	}
+
+	wg.Wait()
+	close(errCh)
+
+	for err := range errCh {
+		t.Errorf("concurrent read error: %v", err)
 	}
 }

@@ -12,6 +12,11 @@ import (
 	"time"
 )
 
+var (
+	shortHTTPClient     = &http.Client{Timeout: 15 * time.Second}
+	streamingHTTPClient = &http.Client{Timeout: 60 * time.Second}
+)
+
 // ParseGeminiError converts a non-200 Gemini API response into a structured AIStreamError.
 func ParseGeminiError(statusCode int, body []byte) *AIStreamError {
 	var gErr struct {
@@ -181,7 +186,6 @@ func ParseOpenAIError(statusCode int, body []byte, providerName string) *AIStrea
 
 // FetchGeminiModels queries Gemini API for available active generative chat models.
 func FetchGeminiModels(ctx context.Context, apiKey string) ([]AIModelItem, error) {
-	client := &http.Client{Timeout: 15 * time.Second}
 	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models?key=%s", apiKey)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
@@ -189,7 +193,7 @@ func FetchGeminiModels(ctx context.Context, apiKey string) ([]AIModelItem, error
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	resp, err := client.Do(req)
+	resp, err := shortHTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query Gemini models: %w", err)
 	}
@@ -265,7 +269,6 @@ func FetchOpenAIModels(ctx context.Context, baseURL, apiKey string) ([]AIModelIt
 	}
 	url := strings.TrimRight(baseURL, "/") + "/models"
 
-	client := &http.Client{Timeout: 15 * time.Second}
 	httpReq, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -274,7 +277,7 @@ func FetchOpenAIModels(ctx context.Context, baseURL, apiKey string) ([]AIModelIt
 		httpReq.Header.Set("Authorization", "Bearer "+apiKey)
 	}
 
-	resp, err := client.Do(httpReq)
+	resp, err := shortHTTPClient.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query models from %s: %w", baseURL, err)
 	}
@@ -385,8 +388,7 @@ func StreamGemini(ctx context.Context, apiKey, model, systemPrompt string, messa
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{Timeout: 60 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := streamingHTTPClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to connect to Gemini API: %w", err)
 	}
@@ -506,8 +508,7 @@ func StreamOpenAI(ctx context.Context, baseURL, apiKey, model, systemPrompt stri
 		req.Header.Set("Authorization", "Bearer "+apiKey)
 	}
 
-	client := &http.Client{Timeout: 60 * time.Second}
-	resp, err := client.Do(req)
+	resp, err := streamingHTTPClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to connect to OpenAI API: %w", err)
 	}

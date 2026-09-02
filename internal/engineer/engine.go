@@ -210,8 +210,13 @@ func (e *EngineerEngine) ProcessPacket(ctx context.Context, pkt packets.Packet) 
 	e.updateDrivingPhaseLocked()
 
 	evalCtx := e.buildEvaluationContextLocked(header, pkt)
-	e.evaluateLocked(evalCtx)
+	emitted := e.evaluateLocked(evalCtx)
+	broadcaster := e.broadcaster
 	e.mu.Unlock()
+
+	for _, d := range emitted {
+		e.broadcastDirective(broadcaster, d)
+	}
 }
 
 func (e *EngineerEngine) buildEvaluationContextLocked(header packets.PacketHeader, pkt packets.Packet) *EvaluationContext {
@@ -245,8 +250,14 @@ func (e *EngineerEngine) buildEvaluationContextLocked(header packets.PacketHeade
 // Evaluate runs rule evaluation directly for the provided context.
 func (e *EngineerEngine) Evaluate(ctx *EvaluationContext) []Directive {
 	e.mu.Lock()
-	defer e.mu.Unlock()
-	return e.evaluateLocked(ctx)
+	emitted := e.evaluateLocked(ctx)
+	broadcaster := e.broadcaster
+	e.mu.Unlock()
+
+	for _, d := range emitted {
+		e.broadcastDirective(broadcaster, d)
+	}
+	return emitted
 }
 
 func (e *EngineerEngine) evaluateLocked(ctx *EvaluationContext) []Directive {
@@ -267,8 +278,8 @@ func (e *EngineerEngine) evaluateLocked(ctx *EvaluationContext) []Directive {
 				alertKey = string(d.Category)
 			}
 			if e.canEmitDirectiveLocked(alertKey, string(d.Category), d.Urgency) {
-				e.emitDirectiveLocked(ctx.Header, d, alertKey)
-				emittedDirectives = append(emittedDirectives, d)
+				prepared := e.emitDirectiveLocked(ctx.Header, d, alertKey)
+				emittedDirectives = append(emittedDirectives, prepared)
 			}
 		}
 
@@ -563,7 +574,7 @@ func (e *EngineerEngine) canEmitDirectiveLocked(alertKey, category, urgency stri
 	return true
 }
 
-func (e *EngineerEngine) emitDirectiveLocked(header packets.PacketHeader, directive Directive, alertKey string) {
+func (e *EngineerEngine) emitDirectiveLocked(header packets.PacketHeader, directive Directive, alertKey string) Directive {
 	now := time.Now().UnixMilli()
 	category := string(directive.Category)
 
@@ -598,13 +609,18 @@ func (e *EngineerEngine) emitDirectiveLocked(header packets.PacketHeader, direct
 		directive.SessionTime = header.SessionTime
 	}
 
-	if e.broadcaster != nil {
-		data, err := json.Marshal(directive)
-		if err != nil {
-			slog.Error("Failed to marshal engineer directive", "alertKey", alertKey, "error", err)
-			return
-		}
-		slog.Info("Proactive directive emitted", "category", string(directive.Category), "subAlert", directive.SubAlert, "urgency", string(directive.Urgency), "message", directive.Message)
-		e.broadcaster.Broadcast(data)
+	return directive
+}
+
+func (e *EngineerEngine) broadcastDirective(broadcaster DirectiveBroadcaster, directive Directive) {
+	if broadcaster == nil {
+		return
 	}
+	data, err := json.Marshal(directive)
+	if err != nil {
+		slog.Error("Failed to marshal engineer directive", "alertKey", directive.SubAlert, "error", err)
+		return
+	}
+	slog.Info("Proactive directive emitted", "category", string(directive.Category), "subAlert", directive.SubAlert, "urgency", string(directive.Urgency), "message", directive.Message)
+	broadcaster.Broadcast(data)
 }

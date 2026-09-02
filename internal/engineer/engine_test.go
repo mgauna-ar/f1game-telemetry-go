@@ -939,3 +939,45 @@ func TestEngineerEngine_ConcurrentSessionTransitions(t *testing.T) {
 
 	wg.Wait()
 }
+
+type lockCheckingBroadcaster struct {
+	engine      *EngineerEngine
+	called      bool
+	lockWasHeld bool
+}
+
+func (l *lockCheckingBroadcaster) Broadcast(data []byte) {
+	l.called = true
+	if !l.engine.mu.TryLock() {
+		l.lockWasHeld = true
+	} else {
+		l.engine.mu.Unlock()
+	}
+}
+
+func TestEngineerEngine_BroadcastOutsideLock(t *testing.T) {
+	b := &lockCheckingBroadcaster{}
+	engine := NewEngineerEngine(b, nil)
+	b.engine = engine
+
+	ctx := context.Background()
+	header := createTestHeader(packets.PacketFormat2026, 123456789, 0)
+
+	sessionPkt := &packets.PacketSessionData{
+		Header:                    header,
+		SessionType:               packets.SessionRace,
+		NumWeatherForecastSamples: 2,
+		WeatherForecastSamples: [packets.MaxWeatherForecastSamples]packets.WeatherForecastSample{
+			{TimeOffset: 5, RainPercentage: 75},
+			{TimeOffset: 10, RainPercentage: 80},
+		},
+	}
+	engine.ProcessPacket(ctx, sessionPkt)
+
+	if !b.called {
+		t.Fatal("expected broadcaster.Broadcast to be called")
+	}
+	if b.lockWasHeld {
+		t.Fatal("expected broadcaster.Broadcast to execute with engine.mu unlocked, but lock was held")
+	}
+}

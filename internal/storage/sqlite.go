@@ -79,6 +79,12 @@ const (
 // Compile-time check that SQLiteRepository implements Repository.
 var _ Repository = (*SQLiteRepository)(nil)
 
+type queryPreparer interface {
+	GetContext(ctx context.Context, dest any, query string, args ...any) error
+	SelectContext(ctx context.Context, dest any, query string, args ...any) error
+	Rebind(query string) string
+}
+
 // SQLiteRepository handles database operations using SQLite.
 type SQLiteRepository struct {
 	db *sqlx.DB
@@ -100,9 +106,9 @@ func NewSQLiteRepository(dbPath string) (*SQLiteRepository, error) {
 		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	// Limit to single connection for writes to serialize concurrent access and eliminate SQLITE_BUSY lock contention
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
+	// In WAL mode with busy_timeout(10000), allow concurrent readers while WAL coordinates single writer.
+	db.SetMaxOpenConns(4)
+	db.SetMaxIdleConns(2)
 
 	// Ensure foreign keys are always enforced on this connection
 	if _, err := db.Exec("PRAGMA foreign_keys=ON;"); err != nil {
@@ -347,6 +353,10 @@ type sessionTagJoinRow struct {
 // For race sessions: participants.total_race_time -> leader laps sum -> session_duration -> 0.
 // For non-race sessions (Qualifying, Practice, Shootouts): scheduled session_duration -> leader laps sum -> 0.
 func (r *SQLiteRepository) resolveSessionsDurationBatch(ctx context.Context, sessions []Session) {
+	resolveSessionsDurationBatch(ctx, r.db, sessions)
+}
+
+func resolveSessionsDurationBatch(ctx context.Context, db queryPreparer, sessions []Session) {
 	if len(sessions) == 0 {
 		return
 	}
@@ -375,7 +385,7 @@ func (r *SQLiteRepository) resolveSessionsDurationBatch(ctx context.Context, ses
 		q, args, err := sqlx.In(`SELECT session_id, MAX(total_race_time) AS max_time FROM participants WHERE session_id IN (?) AND total_race_time > 0 GROUP BY session_id`, needRaceTimeIDs)
 		if err == nil {
 			var rows []raceTimeRow
-			if err := r.db.SelectContext(ctx, &rows, r.db.Rebind(q), args...); err == nil {
+			if err := db.SelectContext(ctx, &rows, db.Rebind(q), args...); err == nil {
 				for _, row := range rows {
 					if row.MaxTime > 0 {
 						raceTimes[row.SessionID] = int(row.MaxTime)
@@ -408,7 +418,7 @@ func (r *SQLiteRepository) resolveSessionsDurationBatch(ctx context.Context, ses
 		`, needLapSumIDs)
 		if err == nil {
 			var rows []lapSumRow
-			if err := r.db.SelectContext(ctx, &rows, r.db.Rebind(q), args...); err == nil {
+			if err := db.SelectContext(ctx, &rows, db.Rebind(q), args...); err == nil {
 				for _, row := range rows {
 					lapSums[row.SessionID] = row.LapSum
 				}
@@ -585,6 +595,10 @@ func (r *SQLiteRepository) DeleteTag(ctx context.Context, tagID int64) error {
 
 // GetTagsBySession retrieves all tags associated with a specific session ID.
 func (r *SQLiteRepository) GetTagsBySession(ctx context.Context, sessionID int64) ([]Tag, error) {
+	return getTagsBySession(ctx, r.db, sessionID)
+}
+
+func getTagsBySession(ctx context.Context, db queryPreparer, sessionID int64) ([]Tag, error) {
 	var tags []Tag
 	query := `
 		SELECT t.id, t.name, t.color, t.created_at
@@ -593,7 +607,7 @@ func (r *SQLiteRepository) GetTagsBySession(ctx context.Context, sessionID int64
 		WHERE st.session_id = ?
 		ORDER BY t.name ASC
 	`
-	if err := r.db.SelectContext(ctx, &tags, query, sessionID); err != nil {
+	if err := db.SelectContext(ctx, &tags, query, sessionID); err != nil {
 		return nil, fmt.Errorf("failed to get tags for session: %w", err)
 	}
 	if tags == nil {
@@ -647,6 +661,10 @@ func (r *SQLiteRepository) SetSessionTags(ctx context.Context, sessionID int64, 
 
 // GetLapsBySession retrieves laps for a given session, optionally filtered by carIndex.
 func (r *SQLiteRepository) GetLapsBySession(ctx context.Context, sessionID int64, carIndex *int) ([]Lap, error) {
+	return getLapsBySession(ctx, r.db, sessionID, carIndex)
+}
+
+func getLapsBySession(ctx context.Context, db queryPreparer, sessionID int64, carIndex *int) ([]Lap, error) {
 	var laps []Lap
 	args := []any{sessionID}
 
@@ -659,7 +677,7 @@ func (r *SQLiteRepository) GetLapsBySession(ctx context.Context, sessionID int64
 		query += ` ORDER BY laps.car_index ASC, laps.lap_number ASC`
 	}
 
-	if err := r.db.SelectContext(ctx, &laps, query, args...); err != nil {
+	if err := db.SelectContext(ctx, &laps, query, args...); err != nil {
 		return nil, fmt.Errorf("failed to get laps: %w", err)
 	}
 
@@ -768,9 +786,13 @@ func saveParticipants(ctx context.Context, db sqlx.ExtContext, sessionID int64, 
 
 // GetParticipantsBySession retrieves all participants for a given session.
 func (r *SQLiteRepository) GetParticipantsBySession(ctx context.Context, sessionID int64) ([]Participant, error) {
+	return getParticipantsBySession(ctx, r.db, sessionID)
+}
+
+func getParticipantsBySession(ctx context.Context, db queryPreparer, sessionID int64) ([]Participant, error) {
 	var participants []Participant
 	query := `SELECT * FROM participants WHERE session_id = ? ORDER BY car_index ASC`
-	if err := r.db.SelectContext(ctx, &participants, query, sessionID); err != nil {
+	if err := db.SelectContext(ctx, &participants, query, sessionID); err != nil {
 		return nil, fmt.Errorf("failed to get participants: %w", err)
 	}
 	if participants == nil {
@@ -781,6 +803,10 @@ func (r *SQLiteRepository) GetParticipantsBySession(ctx context.Context, session
 
 // GetSessionByID retrieves a session by its database ID.
 func (r *SQLiteRepository) GetSessionByID(ctx context.Context, sessionID int64) (*Session, error) {
+	return getSessionByID(ctx, r.db, sessionID)
+}
+
+func getSessionByID(ctx context.Context, db queryPreparer, sessionID int64) (*Session, error) {
 	var session Session
 	query := `
 		SELECT 
@@ -799,15 +825,15 @@ func (r *SQLiteRepository) GetSessionByID(ctx context.Context, sessionID int64) 
 		FROM sessions s
 		WHERE s.id = ?
 	`
-	if err := r.db.GetContext(ctx, &session, query, sessionID); err != nil {
+	if err := db.GetContext(ctx, &session, query, sessionID); err != nil {
 		return nil, fmt.Errorf("failed to get session by id: %w", err)
 	}
 
 	sessions := []Session{session}
-	r.resolveSessionsDurationBatch(ctx, sessions)
+	resolveSessionsDurationBatch(ctx, db, sessions)
 	session = sessions[0]
 
-	tags, err := r.GetTagsBySession(ctx, sessionID)
+	tags, err := getTagsBySession(ctx, db, sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tags for session %d: %w", sessionID, err)
 	}
@@ -817,36 +843,74 @@ func (r *SQLiteRepository) GetSessionByID(ctx context.Context, sessionID int64) 
 
 // ExportSession generates a fully self-contained package of a session with all its telemetry.
 func (r *SQLiteRepository) ExportSession(ctx context.Context, sessionID int64) (*ExportedSessionPackage, error) {
-	session, err := r.GetSessionByID(ctx, sessionID)
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin export transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	session, err := getSessionByID(ctx, tx, sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("export session: get session: %w", err)
 	}
 
-	tags, err := r.GetTagsBySession(ctx, sessionID)
+	tags, err := getTagsBySession(ctx, tx, sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to export session tags: %w", err)
 	}
 
-	participants, err := r.GetParticipantsBySession(ctx, sessionID)
+	participants, err := getParticipantsBySession(ctx, tx, sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to export participants: %w", err)
 	}
 
-	laps, err := r.GetLapsBySession(ctx, sessionID, nil)
+	laps, err := getLapsBySession(ctx, tx, sessionID, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to export laps: %w", err)
 	}
 
+	type telemetryRow struct {
+		LapID int64  `db:"lap_id"`
+		Data  []byte `db:"data"`
+	}
+
+	batchQuery := `
+		SELECT lt.lap_id, lt.data
+		FROM lap_telemetry lt
+		JOIN laps l ON l.id = lt.lap_id
+		WHERE l.session_id = ?
+	`
+	var rows []telemetryRow
+	if err := tx.SelectContext(ctx, &rows, batchQuery, sessionID); err != nil {
+		return nil, fmt.Errorf("failed to batch query lap telemetry: %w", err)
+	}
+
+	telemetryByLap := make(map[int64][]TelemetrySample, len(rows))
+	for _, row := range rows {
+		var samples []TelemetrySample
+		if err := decompressJSON(row.Data, &samples); err != nil {
+			return nil, fmt.Errorf("failed to export telemetry for lap %d: %w", row.LapID, err)
+		}
+		if samples == nil {
+			samples = []TelemetrySample{}
+		}
+		telemetryByLap[row.LapID] = samples
+	}
+
 	lapPackages := make([]ExportedLapPackage, 0, len(laps))
 	for _, lap := range laps {
-		telemetry, err := r.GetTelemetryByLap(ctx, lap.ID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to export telemetry for lap %d: %w", lap.ID, err)
+		telemetry := telemetryByLap[lap.ID]
+		if telemetry == nil {
+			telemetry = []TelemetrySample{}
 		}
 		lapPackages = append(lapPackages, ExportedLapPackage{
 			Lap:       lap,
 			Telemetry: telemetry,
 		})
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit export transaction: %w", err)
 	}
 
 	return &ExportedSessionPackage{
