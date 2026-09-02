@@ -15,7 +15,7 @@ interface SlotCardProps {
   selectedSession?: Session;
   isSessionDropdownOpen: boolean;
   onToggleSessionDropdown: () => void;
-  dropdownRef: React.RefObject<HTMLDivElement | null>;
+  dropdownRef?: React.RefObject<HTMLDivElement | null>;
   sessionSearchQuery: string;
   onSessionSearchChange: (q: string) => void;
   sessionTypeTab: 'ALL' | 'RACE' | 'SPRINT' | 'QUALI' | 'PRACTICE';

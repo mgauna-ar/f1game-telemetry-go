@@ -131,16 +131,15 @@ export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComp
     selectedTagId,
   });
 
+  // Modal states for batch operations
+  const [showBatchDeleteModal, setShowBatchDeleteModal] = useState<boolean>(false);
+  const [showBatchTagModal, setShowBatchTagModal] = useState<boolean>(false);
+  const [batchSelectedTagId, setBatchSelectedTagId] = useState<number | null>(null);
+
   // Hook 4: Batch Operations & Import/Export
   const {
     selectedSessionIds,
     isExportingBatch,
-    showBatchDeleteModal,
-    setShowBatchDeleteModal,
-    showBatchTagModal,
-    setShowBatchTagModal,
-    batchSelectedTagId,
-    setBatchSelectedTagId,
     importingSession,
     toastMessage,
     setToastMessage,
@@ -773,7 +772,10 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
               </button>
               <button
                 className="nav-tab active"
-                onClick={handleExecuteBatchDelete}
+                onClick={async () => {
+                  await handleExecuteBatchDelete();
+                  setShowBatchDeleteModal(false);
+                }}
                 style={{
                   padding: '0.5rem 1.2rem',
                   background: 'linear-gradient(135deg, #ff4d4f, #d9363e)',
@@ -876,7 +878,13 @@ OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
               <button
                 className="nav-tab active"
                 disabled={!batchSelectedTagId}
-                onClick={handleExecuteBatchTag}
+                onClick={async () => {
+                  if (batchSelectedTagId) {
+                    await handleExecuteBatchTag(batchSelectedTagId);
+                    setShowBatchTagModal(false);
+                    setBatchSelectedTagId(null);
+                  }
+                }}
                 style={{
                   padding: '0.5rem 1.2rem',
                   opacity: batchSelectedTagId ? 1 : 0.5,

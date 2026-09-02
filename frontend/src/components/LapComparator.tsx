@@ -52,14 +52,12 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
     setSessionASearchQuery,
     sessionATypeTab,
     setSessionATypeTab,
-    sessionADropdownRef,
     isSessionBDropdownOpen,
     setIsSessionBDropdownOpen,
     sessionBSearchQuery,
     setSessionBSearchQuery,
     sessionBTypeTab,
     setSessionBTypeTab,
-    sessionBDropdownRef,
     handleSelectSessionA,
     handleSelectSessionB,
     toggleSessionLink,
@@ -447,7 +445,6 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
             selectedSession={selectedSessionAObj}
             isSessionDropdownOpen={isSessionADropdownOpen}
             onToggleSessionDropdown={() => setIsSessionADropdownOpen((prev) => !prev)}
-            dropdownRef={sessionADropdownRef}
             sessionSearchQuery={sessionASearchQuery}
             onSessionSearchChange={setSessionASearchQuery}
             sessionTypeTab={sessionATypeTab}
@@ -470,7 +467,6 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
             selectedSession={selectedSessionBObj}
             isSessionDropdownOpen={isSessionBDropdownOpen}
             onToggleSessionDropdown={() => setIsSessionBDropdownOpen((prev) => !prev)}
-            dropdownRef={sessionBDropdownRef}
             sessionSearchQuery={sessionBSearchQuery}
             onSessionSearchChange={setSessionBSearchQuery}
             sessionTypeTab={sessionBTypeTab}

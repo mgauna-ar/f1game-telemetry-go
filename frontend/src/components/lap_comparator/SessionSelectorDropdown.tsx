@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Search, ChevronDown, ChevronUp, X } from 'lucide-react';
 import type { Session } from '../../types/session';
 import { getSessionBadgeClass } from '../../utils/formatters';
@@ -8,12 +8,12 @@ import { F1FormatBadge } from '../F1FormatBadge';
 import { TrackFlag } from '../TrackFlag';
 
 interface SessionSelectorDropdownProps {
-  sessions: Session[];
+  sessions?: Session[];
   filteredSessions: Session[];
   selectedSession: Session | undefined;
   isOpen: boolean;
   onToggleOpen: () => void;
-  dropdownRef: React.RefObject<HTMLDivElement | null>;
+  dropdownRef?: React.RefObject<HTMLDivElement | null>;
   searchQuery: string;
   onSearchChange: (q: string) => void;
   typeTab: 'ALL' | 'RACE' | 'SPRINT' | 'QUALI' | 'PRACTICE';
@@ -43,12 +43,37 @@ export const SessionSelectorDropdown: React.FC<SessionSelectorDropdownProps> = (
   isRestrictedCircuit = false,
   restrictedTrackName,
 }) => {
-
   const { t } = useI18n();
+  const internalRef = useRef<HTMLDivElement | null>(null);
+  const containerRef = dropdownRef || internalRef;
+
+  // Click outside and Escape key handling
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        onToggleOpen();
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onToggleOpen();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onToggleOpen, containerRef]);
 
   return (
     <div
-      ref={dropdownRef}
+      ref={containerRef}
       className={`custom-session-dropdown ${isOpen ? 'is-open' : ''}`}
       style={{ position: 'relative', zIndex: isOpen ? 100 : 1 }}
     >
@@ -84,7 +109,6 @@ export const SessionSelectorDropdown: React.FC<SessionSelectorDropdownProps> = (
           <ChevronDown size={15} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
         )}
       </button>
-
 
       {isOpen && (
         <div className="custom-session-popover" role="listbox">

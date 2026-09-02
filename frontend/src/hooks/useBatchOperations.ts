@@ -20,12 +20,6 @@ export interface UseBatchOperationsReturn {
   selectedSessionIds: Set<number>;
   setSelectedSessionIds: React.Dispatch<React.SetStateAction<Set<number>>>;
   isExportingBatch: boolean;
-  showBatchDeleteModal: boolean;
-  setShowBatchDeleteModal: React.Dispatch<React.SetStateAction<boolean>>;
-  showBatchTagModal: boolean;
-  setShowBatchTagModal: React.Dispatch<React.SetStateAction<boolean>>;
-  batchSelectedTagId: number | null;
-  setBatchSelectedTagId: React.Dispatch<React.SetStateAction<number | null>>;
   importingSession: boolean;
   toastMessage: ToastMessage | null;
   setToastMessage: React.Dispatch<React.SetStateAction<ToastMessage | null>>;
@@ -36,7 +30,7 @@ export interface UseBatchOperationsReturn {
   handleBatchExport: () => Promise<void>;
   handleImportFiles: (files: FileList | File[]) => Promise<void>;
   handleExecuteBatchDelete: () => Promise<void>;
-  handleExecuteBatchTag: () => Promise<void>;
+  handleExecuteBatchTag: (tagId: number) => Promise<void>;
 }
 
 export function useBatchOperations({
@@ -49,9 +43,6 @@ export function useBatchOperations({
   const { t } = useI18n();
   const [selectedSessionIds, setSelectedSessionIds] = useState<Set<number>>(new Set());
   const [isExportingBatch, setIsExportingBatch] = useState<boolean>(false);
-  const [showBatchDeleteModal, setShowBatchDeleteModal] = useState<boolean>(false);
-  const [showBatchTagModal, setShowBatchTagModal] = useState<boolean>(false);
-  const [batchSelectedTagId, setBatchSelectedTagId] = useState<number | null>(null);
   const [importingSession, setImportingSession] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<ToastMessage | null>(null);
 
@@ -199,7 +190,6 @@ export function useBatchOperations({
 
       setSessions((prev) => prev.filter((s) => !selectedSessionIds.has(s.id)));
       setSelectedSessionIds(new Set());
-      setShowBatchDeleteModal(false);
       setToastMessage({ type: 'success', text: t('history.batch.deleteSelected', { count: ids.length }) });
       await fetchSessions();
     } catch (err: any) {
@@ -207,32 +197,26 @@ export function useBatchOperations({
     }
   }, [selectedSessionIds, setSessions, fetchSessions, t]);
 
-  const handleExecuteBatchTag = useCallback(async () => {
-    const ids = Array.from(selectedSessionIds);
-    if (ids.length === 0 || !batchSelectedTagId) return;
+  const handleExecuteBatchTag = useCallback(
+    async (tagId: number) => {
+      const ids = Array.from(selectedSessionIds);
+      if (ids.length === 0 || !tagId) return;
 
-    try {
-      await api.post('/api/sessions/batch-tags', { session_ids: ids, tag_id: batchSelectedTagId });
-
-      setShowBatchTagModal(false);
-      setBatchSelectedTagId(null);
-      setToastMessage({ type: 'success', text: t('history.batch.tagSelected') });
-      await fetchSessions();
-    } catch (err: any) {
-      setToastMessage({ type: 'error', text: `Tag assignment error: ${err.message || err}` });
-    }
-  }, [selectedSessionIds, batchSelectedTagId, fetchSessions, t]);
+      try {
+        await api.post('/api/sessions/batch-tags', { session_ids: ids, tag_id: tagId });
+        setToastMessage({ type: 'success', text: t('history.batch.tagSelected') });
+        await fetchSessions();
+      } catch (err: any) {
+        setToastMessage({ type: 'error', text: `Tag assignment error: ${err.message || err}` });
+      }
+    },
+    [selectedSessionIds, fetchSessions, t]
+  );
 
   return {
     selectedSessionIds,
     setSelectedSessionIds,
     isExportingBatch,
-    showBatchDeleteModal,
-    setShowBatchDeleteModal,
-    showBatchTagModal,
-    setShowBatchTagModal,
-    batchSelectedTagId,
-    setBatchSelectedTagId,
     importingSession,
     toastMessage,
     setToastMessage,

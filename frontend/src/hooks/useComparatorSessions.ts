@@ -26,14 +26,12 @@ export interface UseComparatorSessionsReturn {
   setSessionASearchQuery: React.Dispatch<React.SetStateAction<string>>;
   sessionATypeTab: SessionTypeTab;
   setSessionATypeTab: React.Dispatch<React.SetStateAction<SessionTypeTab>>;
-  sessionADropdownRef: React.RefObject<HTMLDivElement | null>;
   isSessionBDropdownOpen: boolean;
   setIsSessionBDropdownOpen: React.Dispatch<React.SetStateAction<boolean>>;
   sessionBSearchQuery: string;
   setSessionBSearchQuery: React.Dispatch<React.SetStateAction<string>>;
   sessionBTypeTab: SessionTypeTab;
   setSessionBTypeTab: React.Dispatch<React.SetStateAction<SessionTypeTab>>;
-  sessionBDropdownRef: React.RefObject<HTMLDivElement | null>;
   fetchSessions: () => void;
   handleSelectSessionA: (sessionId: number) => void;
   handleSelectSessionB: (sessionId: number) => void;
@@ -71,13 +69,11 @@ export function useComparatorSessions({
   const [isSessionADropdownOpen, setIsSessionADropdownOpen] = useState(false);
   const [sessionASearchQuery, setSessionASearchQuery] = useState('');
   const [sessionATypeTab, setSessionATypeTab] = useState<SessionTypeTab>('ALL');
-  const sessionADropdownRef = useRef<HTMLDivElement | null>(null);
 
   const [isSessionBDropdownOpen, setIsSessionBDropdownOpen] = useState(false);
   const [sessionBSearchQuery, setSessionBSearchQuery] = useState('');
   const [sessionBTypeTab, setSessionBTypeTab] = useState<SessionTypeTab>('ALL');
   const [error, setError] = useState<string | null>(null);
-  const sessionBDropdownRef = useRef<HTMLDivElement | null>(null);
   const fetchAbortControllerRef = useRef<AbortController | null>(null);
 
   // Fetch available sessions
@@ -230,31 +226,6 @@ export function useComparatorSessions({
     });
   }, [sessions, selectedSessionAObj, sessionBSearchQuery, sessionBTypeTab, t]);
 
-  // Click outside & Escape key listeners for session dropdowns
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (sessionADropdownRef.current && !sessionADropdownRef.current.contains(event.target as Node)) {
-        setIsSessionADropdownOpen(false);
-      }
-      if (sessionBDropdownRef.current && !sessionBDropdownRef.current.contains(event.target as Node)) {
-        setIsSessionBDropdownOpen(false);
-      }
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsSessionADropdownOpen(false);
-        setIsSessionBDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, []);
-
   return {
     sessions,
     setSessions,
@@ -271,14 +242,12 @@ export function useComparatorSessions({
     setSessionASearchQuery,
     sessionATypeTab,
     setSessionATypeTab,
-    sessionADropdownRef,
     isSessionBDropdownOpen,
     setIsSessionBDropdownOpen,
     sessionBSearchQuery,
     setSessionBSearchQuery,
     sessionBTypeTab,
     setSessionBTypeTab,
-    sessionBDropdownRef,
     fetchSessions,
     handleSelectSessionA,
     handleSelectSessionB,
