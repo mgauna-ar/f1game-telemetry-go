@@ -231,6 +231,20 @@ export const radio_phrases = {
       'Pit stop window open, {driver}. Stand by for box call.',
     ],
   },
+  pit_window_close: {
+    bono: [
+      'Box this lap, box box! Pit window is closing, {driver}, we must box now to protect tyre performance.',
+      'Pit stop window closing, {driver}. Box this lap, box box!',
+    ],
+    colapinto: [
+      'Pit window is closing, {driver}! Box this lap, box box, we need fresh tyres now.',
+      'Window closing this lap, {driver}. Box now to protect our stint.',
+    ],
+    standard: [
+      'Box this lap, box box! Pit stop window is closing.',
+      'Pit stop window closing now, {driver}. Box this lap to maintain tyre delta.',
+    ],
+  },
   rival_defend: {
     bono: [
       'Car behind within 1 second with DRS, {driver}. Defend the inside into turn 1.',
@@ -390,6 +404,20 @@ export const radio_phrases = {
     standard: [
       'Teammate is pitting now. Focus on a clean lap.',
       'Teammate in boxes, {driver}. Maximize your pace.',
+    ],
+  },
+  teammate_doublestack: {
+    bono: [
+      'Teammate is in the pit box, {driver}! Stand by for double-stack pit stop, expect a brief hold.',
+      'Double-stack pit stop, {driver}! Teammate is pitting ahead of you, be prepared to hold.',
+    ],
+    colapinto: [
+      'Teammate is in the box, {driver}! Double-stack stop, hold your marks!',
+      'Watch out, teammate is pitting right now! Double-stack, expect a short delay.',
+    ],
+    standard: [
+      'Teammate is currently in the pit box. Stand by for double-stack pit stop.',
+      'Double-stack alert, {driver}. Teammate is in the box, prepare for a brief hold.',
     ],
   },
   pit_clean_air: {

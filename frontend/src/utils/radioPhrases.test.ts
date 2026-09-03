@@ -87,12 +87,20 @@ describe('radioPhrases', () => {
       ).toBe('teammate_pitting');
 
       expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Teammate is currently in the pit box! Stand by for double-stack pit stop, expect a brief hold.]')
+      ).toBe('teammate_doublestack');
+
+      expect(
         detectAlertCategory('[PROACTIVE PIT WALL CALL: Clean Air Pit Window — Pit window offers clean air on rejoin.]')
       ).toBe('pit_clean_air');
 
       expect(
         detectAlertCategory('[PROACTIVE PIT WALL CALL: Pit stop window is now open (Lap 14). Stand by for box call.]')
       ).toBe('pit_window_open');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Box this lap, box box! Pit stop window is closing on lap 18 - box now to protect tyre performance.]')
+      ).toBe('pit_window_close');
     });
 
     it('detects qualifying and race control scenarios', () => {
@@ -175,6 +183,22 @@ describe('radioPhrases', () => {
         'Franco'
       );
       expect(speechYellow.toLowerCase()).toContain('bandera amarilla');
+
+      const speechPitClose = getProactiveRadioSpeech(
+        { category: 'pit_window_close' },
+        'en',
+        'bono',
+        'Lewis'
+      );
+      expect(speechPitClose.toLowerCase()).toContain('closing');
+
+      const speechDoubleStack = getProactiveRadioSpeech(
+        { category: 'teammate_doublestack' },
+        'es',
+        'colapinto',
+        'Franco'
+      );
+      expect(speechDoubleStack.toLowerCase()).toContain('doble parada');
     });
 
     it('formats safety car with Bono persona and English callsign', () => {

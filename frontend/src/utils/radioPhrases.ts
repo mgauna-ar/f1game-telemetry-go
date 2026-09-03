@@ -151,6 +151,12 @@ export function detectAlertCategory(alertContext: string): RadioAlertCategory {
     return 'pit_clean_air';
   }
   if (
+    (lower.includes('pit stop window') || lower.includes('pit window') || lower.includes('ventana de parada')) &&
+    (lower.includes('closing') || lower.includes('close') || lower.includes('cierra') || lower.includes('cerrando') || lower.includes('última'))
+  ) {
+    return 'pit_window_close';
+  }
+  if (
     lower.includes('pit stop window') ||
     lower.includes('pit window') ||
     lower.includes('ventana de parada')
@@ -185,6 +191,13 @@ export function detectAlertCategory(alertContext: string): RadioAlertCategory {
     lower.includes('personal best')
   ) {
     return 'sector_delta';
+  }
+  if (
+    lower.includes('double-stack') ||
+    lower.includes('double stack') ||
+    lower.includes('doble parada')
+  ) {
+    return 'teammate_doublestack';
   }
   if (lower.includes('teammate is pitting') || (lower.includes('teammate in p') && lower.includes('pitting'))) {
     return 'teammate_pitting';

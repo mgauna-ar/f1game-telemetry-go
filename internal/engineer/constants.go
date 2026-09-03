@@ -17,6 +17,7 @@ const (
 	MinStintLapsForReset           = 3
 	PostPitSuppressionLaps         = 1
 	TyreCrossoverMinStintLaps      = 2
+	CleanAirMinRemainingLaps       = 4
 
 	// Speed and distance estimations
 	AverageRaceSpeedMetersPerSec   = 65.0

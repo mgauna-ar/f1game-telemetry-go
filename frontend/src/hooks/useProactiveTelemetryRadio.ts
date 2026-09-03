@@ -73,6 +73,8 @@ const CATEGORY_MAP: Record<string, RadioAlertCategory> = {
   blue_flag: 'flags_blue',
   flags_yellow: 'flags_yellow',
   yellow_flag: 'flags_yellow',
+  pit_window_close: 'pit_window_close',
+  teammate_doublestack: 'teammate_doublestack',
   damage_aero_fault: 'aero_fault',
   damage_ers_fault: 'ers_fault',
   rival_defend_override: 'rival_defend_override',

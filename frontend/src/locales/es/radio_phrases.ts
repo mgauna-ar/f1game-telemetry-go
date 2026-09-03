@@ -239,6 +239,20 @@ export const radio_phrases = {
       'Ventana de boxes abierta, {driver}. Prepárate para llamada de parada.',
     ],
   },
+  pit_window_close: {
+    colapinto: [
+      '¡A boxes en esta vuelta, box box! Se nos cierra la ventana, {driver}, entramos ya para no liquidar las gomas.',
+      'Ventana de parada cerrando en esta vuelta, {driver}. ¡Box box ahora!',
+    ],
+    bono: [
+      'Box en esta vuelta, box box. La ventana de parada se cierra ahora, {driver}.',
+      'Ventana de pits cerrando. Entramos a boxes en esta vuelta para proteger el neumático.',
+    ],
+    standard: [
+      'Box en esta vuelta, box box. Se cierra la ventana de parada.',
+      'Ventana de parada cerrándose ahora, {driver}. Entra a boxes para mantener el delta de gomas.',
+    ],
+  },
   rival_defend: {
     colapinto: [
       'Auto de atrás con DRS a menos de un segundo, {driver}. Cuidale la cuerda en la recta.',
@@ -401,6 +415,20 @@ export const radio_phrases = {
     standard: [
       'Compañero de equipo en boxes. Concéntrate en tu vuelta.',
       'Tu compañero entra a boxes ahora, {driver}. Maximiza el ritmo.',
+    ],
+  },
+  teammate_doublestack: {
+    colapinto: [
+      '¡Ojo que tu compañero está en el box, {driver}! Doble parada en boxes, bancá la posición en la suelta.',
+      '¡Compañero en boxes! Preparate para doble parada, aguantá la marca.',
+    ],
+    bono: [
+      'Tu compañero está en boxes, {driver}. Preparado para doble parada, espera una breve retención.',
+      'Doble parada en boxes. Tu compañero está en el cajón, prepárate para esperar.',
+    ],
+    standard: [
+      'Tu compañero de equipo está en boxes. Doble parada, espera una breve retención.',
+      'Alerta de doble parada, {driver}. Compañero en el cajón de boxes, prepárate para esperar.',
     ],
   },
   pit_clean_air: {

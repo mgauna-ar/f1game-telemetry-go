@@ -9,18 +9,20 @@ import (
 
 // FuelRule manages fuel deficit, pit stop window opening, and undercut threat alerts.
 type FuelRule struct {
-	mu                     sync.Mutex
-	lastFuelDeltaAlertLap  int
-	lastPitWindowWarnedLap int
-	lastUndercutRivalIndex int
+	mu                          sync.Mutex
+	lastFuelDeltaAlertLap       int
+	lastPitWindowWarnedLap      int
+	lastPitWindowCloseWarnedLap int
+	lastUndercutRivalIndex      int
 }
 
 // NewFuelRule creates a new FuelRule.
 func NewFuelRule() *FuelRule {
 	return &FuelRule{
-		lastFuelDeltaAlertLap:  -1,
-		lastPitWindowWarnedLap: -1,
-		lastUndercutRivalIndex: -1,
+		lastFuelDeltaAlertLap:       -1,
+		lastPitWindowWarnedLap:      -1,
+		lastPitWindowCloseWarnedLap: -1,
+		lastUndercutRivalIndex:      -1,
 	}
 }
 
@@ -53,6 +55,11 @@ func (r *FuelRule) AlertKeys() map[string]AlertKeyConfig {
 			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeLap,
 		},
+		"pit_window_close": {
+			Category:    DirectiveCategoryPitStrategy,
+			ValidPhases: []DrivingPhase{PhaseRacing},
+			DedupScope:  DedupScopeLap,
+		},
 	}
 }
 
@@ -63,6 +70,7 @@ func (r *FuelRule) Reset(scope DedupScope) {
 	if scope == DedupScopeLap || scope == DedupScopeNone {
 		r.lastFuelDeltaAlertLap = -1
 		r.lastPitWindowWarnedLap = -1
+		r.lastPitWindowCloseWarnedLap = -1
 	}
 	if scope == DedupScopeStint || scope == DedupScopeNone {
 		r.lastUndercutRivalIndex = -1
@@ -132,7 +140,26 @@ func (r *FuelRule) Evaluate(ctx *EvaluationContext) []Directive {
 		}
 	}
 
-	// 3. Undercut Threat Detection (from LapData, race only on LapData)
+	// 3. Pit Stop Window Closing (from SessionData & LapData, race only on LapData)
+	if ctx.IsRaceSession() && ctx.Phase != PhaseSafetyCar && !isNeutralized && ctx.Session != nil &&
+		ctx.Session.SafetyCarStatus == packets.SafetyCarNone && ctx.Session.PitStopWindowLatestLap > 0 &&
+		(ctx.Packet == nil || isPacketType[*packets.PacketLapData](ctx.Packet)) &&
+		ctx.Config.IsAlertEnabled(string(DirectiveCategoryPitStrategy), "pit_window_close") {
+		latestLap := int(ctx.Session.PitStopWindowLatestLap)
+		if latestLap == currentLapNum && r.lastPitWindowCloseWarnedLap != currentLapNum {
+			r.lastPitWindowCloseWarnedLap = currentLapNum
+			directives = append(directives, Directive{
+				ID:       "pit_window_close",
+				Category: DirectiveCategoryPitStrategy,
+				SubAlert: "pit_window_close",
+				Title:    "Pit Window Closing",
+				Message:  fmt.Sprintf("Box this lap, box box! Pit stop window is closing (Lap %d), take the stop now to preserve tyre life.", currentLapNum),
+				Urgency:  UrgencyHigh,
+			})
+		}
+	}
+
+	// 4. Undercut Threat Detection (from LapData, race only on LapData)
 	if ctx.IsRaceSession() && playerLap != nil && playerLap.CarPosition > 0 && ctx.Phase != PhaseSafetyCar && !isNeutralized &&
 		(ctx.Session == nil || ctx.Session.SafetyCarStatus == packets.SafetyCarNone) && ctx.LapData != nil &&
 		(ctx.Packet == nil || isPacketType[*packets.PacketLapData](ctx.Packet)) &&

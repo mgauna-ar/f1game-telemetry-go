@@ -51,7 +51,17 @@ func (r *TrafficRule) Evaluate(ctx *EvaluationContext) []Directive {
 		return nil
 	}
 
+	// Strategy integrity: suppress clean air pit calls if player already pitted or race is near conclusion
+	if playerLap.NumPitStops >= 1 {
+		return nil
+	}
 	currentLap := int(playerLap.CurrentLapNum)
+	if ctx.Session != nil && ctx.Session.TotalLaps > 0 {
+		lapsRemaining := int(ctx.Session.TotalLaps) - currentLap
+		if lapsRemaining <= CleanAirMinRemainingLaps {
+			return nil
+		}
+	}
 	trackLen := float32(DefaultTrackLengthMeters)
 	if ctx.Session != nil && ctx.Session.TrackLength > 0 {
 		trackLen = float32(ctx.Session.TrackLength)

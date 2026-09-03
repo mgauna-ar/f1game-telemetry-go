@@ -531,6 +531,27 @@ func TestFuelRule_TableDriven(t *testing.T) {
 			wantUrgency:  UrgencyLow,
 		},
 		{
+			name: "pit stop window close alert on latest lap",
+			ctx: &EvaluationContext{
+				LapData: &packets.PacketLapData{
+					LapData: [packets.MaxCars]packets.LapData{
+						{CurrentLapNum: 16, CarPosition: 3},
+					},
+				},
+				Config:         cfg,
+				PlayerCarIndex: 0,
+				Phase:          PhaseRacing,
+				Session: &packets.PacketSessionData{
+					SessionType:            packets.SessionRace,
+					PitStopWindowLatestLap: 16,
+					SafetyCarStatus:        packets.SafetyCarNone,
+				},
+			},
+			wantAlerts:   1,
+			wantSubAlert: "pit_window_close",
+			wantUrgency:  UrgencyHigh,
+		},
+		{
 			name: "pit stop window suppressed under safety car",
 			ctx: &EvaluationContext{
 				LapData: &packets.PacketLapData{
@@ -1057,6 +1078,26 @@ func TestTeammateRule_TableDriven(t *testing.T) {
 		}
 	})
 
+	t.Run("teammate double-stack alert when both cars pitting", func(t *testing.T) {
+		rule := NewTeammateRule()
+		ctx := &EvaluationContext{
+			LapData: &packets.PacketLapData{
+				LapData: [packets.MaxCars]packets.LapData{
+					{CurrentLapNum: 15, PitStatus: packets.PitStatusPitting, DriverStatus: packets.DriverStatusOnTrack},
+					{CurrentLapNum: 15, PitStatus: packets.PitStatusInPitArea, DriverStatus: packets.DriverStatusOnTrack},
+				},
+			},
+			Config:           cfg,
+			PlayerCarIndex:   0,
+			TeammateCarIndex: 1,
+			Phase:            PhasePitLane,
+		}
+		dirs := rule.Evaluate(ctx)
+		if len(dirs) != 1 || dirs[0].SubAlert != "teammate_doublestack" {
+			t.Fatalf("expected teammate_doublestack directive, got %+v", dirs)
+		}
+	})
+
 	t.Run("suppressed when player or teammate in garage", func(t *testing.T) {
 		rule := NewTeammateRule()
 		ctx := &EvaluationContext{
@@ -1150,6 +1191,52 @@ func TestTrafficRule_TableDriven(t *testing.T) {
 		}
 		if dirs := rule.Evaluate(ctx); len(dirs) != 0 {
 			t.Fatalf("expected 0 directives on non-periodic lap, got %d", len(dirs))
+		}
+	})
+
+	t.Run("already pitted driver suppresses clean air alert", func(t *testing.T) {
+		rule := NewTrafficRule()
+		ctx := &EvaluationContext{
+			LapData: &packets.PacketLapData{
+				LapData: [packets.MaxCars]packets.LapData{
+					{CurrentLapNum: 10, TotalDistance: 20000.0, NumPitStops: 1},
+				},
+			},
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseRacing,
+			Session: &packets.PacketSessionData{
+				SessionType:     packets.SessionRace,
+				SafetyCarStatus: packets.SafetyCarNone,
+				TrackLength:     5000,
+				TotalLaps:       53,
+			},
+		}
+		if dirs := rule.Evaluate(ctx); len(dirs) != 0 {
+			t.Fatalf("expected 0 directives when driver already completed pit stop, got %d", len(dirs))
+		}
+	})
+
+	t.Run("late race lap suppresses clean air alert", func(t *testing.T) {
+		rule := NewTrafficRule()
+		ctx := &EvaluationContext{
+			LapData: &packets.PacketLapData{
+				LapData: [packets.MaxCars]packets.LapData{
+					{CurrentLapNum: 50, TotalDistance: 100000.0, NumPitStops: 0},
+				},
+			},
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseRacing,
+			Session: &packets.PacketSessionData{
+				SessionType:     packets.SessionRace,
+				SafetyCarStatus: packets.SafetyCarNone,
+				TrackLength:     5000,
+				TotalLaps:       53,
+			},
+		}
+		if dirs := rule.Evaluate(ctx); len(dirs) != 0 {
+			t.Fatalf("expected 0 directives on lap 50 of 53, got %d", len(dirs))
 		}
 	})
 }

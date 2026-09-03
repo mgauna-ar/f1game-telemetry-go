@@ -9,18 +9,21 @@ import (
 
 // TeammateRule manages teammate proximity and pit status alerts.
 type TeammateRule struct {
-	mu                        sync.Mutex
-	lastTeammateAheadWarned   bool
-	lastTeammatePittingWarned bool
-	lastTeammatePittingLapNum int
-	lastTeammateAheadWarnLap  int
+	mu                            sync.Mutex
+	lastTeammateAheadWarned       bool
+	lastTeammatePittingWarned     bool
+	lastTeammatePittingLapNum     int
+	lastTeammateAheadWarnLap      int
+	lastTeammateDoubleStackWarned bool
+	lastTeammateDoubleStackLapNum int
 }
 
 // NewTeammateRule creates a new TeammateRule.
 func NewTeammateRule() *TeammateRule {
 	return &TeammateRule{
-		lastTeammatePittingLapNum: -1,
-		lastTeammateAheadWarnLap:  -1,
+		lastTeammatePittingLapNum:     -1,
+		lastTeammateAheadWarnLap:      -1,
+		lastTeammateDoubleStackLapNum: -1,
 	}
 }
 
@@ -33,7 +36,7 @@ func (r *TeammateRule) Category() string {
 }
 
 func (r *TeammateRule) ValidPhases() []DrivingPhase {
-	return []DrivingPhase{PhaseOutLap, PhaseRacing, PhaseInLap, PhaseSafetyCar}
+	return []DrivingPhase{PhaseOutLap, PhaseRacing, PhaseInLap, PhaseSafetyCar, PhasePitLane}
 }
 
 func (r *TeammateRule) AlertKeys() map[string]AlertKeyConfig {
@@ -44,6 +47,10 @@ func (r *TeammateRule) AlertKeys() map[string]AlertKeyConfig {
 		},
 		"teammate_pitting": {
 			ValidPhases: []DrivingPhase{PhaseRacing, PhaseOutLap, PhaseInLap, PhaseSafetyCar},
+			DedupScope:  DedupScopeNone,
+		},
+		"teammate_doublestack": {
+			ValidPhases: []DrivingPhase{PhaseRacing, PhaseOutLap, PhaseInLap, PhaseSafetyCar, PhasePitLane},
 			DedupScope:  DedupScopeNone,
 		},
 	}
@@ -58,6 +65,8 @@ func (r *TeammateRule) Reset(scope DedupScope) {
 		r.lastTeammatePittingWarned = false
 		r.lastTeammatePittingLapNum = -1
 		r.lastTeammateAheadWarnLap = -1
+		r.lastTeammateDoubleStackWarned = false
+		r.lastTeammateDoubleStackLapNum = -1
 	}
 }
 
@@ -88,7 +97,25 @@ func (r *TeammateRule) Evaluate(ctx *EvaluationContext) []Directive {
 	distDiff := playerLap.TotalDistance - teammateLap.TotalDistance
 	gapSeconds := distDiff / AverageRaceSpeedMetersPerSec
 
-	if teammateLap.PitStatus == packets.PitStatusPitting && !r.lastTeammatePittingWarned && currentLap != r.lastTeammatePittingLapNum {
+	isPlayerPitting := playerLap.PitStatus == packets.PitStatusPitting
+	isTeammateInBox := teammateLap.PitStatus == packets.PitStatusPitting || teammateLap.PitStatus == packets.PitStatusInPitArea
+
+	if isPlayerPitting && isTeammateInBox && !r.lastTeammateDoubleStackWarned && currentLap != r.lastTeammateDoubleStackLapNum {
+		r.lastTeammateDoubleStackWarned = true
+		r.lastTeammateDoubleStackLapNum = currentLap
+		directives = append(directives, Directive{
+			ID:       "teammate_doublestack",
+			Category: DirectiveCategoryTeammate,
+			SubAlert: "teammate_doublestack",
+			Title:    "Double-Stack Pit Stop",
+			Message:  "Teammate is in the pit box! Stand by for double-stack pit stop, expect a brief hold on release.",
+			Urgency:  UrgencyHigh,
+		})
+	} else if !isPlayerPitting {
+		r.lastTeammateDoubleStackWarned = false
+	}
+
+	if !isPlayerPitting && teammateLap.PitStatus == packets.PitStatusPitting && !r.lastTeammatePittingWarned && currentLap != r.lastTeammatePittingLapNum {
 		r.lastTeammatePittingWarned = true
 		r.lastTeammatePittingLapNum = currentLap
 		directives = append(directives, Directive{

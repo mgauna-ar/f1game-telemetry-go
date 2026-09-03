@@ -293,6 +293,8 @@ export type RadioAlertCategory =
   | 'flags_green'
   | 'flags_blue'
   | 'flags_yellow'
+  | 'pit_window_close'
+  | 'teammate_doublestack'
   | 'race_finish'
   | 'inlap_traffic_behind'
   | 'inlap_cooldown'
