@@ -3,8 +3,8 @@ import type { NavigationComparatorPayload } from '../types/session';
 import { buildTelemetryContext } from '../utils/aiTelemetrySummary';
 import { useRaceEngineerActions } from '../context/RaceEngineerContext';
 
-import { ComparatorHeader } from './lap_comparator/ComparatorHeader';
-import { QuickSelectLeaderboard } from './lap_comparator/QuickSelectLeaderboard';
+import { ComparatorDuelHeader } from './lap_comparator/ComparatorDuelHeader';
+import { ComparatorTimingTower } from './lap_comparator/ComparatorTimingTower';
 import { ComparatorMetricsSummary } from './lap_comparator/ComparatorMetricsSummary';
 import { ComparatorTelemetryCharts } from './lap_comparator/ComparatorTelemetryCharts';
 import { ComparatorSidebar } from './lap_comparator/ComparatorSidebar';
@@ -219,8 +219,8 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
 
   return (
     <div className="dashboard-grid" style={{ paddingTop: 0 }}>
-      {/* Header Controls & Comparison Slots Panel */}
-      <ComparatorHeader
+      {/* Header Controls & Comparison Duel Panel */}
+      <ComparatorDuelHeader
         sessions={sessions}
         selectedSessionAObj={selectedSessionAObj}
         selectedSessionBObj={selectedSessionBObj}
@@ -230,9 +230,9 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
         lapBObj={lapBObj}
         totalDeltaMs={totalDeltaMs}
         handleSwapSlots={handleSwapSlots}
-        isQuickSelectOpen={isQuickSelectOpen}
-        setIsQuickSelectOpen={setIsQuickSelectOpen}
-        quickSelectTotalCount={quickSelectData.totalCount}
+        isTimingTowerOpen={isQuickSelectOpen}
+        setIsTimingTowerOpen={setIsQuickSelectOpen}
+        timingTowerTotalCount={quickSelectData.totalCount}
         handleClearSelections={handleClearSelections}
         slotA={slotA}
         slotB={slotB}
@@ -257,9 +257,9 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
         s3Delta={s3Delta}
       />
 
-      {/* Enhanced Collapsible Quick Select Driver Leaderboard */}
+      {/* Enhanced F1 Broadcast Timing Tower & Rival Leaderboard */}
       {sessionAId !== '' && (activeParticipantsA.length > 0 || activeParticipantsB.length > 0) && (
-        <QuickSelectLeaderboard
+        <ComparatorTimingTower
           isOpen={isQuickSelectOpen}
           onToggleOpen={() => setIsQuickSelectOpen((prev) => !prev)}
           quickSelectData={quickSelectData}
@@ -277,6 +277,10 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
           onSetLapA={(id) => setLapAId(id)}
           onSetLapB={(id) => setLapBId(id)}
           participantsA={participantsA}
+          slotADriver={driverA}
+          slotBDriver={driverB}
+          lapAObj={lapAObj}
+          lapBObj={lapBObj}
         />
       )}
 

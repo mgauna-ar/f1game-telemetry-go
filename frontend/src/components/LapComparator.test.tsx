@@ -274,19 +274,12 @@ describe('LapComparator Component', () => {
     // Open Lap A custom popover
     fireEvent.click(screen.getByTestId('lap-a-trigger'));
 
-    // Popover should render search bar and laps
+    // Popover should render laps
     await waitFor(() => {
-      expect(screen.getByPlaceholderText('Search driver, lap #, time...')).toBeInTheDocument();
+      expect(screen.getByTestId('slot-a-lap-popover')).toBeInTheDocument();
       expect(screen.getAllByText('1:28.500').length).toBeGreaterThan(0);
       expect(screen.getAllByText('1:30.000').length).toBeGreaterThan(0);
     });
-
-    // Test Valid Only filter button
-    const validOnlyBtn = screen.getByRole('button', { name: /Valid Only/i });
-    fireEvent.click(validOnlyBtn);
-
-    // Invalid lap should be excluded
-    expect(screen.queryByText(/Invalid/)).not.toBeInTheDocument();
 
     // Select Lap 1 option from the open popover
     const lap1Option = screen.getAllByText('1:30.000')[0];
@@ -339,7 +332,7 @@ describe('LapComparator Component', () => {
     expect(screen.getByTestId('rank-badge-1')).toHaveTextContent('P1');
     expect(screen.getByTestId('rank-badge-2')).toHaveTextContent('P2');
     expect(screen.getByText('LEADER')).toBeInTheDocument();
-    expect(screen.getByText('+0.500s')).toBeInTheDocument();
+    expect(screen.getAllByText('+0.500s').length).toBeGreaterThan(0);
 
     // Check Sector timings are rendered
     expect(screen.getAllByText(/S1: 26.000/).length).toBeGreaterThan(0);

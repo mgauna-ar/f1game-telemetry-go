@@ -60,3 +60,15 @@ export interface ComparatorResponse {
   lap_a?: ComparatorLapMeta;
   lap_b?: ComparatorLapMeta;
 }
+
+import type { Participant, Lap } from './session';
+
+export interface TimingTowerDriver extends Participant {
+  bestLap: Lap | null;
+  sessionSlot?: 'A' | 'B';
+  sessionTrack?: string;
+  sessionType?: string;
+}
+
+export type QuickSelectDriver = TimingTowerDriver;
+

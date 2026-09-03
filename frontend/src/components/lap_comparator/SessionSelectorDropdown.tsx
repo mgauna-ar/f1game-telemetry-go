@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { Search, ChevronDown, ChevronUp, X } from 'lucide-react';
 import type { Session } from '../../types/session';
-import { getSessionBadgeClass } from '../../utils/formatters';
+import { getSessionBadgeClass, formatDate } from '../../utils/formatters';
 import { useI18n } from '../../context/I18nContext';
 import { TagBadge } from '../session_history/TagBadge';
 import { F1FormatBadge } from '../F1FormatBadge';
@@ -192,12 +192,12 @@ export const SessionSelectorDropdown: React.FC<SessionSelectorDropdownProps> = (
                     role="option"
                     aria-selected={isSelected}
                   >
-                    <div className="custom-session-item-header">
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                        <TrackFlag track={s.track_name} width={16} height={11} />
+                    <div className="custom-session-item-row-top">
+                      <div className="custom-session-track-group">
+                        <TrackFlag track={s.track_name} width={18} height={12} />
                         <span className="custom-session-track">{s.track_name}</span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <div className="custom-session-badges">
                         <F1FormatBadge format={s.packet_format} size="xs" />
                         <span className={`session-badge ${getSessionBadgeClass(s.session_type)}`}>
                           {s.session_type}
@@ -205,12 +205,13 @@ export const SessionSelectorDropdown: React.FC<SessionSelectorDropdownProps> = (
                       </div>
                     </div>
 
-                    <div className="custom-session-meta">
-                      <span className="custom-session-meta-time">{new Date(s.created_at).toLocaleString()}</span>
+                    <div className="custom-session-item-row-bottom">
+                      <span className="custom-session-meta-time">{formatDate(s.created_at)}</span>
                       {s.weather && <span className="custom-session-weather">🌦️ {s.weather}</span>}
                     </div>
+
                     {s.tags && s.tags.length > 0 && (
-                      <div className="flex flex-wrap items-center gap-1 pt-1">
+                      <div className="custom-session-item-tags">
                         {s.tags.map((tag) => (
                           <TagBadge key={tag.id} tag={tag} size="xs" />
                         ))}

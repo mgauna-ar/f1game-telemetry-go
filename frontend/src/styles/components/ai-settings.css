@@ -209,10 +209,10 @@
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
-  width: 100%;
-  min-width: 340px;
-  max-width: 460px;
-  background: #0b111e;
+  width: max-content;
+  min-width: 380px;
+  max-width: 480px;
+  background: #0d1527;
   border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: var(--radius-md);
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), 0 0 1px rgba(255, 255, 255, 0.3);
@@ -342,9 +342,9 @@
 
 .custom-session-item {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.6rem 0.75rem;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.65rem 0.85rem;
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.035);
   border: 1px solid rgba(255, 255, 255, 0.07);
@@ -353,7 +353,6 @@
   text-align: left;
   width: 100%;
   box-sizing: border-box;
-  gap: 0.75rem;
   color: #ffffff;
 }
 
@@ -368,16 +367,24 @@
   border-color: rgba(0, 210, 211, 0.45);
 }
 
-.custom-session-item-header {
+.custom-session-item-row-top {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.35rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.custom-session-track-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
   min-width: 0;
+  overflow: hidden;
 }
 
 .custom-session-track {
-  font-size: 0.88rem;
+  font-size: 0.9rem;
   font-weight: 700;
   color: #ffffff !important;
   letter-spacing: 0.01em;
@@ -386,23 +393,56 @@
   text-overflow: ellipsis;
 }
 
-.custom-session-meta {
+.custom-session-badges {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.25rem;
-  font-size: 0.74rem;
-  color: #94a3b8;
-  white-space: nowrap;
+  align-items: center;
+  gap: 0.35rem;
   flex-shrink: 0;
+}
+
+.custom-session-item-row-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
 }
 
 .custom-session-meta-time {
   color: #94a3b8;
   font-weight: 500;
+  font-size: 0.72rem;
+  white-space: nowrap;
 }
 
 .custom-session-weather {
   color: #cbd5e1;
   font-size: 0.72rem;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.custom-session-item-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  padding-top: 0.2rem;
+}
+
+/* Backwards compatibility aliases */
+.custom-session-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.custom-session-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  width: 100%;
 }
