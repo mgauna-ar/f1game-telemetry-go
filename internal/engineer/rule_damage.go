@@ -97,7 +97,7 @@ func (r *DamageRule) Evaluate(ctx *EvaluationContext) []Directive {
 			Category: DirectiveCategoryDamage,
 			SubAlert: "wing_damage",
 			Title:    "Critical Wing Damage",
-			Message:  fmt.Sprintf("Severe front wing damage detected (%d%% loss)! Massive aero loss on front axle. Order driver to box for front wing replacement.", int(math.Round(float64(maxWing)))),
+			Message:  fmt.Sprintf("Severe front wing damage detected (%d%% loss)! Massive aero loss on front axle. Box for front wing replacement.", int(math.Round(float64(maxWing)))),
 			Urgency:  UrgencyCritical,
 		})
 	} else if maxWing >= ctx.Config.WingDamageWarnPct && r.lastWingDamageAlert < ctx.Config.WingDamageWarnPct {

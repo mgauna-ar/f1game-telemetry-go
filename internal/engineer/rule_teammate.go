@@ -33,17 +33,17 @@ func (r *TeammateRule) Category() string {
 }
 
 func (r *TeammateRule) ValidPhases() []DrivingPhase {
-	return []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar}
+	return []DrivingPhase{PhaseOutLap, PhaseRacing, PhaseInLap, PhaseSafetyCar}
 }
 
 func (r *TeammateRule) AlertKeys() map[string]AlertKeyConfig {
 	return map[string]AlertKeyConfig{
 		"teammate_ahead": {
-			ValidPhases: []DrivingPhase{PhaseRacing, PhaseFlyingLap},
+			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeNone,
 		},
 		"teammate_pitting": {
-			ValidPhases: []DrivingPhase{PhaseRacing, PhaseFlyingLap, PhaseOutLap, PhaseInLap, PhaseSafetyCar},
+			ValidPhases: []DrivingPhase{PhaseRacing, PhaseOutLap, PhaseInLap, PhaseSafetyCar},
 			DedupScope:  DedupScopeNone,
 		},
 	}

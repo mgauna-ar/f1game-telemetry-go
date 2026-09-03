@@ -42,6 +42,7 @@ const CATEGORY_MAP: Record<string, RadioAlertCategory> = {
   rival_attack: 'rival_attack',
   sector_delta: 'sector_delta',
   teammate_ahead: 'teammate_ahead',
+  teammate_proximity: 'teammate_ahead',
   teammate_pitting: 'teammate_pitting',
   qualy_traffic: 'qualy_traffic',
   qualy_clean_air: 'qualy_clean_air',

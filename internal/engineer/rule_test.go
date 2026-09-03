@@ -582,8 +582,8 @@ func TestRivalsRule_TableDriven(t *testing.T) {
 		if !strings.Contains(dirs[0].Message, "DRS threat") {
 			t.Errorf("expected 2025 message to mention DRS threat: %s", dirs[0].Message)
 		}
-		if !strings.Contains(dirs[0].Message, "different compound") {
-			t.Errorf("expected message to mention different compound: %s", dirs[0].Message)
+		if !strings.Contains(dirs[0].Message, "MEDIUM tyres") {
+			t.Errorf("expected message to mention rival tyres: %s", dirs[0].Message)
 		}
 		if !strings.Contains(dirs[0].Message, "front wing damage") {
 			t.Errorf("expected message to note rival front wing damage: %s", dirs[0].Message)
@@ -699,7 +699,7 @@ func TestCoachingRule_TableDriven(t *testing.T) {
 		},
 		Config:         cfg,
 		PlayerCarIndex: 0,
-		Phase:          PhaseFlyingLap,
+		Phase:          PhaseRacing,
 	}
 	rule.Evaluate(ctxLap1S0)
 	if rule.GetBestSector1MS() != 25000 {
@@ -722,7 +722,7 @@ func TestCoachingRule_TableDriven(t *testing.T) {
 		},
 		Config:         cfg,
 		PlayerCarIndex: 0,
-		Phase:          PhaseFlyingLap,
+		Phase:          PhaseRacing,
 	}
 	rule.Evaluate(ctxLap1S1)
 
@@ -741,7 +741,7 @@ func TestCoachingRule_TableDriven(t *testing.T) {
 		},
 		Config:         cfg,
 		PlayerCarIndex: 0,
-		Phase:          PhaseFlyingLap,
+		Phase:          PhaseRacing,
 	}
 	rule.Evaluate(ctxLap2S1)
 	dirsS1 := rule.Evaluate(ctxLap2S1)
@@ -765,7 +765,7 @@ func TestCoachingRule_TableDriven(t *testing.T) {
 		},
 		Config:         cfg,
 		PlayerCarIndex: 0,
-		Phase:          PhaseFlyingLap,
+		Phase:          PhaseRacing,
 	}
 	dirsS2 := rule.Evaluate(ctxLap2S2)
 	if len(dirsS2) != 1 || dirsS2[0].SubAlert != "sector_delta" || dirsS2[0].ID != "coaching_s2" {

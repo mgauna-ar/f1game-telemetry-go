@@ -612,12 +612,18 @@ func (e *EngineerEngine) canEmitDirectiveLocked(alertKey, category, urgency stri
 		return false
 	}
 
-	// 3. Post-Race suppression: only race_finish announcement or emergencies permitted
+	// 3. Strict Radio Discipline during Flying Lap (Hot Lap)
+	// During PhaseFlyingLap, only lap invalidation or critical emergency alerts are permitted.
+	if e.currentPhase == PhaseFlyingLap && urgency != UrgencyCritical && alertKey != "qualy_invalid" {
+		return false
+	}
+
+	// 4. Post-Race suppression: only race_finish announcement or emergencies permitted
 	if e.currentPhase == PhasePostRace && urgency != UrgencyCritical && alertKey != "race_finish" {
 		return false
 	}
 
-	// 4. Driving phase rule validation
+	// 5. Driving phase rule validation
 	if !e.isPhaseAllowed(alertKey) {
 		return false
 	}

@@ -160,7 +160,7 @@ export function detectAlertCategory(alertContext: string): RadioAlertCategory {
   if (lower.includes('teammate is pitting') || (lower.includes('teammate in p') && lower.includes('pitting'))) {
     return 'teammate_pitting';
   }
-  if (lower.includes('teammate is p') || lower.includes('teammate ahead') || lower.includes('teammate is ahead')) {
+  if (lower.includes('teammate is p') || lower.includes('teammate ahead') || lower.includes('teammate is ahead') || lower.includes('teammate is directly ahead')) {
     return 'teammate_ahead';
   }
 
@@ -174,16 +174,16 @@ export function detectAlertCategory(alertContext: string): RadioAlertCategory {
   if (lower.includes('cool down car') || lower.includes('flying lap completed, box this lap') || lower.includes('vuelta rápida completada')) {
     return 'inlap_cooldown';
   }
-  if (lower.includes('traffic ahead before starting hot lap') || (lower.includes('traffic ahead') && lower.includes('out-lap'))) {
+  if (lower.includes('traffic ahead before starting hot lap') || (lower.includes('traffic ahead') && lower.includes('out-lap')) || (lower.includes('traffic ahead') && lower.includes('clean air'))) {
     return 'qualy_traffic';
   }
-  if (lower.includes('track is clear ahead with clean air') || lower.includes('track is clear ahead')) {
+  if (lower.includes('track is clear ahead with clean air') || lower.includes('track is clear ahead') || lower.includes('clean air gap')) {
     return 'qualy_clean_air';
   }
   if (lower.includes('deleted for track limits') || lower.includes('lap is invalid') || lower.includes('vuelta anulada')) {
     return 'qualy_deleted_lap';
   }
-  if (lower.includes('under 3 minutes remaining') || lower.includes('quedan menos de 3 minutos')) {
+  if (lower.includes('under 3 minutes remaining') || lower.includes('minutes remaining') || lower.includes('quedan menos de 3 minutos')) {
     return 'qualy_session_time';
   }
   if (lower.includes('elimination danger zone') || lower.includes('zona de eliminación')) {
@@ -191,7 +191,7 @@ export function detectAlertCategory(alertContext: string): RadioAlertCategory {
   }
 
   // 9. Flags & Penalties
-  if (lower.includes('track limits / corner cutting warnings') || lower.includes('corner cutting warnings') || lower.includes('límites de pista')) {
+  if (lower.includes('track limits') || lower.includes('corner cutting warnings') || lower.includes('límites de pista')) {
     return 'track_limits_warnings';
   }
   if (lower.includes('time penalty by the stewards') || lower.includes('assessed a') || lower.includes('penalización') || lower.includes('sanción')) {

@@ -30,7 +30,7 @@ func (r *ERSRule) ValidPhases() []DrivingPhase {
 func (r *ERSRule) AlertKeys() map[string]AlertKeyConfig {
 	return map[string]AlertKeyConfig{
 		"ers_low": {
-			ValidPhases: []DrivingPhase{PhaseFlyingLap, PhaseRacing},
+			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeLap,
 		},
 		"engine_temp": {
@@ -51,12 +51,12 @@ func (r *ERSRule) Evaluate(ctx *EvaluationContext) []Directive {
 	status := ctx.PlayerStatus()
 	if status != nil && (ctx.Packet == nil || isPacketType[*packets.PacketCarStatusData](ctx.Packet)) {
 		ersPct := (status.ERSStoreEnergy / packets.MaxERSStoreEnergyJoules) * 100.0
-		if ersPct <= ctx.Config.ERSLowPct && (ctx.Phase == PhaseFlyingLap || ctx.IsRaceSession()) {
+		if ersPct <= ctx.Config.ERSLowPct && ctx.IsRaceSession() && ctx.Phase == PhaseRacing {
 			var ersMsg string
 			if ctx.Is2026() {
-				ersMsg = fmt.Sprintf("ERS battery reserve is low at %d%%! Advise driver to limit Override/Boost usage and use Lift & Coast for MGU-K regeneration on straights.", int(math.Round(float64(ersPct))))
+				ersMsg = fmt.Sprintf("ERS battery reserve is low at %d%%! Use Lift & Coast for MGU-K regeneration on straights.", int(math.Round(float64(ersPct))))
 			} else {
-				ersMsg = fmt.Sprintf("ERS battery reserve is low at %d%%! Advise driver to switch deploy mode to None or Harvest on straights.", int(math.Round(float64(ersPct))))
+				ersMsg = fmt.Sprintf("ERS battery reserve is low at %d%%! Switch deploy mode to None or Harvest on straights.", int(math.Round(float64(ersPct))))
 			}
 			directives = append(directives, Directive{
 				ID:       "ers_low",

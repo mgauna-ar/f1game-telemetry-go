@@ -35,7 +35,7 @@ func (r *FlagsRule) Category() string {
 }
 
 func (r *FlagsRule) ValidPhases() []DrivingPhase {
-	return []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseGrid, PhaseRaceStart, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar, PhaseRedFlag}
+	return []DrivingPhase{PhaseInGarage, PhasePitLane, PhaseOutLap, PhaseFormationLap, PhaseGrid, PhaseRaceStart, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar, PhaseRedFlag}
 }
 
 func (r *FlagsRule) AlertKeys() map[string]AlertKeyConfig {
@@ -47,12 +47,12 @@ func (r *FlagsRule) AlertKeys() map[string]AlertKeyConfig {
 		},
 		"flags_red": {
 			Category:    DirectiveCategoryFlags,
-			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseGrid, PhaseRaceStart, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar, PhaseRedFlag},
+			ValidPhases: []DrivingPhase{PhaseInGarage, PhasePitLane, PhaseOutLap, PhaseFormationLap, PhaseGrid, PhaseRaceStart, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar, PhaseRedFlag},
 			DedupScope:  DedupScopePhase,
 		},
 		"flags_rain": {
 			Category:    DirectiveCategoryWeather,
-			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			ValidPhases: []DrivingPhase{PhaseInGarage, PhasePitLane, PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
 			DedupScope:  DedupScopePhase,
 		},
 		"track_limits": {
@@ -165,7 +165,7 @@ func (r *FlagsRule) evaluateRedFlag(p *packets.PacketSessionData) *Directive {
 		Category: DirectiveCategoryFlags,
 		SubAlert: "red_flag",
 		Title:    "Red Flag Deployed",
-		Message:  "Red Flag deployed! Session stopped. Instruct driver to return to pit lane slowly.",
+		Message:  "Red Flag! Session stopped. Bring the car slowly back to the pit lane.",
 		Urgency:  UrgencyCritical,
 	}
 }
@@ -211,7 +211,7 @@ func (r *FlagsRule) evaluateTrackLimits(ctx *EvaluationContext, playerLap *packe
 			Category: DirectiveCategoryFlags,
 			SubAlert: "track_limits_warnings",
 			Title:    "Track Limits Warning",
-			Message:  fmt.Sprintf("Driver has accumulated %d track limits / corner cutting warnings! Keep inside white lines to avoid penalty.", cutWarnings),
+			Message:  fmt.Sprintf("We have accumulated %d track limits warnings! Keep inside white lines to avoid a penalty.", cutWarnings),
 			Urgency:  UrgencyCritical,
 			Metadata: map[string]any{
 				"warnings": cutWarnings,
@@ -234,9 +234,9 @@ func (r *FlagsRule) evaluatePenalties(playerLap *packets.LapData) *Directive {
 	var pnlMsg string
 	switch {
 	case pnlTime > 0:
-		pnlMsg = fmt.Sprintf("Driver has been assessed a %d-second time penalty by the stewards!", pnlTime)
+		pnlMsg = fmt.Sprintf("We have been assessed a %d-second time penalty by the stewards! We will serve it at the next stop.", pnlTime)
 	case playerLap.NumUnservedDriveThroughPens > 0:
-		pnlMsg = "Drive-through penalty issued by race control! Must serve within 3 laps."
+		pnlMsg = "Drive-through penalty issued by race control! We must serve it within 3 laps."
 	default:
 		pnlMsg = "Stop-and-go penalty issued by race control!"
 	}

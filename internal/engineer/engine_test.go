@@ -69,18 +69,18 @@ func TestEngineerEngine_ProcessPackets(t *testing.T) {
 	lapPkt1 := &packets.PacketLapData{
 		Header: header,
 		LapData: [packets.MaxCars]packets.LapData{
-			{CurrentLapNum: 1, Sector1TimeMSPart: 28000, Sector: 1, CarPosition: 2, TotalDistance: 1000, DriverStatus: packets.DriverStatusOnTrack},
-			{CurrentLapNum: 1, Sector1TimeMSPart: 28200, Sector: 1, CarPosition: 1, TotalDistance: 1050, DriverStatus: packets.DriverStatusOnTrack},
+			{CurrentLapNum: 2, Sector1TimeMSPart: 28000, Sector: 1, CarPosition: 2, TotalDistance: 5000, DriverStatus: packets.DriverStatusOnTrack},
+			{CurrentLapNum: 2, Sector1TimeMSPart: 28200, Sector: 1, CarPosition: 1, TotalDistance: 5050, DriverStatus: packets.DriverStatusOnTrack},
 		},
 	}
 	engine.ProcessPacket(ctx, lapPkt1)
 
-	// Lap 1 Sector 2 with delta loss
+	// Lap 2 Sector 1 with delta loss
 	lapPkt2 := &packets.PacketLapData{
 		Header: header,
 		LapData: [packets.MaxCars]packets.LapData{
-			{CurrentLapNum: 1, Sector1TimeMSPart: 28500, Sector: 1, CarPosition: 2, TotalDistance: 1500, DriverStatus: packets.DriverStatusOnTrack},
-			{CurrentLapNum: 1, Sector1TimeMSPart: 28200, Sector: 1, CarPosition: 1, TotalDistance: 1550, DriverStatus: packets.DriverStatusOnTrack},
+			{CurrentLapNum: 2, Sector1TimeMSPart: 28500, Sector: 1, CarPosition: 2, TotalDistance: 5500, DriverStatus: packets.DriverStatusOnTrack},
+			{CurrentLapNum: 2, Sector1TimeMSPart: 28200, Sector: 1, CarPosition: 1, TotalDistance: 5550, DriverStatus: packets.DriverStatusOnTrack},
 		},
 	}
 	engine.ProcessPacket(ctx, lapPkt2)
@@ -459,15 +459,16 @@ func TestEngineerEngine_QualifyingIntelligence(t *testing.T) {
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 600, 0)
 
-	// Position player in P16
-	lapPkt := &packets.PacketLapData{
+	// 1. Position player in P16 on out-lap
+	lapPktOut := &packets.PacketLapData{
 		Header: header,
 		LapData: [packets.MaxCars]packets.LapData{
-			{CurrentLapNum: 3, DriverStatus: packets.DriverStatusFlyingLap, CurrentLapInvalid: 1, CarPosition: 16},
+			{CurrentLapNum: 3, DriverStatus: packets.DriverStatusOutLap, CarPosition: 16},
 		},
 	}
-	engine.ProcessPacket(ctx, lapPkt)
+	engine.ProcessPacket(ctx, lapPktOut)
 
+	// 2. Session countdown and elimination danger check on out-lap
 	sessionPkt := &packets.PacketSessionData{
 		Header:          header,
 		SessionType:     packets.SessionQ1,
@@ -479,11 +480,21 @@ func TestEngineerEngine_QualifyingIntelligence(t *testing.T) {
 	if _, exists := engine.lastDirectives["qualy_time"]; !exists {
 		t.Fatalf("expected qualy_time session countdown directive")
 	}
-	if _, exists := engine.lastDirectives["qualy_invalid"]; !exists {
-		t.Fatalf("expected qualy_invalid directive")
-	}
 	if _, exists := engine.lastDirectives["qualy_elim"]; !exists {
 		t.Fatalf("expected qualy_elim directive for P16 with time < 300s")
+	}
+
+	// 2. On flying lap: triggers qualy_invalid when track limits violated
+	lapPktFlying := &packets.PacketLapData{
+		Header: header,
+		LapData: [packets.MaxCars]packets.LapData{
+			{CurrentLapNum: 3, DriverStatus: packets.DriverStatusFlyingLap, CurrentLapInvalid: 1, CarPosition: 16},
+		},
+	}
+	engine.ProcessPacket(ctx, lapPktFlying)
+
+	if _, exists := engine.lastDirectives["qualy_invalid"]; !exists {
+		t.Fatalf("expected qualy_invalid directive")
 	}
 }
 
@@ -692,34 +703,34 @@ func TestEngineerEngine_SectorCoaching_InLapSuppression(t *testing.T) {
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 444, 0)
 
-	// 1. Qualifying Session
+	// 1. Race Session
 	sessionPkt := &packets.PacketSessionData{
 		Header:      header,
-		SessionType: packets.SessionQ1,
+		SessionType: packets.SessionRace,
 	}
 	engine.ProcessPacket(ctx, sessionPkt)
 
-	// Establish PB on flying lap 1 (Sector 1 = 28.000s)
+	// Establish PB on racing lap 1 (Sector 1 = 28.000s)
 	lapFlying := &packets.PacketLapData{
 		Header: header,
 		LapData: [packets.MaxCars]packets.LapData{
-			{CurrentLapNum: 1, Sector1TimeMSPart: 28000, Sector: 1, CarPosition: 1, TotalDistance: 1000, DriverStatus: packets.DriverStatusFlyingLap},
+			{CurrentLapNum: 1, Sector1TimeMSPart: 28000, Sector: 1, CarPosition: 1, TotalDistance: 1000, DriverStatus: packets.DriverStatusOnTrack},
 		},
 	}
 	engine.ProcessPacket(ctx, lapFlying)
 
-	// Flying lap 2: delta loss (+1.5s slower = 29.500s) -> Should trigger coaching_s1
+	// Racing lap 2: delta loss (+1.5s slower = 29.500s) -> Should trigger coaching_s1
 	lapFlying2 := &packets.PacketLapData{
 		Header: header,
 		LapData: [packets.MaxCars]packets.LapData{
-			{CurrentLapNum: 2, Sector1TimeMSPart: 29500, Sector: 1, CarPosition: 1, TotalDistance: 6000, DriverStatus: packets.DriverStatusFlyingLap},
+			{CurrentLapNum: 2, Sector1TimeMSPart: 29500, Sector: 1, CarPosition: 1, TotalDistance: 6000, DriverStatus: packets.DriverStatusOnTrack},
 		},
 	}
 	engine.ProcessPacket(ctx, lapFlying2) // sets lastLapNumber = 2
 	engine.ProcessPacket(ctx, lapFlying2) // second packet triggers delta check
 
 	if _, exists := engine.lastDirectives["coaching_s1"]; !exists {
-		t.Fatalf("expected coaching_s1 directive on flying lap with delta loss")
+		t.Fatalf("expected coaching_s1 directive on racing lap with delta loss")
 	}
 	delete(engine.lastDirectives, "coaching_s1")
 	delete(engine.lastDirectives, string(DirectiveCategoryCoaching))

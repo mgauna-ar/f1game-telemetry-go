@@ -41,6 +41,12 @@ This file (`.agents/AGENTS.md`) contains workspace-specific rules, architectural
     - All proactive pit wall alerts are prefixed with `[PROACTIVE PIT WALL CALL]`.
     - **Explicitly forbid "Entendido" / "Copy" / "Roger" on proactive calls** since the engineer initiates the communication.
     - "Entendido" / "Copy" / "Roger" are **only** permitted when the driver spoke first via Push-to-Talk (PTT).
+    - **Direct 2nd Person Radio Voice:** Directives must instruct the driver directly in 2nd person (e.g., *"Box now, box box!"*, *"Introduce Lift & Coast into Turn 1"*), never 3rd person directives (*"Order driver to..."*).
+    - **Phase Lifecycle Discipline:** Strict radio discipline per session phase (`DrivingPhase`):
+      - `PhaseFlyingLap`: Strictly silence non-critical coaching, fuel delta, ERS low, tyre wear, and rival chatter. Only lap invalidations and critical emergencies (`UrgencyCritical`) may transmit.
+      - `PhaseGrid` & `PhaseRaceStart`: Absolute radio silence during countdown and Lap 1 start sequence, permitting only critical safety car or terminal damage calls.
+      - `PhaseInGarage` & `PhasePitLane`: Only strategic session alerts (clock countdown, radar, red flags) adapted for garage/pit lane; no driving coaching or on-track tyre alerts.
+      - `PhaseOutLap` & `PhaseInLap`: Out-lap focuses strictly on thermal prep, clean air gap spacing, and traffic behind; in-lap focuses on cooldown, battery recharge, and letting flying laps pass.
 *   **Global Background PTT:** On Windows, native DirectInput listening (`winmm.dll` for steering wheels, `user32.dll` for keyboard) captures PTT globally in the background so radio works while driving F1 in full screen. Browser Gamepad API and `Space` key act as fallback.
 
 ## 4. UI/UX Guidelines

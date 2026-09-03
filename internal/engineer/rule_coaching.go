@@ -29,17 +29,17 @@ func (r *CoachingRule) Category() string {
 }
 
 func (r *CoachingRule) ValidPhases() []DrivingPhase {
-	return []DrivingPhase{PhaseFlyingLap, PhaseRacing}
+	return []DrivingPhase{PhaseRacing}
 }
 
 func (r *CoachingRule) AlertKeys() map[string]AlertKeyConfig {
 	return map[string]AlertKeyConfig{
 		"coaching_s1": {
-			ValidPhases: []DrivingPhase{PhaseFlyingLap, PhaseRacing},
+			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeLap,
 		},
 		"coaching_s2": {
-			ValidPhases: []DrivingPhase{PhaseFlyingLap, PhaseRacing},
+			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeLap,
 		},
 	}
@@ -76,7 +76,8 @@ func (r *CoachingRule) Evaluate(ctx *EvaluationContext) []Directive {
 		return nil
 	}
 
-	isSectorCoachingPhase := (ctx.Phase == PhaseFlyingLap || (ctx.Phase == PhaseRacing && ctx.IsRaceSession())) &&
+	isSectorCoachingPhase := ctx.Phase == PhaseRacing && ctx.IsRaceSession() &&
+		playerLap.CurrentLapNum > 1 &&
 		ctx.Phase != PhaseSafetyCar &&
 		ctx.Phase != PhaseInLap &&
 		ctx.Phase != PhaseOutLap &&
@@ -90,7 +91,7 @@ func (r *CoachingRule) Evaluate(ctx *EvaluationContext) []Directive {
 		playerLap.DriverStatus != packets.DriverStatusInGarage &&
 		playerLap.PitStatus == packets.PitStatusNone
 
-	if !isSectorCoachingPhase || !isCompetitiveDriver {
+	if !isCompetitiveDriver {
 		return nil
 	}
 
@@ -103,6 +104,11 @@ func (r *CoachingRule) Evaluate(ctx *EvaluationContext) []Directive {
 	}
 	if s2 > 0 && (r.bestSector2MS == 0 || s2 < r.bestSector2MS) {
 		r.bestSector2MS = s2
+	}
+
+	if !isSectorCoachingPhase {
+		r.lastLapNumber = currentLap
+		return nil
 	}
 
 	var directives []Directive

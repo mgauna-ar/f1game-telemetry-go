@@ -37,7 +37,7 @@ func (r *TyresRule) ValidPhases() []DrivingPhase {
 func (r *TyresRule) AlertKeys() map[string]AlertKeyConfig {
 	return map[string]AlertKeyConfig{
 		"tyre_wear": {
-			ValidPhases: []DrivingPhase{PhaseFlyingLap, PhaseRacing, PhaseSafetyCar},
+			ValidPhases: []DrivingPhase{PhaseRacing, PhaseSafetyCar},
 			DedupScope:  DedupScopeStint,
 		},
 		"tyre_puncture": {
@@ -45,7 +45,7 @@ func (r *TyresRule) AlertKeys() map[string]AlertKeyConfig {
 			DedupScope:  DedupScopeStint,
 		},
 		"tyre_overheat": {
-			ValidPhases: []DrivingPhase{PhaseFlyingLap, PhaseRacing},
+			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeStint,
 		},
 		"tyre_cold": {
@@ -90,7 +90,7 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 				Category: DirectiveCategoryTyres,
 				SubAlert: "tyre_puncture",
 				Title:    "Critical Tyre Puncture",
-				Message:  fmt.Sprintf("Critical tyre puncture / tyre failure on car! Wear is at %d%%. Order driver to box immediately.", int(math.Round(float64(maxWear)))),
+				Message:  fmt.Sprintf("Critical tyre puncture! Wear is at %d%%. Box now, box box!", int(math.Round(float64(maxWear)))),
 				Urgency:  UrgencyCritical,
 			})
 		} else if maxWear < PunctureWearThresholdPct {
@@ -160,7 +160,7 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 			if ctx.Is2026() {
 				advice = fmt.Sprintf("%s rear tyre surface temperatures are overheating at %d°C (optimal window: %d-%d°C)! Manage traction out of corners to protect the narrower rear tyres.", window.CompoundName, int(math.Round(float64(rearMaxTemp))), int(window.MinTemp), int(window.MaxTemp))
 			} else {
-				advice = fmt.Sprintf("%s rear tyre surface temperatures are overheating at %d°C (optimal window: %d-%d°C)! Advise driver to manage traction out of corners to cool the rears.", window.CompoundName, int(math.Round(float64(rearMaxTemp))), int(window.MinTemp), int(window.MaxTemp))
+				advice = fmt.Sprintf("%s rear tyre surface temperatures are overheating at %d°C (optimal window: %d-%d°C)! Manage traction out of corners to cool the rears.", window.CompoundName, int(math.Round(float64(rearMaxTemp))), int(window.MinTemp), int(window.MaxTemp))
 			}
 			directives = append(directives, Directive{
 				ID:       "tyre_overheat",
@@ -183,7 +183,7 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 				Category: DirectiveCategoryTyres,
 				SubAlert: "tyre_cold",
 				Title:    "Cold Tyre Temperature",
-				Message:  fmt.Sprintf("%s tyre temperatures are cold (%d°C, target window: %d-%d°C). Advise driver to weave and build tyre temperature.", window.CompoundName, int(math.Round(float64(maxSurfTemp))), int(window.MinTemp), int(window.MaxTemp)),
+				Message:  fmt.Sprintf("%s tyre temperatures are cold (%d°C, target window: %d-%d°C). Weave and build tyre temperature.", window.CompoundName, int(math.Round(float64(maxSurfTemp))), int(window.MinTemp), int(window.MaxTemp)),
 				Urgency:  UrgencyLow,
 				Metadata: map[string]any{
 					"compound":     window.CompoundName,

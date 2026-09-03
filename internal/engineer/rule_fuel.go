@@ -33,14 +33,14 @@ func (r *FuelRule) Category() string {
 }
 
 func (r *FuelRule) ValidPhases() []DrivingPhase {
-	return []DrivingPhase{PhaseRacing, PhaseSafetyCar}
+	return []DrivingPhase{PhaseRacing}
 }
 
 func (r *FuelRule) AlertKeys() map[string]AlertKeyConfig {
 	return map[string]AlertKeyConfig{
 		"fuel_delta": {
 			Category:    DirectiveCategoryFuel,
-			ValidPhases: []DrivingPhase{PhaseRacing, PhaseSafetyCar},
+			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeLap,
 		},
 		"undercut": {
@@ -81,9 +81,9 @@ func (r *FuelRule) Evaluate(ctx *EvaluationContext) []Directive {
 		currentLapNum = int(playerLap.CurrentLapNum)
 	}
 
-	// 1. Fuel Target Deficit & Lift & Coast (from CarStatusData, race only)
+	// 1. Fuel Target Deficit & Lift & Coast (from CarStatusData, race only at racing speed)
 	status := ctx.PlayerStatus()
-	if status != nil && ctx.IsRaceSession() && (ctx.Packet == nil || isPacketType[*packets.PacketCarStatusData](ctx.Packet)) &&
+	if status != nil && ctx.IsRaceSession() && ctx.Phase == PhaseRacing && (ctx.Packet == nil || isPacketType[*packets.PacketCarStatusData](ctx.Packet)) &&
 		ctx.Config.IsAlertEnabled(string(DirectiveCategoryFuel), "fuel_delta") {
 		if status.FuelRemainingLaps <= ctx.Config.FuelDeltaLaps && currentLapNum > MinFuelAlertLapNum && currentLapNum != r.lastFuelDeltaAlertLap {
 			r.lastFuelDeltaAlertLap = currentLapNum
@@ -92,7 +92,7 @@ func (r *FuelRule) Evaluate(ctx *EvaluationContext) []Directive {
 				Category: DirectiveCategoryFuel,
 				SubAlert: "fuel_deficit",
 				Title:    "Fuel Target Deficit",
-				Message:  fmt.Sprintf("Fuel target delta is negative (%.1f laps). Direct driver to introduce Lift & Coast into Turn 1 and heavy braking zones.", status.FuelRemainingLaps),
+				Message:  fmt.Sprintf("Fuel target delta is negative (%.1f laps). Introduce Lift & Coast into Turn 1 and heavy braking zones.", status.FuelRemainingLaps),
 				Urgency:  UrgencyMedium,
 			})
 		}

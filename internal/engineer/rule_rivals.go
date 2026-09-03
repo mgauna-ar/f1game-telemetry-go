@@ -106,7 +106,8 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 				rivalStatus := ctx.Status.CarStatusData[i]
 				playerStatus := ctx.PlayerStatus()
 				if playerStatus != nil && rivalStatus.ActualTyreCompound > 0 && playerStatus.ActualTyreCompound > 0 && rivalStatus.ActualTyreCompound != playerStatus.ActualTyreCompound {
-					extraContext += fmt.Sprintf(" Rival is on different compound (Compound ID: %d, tyre age: %d laps).", rivalStatus.ActualTyreCompound, rivalStatus.TyresAgeLaps)
+					rivalCompound := packets.VisualTyreCompoundName(rivalStatus.VisualTyreCompound)
+					extraContext += fmt.Sprintf(" Rival is on %s tyres (tyre age: %d laps).", rivalCompound, rivalStatus.TyresAgeLaps)
 				}
 			}
 			if ctx.Damage != nil && i < len(ctx.Damage.CarDamageData) {
@@ -158,7 +159,8 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 				var tyreContext string
 				if ctx.Status != nil && i < len(ctx.Status.CarStatusData) {
 					rivalStatus := ctx.Status.CarStatusData[i]
-					tyreContext = fmt.Sprintf(" Car ahead tyre age: %d laps (Compound: %d).", rivalStatus.TyresAgeLaps, rivalStatus.ActualTyreCompound)
+					rivalCompound := packets.VisualTyreCompoundName(rivalStatus.VisualTyreCompound)
+					tyreContext = fmt.Sprintf(" Car ahead is on %s tyres (age: %d laps).", rivalCompound, rivalStatus.TyresAgeLaps)
 				}
 
 				var attackMsg string
@@ -171,9 +173,9 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 					if telemetry2 != nil && telemetry2.OvertakeAvailable == 1 {
 						boostContext = " Override Boost is available!"
 					}
-					attackMsg = fmt.Sprintf("We are catching car ahead (P%d), gap is %.1fs.%s%s Direct driver to prepare overtake using Straight Mode and Boost deployment.", playerPos-1, gapSec, tyreContext, boostContext)
+					attackMsg = fmt.Sprintf("We are catching car ahead (P%d), gap is %.1fs.%s%s Prepare overtake using Straight Mode and Boost deployment.", playerPos-1, gapSec, tyreContext, boostContext)
 				} else {
-					attackMsg = fmt.Sprintf("We are catching car ahead (P%d), gap is %.1fs.%s", playerPos-1, gapSec, tyreContext)
+					attackMsg = fmt.Sprintf("We are catching car ahead (P%d), gap is %.1fs.%s Mode overtake available.", playerPos-1, gapSec, tyreContext)
 				}
 
 				directives = append(directives, Directive{

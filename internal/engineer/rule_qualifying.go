@@ -53,16 +53,16 @@ func (r *QualifyingRule) AlertKeys() map[string]AlertKeyConfig {
 			DedupScope:        DedupScopeLap,
 		},
 		"qualy_time": {
-			ValidPhases: []DrivingPhase{PhaseInGarage, PhasePitLane, PhaseOutLap, PhaseFlyingLap, PhaseInLap},
+			ValidPhases: []DrivingPhase{PhaseInGarage, PhasePitLane, PhaseOutLap, PhaseInLap},
 			DedupScope:  DedupScopePhase,
 		},
 		"qualy_elim": {
-			ValidPhases: []DrivingPhase{PhaseInGarage, PhasePitLane, PhaseOutLap, PhaseFlyingLap, PhaseInLap},
+			ValidPhases: []DrivingPhase{PhaseInGarage, PhasePitLane, PhaseOutLap, PhaseInLap},
 			DedupScope:  DedupScopePhase,
 		},
 		"inlap_traffic_behind": {
 			Category:    DirectiveCategoryQualifying,
-			ValidPhases: []DrivingPhase{PhaseInLap},
+			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseInLap},
 			DedupScope:  DedupScopeNone,
 		},
 		"inlap_cooldown": {
@@ -146,7 +146,7 @@ func (r *QualifyingRule) Evaluate(ctx *EvaluationContext) []Directive {
 					Category: DirectiveCategoryQualifying,
 					SubAlert: "qualy_traffic",
 					Title:    "Traffic Ahead on Out-Lap",
-					Message:  fmt.Sprintf("Traffic ahead before starting hot lap — car ahead is only ~%.1fs away (<%dm). Direct driver to build clean air.", gapEstSec, int(minAheadDelta)),
+					Message:  fmt.Sprintf("Traffic ahead before starting hot lap — car ahead is ~%.1fs away (<%dm). Back off and build clean air.", gapEstSec, int(minAheadDelta)),
 					Urgency:  UrgencyCritical,
 					Metadata: map[string]any{
 						"gap_sec":   gapEstSec,
@@ -160,7 +160,7 @@ func (r *QualifyingRule) Evaluate(ctx *EvaluationContext) []Directive {
 					Category: DirectiveCategoryQualifying,
 					SubAlert: "qualy_clean_air",
 					Title:    "Clean Air Window",
-					Message:  "Track is clear ahead with clean air gap. Instruct driver to prepare front tyres and launch out of the final turn.",
+					Message:  "Track is clear ahead with clean air gap. Prepare front tyres and launch out of the final turn.",
 					Urgency:  UrgencyLow,
 				})
 			}
@@ -174,12 +174,18 @@ func (r *QualifyingRule) Evaluate(ctx *EvaluationContext) []Directive {
 			r.lastSessionTimeWarned = true
 			sessionName := packets.SessionTypeName(ctx.Session.SessionType)
 			minRemaining := int(math.Round(float64(ctx.Config.QualyTimeWarnSec) / float64(packets.SecondsPerMinute)))
+			var timeMsg string
+			if ctx.Phase == PhaseInGarage || ctx.Phase == PhasePitLane {
+				timeMsg = fmt.Sprintf("Under %d minutes remaining in %s! Time to leave pit lane now for final flying lap.", minRemaining, sessionName)
+			} else {
+				timeMsg = fmt.Sprintf("Under %d minutes remaining in %s! Make sure to open the lap before the chequered flag.", minRemaining, sessionName)
+			}
 			directives = append(directives, Directive{
 				ID:       "qualy_time",
 				Category: DirectiveCategoryQualifying,
 				SubAlert: "qualy_session_time",
 				Title:    "Session Time Warning",
-				Message:  fmt.Sprintf("Under %d minutes remaining in %s! Direct driver to leave pit lane now for final flying lap.", minRemaining, sessionName),
+				Message:  timeMsg,
 				Urgency:  UrgencyCritical,
 			})
 		}
@@ -195,12 +201,18 @@ func (r *QualifyingRule) Evaluate(ctx *EvaluationContext) []Directive {
 			if isQ1Danger || isQ2Danger {
 				r.lastElimDangerWarned = true
 				sessionName := packets.SessionTypeName(ctx.Session.SessionType)
+				var elimMsg string
+				if ctx.Phase == PhaseInGarage || ctx.Phase == PhasePitLane {
+					elimMsg = fmt.Sprintf("We are in P%d in the elimination danger zone with under 5 minutes left in %s. Prepare to head out on fresh soft tyres.", playerPos, sessionName)
+				} else {
+					elimMsg = fmt.Sprintf("We are in P%d in the elimination danger zone with under 5 minutes left in %s! Box this lap for fresh soft tyres.", playerPos, sessionName)
+				}
 				directives = append(directives, Directive{
 					ID:       "qualy_elim",
 					Category: DirectiveCategoryQualifying,
 					SubAlert: "qualy_elimination_danger",
 					Title:    "Elimination Danger Zone",
-					Message:  fmt.Sprintf("We are in P%d in the elimination danger zone with under 5 minutes left in %s! Time to box for fresh soft tyres.", playerPos, sessionName),
+					Message:  elimMsg,
 					Urgency:  UrgencyCritical,
 					Metadata: map[string]any{
 						"position": playerPos,
@@ -211,13 +223,16 @@ func (r *QualifyingRule) Evaluate(ctx *EvaluationContext) []Directive {
 		}
 	}
 
-	// 5. In-Lap Fast Traffic Behind & Cooldown Instructions (Qualy / Practice only)
-	if (isQualy || ctx.IsPracticeSession()) && (ctx.Phase == PhaseInLap || (playerLap != nil && playerLap.DriverStatus == packets.DriverStatusInLap)) &&
+	// 5. Traffic Behind on Flying Lap (Out-Lap and In-Lap) & Cooldown Instructions (In-Lap only)
+	isOutOrInLap := ctx.Phase == PhaseOutLap || ctx.Phase == PhaseInLap ||
+		(playerLap != nil && (playerLap.DriverStatus == packets.DriverStatusOutLap || playerLap.DriverStatus == packets.DriverStatusInLap))
+	if (isQualy || ctx.IsPracticeSession()) && isOutOrInLap &&
 		(ctx.Packet == nil || isPacketType[*packets.PacketLapData](ctx.Packet)) && playerLap != nil {
 		currentLap := int(playerLap.CurrentLapNum)
 
-		// Cooldown instruction once per in-lap
-		if r.lastInLapCooldownLap != currentLap {
+		// Cooldown instruction once per in-lap only
+		isInLap := ctx.Phase == PhaseInLap || playerLap.DriverStatus == packets.DriverStatusInLap
+		if isInLap && r.lastInLapCooldownLap != currentLap {
 			r.lastInLapCooldownLap = currentLap
 			directives = append(directives, Directive{
 				ID:       "inlap_cooldown",
@@ -229,7 +244,7 @@ func (r *QualifyingRule) Evaluate(ctx *EvaluationContext) []Directive {
 			})
 		}
 
-		// Fast car approaching on hot lap behind
+		// Fast car approaching on hot lap behind (active on Out-Lap and In-Lap)
 		if ctx.LapData != nil {
 			maxTrafficBehindDist := float32(InLapFastCarBehindGapSec * AverageRaceSpeedMetersPerSec)
 			for i, rival := range ctx.LapData.LapData {
