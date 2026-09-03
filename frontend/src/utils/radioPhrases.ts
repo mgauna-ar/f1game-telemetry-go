@@ -197,6 +197,12 @@ export function detectAlertCategory(alertContext: string): RadioAlertCategory {
   if (lower.includes('time penalty by the stewards') || lower.includes('assessed a') || lower.includes('penalización') || lower.includes('sanción')) {
     return 'penalties_incurred';
   }
+  if (lower.includes('rain is now falling on track') || lower.includes('rain is falling') || lower.includes('lluvia en pista') || lower.includes('lluvia cayendo')) {
+    return 'flags_rain_live';
+  }
+  if (lower.includes('crossover') || lower.includes('too wet for slick') || lower.includes('box box for intermediate') || lower.includes('box for slicks')) {
+    return 'tyre_crossover';
+  }
   if (lower.includes('weather radar') || lower.includes('radar confirms') || lower.includes('chance of rain') || lower.includes('lluvia')) {
     return 'weather_rain';
   }

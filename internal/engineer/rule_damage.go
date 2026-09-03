@@ -49,7 +49,13 @@ func (r *DamageRule) AlertKeys() map[string]AlertKeyConfig {
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
 			DedupScope:  DedupScopeStint,
 		},
-		"damage_faults": {
+		"damage_aero_fault": {
+			Category:    DirectiveCategoryDamage,
+			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			DedupScope:  DedupScopeStint,
+		},
+		"damage_ers_fault": {
+			Category:    DirectiveCategoryDamage,
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
 			DedupScope:  DedupScopeStint,
 		},
@@ -160,7 +166,7 @@ func (r *DamageRule) Evaluate(ctx *EvaluationContext) []Directive {
 			faultMsg = "DRS flap fault detected! Rear wing flap cannot deploy."
 		}
 		directives = append(directives, Directive{
-			ID:       "damage_faults",
+			ID:       "damage_aero_fault",
 			Category: DirectiveCategoryDamage,
 			SubAlert: "aero_fault",
 			Title:    "Aero Flap Fault",
@@ -172,7 +178,7 @@ func (r *DamageRule) Evaluate(ctx *EvaluationContext) []Directive {
 	if dmg.ERSFault == 1 && !r.lastErsFaultAlert {
 		r.lastErsFaultAlert = true
 		directives = append(directives, Directive{
-			ID:       "damage_faults",
+			ID:       "damage_ers_fault",
 			Category: DirectiveCategoryDamage,
 			SubAlert: "ers_fault",
 			Title:    "Hybrid ERS Fault",

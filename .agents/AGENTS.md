@@ -45,8 +45,14 @@ This file (`.agents/AGENTS.md`) contains workspace-specific rules, architectural
     - **Phase Lifecycle Discipline:** Strict radio discipline per session phase (`DrivingPhase`):
       - `PhaseFlyingLap`: Strictly silence non-critical coaching, fuel delta, ERS low, tyre wear, and rival chatter. Only lap invalidations and critical emergencies (`UrgencyCritical`) may transmit.
       - `PhaseGrid` & `PhaseRaceStart`: Absolute radio silence during countdown and Lap 1 start sequence, permitting only critical safety car or terminal damage calls.
-      - `PhaseInGarage` & `PhasePitLane`: Only strategic session alerts (clock countdown, radar, red flags) adapted for garage/pit lane; no driving coaching or on-track tyre alerts.
+      - `PhaseInGarage` & `PhasePitLane`: Only strategic session alerts (clock countdown, radar, red flags) adapted for garage/pit lane; no driving coaching or on-track tyre alerts. Silence non-critical directives while stationary in pit box or running with pit limiter active.
       - `PhaseOutLap` & `PhaseInLap`: Out-lap focuses strictly on thermal prep, clean air gap spacing, and traffic behind; in-lap focuses on cooldown, battery recharge, and letting flying laps pass.
+    - **Audio Queueing, Radio Spacing & Incident Discipline:**
+      - Frontend sequential speech queue (`useTTSPlayback.ts`) ensures non-critical directives play sequentially without clipping; critical emergencies (`UrgencyCritical` / `UrgencyHigh`) preempt active speech.
+      - Global radio spacing enforces a minimum 4-second gap (`GlobalRadioChatterCooldownMs = 4_000`) between non-critical calls across categories.
+      - Steward penalties strictly supersede corner cutting warnings on the same event frame.
+      - Neutralization shield suppresses sector delta coaching, fuel delta, rival battles, and tyre overheat during SC/VSC or local yellow flags. Sector deltas are capped to `0.35s <= delta <= 3.0s` to prevent incident conflation.
+      - Dynamic weather onset (`flags_rain_live`) and tyre compound crossover strategy (`tyre_crossover`) trigger pit box calls upon track grip transitions.
 *   **Global Background PTT:** On Windows, native DirectInput listening (`winmm.dll` for steering wheels, `user32.dll` for keyboard) captures PTT globally in the background so radio works while driving F1 in full screen. Browser Gamepad API and `Space` key act as fallback.
 
 ## 4. UI/UX Guidelines

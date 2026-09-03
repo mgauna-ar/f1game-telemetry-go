@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 )
@@ -28,9 +29,17 @@ func createTestHeader(format uint16, sessionUID uint64, playerCarIndex uint8) pa
 	}
 }
 
+func newTestEngineerEngine(broadcaster DirectiveBroadcaster) *EngineerEngine {
+	engine := NewEngineerEngine(broadcaster)
+	cfg := engine.GetConfig()
+	cfg.GlobalChatterCooldownMs = 0
+	engine.SetConfig(cfg)
+	return engine
+}
+
 func TestEngineerEngine_ProcessPackets(t *testing.T) {
 	broadcaster := &mockBroadcaster{}
-	engine := NewEngineerEngine(broadcaster)
+	engine := newTestEngineerEngine(broadcaster)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 123456789, 0)
 
@@ -98,7 +107,7 @@ func TestEngineerEngine_ProcessPackets(t *testing.T) {
 
 func TestEngineerEngine_TyreSubsystem(t *testing.T) {
 	broadcaster := &mockBroadcaster{}
-	engine := NewEngineerEngine(broadcaster)
+	engine := newTestEngineerEngine(broadcaster)
 	ctx := context.Background()
 
 	// 1. Tyre wear warning (42%)
@@ -227,7 +236,7 @@ func TestEngineerEngine_TyreSubsystem(t *testing.T) {
 
 func TestEngineerEngine_DamageAndMechanicalFaults(t *testing.T) {
 	broadcaster := &mockBroadcaster{}
-	engine := NewEngineerEngine(broadcaster)
+	engine := newTestEngineerEngine(broadcaster)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 200, 0)
 
@@ -305,14 +314,14 @@ func TestEngineerEngine_DamageAndMechanicalFaults(t *testing.T) {
 		},
 	}
 	engine.ProcessPacket(ctx, dmgPktFault)
-	if _, exists := engine.lastDirectives["damage_faults"]; !exists {
-		t.Fatalf("expected damage_faults directive")
+	if _, exists := engine.lastDirectives["damage_aero_fault"]; !exists {
+		t.Fatalf("expected damage_aero_fault directive")
 	}
 }
 
 func TestEngineerEngine_ERSAndBrakes(t *testing.T) {
 	broadcaster := &mockBroadcaster{}
-	engine := NewEngineerEngine(broadcaster)
+	engine := newTestEngineerEngine(broadcaster)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 300, 0)
 
@@ -361,7 +370,7 @@ func TestEngineerEngine_ERSAndBrakes(t *testing.T) {
 
 func TestEngineerEngine_FuelAndStrategy(t *testing.T) {
 	broadcaster := &mockBroadcaster{}
-	engine := NewEngineerEngine(broadcaster)
+	engine := newTestEngineerEngine(broadcaster)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 400, 0)
 
@@ -419,7 +428,7 @@ func TestEngineerEngine_FuelAndStrategy(t *testing.T) {
 
 func TestEngineerEngine_RivalBattles(t *testing.T) {
 	broadcaster := &mockBroadcaster{}
-	engine := NewEngineerEngine(broadcaster)
+	engine := newTestEngineerEngine(broadcaster)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 500, 0)
 
@@ -447,15 +456,14 @@ func TestEngineerEngine_RivalBattles(t *testing.T) {
 		},
 	}
 	engine.ProcessPacket(ctx, lapPkt)
-
-	if _, exists := engine.lastDirectives["rival_defend"]; !exists {
-		t.Fatalf("expected rival_defend directive")
+	if _, exists := engine.lastDirectives["rival_defend_override"]; !exists {
+		t.Fatalf("expected rival_defend_override directive")
 	}
 }
 
 func TestEngineerEngine_QualifyingIntelligence(t *testing.T) {
 	broadcaster := &mockBroadcaster{}
-	engine := NewEngineerEngine(broadcaster)
+	engine := newTestEngineerEngine(broadcaster)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 600, 0)
 
@@ -500,7 +508,7 @@ func TestEngineerEngine_QualifyingIntelligence(t *testing.T) {
 
 func TestEngineerEngine_FlagsAndPenalties(t *testing.T) {
 	broadcaster := &mockBroadcaster{}
-	engine := NewEngineerEngine(broadcaster)
+	engine := newTestEngineerEngine(broadcaster)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 700, 0)
 
@@ -529,25 +537,40 @@ func TestEngineerEngine_FlagsAndPenalties(t *testing.T) {
 	}
 	engine.ProcessPacket(ctx, racingSessionPkt)
 
-	lapPkt := &packets.PacketLapData{
+	// 1. Penalty Priority: When penalties > 0, penalty supersedes track limits warning
+	lapPktPenalty := &packets.PacketLapData{
 		Header: createTestHeader(packets.PacketFormat2026, 701, 0),
 		LapData: [packets.MaxCars]packets.LapData{
 			{CurrentLapNum: 5, DriverStatus: packets.DriverStatusOnTrack, CornerCuttingWarnings: 2, Penalties: 5},
 		},
 	}
-	engine.ProcessPacket(ctx, lapPkt)
+	engine.ProcessPacket(ctx, lapPktPenalty)
 
-	if _, exists := engine.lastDirectives["track_limits"]; !exists {
-		t.Fatalf("expected track_limits warning directive")
-	}
 	if _, exists := engine.lastDirectives["penalties"]; !exists {
 		t.Fatalf("expected penalties incurred directive")
+	}
+	if _, exists := engine.lastDirectives["track_limits"]; exists {
+		t.Fatalf("expected track_limits to be superseded by steward penalty")
+	}
+
+	// 2. Track limits warning fires when no penalty is incurred
+	engine.Reset(702)
+	engine.ProcessPacket(ctx, racingSessionPkt)
+	lapPktWarning := &packets.PacketLapData{
+		Header: createTestHeader(packets.PacketFormat2026, 702, 0),
+		LapData: [packets.MaxCars]packets.LapData{
+			{CurrentLapNum: 5, DriverStatus: packets.DriverStatusOnTrack, CornerCuttingWarnings: 2, Penalties: 0},
+		},
+	}
+	engine.ProcessPacket(ctx, lapPktWarning)
+	if _, exists := engine.lastDirectives["track_limits"]; !exists {
+		t.Fatalf("expected track_limits warning directive")
 	}
 }
 
 func TestEngineerEngine_SmartDiscretionSuppression(t *testing.T) {
 	broadcaster := &mockBroadcaster{}
-	engine := NewEngineerEngine(broadcaster)
+	engine := newTestEngineerEngine(broadcaster)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 800, 0)
 
@@ -594,7 +617,7 @@ func TestEngineerEngine_SmartDiscretionSuppression(t *testing.T) {
 
 func TestEngineerEngine_DeduplicationScopesAndOutLapGuard(t *testing.T) {
 	broadcaster := &mockBroadcaster{}
-	engine := NewEngineerEngine(broadcaster)
+	engine := newTestEngineerEngine(broadcaster)
 	ctx := context.Background()
 
 	// 1. Out-lap distance completion guard: cold tyre alert suppressed when LapDistance < 30% of track length
@@ -699,7 +722,7 @@ func TestEngineerEngine_DeduplicationScopesAndOutLapGuard(t *testing.T) {
 
 func TestEngineerEngine_SectorCoaching_InLapSuppression(t *testing.T) {
 	broadcaster := &mockBroadcaster{}
-	engine := NewEngineerEngine(broadcaster)
+	engine := newTestEngineerEngine(broadcaster)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 444, 0)
 
@@ -766,7 +789,7 @@ func TestEngineerEngine_SectorCoaching_InLapSuppression(t *testing.T) {
 
 func TestEngineerEngine_SafetyCar_PitStrategySuppression(t *testing.T) {
 	broadcaster := &mockBroadcaster{}
-	engine := NewEngineerEngine(broadcaster)
+	engine := newTestEngineerEngine(broadcaster)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 555, 0)
 
@@ -831,7 +854,7 @@ func TestEngineerEngine_SafetyCar_PitStrategySuppression(t *testing.T) {
 }
 
 func TestEngineerEngine_DeriveDrivingPhase(t *testing.T) {
-	engine := NewEngineerEngine(&mockBroadcaster{})
+	engine := newTestEngineerEngine(&mockBroadcaster{})
 
 	tests := []struct {
 		name      string
@@ -940,7 +963,7 @@ func TestEngineerEngine_DeriveDrivingPhase(t *testing.T) {
 
 func TestEngineerEngine_ConcurrentSessionTransitions(t *testing.T) {
 	broadcaster := &mockBroadcaster{}
-	engine := NewEngineerEngine(broadcaster)
+	engine := newTestEngineerEngine(broadcaster)
 	ctx := context.Background()
 
 	var wg sync.WaitGroup
@@ -985,7 +1008,7 @@ func (l *lockCheckingBroadcaster) Broadcast(data []byte) {
 
 func TestEngineerEngine_BroadcastOutsideLock(t *testing.T) {
 	b := &lockCheckingBroadcaster{}
-	engine := NewEngineerEngine(b)
+	engine := newTestEngineerEngine(b)
 	b.engine = engine
 
 	ctx := context.Background()
@@ -1016,7 +1039,7 @@ func TestEngineerEngine_CategoryIndependence(t *testing.T) {
 
 	t.Run("disabling flags allows weather rain alert", func(t *testing.T) {
 		b := &mockBroadcaster{}
-		engine := NewEngineerEngine(b)
+		engine := newTestEngineerEngine(b)
 		cfg := engine.GetConfig()
 		cfg.EnabledCategories = map[string]bool{
 			"flags": false,
@@ -1053,7 +1076,7 @@ func TestEngineerEngine_CategoryIndependence(t *testing.T) {
 
 	t.Run("disabling weather suppresses rain alert but allows flags", func(t *testing.T) {
 		b := &mockBroadcaster{}
-		engine := NewEngineerEngine(b)
+		engine := newTestEngineerEngine(b)
 		cfg := engine.GetConfig()
 		cfg.EnabledCategories = map[string]bool{
 			"weather": false,
@@ -1090,7 +1113,7 @@ func TestEngineerEngine_CategoryIndependence(t *testing.T) {
 
 	t.Run("disabling fuel allows pit_strategy undercut and pit_window", func(t *testing.T) {
 		b := &mockBroadcaster{}
-		engine := NewEngineerEngine(b)
+		engine := newTestEngineerEngine(b)
 		cfg := engine.GetConfig()
 		cfg.EnabledCategories = map[string]bool{
 			"fuel": false,
@@ -1135,7 +1158,7 @@ func TestEngineerEngine_CategoryIndependence(t *testing.T) {
 
 	t.Run("disabling pit_strategy suppresses pit_window but allows fuel_delta", func(t *testing.T) {
 		b := &mockBroadcaster{}
-		engine := NewEngineerEngine(b)
+		engine := newTestEngineerEngine(b)
 		cfg := engine.GetConfig()
 		cfg.EnabledCategories = map[string]bool{
 			"pit_strategy": false,
@@ -1168,7 +1191,7 @@ func TestEngineerEngine_CategoryIndependence(t *testing.T) {
 		statusPkt := &packets.PacketCarStatusData{
 			Header: header,
 			CarStatusData: [packets.MaxCars]packets.CarStatusData{
-				{FuelRemainingLaps: -1.5},
+				{FuelRemainingLaps: -1.5, ERSStoreEnergy: packets.MaxERSStoreEnergyJoules},
 			},
 		}
 		engine.ProcessPacket(ctx, statusPkt)
@@ -1181,7 +1204,7 @@ func TestEngineerEngine_CategoryIndependence(t *testing.T) {
 
 func TestEngineerEngine_StartSilenceAndPostRaceSuppression(t *testing.T) {
 	broadcaster := &mockBroadcaster{}
-	engine := NewEngineerEngine(broadcaster)
+	engine := newTestEngineerEngine(broadcaster)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 7777, 0)
 
@@ -1270,5 +1293,202 @@ func TestEngineerEngine_StartSilenceAndPostRaceSuppression(t *testing.T) {
 
 	if _, exists := engine.lastDirectives["race_finish"]; !exists {
 		t.Errorf("expected race_finish directive to be emitted upon race completion")
+	}
+}
+
+func TestEngineerEngine_GlobalRadioCooldown(t *testing.T) {
+	broadcaster := &mockBroadcaster{}
+	// Use NewEngineerEngine to keep default GlobalChatterCooldownMs (4_000ms)
+	engine := NewEngineerEngine(broadcaster)
+	ctx := context.Background()
+	header := createTestHeader(packets.PacketFormat2026, 9999, 0)
+
+	sessionPkt := &packets.PacketSessionData{
+		Header:      header,
+		SessionType: packets.SessionRace,
+	}
+	engine.ProcessPacket(ctx, sessionPkt)
+
+	// 1. Lap 5 triggers clean_air_pit_rejoin (DirectiveCategoryPitStrategy, UrgencyLow)
+	lapPkt := &packets.PacketLapData{
+		Header: header,
+		LapData: [packets.MaxCars]packets.LapData{
+			{CurrentLapNum: 5, DriverStatus: packets.DriverStatusOnTrack},
+		},
+	}
+	engine.ProcessPacket(ctx, lapPkt)
+
+	if _, exists := engine.lastDirectives["pit_clean_air"]; !exists {
+		t.Fatalf("expected initial directive pit_clean_air to be emitted")
+	}
+
+	// 2. Immediately (within 4000ms), a non-critical directive in a DIFFERENT category (e.g. fuel_delta in fuel) -> MUST BE SUPPRESSED by GlobalChatterCooldownMs
+	statusPkt := &packets.PacketCarStatusData{
+		Header: header,
+		CarStatusData: [packets.MaxCars]packets.CarStatusData{
+			{FuelRemainingLaps: -1.5, ERSStoreEnergy: packets.MaxERSStoreEnergyJoules},
+		},
+	}
+	engine.ProcessPacket(ctx, statusPkt)
+
+	if _, exists := engine.lastDirectives["fuel_delta"]; exists {
+		t.Fatalf("expected fuel_delta to be suppressed by GlobalChatterCooldownMs within 4 seconds of previous radio call")
+	}
+
+	// 3. Immediately, a CRITICAL directive arrives (tyre_puncture, UrgencyCritical) -> MUST PREEMPT AND EMIT!
+	puncturePkt := &packets.PacketCarDamageData{
+		Header: header,
+		CarDamageData: [packets.MaxCars]packets.CarDamageData{
+			{TyresWear: [4]float32{96.0, 20.0, 20.0, 20.0}},
+		},
+	}
+	engine.ProcessPacket(ctx, puncturePkt)
+
+	if _, exists := engine.lastDirectives["tyre_puncture"]; !exists {
+		t.Fatalf("expected critical tyre_puncture emergency to bypass GlobalChatterCooldownMs")
+	}
+
+	// 4. After advancing lap to 6 and advancing lastGlobalDirectiveTime past 4000ms, non-critical directive CAN emit
+	lapPkt6 := &packets.PacketLapData{
+		Header: header,
+		LapData: [packets.MaxCars]packets.LapData{
+			{CurrentLapNum: 6, DriverStatus: packets.DriverStatusOnTrack},
+		},
+	}
+	engine.ProcessPacket(ctx, lapPkt6)
+
+	engine.mu.Lock()
+	engine.lastGlobalDirectiveTime = time.Now().UnixMilli() - 5000 // 5 seconds ago
+	engine.mu.Unlock()
+
+	engine.ProcessPacket(ctx, statusPkt)
+	if _, exists := engine.lastDirectives["fuel_delta"]; !exists {
+		t.Fatalf("expected fuel_delta to emit once GlobalChatterCooldownMs has elapsed")
+	}
+}
+
+func TestEngineerEngine_LiveWeatherAndTyreCrossover(t *testing.T) {
+	broadcaster := &mockBroadcaster{}
+	engine := newTestEngineerEngine(broadcaster)
+	ctx := context.Background()
+	header := createTestHeader(packets.PacketFormat2026, 8888, 0)
+
+	// 1. Initial Dry Session (WeatherClear = 0)
+	sessionDry := &packets.PacketSessionData{
+		Header:      header,
+		SessionType: packets.SessionRace,
+		Weather:     packets.WeatherClear,
+	}
+	engine.ProcessPacket(ctx, sessionDry)
+
+	lapPkt := &packets.PacketLapData{
+		Header: header,
+		LapData: [packets.MaxCars]packets.LapData{
+			{CurrentLapNum: 5, DriverStatus: packets.DriverStatusOnTrack},
+		},
+	}
+	engine.ProcessPacket(ctx, lapPkt)
+
+	// Driver is on Soft slick tyres
+	statusSlicks := &packets.PacketCarStatusData{
+		Header: header,
+		CarStatusData: [packets.MaxCars]packets.CarStatusData{
+			{VisualTyreCompound: packets.CompoundSoft, TyresAgeLaps: 5, ERSStoreEnergy: packets.MaxERSStoreEnergyJoules},
+		},
+	}
+	engine.ProcessPacket(ctx, statusSlicks)
+
+	// 2. Weather transitions to rain (WeatherLightRain = 3) -> Triggers Live Rain Onset
+	sessionRain := &packets.PacketSessionData{
+		Header:      header,
+		SessionType: packets.SessionRace,
+		Weather:     packets.WeatherLightRain,
+	}
+	engine.ProcessPacket(ctx, sessionRain)
+
+	if _, exists := engine.lastDirectives["flags_rain_live"]; !exists {
+		t.Fatalf("expected flags_rain_live directive upon live rain arrival on track")
+	}
+
+	// 3. Driver still on dry slicks during rain -> Triggers urgent Tyre Crossover (Box for Inters)
+	engine.ProcessPacket(ctx, statusSlicks)
+	if _, exists := engine.lastDirectives["tyre_crossover"]; !exists {
+		t.Fatalf("expected tyre_crossover directive advising box for Intermediates")
+	}
+
+	// 4. Later in race: weather dries out (WeatherClear = 0) while driver is on Inters for 4 laps -> Triggers Crossover for Slicks
+	engine.Reset(8889)
+	sessionDrying := &packets.PacketSessionData{
+		Header:      createTestHeader(packets.PacketFormat2026, 8889, 0),
+		SessionType: packets.SessionRace,
+		Weather:     packets.WeatherClear,
+	}
+	engine.ProcessPacket(ctx, sessionDrying)
+
+	lapPktDrying := &packets.PacketLapData{
+		Header: createTestHeader(packets.PacketFormat2026, 8889, 0),
+		LapData: [packets.MaxCars]packets.LapData{
+			{CurrentLapNum: 15, DriverStatus: packets.DriverStatusOnTrack},
+		},
+	}
+	engine.ProcessPacket(ctx, lapPktDrying)
+
+	statusInters := &packets.PacketCarStatusData{
+		Header: createTestHeader(packets.PacketFormat2026, 8889, 0),
+		CarStatusData: [packets.MaxCars]packets.CarStatusData{
+			{VisualTyreCompound: packets.CompoundInter, TyresAgeLaps: 4, ERSStoreEnergy: packets.MaxERSStoreEnergyJoules},
+		},
+	}
+	engine.ProcessPacket(ctx, statusInters)
+
+	if _, exists := engine.lastDirectives["tyre_crossover"]; !exists {
+		t.Fatalf("expected tyre_crossover directive advising box for slicks on drying track")
+	}
+}
+
+func TestEngineerEngine_PitBoxAndLimiterSilence(t *testing.T) {
+	broadcaster := &mockBroadcaster{}
+	engine := newTestEngineerEngine(broadcaster)
+	ctx := context.Background()
+	header := createTestHeader(packets.PacketFormat2026, 7771, 0)
+
+	sessionPkt := &packets.PacketSessionData{
+		Header:      header,
+		SessionType: packets.SessionRace,
+	}
+	engine.ProcessPacket(ctx, sessionPkt)
+
+	// Car is in pit box (PitStatusInPitArea)
+	lapPktInBox := &packets.PacketLapData{
+		Header: header,
+		LapData: [packets.MaxCars]packets.LapData{
+			{CurrentLapNum: 10, DriverStatus: packets.DriverStatusOnTrack, PitStatus: packets.PitStatusInPitArea},
+		},
+	}
+	engine.ProcessPacket(ctx, lapPktInBox)
+
+	// Non-critical fuel deficit -> MUST BE SUPPRESSED in pit box
+	statusPkt := &packets.PacketCarStatusData{
+		Header: header,
+		CarStatusData: [packets.MaxCars]packets.CarStatusData{
+			{FuelRemainingLaps: -1.5, ERSStoreEnergy: packets.MaxERSStoreEnergyJoules},
+		},
+	}
+	engine.ProcessPacket(ctx, statusPkt)
+
+	if _, exists := engine.lastDirectives["fuel_delta"]; exists {
+		t.Fatalf("expected non-critical fuel_delta to be silenced while car is in pit box")
+	}
+
+	// Critical red flag -> MUST STILL BREAK THROUGH in pit box
+	sessionRedFlag := &packets.PacketSessionData{
+		Header:            header,
+		SessionType:       packets.SessionRace,
+		NumRedFlagPeriods: 1,
+	}
+	engine.ProcessPacket(ctx, sessionRedFlag)
+
+	if _, exists := engine.lastDirectives["flags_red"]; !exists {
+		t.Fatalf("expected red flag alert to break through even while stationary in pit box")
 	}
 }

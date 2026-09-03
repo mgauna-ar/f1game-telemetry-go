@@ -13,6 +13,7 @@ type TyresRule struct {
 	mu                      sync.Mutex
 	triggeredWearThresholds map[float32]bool
 	lastPunctured           bool
+	lastCrossoverCompound   uint8
 }
 
 // NewTyresRule creates a new TyresRule.
@@ -53,6 +54,10 @@ func (r *TyresRule) AlertKeys() map[string]AlertKeyConfig {
 			MinLapDistancePct: MinOutLapDistanceCompletionPct,
 			DedupScope:        DedupScopePhase,
 		},
+		"tyre_crossover": {
+			ValidPhases: []DrivingPhase{PhaseRacing, PhaseSafetyCar},
+			DedupScope:  DedupScopeStint,
+		},
 	}
 }
 
@@ -63,6 +68,7 @@ func (r *TyresRule) Reset(scope DedupScope) {
 	if scope == DedupScopeStint || scope == DedupScopeNone {
 		r.triggeredWearThresholds = make(map[float32]bool)
 		r.lastPunctured = false
+		r.lastCrossoverCompound = 0
 	}
 }
 
@@ -198,6 +204,52 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 					"window_max_c": window.MaxTemp,
 				},
 			})
+		}
+	}
+
+	// 3. Tyre Crossover Strategy (Rain vs Slicks)
+	if ctx.Session != nil && ctx.IsRaceSession() && (ctx.Phase == PhaseRacing || ctx.Phase == PhaseSafetyCar) {
+		status := ctx.PlayerStatus()
+		if status != nil {
+			visualCompound := status.VisualTyreCompound
+			isSlick := visualCompound == packets.CompoundSoft || visualCompound == packets.CompoundMedium || visualCompound == packets.CompoundHard
+			isWetCompound := visualCompound == packets.CompoundInter || visualCompound == packets.CompoundWet
+			currentWeather := ctx.Session.Weather
+			stintLaps := int(status.TyresAgeLaps)
+
+			// Case A: Slicks on wet track -> Urgent pit call for Intermediates
+			if isSlick && currentWeather >= packets.WeatherLightRain && r.lastCrossoverCompound != visualCompound {
+				r.lastCrossoverCompound = visualCompound
+				directives = append(directives, Directive{
+					ID:       "tyre_crossover",
+					Category: DirectiveCategoryTyres,
+					SubAlert: "tyre_crossover",
+					Title:    "Tyre Crossover (Box for Inters)",
+					Message:  "Track conditions are too wet for slick tyres! Box now, box box for Intermediates.",
+					Urgency:  UrgencyCritical,
+					Metadata: map[string]any{
+						"current_compound": packets.VisualTyreCompoundName(visualCompound),
+						"weather":          currentWeather,
+						"target_compound":  "INTERMEDIATE",
+					},
+				})
+			} else if isWetCompound && currentWeather <= packets.WeatherLightCloud && stintLaps >= TyreCrossoverMinStintLaps && r.lastCrossoverCompound != visualCompound {
+				// Case B: Wet tyres on drying track -> Crossover approaching for Slicks
+				r.lastCrossoverCompound = visualCompound
+				directives = append(directives, Directive{
+					ID:       "tyre_crossover",
+					Category: DirectiveCategoryTyres,
+					SubAlert: "tyre_crossover",
+					Title:    "Tyre Crossover (Box for Slicks)",
+					Message:  "Track is drying out, crossover window is approaching. Prepare to box for slicks.",
+					Urgency:  UrgencyMedium,
+					Metadata: map[string]any{
+						"current_compound": packets.VisualTyreCompoundName(visualCompound),
+						"weather":          currentWeather,
+						"target_compound":  "SLICKS",
+					},
+				})
+			}
 		}
 	}
 

@@ -50,7 +50,71 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
   const onResponseReceivedRef = useRef(onResponseReceived);
   onResponseReceivedRef.current = onResponseReceived;
 
+  const isSpeakingRef = useRef(false);
+  const queueRef = useRef<Array<{
+    id: string;
+    text: string;
+    emotion?: { rateModifier?: number; pitchModifier?: number };
+  }>>([]);
+  const MAX_QUEUE_SIZE = 3;
+
+  const playNext = useCallback(async () => {
+    if (!isRadioEnabled || queueRef.current.length === 0) {
+      isSpeakingRef.current = false;
+      setIsSpeaking(false);
+      onSpeakingChangeRef.current?.(false);
+      return;
+    }
+
+    const item = queueRef.current.shift()!;
+    isSpeakingRef.current = true;
+    setIsSpeaking(true);
+    onSpeakingChangeRef.current?.(true);
+    setLastResponse(item.text);
+    onResponseReceivedRef.current?.(item.text);
+
+    const effectiveRate = speechRate + (item.emotion?.rateModifier || 0);
+    const effectivePitch = speechPitch + (item.emotion?.pitchModifier || 0);
+    const rateStr = effectiveRate >= 0 ? `+${effectiveRate}%` : `${effectiveRate}%`;
+    const pitchStr = effectivePitch >= 0 ? `+${effectivePitch}Hz` : `${effectivePitch}Hz`;
+
+    try {
+      await speakRadioResponse(item.text, {
+        volume,
+        voice: neuralVoice || undefined,
+        persona,
+        language: effectiveLanguage,
+        rate: rateStr,
+        pitch: pitchStr,
+        enableBeeps: beepsEnabled,
+        enableCockpitFilter: filterEnabled,
+        enableStaticFx: staticFxEnabled,
+        onEnd: () => {
+          playNext();
+        },
+        onError: () => {
+          playNext();
+        },
+      });
+    } catch {
+      playNext();
+    }
+  }, [
+    isRadioEnabled,
+    speechRate,
+    speechPitch,
+    volume,
+    neuralVoice,
+    persona,
+    beepsEnabled,
+    filterEnabled,
+    staticFxEnabled,
+    effectiveLanguage,
+  ]);
+
   const stopSpeech = useCallback(() => {
+    queueRef.current = [];
+    isSpeakingRef.current = false;
     stopRadioSpeech();
     setIsSpeaking(false);
     onSpeakingChangeRef.current?.(false);
@@ -66,52 +130,40 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
       if (!isRadioEnabled || !cleaned) return;
 
       if (forceInterrupt) {
-        stopSpeech();
+        // Critical emergency or forced interrupt: halt current audio and purge non-critical backlog
+        queueRef.current = [];
+        stopRadioSpeech();
+        isSpeakingRef.current = false;
+        queueRef.current.push({
+          id: Math.random().toString(36).substring(2, 9),
+          text: cleaned,
+          emotion,
+        });
+        await playNext();
+        return;
       }
 
-      setIsSpeaking(true);
-      onSpeakingChangeRef.current?.(true);
-      setLastResponse(cleaned);
-      onResponseReceivedRef.current?.(cleaned);
+      // Non-critical directive: if already speaking, queue it sequentially up to MAX_QUEUE_SIZE
+      if (isSpeakingRef.current) {
+        if (queueRef.current.length < MAX_QUEUE_SIZE) {
+          queueRef.current.push({
+            id: Math.random().toString(36).substring(2, 9),
+            text: cleaned,
+            emotion,
+          });
+        }
+        return;
+      }
 
-      const effectiveRate = speechRate + (emotion?.rateModifier || 0);
-      const effectivePitch = speechPitch + (emotion?.pitchModifier || 0);
-      const rateStr = effectiveRate >= 0 ? `+${effectiveRate}%` : `${effectiveRate}%`;
-      const pitchStr = effectivePitch >= 0 ? `+${effectivePitch}Hz` : `${effectivePitch}Hz`;
-
-      await speakRadioResponse(cleaned, {
-        volume,
-        voice: neuralVoice || undefined,
-        persona,
-        language: effectiveLanguage,
-        rate: rateStr,
-        pitch: pitchStr,
-        enableBeeps: beepsEnabled,
-        enableCockpitFilter: filterEnabled,
-        enableStaticFx: staticFxEnabled,
-        onEnd: () => {
-          setIsSpeaking(false);
-          onSpeakingChangeRef.current?.(false);
-        },
-        onError: () => {
-          setIsSpeaking(false);
-          onSpeakingChangeRef.current?.(false);
-        },
+      // Not currently speaking, play immediately
+      queueRef.current.push({
+        id: Math.random().toString(36).substring(2, 9),
+        text: cleaned,
+        emotion,
       });
+      await playNext();
     },
-    [
-      isRadioEnabled,
-      speechRate,
-      speechPitch,
-      volume,
-      neuralVoice,
-      persona,
-      beepsEnabled,
-      filterEnabled,
-      staticFxEnabled,
-      effectiveLanguage,
-      stopSpeech,
-    ]
+    [isRadioEnabled, playNext]
   );
 
   const testTriggerAlert = useCallback(

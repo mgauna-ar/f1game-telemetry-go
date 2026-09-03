@@ -75,59 +75,61 @@ type AlertKeyConfig struct {
 
 // EngineerConfig holds user-configurable thresholds and subsystem toggles.
 type EngineerConfig struct {
-	ChatterCooldownMs      int             `json:"chatter_cooldown_ms"`
-	SmartDiscretionEnabled bool            `json:"smart_discretion_enabled"`
-	TyreWearWarnPct        float32         `json:"tyre_wear_warn_pct"`
-	TyreWearCritPct        float32         `json:"tyre_wear_crit_pct"`
-	TyreOverheatC          float32         `json:"tyre_overheat_c"`
-	TyreColdC              float32         `json:"tyre_cold_c"`
-	WingDamageWarnPct      float32         `json:"wing_damage_warn_pct"`
-	WingDamageCritPct      float32         `json:"wing_damage_crit_pct"`
-	FloorDamageWarnPct     float32         `json:"floor_damage_warn_pct"`
-	EngineWearWarnPct      float32         `json:"engine_wear_warn_pct"`
-	ERSLowPct              float32         `json:"ers_low_pct"`
-	EngineOverheatC        float32         `json:"engine_overheat_c"`
-	BrakeOverheatC         float32         `json:"brake_overheat_c"`
-	BrakeColdC             float32         `json:"brake_cold_c"`
-	FuelDeltaLaps          float32         `json:"fuel_delta_laps"`
-	UndercutGapSec         float32         `json:"undercut_gap_sec"`
-	RivalGapSec            float32         `json:"rival_gap_sec"`
-	RivalAheadGapSec       float32         `json:"rival_ahead_gap_sec"`
-	QualyCleanAirSec       float32         `json:"qualy_clean_air_sec"`
-	QualyTimeWarnSec       float32         `json:"qualy_time_warn_sec"`
-	CornerCutWarnThreshold int             `json:"corner_cut_warn_threshold"`
-	RainHorizonMin         float32         `json:"rain_horizon_min"`
-	RainProbPct            float32         `json:"rain_prob_pct"`
-	EnabledCategories      map[string]bool `json:"enabled_categories,omitempty"`
+	ChatterCooldownMs       int64           `json:"chatter_cooldown_ms"`
+	GlobalChatterCooldownMs int64           `json:"global_chatter_cooldown_ms"`
+	SmartDiscretionEnabled  bool            `json:"smart_discretion_enabled"`
+	TyreWearWarnPct         float32         `json:"tyre_wear_warn_pct"`
+	TyreWearCritPct         float32         `json:"tyre_wear_crit_pct"`
+	TyreOverheatC           float32         `json:"tyre_overheat_c"`
+	TyreColdC               float32         `json:"tyre_cold_c"`
+	WingDamageWarnPct       float32         `json:"wing_damage_warn_pct"`
+	WingDamageCritPct       float32         `json:"wing_damage_crit_pct"`
+	FloorDamageWarnPct      float32         `json:"floor_damage_warn_pct"`
+	EngineWearWarnPct       float32         `json:"engine_wear_warn_pct"`
+	ERSLowPct               float32         `json:"ers_low_pct"`
+	EngineOverheatC         float32         `json:"engine_overheat_c"`
+	BrakeOverheatC          float32         `json:"brake_overheat_c"`
+	BrakeColdC              float32         `json:"brake_cold_c"`
+	FuelDeltaLaps           float32         `json:"fuel_delta_laps"`
+	UndercutGapSec          float32         `json:"undercut_gap_sec"`
+	RivalGapSec             float32         `json:"rival_gap_sec"`
+	RivalAheadGapSec        float32         `json:"rival_ahead_gap_sec"`
+	QualyCleanAirSec        float32         `json:"qualy_clean_air_sec"`
+	QualyTimeWarnSec        float32         `json:"qualy_time_warn_sec"`
+	CornerCutWarnThreshold  int             `json:"corner_cut_warn_threshold"`
+	RainHorizonMin          float32         `json:"rain_horizon_min"`
+	RainProbPct             float32         `json:"rain_prob_pct"`
+	EnabledCategories       map[string]bool `json:"enabled_categories,omitempty"`
 }
 
 // DefaultEngineerConfig returns a default configured EngineerConfig.
 func DefaultEngineerConfig() EngineerConfig {
 	return EngineerConfig{
-		ChatterCooldownMs:      DefaultDirectiveCooldownMs,
-		SmartDiscretionEnabled: true,
-		TyreWearWarnPct:        40.0,
-		TyreWearCritPct:        75.0,
-		TyreOverheatC:          OverheatRearTyres2025C,
-		TyreColdC:              ColdTyresTargetC,
-		WingDamageWarnPct:      20.0,
-		WingDamageCritPct:      CriticalWingDamageThresholdPct,
-		FloorDamageWarnPct:     25.0,
-		EngineWearWarnPct:      70.0,
-		ERSLowPct:              15.0,
-		EngineOverheatC:        EngineOverheatDefaultC,
-		BrakeOverheatC:         BrakeOverheatDefaultC,
-		BrakeColdC:             BrakeColdDefaultC,
-		FuelDeltaLaps:          FuelDeltaDeficitDefaultLaps,
-		UndercutGapSec:         UndercutGapDefaultSec,
-		RivalGapSec:            RivalDefendGapDefaultSec,
-		RivalAheadGapSec:       RivalAttackGapDefaultSec,
-		QualyCleanAirSec:       QualyCleanAirDefaultSec,
-		QualyTimeWarnSec:       QualyTimeWarnDefaultSec,
-		CornerCutWarnThreshold: CornerCutWarnDefaultThreshold,
-		RainHorizonMin:         WeatherRainHorizonMinutes,
-		RainProbPct:            WeatherRainTransitionProbPct,
-		EnabledCategories:      make(map[string]bool),
+		ChatterCooldownMs:       DefaultDirectiveCooldownMs,
+		GlobalChatterCooldownMs: GlobalRadioChatterCooldownMs,
+		SmartDiscretionEnabled:  true,
+		TyreWearWarnPct:         40.0,
+		TyreWearCritPct:         75.0,
+		TyreOverheatC:           OverheatRearTyres2025C,
+		TyreColdC:               ColdTyresTargetC,
+		WingDamageWarnPct:       20.0,
+		WingDamageCritPct:       CriticalWingDamageThresholdPct,
+		FloorDamageWarnPct:      25.0,
+		EngineWearWarnPct:       70.0,
+		ERSLowPct:               15.0,
+		EngineOverheatC:         EngineOverheatDefaultC,
+		BrakeOverheatC:          BrakeOverheatDefaultC,
+		BrakeColdC:              BrakeColdDefaultC,
+		FuelDeltaLaps:           FuelDeltaDeficitDefaultLaps,
+		UndercutGapSec:          UndercutGapDefaultSec,
+		RivalGapSec:             RivalDefendGapDefaultSec,
+		RivalAheadGapSec:        RivalAttackGapDefaultSec,
+		QualyCleanAirSec:        QualyCleanAirDefaultSec,
+		QualyTimeWarnSec:        QualyTimeWarnDefaultSec,
+		CornerCutWarnThreshold:  CornerCutWarnDefaultThreshold,
+		RainHorizonMin:          WeatherRainHorizonMinutes,
+		RainProbPct:             WeatherRainTransitionProbPct,
+		EnabledCategories:       make(map[string]bool),
 	}
 }
 

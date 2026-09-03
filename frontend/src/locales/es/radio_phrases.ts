@@ -505,6 +505,30 @@ export const radio_phrases = {
       'Vuelta completa, a boxes, {driver}. Refrigera frenos y recarga el ERS.',
     ],
   },
+  flags_rain_live: {
+    colapinto: [
+      '¡Ojo {driver}, empezó a llover en la pista! Cuidado con las frenadas que perdimos grip.',
+    ],
+    bono: [
+      'Lluvia cayendo sobre el trazado ahora, {driver}. Mucho cuidado en zonas de frenada.',
+    ],
+    standard: [
+      '¡Lluvia cayendo en pista! Atención al agarre en las zonas de frenada.',
+      'Comenzó a llover en el circuito, {driver}. Ajusta referencias de frenado.',
+    ],
+  },
+  tyre_crossover: {
+    colapinto: [
+      '¡Llegamos a la ventana de cruce de neumáticos, {driver}! A boxes en esta vuelta, ¡a boxes ya!',
+    ],
+    bono: [
+      'Condiciones en ventana de cruce, {driver}. Entra a boxes esta vuelta para cambio de compuesto.',
+    ],
+    standard: [
+      '¡Ventana de cruce alcanzada! Entra a boxes esta vuelta para cambio de neumáticos.',
+      'Ventana de cruce abierta, {driver}. Box en esta vuelta, box box.',
+    ],
+  },
   directive: {
     standard: ['{clean_text}'],
   },

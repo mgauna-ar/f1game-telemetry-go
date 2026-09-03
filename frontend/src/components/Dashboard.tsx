@@ -245,7 +245,7 @@ export const Dashboard: React.FC = () => {
   radioRef.current = radio;
 
   const handleProactiveAlert = useCallback(
-    async (payload: import('../types/telemetry').RadioAlertPayload | string, _isCritical = false, emotion?: { rateModifier?: number; pitchModifier?: number }) => {
+    async (payload: import('../types/telemetry').RadioAlertPayload | string, isCritical = false, emotion?: { rateModifier?: number; pitchModifier?: number }) => {
       const r = radioRef.current;
       // Instant zero-latency pit wall radio call with persona-specific phrasing & randomized variety
       const speech = formatProactiveFallbackSpeech(
@@ -255,10 +255,11 @@ export const Dashboard: React.FC = () => {
         r.driverCallsign
       );
 
+      const isCrit = typeof payload === 'object' ? (payload.isCritical ?? isCritical) : isCritical;
       const em = typeof payload === 'object' && payload.emotion ? payload.emotion : emotion;
 
       if (speech) {
-        r.speakMessage(speech, false, em);
+        r.speakMessage(speech, isCrit, em);
       }
     },
     []

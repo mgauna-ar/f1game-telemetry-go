@@ -491,6 +491,30 @@ export const radio_phrases = {
       'Lap complete, into the pits this lap, {driver}. Focus on cooling.',
     ],
   },
+  flags_rain_live: {
+    bono: [
+      'Rain is falling on track now, {driver}. Be careful on the brakes into Turn 1, grip levels dropping.',
+    ],
+    colapinto: [
+      'Rain has arrived on track, {driver}. Watch your braking points, track is getting slippery.',
+    ],
+    standard: [
+      'Rain is now falling on track! Watch out for changing grip levels into braking zones.',
+      'Rain arriving on track, {driver}. Grip is decreasing, adjust braking references.',
+    ],
+  },
+  tyre_crossover: {
+    bono: [
+      'Conditions at crossover threshold, {driver}. Box this lap, box box for tyre change.',
+    ],
+    colapinto: [
+      'We are at the tyre crossover window, {driver}. Box this lap, box box!',
+    ],
+    standard: [
+      'Tyre crossover threshold reached! Box this lap for tyre compound change.',
+      'Crossover window is open, {driver}. Box this lap, box box.',
+    ],
+  },
   directive: {
     standard: ['{clean_text}'],
   },

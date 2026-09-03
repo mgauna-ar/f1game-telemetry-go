@@ -122,6 +122,7 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 			subAlert := "rival_defend"
 			title := "Defend Position"
 			if is2026 {
+				subAlert = "rival_defend_override"
 				title = "Defend Position (Boost Threat)"
 				defendMsg = fmt.Sprintf("Defend! Car behind (P%d) is within Override/Boost attack threat (%.1fs gap).%s", playerPos+1, gapSec, extraContext)
 			} else {
@@ -167,6 +168,7 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 				subAlert := "rival_attack"
 				title := "Attack Opportunity"
 				if is2026 {
+					subAlert = "rival_attack_override"
 					title = "Attack Opportunity (Override Available)"
 					telemetry2 := ctx.PlayerTelemetry2()
 					var boostContext string

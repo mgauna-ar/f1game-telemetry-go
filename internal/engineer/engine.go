@@ -45,11 +45,12 @@ type EngineerEngine struct {
 	latestParticipant *packets.PacketParticipantsData
 
 	// Internal state tracking
-	lastStintLapAge       int
-	startLightsActive     bool
-	raceStarted           bool
-	chequeredFlagReceived bool
-	postRaceAnnounced     bool
+	lastStintLapAge         int
+	startLightsActive       bool
+	raceStarted             bool
+	chequeredFlagReceived   bool
+	postRaceAnnounced       bool
+	lastGlobalDirectiveTime int64
 }
 
 // NewEngineerEngine creates a new EngineerEngine instance with default rules.
@@ -141,6 +142,7 @@ func (e *EngineerEngine) resetLocked(sessionUID uint64) {
 	e.raceStarted = false
 	e.chequeredFlagReceived = false
 	e.postRaceAnnounced = false
+	e.lastGlobalDirectiveTime = 0
 	e.currentPhase = PhaseUnknown
 	e.previousPhase = PhaseUnknown
 	e.latestSession = nil
@@ -623,23 +625,49 @@ func (e *EngineerEngine) canEmitDirectiveLocked(alertKey, category, urgency stri
 		return false
 	}
 
-	// 5. Driving phase rule validation
+	// 5. Pit Box & Pit Limiter Silence:
+	// While stationary in the pit box or running with the pit speed limiter active,
+	// silence non-critical driving directives (permitting only session-level flags or weather).
+	playerLap := e.getPlayerLapDataLocked()
+	playerStatus := e.getPlayerCarStatusLocked()
+	isPitLimiterActive := playerStatus != nil && playerStatus.PitLimiterStatus == 1
+	isPitBoxActive := playerLap != nil && playerLap.PitStatus == packets.PitStatusInPitArea
+	if (isPitLimiterActive || isPitBoxActive) && urgency != UrgencyCritical && category != string(DirectiveCategoryFlags) && category != string(DirectiveCategoryWeather) {
+		return false
+	}
+
+	// 6. Time Trial session integrity:
+	// In Time Trial mode, suppress race-specific categories (fuel, pit strategy, rivals, teammate).
+	if e.latestSession != nil && e.latestSession.SessionType == packets.SessionTimeTrial {
+		if category == string(DirectiveCategoryFuel) || category == string(DirectiveCategoryPitStrategy) || category == string(DirectiveCategoryRivals) || category == string(DirectiveCategoryTeammate) {
+			return false
+		}
+	}
+
+	// 7. Driving phase rule validation
 	if !e.isPhaseAllowed(alertKey) {
 		return false
 	}
 
-	// 5. Deduplication check
+	// 8. Deduplication check
 	if e.isDeduplicated(alertKey, isCritical) {
 		return false
 	}
 
-	// 6. Smart Driving Discretion check
+	// 9. Smart Driving Discretion check
 	if e.isSmartDiscretionSuppressed(isCritical) {
 		return false
 	}
 
-	// 7. Per-category chatter cooldown check
+	// 10. Per-category chatter cooldown check
 	if e.isChatterCooldownActive(category, isCritical) {
+		return false
+	}
+
+	// 11. Global radio chatter spacing:
+	// Prevent firing directives from different categories back-to-back within GlobalChatterCooldownMs.
+	now := time.Now().UnixMilli()
+	if !isCritical && e.config.GlobalChatterCooldownMs > 0 && (now-e.lastGlobalDirectiveTime) < e.config.GlobalChatterCooldownMs {
 		return false
 	}
 
@@ -652,6 +680,7 @@ func (e *EngineerEngine) emitDirectiveLocked(header packets.PacketHeader, direct
 
 	e.lastDirectives[category] = now
 	e.lastDirectives[alertKey] = now
+	e.lastGlobalDirectiveTime = now
 
 	if rule, hasRule := e.alertRules[alertKey]; hasRule {
 		currentLapNum := 1

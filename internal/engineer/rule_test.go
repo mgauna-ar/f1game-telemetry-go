@@ -252,21 +252,39 @@ func TestFlagsRule_Unit(t *testing.T) {
 		t.Fatalf("expected weather_rain directive, got %+v", dirsWeather)
 	}
 
-	// 3. Track Limits & Penalties
-	lapPkt := &packets.PacketLapData{
+	// 3. Penalty Priority: when Penalties > 0, penalty supersedes track limits warning
+	lapPktWithPenalty := &packets.PacketLapData{
 		LapData: [packets.MaxCars]packets.LapData{
 			{CornerCuttingWarnings: 3, Penalties: 10},
 		},
 	}
-	ctxLap := &EvaluationContext{
-		LapData:        lapPkt,
+	ctxLapPenalty := &EvaluationContext{
+		LapData:        lapPktWithPenalty,
 		Config:         cfg,
 		PlayerCarIndex: 0,
 		Phase:          PhaseRacing,
 	}
-	dirsLap := rule.Evaluate(ctxLap)
-	if len(dirsLap) != 2 {
-		t.Fatalf("expected 2 directives (track limits + penalties), got %d: %+v", len(dirsLap), dirsLap)
+	dirsLapPenalty := rule.Evaluate(ctxLapPenalty)
+	if len(dirsLapPenalty) != 1 || dirsLapPenalty[0].SubAlert != "penalties_incurred" {
+		t.Fatalf("expected penalty to supersede track limits warning, got %+v", dirsLapPenalty)
+	}
+
+	// 4. Track Limits warning fires when no penalty is incurred
+	rule.Reset(DedupScopeNone)
+	lapPktWarningOnly := &packets.PacketLapData{
+		LapData: [packets.MaxCars]packets.LapData{
+			{CornerCuttingWarnings: 3, Penalties: 0},
+		},
+	}
+	ctxLapWarn := &EvaluationContext{
+		LapData:        lapPktWarningOnly,
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseRacing,
+	}
+	dirsLapWarn := rule.Evaluate(ctxLapWarn)
+	if len(dirsLapWarn) != 1 || dirsLapWarn[0].SubAlert != "track_limits_warnings" {
+		t.Fatalf("expected track limits warning directive, got %+v", dirsLapWarn)
 	}
 }
 
@@ -647,8 +665,8 @@ func TestRivalsRule_TableDriven(t *testing.T) {
 		if len(dirs) != 1 {
 			t.Fatalf("expected 1 directive, got %d", len(dirs))
 		}
-		if dirs[0].SubAlert != "rival_attack" {
-			t.Errorf("expected rival_attack, got %s", dirs[0].SubAlert)
+		if dirs[0].SubAlert != "rival_attack_override" {
+			t.Errorf("expected rival_attack_override, got %s", dirs[0].SubAlert)
 		}
 		if !strings.Contains(dirs[0].Message, "Override Boost is available!") {
 			t.Errorf("expected message to mention Override Boost is available: %s", dirs[0].Message)

@@ -5,7 +5,8 @@ import "github.com/mgauna/f1game-telemetry-go/internal/packets"
 // Analytical thresholds, timing constants, and heuristic parameters for the AI Race Engineer Engine.
 const (
 	// DefaultDirectiveCooldownMs is the default cooldown between non-critical directives in the same category.
-	DefaultDirectiveCooldownMs = 45_000
+	DefaultDirectiveCooldownMs   = 45_000
+	GlobalRadioChatterCooldownMs = 4_000
 
 	// Smart Driving Discretion thresholds
 	SmartDiscretionBrakeThreshold = 0.30
@@ -15,6 +16,7 @@ const (
 	PitStopDetectionMaxTyreAgeLaps = 1
 	MinStintLapsForReset           = 3
 	PostPitSuppressionLaps         = 1
+	TyreCrossoverMinStintLaps      = 2
 
 	// Speed and distance estimations
 	AverageRaceSpeedMetersPerSec   = 65.0

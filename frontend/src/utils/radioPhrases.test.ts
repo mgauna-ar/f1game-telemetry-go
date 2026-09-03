@@ -115,6 +115,14 @@ describe('radioPhrases', () => {
       expect(
         detectAlertCategory('[PROACTIVE PIT WALL CALL: Weather Transition — Radar confirms 70% rain in 5 minutes.]')
       ).toBe('weather_rain');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Rain is now falling on track! Watch out for changing grip levels into braking zones.]')
+      ).toBe('flags_rain_live');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Track conditions are too wet for slick tyres! Box now, box box for Intermediates.]')
+      ).toBe('tyre_crossover');
     });
   });
 

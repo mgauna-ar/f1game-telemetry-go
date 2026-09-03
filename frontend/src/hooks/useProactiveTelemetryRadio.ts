@@ -63,6 +63,10 @@ const CATEGORY_MAP: Record<string, RadioAlertCategory> = {
   race_finish: 'race_finish',
   inlap_traffic_behind: 'inlap_traffic_behind',
   inlap_cooldown: 'inlap_cooldown',
+  flags_rain_live: 'flags_rain_live',
+  tyre_crossover: 'tyre_crossover',
+  damage_aero_fault: 'aero_fault',
+  damage_ers_fault: 'ers_fault',
   rival_defend_override: 'rival_defend_override',
   rival_attack_override: 'rival_attack_override',
 };

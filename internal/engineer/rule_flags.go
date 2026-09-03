@@ -13,6 +13,7 @@ type FlagsRule struct {
 	lastSafetyCarStatus      uint8
 	lastRedFlagCount         uint8
 	lastWeatherAlertOffset   int
+	lastLiveWeather          uint8
 	lastCornerCutWarnings    uint8
 	lastPenaltyTime          uint8
 	lastDriveThroughPnlCount uint8
@@ -55,6 +56,11 @@ func (r *FlagsRule) AlertKeys() map[string]AlertKeyConfig {
 			ValidPhases: []DrivingPhase{PhaseInGarage, PhasePitLane, PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
 			DedupScope:  DedupScopePhase,
 		},
+		"flags_rain_live": {
+			Category:    DirectiveCategoryWeather,
+			ValidPhases: []DrivingPhase{PhaseInGarage, PhasePitLane, PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			DedupScope:  DedupScopePhase,
+		},
 		"track_limits": {
 			Category:    DirectiveCategoryFlags,
 			ValidPhases: []DrivingPhase{PhaseFlyingLap, PhaseRacing},
@@ -62,7 +68,7 @@ func (r *FlagsRule) AlertKeys() map[string]AlertKeyConfig {
 		},
 		"penalties": {
 			Category:    DirectiveCategoryFlags,
-			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseFormationLap},
 			DedupScope:  DedupScopeNone,
 		},
 		"race_finish": {
@@ -81,6 +87,7 @@ func (r *FlagsRule) Reset(scope DedupScope) {
 		r.lastSafetyCarStatus = 0
 		r.lastRedFlagCount = 0
 		r.lastWeatherAlertOffset = -1
+		r.lastLiveWeather = 0
 		r.lastCornerCutWarnings = 0
 		r.lastPenaltyTime = 0
 		r.lastDriveThroughPnlCount = 0
@@ -105,16 +112,22 @@ func (r *FlagsRule) Evaluate(ctx *EvaluationContext) []Directive {
 		if weather := r.evaluateWeather(ctx); weather != nil {
 			directives = append(directives, *weather)
 		}
+		if liveWeather := r.evaluateLiveWeather(ctx); liveWeather != nil {
+			directives = append(directives, *liveWeather)
+		}
 	}
 
 	// 2. Lap-based Flags (Track Limits warnings & penalties)
 	playerLap := ctx.PlayerLap()
 	if playerLap != nil && (ctx.Packet == nil || isPacketType[*packets.PacketLapData](ctx.Packet)) {
-		if tl := r.evaluateTrackLimits(ctx, playerLap); tl != nil {
-			directives = append(directives, *tl)
-		}
-		if pnl := r.evaluatePenalties(playerLap); pnl != nil {
+		pnl := r.evaluatePenalties(playerLap)
+		if pnl != nil {
+			// A steward penalty strictly supersedes corner cutting warnings on the same event
 			directives = append(directives, *pnl)
+		} else {
+			if tl := r.evaluateTrackLimits(ctx, playerLap); tl != nil {
+				directives = append(directives, *tl)
+			}
 		}
 	}
 
@@ -253,4 +266,29 @@ func (r *FlagsRule) evaluatePenalties(playerLap *packets.LapData) *Directive {
 			"stop_go":          playerLap.NumUnservedStopGoPens,
 		},
 	}
+}
+
+func (r *FlagsRule) evaluateLiveWeather(ctx *EvaluationContext) *Directive {
+	if ctx.Session == nil {
+		return nil
+	}
+	currentWeather := ctx.Session.Weather
+	prevWeather := r.lastLiveWeather
+	r.lastLiveWeather = currentWeather
+
+	// Trigger on transition from dry (<= WeatherOvercast) to rain (>= WeatherLightRain)
+	if prevWeather <= packets.WeatherOvercast && currentWeather >= packets.WeatherLightRain && r.lastSafetyCarStatus != packets.SafetyCarFormationLap {
+		return &Directive{
+			ID:       "flags_rain_live",
+			Category: DirectiveCategoryWeather,
+			SubAlert: "flags_rain_live",
+			Title:    "Track Rain Onset",
+			Message:  "Rain is now falling on track! Watch out for changing grip levels into braking zones.",
+			Urgency:  UrgencyHigh,
+			Metadata: map[string]any{
+				"weather": currentWeather,
+			},
+		}
+	}
+	return nil
 }

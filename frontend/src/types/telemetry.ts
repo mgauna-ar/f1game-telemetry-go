@@ -287,6 +287,8 @@ export type RadioAlertCategory =
   | 'track_limits_warnings'
   | 'penalties_incurred'
   | 'weather_rain'
+  | 'flags_rain_live'
+  | 'tyre_crossover'
   | 'race_finish'
   | 'inlap_traffic_behind'
   | 'inlap_cooldown'
