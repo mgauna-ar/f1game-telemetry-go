@@ -13,15 +13,18 @@ import {
   Activity,
   Clock,
   Search,
+  Sliders,
 } from 'lucide-react';
 import { SessionSelectorDropdown } from './SessionSelectorDropdown';
 import { TyreCompoundBadge } from '../common/TyreCompoundBadge';
+import { ComparatorPreferencesModal } from './ComparatorPreferencesModal';
 import { formatTime, formatSectorTime } from '../../utils/formatters';
 import { sortLapsByQuality } from '../../utils/lapUtils';
 import { TEAM_COLORS } from '../../constants/f1';
 import { useI18n } from '../../context/I18nContext';
 import type { Session, Participant, Lap } from '../../types/session';
 import type { SessionTypeTab } from '../../hooks/useComparatorSessions';
+import type { ComparatorPreferences } from '../../types/comparatorPreferences';
 
 export interface ComparatorDuelHeaderProps {
   sessions: Session[];
@@ -70,6 +73,7 @@ export interface ComparatorDuelHeaderProps {
   s1Delta: number | null;
   s2Delta: number | null;
   s3Delta: number | null;
+  onPreferencesSave?: (prefs: ComparatorPreferences) => void;
 }
 
 export const ComparatorDuelHeader: React.FC<ComparatorDuelHeaderProps> = ({
@@ -107,8 +111,11 @@ export const ComparatorDuelHeader: React.FC<ComparatorDuelHeaderProps> = ({
   s1Delta,
   s2Delta,
   s3Delta,
+  onPreferencesSave,
 }) => {
   const { t } = useI18n();
+
+  const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
 
   // Local popover states for Slot A & Slot B
   const [isDriverSelectorOpenA, setIsDriverSelectorOpenA] = useState(false);
@@ -271,8 +278,19 @@ export const ComparatorDuelHeader: React.FC<ComparatorDuelHeaderProps> = ({
           )}
         </div>
 
-        {/* Right: Quick Global Actions (Swap, Clear) */}
+        {/* Right: Quick Global Actions (Preferences, Swap, Clear) */}
         <div className="duel-action-controls">
+          <button
+            type="button"
+            onClick={() => setIsPreferencesOpen(true)}
+            className="duel-btn duel-prefs-btn"
+            title={t('comparator.preferencesBtnTooltip')}
+            data-testid="duel-open-preferences-btn"
+          >
+            <Sliders size={13} />
+            <span>{t('comparator.preferencesBtn')}</span>
+          </button>
+
           {lapAObj && lapBObj && (
             <button
               type="button"
@@ -303,7 +321,7 @@ export const ComparatorDuelHeader: React.FC<ComparatorDuelHeaderProps> = ({
 
       {/* Center Duel Matchup Bar */}
       <div className="duel-matchup-container">
-        {/* SLOT A: BASELINE CARD */}
+        {/* SLOT A: REFERENCE CARD */}
         <div
           ref={slotARef}
           className={`duel-slot-card slot-a ${lapAObj ? 'has-lap' : 'empty'}`}
@@ -312,7 +330,7 @@ export const ComparatorDuelHeader: React.FC<ComparatorDuelHeaderProps> = ({
           <div className="duel-slot-header">
             <div className="duel-slot-tag slot-a-tag">
               <span className="dot" />
-              <span>{t('comparator.duel.baseline')} (Slot A)</span>
+              <span>{t('comparator.duel.reference')}</span>
             </div>
             {lapAObj?.max_speed_kmh && (
               <span className="duel-speed-pill">
@@ -565,7 +583,7 @@ export const ComparatorDuelHeader: React.FC<ComparatorDuelHeaderProps> = ({
           )}
         </div>
 
-        {/* SLOT B: RIVAL CARD */}
+        {/* SLOT B: COMPARISON CARD */}
         <div
           ref={slotBRef}
           className={`duel-slot-card slot-b ${lapBObj ? 'has-lap' : 'empty'}`}
@@ -574,7 +592,7 @@ export const ComparatorDuelHeader: React.FC<ComparatorDuelHeaderProps> = ({
           <div className="duel-slot-header">
             <div className="duel-slot-tag slot-b-tag">
               <span className="dot" />
-              <span>{t('comparator.duel.rival')} (Slot B)</span>
+              <span>{t('comparator.duel.comparison')}</span>
             </div>
             {lapBObj?.max_speed_kmh && (
               <span className="duel-speed-pill">
@@ -757,6 +775,17 @@ export const ComparatorDuelHeader: React.FC<ComparatorDuelHeaderProps> = ({
           )}
         </div>
       </div>
+
+      {/* Comparator Preferences Modal */}
+      <ComparatorPreferencesModal
+        isOpen={isPreferencesOpen}
+        onClose={() => setIsPreferencesOpen(false)}
+        onSave={(prefs) => {
+          onPreferencesSave?.(prefs);
+        }}
+        currentSlotADriverName={slotA.driver?.name}
+        currentSlotBDriverName={slotB.driver?.name}
+      />
     </div>
   );
 };

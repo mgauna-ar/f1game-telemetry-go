@@ -51,7 +51,7 @@ describe('LapComparator Component', () => {
 
     // Trigger button for Session A should be rendered
     const trigger = screen.getByTestId('session-selector-trigger');
-    expect(trigger).toHaveTextContent('Select Session A...');
+    expect(trigger).toHaveTextContent('Select Reference Session...');
 
     // Wait for sessions to be fetched
     await waitFor(() => {

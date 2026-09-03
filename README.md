@@ -23,6 +23,7 @@
 * **Side-by-Side Telemetry:** Compare any two laps across Speed, Throttle, Brake, Gears, ERS, and 2026 Active Aero (`Corner` / `Straight` mode) & Boost traces.
 * **Interactive Track Visualizer:** Synchronized circuit map with turn badges, apex speed deltas, and racing line overlays.
 * **Server-Side Distance Merging:** High-performance distance-normalized grid (5m step) for pinpoint delta coaching.
+* **Configurable Driver Defaults & Auto-Rival Matching:** Configure your default Reference pilot name and comparison targets (Fastest Lap / Leader with P2 tiebreaker, Teammate, or specific driver) with immediate re-evaluation and intelligent fallbacks.
 
 ### 📊 Session History & League Management
 * **4-Tab Deep Dive:** Detailed analysis for Official Classification & Penalties, Lap Progression & Gap Charts, Tyre Strategy & Stint Degradation, and Speed/Sector Matrix.

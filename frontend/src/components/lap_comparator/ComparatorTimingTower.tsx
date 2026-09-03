@@ -440,10 +440,14 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
                                 {d.name}
                               </span>
                               {isAssignedA && (
-                                <span className="slot-indicator slot-a-ind">SLOT A</span>
+                                <span className="slot-indicator slot-a-ind">
+                                  {t('comparator.timingTower.baselineBadge')}
+                                </span>
                               )}
                               {isAssignedB && (
-                                <span className="slot-indicator slot-b-ind">SLOT B</span>
+                                <span className="slot-indicator slot-b-ind">
+                                  {t('comparator.timingTower.rivalBadge')}
+                                </span>
                               )}
                             </div>
                           </td>
@@ -517,7 +521,7 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
                           {/* ACTIONS */}
                           <td className="col-actions">
                             <div className="actions-cell">
-                              {/* Primary: Set as Rival (B) */}
+                              {/* Primary: Set as Comparison (B) */}
                               <button
                                 type="button"
                                 className={`action-btn-rival ${isAssignedB ? 'is-active' : ''}`}
@@ -527,13 +531,15 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
                                   );
                                   if (driverLaps.length > 0) onSetLapB(driverLaps[0].id);
                                 }}
-                                title={`Set ${d.name}'s fastest lap as Rival (Slot B)`}
+                                title={`Set ${d.name}'s fastest lap as Comparison (Slot B)`}
                                 data-testid={`tower-set-rival-${d.car_index}`}
                               >
-                                {isAssignedB ? 'Rival B ✓' : t('comparator.timingTower.btnSetRival')}
+                                {isAssignedB
+                                  ? (t('comparator.timingTower.btnSetRivalActive') || 'Comp ✓')
+                                  : t('comparator.timingTower.btnSetRival')}
                               </button>
 
-                              {/* Secondary: Set as Baseline (A) */}
+                              {/* Secondary: Set as Base (A) */}
                               {(isLinkedSessions || isDriverInA || d.sessionSlot === 'A') && (
                                 <button
                                   type="button"
@@ -544,10 +550,12 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
                                     );
                                     if (driverLaps.length > 0) onSetLapA(driverLaps[0].id);
                                   }}
-                                  title={`Set ${d.name}'s fastest lap as Baseline (Slot A)`}
+                                  title={`Set ${d.name}'s fastest lap as Reference Base (Slot A)`}
                                   data-testid={`tower-set-baseline-${d.car_index}`}
                                 >
-                                  {isAssignedA ? 'Base A ✓' : 'Set A'}
+                                  {isAssignedA
+                                    ? (t('comparator.timingTower.btnSetBaselineActive') || 'Base ✓')
+                                    : t('comparator.timingTower.btnSetBaseline')}
                                 </button>
                               )}
 
@@ -610,14 +618,14 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
                                               className="card-btn-a"
                                               onClick={() => onSetLapA(lap.id)}
                                             >
-                                              {isLapA ? 'A ✓' : 'Set A'}
+                                              {isLapA ? 'Base ✓' : 'Base'}
                                             </button>
                                             <button
                                               type="button"
                                               className="card-btn-b"
                                               onClick={() => onSetLapB(lap.id)}
                                             >
-                                              {isLapB ? 'B ✓' : 'Set B'}
+                                              {isLapB ? 'Comp ✓' : 'Comp'}
                                             </button>
                                           </div>
                                         </div>

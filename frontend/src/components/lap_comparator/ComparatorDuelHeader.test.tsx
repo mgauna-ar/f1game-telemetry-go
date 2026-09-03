@@ -167,4 +167,13 @@ describe('ComparatorDuelHeader Component', () => {
 
     expect(defaultProps.setIsTimingTowerOpen).toHaveBeenCalled();
   });
+
+  it('opens comparator preferences modal when preferences button clicked', () => {
+    render(<ComparatorDuelHeader {...defaultProps} />);
+
+    const prefsBtn = screen.getByTestId('duel-open-preferences-btn');
+    fireEvent.click(prefsBtn);
+
+    expect(screen.getByTestId('comparator-preferences-modal')).toBeInTheDocument();
+  });
 });

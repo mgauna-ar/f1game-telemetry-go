@@ -1,8 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import type { Participant, Lap } from '../types/session';
+import type { ComparatorRivalMode } from '../types/comparatorPreferences';
 import { filterActiveHistoricalParticipants } from '../utils/driverFilter';
 import { sortLapsByQuality } from '../utils/lapUtils';
 import { api } from '../utils/apiClient';
+import { resolveReferenceLap, resolveComparisonLap } from '../utils/comparatorPreferencesUtils';
 
 export interface UseSlotTelemetryOptions {
   sessionId: number | '';
@@ -10,6 +12,11 @@ export interface UseSlotTelemetryOptions {
   isSlotB?: boolean;
   isSameSessionAsSlotA?: boolean;
   defaultDriverName?: string;
+  preferredDriverName?: string;
+  referenceDriver?: Participant;
+  referenceLapId?: number | '';
+  rivalMode?: ComparatorRivalMode;
+  rivalDriverName?: string;
 }
 
 export interface ActiveParticipantWithBestLap extends Participant {
@@ -37,12 +44,51 @@ export function useSlotTelemetry({
   isSlotB = false,
   isSameSessionAsSlotA = false,
   defaultDriverName = 'Lap',
+  preferredDriverName = '',
+  referenceDriver,
+  referenceLapId,
+  rivalMode = 'fastest',
+  rivalDriverName = '',
 }: UseSlotTelemetryOptions): UseSlotTelemetryReturn {
   const [laps, setLaps] = useState<Lap[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [lapId, setLapId] = useState<number | ''>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Keep references to options that can be read inside the async fetch handler
+  const optionsRef = useRef({
+    preloadLapId,
+    isSlotB,
+    isSameSessionAsSlotA,
+    preferredDriverName,
+    referenceDriver,
+    referenceLapId,
+    rivalMode,
+    rivalDriverName,
+  });
+
+  useEffect(() => {
+    optionsRef.current = {
+      preloadLapId,
+      isSlotB,
+      isSameSessionAsSlotA,
+      preferredDriverName,
+      referenceDriver,
+      referenceLapId,
+      rivalMode,
+      rivalDriverName,
+    };
+  }, [
+    preloadLapId,
+    isSlotB,
+    isSameSessionAsSlotA,
+    preferredDriverName,
+    referenceDriver,
+    referenceLapId,
+    rivalMode,
+    rivalDriverName,
+  ]);
 
   // Load participants & laps when sessionId changes
   useEffect(() => {
@@ -60,50 +106,55 @@ export function useSlotTelemetry({
 
     setLoading(true);
     setError(null);
-    Promise.all([
-      api.get<Participant[]>(`/api/sessions/${sessionId}/participants`, { signal })
-        .then((data) => {
-          if (!signal.aborted) setParticipants(data || []);
-        })
-        .catch((err) => {
-          if (!signal.aborted && err.name !== 'AbortError') {
-            setError(err instanceof Error ? err.message : 'Error loading participants');
-          }
-        }),
-      api.get<Lap[]>(`/api/sessions/${sessionId}/laps`, { signal })
-        .then((data) => {
-          if (signal.aborted) return;
-          const list: Lap[] = data || [];
-          setLaps(list);
 
-          if (preloadLapId && list.some((l) => l.id === preloadLapId)) {
-            setLapId(preloadLapId);
-          } else if (list.length > 0) {
-            const valid = sortLapsByQuality(list);
-            if (isSlotB && isSameSessionAsSlotA && valid.length > 1) {
-              setLapId(valid[1].id);
-            } else if (valid.length > 0) {
-              setLapId(valid[0].id);
-            } else {
-              setLapId(list[0].id);
-            }
+    Promise.all([
+      api.get<Participant[]>(`/api/sessions/${sessionId}/participants`, { signal }),
+      api.get<Lap[]>(`/api/sessions/${sessionId}/laps`, { signal }),
+    ])
+      .then(([partsData, lapsData]) => {
+        if (signal.aborted) return;
+        const parts: Participant[] = partsData || [];
+        const list: Lap[] = lapsData || [];
+        setParticipants(parts);
+        setLaps(list);
+
+        const currentOpts = optionsRef.current;
+        if (currentOpts.preloadLapId && list.some((l) => l.id === currentOpts.preloadLapId)) {
+          setLapId(currentOpts.preloadLapId);
+        } else if (list.length > 0) {
+          if (!currentOpts.isSlotB) {
+            const refRes = resolveReferenceLap(parts, list, currentOpts.preferredDriverName);
+            setLapId(refRes.lapId);
           } else {
-            setLapId('');
+            const compRes = resolveComparisonLap(
+              parts,
+              list,
+              currentOpts.referenceDriver,
+              currentOpts.rivalMode,
+              currentOpts.rivalDriverName,
+              currentOpts.referenceLapId,
+              currentOpts.isSameSessionAsSlotA,
+              currentOpts.preferredDriverName
+            );
+            setLapId(compRes.lapId);
           }
-        })
-        .catch((err) => {
-          if (!signal.aborted && err.name !== 'AbortError') {
-            setError(err instanceof Error ? err.message : 'Error loading laps');
-          }
-        }),
-    ]).finally(() => {
-      if (!signal.aborted) setLoading(false);
-    });
+        } else {
+          setLapId('');
+        }
+      })
+      .catch((err) => {
+        if (!signal.aborted && err.name !== 'AbortError') {
+          setError(err instanceof Error ? err.message : 'Error loading session data');
+        }
+      })
+      .finally(() => {
+        if (!signal.aborted) setLoading(false);
+      });
 
     return () => {
       controller.abort();
     };
-  }, [sessionId, preloadLapId, isSlotB, isSameSessionAsSlotA]);
+  }, [sessionId]);
 
   // Selected lap object
   const selectedLap = useMemo(() => laps.find((l) => l.id === lapId), [laps, lapId]);

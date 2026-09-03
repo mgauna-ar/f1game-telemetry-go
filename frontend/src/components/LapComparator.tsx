@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import type { NavigationComparatorPayload } from '../types/session';
 import { buildTelemetryContext } from '../utils/aiTelemetrySummary';
 import { useRaceEngineerActions } from '../context/RaceEngineerContext';
@@ -13,6 +13,12 @@ import { useComparatorSessions } from '../hooks/useComparatorSessions';
 import { useSlotTelemetry } from '../hooks/useSlotTelemetry';
 import { useMergedTelemetry } from '../hooks/useMergedTelemetry';
 import { useComparatorSlots } from '../hooks/useComparatorSlots';
+import type { ComparatorPreferences } from '../types/comparatorPreferences';
+import {
+  loadComparatorPreferences,
+  resolveReferenceLap,
+  resolveComparisonLap,
+} from '../utils/comparatorPreferencesUtils';
 
 export interface LapComparatorProps {
   initialPreload?: NavigationComparatorPayload | null;
@@ -50,11 +56,15 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
     filteredDropdownSessionsB,
   } = useComparatorSessions({ initialPreload });
 
+  // Comparator Preferences State
+  const [preferences, setPreferences] = useState<ComparatorPreferences>(() => loadComparatorPreferences());
+
   // Hook 2: Slot A telemetry & laps loader
   const slotA = useSlotTelemetry({
     sessionId: sessionAId,
     preloadLapId: initialPreload?.lapAId || (initialPreload?.slot === 'A' ? initialPreload?.lapId : undefined),
-    defaultDriverName: 'Lap A',
+    defaultDriverName: 'Reference',
+    preferredDriverName: preferences.defaultDriverName,
   });
 
   // Hook 2 (reused): Slot B telemetry & laps loader
@@ -63,8 +73,44 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
     preloadLapId: initialPreload?.lapBId || (initialPreload?.slot === 'B' ? initialPreload?.lapId : undefined),
     isSlotB: true,
     isSameSessionAsSlotA: sessionAId === sessionBId,
-    defaultDriverName: 'Lap B',
+    defaultDriverName: 'Comparison',
+    preferredDriverName: preferences.defaultDriverName,
+    referenceDriver: slotA.driver,
+    referenceLapId: slotA.lapId,
+    rivalMode: preferences.rivalMode,
+    rivalDriverName: preferences.rivalDriverName,
   });
+
+  const handlePreferencesSave = useCallback(
+    (newPrefs: ComparatorPreferences) => {
+      setPreferences(newPrefs);
+      if (slotA.participants.length > 0 && slotA.laps.length > 0) {
+        const refRes = resolveReferenceLap(slotA.participants, slotA.laps, newPrefs.defaultDriverName);
+        if (refRes.lapId !== '') {
+          slotA.setLapId(refRes.lapId);
+        }
+        const effectiveParticipantsB =
+          isLinkedSessions || sessionAId === sessionBId ? slotA.participants : slotB.participants;
+        const effectiveLapsB =
+          isLinkedSessions || sessionAId === sessionBId ? slotA.laps : slotB.laps;
+
+        if (effectiveLapsB.length > 0) {
+          const compRes = resolveComparisonLap(
+            effectiveParticipantsB,
+            effectiveLapsB,
+            refRes.driver,
+            newPrefs.rivalMode,
+            newPrefs.rivalDriverName,
+            refRes.lapId
+          );
+          if (compRes.lapId !== '') {
+            slotB.setLapId(compRes.lapId);
+          }
+        }
+      }
+    },
+    [slotA, slotB, isLinkedSessions, sessionAId, sessionBId]
+  );
 
   // Hook 3: Merged telemetry & delta computations
   const {
@@ -255,6 +301,7 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
         s1Delta={s1Delta}
         s2Delta={s2Delta}
         s3Delta={s3Delta}
+        onPreferencesSave={handlePreferencesSave}
       />
 
       {/* Enhanced F1 Broadcast Timing Tower & Rival Leaderboard */}
