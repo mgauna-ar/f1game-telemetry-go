@@ -161,7 +161,7 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
   }, [laps, validOnly, telemetryOnly, selectedDriverCarIndex, searchQuery, participants, sortMode]);
 
 
-  const slotColor = slot === 'A' ? '#ff4757' : '#00d2d3';
+  const slotColor = slot === 'A' ? '#00d2d3' : '#ff4757';
   const defaultPlaceholder = placeholder || `Select Lap ${slot}...`;
 
   return (
@@ -286,8 +286,8 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
                 type="button"
                 onClick={() => setValidOnly((prev) => !prev)}
                 style={{
-                  background: validOnly ? (slot === 'A' ? 'rgba(255, 71, 87, 0.15)' : 'rgba(0, 210, 211, 0.15)') : 'transparent',
-                  border: validOnly ? (slot === 'A' ? '1px solid #ff4757' : '1px solid #00d2d3') : '1px solid rgba(255,255,255,0.1)',
+                  background: validOnly ? (slot === 'A' ? 'rgba(0, 210, 211, 0.15)' : 'rgba(255, 71, 87, 0.15)') : 'transparent',
+                  border: validOnly ? (slot === 'A' ? '1px solid #00d2d3' : '1px solid #ff4757') : '1px solid rgba(255,255,255,0.1)',
                   color: validOnly ? slotColor : 'var(--text-muted)',
                   borderRadius: '4px',
                   padding: '2px 6px',
@@ -306,8 +306,8 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
                 type="button"
                 onClick={() => setTelemetryOnly((prev) => !prev)}
                 style={{
-                  background: telemetryOnly ? (slot === 'A' ? 'rgba(255, 71, 87, 0.15)' : 'rgba(0, 210, 211, 0.15)') : 'transparent',
-                  border: telemetryOnly ? (slot === 'A' ? '1px solid #ff4757' : '1px solid #00d2d3') : '1px solid rgba(255,255,255,0.1)',
+                  background: telemetryOnly ? (slot === 'A' ? 'rgba(0, 210, 211, 0.15)' : 'rgba(255, 71, 87, 0.15)') : 'transparent',
+                  border: telemetryOnly ? (slot === 'A' ? '1px solid #00d2d3' : '1px solid #ff4757') : '1px solid rgba(255,255,255,0.1)',
                   color: telemetryOnly ? slotColor : 'var(--text-muted)',
                   borderRadius: '4px',
                   padding: '2px 6px',

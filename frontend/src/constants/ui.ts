@@ -38,7 +38,7 @@ export const UI = {
 } as const;
 
 export const SLOT_COLORS = {
-  A: { primary: '#ff4757', bg: 'rgba(255, 71, 87, 0.08)', border: 'rgba(255, 71, 87, 0.4)' },
-  B: { primary: '#00d2d3', bg: 'rgba(0, 210, 211, 0.08)', border: 'rgba(0, 210, 211, 0.4)' },
+  A: { primary: '#00d2d3', bg: 'rgba(0, 210, 211, 0.08)', border: 'rgba(0, 210, 211, 0.4)' },
+  B: { primary: '#ff4757', bg: 'rgba(255, 71, 87, 0.08)', border: 'rgba(255, 71, 87, 0.4)' },
 } as const;
 

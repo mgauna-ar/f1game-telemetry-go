@@ -126,9 +126,9 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         if (deltaStart !== null && deltaEnd !== null) {
           const dDelta = deltaEnd - deltaStart;
           if (dDelta < -0.005) {
-            segmentColors.push('#ff4757');
-          } else if (dDelta > 0.005) {
             segmentColors.push('#00d2d3');
+          } else if (dDelta > 0.005) {
+            segmentColors.push('#ff4757');
           } else {
             segmentColors.push('rgba(255, 255, 255, 0.45)');
           }

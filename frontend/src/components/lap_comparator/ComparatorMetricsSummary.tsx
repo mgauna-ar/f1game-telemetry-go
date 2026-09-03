@@ -36,7 +36,7 @@ export const SectorDeltaBadge: React.FC<{ label: string; deltaMs: number | null 
       <span style={{ color: 'var(--text-muted)' }}>{label}:</span>
       <span
         style={{
-          color: deltaMs === 0 ? 'var(--text-muted)' : isFaster ? '#ff4757' : '#00d2d3',
+          color: deltaMs === 0 ? 'var(--text-muted)' : isFaster ? '#00d2d3' : '#ff4757',
           fontFamily: 'var(--font-mono)',
           fontWeight: 'bold',
           display: 'flex',
@@ -82,15 +82,15 @@ export const ComparatorMetricsSummary: React.FC<ComparatorMetricsSummaryProps> =
             padding: '1rem 1.5rem',
             background:
               totalDeltaMs < 0
-                ? 'linear-gradient(90deg, rgba(255,71,87,0.15) 0%, rgba(255,71,87,0.02) 100%)'
-                : totalDeltaMs > 0
                 ? 'linear-gradient(90deg, rgba(0,210,211,0.15) 0%, rgba(0,210,211,0.02) 100%)'
+                : totalDeltaMs > 0
+                ? 'linear-gradient(90deg, rgba(255,71,87,0.15) 0%, rgba(255,71,87,0.02) 100%)'
                 : 'rgba(255,255,255,0.05)',
-            borderLeft: `4px solid ${totalDeltaMs < 0 ? '#ff4757' : totalDeltaMs > 0 ? '#00d2d3' : '#ffd700'}`,
+            borderLeft: `4px solid ${totalDeltaMs < 0 ? '#00d2d3' : totalDeltaMs > 0 ? '#ff4757' : '#ffd700'}`,
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <Award size={28} color={totalDeltaMs < 0 ? '#ff4757' : totalDeltaMs > 0 ? '#00d2d3' : '#ffd700'} />
+            <Award size={28} color={totalDeltaMs < 0 ? '#00d2d3' : totalDeltaMs > 0 ? '#ff4757' : '#ffd700'} />
             <div>
               <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>
                 {totalDeltaMs < 0
@@ -118,7 +118,7 @@ export const ComparatorMetricsSummary: React.FC<ComparatorMetricsSummaryProps> =
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
         {/* Lap A Card */}
         <div className="glass-panel comparator-card-panel" style={{ padding: '1rem' }}>
-          <h3 style={{ margin: 0, fontSize: '1rem', color: '#ff4757', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <h3 style={{ margin: 0, fontSize: '1rem', color: '#00d2d3', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             ● {nameA}
           </h3>
           {lapAObj ? (
@@ -167,7 +167,7 @@ export const ComparatorMetricsSummary: React.FC<ComparatorMetricsSummaryProps> =
 
         {/* Lap B Card */}
         <div className="glass-panel comparator-card-panel" style={{ padding: '1rem' }}>
-          <h3 style={{ margin: 0, fontSize: '1rem', color: '#00d2d3', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <h3 style={{ margin: 0, fontSize: '1rem', color: '#ff4757', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             ● {nameB}
           </h3>
           {lapBObj ? (

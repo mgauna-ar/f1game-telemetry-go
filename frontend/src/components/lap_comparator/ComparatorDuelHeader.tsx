@@ -191,8 +191,8 @@ export const ComparatorDuelHeader: React.FC<ComparatorDuelHeaderProps> = ({
     setIsDriverSelectorOpenB(false);
   };
 
-  const teamColorA = slotA.driver ? TEAM_COLORS[slotA.driver.team_id] || '#ff4757' : '#ff4757';
-  const teamColorB = slotB.driver ? TEAM_COLORS[slotB.driver.team_id] || '#00d2d3' : '#00d2d3';
+  const teamColorA = slotA.driver ? TEAM_COLORS[slotA.driver.team_id] || '#00d2d3' : '#00d2d3';
+  const teamColorB = slotB.driver ? TEAM_COLORS[slotB.driver.team_id] || '#ff4757' : '#ff4757';
 
   return (
     <div
@@ -234,7 +234,7 @@ export const ComparatorDuelHeader: React.FC<ComparatorDuelHeaderProps> = ({
               onTypeTabChange={setSessionATypeTab}
               onSelectSession={handleSelectSessionA}
               slot="A"
-              accentColor="#ff4757"
+              accentColor="#00d2d3"
               placeholder={t('comparator.duel.selectSessionA')}
             />
           </div>
@@ -269,7 +269,7 @@ export const ComparatorDuelHeader: React.FC<ComparatorDuelHeaderProps> = ({
                 onTypeTabChange={setSessionBTypeTab}
                 onSelectSession={handleSelectSessionB}
                 slot="B"
-                accentColor="#00d2d3"
+                accentColor="#ff4757"
                 placeholder={t('comparator.duel.selectSessionB')}
                 isRestrictedCircuit={!isLinkedSessions}
                 restrictedTrackName={selectedSessionAObj?.track_name}

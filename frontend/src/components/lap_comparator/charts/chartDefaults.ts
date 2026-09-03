@@ -51,8 +51,8 @@ export const compactTooltipProps = {
 };
 
 export const CHART_COLORS = {
-  SLOT_A: '#ff4757',
-  SLOT_B: '#00d2d3',
+  SLOT_A: '#00d2d3',
+  SLOT_B: '#ff4757',
   SECTOR_1: '#f39c12',
   SECTOR_2: '#9b59b6',
   CURSOR: '#ffd200',

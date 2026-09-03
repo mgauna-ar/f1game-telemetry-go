@@ -22,12 +22,12 @@
   --border-highlight: hsla(0, 0%, 100%, 0.15);
 
   /* Slot & Comparison Palette */
-  --color-slot-a: #ff4757;
-  --color-slot-a-bg: rgba(255, 71, 87, 0.08);
-  --color-slot-a-border: rgba(255, 71, 87, 0.4);
-  --color-slot-b: #00d2d3;
-  --color-slot-b-bg: rgba(0, 210, 211, 0.08);
-  --color-slot-b-border: rgba(0, 210, 211, 0.4);
+  --color-slot-a: #00d2d3;
+  --color-slot-a-bg: rgba(0, 210, 211, 0.08);
+  --color-slot-a-border: rgba(0, 210, 211, 0.4);
+  --color-slot-b: #ff4757;
+  --color-slot-b-bg: rgba(255, 71, 87, 0.08);
+  --color-slot-b-border: rgba(255, 71, 87, 0.4);
   --color-positive: #52c41a;
   --color-negative: #ff4d4f;
   --color-warning: #ffd700;

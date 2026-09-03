@@ -146,8 +146,8 @@ export const ComparatorPreferencesModal: React.FC<ComparatorPreferencesModalProp
                   width: '8px',
                   height: '8px',
                   borderRadius: '50%',
-                  backgroundColor: '#ff4757',
-                  boxShadow: '0 0 8px rgba(255, 71, 87, 0.6)',
+                  backgroundColor: '#00d2d3',
+                  boxShadow: '0 0 8px rgba(0, 210, 211, 0.6)',
                 }}
               />
               {t('comparator.preferences.defaultReferenceDriver')}
@@ -158,9 +158,9 @@ export const ComparatorPreferencesModal: React.FC<ComparatorPreferencesModalProp
                 type="button"
                 onClick={() => setDefaultDriverName(currentSlotADriverName)}
                 style={{
-                  background: 'rgba(255, 71, 87, 0.12)',
-                  border: '1px solid rgba(255, 71, 87, 0.3)',
-                  color: '#ff6b81',
+                  background: 'rgba(0, 210, 211, 0.12)',
+                  border: '1px solid rgba(0, 210, 211, 0.3)',
+                  color: '#00d2d3',
                   fontSize: '0.75rem',
                   fontWeight: 500,
                   padding: '3px 8px',
@@ -218,8 +218,8 @@ export const ComparatorPreferencesModal: React.FC<ComparatorPreferencesModalProp
                 width: '8px',
                 height: '8px',
                 borderRadius: '50%',
-                backgroundColor: '#00d2d3',
-                boxShadow: '0 0 8px rgba(0, 210, 211, 0.6)',
+                backgroundColor: '#ff4757',
+                boxShadow: '0 0 8px rgba(255, 71, 87, 0.6)',
                 marginRight: '6px',
               }}
             />
@@ -235,8 +235,8 @@ export const ComparatorPreferencesModal: React.FC<ComparatorPreferencesModalProp
                 gap: '10px',
                 padding: '0.65rem 0.85rem',
                 borderRadius: '6px',
-                background: rivalMode === 'fastest' ? 'rgba(0, 210, 211, 0.12)' : 'rgba(255, 255, 255, 0.03)',
-                border: `1px solid ${rivalMode === 'fastest' ? 'rgba(0, 210, 211, 0.4)' : 'rgba(255, 255, 255, 0.08)'}`,
+                background: rivalMode === 'fastest' ? 'rgba(255, 71, 87, 0.12)' : 'rgba(255, 255, 255, 0.03)',
+                border: `1px solid ${rivalMode === 'fastest' ? 'rgba(255, 71, 87, 0.4)' : 'rgba(255, 255, 255, 0.08)'}`,
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
               }}
@@ -248,10 +248,10 @@ export const ComparatorPreferencesModal: React.FC<ComparatorPreferencesModalProp
                 value="fastest"
                 checked={rivalMode === 'fastest'}
                 onChange={() => setRivalMode('fastest')}
-                style={{ accentColor: '#00d2d3' }}
+                style={{ accentColor: '#ff4757' }}
                 data-testid="rival-mode-fastest-radio"
               />
-              <Trophy size={16} color={rivalMode === 'fastest' ? '#00d2d3' : 'var(--text-muted)'} />
+              <Trophy size={16} color={rivalMode === 'fastest' ? '#ff4757' : 'var(--text-muted)'} />
               <span style={{ fontSize: '0.88rem', fontWeight: rivalMode === 'fastest' ? 600 : 400 }}>
                 {t('comparator.preferences.targetFastest')}
               </span>
@@ -265,8 +265,8 @@ export const ComparatorPreferencesModal: React.FC<ComparatorPreferencesModalProp
                 gap: '10px',
                 padding: '0.65rem 0.85rem',
                 borderRadius: '6px',
-                background: rivalMode === 'teammate' ? 'rgba(0, 210, 211, 0.12)' : 'rgba(255, 255, 255, 0.03)',
-                border: `1px solid ${rivalMode === 'teammate' ? 'rgba(0, 210, 211, 0.4)' : 'rgba(255, 255, 255, 0.08)'}`,
+                background: rivalMode === 'teammate' ? 'rgba(255, 71, 87, 0.12)' : 'rgba(255, 255, 255, 0.03)',
+                border: `1px solid ${rivalMode === 'teammate' ? 'rgba(255, 71, 87, 0.4)' : 'rgba(255, 255, 255, 0.08)'}`,
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
               }}
@@ -278,10 +278,10 @@ export const ComparatorPreferencesModal: React.FC<ComparatorPreferencesModalProp
                 value="teammate"
                 checked={rivalMode === 'teammate'}
                 onChange={() => setRivalMode('teammate')}
-                style={{ accentColor: '#00d2d3' }}
+                style={{ accentColor: '#ff4757' }}
                 data-testid="rival-mode-teammate-radio"
               />
-              <Users size={16} color={rivalMode === 'teammate' ? '#00d2d3' : 'var(--text-muted)'} />
+              <Users size={16} color={rivalMode === 'teammate' ? '#ff4757' : 'var(--text-muted)'} />
               <span style={{ fontSize: '0.88rem', fontWeight: rivalMode === 'teammate' ? 600 : 400 }}>
                 {t('comparator.preferences.targetTeammate')}
               </span>
@@ -295,8 +295,8 @@ export const ComparatorPreferencesModal: React.FC<ComparatorPreferencesModalProp
                 gap: '10px',
                 padding: '0.65rem 0.85rem',
                 borderRadius: '6px',
-                background: rivalMode === 'driver' ? 'rgba(0, 210, 211, 0.12)' : 'rgba(255, 255, 255, 0.03)',
-                border: `1px solid ${rivalMode === 'driver' ? 'rgba(0, 210, 211, 0.4)' : 'rgba(255, 255, 255, 0.08)'}`,
+                background: rivalMode === 'driver' ? 'rgba(255, 71, 87, 0.12)' : 'rgba(255, 255, 255, 0.03)',
+                border: `1px solid ${rivalMode === 'driver' ? 'rgba(255, 71, 87, 0.4)' : 'rgba(255, 255, 255, 0.08)'}`,
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
               }}
@@ -308,10 +308,10 @@ export const ComparatorPreferencesModal: React.FC<ComparatorPreferencesModalProp
                 value="driver"
                 checked={rivalMode === 'driver'}
                 onChange={() => setRivalMode('driver')}
-                style={{ accentColor: '#00d2d3' }}
+                style={{ accentColor: '#ff4757' }}
                 data-testid="rival-mode-driver-radio"
               />
-              <User size={16} color={rivalMode === 'driver' ? '#00d2d3' : 'var(--text-muted)'} />
+              <User size={16} color={rivalMode === 'driver' ? '#ff4757' : 'var(--text-muted)'} />
               <span style={{ fontSize: '0.88rem', fontWeight: rivalMode === 'driver' ? 600 : 400 }}>
                 {t('comparator.preferences.targetDriver')}
               </span>
@@ -329,9 +329,9 @@ export const ComparatorPreferencesModal: React.FC<ComparatorPreferencesModalProp
                       type="button"
                       onClick={() => setRivalDriverName(currentSlotBDriverName)}
                       style={{
-                        background: 'rgba(0, 210, 211, 0.12)',
-                        border: '1px solid rgba(0, 210, 211, 0.3)',
-                        color: '#00d2d3',
+                        background: 'rgba(255, 71, 87, 0.12)',
+                        border: '1px solid rgba(255, 71, 87, 0.3)',
+                        color: '#ff6b81',
                         fontSize: '0.72rem',
                         padding: '2px 6px',
                         borderRadius: '4px',
@@ -352,7 +352,7 @@ export const ComparatorPreferencesModal: React.FC<ComparatorPreferencesModalProp
                     width: '100%',
                     padding: '0.55rem 0.75rem',
                     background: 'rgba(0, 0, 0, 0.35)',
-                    border: '1px solid rgba(0, 210, 211, 0.3)',
+                    border: '1px solid rgba(255, 71, 87, 0.3)',
                     borderRadius: '6px',
                     color: 'var(--text-primary)',
                     fontSize: '0.85rem',

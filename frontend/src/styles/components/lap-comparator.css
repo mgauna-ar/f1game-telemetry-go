@@ -69,21 +69,21 @@
 }
 
 .comparator-slot-card.slot-a {
-  border-left: 3px solid #ff4757;
-}
-
-.comparator-slot-card.slot-a:hover {
-  background: rgba(255, 71, 87, 0.03);
-  border-color: rgba(255, 71, 87, 0.25);
-}
-
-.comparator-slot-card.slot-b {
   border-left: 3px solid #00d2d3;
 }
 
-.comparator-slot-card.slot-b:hover {
+.comparator-slot-card.slot-a:hover {
   background: rgba(0, 210, 211, 0.03);
   border-color: rgba(0, 210, 211, 0.25);
+}
+
+.comparator-slot-card.slot-b {
+  border-left: 3px solid #ff4757;
+}
+
+.comparator-slot-card.slot-b:hover {
+  background: rgba(255, 71, 87, 0.03);
+  border-color: rgba(255, 71, 87, 0.25);
 }
 
 .comparator-slot-card:has(.is-open),
@@ -172,13 +172,13 @@
 }
 
 .custom-lap-trigger.slot-a.is-open {
-  border-color: #ff4757;
-  box-shadow: 0 0 0 1px #ff4757;
+  border-color: #00d2d3;
+  box-shadow: 0 0 0 1px #00d2d3;
 }
 
 .custom-lap-trigger.slot-b.is-open {
-  border-color: #00d2d3;
-  box-shadow: 0 0 0 1px #00d2d3;
+  border-color: #ff4757;
+  box-shadow: 0 0 0 1px #ff4757;
 }
 
 .custom-lap-trigger:disabled {
@@ -289,15 +289,15 @@
 }
 
 .custom-lap-popover.slot-a .custom-lap-driver-tab.active {
-  background: rgba(255, 71, 87, 0.15);
-  border-color: #ff4757;
-  color: #ff4757;
-}
-
-.custom-lap-popover.slot-b .custom-lap-driver-tab.active {
   background: rgba(0, 210, 211, 0.15);
   border-color: #00d2d3;
   color: #00d2d3;
+}
+
+.custom-lap-popover.slot-b .custom-lap-driver-tab.active {
+  background: rgba(255, 71, 87, 0.15);
+  border-color: #ff4757;
+  color: #ff4757;
 }
 
 .custom-lap-list {
@@ -417,12 +417,12 @@
 }
 
 .legend-lap-a {
-  color: #ff4757;
+  color: #00d2d3;
   font-weight: bold;
 }
 
 .legend-lap-b {
-  color: #00d2d3;
+  color: #ff4757;
   font-weight: bold;
 }
 
@@ -624,21 +624,21 @@
 }
 
 .duel-slot-card.slot-a {
-  border-left: 3px solid #ff4757;
-}
-
-.duel-slot-card.slot-a:hover {
-  background: rgba(255, 71, 87, 0.03);
-  border-color: rgba(255, 71, 87, 0.25);
-}
-
-.duel-slot-card.slot-b {
   border-left: 3px solid #00d2d3;
 }
 
-.duel-slot-card.slot-b:hover {
+.duel-slot-card.slot-a:hover {
   background: rgba(0, 210, 211, 0.03);
   border-color: rgba(0, 210, 211, 0.25);
+}
+
+.duel-slot-card.slot-b {
+  border-left: 3px solid #ff4757;
+}
+
+.duel-slot-card.slot-b:hover {
+  background: rgba(255, 71, 87, 0.03);
+  border-color: rgba(255, 71, 87, 0.25);
 }
 
 .duel-slot-header {
@@ -666,19 +666,19 @@
 }
 
 .slot-a-tag {
-  color: #ff4757;
+  color: #00d2d3;
 }
 .slot-a-tag .dot {
-  background-color: #ff4757;
-  box-shadow: 0 0 6px rgba(255, 71, 87, 0.6);
+  background-color: #00d2d3;
+  box-shadow: 0 0 6px rgba(0, 210, 211, 0.6);
 }
 
 .slot-b-tag {
-  color: #00d2d3;
+  color: #ff4757;
 }
 .slot-b-tag .dot {
-  background-color: #00d2d3;
-  box-shadow: 0 0 6px rgba(0, 210, 211, 0.6);
+  background-color: #ff4757;
+  box-shadow: 0 0 6px rgba(255, 71, 87, 0.6);
 }
 
 .duel-speed-pill {
@@ -989,15 +989,15 @@
 }
 
 .duel-delta-badge[data-faster="a"] {
-  background: rgba(255, 71, 87, 0.15);
-  border: 1px solid #ff4757;
-  color: #ff4757;
-}
-
-.duel-delta-badge[data-faster="b"] {
   background: rgba(0, 210, 211, 0.15);
   border: 1px solid #00d2d3;
   color: #00d2d3;
+}
+
+.duel-delta-badge[data-faster="b"] {
+  background: rgba(255, 71, 87, 0.15);
+  border: 1px solid #ff4757;
+  color: #ff4757;
 }
 
 .duel-delta-badge[data-faster="equal"] {
@@ -1021,13 +1021,13 @@
 }
 
 .duel-sector-pill[data-delta="faster-a"] {
-  background: rgba(255, 71, 87, 0.15);
-  color: #ff4757;
+  background: rgba(0, 210, 211, 0.15);
+  color: #00d2d3;
 }
 
 .duel-sector-pill[data-delta="faster-b"] {
-  background: rgba(0, 210, 211, 0.15);
-  color: #00d2d3;
+  background: rgba(255, 71, 87, 0.15);
+  color: #ff4757;
 }
 
 .duel-sector-pill[data-delta="equal"] {
@@ -1286,15 +1286,15 @@
 }
 
 .tower-tab-btn.tab-a.active {
-  background: rgba(255, 71, 87, 0.2);
-  color: #ff4757;
-  border-color: #ff4757;
-}
-
-.tower-tab-btn.tab-b.active {
   background: rgba(0, 210, 211, 0.2);
   color: #00d2d3;
   border-color: #00d2d3;
+}
+
+.tower-tab-btn.tab-b.active {
+  background: rgba(255, 71, 87, 0.2);
+  color: #ff4757;
+  border-color: #ff4757;
 }
 
 .tower-toggle-expand-btn {
@@ -1410,15 +1410,15 @@
 }
 
 .slot-a-ind {
-  background: rgba(255, 71, 87, 0.25);
-  color: #ff4757;
-  border: 1px solid #ff4757;
-}
-
-.slot-b-ind {
   background: rgba(0, 210, 211, 0.25);
   color: #00d2d3;
   border: 1px solid #00d2d3;
+}
+
+.slot-b-ind {
+  background: rgba(255, 71, 87, 0.25);
+  color: #ff4757;
+  border: 1px solid #ff4757;
 }
 
 .best-lap-time {
@@ -1449,8 +1449,8 @@
 .baseline-tag {
   font-size: 0.65rem;
   font-weight: 800;
-  color: #ff4757;
-  background: rgba(255, 71, 87, 0.15);
+  color: #00d2d3;
+  background: rgba(0, 210, 211, 0.15);
   padding: 1px 5px;
   border-radius: 3px;
 }
@@ -1458,14 +1458,14 @@
 .gap-faster {
   font-family: var(--font-mono);
   font-weight: 700;
-  color: #ff4757;
+  color: #00d2d3;
   font-size: 0.75rem;
 }
 
 .gap-slower {
   font-family: var(--font-mono);
   font-weight: 600;
-  color: #00d2d3;
+  color: #ff4757;
   font-size: 0.75rem;
 }
 
@@ -1506,9 +1506,9 @@
 }
 
 .action-btn-rival {
-  background: rgba(0, 210, 211, 0.15);
-  border: 1px solid rgba(0, 210, 211, 0.5);
-  color: #00d2d3;
+  background: rgba(255, 71, 87, 0.15);
+  border: 1px solid rgba(255, 71, 87, 0.5);
+  color: #ff4757;
   border-radius: 4px;
   padding: 0.2rem 0.55rem;
   font-size: 0.72rem;
@@ -1519,14 +1519,14 @@
 
 .action-btn-rival:hover,
 .action-btn-rival.is-active {
-  background: rgba(0, 210, 211, 0.3);
-  border-color: #00d2d3;
+  background: rgba(255, 71, 87, 0.3);
+  border-color: #ff4757;
 }
 
 .action-btn-baseline {
-  background: rgba(255, 71, 87, 0.15);
-  border: 1px solid rgba(255, 71, 87, 0.5);
-  color: #ff4757;
+  background: rgba(0, 210, 211, 0.15);
+  border: 1px solid rgba(0, 210, 211, 0.5);
+  color: #00d2d3;
   border-radius: 4px;
   padding: 0.2rem 0.45rem;
   font-size: 0.72rem;
@@ -1537,8 +1537,8 @@
 
 .action-btn-baseline:hover,
 .action-btn-baseline.is-active {
-  background: rgba(255, 71, 87, 0.3);
-  border-color: #ff4757;
+  background: rgba(0, 210, 211, 0.3);
+  border-color: #00d2d3;
 }
 
 .action-btn-expand {
@@ -1597,13 +1597,13 @@
 }
 
 .lap-history-card.is-lap-a {
-  border-color: #ff4757;
-  background: rgba(255, 71, 87, 0.08);
+  border-color: #00d2d3;
+  background: rgba(0, 210, 211, 0.08);
 }
 
 .lap-history-card.is-lap-b {
-  border-color: #00d2d3;
-  background: rgba(0, 210, 211, 0.08);
+  border-color: #ff4757;
+  background: rgba(255, 71, 87, 0.08);
 }
 
 .card-top {
@@ -1648,15 +1648,15 @@
 }
 
 .card-btn-a {
-  background: rgba(255, 71, 87, 0.15);
-  border: 1px solid rgba(255, 71, 87, 0.5);
-  color: #ff4757;
-}
-
-.card-btn-b {
   background: rgba(0, 210, 211, 0.15);
   border: 1px solid rgba(0, 210, 211, 0.5);
   color: #00d2d3;
+}
+
+.card-btn-b {
+  background: rgba(255, 71, 87, 0.15);
+  border: 1px solid rgba(255, 71, 87, 0.5);
+  color: #ff4757;
 }
 
 
