@@ -157,14 +157,15 @@ export const radio_phrases = {
   },
   radiator_overheat: {
     bono: [
-      'Engine temperatures running hot, {driver}. Get out of dirty air to cool the radiators.',
+      'Engine temperatures running hot, {driver}. We are losing power to thermal derate, introduce Lift & Coast.',
+      'High engine core temperature. Move out of the dirty air and use Lift & Coast into heavy braking.',
     ],
     colapinto: [
-      'Engine running hot, {driver}. Move out of the tow to get clean air.',
+      'Engine running hot, {driver}. Power unit is losing output, move out of the tow and Lift & Coast.',
     ],
     standard: [
-      'Engine temperatures running hot. Get out of dirty air to cool radiators.',
-      'High engine temperature warning, {driver}. Seek clean air on straights.',
+      'Engine temperatures running hot with thermal power loss. Get out of dirty air and apply Lift & Coast.',
+      'High engine temperature warning, {driver}. Seek clean air on straights and introduce Lift & Coast.',
     ],
   },
   brake_overheat: {

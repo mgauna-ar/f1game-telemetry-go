@@ -144,21 +144,23 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 		}
 
 		currentTyreAge := 0
+		var actualCompound, visualCompound uint8
 		if status := ctx.PlayerStatus(); status != nil {
 			currentTyreAge = int(status.TyresAgeLaps)
+			actualCompound = status.ActualTyreCompound
+			visualCompound = status.VisualTyreCompound
 		}
 
-		overheatLimit := ctx.Config.TyreOverheatC
-		if ctx.Is2026() && overheatLimit == OverheatRearTyres2025C {
-			overheatLimit = OverheatRearTyres2026C
-		}
+		window := GetTyreThermalWindow(actualCompound, visualCompound)
+		overheatLimit := window.MaxTemp + TyreDegradationTempMarginC
+		coldLimit := window.MinTemp - TyreDegradationTempMarginC
 
 		if rearMaxTemp >= overheatLimit {
 			var advice string
 			if ctx.Is2026() {
-				advice = fmt.Sprintf("Rear tyre surface temperatures are overheating at %d°C (limit: %d°C)! Manage traction out of corners to protect the narrower rear tyres.", int(math.Round(float64(rearMaxTemp))), int(overheatLimit))
+				advice = fmt.Sprintf("%s rear tyre surface temperatures are overheating at %d°C (optimal window: %d-%d°C)! Manage traction out of corners to protect the narrower rear tyres.", window.CompoundName, int(math.Round(float64(rearMaxTemp))), int(window.MinTemp), int(window.MaxTemp))
 			} else {
-				advice = fmt.Sprintf("Rear tyre surface temperatures are overheating at %d°C (limit: %d°C)! Advise driver to manage traction out of corners to cool the rears.", int(math.Round(float64(rearMaxTemp))), int(overheatLimit))
+				advice = fmt.Sprintf("%s rear tyre surface temperatures are overheating at %d°C (optimal window: %d-%d°C)! Advise driver to manage traction out of corners to cool the rears.", window.CompoundName, int(math.Round(float64(rearMaxTemp))), int(window.MinTemp), int(window.MaxTemp))
 			}
 			directives = append(directives, Directive{
 				ID:       "tyre_overheat",
@@ -167,15 +169,29 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 				Title:    "Tyre Overheating",
 				Message:  advice,
 				Urgency:  UrgencyMedium,
+				Metadata: map[string]any{
+					"compound":     window.CompoundName,
+					"rear_temp_c":  rearMaxTemp,
+					"limit_c":      overheatLimit,
+					"window_min_c": window.MinTemp,
+					"window_max_c": window.MaxTemp,
+				},
 			})
-		} else if maxSurfTemp > 0 && maxSurfTemp <= ctx.Config.TyreColdC && currentTyreAge < ColdTyresMaxAgeLaps {
+		} else if maxSurfTemp > 0 && maxSurfTemp <= coldLimit && currentTyreAge < ColdTyresMaxAgeLaps {
 			directives = append(directives, Directive{
 				ID:       "tyre_cold",
 				Category: DirectiveCategoryTyres,
 				SubAlert: "tyre_cold",
 				Title:    "Cold Tyre Temperature",
-				Message:  fmt.Sprintf("Tyre temperatures are cold (%d°C, target: >%d°C). Advise driver to weave and build tyre temperature.", int(math.Round(float64(maxSurfTemp))), int(ctx.Config.TyreColdC)),
+				Message:  fmt.Sprintf("%s tyre temperatures are cold (%d°C, target window: %d-%d°C). Advise driver to weave and build tyre temperature.", window.CompoundName, int(math.Round(float64(maxSurfTemp))), int(window.MinTemp), int(window.MaxTemp)),
 				Urgency:  UrgencyLow,
+				Metadata: map[string]any{
+					"compound":     window.CompoundName,
+					"max_temp_c":   maxSurfTemp,
+					"limit_c":      coldLimit,
+					"window_min_c": window.MinTemp,
+					"window_max_c": window.MaxTemp,
+				},
 			})
 		}
 	}

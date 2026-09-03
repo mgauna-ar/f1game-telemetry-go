@@ -738,5 +738,101 @@ export const MAX_ERS_STORE_ENERGY_J = 4_000_000;
 export const LEADERBOARD_COLUMN_SPLIT = 11;
 export const DEFAULT_MAX_SPEED_FALLBACK_KPH = 350;
 
+export interface TyreThermalWindow {
+  compound: string;
+  minTemp: number;
+  maxTemp: number;
+}
+
+export const TYRE_DEGRADATION_TEMP_MARGIN_C = 5.0;
+
+export const COMPOUND_THERMAL_WINDOWS: Record<string, TyreThermalWindow> = {
+  C1: { compound: 'C1', minTemp: 95, maxTemp: 115 },
+  C2: { compound: 'C2', minTemp: 85, maxTemp: 115 },
+  C3: { compound: 'C3', minTemp: 85, maxTemp: 95 },
+  C4: { compound: 'C4', minTemp: 75, maxTemp: 95 },
+  C5: { compound: 'C5', minTemp: 75, maxTemp: 85 },
+  C6: { compound: 'C6', minTemp: 65, maxTemp: 85 },
+  INTERMEDIATE: { compound: 'INTERMEDIATE', minTemp: 55, maxTemp: 75 },
+  WET: { compound: 'WET', minTemp: 55, maxTemp: 65 },
+};
+
+export const getTyreThermalWindow = (actualCompound?: number, visualCompound?: number): TyreThermalWindow => {
+  switch (actualCompound) {
+    case 20: // C1
+      return COMPOUND_THERMAL_WINDOWS.C1;
+    case 19: // C2
+      return COMPOUND_THERMAL_WINDOWS.C2;
+    case 18: // C3
+      return COMPOUND_THERMAL_WINDOWS.C3;
+    case 17: // C4
+      return COMPOUND_THERMAL_WINDOWS.C4;
+    case 16: // C5
+      return COMPOUND_THERMAL_WINDOWS.C5;
+    case TYRE_COMPOUND_IDS.INTERMEDIATE:
+      return COMPOUND_THERMAL_WINDOWS.INTERMEDIATE;
+    case TYRE_COMPOUND_IDS.WET:
+      return COMPOUND_THERMAL_WINDOWS.WET;
+  }
+
+  // Visual compound fallbacks agreed in design: Soft -> C4, Medium -> C3, Hard -> C2
+  switch (visualCompound) {
+    case TYRE_COMPOUND_IDS.SOFT:
+      return COMPOUND_THERMAL_WINDOWS.C4;
+    case TYRE_COMPOUND_IDS.MEDIUM:
+      return COMPOUND_THERMAL_WINDOWS.C3;
+    case TYRE_COMPOUND_IDS.HARD:
+      return COMPOUND_THERMAL_WINDOWS.C2;
+    case TYRE_COMPOUND_IDS.INTERMEDIATE:
+      return COMPOUND_THERMAL_WINDOWS.INTERMEDIATE;
+    case TYRE_COMPOUND_IDS.WET:
+      return COMPOUND_THERMAL_WINDOWS.WET;
+    default:
+      return COMPOUND_THERMAL_WINDOWS.C3;
+  }
+};
+
+export const ENGINE_THERMAL_DERATE_CURVE = [
+  { tempC: 65, powerPct: 96.0 },
+  { tempC: 75, powerPct: 97.0 },
+  { tempC: 85, powerPct: 98.0 },
+  { tempC: 95, powerPct: 99.0 },
+  { tempC: 105, powerPct: 99.7 },
+  { tempC: 115, powerPct: 100.0 },
+  { tempC: 125, powerPct: 100.0 },
+  { tempC: 135, powerPct: 98.5 },
+  { tempC: 145, powerPct: 94.0 },
+  { tempC: 155, powerPct: 91.0 },
+  { tempC: 165, powerPct: 88.5 },
+  { tempC: 175, powerPct: 85.0 },
+] as const;
+
+export const calculateEnginePowerPct = (tempC: number): { powerPct: number; powerLossPct: number } => {
+  if (tempC <= ENGINE_THERMAL_DERATE_CURVE[0].tempC) {
+    const powerPct = ENGINE_THERMAL_DERATE_CURVE[0].powerPct;
+    return { powerPct, powerLossPct: 100 - powerPct };
+  }
+  const lastIdx = ENGINE_THERMAL_DERATE_CURVE.length - 1;
+  if (tempC >= ENGINE_THERMAL_DERATE_CURVE[lastIdx].tempC) {
+    const powerPct = ENGINE_THERMAL_DERATE_CURVE[lastIdx].powerPct;
+    return { powerPct, powerLossPct: 100 - powerPct };
+  }
+
+  for (let i = 0; i < lastIdx; i++) {
+    const p1 = ENGINE_THERMAL_DERATE_CURVE[i];
+    const p2 = ENGINE_THERMAL_DERATE_CURVE[i + 1];
+    if (tempC >= p1.tempC && tempC <= p2.tempC) {
+      if (p2.tempC === p1.tempC) {
+        return { powerPct: p1.powerPct, powerLossPct: 100 - p1.powerPct };
+      }
+      const ratio = (tempC - p1.tempC) / (p2.tempC - p1.tempC);
+      const powerPct = p1.powerPct + ratio * (p2.powerPct - p1.powerPct);
+      return { powerPct, powerLossPct: 100 - powerPct };
+    }
+  }
+
+  return { powerPct: 100, powerLossPct: 0 };
+};
+
 
 

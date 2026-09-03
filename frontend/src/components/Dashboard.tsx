@@ -14,6 +14,9 @@ import {
   LIVE_VIEW_MODES,
   STORAGE_KEY_LIVE_VIEW_MODE,
   MAX_ERS_STORE_ENERGY_J,
+  getTyreThermalWindow,
+  calculateEnginePowerPct,
+  TYRE_DEGRADATION_TEMP_MARGIN_C,
 } from '../constants/f1';
 
 import type { LiveViewMode } from '../constants/f1';
@@ -130,7 +133,13 @@ export const Dashboard: React.FC = () => {
     if (playerTelemetry?.TyresSurfaceTemperature) {
       const surf = playerTelemetry.TyresSurfaceTemperature;
       const inner = playerTelemetry.TyresInnerTemperature || [];
-      tyreTempsSummary = `- Tyre Surface Temps: FL ${Math.round(surf[0] || 0)}°C, FR ${Math.round(surf[1] || 0)}°C, RL ${Math.round(surf[2] || 0)}°C, RR ${Math.round(surf[3] || 0)}°C`;
+      const window = getTyreThermalWindow(playerStatus?.ActualTyreCompound, playerStatus?.VisualTyreCompound);
+      const getTempStatus = (temp: number) => {
+        if (temp >= window.maxTemp + TYRE_DEGRADATION_TEMP_MARGIN_C) return '[Overheating]';
+        if (temp <= window.minTemp - TYRE_DEGRADATION_TEMP_MARGIN_C) return '[Cold]';
+        return '[Optimal]';
+      };
+      tyreTempsSummary = `- Tyres (${window.compound}, Ideal: ${window.minTemp}-${window.maxTemp}°C) | Surface Temps: FL ${Math.round(surf[0] || 0)}°C ${getTempStatus(surf[0] || 0)}, FR ${Math.round(surf[1] || 0)}°C ${getTempStatus(surf[1] || 0)}, RL ${Math.round(surf[2] || 0)}°C ${getTempStatus(surf[2] || 0)}, RR ${Math.round(surf[3] || 0)}°C ${getTempStatus(surf[3] || 0)}`;
       if (inner.length >= 4) {
         tyreTempsSummary += ` (Inner: FL ${Math.round(inner[0] || 0)}°C, FR ${Math.round(inner[1] || 0)}°C, RL ${Math.round(inner[2] || 0)}°C, RR ${Math.round(inner[3] || 0)}°C)`;
       }
@@ -144,7 +153,13 @@ export const Dashboard: React.FC = () => {
 
     let engineSummary = '';
     if (playerTelemetry?.EngineTemperature) {
-      engineSummary = `- Engine Core Temp: ${Math.round(playerTelemetry.EngineTemperature)}°C`;
+      const engTemp = playerTelemetry.EngineTemperature;
+      const { powerPct, powerLossPct } = calculateEnginePowerPct(engTemp);
+      if (powerLossPct > 0) {
+        engineSummary = `- Engine Core Temp: ${Math.round(engTemp)}°C | Power Output: ${powerPct.toFixed(1)}% (-${powerLossPct.toFixed(1)}% thermal derate)`;
+      } else {
+        engineSummary = `- Engine Core Temp: ${Math.round(engTemp)}°C | Power Output: 100% (Optimal)`;
+      }
     }
 
     let ersSummary = '';

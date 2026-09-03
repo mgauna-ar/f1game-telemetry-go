@@ -122,4 +122,56 @@ describe('formatters', () => {
       expect(getSessionBadgeClass('Practice 1')).toBe('badge-green');
     });
   });
+
+  describe('getTyreThermalWindow & calculateEnginePowerPct', () => {
+    it('resolves actual and visual compound windows accurately', async () => {
+      const { getTyreThermalWindow, TYRE_COMPOUND_IDS } = await import('../constants/f1');
+
+      // Actual C1
+      const wC1 = getTyreThermalWindow(20);
+      expect(wC1.compound).toBe('C1');
+      expect(wC1.minTemp).toBe(95);
+      expect(wC1.maxTemp).toBe(115);
+
+      // Actual C5
+      const wC5 = getTyreThermalWindow(16);
+      expect(wC5.compound).toBe('C5');
+      expect(wC5.minTemp).toBe(75);
+      expect(wC5.maxTemp).toBe(85);
+
+      // Visual fallbacks (Soft -> C4, Medium -> C3, Hard -> C2)
+      const wSoft = getTyreThermalWindow(undefined, TYRE_COMPOUND_IDS.SOFT);
+      expect(wSoft.compound).toBe('C4');
+      expect(wSoft.minTemp).toBe(75);
+      expect(wSoft.maxTemp).toBe(95);
+
+      const wMed = getTyreThermalWindow(undefined, TYRE_COMPOUND_IDS.MEDIUM);
+      expect(wMed.compound).toBe('C3');
+      expect(wMed.minTemp).toBe(85);
+      expect(wMed.maxTemp).toBe(95);
+    });
+
+    it('calculates engine power percentage and thermal derate losses correctly', async () => {
+      const { calculateEnginePowerPct } = await import('../constants/f1');
+
+      // Cold
+      expect(calculateEnginePowerPct(65)).toEqual({ powerPct: 96, powerLossPct: 4 });
+
+      // Peak
+      expect(calculateEnginePowerPct(115)).toEqual({ powerPct: 100, powerLossPct: 0 });
+      expect(calculateEnginePowerPct(125)).toEqual({ powerPct: 100, powerLossPct: 0 });
+
+      // Warning derate
+      expect(calculateEnginePowerPct(135)).toEqual({ powerPct: 98.5, powerLossPct: 1.5 });
+
+      // Midpoint linear interpolation
+      const mid = calculateEnginePowerPct(140);
+      expect(mid.powerPct).toBeCloseTo(96.25, 2);
+      expect(mid.powerLossPct).toBeCloseTo(3.75, 2);
+
+      // Critical derate
+      expect(calculateEnginePowerPct(145)).toEqual({ powerPct: 94, powerLossPct: 6 });
+      expect(calculateEnginePowerPct(175)).toEqual({ powerPct: 85, powerLossPct: 15 });
+    });
+  });
 });

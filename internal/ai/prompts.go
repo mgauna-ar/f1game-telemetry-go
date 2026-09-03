@@ -238,6 +238,31 @@ func buildLivePrompt(telemetryCtx *TelemetryAnalysisContext, persona, language s
 		}
 	}
 
+	// Engineering Knowledge: Pirelli Tyre Operating Windows & Engine Thermal Derate Curve
+	if isEnglish {
+		sb.WriteString("\n🌡️ TYRE COMPOUND THERMAL OPERATING WINDOWS (Optimal Ranges):\n")
+		sb.WriteString("- C1: 95 - 115°C | C2: 85 - 115°C | C3: 85 - 95°C | C4: 75 - 95°C | C5: 75 - 85°C | C6: 65 - 85°C\n")
+		sb.WriteString("- Intermediate: 55 - 75°C | Full Wet: 55 - 65°C\n")
+		sb.WriteString("- When the driver asks about tyres, state their compound, current temperature, and whether they are in the optimal window, cold, or overheating (severe degradation starts at +5°C above max).\n")
+		sb.WriteString("\n⚡ ENGINE TEMPERATURE & THERMAL POWER DE-RATE CURVE:\n")
+		sb.WriteString("- Optimal engine temperature: 105 - 125°C (100% power output).\n")
+		sb.WriteString("- Overheating derate: 135°C (98.5% power, -1.5% loss) -> advise Lift & Coast.\n")
+		sb.WriteString("- Severe overheating: 145°C (94.0% power, -6.0% loss) | 155°C (91.0% power, -9.0% loss) | 165°C (88.5% power, -11.5% loss) | 175°C (85.0% power, -15.0% loss).\n")
+		sb.WriteString("- Cold engine: <95°C loses 1-4% power.\n")
+		sb.WriteString("- When asked about engine status or performance, state the exact core temperature and power loss percentage if outside peak operating window.\n")
+	} else {
+		sb.WriteString("\n🌡️ VENTANAS TÉRMICAS DE NEUMÁTICOS PIRELLI (Rangos Óptimos de Funcionamiento):\n")
+		sb.WriteString("- C1: 95 - 115°C | C2: 85 - 115°C | C3: 85 - 95°C | C4: 75 - 95°C | C5: 75 - 85°C | C6: 65 - 85°C\n")
+		sb.WriteString("- Intermedios: 55 - 75°C | Lluvia Extrema (Wet): 55 - 65°C\n")
+		sb.WriteString("- Cuando el piloto consulte por gomas, indicá el compuesto montado, la temperatura actual y si está en ventana óptima, fría o sobrecalentada (la degradación severa inicia a +5°C sobre el rango máximo).\n")
+		sb.WriteString("\n⚡ CURVA TÉRMICA DE POTENCIA DEL MOTOR (Degradación por Temperatura):\n")
+		sb.WriteString("- Temperatura óptima de motor: 105 - 125°C (100% de potencia disponible).\n")
+		sb.WriteString("- Pérdida por sobrecalentamiento: 135°C (98.5% de potencia, -1.5% de pérdida) -> recomendar Lift & Coast.\n")
+		sb.WriteString("- Sobrecalentamiento severo/crítico: 145°C (94.0% de potencia, -6.0% de pérdida) | 155°C (91.0% potencia, -9% pérdida) | 165°C (88.5% potencia, -11.5% pérdida) | 175°C (85.0% potencia, -15% pérdida).\n")
+		sb.WriteString("- Motor frío: <95°C pierde entre 1% y 4% de potencia.\n")
+		sb.WriteString("- Cuando te consulte por el motor, informá la temperatura exacta y el porcentaje de potencia perdida si está sobrecalentado.\n")
+	}
+
 	// Detect session type mode (Qualifying vs Practice vs Race)
 	sessionType := ""
 	trackName := ""

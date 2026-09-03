@@ -1,6 +1,7 @@
 package engineer
 
 import (
+	"math"
 	"strings"
 	"testing"
 
@@ -73,36 +74,49 @@ func TestTyresRule_Unit(t *testing.T) {
 		t.Fatalf("expected tyre_puncture critical directive, got %+v", dirsPuncture)
 	}
 
-	// 5. Thermal Overheating 2026 vs 2025
+	// 5. Compound-Specific Thermal Overheating (C4 vs C1)
 	telemetryPkt := &packets.PacketCarTelemetryData{
 		CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
 			{
-				TyresSurfaceTemperature: [4]uint8{100, 100, 112, 111},
+				TyresSurfaceTemperature: [4]uint8{100, 100, 112, 111}, // Rears at 112°C
 			},
 		},
 	}
-	ctxOverheat2026 := &EvaluationContext{
-		Telemetry:      telemetryPkt,
+
+	// On C4 (Soft, window: 75-95°C, limit: 100°C), 112°C triggers overheat
+	ctxOverheatC4 := &EvaluationContext{
+		Telemetry: telemetryPkt,
+		Status: &packets.PacketCarStatusData{
+			CarStatusData: [packets.MaxCars]packets.CarStatusData{
+				{ActualTyreCompound: packets.ActualCompoundC4},
+			},
+		},
 		Config:         cfg,
 		PlayerCarIndex: 0,
-		PacketFormat:   packets.PacketFormat2026,
 		Phase:          PhaseRacing,
 	}
-	dirs2026 := rule.Evaluate(ctxOverheat2026)
-	if len(dirs2026) != 1 || dirs2026[0].SubAlert != "tyre_overheat" {
-		t.Fatalf("expected tyre_overheat for 2026 at 112°C, got %+v", dirs2026)
+	dirsC4 := rule.Evaluate(ctxOverheatC4)
+	if len(dirsC4) != 1 || dirsC4[0].SubAlert != "tyre_overheat" {
+		t.Fatalf("expected tyre_overheat for C4 at 112°C, got %+v", dirsC4)
 	}
 
-	ctxOverheat2025 := &EvaluationContext{
-		Telemetry:      telemetryPkt,
+	rule.Reset(DedupScopeNone)
+
+	// On C1 (Hard, window: 95-115°C, limit: 120°C), 112°C is within acceptable operating range
+	ctxOverheatC1 := &EvaluationContext{
+		Telemetry: telemetryPkt,
+		Status: &packets.PacketCarStatusData{
+			CarStatusData: [packets.MaxCars]packets.CarStatusData{
+				{ActualTyreCompound: packets.ActualCompoundC1},
+			},
+		},
 		Config:         cfg,
 		PlayerCarIndex: 0,
-		PacketFormat:   packets.PacketFormat2025,
 		Phase:          PhaseRacing,
 	}
-	dirs2025 := rule.Evaluate(ctxOverheat2025)
-	if len(dirs2025) != 0 {
-		t.Fatalf("expected no overheat for 2025 at 112°C, got %+v", dirs2025)
+	dirsC1 := rule.Evaluate(ctxOverheatC1)
+	if len(dirsC1) != 0 {
+		t.Fatalf("expected no overheat for C1 at 112°C (window 95-115°C), got %+v", dirsC1)
 	}
 }
 
@@ -1212,5 +1226,118 @@ func TestFlagsRule_VSCAndPenalties(t *testing.T) {
 	dirsPnl := rule.Evaluate(ctxDriveThrough)
 	if len(dirsPnl) != 1 || dirsPnl[0].SubAlert != "penalties_incurred" || !strings.Contains(dirsPnl[0].Message, "Drive-through penalty") {
 		t.Fatalf("expected drive-through penalty directive, got %+v", dirsPnl)
+	}
+}
+
+func TestTyreThermalWindows_Lookup(t *testing.T) {
+	// Actual compound tests
+	wC1 := GetTyreThermalWindow(packets.ActualCompoundC1, 0)
+	if wC1.CompoundName != "C1" || wC1.MinTemp != 95.0 || wC1.MaxTemp != 115.0 {
+		t.Fatalf("unexpected window for C1: %+v", wC1)
+	}
+
+	wC5 := GetTyreThermalWindow(packets.ActualCompoundC5, 0)
+	if wC5.CompoundName != "C5" || wC5.MinTemp != 75.0 || wC5.MaxTemp != 85.0 {
+		t.Fatalf("unexpected window for C5: %+v", wC5)
+	}
+
+	wInter := GetTyreThermalWindow(packets.CompoundInter, 0)
+	if wInter.CompoundName != "INTERMEDIATE" || wInter.MinTemp != 55.0 || wInter.MaxTemp != 75.0 {
+		t.Fatalf("unexpected window for Inter: %+v", wInter)
+	}
+
+	wWet := GetTyreThermalWindow(packets.CompoundWet, 0)
+	if wWet.CompoundName != "WET" || wWet.MinTemp != 55.0 || wWet.MaxTemp != 65.0 {
+		t.Fatalf("unexpected window for Wet: %+v", wWet)
+	}
+
+	// Visual compound fallback tests (Soft -> C4, Medium -> C3, Hard -> C2)
+	wSoft := GetTyreThermalWindow(0, packets.CompoundSoft)
+	if wSoft.CompoundName != "C4" || wSoft.MinTemp != 75.0 || wSoft.MaxTemp != 95.0 {
+		t.Fatalf("unexpected window for visual Soft (expected C4): %+v", wSoft)
+	}
+
+	wMed := GetTyreThermalWindow(0, packets.CompoundMedium)
+	if wMed.CompoundName != "C3" || wMed.MinTemp != 85.0 || wMed.MaxTemp != 95.0 {
+		t.Fatalf("unexpected window for visual Medium (expected C3): %+v", wMed)
+	}
+
+	wHard := GetTyreThermalWindow(0, packets.CompoundHard)
+	if wHard.CompoundName != "C2" || wHard.MinTemp != 85.0 || wHard.MaxTemp != 115.0 {
+		t.Fatalf("unexpected window for visual Hard (expected C2): %+v", wHard)
+	}
+}
+
+func TestCalculateEnginePowerPct(t *testing.T) {
+	tests := []struct {
+		tempC            float32
+		expectedPower    float32
+		expectedLossDiff float32
+	}{
+		{tempC: 50.0, expectedPower: 96.0, expectedLossDiff: 4.0},
+		{tempC: 65.0, expectedPower: 96.0, expectedLossDiff: 4.0},
+		{tempC: 95.0, expectedPower: 99.0, expectedLossDiff: 1.0},
+		{tempC: 105.0, expectedPower: 99.7, expectedLossDiff: 0.3},
+		{tempC: 115.0, expectedPower: 100.0, expectedLossDiff: 0.0},
+		{tempC: 120.0, expectedPower: 100.0, expectedLossDiff: 0.0},
+		{tempC: 125.0, expectedPower: 100.0, expectedLossDiff: 0.0},
+		{tempC: 135.0, expectedPower: 98.5, expectedLossDiff: 1.5},
+		{tempC: 140.0, expectedPower: 96.25, expectedLossDiff: 3.75}, // Linear interpolation between 135 and 145
+		{tempC: 145.0, expectedPower: 94.0, expectedLossDiff: 6.0},
+		{tempC: 175.0, expectedPower: 85.0, expectedLossDiff: 15.0},
+		{tempC: 190.0, expectedPower: 85.0, expectedLossDiff: 15.0}, // Beyond max curve step
+	}
+
+	for _, tc := range tests {
+		power, loss := CalculateEnginePowerPct(tc.tempC)
+		if math.Abs(float64(power-tc.expectedPower)) > 0.05 {
+			t.Errorf("at %.1f°C expected power %.2f, got %.2f", tc.tempC, tc.expectedPower, power)
+		}
+		if math.Abs(float64(loss-tc.expectedLossDiff)) > 0.05 {
+			t.Errorf("at %.1f°C expected loss %.2f, got %.2f", tc.tempC, tc.expectedLossDiff, loss)
+		}
+	}
+}
+
+func TestERSRule_EngineThermalDerateStages(t *testing.T) {
+	rule := NewERSRule()
+	cfg := DefaultEngineerConfig()
+
+	// 1. Stage Warning: 135°C (1.5% loss, UrgencyMedium)
+	ctxWarn := &EvaluationContext{
+		Telemetry: &packets.PacketCarTelemetryData{
+			CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
+				{EngineTemperature: 135},
+			},
+		},
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseRacing,
+	}
+	dirsWarn := rule.Evaluate(ctxWarn)
+	if len(dirsWarn) != 1 || dirsWarn[0].SubAlert != "radiator_overheat" || dirsWarn[0].Urgency != UrgencyMedium {
+		t.Fatalf("expected warning radiator_overheat at 135°C, got %+v", dirsWarn)
+	}
+	if !strings.Contains(dirsWarn[0].Message, "1.5%") || !strings.Contains(dirsWarn[0].Message, "Lift & Coast") {
+		t.Errorf("expected warning message to mention 1.5%% power loss and Lift & Coast: %s", dirsWarn[0].Message)
+	}
+
+	// 2. Stage Critical: 145°C (6.0% loss, UrgencyHigh)
+	ctxCrit := &EvaluationContext{
+		Telemetry: &packets.PacketCarTelemetryData{
+			CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
+				{EngineTemperature: 145},
+			},
+		},
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseRacing,
+	}
+	dirsCrit := rule.Evaluate(ctxCrit)
+	if len(dirsCrit) != 1 || dirsCrit[0].SubAlert != "radiator_overheat" || dirsCrit[0].Urgency != UrgencyHigh {
+		t.Fatalf("expected critical radiator_overheat at 145°C, got %+v", dirsCrit)
+	}
+	if !strings.Contains(dirsCrit[0].Message, "6.0%") || !strings.Contains(dirsCrit[0].Message, "thermal derate") {
+		t.Errorf("expected critical message to mention 6.0%% power loss and thermal derate: %s", dirsCrit[0].Message)
 	}
 }

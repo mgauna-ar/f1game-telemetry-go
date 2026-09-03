@@ -186,7 +186,8 @@ func TestEngineerEngine_TyreSubsystem(t *testing.T) {
 		t.Fatalf("expected tyre_overheat directive to be emitted for 2026 at 112°C")
 	}
 
-	// In 2025: 112°C should NOT trigger because 2025 limit is 115°C
+	// In C1 compound: 112°C should NOT trigger because C1 window is 95-115°C (limit is 120°C)
+	delete(engine.lastDirectives, "tyre_overheat")
 	header4 := createTestHeader(packets.PacketFormat2025, 114, 0)
 	sessionPkt2025 := &packets.PacketSessionData{
 		Header:      header4,
@@ -198,8 +199,15 @@ func TestEngineerEngine_TyreSubsystem(t *testing.T) {
 			{CurrentLapNum: 10, DriverStatus: packets.DriverStatusOnTrack},
 		},
 	}
+	statusPkt4 := &packets.PacketCarStatusData{
+		Header: header4,
+		CarStatusData: [packets.MaxCars]packets.CarStatusData{
+			{ActualTyreCompound: packets.ActualCompoundC1},
+		},
+	}
 	engine.ProcessPacket(ctx, sessionPkt2025)
 	engine.ProcessPacket(ctx, lapPkt4)
+	engine.ProcessPacket(ctx, statusPkt4)
 
 	telemetryPkt2025 := &packets.PacketCarTelemetryData{
 		Header: header4,
@@ -213,7 +221,7 @@ func TestEngineerEngine_TyreSubsystem(t *testing.T) {
 	}
 	engine.ProcessPacket(ctx, telemetryPkt2025)
 	if _, exists := engine.lastDirectives["tyre_overheat"]; exists {
-		t.Fatalf("did NOT expect tyre_overheat directive for 2025 at 112°C (limit is 115°C)")
+		t.Fatalf("did NOT expect tyre_overheat directive for C1 at 112°C (limit is 120°C)")
 	}
 }
 

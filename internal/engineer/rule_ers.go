@@ -69,10 +69,44 @@ func (r *ERSRule) Evaluate(ctx *EvaluationContext) []Directive {
 		}
 	}
 
-	// 2. Engine Core Radiator Overheating (from CarTelemetryData)
+	// 2. Engine Core Radiator Overheating & Thermal Derate (from CarTelemetryData)
 	tele := ctx.PlayerTelemetry()
 	if tele != nil && (ctx.Packet == nil || isPacketType[*packets.PacketCarTelemetryData](ctx.Packet)) {
-		if float32(tele.EngineTemperature) >= ctx.Config.EngineOverheatC {
+		engTemp := float32(tele.EngineTemperature)
+		powerPct, powerLossPct := CalculateEnginePowerPct(engTemp)
+
+		switch {
+		case engTemp >= EnginePowerCritTempC:
+			directives = append(directives, Directive{
+				ID:       "engine_temp",
+				Category: DirectiveCategoryERS,
+				SubAlert: "radiator_overheat",
+				Title:    "Critical Engine Overheating",
+				Message:  fmt.Sprintf("Critical engine temperature! Power unit at %d°C (%.1f%% power loss). Lift and coast immediately to prevent thermal derate.", tele.EngineTemperature, powerLossPct),
+				Urgency:  UrgencyHigh,
+				Metadata: map[string]any{
+					"engine_temp_c":  tele.EngineTemperature,
+					"power_pct":      powerPct,
+					"power_loss_pct": powerLossPct,
+					"stage":          "critical",
+				},
+			})
+		case engTemp >= EnginePowerWarnTempC:
+			directives = append(directives, Directive{
+				ID:       "engine_temp",
+				Category: DirectiveCategoryERS,
+				SubAlert: "radiator_overheat",
+				Title:    "Engine Radiator Overheating",
+				Message:  fmt.Sprintf("Engine temperature high at %d°C (%.1f%% power loss). Introduce Lift & Coast into braking zones to cool the engine.", tele.EngineTemperature, powerLossPct),
+				Urgency:  UrgencyMedium,
+				Metadata: map[string]any{
+					"engine_temp_c":  tele.EngineTemperature,
+					"power_pct":      powerPct,
+					"power_loss_pct": powerLossPct,
+					"stage":          "warning",
+				},
+			})
+		case engTemp >= ctx.Config.EngineOverheatC:
 			directives = append(directives, Directive{
 				ID:       "engine_temp",
 				Category: DirectiveCategoryERS,
@@ -80,6 +114,12 @@ func (r *ERSRule) Evaluate(ctx *EvaluationContext) []Directive {
 				Title:    "Engine Radiator Overheating",
 				Message:  fmt.Sprintf("Engine core water/oil temperatures are high at %d°C (limit: %d°C)!", tele.EngineTemperature, int(ctx.Config.EngineOverheatC)),
 				Urgency:  UrgencyMedium,
+				Metadata: map[string]any{
+					"engine_temp_c":  tele.EngineTemperature,
+					"power_pct":      powerPct,
+					"power_loss_pct": powerLossPct,
+					"stage":          "advisory",
+				},
 			})
 		}
 	}

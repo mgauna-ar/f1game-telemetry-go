@@ -165,14 +165,16 @@ export const radio_phrases = {
   },
   radiator_overheat: {
     colapinto: [
-      'El motor está levantando temperatura, {driver}. Salí del aire sucio para enfriar radiadores.',
+      'El motor está levantando temperatura, {driver}. Estamos perdiendo potencia por calor, meté Lift and Coast y salí del aire sucio.',
+      'Temperatura de motor crítica. Cuidá la planta impulsora con Lift & Coast para evitar mayor pérdida de potencia.',
     ],
     bono: [
-      'Temperatura de motor elevada. Sal del aire sucio para refrigerar el radiador.',
+      'Temperatura de motor elevada, sufriendo pérdida de potencia térmica. Sal del rebufo e introduce Lift & Coast.',
+      'Alerta de motor caliente, {driver}. Aplica Lift & Coast en frenadas para refrigerar los radiadores.',
     ],
     standard: [
-      'Temperatura de motor elevada. Sal del aire sucio para refrigerar el radiador.',
-      'Temperaturas de motor críticas, {driver}. Busca aire limpio en las rectas.',
+      'Temperatura de motor elevada con pérdida de potencia. Introduce Lift & Coast y busca aire limpio.',
+      'Temperaturas de motor críticas, {driver}. Busca aire limpio en las rectas y aplica Lift & Coast.',
     ],
   },
   brake_overheat: {
