@@ -28,6 +28,30 @@ func TestWriteJSONError(t *testing.T) {
 	if body.Error != "something went wrong" {
 		t.Errorf("expected error message %q, got %q", "something went wrong", body.Error)
 	}
+	if body.Code != "" {
+		t.Errorf("expected empty code, got %q", body.Code)
+	}
+}
+
+func TestWriteJSONErrorCode(t *testing.T) {
+	rec := httptest.NewRecorder()
+	writeJSONErrorCode(rec, "not found", http.StatusNotFound, "NOT_FOUND")
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected status %d, got %d", http.StatusNotFound, rec.Code)
+	}
+
+	var body ErrorResponse
+	if err := json.NewDecoder(rec.Body).Decode(&body); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if body.Error != "not found" {
+		t.Errorf("expected error message %q, got %q", "not found", body.Error)
+	}
+	if body.Code != "NOT_FOUND" {
+		t.Errorf("expected error code %q, got %q", "NOT_FOUND", body.Code)
+	}
 }
 
 func TestWriteJSON(t *testing.T) {

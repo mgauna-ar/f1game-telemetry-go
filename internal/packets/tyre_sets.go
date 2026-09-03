@@ -10,23 +10,23 @@ const MaxTyreSets = 20
 
 // TyreSetData contains data for a single tyre set.
 type TyreSetData struct {
-	ActualTyreCompound uint8
-	VisualTyreCompound uint8
-	Wear               uint8
-	Available          uint8
-	RecommendedSession uint8
-	LifeSpan           uint8
-	UsableLife         uint8
-	LapDeltaTime       int16
-	Fitted             uint8
+	ActualTyreCompound uint8 `json:"ActualTyreCompound"`
+	VisualTyreCompound uint8 `json:"VisualTyreCompound"`
+	Wear               uint8 `json:"Wear"`
+	Available          uint8 `json:"Available"`
+	RecommendedSession uint8 `json:"RecommendedSession"`
+	LifeSpan           uint8 `json:"LifeSpan"`
+	UsableLife         uint8 `json:"UsableLife"`
+	LapDeltaTime       int16 `json:"LapDeltaTime"`
+	Fitted             uint8 `json:"Fitted"`
 }
 
 // PacketTyreSetsData contains tyre set data for a specific car. Packet ID: 12.
 type PacketTyreSetsData struct {
-	Header      PacketHeader
-	CarIdx      uint8
-	TyreSetData [MaxTyreSets]TyreSetData
-	FittedIdx   uint8
+	Header      PacketHeader             `json:"Header"`
+	CarIdx      uint8                    `json:"CarIdx"`
+	TyreSetData [MaxTyreSets]TyreSetData `json:"TyreSetData"`
+	FittedIdx   uint8                    `json:"FittedIdx"`
 }
 
 func (p PacketTyreSetsData) GetHeader() PacketHeader { return p.Header }

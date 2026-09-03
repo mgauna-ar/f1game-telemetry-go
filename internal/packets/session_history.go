@@ -13,35 +13,35 @@ const (
 
 // LapHistoryData contains lap history timing data.
 type LapHistoryData struct {
-	LapTimeInMS            uint32
-	Sector1TimeMSPart      uint16
-	Sector1TimeMinutesPart uint8
-	Sector2TimeMSPart      uint16
-	Sector2TimeMinutesPart uint8
-	Sector3TimeMSPart      uint16
-	Sector3TimeMinutesPart uint8
-	LapValidBitFlags       uint8
+	LapTimeInMS            uint32 `json:"LapTimeInMS"`
+	Sector1TimeMSPart      uint16 `json:"Sector1TimeMSPart"`
+	Sector1TimeMinutesPart uint8  `json:"Sector1TimeMinutesPart"`
+	Sector2TimeMSPart      uint16 `json:"Sector2TimeMSPart"`
+	Sector2TimeMinutesPart uint8  `json:"Sector2TimeMinutesPart"`
+	Sector3TimeMSPart      uint16 `json:"Sector3TimeMSPart"`
+	Sector3TimeMinutesPart uint8  `json:"Sector3TimeMinutesPart"`
+	LapValidBitFlags       uint8  `json:"LapValidBitFlags"`
 }
 
 // TyreStintHistoryData contains tyre stint history data.
 type TyreStintHistoryData struct {
-	EndLap             uint8
-	TyreActualCompound uint8
-	TyreVisualCompound uint8
+	EndLap             uint8 `json:"EndLap"`
+	TyreActualCompound uint8 `json:"TyreActualCompound"`
+	TyreVisualCompound uint8 `json:"TyreVisualCompound"`
 }
 
 // PacketSessionHistoryData contains session history for a single car. Packet ID: 11.
 type PacketSessionHistoryData struct {
-	Header               PacketHeader
-	CarIdx               uint8
-	NumLaps              uint8
-	NumTyreStints        uint8
-	BestLapTimeLapNum    uint8
-	BestSector1LapNum    uint8
-	BestSector2LapNum    uint8
-	BestSector3LapNum    uint8
-	LapHistoryData       [MaxLapHistoryEntries]LapHistoryData
-	TyreStintHistoryData [MaxTyreStintHistoryEntries]TyreStintHistoryData
+	Header               PacketHeader                                     `json:"Header"`
+	CarIdx               uint8                                            `json:"CarIdx"`
+	NumLaps              uint8                                            `json:"NumLaps"`
+	NumTyreStints        uint8                                            `json:"NumTyreStints"`
+	BestLapTimeLapNum    uint8                                            `json:"BestLapTimeLapNum"`
+	BestSector1LapNum    uint8                                            `json:"BestSector1LapNum"`
+	BestSector2LapNum    uint8                                            `json:"BestSector2LapNum"`
+	BestSector3LapNum    uint8                                            `json:"BestSector3LapNum"`
+	LapHistoryData       [MaxLapHistoryEntries]LapHistoryData             `json:"LapHistoryData"`
+	TyreStintHistoryData [MaxTyreStintHistoryEntries]TyreStintHistoryData `json:"TyreStintHistoryData"`
 }
 
 func (p PacketSessionHistoryData) GetHeader() PacketHeader { return p.Header }

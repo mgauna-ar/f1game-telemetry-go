@@ -129,19 +129,23 @@ const (
 
 // Unit conversion, protocol limits, and buffer defaults
 const (
-	MillisPerSecond                      = 1000
-	SecondsPerMinute                     = 60
-	MillisPerMinute                      = 60_000
-	MaxERSStoreEnergyJoules              = 4_000_000.0 // 4 MJ standard F1 ERS store capacity
-	DefaultTelemetrySampleCapacity       = 1800        // Default buffer capacity for a single lap (~90s @ 20Hz)
-	MaxSessionLapsSanity                 = 120         // Sanity cap for F1 session laps
-	InvalidDriverID                      = 255
-	UnknownTrackID                       = -1
-	LapValidBitFlag                uint8 = 0x01
-	Sector1ValidBitFlag            uint8 = 0x02
-	Sector2ValidBitFlag            uint8 = 0x04
-	Sector3ValidBitFlag            uint8 = 0x08
-	MaxTyreStints                        = 8
+	MillisPerSecond                          = 1000
+	SecondsPerMinute                         = 60
+	MillisPerMinute                          = 60_000
+	KmhToMps                                 = 1000.0 / 3600.0 // Conversion factor from km/h to m/s
+	MaxERSStoreEnergyJoules                  = 4_000_000.0     // 4 MJ standard F1 ERS store capacity
+	DefaultTelemetrySampleCapacity           = 1800            // Default buffer capacity for a single lap (~90s @ 20Hz)
+	MaxSessionLapsSanity                     = 120             // Sanity cap for F1 session laps
+	DefaultSessionDurationLimitSeconds       = 7200            // 2-hour default F1 session duration limit emitted by UDP telemetry
+	InvalidDriverID                          = 255
+	ActiveStintEndLap                  uint8 = 255       // Sentinel indicating active/open-ended stint
+	UnknownValue                             = "Unknown" // Fallback string for uninitialized session/track values
+	UnknownTrackID                           = -1
+	LapValidBitFlag                    uint8 = 0x01
+	Sector1ValidBitFlag                uint8 = 0x02
+	Sector2ValidBitFlag                uint8 = 0x04
+	Sector3ValidBitFlag                uint8 = 0x08
+	MaxTyreStints                            = 8
 )
 
 // NormalizeCompoundName normalizes raw or visual tyre compound string/ID to standard uppercase compound name.

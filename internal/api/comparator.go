@@ -65,7 +65,7 @@ func (s *Server) handleComparatorMerge(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		slog.Error("Failed to merge lap comparison", "lapA", lapAID, "lapB", lapBID, "error", err)
-		writeJSONError(w, "Failed to merge lap comparison", http.StatusInternalServerError)
+		writeJSONError(w, "failed to merge lap comparison", http.StatusInternalServerError)
 		return
 	}
 

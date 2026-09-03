@@ -33,7 +33,7 @@ var (
 )
 
 func parseSessionID(w http.ResponseWriter, r *http.Request) (int64, bool) {
-	return parseURLID(w, r, "id", "Invalid session ID")
+	return parseURLID(w, r, "id", "invalid session ID")
 }
 
 func parseURLID(w http.ResponseWriter, r *http.Request, param, errMsg string) (int64, bool) {
@@ -49,7 +49,8 @@ func parseURLID(w http.ResponseWriter, r *http.Request, param, errMsg string) (i
 func (s *Server) handleGetSessions(w http.ResponseWriter, r *http.Request) {
 	sessions, err := s.repo.GetSessions(r.Context())
 	if err != nil {
-		writeJSONError(w, "Failed to get sessions", http.StatusInternalServerError)
+		slog.Error("Failed to get sessions", "error", err)
+		writeJSONError(w, "failed to get sessions", http.StatusInternalServerError)
 		return
 	}
 	writeJSON(w, http.StatusOK, sessions)
@@ -63,11 +64,11 @@ func (s *Server) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
 
 	if err := s.repo.DeleteSession(r.Context(), sessionID); err != nil {
 		if errors.Is(err, storage.ErrSessionNotFound) {
-			writeJSONError(w, "Session not found", http.StatusNotFound)
+			writeJSONError(w, "session not found", http.StatusNotFound)
 			return
 		}
 		slog.Error("Failed to delete session", "sessionID", sessionID, "error", err)
-		writeJSONError(w, "Failed to delete session", http.StatusInternalServerError)
+		writeJSONError(w, "failed to delete session", http.StatusInternalServerError)
 		return
 	}
 
@@ -83,7 +84,7 @@ func (s *Server) handleGetParticipants(w http.ResponseWriter, r *http.Request) {
 	participants, err := s.repo.GetParticipantsBySession(r.Context(), sessionID)
 	if err != nil {
 		slog.Error("Failed to get participants", "sessionID", sessionID, "error", err)
-		writeJSONError(w, "Failed to get participants", http.StatusInternalServerError)
+		writeJSONError(w, "failed to get participants", http.StatusInternalServerError)
 		return
 	}
 
@@ -105,21 +106,23 @@ func (s *Server) handleGetLaps(w http.ResponseWriter, r *http.Request) {
 
 	laps, err := s.repo.GetLapsBySession(r.Context(), sessionID, carIndex)
 	if err != nil {
-		writeJSONError(w, "Failed to get laps", http.StatusInternalServerError)
+		slog.Error("Failed to get laps", "sessionID", sessionID, "error", err)
+		writeJSONError(w, "failed to get laps", http.StatusInternalServerError)
 		return
 	}
 	writeJSON(w, http.StatusOK, laps)
 }
 
 func (s *Server) handleGetTelemetry(w http.ResponseWriter, r *http.Request) {
-	lapID, ok := parseURLID(w, r, "id", "Invalid lap ID")
+	lapID, ok := parseURLID(w, r, "id", "invalid lap ID")
 	if !ok {
 		return
 	}
 
 	telemetry, err := s.repo.GetTelemetryByLap(r.Context(), lapID)
 	if err != nil {
-		writeJSONError(w, "Failed to get telemetry", http.StatusInternalServerError)
+		slog.Error("Failed to get telemetry", "lapID", lapID, "error", err)
+		writeJSONError(w, "failed to get telemetry", http.StatusInternalServerError)
 		return
 	}
 
@@ -154,7 +157,8 @@ type setSessionTagsRequest struct {
 func (s *Server) handleGetTags(w http.ResponseWriter, r *http.Request) {
 	tags, err := s.repo.GetAllTags(r.Context())
 	if err != nil {
-		writeJSONError(w, "Failed to get tags", http.StatusInternalServerError)
+		slog.Error("Failed to get tags", "error", err)
+		writeJSONError(w, "failed to get tags", http.StatusInternalServerError)
 		return
 	}
 	writeJSON(w, http.StatusOK, tags)
@@ -163,14 +167,14 @@ func (s *Server) handleGetTags(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleCreateTag(w http.ResponseWriter, r *http.Request) {
 	var req createTagRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, "Invalid request payload", http.StatusBadRequest)
+		writeJSONError(w, "invalid request payload", http.StatusBadRequest)
 		return
 	}
 
 	name := strings.TrimSpace(req.Name)
 	color := strings.TrimSpace(req.Color)
 	if name == "" {
-		writeJSONError(w, "Tag name is required", http.StatusBadRequest)
+		writeJSONError(w, "tag name is required", http.StatusBadRequest)
 		return
 	}
 	if color == "" {
@@ -184,7 +188,7 @@ func (s *Server) handleCreateTag(w http.ResponseWriter, r *http.Request) {
 
 	if err := s.repo.CreateTag(r.Context(), &tag); err != nil {
 		slog.Error("Failed to create tag", "error", err)
-		writeJSONError(w, "Failed to create tag", http.StatusInternalServerError)
+		writeJSONError(w, "failed to create tag", http.StatusInternalServerError)
 		return
 	}
 
@@ -192,21 +196,21 @@ func (s *Server) handleCreateTag(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleUpdateTag(w http.ResponseWriter, r *http.Request) {
-	tagID, ok := parseURLID(w, r, "id", "Invalid tag ID")
+	tagID, ok := parseURLID(w, r, "id", "invalid tag ID")
 	if !ok {
 		return
 	}
 
 	var req createTagRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, "Invalid request payload", http.StatusBadRequest)
+		writeJSONError(w, "invalid request payload", http.StatusBadRequest)
 		return
 	}
 
 	name := strings.TrimSpace(req.Name)
 	color := strings.TrimSpace(req.Color)
 	if name == "" {
-		writeJSONError(w, "Tag name is required", http.StatusBadRequest)
+		writeJSONError(w, "tag name is required", http.StatusBadRequest)
 		return
 	}
 	if color == "" {
@@ -221,11 +225,11 @@ func (s *Server) handleUpdateTag(w http.ResponseWriter, r *http.Request) {
 
 	if err := s.repo.UpdateTag(r.Context(), &tag); err != nil {
 		if errors.Is(err, storage.ErrTagNotFound) {
-			writeJSONError(w, "Tag not found", http.StatusNotFound)
+			writeJSONError(w, "tag not found", http.StatusNotFound)
 			return
 		}
 		slog.Error("Failed to update tag", "tagID", tagID, "error", err)
-		writeJSONError(w, "Failed to update tag", http.StatusInternalServerError)
+		writeJSONError(w, "failed to update tag", http.StatusInternalServerError)
 		return
 	}
 
@@ -233,18 +237,18 @@ func (s *Server) handleUpdateTag(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDeleteTag(w http.ResponseWriter, r *http.Request) {
-	tagID, ok := parseURLID(w, r, "id", "Invalid tag ID")
+	tagID, ok := parseURLID(w, r, "id", "invalid tag ID")
 	if !ok {
 		return
 	}
 
 	if err := s.repo.DeleteTag(r.Context(), tagID); err != nil {
 		if errors.Is(err, storage.ErrTagNotFound) {
-			writeJSONError(w, "Tag not found", http.StatusNotFound)
+			writeJSONError(w, "tag not found", http.StatusNotFound)
 			return
 		}
 		slog.Error("Failed to delete tag", "tagID", tagID, "error", err)
-		writeJSONError(w, "Failed to delete tag", http.StatusInternalServerError)
+		writeJSONError(w, "failed to delete tag", http.StatusInternalServerError)
 		return
 	}
 
@@ -260,7 +264,7 @@ func (s *Server) handleGetSessionTags(w http.ResponseWriter, r *http.Request) {
 	tags, err := s.repo.GetTagsBySession(r.Context(), sessionID)
 	if err != nil {
 		slog.Error("Failed to get session tags", "sessionID", sessionID, "error", err)
-		writeJSONError(w, "Failed to get session tags", http.StatusInternalServerError)
+		writeJSONError(w, "failed to get session tags", http.StatusInternalServerError)
 		return
 	}
 
@@ -275,7 +279,7 @@ func (s *Server) handleAddSessionTag(w http.ResponseWriter, r *http.Request) {
 
 	var req addSessionTagRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, "Invalid request payload", http.StatusBadRequest)
+		writeJSONError(w, "invalid request payload", http.StatusBadRequest)
 		return
 	}
 
@@ -283,7 +287,7 @@ func (s *Server) handleAddSessionTag(w http.ResponseWriter, r *http.Request) {
 	if tagID == 0 {
 		name := strings.TrimSpace(req.Name)
 		if name == "" {
-			writeJSONError(w, "Tag ID or Tag Name is required", http.StatusBadRequest)
+			writeJSONError(w, "tag ID or tag name is required", http.StatusBadRequest)
 			return
 		}
 		color := strings.TrimSpace(req.Color)
@@ -296,7 +300,7 @@ func (s *Server) handleAddSessionTag(w http.ResponseWriter, r *http.Request) {
 		}
 		if err := s.repo.CreateTag(r.Context(), &tag); err != nil {
 			slog.Error("Failed to create tag on demand", "error", err)
-			writeJSONError(w, "Failed to create tag", http.StatusInternalServerError)
+			writeJSONError(w, "failed to create tag", http.StatusInternalServerError)
 			return
 		}
 		tagID = tag.ID
@@ -304,13 +308,14 @@ func (s *Server) handleAddSessionTag(w http.ResponseWriter, r *http.Request) {
 
 	if err := s.repo.AddTagToSession(r.Context(), sessionID, tagID); err != nil {
 		slog.Error("Failed to add tag to session", "sessionID", sessionID, "tagID", tagID, "error", err)
-		writeJSONError(w, "Failed to add tag to session", http.StatusInternalServerError)
+		writeJSONError(w, "failed to add tag to session", http.StatusInternalServerError)
 		return
 	}
 
 	tags, err := s.repo.GetTagsBySession(r.Context(), sessionID)
 	if err != nil {
-		writeJSONError(w, "Failed to retrieve updated tags", http.StatusInternalServerError)
+		slog.Error("Failed to retrieve updated tags", "sessionID", sessionID, "error", err)
+		writeJSONError(w, "failed to retrieve updated tags", http.StatusInternalServerError)
 		return
 	}
 
@@ -325,7 +330,7 @@ func (s *Server) handleSetSessionTags(w http.ResponseWriter, r *http.Request) {
 
 	var req setSessionTagsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, "Invalid request payload", http.StatusBadRequest)
+		writeJSONError(w, "invalid request payload", http.StatusBadRequest)
 		return
 	}
 
@@ -335,13 +340,14 @@ func (s *Server) handleSetSessionTags(w http.ResponseWriter, r *http.Request) {
 
 	if err := s.repo.SetSessionTags(r.Context(), sessionID, req.TagIDs); err != nil {
 		slog.Error("Failed to set session tags", "sessionID", sessionID, "error", err)
-		writeJSONError(w, "Failed to set session tags", http.StatusInternalServerError)
+		writeJSONError(w, "failed to set session tags", http.StatusInternalServerError)
 		return
 	}
 
 	tags, err := s.repo.GetTagsBySession(r.Context(), sessionID)
 	if err != nil {
-		writeJSONError(w, "Failed to retrieve updated tags", http.StatusInternalServerError)
+		slog.Error("Failed to retrieve updated tags", "sessionID", sessionID, "error", err)
+		writeJSONError(w, "failed to retrieve updated tags", http.StatusInternalServerError)
 		return
 	}
 
@@ -354,20 +360,21 @@ func (s *Server) handleRemoveSessionTag(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	tagID, ok := parseURLID(w, r, "tagId", "Invalid tag ID")
+	tagID, ok := parseURLID(w, r, "tagId", "invalid tag ID")
 	if !ok {
 		return
 	}
 
 	if err := s.repo.RemoveTagFromSession(r.Context(), sessionID, tagID); err != nil {
 		slog.Error("Failed to remove tag from session", "sessionID", sessionID, "tagID", tagID, "error", err)
-		writeJSONError(w, "Failed to remove tag from session", http.StatusInternalServerError)
+		writeJSONError(w, "failed to remove tag from session", http.StatusInternalServerError)
 		return
 	}
 
 	tags, err := s.repo.GetTagsBySession(r.Context(), sessionID)
 	if err != nil {
-		writeJSONError(w, "Failed to retrieve updated tags", http.StatusInternalServerError)
+		slog.Error("Failed to retrieve updated tags", "sessionID", sessionID, "error", err)
+		writeJSONError(w, "failed to retrieve updated tags", http.StatusInternalServerError)
 		return
 	}
 
@@ -383,13 +390,14 @@ func (s *Server) handleExportSession(w http.ResponseWriter, r *http.Request) {
 	pkg, err := s.repo.ExportSession(r.Context(), sessionID)
 	if err != nil {
 		slog.Error("Failed to export session", "sessionID", sessionID, "error", err)
-		writeJSONError(w, "Failed to export session", http.StatusInternalServerError)
+		writeJSONError(w, "failed to export session", http.StatusInternalServerError)
 		return
 	}
 
 	compressed, filename, err := session.MarshalAndCompressSessionPackage(pkg, 0)
 	if err != nil {
-		writeJSONError(w, "Failed to encode session package", http.StatusInternalServerError)
+		slog.Error("Failed to encode session package", "sessionID", sessionID, "error", err)
+		writeJSONError(w, "failed to encode session package", http.StatusInternalServerError)
 		return
 	}
 
@@ -422,7 +430,7 @@ func (s *Server) handleExportSessionBatch(w http.ResponseWriter, r *http.Request
 	}
 
 	if len(sessionIDs) == 0 {
-		writeJSONError(w, "No session IDs provided for export", http.StatusBadRequest)
+		writeJSONError(w, "no session IDs provided for export", http.StatusBadRequest)
 		return
 	}
 
@@ -430,15 +438,16 @@ func (s *Server) handleExportSessionBatch(w http.ResponseWriter, r *http.Request
 	exportedCount, err := session.ExportSessionBatchToZip(r.Context(), s.repo, sessionIDs, &buf)
 	if err != nil {
 		if exportedCount == 0 {
-			writeJSONError(w, "No valid sessions found to export", http.StatusNotFound)
+			writeJSONError(w, "no valid sessions found to export", http.StatusNotFound)
 			return
 		}
-		writeJSONError(w, "Failed to finalize zip archive", http.StatusInternalServerError)
+		slog.Error("Failed to finalize zip archive", "error", err)
+		writeJSONError(w, "failed to finalize zip archive", http.StatusInternalServerError)
 		return
 	}
 
 	if exportedCount == 0 {
-		writeJSONError(w, "No valid sessions found to export", http.StatusNotFound)
+		writeJSONError(w, "no valid sessions found to export", http.StatusNotFound)
 		return
 	}
 
@@ -497,13 +506,13 @@ func (s *Server) handleImportSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(items) == 0 {
-		writeJSONError(w, "Empty file payload", http.StatusBadRequest)
+		writeJSONError(w, "empty file payload", http.StatusBadRequest)
 		return
 	}
 
 	sessionFiles := session.ExpandZipFiles(items)
 	if len(sessionFiles) == 0 {
-		writeJSONError(w, "No valid session files found in payload", http.StatusBadRequest)
+		writeJSONError(w, "no valid session files found in payload", http.StatusBadRequest)
 		return
 	}
 
@@ -526,19 +535,19 @@ type BatchDeleteRequest struct {
 func (s *Server) handleBatchDeleteSessions(w http.ResponseWriter, r *http.Request) {
 	var req BatchDeleteRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, "Invalid request payload", http.StatusBadRequest)
+		writeJSONError(w, "invalid request payload", http.StatusBadRequest)
 		return
 	}
 
 	if len(req.SessionIDs) == 0 {
-		writeJSONError(w, "No session IDs specified for deletion", http.StatusBadRequest)
+		writeJSONError(w, "no session IDs specified for deletion", http.StatusBadRequest)
 		return
 	}
 
 	deletedCount, err := s.repo.DeleteSessions(r.Context(), req.SessionIDs)
 	if err != nil {
 		slog.Error("Failed to delete sessions batch", "error", err)
-		writeJSONError(w, "Failed to delete sessions", http.StatusInternalServerError)
+		writeJSONError(w, "failed to delete sessions", http.StatusInternalServerError)
 		return
 	}
 
@@ -557,18 +566,18 @@ type BatchTagsRequest struct {
 func (s *Server) handleBatchAssignTags(w http.ResponseWriter, r *http.Request) {
 	var req BatchTagsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, "Invalid request payload", http.StatusBadRequest)
+		writeJSONError(w, "invalid request payload", http.StatusBadRequest)
 		return
 	}
 
 	if len(req.SessionIDs) == 0 || req.TagID <= 0 {
-		writeJSONError(w, "Session IDs and valid Tag ID are required", http.StatusBadRequest)
+		writeJSONError(w, "session IDs and valid tag ID are required", http.StatusBadRequest)
 		return
 	}
 
 	if err := s.repo.AddTagToSessions(r.Context(), req.SessionIDs, req.TagID); err != nil {
 		slog.Error("Failed to assign tags to sessions", "tagID", req.TagID, "error", err)
-		writeJSONError(w, "Failed to assign tags to sessions", http.StatusInternalServerError)
+		writeJSONError(w, "failed to assign tags to sessions", http.StatusInternalServerError)
 		return
 	}
 

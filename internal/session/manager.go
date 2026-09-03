@@ -172,9 +172,9 @@ func (sm *SessionManager) handleNewSession(ctx context.Context, header packets.P
 		SessionUID:      uidHex,
 		PacketFormat:    int(header.PacketFormat),
 		TrackID:         packets.UnknownTrackID,
-		TrackName:       "Unknown",
-		SessionType:     "Unknown",
-		Weather:         "Unknown",
+		TrackName:       packets.UnknownValue,
+		SessionType:     packets.UnknownValue,
+		Weather:         packets.UnknownValue,
 		WeatherForecast: "",
 		TotalLaps:       0,
 		AIDifficulty:    0,
@@ -216,7 +216,7 @@ func (sm *SessionManager) updateSessionInfo(ctx context.Context, p *packets.Pack
 		sm.currentSession.TrackID = int(p.TrackId)
 		sm.currentSession.TrackName = trackName
 		sm.currentSession.SessionType = sessionType
-		if sm.currentSession.Weather == "" || sm.currentSession.Weather == "Unknown" {
+		if sm.currentSession.Weather == "" || sm.currentSession.Weather == packets.UnknownValue {
 			sm.currentSession.Weather = weatherStr
 		}
 		if forecastJSON != "" {

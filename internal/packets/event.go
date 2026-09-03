@@ -30,6 +30,7 @@ const (
 	EventOvertake           = "OVTK"
 	EventSafetyCarStatus    = "SCAR"
 	EventCollision          = "COLL"
+	EventDisqualification   = "DSQ"
 )
 
 // EventDataDetails holds the raw 12 bytes of event payload union.

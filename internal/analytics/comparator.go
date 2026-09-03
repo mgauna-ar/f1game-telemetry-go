@@ -10,22 +10,25 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
 )
 
 // Comparator constants
 const (
-	DefaultComparatorStepMeters = 5.0
-	MinComparatorStepMeters     = 1.0
-	MaxComparatorStepMeters     = 100.0
-	ComparatorCacheCapacity     = 128
-	MinTurnDistSpacing          = 70.0
-	TurnApexSearchRadiusMax     = 8
-	TurnCurvatureThreshold      = 0.0025
-	TurnEntryOffsetMeters       = 35.0
-	TurnExitOffsetMeters        = 35.0
-	MinPointsForTurnDetection   = 20
-	TurnLookaroundWindow        = 4
+	DefaultComparatorStepMeters     = 5.0
+	MinComparatorStepMeters         = 1.0
+	MaxComparatorStepMeters         = 100.0
+	ComparatorCacheCapacity         = 128
+	MinTurnDistSpacing              = 70.0
+	TurnApexSearchRadiusMax         = 8
+	TurnCurvatureThreshold          = 0.0025
+	TurnEntryOffsetMeters           = 35.0
+	TurnExitOffsetMeters            = 35.0
+	MinPointsForTurnDetection       = 20
+	TurnLookaroundWindow            = 4
+	wrapAroundMinPrevDistanceMeters = 500.0
+	wrapAroundMaxNextDistanceMeters = 100.0
 )
 
 // ComparatorResponse encapsulates merged telemetry, detected track turns, and lap metadata.
@@ -224,13 +227,13 @@ func isolateLapAttempt(samples []storage.TelemetrySample) []storage.TelemetrySam
 	}
 	startIdx := 0
 	for i := 0; i < len(samples); i++ {
-		if i > 0 && samples[i-1].LapDistance > 500 && samples[i].LapDistance < 100 {
+		if i > 0 && samples[i-1].LapDistance > wrapAroundMinPrevDistanceMeters && samples[i].LapDistance < wrapAroundMaxNextDistanceMeters {
 			startIdx = i
 		}
 	}
 	movingSamples := samples[startIdx:]
 	for i := 1; i < len(movingSamples); i++ {
-		if movingSamples[i-1].LapDistance > 500 && movingSamples[i].LapDistance < 100 {
+		if movingSamples[i-1].LapDistance > wrapAroundMinPrevDistanceMeters && movingSamples[i].LapDistance < wrapAroundMaxNextDistanceMeters {
 			movingSamples = movingSamples[:i]
 			break
 		}
@@ -277,7 +280,7 @@ func calibrateStartLine(samples []storage.TelemetrySample, expectedLapTimeMs int
 
 	startTime := firstTime
 	if firstDist > 0 {
-		speedMS := firstSpeed * 1000.0 / 3600.0
+		speedMS := firstSpeed * packets.KmhToMps
 		if speedMS < 10.0 {
 			speedMS = 10.0
 		}
@@ -297,7 +300,7 @@ func calibrateStartLine(samples []storage.TelemetrySample, expectedLapTimeMs int
 
 	rawTotalDuration := lastTimeElapsed
 	if endDist > lastDist {
-		lastSpeedMS := lastSpeed * 1000.0 / 3600.0
+		lastSpeedMS := lastSpeed * packets.KmhToMps
 		if lastSpeedMS < 10.0 {
 			lastSpeedMS = 10.0
 		}
@@ -306,7 +309,7 @@ func calibrateStartLine(samples []storage.TelemetrySample, expectedLapTimeMs int
 
 	timeScale := 1.0
 	if expectedLapTimeMs > 0 && rawTotalDuration > 0 {
-		officialDuration := float64(expectedLapTimeMs) / 1000.0
+		officialDuration := float64(expectedLapTimeMs) / packets.MillisPerSecond
 		ratio := officialDuration / rawTotalDuration
 		if ratio >= 0.85 && ratio <= 1.15 {
 			timeScale = ratio
@@ -327,15 +330,15 @@ func calibrateStartLine(samples []storage.TelemetrySample, expectedLapTimeMs int
 		elapsed := math.Max(0, (s.SessionTime-startTime)*timeScale)
 		resSample := s
 		resSample.LapDistance = math.Round(dist*10) / 10
-		resSample.SessionTime = math.Round(elapsed*1000) / 1000
+		resSample.SessionTime = math.Round(elapsed*packets.MillisPerSecond) / packets.MillisPerSecond
 		result = append(result, resSample)
 	}
 
 	if expectedLapTimeMs > 0 {
-		officialDuration := float64(expectedLapTimeMs) / 1000.0
+		officialDuration := float64(expectedLapTimeMs) / packets.MillisPerSecond
 		synthEnd := lastSample
 		synthEnd.LapDistance = math.Round(endDist*10) / 10
-		synthEnd.SessionTime = math.Round(officialDuration*1000) / 1000
+		synthEnd.SessionTime = math.Round(officialDuration*packets.MillisPerSecond) / packets.MillisPerSecond
 		if len(result) > 0 && result[len(result)-1].LapDistance < synthEnd.LapDistance {
 			result = append(result, synthEnd)
 		} else if len(result) > 0 {

@@ -116,7 +116,7 @@ func findBestLap(validLaps, completedLaps []storage.Lap) *storage.Lap {
 
 // computeOfficialTimes resolves total race time, penalties, and total time with penalties.
 func computeOfficialTimes(p storage.Participant, driverLaps, completedLaps []storage.Lap) (totalRaceTimeMS, totalWithPenaltiesMS int64, penaltySeconds int) {
-	officialTotalTimeMS := int64(p.TotalRaceTime * 1000.0)
+	officialTotalTimeMS := int64(p.TotalRaceTime * packets.MillisPerSecond)
 	officialPenaltiesSec := p.PenaltiesTime
 	penaltySeconds = officialPenaltiesSec
 	if penaltySeconds == 0 {
@@ -135,7 +135,7 @@ func computeOfficialTimes(p storage.Participant, driverLaps, completedLaps []sto
 		}
 		totalRaceTimeMS = sum
 	}
-	totalWithPenaltiesMS = totalRaceTimeMS + int64(penaltySeconds*1000)
+	totalWithPenaltiesMS = totalRaceTimeMS + int64(penaltySeconds*packets.MillisPerSecond)
 	return totalRaceTimeMS, totalWithPenaltiesMS, penaltySeconds
 }
 

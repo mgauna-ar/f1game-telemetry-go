@@ -18,8 +18,10 @@ import (
 )
 
 const (
-	defaultTargetUDP = "127.0.0.1:20777"
-	sendInterval     = 50 * time.Millisecond // 20Hz
+	defaultTargetUDP            = "127.0.0.1:20777"
+	sendInterval                = 50 * time.Millisecond // 20Hz
+	simBrakingThrottleThreshold = 0.3
+	simBrakingForce             = 0.8
 )
 
 type driverInfo struct {
@@ -254,8 +256,8 @@ func main() {
 
 			throttle := float32(0.5 + 0.5*math.Sin(st.angle*2))
 			brake := float32(0.0)
-			if throttle < 0.3 {
-				brake = 0.8
+			if throttle < simBrakingThrottleThreshold {
+				brake = simBrakingForce
 			}
 
 			lapDist := float32((st.angle / (2 * math.Pi)) * 5000.0)

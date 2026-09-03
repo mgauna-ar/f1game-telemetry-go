@@ -6,6 +6,17 @@ import (
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
 )
 
+const (
+	glitchDistanceDropThreshold   = 200.0
+	glitchToleranceMeters         = 50.0
+	glitchDistanceRatioThreshold  = 0.35
+	dropMinPrevDistanceMeters     = 100.0
+	dropMaxNextDistanceMeters     = 50.0
+	dropDistanceDeltaMeters       = 500.0
+	minSpanRatioThreshold         = 0.7
+	minSpanForLapCompletionMeters = 1000.0
+)
+
 // DownsampleTelemetry uses Largest-Triangle-Three-Buckets (LTTB) algorithm
 // to downsample telemetry samples to targetThreshold points while preserving visual shapes.
 func DownsampleTelemetry(data []storage.TelemetrySample, targetThreshold int) []storage.TelemetrySample {
@@ -123,16 +134,16 @@ func TrimTelemetryToLastLapAttempt(samples []storage.TelemetrySample) []storage.
 		currTime := filtered[i].SessionTime
 
 		// Check if curr is an isolated dropout/glitch (surrounding points continue monotonic trend)
-		if (prevDist-currDist > 200 || currDist < prevDist*0.35) && i+1 < len(filtered) {
+		if (prevDist-currDist > glitchDistanceDropThreshold || currDist < prevDist*glitchDistanceRatioThreshold) && i+1 < len(filtered) {
 			nextDist := filtered[i+1].LapDistance
-			if nextDist >= prevDist-50.0 {
+			if nextDist >= prevDist-glitchToleranceMeters {
 				// curr is just an isolated glitch drop, skip it
 				continue
 			}
 		}
 
 		// Reset condition: persistent sudden drop in distance or time reversal
-		isDrop := (prevDist > 100 && (currDist < 50 || currDist < prevDist*0.35)) || (prevDist-currDist > 500) || (currTime < prevTime)
+		isDrop := (prevDist > dropMinPrevDistanceMeters && (currDist < dropMaxNextDistanceMeters || currDist < prevDist*glitchDistanceRatioThreshold)) || (prevDist-currDist > dropDistanceDeltaMeters) || (currTime < prevTime)
 
 		if isDrop {
 			if i > segStart {
@@ -196,7 +207,7 @@ func TrimTelemetryToLastLapAttempt(samples []storage.TelemetrySample) []storage.
 	bestSegIdx := -1
 	for idx := len(segments) - 1; idx >= 0; idx-- {
 		seg := segments[idx]
-		if seg.span >= maxSpan*0.7 && (seg.span > 1000 || seg.span == maxSpan) {
+		if seg.span >= maxSpan*minSpanRatioThreshold && (seg.span > minSpanForLapCompletionMeters || seg.span == maxSpan) {
 			bestSegIdx = idx
 			break
 		}

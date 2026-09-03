@@ -26,12 +26,12 @@ type PTTSetConfigRequest struct {
 
 func (s *Server) handleGetPTTConfig(w http.ResponseWriter, r *http.Request) {
 	if s.inputManager == nil {
-		writeJSONError(w, "Input manager not available", http.StatusServiceUnavailable)
+		writeJSONError(w, "input manager not available", http.StatusServiceUnavailable)
 		return
 	}
 
 	writeJSON(w, http.StatusOK, PTTConfigResponse{
-		Status:   "ok",
+		Status:   "success",
 		Mapping:  s.inputManager.GetMapping(),
 		IsActive: s.inputManager.IsActive(),
 	})
@@ -39,20 +39,20 @@ func (s *Server) handleGetPTTConfig(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleSetPTTConfig(w http.ResponseWriter, r *http.Request) {
 	if s.inputManager == nil {
-		writeJSONError(w, "Input manager not available", http.StatusServiceUnavailable)
+		writeJSONError(w, "input manager not available", http.StatusServiceUnavailable)
 		return
 	}
 
 	var req PTTSetConfigRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, "Invalid payload", http.StatusBadRequest)
+		writeJSONError(w, "invalid payload", http.StatusBadRequest)
 		return
 	}
 
 	s.inputManager.SetMapping(req.Mapping)
 
 	writeJSON(w, http.StatusOK, PTTConfigResponse{
-		Status:   "ok",
+		Status:   "success",
 		Mapping:  s.inputManager.GetMapping(),
 		IsActive: s.inputManager.IsActive(),
 	})
@@ -60,21 +60,21 @@ func (s *Server) handleSetPTTConfig(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleStartPTTLearn(w http.ResponseWriter, r *http.Request) {
 	if s.inputManager == nil {
-		writeJSONError(w, "Input manager not available", http.StatusServiceUnavailable)
+		writeJSONError(w, "input manager not available", http.StatusServiceUnavailable)
 		return
 	}
 
 	s.pttMu.Lock()
 	if s.isLearning {
 		s.pttMu.Unlock()
-		writeJSONError(w, "PTT learning already in progress", http.StatusConflict)
+		writeJSONError(w, "ptt learning already in progress", http.StatusConflict)
 		return
 	}
 	s.isLearning = true
 	s.pttMu.Unlock()
 
 	// Interactive button learning outlives this HTTP request (which immediately returns 200 OK
-	// with "learning_started"). We use context.Background() because net/http cancels r.Context()
+	// with "success"). We use context.Background() because net/http cancels r.Context()
 	// as soon as the HTTP handler returns.
 	ch, err := s.inputManager.StartLearning(context.Background())
 	if err != nil {
@@ -112,13 +112,13 @@ func (s *Server) handleStartPTTLearn(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	writeJSON(w, http.StatusOK, map[string]string{
-		"status": "learning_started",
+		"status": "success",
 	})
 }
 
 func (s *Server) handleCancelPTTLearn(w http.ResponseWriter, r *http.Request) {
 	if s.inputManager == nil {
-		writeJSONError(w, "Input manager not available", http.StatusServiceUnavailable)
+		writeJSONError(w, "input manager not available", http.StatusServiceUnavailable)
 		return
 	}
 
@@ -128,6 +128,6 @@ func (s *Server) handleCancelPTTLearn(w http.ResponseWriter, r *http.Request) {
 
 	s.inputManager.CancelLearning()
 	writeJSON(w, http.StatusOK, map[string]string{
-		"status": "learning_canceled",
+		"status": "success",
 	})
 }

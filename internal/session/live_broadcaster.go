@@ -307,7 +307,7 @@ func (b *LiveBroadcaster) ProcessPacket(pkt packets.Packet) {
 					switch currStatus {
 					case packets.ResultStatusDSQ:
 						b.pendingEvents = append(b.pendingEvents, SyntheticEvent{
-							EventCode:   "DSQ",
+							EventCode:   packets.EventDisqualification,
 							Type:        "penalty",
 							Description: fmt.Sprintf("%s was disqualified from the session", driverName),
 							VehicleIdx:  &vIdx,

@@ -149,6 +149,15 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 `,
 	},
+	{
+		Version: 5,
+		Name:    "optimize_indexes",
+		SQL: `
+CREATE INDEX IF NOT EXISTS idx_sessions_created_at ON sessions(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_laps_session_car_num ON laps(session_id, car_index, lap_number);
+DROP INDEX IF EXISTS idx_participants_session;
+`,
+	},
 }
 
 // Migrate runs all pending migrations in version order.

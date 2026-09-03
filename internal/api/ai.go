@@ -43,7 +43,7 @@ func (s *Server) handleAIConfigStatus(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleAIFetchModels(w http.ResponseWriter, r *http.Request) {
 	var req ai.AIFetchModelsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, fmt.Sprintf("Invalid payload: %v", err), http.StatusBadRequest)
+		writeJSONError(w, fmt.Sprintf("invalid payload: %v", err), http.StatusBadRequest)
 		return
 	}
 
@@ -74,7 +74,7 @@ func (s *Server) handleAIFetchModels(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 	var req ai.AIChatRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, fmt.Sprintf("Invalid request payload: %v", err), http.StatusBadRequest)
+		writeJSONError(w, fmt.Sprintf("invalid request payload: %v", err), http.StatusBadRequest)
 		return
 	}
 
@@ -82,7 +82,8 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		writeJSONError(w, "Streaming unsupported", http.StatusInternalServerError)
+		slog.Error("Streaming unsupported on response writer")
+		writeJSONError(w, "streaming unsupported", http.StatusInternalServerError)
 		return
 	}
 
@@ -113,18 +114,18 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 // handleAITTS handles POST /api/ai/tts HTTP requests and streams back the synthesized MP3 audio.
 func (s *Server) handleAITTS(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		writeJSONError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		writeJSONError(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	var req ai.AITTSRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, fmt.Sprintf("Invalid request payload: %v", err), http.StatusBadRequest)
+		writeJSONError(w, fmt.Sprintf("invalid request payload: %v", err), http.StatusBadRequest)
 		return
 	}
 
 	if strings.TrimSpace(req.Text) == "" {
-		writeJSONError(w, "Field 'text' is required", http.StatusBadRequest)
+		writeJSONError(w, "field 'text' is required", http.StatusBadRequest)
 		return
 	}
 
@@ -133,13 +134,13 @@ func (s *Server) handleAITTS(w http.ResponseWriter, r *http.Request) {
 	audioBytes, err := ai.SynthesizeEdgeNeuralTTS(r.Context(), req.Text, voiceName, req.Rate, req.Pitch)
 	if err != nil {
 		slog.Error("Speech synthesis failed", "voice", voiceName, "error", err)
-		writeJSONError(w, fmt.Sprintf("Speech synthesis failed: %v", err), http.StatusBadGateway)
+		writeJSONError(w, fmt.Sprintf("speech synthesis failed: %v", err), http.StatusBadGateway)
 		return
 	}
 
 	w.Header().Set("Content-Type", "audio/mpeg")
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(audioBytes)))
-	w.Header().Set("Cache-Control", "public, max-age=86400")
+	w.Header().Set("Cache-Control", fmt.Sprintf("public, max-age=%d", SecondsPerDay))
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(audioBytes)
 }
@@ -168,13 +169,13 @@ func (s *Server) handleGetEngineerConfig(w http.ResponseWriter, r *http.Request)
 func (s *Server) handleSetEngineerConfig(w http.ResponseWriter, r *http.Request) {
 	var req engineer.EngineerConfig
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, fmt.Sprintf("Invalid config payload: %v", err), http.StatusBadRequest)
+		writeJSONError(w, fmt.Sprintf("invalid config payload: %v", err), http.StatusBadRequest)
 		return
 	}
 	if s.repo != nil {
 		if err := engineer.SaveEngineerConfig(r.Context(), s.repo, req); err != nil {
 			slog.Error("Failed to persist engineer config to database", "error", err)
-			writeJSONError(w, "Failed to persist engineer config", http.StatusInternalServerError)
+			writeJSONError(w, "failed to persist engineer config", http.StatusInternalServerError)
 			return
 		}
 	}

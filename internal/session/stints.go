@@ -30,14 +30,14 @@ func DeriveStints(inputs []StintInput) []StintInfo {
 		stintStartLap := 1
 		if s > 0 {
 			prevEnd := int(inputs[s-1].EndLap)
-			if prevEnd > 0 && prevEnd != 255 {
+			if prevEnd > 0 && prevEnd != int(packets.ActiveStintEndLap) {
 				stintStartLap = prevEnd + 1
 			} else {
 				stintStartLap = s + 1
 			}
 		}
 		stintEndLap := int(inputs[s].EndLap)
-		if stintEndLap == 255 || stintEndLap == 0 {
+		if stintEndLap == int(packets.ActiveStintEndLap) || stintEndLap == 0 {
 			if s == numStints-1 {
 				stintEndLap = packets.MaxSessionLapsSanity
 			} else {

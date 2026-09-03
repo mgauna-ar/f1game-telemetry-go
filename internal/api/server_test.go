@@ -732,8 +732,8 @@ func TestPTTLearn_ConcurrencyGuard(t *testing.T) {
 	if err := json.NewDecoder(rec1.Body).Decode(&resp1); err != nil {
 		t.Fatalf("failed to decode response: %v", err)
 	}
-	if resp1["status"] != "learning_started" {
-		t.Errorf("expected status 'learning_started', got %s", resp1["status"])
+	if resp1["status"] != "success" {
+		t.Errorf("expected status 'success', got %s", resp1["status"])
 	}
 
 	// 2. Concurrent second learn request must be rejected with 409 Conflict

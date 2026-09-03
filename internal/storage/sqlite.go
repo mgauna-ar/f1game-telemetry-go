@@ -12,6 +12,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/klauspost/compress/zstd"
+	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 	_ "modernc.org/sqlite"
 )
 
@@ -58,8 +59,11 @@ func decompressJSON[T any](compressed []byte, out *T) error {
 }
 
 const (
+	// ExportPackageVersion is the standard schema version for exported session packages.
+	ExportPackageVersion = "1.0"
+
 	// defaultSessionDurationPlaceholder is the placeholder 2-hour session duration (7200s) emitted by F1 game.
-	defaultSessionDurationPlaceholder = 7200
+	defaultSessionDurationPlaceholder = packets.DefaultSessionDurationLimitSeconds
 
 	// Lap query building blocks
 	lapSelectColumns = `laps.*, 
@@ -914,7 +918,7 @@ func (r *SQLiteRepository) ExportSession(ctx context.Context, sessionID int64) (
 	}
 
 	return &ExportedSessionPackage{
-		Version:      "1.0",
+		Version:      ExportPackageVersion,
 		Session:      *session,
 		Tags:         tags,
 		Participants: participants,

@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/fs"
 	"net/http"
 	"os"
@@ -244,7 +245,7 @@ func (s *Server) setupStaticRoutes() {
 			_ = f.Close()
 			if statErr == nil && !stat.IsDir() {
 				if strings.HasPrefix(reqPath, "assets/") {
-					w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+					w.Header().Set("Cache-Control", fmt.Sprintf("public, max-age=%d, immutable", SecondsPerYear))
 				}
 				fileServer.ServeHTTP(w, r)
 				return
@@ -271,6 +272,6 @@ func (s *Server) setupStaticRoutes() {
 			return
 		}
 
-		writeJSONError(w, "F1 Telemetry Dashboard not found. Build the frontend with 'npm run build' inside frontend/ directory.", http.StatusNotFound)
+		writeJSONError(w, "f1 telemetry dashboard not found. build the frontend with 'npm run build' inside frontend/ directory.", http.StatusNotFound)
 	})
 }
