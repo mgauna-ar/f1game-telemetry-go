@@ -126,6 +126,80 @@ describe('radioPhrases', () => {
       expect(speech).toContain('Lewis');
     });
 
+    it('handles generic server-side directives cleanly as fallback', () => {
+      const prompt = '[PROACTIVE PIT WALL CALL: Track condition improving in sector 2. Push now.]';
+      const speech = getProactiveRadioSpeech(prompt, 'en', 'bono', 'Lewis');
+      expect(speech).toContain('Lewis');
+      expect(speech).toContain('Track condition improving in sector 2. Push now.');
+    });
+
+    it('formats race finish cleanly with parc fermé instructions', () => {
+      const speechEn = getProactiveRadioSpeech(
+        { category: 'race_finish', message: 'Chequered flag! P3 finish.' },
+        'en',
+        'bono',
+        'George'
+      );
+      expect(speechEn.toLowerCase()).toContain('parc fermé');
+      expect(speechEn).toContain('George');
+
+      const speechEs = getProactiveRadioSpeech(
+        { category: 'race_finish', message: '¡Bandera a cuadros! Terminamos P2.' },
+        'es',
+        'colapinto',
+        'Franco'
+      );
+      expect(speechEs.toLowerCase()).toContain('parque cerrado');
+      expect(speechEs).toContain('Franco');
+    });
+
+    it('formats in-lap cooldown and traffic behind without race tactics', () => {
+      const trafficSpeech = getProactiveRadioSpeech(
+        { category: 'inlap_traffic_behind', message: 'Fast car approaching on flying lap behind' },
+        'es',
+        'colapinto',
+        'Franco'
+      );
+      expect(trafficSpeech.toLowerCase()).toContain('lanzado');
+
+      const cooldownSpeech = getProactiveRadioSpeech(
+        { category: 'inlap_cooldown', message: 'Flying lap completed, box this lap.' },
+        'en',
+        'bono',
+        'Lewis'
+      );
+      expect(cooldownSpeech.toLowerCase()).toContain('box');
+      expect(cooldownSpeech.toLowerCase()).toContain('cool');
+    });
+
+    it('eradicates the word DRS for F1 2026 Override and Boost speech', () => {
+      const defend2026 = getProactiveRadioSpeech(
+        {
+          category: 'rival_defend',
+          message: 'Defend! Car behind (P2) is within Override/Boost attack threat (0.8s gap).',
+          metadata: { is_2026: true },
+        },
+        'es',
+        'colapinto',
+        'Franco'
+      );
+      expect(defend2026).not.toContain('DRS');
+      expect(defend2026.toLowerCase()).toContain('override');
+
+      const attack2026 = getProactiveRadioSpeech(
+        {
+          category: 'rival_attack',
+          message: 'We are catching car ahead. Prepare overtake using Straight Mode and Boost deployment.',
+          metadata: { is_2026: true },
+        },
+        'en',
+        'bono',
+        'Lando'
+      );
+      expect(attack2026).not.toContain('DRS');
+      expect(attack2026).toContain('Straight Mode');
+    });
+
     it('formats safety car with Franco Colapinto persona and Spanish callsign', () => {
       const prompt = '[PROACTIVE PIT WALL CALL: Full Safety Car deployed! Maintain delta positive.]';
       const speech = getProactiveRadioSpeech(prompt, 'es', 'colapinto', 'Franco');

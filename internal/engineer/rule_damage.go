@@ -32,17 +32,17 @@ func (r *DamageRule) Category() string {
 }
 
 func (r *DamageRule) ValidPhases() []DrivingPhase {
-	return []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar}
+	return []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseGrid, PhaseRaceStart, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar}
 }
 
 func (r *DamageRule) AlertKeys() map[string]AlertKeyConfig {
 	return map[string]AlertKeyConfig{
 		"damage_wing": {
-			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseGrid, PhaseRaceStart, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
 			DedupScope:  DedupScopeStint,
 		},
 		"damage_floor": {
-			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseGrid, PhaseRaceStart, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
 			DedupScope:  DedupScopeStint,
 		},
 		"damage_engine": {

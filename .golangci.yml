@@ -33,6 +33,21 @@ linters:
       - linters:
           - misspell
         text: '`Sargeant` is a misspelling of `Sergeant`'
+      - linters:
+          - misspell
+        text: '`Chequered` is a misspelling of `Checkered`'
+      - linters:
+          - misspell
+        text: '`CHEQUERED` is a misspelling of `CHECKERED`'
+      - linters:
+          - misspell
+        text: '`tradicional` is a misspelling of `traditional`'
+      - linters:
+          - misspell
+        text: '`incidentes` is a misspelling of `incidents`'
+      - linters:
+          - misspell
+        text: '`refrigerar` is a misspelling of `refrigerator`'
     paths:
       - vendor
       - frontend

@@ -164,7 +164,16 @@ export function detectAlertCategory(alertContext: string): RadioAlertCategory {
     return 'teammate_ahead';
   }
 
-  // 8. Qualifying & Practice
+  // 8. Qualifying, Practice, In-Lap & Race Finish
+  if (lower.includes('chequered flag') || lower.includes('bandera a cuadros') || lower.includes('parc fermé') || lower.includes('parque cerrado') || lower.includes('race completed')) {
+    return 'race_finish';
+  }
+  if (lower.includes('fast car approaching on flying lap behind') || lower.includes('auto rápido en vuelta lanzada') || lower.includes('fast car behind')) {
+    return 'inlap_traffic_behind';
+  }
+  if (lower.includes('cool down car') || lower.includes('flying lap completed, box this lap') || lower.includes('vuelta rápida completada')) {
+    return 'inlap_cooldown';
+  }
   if (lower.includes('traffic ahead before starting hot lap') || (lower.includes('traffic ahead') && lower.includes('out-lap'))) {
     return 'qualy_traffic';
   }
@@ -205,12 +214,21 @@ export function getProactiveRadioSpeech(
   persona: RadioPersona = 'bono',
   driverCallsign?: string
 ): string {
-  const category: RadioAlertCategory =
+  let category: RadioAlertCategory =
     typeof input === 'object' && input.category
       ? input.category
       : detectAlertCategory(typeof input === 'string' ? input : '');
 
   const rawContext = typeof input === 'object' ? (input.message || '') : input;
+
+  const is2026 =
+    (typeof input === 'object' && (input.metadata?.is_2026 === true || input.metadata?.is_2026 === 'true')) ||
+    rawContext.toLowerCase().includes('override') ||
+    rawContext.toLowerCase().includes('boost');
+  if (is2026) {
+    if (category === 'rival_defend') category = 'rival_defend_override';
+    if (category === 'rival_attack') category = 'rival_attack_override';
+  }
 
   const localeDict = language === 'en' ? en.radio_phrases : es.radio_phrases;
   const catPool = (localeDict as Record<string, { bono?: string[]; colapinto?: string[]; standard: string[] }>)[category];

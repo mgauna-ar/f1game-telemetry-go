@@ -35,19 +35,19 @@ func (r *FlagsRule) Category() string {
 }
 
 func (r *FlagsRule) ValidPhases() []DrivingPhase {
-	return []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar, PhaseRedFlag}
+	return []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseGrid, PhaseRaceStart, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar, PhaseRedFlag}
 }
 
 func (r *FlagsRule) AlertKeys() map[string]AlertKeyConfig {
 	return map[string]AlertKeyConfig{
 		"flags_sc": {
 			Category:    DirectiveCategoryFlags,
-			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar, PhaseRedFlag},
+			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseGrid, PhaseRaceStart, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar, PhaseRedFlag},
 			DedupScope:  DedupScopePhase,
 		},
 		"flags_red": {
 			Category:    DirectiveCategoryFlags,
-			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar, PhaseRedFlag},
+			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseGrid, PhaseRaceStart, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar, PhaseRedFlag},
 			DedupScope:  DedupScopePhase,
 		},
 		"flags_rain": {
@@ -63,6 +63,11 @@ func (r *FlagsRule) AlertKeys() map[string]AlertKeyConfig {
 		"penalties": {
 			Category:    DirectiveCategoryFlags,
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			DedupScope:  DedupScopeNone,
+		},
+		"race_finish": {
+			Category:    DirectiveCategoryFlags,
+			ValidPhases: []DrivingPhase{PhasePostRace},
 			DedupScope:  DedupScopeNone,
 		},
 	}

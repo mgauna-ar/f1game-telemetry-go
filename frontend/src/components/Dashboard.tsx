@@ -6,6 +6,8 @@ import { useRaceEngineerActions } from '../context/RaceEngineerContext';
 import {
   SAFETY_CAR_STATUS,
   DRIVER_STATUS,
+  RESULT_STATUS,
+  SESSION_TYPES,
   getTrackInfo,
   TRACK_NAMES,
   getSessionTypeName,
@@ -175,8 +177,28 @@ export const Dashboard: React.FC = () => {
       warningsSummary = `- Track Limits / Warnings: ${playerLap.CornerCuttingWarnings ?? playerLap.TotalWarnings ?? 0} warnings | Penalties: ${playerLap.Penalties ?? 0}s`;
     }
 
+    let operationalPhase = 'ON TRACK (Racing)';
+    if (playerLap?.ResultStatus === RESULT_STATUS.FINISHED) {
+      operationalPhase = 'POST-RACE COOL-DOWN (Chequered flag - Race completed)';
+    } else if (
+      currentSession.SessionType === SESSION_TYPES.RACE &&
+      playerLap?.CurrentLapNum === 1 &&
+      (playerTelemetry?.Speed || 0) <= 10 &&
+      (playerLap?.LapDistance || 0) < 300
+    ) {
+      operationalPhase = 'STARTING GRID (Grid formation - Start lights)';
+    } else if (
+      currentSession.SessionType === SESSION_TYPES.RACE &&
+      playerLap?.CurrentLapNum === 1
+    ) {
+      operationalPhase = 'RACE START / LAP 1 (Opening lap)';
+    } else if (playerLap?.DriverStatus === DRIVER_STATUS.IN_LAP) {
+      operationalPhase = 'IN-LAP / COOL-DOWN (Returning to Pit Lane)';
+    }
+
     const lines = [
       'LIVE PIT WALL TELEMETRY:',
+      `- Operational Status: ${operationalPhase}`,
       `- Track: ${trackName}`,
       `- Session: ${sessionName}`,
       `- Session Time Remaining: ${sessionTimeLeftFormatted}`,

@@ -55,6 +55,8 @@ type TelemetryAnalysisContext struct {
 	DriverCallsign      string `json:"driver_callsign,omitempty"`
 	UrgencyLevel        string `json:"urgency_level,omitempty"`   // "critical", "high", "normal", "relaxed"
 	IncidentStatus      string `json:"incident_status,omitempty"` // "safety_car", "vsc", "red_flag", "yellow_flag", "clear"
+	PacketFormat        uint16 `json:"packet_format,omitempty"`   // e.g. 2026, 2025
+	DrivingPhase        string `json:"driving_phase,omitempty"`   // "GRID", "RACE_START", "IN_LAP", "POST_RACE", etc.
 
 	// Zoomed section info if user is zoomed in
 	ZoomedRange *ZoomedRangeInfo `json:"zoomed_range,omitempty"`

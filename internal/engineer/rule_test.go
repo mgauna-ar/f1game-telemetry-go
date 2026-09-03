@@ -873,6 +873,34 @@ func TestQualifyingRule_TableDriven(t *testing.T) {
 			t.Fatalf("expected qualy_elimination_danger directive, got %+v", dirs)
 		}
 	})
+
+	t.Run("in-lap cooldown and fast car behind traffic", func(t *testing.T) {
+		rule := NewQualifyingRule()
+		ctx := &EvaluationContext{
+			LapData: &packets.PacketLapData{
+				LapData: [packets.MaxCars]packets.LapData{
+					{CurrentLapNum: 3, DriverStatus: packets.DriverStatusInLap, TotalDistance: 10000.0},
+					{CurrentLapNum: 3, DriverStatus: packets.DriverStatusFlyingLap, TotalDistance: 9850.0}, // 150m behind on flying lap
+				},
+			},
+			Session: &packets.PacketSessionData{
+				SessionType: packets.SessionQ2,
+			},
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseInLap,
+		}
+		dirs := rule.Evaluate(ctx)
+		if len(dirs) != 2 {
+			t.Fatalf("expected 2 directives (inlap_cooldown and inlap_traffic_behind), got %d: %+v", len(dirs), dirs)
+		}
+		if dirs[0].SubAlert != "inlap_cooldown" {
+			t.Errorf("expected first directive to be inlap_cooldown, got %s", dirs[0].SubAlert)
+		}
+		if dirs[1].SubAlert != "inlap_traffic_behind" {
+			t.Errorf("expected second directive to be inlap_traffic_behind, got %s", dirs[1].SubAlert)
+		}
+	})
 }
 
 func TestTeammateRule_TableDriven(t *testing.T) {

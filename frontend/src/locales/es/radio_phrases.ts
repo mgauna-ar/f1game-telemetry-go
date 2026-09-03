@@ -431,16 +431,76 @@ export const radio_phrases = {
   },
   aero_fault: {
     colapinto: [
-      'Falla en el alerón y la aerodinámica activa, {driver}. No abre el modo de rectas.',
-      'Problema con el alerón móvil, {driver}. El DRS o Straight Mode no responde.',
+      'Falla en el sistema de alerón activo, {driver}. El modo de rectas no responde.',
+      'Problema con el alerón móvil, {driver}. El sistema aerodinámico no responde.',
     ],
     bono: [
       'Fallo en el sistema aerodinámico activo. El modo de rectas no está disponible.',
-      'Falla en el alerón móvil / DRS, {driver}. Ajuste aerodinámico bloqueado.',
+      'Falla en el alerón móvil, {driver}. Ajuste aerodinámico bloqueado.',
     ],
     standard: [
-      'Fallo en el sistema aerodinámico activo / DRS. Ajuste de alerón no disponible.',
+      'Fallo en el sistema aerodinámico activo. Ajuste de alerón no disponible.',
       'Falla en mecanismo de alerón móvil, {driver}. Modo de rectas fuera de servicio.',
+    ],
+  },
+  rival_defend_override: {
+    colapinto: [
+      'Auto de atrás con amenaza de Override y Boost a menos de un segundo, {driver}. Cuidale la cuerda.',
+    ],
+    bono: [
+      'Rival a menos de un segundo con amenaza de Modo Override. Defiende el interior en recta.',
+    ],
+    standard: [
+      'Rival a menos de un segundo con amenaza de Modo Override. Defiende el interior.',
+      'Presión de rival detrás con Modo Override / Boost, {driver}. Cuida la posición.',
+    ],
+  },
+  rival_attack_override: {
+    colapinto: [
+      'Estamos a tiro del de adelante, {driver}. Mandale Straight Mode y activa el Boost para buscarlo.',
+    ],
+    bono: [
+      'Estamos a tiro del monoplaza adelante. Activa Straight Mode y prepara el Modo Override.',
+    ],
+    standard: [
+      'Estamos a tiro del auto de adelante. Activa Straight Mode y despliega el Boost.',
+      'Oportunidad de sobrepaso, {driver}. Usa Straight Mode y Modo Override.',
+    ],
+  },
+  race_finish: {
+    colapinto: [
+      '¡Bandera a cuadros! Tremenda carrera metiste, {driver}. Poné mapa de enfriamiento, levantá goma fuera de la huella y traelo despacio a parque cerrado.',
+    ],
+    bono: [
+      'Bandera a cuadros. Excelente trabajo hoy, bien conducido. Pasa a modo de enfriamiento y trae el coche a parque cerrado.',
+    ],
+    standard: [
+      'Bandera a cuadros. Gran carrera completada. Cambia a modo de enfriamiento y dirígete a parque cerrado.',
+      '¡Carrera finalizada, {driver}! Recoge goma y trae el monoplaza a parque cerrado.',
+    ],
+  },
+  inlap_traffic_behind: {
+    colapinto: [
+      'Ojo que viene uno lanzado atrás en vuelta rápida, {driver}. Dale paso limpio y no molestes.',
+    ],
+    bono: [
+      'Atención: monoplaza rápido aproximándose en vuelta lanzada por detrás. Deja espacio limpio.',
+    ],
+    standard: [
+      'Tráfico: auto rápido en vuelta lanzada acercándose por detrás. Cede el paso de forma segura.',
+      'Monoplaza lanzado detrás, {driver}. Mantén la línea limpia.',
+    ],
+  },
+  inlap_cooldown: {
+    colapinto: [
+      'Vuelta terminada, a boxes ahora, {driver}. Recargá la batería, refrigerá frenos y gomas y traelo tranqui.',
+    ],
+    bono: [
+      'Vuelta completada, entramos a boxes en esta vuelta. Recarga batería y enfría frenos.',
+    ],
+    standard: [
+      'Vuelta rápida finalizada, entra a boxes esta vuelta. Modos de enfriamiento activos.',
+      'Vuelta completa, a boxes, {driver}. Refrigera frenos y recarga el ERS.',
     ],
   },
   directive: {

@@ -889,6 +889,19 @@ func TestEngineerEngine_DeriveDrivingPhase(t *testing.T) {
 			expected: PhaseRacing,
 		},
 		{
+			name:     "Post-Race Finished",
+			session:  &packets.PacketSessionData{SessionType: packets.SessionRace},
+			lap:      &packets.LapData{DriverStatus: packets.DriverStatusOnTrack, ResultStatus: packets.ResultStatusFinished},
+			expected: PhasePostRace,
+		},
+		{
+			name:      "Race Grid starting lineup",
+			session:   &packets.PacketSessionData{SessionType: packets.SessionRace},
+			lap:       &packets.LapData{DriverStatus: packets.DriverStatusOnTrack, CurrentLapNum: 1, LapDistance: 50.0, TotalDistance: 50.0},
+			telemetry: &packets.CarTelemetryData{Speed: 0},
+			expected:  PhaseGrid,
+		},
+		{
 			name:     "Qualifying Unknown DriverStatus",
 			session:  &packets.PacketSessionData{SessionType: packets.SessionQ1, SafetyCarStatus: packets.SafetyCarNone},
 			lap:      &packets.LapData{DriverStatus: 99},
@@ -1145,4 +1158,98 @@ func TestEngineerEngine_CategoryIndependence(t *testing.T) {
 			t.Errorf("expected fuel_delta to be emitted when pit_strategy is disabled but fuel is enabled")
 		}
 	})
+}
+
+func TestEngineerEngine_StartSilenceAndPostRaceSuppression(t *testing.T) {
+	broadcaster := &mockBroadcaster{}
+	engine := NewEngineerEngine(broadcaster)
+	ctx := context.Background()
+	header := createTestHeader(packets.PacketFormat2026, 7777, 0)
+
+	sessionPkt := &packets.PacketSessionData{
+		Header:      header,
+		SessionType: packets.SessionRace,
+	}
+	engine.ProcessPacket(ctx, sessionPkt)
+
+	// 1. Grid phase: STLG event received
+	stlgEvent := &packets.PacketEventData{
+		Header:          header,
+		EventStringCode: [4]uint8{'S', 'T', 'L', 'G'},
+	}
+	engine.ProcessPacket(ctx, stlgEvent)
+
+	lapPktGrid := &packets.PacketLapData{
+		Header: header,
+		LapData: [packets.MaxCars]packets.LapData{
+			{CurrentLapNum: 1, LapDistance: 10, TotalDistance: 10, DriverStatus: packets.DriverStatusOnTrack},
+		},
+	}
+	engine.ProcessPacket(ctx, lapPktGrid)
+
+	if engine.currentPhase != PhaseGrid {
+		t.Fatalf("expected PhaseGrid during start lights, got %v", engine.currentPhase)
+	}
+
+	// Non-critical tyre wear at 45% should be suppressed during PhaseGrid
+	damagePkt := &packets.PacketCarDamageData{
+		Header: header,
+		CarDamageData: [packets.MaxCars]packets.CarDamageData{
+			{TyresWear: [4]float32{45.0, 30.0, 20.0, 20.0}},
+		},
+	}
+	engine.ProcessPacket(ctx, damagePkt)
+
+	if _, exists := engine.lastDirectives["tyre_wear"]; exists {
+		t.Errorf("expected tyre_wear to be suppressed during PhaseGrid")
+	}
+
+	// Critical puncture (wear >= 95%) SHOULD break through even on Grid
+	puncturePkt := &packets.PacketCarDamageData{
+		Header: header,
+		CarDamageData: [packets.MaxCars]packets.CarDamageData{
+			{TyresWear: [4]float32{96.0, 30.0, 20.0, 20.0}},
+		},
+	}
+	engine.ProcessPacket(ctx, puncturePkt)
+
+	if _, exists := engine.lastDirectives["tyre_puncture"]; !exists {
+		t.Errorf("expected tyre_puncture emergency to break through during PhaseGrid")
+	}
+
+	// 2. Lights out: LGOT event received -> enters PhaseRaceStart
+	lgotEvent := &packets.PacketEventData{
+		Header:          header,
+		EventStringCode: [4]uint8{'L', 'G', 'O', 'T'},
+	}
+	engine.ProcessPacket(ctx, lgotEvent)
+
+	lapPktStart := &packets.PacketLapData{
+		Header: header,
+		LapData: [packets.MaxCars]packets.LapData{
+			{CurrentLapNum: 1, LapDistance: 800, TotalDistance: 800, DriverStatus: packets.DriverStatusOnTrack},
+		},
+	}
+	engine.ProcessPacket(ctx, lapPktStart)
+
+	if engine.currentPhase != PhaseRaceStart {
+		t.Fatalf("expected PhaseRaceStart on Lap 1 after lights out, got %v", engine.currentPhase)
+	}
+
+	// 3. Post-race: ResultStatusFinished -> enters PhasePostRace and emits race_finish
+	lapPktFinished := &packets.PacketLapData{
+		Header: header,
+		LapData: [packets.MaxCars]packets.LapData{
+			{CurrentLapNum: 50, CarPosition: 3, DriverStatus: packets.DriverStatusOnTrack, ResultStatus: packets.ResultStatusFinished},
+		},
+	}
+	engine.ProcessPacket(ctx, lapPktFinished)
+
+	if engine.currentPhase != PhasePostRace {
+		t.Fatalf("expected PhasePostRace when ResultStatusFinished, got %v", engine.currentPhase)
+	}
+
+	if _, exists := engine.lastDirectives["race_finish"]; !exists {
+		t.Errorf("expected race_finish directive to be emitted upon race completion")
+	}
 }

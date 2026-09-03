@@ -420,14 +420,74 @@ export const radio_phrases = {
   aero_fault: {
     bono: [
       'Active Aero straight mode fault detected, {driver}. Wing adjustment unavailable.',
-      'DRS or Active Aero flap fault. Straight mode is currently offline.',
+      'Active Aero flap fault. Straight mode is currently offline.',
     ],
     colapinto: [
       'Active Aero flap issue, {driver}. Straight mode is not deploying.',
     ],
     standard: [
-      'Active Aero or DRS flap fault detected. Wing adjustment currently unavailable.',
+      'Active Aero flap fault detected. Wing adjustment currently unavailable.',
       'Aerodynamic flap fault, {driver}. Straight mode offline.',
+    ],
+  },
+  rival_defend_override: {
+    bono: [
+      'Car behind within one second with Override Boost threat, {driver}. Defend the inside line.',
+    ],
+    colapinto: [
+      'Car behind with Override attack threat within a second, {driver}. Protect the inside on the straight.',
+    ],
+    standard: [
+      'Car behind within one second with Override threat. Defend the inside line.',
+      'Pressure from car behind with Override Boost available, {driver}. Defend position.',
+    ],
+  },
+  rival_attack_override: {
+    bono: [
+      'Closing in on car ahead, {driver}. Deploy Straight Mode and prepare Override Boost.',
+    ],
+    colapinto: [
+      'We are catching the car ahead, {driver}. Switch to Straight Mode and use Boost on the straight.',
+    ],
+    standard: [
+      'Closing in on car ahead. Switch to Straight Mode and prepare Override deployment.',
+      'Overtake opportunity, {driver}. Use Straight Mode and Override Boost.',
+    ],
+  },
+  race_finish: {
+    bono: [
+      'Chequered flag! Outstanding drive today, {driver}. Switch to cool down mode, pick up rubber off line and bring the car to parc fermé.',
+    ],
+    colapinto: [
+      'Chequered flag! Brilliant drive, {driver}. Cool the car down, pick up rubber and bring it to parc fermé.',
+    ],
+    standard: [
+      'Chequered flag. Fantastic race. Switch to cool down mode and bring the car safely to parc fermé.',
+      'Race finished, {driver}! Pick up rubber off line and head to parc fermé.',
+    ],
+  },
+  inlap_traffic_behind: {
+    bono: [
+      'Traffic alert: fast car approaching on a flying lap behind, {driver}. Give way cleanly.',
+    ],
+    colapinto: [
+      'Watch out behind, fast car coming on a hot lap, {driver}. Move off line safely.',
+    ],
+    standard: [
+      'Traffic alert: fast car approaching on flying lap behind. Move off the racing line cleanly.',
+      'Fast car on flying lap behind, {driver}. Give way safely.',
+    ],
+  },
+  inlap_cooldown: {
+    bono: [
+      'Flying lap completed, box this lap. Recharge ERS battery, cool the brakes and bring the car home.',
+    ],
+    colapinto: [
+      'Lap done, boxing this lap, {driver}. Recharge the battery, cool down brakes and bring it in.',
+    ],
+    standard: [
+      'Flying lap completed, box this lap. Recharge battery, cool brakes and tyres.',
+      'Lap complete, into the pits this lap, {driver}. Focus on cooling.',
     ],
   },
   directive: {

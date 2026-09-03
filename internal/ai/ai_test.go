@@ -213,6 +213,36 @@ func TestBuildSystemPrompt(t *testing.T) {
 		}
 	})
 
+	t.Run("live session mode - 2026 mandate and driving phase protocol", func(t *testing.T) {
+		ctx2026 := &TelemetryAnalysisContext{
+			ContextMode:  "live",
+			PacketFormat: 2026,
+			DrivingPhase: "GRID",
+			LiveSummary:  "STATUS: STARTING GRID\n- Track: Silverstone\n- Current Lap: 1",
+		}
+		promptEn := BuildSystemPrompt(ctx2026, "bono", "en")
+		if !strings.Contains(promptEn, "F1 2026 REGULATION MANDATE") || !strings.Contains(promptEn, "Traditional DRS DOES NOT EXIST") {
+			t.Errorf("expected English prompt to mandate 2026 DRS abolition, got: %s", promptEn)
+		}
+		if !strings.Contains(promptEn, "STARTING GRID ACTIVE") {
+			t.Errorf("expected English prompt to include starting grid protocol, got: %s", promptEn)
+		}
+
+		ctxPostRace := &TelemetryAnalysisContext{
+			ContextMode:  "live",
+			PacketFormat: 2026,
+			DrivingPhase: "POST_RACE",
+			LiveSummary:  "STATUS: POST-RACE COOL-DOWN\n- Player Position: P3",
+		}
+		promptEs := BuildSystemPrompt(ctxPostRace, "colapinto", "es")
+		if !strings.Contains(promptEs, "MANDATO REGLAMENTARIO F1 2026") || !strings.Contains(promptEs, "El DRS tradicional NO EXISTE") {
+			t.Errorf("expected Spanish prompt to mandate 2026 DRS abolition, got: %s", promptEs)
+		}
+		if !strings.Contains(promptEs, "CARRERA FINALIZADA / BANDERA A CUADROS") {
+			t.Errorf("expected Spanish prompt to include post-race protocol, got: %s", promptEs)
+		}
+	})
+
 	t.Run("with telemetry context and zoom", func(t *testing.T) {
 		ctx := &TelemetryAnalysisContext{
 			TrackName:         "Silverstone",

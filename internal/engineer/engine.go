@@ -45,7 +45,11 @@ type EngineerEngine struct {
 	latestParticipant *packets.PacketParticipantsData
 
 	// Internal state tracking
-	lastStintLapAge int
+	lastStintLapAge       int
+	startLightsActive     bool
+	raceStarted           bool
+	chequeredFlagReceived bool
+	postRaceAnnounced     bool
 }
 
 // NewEngineerEngine creates a new EngineerEngine instance with default rules.
@@ -133,6 +137,10 @@ func (e *EngineerEngine) resetLocked(sessionUID uint64) {
 	e.teammateCarIndex = -1
 	e.playerTeamID = -1
 	e.lastStintLapAge = 0
+	e.startLightsActive = false
+	e.raceStarted = false
+	e.chequeredFlagReceived = false
+	e.postRaceAnnounced = false
 	e.currentPhase = PhaseUnknown
 	e.previousPhase = PhaseUnknown
 	e.latestSession = nil
@@ -167,6 +175,18 @@ func (e *EngineerEngine) ProcessPacket(ctx context.Context, pkt packets.Packet) 
 	e.packetFormat = header.PacketFormat
 
 	switch p := pkt.(type) {
+	case *packets.PacketEventData:
+		code := p.EventCode()
+		switch code {
+		case packets.EventStartLights:
+			e.startLightsActive = true
+			e.raceStarted = false
+		case packets.EventLightsOut:
+			e.startLightsActive = false
+			e.raceStarted = true
+		case packets.EventChequeredFlag:
+			e.chequeredFlagReceived = true
+		}
 	case *packets.PacketParticipantsData:
 		e.latestParticipant = p
 		playerIdx := e.playerCarIndex
@@ -261,6 +281,27 @@ func (e *EngineerEngine) Evaluate(ctx *EvaluationContext) []Directive {
 
 func (e *EngineerEngine) evaluateLocked(ctx *EvaluationContext) []Directive {
 	var emittedDirectives []Directive
+
+	// Post-race debrief directive when transitioning to PhasePostRace
+	if e.currentPhase == PhasePostRace && !e.postRaceAnnounced {
+		playerLap := e.getPlayerLapDataLocked()
+		if playerLap != nil && playerLap.ResultStatus == packets.ResultStatusFinished {
+			e.postRaceAnnounced = true
+			postRaceDirective := Directive{
+				ID:       "race_finish",
+				Category: DirectiveCategoryFlags,
+				SubAlert: "race_finish",
+				Title:    "Race Finished",
+				Message:  fmt.Sprintf("Chequered flag! Outstanding drive, you finished in P%d. Pick up rubber off line, switch to cool down mode and bring the car to parc fermé.", playerLap.CarPosition),
+				Urgency:  UrgencyLow,
+				Metadata: map[string]any{
+					"car_position": int(playerLap.CarPosition),
+				},
+			}
+			prepared := e.emitDirectiveLocked(ctx.Header, postRaceDirective, "race_finish")
+			emittedDirectives = append(emittedDirectives, prepared)
+		}
+	}
 
 	for _, rule := range e.rules {
 		if !e.isRuleEnabled(rule) || !e.isValidPhase(rule, ctx.Phase) {
@@ -361,32 +402,57 @@ func (e *EngineerEngine) deriveDrivingPhase(session *packets.PacketSessionData, 
 		}
 	}
 
-	// 4. Formation Lap
+	// 4. Post-Race (Chequered Flag finished or retired)
+	if playerLap != nil {
+		isFinished := playerLap.ResultStatus == packets.ResultStatusFinished ||
+			playerLap.ResultStatus == packets.ResultStatusDNF ||
+			playerLap.ResultStatus == packets.ResultStatusDSQ ||
+			playerLap.ResultStatus == packets.ResultStatusRetired
+		if isFinished {
+			return PhasePostRace
+		}
+	}
+
+	// 5. Formation Lap
 	if session != nil && session.SafetyCarStatus == packets.SafetyCarFormationLap {
 		return PhaseFormationLap
 	}
 
-	// 5. Safety Car / VSC
+	// 6. Safety Car / VSC
 	if session != nil && (session.SafetyCarStatus == packets.SafetyCarFull || session.SafetyCarStatus == packets.SafetyCarVirtual) {
 		return PhaseSafetyCar
 	}
 
-	// 6. Out-Lap
+	// 7. Grid & Race Start procedures (Race sessions only)
+	isRace := (session != nil && packets.IsRaceSession(session.SessionType)) || session == nil
+	if isRace && playerLap != nil {
+		if e.startLightsActive {
+			return PhaseGrid
+		}
+		if !e.raceStarted && playerLap.CurrentLapNum == 1 && speed <= SpeedGridMaxKmh && playerLap.LapDistance < MaxGridTrackDistanceMeters && playerLap.TotalDistance < MaxGridTrackDistanceMeters && playerLap.DriverStatus == packets.DriverStatusOnTrack {
+			return PhaseGrid
+		}
+		if e.raceStarted && playerLap.CurrentLapNum == 1 {
+			return PhaseRaceStart
+		}
+	}
+
+	// 8. Out-Lap
 	if playerLap != nil && playerLap.DriverStatus == packets.DriverStatusOutLap {
 		return PhaseOutLap
 	}
 
-	// 7. In-Lap
+	// 9. In-Lap
 	if playerLap != nil && playerLap.DriverStatus == packets.DriverStatusInLap {
 		return PhaseInLap
 	}
 
-	// 8. Flying Lap
+	// 10. Flying Lap
 	if playerLap != nil && playerLap.DriverStatus == packets.DriverStatusFlyingLap {
 		return PhaseFlyingLap
 	}
 
-	// 9. Racing
+	// 11. Racing
 	if session != nil && packets.IsRaceSession(session.SessionType) {
 		return PhaseRacing
 	}
@@ -540,22 +606,33 @@ func (e *EngineerEngine) canEmitDirectiveLocked(alertKey, category, urgency stri
 		return false
 	}
 
-	// 2. Driving phase rule validation
+	// 2. Strict Radio Silence during Grid and Race Start
+	// During PhaseGrid or PhaseRaceStart, only true emergency alerts (UrgencyCritical) are permitted.
+	if (e.currentPhase == PhaseGrid || e.currentPhase == PhaseRaceStart) && urgency != UrgencyCritical {
+		return false
+	}
+
+	// 3. Post-Race suppression: only race_finish announcement or emergencies permitted
+	if e.currentPhase == PhasePostRace && urgency != UrgencyCritical && alertKey != "race_finish" {
+		return false
+	}
+
+	// 4. Driving phase rule validation
 	if !e.isPhaseAllowed(alertKey) {
 		return false
 	}
 
-	// 3. Deduplication check
+	// 5. Deduplication check
 	if e.isDeduplicated(alertKey, isCritical) {
 		return false
 	}
 
-	// 4. Smart Driving Discretion check
+	// 6. Smart Driving Discretion check
 	if e.isSmartDiscretionSuppressed(isCritical) {
 		return false
 	}
 
-	// 5. Per-category chatter cooldown check
+	// 7. Per-category chatter cooldown check
 	if e.isChatterCooldownActive(category, isCritical) {
 		return false
 	}

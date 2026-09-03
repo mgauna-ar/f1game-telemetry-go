@@ -81,7 +81,10 @@ func (r *CoachingRule) Evaluate(ctx *EvaluationContext) []Directive {
 		ctx.Phase != PhaseInLap &&
 		ctx.Phase != PhaseOutLap &&
 		ctx.Phase != PhasePitLane &&
-		ctx.Phase != PhaseInGarage
+		ctx.Phase != PhaseInGarage &&
+		ctx.Phase != PhaseGrid &&
+		ctx.Phase != PhaseRaceStart &&
+		ctx.Phase != PhasePostRace
 	isCompetitiveDriver := playerLap.DriverStatus != packets.DriverStatusInLap &&
 		playerLap.DriverStatus != packets.DriverStatusOutLap &&
 		playerLap.DriverStatus != packets.DriverStatusInGarage &&

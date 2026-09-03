@@ -41,7 +41,19 @@ func (r *RivalsRule) AlertKeys() map[string]AlertKeyConfig {
 			SuppressAfterPitForLaps: PostPitSuppressionLaps,
 			DedupScope:              DedupScopeNone,
 		},
+		"rival_defend_override": {
+			Category:                DirectiveCategoryRivals,
+			ValidPhases:             []DrivingPhase{PhaseRacing},
+			SuppressAfterPitForLaps: PostPitSuppressionLaps,
+			DedupScope:              DedupScopeNone,
+		},
 		"rival_attack": {
+			ValidPhases:             []DrivingPhase{PhaseRacing},
+			SuppressAfterPitForLaps: PostPitSuppressionLaps,
+			DedupScope:              DedupScopeNone,
+		},
+		"rival_attack_override": {
+			Category:                DirectiveCategoryRivals,
 			ValidPhases:             []DrivingPhase{PhaseRacing},
 			SuppressAfterPitForLaps: PostPitSuppressionLaps,
 			DedupScope:              DedupScopeNone,
@@ -69,7 +81,8 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 
 	playerLap := ctx.PlayerLap()
 	if !ctx.IsRaceSession() || playerLap == nil || playerLap.CarPosition <= 0 || ctx.Phase != PhaseRacing ||
-		(ctx.Session != nil && ctx.Session.SafetyCarStatus != packets.SafetyCarNone) || ctx.LapData == nil {
+		(ctx.Session != nil && ctx.Session.SafetyCarStatus != packets.SafetyCarNone) || ctx.LapData == nil ||
+		playerLap.CurrentLapNum == 1 {
 		return nil
 	}
 
@@ -105,22 +118,26 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 			}
 
 			var defendMsg string
+			subAlert := "rival_defend"
+			title := "Defend Position"
 			if is2026 {
+				title = "Defend Position (Boost Threat)"
 				defendMsg = fmt.Sprintf("Defend! Car behind (P%d) is within Override/Boost attack threat (%.1fs gap).%s", playerPos+1, gapSec, extraContext)
 			} else {
 				defendMsg = fmt.Sprintf("Defend! Car behind (P%d) is within DRS threat (%.1fs gap).%s", playerPos+1, gapSec, extraContext)
 			}
 
 			directives = append(directives, Directive{
-				ID:       "rival_defend",
+				ID:       subAlert,
 				Category: DirectiveCategoryRivals,
-				SubAlert: "rival_defend",
-				Title:    "Defend Position",
+				SubAlert: subAlert,
+				Title:    title,
 				Message:  defendMsg,
 				Urgency:  UrgencyMedium,
 				Metadata: map[string]any{
 					"rival_pos": playerPos + 1,
 					"gap_sec":   gapSec,
+					"is_2026":   is2026,
 				},
 			})
 		}
@@ -145,7 +162,10 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 				}
 
 				var attackMsg string
+				subAlert := "rival_attack"
+				title := "Attack Opportunity"
 				if is2026 {
+					title = "Attack Opportunity (Override Available)"
 					telemetry2 := ctx.PlayerTelemetry2()
 					var boostContext string
 					if telemetry2 != nil && telemetry2.OvertakeAvailable == 1 {
@@ -157,15 +177,16 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 				}
 
 				directives = append(directives, Directive{
-					ID:       "rival_attack",
+					ID:       subAlert,
 					Category: DirectiveCategoryRivals,
-					SubAlert: "rival_attack",
-					Title:    "Attack Opportunity",
+					SubAlert: subAlert,
+					Title:    title,
 					Message:  attackMsg,
 					Urgency:  UrgencyMedium,
 					Metadata: map[string]any{
 						"rival_pos": playerPos - 1,
 						"gap_sec":   gapSec,
+						"is_2026":   is2026,
 					},
 				})
 			}

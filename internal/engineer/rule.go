@@ -43,11 +43,14 @@ const (
 	PhaseInGarage     DrivingPhase = "IN_GARAGE"
 	PhasePitLane      DrivingPhase = "PIT_LANE"
 	PhaseFormationLap DrivingPhase = "FORMATION_LAP"
+	PhaseGrid         DrivingPhase = "GRID"
+	PhaseRaceStart    DrivingPhase = "RACE_START"
 	PhaseSafetyCar    DrivingPhase = "SAFETY_CAR"
 	PhaseOutLap       DrivingPhase = "OUT_LAP"
 	PhaseInLap        DrivingPhase = "IN_LAP"
 	PhaseFlyingLap    DrivingPhase = "FLYING_LAP"
 	PhaseRacing       DrivingPhase = "RACING"
+	PhasePostRace     DrivingPhase = "POST_RACE"
 	PhaseUnknown      DrivingPhase = "UNKNOWN"
 )
 

@@ -287,6 +287,11 @@ export type RadioAlertCategory =
   | 'track_limits_warnings'
   | 'penalties_incurred'
   | 'weather_rain'
+  | 'race_finish'
+  | 'inlap_traffic_behind'
+  | 'inlap_cooldown'
+  | 'rival_defend_override'
+  | 'rival_attack_override'
   | 'directive';
 
 export interface RadioAlertPayload {

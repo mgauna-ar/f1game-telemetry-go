@@ -6,6 +6,7 @@ import {
 import { playRadioBeep, stopRadioSpeech } from '../utils/radioAudio';
 import { useI18n } from '../context/I18nContext';
 import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
+import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
 import { api } from '../utils/apiClient';
 import { storage } from '../utils/storage';
@@ -220,6 +221,14 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
       const currentCustomPrompt = customPromptRef.current;
       const currentDriverCallsign = driverCallsignRef.current;
 
+      const sessionState = useSessionStatusStore.getState();
+      const packetFormat = sessionState.packetFormat || 2026;
+      let drivingPhase = 'RACING';
+      if (liveContext.includes('POST-RACE')) drivingPhase = 'POST_RACE';
+      else if (liveContext.includes('STARTING GRID')) drivingPhase = 'GRID';
+      else if (liveContext.includes('RACE START')) drivingPhase = 'RACE_START';
+      else if (liveContext.includes('IN-LAP')) drivingPhase = 'IN_LAP';
+
       const response = await api.stream(
         '/api/ai/chat',
         {
@@ -241,6 +250,8 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
             custom_persona_prompt: currentPersona === RADIO_PERSONAS.CUSTOM ? currentCustomPrompt : undefined,
             driver_callsign: currentDriverCallsign || undefined,
             urgency_level: 'normal',
+            packet_format: packetFormat,
+            driving_phase: drivingPhase,
           },
         },
         abortController.signal

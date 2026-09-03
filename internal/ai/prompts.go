@@ -176,6 +176,68 @@ func buildLivePrompt(telemetryCtx *TelemetryAnalysisContext, persona, language s
 		}
 	}
 
+	// F1 2026 Regulation Mandate (DRS abolished -> Override Mode / Straight Mode)
+	is2026 := (telemetryCtx != nil && telemetryCtx.PacketFormat >= 2026) ||
+		(telemetryCtx != nil && (strings.Contains(telemetryCtx.LiveSummary, "2026") || strings.Contains(telemetryCtx.CustomPrompt, "2026")))
+	if is2026 {
+		if isEnglish {
+			sb.WriteString("\n🚨 F1 2026 REGULATION MANDATE:\n")
+			sb.WriteString("- Traditional DRS DOES NOT EXIST in this 2026 season. NEVER use the word 'DRS' under any circumstance.\n")
+			sb.WriteString("- The overtaking deployment system is 'Manual Override Mode' (Override Boost).\n")
+			sb.WriteString("- Active aerodynamics uses 'Straight Mode' (low drag) and 'Corner Mode' (high downforce).\n")
+		} else {
+			sb.WriteString("\n🚨 MANDATO REGLAMENTARIO F1 2026:\n")
+			sb.WriteString("- El DRS tradicional NO EXISTE en esta temporada 2026. JAMÁS menciones la palabra 'DRS' bajo ninguna circunstancia.\n")
+			sb.WriteString("- El sistema de sobrepaso eléctrico es el 'Modo Override / Boost'.\n")
+			sb.WriteString("- La aerodinámica activa utiliza 'Modo Recta / Straight Mode' y 'Modo Curva / Corner Mode'.\n")
+		}
+	}
+
+	// Dynamic Driving Phase Protocol Injection
+	phase := ""
+	if telemetryCtx != nil {
+		phase = strings.ToUpper(strings.TrimSpace(telemetryCtx.DrivingPhase))
+		if phase == "" && telemetryCtx.LiveSummary != "" {
+			switch {
+			case strings.Contains(telemetryCtx.LiveSummary, "STATUS: STARTING GRID") || strings.Contains(telemetryCtx.LiveSummary, "STATUS: GRID"):
+				phase = "GRID"
+			case strings.Contains(telemetryCtx.LiveSummary, "STATUS: RACE START") || strings.Contains(telemetryCtx.LiveSummary, "STATUS: LAP 1"):
+				phase = "RACE_START"
+			case strings.Contains(telemetryCtx.LiveSummary, "STATUS: IN-LAP") || strings.Contains(telemetryCtx.LiveSummary, "STATUS: COOL-DOWN"):
+				phase = "IN_LAP"
+			case strings.Contains(telemetryCtx.LiveSummary, "STATUS: POST-RACE"):
+				phase = "POST_RACE"
+			}
+		}
+	}
+
+	switch phase {
+	case "GRID":
+		if isEnglish {
+			sb.WriteString("\n🚦 OPERATIONAL PHASE: STARTING GRID ACTIVE. Cars forming up for start lights. Be curt (1 short sentence). Maintain total focus on clutch bite point and start lights. Do not discuss pit strategy or long-term wear.\n")
+		} else {
+			sb.WriteString("\n🚦 FASE OPERATIVA: GRILLA DE PARTIDA ACTIVA. Monoplazas formándose para los semáforos. Sé tajante y breve (1 oración corta). Foco absoluto en el punto del embrague y las luces de largada. Prohibido hablar de estrategias a largo plazo.\n")
+		}
+	case "RACE_START":
+		if isEnglish {
+			sb.WriteString("\n🏁 OPERATIONAL PHASE: RACE START / LAP 1 ACTIVE. Opening lap in progress into Turn 1-2. Minimum chatter. Prioritize avoiding incidents, track position, and clean racing.\n")
+		} else {
+			sb.WriteString("\n🏁 FASE OPERATIVA: LARGADA / VUELTA 1 EN CURSO. Primera vuelta en plena curva 1-2. Mínima comunicación. Priorizá evitar incidentes, cuidar la posición y carrera limpia.\n")
+		}
+	case "IN_LAP":
+		if isEnglish {
+			sb.WriteString("\n🔄 OPERATIONAL PHASE: IN-LAP / COOL-DOWN. Driver is returning to the pits. Debrief lap time if asked. Remind to recharge battery, cool brakes/tyres, and let faster cars pass cleanly.\n")
+		} else {
+			sb.WriteString("\n🔄 FASE OPERATIVA: VUELTA DE REGRESO / ENFRIAMIENTO (IN-LAP). El piloto regresa a boxes. Si te consulta por el tiempo, dale el balance de la vuelta. Recordale recargar batería, refrigerar frenos/gomas y no obstaculizar autos rápidos.\n")
+		}
+	case "POST_RACE":
+		if isEnglish {
+			sb.WriteString("\n🏆 OPERATIONAL PHASE: RACE COMPLETED / CHEQUERED FLAG. The race is over! Congratulate the driver and report final finishing position. Instruct them to switch to cool-down mode and bring the car to parc fermé. Do not discuss race tactics or pit stops.\n")
+		} else {
+			sb.WriteString("\n🏆 FASE OPERATIVA: CARRERA FINALIZADA / BANDERA A CUADROS. ¡La carrera terminó! Felicitá al piloto e informale su posición final lograda. Decile que pase a mapa de enfriamiento y traiga el auto a parque cerrado. Cero tácticas de carrera.\n")
+		}
+	}
+
 	// Detect session type mode (Qualifying vs Practice vs Race)
 	sessionType := ""
 	trackName := ""

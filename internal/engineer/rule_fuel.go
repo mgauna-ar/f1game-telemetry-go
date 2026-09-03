@@ -33,24 +33,24 @@ func (r *FuelRule) Category() string {
 }
 
 func (r *FuelRule) ValidPhases() []DrivingPhase {
-	return []DrivingPhase{PhaseRacing, PhaseInLap, PhaseSafetyCar}
+	return []DrivingPhase{PhaseRacing, PhaseSafetyCar}
 }
 
 func (r *FuelRule) AlertKeys() map[string]AlertKeyConfig {
 	return map[string]AlertKeyConfig{
 		"fuel_delta": {
 			Category:    DirectiveCategoryFuel,
-			ValidPhases: []DrivingPhase{PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			ValidPhases: []DrivingPhase{PhaseRacing, PhaseSafetyCar},
 			DedupScope:  DedupScopeLap,
 		},
 		"undercut": {
 			Category:    DirectiveCategoryPitStrategy,
-			ValidPhases: []DrivingPhase{PhaseRacing, PhaseInLap},
+			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeStint,
 		},
 		"pit_window": {
 			Category:    DirectiveCategoryPitStrategy,
-			ValidPhases: []DrivingPhase{PhaseRacing, PhaseInLap},
+			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeLap,
 		},
 	}

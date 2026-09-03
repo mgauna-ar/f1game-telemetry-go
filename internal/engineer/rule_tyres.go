@@ -31,21 +31,21 @@ func (r *TyresRule) Category() string {
 }
 
 func (r *TyresRule) ValidPhases() []DrivingPhase {
-	return []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar}
+	return []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseGrid, PhaseRaceStart, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar}
 }
 
 func (r *TyresRule) AlertKeys() map[string]AlertKeyConfig {
 	return map[string]AlertKeyConfig{
 		"tyre_wear": {
-			ValidPhases: []DrivingPhase{PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			ValidPhases: []DrivingPhase{PhaseFlyingLap, PhaseRacing, PhaseSafetyCar},
 			DedupScope:  DedupScopeStint,
 		},
 		"tyre_puncture": {
-			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseGrid, PhaseRaceStart, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
 			DedupScope:  DedupScopeStint,
 		},
 		"tyre_overheat": {
-			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseRacing, PhaseInLap},
+			ValidPhases: []DrivingPhase{PhaseFlyingLap, PhaseRacing},
 			DedupScope:  DedupScopeStint,
 		},
 		"tyre_cold": {

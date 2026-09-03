@@ -10,18 +10,22 @@ import (
 
 // QualifyingRule manages lap invalidation, out-lap traffic, session clock countdown, and elimination danger.
 type QualifyingRule struct {
-	mu                    sync.Mutex
-	lastInvalidLapNum     int
-	lastOutLapChecked     int
-	lastSessionTimeWarned bool
-	lastElimDangerWarned  bool
+	mu                       sync.Mutex
+	lastInvalidLapNum        int
+	lastOutLapChecked        int
+	lastSessionTimeWarned    bool
+	lastElimDangerWarned     bool
+	lastInLapCooldownLap     int
+	lastInLapTrafficRivalIdx int
 }
 
 // NewQualifyingRule creates a new QualifyingRule.
 func NewQualifyingRule() *QualifyingRule {
 	return &QualifyingRule{
-		lastInvalidLapNum: -1,
-		lastOutLapChecked: -1,
+		lastInvalidLapNum:        -1,
+		lastOutLapChecked:        -1,
+		lastInLapCooldownLap:     -1,
+		lastInLapTrafficRivalIdx: -1,
 	}
 }
 
@@ -56,6 +60,16 @@ func (r *QualifyingRule) AlertKeys() map[string]AlertKeyConfig {
 			ValidPhases: []DrivingPhase{PhaseInGarage, PhasePitLane, PhaseOutLap, PhaseFlyingLap, PhaseInLap},
 			DedupScope:  DedupScopePhase,
 		},
+		"inlap_traffic_behind": {
+			Category:    DirectiveCategoryQualifying,
+			ValidPhases: []DrivingPhase{PhaseInLap},
+			DedupScope:  DedupScopeNone,
+		},
+		"inlap_cooldown": {
+			Category:    DirectiveCategoryCoaching,
+			ValidPhases: []DrivingPhase{PhaseInLap},
+			DedupScope:  DedupScopeLap,
+		},
 	}
 }
 
@@ -66,10 +80,14 @@ func (r *QualifyingRule) Reset(scope DedupScope) {
 	if scope == DedupScopeLap || scope == DedupScopeNone {
 		r.lastInvalidLapNum = -1
 		r.lastOutLapChecked = -1
+		r.lastInLapCooldownLap = -1
+		r.lastInLapTrafficRivalIdx = -1
 	}
 	if scope == DedupScopePhase || scope == DedupScopeNone {
 		r.lastSessionTimeWarned = false
 		r.lastElimDangerWarned = false
+		r.lastInLapCooldownLap = -1
+		r.lastInLapTrafficRivalIdx = -1
 	}
 }
 
@@ -189,6 +207,53 @@ func (r *QualifyingRule) Evaluate(ctx *EvaluationContext) []Directive {
 						"session":  sessionName,
 					},
 				})
+			}
+		}
+	}
+
+	// 5. In-Lap Fast Traffic Behind & Cooldown Instructions (Qualy / Practice only)
+	if (isQualy || ctx.IsPracticeSession()) && (ctx.Phase == PhaseInLap || (playerLap != nil && playerLap.DriverStatus == packets.DriverStatusInLap)) &&
+		(ctx.Packet == nil || isPacketType[*packets.PacketLapData](ctx.Packet)) && playerLap != nil {
+		currentLap := int(playerLap.CurrentLapNum)
+
+		// Cooldown instruction once per in-lap
+		if r.lastInLapCooldownLap != currentLap {
+			r.lastInLapCooldownLap = currentLap
+			directives = append(directives, Directive{
+				ID:       "inlap_cooldown",
+				Category: DirectiveCategoryCoaching,
+				SubAlert: "inlap_cooldown",
+				Title:    "Cool Down Car",
+				Message:  "Flying lap completed, box this lap. Recharge ERS battery, cool the brakes and bring the car home safely.",
+				Urgency:  UrgencyLow,
+			})
+		}
+
+		// Fast car approaching on hot lap behind
+		if ctx.LapData != nil {
+			maxTrafficBehindDist := float32(InLapFastCarBehindGapSec * AverageRaceSpeedMetersPerSec)
+			for i, rival := range ctx.LapData.LapData {
+				if i == ctx.PlayerCarIndex || rival.TotalDistance == 0 || rival.DriverStatus != packets.DriverStatusFlyingLap {
+					continue
+				}
+				// Rival is behind player: playerLap.TotalDistance - rival.TotalDistance > 0
+				distBehind := playerLap.TotalDistance - rival.TotalDistance
+				if distBehind > 0 && distBehind < maxTrafficBehindDist && r.lastInLapTrafficRivalIdx != i {
+					r.lastInLapTrafficRivalIdx = i
+					gapSec := distBehind / AverageRaceSpeedMetersPerSec
+					directives = append(directives, Directive{
+						ID:       "inlap_traffic_behind",
+						Category: DirectiveCategoryQualifying,
+						SubAlert: "inlap_traffic_behind",
+						Title:    "Fast Car Behind on Flying Lap",
+						Message:  fmt.Sprintf("Traffic warning! Fast car approaching on flying lap behind (%.1fs gap). Give way safely.", gapSec),
+						Urgency:  UrgencyHigh,
+						Metadata: map[string]any{
+							"rival_idx": i,
+							"gap_sec":   gapSec,
+						},
+					})
+				}
 			}
 		}
 	}

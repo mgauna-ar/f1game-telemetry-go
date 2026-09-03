@@ -6,8 +6,8 @@ const (
 	DefaultDirectiveCooldownMs = 45_000
 
 	// Smart Driving Discretion thresholds
-	SmartDiscretionBrakeThreshold = 0.50
-	SmartDiscretionSteerThreshold = 0.45
+	SmartDiscretionBrakeThreshold = 0.30
+	SmartDiscretionSteerThreshold = 0.35
 
 	// Stint & Pit stop tracking heuristics
 	PitStopDetectionMaxTyreAgeLaps = 1
@@ -15,12 +15,16 @@ const (
 	PostPitSuppressionLaps         = 1
 
 	// Speed and distance estimations
-	AverageRaceSpeedMetersPerSec = 65.0
-	QualyOutLapSpeedMetersPerSec = 60.0
-	SpeedGarageMaxKmh            = 5.0
-	DefaultTrackLengthMeters     = 5000.0
-	MaxCleanAirDistanceMeters    = 9000.0
-	MaxTrackDistanceDeltaInitial = 99999.0
+	AverageRaceSpeedMetersPerSec   = 65.0
+	QualyOutLapSpeedMetersPerSec   = 60.0
+	SpeedGarageMaxKmh              = 5.0
+	SpeedGridMaxKmh                = 10.0
+	MaxGridTrackDistanceMeters     = 300.0
+	InLapFastCarBehindGapSec       = 3.5
+	InLapFastCarBehindSpeedDiffKmh = 40.0
+	DefaultTrackLengthMeters       = 5000.0
+	MaxCleanAirDistanceMeters      = 9000.0
+	MaxTrackDistanceDeltaInitial   = 99999.0
 
 	// Lap progress & sector midpoint approximations
 	SectorMidpointFractionS1       = 0.15
