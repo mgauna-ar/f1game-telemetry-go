@@ -283,6 +283,7 @@ func TestERSRuleAndBrakesRule_Unit(t *testing.T) {
 	}
 	ctxERS := &EvaluationContext{
 		Status:         statusPkt,
+		Session:        &packets.PacketSessionData{SessionType: packets.SessionRace},
 		Config:         cfg,
 		PlayerCarIndex: 0,
 		Phase:          PhaseRacing,
@@ -684,6 +685,8 @@ func TestCoachingRule_TableDriven(t *testing.T) {
 	cfg := DefaultEngineerConfig()
 	rule := NewCoachingRule()
 
+	sessionPkt := &packets.PacketSessionData{SessionType: packets.SessionRace}
+
 	// Lap 1, Sector 0: establish baseline S1 = 25000ms
 	ctxLap1S0 := &EvaluationContext{
 		LapData: &packets.PacketLapData{
@@ -697,6 +700,7 @@ func TestCoachingRule_TableDriven(t *testing.T) {
 				},
 			},
 		},
+		Session:        sessionPkt,
 		Config:         cfg,
 		PlayerCarIndex: 0,
 		Phase:          PhaseRacing,
@@ -720,6 +724,7 @@ func TestCoachingRule_TableDriven(t *testing.T) {
 				},
 			},
 		},
+		Session:        sessionPkt,
 		Config:         cfg,
 		PlayerCarIndex: 0,
 		Phase:          PhaseRacing,
@@ -739,6 +744,7 @@ func TestCoachingRule_TableDriven(t *testing.T) {
 				},
 			},
 		},
+		Session:        sessionPkt,
 		Config:         cfg,
 		PlayerCarIndex: 0,
 		Phase:          PhaseRacing,
@@ -763,6 +769,7 @@ func TestCoachingRule_TableDriven(t *testing.T) {
 				},
 			},
 		},
+		Session:        sessionPkt,
 		Config:         cfg,
 		PlayerCarIndex: 0,
 		Phase:          PhaseRacing,
@@ -1339,5 +1346,376 @@ func TestERSRule_EngineThermalDerateStages(t *testing.T) {
 	}
 	if !strings.Contains(dirsCrit[0].Message, "6.0%") || !strings.Contains(dirsCrit[0].Message, "thermal derate") {
 		t.Errorf("expected critical message to mention 6.0%% power loss and thermal derate: %s", dirsCrit[0].Message)
+	}
+}
+
+func TestCoachingRule_NeutralizationAndCeilingShields(t *testing.T) {
+	rule := NewCoachingRule()
+	cfg := DefaultEngineerConfig()
+	sessionRace := &packets.PacketSessionData{
+		SessionType:     packets.SessionRace,
+		SafetyCarStatus: packets.SafetyCarNone,
+		TrackLength:     5000,
+	}
+
+	// 1. Establish PB S1 = 28000ms on Lap 2
+	ctxLap2PB := &EvaluationContext{
+		LapData: &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{CurrentLapNum: 2, Sector: 1, Sector1TimeMSPart: 28000, DriverStatus: packets.DriverStatusOnTrack, PitStatus: packets.PitStatusNone},
+			},
+		},
+		Session:        sessionRace,
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseRacing,
+	}
+	rule.Evaluate(ctxLap2PB)
+
+	// 2. Delta loss under Full Safety Car: Lap 3, S1 = 45000ms (+17.0s) -> MUST BE SUPPRESSED
+	sessionSC := &packets.PacketSessionData{
+		SessionType:     packets.SessionRace,
+		SafetyCarStatus: packets.SafetyCarFull,
+		TrackLength:     5000,
+	}
+	ctxLap3SC := &EvaluationContext{
+		LapData: &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{CurrentLapNum: 3, Sector: 1, Sector1TimeMSPart: 45000, DriverStatus: packets.DriverStatusOnTrack, PitStatus: packets.PitStatusNone},
+			},
+		},
+		Session:        sessionSC,
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseSafetyCar,
+	}
+	rule.Evaluate(ctxLap3SC)
+	dirsSC := rule.Evaluate(ctxLap3SC)
+	if len(dirsSC) != 0 {
+		t.Fatalf("expected sector coaching to be suppressed under Full Safety Car, got %+v", dirsSC)
+	}
+
+	// 3. Delta loss under SafetyCarDelta active (VSC): Lap 3, S1 = 44000ms -> MUST BE SUPPRESSED
+	ctxLap3VSC := &EvaluationContext{
+		LapData: &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{CurrentLapNum: 3, Sector: 1, Sector1TimeMSPart: 44000, SafetyCarDelta: 1.25, DriverStatus: packets.DriverStatusOnTrack, PitStatus: packets.PitStatusNone},
+			},
+		},
+		Session:        sessionRace,
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseRacing,
+	}
+	dirsVSC := rule.Evaluate(ctxLap3VSC)
+	if len(dirsVSC) != 0 {
+		t.Fatalf("expected sector coaching to be suppressed when SafetyCarDelta is active, got %+v", dirsVSC)
+	}
+
+	// 4. Restart Lap Cooldown: Lap 3 ends SC, green flag returns on Lap 3 S2 -> Lap 3 S2 MUST BE SUPPRESSED
+	ctxLap3Restart := &EvaluationContext{
+		LapData: &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{CurrentLapNum: 3, Sector: 2, Sector1TimeMSPart: 28000, Sector2TimeMSPart: 31000, DriverStatus: packets.DriverStatusOnTrack, PitStatus: packets.PitStatusNone},
+			},
+		},
+		Session:        sessionRace,
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseRacing,
+	}
+	dirsRestart := rule.Evaluate(ctxLap3Restart)
+	if len(dirsRestart) != 0 {
+		t.Fatalf("expected sector coaching to be suppressed on restart lap cooldown, got %+v", dirsRestart)
+	}
+
+	// 5. Yellow Flag suppression: Lap 4 S1 driver encounters local yellow flag (VehicleFIAFlags == 3)
+	ctxLap4Yellow := &EvaluationContext{
+		LapData: &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{CurrentLapNum: 4, Sector: 1, Sector1TimeMSPart: 29500, DriverStatus: packets.DriverStatusOnTrack, PitStatus: packets.PitStatusNone},
+			},
+		},
+		Status: &packets.PacketCarStatusData{
+			CarStatusData: [packets.MaxCars]packets.CarStatusData{
+				{VehicleFIAFlags: 3}, // Yellow flag
+			},
+		},
+		Session:        sessionRace,
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseRacing,
+	}
+	rule.Evaluate(ctxLap4Yellow)
+	dirsYellow := rule.Evaluate(ctxLap4Yellow)
+	if len(dirsYellow) != 0 {
+		t.Fatalf("expected sector coaching to be suppressed under local yellow flag, got %+v", dirsYellow)
+	}
+
+	// 6. Non-driving delta loss ceiling (>3.0s spin / gravel trap): Lap 5 S1 = 32000ms (+4.0s loss)
+	ctxLap5Spin := &EvaluationContext{
+		LapData: &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{CurrentLapNum: 5, Sector: 1, Sector1TimeMSPart: 32000, DriverStatus: packets.DriverStatusOnTrack, PitStatus: packets.PitStatusNone},
+			},
+		},
+		Session:        sessionRace,
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseRacing,
+	}
+	rule.Evaluate(ctxLap5Spin)
+	dirsSpin := rule.Evaluate(ctxLap5Spin)
+	if len(dirsSpin) != 0 {
+		t.Fatalf("expected delta loss > 3.0s to be filtered out as incident/spin, got %+v", dirsSpin)
+	}
+
+	// 7. Clean Green Flag driving mistake within threshold: Lap 6 S1 = 28600ms (+0.60s loss)
+	ctxLap6Mistake := &EvaluationContext{
+		LapData: &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{CurrentLapNum: 6, Sector: 1, Sector1TimeMSPart: 28600, DriverStatus: packets.DriverStatusOnTrack, PitStatus: packets.PitStatusNone},
+			},
+		},
+		Session:        sessionRace,
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseRacing,
+	}
+	rule.Evaluate(ctxLap6Mistake)
+	dirsMistake := rule.Evaluate(ctxLap6Mistake)
+	if len(dirsMistake) != 1 || dirsMistake[0].SubAlert != "sector_delta" {
+		t.Fatalf("expected clean coaching_s1 directive for 0.60s delta loss, got %+v", dirsMistake)
+	}
+}
+
+func TestERSRule_PushLapAndNeutralizationShields(t *testing.T) {
+	rule := NewERSRule()
+	cfg := DefaultEngineerConfig()
+	sessionRace := &packets.PacketSessionData{
+		SessionType:     packets.SessionRace,
+		SafetyCarStatus: packets.SafetyCarNone,
+		TrackLength:     5000,
+	}
+
+	// 1. Push Deploy Mode: Hotlap (mode 2) with low battery (10%) -> MUST BE SUPPRESSED
+	ctxHotlap := &EvaluationContext{
+		Status: &packets.PacketCarStatusData{
+			CarStatusData: [packets.MaxCars]packets.CarStatusData{
+				{ERSStoreEnergy: 400_000.0, ERSDeployMode: 2}, // Hotlap mode
+			},
+		},
+		Session:        sessionRace,
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseRacing,
+	}
+	dirsHotlap := rule.Evaluate(ctxHotlap)
+	if len(dirsHotlap) != 0 {
+		t.Fatalf("expected ers_low to be suppressed in Hotlap deploy mode, got %+v", dirsHotlap)
+	}
+
+	// 2. Push Deploy Mode: Overtake (mode 3) with low battery (10%) -> MUST BE SUPPRESSED
+	ctxOvertake := &EvaluationContext{
+		Status: &packets.PacketCarStatusData{
+			CarStatusData: [packets.MaxCars]packets.CarStatusData{
+				{ERSStoreEnergy: 400_000.0, ERSDeployMode: 3}, // Overtake mode
+			},
+		},
+		Session:        sessionRace,
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseRacing,
+	}
+	dirsOvertake := rule.Evaluate(ctxOvertake)
+	if len(dirsOvertake) != 0 {
+		t.Fatalf("expected ers_low to be suppressed in Overtake deploy mode, got %+v", dirsOvertake)
+	}
+
+	// 3. Final Sector / Finish Line Shield: LapDistance = 4600m / 5000m (92% distance) -> MUST BE SUPPRESSED
+	ctxFinishLine := &EvaluationContext{
+		Status: &packets.PacketCarStatusData{
+			CarStatusData: [packets.MaxCars]packets.CarStatusData{
+				{ERSStoreEnergy: 400_000.0, ERSDeployMode: 1}, // Medium mode
+			},
+		},
+		LapData: &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{LapDistance: 4600.0},
+			},
+		},
+		Session:        sessionRace,
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseRacing,
+	}
+	dirsFinishLine := rule.Evaluate(ctxFinishLine)
+	if len(dirsFinishLine) != 0 {
+		t.Fatalf("expected ers_low to be suppressed in final sector / finish line run, got %+v", dirsFinishLine)
+	}
+
+	// 4. Neutralization Shield: Virtual Safety Car active -> MUST BE SUPPRESSED
+	sessionVSC := &packets.PacketSessionData{
+		SessionType:     packets.SessionRace,
+		SafetyCarStatus: packets.SafetyCarVirtual,
+		TrackLength:     5000,
+	}
+	ctxVSC := &EvaluationContext{
+		Status: &packets.PacketCarStatusData{
+			CarStatusData: [packets.MaxCars]packets.CarStatusData{
+				{ERSStoreEnergy: 400_000.0, ERSDeployMode: 1},
+			},
+		},
+		LapData: &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{LapDistance: 2000.0},
+			},
+		},
+		Session:        sessionVSC,
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseSafetyCar,
+	}
+	dirsVSC := rule.Evaluate(ctxVSC)
+	if len(dirsVSC) != 0 {
+		t.Fatalf("expected ers_low to be suppressed under VSC, got %+v", dirsVSC)
+	}
+
+	// 5. Unconfirmed Session: Session == nil -> MUST BE SUPPRESSED
+	ctxNoSession := &EvaluationContext{
+		Status: &packets.PacketCarStatusData{
+			CarStatusData: [packets.MaxCars]packets.CarStatusData{
+				{ERSStoreEnergy: 400_000.0, ERSDeployMode: 1},
+			},
+		},
+		Session:        nil,
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseRacing,
+	}
+	dirsNoSession := rule.Evaluate(ctxNoSession)
+	if len(dirsNoSession) != 0 {
+		t.Fatalf("expected ers_low to be suppressed when Session is nil (unconfirmed session), got %+v", dirsNoSession)
+	}
+
+	// 6. Normal Racing Lap mid-lap: 2000m / 5000m (40%), deploy mode 1 -> MUST EMIT
+	ctxNormal := &EvaluationContext{
+		Status: &packets.PacketCarStatusData{
+			CarStatusData: [packets.MaxCars]packets.CarStatusData{
+				{ERSStoreEnergy: 400_000.0, ERSDeployMode: 1},
+			},
+		},
+		LapData: &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{LapDistance: 2000.0},
+			},
+		},
+		Session:        sessionRace,
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseRacing,
+	}
+	dirsNormal := rule.Evaluate(ctxNormal)
+	if len(dirsNormal) != 1 || dirsNormal[0].SubAlert != "ers_low" {
+		t.Fatalf("expected ers_low directive in mid-lap racing conditions, got %+v", dirsNormal)
+	}
+}
+
+func TestNeutralizationShields_TeammateFuelRivalsTyres(t *testing.T) {
+	sessionSC := &packets.PacketSessionData{
+		SessionType:     packets.SessionRace,
+		SafetyCarStatus: packets.SafetyCarFull,
+		TrackLength:     5000,
+	}
+
+	// 1. Teammate Ahead Proximity suppressed under SC
+	teammateRule := NewTeammateRule()
+	ctxTeammateSC := &EvaluationContext{
+		LapData: &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{CurrentLapNum: 5, TotalDistance: 5000, DriverStatus: packets.DriverStatusOnTrack},
+				{CurrentLapNum: 5, TotalDistance: 5050, DriverStatus: packets.DriverStatusOnTrack}, // teammate 50m ahead
+			},
+		},
+		Session:          sessionSC,
+		PlayerCarIndex:   0,
+		TeammateCarIndex: 1,
+		Phase:            PhaseSafetyCar,
+	}
+	dirsTeammate := teammateRule.Evaluate(ctxTeammateSC)
+	if len(dirsTeammate) != 0 {
+		t.Fatalf("expected teammate proximity alert to be suppressed under Safety Car queue, got %+v", dirsTeammate)
+	}
+
+	// Teammate Pitting alert MUST STILL FIRE under SC
+	ctxTeammatePitSC := &EvaluationContext{
+		LapData: &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{CurrentLapNum: 5, TotalDistance: 5000, DriverStatus: packets.DriverStatusOnTrack},
+				{CurrentLapNum: 5, TotalDistance: 5050, DriverStatus: packets.DriverStatusOnTrack, PitStatus: packets.PitStatusPitting},
+			},
+		},
+		Session:          sessionSC,
+		PlayerCarIndex:   0,
+		TeammateCarIndex: 1,
+		Phase:            PhaseSafetyCar,
+	}
+	dirsTeammatePit := teammateRule.Evaluate(ctxTeammatePitSC)
+	if len(dirsTeammatePit) != 1 || dirsTeammatePit[0].SubAlert != "teammate_pitting" {
+		t.Fatalf("expected teammate_pitting to emit even under Safety Car, got %+v", dirsTeammatePit)
+	}
+
+	// 2. Fuel Delta suppressed under SC
+	fuelRule := NewFuelRule()
+	cfg := DefaultEngineerConfig()
+	ctxFuelSC := &EvaluationContext{
+		Status: &packets.PacketCarStatusData{
+			CarStatusData: [packets.MaxCars]packets.CarStatusData{
+				{FuelRemainingLaps: -1.5},
+			},
+		},
+		LapData: &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{CurrentLapNum: 5, DriverStatus: packets.DriverStatusOnTrack},
+			},
+		},
+		Session:        sessionSC,
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseSafetyCar,
+	}
+	dirsFuel := fuelRule.Evaluate(ctxFuelSC)
+	if len(dirsFuel) != 0 {
+		t.Fatalf("expected fuel delta alert to be suppressed under Safety Car, got %+v", dirsFuel)
+	}
+
+	// 3. Tyre Overheat suppressed under SC
+	tyresRule := NewTyresRule()
+	ctxTyresSC := &EvaluationContext{
+		Telemetry: &packets.PacketCarTelemetryData{
+			CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
+				{TyresSurfaceTemperature: [4]uint8{120, 120, 125, 125}},
+			},
+		},
+		Status: &packets.PacketCarStatusData{
+			CarStatusData: [packets.MaxCars]packets.CarStatusData{
+				{ActualTyreCompound: packets.ActualCompoundC3, VisualTyreCompound: packets.CompoundMedium},
+			},
+		},
+		LapData: &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{CurrentLapNum: 5, DriverStatus: packets.DriverStatusOnTrack},
+			},
+		},
+		Session:        sessionSC,
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseSafetyCar,
+	}
+	dirsTyres := tyresRule.Evaluate(ctxTyresSC)
+	for _, d := range dirsTyres {
+		if d.SubAlert == "tyre_overheat" {
+			t.Fatalf("expected tyre_overheat alert to be suppressed under Safety Car, got %+v", dirsTyres)
+		}
 	}
 }

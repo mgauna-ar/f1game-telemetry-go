@@ -9,10 +9,11 @@ import (
 
 // CoachingRule manages micro-sector delta coaching alerts vs personal best.
 type CoachingRule struct {
-	mu            sync.Mutex
-	bestSector1MS int
-	bestSector2MS int
-	lastLapNumber int
+	mu                 sync.Mutex
+	bestSector1MS      int
+	bestSector2MS      int
+	lastLapNumber      int
+	lastNeutralizedLap int
 }
 
 // NewCoachingRule creates a new CoachingRule.
@@ -53,6 +54,7 @@ func (r *CoachingRule) Reset(scope DedupScope) {
 		r.bestSector1MS = 0
 		r.bestSector2MS = 0
 		r.lastLapNumber = 0
+		r.lastNeutralizedLap = 0
 	}
 }
 
@@ -76,6 +78,30 @@ func (r *CoachingRule) Evaluate(ctx *EvaluationContext) []Directive {
 		return nil
 	}
 
+	currentLap := int(playerLap.CurrentLapNum)
+
+	// 1. Comprehensive Neutralization Shield (SC, VSC, or SafetyCarDelta active)
+	isNeutralized := ctx.Phase == PhaseSafetyCar ||
+		(ctx.Session != nil && ctx.Session.SafetyCarStatus != packets.SafetyCarNone) ||
+		playerLap.SafetyCarDelta != 0
+	if isNeutralized {
+		r.lastNeutralizedLap = currentLap
+		r.lastLapNumber = currentLap
+		return nil
+	}
+
+	// 2. Restart Lap Cooldown: suppress coaching for the remainder of any lap that had a neutralization
+	if currentLap == r.lastNeutralizedLap {
+		r.lastLapNumber = currentLap
+		return nil
+	}
+
+	// 3. Yellow Flag suppression: driver had to slow down for incident ahead
+	if status := ctx.PlayerStatus(); status != nil && status.VehicleFIAFlags == 3 {
+		r.lastLapNumber = currentLap
+		return nil
+	}
+
 	isSectorCoachingPhase := ctx.Phase == PhaseRacing && ctx.IsRaceSession() &&
 		playerLap.CurrentLapNum > 1 &&
 		ctx.Phase != PhaseSafetyCar &&
@@ -95,10 +121,10 @@ func (r *CoachingRule) Evaluate(ctx *EvaluationContext) []Directive {
 		return nil
 	}
 
-	currentLap := int(playerLap.CurrentLapNum)
 	s1 := int(playerLap.Sector1TimeMSPart) + int(playerLap.Sector1TimeMinutesPart)*packets.MillisPerMinute
 	s2 := int(playerLap.Sector2TimeMSPart) + int(playerLap.Sector2TimeMinutesPart)*packets.MillisPerMinute
 
+	// Only update baseline PBs on clean, green-flag sectors
 	if s1 > 0 && (r.bestSector1MS == 0 || s1 < r.bestSector1MS) {
 		r.bestSector1MS = s1
 	}
@@ -115,7 +141,7 @@ func (r *CoachingRule) Evaluate(ctx *EvaluationContext) []Directive {
 
 	if int(playerLap.Sector) == 1 && s1 > 0 && r.bestSector1MS > 0 && currentLap == r.lastLapNumber {
 		deltaS1 := float64(s1-r.bestSector1MS) / float64(packets.MillisPerSecond)
-		if deltaS1 >= SectorTimeLossThresholdSec {
+		if deltaS1 >= SectorTimeLossThresholdSec && deltaS1 <= SectorTimeLossMaxThresholdSec {
 			directives = append(directives, Directive{
 				ID:       "coaching_s1",
 				Category: DirectiveCategoryCoaching,
@@ -133,7 +159,7 @@ func (r *CoachingRule) Evaluate(ctx *EvaluationContext) []Directive {
 
 	if int(playerLap.Sector) == 2 && s2 > 0 && r.bestSector2MS > 0 && currentLap == r.lastLapNumber {
 		deltaS2 := float64(s2-r.bestSector2MS) / float64(packets.MillisPerSecond)
-		if deltaS2 >= SectorTimeLossThresholdSec {
+		if deltaS2 >= SectorTimeLossThresholdSec && deltaS2 <= SectorTimeLossMaxThresholdSec {
 			directives = append(directives, Directive{
 				ID:       "coaching_s2",
 				Category: DirectiveCategoryCoaching,

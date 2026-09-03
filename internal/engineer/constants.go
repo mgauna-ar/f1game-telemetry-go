@@ -65,8 +65,10 @@ const (
 	CleanAirPeriodicLapModulo    = 5
 
 	// Coaching & Sector delta thresholds
-	SectorTimeLossThresholdSec = 0.35
-	TeammateGapThresholdSec    = 2.5
+	SectorTimeLossThresholdSec    = 0.35
+	SectorTimeLossMaxThresholdSec = 3.0
+	TeammateGapThresholdSec       = 2.5
+	ERSPushLapDistanceFraction    = 0.85
 
 	// Rivals & Overtake thresholds
 	RivalDefendGapDefaultSec = 1.0

@@ -155,7 +155,12 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 		overheatLimit := window.MaxTemp + TyreDegradationTempMarginC
 		coldLimit := window.MinTemp - TyreDegradationTempMarginC
 
-		if rearMaxTemp >= overheatLimit {
+		playerLap := ctx.PlayerLap()
+		isNeutralized := ctx.Phase == PhaseSafetyCar ||
+			(ctx.Session != nil && ctx.Session.SafetyCarStatus != packets.SafetyCarNone) ||
+			(playerLap != nil && playerLap.SafetyCarDelta != 0)
+
+		if rearMaxTemp >= overheatLimit && !isNeutralized {
 			var advice string
 			if ctx.Is2026() {
 				advice = fmt.Sprintf("%s rear tyre surface temperatures are overheating at %d°C (optimal window: %d-%d°C)! Manage traction out of corners to protect the narrower rear tyres.", window.CompoundName, int(math.Round(float64(rearMaxTemp))), int(window.MinTemp), int(window.MaxTemp))

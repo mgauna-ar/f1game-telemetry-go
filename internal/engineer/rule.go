@@ -224,10 +224,10 @@ func (ctx *EvaluationContext) PlayerDamage() *packets.CarDamageData {
 	return &ctx.Damage.CarDamageData[ctx.PlayerCarIndex]
 }
 
-// IsRaceSession returns true if the session is a race session (or default true if session packet is not received yet).
+// IsRaceSession returns true if the session is a confirmed race session.
 func (ctx *EvaluationContext) IsRaceSession() bool {
 	if ctx.Session == nil {
-		return true
+		return false
 	}
 	return packets.IsRaceSession(ctx.Session.SessionType)
 }

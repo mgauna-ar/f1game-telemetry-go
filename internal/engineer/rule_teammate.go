@@ -103,7 +103,11 @@ func (r *TeammateRule) Evaluate(ctx *EvaluationContext) []Directive {
 		r.lastTeammatePittingWarned = false
 	}
 
-	if gapSeconds < 0 && gapSeconds >= -TeammateGapThresholdSec && currentLap != r.lastTeammateAheadWarnLap {
+	isNeutralized := ctx.Phase == PhaseSafetyCar ||
+		(ctx.Session != nil && ctx.Session.SafetyCarStatus != packets.SafetyCarNone) ||
+		playerLap.SafetyCarDelta != 0
+
+	if !isNeutralized && gapSeconds < 0 && gapSeconds >= -TeammateGapThresholdSec && currentLap != r.lastTeammateAheadWarnLap {
 		r.lastTeammateAheadWarnLap = currentLap
 		directives = append(directives, Directive{
 			ID:       "teammate_ahead",

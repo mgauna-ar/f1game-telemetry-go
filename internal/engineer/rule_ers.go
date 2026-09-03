@@ -51,7 +51,21 @@ func (r *ERSRule) Evaluate(ctx *EvaluationContext) []Directive {
 	status := ctx.PlayerStatus()
 	if status != nil && (ctx.Packet == nil || isPacketType[*packets.PacketCarStatusData](ctx.Packet)) {
 		ersPct := (status.ERSStoreEnergy / packets.MaxERSStoreEnergyJoules) * 100.0
-		if ersPct <= ctx.Config.ERSLowPct && ctx.IsRaceSession() && ctx.Phase == PhaseRacing {
+		playerLap := ctx.PlayerLap()
+
+		// Neutralization Shield: do not warn for low ERS under SC/VSC
+		isNeutralized := ctx.Phase == PhaseSafetyCar ||
+			(ctx.Session != nil && ctx.Session.SafetyCarStatus != packets.SafetyCarNone) ||
+			(playerLap != nil && playerLap.SafetyCarDelta != 0)
+
+		// Push Lap / Deploy Mode Shield: intentional drain in Hotlap (2) or Overtake (3) mode
+		isPushMode := status.ERSDeployMode == 2 || status.ERSDeployMode == 3
+
+		// Final Sector / Finish Line Shield: intentional depletion on main straight
+		isFinalSector := CalculateLapDistanceFraction(ctx.Session, playerLap) >= ERSPushLapDistanceFraction
+
+		if ersPct <= ctx.Config.ERSLowPct && ctx.IsRaceSession() && ctx.Phase == PhaseRacing &&
+			!isNeutralized && !isPushMode && !isFinalSector {
 			var ersMsg string
 			if ctx.Is2026() {
 				ersMsg = fmt.Sprintf("ERS battery reserve is low at %d%%! Use Lift & Coast for MGU-K regeneration on straights.", int(math.Round(float64(ersPct))))

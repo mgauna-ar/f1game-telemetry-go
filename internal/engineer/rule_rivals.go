@@ -81,8 +81,8 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 
 	playerLap := ctx.PlayerLap()
 	if !ctx.IsRaceSession() || playerLap == nil || playerLap.CarPosition <= 0 || ctx.Phase != PhaseRacing ||
-		(ctx.Session != nil && ctx.Session.SafetyCarStatus != packets.SafetyCarNone) || ctx.LapData == nil ||
-		playerLap.CurrentLapNum == 1 {
+		(ctx.Session != nil && ctx.Session.SafetyCarStatus != packets.SafetyCarNone) || playerLap.SafetyCarDelta != 0 ||
+		ctx.LapData == nil || playerLap.CurrentLapNum == 1 {
 		return nil
 	}
 

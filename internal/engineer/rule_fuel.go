@@ -83,7 +83,12 @@ func (r *FuelRule) Evaluate(ctx *EvaluationContext) []Directive {
 
 	// 1. Fuel Target Deficit & Lift & Coast (from CarStatusData, race only at racing speed)
 	status := ctx.PlayerStatus()
-	if status != nil && ctx.IsRaceSession() && ctx.Phase == PhaseRacing && (ctx.Packet == nil || isPacketType[*packets.PacketCarStatusData](ctx.Packet)) &&
+	isNeutralized := ctx.Phase == PhaseSafetyCar ||
+		(ctx.Session != nil && ctx.Session.SafetyCarStatus != packets.SafetyCarNone) ||
+		(playerLap != nil && playerLap.SafetyCarDelta != 0)
+
+	if status != nil && ctx.IsRaceSession() && ctx.Phase == PhaseRacing && !isNeutralized &&
+		(ctx.Packet == nil || isPacketType[*packets.PacketCarStatusData](ctx.Packet)) &&
 		ctx.Config.IsAlertEnabled(string(DirectiveCategoryFuel), "fuel_delta") {
 		if status.FuelRemainingLaps <= ctx.Config.FuelDeltaLaps && currentLapNum > MinFuelAlertLapNum && currentLapNum != r.lastFuelDeltaAlertLap {
 			r.lastFuelDeltaAlertLap = currentLapNum
@@ -99,7 +104,7 @@ func (r *FuelRule) Evaluate(ctx *EvaluationContext) []Directive {
 	}
 
 	// 2. Pit Stop Window Opening (from SessionData & LapData, race only on LapData)
-	if ctx.IsRaceSession() && ctx.Phase != PhaseSafetyCar && ctx.Session != nil && ctx.Session.SafetyCarStatus == packets.SafetyCarNone && ctx.Session.PitStopWindowIdealLap > 0 &&
+	if ctx.IsRaceSession() && ctx.Phase != PhaseSafetyCar && !isNeutralized && ctx.Session != nil && ctx.Session.SafetyCarStatus == packets.SafetyCarNone && ctx.Session.PitStopWindowIdealLap > 0 &&
 		(ctx.Packet == nil || isPacketType[*packets.PacketLapData](ctx.Packet)) &&
 		ctx.Config.IsAlertEnabled(string(DirectiveCategoryPitStrategy), "pit_window") {
 		idealLap := int(ctx.Session.PitStopWindowIdealLap)
@@ -128,7 +133,7 @@ func (r *FuelRule) Evaluate(ctx *EvaluationContext) []Directive {
 	}
 
 	// 3. Undercut Threat Detection (from LapData, race only on LapData)
-	if ctx.IsRaceSession() && playerLap != nil && playerLap.CarPosition > 0 && ctx.Phase != PhaseSafetyCar &&
+	if ctx.IsRaceSession() && playerLap != nil && playerLap.CarPosition > 0 && ctx.Phase != PhaseSafetyCar && !isNeutralized &&
 		(ctx.Session == nil || ctx.Session.SafetyCarStatus == packets.SafetyCarNone) && ctx.LapData != nil &&
 		(ctx.Packet == nil || isPacketType[*packets.PacketLapData](ctx.Packet)) &&
 		ctx.Config.IsAlertEnabled(string(DirectiveCategoryPitStrategy), "undercut") {
