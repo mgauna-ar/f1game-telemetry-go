@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/mgauna/f1game-telemetry-go/internal/locales"
 )
 
 const (
@@ -29,12 +30,12 @@ const (
 	defaultAudioFormat = "audio-24khz-48kbitrate-mono-mp3"
 	winEpochOffset     = 11644473600
 
-	// Default Neural Voices for Personas
-	VoiceColapintoArgentine = "es-AR-TomasNeural"
-	VoiceBonoBritish        = "en-GB-RyanNeural"
-	VoiceSpanishAlvaro      = "es-ES-AlvaroNeural"
-	VoiceMexicanJorge       = "es-MX-JorgeNeural"
-	VoiceAmericanGuy        = "en-US-GuyNeural"
+	// Default Neural Voices for Personas (aliased from locales)
+	VoiceColapintoArgentine = locales.VoiceColapintoArgentine
+	VoiceBonoBritish        = locales.VoiceBonoBritish
+	VoiceSpanishAlvaro      = locales.VoiceSpanishAlvaro
+	VoiceMexicanJorge       = locales.VoiceMexicanJorge
+	VoiceAmericanGuy        = locales.VoiceAmericanGuy
 )
 
 // AITTSRequest represents the incoming JSON payload for synthesis.
@@ -162,9 +163,6 @@ func generateUUID() string {
 // ResolveVoice determines the appropriate neural voice name based on voice, persona, language, or defaults.
 func ResolveVoice(voice, persona, language string) (voiceName, lang string) {
 	v := strings.TrimSpace(voice)
-	p := strings.ToLower(strings.TrimSpace(persona))
-	l := strings.ToLower(strings.TrimSpace(language))
-
 	if v != "" {
 		// Infer lang from voice name prefix (e.g. es-AR-TomasNeural -> es-AR)
 		parts := strings.Split(v, "-")
@@ -174,22 +172,8 @@ func ResolveVoice(voice, persona, language string) (voiceName, lang string) {
 		return v, "es-AR"
 	}
 
-	if strings.HasPrefix(l, "en") {
-		return VoiceBonoBritish, "en-GB"
-	}
-	if strings.HasPrefix(l, "es") {
-		return VoiceColapintoArgentine, "es-AR"
-	}
-
-	if p == "colapinto" {
-		return VoiceColapintoArgentine, "es-AR"
-	}
-	if p == "bono" {
-		return VoiceBonoBritish, "en-GB"
-	}
-
-	// Default to Bono (British Male)
-	return VoiceBonoBritish, "en-GB"
+	cat := locales.Resolve(language, "", persona)
+	return cat.DefaultPersonaTTSVoice(persona)
 }
 
 // BuildSSML constructs a valid W3C SSML payload.

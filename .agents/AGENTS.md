@@ -13,6 +13,7 @@ This file (`.agents/AGENTS.md`) contains workspace-specific rules, architectural
     - `internal/storage/`: SQLite repository, data models with custom `MarshalJSON` sanitization, versioned migrations, and raw zstd compression.
     - `internal/packets/`: Strict 1:1 binary UDP telemetry decoders and domain constants.
     - `internal/ai/`: External AI providers (Gemini, OpenAI) and neural TTS voice synthesis.
+    - `internal/locales/`: Type-safe `PromptCatalog` interface, thread-safe locale registry, and locale-specific prompt catalogs (`en`, `es`) eliminating boolean language flags in the backend.
     - `internal/input/`: DirectInput PTT wheel and keyboard OS listeners.
 *   **Storage Invariants:**
     - CGO-free pure Go SQLite (`modernc.org/sqlite`) with versioned migrations (`schema_version` table).
@@ -53,6 +54,7 @@ This file (`.agents/AGENTS.md`) contains workspace-specific rules, architectural
 
 ## 7. Multi-Language & Localization Standards
 *   **English-First Base & Type-Safe I18n:** All underlying codebase structures, backend APIs, default telemetry payloads, and English dictionaries (`frontend/src/locales/en/`) serve as the primary base schema.
+*   **Backend Localization Architecture (`internal/locales`):** Eliminates hardcoded boolean language flags (`isEnglish`, `isSpanish`). Provides a type-safe `PromptCatalog` interface with English base fallback (`EnglishCatalog`), authentic Latin American motorsport Spanish catalog (`SpanishCatalog`), thread-safe registry (`Resolve`, `Get`), and unified Microsoft Edge Neural TTS voice mappings.
 *   **Multi-Language UI Support:** The frontend includes native, zero-dependency type-safe internationalization via `I18nProvider` and `useI18n` (`frontend/src/context/I18nContext.tsx`). Supported locales:
     - `en`: **English** (default) with 🇬🇧 flag indicator.
     - `es`: **Español (Latinoamérica)** with 🇦🇷 Argentina flag indicator (`"Español (Latinoamérica)"`), utilizing authentic Latin American motorsport terminology (*boxes*, *neumáticos*, *monoplaza*, *vuelta rápida*, *diferencia*). Standard international F1 acronyms (*DRS*, *ERS*, *S1/S2/S3*, *SC/VSC*, *RPM*, tyre compound letters) remain universally recognizable across all languages.

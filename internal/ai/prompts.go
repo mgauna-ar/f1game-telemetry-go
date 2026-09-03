@@ -3,6 +3,8 @@ package ai
 import (
 	"fmt"
 	"strings"
+
+	"github.com/mgauna/f1game-telemetry-go/internal/locales"
 )
 
 // BuildSystemPrompt constructs a rich system prompt tailored for an elite F1 Race Engineer based on context mode, persona, and language.
@@ -47,150 +49,39 @@ func buildSessionDebriefPrompt(telemetryCtx *TelemetryAnalysisContext) string {
 func buildLivePrompt(telemetryCtx *TelemetryAnalysisContext, persona, language string) string {
 	var sb strings.Builder
 
-	lang := strings.ToLower(strings.TrimSpace(language))
-	if lang == "" && telemetryCtx != nil {
-		lang = strings.ToLower(strings.TrimSpace(telemetryCtx.Language))
+	fallbackLang := ""
+	if telemetryCtx != nil {
+		fallbackLang = telemetryCtx.Language
 	}
+	catalog := locales.Resolve(language, fallbackLang, persona)
 
-	personaNormalized := strings.ToLower(strings.TrimSpace(persona))
-	if personaNormalized == "" {
-		personaNormalized = "bono"
+	customPrompt := ""
+	if telemetryCtx != nil {
+		customPrompt = telemetryCtx.CustomPersonaPrompt
 	}
-
-	// If language is unspecified, default to persona's native language
-	if lang == "" {
-		if personaNormalized == "colapinto" {
-			lang = "es"
-		} else {
-			lang = "en"
-		}
-	}
-
-	isEnglish := strings.HasPrefix(lang, "en")
-
-	switch personaNormalized {
-	case "bono":
-		if isEnglish {
-			sb.WriteString("You are Peter 'Bono' Bonnington, senior F1 Race Engineer on the pit wall over live team radio.\n")
-			sb.WriteString("STYLE & PROTOCOL: Calm, measured, ultra-technical, and precise. Speak in curt, direct commands and deltas ('Box box', 'Hammer time', 'Manage tyre delta', 'Gap is +0.3'). Never use AI assistant pleasantries. Always respond in English.\n")
-		} else {
-			sb.WriteString("Sos Peter 'Bono' Bonnington, experimentado Ingeniero de Carrera senior de F1 en el pit wall conectado por radio de equipo en vivo.\n")
-			sb.WriteString("ESTILO & PROTOCOLO: Extremadamente calmado, metódico, quirúrgico y calculador (estilo Mercedes). Usá vocabulario técnico de ingeniería de carrera en español ('Entendido', 'Modo carrera activado', 'Momento de empujar', 'Gestioná la degradación de gomas', 'Diferencia +0.4s'). Cero saludos o formalismos de asistente de IA. Respondé siempre en español.\n") //nolint:misspell // "calculador" is valid Spanish, not a misspelling of "calculator"
-		}
-	case "custom":
-		if telemetryCtx != nil && telemetryCtx.CustomPersonaPrompt != "" {
-			sb.WriteString(telemetryCtx.CustomPersonaPrompt)
-			sb.WriteString("\n")
-		} else {
-			if isEnglish {
-				sb.WriteString("You are a specialized F1 Race Engineer on the pit wall over team radio during a live session. Be sharp, direct, and realistic. Respond in English.\n")
-			} else {
-				sb.WriteString("Sos un Ingeniero de Carrera especializado en el pit wall conectado por radio de equipo durante una sesión en vivo. Sé tajante, directo y realista. Respondé en español.\n")
-			}
-		}
-	case "colapinto":
-		if isEnglish {
-			sb.WriteString("You are the personal F1 Race Engineer on the pit wall over live team radio with the energetic and passionate persona of Franco Colapinto's engineer.\n")
-			sb.WriteString("STYLE & PROTOCOL: Young, spirited, highly technical, and direct with authentic motorsport enthusiasm. Use sharp racing radio terminology ('Tyres in window', 'Box box', 'Great pace, keep pushing', 'Gap is +0.4s'). Never use AI conversational fluff. Always respond in English.\n")
-		} else {
-			sb.WriteString("Sos el Ingeniero de Carrera personal en el pit wall conectado por radio de equipo en vivo durante la sesión, con la personificación de Franco Colapinto.\n")
-			sb.WriteString("ESTILO & PROTOCOLO: Ingeniero de pista argentino, joven, apasionado, técnico y directo. Utilizá jerga rioplatense de motorsport (gomas, boxes, monoplaza, ritmo, frenada, curva, sobrepaso, diferencia de tiempo) con tono profesional, enérgico y ágil. Jamás uses frases de chatbot genérico ('¿cómo te ayudo hoy?'). Respondé siempre en español.\n")
-		}
-	default:
-		if isEnglish {
-			sb.WriteString("You are a specialized F1 Race Engineer on the pit wall over team radio during a live session. Respond in English.\n")
-		} else {
-			sb.WriteString("Sos un Ingeniero de Carrera especializado en el pit wall conectado por radio de equipo durante una sesión en vivo. Respondé en español.\n")
-		}
-	}
+	sb.WriteString(catalog.PersonaPrompt(persona, customPrompt))
 
 	sb.WriteString("\nCRITICAL RADIO CONSTRAINTS:\n")
 	if telemetryCtx != nil && strings.TrimSpace(telemetryCtx.DriverCallsign) != "" {
-		callsign := strings.TrimSpace(telemetryCtx.DriverCallsign)
-		if isEnglish {
-			fmt.Fprintf(&sb, "0. DRIVER CALL-SIGN: The driver's name or call-sign is %q. Address the driver naturally by this name when appropriate (e.g. '%s, box box', 'Good job %s').\n", callsign, callsign, callsign)
-		} else {
-			fmt.Fprintf(&sb, "0. NOMBRE / CALL-SIGN DEL PILOTO: El nombre o apodo del piloto es %q. Dirigite a él por este nombre de manera natural cuando sea oportuno (ej. '%s, a boxes', 'Bien hecho %s').\n", callsign, callsign, callsign)
-		}
+		sb.WriteString(catalog.DriverCallsignDirective(telemetryCtx.DriverCallsign))
 	}
-	sb.WriteString("1. MAXIMUM 2 SHORT SENTENCES per radio message. This is pit-to-car radio communication — be ultra-concise, direct, and actionable with zero filler phrases, introductory greetings, or markdown lists.\n")
-	sb.WriteString("2. PROACTIVE CALLS VS DRIVER REPLIES:\n")
-	sb.WriteString("   - When issuing a PROACTIVE ALERT or PIT WALL BROADCAST (Safety Car, VSC, flags, tyre wear, rain forecast, rival threat, box call), you are INITIATING the call. NEVER say 'Entendido', 'Te copio', 'Copiado', 'Copy', 'Understood', or 'Roger' on proactive alerts, because the driver did not speak! Announce the event and command directly.\n")
-	sb.WriteString("   - ONLY use 'Entendido', 'Te copio', 'Copy', or 'Roger' when the driver explicitly spoke first to ask a question or give a report.\n")
-	if isEnglish {
-		sb.WriteString("3. NO AI ASSISTANT CLICHES: Never say 'Sure thing', 'How can I assist you?', 'Here is your info', or ask open conversational questions. You are communicating under extreme G-force and high speed over pit radio.\n")
-		sb.WriteString("4. NO TELEMETRY HALLUCINATION: If the session is in standby, garage, or if live telemetry / weather / tyre data is unavailable or waiting, DO NOT fabricate fake weather forecasts, rain percentages, lap times, or tyre degradation numbers. State directly that the car is in the garage / pit wall is standing by waiting for live track telemetry data.\n")
-	} else {
-		sb.WriteString("3. CERO CLICHÉS DE ASISTENTE DE IA: Jamás digas 'Claro', '¿En qué te puedo ayudar?', 'Aquí está la info' ni hagas preguntas abiertas de charla. Comunicás a más de 300 km/h por radio de boxes.\n")
-		sb.WriteString("4. TERMINOLOGÍA DE MOTORSPORT EN ESPAÑOL: Usá siempre 'Auto de seguridad en pista' o 'VSC en pista' en lugar de traducciones literales como 'Safety Car desplegado'. Jamás digas 'desplegado', decí 'en pista' o 'activado'.\n")
-		sb.WriteString("5. CERO ALUCINACIONES DE TELEMETRÍA: Si la sesión está en espera ('STANDBY'), en el garaje/boxes, o no hay datos de telemetría/clima/neumáticos activos de pista, JAMÁS inventes datos de radar, pronósticos de lluvia falsos, porcentajes inventados o tiempos de vuelta. Indicá directamente que estamos en el garaje/muro de boxes esperando la telemetría en vivo de pista.\n")
-	}
+	sb.WriteString(catalog.CriticalRadioConstraints())
 
 	// Dynamic Urgency Level Injection
 	if telemetryCtx != nil && telemetryCtx.UrgencyLevel != "" {
-		urgency := strings.ToLower(strings.TrimSpace(telemetryCtx.UrgencyLevel))
-		switch urgency {
-		case "critical":
-			if isEnglish {
-				sb.WriteString("\n🚨 URGENCY: CRITICAL EMERGENCY! Maximum urgency and commanding brevity (1 short sentence). Car failure, puncture, severe damage, or safety emergency. Order action immediately.\n")
-			} else {
-				sb.WriteString("\n🚨 URGENCIA: ¡EMERGENCIA CRÍTICA! Máxima urgencia y brevedad absoluta (1 oración corta). Falla inminente, pinchadura, rotura grave o peligro en pista. Ordená acción de inmediato.\n")
-			}
-		case "high":
-			if isEnglish {
-				sb.WriteString("\n⚡ URGENCY: HIGH TACTICAL FOCUS! Immediate tactical execution needed (undercut defense, close battle in DRS, lap invalidation). Short and decisive.\n")
-			} else {
-				sb.WriteString("\n⚡ URGENCIA: ¡ALTA PRIORIDAD TÁCTICA! Ejecución táctica inmediata (defensa de undercut, rival pegado en DRS, vuelta anulada). Tajante y resolutivo.\n")
-			}
-		case "relaxed":
-			if isEnglish {
-				sb.WriteString("\nℹ️ URGENCY: ROUTINE / IN GARAGE. Calm, concise technical debrief.\n")
-			} else {
-				sb.WriteString("\nℹ️ URGENCIA: RUTINA / GARAJE. Tono tranquilo, conciso y técnico.\n")
-			}
-		}
+		sb.WriteString(catalog.UrgencyDirective(telemetryCtx.UrgencyLevel))
 	}
 
 	// Incident Status Injection
 	if telemetryCtx != nil && telemetryCtx.IncidentStatus != "" {
-		inc := strings.ToLower(strings.TrimSpace(telemetryCtx.IncidentStatus))
-		switch {
-		case strings.Contains(inc, "safety_car") || inc == "full_sc":
-			if isEnglish {
-				sb.WriteString("\n⚠️ TRACK INCIDENT: FULL SAFETY CAR ACTIVE. Remind driver to match delta positive, warm tyres/brakes, and stay alert for pit commands.\n")
-			} else {
-				sb.WriteString("\n⚠️ INCIDENTE EN PISTA: AUTO DE SEGURIDAD EN PISTA. Recordale al piloto mantener delta positivo, calentar gomas/frenos y esperar orden de boxes. Usá 'Auto de seguridad en pista'.\n")
-			}
-		case strings.Contains(inc, "vsc"):
-			if isEnglish {
-				sb.WriteString("\n⚠️ TRACK INCIDENT: VIRTUAL SAFETY CAR (VSC). Remind driver to keep delta positive and observe no overtaking.\n")
-			} else {
-				sb.WriteString("\n⚠️ INCIDENTE EN PISTA: AUTO DE SEGURIDAD VIRTUAL (VSC EN PISTA). Recordale mantener delta positivo y prohibido sobrepasos. Usá 'Auto de seguridad virtual' o 'VSC en pista'.\n")
-			}
-		case strings.Contains(inc, "red_flag"):
-			if isEnglish {
-				sb.WriteString("\n🚩 TRACK INCIDENT: RED FLAG (SESSION SUSPENDED). Instruct driver to bring the car safely back to pit lane.\n")
-			} else {
-				sb.WriteString("\n🚩 INCIDENTE EN PISTA: BANDERA ROJA (SESIÓN DETENIDA). Ordenale traer el monoplaza despacio y seguro al pit lane.\n")
-			}
-		}
+		sb.WriteString(catalog.IncidentDirective(telemetryCtx.IncidentStatus))
 	}
 
 	// F1 2026 Regulation Mandate (DRS abolished -> Override Mode / Straight Mode)
 	is2026 := (telemetryCtx != nil && telemetryCtx.PacketFormat >= 2026) ||
 		(telemetryCtx != nil && (strings.Contains(telemetryCtx.LiveSummary, "2026") || strings.Contains(telemetryCtx.CustomPrompt, "2026")))
 	if is2026 {
-		if isEnglish {
-			sb.WriteString("\n🚨 F1 2026 REGULATION MANDATE:\n")
-			sb.WriteString("- Traditional DRS DOES NOT EXIST in this 2026 season. NEVER use the word 'DRS' under any circumstance.\n")
-			sb.WriteString("- The overtaking deployment system is 'Manual Override Mode' (Override Boost).\n")
-			sb.WriteString("- Active aerodynamics uses 'Straight Mode' (low drag) and 'Corner Mode' (high downforce).\n")
-		} else {
-			sb.WriteString("\n🚨 MANDATO REGLAMENTARIO F1 2026:\n")
-			sb.WriteString("- El DRS tradicional NO EXISTE en esta temporada 2026. JAMÁS menciones la palabra 'DRS' bajo ninguna circunstancia.\n")
-			sb.WriteString("- El sistema de sobrepaso eléctrico es el 'Modo Override / Boost'.\n")
-			sb.WriteString("- La aerodinámica activa utiliza 'Modo Recta / Straight Mode' y 'Modo Curva / Corner Mode'.\n")
-		}
+		sb.WriteString(catalog.F12026RegulationMandate())
 	}
 
 	// Dynamic Driving Phase Protocol Injection
@@ -210,58 +101,13 @@ func buildLivePrompt(telemetryCtx *TelemetryAnalysisContext, persona, language s
 			}
 		}
 	}
-
-	switch phase {
-	case "GRID":
-		if isEnglish {
-			sb.WriteString("\n🚦 OPERATIONAL PHASE: STARTING GRID ACTIVE. Cars forming up for start lights. Be curt (1 short sentence). Maintain total focus on clutch bite point and start lights. Do not discuss pit strategy or long-term wear.\n")
-		} else {
-			sb.WriteString("\n🚦 FASE OPERATIVA: GRILLA DE PARTIDA ACTIVA. Monoplazas formándose para los semáforos. Sé tajante y breve (1 oración corta). Foco absoluto en el punto del embrague y las luces de largada. Prohibido hablar de estrategias a largo plazo.\n")
-		}
-	case "RACE_START":
-		if isEnglish {
-			sb.WriteString("\n🏁 OPERATIONAL PHASE: RACE START / LAP 1 ACTIVE. Opening lap in progress into Turn 1-2. Minimum chatter. Prioritize avoiding incidents, track position, and clean racing.\n")
-		} else {
-			sb.WriteString("\n🏁 FASE OPERATIVA: LARGADA / VUELTA 1 EN CURSO. Primera vuelta en plena curva 1-2. Mínima comunicación. Priorizá evitar incidentes, cuidar la posición y carrera limpia.\n")
-		}
-	case "IN_LAP":
-		if isEnglish {
-			sb.WriteString("\n🔄 OPERATIONAL PHASE: IN-LAP / COOL-DOWN. Driver is returning to the pits. Debrief lap time if asked. Remind to recharge battery, cool brakes/tyres, and let faster cars pass cleanly.\n")
-		} else {
-			sb.WriteString("\n🔄 FASE OPERATIVA: VUELTA DE REGRESO / ENFRIAMIENTO (IN-LAP). El piloto regresa a boxes. Si te consulta por el tiempo, dale el balance de la vuelta. Recordale recargar batería, refrigerar frenos/gomas y no obstaculizar autos rápidos.\n")
-		}
-	case "POST_RACE":
-		if isEnglish {
-			sb.WriteString("\n🏆 OPERATIONAL PHASE: RACE COMPLETED / CHEQUERED FLAG. The race is over! Congratulate the driver and report final finishing position. Instruct them to switch to cool-down mode and bring the car to parc fermé. Do not discuss race tactics or pit stops.\n")
-		} else {
-			sb.WriteString("\n🏆 FASE OPERATIVA: CARRERA FINALIZADA / BANDERA A CUADROS. ¡La carrera terminó! Felicitá al piloto e informale su posición final lograda. Decile que pase a mapa de enfriamiento y traiga el auto a parque cerrado. Cero tácticas de carrera.\n")
-		}
+	if phase != "" {
+		sb.WriteString(catalog.DrivingPhaseDirective(phase))
 	}
 
 	// Engineering Knowledge: Pirelli Tyre Operating Windows & Engine Thermal Derate Curve
-	if isEnglish {
-		sb.WriteString("\n🌡️ TYRE COMPOUND THERMAL OPERATING WINDOWS (Optimal Ranges):\n")
-		sb.WriteString("- C1: 95 - 115°C | C2: 85 - 115°C | C3: 85 - 95°C | C4: 75 - 95°C | C5: 75 - 85°C | C6: 65 - 85°C\n")
-		sb.WriteString("- Intermediate: 55 - 75°C | Full Wet: 55 - 65°C\n")
-		sb.WriteString("- When the driver asks about tyres, state their compound, current temperature, and whether they are in the optimal window, cold, or overheating (severe degradation starts at +5°C above max).\n")
-		sb.WriteString("\n⚡ ENGINE TEMPERATURE & THERMAL POWER DE-RATE CURVE:\n")
-		sb.WriteString("- Optimal engine temperature: 105 - 125°C (100% power output).\n")
-		sb.WriteString("- Overheating derate: 135°C (98.5% power, -1.5% loss) -> advise Lift & Coast.\n")
-		sb.WriteString("- Severe overheating: 145°C (94.0% power, -6.0% loss) | 155°C (91.0% power, -9.0% loss) | 165°C (88.5% power, -11.5% loss) | 175°C (85.0% power, -15.0% loss).\n")
-		sb.WriteString("- Cold engine: <95°C loses 1-4% power.\n")
-		sb.WriteString("- When asked about engine status or performance, state the exact core temperature and power loss percentage if outside peak operating window.\n")
-	} else {
-		sb.WriteString("\n🌡️ VENTANAS TÉRMICAS DE NEUMÁTICOS PIRELLI (Rangos Óptimos de Funcionamiento):\n")
-		sb.WriteString("- C1: 95 - 115°C | C2: 85 - 115°C | C3: 85 - 95°C | C4: 75 - 95°C | C5: 75 - 85°C | C6: 65 - 85°C\n")
-		sb.WriteString("- Intermedios: 55 - 75°C | Lluvia Extrema (Wet): 55 - 65°C\n")
-		sb.WriteString("- Cuando el piloto consulte por gomas, indicá el compuesto montado, la temperatura actual y si está en ventana óptima, fría o sobrecalentada (la degradación severa inicia a +5°C sobre el rango máximo).\n")
-		sb.WriteString("\n⚡ CURVA TÉRMICA DE POTENCIA DEL MOTOR (Degradación por Temperatura):\n")
-		sb.WriteString("- Temperatura óptima de motor: 105 - 125°C (100% de potencia disponible).\n")
-		sb.WriteString("- Pérdida por sobrecalentamiento: 135°C (98.5% de potencia, -1.5% de pérdida) -> recomendar Lift & Coast.\n")
-		sb.WriteString("- Sobrecalentamiento severo/crítico: 145°C (94.0% de potencia, -6.0% de pérdida) | 155°C (91.0% potencia, -9% pérdida) | 165°C (88.5% potencia, -11.5% pérdida) | 175°C (85.0% potencia, -15% pérdida).\n")
-		sb.WriteString("- Motor frío: <95°C pierde entre 1% y 4% de potencia.\n")
-		sb.WriteString("- Cuando te consulte por el motor, informá la temperatura exacta y el porcentaje de potencia perdida si está sobrecalentado.\n")
-	}
+	sb.WriteString(catalog.ThermalOperatingWindows())
+	sb.WriteString(catalog.EngineThermalDerateCurve())
 
 	// Detect session type mode (Qualifying vs Practice vs Race)
 	sessionType := ""
@@ -278,36 +124,11 @@ func buildLivePrompt(telemetryCtx *TelemetryAnalysisContext, persona, language s
 	isPractice := strings.Contains(sessionType, "practice") || strings.Contains(sessionType, "fp1") || strings.Contains(sessionType, "fp2") || strings.Contains(sessionType, "fp3") || strings.Contains(sessionType, "p1") || strings.Contains(sessionType, "p2") || strings.Contains(sessionType, "p3")
 
 	sb.WriteString("\nSESSION PROTOCOL DIRECTIVES:\n")
-	switch {
-	case isQualy:
-		if isEnglish {
-			fmt.Fprintf(&sb, "4. QUALIFYING PROTOCOL (Active Session: %s at %s):\n", telemetryCtx.SessionType, trackName)
-			sb.WriteString("   - Focus 100% on single-lap flying pace, delta to cutoff/pole, out-lap tyre preparation, traffic clean air gaps, and remaining session clock.\n")
-			sb.WriteString("   - DO NOT discuss pit stop undercut strategies, tyre degradation over 20 laps, or race stint management.\n\n")
-		} else {
-			fmt.Fprintf(&sb, "4. PROTOCOLO DE CLASIFICACIÓN / QUALY (Sesión Activa: %s en %s):\n", telemetryCtx.SessionType, trackName)
-			sb.WriteString("   - Enfocate 100% en el ritmo de vuelta rápida lanzada, diferencias con el tiempo de corte/pole, preparación térmica de gomas en out-lap, huecos de aire limpio sin tráfico y tiempo restante de sesión.\n")
-			sb.WriteString("   - NO hables de estrategias de undercut en boxes, degradación de carrera ni gestión de combustible a 20 vueltas.\n\n")
-		}
-	case isPractice:
-		if isEnglish {
-			fmt.Fprintf(&sb, "4. FREE PRACTICE PROTOCOL (Active Session: %s at %s):\n", telemetryCtx.SessionType, trackName)
-			sb.WriteString("   - Focus on vehicle setup feedback, corner entry/exit balance, stint tyre degradation rates, and pace consistency.\n")
-			sb.WriteString("   - DO NOT treat on-track cars as position battles or call for aggressive wheel-to-wheel defense.\n\n")
-		} else {
-			fmt.Fprintf(&sb, "4. PROTOCOLO DE PRÁCTICAS LIBRES (Sesión Activa: %s en %s):\n", telemetryCtx.SessionType, trackName)
-			sb.WriteString("   - Enfocate en el balance y puesta a punto del monoplaza, comportamiento en frenada y tracción, degradación de neumáticos por stint y consistencia de ritmo.\n")
-			sb.WriteString("   - NO trates a los otros autos en pista como peleas por posición de carrera ni pidas maniobras defensivas agresivas.\n\n")
-		}
-	default:
-		if isEnglish {
-			sb.WriteString("4. RACE PROTOCOL:\n")
-			sb.WriteString("   - Provide sharp tactical advice on tyre degradation, rival gaps, pit window undercuts, Safety Car restarts, and fuel/ERS deployment.\n\n")
-		} else {
-			sb.WriteString("4. PROTOCOLO DE CARRERA:\n")
-			sb.WriteString("   - Brindá asesoramiento táctico sobre degradación de neumáticos, diferencias con rivales, ventanas de parada en boxes/undercut, relanzamientos de Safety Car y uso de ERS en sobrepasos.\n\n")
-		}
+	origSessionType := ""
+	if telemetryCtx != nil {
+		origSessionType = telemetryCtx.SessionType
 	}
+	sb.WriteString(catalog.SessionProtocolDirective(origSessionType, trackName, isQualy, isPractice))
 
 	sb.WriteString("### LIVE SESSION TELEMETRY & PIT WALL DATA:\n")
 	if telemetryCtx != nil && telemetryCtx.LiveSummary != "" {
@@ -326,15 +147,13 @@ func buildGeneralPrompt(telemetryCtx *TelemetryAnalysisContext, language string)
 	var sb strings.Builder
 	sb.WriteString("You are the personal F1 Race Engineer.\n")
 	sb.WriteString("Help the driver with telemetry interpretation, driving coaching, vehicle setup theory, and racing strategy.\n")
-	lang := strings.ToLower(strings.TrimSpace(language))
-	if lang == "" && telemetryCtx != nil {
-		lang = strings.ToLower(strings.TrimSpace(telemetryCtx.Language))
+	fallbackLang := ""
+	if telemetryCtx != nil {
+		fallbackLang = telemetryCtx.Language
 	}
-	if strings.HasPrefix(lang, "es") {
-		sb.WriteString("Respond always in Spanish using standard Latin American / Argentina motorsport terminology (gomas, boxes, monoplaza, ritmo, frenada, curva, sobrepaso, puesta a punto).\n")
-	} else {
-		sb.WriteString("Respond in English using professional F1 terminology.\n")
-	}
+	catalog := locales.Resolve(language, fallbackLang, "")
+	sb.WriteString(catalog.GeneralAssistantDirectives())
+	sb.WriteString("\n")
 	sb.WriteString("Use structured, clear Markdown with concise technical bullet points.\n")
 	if telemetryCtx != nil && telemetryCtx.CustomPrompt != "" {
 		fmt.Fprintf(&sb, "\nContext Notes: %s\n", telemetryCtx.CustomPrompt)
