@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"context"
 	"testing"
 	"time"
 )
@@ -20,7 +21,7 @@ func TestHub_NamingAndDefaults(t *testing.T) {
 
 func TestHub_LifecycleAndClientCount(t *testing.T) {
 	hub := NewHub("TestLifecycle")
-	go hub.Run()
+	go hub.Run(t.Context())
 
 	if count := hub.ClientCount(); count != 0 {
 		t.Errorf("expected 0 clients initially, got %d", count)
@@ -77,7 +78,7 @@ func TestHub_LifecycleAndClientCount(t *testing.T) {
 
 func TestHub_BroadcastFanOut(t *testing.T) {
 	hub := NewHub("TestBroadcast")
-	go hub.Run()
+	go hub.Run(t.Context())
 
 	c1 := &Client{hub: hub, send: make(chan []byte, clientSendBufferSize)}
 	c2 := &Client{hub: hub, send: make(chan []byte, clientSendBufferSize)}
@@ -107,7 +108,7 @@ func TestHub_BroadcastFanOut(t *testing.T) {
 
 func TestHub_SlowClientEviction(t *testing.T) {
 	hub := NewHub("TestSlowClient")
-	go hub.Run()
+	go hub.Run(t.Context())
 
 	// Slow client with a channel buffer of 1 that is filled
 	slowClient := &Client{hub: hub, send: make(chan []byte, 1)}
@@ -177,5 +178,50 @@ func TestHub_BroadcastCongestion(t *testing.T) {
 		// Succeeded without blocking
 	case <-time.After(200 * time.Millisecond):
 		t.Fatal("Broadcast blocked on congested channel")
+	}
+}
+
+func TestHub_RunContextCancellation(t *testing.T) {
+	hub := NewHub("TestCancel")
+	ctx, cancel := context.WithCancel(context.Background())
+
+	done := make(chan struct{})
+	go func() {
+		hub.Run(ctx)
+		close(done)
+	}()
+
+	client := &Client{hub: hub, send: make(chan []byte, clientSendBufferSize)}
+	hub.Register(client)
+
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for hub.ClientCount() < 1 && time.Now().Before(deadline) {
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	if count := hub.ClientCount(); count != 1 {
+		t.Fatalf("expected 1 client, got %d", count)
+	}
+
+	cancel()
+
+	select {
+	case <-done:
+		// Clean exit
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("Hub.Run failed to exit after context cancellation")
+	}
+
+	if count := hub.ClientCount(); count != 0 {
+		t.Fatalf("expected 0 clients after hub shutdown, got %d", count)
+	}
+
+	select {
+	case _, ok := <-client.send:
+		if ok {
+			t.Errorf("expected client.send to be closed upon hub shutdown")
+		}
+	default:
+		t.Errorf("expected client.send to be closed and readable")
 	}
 }

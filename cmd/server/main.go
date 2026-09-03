@@ -111,10 +111,10 @@ func run(cfg ServerConfig) error {
 
 	// 2. Setup WebSocket Hubs
 	telemetryHub := api.NewHub("Telemetry")
-	go telemetryHub.Run()
+	go telemetryHub.Run(ctx)
 
 	engineerHub := api.NewHub("Engineer")
-	go engineerHub.Run()
+	go engineerHub.Run(ctx)
 
 	// 3. Setup Input Manager & Engineer Engine
 	inputMgr := input.NewManager()

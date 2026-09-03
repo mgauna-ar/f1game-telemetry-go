@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"log/slog"
 	"sync"
 	"time"
@@ -44,7 +45,7 @@ func NewClient(hub *Hub, conn *websocket.Conn) *Client {
 // ReadPump pumps messages from the websocket connection to the hub.
 func (c *Client) ReadPump() {
 	defer func() {
-		c.hub.unregister <- c
+		c.hub.Unregister(c)
 		c.conn.Close()
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
@@ -131,13 +132,30 @@ func (h *Hub) Register(client *Client) {
 
 // Unregister unregisters a client from the hub.
 func (h *Hub) Unregister(client *Client) {
-	h.unregister <- client
+	select {
+	case h.unregister <- client:
+	default:
+		h.mu.Lock()
+		if _, ok := h.clients[client]; ok {
+			delete(h.clients, client)
+			close(client.send)
+		}
+		h.mu.Unlock()
+	}
 }
 
-// Run starts the hub's main loop.
-func (h *Hub) Run() {
+// Run starts the hub's main loop. It terminates cleanly when ctx is canceled.
+func (h *Hub) Run(ctx context.Context) {
 	for {
 		select {
+		case <-ctx.Done():
+			h.mu.Lock()
+			for client := range h.clients {
+				close(client.send)
+				delete(h.clients, client)
+			}
+			h.mu.Unlock()
+			return
 		case client := <-h.register:
 			h.mu.Lock()
 			h.clients[client] = true

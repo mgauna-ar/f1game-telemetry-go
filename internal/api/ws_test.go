@@ -12,10 +12,10 @@ import (
 
 func TestWebSocket_Endpoints(t *testing.T) {
 	telemetryHub := NewHub("TelemetryTest")
-	go telemetryHub.Run()
+	go telemetryHub.Run(t.Context())
 
 	engineerHub := NewHub("EngineerTest")
-	go engineerHub.Run()
+	go engineerHub.Run(t.Context())
 
 	server, _ := setupTestServer(t)
 	server.telemetryHub = telemetryHub

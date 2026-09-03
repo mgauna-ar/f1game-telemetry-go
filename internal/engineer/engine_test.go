@@ -977,3 +977,172 @@ func TestEngineerEngine_BroadcastOutsideLock(t *testing.T) {
 		t.Fatal("expected broadcaster.Broadcast to execute with engine.mu unlocked, but lock was held")
 	}
 }
+
+func TestEngineerEngine_CategoryIndependence(t *testing.T) {
+	ctx := context.Background()
+	header := createTestHeader(packets.PacketFormat2026, 99887766, 0)
+
+	t.Run("disabling flags allows weather rain alert", func(t *testing.T) {
+		b := &mockBroadcaster{}
+		engine := NewEngineerEngine(b)
+		cfg := engine.GetConfig()
+		cfg.EnabledCategories = map[string]bool{
+			"flags": false,
+		}
+		engine.SetConfig(cfg)
+
+		// 1. Send Safety Car packet (flags category) -> should NOT emit directive
+		sessionSC := &packets.PacketSessionData{
+			Header:          header,
+			SessionType:     packets.SessionRace,
+			SafetyCarStatus: packets.SafetyCarFull,
+		}
+		engine.ProcessPacket(ctx, sessionSC)
+
+		if _, exists := engine.lastDirectives["flags_sc"]; exists {
+			t.Errorf("expected flags_sc to be suppressed when flags category is disabled")
+		}
+
+		// 2. Send weather packet (weather category) -> SHOULD emit directive even though flags rule handles it
+		sessionWeather := &packets.PacketSessionData{
+			Header:                    header,
+			SessionType:               packets.SessionRace,
+			NumWeatherForecastSamples: 1,
+			WeatherForecastSamples: [packets.MaxWeatherForecastSamples]packets.WeatherForecastSample{
+				{TimeOffset: 5, RainPercentage: 80},
+			},
+		}
+		engine.ProcessPacket(ctx, sessionWeather)
+
+		if _, exists := engine.lastDirectives["flags_rain"]; !exists {
+			t.Errorf("expected flags_rain to be emitted when flags is disabled but weather is enabled")
+		}
+	})
+
+	t.Run("disabling weather suppresses rain alert but allows flags", func(t *testing.T) {
+		b := &mockBroadcaster{}
+		engine := NewEngineerEngine(b)
+		cfg := engine.GetConfig()
+		cfg.EnabledCategories = map[string]bool{
+			"weather": false,
+		}
+		engine.SetConfig(cfg)
+
+		// 1. Send weather packet -> should NOT emit
+		sessionWeather := &packets.PacketSessionData{
+			Header:                    header,
+			SessionType:               packets.SessionRace,
+			NumWeatherForecastSamples: 1,
+			WeatherForecastSamples: [packets.MaxWeatherForecastSamples]packets.WeatherForecastSample{
+				{TimeOffset: 5, RainPercentage: 80},
+			},
+		}
+		engine.ProcessPacket(ctx, sessionWeather)
+
+		if _, exists := engine.lastDirectives["flags_rain"]; exists {
+			t.Errorf("expected flags_rain to be suppressed when weather category is disabled")
+		}
+
+		// 2. Send Safety Car packet -> SHOULD emit
+		sessionSC := &packets.PacketSessionData{
+			Header:          header,
+			SessionType:     packets.SessionRace,
+			SafetyCarStatus: packets.SafetyCarFull,
+		}
+		engine.ProcessPacket(ctx, sessionSC)
+
+		if _, exists := engine.lastDirectives["flags_sc"]; !exists {
+			t.Errorf("expected flags_sc to be emitted when weather is disabled but flags is enabled")
+		}
+	})
+
+	t.Run("disabling fuel allows pit_strategy undercut and pit_window", func(t *testing.T) {
+		b := &mockBroadcaster{}
+		engine := NewEngineerEngine(b)
+		cfg := engine.GetConfig()
+		cfg.EnabledCategories = map[string]bool{
+			"fuel": false,
+		}
+		engine.SetConfig(cfg)
+
+		sessionPkt := &packets.PacketSessionData{
+			Header:                header,
+			SessionType:           packets.SessionRace,
+			SafetyCarStatus:       packets.SafetyCarNone,
+			PitStopWindowIdealLap: 5,
+			PitStopRejoinPosition: 3,
+		}
+		engine.ProcessPacket(ctx, sessionPkt)
+
+		// Lap packet on lap 5 -> triggers pit_window
+		lapPkt := &packets.PacketLapData{
+			Header: header,
+			LapData: [packets.MaxCars]packets.LapData{
+				{CurrentLapNum: 5, CarPosition: 2, TotalDistance: 10000, DriverStatus: packets.DriverStatusOnTrack},
+			},
+		}
+		engine.ProcessPacket(ctx, lapPkt)
+
+		if _, exists := engine.lastDirectives["pit_window"]; !exists {
+			t.Errorf("expected pit_window to be emitted when fuel is disabled but pit_strategy is enabled")
+		}
+
+		// CarStatus packet with negative fuel delta -> should NOT emit fuel_delta
+		statusPkt := &packets.PacketCarStatusData{
+			Header: header,
+			CarStatusData: [packets.MaxCars]packets.CarStatusData{
+				{FuelRemainingLaps: -1.5},
+			},
+		}
+		engine.ProcessPacket(ctx, statusPkt)
+
+		if _, exists := engine.lastDirectives["fuel_delta"]; exists {
+			t.Errorf("expected fuel_delta to be suppressed when fuel category is disabled")
+		}
+	})
+
+	t.Run("disabling pit_strategy suppresses pit_window but allows fuel_delta", func(t *testing.T) {
+		b := &mockBroadcaster{}
+		engine := NewEngineerEngine(b)
+		cfg := engine.GetConfig()
+		cfg.EnabledCategories = map[string]bool{
+			"pit_strategy": false,
+		}
+		engine.SetConfig(cfg)
+
+		sessionPkt := &packets.PacketSessionData{
+			Header:                header,
+			SessionType:           packets.SessionRace,
+			SafetyCarStatus:       packets.SafetyCarNone,
+			PitStopWindowIdealLap: 5,
+			PitStopRejoinPosition: 3,
+		}
+		engine.ProcessPacket(ctx, sessionPkt)
+
+		// Lap packet on lap 5
+		lapPkt := &packets.PacketLapData{
+			Header: header,
+			LapData: [packets.MaxCars]packets.LapData{
+				{CurrentLapNum: 5, CarPosition: 2, TotalDistance: 10000, DriverStatus: packets.DriverStatusOnTrack},
+			},
+		}
+		engine.ProcessPacket(ctx, lapPkt)
+
+		if _, exists := engine.lastDirectives["pit_window"]; exists {
+			t.Errorf("expected pit_window to be suppressed when pit_strategy category is disabled")
+		}
+
+		// CarStatus packet with negative fuel delta -> SHOULD emit fuel_delta
+		statusPkt := &packets.PacketCarStatusData{
+			Header: header,
+			CarStatusData: [packets.MaxCars]packets.CarStatusData{
+				{FuelRemainingLaps: -1.5},
+			},
+		}
+		engine.ProcessPacket(ctx, statusPkt)
+
+		if _, exists := engine.lastDirectives["fuel_delta"]; !exists {
+			t.Errorf("expected fuel_delta to be emitted when pit_strategy is disabled but fuel is enabled")
+		}
+	})
+}

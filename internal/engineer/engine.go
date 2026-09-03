@@ -80,6 +80,9 @@ func NewEngineerEngine(broadcaster DirectiveBroadcaster) *EngineerEngine {
 	e.alertRules = make(map[string]AlertKeyConfig)
 	for _, rule := range e.rules {
 		for k, cfg := range rule.AlertKeys() {
+			if cfg.Category == "" {
+				cfg.Category = EngineerDirectiveCategory(rule.Category())
+			}
 			e.alertRules[k] = cfg
 		}
 	}
@@ -266,14 +269,19 @@ func (e *EngineerEngine) evaluateLocked(ctx *EvaluationContext) []Directive {
 
 		directives := rule.Evaluate(ctx)
 		for _, d := range directives {
+			cat := string(d.Category)
+			if cat == "" {
+				cat = rule.Category()
+				d.Category = EngineerDirectiveCategory(cat)
+			}
 			alertKey := d.ID
 			if alertKey == "" {
 				alertKey = d.SubAlert
 			}
 			if alertKey == "" {
-				alertKey = string(d.Category)
+				alertKey = cat
 			}
-			if e.canEmitDirectiveLocked(alertKey, string(d.Category), d.Urgency) {
+			if e.canEmitDirectiveLocked(alertKey, cat, d.Urgency) {
 				prepared := e.emitDirectiveLocked(ctx.Header, d, alertKey)
 				emittedDirectives = append(emittedDirectives, prepared)
 			}
@@ -284,7 +292,20 @@ func (e *EngineerEngine) evaluateLocked(ctx *EvaluationContext) []Directive {
 }
 
 func (e *EngineerEngine) isRuleEnabled(rule EngineerRule) bool {
-	return e.config.IsAlertEnabled(rule.Category(), rule.Name())
+	alertKeys := rule.AlertKeys()
+	if len(alertKeys) == 0 {
+		return e.config.IsAlertEnabled(rule.Category(), rule.Name())
+	}
+	for alertKey, cfg := range alertKeys {
+		cat := string(cfg.Category)
+		if cat == "" {
+			cat = rule.Category()
+		}
+		if e.config.IsAlertEnabled(cat, alertKey) {
+			return true
+		}
+	}
+	return false
 }
 
 func (e *EngineerEngine) isValidPhase(rule EngineerRule, currentPhase DrivingPhase) bool {

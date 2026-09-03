@@ -39,14 +39,17 @@ func (r *FuelRule) ValidPhases() []DrivingPhase {
 func (r *FuelRule) AlertKeys() map[string]AlertKeyConfig {
 	return map[string]AlertKeyConfig{
 		"fuel_delta": {
+			Category:    DirectiveCategoryFuel,
 			ValidPhases: []DrivingPhase{PhaseRacing, PhaseInLap, PhaseSafetyCar},
 			DedupScope:  DedupScopeLap,
 		},
 		"undercut": {
+			Category:    DirectiveCategoryPitStrategy,
 			ValidPhases: []DrivingPhase{PhaseRacing, PhaseInLap},
 			DedupScope:  DedupScopeStint,
 		},
 		"pit_window": {
+			Category:    DirectiveCategoryPitStrategy,
 			ValidPhases: []DrivingPhase{PhaseRacing, PhaseInLap},
 			DedupScope:  DedupScopeLap,
 		},
@@ -80,7 +83,8 @@ func (r *FuelRule) Evaluate(ctx *EvaluationContext) []Directive {
 
 	// 1. Fuel Target Deficit & Lift & Coast (from CarStatusData, race only)
 	status := ctx.PlayerStatus()
-	if status != nil && ctx.IsRaceSession() && (ctx.Packet == nil || isPacketType[*packets.PacketCarStatusData](ctx.Packet)) {
+	if status != nil && ctx.IsRaceSession() && (ctx.Packet == nil || isPacketType[*packets.PacketCarStatusData](ctx.Packet)) &&
+		ctx.Config.IsAlertEnabled(string(DirectiveCategoryFuel), "fuel_delta") {
 		if status.FuelRemainingLaps <= ctx.Config.FuelDeltaLaps && currentLapNum > MinFuelAlertLapNum && currentLapNum != r.lastFuelDeltaAlertLap {
 			r.lastFuelDeltaAlertLap = currentLapNum
 			directives = append(directives, Directive{
@@ -96,7 +100,8 @@ func (r *FuelRule) Evaluate(ctx *EvaluationContext) []Directive {
 
 	// 2. Pit Stop Window Opening (from SessionData & LapData, race only on LapData)
 	if ctx.IsRaceSession() && ctx.Phase != PhaseSafetyCar && ctx.Session != nil && ctx.Session.SafetyCarStatus == packets.SafetyCarNone && ctx.Session.PitStopWindowIdealLap > 0 &&
-		(ctx.Packet == nil || isPacketType[*packets.PacketLapData](ctx.Packet)) {
+		(ctx.Packet == nil || isPacketType[*packets.PacketLapData](ctx.Packet)) &&
+		ctx.Config.IsAlertEnabled(string(DirectiveCategoryPitStrategy), "pit_window") {
 		idealLap := int(ctx.Session.PitStopWindowIdealLap)
 		if idealLap == currentLapNum && r.lastPitWindowWarnedLap != currentLapNum {
 			r.lastPitWindowWarnedLap = currentLapNum
@@ -125,7 +130,8 @@ func (r *FuelRule) Evaluate(ctx *EvaluationContext) []Directive {
 	// 3. Undercut Threat Detection (from LapData, race only on LapData)
 	if ctx.IsRaceSession() && playerLap != nil && playerLap.CarPosition > 0 && ctx.Phase != PhaseSafetyCar &&
 		(ctx.Session == nil || ctx.Session.SafetyCarStatus == packets.SafetyCarNone) && ctx.LapData != nil &&
-		(ctx.Packet == nil || isPacketType[*packets.PacketLapData](ctx.Packet)) {
+		(ctx.Packet == nil || isPacketType[*packets.PacketLapData](ctx.Packet)) &&
+		ctx.Config.IsAlertEnabled(string(DirectiveCategoryPitStrategy), "undercut") {
 		playerPos := int(playerLap.CarPosition)
 		for i, rival := range ctx.LapData.LapData {
 			if i == ctx.PlayerCarIndex || int(rival.CarPosition) != playerPos+1 {

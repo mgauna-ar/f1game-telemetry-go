@@ -9,10 +9,12 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"testing/fstest"
 	"time"
 
+	"github.com/mgauna/f1game-telemetry-go/internal/input"
 	sessionSvc "github.com/mgauna/f1game-telemetry-go/internal/session"
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
 )
@@ -646,5 +648,118 @@ func TestHandleEmbeddedFrontendAndSPAFallback(t *testing.T) {
 	server.router.ServeHTTP(recClean, reqClean)
 	if recClean.Code != http.StatusOK {
 		t.Fatalf("expected 200 OK for cleaned path, got %d", recClean.Code)
+	}
+}
+
+type mockInputManager struct {
+	mu         sync.Mutex
+	eventsChan chan input.Event
+	learnChan  chan input.Mapping
+	isLearning bool
+}
+
+func newMockInputManager() *mockInputManager {
+	return &mockInputManager{
+		eventsChan: make(chan input.Event, 10),
+		learnChan:  make(chan input.Mapping, 1),
+	}
+}
+
+func (m *mockInputManager) Start(ctx context.Context) {}
+func (m *mockInputManager) Stop()                     {}
+func (m *mockInputManager) GetMapping() input.Mapping {
+	return input.Mapping{DeviceType: input.DeviceTypeKeyboard, KeyName: "Space"}
+}
+func (m *mockInputManager) SetMapping(mapping input.Mapping) {}
+func (m *mockInputManager) StartLearning(ctx context.Context) (<-chan input.Mapping, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.isLearning = true
+	return m.learnChan, nil
+}
+func (m *mockInputManager) CancelLearning() {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.isLearning = false
+}
+func (m *mockInputManager) Events() <-chan input.Event {
+	return m.eventsChan
+}
+func (m *mockInputManager) IsActive() bool {
+	return true
+}
+
+func TestServer_SetInputManager_GoroutineLifecycle(t *testing.T) {
+	server, _ := setupTestServer(t)
+
+	mgr1 := newMockInputManager()
+	server.SetInputManager(mgr1)
+
+	if server.inputCancel == nil {
+		t.Fatal("expected inputCancel to be set after SetInputManager(mgr1)")
+	}
+
+	// Setting a new manager must cancel the previous one and install the new cancel func
+	mgr2 := newMockInputManager()
+	server.SetInputManager(mgr2)
+
+	if server.inputCancel == nil {
+		t.Fatal("expected inputCancel to be set after SetInputManager(mgr2)")
+	}
+
+	// Setting manager to nil must cancel and clean up
+	server.SetInputManager(nil)
+	if server.inputCancel != nil {
+		t.Errorf("expected inputCancel to be nil after SetInputManager(nil), got non-nil")
+	}
+}
+
+func TestPTTLearn_ConcurrencyGuard(t *testing.T) {
+	server, _ := setupTestServer(t)
+	mgr := newMockInputManager()
+	server.SetInputManager(mgr)
+
+	// 1. First learn request should succeed with 200 OK
+	req1 := httptest.NewRequest(http.MethodPost, "/api/ai/ptt/learn", http.NoBody)
+	rec1 := httptest.NewRecorder()
+	server.router.ServeHTTP(rec1, req1)
+
+	if rec1.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for first learn request, got %d", rec1.Code)
+	}
+
+	var resp1 map[string]string
+	if err := json.NewDecoder(rec1.Body).Decode(&resp1); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+	if resp1["status"] != "learning_started" {
+		t.Errorf("expected status 'learning_started', got %s", resp1["status"])
+	}
+
+	// 2. Concurrent second learn request must be rejected with 409 Conflict
+	req2 := httptest.NewRequest(http.MethodPost, "/api/ai/ptt/learn", http.NoBody)
+	rec2 := httptest.NewRecorder()
+	server.router.ServeHTTP(rec2, req2)
+
+	if rec2.Code != http.StatusConflict {
+		t.Fatalf("expected 409 Conflict for concurrent learn request, got %d", rec2.Code)
+	}
+
+	// 3. Cancel learning
+	reqCancel := httptest.NewRequest(http.MethodPost, "/api/ai/ptt/learn/cancel", http.NoBody)
+	recCancel := httptest.NewRecorder()
+	server.router.ServeHTTP(recCancel, reqCancel)
+
+	if recCancel.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for cancel learn request, got %d", recCancel.Code)
+	}
+
+	// 4. Starting learn again should now succeed with 200 OK
+	req3 := httptest.NewRequest(http.MethodPost, "/api/ai/ptt/learn", http.NoBody)
+	rec3 := httptest.NewRecorder()
+	server.router.ServeHTTP(rec3, req3)
+
+	if rec3.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK after cancel for learn request, got %d", rec3.Code)
 	}
 }

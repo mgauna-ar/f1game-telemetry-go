@@ -9,6 +9,9 @@ import (
 	"github.com/mgauna/f1game-telemetry-go/internal/input"
 )
 
+// PTTLearningTimeout is the maximum duration interactive button learning remains active before auto-canceling.
+const PTTLearningTimeout = 20 * time.Second
+
 // PTTConfigResponse returns the current global PTT mapping and active status.
 type PTTConfigResponse struct {
 	Status   string        `json:"status"`
@@ -61,17 +64,35 @@ func (s *Server) handleStartPTTLearn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.pttMu.Lock()
+	if s.isLearning {
+		s.pttMu.Unlock()
+		writeJSONError(w, "PTT learning already in progress", http.StatusConflict)
+		return
+	}
+	s.isLearning = true
+	s.pttMu.Unlock()
+
 	// Interactive button learning outlives this HTTP request (which immediately returns 200 OK
 	// with "learning_started"). We use context.Background() because net/http cancels r.Context()
 	// as soon as the HTTP handler returns.
 	ch, err := s.inputManager.StartLearning(context.Background())
 	if err != nil {
+		s.pttMu.Lock()
+		s.isLearning = false
+		s.pttMu.Unlock()
 		writeJSONError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
 	go func() {
-		timer := time.NewTimer(20 * time.Second)
+		defer func() {
+			s.pttMu.Lock()
+			s.isLearning = false
+			s.pttMu.Unlock()
+		}()
+
+		timer := time.NewTimer(PTTLearningTimeout)
 		defer timer.Stop()
 
 		select {
@@ -100,6 +121,10 @@ func (s *Server) handleCancelPTTLearn(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, "Input manager not available", http.StatusServiceUnavailable)
 		return
 	}
+
+	s.pttMu.Lock()
+	s.isLearning = false
+	s.pttMu.Unlock()
 
 	s.inputManager.CancelLearning()
 	writeJSON(w, http.StatusOK, map[string]string{

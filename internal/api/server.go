@@ -9,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -38,6 +39,10 @@ type Server struct {
 	engineerHub     *Hub
 	engineerEngine  *engineer.EngineerEngine
 	inputManager    input.Manager
+	inputMu         sync.Mutex
+	inputCancel     context.CancelFunc
+	pttMu           sync.Mutex
+	isLearning      bool
 	staticFS        fs.FS
 	comparatorCache *analytics.ComparatorLRUCache
 }
@@ -97,18 +102,38 @@ func (s *Server) SetEngineerEngine(engine *engineer.EngineerEngine) {
 
 // SetInputManager configures the global input manager and forwards PTT state events to engineerHub.
 func (s *Server) SetInputManager(mgr input.Manager) {
+	s.inputMu.Lock()
+	defer s.inputMu.Unlock()
+
+	if s.inputCancel != nil {
+		s.inputCancel()
+		s.inputCancel = nil
+	}
+
 	s.inputManager = mgr
 	if mgr != nil && s.engineerHub != nil {
+		ctx, cancel := context.WithCancel(context.Background())
+		s.inputCancel = cancel
+		events := mgr.Events()
+
 		go func() {
-			for evt := range mgr.Events() {
-				payload, err := json.Marshal(map[string]any{
-					"type":      "ptt_event",
-					"state":     evt.State,
-					"mapping":   evt.Mapping,
-					"timestamp": evt.Timestamp,
-				})
-				if err == nil && s.engineerHub != nil {
-					s.engineerHub.Broadcast(payload)
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case evt, ok := <-events:
+					if !ok {
+						return
+					}
+					payload, err := json.Marshal(map[string]any{
+						"type":      "ptt_event",
+						"state":     evt.State,
+						"mapping":   evt.Mapping,
+						"timestamp": evt.Timestamp,
+					})
+					if err == nil && s.engineerHub != nil {
+						s.engineerHub.Broadcast(payload)
+					}
 				}
 			}
 		}()

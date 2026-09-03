@@ -63,6 +63,7 @@ const (
 
 // AlertKeyConfig defines execution guards and dedup scopes for an alert key.
 type AlertKeyConfig struct {
+	Category                EngineerDirectiveCategory
 	ValidPhases             []DrivingPhase
 	MinLapDistancePct       float32
 	SuppressAfterPitForLaps int

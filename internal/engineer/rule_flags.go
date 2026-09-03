@@ -41,22 +41,27 @@ func (r *FlagsRule) ValidPhases() []DrivingPhase {
 func (r *FlagsRule) AlertKeys() map[string]AlertKeyConfig {
 	return map[string]AlertKeyConfig{
 		"flags_sc": {
+			Category:    DirectiveCategoryFlags,
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar, PhaseRedFlag},
 			DedupScope:  DedupScopePhase,
 		},
 		"flags_red": {
+			Category:    DirectiveCategoryFlags,
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar, PhaseRedFlag},
 			DedupScope:  DedupScopePhase,
 		},
 		"flags_rain": {
+			Category:    DirectiveCategoryWeather,
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
 			DedupScope:  DedupScopePhase,
 		},
 		"track_limits": {
+			Category:    DirectiveCategoryFlags,
 			ValidPhases: []DrivingPhase{PhaseFlyingLap, PhaseRacing},
 			DedupScope:  DedupScopeLap,
 		},
 		"penalties": {
+			Category:    DirectiveCategoryFlags,
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
 			DedupScope:  DedupScopeNone,
 		},
@@ -161,6 +166,9 @@ func (r *FlagsRule) evaluateRedFlag(p *packets.PacketSessionData) *Directive {
 }
 
 func (r *FlagsRule) evaluateWeather(ctx *EvaluationContext) *Directive {
+	if !ctx.Config.IsAlertEnabled(string(DirectiveCategoryWeather), "flags_rain") {
+		return nil
+	}
 	p := ctx.Session
 	numSamples := int(p.NumWeatherForecastSamples)
 	if numSamples > len(p.WeatherForecastSamples) {
