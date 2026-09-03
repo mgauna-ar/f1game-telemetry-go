@@ -12,7 +12,6 @@ type CoachingRule struct {
 	mu            sync.Mutex
 	bestSector1MS int
 	bestSector2MS int
-	bestSector3MS int
 	lastLapNumber int
 }
 
@@ -31,10 +30,6 @@ func (r *CoachingRule) Category() string {
 
 func (r *CoachingRule) ValidPhases() []DrivingPhase {
 	return []DrivingPhase{PhaseFlyingLap, PhaseRacing}
-}
-
-func (r *CoachingRule) DedupScope() DedupScope {
-	return DedupScopeLap
 }
 
 func (r *CoachingRule) AlertKeys() map[string]AlertKeyConfig {
@@ -57,7 +52,6 @@ func (r *CoachingRule) Reset(scope DedupScope) {
 	if scope == DedupScopeNone {
 		r.bestSector1MS = 0
 		r.bestSector2MS = 0
-		r.bestSector3MS = 0
 		r.lastLapNumber = 0
 	}
 }

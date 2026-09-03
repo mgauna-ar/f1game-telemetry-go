@@ -1,6 +1,8 @@
 package analytics
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"math"
 	"sync"
@@ -333,4 +335,90 @@ func TestComparatorLRUCache(t *testing.T) {
 		}(i)
 	}
 	wg.Wait()
+}
+
+func TestMergeLapComparison(t *testing.T) {
+	ctx := context.Background()
+	repo, err := storage.NewSQLiteRepository("file::memory:?cache=shared")
+	if err != nil {
+		t.Fatalf("failed to create sqlite repo: %v", err)
+	}
+	defer repo.Close()
+
+	// 1. Test empty laps
+	resp, err := MergeLapComparison(ctx, repo, 0, 0, 5.0, 5000.0)
+	if err != nil {
+		t.Fatalf("unexpected error for 0 laps: %v", err)
+	}
+	if len(resp.Points) != 0 || len(resp.Turns) != 0 {
+		t.Errorf("expected empty points and turns, got %d points, %d turns", len(resp.Points), len(resp.Turns))
+	}
+
+	// 2. Test lap not found
+	_, err = MergeLapComparison(ctx, repo, 999, 0, 5.0, 5000.0)
+	if err == nil {
+		t.Fatalf("expected error for missing lap A")
+	}
+	var notFoundErr *LapNotFoundError
+	if !errors.As(err, &notFoundErr) {
+		t.Errorf("expected LapNotFoundError, got %T: %v", err, err)
+	}
+
+	// 3. Create session, participant, lap, telemetry
+	session := &storage.Session{
+		SessionUID:  "0x12345678",
+		TrackID:     1,
+		TrackName:   "Albert Park",
+		SessionType: "Race",
+	}
+	if err := repo.SaveSession(ctx, session); err != nil {
+		t.Fatalf("failed to save session: %v", err)
+	}
+
+	p := []storage.Participant{
+		{
+			SessionID:  session.ID,
+			CarIndex:   0,
+			RaceNumber: 1,
+			Name:       "Max Verstappen",
+		},
+	}
+	if err := repo.SaveParticipants(ctx, session.ID, p); err != nil {
+		t.Fatalf("failed to save participants: %v", err)
+	}
+
+	lapA := &storage.Lap{
+		SessionID:    session.ID,
+		CarIndex:     0,
+		LapNumber:    1,
+		LapTimeMS:    80000,
+		Stint:        1,
+		TyreCompound: "Soft",
+	}
+	if err := repo.SaveLap(ctx, lapA, false); err != nil {
+		t.Fatalf("failed to save lap A: %v", err)
+	}
+
+	samples := []storage.TelemetrySample{
+		{LapDistance: 0, Speed: 200, Throttle: 1.0, Brake: 0.0, Steer: 0.0, Gear: 6},
+		{LapDistance: 100, Speed: 220, Throttle: 1.0, Brake: 0.0, Steer: 0.0, Gear: 6},
+		{LapDistance: 200, Speed: 240, Throttle: 1.0, Brake: 0.0, Steer: 0.0, Gear: 7},
+	}
+	if err := repo.SaveLapTelemetryBlob(ctx, lapA.ID, samples); err != nil {
+		t.Fatalf("failed to save telemetry: %v", err)
+	}
+
+	resp, err = MergeLapComparison(ctx, repo, lapA.ID, 0, 50.0, 200.0)
+	if err != nil {
+		t.Fatalf("unexpected error during MergeLapComparison: %v", err)
+	}
+	if resp.LapA == nil {
+		t.Fatal("expected LapA metadata to be present")
+	}
+	if resp.LapA.Driver != "#1 Max Verstappen" {
+		t.Errorf("expected driver name '#1 Max Verstappen', got %s", resp.LapA.Driver)
+	}
+	if len(resp.Points) == 0 {
+		t.Errorf("expected merged points, got 0")
+	}
 }

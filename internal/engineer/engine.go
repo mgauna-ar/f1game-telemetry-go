@@ -16,7 +16,6 @@ import (
 type EngineerEngine struct {
 	mu             sync.RWMutex
 	broadcaster    DirectiveBroadcaster
-	repo           SettingsStore
 	config         EngineerConfig
 	rules          []EngineerRule
 	alertRules     map[string]AlertKeyConfig
@@ -47,14 +46,12 @@ type EngineerEngine struct {
 
 	// Internal state tracking
 	lastStintLapAge int
-	bestSector1MS   int
 }
 
 // NewEngineerEngine creates a new EngineerEngine instance with default rules.
-func NewEngineerEngine(broadcaster DirectiveBroadcaster, repo SettingsStore) *EngineerEngine {
+func NewEngineerEngine(broadcaster DirectiveBroadcaster) *EngineerEngine {
 	e := &EngineerEngine{
 		broadcaster:      broadcaster,
-		repo:             repo,
 		config:           DefaultEngineerConfig(),
 		lastDirectives:   make(map[string]int64),
 		stintKeys:        make(map[string]bool),
@@ -132,7 +129,6 @@ func (e *EngineerEngine) resetLocked(sessionUID uint64) {
 	e.lapKeys = make(map[string]int)
 	e.teammateCarIndex = -1
 	e.playerTeamID = -1
-	e.bestSector1MS = 0
 	e.lastStintLapAge = 0
 	e.currentPhase = PhaseUnknown
 	e.previousPhase = PhaseUnknown
@@ -282,10 +278,6 @@ func (e *EngineerEngine) evaluateLocked(ctx *EvaluationContext) []Directive {
 				emittedDirectives = append(emittedDirectives, prepared)
 			}
 		}
-
-		if coaching, ok := rule.(*CoachingRule); ok {
-			e.bestSector1MS = coaching.GetBestSector1MS()
-		}
 	}
 
 	return emittedDirectives
@@ -384,30 +376,6 @@ func (e *EngineerEngine) deriveDrivingPhase(session *packets.PacketSessionData, 
 	return PhaseUnknown
 }
 
-func (e *EngineerEngine) calculateLapDistancePct(session *packets.PacketSessionData, playerLap *packets.LapData) float32 {
-	if session != nil && session.TrackLength > 0 && playerLap != nil && playerLap.LapDistance >= 0 {
-		pct := playerLap.LapDistance / float32(session.TrackLength)
-		if pct < 0 {
-			return 0
-		}
-		if pct > 1 {
-			return 1
-		}
-		return pct
-	}
-	if playerLap != nil {
-		switch playerLap.Sector {
-		case 0:
-			return SectorMidpointFractionS1
-		case 1:
-			return SectorMidpointFractionS2
-		case 2:
-			return SectorMidpointFractionS3
-		}
-	}
-	return 0
-}
-
 func (e *EngineerEngine) getPlayerLapDataLocked() *packets.LapData {
 	if e.latestLapData == nil || e.playerCarIndex < 0 || e.playerCarIndex >= len(e.latestLapData.LapData) {
 		return nil
@@ -458,7 +426,7 @@ func (e *EngineerEngine) isPhaseAllowed(alertKey string) bool {
 	}
 
 	if e.currentPhase == PhaseOutLap && rule.MinLapDistancePct > 0 {
-		lapDistPct := e.calculateLapDistancePct(e.latestSession, e.getPlayerLapDataLocked())
+		lapDistPct := CalculateLapDistanceFraction(e.latestSession, e.getPlayerLapDataLocked())
 		if lapDistPct < rule.MinLapDistancePct {
 			return false
 		}

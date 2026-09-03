@@ -192,10 +192,10 @@ func TestHandlersComparator(t *testing.T) {
 }
 
 func TestHandlersAI(t *testing.T) {
-	server, repo := setupTestServer(t)
+	server, _ := setupTestServer(t)
 
 	hub := NewHub("Engineer")
-	eng := engineer.NewEngineerEngine(hub, repo)
+	eng := engineer.NewEngineerEngine(hub)
 	server.SetEngineerEngine(eng)
 
 	t.Run("GET /api/ai/config-status", func(t *testing.T) {
@@ -244,7 +244,7 @@ func TestHandlersAI(t *testing.T) {
 		}
 
 		// Verify persistence in SQLite across server/engine restart
-		eng2 := engineer.NewEngineerEngine(hub, repo)
+		eng2 := engineer.NewEngineerEngine(hub)
 		server.SetEngineerEngine(eng2)
 		if eng2.GetConfig().ChatterCooldownMs != 30000 {
 			t.Errorf("expected restored chatter cooldown 30000, got %d", eng2.GetConfig().ChatterCooldownMs)

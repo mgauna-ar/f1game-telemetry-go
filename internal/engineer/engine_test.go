@@ -30,7 +30,7 @@ func createTestHeader(format uint16, sessionUID uint64, playerCarIndex uint8) pa
 
 func TestEngineerEngine_ProcessPackets(t *testing.T) {
 	broadcaster := &mockBroadcaster{}
-	engine := NewEngineerEngine(broadcaster, nil)
+	engine := NewEngineerEngine(broadcaster)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 123456789, 0)
 
@@ -98,7 +98,7 @@ func TestEngineerEngine_ProcessPackets(t *testing.T) {
 
 func TestEngineerEngine_TyreSubsystem(t *testing.T) {
 	broadcaster := &mockBroadcaster{}
-	engine := NewEngineerEngine(broadcaster, nil)
+	engine := NewEngineerEngine(broadcaster)
 	ctx := context.Background()
 
 	// 1. Tyre wear warning (42%)
@@ -219,7 +219,7 @@ func TestEngineerEngine_TyreSubsystem(t *testing.T) {
 
 func TestEngineerEngine_DamageAndMechanicalFaults(t *testing.T) {
 	broadcaster := &mockBroadcaster{}
-	engine := NewEngineerEngine(broadcaster, nil)
+	engine := NewEngineerEngine(broadcaster)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 200, 0)
 
@@ -304,7 +304,7 @@ func TestEngineerEngine_DamageAndMechanicalFaults(t *testing.T) {
 
 func TestEngineerEngine_ERSAndBrakes(t *testing.T) {
 	broadcaster := &mockBroadcaster{}
-	engine := NewEngineerEngine(broadcaster, nil)
+	engine := NewEngineerEngine(broadcaster)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 300, 0)
 
@@ -353,7 +353,7 @@ func TestEngineerEngine_ERSAndBrakes(t *testing.T) {
 
 func TestEngineerEngine_FuelAndStrategy(t *testing.T) {
 	broadcaster := &mockBroadcaster{}
-	engine := NewEngineerEngine(broadcaster, nil)
+	engine := NewEngineerEngine(broadcaster)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 400, 0)
 
@@ -411,7 +411,7 @@ func TestEngineerEngine_FuelAndStrategy(t *testing.T) {
 
 func TestEngineerEngine_RivalBattles(t *testing.T) {
 	broadcaster := &mockBroadcaster{}
-	engine := NewEngineerEngine(broadcaster, nil)
+	engine := NewEngineerEngine(broadcaster)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 500, 0)
 
@@ -447,7 +447,7 @@ func TestEngineerEngine_RivalBattles(t *testing.T) {
 
 func TestEngineerEngine_QualifyingIntelligence(t *testing.T) {
 	broadcaster := &mockBroadcaster{}
-	engine := NewEngineerEngine(broadcaster, nil)
+	engine := NewEngineerEngine(broadcaster)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 600, 0)
 
@@ -481,7 +481,7 @@ func TestEngineerEngine_QualifyingIntelligence(t *testing.T) {
 
 func TestEngineerEngine_FlagsAndPenalties(t *testing.T) {
 	broadcaster := &mockBroadcaster{}
-	engine := NewEngineerEngine(broadcaster, nil)
+	engine := NewEngineerEngine(broadcaster)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 700, 0)
 
@@ -528,7 +528,7 @@ func TestEngineerEngine_FlagsAndPenalties(t *testing.T) {
 
 func TestEngineerEngine_SmartDiscretionSuppression(t *testing.T) {
 	broadcaster := &mockBroadcaster{}
-	engine := NewEngineerEngine(broadcaster, nil)
+	engine := NewEngineerEngine(broadcaster)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 800, 0)
 
@@ -575,7 +575,7 @@ func TestEngineerEngine_SmartDiscretionSuppression(t *testing.T) {
 
 func TestEngineerEngine_DeduplicationScopesAndOutLapGuard(t *testing.T) {
 	broadcaster := &mockBroadcaster{}
-	engine := NewEngineerEngine(broadcaster, nil)
+	engine := NewEngineerEngine(broadcaster)
 	ctx := context.Background()
 
 	// 1. Out-lap distance completion guard: cold tyre alert suppressed when LapDistance < 30% of track length
@@ -680,7 +680,7 @@ func TestEngineerEngine_DeduplicationScopesAndOutLapGuard(t *testing.T) {
 
 func TestEngineerEngine_SectorCoaching_InLapSuppression(t *testing.T) {
 	broadcaster := &mockBroadcaster{}
-	engine := NewEngineerEngine(broadcaster, nil)
+	engine := NewEngineerEngine(broadcaster)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 444, 0)
 
@@ -699,10 +699,6 @@ func TestEngineerEngine_SectorCoaching_InLapSuppression(t *testing.T) {
 		},
 	}
 	engine.ProcessPacket(ctx, lapFlying)
-
-	if engine.bestSector1MS != 28000 {
-		t.Fatalf("expected bestSector1MS=28000, got %d", engine.bestSector1MS)
-	}
 
 	// Flying lap 2: delta loss (+1.5s slower = 29.500s) -> Should trigger coaching_s1
 	lapFlying2 := &packets.PacketLapData{
@@ -751,7 +747,7 @@ func TestEngineerEngine_SectorCoaching_InLapSuppression(t *testing.T) {
 
 func TestEngineerEngine_SafetyCar_PitStrategySuppression(t *testing.T) {
 	broadcaster := &mockBroadcaster{}
-	engine := NewEngineerEngine(broadcaster, nil)
+	engine := NewEngineerEngine(broadcaster)
 	ctx := context.Background()
 	header := createTestHeader(packets.PacketFormat2026, 555, 0)
 
@@ -816,7 +812,7 @@ func TestEngineerEngine_SafetyCar_PitStrategySuppression(t *testing.T) {
 }
 
 func TestEngineerEngine_DeriveDrivingPhase(t *testing.T) {
-	engine := NewEngineerEngine(&mockBroadcaster{}, nil)
+	engine := NewEngineerEngine(&mockBroadcaster{})
 
 	tests := []struct {
 		name      string
@@ -912,7 +908,7 @@ func TestEngineerEngine_DeriveDrivingPhase(t *testing.T) {
 
 func TestEngineerEngine_ConcurrentSessionTransitions(t *testing.T) {
 	broadcaster := &mockBroadcaster{}
-	engine := NewEngineerEngine(broadcaster, nil)
+	engine := NewEngineerEngine(broadcaster)
 	ctx := context.Background()
 
 	var wg sync.WaitGroup
@@ -957,7 +953,7 @@ func (l *lockCheckingBroadcaster) Broadcast(data []byte) {
 
 func TestEngineerEngine_BroadcastOutsideLock(t *testing.T) {
 	b := &lockCheckingBroadcaster{}
-	engine := NewEngineerEngine(b, nil)
+	engine := NewEngineerEngine(b)
 	b.engine = engine
 
 	ctx := context.Background()

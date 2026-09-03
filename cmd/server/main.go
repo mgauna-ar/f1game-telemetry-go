@@ -89,7 +89,7 @@ func main() {
 }
 
 func run(cfg ServerConfig) error {
-	api.SetAppVersion(version, commit, date)
+	system.SetAppVersion(version, commit, date)
 
 	// Calculate display URLs
 	port := extractPort(cfg.HTTPAddr, "8080")
@@ -120,7 +120,7 @@ func run(cfg ServerConfig) error {
 	inputMgr := input.NewManager()
 	inputMgr.Start(ctx)
 
-	engineerEngine := engineer.NewEngineerEngine(engineerHub, repo)
+	engineerEngine := engineer.NewEngineerEngine(engineerHub)
 
 	// 4. Initialize HTTP Server with bound TCP listener
 	ln, srv, err := initHTTPServer(cfg, repo, telemetryHub, engineerHub, inputMgr, engineerEngine)

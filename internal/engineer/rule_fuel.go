@@ -36,10 +36,6 @@ func (r *FuelRule) ValidPhases() []DrivingPhase {
 	return []DrivingPhase{PhaseRacing, PhaseInLap, PhaseSafetyCar}
 }
 
-func (r *FuelRule) DedupScope() DedupScope {
-	return DedupScopeLap
-}
-
 func (r *FuelRule) AlertKeys() map[string]AlertKeyConfig {
 	return map[string]AlertKeyConfig{
 		"fuel_delta": {

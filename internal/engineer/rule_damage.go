@@ -35,10 +35,6 @@ func (r *DamageRule) ValidPhases() []DrivingPhase {
 	return []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar}
 }
 
-func (r *DamageRule) DedupScope() DedupScope {
-	return DedupScopeStint
-}
-
 func (r *DamageRule) AlertKeys() map[string]AlertKeyConfig {
 	return map[string]AlertKeyConfig{
 		"damage_wing": {

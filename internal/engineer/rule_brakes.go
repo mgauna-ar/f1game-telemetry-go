@@ -2,15 +2,12 @@ package engineer
 
 import (
 	"fmt"
-	"sync"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 )
 
 // BrakesRule manages brake disc fade overheating and cold brake drag alerts.
-type BrakesRule struct {
-	mu sync.Mutex
-}
+type BrakesRule struct{}
 
 // NewBrakesRule creates a new BrakesRule.
 func NewBrakesRule() *BrakesRule {
@@ -27,10 +24,6 @@ func (r *BrakesRule) Category() string {
 
 func (r *BrakesRule) ValidPhases() []DrivingPhase {
 	return []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseSafetyCar}
-}
-
-func (r *BrakesRule) DedupScope() DedupScope {
-	return DedupScopeStint
 }
 
 func (r *BrakesRule) AlertKeys() map[string]AlertKeyConfig {
@@ -51,9 +44,6 @@ func (r *BrakesRule) Reset(scope DedupScope) {
 }
 
 func (r *BrakesRule) Evaluate(ctx *EvaluationContext) []Directive {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	if ctx.Packet != nil && !isPacketType[*packets.PacketCarTelemetryData](ctx.Packet) {
 		return nil
 	}

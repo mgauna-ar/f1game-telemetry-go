@@ -14,7 +14,6 @@ type FlagsRule struct {
 	lastRedFlagCount         uint8
 	lastWeatherAlertOffset   int
 	lastCornerCutWarnings    uint8
-	lastPenaltiesCount       uint8
 	lastPenaltyTime          uint8
 	lastDriveThroughPnlCount uint8
 	lastStopGoPnlCount       uint8
@@ -37,10 +36,6 @@ func (r *FlagsRule) Category() string {
 
 func (r *FlagsRule) ValidPhases() []DrivingPhase {
 	return []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar, PhaseRedFlag}
-}
-
-func (r *FlagsRule) DedupScope() DedupScope {
-	return DedupScopePhase
 }
 
 func (r *FlagsRule) AlertKeys() map[string]AlertKeyConfig {
@@ -77,7 +72,6 @@ func (r *FlagsRule) Reset(scope DedupScope) {
 		r.lastRedFlagCount = 0
 		r.lastWeatherAlertOffset = -1
 		r.lastCornerCutWarnings = 0
-		r.lastPenaltiesCount = 0
 		r.lastPenaltyTime = 0
 		r.lastDriveThroughPnlCount = 0
 		r.lastStopGoPnlCount = 0

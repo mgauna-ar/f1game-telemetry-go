@@ -377,3 +377,19 @@ func TestFetchOpenAIModels_ErrorHandling(t *testing.T) {
 		t.Errorf("expected code %s, got %s", AIErrorInvalidAPIKey, streamErr.Code)
 	}
 }
+
+func TestStreamSSEResponse(t *testing.T) {
+	ctx := context.Background()
+	body := strings.NewReader("data: hello\n\ndata: world\n\ndata: [DONE]\n\n")
+	rec := httptest.NewRecorder()
+
+	err := streamSSEResponse(ctx, body, rec, rec, strings.ToUpper)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	output := rec.Body.String()
+	if !strings.Contains(output, "HELLO") || !strings.Contains(output, "WORLD") || !strings.Contains(output, "data: [DONE]\n\n") {
+		t.Errorf("unexpected sse output: %s", output)
+	}
+}

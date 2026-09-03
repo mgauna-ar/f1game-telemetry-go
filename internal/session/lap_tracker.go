@@ -423,6 +423,19 @@ func (lt *LapTracker) ProcessSessionHistory(ctx context.Context, session *storag
 	if numStints > lt.stint.CurrentStintNum {
 		lt.stint.CurrentStintNum = numStints
 	}
+	var stintInputs []StintInput
+	if numStints > 0 {
+		stintInputs = make([]StintInput, numStints)
+		for s := 0; s < numStints; s++ {
+			stintInfo := p.TyreStintHistoryData[s]
+			stintInputs[s] = StintInput{
+				EndLap:         stintInfo.EndLap,
+				VisualCompound: stintInfo.TyreVisualCompound,
+				ActualCompound: stintInfo.TyreActualCompound,
+			}
+		}
+	}
+	derivedStints := DeriveStints(stintInputs)
 
 	for i := 0; i < numLaps; i++ {
 		lapData := p.LapHistoryData[i]
@@ -433,37 +446,7 @@ func (lt *LapTracker) ProcessSessionHistory(ctx context.Context, session *storag
 		s3 := int(lapData.Sector3TimeMSPart) + int(lapData.Sector3TimeMinutesPart)*packets.MillisPerMinute
 
 		// Determine stint number, visual compound, and actual compound from TyreStintHistoryData
-		stintNum := 1
-		compoundName := ""
-		actualCompoundName := ""
-		if numStints > 0 {
-			for s := 0; s < numStints; s++ {
-				stintInfo := p.TyreStintHistoryData[s]
-				stintStartLap := 1
-				if s > 0 {
-					prevEnd := int(p.TyreStintHistoryData[s-1].EndLap)
-					if prevEnd > 0 && prevEnd != 255 {
-						stintStartLap = prevEnd + 1
-					} else {
-						stintStartLap = s + 1
-					}
-				}
-				stintEndLap := int(stintInfo.EndLap)
-				if stintEndLap == 255 || stintEndLap == 0 {
-					if s == numStints-1 {
-						stintEndLap = packets.MaxSessionLapsSanity
-					} else {
-						stintEndLap = stintStartLap
-					}
-				}
-				if lapNum >= stintStartLap && lapNum <= stintEndLap {
-					stintNum = s + 1
-					compoundName = packets.VisualTyreCompoundName(stintInfo.TyreVisualCompound)
-					actualCompoundName = packets.ActualTyreCompoundName(stintInfo.TyreActualCompound)
-					break
-				}
-			}
-		}
+		stintNum, compoundName, actualCompoundName := FindStintForLap(derivedStints, lapNum)
 
 		if lapTime > 0 || s1 > 0 || s2 > 0 || s3 > 0 {
 			isValid := (lapData.LapValidBitFlags & packets.LapValidBitFlag) != 0

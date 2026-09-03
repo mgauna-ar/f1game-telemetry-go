@@ -1,17 +1,14 @@
 package api
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/ai"
 	"github.com/mgauna/f1game-telemetry-go/internal/engineer"
-	"github.com/mgauna/f1game-telemetry-go/internal/input"
 )
 
 // handleAIConfigStatus returns the status of server-configured AI keys.
@@ -187,103 +184,5 @@ func (s *Server) handleSetEngineerConfig(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"status": "success",
 		"config": req,
-	})
-}
-
-// PTTConfigResponse returns the current global PTT mapping and active status.
-type PTTConfigResponse struct {
-	Status   string        `json:"status"`
-	Mapping  input.Mapping `json:"mapping"`
-	IsActive bool          `json:"is_active"`
-}
-
-// PTTSetConfigRequest represents the payload to update global PTT mapping.
-type PTTSetConfigRequest struct {
-	Mapping input.Mapping `json:"mapping"`
-}
-
-func (s *Server) handleGetPTTConfig(w http.ResponseWriter, r *http.Request) {
-	if s.inputManager == nil {
-		writeJSONError(w, "Input manager not available", http.StatusServiceUnavailable)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, PTTConfigResponse{
-		Status:   "ok",
-		Mapping:  s.inputManager.GetMapping(),
-		IsActive: s.inputManager.IsActive(),
-	})
-}
-
-func (s *Server) handleSetPTTConfig(w http.ResponseWriter, r *http.Request) {
-	if s.inputManager == nil {
-		writeJSONError(w, "Input manager not available", http.StatusServiceUnavailable)
-		return
-	}
-
-	var req PTTSetConfigRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, "Invalid payload", http.StatusBadRequest)
-		return
-	}
-
-	s.inputManager.SetMapping(req.Mapping)
-
-	writeJSON(w, http.StatusOK, PTTConfigResponse{
-		Status:   "ok",
-		Mapping:  s.inputManager.GetMapping(),
-		IsActive: s.inputManager.IsActive(),
-	})
-}
-
-func (s *Server) handleStartPTTLearn(w http.ResponseWriter, r *http.Request) {
-	if s.inputManager == nil {
-		writeJSONError(w, "Input manager not available", http.StatusServiceUnavailable)
-		return
-	}
-
-	// Interactive button learning outlives this HTTP request (which immediately returns 200 OK
-	// with "learning_started"). We use context.Background() because net/http cancels r.Context()
-	// as soon as the HTTP handler returns.
-	ch, err := s.inputManager.StartLearning(context.Background())
-	if err != nil {
-		writeJSONError(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	go func() {
-		timer := time.NewTimer(20 * time.Second)
-		defer timer.Stop()
-
-		select {
-		case m, ok := <-ch:
-			if ok {
-				payload, _ := json.Marshal(map[string]any{
-					"type":    "ptt_learned",
-					"mapping": m,
-				})
-				if s.engineerHub != nil {
-					s.engineerHub.Broadcast(payload)
-				}
-			}
-		case <-timer.C:
-			s.inputManager.CancelLearning()
-		}
-	}()
-
-	writeJSON(w, http.StatusOK, map[string]string{
-		"status": "learning_started",
-	})
-}
-
-func (s *Server) handleCancelPTTLearn(w http.ResponseWriter, r *http.Request) {
-	if s.inputManager == nil {
-		writeJSONError(w, "Input manager not available", http.StatusServiceUnavailable)
-		return
-	}
-
-	s.inputManager.CancelLearning()
-	writeJSON(w, http.StatusOK, map[string]string{
-		"status": "learning_canceled",
 	})
 }

@@ -3,15 +3,12 @@ package engineer
 import (
 	"fmt"
 	"math"
-	"sync"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 )
 
 // ERSRule manages low ERS battery reserve and engine radiator overheating alerts.
-type ERSRule struct {
-	mu sync.Mutex
-}
+type ERSRule struct{}
 
 // NewERSRule creates a new ERSRule.
 func NewERSRule() *ERSRule {
@@ -28,10 +25,6 @@ func (r *ERSRule) Category() string {
 
 func (r *ERSRule) ValidPhases() []DrivingPhase {
 	return []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseRacing, PhaseInLap}
-}
-
-func (r *ERSRule) DedupScope() DedupScope {
-	return DedupScopeLap
 }
 
 func (r *ERSRule) AlertKeys() map[string]AlertKeyConfig {
@@ -52,9 +45,6 @@ func (r *ERSRule) Reset(scope DedupScope) {
 }
 
 func (r *ERSRule) Evaluate(ctx *EvaluationContext) []Directive {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	var directives []Directive
 
 	// 1. Low ERS Battery Reserve Alert (from CarStatusData)

@@ -11,11 +11,9 @@ import (
 type TeammateRule struct {
 	mu                        sync.Mutex
 	lastTeammateAheadWarned   bool
-	lastTeammateBehindWarned  bool
 	lastTeammatePittingWarned bool
 	lastTeammatePittingLapNum int
 	lastTeammateAheadWarnLap  int
-	lastTeammateBehindWarnLap int
 }
 
 // NewTeammateRule creates a new TeammateRule.
@@ -23,7 +21,6 @@ func NewTeammateRule() *TeammateRule {
 	return &TeammateRule{
 		lastTeammatePittingLapNum: -1,
 		lastTeammateAheadWarnLap:  -1,
-		lastTeammateBehindWarnLap: -1,
 	}
 }
 
@@ -37,10 +34,6 @@ func (r *TeammateRule) Category() string {
 
 func (r *TeammateRule) ValidPhases() []DrivingPhase {
 	return []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar}
-}
-
-func (r *TeammateRule) DedupScope() DedupScope {
-	return DedupScopeNone
 }
 
 func (r *TeammateRule) AlertKeys() map[string]AlertKeyConfig {
@@ -62,11 +55,9 @@ func (r *TeammateRule) Reset(scope DedupScope) {
 
 	if scope == DedupScopeNone {
 		r.lastTeammateAheadWarned = false
-		r.lastTeammateBehindWarned = false
 		r.lastTeammatePittingWarned = false
 		r.lastTeammatePittingLapNum = -1
 		r.lastTeammateAheadWarnLap = -1
-		r.lastTeammateBehindWarnLap = -1
 	}
 }
 

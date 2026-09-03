@@ -1,14 +1,9 @@
-package api
+package system
 
 import (
 	"context"
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
-
-	"github.com/mgauna/f1game-telemetry-go/internal/system"
 )
 
 func TestAppVersionState(t *testing.T) {
@@ -44,28 +39,6 @@ func TestAppVersionState(t *testing.T) {
 	}
 }
 
-func TestHandleGetSystemVersion(t *testing.T) {
-	server, _ := setupTestServer(t)
-	SetAppVersion("v1.2.0", "fedcba9", "2026-08-18")
-
-	req := httptest.NewRequest(http.MethodGet, "/api/system/version", http.NoBody)
-	rec := httptest.NewRecorder()
-	server.router.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200 OK, got %d", rec.Code)
-	}
-
-	var resp AppVersion
-	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
-		t.Fatalf("failed to decode response: %v", err)
-	}
-
-	if resp.Version != "v1.2.0" || resp.Commit != "fedcba9" {
-		t.Errorf("unexpected version response: %+v", resp)
-	}
-}
-
 func TestCheckForUpdatesWithMockReleases(t *testing.T) {
 	mockReleases := []GitHubRelease{
 		{
@@ -83,8 +56,7 @@ func TestCheckForUpdatesWithMockReleases(t *testing.T) {
 		},
 	}
 
-	// Prime cache via system helper
-	system.SetCachedReleasesForTest(mockReleases, 1*time.Hour)
+	SetCachedReleasesForTest(mockReleases, 1*time.Hour)
 
 	ctx := context.Background()
 	res, err := CheckForUpdates(ctx, "mgauna-ar/f1game-telemetry-go", "v0.9.0", false)

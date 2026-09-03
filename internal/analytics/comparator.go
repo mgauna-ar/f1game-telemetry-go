@@ -2,6 +2,9 @@ package analytics
 
 import (
 	"container/list"
+	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"math"
 	"sort"
@@ -927,4 +930,96 @@ func DetectTrackTurns(points []MergedTelemetryPoint) []TrackTurn {
 	}
 
 	return turns
+}
+
+// LapNotFoundError indicates that a requested lap ID was not found in the database.
+type LapNotFoundError struct {
+	LapID int64
+	Label string // "A" or "B"
+}
+
+func (e *LapNotFoundError) Error() string {
+	return fmt.Sprintf("Lap %s (%d) not found", e.Label, e.LapID)
+}
+
+func fetchLapMetaAndSamples(ctx context.Context, repo storage.Repository, lapID int64, label string) (*ComparatorLapMeta, []storage.TelemetrySample, int, error) {
+	lap, err := repo.GetLapByID(ctx, lapID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil, 0, &LapNotFoundError{LapID: lapID, Label: label}
+		}
+		return nil, nil, 0, fmt.Errorf("failed to get lap %s (%d): %w", label, lapID, err)
+	}
+
+	driverName := fmt.Sprintf("Lap #%d", lap.LapNumber)
+	participants, pErr := repo.GetParticipantsBySession(ctx, lap.SessionID)
+	if pErr != nil {
+		return nil, nil, 0, fmt.Errorf("failed to get participants for lap %s (%d): %w", label, lapID, pErr)
+	}
+	for _, p := range participants {
+		if p.CarIndex == lap.CarIndex {
+			driverName = fmt.Sprintf("#%d %s", p.RaceNumber, p.Name)
+			break
+		}
+	}
+
+	meta := &ComparatorLapMeta{
+		LapID:     lap.ID,
+		LapTimeMS: lap.LapTimeMS,
+		Driver:    driverName,
+		Compound:  lap.TyreCompound,
+		TyreAge:   lap.Stint,
+	}
+
+	samples, sErr := repo.GetTelemetryByLap(ctx, lapID)
+	if sErr != nil {
+		return nil, nil, 0, fmt.Errorf("failed to get telemetry for lap %s (%d): %w", label, lapID, sErr)
+	}
+
+	var raw []storage.TelemetrySample
+	if len(samples) > 0 {
+		raw = TrimTelemetryToLastLapAttempt(samples)
+	}
+
+	return meta, raw, lap.LapTimeMS, nil
+}
+
+// MergeLapComparison orchestrates fetching lap data, telemetry samples, and merging them along track distance.
+func MergeLapComparison(ctx context.Context, repo storage.Repository, lapAID, lapBID int64, stepMeters, targetTrackLength float64) (*ComparatorResponse, error) {
+	if lapAID <= 0 && lapBID <= 0 {
+		return &ComparatorResponse{
+			Points: []MergedTelemetryPoint{},
+			Turns:  []TrackTurn{},
+		}, nil
+	}
+
+	var rawA, rawB []storage.TelemetrySample
+	var lapTimeMsA, lapTimeMsB int
+	var metaA, metaB *ComparatorLapMeta
+
+	if lapAID > 0 {
+		var err error
+		metaA, rawA, lapTimeMsA, err = fetchLapMetaAndSamples(ctx, repo, lapAID, "A")
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if lapBID > 0 {
+		var err error
+		metaB, rawB, lapTimeMsB, err = fetchLapMetaAndSamples(ctx, repo, lapBID, "B")
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	points := CalculateMergedComparison(rawA, rawB, stepMeters, targetTrackLength, lapTimeMsA, lapTimeMsB)
+	turns := DetectTrackTurns(points)
+
+	return &ComparatorResponse{
+		Points: points,
+		Turns:  turns,
+		LapA:   metaA,
+		LapB:   metaB,
+	}, nil
 }

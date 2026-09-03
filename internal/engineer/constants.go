@@ -4,12 +4,6 @@ package engineer
 const (
 	// DefaultDirectiveCooldownMs is the default cooldown between non-critical directives in the same category.
 	DefaultDirectiveCooldownMs = 45_000
-	// EngineOverheatCooldownMs is the cooldown for engine temperature warnings.
-	EngineOverheatCooldownMs = 60_000
-	// BrakeOverheatCooldownMs is the cooldown for high brake disc temperature warnings.
-	BrakeOverheatCooldownMs = 45_000
-	// BrakeColdCooldownMs is the cooldown for cold brake disc warnings.
-	BrakeColdCooldownMs = 60_000
 
 	// Smart Driving Discretion thresholds
 	SmartDiscretionBrakeThreshold = 0.50

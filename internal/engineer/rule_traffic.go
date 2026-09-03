@@ -2,15 +2,12 @@ package engineer
 
 import (
 	"math"
-	"sync"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 )
 
 // TrafficRule manages clean air pit rejoin window calculation alerts.
-type TrafficRule struct {
-	mu sync.Mutex
-}
+type TrafficRule struct{}
 
 // NewTrafficRule creates a new TrafficRule.
 func NewTrafficRule() *TrafficRule {
@@ -29,10 +26,6 @@ func (r *TrafficRule) ValidPhases() []DrivingPhase {
 	return []DrivingPhase{PhaseRacing}
 }
 
-func (r *TrafficRule) DedupScope() DedupScope {
-	return DedupScopeNone
-}
-
 func (r *TrafficRule) AlertKeys() map[string]AlertKeyConfig {
 	return map[string]AlertKeyConfig{
 		"pit_clean_air": {
@@ -47,9 +40,6 @@ func (r *TrafficRule) Reset(scope DedupScope) {
 }
 
 func (r *TrafficRule) Evaluate(ctx *EvaluationContext) []Directive {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	if ctx.Packet != nil && !isPacketType[*packets.PacketLapData](ctx.Packet) {
 		return nil
 	}

@@ -16,8 +16,8 @@ func TestTyresRule_Unit(t *testing.T) {
 	if rule.Category() != string(DirectiveCategoryTyres) {
 		t.Fatalf("expected Category()=tyres, got %s", rule.Category())
 	}
-	if rule.DedupScope() != DedupScopeStint {
-		t.Fatalf("expected DedupScope()=stint, got %s", rule.DedupScope())
+	if rule.AlertKeys()["tyre_wear"].DedupScope != DedupScopeStint {
+		t.Fatalf("expected DedupScope=stint for tyre_wear, got %s", rule.AlertKeys()["tyre_wear"].DedupScope)
 	}
 
 	cfg := DefaultEngineerConfig()

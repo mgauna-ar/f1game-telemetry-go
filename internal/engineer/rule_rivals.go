@@ -34,10 +34,6 @@ func (r *RivalsRule) ValidPhases() []DrivingPhase {
 	return []DrivingPhase{PhaseRacing}
 }
 
-func (r *RivalsRule) DedupScope() DedupScope {
-	return DedupScopeNone
-}
-
 func (r *RivalsRule) AlertKeys() map[string]AlertKeyConfig {
 	return map[string]AlertKeyConfig{
 		"rival_defend": {

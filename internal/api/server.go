@@ -128,6 +128,7 @@ func (s *Server) routes() {
 		s.setupSessionRoutes(r)
 		s.setupComparatorRoutes(r)
 		s.setupAIRoutes(r)
+		s.setupPTTRoutes(r)
 		s.setupSystemRoutes(r)
 	})
 
@@ -181,7 +182,9 @@ func (s *Server) setupAIRoutes(r chi.Router) {
 	r.Post("/ai/tts", s.handleAITTS)
 	r.Get("/ai/engineer/config", s.handleGetEngineerConfig)
 	r.Post("/ai/engineer/config", s.handleSetEngineerConfig)
+}
 
+func (s *Server) setupPTTRoutes(r chi.Router) {
 	// Global Push-to-Talk (PTT) routes
 	r.Get("/ai/ptt/config", s.handleGetPTTConfig)
 	r.Post("/ai/ptt/config", s.handleSetPTTConfig)

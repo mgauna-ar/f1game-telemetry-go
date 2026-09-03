@@ -69,9 +69,6 @@ type AlertKeyConfig struct {
 	DedupScope              DedupScope
 }
 
-// AlertPhaseRule is an alias for AlertKeyConfig for backwards compatibility.
-type AlertPhaseRule = AlertKeyConfig
-
 // EngineerConfig holds user-configurable thresholds and subsystem toggles.
 type EngineerConfig struct {
 	ChatterCooldownMs      int             `json:"chatter_cooldown_ms"`
@@ -252,11 +249,10 @@ func (ctx *EvaluationContext) Is2026() bool {
 	return ctx.Header.PacketFormat >= packets.PacketFormat2026 || ctx.PacketFormat >= packets.PacketFormat2026
 }
 
-// CalculateLapDistancePct returns estimated progress along the track [0.0, 1.0].
-func (ctx *EvaluationContext) CalculateLapDistancePct() float32 {
-	playerLap := ctx.PlayerLap()
-	if ctx.Session != nil && ctx.Session.TrackLength > 0 && playerLap != nil && playerLap.LapDistance >= 0 {
-		pct := playerLap.LapDistance / float32(ctx.Session.TrackLength)
+// CalculateLapDistanceFraction estimates progress along the track [0.0, 1.0] from session and player lap data.
+func CalculateLapDistanceFraction(session *packets.PacketSessionData, playerLap *packets.LapData) float32 {
+	if session != nil && session.TrackLength > 0 && playerLap != nil && playerLap.LapDistance >= 0 {
+		pct := playerLap.LapDistance / float32(session.TrackLength)
 		if pct < 0 {
 			return 0
 		}
@@ -278,6 +274,11 @@ func (ctx *EvaluationContext) CalculateLapDistancePct() float32 {
 	return 0
 }
 
+// CalculateLapDistancePct returns estimated progress along the track [0.0, 1.0].
+func (ctx *EvaluationContext) CalculateLapDistancePct() float32 {
+	return CalculateLapDistanceFraction(ctx.Session, ctx.PlayerLap())
+}
+
 // EngineerRule defines the strategy interface for AI Race Engineer rule evaluation.
 type EngineerRule interface {
 	// Name returns a unique identifier for this rule.
@@ -288,9 +289,6 @@ type EngineerRule interface {
 
 	// ValidPhases returns the driving phases in which this rule can emit directives.
 	ValidPhases() []DrivingPhase
-
-	// DedupScope returns the default deduplication scope.
-	DedupScope() DedupScope
 
 	// AlertKeys returns configuration for all alert keys emitted by this rule.
 	AlertKeys() map[string]AlertKeyConfig

@@ -37,10 +37,6 @@ func (r *QualifyingRule) ValidPhases() []DrivingPhase {
 	return []DrivingPhase{PhaseInGarage, PhasePitLane, PhaseOutLap, PhaseFlyingLap, PhaseInLap}
 }
 
-func (r *QualifyingRule) DedupScope() DedupScope {
-	return DedupScopePhase
-}
-
 func (r *QualifyingRule) AlertKeys() map[string]AlertKeyConfig {
 	return map[string]AlertKeyConfig{
 		"qualy_invalid": {

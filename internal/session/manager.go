@@ -331,36 +331,25 @@ func (sm *SessionManager) handleFinalClassification(ctx context.Context, p *pack
 		}
 
 		if numStints > 0 {
+			stintInputs := make([]StintInput, numStints)
 			for s := 0; s < numStints; s++ {
-				stintNum := s + 1
-				stintStartLap := 1
-				if s > 0 {
-					prevEnd := int(cls.TyreStintsEndLaps[s-1])
-					if prevEnd > 0 && prevEnd != 255 {
-						stintStartLap = prevEnd + 1
-					} else {
-						stintStartLap = s + 1
-					}
+				stintInputs[s] = StintInput{
+					EndLap:         cls.TyreStintsEndLaps[s],
+					VisualCompound: cls.TyreStintsVisual[s],
+					ActualCompound: cls.TyreStintsActual[s],
 				}
-				stintEndLap := int(cls.TyreStintsEndLaps[s])
-				if stintEndLap == 255 || stintEndLap == 0 {
-					if s == numStints-1 {
-						stintEndLap = packets.MaxSessionLapsSanity
-					} else {
-						stintEndLap = stintStartLap
-					}
-				}
-				compName := packets.VisualTyreCompoundName(cls.TyreStintsVisual[s])
-				actualCompName := packets.ActualTyreCompoundName(cls.TyreStintsActual[s])
+			}
+			stints := DeriveStints(stintInputs)
 
-				for lapNum := stintStartLap; lapNum <= stintEndLap && lapNum <= int(cls.NumLaps); lapNum++ {
+			for _, stint := range stints {
+				for lapNum := stint.StartLap; lapNum <= stint.EndLap && lapNum <= int(cls.NumLaps); lapNum++ {
 					lap := &storage.Lap{
 						SessionID:        sm.currentSession.ID,
 						CarIndex:         i,
 						LapNumber:        lapNum,
-						Stint:            stintNum,
-						TyreCompound:     compName,
-						ActualCompound:   actualCompName,
+						Stint:            stint.StintNumber,
+						TyreCompound:     stint.VisualCompound,
+						ActualCompound:   stint.ActualCompound,
 						ResultStatus:     int(cls.ResultStatus),
 						PenaltiesSeconds: int(cls.PenaltiesTime),
 					}

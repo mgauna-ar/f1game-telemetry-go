@@ -34,10 +34,6 @@ func (r *TyresRule) ValidPhases() []DrivingPhase {
 	return []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar}
 }
 
-func (r *TyresRule) DedupScope() DedupScope {
-	return DedupScopeStint
-}
-
 func (r *TyresRule) AlertKeys() map[string]AlertKeyConfig {
 	return map[string]AlertKeyConfig{
 		"tyre_wear": {
