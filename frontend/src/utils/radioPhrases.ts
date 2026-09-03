@@ -20,7 +20,36 @@ export const RADIO_PHRASE_CATALOG = {
 export function detectAlertCategory(alertContext: string): RadioAlertCategory {
   const lower = (alertContext || '').toLowerCase();
 
-  // 1. SC / VSC / Red Flag
+  // 1. SC / VSC / Red Flag / Marshal Flags
+  if (
+    lower.includes('safety car in this lap') ||
+    lower.includes('sc in this lap') ||
+    lower.includes('auto de seguridad a boxes') ||
+    lower.includes('safety car returning')
+  ) {
+    return 'flags_sc_in';
+  }
+  if (
+    lower.includes('green flag') ||
+    lower.includes('bandera verde') ||
+    lower.includes('race is resumed') ||
+    lower.includes('carrera relanzada')
+  ) {
+    return 'flags_green';
+  }
+  if (
+    lower.includes('blue flag') ||
+    lower.includes('bandera azul') ||
+    lower.includes('banderas azules')
+  ) {
+    return 'flags_blue';
+  }
+  if (
+    lower.includes('yellow flag') ||
+    lower.includes('bandera amarilla')
+  ) {
+    return 'flags_yellow';
+  }
   if (
     lower.includes('full safety car') ||
     lower.includes('safety car in pista') ||

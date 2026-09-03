@@ -76,6 +76,23 @@ const (
 	SafetyCarFormationLap uint8 = 3
 )
 
+// SafetyCar event types (from PacketEventData SCAR)
+const (
+	SafetyCarEventDeployed   uint8 = 0
+	SafetyCarEventReturning  uint8 = 1
+	SafetyCarEventReturned   uint8 = 2
+	SafetyCarEventResumeRace uint8 = 3
+)
+
+// Vehicle FIA flag constants (from PacketCarStatusData VehicleFIAFlags)
+const (
+	VehicleFIAFlagInvalid int8 = -1
+	VehicleFIAFlagNone    int8 = 0
+	VehicleFIAFlagGreen   int8 = 1
+	VehicleFIAFlagBlue    int8 = 2
+	VehicleFIAFlagYellow  int8 = 3
+)
+
 // Weather status constants
 const (
 	WeatherClear      uint8 = 0

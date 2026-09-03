@@ -1492,3 +1492,86 @@ func TestEngineerEngine_PitBoxAndLimiterSilence(t *testing.T) {
 		t.Fatalf("expected red flag alert to break through even while stationary in pit box")
 	}
 }
+
+func TestEngineerEngine_NeutralizationLifecycleAndFIAFlags(t *testing.T) {
+	broadcaster := &mockBroadcaster{}
+	engine := newTestEngineerEngine(broadcaster)
+	ctx := context.Background()
+	header := createTestHeader(packets.PacketFormat2026, 9999, 0)
+
+	// Base lap data: car is racing on lap 12
+	lapPkt := &packets.PacketLapData{
+		Header: header,
+		LapData: [packets.MaxCars]packets.LapData{
+			{CurrentLapNum: 12, DriverStatus: packets.DriverStatusOnTrack, PitStatus: packets.PitStatusNone},
+		},
+	}
+	engine.ProcessPacket(ctx, lapPkt)
+
+	// 1. Safety Car Deployed
+	sessionSC := &packets.PacketSessionData{
+		Header:          header,
+		SessionType:     packets.SessionRace,
+		SafetyCarStatus: packets.SafetyCarFull,
+	}
+	engine.ProcessPacket(ctx, sessionSC)
+
+	if _, exists := engine.lastDirectives["flags_sc"]; !exists {
+		t.Fatalf("expected flags_sc directive upon Safety Car deployment")
+	}
+
+	// 2. Safety Car Returning Event (SC In This Lap)
+	var scData packets.SafetyCarEventData
+	scData.SafetyCarType = packets.SafetyCarFull
+	scData.EventType = packets.SafetyCarEventReturning
+	var scPayload [12]byte
+	copy(scPayload[:], []byte{scData.SafetyCarType, scData.EventType})
+	eventSCIn := &packets.PacketEventData{
+		Header:          header,
+		EventStringCode: [4]uint8{'S', 'C', 'A', 'R'},
+		EventDetails:    packets.EventDataDetails{Data: scPayload},
+	}
+	engine.ProcessPacket(ctx, eventSCIn)
+
+	if _, exists := engine.lastDirectives["flags_sc_in"]; !exists {
+		t.Fatalf("expected flags_sc_in directive upon SC returning event")
+	}
+
+	// 3. Green Flag Restart (SafetyCarStatus drops to None)
+	sessionGreen := &packets.PacketSessionData{
+		Header:          header,
+		SessionType:     packets.SessionRace,
+		SafetyCarStatus: packets.SafetyCarNone,
+	}
+	engine.ProcessPacket(ctx, sessionGreen)
+
+	if _, exists := engine.lastDirectives["flags_green"]; !exists {
+		t.Fatalf("expected flags_green directive upon safety car period ending")
+	}
+
+	// 4. Blue Flag from CarStatusData
+	statusBlue := &packets.PacketCarStatusData{
+		Header: header,
+		CarStatusData: [packets.MaxCars]packets.CarStatusData{
+			{VehicleFIAFlags: packets.VehicleFIAFlagBlue, ERSStoreEnergy: packets.MaxERSStoreEnergyJoules},
+		},
+	}
+	engine.ProcessPacket(ctx, statusBlue)
+
+	if _, exists := engine.lastDirectives["flags_blue"]; !exists {
+		t.Fatalf("expected flags_blue directive when driver is shown blue flags")
+	}
+
+	// 5. Yellow Flag from CarStatusData
+	statusYellow := &packets.PacketCarStatusData{
+		Header: header,
+		CarStatusData: [packets.MaxCars]packets.CarStatusData{
+			{VehicleFIAFlags: packets.VehicleFIAFlagYellow, ERSStoreEnergy: packets.MaxERSStoreEnergyJoules},
+		},
+	}
+	engine.ProcessPacket(ctx, statusYellow)
+
+	if _, exists := engine.lastDirectives["flags_yellow"]; !exists {
+		t.Fatalf("expected flags_yellow directive when driver enters yellow flag sector")
+	}
+}

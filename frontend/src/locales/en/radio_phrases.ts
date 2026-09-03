@@ -515,6 +515,62 @@ export const radio_phrases = {
       'Crossover window is open, {driver}. Box this lap, box box.',
     ],
   },
+  flags_sc_in: {
+    bono: [
+      'Safety Car in this lap, Safety Car in this lap! Keep the delta, warm the fronts into the final sector.',
+      'Safety Car in this lap, {driver}. Prepare for restart, manage the pace.',
+    ],
+    colapinto: [
+      'Safety Car coming in this lap! Warm up the tyres, prepare for the restart.',
+      'Safety Car in this lap, {driver}. Stay alert on throttle and warm the front axle.',
+    ],
+    standard: [
+      'Safety Car in this lap, Safety Car in this lap! Maintain delta positive, warm front tyres and prepare for restart.',
+      'Safety Car coming in. Prepare for green flag racing.',
+    ],
+  },
+  flags_green: {
+    bono: [
+      'Green flag, green flag! Track is clear, race is on.',
+      'Green flag, {driver}! Hammer time, let us push.',
+    ],
+    colapinto: [
+      'Green flag, green flag! Race resumed, full push now.',
+      'Green flag, {driver}! Track clear, push hard.',
+    ],
+    standard: [
+      'Green flag, green flag! Race is restarted, push now.',
+      'Track is clear, green flag! Racing resumes.',
+    ],
+  },
+  flags_blue: {
+    bono: [
+      'Blue flags, {driver}. Leader approaching behind, let them through cleanly.',
+      'Blue flags, blue flags. Faster car right behind, yield position into the next corner.',
+    ],
+    colapinto: [
+      'Blue flags, {driver}! Leader is behind, let them pass cleanly to avoid penalty.',
+      'Blue flags! Give way to the car behind into the next braking zone.',
+    ],
+    standard: [
+      'Blue flags, {driver}! Leader is approaching from behind, yield position cleanly.',
+      'Blue flags. Allow the faster car behind to lap cleanly.',
+    ],
+  },
+  flags_yellow: {
+    bono: [
+      'Yellow flag in this sector. Incident ahead, no overtaking and prepare to lift.',
+      'Yellow flag, {driver}. Watch for debris or slow car ahead in this sector.',
+    ],
+    colapinto: [
+      'Yellow flag ahead in this sector! Incident on track, no overtaking.',
+      'Yellow flag, {driver}. Lift off if needed and watch for cars off track.',
+    ],
+    standard: [
+      'Yellow flag in this sector. Incident ahead, no overtaking and be prepared to lift.',
+      'Yellow flag on track. Exercise caution and maintain delta.',
+    ],
+  },
   directive: {
     standard: ['{clean_text}'],
   },

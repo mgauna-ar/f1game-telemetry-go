@@ -123,10 +123,60 @@ describe('radioPhrases', () => {
       expect(
         detectAlertCategory('[PROACTIVE PIT WALL CALL: Track conditions are too wet for slick tyres! Box now, box box for Intermediates.]')
       ).toBe('tyre_crossover');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Safety Car in this lap, Safety Car in this lap! Maintain delta positive, warm front tyres and prepare for restart.]')
+      ).toBe('flags_sc_in');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Green flag, green flag! Race is resumed, push now.]')
+      ).toBe('flags_green');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Blue flags! Leader is approaching from behind, yield position cleanly.]')
+      ).toBe('flags_blue');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Yellow flag in this sector. Incident ahead, no overtaking and be prepared to lift.]')
+      ).toBe('flags_yellow');
     });
   });
 
   describe('getProactiveRadioSpeech', () => {
+    it('formats safety car in this lap and green flag restarts', () => {
+      const speechSCIn = getProactiveRadioSpeech(
+        { category: 'flags_sc_in' },
+        'en',
+        'bono',
+        'Lewis'
+      );
+      expect(speechSCIn.toLowerCase()).toContain('safety car in this lap');
+
+      const speechGreen = getProactiveRadioSpeech(
+        { category: 'flags_green' },
+        'es',
+        'colapinto',
+        'Franco'
+      );
+      expect(speechGreen.toLowerCase()).toContain('bandera verde');
+
+      const speechBlue = getProactiveRadioSpeech(
+        { category: 'flags_blue' },
+        'en',
+        'bono',
+        'Lewis'
+      );
+      expect(speechBlue.toLowerCase()).toContain('blue flag');
+
+      const speechYellow = getProactiveRadioSpeech(
+        { category: 'flags_yellow' },
+        'es',
+        'colapinto',
+        'Franco'
+      );
+      expect(speechYellow.toLowerCase()).toContain('bandera amarilla');
+    });
+
     it('formats safety car with Bono persona and English callsign', () => {
       const prompt = '[PROACTIVE PIT WALL CALL: Full Safety Car deployed! Maintain delta positive.]';
       const speech = getProactiveRadioSpeech(prompt, 'en', 'bono', 'Lewis');

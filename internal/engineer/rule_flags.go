@@ -18,12 +18,15 @@ type FlagsRule struct {
 	lastPenaltyTime          uint8
 	lastDriveThroughPnlCount uint8
 	lastStopGoPnlCount       uint8
+	lastVehicleFIAFlag       int8
+	scEndingTriggered        bool
 }
 
 // NewFlagsRule creates a new FlagsRule.
 func NewFlagsRule() *FlagsRule {
 	return &FlagsRule{
 		lastWeatherAlertOffset: -1,
+		lastVehicleFIAFlag:     packets.VehicleFIAFlagNone,
 	}
 }
 
@@ -45,6 +48,26 @@ func (r *FlagsRule) AlertKeys() map[string]AlertKeyConfig {
 			Category:    DirectiveCategoryFlags,
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseGrid, PhaseRaceStart, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar, PhaseRedFlag},
 			DedupScope:  DedupScopePhase,
+		},
+		"flags_sc_in": {
+			Category:    DirectiveCategoryFlags,
+			ValidPhases: []DrivingPhase{PhaseRacing, PhaseSafetyCar},
+			DedupScope:  DedupScopePhase,
+		},
+		"flags_green": {
+			Category:    DirectiveCategoryFlags,
+			ValidPhases: []DrivingPhase{PhaseRacing, PhaseSafetyCar},
+			DedupScope:  DedupScopePhase,
+		},
+		"flags_blue": {
+			Category:    DirectiveCategoryFlags,
+			ValidPhases: []DrivingPhase{PhaseRacing},
+			DedupScope:  DedupScopeNone,
+		},
+		"flags_yellow": {
+			Category:    DirectiveCategoryFlags,
+			ValidPhases: []DrivingPhase{PhaseRacing},
+			DedupScope:  DedupScopeNone,
 		},
 		"flags_red": {
 			Category:    DirectiveCategoryFlags,
@@ -92,6 +115,8 @@ func (r *FlagsRule) Reset(scope DedupScope) {
 		r.lastPenaltyTime = 0
 		r.lastDriveThroughPnlCount = 0
 		r.lastStopGoPnlCount = 0
+		r.lastVehicleFIAFlag = packets.VehicleFIAFlagNone
+		r.scEndingTriggered = false
 	}
 }
 
@@ -131,6 +156,22 @@ func (r *FlagsRule) Evaluate(ctx *EvaluationContext) []Directive {
 		}
 	}
 
+	// 3. Status-based Flags (Blue Flag, Yellow Flag)
+	if ctx.Status != nil && (ctx.Packet == nil || isPacketType[*packets.PacketCarStatusData](ctx.Packet)) {
+		if fia := r.evaluateFIAFlags(ctx); fia != nil {
+			directives = append(directives, *fia)
+		}
+	}
+
+	// 4. Event-based Flags (Safety Car Returning / Resume Race)
+	if ctx.Packet != nil {
+		if evtPkt, ok := ctx.Packet.(*packets.PacketEventData); ok {
+			if evt := r.evaluateEvent(ctx, evtPkt); evt != nil {
+				directives = append(directives, *evt)
+			}
+		}
+	}
+
 	return directives
 }
 
@@ -139,7 +180,8 @@ func (r *FlagsRule) evaluateSafetyCar(ctx *EvaluationContext) *Directive {
 		return nil
 	}
 	scStatus := ctx.Session.SafetyCarStatus
-	if scStatus == r.lastSafetyCarStatus {
+	prevStatus := r.lastSafetyCarStatus
+	if scStatus == prevStatus {
 		return nil
 	}
 	r.lastSafetyCarStatus = scStatus
@@ -162,9 +204,94 @@ func (r *FlagsRule) evaluateSafetyCar(ctx *EvaluationContext) *Directive {
 			Message:  "Virtual Safety Car (VSC) deployed! Maintain delta, no overtaking.",
 			Urgency:  UrgencyCritical,
 		}
+	case packets.SafetyCarNone:
+		if prevStatus == packets.SafetyCarFull || prevStatus == packets.SafetyCarVirtual {
+			r.scEndingTriggered = false
+			return &Directive{
+				ID:       "flags_green",
+				Category: DirectiveCategoryFlags,
+				SubAlert: "flags_green",
+				Title:    "Green Flag",
+				Message:  "Track is clear, green flag! Safety car period ended.",
+				Urgency:  UrgencyHigh,
+			}
+		}
+		return nil
 	default:
 		return nil
 	}
+}
+
+func (r *FlagsRule) evaluateEvent(ctx *EvaluationContext, p *packets.PacketEventData) *Directive {
+	if !ctx.IsRaceSession() || p.EventCode() != packets.EventSafetyCarStatus {
+		return nil
+	}
+	d, ok := p.SafetyCarData()
+	if !ok {
+		return nil
+	}
+	switch d.EventType {
+	case packets.SafetyCarEventReturning:
+		if !r.scEndingTriggered {
+			r.scEndingTriggered = true
+			return &Directive{
+				ID:       "flags_sc_in",
+				Category: DirectiveCategoryFlags,
+				SubAlert: "flags_sc_in",
+				Title:    "Safety Car In This Lap",
+				Message:  "Safety Car in this lap, Safety Car in this lap! Maintain delta positive, warm front tyres and prepare for restart.",
+				Urgency:  UrgencyHigh,
+			}
+		}
+	case packets.SafetyCarEventResumeRace:
+		r.scEndingTriggered = false
+		return &Directive{
+			ID:       "flags_green",
+			Category: DirectiveCategoryFlags,
+			SubAlert: "flags_green",
+			Title:    "Green Flag",
+			Message:  "Green flag, green flag! Race is resumed, push now.",
+			Urgency:  UrgencyHigh,
+		}
+	}
+	return nil
+}
+
+func (r *FlagsRule) evaluateFIAFlags(ctx *EvaluationContext) *Directive {
+	if !ctx.IsRaceSession() {
+		return nil
+	}
+	status := ctx.PlayerStatus()
+	if status == nil {
+		return nil
+	}
+	flag := status.VehicleFIAFlags
+	if flag == r.lastVehicleFIAFlag {
+		return nil
+	}
+	r.lastVehicleFIAFlag = flag
+
+	switch flag {
+	case packets.VehicleFIAFlagBlue:
+		return &Directive{
+			ID:       "flags_blue",
+			Category: DirectiveCategoryFlags,
+			SubAlert: "flags_blue",
+			Title:    "Blue Flag",
+			Message:  "Blue flags! Leader is approaching from behind, yield position cleanly.",
+			Urgency:  UrgencyHigh,
+		}
+	case packets.VehicleFIAFlagYellow:
+		return &Directive{
+			ID:       "flags_yellow",
+			Category: DirectiveCategoryFlags,
+			SubAlert: "flags_yellow",
+			Title:    "Yellow Flag",
+			Message:  "Yellow flag in this sector. Incident ahead, no overtaking and be prepared to lift.",
+			Urgency:  UrgencyHigh,
+		}
+	}
+	return nil
 }
 
 func (r *FlagsRule) evaluateRedFlag(p *packets.PacketSessionData) *Directive {

@@ -529,6 +529,62 @@ export const radio_phrases = {
       'Ventana de cruce abierta, {driver}. Box en esta vuelta, box box.',
     ],
   },
+  flags_sc_in: {
+    colapinto: [
+      '¡Auto de seguridad a boxes en esta vuelta! Calentá gomas delanteras y preparate para el relanzamiento.',
+      'Auto de seguridad se guarda en esta vuelta, {driver}. Mantené el delta y prendé los frenos para relanzar.',
+    ],
+    bono: [
+      'Auto de seguridad a boxes en esta vuelta. Mantén delta positivo y calienta neumáticos para el reinicio.',
+      'Auto de seguridad entra en esta vuelta, {driver}. Prepárate para bandera verde.',
+    ],
+    standard: [
+      'Auto de seguridad a boxes en esta vuelta. Mantén delta positivo, calienta neumáticos y prepara el relanzamiento.',
+      'Auto de seguridad se retira en esta vuelta. Preparados para bandera verde.',
+    ],
+  },
+  flags_green: {
+    colapinto: [
+      '¡Bandera verde, bandera verde! Carrera relanzada, dale a fondo.',
+      '¡Pista libre, bandera verde {driver}! Acelerá todo.',
+    ],
+    bono: [
+      'Bandera verde, bandera verde. Pista libre, a empujar.',
+      'Bandera verde, {driver}. Carrera reiniciada, tiempo de ataque.',
+    ],
+    standard: [
+      'Bandera verde, bandera verde. Carrera relanzada, a fondo.',
+      'Pista libre, bandera verde. Se reanuda la carrera.',
+    ],
+  },
+  flags_blue: {
+    colapinto: [
+      '¡Banderas azules, banderas azules {driver}! Viene el puntero atrás, dale paso limpio en la próxima curva.',
+      'Banderas azules, {driver}. Dejá pasar al auto de atrás para no comerte sanción.',
+    ],
+    bono: [
+      'Banderas azules, {driver}. Viene el líder detrás, cede la posición limpiamente.',
+      'Banderas azules. Deja pasar al coche de cabeza en la siguiente recta.',
+    ],
+    standard: [
+      'Banderas azules, {driver}. Viene el líder detrás, cede la posición de forma limpia.',
+      'Banderas azules. Permite el paso al coche que viene a doblar.',
+    ],
+  },
+  flags_yellow: {
+    colapinto: [
+      '¡Bandera amarilla en este sector! Hay un auto parado o incidente adelante, prohibido pasar.',
+      'Bandera amarilla, {driver}. Cuidado con posibles restos en pista y levantá si hace falta.',
+    ],
+    bono: [
+      'Bandera amarilla en este sector. Incidente adelante, prohibido adelantar y prepárate para levantar.',
+      'Bandera amarilla, {driver}. Precaución en esta zona.',
+    ],
+    standard: [
+      'Bandera amarilla en este sector. Incidente adelante, prohibido adelantar y mantén la precaución.',
+      'Bandera amarilla en pista. Reduce la velocidad si es necesario.',
+    ],
+  },
   directive: {
     standard: ['{clean_text}'],
   },

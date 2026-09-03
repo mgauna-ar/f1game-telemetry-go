@@ -52,6 +52,16 @@ func (p PacketEventData) EventCode() string {
 	return string(p.EventStringCode[:])
 }
 
+// SafetyCarData returns the decoded SafetyCarEventData if the event is EventSafetyCarStatus.
+func (p PacketEventData) SafetyCarData() (SafetyCarEventData, bool) {
+	if p.EventCode() != EventSafetyCarStatus {
+		return SafetyCarEventData{}, false
+	}
+	var d SafetyCarEventData
+	err := binary.Read(bytes.NewReader(p.EventDetails.Data[:]), binary.LittleEndian, &d)
+	return d, err == nil
+}
+
 // FastestLapEventData contains data specific to the fastest lap event.
 type FastestLapEventData struct {
 	VehicleIdx uint8   `json:"VehicleIdx"`

@@ -236,6 +236,7 @@ func TestFlagsRule_Unit(t *testing.T) {
 	// 2. Weather Radar Horizon Alert
 	sessionPktWeather := &packets.PacketSessionData{
 		SessionType:               packets.SessionRace,
+		SafetyCarStatus:           packets.SafetyCarFull,
 		NumWeatherForecastSamples: 1,
 		WeatherForecastSamples: [packets.MaxWeatherForecastSamples]packets.WeatherForecastSample{
 			{TimeOffset: 3, RainPercentage: 70},
@@ -252,7 +253,78 @@ func TestFlagsRule_Unit(t *testing.T) {
 		t.Fatalf("expected weather_rain directive, got %+v", dirsWeather)
 	}
 
-	// 3. Penalty Priority: when Penalties > 0, penalty supersedes track limits warning
+	// 3. Safety Car Ending / Green Flag
+	sessionPktClear := &packets.PacketSessionData{
+		SessionType:     packets.SessionRace,
+		SafetyCarStatus: packets.SafetyCarNone,
+	}
+	ctxClear := &EvaluationContext{
+		Session:        sessionPktClear,
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseRacing,
+	}
+	dirsClear := rule.Evaluate(ctxClear)
+	if len(dirsClear) != 1 || dirsClear[0].SubAlert != "flags_green" {
+		t.Fatalf("expected flags_green directive, got %+v", dirsClear)
+	}
+
+	// 4. Safety Car Returning Event (SC In This Lap)
+	var scData packets.SafetyCarEventData
+	scData.SafetyCarType = packets.SafetyCarFull
+	scData.EventType = packets.SafetyCarEventReturning
+	var scPayload [12]byte
+	copy(scPayload[:], []byte{scData.SafetyCarType, scData.EventType})
+	scEvtPkt := &packets.PacketEventData{
+		EventStringCode: [4]uint8{'S', 'C', 'A', 'R'},
+		EventDetails:    packets.EventDataDetails{Data: scPayload},
+	}
+	ctxSCEvt := &EvaluationContext{
+		Session:        sessionPkt,
+		Packet:         scEvtPkt,
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseSafetyCar,
+	}
+	dirsSCEvt := rule.Evaluate(ctxSCEvt)
+	if len(dirsSCEvt) != 1 || dirsSCEvt[0].SubAlert != "flags_sc_in" {
+		t.Fatalf("expected flags_sc_in directive, got %+v", dirsSCEvt)
+	}
+
+	// 5. Blue Flag & Yellow Flag from CarStatus
+	ctxBlueFlag := &EvaluationContext{
+		Session: sessionPktClear,
+		Status: &packets.PacketCarStatusData{
+			CarStatusData: [packets.MaxCars]packets.CarStatusData{
+				{VehicleFIAFlags: packets.VehicleFIAFlagBlue},
+			},
+		},
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseRacing,
+	}
+	dirsBlue := rule.Evaluate(ctxBlueFlag)
+	if len(dirsBlue) != 1 || dirsBlue[0].SubAlert != "flags_blue" {
+		t.Fatalf("expected flags_blue directive, got %+v", dirsBlue)
+	}
+
+	ctxYellowFlag := &EvaluationContext{
+		Session: sessionPktClear,
+		Status: &packets.PacketCarStatusData{
+			CarStatusData: [packets.MaxCars]packets.CarStatusData{
+				{VehicleFIAFlags: packets.VehicleFIAFlagYellow},
+			},
+		},
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseRacing,
+	}
+	dirsYellow := rule.Evaluate(ctxYellowFlag)
+	if len(dirsYellow) != 1 || dirsYellow[0].SubAlert != "flags_yellow" {
+		t.Fatalf("expected flags_yellow directive, got %+v", dirsYellow)
+	}
+
+	// 6. Penalty Priority: when Penalties > 0, penalty supersedes track limits warning
 	lapPktWithPenalty := &packets.PacketLapData{
 		LapData: [packets.MaxCars]packets.LapData{
 			{CornerCuttingWarnings: 3, Penalties: 10},
@@ -269,7 +341,7 @@ func TestFlagsRule_Unit(t *testing.T) {
 		t.Fatalf("expected penalty to supersede track limits warning, got %+v", dirsLapPenalty)
 	}
 
-	// 4. Track Limits warning fires when no penalty is incurred
+	// 7. Track Limits warning fires when no penalty is incurred
 	rule.Reset(DedupScopeNone)
 	lapPktWarningOnly := &packets.PacketLapData{
 		LapData: [packets.MaxCars]packets.LapData{
