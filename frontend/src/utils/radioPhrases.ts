@@ -117,6 +117,15 @@ export function detectAlertCategory(alertContext: string): RadioAlertCategory {
   ) {
     return 'ers_fault';
   }
+  if (
+    lower.includes('terminal engine failure') ||
+    lower.includes('terminal engine') ||
+    lower.includes('falla terminal del motor') ||
+    lower.includes('falla terminal') ||
+    lower.includes('switch off the power unit')
+  ) {
+    return 'terminal_engine';
+  }
   if (lower.includes('mechanical fault')) {
     return 'mechanical_fault';
   }
@@ -127,6 +136,13 @@ export function detectAlertCategory(alertContext: string): RadioAlertCategory {
   }
   if (lower.includes('radiator') || lower.includes('water/oil temperature') || lower.includes('engine core water') || lower.includes('radiador')) {
     return 'radiator_overheat';
+  }
+  if (
+    lower.includes('brake bias') ||
+    lower.includes('balance de frenos') ||
+    lower.includes('move brake bias')
+  ) {
+    return 'brake_bias';
   }
   if (
     lower.includes('brake disc') ||
@@ -232,7 +248,13 @@ export function detectAlertCategory(alertContext: string): RadioAlertCategory {
     return 'qualy_elimination_danger';
   }
 
-  // 9. Flags & Penalties
+  if (
+    lower.includes('driving the wrong way') ||
+    lower.includes('wrong way') ||
+    lower.includes('sentido contrario')
+  ) {
+    return 'wrong_way';
+  }
   if (lower.includes('track limits') || lower.includes('corner cutting warnings') || lower.includes('límites de pista')) {
     return 'track_limits_warnings';
   }

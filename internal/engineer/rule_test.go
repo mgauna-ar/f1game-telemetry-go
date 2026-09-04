@@ -202,6 +202,24 @@ func TestDamageRule_Unit(t *testing.T) {
 	if len(dirsFaults) != 2 {
 		t.Fatalf("expected 2 fault directives, got %d", len(dirsFaults))
 	}
+
+	// 5. Terminal Engine Failure (EngineBlown / EngineSeized)
+	rule.Reset(DedupScopeStint)
+	dmgPktBlown := &packets.PacketCarDamageData{
+		CarDamageData: [packets.MaxCars]packets.CarDamageData{
+			{EngineBlown: 1},
+		},
+	}
+	ctxBlown := &EvaluationContext{
+		Damage:         dmgPktBlown,
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseRacing,
+	}
+	dirsBlown := rule.Evaluate(ctxBlown)
+	if len(dirsBlown) != 1 || dirsBlown[0].SubAlert != "terminal_engine" || dirsBlown[0].Urgency != UrgencyCritical {
+		t.Fatalf("expected terminal_engine critical directive, got %+v", dirsBlown)
+	}
 }
 
 func TestFlagsRule_Unit(t *testing.T) {
@@ -357,6 +375,24 @@ func TestFlagsRule_Unit(t *testing.T) {
 	dirsLapWarn := rule.Evaluate(ctxLapWarn)
 	if len(dirsLapWarn) != 1 || dirsLapWarn[0].SubAlert != "track_limits_warnings" {
 		t.Fatalf("expected track limits warning directive, got %+v", dirsLapWarn)
+	}
+
+	// 7. Wrong Way warning (DrivingWrongWay == 1 in 2026 telemetry)
+	rule.Reset(DedupScopeNone)
+	ctxWrongWay := &EvaluationContext{
+		Telemetry2: &packets.PacketCarTelemetry2Data{
+			CarTelemetry2Data: [packets.MaxCars]packets.CarTelemetry2Data{
+				{DrivingWrongWay: 1},
+			},
+		},
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		PacketFormat:   packets.PacketFormat2026,
+		Phase:          PhaseRacing,
+	}
+	dirsWrongWay := rule.Evaluate(ctxWrongWay)
+	if len(dirsWrongWay) != 1 || dirsWrongWay[0].SubAlert != "wrong_way" || dirsWrongWay[0].Urgency != UrgencyCritical {
+		t.Fatalf("expected wrong_way critical directive, got %+v", dirsWrongWay)
 	}
 }
 
@@ -788,6 +824,33 @@ func TestRivalsRule_TableDriven(t *testing.T) {
 		}
 		if dirs := rule.Evaluate(ctx); len(dirs) != 0 {
 			t.Errorf("expected 0 directives under Safety Car, got %d", len(dirs))
+		}
+	})
+
+	t.Run("defend using exact milliseconds delta from packet", func(t *testing.T) {
+		rule := NewRivalsRule()
+		ctx := &EvaluationContext{
+			LapData: &packets.PacketLapData{
+				LapData: [packets.MaxCars]packets.LapData{
+					{CarPosition: 2, TotalDistance: 2000.0},
+					{CarPosition: 3, TotalDistance: 1900.0, DeltaToCarInFrontMSPart: 750, DeltaToCarInFrontMinutesPart: 0},
+				},
+			},
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseRacing,
+			PacketFormat:   packets.PacketFormat2025,
+			Session: &packets.PacketSessionData{
+				SessionType:     packets.SessionRace,
+				SafetyCarStatus: packets.SafetyCarNone,
+			},
+		}
+		dirs := rule.Evaluate(ctx)
+		if len(dirs) != 1 {
+			t.Fatalf("expected 1 directive, got %d", len(dirs))
+		}
+		if !strings.Contains(dirs[0].Message, "0.8s gap") {
+			t.Errorf("expected 0.8s gap formatted from 750ms exact delta, got: %s", dirs[0].Message)
 		}
 	})
 }
@@ -1331,6 +1394,32 @@ func TestBrakesRule_FadeAndCold(t *testing.T) {
 	dirsCold := rule.Evaluate(ctxCold)
 	if len(dirsCold) != 1 || dirsCold[0].SubAlert != "brake_cold" {
 		t.Fatalf("expected brake_cold directive, got %+v", dirsCold)
+	}
+
+	// 3. Front Brake Bias Imbalance (Front 850°C, Rear 400°C => delta 450°C >= 400°C)
+	rule.Reset(DedupScopeStint)
+	ctxBias := &EvaluationContext{
+		Telemetry: &packets.PacketCarTelemetryData{
+			CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
+				{BrakesTemperature: [4]uint16{850, 850, 400, 400}},
+			},
+		},
+		Config:         cfg,
+		PlayerCarIndex: 0,
+		Phase:          PhaseRacing,
+	}
+	dirsBias := rule.Evaluate(ctxBias)
+	var foundBias bool
+	for _, d := range dirsBias {
+		if d.SubAlert == "brake_bias" {
+			foundBias = true
+			if !strings.Contains(d.Message, "Move brake bias rearward") {
+				t.Fatalf("expected rearward bias suggestion, got %s", d.Message)
+			}
+		}
+	}
+	if !foundBias {
+		t.Fatalf("expected brake_bias directive, got %+v", dirsBias)
 	}
 }
 

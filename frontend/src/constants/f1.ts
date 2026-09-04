@@ -19,6 +19,13 @@ export const PACKET_IDS = {
   LIVE_SNAPSHOT: 255,
 } as const;
 
+export const WHEEL_INDEX = {
+  FRONT_LEFT: 0,
+  FRONT_RIGHT: 1,
+  REAR_LEFT: 2,
+  REAR_RIGHT: 3,
+} as const;
+
 export const TYRE_COMPOUND_IDS = {
   INTERMEDIATE: 7,
   WET: 8,

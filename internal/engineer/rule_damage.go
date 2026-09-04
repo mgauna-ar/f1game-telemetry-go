@@ -10,12 +10,13 @@ import (
 
 // DamageRule manages front wing, floor/diffuser, engine components, and mechanical fault alerts.
 type DamageRule struct {
-	mu                   sync.Mutex
-	lastWingDamageAlert  float32
-	lastFloorDamageAlert bool
-	lastEngineWearAlert  bool
-	lastDrsFaultAlert    bool
-	lastErsFaultAlert    bool
+	mu                      sync.Mutex
+	lastWingDamageAlert     float32
+	lastFloorDamageAlert    bool
+	lastEngineWearAlert     bool
+	lastDrsFaultAlert       bool
+	lastErsFaultAlert       bool
+	lastTerminalEngineAlert bool
 }
 
 // NewDamageRule creates a new DamageRule.
@@ -49,6 +50,11 @@ func (r *DamageRule) AlertKeys() map[string]AlertKeyConfig {
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
 			DedupScope:  DedupScopeStint,
 		},
+		"damage_terminal_engine": {
+			Category:    DirectiveCategoryDamage,
+			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseGrid, PhaseRaceStart, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			DedupScope:  DedupScopeStint,
+		},
 		"damage_aero_fault": {
 			Category:    DirectiveCategoryDamage,
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
@@ -70,6 +76,7 @@ func (r *DamageRule) Reset(scope DedupScope) {
 		r.lastWingDamageAlert = 0
 		r.lastFloorDamageAlert = false
 		r.lastEngineWearAlert = false
+		r.lastTerminalEngineAlert = false
 		r.lastDrsFaultAlert = false
 		r.lastErsFaultAlert = false
 	}
@@ -183,6 +190,19 @@ func (r *DamageRule) Evaluate(ctx *EvaluationContext) []Directive {
 			SubAlert: "ers_fault",
 			Title:    "Hybrid ERS Fault",
 			Message:  "Hybrid ERS deployment failure detected on power unit! Electric boost offline.",
+			Urgency:  UrgencyCritical,
+		})
+	}
+
+	// 5. Terminal Engine Failure (Blown / Seized)
+	if (dmg.EngineBlown == 1 || dmg.EngineSeized == 1) && !r.lastTerminalEngineAlert {
+		r.lastTerminalEngineAlert = true
+		directives = append(directives, Directive{
+			ID:       "damage_terminal_engine",
+			Category: DirectiveCategoryDamage,
+			SubAlert: "terminal_engine",
+			Title:    "Terminal Engine Failure",
+			Message:  "Terminal engine failure! Pull off line into a safe area, switch off the power unit immediately.",
 			Urgency:  UrgencyCritical,
 		})
 	}

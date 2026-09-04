@@ -20,6 +20,7 @@ type FlagsRule struct {
 	lastStopGoPnlCount       uint8
 	lastVehicleFIAFlag       int8
 	scEndingTriggered        bool
+	lastWrongWayAlert        bool
 }
 
 // NewFlagsRule creates a new FlagsRule.
@@ -67,6 +68,11 @@ func (r *FlagsRule) AlertKeys() map[string]AlertKeyConfig {
 		"flags_yellow": {
 			Category:    DirectiveCategoryFlags,
 			ValidPhases: []DrivingPhase{PhaseRacing},
+			DedupScope:  DedupScopeNone,
+		},
+		"warning_wrong_way": {
+			Category:    DirectiveCategoryFlags,
+			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
 			DedupScope:  DedupScopeNone,
 		},
 		"flags_red": {
@@ -117,6 +123,7 @@ func (r *FlagsRule) Reset(scope DedupScope) {
 		r.lastStopGoPnlCount = 0
 		r.lastVehicleFIAFlag = packets.VehicleFIAFlagNone
 		r.scEndingTriggered = false
+		r.lastWrongWayAlert = false
 	}
 }
 
@@ -172,7 +179,37 @@ func (r *FlagsRule) Evaluate(ctx *EvaluationContext) []Directive {
 		}
 	}
 
+	// 5. Telemetry2-based Flags (Driving Wrong Way in 2026 regulations)
+	if ctx.Telemetry2 != nil && (ctx.Packet == nil || isPacketType[*packets.PacketCarTelemetry2Data](ctx.Packet)) {
+		if ww := r.evaluateWrongWay(ctx); ww != nil {
+			directives = append(directives, *ww)
+		}
+	}
+
 	return directives
+}
+
+func (r *FlagsRule) evaluateWrongWay(ctx *EvaluationContext) *Directive {
+	telemetry2 := ctx.PlayerTelemetry2()
+	if telemetry2 == nil {
+		return nil
+	}
+	if telemetry2.DrivingWrongWay == 1 {
+		if !r.lastWrongWayAlert {
+			r.lastWrongWayAlert = true
+			return &Directive{
+				ID:       "warning_wrong_way",
+				Category: DirectiveCategoryFlags,
+				SubAlert: "wrong_way",
+				Title:    "Wrong Way Warning",
+				Message:  "Warning! You are driving the wrong way! Turn around or stop immediately.",
+				Urgency:  UrgencyCritical,
+			}
+		}
+	} else {
+		r.lastWrongWayAlert = false
+	}
+	return nil
 }
 
 func (r *FlagsRule) evaluateSafetyCar(ctx *EvaluationContext) *Directive {

@@ -2,12 +2,16 @@ package engineer
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 )
 
-// BrakesRule manages brake disc fade overheating and cold brake drag alerts.
-type BrakesRule struct{}
+// BrakesRule manages brake disc fade overheating, cold brake drag, and front/rear brake bias imbalance alerts.
+type BrakesRule struct {
+	mu                 sync.Mutex
+	lastBrakeBiasAlert string
+}
 
 // NewBrakesRule creates a new BrakesRule.
 func NewBrakesRule() *BrakesRule {
@@ -36,14 +40,25 @@ func (r *BrakesRule) AlertKeys() map[string]AlertKeyConfig {
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseSafetyCar},
 			DedupScope:  DedupScopePhase,
 		},
+		"brake_bias": {
+			ValidPhases: []DrivingPhase{PhaseRacing, PhaseFlyingLap},
+			DedupScope:  DedupScopeStint,
+		},
 	}
 }
 
 func (r *BrakesRule) Reset(scope DedupScope) {
-	// State is managed by engine deduplication & cooldowns
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if scope == DedupScopeStint || scope == DedupScopeNone {
+		r.lastBrakeBiasAlert = ""
+	}
 }
 
 func (r *BrakesRule) Evaluate(ctx *EvaluationContext) []Directive {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	if ctx.Packet != nil && !isPacketType[*packets.PacketCarTelemetryData](ctx.Packet) {
 		return nil
 	}
@@ -80,6 +95,32 @@ func (r *BrakesRule) Evaluate(ctx *EvaluationContext) []Directive {
 			Title:    "Cold Brakes",
 			Message:  fmt.Sprintf("Brake temperatures are cold (%d°C, optimal: >%d°C).", int(maxBrakeTemp), int(ctx.Config.BrakeColdC)),
 			Urgency:  UrgencyLow,
+		})
+	}
+
+	// Front vs Rear Axle Thermal Imbalance / Brake Bias Coaching
+	frontAvg := (float32(tele.BrakesTemperature[packets.WheelFrontLeft]) + float32(tele.BrakesTemperature[packets.WheelFrontRight])) / 2
+	rearAvg := (float32(tele.BrakesTemperature[packets.WheelRearLeft]) + float32(tele.BrakesTemperature[packets.WheelRearRight])) / 2
+
+	if frontAvg >= BrakeBiasOverheatThresholdC && (frontAvg-rearAvg) >= BrakeBiasImbalanceDeltaThresholdC && r.lastBrakeBiasAlert != "front" {
+		r.lastBrakeBiasAlert = "front"
+		directives = append(directives, Directive{
+			ID:       "brake_bias",
+			Category: DirectiveCategoryBrakes,
+			SubAlert: "brake_bias",
+			Title:    "Brake Bias Imbalance",
+			Message:  fmt.Sprintf("Front brakes are running excessively hot relative to the rears (%d°C vs %d°C). Move brake bias rearward by 1-2%%.", int(frontAvg), int(rearAvg)),
+			Urgency:  UrgencyMedium,
+		})
+	} else if rearAvg >= BrakeBiasOverheatThresholdC && (rearAvg-frontAvg) >= BrakeBiasImbalanceDeltaThresholdC && r.lastBrakeBiasAlert != "rear" {
+		r.lastBrakeBiasAlert = "rear"
+		directives = append(directives, Directive{
+			ID:       "brake_bias",
+			Category: DirectiveCategoryBrakes,
+			SubAlert: "brake_bias",
+			Title:    "Brake Bias Imbalance",
+			Message:  fmt.Sprintf("Rear brakes are running excessively hot relative to the fronts (%d°C vs %d°C). Move brake bias forward by 1-2%%.", int(rearAvg), int(frontAvg)),
+			Urgency:  UrgencyMedium,
 		})
 	}
 

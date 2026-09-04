@@ -149,6 +149,20 @@ export const radio_phrases = {
       'Alerta de fallo mecánico, {driver}. Comprueba el selector de volante.',
     ],
   },
+  terminal_engine: {
+    colapinto: [
+      '¡Pará el auto, pará el auto, {driver}! Falla terminal del motor, tirate a zona segura y apagá el auto ya.',
+      '¡Falla terminal en el motor! Tirate afuera de la trazada y cortá el motor inmediatamente.',
+    ],
+    bono: [
+      'Para el monoplaza, {driver}. Falla terminal del motor, busca una escapatoria segura y apaga la unidad de potencia.',
+      'Falla terminal del motor. Detén el coche en una zona segura y apágalo de inmediato.',
+    ],
+    standard: [
+      'Falla terminal del motor. Detén el monoplaza en zona segura y apaga la unidad de potencia.',
+      'Avería crítica de motor, {driver}. Apaga el monoplaza de inmediato en una zona segura.',
+    ],
+  },
   ers_low: {
     colapinto: [
       'Batería baja, {driver}. Hacé un poco de Lift and Coast en frenadas para recargar el ERS.',
@@ -199,6 +213,20 @@ export const radio_phrases = {
     standard: [
       'Frenos fríos. Calienta los discos antes de la relanzada.',
       'Discos de freno fríos, {driver}. Realiza frenadas de calentamiento.',
+    ],
+  },
+  brake_bias: {
+    colapinto: [
+      'Desbalance térmico en frenos, {driver}. Movete 1 o 2 puntos el reparto de frenada para emparejar los ejes.',
+      'Reparto de frenos descompensado, {driver}. Corregí el balance para cuidar las temperaturas.',
+    ],
+    bono: [
+      'Desbalance de temperatura en frenos, {driver}. Ajusta el reparto de frenada un 1 o 2 por ciento.',
+      'Diferencia térmica en los frenos. Ajusta el reparto de frenada para compensar.',
+    ],
+    standard: [
+      'Desbalance térmico de frenos detectado. Ajusta el reparto de frenada en 1-2% para equilibrar los ejes.',
+      'Diferencia térmica entre ejes de frenos, {driver}. Modifica el balance de frenos.',
     ],
   },
   fuel_deficit: {
@@ -611,6 +639,20 @@ export const radio_phrases = {
     standard: [
       'Bandera amarilla en este sector. Incidente adelante, prohibido adelantar y mantén la precaución.',
       'Bandera amarilla en pista. Reduce la velocidad si es necesario.',
+    ],
+  },
+  wrong_way: {
+    colapinto: [
+      '¡Estás yendo al revés, {driver}! ¡Sentido contrario, da la vuelta o frená ya!',
+      '¡Alerta, vas en sentido contrario! Frená o pegá la vuelta inmediatamente.',
+    ],
+    bono: [
+      '¡Dirección incorrecta, {driver}! Conduces en sentido contrario, detén el coche o gira de inmediato.',
+      'Alerta de sentido contrario. Da la vuelta o detén el monoplaza con seguridad.',
+    ],
+    standard: [
+      '¡Alerta! Conduces en sentido contrario a la pista. Detén el monoplaza o cambia de sentido de inmediato.',
+      'Aviso de sentido contrario. Cambia de dirección o detén el vehículo con seguridad.',
     ],
   },
   directive: {

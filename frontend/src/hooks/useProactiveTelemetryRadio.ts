@@ -77,6 +77,11 @@ const CATEGORY_MAP: Record<string, RadioAlertCategory> = {
   teammate_doublestack: 'teammate_doublestack',
   damage_aero_fault: 'aero_fault',
   damage_ers_fault: 'ers_fault',
+  damage_terminal_engine: 'terminal_engine',
+  terminal_engine: 'terminal_engine',
+  brake_bias: 'brake_bias',
+  warning_wrong_way: 'wrong_way',
+  wrong_way: 'wrong_way',
   rival_defend_override: 'rival_defend_override',
   rival_attack_override: 'rival_attack_override',
 };

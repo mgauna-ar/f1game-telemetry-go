@@ -142,6 +142,20 @@ export const radio_phrases = {
       'System fault detected, {driver}. Verify wheel controls.',
     ],
   },
+  terminal_engine: {
+    bono: [
+      'Stop the car, stop the car, {driver}! Terminal engine failure, pull off into a safe area and switch off the power unit.',
+      'Terminal engine failure! Pull off track immediately, shut everything down.',
+    ],
+    colapinto: [
+      'Stop the car, {driver}! Terminal engine failure, pull off the track and switch it off right now!',
+      'Terminal failure on the engine! Pull off line and shut off the PU immediately.',
+    ],
+    standard: [
+      'Terminal engine failure! Pull off line into a safe area, switch off the power unit immediately.',
+      'Critical engine failure detected. Stop the car in a safe place and turn off the engine.',
+    ],
+  },
   ers_low: {
     bono: [
       'Low battery reserve, {driver}. Give us some Lift and Coast to recharge the pack.',
@@ -190,6 +204,20 @@ export const radio_phrases = {
     standard: [
       'Brakes are cold. Put heat into the discs before the restart.',
       'Cold brake drag warning, {driver}. Warm up the discs before the restart.',
+    ],
+  },
+  brake_bias: {
+    bono: [
+      'Brake thermal imbalance, {driver}. Adjust your brake bias by 1 to 2 percent to balance axle temperatures.',
+      'Check brake bias balance, {driver}. We have a significant thermal split between front and rear.',
+    ],
+    colapinto: [
+      'Brake temperatures are split, {driver}. Move brake bias by 1 or 2 clicks to balance them out.',
+      'Adjust brake bias, {driver}! Axle temperatures are out of balance.',
+    ],
+    standard: [
+      'Brake bias imbalance detected. Adjust brake balance by 1-2% to manage axle temperatures.',
+      'Thermal split on brake discs. Fine tune brake bias to balance front and rear temperatures.',
     ],
   },
   fuel_deficit: {
@@ -597,6 +625,20 @@ export const radio_phrases = {
     standard: [
       'Yellow flag in this sector. Incident ahead, no overtaking and be prepared to lift.',
       'Yellow flag on track. Exercise caution and maintain delta.',
+    ],
+  },
+  wrong_way: {
+    bono: [
+      'Wrong way, wrong way, {driver}! Stop the car or spin it around immediately!',
+      'Warning {driver}, you are driving against track direction! Turn around now!',
+    ],
+    colapinto: [
+      'Wrong way, {driver}! Turn the car around or stop immediately!',
+      'Warning! You are driving the wrong way, turn around right now!',
+    ],
+    standard: [
+      'Warning! You are driving the wrong way! Turn around or stop immediately.',
+      'Wrong way alert. Reverse direction or stop the vehicle safely.',
     ],
   },
   directive: {

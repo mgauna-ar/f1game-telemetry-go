@@ -57,6 +57,14 @@ describe('radioPhrases', () => {
       ).toBe('ers_fault');
 
       expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Terminal engine failure! Pull off line into a safe area, switch off the power unit immediately.]')
+      ).toBe('terminal_engine');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Front brakes are running excessively hot relative to the rears (850°C vs 400°C). Move brake bias rearward by 1-2%.]')
+      ).toBe('brake_bias');
+
+      expect(
         detectAlertCategory('[PROACTIVE PIT WALL CALL: Active Aero flap fault detected! Straight mode unavailable.]')
       ).toBe('aero_fault');
 
@@ -147,6 +155,10 @@ describe('radioPhrases', () => {
       expect(
         detectAlertCategory('[PROACTIVE PIT WALL CALL: Yellow flag in this sector. Incident ahead, no overtaking and be prepared to lift.]')
       ).toBe('flags_yellow');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Warning! You are driving the wrong way! Turn around or stop immediately.]')
+      ).toBe('wrong_way');
     });
   });
 
@@ -199,6 +211,30 @@ describe('radioPhrases', () => {
         'Franco'
       );
       expect(speechDoubleStack.toLowerCase()).toContain('doble parada');
+
+      const speechTerminal = getProactiveRadioSpeech(
+        { category: 'terminal_engine' },
+        'en',
+        'bono',
+        'Lewis'
+      );
+      expect(speechTerminal.toLowerCase()).toContain('terminal engine');
+
+      const speechBrakeBias = getProactiveRadioSpeech(
+        { category: 'brake_bias' },
+        'es',
+        'colapinto',
+        'Franco'
+      );
+      expect(speechBrakeBias.toLowerCase()).toContain('freno');
+
+      const speechWrongWay = getProactiveRadioSpeech(
+        { category: 'wrong_way' },
+        'en',
+        'bono',
+        'Lewis'
+      );
+      expect(speechWrongWay.toLowerCase()).toContain('wrong way');
     });
 
     it('formats safety car with Bono persona and English callsign', () => {

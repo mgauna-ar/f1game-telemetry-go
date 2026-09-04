@@ -17,6 +17,7 @@ import {
   getTyreThermalWindow,
   calculateEnginePowerPct,
   TYRE_DEGRADATION_TEMP_MARGIN_C,
+  WHEEL_INDEX,
 } from '../constants/f1';
 
 import type { LiveViewMode } from '../constants/f1';
@@ -148,7 +149,7 @@ export const Dashboard: React.FC = () => {
     let brakesSummary = '';
     if (playerTelemetry?.BrakesTemperature) {
       const brk = playerTelemetry.BrakesTemperature;
-      brakesSummary = `- Brake Temps: FL ${Math.round(brk[0] || 0)}°C, FR ${Math.round(brk[1] || 0)}°C, RL ${Math.round(brk[2] || 0)}°C, RR ${Math.round(brk[3] || 0)}°C`;
+      brakesSummary = `- Brake Temps: FL ${Math.round(brk[WHEEL_INDEX.FRONT_LEFT] || 0)}°C, FR ${Math.round(brk[WHEEL_INDEX.FRONT_RIGHT] || 0)}°C, RL ${Math.round(brk[WHEEL_INDEX.REAR_LEFT] || 0)}°C, RR ${Math.round(brk[WHEEL_INDEX.REAR_RIGHT] || 0)}°C`;
     }
 
     let engineSummary = '';

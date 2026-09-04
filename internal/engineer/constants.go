@@ -53,11 +53,13 @@ const (
 	RivalDamageWingThresholdPct    = 20.0
 
 	// Power Unit & Brakes thresholds
-	EngineOverheatDefaultC = 125.0
-	EnginePowerWarnTempC   = 135.0
-	EnginePowerCritTempC   = 145.0
-	BrakeOverheatDefaultC  = 900.0
-	BrakeColdDefaultC      = 200.0
+	EngineOverheatDefaultC            = 125.0
+	EnginePowerWarnTempC              = 135.0
+	EnginePowerCritTempC              = 145.0
+	BrakeOverheatDefaultC             = 900.0
+	BrakeColdDefaultC                 = 200.0
+	BrakeBiasOverheatThresholdC       = 800.0
+	BrakeBiasImbalanceDeltaThresholdC = 400.0
 
 	// Fuel & Pit strategy thresholds
 	FuelDeltaDeficitDefaultLaps  = -0.5

@@ -163,6 +163,12 @@ const (
 	Sector2ValidBitFlag                uint8 = 0x04
 	Sector3ValidBitFlag                uint8 = 0x08
 	MaxTyreStints                            = 8
+
+	// Wheel array index constants used across the telemetry engine (0: FL, 1: FR, 2: RL, 3: RR)
+	WheelFrontLeft  = 0
+	WheelFrontRight = 1
+	WheelRearLeft   = 2
+	WheelRearRight  = 3
 )
 
 // NormalizeCompoundName normalizes raw or visual tyre compound string/ID to standard uppercase compound name.

@@ -97,9 +97,22 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 			continue
 		}
 		distDelta := playerLap.TotalDistance - rival.TotalDistance
-		if distDelta > 0 && distDelta < maxDefendDist && r.lastDrsWarningIndex != i {
+		var gapSec float32
+		var hasExactGap bool
+		if rival.DeltaToCarInFrontMSPart > 0 || rival.DeltaToCarInFrontMinutesPart > 0 {
+			exactSec := float32(uint32(rival.DeltaToCarInFrontMinutesPart)*packets.MillisPerMinute+uint32(rival.DeltaToCarInFrontMSPart)) / float32(packets.MillisPerSecond)
+			if exactSec > 0 {
+				gapSec = exactSec
+				hasExactGap = true
+			}
+		}
+		if !hasExactGap && distDelta > 0 {
+			gapSec = distDelta / AverageRaceSpeedMetersPerSec
+		}
+
+		inDefendRange := (hasExactGap && gapSec <= ctx.Config.RivalGapSec) || (!hasExactGap && distDelta > 0 && distDelta < maxDefendDist)
+		if inDefendRange && r.lastDrsWarningIndex != i {
 			r.lastDrsWarningIndex = i
-			gapSec := distDelta / AverageRaceSpeedMetersPerSec
 
 			var extraContext string
 			if ctx.Status != nil && i < len(ctx.Status.CarStatusData) {
@@ -153,9 +166,22 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 				continue
 			}
 			distDelta := rival.TotalDistance - playerLap.TotalDistance
-			if distDelta > 0 && distDelta < maxAttackDist && r.lastCarAheadWarningIndex != i {
+			var gapSec float32
+			var hasExactGap bool
+			if playerLap.DeltaToCarInFrontMSPart > 0 || playerLap.DeltaToCarInFrontMinutesPart > 0 {
+				exactSec := float32(uint32(playerLap.DeltaToCarInFrontMinutesPart)*packets.MillisPerMinute+uint32(playerLap.DeltaToCarInFrontMSPart)) / float32(packets.MillisPerSecond)
+				if exactSec > 0 {
+					gapSec = exactSec
+					hasExactGap = true
+				}
+			}
+			if !hasExactGap && distDelta > 0 {
+				gapSec = distDelta / AverageRaceSpeedMetersPerSec
+			}
+
+			inAttackRange := (hasExactGap && gapSec <= ctx.Config.RivalAheadGapSec) || (!hasExactGap && distDelta > 0 && distDelta < maxAttackDist)
+			if inAttackRange && r.lastCarAheadWarningIndex != i {
 				r.lastCarAheadWarningIndex = i
-				gapSec := distDelta / AverageRaceSpeedMetersPerSec
 
 				var tyreContext string
 				if ctx.Status != nil && i < len(ctx.Status.CarStatusData) {
