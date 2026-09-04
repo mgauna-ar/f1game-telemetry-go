@@ -58,8 +58,8 @@ func (r *ERSRule) Evaluate(ctx *EvaluationContext) []Directive {
 			(ctx.Session != nil && ctx.Session.SafetyCarStatus != packets.SafetyCarNone) ||
 			(playerLap != nil && playerLap.SafetyCarDelta != 0)
 
-		// Push Lap / Deploy Mode Shield: intentional drain in Hotlap (2) or Overtake (3) mode
-		isPushMode := status.ERSDeployMode == 2 || status.ERSDeployMode == 3
+		// Push Lap / Deploy Mode Shield: intentional drain in Hotlap or Overtake mode
+		isPushMode := status.ERSDeployMode == packets.ERSDeployModeHotlap || status.ERSDeployMode == packets.ERSDeployModeOvertake
 
 		// Final Sector / Finish Line Shield: intentional depletion on main straight
 		isFinalSector := CalculateLapDistanceFraction(ctx.Session, playerLap) >= ERSPushLapDistanceFraction

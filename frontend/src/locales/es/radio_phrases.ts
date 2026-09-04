@@ -20,14 +20,14 @@ export const radio_phrases = {
     colapinto: [
       'Auto de seguridad virtual, VSC en pista. Mantené el delta positivo, sin sobrepasos.',
       'VSC en pista, {driver}. Cuidá el delta y no te distraigas.',
-      'Tenemos auto de seguridad virtual. Delta positivo en todos los sectores, prohibido adelantar.',
+      'Tenemos auto de seguridad virtual. Delta positivo en todos los sectores, sin sobrepasos.',
     ],
     bono: [
       'Auto de seguridad virtual en pista. Mantén delta positivo, sin adelantamientos.',
       'VSC en pista, {driver}. Mantén delta positivo y prepárate.',
     ],
     standard: [
-      'Auto de seguridad virtual en pista. Mantén delta positivo, prohibido adelantar.',
+      'Auto de seguridad virtual en pista. Mantén delta positivo, sin sobrepasos.',
       'VSC en pista. Mantén delta positivo en todo el circuito.',
     ],
   },
@@ -47,16 +47,16 @@ export const radio_phrases = {
   },
   tyre_puncture: {
     colapinto: [
-      '¡Pinchazo, pinchazo! Box esta vuelta, {driver}, entrá despacito.',
-      '¡Tenemos pinchazo! Venite a boxes ya mismo, cuidá el auto.',
+      '¡Pinchadura, pinchadura! Box esta vuelta, {driver}, entrá despacito.',
+      '¡Tenemos pinchadura! Venite a boxes ya mismo, cuidá el auto.',
     ],
     bono: [
-      '¡Pinchazo en el neumático! Box esta vuelta, {driver}, entra con cuidado.',
-      'Pinchazo detectado. Box esta vuelta, box box box.',
+      '¡Pinchadura en el neumático! Box esta vuelta, {driver}, entra con cuidado.',
+      'Pinchadura detectada. Box esta vuelta, box box box.',
     ],
     standard: [
-      '¡Pinchazo en el neumático! Box esta vuelta, entra con cuidado.',
-      'Pinchazo crítico detectado, {driver}. Entra a boxes inmediatamente.',
+      '¡Pinchadura en el neumático! Box esta vuelta, entra con cuidado.',
+      'Pinchadura crítica detectada, {driver}. Entra a boxes inmediatamente.',
     ],
   },
   tyre_wear: {
@@ -105,11 +105,11 @@ export const radio_phrases = {
       'Tocamos el alerón delantero. Hay pérdida de carga en curva rápida.',
     ],
     bono: [
-      'Daño en el alerón delantero. Pérdida de carga aerodinámica, entra a boxes a cambiar morro.',
+      'Daño en el alerón delantero. Pérdida de carga aerodinámica, entra a boxes a cambiar la trompa.',
       'Daño frontal detectado, {driver}. Espera subviraje en curva media y rápida.',
     ],
     standard: [
-      'Daño en el alerón delantero. Pérdida de carga aerodinámica, entra a boxes a cambiar morro.',
+      'Daño en el alerón delantero. Pérdida de carga aerodinámica, entra a boxes a cambiar el alerón.',
       'Daño en el alerón delantero detectado, {driver}. Posible parada para cambio de alerón.',
     ],
   },
@@ -156,7 +156,7 @@ export const radio_phrases = {
     ],
     bono: [
       'Para el monoplaza, {driver}. Falla terminal del motor, busca una escapatoria segura y apaga la unidad de potencia.',
-      'Falla terminal del motor. Detén el coche en una zona segura y apágalo de inmediato.',
+      'Falla terminal del motor. Detén el auto en una zona segura y apágalo de inmediato.',
     ],
     standard: [
       'Falla terminal del motor. Detén el monoplaza en zona segura y apaga la unidad de potencia.',
@@ -374,7 +374,7 @@ export const radio_phrases = {
     ],
     standard: [
       'Tres advertencias de límites de pista. Una más y tendremos penalización.',
-      'Última advertencia de límites de pista, {driver}. Mantén el coche dentro de la línea blanca.',
+      'Última advertencia de límites de pista, {driver}. Mantén el auto dentro de la línea blanca.',
     ],
   },
   penalties_incurred: {
@@ -530,7 +530,7 @@ export const radio_phrases = {
       '¡Bandera a cuadros! Tremenda carrera metiste, {driver}. Poné mapa de enfriamiento, levantá goma fuera de la huella y traelo despacio a parque cerrado.',
     ],
     bono: [
-      'Bandera a cuadros. Excelente trabajo hoy, bien conducido. Pasa a modo de enfriamiento y trae el coche a parque cerrado.',
+      'Bandera a cuadros. Excelente trabajo hoy, bien conducido. Pasa a modo de enfriamiento y trae el auto a parque cerrado.',
     ],
     standard: [
       'Bandera a cuadros. Gran carrera completada. Cambia a modo de enfriamiento y dirígete a parque cerrado.',
@@ -620,11 +620,11 @@ export const radio_phrases = {
     ],
     bono: [
       'Banderas azules, {driver}. Viene el líder detrás, cede la posición limpiamente.',
-      'Banderas azules. Deja pasar al coche de cabeza en la siguiente recta.',
+      'Banderas azules. Deja pasar al líder en la siguiente recta.',
     ],
     standard: [
       'Banderas azules, {driver}. Viene el líder detrás, cede la posición de forma limpia.',
-      'Banderas azules. Permite el paso al coche que viene a doblar.',
+      'Banderas azules. Permite el paso al puntero que viene a doblar.',
     ],
   },
   flags_yellow: {
@@ -633,11 +633,11 @@ export const radio_phrases = {
       'Bandera amarilla, {driver}. Cuidado con posibles restos en pista y levantá si hace falta.',
     ],
     bono: [
-      'Bandera amarilla en este sector. Incidente adelante, prohibido adelantar y prepárate para levantar.',
+      'Bandera amarilla en este sector. Incidente adelante, sin sobrepasos y prepárate para levantar.',
       'Bandera amarilla, {driver}. Precaución en esta zona.',
     ],
     standard: [
-      'Bandera amarilla en este sector. Incidente adelante, prohibido adelantar y mantén la precaución.',
+      'Bandera amarilla en este sector. Incidente adelante, sin sobrepasos y mantén la precaución.',
       'Bandera amarilla en pista. Reduce la velocidad si es necesario.',
     ],
   },
@@ -647,12 +647,166 @@ export const radio_phrases = {
       '¡Alerta, vas en sentido contrario! Frená o pegá la vuelta inmediatamente.',
     ],
     bono: [
-      '¡Dirección incorrecta, {driver}! Conduces en sentido contrario, detén el coche o gira de inmediato.',
+      '¡Dirección incorrecta, {driver}! Conduces en sentido contrario, detén el auto o gira de inmediato.',
       'Alerta de sentido contrario. Da la vuelta o detén el monoplaza con seguridad.',
     ],
     standard: [
       '¡Alerta! Conduces en sentido contrario a la pista. Detén el monoplaza o cambia de sentido de inmediato.',
       'Aviso de sentido contrario. Cambia de dirección o detén el vehículo con seguridad.',
+    ],
+  },
+  flags_drs_enabled: {
+    colapinto: [
+      '¡DRS habilitado, {driver}! Ya tenés DRS, dale gas en la recta.',
+      '¡DRS activo! Aprovechalo si estás a tiro de DRS.',
+    ],
+    bono: [
+      'DRS habilitado, {driver}. El DRS ya está activo.',
+      'DRS disponible, puedes activarlo en las zonas habilitadas.',
+    ],
+    standard: [
+      'DRS habilitado, DRS ahora activo.',
+      'Dirección de carrera ha habilitado el DRS.',
+    ],
+  },
+  flags_drs_disabled: {
+    colapinto: [
+      '¡DRS deshabilitado, {driver}! Sin DRS por ahora, mantenete cerca.',
+      'Desactivaron el DRS, seguimos sin asistencia en las rectas.',
+    ],
+    bono: [
+      'DRS deshabilitado, {driver}. Dirección de carrera desactivó el DRS.',
+      'DRS deshabilitado en todo el circuito.',
+    ],
+    standard: [
+      'DRS deshabilitado por dirección de carrera.',
+      'El DRS se encuentra desactivado.',
+    ],
+  },
+  race_fastest_lap: {
+    colapinto: [
+      '¡Vuelta rápida, {driver}! ¡Púrpura en todos los sectores, tremendo ritmo!',
+      '¡Récord de vuelta! Volaste en los tres parciales, hermoso giro.',
+    ],
+    bono: [
+      'Vuelta rápida de la sesión, {driver}. Sectores en púrpura, impecable.',
+      'Esa es la vuelta más rápida de la carrera, gran trabajo.',
+    ],
+    standard: [
+      'Vuelta más rápida de la sesión. Excelente ritmo.',
+      'Nuevo récord de vuelta registrado.',
+    ],
+  },
+  car_collision: {
+    colapinto: [
+      '¡Hubo toque, {driver}! Avisame si sentís vibración en la dirección o en el alerón delantero.',
+      '¡Cuidado con el toque! Decime si el auto tira para algún lado o sentís daño.',
+    ],
+    bono: [
+      'Contacto reportado, {driver}. Revisa el tacto de la dirección y el alerón delantero.',
+      'Vimos un toque, confirma comportamiento del tren delantero.',
+    ],
+    standard: [
+      '¡Contacto reportado! Revisa dirección y balance del alerón delantero.',
+      'Colisión detectada. Monitorea el comportamiento del monoplaza.',
+    ],
+  },
+  car_retirement: {
+    colapinto: [
+      'Hay un auto que abandonó, {driver}. Ojo con posibles pedazos en la pista.',
+      'Abandono adelante, levantá un poco si ves polvo o banderas.',
+    ],
+    bono: [
+      'Abandono reportado en pista, {driver}. Precaución con posibles restos o bandera amarilla.',
+      'Retiro confirmado. Mantén la concentración en esa zona.',
+    ],
+    standard: [
+      'Abandono en pista. Atención a posibles banderas amarillas o restos.',
+      'Vehículo retirado. Precaución en pista.',
+    ],
+  },
+  formation_lap_start: {
+    colapinto: [
+      '¡Vuelta previa, {driver}! Calentá bien las gomas zigzagueando y dale temperatura a los frenos.',
+      'Vuelta de formación en marcha. Cuidá la temperatura de gomas y frenos para largar con todo.',
+    ],
+    bono: [
+      'Vuelta de formación, {driver}. Zigzaguea para calentar neumáticos y frenos delanteros.',
+      'Inicia la vuelta de formación. Carga temperatura en la carcasa de las gomas.',
+    ],
+    standard: [
+      'Vuelta de formación. Zigzaguea para poner temperatura en neumáticos y frenos delanteros.',
+      'Comienza la vuelta previa. Construye temperatura en neumáticos y frenos.',
+    ],
+  },
+  grid_approach: {
+    colapinto: [
+      'Llegando a la grilla, {driver}. Clavalo bien en el cajón y buscá el punto del embrague.',
+      'Atento a la grilla. Alineá el auto en el cajón y prepará la largada.',
+    ],
+    bono: [
+      'Aproximación a parrilla, {driver}. Cuadra el monoplaza y busca el punto de embrague.',
+      'Llegando al cajón de salida. Alinea el auto y prepara la arrancada.',
+    ],
+    standard: [
+      'Acercándote a la grilla. Alinea con cuidado en tu cajón y busca el punto de mordida del embrague.',
+      'Alineación en parrilla. Posiciona el monoplaza y prepara el procedimiento de largada.',
+    ],
+  },
+  start_reaction_time: {
+    colapinto: [
+      '¡Buena largada, {driver}! Reaccionaste rápido, ahora cuidá la cuerda en la primera curva.',
+      '¡Excelente reacción en los semáforos! Mantenete firme en la curva 1.',
+    ],
+    bono: [
+      'Buena reacción en la salida, {driver}. Concéntrate en la trazada de la curva 1.',
+      'Procedimiento de arrancada correcto. Ahora consolida posición.',
+    ],
+    standard: [
+      'Buena respuesta en la largada. Mantén la posición en las primeras curvas.',
+      'Salida completada. Enfócate en el ritmo de carrera.',
+    ],
+  },
+  pit_serve_penalty: {
+    colapinto: [
+      '¡Acordate que pagamos sanción en boxes! El auto tiene que estar quieto antes de cambiar gomas.',
+      '¡Atento a la penalización! Ni bien pares, los mecánicos no tocan el auto hasta cumplir los segundos.',
+    ],
+    bono: [
+      'Recuerda que cumplimos la penalización primero, {driver}. Auto parado antes del cambio de gomas.',
+      'Parada con penalización. El monoplaza debe permanecer detenido antes de la intervención.',
+    ],
+    standard: [
+      'Cumplir penalización antes del cambio de neumáticos. Monoplaza detenido hasta finalizar sanción.',
+      'Parada con penalización. Respeta el tiempo detenido antes de la asistencia mecánica.',
+    ],
+  },
+  pit_stop_duration: {
+    colapinto: [
+      '¡Buena parada de los pibes! Gomas puestas, salí a fondo en la vuelta de salida.',
+      '¡Impecable el pit stop! A fondo ahora, dale calor a las gomas en la vuelta de salida.',
+    ],
+    bono: [
+      'Buena parada, {driver}. Cambio limpio, empuja fuerte en la vuelta de salida.',
+      'Parada completada. Neumáticos montados, a tope en la out-lap.',
+    ],
+    standard: [
+      'Parada en boxes completada. Empuja ahora en la vuelta de salida.',
+      'Servicio completado. Maximiza el ritmo en la vuelta de salida.',
+    ],
+  },
+  pit_limiter_exit: {
+    colapinto: [
+      '¡Limitador afuera, {driver}! Pista limpia, ¡a fondo!',
+      '¡Fuera limitador! Cuidá la línea blanca de salida y acelerá todo.',
+    ],
+    bono: [
+      'Limitador fuera, {driver}. Pista libre, a empujar.',
+      'Limitador desactivado. Cuidado con la línea blanca y a fondo.',
+    ],
+    standard: [
+      'Limitador de boxes desactivado. Respeta la línea blanca de salida y empuja ahora.',
+      'Pista libre en salida de boxes. Limitador fuera, ritmo de carrera.',
     ],
   },
   directive: {

@@ -1985,3 +1985,260 @@ func TestNeutralizationShields_TeammateFuelRivalsTyres(t *testing.T) {
 		}
 	}
 }
+
+func TestPhase4ProceduresAndEvents(t *testing.T) {
+	cfg := DefaultEngineerConfig()
+
+	// 1. Formation Lap Start & Grid Approach
+	t.Run("Formation Lap and Grid Approach", func(t *testing.T) {
+		rule := NewCoachingRule()
+		session := &packets.PacketSessionData{
+			TrackLength: 5000,
+			SessionType: packets.SessionRace,
+		}
+		lapData := &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{CurrentLapNum: 1, LapDistance: 100.0},
+			},
+		}
+		ctxFormation := &EvaluationContext{
+			Session:        session,
+			LapData:        lapData,
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseFormationLap,
+		}
+
+		dirs := rule.Evaluate(ctxFormation)
+		if len(dirs) != 1 || dirs[0].ID != "formation_lap_start" {
+			t.Fatalf("expected formation_lap_start, got %+v", dirs)
+		}
+
+		// Second tick at 100m should not duplicate formation_lap_start
+		dirsRepeat := rule.Evaluate(ctxFormation)
+		if len(dirsRepeat) != 0 {
+			t.Fatalf("expected 0 directives for repeated tick, got %+v", dirsRepeat)
+		}
+
+		// At 93% distance (4650m / 5000m >= 0.92) -> grid_approach should fire
+		lapData.LapData[0].LapDistance = 4650.0
+		dirsApproach := rule.Evaluate(ctxFormation)
+		if len(dirsApproach) != 1 || dirsApproach[0].ID != "grid_approach" {
+			t.Fatalf("expected grid_approach, got %+v", dirsApproach)
+		}
+	})
+
+	// 2. Start Reaction Time debrief
+	t.Run("Start Reaction Time", func(t *testing.T) {
+		session := &packets.PacketSessionData{
+			SessionType:       packets.SessionRace,
+			StartReactionTime: 0.21, // fast reaction
+		}
+		lapData := &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{CurrentLapNum: 1, LapDistance: 200.0, DriverStatus: packets.DriverStatusOnTrack},
+			},
+		}
+
+		ruleFast := NewCoachingRule()
+		ctxFast := &EvaluationContext{
+			Session:        session,
+			LapData:        lapData,
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseRacing,
+		}
+		dirsFast := ruleFast.Evaluate(ctxFast)
+		if len(dirsFast) != 1 || dirsFast[0].ID != "start_reaction_time" || !strings.Contains(dirsFast[0].Message, "Great launch") {
+			t.Fatalf("expected fast start reaction alert, got %+v", dirsFast)
+		}
+
+		// Assisted launch / jump start (StartReactionTime <= 0.05) should be filtered
+		ruleAssisted := NewCoachingRule()
+		sessionAssisted := &packets.PacketSessionData{
+			SessionType:       packets.SessionRace,
+			StartReactionTime: 0.0,
+		}
+		ctxAssisted := &EvaluationContext{
+			Session:        sessionAssisted,
+			LapData:        lapData,
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseRacing,
+		}
+		dirsAssisted := ruleAssisted.Evaluate(ctxAssisted)
+		if len(dirsAssisted) != 0 {
+			t.Fatalf("expected 0 directives for 0.0s reaction time, got %+v", dirsAssisted)
+		}
+
+		// Slow reaction (0.45s)
+		ruleSlow := NewCoachingRule()
+		sessionSlow := &packets.PacketSessionData{
+			SessionType:       packets.SessionRace,
+			StartReactionTime: 0.45,
+		}
+		ctxSlow := &EvaluationContext{
+			Session:        sessionSlow,
+			LapData:        lapData,
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseRacing,
+		}
+		dirsSlow := ruleSlow.Evaluate(ctxSlow)
+		if len(dirsSlow) != 1 || !strings.Contains(dirsSlow[0].Message, "maintaining track position") {
+			t.Fatalf("expected slow start reaction alert, got %+v", dirsSlow)
+		}
+	})
+
+	// 3. Pit Stop Procedures (penalty serving, box timer, limiter exit)
+	t.Run("Pit Procedures and Limiter", func(t *testing.T) {
+		rule := NewTrafficRule()
+		lapData := &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{
+					CurrentLapNum:         15,
+					PitStatus:             packets.PitStatusPitting,
+					PitStopShouldServePen: 1,
+					Penalties:             5,
+				},
+			},
+		}
+		status := &packets.PacketCarStatusData{
+			CarStatusData: [packets.MaxCars]packets.CarStatusData{
+				{PitLimiterStatus: 1},
+			},
+		}
+		ctxPitEntry := &EvaluationContext{
+			LapData:        lapData,
+			Status:         status,
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhasePitLane,
+		}
+
+		// Initial evaluation: pit_serve_penalty
+		dirsEntry := rule.Evaluate(ctxPitEntry)
+		var hasServePen bool
+		for _, d := range dirsEntry {
+			if d.ID == "pit_serve_penalty" {
+				hasServePen = true
+			}
+		}
+		if !hasServePen {
+			t.Fatalf("expected pit_serve_penalty alert on pit entry, got %+v", dirsEntry)
+		}
+
+		// In pit box stationary: PitStatus = InPitArea, PitStopTimerInMS = 2400
+		lapData.LapData[0].PitStatus = packets.PitStatusInPitArea
+		lapData.LapData[0].PitStopTimerInMS = 2400
+		rule.Evaluate(ctxPitEntry)
+
+		// Car leaves box: PitStatus transitions back to Pitting
+		lapData.LapData[0].PitStatus = packets.PitStatusPitting
+		dirsLeaveBox := rule.Evaluate(ctxPitEntry)
+		var hasDuration bool
+		for _, d := range dirsLeaveBox {
+			if d.ID == "pit_stop_duration" && strings.Contains(d.Message, "Rapid stop") {
+				hasDuration = true
+			}
+		}
+		if !hasDuration {
+			t.Fatalf("expected pit_stop_duration debrief after leaving box, got %+v", dirsLeaveBox)
+		}
+
+		// Car exits pit lane: PitLimiter switches from 1 to 0
+		status.CarStatusData[0].PitLimiterStatus = 0
+		dirsLimiter := rule.Evaluate(ctxPitEntry)
+		var hasLimiterOff bool
+		for _, d := range dirsLimiter {
+			if d.ID == "pit_limiter_exit" {
+				hasLimiterOff = true
+			}
+		}
+		if !hasLimiterOff {
+			t.Fatalf("expected pit_limiter_exit alert, got %+v", dirsLimiter)
+		}
+	})
+
+	// 4. Race Control Events (DRS, Collision, Retirement, Fastest Lap)
+	t.Run("Race Control Events", func(t *testing.T) {
+		rule := NewFlagsRule()
+		session := &packets.PacketSessionData{
+			SessionType: packets.SessionRace,
+		}
+		ctxEvent := &EvaluationContext{
+			Session:          session,
+			Config:           cfg,
+			PlayerCarIndex:   0,
+			TeammateCarIndex: 1,
+			Phase:            PhaseRacing,
+		}
+
+		// DRS Enabled
+		evtDRSE := &packets.PacketEventData{
+			EventStringCode: [4]uint8{'D', 'R', 'S', 'E'},
+		}
+		ctxEvent.Packet = evtDRSE
+		dirsDRSE := rule.Evaluate(ctxEvent)
+		if len(dirsDRSE) != 1 || dirsDRSE[0].ID != "flags_drs_enabled" {
+			t.Fatalf("expected flags_drs_enabled, got %+v", dirsDRSE)
+		}
+
+		// DRS Disabled with reason safety car
+		var dDetails packets.EventDataDetails
+		dDetails.Data[0] = packets.DRSDisabledReasonSafetyCar
+		evtDRSD := &packets.PacketEventData{
+			EventStringCode: [4]uint8{'D', 'R', 'S', 'D'},
+			EventDetails:    dDetails,
+		}
+		ctxEvent.Packet = evtDRSD
+		dirsDRSD := rule.Evaluate(ctxEvent)
+		if len(dirsDRSD) != 1 || dirsDRSD[0].ID != "flags_drs_disabled" || !strings.Contains(dirsDRSD[0].Message, "Safety Car") {
+			t.Fatalf("expected flags_drs_disabled due to SC, got %+v", dirsDRSD)
+		}
+
+		// Collision involving player (car 0 and car 4)
+		var colDetails packets.EventDataDetails
+		colDetails.Data[0] = 0
+		colDetails.Data[1] = 4
+		colDetails.Data[2] = 2 // high severity
+		evtCol := &packets.PacketEventData{
+			Header:          packets.PacketHeader{PacketFormat: packets.PacketFormat2026},
+			EventStringCode: [4]uint8{'C', 'O', 'L', 'L'},
+			EventDetails:    colDetails,
+		}
+		ctxEvent.Packet = evtCol
+		dirsCol := rule.Evaluate(ctxEvent)
+		if len(dirsCol) != 1 || dirsCol[0].ID != "car_collision" {
+			t.Fatalf("expected car_collision for player, got %+v", dirsCol)
+		}
+
+		// Collision NOT involving player (car 2 and car 3)
+		colDetails.Data[0] = 2
+		colDetails.Data[1] = 3
+		evtColBystander := &packets.PacketEventData{
+			Header:          packets.PacketHeader{PacketFormat: packets.PacketFormat2026},
+			EventStringCode: [4]uint8{'C', 'O', 'L', 'L'},
+			EventDetails:    colDetails,
+		}
+		ctxEvent.Packet = evtColBystander
+		dirsColBystander := rule.Evaluate(ctxEvent)
+		if len(dirsColBystander) != 0 {
+			t.Fatalf("expected 0 directives for bystander collision, got %+v", dirsColBystander)
+		}
+
+		// Teammate retirement (car 1)
+		var retDetails packets.EventDataDetails
+		retDetails.Data[0] = 1
+		retDetails.Data[1] = 3
+		evtRet := &packets.PacketEventData{
+			EventStringCode: [4]uint8{'R', 'T', 'M', 'T'},
+			EventDetails:    retDetails,
+		}
+		ctxEvent.Packet = evtRet
+		dirsRet := rule.Evaluate(ctxEvent)
+		if len(dirsRet) != 1 || dirsRet[0].ID != "car_retirement" || !strings.Contains(dirsRet[0].Message, "Teammate") {
+			t.Fatalf("expected teammate car_retirement, got %+v", dirsRet)
+		}
+	})
+}

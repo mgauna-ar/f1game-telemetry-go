@@ -116,6 +116,8 @@ go run ./cmd/simulator -scenario wear      # Tyres start at 38.5% → triggers t
 go run ./cmd/simulator -scenario sc        # Deploys a Full Safety Car → tests SC radio call
 go run ./cmd/simulator -scenario vsc       # Deploys Virtual Safety Car (VSC)
 go run ./cmd/simulator -scenario rain      # Injects rain forecast → tests weather crossover alert
+go run ./cmd/simulator -scenario start     # Formation lap warmup, grid approach, and lights-out launch reaction debrief
+go run ./cmd/simulator -scenario pit       # Pit limiter entry, penalty hold, stationary stop duration debrief, and exit release
 ```
 
 ---

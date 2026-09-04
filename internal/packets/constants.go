@@ -169,6 +169,18 @@ const (
 	WheelFrontRight = 1
 	WheelRearLeft   = 2
 	WheelRearRight  = 3
+
+	// DRS disabled reason codes (emitted in DRSD event)
+	DRSDisabledReasonSurfaceConditions uint8 = 0
+	DRSDisabledReasonSafetyCar         uint8 = 1
+	DRSDisabledReasonRedFlag           uint8 = 2
+	DRSDisabledReasonMinLapNotReached  uint8 = 3
+
+	// ERS deployment mode codes
+	ERSDeployModeNone     uint8 = 0
+	ERSDeployModeMedium   uint8 = 1
+	ERSDeployModeHotlap   uint8 = 2
+	ERSDeployModeOvertake uint8 = 3
 )
 
 // NormalizeCompoundName normalizes raw or visual tyre compound string/ID to standard uppercase compound name.

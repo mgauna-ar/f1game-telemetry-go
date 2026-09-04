@@ -84,6 +84,17 @@ const CATEGORY_MAP: Record<string, RadioAlertCategory> = {
   wrong_way: 'wrong_way',
   rival_defend_override: 'rival_defend_override',
   rival_attack_override: 'rival_attack_override',
+  flags_drs_enabled: 'flags_drs_enabled',
+  flags_drs_disabled: 'flags_drs_disabled',
+  race_fastest_lap: 'race_fastest_lap',
+  car_collision: 'car_collision',
+  car_retirement: 'car_retirement',
+  formation_lap_start: 'formation_lap_start',
+  grid_approach: 'grid_approach',
+  start_reaction_time: 'start_reaction_time',
+  pit_serve_penalty: 'pit_serve_penalty',
+  pit_stop_duration: 'pit_stop_duration',
+  pit_limiter_exit: 'pit_limiter_exit',
 };
 
 /**

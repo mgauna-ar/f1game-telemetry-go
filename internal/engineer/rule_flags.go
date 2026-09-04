@@ -100,6 +100,31 @@ func (r *FlagsRule) AlertKeys() map[string]AlertKeyConfig {
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseFormationLap},
 			DedupScope:  DedupScopeNone,
 		},
+		"flags_drs_enabled": {
+			Category:    DirectiveCategoryFlags,
+			ValidPhases: []DrivingPhase{PhaseRacing},
+			DedupScope:  DedupScopeNone,
+		},
+		"flags_drs_disabled": {
+			Category:    DirectiveCategoryFlags,
+			ValidPhases: []DrivingPhase{PhaseRacing, PhaseSafetyCar, PhaseRedFlag},
+			DedupScope:  DedupScopeNone,
+		},
+		"car_collision": {
+			Category:    DirectiveCategoryFlags,
+			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			DedupScope:  DedupScopeNone,
+		},
+		"car_retirement": {
+			Category:    DirectiveCategoryFlags,
+			ValidPhases: []DrivingPhase{PhaseRacing, PhaseSafetyCar},
+			DedupScope:  DedupScopeNone,
+		},
+		"race_fastest_lap": {
+			Category:    DirectiveCategoryFlags,
+			ValidPhases: []DrivingPhase{PhaseFlyingLap, PhaseRacing},
+			DedupScope:  DedupScopeNone,
+		},
 		"race_finish": {
 			Category:    DirectiveCategoryFlags,
 			ValidPhases: []DrivingPhase{PhasePostRace},
@@ -260,35 +285,172 @@ func (r *FlagsRule) evaluateSafetyCar(ctx *EvaluationContext) *Directive {
 }
 
 func (r *FlagsRule) evaluateEvent(ctx *EvaluationContext, p *packets.PacketEventData) *Directive {
-	if !ctx.IsRaceSession() || p.EventCode() != packets.EventSafetyCarStatus {
-		return nil
-	}
-	d, ok := p.SafetyCarData()
-	if !ok {
-		return nil
-	}
-	switch d.EventType {
-	case packets.SafetyCarEventReturning:
-		if !r.scEndingTriggered {
-			r.scEndingTriggered = true
+	switch p.EventCode() {
+	case packets.EventSafetyCarStatus:
+		if !ctx.IsRaceSession() {
+			return nil
+		}
+		d, ok := p.SafetyCarData()
+		if !ok {
+			return nil
+		}
+		switch d.EventType {
+		case packets.SafetyCarEventReturning:
+			if !r.scEndingTriggered {
+				r.scEndingTriggered = true
+				return &Directive{
+					ID:       "flags_sc_in",
+					Category: DirectiveCategoryFlags,
+					SubAlert: "flags_sc_in",
+					Title:    "Safety Car In This Lap",
+					Message:  "Safety Car in this lap, Safety Car in this lap! Maintain delta positive, warm front tyres and prepare for restart.",
+					Urgency:  UrgencyHigh,
+				}
+			}
+		case packets.SafetyCarEventResumeRace:
+			r.scEndingTriggered = false
 			return &Directive{
-				ID:       "flags_sc_in",
+				ID:       "flags_green",
 				Category: DirectiveCategoryFlags,
-				SubAlert: "flags_sc_in",
-				Title:    "Safety Car In This Lap",
-				Message:  "Safety Car in this lap, Safety Car in this lap! Maintain delta positive, warm front tyres and prepare for restart.",
+				SubAlert: "flags_green",
+				Title:    "Green Flag",
+				Message:  "Green flag, green flag! Race is resumed, push now.",
 				Urgency:  UrgencyHigh,
 			}
 		}
-	case packets.SafetyCarEventResumeRace:
-		r.scEndingTriggered = false
+
+	case packets.EventDRSEnabled:
+		if !ctx.IsRaceSession() {
+			return nil
+		}
 		return &Directive{
-			ID:       "flags_green",
+			ID:       "flags_drs_enabled",
 			Category: DirectiveCategoryFlags,
-			SubAlert: "flags_green",
-			Title:    "Green Flag",
-			Message:  "Green flag, green flag! Race is resumed, push now.",
+			SubAlert: "flags_drs_enabled",
+			Title:    "DRS Enabled",
+			Message:  "DRS enabled, DRS is now active.",
+			Urgency:  UrgencyMedium,
+		}
+
+	case packets.EventDRSDisabled:
+		if !ctx.IsRaceSession() {
+			return nil
+		}
+		reasonStr := "Race control has disabled DRS."
+		var reason uint8
+		if d, ok := p.DRSDisabledData(); ok {
+			reason = d.Reason
+			switch d.Reason {
+			case packets.DRSDisabledReasonSurfaceConditions:
+				reasonStr = "DRS disabled due to wet track conditions."
+			case packets.DRSDisabledReasonSafetyCar:
+				reasonStr = "DRS disabled due to Safety Car."
+			case packets.DRSDisabledReasonRedFlag:
+				reasonStr = "DRS disabled due to Red Flag."
+			case packets.DRSDisabledReasonMinLapNotReached:
+				reasonStr = "DRS disabled, minimum laps not reached."
+			}
+		}
+		return &Directive{
+			ID:       "flags_drs_disabled",
+			Category: DirectiveCategoryFlags,
+			SubAlert: "flags_drs_disabled",
+			Title:    "DRS Disabled",
+			Message:  reasonStr,
 			Urgency:  UrgencyHigh,
+			Metadata: map[string]any{
+				"reason": reason,
+			},
+		}
+
+	case packets.EventCollision:
+		if col, ok := p.CollisionData(); ok {
+			if int(col.Vehicle1Idx) == ctx.PlayerCarIndex || int(col.Vehicle2Idx) == ctx.PlayerCarIndex {
+				otherIdx := col.Vehicle2Idx
+				if int(col.Vehicle2Idx) == ctx.PlayerCarIndex {
+					otherIdx = col.Vehicle1Idx
+				}
+				return &Directive{
+					ID:       "car_collision",
+					Category: DirectiveCategoryFlags,
+					SubAlert: "car_collision",
+					Title:    "Contact Reported",
+					Message:  "Contact reported! Check steering and front wing balance, reporting on next radio check.",
+					Urgency:  UrgencyCritical,
+					Metadata: map[string]any{
+						"other_vehicle_idx": otherIdx,
+						"severity":          col.Severity,
+					},
+				}
+			}
+		}
+
+	case packets.EventRetirement:
+		if !ctx.IsRaceSession() {
+			return nil
+		}
+		if ret, ok := p.RetirementData(); ok {
+			if int(ret.VehicleIdx) == ctx.PlayerCarIndex {
+				return nil
+			}
+			driverName := fmt.Sprintf("Car %d", ret.VehicleIdx)
+			if ctx.Participants != nil && int(ret.VehicleIdx) < len(ctx.Participants.Participants) {
+				name := ctx.Participants.Participants[ret.VehicleIdx].NameString()
+				if name != "" {
+					driverName = name
+				}
+			}
+			isTeammate := int(ret.VehicleIdx) == ctx.TeammateCarIndex
+			var msg string
+			if isTeammate {
+				msg = fmt.Sprintf("Teammate %s has retired from the race.", driverName)
+			} else {
+				msg = fmt.Sprintf("%s has retired from the race, watch for potential yellow flags or debris.", driverName)
+			}
+			return &Directive{
+				ID:       "car_retirement",
+				Category: DirectiveCategoryFlags,
+				SubAlert: "car_retirement",
+				Title:    "Car Retirement",
+				Message:  msg,
+				Urgency:  UrgencyMedium,
+				Metadata: map[string]any{
+					"vehicle_idx": ret.VehicleIdx,
+					"reason":      ret.Reason,
+					"is_teammate": isTeammate,
+				},
+			}
+		}
+
+	case packets.EventFastestLap:
+		if fl, ok := p.FastestLapData(); ok {
+			driverName := fmt.Sprintf("Car %d", fl.VehicleIdx)
+			if ctx.Participants != nil && int(fl.VehicleIdx) < len(ctx.Participants.Participants) {
+				name := ctx.Participants.Participants[fl.VehicleIdx].NameString()
+				if name != "" {
+					driverName = name
+				}
+			}
+			isPlayer := int(fl.VehicleIdx) == ctx.PlayerCarIndex
+			var msg string
+			if isPlayer {
+				msg = fmt.Sprintf("Fastest lap of the session! Purple in all sectors, lap time %.3f.", fl.LapTime)
+			} else {
+				msg = fmt.Sprintf("New overall fastest lap set by %s: %.3f.", driverName, fl.LapTime)
+			}
+			return &Directive{
+				ID:       "race_fastest_lap",
+				Category: DirectiveCategoryFlags,
+				SubAlert: "race_fastest_lap",
+				Title:    "Fastest Lap",
+				Message:  msg,
+				Urgency:  UrgencyMedium,
+				Metadata: map[string]any{
+					"vehicle_idx": fl.VehicleIdx,
+					"lap_time":    fl.LapTime,
+					"is_player":   isPlayer,
+				},
+			}
 		}
 	}
 	return nil

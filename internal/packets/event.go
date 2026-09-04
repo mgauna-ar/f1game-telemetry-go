@@ -62,6 +62,82 @@ func (p PacketEventData) SafetyCarData() (SafetyCarEventData, bool) {
 	return d, err == nil
 }
 
+// FastestLapData returns the decoded FastestLapEventData if the event is EventFastestLap.
+func (p PacketEventData) FastestLapData() (FastestLapEventData, bool) {
+	if p.EventCode() != EventFastestLap {
+		return FastestLapEventData{}, false
+	}
+	var d FastestLapEventData
+	err := binary.Read(bytes.NewReader(p.EventDetails.Data[:]), binary.LittleEndian, &d)
+	return d, err == nil
+}
+
+// RetirementData returns the decoded RetirementEventData if the event is EventRetirement.
+func (p PacketEventData) RetirementData() (RetirementEventData, bool) {
+	if p.EventCode() != EventRetirement {
+		return RetirementEventData{}, false
+	}
+	var d RetirementEventData
+	err := binary.Read(bytes.NewReader(p.EventDetails.Data[:]), binary.LittleEndian, &d)
+	return d, err == nil
+}
+
+// DRSDisabledData returns the decoded DRSDisabledEventData if the event is EventDRSDisabled.
+func (p PacketEventData) DRSDisabledData() (DRSDisabledEventData, bool) {
+	if p.EventCode() != EventDRSDisabled {
+		return DRSDisabledEventData{}, false
+	}
+	var d DRSDisabledEventData
+	err := binary.Read(bytes.NewReader(p.EventDetails.Data[:]), binary.LittleEndian, &d)
+	return d, err == nil
+}
+
+// CollisionData returns the decoded CollisionEventData if the event is EventCollision.
+// It is format-aware, decoding 2 bytes in F1 2025 and 3 bytes (including Severity) in F1 2026.
+func (p PacketEventData) CollisionData() (CollisionEventData, bool) {
+	if p.EventCode() != EventCollision {
+		return CollisionEventData{}, false
+	}
+	d := CollisionEventData{
+		Vehicle1Idx: p.EventDetails.Data[0],
+		Vehicle2Idx: p.EventDetails.Data[1],
+	}
+	if p.Header.PacketFormat >= PacketFormat2026 {
+		d.Severity = p.EventDetails.Data[2]
+	}
+	return d, true
+}
+
+// OvertakeData returns the decoded OvertakeEventData if the event is EventOvertake.
+func (p PacketEventData) OvertakeData() (OvertakeEventData, bool) {
+	if p.EventCode() != EventOvertake {
+		return OvertakeEventData{}, false
+	}
+	var d OvertakeEventData
+	err := binary.Read(bytes.NewReader(p.EventDetails.Data[:]), binary.LittleEndian, &d)
+	return d, err == nil
+}
+
+// PenaltyData returns the decoded PenaltyEventData if the event is EventPenaltyIssued.
+func (p PacketEventData) PenaltyData() (PenaltyEventData, bool) {
+	if p.EventCode() != EventPenaltyIssued {
+		return PenaltyEventData{}, false
+	}
+	var d PenaltyEventData
+	err := binary.Read(bytes.NewReader(p.EventDetails.Data[:]), binary.LittleEndian, &d)
+	return d, err == nil
+}
+
+// SpeedTrapData returns the decoded SpeedTrapEventData if the event is EventSpeedTrapTriggered.
+func (p PacketEventData) SpeedTrapData() (SpeedTrapEventData, bool) {
+	if p.EventCode() != EventSpeedTrapTriggered {
+		return SpeedTrapEventData{}, false
+	}
+	var d SpeedTrapEventData
+	err := binary.Read(bytes.NewReader(p.EventDetails.Data[:]), binary.LittleEndian, &d)
+	return d, err == nil
+}
+
 // FastestLapEventData contains data specific to the fastest lap event.
 type FastestLapEventData struct {
 	VehicleIdx uint8   `json:"VehicleIdx"`
@@ -228,12 +304,17 @@ func (p PacketEventData) MarshalJSON() ([]byte, error) {
 			ej.SafetyCarType = &d.SafetyCarType
 			ej.EventType = &d.EventType
 		}
+	case EventDRSDisabled:
+		if d, ok := p.DRSDisabledData(); ok {
+			ej.Reason = &d.Reason
+		}
 	case EventCollision:
-		var d CollisionEventData
-		if err := binary.Read(r, binary.LittleEndian, &d); err == nil {
+		if d, ok := p.CollisionData(); ok {
 			ej.VehicleIdx = &d.Vehicle1Idx
 			ej.OtherVehicleIdx = &d.Vehicle2Idx
-			ej.Severity = &d.Severity
+			if p.Header.PacketFormat >= PacketFormat2026 {
+				ej.Severity = &d.Severity
+			}
 		}
 	}
 	return json.Marshal(ej)

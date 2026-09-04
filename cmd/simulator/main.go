@@ -109,7 +109,7 @@ type SimulatorConfig struct {
 func loadSimulatorConfig() SimulatorConfig {
 	sessionFlag := flag.String("session", getEnv("F1T_SESSION_TYPE", "race"), "Session type to simulate: race, quali, q1, q2, q3, practice, timetrial")
 	formatFlag := flag.String("format", getEnv("F1T_PACKET_FORMAT", "2026"), "F1 UDP packet format: 2025 (20 active cars + 2 observers) or 2026 (22 active cars + 2 observers, default)")
-	scenarioFlag := flag.String("scenario", getEnv("F1T_SCENARIO", "default"), "Simulation scenario: default, wear / tyre-wear, sc / safetycar, vsc, rain")
+	scenarioFlag := flag.String("scenario", getEnv("F1T_SCENARIO", "default"), "Simulation scenario: default, wear / tyre-wear, sc / safetycar, vsc, rain, start, pit")
 	flag.Parse()
 
 	scenario := strings.ToLower(strings.TrimSpace(*scenarioFlag))
@@ -263,6 +263,39 @@ func main() {
 			lapDist := float32((st.angle / (2 * math.Pi)) * 5000.0)
 			st.totalDistance += 5.0
 
+			switch cfg.Scenario {
+			case "start":
+				switch {
+				case st.sessionTime < 6.0:
+					lapDist = float32(500.0 + st.sessionTime*200.0)
+				case st.sessionTime < 10.0:
+					lapDist = float32(4900.0 + (st.sessionTime-6.0)*20.0)
+				default:
+					lapDist = float32(150.0 + (st.sessionTime-10.0)*30.0)
+				}
+			case "pit":
+				switch {
+				case st.sessionTime >= 4.0 && st.sessionTime < 7.0:
+					speedKmh = 78
+					rpm = 7800
+					gear = 2
+					throttle = 0.4
+					brake = 0.0
+				case st.sessionTime >= 7.0 && st.sessionTime < 11.0:
+					speedKmh = 0
+					rpm = 4500
+					gear = 0
+					throttle = 0.0
+					brake = 1.0
+				case st.sessionTime >= 11.0 && st.sessionTime < 14.0:
+					speedKmh = 75
+					rpm = 7500
+					gear = 2
+					throttle = 0.35
+					brake = 0.0
+				}
+			}
+
 			// Common Header
 			header := packets.PacketHeader{
 				PacketFormat:            cfg.PacketFormat,
@@ -312,8 +345,8 @@ func main() {
 			sendLapDataPacket(conn, header, cfg.TotalSlots, lapCars)
 
 			// 5. Car Status Packet (ID: 7)
-			if st.frameID == 1 || st.frameID%20 == 0 {
-				statusCars := buildCarStatusCars(cfg)
+			if st.frameID == 1 || st.frameID%5 == 0 {
+				statusCars := buildCarStatusCars(cfg, st)
 				sendCarStatusPacket(conn, header, cfg.TotalSlots, statusCars, cfg.PacketFormat)
 			}
 
@@ -341,12 +374,30 @@ func buildSessionPacket(cfg SimulatorConfig, st *simState, header packets.Packet
 	}
 
 	scMode := uint8(0)
-	if (cfg.Scenario == "sc" || cfg.Scenario == "safetycar") && st.sessionTime >= 4.0 && st.sessionTime < 60.0 {
+	var startReactionTime float32 = 0.0
+	switch {
+	case cfg.Scenario == "start":
+		if st.sessionTime < 10.0 {
+			scMode = packets.SafetyCarFormationLap
+			if st.sessionTime >= 0.0 && st.sessionTime < 0.1 {
+				slog.Info("Formation lap started", "scenario", "start")
+			}
+			if st.sessionTime >= 6.0 && st.sessionTime < 6.1 {
+				slog.Info("Approaching grid box on formation lap", "scenario", "start")
+			}
+		} else {
+			scMode = packets.SafetyCarNone
+			startReactionTime = 0.21
+			if st.sessionTime >= 10.0 && st.sessionTime < 10.1 {
+				slog.Info("Lights out! Race start launch debrief", "scenario", "start", "reactionTime", startReactionTime)
+			}
+		}
+	case (cfg.Scenario == "sc" || cfg.Scenario == "safetycar") && st.sessionTime >= 4.0 && st.sessionTime < 60.0:
 		if st.sessionTime >= 4.0 && st.sessionTime < 4.1 {
 			slog.Info("Full Safety Car deployed", "scenario", "sc")
 		}
 		scMode = packets.SafetyCarFull
-	} else if cfg.Scenario == "vsc" && st.sessionTime >= 4.0 && st.sessionTime < 60.0 {
+	case cfg.Scenario == "vsc" && st.sessionTime >= 4.0 && st.sessionTime < 60.0:
 		if st.sessionTime >= 4.0 && st.sessionTime < 4.1 {
 			slog.Info("Virtual Safety Car deployed", "scenario", "vsc")
 		}
@@ -365,6 +416,7 @@ func buildSessionPacket(cfg SimulatorConfig, st *simState, header packets.Packet
 		AirTemperature:            24,
 		Weather:                   0, // Clear
 		SafetyCarStatus:           scMode,
+		StartReactionTime:         startReactionTime,
 		PitStopWindowIdealLap:     16,
 		PitStopWindowLatestLap:    22,
 		PitStopRejoinPosition:     7,
@@ -559,13 +611,15 @@ func buildLapCars(cfg SimulatorConfig, st *simState, lapDist float32) []packets.
 	for i := 0; i < cfg.TotalSlots; i++ {
 		if i < cfg.NumActiveCars {
 			gapMs := uint32(i * 350)
-			var pitStatus uint8 = 0
+			pitStatus := uint8(0)
 			if i >= cfg.NumActiveCars-4 {
 				pitStatus = 1
 			}
 			var penalties uint8 = 0
 			var totalWarnings uint8 = 0
 			var driveThrough uint8 = 0
+			var pitStopShouldServePen uint8 = 0
+			var pitStopTimerInMS uint16 = 0
 
 			switch i {
 			case 2:
@@ -578,9 +632,6 @@ func buildLapCars(cfg SimulatorConfig, st *simState, lapDist float32) []packets.
 				driveThrough = 1
 			}
 
-			gridPos := uint8((i+3)%cfg.NumActiveCars + 1)
-			speedTrap := float32(322.5 - float64(i)*1.1)
-
 			driverStatus := packets.DriverStatusOnTrack
 			if cfg.IsQualifying {
 				driverStatus = packets.DriverStatusFlyingLap
@@ -588,6 +639,42 @@ func buildLapCars(cfg SimulatorConfig, st *simState, lapDist float32) []packets.
 			if pitStatus == 1 {
 				driverStatus = packets.DriverStatusInLap
 			}
+
+			if i == 0 && cfg.Scenario == "pit" {
+				switch {
+				case st.sessionTime >= 4.0 && st.sessionTime < 7.0:
+					pitStatus = packets.PitStatusPitting
+					driverStatus = packets.DriverStatusInLap
+					penalties = 5
+					pitStopShouldServePen = 1
+					if st.sessionTime >= 4.0 && st.sessionTime < 4.1 {
+						slog.Info("Pit entry: limiter engaged, penalty to serve", "scenario", "pit", "penalties", 5)
+					}
+				case st.sessionTime >= 7.0 && st.sessionTime < 11.0:
+					pitStatus = packets.PitStatusInPitArea
+					driverStatus = packets.DriverStatusInLap
+					pitStopTimerInMS = 2400
+					if st.sessionTime >= 7.0 && st.sessionTime < 7.1 {
+						slog.Info("Stationary in pit box", "scenario", "pit", "stopTimerMs", 2400)
+					}
+				case st.sessionTime >= 11.0 && st.sessionTime < 14.0:
+					pitStatus = packets.PitStatusPitting
+					driverStatus = packets.DriverStatusInLap
+					pitStopTimerInMS = 2400
+					if st.sessionTime >= 11.0 && st.sessionTime < 11.1 {
+						slog.Info("Leaving pit box, rolling down pit lane", "scenario", "pit")
+					}
+				case st.sessionTime >= 14.0 && st.sessionTime < 16.0:
+					pitStatus = packets.PitStatusNone
+					driverStatus = packets.DriverStatusOutLap
+					if st.sessionTime >= 14.0 && st.sessionTime < 14.1 {
+						slog.Info("Pit exit: limiter disengaged, rejoined track", "scenario", "pit")
+					}
+				}
+			}
+
+			gridPos := uint8((i+3)%cfg.NumActiveCars + 1)
+			speedTrap := float32(322.5 - float64(i)*1.1)
 
 			numStops := uint8(0)
 			if st.lapNum > 1 {
@@ -609,6 +696,8 @@ func buildLapCars(cfg SimulatorConfig, st *simState, lapDist float32) []packets.
 				DeltaToRaceLeaderMSPart:     uint16(gapMs),
 				DeltaToCarInFrontMSPart:     uint16(350),
 				PitStatus:                   pitStatus,
+				PitStopShouldServePen:       pitStopShouldServePen,
+				PitStopTimerInMS:            pitStopTimerInMS,
 				NumPitStops:                 numStops,
 				PitLaneTimeInLaneInMS:       uint16(21500 + i*400),
 				SpeedTrapFastestSpeed:       speedTrap,
@@ -628,11 +717,15 @@ func buildLapCars(cfg SimulatorConfig, st *simState, lapDist float32) []packets.
 	return lapCars
 }
 
-func buildCarStatusCars(cfg SimulatorConfig) []packets.CarStatusData {
+func buildCarStatusCars(cfg SimulatorConfig, st *simState) []packets.CarStatusData {
 	statusCars := make([]packets.CarStatusData, cfg.TotalSlots)
 	compounds := []uint8{16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18, 16, 17, 18}
 	for i := 0; i < cfg.TotalSlots; i++ {
 		if i < cfg.NumActiveCars {
+			pitLimiter := uint8(0)
+			if i == 0 && cfg.Scenario == "pit" && st.sessionTime >= 4.0 && st.sessionTime < 14.0 {
+				pitLimiter = 1
+			}
 			statusCars[i] = packets.CarStatusData{
 				FuelInTank:            float32(48.0 - float64(i)*0.8),
 				FuelCapacity:          110.0,
@@ -641,6 +734,7 @@ func buildCarStatusCars(cfg SimulatorConfig) []packets.CarStatusData {
 				ERSStoreEnergy:        float32(4000000.0 * (1.0 - float64(i)*0.03)),
 				ERSDeployMode:         uint8(i % 4),
 				ERSHarvestLimitPerLap: 2000000.0,
+				PitLimiterStatus:      pitLimiter,
 			}
 		}
 	}

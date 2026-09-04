@@ -19,6 +19,16 @@ const (
 	TyreCrossoverMinStintLaps      = 2
 	CleanAirMinRemainingLaps       = 4
 
+	// Race start & pit stop procedure heuristics
+	GridApproachDistanceFraction = 0.92  // Within final 8% of track on formation lap
+	RaceStartLaunchMaxDistanceM  = 500.0 // Distance window to report launch reaction
+	MinValidReactionTimeSeconds  = 0.05
+	MaxValidReactionTimeSeconds  = 1.50
+	FastReactionTimeThresholdSec = 0.25
+	SlowReactionTimeThresholdSec = 0.40
+	FastPitStopDurationSec       = 2.8
+	SlowPitStopDurationSec       = 4.0
+
 	// Speed and distance estimations
 	AverageRaceSpeedMetersPerSec   = 65.0
 	QualyOutLapSpeedMetersPerSec   = 60.0

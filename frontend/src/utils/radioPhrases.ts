@@ -51,6 +51,22 @@ export function detectAlertCategory(alertContext: string): RadioAlertCategory {
     return 'flags_yellow';
   }
   if (
+    lower.includes('drs disabled') ||
+    lower.includes('disabled drs') ||
+    lower.includes('drs desactivado') ||
+    lower.includes('drs deshabilitado')
+  ) {
+    return 'flags_drs_disabled';
+  }
+  if (
+    lower.includes('drs enabled') ||
+    lower.includes('drs is now active') ||
+    lower.includes('drs activado') ||
+    lower.includes('drs habilitado')
+  ) {
+    return 'flags_drs_enabled';
+  }
+  if (
     lower.includes('full safety car') ||
     lower.includes('safety car in pista') ||
     (lower.includes('safety car') && !lower.includes('virtual'))
@@ -60,12 +76,93 @@ export function detectAlertCategory(alertContext: string): RadioAlertCategory {
   if (lower.includes('virtual safety car') || lower.includes('vsc deployed') || lower.includes('vsc')) {
     return 'vsc';
   }
+  if (
+    lower.includes('contact reported') ||
+    lower.includes('collision') ||
+    lower.includes('contacto reportado') ||
+    lower.includes('colisión') ||
+    lower.includes('hubo toque')
+  ) {
+    return 'car_collision';
+  }
+  if (
+    lower.includes('has retired') ||
+    lower.includes('car retirement') ||
+    lower.includes('se ha retirado') ||
+    lower.includes('abandono de') ||
+    lower.includes('retirado de la carrera')
+  ) {
+    return 'car_retirement';
+  }
+  if (
+    lower.includes('fastest lap') ||
+    lower.includes('overall fastest lap') ||
+    lower.includes('vuelta más rápida') ||
+    lower.includes('vuelta rápida') ||
+    lower.includes('récord de vuelta')
+  ) {
+    return 'race_fastest_lap';
+  }
+  if (
+    lower.includes('formation lap') ||
+    lower.includes('vuelta de formación') ||
+    lower.includes('vuelta previa') ||
+    lower.includes('weave to put heat')
+  ) {
+    return 'formation_lap_start';
+  }
+  if (
+    lower.includes('approaching the grid') ||
+    lower.includes('approaching grid') ||
+    lower.includes('acercándote a la grilla') ||
+    lower.includes('llegando a la grilla') ||
+    lower.includes('punto de mordida') ||
+    lower.includes('clutch bite point')
+  ) {
+    return 'grid_approach';
+  }
+  if (
+    lower.includes('launch reaction') ||
+    lower.includes('great launch') ||
+    lower.includes('solid start') ||
+    lower.includes('reacción en largada') ||
+    lower.includes('buena largada') ||
+    (lower.includes('reaction time') && !lower.includes('qualy'))
+  ) {
+    return 'start_reaction_time';
+  }
+  if (
+    lower.includes('pit limiter off') ||
+    lower.includes('limiter off') ||
+    lower.includes('limitador fuera') ||
+    lower.includes('limitador desactivado')
+  ) {
+    return 'pit_limiter_exit';
+  }
+  if (
+    lower.includes('serve penalty') ||
+    lower.includes('serving penalty') ||
+    lower.includes('hold for') ||
+    lower.includes('cumplir sanción') ||
+    lower.includes('parada con penalización')
+  ) {
+    return 'pit_serve_penalty';
+  }
+  if (
+    lower.includes('stationary time') ||
+    lower.includes('pit stop duration') ||
+    lower.includes('rapid stop') ||
+    lower.includes('duración de la parada') ||
+    lower.includes('tiempo detenido')
+  ) {
+    return 'pit_stop_duration';
+  }
   if (lower.includes('red flag deployed') || lower.includes('red flag')) {
     return 'red_flag';
   }
 
   // 2. Tyres
-  if (lower.includes('puncture') || lower.includes('tyre failure') || lower.includes('pinchazo')) {
+  if (lower.includes('puncture') || lower.includes('tyre failure') || lower.includes('pinchazo') || lower.includes('pinchadura')) {
     return 'tyre_puncture';
   }
   if (

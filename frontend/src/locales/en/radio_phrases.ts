@@ -641,6 +641,160 @@ export const radio_phrases = {
       'Wrong way alert. Reverse direction or stop the vehicle safely.',
     ],
   },
+  flags_drs_enabled: {
+    bono: [
+      'DRS enabled, {driver}. DRS is now active.',
+      'DRS is enabled, make use of it on the straights.',
+    ],
+    colapinto: [
+      'DRS enabled, {driver}! DRS is open, push now.',
+      'DRS active, use it whenever within one second.',
+    ],
+    standard: [
+      'DRS enabled, DRS is now active.',
+      'DRS has been enabled by race control.',
+    ],
+  },
+  flags_drs_disabled: {
+    bono: [
+      'DRS disabled, {driver}. Race control has disabled DRS.',
+      'DRS disabled across the circuit. Close up without DRS.',
+    ],
+    colapinto: [
+      'DRS disabled, {driver}! No DRS for now, stay close.',
+      'Race control disabled DRS, keep the pace up.',
+    ],
+    standard: [
+      'DRS disabled by race control.',
+      'DRS is now disabled across the track.',
+    ],
+  },
+  race_fastest_lap: {
+    bono: [
+      'Fastest lap of the session, {driver}. Purple in all sectors.',
+      'And that is the fastest lap, well done. Keep this rhythm.',
+    ],
+    colapinto: [
+      'Fastest lap of the race, {driver}! Brilliant pace!',
+      'Fastest lap! Purples across the board, beautiful lap!',
+    ],
+    standard: [
+      'Fastest lap of the session. Outstanding pace.',
+      'New overall fastest lap set, excellent drive.',
+    ],
+  },
+  car_collision: {
+    bono: [
+      'Contact reported, {driver}! Check steering feel and front wing balance.',
+      'We saw contact there, {driver}. Confirm steering and front wing feel.',
+    ],
+    colapinto: [
+      'Watch out, contact reported {driver}! Let me know if you feel vibrations in the steering or front wing.',
+      'Heavy contact reported! Confirm front wing balance on next straight.',
+    ],
+    standard: [
+      'Contact reported! Check steering and front wing balance, reporting on next radio check.',
+      'Collision detected. Monitor telemetry and report handling changes.',
+    ],
+  },
+  car_retirement: {
+    bono: [
+      'Car retirement reported, {driver}. Watch for yellow flags or debris.',
+      'Retirement on track. Keep your eyes open into the braking zones.',
+    ],
+    colapinto: [
+      'Car stopped ahead, {driver}. Watch out for debris or yellow flags.',
+      'Retirement on track, stay alert through this sector.',
+    ],
+    standard: [
+      'Car retirement on track. Watch for potential yellow flags or debris.',
+      'Retirement reported. Stay alert for track hazards.',
+    ],
+  },
+  formation_lap_start: {
+    bono: [
+      'Formation lap, {driver}. Weave to put heat into the tyres and warm the brakes.',
+      'Formation lap rolling. Work the tyre carcasses and get temperature into front brakes.',
+    ],
+    colapinto: [
+      'Formation lap underway, {driver}! Weave to put heat into the tyres and wake up the brakes.',
+      'Formation lap rolling. Build tyre and brake temperatures for the launch.',
+    ],
+    standard: [
+      'Formation lap. Weave to put heat into the tyre carcasses and warm the front brakes.',
+      'Formation lap underway. Build tyre and brake temperatures progressively.',
+    ],
+  },
+  grid_approach: {
+    bono: [
+      'Approaching the grid, {driver}. Line up carefully and find the bite point.',
+      'Grid approach. Slot into the box, engage clutch and find the bite point.',
+    ],
+    colapinto: [
+      'Approaching the grid, {driver}. Slot cleanly into your box and prepare the launch.',
+      'Grid approach. Line up in the grid box and find the clutch bite point.',
+    ],
+    standard: [
+      'Approaching the grid. Line up carefully in your box and find the clutch bite point.',
+      'Grid lineup. Stop in the grid box and prepare clutch launch procedure.',
+    ],
+  },
+  start_reaction_time: {
+    bono: [
+      'Good reaction off the line, {driver}. Focus on Turn 1 positioning.',
+      'Launch reaction was clean. Keep pushing into the opening complex.',
+    ],
+    colapinto: [
+      'Great launch off the line, {driver}! Keep your elbows out into Turn 1.',
+      'Clean reaction on the lights! Hold track position through the opening laps.',
+    ],
+    standard: [
+      'Solid start off the line. Maintain track position through the opening corners.',
+      'Launch procedure complete. Settle into race pace.',
+    ],
+  },
+  pit_serve_penalty: {
+    bono: [
+      'Remember we serve the penalty first, {driver}. Car stationary before tyre change.',
+      'Penalty to serve. Car must remain completely stationary before mechanics touch it.',
+    ],
+    colapinto: [
+      'Remember to serve the penalty in the box, {driver}! Stop completely before tyre work starts.',
+      'Penalty stop. Stay stationary until the count is complete.',
+    ],
+    standard: [
+      'Hold for penalty before tyres are changed. Do not work on the car until served.',
+      'Penalty stop. Vehicle must remain stationary for the required duration.',
+    ],
+  },
+  pit_stop_duration: {
+    bono: [
+      'Good stop, {driver}. Clean tyre change, push hard on the out-lap.',
+      'Stop complete. Tyres fitted, push now on cold rubber.',
+    ],
+    colapinto: [
+      'Great pit stop by the boys! Fresh rubber on, push hard on the out-lap.',
+      'Clean stop! Now hammer it on the out-lap to make the undercut count.',
+    ],
+    standard: [
+      'Pit stop complete. Push now on the out-lap.',
+      'Stationary service complete. Maximise out-lap pace.',
+    ],
+  },
+  pit_limiter_exit: {
+    bono: [
+      'Pit limiter off, {driver}. Track clear, push now.',
+      'Limiter off. Mind the white pit exit line and push.',
+    ],
+    colapinto: [
+      'Pit limiter off, {driver}! Track is clear, give it everything!',
+      'Limiter disengaged. Watch the white line on exit and push now.',
+    ],
+    standard: [
+      'Pit limiter off. Mind the white line on exit and push now.',
+      'Pit exit clear. Limiter disengaged, resume race pace.',
+    ],
+  },
   directive: {
     standard: ['{clean_text}'],
   },

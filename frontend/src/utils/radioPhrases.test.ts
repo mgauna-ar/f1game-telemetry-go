@@ -159,6 +159,50 @@ describe('radioPhrases', () => {
       expect(
         detectAlertCategory('[PROACTIVE PIT WALL CALL: Warning! You are driving the wrong way! Turn around or stop immediately.]')
       ).toBe('wrong_way');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: DRS enabled, DRS is now active.]')
+      ).toBe('flags_drs_enabled');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: DRS disabled due to Safety Car.]')
+      ).toBe('flags_drs_disabled');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Contact reported! Check steering and front wing balance.]')
+      ).toBe('car_collision');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Teammate Car 5 has retired from the race.]')
+      ).toBe('car_retirement');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Fastest lap of the session! Purple in all sectors, lap time 84.120.]')
+      ).toBe('race_fastest_lap');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Formation lap. Weave to put heat into the tyre carcasses and warm the front brakes.]')
+      ).toBe('formation_lap_start');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Approaching the grid. Line up carefully in your box and find the clutch bite point.]')
+      ).toBe('grid_approach');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Great launch! Reaction time 0.21s, excellent start.]')
+      ).toBe('start_reaction_time');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Hold for 5-second penalty before tyres are changed.]')
+      ).toBe('pit_serve_penalty');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Rapid stop! Stationary time was 2.4s, brilliant work by the crew.]')
+      ).toBe('pit_stop_duration');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Pit limiter off. Mind the white line on exit and push now.]')
+      ).toBe('pit_limiter_exit');
     });
   });
 
@@ -340,7 +384,7 @@ describe('radioPhrases', () => {
     it('formats punctures cleanly without driver callsign if not specified', () => {
       const prompt = '[PROACTIVE PIT WALL CALL: Critical tyre puncture on car! Box immediately.]';
       const speech = getProactiveRadioSpeech(prompt, 'es', 'colapinto');
-      expect(speech.toLowerCase()).toContain('pinchazo');
+      expect(speech.toLowerCase()).toContain('pinchadura');
       expect(speech).not.toContain('{driver}');
     });
 

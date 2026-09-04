@@ -89,7 +89,7 @@ describe('radioAudio utils', () => {
     it('formats critical tyre puncture alerts', () => {
       const puncturePrompt = '[PROACTIVE PIT WALL CALL: Critical tyre puncture on car! Wear is at 96%. Order driver to box immediately.]';
       const speech = formatProactiveFallbackSpeech(puncturePrompt, 'es', 'bono', 'Mateo');
-      expect(speech.toLowerCase()).toContain('pinchazo');
+      expect(speech.toLowerCase()).toContain('pinchadura');
       expect(speech).toContain('Mateo');
     });
 

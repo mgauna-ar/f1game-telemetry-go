@@ -303,6 +303,17 @@ export type RadioAlertCategory =
   | 'inlap_cooldown'
   | 'rival_defend_override'
   | 'rival_attack_override'
+  | 'flags_drs_enabled'
+  | 'flags_drs_disabled'
+  | 'race_fastest_lap'
+  | 'car_collision'
+  | 'car_retirement'
+  | 'formation_lap_start'
+  | 'grid_approach'
+  | 'start_reaction_time'
+  | 'pit_serve_penalty'
+  | 'pit_stop_duration'
+  | 'pit_limiter_exit'
   | 'directive';
 
 export interface RadioAlertPayload {

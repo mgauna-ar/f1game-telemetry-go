@@ -45,6 +45,20 @@ export const SAFETY_CAR_STATUS = {
   FORMATION_LAP: 3,
 } as const;
 
+export const DRS_DISABLED_REASONS = {
+  SURFACE_CONDITIONS: 0,
+  SAFETY_CAR: 1,
+  RED_FLAG: 2,
+  MIN_LAP_NOT_REACHED: 3,
+} as const;
+
+export const ERS_DEPLOY_MODE_IDS = {
+  NONE: 0,
+  MEDIUM: 1,
+  HOTLAP: 2,
+  OVERTAKE: 3,
+} as const;
+
 export const RESULT_STATUS = {
   INVALID: 0,
   INACTIVE: 1,

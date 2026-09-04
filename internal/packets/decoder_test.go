@@ -3,6 +3,7 @@ package packets
 import (
 	"bytes"
 	"encoding/binary"
+	"math"
 	"testing"
 )
 
@@ -1176,5 +1177,159 @@ func TestDecodeDispatcher(t *testing.T) {
 	}
 	if motionPkt.CarMotionData[0].WorldPositionX != 100.0 {
 		t.Errorf("Car 0 WorldPositionX expected 100.0, got %f", motionPkt.CarMotionData[0].WorldPositionX)
+	}
+}
+
+func TestEventAccessorsAndCollision(t *testing.T) {
+	// 1. FastestLapData
+	{
+		hdr := createHeader(PacketIDEvent, PacketFormat2025)
+		var details EventDataDetails
+		details.Data[0] = 5 // VehicleIdx
+		binary.LittleEndian.PutUint32(details.Data[1:5], math.Float32bits(78.45))
+		pkt := PacketEventData{
+			Header:          hdr,
+			EventStringCode: [4]uint8{'F', 'T', 'L', 'P'},
+			EventDetails:    details,
+		}
+		data, ok := pkt.FastestLapData()
+		if !ok || data.VehicleIdx != 5 || data.LapTime < 78.44 || data.LapTime > 78.46 {
+			t.Errorf("FastestLapData failed: got %+v, ok=%v", data, ok)
+		}
+		if _, ok := pkt.RetirementData(); ok {
+			t.Errorf("RetirementData should return ok=false for FTLP")
+		}
+	}
+
+	// 2. RetirementData
+	{
+		hdr := createHeader(PacketIDEvent, PacketFormat2025)
+		var details EventDataDetails
+		details.Data[0] = 7 // VehicleIdx
+		details.Data[1] = 3 // Reason (terminal damage)
+		pkt := PacketEventData{
+			Header:          hdr,
+			EventStringCode: [4]uint8{'R', 'T', 'M', 'T'},
+			EventDetails:    details,
+		}
+		data, ok := pkt.RetirementData()
+		if !ok || data.VehicleIdx != 7 || data.Reason != 3 {
+			t.Errorf("RetirementData failed: got %+v, ok=%v", data, ok)
+		}
+	}
+
+	// 3. DRSDisabledData
+	{
+		hdr := createHeader(PacketIDEvent, PacketFormat2025)
+		var details EventDataDetails
+		details.Data[0] = DRSDisabledReasonSafetyCar
+		pkt := PacketEventData{
+			Header:          hdr,
+			EventStringCode: [4]uint8{'D', 'R', 'S', 'D'},
+			EventDetails:    details,
+		}
+		data, ok := pkt.DRSDisabledData()
+		if !ok || data.Reason != DRSDisabledReasonSafetyCar {
+			t.Errorf("DRSDisabledData failed: got %+v, ok=%v", data, ok)
+		}
+		marshaled, err := pkt.MarshalJSON()
+		if err != nil || !bytes.Contains(marshaled, []byte(`"Reason":1`)) {
+			t.Errorf("MarshalJSON for DRSD failed: %s", string(marshaled))
+		}
+	}
+
+	// 4. CollisionData 2025 vs 2026
+	{
+		// 2025: only vehicle1 and vehicle2, Severity should default to 0
+		hdr25 := createHeader(PacketIDEvent, PacketFormat2025)
+		var details25 EventDataDetails
+		details25.Data[0] = 2 // Vehicle1
+		details25.Data[1] = 5 // Vehicle2
+		details25.Data[2] = 2 // Should be ignored in 2025
+		pkt25 := PacketEventData{
+			Header:          hdr25,
+			EventStringCode: [4]uint8{'C', 'O', 'L', 'L'},
+			EventDetails:    details25,
+		}
+		col25, ok := pkt25.CollisionData()
+		if !ok || col25.Vehicle1Idx != 2 || col25.Vehicle2Idx != 5 || col25.Severity != 0 {
+			t.Errorf("CollisionData 2025 failed: got %+v, ok=%v", col25, ok)
+		}
+
+		// 2026: severity read from byte 2
+		hdr26 := createHeader(PacketIDEvent, PacketFormat2026)
+		var details26 EventDataDetails
+		details26.Data[0] = 2 // Vehicle1
+		details26.Data[1] = 5 // Vehicle2
+		details26.Data[2] = 2 // High severity
+		pkt26 := PacketEventData{
+			Header:          hdr26,
+			EventStringCode: [4]uint8{'C', 'O', 'L', 'L'},
+			EventDetails:    details26,
+		}
+		col26, ok := pkt26.CollisionData()
+		if !ok || col26.Vehicle1Idx != 2 || col26.Vehicle2Idx != 5 || col26.Severity != 2 {
+			t.Errorf("CollisionData 2026 failed: got %+v, ok=%v", col26, ok)
+		}
+	}
+
+	// 5. OvertakeData
+	{
+		hdr := createHeader(PacketIDEvent, PacketFormat2025)
+		var details EventDataDetails
+		details.Data[0] = 0 // Overtaking
+		details.Data[1] = 4 // Being overtaken
+		pkt := PacketEventData{
+			Header:          hdr,
+			EventStringCode: [4]uint8{'O', 'V', 'T', 'K'},
+			EventDetails:    details,
+		}
+		data, ok := pkt.OvertakeData()
+		if !ok || data.OvertakingVehicleIdx != 0 || data.BeingOvertakenVehicleIdx != 4 {
+			t.Errorf("OvertakeData failed: got %+v, ok=%v", data, ok)
+		}
+	}
+
+	// 6. PenaltyData
+	{
+		hdr := createHeader(PacketIDEvent, PacketFormat2025)
+		var details EventDataDetails
+		details.Data[0] = 5  // PenaltyType (e.g. 5 sec time penalty)
+		details.Data[1] = 1  // InfringementType
+		details.Data[2] = 0  // VehicleIdx
+		details.Data[3] = 4  // OtherVehicleIdx
+		details.Data[4] = 5  // Time
+		details.Data[5] = 12 // LapNum
+		details.Data[6] = 0  // PlacesGained
+		pkt := PacketEventData{
+			Header:          hdr,
+			EventStringCode: [4]uint8{'P', 'E', 'N', 'A'},
+			EventDetails:    details,
+		}
+		data, ok := pkt.PenaltyData()
+		if !ok || data.PenaltyType != 5 || data.Time != 5 || data.LapNum != 12 {
+			t.Errorf("PenaltyData failed: got %+v, ok=%v", data, ok)
+		}
+	}
+
+	// 7. SpeedTrapData
+	{
+		hdr := createHeader(PacketIDEvent, PacketFormat2025)
+		var details EventDataDetails
+		details.Data[0] = 0 // VehicleIdx
+		binary.LittleEndian.PutUint32(details.Data[1:5], math.Float32bits(345.8))
+		details.Data[5] = 1 // IsOverallFastest
+		details.Data[6] = 1 // IsDriverFastest
+		details.Data[7] = 0 // FastestVehicleIdx
+		binary.LittleEndian.PutUint32(details.Data[8:12], math.Float32bits(345.8))
+		pkt := PacketEventData{
+			Header:          hdr,
+			EventStringCode: [4]uint8{'S', 'P', 'T', 'P'},
+			EventDetails:    details,
+		}
+		data, ok := pkt.SpeedTrapData()
+		if !ok || data.VehicleIdx != 0 || data.Speed < 345.7 || data.Speed > 345.9 {
+			t.Errorf("SpeedTrapData failed: got %+v, ok=%v", data, ok)
+		}
 	}
 }
