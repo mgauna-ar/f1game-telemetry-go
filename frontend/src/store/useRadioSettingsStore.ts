@@ -20,6 +20,7 @@ import {
   getInitialRadioPresets,
   type RadioPresetsSlice,
 } from './slices/radioPresetsSlice';
+import { TIME_CONSTANTS } from '../constants/f1';
 import type { EngineerConfig } from '../types/telemetry';
 
 export type AIConfig = EngineerConfig;
@@ -97,7 +98,8 @@ export function buildAIConfigFromValues(v: {
 }): EngineerConfig {
 
   return {
-    chatter_cooldown_ms: v.chatterCooldownSeconds * 1000,
+    chatter_cooldown_ms: v.chatterCooldownSeconds * TIME_CONSTANTS.MS_PER_SECOND,
+    global_chatter_cooldown_ms: TIME_CONSTANTS.GLOBAL_CHATTER_COOLDOWN_MS,
     smart_discretion_enabled: v.smartDiscretionEnabled,
     tyre_wear_warn_pct: v.tyreWearWarningPct,
     tyre_wear_crit_pct: v.tyreWearCriticalPct,
@@ -124,11 +126,21 @@ export function buildAIConfigFromValues(v: {
       tyre_wear: v.tyreAlertsEnabled && v.subTyreWear,
       tyre_puncture: v.tyreAlertsEnabled && v.subTyrePuncture,
       tyre_thermal: v.thermalAlertsEnabled && v.subTyreThermal,
+      tyre_overheat: v.thermalAlertsEnabled && v.subTyreThermal,
       tyre_cold: v.thermalAlertsEnabled && v.subTyreCold,
       wing_damage: v.damageAlertsEnabled && v.subDamageWing,
+      damage_wing: v.damageAlertsEnabled && v.subDamageWing,
       floor_damage: v.damageAlertsEnabled && v.subDamageFloor,
+      damage_floor: v.damageAlertsEnabled && v.subDamageFloor,
       engine_wear: v.damageAlertsEnabled && v.subDamageEngine,
+      damage_engine: v.damageAlertsEnabled && v.subDamageEngine,
       mechanical_fault: v.damageAlertsEnabled && v.subDamageFaults,
+      damage_aero_fault: v.damageAlertsEnabled && v.subDamageFaults,
+      damage_ers_fault: v.damageAlertsEnabled && v.subDamageFaults,
+      damage_gearbox_wear: v.damageAlertsEnabled && v.subDamageEngine,
+      damage_ice_wear: v.damageAlertsEnabled && v.subDamageEngine,
+      damage_terminal_engine: v.damageAlertsEnabled && v.subDamageEngine,
+      damage: v.damageAlertsEnabled,
       ers_low: v.ersAlertsEnabled && v.subErsLow,
       engine_temp: v.damageAlertsEnabled && v.subEngineTemp,
       brake_hot: v.brakesAlertsEnabled && v.subBrakeTemp,
@@ -145,6 +157,7 @@ export function buildAIConfigFromValues(v: {
       flags_sc: v.flagsPensAlertsEnabled && v.subSafetyCar,
       flags_red: v.flagsPensAlertsEnabled && v.subRedFlag,
       flags_rain: v.flagsPensAlertsEnabled && v.subRain,
+      flags_rain_live: v.flagsPensAlertsEnabled && v.subRain,
       track_limits: v.flagsPensAlertsEnabled && v.subTrackLimits,
       penalties: v.flagsPensAlertsEnabled && v.subPenalties,
     },
@@ -264,16 +277,26 @@ export const useRadioSettingsStore = create<RadioSettingsState>((set, get, store
             if (ec.tyre_wear !== undefined) loaded.subTyreWear = ec.tyre_wear;
             if (ec.tyre_puncture !== undefined)
               loaded.subTyrePuncture = ec.tyre_puncture;
-            if (ec.tyre_thermal !== undefined)
+            if (ec.tyre_overheat !== undefined)
+              loaded.subTyreThermal = ec.tyre_overheat;
+            else if (ec.tyre_thermal !== undefined)
               loaded.subTyreThermal = ec.tyre_thermal;
             if (ec.tyre_cold !== undefined) loaded.subTyreCold = ec.tyre_cold;
-            if (ec.wing_damage !== undefined)
+            if (ec.damage_wing !== undefined)
+              loaded.subDamageWing = ec.damage_wing;
+            else if (ec.wing_damage !== undefined)
               loaded.subDamageWing = ec.wing_damage;
-            if (ec.floor_damage !== undefined)
+            if (ec.damage_floor !== undefined)
+              loaded.subDamageFloor = ec.damage_floor;
+            else if (ec.floor_damage !== undefined)
               loaded.subDamageFloor = ec.floor_damage;
-            if (ec.engine_wear !== undefined)
+            if (ec.damage_engine !== undefined)
+              loaded.subDamageEngine = ec.damage_engine;
+            else if (ec.engine_wear !== undefined)
               loaded.subDamageEngine = ec.engine_wear;
-            if (ec.mechanical_fault !== undefined)
+            if (ec.damage_aero_fault !== undefined)
+              loaded.subDamageFaults = ec.damage_aero_fault;
+            else if (ec.mechanical_fault !== undefined)
               loaded.subDamageFaults = ec.mechanical_fault;
             if (ec.ers_low !== undefined) loaded.subErsLow = ec.ers_low;
             if (ec.engine_temp !== undefined)
@@ -301,6 +324,7 @@ export const useRadioSettingsStore = create<RadioSettingsState>((set, get, store
             if (ec.flags_sc !== undefined) loaded.subSafetyCar = ec.flags_sc;
             if (ec.flags_red !== undefined) loaded.subRedFlag = ec.flags_red;
             if (ec.flags_rain !== undefined) loaded.subRain = ec.flags_rain;
+            else if (ec.flags_rain_live !== undefined) loaded.subRain = ec.flags_rain_live;
             if (ec.track_limits !== undefined)
               loaded.subTrackLimits = ec.track_limits;
             if (ec.penalties !== undefined) loaded.subPenalties = ec.penalties;

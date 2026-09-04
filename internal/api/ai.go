@@ -167,10 +167,16 @@ func (s *Server) handleGetEngineerConfig(w http.ResponseWriter, r *http.Request)
 
 // handleSetEngineerConfig updates active Race Engineer Engine rules and triggers configuration.
 func (s *Server) handleSetEngineerConfig(w http.ResponseWriter, r *http.Request) {
-	var req engineer.EngineerConfig
+	req := engineer.DefaultEngineerConfig()
+	if s.engineerEngine != nil {
+		req = s.engineerEngine.GetConfig()
+	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSONError(w, fmt.Sprintf("invalid config payload: %v", err), http.StatusBadRequest)
 		return
+	}
+	if req.GlobalChatterCooldownMs <= 0 {
+		req.GlobalChatterCooldownMs = engineer.GlobalRadioChatterCooldownMs
 	}
 	if s.repo != nil {
 		if err := engineer.SaveEngineerConfig(r.Context(), s.repo, req); err != nil {

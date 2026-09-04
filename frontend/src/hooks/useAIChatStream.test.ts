@@ -83,7 +83,7 @@ describe('useAIChatStream Hook', () => {
       'data: [DONE]\n\n',
     ]);
 
-    vi.spyOn(api, 'stream').mockResolvedValueOnce(mockSSE);
+    const streamSpy = vi.spyOn(api, 'stream').mockResolvedValueOnce(mockSSE);
 
     const { result } = renderHook(() => useAIChatStream(defaultProps));
 
@@ -91,6 +91,14 @@ describe('useAIChatStream Hook', () => {
       await result.current.sendMessage('Where to brake?');
     });
 
+    expect(streamSpy).toHaveBeenCalledWith(
+      '/api/ai/chat',
+      expect.objectContaining({
+        persona: expect.any(String),
+        language: expect.any(String),
+      }),
+      expect.any(AbortSignal)
+    );
     expect(result.current.isGenerating).toBe(false);
     expect(result.current.messages).toHaveLength(3);
     expect(result.current.messages[1].content).toBe('Where to brake?');

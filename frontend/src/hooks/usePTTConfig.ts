@@ -174,7 +174,7 @@ export function usePTTConfig(): UsePTTConfigReturn {
   useEffect(() => {
     api.get<{ status?: string; is_active?: boolean; mapping?: GlobalPTTMapping }>('/api/ai/ptt/config')
       .then((data) => {
-        if (!data || data.status !== 'ok') return;
+        if (!data || (data.status !== 'ok' && data.status !== 'success')) return;
         setGlobalActive(!!data.is_active);
 
         if (data.mapping && data.mapping.device_type !== 'none') {

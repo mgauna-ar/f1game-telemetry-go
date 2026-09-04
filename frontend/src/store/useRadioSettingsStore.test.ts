@@ -163,4 +163,37 @@ describe('useRadioSettingsStore and slices', () => {
     expect(state.subTyreThermal).toBe(true);
     expect(state.subRain).toBe(false);
   });
+
+  it('serializes global_chatter_cooldown_ms and canonical alert keys in aiConfig', () => {
+    const store = useRadioSettingsStore.getState();
+    const config = store.aiConfig;
+
+    expect(config.global_chatter_cooldown_ms).toBe(4000);
+    expect(config.enabled_categories?.damage_wing).toBeDefined();
+    expect(config.enabled_categories?.damage_floor).toBeDefined();
+    expect(config.enabled_categories?.damage_engine).toBeDefined();
+    expect(config.enabled_categories?.tyre_overheat).toBeDefined();
+    expect(config.enabled_categories?.flags_rain_live).toBeDefined();
+  });
+
+  it('hydrates canonical backend alert keys (damage_wing, tyre_overheat, flags_rain_live)', async () => {
+    vi.spyOn(api, 'get').mockResolvedValue({
+      chatter_cooldown_ms: 30000,
+      global_chatter_cooldown_ms: 4000,
+      enabled_categories: {
+        damage_wing: false,
+        damage_floor: false,
+        tyre_overheat: false,
+        flags_rain_live: false,
+      },
+    });
+
+    await useRadioSettingsStore.getState().loadConfigFromBackend();
+
+    const state = useRadioSettingsStore.getState();
+    expect(state.subDamageWing).toBe(false);
+    expect(state.subDamageFloor).toBe(false);
+    expect(state.subTyreThermal).toBe(false);
+    expect(state.subRain).toBe(false);
+  });
 });

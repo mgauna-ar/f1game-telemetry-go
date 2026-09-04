@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { api } from '../utils/apiClient';
+import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
 import type { AIConfig, ChatMessage } from '../context/RaceEngineerContext';
 import type { ServerConfigStatus } from './useAIModels';
 import type { BackendContextPayload } from './useSystemPrompt';
@@ -126,6 +127,7 @@ export const useAIChatStream = ({
           }));
 
         const backendContext = buildCurrentBackendContext();
+        const radioState = useRadioSettingsStore.getState();
 
         const res = await api.stream(
           '/api/ai/chat',
@@ -134,6 +136,8 @@ export const useAIChatStream = ({
             api_key: config.apiKey,
             base_url: config.baseUrl,
             model: config.model,
+            persona: radioState.persona,
+            language: radioState.radioLanguage,
             messages: apiMessages,
             context: backendContext,
           },

@@ -227,6 +227,7 @@ export interface EngineerDirective {
 
 export interface EngineerConfig {
   chatter_cooldown_ms: number;
+  global_chatter_cooldown_ms?: number;
   smart_discretion_enabled: boolean;
   tyre_wear_warn_pct: number;
   tyre_wear_crit_pct: number;

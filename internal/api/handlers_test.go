@@ -329,3 +329,30 @@ func TestSessionAnalytics_NotFound(t *testing.T) {
 		}
 	}
 }
+
+func TestHandleSetEngineerConfig_GlobalChatterCooldownAndAlertKeys(t *testing.T) {
+	server, _ := setupTestServer(t)
+	engine := engineer.NewEngineerEngine(nil)
+	server.SetEngineerEngine(engine)
+
+	// Partial config omitting global_chatter_cooldown_ms but setting damage_wing to false
+	payload := `{"chatter_cooldown_ms": 25000, "enabled_categories": {"damage_wing": false}}`
+	req := httptest.NewRequest(http.MethodPost, "/api/ai/engineer/config", strings.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+
+	server.Router().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	engineCfg := server.engineerEngine.GetConfig()
+	if engineCfg.GlobalChatterCooldownMs != engineer.GlobalRadioChatterCooldownMs {
+		t.Errorf("expected GlobalChatterCooldownMs to be %d, got %d", engineer.GlobalRadioChatterCooldownMs, engineCfg.GlobalChatterCooldownMs)
+	}
+
+	if engineCfg.IsAlertEnabled("damage", "damage_wing") {
+		t.Errorf("expected damage_wing alert to be disabled")
+	}
+}
