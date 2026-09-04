@@ -3,7 +3,10 @@ package packets
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 )
 
 const (
@@ -109,6 +112,64 @@ type PacketHeader struct {
 	OverallFrameIdentifier  uint32
 	PlayerCarIndex          uint8
 	SecondaryPlayerCarIndex uint8
+}
+
+// FormatSessionUID formats a uint64 session UID into a standard hexadecimal string (e.g. 0x00000000075BCD15).
+func FormatSessionUID(uid uint64) string {
+	return fmt.Sprintf("0x%016X", uid)
+}
+
+// MarshalJSON serializes PacketHeader, ensuring SessionUID is formatted as a hex string ("0x...")
+// to prevent JavaScript 64-bit integer precision loss.
+func (h PacketHeader) MarshalJSON() ([]byte, error) {
+	type Alias PacketHeader
+	return json.Marshal(&struct {
+		Alias
+		SessionUID string `json:"SessionUID"`
+	}{
+		Alias:      Alias(h),
+		SessionUID: FormatSessionUID(h.SessionUID),
+	})
+}
+
+// UnmarshalJSON deserializes PacketHeader, supporting SessionUID as either a hex/decimal string, raw number, or json.Number.
+func (h *PacketHeader) UnmarshalJSON(data []byte) error {
+	type Alias PacketHeader
+	aux := struct {
+		*Alias
+		SessionUID any `json:"SessionUID"`
+	}{
+		Alias: (*Alias)(h),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	switch v := aux.SessionUID.(type) {
+	case float64:
+		h.SessionUID = uint64(v)
+	case json.Number:
+		val, err := strconv.ParseUint(v.String(), 0, 64)
+		if err != nil {
+			return fmt.Errorf("invalid SessionUID %q: %w", v.String(), err)
+		}
+		h.SessionUID = val
+	case string:
+		clean := strings.TrimSpace(v)
+		if clean == "" {
+			h.SessionUID = 0
+			return nil
+		}
+		val, err := strconv.ParseUint(clean, 0, 64)
+		if err != nil {
+			return fmt.Errorf("invalid SessionUID %q: %w", v, err)
+		}
+		h.SessionUID = val
+	case nil:
+		h.SessionUID = 0
+	default:
+		return fmt.Errorf("unexpected type for SessionUID: %T", aux.SessionUID)
+	}
+	return nil
 }
 
 // Packet is the interface implemented by all packet types.

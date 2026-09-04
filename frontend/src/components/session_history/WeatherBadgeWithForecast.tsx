@@ -130,17 +130,9 @@ export const WeatherBadgeWithForecast: React.FC<WeatherBadgeWithForecastProps> =
 
   const forecastSamples = useMemo<WeatherForecastSample[]>(() => {
     if (!session.weather_forecast) return [];
-    let raw: WeatherForecastSample[] = [];
-    if (Array.isArray(session.weather_forecast)) {
-      raw = session.weather_forecast;
-    } else if (typeof session.weather_forecast === 'string' && session.weather_forecast.trim()) {
-      try {
-        const parsed = JSON.parse(session.weather_forecast);
-        if (Array.isArray(parsed)) raw = parsed;
-      } catch {
-        return [];
-      }
-    }
+    const raw: WeatherForecastSample[] = Array.isArray(session.weather_forecast)
+      ? session.weather_forecast
+      : [];
     if (raw.length === 0) return [];
 
     // Filter samples for this session's specific type if available

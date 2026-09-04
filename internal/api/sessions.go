@@ -415,7 +415,8 @@ type ExportBatchRequest struct {
 
 func (s *Server) handleExportSessionBatch(w http.ResponseWriter, r *http.Request) {
 	var sessionIDs []int64
-	if r.Header.Get("Content-Type") == "application/json" {
+	contentType := strings.TrimSpace(r.Header.Get("Content-Type"))
+	if strings.HasPrefix(contentType, "application/json") {
 		var req ExportBatchRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err == nil {
 			sessionIDs = req.SessionIDs

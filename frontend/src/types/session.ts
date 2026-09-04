@@ -15,7 +15,7 @@ export interface Session {
   track_name: string;
   session_type: string;
   weather?: string;
-  weather_forecast?: string | WeatherForecastSample[];
+  weather_forecast?: WeatherForecastSample[];
   total_laps?: number;
   ai_difficulty?: number;
   session_duration?: number;

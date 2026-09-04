@@ -3,8 +3,10 @@ package storage
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
+	"strings"
 	"time"
+
+	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 )
 
 // Storage sentinel errors.
@@ -16,7 +18,7 @@ var (
 
 // FormatSessionUID formats a uint64 session UID into a standard hexadecimal string (e.g. 0x00000000075BCD15).
 func FormatSessionUID(uid uint64) string {
-	return fmt.Sprintf("0x%016X", uid)
+	return packets.FormatSessionUID(uid)
 }
 
 // Tag represents a category or league tag for organizing sessions.
@@ -42,6 +44,61 @@ type Session struct {
 	PacketFormat    int       `db:"packet_format" json:"packet_format"`
 	CreatedAt       time.Time `db:"created_at" json:"created_at"`
 	Tags            []Tag     `db:"-" json:"tags"`
+}
+
+// MarshalJSON customizes JSON serialization for Session, ensuring WeatherForecast
+// is serialized as native raw JSON instead of an escaped JSON string.
+func (s Session) MarshalJSON() ([]byte, error) {
+	type Alias Session
+	var forecast json.RawMessage
+	cleanForecast := strings.TrimSpace(s.WeatherForecast)
+	if cleanForecast != "" && cleanForecast != "null" && json.Valid([]byte(cleanForecast)) {
+		forecast = json.RawMessage(cleanForecast)
+	} else {
+		forecast = json.RawMessage("[]")
+	}
+
+	return json.Marshal(&struct {
+		Alias
+		WeatherForecast json.RawMessage `json:"weather_forecast"`
+	}{
+		Alias:           Alias(s),
+		WeatherForecast: forecast,
+	})
+}
+
+// UnmarshalJSON handles deserializing Session, supporting WeatherForecast as either native raw JSON,
+// an escaped JSON string, or null/empty.
+func (s *Session) UnmarshalJSON(data []byte) error {
+	type Alias Session
+	aux := struct {
+		*Alias
+		WeatherForecast json.RawMessage `json:"weather_forecast"`
+	}{
+		Alias: (*Alias)(s),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	if len(aux.WeatherForecast) > 0 {
+		raw := strings.TrimSpace(string(aux.WeatherForecast))
+		switch {
+		case raw == "null":
+			s.WeatherForecast = ""
+		case strings.HasPrefix(raw, "\"") && strings.HasSuffix(raw, "\""):
+			var str string
+			if err := json.Unmarshal(aux.WeatherForecast, &str); err == nil {
+				s.WeatherForecast = str
+			} else {
+				s.WeatherForecast = raw
+			}
+		default:
+			s.WeatherForecast = raw
+		}
+	} else {
+		s.WeatherForecast = ""
+	}
+	return nil
 }
 
 // DeriveSector3 calculates sector 3 time from lap time and sector 1/2 if missing.

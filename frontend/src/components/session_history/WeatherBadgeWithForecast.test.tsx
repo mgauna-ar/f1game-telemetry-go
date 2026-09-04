@@ -75,7 +75,7 @@ describe('WeatherBadgeWithForecast', () => {
     expect(screen.queryByText(/Weather Evolution & Forecast/i)).not.toBeInTheDocument();
   });
 
-  it('handles JSON string weather forecast', () => {
+  it('handles qualifying weather forecast correctly', () => {
     const jsonSession: Session = {
       id: 3,
       session_uid: '0x999',
@@ -83,10 +83,10 @@ describe('WeatherBadgeWithForecast', () => {
       session_type: 'Qualifying',
       weather: 'Light Rain',
       created_at: '2026-08-17T23:31:00Z',
-      weather_forecast: JSON.stringify([
+      weather_forecast: [
         { TimeOffset: 0, Weather: 3, RainPercentage: 40 },
         { TimeOffset: 10, Weather: 0, RainPercentage: 0 },
-      ]),
+      ],
     };
 
     render(
@@ -130,13 +130,13 @@ describe('WeatherBadgeWithForecast', () => {
       session_type: 'Qualifying 1',
       weather: 'Light Cloud',
       created_at: '2026-08-17T23:31:00Z',
-      weather_forecast: JSON.stringify([
+      weather_forecast: [
         { SessionType: 5, TimeOffset: 0, Weather: 1, RainPercentage: 9, TrackTemperature: 32, AirTemperature: 23 },
         { SessionType: 5, TimeOffset: 5, Weather: 1, RainPercentage: 9, TrackTemperature: 32, AirTemperature: 23 },
         { SessionType: 5, TimeOffset: 10, Weather: 1, RainPercentage: 10, TrackTemperature: 32, AirTemperature: 23 },
         { SessionType: 6, TimeOffset: 0, Weather: 2, RainPercentage: 25, TrackTemperature: 30, AirTemperature: 22 },
         { SessionType: 15, TimeOffset: 0, Weather: 4, RainPercentage: 80, TrackTemperature: 25, AirTemperature: 20 },
-      ]),
+      ],
     };
 
     render(
