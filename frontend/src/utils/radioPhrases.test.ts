@@ -235,6 +235,17 @@ describe('radioPhrases', () => {
         'Lewis'
       );
       expect(speechWrongWay.toLowerCase()).toContain('wrong way');
+
+      // Ensure every phrase template in wrong_way contains expected keywords regardless of random choice
+      for (const phrase of RADIO_PHRASE_CATALOG.en.wrong_way.bono) {
+        expect(phrase.toLowerCase()).toContain('wrong way');
+      }
+      for (const phrase of RADIO_PHRASE_CATALOG.en.wrong_way.colapinto) {
+        expect(phrase.toLowerCase()).toContain('wrong way');
+      }
+      for (const phrase of RADIO_PHRASE_CATALOG.en.wrong_way.standard) {
+        expect(phrase.toLowerCase()).toContain('wrong way');
+      }
     });
 
     it('formats safety car with Bono persona and English callsign', () => {

@@ -630,7 +630,7 @@ export const radio_phrases = {
   wrong_way: {
     bono: [
       'Wrong way, wrong way, {driver}! Stop the car or spin it around immediately!',
-      'Warning {driver}, you are driving against track direction! Turn around now!',
+      'Warning {driver}, you are driving the wrong way against track direction! Turn around now!',
     ],
     colapinto: [
       'Wrong way, {driver}! Turn the car around or stop immediately!',

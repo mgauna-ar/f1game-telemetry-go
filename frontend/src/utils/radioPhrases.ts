@@ -251,7 +251,8 @@ export function detectAlertCategory(alertContext: string): RadioAlertCategory {
   if (
     lower.includes('driving the wrong way') ||
     lower.includes('wrong way') ||
-    lower.includes('sentido contrario')
+    lower.includes('sentido contrario') ||
+    lower.includes('against track direction')
   ) {
     return 'wrong_way';
   }
