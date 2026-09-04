@@ -809,6 +809,104 @@ export const radio_phrases = {
       'Pista libre en salida de boxes. Limitador fuera, ritmo de carrera.',
     ],
   },
+  tyre_crossover_wet: {
+    colapinto: [
+      '¡Hay demasiada agua en pista, riesgo de aquaplaning! ¡A boxes esta vuelta, {driver}, necesitamos gomas de lluvia extrema!',
+      '¡El agua estancada es tremenda para intermedios! ¡A boxes ahora, boxes boxes, ponemos gomas de lluvia!',
+    ],
+    bono: [
+      'La pista está saturada, demasiado agua para intermedias, {driver}. Boxes en esta vuelta para neumáticos de lluvia extrema.',
+      'Riesgo crítico de aquaplaning. Boxes esta vuelta, boxes boxes para neumático de lluvia.',
+    ],
+    standard: [
+      'Pista saturada con agua estancada, riesgo inminente de aquaplaning. Entra a boxes esta vuelta por neumáticos de lluvia extrema.',
+      'Transición a lluvia extrema confirmada. Boxes esta vuelta para montar neumáticos de lluvia.',
+    ],
+  },
+  tyre_crossover_inter: {
+    colapinto: [
+      '¡La lluvia aflojó y el agua está drenando! ¡El intermedio es muchísimo más rápido ahora, a boxes esta vuelta, {driver}!',
+      '¡Se está secando la huella para intermedios! ¡A boxes en esta vuelta, boxes boxes!',
+    ],
+    bono: [
+      'La lluvia ha remitido y el agua estancada se dispersa, {driver}. El intermedio es más rápido ahora, boxes para intermedias.',
+      'Pista mejorando de lluvia extrema. Neumático intermedio es el más rápido, boxes en esta vuelta.',
+    ],
+    standard: [
+      'La lluvia ha disminuido y el agua estancada se dispersa. El neumático intermedio es mucho más rápido ahora, boxes por intermedios.',
+      'Ventana de transición a intermedios abierta. Entra a boxes para cambiar de lluvia extrema a intermedios.',
+    ],
+  },
+  brake_bias_ok: {
+    colapinto: [
+      '¡Se emparejaron las temperaturas de frenos, {driver}! El balance térmico volvió a la ventana ideal.',
+      'Frenos bien balanceados ahora, excelente gestión del reparto.',
+    ],
+    bono: [
+      'Temperaturas de frenos equilibradas, {driver}. El balance entre ejes está restablecido.',
+      'Balance térmico de frenos restablecido. Buen trabajo ajustando el reparto.',
+    ],
+    standard: [
+      'Temperaturas de frenos equilibradas, balance térmico entre ejes restablecido.',
+      'Balance de frenos normalizado. Temperaturas entre eje delantero y trasero en rango homogéneo.',
+    ],
+  },
+  fuel_mix_neutralized: {
+    colapinto: [
+      '¡Safety Car en pista! ¡Pasá a mezcla magra o Mezcla 1, {driver}, ahorrá nafta y cuidá las temperaturas!',
+      'Mezcla 1 en la perilla de combustible. Recuperá delta de nafta durante la neutralización.',
+    ],
+    bono: [
+      'Safety Car en pista, {driver}. Cambia a mezcla pobre, Mezcla 1 para ahorrar combustible y refrigerar.',
+      'Selecciona Mezcla 1 bajo neutralización para cuidar motor y ganar delta de combustible.',
+    ],
+    standard: [
+      'Safety Car en pista. Cambia el mapa de combustible a Mezcla 1 (magra) para ahorrar combustible y controlar temperaturas.',
+      'Neutralización activa. Ajusta a mezcla magra para optimizar el consumo de combustible.',
+    ],
+  },
+  fuel_mix_restart: {
+    colapinto: [
+      '¡Bandera verde, se relanza! ¡Volvé a Mezcla 2 de carrera, {driver}, dale con todo!',
+      '¡Relanzamiento con verde! Poné la nafta en Mezcla 2 y acelerá a fondo.',
+    ],
+    bono: [
+      '¡Bandera verde! Restablece el mapa de combustible a Mezcla 2 de carrera.',
+      'Pista libre, verde. Vuelve a Mezcla 2 en la perilla de combustible y empuja.',
+    ],
+    standard: [
+      '¡Pista despejada, bandera verde! Restablece el mapa de combustible a Mezcla 2 de carrera.',
+      'Relanzamiento bajo bandera verde. Vuelve al modo de combustible estándar de carrera.',
+    ],
+  },
+  ers_clipping: {
+    colapinto: [
+      '¡Clipping, clipping! ¡Llegaste al límite de 4MJ por vuelta, no hay más boost de batería hasta cruzar la meta!',
+      '¡Derating, {driver}! Agotaste el cupo eléctrico de la vuelta, aprovechá el envión hacia la frenada.',
+    ],
+    bono: [
+      'Clipping en recta, {driver}. Despliegue máximo de 4MJ por vuelta alcanzado, sin potencia eléctrica hasta la línea.',
+      'Derating de ERS. Cupo eléctrico de la vuelta agotado, gestiona la inercia hasta la frenada.',
+    ],
+    standard: [
+      '¡Clipping, clipping! Despliegue máximo de ERS por vuelta alcanzado. Asistencia eléctrica agotada hasta la línea de meta.',
+      'Derating de ERS activo. Se alcanzó el límite reglamentario de 4MJ de despliegue por vuelta.',
+    ],
+  },
+  tyre_set_advisory: {
+    colapinto: [
+      '¡Ventana de boxes cerca, {driver}! ¡El juego de gomas nuevas ya está listo en boxes, meté una buena vuelta de entrada!',
+      '¡Gomas listas en el pit lane! Tenemos un juego fresco preparado para calzarlo.',
+    ],
+    bono: [
+      'Ventana de parada aproximándose, {driver}. Juego nuevo preparado en el cajón de boxes.',
+      'Estrategia confirmada para la parada. Neumáticos frescos preparados y mantas fuera.',
+    ],
+    standard: [
+      'Ventana de parada aproximándose. Juego de neumáticos recomendado disponible en boxes.',
+      'Juego de neumáticos nuevo preparado para la próxima detención en boxes.',
+    ],
+  },
   directive: {
     standard: ['{clean_text}'],
   },

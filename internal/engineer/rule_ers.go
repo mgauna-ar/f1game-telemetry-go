@@ -33,6 +33,10 @@ func (r *ERSRule) AlertKeys() map[string]AlertKeyConfig {
 			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeLap,
 		},
+		"ers_clipping": {
+			ValidPhases: []DrivingPhase{PhaseRacing},
+			DedupScope:  DedupScopeLap,
+		},
 		"engine_temp": {
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseRacing, PhaseInLap},
 			DedupScope:  DedupScopeStint,
@@ -47,7 +51,7 @@ func (r *ERSRule) Reset(scope DedupScope) {
 func (r *ERSRule) Evaluate(ctx *EvaluationContext) []Directive {
 	var directives []Directive
 
-	// 1. Low ERS Battery Reserve Alert (from CarStatusData)
+	// 1. Low ERS Battery Reserve Alert & Clipping (from CarStatusData)
 	status := ctx.PlayerStatus()
 	if status != nil && (ctx.Packet == nil || isPacketType[*packets.PacketCarStatusData](ctx.Packet)) {
 		ersPct := (status.ERSStoreEnergy / packets.MaxERSStoreEnergyJoules) * 100.0
@@ -62,7 +66,8 @@ func (r *ERSRule) Evaluate(ctx *EvaluationContext) []Directive {
 		isPushMode := status.ERSDeployMode == packets.ERSDeployModeHotlap || status.ERSDeployMode == packets.ERSDeployModeOvertake
 
 		// Final Sector / Finish Line Shield: intentional depletion on main straight
-		isFinalSector := CalculateLapDistanceFraction(ctx.Session, playerLap) >= ERSPushLapDistanceFraction
+		lapFraction := CalculateLapDistanceFraction(ctx.Session, playerLap)
+		isFinalSector := lapFraction >= ERSPushLapDistanceFraction
 
 		if ersPct <= ctx.Config.ERSLowPct && ctx.IsRaceSession() && ctx.Phase == PhaseRacing &&
 			!isNeutralized && !isPushMode && !isFinalSector {
@@ -79,6 +84,22 @@ func (r *ERSRule) Evaluate(ctx *EvaluationContext) []Directive {
 				Title:    "Low ERS Battery",
 				Message:  ersMsg,
 				Urgency:  UrgencyLow,
+			})
+		}
+
+		// 1b. Per-Lap ERS Energy Clipping / Derate (Approaching 4.0MJ per-lap quota)
+		if status.ERSDeployedThisLap >= ERSClippingThresholdJoules && ctx.IsRaceSession() && ctx.Phase == PhaseRacing &&
+			!isNeutralized && lapFraction < ERSClippingMaxDistanceFraction {
+			directives = append(directives, Directive{
+				ID:       "ers_clipping",
+				Category: DirectiveCategoryERS,
+				SubAlert: "ers_clipping",
+				Title:    "ERS Deployment Clipping",
+				Message:  "Clipping, clipping! Per-lap ERS deployment limit reached. Battery boost is depleted until the line.",
+				Urgency:  UrgencyMedium,
+				Metadata: map[string]any{
+					"deployed_joules": status.ERSDeployedThisLap,
+				},
 			})
 		}
 	}

@@ -95,6 +95,14 @@ const CATEGORY_MAP: Record<string, RadioAlertCategory> = {
   pit_serve_penalty: 'pit_serve_penalty',
   pit_stop_duration: 'pit_stop_duration',
   pit_limiter_exit: 'pit_limiter_exit',
+  tyre_crossover_wet: 'tyre_crossover_wet',
+  tyre_crossover_inter: 'tyre_crossover_inter',
+  brake_bias_ok: 'brake_bias_ok',
+  fuel_mix_neutralized: 'fuel_mix_neutralized',
+  fuel_mix_restart: 'fuel_mix_restart',
+  ers_clipping: 'ers_clipping',
+  tyre_set_advisory: 'tyre_set_advisory',
+  coaching_s3: 'sector_delta',
 };
 
 /**

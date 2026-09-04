@@ -42,6 +42,7 @@ type EngineerEngine struct {
 	latestTelemetry2  *packets.PacketCarTelemetry2Data
 	latestDamage      *packets.PacketCarDamageData
 	latestStatus      *packets.PacketCarStatusData
+	latestTyreSets    *packets.PacketTyreSetsData
 	latestParticipant *packets.PacketParticipantsData
 
 	// Internal state tracking
@@ -151,6 +152,7 @@ func (e *EngineerEngine) resetLocked(sessionUID uint64) {
 	e.latestTelemetry2 = nil
 	e.latestDamage = nil
 	e.latestStatus = nil
+	e.latestTyreSets = nil
 	e.latestParticipant = nil
 
 	for _, rule := range e.rules {
@@ -226,6 +228,10 @@ func (e *EngineerEngine) ProcessPacket(ctx context.Context, pkt packets.Packet) 
 		e.latestTelemetry = p
 	case *packets.PacketCarTelemetry2Data:
 		e.latestTelemetry2 = p
+	case *packets.PacketTyreSetsData:
+		if int(p.CarIdx) == e.playerCarIndex {
+			e.latestTyreSets = p
+		}
 	}
 
 	e.updateDrivingPhaseLocked()
@@ -255,6 +261,7 @@ func (e *EngineerEngine) buildEvaluationContextLocked(header packets.PacketHeade
 		Telemetry2:       e.latestTelemetry2,
 		Damage:           e.latestDamage,
 		Status:           e.latestStatus,
+		TyreSets:         e.latestTyreSets,
 		Participants:     e.latestParticipant,
 		Config:           e.config,
 		Phase:            e.currentPhase,

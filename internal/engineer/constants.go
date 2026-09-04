@@ -70,6 +70,7 @@ const (
 	BrakeColdDefaultC                 = 200.0
 	BrakeBiasOverheatThresholdC       = 800.0
 	BrakeBiasImbalanceDeltaThresholdC = 400.0
+	BrakeBiasEqualizedDeltaThresholdC = 150.0
 
 	// Fuel & Pit strategy thresholds
 	FuelDeltaDeficitDefaultLaps  = -0.5
@@ -80,10 +81,12 @@ const (
 	CleanAirPeriodicLapModulo    = 5
 
 	// Coaching & Sector delta thresholds
-	SectorTimeLossThresholdSec    = 0.35
-	SectorTimeLossMaxThresholdSec = 3.0
-	TeammateGapThresholdSec       = 2.5
-	ERSPushLapDistanceFraction    = 0.85
+	SectorTimeLossThresholdSec     = 0.35
+	SectorTimeLossMaxThresholdSec  = 3.0
+	TeammateGapThresholdSec        = 2.5
+	ERSPushLapDistanceFraction     = 0.85
+	ERSClippingThresholdJoules     = 3800000.0
+	ERSClippingMaxDistanceFraction = 0.85
 
 	// Rivals & Overtake thresholds
 	RivalDefendGapDefaultSec = 1.0
@@ -99,9 +102,11 @@ const (
 	QualyQ2EliminationPositionThreshold = 10
 
 	// Flags & Weather thresholds
-	WeatherRainTransitionProbPct  = 50
-	WeatherRainHorizonMinutes     = 5
-	CornerCutWarnDefaultThreshold = 2
+	WeatherRainTransitionProbPct   = 50
+	WeatherRainHorizonMinutes      = 5
+	WeatherHeavyRainWetThreshold   = 75
+	WeatherLightRainInterThreshold = 35
+	CornerCutWarnDefaultThreshold  = 2
 )
 
 // TyreThermalWindow represents the optimal operating temperature range (°C) for a compound.

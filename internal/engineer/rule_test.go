@@ -2242,3 +2242,330 @@ func TestPhase4ProceduresAndEvents(t *testing.T) {
 		}
 	})
 }
+
+func TestPhase5CockpitAndCrossovers(t *testing.T) {
+	cfg := DefaultEngineerConfig()
+
+	// 1. Multi-Stage Rain Crossover (Inters -> Full Wets, Full Wets -> Inters)
+	t.Run("Multi-Stage Rain Crossover", func(t *testing.T) {
+		rule := NewTyresRule()
+		sessionHeavyRain := &packets.PacketSessionData{
+			SessionType: packets.SessionRace,
+			Weather:     packets.WeatherHeavyRain,
+		}
+		statusInter := &packets.PacketCarStatusData{
+			CarStatusData: [packets.MaxCars]packets.CarStatusData{
+				{
+					VisualTyreCompound: packets.CompoundInter,
+					TyresAgeLaps:       5,
+				},
+			},
+		}
+		ctxWet := &EvaluationContext{
+			Session:        sessionHeavyRain,
+			Status:         statusInter,
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseRacing,
+		}
+
+		dirsWet := rule.Evaluate(ctxWet)
+		if len(dirsWet) != 1 || dirsWet[0].ID != "tyre_crossover_wet" || !strings.Contains(dirsWet[0].Message, "Full Wets") {
+			t.Fatalf("expected tyre_crossover_wet, got %+v", dirsWet)
+		}
+
+		// Full Wets on drying track (Light Rain)
+		ruleDrying := NewTyresRule()
+		sessionLightRain := &packets.PacketSessionData{
+			SessionType: packets.SessionRace,
+			Weather:     packets.WeatherLightRain,
+		}
+		statusWet := &packets.PacketCarStatusData{
+			CarStatusData: [packets.MaxCars]packets.CarStatusData{
+				{
+					VisualTyreCompound: packets.CompoundWet,
+					TyresAgeLaps:       6,
+				},
+			},
+		}
+		ctxDrying := &EvaluationContext{
+			Session:        sessionLightRain,
+			Status:         statusWet,
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseRacing,
+		}
+		dirsDrying := ruleDrying.Evaluate(ctxDrying)
+		if len(dirsDrying) != 1 || dirsDrying[0].ID != "tyre_crossover_inter" || !strings.Contains(dirsDrying[0].Message, "Inters") {
+			t.Fatalf("expected tyre_crossover_inter, got %+v", dirsDrying)
+		}
+	})
+
+	// 2. Tyre Set Advisory approaching pit window
+	t.Run("Tyre Set Advisory", func(t *testing.T) {
+		rule := NewTyresRule()
+		session := &packets.PacketSessionData{
+			SessionType:           packets.SessionRace,
+			PitStopWindowIdealLap: 15,
+		}
+		lapData := &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{CurrentLapNum: 14},
+			},
+		}
+		var tyreSets packets.PacketTyreSetsData
+		tyreSets.CarIdx = 0
+		// Set 0: Fresh Hard
+		tyreSets.TyreSetData[0] = packets.TyreSetData{
+			VisualTyreCompound: packets.CompoundHard,
+			Wear:               0,
+			Available:          1,
+		}
+		ctx := &EvaluationContext{
+			Session:        session,
+			LapData:        lapData,
+			TyreSets:       &tyreSets,
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseRacing,
+		}
+		dirs := rule.Evaluate(ctx)
+		if len(dirs) != 1 || dirs[0].ID != "tyre_set_advisory" || !strings.Contains(dirs[0].Message, "Hard") {
+			t.Fatalf("expected tyre_set_advisory with Hard tyres, got %+v", dirs)
+		}
+	})
+
+	// 3. Brake Bias Equalization Recovery
+	t.Run("Brake Bias Recovery", func(t *testing.T) {
+		rule := NewBrakesRule()
+		// First trigger front imbalance
+		teleImbalanced := &packets.PacketCarTelemetryData{
+			CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
+				{
+					BrakesTemperature: [4]uint16{850, 850, 400, 400}, // Front 850, Rear 400 (delta 450 >= 400)
+				},
+			},
+		}
+		ctxImbalance := &EvaluationContext{
+			Telemetry:      teleImbalanced,
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseRacing,
+		}
+		dirs1 := rule.Evaluate(ctxImbalance)
+		if len(dirs1) != 1 || dirs1[0].ID != "brake_bias" {
+			t.Fatalf("expected brake_bias alert, got %+v", dirs1)
+		}
+
+		// Now normalize temperatures (delta 50 < 150)
+		teleBalanced := &packets.PacketCarTelemetryData{
+			CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
+				{
+					BrakesTemperature: [4]uint16{600, 600, 550, 550}, // Front 600, Rear 550 (delta 50 < 150)
+				},
+			},
+		}
+		ctxBalance := &EvaluationContext{
+			Telemetry:      teleBalanced,
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseRacing,
+		}
+		dirs2 := rule.Evaluate(ctxBalance)
+		if len(dirs2) != 1 || dirs2[0].ID != "brake_bias_ok" {
+			t.Fatalf("expected brake_bias_ok, got %+v", dirs2)
+		}
+	})
+
+	// 4. Fuel Mix Neutralization & Restart Audit
+	t.Run("Fuel Mix Audit", func(t *testing.T) {
+		rule := NewFuelRule()
+		sessionSC := &packets.PacketSessionData{
+			SessionType:     packets.SessionRace,
+			SafetyCarStatus: packets.SafetyCarFull,
+		}
+		lapData := &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{CurrentLapNum: 10, SafetyCarDelta: -0.5},
+			},
+		}
+		statusStandard := &packets.PacketCarStatusData{
+			CarStatusData: [packets.MaxCars]packets.CarStatusData{
+				{FuelMix: packets.FuelMixStandard, FuelRemainingLaps: 2.0},
+			},
+		}
+		ctxSC := &EvaluationContext{
+			Session:        sessionSC,
+			LapData:        lapData,
+			Status:         statusStandard,
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseSafetyCar,
+		}
+		dirsSC := rule.Evaluate(ctxSC)
+		if len(dirsSC) != 1 || dirsSC[0].ID != "fuel_mix_neutralized" || !strings.Contains(dirsSC[0].Message, "Lean") {
+			t.Fatalf("expected fuel_mix_neutralized under SC, got %+v", dirsSC)
+		}
+
+		// On restart: car is in Lean, race resumes green
+		sessionGreen := &packets.PacketSessionData{
+			SessionType:     packets.SessionRace,
+			SafetyCarStatus: packets.SafetyCarNone,
+		}
+		lapDataGreen := &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{CurrentLapNum: 12, SafetyCarDelta: 0},
+			},
+		}
+		statusLean := &packets.PacketCarStatusData{
+			CarStatusData: [packets.MaxCars]packets.CarStatusData{
+				{FuelMix: packets.FuelMixLean, FuelRemainingLaps: 2.0},
+			},
+		}
+		ctxRestart := &EvaluationContext{
+			Session:        sessionGreen,
+			LapData:        lapDataGreen,
+			Status:         statusLean,
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseRacing,
+		}
+		dirsRestart := rule.Evaluate(ctxRestart)
+		if len(dirsRestart) != 1 || dirsRestart[0].ID != "fuel_mix_restart" || !strings.Contains(dirsRestart[0].Message, "Race Mix 2") {
+			t.Fatalf("expected fuel_mix_restart on green flag, got %+v", dirsRestart)
+		}
+	})
+
+	// 5. ERS Clipping / Derating
+	t.Run("ERS Clipping", func(t *testing.T) {
+		rule := NewERSRule()
+		session := &packets.PacketSessionData{
+			SessionType: packets.SessionRace,
+			TrackLength: 5000,
+		}
+		lapDataMidLap := &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{CurrentLapNum: 5, LapDistance: 2500}, // 50% distance
+			},
+		}
+		statusClipping := &packets.PacketCarStatusData{
+			CarStatusData: [packets.MaxCars]packets.CarStatusData{
+				{
+					ERSDeployedThisLap: 3900000.0, // > 3.8MJ threshold
+					ERSStoreEnergy:     2000000.0,
+				},
+			},
+		}
+		ctxClip := &EvaluationContext{
+			Session:        session,
+			LapData:        lapDataMidLap,
+			Status:         statusClipping,
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseRacing,
+		}
+		dirsClip := rule.Evaluate(ctxClip)
+		if len(dirsClip) != 1 || dirsClip[0].ID != "ers_clipping" || !strings.Contains(dirsClip[0].Message, "Clipping") {
+			t.Fatalf("expected ers_clipping alert, got %+v", dirsClip)
+		}
+
+		// Final 15% distance -> should be suppressed
+		lapDataFinishLine := &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{CurrentLapNum: 5, LapDistance: 4500}, // 90% distance >= 0.85
+			},
+		}
+		ctxSuppress := &EvaluationContext{
+			Session:        session,
+			LapData:        lapDataFinishLine,
+			Status:         statusClipping,
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseRacing,
+		}
+		dirsSuppress := rule.Evaluate(ctxSuppress)
+		if len(dirsSuppress) != 0 {
+			t.Fatalf("expected 0 directives for finish line clipping, got %+v", dirsSuppress)
+		}
+	})
+
+	// 6. Sector 3 Coaching on Lap Rollover
+	t.Run("Sector 3 Coaching", func(t *testing.T) {
+		rule := NewCoachingRule()
+		session := &packets.PacketSessionData{
+			SessionType: packets.SessionRace,
+			TrackLength: 5000,
+		}
+
+		// Lap 2: Baseline personal best lap (S1=28.0s, S2=30.0s, Total=85.0s -> S3=27.0s)
+		lapDataLap2S1 := &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{CurrentLapNum: 2, Sector: 1, Sector1TimeMSPart: 28000, DriverStatus: packets.DriverStatusFlyingLap, PitStatus: packets.PitStatusNone},
+			},
+		}
+		ctxL2S1 := &EvaluationContext{
+			Session: session, LapData: lapDataLap2S1, Config: cfg, PlayerCarIndex: 0, Phase: PhaseRacing,
+		}
+		rule.Evaluate(ctxL2S1)
+
+		lapDataLap2S2 := &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{CurrentLapNum: 2, Sector: 2, Sector1TimeMSPart: 28000, Sector2TimeMSPart: 30000, DriverStatus: packets.DriverStatusFlyingLap, PitStatus: packets.PitStatusNone},
+			},
+		}
+		ctxL2S2 := &EvaluationContext{
+			Session: session, LapData: lapDataLap2S2, Config: cfg, PlayerCarIndex: 0, Phase: PhaseRacing,
+		}
+		rule.Evaluate(ctxL2S2)
+
+		// Rollover to Lap 3 with LastLapTimeInMS = 85000 (S3 = 85000 - 58000 = 27000ms PB)
+		lapDataLap3Roll := &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{CurrentLapNum: 3, Sector: 0, LastLapTimeInMS: 85000, DriverStatus: packets.DriverStatusFlyingLap, PitStatus: packets.PitStatusNone},
+			},
+		}
+		ctxL3Roll := &EvaluationContext{
+			Session: session, LapData: lapDataLap3Roll, Config: cfg, PlayerCarIndex: 0, Phase: PhaseRacing,
+		}
+		rule.Evaluate(ctxL3Roll)
+
+		if rule.GetBestSector3MS() != 27000 {
+			t.Fatalf("expected bestSector3MS to be 27000, got %d", rule.GetBestSector3MS())
+		}
+
+		// Lap 3: S1=28.0s, S2=30.0s, Total=85800ms -> S3=27800ms (+0.80s vs PB)
+		lapDataLap3S1 := &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{CurrentLapNum: 3, Sector: 1, Sector1TimeMSPart: 28000, DriverStatus: packets.DriverStatusFlyingLap, PitStatus: packets.PitStatusNone},
+			},
+		}
+		ctxL3S1 := &EvaluationContext{
+			Session: session, LapData: lapDataLap3S1, Config: cfg, PlayerCarIndex: 0, Phase: PhaseRacing,
+		}
+		rule.Evaluate(ctxL3S1)
+
+		lapDataLap3S2 := &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{CurrentLapNum: 3, Sector: 2, Sector1TimeMSPart: 28000, Sector2TimeMSPart: 30000, DriverStatus: packets.DriverStatusFlyingLap, PitStatus: packets.PitStatusNone},
+			},
+		}
+		ctxL3S2 := &EvaluationContext{
+			Session: session, LapData: lapDataLap3S2, Config: cfg, PlayerCarIndex: 0, Phase: PhaseRacing,
+		}
+		rule.Evaluate(ctxL3S2)
+
+		// Rollover to Lap 4 with LastLapTimeInMS = 85800ms -> deltaS3 = +0.80s
+		lapDataLap4Roll := &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{CurrentLapNum: 4, Sector: 0, LastLapTimeInMS: 85800, DriverStatus: packets.DriverStatusFlyingLap, PitStatus: packets.PitStatusNone},
+			},
+		}
+		ctxL4Roll := &EvaluationContext{
+			Session: session, LapData: lapDataLap4Roll, Config: cfg, PlayerCarIndex: 0, Phase: PhaseRacing,
+		}
+		dirsS3 := rule.Evaluate(ctxL4Roll)
+		if len(dirsS3) != 1 || dirsS3[0].ID != "coaching_s3" || !strings.Contains(dirsS3[0].Message, "Sector 3") {
+			t.Fatalf("expected coaching_s3 directive, got %+v", dirsS3)
+		}
+	})
+}

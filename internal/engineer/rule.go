@@ -174,6 +174,7 @@ type EvaluationContext struct {
 	Telemetry2       *packets.PacketCarTelemetry2Data
 	Damage           *packets.PacketCarDamageData
 	Status           *packets.PacketCarStatusData
+	TyreSets         *packets.PacketTyreSetsData
 	Participants     *packets.PacketParticipantsData
 	Config           EngineerConfig
 	Phase            DrivingPhase
@@ -224,6 +225,14 @@ func (ctx *EvaluationContext) PlayerDamage() *packets.CarDamageData {
 		return nil
 	}
 	return &ctx.Damage.CarDamageData[ctx.PlayerCarIndex]
+}
+
+// PlayerTyreSets returns the player car's PacketTyreSetsData if available and matching playerCarIndex.
+func (ctx *EvaluationContext) PlayerTyreSets() *packets.PacketTyreSetsData {
+	if ctx.TyreSets == nil || int(ctx.TyreSets.CarIdx) != ctx.PlayerCarIndex {
+		return nil
+	}
+	return ctx.TyreSets
 }
 
 // IsRaceSession returns true if the session is a confirmed race session.

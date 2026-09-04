@@ -7,13 +7,15 @@ import (
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 )
 
-// FuelRule manages fuel deficit, pit stop window opening, and undercut threat alerts.
+// FuelRule manages fuel deficit, pit stop window opening, undercut threat alerts, and fuel mix management.
 type FuelRule struct {
 	mu                          sync.Mutex
 	lastFuelDeltaAlertLap       int
 	lastPitWindowWarnedLap      int
 	lastPitWindowCloseWarnedLap int
 	lastUndercutRivalIndex      int
+	fuelMixNeutralizedWarned    bool
+	fuelMixRestartWarned        bool
 }
 
 // NewFuelRule creates a new FuelRule.
@@ -35,7 +37,7 @@ func (r *FuelRule) Category() string {
 }
 
 func (r *FuelRule) ValidPhases() []DrivingPhase {
-	return []DrivingPhase{PhaseRacing}
+	return []DrivingPhase{PhaseRacing, PhaseSafetyCar}
 }
 
 func (r *FuelRule) AlertKeys() map[string]AlertKeyConfig {
@@ -60,6 +62,16 @@ func (r *FuelRule) AlertKeys() map[string]AlertKeyConfig {
 			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeLap,
 		},
+		"fuel_mix_neutralized": {
+			Category:    DirectiveCategoryFuel,
+			ValidPhases: []DrivingPhase{PhaseSafetyCar, PhaseRacing},
+			DedupScope:  DedupScopePhase,
+		},
+		"fuel_mix_restart": {
+			Category:    DirectiveCategoryFuel,
+			ValidPhases: []DrivingPhase{PhaseRacing},
+			DedupScope:  DedupScopePhase,
+		},
 	}
 }
 
@@ -74,6 +86,10 @@ func (r *FuelRule) Reset(scope DedupScope) {
 	}
 	if scope == DedupScopeStint || scope == DedupScopeNone {
 		r.lastUndercutRivalIndex = -1
+	}
+	if scope == DedupScopePhase || scope == DedupScopeNone {
+		r.fuelMixNeutralizedWarned = false
+		r.fuelMixRestartWarned = false
 	}
 }
 
@@ -111,7 +127,38 @@ func (r *FuelRule) Evaluate(ctx *EvaluationContext) []Directive {
 		}
 	}
 
-	// 2. Pit Stop Window Opening (from SessionData & LapData, race only on LapData)
+	// 2. Neutralization Fuel Mix Audit (Switch to Lean under SC, restore to Race on restart)
+	if status != nil && ctx.IsRaceSession() {
+		if isNeutralized {
+			if status.FuelMix >= packets.FuelMixStandard && !r.fuelMixNeutralizedWarned {
+				r.fuelMixNeutralizedWarned = true
+				r.fuelMixRestartWarned = false
+				directives = append(directives, Directive{
+					ID:       "fuel_mix_neutralized",
+					Category: DirectiveCategoryFuel,
+					SubAlert: "fuel_mix_neutralized",
+					Title:    "Neutralization Fuel Mix",
+					Message:  "Safety car conditions. Switch fuel mix to Lean / Mix 1 to conserve fuel and protect engine temperatures.",
+					Urgency:  UrgencyMedium,
+				})
+			}
+		} else if ctx.Phase == PhaseRacing && currentLapNum > 1 {
+			if status.FuelMix == packets.FuelMixLean && !r.fuelMixRestartWarned && r.fuelMixNeutralizedWarned {
+				r.fuelMixRestartWarned = true
+				r.fuelMixNeutralizedWarned = false
+				directives = append(directives, Directive{
+					ID:       "fuel_mix_restart",
+					Category: DirectiveCategoryFuel,
+					SubAlert: "fuel_mix_restart",
+					Title:    "Race Restart Fuel Mix",
+					Message:  "Green flag racing! Restore fuel mix to Race Mix 2.",
+					Urgency:  UrgencyMedium,
+				})
+			}
+		}
+	}
+
+	// 3. Pit Stop Window Opening (from SessionData & LapData, race only on LapData)
 	if ctx.IsRaceSession() && ctx.Phase != PhaseSafetyCar && !isNeutralized && ctx.Session != nil && ctx.Session.SafetyCarStatus == packets.SafetyCarNone && ctx.Session.PitStopWindowIdealLap > 0 &&
 		(ctx.Packet == nil || isPacketType[*packets.PacketLapData](ctx.Packet)) &&
 		ctx.Config.IsAlertEnabled(string(DirectiveCategoryPitStrategy), "pit_window") {

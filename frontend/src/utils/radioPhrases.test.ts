@@ -203,6 +203,34 @@ describe('radioPhrases', () => {
       expect(
         detectAlertCategory('[PROACTIVE PIT WALL CALL: Pit limiter off. Mind the white line on exit and push now.]')
       ).toBe('pit_limiter_exit');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Track is saturated with standing water, aquaplaning risk! Box this lap for Full Wets.]')
+      ).toBe('tyre_crossover_wet');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Rain has eased up and standing water is clearing. Intermediate tyre is much faster now, box for Inters.]')
+      ).toBe('tyre_crossover_inter');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Brake temperatures are equalized, axle thermal balance is restored.]')
+      ).toBe('brake_bias_ok');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Safety car deployed. Switch fuel mix to Lean / Mix 1 to conserve fuel and manage engine temperatures.]')
+      ).toBe('fuel_mix_neutralized');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Track is green! Restore fuel mix to Race Mix 2.]')
+      ).toBe('fuel_mix_restart');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Clipping, clipping! Maximum per-lap ERS deployment reached. Battery boost is depleted until the finish line.]')
+      ).toBe('ers_clipping');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Pit window approaching. Available fresh set: HARD tyres (0% wear).]')
+      ).toBe('tyre_set_advisory');
     });
   });
 
@@ -290,6 +318,64 @@ describe('radioPhrases', () => {
       for (const phrase of RADIO_PHRASE_CATALOG.en.wrong_way.standard) {
         expect(phrase.toLowerCase()).toContain('wrong way');
       }
+    });
+
+    it('formats Phase 5 cockpit dials, crossovers, and tyre advisories', () => {
+      const speechWet = getProactiveRadioSpeech(
+        { category: 'tyre_crossover_wet' },
+        'en',
+        'bono',
+        'Lewis'
+      );
+      expect(speechWet.toLowerCase()).toContain('full wets');
+
+      const speechInter = getProactiveRadioSpeech(
+        { category: 'tyre_crossover_inter' },
+        'es',
+        'colapinto',
+        'Franco'
+      );
+      expect(speechInter.toLowerCase()).toContain('intermedio');
+
+      const speechBrakeOk = getProactiveRadioSpeech(
+        { category: 'brake_bias_ok' },
+        'en',
+        'bono',
+        'Lewis'
+      );
+      expect(speechBrakeOk.toLowerCase()).toContain('balance');
+
+      const speechFuelSC = getProactiveRadioSpeech(
+        { category: 'fuel_mix_neutralized' },
+        'es',
+        'colapinto',
+        'Franco'
+      );
+      expect(speechFuelSC.toLowerCase()).toContain('mezcla');
+
+      const speechFuelRestart = getProactiveRadioSpeech(
+        { category: 'fuel_mix_restart' },
+        'en',
+        'bono',
+        'Lewis'
+      );
+      expect(speechFuelRestart.toLowerCase()).toContain('mix 2');
+
+      const speechClipping = getProactiveRadioSpeech(
+        { category: 'ers_clipping' },
+        'es',
+        'colapinto',
+        'Franco'
+      );
+      expect(speechClipping.toLowerCase()).toMatch(/clipping|derating/);
+
+      const speechTyreSet = getProactiveRadioSpeech(
+        { category: 'tyre_set_advisory' },
+        'en',
+        'bono',
+        'Lewis'
+      );
+      expect(speechTyreSet.toLowerCase()).toMatch(/fresh|rubber|pit/);
     });
 
     it('formats safety car with Bono persona and English callsign', () => {

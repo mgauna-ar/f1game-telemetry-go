@@ -119,6 +119,14 @@ const (
 	ActiveAeroStraightMode uint8 = 1
 )
 
+// Fuel Mix constants
+const (
+	FuelMixLean     uint8 = 0
+	FuelMixStandard uint8 = 1
+	FuelMixRich     uint8 = 2
+	FuelMixMax      uint8 = 3
+)
+
 // Result reason constants
 const (
 	ResultReasonInvalid           uint8 = 0

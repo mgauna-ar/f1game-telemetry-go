@@ -67,9 +67,11 @@ export function detectAlertCategory(alertContext: string): RadioAlertCategory {
     return 'flags_drs_enabled';
   }
   if (
-    lower.includes('full safety car') ||
-    lower.includes('safety car in pista') ||
-    (lower.includes('safety car') && !lower.includes('virtual'))
+    !lower.includes('fuel mix') &&
+    !lower.includes('mezcla') &&
+    (lower.includes('full safety car') ||
+      lower.includes('safety car in pista') ||
+      (lower.includes('safety car') && !lower.includes('virtual')))
   ) {
     return 'safety_car';
   }
@@ -228,11 +230,28 @@ export function detectAlertCategory(alertContext: string): RadioAlertCategory {
   }
 
   // 4. Power Unit & Thermal
+  if (
+    lower.includes('clipping') ||
+    lower.includes('maximum per-lap ers') ||
+    lower.includes('derating') ||
+    lower.includes('límite de despliegue por vuelta')
+  ) {
+    return 'ers_clipping';
+  }
   if (lower.includes('ers battery') || lower.includes('low battery reserve') || lower.includes('low battery') || lower.includes('batería')) {
     return 'ers_low';
   }
   if (lower.includes('radiator') || lower.includes('water/oil temperature') || lower.includes('engine core water') || lower.includes('radiador')) {
     return 'radiator_overheat';
+  }
+  if (
+    lower.includes('brake temperatures are equalized') ||
+    lower.includes('brake balance restored') ||
+    lower.includes('balance is restored') ||
+    lower.includes('temperaturas de frenos equilibradas') ||
+    lower.includes('balance térmico restaurado')
+  ) {
+    return 'brake_bias_ok';
   }
   if (
     lower.includes('brake bias') ||
@@ -254,6 +273,20 @@ export function detectAlertCategory(alertContext: string): RadioAlertCategory {
   }
 
   // 5. Fuel & Strategy
+  if (
+    lower.includes('switch fuel mix to lean') ||
+    (lower.includes('fuel mix') && lower.includes('lean')) ||
+    (lower.includes('mezcla') && lower.includes('magra'))
+  ) {
+    return 'fuel_mix_neutralized';
+  }
+  if (
+    lower.includes('restore fuel mix') ||
+    (lower.includes('fuel mix') && lower.includes('race mix 2')) ||
+    (lower.includes('mezcla') && lower.includes('mezcla 2'))
+  ) {
+    return 'fuel_mix_restart';
+  }
   if (lower.includes('fuel deficit') || lower.includes('fuel target') || lower.includes('combustible')) {
     return 'fuel_deficit';
   }
@@ -262,6 +295,14 @@ export function detectAlertCategory(alertContext: string): RadioAlertCategory {
   }
   if (lower.includes('clean air pit window') || lower.includes('clean air on rejoin')) {
     return 'pit_clean_air';
+  }
+  if (
+    lower.includes('tyre set advisory') ||
+    lower.includes('available fresh set') ||
+    lower.includes('juego nuevo disponible') ||
+    lower.includes('juego fresco disponible')
+  ) {
+    return 'tyre_set_advisory';
   }
   if (
     (lower.includes('pit stop window') || lower.includes('pit window') || lower.includes('ventana de parada')) &&
@@ -361,6 +402,25 @@ export function detectAlertCategory(alertContext: string): RadioAlertCategory {
   }
   if (lower.includes('rain is now falling on track') || lower.includes('rain is falling') || lower.includes('lluvia en pista') || lower.includes('lluvia cayendo')) {
     return 'flags_rain_live';
+  }
+  if (
+    lower.includes('full wets') ||
+    lower.includes('extreme wet') ||
+    lower.includes('aquaplaning') ||
+    lower.includes('lluvia extrema') ||
+    lower.includes('neumáticos de lluvia')
+  ) {
+    return 'tyre_crossover_wet';
+  }
+  if (
+    lower.includes('standing water is clearing') ||
+    lower.includes('rain has eased') ||
+    lower.includes('box for inters') ||
+    lower.includes('intermediate tyre is much faster') ||
+    lower.includes('intermedios son más rápidos') ||
+    lower.includes('el agua está drenando')
+  ) {
+    return 'tyre_crossover_inter';
   }
   if (lower.includes('crossover') || lower.includes('too wet for slick') || lower.includes('box box for intermediate') || lower.includes('box for slicks')) {
     return 'tyre_crossover';

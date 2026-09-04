@@ -2,6 +2,7 @@ package engineer
 
 import (
 	"fmt"
+	"math"
 	"sync"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
@@ -41,6 +42,10 @@ func (r *BrakesRule) AlertKeys() map[string]AlertKeyConfig {
 			DedupScope:  DedupScopePhase,
 		},
 		"brake_bias": {
+			ValidPhases: []DrivingPhase{PhaseRacing, PhaseFlyingLap},
+			DedupScope:  DedupScopeStint,
+		},
+		"brake_bias_ok": {
 			ValidPhases: []DrivingPhase{PhaseRacing, PhaseFlyingLap},
 			DedupScope:  DedupScopeStint,
 		},
@@ -102,7 +107,18 @@ func (r *BrakesRule) Evaluate(ctx *EvaluationContext) []Directive {
 	frontAvg := (float32(tele.BrakesTemperature[packets.WheelFrontLeft]) + float32(tele.BrakesTemperature[packets.WheelFrontRight])) / 2
 	rearAvg := (float32(tele.BrakesTemperature[packets.WheelRearLeft]) + float32(tele.BrakesTemperature[packets.WheelRearRight])) / 2
 
-	if frontAvg >= BrakeBiasOverheatThresholdC && (frontAvg-rearAvg) >= BrakeBiasImbalanceDeltaThresholdC && r.lastBrakeBiasAlert != "front" {
+	switch {
+	case r.lastBrakeBiasAlert != "" && math.Abs(float64(frontAvg-rearAvg)) < BrakeBiasEqualizedDeltaThresholdC:
+		r.lastBrakeBiasAlert = ""
+		directives = append(directives, Directive{
+			ID:       "brake_bias_ok",
+			Category: DirectiveCategoryBrakes,
+			SubAlert: "brake_bias_ok",
+			Title:    "Brake Balance Restored",
+			Message:  "Brake temperatures are equalized, axle thermal balance is restored.",
+			Urgency:  UrgencyLow,
+		})
+	case frontAvg >= BrakeBiasOverheatThresholdC && (frontAvg-rearAvg) >= BrakeBiasImbalanceDeltaThresholdC && r.lastBrakeBiasAlert != "front":
 		r.lastBrakeBiasAlert = "front"
 		directives = append(directives, Directive{
 			ID:       "brake_bias",
@@ -112,7 +128,7 @@ func (r *BrakesRule) Evaluate(ctx *EvaluationContext) []Directive {
 			Message:  fmt.Sprintf("Front brakes are running excessively hot relative to the rears (%d°C vs %d°C). Move brake bias rearward by 1-2%%.", int(frontAvg), int(rearAvg)),
 			Urgency:  UrgencyMedium,
 		})
-	} else if rearAvg >= BrakeBiasOverheatThresholdC && (rearAvg-frontAvg) >= BrakeBiasImbalanceDeltaThresholdC && r.lastBrakeBiasAlert != "rear" {
+	case rearAvg >= BrakeBiasOverheatThresholdC && (rearAvg-frontAvg) >= BrakeBiasImbalanceDeltaThresholdC && r.lastBrakeBiasAlert != "rear":
 		r.lastBrakeBiasAlert = "rear"
 		directives = append(directives, Directive{
 			ID:       "brake_bias",

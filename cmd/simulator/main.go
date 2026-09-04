@@ -363,6 +363,12 @@ func main() {
 					sendSessionHistoryPacket(conn, histPkt)
 				}
 			}
+
+			// 8. Tyre Sets Packet (ID: 12) - sent every 100 frames (~5s) for player car
+			if st.frameID%100 == 0 {
+				tyreSetsPkt := buildTyreSetsPacket(header)
+				sendTyreSetsPacket(conn, tyreSetsPkt)
+			}
 		}
 	}
 }
@@ -1147,6 +1153,48 @@ func sendCarDamagePacket(conn *net.UDPConn, header packets.PacketHeader, numCars
 func sendSessionHistoryPacket(conn *net.UDPConn, pkt *packets.PacketSessionHistoryData) {
 	var buf bytes.Buffer
 	pkt.Header.PacketId = packets.PacketIDSessionHistory
+	_ = binary.Write(&buf, binary.LittleEndian, pkt)
+	_, _ = conn.Write(buf.Bytes())
+}
+
+func buildTyreSetsPacket(header packets.PacketHeader) *packets.PacketTyreSetsData {
+	pkt := &packets.PacketTyreSetsData{
+		Header:    header,
+		CarIdx:    0,
+		FittedIdx: 0,
+	}
+	pkt.Header.PacketId = packets.PacketIDTyreSets
+
+	// Set 0: Fitted Medium
+	pkt.TyreSetData[0] = packets.TyreSetData{
+		ActualTyreCompound: packets.CompoundMedium,
+		VisualTyreCompound: packets.CompoundMedium,
+		Wear:               20,
+		Available:          1,
+		Fitted:             1,
+	}
+	// Set 1: Fresh Hard (Available, 0 wear)
+	pkt.TyreSetData[1] = packets.TyreSetData{
+		ActualTyreCompound: packets.CompoundHard,
+		VisualTyreCompound: packets.CompoundHard,
+		Wear:               0,
+		Available:          1,
+		Fitted:             0,
+	}
+	// Set 2: Fresh Soft (Available, 0 wear)
+	pkt.TyreSetData[2] = packets.TyreSetData{
+		ActualTyreCompound: packets.CompoundSoft,
+		VisualTyreCompound: packets.CompoundSoft,
+		Wear:               0,
+		Available:          1,
+		Fitted:             0,
+	}
+	return pkt
+}
+
+func sendTyreSetsPacket(conn *net.UDPConn, pkt *packets.PacketTyreSetsData) {
+	var buf bytes.Buffer
+	pkt.Header.PacketId = packets.PacketIDTyreSets
 	_ = binary.Write(&buf, binary.LittleEndian, pkt)
 	_, _ = conn.Write(buf.Bytes())
 }

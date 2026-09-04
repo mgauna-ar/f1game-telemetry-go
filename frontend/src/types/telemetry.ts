@@ -314,6 +314,13 @@ export type RadioAlertCategory =
   | 'pit_serve_penalty'
   | 'pit_stop_duration'
   | 'pit_limiter_exit'
+  | 'tyre_crossover_wet'
+  | 'tyre_crossover_inter'
+  | 'brake_bias_ok'
+  | 'fuel_mix_neutralized'
+  | 'fuel_mix_restart'
+  | 'ers_clipping'
+  | 'tyre_set_advisory'
   | 'directive';
 
 export interface RadioAlertPayload {

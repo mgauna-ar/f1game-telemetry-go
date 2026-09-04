@@ -14,6 +14,8 @@ type TyresRule struct {
 	triggeredWearThresholds map[float32]bool
 	lastPunctured           bool
 	lastCrossoverCompound   uint8
+	lastCrossoverTarget     string
+	tyreSetAdvisoryFired    bool
 }
 
 // NewTyresRule creates a new TyresRule.
@@ -58,6 +60,19 @@ func (r *TyresRule) AlertKeys() map[string]AlertKeyConfig {
 			ValidPhases: []DrivingPhase{PhaseRacing, PhaseSafetyCar},
 			DedupScope:  DedupScopeStint,
 		},
+		"tyre_crossover_wet": {
+			ValidPhases: []DrivingPhase{PhaseRacing, PhaseSafetyCar},
+			DedupScope:  DedupScopeStint,
+		},
+		"tyre_crossover_inter": {
+			ValidPhases: []DrivingPhase{PhaseRacing, PhaseSafetyCar},
+			DedupScope:  DedupScopeStint,
+		},
+		"tyre_set_advisory": {
+			Category:    DirectiveCategoryPitStrategy,
+			ValidPhases: []DrivingPhase{PhaseRacing},
+			DedupScope:  DedupScopeStint,
+		},
 	}
 }
 
@@ -69,6 +84,8 @@ func (r *TyresRule) Reset(scope DedupScope) {
 		r.triggeredWearThresholds = make(map[float32]bool)
 		r.lastPunctured = false
 		r.lastCrossoverCompound = 0
+		r.lastCrossoverTarget = ""
+		r.tyreSetAdvisoryFired = false
 	}
 }
 
@@ -207,19 +224,26 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 		}
 	}
 
-	// 3. Tyre Crossover Strategy (Rain vs Slicks)
+	// 3. Tyre Crossover Strategy (Rain vs Slicks, Inters vs Full Wets)
 	if ctx.Session != nil && ctx.IsRaceSession() && (ctx.Phase == PhaseRacing || ctx.Phase == PhaseSafetyCar) {
 		status := ctx.PlayerStatus()
 		if status != nil {
 			visualCompound := status.VisualTyreCompound
 			isSlick := visualCompound == packets.CompoundSoft || visualCompound == packets.CompoundMedium || visualCompound == packets.CompoundHard
-			isWetCompound := visualCompound == packets.CompoundInter || visualCompound == packets.CompoundWet
+			isInter := visualCompound == packets.CompoundInter
+			isWet := visualCompound == packets.CompoundWet
 			currentWeather := ctx.Session.Weather
 			stintLaps := int(status.TyresAgeLaps)
 
-			// Case A: Slicks on wet track -> Urgent pit call for Intermediates
-			if isSlick && currentWeather >= packets.WeatherLightRain && r.lastCrossoverCompound != visualCompound {
-				r.lastCrossoverCompound = visualCompound
+			rainPct := uint8(0)
+			if ctx.Session.NumWeatherForecastSamples > 0 {
+				rainPct = ctx.Session.WeatherForecastSamples[0].RainPercentage
+			}
+
+			switch {
+			case isSlick && (currentWeather >= packets.WeatherLightRain || rainPct >= WeatherRainTransitionProbPct) && r.lastCrossoverTarget != "INTER":
+				// Case A: Slicks on wet track -> Urgent pit call for Intermediates
+				r.lastCrossoverTarget = "INTER"
 				directives = append(directives, Directive{
 					ID:       "tyre_crossover",
 					Category: DirectiveCategoryTyres,
@@ -233,9 +257,41 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 						"target_compound":  "INTERMEDIATE",
 					},
 				})
-			} else if isWetCompound && currentWeather <= packets.WeatherLightCloud && stintLaps >= TyreCrossoverMinStintLaps && r.lastCrossoverCompound != visualCompound {
-				// Case B: Wet tyres on drying track -> Crossover approaching for Slicks
-				r.lastCrossoverCompound = visualCompound
+			case isInter && (currentWeather >= packets.WeatherHeavyRain || rainPct >= WeatherHeavyRainWetThreshold) && r.lastCrossoverTarget != "WET":
+				// Case B: Inters on heavy standing water -> Aquaplaning risk, box for Full Wets
+				r.lastCrossoverTarget = "WET"
+				directives = append(directives, Directive{
+					ID:       "tyre_crossover_wet",
+					Category: DirectiveCategoryTyres,
+					SubAlert: "tyre_crossover_wet",
+					Title:    "Tyre Crossover (Box for Full Wets)",
+					Message:  "Track is saturated with standing water, aquaplaning risk! Box this lap for Full Wets.",
+					Urgency:  UrgencyCritical,
+					Metadata: map[string]any{
+						"current_compound": "INTERMEDIATE",
+						"weather":          currentWeather,
+						"target_compound":  "WET",
+					},
+				})
+			case isWet && (currentWeather <= packets.WeatherLightRain && rainPct <= WeatherLightRainInterThreshold) && stintLaps >= TyreCrossoverMinStintLaps && r.lastCrossoverTarget != "INTER_DRYING":
+				// Case C: Full Wets on drying/easing rain -> Inters are much faster
+				r.lastCrossoverTarget = "INTER_DRYING"
+				directives = append(directives, Directive{
+					ID:       "tyre_crossover_inter",
+					Category: DirectiveCategoryTyres,
+					SubAlert: "tyre_crossover_inter",
+					Title:    "Tyre Crossover (Box for Inters)",
+					Message:  "Rain has eased up and standing water is clearing. Intermediate tyre is much faster now, box for Inters.",
+					Urgency:  UrgencyHigh,
+					Metadata: map[string]any{
+						"current_compound": "WET",
+						"weather":          currentWeather,
+						"target_compound":  "INTERMEDIATE",
+					},
+				})
+			case (isInter || isWet) && currentWeather <= packets.WeatherLightCloud && stintLaps >= TyreCrossoverMinStintLaps && r.lastCrossoverTarget != "SLICKS":
+				// Case D: Wet tyres on drying track -> Crossover approaching for Slicks
+				r.lastCrossoverTarget = "SLICKS"
 				directives = append(directives, Directive{
 					ID:       "tyre_crossover",
 					Category: DirectiveCategoryTyres,
@@ -247,6 +303,67 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 						"current_compound": packets.VisualTyreCompoundName(visualCompound),
 						"weather":          currentWeather,
 						"target_compound":  "SLICKS",
+					},
+				})
+			}
+		}
+	}
+
+	// 4. Tyre Set Allocation Advisory approaching pit window
+	if ctx.Session != nil && ctx.IsRaceSession() && ctx.Phase == PhaseRacing && !r.tyreSetAdvisoryFired {
+		idealLap := int(ctx.Session.PitStopWindowIdealLap)
+		playerLap := ctx.PlayerLap()
+		currentLapNum := 1
+		if playerLap != nil && playerLap.CurrentLapNum > 0 {
+			currentLapNum = int(playerLap.CurrentLapNum)
+		}
+		if idealLap > 0 && currentLapNum >= idealLap-1 && currentLapNum <= idealLap {
+			tyreSets := ctx.PlayerTyreSets()
+			if tyreSets != nil {
+				r.tyreSetAdvisoryFired = true
+				var freshHard, freshMedium, freshSoft int
+				for i := 0; i < int(packets.MaxTyreSets); i++ {
+					ts := tyreSets.TyreSetData[i]
+					if ts.Available == 1 && ts.Wear == 0 {
+						switch ts.VisualTyreCompound {
+						case packets.CompoundHard:
+							freshHard++
+						case packets.CompoundMedium:
+							freshMedium++
+						case packets.CompoundSoft:
+							freshSoft++
+						}
+					}
+				}
+
+				var advMsg, targetCompound string
+				switch {
+				case freshHard > 0:
+					targetCompound = "HARD"
+					advMsg = "Pit window approaching. Fresh set of Hard tyres ready in the box."
+				case freshMedium > 0:
+					targetCompound = "MEDIUM"
+					advMsg = "Pit window approaching. Fresh set of Medium tyres ready in the box."
+				case freshSoft > 0:
+					targetCompound = "SOFT"
+					advMsg = "Pit window approaching. Fresh set of Soft tyres ready in the box."
+				default:
+					targetCompound = "SCRUBBED"
+					advMsg = "Pit window approaching. Scrubbed set prepared in the pit box."
+				}
+
+				directives = append(directives, Directive{
+					ID:       "tyre_set_advisory",
+					Category: DirectiveCategoryPitStrategy,
+					SubAlert: "tyre_set_advisory",
+					Title:    "Tyre Set Advisory",
+					Message:  advMsg,
+					Urgency:  UrgencyLow,
+					Metadata: map[string]any{
+						"target_compound": targetCompound,
+						"fresh_hards":     freshHard,
+						"fresh_mediums":   freshMedium,
+						"fresh_softs":     freshSoft,
 					},
 				})
 			}

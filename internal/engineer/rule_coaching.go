@@ -13,6 +13,9 @@ type CoachingRule struct {
 	mu                 sync.Mutex
 	bestSector1MS      int
 	bestSector2MS      int
+	bestSector3MS      int
+	currentLapS1MS     int
+	currentLapS2MS     int
 	lastLapNumber      int
 	lastNeutralizedLap int
 	formationLapFired  bool
@@ -47,6 +50,10 @@ func (r *CoachingRule) AlertKeys() map[string]AlertKeyConfig {
 			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeLap,
 		},
+		"coaching_s3": {
+			ValidPhases: []DrivingPhase{PhaseRacing},
+			DedupScope:  DedupScopeLap,
+		},
 		"formation_lap_start": {
 			ValidPhases: []DrivingPhase{PhaseFormationLap},
 			DedupScope:  DedupScopePhase,
@@ -74,6 +81,9 @@ func (r *CoachingRule) Reset(scope DedupScope) {
 	if scope == DedupScopeNone {
 		r.bestSector1MS = 0
 		r.bestSector2MS = 0
+		r.bestSector3MS = 0
+		r.currentLapS1MS = 0
+		r.currentLapS2MS = 0
 		r.lastLapNumber = 0
 		r.lastNeutralizedLap = 0
 	}
@@ -84,6 +94,20 @@ func (r *CoachingRule) GetBestSector1MS() int {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	return r.bestSector1MS
+}
+
+// GetBestSector2MS returns the tracked personal best sector 2 in milliseconds.
+func (r *CoachingRule) GetBestSector2MS() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.bestSector2MS
+}
+
+// GetBestSector3MS returns the tracked personal best sector 3 in milliseconds.
+func (r *CoachingRule) GetBestSector3MS() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.bestSector3MS
 }
 
 func (r *CoachingRule) Evaluate(ctx *EvaluationContext) []Directive {
@@ -215,6 +239,46 @@ func (r *CoachingRule) Evaluate(ctx *EvaluationContext) []Directive {
 	}
 	if s2 > 0 && (r.bestSector2MS == 0 || s2 < r.bestSector2MS) {
 		r.bestSector2MS = s2
+	}
+
+	// Track current lap's sectors
+	if s1 > 0 {
+		r.currentLapS1MS = s1
+	}
+	if s2 > 0 {
+		r.currentLapS2MS = s2
+	}
+
+	// On lap rollover: evaluate Sector 3 from the just-completed lap
+	if currentLap > r.lastLapNumber && r.lastLapNumber > 0 {
+		lastLapMs := int(playerLap.LastLapTimeInMS)
+		wasPrevLapNeutralized := r.lastLapNumber == r.lastNeutralizedLap
+		if !wasPrevLapNeutralized && lastLapMs > 0 && r.currentLapS1MS > 0 && r.currentLapS2MS > 0 && lastLapMs > (r.currentLapS1MS+r.currentLapS2MS) {
+			s3 := lastLapMs - (r.currentLapS1MS + r.currentLapS2MS)
+			if s3 > 0 {
+				if r.bestSector3MS == 0 || s3 < r.bestSector3MS {
+					r.bestSector3MS = s3
+				} else if isSectorCoachingPhase && r.bestSector3MS > 0 {
+					deltaS3 := float64(s3-r.bestSector3MS) / float64(packets.MillisPerSecond)
+					if deltaS3 >= SectorTimeLossThresholdSec && deltaS3 <= SectorTimeLossMaxThresholdSec {
+						directives = append(directives, Directive{
+							ID:       "coaching_s3",
+							Category: DirectiveCategoryCoaching,
+							SubAlert: "sector_delta",
+							Title:    "Sector 3 Delta",
+							Message:  fmt.Sprintf("Time lost in Sector 3 (+%.2fs vs personal best). Prioritize throttle application onto the start-finish straight.", deltaS3),
+							Urgency:  UrgencyMedium,
+							Metadata: map[string]any{
+								"sector": 3,
+								"delta":  deltaS3,
+							},
+						})
+					}
+				}
+			}
+		}
+		r.currentLapS1MS = 0
+		r.currentLapS2MS = 0
 	}
 
 	if !isSectorCoachingPhase {

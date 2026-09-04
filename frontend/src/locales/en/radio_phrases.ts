@@ -795,6 +795,104 @@ export const radio_phrases = {
       'Pit exit clear. Limiter disengaged, resume race pace.',
     ],
   },
+  tyre_crossover_wet: {
+    bono: [
+      'Track is saturated, standing water is too deep for Inters! Box this lap, box box for Full Wets.',
+      'Aquaplaning risk is critical, {driver}. Box this lap for Full Wets.',
+    ],
+    colapinto: [
+      'Way too much water on track, aquaplaning risk! Box this lap, {driver}, we need Full Wets!',
+      'Standing water is too deep for Inters, box now, box box for Full Wets!',
+    ],
+    standard: [
+      'Track is saturated with standing water, aquaplaning risk! Box this lap for Full Wets.',
+      'Heavy rain crossover reached. Box this lap, box box for Extreme Wet tyres.',
+    ],
+  },
+  tyre_crossover_inter: {
+    bono: [
+      'Rain has eased off and standing water is clearing, {driver}. Intermediate tyre is much faster now, box for Inters.',
+      'Track is drying out from heavy wet, {driver}. Inters are the faster compound now, box this lap.',
+    ],
+    colapinto: [
+      'The rain is easing up, the track is draining! Inters are way faster now, box this lap, {driver}!',
+      'Standing water is clearing, let us switch to Inters! Box this lap, box box!',
+    ],
+    standard: [
+      'Rain has eased up and standing water is clearing. Intermediate tyre is much faster now, box for Inters.',
+      'Drying crossover window open. Box this lap to change from Full Wets to Intermediates.',
+    ],
+  },
+  brake_bias_ok: {
+    bono: [
+      'Brake temperatures are equalized, {driver}. Axle balance is restored.',
+      'Brake temps looking good now, balance restored across the axles.',
+    ],
+    colapinto: [
+      'Brake temps equalized, {driver}! Thermal balance is back in the window.',
+      'Brakes balanced nicely now, good job managing the bias.',
+    ],
+    standard: [
+      'Brake temperatures are equalized, axle thermal balance is restored.',
+      'Brake balance recovered. Temperatures across front and rear axles are normalized.',
+    ],
+  },
+  fuel_mix_neutralized: {
+    bono: [
+      'Safety Car on track, {driver}. Switch fuel mix to Lean / Mix 1 to save fuel and manage temps.',
+      'Switch to Mix 1 under the Safety Car, protect the engine and build fuel delta.',
+    ],
+    colapinto: [
+      'Safety Car deployed! Switch down to Lean mix, {driver}, save fuel and protect the engine!',
+      'Mix 1 on the fuel dial, {driver}. Save as much fuel as you can under neutralization.',
+    ],
+    standard: [
+      'Safety Car deployed. Switch fuel mix to Lean / Mix 1 to conserve fuel and manage engine temperatures.',
+      'Neutralization active. Select Lean fuel mix to recover fuel delta.',
+    ],
+  },
+  fuel_mix_restart: {
+    bono: [
+      'Green flag! Restore fuel mix to Race Mix 2, race is on.',
+      'Track is green, {driver}. Back to Mix 2 on the fuel dial, push now.',
+    ],
+    colapinto: [
+      'Green flag, restart! Back to Race Mix 2, {driver}, give it everything!',
+      'Green flag racing! Put the fuel back to Mix 2 and hammer it!',
+    ],
+    standard: [
+      'Track is green! Restore fuel mix to Race Mix 2.',
+      'Green flag restart. Switch fuel mode back to standard race mix.',
+    ],
+  },
+  ers_clipping: {
+    bono: [
+      'Clipping, clipping! Maximum per-lap ERS deployment reached, battery boost depleted until the line.',
+      'Derating on the straight, {driver}. 4MJ per-lap quota exhausted, no more electric boost this lap.',
+    ],
+    colapinto: [
+      'Clipping, clipping! You hit the 4MJ lap limit, no battery boost until the start-finish line!',
+      'Derating, {driver}! Lap battery quota is maxed out, lift and roll into the braking zone.',
+    ],
+    standard: [
+      'Clipping, clipping! Maximum per-lap ERS deployment reached. Battery boost is depleted until the finish line.',
+      'ERS derating active. Per-lap 4MJ electrical deployment cap reached.',
+    ],
+  },
+  tyre_set_advisory: {
+    bono: [
+      'Pit window approaching, {driver}. Fresh set ready in the pit box.',
+      'Strategy confirmed for the stop. New rubber prepped and waiting.',
+    ],
+    colapinto: [
+      'Pit window approaching, {driver}! Fresh tyre set is ready in the box, give us a good in-lap!',
+      'Tyres prepped in pit lane! We have a fresh set ready to bolt on.',
+    ],
+    standard: [
+      'Pit window approaching. Recommended tyre set allocation is ready in the pit box.',
+      'Fresh tyre set prepared for the upcoming pit stop.',
+    ],
+  },
   directive: {
     standard: ['{clean_text}'],
   },
