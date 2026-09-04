@@ -14,7 +14,7 @@ import (
 
 var (
 	shortHTTPClient     = &http.Client{Timeout: 15 * time.Second}
-	streamingHTTPClient = &http.Client{Timeout: 60 * time.Second}
+	streamingHTTPClient = &http.Client{} // Context-controlled cancellation from request context without artificial timeouts
 )
 
 type aiErrorClassifierInput struct {
@@ -404,8 +404,7 @@ func StreamGemini(ctx context.Context, apiKey, model, systemPrompt string, messa
 		},
 		Contents: contents,
 		GenerationConfig: map[string]interface{}{
-			"temperature":     0.35,
-			"maxOutputTokens": 200,
+			"temperature": 0.35,
 		},
 	}
 
@@ -485,10 +484,9 @@ func StreamOpenAI(ctx context.Context, baseURL, apiKey, model, systemPrompt stri
 	}
 
 	reqMap := map[string]interface{}{
-		"model":      model,
-		"messages":   openAIMessages,
-		"stream":     true,
-		"max_tokens": 200,
+		"model":    model,
+		"messages": openAIMessages,
+		"stream":   true,
 	}
 	if !isReasoningModel {
 		reqMap["temperature"] = 0.4
