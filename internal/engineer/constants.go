@@ -107,6 +107,23 @@ const (
 	WeatherHeavyRainWetThreshold   = 75
 	WeatherLightRainInterThreshold = 35
 	CornerCutWarnDefaultThreshold  = 2
+
+	// 2026 Active Aero & Override thresholds
+	ActiveAeroAnticipationDistanceM    = 100 // Metres before Straight Mode zone to alert driver
+	OvertakeBoostAnticipationDistanceM = 100 // Metres before Override Boost zone to alert driver
+
+	// Pit Entry & Limiter thresholds
+	PitLimiterOverspeedDeltaKmh = 12 // Speed over pit limit triggering warning before limiter line
+
+	// Tyre Blistering & Pressure thresholds
+	TyreBlisterWarnPct            = 35   // Tyre blistering % triggering alert
+	TyrePressureMaxFrontPSI       = 25.5 // Front tyre pressure threshold for high pressure warning
+	TyrePressureMaxRearPSI        = 24.5 // Rear tyre pressure threshold for high pressure warning
+	TyrePressureAsymmetryDeltaPSI = 1.5  // Axle pressure delta triggering asymmetry alert
+
+	// Powertrain Component Degradation thresholds
+	GearBoxDamageWarnPct = 70 // Gearbox wear % triggering shift sync warning
+	EngineICEWearWarnPct = 75 // ICE wear % triggering top speed loss advisory
 )
 
 // TyreThermalWindow represents the optimal operating temperature range (°C) for a compound.

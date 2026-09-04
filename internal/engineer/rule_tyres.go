@@ -16,6 +16,8 @@ type TyresRule struct {
 	lastCrossoverCompound   uint8
 	lastCrossoverTarget     string
 	tyreSetAdvisoryFired    bool
+	blisterAlertFired       [4]bool
+	pressureAlertFired      bool
 }
 
 // NewTyresRule creates a new TyresRule.
@@ -73,6 +75,14 @@ func (r *TyresRule) AlertKeys() map[string]AlertKeyConfig {
 			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeStint,
 		},
+		"tyre_blistering": {
+			ValidPhases: []DrivingPhase{PhaseRacing},
+			DedupScope:  DedupScopeStint,
+		},
+		"tyre_pressure_high": {
+			ValidPhases: []DrivingPhase{PhaseRacing},
+			DedupScope:  DedupScopeStint,
+		},
 	}
 }
 
@@ -86,6 +96,8 @@ func (r *TyresRule) Reset(scope DedupScope) {
 		r.lastCrossoverCompound = 0
 		r.lastCrossoverTarget = ""
 		r.tyreSetAdvisoryFired = false
+		r.blisterAlertFired = [4]bool{}
+		r.pressureAlertFired = false
 	}
 }
 
@@ -147,6 +159,30 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 					},
 				})
 				break
+			}
+		}
+
+		// Tyre Blistering Detection
+		if ctx.Phase == PhaseRacing {
+			wheelNames := [4]string{"Front Left", "Front Right", "Rear Left", "Rear Right"}
+			for wIdx, blister := range dmg.TyreBlisters {
+				if blister >= TyreBlisterWarnPct && !r.blisterAlertFired[wIdx] {
+					r.blisterAlertFired[wIdx] = true
+					directives = append(directives, Directive{
+						ID:       "tyre_blistering",
+						Category: DirectiveCategoryTyres,
+						SubAlert: "tyre_blistering",
+						Title:    "Tyre Blistering Detected",
+						Message:  fmt.Sprintf("Tyre blistering detected on the %s tyre (%d%% blister)! Back off lateral loads and avoid aggressive curb strikes.", wheelNames[wIdx], blister),
+						Urgency:  UrgencyMedium,
+						Metadata: map[string]any{
+							"wheel_index": wIdx,
+							"wheel_name":  wheelNames[wIdx],
+							"blister_pct": blister,
+						},
+					})
+					break
+				}
 			}
 		}
 	}
@@ -221,6 +257,81 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 					"window_max_c": window.MaxTemp,
 				},
 			})
+		}
+
+		// Tyre Pressure Spikes & Imbalance
+		if ctx.Phase == PhaseRacing && !r.pressureAlertFired {
+			flPress := tele.TyresPressure[packets.WheelFrontLeft]
+			frPress := tele.TyresPressure[packets.WheelFrontRight]
+			rlPress := tele.TyresPressure[packets.WheelRearLeft]
+			rrPress := tele.TyresPressure[packets.WheelRearRight]
+
+			var maxPress float32
+			var maxPressWheel string
+			switch {
+			case flPress >= TyrePressureMaxFrontPSI:
+				maxPress = flPress
+				maxPressWheel = "Front Left"
+			case frPress >= TyrePressureMaxFrontPSI:
+				maxPress = frPress
+				maxPressWheel = "Front Right"
+			case rlPress >= TyrePressureMaxRearPSI:
+				maxPress = rlPress
+				maxPressWheel = "Rear Left"
+			case rrPress >= TyrePressureMaxRearPSI:
+				maxPress = rrPress
+				maxPressWheel = "Rear Right"
+			}
+
+			if maxPress > 0 {
+				r.pressureAlertFired = true
+				directives = append(directives, Directive{
+					ID:       "tyre_pressure_high",
+					Category: DirectiveCategoryTyres,
+					SubAlert: "tyre_pressure_high",
+					Title:    "High Tyre Pressure",
+					Message:  fmt.Sprintf("%s tyre pressure is spiking (%.1f PSI)! Manage corner entry scrub to prevent crowning the contact patch.", maxPressWheel, maxPress),
+					Urgency:  UrgencyMedium,
+					Metadata: map[string]any{
+						"wheel":    maxPressWheel,
+						"pressure": maxPress,
+					},
+				})
+			} else {
+				frontDiff := float32(math.Abs(float64(flPress - frPress)))
+				rearDiff := float32(math.Abs(float64(rlPress - rrPress)))
+				if frontDiff >= TyrePressureAsymmetryDeltaPSI {
+					r.pressureAlertFired = true
+					directives = append(directives, Directive{
+						ID:       "tyre_pressure_high",
+						Category: DirectiveCategoryTyres,
+						SubAlert: "tyre_pressure_high",
+						Title:    "Tyre Pressure Imbalance",
+						Message:  fmt.Sprintf("Front axle tyre pressure disparity is high (%.1f vs %.1f PSI). Balance cornering load.", flPress, frPress),
+						Urgency:  UrgencyLow,
+						Metadata: map[string]any{
+							"axle":  "front",
+							"left":  flPress,
+							"right": frPress,
+						},
+					})
+				} else if rearDiff >= TyrePressureAsymmetryDeltaPSI {
+					r.pressureAlertFired = true
+					directives = append(directives, Directive{
+						ID:       "tyre_pressure_high",
+						Category: DirectiveCategoryTyres,
+						SubAlert: "tyre_pressure_high",
+						Title:    "Tyre Pressure Imbalance",
+						Message:  fmt.Sprintf("Rear axle tyre pressure disparity is high (%.1f vs %.1f PSI). Balance traction load.", rlPress, rrPress),
+						Urgency:  UrgencyLow,
+						Metadata: map[string]any{
+							"axle":  "rear",
+							"left":  rlPress,
+							"right": rrPress,
+						},
+					})
+				}
+			}
 		}
 	}
 

@@ -907,6 +907,104 @@ export const radio_phrases = {
       'Juego de neumáticos nuevo preparado para la próxima detención en boxes.',
     ],
   },
+  aero_straight_anticipation: {
+    colapinto: [
+      '¡Zona de Modo Recta en 100 metros, {driver}! ¡Apretá el botón en cuanto salgas de la curva!',
+      '¡Se viene la zona de baja resistencia aerodinámica! ¡Prepará el Modo Recta!',
+    ],
+    bono: [
+      'Modo Recta en 100 metros, {driver}. Prepárate para activar aerodinámica de baja carga a la salida.',
+      'Zona de aerodinámica activa aproximándose. Listo en el botón de Modo Recta.',
+    ],
+    standard: [
+      'Zona de activación de Modo Recta en 100 metros. Prepárate para activar aerodinámica de baja carga a la salida de curva.',
+      'Zona de aerodinámica activa aproximándose. Prepara Modo Recta.',
+    ],
+  },
+  overtake_boost_anticipation: {
+    colapinto: [
+      '¡Zona de sobrepaso en 100 metros, {driver}! ¡Dedo en el botón de boost, tiráselo en la recta!',
+      '¡Se viene la zona de boost! ¡Todo el despliegue al salir del curvón!',
+    ],
+    bono: [
+      'Zona de sobrepaso en 100 metros, {driver}. Botón de boost armado, úsalo para adelantar.',
+      'Aproximándose a la zona de potencia extra. Prepárate para activar el modo de sobrepaso.',
+    ],
+    standard: [
+      'Zona de sobrepaso adelante en 100 metros. Listo en el botón de boost.',
+      'Zona de activación de boost de sobrepaso en 100 metros. Prepara despliegue.',
+    ],
+  },
+  pit_limiter_overspeed: {
+    colapinto: [
+      '¡Limitador de boxes, limitador! ¡Bajá la velocidad ya, {driver}, no te comas una penalización!',
+      '¡Frená para la línea de boxes! ¡Activá el limitador ya, cuidado con la velocidad!',
+    ],
+    bono: [
+      '¡Limitador de velocidad! Reduce la velocidad ahora, {driver}, línea de entrada a boxes aproximándose.',
+      'Atención a la velocidad de entrada a boxes. Clava el limitador antes de la línea.',
+    ],
+    standard: [
+      '¡Limitador de velocidad! Reduce velocidad, línea de limitador de boxes aproximándose. Respeta el límite del pit lane.',
+      'Exceso de velocidad en entrada a boxes. Activa el limitador antes de la línea reglamentaria.',
+    ],
+  },
+  tyre_blistering: {
+    colapinto: [
+      '¡Tenemos ampollas en las gomas, {driver}! ¡Aflojale a los pianitos agresivos y cuidá la carga lateral!',
+      '¡Ampollamiento detectado en el neumático! No deslices en curva, llevá el auto prolijo.',
+    ],
+    bono: [
+      'Ampollamiento detectado en los neumáticos, {driver}. Reduce la carga lateral y aléjate de los bordillos agresivos.',
+      'Vemos ampollas desarrollándose en la goma. Modera el deslizamiento en curvas rápidas.',
+    ],
+    standard: [
+      'Ampollamiento detectado en los neumáticos. Reduce cargas laterales y evita cortes agresivos sobre bordillos.',
+      'Ampollas detectadas en la banda de rodamiento. Gestiona el deslizamiento para evitar desgarros térmicos.',
+    ],
+  },
+  tyre_pressure_high: {
+    colapinto: [
+      '¡Presión de gomas por las nubes, {driver}! ¡No derrapes en la entrada en curva, protegé la huella de contacto!',
+      '¡Presión altísima en los neumáticos! Manejá suave y balanceá el peso.',
+    ],
+    bono: [
+      'La presión del neumático está disparándose, {driver}. Gestiona la entrada en curva para evitar deformar la huella.',
+      'Desbalance de presiones detectado en el eje. Equilibra las cargas de frenado y tracción.',
+    ],
+    standard: [
+      'Presión de neumáticos elevada. Modera el apoyo de entrada para evitar abombamiento en la superficie de contacto.',
+      'Disparidad de presión entre neumáticos del mismo eje. Equilibra las cargas en curva.',
+    ],
+  },
+  damage_gearbox_wear: {
+    colapinto: [
+      '¡Desgaste crítico en la caja de cambios, {driver}! ¡Cuidado al tirar cambios, pasalos prolijos!',
+      '¡La caja está al límite! No seas agresivo en los rebajes, cuidá los engranajes.',
+    ],
+    bono: [
+      'Desgaste crítico de la caja de cambios, {driver}. Espera cambios lentos y pérdidas de sincronización de torque.',
+      'Daño elevado en la transmisión. Sé preciso en los cambios ascendentes.',
+    ],
+    standard: [
+      '¡Desgaste crítico en la caja de cambios! Anticipa retrasos en el cambio de marcha y pérdidas de sincronismo.',
+      'Alto daño detectado en la caja de cambios. La sincronización de marchas puede fallar.',
+    ],
+  },
+  damage_ice_wear: {
+    colapinto: [
+      '¡El motor térmico está al límite de desgaste, {driver}! ¡Vamos a perder velocidad de punta en las rectas!',
+      '¡Desgaste altísimo en el ICE! Cuidá las revoluciones y refrigerá en la succión.',
+    ],
+    bono: [
+      'Desgaste crítico en el motor térmico (ICE), {driver}. Habrá pérdida de potencia punta en recta.',
+      'Desgaste severo de la unidad de potencia de combustión. Modera el régimen de giro.',
+    ],
+    standard: [
+      'Desgaste crítico del motor de combustión interna (ICE). Anticipa pérdida de potencia en recta.',
+      'Alto desgaste detectado en el ICE. La velocidad final y potencia están degradadas.',
+    ],
+  },
   directive: {
     standard: ['{clean_text}'],
   },

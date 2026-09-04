@@ -893,6 +893,104 @@ export const radio_phrases = {
       'Fresh tyre set prepared for the upcoming pit stop.',
     ],
   },
+  aero_straight_anticipation: {
+    bono: [
+      'Straight Mode in 100 metres, {driver}. Prepare to deploy low-drag aero on exit.',
+      'Straight zone approaching. Ready on the Active Aero toggle.',
+    ],
+    colapinto: [
+      'Straight Mode zone in 100 metres, {driver}! Hit the button as soon as you exit the turn!',
+      'Aero zone coming up! Prepare low-drag Straight Mode!',
+    ],
+    standard: [
+      'Straight Mode activation zone in 100 metres. Prepare to activate low-drag aero on corner exit.',
+      'Active Aero zone approaching. Prepare Straight Mode.',
+    ],
+  },
+  overtake_boost_anticipation: {
+    bono: [
+      'Override zone in 100 metres, {driver}. Boost button armed, use it for the overtake.',
+      'Override activation approaching. Prepare to deploy boost.',
+    ],
+    colapinto: [
+      'Override zone in 100 metres, {driver}! Ready on the boost button, get him on the straight!',
+      'Override zone coming up! Full boost on corner exit!',
+    ],
+    standard: [
+      'Override zone ahead in 100 metres. Ready on the boost button.',
+      'Override boost activation zone in 100 metres. Prepare deployment.',
+    ],
+  },
+  pit_limiter_overspeed: {
+    bono: [
+      'Speed limiter, speed limiter! Drop speed now, {driver}, pit entry line approaching!',
+      'Watch your speed on pit entry! Hit the limiter, do not get a penalty!',
+    ],
+    colapinto: [
+      'Speed limiter! Drop speed, drop speed! Don\'t speed into the pit lane, {driver}!',
+      'Brake for the pit line! Speed limiter now, watch the limit!',
+    ],
+    standard: [
+      'Speed limiter! Drop speed, pit limiter line approaching! Watch pit speed limit!',
+      'Pit lane entry overspeed! Engage speed limiter before the line.',
+    ],
+  },
+  tyre_blistering: {
+    bono: [
+      'Tyre blistering detected, {driver}. Back off lateral load and stay off the aggressive curbs.',
+      'We see tyre blistering developing. Manage the slip angle in high-speed turns.',
+    ],
+    colapinto: [
+      'We have tyre blistering, {driver}! Avoid aggressive curbs and manage cornering loads!',
+      'Blistering detected on the tyre! Back off lateral slide, keep it smooth!',
+    ],
+    standard: [
+      'Tyre blistering detected. Back off lateral loads and avoid aggressive curb strikes.',
+      'Blistering detected on tyre. Manage tyre scrub to avoid surface tearing.',
+    ],
+  },
+  tyre_pressure_high: {
+    bono: [
+      'Tyre pressure is spiking, {driver}. Manage corner entry scrub to avoid crowning the contact patch.',
+      'Tyre pressure imbalance detected. Balance your cornering and traction loads.',
+    ],
+    colapinto: [
+      'Tyre pressure is way too high, {driver}! Stop sliding into the apex, protect the contact patch!',
+      'High tyre pressure detected! Smooth out the steering inputs!',
+    ],
+    standard: [
+      'High tyre pressure detected. Manage corner entry scrub to prevent crowning the contact patch.',
+      'Tyre pressure disparity is high across the axle. Balance cornering loads.',
+    ],
+  },
+  damage_gearbox_wear: {
+    bono: [
+      'Gearbox wear is critical, {driver}. Expect delayed shifts and torque sync dropouts.',
+      'Gearbox damage is high. Be clean and precise on the upshifts.',
+    ],
+    colapinto: [
+      'Gearbox damage is critical, {driver}! Short shift if needed, watch the gear sync!',
+      'Heavy gearbox wear! Take it easy on the downshifts, protect the transmission!',
+    ],
+    standard: [
+      'Gearbox wear critical! Expect delayed gear shifts and torque sync dropouts.',
+      'High gearbox damage detected. Transmission sync may drop out.',
+    ],
+  },
+  damage_ice_wear: {
+    bono: [
+      'ICE wear is critical, {driver}. We will see top-end power loss on the straights.',
+      'Internal combustion engine wear is high. Mind the revs, manage engine braking.',
+    ],
+    colapinto: [
+      'Engine ICE wear is critical, {driver}! We are losing top speed on the straights!',
+      'Heavy ICE engine wear! Manage engine temperatures and revs!',
+    ],
+    standard: [
+      'Internal Combustion Engine (ICE) wear critical. Expect top-end power loss on the straights.',
+      'High engine ICE wear detected. Top speed and power output are degraded.',
+    ],
+  },
   directive: {
     standard: ['{clean_text}'],
   },

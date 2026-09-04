@@ -7,11 +7,14 @@ import (
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 )
 
-// RivalsRule manages defending against cars behind and attacking cars ahead.
+// RivalsRule manages defending against cars behind, attacking cars ahead,
+// and 2026 active aero / override boost zone anticipation.
 type RivalsRule struct {
-	mu                       sync.Mutex
-	lastDrsWarningIndex      int
-	lastCarAheadWarningIndex int
+	mu                          sync.Mutex
+	lastDrsWarningIndex         int
+	lastCarAheadWarningIndex    int
+	activeAeroAnticipationFired bool
+	overtakeAnticipationFired   bool
 }
 
 // NewRivalsRule creates a new RivalsRule.
@@ -31,7 +34,7 @@ func (r *RivalsRule) Category() string {
 }
 
 func (r *RivalsRule) ValidPhases() []DrivingPhase {
-	return []DrivingPhase{PhaseRacing}
+	return []DrivingPhase{PhaseRacing, PhaseFlyingLap}
 }
 
 func (r *RivalsRule) AlertKeys() map[string]AlertKeyConfig {
@@ -58,6 +61,16 @@ func (r *RivalsRule) AlertKeys() map[string]AlertKeyConfig {
 			SuppressAfterPitForLaps: PostPitSuppressionLaps,
 			DedupScope:              DedupScopeNone,
 		},
+		"aero_straight_anticipation": {
+			Category:    DirectiveCategoryRivals,
+			ValidPhases: []DrivingPhase{PhaseRacing, PhaseFlyingLap},
+			DedupScope:  DedupScopeNone,
+		},
+		"overtake_boost_anticipation": {
+			Category:    DirectiveCategoryRivals,
+			ValidPhases: []DrivingPhase{PhaseRacing},
+			DedupScope:  DedupScopeNone,
+		},
 	}
 }
 
@@ -65,6 +78,10 @@ func (r *RivalsRule) Reset(scope DedupScope) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	if scope == DedupScopeNone || scope == DedupScopeLap {
+		r.activeAeroAnticipationFired = false
+		r.overtakeAnticipationFired = false
+	}
 	if scope == DedupScopeNone {
 		r.lastDrsWarningIndex = -1
 		r.lastCarAheadWarningIndex = -1
@@ -75,20 +92,73 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	var directives []Directive
+	is2026 := ctx.Is2026()
+
+	// 1. 2026 Active Aero & Overtake Boost Anticipation
+	if is2026 && (ctx.Phase == PhaseRacing || ctx.Phase == PhaseFlyingLap) {
+		tele2 := ctx.PlayerTelemetry2()
+		if tele2 != nil {
+			// Straight Mode Anticipation
+			if tele2.ActiveAeroAvailable == 1 && tele2.ActiveAeroMode == 0 &&
+				tele2.ActiveAeroActivationDistance > 0 && tele2.ActiveAeroActivationDistance <= ActiveAeroAnticipationDistanceM {
+				if !r.activeAeroAnticipationFired {
+					r.activeAeroAnticipationFired = true
+					directives = append(directives, Directive{
+						ID:       "aero_straight_anticipation",
+						Category: DirectiveCategoryRivals,
+						SubAlert: "aero_straight_anticipation",
+						Title:    "Straight Mode Approaching",
+						Message:  "Straight Mode zone in 100 metres! Prepare to activate low-drag aero on corner exit.",
+						Urgency:  UrgencyMedium,
+						Metadata: map[string]any{
+							"activation_distance_m": tele2.ActiveAeroActivationDistance,
+							"is_2026":               true,
+						},
+					})
+				}
+			} else if tele2.ActiveAeroActivationDistance == 0 || tele2.ActiveAeroMode == 1 {
+				r.activeAeroAnticipationFired = false
+			}
+
+			// Override Boost Anticipation (Racing phase only)
+			if ctx.Phase == PhaseRacing {
+				if tele2.OvertakeAvailable == 1 && tele2.OvertakeActive == 0 &&
+					tele2.OvertakeActivationDistance > 0 && tele2.OvertakeActivationDistance <= OvertakeBoostAnticipationDistanceM {
+					if !r.overtakeAnticipationFired {
+						r.overtakeAnticipationFired = true
+						directives = append(directives, Directive{
+							ID:       "overtake_boost_anticipation",
+							Category: DirectiveCategoryRivals,
+							SubAlert: "overtake_boost_anticipation",
+							Title:    "Override Zone Approaching",
+							Message:  "Override zone ahead in 100 metres! Ready on the boost button.",
+							Urgency:  UrgencyMedium,
+							Metadata: map[string]any{
+								"activation_distance_m": tele2.OvertakeActivationDistance,
+								"is_2026":               true,
+							},
+						})
+					}
+				} else if tele2.OvertakeActivationDistance == 0 || tele2.OvertakeActive == 1 {
+					r.overtakeAnticipationFired = false
+				}
+			}
+		}
+	}
+
 	if ctx.Packet != nil && !isPacketType[*packets.PacketLapData](ctx.Packet) {
-		return nil
+		return directives
 	}
 
 	playerLap := ctx.PlayerLap()
 	if !ctx.IsRaceSession() || playerLap == nil || playerLap.CarPosition <= 0 || ctx.Phase != PhaseRacing ||
 		(ctx.Session != nil && ctx.Session.SafetyCarStatus != packets.SafetyCarNone) || playerLap.SafetyCarDelta != 0 ||
 		ctx.LapData == nil || playerLap.CurrentLapNum == 1 {
-		return nil
+		return directives
 	}
 
-	var directives []Directive
 	playerPos := int(playerLap.CarPosition)
-	is2026 := ctx.Is2026()
 
 	// 1. Defend: Car Behind (playerPos + 1)
 	maxDefendDist := ctx.Config.RivalGapSec * AverageRaceSpeedMetersPerSec

@@ -231,6 +231,39 @@ describe('radioPhrases', () => {
       expect(
         detectAlertCategory('[PROACTIVE PIT WALL CALL: Pit window approaching. Available fresh set: HARD tyres (0% wear).]')
       ).toBe('tyre_set_advisory');
+
+      // Phase 6: Active Aero & Override Anticipation, Pit Limiter Overspeed, Blisters & Pressures, Differentiated Damage
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Straight Mode zone in 100 metres! Prepare to activate low-drag aero on corner exit.]')
+      ).toBe('aero_straight_anticipation');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Override zone ahead in 100 metres! Ready on the boost button.]')
+      ).toBe('overtake_boost_anticipation');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Speed limiter! Drop speed, pit limiter line approaching! Pit limit is 80 km/h!]')
+      ).toBe('pit_limiter_overspeed');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Tyre blistering detected on the Front Left tyre (42% blister)! Back off lateral loads and avoid aggressive curb strikes.]')
+      ).toBe('tyre_blistering');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Front Left tyre pressure is spiking (26.2 PSI)! Manage corner entry scrub to prevent crowning the contact patch.]')
+      ).toBe('tyre_pressure_high');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Front axle tyre pressure disparity is high (26.0 vs 24.1 PSI). Balance cornering load.]')
+      ).toBe('tyre_pressure_high');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Gearbox damage reached 74%! Expect delayed gear shifts and torque sync dropouts.]')
+      ).toBe('damage_gearbox_wear');
+
+      expect(
+        detectAlertCategory('[PROACTIVE PIT WALL CALL: Internal Combustion Engine (ICE) wear at 78%! Expect top-end power loss on the straights.]')
+      ).toBe('damage_ice_wear');
     });
   });
 
@@ -480,6 +513,68 @@ describe('radioPhrases', () => {
       expect(speech).toContain('Franco');
       expect(speech.toLowerCase()).toMatch(/sector|parcial|tiempo/i);
       expect(speech).not.toContain('You are initiating this call');
+    });
+
+    it('formats Phase 6 Active Aero, Pit Overspeed, Blistering, and Powertrain categories', () => {
+      const aeroSpeech = getProactiveRadioSpeech(
+        { category: 'aero_straight_anticipation', message: 'Straight Mode zone in 100 metres!' },
+        'es',
+        'colapinto',
+        'Franco'
+      );
+      expect(aeroSpeech.toLowerCase()).toMatch(/recta|aerodinámica/);
+      expect(aeroSpeech).toContain('Franco');
+
+      const overtakeSpeech = getProactiveRadioSpeech(
+        { category: 'overtake_boost_anticipation', message: 'Override zone ahead in 100 metres!' },
+        'en',
+        'bono',
+        'Lewis'
+      );
+      expect(overtakeSpeech.toLowerCase()).toMatch(/override|boost/);
+      expect(overtakeSpeech).toContain('Lewis');
+
+      const pitSpeedSpeech = getProactiveRadioSpeech(
+        { category: 'pit_limiter_overspeed', message: 'Speed limiter! Drop speed, pit limiter line approaching!' },
+        'es',
+        'colapinto',
+        'Franco'
+      );
+      expect(pitSpeedSpeech.toLowerCase()).toMatch(/limitador|velocidad/);
+
+      const blisterSpeech = getProactiveRadioSpeech(
+        { category: 'tyre_blistering', message: 'Tyre blistering detected on the Front Left tyre!' },
+        'en',
+        'bono',
+        'George'
+      );
+      expect(blisterSpeech.toLowerCase()).toMatch(/blister/);
+      expect(blisterSpeech).toContain('George');
+
+      const pressureSpeech = getProactiveRadioSpeech(
+        { category: 'tyre_pressure_high', message: 'High tyre pressure detected.' },
+        'es',
+        'colapinto',
+        'Franco'
+      );
+      expect(pressureSpeech.toLowerCase()).toMatch(/presión|gomas|neumáticos/);
+
+      const gearboxSpeech = getProactiveRadioSpeech(
+        { category: 'damage_gearbox_wear', message: 'Gearbox damage reached 74%!' },
+        'es',
+        'colapinto',
+        'Franco'
+      );
+      expect(gearboxSpeech.toLowerCase()).toMatch(/caja/);
+
+      const iceSpeech = getProactiveRadioSpeech(
+        { category: 'damage_ice_wear', message: 'Internal Combustion Engine (ICE) wear at 78%!' },
+        'en',
+        'bono',
+        'Lewis'
+      );
+      expect(iceSpeech.toLowerCase()).toMatch(/ice|combustion engine|power/);
+      expect(iceSpeech).toContain('Lewis');
     });
 
     it('processes structured RadioAlertPayload directly without regex parsing', () => {

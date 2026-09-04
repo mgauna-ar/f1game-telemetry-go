@@ -321,6 +321,13 @@ export type RadioAlertCategory =
   | 'fuel_mix_restart'
   | 'ers_clipping'
   | 'tyre_set_advisory'
+  | 'aero_straight_anticipation'
+  | 'overtake_boost_anticipation'
+  | 'pit_limiter_overspeed'
+  | 'tyre_blistering'
+  | 'tyre_pressure_high'
+  | 'damage_gearbox_wear'
+  | 'damage_ice_wear'
   | 'directive';
 
 export interface RadioAlertPayload {

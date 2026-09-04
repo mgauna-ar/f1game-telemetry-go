@@ -2569,3 +2569,216 @@ func TestPhase5CockpitAndCrossovers(t *testing.T) {
 		}
 	})
 }
+
+func TestPhase6AeroPitOverspeedAndDynamics(t *testing.T) {
+	cfg := DefaultEngineerConfig()
+
+	// 1. 2026 Active Aero & Override Anticipation
+	t.Run("2026 Active Aero & Override Anticipation", func(t *testing.T) {
+		rule := NewRivalsRule()
+		tele2 := &packets.PacketCarTelemetry2Data{
+			CarTelemetry2Data: [packets.MaxCars]packets.CarTelemetry2Data{
+				{
+					ActiveAeroAvailable:          1,
+					ActiveAeroMode:               0,
+					ActiveAeroActivationDistance: 80, // <= 100m
+					OvertakeAvailable:            1,
+					OvertakeActive:               0,
+					OvertakeActivationDistance:   95, // <= 100m
+				},
+			},
+		}
+		ctxAero := &EvaluationContext{
+			Telemetry2:     tele2,
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseRacing,
+			PacketFormat:   packets.PacketFormat2026,
+		}
+		dirsAero := rule.Evaluate(ctxAero)
+		if len(dirsAero) != 2 {
+			t.Fatalf("expected 2 directives for straight mode and override anticipation, got %+v", dirsAero)
+		}
+		if dirsAero[0].ID != "aero_straight_anticipation" || dirsAero[1].ID != "overtake_boost_anticipation" {
+			t.Fatalf("unexpected directive IDs: %+v", dirsAero)
+		}
+
+		// Mode active or distance 0 -> should not re-fire
+		tele2Active := &packets.PacketCarTelemetry2Data{
+			CarTelemetry2Data: [packets.MaxCars]packets.CarTelemetry2Data{
+				{
+					ActiveAeroAvailable:          1,
+					ActiveAeroMode:               1, // already active
+					ActiveAeroActivationDistance: 0,
+					OvertakeAvailable:            1,
+					OvertakeActive:               1, // already active
+					OvertakeActivationDistance:   0,
+				},
+			},
+		}
+		ctxActive := &EvaluationContext{
+			Telemetry2:     tele2Active,
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseRacing,
+			PacketFormat:   packets.PacketFormat2026,
+		}
+		dirsActive := rule.Evaluate(ctxActive)
+		if len(dirsActive) != 0 {
+			t.Fatalf("expected 0 directives when aero/boost is active, got %+v", dirsActive)
+		}
+	})
+
+	// 2. Pit Limiter Entry Overspeed
+	t.Run("Pit Limiter Overspeed", func(t *testing.T) {
+		rule := NewTrafficRule()
+		session := &packets.PacketSessionData{
+			PitSpeedLimit: 80, // 80 km/h limit
+		}
+		lapDataPitting := &packets.PacketLapData{
+			LapData: [packets.MaxCars]packets.LapData{
+				{CurrentLapNum: 10, PitStatus: packets.PitStatusPitting},
+			},
+		}
+		statusLimiterOff := &packets.PacketCarStatusData{
+			CarStatusData: [packets.MaxCars]packets.CarStatusData{
+				{PitLimiterStatus: 0},
+			},
+		}
+		teleOverspeed := &packets.PacketCarTelemetryData{
+			CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
+				{Speed: 96}, // 96 > 80 + 12
+			},
+		}
+		ctxOverspeed := &EvaluationContext{
+			Session:        session,
+			LapData:        lapDataPitting,
+			Status:         statusLimiterOff,
+			Telemetry:      teleOverspeed,
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhasePitLane,
+		}
+		dirsOverspeed := rule.Evaluate(ctxOverspeed)
+		if len(dirsOverspeed) != 1 || dirsOverspeed[0].ID != "pit_limiter_overspeed" {
+			t.Fatalf("expected pit_limiter_overspeed directive, got %+v", dirsOverspeed)
+		}
+
+		// Safe speed -> 0 directives
+		teleSafe := &packets.PacketCarTelemetryData{
+			CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
+				{Speed: 78}, // safe <= 80
+			},
+		}
+		ruleSafe := NewTrafficRule()
+		ctxSafe := &EvaluationContext{
+			Session:        session,
+			LapData:        lapDataPitting,
+			Status:         statusLimiterOff,
+			Telemetry:      teleSafe,
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhasePitLane,
+		}
+		dirsSafe := ruleSafe.Evaluate(ctxSafe)
+		if len(dirsSafe) != 0 {
+			t.Fatalf("expected 0 directives for safe pit entry speed, got %+v", dirsSafe)
+		}
+	})
+
+	// 3. Tyre Blistering Detection
+	t.Run("Tyre Blistering", func(t *testing.T) {
+		rule := NewTyresRule()
+		damageBlister := &packets.PacketCarDamageData{
+			CarDamageData: [packets.MaxCars]packets.CarDamageData{
+				{
+					TyreBlisters: [4]uint8{42, 10, 15, 20}, // Front Left blister 42% >= 35%
+				},
+			},
+		}
+		ctxBlister := &EvaluationContext{
+			Damage:         damageBlister,
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseRacing,
+		}
+		dirsBlister := rule.Evaluate(ctxBlister)
+		if len(dirsBlister) != 1 || dirsBlister[0].ID != "tyre_blistering" || !strings.Contains(dirsBlister[0].Message, "Front Left") {
+			t.Fatalf("expected tyre_blistering directive on Front Left, got %+v", dirsBlister)
+		}
+	})
+
+	// 4. Tyre Pressure Spikes & Asymmetry
+	t.Run("Tyre Pressure Spikes", func(t *testing.T) {
+		rule := NewTyresRule()
+		teleSpike := &packets.PacketCarTelemetryData{
+			CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
+				{
+					TyresPressure: [4]float32{26.1, 23.0, 23.0, 23.0}, // Front Left 26.1 >= 25.5 PSI
+				},
+			},
+		}
+		ctxSpike := &EvaluationContext{
+			Telemetry:      teleSpike,
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseRacing,
+		}
+		dirsSpike := rule.Evaluate(ctxSpike)
+		if len(dirsSpike) != 1 || dirsSpike[0].ID != "tyre_pressure_high" || !strings.Contains(dirsSpike[0].Message, "Front Left") {
+			t.Fatalf("expected tyre_pressure_high directive for Front Left, got %+v", dirsSpike)
+		}
+
+		// Asymmetric delta test
+		ruleAsym := NewTyresRule()
+		teleAsym := &packets.PacketCarTelemetryData{
+			CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
+				{
+					TyresPressure: [4]float32{24.8, 22.9, 23.0, 23.0}, // Front delta 1.9 >= 1.5 PSI
+				},
+			},
+		}
+		ctxAsym := &EvaluationContext{
+			Telemetry:      teleAsym,
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseRacing,
+		}
+		dirsAsym := ruleAsym.Evaluate(ctxAsym)
+		if len(dirsAsym) != 1 || dirsAsym[0].ID != "tyre_pressure_high" || !strings.Contains(dirsAsym[0].Message, "Front axle") {
+			t.Fatalf("expected tyre_pressure_high directive for Front axle asymmetry, got %+v", dirsAsym)
+		}
+	})
+
+	// 5. Differentiated Powertrain Component Degradation
+	t.Run("Powertrain Component Wear", func(t *testing.T) {
+		rule := NewDamageRule()
+		damageGearbox := &packets.PacketCarDamageData{
+			CarDamageData: [packets.MaxCars]packets.CarDamageData{
+				{
+					GearBoxDamage: 74, // >= 70%
+					EngineICEWear: 79, // >= 75%
+				},
+			},
+		}
+		ctxDmg := &EvaluationContext{
+			Damage:         damageGearbox,
+			Config:         cfg,
+			PlayerCarIndex: 0,
+			Phase:          PhaseRacing,
+		}
+		dirsDmg := rule.Evaluate(ctxDmg)
+		var hasGearbox, hasICE bool
+		for _, d := range dirsDmg {
+			if d.ID == "damage_gearbox_wear" {
+				hasGearbox = true
+			}
+			if d.ID == "damage_ice_wear" {
+				hasICE = true
+			}
+		}
+		if !hasGearbox || !hasICE {
+			t.Fatalf("expected both damage_gearbox_wear and damage_ice_wear, got %+v", dirsDmg)
+		}
+	})
+}

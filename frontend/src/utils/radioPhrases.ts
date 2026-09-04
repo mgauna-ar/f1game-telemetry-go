@@ -134,6 +134,16 @@ export function detectAlertCategory(alertContext: string): RadioAlertCategory {
     return 'start_reaction_time';
   }
   if (
+    lower.includes('speed limiter!') ||
+    lower.includes('drop speed, pit limiter') ||
+    lower.includes('pit limiter overspeed') ||
+    lower.includes('limitador de boxes!') ||
+    lower.includes('reducí velocidad para el limitador') ||
+    lower.includes('velocidad excesiva en entrada a boxes')
+  ) {
+    return 'pit_limiter_overspeed';
+  }
+  if (
     lower.includes('pit limiter off') ||
     lower.includes('limiter off') ||
     lower.includes('limitador fuera') ||
@@ -164,6 +174,25 @@ export function detectAlertCategory(alertContext: string): RadioAlertCategory {
   }
 
   // 2. Tyres
+  if (
+    lower.includes('tyre blistering') ||
+    lower.includes('blistering detected') ||
+    lower.includes('blister') ||
+    lower.includes('ampollas')
+  ) {
+    return 'tyre_blistering';
+  }
+  if (
+    lower.includes('tyre pressure is spiking') ||
+    lower.includes('high tyre pressure') ||
+    lower.includes('tyre pressure disparity') ||
+    lower.includes('tyre pressure imbalance') ||
+    lower.includes('presión de gomas alta') ||
+    lower.includes('presión de neumáticos') ||
+    lower.includes('desbalance de presiones')
+  ) {
+    return 'tyre_pressure_high';
+  }
   if (lower.includes('puncture') || lower.includes('tyre failure') || lower.includes('pinchazo') || lower.includes('pinchadura')) {
     return 'tyre_puncture';
   }
@@ -187,6 +216,24 @@ export function detectAlertCategory(alertContext: string): RadioAlertCategory {
   }
   if (lower.includes('floor') || lower.includes('diffuser') || lower.includes('fondo plano')) {
     return 'floor_damage';
+  }
+  if (
+    lower.includes('gearbox damage reached') ||
+    lower.includes('gearbox wear critical') ||
+    lower.includes('delayed gear shifts') ||
+    lower.includes('caja de cambios al') ||
+    lower.includes('desgaste de caja')
+  ) {
+    return 'damage_gearbox_wear';
+  }
+  if (
+    lower.includes('internal combustion engine (ice) wear') ||
+    lower.includes('engine ice wear') ||
+    lower.includes('motor térmico al') ||
+    lower.includes('desgaste de ice') ||
+    lower.includes('desgaste del ice')
+  ) {
+    return 'damage_ice_wear';
   }
   if (
     lower.includes('engine component wear') ||
@@ -319,6 +366,24 @@ export function detectAlertCategory(alertContext: string): RadioAlertCategory {
   }
 
   // 6. Rivals & DRS / Attack / Defend
+  if (
+    lower.includes('straight mode zone') ||
+    lower.includes('straight mode in 100') ||
+    lower.includes('straight mode approaching') ||
+    lower.includes('zona de modo recta') ||
+    lower.includes('modo recta en 100')
+  ) {
+    return 'aero_straight_anticipation';
+  }
+  if (
+    lower.includes('override zone ahead') ||
+    lower.includes('override zone in 100') ||
+    lower.includes('override zone approaching') ||
+    lower.includes('zona de sobrepaso en 100') ||
+    lower.includes('zona de boost en 100')
+  ) {
+    return 'overtake_boost_anticipation';
+  }
   if (
     lower.includes('defend') ||
     lower.includes('defiende') ||

@@ -14,6 +14,8 @@ type DamageRule struct {
 	lastWingDamageAlert     float32
 	lastFloorDamageAlert    bool
 	lastEngineWearAlert     bool
+	lastGearboxWearAlert    bool
+	lastIceWearAlert        bool
 	lastDrsFaultAlert       bool
 	lastErsFaultAlert       bool
 	lastTerminalEngineAlert bool
@@ -50,6 +52,16 @@ func (r *DamageRule) AlertKeys() map[string]AlertKeyConfig {
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
 			DedupScope:  DedupScopeStint,
 		},
+		"damage_gearbox_wear": {
+			Category:    DirectiveCategoryDamage,
+			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			DedupScope:  DedupScopeStint,
+		},
+		"damage_ice_wear": {
+			Category:    DirectiveCategoryDamage,
+			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			DedupScope:  DedupScopeStint,
+		},
 		"damage_terminal_engine": {
 			Category:    DirectiveCategoryDamage,
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseGrid, PhaseRaceStart, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
@@ -76,6 +88,8 @@ func (r *DamageRule) Reset(scope DedupScope) {
 		r.lastWingDamageAlert = 0
 		r.lastFloorDamageAlert = false
 		r.lastEngineWearAlert = false
+		r.lastGearboxWearAlert = false
+		r.lastIceWearAlert = false
 		r.lastTerminalEngineAlert = false
 		r.lastDrsFaultAlert = false
 		r.lastErsFaultAlert = false
@@ -140,6 +154,36 @@ func (r *DamageRule) Evaluate(ctx *EvaluationContext) []Directive {
 	}
 
 	// 3. Internal Engine / Gearbox Component Wear
+	if float32(dmg.GearBoxDamage) >= GearBoxDamageWarnPct && !r.lastGearboxWearAlert {
+		r.lastGearboxWearAlert = true
+		directives = append(directives, Directive{
+			ID:       "damage_gearbox_wear",
+			Category: DirectiveCategoryDamage,
+			SubAlert: "damage_gearbox_wear",
+			Title:    "Gearbox Wear Critical",
+			Message:  fmt.Sprintf("Gearbox damage reached %d%%! Expect delayed gear shifts and torque sync dropouts.", dmg.GearBoxDamage),
+			Urgency:  UrgencyMedium,
+			Metadata: map[string]any{
+				"gearbox_damage": dmg.GearBoxDamage,
+			},
+		})
+	}
+
+	if float32(dmg.EngineICEWear) >= EngineICEWearWarnPct && !r.lastIceWearAlert {
+		r.lastIceWearAlert = true
+		directives = append(directives, Directive{
+			ID:       "damage_ice_wear",
+			Category: DirectiveCategoryDamage,
+			SubAlert: "damage_ice_wear",
+			Title:    "Engine ICE Wear Critical",
+			Message:  fmt.Sprintf("Internal Combustion Engine (ICE) wear at %d%%! Expect top-end power loss on the straights.", dmg.EngineICEWear),
+			Urgency:  UrgencyMedium,
+			Metadata: map[string]any{
+				"ice_wear": dmg.EngineICEWear,
+			},
+		})
+	}
+
 	maxEngineWear := float32(dmg.EngineICEWear)
 	if float32(dmg.EngineMGUKWear) > maxEngineWear {
 		maxEngineWear = float32(dmg.EngineMGUKWear)

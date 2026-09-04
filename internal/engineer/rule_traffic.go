@@ -14,8 +14,9 @@ type TrafficRule struct {
 	lastPitLimiterStatus   uint8
 	lastPitStatus          uint8
 	penaltyReminderFired   bool
-	lastRecordedPitTimerMS uint16
 	pitTimerReported       bool
+	limiterOverspeedFired  bool
+	lastRecordedPitTimerMS uint16
 }
 
 // NewTrafficRule creates a new TrafficRule.
@@ -32,7 +33,7 @@ func (r *TrafficRule) Category() string {
 }
 
 func (r *TrafficRule) ValidPhases() []DrivingPhase {
-	return []DrivingPhase{PhaseRacing, PhasePitLane, PhaseOutLap}
+	return []DrivingPhase{PhaseRacing, PhasePitLane, PhaseInLap, PhaseOutLap}
 }
 
 func (r *TrafficRule) AlertKeys() map[string]AlertKeyConfig {
@@ -53,6 +54,10 @@ func (r *TrafficRule) AlertKeys() map[string]AlertKeyConfig {
 			ValidPhases: []DrivingPhase{PhasePitLane, PhaseOutLap},
 			DedupScope:  DedupScopeStint,
 		},
+		"pit_limiter_overspeed": {
+			ValidPhases: []DrivingPhase{PhasePitLane, PhaseRacing, PhaseInLap},
+			DedupScope:  DedupScopeStint,
+		},
 	}
 }
 
@@ -63,6 +68,7 @@ func (r *TrafficRule) Reset(scope DedupScope) {
 	if scope == DedupScopeStint || scope == DedupScopeNone {
 		r.penaltyReminderFired = false
 		r.pitTimerReported = false
+		r.limiterOverspeedFired = false
 		r.lastRecordedPitTimerMS = 0
 		r.lastPitLimiterStatus = 0
 		r.lastPitStatus = 0
@@ -77,6 +83,30 @@ func (r *TrafficRule) Evaluate(ctx *EvaluationContext) []Directive {
 
 	playerLap := ctx.PlayerLap()
 	status := ctx.PlayerStatus()
+
+	// 0. Pit Entry Speed Limiter Overspeed Warning
+	if (ctx.Phase == PhasePitLane || (playerLap != nil && playerLap.PitStatus == packets.PitStatusPitting)) &&
+		status != nil && status.PitLimiterStatus == 0 {
+		tele := ctx.PlayerTelemetry()
+		if tele != nil && ctx.Session != nil && ctx.Session.PitSpeedLimit > 0 {
+			limit := uint16(ctx.Session.PitSpeedLimit)
+			if tele.Speed > limit+PitLimiterOverspeedDeltaKmh && !r.limiterOverspeedFired {
+				r.limiterOverspeedFired = true
+				directives = append(directives, Directive{
+					ID:       "pit_limiter_overspeed",
+					Category: DirectiveCategoryPitStrategy,
+					SubAlert: "pit_limiter_overspeed",
+					Title:    "Pit Limiter Overspeed Warning",
+					Message:  fmt.Sprintf("Speed limiter! Drop speed, pit limiter line approaching! Pit limit is %d km/h!", ctx.Session.PitSpeedLimit),
+					Urgency:  UrgencyCritical,
+					Metadata: map[string]any{
+						"speed_kmh":     tele.Speed,
+						"pit_limit_kmh": ctx.Session.PitSpeedLimit,
+					},
+				})
+			}
+		}
+	}
 
 	// 1. Pit Limiter Exit Directive (from CarStatusData)
 	if status != nil {

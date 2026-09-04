@@ -595,18 +595,28 @@ func buildTelemetryCars(cfg SimulatorConfig, angle float64, speedKmh, rpm uint16
 func buildTelemetry2Cars(cfg SimulatorConfig, speedKmh uint16, frameID uint32) []packets.CarTelemetry2Data {
 	telemetry2Cars := make([]packets.CarTelemetry2Data, cfg.TotalSlots)
 	for i := 0; i < cfg.TotalSlots; i++ {
-		if i < cfg.NumActiveCars {
-			var aeroMode uint8 = 0
-			if speedKmh > 220 {
-				aeroMode = 1 // Straight mode
-			}
-			telemetry2Cars[i] = packets.CarTelemetry2Data{
-				ActiveAeroMode:      aeroMode,
-				ActiveAeroAvailable: 1,
-				OvertakeAvailable:   1,
-				OvertakeActive:      uint8((i + int(frameID/40)) % 2),
-				Regulations2026:     1,
-			}
+		if i >= cfg.NumActiveCars {
+			continue
+		}
+		var aeroMode uint8 = 0
+		var aeroDist uint16 = 0
+		var overtakeDist uint16 = 0
+		if speedKmh > 220 {
+			aeroMode = 1 // Straight mode
+		} else if speedKmh > 190 {
+			aeroDist = uint16(220-speedKmh) * 3 // 90m down to 3m
+		}
+		if aeroMode == 0 && speedKmh > 190 && speedKmh <= 220 {
+			overtakeDist = uint16(220-speedKmh) * 3
+		}
+		telemetry2Cars[i] = packets.CarTelemetry2Data{
+			ActiveAeroMode:               aeroMode,
+			ActiveAeroAvailable:          1,
+			ActiveAeroActivationDistance: aeroDist,
+			OvertakeAvailable:            1,
+			OvertakeActive:               uint8((i + int(frameID/40)) % 2),
+			OvertakeActivationDistance:   overtakeDist,
+			Regulations2026:              1,
 		}
 	}
 	return telemetry2Cars

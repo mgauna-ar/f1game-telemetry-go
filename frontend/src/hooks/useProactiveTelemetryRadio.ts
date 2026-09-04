@@ -102,6 +102,13 @@ const CATEGORY_MAP: Record<string, RadioAlertCategory> = {
   fuel_mix_restart: 'fuel_mix_restart',
   ers_clipping: 'ers_clipping',
   tyre_set_advisory: 'tyre_set_advisory',
+  aero_straight_anticipation: 'aero_straight_anticipation',
+  overtake_boost_anticipation: 'overtake_boost_anticipation',
+  pit_limiter_overspeed: 'pit_limiter_overspeed',
+  tyre_blistering: 'tyre_blistering',
+  tyre_pressure_high: 'tyre_pressure_high',
+  damage_gearbox_wear: 'damage_gearbox_wear',
+  damage_ice_wear: 'damage_ice_wear',
   coaching_s3: 'sector_delta',
 };
 
