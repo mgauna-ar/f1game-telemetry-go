@@ -2,7 +2,7 @@ import React from 'react';
 import { Search, Filter, RefreshCw, Upload } from 'lucide-react';
 import { TagFilterBar } from './TagFilterBar';
 import { useI18n } from '../../context/I18nContext';
-import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContext';
+import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContextDefinitions';
 import type { Tag } from '../../types/session';
 
 export interface SessionFilterToolbarProps {

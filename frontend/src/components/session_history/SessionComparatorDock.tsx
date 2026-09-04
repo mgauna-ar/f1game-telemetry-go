@@ -3,7 +3,7 @@ import { GitCompare, ArrowLeftRight, X, ChevronRight, Zap } from 'lucide-react';
 import { TEAM_COLORS } from '../../constants/f1';
 import type { StagedLap } from '../../types/session';
 import { useI18n } from '../../context/I18nContext';
-import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContext';
+import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContextDefinitions';
 import { formatLapTime as defaultFormatLapTime } from '../../utils/formatters';
 
 export type { StagedLap };

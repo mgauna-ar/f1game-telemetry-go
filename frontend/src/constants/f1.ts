@@ -233,7 +233,7 @@ export const getSessionTypeName = (sessionType?: number): string => {
 };
 
 export const getSessionTypeCode = (sessionTypeStr?: string): number => {
-  if (!sessionTypeStr) return 0;
+  if (!sessionTypeStr) return SESSION_TYPES.UNKNOWN;
   const s = sessionTypeStr.trim().toLowerCase();
   if (s.includes('sprint shootout 1') || s.includes('sprint q1') || s === 'sq1') return SESSION_TYPES.SPRINT_Q1;
   if (s.includes('sprint shootout 2') || s.includes('sprint q2') || s === 'sq2') return SESSION_TYPES.SPRINT_Q2;
@@ -255,7 +255,7 @@ export const getSessionTypeCode = (sessionTypeStr?: string): number => {
   if (s.includes('race 2')) return SESSION_TYPES.RACE_2;
   if (s.includes('race 3')) return SESSION_TYPES.RACE_3;
   if (s.includes('race')) return SESSION_TYPES.RACE;
-  return 0;
+  return SESSION_TYPES.UNKNOWN;
 };
 
 export const TIME_CONSTANTS = {

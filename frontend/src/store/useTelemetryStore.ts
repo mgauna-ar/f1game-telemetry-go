@@ -10,11 +10,11 @@ import type {
   CarDamageData,
   PacketHeader,
   CarTelemetry2Data,
-  CarMotionData,
 } from '../types/telemetry';
 import {
   F1_DRIVER_NAMES,
   PACKET_IDS,
+  PENALTY_TYPES,
 } from '../constants/f1';
 import { useTelemetryDataStore, type TelemetryDataState } from './useTelemetryDataStore';
 import { useSessionStatusStore, type SessionStatusState } from './useSessionStatusStore';
@@ -102,9 +102,6 @@ export interface LiveSnapshotData {
   };
   CarDamage?: {
     CarDamageData: CarDamageData[];
-  };
-  Motion?: {
-    CarMotionData: CarMotionData[];
   };
   Events?: RaceEvent[];
   ActiveCarCount?: number;
@@ -235,9 +232,6 @@ export const useTelemetryStore = create<TelemetryState>((_set, get) => ({
       if (snapshot.CarDamage?.CarDamageData) {
         partialData.allCarDamage = snapshot.CarDamage.CarDamageData;
       }
-      if (snapshot.Motion?.CarMotionData) {
-        partialData.allMotion = snapshot.Motion.CarMotionData;
-      }
 
       useTelemetryDataStore.getState().setTelemetryData(partialData);
       useSessionStatusStore.getState().setSessionStatus(partialStatus);
@@ -298,7 +292,7 @@ export const useTelemetryStore = create<TelemetryState>((_set, get) => ({
           const targetIdx = eventData.OtherVehicleIdx !== undefined && eventData.OtherVehicleIdx < 255 ? eventData.OtherVehicleIdx : undefined;
           const targetDriver = targetIdx !== undefined ? (participantsCache[targetIdx] || currentParticipants[targetIdx]) : undefined;
           const targetName = targetDriver ? parseDriverName(targetDriver?.Name, `Car #${(targetIdx ?? 0) + 1}`, targetDriver?.DriverId) : undefined;
-          const isSevere = eventData.PenaltyType === 6 || (eventData.PenaltyTime !== undefined && eventData.PenaltyTime >= 10 && eventData.PenaltyTime < 255);
+          const isSevere = eventData.PenaltyType === PENALTY_TYPES.DISQUALIFIED || (eventData.PenaltyTime !== undefined && eventData.PenaltyTime >= 10 && eventData.PenaltyTime < 255);
           useSessionStatusStore.getState().addEvent({
             eventCode: 'PENA',
             type: 'penalty',

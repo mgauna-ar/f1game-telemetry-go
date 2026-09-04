@@ -21,7 +21,6 @@ export interface TacticalSettingsSlice {
   fuelAlertsEnabled: boolean;
   rivalAlertsEnabled: boolean;
   pitWindowAlertsEnabled: boolean;
-  trackAlertsEnabled: boolean;
   qualyAlertsEnabled: boolean;
   flagsPensAlertsEnabled: boolean;
 
@@ -64,7 +63,6 @@ export interface TacticalSettingsSlice {
   setFuelAlertsEnabled: (enabled: boolean) => void;
   setRivalAlertsEnabled: (enabled: boolean) => void;
   setPitWindowAlertsEnabled: (enabled: boolean) => void;
-  setTrackAlertsEnabled: (enabled: boolean) => void;
   setQualyAlertsEnabled: (enabled: boolean) => void;
   setFlagsPensAlertsEnabled: (enabled: boolean) => void;
 
@@ -108,7 +106,6 @@ export function getInitialTacticalSettings(): Omit<
   | 'setFuelAlertsEnabled'
   | 'setRivalAlertsEnabled'
   | 'setPitWindowAlertsEnabled'
-  | 'setTrackAlertsEnabled'
   | 'setQualyAlertsEnabled'
   | 'setFlagsPensAlertsEnabled'
   | 'setSubTyreWear'
@@ -150,7 +147,6 @@ export function getInitialTacticalSettings(): Omit<
     fuelAlertsEnabled: true,
     rivalAlertsEnabled: true,
     pitWindowAlertsEnabled: true,
-    trackAlertsEnabled: true,
     qualyAlertsEnabled: true,
     flagsPensAlertsEnabled: true,
 
@@ -240,7 +236,6 @@ export const createTacticalSettingsSlice: StateCreator<
     setFuelAlertsEnabled: createBoolAction('fuelAlertsEnabled'),
     setRivalAlertsEnabled: createBoolAction('rivalAlertsEnabled'),
     setPitWindowAlertsEnabled: createBoolAction('pitWindowAlertsEnabled'),
-    setTrackAlertsEnabled: createBoolAction('trackAlertsEnabled'),
     setQualyAlertsEnabled: createBoolAction('qualyAlertsEnabled'),
     setFlagsPensAlertsEnabled: createBoolAction('flagsPensAlertsEnabled'),
 

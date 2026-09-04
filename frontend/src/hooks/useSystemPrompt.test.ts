@@ -39,7 +39,7 @@ describe('useSystemPrompt Hook', () => {
     },
   };
 
-  it('builds general context payload and system prompt', () => {
+  it('builds general context payload', () => {
     const { result } = renderHook(() =>
       useSystemPrompt({
         contextMode: 'general',
@@ -55,13 +55,9 @@ describe('useSystemPrompt Hook', () => {
       context_mode: 'general',
       language: 'en',
     });
-
-    const clientPrompt = result.current.buildClientSideSystemPrompt();
-    expect(clientPrompt).toContain('personal F1 Race Engineer');
-    expect(clientPrompt).toContain('Always respond in English');
   });
 
-  it('builds session debrief context and system prompt in Spanish', () => {
+  it('builds session debrief context in Spanish', () => {
     const { result } = renderHook(() =>
       useSystemPrompt({
         contextMode: 'session_debrief',
@@ -87,11 +83,6 @@ describe('useSystemPrompt Hook', () => {
       weather_a: 'Dry',
       session_summary: 'P1: Verstappen, P2: Norris (+4.2s)',
     });
-
-    const clientPrompt = result.current.buildClientSideSystemPrompt();
-    expect(clientPrompt).toContain('Chief Race Strategist');
-    expect(clientPrompt).toContain('neumáticos, boxes, monoplaza');
-    expect(clientPrompt).toContain('P1: Verstappen, P2: Norris');
   });
 
   it('builds live context and handles standby vs active telemetry', () => {
@@ -110,9 +101,14 @@ describe('useSystemPrompt Hook', () => {
       })
     );
 
-    const standbyPrompt = standbyResult.current.buildClientSideSystemPrompt();
-    expect(standbyPrompt).toContain('CERO ALUCINACIONES');
-    expect(standbyPrompt).toContain('LIVE STATUS: STANDBY');
+    const standbyCtx = standbyResult.current.buildCurrentBackendContext();
+    expect(standbyCtx).toEqual({
+      context_mode: 'live',
+      language: 'es',
+      track_name: 'Monza',
+      session_type: 'Standby',
+      live_summary: 'STATUS: STANDBY IN GARAGE',
+    });
 
     // Active scenario
     const { result: activeResult } = renderHook(() =>
@@ -130,15 +126,14 @@ describe('useSystemPrompt Hook', () => {
     );
 
     const backendCtx = activeResult.current.buildCurrentBackendContext();
+    expect(backendCtx.context_mode).toBe('live');
+    expect(backendCtx.language).toBe('en');
     expect(backendCtx.track_name).toBe('Monza');
     expect(backendCtx.session_type).toBe('Race');
-
-    const activePrompt = activeResult.current.buildClientSideSystemPrompt();
-    expect(activePrompt).toContain('active F1 Race Engineer on the pit wall');
-    expect(activePrompt).toContain('Lap 14/53 - Position P2');
+    expect(backendCtx.live_summary).toBe('Lap 14/53 - Position P2 (+1.8s) - Tyre Medium (7 laps)');
   });
 
-  it('builds comparator context and full comparative telemetry prompt with zoomed range', () => {
+  it('builds comparator context and full comparative telemetry payload', () => {
     const { result } = renderHook(() =>
       useSystemPrompt({
         contextMode: 'comparator',
@@ -151,15 +146,12 @@ describe('useSystemPrompt Hook', () => {
 
     const backendCtx = result.current.buildCurrentBackendContext();
     expect(backendCtx.context_mode).toBe('comparator');
+    expect(backendCtx.language).toBe('en');
     expect(backendCtx.track_name).toBe('Silverstone');
     expect(backendCtx.lap_a_name).toBe('Max Verstappen (Lap 5)');
-
-    const prompt = result.current.buildClientSideSystemPrompt();
-    expect(prompt).toContain('exclusive telemetry analyst for the DRIVER OF LAP A');
-    expect(prompt).toContain('Max Verstappen (Lap 5)');
-    expect(prompt).toContain('Charles Leclerc (Lap 6)');
-    expect(prompt).toContain('Turn 3 brake point 5m earlier');
-    expect(prompt).toContain('Apex speed +3 km/h in Copse');
-    expect(prompt).toContain('Maggotts-Becketts complex');
+    expect(backendCtx.lap_b_name).toBe('Charles Leclerc (Lap 6)');
+    expect(backendCtx.braking_summary).toBe('Turn 3 brake point 5m earlier');
+    expect(backendCtx.apex_speed_summary).toBe('Apex speed +3 km/h in Copse');
+    expect(backendCtx.zoomed_range).toEqual(mockComparatorContext.zoomed_range);
   });
 });

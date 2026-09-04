@@ -41,7 +41,6 @@ describe('useAIChatStream Hook', () => {
       context_mode: 'general' as const,
       language: 'en' as const,
     }),
-    buildClientSideSystemPrompt: () => 'System prompt test',
   };
 
   beforeEach(() => {

@@ -100,7 +100,7 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   }, []);
 
   // Composed Subsystems
-  const { buildCurrentBackendContext, buildClientSideSystemPrompt } = useSystemPrompt({
+  const { buildCurrentBackendContext } = useSystemPrompt({
     contextMode,
     comparatorContext,
     sessionDebriefContext,
@@ -127,7 +127,6 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     config,
     serverConfigStatus,
     buildCurrentBackendContext,
-    buildClientSideSystemPrompt,
   });
 
   const openChat = useCallback(

@@ -20,10 +20,14 @@ import {
   getInitialRadioPresets,
   type RadioPresetsSlice,
 } from './slices/radioPresetsSlice';
-import { TIME_CONSTANTS } from '../constants/f1';
+import { TIME_CONSTANTS, RADIO_ALERT_CONSTANTS } from '../constants/f1';
 import type { EngineerConfig } from '../types/telemetry';
 
-export type AIConfig = EngineerConfig;
+export type RadioEngineerConfig = EngineerConfig;
+/**
+ * @deprecated Use `RadioEngineerConfig` to avoid confusion with LLM provider `AIConfig` in RaceEngineerContext.
+ */
+export type AIConfig = RadioEngineerConfig;
 
 export interface RadioSettingsState
   extends AudioSettingsSlice,
@@ -106,7 +110,7 @@ export function buildAIConfigFromValues(v: {
     tyre_overheat_c: v.tyreOverheatC,
     tyre_cold_c: v.tyreColdC,
     wing_damage_warn_pct: v.wingDamageWarnPct,
-    wing_damage_crit_pct: 40.0,
+    wing_damage_crit_pct: RADIO_ALERT_CONSTANTS.CRITICAL_WING_DAMAGE_PCT,
     floor_damage_warn_pct: v.floorDamageWarnPct,
     engine_wear_warn_pct: v.engineWearWarnPct,
     ers_low_pct: v.ersLowPct,
@@ -118,7 +122,7 @@ export function buildAIConfigFromValues(v: {
     rival_gap_sec: v.rivalGapThresholdSec,
     rival_ahead_gap_sec: v.rivalAheadGapSec,
     qualy_clean_air_sec: v.qualyCleanAirSec,
-    qualy_time_warn_sec: 180.0,
+    qualy_time_warn_sec: RADIO_ALERT_CONSTANTS.QUALY_SESSION_TIME_WARN_SEC,
     corner_cut_warn_threshold: v.cornerCutWarnThreshold,
     rain_horizon_min: v.rainHorizonMin,
     rain_prob_pct: v.rainProbPct,
@@ -187,7 +191,7 @@ export const useRadioSettingsStore = create<RadioSettingsState>((set, get, store
   ...createRadioPresetsSlice(set, get, store),
   aiConfig: buildAIConfigFromValues(getInitialRadioSettings()),
 
-  setAiConfig: (cfg: Partial<AIConfig>) => {
+  setAiConfig: (cfg: Partial<RadioEngineerConfig>) => {
     set((state) => ({
       aiConfig: {
         ...state.aiConfig,
@@ -232,14 +236,14 @@ export const useRadioSettingsStore = create<RadioSettingsState>((set, get, store
 
   loadConfigFromBackend: async () => {
     try {
-      const cfg = await api.get<AIConfig>('/api/ai/engineer/config');
+      const cfg = await api.get<RadioEngineerConfig>('/api/ai/engineer/config');
       if (cfg) {
         set((state) => {
           const loaded: Partial<RadioSettingsState> = {
             smartDiscretionEnabled:
               cfg.smart_discretion_enabled ?? state.smartDiscretionEnabled,
             chatterCooldownSeconds: cfg.chatter_cooldown_ms
-              ? Math.round(cfg.chatter_cooldown_ms / 1000)
+              ? Math.round(cfg.chatter_cooldown_ms / TIME_CONSTANTS.MS_PER_SECOND)
               : state.chatterCooldownSeconds,
             tyreWearWarningPct:
               cfg.tyre_wear_warn_pct ?? state.tyreWearWarningPct,

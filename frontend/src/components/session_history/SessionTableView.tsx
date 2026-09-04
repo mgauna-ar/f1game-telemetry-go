@@ -2,7 +2,7 @@ import React from 'react';
 import { Clock, ChevronRight, Trash2, ArrowUpDown, Plus, Download } from 'lucide-react';
 import type { Session } from '../SessionHistory';
 import { useI18n } from '../../context/I18nContext';
-import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContext';
+import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContextDefinitions';
 import { formatDate as defaultFormatDate, getSessionBadgeClass as defaultGetSessionBadgeClass } from '../../utils/formatters';
 import { TagBadge } from './TagBadge';
 import { F1FormatBadge } from '../F1FormatBadge';

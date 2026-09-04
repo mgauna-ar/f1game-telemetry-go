@@ -17,11 +17,11 @@ import { SessionBatchDock } from './session_history/SessionBatchDock';
 import { StandaloneToastContainer } from './common/ToastContainer';
 
 import { useI18n } from '../context/I18nContext';
+import { SessionHistoryProvider } from '../context/SessionHistoryContext';
 import {
-  SessionHistoryProvider,
   useSessionHistoryData,
   useSessionHistoryActions,
-} from '../context/SessionHistoryContext';
+} from '../context/SessionHistoryContextDefinitions';
 
 import type {
   Session,

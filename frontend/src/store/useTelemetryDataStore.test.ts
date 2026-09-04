@@ -14,7 +14,6 @@ describe('useTelemetryDataStore', () => {
     expect(state.allCarDamage).toEqual([]);
     expect(state.allTelemetry).toEqual([]);
     expect(state.allTelemetry2).toEqual([]);
-    expect(state.allMotion).toEqual([]);
     expect(state.playerCarIndex).toBe(0);
     expect(state.selectedCarIndex).toBe(0);
   });

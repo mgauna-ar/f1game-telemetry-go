@@ -1,7 +1,7 @@
 import React from 'react';
 import { Download, Tag, Trash2, X, RefreshCw, Layers } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
-import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContext';
+import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContextDefinitions';
 
 export interface SessionBatchDockProps {
   selectedCount?: number;

@@ -7,7 +7,7 @@ import { SessionStintStrategyTab } from './SessionStintStrategyTab';
 import { SessionSectorMatrixTab } from './SessionSectorMatrixTab';
 import { TyreCompoundBadge } from '../common/TyreCompoundBadge';
 import { useI18n } from '../../context/I18nContext';
-import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContext';
+import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContextDefinitions';
 import { formatLapTime, formatTotalDuration } from '../../utils/formatters';
 import { groupLapsIntoStints } from '../../utils/lapUtils';
 import type {

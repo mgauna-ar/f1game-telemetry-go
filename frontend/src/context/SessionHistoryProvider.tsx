@@ -12,7 +12,7 @@ import {
   SessionHistoryActionsContext,
   type SessionHistoryData,
   type SessionHistoryActions,
-} from './SessionHistoryContext';
+} from './SessionHistoryContextDefinitions';
 
 export interface SessionHistoryProviderProps {
   children: React.ReactNode;

@@ -12,7 +12,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
-import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContext';
+import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContextDefinitions';
 import { formatDate as defaultFormatDate, getSessionBadgeClass as defaultGetSessionBadgeClass } from '../../utils/formatters';
 import { TrackFlag } from '../TrackFlag';
 import { F1FormatBadge } from '../F1FormatBadge';

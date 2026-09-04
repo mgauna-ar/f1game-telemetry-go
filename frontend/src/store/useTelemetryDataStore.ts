@@ -5,7 +5,6 @@ import type {
   LapData,
   CarStatusData,
   CarDamageData,
-  CarMotionData,
 } from '../types/telemetry';
 
 export interface TelemetryDataState {
@@ -14,7 +13,6 @@ export interface TelemetryDataState {
   allCarDamage: CarDamageData[];
   allTelemetry: CarTelemetryData[];
   allTelemetry2: CarTelemetry2Data[];
-  allMotion: CarMotionData[];
   playerCarIndex: number;
   selectedCarIndex: number;
 
@@ -29,7 +27,6 @@ export const useTelemetryDataStore = create<TelemetryDataState>((set) => ({
   allCarDamage: [],
   allTelemetry: [],
   allTelemetry2: [],
-  allMotion: [],
   playerCarIndex: 0,
   selectedCarIndex: 0,
 
@@ -44,7 +41,6 @@ export const useTelemetryDataStore = create<TelemetryDataState>((set) => ({
       allCarDamage: [],
       allTelemetry: [],
       allTelemetry2: [],
-      allMotion: [],
       playerCarIndex: 0,
       selectedCarIndex: 0,
     }),

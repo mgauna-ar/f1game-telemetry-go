@@ -5,7 +5,6 @@ import { useTelemetryDataStore } from '../store/useTelemetryDataStore';
 import type {
   CarTelemetryData,
   LapData,
-  CarMotionData,
   WeatherForecastSample,
   SessionData,
   RaceEvent,
@@ -21,7 +20,6 @@ import { F1_DRIVER_NAMES } from '../constants/f1';
 export type {
   CarTelemetryData,
   LapData,
-  CarMotionData,
   WeatherForecastSample,
   SessionData,
   RaceEvent,
@@ -36,14 +34,12 @@ export type {
 export { F1_DRIVER_NAMES, parseDriverName };
 
 const EMPTY_TRACK_PATH: { x: number; z: number }[] = [];
-const EMPTY_MOTION: CarMotionData[] = [];
 const EMPTY_HISTORY: TelemetrySample[] = [];
 
 export interface UseTelemetryReturn {
   session: SessionData | null;
   participants: ParticipantData[];
   allLaps: LapData[];
-  allMotion: CarMotionData[];
   allCarStatus: CarStatusData[];
   allCarDamage: CarDamageData[];
   allTelemetry: CarTelemetryData[];
@@ -51,7 +47,6 @@ export interface UseTelemetryReturn {
   telemetry: CarTelemetryData | null;
   telemetry2: CarTelemetry2Data | null;
   lap: LapData | null;
-  motion: CarMotionData | null;
   carStatus: CarStatusData | null;
   carDamage: CarDamageData | null;
   trackPath: { x: number; z: number }[];
@@ -99,7 +94,6 @@ export function useTelemetry(wsUrl?: string): UseTelemetryReturn {
 
   const telemetry = allTelemetry[activeIdx] || null;
   const lap = allLaps[activeIdx] || null;
-  const motion: CarMotionData | null = null;
   const carStatus = allCarStatus[activeIdx] || null;
   const carDamage = allCarDamage[activeIdx] || null;
   const telemetry2 = allTelemetry2[activeIdx] || null;
@@ -108,7 +102,6 @@ export function useTelemetry(wsUrl?: string): UseTelemetryReturn {
     session,
     participants,
     allLaps,
-    allMotion: EMPTY_MOTION,
     allCarStatus,
     allCarDamage,
     allTelemetry,
@@ -116,7 +109,6 @@ export function useTelemetry(wsUrl?: string): UseTelemetryReturn {
     telemetry,
     telemetry2,
     lap,
-    motion,
     carStatus,
     carDamage,
     trackPath: EMPTY_TRACK_PATH,

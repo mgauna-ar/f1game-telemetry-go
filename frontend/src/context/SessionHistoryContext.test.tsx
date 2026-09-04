@@ -1,10 +1,10 @@
 import { renderHook } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
+import { SessionHistoryProvider } from './SessionHistoryContext';
 import {
-  SessionHistoryProvider,
   useSessionHistoryData,
   useSessionHistoryActions,
-} from './SessionHistoryContext';
+} from './SessionHistoryContextDefinitions';
 import { RaceEngineerProvider } from './RaceEngineerProvider';
 import { I18nProvider } from './I18nProvider';
 

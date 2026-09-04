@@ -9,7 +9,6 @@ export interface UseAIChatStreamProps {
   config: AIConfig;
   serverConfigStatus: ServerConfigStatus | null;
   buildCurrentBackendContext: () => BackendContextPayload;
-  buildClientSideSystemPrompt: () => string;
 }
 
 export interface UseAIChatStreamReturn {
@@ -32,10 +31,6 @@ interface GeminiSSECandidate {
   };
 }
 
-interface GeminiSSEResponse {
-  candidates?: GeminiSSECandidate[];
-}
-
 interface BackendSSEChunk {
   error?: string;
   code?: string;
@@ -50,7 +45,6 @@ export const useAIChatStream = ({
   config,
   serverConfigStatus,
   buildCurrentBackendContext,
-  buildClientSideSystemPrompt,
 }: UseAIChatStreamProps): UseAIChatStreamReturn => {
   const [messages, setMessages] = useState<ChatMessage[]>(() => [
     {
@@ -148,7 +142,6 @@ export const useAIChatStream = ({
           let errCode = 'GENERIC_ERROR';
           let errMsg = `Server responded with status ${res.status}`;
           let errProvider = config.provider;
-          let isStructuredAIError = false;
 
           const errRaw = await res.text().catch(() => '');
           try {
@@ -156,117 +149,10 @@ export const useAIChatStream = ({
             errMsg = errJson.message || errJson.error || errMsg;
             if (errJson.code) {
               errCode = errJson.code;
-              isStructuredAIError = true;
             }
             if (errJson.provider) errProvider = errJson.provider;
           } catch {
             if (errRaw.trim()) errMsg = errRaw.trim();
-          }
-
-          // Direct Client-Side Fallback only if Gemini and backend API route is not implemented (e.g. standalone static SPA 404/502)
-          if (
-            config.provider === 'gemini' &&
-            config.apiKey &&
-            !isStructuredAIError &&
-            (res.status === 404 || res.status === 502)
-          ) {
-            const systemPrompt = buildClientSideSystemPrompt();
-            const geminiContents = apiMessages.map((m) => ({
-              role: m.role === 'assistant' ? 'model' : 'user',
-              parts: [{ text: m.content }],
-            }));
-
-            const cleanModel = config.model.replace(/^models\//, '');
-            const geminiRes = await api.stream(
-              `https://generativelanguage.googleapis.com/v1beta/models/${cleanModel}:streamGenerateContent?alt=sse&key=${config.apiKey}`,
-              {
-                contents: geminiContents,
-                system_instruction: {
-                  parts: [{ text: systemPrompt }],
-                },
-                generationConfig: {
-                  temperature: 0.35,
-                },
-              },
-              controller.signal
-            );
-
-            if (!geminiRes.ok) {
-              const errText = await geminiRes.text();
-              let parsedGeminiErr = `Gemini API error (${geminiRes.status})`;
-              let gCode = 'GENERIC_ERROR';
-              try {
-                const gJson = JSON.parse(errText);
-                parsedGeminiErr = gJson.error?.message || parsedGeminiErr;
-                const gStatus = gJson.error?.status;
-                if (
-                  geminiRes.status === 503 ||
-                  gStatus === 'UNAVAILABLE' ||
-                  parsedGeminiErr.toLowerCase().includes('overloaded')
-                ) {
-                  gCode = 'MODEL_OVERLOADED';
-                } else if (
-                  geminiRes.status === 429 ||
-                  gStatus === 'RESOURCE_EXHAUSTED' ||
-                  parsedGeminiErr.toLowerCase().includes('quota')
-                ) {
-                  gCode = 'QUOTA_EXCEEDED';
-                } else if (
-                  geminiRes.status === 400 ||
-                  geminiRes.status === 401 ||
-                  geminiRes.status === 403
-                ) {
-                  gCode = 'INVALID_API_KEY';
-                } else if (geminiRes.status === 404) {
-                  gCode = 'MODEL_NOT_FOUND';
-                }
-              } catch {
-                // Ignore JSON parse error
-              }
-              const customErr: CustomStreamError = new Error(parsedGeminiErr);
-              customErr.errorCode = gCode;
-              customErr.provider = 'gemini';
-              throw customErr;
-            }
-
-            const reader = geminiRes.body?.getReader();
-            const decoder = new TextDecoder('utf-8');
-            let accumulated = '';
-
-            if (reader) {
-              let buffer = '';
-              while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-                buffer += decoder.decode(value, { stream: true });
-
-                const lines = buffer.split('\n');
-                buffer = lines.pop() || '';
-
-                for (const line of lines) {
-                  const trimmed = line.trim();
-                  if (trimmed.startsWith('data: ')) {
-                    const dataStr = trimmed.substring(6);
-                    if (dataStr === '[DONE]') continue;
-                    try {
-                      const parsed = JSON.parse(dataStr) as GeminiSSEResponse;
-                      const chunk = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
-                      if (chunk) {
-                        accumulated += chunk;
-                        setMessages((prev) =>
-                          prev.map((m) =>
-                            m.id === assistantMsgId
-                              ? { ...m, content: accumulated, errorCode: undefined }
-                              : m
-                          )
-                        );
-                      }
-                    } catch {}
-                  }
-                }
-              }
-            }
-            return;
           }
 
           const customErr: CustomStreamError = new Error(errMsg);
@@ -407,7 +293,6 @@ export const useAIChatStream = ({
       }
     },
     [
-      buildClientSideSystemPrompt,
       buildCurrentBackendContext,
       config,
       isGenerating,
