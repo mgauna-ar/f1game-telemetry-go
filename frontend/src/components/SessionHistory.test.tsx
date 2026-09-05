@@ -847,6 +847,41 @@ describe('SessionHistory Component', () => {
     });
   });
 
+  it('navigates back to session list when clicking the back to list button', async () => {
+    const mockSessions = [
+      { id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', total_laps: 5, session_duration: 5400, created_at: '2026-08-10T14:00:00Z' },
+    ];
+
+    setupFetchMock({ sessions: mockSessions });
+
+    render(
+      <I18nProvider>
+        <SessionHistory />
+      </I18nProvider>
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText('Silverstone').length).toBeGreaterThan(0);
+    });
+
+    // Select the session
+    const selectBtn = screen.getByRole('button', { name: /^Explore$/i });
+    fireEvent.click(selectBtn);
+
+    // Verify back button is visible
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Back to Sessions List/i })).toBeInTheDocument();
+    });
+
+    // Click back button
+    fireEvent.click(screen.getByRole('button', { name: /Back to Sessions List/i }));
+
+    // Verify returned to list view (Search input is present again)
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Search track, session type...')).toBeInTheDocument();
+    });
+  });
+
   it('supports multi-session selection, batch ZIP export, and batch deletion', async () => {
     const mockSessions = [
       { id: 1, session_uid: '1001', track_name: 'Monza', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' },

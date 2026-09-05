@@ -68,4 +68,64 @@ describe('SessionDetailHeader Component', () => {
     expect(screen.getByRole('button', { name: /Tyre Strategy & Stints/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Sector & Speed Matrix/i })).toBeInTheDocument();
   });
+
+  it('renders SessionTypeBadge with contextual motorsport style and handles UID copy', async () => {
+    const writeTextMock = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: writeTextMock,
+      },
+    });
+
+    render(
+      <I18nProvider>
+        <SessionDetailHeader
+          session={mockQualySession}
+          isRaceSession={false}
+          totalSessionLaps={15}
+          totalDriversCount={20}
+        />
+      </I18nProvider>
+    );
+
+    // Verify SessionTypeBadge is rendered
+    expect(screen.getByText('Qualifying 1')).toBeInTheDocument();
+
+    // Verify Copy UID button
+    const copyBtn = screen.getByLabelText(/Copy session UID/i);
+    expect(copyBtn).toBeInTheDocument();
+
+    fireEvent.click(copyBtn);
+    expect(writeTextMock).toHaveBeenCalledWith('0xabcdef1234567890');
+    expect(screen.getByText('Copied')).toBeInTheDocument();
+  });
+
+  it('triggers onOpenAiDebrief, onExportSession, and onRequestDelete handlers', () => {
+    const onOpenAiDebrief = vi.fn();
+    const onExportSession = vi.fn();
+    const onRequestDelete = vi.fn();
+
+    render(
+      <I18nProvider>
+        <SessionDetailHeader
+          session={mockRaceSession}
+          onOpenAiDebrief={onOpenAiDebrief}
+          onExportSession={onExportSession}
+          onRequestDelete={onRequestDelete}
+        />
+      </I18nProvider>
+    );
+
+    const debriefBtn = screen.getByRole('button', { name: /AI Race Engineer Debrief/i });
+    fireEvent.click(debriefBtn);
+    expect(onOpenAiDebrief).toHaveBeenCalledTimes(1);
+
+    const exportBtn = screen.getByRole('button', { name: /Export/i });
+    fireEvent.click(exportBtn);
+    expect(onExportSession).toHaveBeenCalledTimes(1);
+
+    const deleteBtn = screen.getByRole('button', { name: /Delete/i });
+    fireEvent.click(deleteBtn);
+    expect(onRequestDelete).toHaveBeenCalledTimes(1);
+  });
 });

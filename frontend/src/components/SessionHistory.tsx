@@ -80,31 +80,42 @@ const SessionHistoryContent: React.FC = () => {
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '1.5rem 2rem' }}>
       {/* Session History Title Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <Calendar color="var(--accent-primary)" size={28} />
-            {t('history.title')}
-          </h1>
-          <p className="mono" style={{ color: 'var(--text-secondary)', margin: '4px 0 0 0', fontSize: '0.9rem' }}>
-            {t('history.subtitle')}
-          </p>
+      {!selectedSession ? (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <h1 style={{ margin: 0, fontSize: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <Calendar color="var(--accent-primary)" size={28} />
+              {t('history.title')}
+            </h1>
+            <p className="mono" style={{ color: 'var(--text-secondary)', margin: '4px 0 0 0', fontSize: '0.9rem' }}>
+              {t('history.subtitle')}
+            </p>
+          </div>
         </div>
-
-        {selectedSession && (
-          <button
-            className="nav-tab active"
-            onClick={() => {
-              setSelectedSession(null);
-              setStagedSlotA(null);
-              setStagedSlotB(null);
-            }}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}
-          >
-            <ArrowLeft size={16} /> {t('history.backToList')}
-          </button>
-        )}
-      </div>
+      ) : (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="session-back-btn"
+              onClick={() => {
+                setSelectedSession(null);
+                setStagedSlotA(null);
+                setStagedSlotB(null);
+              }}
+            >
+              <ArrowLeft size={16} /> {t('history.backToList')}
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+              <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{t('history.title')}</span>
+              <span>/</span>
+              <span className="mono" style={{ color: 'var(--text-primary)', fontWeight: 700 }}>
+                {selectedSession.track_name}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* VIEW 1: SESSION LIST & FILTER TOOLBAR */}
       {!selectedSession && (

@@ -1,4 +1,4 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import {
   Flag,
   Users,
@@ -10,15 +10,18 @@ import {
   Download,
   Trash2,
   Plus,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
 import {
   SessionHistoryDataContext,
   SessionHistoryActionsContext,
 } from '../../context/SessionHistoryContextDefinitions';
-import { formatDate as defaultFormatDate, getSessionBadgeClass as defaultGetSessionBadgeClass } from '../../utils/formatters';
+import { formatDate as defaultFormatDate } from '../../utils/formatters';
 import { TrackFlag } from '../TrackFlag';
 import { F1FormatBadge } from '../F1FormatBadge';
+import { SessionTypeBadge } from '../common/SessionTypeBadge';
 import { TagBadge } from './TagBadge';
 import { WeatherBadgeWithForecast } from './WeatherBadgeWithForecast';
 import type { Session } from '../../types/session';
@@ -36,13 +39,13 @@ export interface SessionDetailHeaderProps {
   onOpenTagManager?: () => void;
   onRemoveTag?: (tagId: number) => void;
   formatDate?: (dateStr: string) => string;
-  getSessionBadgeClass?: (type: string) => string;
 }
 
 export const SessionDetailHeader: React.FC<SessionDetailHeaderProps> = (props) => {
   const { t } = useI18n();
   const historyData = useContext(SessionHistoryDataContext);
   const historyActions = useContext(SessionHistoryActionsContext);
+  const [copiedUid, setCopiedUid] = useState(false);
 
   const session = props.session ?? historyData?.selectedSession;
   if (!session) return null;
@@ -58,29 +61,87 @@ export const SessionDetailHeader: React.FC<SessionDetailHeaderProps> = (props) =
   const onOpenTagManager = props.onOpenTagManager ?? (() => historyActions?.setSessionToManageTags(session));
   const onRemoveTag = props.onRemoveTag ?? ((tagId: number) => historyActions?.handleRemoveTag(session.id, tagId));
   const formatDate = props.formatDate ?? defaultFormatDate;
-  const getSessionBadgeClass = props.getSessionBadgeClass ?? defaultGetSessionBadgeClass;
+
+  const handleCopyUid = () => {
+    if (!session?.session_uid) return;
+    navigator.clipboard?.writeText(String(session.session_uid));
+    setCopiedUid(true);
+    setTimeout(() => setCopiedUid(false), 2000);
+  };
 
   return (
     <>
       {/* Header Metadata Card */}
-      <div className="glass-panel session-header-panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <TrackFlag track={session.track_name} width={26} height={18} />
-            <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 800 }}>{session.track_name}</h1>
-            <F1FormatBadge format={session.packet_format} size="sm" />
-            <span className={`badge ${getSessionBadgeClass(session.session_type)}`} style={{ textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              {session.session_type || 'Unknown'}
-            </span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginTop: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem', flexWrap: 'wrap' }}>
-            <span>{formatDate(session.created_at)}</span>
-            <span>•</span>
-            <span className="mono" style={{ color: 'var(--text-muted)' }}>UID: {session.session_uid}</span>
+      <div className="glass-panel session-header-panel" style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+        {/* Tier 1: Session Identity & Action Buttons */}
+        <div className="session-header-top-row">
+          <div className="session-header-identity">
+            <div className="session-header-title-wrap">
+              <TrackFlag track={session.track_name} width={28} height={20} />
+              <h1 className="session-header-title">{session.track_name}</h1>
+              <F1FormatBadge format={session.packet_format} size="sm" />
+              <SessionTypeBadge sessionType={session.session_type} size="sm" />
+            </div>
+            <div className="session-header-meta-row">
+              <span>{formatDate(session.created_at)}</span>
+              <span>•</span>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                <span className="mono" style={{ color: 'var(--text-muted)' }}>UID: {session.session_uid}</span>
+                <button
+                  type="button"
+                  className={`session-uid-copy-btn ${copiedUid ? 'copied' : ''}`}
+                  onClick={handleCopyUid}
+                  title={copiedUid ? t('history.detail.copiedUid') : t('history.detail.copyUid')}
+                  aria-label={t('history.detail.copyUid')}
+                >
+                  {copiedUid ? <Check size={13} /> : <Copy size={13} />}
+                  <span>{copiedUid ? t('common.copied') : ''}</span>
+                </button>
+              </div>
+            </div>
           </div>
 
+          {/* Action Buttons Group */}
+          <div className="session-header-actions">
+            {/* AI Race Engineer Debrief Button */}
+            <button
+              type="button"
+              className="session-action-btn-ai"
+              onClick={onOpenAiDebrief}
+              title={t('history.detail.aiDebrief')}
+            >
+              <Sparkles size={15} color="#ffd700" />
+              <span>{t('history.detail.aiDebrief')}</span>
+            </button>
+
+            {/* Export Session Button */}
+            <button
+              type="button"
+              className="session-action-btn-secondary"
+              title={t('history.detail.exportThis')}
+              onClick={onExportSession}
+            >
+              <Download size={15} />
+              <span>{t('common.export')}</span>
+            </button>
+
+            {/* Delete Session Button */}
+            <button
+              type="button"
+              className="session-action-btn-danger"
+              title={t('history.detail.deleteThis')}
+              onClick={onRequestDelete}
+            >
+              <Trash2 size={15} />
+              <span>{t('common.delete')}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Tier 2: Tags on the Left, Metrics on the Right */}
+        <div className="session-header-bottom-row">
           {/* Session Tags List */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginTop: '0.6rem' }}>
+          <div className="session-header-tags-wrap">
             {(session.tags || []).map((tag) => (
               <TagBadge
                 key={tag.id}
@@ -100,87 +161,32 @@ export const SessionDetailHeader: React.FC<SessionDetailHeaderProps> = (props) =
               <span>{(session.tags || []).length === 0 ? t('history.tags.addTag') : t('history.tags.manageTags')}</span>
             </button>
           </div>
-        </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-          <div className="header-stat-box">
-            <div>
-              <div className="stat-label">{t('history.detail.weather')}</div>
-              <WeatherBadgeWithForecast session={session} />
+          {/* Metrics / KPI stat boxes */}
+          <div className="session-header-stats-wrap">
+            <div className="header-stat-box">
+              <div>
+                <div className="stat-label">{t('history.detail.weather')}</div>
+                <WeatherBadgeWithForecast session={session} />
+              </div>
+            </div>
+
+            <div className="header-stat-box">
+              <Flag size={16} color="var(--text-secondary)" />
+              <div>
+                <div className="stat-label">{t('history.detail.totalLaps')}</div>
+                <div className="stat-value mono">{t('history.detail.lapsCount', { count: totalSessionLaps })}</div>
+              </div>
+            </div>
+
+            <div className="header-stat-box">
+              <Users size={16} color="var(--text-secondary)" />
+              <div>
+                <div className="stat-label">{t('history.detail.drivers')}</div>
+                <div className="stat-value mono">{t('history.detail.driversCount', { count: totalDriversCount })}</div>
+              </div>
             </div>
           </div>
-
-          <div className="header-stat-box">
-            <Flag size={16} color="var(--text-secondary)" />
-            <div>
-              <div className="stat-label">{t('history.detail.totalLaps')}</div>
-              <div className="stat-value mono">{t('history.detail.lapsCount', { count: totalSessionLaps })}</div>
-            </div>
-          </div>
-
-          <div className="header-stat-box">
-            <Users size={16} color="var(--text-secondary)" />
-            <div>
-              <div className="stat-label">{t('history.detail.drivers')}</div>
-              <div className="stat-value mono">{t('history.detail.driversCount', { count: totalDriversCount })}</div>
-            </div>
-          </div>
-
-          {/* AI Race Engineer Debrief Button */}
-          <button
-            className="nav-tab active"
-            onClick={onOpenAiDebrief}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '0.6rem 1rem',
-              cursor: 'pointer',
-              fontSize: '0.85rem',
-              background: 'linear-gradient(135deg, rgba(0, 242, 254, 0.25), rgba(176, 38, 255, 0.25))',
-              borderColor: 'rgba(0, 242, 254, 0.4)',
-              color: '#fff',
-            }}
-          >
-            <Sparkles size={15} color="#ffd700" /> {t('history.detail.aiDebrief')}
-          </button>
-
-          {/* Export Session Button */}
-          <button
-            className="nav-tab"
-            title={t('history.detail.exportThis')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '0.6rem 1rem',
-              color: 'var(--accent-secondary)',
-              borderColor: 'rgba(0, 242, 254, 0.3)',
-              cursor: 'pointer',
-              fontSize: '0.85rem',
-            }}
-            onClick={onExportSession}
-          >
-            <Download size={15} /> {t('common.export')}
-          </button>
-
-          <button
-            className="nav-tab"
-            title={t('history.detail.deleteThis')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '0.6rem 1rem',
-              color: '#ff4d4f',
-              borderColor: 'rgba(255, 77, 79, 0.3)',
-              cursor: 'pointer',
-              fontSize: '0.85rem',
-            }}
-            onClick={onRequestDelete}
-          >
-            <Trash2 size={15} /> {t('common.delete')}
-          </button>
         </div>
       </div>
 

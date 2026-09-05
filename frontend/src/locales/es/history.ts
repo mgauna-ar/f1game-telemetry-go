@@ -54,6 +54,8 @@ export const history = {
     tabStints: 'Estrategia de Neumáticos y Stints',
     tabSectors: 'Matriz de Sectores y Velocidades',
     retrievingData: 'Obteniendo telemetría de pilotos y tiempos de vuelta...',
+    copyUid: 'Copiar UID de la sesión',
+    copiedUid: 'UID de la sesión copiado al portapapeles',
   },
   modal: {
     confirmTitle: 'Confirmar Eliminación de Sesión',

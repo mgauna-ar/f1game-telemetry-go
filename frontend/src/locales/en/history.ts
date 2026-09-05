@@ -54,6 +54,8 @@ export const history = {
     tabStints: 'Tyre Strategy & Stints',
     tabSectors: 'Sector & Speed Matrix',
     retrievingData: 'Retrieving drivers and lap timing telemetry...',
+    copyUid: 'Copy session UID',
+    copiedUid: 'Session UID copied to clipboard',
   },
   modal: {
     confirmTitle: 'Confirm Session Deletion',

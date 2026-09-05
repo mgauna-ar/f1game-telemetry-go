@@ -204,7 +204,9 @@ export const SessionDetailView: React.FC<SessionDetailViewProps> = (props) => {
           </p>
         </div>
       ) : (
-        renderDetailTabContent()
+        <div key={effectiveTab} className="detail-tab-content-enter">
+          {renderDetailTabContent()}
+        </div>
       )}
     </div>
   );
