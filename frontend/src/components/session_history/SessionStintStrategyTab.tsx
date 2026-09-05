@@ -56,7 +56,7 @@ export const SessionStintStrategyTab: React.FC<SessionStintStrategyTabProps> = (
   const driverStintsData: DriverStintData[] = useMemo(() => {
     if (!stintsData?.drivers) return [];
 
-    return stintsData.drivers.map((d) => {
+    const mapped = stintsData.drivers.map((d) => {
       const standing =
         driverStandings.find((ds) => ds.participant.car_index === d.car_index) || {
           position: d.position,
@@ -107,6 +107,15 @@ export const SessionStintStrategyTab: React.FC<SessionStintStrategyTabProps> = (
         totalPits: d.total_pits,
       };
     });
+
+    mapped.sort((a, b) => {
+      const posA = a.driver.position || 999;
+      const posB = b.driver.position || 999;
+      if (posA !== posB) return posA - posB;
+      return (a.driver.participant.car_index ?? 0) - (b.driver.participant.car_index ?? 0);
+    });
+
+    return mapped;
   }, [stintsData, driverStandings]);
 
   // Effective maximum lap count for Gantt width scaling

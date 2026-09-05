@@ -278,4 +278,29 @@ describe('SessionStintStrategyTab Component', () => {
     expect(screen.getByText('Cronología de Estrategia de Neumáticos de la Parrilla')).toBeInTheDocument();
     expect(screen.getByText('Curvas de Degradación y Ritmo por Stint')).toBeInTheDocument();
   });
+
+  it('sorts driver rows by finishing position (P1, P2...) in the Gantt timeline even if stintsData is unsorted', () => {
+    // Reverse the order of drivers in stintsData
+    const unsortedStintsData: StintsResponse = {
+      ...mockStintsData,
+      drivers: [mockStintsData.drivers[1], mockStintsData.drivers[0]], // Hamilton first, Verstappen second
+    };
+
+    render(
+      <I18nProvider>
+        <SessionStintStrategyTab
+          stintsData={unsortedStintsData}
+          driverStandings={mockDriverStandings}
+          totalSessionLaps={5}
+          formatLapTime={formatLapTime}
+          renderTyreBadge={renderTyreBadge}
+        />
+      </I18nProvider>
+    );
+
+    const pBadges = screen.getAllByText(/^P[0-9]+$/);
+    expect(pBadges.length).toBeGreaterThanOrEqual(2);
+    expect(pBadges[0]).toHaveTextContent('P1');
+    expect(pBadges[1]).toHaveTextContent('P2');
+  });
 });

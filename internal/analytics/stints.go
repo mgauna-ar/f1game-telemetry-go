@@ -189,6 +189,14 @@ func buildDriverStintData(p storage.Participant, pIdx int, driverLaps []storage.
 	}
 
 	pos := p.Position
+	if pos == 0 && len(driverLaps) > 0 {
+		for i := len(driverLaps) - 1; i >= 0; i-- {
+			if driverLaps[i].CarPosition > 0 {
+				pos = driverLaps[i].CarPosition
+				break
+			}
+		}
+	}
 	if pos == 0 {
 		pos = pIdx + 1
 	}
@@ -326,10 +334,23 @@ func ComputeSessionStints(session *storage.Session, participants []storage.Parti
 	// 2. Prepare active participants
 	activeParticipants := BuildEffectiveParticipants(session, participants, lapsByCar, isRaceSession)
 
+	getEffectivePos := func(p storage.Participant) int {
+		if p.Position > 0 {
+			return p.Position
+		}
+		carLaps := lapsByCar[p.CarIndex]
+		for i := len(carLaps) - 1; i >= 0; i-- {
+			if carLaps[i].CarPosition > 0 {
+				return carLaps[i].CarPosition
+			}
+		}
+		return 0
+	}
+
 	// Sort active participants by standing / position
 	sort.SliceStable(activeParticipants, func(i, j int) bool {
-		posA := activeParticipants[i].Position
-		posB := activeParticipants[j].Position
+		posA := getEffectivePos(activeParticipants[i])
+		posB := getEffectivePos(activeParticipants[j])
 		if posA > 0 && posB > 0 && posA != posB {
 			return posA < posB
 		}
