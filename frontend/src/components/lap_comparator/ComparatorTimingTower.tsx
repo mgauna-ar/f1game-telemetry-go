@@ -521,43 +521,43 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
                           {/* ACTIONS */}
                           <td className="col-actions">
                             <div className="actions-cell">
-                              {/* Primary: Set as Comparison (B) */}
-                              <button
-                                type="button"
-                                className={`action-btn-rival ${isAssignedB ? 'is-active' : ''}`}
-                                onClick={() => {
-                                  const driverLaps = sortLapsByQuality(
-                                    lapsB.filter((l) => (l.car_index ?? -1) === d.car_index)
-                                  );
-                                  if (driverLaps.length > 0) onSetLapB(driverLaps[0].id);
-                                }}
-                                title={`Set ${d.name}'s fastest lap as Comparison (Slot B)`}
-                                data-testid={`tower-set-rival-${d.car_index}`}
-                              >
-                                {isAssignedB
-                                  ? (t('comparator.timingTower.btnSetRivalActive') || 'Comp ✓')
-                                  : t('comparator.timingTower.btnSetRival')}
-                              </button>
+                              <div className="tower-slot-circles" role="group" aria-label="Select Slot">
+                                {/* Slot A (Base) */}
+                                {(isLinkedSessions || isDriverInA || d.sessionSlot === 'A') && (
+                                  <button
+                                    type="button"
+                                    className={`slot-circle-btn circle-a ${isAssignedA ? 'is-active' : ''}`}
+                                    onClick={() => {
+                                      const driverLaps = sortLapsByQuality(
+                                        lapsA.filter((l) => (l.car_index ?? -1) === d.car_index)
+                                      );
+                                      if (driverLaps.length > 0) onSetLapA(driverLaps[0].id);
+                                    }}
+                                    title={`${t('comparator.duel.slotA')} (${t('comparator.timingTower.btnSetBaseline')}): ${d.name}`}
+                                    aria-label={`${t('comparator.duel.slotA')} (${t('comparator.timingTower.btnSetBaseline')}): ${d.name}`}
+                                    data-testid={`tower-set-baseline-${d.car_index}`}
+                                  >
+                                    <span className="circle-inner" />
+                                  </button>
+                                )}
 
-                              {/* Secondary: Set as Base (A) */}
-                              {(isLinkedSessions || isDriverInA || d.sessionSlot === 'A') && (
+                                {/* Slot B (Comparison/Rival) */}
                                 <button
                                   type="button"
-                                  className={`action-btn-baseline ${isAssignedA ? 'is-active' : ''}`}
+                                  className={`slot-circle-btn circle-b ${isAssignedB ? 'is-active' : ''}`}
                                   onClick={() => {
                                     const driverLaps = sortLapsByQuality(
-                                      lapsA.filter((l) => (l.car_index ?? -1) === d.car_index)
+                                      lapsB.filter((l) => (l.car_index ?? -1) === d.car_index)
                                     );
-                                    if (driverLaps.length > 0) onSetLapA(driverLaps[0].id);
+                                    if (driverLaps.length > 0) onSetLapB(driverLaps[0].id);
                                   }}
-                                  title={`Set ${d.name}'s fastest lap as Reference Base (Slot A)`}
-                                  data-testid={`tower-set-baseline-${d.car_index}`}
+                                  title={`${t('comparator.duel.slotB')} (${t('comparator.timingTower.btnSetRival')}): ${d.name}`}
+                                  aria-label={`${t('comparator.duel.slotB')} (${t('comparator.timingTower.btnSetRival')}): ${d.name}`}
+                                  data-testid={`tower-set-rival-${d.car_index}`}
                                 >
-                                  {isAssignedA
-                                    ? (t('comparator.timingTower.btnSetBaselineActive') || 'Base ✓')
-                                    : t('comparator.timingTower.btnSetBaseline')}
+                                  <span className="circle-inner" />
                                 </button>
-                              )}
+                              </div>
 
                               {/* Toggle Lap History Drilldown */}
                               <button
@@ -567,9 +567,10 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
                                   setExpandedDriverCarIndex(isExpanded ? null : d.car_index)
                                 }
                                 title={isExpanded ? t('comparator.timingTower.hideLaps') : t('comparator.timingTower.showLaps')}
+                                aria-label={isExpanded ? t('comparator.timingTower.hideLaps') : t('comparator.timingTower.showLaps')}
                                 data-testid={`tower-expand-laps-${d.car_index}`}
                               >
-                                {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                                {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                               </button>
                             </div>
                           </td>
@@ -615,14 +616,14 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
                                           <div className="card-actions">
                                             <button
                                               type="button"
-                                              className="card-btn-a"
+                                              className={`card-btn-a ${isLapA ? 'is-active' : ''}`}
                                               onClick={() => onSetLapA(lap.id)}
                                             >
                                               {isLapA ? 'Base ✓' : 'Base'}
                                             </button>
                                             <button
                                               type="button"
-                                              className="card-btn-b"
+                                              className={`card-btn-b ${isLapB ? 'is-active' : ''}`}
                                               onClick={() => onSetLapB(lap.id)}
                                             >
                                               {isLapB ? 'Comp ✓' : 'Comp'}
