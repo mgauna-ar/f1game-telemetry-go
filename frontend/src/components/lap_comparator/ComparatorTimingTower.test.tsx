@@ -169,12 +169,32 @@ describe('ComparatorTimingTower Component', () => {
     expect(defaultProps.onSetLapA).toHaveBeenCalledWith(102);
   });
 
-  it('expands driver lap history drilldown', () => {
-    render(<ComparatorTimingTower {...defaultProps} />);
+  it('expands driver lap history drilldown and filters out incomplete laps', () => {
+    const incompleteLap: Lap = {
+      id: 999,
+      session_id: 1,
+      car_index: 0,
+      lap_number: 15,
+      lap_time_ms: 0, // Incomplete lap
+      sector1_ms: 0,
+      sector2_ms: 0,
+      sector3_ms: 0,
+      is_valid: false,
+    };
+
+    render(
+      <ComparatorTimingTower
+        {...defaultProps}
+        lapsA={[mockLap1, incompleteLap]}
+      />
+    );
 
     const expandBtn = screen.getByTestId('tower-expand-laps-0');
     fireEvent.click(expandBtn);
 
     expect(screen.getByText(/Max Verstappen - Recorded Laps/i)).toBeInTheDocument();
+    expect(screen.getByText('Lap 10')).toBeInTheDocument();
+    expect(screen.queryByText('Lap 15')).not.toBeInTheDocument();
+    expect(screen.queryByText('--:--.---')).not.toBeInTheDocument();
   });
 });

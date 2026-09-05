@@ -162,15 +162,19 @@ export const ComparatorDuelHeader: React.FC<ComparatorDuelHeaderProps> = ({
     );
   }, [slotB.participants, driverSearchB]);
 
-  // Laps for Slot A & B driver
+  // Laps for Slot A & B driver (completed laps only)
   const driverLapsA = useMemo(() => {
     if (!slotA.driver) return [];
-    return slotA.laps.filter((l) => (l.car_index ?? -1) === slotA.driver?.car_index);
+    return slotA.laps.filter(
+      (l) => (l.car_index ?? -1) === slotA.driver?.car_index && l.lap_time_ms > 0
+    );
   }, [slotA.laps, slotA.driver]);
 
   const driverLapsB = useMemo(() => {
     if (!slotB.driver) return [];
-    return slotB.laps.filter((l) => (l.car_index ?? -1) === slotB.driver?.car_index);
+    return slotB.laps.filter(
+      (l) => (l.car_index ?? -1) === slotB.driver?.car_index && l.lap_time_ms > 0
+    );
   }, [slotB.laps, slotB.driver]);
 
   // Handler to pick driver in Slot A: loads their best valid lap

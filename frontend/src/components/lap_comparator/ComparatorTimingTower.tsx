@@ -587,9 +587,34 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
                                   </span>
                                 </div>
                                 <div className="lap-history-grid">
-                                  {lapsA
-                                    .filter((l) => (l.car_index ?? -1) === d.car_index)
-                                    .map((lap) => {
+                                  {(() => {
+                                    const lapsSource = !isLinkedSessions && d.sessionSlot === 'B' ? lapsB : lapsA;
+                                    const driverLaps = lapsSource.filter((l) => {
+                                      if ((l.car_index ?? -1) !== d.car_index) return false;
+                                      if (!l.lap_time_ms || l.lap_time_ms <= 0) return false;
+                                      if (validOnly && !l.is_valid) return false;
+                                      if (telemetryOnly && !l.has_telemetry) return false;
+                                      return true;
+                                    });
+
+                                    if (driverLaps.length === 0) {
+                                      return (
+                                        <div
+                                          className="lap-history-empty"
+                                          style={{
+                                            gridColumn: '1 / -1',
+                                            padding: '0.6rem 0.2rem',
+                                            color: 'var(--text-muted)',
+                                            fontSize: '0.74rem',
+                                            fontStyle: 'italic',
+                                          }}
+                                        >
+                                          <span>{t('comparator.timingTower.noMatchingDrivers')}</span>
+                                        </div>
+                                      );
+                                    }
+
+                                    return driverLaps.map((lap) => {
                                       const isLapA = lapAId === lap.id;
                                       const isLapB = lapBId === lap.id;
                                       return (
@@ -631,7 +656,8 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
                                           </div>
                                         </div>
                                       );
-                                    })}
+                                    });
+                                  })()}
                                 </div>
                               </div>
                             </td>
