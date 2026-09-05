@@ -213,18 +213,6 @@ export const SessionTableView: React.FC<SessionTableViewProps> = React.memo((pro
                   </td>
                   <td className="f1-actions-cell" style={{ textAlign: 'right' }}>
                     <div className="f1-actions-wrapper">
-                      <button
-                        type="button"
-                        className="f1-explore-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectSession(session);
-                        }}
-                      >
-                        <span>{t('common.explore')}</span>
-                        <ChevronRight size={14} className="f1-chevron-icon" />
-                      </button>
-
                       {onExportSession && (
                         <button
                           type="button"
@@ -251,6 +239,19 @@ export const SessionTableView: React.FC<SessionTableViewProps> = React.memo((pro
                         }}
                       >
                         <Trash2 size={14} />
+                      </button>
+
+                      <button
+                        type="button"
+                        className="f1-row-navigate-btn"
+                        title={t('common.explore')}
+                        aria-label={t('common.explore')}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectSession(session);
+                        }}
+                      >
+                        <ChevronRight size={16} />
                       </button>
                     </div>
                   </td>

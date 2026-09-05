@@ -1072,4 +1072,28 @@
   transform: translateY(-1px);
 }
 
+.f1-row-navigate-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  opacity: 0.35;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  margin-left: 4px;
+}
+
+.f1-row-navigate-btn:hover,
+.f1-session-row:hover .f1-row-navigate-btn {
+  opacity: 1;
+  color: var(--accent-secondary, #00f2fe);
+  transform: translateX(3px);
+  filter: drop-shadow(0 0 6px rgba(0, 242, 254, 0.6));
+}
+
+
 
