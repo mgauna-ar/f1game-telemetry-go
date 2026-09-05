@@ -49,8 +49,103 @@ func detectDynamicCarPositions(activeParticipants []storage.Participant, lapsByC
 	return false
 }
 
+type driverLapOutlierInfo struct {
+	isOutlier     bool
+	outlierReason string // "pit_in", "pit_out", "slow"
+}
+
+// analyzeDriverLapOutliers identifies in-laps, out-laps (stint boundaries), and slow laps (>107% pace).
+func analyzeDriverLapOutliers(laps []storage.Lap) map[int]driverLapOutlierInfo {
+	outliers := make(map[int]driverLapOutlierInfo)
+	if len(laps) == 0 {
+		return outliers
+	}
+
+	sortedLaps := make([]storage.Lap, len(laps))
+	copy(sortedLaps, laps)
+	sort.Slice(sortedLaps, func(i, j int) bool {
+		return sortedLaps[i].LapNumber < sortedLaps[j].LapNumber
+	})
+
+	// 1. Identify stint boundaries (in-lap and out-lap)
+	for i := 0; i < len(sortedLaps)-1; i++ {
+		curr := sortedLaps[i]
+		next := sortedLaps[i+1]
+
+		currStint := curr.Stint
+		nextStint := next.Stint
+		currComp := packets.NormalizeCompoundName(curr.TyreCompound)
+		nextComp := packets.NormalizeCompoundName(next.TyreCompound)
+
+		stintChanged := (currStint > 0 && nextStint > 0 && currStint != nextStint) ||
+			(currComp != packets.CompoundNameUnknown && nextComp != packets.CompoundNameUnknown && currComp != nextComp)
+
+		if stintChanged {
+			outliers[curr.LapNumber] = driverLapOutlierInfo{isOutlier: true, outlierReason: "pit_in"}
+			if _, exists := outliers[next.LapNumber]; !exists {
+				outliers[next.LapNumber] = driverLapOutlierInfo{isOutlier: true, outlierReason: "pit_out"}
+			}
+		}
+	}
+
+	// 2. Calculate competitive pace baseline (median of valid non-pit laps)
+	var candidateTimes []int
+	for _, l := range sortedLaps {
+		if l.LapTimeMS <= 0 {
+			continue
+		}
+		if _, isOutlier := outliers[l.LapNumber]; !isOutlier {
+			if l.IsValid {
+				candidateTimes = append(candidateTimes, l.LapTimeMS)
+			}
+		}
+	}
+	if len(candidateTimes) == 0 {
+		for _, l := range sortedLaps {
+			if l.LapTimeMS > 0 {
+				if _, isOutlier := outliers[l.LapNumber]; !isOutlier {
+					candidateTimes = append(candidateTimes, l.LapTimeMS)
+				}
+			}
+		}
+	}
+	if len(candidateTimes) == 0 {
+		for _, l := range sortedLaps {
+			if l.LapTimeMS > 0 {
+				candidateTimes = append(candidateTimes, l.LapTimeMS)
+			}
+		}
+	}
+
+	if len(candidateTimes) > 0 {
+		sort.Ints(candidateTimes)
+		medianTime := candidateTimes[len(candidateTimes)/2]
+		maxCompetitiveTime := int(float64(medianTime) * 1.07) // F1 107% standard cutoff
+
+		for _, l := range sortedLaps {
+			if l.LapTimeMS > maxCompetitiveTime {
+				if existing, found := outliers[l.LapNumber]; found {
+					outliers[l.LapNumber] = existing
+				} else {
+					outliers[l.LapNumber] = driverLapOutlierInfo{
+						isOutlier:     true,
+						outlierReason: "slow",
+					}
+				}
+			}
+		}
+	}
+
+	return outliers
+}
+
 // buildLapPaceMatrix generates the lap pace data point for every session lap across active drivers.
 func buildLapPaceMatrix(totalSessionLaps int, activeParticipants []storage.Participant, lapsByCar map[int][]storage.Lap) []map[string]any {
+	driverOutliers := make(map[int]map[int]driverLapOutlierInfo, len(activeParticipants))
+	for _, p := range activeParticipants {
+		driverOutliers[p.CarIndex] = analyzeDriverLapOutliers(lapsByCar[p.CarIndex])
+	}
+
 	lapPace := make([]map[string]any, 0, totalSessionLaps)
 	for lapNum := 1; lapNum <= totalSessionLaps; lapNum++ {
 		point := map[string]any{"lapNumber": lapNum}
@@ -64,6 +159,13 @@ func buildLapPaceMatrix(totalSessionLaps int, activeParticipants []storage.Parti
 				point[fmt.Sprintf("driver_%d", carIdx)] = sec
 				point[fmt.Sprintf("driver_%d_tyre", carIdx)] = l.TyreCompound
 				point[fmt.Sprintf("driver_%d_rawMS", carIdx)] = l.LapTimeMS
+
+				outlierInfo := driverOutliers[carIdx][lapNum]
+				point[fmt.Sprintf("driver_%d_is_outlier", carIdx)] = outlierInfo.isOutlier
+				point[fmt.Sprintf("driver_%d_outlier_reason", carIdx)] = outlierInfo.outlierReason
+				if !outlierInfo.isOutlier {
+					point[fmt.Sprintf("driver_%d_pace_filtered", carIdx)] = sec
+				}
 				break
 			}
 		}

@@ -100,7 +100,7 @@ describe('SessionLapChartsTab Component', () => {
     return `${min}:${sec.padStart(6, '0')}`;
   };
 
-  it('renders pace chart and driver chips with no outlier checkbox', () => {
+  it('renders pace chart with pit laps and outlier filter toggle active by default', () => {
     render(
       <I18nProvider>
         <SessionLapChartsTab
@@ -112,8 +112,14 @@ describe('SessionLapChartsTab Component', () => {
       </I18nProvider>
     );
 
-    // Outlier checkbox should not exist
-    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    // Pit stop / outlier filter checkbox should exist and be checked by default
+    const checkbox = screen.getByRole('checkbox', { name: /Filter Pit Stops & Anomalies/i });
+    expect(checkbox).toBeInTheDocument();
+    expect(checkbox).toBeChecked();
+
+    // Toggling the checkbox
+    fireEvent.click(checkbox);
+    expect(checkbox).not.toBeChecked();
 
     // Chart title and buttons should be rendered
     expect(screen.getByText(/Lap-by-Lap Pace Evolution/i)).toBeInTheDocument();

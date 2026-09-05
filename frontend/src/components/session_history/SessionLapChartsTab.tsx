@@ -54,6 +54,8 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
   const { t } = useI18n();
   const [activeChart, setActiveChart] = useState<'pace' | 'position' | 'gap'>('pace');
 
+  const [filterPitLaps, setFilterPitLaps] = useState<boolean>(true);
+
   // Selected driver car_indices for visibility (default to top 5)
   const [selectedDrivers, setSelectedDrivers] = useState<Record<number, boolean>>(() => {
     const initial: Record<number, boolean> = {};
@@ -85,9 +87,25 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
   const activeDriverStandings = driverStandings.filter((d) => selectedDrivers[d.participant.car_index]);
 
   // Direct consumption of server-computed progression matrices
-  const lapProgressionData = progressionData?.lap_pace || [];
+  const rawLapProgressionData = progressionData?.lap_pace;
   const positionProgressionData = progressionData?.positions || [];
   const gapToLeaderData = progressionData?.gap_to_leader || [];
+
+  const filteredLapProgressionData = React.useMemo(() => {
+    if (!rawLapProgressionData) return [];
+    if (!filterPitLaps) return rawLapProgressionData;
+    return rawLapProgressionData.map((row) => {
+      const filteredRow = { ...row };
+      activeDriverStandings.forEach((driver) => {
+        const carIdx = driver.participant.car_index;
+        const isOutlier = !!row[`driver_${carIdx}_is_outlier`];
+        if (isOutlier) {
+          filteredRow[`driver_${carIdx}`] = null;
+        }
+      });
+      return filteredRow;
+    });
+  }, [rawLapProgressionData, filterPitLaps, activeDriverStandings]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -195,13 +213,42 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
             {/* 1. PACE PROGRESSION CHART */}
             {activeChart === 'pace' && (
               <div>
-                <h4 style={{ margin: '0 0 1rem 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <TrendingUp size={18} color="var(--accent-primary)" />
-                  {t('history.progression.lapByLapPace')}
-                </h4>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <h4 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <TrendingUp size={18} color="var(--accent-primary)" />
+                    {t('history.progression.lapByLapPace')}
+                  </h4>
+                  <label
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      fontSize: '0.8rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      color: filterPitLaps ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      padding: '4px 10px',
+                      borderRadius: '16px',
+                      border: `1px solid ${filterPitLaps ? 'var(--accent-primary)' : 'rgba(255, 255, 255, 0.1)'}`,
+                      transition: 'all 0.15s ease',
+                      userSelect: 'none',
+                    }}
+                    title={t('history.progression.filterPitLapsDesc')}
+                  >
+                    <input
+                      type="checkbox"
+                      data-testid="filter-pit-laps-checkbox"
+                      checked={filterPitLaps}
+                      onChange={(e) => setFilterPitLaps(e.target.checked)}
+                      style={{ cursor: 'pointer', accentColor: 'var(--accent-primary)' }}
+                    />
+                    <span>{t('history.progression.filterPitLaps')}</span>
+                  </label>
+                </div>
                 <div style={{ width: '100%', height: '400px' }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={lapProgressionData} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
+                    <LineChart data={filteredLapProgressionData} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
                       <XAxis
                         dataKey="lapNumber"
@@ -217,6 +264,7 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
                       />
                       <Tooltip
                         {...compactTooltipProps}
+                        filterNull={false}
                         labelFormatter={(lap) => `Lap ${lap}`}
                         formatter={(val, name, item) => {
                           const dataKey = String(item?.dataKey || name);
@@ -225,8 +273,24 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
                           const payload = item?.payload as Record<string, unknown> | undefined;
                           const rawMS = payload ? (payload[`driver_${driverIdx}_rawMS`] as number | undefined) : undefined;
                           const tyre = payload ? (payload[`driver_${driverIdx}_tyre`] as string | undefined) : undefined;
-                          const timeStr = rawMS ? formatLapTime(rawMS) : `${val}s`;
-                          return [`${timeStr} (${tyre || 'Tyre'})`, driver?.participant.name || String(name)];
+                          const isOutlier = payload ? (payload[`driver_${driverIdx}_is_outlier`] as boolean | undefined) : false;
+                          const outlierReason = payload ? (payload[`driver_${driverIdx}_outlier_reason`] as string | undefined) : undefined;
+
+                          let reasonLabel = '';
+                          if (isOutlier) {
+                            if (outlierReason === 'pit_in') {
+                              reasonLabel = ` • ${t('history.progression.pitIn')}`;
+                            } else if (outlierReason === 'pit_out') {
+                              reasonLabel = ` • ${t('history.progression.pitOut')}`;
+                            } else if (outlierReason === 'slow') {
+                              reasonLabel = ` • ${t('history.progression.slowLap')}`;
+                            } else {
+                              reasonLabel = ` • ${t('history.progression.pitStop')}`;
+                            }
+                          }
+
+                          const timeStr = rawMS ? formatLapTime(rawMS) : val !== null && val !== undefined ? `${val}s` : '-';
+                          return [`${timeStr} (${tyre || 'Tyre'}${reasonLabel})`, driver?.participant.name || String(name)];
                         }}
                       />
                       <Legend />

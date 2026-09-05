@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import {
   Flag,
   Users,
@@ -12,7 +12,10 @@ import {
   Plus,
 } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
-import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContextDefinitions';
+import {
+  SessionHistoryDataContext,
+  SessionHistoryActionsContext,
+} from '../../context/SessionHistoryContextDefinitions';
 import { formatDate as defaultFormatDate, getSessionBadgeClass as defaultGetSessionBadgeClass } from '../../utils/formatters';
 import { TrackFlag } from '../TrackFlag';
 import { F1FormatBadge } from '../F1FormatBadge';
@@ -22,6 +25,7 @@ import type { Session } from '../../types/session';
 
 export interface SessionDetailHeaderProps {
   session?: Session;
+  isRaceSession?: boolean;
   activeDetailTab?: 'classification' | 'charts' | 'stints' | 'sectors';
   setActiveDetailTab?: (tab: 'classification' | 'charts' | 'stints' | 'sectors') => void;
   totalSessionLaps?: number;
@@ -37,21 +41,22 @@ export interface SessionDetailHeaderProps {
 
 export const SessionDetailHeader: React.FC<SessionDetailHeaderProps> = (props) => {
   const { t } = useI18n();
-  const historyData = useSessionHistoryData();
-  const historyActions = useSessionHistoryActions();
+  const historyData = useContext(SessionHistoryDataContext);
+  const historyActions = useContext(SessionHistoryActionsContext);
 
-  const session = props.session ?? historyData.selectedSession;
+  const session = props.session ?? historyData?.selectedSession;
   if (!session) return null;
 
-  const activeDetailTab = props.activeDetailTab ?? historyData.activeDetailTab;
-  const setActiveDetailTab = props.setActiveDetailTab ?? historyActions.setActiveDetailTab;
-  const totalSessionLaps = props.totalSessionLaps ?? historyData.totalSessionLaps;
-  const totalDriversCount = props.totalDriversCount ?? historyData.totalDriversCount;
-  const onOpenAiDebrief = props.onOpenAiDebrief ?? historyActions.onOpenAiDebrief;
-  const onExportSession = props.onExportSession ?? (() => historyActions.handleExportSession(session));
-  const onRequestDelete = props.onRequestDelete ?? (() => historyActions.setSessionToDelete(session));
-  const onOpenTagManager = props.onOpenTagManager ?? (() => historyActions.setSessionToManageTags(session));
-  const onRemoveTag = props.onRemoveTag ?? ((tagId: number) => historyActions.handleRemoveTag(session.id, tagId));
+  const isRaceSession = props.isRaceSession ?? historyData?.isRaceSession ?? (!!session?.session_type?.toLowerCase().includes('race'));
+  const activeDetailTab = props.activeDetailTab ?? historyData?.activeDetailTab;
+  const setActiveDetailTab = props.setActiveDetailTab ?? historyActions?.setActiveDetailTab;
+  const totalSessionLaps = props.totalSessionLaps ?? historyData?.totalSessionLaps ?? 0;
+  const totalDriversCount = props.totalDriversCount ?? historyData?.totalDriversCount ?? 0;
+  const onOpenAiDebrief = props.onOpenAiDebrief ?? historyActions?.onOpenAiDebrief;
+  const onExportSession = props.onExportSession ?? (() => historyActions?.handleExportSession(session));
+  const onRequestDelete = props.onRequestDelete ?? (() => historyActions?.setSessionToDelete(session));
+  const onOpenTagManager = props.onOpenTagManager ?? (() => historyActions?.setSessionToManageTags(session));
+  const onRemoveTag = props.onRemoveTag ?? ((tagId: number) => historyActions?.handleRemoveTag(session.id, tagId));
   const formatDate = props.formatDate ?? defaultFormatDate;
   const getSessionBadgeClass = props.getSessionBadgeClass ?? defaultGetSessionBadgeClass;
 
@@ -183,25 +188,27 @@ export const SessionDetailHeader: React.FC<SessionDetailHeaderProps> = (props) =
       <div className="glass-panel" style={{ padding: '0.5rem 1rem', display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>
         <button
           className={`nav-tab ${activeDetailTab === 'classification' ? 'active' : ''}`}
-          onClick={() => setActiveDetailTab('classification')}
+          onClick={() => setActiveDetailTab?.('classification')}
           style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', padding: '0.6rem 1.2rem' }}
         >
           <Trophy size={16} />
           <span>{t('history.detail.tabClassification')}</span>
         </button>
 
-        <button
-          className={`nav-tab ${activeDetailTab === 'charts' ? 'active' : ''}`}
-          onClick={() => setActiveDetailTab('charts')}
-          style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', padding: '0.6rem 1.2rem' }}
-        >
-          <TrendingUp size={16} />
-          <span>{t('history.detail.tabProgression')}</span>
-        </button>
+        {isRaceSession && (
+          <button
+            className={`nav-tab ${activeDetailTab === 'charts' ? 'active' : ''}`}
+            onClick={() => setActiveDetailTab?.('charts')}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', padding: '0.6rem 1.2rem' }}
+          >
+            <TrendingUp size={16} />
+            <span>{t('history.detail.tabProgression')}</span>
+          </button>
+        )}
 
         <button
           className={`nav-tab ${activeDetailTab === 'stints' ? 'active' : ''}`}
-          onClick={() => setActiveDetailTab('stints')}
+          onClick={() => setActiveDetailTab?.('stints')}
           style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', padding: '0.6rem 1.2rem' }}
         >
           <Layers size={16} />
@@ -210,7 +217,7 @@ export const SessionDetailHeader: React.FC<SessionDetailHeaderProps> = (props) =
 
         <button
           className={`nav-tab ${activeDetailTab === 'sectors' ? 'active' : ''}`}
-          onClick={() => setActiveDetailTab('sectors')}
+          onClick={() => setActiveDetailTab?.('sectors')}
           style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', padding: '0.6rem 1.2rem' }}
         >
           <Zap size={16} />

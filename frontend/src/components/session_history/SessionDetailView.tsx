@@ -114,8 +114,10 @@ export const SessionDetailView: React.FC<SessionDetailViewProps> = (props) => {
     );
   };
 
+  const effectiveTab = !isRaceSession && activeDetailTab === 'charts' ? 'classification' : activeDetailTab;
+
   const renderDetailTabContent = () => {
-    switch (activeDetailTab) {
+    switch (effectiveTab) {
       case 'classification':
         return (
           <SessionClassificationTab
@@ -176,7 +178,8 @@ export const SessionDetailView: React.FC<SessionDetailViewProps> = (props) => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }} data-testid="session-detail-view">
       <SessionDetailHeader
         session={session}
-        activeDetailTab={activeDetailTab}
+        isRaceSession={isRaceSession}
+        activeDetailTab={effectiveTab}
         setActiveDetailTab={setActiveDetailTab}
         totalSessionLaps={totalSessionLaps}
         totalDriversCount={totalDriversCount}
