@@ -17,6 +17,8 @@ export const history = {
   noSessionsEmpty: 'Aún no hay sesiones de telemetría registradas en la base de datos. ¡Inicia una sesión o el simulador!',
   exportSession: 'Exportar Sesión (.f1session)',
   exporting: 'Exportando...',
+  recordedSessionsCount: '{count} SESIONES REGISTRADAS',
+  clearFilters: 'Limpiar Filtros',
   importSession: 'Importar Sesión',
   importDropPrompt: 'Arrastra archivos .f1session o .zip aquí o haz clic para buscar',
   importing: 'Importando paquetes de sesión...',

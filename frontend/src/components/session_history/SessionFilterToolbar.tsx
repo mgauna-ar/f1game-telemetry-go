@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Filter, RefreshCw, Upload } from 'lucide-react';
+import { Search, RefreshCw, Upload, X, Trophy, MapPin, RotateCcw } from 'lucide-react';
 import { TagFilterBar } from './TagFilterBar';
 import { useI18n } from '../../context/I18nContext';
 import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContextDefinitions';
@@ -52,39 +52,52 @@ export const SessionFilterToolbar: React.FC<SessionFilterToolbarProps> = (props)
       historyActions.fetchTags();
     });
 
+  const isFiltered = Boolean(
+    searchQuery.trim() !== '' ||
+    sessionTypeFilter !== 'ALL' ||
+    circuitFilter !== 'ALL' ||
+    selectedTagId !== null
+  );
+
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setSessionTypeFilter('ALL');
+    setCircuitFilter('ALL');
+    onSelectTag(null);
+  };
+
   return (
-    <div className="glass-panel" style={{ padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: '280px', flexWrap: 'wrap' }}>
+    <div className="glass-panel f1-paddock-toolbar">
+      <div className="f1-toolbar-controls">
         {/* Search Bar */}
-        <div style={{ position: 'relative', minWidth: '240px', flex: 1, maxWidth: '360px' }}>
-          <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+        <div className="f1-search-wrapper">
+          <Search size={15} className="f1-search-icon" />
           <input
             type="text"
             placeholder={t('history.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '0.55rem 1rem 0.55rem 2.4rem',
-              background: 'rgba(0,0,0,0.4)',
-              border: '1px solid var(--border-color)',
-              borderRadius: 'var(--radius-sm)',
-              color: 'var(--text-primary)',
-              fontFamily: 'var(--font-sans)',
-              outline: 'none',
-              fontSize: '0.85rem',
-            }}
+            className="f1-search-input mono"
           />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="f1-search-clear-btn"
+              title={t('common.clear') || 'Clear'}
+            >
+              <X size={13} />
+            </button>
+          )}
         </div>
 
         {/* Session Type Filter */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Filter size={15} color="var(--text-secondary)" />
+        <div className="f1-filter-select-wrapper">
+          <Trophy size={14} className="f1-select-icon" />
           <select
-            className="ui-select"
+            className="f1-filter-select"
             value={sessionTypeFilter}
             onChange={(e) => setSessionTypeFilter(e.target.value)}
-            style={{ background: 'rgba(0,0,0,0.4)', minWidth: '140px', fontSize: '0.85rem' }}
           >
             <option value="ALL">{t('history.allTypes')}</option>
             <option value="Race">{t('history.race')}</option>
@@ -96,38 +109,42 @@ export const SessionFilterToolbar: React.FC<SessionFilterToolbarProps> = (props)
 
         {/* Circuit Filter */}
         {uniqueCircuits.length > 0 && (
-          <select
-            className="ui-select"
-            value={circuitFilter}
-            onChange={(e) => setCircuitFilter(e.target.value)}
-            style={{ background: 'rgba(0,0,0,0.4)', minWidth: '150px', fontSize: '0.85rem' }}
+          <div className="f1-filter-select-wrapper">
+            <MapPin size={14} className="f1-select-icon" />
+            <select
+              className="f1-filter-select"
+              value={circuitFilter}
+              onChange={(e) => setCircuitFilter(e.target.value)}
+            >
+              <option value="ALL">{t('history.allCircuits', { count: uniqueCircuits.length })}</option>
+              {uniqueCircuits.map((circ) => (
+                <option key={circ} value={circ}>
+                  {circ}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Reset Filters Quick Button */}
+        {isFiltered && (
+          <button
+            type="button"
+            onClick={handleResetFilters}
+            className="f1-reset-filters-btn"
+            title={t('history.clearFilters')}
           >
-            <option value="ALL">{t('history.allCircuits', { count: uniqueCircuits.length })}</option>
-            {uniqueCircuits.map((circ) => (
-              <option key={circ} value={circ}>
-                {circ}
-              </option>
-            ))}
-          </select>
+            <RotateCcw size={13} />
+            <span>{t('history.clearFilters')}</span>
+          </button>
         )}
       </div>
 
       {/* Import & Refresh Actions */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+      <div className="f1-toolbar-actions">
         {/* Import Session Button */}
         <label
-          className="nav-tab"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontSize: '0.85rem',
-            padding: '0.55rem 0.9rem',
-            cursor: importingSession ? 'not-allowed' : 'pointer',
-            background: 'rgba(0, 242, 254, 0.08)',
-            borderColor: 'rgba(0, 242, 254, 0.3)',
-            color: 'var(--accent-secondary)',
-          }}
+          className="f1-toolbar-import-btn"
           title={t('history.importDropPrompt')}
         >
           <input
@@ -145,22 +162,25 @@ export const SessionFilterToolbar: React.FC<SessionFilterToolbarProps> = (props)
           />
           {importingSession ? (
             <>
-              <RefreshCw size={14} className="animate-spin" /> {t('history.importing')}
+              <RefreshCw size={14} className="animate-spin" />
+              <span>{t('history.importing')}</span>
             </>
           ) : (
             <>
-              <Upload size={14} /> {t('history.importSession')}
+              <Upload size={14} />
+              <span>{t('history.importSession')}</span>
             </>
           )}
         </label>
 
         <button
-          className="nav-tab"
+          type="button"
+          className="f1-toolbar-refresh-btn"
           onClick={onRefresh}
           disabled={loadingSessions}
-          style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', padding: '0.55rem 0.9rem' }}
         >
-          <RefreshCw size={14} className={loadingSessions ? 'animate-spin' : ''} /> {t('common.refresh')}
+          <RefreshCw size={14} className={loadingSessions ? 'animate-spin' : ''} />
+          <span>{t('common.refresh')}</span>
         </button>
       </div>
 

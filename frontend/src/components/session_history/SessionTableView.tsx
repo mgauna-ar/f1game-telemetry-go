@@ -8,6 +8,7 @@ import { TagBadge } from './TagBadge';
 import { F1FormatBadge } from '../F1FormatBadge';
 import { TrackFlag } from '../TrackFlag';
 import { WeatherBadgeWithForecast } from './WeatherBadgeWithForecast';
+import { getTrackInfo } from '../../constants/f1';
 
 export interface SessionTableViewProps {
   sessions?: Session[];
@@ -24,6 +25,16 @@ export interface SessionTableViewProps {
   onToggleSort?: (field: string) => void;
   onOpenTagManager?: (session: Session) => void;
 }
+
+const getSessionTypeStripeClass = (typeStr?: string): string => {
+  if (!typeStr) return 'session-stripe-default';
+  const lower = typeStr.toLowerCase();
+  if (lower.includes('race')) return 'session-stripe-race';
+  if (lower.includes('qual') || lower.includes('q1') || lower.includes('q2') || lower.includes('q3')) return 'session-stripe-qualifying';
+  if (lower.includes('sprint')) return 'session-stripe-sprint';
+  if (lower.includes('practice') || lower.includes('fp')) return 'session-stripe-practice';
+  return 'session-stripe-default';
+};
 
 export const SessionTableView: React.FC<SessionTableViewProps> = React.memo((props) => {
   const { t } = useI18n();
@@ -57,70 +68,54 @@ export const SessionTableView: React.FC<SessionTableViewProps> = React.memo((pro
 
   const renderSortIndicator = (field: string) => {
     if (sortField !== field) {
-      return <ArrowUpDown size={12} style={{ opacity: 0.3 }} />;
+      return <ArrowUpDown size={12} style={{ opacity: 0.35 }} />;
     }
-    return <span style={{ color: 'var(--accent-secondary)' }}>{sortOrder === 'asc' ? '↑' : '↓'}</span>;
+    return <span className="f1-sort-indicator">{sortOrder === 'asc' ? '↑' : '↓'}</span>;
   };
 
   return (
-    <div className="glass-panel" style={{ padding: '0', overflow: 'hidden' }}>
+    <div className="glass-panel f1-table-container" style={{ padding: '0', overflow: 'hidden' }}>
       <div style={{ overflowX: 'auto' }}>
-        <table className="history-table">
+        <table className="history-table f1-broadcast-table">
           <thead>
             <tr>
               {Boolean(onToggleSelectSession) && (
-                <th style={{ width: '42px', textAlign: 'center', padding: '0 0.4rem', verticalAlign: 'middle' }}>
-                  <label
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      width: '100%',
-                      height: '100%',
-                      padding: '0.4rem 0',
-                    }}
-                  >
+                <th className="th-checkbox">
+                  <label className="f1-checkbox-label">
                     <input
                       type="checkbox"
                       ref={selectAllRef}
                       checked={isAllSelected}
                       onChange={() => onToggleSelectAll?.()}
                       title={isAllSelected ? t('history.batch.deselectAll') : t('history.batch.selectAll')}
-                      style={{
-                        cursor: 'pointer',
-                        accentColor: 'var(--accent-secondary, #00f2fe)',
-                        width: '16px',
-                        height: '16px',
-                        margin: 0,
-                      }}
+                      className="f1-table-checkbox"
                     />
                   </label>
                 </th>
               )}
               <th
-                style={{ cursor: 'pointer' }}
+                className="th-sortable"
                 onClick={() => onToggleSort('date')}
               >
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <div className="th-sort-wrapper">
                   <span>{t('history.table.dateTime')}</span>
                   {renderSortIndicator('date')}
                 </div>
               </th>
               <th
-                style={{ cursor: 'pointer' }}
+                className="th-sortable"
                 onClick={() => onToggleSort('track')}
               >
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <div className="th-sort-wrapper">
                   <span>{t('history.table.trackName')}</span>
                   {renderSortIndicator('track')}
                 </div>
               </th>
               <th
-                style={{ cursor: 'pointer' }}
+                className="th-sortable"
                 onClick={() => onToggleSort('type')}
               >
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <div className="th-sort-wrapper">
                   <span>{t('history.table.sessionType')}</span>
                   {renderSortIndicator('type')}
                 </div>
@@ -134,42 +129,28 @@ export const SessionTableView: React.FC<SessionTableViewProps> = React.memo((pro
             {sessions.map((session) => {
               const sessionTags = session.tags || [];
               const isSelected = selectedSessionIds?.has(session.id) || false;
+              const stripeClass = getSessionTypeStripeClass(session.session_type);
+              const trackInfo = getTrackInfo(session.track_name);
+              const countryIso3 = trackInfo?.countryIso3 || null;
 
               return (
                 <tr
                   key={session.id}
                   onClick={() => onSelectSession(session)}
-                  style={{
-                    cursor: 'pointer',
-                    backgroundColor: isSelected ? 'rgba(0, 242, 254, 0.08)' : undefined,
-                    transition: 'background-color 0.15s ease',
-                  }}
+                  className={`f1-session-row ${stripeClass} ${isSelected ? 'selected' : ''}`}
                 >
                   {onToggleSelectSession && (
                     <td
                       onClick={(e) => {
                         e.stopPropagation();
                       }}
-                      style={{
-                        width: '42px',
-                        textAlign: 'center',
-                        padding: 0,
-                        verticalAlign: 'middle',
-                      }}
+                      className="td-checkbox"
                     >
                       <label
                         onClick={(e) => {
                           e.stopPropagation();
                         }}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          width: '100%',
-                          minHeight: '44px',
-                          cursor: 'pointer',
-                          padding: '0.6rem 0.4rem',
-                        }}
+                        className="f1-checkbox-label"
                       >
                         <input
                           type="checkbox"
@@ -177,41 +158,38 @@ export const SessionTableView: React.FC<SessionTableViewProps> = React.memo((pro
                           onChange={() => {
                             onToggleSelectSession(session.id);
                           }}
-                          style={{
-                            cursor: 'pointer',
-                            accentColor: 'var(--accent-secondary, #00f2fe)',
-                            width: '16px',
-                            height: '16px',
-                            margin: 0,
-                          }}
+                          className="f1-table-checkbox"
                         />
                       </label>
                     </td>
                   )}
-                  <td style={{ color: 'var(--text-primary)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Clock size={14} color="var(--text-muted)" />
-                      {formatDate(session.created_at)}
+                  <td className="f1-date-cell">
+                    <div className="f1-date-wrapper">
+                      <Clock size={13} className="f1-clock-icon" />
+                      <span className="mono f1-date-text">{formatDate(session.created_at)}</span>
                     </div>
                   </td>
-                  <td>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                  <td className="f1-track-cell">
+                    <div className="f1-track-wrapper">
                       <TrackFlag track={session.track_name} width={20} height={14} />
-                      <span style={{ fontWeight: 700, fontSize: '1rem' }}>
+                      {countryIso3 && (
+                        <span className="f1-country-iso-badge mono">{countryIso3}</span>
+                      )}
+                      <span className="f1-track-title">
                         {session.track_name || t('common.unknownTrack')}
                       </span>
                     </div>
                   </td>
-                  <td>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <td className="f1-type-cell">
+                    <div className="f1-type-wrapper">
                       <F1FormatBadge format={session.packet_format} size="xs" />
-                      <span className={`session-badge ${getSessionBadgeClass(session.session_type)}`}>
+                      <span className={`session-badge f1-broadcast-badge ${getSessionBadgeClass(session.session_type)}`}>
                         {session.session_type || 'RACE'}
                       </span>
                     </div>
                   </td>
-                  <td onClick={(e) => e.stopPropagation()}>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px', minWidth: '120px' }}>
+                  <td className="f1-tags-cell" onClick={(e) => e.stopPropagation()}>
+                    <div className="f1-tags-wrapper">
                       {sessionTags.map((tag) => (
                         <TagBadge key={tag.id} tag={tag} size="xs" />
                       ))}
@@ -230,41 +208,28 @@ export const SessionTableView: React.FC<SessionTableViewProps> = React.memo((pro
                       </button>
                     </div>
                   </td>
-                  <td onClick={(e) => e.stopPropagation()}>
+                  <td className="f1-weather-cell" onClick={(e) => e.stopPropagation()}>
                     <WeatherBadgeWithForecast session={session} compact />
                   </td>
-                  <td style={{ textAlign: 'right' }}>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                  <td className="f1-actions-cell" style={{ textAlign: 'right' }}>
+                    <div className="f1-actions-wrapper">
                       <button
-                        className="nav-tab active"
-                        style={{
-                          padding: '0.4rem 0.8rem',
-                          fontSize: '0.8rem',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                        }}
+                        type="button"
+                        className="f1-explore-btn"
                         onClick={(e) => {
                           e.stopPropagation();
                           onSelectSession(session);
                         }}
                       >
-                        {t('common.explore')} <ChevronRight size={14} />
+                        <span>{t('common.explore')}</span>
+                        <ChevronRight size={14} className="f1-chevron-icon" />
                       </button>
 
                       {onExportSession && (
                         <button
-                          className="nav-tab"
+                          type="button"
+                          className="f1-action-icon-btn export"
                           title={`${t('history.exportSession')} #${session.id}`}
-                          style={{
-                            padding: '0.4rem 0.6rem',
-                            fontSize: '0.8rem',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            color: 'var(--accent-secondary)',
-                            borderColor: 'rgba(0, 242, 254, 0.3)',
-                          }}
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
@@ -276,17 +241,9 @@ export const SessionTableView: React.FC<SessionTableViewProps> = React.memo((pro
                       )}
 
                       <button
-                        className="nav-tab"
+                        type="button"
+                        className="f1-action-icon-btn delete"
                         title={`${t('common.deleteSession')} #${session.id}`}
-                        style={{
-                          padding: '0.4rem 0.6rem',
-                          fontSize: '0.8rem',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          color: '#ff4d4f',
-                          borderColor: 'rgba(255, 77, 79, 0.3)',
-                        }}
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();

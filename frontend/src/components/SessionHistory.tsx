@@ -42,6 +42,7 @@ interface SessionHistoryProps {
 const SessionHistoryContent: React.FC = () => {
   const { t } = useI18n();
   const {
+    sessions,
     filteredSessions,
     loadingSessions,
     error,
@@ -90,6 +91,12 @@ const SessionHistoryContent: React.FC = () => {
             <p className="mono" style={{ color: 'var(--text-secondary)', margin: '4px 0 0 0', fontSize: '0.9rem' }}>
               {t('history.subtitle')}
             </p>
+          </div>
+          <div className="session-history-header-badge">
+            <span className="session-header-badge-dot" />
+            <span className="session-header-badge-text">
+              {t('history.recordedSessionsCount', { count: sessions.length })}
+            </span>
           </div>
         </div>
       ) : (
