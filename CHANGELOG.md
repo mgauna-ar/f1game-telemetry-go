@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [v1.0.0] - 2026-09-12
 
 ### Added
 - **Core Telemetry Engine:** High-performance Go backend with 10Hz consolidated streaming, SQLite persistence, and strict 1:1 binary UDP decoding for F1 2025 and F1 2026 DLC specifications.
