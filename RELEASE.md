@@ -3,7 +3,7 @@
 This document defines the formal release process, versioning rules, pre-flight checklists, and publishing workflows for **F1 Telemetry Analyzer**.
 
 > [!NOTE]
-> **Status:** Formal releases are currently in preparation. All ongoing development is tracked on the `main` branch. This document outlines the standard operating procedure that will govern upcoming releases.
+> **Status:** Active production releases are published under [GitHub Releases](https://github.com/mgauna-ar/f1game-telemetry-go/releases). Inaugural release: [`v1.0.0`](https://github.com/mgauna-ar/f1game-telemetry-go/releases/tag/v1.0.0).
 
 ---
 
@@ -121,6 +121,10 @@ After GitHub Actions finishes (typically ~1-2 minutes):
    * Banner shows correct version and LAN IP.
    * Running `make simulate` sends packets that render live on the dashboard.
    * Closing the console window terminates the application cleanly.
+
+> [!TIP]
+> **Windows SmartScreen Note during Smoke Testing:**
+> Because binary builds from CI are not signed with a commercial EV code-signing certificate, Windows Defender SmartScreen may display a warning dialog (*"Windows protected your PC"*). Click **"More info"** → **"Run anyway"** to bypass.
 
 ---
 

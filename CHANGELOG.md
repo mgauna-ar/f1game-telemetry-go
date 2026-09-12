@@ -18,4 +18,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/mgauna-ar/f1game-telemetry-go/commits/main
+[Unreleased]: https://github.com/mgauna-ar/f1game-telemetry-go/compare/v1.0.0...HEAD
+[v1.0.0]: https://github.com/mgauna-ar/f1game-telemetry-go/releases/tag/v1.0.0

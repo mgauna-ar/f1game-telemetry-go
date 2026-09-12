@@ -41,9 +41,30 @@
 
 ## 🚀 Quick Start
 
-Standalone pre-compiled release packages will be published under GitHub Releases with upcoming releases. In the meantime, you can launch or build the standalone application in seconds.
+### 📦 Option 1: Download Standalone Executable (Recommended)
 
-### Prerequisites
+Pre-compiled, self-contained single binaries with the embedded web dashboard are available under **[GitHub Releases](https://github.com/mgauna-ar/f1game-telemetry-go/releases/latest)**. **No runtime dependencies or installations are required** (no Go or Node.js needed to run).
+
+1. Download the archive for your operating system from the **[Latest Release (v1.0.0)](https://github.com/mgauna-ar/f1game-telemetry-go/releases/latest)**:
+   * **Windows:** `f1telemetry_v1.0.0_windows_amd64.zip` (or `arm64`)
+   * **macOS:** `f1telemetry_v1.0.0_darwin_arm64.zip` (Apple Silicon M-series) or `f1telemetry_v1.0.0_darwin_amd64.zip` (Intel)
+   * **Linux:** `f1telemetry_v1.0.0_linux_amd64.tar.gz` (or `arm64`)
+2. Extract the archive contents.
+3. Run `f1telemetry.exe` (Windows) or `./f1telemetry` (macOS / Linux). The server will start and automatically open your default browser to `http://localhost:8080`.
+
+> [!NOTE]
+> **Windows Defender / SmartScreen Notice:**
+> Because this is a free, community open-source project without an expensive commercial code-signing certificate, Windows Defender SmartScreen may display a blue warning (*"Windows protected your PC"* or *"Unknown Publisher"*). This is standard and expected for newly released, unsigned open-source executables.
+>
+> To proceed: click **"More info"** → **"Run anyway"**. You can also verify binary integrity against the official SHA-256 hashes published in `checksums.txt`, or compile the binary yourself from source.
+
+---
+
+### 💻 Option 2: Build & Run from Source
+
+If you prefer building locally or contributing to the codebase:
+
+#### Prerequisites
 * [Go 1.21+](https://go.dev/dl/)
 * [Node.js 18+](https://nodejs.org/)
 
