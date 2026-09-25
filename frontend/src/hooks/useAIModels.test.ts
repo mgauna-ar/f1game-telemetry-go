@@ -1,6 +1,6 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useAIModels, filterChatModels } from './useAIModels';
+import { useAIModels, filterChatModels, hasServerKeyFor } from './useAIModels';
 import { api } from '../utils/apiClient';
 import type { AIConfig, AIModelItem } from '../context/RaceEngineerContext';
 
@@ -57,6 +57,7 @@ describe('useAIModels Hook', () => {
     expect(result.current.serverConfigStatus).toEqual({
       hasGeminiEnvKey: true,
       hasOpenAIEnvKey: false,
+      hasClaudeEnvKey: false,
       defaultProvider: 'gemini',
       defaultModel: 'gemini-flash-lite-latest',
     });
@@ -151,5 +152,20 @@ describe('useAIModels Hook', () => {
 
     expect(result.current.modelsError).toBe('API key invalid');
     expect(result.current.availableModels).toEqual([]);
+  });
+
+  it('matches each provider with its own server key', () => {
+    const status = {
+      hasGeminiEnvKey: false,
+      hasOpenAIEnvKey: true,
+      hasClaudeEnvKey: true,
+      defaultProvider: 'openai',
+      defaultModel: 'gpt-4o-mini',
+    };
+    expect(hasServerKeyFor(status, 'gemini')).toBe(false);
+    expect(hasServerKeyFor(status, 'openai')).toBe(true);
+    expect(hasServerKeyFor(status, 'claude')).toBe(true);
+    expect(hasServerKeyFor(status, 'custom')).toBe(false);
+    expect(hasServerKeyFor(null, 'claude')).toBe(false);
   });
 });

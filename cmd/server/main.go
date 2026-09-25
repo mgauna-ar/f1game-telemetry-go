@@ -47,6 +47,7 @@ type ServerConfig struct {
 	ShowVersion  bool
 	GeminiAPIKey string
 	OpenAIAPIKey string
+	ClaudeAPIKey string
 	LLMModel     string
 	LLMProvider  string
 }
@@ -69,6 +70,7 @@ func loadServerConfig() ServerConfig {
 		ShowVersion:  *versionFlag,
 		GeminiAPIKey: getEnv("GEMINI_API_KEY", ""),
 		OpenAIAPIKey: getEnv("OPENAI_API_KEY", ""),
+		ClaudeAPIKey: getEnv("ANTHROPIC_API_KEY", ""),
 		LLMModel:     getEnv("LLM_MODEL", ""),
 		LLMProvider:  getEnv("LLM_PROVIDER", ""),
 	}
@@ -185,6 +187,7 @@ func initHTTPServer(
 	apiConfig := api.ServerConfig{
 		GeminiAPIKey: cfg.GeminiAPIKey,
 		OpenAIAPIKey: cfg.OpenAIAPIKey,
+		ClaudeAPIKey: cfg.ClaudeAPIKey,
 		LLMModel:     cfg.LLMModel,
 		LLMProvider:  cfg.LLMProvider,
 	}

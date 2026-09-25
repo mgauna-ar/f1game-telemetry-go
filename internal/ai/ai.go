@@ -3,80 +3,29 @@ package ai
 import (
 	"context"
 	"net/http"
-	"strings"
 )
 
-// Default models used when a request does not name one.
-const (
-	DefaultGeminiModel = "gemini-flash-latest"
-	DefaultOpenAIModel = "gpt-4o-mini"
-)
-
-// ResolveDefaultModel returns the requested model or default model for the provider.
-func ResolveDefaultModel(provider, reqModel string) string {
-	model := strings.TrimSpace(reqModel)
-	if model != "" {
-		return model
+// FetchModels queries the requested provider for the chat models it offers. It also returns
+// the resolved provider ID.
+func FetchModels(ctx context.Context, req AIFetchModelsRequest, keys ServerKeys) ([]AIModelItem, string, error) {
+	p, conn, err := resolveProvider(req.Provider, req.APIKey, req.BaseURL, keys)
+	if err != nil {
+		return nil, conn.provider, err
 	}
-	if provider == "gemini" {
-		return DefaultGeminiModel
-	}
-	return DefaultOpenAIModel
+	models, err := p.listModels(ctx, conn)
+	return models, conn.provider, err
 }
 
-// ResolveProviderAndKey normalizes the provider and retrieves the active API key.
-func ResolveProviderAndKey(reqProvider, reqAPIKey, defaultGeminiKey, defaultOpenAIKey string) (provider, apiKey string) {
-	provider = strings.ToLower(strings.TrimSpace(reqProvider))
-	if provider == "" {
-		provider = "gemini"
+// StreamChat streams an AI chat answer as SSE for the Lap Comparator, session debriefs or the
+// live race engineer. Live-mode chats with fresh telemetry get the server-built race briefing
+// and the race data tools.
+func StreamChat(ctx context.Context, req AIChatRequest, keys ServerKeys, opts ChatOptions, w http.ResponseWriter, flusher http.Flusher) error {
+	p, conn, err := resolveProvider(req.Provider, req.APIKey, req.BaseURL, keys)
+	if err != nil {
+		return err
 	}
 
-	apiKey = strings.TrimSpace(reqAPIKey)
-	if apiKey == "" {
-		if provider == "gemini" {
-			apiKey = strings.TrimSpace(defaultGeminiKey)
-		} else {
-			apiKey = strings.TrimSpace(defaultOpenAIKey)
-		}
-	}
-	return provider, apiKey
-}
-
-// FetchModels queries provider APIs (Gemini or OpenAI-compatible) for available generative models.
-func FetchModels(ctx context.Context, req AIFetchModelsRequest, defaultGeminiKey, defaultOpenAIKey string) ([]AIModelItem, string, error) {
-	provider, apiKey := ResolveProviderAndKey(req.Provider, req.APIKey, defaultGeminiKey, defaultOpenAIKey)
-	if apiKey == "" && provider != "custom" {
-		return nil, provider, &AIStreamError{
-			StatusCode: http.StatusUnauthorized,
-			Code:       AIErrorMissingAPIKey,
-			Message:    "No API Key configured for " + provider,
-			Provider:   provider,
-		}
-	}
-
-	var models []AIModelItem
-	var err error
-	if provider == "gemini" {
-		models, err = FetchGeminiModels(ctx, apiKey)
-	} else {
-		models, err = FetchOpenAIModels(ctx, req.BaseURL, apiKey)
-	}
-	return models, provider, err
-}
-
-// StreamChat executes streaming LLM chat requests for Lap Comparator or live telemetry analysis.
-func StreamChat(ctx context.Context, req AIChatRequest, defaultGeminiKey, defaultOpenAIKey string, opts ChatOptions, w http.ResponseWriter, flusher http.Flusher) error {
-	provider, apiKey := ResolveProviderAndKey(req.Provider, req.APIKey, defaultGeminiKey, defaultOpenAIKey)
-	if apiKey == "" && provider != "custom" {
-		return &AIStreamError{
-			StatusCode: http.StatusUnauthorized,
-			Code:       AIErrorMissingAPIKey,
-			Message:    "No API Key provided for " + provider,
-			Provider:   provider,
-		}
-	}
-
-	model := ResolveDefaultModel(provider, req.Model)
+	model := ResolveDefaultModel(conn.provider, req.Model)
 	// Race data tools are only offered while the server has fresh telemetry to answer them.
 	var tools ToolExecutor
 	if applyLiveBriefing(req.Context, opts.Live) {
@@ -87,15 +36,8 @@ func StreamChat(ctx context.Context, req AIChatRequest, defaultGeminiKey, defaul
 		systemPrompt += toolUseDirective(req.Context, req.Persona, req.Language)
 	}
 
-	if provider == "gemini" {
-		return StreamGemini(ctx, apiKey, model, systemPrompt, req.Messages, tools, w, flusher)
-	}
-
-	baseURL := req.BaseURL
-	if baseURL == "" {
-		baseURL = "https://api.openai.com/v1"
-	}
-	return StreamOpenAI(ctx, baseURL, apiKey, model, systemPrompt, req.Messages, tools, w, flusher)
+	chat := p.newChat(conn, model, systemPrompt, req.Messages)
+	return runChat(ctx, conn.provider, model, chat, tools, sseWriter{w: w, flusher: flusher})
 }
 
 // applyLiveBriefing swaps the client's live summary for the server-built briefing when the

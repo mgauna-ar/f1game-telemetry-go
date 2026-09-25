@@ -512,6 +512,11 @@ export const AI_PROVIDER_URLS: Record<string, { name: string; url: string; freeT
     url: 'https://platform.openai.com/api-keys',
     freeTier: false,
   },
+  claude: {
+    name: 'Claude Console',
+    url: 'https://platform.claude.com/settings/keys',
+    freeTier: false,
+  },
   custom: {
     name: 'Groq Console',
     url: 'https://console.groq.com/keys',

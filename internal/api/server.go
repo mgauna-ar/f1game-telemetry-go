@@ -27,6 +27,7 @@ import (
 type ServerConfig struct {
 	GeminiAPIKey string
 	OpenAIAPIKey string
+	ClaudeAPIKey string
 	LLMModel     string
 	LLMProvider  string
 }

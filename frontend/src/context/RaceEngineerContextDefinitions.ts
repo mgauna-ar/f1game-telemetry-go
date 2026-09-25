@@ -5,7 +5,7 @@ import type { ChatMessage } from '../types/ai';
 export type { ChatMessage };
 
 export interface AIConfig {
-  provider: 'gemini' | 'openai' | 'custom';
+  provider: 'gemini' | 'openai' | 'claude' | 'custom';
   apiKey: string;
   model: string;
   baseUrl: string;
@@ -72,6 +72,7 @@ export interface RaceEngineerActionsContextValue {
   serverConfigStatus: {
     hasGeminiEnvKey: boolean;
     hasOpenAIEnvKey: boolean;
+    hasClaudeEnvKey: boolean;
     defaultProvider: string;
     defaultModel: string;
   } | null;
@@ -91,6 +92,7 @@ export const STORAGE_KEY_AI_OPEN = 'f1_ai_engineer_open';
 export const DEFAULT_AI_MODELS = {
   gemini: 'gemini-flash-latest',
   openai: 'gpt-4o-mini',
+  claude: 'claude-opus-5',
   custom: 'llama3',
 } as const;
 
@@ -102,6 +104,7 @@ export const DEFAULT_CONFIG: AIConfig = {
   providerKeys: {
     gemini: '',
     openai: '',
+    claude: '',
     custom: '',
   },
   providerModels: {

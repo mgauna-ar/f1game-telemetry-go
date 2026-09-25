@@ -34,6 +34,7 @@ describe('useAIChatStream Hook', () => {
     serverConfigStatus: {
       hasGeminiEnvKey: false,
       hasOpenAIEnvKey: false,
+      hasClaudeEnvKey: false,
       defaultProvider: 'gemini',
       defaultModel: 'gemini-flash-lite-latest',
     },

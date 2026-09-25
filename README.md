@@ -33,7 +33,7 @@
 ### 🎙️ AI Race Engineer & Voice Radio
 * **Hands-Free Global Push-to-Talk (PTT):** DirectInput support for steering wheels (Fanatec, Logitech, Moza, Simagic) and global keyboard shortcuts while driving in full-screen.
 * **Proactive Pit Wall Calls:** Context-aware pit wall alerts for tyre wear/temperatures, aero damage, ERS deployment, fuel Lift & Coast, rival gaps, and safety cars.
-* **Radio Q&A With the Full Race Picture:** Ask anything over push-to-talk. The engineer remembers the conversation for the session and answers from live data for every car: gaps and whether they are closing, rivals' tyres and stops, tyre wear per lap and laps to the limit, fuel burn against target, pit window, weather for the current session, and the calls it already made. For anything beyond that picture (any driver's lap times and stints, the full standings, your tyre sets, lap-by-lap history, the full forecast) it looks the data up mid-answer through function calling, with Gemini and OpenAI-compatible models. Answers start playing as soon as the first sentence is ready instead of after the whole reply.
+* **Radio Q&A With the Full Race Picture:** Ask anything over push-to-talk. The engineer remembers the conversation for the session and answers from live data for every car: gaps and whether they are closing, rivals' tyres and stops, tyre wear per lap and laps to the limit, fuel burn against target, pit window, weather for the current session, and the calls it already made. For anything beyond that picture (any driver's lap times and stints, the full standings, your tyre sets, lap-by-lap history, the full forecast) it looks the data up mid-answer through function calling, with Gemini, OpenAI, Anthropic Claude and OpenAI-compatible models. Answers start playing as soon as the first sentence is ready instead of after the whole reply.
 * **Smart Driving Discretion:** Automatically suppresses non-critical radio chatter during heavy braking or corner apexes until reaching the straight.
 * **Neural Voices & Personas:** Authentic pit wall personas (**Bono 🇬🇧**, **Franco Colapinto 🇦🇷**, or **Custom**) with realistic cockpit radio distortion, spatial audio filtering, and FOM harmonic beeps.
 * **Bilingual Strategy & Debriefs:** Native bilingual support in **English** and **Español (Latinoamérica)** with streaming AI post-session debriefs.
@@ -156,6 +156,7 @@ Server settings can be set with command-line flags, environment variables, or a 
 | `-no-browser` | `F1T_NO_BROWSER` | Don't open the dashboard in a browser on startup | `false` |
 | | `GEMINI_API_KEY` | Google Gemini API Key for AI Race Engineer | *(Can be set in UI)* |
 | | `OPENAI_API_KEY` | OpenAI API Key for AI Race Engineer | *(Can be set in UI)* |
+| | `ANTHROPIC_API_KEY` | Anthropic API Key for Claude models in the AI Race Engineer | *(Can be set in UI)* |
 
 The simulator sends to `127.0.0.1` on the server's `F1T_UDP_ADDR` port. Use `-target` (or `F1T_SIM_TARGET`) to send somewhere else, e.g. `go run ./cmd/simulator -target 192.168.1.20:20777`.
 

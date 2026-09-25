@@ -51,9 +51,7 @@ export const ChatSettingsDrawer: React.FC<ChatSettingsDrawerProps> = ({
           onChange={(e) => {
             const prov = e.target.value as AIConfig['provider'];
             const nextKey = config.providerKeys?.[prov] || '';
-            const nextModel =
-              config.providerModels?.[prov] ||
-              (prov === 'gemini' ? DEFAULT_AI_MODELS.gemini : DEFAULT_AI_MODELS.openai);
+            const nextModel = config.providerModels?.[prov] || DEFAULT_AI_MODELS[prov];
 
             const updatedConfig: AIConfig = {
               ...config,
@@ -67,6 +65,7 @@ export const ChatSettingsDrawer: React.FC<ChatSettingsDrawerProps> = ({
         >
           <option value="gemini">{t('ai_engineer.geminiOption')}</option>
           <option value="openai">{t('ai_engineer.openaiOption')}</option>
+          <option value="claude">{t('ai_engineer.claudeOption')}</option>
           <option value="custom">{t('ai_engineer.customOption')}</option>
         </select>
 

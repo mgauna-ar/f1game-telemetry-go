@@ -5,9 +5,22 @@ import type { AIConfig, AIModelItem } from '../context/RaceEngineerContext';
 export interface ServerConfigStatus {
   hasGeminiEnvKey: boolean;
   hasOpenAIEnvKey: boolean;
+  hasClaudeEnvKey: boolean;
   defaultProvider: string;
   defaultModel: string;
 }
+
+/** Reports whether the server has its own API key for the provider. */
+export const hasServerKeyFor = (
+  status: ServerConfigStatus | null | undefined,
+  provider: AIConfig['provider']
+): boolean => {
+  if (!status) return false;
+  if (provider === 'gemini') return status.hasGeminiEnvKey;
+  if (provider === 'openai') return status.hasOpenAIEnvKey;
+  if (provider === 'claude') return status.hasClaudeEnvKey;
+  return false;
+};
 
 interface GeminiModelResponseItem {
   name: string;
@@ -76,13 +89,15 @@ export const useAIModels = (config: AIConfig): UseAIModelsReturn => {
     api.get<{
       has_gemini_env_key: boolean;
       has_openai_env_key: boolean;
-      default_provider: 'gemini' | 'openai';
+      has_claude_env_key?: boolean;
+      default_provider: AIConfig['provider'];
       default_model: string;
     }>('/api/ai/config-status')
       .then((data) => {
         setServerConfigStatus({
           hasGeminiEnvKey: data.has_gemini_env_key,
           hasOpenAIEnvKey: data.has_openai_env_key,
+          hasClaudeEnvKey: data.has_claude_env_key ?? false,
           defaultProvider: data.default_provider,
           defaultModel: data.default_model,
         });
@@ -97,8 +112,8 @@ export const useAIModels = (config: AIConfig): UseAIModelsReturn => {
       const activeCfg = overrideConfig || config;
       if (
         !activeCfg.apiKey &&
-        !serverConfigStatus?.hasGeminiEnvKey &&
-        !serverConfigStatus?.hasOpenAIEnvKey
+        activeCfg.provider !== 'custom' &&
+        !hasServerKeyFor(serverConfigStatus, activeCfg.provider)
       ) {
         return;
       }
