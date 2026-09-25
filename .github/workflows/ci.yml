@@ -35,6 +35,9 @@ jobs:
       - name: Run tests
         run: go test -v -race ./...
 
+      - name: Fuzz packet decoder
+        run: go test ./internal/packets -run '^$' -fuzz FuzzDecode -fuzztime 30s
+
       - name: Build
         run: go build -v ./...
 

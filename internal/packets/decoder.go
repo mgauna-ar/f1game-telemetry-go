@@ -6,6 +6,26 @@ import (
 	"fmt"
 )
 
+// perCarLayout returns the per-car stride and the number of cars to read from carsPayload.
+// It rejects payloads too short to hold every car slot, so truncated packets fail loudly
+// instead of decoding as a partially zeroed grid.
+func perCarLayout(carsPayload []byte, header PacketHeader, structSize, trailerSize, maxReadLimit int) (itemSize, numToRead int, err error) {
+	itemSize = PerCarItemSize(carsPayload, header, structSize, trailerSize)
+
+	numToRead = min(MaxCarsForFormat(header.PacketFormat), MaxCars)
+	if maxReadLimit > 0 && maxReadLimit < numToRead {
+		numToRead = maxReadLimit
+	}
+
+	if numToRead > 0 {
+		need := (numToRead-1)*itemSize + structSize
+		if len(carsPayload) < need {
+			return 0, 0, fmt.Errorf("data too short for %d cars: got %d bytes, need %d", numToRead, len(carsPayload), need)
+		}
+	}
+	return itemSize, numToRead, nil
+}
+
 // DecodePerCarBinary reads fixed-size binary struct arrays for each car from a payload.
 func DecodePerCarBinary[T any](payload []byte, header PacketHeader, structSize, trailerSize, prefixSize, maxReadLimit int) ([MaxCars]T, error) {
 	var cars [MaxCars]T
@@ -17,19 +37,13 @@ func DecodePerCarBinary[T any](payload []byte, header PacketHeader, structSize, 
 		carsPayload = payload[prefixSize:]
 	}
 
-	maxCars := MaxCarsForFormat(header.PacketFormat)
-	itemSize := PerCarItemSize(carsPayload, header, structSize, trailerSize)
-
-	numToRead := maxCars
-	if maxReadLimit > 0 && maxReadLimit < numToRead {
-		numToRead = maxReadLimit
+	itemSize, numToRead, err := perCarLayout(carsPayload, header, structSize, trailerSize, maxReadLimit)
+	if err != nil {
+		return cars, err
 	}
 
-	for i := 0; i < numToRead && i < MaxCars; i++ {
+	for i := 0; i < numToRead; i++ {
 		offset := i * itemSize
-		if offset+structSize > len(carsPayload) {
-			break
-		}
 		r := bytes.NewReader(carsPayload[offset : offset+structSize])
 		if err := binary.Read(r, binary.LittleEndian, &cars[i]); err != nil {
 			return cars, fmt.Errorf("failed to decode car %d: %w", i, err)
@@ -55,19 +69,13 @@ func DecodePerCarCustom[T any](
 	}
 
 	is2026 := header.PacketFormat >= PacketFormat2026
-	maxCars := MaxCarsForFormat(header.PacketFormat)
-	itemSize := PerCarItemSize(carsPayload, header, structSize, trailerSize)
-
-	numToRead := maxCars
-	if maxReadLimit > 0 && maxReadLimit < numToRead {
-		numToRead = maxReadLimit
+	itemSize, numToRead, err := perCarLayout(carsPayload, header, structSize, trailerSize, maxReadLimit)
+	if err != nil {
+		return cars, err
 	}
 
-	for i := 0; i < numToRead && i < MaxCars; i++ {
+	for i := 0; i < numToRead; i++ {
 		offset := i * itemSize
-		if offset+structSize > len(carsPayload) {
-			break
-		}
 		car, err := decodeCar(carsPayload[offset:offset+structSize], is2026)
 		if err != nil {
 			return cars, fmt.Errorf("failed to decode car %d: %w", i, err)
@@ -89,40 +97,49 @@ func Decode(data []byte) (Packet, error) {
 
 	switch header.PacketId {
 	case PacketIDMotion:
-		return DecodeMotion(header, payload)
+		return asPacket(DecodeMotion(header, payload))
 	case PacketIDSession:
-		return DecodeSession(header, payload)
+		return asPacket(DecodeSession(header, payload))
 	case PacketIDLapData:
-		return DecodeLapData(header, payload)
+		return asPacket(DecodeLapData(header, payload))
 	case PacketIDEvent:
-		return DecodeEvent(header, payload)
+		return asPacket(DecodeEvent(header, payload))
 	case PacketIDParticipants:
-		return DecodeParticipants(header, payload)
+		return asPacket(DecodeParticipants(header, payload))
 	case PacketIDCarSetup:
-		return DecodeCarSetup(header, payload)
+		return asPacket(DecodeCarSetup(header, payload))
 	case PacketIDCarTelemetry:
-		return DecodeCarTelemetry(header, payload)
+		return asPacket(DecodeCarTelemetry(header, payload))
 	case PacketIDCarStatus:
-		return DecodeCarStatus(header, payload)
+		return asPacket(DecodeCarStatus(header, payload))
 	case PacketIDFinalClassification:
-		return DecodeFinalClassification(header, payload)
+		return asPacket(DecodeFinalClassification(header, payload))
 	case PacketIDLobbyInfo:
-		return DecodeLobbyInfo(header, payload)
+		return asPacket(DecodeLobbyInfo(header, payload))
 	case PacketIDCarDamage:
-		return DecodeCarDamage(header, payload)
+		return asPacket(DecodeCarDamage(header, payload))
 	case PacketIDSessionHistory:
-		return DecodeSessionHistory(header, payload)
+		return asPacket(DecodeSessionHistory(header, payload))
 	case PacketIDTyreSets:
-		return DecodeTyreSets(header, payload)
+		return asPacket(DecodeTyreSets(header, payload))
 	case PacketIDMotionEx:
-		return DecodeMotionEx(header, payload)
+		return asPacket(DecodeMotionEx(header, payload))
 	case PacketIDTimeTrial:
-		return DecodeTimeTrial(header, payload)
+		return asPacket(DecodeTimeTrial(header, payload))
 	case PacketIDLapPositions:
-		return DecodeLapPositions(header, payload)
+		return asPacket(DecodeLapPositions(header, payload))
 	case PacketIDCarTelemetry2:
-		return DecodeCarTelemetry2(header, payload)
+		return asPacket(DecodeCarTelemetry2(header, payload))
 	default:
 		return nil, fmt.Errorf("unknown packet ID: %d", header.PacketId)
 	}
+}
+
+// asPacket converts a typed decoder result into a Packet, returning a nil interface on error
+// so callers never receive a non-nil Packet wrapping a nil pointer.
+func asPacket[T Packet](pkt T, err error) (Packet, error) {
+	if err != nil {
+		return nil, err
+	}
+	return pkt, nil
 }

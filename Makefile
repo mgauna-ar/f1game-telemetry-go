@@ -1,4 +1,4 @@
-.PHONY: build run run-embedded build-frontend build-embedded build-all dev test test-short lint clean help fmt simulate install-hooks
+.PHONY: build run run-embedded build-frontend build-embedded build-all dev test test-short fuzz lint clean help fmt simulate install-hooks
 
 BINARY_NAME=f1telemetry
 BUILD_DIR=bin
@@ -62,6 +62,10 @@ test:
 ## test-short: Run tests without verbose
 test-short:
 	go test ./... -race
+
+## fuzz: Fuzz the UDP packet decoder (e.g. make fuzz FUZZTIME=5m)
+fuzz:
+	go test ./internal/packets -run '^$$' -fuzz FuzzDecode -fuzztime $(or $(FUZZTIME),30s)
 
 ## lint: Run golangci-lint (or go vet as fallback)
 lint:

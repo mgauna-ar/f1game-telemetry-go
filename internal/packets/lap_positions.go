@@ -32,12 +32,12 @@ func DecodeLapPositions(header PacketHeader, payload []byte) (*PacketLapPosition
 
 	matrixBytes := payload[2:]
 	maxCars := MaxCarsForFormat(header.PacketFormat)
+	if need := MaxNumLapsInLapPositions * maxCars; len(matrixBytes) < need {
+		return nil, fmt.Errorf("data too short for lap positions matrix: got %d bytes, need %d", len(matrixBytes), need)
+	}
 
 	for lap := 0; lap < MaxNumLapsInLapPositions; lap++ {
 		lapOffset := lap * maxCars
-		if lapOffset+maxCars > len(matrixBytes) {
-			break
-		}
 		for car := 0; car < maxCars && car < MaxCars; car++ {
 			pkt.PositionForVehicleIdx[lap][car] = matrixBytes[lapOffset+car]
 		}
