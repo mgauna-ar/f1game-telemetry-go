@@ -35,6 +35,9 @@ type PromptCatalog interface {
 	// LiveDataDirective tells the engineer to answer from the live pit wall data and the radio conversation.
 	LiveDataDirective() string
 
+	// ToolUseDirective tells the engineer when to call the live race data tools.
+	ToolUseDirective() string
+
 	// UrgencyDirective returns the contextual prompt injection for urgent situations.
 	UrgencyDirective(level string) string
 

@@ -111,12 +111,12 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// chatOptions hands the live race engineer context to AI chats when the engine is running.
+// chatOptions hands the live race engineer context and data tools to AI chats when the engine is running.
 func (s *Server) chatOptions() ai.ChatOptions {
 	if s.engineerEngine == nil {
 		return ai.ChatOptions{}
 	}
-	return ai.ChatOptions{Live: s.engineerEngine}
+	return ai.ChatOptions{Live: s.engineerEngine, Tools: s.engineerEngine.RaceTools()}
 }
 
 // handleRaceContext returns the live race picture the AI race engineer currently sees.

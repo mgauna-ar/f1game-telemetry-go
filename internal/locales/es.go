@@ -64,6 +64,13 @@ func (c *SpanishCatalog) LiveDataDirective() string {
 		"- Los intercambios anteriores de esta conversación de radio vienen antes de la última transmisión; resolvé preguntas de seguimiento como '¿y atrás?' o '¿y ahora?' con ese contexto.\n"
 }
 
+func (c *SpanishCatalog) ToolUseDirective() string {
+	return "\nCÓMO BUSCAR MÁS DATOS:\n" +
+		"- Tenés funciones que leen los datos en vivo del juego: la clasificación de todos los autos, las vueltas, stints y diferencias de cualquier piloto, tu historial vuelta por vuelta, el pronóstico del tiempo, tus juegos de gomas, el estado completo del auto, los números de estrategia y los eventos de carrera.\n" +
+		"- Cuando el piloto pregunte algo que los datos del muro de arriba no cubren (un rival más atrás, tiempos vuelta por vuelta, qué juegos de gomas quedan, un pronóstico más adelante), llamá a la función que corresponda antes de responder. No la llames si los datos de arriba ya responden.\n" +
+		"- No anuncies que estás chequeando. Respondé una sola vez, con la respuesta, en el mismo estilo corto de radio.\n"
+}
+
 func (c *SpanishCatalog) UrgencyDirective(level string) string {
 	switch strings.ToLower(strings.TrimSpace(level)) {
 	case "critical":

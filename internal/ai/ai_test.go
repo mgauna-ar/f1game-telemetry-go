@@ -429,19 +429,20 @@ func TestFetchOpenAIModels_ErrorHandling(t *testing.T) {
 	}
 }
 
-func TestStreamSSEResponse(t *testing.T) {
-	ctx := context.Background()
-	body := strings.NewReader("data: hello\n\ndata: world\n\ndata: [DONE]\n\n")
-	rec := httptest.NewRecorder()
-
-	err := streamSSEResponse(ctx, body, rec, rec, strings.ToUpper)
-	if err != nil {
+func TestReadSSEData(t *testing.T) {
+	body := strings.NewReader("event: ping\ndata: hello\n\ndata: \n\ndata: world\n\ndata: [DONE]\n\ndata: after done\n\n")
+	var got []string
+	if err := readSSEData(context.Background(), body, func(p string) { got = append(got, p) }); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
+	if strings.Join(got, ",") != "hello,world" {
+		t.Errorf("expected payloads before [DONE], got %q", got)
+	}
 
-	output := rec.Body.String()
-	if !strings.Contains(output, "HELLO") || !strings.Contains(output, "WORLD") || !strings.Contains(output, "data: [DONE]\n\n") {
-		t.Errorf("unexpected sse output: %s", output)
+	var last []string
+	_ = readSSEData(context.Background(), strings.NewReader("data: no trailing newline"), func(p string) { last = append(last, p) })
+	if len(last) != 1 || last[0] != "no trailing newline" {
+		t.Errorf("expected the final unterminated line to be read, got %q", last)
 	}
 }
 

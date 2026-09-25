@@ -139,6 +139,8 @@ const (
 	SummaryForecastSamples  = 4      // Forecast samples repeated in the prompt summary
 	DefaultLapHistoryLimit  = 5      // Laps returned by the lap history tool by default
 	MaxLapHistoryLimit      = 20     // Most laps the lap history tool returns
+	DriverToolRecentLaps    = 5      // Recent laps the driver lookup tool returns for a car
+	JoulesPerMegajoule      = 1e6    // ERS energy is reported in joules, spoken in MJ
 )
 
 // Penalty type codes carried by the PENA event (see the UDP spec appendix).

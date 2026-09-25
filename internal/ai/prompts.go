@@ -144,6 +144,15 @@ func buildLivePrompt(telemetryCtx *TelemetryAnalysisContext, persona, language s
 	return sb.String()
 }
 
+// toolUseDirective tells a live-mode engineer how to use the race data tools it was given.
+func toolUseDirective(telemetryCtx *TelemetryAnalysisContext, persona, language string) string {
+	fallbackLang := ""
+	if telemetryCtx != nil {
+		fallbackLang = telemetryCtx.Language
+	}
+	return locales.Resolve(language, fallbackLang, persona).ToolUseDirective()
+}
+
 func buildGeneralPrompt(telemetryCtx *TelemetryAnalysisContext, language string) string {
 	var sb strings.Builder
 	sb.WriteString("You are the personal F1 Race Engineer.\n")

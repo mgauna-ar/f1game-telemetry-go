@@ -105,6 +105,9 @@ type LiveRaceSource interface {
 type ChatOptions struct {
 	// Live provides fresh race context for live-mode chats. Nil keeps the client's summary.
 	Live LiveRaceSource
+	// Tools are live race data lookups the model may call in live-mode chats while Live has
+	// fresh telemetry. Nil disables tool calling.
+	Tools ToolExecutor
 }
 
 // AIConfigStatusResponse informs the frontend about backend default configuration.

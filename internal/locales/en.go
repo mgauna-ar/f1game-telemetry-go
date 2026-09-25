@@ -61,6 +61,13 @@ func (c *EnglishCatalog) LiveDataDirective() string {
 		"- Earlier exchanges of this radio conversation come before the latest transmission; resolve follow-ups like 'and behind?' or 'what about now?' against them.\n"
 }
 
+func (c *EnglishCatalog) ToolUseDirective() string {
+	return "\nLOOKING UP MORE DATA:\n" +
+		"- You have functions that read the live game data: standings for every car, any driver's laps, stints and gaps, your lap-by-lap history, the weather forecast, your tyre sets, the full car status, the strategy numbers and the race events.\n" +
+		"- When the driver asks for something the pit wall data above does not cover (a rival further back, lap-by-lap times, which tyre sets are left, a later forecast), call the matching function before answering. Do not call one when the data above already answers.\n" +
+		"- Do not announce that you are checking. Reply once, with the answer, in the same short radio style.\n"
+}
+
 func (c *EnglishCatalog) UrgencyDirective(level string) string {
 	switch strings.ToLower(strings.TrimSpace(level)) {
 	case "critical":

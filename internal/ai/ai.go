@@ -77,18 +77,25 @@ func StreamChat(ctx context.Context, req AIChatRequest, defaultGeminiKey, defaul
 	}
 
 	model := ResolveDefaultModel(provider, req.Model)
-	applyLiveBriefing(req.Context, opts.Live)
+	// Race data tools are only offered while the server has fresh telemetry to answer them.
+	var tools ToolExecutor
+	if applyLiveBriefing(req.Context, opts.Live) {
+		tools = opts.Tools
+	}
 	systemPrompt := BuildSystemPrompt(req.Context, req.Persona, req.Language)
+	if tools != nil {
+		systemPrompt += toolUseDirective(req.Context, req.Persona, req.Language)
+	}
 
 	if provider == "gemini" {
-		return StreamGemini(ctx, apiKey, model, systemPrompt, req.Messages, w, flusher)
+		return StreamGemini(ctx, apiKey, model, systemPrompt, req.Messages, tools, w, flusher)
 	}
 
 	baseURL := req.BaseURL
 	if baseURL == "" {
 		baseURL = "https://api.openai.com/v1"
 	}
-	return StreamOpenAI(ctx, baseURL, apiKey, model, systemPrompt, req.Messages, w, flusher)
+	return StreamOpenAI(ctx, baseURL, apiKey, model, systemPrompt, req.Messages, tools, w, flusher)
 }
 
 // applyLiveBriefing swaps the client's live summary for the server-built briefing when the
