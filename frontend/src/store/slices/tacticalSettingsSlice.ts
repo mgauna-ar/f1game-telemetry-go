@@ -1,12 +1,10 @@
 import type { StateCreator } from 'zustand';
-import {
-  RADIO_ALERT_CONSTANTS,
-  RADIO_TRIGGER_PRESETS,
-} from '../../constants/f1';
+import { RADIO_TRIGGER_PRESETS } from '../../constants/f1';
 import {
   buildAIConfigFromValues,
   type RadioSettingsState,
 } from '../useRadioSettingsStore';
+import { TRIGGER_PRESET_VALUES } from './triggerPresets';
 
 export interface TacticalSettingsSlice {
   smartDiscretionEnabled: boolean;
@@ -135,47 +133,10 @@ export function getInitialTacticalSettings(): Omit<
   | 'setSubTrackLimits'
   | 'setSubPenalties'
 > {
+  // First run starts on the Immersive preset so the panel label matches what's enabled.
   return {
     smartDiscretionEnabled: true,
-    chatterCooldownSeconds: RADIO_ALERT_CONSTANTS.CHATTER_PRESETS.NORMAL,
-
-    tyreAlertsEnabled: true,
-    thermalAlertsEnabled: true,
-    damageAlertsEnabled: true,
-    ersAlertsEnabled: true,
-    brakesAlertsEnabled: true,
-    fuelAlertsEnabled: true,
-    rivalAlertsEnabled: true,
-    pitWindowAlertsEnabled: true,
-    qualyAlertsEnabled: true,
-    flagsPensAlertsEnabled: true,
-
-    subTyreWear: true,
-    subTyrePuncture: true,
-    subTyreThermal: true,
-    subTyreCold: true,
-    subDamageWing: true,
-    subDamageFloor: true,
-    subDamageEngine: true,
-    subDamageFaults: true,
-    subErsLow: true,
-    subEngineTemp: true,
-    subBrakeTemp: true,
-    subBrakeCold: true,
-    subFuelDelta: true,
-    subUndercut: true,
-    subPitWindow: true,
-    subRivalDefend: true,
-    subRivalAttack: true,
-    subQualyTraffic: true,
-    subQualyInvalid: true,
-    subQualyTime: true,
-    subQualyElim: true,
-    subSafetyCar: true,
-    subRedFlag: true,
-    subRain: true,
-    subTrackLimits: true,
-    subPenalties: true,
+    ...TRIGGER_PRESET_VALUES[RADIO_TRIGGER_PRESETS.IMMERSIVE],
   };
 }
 

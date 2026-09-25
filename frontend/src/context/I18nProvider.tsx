@@ -2,16 +2,17 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { availableLocales, getTranslation } from '../locales';
 import type { LocaleCode, TranslationKey } from '../locales';
 import { I18nContext } from './I18nContext';
+import { storage } from '../utils/storage';
 
 const STORAGE_KEY = 'f1_telemetry_language';
 
 function detectDefaultLocale(): LocaleCode {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved === 'en' || saved === 'es') {
-      return saved;
-    }
+  const saved = storage.get<string>(STORAGE_KEY, '');
+  if (saved === 'en' || saved === 'es') {
+    return saved;
+  }
 
+  try {
     if (typeof navigator !== 'undefined' && navigator.language) {
       const navLang = navigator.language.toLowerCase();
       if (navLang.startsWith('es')) {
@@ -19,7 +20,7 @@ function detectDefaultLocale(): LocaleCode {
       }
     }
   } catch {
-    // Ignore localStorage / navigator access issues in restrictive environments
+    // Ignore navigator access issues in restrictive environments
   }
   return 'en';
 }
@@ -29,11 +30,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 
   const setLocale = useCallback((newLocale: LocaleCode) => {
     setLocaleState(newLocale);
-    try {
-      localStorage.setItem(STORAGE_KEY, newLocale);
-    } catch {
-      // Ignore localStorage write errors
-    }
+    storage.set(STORAGE_KEY, newLocale);
     if (typeof document !== 'undefined') {
       document.documentElement.lang = newLocale;
     }

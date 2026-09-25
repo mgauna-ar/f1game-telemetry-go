@@ -111,7 +111,7 @@ func (e *EngineerEngine) SetBroadcaster(b DirectiveBroadcaster) {
 func (e *EngineerEngine) GetConfig() EngineerConfig {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	return e.config
+	return e.config.clone()
 }
 
 // SetConfig updates the configuration.
@@ -121,6 +121,7 @@ func (e *EngineerEngine) SetConfig(cfg EngineerConfig) {
 	if cfg.ChatterCooldownMs <= 0 {
 		cfg.ChatterCooldownMs = DefaultDirectiveCooldownMs
 	}
+	cfg = cfg.clone()
 	if cfg.EnabledCategories == nil {
 		cfg.EnabledCategories = make(map[string]bool)
 	}
