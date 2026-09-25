@@ -53,6 +53,7 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       const providerKeys: Record<string, string> = {
         gemini: '',
         openai: '',
+        claude: '',
         custom: '',
         ...(parsed.providerKeys || {}),
       };
@@ -77,8 +78,7 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
       const activeKey = providerKeys[currentProv] || '';
       const activeModel =
-        providerModels[currentProv] ||
-        (currentProv === 'gemini' ? DEFAULT_AI_MODELS.gemini : DEFAULT_AI_MODELS.openai);
+        providerModels[currentProv] || DEFAULT_AI_MODELS[currentProv] || DEFAULT_AI_MODELS.gemini;
 
       return {
         ...DEFAULT_CONFIG,

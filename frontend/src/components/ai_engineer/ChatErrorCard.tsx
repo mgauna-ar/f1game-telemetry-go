@@ -92,7 +92,11 @@ export const ChatErrorCard: React.FC<ChatErrorCardProps> = ({
             rel="noopener noreferrer"
             className="ai-error-action-btn ai-error-action-primary"
           >
-            <span>{t('ai_engineer.errors.getKeyButton', { provider: providerInfo.name })}</span>
+            <span>
+              {t(providerInfo.freeTier ? 'ai_engineer.errors.getKeyButton' : 'ai_engineer.errors.getPaidKeyButton', {
+                provider: providerInfo.name,
+              })}
+            </span>
             <ExternalLink size={11} />
           </a>
         )}

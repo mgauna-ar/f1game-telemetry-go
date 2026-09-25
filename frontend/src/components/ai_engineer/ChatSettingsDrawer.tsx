@@ -4,7 +4,7 @@ import { useI18n } from '../../context/I18nContext';
 import { AI_PROVIDER_URLS } from '../../constants/f1';
 import { ModelSelectorDropdown, type ModelItem } from './ModelSelectorDropdown';
 import { DEFAULT_AI_MODELS, type AIConfig } from '../../context/RaceEngineerContext';
-import type { ServerConfigStatus } from '../../hooks/useAIModels';
+import { hasServerKeyFor, type ServerConfigStatus } from '../../hooks/useAIModels';
 
 export interface ChatSettingsDrawerProps {
   isOpen: boolean;
@@ -51,9 +51,7 @@ export const ChatSettingsDrawer: React.FC<ChatSettingsDrawerProps> = ({
           onChange={(e) => {
             const prov = e.target.value as AIConfig['provider'];
             const nextKey = config.providerKeys?.[prov] || '';
-            const nextModel =
-              config.providerModels?.[prov] ||
-              (prov === 'gemini' ? DEFAULT_AI_MODELS.gemini : DEFAULT_AI_MODELS.openai);
+            const nextModel = config.providerModels?.[prov] || DEFAULT_AI_MODELS[prov];
 
             const updatedConfig: AIConfig = {
               ...config,
@@ -67,12 +65,13 @@ export const ChatSettingsDrawer: React.FC<ChatSettingsDrawerProps> = ({
         >
           <option value="gemini">{t('ai_engineer.geminiOption')}</option>
           <option value="openai">{t('ai_engineer.openaiOption')}</option>
+          <option value="claude">{t('ai_engineer.claudeOption')}</option>
           <option value="custom">{t('ai_engineer.customOption')}</option>
         </select>
 
         <label className="readout-label" style={{ marginTop: '0.65rem' }}>
           {t('ai_engineer.apiKey')}
-          {config.provider === 'gemini' && serverConfigStatus?.hasGeminiEnvKey && (
+          {hasServerKeyFor(serverConfigStatus, config.provider) && (
             <span className="ai-env-badge">{t('ai_engineer.serverEnvActive')}</span>
           )}
         </label>
@@ -81,8 +80,7 @@ export const ChatSettingsDrawer: React.FC<ChatSettingsDrawerProps> = ({
             type={showApiKey ? 'text' : 'password'}
             className="ui-input"
             placeholder={
-              (config.provider === 'gemini' && serverConfigStatus?.hasGeminiEnvKey) ||
-              (config.provider === 'openai' && serverConfigStatus?.hasOpenAIEnvKey)
+              hasServerKeyFor(serverConfigStatus, config.provider)
                 ? t('ai_engineer.usingServerKey')
                 : t('ai_engineer.enterApiKey')
             }

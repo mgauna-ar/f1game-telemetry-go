@@ -74,7 +74,7 @@ type ZoomedRangeInfo struct {
 
 // AIChatRequest represents the incoming chat request from the frontend.
 type AIChatRequest struct {
-	Provider string                    `json:"provider"` // "gemini", "openai", or "custom"
+	Provider string                    `json:"provider"` // "gemini", "openai", "claude", or "custom"
 	APIKey   string                    `json:"api_key,omitempty"`
 	BaseURL  string                    `json:"base_url,omitempty"`
 	Model    string                    `json:"model,omitempty"`
@@ -114,6 +114,7 @@ type ChatOptions struct {
 type AIConfigStatusResponse struct {
 	HasGeminiEnvKey bool   `json:"has_gemini_env_key"`
 	HasOpenAIEnvKey bool   `json:"has_openai_env_key"`
+	HasClaudeEnvKey bool   `json:"has_claude_env_key"`
 	DefaultProvider string `json:"default_provider"`
 	DefaultModel    string `json:"default_model"`
 }

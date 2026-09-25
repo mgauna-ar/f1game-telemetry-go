@@ -40,12 +40,13 @@ func (f *fakeTools) Execute(_ context.Context, name string, args json.RawMessage
 	return nil, errors.New("unknown tool " + name)
 }
 
-// scriptedUpstream serves one scripted reply per request and records the request bodies.
+// scriptedUpstream serves one scripted reply per request and records the request bodies and headers.
 type scriptedUpstream struct {
 	t       *testing.T
 	mu      sync.Mutex
 	replies []func(w http.ResponseWriter)
 	bodies  []map[string]any
+	headers []http.Header
 }
 
 func (s *scriptedUpstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -57,6 +58,7 @@ func (s *scriptedUpstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	n := len(s.bodies)
 	s.bodies = append(s.bodies, body)
+	s.headers = append(s.headers, r.Header.Clone())
 	reply := s.replies[min(n, len(s.replies)-1)]
 	s.mu.Unlock()
 	reply(w)
@@ -66,6 +68,12 @@ func (s *scriptedUpstream) requests() []map[string]any {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return append([]map[string]any(nil), s.bodies...)
+}
+
+func (s *scriptedUpstream) requestHeaders() []http.Header {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]http.Header(nil), s.headers...)
 }
 
 func sseReply(events ...string) func(w http.ResponseWriter) {
@@ -156,6 +164,13 @@ func jsonString(t *testing.T, v any, path ...any) string {
 
 var driverMessages = []AIChatMessage{{Role: "user", Content: "Where is Norris?"}}
 
+// chatWith runs one chat with the provider the way StreamChat does once the provider is resolved.
+func chatWith(providerID string, conn connection, model string, tools ToolExecutor, rec *httptest.ResponseRecorder) error {
+	conn.provider = providerID
+	chat := providers[providerID].newChat(conn, model, "system", driverMessages)
+	return runChat(context.Background(), providerID, model, chat, tools, sseWriter{w: rec, flusher: rec})
+}
+
 func TestStreamGemini_CallsToolsThenAnswers(t *testing.T) {
 	up, url := startUpstream(t,
 		sseReply(`{"candidates":[{"content":{"role":"model","parts":[{"functionCall":{"name":"get_driver","args":{"driver":"Norris"}},"thoughtSignature":"sig-1"}]}}]}`),
@@ -168,7 +183,7 @@ func TestStreamGemini_CallsToolsThenAnswers(t *testing.T) {
 	tools := &fakeTools{}
 	rec := httptest.NewRecorder()
 
-	if err := StreamGemini(context.Background(), "key", "gemini-flash-latest", "system", driverMessages, tools, rec, rec); err != nil {
+	if err := chatWith(ProviderGemini, connection{apiKey: "key"}, "gemini-flash-latest", tools, rec); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -183,6 +198,9 @@ func TestStreamGemini_CallsToolsThenAnswers(t *testing.T) {
 	reqs := up.requests()
 	if len(reqs) != 2 {
 		t.Fatalf("expected 2 upstream requests, got %d", len(reqs))
+	}
+	if key := up.requestHeaders()[0].Get("x-goog-api-key"); key != "key" {
+		t.Fatalf("expected the API key in the x-goog-api-key header, got %q", key)
 	}
 	if name := jsonPath(t, reqs[0], "tools", 0, "functionDeclarations", 1, "name"); name != "get_driver" {
 		t.Fatalf("expected the tools to be declared, got %v", name)
@@ -207,7 +225,7 @@ func TestStreamGemini_ForcesAnAnswerAfterMaxRounds(t *testing.T) {
 	useGeminiBaseURL(t, url)
 	rec := httptest.NewRecorder()
 
-	if err := StreamGemini(context.Background(), "key", "", "system", driverMessages, &fakeTools{}, rec, rec); err != nil {
+	if err := chatWith(ProviderGemini, connection{apiKey: "key"}, "", &fakeTools{}, rec); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -232,7 +250,7 @@ func TestStreamGemini_RetriesWithoutToolsWhenRejected(t *testing.T) {
 	useGeminiBaseURL(t, url)
 	rec := httptest.NewRecorder()
 
-	if err := StreamGemini(context.Background(), "key", "gemma-3", "system", driverMessages, &fakeTools{}, rec, rec); err != nil {
+	if err := chatWith(ProviderGemini, connection{apiKey: "key"}, "gemma-3", &fakeTools{}, rec); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	reqs := up.requests()
@@ -249,7 +267,7 @@ func TestStreamGemini_DoesNotRetryAnInvalidKey(t *testing.T) {
 	useGeminiBaseURL(t, url)
 	rec := httptest.NewRecorder()
 
-	err := StreamGemini(context.Background(), "bad", "", "system", driverMessages, &fakeTools{}, rec, rec)
+	err := chatWith(ProviderGemini, connection{apiKey: "bad"}, "", &fakeTools{}, rec)
 	var streamErr *AIStreamError
 	if !errors.As(err, &streamErr) || streamErr.Code != AIErrorInvalidAPIKey {
 		t.Fatalf("expected an invalid key error, got %v", err)
@@ -285,7 +303,7 @@ func TestStreamOpenAI_CallsToolsThenAnswers(t *testing.T) {
 	tools := &fakeTools{}
 	rec := httptest.NewRecorder()
 
-	if err := StreamOpenAI(context.Background(), url, "key", "gpt-4o-mini", "system", driverMessages, tools, rec, rec); err != nil {
+	if err := chatWith(ProviderOpenAI, connection{apiKey: "key", baseURL: url}, "gpt-4o-mini", tools, rec); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
@@ -329,7 +347,7 @@ func TestStreamOpenAI_ForcesAnAnswerAfterMaxRounds(t *testing.T) {
 	up, url := startUpstream(t, sseReply(`{"choices":[{"delta":{"tool_calls":[{"index":0,"id":"c","function":{"name":"get_standings","arguments":"{}"}}]}}]}`, `[DONE]`))
 	rec := httptest.NewRecorder()
 
-	if err := StreamOpenAI(context.Background(), url, "key", "gpt-4o-mini", "system", driverMessages, &fakeTools{}, rec, rec); err != nil {
+	if err := chatWith(ProviderOpenAI, connection{apiKey: "key", baseURL: url}, "gpt-4o-mini", &fakeTools{}, rec); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	reqs := up.requests()
@@ -345,7 +363,7 @@ func TestStreamOpenAI_RetriesWithoutToolsWhenRejected(t *testing.T) {
 	)
 	rec := httptest.NewRecorder()
 
-	if err := StreamOpenAI(context.Background(), url, "", "llama3", "system", driverMessages, &fakeTools{}, rec, rec); err != nil {
+	if err := chatWith(ProviderOpenAI, connection{apiKey: "", baseURL: url}, "llama3", &fakeTools{}, rec); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	reqs := up.requests()
@@ -389,10 +407,10 @@ func TestStreamChat_OffersToolsOnlyWithFreshTelemetry(t *testing.T) {
 			up, url := startUpstream(t, sseReply(`{"choices":[{"delta":{"content":"Copy."}}]}`, `[DONE]`))
 			rec := httptest.NewRecorder()
 			req := AIChatRequest{
-				Provider: "openai", APIKey: "key", BaseURL: url, Model: "gpt-4o-mini",
+				Provider: "custom", APIKey: "key", BaseURL: url, Model: "gpt-4o-mini",
 				Messages: driverMessages, Context: &TelemetryAnalysisContext{ContextMode: tc.mode},
 			}
-			if err := StreamChat(context.Background(), req, "", "", ChatOptions{Live: tc.live, Tools: &fakeTools{}}, rec, rec); err != nil {
+			if err := StreamChat(context.Background(), req, ServerKeys{}, ChatOptions{Live: tc.live, Tools: &fakeTools{}}, rec, rec); err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 			body := up.requests()[0]

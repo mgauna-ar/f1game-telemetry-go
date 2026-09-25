@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from 'react';
 import { api } from '../utils/apiClient';
 import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
 import type { AIConfig, ChatMessage } from '../context/RaceEngineerContext';
-import type { ServerConfigStatus } from './useAIModels';
+import { hasServerKeyFor, type ServerConfigStatus } from './useAIModels';
 import type { BackendContextPayload } from './useSystemPrompt';
 
 export interface UseAIChatStreamProps {
@@ -84,9 +84,7 @@ export const useAIChatStream = ({
       setMessages(nextMessages);
 
       // Pre-check if API key is missing before making network requests
-      const hasServerKey =
-        (config.provider === 'gemini' && serverConfigStatus?.hasGeminiEnvKey) ||
-        (config.provider === 'openai' && serverConfigStatus?.hasOpenAIEnvKey);
+      const hasServerKey = hasServerKeyFor(serverConfigStatus, config.provider);
 
       if (!config.apiKey && !hasServerKey && config.provider !== 'custom') {
         setMessages((prev) =>

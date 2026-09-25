@@ -213,6 +213,24 @@ func TestHandlersAI(t *testing.T) {
 		}
 	})
 
+	t.Run("GET /api/ai/config-status with only a Claude key", func(t *testing.T) {
+		prev := server.config
+		server.config.ClaudeAPIKey = "sk-ant-test"
+		t.Cleanup(func() { server.config = prev })
+
+		req := httptest.NewRequest(http.MethodGet, "/api/ai/config-status", http.NoBody)
+		rec := httptest.NewRecorder()
+		server.Router().ServeHTTP(rec, req)
+
+		var cfg ai.AIConfigStatusResponse
+		if err := json.NewDecoder(rec.Body).Decode(&cfg); err != nil {
+			t.Fatalf("failed to decode config status: %v", err)
+		}
+		if !cfg.HasClaudeEnvKey || cfg.DefaultProvider != ai.ProviderClaude || cfg.DefaultModel != ai.DefaultClaudeModel {
+			t.Errorf("expected Claude as the default with its default model, got %+v", cfg)
+		}
+	})
+
 	t.Run("GET & POST /api/ai/engineer/config", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/ai/engineer/config", http.NoBody)
 		rec := httptest.NewRecorder()
