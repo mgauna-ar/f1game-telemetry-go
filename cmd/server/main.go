@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -50,7 +51,8 @@ type ServerConfig struct {
 	LLMProvider  string
 }
 
-// loadServerConfig parses CLI flags and environment variable fallbacks.
+// loadServerConfig parses CLI flags, falling back to environment variables (including any loaded
+// from a .env file) and then to built-in defaults.
 func loadServerConfig() ServerConfig {
 	udpFlag := flag.String("udp", getEnv("F1T_UDP_ADDR", defaultUDPAddr), "UDP listen address for F1 telemetry packets")
 	httpFlag := flag.String("http", getEnv("F1T_HTTP_ADDR", defaultHTTPAddr), "HTTP server address for Web Dashboard and API")
@@ -74,6 +76,11 @@ func loadServerConfig() ServerConfig {
 
 func main() {
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo})))
+
+	// Must run before loadServerConfig, which reads the environment for flag defaults.
+	for _, path := range loadDotEnv(dotEnvPaths()...) {
+		slog.Info("Loaded settings from .env file", "path", path)
+	}
 
 	cfg := loadServerConfig()
 
@@ -298,6 +305,9 @@ func printStartupBanner(ver, cmt, localURL, lanURL, udpAddr, dbPath string) {
 	fmt.Println("      5. UDP Send Rate:         20Hz (or 30Hz / 60Hz)")
 	fmt.Println("      6. UDP Format:            2026 (or 2025)")
 	fmt.Println()
+	if absPath, err := filepath.Abs(dbPath); err == nil {
+		dbPath = absPath
+	}
 	fmt.Printf("  📁  Database: %s\n", dbPath)
 	fmt.Println("  🛑  Press Ctrl+C at any time to stop.")
 	fmt.Println("  ========================================================")

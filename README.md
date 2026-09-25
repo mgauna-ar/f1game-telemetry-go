@@ -145,14 +145,20 @@ go run ./cmd/simulator -scenario pit       # Pit limiter entry, penalty hold, st
 
 ## ⚙️ Configuration (Optional)
 
-Configure server ports or AI API keys via environment variables (or directly within the in-app AI settings drawer):
+Server settings can be set with command-line flags, environment variables, or a `.env` file (copy `.env.example` to `.env` in the folder you start the app from, or next to the executable). Flags win over environment variables, and real environment variables win over `.env`. AI API keys can also be entered in the in-app AI settings drawer.
 
-| Variable | Description | Default |
-|---|---|---|
-| `F1T_UDP_ADDR` | UDP telemetry listener address | `0.0.0.0:20777` |
-| `F1T_HTTP_ADDR` | Web API & WebSocket server address | `:8080` |
-| `GEMINI_API_KEY` | Google Gemini API Key for AI Race Engineer | *(Can be set in UI)* |
-| `OPENAI_API_KEY` | OpenAI API Key for AI Race Engineer | *(Can be set in UI)* |
+| Flag | Variable | Description | Default |
+|---|---|---|---|
+| `-udp` | `F1T_UDP_ADDR` | UDP telemetry listener address | `0.0.0.0:20777` |
+| `-http` | `F1T_HTTP_ADDR` | Web API & WebSocket server address | `:8080` |
+| `-db` | `F1T_DB_PATH` | SQLite database file (relative paths are resolved from the current folder; the full path is shown at startup) | `f1telemetry.db` |
+| `-no-browser` | `F1T_NO_BROWSER` | Don't open the dashboard in a browser on startup | `false` |
+| | `GEMINI_API_KEY` | Google Gemini API Key for AI Race Engineer | *(Can be set in UI)* |
+| | `OPENAI_API_KEY` | OpenAI API Key for AI Race Engineer | *(Can be set in UI)* |
+
+The simulator sends to `127.0.0.1` on the server's `F1T_UDP_ADDR` port. Use `-target` (or `F1T_SIM_TARGET`) to send somewhere else, e.g. `go run ./cmd/simulator -target 192.168.1.20:20777`.
+
+Radio alert rules (presets, thresholds and which alerts are on) are saved in the database, so every device that opens the dashboard shares them. Voice, persona, volume, push-to-talk keys and AI provider settings are saved per browser.
 
 ---
 
