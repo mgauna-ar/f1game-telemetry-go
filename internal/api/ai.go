@@ -165,6 +165,12 @@ func (s *Server) handleGetEngineerConfig(w http.ResponseWriter, r *http.Request)
 	writeJSON(w, http.StatusOK, cfg)
 }
 
+// handleGetEngineerConfigDefaults returns the built-in Race Engineer Engine defaults, which the
+// settings panel uses for "Reset to defaults" so the UI and the engine share one set of values.
+func (s *Server) handleGetEngineerConfigDefaults(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, engineer.DefaultEngineerConfig())
+}
+
 // handleSetEngineerConfig updates active Race Engineer Engine rules and triggers configuration.
 func (s *Server) handleSetEngineerConfig(w http.ResponseWriter, r *http.Request) {
 	req := engineer.DefaultEngineerConfig()

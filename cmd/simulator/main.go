@@ -18,7 +18,8 @@ import (
 )
 
 const (
-	defaultTargetUDP            = "127.0.0.1:20777"
+	defaultTargetHost           = "127.0.0.1"
+	defaultTargetUDP            = defaultTargetHost + ":20777"
 	sendInterval                = 50 * time.Millisecond // 20Hz
 	simBrakingThrottleThreshold = 0.3
 	simBrakingForce             = 0.8
@@ -110,10 +111,11 @@ func loadSimulatorConfig() SimulatorConfig {
 	sessionFlag := flag.String("session", getEnv("F1T_SESSION_TYPE", "race"), "Session type to simulate: race, quali, q1, q2, q3, practice, timetrial")
 	formatFlag := flag.String("format", getEnv("F1T_PACKET_FORMAT", "2026"), "F1 UDP packet format: 2025 (20 active cars + 2 observers) or 2026 (22 active cars + 2 observers, default)")
 	scenarioFlag := flag.String("scenario", getEnv("F1T_SCENARIO", "default"), "Simulation scenario: default, wear / tyre-wear, sc / safetycar, vsc, rain, start, pit")
+	targetFlag := flag.String("target", getEnv("F1T_SIM_TARGET", defaultSimTarget()), "UDP address to send packets to (defaults to the server's F1T_UDP_ADDR port on 127.0.0.1)")
 	flag.Parse()
 
 	scenario := strings.ToLower(strings.TrimSpace(*scenarioFlag))
-	targetAddr := getEnv("F1T_UDP_ADDR", defaultTargetUDP)
+	targetAddr := *targetFlag
 
 	packetFormat := uint16(packets.PacketFormat2026)
 	gameYear := uint8(26)
@@ -1207,6 +1209,27 @@ func sendTyreSetsPacket(conn *net.UDPConn, pkt *packets.PacketTyreSetsData) {
 	pkt.Header.PacketId = packets.PacketIDTyreSets
 	_ = binary.Write(&buf, binary.LittleEndian, pkt)
 	_, _ = conn.Write(buf.Bytes())
+}
+
+// defaultSimTarget follows the server's listen port from F1T_UDP_ADDR, but sends to loopback when
+// that address is a listen-on-all address such as 0.0.0.0, which isn't a valid destination on Windows.
+func defaultSimTarget() string {
+	listenAddr, ok := os.LookupEnv("F1T_UDP_ADDR")
+	if !ok {
+		return defaultTargetUDP
+	}
+	return simTargetForListenAddr(listenAddr)
+}
+
+func simTargetForListenAddr(listenAddr string) string {
+	host, port, err := net.SplitHostPort(strings.TrimSpace(listenAddr))
+	if err != nil || port == "" {
+		return defaultTargetUDP
+	}
+	if ip := net.ParseIP(host); host == "" || (ip != nil && ip.IsUnspecified()) {
+		host = defaultTargetHost
+	}
+	return net.JoinHostPort(host, port)
 }
 
 func getEnv(key, fallback string) string {

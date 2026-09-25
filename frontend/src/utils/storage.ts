@@ -1,54 +1,20 @@
+import type { RADIO_STORAGE_KEYS } from '../constants/f1';
+
+type RadioStorageKey = (typeof RADIO_STORAGE_KEYS)[keyof typeof RADIO_STORAGE_KEYS];
+
+/** Every key the app keeps in localStorage. These settings are per browser, not per server. */
 export type KnownStorageKey =
+  | RadioStorageKey
   | 'f1_active_tab'
+  | 'f1_telemetry_dismissed_update'
   | 'f1_telemetry_language'
   | 'f1_live_view_mode'
   | 'f1_ai_engineer_config'
-  | 'f1_ai_ptt_config'
-  | 'f1_ai_open'
-  | 'f1_telemetry_dismissed_update'
+  | 'f1_ai_engineer_open'
   | 'f1_comparator_quick_select_open'
   | 'f1_comparator_default_driver_name'
   | 'f1_comparator_rival_mode'
-  | 'f1_comparator_rival_driver_name'
-  | 'f1_radio_volume'
-  | 'f1_radio_speech_rate'
-  | 'f1_radio_speech_pitch'
-  | 'f1_radio_persona'
-  | 'f1_radio_language'
-  | 'f1_radio_voice'
-  | 'f1_radio_custom_prompt'
-  | 'f1_radio_driver_callsign'
-  | 'f1_radio_hud_power'
-  | 'f1_radio_discretion_apex'
-  | 'f1_radio_discretion_heavy_braking'
-  | 'f1_radio_cooldown_mode'
-  | 'f1_radio_cooldown_custom_sec'
-  | 'f1_radio_gamepad_mapping'
-  | 'f1_radio_keyboard_key'
-  | 'f1_radio_ptt_mode'
-  | 'f1_radio_tyre_wear_warn_pct'
-  | 'f1_radio_tyre_wear_crit_pct'
-  | 'f1_radio_tyre_thermal_high_c'
-  | 'f1_radio_front_wing_warn_pct'
-  | 'f1_radio_front_wing_crit_pct'
-  | 'f1_radio_floor_warn_pct'
-  | 'f1_radio_engine_wear_warn_pct'
-  | 'f1_radio_ers_low_soc_warn_pct'
-  | 'f1_radio_brake_temp_high_c'
-  | 'f1_radio_fuel_deficit_warn_laps'
-  | 'f1_radio_rival_drs_window_warn_s'
-  | 'f1_radio_micro_sector_pace_loss_s'
-  | 'f1_radio_qualy_traffic_gap_warn_s'
-  | 'f1_radio_qualy_track_limits_warn'
-  | 'f1_radio_qualy_time_remaining_warn_min'
-  | 'f1_radio_qualy_elimination_danger_warn'
-  | 'f1_radio_steward_penalty_warn'
-  | 'f1_radio_rain_forecast_incoming_warn'
-  | 'f1_radio_track_grip_transition_warn'
-  | 'f1_radio_teammate_proximity_warn_s'
-  | 'f1_radio_teammate_pitting_warn'
-  | 'f1_radio_traffic_window_warn_s'
-  | 'f1_radio_style_preset';
+  | 'f1_comparator_rival_driver_name';
 
 export type StorageKey = KnownStorageKey | (string & {});
 

@@ -30,7 +30,9 @@ func LoadEngineerConfig(ctx context.Context, repo SettingsStore) (*EngineerConfi
 		return nil, nil
 	}
 
-	var cfg EngineerConfig
+	// Start from the defaults so fields added after the config was saved keep their default value
+	// instead of loading as zero.
+	cfg := DefaultEngineerConfig()
 	if err := json.Unmarshal([]byte(val), &cfg); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal engineer config JSON: %w", err)
 	}

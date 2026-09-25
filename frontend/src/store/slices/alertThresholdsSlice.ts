@@ -3,6 +3,7 @@ import {
   RADIO_ALERT_CONSTANTS,
   RADIO_TRIGGER_PRESETS,
 } from '../../constants/f1';
+import type { EngineerConfig } from '../../types/telemetry';
 import {
   buildAIConfigFromValues,
   type RadioSettingsState,
@@ -76,22 +77,52 @@ export function getInitialAlertThresholds(): Omit<
     tyreWearWarningPct: RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_WARN_PCT,
     tyreWearCriticalPct: RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_CRIT_PCT,
     tyreOverheatC: RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_OVERHEAT_C,
-    tyreColdC: RADIO_ALERT_CONSTANTS.TYRE_TEMP_COLD_C,
+    tyreColdC: RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_COLD_C,
     wingDamageWarnPct: RADIO_ALERT_CONSTANTS.DEFAULT_WING_DAMAGE_WARN_PCT,
     floorDamageWarnPct: RADIO_ALERT_CONSTANTS.DEFAULT_FLOOR_DAMAGE_WARN_PCT,
     engineWearWarnPct: RADIO_ALERT_CONSTANTS.DEFAULT_ENGINE_WEAR_WARN_PCT,
     ersLowPct: RADIO_ALERT_CONSTANTS.DEFAULT_ERS_LOW_PCT,
     engineOverheatC: RADIO_ALERT_CONSTANTS.DEFAULT_ENGINE_OVERHEAT_C,
-    brakeOverheatC: 1000,
+    brakeOverheatC: RADIO_ALERT_CONSTANTS.DEFAULT_BRAKE_OVERHEAT_C,
     brakeColdC: RADIO_ALERT_CONSTANTS.DEFAULT_BRAKE_COLD_C,
     fuelDeltaLaps: RADIO_ALERT_CONSTANTS.DEFAULT_FUEL_DELTA_LAPS,
-    undercutGapSec: 3.0,
+    undercutGapSec: RADIO_ALERT_CONSTANTS.DEFAULT_UNDERCUT_GAP_SEC,
     rivalGapThresholdSec: RADIO_ALERT_CONSTANTS.DEFAULT_RIVAL_GAP_SEC,
     rivalAheadGapSec: RADIO_ALERT_CONSTANTS.DEFAULT_RIVAL_AHEAD_GAP_SEC,
     qualyCleanAirSec: RADIO_ALERT_CONSTANTS.DEFAULT_QUALY_CLEAN_AIR_SEC,
     cornerCutWarnThreshold: RADIO_ALERT_CONSTANTS.DEFAULT_CORNER_CUT_WARN_THRESHOLD,
-    rainHorizonMin: 10,
+    rainHorizonMin: RADIO_ALERT_CONSTANTS.DEFAULT_RAIN_HORIZON_MIN,
     rainProbPct: RADIO_ALERT_CONSTANTS.DEFAULT_RAIN_PROB_PCT,
+  };
+}
+
+export type AlertThresholdValues = ReturnType<typeof getInitialAlertThresholds>;
+
+/** Maps engine config thresholds onto the settings panel, keeping `fallback` for missing fields. */
+export function thresholdsFromEngineerConfig(
+  cfg: Partial<EngineerConfig>,
+  fallback: AlertThresholdValues
+): AlertThresholdValues {
+  return {
+    tyreWearWarningPct: cfg.tyre_wear_warn_pct ?? fallback.tyreWearWarningPct,
+    tyreWearCriticalPct: cfg.tyre_wear_crit_pct ?? fallback.tyreWearCriticalPct,
+    tyreOverheatC: cfg.tyre_overheat_c ?? fallback.tyreOverheatC,
+    tyreColdC: cfg.tyre_cold_c ?? fallback.tyreColdC,
+    wingDamageWarnPct: cfg.wing_damage_warn_pct ?? fallback.wingDamageWarnPct,
+    floorDamageWarnPct: cfg.floor_damage_warn_pct ?? fallback.floorDamageWarnPct,
+    engineWearWarnPct: cfg.engine_wear_warn_pct ?? fallback.engineWearWarnPct,
+    ersLowPct: cfg.ers_low_pct ?? fallback.ersLowPct,
+    engineOverheatC: cfg.engine_overheat_c ?? fallback.engineOverheatC,
+    brakeOverheatC: cfg.brake_overheat_c ?? fallback.brakeOverheatC,
+    brakeColdC: cfg.brake_cold_c ?? fallback.brakeColdC,
+    fuelDeltaLaps: cfg.fuel_delta_laps ?? fallback.fuelDeltaLaps,
+    undercutGapSec: cfg.undercut_gap_sec ?? fallback.undercutGapSec,
+    rivalGapThresholdSec: cfg.rival_gap_sec ?? fallback.rivalGapThresholdSec,
+    rivalAheadGapSec: cfg.rival_ahead_gap_sec ?? fallback.rivalAheadGapSec,
+    qualyCleanAirSec: cfg.qualy_clean_air_sec ?? fallback.qualyCleanAirSec,
+    cornerCutWarnThreshold: cfg.corner_cut_warn_threshold ?? fallback.cornerCutWarnThreshold,
+    rainHorizonMin: cfg.rain_horizon_min ?? fallback.rainHorizonMin,
+    rainProbPct: cfg.rain_prob_pct ?? fallback.rainProbPct,
   };
 }
 

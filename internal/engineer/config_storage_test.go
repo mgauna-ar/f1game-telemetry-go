@@ -67,3 +67,86 @@ func TestEngineerConfigStorage(t *testing.T) {
 		t.Errorf("expected nil, nil on nil repo, got %v, %v", nilCfg, err)
 	}
 }
+
+func TestLoadEngineerConfig_FillsFieldsMissingFromOlderSaves(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "test_engineer_config_upgrade.db")
+	repo, err := storage.NewSQLiteRepository(dbPath)
+	if err != nil {
+		t.Fatalf("failed to create repo: %v", err)
+	}
+	defer repo.Close()
+
+	ctx := context.Background()
+
+	// A config saved by an older version, before global_chatter_cooldown_ms and most thresholds existed.
+	legacy := `{"chatter_cooldown_ms":30000,"tyre_wear_warn_pct":48,"enabled_categories":{"tyre_wear":false}}`
+	if err := repo.SetSetting(ctx, SettingKeyEngineerConfig, legacy); err != nil {
+		t.Fatalf("SetSetting failed: %v", err)
+	}
+
+	cfg, err := LoadEngineerConfig(ctx, repo)
+	if err != nil || cfg == nil {
+		t.Fatalf("LoadEngineerConfig failed: cfg=%v err=%v", cfg, err)
+	}
+
+	defaults := DefaultEngineerConfig()
+	if cfg.ChatterCooldownMs != 30000 || cfg.TyreWearWarnPct != 48 {
+		t.Errorf("expected saved values to be kept, got cooldown=%d tyreWarn=%f", cfg.ChatterCooldownMs, cfg.TyreWearWarnPct)
+	}
+	if cfg.GlobalChatterCooldownMs != defaults.GlobalChatterCooldownMs {
+		t.Errorf("expected missing GlobalChatterCooldownMs to default to %d, got %d", defaults.GlobalChatterCooldownMs, cfg.GlobalChatterCooldownMs)
+	}
+	if cfg.BrakeOverheatC != defaults.BrakeOverheatC {
+		t.Errorf("expected missing BrakeOverheatC to default to %f, got %f", defaults.BrakeOverheatC, cfg.BrakeOverheatC)
+	}
+	if cfg.IsAlertEnabled(string(DirectiveCategoryTyres), "tyre_wear") {
+		t.Errorf("expected saved tyre_wear=false to be kept")
+	}
+}
+
+func TestEngineerConfigStorage_PersistsSettingsPanelState(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "test_engineer_config_panel.db")
+	repo, err := storage.NewSQLiteRepository(dbPath)
+	if err != nil {
+		t.Fatalf("failed to create repo: %v", err)
+	}
+	defer repo.Close()
+
+	ctx := context.Background()
+	cfg := DefaultEngineerConfig()
+	cfg.TriggerPreset = "minimal"
+	cfg.AlertSwitches = map[string]bool{"tyreAlertsEnabled": false, "subTyrePuncture": true}
+
+	if err := SaveEngineerConfig(ctx, repo, cfg); err != nil {
+		t.Fatalf("SaveEngineerConfig failed: %v", err)
+	}
+	loaded, err := LoadEngineerConfig(ctx, repo)
+	if err != nil || loaded == nil {
+		t.Fatalf("LoadEngineerConfig failed: cfg=%v err=%v", loaded, err)
+	}
+	if loaded.TriggerPreset != "minimal" {
+		t.Errorf("expected TriggerPreset minimal, got %q", loaded.TriggerPreset)
+	}
+	if loaded.AlertSwitches["tyreAlertsEnabled"] || !loaded.AlertSwitches["subTyrePuncture"] {
+		t.Errorf("expected AlertSwitches to round-trip, got %v", loaded.AlertSwitches)
+	}
+}
+
+func TestEngineerEngine_ConfigMapsAreNotShared(t *testing.T) {
+	engine := NewEngineerEngine(nil)
+	input := DefaultEngineerConfig()
+	input.EnabledCategories = map[string]bool{"tyre_wear": true}
+	input.AlertSwitches = map[string]bool{"tyreAlertsEnabled": true}
+	engine.SetConfig(input)
+
+	// Mutating the caller's maps or a returned copy must not change the engine's live config.
+	input.EnabledCategories["tyre_wear"] = false
+	got := engine.GetConfig()
+	got.EnabledCategories["tyre_wear"] = false
+	got.AlertSwitches["tyreAlertsEnabled"] = false
+
+	live := engine.GetConfig()
+	if !live.EnabledCategories["tyre_wear"] || !live.AlertSwitches["tyreAlertsEnabled"] {
+		t.Errorf("expected engine config maps to be isolated, got %v / %v", live.EnabledCategories, live.AlertSwitches)
+	}
+}
