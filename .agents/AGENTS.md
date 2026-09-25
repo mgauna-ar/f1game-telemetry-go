@@ -9,7 +9,7 @@ This file (`.agents/AGENTS.md`) contains workspace-specific rules, architectural
     - `internal/api/`: HTTP router, request decoding, middleware, and response serialization only. **Zero heavy domain or analytical logic.**
     - `internal/session/`: Live session tracking, `LapTracker` memory buffering, `TelemetryBatchWriter`, and session import/export services.
     - `internal/analytics/`: Server-side computational analytics (classification standings, lap comparator distance merging, progression matrices, tyre stint degradation OLS regression).
-    - `internal/engineer/`: Modular Strategy pattern AI race engineer rules engine (`EngineerEngine`, `EngineerRule`).
+    - `internal/engineer/`: Modular Strategy pattern AI race engineer rules engine (`EngineerEngine`, `EngineerRule`). The engine also keeps the race history (player laps, rival session histories, race events, its own radio calls) and builds the live race picture the AI chat reads (`RaceContext()`, `LiveBriefing()`; served at `GET /api/ai/engineer/race-context`). `internal/ai` reads it through the `ai.LiveRaceSource` interface, and in live mode the server-built summary replaces the one the browser sends.
     - `internal/storage/`: SQLite repository, data models with custom `MarshalJSON` sanitization, versioned migrations, and raw zstd compression.
     - `internal/packets/`: Strict 1:1 binary UDP telemetry decoders and domain constants.
     - `internal/ai/`: External AI providers (Gemini, OpenAI) and neural TTS voice synthesis.

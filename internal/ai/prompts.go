@@ -66,6 +66,7 @@ func buildLivePrompt(telemetryCtx *TelemetryAnalysisContext, persona, language s
 		sb.WriteString(catalog.DriverCallsignDirective(telemetryCtx.DriverCallsign))
 	}
 	sb.WriteString(catalog.CriticalRadioConstraints())
+	sb.WriteString(catalog.LiveDataDirective())
 
 	// Dynamic Urgency Level Injection
 	if telemetryCtx != nil && telemetryCtx.UrgencyLevel != "" {

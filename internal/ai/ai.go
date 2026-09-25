@@ -65,7 +65,7 @@ func FetchModels(ctx context.Context, req AIFetchModelsRequest, defaultGeminiKey
 }
 
 // StreamChat executes streaming LLM chat requests for Lap Comparator or live telemetry analysis.
-func StreamChat(ctx context.Context, req AIChatRequest, defaultGeminiKey, defaultOpenAIKey string, w http.ResponseWriter, flusher http.Flusher) error {
+func StreamChat(ctx context.Context, req AIChatRequest, defaultGeminiKey, defaultOpenAIKey string, opts ChatOptions, w http.ResponseWriter, flusher http.Flusher) error {
 	provider, apiKey := ResolveProviderAndKey(req.Provider, req.APIKey, defaultGeminiKey, defaultOpenAIKey)
 	if apiKey == "" && provider != "custom" {
 		return &AIStreamError{
@@ -77,6 +77,7 @@ func StreamChat(ctx context.Context, req AIChatRequest, defaultGeminiKey, defaul
 	}
 
 	model := ResolveDefaultModel(provider, req.Model)
+	applyLiveBriefing(req.Context, opts.Live)
 	systemPrompt := BuildSystemPrompt(req.Context, req.Persona, req.Language)
 
 	if provider == "gemini" {
@@ -88,4 +89,25 @@ func StreamChat(ctx context.Context, req AIChatRequest, defaultGeminiKey, defaul
 		baseURL = "https://api.openai.com/v1"
 	}
 	return StreamOpenAI(ctx, baseURL, apiKey, model, systemPrompt, req.Messages, w, flusher)
+}
+
+// applyLiveBriefing swaps the client's live summary for the server-built briefing when the
+// server has fresh telemetry. It reports whether the briefing was applied.
+func applyLiveBriefing(tc *TelemetryAnalysisContext, live LiveRaceSource) bool {
+	if tc == nil || tc.ContextMode != "live" || live == nil {
+		return false
+	}
+	briefing, ok := live.LiveBriefing()
+	if !ok {
+		return false
+	}
+	tc.LiveSummary = briefing.Summary
+	tc.TrackName = briefing.TrackName
+	tc.SessionType = briefing.SessionType
+	tc.DrivingPhase = briefing.DrivingPhase
+	tc.IncidentStatus = briefing.IncidentStatus
+	if briefing.PacketFormat > 0 {
+		tc.PacketFormat = briefing.PacketFormat
+	}
+	return true
 }

@@ -92,7 +92,7 @@ func TestBuildSystemPrompt(t *testing.T) {
 		if !strings.Contains(prompt, "argentino") || !strings.Contains(prompt, "gomas") {
 			t.Errorf("expected prompt to contain Argentine motorsport persona")
 		}
-		if !strings.Contains(prompt, "MAXIMUM 2 SHORT SENTENCES") {
+		if !strings.Contains(prompt, "1-2 short sentences") {
 			t.Errorf("expected prompt to contain brevity constraint")
 		}
 	})
@@ -443,4 +443,59 @@ func TestStreamSSEResponse(t *testing.T) {
 	if !strings.Contains(output, "HELLO") || !strings.Contains(output, "WORLD") || !strings.Contains(output, "data: [DONE]\n\n") {
 		t.Errorf("unexpected sse output: %s", output)
 	}
+}
+
+type fakeLiveRace struct {
+	briefing LiveBriefing
+	ok       bool
+}
+
+func (f fakeLiveRace) LiveBriefing() (LiveBriefing, bool) { return f.briefing, f.ok }
+
+func TestApplyLiveBriefing(t *testing.T) {
+	server := fakeLiveRace{ok: true, briefing: LiveBriefing{
+		Summary:        "LIVE PIT WALL DATA:\n- Car ahead: P2 Charles Leclerc, 1.100s ahead of you",
+		TrackName:      "Silverstone",
+		SessionType:    "Race",
+		PacketFormat:   2026,
+		DrivingPhase:   "RACING",
+		IncidentStatus: "vsc",
+	}}
+	browserContext := func(mode string) *TelemetryAnalysisContext {
+		return &TelemetryAnalysisContext{ContextMode: mode, LiveSummary: "browser summary", TrackName: "Monza", PacketFormat: 2025}
+	}
+
+	t.Run("live chat uses the server's race picture", func(t *testing.T) {
+		tc := browserContext("live")
+		if !applyLiveBriefing(tc, server) {
+			t.Fatalf("expected the live briefing to apply")
+		}
+		if tc.LiveSummary != server.briefing.Summary || tc.TrackName != "Silverstone" || tc.PacketFormat != 2026 || tc.IncidentStatus != "vsc" {
+			t.Fatalf("expected the server briefing to replace the browser context, got %+v", tc)
+		}
+		prompt := BuildSystemPrompt(tc, "bono", "en")
+		if !strings.Contains(prompt, "Charles Leclerc, 1.100s ahead of you") || !strings.Contains(prompt, "USING THE PIT WALL DATA") {
+			t.Fatalf("expected the prompt to carry the pit wall data and how to use it:\n%s", prompt)
+		}
+	})
+
+	t.Run("keeps the browser context when telemetry is stale", func(t *testing.T) {
+		tc := browserContext("live")
+		if applyLiveBriefing(tc, fakeLiveRace{ok: false}) || tc.LiveSummary != "browser summary" {
+			t.Fatalf("expected the browser context to be kept, got %+v", tc)
+		}
+	})
+
+	t.Run("leaves debriefs alone", func(t *testing.T) {
+		tc := browserContext("session_debrief")
+		if applyLiveBriefing(tc, server) || tc.LiveSummary != "browser summary" {
+			t.Fatalf("expected a debrief context to be left alone, got %+v", tc)
+		}
+	})
+
+	t.Run("works without a live source", func(t *testing.T) {
+		if applyLiveBriefing(browserContext("live"), nil) || applyLiveBriefing(nil, server) {
+			t.Fatalf("expected no briefing without a source or context")
+		}
+	})
 }

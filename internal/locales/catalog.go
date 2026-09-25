@@ -32,6 +32,9 @@ type PromptCatalog interface {
 	// CriticalRadioConstraints returns the mandatory pit-to-car radio protocols.
 	CriticalRadioConstraints() string
 
+	// LiveDataDirective tells the engineer to answer from the live pit wall data and the radio conversation.
+	LiveDataDirective() string
+
 	// UrgencyDirective returns the contextual prompt injection for urgent situations.
 	UrgencyDirective(level string) string
 

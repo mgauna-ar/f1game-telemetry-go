@@ -208,6 +208,7 @@ func (s *Server) setupAIRoutes(r chi.Router) {
 	r.Post("/ai/tts", s.handleAITTS)
 	r.Get("/ai/engineer/config", s.handleGetEngineerConfig)
 	r.Post("/ai/engineer/config", s.handleSetEngineerConfig)
+	r.Get("/ai/engineer/race-context", s.handleRaceContext)
 }
 
 func (s *Server) setupPTTRoutes(r chi.Router) {
