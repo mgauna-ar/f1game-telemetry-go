@@ -2,14 +2,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useRadioController } from './useRadioController';
 import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
-import { RADIO_PERSONAS, RADIO_STORAGE_KEYS, RADIO_LANGUAGES } from '../constants/f1';
+import { RADIO_PERSONAS, RADIO_LANGUAGES } from '../constants/f1';
 import * as radioAudio from '../utils/radioAudio';
+import { api } from '../utils/apiClient';
 
 describe('useRadioController hook', () => {
   beforeEach(() => {
     localStorage.clear();
     useRadioSettingsStore.getState().resetStoreToDefaults();
     vi.clearAllMocks();
+    // Voice changes are saved to the server; keep these tests offline.
+    vi.spyOn(api, 'put').mockResolvedValue({});
     vi.spyOn(radioAudio, 'playRadioBeep').mockResolvedValue();
     vi.spyOn(radioAudio, 'speakRadioResponse').mockImplementation(async (_text, opts) => {
       opts?.onStart?.();
@@ -40,7 +43,6 @@ describe('useRadioController hook', () => {
     });
 
     expect(result.current.persona).toBe(RADIO_PERSONAS.COLAPINTO);
-    expect(localStorage.getItem(RADIO_STORAGE_KEYS.PERSONA)).toBe(RADIO_PERSONAS.COLAPINTO);
   });
 
   it('triggers test radio transmission', async () => {
@@ -77,7 +79,6 @@ describe('useRadioController hook', () => {
     });
 
     expect(result.current.effectiveLanguage).toBe('en');
-    expect(localStorage.getItem(RADIO_STORAGE_KEYS.LANGUAGE)).toBe('en');
 
     // Test transmission with default Bono in English
     await act(async () => {
@@ -113,7 +114,6 @@ describe('useRadioController hook', () => {
     });
 
     expect(result.current.driverCallsign).toBe('Max');
-    expect(localStorage.getItem(RADIO_STORAGE_KEYS.DRIVER_CALLSIGN)).toBe('Max');
   });
 
   it('triggers audio tests for specific subsystems without proactive debug prefixes', async () => {

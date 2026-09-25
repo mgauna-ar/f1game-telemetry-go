@@ -1,17 +1,22 @@
-import React, { useState } from 'react';
-import { X, Eye, EyeOff, ExternalLink } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { X, Eye, EyeOff, ExternalLink, Check, Trash2 } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
 import { AI_PROVIDER_URLS } from '../../constants/f1';
 import { ModelSelectorDropdown, type ModelItem } from './ModelSelectorDropdown';
-import { DEFAULT_AI_MODELS, type AIConfig } from '../../context/RaceEngineerContext';
-import type { ServerConfigStatus } from '../../hooks/useAIModels';
+import {
+  AI_PROVIDER_OPTIONS,
+  type AIConfig,
+  type AIKeyStatusByProvider,
+  type AIProvider,
+} from '../../context/RaceEngineerContext';
 
 export interface ChatSettingsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   config: AIConfig;
   saveConfig: (config: AIConfig) => void;
-  serverConfigStatus: ServerConfigStatus | null;
+  keyStatus: AIKeyStatusByProvider;
+  saveApiKey: (provider: AIProvider, apiKey: string) => Promise<void>;
   availableModels: ModelItem[];
   isLoadingModels: boolean;
   modelsError: string | null;
@@ -23,7 +28,8 @@ export const ChatSettingsDrawer: React.FC<ChatSettingsDrawerProps> = ({
   onClose,
   config,
   saveConfig,
-  serverConfigStatus,
+  keyStatus,
+  saveApiKey,
   availableModels,
   isLoadingModels,
   modelsError,
@@ -31,8 +37,47 @@ export const ChatSettingsDrawer: React.FC<ChatSettingsDrawerProps> = ({
 }) => {
   const { t } = useI18n();
   const [showApiKey, setShowApiKey] = useState(false);
+  // The key field is write-only: saved keys stay on the server, so it only ever holds a new key.
+  const [draftKey, setDraftKey] = useState('');
+  const [isSavingKey, setIsSavingKey] = useState(false);
+  const [keyError, setKeyError] = useState<string | null>(null);
+  const [draftBaseUrl, setDraftBaseUrl] = useState(config.baseUrl);
+
+  useEffect(() => {
+    setDraftKey('');
+    setKeyError(null);
+  }, [config.provider]);
+
+  useEffect(() => {
+    setDraftBaseUrl(config.baseUrl);
+  }, [config.baseUrl]);
 
   if (!isOpen) return null;
+
+  const status = keyStatus[config.provider];
+  const providerUrl = AI_PROVIDER_URLS[config.provider];
+
+  const storeKey = async (value: string) => {
+    setIsSavingKey(true);
+    setKeyError(null);
+    try {
+      await saveApiKey(config.provider, value);
+      setDraftKey('');
+    } catch (err) {
+      setKeyError(err instanceof Error ? err.message : t('ai_engineer.apiKeySaveFailed'));
+    } finally {
+      setIsSavingKey(false);
+    }
+  };
+
+  const commitBaseUrl = () => {
+    const baseUrl = draftBaseUrl.trim();
+    if (baseUrl !== config.baseUrl) saveConfig({ ...config, baseUrl });
+  };
+
+  let keyPlaceholder = t('ai_engineer.enterApiKey');
+  if (status.hasSavedKey) keyPlaceholder = t('ai_engineer.apiKeySavedPlaceholder');
+  else if (status.hasEnvKey) keyPlaceholder = t('ai_engineer.usingServerKey');
 
   return (
     <div className="ai-widget-settings-panel glass-panel" data-testid="ai-settings-panel">
@@ -49,74 +94,91 @@ export const ChatSettingsDrawer: React.FC<ChatSettingsDrawerProps> = ({
           className="ui-select"
           value={config.provider}
           onChange={(e) => {
-            const prov = e.target.value as AIConfig['provider'];
-            const nextKey = config.providerKeys?.[prov] || '';
-            const nextModel = config.providerModels?.[prov] || DEFAULT_AI_MODELS[prov];
-
+            const provider = e.target.value as AIProvider;
             const updatedConfig: AIConfig = {
               ...config,
-              provider: prov,
-              apiKey: nextKey,
-              model: nextModel,
+              provider,
+              model: config.providerModels[provider],
             };
             saveConfig(updatedConfig);
             fetchAvailableModels(updatedConfig);
           }}
         >
-          <option value="gemini">{t('ai_engineer.geminiOption')}</option>
-          <option value="openai">{t('ai_engineer.openaiOption')}</option>
-          <option value="claude">{t('ai_engineer.claudeOption')}</option>
-          <option value="custom">{t('ai_engineer.customOption')}</option>
+          {AI_PROVIDER_OPTIONS.map((option) => (
+            <option key={option.provider} value={option.provider}>
+              {t(option.labelKey)}
+            </option>
+          ))}
+          {/* A provider picked through .env or the API that the list doesn't offer yet */}
+          {!AI_PROVIDER_OPTIONS.some((option) => option.provider === config.provider) && (
+            <option value={config.provider}>{config.provider}</option>
+          )}
         </select>
 
         <label className="readout-label" style={{ marginTop: '0.65rem' }}>
           {t('ai_engineer.apiKey')}
-          {config.provider === 'gemini' && serverConfigStatus?.hasGeminiEnvKey && (
+          {status.hasSavedKey && <span className="ai-env-badge">{t('ai_engineer.apiKeySaved')}</span>}
+          {!status.hasSavedKey && status.hasEnvKey && (
             <span className="ai-env-badge">{t('ai_engineer.serverEnvActive')}</span>
           )}
         </label>
-        <div className="ai-input-with-icon">
+        <div className="ai-key-input-wrapper">
           <input
             type={showApiKey ? 'text' : 'password'}
             className="ui-input"
-            placeholder={
-              (config.provider === 'gemini' && serverConfigStatus?.hasGeminiEnvKey) ||
-              (config.provider === 'openai' && serverConfigStatus?.hasOpenAIEnvKey)
-                ? t('ai_engineer.usingServerKey')
-                : t('ai_engineer.enterApiKey')
-            }
-            value={config.apiKey}
-            onChange={(e) => {
-              const val = e.target.value;
-              const updatedKeys = { ...(config.providerKeys || {}), [config.provider]: val };
-              saveConfig({ ...config, apiKey: val, providerKeys: updatedKeys });
+            autoComplete="off"
+            placeholder={keyPlaceholder}
+            value={draftKey}
+            onChange={(e) => setDraftKey(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && draftKey.trim()) storeKey(draftKey);
             }}
           />
-          <button
-            type="button"
-            className="ai-input-action-btn"
-            onClick={() => setShowApiKey(!showApiKey)}
-            aria-label={showApiKey ? 'Hide API key' : 'Show API key'}
-          >
-            {showApiKey ? <EyeOff size={13} /> : <Eye size={13} />}
-          </button>
+          <div className="ai-key-actions">
+            <button
+              type="button"
+              className="ai-key-action-btn"
+              onClick={() => setShowApiKey(!showApiKey)}
+              aria-label={showApiKey ? 'Hide API key' : 'Show API key'}
+            >
+              {showApiKey ? <EyeOff size={13} /> : <Eye size={13} />}
+            </button>
+            {draftKey.trim() && (
+              <button
+                type="button"
+                className="ai-key-action-btn"
+                onClick={() => storeKey(draftKey)}
+                disabled={isSavingKey}
+                aria-label={t('ai_engineer.saveApiKey')}
+                title={t('ai_engineer.saveApiKey')}
+              >
+                <Check size={13} />
+              </button>
+            )}
+            {status.hasSavedKey && !draftKey.trim() && (
+              <button
+                type="button"
+                className="ai-key-action-btn delete"
+                onClick={() => storeKey('')}
+                disabled={isSavingKey}
+                aria-label={t('ai_engineer.removeApiKey')}
+                title={t('ai_engineer.removeApiKey')}
+              >
+                <Trash2 size={13} />
+              </button>
+            )}
+          </div>
         </div>
+        <div className="ai-settings-hint">{keyError || t('ai_engineer.apiKeyStoredHint')}</div>
 
         {/* Direct Link to Get API Key for selected provider */}
-        {AI_PROVIDER_URLS[config.provider] && (
+        {providerUrl && (
           <div className="ai-settings-key-link">
-            <a
-              href={AI_PROVIDER_URLS[config.provider].url}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <a href={providerUrl.url} target="_blank" rel="noopener noreferrer">
               <span>
-                {t(
-                  AI_PROVIDER_URLS[config.provider].freeTier
-                    ? 'ai_engineer.getFreeApiKey'
-                    : 'ai_engineer.getApiKey',
-                  { provider: AI_PROVIDER_URLS[config.provider].name }
-                )}
+                {t(providerUrl.freeTier ? 'ai_engineer.getFreeApiKey' : 'ai_engineer.getApiKey', {
+                  provider: providerUrl.name,
+                })}
               </span>
               <ExternalLink size={11} />
             </a>
@@ -128,10 +190,7 @@ export const ChatSettingsDrawer: React.FC<ChatSettingsDrawerProps> = ({
           availableModels={availableModels}
           isLoadingModels={isLoadingModels}
           modelsError={modelsError}
-          onModelChange={(val) => {
-            const updatedModels = { ...(config.providerModels || {}), [config.provider]: val };
-            saveConfig({ ...config, model: val, providerModels: updatedModels });
-          }}
+          onModelChange={(model) => saveConfig({ ...config, model })}
           onRefreshModels={() => fetchAvailableModels()}
         />
 
@@ -142,9 +201,14 @@ export const ChatSettingsDrawer: React.FC<ChatSettingsDrawerProps> = ({
               type="text"
               className="ui-input"
               placeholder="https://api.openai.com/v1"
-              value={config.baseUrl}
-              onChange={(e) => saveConfig({ ...config, baseUrl: e.target.value })}
+              value={draftBaseUrl}
+              onChange={(e) => setDraftBaseUrl(e.target.value)}
+              onBlur={commitBaseUrl}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitBaseUrl();
+              }}
             />
+            <div className="ai-settings-hint">{t('ai_engineer.baseUrlKeyHint')}</div>
           </>
         )}
 
@@ -152,7 +216,10 @@ export const ChatSettingsDrawer: React.FC<ChatSettingsDrawerProps> = ({
           <button
             className="btn-primary"
             style={{ padding: '0.35rem 0.8rem', fontSize: '0.75rem' }}
-            onClick={onClose}
+            onClick={() => {
+              commitBaseUrl();
+              onClose();
+            }}
           >
             {t('ai_engineer.done')}
           </button>

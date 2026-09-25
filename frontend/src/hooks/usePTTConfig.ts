@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-  RADIO_STORAGE_KEYS,
+  LEGACY_RADIO_STORAGE_KEYS,
   RADIO_ALERT_CONSTANTS,
   RADIO_PTT_MODES,
   type RadioPTTMode,
@@ -11,6 +11,73 @@ import { storage } from '../utils/storage';
 export interface GamepadMapping {
   gamepadIndex: number;
   buttonIndex: number;
+}
+
+/** The push-to-talk setup shared by every device through GET/PUT /api/settings/ptt. */
+export interface PTTSettingsPayload {
+  mode: RadioPTTMode;
+  keyboard_key: string;
+  /** Windows virtual-key code, so the server can watch the key while the game has focus. */
+  key_code?: number;
+  gamepad?: { gamepad_index: number; button_index: number } | null;
+}
+
+interface PTTValues {
+  mode: RadioPTTMode;
+  gamepad: GamepadMapping | null;
+  key: string;
+}
+
+const isPTTMode = (value: unknown): value is RadioPTTMode =>
+  typeof value === 'string' && (Object.values(RADIO_PTT_MODES) as string[]).includes(value);
+
+export function pttToPayload(v: PTTValues): PTTSettingsPayload {
+  return {
+    mode: v.mode,
+    keyboard_key: v.key,
+    key_code: getVKCodeForName(v.key),
+    gamepad: v.gamepad ? { gamepad_index: v.gamepad.gamepadIndex, button_index: v.gamepad.buttonIndex } : null,
+  };
+}
+
+export function pttFromPayload(p: Partial<PTTSettingsPayload>): PTTValues {
+  return {
+    mode: isPTTMode(p.mode) ? p.mode : RADIO_PTT_MODES.HOLD,
+    gamepad: p.gamepad ? { gamepadIndex: p.gamepad.gamepad_index, buttonIndex: p.gamepad.button_index } : null,
+    key: p.keyboard_key || RADIO_ALERT_CONSTANTS.DEFAULT_KEYBOARD_KEY,
+  };
+}
+
+const LEGACY_PTT_KEYS = [
+  LEGACY_RADIO_STORAGE_KEYS.PTT_MODE,
+  LEGACY_RADIO_STORAGE_KEYS.GAMEPAD_MAPPING,
+  LEGACY_RADIO_STORAGE_KEYS.KEYBOARD_KEY,
+] as const;
+
+/** The push-to-talk setup an older version kept in this browser, or null when it kept none. */
+export function getLegacyPTTSettings(): PTTValues | null {
+  // Older versions wrote the mode and key as raw strings; a string fallback reads those back as-is.
+  const mode = storage.get<unknown>(LEGACY_RADIO_STORAGE_KEYS.PTT_MODE, '');
+  const storedKey = storage.get<unknown>(LEGACY_RADIO_STORAGE_KEYS.KEYBOARD_KEY, '');
+  const gamepad = storage.get<unknown>(LEGACY_RADIO_STORAGE_KEYS.GAMEPAD_MAPPING, null);
+  if (mode === '' && storedKey === '' && gamepad === null) return null;
+  // A digit key like "1" was stored raw and parses back as a number.
+  const key = typeof storedKey === 'number' ? String(storedKey) : storedKey;
+  const validGamepad =
+    gamepad !== null &&
+    typeof gamepad === 'object' &&
+    Number.isInteger((gamepad as GamepadMapping).gamepadIndex) &&
+    Number.isInteger((gamepad as GamepadMapping).buttonIndex) &&
+    (gamepad as GamepadMapping).buttonIndex >= 0;
+  return {
+    mode: isPTTMode(mode) ? mode : RADIO_PTT_MODES.HOLD,
+    gamepad: validGamepad ? (gamepad as GamepadMapping) : null,
+    key: typeof key === 'string' && key ? key : RADIO_ALERT_CONSTANTS.DEFAULT_KEYBOARD_KEY,
+  };
+}
+
+export function clearLegacyPTTSettings(): void {
+  LEGACY_PTT_KEYS.forEach((key) => storage.remove(key));
 }
 
 export interface GlobalPTTMapping {
@@ -96,69 +163,61 @@ export interface UsePTTConfigReturn {
   cancelLearning: () => void;
 }
 
+/**
+ * The push-to-talk setup. It is saved on the server, which also watches the key or wheel button
+ * while the game has focus, so every device shares one setup and it works right after a restart.
+ */
 export function usePTTConfig(): UsePTTConfigReturn {
   const [isLearning, setIsLearning] = useState(false);
   const [globalActive, setGlobalActive] = useState(false);
   const [globalMapping, setGlobalMapping] = useState<GlobalPTTMapping | null>(null);
+  const [pttMode, setPTTModeState] = useState<RadioPTTMode>(RADIO_PTT_MODES.HOLD);
+  const [mappedGamepadButton, setMappedGamepadButtonState] = useState<GamepadMapping | null>(null);
+  const [mappedKey, setMappedKeyState] = useState<string>(RADIO_ALERT_CONSTANTS.DEFAULT_KEYBOARD_KEY);
 
-  // Load PTT Mode (hold vs toggle)
-  const [pttMode, setPTTModeState] = useState<RadioPTTMode>(() => {
-    const saved = storage.get<RadioPTTMode>(RADIO_STORAGE_KEYS.PTT_MODE, RADIO_PTT_MODES.HOLD);
-    if (Object.values(RADIO_PTT_MODES).includes(saved)) return saved;
-    return RADIO_PTT_MODES.HOLD;
+  // Each save sends the whole setup, so keep the latest values at hand for the setters.
+  const valuesRef = useRef<PTTValues>({
+    mode: RADIO_PTT_MODES.HOLD,
+    gamepad: null,
+    key: RADIO_ALERT_CONSTANTS.DEFAULT_KEYBOARD_KEY,
   });
 
-  const setPTTMode = useCallback((mode: RadioPTTMode) => {
-    setPTTModeState(mode);
-    storage.set(RADIO_STORAGE_KEYS.PTT_MODE, mode);
+  const applyValues = useCallback((values: PTTValues) => {
+    valuesRef.current = values;
+    setPTTModeState(values.mode);
+    setMappedGamepadButtonState(values.gamepad);
+    setMappedKeyState(values.key);
   }, []);
 
-  // Load initial gamepad mapping
-  const [mappedGamepadButton, setMappedGamepadButtonState] = useState<GamepadMapping | null>(() => {
-    return storage.get<GamepadMapping | null>(RADIO_STORAGE_KEYS.GAMEPAD_MAPPING, null);
-  });
-
-  // Load initial keyboard key
-  const [mappedKey, setMappedKeyState] = useState<string>(() => {
-    return storage.get<string>(RADIO_STORAGE_KEYS.KEYBOARD_KEY, RADIO_ALERT_CONSTANTS.DEFAULT_KEYBOARD_KEY);
-  });
-
-  const setMappedGamepadButton = useCallback((mapping: GamepadMapping | null) => {
-    setMappedGamepadButtonState(mapping);
-    if (mapping) {
-      storage.set(RADIO_STORAGE_KEYS.GAMEPAD_MAPPING, mapping);
-      api.post('/api/ai/ptt/config', {
-        mapping: {
-          device_type: 'joystick',
-          device_index: mapping.gamepadIndex,
-          button_index: mapping.buttonIndex,
-          key_name: `Button ${mapping.buttonIndex + 1}`,
-          device_name: 'Controller / Wheel',
-        },
-      }).catch((err) => console.warn('[usePTTConfig] Sync failed:', err));
-    } else {
-      storage.remove(RADIO_STORAGE_KEYS.GAMEPAD_MAPPING);
-      api.post('/api/ai/ptt/config', {
-        mapping: {
-          device_type: 'none',
-        },
-      }).catch((err) => console.warn('[usePTTConfig] Sync failed:', err));
-    }
+  const refreshGlobalStatus = useCallback(async () => {
+    const data = await api
+      .get<{ status?: string; is_active?: boolean; mapping?: GlobalPTTMapping }>('/api/ai/ptt/config')
+      .catch(() => null);
+    if (!data || (data.status !== 'ok' && data.status !== 'success')) return;
+    setGlobalActive(!!data.is_active);
+    if (data.mapping) setGlobalMapping(data.mapping);
   }, []);
 
-  const setMappedKey = useCallback((key: string) => {
-    setMappedKeyState(key);
-    storage.set(RADIO_STORAGE_KEYS.KEYBOARD_KEY, key);
-    const isNone = !key || key === 'None';
-    api.post('/api/ai/ptt/config', {
-      mapping: {
-        device_type: isNone ? 'none' : 'keyboard',
-        key_code: getVKCodeForName(key),
-        key_name: key,
-        device_name: 'Keyboard',
-      },
-    }).catch((err) => console.warn('[usePTTConfig] Sync failed:', err));
-  }, []);
+  const saveValues = useCallback(
+    (changes: Partial<PTTValues>) => {
+      const next = { ...valuesRef.current, ...changes };
+      applyValues(next);
+      api
+        .put('/api/settings/ptt', pttToPayload(next))
+        .then(() => refreshGlobalStatus())
+        .catch((err) => console.warn('[usePTTConfig] Sync failed:', err));
+    },
+    [applyValues, refreshGlobalStatus]
+  );
+
+  const setPTTMode = useCallback((mode: RadioPTTMode) => saveValues({ mode }), [saveValues]);
+
+  const setMappedGamepadButton = useCallback(
+    (mapping: GamepadMapping | null) => saveValues({ gamepad: mapping }),
+    [saveValues]
+  );
+
+  const setMappedKey = useCallback((key: string) => saveValues({ key }), [saveValues]);
 
   const startLearning = useCallback(() => {
     setIsLearning(true);
@@ -170,56 +229,37 @@ export function usePTTConfig(): UsePTTConfigReturn {
     api.post('/api/ai/ptt/learn/cancel').catch((err) => console.warn('[usePTTConfig] Sync failed:', err));
   }, []);
 
-  // Sync initial global config to/from backend
+  // Load the saved setup, moving one an older version kept in this browser on first run
   useEffect(() => {
-    api.get<{ status?: string; is_active?: boolean; mapping?: GlobalPTTMapping }>('/api/ai/ptt/config')
-      .then((data) => {
-        if (!data || (data.status !== 'ok' && data.status !== 'success')) return;
-        setGlobalActive(!!data.is_active);
+    let cancelled = false;
+    const load = async () => {
+      const res = await api
+        .get<Partial<PTTSettingsPayload> & { saved?: boolean }>('/api/settings/ptt')
+        .catch(() => null);
+      if (cancelled || !res) return;
 
-        if (data.mapping && data.mapping.device_type !== 'none') {
-          setGlobalMapping(data.mapping);
-          return;
+      if (res.saved) {
+        applyValues(pttFromPayload(res));
+        clearLegacyPTTSettings();
+      } else {
+        const legacy = getLegacyPTTSettings();
+        if (legacy) {
+          applyValues(legacy);
+          try {
+            await api.put('/api/settings/ptt', pttToPayload(legacy));
+            clearLegacyPTTSettings();
+          } catch (err) {
+            console.warn('[usePTTConfig] Moving push-to-talk settings to the server failed:', err);
+          }
         }
-
-        const parsedJoy = storage.get<GamepadMapping | null>(RADIO_STORAGE_KEYS.GAMEPAD_MAPPING, null);
-        if (parsedJoy && parsedJoy.buttonIndex >= 0) {
-          api.post<{ status?: string; mapping?: GlobalPTTMapping }>('/api/ai/ptt/config', {
-            mapping: {
-              device_type: 'joystick',
-              device_index: parsedJoy.gamepadIndex,
-              button_index: parsedJoy.buttonIndex,
-              key_name: `Button ${parsedJoy.buttonIndex + 1}`,
-              device_name: 'Controller / Wheel',
-            },
-          })
-            .then((resData) => {
-              if (resData?.mapping) setGlobalMapping(resData.mapping);
-            })
-            .catch((err) => console.warn('[usePTTConfig] Sync failed:', err));
-          return;
-        }
-
-        const savedKey = storage.get<string>(RADIO_STORAGE_KEYS.KEYBOARD_KEY, '');
-        if (savedKey && savedKey !== 'None') {
-          api.post<{ status?: string; mapping?: GlobalPTTMapping }>('/api/ai/ptt/config', {
-            mapping: {
-              device_type: 'keyboard',
-              key_code: getVKCodeForName(savedKey),
-              key_name: savedKey,
-              device_name: 'Keyboard',
-            },
-          })
-            .then((resData) => {
-              if (resData?.mapping) setGlobalMapping(resData.mapping);
-            })
-            .catch((err) => console.warn('[usePTTConfig] Sync failed:', err));
-        } else if (data.mapping) {
-          setGlobalMapping(data.mapping);
-        }
-      })
-      .catch((err) => console.warn('[usePTTConfig] Sync failed:', err));
-  }, []);
+      }
+      if (!cancelled) await refreshGlobalStatus();
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [applyValues, refreshGlobalStatus]);
 
   return {
     pttMode,

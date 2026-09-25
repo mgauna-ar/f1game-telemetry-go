@@ -2,7 +2,7 @@ import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useAIChatStream } from './useAIChatStream';
 import { api } from '../utils/apiClient';
-import type { AIConfig } from '../context/RaceEngineerContext';
+import { NO_AI_KEYS, type AIConfig, type AIKeyStatusByProvider } from '../context/RaceEngineerContext';
 
 function createMockSSEResponse(chunks: string[]): Response {
   const encoder = new TextEncoder();
@@ -24,20 +24,19 @@ function createMockSSEResponse(chunks: string[]): Response {
 describe('useAIChatStream Hook', () => {
   const defaultConfig: AIConfig = {
     provider: 'gemini',
-    apiKey: 'test-key',
     model: 'gemini-flash-lite-latest',
     baseUrl: '',
+    providerModels: { gemini: 'gemini-flash-lite-latest', openai: '', claude: '', custom: '' },
+  };
+
+  const geminiKeySaved: AIKeyStatusByProvider = {
+    ...NO_AI_KEYS,
+    gemini: { hasSavedKey: true, hasEnvKey: false },
   };
 
   const defaultProps = {
     config: defaultConfig,
-    serverConfigStatus: {
-      hasGeminiEnvKey: false,
-      hasOpenAIEnvKey: false,
-      hasClaudeEnvKey: false,
-      defaultProvider: 'gemini',
-      defaultModel: 'gemini-flash-lite-latest',
-    },
+    keyStatus: geminiKeySaved,
     buildCurrentBackendContext: () => ({
       context_mode: 'general' as const,
       language: 'en' as const,
@@ -60,8 +59,7 @@ describe('useAIChatStream Hook', () => {
   it('sets MISSING_API_KEY error card when no API key is available', async () => {
     const noKeyProps = {
       ...defaultProps,
-      config: { ...defaultConfig, apiKey: '' },
-      serverConfigStatus: null,
+      keyStatus: NO_AI_KEYS,
     };
 
     const { result } = renderHook(() => useAIChatStream(noKeyProps));
@@ -94,11 +92,15 @@ describe('useAIChatStream Hook', () => {
     expect(streamSpy).toHaveBeenCalledWith(
       '/api/ai/chat',
       expect.objectContaining({
+        provider: 'gemini',
+        model: 'gemini-flash-lite-latest',
         persona: expect.any(String),
         language: expect.any(String),
       }),
       expect.any(AbortSignal)
     );
+    // The key stays on the server; the browser never sends one.
+    expect(streamSpy.mock.calls[0][1]).not.toHaveProperty('api_key');
     expect(result.current.isGenerating).toBe(false);
     expect(result.current.messages).toHaveLength(3);
     expect(result.current.messages[1].content).toBe('Where to brake?');

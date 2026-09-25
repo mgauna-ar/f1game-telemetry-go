@@ -3,7 +3,12 @@ import { api } from '../utils/apiClient';
 import {
   createAudioSettingsSlice,
   getInitialAudioSettings,
+  getLegacyVoiceSettings,
+  clearLegacyVoiceSettings,
+  voiceFromPayload,
+  voiceToPayload,
   type AudioSettingsSlice,
+  type VoiceSettingsPayload,
 } from './slices/audioSettingsSlice';
 import {
   createAlertThresholdsSlice,
@@ -34,21 +39,21 @@ import {
 } from '../constants/f1';
 import type { EngineerConfig } from '../types/telemetry';
 
-export type RadioEngineerConfig = EngineerConfig;
-
 export interface RadioSettingsState
   extends AudioSettingsSlice,
     AlertThresholdsSlice,
     TacticalSettingsSlice,
     RadioPresetsSlice {
-  aiConfig: EngineerConfig;
-  setAiConfig: (config: Partial<EngineerConfig>) => void;
+  engineerConfig: EngineerConfig;
+  setEngineerConfig: (config: Partial<EngineerConfig>) => void;
   resetStoreToDefaults: () => void;
   syncConfigToBackend: (immediate?: boolean) => Promise<void>;
   loadConfigFromBackend: () => Promise<void>;
+  syncVoiceToBackend: () => void;
+  loadVoiceFromBackend: () => Promise<void>;
 }
 
-export function buildAIConfigFromValues(v: {
+export function buildEngineerConfigFromValues(v: {
   triggerPreset: RadioTriggerPreset;
   smartDiscretionEnabled: boolean;
   chatterCooldownSeconds: number;
@@ -191,7 +196,7 @@ export function getInitialRadioSettings() {
 
   return {
     ...initialValues,
-    aiConfig: buildAIConfigFromValues(initialValues),
+    engineerConfig: buildEngineerConfigFromValues(initialValues),
   };
 }
 
@@ -248,18 +253,22 @@ function alertTogglesFromLegacyCategories(
 }
 
 let syncTimeout: ReturnType<typeof setTimeout> | null = null;
+let voiceSyncTimeout: ReturnType<typeof setTimeout> | null = null;
+
+/** Waits this long after the last change before saving, so typing a prompt isn't one request per key. */
+const SETTINGS_SYNC_DEBOUNCE_MS = 500;
 
 export const useRadioSettingsStore = create<RadioSettingsState>((set, get, store) => ({
   ...createAudioSettingsSlice(set, get, store),
   ...createAlertThresholdsSlice(set, get, store),
   ...createTacticalSettingsSlice(set, get, store),
   ...createRadioPresetsSlice(set, get, store),
-  aiConfig: buildAIConfigFromValues(getInitialRadioSettings()),
+  engineerConfig: buildEngineerConfigFromValues(getInitialRadioSettings()),
 
-  setAiConfig: (cfg: Partial<RadioEngineerConfig>) => {
+  setEngineerConfig: (cfg: Partial<EngineerConfig>) => {
     set((state) => ({
-      aiConfig: {
-        ...state.aiConfig,
+      engineerConfig: {
+        ...state.engineerConfig,
         ...cfg,
       },
     }));
@@ -279,7 +288,7 @@ export const useRadioSettingsStore = create<RadioSettingsState>((set, get, store
 
     const doSync = async () => {
       try {
-        await api.post('/api/ai/engineer/config', get().aiConfig);
+        await api.post('/api/ai/engineer/config', get().engineerConfig);
       } catch {
         // ignore network error
       }
@@ -295,14 +304,14 @@ export const useRadioSettingsStore = create<RadioSettingsState>((set, get, store
         await doSync();
         syncTimeout = null;
         resolve();
-      }, 500);
+      }, SETTINGS_SYNC_DEBOUNCE_MS);
     });
   },
 
   loadConfigFromBackend: async () => {
     // Backend not available or offline: keep the current state
     const cfg = await api
-      .get<RadioEngineerConfig>('/api/ai/engineer/config')
+      .get<EngineerConfig>('/api/ai/engineer/config')
       .catch(() => null);
     if (!cfg) return;
 
@@ -329,12 +338,46 @@ export const useRadioSettingsStore = create<RadioSettingsState>((set, get, store
 
       return {
         ...nextState,
-        aiConfig: buildAIConfigFromValues(nextState),
+        engineerConfig: buildEngineerConfigFromValues(nextState),
       };
     });
 
     if (needsMigration) {
       await get().syncConfigToBackend(true);
+    }
+  },
+
+  syncVoiceToBackend: () => {
+    if (voiceSyncTimeout) clearTimeout(voiceSyncTimeout);
+    voiceSyncTimeout = setTimeout(() => {
+      voiceSyncTimeout = null;
+      api
+        .put('/api/settings/voice', voiceToPayload(get()))
+        .catch((err) => console.warn('[radioSettings] Saving the voice settings failed:', err));
+    }, SETTINGS_SYNC_DEBOUNCE_MS);
+  },
+
+  loadVoiceFromBackend: async () => {
+    const res = await api
+      .get<VoiceSettingsPayload & { saved: boolean }>('/api/settings/voice')
+      .catch(() => null);
+    if (!res) return;
+
+    if (res.saved) {
+      set((state) => voiceFromPayload(res, state));
+      clearLegacyVoiceSettings();
+      return;
+    }
+
+    // First run of this version: move the voice an older version kept in this browser.
+    const legacy = getLegacyVoiceSettings();
+    if (!legacy) return;
+    set(legacy);
+    try {
+      await api.put('/api/settings/voice', voiceToPayload(legacy));
+      clearLegacyVoiceSettings();
+    } catch (err) {
+      console.warn('[radioSettings] Moving the voice settings to the server failed:', err);
     }
   },
 }));

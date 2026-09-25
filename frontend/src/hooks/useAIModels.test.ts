@@ -1,15 +1,26 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useAIModels, filterChatModels, hasServerKeyFor } from './useAIModels';
+import { useAIModels, filterChatModels } from './useAIModels';
 import { api } from '../utils/apiClient';
-import type { AIConfig, AIModelItem } from '../context/RaceEngineerContext';
+import {
+  NO_AI_KEYS,
+  providerHasKey,
+  type AIConfig,
+  type AIKeyStatusByProvider,
+  type AIModelItem,
+} from '../context/RaceEngineerContext';
 
 describe('useAIModels Hook', () => {
   const defaultConfig: AIConfig = {
     provider: 'gemini',
-    apiKey: 'test-key',
     model: 'gemini-flash-lite-latest',
     baseUrl: '',
+    providerModels: { gemini: 'gemini-flash-lite-latest', openai: '', claude: '', custom: '' },
+  };
+
+  const geminiEnvKey: AIKeyStatusByProvider = {
+    ...NO_AI_KEYS,
+    gemini: { hasSavedKey: false, hasEnvKey: true },
   };
 
   beforeEach(() => {
@@ -40,132 +51,78 @@ describe('useAIModels Hook', () => {
     expect(filteredOpenAI[0].id).toBe('gpt-4o');
   });
 
-  it('fetches server config status on mount', async () => {
-    vi.spyOn(api, 'get').mockResolvedValueOnce({
-      has_gemini_env_key: true,
-      has_openai_env_key: false,
-      default_provider: 'gemini',
-      default_model: 'gemini-flash-lite-latest',
-    });
-
-    const { result } = renderHook(() => useAIModels(defaultConfig));
-
-    await waitFor(() => {
-      expect(result.current.serverConfigStatus).not.toBeNull();
-    });
-
-    expect(result.current.serverConfigStatus).toEqual({
-      hasGeminiEnvKey: true,
-      hasOpenAIEnvKey: false,
-      hasClaudeEnvKey: false,
-      defaultProvider: 'gemini',
-      defaultModel: 'gemini-flash-lite-latest',
-    });
-  });
-
-  it('fetches available models via backend api', async () => {
-    vi.spyOn(api, 'get').mockResolvedValueOnce({
-      has_gemini_env_key: false,
-      has_openai_env_key: false,
-      default_provider: 'gemini',
-      default_model: 'gemini-flash-lite-latest',
-    });
-
-    vi.spyOn(api, 'post').mockResolvedValueOnce({
+  it('fetches available models through the server without sending a key', async () => {
+    const postSpy = vi.spyOn(api, 'post').mockResolvedValueOnce({
       models: [
         { id: 'gemini-2.5-flash', display_name: 'Gemini 2.5 Flash' },
         { id: 'gemini-1.5-pro', display_name: 'Gemini 1.5 Pro' },
       ],
     });
 
-    const { result } = renderHook(() => useAIModels(defaultConfig));
+    const { result } = renderHook(() => useAIModels(defaultConfig, geminiEnvKey));
 
     await act(async () => {
       await result.current.fetchAvailableModels();
     });
 
+    expect(postSpy).toHaveBeenCalledWith('/api/ai/models', { provider: 'gemini' });
     expect(result.current.availableModels).toHaveLength(2);
     expect(result.current.modelsError).toBeNull();
   });
 
-  it('falls back to direct Gemini API when backend route fails', async () => {
-    vi.spyOn(api, 'get').mockImplementation(async (url: string) => {
-      if (url === '/api/ai/config-status') {
-        return {
-          has_gemini_env_key: false,
-          has_openai_env_key: false,
-          default_provider: 'gemini',
-          default_model: 'gemini-flash-lite-latest',
-        };
-      }
-      if (url.includes('generativelanguage.googleapis.com')) {
-        return {
-          models: [
-            {
-              name: 'models/gemini-2.5-flash',
-              displayName: 'Gemini 2.5 Flash',
-              supportedGenerationMethods: ['generateContent'],
-            },
-            {
-              name: 'models/embedding-001',
-              displayName: 'Embedding',
-              supportedGenerationMethods: ['embedContent'],
-            },
-          ],
-        };
-      }
-      return {};
-    });
+  it('skips the request when the provider has no key on the server', async () => {
+    const postSpy = vi.spyOn(api, 'post');
 
-    vi.spyOn(api, 'post').mockRejectedValueOnce(new Error('Backend 404'));
-
-    const { result } = renderHook(() => useAIModels(defaultConfig));
+    const { result } = renderHook(() => useAIModels(defaultConfig, NO_AI_KEYS));
 
     await act(async () => {
       await result.current.fetchAvailableModels();
     });
 
-    expect(result.current.availableModels).toHaveLength(1);
-    expect(result.current.availableModels[0].id).toBe('gemini-2.5-flash');
-  });
-
-  it('sets error state when fetching fails completely', async () => {
-    vi.spyOn(api, 'get').mockImplementation(async (url: string) => {
-      if (url === '/api/ai/config-status') {
-        return {
-          has_gemini_env_key: false,
-          has_openai_env_key: false,
-          default_provider: 'gemini',
-          default_model: 'gemini-flash-lite-latest',
-        };
-      }
-      throw new Error('API key invalid');
-    });
-
-    vi.spyOn(api, 'post').mockRejectedValueOnce(new Error('Backend 404'));
-
-    const { result } = renderHook(() => useAIModels(defaultConfig));
-
-    await act(async () => {
-      await result.current.fetchAvailableModels();
-    });
-
-    expect(result.current.modelsError).toBe('API key invalid');
+    expect(postSpy).not.toHaveBeenCalled();
     expect(result.current.availableModels).toEqual([]);
   });
 
-  it('matches each provider with its own server key', () => {
-    const status = {
-      hasGeminiEnvKey: false,
-      hasOpenAIEnvKey: true,
-      hasClaudeEnvKey: true,
-      defaultProvider: 'openai',
-      defaultModel: 'gpt-4o-mini',
+  it('lists models for a custom endpoint even without a key', async () => {
+    const postSpy = vi.spyOn(api, 'post').mockResolvedValueOnce({
+      models: [{ id: 'llama3', display_name: 'llama3' }],
+    });
+    const customConfig: AIConfig = { ...defaultConfig, provider: 'custom', model: 'llama3' };
+
+    const { result } = renderHook(() => useAIModels(customConfig, NO_AI_KEYS));
+
+    await act(async () => {
+      await result.current.fetchAvailableModels();
+    });
+
+    expect(postSpy).toHaveBeenCalledWith('/api/ai/models', { provider: 'custom' });
+    expect(result.current.availableModels).toHaveLength(1);
+  });
+
+  it('sets error state when fetching fails', async () => {
+    vi.spyOn(api, 'post').mockRejectedValueOnce(new Error('API key invalid'));
+
+    const { result } = renderHook(() => useAIModels(defaultConfig, geminiEnvKey));
+
+    await act(async () => {
+      await result.current.fetchAvailableModels();
+    });
+
+    await waitFor(() => expect(result.current.modelsError).toBe('API key invalid'));
+    expect(result.current.availableModels).toEqual([]);
+  });
+
+  it('matches each provider with its own key', () => {
+    const status: AIKeyStatusByProvider = {
+      ...NO_AI_KEYS,
+      openai: { hasSavedKey: false, hasEnvKey: true },
+      claude: { hasSavedKey: true, hasEnvKey: false },
     };
-    expect(hasServerKeyFor(status, 'gemini')).toBe(false);
-    expect(hasServerKeyFor(status, 'openai')).toBe(true);
-    expect(hasServerKeyFor(status, 'claude')).toBe(true);
-    expect(hasServerKeyFor(status, 'custom')).toBe(false);
-    expect(hasServerKeyFor(null, 'claude')).toBe(false);
+    expect(providerHasKey(status, 'gemini')).toBe(false);
+    expect(providerHasKey(status, 'openai')).toBe(true);
+    expect(providerHasKey(status, 'claude')).toBe(true);
+    expect(providerHasKey(NO_AI_KEYS, 'claude')).toBe(false);
+    // Custom endpoints like Ollama may not need a key
+    expect(providerHasKey(NO_AI_KEYS, 'custom')).toBe(true);
   });
 });

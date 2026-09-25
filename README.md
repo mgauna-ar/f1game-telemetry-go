@@ -146,7 +146,7 @@ go run ./cmd/simulator -scenario pit       # Pit limiter entry, penalty hold, st
 
 ## ⚙️ Configuration (Optional)
 
-Server settings can be set with command-line flags, environment variables, or a `.env` file (copy `.env.example` to `.env` in the folder you start the app from, or next to the executable). Flags win over environment variables, and real environment variables win over `.env`. AI API keys can also be entered in the in-app AI settings drawer.
+Server settings can be set with command-line flags, environment variables, or a `.env` file (copy `.env.example` to `.env` in the folder you start the app from, or next to the executable). Flags win over environment variables, and real environment variables win over `.env`. The AI variables are defaults: anything saved in the in-app AI settings wins over them.
 
 | Flag | Variable | Description | Default |
 |---|---|---|---|
@@ -154,13 +154,17 @@ Server settings can be set with command-line flags, environment variables, or a 
 | `-http` | `F1T_HTTP_ADDR` | Web API & WebSocket server address | `:8080` |
 | `-db` | `F1T_DB_PATH` | SQLite database file (relative paths are resolved from the current folder; the full path is shown at startup) | `f1telemetry.db` |
 | `-no-browser` | `F1T_NO_BROWSER` | Don't open the dashboard in a browser on startup | `false` |
-| | `GEMINI_API_KEY` | Google Gemini API Key for AI Race Engineer | *(Can be set in UI)* |
-| | `OPENAI_API_KEY` | OpenAI API Key for AI Race Engineer | *(Can be set in UI)* |
-| | `ANTHROPIC_API_KEY` | Anthropic API Key for Claude models in the AI Race Engineer | *(Can be set in UI)* |
+| | `GEMINI_API_KEY` | Google Gemini API key for the AI Race Engineer | *(Can be set in UI)* |
+| | `OPENAI_API_KEY` | OpenAI API key for the AI Race Engineer | *(Can be set in UI)* |
+| | `ANTHROPIC_API_KEY` | Anthropic API key for Claude models in the AI Race Engineer | *(Can be set in UI)* |
+| | `LLM_PROVIDER` | Default AI provider: `gemini`, `openai`, `claude` or `custom` | First provider with a key, else `gemini` |
+| | `LLM_MODEL` | Default model for `LLM_PROVIDER` | Built-in model for the provider |
 
 The simulator sends to `127.0.0.1` on the server's `F1T_UDP_ADDR` port. Use `-target` (or `F1T_SIM_TARGET`) to send somewhere else, e.g. `go run ./cmd/simulator -target 192.168.1.20:20777`.
 
-Radio alert rules (presets, thresholds and which alerts are on) are saved in the database, so every device that opens the dashboard shares them. Voice, persona, volume, push-to-talk keys and AI provider settings are saved per browser.
+Settings you change in the dashboard are saved in the database, so every device that opens it (the PC, a tablet on your network) shares them: radio alert rules, the AI provider, model and API keys, the engineer's persona and voice, and push-to-talk. Saved API keys are never sent back to a browser; the settings only show that a key is saved. Volume, radio effects and whether alerts play stay per device.
+
+The API only accepts changes from the dashboard the app serves, so other websites open in your browser can't change settings or use your saved keys. Any device that can open the dashboard can still chat using the saved keys, the same as keys set in `.env`.
 
 ---
 

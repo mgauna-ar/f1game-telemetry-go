@@ -4,15 +4,12 @@ import { useI18n } from './I18nContext';
 import { useSystemPrompt } from '../hooks/useSystemPrompt';
 import { useAIModels } from '../hooks/useAIModels';
 import { useAIChatStream } from '../hooks/useAIChatStream';
+import { useAISettings } from '../hooks/useAISettings';
 import { storage } from '../utils/storage';
 import {
   RaceEngineerActionsContext,
   RaceEngineerStreamContext,
-  DEFAULT_AI_MODELS,
-  DEFAULT_CONFIG,
-  STORAGE_KEY_AI_CONFIG,
   STORAGE_KEY_AI_OPEN,
-  type AIConfig,
   type ContextMode,
   type SessionDebriefContextPayload,
   type LiveContextPayload,
@@ -45,58 +42,8 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     useState<SessionDebriefContextPayload | null>(null);
   const [liveContext, setLiveContext] = useState<LiveContextPayload | null>(null);
 
-  // AI Configuration
-  const [config, setConfig] = useState<AIConfig>(() => {
-    const parsed = storage.get<Partial<AIConfig> | null>(STORAGE_KEY_AI_CONFIG, null);
-    if (parsed) {
-      const currentProv = parsed.provider || 'gemini';
-      const providerKeys: Record<string, string> = {
-        gemini: '',
-        openai: '',
-        claude: '',
-        custom: '',
-        ...(parsed.providerKeys || {}),
-      };
-      const providerModels: Record<string, string> = {
-        ...DEFAULT_AI_MODELS,
-        ...(parsed.providerModels || {}),
-      };
-
-      if (parsed.apiKey && !providerKeys[currentProv]) {
-        providerKeys[currentProv] = parsed.apiKey;
-      }
-      if (parsed.model && !providerModels[currentProv]) {
-        providerModels[currentProv] = parsed.model;
-      }
-      if (
-        providerModels.gemini === 'gemini-2.0-flash' ||
-        providerModels.gemini === 'gemini-2.5-flash' ||
-        providerModels.gemini === 'gemini-1.5-flash'
-      ) {
-        providerModels.gemini = DEFAULT_AI_MODELS.gemini;
-      }
-
-      const activeKey = providerKeys[currentProv] || '';
-      const activeModel =
-        providerModels[currentProv] || DEFAULT_AI_MODELS[currentProv] || DEFAULT_AI_MODELS.gemini;
-
-      return {
-        ...DEFAULT_CONFIG,
-        ...parsed,
-        provider: currentProv,
-        apiKey: activeKey,
-        model: activeModel,
-        providerKeys,
-        providerModels,
-      };
-    }
-    return DEFAULT_CONFIG;
-  });
-
-  const saveConfig = useCallback((newConfig: AIConfig) => {
-    setConfig(newConfig);
-    storage.set(STORAGE_KEY_AI_CONFIG, newConfig);
-  }, []);
+  // AI provider, model and key status, saved on the server
+  const { config, keyStatus, saveConfig, saveApiKey } = useAISettings();
 
   // Composed Subsystems
   const { buildCurrentBackendContext } = useSystemPrompt({
@@ -108,12 +55,11 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   });
 
   const {
-    serverConfigStatus,
     availableModels,
     isLoadingModels,
     modelsError,
     fetchAvailableModels,
-  } = useAIModels(config);
+  } = useAIModels(config, keyStatus);
 
   const {
     messages,
@@ -124,7 +70,7 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     stopGenerating,
   } = useAIChatStream({
     config,
-    serverConfigStatus,
+    keyStatus,
     buildCurrentBackendContext,
   });
 
@@ -168,11 +114,12 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       stopGenerating,
       config,
       saveConfig,
+      keyStatus,
+      saveApiKey,
       availableModels,
       isLoadingModels,
       modelsError,
       fetchAvailableModels,
-      serverConfigStatus,
     }),
     [
       isOpen,
@@ -189,11 +136,12 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       stopGenerating,
       config,
       saveConfig,
+      keyStatus,
+      saveApiKey,
       availableModels,
       isLoadingModels,
       modelsError,
       fetchAvailableModels,
-      serverConfigStatus,
     ]
   );
 

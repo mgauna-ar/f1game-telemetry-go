@@ -554,7 +554,11 @@ export const RADIO_AUDIO_CONSTANTS = {
   DEFAULT_SPEECH_RATE: 1.05,
   DISTORTION_AMOUNT: 15,
   DEFAULT_SPEECH_RATE_PERCENT: 0,
+  MIN_SPEECH_RATE_PERCENT: -20,
+  MAX_SPEECH_RATE_PERCENT: 30,
   DEFAULT_SPEECH_PITCH_HZ: 0,
+  MIN_SPEECH_PITCH_HZ: -100,
+  MAX_SPEECH_PITCH_HZ: 100,
   RADIO_STATIC_GAIN: 0.035,
   HELMET_HIGHCUT_FREQ_HZ: 3600,
   HELMET_WARMTH_FREQ_HZ: 850,
@@ -596,22 +600,29 @@ export const RADIO_PTT_MODES = {
 export type RadioPTTMode = (typeof RADIO_PTT_MODES)[keyof typeof RADIO_PTT_MODES];
 
 export const RADIO_STORAGE_KEYS = {
-  // Per-device voice, audio and push-to-talk preferences. Alert rules are stored on the server.
-  PERSONA: 'f1_radio_persona',
-  LANGUAGE: 'f1_radio_language',
-  CUSTOM_PROMPT: 'f1_radio_custom_prompt',
-  DRIVER_CALLSIGN: 'f1_radio_driver_callsign',
-  PTT_MODE: 'f1_radio_ptt_mode',
-  GAMEPAD_MAPPING: 'f1_radio_gamepad_mapping',
-  KEYBOARD_KEY: 'f1_radio_keyboard_key',
+  // Per-device audio preferences: they depend on the speakers in front of each device.
   BEEPS_ENABLED: 'f1_radio_beeps_enabled',
   FILTER_ENABLED: 'f1_radio_filter_enabled',
   STATIC_FX_ENABLED: 'f1_radio_static_fx_enabled',
   VOLUME: 'f1_radio_volume',
+  ALERTS_ENABLED: 'f1_radio_alerts_enabled',
+} as const;
+
+/**
+ * Where older versions kept the engineer's voice and push-to-talk setup in each browser. These now
+ * live on the server; the keys are only read once to move the values there, then deleted.
+ */
+export const LEGACY_RADIO_STORAGE_KEYS = {
+  PERSONA: 'f1_radio_persona',
+  LANGUAGE: 'f1_radio_language',
+  CUSTOM_PROMPT: 'f1_radio_custom_prompt',
+  DRIVER_CALLSIGN: 'f1_radio_driver_callsign',
+  NEURAL_VOICE: 'f1_radio_neural_voice',
   SPEECH_RATE: 'f1_radio_speech_rate',
   SPEECH_PITCH: 'f1_radio_speech_pitch',
-  NEURAL_VOICE: 'f1_radio_neural_voice',
-  ALERTS_ENABLED: 'f1_radio_alerts_enabled',
+  PTT_MODE: 'f1_radio_ptt_mode',
+  GAMEPAD_MAPPING: 'f1_radio_gamepad_mapping',
+  KEYBOARD_KEY: 'f1_radio_keyboard_key',
 } as const;
 
 export const RADIO_ALERT_CONSTANTS = {

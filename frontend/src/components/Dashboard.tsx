@@ -34,6 +34,7 @@ import { useRadioController } from '../hooks/useRadioController';
 import { useProactiveTelemetryRadio } from '../hooks/useProactiveTelemetryRadio';
 import { formatProactiveFallbackSpeech } from '../utils/radioAudio';
 import { useI18n } from '../context/I18nContext';
+import { storage } from '../utils/storage';
 
 const getDriverStatusLabel = (status?: number, t?: (key: string) => string): string => {
   switch (status) {
@@ -59,24 +60,13 @@ const formatSessionClock = (seconds?: number): string => {
 
 export const Dashboard: React.FC = () => {
   const [viewMode, setViewMode] = useState<LiveViewMode>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY_LIVE_VIEW_MODE);
-      if (saved === LIVE_VIEW_MODES.COCKPIT || saved === LIVE_VIEW_MODES.DASHBOARD) {
-        return saved;
-      }
-    } catch {
-      // Ignore localStorage access errors
-    }
-    return LIVE_VIEW_MODES.DASHBOARD;
+    const saved = storage.get<string>(STORAGE_KEY_LIVE_VIEW_MODE, LIVE_VIEW_MODES.DASHBOARD);
+    return saved === LIVE_VIEW_MODES.COCKPIT ? LIVE_VIEW_MODES.COCKPIT : LIVE_VIEW_MODES.DASHBOARD;
   });
 
   const handleViewModeChange = useCallback((mode: LiveViewMode) => {
     setViewMode(mode);
-    try {
-      localStorage.setItem(STORAGE_KEY_LIVE_VIEW_MODE, mode);
-    } catch {
-      // Ignore localStorage write errors
-    }
+    storage.set(STORAGE_KEY_LIVE_VIEW_MODE, mode);
   }, []);
 
   useEffect(() => {

@@ -72,7 +72,9 @@ function AppContent() {
 
   useEffect(() => {
     checkUpdates();
-    useRadioSettingsStore.getState().loadConfigFromBackend();
+    const radioSettings = useRadioSettingsStore.getState();
+    radioSettings.loadConfigFromBackend();
+    radioSettings.loadVoiceFromBackend();
   }, [checkUpdates]);
 
   const handleDismissVersion = (version: string) => {

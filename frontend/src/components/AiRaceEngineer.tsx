@@ -8,7 +8,7 @@ import {
   X,
   Minus,
 } from 'lucide-react';
-import { useRaceEngineer } from '../context/RaceEngineerContext';
+import { useRaceEngineer, providerHasKey } from '../context/RaceEngineerContext';
 import { useI18n } from '../context/I18nContext';
 import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
 import { TrackFlag } from './TrackFlag';
@@ -63,11 +63,12 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
     stopGenerating,
     config,
     saveConfig,
+    keyStatus,
+    saveApiKey,
     availableModels,
     isLoadingModels,
     modelsError,
     fetchAvailableModels,
-    serverConfigStatus,
   } = useRaceEngineer();
 
   const isOpen = isOpenOverride !== undefined ? isOpenOverride : contextIsOpen;
@@ -92,12 +93,15 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
     }
   }, [isOpen, showSettings]);
 
-  // Fetch models when opening settings
+  // Fetch models when opening settings, switching provider, or once a key is saved
+  const hasKey = providerHasKey(keyStatus, config.provider);
+  const fetchModelsRef = useRef(fetchAvailableModels);
+  fetchModelsRef.current = fetchAvailableModels;
   useEffect(() => {
-    if (showSettings && config.apiKey) {
-      fetchAvailableModels();
+    if (showSettings && hasKey) {
+      fetchModelsRef.current();
     }
-  }, [showSettings, config.provider, config.apiKey, fetchAvailableModels]);
+  }, [showSettings, config.provider, hasKey]);
 
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -240,7 +244,8 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
         onClose={() => setShowSettings(false)}
         config={config}
         saveConfig={saveConfig}
-        serverConfigStatus={serverConfigStatus}
+        keyStatus={keyStatus}
+        saveApiKey={saveApiKey}
         availableModels={availableModels}
         isLoadingModels={isLoadingModels}
         modelsError={modelsError}

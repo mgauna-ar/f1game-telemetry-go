@@ -1,27 +1,31 @@
 import { useEffect } from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { vi, describe, it, beforeEach, expect } from 'vitest';
 import { AiRaceEngineer } from './AiRaceEngineer';
 import { RaceEngineerProvider } from '../context/RaceEngineerProvider';
 import { useRaceEngineer } from '../context/RaceEngineerContext';
 import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
 
+/** A GET /api/settings/ai answer with or without a Gemini key in the server's .env. */
+const aiSettings = (hasGeminiEnvKey: boolean) => ({
+  saved: false,
+  provider: 'gemini',
+  base_url: '',
+  providers: {
+    gemini: { model: 'gemini-flash-lite-latest', has_saved_key: false, has_env_key: hasGeminiEnvKey },
+    openai: { model: 'gpt-4o-mini', has_saved_key: false, has_env_key: false },
+    claude: { model: '', has_saved_key: false, has_env_key: false },
+    custom: { model: 'gpt-4o-mini', has_saved_key: false, has_env_key: false },
+  },
+});
+
 describe('AiRaceEngineer Component', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     localStorage.clear();
     globalThis.fetch = vi.fn().mockImplementation((url: string) => {
-      if (url === '/api/ai/config-status') {
-        return Promise.resolve({
-          ok: true,
-          json: () =>
-            Promise.resolve({
-              has_gemini_env_key: true,
-              has_openai_env_key: false,
-              default_provider: 'gemini',
-              default_model: 'gemini-flash-lite-latest',
-            }),
-        });
+      if (url === '/api/settings/ai') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(aiSettings(true)) });
       }
       if (url === '/api/ai/models') {
         return Promise.resolve({
@@ -138,17 +142,8 @@ describe('AiRaceEngineer Component', () => {
   it('displays a friendly missing API key card with links when no key is configured', async () => {
     // Setup config status with NO server key
     globalThis.fetch = vi.fn().mockImplementation((url: string) => {
-      if (url === '/api/ai/config-status') {
-        return Promise.resolve({
-          ok: true,
-          json: () =>
-            Promise.resolve({
-              has_gemini_env_key: false,
-              has_openai_env_key: false,
-              default_provider: 'gemini',
-              default_model: 'gemini-flash-lite-latest',
-            }),
-        });
+      if (url === '/api/settings/ai') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(aiSettings(false)) });
       }
       return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
     });
@@ -173,28 +168,9 @@ describe('AiRaceEngineer Component', () => {
   });
 
   it('displays model overloaded error card with retry button on high demand error', async () => {
-    localStorage.setItem(
-      'f1_ai_engineer_config',
-      JSON.stringify({
-        provider: 'gemini',
-        apiKey: 'test-gemini-key',
-        model: 'gemini-flash-lite-latest',
-        providerKeys: { gemini: 'test-gemini-key' },
-      })
-    );
-
     globalThis.fetch = vi.fn().mockImplementation((url: string) => {
-      if (url === '/api/ai/config-status') {
-        return Promise.resolve({
-          ok: true,
-          json: () =>
-            Promise.resolve({
-              has_gemini_env_key: true,
-              has_openai_env_key: false,
-              default_provider: 'gemini',
-              default_model: 'gemini-flash-lite-latest',
-            }),
-        });
+      if (url === '/api/settings/ai') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(aiSettings(true)) });
       }
       if (url === '/api/ai/chat') {
         return Promise.resolve({
@@ -218,6 +194,10 @@ describe('AiRaceEngineer Component', () => {
         <AiRaceEngineer isOpenOverride={true} />
       </RaceEngineerProvider>
     );
+    // Let the saved AI settings (with the .env key) load
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
 
     const input = screen.getByPlaceholderText('Ask your Race Engineer...');
     fireEvent.change(input, { target: { value: 'Strategy advice' } });

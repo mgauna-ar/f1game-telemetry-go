@@ -9,6 +9,7 @@ import (
 
 	"github.com/mgauna/f1game-telemetry-go/internal/ai"
 	"github.com/mgauna/f1game-telemetry-go/internal/engineer"
+	"github.com/mgauna/f1game-telemetry-go/internal/settings"
 )
 
 // aiKeys returns the AI provider API keys configured on the server.
@@ -20,33 +21,20 @@ func (s *Server) aiKeys() ai.ServerKeys {
 	}
 }
 
-// handleAIConfigStatus returns the status of server-configured AI keys.
+// handleAIConfigStatus returns the status of the env var AI keys and the provider and model in force.
 func (s *Server) handleAIConfigStatus(w http.ResponseWriter, r *http.Request) {
-	keys := s.aiKeys()
-
-	// Default to the first provider with a server key, Gemini when there is none.
-	defaultProvider := ai.ProviderGemini
-	switch {
-	case keys.Gemini != "":
-	case keys.OpenAI != "":
-		defaultProvider = ai.ProviderOpenAI
-	case keys.Claude != "":
-		defaultProvider = ai.ProviderClaude
-	}
-	if s.config.LLMProvider != "" {
-		defaultProvider = s.config.LLMProvider
-	}
-	defaultModel := ai.DefaultModel(defaultProvider)
-	if s.config.LLMModel != "" {
-		defaultModel = s.config.LLMModel
+	eff, _, err := s.effectiveAI(r.Context())
+	if err != nil {
+		slog.Error("Failed to load saved AI settings, using env vars and defaults", "error", err)
+		eff = settings.ResolveAI(settings.AI{}, s.aiEnv(), defaultAIModel)
 	}
 
 	writeJSON(w, http.StatusOK, ai.AIConfigStatusResponse{
-		HasGeminiEnvKey: keys.Gemini != "",
-		HasOpenAIEnvKey: keys.OpenAI != "",
-		HasClaudeEnvKey: keys.Claude != "",
-		DefaultProvider: defaultProvider,
-		DefaultModel:    defaultModel,
+		HasGeminiEnvKey: eff.EnvKeys[settings.ProviderGemini],
+		HasOpenAIEnvKey: eff.EnvKeys[settings.ProviderOpenAI],
+		HasClaudeEnvKey: eff.EnvKeys[settings.ProviderClaude],
+		DefaultProvider: eff.Provider,
+		DefaultModel:    eff.Models[eff.Provider],
 	})
 }
 
@@ -57,6 +45,8 @@ func (s *Server) handleAIFetchModels(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, fmt.Sprintf("invalid payload: %v", err), http.StatusBadRequest)
 		return
 	}
+	filled := s.fillAIRequest(r.Context(), settings.AIRequest{Provider: req.Provider, APIKey: req.APIKey, BaseURL: req.BaseURL})
+	req.Provider, req.APIKey, req.BaseURL = filled.Provider, filled.APIKey, filled.BaseURL
 
 	models, provider, err := ai.FetchModels(r.Context(), req, s.aiKeys())
 	if err != nil {
@@ -88,6 +78,8 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, fmt.Sprintf("invalid request payload: %v", err), http.StatusBadRequest)
 		return
 	}
+	filled := s.fillAIRequest(r.Context(), settings.AIRequest{Provider: req.Provider, Model: req.Model, APIKey: req.APIKey, BaseURL: req.BaseURL})
+	req.Provider, req.Model, req.APIKey, req.BaseURL = filled.Provider, filled.Model, filled.APIKey, filled.BaseURL
 
 	provider := ai.ResolveProvider(req.Provider)
 
@@ -101,7 +93,6 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
 
 	err := ai.StreamChat(r.Context(), req, s.aiKeys(), s.chatOptions(), w, flusher)
 	if err != nil {

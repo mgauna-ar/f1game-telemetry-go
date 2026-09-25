@@ -19,6 +19,7 @@ import (
 	"github.com/mgauna/f1game-telemetry-go/internal/input"
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 	"github.com/mgauna/f1game-telemetry-go/internal/session"
+	"github.com/mgauna/f1game-telemetry-go/internal/settings"
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
 	"github.com/mgauna/f1game-telemetry-go/internal/system"
 	"github.com/mgauna/f1game-telemetry-go/internal/udp"
@@ -72,8 +73,19 @@ func loadServerConfig() ServerConfig {
 		OpenAIAPIKey: getEnv("OPENAI_API_KEY", ""),
 		ClaudeAPIKey: getEnv("ANTHROPIC_API_KEY", ""),
 		LLMModel:     getEnv("LLM_MODEL", ""),
-		LLMProvider:  getEnv("LLM_PROVIDER", ""),
+		LLMProvider:  llmProviderFromEnv(getEnv("LLM_PROVIDER", "")),
 	}
+}
+
+// llmProviderFromEnv normalizes LLM_PROVIDER, dropping a value no chat provider matches so the
+// default provider is picked from the API keys instead.
+func llmProviderFromEnv(raw string) string {
+	provider := settings.NormalizeProvider(raw)
+	if provider == "" || settings.IsProvider(provider) {
+		return provider
+	}
+	slog.Warn("Ignoring unknown LLM_PROVIDER", "value", raw, "known", strings.Join(settings.Providers, ", "))
+	return ""
 }
 
 func main() {
