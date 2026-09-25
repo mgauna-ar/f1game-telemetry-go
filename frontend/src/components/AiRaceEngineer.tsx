@@ -6,9 +6,16 @@ import {
   Settings,
   RotateCcw,
   X,
-  Minus,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
-import { useRaceEngineer, providerHasKey } from '../context/RaceEngineerContext';
+import {
+  useRaceEngineer,
+  providerHasKey,
+  AI_PROVIDER_OPTIONS,
+  STORAGE_KEY_AI_EXPANDED,
+} from '../context/RaceEngineerContext';
+import { storage } from '../utils/storage';
 import { useI18n } from '../context/I18nContext';
 import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
 import { TrackFlag } from './TrackFlag';
@@ -24,6 +31,9 @@ export interface AiRaceEngineerProps {
   isOpenOverride?: boolean;
   onCloseOverride?: () => void;
 }
+
+/** Tallest the message box grows, in pixels, before it scrolls. */
+const INPUT_MAX_HEIGHT_PX = 140;
 
 const getChatPlaceholder = (effectiveMode: string, t: (key: string) => string): string => {
 
@@ -75,8 +85,21 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
   const handleClose = onCloseOverride || closeChat;
 
   const [showSettings, setShowSettings] = useState(false);
+  const [isExpanded, setIsExpanded] = useState<boolean>(() => storage.get<boolean>(STORAGE_KEY_AI_EXPANDED, false));
   const [inputMessage, setInputMessage] = useState('');
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+
+  useEffect(() => {
+    storage.set(STORAGE_KEY_AI_EXPANDED, isExpanded);
+  }, [isExpanded]);
+
+  // Grow the message box with its text, up to a few lines.
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, INPUT_MAX_HEIGHT_PX)}px`;
+  }, [inputMessage, isOpen]);
 
   // Effective context mode: if propTelemetryContext is passed directly as prop, it's comparator mode. Otherwise, it follows contextMode.
   const effectiveMode = propTelemetryContext ? 'comparator' : contextMode;
@@ -86,22 +109,23 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
   const hasLapsSelected = propHasLapsSelected ?? Boolean(activeComparatorContext?.lap_a_name && activeComparatorContext?.lap_b_name);
   const isZoomActive = propIsZoomActive ?? Boolean(activeComparatorContext?.zoomed_range);
 
-  // Focus input when opened
+  // Focus the message box when opened, and again once a reply has finished
   useEffect(() => {
-    if (isOpen && !showSettings) {
+    if (isOpen && !showSettings && !isGenerating) {
       inputRef.current?.focus();
     }
-  }, [isOpen, showSettings]);
+  }, [isOpen, showSettings, isGenerating]);
 
-  // Fetch models when opening settings, switching provider, or once a key is saved
+  // Fetch models when opening settings, switching provider or server, or once a key is saved
   const hasKey = providerHasKey(keyStatus, config.provider);
+  const serverAddress = config.provider === 'custom' ? config.baseUrl : '';
   const fetchModelsRef = useRef(fetchAvailableModels);
   fetchModelsRef.current = fetchAvailableModels;
   useEffect(() => {
     if (showSettings && hasKey) {
       fetchModelsRef.current();
     }
-  }, [showSettings, config.provider, hasKey]);
+  }, [showSettings, config.provider, serverAddress, hasKey]);
 
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -110,6 +134,18 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
     setInputMessage('');
     sendMessage(text);
   };
+
+  // Enter sends, Shift+Enter starts a new line.
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+
+  const providerName = t(
+    AI_PROVIDER_OPTIONS.find((option) => option.provider === config.provider)?.nameKey ?? config.provider
+  );
 
   const handlePromptChipClick = (prompt: string) => {
     if (isGenerating) return;
@@ -174,14 +210,18 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
 
   // When open: render Floating Chat Widget (No modal-overlay backdrop)
   return (
-    <div className="ai-floating-widget glass-panel" role="region" aria-label="AI Race Engineer Chat">
+    <div
+      className={`ai-floating-widget${isExpanded ? ' is-expanded' : ''}`}
+      role="region"
+      aria-label="AI Race Engineer Chat"
+    >
       {/* Widget Header */}
       <div className="ai-widget-header">
         <div className="ai-widget-header-left">
           <div className="ai-widget-avatar">
             <Bot size={18} color="#00f2fe" />
           </div>
-          <div>
+          <div className="ai-widget-heading">
             <div className="ai-widget-title-row">
               <span className="ai-widget-title">AI Race Engineer</span>
               <span
@@ -195,45 +235,54 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
                 {contextBadgeInfo.label}
               </span>
             </div>
-            <div className="ai-widget-sub mono" style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <div className="ai-widget-sub">
               {contextBadgeInfo.track && <TrackFlag track={contextBadgeInfo.track} width={13} height={9} />}
-              <span>{contextBadgeInfo.sub} • {config.model.replace('gemini-', '').replace('-latest', '')}</span>
+              <span className="ai-widget-sub-context">{contextBadgeInfo.sub}</span>
+              <span className="ai-widget-sub-sep">•</span>
+              <button
+                type="button"
+                className="ai-widget-model-chip mono"
+                onClick={() => setShowSettings(true)}
+                title={config.model ? `${providerName} · ${config.model}` : providerName}
+              >
+                {config.model || providerName}
+              </button>
             </div>
           </div>
         </div>
 
         <div className="ai-widget-header-actions">
           <button
-            className="ai-btn-icon"
+            className={`ai-btn-icon${showSettings ? ' is-active' : ''}`}
             onClick={() => setShowSettings(!showSettings)}
-            title="Configure AI API & Model"
+            title={t('ai_engineer.settings')}
             aria-label="Settings"
           >
-            <Settings size={14} />
+            <Settings size={15} />
           </button>
           <button
             className="ai-btn-icon"
             onClick={clearMessages}
-            title="Clear conversation"
+            title={t('ai_engineer.clearChat')}
             aria-label="Clear chat"
           >
-            <RotateCcw size={14} />
+            <RotateCcw size={15} />
           </button>
           <button
             className="ai-btn-icon"
-            onClick={handleClose}
-            title="Minimize Race Engineer"
-            aria-label="Minimize"
+            onClick={() => setIsExpanded(!isExpanded)}
+            title={isExpanded ? t('ai_engineer.collapse') : t('ai_engineer.expand')}
+            aria-label={isExpanded ? t('ai_engineer.collapse') : t('ai_engineer.expand')}
           >
-            <Minus size={15} />
+            {isExpanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
           </button>
           <button
             className="ai-btn-icon ai-btn-close"
             onClick={handleClose}
-            title="Close"
+            title={t('ai_engineer.close')}
             aria-label="Close"
           >
-            <X size={15} />
+            <X size={16} />
           </button>
         </div>
       </div>
@@ -276,14 +325,16 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
       {/* Chat Input Bar */}
       <div className="ai-widget-input-bar">
         <form onSubmit={handleSubmit} className="ai-widget-input-form">
-          <input
+          <textarea
             ref={inputRef}
-            type="text"
+            rows={1}
             className="ai-chat-input"
             placeholder={getChatPlaceholder(effectiveMode, t)}
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
+            onKeyDown={handleInputKeyDown}
             disabled={isGenerating}
+            title={t('ai_engineer.inputHint')}
           />
 
           {isGenerating ? (
@@ -291,9 +342,10 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
               type="button"
               className="ai-btn-submit ai-btn-stop"
               onClick={stopGenerating}
-              title="Stop response"
+              title={t('ai_engineer.stop')}
+              aria-label={t('ai_engineer.stop')}
             >
-              <Square size={14} />
+              <Square size={13} />
             </button>
           ) : (
             <button
@@ -301,6 +353,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
               className="ai-btn-submit"
               disabled={!inputMessage.trim()}
               title={t('ai_engineer.send')}
+              aria-label={t('ai_engineer.send')}
             >
               <Send size={14} />
             </button>

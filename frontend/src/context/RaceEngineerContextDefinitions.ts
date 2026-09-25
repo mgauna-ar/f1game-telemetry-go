@@ -8,12 +8,20 @@ export type AIProvider = 'gemini' | 'openai' | 'claude' | 'custom';
 
 export const AI_PROVIDERS: readonly AIProvider[] = ['gemini', 'openai', 'claude', 'custom'];
 
-/** Providers offered in the chat settings dropdown, with the label for each. */
-export const AI_PROVIDER_OPTIONS: ReadonlyArray<{ provider: AIProvider; labelKey: string }> = [
-  { provider: 'gemini', labelKey: 'ai_engineer.geminiOption' },
-  { provider: 'openai', labelKey: 'ai_engineer.openaiOption' },
-  { provider: 'claude', labelKey: 'ai_engineer.claudeOption' },
-  { provider: 'custom', labelKey: 'ai_engineer.customOption' },
+export interface AIProviderOption {
+  provider: AIProvider;
+  /** Short name, like "Gemini". */
+  nameKey: string;
+  /** One line under the name: who runs it and what it costs. */
+  taglineKey: string;
+}
+
+/** Providers offered in the AI settings, in the order they are shown. */
+export const AI_PROVIDER_OPTIONS: ReadonlyArray<AIProviderOption> = [
+  { provider: 'gemini', nameKey: 'ai_engineer.providers.gemini.name', taglineKey: 'ai_engineer.providers.gemini.tagline' },
+  { provider: 'openai', nameKey: 'ai_engineer.providers.openai.name', taglineKey: 'ai_engineer.providers.openai.tagline' },
+  { provider: 'claude', nameKey: 'ai_engineer.providers.claude.name', taglineKey: 'ai_engineer.providers.claude.tagline' },
+  { provider: 'custom', nameKey: 'ai_engineer.providers.custom.name', taglineKey: 'ai_engineer.providers.custom.tagline' },
 ];
 
 export const isAIProvider = (value: unknown): value is AIProvider =>
@@ -43,6 +51,10 @@ export type AIKeyStatusByProvider = Record<AIProvider, AIKeyStatus>;
 /** Whether chats with the provider can run: custom endpoints (like Ollama) may not need a key. */
 export const providerHasKey = (keyStatus: AIKeyStatusByProvider, provider: AIProvider): boolean =>
   provider === 'custom' || keyStatus[provider].hasSavedKey || keyStatus[provider].hasEnvKey;
+
+/** Whether the provider is set up enough to chat: a key for cloud providers, an address for custom. */
+export const providerIsReady = (config: AIConfig, keyStatus: AIKeyStatusByProvider, provider: AIProvider): boolean =>
+  provider === 'custom' ? config.baseUrl.trim() !== '' : providerHasKey(keyStatus, provider);
 
 export interface AIModelItem {
   id: string;
@@ -114,6 +126,8 @@ export type RaceEngineerContextValue = RaceEngineerActionsContextValue & RaceEng
 /** Where older versions kept the AI config, keys included, in each browser. Read once to migrate it. */
 export const STORAGE_KEY_AI_CONFIG = 'f1_ai_engineer_config';
 export const STORAGE_KEY_AI_OPEN = 'f1_ai_engineer_open';
+/** Whether the chat window is shown large on this browser. */
+export const STORAGE_KEY_AI_EXPANDED = 'f1_ai_engineer_expanded';
 
 /**
  * Placeholder until the server's settings load. Default model names come from the server, so the

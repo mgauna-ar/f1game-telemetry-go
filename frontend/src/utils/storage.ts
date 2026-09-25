@@ -17,6 +17,7 @@ export type KnownStorageKey =
   | 'f1_live_view_mode'
   | 'f1_ai_engineer_config'
   | 'f1_ai_engineer_open'
+  | 'f1_ai_engineer_expanded'
   | 'f1_comparator_quick_select_open'
   | 'f1_comparator_default_driver_name'
   | 'f1_comparator_rival_mode'

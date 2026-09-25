@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { api } from '../utils/apiClient';
 import {
   providerHasKey,
@@ -55,20 +55,34 @@ export interface UseAIModelsReturn {
   fetchAvailableModels: (overrideConfig?: AIConfig) => Promise<void>;
 }
 
-/** Lists the chat models of the active provider. The server adds the saved or .env API key. */
+/** Which provider and server a model list belongs to. */
+const modelsSource = (cfg: AIConfig): string =>
+  cfg.provider === 'custom' ? `custom|${cfg.baseUrl.trim()}` : cfg.provider;
+
+/**
+ * Lists the chat models of the active provider. The server adds the saved or .env API key. A list
+ * only shows while its provider (and, for custom servers, its address) is the active one.
+ */
 export const useAIModels = (
   config: AIConfig,
   keyStatus: AIKeyStatusByProvider
 ): UseAIModelsReturn => {
-  const [availableModels, setAvailableModels] = useState<AIModelItem[]>([]);
+  const [loaded, setLoaded] = useState<{ source: string; models: AIModelItem[] }>({ source: '', models: [] });
   const [isLoadingModels, setIsLoadingModels] = useState<boolean>(false);
   const [modelsError, setModelsError] = useState<string | null>(null);
+  // Requests can overlap when the provider changes; only the latest one may update the state.
+  const requestSeq = useRef(0);
 
   const fetchAvailableModels = useCallback(
     async (overrideConfig?: AIConfig) => {
       const activeCfg = overrideConfig || config;
-      if (!providerHasKey(keyStatus, activeCfg.provider)) {
-        setAvailableModels([]);
+      const source = modelsSource(activeCfg);
+      const seq = ++requestSeq.current;
+      const baseUrl = activeCfg.baseUrl.trim();
+      if (!providerHasKey(keyStatus, activeCfg.provider) || (activeCfg.provider === 'custom' && !baseUrl)) {
+        setLoaded({ source, models: [] });
+        setModelsError(null);
+        setIsLoadingModels(false);
         return;
       }
 
@@ -77,22 +91,31 @@ export const useAIModels = (
       try {
         const data = await api.post<{ models: AIModelItem[] }>('/api/ai/models', {
           provider: activeCfg.provider,
+          // The address being set up, which the server may not have saved yet.
+          ...(activeCfg.provider === 'custom' ? { base_url: baseUrl } : {}),
         });
-        setAvailableModels(data?.models?.length ? filterChatModels(data.models, activeCfg.provider) : []);
+        if (seq !== requestSeq.current) return;
+        setLoaded({
+          source,
+          models: data?.models?.length ? filterChatModels(data.models, activeCfg.provider) : [],
+        });
       } catch (err) {
+        if (seq !== requestSeq.current) return;
         const errorMsg = err instanceof Error ? err.message : 'Could not query models list.';
+        setLoaded({ source, models: [] });
         setModelsError(errorMsg);
       } finally {
-        setIsLoadingModels(false);
+        if (seq === requestSeq.current) setIsLoadingModels(false);
       }
     },
     [config, keyStatus]
   );
 
+  const isCurrent = loaded.source === modelsSource(config);
   return {
-    availableModels,
+    availableModels: isCurrent ? loaded.models : [],
     isLoadingModels,
-    modelsError,
+    modelsError: isCurrent ? modelsError : null,
     fetchAvailableModels,
   };
 };
