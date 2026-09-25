@@ -14,8 +14,10 @@ let micSourceNode: MediaStreamAudioSourceNode | null = null;
 let workletLoaded = false;
 let workletLoadingPromise: Promise<boolean> | null = null;
 
-// Zero-latency in-memory cache for synthesized audio chunks
+// Zero-latency in-memory cache for synthesized audio chunks, oldest entries evicted first
 const ttsAudioMemoryCache = new Map<string, ArrayBuffer>();
+// Synthesis requests still in flight, so a prefetched sentence is not requested twice
+const ttsInFlightRequests = new Map<string, Promise<ArrayBuffer>>();
 
 export function _resetAudioContextForTesting(): void {
   audioCtx = null;
@@ -31,6 +33,7 @@ export function _resetAudioContextForTesting(): void {
   workletLoaded = false;
   workletLoadingPromise = null;
   ttsAudioMemoryCache.clear();
+  ttsInFlightRequests.clear();
 }
 
 /**
@@ -268,6 +271,10 @@ export function playRadioBeep(
 export interface RadioSpeechOptions {
   volume?: number;
   enableBeeps?: boolean;
+  /** Overrides enableBeeps for the opening beep, e.g. to open a multi-sentence reply only once. */
+  beepStart?: boolean;
+  /** Overrides enableBeeps for the closing beep, e.g. to close a multi-sentence reply only once. */
+  beepEnd?: boolean;
   enableCockpitFilter?: boolean;
   enableStaticFx?: boolean;
   voice?: string;
@@ -290,6 +297,8 @@ export async function playRadioAudioBuffer(
   const {
     volume = RADIO_AUDIO_CONSTANTS.DEFAULT_VOLUME,
     enableBeeps = true,
+    beepStart = enableBeeps,
+    beepEnd = enableBeeps,
     enableCockpitFilter = true,
     enableStaticFx = true,
     onStart,
@@ -305,7 +314,7 @@ export async function playRadioAudioBuffer(
 
   stopRadioSpeech();
 
-  if (enableBeeps) {
+  if (beepStart) {
     await playRadioBeep('start', volume);
   }
 
@@ -409,7 +418,7 @@ export async function playRadioAudioBuffer(
 
           source.onended = async () => {
             stopRadioSpeech();
-            if (enableBeeps) {
+            if (beepEnd) {
               await playRadioBeep('end', volume);
             }
             onEnd?.();
@@ -557,6 +566,70 @@ export function formatProactiveFallbackSpeech(
   return getProactiveRadioSpeech(input, language, persona, driverCallsign);
 }
 
+interface RadioSpeechRequest {
+  cleaned: string;
+  cacheKey: string;
+  body: { text: string; voice?: string; persona: string; language?: string; rate: string; pitch: string };
+}
+
+/** Cleans the text and builds the synthesis request and cache key for it. */
+function buildRadioSpeechRequest(text: string, options: RadioSpeechOptions): RadioSpeechRequest | null {
+  const { voice, persona = 'bono', language, rate = '+0%', pitch = '+0Hz' } = options;
+
+  let cleaned = cleanRadioSpeechText(text);
+  if (language === 'es' || (!language && persona === 'colapinto')) {
+    cleaned = normalizeSpanishRadioSpeech(cleaned);
+  }
+  if (!cleaned) return null;
+
+  return {
+    cleaned,
+    cacheKey: `${voice || 'default'}|${persona}|${language || ''}|${rate}|${pitch}|${cleaned}`,
+    body: { text: cleaned, voice: voice || undefined, persona, language, rate, pitch },
+  };
+}
+
+function cacheRadioAudio(cacheKey: string, audio: ArrayBuffer): void {
+  ttsAudioMemoryCache.delete(cacheKey);
+  ttsAudioMemoryCache.set(cacheKey, audio);
+  while (ttsAudioMemoryCache.size > RADIO_AUDIO_CONSTANTS.TTS_CACHE_MAX_ENTRIES) {
+    const oldest = ttsAudioMemoryCache.keys().next().value;
+    if (oldest === undefined) break;
+    ttsAudioMemoryCache.delete(oldest);
+  }
+}
+
+/** Returns the synthesized audio from the cache, a request already in flight, or a new request. */
+function fetchRadioSpeechAudio(request: RadioSpeechRequest): Promise<ArrayBuffer> {
+  const cached = ttsAudioMemoryCache.get(request.cacheKey);
+  if (cached) return Promise.resolve(cached);
+
+  const inFlight = ttsInFlightRequests.get(request.cacheKey);
+  if (inFlight) return inFlight;
+
+  const pending = api
+    .postArrayBuffer('/api/ai/tts', request.body)
+    .then((audio) => {
+      cacheRadioAudio(request.cacheKey, audio);
+      return audio;
+    })
+    .finally(() => {
+      ttsInFlightRequests.delete(request.cacheKey);
+    });
+  ttsInFlightRequests.set(request.cacheKey, pending);
+  return pending;
+}
+
+/**
+ * Starts synthesizing a radio message in the background so it plays without delay
+ * when its turn comes. Uses the same options as speakRadioResponse.
+ */
+export function prefetchRadioSpeech(text: string, options: RadioSpeechOptions = {}): void {
+  const request = buildRadioSpeechRequest(text, options);
+  if (!request) return;
+  fetchRadioSpeechAudio(request).catch(() => {});
+}
+
 /**
  * Requests speech synthesis from the Go backend (Microsoft Edge Neural TTS)
  * and plays it with F1 radio sound effects, static ambience, and callbacks.
@@ -565,45 +638,19 @@ export async function speakRadioResponse(
   text: string,
   options: RadioSpeechOptions = {}
 ): Promise<void> {
-  const {
-    voice,
-    persona = 'bono',
-    language,
-    rate = '+0%',
-    pitch = '+0Hz',
-    onError,
-  } = options;
-
-  let cleaned = cleanRadioSpeechText(text);
-  if (language === 'es' || (!language && persona === 'colapinto')) {
-    cleaned = normalizeSpanishRadioSpeech(cleaned);
-  }
-  if (!cleaned) return;
+  const request = buildRadioSpeechRequest(text, options);
+  if (!request) return;
 
   stopRadioSpeech();
 
-  const cacheKey = `${voice || 'default'}|${persona}|${language || ''}|${rate}|${pitch}|${cleaned}`;
-  const cached = ttsAudioMemoryCache.get(cacheKey);
-  if (cached) {
-    await playRadioAudioBuffer(cached, options);
+  let audioBuffer: ArrayBuffer;
+  try {
+    audioBuffer = await fetchRadioSpeechAudio(request);
+  } catch (err) {
+    options.onError?.(err);
     return;
   }
-
-  try {
-    const audioBuffer = await api.postArrayBuffer('/api/ai/tts', {
-      text: cleaned,
-      voice: voice || undefined,
-      persona,
-      language,
-      rate,
-      pitch,
-    });
-
-    ttsAudioMemoryCache.set(cacheKey, audioBuffer);
-    await playRadioAudioBuffer(audioBuffer, options);
-  } catch (err) {
-    onError?.(err);
-  }
+  await playRadioAudioBuffer(audioBuffer, options);
 }
 
 /**

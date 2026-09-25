@@ -555,6 +555,8 @@ export const RADIO_AUDIO_CONSTANTS = {
   HELMET_WARMTH_FREQ_HZ: 850,
   HELMET_WARMTH_GAIN_DB: 3.5,
   ANALYZER_FFT_SIZE: 64,
+  /** Synthesized radio clips kept in memory; streamed replies add one clip per sentence. */
+  TTS_CACHE_MAX_ENTRIES: 60,
 } as const;
 
 export const RADIO_NEURAL_VOICES = {

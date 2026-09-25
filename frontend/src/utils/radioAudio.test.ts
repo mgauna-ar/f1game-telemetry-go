@@ -13,7 +13,9 @@ import {
   connectMicrophoneToAnalyser,
   disconnectMicrophoneFromAnalyser,
   _resetAudioContextForTesting,
+  prefetchRadioSpeech,
 } from './radioAudio';
+import { RADIO_AUDIO_CONSTANTS } from '../constants/f1';
 
 describe('radioAudio utils', () => {
   beforeEach(() => {
@@ -429,6 +431,49 @@ describe('radioAudio utils', () => {
 
       disconnectMicrophoneFromAnalyser();
       expect(mockMicSource.disconnect).toHaveBeenCalled();
+    });
+  });
+
+  describe('prefetchRadioSpeech', () => {
+    const flush = () => new Promise((r) => setTimeout(r, 0));
+
+    function mockTTSFetch() {
+      globalThis.fetch = vi.fn().mockImplementation(async () => ({
+        ok: true,
+        arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(8)),
+      }));
+      return globalThis.fetch as ReturnType<typeof vi.fn>;
+    }
+
+    it('shares one synthesis request between a prefetch and the playback that follows', async () => {
+      const fetchMock = mockTTSFetch();
+      vi.stubGlobal('AudioContext', undefined);
+
+      prefetchRadioSpeech('Box this lap.', { persona: 'bono', language: 'en' });
+      prefetchRadioSpeech('Box this lap.', { persona: 'bono', language: 'en' });
+      await speakRadioResponse('Box this lap.', { persona: 'bono', language: 'en', onError: () => {} });
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledWith('/api/ai/tts', expect.objectContaining({ body: expect.stringContaining('Box this lap.') }));
+    });
+
+    it('keeps the audio cache bounded, dropping the oldest clips first', async () => {
+      const fetchMock = mockTTSFetch();
+      const limit = RADIO_AUDIO_CONSTANTS.TTS_CACHE_MAX_ENTRIES;
+
+      for (let i = 0; i <= limit; i++) {
+        prefetchRadioSpeech(`Sentence ${i}.`);
+      }
+      await flush();
+      expect(fetchMock).toHaveBeenCalledTimes(limit + 1);
+
+      prefetchRadioSpeech(`Sentence ${limit}.`);
+      await flush();
+      expect(fetchMock).toHaveBeenCalledTimes(limit + 1);
+
+      prefetchRadioSpeech('Sentence 0.');
+      await flush();
+      expect(fetchMock).toHaveBeenCalledTimes(limit + 2);
     });
   });
 });

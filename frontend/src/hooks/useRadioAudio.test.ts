@@ -185,6 +185,64 @@ describe('useRadioAudio hook', () => {
       ]);
     });
 
+    it('speaks each sentence of the answer as it streams in', async () => {
+      vi.spyOn(api, 'stream').mockImplementation(async () =>
+        createMockSSEResponse([
+          'data: {"text":"Gap to Leclerc is 1."}\n\n',
+          'data: {"text":"2 seconds and closing. Norris is "}\n\n',
+          'data: {"text":"0.8 behind."}\n\n',
+          'data: [DONE]\n\n',
+        ])
+      );
+      const { result } = renderHook(() => useRadioAudio());
+
+      await askOverRadio(result, 'Gaps?');
+
+      const spoken = vi.mocked(radioAudio.speakRadioResponse).mock.calls.map((call) => call[0]);
+      expect(spoken).toEqual(['Gap to Leclerc is 1.2 seconds and closing.', 'Norris is 0.8 behind.']);
+      expect(result.current.lastResponse).toBe('Gap to Leclerc is 1.2 seconds and closing. Norris is 0.8 behind.');
+      expect(result.current.radioState).toBe('idle');
+    });
+
+    it('drops the pending answer when the driver keys the radio again', async () => {
+      const signals: AbortSignal[] = [];
+      vi.spyOn(api, 'stream').mockImplementation(
+        (_path, _body, signal) =>
+          new Promise<Response>((_resolve, reject) => {
+            const s = signal as AbortSignal;
+            signals.push(s);
+            s.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')));
+          })
+      );
+      const { result } = renderHook(() => useRadioAudio());
+
+      act(() => {
+        result.current.onPTTPress();
+      });
+      act(() => {
+        FakeSpeechRecognition.say('Gap to the car ahead?');
+      });
+      let pending!: Promise<void>;
+      act(() => {
+        pending = result.current.onPTTRelease();
+      });
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(result.current.radioState).toBe('processing');
+
+      act(() => {
+        result.current.onPTTPress();
+      });
+      await act(async () => {
+        await pending;
+      });
+
+      expect(signals[0].aborted).toBe(true);
+      expect(result.current.radioState).toBe('transmitting');
+      expect(result.current.error).toBeNull();
+    });
+
     it('forgets the conversation when a new session starts', async () => {
       vi.spyOn(api, 'stream').mockImplementation(async () => createMockSSEResponse(['data: {"text":"Copy."}\n\n']));
       const { result } = renderHook(() => useRadioAudio());

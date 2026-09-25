@@ -49,6 +49,7 @@ This file (`.agents/AGENTS.md`) contains workspace-specific rules, architectural
       - `PhaseOutLap` & `PhaseInLap`: Out-lap focuses strictly on thermal prep, clean air gap spacing, and traffic behind; in-lap focuses on cooldown, battery recharge, and letting flying laps pass.
     - **Audio Queueing, Radio Spacing & Incident Discipline:**
       - Frontend sequential speech queue (`useTTSPlayback.ts`) ensures non-critical directives play sequentially without clipping; critical emergencies (`UrgencyCritical` / `UrgencyHigh`) preempt active speech.
+      - Push-to-talk answers are spoken sentence by sentence while they stream (`useRadioAudio.ts` feeds `createSentenceChunker` into `useTTSPlayback.beginReplyStream()`): each sentence's TTS is prefetched, the reply opens and closes with one beep pair, goes ahead of queued non-critical calls, and is dropped by a forced interrupt or a new PTT press, which also aborts the pending request.
       - Global radio spacing enforces a minimum 4-second gap (`GlobalRadioChatterCooldownMs = 4_000`) between non-critical calls across categories.
       - Steward penalties strictly supersede corner cutting warnings on the same event frame.
       - Neutralization shield suppresses sector delta coaching, fuel delta, rival battles, and tyre overheat during SC/VSC or local yellow flags. Sector deltas are capped to `0.35s <= delta <= 3.0s` to prevent incident conflation.

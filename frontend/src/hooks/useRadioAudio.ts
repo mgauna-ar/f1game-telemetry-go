@@ -15,8 +15,9 @@ import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
 import { api } from '../utils/apiClient';
 import { storage } from '../utils/storage';
 import { readSSEStream } from '../utils/sseUtils';
+import { createSentenceChunker } from '../utils/sentenceChunker';
 import { useSpeechRecognition } from './useSpeechRecognition';
-import { useTTSPlayback } from './useTTSPlayback';
+import { useTTSPlayback, type ReplySpeechStream } from './useTTSPlayback';
 
 export type RadioState = 'idle' | 'transmitting' | 'processing' | 'speaking';
 
@@ -97,6 +98,7 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
     stopSpeech,
     testRadioTransmission,
     testTriggerAlert,
+    beginReplyStream,
   } = useTTSPlayback({
     effectiveLanguage,
     onResponseReceived,
@@ -164,6 +166,9 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
   // Handle Gamepad/PTT Press
   const onPTTPress = useCallback(() => {
     if (!isRadioEnabledRef.current || radioStateRef.current === 'transmitting') return;
+    // A new transmission replaces an answer still being generated or spoken.
+    activeAbortControllerRef.current?.abort();
+    activeAbortControllerRef.current = null;
     stopSpeech();
     stopRadioSpeech();
     setRadioState('transmitting');
@@ -200,9 +205,10 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
 
     setRadioState('processing');
 
+    let replySpeech: ReplySpeechStream | null = null;
+    const abortController = new AbortController();
+    activeAbortControllerRef.current = abortController;
     try {
-      const abortController = new AbortController();
-      activeAbortControllerRef.current = abortController;
 
       const liveContext = getLiveTelemetrySummaryRef.current ? getLiveTelemetrySummaryRef.current() : '';
 
@@ -288,28 +294,36 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
         throw new Error(`AI Service returned status ${response.status}`);
       }
 
-      const fullReply = await readSSEStream(response);
+      // Speak each sentence as soon as it arrives instead of waiting for the whole reply.
+      const speech = beginReplyStream();
+      replySpeech = speech;
+      const sentences = createSentenceChunker((sentence) => speech.pushSentence(sentence));
+      const fullReply = (await readSSEStream(response, (chunk) => sentences.push(chunk))).trim();
+      sentences.flush();
+      speech.finish();
 
-      if (fullReply.trim()) {
-        const turns = [...conversationRef.current.turns, driverTurn, { role: 'assistant' as const, content: fullReply.trim() }];
+      if (fullReply) {
+        const turns = [...conversationRef.current.turns, driverTurn, { role: 'assistant' as const, content: fullReply }];
         conversationRef.current.turns = turns.slice(-RADIO_CONVERSATION_LIMITS.MAX_EXCHANGES * 2);
-        if (onResponseReceivedRef.current) {
-          onResponseReceivedRef.current(fullReply.trim());
-        }
-        await ttsSpeakMessage(fullReply.trim());
+        onResponseReceivedRef.current?.(fullReply);
       } else {
-        setRadioState('idle');
+        setRadioState((prev) => (prev === 'processing' ? 'idle' : prev));
       }
     } catch (err: unknown) {
-      if (!(err instanceof Error && err.name === 'AbortError')) {
+      // An aborted request was replaced by a newer transmission or stopped on purpose.
+      if (!abortController.signal.aborted) {
         const msg = err instanceof Error ? err.message : 'Error processing radio response';
         setSpeechError(msg);
+        // Close the radio on whatever part of the answer was already spoken.
+        replySpeech?.finish();
       }
-      setRadioState('idle');
+      setRadioState((prev) => (prev === 'processing' ? 'idle' : prev));
     } finally {
-      activeAbortControllerRef.current = null;
+      if (activeAbortControllerRef.current === abortController) {
+        activeAbortControllerRef.current = null;
+      }
     }
-  }, [getFinalTranscript, setSpeechError, stopListening, ttsSpeakMessage]);
+  }, [beginReplyStream, getFinalTranscript, setSpeechError, stopListening]);
 
   return {
     radioState,

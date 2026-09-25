@@ -4,6 +4,9 @@ import {
   speakRadioResponse,
   stopRadioSpeech,
   cleanRadioSpeechText,
+  prefetchRadioSpeech,
+  playRadioBeep,
+  type RadioSpeechOptions,
 } from '../utils/radioAudio';
 import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
 
@@ -12,6 +15,39 @@ export interface UseTTSPlaybackOptions {
   onResponseReceived?: (response: string) => void;
   onSpeakingChange?: (isSpeaking: boolean) => void;
 }
+
+/** A reply spoken sentence by sentence while it is still being generated. */
+export interface ReplySpeechStream {
+  /** Queues the next sentence; the first one opens the radio with a beep. */
+  pushSentence: (sentence: string) => void;
+  /** Marks the reply complete; the radio closes with a beep after the last sentence. */
+  finish: () => void;
+}
+
+type SpeechEmotion = { rateModifier?: number; pitchModifier?: number };
+
+interface SpeechQueueItem {
+  id: string;
+  text: string;
+  emotion?: SpeechEmotion;
+  /** Set on sentences of a streamed reply. */
+  stream?: ReplyStreamState;
+}
+
+interface ReplyStreamState {
+  /** The first sentence has started playing. */
+  started: boolean;
+  /** No more sentences will arrive. */
+  finished: boolean;
+  /** Interrupted by stopSpeech, a forced call or a newer reply. */
+  cancelled: boolean;
+  /** The last queued sentence ended and the next one has not arrived yet. */
+  awaiting: boolean;
+  /** Sentences spoken so far, shown as the last response. */
+  spoken: string;
+}
+
+const newQueueItemId = () => Math.random().toString(36).substring(2, 9);
 
 export interface UseTTSPlaybackReturn {
   isSpeaking: boolean;
@@ -25,6 +61,7 @@ export interface UseTTSPlaybackReturn {
   stopSpeech: () => void;
   testRadioTransmission: () => Promise<void>;
   testTriggerAlert: (triggerType: string) => Promise<void>;
+  beginReplyStream: () => ReplySpeechStream;
 }
 
 export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackReturn {
@@ -51,15 +88,58 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
   onResponseReceivedRef.current = onResponseReceived;
 
   const isSpeakingRef = useRef(false);
-  const queueRef = useRef<Array<{
-    id: string;
-    text: string;
-    emotion?: { rateModifier?: number; pitchModifier?: number };
-  }>>([]);
+  const queueRef = useRef<SpeechQueueItem[]>([]);
+  const streamRef = useRef<ReplyStreamState | null>(null);
   const MAX_QUEUE_SIZE = 3;
+
+  const speechOptions = useCallback(
+    (emotion?: SpeechEmotion): RadioSpeechOptions => {
+      const effectiveRate = speechRate + (emotion?.rateModifier || 0);
+      const effectivePitch = speechPitch + (emotion?.pitchModifier || 0);
+      return {
+        volume,
+        voice: neuralVoice || undefined,
+        persona,
+        language: effectiveLanguage,
+        rate: effectiveRate >= 0 ? `+${effectiveRate}%` : `${effectiveRate}%`,
+        pitch: effectivePitch >= 0 ? `+${effectivePitch}Hz` : `${effectivePitch}Hz`,
+        enableBeeps: beepsEnabled,
+        enableCockpitFilter: filterEnabled,
+        enableStaticFx: staticFxEnabled,
+      };
+    },
+    [speechRate, speechPitch, volume, neuralVoice, persona, effectiveLanguage, beepsEnabled, filterEnabled, staticFxEnabled]
+  );
+
+  const cancelReplyStream = useCallback(() => {
+    const stream = streamRef.current;
+    if (!stream) return;
+    stream.cancelled = true;
+    streamRef.current = null;
+    queueRef.current = queueRef.current.filter((item) => item.stream !== stream);
+  }, []);
+
+  const hasQueuedSentences = (stream: ReplyStreamState) => queueRef.current.some((item) => item.stream === stream);
+
+  // Closes a finished reply: the end beep once after its last sentence, then the radio is free.
+  const closeReplyStream = useCallback(
+    async (stream: ReplyStreamState) => {
+      if (streamRef.current === stream) streamRef.current = null;
+      if (stream.started && beepsEnabled && !stream.cancelled) {
+        await playRadioBeep('end', volume);
+      }
+    },
+    [beepsEnabled, volume]
+  );
 
   const playNext = useCallback(async () => {
     if (!isRadioEnabled || queueRef.current.length === 0) {
+      const stream = streamRef.current;
+      if (isRadioEnabled && stream && !stream.finished && !stream.cancelled) {
+        // Keep the radio open while the rest of the reply is generated.
+        stream.awaiting = true;
+        return;
+      }
       isSpeakingRef.current = false;
       setIsSpeaking(false);
       onSpeakingChangeRef.current?.(false);
@@ -67,58 +147,85 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
     }
 
     const item = queueRef.current.shift()!;
+    const stream = item.stream;
     isSpeakingRef.current = true;
     setIsSpeaking(true);
     onSpeakingChangeRef.current?.(true);
-    setLastResponse(item.text);
-    onResponseReceivedRef.current?.(item.text);
 
-    const effectiveRate = speechRate + (item.emotion?.rateModifier || 0);
-    const effectivePitch = speechPitch + (item.emotion?.pitchModifier || 0);
-    const rateStr = effectiveRate >= 0 ? `+${effectiveRate}%` : `${effectiveRate}%`;
-    const pitchStr = effectivePitch >= 0 ? `+${effectivePitch}Hz` : `${effectivePitch}Hz`;
+    const options = speechOptions(item.emotion);
+    if (stream) {
+      options.beepStart = beepsEnabled && !stream.started;
+      options.beepEnd = false;
+      stream.started = true;
+      stream.spoken = stream.spoken ? `${stream.spoken} ${item.text}` : item.text;
+      setLastResponse(stream.spoken);
+    } else {
+      setLastResponse(item.text);
+      onResponseReceivedRef.current?.(item.text);
+    }
+
+    const next = async () => {
+      if (stream) {
+        if (stream.cancelled) return;
+        if (stream.finished && !hasQueuedSentences(stream)) {
+          await closeReplyStream(stream);
+        }
+      }
+      playNext();
+    };
 
     try {
-      await speakRadioResponse(item.text, {
-        volume,
-        voice: neuralVoice || undefined,
-        persona,
-        language: effectiveLanguage,
-        rate: rateStr,
-        pitch: pitchStr,
-        enableBeeps: beepsEnabled,
-        enableCockpitFilter: filterEnabled,
-        enableStaticFx: staticFxEnabled,
-        onEnd: () => {
-          playNext();
-        },
-        onError: () => {
-          playNext();
-        },
-      });
+      await speakRadioResponse(item.text, { ...options, onEnd: next, onError: next });
     } catch {
-      playNext();
+      next();
     }
-  }, [
-    isRadioEnabled,
-    speechRate,
-    speechPitch,
-    volume,
-    neuralVoice,
-    persona,
-    beepsEnabled,
-    filterEnabled,
-    staticFxEnabled,
-    effectiveLanguage,
-  ]);
+  }, [isRadioEnabled, beepsEnabled, speechOptions, closeReplyStream]);
 
   const stopSpeech = useCallback(() => {
+    cancelReplyStream();
     queueRef.current = [];
     isSpeakingRef.current = false;
     stopRadioSpeech();
     setIsSpeaking(false);
     onSpeakingChangeRef.current?.(false);
-  }, []);
+  }, [cancelReplyStream]);
+
+  const beginReplyStream = useCallback((): ReplySpeechStream => {
+    // A new reply supersedes one still being spoken.
+    if (streamRef.current) stopSpeech();
+    const stream: ReplyStreamState = { started: false, finished: false, cancelled: false, awaiting: false, spoken: '' };
+    streamRef.current = stream;
+
+    return {
+      pushSentence: (sentence: string) => {
+        const cleaned = cleanRadioSpeechText(sentence);
+        if (stream.cancelled || stream.finished || !isRadioEnabled || !cleaned) return;
+
+        prefetchRadioSpeech(cleaned, speechOptions());
+        // The driver's answer goes ahead of queued pit wall calls, after its own earlier sentences.
+        const queue = queueRef.current;
+        let insertAt = 0;
+        while (insertAt < queue.length && queue[insertAt].stream === stream) insertAt++;
+        queue.splice(insertAt, 0, { id: newQueueItemId(), text: cleaned, stream });
+
+        if (!isSpeakingRef.current || stream.awaiting) {
+          stream.awaiting = false;
+          playNext();
+        }
+      },
+      finish: () => {
+        if (stream.cancelled || stream.finished) return;
+        stream.finished = true;
+        if (stream.awaiting || (!stream.started && !hasQueuedSentences(stream))) {
+          const wasAwaiting = stream.awaiting;
+          stream.awaiting = false;
+          closeReplyStream(stream).then(() => {
+            if (wasAwaiting) playNext();
+          });
+        }
+      },
+    };
+  }, [isRadioEnabled, speechOptions, stopSpeech, closeReplyStream, playNext]);
 
   const speakMessage = useCallback(
     async (
@@ -130,40 +237,31 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
       if (!isRadioEnabled || !cleaned) return;
 
       if (forceInterrupt) {
-        // Critical emergency or forced interrupt: halt current audio and purge non-critical backlog
+        // Critical emergency or forced interrupt: halt current audio, any reply being spoken,
+        // and the non-critical backlog
+        cancelReplyStream();
         queueRef.current = [];
         stopRadioSpeech();
         isSpeakingRef.current = false;
-        queueRef.current.push({
-          id: Math.random().toString(36).substring(2, 9),
-          text: cleaned,
-          emotion,
-        });
+        queueRef.current.push({ id: newQueueItemId(), text: cleaned, emotion });
         await playNext();
         return;
       }
 
       // Non-critical directive: if already speaking, queue it sequentially up to MAX_QUEUE_SIZE
       if (isSpeakingRef.current) {
-        if (queueRef.current.length < MAX_QUEUE_SIZE) {
-          queueRef.current.push({
-            id: Math.random().toString(36).substring(2, 9),
-            text: cleaned,
-            emotion,
-          });
+        const queuedCalls = queueRef.current.filter((item) => !item.stream).length;
+        if (queuedCalls < MAX_QUEUE_SIZE) {
+          queueRef.current.push({ id: newQueueItemId(), text: cleaned, emotion });
         }
         return;
       }
 
       // Not currently speaking, play immediately
-      queueRef.current.push({
-        id: Math.random().toString(36).substring(2, 9),
-        text: cleaned,
-        emotion,
-      });
+      queueRef.current.push({ id: newQueueItemId(), text: cleaned, emotion });
       await playNext();
     },
-    [isRadioEnabled, playNext]
+    [isRadioEnabled, playNext, cancelReplyStream]
   );
 
   const testTriggerAlert = useCallback(
@@ -260,5 +358,6 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
     stopSpeech,
     testRadioTransmission,
     testTriggerAlert,
+    beginReplyStream,
   };
 }
