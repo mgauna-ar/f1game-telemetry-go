@@ -4,7 +4,7 @@ import { useI18n } from '../../context/I18nContext';
 import { AI_PROVIDER_URLS } from '../../constants/f1';
 import { ModelSelectorDropdown, type ModelItem } from './ModelSelectorDropdown';
 import { DEFAULT_AI_MODELS, type AIConfig } from '../../context/RaceEngineerContext';
-import { hasServerKeyFor, type ServerConfigStatus } from '../../hooks/useAIModels';
+import type { ServerConfigStatus } from '../../hooks/useAIModels';
 
 export interface ChatSettingsDrawerProps {
   isOpen: boolean;
@@ -71,7 +71,7 @@ export const ChatSettingsDrawer: React.FC<ChatSettingsDrawerProps> = ({
 
         <label className="readout-label" style={{ marginTop: '0.65rem' }}>
           {t('ai_engineer.apiKey')}
-          {hasServerKeyFor(serverConfigStatus, config.provider) && (
+          {config.provider === 'gemini' && serverConfigStatus?.hasGeminiEnvKey && (
             <span className="ai-env-badge">{t('ai_engineer.serverEnvActive')}</span>
           )}
         </label>
@@ -80,7 +80,8 @@ export const ChatSettingsDrawer: React.FC<ChatSettingsDrawerProps> = ({
             type={showApiKey ? 'text' : 'password'}
             className="ui-input"
             placeholder={
-              hasServerKeyFor(serverConfigStatus, config.provider)
+              (config.provider === 'gemini' && serverConfigStatus?.hasGeminiEnvKey) ||
+              (config.provider === 'openai' && serverConfigStatus?.hasOpenAIEnvKey)
                 ? t('ai_engineer.usingServerKey')
                 : t('ai_engineer.enterApiKey')
             }
