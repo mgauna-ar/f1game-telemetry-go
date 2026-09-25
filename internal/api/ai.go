@@ -17,11 +17,11 @@ func (s *Server) handleAIConfigStatus(w http.ResponseWriter, r *http.Request) {
 	openaiKey := strings.TrimSpace(s.config.OpenAIAPIKey)
 
 	defaultProvider := "gemini"
-	defaultModel := "gemini-flash-lite-latest"
+	defaultModel := ai.DefaultGeminiModel
 
 	if geminiKey == "" && openaiKey != "" {
 		defaultProvider = "openai"
-		defaultModel = "gpt-4o-mini"
+		defaultModel = ai.DefaultOpenAIModel
 	}
 
 	if s.config.LLMModel != "" {

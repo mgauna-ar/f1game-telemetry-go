@@ -2,7 +2,11 @@ import { useState, useRef, useCallback } from 'react';
 import {
   RADIO_PERSONAS,
   RADIO_LANGUAGES,
+  RADIO_CONVERSATION_LIMITS,
+  getSessionTypeName,
+  getTrackInfo,
 } from '../constants/f1';
+import { DEFAULT_CONFIG } from '../context/RaceEngineerContext';
 import { playRadioBeep, stopRadioSpeech } from '../utils/radioAudio';
 import { useI18n } from '../context/I18nContext';
 import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
@@ -15,6 +19,16 @@ import { useSpeechRecognition } from './useSpeechRecognition';
 import { useTTSPlayback } from './useTTSPlayback';
 
 export type RadioState = 'idle' | 'transmitting' | 'processing' | 'speaking';
+
+interface RadioConversationTurn {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+interface RadioConversation {
+  sessionKey: string;
+  turns: RadioConversationTurn[];
+}
 
 export interface UseRadioAudioOptions {
   telemetryContext?: TelemetryContextPayload | null;
@@ -144,6 +158,9 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
   const beepsEnabledRef = useRef(beepsEnabled);
   beepsEnabledRef.current = beepsEnabled;
 
+  // Driver/engineer exchanges from this session, sent with each transmission so follow-ups make sense.
+  const conversationRef = useRef<RadioConversation>({ sessionKey: '', turns: [] });
+
   // Handle Gamepad/PTT Press
   const onPTTPress = useCallback(() => {
     if (!isRadioEnabledRef.current || radioStateRef.current === 'transmitting') return;
@@ -189,9 +206,9 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
 
       const liveContext = getLiveTelemetrySummaryRef.current ? getLiveTelemetrySummaryRef.current() : '';
 
-      let aiProvider = 'gemini';
+      let aiProvider: string = DEFAULT_CONFIG.provider;
       let aiApiKey = '';
-      let aiModel = 'gemini-flash-lite-latest';
+      let aiModel = DEFAULT_CONFIG.model;
       let aiBaseUrl = '';
 
       interface StoredAIConfig {
@@ -223,6 +240,19 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
 
       const sessionState = useSessionStatusStore.getState();
       const packetFormat = sessionState.packetFormat || 2026;
+      const currentSession = sessionState.session;
+      const sessionType = currentSession ? getSessionTypeName(currentSession.SessionType) : undefined;
+      const trackName =
+        currentSession?.TrackId !== undefined ? getTrackInfo(currentSession.TrackId)?.name : undefined;
+
+      const sessionKey = currentSession?.SessionUID !== undefined ? String(currentSession.SessionUID) : '';
+      if (conversationRef.current.sessionKey !== sessionKey) {
+        conversationRef.current = { sessionKey, turns: [] };
+      }
+      const driverTurn: RadioConversationTurn = {
+        role: 'user',
+        content: `[DRIVER RADIO TRANSMISSION]: "${finalTranscript}"`,
+      };
       let drivingPhase = 'RACING';
       if (liveContext.includes('POST-RACE')) drivingPhase = 'POST_RACE';
       else if (liveContext.includes('STARTING GRID')) drivingPhase = 'GRID';
@@ -238,15 +268,12 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
           base_url: aiBaseUrl,
           persona: currentPersona,
           language: currentLanguage,
-          messages: [
-            {
-              role: 'user',
-              content: `[DRIVER RADIO TRANSMISSION]: "${finalTranscript}"`,
-            },
-          ],
+          messages: [...conversationRef.current.turns, driverTurn],
           context: {
             context_mode: 'live',
             live_summary: liveContext,
+            session_type: sessionType,
+            track_name: trackName,
             custom_persona_prompt: currentPersona === RADIO_PERSONAS.CUSTOM ? currentCustomPrompt : undefined,
             driver_callsign: currentDriverCallsign || undefined,
             urgency_level: 'normal',
@@ -264,6 +291,8 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
       const fullReply = await readSSEStream(response);
 
       if (fullReply.trim()) {
+        const turns = [...conversationRef.current.turns, driverTurn, { role: 'assistant' as const, content: fullReply.trim() }];
+        conversationRef.current.turns = turns.slice(-RADIO_CONVERSATION_LIMITS.MAX_EXCHANGES * 2);
         if (onResponseReceivedRef.current) {
           onResponseReceivedRef.current(fullReply.trim());
         }

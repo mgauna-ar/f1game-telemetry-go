@@ -4,6 +4,64 @@ import { useRadioAudio } from './useRadioAudio';
 import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
 import { RADIO_LANGUAGES } from '../constants/f1';
 import * as radioAudio from '../utils/radioAudio';
+import type { ISpeechRecognitionEvent } from '../utils/radioAudio';
+import { api } from '../utils/apiClient';
+import { useSessionStatusStore } from '../store/useSessionStatusStore';
+import { SESSION_TYPES } from '../constants/f1';
+import type { SessionData } from '../types/telemetry';
+
+class FakeSpeechRecognition {
+  static last: FakeSpeechRecognition | null = null;
+  continuous = false;
+  interimResults = false;
+  lang = '';
+  onresult: ((event: ISpeechRecognitionEvent) => void) | null = null;
+  onerror: (() => void) | null = null;
+  onend: (() => void) | null = null;
+  start() {
+    FakeSpeechRecognition.last = this;
+  }
+  stop() {}
+  abort() {}
+  static say(text: string) {
+    FakeSpeechRecognition.last?.onresult?.({ results: { length: 1, 0: { 0: { transcript: text } } } });
+  }
+}
+
+function createMockSSEResponse(chunks: string[]): Response {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream({
+    start(controller) {
+      for (const chunk of chunks) {
+        controller.enqueue(encoder.encode(chunk));
+      }
+      controller.close();
+    },
+  });
+  return new Response(stream, { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+}
+
+function mockSession(overrides: Partial<SessionData> = {}): SessionData {
+  return {
+    Weather: 0,
+    TrackTemperature: 30,
+    AirTemperature: 22,
+    TotalLaps: 50,
+    TrackLength: 5800,
+    SessionType: SESSION_TYPES.RACE,
+    TrackId: 7,
+    SessionTimeLeft: 3600,
+    SessionDuration: 7200,
+    SafetyCarStatus: 0,
+    SessionUID: '0xabc',
+    ...overrides,
+  };
+}
+
+interface ChatRequestBody {
+  messages: Array<{ role: string; content: string }>;
+  context: { session_type?: string; track_name?: string };
+}
 
 describe('useRadioAudio hook', () => {
   beforeEach(() => {
@@ -69,6 +127,78 @@ describe('useRadioAudio hook', () => {
     });
 
     expect(result.current.lastResponse).toContain('Tyre wear');
+  });
+
+  describe('push-to-talk questions', () => {
+    beforeEach(() => {
+      (window as unknown as { SpeechRecognition?: unknown }).SpeechRecognition = FakeSpeechRecognition;
+      useSessionStatusStore.getState().setSessionStatus({ session: mockSession() });
+    });
+
+    afterEach(() => {
+      delete (window as unknown as { SpeechRecognition?: unknown }).SpeechRecognition;
+      useSessionStatusStore.getState().resetSession();
+    });
+
+    async function askOverRadio(result: { current: ReturnType<typeof useRadioAudio> }, question: string) {
+      act(() => {
+        result.current.onPTTPress();
+      });
+      act(() => {
+        FakeSpeechRecognition.say(question);
+      });
+      await act(async () => {
+        await result.current.onPTTRelease();
+      });
+    }
+
+    function requestBody(call: number): ChatRequestBody {
+      return vi.mocked(api.stream).mock.calls[call][1] as ChatRequestBody;
+    }
+
+    it('sends the session type and track so the engineer knows the session', async () => {
+      vi.spyOn(api, 'stream').mockImplementation(async () => createMockSSEResponse(['data: {"text":"Copy."}\n\n']));
+      const { result } = renderHook(() => useRadioAudio());
+
+      await askOverRadio(result, 'How are the tyres?');
+
+      const body = requestBody(0);
+      expect(body.context.session_type).toBe('Grand Prix Race');
+      expect(body.context.track_name).toBe('Silverstone');
+    });
+
+    it('remembers earlier exchanges in the same session', async () => {
+      const replies = ['Gap to Leclerc is 1.2 seconds.', 'Car behind is Norris, 0.8 back.'];
+      vi.spyOn(api, 'stream').mockImplementation(async () =>
+        createMockSSEResponse([`data: ${JSON.stringify({ text: replies.shift() })}\n\n`])
+      );
+      const { result } = renderHook(() => useRadioAudio());
+
+      await askOverRadio(result, 'Gap to the car ahead?');
+      await askOverRadio(result, 'And behind?');
+
+      const second = requestBody(1);
+      expect(second.messages).toEqual([
+        { role: 'user', content: '[DRIVER RADIO TRANSMISSION]: "Gap to the car ahead?"' },
+        { role: 'assistant', content: 'Gap to Leclerc is 1.2 seconds.' },
+        { role: 'user', content: '[DRIVER RADIO TRANSMISSION]: "And behind?"' },
+      ]);
+    });
+
+    it('forgets the conversation when a new session starts', async () => {
+      vi.spyOn(api, 'stream').mockImplementation(async () => createMockSSEResponse(['data: {"text":"Copy."}\n\n']));
+      const { result } = renderHook(() => useRadioAudio());
+
+      await askOverRadio(result, 'Radio check');
+      act(() => {
+        useSessionStatusStore.getState().setSessionStatus({ session: mockSession({ SessionUID: '0xdef' }) });
+      });
+      await askOverRadio(result, 'Radio check again');
+
+      expect(requestBody(1).messages).toEqual([
+        { role: 'user', content: '[DRIVER RADIO TRANSMISSION]: "Radio check again"' },
+      ]);
+    });
   });
 
   it('stops radio speech cleanly', () => {

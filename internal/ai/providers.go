@@ -364,7 +364,7 @@ func streamSSEResponse(ctx context.Context, body io.Reader, w http.ResponseWrite
 func StreamGemini(ctx context.Context, apiKey, model, systemPrompt string, messages []AIChatMessage, w http.ResponseWriter, flusher http.Flusher) error {
 	modelClean := strings.TrimPrefix(strings.TrimSpace(model), "models/")
 	if modelClean == "" {
-		modelClean = "gemini-flash-lite-latest"
+		modelClean = DefaultGeminiModel
 	}
 	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:streamGenerateContent?alt=sse&key=%s", modelClean, apiKey)
 
@@ -452,6 +452,21 @@ func StreamGemini(ctx context.Context, apiKey, model, systemPrompt string, messa
 	})
 }
 
+// openAIReasoningModelPrefixes lists OpenAI model families that reject a custom temperature
+// and take their instructions through the "developer" role.
+var openAIReasoningModelPrefixes = []string{"o1", "o3", "o4", "gpt-5"}
+
+// IsOpenAIReasoningModel reports whether the OpenAI model belongs to a reasoning family.
+func IsOpenAIReasoningModel(model string) bool {
+	lower := strings.ToLower(strings.TrimSpace(model))
+	for _, prefix := range openAIReasoningModelPrefixes {
+		if strings.HasPrefix(lower, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
 // StreamOpenAI performs streaming request to OpenAI or compatible API.
 func StreamOpenAI(ctx context.Context, baseURL, apiKey, model, systemPrompt string, messages []AIChatMessage, w http.ResponseWriter, flusher http.Flusher) error {
 	endpoint := strings.TrimRight(baseURL, "/") + "/chat/completions"
@@ -461,7 +476,7 @@ func StreamOpenAI(ctx context.Context, baseURL, apiKey, model, systemPrompt stri
 		Content string `json:"content"`
 	}
 
-	isReasoningModel := strings.HasPrefix(model, "o1") || strings.HasPrefix(model, "o3")
+	isReasoningModel := IsOpenAIReasoningModel(model)
 	systemRole := "system"
 	if isReasoningModel {
 		systemRole = "developer"

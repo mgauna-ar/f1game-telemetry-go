@@ -6,6 +6,12 @@ import (
 	"strings"
 )
 
+// Default models used when a request does not name one.
+const (
+	DefaultGeminiModel = "gemini-flash-latest"
+	DefaultOpenAIModel = "gpt-4o-mini"
+)
+
 // ResolveDefaultModel returns the requested model or default model for the provider.
 func ResolveDefaultModel(provider, reqModel string) string {
 	model := strings.TrimSpace(reqModel)
@@ -13,9 +19,9 @@ func ResolveDefaultModel(provider, reqModel string) string {
 		return model
 	}
 	if provider == "gemini" {
-		return "gemini-flash-lite-latest"
+		return DefaultGeminiModel
 	}
-	return "gpt-4o-mini"
+	return DefaultOpenAIModel
 }
 
 // ResolveProviderAndKey normalizes the provider and retrieves the active API key.

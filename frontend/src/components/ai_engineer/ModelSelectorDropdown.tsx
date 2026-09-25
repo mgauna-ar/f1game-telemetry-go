@@ -58,7 +58,7 @@ export const ModelSelectorDropdown: React.FC<ModelSelectorDropdownProps> = ({
           type="text"
           className="ui-input"
           value={currentModel}
-          placeholder="e.g. gemini-flash-lite-latest, gpt-4o-mini"
+          placeholder="e.g. gemini-flash-latest, gpt-4o-mini"
           onChange={(e) => onModelChange(e.target.value)}
         />
       )}

@@ -9,14 +9,35 @@ import (
 )
 
 func TestResolveDefaultModel(t *testing.T) {
-	if m := ResolveDefaultModel("gemini", ""); m != "gemini-flash-lite-latest" {
-		t.Errorf("expected gemini-flash-lite-latest, got %s", m)
+	if m := ResolveDefaultModel("gemini", ""); m != "gemini-flash-latest" {
+		t.Errorf("expected gemini-flash-latest, got %s", m)
 	}
 	if m := ResolveDefaultModel("openai", ""); m != "gpt-4o-mini" {
 		t.Errorf("expected gpt-4o-mini, got %s", m)
 	}
 	if m := ResolveDefaultModel("gemini", "custom-model"); m != "custom-model" {
 		t.Errorf("expected custom-model, got %s", m)
+	}
+}
+
+func TestIsOpenAIReasoningModel(t *testing.T) {
+	tests := []struct {
+		model string
+		want  bool
+	}{
+		{"o1-mini", true},
+		{"o3", true},
+		{"o4-mini", true},
+		{"gpt-5-mini", true},
+		{"GPT-5", true},
+		{"gpt-4o-mini", false},
+		{"gpt-4.1", false},
+		{"llama3", false},
+	}
+	for _, tt := range tests {
+		if got := IsOpenAIReasoningModel(tt.model); got != tt.want {
+			t.Errorf("IsOpenAIReasoningModel(%q) = %v; want %v", tt.model, got, tt.want)
+		}
 	}
 }
 
