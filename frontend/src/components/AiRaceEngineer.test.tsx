@@ -131,12 +131,43 @@ describe('AiRaceEngineer Component', () => {
 
     expect(screen.getByText('AI Settings')).toBeInTheDocument();
     expect(screen.getByText('Provider')).toBeInTheDocument();
-    expect(screen.getByText(/Google Gemini/)).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /Gemini/ })).toHaveAttribute('aria-checked', 'true');
 
     // Verify direct API key creation link is present in settings
-    const keyLink = screen.getByText(/Get a free API key at Google AI Studio/i);
+    const keyLink = screen.getByText(/Get a free key at Google AI Studio/i);
     expect(keyLink).toBeInTheDocument();
     expect(keyLink.closest('a')).toHaveAttribute('href', 'https://aistudio.google.com/app/apikey');
+  });
+
+  it('sends with Enter and adds a new line with Shift+Enter', async () => {
+    render(
+      <RaceEngineerProvider>
+        <AiRaceEngineer isOpenOverride={true} />
+      </RaceEngineerProvider>
+    );
+
+    const input = screen.getByPlaceholderText('Ask your Race Engineer...') as HTMLTextAreaElement;
+    fireEvent.change(input, { target: { value: 'First line' } });
+    fireEvent.keyDown(input, { key: 'Enter', shiftKey: true });
+    expect(input.value).toBe('First line');
+
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(input.value).toBe('');
+    expect(await screen.findByText('First line')).toBeInTheDocument();
+  });
+
+  it('opens large for reading and remembers it on this browser', () => {
+    render(
+      <RaceEngineerProvider>
+        <AiRaceEngineer isOpenOverride={true} />
+      </RaceEngineerProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Expand chat' }));
+
+    expect(screen.getByRole('region', { name: 'AI Race Engineer Chat' })).toHaveClass('is-expanded');
+    expect(localStorage.getItem('f1_ai_engineer_expanded')).toBe('true');
+    expect(screen.getByRole('button', { name: 'Shrink chat' })).toBeInTheDocument();
   });
 
   it('displays a friendly missing API key card with links when no key is configured', async () => {

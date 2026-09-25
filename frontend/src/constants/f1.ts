@@ -524,6 +524,22 @@ export const AI_PROVIDER_URLS: Record<string, { name: string; url: string; freeT
   },
 };
 
+/**
+ * Common OpenAI-compatible servers for the "custom" AI provider. Picking one fills in its address;
+ * local servers run on the same computer as this app and need no key.
+ */
+export const AI_SERVER_PRESETS: ReadonlyArray<{
+  id: string;
+  name: string;
+  baseUrl: string;
+  local: boolean;
+  keyUrl?: string;
+}> = [
+  { id: 'ollama', name: 'Ollama', baseUrl: 'http://localhost:11434/v1', local: true },
+  { id: 'lmstudio', name: 'LM Studio', baseUrl: 'http://localhost:1234/v1', local: true },
+  { id: 'groq', name: 'Groq', baseUrl: 'https://api.groq.com/openai/v1', local: false, keyUrl: 'https://console.groq.com/keys' },
+];
+
 export const RADIO_PERSONAS = {
   BONO: 'bono',
   COLAPINTO: 'colapinto',

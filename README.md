@@ -37,6 +37,8 @@
 * **Smart Driving Discretion:** Automatically suppresses non-critical radio chatter during heavy braking or corner apexes until reaching the straight.
 * **Neural Voices & Personas:** Authentic pit wall personas (**Bono 🇬🇧**, **Franco Colapinto 🇦🇷**, or **Custom**) with realistic cockpit radio distortion, spatial audio filtering, and FOM harmonic beeps.
 * **Bilingual Strategy & Debriefs:** Native bilingual support in **English** and **Español (Latinoamérica)** with streaming AI post-session debriefs.
+* **Readable Chat Replies:** Long answers render as proper tables, nested lists, code and quotes. The reply starts at your question and stays there while it streams, a *Jump to latest* button takes you to the end, replies can be copied, and the chat can be expanded to a large reading view.
+* **Per-Provider AI Settings:** Pick Gemini, OpenAI, Claude or a local / OpenAI-compatible server from cards that show which ones are ready. Each shows only its own fields: the key and where to get one for cloud providers, the server address (with one-click Ollama, LM Studio and Groq presets) for local servers, and a searchable list of that provider's models.
 
 ---
 
@@ -162,7 +164,7 @@ Server settings can be set with command-line flags, environment variables, or a 
 
 The simulator sends to `127.0.0.1` on the server's `F1T_UDP_ADDR` port. Use `-target` (or `F1T_SIM_TARGET`) to send somewhere else, e.g. `go run ./cmd/simulator -target 192.168.1.20:20777`.
 
-Settings you change in the dashboard are saved in the database, so every device that opens it (the PC, a tablet on your network) shares them: radio alert rules, the AI provider, model and API keys, the engineer's persona and voice, and push-to-talk. Saved API keys are never sent back to a browser; the settings only show that a key is saved. Volume, radio effects and whether alerts play stay per device.
+Settings you change in the dashboard are saved in the database, so every device that opens it (the PC, a tablet on your network) shares them: radio alert rules, the AI provider, model and API keys, the engineer's persona and voice, and push-to-talk. Saved API keys are never sent back to a browser; the settings only show that a key is saved. Volume, radio effects, whether alerts play and the chat window size stay per device.
 
 The API only accepts changes from the dashboard the app serves, so other websites open in your browser can't change settings or use your saved keys. Any device that can open the dashboard can still chat using the saved keys, the same as keys set in `.env`.
 

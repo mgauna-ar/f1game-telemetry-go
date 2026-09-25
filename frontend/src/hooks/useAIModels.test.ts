@@ -83,10 +83,32 @@ describe('useAIModels Hook', () => {
     expect(result.current.availableModels).toEqual([]);
   });
 
-  it('lists models for a custom endpoint even without a key', async () => {
+  it('lists models for a custom endpoint even without a key, at the address being set up', async () => {
     const postSpy = vi.spyOn(api, 'post').mockResolvedValueOnce({
       models: [{ id: 'llama3', display_name: 'llama3' }],
     });
+    const customConfig: AIConfig = {
+      ...defaultConfig,
+      provider: 'custom',
+      model: 'llama3',
+      baseUrl: 'http://localhost:11434/v1',
+    };
+
+    const { result } = renderHook(() => useAIModels(customConfig, NO_AI_KEYS));
+
+    await act(async () => {
+      await result.current.fetchAvailableModels();
+    });
+
+    expect(postSpy).toHaveBeenCalledWith('/api/ai/models', {
+      provider: 'custom',
+      base_url: 'http://localhost:11434/v1',
+    });
+    expect(result.current.availableModels).toHaveLength(1);
+  });
+
+  it('skips the request for a custom endpoint without an address', async () => {
+    const postSpy = vi.spyOn(api, 'post');
     const customConfig: AIConfig = { ...defaultConfig, provider: 'custom', model: 'llama3' };
 
     const { result } = renderHook(() => useAIModels(customConfig, NO_AI_KEYS));
@@ -95,8 +117,45 @@ describe('useAIModels Hook', () => {
       await result.current.fetchAvailableModels();
     });
 
-    expect(postSpy).toHaveBeenCalledWith('/api/ai/models', { provider: 'custom' });
+    expect(postSpy).not.toHaveBeenCalled();
+    expect(result.current.availableModels).toEqual([]);
+  });
+
+  it('hides a model list once another provider is picked', async () => {
+    vi.spyOn(api, 'post').mockResolvedValueOnce({
+      models: [{ id: 'gemini-flash-latest', display_name: 'Gemini Flash' }],
+    });
+
+    const { result, rerender } = renderHook(({ cfg }) => useAIModels(cfg, geminiEnvKey), {
+      initialProps: { cfg: defaultConfig },
+    });
+    await act(async () => {
+      await result.current.fetchAvailableModels();
+    });
     expect(result.current.availableModels).toHaveLength(1);
+
+    rerender({ cfg: { ...defaultConfig, provider: 'openai', model: 'gpt-4o-mini' } });
+    expect(result.current.availableModels).toEqual([]);
+  });
+
+  it('keeps only the answer to the latest request', async () => {
+    let answerFirst: (value: { models: AIModelItem[] }) => void = () => {};
+    vi.spyOn(api, 'post')
+      .mockImplementationOnce(() => new Promise((resolve) => (answerFirst = resolve)))
+      .mockResolvedValueOnce({ models: [{ id: 'gemini-new', display_name: 'new' }] });
+
+    const { result } = renderHook(() => useAIModels(defaultConfig, geminiEnvKey));
+    let first: Promise<void> = Promise.resolve();
+    await act(async () => {
+      first = result.current.fetchAvailableModels();
+      await result.current.fetchAvailableModels();
+    });
+    await act(async () => {
+      answerFirst({ models: [{ id: 'gemini-old', display_name: 'old' }] });
+      await first;
+    });
+
+    expect(result.current.availableModels.map((m) => m.id)).toEqual(['gemini-new']);
   });
 
   it('sets error state when fetching fails', async () => {
