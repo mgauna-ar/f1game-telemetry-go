@@ -87,10 +87,17 @@ export type RaceEngineerContextValue = RaceEngineerActionsContextValue & RaceEng
 export const STORAGE_KEY_AI_CONFIG = 'f1_ai_engineer_config';
 export const STORAGE_KEY_AI_OPEN = 'f1_ai_engineer_open';
 
+/** Default model per provider, used until the user picks one in chat settings. */
+export const DEFAULT_AI_MODELS = {
+  gemini: 'gemini-flash-latest',
+  openai: 'gpt-4o-mini',
+  custom: 'llama3',
+} as const;
+
 export const DEFAULT_CONFIG: AIConfig = {
   provider: 'gemini',
   apiKey: '',
-  model: 'gemini-flash-lite-latest',
+  model: DEFAULT_AI_MODELS.gemini,
   baseUrl: '',
   providerKeys: {
     gemini: '',
@@ -98,9 +105,7 @@ export const DEFAULT_CONFIG: AIConfig = {
     custom: '',
   },
   providerModels: {
-    gemini: 'gemini-flash-lite-latest',
-    openai: 'gpt-4o-mini',
-    custom: 'llama3',
+    ...DEFAULT_AI_MODELS,
   },
 };
 

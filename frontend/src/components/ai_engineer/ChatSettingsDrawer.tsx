@@ -3,7 +3,7 @@ import { X, Eye, EyeOff, ExternalLink } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
 import { AI_PROVIDER_URLS } from '../../constants/f1';
 import { ModelSelectorDropdown, type ModelItem } from './ModelSelectorDropdown';
-import type { AIConfig } from '../../context/RaceEngineerContext';
+import { DEFAULT_AI_MODELS, type AIConfig } from '../../context/RaceEngineerContext';
 import type { ServerConfigStatus } from '../../hooks/useAIModels';
 
 export interface ChatSettingsDrawerProps {
@@ -53,7 +53,7 @@ export const ChatSettingsDrawer: React.FC<ChatSettingsDrawerProps> = ({
             const nextKey = config.providerKeys?.[prov] || '';
             const nextModel =
               config.providerModels?.[prov] ||
-              (prov === 'gemini' ? 'gemini-flash-lite-latest' : 'gpt-4o-mini');
+              (prov === 'gemini' ? DEFAULT_AI_MODELS.gemini : DEFAULT_AI_MODELS.openai);
 
             const updatedConfig: AIConfig = {
               ...config,

@@ -555,6 +555,8 @@ export const RADIO_AUDIO_CONSTANTS = {
   HELMET_WARMTH_FREQ_HZ: 850,
   HELMET_WARMTH_GAIN_DB: 3.5,
   ANALYZER_FFT_SIZE: 64,
+  /** Synthesized radio clips kept in memory; streamed replies add one clip per sentence. */
+  TTS_CACHE_MAX_ENTRIES: 60,
 } as const;
 
 export const RADIO_NEURAL_VOICES = {
@@ -575,6 +577,11 @@ export const RADIO_ENGLISH_VOICES = [
   { id: 'en-GB-RyanNeural', translationKey: 'ryan' },
   { id: 'en-US-GuyNeural', translationKey: 'guy' },
 ] as const;
+
+export const RADIO_CONVERSATION_LIMITS = {
+  /** Driver/engineer exchanges the voice engineer keeps as context within one session. */
+  MAX_EXCHANGES: 8,
+} as const;
 
 export const RADIO_PTT_MODES = {
   HOLD: 'hold',

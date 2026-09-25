@@ -84,6 +84,32 @@ type AIChatRequest struct {
 	Context  *TelemetryAnalysisContext `json:"context,omitempty"`
 }
 
+// LiveBriefing is live race context built server-side from the telemetry stream. For live-mode
+// chats it replaces the summary the client sends, since the server sees every car and the session history.
+type LiveBriefing struct {
+	Summary        string
+	TrackName      string
+	SessionType    string
+	PacketFormat   uint16
+	DrivingPhase   string
+	IncidentStatus string
+}
+
+// LiveRaceSource supplies server-side live race context for live-mode chats.
+type LiveRaceSource interface {
+	// LiveBriefing returns the current race briefing, or false when no fresh telemetry is available.
+	LiveBriefing() (LiveBriefing, bool)
+}
+
+// ChatOptions carries server-side extras for a chat request.
+type ChatOptions struct {
+	// Live provides fresh race context for live-mode chats. Nil keeps the client's summary.
+	Live LiveRaceSource
+	// Tools are live race data lookups the model may call in live-mode chats while Live has
+	// fresh telemetry. Nil disables tool calling.
+	Tools ToolExecutor
+}
+
 // AIConfigStatusResponse informs the frontend about backend default configuration.
 type AIConfigStatusResponse struct {
 	HasGeminiEnvKey bool   `json:"has_gemini_env_key"`

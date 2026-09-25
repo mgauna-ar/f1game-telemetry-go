@@ -66,6 +66,7 @@ func buildLivePrompt(telemetryCtx *TelemetryAnalysisContext, persona, language s
 		sb.WriteString(catalog.DriverCallsignDirective(telemetryCtx.DriverCallsign))
 	}
 	sb.WriteString(catalog.CriticalRadioConstraints())
+	sb.WriteString(catalog.LiveDataDirective())
 
 	// Dynamic Urgency Level Injection
 	if telemetryCtx != nil && telemetryCtx.UrgencyLevel != "" {
@@ -141,6 +142,15 @@ func buildLivePrompt(telemetryCtx *TelemetryAnalysisContext, persona, language s
 		fmt.Fprintf(&sb, "\nLive Strategy Notes: %s\n", telemetryCtx.CustomPrompt)
 	}
 	return sb.String()
+}
+
+// toolUseDirective tells a live-mode engineer how to use the race data tools it was given.
+func toolUseDirective(telemetryCtx *TelemetryAnalysisContext, persona, language string) string {
+	fallbackLang := ""
+	if telemetryCtx != nil {
+		fallbackLang = telemetryCtx.Language
+	}
+	return locales.Resolve(language, fallbackLang, persona).ToolUseDirective()
 }
 
 func buildGeneralPrompt(telemetryCtx *TelemetryAnalysisContext, language string) string {

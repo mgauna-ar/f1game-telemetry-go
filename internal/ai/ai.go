@@ -6,6 +6,12 @@ import (
 	"strings"
 )
 
+// Default models used when a request does not name one.
+const (
+	DefaultGeminiModel = "gemini-flash-latest"
+	DefaultOpenAIModel = "gpt-4o-mini"
+)
+
 // ResolveDefaultModel returns the requested model or default model for the provider.
 func ResolveDefaultModel(provider, reqModel string) string {
 	model := strings.TrimSpace(reqModel)
@@ -13,9 +19,9 @@ func ResolveDefaultModel(provider, reqModel string) string {
 		return model
 	}
 	if provider == "gemini" {
-		return "gemini-flash-lite-latest"
+		return DefaultGeminiModel
 	}
-	return "gpt-4o-mini"
+	return DefaultOpenAIModel
 }
 
 // ResolveProviderAndKey normalizes the provider and retrieves the active API key.
@@ -59,7 +65,7 @@ func FetchModels(ctx context.Context, req AIFetchModelsRequest, defaultGeminiKey
 }
 
 // StreamChat executes streaming LLM chat requests for Lap Comparator or live telemetry analysis.
-func StreamChat(ctx context.Context, req AIChatRequest, defaultGeminiKey, defaultOpenAIKey string, w http.ResponseWriter, flusher http.Flusher) error {
+func StreamChat(ctx context.Context, req AIChatRequest, defaultGeminiKey, defaultOpenAIKey string, opts ChatOptions, w http.ResponseWriter, flusher http.Flusher) error {
 	provider, apiKey := ResolveProviderAndKey(req.Provider, req.APIKey, defaultGeminiKey, defaultOpenAIKey)
 	if apiKey == "" && provider != "custom" {
 		return &AIStreamError{
@@ -71,15 +77,44 @@ func StreamChat(ctx context.Context, req AIChatRequest, defaultGeminiKey, defaul
 	}
 
 	model := ResolveDefaultModel(provider, req.Model)
+	// Race data tools are only offered while the server has fresh telemetry to answer them.
+	var tools ToolExecutor
+	if applyLiveBriefing(req.Context, opts.Live) {
+		tools = opts.Tools
+	}
 	systemPrompt := BuildSystemPrompt(req.Context, req.Persona, req.Language)
+	if tools != nil {
+		systemPrompt += toolUseDirective(req.Context, req.Persona, req.Language)
+	}
 
 	if provider == "gemini" {
-		return StreamGemini(ctx, apiKey, model, systemPrompt, req.Messages, w, flusher)
+		return StreamGemini(ctx, apiKey, model, systemPrompt, req.Messages, tools, w, flusher)
 	}
 
 	baseURL := req.BaseURL
 	if baseURL == "" {
 		baseURL = "https://api.openai.com/v1"
 	}
-	return StreamOpenAI(ctx, baseURL, apiKey, model, systemPrompt, req.Messages, w, flusher)
+	return StreamOpenAI(ctx, baseURL, apiKey, model, systemPrompt, req.Messages, tools, w, flusher)
+}
+
+// applyLiveBriefing swaps the client's live summary for the server-built briefing when the
+// server has fresh telemetry. It reports whether the briefing was applied.
+func applyLiveBriefing(tc *TelemetryAnalysisContext, live LiveRaceSource) bool {
+	if tc == nil || tc.ContextMode != "live" || live == nil {
+		return false
+	}
+	briefing, ok := live.LiveBriefing()
+	if !ok {
+		return false
+	}
+	tc.LiveSummary = briefing.Summary
+	tc.TrackName = briefing.TrackName
+	tc.SessionType = briefing.SessionType
+	tc.DrivingPhase = briefing.DrivingPhase
+	tc.IncidentStatus = briefing.IncidentStatus
+	if briefing.PacketFormat > 0 {
+		tc.PacketFormat = briefing.PacketFormat
+	}
+	return true
 }

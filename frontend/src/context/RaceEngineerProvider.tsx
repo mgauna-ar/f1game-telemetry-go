@@ -8,6 +8,7 @@ import { storage } from '../utils/storage';
 import {
   RaceEngineerActionsContext,
   RaceEngineerStreamContext,
+  DEFAULT_AI_MODELS,
   DEFAULT_CONFIG,
   STORAGE_KEY_AI_CONFIG,
   STORAGE_KEY_AI_OPEN,
@@ -56,9 +57,7 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         ...(parsed.providerKeys || {}),
       };
       const providerModels: Record<string, string> = {
-        gemini: 'gemini-flash-lite-latest',
-        openai: 'gpt-4o-mini',
-        custom: 'llama3',
+        ...DEFAULT_AI_MODELS,
         ...(parsed.providerModels || {}),
       };
 
@@ -73,13 +72,13 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
         providerModels.gemini === 'gemini-2.5-flash' ||
         providerModels.gemini === 'gemini-1.5-flash'
       ) {
-        providerModels.gemini = 'gemini-flash-lite-latest';
+        providerModels.gemini = DEFAULT_AI_MODELS.gemini;
       }
 
       const activeKey = providerKeys[currentProv] || '';
       const activeModel =
         providerModels[currentProv] ||
-        (currentProv === 'gemini' ? 'gemini-flash-lite-latest' : 'gpt-4o-mini');
+        (currentProv === 'gemini' ? DEFAULT_AI_MODELS.gemini : DEFAULT_AI_MODELS.openai);
 
       return {
         ...DEFAULT_CONFIG,

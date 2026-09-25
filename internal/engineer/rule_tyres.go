@@ -347,8 +347,8 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 			stintLaps := int(status.TyresAgeLaps)
 
 			rainPct := uint8(0)
-			if ctx.Session.NumWeatherForecastSamples > 0 {
-				rainPct = ctx.Session.WeatherForecastSamples[0].RainPercentage
+			if forecast := sessionForecast(ctx.Session); len(forecast) > 0 {
+				rainPct = forecast[0].RainPercentage
 			}
 
 			switch {

@@ -124,6 +124,32 @@ const (
 	// Powertrain Component Degradation thresholds
 	GearBoxDamageWarnPct = 70 // Gearbox wear % triggering shift sync warning
 	EngineICEWearWarnPct = 75 // ICE wear % triggering top speed loss advisory
+
+	// Live race context for the AI race engineer (voice radio and chat)
+	LiveRaceContextMaxAgeMs = 30_000 // Telemetry older than this is treated as no live session
+	MaxPlayerLapRecords     = 120    // Completed player laps kept for pace, wear and fuel trends
+	MaxRaceEventRecords     = 12     // Recent race events kept (pit stops, penalties, retirements...)
+	MaxRadioCallRecords     = 8      // Recent proactive pit wall calls kept
+	RecentPaceLaps          = 3      // Laps averaged for "recent pace"
+	GapTrendLaps            = 3      // Laps used to measure whether a gap is closing or opening
+	GapTrendStableSecPerLap = 0.05   // Gap change per lap below which a gap is reported as stable
+	FuelTrendLaps           = 5      // Laps used to average fuel burn
+	SummaryRadioCalls       = 3      // Proactive calls repeated in the prompt summary
+	SummaryRaceEvents       = 4      // Race events repeated in the prompt summary
+	SummaryForecastSamples  = 4      // Forecast samples repeated in the prompt summary
+	DefaultLapHistoryLimit  = 5      // Laps returned by the lap history tool by default
+	MaxLapHistoryLimit      = 20     // Most laps the lap history tool returns
+	DriverToolRecentLaps    = 5      // Recent laps the driver lookup tool returns for a car
+	JoulesPerMegajoule      = 1e6    // ERS energy is reported in joules, spoken in MJ
+)
+
+// Penalty type codes carried by the PENA event (see the UDP spec appendix).
+const (
+	PenaltyTypeDriveThrough uint8 = 0
+	PenaltyTypeStopGo       uint8 = 1
+	PenaltyTypeTimePenalty  uint8 = 4
+	PenaltyTypeWarning      uint8 = 5
+	PenaltyTypeDisqualified uint8 = 6
 )
 
 // TyreThermalWindow represents the optimal operating temperature range (°C) for a compound.

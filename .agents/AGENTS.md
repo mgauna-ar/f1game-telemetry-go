@@ -9,10 +9,10 @@ This file (`.agents/AGENTS.md`) contains workspace-specific rules, architectural
     - `internal/api/`: HTTP router, request decoding, middleware, and response serialization only. **Zero heavy domain or analytical logic.**
     - `internal/session/`: Live session tracking, `LapTracker` memory buffering, `TelemetryBatchWriter`, and session import/export services.
     - `internal/analytics/`: Server-side computational analytics (classification standings, lap comparator distance merging, progression matrices, tyre stint degradation OLS regression).
-    - `internal/engineer/`: Modular Strategy pattern AI race engineer rules engine (`EngineerEngine`, `EngineerRule`).
+    - `internal/engineer/`: Modular Strategy pattern AI race engineer rules engine (`EngineerEngine`, `EngineerRule`). The engine also keeps the race history (player laps, rival session histories, race events, its own radio calls) and builds the live race picture the AI chat reads (`RaceContext()`, `LiveBriefing()`; served at `GET /api/ai/engineer/race-context`). `internal/ai` reads it through the `ai.LiveRaceSource` interface, and in live mode the server-built summary replaces the one the browser sends. `RaceTools()` exposes the race data lookups (`race_tools*.go`) as an `ai.ToolExecutor`.
     - `internal/storage/`: SQLite repository, data models with custom `MarshalJSON` sanitization, versioned migrations, and raw zstd compression.
     - `internal/packets/`: Strict 1:1 binary UDP telemetry decoders and domain constants.
-    - `internal/ai/`: External AI providers (Gemini, OpenAI) and neural TTS voice synthesis.
+    - `internal/ai/`: External AI providers (Gemini, OpenAI) and neural TTS voice synthesis. Live-mode chats run a function calling loop (`chat_gemini.go`, `chat_openai.go`) over the `ToolExecutor` in `ChatOptions`: at most `MaxToolRounds` rounds, the last one with function calls disabled, and a retry without tools when a model or OpenAI-compatible server rejects them. Text streams to the client as it arrives in any round, and the stream ends with a single `[DONE]`.
     - `internal/locales/`: Type-safe `PromptCatalog` interface, thread-safe locale registry, and locale-specific prompt catalogs (`en`, `es`) eliminating boolean language flags in the backend.
     - `internal/input/`: DirectInput PTT wheel and keyboard OS listeners.
 *   **Storage Invariants:**
@@ -50,6 +50,7 @@ This file (`.agents/AGENTS.md`) contains workspace-specific rules, architectural
       - `PhaseOutLap` & `PhaseInLap`: Out-lap focuses strictly on thermal prep, clean air gap spacing, and traffic behind; in-lap focuses on cooldown, battery recharge, and letting flying laps pass.
     - **Audio Queueing, Radio Spacing & Incident Discipline:**
       - Frontend sequential speech queue (`useTTSPlayback.ts`) ensures non-critical directives play sequentially without clipping; critical emergencies (`UrgencyCritical` / `UrgencyHigh`) preempt active speech.
+      - Push-to-talk answers are spoken sentence by sentence while they stream (`useRadioAudio.ts` feeds `createSentenceChunker` into `useTTSPlayback.beginReplyStream()`): each sentence's TTS is prefetched, the reply opens and closes with one beep pair, goes ahead of queued non-critical calls, and is dropped by a forced interrupt or a new PTT press, which also aborts the pending request.
       - Global radio spacing enforces a minimum 4-second gap (`GlobalRadioChatterCooldownMs = 4_000`) between non-critical calls across categories.
       - Steward penalties strictly supersede corner cutting warnings on the same event frame.
       - Neutralization shield suppresses sector delta coaching, fuel delta, rival battles, and tyre overheat during SC/VSC or local yellow flags. Sector deltas are capped to `0.35s <= delta <= 3.0s` to prevent incident conflation.

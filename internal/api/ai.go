@@ -17,11 +17,11 @@ func (s *Server) handleAIConfigStatus(w http.ResponseWriter, r *http.Request) {
 	openaiKey := strings.TrimSpace(s.config.OpenAIAPIKey)
 
 	defaultProvider := "gemini"
-	defaultModel := "gemini-flash-lite-latest"
+	defaultModel := ai.DefaultGeminiModel
 
 	if geminiKey == "" && openaiKey != "" {
 		defaultProvider = "openai"
-		defaultModel = "gpt-4o-mini"
+		defaultModel = ai.DefaultOpenAIModel
 	}
 
 	if s.config.LLMModel != "" {
@@ -92,7 +92,7 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
-	err := ai.StreamChat(r.Context(), req, s.config.GeminiAPIKey, s.config.OpenAIAPIKey, w, flusher)
+	err := ai.StreamChat(r.Context(), req, s.config.GeminiAPIKey, s.config.OpenAIAPIKey, s.chatOptions(), w, flusher)
 	if err != nil {
 		slog.Error("Error during AI chat streaming", "provider", provider, "error", err)
 		payload := ai.AIErrorPayload{
@@ -109,6 +109,23 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "data: %s\n\n", string(errPayload))
 		flusher.Flush()
 	}
+}
+
+// chatOptions hands the live race engineer context and data tools to AI chats when the engine is running.
+func (s *Server) chatOptions() ai.ChatOptions {
+	if s.engineerEngine == nil {
+		return ai.ChatOptions{}
+	}
+	return ai.ChatOptions{Live: s.engineerEngine, Tools: s.engineerEngine.RaceTools()}
+}
+
+// handleRaceContext returns the live race picture the AI race engineer currently sees.
+func (s *Server) handleRaceContext(w http.ResponseWriter, r *http.Request) {
+	if s.engineerEngine == nil {
+		writeJSON(w, http.StatusOK, engineer.RaceContextSnapshot{Available: false})
+		return
+	}
+	writeJSON(w, http.StatusOK, s.engineerEngine.RaceContext())
 }
 
 // handleAITTS handles POST /api/ai/tts HTTP requests and streams back the synthesized MP3 audio.

@@ -1,8 +1,6 @@
 package ai
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -13,6 +11,9 @@ import (
 )
 
 var (
+	// geminiAPIBaseURL is a variable so tests can point it at a local server.
+	geminiAPIBaseURL = "https://generativelanguage.googleapis.com/v1beta"
+
 	shortHTTPClient     = &http.Client{Timeout: 15 * time.Second}
 	streamingHTTPClient = &http.Client{} // Context-controlled cancellation from request context without artificial timeouts
 )
@@ -177,7 +178,7 @@ func ParseOpenAIError(statusCode int, body []byte, providerName string) *AIStrea
 
 // FetchGeminiModels queries Gemini API for available active generative chat models.
 func FetchGeminiModels(ctx context.Context, apiKey string) ([]AIModelItem, error) {
-	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models?key=%s", apiKey)
+	url := fmt.Sprintf("%s/models?key=%s", geminiAPIBaseURL, apiKey)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
@@ -317,222 +318,4 @@ func FetchOpenAIModels(ctx context.Context, baseURL, apiKey string) ([]AIModelIt
 		}
 	}
 	return models, nil
-}
-
-func streamSSEResponse(ctx context.Context, body io.Reader, w http.ResponseWriter, flusher http.Flusher, extractText func(payload string) string) error {
-	reader := bufio.NewReader(body)
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-		}
-
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			return fmt.Errorf("error reading stream: %w", err)
-		}
-
-		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "data: ") {
-			dataPayload := strings.TrimPrefix(line, "data: ")
-			if dataPayload == "[DONE]" {
-				break
-			}
-			if dataPayload == "" {
-				continue
-			}
-
-			text := extractText(dataPayload)
-			if text != "" {
-				chunkJSON, _ := json.Marshal(map[string]string{"text": text, "content": text})
-				fmt.Fprintf(w, "data: %s\n\n", chunkJSON)
-				flusher.Flush()
-			}
-		}
-	}
-
-	fmt.Fprintf(w, "data: [DONE]\n\n")
-	flusher.Flush()
-	return nil
-}
-
-// StreamGemini performs streaming request to Google Gemini API with SSE.
-func StreamGemini(ctx context.Context, apiKey, model, systemPrompt string, messages []AIChatMessage, w http.ResponseWriter, flusher http.Flusher) error {
-	modelClean := strings.TrimPrefix(strings.TrimSpace(model), "models/")
-	if modelClean == "" {
-		modelClean = "gemini-flash-lite-latest"
-	}
-	url := fmt.Sprintf("https://generativelanguage.googleapis.com/v1beta/models/%s:streamGenerateContent?alt=sse&key=%s", modelClean, apiKey)
-
-	type GeminiPart struct {
-		Text string `json:"text"`
-	}
-	type GeminiContent struct {
-		Role  string       `json:"role"`
-		Parts []GeminiPart `json:"parts"`
-	}
-	type GeminiSystemInstruction struct {
-		Parts []GeminiPart `json:"parts"`
-	}
-	type GeminiRequest struct {
-		SystemInstruction *GeminiSystemInstruction `json:"system_instruction,omitempty"`
-		Contents          []GeminiContent          `json:"contents"`
-		GenerationConfig  map[string]interface{}   `json:"generationConfig,omitempty"`
-	}
-
-	contents := make([]GeminiContent, 0, len(messages))
-	for _, m := range messages {
-		role := "user"
-		if m.Role == "assistant" {
-			role = "model"
-		}
-		contents = append(contents, GeminiContent{
-			Role: role,
-			Parts: []GeminiPart{
-				{Text: m.Content},
-			},
-		})
-	}
-
-	geminiReqBody := GeminiRequest{
-		SystemInstruction: &GeminiSystemInstruction{
-			Parts: []GeminiPart{{Text: systemPrompt}},
-		},
-		Contents: contents,
-		GenerationConfig: map[string]interface{}{
-			"temperature": 0.35,
-		},
-	}
-
-	jsonBytes, err := json.Marshal(geminiReqBody)
-	if err != nil {
-		return fmt.Errorf("failed to marshal Gemini request: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(jsonBytes))
-	if err != nil {
-		return fmt.Errorf("failed to create Gemini request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := streamingHTTPClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to connect to Gemini API: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return fmt.Errorf("failed to read Gemini error response body (status %d): %w", resp.StatusCode, err)
-		}
-		return ParseGeminiError(resp.StatusCode, body)
-	}
-
-	return streamSSEResponse(ctx, resp.Body, w, flusher, func(dataPayload string) string {
-		var geminiChunk struct {
-			Candidates []struct {
-				Content struct {
-					Parts []struct {
-						Text string `json:"text"`
-					} `json:"parts"`
-				} `json:"content"`
-			} `json:"candidates"`
-		}
-		if err := json.Unmarshal([]byte(dataPayload), &geminiChunk); err == nil {
-			if len(geminiChunk.Candidates) > 0 && len(geminiChunk.Candidates[0].Content.Parts) > 0 {
-				return geminiChunk.Candidates[0].Content.Parts[0].Text
-			}
-		}
-		return ""
-	})
-}
-
-// StreamOpenAI performs streaming request to OpenAI or compatible API.
-func StreamOpenAI(ctx context.Context, baseURL, apiKey, model, systemPrompt string, messages []AIChatMessage, w http.ResponseWriter, flusher http.Flusher) error {
-	endpoint := strings.TrimRight(baseURL, "/") + "/chat/completions"
-
-	type OpenAIMessage struct {
-		Role    string `json:"role"`
-		Content string `json:"content"`
-	}
-
-	isReasoningModel := strings.HasPrefix(model, "o1") || strings.HasPrefix(model, "o3")
-	systemRole := "system"
-	if isReasoningModel {
-		systemRole = "developer"
-	}
-
-	openAIMessages := make([]OpenAIMessage, 0, 1+len(messages))
-	openAIMessages = append(openAIMessages, OpenAIMessage{
-		Role:    systemRole,
-		Content: systemPrompt,
-	})
-	for _, m := range messages {
-		role := m.Role
-		if role == "" {
-			role = "user"
-		}
-		openAIMessages = append(openAIMessages, OpenAIMessage{
-			Role:    role,
-			Content: m.Content,
-		})
-	}
-
-	reqMap := map[string]interface{}{
-		"model":    model,
-		"messages": openAIMessages,
-		"stream":   true,
-	}
-	if !isReasoningModel {
-		reqMap["temperature"] = 0.4
-	}
-
-	jsonBytes, err := json.Marshal(reqMap)
-	if err != nil {
-		return fmt.Errorf("failed to marshal OpenAI request: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(jsonBytes))
-	if err != nil {
-		return fmt.Errorf("failed to create OpenAI request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	if apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+apiKey)
-	}
-
-	resp, err := streamingHTTPClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to connect to OpenAI API: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return fmt.Errorf("failed to read OpenAI error response body (status %d): %w", resp.StatusCode, err)
-		}
-		return ParseOpenAIError(resp.StatusCode, body, "openai")
-	}
-
-	return streamSSEResponse(ctx, resp.Body, w, flusher, func(dataPayload string) string {
-		var chunk struct {
-			Choices []struct {
-				Delta struct {
-					Content string `json:"content"`
-				} `json:"delta"`
-			} `json:"choices"`
-		}
-		if err := json.Unmarshal([]byte(dataPayload), &chunk); err == nil {
-			if len(chunk.Choices) > 0 {
-				return chunk.Choices[0].Delta.Content
-			}
-		}
-		return ""
-	})
 }

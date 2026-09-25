@@ -9,14 +9,35 @@ import (
 )
 
 func TestResolveDefaultModel(t *testing.T) {
-	if m := ResolveDefaultModel("gemini", ""); m != "gemini-flash-lite-latest" {
-		t.Errorf("expected gemini-flash-lite-latest, got %s", m)
+	if m := ResolveDefaultModel("gemini", ""); m != "gemini-flash-latest" {
+		t.Errorf("expected gemini-flash-latest, got %s", m)
 	}
 	if m := ResolveDefaultModel("openai", ""); m != "gpt-4o-mini" {
 		t.Errorf("expected gpt-4o-mini, got %s", m)
 	}
 	if m := ResolveDefaultModel("gemini", "custom-model"); m != "custom-model" {
 		t.Errorf("expected custom-model, got %s", m)
+	}
+}
+
+func TestIsOpenAIReasoningModel(t *testing.T) {
+	tests := []struct {
+		model string
+		want  bool
+	}{
+		{"o1-mini", true},
+		{"o3", true},
+		{"o4-mini", true},
+		{"gpt-5-mini", true},
+		{"GPT-5", true},
+		{"gpt-4o-mini", false},
+		{"gpt-4.1", false},
+		{"llama3", false},
+	}
+	for _, tt := range tests {
+		if got := IsOpenAIReasoningModel(tt.model); got != tt.want {
+			t.Errorf("IsOpenAIReasoningModel(%q) = %v; want %v", tt.model, got, tt.want)
+		}
 	}
 }
 
@@ -71,7 +92,7 @@ func TestBuildSystemPrompt(t *testing.T) {
 		if !strings.Contains(prompt, "argentino") || !strings.Contains(prompt, "gomas") {
 			t.Errorf("expected prompt to contain Argentine motorsport persona")
 		}
-		if !strings.Contains(prompt, "MAXIMUM 2 SHORT SENTENCES") {
+		if !strings.Contains(prompt, "1-2 short sentences") {
 			t.Errorf("expected prompt to contain brevity constraint")
 		}
 	})
@@ -408,18 +429,74 @@ func TestFetchOpenAIModels_ErrorHandling(t *testing.T) {
 	}
 }
 
-func TestStreamSSEResponse(t *testing.T) {
-	ctx := context.Background()
-	body := strings.NewReader("data: hello\n\ndata: world\n\ndata: [DONE]\n\n")
-	rec := httptest.NewRecorder()
-
-	err := streamSSEResponse(ctx, body, rec, rec, strings.ToUpper)
-	if err != nil {
+func TestReadSSEData(t *testing.T) {
+	body := strings.NewReader("event: ping\ndata: hello\n\ndata: \n\ndata: world\n\ndata: [DONE]\n\ndata: after done\n\n")
+	var got []string
+	if err := readSSEData(context.Background(), body, func(p string) { got = append(got, p) }); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-
-	output := rec.Body.String()
-	if !strings.Contains(output, "HELLO") || !strings.Contains(output, "WORLD") || !strings.Contains(output, "data: [DONE]\n\n") {
-		t.Errorf("unexpected sse output: %s", output)
+	if strings.Join(got, ",") != "hello,world" {
+		t.Errorf("expected payloads before [DONE], got %q", got)
 	}
+
+	var last []string
+	_ = readSSEData(context.Background(), strings.NewReader("data: no trailing newline"), func(p string) { last = append(last, p) })
+	if len(last) != 1 || last[0] != "no trailing newline" {
+		t.Errorf("expected the final unterminated line to be read, got %q", last)
+	}
+}
+
+type fakeLiveRace struct {
+	briefing LiveBriefing
+	ok       bool
+}
+
+func (f fakeLiveRace) LiveBriefing() (LiveBriefing, bool) { return f.briefing, f.ok }
+
+func TestApplyLiveBriefing(t *testing.T) {
+	server := fakeLiveRace{ok: true, briefing: LiveBriefing{
+		Summary:        "LIVE PIT WALL DATA:\n- Car ahead: P2 Charles Leclerc, 1.100s ahead of you",
+		TrackName:      "Silverstone",
+		SessionType:    "Race",
+		PacketFormat:   2026,
+		DrivingPhase:   "RACING",
+		IncidentStatus: "vsc",
+	}}
+	browserContext := func(mode string) *TelemetryAnalysisContext {
+		return &TelemetryAnalysisContext{ContextMode: mode, LiveSummary: "browser summary", TrackName: "Monza", PacketFormat: 2025}
+	}
+
+	t.Run("live chat uses the server's race picture", func(t *testing.T) {
+		tc := browserContext("live")
+		if !applyLiveBriefing(tc, server) {
+			t.Fatalf("expected the live briefing to apply")
+		}
+		if tc.LiveSummary != server.briefing.Summary || tc.TrackName != "Silverstone" || tc.PacketFormat != 2026 || tc.IncidentStatus != "vsc" {
+			t.Fatalf("expected the server briefing to replace the browser context, got %+v", tc)
+		}
+		prompt := BuildSystemPrompt(tc, "bono", "en")
+		if !strings.Contains(prompt, "Charles Leclerc, 1.100s ahead of you") || !strings.Contains(prompt, "USING THE PIT WALL DATA") {
+			t.Fatalf("expected the prompt to carry the pit wall data and how to use it:\n%s", prompt)
+		}
+	})
+
+	t.Run("keeps the browser context when telemetry is stale", func(t *testing.T) {
+		tc := browserContext("live")
+		if applyLiveBriefing(tc, fakeLiveRace{ok: false}) || tc.LiveSummary != "browser summary" {
+			t.Fatalf("expected the browser context to be kept, got %+v", tc)
+		}
+	})
+
+	t.Run("leaves debriefs alone", func(t *testing.T) {
+		tc := browserContext("session_debrief")
+		if applyLiveBriefing(tc, server) || tc.LiveSummary != "browser summary" {
+			t.Fatalf("expected a debrief context to be left alone, got %+v", tc)
+		}
+	})
+
+	t.Run("works without a live source", func(t *testing.T) {
+		if applyLiveBriefing(browserContext("live"), nil) || applyLiveBriefing(nil, server) {
+			t.Fatalf("expected no briefing without a source or context")
+		}
+	})
 }

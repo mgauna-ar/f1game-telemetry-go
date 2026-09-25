@@ -2,7 +2,11 @@ import { useState, useRef, useCallback } from 'react';
 import {
   RADIO_PERSONAS,
   RADIO_LANGUAGES,
+  RADIO_CONVERSATION_LIMITS,
+  getSessionTypeName,
+  getTrackInfo,
 } from '../constants/f1';
+import { DEFAULT_CONFIG } from '../context/RaceEngineerContext';
 import { playRadioBeep, stopRadioSpeech } from '../utils/radioAudio';
 import { useI18n } from '../context/I18nContext';
 import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
@@ -11,10 +15,21 @@ import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
 import { api } from '../utils/apiClient';
 import { storage } from '../utils/storage';
 import { readSSEStream } from '../utils/sseUtils';
+import { createSentenceChunker } from '../utils/sentenceChunker';
 import { useSpeechRecognition } from './useSpeechRecognition';
-import { useTTSPlayback } from './useTTSPlayback';
+import { useTTSPlayback, type ReplySpeechStream } from './useTTSPlayback';
 
 export type RadioState = 'idle' | 'transmitting' | 'processing' | 'speaking';
+
+interface RadioConversationTurn {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+interface RadioConversation {
+  sessionKey: string;
+  turns: RadioConversationTurn[];
+}
 
 export interface UseRadioAudioOptions {
   telemetryContext?: TelemetryContextPayload | null;
@@ -83,6 +98,7 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
     stopSpeech,
     testRadioTransmission,
     testTriggerAlert,
+    beginReplyStream,
   } = useTTSPlayback({
     effectiveLanguage,
     onResponseReceived,
@@ -144,9 +160,15 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
   const beepsEnabledRef = useRef(beepsEnabled);
   beepsEnabledRef.current = beepsEnabled;
 
+  // Driver/engineer exchanges from this session, sent with each transmission so follow-ups make sense.
+  const conversationRef = useRef<RadioConversation>({ sessionKey: '', turns: [] });
+
   // Handle Gamepad/PTT Press
   const onPTTPress = useCallback(() => {
     if (!isRadioEnabledRef.current || radioStateRef.current === 'transmitting') return;
+    // A new transmission replaces an answer still being generated or spoken.
+    activeAbortControllerRef.current?.abort();
+    activeAbortControllerRef.current = null;
     stopSpeech();
     stopRadioSpeech();
     setRadioState('transmitting');
@@ -183,15 +205,16 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
 
     setRadioState('processing');
 
+    let replySpeech: ReplySpeechStream | null = null;
+    const abortController = new AbortController();
+    activeAbortControllerRef.current = abortController;
     try {
-      const abortController = new AbortController();
-      activeAbortControllerRef.current = abortController;
 
       const liveContext = getLiveTelemetrySummaryRef.current ? getLiveTelemetrySummaryRef.current() : '';
 
-      let aiProvider = 'gemini';
+      let aiProvider: string = DEFAULT_CONFIG.provider;
       let aiApiKey = '';
-      let aiModel = 'gemini-flash-lite-latest';
+      let aiModel = DEFAULT_CONFIG.model;
       let aiBaseUrl = '';
 
       interface StoredAIConfig {
@@ -223,6 +246,19 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
 
       const sessionState = useSessionStatusStore.getState();
       const packetFormat = sessionState.packetFormat || 2026;
+      const currentSession = sessionState.session;
+      const sessionType = currentSession ? getSessionTypeName(currentSession.SessionType) : undefined;
+      const trackName =
+        currentSession?.TrackId !== undefined ? getTrackInfo(currentSession.TrackId)?.name : undefined;
+
+      const sessionKey = currentSession?.SessionUID !== undefined ? String(currentSession.SessionUID) : '';
+      if (conversationRef.current.sessionKey !== sessionKey) {
+        conversationRef.current = { sessionKey, turns: [] };
+      }
+      const driverTurn: RadioConversationTurn = {
+        role: 'user',
+        content: `[DRIVER RADIO TRANSMISSION]: "${finalTranscript}"`,
+      };
       let drivingPhase = 'RACING';
       if (liveContext.includes('POST-RACE')) drivingPhase = 'POST_RACE';
       else if (liveContext.includes('STARTING GRID')) drivingPhase = 'GRID';
@@ -238,15 +274,12 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
           base_url: aiBaseUrl,
           persona: currentPersona,
           language: currentLanguage,
-          messages: [
-            {
-              role: 'user',
-              content: `[DRIVER RADIO TRANSMISSION]: "${finalTranscript}"`,
-            },
-          ],
+          messages: [...conversationRef.current.turns, driverTurn],
           context: {
             context_mode: 'live',
             live_summary: liveContext,
+            session_type: sessionType,
+            track_name: trackName,
             custom_persona_prompt: currentPersona === RADIO_PERSONAS.CUSTOM ? currentCustomPrompt : undefined,
             driver_callsign: currentDriverCallsign || undefined,
             urgency_level: 'normal',
@@ -261,26 +294,36 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
         throw new Error(`AI Service returned status ${response.status}`);
       }
 
-      const fullReply = await readSSEStream(response);
+      // Speak each sentence as soon as it arrives instead of waiting for the whole reply.
+      const speech = beginReplyStream();
+      replySpeech = speech;
+      const sentences = createSentenceChunker((sentence) => speech.pushSentence(sentence));
+      const fullReply = (await readSSEStream(response, (chunk) => sentences.push(chunk))).trim();
+      sentences.flush();
+      speech.finish();
 
-      if (fullReply.trim()) {
-        if (onResponseReceivedRef.current) {
-          onResponseReceivedRef.current(fullReply.trim());
-        }
-        await ttsSpeakMessage(fullReply.trim());
+      if (fullReply) {
+        const turns = [...conversationRef.current.turns, driverTurn, { role: 'assistant' as const, content: fullReply }];
+        conversationRef.current.turns = turns.slice(-RADIO_CONVERSATION_LIMITS.MAX_EXCHANGES * 2);
+        onResponseReceivedRef.current?.(fullReply);
       } else {
-        setRadioState('idle');
+        setRadioState((prev) => (prev === 'processing' ? 'idle' : prev));
       }
     } catch (err: unknown) {
-      if (!(err instanceof Error && err.name === 'AbortError')) {
+      // An aborted request was replaced by a newer transmission or stopped on purpose.
+      if (!abortController.signal.aborted) {
         const msg = err instanceof Error ? err.message : 'Error processing radio response';
         setSpeechError(msg);
+        // Close the radio on whatever part of the answer was already spoken.
+        replySpeech?.finish();
       }
-      setRadioState('idle');
+      setRadioState((prev) => (prev === 'processing' ? 'idle' : prev));
     } finally {
-      activeAbortControllerRef.current = null;
+      if (activeAbortControllerRef.current === abortController) {
+        activeAbortControllerRef.current = null;
+      }
     }
-  }, [getFinalTranscript, setSpeechError, stopListening, ttsSpeakMessage]);
+  }, [beginReplyStream, getFinalTranscript, setSpeechError, stopListening]);
 
   return {
     radioState,

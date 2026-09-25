@@ -52,6 +52,10 @@ type EngineerEngine struct {
 	chequeredFlagReceived   bool
 	postRaceAnnounced       bool
 	lastGlobalDirectiveTime int64
+
+	// Session history and freshness for the AI race engineer's live race context
+	history      raceHistory
+	lastPacketAt int64 // unix ms of the last processed packet
 }
 
 // NewEngineerEngine creates a new EngineerEngine instance with default rules.
@@ -155,6 +159,7 @@ func (e *EngineerEngine) resetLocked(sessionUID uint64) {
 	e.latestStatus = nil
 	e.latestTyreSets = nil
 	e.latestParticipant = nil
+	e.history = raceHistory{}
 
 	for _, rule := range e.rules {
 		rule.Reset(DedupScopeNone)
@@ -178,6 +183,7 @@ func (e *EngineerEngine) ProcessPacket(ctx context.Context, pkt packets.Packet) 
 	}
 	e.playerCarIndex = int(header.PlayerCarIndex)
 	e.packetFormat = header.PacketFormat
+	e.lastPacketAt = time.Now().UnixMilli()
 
 	switch p := pkt.(type) {
 	case *packets.PacketEventData:
@@ -192,6 +198,7 @@ func (e *EngineerEngine) ProcessPacket(ctx context.Context, pkt packets.Packet) 
 		case packets.EventChequeredFlag:
 			e.chequeredFlagReceived = true
 		}
+		e.recordRaceEventLocked(p)
 	case *packets.PacketParticipantsData:
 		e.latestParticipant = p
 		playerIdx := e.playerCarIndex
@@ -208,6 +215,7 @@ func (e *EngineerEngine) ProcessPacket(ctx context.Context, pkt packets.Packet) 
 	case *packets.PacketSessionData:
 		e.latestSession = p
 	case *packets.PacketLapData:
+		e.recordLapTransitionsLocked(p)
 		e.latestLapData = p
 	case *packets.PacketCarDamageData:
 		e.latestDamage = p
@@ -232,6 +240,10 @@ func (e *EngineerEngine) ProcessPacket(ctx context.Context, pkt packets.Packet) 
 	case *packets.PacketTyreSetsData:
 		if int(p.CarIdx) == e.playerCarIndex {
 			e.latestTyreSets = p
+		}
+	case *packets.PacketSessionHistoryData:
+		if int(p.CarIdx) < len(e.history.carHistory) {
+			e.history.carHistory[p.CarIdx] = p
 		}
 	}
 
@@ -718,6 +730,7 @@ func (e *EngineerEngine) emitDirectiveLocked(header packets.PacketHeader, direct
 		directive.SessionTime = header.SessionTime
 	}
 
+	e.recordRadioCallLocked(directive)
 	return directive
 }
 
