@@ -257,7 +257,7 @@ func TestFlagsRule_Unit(t *testing.T) {
 		SafetyCarStatus:           packets.SafetyCarFull,
 		NumWeatherForecastSamples: 1,
 		WeatherForecastSamples: [packets.MaxWeatherForecastSamples]packets.WeatherForecastSample{
-			{TimeOffset: 3, RainPercentage: 70},
+			{SessionType: packets.SessionRace, TimeOffset: 3, RainPercentage: 70},
 		},
 	}
 	ctxWeather := &EvaluationContext{

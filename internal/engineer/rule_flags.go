@@ -513,13 +513,7 @@ func (r *FlagsRule) evaluateWeather(ctx *EvaluationContext) *Directive {
 	if !ctx.Config.IsAlertEnabled(string(DirectiveCategoryWeather), "flags_rain") {
 		return nil
 	}
-	p := ctx.Session
-	numSamples := int(p.NumWeatherForecastSamples)
-	if numSamples > len(p.WeatherForecastSamples) {
-		numSamples = len(p.WeatherForecastSamples)
-	}
-	for i := 0; i < numSamples; i++ {
-		sample := p.WeatherForecastSamples[i]
+	for _, sample := range sessionForecast(ctx.Session) {
 		rainPct := int(sample.RainPercentage)
 		timeOffset := int(sample.TimeOffset)
 		if rainPct >= int(ctx.Config.RainProbPct) && timeOffset <= int(ctx.Config.RainHorizonMin) && r.lastWeatherAlertOffset != timeOffset {

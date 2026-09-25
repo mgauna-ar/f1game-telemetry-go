@@ -64,8 +64,8 @@ func TestEngineerEngine_ProcessPackets(t *testing.T) {
 		SessionType:               packets.SessionRace,
 		NumWeatherForecastSamples: 2,
 		WeatherForecastSamples: [packets.MaxWeatherForecastSamples]packets.WeatherForecastSample{
-			{TimeOffset: 5, RainPercentage: 75},
-			{TimeOffset: 10, RainPercentage: 80},
+			{SessionType: packets.SessionRace, TimeOffset: 5, RainPercentage: 75},
+			{SessionType: packets.SessionRace, TimeOffset: 10, RainPercentage: 80},
 		},
 	}
 	engine.ProcessPacket(ctx, sessionPkt)
@@ -1019,8 +1019,8 @@ func TestEngineerEngine_BroadcastOutsideLock(t *testing.T) {
 		SessionType:               packets.SessionRace,
 		NumWeatherForecastSamples: 2,
 		WeatherForecastSamples: [packets.MaxWeatherForecastSamples]packets.WeatherForecastSample{
-			{TimeOffset: 5, RainPercentage: 75},
-			{TimeOffset: 10, RainPercentage: 80},
+			{SessionType: packets.SessionRace, TimeOffset: 5, RainPercentage: 75},
+			{SessionType: packets.SessionRace, TimeOffset: 10, RainPercentage: 80},
 		},
 	}
 	engine.ProcessPacket(ctx, sessionPkt)
@@ -1064,7 +1064,7 @@ func TestEngineerEngine_CategoryIndependence(t *testing.T) {
 			SessionType:               packets.SessionRace,
 			NumWeatherForecastSamples: 1,
 			WeatherForecastSamples: [packets.MaxWeatherForecastSamples]packets.WeatherForecastSample{
-				{TimeOffset: 5, RainPercentage: 80},
+				{SessionType: packets.SessionRace, TimeOffset: 5, RainPercentage: 80},
 			},
 		}
 		engine.ProcessPacket(ctx, sessionWeather)
@@ -1089,7 +1089,7 @@ func TestEngineerEngine_CategoryIndependence(t *testing.T) {
 			SessionType:               packets.SessionRace,
 			NumWeatherForecastSamples: 1,
 			WeatherForecastSamples: [packets.MaxWeatherForecastSamples]packets.WeatherForecastSample{
-				{TimeOffset: 5, RainPercentage: 80},
+				{SessionType: packets.SessionRace, TimeOffset: 5, RainPercentage: 80},
 			},
 		}
 		engine.ProcessPacket(ctx, sessionWeather)
