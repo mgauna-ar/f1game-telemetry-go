@@ -3,7 +3,7 @@ import { RADIO_TRIGGER_PRESETS, type RadioTriggerPreset } from '../../constants/
 import type { EngineerConfig } from '../../types/telemetry';
 import { api } from '../../utils/apiClient';
 import {
-  buildAIConfigFromValues,
+  buildEngineerConfigFromValues,
   type RadioSettingsState,
 } from '../useRadioSettingsStore';
 import { getInitialAlertThresholds, thresholdsFromEngineerConfig } from './alertThresholdsSlice';
@@ -43,7 +43,7 @@ export const createRadioPresetsSlice: StateCreator<
       const nextState = { ...state, ...partial };
       return {
         ...nextState,
-        aiConfig: buildAIConfigFromValues(nextState),
+        engineerConfig: buildEngineerConfigFromValues(nextState),
       };
     });
     get().syncConfigToBackend();
@@ -71,7 +71,7 @@ export const createRadioPresetsSlice: StateCreator<
       };
       return {
         ...nextState,
-        aiConfig: buildAIConfigFromValues(nextState),
+        engineerConfig: buildEngineerConfigFromValues(nextState),
       };
     });
     get().syncConfigToBackend();

@@ -1,12 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
+import { renderHook, act, waitFor } from '@testing-library/react';
 import { useGamepadPTT } from './useGamepadPTT';
-import { RADIO_STORAGE_KEYS } from '../constants/f1';
+import { LEGACY_RADIO_STORAGE_KEYS } from '../constants/f1';
+import { api } from '../utils/apiClient';
 
 describe('useGamepadPTT hook', () => {
+  let putSpy: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
     localStorage.clear();
-    vi.clearAllMocks();
+    vi.restoreAllMocks();
+    vi.spyOn(api, 'get').mockResolvedValue({ saved: false });
+    vi.spyOn(api, 'post').mockResolvedValue({});
+    putSpy = vi.spyOn(api, 'put').mockResolvedValue({});
   });
 
   afterEach(() => {
@@ -81,7 +87,7 @@ describe('useGamepadPTT hook', () => {
     document.body.removeChild(input);
   });
 
-  it('saves and updates mapped keyboard key in localStorage', () => {
+  it('saves the mapped keyboard key to the server with its Windows key code', () => {
     const { result } = renderHook(() => useGamepadPTT());
 
     act(() => {
@@ -89,7 +95,12 @@ describe('useGamepadPTT hook', () => {
     });
 
     expect(result.current.mappedKey).toBe('KeyT');
-    expect(localStorage.getItem(RADIO_STORAGE_KEYS.KEYBOARD_KEY)).toBe('KeyT');
+    expect(putSpy).toHaveBeenLastCalledWith('/api/settings/ptt', {
+      mode: 'hold',
+      keyboard_key: 'KeyT',
+      key_code: 0x54,
+      gamepad: null,
+    });
   });
 
   it('handles learning mode activation and cancellation', () => {
@@ -106,7 +117,7 @@ describe('useGamepadPTT hook', () => {
     expect(result.current.isLearning).toBe(false);
   });
 
-  it('saves and updates mapped gamepad button in localStorage', () => {
+  it('saves the mapped gamepad button to the server and clears it', () => {
     const { result } = renderHook(() => useGamepadPTT());
 
     act(() => {
@@ -114,8 +125,9 @@ describe('useGamepadPTT hook', () => {
     });
 
     expect(result.current.mappedGamepadButton).toEqual({ gamepadIndex: 0, buttonIndex: 4 });
-    expect(localStorage.getItem(RADIO_STORAGE_KEYS.GAMEPAD_MAPPING)).toBe(
-      JSON.stringify({ gamepadIndex: 0, buttonIndex: 4 })
+    expect(putSpy).toHaveBeenLastCalledWith(
+      '/api/settings/ptt',
+      expect.objectContaining({ gamepad: { gamepad_index: 0, button_index: 4 } })
     );
 
     act(() => {
@@ -123,6 +135,42 @@ describe('useGamepadPTT hook', () => {
     });
 
     expect(result.current.mappedGamepadButton).toBeNull();
-    expect(localStorage.getItem(RADIO_STORAGE_KEYS.GAMEPAD_MAPPING)).toBeNull();
+    expect(putSpy).toHaveBeenLastCalledWith('/api/settings/ptt', expect.objectContaining({ gamepad: null }));
+  });
+
+  it('loads the saved push-to-talk setup from the server', async () => {
+    vi.spyOn(api, 'get').mockImplementation(async (url: string) =>
+      url === '/api/settings/ptt'
+        ? { saved: true, mode: 'toggle', keyboard_key: 'F12', key_code: 0x7b, gamepad: { gamepad_index: 1, button_index: 2 } }
+        : { status: 'success', is_active: true, mapping: { device_type: 'joystick' } }
+    );
+
+    const { result } = renderHook(() => useGamepadPTT());
+
+    await waitFor(() => expect(result.current.mappedKey).toBe('F12'));
+    expect(result.current.pttMode).toBe('toggle');
+    expect(result.current.mappedGamepadButton).toEqual({ gamepadIndex: 1, buttonIndex: 2 });
+    expect(putSpy).not.toHaveBeenCalled();
+  });
+
+  it('moves a setup an older version kept in this browser to the server once', async () => {
+    localStorage.setItem(LEGACY_RADIO_STORAGE_KEYS.PTT_MODE, 'toggle');
+    localStorage.setItem(LEGACY_RADIO_STORAGE_KEYS.KEYBOARD_KEY, 'Space');
+    localStorage.setItem(
+      LEGACY_RADIO_STORAGE_KEYS.GAMEPAD_MAPPING,
+      JSON.stringify({ gamepadIndex: 0, buttonIndex: 3 })
+    );
+
+    const { result } = renderHook(() => useGamepadPTT());
+
+    await waitFor(() => expect(localStorage.getItem(LEGACY_RADIO_STORAGE_KEYS.KEYBOARD_KEY)).toBeNull());
+    expect(putSpy).toHaveBeenCalledWith('/api/settings/ptt', {
+      mode: 'toggle',
+      keyboard_key: 'Space',
+      key_code: 0x20,
+      gamepad: { gamepad_index: 0, button_index: 3 },
+    });
+    expect(result.current.pttMode).toBe('toggle');
+    expect(localStorage.getItem(LEGACY_RADIO_STORAGE_KEYS.GAMEPAD_MAPPING)).toBeNull();
   });
 });

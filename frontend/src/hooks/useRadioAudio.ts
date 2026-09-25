@@ -6,14 +6,12 @@ import {
   getSessionTypeName,
   getTrackInfo,
 } from '../constants/f1';
-import { DEFAULT_CONFIG } from '../context/RaceEngineerContext';
 import { playRadioBeep, stopRadioSpeech } from '../utils/radioAudio';
 import { useI18n } from '../context/I18nContext';
 import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
 import { api } from '../utils/apiClient';
-import { storage } from '../utils/storage';
 import { readSSEStream } from '../utils/sseUtils';
 import { createSentenceChunker } from '../utils/sentenceChunker';
 import { useSpeechRecognition } from './useSpeechRecognition';
@@ -212,33 +210,6 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
 
       const liveContext = getLiveTelemetrySummaryRef.current ? getLiveTelemetrySummaryRef.current() : '';
 
-      let aiProvider: string = DEFAULT_CONFIG.provider;
-      let aiApiKey = '';
-      let aiModel = DEFAULT_CONFIG.model;
-      let aiBaseUrl = '';
-
-      interface StoredAIConfig {
-        provider?: string;
-        apiKey?: string;
-        model?: string;
-        baseUrl?: string;
-        providerKeys?: Record<string, string>;
-        providerModels?: Record<string, string>;
-      }
-      const parsed = storage.get<StoredAIConfig | null>('f1_ai_engineer_config', null);
-      if (parsed) {
-        if (parsed.provider) aiProvider = parsed.provider;
-        if (parsed.apiKey) aiApiKey = parsed.apiKey;
-        if (parsed.model) aiModel = parsed.model;
-        if (parsed.baseUrl) aiBaseUrl = parsed.baseUrl;
-        if (parsed.providerKeys && parsed.provider && parsed.providerKeys[parsed.provider]) {
-          aiApiKey = parsed.providerKeys[parsed.provider];
-        }
-        if (parsed.providerModels && parsed.provider && parsed.providerModels[parsed.provider]) {
-          aiModel = parsed.providerModels[parsed.provider];
-        }
-      }
-
       const currentPersona = personaRef.current;
       const currentLanguage = effectiveLanguageRef.current;
       const currentCustomPrompt = customPromptRef.current;
@@ -268,10 +239,7 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
       const response = await api.stream(
         '/api/ai/chat',
         {
-          provider: aiProvider,
-          api_key: aiApiKey,
-          model: aiModel,
-          base_url: aiBaseUrl,
+          // Provider, model and API key come from the server's saved AI settings.
           persona: currentPersona,
           language: currentLanguage,
           messages: [...conversationRef.current.turns, driverTurn],

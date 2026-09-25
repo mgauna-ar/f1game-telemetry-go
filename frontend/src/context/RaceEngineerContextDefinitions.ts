@@ -4,14 +4,44 @@ import type { ChatMessage } from '../types/ai';
 
 export type { ChatMessage };
 
+export type AIProvider = 'gemini' | 'openai' | 'claude' | 'custom';
+
+export const AI_PROVIDERS: readonly AIProvider[] = ['gemini', 'openai', 'claude', 'custom'];
+
+/** Providers offered in the chat settings dropdown, with the label for each. */
+export const AI_PROVIDER_OPTIONS: ReadonlyArray<{ provider: AIProvider; labelKey: string }> = [
+  { provider: 'gemini', labelKey: 'ai_engineer.geminiOption' },
+  { provider: 'openai', labelKey: 'ai_engineer.openaiOption' },
+  { provider: 'custom', labelKey: 'ai_engineer.customOption' },
+];
+
+export const isAIProvider = (value: unknown): value is AIProvider =>
+  typeof value === 'string' && (AI_PROVIDERS as readonly string[]).includes(value);
+
+/**
+ * The AI chat provider setup. It is saved on the server and shared by every device; API keys are
+ * saved there too but never sent back, so only `AIKeyStatus` reaches the browser.
+ */
 export interface AIConfig {
-  provider: 'gemini' | 'openai' | 'custom';
-  apiKey: string;
+  provider: AIProvider;
+  /** Model of the active provider. */
   model: string;
+  /** Endpoint of the OpenAI-compatible custom provider. */
   baseUrl: string;
-  providerKeys?: Record<string, string>;
-  providerModels?: Record<string, string>;
+  providerModels: Record<AIProvider, string>;
 }
+
+/** Whether the server has an API key for a provider, saved from the dashboard or from .env. */
+export interface AIKeyStatus {
+  hasSavedKey: boolean;
+  hasEnvKey: boolean;
+}
+
+export type AIKeyStatusByProvider = Record<AIProvider, AIKeyStatus>;
+
+/** Whether chats with the provider can run: custom endpoints (like Ollama) may not need a key. */
+export const providerHasKey = (keyStatus: AIKeyStatusByProvider, provider: AIProvider): boolean =>
+  provider === 'custom' || keyStatus[provider].hasSavedKey || keyStatus[provider].hasEnvKey;
 
 export interface AIModelItem {
   id: string;
@@ -65,16 +95,12 @@ export interface RaceEngineerActionsContextValue {
   // Configuration
   config: AIConfig;
   saveConfig: (newConfig: AIConfig) => void;
+  keyStatus: AIKeyStatusByProvider;
+  saveApiKey: (provider: AIProvider, apiKey: string) => Promise<void>;
   availableModels: AIModelItem[];
   isLoadingModels: boolean;
   modelsError: string | null;
   fetchAvailableModels: (overrideConfig?: AIConfig) => Promise<void>;
-  serverConfigStatus: {
-    hasGeminiEnvKey: boolean;
-    hasOpenAIEnvKey: boolean;
-    defaultProvider: string;
-    defaultModel: string;
-  } | null;
 }
 
 export interface RaceEngineerStreamContextValue {
@@ -84,29 +110,26 @@ export interface RaceEngineerStreamContextValue {
 
 export type RaceEngineerContextValue = RaceEngineerActionsContextValue & RaceEngineerStreamContextValue;
 
+/** Where older versions kept the AI config, keys included, in each browser. Read once to migrate it. */
 export const STORAGE_KEY_AI_CONFIG = 'f1_ai_engineer_config';
 export const STORAGE_KEY_AI_OPEN = 'f1_ai_engineer_open';
 
-/** Default model per provider, used until the user picks one in chat settings. */
-export const DEFAULT_AI_MODELS = {
-  gemini: 'gemini-flash-latest',
-  openai: 'gpt-4o-mini',
-  custom: 'llama3',
-} as const;
-
+/**
+ * Placeholder until the server's settings load. Default model names come from the server, so the
+ * model is left empty here and the server fills in its default for an empty model.
+ */
 export const DEFAULT_CONFIG: AIConfig = {
   provider: 'gemini',
-  apiKey: '',
-  model: DEFAULT_AI_MODELS.gemini,
+  model: '',
   baseUrl: '',
-  providerKeys: {
-    gemini: '',
-    openai: '',
-    custom: '',
-  },
-  providerModels: {
-    ...DEFAULT_AI_MODELS,
-  },
+  providerModels: { gemini: '', openai: '', claude: '', custom: '' },
+};
+
+export const NO_AI_KEYS: AIKeyStatusByProvider = {
+  gemini: { hasSavedKey: false, hasEnvKey: false },
+  openai: { hasSavedKey: false, hasEnvKey: false },
+  claude: { hasSavedKey: false, hasEnvKey: false },
+  custom: { hasSavedKey: false, hasEnvKey: false },
 };
 
 export const RaceEngineerActionsContext = createContext<RaceEngineerActionsContextValue | null>(null);
@@ -132,11 +155,12 @@ const defaultFallbackActionsContext: RaceEngineerActionsContextValue = {
   stopGenerating: () => {},
   config: DEFAULT_CONFIG,
   saveConfig: () => {},
+  keyStatus: NO_AI_KEYS,
+  saveApiKey: async () => {},
   availableModels: [],
   isLoadingModels: false,
   modelsError: null,
   fetchAvailableModels: async () => {},
-  serverConfigStatus: null,
 };
 
 const defaultFallbackStreamContext: RaceEngineerStreamContextValue = {

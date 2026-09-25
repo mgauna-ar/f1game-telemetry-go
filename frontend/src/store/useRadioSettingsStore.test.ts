@@ -4,6 +4,8 @@ import {
   RADIO_PERSONAS,
   RADIO_LANGUAGES,
   RADIO_STORAGE_KEYS,
+  LEGACY_RADIO_STORAGE_KEYS,
+  RADIO_AUDIO_CONSTANTS,
   RADIO_TRIGGER_PRESETS,
 } from '../constants/f1';
 import { api } from '../utils/apiClient';
@@ -25,31 +27,40 @@ describe('useRadioSettingsStore and slices', () => {
     vi.useRealTimers();
   });
 
-  it('handles audio settings with localStorage persistence', () => {
+  it('keeps volume per device and saves the voice to the server', async () => {
+    const putSpy = vi.spyOn(api, 'put').mockResolvedValue({});
     const store = useRadioSettingsStore.getState();
 
-    // Volume
+    // Volume stays in this browser
     store.setVolume(0.5);
     expect(useRadioSettingsStore.getState().volume).toBe(0.5);
     expect(localStorage.getItem(RADIO_STORAGE_KEYS.VOLUME)).toBe('0.5');
 
-    // Speech Rate & Pitch
+    // Voice settings are shared through the server, in one debounced save
     store.setSpeechRate(15);
-    expect(useRadioSettingsStore.getState().speechRate).toBe(15);
-    expect(localStorage.getItem(RADIO_STORAGE_KEYS.SPEECH_RATE)).toBe('15');
-
     store.setSpeechPitch(-20);
-    expect(useRadioSettingsStore.getState().speechPitch).toBe(-20);
-    expect(localStorage.getItem(RADIO_STORAGE_KEYS.SPEECH_PITCH)).toBe('-20');
-
-    // Persona & Language
     store.setPersona(RADIO_PERSONAS.COLAPINTO);
-    expect(useRadioSettingsStore.getState().persona).toBe(RADIO_PERSONAS.COLAPINTO);
-    expect(localStorage.getItem(RADIO_STORAGE_KEYS.PERSONA)).toBe(RADIO_PERSONAS.COLAPINTO);
-
     store.setRadioLanguage(RADIO_LANGUAGES.ES);
-    expect(useRadioSettingsStore.getState().radioLanguage).toBe(RADIO_LANGUAGES.ES);
-    expect(localStorage.getItem(RADIO_STORAGE_KEYS.LANGUAGE)).toBe(RADIO_LANGUAGES.ES);
+    store.setSpeechRate(99);
+    const state = useRadioSettingsStore.getState();
+    expect(state.speechRate).toBe(RADIO_AUDIO_CONSTANTS.MAX_SPEECH_RATE_PERCENT);
+    expect(state.speechPitch).toBe(-20);
+    expect(state.persona).toBe(RADIO_PERSONAS.COLAPINTO);
+    expect(state.radioLanguage).toBe(RADIO_LANGUAGES.ES);
+    expect(putSpy).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(500);
+    expect(putSpy).toHaveBeenCalledTimes(1);
+    expect(putSpy).toHaveBeenCalledWith('/api/settings/voice', {
+      persona: RADIO_PERSONAS.COLAPINTO,
+      language: RADIO_LANGUAGES.ES,
+      custom_prompt: '',
+      driver_callsign: '',
+      neural_voice: '',
+      speech_rate: RADIO_AUDIO_CONSTANTS.MAX_SPEECH_RATE_PERCENT,
+      speech_pitch: -20,
+    });
+    expect(localStorage.getItem(LEGACY_RADIO_STORAGE_KEYS.PERSONA)).toBeNull();
 
     // Audio effects
     store.setBeepsEnabled(false);
@@ -166,9 +177,9 @@ describe('useRadioSettingsStore and slices', () => {
     expect(state.subRain).toBe(false);
   });
 
-  it('serializes global_chatter_cooldown_ms and canonical alert keys in aiConfig', () => {
+  it('serializes global_chatter_cooldown_ms and canonical alert keys in engineerConfig', () => {
     const store = useRadioSettingsStore.getState();
-    const config = store.aiConfig;
+    const config = store.engineerConfig;
 
     expect(config.global_chatter_cooldown_ms).toBe(4000);
     expect(config.enabled_categories?.damage_wing).toBeDefined();
@@ -204,8 +215,8 @@ describe('useRadioSettingsStore and slices', () => {
     for (const key of ALERT_TOGGLE_KEYS) {
       expect(state[key]).toBe(TRIGGER_PRESET_VALUES.immersive[key]);
     }
-    expect(state.aiConfig.trigger_preset).toBe(RADIO_TRIGGER_PRESETS.IMMERSIVE);
-    expect(state.aiConfig.enabled_categories?.tyre_thermal).toBe(false);
+    expect(state.engineerConfig.trigger_preset).toBe(RADIO_TRIGGER_PRESETS.IMMERSIVE);
+    expect(state.engineerConfig.enabled_categories?.tyre_thermal).toBe(false);
   });
 
   it('restores category switches and preset after a reload', async () => {
@@ -310,5 +321,55 @@ describe('useRadioSettingsStore and slices', () => {
     await useRadioSettingsStore.getState().resetTriggerDefaults();
 
     expect(useRadioSettingsStore.getState().brakeOverheatC).toBe(900);
+  });
+  it('loads the saved voice from the server and drops old browser copies', async () => {
+    localStorage.setItem(LEGACY_RADIO_STORAGE_KEYS.PERSONA, RADIO_PERSONAS.CUSTOM);
+    vi.spyOn(api, 'get').mockResolvedValueOnce({
+      saved: true,
+      persona: RADIO_PERSONAS.COLAPINTO,
+      language: 'klingon',
+      custom_prompt: '',
+      driver_callsign: 'Mati',
+      neural_voice: 'es-AR-TomasNeural',
+      speech_rate: 5,
+      speech_pitch: -500,
+    });
+    const putSpy = vi.spyOn(api, 'put').mockResolvedValue({});
+
+    await useRadioSettingsStore.getState().loadVoiceFromBackend();
+
+    const state = useRadioSettingsStore.getState();
+    expect(state.persona).toBe(RADIO_PERSONAS.COLAPINTO);
+    expect(state.radioLanguage).toBe(RADIO_LANGUAGES.AUTO); // unknown language keeps the current one
+    expect(state.driverCallsign).toBe('Mati');
+    expect(state.speechPitch).toBe(RADIO_AUDIO_CONSTANTS.MIN_SPEECH_PITCH_HZ);
+    expect(putSpy).not.toHaveBeenCalled();
+    expect(localStorage.getItem(LEGACY_RADIO_STORAGE_KEYS.PERSONA)).toBeNull();
+  });
+
+  it('moves the voice an older version kept in this browser to the server once', async () => {
+    localStorage.setItem(LEGACY_RADIO_STORAGE_KEYS.PERSONA, RADIO_PERSONAS.COLAPINTO);
+    localStorage.setItem(LEGACY_RADIO_STORAGE_KEYS.DRIVER_CALLSIGN, 'Franco');
+    localStorage.setItem(LEGACY_RADIO_STORAGE_KEYS.SPEECH_RATE, '10');
+    vi.spyOn(api, 'get').mockResolvedValueOnce({ saved: false });
+    const putSpy = vi.spyOn(api, 'put').mockResolvedValue({});
+
+    await useRadioSettingsStore.getState().loadVoiceFromBackend();
+
+    expect(useRadioSettingsStore.getState().persona).toBe(RADIO_PERSONAS.COLAPINTO);
+    expect(putSpy).toHaveBeenCalledWith(
+      '/api/settings/voice',
+      expect.objectContaining({ persona: RADIO_PERSONAS.COLAPINTO, driver_callsign: 'Franco', speech_rate: 10 })
+    );
+    expect(localStorage.getItem(LEGACY_RADIO_STORAGE_KEYS.DRIVER_CALLSIGN)).toBeNull();
+  });
+
+  it('does not save defaults over the server when this browser kept no voice', async () => {
+    vi.spyOn(api, 'get').mockResolvedValueOnce({ saved: false });
+    const putSpy = vi.spyOn(api, 'put').mockResolvedValue({});
+
+    await useRadioSettingsStore.getState().loadVoiceFromBackend();
+
+    expect(putSpy).not.toHaveBeenCalled();
   });
 });

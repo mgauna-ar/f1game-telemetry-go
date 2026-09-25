@@ -131,6 +131,8 @@
 }
 
 .ai-key-input-wrapper input {
+  flex: 1;
+  min-width: 0;
   padding-right: 64px;
 }
 

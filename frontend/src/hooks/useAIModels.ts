@@ -1,20 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { api } from '../utils/apiClient';
-import type { AIConfig, AIModelItem } from '../context/RaceEngineerContext';
-
-export interface ServerConfigStatus {
-  hasGeminiEnvKey: boolean;
-  hasOpenAIEnvKey: boolean;
-  defaultProvider: string;
-  defaultModel: string;
-}
-
-interface GeminiModelResponseItem {
-  name: string;
-  displayName?: string;
-  description?: string;
-  supportedGenerationMethods?: string[];
-}
+import {
+  providerHasKey,
+  type AIConfig,
+  type AIKeyStatusByProvider,
+  type AIModelItem,
+} from '../context/RaceEngineerContext';
 
 export const filterChatModels = (rawModels: AIModelItem[], provider: string): AIModelItem[] => {
   return rawModels.filter((m) => {
@@ -58,99 +49,47 @@ export const filterChatModels = (rawModels: AIModelItem[], provider: string): AI
 };
 
 export interface UseAIModelsReturn {
-  serverConfigStatus: ServerConfigStatus | null;
   availableModels: AIModelItem[];
   isLoadingModels: boolean;
   modelsError: string | null;
   fetchAvailableModels: (overrideConfig?: AIConfig) => Promise<void>;
 }
 
-export const useAIModels = (config: AIConfig): UseAIModelsReturn => {
-  const [serverConfigStatus, setServerConfigStatus] = useState<ServerConfigStatus | null>(null);
+/** Lists the chat models of the active provider. The server adds the saved or .env API key. */
+export const useAIModels = (
+  config: AIConfig,
+  keyStatus: AIKeyStatusByProvider
+): UseAIModelsReturn => {
   const [availableModels, setAvailableModels] = useState<AIModelItem[]>([]);
   const [isLoadingModels, setIsLoadingModels] = useState<boolean>(false);
   const [modelsError, setModelsError] = useState<string | null>(null);
 
-  // Fetch server status on mount
-  useEffect(() => {
-    api.get<{
-      has_gemini_env_key: boolean;
-      has_openai_env_key: boolean;
-      default_provider: 'gemini' | 'openai';
-      default_model: string;
-    }>('/api/ai/config-status')
-      .then((data) => {
-        setServerConfigStatus({
-          hasGeminiEnvKey: data.has_gemini_env_key,
-          hasOpenAIEnvKey: data.has_openai_env_key,
-          defaultProvider: data.default_provider,
-          defaultModel: data.default_model,
-        });
-      })
-      .catch(() => {
-        // AI config status is optional for local development
-      });
-  }, []);
-
   const fetchAvailableModels = useCallback(
     async (overrideConfig?: AIConfig) => {
       const activeCfg = overrideConfig || config;
-      if (
-        !activeCfg.apiKey &&
-        !serverConfigStatus?.hasGeminiEnvKey &&
-        !serverConfigStatus?.hasOpenAIEnvKey
-      ) {
+      if (!providerHasKey(keyStatus, activeCfg.provider)) {
+        setAvailableModels([]);
         return;
       }
 
       setIsLoadingModels(true);
       setModelsError(null);
       try {
-        let data: { models: AIModelItem[] } | null = null;
-
-        try {
-          data = await api.post<{ models: AIModelItem[] }>('/api/ai/models', {
-            provider: activeCfg.provider,
-            api_key: activeCfg.apiKey,
-            base_url: activeCfg.baseUrl,
-          });
-        } catch {
-          // Fallback to direct provider query if backend route is unavailable
-        }
-
-        if (!data && activeCfg.provider === 'gemini' && activeCfg.apiKey) {
-          const gJson = await api.get<{ models?: GeminiModelResponseItem[] }>(
-            `https://generativelanguage.googleapis.com/v1beta/models?key=${activeCfg.apiKey}`
-          );
-          const gModels: AIModelItem[] = (gJson.models || [])
-            .filter((m) => (m.supportedGenerationMethods || []).includes('generateContent'))
-            .map((m) => ({
-              id: m.name.replace('models/', ''),
-              display_name: m.displayName || m.name.replace('models/', ''),
-              description: m.description,
-            }));
-          data = { models: gModels };
-        }
-
-        if (data?.models && data.models.length > 0) {
-          const filtered = filterChatModels(data.models, activeCfg.provider);
-          setAvailableModels(filtered);
-        } else {
-          setAvailableModels([]);
-        }
+        const data = await api.post<{ models: AIModelItem[] }>('/api/ai/models', {
+          provider: activeCfg.provider,
+        });
+        setAvailableModels(data?.models?.length ? filterChatModels(data.models, activeCfg.provider) : []);
       } catch (err) {
-        const errorMsg =
-          err instanceof Error ? err.message : 'Could not query models list.';
+        const errorMsg = err instanceof Error ? err.message : 'Could not query models list.';
         setModelsError(errorMsg);
       } finally {
         setIsLoadingModels(false);
       }
     },
-    [config, serverConfigStatus]
+    [config, keyStatus]
   );
 
   return {
-    serverConfigStatus,
     availableModels,
     isLoadingModels,
     modelsError,

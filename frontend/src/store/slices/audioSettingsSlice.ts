@@ -1,6 +1,7 @@
 import type { StateCreator } from 'zustand';
 import {
   RADIO_STORAGE_KEYS,
+  LEGACY_RADIO_STORAGE_KEYS,
   RADIO_PERSONAS,
   RADIO_LANGUAGES,
   RADIO_AUDIO_CONSTANTS,
@@ -55,6 +56,130 @@ export function saveStorage(key: string, val: string | number | boolean): void {
   }
 }
 
+/** The engineer's voice, shared by every device through GET/PUT /api/settings/voice. */
+export interface VoiceSettingsPayload {
+  persona: string;
+  language: string;
+  custom_prompt: string;
+  driver_callsign: string;
+  neural_voice: string;
+  speech_rate: number;
+  speech_pitch: number;
+}
+
+export type VoiceSettingsValues = Pick<
+  AudioSettingsSlice,
+  | 'persona'
+  | 'radioLanguage'
+  | 'customPrompt'
+  | 'driverCallsign'
+  | 'neuralVoice'
+  | 'speechRate'
+  | 'speechPitch'
+>;
+
+const clampSpeechRate = (rate: number): number =>
+  Math.max(
+    RADIO_AUDIO_CONSTANTS.MIN_SPEECH_RATE_PERCENT,
+    Math.min(RADIO_AUDIO_CONSTANTS.MAX_SPEECH_RATE_PERCENT, rate)
+  );
+
+const clampSpeechPitch = (pitch: number): number =>
+  Math.max(
+    RADIO_AUDIO_CONSTANTS.MIN_SPEECH_PITCH_HZ,
+    Math.min(RADIO_AUDIO_CONSTANTS.MAX_SPEECH_PITCH_HZ, pitch)
+  );
+
+const isOneOf = <T extends string>(value: unknown, allowed: Record<string, T>): value is T =>
+  typeof value === 'string' && (Object.values(allowed) as string[]).includes(value);
+
+export function getDefaultVoiceSettings(): VoiceSettingsValues {
+  return {
+    persona: RADIO_PERSONAS.BONO,
+    radioLanguage: RADIO_LANGUAGES.AUTO,
+    customPrompt: '',
+    driverCallsign: '',
+    neuralVoice: '',
+    speechRate: RADIO_AUDIO_CONSTANTS.DEFAULT_SPEECH_RATE_PERCENT,
+    speechPitch: RADIO_AUDIO_CONSTANTS.DEFAULT_SPEECH_PITCH_HZ,
+  };
+}
+
+export function voiceToPayload(v: VoiceSettingsValues): VoiceSettingsPayload {
+  return {
+    persona: v.persona,
+    language: v.radioLanguage,
+    custom_prompt: v.customPrompt,
+    driver_callsign: v.driverCallsign,
+    neural_voice: v.neuralVoice,
+    speech_rate: v.speechRate,
+    speech_pitch: v.speechPitch,
+  };
+}
+
+/** Reads a server payload, keeping `fallback` for any value this dashboard can't use. */
+export function voiceFromPayload(
+  p: Partial<VoiceSettingsPayload>,
+  fallback: VoiceSettingsValues
+): VoiceSettingsValues {
+  return {
+    persona: isOneOf(p.persona, RADIO_PERSONAS) ? p.persona : fallback.persona,
+    radioLanguage: isOneOf(p.language, RADIO_LANGUAGES) ? p.language : fallback.radioLanguage,
+    customPrompt: typeof p.custom_prompt === 'string' ? p.custom_prompt : fallback.customPrompt,
+    driverCallsign: typeof p.driver_callsign === 'string' ? p.driver_callsign : fallback.driverCallsign,
+    neuralVoice: typeof p.neural_voice === 'string' ? p.neural_voice : fallback.neuralVoice,
+    speechRate: Number.isFinite(p.speech_rate) ? clampSpeechRate(p.speech_rate as number) : fallback.speechRate,
+    speechPitch: Number.isFinite(p.speech_pitch) ? clampSpeechPitch(p.speech_pitch as number) : fallback.speechPitch,
+  };
+}
+
+const LEGACY_VOICE_KEYS = [
+  LEGACY_RADIO_STORAGE_KEYS.PERSONA,
+  LEGACY_RADIO_STORAGE_KEYS.LANGUAGE,
+  LEGACY_RADIO_STORAGE_KEYS.CUSTOM_PROMPT,
+  LEGACY_RADIO_STORAGE_KEYS.DRIVER_CALLSIGN,
+  LEGACY_RADIO_STORAGE_KEYS.NEURAL_VOICE,
+  LEGACY_RADIO_STORAGE_KEYS.SPEECH_RATE,
+  LEGACY_RADIO_STORAGE_KEYS.SPEECH_PITCH,
+] as const;
+
+/** The voice setup an older version kept in this browser, or null when it kept none. */
+export function getLegacyVoiceSettings(): VoiceSettingsValues | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    if (!LEGACY_VOICE_KEYS.some((key) => localStorage.getItem(key) !== null)) return null;
+  } catch {
+    return null;
+  }
+  const defaults = getDefaultVoiceSettings();
+  return {
+    persona: getStoredStr<RadioPersona>(
+      LEGACY_RADIO_STORAGE_KEYS.PERSONA,
+      defaults.persona,
+      Object.values(RADIO_PERSONAS)
+    ),
+    radioLanguage: getStoredStr<RadioLanguage>(
+      LEGACY_RADIO_STORAGE_KEYS.LANGUAGE,
+      defaults.radioLanguage,
+      Object.values(RADIO_LANGUAGES)
+    ),
+    customPrompt: getStoredStr(LEGACY_RADIO_STORAGE_KEYS.CUSTOM_PROMPT, defaults.customPrompt),
+    driverCallsign: getStoredStr(LEGACY_RADIO_STORAGE_KEYS.DRIVER_CALLSIGN, defaults.driverCallsign),
+    neuralVoice: getStoredStr(LEGACY_RADIO_STORAGE_KEYS.NEURAL_VOICE, defaults.neuralVoice),
+    speechRate: clampSpeechRate(getStoredNum(LEGACY_RADIO_STORAGE_KEYS.SPEECH_RATE, defaults.speechRate)),
+    speechPitch: clampSpeechPitch(getStoredNum(LEGACY_RADIO_STORAGE_KEYS.SPEECH_PITCH, defaults.speechPitch)),
+  };
+}
+
+export function clearLegacyVoiceSettings(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    LEGACY_VOICE_KEYS.forEach((key) => localStorage.removeItem(key));
+  } catch {
+    // ignore
+  }
+}
+
 export interface AudioSettingsSlice {
   isRadioEnabled: boolean;
   persona: RadioPersona;
@@ -99,19 +224,9 @@ export function getInitialAudioSettings(): Omit<
   | 'setNeuralVoice'
 > {
   return {
+    // Voice settings start at their defaults until loadVoiceFromBackend brings the saved ones.
+    ...getDefaultVoiceSettings(),
     isRadioEnabled: getStoredBool(RADIO_STORAGE_KEYS.ALERTS_ENABLED, true),
-    persona: getStoredStr<RadioPersona>(
-      RADIO_STORAGE_KEYS.PERSONA,
-      RADIO_PERSONAS.BONO,
-      Object.values(RADIO_PERSONAS)
-    ),
-    radioLanguage: getStoredStr<RadioLanguage>(
-      RADIO_STORAGE_KEYS.LANGUAGE,
-      RADIO_LANGUAGES.AUTO,
-      Object.values(RADIO_LANGUAGES)
-    ),
-    customPrompt: getStoredStr(RADIO_STORAGE_KEYS.CUSTOM_PROMPT, ''),
-    driverCallsign: getStoredStr(RADIO_STORAGE_KEYS.DRIVER_CALLSIGN, ''),
     beepsEnabled: getStoredBool(RADIO_STORAGE_KEYS.BEEPS_ENABLED, true),
     filterEnabled: getStoredBool(RADIO_STORAGE_KEYS.FILTER_ENABLED, true),
     staticFxEnabled: getStoredBool(RADIO_STORAGE_KEYS.STATIC_FX_ENABLED, true),
@@ -121,19 +236,6 @@ export function getInitialAudioSettings(): Omit<
       0,
       1
     ),
-    speechRate: getStoredNum(
-      RADIO_STORAGE_KEYS.SPEECH_RATE,
-      RADIO_AUDIO_CONSTANTS.DEFAULT_SPEECH_RATE_PERCENT,
-      -20,
-      30
-    ),
-    speechPitch: getStoredNum(
-      RADIO_STORAGE_KEYS.SPEECH_PITCH,
-      RADIO_AUDIO_CONSTANTS.DEFAULT_SPEECH_PITCH_HZ,
-      -100,
-      100
-    ),
-    neuralVoice: getStoredStr(RADIO_STORAGE_KEYS.NEURAL_VOICE, ''),
   };
 }
 
@@ -142,7 +244,7 @@ export const createAudioSettingsSlice: StateCreator<
   [],
   [],
   AudioSettingsSlice
-> = (set) => ({
+> = (set, get) => ({
   ...getInitialAudioSettings(),
 
   setIsRadioEnabled: (val) => {
@@ -150,20 +252,20 @@ export const createAudioSettingsSlice: StateCreator<
     set({ isRadioEnabled: val });
   },
   setPersona: (p) => {
-    saveStorage(RADIO_STORAGE_KEYS.PERSONA, p);
     set({ persona: p });
+    get().syncVoiceToBackend();
   },
   setRadioLanguage: (lang) => {
-    saveStorage(RADIO_STORAGE_KEYS.LANGUAGE, lang);
     set({ radioLanguage: lang });
+    get().syncVoiceToBackend();
   },
   setCustomPrompt: (prompt) => {
-    saveStorage(RADIO_STORAGE_KEYS.CUSTOM_PROMPT, prompt);
     set({ customPrompt: prompt });
+    get().syncVoiceToBackend();
   },
   setDriverCallsign: (callsign) => {
-    saveStorage(RADIO_STORAGE_KEYS.DRIVER_CALLSIGN, callsign);
     set({ driverCallsign: callsign });
+    get().syncVoiceToBackend();
   },
   setBeepsEnabled: (val) => {
     saveStorage(RADIO_STORAGE_KEYS.BEEPS_ENABLED, val);
@@ -183,17 +285,15 @@ export const createAudioSettingsSlice: StateCreator<
     set({ volume: clamped });
   },
   setSpeechRate: (r) => {
-    const clamped = Math.max(-20, Math.min(30, r));
-    saveStorage(RADIO_STORAGE_KEYS.SPEECH_RATE, clamped);
-    set({ speechRate: clamped });
+    set({ speechRate: clampSpeechRate(r) });
+    get().syncVoiceToBackend();
   },
   setSpeechPitch: (p) => {
-    const clamped = Math.max(-100, Math.min(100, p));
-    saveStorage(RADIO_STORAGE_KEYS.SPEECH_PITCH, clamped);
-    set({ speechPitch: clamped });
+    set({ speechPitch: clampSpeechPitch(p) });
+    get().syncVoiceToBackend();
   },
   setNeuralVoice: (v) => {
-    saveStorage(RADIO_STORAGE_KEYS.NEURAL_VOICE, v);
     set({ neuralVoice: v });
+    get().syncVoiceToBackend();
   },
 });

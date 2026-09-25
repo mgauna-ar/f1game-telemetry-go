@@ -5,7 +5,7 @@ import {
 } from '../../constants/f1';
 import type { EngineerConfig } from '../../types/telemetry';
 import {
-  buildAIConfigFromValues,
+  buildEngineerConfigFromValues,
   type RadioSettingsState,
 } from '../useRadioSettingsStore';
 
@@ -147,7 +147,7 @@ export const createAlertThresholdsSlice: StateCreator<
         };
         return {
           ...nextState,
-          aiConfig: buildAIConfigFromValues(nextState),
+          engineerConfig: buildEngineerConfigFromValues(nextState),
         };
       });
       get().syncConfigToBackend();

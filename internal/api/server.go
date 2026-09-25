@@ -27,6 +27,7 @@ import (
 type ServerConfig struct {
 	GeminiAPIKey string
 	OpenAIAPIKey string
+	ClaudeAPIKey string
 	LLMModel     string
 	LLMProvider  string
 }
@@ -44,6 +45,7 @@ type Server struct {
 	inputCancel     context.CancelFunc
 	pttMu           sync.Mutex
 	isLearning      bool
+	settingsMu      sync.Mutex
 	staticFS        fs.FS
 	comparatorCache *analytics.ComparatorLRUCache
 }
@@ -73,18 +75,10 @@ func NewServerWithFS(repo storage.Repository, telemetryHub, engineerHub *Hub, st
 
 	s.router.Use(middleware.Logger)
 	s.router.Use(middleware.Recoverer)
-	s.router.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
-			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-			if r.Method == "OPTIONS" {
-				w.WriteHeader(http.StatusOK)
-				return
-			}
-			next.ServeHTTP(w, r)
-		})
-	})
+	// The API is for the dashboard this server hosts. Other websites open in the same browser must
+	// not change settings or spend the saved AI keys, so cross-site writes are rejected and no CORS
+	// headers are sent.
+	s.router.Use(http.NewCrossOriginProtection().Handler)
 
 	s.routes()
 
@@ -112,6 +106,7 @@ func (s *Server) SetInputManager(mgr input.Manager) {
 	}
 
 	s.inputManager = mgr
+	s.restorePTTSettings(context.Background(), mgr)
 	if mgr != nil && s.engineerHub != nil {
 		ctx, cancel := context.WithCancel(context.Background())
 		s.inputCancel = cancel
@@ -155,6 +150,7 @@ func (s *Server) routes() {
 		s.setupComparatorRoutes(r)
 		s.setupAIRoutes(r)
 		s.setupPTTRoutes(r)
+		s.setupSettingsRoutes(r)
 		s.setupSystemRoutes(r)
 	})
 

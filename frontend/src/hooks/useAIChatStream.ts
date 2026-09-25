@@ -1,13 +1,17 @@
 import { useState, useRef, useCallback } from 'react';
 import { api } from '../utils/apiClient';
 import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
-import type { AIConfig, ChatMessage } from '../context/RaceEngineerContext';
-import type { ServerConfigStatus } from './useAIModels';
+import {
+  providerHasKey,
+  type AIConfig,
+  type AIKeyStatusByProvider,
+  type ChatMessage,
+} from '../context/RaceEngineerContext';
 import type { BackendContextPayload } from './useSystemPrompt';
 
 export interface UseAIChatStreamProps {
   config: AIConfig;
-  serverConfigStatus: ServerConfigStatus | null;
+  keyStatus: AIKeyStatusByProvider;
   buildCurrentBackendContext: () => BackendContextPayload;
 }
 
@@ -43,7 +47,7 @@ interface BackendSSEChunk {
 
 export const useAIChatStream = ({
   config,
-  serverConfigStatus,
+  keyStatus,
   buildCurrentBackendContext,
 }: UseAIChatStreamProps): UseAIChatStreamReturn => {
   const [messages, setMessages] = useState<ChatMessage[]>(() => [
@@ -83,12 +87,8 @@ export const useAIChatStream = ({
       const nextMessages = [...messages, userMsg, assistantMsg];
       setMessages(nextMessages);
 
-      // Pre-check if API key is missing before making network requests
-      const hasServerKey =
-        (config.provider === 'gemini' && serverConfigStatus?.hasGeminiEnvKey) ||
-        (config.provider === 'openai' && serverConfigStatus?.hasOpenAIEnvKey);
-
-      if (!config.apiKey && !hasServerKey && config.provider !== 'custom') {
+      // Show the missing key card right away instead of waiting for the server to refuse
+      if (!providerHasKey(keyStatus, config.provider)) {
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantMsgId
@@ -126,9 +126,8 @@ export const useAIChatStream = ({
         const res = await api.stream(
           '/api/ai/chat',
           {
+            // The server adds the API key and custom base URL from its saved settings.
             provider: config.provider,
-            api_key: config.apiKey,
-            base_url: config.baseUrl,
             model: config.model,
             persona: radioState.persona,
             language: radioState.radioLanguage,
@@ -297,7 +296,7 @@ export const useAIChatStream = ({
       config,
       isGenerating,
       messages,
-      serverConfigStatus,
+      keyStatus,
     ]
   );
 

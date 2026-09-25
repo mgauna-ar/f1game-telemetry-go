@@ -1,7 +1,7 @@
 import type { StateCreator } from 'zustand';
 import { RADIO_TRIGGER_PRESETS } from '../../constants/f1';
 import {
-  buildAIConfigFromValues,
+  buildEngineerConfigFromValues,
   type RadioSettingsState,
 } from '../useRadioSettingsStore';
 import { TRIGGER_PRESET_VALUES } from './triggerPresets';
@@ -159,7 +159,7 @@ export const createTacticalSettingsSlice: StateCreator<
         };
         return {
           ...nextState,
-          aiConfig: buildAIConfigFromValues(nextState),
+          engineerConfig: buildEngineerConfigFromValues(nextState),
         };
       });
       get().syncConfigToBackend();
@@ -173,7 +173,7 @@ export const createTacticalSettingsSlice: StateCreator<
         const nextState = { ...state, smartDiscretionEnabled: val };
         return {
           ...nextState,
-          aiConfig: buildAIConfigFromValues(nextState),
+          engineerConfig: buildEngineerConfigFromValues(nextState),
         };
       });
       get().syncConfigToBackend();
@@ -183,7 +183,7 @@ export const createTacticalSettingsSlice: StateCreator<
         const nextState = { ...state, chatterCooldownSeconds: sec };
         return {
           ...nextState,
-          aiConfig: buildAIConfigFromValues(nextState),
+          engineerConfig: buildEngineerConfigFromValues(nextState),
         };
       });
       get().syncConfigToBackend();

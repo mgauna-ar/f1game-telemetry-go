@@ -1,10 +1,16 @@
-import type { RADIO_STORAGE_KEYS } from '../constants/f1';
+import type { RADIO_STORAGE_KEYS, LEGACY_RADIO_STORAGE_KEYS } from '../constants/f1';
 
 type RadioStorageKey = (typeof RADIO_STORAGE_KEYS)[keyof typeof RADIO_STORAGE_KEYS];
+type LegacyRadioStorageKey = (typeof LEGACY_RADIO_STORAGE_KEYS)[keyof typeof LEGACY_RADIO_STORAGE_KEYS];
 
-/** Every key the app keeps in localStorage. These settings are per browser, not per server. */
+/**
+ * Every key the app keeps in localStorage. These settings are per browser; settings every device
+ * shares (alerts, AI provider and keys, voice, push-to-talk) live on the server. The legacy keys
+ * and 'f1_ai_engineer_config' are only read once, to move older browser settings to the server.
+ */
 export type KnownStorageKey =
   | RadioStorageKey
+  | LegacyRadioStorageKey
   | 'f1_active_tab'
   | 'f1_telemetry_dismissed_update'
   | 'f1_telemetry_language'
