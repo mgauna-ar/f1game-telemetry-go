@@ -8,6 +8,7 @@ import {
 import {
   createAlertThresholdsSlice,
   getInitialAlertThresholds,
+  thresholdsFromEngineerConfig,
   type AlertThresholdsSlice,
 } from './slices/alertThresholdsSlice';
 import {
@@ -20,14 +21,20 @@ import {
   getInitialRadioPresets,
   type RadioPresetsSlice,
 } from './slices/radioPresetsSlice';
-import { TIME_CONSTANTS, RADIO_ALERT_CONSTANTS } from '../constants/f1';
+import {
+  ALERT_TOGGLE_KEYS,
+  detectTriggerPreset,
+  isRadioTriggerPreset,
+  type AlertToggles,
+} from './slices/triggerPresets';
+import {
+  TIME_CONSTANTS,
+  RADIO_ALERT_CONSTANTS,
+  type RadioTriggerPreset,
+} from '../constants/f1';
 import type { EngineerConfig } from '../types/telemetry';
 
 export type RadioEngineerConfig = EngineerConfig;
-/**
- * @deprecated Use `RadioEngineerConfig` to avoid confusion with LLM provider `AIConfig` in RaceEngineerContext.
- */
-export type AIConfig = RadioEngineerConfig;
 
 export interface RadioSettingsState
   extends AudioSettingsSlice,
@@ -42,6 +49,7 @@ export interface RadioSettingsState
 }
 
 export function buildAIConfigFromValues(v: {
+  triggerPreset: RadioTriggerPreset;
   smartDiscretionEnabled: boolean;
   chatterCooldownSeconds: number;
   tyreWearWarningPct: number;
@@ -100,6 +108,9 @@ export function buildAIConfigFromValues(v: {
   subTrackLimits: boolean;
   subPenalties: boolean;
 }): EngineerConfig {
+  const alertSwitches = Object.fromEntries(
+    ALERT_TOGGLE_KEYS.map((key) => [key, v[key]])
+  ) as AlertToggles;
 
   return {
     chatter_cooldown_ms: v.chatterCooldownSeconds * TIME_CONSTANTS.MS_PER_SECOND,
@@ -165,6 +176,8 @@ export function buildAIConfigFromValues(v: {
       track_limits: v.flagsPensAlertsEnabled && v.subTrackLimits,
       penalties: v.flagsPensAlertsEnabled && v.subPenalties,
     },
+    trigger_preset: v.triggerPreset,
+    alert_switches: alertSwitches,
   };
 }
 
@@ -180,6 +193,58 @@ export function getInitialRadioSettings() {
     ...initialValues,
     aiConfig: buildAIConfigFromValues(initialValues),
   };
+}
+
+function alertTogglesFromSwitches(switches: Record<string, boolean>): Partial<AlertToggles> {
+  const toggles: Partial<AlertToggles> = {};
+  for (const key of ALERT_TOGGLE_KEYS) {
+    if (typeof switches[key] === 'boolean') toggles[key] = switches[key];
+  }
+  return toggles;
+}
+
+/**
+ * Older configs only stored "category switch AND alert switch" per engine alert key, so category
+ * switches can't be recovered; only the per-alert switches are restored.
+ */
+function alertTogglesFromLegacyCategories(
+  ec: Record<string, boolean> | undefined
+): Partial<AlertToggles> {
+  const toggles: Partial<AlertToggles> = {};
+  if (!ec) return toggles;
+  if (ec.tyre_wear !== undefined) toggles.subTyreWear = ec.tyre_wear;
+  if (ec.tyre_puncture !== undefined) toggles.subTyrePuncture = ec.tyre_puncture;
+  if (ec.tyre_overheat !== undefined) toggles.subTyreThermal = ec.tyre_overheat;
+  else if (ec.tyre_thermal !== undefined) toggles.subTyreThermal = ec.tyre_thermal;
+  if (ec.tyre_cold !== undefined) toggles.subTyreCold = ec.tyre_cold;
+  if (ec.damage_wing !== undefined) toggles.subDamageWing = ec.damage_wing;
+  else if (ec.wing_damage !== undefined) toggles.subDamageWing = ec.wing_damage;
+  if (ec.damage_floor !== undefined) toggles.subDamageFloor = ec.damage_floor;
+  else if (ec.floor_damage !== undefined) toggles.subDamageFloor = ec.floor_damage;
+  if (ec.damage_engine !== undefined) toggles.subDamageEngine = ec.damage_engine;
+  else if (ec.engine_wear !== undefined) toggles.subDamageEngine = ec.engine_wear;
+  if (ec.damage_aero_fault !== undefined) toggles.subDamageFaults = ec.damage_aero_fault;
+  else if (ec.mechanical_fault !== undefined) toggles.subDamageFaults = ec.mechanical_fault;
+  if (ec.ers_low !== undefined) toggles.subErsLow = ec.ers_low;
+  if (ec.engine_temp !== undefined) toggles.subEngineTemp = ec.engine_temp;
+  if (ec.brake_hot !== undefined) toggles.subBrakeTemp = ec.brake_hot;
+  if (ec.brake_cold !== undefined) toggles.subBrakeCold = ec.brake_cold;
+  if (ec.fuel_delta !== undefined) toggles.subFuelDelta = ec.fuel_delta;
+  if (ec.undercut !== undefined) toggles.subUndercut = ec.undercut;
+  if (ec.pit_window !== undefined) toggles.subPitWindow = ec.pit_window;
+  if (ec.rival_defend !== undefined) toggles.subRivalDefend = ec.rival_defend;
+  if (ec.rival_attack !== undefined) toggles.subRivalAttack = ec.rival_attack;
+  if (ec.qualy_invalid !== undefined) toggles.subQualyInvalid = ec.qualy_invalid;
+  if (ec.qualy_traffic !== undefined) toggles.subQualyTraffic = ec.qualy_traffic;
+  if (ec.qualy_time !== undefined) toggles.subQualyTime = ec.qualy_time;
+  if (ec.qualy_elim !== undefined) toggles.subQualyElim = ec.qualy_elim;
+  if (ec.flags_sc !== undefined) toggles.subSafetyCar = ec.flags_sc;
+  if (ec.flags_red !== undefined) toggles.subRedFlag = ec.flags_red;
+  if (ec.flags_rain !== undefined) toggles.subRain = ec.flags_rain;
+  else if (ec.flags_rain_live !== undefined) toggles.subRain = ec.flags_rain_live;
+  if (ec.track_limits !== undefined) toggles.subTrackLimits = ec.track_limits;
+  if (ec.penalties !== undefined) toggles.subPenalties = ec.penalties;
+  return toggles;
 }
 
 let syncTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -235,114 +300,41 @@ export const useRadioSettingsStore = create<RadioSettingsState>((set, get, store
   },
 
   loadConfigFromBackend: async () => {
-    try {
-      const cfg = await api.get<RadioEngineerConfig>('/api/ai/engineer/config');
-      if (cfg) {
-        set((state) => {
-          const loaded: Partial<RadioSettingsState> = {
-            smartDiscretionEnabled:
-              cfg.smart_discretion_enabled ?? state.smartDiscretionEnabled,
-            chatterCooldownSeconds: cfg.chatter_cooldown_ms
-              ? Math.round(cfg.chatter_cooldown_ms / TIME_CONSTANTS.MS_PER_SECOND)
-              : state.chatterCooldownSeconds,
-            tyreWearWarningPct:
-              cfg.tyre_wear_warn_pct ?? state.tyreWearWarningPct,
-            tyreWearCriticalPct:
-              cfg.tyre_wear_crit_pct ?? state.tyreWearCriticalPct,
-            tyreOverheatC: cfg.tyre_overheat_c ?? state.tyreOverheatC,
-            tyreColdC: cfg.tyre_cold_c ?? state.tyreColdC,
-            wingDamageWarnPct:
-              cfg.wing_damage_warn_pct ?? state.wingDamageWarnPct,
-            floorDamageWarnPct:
-              cfg.floor_damage_warn_pct ?? state.floorDamageWarnPct,
-            engineWearWarnPct:
-              cfg.engine_wear_warn_pct ?? state.engineWearWarnPct,
-            ersLowPct: cfg.ers_low_pct ?? state.ersLowPct,
-            engineOverheatC:
-              cfg.engine_overheat_c ?? state.engineOverheatC,
-            brakeOverheatC: cfg.brake_overheat_c ?? state.brakeOverheatC,
-            brakeColdC: cfg.brake_cold_c ?? state.brakeColdC,
-            fuelDeltaLaps: cfg.fuel_delta_laps ?? state.fuelDeltaLaps,
-            undercutGapSec: cfg.undercut_gap_sec ?? state.undercutGapSec,
-            rivalGapThresholdSec:
-              cfg.rival_gap_sec ?? state.rivalGapThresholdSec,
-            rivalAheadGapSec:
-              cfg.rival_ahead_gap_sec ?? state.rivalAheadGapSec,
-            qualyCleanAirSec:
-              cfg.qualy_clean_air_sec ?? state.qualyCleanAirSec,
-            cornerCutWarnThreshold:
-              cfg.corner_cut_warn_threshold ?? state.cornerCutWarnThreshold,
-            rainHorizonMin: cfg.rain_horizon_min ?? state.rainHorizonMin,
-            rainProbPct: cfg.rain_prob_pct ?? state.rainProbPct,
-          };
+    // Backend not available or offline: keep the current state
+    const cfg = await api
+      .get<RadioEngineerConfig>('/api/ai/engineer/config')
+      .catch(() => null);
+    if (!cfg) return;
 
-          if (cfg.enabled_categories) {
-            const ec = cfg.enabled_categories;
-            if (ec.tyre_wear !== undefined) loaded.subTyreWear = ec.tyre_wear;
-            if (ec.tyre_puncture !== undefined)
-              loaded.subTyrePuncture = ec.tyre_puncture;
-            if (ec.tyre_overheat !== undefined)
-              loaded.subTyreThermal = ec.tyre_overheat;
-            else if (ec.tyre_thermal !== undefined)
-              loaded.subTyreThermal = ec.tyre_thermal;
-            if (ec.tyre_cold !== undefined) loaded.subTyreCold = ec.tyre_cold;
-            if (ec.damage_wing !== undefined)
-              loaded.subDamageWing = ec.damage_wing;
-            else if (ec.wing_damage !== undefined)
-              loaded.subDamageWing = ec.wing_damage;
-            if (ec.damage_floor !== undefined)
-              loaded.subDamageFloor = ec.damage_floor;
-            else if (ec.floor_damage !== undefined)
-              loaded.subDamageFloor = ec.floor_damage;
-            if (ec.damage_engine !== undefined)
-              loaded.subDamageEngine = ec.damage_engine;
-            else if (ec.engine_wear !== undefined)
-              loaded.subDamageEngine = ec.engine_wear;
-            if (ec.damage_aero_fault !== undefined)
-              loaded.subDamageFaults = ec.damage_aero_fault;
-            else if (ec.mechanical_fault !== undefined)
-              loaded.subDamageFaults = ec.mechanical_fault;
-            if (ec.ers_low !== undefined) loaded.subErsLow = ec.ers_low;
-            if (ec.engine_temp !== undefined)
-              loaded.subEngineTemp = ec.engine_temp;
-            if (ec.brake_hot !== undefined) loaded.subBrakeTemp = ec.brake_hot;
-            if (ec.brake_cold !== undefined)
-              loaded.subBrakeCold = ec.brake_cold;
-            if (ec.fuel_delta !== undefined)
-              loaded.subFuelDelta = ec.fuel_delta;
-            if (ec.undercut !== undefined) loaded.subUndercut = ec.undercut;
-            if (ec.pit_window !== undefined)
-              loaded.subPitWindow = ec.pit_window;
-            if (ec.rival_defend !== undefined)
-              loaded.subRivalDefend = ec.rival_defend;
-            if (ec.rival_attack !== undefined)
-              loaded.subRivalAttack = ec.rival_attack;
-            if (ec.qualy_invalid !== undefined)
-              loaded.subQualyInvalid = ec.qualy_invalid;
-            if (ec.qualy_traffic !== undefined)
-              loaded.subQualyTraffic = ec.qualy_traffic;
-            if (ec.qualy_time !== undefined)
-              loaded.subQualyTime = ec.qualy_time;
-            if (ec.qualy_elim !== undefined)
-              loaded.subQualyElim = ec.qualy_elim;
-            if (ec.flags_sc !== undefined) loaded.subSafetyCar = ec.flags_sc;
-            if (ec.flags_red !== undefined) loaded.subRedFlag = ec.flags_red;
-            if (ec.flags_rain !== undefined) loaded.subRain = ec.flags_rain;
-            else if (ec.flags_rain_live !== undefined) loaded.subRain = ec.flags_rain_live;
-            if (ec.track_limits !== undefined)
-              loaded.subTrackLimits = ec.track_limits;
-            if (ec.penalties !== undefined) loaded.subPenalties = ec.penalties;
-          }
+    // Configs saved before the panel state was stored have no alert_switches. Those (and fresh
+    // installs) are migrated below and written back once so the server holds the full state.
+    const needsMigration = !cfg.alert_switches;
 
-          const nextState = { ...state, ...loaded };
-          return {
-            ...nextState,
-            aiConfig: buildAIConfigFromValues(nextState),
-          };
-        });
-      }
-    } catch {
-      // Backend not available or offline, keep current state
+    set((state) => {
+      const loaded: Partial<RadioSettingsState> = {
+        ...thresholdsFromEngineerConfig(cfg, state),
+        smartDiscretionEnabled: cfg.smart_discretion_enabled ?? state.smartDiscretionEnabled,
+        chatterCooldownSeconds: cfg.chatter_cooldown_ms
+          ? Math.round(cfg.chatter_cooldown_ms / TIME_CONSTANTS.MS_PER_SECOND)
+          : state.chatterCooldownSeconds,
+        ...(cfg.alert_switches
+          ? alertTogglesFromSwitches(cfg.alert_switches)
+          : alertTogglesFromLegacyCategories(cfg.enabled_categories)),
+      };
+
+      const nextState = { ...state, ...loaded };
+      nextState.triggerPreset = isRadioTriggerPreset(cfg.trigger_preset)
+        ? cfg.trigger_preset
+        : detectTriggerPreset(nextState);
+
+      return {
+        ...nextState,
+        aiConfig: buildAIConfigFromValues(nextState),
+      };
+    });
+
+    if (needsMigration) {
+      await get().syncConfigToBackend(true);
     }
   },
 }));

@@ -330,6 +330,62 @@ func TestSessionAnalytics_NotFound(t *testing.T) {
 	}
 }
 
+func TestHandleGetEngineerConfigDefaults(t *testing.T) {
+	server, _ := setupTestServer(t)
+	engine := engineer.NewEngineerEngine(nil)
+	server.SetEngineerEngine(engine)
+
+	// Changing the live config must not change what "defaults" returns.
+	custom := engineer.DefaultEngineerConfig()
+	custom.BrakeOverheatC = 1100
+	engine.SetConfig(custom)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/ai/engineer/config/defaults", http.NoBody)
+	rec := httptest.NewRecorder()
+	server.Router().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", rec.Code)
+	}
+	var cfg engineer.EngineerConfig
+	if err := json.NewDecoder(rec.Body).Decode(&cfg); err != nil {
+		t.Fatalf("failed to decode defaults: %v", err)
+	}
+	if cfg.BrakeOverheatC != engineer.BrakeOverheatDefaultC {
+		t.Errorf("expected default BrakeOverheatC %v, got %v", engineer.BrakeOverheatDefaultC, cfg.BrakeOverheatC)
+	}
+	if cfg.UndercutGapSec != engineer.UndercutGapDefaultSec {
+		t.Errorf("expected default UndercutGapSec %v, got %v", engineer.UndercutGapDefaultSec, cfg.UndercutGapSec)
+	}
+}
+
+func TestHandleEngineerConfig_RoundTripsSettingsPanelState(t *testing.T) {
+	server, _ := setupTestServer(t)
+	server.SetEngineerEngine(engineer.NewEngineerEngine(nil))
+
+	payload := `{"chatter_cooldown_ms": 90000, "trigger_preset": "minimal", "alert_switches": {"tyreAlertsEnabled": false, "subTyrePuncture": true}}`
+	postReq := httptest.NewRequest(http.MethodPost, "/api/ai/engineer/config", strings.NewReader(payload))
+	postRec := httptest.NewRecorder()
+	server.Router().ServeHTTP(postRec, postReq)
+	if postRec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d: %s", postRec.Code, postRec.Body.String())
+	}
+
+	getReq := httptest.NewRequest(http.MethodGet, "/api/ai/engineer/config", http.NoBody)
+	getRec := httptest.NewRecorder()
+	server.Router().ServeHTTP(getRec, getReq)
+	var cfg engineer.EngineerConfig
+	if err := json.NewDecoder(getRec.Body).Decode(&cfg); err != nil {
+		t.Fatalf("failed to decode engineer config: %v", err)
+	}
+	if cfg.TriggerPreset != "minimal" {
+		t.Errorf("expected trigger_preset minimal, got %q", cfg.TriggerPreset)
+	}
+	if cfg.AlertSwitches["tyreAlertsEnabled"] || !cfg.AlertSwitches["subTyrePuncture"] {
+		t.Errorf("expected alert_switches to round-trip, got %v", cfg.AlertSwitches)
+	}
+}
+
 func TestHandleSetEngineerConfig_GlobalChatterCooldownAndAlertKeys(t *testing.T) {
 	server, _ := setupTestServer(t)
 	engine := engineer.NewEngineerEngine(nil)

@@ -251,6 +251,9 @@ export interface EngineerConfig {
   rain_horizon_min: number;
   rain_prob_pct: number;
   enabled_categories?: Record<string, boolean>;
+  /** Settings panel state: the chosen preset and the raw category/alert switches. */
+  trigger_preset?: string;
+  alert_switches?: Record<string, boolean>;
 }
 
 export type RadioAlertCategory =

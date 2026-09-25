@@ -1,6 +1,8 @@
 package engineer
 
 import (
+	"maps"
+
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 )
 
@@ -100,6 +102,18 @@ type EngineerConfig struct {
 	RainHorizonMin          float32         `json:"rain_horizon_min"`
 	RainProbPct             float32         `json:"rain_prob_pct"`
 	EnabledCategories       map[string]bool `json:"enabled_categories,omitempty"`
+
+	// Settings panel state stored alongside the rules so the UI can restore exactly what the
+	// driver picked. The engine itself only reads EnabledCategories.
+	TriggerPreset string          `json:"trigger_preset,omitempty"`
+	AlertSwitches map[string]bool `json:"alert_switches,omitempty"`
+}
+
+// clone returns a copy of the config that shares no maps with the original.
+func (c EngineerConfig) clone() EngineerConfig {
+	c.EnabledCategories = maps.Clone(c.EnabledCategories)
+	c.AlertSwitches = maps.Clone(c.AlertSwitches)
+	return c
 }
 
 // DefaultEngineerConfig returns a default configured EngineerConfig.
