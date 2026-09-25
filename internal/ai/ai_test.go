@@ -2,6 +2,8 @@ package ai
 
 import (
 	"context"
+	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -9,14 +11,20 @@ import (
 )
 
 func TestResolveDefaultModel(t *testing.T) {
-	if m := ResolveDefaultModel("gemini", ""); m != "gemini-flash-latest" {
-		t.Errorf("expected gemini-flash-latest, got %s", m)
+	tests := []struct {
+		provider, model, want string
+	}{
+		{"gemini", "", "gemini-flash-latest"},
+		{"", "", "gemini-flash-latest"},
+		{"openai", "", "gpt-4o-mini"},
+		{"claude", "", "claude-opus-5"},
+		{"Claude ", "", "claude-opus-5"},
+		{"gemini", " custom-model ", "custom-model"},
 	}
-	if m := ResolveDefaultModel("openai", ""); m != "gpt-4o-mini" {
-		t.Errorf("expected gpt-4o-mini, got %s", m)
-	}
-	if m := ResolveDefaultModel("gemini", "custom-model"); m != "custom-model" {
-		t.Errorf("expected custom-model, got %s", m)
+	for _, tt := range tests {
+		if got := ResolveDefaultModel(tt.provider, tt.model); got != tt.want {
+			t.Errorf("ResolveDefaultModel(%q, %q) = %q; want %q", tt.provider, tt.model, got, tt.want)
+		}
 	}
 }
 
@@ -41,20 +49,47 @@ func TestIsOpenAIReasoningModel(t *testing.T) {
 	}
 }
 
-func TestResolveProviderAndKey(t *testing.T) {
-	p, k := ResolveProviderAndKey("gemini", "req-key", "env-gem", "env-oai")
-	if p != "gemini" || k != "req-key" {
-		t.Errorf("expected gemini & req-key, got %s & %s", p, k)
+func TestResolveProvider(t *testing.T) {
+	keys := ServerKeys{Gemini: "env-gem", OpenAI: "env-oai", Claude: "env-claude"}
+	tests := []struct {
+		name                           string
+		provider, key, baseURL         string
+		keys                           ServerKeys
+		wantProvider, wantKey, wantURL string
+		wantCode                       string
+	}{
+		{name: "request key wins", provider: "gemini", key: "req-key", keys: keys, wantProvider: "gemini", wantKey: "req-key"},
+		{name: "defaults to gemini with its server key", keys: keys, wantProvider: "gemini", wantKey: "env-gem"},
+		{name: "openai server key", provider: "openai", keys: keys, wantProvider: "openai", wantKey: "env-oai"},
+		{name: "claude server key", provider: "CLAUDE", keys: keys, wantProvider: "claude", wantKey: "env-claude"},
+		{name: "openai ignores the base URL", provider: "openai", baseURL: "http://localhost:11434/v1", keys: keys, wantProvider: "openai", wantKey: "env-oai"},
+		{
+			name: "custom uses its base URL and never a server key", provider: "custom", baseURL: "http://localhost:11434/v1", keys: keys,
+			wantProvider: "custom", wantURL: "http://localhost:11434/v1",
+		},
+		{name: "missing key", provider: "claude", wantProvider: "claude", wantCode: AIErrorMissingAPIKey},
+		{name: "unknown provider", provider: "mistral", key: "k", wantProvider: "mistral", wantCode: AIErrorGeneric},
 	}
-
-	p, k = ResolveProviderAndKey("", "", "env-gem", "env-oai")
-	if p != "gemini" || k != "env-gem" {
-		t.Errorf("expected gemini & env-gem, got %s & %s", p, k)
-	}
-
-	p, k = ResolveProviderAndKey("openai", "", "env-gem", "env-oai")
-	if p != "openai" || k != "env-oai" {
-		t.Errorf("expected openai & env-oai, got %s & %s", p, k)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, conn, err := resolveProvider(tt.provider, tt.key, tt.baseURL, tt.keys)
+			if conn.provider != tt.wantProvider {
+				t.Errorf("expected provider %q, got %q", tt.wantProvider, conn.provider)
+			}
+			if tt.wantCode != "" {
+				var streamErr *AIStreamError
+				if !errors.As(err, &streamErr) || streamErr.Code != tt.wantCode {
+					t.Fatalf("expected error code %s, got %v", tt.wantCode, err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if conn.apiKey != tt.wantKey || conn.baseURL != tt.wantURL {
+				t.Errorf("expected key %q and base URL %q, got %q and %q", tt.wantKey, tt.wantURL, conn.apiKey, conn.baseURL)
+			}
+		})
 	}
 }
 
@@ -412,7 +447,7 @@ func TestFetchOpenAIModels_ErrorHandling(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	models, err := FetchOpenAIModels(context.Background(), ts.URL, "bad-key")
+	models, err := fetchOpenAIModels(context.Background(), connection{provider: ProviderCustom, apiKey: "bad-key", baseURL: ts.URL})
 	if err == nil {
 		t.Fatalf("expected error from unauthorized response, got nil")
 	}
@@ -424,8 +459,47 @@ func TestFetchOpenAIModels_ErrorHandling(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected *AIStreamError, got %T: %v", err, err)
 	}
-	if streamErr.Code != AIErrorInvalidAPIKey {
-		t.Errorf("expected code %s, got %s", AIErrorInvalidAPIKey, streamErr.Code)
+	if streamErr.Code != AIErrorInvalidAPIKey || streamErr.Provider != ProviderCustom {
+		t.Errorf("expected an invalid key error from the custom provider, got %s from %s", streamErr.Code, streamErr.Provider)
+	}
+}
+
+func TestFetchModels_FiltersByProvider(t *testing.T) {
+	var gotGeminiKey, gotGeminiQuery string
+	gemini := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotGeminiKey, gotGeminiQuery = r.Header.Get("x-goog-api-key"), r.URL.RawQuery
+		_, _ = io.WriteString(w, `{"models":[
+			{"name":"models/gemini-flash-latest","displayName":"Gemini Flash","supportedGenerationMethods":["generateContent"]},
+			{"name":"models/gemini-2.5-flash-image","supportedGenerationMethods":["generateContent"]},
+			{"name":"models/text-embedding-004","supportedGenerationMethods":["embedContent"]}]}`)
+	}))
+	defer gemini.Close()
+	useGeminiBaseURL(t, gemini.URL)
+
+	openAIModels := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.WriteString(w, `{"data":[{"id":"gpt-4o-mini"},{"id":"o4-mini"},{"id":"whisper-1"},{"id":"llama3.1"},{"id":"nomic-embedding"}]}`)
+	}))
+	defer openAIModels.Close()
+
+	ids := func(models []AIModelItem) string {
+		out := make([]string, 0, len(models))
+		for _, m := range models {
+			out = append(out, m.ID)
+		}
+		return strings.Join(out, ",")
+	}
+
+	models, provider, err := FetchModels(context.Background(), AIFetchModelsRequest{Provider: "gemini"}, ServerKeys{Gemini: "secret"})
+	if err != nil || provider != "gemini" || ids(models) != "gemini-flash-latest" {
+		t.Fatalf("expected only the Gemini chat model, got %q from %s (err %v)", ids(models), provider, err)
+	}
+	if gotGeminiKey != "secret" || strings.Contains(gotGeminiQuery, "secret") {
+		t.Fatalf("expected the Gemini key in a header and not the URL, got header %q query %q", gotGeminiKey, gotGeminiQuery)
+	}
+
+	models, _, err = FetchModels(context.Background(), AIFetchModelsRequest{Provider: "custom", BaseURL: openAIModels.URL}, ServerKeys{})
+	if err != nil || ids(models) != "gpt-4o-mini,o4-mini,llama3.1" {
+		t.Fatalf("expected a custom server's own model names, got %q (err %v)", ids(models), err)
 	}
 }
 

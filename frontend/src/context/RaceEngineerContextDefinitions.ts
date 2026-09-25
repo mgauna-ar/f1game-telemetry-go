@@ -12,6 +12,7 @@ export const AI_PROVIDERS: readonly AIProvider[] = ['gemini', 'openai', 'claude'
 export const AI_PROVIDER_OPTIONS: ReadonlyArray<{ provider: AIProvider; labelKey: string }> = [
   { provider: 'gemini', labelKey: 'ai_engineer.geminiOption' },
   { provider: 'openai', labelKey: 'ai_engineer.openaiOption' },
+  { provider: 'claude', labelKey: 'ai_engineer.claudeOption' },
   { provider: 'custom', labelKey: 'ai_engineer.customOption' },
 ];
 

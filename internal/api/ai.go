@@ -12,6 +12,15 @@ import (
 	"github.com/mgauna/f1game-telemetry-go/internal/settings"
 )
 
+// aiKeys returns the AI provider API keys configured on the server.
+func (s *Server) aiKeys() ai.ServerKeys {
+	return ai.ServerKeys{
+		Gemini: strings.TrimSpace(s.config.GeminiAPIKey),
+		OpenAI: strings.TrimSpace(s.config.OpenAIAPIKey),
+		Claude: strings.TrimSpace(s.config.ClaudeAPIKey),
+	}
+}
+
 // handleAIConfigStatus returns the status of the env var AI keys and the provider and model in force.
 func (s *Server) handleAIConfigStatus(w http.ResponseWriter, r *http.Request) {
 	eff, _, err := s.effectiveAI(r.Context())
@@ -23,6 +32,7 @@ func (s *Server) handleAIConfigStatus(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, ai.AIConfigStatusResponse{
 		HasGeminiEnvKey: eff.EnvKeys[settings.ProviderGemini],
 		HasOpenAIEnvKey: eff.EnvKeys[settings.ProviderOpenAI],
+		HasClaudeEnvKey: eff.EnvKeys[settings.ProviderClaude],
 		DefaultProvider: eff.Provider,
 		DefaultModel:    eff.Models[eff.Provider],
 	})
@@ -38,7 +48,7 @@ func (s *Server) handleAIFetchModels(w http.ResponseWriter, r *http.Request) {
 	filled := s.fillAIRequest(r.Context(), settings.AIRequest{Provider: req.Provider, APIKey: req.APIKey, BaseURL: req.BaseURL})
 	req.Provider, req.APIKey, req.BaseURL = filled.Provider, filled.APIKey, filled.BaseURL
 
-	models, provider, err := ai.FetchModels(r.Context(), req, s.config.GeminiAPIKey, s.config.OpenAIAPIKey)
+	models, provider, err := ai.FetchModels(r.Context(), req, s.aiKeys())
 	if err != nil {
 		statusCode := http.StatusInternalServerError
 		payload := ai.AIErrorPayload{
@@ -71,7 +81,7 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 	filled := s.fillAIRequest(r.Context(), settings.AIRequest{Provider: req.Provider, Model: req.Model, APIKey: req.APIKey, BaseURL: req.BaseURL})
 	req.Provider, req.Model, req.APIKey, req.BaseURL = filled.Provider, filled.Model, filled.APIKey, filled.BaseURL
 
-	provider, _ := ai.ResolveProviderAndKey(req.Provider, req.APIKey, s.config.GeminiAPIKey, s.config.OpenAIAPIKey)
+	provider := ai.ResolveProvider(req.Provider)
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
@@ -84,7 +94,7 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
-	err := ai.StreamChat(r.Context(), req, s.config.GeminiAPIKey, s.config.OpenAIAPIKey, s.chatOptions(), w, flusher)
+	err := ai.StreamChat(r.Context(), req, s.aiKeys(), s.chatOptions(), w, flusher)
 	if err != nil {
 		slog.Error("Error during AI chat streaming", "provider", provider, "error", err)
 		payload := ai.AIErrorPayload{

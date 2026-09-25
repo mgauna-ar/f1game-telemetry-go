@@ -4,6 +4,7 @@ import { useAIModels, filterChatModels } from './useAIModels';
 import { api } from '../utils/apiClient';
 import {
   NO_AI_KEYS,
+  providerHasKey,
   type AIConfig,
   type AIKeyStatusByProvider,
   type AIModelItem,
@@ -109,5 +110,19 @@ describe('useAIModels Hook', () => {
 
     await waitFor(() => expect(result.current.modelsError).toBe('API key invalid'));
     expect(result.current.availableModels).toEqual([]);
+  });
+
+  it('matches each provider with its own key', () => {
+    const status: AIKeyStatusByProvider = {
+      ...NO_AI_KEYS,
+      openai: { hasSavedKey: false, hasEnvKey: true },
+      claude: { hasSavedKey: true, hasEnvKey: false },
+    };
+    expect(providerHasKey(status, 'gemini')).toBe(false);
+    expect(providerHasKey(status, 'openai')).toBe(true);
+    expect(providerHasKey(status, 'claude')).toBe(true);
+    expect(providerHasKey(NO_AI_KEYS, 'claude')).toBe(false);
+    // Custom endpoints like Ollama may not need a key
+    expect(providerHasKey(NO_AI_KEYS, 'custom')).toBe(true);
   });
 });
