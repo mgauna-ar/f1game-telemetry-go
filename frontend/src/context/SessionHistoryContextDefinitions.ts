@@ -10,7 +10,6 @@ import type {
   NavigationComparatorPayload,
   Tag,
 } from '../types/session';
-import type { ToastMessage } from '../hooks/useBatchOperations';
 
 export interface SessionHistoryData {
   sessions: Session[];
@@ -51,7 +50,6 @@ export interface SessionHistoryData {
   sessionToManageTags: Session | null;
   showBatchDeleteModal: boolean;
   showBatchTagModal: boolean;
-  toastMessage: ToastMessage | null;
 }
 
 export interface SessionHistoryActions {
@@ -97,7 +95,6 @@ export interface SessionHistoryActions {
   setShowBatchTagModal: (show: boolean) => void;
   fetchSessions: () => Promise<void>;
   fetchTags: () => Promise<void>;
-  setToastMessage: React.Dispatch<React.SetStateAction<ToastMessage | null>>;
   onNavigateToComparator?: (
     payload: NavigationComparatorPayload | number,
     lapId?: number,

@@ -830,6 +830,9 @@ func getSessionByID(ctx context.Context, db queryPreparer, sessionID int64) (*Se
 		WHERE s.id = ?
 	`
 	if err := db.GetContext(ctx, &session, query, sessionID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("session %d: %w", sessionID, ErrSessionNotFound)
+		}
 		return nil, fmt.Errorf("failed to get session by id: %w", err)
 	}
 

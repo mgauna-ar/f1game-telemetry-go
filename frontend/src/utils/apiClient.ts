@@ -44,87 +44,98 @@ function buildUrl(path: string, params?: Record<string, string | number | boolea
   return path.includes('?') ? `${path}&${queryString}` : `${path}?${queryString}`;
 }
 
-async function handleResponse<T>(res: Response): Promise<T> {
+type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
+
+interface RequestInitParts {
+  method: Method;
+  /** JSON-encoded unless it is FormData, which the browser encodes itself. */
+  body?: unknown;
+  accept?: string;
+}
+
+/**
+ * Sends one request. Every method goes through here, so every non-OK response
+ * is turned into an ApiError the same way (except stream(), see below).
+ */
+async function send(path: string, { method, body, accept }: RequestInitParts, optionsOrSignal?: OptionsOrSignal): Promise<Response> {
+  const { params, headers, ...rest } = normalizeOptions(optionsOrSignal);
+  const isFormData = body instanceof FormData;
+  const hasJsonBody = body !== undefined && !isFormData;
+
+  return fetch(buildUrl(path, params), {
+    method,
+    headers: {
+      ...(hasJsonBody ? { 'Content-Type': 'application/json' } : {}),
+      ...(accept ? { Accept: accept } : {}),
+      ...headers,
+    },
+    body: isFormData ? body : hasJsonBody ? JSON.stringify(body) : undefined,
+    ...rest,
+  });
+}
+
+async function request(path: string, init: RequestInitParts, optionsOrSignal?: OptionsOrSignal): Promise<Response> {
+  const res = await send(path, init, optionsOrSignal);
   if (!res.ok) {
-    let errorBody: unknown = undefined;
-    let errorMessage = `HTTP ${res.status}: ${res.statusText || 'Error'}`;
-
-    try {
-      if (res.headers && typeof res.headers.get === 'function') {
-        const contentType = res.headers.get('content-type') || '';
-        if (contentType.includes('application/json') && typeof res.json === 'function') {
-          errorBody = await res.json();
-          if (typeof errorBody === 'object' && errorBody !== null) {
-            const bodyObj = errorBody as Record<string, unknown>;
-            if (typeof bodyObj.message === 'string') {
-              errorMessage = bodyObj.message;
-            } else if (typeof bodyObj.error === 'string') {
-              errorMessage = bodyObj.error;
-            }
-          }
-        } else if (typeof res.text === 'function') {
-          const text = await res.text();
-          if (text) {
-            errorMessage = text;
-            errorBody = text;
-          }
-        }
-      } else if (typeof res.json === 'function') {
-        errorBody = await res.json();
-        if (typeof errorBody === 'object' && errorBody !== null) {
-          const bodyObj = errorBody as Record<string, unknown>;
-          if (typeof bodyObj.message === 'string') {
-            errorMessage = bodyObj.message;
-          } else if (typeof bodyObj.error === 'string') {
-            errorMessage = bodyObj.error;
-          }
-        }
-      } else if (typeof res.text === 'function') {
-        const text = await res.text();
-        if (text) {
-          errorMessage = text;
-          errorBody = text;
-        }
-      }
-    } catch {
-      // Ignore parse failure on error body
-    }
-
-    throw new ApiError(errorMessage, res.status, res.statusText || '', errorBody);
+    throw await parseErrorResponse(res);
   }
+  return res;
+}
 
-  if (res.status === 204) {
-    return undefined as unknown as T;
+/**
+ * Reads a body by its content type. Responses without one (minimal test mocks
+ * that have no headers) are read as JSON when possible, otherwise as text.
+ */
+async function readBody(res: Response): Promise<unknown> {
+  const contentType = res.headers?.get?.('content-type') ?? '';
+  if (contentType.includes('application/json')) {
+    return res.json();
   }
-
-  if (res.headers && typeof res.headers.get === 'function') {
-    const contentType = res.headers.get('content-type') || '';
-    if (contentType.includes('application/json') && typeof res.json === 'function') {
-      return (await res.json()) as T;
-    }
-    if (contentType.includes('text/') && typeof res.text === 'function') {
-      return (await res.text()) as unknown as T;
-    }
-  }
-
-  if (typeof res.json === 'function') {
-    try {
-      return (await res.json()) as T;
-    } catch {
-      // Fall through to text
-    }
-  }
-
-  if (typeof res.text === 'function') {
+  if (contentType.includes('text/') || typeof res.json !== 'function') {
+    if (typeof res.text !== 'function') return undefined;
     const text = await res.text();
+    if (contentType.includes('text/')) return text;
     try {
-      return JSON.parse(text) as T;
+      return JSON.parse(text);
     } catch {
-      return text as unknown as T;
+      return text;
     }
   }
+  return res.json();
+}
 
-  return undefined as unknown as T;
+function messageFromBody(body: unknown): string | undefined {
+  if (typeof body === 'string') {
+    return body || undefined;
+  }
+  if (typeof body === 'object' && body !== null) {
+    const { message, error } = body as Record<string, unknown>;
+    if (typeof message === 'string' && message) return message;
+    if (typeof error === 'string' && error) return error;
+  }
+  return undefined;
+}
+
+/**
+ * Builds an ApiError from a non-OK response. The server's JSON errors are
+ * {"error": "...", "code": "..."}; their text becomes the error message.
+ */
+async function parseErrorResponse(res: Response): Promise<ApiError> {
+  let body: unknown;
+  try {
+    body = await readBody(res);
+  } catch {
+    body = undefined;
+  }
+  const message = messageFromBody(body) ?? `HTTP ${res.status}: ${res.statusText || 'Error'}`;
+  return new ApiError(message, res.status, res.statusText || '', body);
+}
+
+async function parseJson<T>(res: Response): Promise<T> {
+  if (res.status === 204) {
+    return undefined as T;
+  }
+  return (await readBody(res)) as T;
 }
 
 export const api = {
@@ -132,202 +143,63 @@ export const api = {
    * Performs a typed GET request.
    */
   async get<T = unknown>(path: string, optionsOrSignal?: OptionsOrSignal): Promise<T> {
-    const opts = normalizeOptions(optionsOrSignal);
-    const { params, headers, ...rest } = opts;
-    const url = buildUrl(path, params);
-
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-        ...headers,
-      },
-      ...rest,
-    });
-
-    return handleResponse<T>(res);
+    return parseJson<T>(await request(path, { method: 'GET', accept: 'application/json' }, optionsOrSignal));
   },
 
   /**
    * Performs a typed POST request with a JSON payload.
    */
   async post<T = unknown>(path: string, body?: unknown, optionsOrSignal?: OptionsOrSignal): Promise<T> {
-    const opts = normalizeOptions(optionsOrSignal);
-    const { params, headers, ...rest } = opts;
-    const url = buildUrl(path, params);
-
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        ...headers,
-      },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-      ...rest,
-    });
-
-    return handleResponse<T>(res);
+    return parseJson<T>(await request(path, { method: 'POST', body, accept: 'application/json' }, optionsOrSignal));
   },
 
   /**
    * Performs a typed PUT request with a JSON payload.
    */
   async put<T = unknown>(path: string, body?: unknown, optionsOrSignal?: OptionsOrSignal): Promise<T> {
-    const opts = normalizeOptions(optionsOrSignal);
-    const { params, headers, ...rest } = opts;
-    const url = buildUrl(path, params);
-
-    const res = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        ...headers,
-      },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-      ...rest,
-    });
-
-    return handleResponse<T>(res);
+    return parseJson<T>(await request(path, { method: 'PUT', body, accept: 'application/json' }, optionsOrSignal));
   },
 
   /**
    * Performs a typed DELETE request with an optional JSON body.
    */
   async del<T = unknown>(path: string, body?: unknown, optionsOrSignal?: OptionsOrSignal): Promise<T> {
-    const opts = normalizeOptions(optionsOrSignal);
-    const { params, headers, ...rest } = opts;
-    const url = buildUrl(path, params);
-
-    const res = await fetch(url, {
-      method: 'DELETE',
-      headers: {
-        ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
-        Accept: 'application/json',
-        ...headers,
-      },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-      ...rest,
-    });
-
-    return handleResponse<T>(res);
+    return parseJson<T>(await request(path, { method: 'DELETE', body, accept: 'application/json' }, optionsOrSignal));
   },
 
   /**
    * Performs a multipart/form-data POST request for file uploads and imports.
    */
   async postFormData<T = unknown>(path: string, formData: FormData, optionsOrSignal?: OptionsOrSignal): Promise<T> {
-    const opts = normalizeOptions(optionsOrSignal);
-    const { params, headers, ...rest } = opts;
-    const url = buildUrl(path, params);
-
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        ...headers,
-      },
-      body: formData,
-      ...rest,
-    });
-
-    return handleResponse<T>(res);
+    return parseJson<T>(await request(path, { method: 'POST', body: formData, accept: 'application/json' }, optionsOrSignal));
   },
 
   /**
    * Fetches binary data as a Blob (e.g. session export downloads).
    */
   async getBlob(path: string, optionsOrSignal?: OptionsOrSignal): Promise<Blob> {
-    const opts = normalizeOptions(optionsOrSignal);
-    const { params, headers, ...rest } = opts;
-    const url = buildUrl(path, params);
-
-    const res = await fetch(url, {
-      method: 'GET',
-      headers,
-      ...rest,
-    });
-
-    if (!res.ok) {
-      const errText = typeof res.text === 'function' ? await res.text().catch(() => '') : '';
-      throw new ApiError(errText || `HTTP ${res.status}`, res.status, res.statusText || '');
-    }
-
-    return typeof res.blob === 'function' ? res.blob() : (res as unknown as Blob);
+    return (await request(path, { method: 'GET' }, optionsOrSignal)).blob();
   },
 
   /**
    * Posts data and receives a binary Blob response (e.g. batch export zip).
    */
   async postBlob(path: string, body?: unknown, optionsOrSignal?: OptionsOrSignal): Promise<Blob> {
-    const opts = normalizeOptions(optionsOrSignal);
-    const { params, headers, ...rest } = opts;
-    const url = buildUrl(path, params);
-
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...headers,
-      },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-      ...rest,
-    });
-
-    if (!res.ok) {
-      const errText = typeof res.text === 'function' ? await res.text().catch(() => '') : '';
-      throw new ApiError(errText || `HTTP ${res.status}`, res.status, res.statusText || '');
-    }
-
-    return typeof res.blob === 'function' ? res.blob() : (res as unknown as Blob);
+    return (await request(path, { method: 'POST', body }, optionsOrSignal)).blob();
   },
 
   /**
    * Posts data and receives an ArrayBuffer (e.g. neural TTS audio binary).
    */
   async postArrayBuffer(path: string, body?: unknown, optionsOrSignal?: OptionsOrSignal): Promise<ArrayBuffer> {
-    const opts = normalizeOptions(optionsOrSignal);
-    const { params, headers, ...rest } = opts;
-    const url = buildUrl(path, params);
-
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...headers,
-      },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-      ...rest,
-    });
-
-    if (!res.ok) {
-      const errText = typeof res.text === 'function' ? await res.text().catch(() => '') : '';
-      throw new ApiError(errText || `HTTP ${res.status}`, res.status, res.statusText || '');
-    }
-
-    return typeof res.arrayBuffer === 'function' ? res.arrayBuffer() : (res as unknown as ArrayBuffer);
+    return (await request(path, { method: 'POST', body }, optionsOrSignal)).arrayBuffer();
   },
 
   /**
-   * Initiates an SSE / streaming POST request returning the raw Response.
+   * Initiates an SSE / streaming POST request returning the raw Response, OK or not:
+   * the chat-stream readers in sseUtils.ts read both the stream and non-OK error bodies.
    */
   async stream(path: string, body?: unknown, optionsOrSignal?: OptionsOrSignal): Promise<Response> {
-    const opts = normalizeOptions(optionsOrSignal);
-    const { params, headers, ...rest } = opts;
-    const url = buildUrl(path, params);
-
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'text/event-stream, application/json',
-        ...headers,
-      },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-      ...rest,
-    });
-
-    return res;
+    return send(path, { method: 'POST', body, accept: 'text/event-stream, application/json' }, optionsOrSignal);
   },
 };

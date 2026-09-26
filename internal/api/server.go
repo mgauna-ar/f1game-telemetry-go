@@ -179,7 +179,6 @@ func (s *Server) setupSessionRoutes(r chi.Router) {
 	r.Get("/sessions/{id}/stints", s.handleGetSessionStints)
 	r.Get("/sessions/{id}/export", s.handleExportSession)
 	r.Post("/sessions/export-batch", s.handleExportSessionBatch)
-	r.Get("/sessions/export-batch", s.handleExportSessionBatch)
 	r.Post("/sessions/import", s.handleImportSession)
 	r.Post("/sessions/batch-tags", s.handleBatchAssignTags)
 	r.Get("/laps/{id}/telemetry", s.handleGetTelemetry)

@@ -1363,6 +1363,16 @@ func TestSentinelErrors(t *testing.T) {
 		t.Errorf("expected ErrSessionNotFound, got %v", err)
 	}
 
+	// Get non-existent session
+	if _, err := repo.GetSessionByID(ctx, 999999); !errors.Is(err, ErrSessionNotFound) {
+		t.Errorf("expected ErrSessionNotFound from GetSessionByID, got %v", err)
+	}
+
+	// Export non-existent session
+	if _, err := repo.ExportSession(ctx, 999999); !errors.Is(err, ErrSessionNotFound) {
+		t.Errorf("expected ErrSessionNotFound from ExportSession, got %v", err)
+	}
+
 	// Update non-existent tag
 	tag := Tag{ID: 999999, Name: "Ghost", Color: "#FFFFFF"}
 	err = repo.UpdateTag(ctx, &tag)

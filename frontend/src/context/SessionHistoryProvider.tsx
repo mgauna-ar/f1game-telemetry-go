@@ -132,8 +132,6 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({
     selectedSessionIds,
     isExportingBatch,
     importingSession,
-    toastMessage,
-    setToastMessage,
     handleToggleSelectSession,
     handleToggleSelectAll,
     handleClearSelection,
@@ -194,7 +192,6 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({
       sessionToManageTags,
       showBatchDeleteModal,
       showBatchTagModal,
-      toastMessage,
     }),
     [
       sessions,
@@ -235,7 +232,6 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({
       sessionToManageTags,
       showBatchDeleteModal,
       showBatchTagModal,
-      toastMessage,
     ]
   );
 
@@ -276,7 +272,6 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({
       setShowBatchTagModal,
       fetchSessions,
       fetchTags,
-      setToastMessage,
       onNavigateToComparator,
       onOpenAiDebrief,
     }),
@@ -316,7 +311,6 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({
       setShowBatchTagModal,
       fetchSessions,
       fetchTags,
-      setToastMessage,
       onNavigateToComparator,
       onOpenAiDebrief,
     ]

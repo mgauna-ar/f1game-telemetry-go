@@ -15,16 +15,13 @@ func (s *Server) handleComparatorMerge(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	q := r.URL.Query()
 
-	var lapAID, lapBID int64
-	if lapAStr := q.Get("lapA"); lapAStr != "" {
-		if id, err := strconv.ParseInt(lapAStr, 10, 64); err == nil {
-			lapAID = id
-		}
+	lapAID, ok := parseOptionalLapID(w, q.Get("lapA"), "invalid lapA")
+	if !ok {
+		return
 	}
-	if lapBStr := q.Get("lapB"); lapBStr != "" {
-		if id, err := strconv.ParseInt(lapBStr, 10, 64); err == nil {
-			lapBID = id
-		}
+	lapBID, ok := parseOptionalLapID(w, q.Get("lapB"), "invalid lapB")
+	if !ok {
+		return
 	}
 
 	stepMeters := analytics.DefaultComparatorStepMeters
@@ -74,4 +71,18 @@ func (s *Server) handleComparatorMerge(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, response)
+}
+
+// parseOptionalLapID parses an optional lap ID query value; an empty value means no lap.
+// It writes a 400 with errMsg and returns ok=false when the value is not an integer.
+func parseOptionalLapID(w http.ResponseWriter, value, errMsg string) (int64, bool) {
+	if value == "" {
+		return 0, true
+	}
+	id, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		writeJSONError(w, errMsg, http.StatusBadRequest)
+		return 0, false
+	}
+	return id, true
 }

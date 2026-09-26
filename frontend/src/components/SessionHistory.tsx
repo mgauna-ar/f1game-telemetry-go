@@ -18,6 +18,7 @@ import { StandaloneToastContainer } from './common/ToastContainer';
 
 import { useI18n } from '../context/I18nContext';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import { useToastStore } from '../store/useToastStore';
 import { SessionHistoryProvider } from '../context/SessionHistoryContext';
 import {
   useSessionHistoryData,
@@ -76,7 +77,6 @@ const SessionHistoryContent: React.FC = () => {
     setShowBatchTagModal,
     handleExecuteBatchDelete,
     handleExecuteBatchTag,
-    setToastMessage,
   } = useSessionHistoryActions();
 
   useDocumentTitle(
@@ -187,11 +187,11 @@ const SessionHistoryContent: React.FC = () => {
               if (selectedSession && selectedSession.id === id) {
                 setSelectedSession(null);
               }
-              setToastMessage({ type: 'success', text: t('history.batch.deleteSelected', { count: 1 }) });
+              useToastStore.getState().showToast({ type: 'success', message: t('history.batch.deleteSelected', { count: 1 }) });
             },
             (err: unknown) => {
               const msg = err instanceof Error ? err.message : String(err);
-              setToastMessage({ type: 'error', text: `${t('history.deleteError') || 'Delete error'}: ${msg}` });
+              useToastStore.getState().showToast({ type: 'error', message: t('history.deleteError', { message: msg }) });
             }
           )
         }

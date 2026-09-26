@@ -742,7 +742,17 @@ describe('SessionHistory Component', () => {
         if (url === '/api/sessions/import' && options?.method === 'POST') {
           return Promise.resolve({
             ok: true,
-            json: () => Promise.resolve({ status: 'success', session_id: 2 }),
+            json: () =>
+              Promise.resolve({
+                status: 'success',
+                total: 1,
+                imported: 1,
+                skipped: 0,
+                failed: 0,
+                session_ids: [2],
+                session_id: 2,
+                details: [{ filename: 'session.f1session', status: 'imported', session_id: 2 }],
+              }),
           });
         }
         return null;
@@ -784,7 +794,7 @@ describe('SessionHistory Component', () => {
 
     await waitFor(() => {
       expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions/import', expect.any(Object));
-      expect(screen.getByText('Session imported successfully!')).toBeInTheDocument();
+      expect(screen.getByText('Import completed: 1 imported, 0 skipped, 0 failed.')).toBeInTheDocument();
     });
   });
 

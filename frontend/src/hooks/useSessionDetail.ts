@@ -100,19 +100,11 @@ export function useSessionDetail({ onClearStagedSlots }: UseSessionDetailProps =
         setDetailError(rejectedReasons[0] || 'Error fetching session details');
       }
 
-      const normalizedLaps: Lap[] = (lapsData || []).map((l: Lap) => {
-        let s3 = l.sector3_ms || 0;
-        if (s3 <= 0 && l.lap_time_ms > 0 && l.sector1_ms && l.sector1_ms > 0 && l.sector2_ms && l.sector2_ms > 0) {
-          const derived = l.lap_time_ms - (l.sector1_ms + l.sector2_ms);
-          if (derived > 0) s3 = derived;
-        }
-        return { ...l, sector3_ms: s3 };
-      });
-
       setClassificationData(classData);
       setProgressionData(progData);
       setStintsData(stintsDataRes);
-      setLaps(normalizedLaps);
+      // Sector 3 is already derived server side (storage.DeriveSector3).
+      setLaps(lapsData);
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'AbortError') {
         return;

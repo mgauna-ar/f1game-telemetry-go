@@ -10,7 +10,8 @@ export interface Tag {
 
 export interface Session {
   id: number;
-  session_uid: string | number;
+  /** Hex string (e.g. "0x1a2b..."), never a number: 64-bit UIDs overflow JS numbers. */
+  session_uid: string;
   track_id?: number;
   track_name: string;
   session_type: string;
@@ -92,6 +93,14 @@ export interface SpeedRanking {
   delta_to_top: number;
 }
 
+/** One tyre stint in a classification row (analytics.StintInfo). */
+export interface StandingStint {
+  compound: string;
+  lap_count: number;
+  stint_id: number;
+}
+
+/** A classification row exactly as the server sends it (analytics.DriverStanding, snake_case). */
 export interface RawDriverStanding {
   position: number;
   car_index?: number;
@@ -113,6 +122,7 @@ export interface RawDriverStanding {
   penalty_seconds?: number;
   laps_completed?: number;
   stints_summary?: string;
+  stints?: StandingStint[];
   ai_controlled?: boolean;
   result_reason?: number;
   best_lap?: Lap | null;
@@ -173,61 +183,60 @@ export interface DriverStanding {
   laps: Lap[];
 }
 
-export function normalizeDriverStanding(s: RawDriverStanding | DriverStanding, sessionId: number): DriverStanding {
-  const raw = s as RawDriverStanding & Partial<DriverStanding>;
+export function normalizeDriverStanding(raw: RawDriverStanding, sessionId: number): DriverStanding {
   const p: Participant = raw.participant || {
-    id: raw.car_index ?? raw.carIndex ?? 0,
+    id: raw.car_index ?? 0,
     session_id: sessionId,
-    car_index: raw.car_index ?? raw.carIndex ?? 0,
-    name: raw.driver_name ?? raw.driverName ?? '',
+    car_index: raw.car_index ?? 0,
+    name: raw.driver_name ?? '',
     driver_id: 0,
-    team_id: raw.team_id ?? raw.teamId ?? 0,
-    race_number: raw.race_number ?? raw.raceNumber ?? 0,
-    ai_controlled: raw.ai_controlled ?? raw.aiControlled ?? false,
+    team_id: raw.team_id ?? 0,
+    race_number: raw.race_number ?? 0,
+    ai_controlled: raw.ai_controlled ?? false,
     position: raw.position ?? 0,
-    grid_position: raw.grid_position ?? raw.gridPosition,
+    grid_position: raw.grid_position,
     points: raw.points,
-    result_reason: raw.result_reason ?? raw.resultReason,
+    result_reason: raw.result_reason,
     result_status: 0,
   };
-  const totalWithPenalties = raw.total_with_penalties_ms ?? raw.totalWithPenaltiesMS ?? raw.totalRaceTimeWithPenalties ?? 0;
+  const totalWithPenalties = raw.total_with_penalties_ms ?? 0;
   return {
     position: raw.position ?? 0,
-    carIndex: raw.car_index ?? raw.carIndex ?? p.car_index,
-    driverName: raw.driver_name ?? raw.driverName ?? p.name,
-    teamName: raw.team_name ?? raw.teamName ?? '',
-    teamId: raw.team_id ?? raw.teamId ?? p.team_id,
-    raceNumber: raw.race_number ?? raw.raceNumber ?? p.race_number,
-    gridPosition: raw.grid_position ?? raw.gridPosition ?? p.grid_position,
-    positionsGained: raw.positions_gained ?? raw.positionsGained,
-    bestLapTimeMS: raw.best_lap_time_ms ?? raw.bestLapTimeMS ?? 0,
-    bestLapNumber: raw.best_lap_number ?? raw.bestLapNumber,
-    bestLapId: raw.best_lap_id ?? raw.bestLapId,
-    bestLapS1MS: raw.best_lap_s1_ms ?? raw.bestLapS1MS,
-    bestLapS2MS: raw.best_lap_s2_ms ?? raw.bestLapS2MS,
-    bestLapS3MS: raw.best_lap_s3_ms ?? raw.bestLapS3MS,
-    lastLapTimeMS: raw.last_lap_time_ms ?? raw.lastLapTimeMS ?? 0,
-    totalRaceTimeMS: raw.total_race_time_ms ?? raw.totalRaceTimeMS ?? 0,
+    carIndex: raw.car_index ?? p.car_index,
+    driverName: raw.driver_name ?? p.name,
+    teamName: raw.team_name ?? '',
+    teamId: raw.team_id ?? p.team_id,
+    raceNumber: raw.race_number ?? p.race_number,
+    gridPosition: raw.grid_position ?? p.grid_position,
+    positionsGained: raw.positions_gained,
+    bestLapTimeMS: raw.best_lap_time_ms ?? 0,
+    bestLapNumber: raw.best_lap_number,
+    bestLapId: raw.best_lap_id,
+    bestLapS1MS: raw.best_lap_s1_ms,
+    bestLapS2MS: raw.best_lap_s2_ms,
+    bestLapS3MS: raw.best_lap_s3_ms,
+    lastLapTimeMS: raw.last_lap_time_ms ?? 0,
+    totalRaceTimeMS: raw.total_race_time_ms ?? 0,
     totalWithPenaltiesMS: totalWithPenalties,
     totalRaceTimeWithPenalties: totalWithPenalties,
-    penaltySeconds: raw.penalty_seconds ?? raw.penaltySeconds ?? 0,
+    penaltySeconds: raw.penalty_seconds ?? 0,
     points: raw.points,
-    isDNF: raw.is_dnf ?? raw.isDNF ?? false,
-    isDSQ: raw.is_dsq ?? raw.isDSQ ?? false,
-    resultReason: raw.result_reason ?? raw.resultReason,
-    maxSpeed: raw.max_speed ?? raw.maxSpeed ?? 0,
-    bestS1MS: raw.best_s1_ms ?? raw.bestS1MS ?? 0,
-    bestS2MS: raw.best_s2_ms ?? raw.bestS2MS ?? 0,
-    bestS3MS: raw.best_s3_ms ?? raw.bestS3MS ?? 0,
-    theoreticalBestMS: raw.theoretical_best_ms ?? raw.theoreticalBestMS ?? 0,
-    gapToLeaderMS: raw.gap_to_leader_ms ?? raw.gapToLeaderMS,
-    intervalMS: raw.interval_ms ?? raw.intervalMS,
-    lapsCompleted: raw.laps_completed ?? raw.lapsCompleted ?? (raw.laps?.length || 0),
-    pitStopsCount: raw.pit_stops_count ?? raw.pitStopsCount,
-    stintsSummary: raw.stints_summary ?? raw.stintsSummary,
-    aiControlled: raw.ai_controlled ?? raw.aiControlled ?? p.ai_controlled,
-    bestLap: raw.best_lap ?? raw.bestLap ?? null,
-    lastLap: raw.last_lap ?? raw.lastLap ?? null,
+    isDNF: raw.is_dnf ?? false,
+    isDSQ: raw.is_dsq ?? false,
+    resultReason: raw.result_reason,
+    maxSpeed: raw.max_speed ?? 0,
+    bestS1MS: raw.best_s1_ms ?? 0,
+    bestS2MS: raw.best_s2_ms ?? 0,
+    bestS3MS: raw.best_s3_ms ?? 0,
+    theoreticalBestMS: raw.theoretical_best_ms ?? 0,
+    gapToLeaderMS: raw.gap_to_leader_ms,
+    intervalMS: raw.interval_ms,
+    lapsCompleted: raw.laps_completed ?? (raw.laps?.length || 0),
+    pitStopsCount: raw.pit_stops_count,
+    stintsSummary: raw.stints_summary,
+    aiControlled: raw.ai_controlled ?? p.ai_controlled,
+    bestLap: raw.best_lap ?? null,
+    lastLap: raw.last_lap ?? null,
     participant: p,
     laps: raw.laps || [],
   };
@@ -332,6 +341,31 @@ export interface StintsResponse {
   degradation_rates: Record<string, number | null>;
   session_compounds: string[];
   effective_max_laps: number;
+}
+
+/** Outcome for one file of POST /api/sessions/import (session.ImportDetail). */
+export interface ImportDetail {
+  filename?: string;
+  status: 'imported' | 'skipped' | 'failed';
+  session_id?: number;
+  reason?: string;
+}
+
+/**
+ * Body of POST /api/sessions/import (session.ImportBatchResponse). When nothing was
+ * imported or skipped the server answers 400 with this body, and `error` holds the
+ * first failure reason.
+ */
+export interface ImportBatchResponse {
+  status: 'success' | 'partial_failure' | 'error';
+  total: number;
+  imported: number;
+  skipped: number;
+  failed: number;
+  session_ids: number[];
+  session_id?: number;
+  details: ImportDetail[];
+  error?: string;
 }
 
 export interface NavigationComparatorPayload {

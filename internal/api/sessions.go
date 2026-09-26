@@ -71,6 +71,7 @@ func (s *Server) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, "failed to delete session", http.StatusInternalServerError)
 		return
 	}
+	s.comparatorCache.Clear()
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
 }
@@ -99,9 +100,12 @@ func (s *Server) handleGetLaps(w http.ResponseWriter, r *http.Request) {
 
 	var carIndex *int
 	if carIndexStr := r.URL.Query().Get("carIndex"); carIndexStr != "" {
-		if ci, err := strconv.Atoi(carIndexStr); err == nil && ci >= 0 {
-			carIndex = &ci
+		ci, err := strconv.Atoi(carIndexStr)
+		if err != nil || ci < 0 {
+			writeJSONError(w, "invalid carIndex", http.StatusBadRequest)
+			return
 		}
+		carIndex = &ci
 	}
 
 	laps, err := s.repo.GetLapsBySession(r.Context(), sessionID, carIndex)
@@ -119,6 +123,16 @@ func (s *Server) handleGetTelemetry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	maxPoints := 0
+	if maxPointsStr := r.URL.Query().Get("maxPoints"); maxPointsStr != "" {
+		mp, err := strconv.Atoi(maxPointsStr)
+		if err != nil || mp <= 0 {
+			writeJSONError(w, "invalid maxPoints", http.StatusBadRequest)
+			return
+		}
+		maxPoints = mp
+	}
+
 	telemetry, err := s.repo.GetTelemetryByLap(r.Context(), lapID)
 	if err != nil {
 		slog.Error("Failed to get telemetry", "lapID", lapID, "error", err)
@@ -129,10 +143,8 @@ func (s *Server) handleGetTelemetry(w http.ResponseWriter, r *http.Request) {
 	// Clean out-laps and aborted attempts to isolate the final completed lap attempt
 	telemetry = analytics.TrimTelemetryToLastLapAttempt(telemetry)
 
-	if maxPointsStr := r.URL.Query().Get("maxPoints"); maxPointsStr != "" {
-		if maxPoints, err := strconv.Atoi(maxPointsStr); err == nil && maxPoints > 0 {
-			telemetry = analytics.DownsampleTelemetry(telemetry, maxPoints)
-		}
+	if maxPoints > 0 {
+		telemetry = analytics.DownsampleTelemetry(telemetry, maxPoints)
 	}
 
 	writeJSON(w, http.StatusOK, telemetry)
@@ -154,6 +166,22 @@ type setSessionTagsRequest struct {
 	TagIDs []int64 `json:"tag_ids"`
 }
 
+var errTagNameRequired = errors.New("tag name is required")
+
+// tagFromRequest trims the requested tag name and color, rejects an empty name and
+// falls back to DefaultTagColor.
+func tagFromRequest(name, color string) (storage.Tag, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return storage.Tag{}, errTagNameRequired
+	}
+	color = strings.TrimSpace(color)
+	if color == "" {
+		color = DefaultTagColor
+	}
+	return storage.Tag{Name: name, Color: color}, nil
+}
+
 func (s *Server) handleGetTags(w http.ResponseWriter, r *http.Request) {
 	tags, err := s.repo.GetAllTags(r.Context())
 	if err != nil {
@@ -171,19 +199,10 @@ func (s *Server) handleCreateTag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	name := strings.TrimSpace(req.Name)
-	color := strings.TrimSpace(req.Color)
-	if name == "" {
-		writeJSONError(w, "tag name is required", http.StatusBadRequest)
+	tag, err := tagFromRequest(req.Name, req.Color)
+	if err != nil {
+		writeJSONError(w, err.Error(), http.StatusBadRequest)
 		return
-	}
-	if color == "" {
-		color = DefaultTagColor
-	}
-
-	tag := storage.Tag{
-		Name:  name,
-		Color: color,
 	}
 
 	if err := s.repo.CreateTag(r.Context(), &tag); err != nil {
@@ -207,21 +226,12 @@ func (s *Server) handleUpdateTag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	name := strings.TrimSpace(req.Name)
-	color := strings.TrimSpace(req.Color)
-	if name == "" {
-		writeJSONError(w, "tag name is required", http.StatusBadRequest)
+	tag, err := tagFromRequest(req.Name, req.Color)
+	if err != nil {
+		writeJSONError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if color == "" {
-		color = DefaultTagColor
-	}
-
-	tag := storage.Tag{
-		ID:    tagID,
-		Name:  name,
-		Color: color,
-	}
+	tag.ID = tagID
 
 	if err := s.repo.UpdateTag(r.Context(), &tag); err != nil {
 		if errors.Is(err, storage.ErrTagNotFound) {
@@ -285,18 +295,10 @@ func (s *Server) handleAddSessionTag(w http.ResponseWriter, r *http.Request) {
 
 	tagID := req.TagID
 	if tagID == 0 {
-		name := strings.TrimSpace(req.Name)
-		if name == "" {
+		tag, err := tagFromRequest(req.Name, req.Color)
+		if err != nil {
 			writeJSONError(w, "tag ID or tag name is required", http.StatusBadRequest)
 			return
-		}
-		color := strings.TrimSpace(req.Color)
-		if color == "" {
-			color = DefaultTagColor
-		}
-		tag := storage.Tag{
-			Name:  name,
-			Color: color,
 		}
 		if err := s.repo.CreateTag(r.Context(), &tag); err != nil {
 			slog.Error("Failed to create tag on demand", "error", err)
@@ -414,21 +416,12 @@ type ExportBatchRequest struct {
 }
 
 func (s *Server) handleExportSessionBatch(w http.ResponseWriter, r *http.Request) {
-	var sessionIDs []int64
-	contentType := strings.TrimSpace(r.Header.Get("Content-Type"))
-	if strings.HasPrefix(contentType, "application/json") {
-		var req ExportBatchRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err == nil {
-			sessionIDs = req.SessionIDs
-		}
-	} else if r.URL.Query().Get("ids") != "" {
-		parts := strings.Split(r.URL.Query().Get("ids"), ",")
-		for _, p := range parts {
-			if id, err := strconv.ParseInt(strings.TrimSpace(p), 10, 64); err == nil {
-				sessionIDs = append(sessionIDs, id)
-			}
-		}
+	var req ExportBatchRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, "invalid request payload", http.StatusBadRequest)
+		return
 	}
+	sessionIDs := req.SessionIDs
 
 	if len(sessionIDs) == 0 {
 		writeJSONError(w, "no session IDs provided for export", http.StatusBadRequest)
@@ -524,6 +517,7 @@ func (s *Server) handleImportSession(w http.ResponseWriter, r *http.Request) {
 		statusCode = http.StatusCreated
 	} else if resp.Imported == 0 && resp.Skipped == 0 {
 		statusCode = http.StatusBadRequest
+		resp.Error = resp.FirstFailureReason()
 	}
 	writeJSON(w, statusCode, resp)
 }
@@ -551,6 +545,7 @@ func (s *Server) handleBatchDeleteSessions(w http.ResponseWriter, r *http.Reques
 		writeJSONError(w, "failed to delete sessions", http.StatusInternalServerError)
 		return
 	}
+	s.comparatorCache.Clear()
 
 	writeJSON(w, http.StatusOK, map[string]any{
 		"status":        "success",

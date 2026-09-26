@@ -45,6 +45,19 @@ type ImportBatchResponse struct {
 	SessionIDs []int64        `json:"session_ids"`
 	SessionID  int64          `json:"session_id,omitempty"`
 	Details    []ImportDetail `json:"details"`
+	// Error holds the first failure reason when nothing was imported or skipped, so the
+	// response reads like every other API error body ({"error": ...}).
+	Error string `json:"error,omitempty"`
+}
+
+// FirstFailureReason returns the reason of the first failed file, or "" when none failed.
+func (r ImportBatchResponse) FirstFailureReason() string {
+	for _, d := range r.Details {
+		if d.Status == "failed" && d.Reason != "" {
+			return d.Reason
+		}
+	}
+	return ""
 }
 
 // ParseSessionPackage decompresses and parses an ExportedSessionPackage from raw bytes.

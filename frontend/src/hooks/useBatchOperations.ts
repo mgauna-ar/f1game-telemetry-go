@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import type { Session } from '../types/session';
+import { useState, useCallback } from 'react';
+import type { ImportBatchResponse, Session } from '../types/session';
 import { useI18n } from '../context/I18nContext';
 import { api } from '../utils/apiClient';
 import { useSessionListStore } from '../store/useSessionListStore';
@@ -13,9 +13,12 @@ export interface UseBatchOperationsOptions {
   fetchTags?: () => Promise<void>;
 }
 
-export interface ToastMessage {
-  type: 'success' | 'error' | 'info';
-  text: string;
+function showToast(type: 'success' | 'error' | 'info', message: string) {
+  useToastStore.getState().showToast({ type, message });
+}
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }
 
 export interface UseBatchOperationsReturn {
@@ -23,8 +26,6 @@ export interface UseBatchOperationsReturn {
   setSelectedSessionIds: React.Dispatch<React.SetStateAction<Set<number>>>;
   isExportingBatch: boolean;
   importingSession: boolean;
-  toastMessage: ToastMessage | null;
-  setToastMessage: React.Dispatch<React.SetStateAction<ToastMessage | null>>;
   handleToggleSelectSession: (sessionId: number) => void;
   handleToggleSelectAll: () => void;
   handleClearSelection: () => void;
@@ -46,18 +47,6 @@ export function useBatchOperations({
   const [selectedSessionIds, setSelectedSessionIds] = useState<Set<number>>(new Set());
   const [isExportingBatch, setIsExportingBatch] = useState<boolean>(false);
   const [importingSession, setImportingSession] = useState<boolean>(false);
-  const [toastMessage, setToastMessage] = useState<ToastMessage | null>(null);
-
-  useEffect(() => {
-    if (toastMessage) {
-      useToastStore.getState().showToast({
-        type: toastMessage.type,
-        message: toastMessage.text,
-      });
-      const timer = setTimeout(() => setToastMessage(null), 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [toastMessage]);
 
   const handleToggleSelectSession = useCallback((sessionId: number) => {
     setSelectedSessionIds((prev) => {
@@ -111,8 +100,7 @@ export function useBatchOperations({
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        setToastMessage({ type: 'error', text: `${t('history.exportError') || 'Export error'}: ${msg}` });
+        showToast('error', t('history.exportError', { message: errorMessage(err) }));
       }
     },
     [t]
@@ -142,10 +130,9 @@ export function useBatchOperations({
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-      setToastMessage({ type: 'success', text: t('history.batch.exportZip', { count: ids.length }) });
+      showToast('success', t('history.batch.exportZip', { count: ids.length }));
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setToastMessage({ type: 'error', text: `${t('history.exportError') || 'Export error'}: ${msg}` });
+      showToast('error', t('history.exportError', { message: errorMessage(err) }));
     } finally {
       setIsExportingBatch(false);
     }
@@ -160,21 +147,18 @@ export function useBatchOperations({
         for (let i = 0; i < files.length; i++) {
           formData.append('files', files[i]);
         }
-        const data = await api.postFormData<{ total?: number; imported?: number; skipped?: number; failed?: number }>(
-          '/api/sessions/import',
-          formData
-        );
+        const data = await api.postFormData<ImportBatchResponse>('/api/sessions/import', formData);
 
-        if (data && typeof data.total === 'number') {
-          const summaryText = t('history.batch.importSummary', {
-            imported: data.imported ?? 0,
-            skipped: data.skipped ?? 0,
-            failed: data.failed ?? 0,
-          });
-          setToastMessage({ type: (data.imported ?? 0) > 0 ? 'success' : 'info', text: summaryText });
-        } else {
-          setToastMessage({ type: 'success', text: t('history.importSuccess') });
-        }
+        const summary = t('history.batch.importSummary', {
+          imported: data.imported,
+          skipped: data.skipped,
+          failed: data.failed,
+        });
+        const firstFailure = data.details?.find((d) => d.status === 'failed' && d.reason);
+        const text = firstFailure
+          ? `${summary} ${t('history.batch.importFirstFailure', { file: firstFailure.filename ?? '', reason: firstFailure.reason ?? '' })}`
+          : summary;
+        showToast(data.imported > 0 ? 'success' : 'info', text);
 
         useSessionListStore.getState().invalidate();
         await fetchSessions();
@@ -182,8 +166,7 @@ export function useBatchOperations({
           await fetchTags();
         }
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        setToastMessage({ type: 'error', text: `${t('history.importError')}: ${msg}` });
+        showToast('error', t('history.importError', { message: errorMessage(err) }));
       } finally {
         setImportingSession(false);
       }
@@ -200,12 +183,11 @@ export function useBatchOperations({
 
       setSessions((prev) => prev.filter((s) => !selectedSessionIds.has(s.id)));
       setSelectedSessionIds(new Set());
-      setToastMessage({ type: 'success', text: t('history.batch.deleteSelected', { count: ids.length }) });
+      showToast('success', t('history.batch.deleteSelected', { count: ids.length }));
       useSessionListStore.getState().invalidate();
       await fetchSessions();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setToastMessage({ type: 'error', text: `Delete error: ${msg}` });
+      showToast('error', t('history.deleteError', { message: errorMessage(err) }));
     }
   }, [selectedSessionIds, setSessions, fetchSessions, t]);
 
@@ -216,12 +198,11 @@ export function useBatchOperations({
 
       try {
         await api.post('/api/sessions/batch-tags', { session_ids: ids, tag_id: tagId });
-        setToastMessage({ type: 'success', text: t('history.batch.tagSelected') });
+        showToast('success', t('history.batch.tagSelected'));
         useSessionListStore.getState().invalidate();
         await fetchSessions();
       } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        setToastMessage({ type: 'error', text: `Tag assignment error: ${msg}` });
+        showToast('error', t('history.tagAssignError', { message: errorMessage(err) }));
       }
     },
     [selectedSessionIds, fetchSessions, t]
@@ -232,8 +213,6 @@ export function useBatchOperations({
     setSelectedSessionIds,
     isExportingBatch,
     importingSession,
-    toastMessage,
-    setToastMessage,
     handleToggleSelectSession,
     handleToggleSelectAll,
     handleClearSelection,

@@ -207,4 +207,114 @@ describe('apiClient', () => {
       headers: expect.objectContaining({ Accept: 'text/event-stream, application/json' }),
     }));
   });
+  describe('error bodies', () => {
+    const jsonError = (status: number, statusText: string, body: unknown) => ({
+      ok: false,
+      status,
+      statusText,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => body,
+      text: async () => JSON.stringify(body),
+    });
+
+    it('reads the server error text on a failed getBlob', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(jsonError(500, 'Internal Server Error', { error: 'failed to export session' }));
+
+      await expect(api.getBlob('/api/sessions/1/export')).rejects.toMatchObject({
+        name: 'ApiError',
+        message: 'failed to export session',
+        status: 500,
+        body: { error: 'failed to export session' },
+      });
+    });
+
+    it('reads the server error text on a failed postBlob', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        jsonError(404, 'Not Found', { error: 'no valid sessions found to export' })
+      );
+
+      const err = await api.postBlob('/api/sessions/export-batch', { session_ids: [99] }).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(ApiError);
+      expect((err as ApiError).message).toBe('no valid sessions found to export');
+      expect((err as ApiError).status).toBe(404);
+      expect((err as ApiError).body).toEqual({ error: 'no valid sessions found to export' });
+    });
+
+    it('reads the server error text on a failed postArrayBuffer', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue(
+        jsonError(400, 'Bad Request', { error: 'text is required', code: 'INVALID_REQUEST' })
+      );
+
+      await expect(api.postArrayBuffer('/api/ai/tts', { text: '' })).rejects.toMatchObject({
+        message: 'text is required',
+        status: 400,
+        body: { error: 'text is required', code: 'INVALID_REQUEST' },
+      });
+    });
+
+    it('parses a JSON error body that arrives without a content type', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        statusText: 'Not Found',
+        headers: new Headers(),
+        text: async () => '{"error":"no valid sessions found to export"}',
+      });
+
+      await expect(api.postBlob('/api/sessions/export-batch', { session_ids: [1] })).rejects.toMatchObject({
+        message: 'no valid sessions found to export',
+      });
+    });
+
+    it('uses the import error field for a failed import', async () => {
+      const importBody = {
+        status: 'error',
+        total: 1,
+        imported: 0,
+        skipped: 0,
+        failed: 1,
+        error: 'invalid session package format',
+        details: [{ filename: 'bad.f1session', status: 'failed', reason: 'invalid session package format' }],
+      };
+      globalThis.fetch = vi.fn().mockResolvedValue(jsonError(400, 'Bad Request', importBody));
+
+      await expect(api.postFormData('/api/sessions/import', new FormData())).rejects.toMatchObject({
+        message: 'invalid session package format',
+        body: importBody,
+      });
+    });
+
+    it('falls back to the HTTP status when the body is empty', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 502,
+        statusText: 'Bad Gateway',
+        headers: new Headers({ 'content-type': 'text/plain' }),
+        text: async () => '',
+      });
+
+      await expect(api.getBlob('/api/sessions/1/export')).rejects.toMatchObject({
+        message: 'HTTP 502: Bad Gateway',
+        status: 502,
+      });
+    });
+
+    it('tolerates mocks without headers', async () => {
+      globalThis.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 400,
+        statusText: 'Bad Request',
+        json: async () => ({ error: 'invalid request payload' }),
+      });
+
+      await expect(api.post('/api/tags', {})).rejects.toMatchObject({ message: 'invalid request payload' });
+    });
+  });
+
+  it('stream() returns the raw Response even when it is not ok', async () => {
+    const mockResponse = { ok: false, status: 400, statusText: 'Bad Request' } as Response;
+    globalThis.fetch = vi.fn().mockResolvedValue(mockResponse);
+
+    await expect(api.stream('/api/ai/chat', {})).resolves.toBe(mockResponse);
+  });
 });
