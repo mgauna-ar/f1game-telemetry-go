@@ -29,6 +29,22 @@ const (
 	DirectiveCategoryFlags       EngineerDirectiveCategory = "flags"
 )
 
+// DirectiveCategories lists every directive category, for the generated TypeScript union.
+var DirectiveCategories = []EngineerDirectiveCategory{
+	DirectiveCategoryPitStrategy,
+	DirectiveCategoryCoaching,
+	DirectiveCategoryWeather,
+	DirectiveCategoryTeammate,
+	DirectiveCategoryTyres,
+	DirectiveCategoryDamage,
+	DirectiveCategoryERS,
+	DirectiveCategoryBrakes,
+	DirectiveCategoryFuel,
+	DirectiveCategoryRivals,
+	DirectiveCategoryQualifying,
+	DirectiveCategoryFlags,
+}
+
 // Urgency levels for directives.
 const (
 	UrgencyLow      = "low"
@@ -36,6 +52,12 @@ const (
 	UrgencyHigh     = "high"
 	UrgencyCritical = "critical"
 )
+
+// Urgencies lists every urgency level, for the generated TypeScript union.
+var Urgencies = []string{UrgencyLow, UrgencyMedium, UrgencyHigh, UrgencyCritical}
+
+// DirectiveMessageType is the type of a directive message on /ws/engineer.
+const DirectiveMessageType = "directive"
 
 // DrivingPhase represents the real-time operational context of the driver.
 type DrivingPhase string
@@ -161,18 +183,21 @@ func (c EngineerConfig) IsAlertEnabled(category, subAlert string) bool {
 }
 
 // EngineerDirective represents an intelligent contextual prompt or alert generated server-side.
+//
+// On the wire it carries no text: the dashboard speaks the call from its own phrase catalog,
+// picked by SubAlert, in the listener's language and persona. Title and Message stay on the
+// server for the log and the AI race history.
 type EngineerDirective struct {
 	ID          string                    `json:"id"`
-	Type        string                    `json:"type" tstype:"'directive'"` // always "directive"
-	Category    EngineerDirectiveCategory `json:"category"`
-	SubAlert    string                    `json:"sub_alert,omitempty"`
-	Title       string                    `json:"title"`
-	Message     string                    `json:"message"`
-	Urgency     string                    `json:"urgency"` // "low", "medium", "high", "critical"
+	Type        string                    `json:"type" tstype:"'directive'"` // always DirectiveMessageType
+	Category    EngineerDirectiveCategory `json:"category" tstype:"EngineerDirectiveCategory"`
+	SubAlert    string                    `json:"sub_alert" tstype:"EngineerAlertKey"` // one of RadioAlertKeys
+	Title       string                    `json:"-"`
+	Message     string                    `json:"-"`
+	Urgency     string                    `json:"urgency" tstype:"EngineerUrgency"`
 	Timestamp   int64                     `json:"timestamp"`
 	CarIndex    int                       `json:"car_index"`
 	SessionTime float32                   `json:"session_time"`
-	Metadata    map[string]any            `json:"metadata,omitempty"`
 }
 
 // Directive is an alias for EngineerDirective for concise usage.

@@ -163,9 +163,6 @@ func (r *DamageRule) Evaluate(ctx *EvaluationContext) []Directive {
 			Title:    "Gearbox Wear Critical",
 			Message:  fmt.Sprintf("Gearbox damage reached %d%%! Expect delayed gear shifts and torque sync dropouts.", dmg.GearBoxDamage),
 			Urgency:  UrgencyMedium,
-			Metadata: map[string]any{
-				"gearbox_damage": dmg.GearBoxDamage,
-			},
 		})
 	}
 
@@ -178,9 +175,6 @@ func (r *DamageRule) Evaluate(ctx *EvaluationContext) []Directive {
 			Title:    "Engine ICE Wear Critical",
 			Message:  fmt.Sprintf("Internal Combustion Engine (ICE) wear at %d%%! Expect top-end power loss on the straights.", dmg.EngineICEWear),
 			Urgency:  UrgencyMedium,
-			Metadata: map[string]any{
-				"ice_wear": dmg.EngineICEWear,
-			},
 		})
 	}
 

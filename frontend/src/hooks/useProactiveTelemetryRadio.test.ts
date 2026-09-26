@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useProactiveTelemetryRadio } from './useProactiveTelemetryRadio';
+import { makeEngineerDirective } from '../test/wireFactories';
 import type { EngineerDirective } from '../types/telemetry';
 
 class MockWebSocket {
@@ -76,226 +77,80 @@ describe('useProactiveTelemetryRadio WebSocket hook', () => {
     expect(ws.close).toHaveBeenCalledTimes(1);
   });
 
-  it('dispatches incoming tyre wear directive to onTriggerAlert', () => {
+  const send = (directive: EngineerDirective) =>
+    MockWebSocket.instances[0].onmessage?.({ data: JSON.stringify(directive) });
+
+  it('hands a tyre wear directive to onTriggerAlert as its phrase category', () => {
     const onTriggerAlert = vi.fn();
+    renderHook(() => useProactiveTelemetryRadio({ isRadioEnabled: true, onTriggerAlert }));
 
-    renderHook(() =>
-      useProactiveTelemetryRadio({
-        isRadioEnabled: true,
-        onTriggerAlert,
-      })
-    );
-
-    const ws = MockWebSocket.instances[0];
-    const directive: EngineerDirective = {
-      id: 'dir-1',
-      type: 'directive',
-      category: 'tyres',
-      sub_alert: 'tyre_wear',
-      title: 'Tyre Wear Alert',
-      message: 'Tyre wear reached 42% (stint age: 12 laps).',
-      urgency: 'low',
-      timestamp: Date.now(),
-      car_index: 0,
-      session_time: 120.5,
-      metadata: { wear_pct: 42, tyre_age: 12 },
-    };
-
-    ws.onmessage?.({ data: JSON.stringify(directive) });
+    send(makeEngineerDirective({ id: 'dir-1', category: 'tyres', sub_alert: 'tyre_wear', urgency: 'low' }));
 
     expect(onTriggerAlert).toHaveBeenCalledTimes(1);
-    expect(onTriggerAlert).toHaveBeenCalledWith(
-      {
-        category: 'tyre_wear',
-        isCritical: false,
-        alertKey: 'tyre_wear',
-        subsystem: 'tyres',
-        message: 'Tyre Wear Alert — Tyre wear reached 42% (stint age: 12 laps).',
-        emotion: { rateModifier: 0, pitchModifier: 0 },
-        metadata: { wear_pct: 42, tyre_age: 12 },
-      },
-      false,
-      { rateModifier: 0, pitchModifier: 0 }
-    );
+    expect(onTriggerAlert).toHaveBeenCalledWith({
+      category: 'tyre_wear',
+      isCritical: false,
+      emotion: { rateModifier: 0, pitchModifier: 0 },
+    });
   });
 
   it.each([
     ['damage_wing', 'wing_damage'],
     ['brake_hot', 'brake_overheat'],
     ['coaching_s1', 'sector_delta'],
-  ])('speaks the %s alert with the %s phrases', (subAlert, category) => {
+    ['rival_attack_override', 'rival_attack_override'],
+  ] as const)('speaks the %s alert with the %s phrases', (subAlert, category) => {
     const onTriggerAlert = vi.fn();
     renderHook(() => useProactiveTelemetryRadio({ isRadioEnabled: true, onTriggerAlert }));
 
-    const directive: EngineerDirective = {
-      id: `dir-${subAlert}`,
-      type: 'directive',
-      category: 'damage',
-      sub_alert: subAlert,
-      title: 'Title',
-      message: 'Message',
-      urgency: 'medium',
-      timestamp: Date.now(),
-      car_index: 0,
-      session_time: 0,
-    };
-    MockWebSocket.instances[0].onmessage?.({ data: JSON.stringify(directive) });
+    send(makeEngineerDirective({ id: `dir-${subAlert}`, sub_alert: subAlert, urgency: 'medium' }));
 
-    expect(onTriggerAlert).toHaveBeenCalledWith(
-      expect.objectContaining({ category, alertKey: subAlert }),
-      false,
-      expect.anything()
-    );
+    expect(onTriggerAlert).toHaveBeenCalledWith(expect.objectContaining({ category, isCritical: false }));
   });
 
-  it('reads out the engine message for an alert the map does not know', () => {
+  it('stays silent for an alert key this dashboard does not know yet', () => {
     const onTriggerAlert = vi.fn();
     renderHook(() => useProactiveTelemetryRadio({ isRadioEnabled: true, onTriggerAlert }));
 
-    const directive: EngineerDirective = {
-      id: 'dir-unknown',
-      type: 'directive',
-      category: 'flags',
-      sub_alert: 'brand_new_alert',
-      title: 'Title',
-      message: 'Message',
-      urgency: 'low',
-      timestamp: Date.now(),
-      car_index: 0,
-      session_time: 0,
-    };
-    MockWebSocket.instances[0].onmessage?.({ data: JSON.stringify(directive) });
+    MockWebSocket.instances[0].onmessage?.({
+      data: JSON.stringify({ ...makeEngineerDirective({ id: 'dir-new' }), sub_alert: 'brand_new_alert' }),
+    });
 
-    expect(onTriggerAlert).toHaveBeenCalledWith(
-      expect.objectContaining({ category: 'directive' }),
-      false,
-      expect.anything()
-    );
+    expect(onTriggerAlert).not.toHaveBeenCalled();
   });
 
-  it('dispatches critical puncture directive with elevated urgency and voice emotion', () => {
+  it.each(['critical', 'high'] as const)('speaks a %s directive urgently', (urgency) => {
     const onTriggerAlert = vi.fn();
+    renderHook(() => useProactiveTelemetryRadio({ isRadioEnabled: true, onTriggerAlert }));
 
-    renderHook(() =>
-      useProactiveTelemetryRadio({
-        isRadioEnabled: true,
-        onTriggerAlert,
-      })
-    );
+    send(makeEngineerDirective({ id: `dir-${urgency}`, sub_alert: 'tyre_puncture', urgency }));
 
-    const ws = MockWebSocket.instances[0];
-    const directive: EngineerDirective = {
-      id: 'dir-2',
-      type: 'directive',
-      category: 'tyres',
-      sub_alert: 'tyre_puncture',
-      title: 'Critical Tyre Puncture',
-      message: 'Critical tyre puncture / tyre failure on car! Wear is at 96%. Order driver to box immediately.',
-      urgency: 'critical',
-      timestamp: Date.now(),
-      car_index: 0,
-      session_time: 140.2,
-    };
-
-    ws.onmessage?.({ data: JSON.stringify(directive) });
-
-    expect(onTriggerAlert).toHaveBeenCalledTimes(1);
-    expect(onTriggerAlert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        category: 'tyre_puncture',
-        isCritical: true,
-        alertKey: 'tyre_puncture',
-        emotion: { rateModifier: 12, pitchModifier: 5 },
-      }),
-      true,
-      { rateModifier: 12, pitchModifier: 5 }
-    );
-  });
-
-  it('dispatches Full Safety Car and VSC flags directives', () => {
-    const onTriggerAlert = vi.fn();
-
-    renderHook(() =>
-      useProactiveTelemetryRadio({
-        isRadioEnabled: true,
-        onTriggerAlert,
-      })
-    );
-
-    const ws = MockWebSocket.instances[0];
-    const scDirective: EngineerDirective = {
-      id: 'dir-sc',
-      type: 'directive',
-      category: 'flags',
-      sub_alert: 'safety_car',
-      title: 'Safety Car Deployed',
-      message: 'Full Safety Car deployed! Maintain delta positive, stand by for pit stop window.',
-      urgency: 'critical',
-      timestamp: Date.now(),
-      car_index: 0,
-      session_time: 200.0,
-    };
-
-    ws.onmessage?.({ data: JSON.stringify(scDirective) });
-
-    expect(onTriggerAlert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        category: 'safety_car',
-        isCritical: true,
-        alertKey: 'safety_car',
-      }),
-      true,
-      expect.any(Object)
-    );
+    expect(onTriggerAlert).toHaveBeenCalledWith({
+      category: 'tyre_puncture',
+      isCritical: true,
+      emotion: { rateModifier: 12, pitchModifier: 5 },
+    });
   });
 
   it('deduplicates directives with the same ID', () => {
     const onTriggerAlert = vi.fn();
+    renderHook(() => useProactiveTelemetryRadio({ isRadioEnabled: true, onTriggerAlert }));
 
-    renderHook(() =>
-      useProactiveTelemetryRadio({
-        isRadioEnabled: true,
-        onTriggerAlert,
-      })
-    );
-
-    const ws = MockWebSocket.instances[0];
-    const directive: EngineerDirective = {
-      id: 'dup-1',
-      type: 'directive',
-      category: 'ers',
-      sub_alert: 'ers_low',
-      title: 'Low ERS Reserve',
-      message: 'ERS battery reserve is low at 10%!',
-      urgency: 'low',
-      timestamp: Date.now(),
-      car_index: 0,
-      session_time: 300.0,
-    };
-
-    // Send twice with same ID
-    ws.onmessage?.({ data: JSON.stringify(directive) });
-    ws.onmessage?.({ data: JSON.stringify(directive) });
+    const directive = makeEngineerDirective({ id: 'dup-1', category: 'ers', sub_alert: 'ers_low' });
+    send(directive);
+    send(directive);
 
     expect(onTriggerAlert).toHaveBeenCalledTimes(1);
   });
 
-  it('ignores malformed messages safely', () => {
+  it('ignores malformed and non-directive messages', () => {
     const onTriggerAlert = vi.fn();
-
-    renderHook(() =>
-      useProactiveTelemetryRadio({
-        isRadioEnabled: true,
-        onTriggerAlert,
-      })
-    );
+    renderHook(() => useProactiveTelemetryRadio({ isRadioEnabled: true, onTriggerAlert }));
 
     const ws = MockWebSocket.instances[0];
-
-    // Non-JSON string
     ws.onmessage?.({ data: 'invalid JSON' });
-    // Non-directive type
     ws.onmessage?.({ data: JSON.stringify({ type: 'heartbeat' }) });
+    ws.onmessage?.({ data: JSON.stringify({ type: 'ptt_event', state: 'down' }) });
 
     expect(onTriggerAlert).not.toHaveBeenCalled();
   });

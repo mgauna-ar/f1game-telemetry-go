@@ -99,10 +99,6 @@ func (r *TrafficRule) Evaluate(ctx *EvaluationContext) []Directive {
 					Title:    "Pit Limiter Overspeed Warning",
 					Message:  fmt.Sprintf("Speed limiter! Drop speed, pit limiter line approaching! Pit limit is %d km/h!", ctx.Session.PitSpeedLimit),
 					Urgency:  UrgencyCritical,
-					Metadata: map[string]any{
-						"speed_kmh":     tele.Speed,
-						"pit_limit_kmh": ctx.Session.PitSpeedLimit,
-					},
 				})
 			}
 		}
@@ -142,9 +138,6 @@ func (r *TrafficRule) Evaluate(ctx *EvaluationContext) []Directive {
 					Title:    "Serve Penalty in Box",
 					Message:  pnlMsg,
 					Urgency:  UrgencyCritical,
-					Metadata: map[string]any{
-						"penalty_sec": playerLap.Penalties,
-					},
 				})
 			}
 		}
@@ -177,9 +170,6 @@ func (r *TrafficRule) Evaluate(ctx *EvaluationContext) []Directive {
 				Title:    "Pit Stop Duration",
 				Message:  durMsg,
 				Urgency:  UrgencyMedium,
-				Metadata: map[string]any{
-					"duration_sec": durationSec,
-				},
 			})
 		}
 		r.lastPitStatus = playerLap.PitStatus

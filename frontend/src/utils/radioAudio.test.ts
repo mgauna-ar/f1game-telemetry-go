@@ -7,7 +7,6 @@ import {
   stopRadioSpeech,
   cleanRadioSpeechText,
   normalizeSpanishRadioSpeech,
-  formatProactiveFallbackSpeech,
   isSpeechRecognitionSupported,
   getRadioAnalyserNode,
   connectMicrophoneToAnalyser,
@@ -62,63 +61,6 @@ describe('radioAudio utils', () => {
       expect(normalizeSpanishRadioSpeech('Full Safety Car desplegado')).toBe('Auto de seguridad en pista');
       expect(normalizeSpanishRadioSpeech('Tenemos Safety Car en pista')).toBe('Tenemos Auto de seguridad en pista');
       expect(normalizeSpanishRadioSpeech('VSC desplegado, mantén delta')).toBe('VSC en pista, mantén delta');
-    });
-  });
-
-  describe('formatProactiveFallbackSpeech', () => {
-    it('formats safety car alert in Spanish and English with driver callsign', () => {
-      const scPrompt = '[PROACTIVE PIT WALL CALL: Full Safety Car deployed! You are initiating this call — do NOT say "Entendido" or "Copy". Directly announce Safety Car in pista / on track, maintain delta positive, stand by for pit stop window.]';
-      
-      const speechEs = formatProactiveFallbackSpeech(scPrompt, 'es', 'colapinto', 'Franco');
-      expect(speechEs).toMatch(/auto de seguridad/i);
-      expect(speechEs).toContain('Franco');
-
-      const speechEn = formatProactiveFallbackSpeech(scPrompt, 'en', 'bono', 'Lewis');
-      expect(speechEn).toContain('Safety Car');
-      expect(speechEn).toContain('Lewis');
-    });
-
-    it('formats VSC and Red Flag alerts authentically', () => {
-      const vscPrompt = '[PROACTIVE PIT WALL CALL: Virtual Safety Car (VSC) deployed! Directly announce VSC deployed, maintain delta, no overtaking.]';
-      expect(formatProactiveFallbackSpeech(vscPrompt, 'es', 'bono')).toMatch(/VSC|Auto de seguridad virtual/i);
-      expect(formatProactiveFallbackSpeech(vscPrompt, 'en', 'bono')).toMatch(/VSC|Virtual Safety Car/i);
-
-      const redFlagPrompt = '[PROACTIVE PIT WALL CALL: Red Flag deployed! Session stopped.]';
-      expect(formatProactiveFallbackSpeech(redFlagPrompt, 'es', 'bono')).toMatch(/Bandera roja/i);
-      expect(formatProactiveFallbackSpeech(redFlagPrompt, 'en', 'bono')).toMatch(/Red flag/i);
-    });
-
-    it('formats critical tyre puncture alerts', () => {
-      const puncturePrompt = '[PROACTIVE PIT WALL CALL: Critical tyre puncture on car! Wear is at 96%. Order driver to box immediately.]';
-      const speech = formatProactiveFallbackSpeech(puncturePrompt, 'es', 'bono', 'Mateo');
-      expect(speech.toLowerCase()).toContain('pinchadura');
-      expect(speech).toContain('Mateo');
-    });
-
-    it('formats clean air pit window and new categories authentically', () => {
-      const directivePrompt = '[PROACTIVE PIT WALL CALL: Clean Air Pit Window — Pit window offers clean air on rejoin. You are initiating this call — do NOT say "Entendido" or "Copy".]';
-      const speech = formatProactiveFallbackSpeech(directivePrompt, 'es', 'bono', 'Driver');
-      expect(speech).toMatch(/ventana de parada|aire limpio/i);
-      expect(speech).toContain('Driver');
-      expect(speech).not.toContain('You are initiating this call');
-    });
-
-    it('formats structured RadioAlertPayload objects directly', () => {
-      const payload: import('../types/telemetry').RadioAlertPayload = {
-        category: 'pit_clean_air',
-        isCritical: false,
-        message: 'Clean Air Pit Window — Pit window offers clean air on rejoin.',
-      };
-      const speech = formatProactiveFallbackSpeech(payload, 'es', 'bono', 'Driver');
-      expect(speech).toMatch(/ventana de parada|aire limpio/i);
-      expect(speech).toContain('Driver');
-    });
-
-    it('formats general directives cleanly without debug prompt instructions as fallback', () => {
-      const customDirective = '[PROACTIVE PIT WALL CALL: System Test Notification — All telemetry channels nominal. You are initiating this call — do NOT say "Entendido" or "Copy".]';
-      const speech = formatProactiveFallbackSpeech(customDirective, 'es', 'bono', 'Driver');
-      expect(speech).toContain('Driver, System Test Notification — All telemetry channels nominal.');
-      expect(speech).not.toContain('You are initiating this call');
     });
   });
 

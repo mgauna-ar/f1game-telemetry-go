@@ -97,9 +97,6 @@ func (r *ERSRule) Evaluate(ctx *EvaluationContext) []Directive {
 				Title:    "ERS Deployment Clipping",
 				Message:  "Clipping, clipping! Per-lap ERS deployment limit reached. Battery boost is depleted until the line.",
 				Urgency:  UrgencyMedium,
-				Metadata: map[string]any{
-					"deployed_joules": status.ERSDeployedThisLap,
-				},
 			})
 		}
 	}
@@ -108,7 +105,7 @@ func (r *ERSRule) Evaluate(ctx *EvaluationContext) []Directive {
 	tele := ctx.PlayerTelemetry()
 	if tele != nil && (ctx.Packet == nil || isPacketType[*packets.PacketCarTelemetryData](ctx.Packet)) {
 		engTemp := float32(tele.EngineTemperature)
-		powerPct, powerLossPct := CalculateEnginePowerPct(engTemp)
+		_, powerLossPct := CalculateEnginePowerPct(engTemp)
 
 		switch {
 		case engTemp >= EnginePowerCritTempC:
@@ -119,12 +116,6 @@ func (r *ERSRule) Evaluate(ctx *EvaluationContext) []Directive {
 				Title:    "Critical Engine Overheating",
 				Message:  fmt.Sprintf("Critical engine temperature! Power unit at %d°C (%.1f%% power loss). Lift and coast immediately to prevent thermal derate.", tele.EngineTemperature, powerLossPct),
 				Urgency:  UrgencyHigh,
-				Metadata: map[string]any{
-					"engine_temp_c":  tele.EngineTemperature,
-					"power_pct":      powerPct,
-					"power_loss_pct": powerLossPct,
-					"stage":          "critical",
-				},
 			})
 		case engTemp >= EnginePowerWarnTempC:
 			directives = append(directives, Directive{
@@ -134,12 +125,6 @@ func (r *ERSRule) Evaluate(ctx *EvaluationContext) []Directive {
 				Title:    "Engine Radiator Overheating",
 				Message:  fmt.Sprintf("Engine temperature high at %d°C (%.1f%% power loss). Introduce Lift & Coast into braking zones to cool the engine.", tele.EngineTemperature, powerLossPct),
 				Urgency:  UrgencyMedium,
-				Metadata: map[string]any{
-					"engine_temp_c":  tele.EngineTemperature,
-					"power_pct":      powerPct,
-					"power_loss_pct": powerLossPct,
-					"stage":          "warning",
-				},
 			})
 		case engTemp >= ctx.Config.EngineOverheatC:
 			directives = append(directives, Directive{
@@ -149,12 +134,6 @@ func (r *ERSRule) Evaluate(ctx *EvaluationContext) []Directive {
 				Title:    "Engine Radiator Overheating",
 				Message:  fmt.Sprintf("Engine core water/oil temperatures are high at %d°C (limit: %d°C)!", tele.EngineTemperature, int(ctx.Config.EngineOverheatC)),
 				Urgency:  UrgencyMedium,
-				Metadata: map[string]any{
-					"engine_temp_c":  tele.EngineTemperature,
-					"power_pct":      powerPct,
-					"power_loss_pct": powerLossPct,
-					"stage":          "advisory",
-				},
 			})
 		}
 	}

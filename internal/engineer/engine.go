@@ -316,9 +316,6 @@ func (e *EngineerEngine) evaluateLocked(ctx *EvaluationContext) []Directive {
 				Title:    "Race Finished",
 				Message:  fmt.Sprintf("Chequered flag! Outstanding drive, you finished in P%d. Pick up rubber off line, switch to cool down mode and bring the car to parc fermé.", playerLap.CarPosition),
 				Urgency:  UrgencyLow,
-				Metadata: map[string]any{
-					"car_position": int(playerLap.CarPosition),
-				},
 			}
 			prepared := e.emitDirectiveLocked(ctx.Header, postRaceDirective, "race_finish")
 			emittedDirectives = append(emittedDirectives, prepared)
@@ -718,7 +715,7 @@ func (e *EngineerEngine) emitDirectiveLocked(header packets.PacketHeader, direct
 	}
 
 	directive.ID = fmt.Sprintf("directive_%d_%s", now, alertKey)
-	directive.Type = "directive"
+	directive.Type = DirectiveMessageType
 	directive.Timestamp = now
 	if directive.SubAlert == "" {
 		directive.SubAlert = alertKey

@@ -148,10 +148,6 @@ func (r *QualifyingRule) Evaluate(ctx *EvaluationContext) []Directive {
 					Title:    "Traffic Ahead on Out-Lap",
 					Message:  fmt.Sprintf("Traffic ahead before starting hot lap — car ahead is ~%.1fs away (<%dm). Back off and build clean air.", gapEstSec, int(minAheadDelta)),
 					Urgency:  UrgencyCritical,
-					Metadata: map[string]any{
-						"gap_sec":   gapEstSec,
-						"gap_meter": minAheadDelta,
-					},
 				})
 			} else if minAheadDelta >= maxCleanAirDist && minAheadDelta < MaxCleanAirDistanceMeters {
 				r.lastOutLapChecked = currentLap
@@ -214,10 +210,6 @@ func (r *QualifyingRule) Evaluate(ctx *EvaluationContext) []Directive {
 					Title:    "Elimination Danger Zone",
 					Message:  elimMsg,
 					Urgency:  UrgencyCritical,
-					Metadata: map[string]any{
-						"position": playerPos,
-						"session":  sessionName,
-					},
 				})
 			}
 		}
@@ -263,10 +255,6 @@ func (r *QualifyingRule) Evaluate(ctx *EvaluationContext) []Directive {
 						Title:    "Fast Car Behind on Flying Lap",
 						Message:  fmt.Sprintf("Traffic warning! Fast car approaching on flying lap behind (%.1fs gap). Give way safely.", gapSec),
 						Urgency:  UrgencyHigh,
-						Metadata: map[string]any{
-							"rival_idx": i,
-							"gap_sec":   gapSec,
-						},
 					})
 				}
 			}

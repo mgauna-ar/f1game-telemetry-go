@@ -111,10 +111,6 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 						Title:    "Straight Mode Approaching",
 						Message:  "Straight Mode zone in 100 metres! Prepare to activate low-drag aero on corner exit.",
 						Urgency:  UrgencyMedium,
-						Metadata: map[string]any{
-							"activation_distance_m": tele2.ActiveAeroActivationDistance,
-							"is_2026":               true,
-						},
 					})
 				}
 			} else if tele2.ActiveAeroActivationDistance == 0 || tele2.ActiveAeroMode == 1 {
@@ -134,10 +130,6 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 							Title:    "Override Zone Approaching",
 							Message:  "Override zone ahead in 100 metres! Ready on the boost button.",
 							Urgency:  UrgencyMedium,
-							Metadata: map[string]any{
-								"activation_distance_m": tele2.OvertakeActivationDistance,
-								"is_2026":               true,
-							},
 						})
 					}
 				} else if tele2.OvertakeActivationDistance == 0 || tele2.OvertakeActive == 1 {
@@ -219,11 +211,6 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 				Title:    title,
 				Message:  defendMsg,
 				Urgency:  UrgencyMedium,
-				Metadata: map[string]any{
-					"rival_pos": playerPos + 1,
-					"gap_sec":   gapSec,
-					"is_2026":   is2026,
-				},
 			})
 		}
 	}
@@ -283,11 +270,6 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 					Title:    title,
 					Message:  attackMsg,
 					Urgency:  UrgencyMedium,
-					Metadata: map[string]any{
-						"rival_pos": playerPos - 1,
-						"gap_sec":   gapSec,
-						"is_2026":   is2026,
-					},
 				})
 			}
 		}

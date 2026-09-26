@@ -1,3 +1,5 @@
+import type { RadioAlertCategory, RadioPhrasePool } from '../../types/telemetry';
+
 export const radio_phrases = {
   safety_car: {
     bono: [
@@ -128,18 +130,6 @@ export const radio_phrases = {
     standard: [
       'High engine wear detected. Manage temperatures and short shift.',
       'Engine component wear warning, {driver}. Protect the internal components.',
-    ],
-  },
-  mechanical_fault: {
-    bono: [
-      'Mechanical fault detected on the car, {driver}. Check steering wheel switches.',
-    ],
-    colapinto: [
-      'Mechanical fault on the car, {driver}. Check the wheel switches.',
-    ],
-    standard: [
-      'Mechanical fault detected. Check steering wheel switches.',
-      'System fault detected, {driver}. Verify wheel controls.',
     ],
   },
   terminal_engine: {
@@ -991,7 +981,4 @@ export const radio_phrases = {
       'High engine ICE wear detected. Top speed and power output are degraded.',
     ],
   },
-  directive: {
-    standard: ['{clean_text}'],
-  },
-};
+} satisfies Record<RadioAlertCategory, RadioPhrasePool>;

@@ -4,10 +4,8 @@ export interface CarMotionData {
   WorldPositionZ: number;
 }
 
-import type { EngineerDirective as GeneratedEngineerDirective } from './generated/engineer';
 import type { WeatherForecastSample } from './generated/packets';
 import type { FeedEvent, LiveCarTelemetry, LiveSession } from './generated/session';
-import type { Narrows } from './wire';
 export type { WeatherForecastSample };
 
 /**
@@ -51,28 +49,16 @@ export interface TelemetrySample extends LiveCarTelemetry {
   overtake_active?: number;
 }
 
-export type EngineerDirectiveCategory =
-  | 'pit_strategy'
-  | 'coaching'
-  | 'weather'
-  | 'teammate'
-  | 'tyres'
-  | 'damage'
-  | 'ers'
-  | 'brakes'
-  | 'fuel'
-  | 'rivals'
-  | 'qualy'
-  | 'flags';
-
-/** A radio directive from /ws/engineer, with the category and urgency the dashboard knows. */
-export type EngineerDirective = Narrows<
-  Omit<GeneratedEngineerDirective, 'category' | 'urgency'> & {
-    category: EngineerDirectiveCategory;
-    urgency: 'low' | 'medium' | 'high' | 'critical';
-  },
-  GeneratedEngineerDirective
->;
+/**
+ * A radio directive from /ws/engineer. It carries the alert key and no text: the dashboard speaks
+ * the call from its phrase catalog (`utils/radioPhrases.ts`).
+ */
+export type {
+  EngineerAlertKey,
+  EngineerDirective,
+  EngineerDirectiveCategory,
+  EngineerUrgency,
+} from './generated/engineer';
 
 /** Every message /ws/engineer sends, told apart by `type`. */
 export type {
@@ -95,7 +81,6 @@ export type RadioAlertCategory =
   | 'wing_damage'
   | 'floor_damage'
   | 'engine_wear'
-  | 'mechanical_fault'
   | 'ers_fault'
   | 'aero_fault'
   | 'ers_low'
@@ -159,20 +144,29 @@ export type RadioAlertCategory =
   | 'tyre_blistering'
   | 'tyre_pressure_high'
   | 'damage_gearbox_wear'
-  | 'damage_ice_wear'
-  | 'directive';
+  | 'damage_ice_wear';
 
+/**
+ * The phrases one radio category can speak, per persona. Bono and Colapinto fall back to
+ * `standard` when their pool is missing or empty, and the custom persona always uses it.
+ * `{driver}` is replaced by the driver's callsign.
+ */
+export interface RadioPhrasePool {
+  bono?: string[];
+  colapinto?: string[];
+  standard: string[];
+}
+
+/** A proactive radio call for the speech queue: the phrase category to speak and how urgently. */
 export interface RadioAlertPayload {
   category: RadioAlertCategory;
-  isCritical?: boolean;
-  alertKey?: string;
-  subsystem?: string;
-  message?: string;
-  emotion?: {
-    rateModifier?: number;
-    pitchModifier?: number;
-  };
-  metadata?: Record<string, unknown>;
+  isCritical: boolean;
+  emotion: RadioEmotion;
+}
+
+export interface RadioEmotion {
+  rateModifier?: number;
+  pitchModifier?: number;
 }
 
 

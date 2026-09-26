@@ -1,37 +1,21 @@
 import { useEffect, useRef } from 'react';
-import type {
-  EngineerDirective,
-  EngineerSocketMessage,
-  RadioAlertCategory,
-  RadioAlertPayload,
-} from '../types/telemetry';
-import { subscribeEngineerWebSocket } from '../utils/engineerSocket';
-import radioAlertCategories from '../constants/radioAlertCategories.json';
+import type { RadioAlertPayload, RadioEmotion } from '../types/telemetry';
+import { subscribeEngineerMessages } from '../utils/engineerSocket';
+import { RADIO_ALERT_CATEGORIES } from '../constants/radioAlertCategories';
 
 export interface UseProactiveTelemetryRadioOptions {
   isRadioEnabled?: boolean;
   enabled?: boolean; // backwards compatibility alias
-  onTriggerAlert: (
-    payload: RadioAlertPayload | string,
-    isCritical?: boolean,
-    emotion?: { rateModifier?: number; pitchModifier?: number }
-  ) => void;
-  // Legacy props gracefully ignored (now handled server-side in Go backend)
-  [key: string]: unknown;
+  onTriggerAlert: (payload: RadioAlertPayload) => void;
 }
 
-/**
- * Radio phrase category for each directive sub_alert. null reads out the engine's own message.
- * internal/engineer/alert_categories_test.go fails when the engine emits a key this map lacks.
- */
-const ALERT_CATEGORIES: Readonly<Record<string, RadioAlertCategory | null>> = radioAlertCategories as Record<
-  string,
-  RadioAlertCategory | null
->;
+const CRITICAL_EMOTION: RadioEmotion = { rateModifier: 12, pitchModifier: 5 };
+const CALM_EMOTION: RadioEmotion = { rateModifier: 0, pitchModifier: 0 };
 
 /**
- * High-performance hook that subscribes to proactive pit wall intelligence directives
- * generated server-side by Go's EngineerEngine and dispatches them to the Neural TTS radio system.
+ * Subscribes to the proactive pit wall directives generated server-side by Go's EngineerEngine
+ * and hands each one to the radio as the phrase category to speak. The directive carries only
+ * its alert key; the words come from the phrase catalog.
  */
 export function useProactiveTelemetryRadio({
   isRadioEnabled = true,
@@ -46,42 +30,22 @@ export function useProactiveTelemetryRadio({
   useEffect(() => {
     if (!active) return;
 
-    return subscribeEngineerWebSocket((data) => {
-      try {
-        const msg = data as EngineerSocketMessage | null;
-        if (!msg || msg.type !== 'directive' || !msg.id || msg.id === lastDirectiveIdRef.current) {
-          return;
-        }
-        // The server sends category and urgency as plain strings; a value this dashboard doesn't
-        // know gets the generic 'directive' handling below.
-        const directive = msg as EngineerDirective;
+    return subscribeEngineerMessages({
+      directive: (directive) => {
+        if (!directive.id || directive.id === lastDirectiveIdRef.current) return;
+        // A key a newer server added and this dashboard doesn't know has nothing to say yet.
+        const category = RADIO_ALERT_CATEGORIES[directive.sub_alert];
+        if (!category) return;
 
         lastDirectiveIdRef.current = directive.id;
 
         const isCritical = directive.urgency === 'critical' || directive.urgency === 'high';
-        const emotion = isCritical
-          ? { rateModifier: 12, pitchModifier: 5 }
-          : { rateModifier: 0, pitchModifier: 0 };
-
-        const subKey = directive.sub_alert || directive.category;
-        const alertCat: RadioAlertCategory = ALERT_CATEGORIES[subKey] ?? 'directive';
-
-        onTriggerAlertRef.current(
-          {
-            category: alertCat,
-            isCritical,
-            alertKey: subKey,
-            subsystem: directive.category,
-            message: `${directive.title} — ${directive.message}`,
-            emotion,
-            metadata: directive.metadata,
-          },
+        onTriggerAlertRef.current({
+          category,
           isCritical,
-          emotion
-        );
-      } catch {
-        // Silently ignore directive processing failure
-      }
+          emotion: isCritical ? CRITICAL_EMOTION : CALM_EMOTION,
+        });
+      },
     });
   }, [active]);
 }

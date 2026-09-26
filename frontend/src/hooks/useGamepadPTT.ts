@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { RADIO_PTT_MODES, type RadioPTTMode } from '../constants/f1';
-import { subscribeEngineerWebSocket } from '../utils/engineerSocket';
+import { subscribeEngineerMessages } from '../utils/engineerSocket';
 import { usePTTConfig, type GamepadMapping, type GlobalPTTMapping } from './usePTTConfig';
 import { useKeyboardPTT } from './useKeyboardPTT';
 import { useGamepadPolling } from './useGamepadPolling';
-import type { EngineerSocketMessage } from '../types/telemetry';
 
 export type { GamepadMapping, GlobalPTTMapping };
 
@@ -131,26 +130,22 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
   useEffect(() => {
     if (!enabled) return;
 
-    return subscribeEngineerWebSocket((msg: unknown) => {
-      if (!msg || typeof msg !== 'object') return;
-      const data = msg as EngineerSocketMessage;
-      if (data.type === 'ptt_event') {
-        handleGlobalPTTEventRef.current?.(data.state);
-      } else if (data.type === 'ptt_learn_timeout') {
-        setIsLearning(false);
-      } else if (data.type === 'ptt_learned') {
-        setGlobalMapping(data.mapping);
+    return subscribeEngineerMessages({
+      ptt_event: (msg) => handleGlobalPTTEventRef.current?.(msg.state),
+      ptt_learn_timeout: () => setIsLearning(false),
+      ptt_learned: ({ mapping }) => {
+        setGlobalMapping(mapping);
         setIsLearning(false);
 
-        if (data.mapping.device_type === 'joystick' && data.mapping.button_index !== undefined) {
+        if (mapping.device_type === 'joystick' && mapping.button_index !== undefined) {
           setMappedGamepadButtonRef.current({
-            gamepadIndex: data.mapping.device_index ?? 0,
-            buttonIndex: data.mapping.button_index,
+            gamepadIndex: mapping.device_index ?? 0,
+            buttonIndex: mapping.button_index,
           });
-        } else if (data.mapping.device_type === 'keyboard' && data.mapping.key_name) {
-          setMappedKeyRef.current(data.mapping.key_name);
+        } else if (mapping.device_type === 'keyboard' && mapping.key_name) {
+          setMappedKeyRef.current(mapping.key_name);
         }
-      }
+      },
     });
   }, [enabled, setGlobalMapping, setIsLearning]);
 

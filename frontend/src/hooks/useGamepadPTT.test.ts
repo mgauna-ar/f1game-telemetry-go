@@ -3,15 +3,21 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { useGamepadPTT } from './useGamepadPTT';
 import { LEGACY_RADIO_STORAGE_KEYS } from '../constants/f1';
 import { api } from '../utils/apiClient';
+import { dispatchEngineerMessage, type EngineerMessageHandlers } from '../utils/engineerSocket';
 
-const engineerSocket = vi.hoisted(() => ({ handlers: new Set<(msg: unknown) => void>() }));
-vi.mock('../utils/engineerSocket', () => ({
-  subscribeEngineerWebSocket: (handler: (msg: unknown) => void) => {
-    engineerSocket.handlers.add(handler);
-    return () => engineerSocket.handlers.delete(handler);
-  },
-}));
-const sendEngineerMessage = (msg: unknown) => engineerSocket.handlers.forEach((handler) => handler(msg));
+const engineerSocket = vi.hoisted(() => ({ handlers: new Set<EngineerMessageHandlers>() }));
+vi.mock('../utils/engineerSocket', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../utils/engineerSocket')>();
+  return {
+    ...actual,
+    subscribeEngineerMessages: (handlers: EngineerMessageHandlers) => {
+      engineerSocket.handlers.add(handlers);
+      return () => engineerSocket.handlers.delete(handlers);
+    },
+  };
+});
+const sendEngineerMessage = (msg: unknown) =>
+  engineerSocket.handlers.forEach((handlers) => dispatchEngineerMessage(msg, handlers));
 
 describe('useGamepadPTT hook', () => {
   let putSpy: ReturnType<typeof vi.spyOn>;

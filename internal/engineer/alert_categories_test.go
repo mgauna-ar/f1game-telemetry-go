@@ -5,17 +5,12 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"testing"
 )
-
-// alertCategoriesPath is the dashboard's map from a directive's sub_alert to the radio phrase
-// category it speaks. A key the map lacks falls back to reading out the engine's own message.
-const alertCategoriesPath = "../../frontend/src/constants/radioAlertCategories.json"
 
 // emittedSubAlerts returns every sub_alert the engine can send: the SubAlert values written in
 // this package's directives, plus each rule's alert keys, which the engine sends when a directive
@@ -97,24 +92,26 @@ func stringLiteral(expr ast.Expr) (string, bool) {
 	return s, err == nil
 }
 
-func TestAlertCategories_MatchWhatTheEngineEmits(t *testing.T) {
-	data, err := os.ReadFile(alertCategoriesPath)
-	if err != nil {
-		t.Fatalf("read %s: %v", alertCategoriesPath, err)
+func TestRadioAlertKeys_MatchWhatTheEngineEmits(t *testing.T) {
+	listed := make(map[string]bool, len(RadioAlertKeys))
+	for _, k := range RadioAlertKeys {
+		if listed[k] {
+			t.Errorf("RadioAlertKeys lists %q twice", k)
+		}
+		listed[k] = true
 	}
-	var categories map[string]*string
-	if err := json.Unmarshal(data, &categories); err != nil {
-		t.Fatalf("decode %s: %v", alertCategoriesPath, err)
+	if !sort.StringsAreSorted(RadioAlertKeys) {
+		t.Error("RadioAlertKeys must stay sorted")
 	}
 
 	emitted := emittedSubAlerts(t)
 	var missing, unused []string
 	for k := range emitted {
-		if _, ok := categories[k]; !ok {
+		if !listed[k] {
 			missing = append(missing, k)
 		}
 	}
-	for k := range categories {
+	for k := range listed {
 		if !emitted[k] {
 			unused = append(unused, k)
 		}
@@ -123,10 +120,38 @@ func TestAlertCategories_MatchWhatTheEngineEmits(t *testing.T) {
 	sort.Strings(unused)
 
 	if len(missing) > 0 {
-		t.Errorf("%s lacks alerts the engine emits (map each to a phrase category, or null to speak the engine's message): %s",
-			alertCategoriesPath, strings.Join(missing, ", "))
+		t.Errorf("RadioAlertKeys lacks alerts the engine emits (add them, then map each to a phrase category in frontend/src/constants/radioAlertCategories.ts): %s",
+			strings.Join(missing, ", "))
 	}
 	if len(unused) > 0 {
-		t.Errorf("%s lists keys the engine never emits (remove them): %s", alertCategoriesPath, strings.Join(unused, ", "))
+		t.Errorf("RadioAlertKeys lists keys the engine never emits (remove them): %s", strings.Join(unused, ", "))
+	}
+}
+
+// The directive on /ws/engineer carries the alert key and no text: the dashboard owns the wording.
+func TestEngineerDirective_WireKeys(t *testing.T) {
+	data, err := json.Marshal(EngineerDirective{
+		ID:       "directive_1_tyre_wear",
+		Type:     DirectiveMessageType,
+		Category: DirectiveCategoryTyres,
+		Title:    "Tyre Wear",
+		Message:  "Tyre wear is at 45%.",
+		Urgency:  UrgencyMedium,
+	})
+	if err != nil {
+		t.Fatalf("marshal directive: %v", err)
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		t.Fatalf("decode directive: %v", err)
+	}
+	got := make([]string, 0, len(fields))
+	for k := range fields {
+		got = append(got, k)
+	}
+	sort.Strings(got)
+	want := []string{"car_index", "category", "id", "session_time", "sub_alert", "timestamp", "type", "urgency"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("directive JSON keys = %v, want %v", got, want)
 	}
 }

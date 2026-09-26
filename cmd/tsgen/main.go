@@ -100,6 +100,10 @@ func registry() *tsgen.Generator {
 		api.PTTLearnedMessage{},
 		api.PTTLearnTimeoutMessage{},
 	)
+	// A directive carries its alert key, not text; the dashboard picks the words from it.
+	g.TypeAlias("engineer", "EngineerAlertKey", stringUnion(engineer.RadioAlertKeys))
+	g.TypeAlias("engineer", "EngineerDirectiveCategory", stringUnion(directiveCategories()))
+	g.TypeAlias("engineer", "EngineerUrgency", stringUnion(engineer.Urgencies))
 
 	// The 10Hz live snapshot on /ws: the slim per-car and session DTOs, and the race feed rows
 	// the server adds to it (event codes and parameters, no text).
@@ -111,6 +115,14 @@ func registry() *tsgen.Generator {
 	g.TypeAlias("session", "FeedSeverity", stringUnion(session.FeedSeverities))
 
 	return g
+}
+
+func directiveCategories() []string {
+	values := make([]string, len(engineer.DirectiveCategories))
+	for i, c := range engineer.DirectiveCategories {
+		values[i] = string(c)
+	}
+	return values
 }
 
 // stringUnion writes a TypeScript union of string literals, e.g. 'a' | 'b'.

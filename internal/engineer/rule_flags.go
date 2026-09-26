@@ -337,9 +337,7 @@ func (r *FlagsRule) evaluateEvent(ctx *EvaluationContext, p *packets.PacketEvent
 			return nil
 		}
 		reasonStr := "Race control has disabled DRS."
-		var reason uint8
 		if d, ok := p.DRSDisabledData(); ok {
-			reason = d.Reason
 			switch d.Reason {
 			case packets.DRSDisabledReasonSurfaceConditions:
 				reasonStr = "DRS disabled due to wet track conditions."
@@ -358,18 +356,11 @@ func (r *FlagsRule) evaluateEvent(ctx *EvaluationContext, p *packets.PacketEvent
 			Title:    "DRS Disabled",
 			Message:  reasonStr,
 			Urgency:  UrgencyHigh,
-			Metadata: map[string]any{
-				"reason": reason,
-			},
 		}
 
 	case packets.EventCollision:
 		if col, ok := p.CollisionData(); ok {
 			if int(col.Vehicle1Idx) == ctx.PlayerCarIndex || int(col.Vehicle2Idx) == ctx.PlayerCarIndex {
-				otherIdx := col.Vehicle2Idx
-				if int(col.Vehicle2Idx) == ctx.PlayerCarIndex {
-					otherIdx = col.Vehicle1Idx
-				}
 				return &Directive{
 					ID:       "car_collision",
 					Category: DirectiveCategoryFlags,
@@ -377,10 +368,6 @@ func (r *FlagsRule) evaluateEvent(ctx *EvaluationContext, p *packets.PacketEvent
 					Title:    "Contact Reported",
 					Message:  "Contact reported! Check steering and front wing balance, reporting on next radio check.",
 					Urgency:  UrgencyCritical,
-					Metadata: map[string]any{
-						"other_vehicle_idx": otherIdx,
-						"severity":          col.Severity,
-					},
 				}
 			}
 		}
@@ -414,11 +401,6 @@ func (r *FlagsRule) evaluateEvent(ctx *EvaluationContext, p *packets.PacketEvent
 				Title:    "Car Retirement",
 				Message:  msg,
 				Urgency:  UrgencyMedium,
-				Metadata: map[string]any{
-					"vehicle_idx": ret.VehicleIdx,
-					"reason":      ret.Reason,
-					"is_teammate": isTeammate,
-				},
 			}
 		}
 
@@ -445,11 +427,6 @@ func (r *FlagsRule) evaluateEvent(ctx *EvaluationContext, p *packets.PacketEvent
 				Title:    "Fastest Lap",
 				Message:  msg,
 				Urgency:  UrgencyMedium,
-				Metadata: map[string]any{
-					"vehicle_idx": fl.VehicleIdx,
-					"lap_time":    fl.LapTime,
-					"is_player":   isPlayer,
-				},
 			}
 		}
 	}
@@ -525,10 +502,6 @@ func (r *FlagsRule) evaluateWeather(ctx *EvaluationContext) *Directive {
 				Title:    "Weather Transition",
 				Message:  fmt.Sprintf("Weather radar confirms %d%% chance of rain in the next %d minutes.", rainPct, timeOffset),
 				Urgency:  UrgencyHigh,
-				Metadata: map[string]any{
-					"rain_pct":    rainPct,
-					"time_offset": timeOffset,
-				},
 			}
 		}
 	}
@@ -546,9 +519,6 @@ func (r *FlagsRule) evaluateTrackLimits(ctx *EvaluationContext, playerLap *packe
 			Title:    "Track Limits Warning",
 			Message:  fmt.Sprintf("We have accumulated %d track limits warnings! Keep inside white lines to avoid a penalty.", cutWarnings),
 			Urgency:  UrgencyCritical,
-			Metadata: map[string]any{
-				"warnings": cutWarnings,
-			},
 		}
 	}
 	return nil
@@ -580,11 +550,6 @@ func (r *FlagsRule) evaluatePenalties(playerLap *packets.LapData) *Directive {
 		Title:    "Steward Penalty Issued",
 		Message:  pnlMsg,
 		Urgency:  UrgencyCritical,
-		Metadata: map[string]any{
-			"penalty_time_sec": pnlTime,
-			"drive_through":    playerLap.NumUnservedDriveThroughPens,
-			"stop_go":          playerLap.NumUnservedStopGoPens,
-		},
 	}
 }
 
@@ -605,9 +570,6 @@ func (r *FlagsRule) evaluateLiveWeather(ctx *EvaluationContext) *Directive {
 			Title:    "Track Rain Onset",
 			Message:  "Rain is now falling on track! Watch out for changing grip levels into braking zones.",
 			Urgency:  UrgencyHigh,
-			Metadata: map[string]any{
-				"weather": currentWeather,
-			},
 		}
 	}
 	return nil

@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -41,6 +42,37 @@ type PTTLearnTimeoutMessage struct {
 
 func newPTTEventMessage(evt input.Event) PTTEventMessage {
 	return PTTEventMessage{Type: pttEventMessageType, State: evt.State, Mapping: evt.Mapping, Timestamp: evt.Timestamp}
+}
+
+func newPTTLearnedMessage(m input.Mapping) PTTLearnedMessage {
+	return PTTLearnedMessage{Type: pttLearnedMessageType, Mapping: m}
+}
+
+func newPTTLearnTimeoutMessage() PTTLearnTimeoutMessage {
+	return PTTLearnTimeoutMessage{Type: pttLearnTimeoutType}
+}
+
+// engineerMessage is a message the API layer sends on /ws/engineer. Only the typed messages
+// above implement it, so nothing else reaches the hub; the engine sends its directives itself.
+type engineerMessage interface {
+	engineerMessageType() string
+}
+
+func (m PTTEventMessage) engineerMessageType() string        { return m.Type }
+func (m PTTLearnedMessage) engineerMessageType() string      { return m.Type }
+func (m PTTLearnTimeoutMessage) engineerMessageType() string { return m.Type }
+
+// broadcastEngineer sends msg to every dashboard connected to /ws/engineer.
+func (s *Server) broadcastEngineer(msg engineerMessage) {
+	if s.engineerHub == nil {
+		return
+	}
+	payload, err := json.Marshal(msg)
+	if err != nil {
+		slog.Error("Failed to marshal engineer message", "type", msg.engineerMessageType(), "error", err)
+		return
+	}
+	s.engineerHub.Broadcast(payload)
 }
 
 // PTTConfigResponse returns the current global PTT mapping and active status.
@@ -105,18 +137,12 @@ func (s *Server) handleStartPTTLearn(w http.ResponseWriter, r *http.Request) {
 		select {
 		case m, ok := <-ch:
 			if ok {
-				payload, _ := json.Marshal(PTTLearnedMessage{Type: pttLearnedMessageType, Mapping: m})
-				if s.engineerHub != nil {
-					s.engineerHub.Broadcast(payload)
-				}
+				s.broadcastEngineer(newPTTLearnedMessage(m))
 			}
 		case <-timer.C:
 			mgr.CancelLearning()
 			// Without this the dashboard's learn button would wait for a key forever.
-			payload, _ := json.Marshal(PTTLearnTimeoutMessage{Type: pttLearnTimeoutType})
-			if s.engineerHub != nil {
-				s.engineerHub.Broadcast(payload)
-			}
+			s.broadcastEngineer(newPTTLearnTimeoutMessage())
 		}
 	}()
 

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { subscribeEngineerWebSocket } from './engineerSocket';
+import { dispatchEngineerMessage, subscribeEngineerMessages } from './engineerSocket';
+import { makeEngineerDirective, makePTTMapping } from '../test/wireFactories';
 
 class MockWS {
   static instances: MockWS[] = [];
@@ -42,21 +43,21 @@ describe('engineerSocket singleton', () => {
 
   it('connects when first subscriber registers and disconnects when all unsubscribe', () => {
     const handler1 = vi.fn();
-    const unsub1 = subscribeEngineerWebSocket(handler1);
+    const unsub1 = subscribeEngineerMessages({ ptt_event: handler1 });
 
     expect(MockWS.instances.length).toBe(1);
     const ws = MockWS.instances[0];
 
     const handler2 = vi.fn();
-    const unsub2 = subscribeEngineerWebSocket(handler2);
+    const unsub2 = subscribeEngineerMessages({ ptt_event: handler2 });
 
     // Should share the same connection without creating a second WebSocket
     expect(MockWS.instances.length).toBe(1);
 
-    // Broadcast message
-    ws.onmessage?.({ data: JSON.stringify({ type: 'ptt_event', state: 'down' }) });
-    expect(handler1).toHaveBeenCalledWith({ type: 'ptt_event', state: 'down' });
-    expect(handler2).toHaveBeenCalledWith({ type: 'ptt_event', state: 'down' });
+    const msg = { type: 'ptt_event', state: 'down', mapping: makePTTMapping(), timestamp: 1 };
+    ws.onmessage?.({ data: JSON.stringify(msg) });
+    expect(handler1).toHaveBeenCalledWith(msg);
+    expect(handler2).toHaveBeenCalledWith(msg);
 
     // Unsubscribe first
     unsub1();
@@ -69,7 +70,7 @@ describe('engineerSocket singleton', () => {
 
   it('safely handles non-JSON messages without crashing subscribers', () => {
     const handler = vi.fn();
-    const unsub = subscribeEngineerWebSocket(handler);
+    const unsub = subscribeEngineerMessages({ directive: handler });
 
     const ws = MockWS.instances[MockWS.instances.length - 1];
     ws.onmessage?.({ data: 'invalid JSON string' });
@@ -81,18 +82,64 @@ describe('engineerSocket singleton', () => {
   it('logs a subscriber exception instead of swallowing it', () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     const failure = new Error('radio handler failed');
-    const unsub1 = subscribeEngineerWebSocket(() => {
-      throw failure;
+    const unsub1 = subscribeEngineerMessages({
+      directive: () => {
+        throw failure;
+      },
     });
     const healthy = vi.fn();
-    const unsub2 = subscribeEngineerWebSocket(healthy);
+    const unsub2 = subscribeEngineerMessages({ directive: healthy });
 
+    const directive = makeEngineerDirective();
     const ws = MockWS.instances[MockWS.instances.length - 1];
-    ws.onmessage?.({ data: JSON.stringify({ type: 'directive' }) });
+    ws.onmessage?.({ data: JSON.stringify(directive) });
 
-    expect(healthy).toHaveBeenCalledWith({ type: 'directive' });
+    expect(healthy).toHaveBeenCalledWith(directive);
     expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure);
     unsub1();
     unsub2();
+  });
+});
+
+describe('dispatchEngineerMessage', () => {
+  const handlers = () => ({
+    directive: vi.fn(),
+    ptt_event: vi.fn(),
+    ptt_learned: vi.fn(),
+    ptt_learn_timeout: vi.fn(),
+  });
+
+  it.each([
+    ['directive', makeEngineerDirective()],
+    ['ptt_event', { type: 'ptt_event', state: 'up', mapping: makePTTMapping(), timestamp: 2 }],
+    ['ptt_learned', { type: 'ptt_learned', mapping: makePTTMapping() }],
+    ['ptt_learn_timeout', { type: 'ptt_learn_timeout' }],
+  ] as const)('routes a %s message to its handler only', (type, msg) => {
+    const h = handlers();
+    dispatchEngineerMessage(msg, h);
+
+    for (const [name, fn] of Object.entries(h)) {
+      if (name === type) expect(fn).toHaveBeenCalledWith(msg);
+      else expect(fn).not.toHaveBeenCalled();
+    }
+  });
+
+  it.each([
+    ['null', null],
+    ['a string', 'directive'],
+    ['a number', 7],
+    ['an array', [{ type: 'directive' }]],
+    ['no type', { id: 'x' }],
+    ['a non-string type', { type: 1 }],
+    ['an unknown type', { type: 'heartbeat' }],
+    ['an inherited property name', { type: 'toString' }],
+  ])('drops %s', (_name, data) => {
+    const h = handlers();
+    dispatchEngineerMessage(data, h);
+    for (const fn of Object.values(h)) expect(fn).not.toHaveBeenCalled();
+  });
+
+  it('ignores a message type with no handler', () => {
+    expect(() => dispatchEngineerMessage({ type: 'ptt_learn_timeout' }, {})).not.toThrow();
   });
 });

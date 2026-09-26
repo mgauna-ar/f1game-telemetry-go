@@ -1,3 +1,5 @@
+import type { RadioAlertCategory, RadioPhrasePool } from '../../types/telemetry';
+
 export const radio_phrases = {
   safety_car: {
     colapinto: [
@@ -135,18 +137,6 @@ export const radio_phrases = {
     standard: [
       'Desgaste elevado en componentes de motor. Gestiona las temperaturas y sube marcha antes.',
       'Desgaste mecánico elevado en el motor, {driver}. Evita sobre-revolucionar.',
-    ],
-  },
-  mechanical_fault: {
-    colapinto: [
-      'Fallo mecánico en los sistemas del auto, {driver}. Revisá los comandos en el volante.',
-    ],
-    bono: [
-      'Fallo mecánico en los sistemas del monoplaza. Revisa los controles en el volante.',
-    ],
-    standard: [
-      'Fallo mecánico en los sistemas del monoplaza. Revisa los controles en el volante.',
-      'Alerta de fallo mecánico, {driver}. Comprueba el selector de volante.',
     ],
   },
   terminal_engine: {
@@ -1005,7 +995,4 @@ export const radio_phrases = {
       'Alto desgaste detectado en el ICE. La velocidad final y potencia están degradadas.',
     ],
   },
-  directive: {
-    standard: ['{clean_text}'],
-  },
-};
+} satisfies Record<RadioAlertCategory, RadioPhrasePool>;

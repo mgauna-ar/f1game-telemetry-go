@@ -6,6 +6,7 @@ import type {
   CarStatusData,
   CarTelemetry2Data,
   CarTelemetryData,
+  EngineerDirective,
   FeedEvent,
   LapData,
   LiveSnapshot,
@@ -254,4 +255,18 @@ export function makeDriverStanding(fields: Partial<RawDriverStanding> = {}): Raw
 
 export function makePTTMapping(fields: Partial<GlobalPTTMapping> = {}): GlobalPTTMapping {
   return { device_type: 'none', device_index: 0, button_index: 0, key_code: 0, key_name: '', device_name: '', ...fields };
+}
+
+export function makeEngineerDirective(fields: Partial<EngineerDirective> = {}): EngineerDirective {
+  return {
+    id: 'directive_1_tyre_wear',
+    type: 'directive',
+    category: 'tyres',
+    sub_alert: 'tyre_wear',
+    urgency: 'low',
+    timestamp: 0,
+    car_index: 0,
+    session_time: 0,
+    ...fields,
+  };
 }

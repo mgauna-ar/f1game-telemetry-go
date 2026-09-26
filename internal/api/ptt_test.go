@@ -15,7 +15,7 @@ func TestPTTMessagesJSON(t *testing.T) {
 
 	tests := []struct {
 		name string
-		msg  any
+		msg  engineerMessage
 		want string
 	}{
 		{
@@ -25,12 +25,12 @@ func TestPTTMessagesJSON(t *testing.T) {
 		},
 		{
 			name: "learned",
-			msg:  PTTLearnedMessage{Type: pttLearnedMessageType, Mapping: mapping},
+			msg:  newPTTLearnedMessage(mapping),
 			want: `{"type":"ptt_learned","mapping":` + mappingJSON + `}`,
 		},
 		{
 			name: "learn timeout",
-			msg:  PTTLearnTimeoutMessage{Type: pttLearnTimeoutType},
+			msg:  newPTTLearnTimeoutMessage(),
 			want: `{"type":"ptt_learn_timeout"}`,
 		},
 	}

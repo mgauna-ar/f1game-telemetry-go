@@ -33,7 +33,8 @@ import { VoiceCockpitView } from './VoiceCockpitView';
 import { LiveDocumentTitle } from './LiveDocumentTitle';
 import { useRadioController } from '../hooks/useRadioController';
 import { useProactiveTelemetryRadio } from '../hooks/useProactiveTelemetryRadio';
-import { formatProactiveFallbackSpeech } from '../utils/radioAudio';
+import { getProactiveRadioSpeech } from '../utils/radioPhrases';
+import type { RadioAlertPayload } from '../types/telemetry';
 import { useI18n } from '../context/I18nContext';
 import { storage } from '../utils/storage';
 
@@ -236,26 +237,14 @@ export const Dashboard: React.FC = () => {
   const radioRef = useRef(radio);
   radioRef.current = radio;
 
-  const handleProactiveAlert = useCallback(
-    async (payload: import('../types/telemetry').RadioAlertPayload | string, isCritical = false, emotion?: { rateModifier?: number; pitchModifier?: number }) => {
-      const r = radioRef.current;
-      // Instant zero-latency pit wall radio call with persona-specific phrasing & randomized variety
-      const speech = formatProactiveFallbackSpeech(
-        payload,
-        r.effectiveLanguage,
-        r.persona,
-        r.driverCallsign
-      );
-
-      const isCrit = typeof payload === 'object' ? (payload.isCritical ?? isCritical) : isCritical;
-      const em = typeof payload === 'object' && payload.emotion ? payload.emotion : emotion;
-
-      if (speech) {
-        r.speakMessage(speech, isCrit, em);
-      }
-    },
-    []
-  );
+  const handleProactiveAlert = useCallback((payload: RadioAlertPayload) => {
+    const r = radioRef.current;
+    // Instant pit wall radio call with persona-specific phrasing & randomized variety
+    const speech = getProactiveRadioSpeech(payload.category, r.effectiveLanguage, r.persona, r.driverCallsign);
+    if (speech) {
+      r.speakMessage(speech, payload.isCritical, payload.emotion);
+    }
+  }, []);
 
   useProactiveTelemetryRadio({
     isRadioEnabled: radio.isRadioEnabled,

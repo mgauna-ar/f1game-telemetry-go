@@ -152,11 +152,6 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 					Title:    "Tyre Wear Alert",
 					Message:  fmt.Sprintf("Tyre wear reached %d%% (stint age: %d laps).", int(math.Round(float64(maxWear))), currentTyreAge),
 					Urgency:  urgency,
-					Metadata: map[string]any{
-						"wear_pct":  maxWear,
-						"tyre_age":  currentTyreAge,
-						"threshold": th,
-					},
 				})
 				break
 			}
@@ -175,11 +170,6 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 						Title:    "Tyre Blistering Detected",
 						Message:  fmt.Sprintf("Tyre blistering detected on the %s tyre (%d%% blister)! Back off lateral loads and avoid aggressive curb strikes.", wheelNames[wIdx], blister),
 						Urgency:  UrgencyMedium,
-						Metadata: map[string]any{
-							"wheel_index": wIdx,
-							"wheel_name":  wheelNames[wIdx],
-							"blister_pct": blister,
-						},
 					})
 					break
 				}
@@ -233,13 +223,6 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 				Title:    "Tyre Overheating",
 				Message:  advice,
 				Urgency:  UrgencyMedium,
-				Metadata: map[string]any{
-					"compound":     window.CompoundName,
-					"rear_temp_c":  rearMaxTemp,
-					"limit_c":      overheatLimit,
-					"window_min_c": window.MinTemp,
-					"window_max_c": window.MaxTemp,
-				},
 			})
 		} else if maxSurfTemp > 0 && maxSurfTemp <= coldLimit && currentTyreAge < ColdTyresMaxAgeLaps {
 			directives = append(directives, Directive{
@@ -249,13 +232,6 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 				Title:    "Cold Tyre Temperature",
 				Message:  fmt.Sprintf("%s tyre temperatures are cold (%d°C, target window: %d-%d°C). Weave and build tyre temperature.", window.CompoundName, int(math.Round(float64(maxSurfTemp))), int(window.MinTemp), int(window.MaxTemp)),
 				Urgency:  UrgencyLow,
-				Metadata: map[string]any{
-					"compound":     window.CompoundName,
-					"max_temp_c":   maxSurfTemp,
-					"limit_c":      coldLimit,
-					"window_min_c": window.MinTemp,
-					"window_max_c": window.MaxTemp,
-				},
 			})
 		}
 
@@ -292,10 +268,6 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 					Title:    "High Tyre Pressure",
 					Message:  fmt.Sprintf("%s tyre pressure is spiking (%.1f PSI)! Manage corner entry scrub to prevent crowning the contact patch.", maxPressWheel, maxPress),
 					Urgency:  UrgencyMedium,
-					Metadata: map[string]any{
-						"wheel":    maxPressWheel,
-						"pressure": maxPress,
-					},
 				})
 			} else {
 				frontDiff := float32(math.Abs(float64(flPress - frPress)))
@@ -309,11 +281,6 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 						Title:    "Tyre Pressure Imbalance",
 						Message:  fmt.Sprintf("Front axle tyre pressure disparity is high (%.1f vs %.1f PSI). Balance cornering load.", flPress, frPress),
 						Urgency:  UrgencyLow,
-						Metadata: map[string]any{
-							"axle":  "front",
-							"left":  flPress,
-							"right": frPress,
-						},
 					})
 				} else if rearDiff >= TyrePressureAsymmetryDeltaPSI {
 					r.pressureAlertFired = true
@@ -324,11 +291,6 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 						Title:    "Tyre Pressure Imbalance",
 						Message:  fmt.Sprintf("Rear axle tyre pressure disparity is high (%.1f vs %.1f PSI). Balance traction load.", rlPress, rrPress),
 						Urgency:  UrgencyLow,
-						Metadata: map[string]any{
-							"axle":  "rear",
-							"left":  rlPress,
-							"right": rrPress,
-						},
 					})
 				}
 			}
@@ -362,11 +324,6 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 					Title:    "Tyre Crossover (Box for Inters)",
 					Message:  "Track conditions are too wet for slick tyres! Box now, box box for Intermediates.",
 					Urgency:  UrgencyCritical,
-					Metadata: map[string]any{
-						"current_compound": packets.VisualTyreCompoundName(visualCompound),
-						"weather":          currentWeather,
-						"target_compound":  "INTERMEDIATE",
-					},
 				})
 			case isInter && (currentWeather >= packets.WeatherHeavyRain || rainPct >= WeatherHeavyRainWetThreshold) && r.lastCrossoverTarget != "WET":
 				// Case B: Inters on heavy standing water -> Aquaplaning risk, box for Full Wets
@@ -378,11 +335,6 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 					Title:    "Tyre Crossover (Box for Full Wets)",
 					Message:  "Track is saturated with standing water, aquaplaning risk! Box this lap for Full Wets.",
 					Urgency:  UrgencyCritical,
-					Metadata: map[string]any{
-						"current_compound": "INTERMEDIATE",
-						"weather":          currentWeather,
-						"target_compound":  "WET",
-					},
 				})
 			case isWet && (currentWeather <= packets.WeatherLightRain && rainPct <= WeatherLightRainInterThreshold) && stintLaps >= TyreCrossoverMinStintLaps && r.lastCrossoverTarget != "INTER_DRYING":
 				// Case C: Full Wets on drying/easing rain -> Inters are much faster
@@ -394,11 +346,6 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 					Title:    "Tyre Crossover (Box for Inters)",
 					Message:  "Rain has eased up and standing water is clearing. Intermediate tyre is much faster now, box for Inters.",
 					Urgency:  UrgencyHigh,
-					Metadata: map[string]any{
-						"current_compound": "WET",
-						"weather":          currentWeather,
-						"target_compound":  "INTERMEDIATE",
-					},
 				})
 			case (isInter || isWet) && currentWeather <= packets.WeatherLightCloud && stintLaps >= TyreCrossoverMinStintLaps && r.lastCrossoverTarget != "SLICKS":
 				// Case D: Wet tyres on drying track -> Crossover approaching for Slicks
@@ -410,11 +357,6 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 					Title:    "Tyre Crossover (Box for Slicks)",
 					Message:  "Track is drying out, crossover window is approaching. Prepare to box for slicks.",
 					Urgency:  UrgencyMedium,
-					Metadata: map[string]any{
-						"current_compound": packets.VisualTyreCompoundName(visualCompound),
-						"weather":          currentWeather,
-						"target_compound":  "SLICKS",
-					},
 				})
 			}
 		}
@@ -447,19 +389,15 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 					}
 				}
 
-				var advMsg, targetCompound string
+				var advMsg string
 				switch {
 				case freshHard > 0:
-					targetCompound = "HARD"
 					advMsg = "Pit window approaching. Fresh set of Hard tyres ready in the box."
 				case freshMedium > 0:
-					targetCompound = "MEDIUM"
 					advMsg = "Pit window approaching. Fresh set of Medium tyres ready in the box."
 				case freshSoft > 0:
-					targetCompound = "SOFT"
 					advMsg = "Pit window approaching. Fresh set of Soft tyres ready in the box."
 				default:
-					targetCompound = "SCRUBBED"
 					advMsg = "Pit window approaching. Scrubbed set prepared in the pit box."
 				}
 
@@ -470,12 +408,6 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 					Title:    "Tyre Set Advisory",
 					Message:  advMsg,
 					Urgency:  UrgencyLow,
-					Metadata: map[string]any{
-						"target_compound": targetCompound,
-						"fresh_hards":     freshHard,
-						"fresh_mediums":   freshMedium,
-						"fresh_softs":     freshSoft,
-					},
 				})
 			}
 		}

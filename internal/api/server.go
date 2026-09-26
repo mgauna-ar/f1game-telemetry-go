@@ -2,7 +2,6 @@ package api
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io/fs"
 	"net/http"
@@ -130,10 +129,7 @@ func (s *Server) SetInputManager(mgr input.Manager) {
 					if !ok {
 						return
 					}
-					payload, err := json.Marshal(newPTTEventMessage(evt))
-					if err == nil && s.engineerHub != nil {
-						s.engineerHub.Broadcast(payload)
-					}
+					s.broadcastEngineer(newPTTEventMessage(evt))
 				}
 			}
 		}()

@@ -529,8 +529,6 @@ export function cleanRadioSpeechText(text: string): string {
   return cleaned.trim();
 }
 
-import { getProactiveRadioSpeech } from './radioPhrases';
-
 /**
  * Normalizes motorsport terminology for natural Spanish TTS pronunciation,
  * converting raw English / literal Spanglish terms into authentic Latin American / Spanish phrases.
@@ -551,19 +549,6 @@ export function normalizeSpanishRadioSpeech(text: string): string {
   result = result.replace(/\bBandera\s+roja\s+desplegada\b/gi, 'Bandera roja en pista');
 
   return result;
-}
-
-/**
- * Generates an authentic, localized pit wall radio speech message with persona-specific phrasing.
- * Supports both structured RadioAlertPayload and legacy string contexts.
- */
-export function formatProactiveFallbackSpeech(
-  input: import('../types/telemetry').RadioAlertPayload | string,
-  language: 'es' | 'en' = 'es',
-  persona: import('../constants/f1').RadioPersona = 'bono',
-  driverCallsign?: string
-): string {
-  return getProactiveRadioSpeech(input, language, persona, driverCallsign);
 }
 
 interface RadioSpeechRequest {
