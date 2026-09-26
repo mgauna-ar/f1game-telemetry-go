@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   X,
   Radio,
@@ -15,21 +15,28 @@ import { PersonaSettingsTab } from './radio_settings/PersonaSettingsTab';
 import { AudioSettingsTab } from './radio_settings/AudioSettingsTab';
 import { TacticalCoachingTab } from './radio_settings/TacticalCoachingTab';
 
+export type RadioSettingsTab = 'persona' | 'audio' | 'tactical';
+
 export interface RadioSettingsPanelProps {
   isOpen: boolean;
   onClose: () => void;
   radio: UseRadioControllerReturn;
+  /** Tab to show when the panel opens; without it the panel keeps the last tab shown. */
+  initialTab?: RadioSettingsTab;
 }
-
-type SettingsTab = 'persona' | 'audio' | 'tactical';
 
 export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
   isOpen,
   onClose,
   radio,
+  initialTab,
 }) => {
   const { t } = useI18n();
-  const [activeTab, setActiveTab] = useState<SettingsTab>('persona');
+  const [activeTab, setActiveTab] = useState<RadioSettingsTab>(initialTab ?? 'persona');
+
+  useEffect(() => {
+    if (isOpen && initialTab) setActiveTab(initialTab);
+  }, [isOpen, initialTab]);
 
   if (!isOpen) return null;
 

@@ -1750,3 +1750,13 @@
 
 
 
+
+/* Comparator chart card heading (see ChartTitle) */
+.comparator-chart-title {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}

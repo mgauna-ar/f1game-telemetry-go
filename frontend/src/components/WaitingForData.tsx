@@ -1,6 +1,8 @@
 import React from 'react';
 import { Radio, WifiOff, Activity, CheckCircle2, Info } from 'lucide-react';
 import { useI18n } from '../context/I18nContext';
+import { useTelemetryEndpointStore } from '../store/useTelemetryEndpointStore';
+import { CopyValueButton } from './common/CopyValueButton';
 
 interface WaitingForDataProps {
   connected: boolean;
@@ -8,6 +10,9 @@ interface WaitingForDataProps {
 
 export const WaitingForData: React.FC<WaitingForDataProps> = ({ connected }) => {
   const { t } = useI18n();
+  const endpoint = useTelemetryEndpointStore((s) => s.endpoint);
+  // A listener bound to a single LAN address already shows it as the local address
+  const lanIps = endpoint.lan_ips.filter((ip) => ip !== endpoint.local_ip);
 
   return (
     <div className="telemetry-waiting-container">
@@ -30,11 +35,11 @@ export const WaitingForData: React.FC<WaitingForDataProps> = ({ connected }) => 
         <div className="waiting-title-section">
           <div className="waiting-status-badge-row">
             <span className={`waiting-status-pill ${connected ? 'pill-connected' : 'pill-reconnecting'}`}>
-              <span className={`status-dot ${connected ? 'status-live' : 'status-waiting'}`} />
+              <span className={`status-dot ${connected ? 'status-connected' : 'status-waiting'}`} />
               {connected ? t('live.backendConnected') : t('live.connectingToBackend')}
             </span>
             <span className="waiting-port-pill mono">
-              {t('live.udpPort')} <strong>20777</strong>
+              {t('live.udpPort')}: <strong>{endpoint.udp_port}</strong>
             </span>
           </div>
 
@@ -60,13 +65,24 @@ export const WaitingForData: React.FC<WaitingForDataProps> = ({ connected }) => 
                 <span className="chk-label">{t('live.udpTelemetry')}:</span>
                 <span className="chk-val highlight-green">{t('live.on')}</span>
               </li>
-              <li>
-                <span className="chk-label">{t('live.udpBroadcast')}:</span>
-                <span className="chk-val">{t('live.udpBroadcastVal')}</span>
+              <li className="guide-ip-row">
+                <span className="chk-label">{t('live.udpIpAddress')}:</span>
+                <span className="guide-ip-values">
+                  <span className="guide-ip-option">
+                    <span className="guide-ip-hint">{t('live.ipThisPc')}</span>
+                    <CopyValueButton value={endpoint.local_ip} />
+                  </span>
+                  {lanIps.map((ip) => (
+                    <span key={ip} className="guide-ip-option">
+                      <span className="guide-ip-hint">{t('live.ipOtherDevice')}</span>
+                      <CopyValueButton value={ip} />
+                    </span>
+                  ))}
+                </span>
               </li>
               <li>
                 <span className="chk-label">{t('live.udpPort')}:</span>
-                <span className="chk-val highlight-blue">20777</span>
+                <span className="chk-val highlight-blue">{endpoint.udp_port}</span>
               </li>
               <li>
                 <span className="chk-label">{t('live.udpSendRate')}:</span>
@@ -77,6 +93,7 @@ export const WaitingForData: React.FC<WaitingForDataProps> = ({ connected }) => 
                 <span className="chk-val highlight-purple">2025 / 2026</span>
               </li>
             </ul>
+            {lanIps.length > 0 && <p className="guide-broadcast-hint">{t('live.udpBroadcastHint')}</p>}
           </div>
         </div>
 
@@ -85,7 +102,7 @@ export const WaitingForData: React.FC<WaitingForDataProps> = ({ connected }) => 
         <div className="waiting-footer-info">
           <div className="footer-listening-indicator">
             <Activity size={14} className="pulse-indicator" />
-            <span className="mono">{t('live.listeningFooter')}</span>
+            <span className="mono">{t('live.listeningFooter', { addr: endpoint.udp_addr })}</span>
           </div>
           <div className="footer-tip">
             <Info size={13} />

@@ -13,6 +13,9 @@ import { ToastContext } from './context/ToastContext';
 import { api } from './utils/apiClient';
 import { storage } from './utils/storage';
 import { useRadioSettingsStore } from './store/useRadioSettingsStore';
+import { useTelemetryEndpointStore } from './store/useTelemetryEndpointStore';
+import { useLiveStatus } from './hooks/useLiveStatus';
+import { LIVE_STATUS } from './constants/f1';
 import type { UpdateCheckResponse, SystemVersion } from './types/system';
 
 const SessionHistory = lazy(() =>
@@ -44,6 +47,9 @@ function AppContent() {
   });
 
   const { setContextMode } = useRaceEngineerActions();
+  const liveStatus = useLiveStatus();
+  const udpPort = useTelemetryEndpointStore((s) => s.endpoint.udp_port);
+  const isLiveFeedActive = liveStatus === LIVE_STATUS.LIVE;
 
   // Update checking & version state
   const [updateInfo, setUpdateInfo] = useState<UpdateCheckResponse | null>(null);
@@ -75,6 +81,7 @@ function AppContent() {
     const radioSettings = useRadioSettingsStore.getState();
     radioSettings.loadConfigFromBackend();
     radioSettings.loadVoiceFromBackend();
+    useTelemetryEndpointStore.getState().loadEndpoint();
   }, [checkUpdates]);
 
   const handleDismissVersion = (version: string) => {
@@ -132,8 +139,8 @@ function AppContent() {
       {/* Modern Top Navigation Bar */}
       <header className="app-top-nav">
         <div className="app-nav-brand">
-          <div className={`app-brand-logo ${activeTab === 'live' ? 'live' : ''}`}>
-            <F1TelemetryLogo size={28} animated={activeTab === 'live'} />
+          <div className={`app-brand-logo ${isLiveFeedActive ? 'live' : ''}`}>
+            <F1TelemetryLogo size={28} animated={isLiveFeedActive} />
           </div>
           <div className="app-brand-text">
             <div className="app-brand-title">
@@ -174,10 +181,17 @@ function AppContent() {
           >
             <Radio size={16} className="nav-tab-icon" />
             <span>{t('nav.tabs.live')}</span>
-            <span className="live-pulse-badge">
-              <span className="live-pulse-dot" />
-              {t('nav.liveBadge')}
-            </span>
+            {/* Only while packets arrive (or just stopped): the feed is only opened on this tab */}
+            {(liveStatus === LIVE_STATUS.LIVE || liveStatus === LIVE_STATUS.STALE) && (
+              <span
+                className={`live-pulse-badge ${liveStatus === LIVE_STATUS.STALE ? 'stale' : ''}`}
+                title={liveStatus === LIVE_STATUS.STALE ? t('live.statusStaleTitle') : undefined}
+                data-testid="nav-live-badge"
+              >
+                <span className="live-pulse-dot" />
+                {liveStatus === LIVE_STATUS.STALE ? t('live.statusStale') : t('nav.liveBadge')}
+              </span>
+            )}
           </button>
         </nav>
 
@@ -223,7 +237,7 @@ function AppContent() {
           </button>
 
           <LanguageSelector />
-          <span className="mono nav-port-badge">{t('nav.portBadge')} 20777</span>
+          <span className="mono nav-port-badge">{t('nav.portBadge')} {udpPort}</span>
         </div>
       </header>
 

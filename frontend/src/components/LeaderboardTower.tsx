@@ -13,6 +13,7 @@ import {
   ACTIVE_AERO_MODES,
   TIME_CONSTANTS,
   LEADERBOARD_COLUMN_SPLIT,
+  getQualifyingCutoffPosition,
 } from '../constants/f1';
 import { useI18n } from '../context/I18nContext';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
@@ -87,8 +88,6 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = React.memo((pro
   const isQualy = session?.SessionType !== undefined && 
     ((session.SessionType >= SESSION_TYPES.Q1 && session.SessionType <= SESSION_TYPES.OSQ) || 
      (session.SessionType >= SESSION_TYPES.SPRINT_Q1 && session.SessionType <= SESSION_TYPES.OS_SPRINT_Q));
-  const isQ1 = session?.SessionType === SESSION_TYPES.Q1 || session?.SessionType === SESSION_TYPES.SPRINT_Q1;
-  const isQ2 = session?.SessionType === SESSION_TYPES.Q2 || session?.SessionType === SESSION_TYPES.SPRINT_Q2;
 
   // Position flash animations on position changes
   const prevPosMapRef = React.useRef<Record<number, number>>({});
@@ -280,12 +279,13 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = React.memo((pro
   const getGridDeltaBadge = (gridPos?: number, curPos?: number) => {
     if (!gridPos || !curPos || gridPos === 0) return null;
     const delta = gridPos - curPos; // > 0 means gained positions (e.g. started P5, now P2 -> +3)
+    const movedTitle = t('live.badges.gridDeltaTitle', { grid: gridPos, now: curPos });
     if (delta > 0) {
-      return <span className="grid-delta-badge delta-gain" title={`Parrilla: P${gridPos} -> Ahora: P${curPos}`}>▲{delta}</span>;
+      return <span className="grid-delta-badge delta-gain" title={movedTitle}>▲{delta}</span>;
     } else if (delta < 0) {
-      return <span className="grid-delta-badge delta-loss" title={`Parrilla: P${gridPos} -> Ahora: P${curPos}`}>▼{Math.abs(delta)}</span>;
+      return <span className="grid-delta-badge delta-loss" title={movedTitle}>▼{Math.abs(delta)}</span>;
     } else {
-      return <span className="grid-delta-badge delta-same" title={`Parrilla: P${gridPos}`}>=</span>;
+      return <span className="grid-delta-badge delta-same" title={t('live.badges.gridSameTitle', { grid: gridPos })}>=</span>;
     }
   };
 
@@ -388,6 +388,9 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = React.memo((pro
     return null;
   };
 
+  // Last position that goes through to the next qualifying segment (null when nobody is knocked out)
+  const cutoffPosition = getQualifyingCutoffPosition(session?.SessionType, displayDrivers.length);
+
   // Split drivers into 2 parallel columns (P1-P11 on left, P12-P22 on right)
   const col1Drivers = displayDrivers.slice(0, LEADERBOARD_COLUMN_SPLIT);
   const col2Drivers = displayDrivers.slice(LEADERBOARD_COLUMN_SPLIT);
@@ -417,7 +420,7 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = React.memo((pro
             const teamColor = TEAM_COLORS[driver.teamId] || 'var(--border-subtle)';
             const compound = driver.carStatus?.VisualTyreCompound ? TYRE_COMPOUNDS[driver.carStatus.VisualTyreCompound] : undefined;
             const driverBestLap = bestLapTimesRef.current[driver.carIndex] || driver.lap?.LastLapTimeInMS || 0;
-            const isEliminated = isQualy && ((isQ1 && driver.position > 15) || (isQ2 && driver.position > 10));
+            const isEliminated = cutoffPosition !== null && driver.position > cutoffPosition;
             const flashClass = posFlashMap[driver.carIndex] ? `tower-flash-${posFlashMap[driver.carIndex]}` : '';
 
             return (
@@ -430,6 +433,7 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = React.memo((pro
                 compound={compound}
                 driverBestLap={driverBestLap}
                 isEliminated={isEliminated}
+                isLastBeforeCutoff={driver.position === cutoffPosition}
                 flashClass={flashClass}
                 isQualy={isQualy}
                 onSelectCar={onSelectCar}
@@ -453,7 +457,7 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = React.memo((pro
               const teamColor = TEAM_COLORS[driver.teamId] || 'var(--border-subtle)';
               const compound = driver.carStatus?.VisualTyreCompound ? TYRE_COMPOUNDS[driver.carStatus.VisualTyreCompound] : undefined;
               const driverBestLap = bestLapTimesRef.current[driver.carIndex] || driver.lap?.LastLapTimeInMS || 0;
-              const isEliminated = isQualy && ((isQ1 && driver.position > 15) || (isQ2 && driver.position > 10));
+              const isEliminated = cutoffPosition !== null && driver.position > cutoffPosition;
               const flashClass = posFlashMap[driver.carIndex] ? `tower-flash-${posFlashMap[driver.carIndex]}` : '';
 
               return (
@@ -466,6 +470,7 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = React.memo((pro
                   compound={compound}
                   driverBestLap={driverBestLap}
                   isEliminated={isEliminated}
+                  isLastBeforeCutoff={driver.position === cutoffPosition}
                   flashClass={flashClass}
                   isQualy={isQualy}
                   onSelectCar={onSelectCar}
@@ -494,6 +499,8 @@ interface DriverRowProps {
   compound?: { label: string; color: string; bg: string };
   driverBestLap: number;
   isEliminated: boolean;
+  /** Draws the elimination cut-off line under this row. */
+  isLastBeforeCutoff: boolean;
   flashClass: string;
   isQualy: boolean;
   onSelectCar: (carIndex: number) => void;
@@ -515,6 +522,7 @@ const DriverRow: React.FC<DriverRowProps> = React.memo(({
   compound,
   driverBestLap,
   isEliminated,
+  isLastBeforeCutoff,
   flashClass,
   isQualy,
   onSelectCar,
@@ -563,7 +571,7 @@ const DriverRow: React.FC<DriverRowProps> = React.memo(({
                     color: '#00f2fe',
                     border: '1px solid rgba(0, 242, 254, 0.4)',
                   }}
-                  title="Active Aero: Straight Mode (Low Drag)"
+                  title={t('live.badges.activeAeroTitle')}
                 >
                   {t('live.activeAeroStraight')}
                 </span>
@@ -579,7 +587,7 @@ const DriverRow: React.FC<DriverRowProps> = React.memo(({
                     color: '#ffd700',
                     border: '1px solid rgba(255, 215, 0, 0.5)',
                   }}
-                  title="Boost / Override Mode Active"
+                  title={t('live.badges.boostTitle')}
                 >
                   {t('live.boostActive')}
                 </span>
@@ -632,8 +640,8 @@ const DriverRow: React.FC<DriverRowProps> = React.memo(({
         </div>
       </div>
 
-      {/* Elimination Zone Line for Qualifying */}
-      {isEliminated && (
+      {/* Elimination Zone Line for Qualifying, between the last car through and the first one out */}
+      {isLastBeforeCutoff && (
         <div className="elimination-line" style={{ margin: '2px 0' }}>
           <span>{t('live.eliminationCutoff')}</span>
         </div>

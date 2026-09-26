@@ -56,6 +56,7 @@ export const common = {
   connected: 'Conectado',
   disconnected: 'Desconectado',
   copied: 'Copiado',
+  copyValue: 'Copiar {value}',
   units: {
     kmh: 'km/h',
     mph: 'mph',

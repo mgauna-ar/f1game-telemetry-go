@@ -217,8 +217,8 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((p
                   }}
                 >
                   {selectedLap.Sector1TimeMSPart <= sectorAnalysis.bestS1.time
-                    ? 'PURPLE'
-                    : `+${((selectedLap.Sector1TimeMSPart - sectorAnalysis.bestS1.time) / 1000).toFixed(3)}s`}
+                    ? t('live.purpleSplit')
+                    : `+${((selectedLap.Sector1TimeMSPart - sectorAnalysis.bestS1.time) / TIME_CONSTANTS.MS_PER_SECOND).toFixed(3)}s`}
                 </span>
               ) : null}
             </div>
@@ -237,8 +237,8 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((p
                   }}
                 >
                   {selectedLap.Sector2TimeMSPart <= sectorAnalysis.bestS2.time
-                    ? 'PURPLE'
-                    : `+${((selectedLap.Sector2TimeMSPart - sectorAnalysis.bestS2.time) / 1000).toFixed(3)}s`}
+                    ? t('live.purpleSplit')
+                    : `+${((selectedLap.Sector2TimeMSPart - sectorAnalysis.bestS2.time) / TIME_CONSTANTS.MS_PER_SECOND).toFixed(3)}s`}
                 </span>
               ) : null}
             </div>
@@ -280,7 +280,7 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((p
                     <span className="speed-driver-name">{st.name}</span>
                   </div>
                   <div className="speed-trap-right mono">
-                    <span className="speed-val">{Math.round(st.speed)} KM/H</span>
+                    <span className="speed-val">{Math.round(st.speed)} {t('common.units.kmh')}</span>
                     {st.lapNum > 0 && <span className="speed-lap">L{st.lapNum}</span>}
                   </div>
                 </div>

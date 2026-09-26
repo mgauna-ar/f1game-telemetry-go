@@ -11,9 +11,11 @@ import {
 import { useI18n } from '../context/I18nContext';
 import { RADIO_PERSONAS } from '../constants/f1';
 import { RadioSettingsPanel } from './RadioSettingsPanel';
+import type { RadioSettingsTab } from './RadioSettingsPanel';
 import { RadioWaveformCanvas } from './common/RadioWaveformCanvas';
 import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
 import type { UseRadioControllerReturn } from '../hooks/useRadioController';
+import { getPttHint } from '../utils/pttHint';
 
 export interface LiveRadioHUDProps {
   radio: UseRadioControllerReturn;
@@ -22,8 +24,14 @@ export interface LiveRadioHUDProps {
 export const LiveRadioHUD: React.FC<LiveRadioHUDProps> = ({ radio }) => {
   const { t } = useI18n();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<RadioSettingsTab | undefined>(undefined);
   const volume = useRadioSettingsStore((s) => s.volume);
   const setVolume = useRadioSettingsStore((s) => s.setVolume);
+
+  const openSettings = (tab?: RadioSettingsTab) => {
+    setSettingsTab(tab);
+    setIsSettingsOpen(true);
+  };
 
   const getPersonaLabel = () => {
     const langFlag = radio.effectiveLanguage === 'es' ? '🇦🇷' : '🇬🇧';
@@ -39,6 +47,7 @@ export const LiveRadioHUD: React.FC<LiveRadioHUDProps> = ({ radio }) => {
   };
 
   const personaInfo = getPersonaLabel();
+  const pttHint = getPttHint(radio, t);
 
   // If radio is disabled, render compact minimized pill
   if (!radio.isRadioEnabled) {
@@ -60,7 +69,7 @@ export const LiveRadioHUD: React.FC<LiveRadioHUDProps> = ({ radio }) => {
 
             <button
               type="button"
-              onClick={() => setIsSettingsOpen(true)}
+              onClick={() => openSettings()}
               className="live-radio-btn"
               title={t('ai_engineer.radio.settings')}
             >
@@ -73,6 +82,7 @@ export const LiveRadioHUD: React.FC<LiveRadioHUDProps> = ({ radio }) => {
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
           radio={radio}
+          initialTab={settingsTab}
         />
       </>
     );
@@ -132,22 +142,16 @@ export const LiveRadioHUD: React.FC<LiveRadioHUDProps> = ({ radio }) => {
                 </span>
               ) : (
                 <>
-                  {radio.mappedKey && radio.mappedKey !== 'None' ? (
-                    <>
-                      <span className="live-radio-key-badge">
-                        {radio.mappedKey}
-                      </span>
-                      <span>{t('ai_engineer.radio.pttHint', { key: radio.mappedKey })}</span>
-                    </>
-                  ) : radio.mappedGamepadButton ? (
-                    <>
-                      <span className="live-radio-key-badge">
-                        B{radio.mappedGamepadButton.buttonIndex + 1}
-                      </span>
-                      <span>{t('ai_engineer.radio.pttHint', { key: `Button ${radio.mappedGamepadButton.buttonIndex + 1}` })}</span>
-                    </>
-                  ) : (
-                    <span>{t('ai_engineer.ptt.title')}</span>
+                  {pttHint.badge && (
+                    <span className="live-radio-key-badge">
+                      {pttHint.badge}
+                    </span>
+                  )}
+                  <span className="live-radio-ptt-text">{pttHint.text}</span>
+                  {!pttHint.badge && (
+                    <button type="button" className="ptt-setup-link" onClick={() => openSettings('audio')}>
+                      {t('ai_engineer.radio.pttSetUp')} →
+                    </button>
                   )}
                 </>
               )}
@@ -198,7 +202,7 @@ export const LiveRadioHUD: React.FC<LiveRadioHUDProps> = ({ radio }) => {
             {/* Settings Gear */}
             <button
               type="button"
-              onClick={() => setIsSettingsOpen(true)}
+              onClick={() => openSettings()}
               className="live-radio-btn"
               title={t('ai_engineer.radio.settings')}
             >
@@ -213,6 +217,7 @@ export const LiveRadioHUD: React.FC<LiveRadioHUDProps> = ({ radio }) => {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         radio={radio}
+        initialTab={settingsTab}
       />
     </>
   );

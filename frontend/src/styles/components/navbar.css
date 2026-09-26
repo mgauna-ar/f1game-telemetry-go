@@ -223,6 +223,12 @@
   animation: live-dot-ping 1.6s infinite cubic-bezier(0.4, 0, 0.6, 1);
 }
 
+.live-pulse-badge.stale .live-pulse-dot {
+  background: var(--accent-warning);
+  box-shadow: none;
+  animation: none;
+}
+
 @keyframes live-dot-ping {
   0%, 100% {
     opacity: 1;
@@ -431,6 +437,7 @@
 .app-main-content {
   flex: 1;
   width: 100%;
+  padding-bottom: var(--floating-dock-clearance);
 }
 
 /* Legacy fallback nav-tabs */

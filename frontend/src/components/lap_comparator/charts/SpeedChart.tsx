@@ -1,8 +1,9 @@
 import React from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Gauge } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
 import { type CommonChartProps } from './chartDefaults';
 import { ComparatorChart } from './ComparatorChart';
+import { ChartTitle } from './ChartTitle';
 
 export interface SpeedChartProps extends CommonChartProps {
   maxGapA: number;
@@ -50,7 +51,7 @@ export const SpeedChart = React.memo<SpeedChartProps>((props) => {
     <ComparatorChart
       {...props}
       height="300px"
-      title={<h3 style={{ margin: 0, fontSize: '1rem', color: '#fff' }}>🏎️ {t('comparator.charts.speed')}</h3>}
+      title={<ChartTitle icon={Gauge} label={t('comparator.charts.speed')} />}
       headerRight={headerRight}
       dataKeyA="speedA"
       dataKeyB="speedB"

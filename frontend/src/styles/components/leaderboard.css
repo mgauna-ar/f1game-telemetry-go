@@ -258,6 +258,10 @@
   min-width: 75px;
 }
 
+.leaderboard-tower-card.is-eliminated {
+  opacity: 0.6;
+}
+
 .elimination-line {
   margin: 4px 0;
   border-bottom: 2px dashed #FF3333;

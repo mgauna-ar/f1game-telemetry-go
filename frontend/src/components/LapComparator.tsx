@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import type { NavigationComparatorPayload } from '../types/session';
 import { buildTelemetryContext } from '../utils/aiTelemetrySummary';
 import { useRaceEngineerActions } from '../context/RaceEngineerContext';
+import { useI18n } from '../context/I18nContext';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
 import { ComparatorDuelHeader } from './lap_comparator/ComparatorDuelHeader';
 import { ComparatorTimingTower } from './lap_comparator/ComparatorTimingTower';
@@ -143,6 +145,9 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
   const driverB = slotB.driver;
   const nameA = slotA.driverName;
   const nameB = slotB.driverName;
+
+  const { t } = useI18n();
+  useDocumentTitle(lapAObj && lapBObj ? `${nameA} vs ${nameB}` : t('nav.tabs.comparator'));
   const lapAId = slotA.lapId;
   const lapBId = slotB.lapId;
   const lapsA = slotA.laps;

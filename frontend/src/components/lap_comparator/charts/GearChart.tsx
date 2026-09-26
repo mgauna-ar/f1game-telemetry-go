@@ -1,7 +1,9 @@
 import React from 'react';
+import { Cog } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
 import { type CommonChartProps } from './chartDefaults';
 import { ComparatorChart } from './ComparatorChart';
+import { ChartTitle } from './ChartTitle';
 
 export const GearChart = React.memo<CommonChartProps>((props) => {
   const { t } = useI18n();
@@ -11,7 +13,7 @@ export const GearChart = React.memo<CommonChartProps>((props) => {
     <ComparatorChart
       {...props}
       height="260px"
-      title={<h3 style={{ margin: 0, fontSize: '1rem', color: '#fff' }}>⚙️ {t('comparator.charts.gear')}</h3>}
+      title={<ChartTitle icon={Cog} label={t('comparator.charts.gear')} />}
       dataKeyA="gearA"
       dataKeyB="gearB"
       lineNameA={`${nameA} Gear`}

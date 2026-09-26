@@ -164,6 +164,24 @@ export const isQualifyingSession = (sessionType?: number): boolean => {
   );
 };
 
+/** Cars that make it to Q3 (and the Sprint Shootout's SQ3), whatever the grid size. */
+export const QUALIFYING_FINAL_SEGMENT_CARS = 10;
+
+/**
+ * Last position that survives the current qualifying segment, or null when nobody is knocked out
+ * (Q3, single-session formats, races). Q3 always has ten cars and Q1 and Q2 knock out half of the
+ * rest each: P16 and P11 on a 20-car grid, P17 and P11 on 22 cars.
+ */
+export const getQualifyingCutoffPosition = (sessionType: number | undefined, carCount: number): number | null => {
+  let cutoff: number | null = null;
+  if (sessionType === SESSION_TYPES.Q1 || sessionType === SESSION_TYPES.SPRINT_Q1) {
+    cutoff = QUALIFYING_FINAL_SEGMENT_CARS + Math.floor((carCount - QUALIFYING_FINAL_SEGMENT_CARS) / 2);
+  } else if (sessionType === SESSION_TYPES.Q2 || sessionType === SESSION_TYPES.SPRINT_Q2) {
+    cutoff = QUALIFYING_FINAL_SEGMENT_CARS;
+  }
+  return cutoff !== null && cutoff < carCount ? cutoff : null;
+};
+
 export const isPracticeSession = (sessionType?: number): boolean => {
   if (sessionType === undefined || sessionType === null) return false;
   return (
@@ -230,6 +248,30 @@ export const getSessionTypeName = (sessionType?: number): string => {
     default:
       return 'Live Session';
   }
+};
+
+/** Session names exactly as the server stores them (packets.SessionTypeName), for session badges. */
+export const SESSION_TYPE_LABELS: Record<number, string> = {
+  [SESSION_TYPES.P1]: 'Practice 1',
+  [SESSION_TYPES.P2]: 'Practice 2',
+  [SESSION_TYPES.P3]: 'Practice 3',
+  [SESSION_TYPES.SHORT_P]: 'Short Practice',
+  [SESSION_TYPES.Q1]: 'Qualifying 1',
+  [SESSION_TYPES.Q2]: 'Qualifying 2',
+  [SESSION_TYPES.Q3]: 'Qualifying 3',
+  [SESSION_TYPES.SHORT_Q]: 'Short Qualifying',
+  [SESSION_TYPES.OSQ]: 'One-Shot Qualifying',
+  [SESSION_TYPES.SPRINT_Q1]: 'Sprint Shootout 1',
+  [SESSION_TYPES.SPRINT_Q2]: 'Sprint Shootout 2',
+  [SESSION_TYPES.SPRINT_Q3]: 'Sprint Shootout 3',
+  [SESSION_TYPES.SHORT_SPRINT_Q]: 'Short Sprint Shootout',
+  [SESSION_TYPES.OS_SPRINT_Q]: 'One-Shot Sprint Shootout',
+  [SESSION_TYPES.RACE]: 'Race',
+  [SESSION_TYPES.RACE_2]: 'Race 2',
+  [SESSION_TYPES.RACE_3]: 'Race 3',
+  [SESSION_TYPES.TIME_TRIAL]: 'Time Trial',
+  [SESSION_TYPES.SPRINT_RACE]: 'Sprint Race',
+  [SESSION_TYPES.EQUAL_SPRINT_RACE]: 'Equal Sprint Race',
 };
 
 export const getSessionTypeCode = (sessionTypeStr?: string): number => {
@@ -405,6 +447,16 @@ export const WEATHER_TYPES: Record<number, string> = {
   [WEATHER_CODES.LIGHT_RAIN]: 'Light Rain',
   [WEATHER_CODES.HEAVY_RAIN]: 'Heavy Rain',
   [WEATHER_CODES.STORM]: 'Storm',
+};
+
+/** Translation key of each weather code's display name. */
+export const WEATHER_LABEL_KEYS: Record<number, string> = {
+  [WEATHER_CODES.CLEAR]: 'live.weatherClearSunny',
+  [WEATHER_CODES.LIGHT_CLOUD]: 'live.weatherLightCloud',
+  [WEATHER_CODES.OVERCAST]: 'live.weatherOvercast',
+  [WEATHER_CODES.LIGHT_RAIN]: 'live.weatherLightRain',
+  [WEATHER_CODES.HEAVY_RAIN]: 'live.weatherHeavyRain',
+  [WEATHER_CODES.STORM]: 'live.weatherStorm',
 };
 
 export interface TrackInfo {
@@ -712,6 +764,30 @@ export const LIVE_VIEW_MODES = {
 export type LiveViewMode = (typeof LIVE_VIEW_MODES)[keyof typeof LIVE_VIEW_MODES];
 
 export const STORAGE_KEY_LIVE_VIEW_MODE = 'f1_live_view_mode';
+
+/** What the live telemetry feed is doing right now, as shown in the nav and the live header. */
+export const LIVE_STATUS = {
+  /** Not connected to the backend (or not on the Live tab, where the feed is opened). */
+  OFFLINE: 'offline',
+  /** Connected to the backend, but no session packets have arrived yet. */
+  LISTENING: 'listening',
+  /** Packets are arriving. */
+  LIVE: 'live',
+  /** A session was running but packets stopped (game closed or in the menus). */
+  STALE: 'stale',
+} as const;
+
+export type LiveStatus = (typeof LIVE_STATUS)[keyof typeof LIVE_STATUS];
+
+/** A live session counts as stale once no packet has arrived for this long. */
+export const LIVE_STALE_AFTER_MS = 3_000;
+/** How often the live status re-checks for a stale feed. */
+export const LIVE_STATUS_POLL_MS = 1_000;
+
+/** The game's default UDP telemetry port, shown until the server reports the real one. */
+export const DEFAULT_UDP_PORT = 20777;
+/** The address to enter in the game when it runs on the same PC as this app. */
+export const LOCALHOST_IPV4 = '127.0.0.1';
 
 export const DEFAULT_PIT_STRATEGY_DEFAULTS = {
   IDEAL_LAP: 18,

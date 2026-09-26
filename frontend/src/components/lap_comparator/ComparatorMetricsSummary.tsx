@@ -2,6 +2,7 @@ import React from 'react';
 import { Award, ArrowUpRight, ArrowDownRight, Activity, Clock } from 'lucide-react';
 import type { Lap, Participant } from '../../types/session';
 import { formatTime } from '../../utils/formatters';
+import { TIME_CONSTANTS } from '../../constants/f1';
 import { useI18n } from '../../context/I18nContext';
 
 interface ComparatorMetricsSummaryProps {
@@ -94,9 +95,9 @@ export const ComparatorMetricsSummary: React.FC<ComparatorMetricsSummaryProps> =
             <div>
               <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>
                 {totalDeltaMs < 0
-                  ? t('comparator.metrics.fasterLapA', { driver: nameA, delta: Math.abs(totalDeltaMs / 1000).toFixed(3) })
+                  ? t('comparator.metrics.fasterLapA', { driver: nameA, delta: Math.abs(totalDeltaMs / TIME_CONSTANTS.MS_PER_SECOND).toFixed(3) })
                   : totalDeltaMs > 0
-                  ? t('comparator.metrics.fasterLapB', { driver: nameB, delta: (totalDeltaMs / 1000).toFixed(3) })
+                  ? t('comparator.metrics.fasterLapB', { driver: nameB, delta: Math.abs(totalDeltaMs / TIME_CONSTANTS.MS_PER_SECOND).toFixed(3) })
                   : t('comparator.metrics.identicalTime')}
               </div>
               <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>

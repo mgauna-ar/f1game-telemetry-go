@@ -1,7 +1,9 @@
 import React from 'react';
+import { RotateCw } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
 import { type CommonChartProps } from './chartDefaults';
 import { ComparatorChart } from './ComparatorChart';
+import { ChartTitle } from './ChartTitle';
 
 export const SteeringChart = React.memo<CommonChartProps>((props) => {
   const { t } = useI18n();
@@ -11,7 +13,7 @@ export const SteeringChart = React.memo<CommonChartProps>((props) => {
     <ComparatorChart
       {...props}
       height="260px"
-      title={<h3 style={{ margin: 0, fontSize: '1rem', color: '#fff' }}>📐 {t('comparator.charts.steering')}</h3>}
+      title={<ChartTitle icon={RotateCw} label={t('comparator.charts.steering')} />}
       dataKeyA="steerA"
       dataKeyB="steerB"
       lineNameA={`${nameA} Steer`}

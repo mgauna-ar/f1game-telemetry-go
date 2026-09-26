@@ -16,6 +16,10 @@ export const ai_engineer = {
   model: 'Model',
   saveSettings: 'Save Configuration',
   close: 'Close',
+  welcomeMessage:
+    '👋 **Hello! I am your AI Race Engineer.**\n\nI am connected to your telemetry feed across Session History, Lap Comparator, and Live Sessions.\n\n*Use the quick prompt chips below or ask me any question about your driving deltas, braking points, or race strategy.*',
+  clearedMessage:
+    '👋 **Session history cleared.**\n\nI am standing by on the team radio. Select laps in comparator, inspect sessions, or ask any telemetry questions.',
   chips: {
     tyreWear: 'Analyze my tyre degradation and stint pace',
     deltaS2: 'Where am I losing time in Sector 2 vs Lap B?',
@@ -174,6 +178,10 @@ export const ai_engineer = {
     testRadio: 'Test Radio Transmission',
     settings: 'Radio Settings',
     pttHint: 'Hold {key} or mapped wheel button to talk',
+    pttHintButton: 'Hold {button} to talk',
+    buttonNumber: 'Button {number}',
+    pttNotSet: 'No push-to-talk button set',
+    pttSetUp: 'Set up',
     notSupported: 'Speech Recognition is not supported in this browser.',
     masterToggle: 'Live Voice Race Engineer',
     masterToggleDesc: 'Enables Push-to-Talk speech recognition and proactive pit wall alerts',

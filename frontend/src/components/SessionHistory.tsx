@@ -17,6 +17,7 @@ import { SessionBatchDock } from './session_history/SessionBatchDock';
 import { StandaloneToastContainer } from './common/ToastContainer';
 
 import { useI18n } from '../context/I18nContext';
+import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { SessionHistoryProvider } from '../context/SessionHistoryContext';
 import {
   useSessionHistoryData,
@@ -40,7 +41,7 @@ interface SessionHistoryProps {
 }
 
 const SessionHistoryContent: React.FC = () => {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const {
     sessions,
     filteredSessions,
@@ -77,6 +78,12 @@ const SessionHistoryContent: React.FC = () => {
     handleExecuteBatchTag,
     setToastMessage,
   } = useSessionHistoryActions();
+
+  useDocumentTitle(
+    selectedSession
+      ? `${selectedSession.track_name} ${selectedSession.session_type} · ${new Date(selectedSession.created_at).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}`
+      : t('nav.tabs.history')
+  );
 
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '1.5rem 2rem' }}>

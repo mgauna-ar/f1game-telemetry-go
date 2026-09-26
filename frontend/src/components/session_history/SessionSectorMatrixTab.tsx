@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Zap, Gauge, Award, Layers } from 'lucide-react';
 import { TEAM_COLORS, DEFAULT_MAX_SPEED_FALLBACK_KPH } from '../../constants/f1';
+import { UI } from '../../constants/ui';
 
 import { formatSectorTime } from '../../utils/formatters';
 import type { DriverStanding, ClassificationResponse } from '../../types/session';
@@ -86,6 +87,10 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
   }, [classificationData, driverStandings]);
 
   const maxOverallSpeed = speedRankings.length > 0 ? speedRankings[0].maxSpeed : DEFAULT_MAX_SPEED_FALLBACK_KPH;
+  const minOverallSpeed = speedRankings.length > 0 ? Math.min(...speedRankings.map((d) => d.maxSpeed)) : 0;
+  // Top speeds sit within a few km/h of each other, so bars span slowest-to-fastest instead of 0-to-fastest
+  const speedSpread = maxOverallSpeed - minOverallSpeed;
+  const kmh = t('common.units.kmh');
 
 
   return (
@@ -312,7 +317,7 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
               <Gauge size={18} color="var(--accent-secondary)" /> {t('history.sectors.speedTrapMaxSpeeds')}
             </h4>
             <span className="mono" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              {t('history.sectors.highestSpeed', { speed: maxOverallSpeed ? `${maxOverallSpeed.toFixed(1)} km/h` : '--' })}
+              {t('history.sectors.highestSpeed', { speed: maxOverallSpeed ? `${maxOverallSpeed.toFixed(1)} ${kmh}` : '--' })}
             </span>
           </div>
 
@@ -320,7 +325,10 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
             {speedRankings.map((driver, rankIdx) => {
               const teamColor = TEAM_COLORS[driver.participant.team_id] || '#00f2fe';
               const speed = driver.maxSpeed;
-              const speedRatio = maxOverallSpeed > 0 ? (speed / maxOverallSpeed) * 100 : 0;
+              const speedRatio =
+                speedSpread > 0
+                  ? UI.RANKING_BAR_MIN_PCT + ((speed - minOverallSpeed) / speedSpread) * (100 - UI.RANKING_BAR_MIN_PCT)
+                  : 100;
               const deltaToTop = maxOverallSpeed > 0 ? maxOverallSpeed - speed : 0;
 
               return (
@@ -345,11 +353,11 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       {deltaToTop > 0 && (
                         <span className="mono" style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                          -{deltaToTop.toFixed(1)} km/h
+                          -{deltaToTop.toFixed(1)} {kmh}
                         </span>
                       )}
                       <span className="mono" style={{ fontSize: '0.9rem', fontWeight: 700, color: rankIdx === 0 ? 'var(--accent-secondary)' : 'var(--text-primary)' }}>
-                        {speed.toFixed(1)} km/h
+                        {speed.toFixed(1)} {kmh}
                       </span>
                     </div>
                   </div>
@@ -357,8 +365,9 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
                   {/* Horizontal Speed Bar */}
                   <div style={{ width: '100%', height: '4px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
                     <div
+                      className="speed-rank-bar-fill"
                       style={{
-                        width: `${Math.max(10, speedRatio)}%`,
+                        width: `${speedRatio}%`,
                         height: '100%',
                         backgroundColor: teamColor,
                         borderRadius: '2px',

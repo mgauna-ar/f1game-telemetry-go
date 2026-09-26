@@ -31,11 +31,19 @@ export const UI = {
   DEBOUNCE_SEARCH_MS: 300,
   DEFAULT_RECONNECT_MS: 2000,
   MAX_RECONNECT_MS: 30000,
+  COPY_FEEDBACK_MS: 2000,
+
+  // Shortest bar in a ranking scaled from the slowest to the fastest value (%)
+  RANKING_BAR_MIN_PCT: 8,
 
   // Grid & Layout Sizes (px)
   LEADERBOARD_WIDTH_PX: 320,
   MODAL_MAX_WIDTH_PX: 680,
 } as const;
+
+/** Browser tab titles read "<view> · F1 Telemetry"; the default matches index.html. */
+export const APP_NAME = 'F1 Telemetry';
+export const DEFAULT_DOCUMENT_TITLE = 'F1 Telemetry — Real-Time Telemetry & Pit Wall';
 
 export const SLOT_COLORS = {
   A: { primary: '#00d2d3', bg: 'rgba(0, 210, 211, 0.08)', border: 'rgba(0, 210, 211, 0.4)' },

@@ -202,6 +202,7 @@ func initHTTPServer(
 		ClaudeAPIKey: cfg.ClaudeAPIKey,
 		LLMModel:     cfg.LLMModel,
 		LLMProvider:  cfg.LLMProvider,
+		UDPAddr:      cfg.UDPAddr,
 	}
 
 	apiServer := api.NewServer(repo, telemetryHub, engineerHub, apiConfig)

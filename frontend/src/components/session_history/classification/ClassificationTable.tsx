@@ -47,6 +47,10 @@ export const ClassificationTable: React.FC<ClassificationTableProps> = ({
   const leaderBestLapMS = driverStandings.length > 0 ? driverStandings[0].bestLapTimeMS : Infinity;
   const leaderTotalRaceTimeMS = driverStandings.length > 0 ? driverStandings[0].totalRaceTimeWithPenalties : undefined;
   const leaderLapsCount = driverStandings.length > 0 ? driverStandings[0].laps.length : 0;
+  // Lobbies without a points system report 0 for everyone, which only adds noise
+  const showPoints = isRaceSession && driverStandings.some((d) => (d.points ?? 0) > 0);
+  const raceColumnCount = showPoints ? 12 : 11;
+  const timingColumnCount = 11;
 
   return (
     <div className="glass-panel" style={{ padding: '1.25rem' }}>
@@ -72,8 +76,8 @@ export const ClassificationTable: React.FC<ClassificationTableProps> = ({
           {t('history.classification.noLapData')}
         </div>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table className="history-table">
+        <div className="history-table-scroll">
+          <table className="history-table sticky-header">
             <thead>
               {isRaceSession ? (
                 <tr>
@@ -82,7 +86,9 @@ export const ClassificationTable: React.FC<ClassificationTableProps> = ({
                   <th style={{ minWidth: '110px' }}>{t('history.classification.headers.timeGap')}</th>
                   <th style={{ width: '45px', textAlign: 'center' }}>{t('history.classification.headers.laps')}</th>
                   <th style={{ minWidth: '120px' }}>{t('history.classification.headers.tyreStints')}</th>
-                  <th style={{ width: '45px', textAlign: 'center' }}>{t('history.classification.headers.points')}</th>
+                  {showPoints && (
+                    <th style={{ width: '45px', textAlign: 'center' }}>{t('history.classification.headers.points')}</th>
+                  )}
                   <th style={{ minWidth: '95px' }}>{t('history.classification.headers.fastestLap')}</th>
                   <th style={{ minWidth: '65px' }}>{t('history.classification.headers.s1')}</th>
                   <th style={{ minWidth: '65px' }}>{t('history.classification.headers.s2')}</th>
@@ -114,6 +120,8 @@ export const ClassificationTable: React.FC<ClassificationTableProps> = ({
                   driver={driver}
                   isLeader={driver.position === 1}
                   isRaceSession={isRaceSession}
+                  showPoints={showPoints}
+                  columnCount={isRaceSession ? raceColumnCount : timingColumnCount}
                   leaderBestLapMS={leaderBestLapMS}
                   leaderTotalRaceTimeMS={leaderTotalRaceTimeMS}
                   leaderLapsCount={leaderLapsCount}

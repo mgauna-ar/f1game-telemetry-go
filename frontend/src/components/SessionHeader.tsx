@@ -4,10 +4,23 @@ import type { SessionData } from '../hooks/useTelemetry';
 import { useI18n } from '../context/I18nContext';
 import { F1FormatBadge } from './F1FormatBadge';
 import { TrackFlag } from './TrackFlag';
-import { TRACK_NAMES, getTrackInfo, LIVE_VIEW_MODES } from '../constants/f1';
+import { LiveStatusIndicator } from './common/LiveStatusIndicator';
+import { SessionTypeBadge } from './common/SessionTypeBadge';
+import {
+  TRACK_NAMES,
+  getTrackInfo,
+  LIVE_VIEW_MODES,
+  SAFETY_CAR_STATUS,
+  SESSION_TYPE_LABELS,
+  WEATHER_CODES,
+  WEATHER_LABEL_KEYS,
+  TIME_CONSTANTS,
+  isRaceSession,
+} from '../constants/f1';
 import type { LiveViewMode } from '../constants/f1';
 
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
+import { useTelemetryEndpointStore } from '../store/useTelemetryEndpointStore';
 
 interface SessionHeaderProps {
   session?: SessionData | null;
@@ -16,34 +29,6 @@ interface SessionHeaderProps {
   viewMode?: LiveViewMode;
   onViewModeChange?: (mode: LiveViewMode) => void;
 }
-
-const WEATHER_NAMES: Record<number, string> = {
-  0: 'Clear ☀️', 1: 'Light Cloud ⛅', 2: 'Overcast ☁️',
-  3: 'Light Rain 🌧️', 4: 'Heavy Rain 🌧️', 5: 'Storm ⛈️',
-};
-
-const SESSION_TYPES: Record<number, { label: string; isRace: boolean; isQualy: boolean; isSprint?: boolean }> = {
-  1: { label: 'PRACTICE 1', isRace: false, isQualy: false },
-  2: { label: 'PRACTICE 2', isRace: false, isQualy: false },
-  3: { label: 'PRACTICE 3', isRace: false, isQualy: false },
-  4: { label: 'SHORT PRACTICE', isRace: false, isQualy: false },
-  5: { label: 'QUALIFYING 1', isRace: false, isQualy: true },
-  6: { label: 'QUALIFYING 2', isRace: false, isQualy: true },
-  7: { label: 'QUALIFYING 3', isRace: false, isQualy: true },
-  8: { label: 'SHORT QUALIFYING', isRace: false, isQualy: true },
-  9: { label: 'ONE-SHOT QUALI', isRace: false, isQualy: true },
-  10: { label: 'SPRINT QUALI 1', isRace: false, isQualy: true, isSprint: true },
-  11: { label: 'SPRINT QUALI 2', isRace: false, isQualy: true, isSprint: true },
-  12: { label: 'SPRINT QUALI 3', isRace: false, isQualy: true, isSprint: true },
-  13: { label: 'SHORT SPRINT QUALI', isRace: false, isQualy: true, isSprint: true },
-  14: { label: 'ONE-SHOT SPRINT QUALI', isRace: false, isQualy: true, isSprint: true },
-  15: { label: 'RACE', isRace: true, isQualy: false },
-  16: { label: 'RACE 2', isRace: true, isQualy: false },
-  17: { label: 'RACE 3', isRace: true, isQualy: false },
-  18: { label: 'TIME TRIAL', isRace: false, isQualy: false },
-  19: { label: 'SPRINT RACE', isRace: true, isQualy: false, isSprint: true },
-  20: { label: 'EQUAL SPRINT RACE', isRace: true, isQualy: false, isSprint: true },
-};
 
 export const SessionHeader: React.FC<SessionHeaderProps> = React.memo((props) => {
   const storeSession = useSessionStatusStore((s) => s.session);
@@ -57,6 +42,7 @@ export const SessionHeader: React.FC<SessionHeaderProps> = React.memo((props) =>
   const onViewModeChange = props.onViewModeChange;
 
   const { t } = useI18n();
+  const udpPort = useTelemetryEndpointStore((s) => s.endpoint.udp_port);
 
   // If no active session yet (waiting for data)
   if (!session) {
@@ -77,7 +63,7 @@ export const SessionHeader: React.FC<SessionHeaderProps> = React.memo((props) =>
                 </span>
               </div>
               <p className="mono" style={{ color: 'var(--text-secondary)', margin: '2px 0 0 0', fontSize: '0.80rem' }}>
-                {t('live.commandCenter')} • UDP 20777
+                {t('live.commandCenter')} • UDP {udpPort}
               </p>
             </div>
           </div>
@@ -110,13 +96,8 @@ export const SessionHeader: React.FC<SessionHeaderProps> = React.memo((props) =>
             </div>
           )}
 
-          {/* WebSocket Connection Status */}
-          <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255, 255, 255, 0.03)', padding: '6px 12px', borderRadius: '8px', whiteSpace: 'nowrap' }}>
-            <span className={`status-dot ${connected ? 'status-live' : ''}`} />
-            <span className="mono" style={{ marginLeft: '8px', color: connected ? 'var(--accent-primary)' : 'var(--text-muted)', fontSize: '0.82rem', fontWeight: 600 }}>
-              {connected ? t('live.liveStatus') : t('live.reconnecting')}
-            </span>
-          </div>
+          {/* Live feed state */}
+          <LiveStatusIndicator />
         </div>
       </header>
     );
@@ -125,40 +106,41 @@ export const SessionHeader: React.FC<SessionHeaderProps> = React.memo((props) =>
   // Active Session rendering
   const trackInfo = getTrackInfo(session.TrackId);
   const trackName = trackInfo?.name || TRACK_NAMES[session.TrackId] || `Track #${session.TrackId}`;
-  const sessionInfo = SESSION_TYPES[session.SessionType] || { label: 'LIVE SESSION', isRace: false, isQualy: false };
-  const weatherText = WEATHER_NAMES[session.Weather] || 'Clear ☀️';
+  const sessionLabel = SESSION_TYPE_LABELS[session.SessionType] || t('nav.tabs.live');
+  const isRace = isRaceSession(session.SessionType);
+  const weatherText = t(WEATHER_LABEL_KEYS[session.Weather] ?? WEATHER_LABEL_KEYS[WEATHER_CODES.CLEAR]);
   const effectiveFormat = packetFormat || session?.PacketFormat;
 
   const formatSeconds = (secs: number) => {
     if (!secs) return '--:--';
-    const m = Math.floor(secs / 60);
-    const s = secs % 60;
+    const m = Math.floor(secs / TIME_CONSTANTS.SECONDS_PER_MINUTE);
+    const s = secs % TIME_CONSTANTS.SECONDS_PER_MINUTE;
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
   const renderSafetyCarBadge = () => {
-    if (session.SafetyCarStatus === 0) {
+    if (session.SafetyCarStatus === SAFETY_CAR_STATUS.CLEAR) {
       return (
         <span className="session-badge badge-green">
           <Flag size={14} /> {t('live.greenFlag')}
         </span>
       );
     }
-    if (session.SafetyCarStatus === 1) {
+    if (session.SafetyCarStatus === SAFETY_CAR_STATUS.FULL) {
       return (
         <span className="session-badge badge-yellow glow-yellow">
-          <ShieldAlert size={14} /> SAFETY CAR
+          <ShieldAlert size={14} /> {t('live.safetyCarStatus')}
         </span>
       );
     }
-    if (session.SafetyCarStatus === 2) {
+    if (session.SafetyCarStatus === SAFETY_CAR_STATUS.VIRTUAL) {
       return (
         <span className="session-badge badge-orange">
-          <ShieldAlert size={14} /> VIRTUAL SAFETY CAR
+          <ShieldAlert size={14} /> {t('live.vscStatus')}
         </span>
       );
     }
-    if (session.SafetyCarStatus === 3) {
+    if (session.SafetyCarStatus === SAFETY_CAR_STATUS.FORMATION_LAP) {
       return (
         <span className="session-badge badge-blue">
           <Flag size={14} /> {t('live.formationLap')}
@@ -166,13 +148,6 @@ export const SessionHeader: React.FC<SessionHeaderProps> = React.memo((props) =>
       );
     }
     return null;
-  };
-
-  const getHeaderBadgeClass = () => {
-    if (sessionInfo.isSprint) return 'badge-orange';
-    if (sessionInfo.isRace) return 'badge-red';
-    if (sessionInfo.isQualy) return 'badge-purple';
-    return 'badge-gray';
   };
 
   return (
@@ -184,9 +159,7 @@ export const SessionHeader: React.FC<SessionHeaderProps> = React.memo((props) =>
             <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 800 }}>{trackName}</h1>
 
             <F1FormatBadge format={effectiveFormat} size="sm" />
-            <span className={`session-badge ${getHeaderBadgeClass()}`}>
-              {sessionInfo.label}
-            </span>
+            <SessionTypeBadge sessionType={sessionLabel} size="sm" />
           </div>
           <p className="mono" style={{ color: 'var(--text-secondary)', margin: '4px 0 0 0', fontSize: '0.9rem' }}>
             {t('live.commandCenter')}
@@ -224,10 +197,10 @@ export const SessionHeader: React.FC<SessionHeaderProps> = React.memo((props) =>
         {/* Session Progress / Timer */}
         <div className="header-stat-box">
           <Timer size={16} color="var(--text-secondary)" />
-          {sessionInfo.isRace ? (
+          {isRace ? (
             <div>
               <div className="stat-label">{t('live.totalLaps')}</div>
-              <div className="stat-value mono">{session.TotalLaps ? `${session.TotalLaps} ${t('common.laps').toUpperCase()}` : 'TIME TRIAL'}</div>
+              <div className="stat-value mono">{session.TotalLaps ? `${session.TotalLaps} ${t('common.laps').toUpperCase()}` : '--'}</div>
             </div>
           ) : (
             <div>
@@ -259,13 +232,8 @@ export const SessionHeader: React.FC<SessionHeaderProps> = React.memo((props) =>
         {/* Safety Car Badge */}
         {renderSafetyCarBadge()}
 
-        {/* WebSocket Connection Status */}
-        <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255, 255, 255, 0.03)', padding: '6px 12px', borderRadius: '8px' }}>
-          <span className={`status-dot ${connected ? 'status-live' : ''}`} />
-          <span className="mono" style={{ marginLeft: '8px', color: connected ? 'var(--accent-primary)' : 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 600 }}>
-            {connected ? t('live.liveStatus') : t('live.reconnecting')}
-          </span>
-        </div>
+        {/* Live feed state */}
+        <LiveStatusIndicator />
       </div>
     </header>
   );

@@ -30,6 +30,8 @@ type ServerConfig struct {
 	ClaudeAPIKey string
 	LLMModel     string
 	LLMProvider  string
+	// UDPAddr is the address the telemetry listener is bound to, shown to users setting up the game.
+	UDPAddr string
 }
 
 // Server handles HTTP requests for the API and serves the frontend.
@@ -219,6 +221,7 @@ func (s *Server) setupPTTRoutes(r chi.Router) {
 func (s *Server) setupSystemRoutes(r chi.Router) {
 	r.Get("/system/version", s.handleGetSystemVersion)
 	r.Get("/system/check-updates", s.handleCheckUpdates)
+	r.Get("/system/network", s.handleGetSystemNetwork)
 }
 
 func (s *Server) setupStaticRoutes() {

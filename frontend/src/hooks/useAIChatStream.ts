@@ -1,6 +1,7 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo } from 'react';
 import { api } from '../utils/apiClient';
 import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
+import { useI18n } from '../context/I18nContext';
 import {
   providerHasKey,
   type AIConfig,
@@ -23,6 +24,21 @@ export interface UseAIChatStreamReturn {
   stopGenerating: () => void;
   clearMessages: () => void;
 }
+
+const WELCOME_MESSAGE_ID = 'welcome';
+const CLEARED_MESSAGE_ID_PREFIX = 'welcome-cleared-';
+
+/** The greeting that opens the chat (or reopens it after a clear); never sent to the model. */
+const isGreeting = (m: ChatMessage): boolean =>
+  m.id === WELCOME_MESSAGE_ID || m.id.startsWith(CLEARED_MESSAGE_ID_PREFIX);
+
+const createGreeting = (id: string): ChatMessage => ({
+  id,
+  role: 'assistant',
+  // Filled in with the current language when the messages are returned
+  content: '',
+  timestamp: new Date(),
+});
 
 interface CustomStreamError extends Error {
   errorCode?: string;
@@ -50,15 +66,8 @@ export const useAIChatStream = ({
   keyStatus,
   buildCurrentBackendContext,
 }: UseAIChatStreamProps): UseAIChatStreamReturn => {
-  const [messages, setMessages] = useState<ChatMessage[]>(() => [
-    {
-      id: 'welcome',
-      role: 'assistant',
-      content:
-        '👋 **Hello! I am your AI Race Engineer.**\n\nI am connected to your telemetry feed across Session History, Lap Comparator, and Live Sessions.\n\n*Use the quick prompt chips below or ask me any question about your driving deltas, braking points, or race strategy.*',
-      timestamp: new Date(),
-    },
-  ]);
+  const { t } = useI18n();
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [createGreeting(WELCOME_MESSAGE_ID)]);
 
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -114,7 +123,7 @@ export const useAIChatStream = ({
 
       try {
         const apiMessages = nextMessages
-          .filter((m) => m.id !== 'welcome' && m.id !== assistantMsgId)
+          .filter((m) => !isGreeting(m) && m.id !== assistantMsgId)
           .map((m) => ({
             role: m.role,
             content: m.content,
@@ -340,19 +349,25 @@ export const useAIChatStream = ({
   }, []);
 
   const clearMessages = useCallback(() => {
-    setMessages([
-      {
-        id: `welcome-${Date.now()}`,
-        role: 'assistant',
-        content:
-          '👋 **Session history cleared.**\n\nI am standing by on the team radio. Select laps in comparator, inspect sessions, or ask any telemetry questions.',
-        timestamp: new Date(),
-      },
-    ]);
+    setMessages([createGreeting(`${CLEARED_MESSAGE_ID_PREFIX}${Date.now()}`)]);
   }, []);
 
+  // Greetings are translated here rather than stored, so they follow a language change
+  const localizedMessages = useMemo(
+    () =>
+      messages.map((m) =>
+        isGreeting(m)
+          ? {
+              ...m,
+              content: t(m.id === WELCOME_MESSAGE_ID ? 'ai_engineer.welcomeMessage' : 'ai_engineer.clearedMessage'),
+            }
+          : m
+      ),
+    [messages, t]
+  );
+
   return {
-    messages,
+    messages: localizedMessages,
     isGenerating,
     sendMessage,
     retryLastMessage,

@@ -16,6 +16,10 @@ export const ai_engineer = {
   model: 'Modelo',
   saveSettings: 'Guardar Configuración',
   close: 'Cerrar',
+  welcomeMessage:
+    '👋 **¡Hola! Soy tu Ingeniero de Carrera IA.**\n\nEstoy conectado a tu telemetría en el Historial de Sesiones, el Comparador de Vueltas y las Sesiones en Vivo.\n\n*Usá los atajos de abajo o preguntame lo que quieras sobre tus diferencias de manejo, puntos de frenado o estrategia de carrera.*',
+  clearedMessage:
+    '👋 **Historial de la sesión borrado.**\n\nEstoy atento en la radio del equipo. Elegí vueltas en el comparador, revisá sesiones o haceme cualquier pregunta sobre la telemetría.',
   chips: {
     tyreWear: 'Analizar la degradación de neumáticos y el ritmo de carrera',
     deltaS2: '¿Dónde estoy perdiendo tiempo en el Sector 2 respecto a la Vuelta B?',
@@ -174,6 +178,10 @@ export const ai_engineer = {
     testRadio: 'Probar Transmisión de Radio',
     settings: 'Configuración de Radio',
     pttHint: 'Mantené presionado {key} o el botón del volante para hablar',
+    pttHintButton: 'Mantené presionado {button} para hablar',
+    buttonNumber: 'Botón {number}',
+    pttNotSet: 'Sin botón de PTT asignado',
+    pttSetUp: 'Configurar',
     notSupported: 'El reconocimiento de voz no está soportado en este navegador.',
     masterToggle: 'Ingeniero de Voz en Vivo',
     masterToggleDesc: 'Habilita la comunicación por Push-to-Talk y alertas de boxes',

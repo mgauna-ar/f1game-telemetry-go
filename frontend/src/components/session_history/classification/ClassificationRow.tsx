@@ -11,6 +11,10 @@ interface ClassificationRowProps {
   driver: DriverStanding;
   isLeader: boolean;
   isRaceSession: boolean;
+  /** Whether the table has a points column (hidden when nobody scored). */
+  showPoints: boolean;
+  /** Number of table columns, spanned by the expanded laps row. */
+  columnCount: number;
   leaderBestLapMS: number;
   leaderTotalRaceTimeMS?: number;
   leaderLapsCount?: number;
@@ -36,6 +40,8 @@ export const ClassificationRow: React.FC<ClassificationRowProps> = React.memo(({
   driver,
   isLeader,
   isRaceSession,
+  showPoints,
+  columnCount,
   leaderBestLapMS,
   leaderTotalRaceTimeMS,
   leaderLapsCount = 0,
@@ -234,25 +240,27 @@ export const ClassificationRow: React.FC<ClassificationRowProps> = React.memo(({
             <td>{renderDriverTyreStints(driver.laps)}</td>
 
             {/* Points */}
-            <td className="mono" style={{ textAlign: 'center', fontSize: '0.82rem' }}>
-              {(driver.points ?? 0) > 0 ? (
-                <span
-                  style={{
-                    fontWeight: 700,
-                    color: 'var(--accent-primary)',
-                    backgroundColor: 'rgba(255, 215, 0, 0.12)',
-                    border: '1px solid rgba(255, 215, 0, 0.3)',
-                    borderRadius: '3px',
-                    padding: '1px 5px',
-                    fontSize: '0.72rem',
-                  }}
-                >
-                  {driver.points}
-                </span>
-              ) : (
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>0</span>
-              )}
-            </td>
+            {showPoints && (
+              <td className="mono" style={{ textAlign: 'center', fontSize: '0.82rem' }}>
+                {(driver.points ?? 0) > 0 ? (
+                  <span
+                    style={{
+                      fontWeight: 700,
+                      color: 'var(--accent-primary)',
+                      backgroundColor: 'rgba(255, 215, 0, 0.12)',
+                      border: '1px solid rgba(255, 215, 0, 0.3)',
+                      borderRadius: '3px',
+                      padding: '1px 5px',
+                      fontSize: '0.72rem',
+                    }}
+                  >
+                    {driver.points}
+                  </span>
+                ) : (
+                  <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>0</span>
+                )}
+              </td>
+            )}
 
             {/* Fastest Lap of Driver */}
             <td className="mono" style={{ fontWeight: 700, fontSize: '0.82rem', whiteSpace: 'nowrap', color: isOverallFastestLap ? 'var(--accent-purple)' : 'var(--accent-tertiary)' }}>
@@ -415,7 +423,7 @@ export const ClassificationRow: React.FC<ClassificationRowProps> = React.memo(({
       {/* Expandable Driver Laps Sub-Table */}
       {isExpanded && (
         <tr>
-          <td colSpan={11} style={{ background: 'rgba(0, 0, 0, 0.5)', padding: '0.75rem 1rem' }}>
+          <td colSpan={columnCount} style={{ background: 'rgba(0, 0, 0, 0.5)', padding: '0.75rem 1rem' }}>
             <DriverLapsSubTable
               session={session}
               driver={driver}

@@ -1,9 +1,10 @@
 import React from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Zap } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
 import { getErsModeName } from '../../../constants/f1';
 import { type CommonChartProps } from './chartDefaults';
 import { ComparatorChart } from './ComparatorChart';
+import { ChartTitle } from './ChartTitle';
 
 export interface ErsDeployModeChartProps extends CommonChartProps {
   isErsRestrictedA: boolean;
@@ -19,9 +20,7 @@ export const ErsDeployModeChart = React.memo<ErsDeployModeChartProps>((props) =>
 
   const titleNode = (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-      <h3 style={{ margin: 0, fontSize: '1rem', color: '#bd93f9', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-        🚀 {t('comparator.charts.ersDeployMode')}
-      </h3>
+      <ChartTitle icon={Zap} label={t('comparator.charts.ersDeployMode')} color="#bd93f9" />
       {(isErsRestrictedA || isErsRestrictedB) && (
         <span
           style={{

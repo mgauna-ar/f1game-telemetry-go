@@ -2,27 +2,37 @@ import React from 'react';
 import { useI18n } from '../../context/I18nContext';
 import type { UseRadioControllerReturn } from '../../hooks/useRadioController';
 import type { SessionData } from '../../types/telemetry';
+import { getPttHint } from '../../utils/pttHint';
 
 export interface RadioDialogueTranscriptProps {
   radio: UseRadioControllerReturn;
   connected: boolean;
   session: SessionData | null;
+  /** Opens the radio settings where a push-to-talk button can be set up. */
+  onSetUpPtt?: () => void;
 }
 
 export const RadioDialogueTranscript: React.FC<RadioDialogueTranscriptProps> = ({
   radio,
   connected,
   session,
+  onSetUpPtt,
 }) => {
   const { t } = useI18n();
+  const pttHint = getPttHint(radio, t);
 
   return (
     <div className="voice-cockpit-dialogue-card">
       <div className="dialogue-header">
         <span className="dialogue-tag">{t('live.cockpit.recentTransmission')}</span>
         <div className="dialogue-ptt-badge">
-          <span className="key-chip">{radio.mappedKey}</span>
-          <span className="ptt-label">{t('ai_engineer.radio.pttHint', { key: radio.mappedKey })}</span>
+          {pttHint.badge && <span className="key-chip">{pttHint.badge}</span>}
+          <span className="ptt-label">{pttHint.text}</span>
+          {!pttHint.badge && onSetUpPtt && (
+            <button type="button" className="ptt-setup-link" onClick={onSetUpPtt}>
+              {t('ai_engineer.radio.pttSetUp')} →
+            </button>
+          )}
         </div>
       </div>
 

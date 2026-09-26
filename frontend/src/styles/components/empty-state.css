@@ -172,6 +172,7 @@
 }
 
 .waiting-port-pill {
+  text-transform: uppercase;
   display: inline-flex;
   align-items: center;
   padding: 5px 12px;
@@ -260,6 +261,37 @@
 
 .chk-label {
   color: var(--text-secondary);
+}
+
+.guide-checklist li.guide-ip-row {
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.guide-ip-values {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+}
+
+.guide-ip-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.guide-ip-hint {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.guide-broadcast-hint {
+  margin: 0.75rem 0 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.45;
 }
 
 .chk-val {

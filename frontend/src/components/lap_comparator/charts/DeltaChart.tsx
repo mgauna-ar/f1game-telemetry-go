@@ -1,9 +1,10 @@
 import React from 'react';
-import { AlertTriangle, Clock } from 'lucide-react';
+import { AlertTriangle, Clock, Timer } from 'lucide-react';
 import { Line } from 'recharts';
 import { useI18n } from '../../../context/I18nContext';
 import { type CommonChartProps } from './chartDefaults';
 import { ComparatorChart } from './ComparatorChart';
+import { ChartTitle } from './ChartTitle';
 
 export interface DeltaChartProps extends CommonChartProps {
   hasDeltaData: boolean;
@@ -17,9 +18,7 @@ export const DeltaChart = React.memo<DeltaChartProps>((props) => {
 
   const titleNode = (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-      <h3 style={{ margin: 0, fontSize: '1rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-        ⏱️ {t('comparator.charts.timeDelta')}
-      </h3>
+      <ChartTitle icon={Timer} label={t('comparator.charts.timeDelta')} />
       {(maxGapA > 0 || maxGapB > 0) && (
         <span
           style={{

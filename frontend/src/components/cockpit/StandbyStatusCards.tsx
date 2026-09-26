@@ -1,21 +1,25 @@
 import React from 'react';
 import { Radio, WifiOff, Activity, Gauge } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
+import { useTelemetryEndpointStore } from '../../store/useTelemetryEndpointStore';
 
 export interface StandbyStatusCardsProps {
   connected: boolean;
   personaName: string;
   effectiveLanguage: string;
-  mappedKey: string;
+  /** How to talk to the pit wall, e.g. "Hold Space or mapped wheel button to talk". */
+  pttHint: string;
 }
 
 export const StandbyStatusCards: React.FC<StandbyStatusCardsProps> = ({
   connected,
   personaName,
   effectiveLanguage,
-  mappedKey,
+  pttHint,
 }) => {
   const { t } = useI18n();
+  const endpoint = useTelemetryEndpointStore((s) => s.endpoint);
+  const lanIp = endpoint.lan_ips.find((ip) => ip !== endpoint.local_ip);
 
   return (
     <div className="voice-cockpit-standby-panel" data-testid="voice-cockpit-standby-panel">
@@ -30,11 +34,11 @@ export const StandbyStatusCards: React.FC<StandbyStatusCardsProps> = ({
         <div className="standby-panel-titles">
           <div className="standby-badge-row">
             <span className={`waiting-status-pill ${connected ? 'pill-connected' : 'pill-reconnecting'}`}>
-              <span className={`status-dot ${connected ? 'status-live' : 'status-waiting'}`} />
+              <span className={`status-dot ${connected ? 'status-connected' : 'status-waiting'}`} />
               {connected ? t('live.backendConnected') : t('live.connectingToBackend')}
             </span>
             <span className="waiting-port-pill mono">
-              {t('live.udpPort')} <strong>20777</strong>
+              {t('live.udpPort')}: <strong>{endpoint.udp_port}</strong>
             </span>
           </div>
           <h3 className="standby-title">
@@ -57,7 +61,7 @@ export const StandbyStatusCards: React.FC<StandbyStatusCardsProps> = ({
               {personaName} • {effectiveLanguage === 'es' ? 'ES' : 'EN'}
             </span>
             <span className="standby-card-hint">
-              {t('ai_engineer.radio.pttHint', { key: mappedKey })}
+              {pttHint}
             </span>
           </div>
         </div>
@@ -67,9 +71,9 @@ export const StandbyStatusCards: React.FC<StandbyStatusCardsProps> = ({
             <Activity size={18} className="pulse-indicator" />
           </div>
           <div className="standby-card-info">
-            <span className="standby-card-label">UDP TELEMETRY BRIDGE</span>
+            <span className="standby-card-label">{t('live.udpBridge')}</span>
             <span className="standby-card-val mono text-cyan-300">
-              {connected ? '0.0.0.0:20777 • LISTENING' : 'CONNECTING...'}
+              {connected ? t('live.bridgeListening', { addr: endpoint.udp_addr }) : t('live.bridgeConnecting')}
             </span>
             <span className="standby-card-hint">
               {t('live.dashboardAutoOpenTip')}
@@ -84,10 +88,12 @@ export const StandbyStatusCards: React.FC<StandbyStatusCardsProps> = ({
           <div className="standby-card-info">
             <span className="standby-card-label">{t('live.inGameTelemetrySettings')}</span>
             <span className="standby-card-val mono text-slate-300">
-              UDP: 20777 • 20Hz • 2025/2026
+              {t('live.udpSettingsSummary', { port: endpoint.udp_port })}
             </span>
             <span className="standby-card-hint">
-              {t('live.udpBroadcastVal')}
+              {lanIp
+                ? t('live.ipSummary', { local: endpoint.local_ip, lan: lanIp })
+                : t('live.ipSummaryLocalOnly', { local: endpoint.local_ip })}
             </span>
           </div>
         </div>

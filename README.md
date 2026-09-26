@@ -162,7 +162,7 @@ Server settings can be set with command-line flags, environment variables, or a 
 | | `LLM_PROVIDER` | Default AI provider: `gemini`, `openai`, `claude` or `custom` | First provider with a key, else `gemini` |
 | | `LLM_MODEL` | Default model for `LLM_PROVIDER` | Built-in model for the provider |
 
-The simulator sends to `127.0.0.1` on the server's `F1T_UDP_ADDR` port. Use `-target` (or `F1T_SIM_TARGET`) to send somewhere else, e.g. `go run ./cmd/simulator -target 192.168.1.20:20777`.
+The Live tab shows the UDP port the server listens on and this PC's network addresses (with copy buttons), which is what to enter in the game's telemetry settings on a console. The simulator sends to `127.0.0.1` on the server's `F1T_UDP_ADDR` port. Use `-target` (or `F1T_SIM_TARGET`) to send somewhere else, e.g. `go run ./cmd/simulator -target 192.168.1.20:20777`.
 
 Settings you change in the dashboard are saved in the database, so every device that opens it (the PC, a tablet on your network) shares them: radio alert rules, the AI provider, model and API keys, the engineer's persona and voice, and push-to-talk. Saved API keys are never sent back to a browser; the settings only show that a key is saved. Volume, radio effects, whether alerts play and the chat window size stay per device.
 

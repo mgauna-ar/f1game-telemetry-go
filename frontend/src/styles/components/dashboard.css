@@ -224,6 +224,23 @@
   background: rgba(255, 255, 255, 0.05);
 }
 
+/* Long tables scroll inside their panel so the column headers stay visible */
+.history-table-scroll {
+  overflow: auto;
+  max-height: min(75vh, 960px);
+}
+
+.history-table.sticky-header thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding-top: 0.45rem;
+  padding-bottom: 0.45rem;
+  background: var(--bg-panel-solid);
+  /* Covers the row gap (border-spacing) below the header, where scrolled rows would show through */
+  box-shadow: 0 6px 0 var(--bg-panel-solid);
+}
+
 /* Utility */
 .animate-spin {
   animation: spin 1s linear infinite;
@@ -232,4 +249,60 @@
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+/* Live feed state in the live header (see LiveStatusIndicator) */
+.live-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+
+.live-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--text-muted);
+}
+
+.live-status-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.live-status-indicator.status-live .live-status-dot {
+  background-color: var(--accent-primary);
+  box-shadow: 0 0 10px var(--accent-primary);
+  animation: pulse 2s infinite;
+}
+
+.live-status-indicator.status-live .live-status-label {
+  color: var(--accent-primary);
+}
+
+.live-status-indicator.status-listening .live-status-dot {
+  background-color: var(--accent-tertiary);
+}
+
+.live-status-indicator.status-listening .live-status-label {
+  color: var(--text-secondary);
+}
+
+.live-status-indicator.status-stale .live-status-dot {
+  background-color: var(--accent-warning);
+}
+
+.live-status-indicator.status-stale .live-status-label {
+  color: var(--accent-warning);
+}
+
+/* Backend reachable, which is not the same as live data (dot inside the waiting pills) */
+.status-connected {
+  background-color: var(--accent-tertiary);
+  box-shadow: 0 0 8px var(--accent-tertiary);
 }

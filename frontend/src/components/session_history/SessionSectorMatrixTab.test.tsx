@@ -129,4 +129,21 @@ describe('SessionSectorMatrixTab Component', () => {
     fireEvent.click(s2Btn);
     expect(s2Btn).toBeInTheDocument();
   });
+  it('scales the speed trap bars from the slowest to the fastest top speed', () => {
+    const { container } = render(
+      <I18nProvider>
+        <SessionSectorMatrixTab
+          classificationData={mockClassificationData}
+          driverStandings={mockDriverStandings}
+          sessionBestS1={27300}
+          sessionBestS2={33500}
+          sessionBestS3={26500}
+          formatLapTime={formatLapTime}
+        />
+      </I18nProvider>
+    );
+
+    const bars = Array.from(container.querySelectorAll<HTMLElement>('.speed-rank-bar-fill'));
+    expect(bars.map((bar) => bar.style.width)).toEqual(['100%', '8%']);
+  });
 });

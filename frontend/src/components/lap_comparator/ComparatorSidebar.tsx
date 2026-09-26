@@ -4,6 +4,7 @@ import { TrackFlag } from '../TrackFlag';
 import { ComparatorTrackMap } from '../ComparatorTrackMap';
 import { getTurnContextAtDistance } from '../../utils/trackTurns';
 import { ERS_MODE_NAMES } from '../../constants/f1';
+import { useI18n } from '../../context/I18nContext';
 import type { MergedTelemetryPoint, TrackTurn } from '../../types/comparator';
 import type { Session } from '../../types/session';
 
@@ -32,6 +33,8 @@ export const ComparatorSidebar: React.FC<ComparatorSidebarProps> = ({
   nameB,
   onOpenAiDebrief,
 }) => {
+  const { t } = useI18n();
+  const kmh = t('common.units.kmh');
   const activePoint =
     hoverDistance !== null && comparisonData.length > 0
       ? comparisonData.reduce((prev, curr) =>
@@ -47,7 +50,7 @@ export const ComparatorSidebar: React.FC<ComparatorSidebarProps> = ({
       <div className="glass-panel" style={{ padding: '0.85rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
           <h4 style={{ margin: 0, fontSize: '0.88rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <MapPin size={15} color="var(--accent-primary)" /> Track Heatmap
+            <MapPin size={15} color="var(--accent-primary)" /> {t('comparator.sidebar.trackHeatmap')}
           </h4>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             {selectedSessionAObj && (
@@ -72,9 +75,9 @@ export const ComparatorSidebar: React.FC<ComparatorSidebarProps> = ({
                 borderColor: 'rgba(0, 242, 254, 0.35)',
                 color: '#00f2fe',
               }}
-              title="Open AI Race Engineer telemetry analysis"
+              title={t('comparator.sidebar.askAiTitle')}
             >
-              <Sparkles size={12} color="#00f2fe" /> Ask AI
+              <Sparkles size={12} color="#00f2fe" /> {t('comparator.sidebar.askAi')}
             </button>
           </div>
         </div>
@@ -93,8 +96,8 @@ export const ComparatorSidebar: React.FC<ComparatorSidebarProps> = ({
         {detectedTurns.length > 0 && (
           <div style={{ marginTop: '0.45rem', marginBottom: '0.2rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600 }}>Turns (click to jump):</span>
-              <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>{detectedTurns.length} turns</span>
+              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('comparator.sidebar.turnsJump')}</span>
+              <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>{t('comparator.sidebar.turnsCount', { count: detectedTurns.length })}</span>
             </div>
             <div
               style={{
@@ -156,7 +159,7 @@ export const ComparatorSidebar: React.FC<ComparatorSidebarProps> = ({
               <>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '0.25rem', marginBottom: '0.25rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                    <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Distance Point:</span>
+                    <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{t('comparator.sidebar.distancePoint')}</span>
                     <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#f1c40f' }}>{activePoint.lap_distance}m</span>
                   </div>
 
@@ -180,16 +183,16 @@ export const ComparatorSidebar: React.FC<ComparatorSidebarProps> = ({
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', marginTop: '0.15rem' }}>
                   <div style={{ borderLeft: '2px solid #00d2d3', paddingLeft: '0.35rem' }}>
                     <div style={{ fontSize: '0.7rem', color: '#00d2d3', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nameA}</div>
-                    <div>Speed: <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.speedA ?? '-'} km/h</strong></div>
-                    <div>Thr/Brk: <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.throttleA !== null ? Math.round(activePoint.throttleA * 100) : 0}% / {activePoint.brakeA !== null ? Math.round(activePoint.brakeA * 100) : 0}%</strong></div>
-                    <div>ERS: <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.ersBatteryA !== null ? activePoint.ersBatteryA.toFixed(0) : '-'}% ({ERS_MODE_NAMES[activePoint.ersDeployModeA ?? 0] || 'Off'})</strong></div>
+                    <div>{t('comparator.sidebar.speed')} <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.speedA ?? '-'} {kmh}</strong></div>
+                    <div>{t('comparator.sidebar.throttleBrake')} <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.throttleA !== null ? Math.round(activePoint.throttleA * 100) : 0}% / {activePoint.brakeA !== null ? Math.round(activePoint.brakeA * 100) : 0}%</strong></div>
+                    <div>{t('comparator.sidebar.ers')} <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.ersBatteryA !== null ? activePoint.ersBatteryA.toFixed(0) : '-'}% ({ERS_MODE_NAMES[activePoint.ersDeployModeA ?? 0] || 'Off'})</strong></div>
                   </div>
 
                   <div style={{ borderLeft: '2px solid #ff4757', paddingLeft: '0.35rem' }}>
                     <div style={{ fontSize: '0.7rem', color: '#ff4757', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nameB}</div>
-                    <div>Speed: <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.speedB ?? '-'} km/h</strong></div>
-                    <div>Thr/Brk: <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.throttleB !== null ? Math.round(activePoint.throttleB * 100) : 0}% / {activePoint.brakeB !== null ? Math.round(activePoint.brakeB * 100) : 0}%</strong></div>
-                    <div>ERS: <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.ersBatteryB !== null ? activePoint.ersBatteryB.toFixed(0) : '-'}% ({ERS_MODE_NAMES[activePoint.ersDeployModeB ?? 0] || 'Off'})</strong></div>
+                    <div>{t('comparator.sidebar.speed')} <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.speedB ?? '-'} {kmh}</strong></div>
+                    <div>{t('comparator.sidebar.throttleBrake')} <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.throttleB !== null ? Math.round(activePoint.throttleB * 100) : 0}% / {activePoint.brakeB !== null ? Math.round(activePoint.brakeB * 100) : 0}%</strong></div>
+                    <div>{t('comparator.sidebar.ers')} <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.ersBatteryB !== null ? activePoint.ersBatteryB.toFixed(0) : '-'}% ({ERS_MODE_NAMES[activePoint.ersDeployModeB ?? 0] || 'Off'})</strong></div>
                   </div>
                 </div>
 
@@ -202,9 +205,9 @@ export const ComparatorSidebar: React.FC<ComparatorSidebarProps> = ({
             ) : (
               <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.72rem', padding: '0.3rem 0' }}>
                 <span style={{ display: 'block', color: 'rgba(255,255,255,0.7)', fontWeight: 600, marginBottom: '2px' }}>
-                  🔍 Live Telemetry Inspection
+                  🔍 {t('comparator.sidebar.inspectTitle')}
                 </span>
-                Hover over graphs or track to inspect telemetry at that point
+                {t('comparator.sidebar.inspectHint')}
               </div>
             )}
           </div>

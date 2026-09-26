@@ -14,6 +14,7 @@
 @import './components/flags.css';
 @import './components/release-notes.css';
 @import './components/error-boundary.css';
+@import './components/copy-value.css';
 
 /* ── Lap Comparator ────────────────────────────────────── */
 @import './components/lap-comparator.css';

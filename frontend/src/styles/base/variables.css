@@ -20,6 +20,15 @@
 
   --border-color: hsla(0, 0%, 100%, 0.08);
   --border-highlight: hsla(0, 0%, 100%, 0.15);
+  --border-subtle: hsla(0, 0%, 100%, 0.12);
+
+  --accent-cyan: #06b6d4; /* Rain / wet weather */
+
+  /* Opaque stand-in for a glass panel, for sticky headers that content scrolls under */
+  --bg-panel-solid: hsl(222, 40%, 10%);
+
+  /* Space kept free at the bottom of the page for the floating radio and AI buttons */
+  --floating-dock-clearance: 96px;
 
   /* Slot & Comparison Palette */
   --color-slot-a: #00d2d3;
@@ -48,4 +57,8 @@
   /* Easing */
   --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
   --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Transitions */
+  --transition-fast: 0.15s var(--ease-smooth);
+  --transition-normal: 0.25s var(--ease-smooth);
 }

@@ -254,4 +254,42 @@ describe('LeaderboardTower', () => {
     expect(screen.queryByText('Max Verstappen')).not.toBeInTheDocument();
     expect(screen.getByText('2 CARS')).toBeInTheDocument();
   });
+  it('draws the Q1 elimination line once, between the last car through and the first one out', () => {
+    const carCount = 20;
+    const manyParticipants: ParticipantData[] = Array.from({ length: carCount }, (_, i) => ({
+      AIControlled: 1,
+      DriverId: 255,
+      TeamId: i % 10,
+      RaceNumber: i + 1,
+      Nationality: 1,
+      Name: `Driver ${String(i + 1).padStart(2, '0')}`,
+    }));
+    const timedLaps: LapData[] = manyParticipants.map((_, i) => ({
+      LastLapTimeInMS: 80_000 + i * 100,
+      CurrentLapTimeInMS: 10_000,
+      CarPosition: i + 1,
+      CurrentLapNum: 3,
+      PitStatus: 0,
+      Sector1TimeMSPart: 0,
+      Sector2TimeMSPart: 0,
+      CurrentLapInvalid: 0,
+    }));
+
+    const { container } = render(
+      <LeaderboardTower
+        session={qualySession}
+        participants={manyParticipants}
+        laps={timedLaps}
+        carStatuses={[]}
+        playerCarIndex={0}
+        selectedCarIndex={0}
+        onSelectCar={() => {}}
+      />
+    );
+
+    const lines = container.querySelectorAll('.elimination-line');
+    expect(lines).toHaveLength(1);
+    expect(lines[0].previousElementSibling).toHaveTextContent('Driver 15');
+    expect(container.querySelectorAll('.is-eliminated')).toHaveLength(5);
+  });
 });

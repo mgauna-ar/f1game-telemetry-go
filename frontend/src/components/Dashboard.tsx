@@ -30,6 +30,7 @@ import { LiveSectorTracker } from './LiveSectorTracker';
 import { WaitingForData } from './WaitingForData';
 import { LiveRadioHUD } from './LiveRadioHUD';
 import { VoiceCockpitView } from './VoiceCockpitView';
+import { LiveDocumentTitle } from './LiveDocumentTitle';
 import { useRadioController } from '../hooks/useRadioController';
 import { useProactiveTelemetryRadio } from '../hooks/useProactiveTelemetryRadio';
 import { formatProactiveFallbackSpeech } from '../utils/radioAudio';
@@ -316,6 +317,7 @@ export const Dashboard: React.FC = () => {
     return (
       <div className="voice-cockpit-layout" style={{ position: 'relative', width: '100%' }}>
         {/* Header with View Mode Switcher in Standby */}
+        <LiveDocumentTitle />
         <SessionHeader
           session={session}
           connected={connected}
@@ -339,6 +341,7 @@ export const Dashboard: React.FC = () => {
   if (viewMode === LIVE_VIEW_MODES.COCKPIT) {
     return (
       <div className="voice-cockpit-layout" style={{ position: 'relative', width: '100%' }}>
+        <LiveDocumentTitle />
         <SessionHeader
           session={session}
           connected={connected}
@@ -355,6 +358,7 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="dashboard-grid race-control-dashboard">
       {/* Session Top Header */}
+      <LiveDocumentTitle />
       <SessionHeader
         session={session}
         connected={connected}

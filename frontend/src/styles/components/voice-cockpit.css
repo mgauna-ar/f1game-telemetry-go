@@ -266,8 +266,12 @@
   color: #00f2fe;
 }
 
-.ptt-label {
+.ptt-label,
+.dialogue-ptt-badge .ptt-setup-link {
   font-size: 0.72rem;
+}
+
+.ptt-label {
   color: var(--text-secondary, #94a3b8);
 }
 

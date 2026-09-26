@@ -1,8 +1,10 @@
 import React from 'react';
+import { Wind } from 'lucide-react';
 import { Line } from 'recharts';
 import { useI18n } from '../../../context/I18nContext';
 import { type CommonChartProps } from './chartDefaults';
 import { ComparatorChart } from './ComparatorChart';
+import { ChartTitle } from './ChartTitle';
 
 export const ActiveAeroChart = React.memo<CommonChartProps>((props) => {
   const { t } = useI18n();
@@ -18,11 +20,7 @@ export const ActiveAeroChart = React.memo<CommonChartProps>((props) => {
     <ComparatorChart
       {...props}
       height="300px"
-      title={
-        <h3 style={{ margin: 0, fontSize: '1rem', color: '#00f2fe', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          🪽 {t('comparator.charts.activeAero')}
-        </h3>
-      }
+      title={<ChartTitle icon={Wind} label={t('comparator.charts.activeAero')} color="#00f2fe" />}
       headerRight={headerRight}
       dataKeyA="activeAeroA"
       dataKeyB="activeAeroB"

@@ -10,6 +10,8 @@ import {
   TRACK_NAMES,
 } from '../constants/f1';
 import { RadioSettingsPanel } from './RadioSettingsPanel';
+import type { RadioSettingsTab } from './RadioSettingsPanel';
+import { getPttHint } from '../utils/pttHint';
 import { HeroPersonaBadge } from './cockpit/HeroPersonaBadge';
 import { RadioDialogueTranscript } from './cockpit/RadioDialogueTranscript';
 import { VitalTelemetryStrip } from './cockpit/VitalTelemetryStrip';
@@ -67,6 +69,12 @@ export const VoiceCockpitView: React.FC<VoiceCockpitViewProps> = React.memo((pro
 
   const { t } = useI18n();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<RadioSettingsTab | undefined>(undefined);
+
+  const openSettings = (tab?: RadioSettingsTab) => {
+    setSettingsTab(tab);
+    setIsSettingsOpen(true);
+  };
 
   const effectiveFormat = packetFormat || session?.PacketFormat;
   const is2026 = effectiveFormat === F1_FORMATS.FORMAT_2026;
@@ -153,13 +161,14 @@ export const VoiceCockpitView: React.FC<VoiceCockpitViewProps> = React.memo((pro
           radio={radio}
           volume={volume}
           setVolume={setVolume}
-          onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenSettings={() => openSettings()}
         />
 
         <RadioDialogueTranscript
           radio={radio}
           connected={Boolean(connected)}
           session={session || null}
+          onSetUpPtt={() => openSettings('audio')}
         />
       </div>
 
@@ -169,7 +178,7 @@ export const VoiceCockpitView: React.FC<VoiceCockpitViewProps> = React.memo((pro
           connected={Boolean(connected)}
           personaName={personaInfo.name}
           effectiveLanguage={radio.effectiveLanguage}
-          mappedKey={radio.mappedKey}
+          pttHint={getPttHint(radio, t).text}
         />
       ) : (
         <VitalTelemetryStrip
@@ -189,6 +198,7 @@ export const VoiceCockpitView: React.FC<VoiceCockpitViewProps> = React.memo((pro
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         radio={radio}
+        initialTab={settingsTab}
       />
     </div>
   );
