@@ -2,6 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { RaceControlFeed } from './RaceControlFeed';
 import type { RaceEvent, SessionData } from '../hooks/useTelemetry';
+import { PENALTY_TYPES } from '../constants/f1';
 
 describe('RaceControlFeed', () => {
   const mockSession: SessionData = {
@@ -24,6 +25,8 @@ describe('RaceControlFeed', () => {
       eventCode: 'FTLP',
       type: 'fastest_lap',
       description: 'Lando Norris set the fastest lap (82.115s)',
+      driverName: 'Lando Norris',
+      lapTime: 82.115,
       severity: 'purple',
     },
     {
@@ -32,6 +35,8 @@ describe('RaceControlFeed', () => {
       eventCode: 'OVTK',
       type: 'overtake',
       description: 'Charles Leclerc overtook Carlos Sainz',
+      driverName: 'Charles Leclerc',
+      targetDriverName: 'Carlos Sainz',
       severity: 'info',
     },
     {
@@ -40,6 +45,9 @@ describe('RaceControlFeed', () => {
       eventCode: 'PENA',
       type: 'penalty',
       description: 'Max Verstappen received a 5s time penalty',
+      driverName: 'Max Verstappen',
+      penaltyType: PENALTY_TYPES.TIME_PENALTY,
+      penaltyTime: 5,
       severity: 'danger',
     },
   ];

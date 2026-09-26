@@ -170,6 +170,12 @@ export const live = {
     collision: 'Colisión entre {driver} y {target}',
     driveThroughServed: '{driver} cumplió penalización Pase y Siga',
     stopGoServed: '{driver} cumplió penalización Stop & Go',
+    startLights: 'Cuenta regresiva del semáforo de largada',
+    lightsOut: '¡SE APAGAN LAS LUCES Y ARRANCA LA CARRERA!',
+    safetyCarDeployed: 'Safety Car desplegado',
+    virtualSafetyCarDeployed: 'Virtual Safety Car desplegado',
+    formationLapInProgress: 'Vuelta de formación en curso',
+    trackClear: 'Pista habilitada (bandera verde)',
 
     // Penalties
     driveThrough: '{driver} sancionado con Pase y Siga (Drive Through){reason}',

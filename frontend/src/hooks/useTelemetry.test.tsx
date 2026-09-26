@@ -83,37 +83,6 @@ describe('useTelemetry', () => {
     expect(screen.getByTestId('lap')).toHaveTextContent('12');
   });
 
-  it('parses legacy individual telemetry packets correctly', () => {
-    let wsInstance: MockWebSocket | undefined;
-    vi.stubGlobal('WebSocket', function (url: string) {
-      wsInstance = new MockWebSocket(url);
-      return wsInstance;
-    });
-
-    render(<TestComponent wsUrl="ws://localhost:8080/ws" />);
-
-    act(() => {
-      if (wsInstance?.onopen) wsInstance.onopen();
-    });
-    expect(screen.getByTestId('status')).toHaveTextContent('CONNECTED');
-
-    // Send a mock CarTelemetry packet
-    act(() => {
-      if (wsInstance?.onmessage) {
-        wsInstance.onmessage({
-          data: JSON.stringify({
-            Header: { PacketId: 6, SessionTime: 1.0, PlayerCarIndex: 0 },
-            CarTelemetryData: [
-              { Speed: 315 },
-            ],
-          }),
-        });
-      }
-    });
-
-    expect(screen.getByTestId('speed')).toHaveTextContent('315');
-  });
-
   it('retains all participants without truncating when NumActiveCars drops on retirement', () => {
     let wsInstance: MockWebSocket | undefined;
     vi.stubGlobal('WebSocket', function (url: string) {
@@ -240,10 +209,12 @@ describe('parseDriverName', () => {
     expect(parseDriverName('Sainz', 'Driver 55')).toBe('Sainz');
   });
 
-  it('parses character array driver names and truncates trailing garbage', () => {
-    const charArray = [77, 97, 120, 0, 57, 49, 57, 56]; // "Max\09198"
-    expect(parseDriverName(charArray, 'Driver 1')).toBe('Max');
+  it('truncates trailing garbage after a null byte', () => {
     expect(parseDriverName('GASLY\x00919819000', 'Driver 1')).toBe('GASLY');
+  });
+
+  it('keeps long names that look like base64 as they are', () => {
+    expect(parseDriverName('AlexanderAlbonAlexanderAlbon', 'Driver 23')).toBe('AlexanderAlbonAlexanderAlbon');
   });
 
   it('resolves AI driver names via DriverId when name is empty', () => {

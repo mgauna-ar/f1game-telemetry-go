@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { getLocalizedRaceEventDescription, getLocalizedPenaltyTag } from './raceEvents';
 import { getTranslation } from '../locales';
 import type { RaceEvent } from '../types/telemetry';
+import { SAFETY_CAR_STATUS } from '../constants/f1';
 
 describe('raceEvents utility with i18n', () => {
   const tEn = (key: string, params?: Record<string, string | number>) => getTranslation('en', key, params);
@@ -94,5 +95,67 @@ describe('raceEvents utility with i18n', () => {
 
     expect(getLocalizedRaceEventDescription(ftlpEvt, tEn)).toBe('Lewis Hamilton set the fastest lap (81.345s)');
     expect(getLocalizedRaceEventDescription(ftlpEvt, tEs)).toBe('Lewis Hamilton marcó la vuelta rápida (81.345s)');
+  });
+
+  describe('rows without a driver', () => {
+    const flagEvent = (eventCode: string, description: string, extra: Partial<RaceEvent> = {}): RaceEvent => ({
+      id: eventCode,
+      timestamp: Date.now(),
+      eventCode,
+      type: 'flag',
+      description,
+      severity: 'info',
+      ...extra,
+    });
+
+    it.each([
+      ['SSTA', 'Session Started', 'Session Started', 'Sesión Iniciada'],
+      ['SEND', 'Chequered flag — Session complete', 'Session Ended', 'Sesión Finalizada'],
+      ['CHQF', 'Chequered Flag waved', 'Chequered Flag waved', 'Bandera a Cuadros agitada'],
+      ['RDFL', 'Red Flag deployed!', 'Red Flag deployed!', '¡Bandera Roja desplegada!'],
+      ['STLG', 'Start lights countdown active', 'Start lights countdown active', 'Cuenta regresiva del semáforo de largada'],
+      ['LGOT', 'LIGHTS OUT AND AWAY WE GO!', 'LIGHTS OUT AND AWAY WE GO!', '¡SE APAGAN LAS LUCES Y ARRANCA LA CARRERA!'],
+    ])('translates %s instead of showing its English description', (code, description, en, es) => {
+      const evt = flagEvent(code, description);
+      expect(getLocalizedRaceEventDescription(evt, tEn)).toBe(en);
+      expect(getLocalizedRaceEventDescription(evt, tEs)).toBe(es);
+    });
+
+    it.each([
+      [SAFETY_CAR_STATUS.FULL, 'Full Safety Car Deployed', 'Safety Car desplegado'],
+      [SAFETY_CAR_STATUS.VIRTUAL, 'Virtual Safety Car Deployed', 'Virtual Safety Car desplegado'],
+      [SAFETY_CAR_STATUS.FORMATION_LAP, 'Formation Lap In Progress', 'Vuelta de formación en curso'],
+      [SAFETY_CAR_STATUS.CLEAR, 'Track Clear (Green Flag)', 'Pista habilitada (bandera verde)'],
+    ])('translates safety car status %s', (safetyCarStatus, en, es) => {
+      const evt = flagEvent('SCAR', en, { safetyCarStatus });
+      expect(getLocalizedRaceEventDescription(evt, tEn)).toBe(en);
+      expect(getLocalizedRaceEventDescription(evt, tEs)).toBe(es);
+    });
+
+    it('falls back to the description when a safety car row has no status', () => {
+      const evt = flagEvent('SCAR', 'Full Safety Car Deployed');
+      expect(getLocalizedRaceEventDescription(evt, tEs)).toBe('Full Safety Car Deployed');
+    });
+
+    it('falls back to the description for codes it does not know', () => {
+      const evt = flagEvent('XXXX', 'Something happened');
+      expect(getLocalizedRaceEventDescription(evt, tEs)).toBe('Something happened');
+    });
+  });
+
+  it("translates the server's disqualification row", () => {
+    const evt: RaceEvent = {
+      id: 'dsq',
+      timestamp: Date.now(),
+      eventCode: 'DSQ',
+      type: 'penalty',
+      driverName: 'Max Verstappen',
+      vehicleIdx: 1,
+      description: 'Max Verstappen was disqualified from the session',
+      severity: 'danger',
+    };
+
+    expect(getLocalizedRaceEventDescription(evt, tEn)).toBe('Max Verstappen was DISQUALIFIED from the session');
+    expect(getLocalizedRaceEventDescription(evt, tEs)).toBe('Max Verstappen fue DESCALIFICADO de la sesión');
   });
 });

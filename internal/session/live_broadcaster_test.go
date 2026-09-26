@@ -1,7 +1,9 @@
 package session
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"sync"
 	"testing"
@@ -484,4 +486,331 @@ func TestLiveBroadcaster_ConcurrentProcessAndBroadcast(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+// feedRow is one race-control feed entry as the frontend would list it.
+type feedRow struct {
+	code        string
+	vehicleIdx  int
+	penaltyType int
+}
+
+// feedRows collects the feed entries from every message the hub received:
+// raw game events (Packet ID 3) and the broadcaster's own snapshot events.
+func feedRows(t *testing.T, hub *mockHub) []feedRow {
+	t.Helper()
+	hub.mu.Lock()
+	defer hub.mu.Unlock()
+
+	var rows []feedRow
+	for _, msg := range hub.messages {
+		var probe struct {
+			Header packets.PacketHeader
+		}
+		if err := json.Unmarshal(msg, &probe); err != nil {
+			t.Fatalf("failed to unmarshal message: %v", err)
+		}
+		switch probe.Header.PacketId {
+		case packets.PacketIDEvent:
+			var evt struct {
+				EventCode   string
+				VehicleIdx  *int
+				PenaltyType *int
+			}
+			if err := json.Unmarshal(msg, &evt); err != nil {
+				t.Fatalf("failed to unmarshal event: %v", err)
+			}
+			row := feedRow{code: evt.EventCode, vehicleIdx: -1, penaltyType: -1}
+			if evt.VehicleIdx != nil {
+				row.vehicleIdx = *evt.VehicleIdx
+			}
+			if evt.PenaltyType != nil {
+				row.penaltyType = *evt.PenaltyType
+			}
+			rows = append(rows, row)
+		case packets.PacketIDLiveSnapshot:
+			var snap LiveSnapshot
+			if err := json.Unmarshal(msg, &snap); err != nil {
+				t.Fatalf("failed to unmarshal snapshot: %v", err)
+			}
+			for _, evt := range snap.Events {
+				row := feedRow{code: evt.EventCode, vehicleIdx: -1, penaltyType: -1}
+				if evt.VehicleIdx != nil {
+					row.vehicleIdx = *evt.VehicleIdx
+				}
+				if evt.PenaltyType != nil {
+					row.penaltyType = *evt.PenaltyType
+				}
+				rows = append(rows, row)
+			}
+		}
+	}
+	return rows
+}
+
+// countRows counts feed entries for a car that match the predicate.
+func countRows(rows []feedRow, vehicleIdx int, match func(feedRow) bool) int {
+	n := 0
+	for _, r := range rows {
+		if r.vehicleIdx == vehicleIdx && match(r) {
+			n++
+		}
+	}
+	return n
+}
+
+func isRetirementRow(r feedRow) bool {
+	return r.code == packets.EventRetirement ||
+		(r.code == packets.EventPenaltyIssued && r.penaltyType == int(packets.PenaltyTypeRetired))
+}
+
+func isDSQRow(r feedRow) bool {
+	return r.code == packets.EventDisqualification ||
+		(r.code == packets.EventPenaltyIssued && r.penaltyType == int(packets.PenaltyTypeDisqualified))
+}
+
+func isTimePenaltyRow(r feedRow) bool {
+	return r.code == packets.EventPenaltyIssued && !isRetirementRow(r) && !isDSQRow(r)
+}
+
+func isPitEntryRow(r feedRow) bool { return r.code == packets.EventTeamMateInPits }
+
+// feedTestRig drives a LiveBroadcaster through a two-car race.
+type feedTestRig struct {
+	t      *testing.T
+	hub    *mockHub
+	b      *LiveBroadcaster
+	header packets.PacketHeader
+	laps   [packets.MaxCars]packets.LapData
+}
+
+func newFeedTestRig(t *testing.T, sessionUID uint64) *feedTestRig {
+	t.Helper()
+	r := &feedTestRig{
+		t:   t,
+		hub: &mockHub{clientCount: 1},
+		header: packets.PacketHeader{
+			PacketFormat: packets.PacketFormat2026,
+			SessionUID:   sessionUID,
+			SessionTime:  100,
+		},
+	}
+	r.b = NewLiveBroadcaster(r.hub)
+
+	var participants [packets.MaxCars]packets.ParticipantData
+	copy(participants[0].Name[:], "Franco Colapinto")
+	copy(participants[1].Name[:], "Max Verstappen")
+	h := r.header
+	h.PacketId = packets.PacketIDParticipants
+	r.b.ProcessPacket(&packets.PacketParticipantsData{Header: h, NumActiveCars: 2, Participants: participants})
+
+	for i := 0; i < 2; i++ {
+		r.laps[i] = packets.LapData{CurrentLapNum: 5, CarPosition: uint8(i + 1), ResultStatus: packets.ResultStatusActive}
+	}
+	r.sendLaps()
+	return r
+}
+
+func (r *feedTestRig) at(sessionTime float32) *feedTestRig {
+	r.header.SessionTime = sessionTime
+	return r
+}
+
+func (r *feedTestRig) sendLaps() {
+	h := r.header
+	h.PacketId = packets.PacketIDLapData
+	r.b.ProcessPacket(&packets.PacketLapData{Header: h, LapData: r.laps})
+}
+
+func (r *feedTestRig) sendEvent(code string, payload any) {
+	r.t.Helper()
+	var buf bytes.Buffer
+	if err := binary.Write(&buf, binary.LittleEndian, payload); err != nil {
+		r.t.Fatalf("failed to encode event payload: %v", err)
+	}
+	h := r.header
+	h.PacketId = packets.PacketIDEvent
+	pkt := &packets.PacketEventData{Header: h}
+	copy(pkt.EventStringCode[:], code)
+	copy(pkt.EventDetails.Data[:], buf.Bytes())
+	r.b.ProcessPacket(pkt)
+}
+
+func (r *feedTestRig) sendPenalty(vehicleIdx, penaltyType, seconds uint8) {
+	r.sendEvent(packets.EventPenaltyIssued, packets.PenaltyEventData{
+		PenaltyType:     penaltyType,
+		VehicleIdx:      vehicleIdx,
+		OtherVehicleIdx: packets.InvalidVehicleIdx,
+		Time:            seconds,
+		LapNum:          5,
+	})
+}
+
+func (r *feedTestRig) rows() []feedRow {
+	r.b.BroadcastSnapshot()
+	return feedRows(r.t, r.hub)
+}
+
+func TestLiveBroadcaster_RetirementReportedOnce(t *testing.T) {
+	t.Run("game RTMT first", func(t *testing.T) {
+		r := newFeedTestRig(t, 0xA1)
+		r.at(110).sendEvent(packets.EventRetirement, packets.RetirementEventData{VehicleIdx: 1, Reason: packets.ResultReasonTerminalDamage})
+		r.laps[1].ResultStatus = packets.ResultStatusRetired
+		r.at(110.1).sendLaps()
+
+		if n := countRows(r.rows(), 1, isRetirementRow); n != 1 {
+			t.Errorf("expected 1 retirement row, got %d", n)
+		}
+	})
+
+	t.Run("status change first", func(t *testing.T) {
+		r := newFeedTestRig(t, 0xA2)
+		r.laps[1].ResultStatus = packets.ResultStatusDNF
+		r.at(110).sendLaps()
+		r.at(110.1).sendEvent(packets.EventRetirement, packets.RetirementEventData{VehicleIdx: 1, Reason: packets.ResultReasonMechanicalFailure})
+
+		if n := countRows(r.rows(), 1, isRetirementRow); n != 1 {
+			t.Errorf("expected 1 retirement row, got %d", n)
+		}
+	})
+
+	t.Run("game PENA retired counts as the retirement", func(t *testing.T) {
+		r := newFeedTestRig(t, 0xA3)
+		r.at(110).sendPenalty(1, packets.PenaltyTypeRetired, 0)
+		r.laps[1].ResultStatus = packets.ResultStatusRetired
+		r.at(110.1).sendLaps()
+		r.at(110.2).sendEvent(packets.EventRetirement, packets.RetirementEventData{VehicleIdx: 1})
+
+		if n := countRows(r.rows(), 1, isRetirementRow); n != 1 {
+			t.Errorf("expected 1 retirement row, got %d", n)
+		}
+	})
+}
+
+func TestLiveBroadcaster_DisqualificationReportedOnce(t *testing.T) {
+	t.Run("game PENA first", func(t *testing.T) {
+		r := newFeedTestRig(t, 0xB1)
+		r.at(120).sendPenalty(0, packets.PenaltyTypeDisqualified, 0)
+		r.laps[0].ResultStatus = packets.ResultStatusDSQ
+		r.at(120.1).sendLaps()
+
+		if n := countRows(r.rows(), 0, isDSQRow); n != 1 {
+			t.Errorf("expected 1 disqualification row, got %d", n)
+		}
+	})
+
+	t.Run("status change first", func(t *testing.T) {
+		r := newFeedTestRig(t, 0xB2)
+		r.laps[0].ResultStatus = packets.ResultStatusDSQ
+		r.at(120).sendLaps()
+		r.at(120.1).sendPenalty(0, packets.PenaltyTypeDisqualified, 0)
+
+		if n := countRows(r.rows(), 0, isDSQRow); n != 1 {
+			t.Errorf("expected 1 disqualification row, got %d", n)
+		}
+	})
+}
+
+func TestLiveBroadcaster_TimePenaltyReportedOnce(t *testing.T) {
+	t.Run("game PENA first", func(t *testing.T) {
+		r := newFeedTestRig(t, 0xC1)
+		r.at(130).sendPenalty(0, packets.PenaltyTypeTimePenalty, 5)
+		r.laps[0].Penalties = 5
+		r.at(130.1).sendLaps()
+
+		if n := countRows(r.rows(), 0, isTimePenaltyRow); n != 1 {
+			t.Errorf("expected 1 penalty row, got %d", n)
+		}
+	})
+
+	t.Run("counter increase first", func(t *testing.T) {
+		r := newFeedTestRig(t, 0xC2)
+		r.laps[0].Penalties = 5
+		r.at(130).sendLaps()
+		r.at(130.05).sendPenalty(0, packets.PenaltyTypeTimePenalty, 5)
+
+		rows := r.rows()
+		if n := countRows(rows, 0, isTimePenaltyRow); n != 1 {
+			t.Errorf("expected 1 penalty row, got %d", n)
+		}
+		// The game's event carries the penalty type, so it is the one kept.
+		if n := countRows(rows, 0, func(fr feedRow) bool { return fr.penaltyType == int(packets.PenaltyTypeTimePenalty) }); n != 1 {
+			t.Errorf("expected the game's PENA to be kept, rows: %+v", rows)
+		}
+	})
+
+	t.Run("counter increase outside the window is still reported", func(t *testing.T) {
+		r := newFeedTestRig(t, 0xC3)
+		r.at(130).sendPenalty(0, packets.PenaltyTypeTimePenalty, 5)
+		r.laps[0].Penalties = 5
+		r.at(130.1).sendLaps()
+		r.laps[0].Penalties = 10
+		r.at(130 + packets.GamePenaltyEventWindowSeconds + 5).sendLaps()
+
+		if n := countRows(r.rows(), 0, isTimePenaltyRow); n != 2 {
+			t.Errorf("expected 2 penalty rows, got %d", n)
+		}
+	})
+
+	t.Run("another car's PENA does not hide the counter increase", func(t *testing.T) {
+		r := newFeedTestRig(t, 0xC4)
+		r.at(130).sendPenalty(1, packets.PenaltyTypeTimePenalty, 5)
+		r.laps[0].Penalties = 5
+		r.at(130.1).sendLaps()
+
+		if n := countRows(r.rows(), 0, isTimePenaltyRow); n != 1 {
+			t.Errorf("expected 1 penalty row for car 0, got %d", n)
+		}
+	})
+}
+
+func TestLiveBroadcaster_TeamMateInPitsNotForwarded(t *testing.T) {
+	r := newFeedTestRig(t, 0xD1)
+	r.at(140).sendEvent(packets.EventTeamMateInPits, packets.TeamMateInPitsEventData{VehicleIdx: 1})
+
+	if n := r.hub.MessageCount(); n != 0 {
+		t.Fatalf("expected the game's TMPT not to be forwarded, got %d messages", n)
+	}
+
+	r.laps[1].PitStatus = packets.PitStatusPitting
+	r.at(140.1).sendLaps()
+
+	rows := r.rows()
+	if n := countRows(rows, 1, isPitEntryRow); n != 1 {
+		t.Errorf("expected 1 pit entry row from the broadcaster, got %d: %+v", n, rows)
+	}
+}
+
+func TestLiveBroadcaster_ReportedFlagsResetOnSessionChange(t *testing.T) {
+	r := newFeedTestRig(t, 0xE1)
+	r.at(150).sendEvent(packets.EventRetirement, packets.RetirementEventData{VehicleIdx: 1})
+	r.at(150).sendPenalty(0, packets.PenaltyTypeDisqualified, 0)
+	r.at(150).sendPenalty(1, packets.PenaltyTypeTimePenalty, 5)
+	r.b.BroadcastSnapshot()
+	r.hub.mu.Lock()
+	r.hub.messages = nil
+	r.hub.mu.Unlock()
+
+	// A new session starts with the same cars; the old reports must not hide new ones.
+	r.header.SessionUID = 0xE2
+	for i := 0; i < 2; i++ {
+		r.laps[i] = packets.LapData{CurrentLapNum: 1, CarPosition: uint8(i + 1), ResultStatus: packets.ResultStatusActive}
+	}
+	r.at(150.5).sendLaps()
+
+	r.laps[1].ResultStatus = packets.ResultStatusRetired
+	r.laps[1].Penalties = 5
+	r.laps[0].ResultStatus = packets.ResultStatusDSQ
+	r.at(151).sendLaps()
+
+	rows := r.rows()
+	if n := countRows(rows, 1, isRetirementRow); n != 1 {
+		t.Errorf("expected 1 retirement row in the new session, got %d: %+v", n, rows)
+	}
+	if n := countRows(rows, 0, isDSQRow); n != 1 {
+		t.Errorf("expected 1 disqualification row in the new session, got %d: %+v", n, rows)
+	}
+	if n := countRows(rows, 1, isTimePenaltyRow); n != 1 {
+		t.Errorf("expected 1 penalty row in the new session, got %d: %+v", n, rows)
+	}
 }

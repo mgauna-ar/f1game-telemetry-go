@@ -84,6 +84,28 @@ const (
 	SafetyCarEventResumeRace uint8 = 3
 )
 
+// Penalty type constants (from PacketEventData PENA)
+const (
+	PenaltyTypeDriveThrough                          uint8 = 0
+	PenaltyTypeStopGo                                uint8 = 1
+	PenaltyTypeGridPenalty                           uint8 = 2
+	PenaltyTypePenaltyReminder                       uint8 = 3
+	PenaltyTypeTimePenalty                           uint8 = 4
+	PenaltyTypeWarning                               uint8 = 5
+	PenaltyTypeDisqualified                          uint8 = 6
+	PenaltyTypeRemovedFromFormationLap               uint8 = 7
+	PenaltyTypeParkedTooLongTimer                    uint8 = 8
+	PenaltyTypeTyreRegulations                       uint8 = 9
+	PenaltyTypeThisLapInvalidated                    uint8 = 10
+	PenaltyTypeThisAndNextLapInvalidated             uint8 = 11
+	PenaltyTypeThisLapInvalidatedNoReason            uint8 = 12
+	PenaltyTypeThisAndNextLapInvalidatedNoReason     uint8 = 13
+	PenaltyTypeThisAndPreviousLapInvalidated         uint8 = 14
+	PenaltyTypeThisAndPreviousLapInvalidatedNoReason uint8 = 15
+	PenaltyTypeRetired                               uint8 = 16
+	PenaltyTypeBlackFlagTimer                        uint8 = 17
+)
+
 // Vehicle FIA flag constants (from PacketCarStatusData VehicleFIAFlags)
 const (
 	VehicleFIAFlagInvalid int8 = -1
@@ -163,6 +185,7 @@ const (
 	MaxSessionLapsSanity                     = 120             // Sanity cap for F1 session laps
 	DefaultSessionDurationLimitSeconds       = 7200            // 2-hour default F1 session duration limit emitted by UDP telemetry
 	InvalidDriverID                          = 255
+	InvalidVehicleIdx                  uint8 = 255       // Vehicle index sentinel in event payloads (e.g. PENA OtherVehicleIdx)
 	ActiveStintEndLap                  uint8 = 255       // Sentinel indicating active/open-ended stint
 	UnknownValue                             = "Unknown" // Fallback string for uninitialized session/track values
 	UnknownTrackID                           = -1
@@ -171,6 +194,10 @@ const (
 	Sector2ValidBitFlag                uint8 = 0x04
 	Sector3ValidBitFlag                uint8 = 0x08
 	MaxTyreStints                            = 8
+
+	// GamePenaltyEventWindowSeconds is how long (session time) after a game PENA event for a car
+	// the live feed skips its own penalty entry for that car's accumulated penalty increase.
+	GamePenaltyEventWindowSeconds float32 = 10
 
 	// Wheel array index constants used across the telemetry engine (0: FL, 1: FR, 2: RL, 3: RR)
 	WheelFrontLeft  = 0

@@ -248,6 +248,7 @@ type eventJSON struct {
 	SafetyCarType    *uint8       `json:"SafetyCarType,omitempty"`
 	EventType        *uint8       `json:"EventType,omitempty"`
 	Severity         *uint8       `json:"Severity,omitempty"`
+	StopTime         *float32     `json:"StopTime,omitempty"`
 }
 
 func (p PacketEventData) MarshalJSON() ([]byte, error) {
@@ -274,6 +275,12 @@ func (p PacketEventData) MarshalJSON() ([]byte, error) {
 		var d TeamMateInPitsEventData
 		if err := binary.Read(r, binary.LittleEndian, &d); err == nil {
 			ej.VehicleIdx = &d.VehicleIdx
+		}
+	case EventStopGoServed:
+		var d StopGoPenaltyServedEventData
+		if err := binary.Read(r, binary.LittleEndian, &d); err == nil {
+			ej.VehicleIdx = &d.VehicleIdx
+			ej.StopTime = &d.StopTime
 		}
 	case EventPenaltyIssued:
 		var d PenaltyEventData

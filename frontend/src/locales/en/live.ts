@@ -170,6 +170,12 @@ export const live = {
     collision: 'Collision between {driver} and {target}',
     driveThroughServed: '{driver} served Drive Through penalty',
     stopGoServed: '{driver} served Stop & Go penalty',
+    startLights: 'Start lights countdown active',
+    lightsOut: 'LIGHTS OUT AND AWAY WE GO!',
+    safetyCarDeployed: 'Full Safety Car Deployed',
+    virtualSafetyCarDeployed: 'Virtual Safety Car Deployed',
+    formationLapInProgress: 'Formation Lap In Progress',
+    trackClear: 'Track Clear (Green Flag)',
 
     // Penalties
     driveThrough: '{driver} received a Drive Through penalty{reason}',

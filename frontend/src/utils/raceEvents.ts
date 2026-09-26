@@ -1,14 +1,10 @@
 import type { RaceEvent } from '../types/telemetry';
-import { PENALTY_TYPES } from '../constants/f1';
+import { PENALTY_TYPES, SAFETY_CAR_STATUS } from '../constants/f1';
 
 export function getLocalizedRaceEventDescription(
   evt: RaceEvent,
   t: (key: string, params?: Record<string, string | number>) => string
 ): string {
-  if (!evt.driverName && evt.description) {
-    return evt.description;
-  }
-
   const driver = evt.driverName || 'Driver';
   const target = evt.targetDriverName || 'Car';
 
@@ -97,6 +93,9 @@ export function getLocalizedRaceEventDescription(
     case 'RTMT':
       return t('live.events.retirement', { driver });
 
+    case 'DSQ':
+      return t('live.events.disqualified', { driver, reason: '' });
+
     case 'SSTA':
       return t('live.events.sessionStarted');
 
@@ -120,6 +119,26 @@ export function getLocalizedRaceEventDescription(
 
     case 'RDFL':
       return t('live.events.redFlag');
+
+    case 'STLG':
+      return t('live.events.startLights');
+
+    case 'LGOT':
+      return t('live.events.lightsOut');
+
+    case 'SCAR':
+      switch (evt.safetyCarStatus) {
+        case SAFETY_CAR_STATUS.FULL:
+          return t('live.events.safetyCarDeployed');
+        case SAFETY_CAR_STATUS.VIRTUAL:
+          return t('live.events.virtualSafetyCarDeployed');
+        case SAFETY_CAR_STATUS.FORMATION_LAP:
+          return t('live.events.formationLapInProgress');
+        case SAFETY_CAR_STATUS.CLEAR:
+          return t('live.events.trackClear');
+        default:
+          return evt.description;
+      }
 
     default:
       return evt.description;

@@ -117,6 +117,7 @@ export interface RaceEvent {
   infringementType?: number;
   penaltyTime?: number;
   placesGained?: number;
+  safetyCarStatus?: number;
   severity: 'info' | 'warning' | 'danger' | 'purple' | 'success';
 }
 
@@ -128,7 +129,7 @@ export interface ParticipantData {
   MyTeam?: number;
   RaceNumber: number;
   Nationality: number;
-  Name: string | number[];
+  Name: string;
 }
 
 export interface CarStatusData {

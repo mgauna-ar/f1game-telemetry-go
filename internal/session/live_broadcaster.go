@@ -32,6 +32,7 @@ type SyntheticEvent struct {
 	InfringementType *int     `json:"infringementType,omitempty"`
 	PenaltyTime      *int     `json:"penaltyTime,omitempty"`
 	PlacesGained     *int     `json:"placesGained,omitempty"`
+	SafetyCarStatus  *int     `json:"safetyCarStatus,omitempty"`
 	Severity         string   `json:"severity"`
 	SessionTime      float32  `json:"sessionTime,omitempty"`
 }
@@ -72,6 +73,13 @@ type LiveBroadcaster struct {
 	hasPrevLapData      [packets.MaxCars]bool
 	prevLapData         [packets.MaxCars]packets.LapData
 	pendingEvents       []SyntheticEvent
+
+	// Per-car feed reports. The game and the lap data can both report the same
+	// retirement, disqualification or time penalty; only the first one reaches the feed.
+	retirementReported  [packets.MaxCars]bool
+	dsqReported         [packets.MaxCars]bool
+	hasGamePenalty      [packets.MaxCars]bool
+	lastGamePenaltyTime [packets.MaxCars]float32
 }
 
 // NewLiveBroadcaster creates a new LiveBroadcaster.
@@ -105,7 +113,79 @@ func (b *LiveBroadcaster) checkSessionTransition(sessionUID uint64) {
 		b.hasPrevLapData = [packets.MaxCars]bool{}
 		b.prevLapData = [packets.MaxCars]packets.LapData{}
 		b.pendingEvents = nil
+		b.retirementReported = [packets.MaxCars]bool{}
+		b.dsqReported = [packets.MaxCars]bool{}
+		b.hasGamePenalty = [packets.MaxCars]bool{}
+		b.lastGamePenaltyTime = [packets.MaxCars]float32{}
 	}
+}
+
+// claimReport marks a car's report as sent. It returns false when it was already sent.
+func claimReport(reported *[packets.MaxCars]bool, vehicleIdx int) bool {
+	if vehicleIdx < 0 || vehicleIdx >= packets.MaxCars {
+		return true
+	}
+	if reported[vehicleIdx] {
+		return false
+	}
+	reported[vehicleIdx] = true
+	return true
+}
+
+// withinGamePenaltyWindow reports whether two session times are close enough to be the same penalty.
+func withinGamePenaltyWindow(a, b float32) bool {
+	d := a - b
+	if d < 0 {
+		d = -d
+	}
+	return d <= packets.GamePenaltyEventWindowSeconds
+}
+
+// gamePenaltyReportedNear reports whether the game sent a PENA for the car near sessionTime.
+func (b *LiveBroadcaster) gamePenaltyReportedNear(vehicleIdx int, sessionTime float32) bool {
+	return b.hasGamePenalty[vehicleIdx] && withinGamePenaltyWindow(b.lastGamePenaltyTime[vehicleIdx], sessionTime)
+}
+
+// dropPendingPenalties removes the car's not yet broadcast penalty entries that the game's PENA replaces.
+func (b *LiveBroadcaster) dropPendingPenalties(vehicleIdx int, sessionTime float32) {
+	kept := b.pendingEvents[:0]
+	for _, evt := range b.pendingEvents {
+		if evt.EventCode == packets.EventPenaltyIssued && evt.VehicleIdx != nil && *evt.VehicleIdx == vehicleIdx &&
+			withinGamePenaltyWindow(evt.SessionTime, sessionTime) {
+			continue
+		}
+		kept = append(kept, evt)
+	}
+	b.pendingEvents = kept
+}
+
+// acceptGameEvent records what a raw game event reports and returns whether it
+// should reach the feed. The caller must hold b.mu.
+func (b *LiveBroadcaster) acceptGameEvent(p *packets.PacketEventData) bool {
+	switch p.EventCode() {
+	case packets.EventTeamMateInPits:
+		// The pit-entry event built from lap data already covers every car, the teammate included.
+		return false
+	case packets.EventRetirement:
+		d, ok := p.RetirementData()
+		return !ok || claimReport(&b.retirementReported, int(d.VehicleIdx))
+	case packets.EventPenaltyIssued:
+		d, ok := p.PenaltyData()
+		idx := int(d.VehicleIdx)
+		if !ok || idx >= packets.MaxCars {
+			return true
+		}
+		switch d.PenaltyType {
+		case packets.PenaltyTypeDisqualified:
+			return claimReport(&b.dsqReported, idx)
+		case packets.PenaltyTypeRetired:
+			return claimReport(&b.retirementReported, idx)
+		}
+		b.hasGamePenalty[idx] = true
+		b.lastGamePenaltyTime[idx] = p.Header.SessionTime
+		b.dropPendingPenalties(idx, p.Header.SessionTime)
+	}
+	return true
 }
 
 func (b *LiveBroadcaster) getDriverName(vehicleIdx int) string {
@@ -197,8 +277,13 @@ func (b *LiveBroadcaster) ProcessPacket(pkt packets.Packet) {
 
 	switch p := pkt.(type) {
 	case *packets.PacketEventData:
+		b.mu.Lock()
+		b.checkSessionTransition(header.SessionUID)
+		forward := b.acceptGameEvent(p)
+		b.mu.Unlock()
+
 		// Events are sparse and time-critical (penalties, overtakes, fastest laps): broadcast immediately
-		if b.hub != nil && b.hub.ClientCount() > 0 {
+		if forward && b.hub != nil && b.hub.ClientCount() > 0 {
 			if js, err := json.Marshal(p); err == nil {
 				b.hub.Broadcast(js)
 			}
@@ -228,12 +313,14 @@ func (b *LiveBroadcaster) ProcessPacket(pkt packets.Packet) {
 					desc = "Track Clear (Green Flag)"
 					sev = "success"
 				}
+				scStatus := int(p.SafetyCarStatus)
 				b.pendingEvents = append(b.pendingEvents, SyntheticEvent{
-					EventCode:   packets.EventSafetyCarStatus,
-					Type:        "flag",
-					Description: desc,
-					Severity:    sev,
-					SessionTime: header.SessionTime,
+					EventCode:       packets.EventSafetyCarStatus,
+					Type:            "flag",
+					Description:     desc,
+					SafetyCarStatus: &scStatus,
+					Severity:        sev,
+					SessionTime:     header.SessionTime,
 				})
 				b.prevSafetyCarStatus = p.SafetyCarStatus
 			}
@@ -284,8 +371,8 @@ func (b *LiveBroadcaster) ProcessPacket(pkt packets.Packet) {
 					})
 				}
 
-				// Penalty increment
-				if curr.Penalties > prev.Penalties {
+				// Penalty increment, unless the game's own PENA event already reported it
+				if curr.Penalties > prev.Penalties && !b.gamePenaltyReportedNear(idx, header.SessionTime) {
 					added := int(curr.Penalties - prev.Penalties)
 					b.pendingEvents = append(b.pendingEvents, SyntheticEvent{
 						EventCode:   packets.EventPenaltyIssued,
@@ -306,6 +393,9 @@ func (b *LiveBroadcaster) ProcessPacket(pkt packets.Packet) {
 				if prevStatus != packets.ResultStatusRetired && prevStatus != packets.ResultStatusDNF && prevStatus != packets.ResultStatusDSQ {
 					switch currStatus {
 					case packets.ResultStatusDSQ:
+						if !claimReport(&b.dsqReported, idx) {
+							break
+						}
 						b.pendingEvents = append(b.pendingEvents, SyntheticEvent{
 							EventCode:   packets.EventDisqualification,
 							Type:        "penalty",
@@ -317,6 +407,9 @@ func (b *LiveBroadcaster) ProcessPacket(pkt packets.Packet) {
 							SessionTime: header.SessionTime,
 						})
 					case packets.ResultStatusRetired, packets.ResultStatusDNF:
+						if !claimReport(&b.retirementReported, idx) {
+							break
+						}
 						b.pendingEvents = append(b.pendingEvents, SyntheticEvent{
 							EventCode:   packets.EventRetirement,
 							Type:        "retirement",
