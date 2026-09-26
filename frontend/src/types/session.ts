@@ -1,75 +1,56 @@
-import type { WeatherForecastSample } from './telemetry';
-export type { WeatherForecastSample };
+import type { DriverStanding as RawDriverStanding } from './generated/analytics';
+import type {
+  ImportBatchResponse as GeneratedImportBatchResponse,
+  ImportDetail as GeneratedImportDetail,
+} from './generated/session';
+import type { Lap, Participant } from './generated/storage';
+import type { Narrows } from './wire';
 
-export interface Tag {
-  id: number;
-  name: string;
-  color: string;
-  created_at?: string;
-}
+// Wire types generated from the Go structs (go run ./cmd/tsgen). The camelCase client models
+// below (DriverStanding, DriverStint) are built from them.
+export type { Lap, Participant, Session, Tag } from './generated/storage';
+export type { WeatherForecastSample } from './generated/packets';
+export type {
+  ClassificationResponse,
+  CompoundBestLap,
+  DegradationRow,
+  DriverStanding as RawDriverStanding,
+  DriverStint as RawDriverStint,
+  DriverStintData,
+  ProgressionDriverMeta,
+  ProgressionResponse,
+  ProgressionRow,
+  SpeedRanking,
+  StintInfo as StandingStint,
+  StintKPIs,
+  StintLongestSummary,
+  StintsResponse,
+} from './generated/analytics';
 
-export interface Session {
-  id: number;
-  /** Hex string (e.g. "0x1a2b..."), never a number: 64-bit UIDs overflow JS numbers. */
-  session_uid: string;
-  track_id?: number;
-  track_name: string;
-  session_type: string;
-  weather?: string;
-  weather_forecast?: WeatherForecastSample[];
-  total_laps?: number;
-  ai_difficulty?: number;
-  session_duration?: number;
-  packet_format?: number;
-  created_at: string;
-  tags?: Tag[];
-}
-
-export interface Participant {
-  id: number;
-  session_id: number;
-  car_index: number;
-  name: string;
-  driver_id: number;
-  team_id: number;
-  race_number: number;
-  ai_controlled: boolean;
-  nationality?: number;
-  grid_position?: number;
-  position?: number;
-  points?: number;
-  total_race_time?: number;
-  penalties_time?: number;
-  num_penalties?: number;
-  result_reason?: number;
-  num_pit_stops?: number;
-  result_status?: number;
-}
-
-export interface Lap {
-  id: number;
-  session_id: number;
-  car_index?: number;
-  lap_number: number;
-  lap_time_ms: number;
-  sector1_ms?: number;
-  sector2_ms?: number;
-  sector3_ms?: number;
-  is_valid: boolean;
-  tyre_compound?: string;
-  actual_compound?: string;
-  sector1_valid?: boolean;
-  sector2_valid?: boolean;
-  sector3_valid?: boolean;
-  fuel_load?: number;
-  max_speed_kmh?: number;
-  penalties_seconds?: number;
-  car_position?: number;
-  result_status?: number;
-  stint?: number;
-  created_at?: string;
-  has_telemetry?: boolean;
-  sample_count?: number;
+/** A participant for a car the server sent no participant row for, with the given fields set. */
+export function placeholderParticipant(fields: Partial<Participant>): Participant {
+  return {
+    id: 0,
+    session_id: 0,
+    car_index: 0,
+    name: '',
+    driver_id: 0,
+    team_id: 0,
+    race_number: 0,
+    ai_controlled: false,
+    nationality: 0,
+    grid_position: 0,
+    position: 0,
+    points: 0,
+    total_race_time: 0,
+    penalties_time: 0,
+    num_penalties: 0,
+    result_reason: 0,
+    num_pit_stops: 0,
+    result_status: 0,
+    created_at: '',
+    ...fields,
+  };
 }
 
 export interface StagedLap {
@@ -83,63 +64,6 @@ export interface StagedLap {
   raceNumber?: number;
   tyreCompound?: string;
   isValid?: boolean;
-}
-
-export interface SpeedRanking {
-  car_index: number;
-  driver_name: string;
-  team_id: number;
-  max_speed: number;
-  delta_to_top: number;
-}
-
-/** One tyre stint in a classification row (analytics.StintInfo). */
-export interface StandingStint {
-  compound: string;
-  lap_count: number;
-  stint_id: number;
-}
-
-/** A classification row exactly as the server sends it (analytics.DriverStanding, snake_case). */
-export interface RawDriverStanding {
-  position: number;
-  car_index?: number;
-  driver_name?: string;
-  team_name?: string;
-  team_id?: number;
-  race_number?: number;
-  grid_position?: number;
-  positions_gained?: number;
-  best_lap_time_ms?: number;
-  best_lap_number?: number;
-  best_lap_id?: number;
-  best_lap_s1_ms?: number;
-  best_lap_s2_ms?: number;
-  best_lap_s3_ms?: number;
-  last_lap_time_ms?: number;
-  total_race_time_ms?: number;
-  total_with_penalties_ms?: number;
-  penalty_seconds?: number;
-  laps_completed?: number;
-  stints_summary?: string;
-  stints?: StandingStint[];
-  ai_controlled?: boolean;
-  result_reason?: number;
-  best_lap?: Lap | null;
-  last_lap?: Lap | null;
-  is_dnf?: boolean;
-  is_dsq?: boolean;
-  max_speed?: number;
-  best_s1_ms?: number;
-  best_s2_ms?: number;
-  best_s3_ms?: number;
-  theoretical_best_ms?: number;
-  gap_to_leader_ms?: number;
-  interval_ms?: number;
-  pit_stops_count?: number;
-  participant?: Participant;
-  laps?: Lap[];
-  points?: number;
 }
 
 export interface DriverStanding {
@@ -184,21 +108,21 @@ export interface DriverStanding {
 }
 
 export function normalizeDriverStanding(raw: RawDriverStanding, sessionId: number): DriverStanding {
-  const p: Participant = raw.participant || {
-    id: raw.car_index ?? 0,
-    session_id: sessionId,
-    car_index: raw.car_index ?? 0,
-    name: raw.driver_name ?? '',
-    driver_id: 0,
-    team_id: raw.team_id ?? 0,
-    race_number: raw.race_number ?? 0,
-    ai_controlled: raw.ai_controlled ?? false,
-    position: raw.position ?? 0,
-    grid_position: raw.grid_position,
-    points: raw.points,
-    result_reason: raw.result_reason,
-    result_status: 0,
-  };
+  const p: Participant =
+    raw.participant ||
+    placeholderParticipant({
+      id: raw.car_index ?? 0,
+      session_id: sessionId,
+      car_index: raw.car_index ?? 0,
+      name: raw.driver_name ?? '',
+      team_id: raw.team_id ?? 0,
+      race_number: raw.race_number ?? 0,
+      ai_controlled: raw.ai_controlled ?? false,
+      position: raw.position ?? 0,
+      grid_position: raw.grid_position,
+      points: raw.points,
+      result_reason: raw.result_reason,
+    });
   const totalWithPenalties = raw.total_with_penalties_ms ?? 0;
   return {
     position: raw.position ?? 0,
@@ -242,48 +166,6 @@ export function normalizeDriverStanding(raw: RawDriverStanding, sessionId: numbe
   };
 }
 
-export interface ClassificationResponse {
-  standings: RawDriverStanding[];
-  session_best_s1_ms: number;
-  session_best_s2_ms: number;
-  session_best_s3_ms: number;
-  ultimate_theoretical_ms: number;
-  actual_best_lap_ms: number;
-  actual_best_lap_driver: string;
-  speed_rankings: SpeedRanking[];
-}
-
-export interface ProgressionDriverMeta {
-  car_index: number;
-  driver_name: string;
-  race_number: number;
-  team_id: number;
-  team_color: string;
-}
-
-export interface ProgressionResponse {
-  lap_pace: Array<{ lapNumber: number; [key: string]: number | string | null | undefined }>;
-  positions: Array<{ lapNumber: number; [key: string]: number | string | null | undefined }>;
-  gap_to_leader: Array<{ lapNumber: number; [key: string]: number | string | null | undefined }>;
-  drivers: ProgressionDriverMeta[];
-  total_session_laps: number;
-}
-
-export interface RawDriverStint {
-  stint_index: number;
-  stint_id: number;
-  compound: string;
-  actual_compound?: string;
-  start_lap: number;
-  end_lap: number;
-  total_laps: number;
-  avg_lap_time_ms: number;
-  best_lap_time_ms: number;
-  has_pit_stop_after: boolean;
-  deg_slope_sec_per_lap?: number | null;
-  laps?: Lap[];
-}
-
 export interface DriverStint {
   stintIndex: number;
   stintId: number;
@@ -299,74 +181,23 @@ export interface DriverStint {
   laps?: Lap[];
 }
 
-export interface DriverStintData {
-  car_index: number;
-  driver_name: string;
-  race_number: number;
-  team_id: number;
-  position: number;
-  strategy_string: string;
-  total_stints: number;
-  total_pits: number;
-  stints: RawDriverStint[];
-}
-
-export interface StintLongestSummary {
-  driver_name: string;
-  car_index: number;
-  race_number: number;
-  compound: string;
-  total_laps: number;
-}
-
-export interface CompoundBestLap {
-  time_ms: number;
-  driver_name: string;
-  car_index: number;
-}
-
-export interface StintKPIs {
-  most_popular_strategy: string;
-  most_popular_count: number;
-  longest_stint?: StintLongestSummary | null;
-  best_laps_by_compound: Record<string, CompoundBestLap>;
-  total_field_pit_stops: number;
-}
-
-export interface StintsResponse {
-  drivers: DriverStintData[];
-  kpis: StintKPIs;
-  degradation_data: Array<{ tyreAge: number; [key: string]: number | string | null | undefined }>;
-  max_tyre_age: number;
-  degradation_rates: Record<string, number | null>;
-  session_compounds: string[];
-  effective_max_laps: number;
-}
-
-/** Outcome for one file of POST /api/sessions/import (session.ImportDetail). */
-export interface ImportDetail {
-  filename?: string;
-  status: 'imported' | 'skipped' | 'failed';
-  session_id?: number;
-  reason?: string;
-}
+/** Outcome for one file of POST /api/sessions/import. */
+export type ImportDetail = Narrows<
+  Omit<GeneratedImportDetail, 'status'> & { status: 'imported' | 'skipped' | 'failed' },
+  GeneratedImportDetail
+>;
 
 /**
- * Body of POST /api/sessions/import (session.ImportBatchResponse). When nothing was
- * imported or skipped the server answers 400 with this body, and `error` holds the
- * first failure reason.
+ * Body of POST /api/sessions/import. When nothing was imported or skipped the server answers 400
+ * with this body, and `error` holds the first failure reason.
  */
-export interface ImportBatchResponse {
-  status: 'success' | 'partial_failure' | 'error';
-  total: number;
-  imported: number;
-  skipped: number;
-  failed: number;
-  session_ids: number[];
-  session_id?: number;
-  details: ImportDetail[];
-  error?: string;
-}
+export type ImportBatchResponse = Narrows<
+  Omit<GeneratedImportBatchResponse, 'status' | 'details'> & {
+    status: 'success' | 'partial_failure' | 'error';
+    details: ImportDetail[];
+  },
+  GeneratedImportBatchResponse
+>;
 
 export interface NavigationComparatorPayload {
   sessionAId?: number;

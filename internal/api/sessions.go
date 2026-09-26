@@ -73,7 +73,7 @@ func (s *Server) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
 	}
 	s.comparatorCache.Clear()
 
-	writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
+	writeJSON(w, http.StatusOK, StatusResponse{Status: StatusSuccess})
 }
 
 func (s *Server) handleGetParticipants(w http.ResponseWriter, r *http.Request) {
@@ -262,7 +262,7 @@ func (s *Server) handleDeleteTag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]string{"status": "success"})
+	writeJSON(w, http.StatusOK, StatusResponse{Status: StatusSuccess})
 }
 
 func (s *Server) handleGetSessionTags(w http.ResponseWriter, r *http.Request) {
@@ -547,10 +547,7 @@ func (s *Server) handleBatchDeleteSessions(w http.ResponseWriter, r *http.Reques
 	}
 	s.comparatorCache.Clear()
 
-	writeJSON(w, http.StatusOK, map[string]any{
-		"status":        "success",
-		"deleted_count": deletedCount,
-	})
+	writeJSON(w, http.StatusOK, BatchDeleteResponse{Status: StatusSuccess, DeletedCount: deletedCount})
 }
 
 // BatchTagsRequest defines payload for assigning a tag to multiple sessions.
@@ -577,7 +574,5 @@ func (s *Server) handleBatchAssignTags(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{
-		"status": "success",
-	})
+	writeJSON(w, http.StatusOK, StatusResponse{Status: StatusSuccess})
 }

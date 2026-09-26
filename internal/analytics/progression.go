@@ -11,10 +11,14 @@ import (
 )
 
 // ProgressionResponse contains lap-by-lap pace evolution, position changes, and gaps to the leader.
+//
+// Each series row has lapNumber plus keys built at runtime: driver_{carIndex}, and for lap_pace
+// also driver_{carIndex}_tyre, _rawMS, _is_outlier, _outlier_reason and _pace_filtered. The
+// tstype tags describe that shape for the generated frontend types.
 type ProgressionResponse struct {
-	LapPace          []map[string]any        `json:"lap_pace"`
-	Positions        []map[string]any        `json:"positions"`
-	GapToLeader      []map[string]any        `json:"gap_to_leader"`
+	LapPace          []map[string]any        `json:"lap_pace" tstype:"ProgressionRow[]"`
+	Positions        []map[string]any        `json:"positions" tstype:"ProgressionRow[]"`
+	GapToLeader      []map[string]any        `json:"gap_to_leader" tstype:"ProgressionRow[]"`
 	Drivers          []ProgressionDriverMeta `json:"drivers"`
 	TotalSessionLaps int                     `json:"total_session_laps"`
 }

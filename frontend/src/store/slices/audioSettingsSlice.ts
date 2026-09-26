@@ -9,6 +9,7 @@ import {
   type RadioLanguage,
 } from '../../constants/f1';
 import type { RadioSettingsState } from '../useRadioSettingsStore';
+import type { Voice } from '../../types/settings';
 
 export function getStoredBool(key: string, def: boolean): boolean {
   if (typeof window === 'undefined') return def;
@@ -57,15 +58,7 @@ export function saveStorage(key: string, val: string | number | boolean): void {
 }
 
 /** The engineer's voice, shared by every device through GET/PUT /api/settings/voice. */
-export interface VoiceSettingsPayload {
-  persona: string;
-  language: string;
-  custom_prompt: string;
-  driver_callsign: string;
-  neural_voice: string;
-  speech_rate: number;
-  speech_pitch: number;
-}
+export type VoiceSettingsPayload = Voice;
 
 export type VoiceSettingsValues = Pick<
   AudioSettingsSlice,

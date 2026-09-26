@@ -138,7 +138,7 @@ export const WeatherBadgeWithForecast: React.FC<WeatherBadgeWithForecastProps> =
     // Filter samples for this session's specific type if available
     const sessionCode = getSessionTypeCode(session.session_type);
     if (sessionCode > 0) {
-      const matched = raw.filter((s) => (s.SessionType ?? s.session_type) === sessionCode);
+      const matched = raw.filter((s) => s.SessionType === sessionCode);
       if (matched.length > 0) {
         return matched;
       }
@@ -149,7 +149,7 @@ export const WeatherBadgeWithForecast: React.FC<WeatherBadgeWithForecastProps> =
     const firstGroup: WeatherForecastSample[] = [];
     for (let i = 0; i < raw.length; i++) {
       const s = raw[i];
-      const offset = s.TimeOffset ?? s.time_offset ?? 0;
+      const offset = s.TimeOffset ?? 0;
       if (i > 0 && offset === 0) {
         break; // Next session in the weekend starts
       }
@@ -161,13 +161,13 @@ export const WeatherBadgeWithForecast: React.FC<WeatherBadgeWithForecastProps> =
   const initialWeatherLabel = session.weather
     ? getWeatherLabel(session.weather, t)
     : forecastSamples.length > 0
-    ? getWeatherLabel(forecastSamples[0].Weather ?? forecastSamples[0].weather, t)
+    ? getWeatherLabel(forecastSamples[0].Weather, t)
     : t('common.clearWeather');
 
   const hasMultipleConditions = useMemo(() => {
     if (forecastSamples.length < 2) return false;
-    const first = forecastSamples[0].Weather ?? forecastSamples[0].weather;
-    return forecastSamples.some((s) => (s.Weather ?? s.weather) !== first);
+    const first = forecastSamples[0].Weather;
+    return forecastSamples.some((s) => s.Weather !== first);
   }, [forecastSamples]);
 
   const calculatePosition = useCallback(() => {
@@ -259,7 +259,7 @@ export const WeatherBadgeWithForecast: React.FC<WeatherBadgeWithForecastProps> =
           transition: 'all 0.2s ease',
         }}
       >
-        {getWeatherIcon(session.weather || (forecastSamples[0]?.Weather ?? forecastSamples[0]?.weather), compact ? 13 : 14)}
+        {getWeatherIcon(session.weather || forecastSamples[0]?.Weather, compact ? 13 : 14)}
         <span style={{ fontSize: compact ? '0.78rem' : '0.82rem', color: 'var(--text-primary)', fontWeight: 500 }}>
           {initialWeatherLabel}
         </span>
@@ -347,11 +347,11 @@ export const WeatherBadgeWithForecast: React.FC<WeatherBadgeWithForecastProps> =
             {/* Forecast Samples Timeline */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {forecastSamples.map((sample, idx) => {
-                const weatherVal = sample.Weather ?? sample.weather ?? 0;
-                const timeOffset = sample.TimeOffset ?? sample.time_offset ?? idx * 5;
-                const rainPercent = sample.RainPercentage ?? sample.rain_percentage ?? 0;
-                const trackTemp = sample.TrackTemperature ?? sample.track_temperature;
-                const airTemp = sample.AirTemperature ?? sample.air_temperature;
+                const weatherVal = sample.Weather ?? 0;
+                const timeOffset = sample.TimeOffset ?? idx * 5;
+                const rainPercent = sample.RainPercentage ?? 0;
+                const trackTemp = sample.TrackTemperature;
+                const airTemp = sample.AirTemperature;
                 const conditionName = getWeatherLabel(weatherVal, t);
                 const rainColor = getRainColor(rainPercent);
 

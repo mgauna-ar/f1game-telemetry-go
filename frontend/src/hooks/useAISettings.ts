@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../utils/apiClient';
 import { storage } from '../utils/storage';
+import type { AISettingsResponse, AIUpdate } from '../types/settings';
+import type { Narrows } from '../types/wire';
 import {
   AI_PROVIDERS,
   DEFAULT_CONFIG,
@@ -12,21 +14,17 @@ import {
   type AIProvider,
 } from '../context/RaceEngineerContextDefinitions';
 
-/** What GET and PUT /api/settings/ai return. API keys are never included. */
-export interface AISettingsResponse {
-  saved: boolean;
-  provider: string;
-  base_url: string;
-  providers: Record<string, { model: string; has_saved_key: boolean; has_env_key: boolean } | undefined>;
-}
+export type { AISettingsResponse };
 
 /** A partial change for PUT /api/settings/ai. An empty model or key removes the saved one. */
-export interface AISettingsUpdate {
-  provider?: AIProvider;
-  models?: Partial<Record<AIProvider, string>>;
-  base_url?: string;
-  api_keys?: Partial<Record<AIProvider, string>>;
-}
+export type AISettingsUpdate = Narrows<
+  Omit<AIUpdate, 'provider' | 'models' | 'api_keys'> & {
+    provider?: AIProvider;
+    models?: Partial<Record<AIProvider, string>>;
+    api_keys?: Partial<Record<AIProvider, string>>;
+  },
+  AIUpdate
+>;
 
 /** The AI config older versions kept in each browser, API keys included. */
 export interface LegacyAIConfig {

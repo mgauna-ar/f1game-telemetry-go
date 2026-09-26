@@ -8,6 +8,7 @@ import {
   DEFAULT_COMPARATOR_PREFERENCES,
 } from './comparatorPreferencesUtils';
 import type { Participant, Lap } from '../types/session';
+import { makeLap, makeParticipant } from '../test/wireFactories';
 
 describe('comparatorPreferencesUtils', () => {
   beforeEach(() => {
@@ -49,7 +50,7 @@ describe('comparatorPreferencesUtils', () => {
 
   describe('findParticipantByPartialName', () => {
     const participants: Participant[] = [
-      {
+      makeParticipant({
         id: 1,
         session_id: 1,
         car_index: 0,
@@ -59,8 +60,8 @@ describe('comparatorPreferencesUtils', () => {
         driver_id: 1,
         ai_controlled: false,
         nationality: 1,
-      },
-      {
+      }),
+      makeParticipant({
         id: 2,
         session_id: 1,
         car_index: 1,
@@ -70,8 +71,8 @@ describe('comparatorPreferencesUtils', () => {
         driver_id: 2,
         ai_controlled: false,
         nationality: 2,
-      },
-      {
+      }),
+      makeParticipant({
         id: 3,
         session_id: 1,
         car_index: 2,
@@ -81,7 +82,7 @@ describe('comparatorPreferencesUtils', () => {
         driver_id: 3,
         ai_controlled: false,
         nationality: 3,
-      },
+      }),
     ];
 
     it('returns undefined for empty queries', () => {
@@ -108,7 +109,7 @@ describe('comparatorPreferencesUtils', () => {
 
   describe('resolveReferenceLap', () => {
     const mockParticipants: Participant[] = [
-      {
+      makeParticipant({
         id: 1,
         session_id: 1,
         car_index: 0,
@@ -118,8 +119,8 @@ describe('comparatorPreferencesUtils', () => {
         driver_id: 1,
         ai_controlled: false,
         nationality: 1,
-      },
-      {
+      }),
+      makeParticipant({
         id: 2,
         session_id: 1,
         car_index: 1,
@@ -129,11 +130,11 @@ describe('comparatorPreferencesUtils', () => {
         driver_id: 2,
         ai_controlled: false,
         nationality: 2,
-      },
+      }),
     ];
 
     const mockLaps: Lap[] = [
-      {
+      makeLap({
         id: 101,
         session_id: 1,
         car_index: 0,
@@ -143,8 +144,8 @@ describe('comparatorPreferencesUtils', () => {
         sector2_ms: 30000,
         sector3_ms: 25000,
         is_valid: true,
-      },
-      {
+      }),
+      makeLap({
         id: 102,
         session_id: 1,
         car_index: 1,
@@ -154,7 +155,7 @@ describe('comparatorPreferencesUtils', () => {
         sector2_ms: 30100,
         sector3_ms: 25200,
         is_valid: true,
-      },
+      }),
     ];
 
     it('returns empty when no laps available', () => {
@@ -181,7 +182,7 @@ describe('comparatorPreferencesUtils', () => {
   });
 
   describe('resolveComparisonLap', () => {
-    const pVerstappen: Participant = {
+    const pVerstappen: Participant = makeParticipant({
       id: 1,
       session_id: 1,
       car_index: 0,
@@ -191,9 +192,9 @@ describe('comparatorPreferencesUtils', () => {
       driver_id: 1,
       ai_controlled: false,
       nationality: 1,
-    };
+    });
 
-    const pLawson: Participant = {
+    const pLawson: Participant = makeParticipant({
       id: 2,
       session_id: 1,
       car_index: 1,
@@ -203,9 +204,9 @@ describe('comparatorPreferencesUtils', () => {
       driver_id: 2,
       ai_controlled: false,
       nationality: 2,
-    };
+    });
 
-    const pNorris: Participant = {
+    const pNorris: Participant = makeParticipant({
       id: 3,
       session_id: 1,
       car_index: 2,
@@ -215,11 +216,11 @@ describe('comparatorPreferencesUtils', () => {
       driver_id: 3,
       ai_controlled: false,
       nationality: 3,
-    };
+    });
 
     const mockParticipants = [pVerstappen, pLawson, pNorris];
 
-    const lapVerstappen: Lap = {
+    const lapVerstappen: Lap = makeLap({
       id: 101,
       session_id: 1,
       car_index: 0,
@@ -229,9 +230,9 @@ describe('comparatorPreferencesUtils', () => {
       sector2_ms: 30000,
       sector3_ms: 25000,
       is_valid: true,
-    };
+    });
 
-    const lapLawson: Lap = {
+    const lapLawson: Lap = makeLap({
       id: 102,
       session_id: 1,
       car_index: 1,
@@ -241,9 +242,9 @@ describe('comparatorPreferencesUtils', () => {
       sector2_ms: 30100,
       sector3_ms: 25200,
       is_valid: true,
-    };
+    });
 
-    const lapNorris: Lap = {
+    const lapNorris: Lap = makeLap({
       id: 103,
       session_id: 1,
       car_index: 2,
@@ -253,7 +254,7 @@ describe('comparatorPreferencesUtils', () => {
       sector2_ms: 30100,
       sector3_ms: 25100,
       is_valid: true,
-    };
+    });
 
     // Sorted order by time:
     // 1. Verstappen (80.000s) id: 101

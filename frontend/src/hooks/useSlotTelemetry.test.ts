@@ -3,10 +3,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useSlotTelemetry } from './useSlotTelemetry';
 
 import type { Participant } from '../types/session';
+import { makeParticipant } from '../test/wireFactories';
 
 describe('useSlotTelemetry Hook', () => {
   const mockParticipants: Participant[] = [
-    {
+    makeParticipant({
       id: 1,
       session_id: 1,
       car_index: 0,
@@ -15,8 +16,8 @@ describe('useSlotTelemetry Hook', () => {
       team_id: 2,
       driver_id: 1,
       ai_controlled: false,
-    },
-    {
+    }),
+    makeParticipant({
       id: 2,
       session_id: 1,
       car_index: 1,
@@ -25,7 +26,7 @@ describe('useSlotTelemetry Hook', () => {
       team_id: 2,
       driver_id: 2,
       ai_controlled: false,
-    },
+    }),
   ];
 
   const mockLaps = [

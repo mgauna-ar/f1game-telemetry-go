@@ -102,7 +102,7 @@ describe('useTelemetry', () => {
       if (wsInstance?.onmessage) {
         wsInstance.onmessage({
           data: JSON.stringify({
-            Header: { PacketId: 255, SessionTime: 1.0, SessionUID: 12345, PlayerCarIndex: 0 },
+            Header: { PacketId: 255, SessionTime: 1.0, SessionUID: '0x0000000000003039', PlayerCarIndex: 0 },
             Participants: {
               NumActiveCars: 4,
               Participants: [
@@ -126,7 +126,7 @@ describe('useTelemetry', () => {
       if (wsInstance?.onmessage) {
         wsInstance.onmessage({
           data: JSON.stringify({
-            Header: { PacketId: 255, SessionTime: 2.0, SessionUID: 12345, PlayerCarIndex: 0 },
+            Header: { PacketId: 255, SessionTime: 2.0, SessionUID: '0x0000000000003039', PlayerCarIndex: 0 },
             Participants: {
               NumActiveCars: 3,
               Participants: [
@@ -171,7 +171,7 @@ describe('useTelemetry', () => {
       if (wsInstance?.onmessage) {
         wsInstance.onmessage({
           data: JSON.stringify({
-            Header: { PacketId: 255, SessionTime: 10.0, SessionUID: 12345, PlayerCarIndex: 0 },
+            Header: { PacketId: 255, SessionTime: 10.0, SessionUID: '0x0000000000003039', PlayerCarIndex: 0 },
             Events: [
               {
                 eventCode: 'SCAR',

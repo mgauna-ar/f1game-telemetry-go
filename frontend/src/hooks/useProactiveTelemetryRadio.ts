@@ -1,5 +1,10 @@
 import { useEffect, useRef } from 'react';
-import type { EngineerDirective, RadioAlertCategory, RadioAlertPayload } from '../types/telemetry';
+import type {
+  EngineerDirective,
+  EngineerSocketMessage,
+  RadioAlertCategory,
+  RadioAlertPayload,
+} from '../types/telemetry';
 import { subscribeEngineerWebSocket } from '../utils/engineerSocket';
 import radioAlertCategories from '../constants/radioAlertCategories.json';
 
@@ -43,10 +48,13 @@ export function useProactiveTelemetryRadio({
 
     return subscribeEngineerWebSocket((data) => {
       try {
-        const directive = data as EngineerDirective;
-        if (!directive || directive.type !== 'directive' || !directive.id || directive.id === lastDirectiveIdRef.current) {
+        const msg = data as EngineerSocketMessage | null;
+        if (!msg || msg.type !== 'directive' || !msg.id || msg.id === lastDirectiveIdRef.current) {
           return;
         }
+        // The server sends category and urgency as plain strings; a value this dashboard doesn't
+        // know gets the generic 'directive' handling below.
+        const directive = msg as EngineerDirective;
 
         lastDirectiveIdRef.current = directive.id;
 

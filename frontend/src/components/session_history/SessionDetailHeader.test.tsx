@@ -3,25 +3,26 @@ import { describe, it, expect, vi } from 'vitest';
 import { SessionDetailHeader } from './SessionDetailHeader';
 import { I18nProvider } from '../../context/I18nProvider';
 import type { Session } from '../../types/session';
+import { makeSession } from '../../test/wireFactories';
 
 describe('SessionDetailHeader Component', () => {
-  const mockRaceSession: Session = {
+  const mockRaceSession: Session = makeSession({
     id: 1,
     session_uid: '0x1234567890abcdef',
     track_name: 'Silverstone',
     session_type: 'Race',
     packet_format: 2026,
     created_at: '2026-07-12T14:00:00Z',
-  };
+  });
 
-  const mockQualySession: Session = {
+  const mockQualySession: Session = makeSession({
     id: 2,
     session_uid: '0xabcdef1234567890',
     track_name: 'Silverstone',
     session_type: 'Qualifying 1',
     packet_format: 2026,
     created_at: '2026-07-11T14:00:00Z',
-  };
+  });
 
   it('renders Progression tab button when session is a Race session', () => {
     const setActiveDetailTab = vi.fn();

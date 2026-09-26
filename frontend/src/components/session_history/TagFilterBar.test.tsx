@@ -3,11 +3,12 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { TagFilterBar } from './TagFilterBar';
 import { I18nProvider } from '../../context/I18nProvider';
 import type { Tag } from '../../types/session';
+import { makeTag } from '../../test/wireFactories';
 
 describe('TagFilterBar', () => {
   const mockTags: Tag[] = [
-    { id: 1, name: 'WOR League', color: '#ef4444' },
-    { id: 2, name: 'Setup Test', color: '#10b981' },
+    makeTag({ id: 1, name: 'WOR League', color: '#ef4444' }),
+    makeTag({ id: 2, name: 'Setup Test', color: '#10b981' }),
   ];
   const countByTag = { 1: 5, 2: 2 };
 

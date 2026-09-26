@@ -2,13 +2,14 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { TagBadge } from './TagBadge';
 import type { Tag } from '../../types/session';
+import { makeTag } from '../../test/wireFactories';
 
 describe('TagBadge', () => {
-  const mockTag: Tag = {
+  const mockTag: Tag = makeTag({
     id: 1,
     name: 'WOR Tier 1',
     color: '#ef4444',
-  };
+  });
 
   it('renders tag name and color indicator', () => {
     render(<TagBadge tag={mockTag} />);

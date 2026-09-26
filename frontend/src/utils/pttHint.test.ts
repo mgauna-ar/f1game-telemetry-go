@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { getPttHint } from './pttHint';
 import { getTranslation } from '../locales';
+import { makePTTMapping } from '../test/wireFactories';
 
 const t = (key: string, params?: Record<string, string | number>) => getTranslation('en', key, params);
 
@@ -16,7 +17,7 @@ describe('getPttHint', () => {
     const hint = getPttHint(
       {
         mappedKey: 'None',
-        globalMapping: { device_type: 'joystick', device_index: 0, button_index: 4 },
+        globalMapping: makePTTMapping({ device_type: 'joystick', device_index: 0, button_index: 4 }),
         mappedGamepadButton: { gamepadIndex: 0, buttonIndex: 1 },
       },
       t
@@ -30,12 +31,12 @@ describe('getPttHint', () => {
   });
 
   it('uses a native keyboard mapping', () => {
-    const hint = getPttHint({ mappedKey: 'None', globalMapping: { device_type: 'keyboard', key_name: 'CapsLock' } }, t);
+    const hint = getPttHint({ mappedKey: 'None', globalMapping: makePTTMapping({ device_type: 'keyboard', key_name: 'CapsLock' }) }, t);
     expect(hint).toEqual({ badge: 'CapsLock', text: 'Hold CapsLock or mapped wheel button to talk' });
   });
 
   it('says no button is set up instead of "Hold None"', () => {
-    const hint = getPttHint({ mappedKey: 'None', mappedGamepadButton: null, globalMapping: { device_type: 'none' } }, t);
+    const hint = getPttHint({ mappedKey: 'None', mappedGamepadButton: null, globalMapping: makePTTMapping({ device_type: 'none' }) }, t);
     expect(hint).toEqual({ badge: null, text: 'No push-to-talk button set' });
   });
 });

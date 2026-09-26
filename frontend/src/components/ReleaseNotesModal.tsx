@@ -38,6 +38,13 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
   const effectiveData: UpdateCheckResponse = updateData || {
     update_available: false,
     current_version: systemVersion?.version || 'dev',
+    latest_version: '',
+    release_name: '',
+    release_notes: '',
+    html_url: '',
+    published_at: '',
+    is_prerelease: false,
+    assets: [],
   };
 
   const handleClose = () => {

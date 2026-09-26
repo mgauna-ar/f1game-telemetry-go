@@ -7,6 +7,8 @@ import {
 } from '../constants/f1';
 import { api } from '../utils/apiClient';
 import { storage } from '../utils/storage';
+import type { GlobalPTTMapping, PTT, PTTConfigResponse, PTTSettingsResponse } from '../types/settings';
+import type { Narrows } from '../types/wire';
 
 export interface GamepadMapping {
   gamepadIndex: number;
@@ -14,13 +16,7 @@ export interface GamepadMapping {
 }
 
 /** The push-to-talk setup shared by every device through GET/PUT /api/settings/ptt. */
-export interface PTTSettingsPayload {
-  mode: RadioPTTMode;
-  keyboard_key: string;
-  /** Windows virtual-key code the server sets from keyboard_key, so it can watch the key in game. */
-  readonly key_code?: number;
-  gamepad?: { gamepad_index: number; button_index: number } | null;
-}
+export type PTTSettingsPayload = Narrows<Omit<PTT, 'mode' | 'key_code'> & { mode: RadioPTTMode }, PTT>;
 
 interface PTTValues {
   mode: RadioPTTMode;
@@ -35,11 +31,11 @@ export function pttToPayload(v: PTTValues): PTTSettingsPayload {
   return {
     mode: v.mode,
     keyboard_key: v.key,
-    gamepad: v.gamepad ? { gamepad_index: v.gamepad.gamepadIndex, button_index: v.gamepad.buttonIndex } : null,
+    gamepad: v.gamepad ? { gamepad_index: v.gamepad.gamepadIndex, button_index: v.gamepad.buttonIndex } : undefined,
   };
 }
 
-export function pttFromPayload(p: Partial<PTTSettingsPayload>): PTTValues {
+export function pttFromPayload(p: Partial<PTT>): PTTValues {
   return {
     mode: isPTTMode(p.mode) ? p.mode : RADIO_PTT_MODES.HOLD,
     gamepad: p.gamepad ? { gamepadIndex: p.gamepad.gamepad_index, buttonIndex: p.gamepad.button_index } : null,
@@ -79,14 +75,7 @@ export function clearLegacyPTTSettings(): void {
   LEGACY_PTT_KEYS.forEach((key) => storage.remove(key));
 }
 
-export interface GlobalPTTMapping {
-  device_type: 'joystick' | 'keyboard' | 'none';
-  device_index?: number;
-  button_index?: number;
-  key_code?: number;
-  key_name?: string;
-  device_name?: string;
-}
+export type { GlobalPTTMapping };
 
 export interface UsePTTConfigReturn {
   pttMode: RadioPTTMode;
@@ -133,7 +122,7 @@ export function usePTTConfig(): UsePTTConfigReturn {
 
   const refreshGlobalStatus = useCallback(async () => {
     const data = await api
-      .get<{ is_active?: boolean; mapping?: GlobalPTTMapping }>('/api/ai/ptt/config')
+      .get<PTTConfigResponse>('/api/ai/ptt/config')
       .catch(() => null);
     if (!data) return;
     setGlobalActive(!!data.is_active);
@@ -178,7 +167,7 @@ export function usePTTConfig(): UsePTTConfigReturn {
     let cancelled = false;
     const load = async () => {
       const res = await api
-        .get<Partial<PTTSettingsPayload> & { saved?: boolean }>('/api/settings/ptt')
+        .get<PTTSettingsResponse>('/api/settings/ptt')
         .catch(() => null);
       if (cancelled || !res) return;
 

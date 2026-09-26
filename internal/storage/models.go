@@ -37,7 +37,7 @@ type Session struct {
 	TrackName       string    `db:"track_name" json:"track_name"`
 	SessionType     string    `db:"session_type" json:"session_type"`
 	Weather         string    `db:"weather" json:"weather"`
-	WeatherForecast string    `db:"weather_forecast" json:"weather_forecast"`
+	WeatherForecast string    `db:"weather_forecast" json:"weather_forecast" tstype:"WeatherForecastSample[]"` // sent as raw JSON, see MarshalJSON
 	TotalLaps       int       `db:"total_laps" json:"total_laps"`
 	AIDifficulty    int       `db:"ai_difficulty" json:"ai_difficulty"`
 	SessionDuration int       `db:"session_duration" json:"session_duration"`

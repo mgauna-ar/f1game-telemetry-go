@@ -106,7 +106,7 @@ type PacketHeader struct {
 	GameMinorVersion        uint8
 	PacketVersion           uint8
 	PacketId                uint8
-	SessionUID              uint64
+	SessionUID              uint64 `tstype:"string"` // sent as a hex string, see MarshalJSON
 	SessionTime             float32
 	FrameIdentifier         uint32
 	OverallFrameIdentifier  uint32

@@ -7,16 +7,12 @@
  */
 
 import { AI_ERROR_CODES } from '../constants/f1';
+import type { AIErrorPayload } from '../types/generated/ai';
 
 const SSE_DATA_PREFIX = 'data:';
 const SSE_DONE_MESSAGE = '[DONE]';
 
-interface ChatErrorBody {
-  error?: string;
-  code?: string;
-  provider?: string;
-  message?: string;
-}
+type ChatErrorBody = Partial<AIErrorPayload>;
 
 interface ChatStreamFrame extends ChatErrorBody {
   text?: string;

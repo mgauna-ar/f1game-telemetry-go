@@ -27,6 +27,9 @@ jobs:
             exit 1
           fi
 
+      - name: Check generated TypeScript wire types
+        run: go run ./cmd/tsgen -check
+
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v7
         with:

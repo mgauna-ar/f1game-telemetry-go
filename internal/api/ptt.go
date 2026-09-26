@@ -12,11 +12,36 @@ import (
 // PTTLearningTimeout is the maximum duration interactive button learning remains active before auto-canceling.
 const PTTLearningTimeout = 20 * time.Second
 
-// Messages about button learning sent to the dashboard on the engineer WebSocket.
+// Push-to-talk messages sent to the dashboard on the engineer WebSocket, next to the engine's
+// radio directives (engineer.EngineerDirective, type "directive").
 const (
+	pttEventMessageType   = "ptt_event"
 	pttLearnedMessageType = "ptt_learned"
 	pttLearnTimeoutType   = "ptt_learn_timeout"
 )
+
+// PTTEventMessage tells the dashboard the global push-to-talk button went down or up.
+type PTTEventMessage struct {
+	Type      string        `json:"type" tstype:"'ptt_event'"`
+	State     string        `json:"state" tstype:"'down' | 'up'"`
+	Mapping   input.Mapping `json:"mapping"`
+	Timestamp int64         `json:"timestamp"`
+}
+
+// PTTLearnedMessage tells the dashboard which button or key was learned.
+type PTTLearnedMessage struct {
+	Type    string        `json:"type" tstype:"'ptt_learned'"`
+	Mapping input.Mapping `json:"mapping"`
+}
+
+// PTTLearnTimeoutMessage tells the dashboard that learning stopped without a button press.
+type PTTLearnTimeoutMessage struct {
+	Type string `json:"type" tstype:"'ptt_learn_timeout'"`
+}
+
+func newPTTEventMessage(evt input.Event) PTTEventMessage {
+	return PTTEventMessage{Type: pttEventMessageType, State: evt.State, Mapping: evt.Mapping, Timestamp: evt.Timestamp}
+}
 
 // PTTConfigResponse returns the current global PTT mapping and active status.
 type PTTConfigResponse struct {
@@ -32,7 +57,7 @@ func (s *Server) handleGetPTTConfig(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, PTTConfigResponse{
-		Status:   "success",
+		Status:   StatusSuccess,
 		Mapping:  s.inputManager.GetMapping(),
 		IsActive: s.inputManager.IsActive(),
 	})
@@ -80,10 +105,7 @@ func (s *Server) handleStartPTTLearn(w http.ResponseWriter, r *http.Request) {
 		select {
 		case m, ok := <-ch:
 			if ok {
-				payload, _ := json.Marshal(map[string]any{
-					"type":    pttLearnedMessageType,
-					"mapping": m,
-				})
+				payload, _ := json.Marshal(PTTLearnedMessage{Type: pttLearnedMessageType, Mapping: m})
 				if s.engineerHub != nil {
 					s.engineerHub.Broadcast(payload)
 				}
@@ -91,16 +113,14 @@ func (s *Server) handleStartPTTLearn(w http.ResponseWriter, r *http.Request) {
 		case <-timer.C:
 			mgr.CancelLearning()
 			// Without this the dashboard's learn button would wait for a key forever.
-			payload, _ := json.Marshal(map[string]string{"type": pttLearnTimeoutType})
+			payload, _ := json.Marshal(PTTLearnTimeoutMessage{Type: pttLearnTimeoutType})
 			if s.engineerHub != nil {
 				s.engineerHub.Broadcast(payload)
 			}
 		}
 	}()
 
-	writeJSON(w, http.StatusOK, map[string]string{
-		"status": "success",
-	})
+	writeJSON(w, http.StatusOK, StatusResponse{Status: StatusSuccess})
 }
 
 func (s *Server) handleCancelPTTLearn(w http.ResponseWriter, r *http.Request) {
@@ -114,7 +134,5 @@ func (s *Server) handleCancelPTTLearn(w http.ResponseWriter, r *http.Request) {
 	s.pttMu.Unlock()
 
 	s.inputManager.CancelLearning()
-	writeJSON(w, http.StatusOK, map[string]string{
-		"status": "success",
-	})
+	writeJSON(w, http.StatusOK, StatusResponse{Status: StatusSuccess})
 }

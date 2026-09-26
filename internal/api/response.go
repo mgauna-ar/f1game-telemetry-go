@@ -3,6 +3,8 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+
+	"github.com/mgauna/f1game-telemetry-go/internal/engineer"
 )
 
 // Cache duration constants
@@ -14,6 +16,26 @@ const (
 type ErrorResponse struct {
 	Error string `json:"error"`
 	Code  string `json:"code,omitempty"`
+}
+
+// StatusSuccess is the status of a successful write.
+const StatusSuccess = "success"
+
+// StatusResponse is the body of a write that returns nothing else.
+type StatusResponse struct {
+	Status string `json:"status"`
+}
+
+// BatchDeleteResponse is the body of POST /api/sessions/batch-delete.
+type BatchDeleteResponse struct {
+	Status       string `json:"status"`
+	DeletedCount int64  `json:"deleted_count"`
+}
+
+// EngineerConfigSaveResponse is the body of POST /api/ai/engineer/config: the config now in use.
+type EngineerConfigSaveResponse struct {
+	Status string                  `json:"status"`
+	Config engineer.EngineerConfig `json:"config"`
 }
 
 // writeJSONErrorCode writes a JSON error response with the provided message, status code, and structured error code.

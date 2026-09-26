@@ -153,6 +153,11 @@ describe('ReleaseNotesModal', () => {
             update_available: false,
             current_version: 'dev',
             latest_version: 'v1.0.1',
+            release_name: '',
+            release_notes: '',
+            html_url: '',
+            published_at: '',
+            is_prerelease: false,
             assets: [
               {
                 name: 'f1telemetry_v1.0.1_darwin_arm64.zip',

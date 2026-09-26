@@ -163,7 +163,7 @@ func (c EngineerConfig) IsAlertEnabled(category, subAlert string) bool {
 // EngineerDirective represents an intelligent contextual prompt or alert generated server-side.
 type EngineerDirective struct {
 	ID          string                    `json:"id"`
-	Type        string                    `json:"type"` // "directive"
+	Type        string                    `json:"type" tstype:"'directive'"` // always "directive"
 	Category    EngineerDirectiveCategory `json:"category"`
 	SubAlert    string                    `json:"sub_alert,omitempty"`
 	Title       string                    `json:"title"`

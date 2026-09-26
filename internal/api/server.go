@@ -130,12 +130,7 @@ func (s *Server) SetInputManager(mgr input.Manager) {
 					if !ok {
 						return
 					}
-					payload, err := json.Marshal(map[string]any{
-						"type":      "ptt_event",
-						"state":     evt.State,
-						"mapping":   evt.Mapping,
-						"timestamp": evt.Timestamp,
-					})
+					payload, err := json.Marshal(newPTTEventMessage(evt))
 					if err == nil && s.engineerHub != nil {
 						s.engineerHub.Broadcast(payload)
 					}

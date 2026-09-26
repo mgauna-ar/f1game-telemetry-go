@@ -11,10 +11,14 @@ import (
 )
 
 // StintsResponse contains complete stint partitions, degradation models, and strategy metrics for a session.
+//
+// Each degradation_data row has tyreAge plus keys built at runtime: driver_{carIndex}_stint_{index},
+// and the same key with _compound, _rawMS and _lapNum. The tstype tag describes that shape for the
+// generated frontend types.
 type StintsResponse struct {
 	Drivers          []DriverStintData   `json:"drivers"`
 	KPIs             StintKPIs           `json:"kpis"`
-	DegradationData  []map[string]any    `json:"degradation_data"`
+	DegradationData  []map[string]any    `json:"degradation_data" tstype:"DegradationRow[]"`
 	MaxTyreAge       int                 `json:"max_tyre_age"`
 	DegradationRates map[string]*float64 `json:"degradation_rates"`
 	SessionCompounds []string            `json:"session_compounds"`

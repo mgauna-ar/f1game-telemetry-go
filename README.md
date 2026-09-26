@@ -101,6 +101,13 @@ cd frontend && npm install && npm run dev
 
 Open **[http://localhost:5173](http://localhost:5173)** in your browser for live Vite development.
 
+#### Wire Types (Go → TypeScript)
+The frontend's types for the server's JSON (`frontend/src/types/generated/`) are generated from the Go structs by `cmd/tsgen`. After changing a Go type the dashboard reads, regenerate them:
+```bash
+make gen-types   # or: go run ./cmd/tsgen
+```
+CI runs `go run ./cmd/tsgen -check` and fails when the generated files are out of date.
+
 ---
 
 ## 🎮 F1 Game Configuration

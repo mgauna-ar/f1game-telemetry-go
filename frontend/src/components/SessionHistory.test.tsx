@@ -6,11 +6,12 @@ import { I18nProvider } from '../context/I18nProvider';
 import { AiRaceEngineer } from './AiRaceEngineer';
 import { useSessionListStore } from '../store/useSessionListStore';
 import type { Session, Participant, Lap, ClassificationResponse } from '../types/session';
+import { makeDriverStanding, makeLap, makeParticipant, makeSession } from '../test/wireFactories';
 
 const makeMockClassification = (participants: Participant[], laps: Lap[]): ClassificationResponse => {
-  const standings = (participants.length > 0 ? participants : [{
+  const standings = (participants.length > 0 ? participants : [makeParticipant({
     id: 1, session_id: 1, car_index: 0, name: 'Lewis Hamilton', driver_id: 2, team_id: 1, race_number: 44, ai_controlled: false
-  }]).map((p) => {
+  })]).map((p) => {
     const pLaps = laps.filter((l) => (l.car_index ?? 0) === p.car_index);
     const validLaps = pLaps.filter((l) => l.lap_time_ms > 0 && (l.is_valid ?? true));
     const completedLaps = pLaps.filter((l) => l.lap_time_ms > 0);
@@ -42,47 +43,30 @@ const makeMockClassification = (participants: Participant[], laps: Lap[]): Class
 
     const maxSpd = pLaps.reduce((max, l) => Math.max(max, l.max_speed_kmh || 0), 0);
 
-    return {
+    return makeDriverStanding({
       position: pos,
       car_index: p.car_index,
       driver_name: p.name,
       race_number: p.race_number,
       team_id: p.team_id,
-      team_color: '#DC0000',
-      best_lap: bestLap,
-      bestLap: bestLap,
+      best_lap: bestLap ?? undefined,
       best_lap_time_ms: bestLap ? bestLap.lap_time_ms : 0,
-      bestLapTimeMS: bestLap ? bestLap.lap_time_ms : 0,
-      last_lap: lastLap,
-      lastLap: lastLap,
+      last_lap: lastLap ?? undefined,
       last_lap_time_ms: lastLap ? lastLap.lap_time_ms : 0,
-      lastLapTimeMS: lastLap ? lastLap.lap_time_ms : 0,
       total_race_time_ms: totalTime,
-      totalRaceTimeMS: totalTime,
       total_with_penalties_ms: totalTime,
-      totalRaceTimeWithPenalties: totalTime,
-      penalty_seconds: 0,
-      penaltySeconds: 0,
       positions_gained: 0,
-      positionsGained: 0,
       is_dnf: isDNF,
-      isDNF: isDNF,
       is_dsq: isDSQ,
-      isDSQ: isDSQ,
       max_speed: maxSpd,
-      maxSpeed: maxSpd,
       best_s1_ms: bestS1,
-      bestS1MS: bestS1,
       best_s2_ms: bestS2,
-      bestS2MS: bestS2,
       best_s3_ms: bestS3,
-      bestS3MS: bestS3,
       theoretical_best_ms: bestS1 + bestS2 + bestS3,
-      theoreticalBestMS: bestS1 + bestS2 + bestS3,
       stints_summary: 'S (2L)',
       laps: pLaps,
       participant: p,
-    };
+    });
   });
 
   standings.sort((a, b) => {
@@ -189,8 +173,8 @@ describe('SessionHistory Component', () => {
   });
 
   it('fetches and renders historical sessions and data table on mount', async () => {
-    const mockSessions = [
-      {
+    const mockSessions: Session[] = [
+      makeSession({
         id: 1,
         session_uid: '1001',
         track_name: 'Silverstone',
@@ -199,8 +183,8 @@ describe('SessionHistory Component', () => {
         total_laps: 52,
         session_duration: 5400,
         created_at: '2026-08-10T14:00:00Z',
-      },
-      {
+      }),
+      makeSession({
         id: 2,
         session_uid: '1002',
         track_name: 'Spa-Francorchamps',
@@ -209,7 +193,7 @@ describe('SessionHistory Component', () => {
         total_laps: 15,
         session_duration: 3600,
         created_at: '2026-08-10T16:00:00Z',
-      },
+      }),
     ];
 
     setupFetchMock({ sessions: mockSessions });
@@ -227,9 +211,9 @@ describe('SessionHistory Component', () => {
   });
 
   it('filters sessions by search query input and supports column sorting', async () => {
-    const mockSessions = [
-      { id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', total_laps: 52, session_duration: 5400, created_at: '2026-08-10T14:00:00Z' },
-      { id: 2, session_uid: '1002', track_name: 'Monaco', session_type: 'Qualifying', weather: 'Clear', total_laps: 20, session_duration: 3600, created_at: '2026-08-10T16:00:00Z' },
+    const mockSessions: Session[] = [
+      makeSession({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', total_laps: 52, session_duration: 5400, created_at: '2026-08-10T14:00:00Z' }),
+      makeSession({ id: 2, session_uid: '1002', track_name: 'Monaco', session_type: 'Qualifying', weather: 'Clear', total_laps: 20, session_duration: 3600, created_at: '2026-08-10T16:00:00Z' }),
     ];
 
     setupFetchMock({ sessions: mockSessions });
@@ -254,17 +238,17 @@ describe('SessionHistory Component', () => {
   });
 
   it('selects a session and displays Classification and Driver Standings', async () => {
-    const mockSessions = [
-      { id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' },
+    const mockSessions: Session[] = [
+      makeSession({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
     ];
 
-    const mockParticipants = [
-      { id: 10, session_id: 1, car_index: 0, name: 'Lewis Hamilton', driver_id: 2, team_id: 1, race_number: 44, ai_controlled: false },
+    const mockParticipants: Participant[] = [
+      makeParticipant({ id: 10, session_id: 1, car_index: 0, name: 'Lewis Hamilton', driver_id: 2, team_id: 1, race_number: 44, ai_controlled: false }),
     ];
 
-    const mockLaps = [
-      { id: 201, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 90100, sector1_ms: 28000, sector2_ms: 35000, sector3_ms: 27100, is_valid: true, tyre_compound: 'SOFT', fuel_load: 30.5, max_speed_kmh: 312.4 },
-      { id: 202, session_id: 1, car_index: 0, lap_number: 2, lap_time_ms: 88500, sector1_ms: 27500, sector2_ms: 34500, sector3_ms: 26500, is_valid: true, tyre_compound: 'SOFT', fuel_load: 28.0, max_speed_kmh: 318.0 },
+    const mockLaps: Lap[] = [
+      makeLap({ id: 201, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 90100, sector1_ms: 28000, sector2_ms: 35000, sector3_ms: 27100, is_valid: true, tyre_compound: 'SOFT', fuel_load: 30.5, max_speed_kmh: 312.4 }),
+      makeLap({ id: 202, session_id: 1, car_index: 0, lap_number: 2, lap_time_ms: 88500, sector1_ms: 27500, sector2_ms: 34500, sector3_ms: 26500, is_valid: true, tyre_compound: 'SOFT', fuel_load: 28.0, max_speed_kmh: 318.0 }),
     ];
 
     setupFetchMock({ sessions: mockSessions, participants: mockParticipants, laps: mockLaps });
@@ -299,16 +283,16 @@ describe('SessionHistory Component', () => {
   });
 
   it('triggers onNavigateToComparator when Slot A or Slot B button is clicked on a lap', async () => {
-    const mockSessions = [
-      { id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' },
+    const mockSessions: Session[] = [
+      makeSession({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
     ];
 
-    const mockParticipants = [
-      { id: 10, session_id: 1, car_index: 0, name: 'Lewis Hamilton', driver_id: 2, team_id: 1, race_number: 44, ai_controlled: false },
+    const mockParticipants: Participant[] = [
+      makeParticipant({ id: 10, session_id: 1, car_index: 0, name: 'Lewis Hamilton', driver_id: 2, team_id: 1, race_number: 44, ai_controlled: false }),
     ];
 
-    const mockLaps = [
-      { id: 201, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 90100, sector1_ms: 28000, sector2_ms: 35000, sector3_ms: 27100, is_valid: true, tyre_compound: 'SOFT', max_speed_kmh: 312.4 },
+    const mockLaps: Lap[] = [
+      makeLap({ id: 201, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 90100, sector1_ms: 28000, sector2_ms: 35000, sector3_ms: 27100, is_valid: true, tyre_compound: 'SOFT', max_speed_kmh: 312.4 }),
     ];
 
     const onNavigateMock = vi.fn();
@@ -351,18 +335,18 @@ describe('SessionHistory Component', () => {
 
   it('stages both Slot A and Slot B, supports swapping, and launches dual comparison', async () => {
     const onNavigateMock = vi.fn();
-    const mockSessions = [
-      { id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' },
+    const mockSessions: Session[] = [
+      makeSession({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
     ];
 
-    const mockParticipants = [
-      { id: 10, session_id: 1, car_index: 0, name: 'Lewis Hamilton', driver_id: 2, team_id: 1, race_number: 44, ai_controlled: false },
-      { id: 11, session_id: 1, car_index: 1, name: 'Max Verstappen', driver_id: 1, team_id: 3, race_number: 1, ai_controlled: false },
+    const mockParticipants: Participant[] = [
+      makeParticipant({ id: 10, session_id: 1, car_index: 0, name: 'Lewis Hamilton', driver_id: 2, team_id: 1, race_number: 44, ai_controlled: false }),
+      makeParticipant({ id: 11, session_id: 1, car_index: 1, name: 'Max Verstappen', driver_id: 1, team_id: 3, race_number: 1, ai_controlled: false }),
     ];
 
-    const mockLaps = [
-      { id: 201, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 90000, sector1_ms: 28000, sector2_ms: 35000, sector3_ms: 27000, is_valid: true, tyre_compound: 'SOFT', max_speed_kmh: 320.0 },
-      { id: 202, session_id: 1, car_index: 1, lap_number: 1, lap_time_ms: 90500, sector1_ms: 28100, sector2_ms: 35200, sector3_ms: 27200, is_valid: true, tyre_compound: 'MEDIUM', max_speed_kmh: 322.0 },
+    const mockLaps: Lap[] = [
+      makeLap({ id: 201, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 90000, sector1_ms: 28000, sector2_ms: 35000, sector3_ms: 27000, is_valid: true, tyre_compound: 'SOFT', max_speed_kmh: 320.0 }),
+      makeLap({ id: 202, session_id: 1, car_index: 1, lap_number: 1, lap_time_ms: 90500, sector1_ms: 28100, sector2_ms: 35200, sector3_ms: 27200, is_valid: true, tyre_compound: 'MEDIUM', max_speed_kmh: 322.0 }),
     ];
 
     setupFetchMock({ sessions: mockSessions, participants: mockParticipants, laps: mockLaps });
@@ -418,16 +402,16 @@ describe('SessionHistory Component', () => {
   });
 
   it('switches between detail tabs: Lap Progression and Sector Matrix', async () => {
-    const mockSessions = [
-      { id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' },
+    const mockSessions: Session[] = [
+      makeSession({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
     ];
 
-    const mockParticipants = [
-      { id: 10, session_id: 1, car_index: 0, name: 'Lewis Hamilton', driver_id: 2, team_id: 1, race_number: 44, ai_controlled: false },
+    const mockParticipants: Participant[] = [
+      makeParticipant({ id: 10, session_id: 1, car_index: 0, name: 'Lewis Hamilton', driver_id: 2, team_id: 1, race_number: 44, ai_controlled: false }),
     ];
 
-    const mockLaps = [
-      { id: 201, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 90000, sector1_ms: 28000, sector2_ms: 35000, sector3_ms: 27000, is_valid: true, tyre_compound: 'SOFT', max_speed_kmh: 320.0 },
+    const mockLaps: Lap[] = [
+      makeLap({ id: 201, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 90000, sector1_ms: 28000, sector2_ms: 35000, sector3_ms: 27000, is_valid: true, tyre_compound: 'SOFT', max_speed_kmh: 320.0 }),
     ];
 
     setupFetchMock({ sessions: mockSessions, participants: mockParticipants, laps: mockLaps });
@@ -457,16 +441,16 @@ describe('SessionHistory Component', () => {
   });
 
   it('opens and interacts with AI Race Engineer debrief', async () => {
-    const mockSessions = [
-      { id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' },
+    const mockSessions: Session[] = [
+      makeSession({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
     ];
 
-    const mockParticipants = [
-      { id: 10, session_id: 1, car_index: 0, name: 'Lewis Hamilton', driver_id: 2, team_id: 1, race_number: 44, ai_controlled: false },
+    const mockParticipants: Participant[] = [
+      makeParticipant({ id: 10, session_id: 1, car_index: 0, name: 'Lewis Hamilton', driver_id: 2, team_id: 1, race_number: 44, ai_controlled: false }),
     ];
 
-    const mockLaps = [
-      { id: 201, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 90000, sector1_ms: 28000, sector2_ms: 35000, sector3_ms: 27000, is_valid: true, tyre_compound: 'SOFT' },
+    const mockLaps: Lap[] = [
+      makeLap({ id: 201, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 90000, sector1_ms: 28000, sector2_ms: 35000, sector3_ms: 27000, is_valid: true, tyre_compound: 'SOFT' }),
     ];
 
     setupFetchMock({
@@ -503,9 +487,9 @@ describe('SessionHistory Component', () => {
   });
 
   it('shows confirmation modal and deletes a session when confirmed', async () => {
-    const mockSessions = [
-      { id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' },
-      { id: 2, session_uid: '1002', track_name: 'Monaco', session_type: 'Qualifying', weather: 'Clear', created_at: '2026-08-10T16:00:00Z' },
+    const mockSessions: Session[] = [
+      makeSession({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
+      makeSession({ id: 2, session_uid: '1002', track_name: 'Monaco', session_type: 'Qualifying', weather: 'Clear', created_at: '2026-08-10T16:00:00Z' }),
     ];
 
     let deletedId: string | null = null;
@@ -551,20 +535,20 @@ describe('SessionHistory Component', () => {
   });
 
   it('correctly sorts race standings based on official F1 positions even when final lap is uncompleted', async () => {
-    const mockSessions = [
-      { id: 1, session_uid: '1001', track_name: 'Monza', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' },
+    const mockSessions: Session[] = [
+      makeSession({ id: 1, session_uid: '1001', track_name: 'Monza', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
     ];
 
-    const mockParticipants = [
-      { id: 1, session_id: 1, car_index: 0, name: 'Max Verstappen', driver_id: 1, team_id: 0, race_number: 1, position: 1, ai_controlled: false },
-      { id: 2, session_id: 1, car_index: 1, name: 'Charles Leclerc', driver_id: 3, team_id: 4, race_number: 16, position: 2, ai_controlled: false },
+    const mockParticipants: Participant[] = [
+      makeParticipant({ id: 1, session_id: 1, car_index: 0, name: 'Max Verstappen', driver_id: 1, team_id: 0, race_number: 1, position: 1, ai_controlled: false }),
+      makeParticipant({ id: 2, session_id: 1, car_index: 1, name: 'Charles Leclerc', driver_id: 3, team_id: 4, race_number: 16, position: 2, ai_controlled: false }),
     ];
 
-    const mockLaps = [
-      { id: 101, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 85000, sector1_ms: 27000, sector2_ms: 30000, sector3_ms: 28000, is_valid: true, car_position: 2 },
-      { id: 102, session_id: 1, car_index: 0, lap_number: 2, lap_time_ms: 0, sector1_ms: 0, sector2_ms: 0, sector3_ms: 0, is_valid: true, car_position: 1, result_status: 3 },
-      { id: 201, session_id: 1, car_index: 1, lap_number: 1, lap_time_ms: 80000, sector1_ms: 26000, sector2_ms: 29000, sector3_ms: 25000, is_valid: true, car_position: 1 },
-      { id: 202, session_id: 1, car_index: 1, lap_number: 2, lap_time_ms: 0, sector1_ms: 0, sector2_ms: 0, sector3_ms: 0, is_valid: true, car_position: 2, result_status: 3 },
+    const mockLaps: Lap[] = [
+      makeLap({ id: 101, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 85000, sector1_ms: 27000, sector2_ms: 30000, sector3_ms: 28000, is_valid: true, car_position: 2 }),
+      makeLap({ id: 102, session_id: 1, car_index: 0, lap_number: 2, lap_time_ms: 0, sector1_ms: 0, sector2_ms: 0, sector3_ms: 0, is_valid: true, car_position: 1, result_status: 3 }),
+      makeLap({ id: 201, session_id: 1, car_index: 1, lap_number: 1, lap_time_ms: 80000, sector1_ms: 26000, sector2_ms: 29000, sector3_ms: 25000, is_valid: true, car_position: 1 }),
+      makeLap({ id: 202, session_id: 1, car_index: 1, lap_number: 2, lap_time_ms: 0, sector1_ms: 0, sector2_ms: 0, sector3_ms: 0, is_valid: true, car_position: 2, result_status: 3 }),
     ];
 
     setupFetchMock({ sessions: mockSessions, participants: mockParticipants, laps: mockLaps });
@@ -590,20 +574,20 @@ describe('SessionHistory Component', () => {
   });
 
   it('places DNF drivers at the bottom of race standings behind all classified finishers', async () => {
-    const mockSessions = [
-      { id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' },
+    const mockSessions: Session[] = [
+      makeSession({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
     ];
 
-    const mockParticipants = [
-      { id: 1, session_id: 1, car_index: 0, name: 'Driver DNF', driver_id: 1, team_id: 0, race_number: 1, position: 2, ai_controlled: false },
-      { id: 2, session_id: 1, car_index: 1, name: 'Driver Finisher', driver_id: 2, team_id: 1, race_number: 44, position: 1, ai_controlled: false },
+    const mockParticipants: Participant[] = [
+      makeParticipant({ id: 1, session_id: 1, car_index: 0, name: 'Driver DNF', driver_id: 1, team_id: 0, race_number: 1, position: 2, ai_controlled: false }),
+      makeParticipant({ id: 2, session_id: 1, car_index: 1, name: 'Driver Finisher', driver_id: 2, team_id: 1, race_number: 44, position: 1, ai_controlled: false }),
     ];
 
-    const mockLaps = [
-      { id: 101, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 90000, is_valid: true, car_position: 1, result_status: 2 },
-      { id: 102, session_id: 1, car_index: 0, lap_number: 2, lap_time_ms: 0, is_valid: true, car_position: 1, result_status: 4 }, // DNF
-      { id: 201, session_id: 1, car_index: 1, lap_number: 1, lap_time_ms: 91000, is_valid: true, car_position: 2, result_status: 2 },
-      { id: 202, session_id: 1, car_index: 1, lap_number: 2, lap_time_ms: 91000, is_valid: true, car_position: 2, result_status: 3 },
+    const mockLaps: Lap[] = [
+      makeLap({ id: 101, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 90000, is_valid: true, car_position: 1, result_status: 2 }),
+      makeLap({ id: 102, session_id: 1, car_index: 0, lap_number: 2, lap_time_ms: 0, is_valid: true, car_position: 1, result_status: 4 }), // DNF
+      makeLap({ id: 201, session_id: 1, car_index: 1, lap_number: 1, lap_time_ms: 91000, is_valid: true, car_position: 2, result_status: 2 }),
+      makeLap({ id: 202, session_id: 1, car_index: 1, lap_number: 2, lap_time_ms: 91000, is_valid: true, car_position: 2, result_status: 3 }),
     ];
 
     setupFetchMock({ sessions: mockSessions, participants: mockParticipants, laps: mockLaps });
@@ -630,21 +614,21 @@ describe('SessionHistory Component', () => {
   });
 
   it('renders tyre stints sequentially when the same compound is reused across separate stints', async () => {
-    const mockSessions = [
-      { id: 1, session_uid: '1001', track_name: 'Spa-Francorchamps', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' },
+    const mockSessions: Session[] = [
+      makeSession({ id: 1, session_uid: '1001', track_name: 'Spa-Francorchamps', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
     ];
 
-    const mockParticipants = [
-      { id: 1, session_id: 1, car_index: 0, name: 'Oscar Piastri', driver_id: 1, team_id: 2, race_number: 81, ai_controlled: false },
+    const mockParticipants: Participant[] = [
+      makeParticipant({ id: 1, session_id: 1, car_index: 0, name: 'Oscar Piastri', driver_id: 1, team_id: 2, race_number: 81, ai_controlled: false }),
     ];
 
-    const mockLaps = [
-      { id: 1, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 100000, is_valid: true, tyre_compound: 'MEDIUM' },
-      { id: 2, session_id: 1, car_index: 0, lap_number: 2, lap_time_ms: 100000, is_valid: true, tyre_compound: 'MEDIUM' },
-      { id: 3, session_id: 1, car_index: 0, lap_number: 3, lap_time_ms: 101000, is_valid: true, tyre_compound: 'HARD' },
-      { id: 4, session_id: 1, car_index: 0, lap_number: 4, lap_time_ms: 101000, is_valid: true, tyre_compound: 'HARD' },
-      { id: 5, session_id: 1, car_index: 0, lap_number: 5, lap_time_ms: 99000, is_valid: true, tyre_compound: 'MEDIUM' },
-      { id: 6, session_id: 1, car_index: 0, lap_number: 6, lap_time_ms: 99000, is_valid: true, tyre_compound: 'MEDIUM' },
+    const mockLaps: Lap[] = [
+      makeLap({ id: 1, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 100000, is_valid: true, tyre_compound: 'MEDIUM' }),
+      makeLap({ id: 2, session_id: 1, car_index: 0, lap_number: 2, lap_time_ms: 100000, is_valid: true, tyre_compound: 'MEDIUM' }),
+      makeLap({ id: 3, session_id: 1, car_index: 0, lap_number: 3, lap_time_ms: 101000, is_valid: true, tyre_compound: 'HARD' }),
+      makeLap({ id: 4, session_id: 1, car_index: 0, lap_number: 4, lap_time_ms: 101000, is_valid: true, tyre_compound: 'HARD' }),
+      makeLap({ id: 5, session_id: 1, car_index: 0, lap_number: 5, lap_time_ms: 99000, is_valid: true, tyre_compound: 'MEDIUM' }),
+      makeLap({ id: 6, session_id: 1, car_index: 0, lap_number: 6, lap_time_ms: 99000, is_valid: true, tyre_compound: 'MEDIUM' }),
     ];
 
     setupFetchMock({ sessions: mockSessions, participants: mockParticipants, laps: mockLaps });
@@ -669,16 +653,16 @@ describe('SessionHistory Component', () => {
   it('renders Official Race Classification and Laps subtable in Spanish when locale is es', async () => {
     localStorage.setItem('f1_telemetry_language', 'es');
 
-    const mockSessions = [
-      { id: 1, session_uid: '1001', track_name: 'Interlagos', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' },
+    const mockSessions: Session[] = [
+      makeSession({ id: 1, session_uid: '1001', track_name: 'Interlagos', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
     ];
 
-    const mockParticipants = [
-      { id: 10, session_id: 1, car_index: 0, name: 'Franco Colapinto', driver_id: 43, team_id: 6, race_number: 43, ai_controlled: false },
+    const mockParticipants: Participant[] = [
+      makeParticipant({ id: 10, session_id: 1, car_index: 0, name: 'Franco Colapinto', driver_id: 43, team_id: 6, race_number: 43, ai_controlled: false }),
     ];
 
-    const mockLaps = [
-      { id: 301, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 71200, sector1_ms: 18200, sector2_ms: 32000, sector3_ms: 21000, is_valid: true, tyre_compound: 'SOFT', max_speed_kmh: 335.0 },
+    const mockLaps: Lap[] = [
+      makeLap({ id: 301, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 71200, sector1_ms: 18200, sector2_ms: 32000, sector3_ms: 21000, is_valid: true, tyre_compound: 'SOFT', max_speed_kmh: 335.0 }),
     ];
 
     setupFetchMock({ sessions: mockSessions, participants: mockParticipants, laps: mockLaps });
@@ -726,8 +710,8 @@ describe('SessionHistory Component', () => {
   });
 
   it('handles exporting a session and importing a .f1session package', async () => {
-    const mockSessions = [
-      { id: 1, session_uid: '1001', track_name: 'Monza', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' },
+    const mockSessions: Session[] = [
+      makeSession({ id: 1, session_uid: '1001', track_name: 'Monza', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
     ];
 
     setupFetchMock({
@@ -799,18 +783,18 @@ describe('SessionHistory Component', () => {
   });
 
   it('navigates to the Tyre Strategy & Stints tab within a selected session', async () => {
-    const mockSessions = [
-      { id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', total_laps: 5, session_duration: 5400, created_at: '2026-08-10T14:00:00Z' },
+    const mockSessions: Session[] = [
+      makeSession({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', total_laps: 5, session_duration: 5400, created_at: '2026-08-10T14:00:00Z' }),
     ];
 
-    const mockParticipants = [
-      { id: 10, session_id: 1, car_index: 0, name: 'Lewis Hamilton', driver_id: 2, team_id: 1, race_number: 44, ai_controlled: false },
+    const mockParticipants: Participant[] = [
+      makeParticipant({ id: 10, session_id: 1, car_index: 0, name: 'Lewis Hamilton', driver_id: 2, team_id: 1, race_number: 44, ai_controlled: false }),
     ];
 
-    const mockLaps = [
-      { id: 201, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 90100, is_valid: true, tyre_compound: 'MEDIUM', stint: 1 },
-      { id: 202, session_id: 1, car_index: 0, lap_number: 2, lap_time_ms: 89500, is_valid: true, tyre_compound: 'MEDIUM', stint: 1 },
-      { id: 203, session_id: 1, car_index: 0, lap_number: 3, lap_time_ms: 88500, is_valid: true, tyre_compound: 'HARD', stint: 2 },
+    const mockLaps: Lap[] = [
+      makeLap({ id: 201, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 90100, is_valid: true, tyre_compound: 'MEDIUM', stint: 1 }),
+      makeLap({ id: 202, session_id: 1, car_index: 0, lap_number: 2, lap_time_ms: 89500, is_valid: true, tyre_compound: 'MEDIUM', stint: 1 }),
+      makeLap({ id: 203, session_id: 1, car_index: 0, lap_number: 3, lap_time_ms: 88500, is_valid: true, tyre_compound: 'HARD', stint: 2 }),
     ];
 
     setupFetchMock({ sessions: mockSessions, participants: mockParticipants, laps: mockLaps });
@@ -844,8 +828,8 @@ describe('SessionHistory Component', () => {
   });
 
   it('navigates back to session list when clicking the back to list button', async () => {
-    const mockSessions = [
-      { id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', total_laps: 5, session_duration: 5400, created_at: '2026-08-10T14:00:00Z' },
+    const mockSessions: Session[] = [
+      makeSession({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', total_laps: 5, session_duration: 5400, created_at: '2026-08-10T14:00:00Z' }),
     ];
 
     setupFetchMock({ sessions: mockSessions });
@@ -879,9 +863,9 @@ describe('SessionHistory Component', () => {
   });
 
   it('supports multi-session selection, batch ZIP export, and batch deletion', async () => {
-    const mockSessions = [
-      { id: 1, session_uid: '1001', track_name: 'Monza', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' },
-      { id: 2, session_uid: '1002', track_name: 'Spa', session_type: 'Race', weather: 'Light Rain', created_at: '2026-08-11T14:00:00Z' },
+    const mockSessions: Session[] = [
+      makeSession({ id: 1, session_uid: '1001', track_name: 'Monza', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
+      makeSession({ id: 2, session_uid: '1002', track_name: 'Spa', session_type: 'Race', weather: 'Light Rain', created_at: '2026-08-11T14:00:00Z' }),
     ];
 
     setupFetchMock({
@@ -969,8 +953,8 @@ describe('SessionHistory Component', () => {
   });
 
   it('handles multi-file / ZIP batch import with summary toast', async () => {
-    const mockSessions = [
-      { id: 1, session_uid: '1001', track_name: 'Monza', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' },
+    const mockSessions: Session[] = [
+      makeSession({ id: 1, session_uid: '1001', track_name: 'Monza', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
     ];
 
     setupFetchMock({
@@ -1018,8 +1002,8 @@ describe('SessionHistory Component', () => {
   });
 
   it('fetches and integrates classification, progression, and stints endpoints when exploring session', async () => {
-    const mockSessions = [
-      { id: 42, session_uid: '0xabc42', track_name: 'Monaco', session_type: 'Race', weather: 'Clear', created_at: '2026-08-15T14:00:00Z', total_laps: 78 },
+    const mockSessions: Session[] = [
+      makeSession({ id: 42, session_uid: '0xabc42', track_name: 'Monaco', session_type: 'Race', weather: 'Clear', created_at: '2026-08-15T14:00:00Z', total_laps: 78 }),
     ];
 
     const mockClassification = {

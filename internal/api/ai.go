@@ -190,8 +190,5 @@ func (s *Server) handleSetEngineerConfig(w http.ResponseWriter, r *http.Request)
 	if s.engineerEngine != nil {
 		s.engineerEngine.SetConfig(req)
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"status": "success",
-		"config": req,
-	})
+	writeJSON(w, http.StatusOK, EngineerConfigSaveResponse{Status: StatusSuccess, Config: req})
 }

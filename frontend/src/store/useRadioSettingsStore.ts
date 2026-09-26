@@ -8,7 +8,6 @@ import {
   voiceFromPayload,
   voiceToPayload,
   type AudioSettingsSlice,
-  type VoiceSettingsPayload,
 } from './slices/audioSettingsSlice';
 import {
   createAlertThresholdsSlice,
@@ -38,6 +37,7 @@ import {
   type RadioTriggerPreset,
 } from '../constants/f1';
 import type { EngineerConfig } from '../types/telemetry';
+import type { VoiceSettingsResponse } from '../types/settings';
 
 export interface RadioSettingsState
   extends AudioSettingsSlice,
@@ -359,7 +359,7 @@ export const useRadioSettingsStore = create<RadioSettingsState>((set, get, store
 
   loadVoiceFromBackend: async () => {
     const res = await api
-      .get<VoiceSettingsPayload & { saved: boolean }>('/api/settings/voice')
+      .get<VoiceSettingsResponse>('/api/settings/voice')
       .catch(() => null);
     if (!res) return;
 

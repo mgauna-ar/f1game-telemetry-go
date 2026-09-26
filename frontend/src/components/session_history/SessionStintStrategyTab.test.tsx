@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { SessionStintStrategyTab } from './SessionStintStrategyTab';
 import { I18nProvider } from '../../context/I18nProvider';
 import type { DriverStanding, StintsResponse } from '../../types/session';
+import { makeParticipant } from '../../test/wireFactories';
 
 describe('SessionStintStrategyTab Component', () => {
   const mockDriverStandings: DriverStanding[] = [
@@ -13,7 +14,7 @@ describe('SessionStintStrategyTab Component', () => {
       teamName: 'Red Bull',
       teamId: 9,
       raceNumber: 1,
-      participant: {
+      participant: makeParticipant({
         id: 1,
         session_id: 100,
         car_index: 0,
@@ -22,7 +23,7 @@ describe('SessionStintStrategyTab Component', () => {
         team_id: 9,
         race_number: 1,
         ai_controlled: false,
-      },
+      }),
       bestLapTimeMS: 87500,
       bestLap: null,
       laps: [],
@@ -40,7 +41,7 @@ describe('SessionStintStrategyTab Component', () => {
       teamName: 'Mercedes',
       teamId: 1,
       raceNumber: 44,
-      participant: {
+      participant: makeParticipant({
         id: 2,
         session_id: 100,
         car_index: 1,
@@ -49,7 +50,7 @@ describe('SessionStintStrategyTab Component', () => {
         team_id: 1,
         race_number: 44,
         ai_controlled: false,
-      },
+      }),
       bestLapTimeMS: 87900,
       bestLap: null,
       laps: [],

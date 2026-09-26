@@ -3,7 +3,7 @@ import { X, Tag as TagIcon } from 'lucide-react';
 import type { Tag } from '../../types/session';
 
 interface TagBadgeProps {
-  tag: Tag;
+  tag: Pick<Tag, 'name' | 'color'>;
   size?: 'xs' | 'sm' | 'md';
   onRemove?: (e: React.MouseEvent) => void;
   onClick?: (e: React.MouseEvent) => void;

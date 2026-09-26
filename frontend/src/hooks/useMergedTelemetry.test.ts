@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useMergedTelemetry } from './useMergedTelemetry';
 import type { Lap } from '../types/session';
 import type { ComparatorResponse } from '../types/comparator';
+import { makeLap } from '../test/wireFactories';
 
 describe('useMergedTelemetry Hook', () => {
   const mockResponse: ComparatorResponse = {
@@ -16,7 +17,7 @@ describe('useMergedTelemetry Hook', () => {
     ],
   };
 
-  const mockLapA: Lap = {
+  const mockLapA: Lap = makeLap({
     id: 1,
     session_id: 1,
     lap_number: 1,
@@ -25,9 +26,9 @@ describe('useMergedTelemetry Hook', () => {
     sector2_ms: 30000,
     sector3_ms: 27000,
     is_valid: true,
-  };
+  });
 
-  const mockLapB: Lap = {
+  const mockLapB: Lap = makeLap({
     id: 2,
     session_id: 1,
     lap_number: 1,
@@ -36,7 +37,7 @@ describe('useMergedTelemetry Hook', () => {
     sector2_ms: 29900,
     sector3_ms: 27400,
     is_valid: true,
-  };
+  });
 
   beforeEach(() => {
     vi.stubGlobal(

@@ -232,7 +232,9 @@ type CollisionEventData struct {
 	Severity    uint8 `json:"Severity"`
 }
 
-type eventJSON struct {
+// EventMessage is the JSON an event packet is sent as on /ws (see PacketEventData.MarshalJSON):
+// the event code and only the details that code carries.
+type EventMessage struct {
 	Header           PacketHeader `json:"Header"`
 	EventCode        string       `json:"EventCode"`
 	VehicleIdx       *uint8       `json:"VehicleIdx,omitempty"`
@@ -253,7 +255,7 @@ type eventJSON struct {
 
 func (p PacketEventData) MarshalJSON() ([]byte, error) {
 	code := p.EventCode()
-	ej := eventJSON{
+	ej := EventMessage{
 		Header:    p.Header,
 		EventCode: code,
 	}

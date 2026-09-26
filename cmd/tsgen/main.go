@@ -1,0 +1,186 @@
+// Command tsgen writes the frontend's wire types (frontend/src/types/generated) from the Go
+// types the server sends as JSON. Run it from the repository root after changing one of them:
+//
+//	go run ./cmd/tsgen
+//
+// With -check it writes nothing and fails when the generated files are out of date (CI runs it).
+package main
+
+import (
+	"bytes"
+	"errors"
+	"flag"
+	"fmt"
+	"maps"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+
+	"github.com/mgauna/f1game-telemetry-go/internal/ai"
+	"github.com/mgauna/f1game-telemetry-go/internal/analytics"
+	"github.com/mgauna/f1game-telemetry-go/internal/api"
+	"github.com/mgauna/f1game-telemetry-go/internal/engineer"
+	"github.com/mgauna/f1game-telemetry-go/internal/packets"
+	"github.com/mgauna/f1game-telemetry-go/internal/session"
+	"github.com/mgauna/f1game-telemetry-go/internal/settings"
+	"github.com/mgauna/f1game-telemetry-go/internal/storage"
+	"github.com/mgauna/f1game-telemetry-go/internal/system"
+	"github.com/mgauna/f1game-telemetry-go/internal/tsgen"
+)
+
+// defaultOutDir is the generated types folder, relative to the repository root.
+const defaultOutDir = "frontend/src/types/generated"
+
+// registry lists every Go type the frontend reads, grouped by area. The types they reference
+// are generated too.
+func registry() *tsgen.Generator {
+	g := tsgen.New()
+
+	// Types with their own MarshalJSON: a sample value that writes the optional properties, and
+	// the type whose fields describe the JSON. TestMarshalerKeys checks one against the other.
+	g.Marshaler(storage.Session{}, storage.Session{})                        // weather_forecast is raw JSON (tstype tag)
+	g.Marshaler(packets.PacketHeader{SessionUID: 1}, packets.PacketHeader{}) // SessionUID is hex (tstype tag)
+	g.Marshaler(penaltyEvent(), packets.EventMessage{})
+
+	// Sessions, laps, participants and tags.
+	g.Add(
+		storage.Session{},
+		storage.Lap{},
+		storage.Participant{},
+		storage.Tag{},
+		packets.WeatherForecastSample{},
+	)
+
+	// Classification, progression and stints.
+	g.Add(
+		analytics.ClassificationResponse{},
+		analytics.ProgressionResponse{},
+		analytics.StintsResponse{},
+	)
+	g.TypeAlias("analytics", "ProgressionRow",
+		"{ lapNumber: number; [key: string]: number | string | boolean | null | undefined }")
+	g.TypeAlias("analytics", "DegradationRow",
+		"{ tyreAge: number; [key: string]: number | string | undefined }")
+
+	// Settings shared by every device, and the radio engineer's config.
+	g.Add(
+		api.AISettingsResponse{},
+		settings.AIUpdate{},
+		api.VoiceSettingsResponse{},
+		api.PTTSettingsResponse{},
+		api.PTTConfigResponse{},
+		engineer.EngineerConfig{},
+	)
+
+	// The other REST responses.
+	g.Add(
+		api.ErrorResponse{},
+		api.StatusResponse{},
+		api.BatchDeleteResponse{},
+		api.EngineerConfigSaveResponse{},
+		session.ImportBatchResponse{},
+		analytics.ComparatorResponse{},
+		ai.AIFetchModelsResponse{},
+		ai.AIErrorPayload{},
+		system.AppVersion{},
+		system.UpdateCheckResponse{},
+		system.TelemetryEndpoint{},
+	)
+
+	// Messages on /ws/engineer, told apart by their type.
+	g.Add(
+		engineer.EngineerDirective{},
+		api.PTTEventMessage{},
+		api.PTTLearnedMessage{},
+		api.PTTLearnTimeoutMessage{},
+	)
+	g.Union("api", "EngineerSocketMessage",
+		engineer.EngineerDirective{},
+		api.PTTEventMessage{},
+		api.PTTLearnedMessage{},
+		api.PTTLearnTimeoutMessage{},
+	)
+
+	// The race feed: game events sent as they arrive, and the events the server adds to snapshots.
+	g.Add(
+		packets.EventMessage{},
+		session.SyntheticEvent{},
+	)
+
+	return g
+}
+
+// penaltyEvent is a sample event packet whose MarshalJSON writes most of the optional details.
+func penaltyEvent() packets.PacketEventData {
+	var p packets.PacketEventData
+	copy(p.EventStringCode[:], packets.EventPenaltyIssued)
+	return p
+}
+
+func main() {
+	out := flag.String("out", defaultOutDir, "folder to write the generated TypeScript files to")
+	check := flag.Bool("check", false, "fail if the generated files are out of date instead of writing them")
+	flag.Parse()
+
+	if err := run(*out, *check); err != nil {
+		fmt.Fprintln(os.Stderr, "tsgen:", err)
+		os.Exit(1)
+	}
+}
+
+func run(dir string, check bool) error {
+	files, err := registry().Generate()
+	if err != nil {
+		return err
+	}
+	stale, extra, err := staleFiles(dir, files)
+	if err != nil {
+		return err
+	}
+	if check {
+		if len(stale)+len(extra) > 0 {
+			return fmt.Errorf("generated TypeScript wire types in %s are out of date (%s); run go run ./cmd/tsgen",
+				dir, strings.Join(slices.Concat(stale, extra), ", "))
+		}
+		return nil
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	for _, name := range stale {
+		if err := os.WriteFile(filepath.Join(dir, name), files[name], 0o644); err != nil {
+			return err
+		}
+	}
+	for _, name := range extra {
+		if err := os.Remove(filepath.Join(dir, name)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// staleFiles returns the generated files whose content on disk differs or is missing, and the
+// .ts files in dir the generator no longer writes.
+func staleFiles(dir string, files map[string][]byte) (stale, extra []string, err error) {
+	for _, name := range slices.Sorted(maps.Keys(files)) {
+		current, err := os.ReadFile(filepath.Join(dir, name))
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return nil, nil, err
+		}
+		if !bytes.Equal(current, files[name]) {
+			stale = append(stale, name)
+		}
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, nil, err
+	}
+	for _, e := range entries {
+		if _, ok := files[e.Name()]; !ok && strings.HasSuffix(e.Name(), ".ts") {
+			extra = append(extra, e.Name())
+		}
+	}
+	return stale, extra, nil
+}

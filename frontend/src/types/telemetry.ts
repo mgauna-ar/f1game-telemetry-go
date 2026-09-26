@@ -56,24 +56,11 @@ export interface CarMotionData {
   WorldPositionZ: number;
 }
 
-export interface WeatherForecastSample {
-  SessionType?: number;
-  session_type?: number;
-  TimeOffset?: number; // in minutes (0, 5, 10, 15, 30)
-  time_offset?: number;
-  Weather?: number; // 0: Clear, 1: Light Cloud, 2: Overcast, 3: Light Rain, 4: Heavy Rain, 5: Storm
-  weather?: number;
-  TrackTemperature?: number;
-  track_temperature?: number;
-  TrackTemperatureChange?: number; // 0 = up, 1 = down, 2 = no change
-  track_temperature_change?: number;
-  AirTemperature?: number;
-  air_temperature?: number;
-  AirTemperatureChange?: number;
-  air_temperature_change?: number;
-  RainPercentage?: number;
-  rain_percentage?: number;
-}
+import type { EngineerDirective as GeneratedEngineerDirective } from './generated/engineer';
+import type { WeatherForecastSample } from './generated/packets';
+import type { SyntheticEvent } from './generated/session';
+import type { Narrows } from './wire';
+export type { WeatherForecastSample };
 
 export interface SessionData {
   Weather: number;
@@ -96,30 +83,26 @@ export interface SessionData {
   NumRedFlagPeriods?: number;
   PacketFormat?: number;
   GamePaused?: number;
-  SessionUID?: string | number;
+  /** Hex string (e.g. "0x1a2b..."), from the packet header. */
+  SessionUID?: string;
 }
 
-export interface RaceEvent {
-  id: string;
-  timestamp: number;
-  sessionTime?: number;
-  eventCode: string;
-  type: 'fastest_lap' | 'overtake' | 'penalty' | 'speed_trap' | 'pit' | 'retirement' | 'flag' | 'general';
-  description: string;
-  vehicleIdx?: number;
-  driverName?: string;
-  otherVehicleIdx?: number;
-  targetDriverName?: string;
-  lapNum?: number;
-  speed?: number;
-  lapTime?: number;
-  penaltyType?: number;
-  infringementType?: number;
-  penaltyTime?: number;
-  placesGained?: number;
-  safetyCarStatus?: number;
-  severity: 'info' | 'warning' | 'danger' | 'purple' | 'success';
-}
+/**
+ * One race feed row. The server's SyntheticEvent and the game's event packets (EventMessage) are
+ * both turned into it; the dashboard adds its own id and receive time.
+ */
+export type RaceEvent = Narrows<
+  Omit<SyntheticEvent, 'type' | 'severity'> & {
+    id: string;
+    timestamp: number;
+    type: 'fastest_lap' | 'overtake' | 'penalty' | 'speed_trap' | 'pit' | 'retirement' | 'flag' | 'general';
+    severity: 'info' | 'warning' | 'danger' | 'purple' | 'success';
+  },
+  SyntheticEvent
+>;
+
+export type { SyntheticEvent } from './generated/session';
+export type { EventMessage } from './generated/packets';
 
 export interface ParticipantData {
   AIControlled: number;
@@ -171,14 +154,7 @@ export interface CarDamageData {
   EngineSeized: number;
 }
 
-export interface PacketHeader {
-  PacketFormat?: number;
-  GameYear?: number;
-  PacketId: number;
-  SessionTime: number;
-  SessionUID?: number | string;
-  PlayerCarIndex: number;
-}
+export type { PacketHeader } from './generated/packets';
 
 export interface CarTelemetry2Data {
   ActiveAeroMode: number;
@@ -212,50 +188,24 @@ export type EngineerDirectiveCategory =
   | 'qualy'
   | 'flags';
 
-export interface EngineerDirective {
-  id: string;
-  type: string;
-  category: EngineerDirectiveCategory;
-  sub_alert?: string;
-  title: string;
-  message: string;
-  urgency: 'low' | 'medium' | 'high' | 'critical';
-  timestamp: number;
-  car_index: number;
-  session_time: number;
-  metadata?: Record<string, unknown>;
-}
+/** A radio directive from /ws/engineer, with the category and urgency the dashboard knows. */
+export type EngineerDirective = Narrows<
+  Omit<GeneratedEngineerDirective, 'category' | 'urgency'> & {
+    category: EngineerDirectiveCategory;
+    urgency: 'low' | 'medium' | 'high' | 'critical';
+  },
+  GeneratedEngineerDirective
+>;
 
-export interface EngineerConfig {
-  chatter_cooldown_ms: number;
-  global_chatter_cooldown_ms?: number;
-  smart_discretion_enabled: boolean;
-  tyre_wear_warn_pct: number;
-  tyre_wear_crit_pct: number;
-  tyre_overheat_c: number;
-  tyre_cold_c: number;
-  wing_damage_warn_pct: number;
-  wing_damage_crit_pct: number;
-  floor_damage_warn_pct: number;
-  engine_wear_warn_pct: number;
-  ers_low_pct: number;
-  engine_overheat_c: number;
-  brake_overheat_c: number;
-  brake_cold_c: number;
-  fuel_delta_laps: number;
-  undercut_gap_sec: number;
-  rival_gap_sec: number;
-  rival_ahead_gap_sec: number;
-  qualy_clean_air_sec: number;
-  qualy_time_warn_sec: number;
-  corner_cut_warn_threshold: number;
-  rain_horizon_min: number;
-  rain_prob_pct: number;
-  enabled_categories?: Record<string, boolean>;
-  /** Settings panel state: the chosen preset and the raw category/alert switches. */
-  trigger_preset?: string;
-  alert_switches?: Record<string, boolean>;
-}
+/** Every message /ws/engineer sends, told apart by `type`. */
+export type {
+  EngineerSocketMessage,
+  PTTEventMessage,
+  PTTLearnedMessage,
+  PTTLearnTimeoutMessage,
+} from './generated/api';
+
+export type { EngineerConfig } from './generated/engineer';
 
 export type RadioAlertCategory =
   | 'safety_car'

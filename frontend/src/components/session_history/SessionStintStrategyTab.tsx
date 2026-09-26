@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import type { DriverStanding, DriverStint, StintsResponse } from '../../types/session';
+import { placeholderParticipant, type DriverStanding, type DriverStint, type StintsResponse } from '../../types/session';
 import { StrategyKPICards, type StrategyKPIs } from './stints/StrategyKPICards';
 import { StintGanttTimeline } from './stints/StintGanttTimeline';
 import { DegradationCurves } from './stints/DegradationCurves';
@@ -65,16 +65,13 @@ export const SessionStintStrategyTab: React.FC<SessionStintStrategyTabProps> = (
           teamName: '',
           teamId: d.team_id,
           raceNumber: d.race_number,
-          participant: {
+          participant: placeholderParticipant({
             id: d.car_index,
-            session_id: 0,
             car_index: d.car_index,
             name: d.driver_name,
-            driver_id: 0,
             team_id: d.team_id,
             race_number: d.race_number,
-            ai_controlled: false,
-          },
+          }),
           laps: [],
           bestLap: null,
           bestLapTimeMS: 0,

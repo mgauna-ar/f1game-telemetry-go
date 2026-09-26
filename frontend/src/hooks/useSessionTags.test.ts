@@ -2,11 +2,12 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useSessionTags } from './useSessionTags';
 import type { Session, Tag } from '../types/session';
+import { makeSession, makeTag } from '../test/wireFactories';
 
 describe('useSessionTags Hook', () => {
   const initialTags: Tag[] = [
-    { id: 1, name: 'Championship', color: '#ff4757' },
-    { id: 2, name: 'Casual', color: '#2ed573' },
+    makeTag({ id: 1, name: 'Championship', color: '#ff4757' }),
+    makeTag({ id: 2, name: 'Casual', color: '#2ed573' }),
   ];
 
   let sessions: Session[];
@@ -16,8 +17,8 @@ describe('useSessionTags Hook', () => {
 
   beforeEach(() => {
     sessions = [
-      { id: 101, session_uid: '0x101', created_at: '2026-05-01T10:00:00Z', track_name: 'Silverstone', session_type: 'Race', tags: [initialTags[0]] },
-      { id: 102, session_uid: '0x102', created_at: '2026-05-02T10:00:00Z', track_name: 'Spa', session_type: 'Race', tags: [initialTags[0], initialTags[1]] },
+      makeSession({ id: 101, session_uid: '0x101', created_at: '2026-05-01T10:00:00Z', track_name: 'Silverstone', session_type: 'Race', tags: [initialTags[0]] }),
+      makeSession({ id: 102, session_uid: '0x102', created_at: '2026-05-02T10:00:00Z', track_name: 'Spa', session_type: 'Race', tags: [initialTags[0], initialTags[1]] }),
     ];
     setSessions = vi.fn((updater) => {
       sessions = typeof updater === 'function' ? updater(sessions) : updater;

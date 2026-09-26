@@ -2,24 +2,25 @@ import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { useLapStaging } from './useLapStaging';
 import type { Session, Lap, DriverStanding } from '../types/session';
+import { makeLap, makeParticipant, makeSession } from '../test/wireFactories';
 
 describe('useLapStaging Hook', () => {
-  const mockSession: Session = {
+  const mockSession: Session = makeSession({
     id: 42,
     session_uid: '0x42',
     created_at: '2026-05-01T10:00:00Z',
     track_name: 'Silverstone',
     session_type: 'Race',
-  };
+  });
 
-  const mockLap: Lap = {
+  const mockLap: Lap = makeLap({
     id: 100,
     session_id: 42,
     lap_number: 12,
     lap_time_ms: 88500,
     is_valid: true,
     tyre_compound: 'SOFT',
-  };
+  });
 
   const mockDriver: DriverStanding = {
     carIndex: 0,
@@ -28,7 +29,7 @@ describe('useLapStaging Hook', () => {
     teamId: 1,
     raceNumber: 44,
     position: 1,
-    participant: {
+    participant: makeParticipant({
       id: 1,
       session_id: 42,
       car_index: 0,
@@ -37,7 +38,7 @@ describe('useLapStaging Hook', () => {
       team_id: 1,
       race_number: 44,
       ai_controlled: false,
-    },
+    }),
     laps: [mockLap],
     bestLap: mockLap,
     bestLapTimeMS: 88500,

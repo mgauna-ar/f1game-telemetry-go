@@ -3,21 +3,22 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { TagManagerModal } from './TagManagerModal';
 import { I18nProvider } from '../../context/I18nProvider';
 import type { Session, Tag } from '../../types/session';
+import { makeSession, makeTag } from '../../test/wireFactories';
 
 describe('TagManagerModal', () => {
   const availableTags: Tag[] = [
-    { id: 1, name: 'WOR Tier 1', color: '#ef4444' },
-    { id: 2, name: 'Time Trial', color: '#06b6d4' },
+    makeTag({ id: 1, name: 'WOR Tier 1', color: '#ef4444' }),
+    makeTag({ id: 2, name: 'Time Trial', color: '#06b6d4' }),
   ];
-  const mockSession: Session = {
+  const mockSession: Session = makeSession({
     id: 10,
     session_uid: '12345',
     track_name: 'Montreal',
     session_type: 'RACE',
     weather: 'Clear',
     created_at: new Date().toISOString(),
-    tags: [{ id: 1, name: 'WOR Tier 1', color: '#ef4444' }],
-  };
+    tags: [makeTag({ id: 1, name: 'WOR Tier 1', color: '#ef4444' })],
+  });
 
   it('renders available tags and marks assigned ones when open', () => {
     render(

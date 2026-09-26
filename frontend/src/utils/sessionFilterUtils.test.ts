@@ -5,41 +5,42 @@ import {
   filterSessionsBySearch,
 } from './sessionFilterUtils';
 import type { Session } from '../types/session';
+import { makeSession, makeTag } from '../test/wireFactories';
 
 describe('sessionFilterUtils', () => {
   const mockSessions: Session[] = [
-    {
+    makeSession({
       id: 101,
       session_uid: '0x101',
       track_name: 'Monza',
       session_type: 'Race',
       created_at: '2026-05-01T10:00:00Z',
-      tags: [{ id: 1, name: 'Championship', color: '#ff0000' }],
-    },
-    {
+      tags: [makeTag({ id: 1, name: 'Championship', color: '#ff0000' })],
+    }),
+    makeSession({
       id: 102,
       session_uid: '0x102',
       track_name: 'Spa-Francorchamps',
       session_type: 'Qualifying',
       created_at: '2026-05-02T10:00:00Z',
-      tags: [{ id: 2, name: 'Practice Tag', color: '#00ff00' }],
-    },
-    {
+      tags: [makeTag({ id: 2, name: 'Practice Tag', color: '#00ff00' })],
+    }),
+    makeSession({
       id: 103,
       session_uid: '0x103',
       track_name: 'Silverstone Circuit',
       session_type: 'Sprint Shootout',
       created_at: '2026-05-03T10:00:00Z',
       tags: [],
-    },
-    {
+    }),
+    makeSession({
       id: 104,
       session_uid: '0x104',
       track_name: 'Albert Park',
       session_type: 'Practice 2',
       created_at: '2026-05-04T10:00:00Z',
       tags: [],
-    },
+    }),
   ];
 
   describe('matchSessionSearch', () => {

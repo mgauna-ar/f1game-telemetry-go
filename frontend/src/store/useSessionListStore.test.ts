@@ -2,11 +2,12 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { useSessionListStore, SESSION_LIST_TTL_MS } from './useSessionListStore';
 import { api } from '../utils/apiClient';
 import type { Session } from '../types/session';
+import { makeSession } from '../test/wireFactories';
 
 describe('useSessionListStore', () => {
   const mockSessions: Session[] = [
-    { id: 1, track_name: 'Silverstone', session_type: 'Race' } as Session,
-    { id: 2, track_name: 'Monza', session_type: 'Qualifying' } as Session,
+    makeSession({ id: 1, track_name: 'Silverstone', session_type: 'Race' }) as Session,
+    makeSession({ id: 2, track_name: 'Monza', session_type: 'Qualifying' }) as Session,
   ];
 
   beforeEach(() => {

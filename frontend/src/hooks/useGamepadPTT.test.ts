@@ -107,7 +107,7 @@ describe('useGamepadPTT hook', () => {
     expect(putSpy).toHaveBeenLastCalledWith('/api/settings/ptt', {
       mode: 'hold',
       keyboard_key: 'KeyT',
-      gamepad: null,
+      gamepad: undefined,
     });
   });
 
@@ -195,7 +195,8 @@ describe('useGamepadPTT hook', () => {
     });
 
     expect(result.current.mappedGamepadButton).toBeNull();
-    expect(putSpy).toHaveBeenLastCalledWith('/api/settings/ptt', expect.objectContaining({ gamepad: null }));
+    // The body leaves gamepad out: the server stores a fresh setup, so a missing mapping clears it.
+    expect(putSpy).toHaveBeenLastCalledWith('/api/settings/ptt', expect.objectContaining({ gamepad: undefined }));
   });
 
   it('loads the saved push-to-talk setup from the server', async () => {

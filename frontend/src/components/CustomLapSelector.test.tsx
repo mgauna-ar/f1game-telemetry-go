@@ -1,17 +1,18 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { CustomLapSelector } from './CustomLapSelector';
+import { makeLap, makeParticipant } from '../test/wireFactories';
 
 describe('CustomLapSelector Component', () => {
   const mockLaps = [
-    { id: 101, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 90000, sector1_ms: 30000, sector2_ms: 32000, sector3_ms: 28000, is_valid: true, tyre_compound: 'SOFT', max_speed_kmh: 310 },
-    { id: 102, session_id: 1, car_index: 0, lap_number: 2, lap_time_ms: 88500, sector1_ms: 29500, sector2_ms: 31500, sector3_ms: 27500, is_valid: true, tyre_compound: 'SOFT', max_speed_kmh: 315 },
-    { id: 103, session_id: 1, car_index: 1, lap_number: 3, lap_time_ms: 0, is_valid: false, tyre_compound: 'HARD' },
+    makeLap({ id: 101, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 90000, sector1_ms: 30000, sector2_ms: 32000, sector3_ms: 28000, is_valid: true, tyre_compound: 'SOFT', max_speed_kmh: 310 }),
+    makeLap({ id: 102, session_id: 1, car_index: 0, lap_number: 2, lap_time_ms: 88500, sector1_ms: 29500, sector2_ms: 31500, sector3_ms: 27500, is_valid: true, tyre_compound: 'SOFT', max_speed_kmh: 315 }),
+    makeLap({ id: 103, session_id: 1, car_index: 1, lap_number: 3, lap_time_ms: 0, is_valid: false, tyre_compound: 'HARD' }),
   ];
 
   const mockParticipants = [
-    { id: 1, session_id: 1, car_index: 0, name: 'Lewis Hamilton', driver_id: 1, team_id: 1, race_number: 44, ai_controlled: false, nationality: 1 },
-    { id: 2, session_id: 1, car_index: 1, name: 'George Russell', driver_id: 2, team_id: 1, race_number: 63, ai_controlled: false, nationality: 1 }
+    makeParticipant({ id: 1, session_id: 1, car_index: 0, name: 'Lewis Hamilton', driver_id: 1, team_id: 1, race_number: 44, ai_controlled: false, nationality: 1 }),
+    makeParticipant({ id: 2, session_id: 1, car_index: 1, name: 'George Russell', driver_id: 2, team_id: 1, race_number: 63, ai_controlled: false, nationality: 1 })
   ];
 
   it('renders trigger with selected lap and opens popover on click', () => {

@@ -1,4 +1,4 @@
-.PHONY: build run run-embedded build-frontend build-embedded build-all dev test test-short lint clean help fmt simulate install-hooks
+.PHONY: gen-types build run run-embedded build-frontend build-embedded build-all dev test test-short lint clean help fmt simulate install-hooks
 
 BINARY_NAME=f1telemetry
 BUILD_DIR=bin
@@ -54,6 +54,10 @@ dev:
 simulate:
 	go run ./cmd/simulator -session $(or $(SESSION),$(F1T_SESSION_TYPE),race) -format $(or $(FORMAT),$(F1T_PACKET_FORMAT),2026)
 
+
+## gen-types: Regenerate the frontend wire types (frontend/src/types/generated) from the Go structs
+gen-types:
+	go run ./cmd/tsgen
 
 ## test: Run all tests with verbose output
 test:

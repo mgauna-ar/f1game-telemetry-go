@@ -9,6 +9,8 @@ import type {
   CarDamageData,
   PacketHeader,
   CarTelemetry2Data,
+  EventMessage,
+  SyntheticEvent,
 } from '../types/telemetry';
 import {
   F1_DRIVER_NAMES,
@@ -82,7 +84,7 @@ export interface LiveSnapshotData {
   CarDamage?: {
     CarDamageData: CarDamageData[];
   };
-  Events?: RaceEvent[];
+  Events?: SyntheticEvent[];
   ActiveCarCount?: number;
 }
 
@@ -93,7 +95,7 @@ export interface TelemetryState {
 }
 
 // Internal tracking references outside Zustand state to prevent extra subscriber triggers
-let lastSessionUID: string | number | null = null;
+let lastSessionUID: string | null = null;
 let participantsCache: ParticipantData[] = [];
 
 export const useTelemetryStore = create<TelemetryState>((_set, get) => ({
@@ -196,7 +198,8 @@ export const useTelemetryStore = create<TelemetryState>((_set, get) => ({
       // Handle Server Synthetic Events
       if (snapshot.Events && snapshot.Events.length > 0) {
         for (const evt of snapshot.Events) {
-          useSessionStatusStore.getState().addEvent(evt);
+          // The server only sends feed types and severities RaceEvent lists.
+          useSessionStatusStore.getState().addEvent(evt as Omit<RaceEvent, 'id' | 'timestamp'>);
         }
       }
 
@@ -220,18 +223,7 @@ export const useTelemetryStore = create<TelemetryState>((_set, get) => ({
 
     // 2. Real-time Event Data Packet
     if (header.PacketId === PACKET_IDS.EVENT) {
-      const eventData = data as {
-        EventCode: string;
-        VehicleIdx?: number;
-        LapTime?: number;
-        OtherVehicleIdx?: number;
-        PenaltyType?: number;
-        PenaltyTime?: number;
-        InfringementType?: number;
-        PlacesGained?: number;
-        LapNum?: number;
-        Speed?: number;
-      };
+      const eventData = data as EventMessage;
       const code = eventData.EventCode;
       const currentParticipants = useSessionStatusStore.getState().participants;
       // Only events about a car carry a vehicle index; never credit the others to car 0.

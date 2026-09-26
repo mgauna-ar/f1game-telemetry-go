@@ -2,17 +2,18 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ComparatorDuelHeader } from './ComparatorDuelHeader';
 import type { Session, Participant, Lap } from '../../types/session';
+import { makeLap, makeParticipant, makeSession } from '../../test/wireFactories';
 
 describe('ComparatorDuelHeader Component', () => {
-  const mockSessionA: Session = {
+  const mockSessionA: Session = makeSession({
     id: 1,
     session_uid: '0x101',
     session_type: 'Qualifying',
     track_name: 'Silverstone',
     created_at: '2026-08-10T12:00:00Z',
-  };
+  });
 
-  const mockDriverA: Participant = {
+  const mockDriverA: Participant = makeParticipant({
     id: 1,
     session_id: 1,
     car_index: 0,
@@ -22,9 +23,9 @@ describe('ComparatorDuelHeader Component', () => {
     driver_id: 1,
     ai_controlled: false,
     nationality: 1,
-  };
+  });
 
-  const mockDriverB: Participant = {
+  const mockDriverB: Participant = makeParticipant({
     id: 2,
     session_id: 1,
     car_index: 1,
@@ -34,9 +35,9 @@ describe('ComparatorDuelHeader Component', () => {
     driver_id: 2,
     ai_controlled: false,
     nationality: 2,
-  };
+  });
 
-  const mockLapA: Lap = {
+  const mockLapA: Lap = makeLap({
     id: 101,
     session_id: 1,
     car_index: 0,
@@ -49,9 +50,9 @@ describe('ComparatorDuelHeader Component', () => {
     tyre_compound: 'SOFT',
     max_speed_kmh: 324,
     has_telemetry: true,
-  };
+  });
 
-  const mockLapB: Lap = {
+  const mockLapB: Lap = makeLap({
     id: 102,
     session_id: 1,
     car_index: 1,
@@ -64,7 +65,7 @@ describe('ComparatorDuelHeader Component', () => {
     tyre_compound: 'MEDIUM',
     max_speed_kmh: 320,
     has_telemetry: true,
-  };
+  });
 
   const defaultProps = {
     sessions: [mockSessionA],

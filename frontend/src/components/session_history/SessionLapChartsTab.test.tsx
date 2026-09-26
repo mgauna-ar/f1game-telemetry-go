@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { SessionLapChartsTab } from './SessionLapChartsTab';
 import { I18nProvider } from '../../context/I18nProvider';
 import type { DriverStanding, ProgressionResponse } from '../../types/session';
+import { makeLap, makeParticipant } from '../../test/wireFactories';
 
 describe('SessionLapChartsTab Component', () => {
   const mockDriverStandings: DriverStanding[] = [
@@ -13,7 +14,7 @@ describe('SessionLapChartsTab Component', () => {
       teamName: 'Red Bull',
       teamId: 9,
       raceNumber: 1,
-      participant: {
+      participant: makeParticipant({
         id: 1,
         session_id: 100,
         car_index: 0,
@@ -22,13 +23,13 @@ describe('SessionLapChartsTab Component', () => {
         team_id: 9,
         race_number: 1,
         ai_controlled: false,
-      },
+      }),
       bestLapTimeMS: 87500,
       bestLap: null,
       laps: [
-        { id: 1, session_id: 100, car_index: 0, lap_number: 1, lap_time_ms: 88500, is_valid: true, tyre_compound: 'MEDIUM', car_position: 1 },
-        { id: 2, session_id: 100, car_index: 0, lap_number: 2, lap_time_ms: 115000, is_valid: true, tyre_compound: 'MEDIUM', car_position: 1 },
-        { id: 3, session_id: 100, car_index: 0, lap_number: 3, lap_time_ms: 87500, is_valid: true, tyre_compound: 'HARD', car_position: 1 },
+        makeLap({ id: 1, session_id: 100, car_index: 0, lap_number: 1, lap_time_ms: 88500, is_valid: true, tyre_compound: 'MEDIUM', car_position: 1 }),
+        makeLap({ id: 2, session_id: 100, car_index: 0, lap_number: 2, lap_time_ms: 115000, is_valid: true, tyre_compound: 'MEDIUM', car_position: 1 }),
+        makeLap({ id: 3, session_id: 100, car_index: 0, lap_number: 3, lap_time_ms: 87500, is_valid: true, tyre_compound: 'HARD', car_position: 1 }),
       ],
       bestS1MS: 28000,
       bestS2MS: 33000,
@@ -44,7 +45,7 @@ describe('SessionLapChartsTab Component', () => {
       teamName: 'Mercedes',
       teamId: 1,
       raceNumber: 44,
-      participant: {
+      participant: makeParticipant({
         id: 2,
         session_id: 100,
         car_index: 1,
@@ -53,13 +54,13 @@ describe('SessionLapChartsTab Component', () => {
         team_id: 1,
         race_number: 44,
         ai_controlled: false,
-      },
+      }),
       bestLapTimeMS: 87900,
       bestLap: null,
       laps: [
-        { id: 4, session_id: 100, car_index: 1, lap_number: 1, lap_time_ms: 89000, is_valid: true, tyre_compound: 'SOFT', car_position: 2 },
-        { id: 5, session_id: 100, car_index: 1, lap_number: 2, lap_time_ms: 88900, is_valid: true, tyre_compound: 'SOFT', car_position: 2 },
-        { id: 6, session_id: 100, car_index: 1, lap_number: 3, lap_time_ms: 87900, is_valid: true, tyre_compound: 'HARD', car_position: 2 },
+        makeLap({ id: 4, session_id: 100, car_index: 1, lap_number: 1, lap_time_ms: 89000, is_valid: true, tyre_compound: 'SOFT', car_position: 2 }),
+        makeLap({ id: 5, session_id: 100, car_index: 1, lap_number: 2, lap_time_ms: 88900, is_valid: true, tyre_compound: 'SOFT', car_position: 2 }),
+        makeLap({ id: 6, session_id: 100, car_index: 1, lap_number: 3, lap_time_ms: 87900, is_valid: true, tyre_compound: 'HARD', car_position: 2 }),
       ],
       bestS1MS: 28100,
       bestS2MS: 33200,

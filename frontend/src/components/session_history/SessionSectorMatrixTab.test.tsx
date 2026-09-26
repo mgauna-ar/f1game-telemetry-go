@@ -3,6 +3,7 @@ import { describe, it, expect } from 'vitest';
 import { SessionSectorMatrixTab } from './SessionSectorMatrixTab';
 import { I18nProvider } from '../../context/I18nProvider';
 import type { DriverStanding, ClassificationResponse } from '../../types/session';
+import { makeParticipant } from '../../test/wireFactories';
 
 describe('SessionSectorMatrixTab Component', () => {
   const mockDriverStandings: DriverStanding[] = [
@@ -13,7 +14,7 @@ describe('SessionSectorMatrixTab Component', () => {
       teamName: 'Red Bull',
       teamId: 2,
       raceNumber: 1,
-      participant: {
+      participant: makeParticipant({
         id: 1,
         session_id: 100,
         car_index: 0,
@@ -22,7 +23,7 @@ describe('SessionSectorMatrixTab Component', () => {
         team_id: 2,
         race_number: 1,
         ai_controlled: false,
-      },
+      }),
       bestLapTimeMS: 87500,
       bestLap: null,
       laps: [],
@@ -41,7 +42,7 @@ describe('SessionSectorMatrixTab Component', () => {
       teamName: 'Mercedes',
       teamId: 0,
       raceNumber: 44,
-      participant: {
+      participant: makeParticipant({
         id: 2,
         session_id: 100,
         car_index: 1,
@@ -50,7 +51,7 @@ describe('SessionSectorMatrixTab Component', () => {
         team_id: 0,
         race_number: 44,
         ai_controlled: false,
-      },
+      }),
       bestLapTimeMS: 87800,
       bestLap: null,
       laps: [],
@@ -65,7 +66,7 @@ describe('SessionSectorMatrixTab Component', () => {
   ];
 
   const mockClassificationData: ClassificationResponse = {
-    standings: mockDriverStandings,
+    standings: [], // the tab reads the normalized driverStandings prop instead
     session_best_s1_ms: 27300,
     session_best_s2_ms: 33500,
     session_best_s3_ms: 26500,

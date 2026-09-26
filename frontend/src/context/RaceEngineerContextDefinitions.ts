@@ -1,6 +1,7 @@
 import { createContext, useContext } from 'react';
 import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
 import type { ChatMessage } from '../types/ai';
+import type { AIModelItem } from '../types/generated/ai';
 
 export type { ChatMessage };
 
@@ -56,11 +57,7 @@ export const providerHasKey = (keyStatus: AIKeyStatusByProvider, provider: AIPro
 export const providerIsReady = (config: AIConfig, keyStatus: AIKeyStatusByProvider, provider: AIProvider): boolean =>
   provider === 'custom' ? config.baseUrl.trim() !== '' : providerHasKey(keyStatus, provider);
 
-export interface AIModelItem {
-  id: string;
-  display_name: string;
-  description?: string;
-}
+export type { AIModelItem };
 
 export type ContextMode = 'comparator' | 'session_debrief' | 'live' | 'general';
 

@@ -8,6 +8,7 @@ import {
 import { RESULT_STATUS, DRIVER_STATUS } from '../constants/f1';
 import type { ParticipantData, LapData } from '../types/telemetry';
 import type { Participant, Lap } from '../types/session';
+import { makeLap, makeParticipant } from '../test/wireFactories';
 
 describe('driverFilter utility', () => {
   describe('Live Telemetry Filtering', () => {
@@ -138,7 +139,7 @@ describe('driverFilter utility', () => {
   });
 
   describe('Historical Session Filtering', () => {
-    const humanParticipant: Participant = {
+    const humanParticipant: Participant = makeParticipant({
       id: 1,
       session_id: 100,
       car_index: 0,
@@ -147,9 +148,9 @@ describe('driverFilter utility', () => {
       team_id: 0,
       race_number: 99,
       ai_controlled: false,
-    };
+    });
 
-    const aiWithLaps: Participant = {
+    const aiWithLaps: Participant = makeParticipant({
       id: 2,
       session_id: 100,
       car_index: 1,
@@ -158,9 +159,9 @@ describe('driverFilter utility', () => {
       team_id: 0,
       race_number: 1,
       ai_controlled: true,
-    };
+    });
 
-    const inactiveAI: Participant = {
+    const inactiveAI: Participant = makeParticipant({
       id: 3,
       session_id: 100,
       car_index: 2,
@@ -169,7 +170,7 @@ describe('driverFilter utility', () => {
       team_id: 1,
       race_number: 44,
       ai_controlled: true,
-    };
+    });
 
     it('retains human participants even if no laps are completed', () => {
       expect(
@@ -182,7 +183,7 @@ describe('driverFilter utility', () => {
 
     it('retains AI drivers who completed laps or have telemetry', () => {
       const laps: Lap[] = [
-        {
+        makeLap({
           id: 1,
           session_id: 100,
           car_index: 1,
@@ -192,7 +193,7 @@ describe('driverFilter utility', () => {
           sector2_ms: 36000,
           sector3_ms: 24500,
           is_valid: true,
-        },
+        }),
       ];
 
       expect(
@@ -213,7 +214,7 @@ describe('driverFilter utility', () => {
       ).toBe(false);
 
       // Even if ai_controlled was corrupted to false, driver_id identifies them as official AI
-      const corruptedAI: Participant = {
+      const corruptedAI: Participant = makeParticipant({
         id: 4,
         session_id: 100,
         car_index: 3,
@@ -222,7 +223,7 @@ describe('driverFilter utility', () => {
         team_id: 9,
         race_number: 5,
         ai_controlled: false,
-      };
+      });
 
       expect(
         isHistoricalDriverActive({
@@ -236,22 +237,22 @@ describe('driverFilter utility', () => {
     it('filterActiveHistoricalParticipants filters full grid correctly in qualifying and race', () => {
       const participants: Participant[] = [humanParticipant, aiWithLaps, inactiveAI];
       const laps: Lap[] = [
-        {
+        makeLap({
           id: 1,
           session_id: 100,
           car_index: 0,
           lap_number: 1,
           lap_time_ms: 89393,
           is_valid: true,
-        },
-        {
+        }),
+        makeLap({
           id: 2,
           session_id: 100,
           car_index: 1,
           lap_number: 1,
           lap_time_ms: 88500,
           is_valid: true,
-        },
+        }),
       ];
 
       const activeQualy = filterActiveHistoricalParticipants(participants, laps, false);

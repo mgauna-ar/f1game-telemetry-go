@@ -2,28 +2,29 @@ import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import { useSessionFilters } from './useSessionFilters';
 import type { Session } from '../types/session';
+import { makeSession, makeTag } from '../test/wireFactories';
 
 describe('useSessionFilters Hook', () => {
   const mockSessions: Session[] = [
-    {
+    makeSession({
       id: 1,
       session_uid: '0x1',
       track_name: 'Monza',
       session_type: 'Race',
       created_at: '2026-05-01T10:00:00Z',
       total_laps: 53,
-      tags: [{ id: 10, name: 'League A', color: '#ff0000' }],
-    },
-    {
+      tags: [makeTag({ id: 10, name: 'League A', color: '#ff0000' })],
+    }),
+    makeSession({
       id: 2,
       session_uid: '0x2',
       track_name: 'Spa-Francorchamps',
       session_type: 'Qualifying',
       created_at: '2026-05-02T10:00:00Z',
       total_laps: 20,
-      tags: [{ id: 20, name: 'League B', color: '#00ff00' }],
-    },
-    {
+      tags: [makeTag({ id: 20, name: 'League B', color: '#00ff00' })],
+    }),
+    makeSession({
       id: 3,
       session_uid: '0x3',
       track_name: 'Monza',
@@ -31,7 +32,7 @@ describe('useSessionFilters Hook', () => {
       created_at: '2026-05-03T10:00:00Z',
       total_laps: 15,
       tags: [],
-    },
+    }),
   ];
 
   it('filters sessions by search query', () => {

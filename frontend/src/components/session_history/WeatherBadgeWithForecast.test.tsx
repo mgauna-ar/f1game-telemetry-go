@@ -3,9 +3,10 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { WeatherBadgeWithForecast } from './WeatherBadgeWithForecast';
 import { I18nProvider } from '../../context/I18nProvider';
 import type { Session } from '../../types/session';
+import { makeForecastSample, makeSession } from '../../test/wireFactories';
 
 describe('WeatherBadgeWithForecast', () => {
-  const mockSession: Session = {
+  const mockSession: Session = makeSession({
     id: 1,
     session_uid: '0x48D7F9B1E038C41A',
     track_name: 'Imola',
@@ -13,12 +14,12 @@ describe('WeatherBadgeWithForecast', () => {
     weather: 'Heavy Rain',
     created_at: '2026-08-17T23:31:00Z',
     weather_forecast: [
-      { TimeOffset: 0, Weather: 4, RainPercentage: 90, TrackTemperature: 28, AirTemperature: 21 },
-      { TimeOffset: 5, Weather: 4, RainPercentage: 75, TrackTemperature: 27, AirTemperature: 21 },
-      { TimeOffset: 15, Weather: 3, RainPercentage: 35, TrackTemperature: 26, AirTemperature: 22 },
-      { TimeOffset: 30, Weather: 1, RainPercentage: 5, TrackTemperature: 28, AirTemperature: 23 },
+      makeForecastSample({ TimeOffset: 0, Weather: 4, RainPercentage: 90, TrackTemperature: 28, AirTemperature: 21 }),
+      makeForecastSample({ TimeOffset: 5, Weather: 4, RainPercentage: 75, TrackTemperature: 27, AirTemperature: 21 }),
+      makeForecastSample({ TimeOffset: 15, Weather: 3, RainPercentage: 35, TrackTemperature: 26, AirTemperature: 22 }),
+      makeForecastSample({ TimeOffset: 30, Weather: 1, RainPercentage: 5, TrackTemperature: 28, AirTemperature: 23 }),
     ],
-  };
+  });
 
   it('renders initial session weather correctly', () => {
     render(
@@ -50,14 +51,14 @@ describe('WeatherBadgeWithForecast', () => {
   });
 
   it('handles session without forecast gracefully', () => {
-    const staticSession: Session = {
+    const staticSession: Session = makeSession({
       id: 2,
       session_uid: '0x1234567890ABCDEF',
       track_name: 'Monza',
       session_type: 'Race',
       weather: 'Clear',
       created_at: '2026-08-17T23:31:00Z',
-    };
+    });
 
     render(
       <I18nProvider>
@@ -76,7 +77,7 @@ describe('WeatherBadgeWithForecast', () => {
   });
 
   it('handles qualifying weather forecast correctly', () => {
-    const jsonSession: Session = {
+    const jsonSession: Session = makeSession({
       id: 3,
       session_uid: '0x999',
       track_name: 'Spa',
@@ -84,10 +85,10 @@ describe('WeatherBadgeWithForecast', () => {
       weather: 'Light Rain',
       created_at: '2026-08-17T23:31:00Z',
       weather_forecast: [
-        { TimeOffset: 0, Weather: 3, RainPercentage: 40 },
-        { TimeOffset: 10, Weather: 0, RainPercentage: 0 },
+        makeForecastSample({ TimeOffset: 0, Weather: 3, RainPercentage: 40 }),
+        makeForecastSample({ TimeOffset: 10, Weather: 0, RainPercentage: 0 }),
       ],
-    };
+    });
 
     render(
       <I18nProvider>
@@ -123,7 +124,7 @@ describe('WeatherBadgeWithForecast', () => {
   });
 
   it('filters weekend forecast samples by the current session type (e.g. Q1)', () => {
-    const weekendSession: Session = {
+    const weekendSession: Session = makeSession({
       id: 4,
       session_uid: '0x123',
       track_name: 'Madrid',
@@ -131,13 +132,13 @@ describe('WeatherBadgeWithForecast', () => {
       weather: 'Light Cloud',
       created_at: '2026-08-17T23:31:00Z',
       weather_forecast: [
-        { SessionType: 5, TimeOffset: 0, Weather: 1, RainPercentage: 9, TrackTemperature: 32, AirTemperature: 23 },
-        { SessionType: 5, TimeOffset: 5, Weather: 1, RainPercentage: 9, TrackTemperature: 32, AirTemperature: 23 },
-        { SessionType: 5, TimeOffset: 10, Weather: 1, RainPercentage: 10, TrackTemperature: 32, AirTemperature: 23 },
-        { SessionType: 6, TimeOffset: 0, Weather: 2, RainPercentage: 25, TrackTemperature: 30, AirTemperature: 22 },
-        { SessionType: 15, TimeOffset: 0, Weather: 4, RainPercentage: 80, TrackTemperature: 25, AirTemperature: 20 },
+        makeForecastSample({ SessionType: 5, TimeOffset: 0, Weather: 1, RainPercentage: 9, TrackTemperature: 32, AirTemperature: 23 }),
+        makeForecastSample({ SessionType: 5, TimeOffset: 5, Weather: 1, RainPercentage: 9, TrackTemperature: 32, AirTemperature: 23 }),
+        makeForecastSample({ SessionType: 5, TimeOffset: 10, Weather: 1, RainPercentage: 10, TrackTemperature: 32, AirTemperature: 23 }),
+        makeForecastSample({ SessionType: 6, TimeOffset: 0, Weather: 2, RainPercentage: 25, TrackTemperature: 30, AirTemperature: 22 }),
+        makeForecastSample({ SessionType: 15, TimeOffset: 0, Weather: 4, RainPercentage: 80, TrackTemperature: 25, AirTemperature: 20 }),
       ],
-    };
+    });
 
     render(
       <I18nProvider>

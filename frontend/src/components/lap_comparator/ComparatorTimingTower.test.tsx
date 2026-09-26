@@ -3,9 +3,10 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { ComparatorTimingTower } from './ComparatorTimingTower';
 import type { Participant, Lap } from '../../types/session';
 import type { QuickSelectDriver } from '../../types/comparator';
+import { makeLap, makeParticipant } from '../../test/wireFactories';
 
 describe('ComparatorTimingTower Component', () => {
-  const mockLap1: Lap = {
+  const mockLap1: Lap = makeLap({
     id: 101,
     session_id: 1,
     car_index: 0,
@@ -17,9 +18,9 @@ describe('ComparatorTimingTower Component', () => {
     is_valid: true,
     tyre_compound: 'SOFT',
     has_telemetry: true,
-  };
+  });
 
-  const mockLap2: Lap = {
+  const mockLap2: Lap = makeLap({
     id: 102,
     session_id: 1,
     car_index: 1,
@@ -31,9 +32,9 @@ describe('ComparatorTimingTower Component', () => {
     is_valid: true,
     tyre_compound: 'MEDIUM',
     has_telemetry: true,
-  };
+  });
 
-  const mockLap3: Lap = {
+  const mockLap3: Lap = makeLap({
     id: 103,
     session_id: 1,
     car_index: 2,
@@ -45,43 +46,49 @@ describe('ComparatorTimingTower Component', () => {
     is_valid: true,
     tyre_compound: 'HARD',
     has_telemetry: false,
-  };
+  });
 
   const mockDrivers: QuickSelectDriver[] = [
     {
-      id: 1,
-      session_id: 1,
-      car_index: 0,
-      name: 'Max Verstappen',
-      race_number: 1,
-      team_id: 2,
-      driver_id: 1,
-      ai_controlled: false,
-      nationality: 1,
+      ...makeParticipant({
+        id: 1,
+        session_id: 1,
+        car_index: 0,
+        name: 'Max Verstappen',
+        race_number: 1,
+        team_id: 2,
+        driver_id: 1,
+        ai_controlled: false,
+        nationality: 1,
+      }),
       bestLap: mockLap1,
     },
     {
-      id: 2,
-      session_id: 1,
-      car_index: 1,
-      name: 'Liam Lawson',
-      race_number: 30,
-      team_id: 2,
-      driver_id: 2,
-      ai_controlled: false,
-      nationality: 2,
+      ...makeParticipant({
+        id: 2,
+        session_id: 1,
+        car_index: 1,
+        name: 'Liam Lawson',
+        race_number: 30,
+        team_id: 2,
+        driver_id: 2,
+        ai_controlled: false,
+        nationality: 2,
+      }),
       bestLap: mockLap2,
     },
     {
-      id: 3,
-      session_id: 1,
-      car_index: 2,
-      name: 'Lando Norris',
-      race_number: 4,
-      team_id: 8,
-      driver_id: 3,
-      ai_controlled: false,
-      nationality: 3,
+      ...makeParticipant({
+        id: 3,
+        session_id: 1,
+        car_index: 2,
+        name: 'Lando Norris',
+        race_number: 4,
+        team_id: 8,
+        driver_id: 3,
+        ai_controlled: false,
+        nationality: 3,
+      }),
       bestLap: mockLap3,
     },
   ];
@@ -170,7 +177,7 @@ describe('ComparatorTimingTower Component', () => {
   });
 
   it('expands driver lap history drilldown and filters out incomplete laps', () => {
-    const incompleteLap: Lap = {
+    const incompleteLap: Lap = makeLap({
       id: 999,
       session_id: 1,
       car_index: 0,
@@ -180,7 +187,7 @@ describe('ComparatorTimingTower Component', () => {
       sector2_ms: 0,
       sector3_ms: 0,
       is_valid: false,
-    };
+    });
 
     render(
       <ComparatorTimingTower

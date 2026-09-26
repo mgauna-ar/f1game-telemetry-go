@@ -38,7 +38,7 @@ export const BatchTagModal: React.FC<BatchTagModalProps> = ({
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--accent-secondary)' }}>
-            <TagBadge tag={{ id: 0, name: 'TAGS', color: '#00f2fe' }} size="xs" />
+            <TagBadge tag={{ name: 'TAGS', color: '#00f2fe' }} size="xs" />
             <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>
               {t('history.batch.tagModalTitle', { count: selectedCount })}
             </h3>

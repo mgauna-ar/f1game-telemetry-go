@@ -4,6 +4,7 @@ import { subscribeEngineerWebSocket } from '../utils/engineerSocket';
 import { usePTTConfig, type GamepadMapping, type GlobalPTTMapping } from './usePTTConfig';
 import { useKeyboardPTT } from './useKeyboardPTT';
 import { useGamepadPolling } from './useGamepadPolling';
+import type { EngineerSocketMessage } from '../types/telemetry';
 
 export type { GamepadMapping, GlobalPTTMapping };
 
@@ -132,16 +133,12 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
 
     return subscribeEngineerWebSocket((msg: unknown) => {
       if (!msg || typeof msg !== 'object') return;
-      const data = msg as {
-        type?: string;
-        state?: string;
-        mapping?: GlobalPTTMapping;
-      };
-      if (data.type === 'ptt_event' && (data.state === 'down' || data.state === 'up')) {
+      const data = msg as EngineerSocketMessage;
+      if (data.type === 'ptt_event') {
         handleGlobalPTTEventRef.current?.(data.state);
       } else if (data.type === 'ptt_learn_timeout') {
         setIsLearning(false);
-      } else if (data.type === 'ptt_learned' && data.mapping) {
+      } else if (data.type === 'ptt_learned') {
         setGlobalMapping(data.mapping);
         setIsLearning(false);
 
