@@ -24,7 +24,7 @@ func newSettingsTestServer(t *testing.T, cfg ServerConfig) (*Server, storage.Rep
 		t.Fatalf("failed to create repo: %v", err)
 	}
 	t.Cleanup(func() { repo.Close() })
-	hub := NewHub()
+	hub := NewHub("Telemetry")
 	return NewServerWithFS(repo, hub, hub, fstest.MapFS{}, cfg), repo
 }
 
@@ -244,7 +244,7 @@ func TestPTTSettings_SavedAppliedAndRestoredAfterRestart(t *testing.T) {
 	}
 
 	// A new server on the same database (an app restart) restores the mappings on its own.
-	restarted := NewServerWithFS(repo, NewHub(), NewHub(), fstest.MapFS{}, ServerConfig{})
+	restarted := NewServerWithFS(repo, NewHub("Telemetry"), NewHub("Engineer"), fstest.MapFS{}, ServerConfig{})
 	freshMgr := &recordingInputManager{mockInputManager: newMockInputManager()}
 	restarted.SetInputManager(freshMgr)
 	t.Cleanup(func() { restarted.SetInputManager(nil) })

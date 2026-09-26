@@ -15,9 +15,7 @@ export interface WebSocketClientOptions {
 export interface WebSocketClient {
   connect: () => void;
   disconnect: () => void;
-  send: (data: unknown) => void;
   isConnected: () => boolean;
-  getSocket: () => WebSocket | null;
 }
 
 export function resolveWebSocketUrl(pathOrUrl: string): string {
@@ -102,12 +100,14 @@ export function createWebSocket(pathOrUrl: string, options: WebSocketClientOptio
       };
 
       socket.onmessage = (event) => {
+        let data: unknown;
         try {
-          const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-          onMessage(data);
+          data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
         } catch {
-          // Safe failover for malformed JSON frames
+          // Malformed JSON frames are dropped
+          return;
         }
+        onMessage(data);
       };
     } catch {
       activeSocket = null;
@@ -130,25 +130,89 @@ export function createWebSocket(pathOrUrl: string, options: WebSocketClientOptio
     }
   };
 
-  const send = (data: unknown) => {
-    if (!activeSocket || activeSocket.readyState !== WebSocket.OPEN) {
-      return;
-    }
-    const message = typeof data === 'string' ? data : JSON.stringify(data);
-    activeSocket.send(message);
-  };
-
   const isConnected = () => {
     return activeSocket !== null && activeSocket.readyState === WebSocket.OPEN;
   };
 
-  const getSocket = () => activeSocket;
-
   return {
     connect,
     disconnect,
-    send,
     isConnected,
-    getSocket,
   };
+}
+
+export type SocketMessageHandler = (data: unknown) => void;
+
+export interface SharedSocketOptions {
+  /** Runs once per message, before the subscribers' handlers. */
+  onMessage?: SocketMessageHandler;
+  onConnect?: () => void;
+  onDisconnect?: () => void;
+}
+
+export interface SharedSocket {
+  /**
+   * Adds a subscriber and returns its unsubscribe function. The connection opens with the first
+   * subscriber and closes when the last one leaves.
+   *
+   * Only the first subscriber's `url` counts: later subscribers share the open connection, and one
+   * passing a different URL gets a console warning. After everyone has left, the next first
+   * subscriber picks the URL again.
+   */
+  subscribe: (handler?: SocketMessageHandler, url?: string) => () => void;
+}
+
+/**
+ * A ref-counted WebSocket connection shared by every subscriber of one endpoint. Each message goes
+ * to `options.onMessage` and then to every subscriber's handler; a handler that throws is logged
+ * and does not stop the others.
+ */
+export function createSharedSocket(defaultPath: string, options: SharedSocketOptions = {}): SharedSocket {
+  // One entry per subscription, so the same handler subscribed twice is counted and called twice.
+  const subscriptions = new Set<{ handler?: SocketMessageHandler }>();
+  let client: WebSocketClient | null = null;
+  let activeUrl = defaultPath;
+
+  const dispatch = (data: unknown) => {
+    const run = (handler: SocketMessageHandler) => {
+      try {
+        handler(data);
+      } catch (err) {
+        console.error(`WebSocket ${activeUrl} message handler failed`, err);
+      }
+    };
+    if (options.onMessage) run(options.onMessage);
+    subscriptions.forEach(({ handler }) => {
+      if (handler) run(handler);
+    });
+  };
+
+  const subscribe = (handler?: SocketMessageHandler, url?: string) => {
+    if (!client) {
+      activeUrl = url || defaultPath;
+      client = createWebSocket(activeUrl, {
+        onMessage: dispatch,
+        onConnect: options.onConnect,
+        onDisconnect: options.onDisconnect,
+      });
+    } else if (url && url !== activeUrl) {
+      console.warn(`WebSocket ${url} ignored: this page already shares a connection to ${activeUrl}`);
+    }
+
+    const subscription = { handler };
+    subscriptions.add(subscription);
+    if (!client.isConnected()) {
+      client.connect();
+    }
+
+    return () => {
+      if (!subscriptions.delete(subscription)) return;
+      if (subscriptions.size === 0 && client) {
+        client.disconnect();
+        client = null;
+      }
+    };
+  };
+
+  return { subscribe };
 }

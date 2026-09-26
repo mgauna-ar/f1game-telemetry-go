@@ -1,6 +1,7 @@
 package api
 
 import (
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -117,4 +118,66 @@ func TestWebSocket_Endpoints(t *testing.T) {
 			t.Errorf("expected status 400 Bad Request for non-WS GET, got %d", resp.StatusCode)
 		}
 	})
+}
+
+// Other websites open in the same browser must not read the telemetry or radio streams, while the
+// dashboard itself (served by this server, opened by localhost or LAN address, or through the Vite
+// dev proxy) and non-browser clients without an Origin header still connect.
+func TestWebSocket_OriginCheck(t *testing.T) {
+	server, _ := setupTestServer(t)
+	hub := NewHub("OriginTest")
+	go hub.Run(t.Context())
+	server.telemetryHub = hub
+	server.engineerHub = hub
+
+	ts := httptest.NewServer(server.router)
+	defer ts.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(ts.URL, "http")
+	serverHost := strings.TrimPrefix(ts.URL, "http://")
+	_, serverPort, err := net.SplitHostPort(serverHost)
+	if err != nil {
+		t.Fatalf("split test server address: %v", err)
+	}
+
+	tests := []struct {
+		name       string
+		host       string // Host header sent with the handshake; empty keeps the dialed address
+		origin     string // Origin header; empty sends none
+		wantStatus int
+	}{
+		{name: "foreign origin", origin: "http://evil.example", wantStatus: http.StatusForbidden},
+		{name: "foreign origin on the same port", origin: "http://evil.example:" + serverPort, wantStatus: http.StatusForbidden},
+		{name: "same host origin", origin: "http://" + serverHost, wantStatus: http.StatusSwitchingProtocols},
+		{name: "LAN address origin", host: "192.168.1.20:8080", origin: "http://192.168.1.20:8080", wantStatus: http.StatusSwitchingProtocols},
+		{name: "LAN host with foreign origin", host: "192.168.1.20:8080", origin: "http://192.168.1.99:8080", wantStatus: http.StatusForbidden},
+		{name: "Vite dev proxy origin", host: "localhost:5173", origin: "http://localhost:5173", wantStatus: http.StatusSwitchingProtocols},
+		{name: "no origin header", wantStatus: http.StatusSwitchingProtocols},
+	}
+
+	for _, path := range []string{"/ws", "/ws/engineer"} {
+		for _, tt := range tests {
+			t.Run(path+" "+tt.name, func(t *testing.T) {
+				header := http.Header{}
+				if tt.host != "" {
+					header.Set("Host", tt.host)
+				}
+				if tt.origin != "" {
+					header.Set("Origin", tt.origin)
+				}
+				dialer := websocket.Dialer{HandshakeTimeout: 2 * time.Second}
+				conn, resp, err := dialer.Dial(wsURL+path, header)
+				if conn != nil {
+					defer conn.Close()
+				}
+				if resp == nil {
+					t.Fatalf("no handshake response: %v", err)
+				}
+				defer resp.Body.Close()
+				if resp.StatusCode != tt.wantStatus {
+					t.Fatalf("status = %d, want %d (err %v)", resp.StatusCode, tt.wantStatus, err)
+				}
+			})
+		}
+	}
 }

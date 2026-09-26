@@ -7,25 +7,6 @@ import (
 	"github.com/mgauna/f1game-telemetry-go/internal/system"
 )
 
-// Re-export system types and helpers for backwards compatibility.
-type AppVersion = system.AppVersion
-type GitHubRelease = system.GitHubRelease
-type GitHubAsset = system.GitHubAsset
-type ReleaseAssetInfo = system.ReleaseAssetInfo
-type UpdateCheckResponse = system.UpdateCheckResponse
-
-const (
-	DefaultGitHubRepo = system.DefaultGitHubRepo
-	ReleaseCacheTTL   = system.ReleaseCacheTTL
-)
-
-var (
-	SetAppVersion       = system.SetAppVersion
-	GetAppVersion       = system.GetAppVersion
-	CheckForUpdates     = system.CheckForUpdates
-	FetchGitHubReleases = system.FetchGitHubReleases
-)
-
 // HTTP Handlers
 
 func (s *Server) handleGetSystemVersion(w http.ResponseWriter, r *http.Request) {
@@ -40,14 +21,10 @@ func (s *Server) handleCheckUpdates(w http.ResponseWriter, r *http.Request) {
 		includePrerelease = incParam == "true" || incParam == "1"
 	}
 
-	repo := r.URL.Query().Get("repo")
-	if repo == "" {
-		repo = system.DefaultGitHubRepo
-	}
-
-	resp, err := system.CheckForUpdates(r.Context(), repo, ver.Version, includePrerelease)
+	// Always this app's repository: the name goes into an api.github.com path unescaped.
+	resp, err := system.CheckForUpdates(r.Context(), system.DefaultGitHubRepo, ver.Version, includePrerelease)
 	if err != nil {
-		slog.Warn("Update check failed", "repo", repo, "error", err)
+		slog.Warn("Update check failed", "repo", system.DefaultGitHubRepo, "error", err)
 		// Return 200 with update_available: false on network/offline errors to avoid breaking UI
 		writeJSON(w, http.StatusOK, system.UpdateCheckResponse{
 			UpdateAvailable: false,

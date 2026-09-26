@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { createWebSocket, resolveWebSocketUrl } from './websocketClient';
+import { createSharedSocket, createWebSocket, resolveWebSocketUrl } from './websocketClient';
 
 class MockWebSocket {
   static instances: MockWebSocket[] = [];
@@ -14,16 +14,11 @@ class MockWebSocket {
   onclose: (() => void) | null = null;
   onerror: ((err: unknown) => void) | null = null;
   onmessage: ((event: { data: string }) => void) | null = null;
-  sentData: string[] = [];
 
   constructor(url: string) {
     this.url = url;
     this.readyState = 1;
     MockWebSocket.instances.push(this);
-  }
-
-  send(data: string) {
-    this.sentData.push(data);
   }
 
   close() {
@@ -83,18 +78,6 @@ describe('websocketClient', () => {
     expect(onMessage).not.toHaveBeenCalled();
   });
 
-  it('sends data when socket is open', () => {
-    const client = createWebSocket('/ws', { onMessage: vi.fn() });
-    client.connect();
-    const ws = MockWebSocket.instances[0];
-
-    client.send({ command: 'ping' });
-    expect(ws.sentData).toContain(JSON.stringify({ command: 'ping' }));
-
-    client.send('raw-string');
-    expect(ws.sentData).toContain('raw-string');
-  });
-
   it('reconnects with backoff when connection closes unexpectedly', () => {
     const onDisconnect = vi.fn();
     const client = createWebSocket('/ws', { onMessage: vi.fn(), onDisconnect, reconnectMs: 1000 });
@@ -121,5 +104,91 @@ describe('websocketClient', () => {
 
     vi.advanceTimersByTime(5000);
     expect(MockWebSocket.instances.length).toBe(1);
+  });
+});
+
+describe('createSharedSocket', () => {
+  beforeEach(() => {
+    MockWebSocket.instances = [];
+    vi.stubGlobal('WebSocket', MockWebSocket);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('opens one connection for all subscribers and closes it after the last one leaves', () => {
+    const shared = createSharedSocket('/ws/test');
+    const unsub1 = shared.subscribe();
+    const unsub2 = shared.subscribe();
+    expect(MockWebSocket.instances.length).toBe(1);
+    const ws = MockWebSocket.instances[0];
+
+    unsub1();
+    expect(ws.readyState).toBe(MockWebSocket.OPEN);
+    unsub2();
+    expect(ws.readyState).toBe(MockWebSocket.CLOSED);
+
+    // Unsubscribing twice must not close a connection opened by a later subscriber.
+    unsub2();
+    shared.subscribe();
+    unsub1();
+    expect(MockWebSocket.instances.length).toBe(2);
+    expect(MockWebSocket.instances[1].readyState).toBe(MockWebSocket.OPEN);
+  });
+
+  it('delivers each message once per subscription, even when one handler is subscribed twice', () => {
+    const onMessage = vi.fn();
+    const shared = createSharedSocket('/ws/test', { onMessage });
+    const handler = vi.fn();
+    const unsubA = shared.subscribe(handler);
+    shared.subscribe(handler);
+
+    MockWebSocket.instances[0].onmessage?.({ data: JSON.stringify({ n: 1 }) });
+    expect(onMessage).toHaveBeenCalledTimes(1);
+    expect(handler).toHaveBeenCalledTimes(2);
+
+    unsubA();
+    MockWebSocket.instances[0].onmessage?.({ data: JSON.stringify({ n: 2 }) });
+    expect(handler).toHaveBeenCalledTimes(3);
+    expect(MockWebSocket.instances[0].readyState).toBe(MockWebSocket.OPEN);
+  });
+
+  it('logs a handler exception and still delivers the message to the other handlers', () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const shared = createSharedSocket('/ws/test');
+    const failure = new Error('handler blew up');
+    shared.subscribe(() => {
+      throw failure;
+    });
+    const healthy = vi.fn();
+    shared.subscribe(healthy);
+
+    MockWebSocket.instances[0].onmessage?.({ data: JSON.stringify({ n: 1 }) });
+
+    expect(healthy).toHaveBeenCalledWith({ n: 1 });
+    expect(consoleError).toHaveBeenCalledWith(expect.stringContaining('/ws/test'), failure);
+  });
+
+  it('uses the first subscriber URL and warns when a later subscriber asks for another one', () => {
+    const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const shared = createSharedSocket('/ws/test');
+    const unsub1 = shared.subscribe(undefined, 'ws://first.example/ws/test');
+    const unsub2 = shared.subscribe(undefined, 'ws://second.example/ws/test');
+    const unsub3 = shared.subscribe();
+
+    expect(MockWebSocket.instances.length).toBe(1);
+    expect(MockWebSocket.instances[0].url).toBe('ws://first.example/ws/test');
+    expect(consoleWarn).toHaveBeenCalledTimes(1);
+    expect(consoleWarn).toHaveBeenCalledWith(expect.stringContaining('ws://second.example/ws/test'));
+
+    unsub1();
+    unsub2();
+    unsub3();
+    // Once everyone has left, the next first subscriber picks the URL again.
+    shared.subscribe(undefined, 'ws://second.example/ws/test');
+    expect(MockWebSocket.instances[1].url).toBe('ws://second.example/ws/test');
+    expect(consoleWarn).toHaveBeenCalledTimes(1);
   });
 });

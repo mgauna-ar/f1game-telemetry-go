@@ -13,7 +13,11 @@ func (s *Server) handleWebSocketForHub(w http.ResponseWriter, r *http.Request, h
 	}
 
 	client := NewClient(hub, conn)
-	hub.Register(client)
+	if !hub.Register(client) {
+		// The server is shutting down.
+		_ = conn.Close()
+		return
+	}
 
 	go client.WritePump()
 	go client.ReadPump()

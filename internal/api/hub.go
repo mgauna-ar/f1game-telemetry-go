@@ -101,51 +101,53 @@ func (c *Client) WritePump() {
 }
 
 // Hub maintains the set of active WebSocket clients and broadcasts messages to them.
+// Only Run touches the client set's membership; Register and Unregister hand clients to it.
 type Hub struct {
 	name       string
 	clients    map[*Client]bool
 	broadcast  chan []byte
 	register   chan *Client
 	unregister chan *Client
-	mu         sync.RWMutex
+	// done is closed once Run has returned, so Register and Unregister never block on a stopped hub.
+	done chan struct{}
+	mu   sync.RWMutex
 }
 
-// NewHub creates a new WebSocket Hub with an optional name tag.
-func NewHub(name ...string) *Hub {
-	hubName := "Telemetry"
-	if len(name) > 0 && name[0] != "" {
-		hubName = name[0]
-	}
+// NewHub creates a new WebSocket Hub; name tags its log lines.
+func NewHub(name string) *Hub {
 	return &Hub{
-		name:       hubName,
+		name:       name,
 		broadcast:  make(chan []byte, 1024),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
+		done:       make(chan struct{}),
 		clients:    make(map[*Client]bool),
 	}
 }
 
-// Register registers a client with the hub.
-func (h *Hub) Register(client *Client) {
-	h.register <- client
-}
-
-// Unregister unregisters a client from the hub.
-func (h *Hub) Unregister(client *Client) {
+// Register hands a client to the hub. It returns false when the hub has stopped; the client was
+// not added and the caller should close its connection.
+func (h *Hub) Register(client *Client) bool {
 	select {
-	case h.unregister <- client:
-	default:
-		h.mu.Lock()
-		if _, ok := h.clients[client]; ok {
-			delete(h.clients, client)
-			close(client.send)
-		}
-		h.mu.Unlock()
+	case h.register <- client:
+		return true
+	case <-h.done:
+		return false
 	}
 }
 
-// Run starts the hub's main loop. It terminates cleanly when ctx is canceled.
+// Unregister removes a client from the hub and closes its send channel. Once the hub has stopped
+// it returns at once: Run already closed every client it had.
+func (h *Hub) Unregister(client *Client) {
+	select {
+	case h.unregister <- client:
+	case <-h.done:
+	}
+}
+
+// Run starts the hub's main loop. It terminates cleanly when ctx is canceled and must be called once.
 func (h *Hub) Run(ctx context.Context) {
+	defer close(h.done)
 	for {
 		select {
 		case <-ctx.Done():
@@ -203,9 +205,4 @@ func (h *Hub) ClientCount() int {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	return len(h.clients)
-}
-
-// ClientsCount is an alias for ClientCount.
-func (h *Hub) ClientsCount() int {
-	return h.ClientCount()
 }

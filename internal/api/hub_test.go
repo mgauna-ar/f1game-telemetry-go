@@ -7,15 +7,10 @@ import (
 	"time"
 )
 
-func TestHub_NamingAndDefaults(t *testing.T) {
-	defaultHub := NewHub()
-	if defaultHub.name != "Telemetry" {
-		t.Errorf("expected default hub name Telemetry, got %s", defaultHub.name)
-	}
-
-	customHub := NewHub("CustomHub")
-	if customHub.name != "CustomHub" {
-		t.Errorf("expected custom hub name CustomHub, got %s", customHub.name)
+func TestHub_Naming(t *testing.T) {
+	hub := NewHub("CustomHub")
+	if hub.name != "CustomHub" {
+		t.Errorf("expected hub name CustomHub, got %s", hub.name)
 	}
 }
 
@@ -25,9 +20,6 @@ func TestHub_LifecycleAndClientCount(t *testing.T) {
 
 	if count := hub.ClientCount(); count != 0 {
 		t.Errorf("expected 0 clients initially, got %d", count)
-	}
-	if count := hub.ClientsCount(); count != 0 {
-		t.Errorf("expected 0 clients for ClientsCount(), got %d", count)
 	}
 
 	client1 := &Client{hub: hub, send: make(chan []byte, clientSendBufferSize)}
@@ -223,5 +215,47 @@ func TestHub_RunContextCancellation(t *testing.T) {
 		}
 	default:
 		t.Errorf("expected client.send to be closed and readable")
+	}
+}
+
+// A connection that arrives while the server shuts down must not leave its handler goroutine
+// blocked on a hub that no longer runs.
+func TestHub_RegisterAndUnregisterAfterRunReturns(t *testing.T) {
+	hub := NewHub("TestStopped")
+	ctx, cancel := context.WithCancel(context.Background())
+	stopped := make(chan struct{})
+	go func() {
+		hub.Run(ctx)
+		close(stopped)
+	}()
+	cancel()
+	<-stopped
+
+	client := &Client{hub: hub, send: make(chan []byte, clientSendBufferSize)}
+	registered := make(chan bool, 1)
+	go func() { registered <- hub.Register(client) }()
+
+	select {
+	case ok := <-registered:
+		if ok {
+			t.Error("Register reported success on a stopped hub")
+		}
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("Register blocked after Run returned")
+	}
+
+	unregistered := make(chan struct{})
+	go func() {
+		hub.Unregister(client)
+		close(unregistered)
+	}()
+	select {
+	case <-unregistered:
+	case <-time.After(500 * time.Millisecond):
+		t.Fatal("Unregister blocked after Run returned")
+	}
+
+	if count := hub.ClientCount(); count != 0 {
+		t.Errorf("expected 0 clients on a stopped hub, got %d", count)
 	}
 }

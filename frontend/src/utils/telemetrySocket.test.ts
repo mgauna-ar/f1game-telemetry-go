@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { connectTelemetryWebSocket, getTelemetryWebSocketClient } from './telemetrySocket';
+import { connectTelemetryWebSocket } from './telemetrySocket';
 import { useTelemetryStore } from '../store/useTelemetryStore';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 
@@ -57,12 +57,29 @@ describe('telemetrySocket manager', () => {
     // Unsubscribe first
     unsub1();
     expect(useSessionStatusStore.getState().connected).toBe(true);
-    expect(getTelemetryWebSocketClient()).not.toBeNull();
+    expect(ws.readyState).toBe(MockWS.OPEN);
 
     // Unsubscribe last
     unsub2();
     expect(useSessionStatusStore.getState().connected).toBe(false);
-    expect(getTelemetryWebSocketClient()).toBeNull();
+    expect(ws.readyState).toBe(MockWS.CLOSED);
+
+    // The next subscriber opens a fresh connection
+    const unsub3 = connectTelemetryWebSocket();
+    expect(MockWS.instances.length).toBe(2);
+    unsub3();
+  });
+
+  it('processes each message once no matter how many consumers subscribe', () => {
+    const processIncomingMessage = vi.spyOn(useTelemetryStore.getState(), 'processIncomingMessage');
+    const unsub1 = connectTelemetryWebSocket();
+    const unsub2 = connectTelemetryWebSocket();
+    MockWS.instances[0].onmessage?.({ data: JSON.stringify({ Header: { PacketId: 3 }, EventCode: 'SSTA' }) });
+
+    expect(processIncomingMessage).toHaveBeenCalledTimes(1);
+    unsub1();
+    unsub2();
+    processIncomingMessage.mockRestore();
   });
 
   it('processes incoming messages into telemetry store', () => {

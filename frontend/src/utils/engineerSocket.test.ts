@@ -37,6 +37,7 @@ describe('engineerSocket singleton', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   it('connects when first subscriber registers and disconnects when all unsubscribe', () => {
@@ -75,5 +76,23 @@ describe('engineerSocket singleton', () => {
 
     expect(handler).not.toHaveBeenCalled();
     unsub();
+  });
+
+  it('logs a subscriber exception instead of swallowing it', () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const failure = new Error('radio handler failed');
+    const unsub1 = subscribeEngineerWebSocket(() => {
+      throw failure;
+    });
+    const healthy = vi.fn();
+    const unsub2 = subscribeEngineerWebSocket(healthy);
+
+    const ws = MockWS.instances[MockWS.instances.length - 1];
+    ws.onmessage?.({ data: JSON.stringify({ type: 'directive' }) });
+
+    expect(healthy).toHaveBeenCalledWith({ type: 'directive' });
+    expect(consoleError).toHaveBeenCalledWith(expect.any(String), failure);
+    unsub1();
+    unsub2();
   });
 });

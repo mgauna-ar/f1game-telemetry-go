@@ -54,11 +54,15 @@ type Server struct {
 	comparatorCache *analytics.ComparatorLRUCache
 }
 
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool {
-		return true // Allow all origins for local dev
-	},
-}
+// MaxJSONBodyBytes caps JSON request bodies on the API routes. Session import has its own,
+// larger limit (MaxImportPayloadSize).
+const MaxJSONBodyBytes = 2 << 20
+
+// upgrader keeps gorilla's default origin check: a handshake is accepted when its Origin host
+// equals the request's Host (the dashboard opened by localhost or LAN address, or through the Vite
+// dev proxy, which keeps the browser's Host) or when it sends no Origin (non-browser clients).
+// Other websites open in the same browser cannot read the telemetry or radio streams.
+var upgrader = websocket.Upgrader{}
 
 // NewServer creates a new API server with the default embedded frontend filesystem.
 func NewServer(repo storage.Repository, telemetryHub, engineerHub *Hub, config ServerConfig) *Server {
@@ -82,7 +86,7 @@ func NewServerWithFS(repo storage.Repository, telemetryHub, engineerHub *Hub, st
 	s.router.Use(middleware.Recoverer)
 	// The API is for the dashboard this server hosts. Other websites open in the same browser must
 	// not change settings or spend the saved AI keys, so cross-site writes are rejected and no CORS
-	// headers are sent.
+	// headers are sent. Cross-site WebSocket reads are rejected by the upgrader's origin check.
 	s.router.Use(http.NewCrossOriginProtection().Handler)
 
 	s.routes()
@@ -151,15 +155,30 @@ func (s *Server) routes() {
 
 	// API routes
 	s.router.Route("/api", func(r chi.Router) {
-		s.setupSessionRoutes(r)
-		s.setupComparatorRoutes(r)
-		s.setupAIRoutes(r)
-		s.setupPTTRoutes(r)
-		s.setupSettingsRoutes(r)
-		s.setupSystemRoutes(r)
+		// Session import reads up to MaxImportPayloadSize itself, so it sits outside the JSON limit.
+		r.Post("/sessions/import", s.handleImportSession)
+
+		r.Group(func(r chi.Router) {
+			r.Use(limitJSONBody)
+			s.setupSessionRoutes(r)
+			s.setupComparatorRoutes(r)
+			s.setupAIRoutes(r)
+			s.setupPTTRoutes(r)
+			s.setupSettingsRoutes(r)
+			s.setupSystemRoutes(r)
+		})
 	})
 
 	s.setupStaticRoutes()
+}
+
+// limitJSONBody makes reading more than MaxJSONBodyBytes of a request body fail, so decoding an
+// oversized payload is answered with 400 instead of being buffered.
+func limitJSONBody(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.Body = http.MaxBytesReader(w, r.Body, MaxJSONBodyBytes)
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) setupWebSocketRoutes() {
@@ -179,7 +198,6 @@ func (s *Server) setupSessionRoutes(r chi.Router) {
 	r.Get("/sessions/{id}/stints", s.handleGetSessionStints)
 	r.Get("/sessions/{id}/export", s.handleExportSession)
 	r.Post("/sessions/export-batch", s.handleExportSessionBatch)
-	r.Post("/sessions/import", s.handleImportSession)
 	r.Post("/sessions/batch-tags", s.handleBatchAssignTags)
 	r.Get("/laps/{id}/telemetry", s.handleGetTelemetry)
 

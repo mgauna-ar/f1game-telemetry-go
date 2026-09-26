@@ -28,7 +28,7 @@ func setupTestServer(t *testing.T) (*Server, storage.Repository) {
 	}
 	t.Cleanup(func() { repo.Close() })
 
-	hub := NewHub()
+	hub := NewHub("Telemetry")
 	mockFS := fstest.MapFS{
 		"index.html": &fstest.MapFile{
 			Data: []byte("<!doctype html><html><head><title>F1 Telemetry</title></head><body><div id=\"root\"></div></body></html>"),
@@ -807,4 +807,51 @@ func TestPTTLearn_TimeoutTellsTheDashboard(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Errorf("learn after the timeout = %d, want 200", rec.Code)
 	}
+}
+
+func TestRouter_LimitsJSONRequestBodies(t *testing.T) {
+	server, _ := setupTestServer(t)
+
+	t.Run("oversized JSON body is rejected", func(t *testing.T) {
+		rec := doJSON(t, server, http.MethodPut, "/api/settings/voice", map[string]any{
+			"persona":       "strategist",
+			"custom_prompt": strings.Repeat("x", MaxJSONBodyBytes),
+		})
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("status = %d, want 400 (body %s)", rec.Code, truncateForLog(rec.Body.String()))
+		}
+		if !strings.Contains(rec.Body.String(), "too large") {
+			t.Errorf("error should say the body is too large, got %s", truncateForLog(rec.Body.String()))
+		}
+	})
+
+	t.Run("JSON body under the limit is accepted", func(t *testing.T) {
+		rec := doJSON(t, server, http.MethodPut, "/api/settings/voice", map[string]any{
+			"persona":       "strategist",
+			"custom_prompt": strings.Repeat("x", MaxJSONBodyBytes/2),
+		})
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200 (body %s)", rec.Code, truncateForLog(rec.Body.String()))
+		}
+	})
+
+	t.Run("session import keeps its own larger limit", func(t *testing.T) {
+		body := bytes.Repeat([]byte("x"), MaxJSONBodyBytes+1)
+		req := httptest.NewRequest(http.MethodPost, "/api/sessions/import", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		server.Router().ServeHTTP(rec, req)
+		if strings.Contains(rec.Body.String(), "too large") {
+			t.Fatalf("import body over the JSON limit was cut off: %s", truncateForLog(rec.Body.String()))
+		}
+	})
+}
+
+// truncateForLog keeps test failure output readable when a response echoes a large body.
+func truncateForLog(s string) string {
+	const maxLogLen = 200
+	if len(s) <= maxLogLen {
+		return s
+	}
+	return s[:maxLogLen] + "…"
 }
