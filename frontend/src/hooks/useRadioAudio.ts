@@ -12,7 +12,7 @@ import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
 import { api } from '../utils/apiClient';
-import { readSSEStream } from '../utils/sseUtils';
+import { chatStreamErrorFromResponse, readChatStream } from '../utils/sseUtils';
 import { createSentenceChunker } from '../utils/sentenceChunker';
 import { useSpeechRecognition } from './useSpeechRecognition';
 import { useTTSPlayback, type ReplySpeechStream } from './useTTSPlayback';
@@ -259,14 +259,14 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
       );
 
       if (!response.ok) {
-        throw new Error(`AI Service returned status ${response.status}`);
+        throw await chatStreamErrorFromResponse(response);
       }
 
       // Speak each sentence as soon as it arrives instead of waiting for the whole reply.
       const speech = beginReplyStream();
       replySpeech = speech;
       const sentences = createSentenceChunker((sentence) => speech.pushSentence(sentence));
-      const fullReply = (await readSSEStream(response, (chunk) => sentences.push(chunk))).trim();
+      const fullReply = (await readChatStream(response, (chunk) => sentences.push(chunk))).trim();
       sentences.flush();
       speech.finish();
 

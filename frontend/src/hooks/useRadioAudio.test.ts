@@ -204,6 +204,36 @@ describe('useRadioAudio hook', () => {
       expect(result.current.radioState).toBe('idle');
     });
 
+    it('shows the AI error sent in the stream instead of going silently idle', async () => {
+      vi.spyOn(api, 'stream').mockImplementation(async () =>
+        createMockSSEResponse([
+          'data: {"error":"429 from upstream","code":"QUOTA_EXCEEDED","provider":"gemini","message":"Quota exceeded."}\n\n',
+        ])
+      );
+      const { result } = renderHook(() => useRadioAudio());
+
+      await askOverRadio(result, 'Gap to the car ahead?');
+
+      expect(result.current.error).toBe('Quota exceeded.');
+      expect(result.current.radioState).toBe('idle');
+      expect(result.current.lastResponse).toBeNull();
+    });
+
+    it('shows the message of a failed request', async () => {
+      vi.spyOn(api, 'stream').mockImplementation(
+        async () =>
+          new Response(JSON.stringify({ error: 'no key', code: 'MISSING_API_KEY', message: 'No API key configured.' }), {
+            status: 400,
+          })
+      );
+      const { result } = renderHook(() => useRadioAudio());
+
+      await askOverRadio(result, 'Radio check');
+
+      expect(result.current.error).toBe('No API key configured.');
+      expect(result.current.radioState).toBe('idle');
+    });
+
     it('drops the pending answer when the driver keys the radio again', async () => {
       const signals: AbortSignal[] = [];
       vi.spyOn(api, 'stream').mockImplementation(

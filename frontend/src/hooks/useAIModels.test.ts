@@ -1,6 +1,6 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useAIModels, filterChatModels } from './useAIModels';
+import { useAIModels } from './useAIModels';
 import { api } from '../utils/apiClient';
 import {
   NO_AI_KEYS,
@@ -25,30 +25,6 @@ describe('useAIModels Hook', () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
-  });
-
-  it('filters out non-chat models for gemini and openai', () => {
-    const rawGemini: AIModelItem[] = [
-      { id: 'gemini-2.5-flash', display_name: 'Flash' },
-      { id: 'text-embedding-004', display_name: 'Embedding' },
-      { id: 'imagen-3.0', display_name: 'Imagen' },
-      { id: 'gemini-audio-tts', display_name: 'TTS' },
-    ];
-
-    const filteredGemini = filterChatModels(rawGemini, 'gemini');
-    expect(filteredGemini).toHaveLength(1);
-    expect(filteredGemini[0].id).toBe('gemini-2.5-flash');
-
-    const rawOpenAI: AIModelItem[] = [
-      { id: 'gpt-4o', display_name: 'GPT-4o' },
-      { id: 'dall-e-3', display_name: 'Dall-E' },
-      { id: 'whisper-1', display_name: 'Whisper' },
-      { id: 'text-embedding-3-small', display_name: 'Embedding' },
-    ];
-
-    const filteredOpenAI = filterChatModels(rawOpenAI, 'openai');
-    expect(filteredOpenAI).toHaveLength(1);
-    expect(filteredOpenAI[0].id).toBe('gpt-4o');
   });
 
   it('fetches available models through the server without sending a key', async () => {

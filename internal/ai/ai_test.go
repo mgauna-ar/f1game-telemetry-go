@@ -520,6 +520,20 @@ func TestReadSSEData(t *testing.T) {
 	}
 }
 
+func TestSSEWriter_SendsTextOnlyThenDone(t *testing.T) {
+	rec := httptest.NewRecorder()
+	out := sseWriter{w: rec, flusher: rec}
+	out.text("Box ")
+	out.text("")
+	out.text(`"now"`)
+	out.done()
+
+	want := "data: {\"text\":\"Box \"}\n\ndata: {\"text\":\"\\\"now\\\"\"}\n\ndata: [DONE]\n\n"
+	if got := rec.Body.String(); got != want {
+		t.Errorf("stream = %q, want %q", got, want)
+	}
+}
+
 type fakeLiveRace struct {
 	briefing LiveBriefing
 	ok       bool

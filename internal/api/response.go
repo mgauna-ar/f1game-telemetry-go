@@ -7,7 +7,6 @@ import (
 
 // Cache duration constants
 const (
-	SecondsPerDay  = 86400
 	SecondsPerYear = 31536000
 )
 

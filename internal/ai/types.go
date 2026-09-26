@@ -110,15 +110,6 @@ type ChatOptions struct {
 	Tools ToolExecutor
 }
 
-// AIConfigStatusResponse informs the frontend about backend default configuration.
-type AIConfigStatusResponse struct {
-	HasGeminiEnvKey bool   `json:"has_gemini_env_key"`
-	HasOpenAIEnvKey bool   `json:"has_openai_env_key"`
-	HasClaudeEnvKey bool   `json:"has_claude_env_key"`
-	DefaultProvider string `json:"default_provider"`
-	DefaultModel    string `json:"default_model"`
-}
-
 // AIFetchModelsRequest represents a request to query available models from a provider.
 type AIFetchModelsRequest struct {
 	Provider string `json:"provider"`
@@ -147,6 +138,7 @@ const (
 	AIErrorModelNotFound   = "MODEL_NOT_FOUND"
 	AIErrorNetworkError    = "NETWORK_ERROR"
 	AIErrorGeneric         = "GENERIC_ERROR"
+	AIErrorInvalidRequest  = "INVALID_REQUEST"
 )
 
 // AIErrorPayload represents a structured error returned in SSE or JSON responses.

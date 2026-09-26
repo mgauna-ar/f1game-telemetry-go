@@ -131,6 +131,104 @@ describe('useAIChatStream Hook', () => {
     expect(assistantMsg.canRetry).toBe(true);
   });
 
+  it('shows the error frame the server sends mid-stream with its code', async () => {
+    vi.spyOn(api, 'stream').mockResolvedValueOnce(
+      createMockSSEResponse([
+        'data: {"text":"Partial "}\n\n',
+        'data: {"error":"401 from upstream","code":"INVALID_API_KEY","provider":"openai","message":"The API key is invalid."}\n\n',
+      ])
+    );
+
+    const { result } = renderHook(() => useAIChatStream(defaultProps));
+
+    await act(async () => {
+      await result.current.sendMessage('Strategy update?');
+    });
+
+    const assistantMsg = result.current.messages[2];
+    expect(assistantMsg.content).toBe('');
+    expect(assistantMsg.errorCode).toBe('INVALID_API_KEY');
+    expect(assistantMsg.errorProvider).toBe('openai');
+    expect(assistantMsg.errorRaw).toBe('The API key is invalid.');
+    expect(assistantMsg.canRetry).toBe(false);
+  });
+
+  it('keeps the server code instead of guessing one from the message', async () => {
+    vi.spyOn(api, 'stream').mockResolvedValueOnce(
+      createMockSSEResponse(['data: {"error":"model not found, quota 429","code":"GENERIC_ERROR"}\n\n'])
+    );
+
+    const { result } = renderHook(() => useAIChatStream(defaultProps));
+
+    await act(async () => {
+      await result.current.sendMessage('Strategy update?');
+    });
+
+    expect(result.current.messages[2].errorCode).toBe('GENERIC_ERROR');
+    expect(result.current.messages[2].errorProvider).toBe('gemini');
+  });
+
+  it('marks a failed fetch as a network error', async () => {
+    vi.spyOn(api, 'stream').mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+    const { result } = renderHook(() => useAIChatStream(defaultProps));
+
+    await act(async () => {
+      await result.current.sendMessage('Strategy update?');
+    });
+
+    const assistantMsg = result.current.messages[2];
+    expect(assistantMsg.errorCode).toBe('NETWORK_ERROR');
+    expect(assistantMsg.errorRaw).toBe('Failed to fetch');
+    expect(assistantMsg.canRetry).toBe(true);
+  });
+
+  it('reports an empty reply as a retryable error', async () => {
+    vi.spyOn(api, 'stream').mockResolvedValueOnce(createMockSSEResponse(['data: [DONE]\n\n']));
+
+    const { result } = renderHook(() => useAIChatStream(defaultProps));
+
+    await act(async () => {
+      await result.current.sendMessage('Strategy update?');
+    });
+
+    const assistantMsg = result.current.messages[2];
+    expect(assistantMsg.errorCode).toBe('GENERIC_ERROR');
+    expect(assistantMsg.errorRaw).toContain('Received empty response');
+    expect(assistantMsg.canRetry).toBe(true);
+  });
+
+  it('notes a stopped answer after the text already received', async () => {
+    const encoder = new TextEncoder();
+    vi.spyOn(api, 'stream').mockImplementation(async (_url, _body, optionsOrSignal) => {
+      const signal = optionsOrSignal as AbortSignal;
+      const body = new ReadableStream({
+        start(controller) {
+          controller.enqueue(encoder.encode('data: {"text":"Brake later"}\n\n'));
+          signal.addEventListener('abort', () => controller.error(new DOMException('Aborted', 'AbortError')));
+        },
+      });
+      return new Response(body, { status: 200 });
+    });
+
+    const { result } = renderHook(() => useAIChatStream(defaultProps));
+
+    let pending!: Promise<void>;
+    act(() => {
+      pending = result.current.sendMessage('Long query');
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    await act(async () => {
+      result.current.stopGenerating();
+      await pending;
+    });
+
+    expect(result.current.messages[2].content).toBe('Brake later\n\n*(Analysis stopped by user)*');
+    expect(result.current.messages[2].errorCode).toBeUndefined();
+  });
+
   it('clears messages and resets with welcome banner', () => {
     const { result } = renderHook(() => useAIChatStream(defaultProps));
 

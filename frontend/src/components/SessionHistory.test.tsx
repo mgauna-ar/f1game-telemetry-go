@@ -473,20 +473,6 @@ describe('SessionHistory Component', () => {
       sessions: mockSessions,
       participants: mockParticipants,
       laps: mockLaps,
-      custom: (url) => {
-        if (url === '/api/ai/config-status') {
-          return Promise.resolve({
-            ok: true,
-            json: () =>
-              Promise.resolve({
-                has_gemini_env_key: true,
-                default_provider: 'gemini',
-                default_model: 'gemini-flash-lite-latest',
-              }),
-          });
-        }
-        return null;
-      },
     });
 
     render(

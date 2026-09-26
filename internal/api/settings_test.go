@@ -110,17 +110,8 @@ func TestAISettings_EnvVarsApplyUntilTheDashboardSaves(t *testing.T) {
 	if got.Providers[settings.ProviderGemini].Model != ai.DefaultGeminiModel {
 		t.Errorf("gemini model = %q, want the built-in default", got.Providers[settings.ProviderGemini].Model)
 	}
-	if !got.Providers[settings.ProviderGemini].HasEnvKey || got.Providers[settings.ProviderClaude].HasEnvKey {
+	if !got.Providers[settings.ProviderGemini].HasEnvKey || !got.Providers[settings.ProviderOpenAI].HasEnvKey || got.Providers[settings.ProviderClaude].HasEnvKey {
 		t.Error("env key flags don't match the env vars")
-	}
-
-	rec := doJSON(t, server, http.MethodGet, "/api/ai/config-status", nil)
-	var status ai.AIConfigStatusResponse
-	if err := json.NewDecoder(rec.Body).Decode(&status); err != nil {
-		t.Fatalf("decode config status: %v", err)
-	}
-	if status.DefaultProvider != "openai" || status.DefaultModel != "gpt-env" || !status.HasGeminiEnvKey || !status.HasOpenAIEnvKey {
-		t.Errorf("config-status = %+v, want it to agree with the AI settings", status)
 	}
 
 	got = decodeAISettings(t, doJSON(t, server, http.MethodPut, "/api/settings/ai", map[string]any{"provider": "gemini"}))

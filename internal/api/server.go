@@ -204,7 +204,6 @@ func (s *Server) setupComparatorRoutes(r chi.Router) {
 func (s *Server) setupAIRoutes(r chi.Router) {
 	// AI Race Engineer routes
 	r.Post("/ai/chat", s.handleAIChat)
-	r.Get("/ai/config-status", s.handleAIConfigStatus)
 	r.Post("/ai/models", s.handleAIFetchModels)
 	r.Post("/ai/tts", s.handleAITTS)
 	r.Get("/ai/engineer/config", s.handleGetEngineerConfig)

@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback, useMemo } from 'react';
 import { api } from '../utils/apiClient';
+import { ChatStreamError, chatStreamErrorFromResponse, readChatStream } from '../utils/sseUtils';
+import { AI_ERROR_CODES } from '../constants/f1';
 import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
 import { useI18n } from '../context/I18nContext';
 import {
@@ -40,26 +42,23 @@ const createGreeting = (id: string): ChatMessage => ({
   timestamp: new Date(),
 });
 
-interface CustomStreamError extends Error {
-  errorCode?: string;
-  provider?: string;
-}
+/** Codes worth a retry button: the same request may succeed a moment later. */
+const RETRYABLE_ERROR_CODES: ReadonlySet<string> = new Set([
+  AI_ERROR_CODES.MODEL_OVERLOADED,
+  AI_ERROR_CODES.NETWORK_ERROR,
+  AI_ERROR_CODES.GENERIC_ERROR,
+]);
 
-interface GeminiSSECandidate {
-  content?: {
-    parts?: Array<{ text?: string }>;
-  };
-}
-
-interface BackendSSEChunk {
-  error?: string;
-  code?: string;
-  provider?: string;
-  text?: string;
-  content?: string;
-  delta?: { content?: string };
-  candidates?: GeminiSSECandidate[];
-}
+/**
+ * Server failures already carry a code. Only a request that never got an answer (fetch rejects
+ * with a TypeError such as "Failed to fetch") is classified here.
+ */
+const toChatStreamError = (err: unknown, fallbackMessage: string): ChatStreamError => {
+  if (err instanceof ChatStreamError) return err;
+  if (err instanceof TypeError) return new ChatStreamError(err.message, AI_ERROR_CODES.NETWORK_ERROR);
+  const message = err instanceof Error && err.message ? err.message : fallbackMessage;
+  return new ChatStreamError(message, AI_ERROR_CODES.GENERIC_ERROR);
+};
 
 export const useAIChatStream = ({
   config,
@@ -104,7 +103,7 @@ export const useAIChatStream = ({
               ? {
                   ...m,
                   content: '',
-                  errorCode: 'MISSING_API_KEY',
+                  errorCode: AI_ERROR_CODES.MISSING_API_KEY,
                   errorProvider: config.provider,
                   errorRaw: `No API key configured for ${config.provider}.`,
                   canRetry: false,
@@ -147,148 +146,38 @@ export const useAIChatStream = ({
         );
 
         if (!res.ok) {
-          let errCode = 'GENERIC_ERROR';
-          let errMsg = `Server responded with status ${res.status}`;
-          let errProvider = config.provider;
-
-          const errRaw = await res.text().catch(() => '');
-          try {
-            const errJson = JSON.parse(errRaw);
-            errMsg = errJson.message || errJson.error || errMsg;
-            if (errJson.code) {
-              errCode = errJson.code;
-            }
-            if (errJson.provider) errProvider = errJson.provider;
-          } catch {
-            if (errRaw.trim()) errMsg = errRaw.trim();
-          }
-
-          const customErr: CustomStreamError = new Error(errMsg);
-          customErr.errorCode = errCode;
-          customErr.provider = errProvider;
-          throw customErr;
+          throw await chatStreamErrorFromResponse(res);
         }
 
-        const reader = res.body?.getReader();
-        const decoder = new TextDecoder('utf-8');
         let accumulated = '';
-
-        if (reader) {
-          let buffer = '';
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-
-            const lines = buffer.split('\n');
-            buffer = lines.pop() || '';
-
-            for (const line of lines) {
-              const trimmed = line.trim();
-              if (trimmed.startsWith('data: ')) {
-                const dataStr = trimmed.substring(6);
-                if (dataStr === '[DONE]') continue;
-                try {
-                  const parsed = JSON.parse(dataStr) as BackendSSEChunk;
-                  if (parsed.error) {
-                    const customErr: CustomStreamError = new Error(parsed.error);
-                    customErr.errorCode = parsed.code || 'GENERIC_ERROR';
-                    customErr.provider = parsed.provider || config.provider;
-                    throw customErr;
-                  }
-                  const chunkText =
-                    parsed.text ??
-                    parsed.content ??
-                    parsed.delta?.content ??
-                    parsed.candidates?.[0]?.content?.parts?.[0]?.text ??
-                    '';
-                  if (chunkText) {
-                    accumulated += chunkText;
-                    setMessages((prev) =>
-                      prev.map((m) =>
-                        m.id === assistantMsgId
-                          ? { ...m, content: accumulated, errorCode: undefined }
-                          : m
-                      )
-                    );
-                  }
-                } catch (e: unknown) {
-                  const errObj = e as CustomStreamError;
-                  if (errObj.errorCode || (errObj.message && !errObj.message.includes('JSON'))) {
-                    throw e;
-                  }
-                }
-              }
-            }
-          }
-        }
+        await readChatStream(res, (chunk) => {
+          accumulated += chunk;
+          setMessages((prev) =>
+            prev.map((m) => (m.id === assistantMsgId ? { ...m, content: accumulated, errorCode: undefined } : m))
+          );
+        });
 
         if (!accumulated.trim()) {
-          throw new Error(
-            'Received empty response from AI model. Please verify your selected model or API configuration.'
-          );
+          throw new ChatStreamError(t('ai_engineer.errors.emptyResponseDesc'), AI_ERROR_CODES.GENERIC_ERROR);
         }
       } catch (err: unknown) {
-        const errorObj = err as CustomStreamError;
-        if (errorObj.name === 'AbortError') {
+        if (controller.signal.aborted) {
+          const stoppedNote = `\n\n*${t('ai_engineer.analysisStopped')}*`;
           setMessages((prev) =>
-            prev.map((m) =>
-              m.id === assistantMsgId
-                ? { ...m, content: m.content + '\n\n*(Analysis stopped by user)*' }
-                : m
-            )
+            prev.map((m) => (m.id === assistantMsgId ? { ...m, content: m.content + stoppedNote } : m))
           );
         } else {
-          let code = errorObj.errorCode;
-          const errMsg = errorObj.message || 'Unknown communication error with AI service.';
-          const lowerMsg = errMsg.toLowerCase();
-
-          if (!code) {
-            if (
-              lowerMsg.includes('overloaded') ||
-              lowerMsg.includes('high demand') ||
-              lowerMsg.includes('503')
-            ) {
-              code = 'MODEL_OVERLOADED';
-            } else if (
-              lowerMsg.includes('quota') ||
-              lowerMsg.includes('rate limit') ||
-              lowerMsg.includes('429')
-            ) {
-              code = 'QUOTA_EXCEEDED';
-            } else if (
-              lowerMsg.includes('api key') ||
-              lowerMsg.includes('unauthorized') ||
-              lowerMsg.includes('401') ||
-              lowerMsg.includes('key not valid')
-            ) {
-              code = 'INVALID_API_KEY';
-            } else if (lowerMsg.includes('not found') || lowerMsg.includes('404')) {
-              code = 'MODEL_NOT_FOUND';
-            } else if (
-              errorObj.name === 'TypeError' ||
-              lowerMsg.includes('failed to fetch') ||
-              lowerMsg.includes('network')
-            ) {
-              code = 'NETWORK_ERROR';
-            } else {
-              code = 'GENERIC_ERROR';
-            }
-          }
-
-          const canRetry =
-            code === 'MODEL_OVERLOADED' || code === 'NETWORK_ERROR' || code === 'GENERIC_ERROR';
-
+          const error = toChatStreamError(err, t('ai_engineer.errors.genericErrorDesc'));
           setMessages((prev) =>
             prev.map((m) =>
               m.id === assistantMsgId
                 ? {
                     ...m,
                     content: '',
-                    errorCode: code,
-                    errorProvider: errorObj.provider || config.provider,
-                    errorRaw: errMsg,
-                    canRetry,
+                    errorCode: error.code,
+                    errorProvider: error.provider || config.provider,
+                    errorRaw: error.message,
+                    canRetry: RETRYABLE_ERROR_CODES.has(error.code),
                     lastPrompt: text,
                   }
                 : m
@@ -306,6 +195,7 @@ export const useAIChatStream = ({
       isGenerating,
       messages,
       keyStatus,
+      t,
     ]
   );
 

@@ -25,7 +25,7 @@ func (s sseWriter) text(text string) {
 	if text == "" {
 		return
 	}
-	chunkJSON, _ := json.Marshal(map[string]string{"text": text, "content": text})
+	chunkJSON, _ := json.Marshal(map[string]string{"text": text})
 	fmt.Fprintf(s.w, "%s%s\n\n", sseDataPrefix, chunkJSON)
 	s.flusher.Flush()
 }

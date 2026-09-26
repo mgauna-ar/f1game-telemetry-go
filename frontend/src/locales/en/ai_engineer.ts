@@ -20,6 +20,7 @@ export const ai_engineer = {
     '👋 **Hello! I am your AI Race Engineer.**\n\nI am connected to your telemetry feed across Session History, Lap Comparator, and Live Sessions.\n\n*Use the quick prompt chips below or ask me any question about your driving deltas, braking points, or race strategy.*',
   clearedMessage:
     '👋 **Session history cleared.**\n\nI am standing by on the team radio. Select laps in comparator, inspect sessions, or ask any telemetry questions.',
+  analysisStopped: '(Analysis stopped by user)',
   chips: {
     tyreWear: 'Analyze my tyre degradation and stint pace',
     deltaS2: 'Where am I losing time in Sector 2 vs Lap B?',
@@ -166,6 +167,8 @@ export const ai_engineer = {
     networkErrorDesc: 'Could not establish connection with the AI service. Please check your internet connection and retry.',
     genericErrorTitle: 'Radio Transmission Error',
     genericErrorDesc: 'An unexpected issue occurred while communicating with the AI service.',
+    emptyResponseDesc:
+      'Received empty response from AI model. Please verify your selected model or API configuration.',
   },
   radio: {
     title: 'Voice Radio',

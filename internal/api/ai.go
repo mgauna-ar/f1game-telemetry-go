@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -21,28 +22,11 @@ func (s *Server) aiKeys() ai.ServerKeys {
 	}
 }
 
-// handleAIConfigStatus returns the status of the env var AI keys and the provider and model in force.
-func (s *Server) handleAIConfigStatus(w http.ResponseWriter, r *http.Request) {
-	eff, _, err := s.effectiveAI(r.Context())
-	if err != nil {
-		slog.Error("Failed to load saved AI settings, using env vars and defaults", "error", err)
-		eff = settings.ResolveAI(settings.AI{}, s.aiEnv(), defaultAIModel)
-	}
-
-	writeJSON(w, http.StatusOK, ai.AIConfigStatusResponse{
-		HasGeminiEnvKey: eff.EnvKeys[settings.ProviderGemini],
-		HasOpenAIEnvKey: eff.EnvKeys[settings.ProviderOpenAI],
-		HasClaudeEnvKey: eff.EnvKeys[settings.ProviderClaude],
-		DefaultProvider: eff.Provider,
-		DefaultModel:    eff.Models[eff.Provider],
-	})
-}
-
 // handleAIFetchModels queries the provider API for available active text-generation models.
 func (s *Server) handleAIFetchModels(w http.ResponseWriter, r *http.Request) {
 	var req ai.AIFetchModelsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, fmt.Sprintf("invalid payload: %v", err), http.StatusBadRequest)
+		writeJSONErrorCode(w, fmt.Sprintf("invalid payload: %v", err), http.StatusBadRequest, ai.AIErrorInvalidRequest)
 		return
 	}
 	filled := s.fillAIRequest(r.Context(), settings.AIRequest{Provider: req.Provider, APIKey: req.APIKey, BaseURL: req.BaseURL})
@@ -51,20 +35,11 @@ func (s *Server) handleAIFetchModels(w http.ResponseWriter, r *http.Request) {
 	models, provider, err := ai.FetchModels(r.Context(), req, s.aiKeys())
 	if err != nil {
 		statusCode := http.StatusInternalServerError
-		payload := ai.AIErrorPayload{
-			Error:    err.Error(),
-			Code:     ai.AIErrorGeneric,
-			Provider: provider,
+		var aiErr *ai.AIStreamError
+		if errors.As(err, &aiErr) && aiErr.StatusCode > 0 {
+			statusCode = aiErr.StatusCode
 		}
-		if aiErr, ok := err.(*ai.AIStreamError); ok {
-			if aiErr.StatusCode > 0 {
-				statusCode = aiErr.StatusCode
-			}
-			payload.Code = aiErr.Code
-			payload.Message = aiErr.Message
-			payload.Provider = aiErr.Provider
-		}
-		writeJSON(w, statusCode, payload)
+		writeJSON(w, statusCode, aiErrorPayload(err, provider))
 		return
 	}
 
@@ -75,7 +50,7 @@ func (s *Server) handleAIFetchModels(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 	var req ai.AIChatRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, fmt.Sprintf("invalid request payload: %v", err), http.StatusBadRequest)
+		writeJSONErrorCode(w, fmt.Sprintf("invalid request payload: %v", err), http.StatusBadRequest, ai.AIErrorInvalidRequest)
 		return
 	}
 	filled := s.fillAIRequest(r.Context(), settings.AIRequest{Provider: req.Provider, Model: req.Model, APIKey: req.APIKey, BaseURL: req.BaseURL})
@@ -97,20 +72,28 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 	err := ai.StreamChat(r.Context(), req, s.aiKeys(), s.chatOptions(), w, flusher)
 	if err != nil {
 		slog.Error("Error during AI chat streaming", "provider", provider, "error", err)
-		payload := ai.AIErrorPayload{
-			Error:    err.Error(),
-			Code:     ai.AIErrorGeneric,
-			Provider: provider,
-		}
-		if aiErr, ok := err.(*ai.AIStreamError); ok {
-			payload.Code = aiErr.Code
-			payload.Message = aiErr.Message
-			payload.Provider = aiErr.Provider
-		}
-		errPayload, _ := json.Marshal(payload)
+		// The response is already a 200 event stream, so the error goes out as the last data frame.
+		errPayload, _ := json.Marshal(aiErrorPayload(err, provider))
 		fmt.Fprintf(w, "data: %s\n\n", string(errPayload))
 		flusher.Flush()
 	}
+}
+
+// aiErrorPayload describes a failed AI request for the client, keeping the code, message and
+// provider of a classified provider error.
+func aiErrorPayload(err error, provider string) ai.AIErrorPayload {
+	payload := ai.AIErrorPayload{Error: err.Error(), Code: ai.AIErrorGeneric, Provider: provider}
+	var aiErr *ai.AIStreamError
+	if errors.As(err, &aiErr) {
+		payload.Message = aiErr.Message
+		if aiErr.Code != "" {
+			payload.Code = aiErr.Code
+		}
+		if aiErr.Provider != "" {
+			payload.Provider = aiErr.Provider
+		}
+	}
+	return payload
 }
 
 // chatOptions hands the live race engineer context and data tools to AI chats when the engine is running.
@@ -132,14 +115,9 @@ func (s *Server) handleRaceContext(w http.ResponseWriter, r *http.Request) {
 
 // handleAITTS handles POST /api/ai/tts HTTP requests and streams back the synthesized MP3 audio.
 func (s *Server) handleAITTS(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		writeJSONError(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	var req ai.AITTSRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, fmt.Sprintf("invalid request payload: %v", err), http.StatusBadRequest)
+		writeJSONErrorCode(w, fmt.Sprintf("invalid request payload: %v", err), http.StatusBadRequest, ai.AIErrorInvalidRequest)
 		return
 	}
 
@@ -159,7 +137,6 @@ func (s *Server) handleAITTS(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "audio/mpeg")
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(audioBytes)))
-	w.Header().Set("Cache-Control", fmt.Sprintf("public, max-age=%d", SecondsPerDay))
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(audioBytes)
 }

@@ -7,47 +7,6 @@ import {
   type AIModelItem,
 } from '../context/RaceEngineerContext';
 
-export const filterChatModels = (rawModels: AIModelItem[], provider: string): AIModelItem[] => {
-  return rawModels.filter((m) => {
-    const id = m.id.toLowerCase();
-    if (provider === 'gemini') {
-      if (!id.startsWith('gemini-')) return false;
-      if (
-        id.includes('banana') ||
-        id.includes('imagen') ||
-        id.includes('image') ||
-        id.includes('embedding') ||
-        id.includes('aqa') ||
-        id.includes('tts') ||
-        id.includes('audio') ||
-        id.includes('vision') ||
-        id.includes('robotics')
-      ) {
-        return false;
-      }
-      return true;
-    }
-    if (provider === 'openai') {
-      if (
-        id.includes('audio') ||
-        id.includes('realtime') ||
-        id.includes('tts') ||
-        id.includes('whisper') ||
-        id.includes('dall-e') ||
-        id.includes('embedding') ||
-        id.includes('moderation') ||
-        id.includes('davinci') ||
-        id.includes('babbage') ||
-        id.includes('instruct') ||
-        id.includes('canary')
-      ) {
-        return false;
-      }
-    }
-    return true;
-  });
-};
-
 export interface UseAIModelsReturn {
   availableModels: AIModelItem[];
   isLoadingModels: boolean;
@@ -60,8 +19,9 @@ const modelsSource = (cfg: AIConfig): string =>
   cfg.provider === 'custom' ? `custom|${cfg.baseUrl.trim()}` : cfg.provider;
 
 /**
- * Lists the chat models of the active provider. The server adds the saved or .env API key. A list
- * only shows while its provider (and, for custom servers, its address) is the active one.
+ * Lists the chat models of the active provider. The server adds the saved or .env API key and
+ * leaves out models that cannot chat. A list only shows while its provider (and, for custom
+ * servers, its address) is the active one.
  */
 export const useAIModels = (
   config: AIConfig,
@@ -97,7 +57,7 @@ export const useAIModels = (
         if (seq !== requestSeq.current) return;
         setLoaded({
           source,
-          models: data?.models?.length ? filterChatModels(data.models, activeCfg.provider) : [],
+          models: data?.models ?? [],
         });
       } catch (err) {
         if (seq !== requestSeq.current) return;

@@ -20,6 +20,7 @@ export const ai_engineer = {
     '👋 **¡Hola! Soy tu Ingeniero de Carrera IA.**\n\nEstoy conectado a tu telemetría en el Historial de Sesiones, el Comparador de Vueltas y las Sesiones en Vivo.\n\n*Usá los atajos de abajo o preguntame lo que quieras sobre tus diferencias de manejo, puntos de frenado o estrategia de carrera.*',
   clearedMessage:
     '👋 **Historial de la sesión borrado.**\n\nEstoy atento en la radio del equipo. Elegí vueltas en el comparador, revisá sesiones o haceme cualquier pregunta sobre la telemetría.',
+  analysisStopped: '(Análisis detenido por el usuario)',
   chips: {
     tyreWear: 'Analizar la degradación de neumáticos y el ritmo de carrera',
     deltaS2: '¿Dónde estoy perdiendo tiempo en el Sector 2 respecto a la Vuelta B?',
@@ -166,6 +167,8 @@ export const ai_engineer = {
     networkErrorDesc: 'No se pudo establecer conexión con el servicio de IA. Verificá tu conexión a internet y reintentá.',
     genericErrorTitle: 'Error en la Transmisión de Radio',
     genericErrorDesc: 'Ocurrió un problema inesperado al comunicarse con el servicio de IA.',
+    emptyResponseDesc:
+      'Se recibió una respuesta vacía del modelo de IA. Verificá el modelo elegido o la configuración de la API.',
   },
   radio: {
     title: 'Radio de Voz',
