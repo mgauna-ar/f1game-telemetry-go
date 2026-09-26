@@ -52,7 +52,7 @@
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.2);
   white-space: nowrap;
   pointer-events: none;
-  z-index: 1000;
+  z-index: var(--z-tooltip);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   opacity: 0;

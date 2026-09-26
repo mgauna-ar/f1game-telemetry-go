@@ -2,12 +2,11 @@ import React, { useContext } from 'react';
 import { CheckCircle, AlertTriangle, Info, X } from 'lucide-react';
 import { useToastStore, type Toast } from '../../store/useToastStore';
 import { ToastContext } from '../../context/ToastContext';
+import { alpha, cssVar } from '../../styles/theme';
 
 export const ToastContainer: React.FC = () => {
   const toasts = useToastStore((s) => s.toasts);
   const dismissToast = useToastStore((s) => s.dismissToast);
-
-  if (toasts.length === 0) return null;
 
   const getToastIcon = (type: Toast['type']) => {
     switch (type) {
@@ -23,11 +22,11 @@ export const ToastContainer: React.FC = () => {
   const getToastBackground = (type: Toast['type']) => {
     switch (type) {
       case 'success':
-        return 'rgba(16, 185, 129, 0.95)';
+        return alpha(cssVar('--status-success'), 0.95);
       case 'error':
-        return 'rgba(239, 68, 68, 0.95)';
+        return alpha(cssVar('--status-danger'), 0.95);
       case 'info':
-        return 'rgba(0, 242, 254, 0.95)';
+        return alpha(cssVar('--status-info'), 0.95);
     }
   };
 
@@ -37,25 +36,27 @@ export const ToastContainer: React.FC = () => {
         position: 'fixed',
         bottom: '2rem',
         left: '2rem',
-        zIndex: 10000,
+        zIndex: cssVar('--z-toast'),
         display: 'flex',
         flexDirection: 'column',
         gap: '8px',
         pointerEvents: 'none',
       }}
+      aria-live="polite"
       data-testid="toast-container"
     >
       {toasts.map((toast) => (
         <div
           key={toast.id}
+          role={toast.type === 'error' ? 'alert' : undefined}
           data-testid={`toast-${toast.type}`}
           style={{
             pointerEvents: 'auto',
             background: getToastBackground(toast.type),
-            color: toast.type === 'info' ? '#000' : '#fff',
+            color: cssVar('--text-on-accent'),
             padding: '0.75rem 1.25rem',
             borderRadius: 'var(--radius-md, 8px)',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+            boxShadow: cssVar('--shadow-panel'),
             backdropFilter: 'blur(8px)',
             display: 'flex',
             alignItems: 'center',

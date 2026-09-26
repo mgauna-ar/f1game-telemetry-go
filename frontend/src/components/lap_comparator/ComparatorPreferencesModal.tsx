@@ -7,6 +7,7 @@ import {
   loadComparatorPreferences,
   saveComparatorPreferences,
 } from '../../utils/comparatorPreferencesUtils';
+import { closeOnBackdropClick } from '../../utils/backdrop';
 
 export interface ComparatorPreferencesModalProps {
   isOpen: boolean;
@@ -64,10 +65,14 @@ export const ComparatorPreferencesModal: React.FC<ComparatorPreferencesModalProp
   };
 
   return createPortal(
-    <div className="modal-overlay" onClick={onClose} data-testid="comparator-preferences-modal-overlay">
+    <div
+      className="modal-overlay"
+      role="presentation"
+      onClick={closeOnBackdropClick(onClose)}
+      data-testid="comparator-preferences-modal-overlay"
+    >
       <div
         className="modal-container glass-panel comparator-preferences-modal"
-        onClick={(e) => e.stopPropagation()}
         style={{
           maxWidth: '520px',
           width: '95%',

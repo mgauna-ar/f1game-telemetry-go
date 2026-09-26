@@ -13,6 +13,7 @@ import {
 import type { Session, WeatherForecastSample } from '../../types/session';
 import { WEATHER_CODES, WEATHER_TYPES, getSessionTypeCode } from '../../constants/f1';
 import { useI18n } from '../../context/I18nContext';
+import { cssVar } from '../../styles/theme';
 
 interface WeatherBadgeWithForecastProps {
   session: Session;
@@ -272,7 +273,7 @@ export const WeatherBadgeWithForecast: React.FC<WeatherBadgeWithForecastProps> =
               width: '6px',
               height: '6px',
               borderRadius: '50%',
-              backgroundColor: 'var(--accent-cyan, #06b6d4)',
+              backgroundColor: 'var(--weather-rain)',
               boxShadow: '0 0 6px rgba(6, 182, 212, 0.8)',
             }}
             title={t('history.forecast.title')}
@@ -290,7 +291,7 @@ export const WeatherBadgeWithForecast: React.FC<WeatherBadgeWithForecastProps> =
               top: popoverPos.top !== undefined ? `${popoverPos.top}px` : undefined,
               bottom: popoverPos.bottom !== undefined ? `${popoverPos.bottom}px` : undefined,
               left: `${popoverPos.left}px`,
-              zIndex: 99999,
+              zIndex: cssVar('--z-tooltip'),
               width: '340px',
               maxWidth: 'calc(100vw - 24px)',
               padding: '12px 14px',
@@ -316,7 +317,7 @@ export const WeatherBadgeWithForecast: React.FC<WeatherBadgeWithForecastProps> =
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <CloudRain size={14} color="var(--accent-cyan, #06b6d4)" />
+                <CloudRain size={14} color="var(--weather-rain)" />
                 <span
                   style={{
                     fontSize: '0.78rem',
@@ -333,7 +334,7 @@ export const WeatherBadgeWithForecast: React.FC<WeatherBadgeWithForecastProps> =
                 className="mono"
                 style={{
                   fontSize: '0.7rem',
-                  color: 'var(--accent-cyan, #06b6d4)',
+                  color: 'var(--weather-rain)',
                   background: 'rgba(6, 182, 212, 0.12)',
                   padding: '1px 6px',
                   borderRadius: '4px',
@@ -377,7 +378,7 @@ export const WeatherBadgeWithForecast: React.FC<WeatherBadgeWithForecastProps> =
                         style={{
                           fontSize: '0.72rem',
                           fontWeight: 600,
-                          color: idx === 0 ? 'var(--accent-cyan, #06b6d4)' : 'var(--text-secondary)',
+                          color: idx === 0 ? 'var(--weather-rain)' : 'var(--text-secondary)',
                           background: idx === 0 ? 'rgba(6, 182, 212, 0.15)' : 'rgba(255, 255, 255, 0.06)',
                           padding: '1px 5px',
                           borderRadius: '4px',

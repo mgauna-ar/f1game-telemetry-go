@@ -4,7 +4,7 @@ import { parseDriverName } from '../hooks/useTelemetry';
 import { filterActiveLiveParticipants } from '../utils/driverFilter';
 import type { ParticipantData, LapData, CarStatusData, SessionData, CarTelemetry2Data } from '../types/telemetry';
 import {
-  TEAM_COLORS,
+  getTeamColor,
   TYRE_COMPOUNDS,
   SESSION_TYPES,
   RESULT_STATUS,
@@ -18,8 +18,6 @@ import {
 import { useI18n } from '../context/I18nContext';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import { useTelemetryDataStore } from '../store/useTelemetryDataStore';
-
-export { TEAM_COLORS, TYRE_COMPOUNDS };
 
 const DRIVER_STATUS_LABELS: Record<number, string> = {
   [RESULT_STATUS.RETIRED]: 'live.statusRetired',
@@ -411,13 +409,13 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = React.memo((pro
       </div>
 
       {/* Dynamic Columns Grid (1 Column if <= 11 drivers, 2 Columns if > 11 drivers) */}
-      <div className="tower-two-cols-grid" style={{ display: 'grid', gridTemplateColumns: col2Drivers.length > 0 ? 'repeat(2, 1fr)' : '1fr', gap: '1rem' }}>
+      <div className="tower-two-cols-grid" style={{ display: 'grid', gridTemplateColumns: col2Drivers.length > 0 ? 'repeat(2, minmax(0, 1fr))' : 'minmax(0, 1fr)', gap: '1rem' }}>
         {/* Left Column: P1 to P11 (or all drivers if <= 11) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           {col1Drivers.map((driver, idx) => {
             const overallIndex = idx;
             const isSelected = driver.carIndex === selectedCarIndex;
-            const teamColor = TEAM_COLORS[driver.teamId] || 'var(--border-subtle)';
+            const teamColor = getTeamColor(driver.teamId);
             const compound = driver.carStatus?.VisualTyreCompound ? TYRE_COMPOUNDS[driver.carStatus.VisualTyreCompound] : undefined;
             const driverBestLap = bestLapTimesRef.current[driver.carIndex] || driver.lap?.LastLapTimeInMS || 0;
             const isEliminated = cutoffPosition !== null && driver.position > cutoffPosition;
@@ -454,7 +452,7 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = React.memo((pro
             {col2Drivers.map((driver, idx) => {
               const overallIndex = idx + col1Drivers.length;
               const isSelected = driver.carIndex === selectedCarIndex;
-              const teamColor = TEAM_COLORS[driver.teamId] || 'var(--border-subtle)';
+              const teamColor = getTeamColor(driver.teamId);
               const compound = driver.carStatus?.VisualTyreCompound ? TYRE_COMPOUNDS[driver.carStatus.VisualTyreCompound] : undefined;
               const driverBestLap = bestLapTimesRef.current[driver.carIndex] || driver.lap?.LastLapTimeInMS || 0;
               const isEliminated = cutoffPosition !== null && driver.position > cutoffPosition;
@@ -536,8 +534,10 @@ const DriverRow: React.FC<DriverRowProps> = React.memo(({
 }) => {
   return (
     <React.Fragment key={driver.carIndex}>
-      <div
-        className={`leaderboard-tower-card ${driver.isPlayer ? 'is-player' : ''} ${isSelected ? 'is-selected' : ''} ${isEliminated ? 'is-eliminated' : ''} ${flashClass}`}
+      <button
+        type="button"
+        className={`button-reset leaderboard-tower-card ${driver.isPlayer ? 'is-player' : ''} ${isSelected ? 'is-selected' : ''} ${isEliminated ? 'is-eliminated' : ''} ${flashClass}`}
+        aria-pressed={isSelected}
         onClick={() => onSelectCar(driver.carIndex)}
         style={{
           borderLeft: `4px solid ${teamColor}`,
@@ -638,7 +638,7 @@ const DriverRow: React.FC<DriverRowProps> = React.memo(({
             )}
           </div>
         </div>
-      </div>
+      </button>
 
       {/* Elimination Zone Line for Qualifying, between the last car through and the first one out */}
       {isLastBeforeCutoff && (

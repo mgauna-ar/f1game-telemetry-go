@@ -3,7 +3,7 @@ import { Wrench } from 'lucide-react';
 import { parseDriverName } from '../hooks/useTelemetry';
 import { filterActiveLiveParticipants } from '../utils/driverFilter';
 import {
-  TEAM_COLORS,
+  getTeamColor,
   RESULT_STATUS,
   PIT_STATUS,
   TYRE_COMPOUND_IDS,
@@ -200,7 +200,7 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = React.memo((props
             {drivers.map((d) => {
               const tyreCompound = d.status?.VisualTyreCompound ?? TYRE_COMPOUND_IDS.MEDIUM;
               const tyreAge = d.status?.TyresAgeLaps ?? 0;
-              const teamColor = TEAM_COLORS[d.teamId] || 'var(--accent-primary)';
+              const teamColor = getTeamColor(d.teamId);
 
               return (
                 <tr
@@ -214,7 +214,18 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = React.memo((props
                   <td>
                     <div className="pit-driver-cell">
                       <span className="team-color-indicator" style={{ backgroundColor: teamColor }} />
-                      <span className="pit-driver-name">{d.name}</span>
+                      {/* The row is also clickable; this button is its keyboard and screen reader equivalent */}
+                      <button
+                        type="button"
+                        className="button-reset pit-driver-name"
+                        aria-pressed={d.isSelected}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectCar(d.carIndex);
+                        }}
+                      >
+                        {d.name}
+                      </button>
                       {d.isPlayer && <span className="player-indicator-chip">{t('live.youChip')}</span>}
                     </div>
                   </td>

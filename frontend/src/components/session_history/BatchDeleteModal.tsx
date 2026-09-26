@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertTriangle, Trash2, X } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
+import { closeOnBackdropClick } from '../../utils/backdrop';
 
 interface BatchDeleteModalProps {
   isOpen: boolean;
@@ -20,10 +21,9 @@ export const BatchDeleteModal: React.FC<BatchDeleteModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" role="presentation" onClick={closeOnBackdropClick(onClose)}>
       <div
         className="modal-container glass-panel"
-        onClick={(e) => e.stopPropagation()}
         style={{ maxWidth: '480px', padding: '1.75rem', borderRadius: 'var(--radius-lg)' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>

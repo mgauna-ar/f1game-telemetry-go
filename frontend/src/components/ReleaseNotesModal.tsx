@@ -12,6 +12,7 @@ import { useI18n } from '../context/I18nContext';
 import { renderSimpleMarkdown } from '../utils/markdown';
 import { detectUserOS } from '../utils/system';
 import type { UpdateCheckResponse, ReleaseAsset, SystemVersion } from '../types/system';
+import { closeOnBackdropClick } from '../utils/backdrop';
 
 interface ReleaseNotesModalProps {
   isOpen: boolean;
@@ -116,8 +117,8 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
   const isDev = systemVersion?.is_dev || effectiveData.current_version === 'dev';
 
   return (
-    <div className="release-modal-overlay" onClick={handleClose} role="dialog" aria-modal="true">
-      <div className="release-modal-container" onClick={(e) => e.stopPropagation()}>
+    <div className="release-modal-overlay" role="presentation" onClick={closeOnBackdropClick(handleClose)}>
+      <div className="release-modal-container" role="dialog" aria-modal="true" aria-labelledby="release-modal-title">
         {/* Modal Header */}
         <div className="release-modal-header">
           <div className="release-modal-title-row">
@@ -125,7 +126,7 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
               <Sparkles size={20} className="text-cyan animate-pulse" />
             </div>
             <div>
-              <div className="release-modal-title">
+              <div className="release-modal-title" id="release-modal-title">
                 {isDev
                   ? t('common.updates.devTitle')
                   : effectiveData.update_available

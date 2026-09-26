@@ -1,6 +1,7 @@
 import React from 'react';
 import { Download, Tag, Trash2, X, RefreshCw, Layers } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
+import { cssVar } from '../../styles/theme';
 import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContextDefinitions';
 
 export interface SessionBatchDockProps {
@@ -34,7 +35,7 @@ export const SessionBatchDock: React.FC<SessionBatchDockProps> = (props) => {
         bottom: '24px',
         left: '50%',
         transform: 'translateX(-50%)',
-        zIndex: 1000,
+        zIndex: cssVar('--z-dock'),
         width: 'min(94vw, 760px)',
         backgroundColor: 'rgba(12, 16, 26, 0.95)',
         backdropFilter: 'blur(16px)',

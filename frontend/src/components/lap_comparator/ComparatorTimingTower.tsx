@@ -16,7 +16,7 @@ import {
 import type { Participant, Lap } from '../../types/session';
 import type { QuickSelectDriver } from '../../types/comparator';
 import { TyreCompoundBadge } from '../common/TyreCompoundBadge';
-import { TEAM_COLORS } from '../../constants/f1';
+import { getTeamColor } from '../../constants/f1';
 import { formatTime, formatSectorTime, getRankBadgeStyle } from '../../utils/formatters';
 import { sortLapsByQuality } from '../../utils/lapUtils';
 import { useI18n } from '../../context/I18nContext';
@@ -149,7 +149,8 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
       <div className="timing-tower-header-bar">
         {/* Left: Title & Driver Count */}
         <div className="tower-header-left">
-          <div className="tower-title-group" onClick={onToggleOpen} style={{ cursor: 'pointer' }}>
+          {/* Clicking the title is a shortcut for the Expand/Collapse button */}
+          <div className="tower-title-group" role="presentation" onClick={onToggleOpen} style={{ cursor: 'pointer' }}>
             <Zap size={15} className="tower-lightning-icon" />
             <span className="tower-title">{t('comparator.timingTower.title')}</span>
             <span className="tower-count-badge" data-testid="timing-tower-count">
@@ -217,7 +218,7 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
         <div className="tower-header-right">
           {/* Quick Collapsed Top 3 Rivals Strip */}
           {!isOpen && quickSelectData.drivers.length > 0 && (
-            <div className="tower-collapsed-top3" onClick={onToggleOpen}>
+            <div className="tower-collapsed-top3" role="presentation" onClick={onToggleOpen}>
               {quickSelectData.drivers.slice(0, 3).map((d, i) => (
                 <button
                   key={`top3-${d.car_index}`}
@@ -320,6 +321,7 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
             type="button"
             className="tower-toggle-expand-btn"
             onClick={onToggleOpen}
+            aria-expanded={isOpen}
             aria-label={isOpen ? 'Collapse Timing Tower' : 'Expand Timing Tower'}
             data-testid="quick-select-collapse-btn"
           >
@@ -358,7 +360,7 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
                 </thead>
                 <tbody>
                   {displayedDrivers.map((d, idx) => {
-                    const teamColor = TEAM_COLORS[d.team_id] || '#A0A0A0';
+                    const teamColor = getTeamColor(d.team_id);
                     const rankStyle = getRankBadgeStyle(idx + 1);
                     const isAssignedA = Boolean(lapAId && d.bestLap && lapAId === d.bestLap.id);
                     const isAssignedB = Boolean(lapBId && d.bestLap && lapBId === d.bestLap.id);

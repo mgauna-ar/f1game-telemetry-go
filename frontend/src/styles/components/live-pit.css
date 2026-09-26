@@ -71,7 +71,7 @@
   letter-spacing: 0.05em;
   padding: 0.45rem 0.6rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  z-index: 2;
+  z-index: var(--z-sticky);
 }
 
 .pit-matrix-row {

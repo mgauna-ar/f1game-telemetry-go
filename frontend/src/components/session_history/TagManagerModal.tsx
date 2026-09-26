@@ -3,6 +3,7 @@ import { Tag as TagIcon, X, Search, Plus, Check, Trash2 } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
 import type { Session, Tag } from '../../types/session';
 import { TrackFlag } from '../TrackFlag';
+import { closeOnBackdropClick } from '../../utils/backdrop';
 
 
 const MOTORSPORT_COLORS = [
@@ -113,10 +114,9 @@ export const TagManagerModal: React.FC<TagManagerModalProps> = ({
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="modal-overlay" role="presentation" onClick={closeOnBackdropClick(onClose)}>
       <div
         className="modal-container glass-panel tag-manager-modal"
-        onClick={(e) => e.stopPropagation()}
         style={{ maxWidth: '460px', padding: '1.5rem', borderRadius: 'var(--radius-lg)' }}
       >
         {/* Header */}
@@ -178,12 +178,23 @@ export const TagManagerModal: React.FC<TagManagerModalProps> = ({
               const color = tag.color || '#06b6d4';
 
               return (
+                // Clicking anywhere on the row is a shortcut for its toggle button
                 <div
                   key={tag.id}
+                  role="presentation"
                   onClick={() => handleToggleTag(tag)}
                   className={`tag-manager-item ${isAssigned ? 'is-assigned' : ''}`}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                  <button
+                    type="button"
+                    className="button-reset"
+                    aria-pressed={isAssigned}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleTag(tag);
+                    }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}
+                  >
                     <span
                       className="f1-tag-dot"
                       style={{ backgroundColor: color }}
@@ -191,7 +202,7 @@ export const TagManagerModal: React.FC<TagManagerModalProps> = ({
                     <span className="mono" style={{ fontSize: '0.85rem', color: isAssigned ? '#fff' : 'var(--text-secondary)' }}>
                       {tag.name}
                     </span>
-                  </div>
+                  </button>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     {isAssigned ? (
@@ -260,6 +271,8 @@ export const TagManagerModal: React.FC<TagManagerModalProps> = ({
                   style={{ backgroundColor: col.hex }}
                   className={`color-swatch-btn ${selectedColor === col.hex ? 'is-active' : ''}`}
                   title={col.name}
+                  aria-label={col.name}
+                  aria-pressed={selectedColor === col.hex}
                 />
               ))}
             </div>

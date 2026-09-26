@@ -17,6 +17,7 @@ interface SubsystemAccordionProps {
 }
 
 export const SubsystemAccordion: React.FC<SubsystemAccordionProps> = ({
+  id,
   title,
   subtitle,
   icon,
@@ -29,41 +30,54 @@ export const SubsystemAccordion: React.FC<SubsystemAccordionProps> = ({
   children,
 }) => {
   const { t } = useI18n();
+  const bodyId = `radio-accordion-${id}-body`;
 
   return (
     <div className={`radio-accordion-card ${isExpanded ? 'card-open' : ''}`}>
-      <div className="radio-accordion-header" onClick={onToggleExpand}>
-        <div className="radio-accordion-title-group">
-          <div className={`radio-accordion-icon-box ${iconColorClass}`}>
+      {/* The whole header toggles on click; the title button is the keyboard and screen reader control */}
+      <div className="radio-accordion-header" role="presentation" onClick={onToggleExpand}>
+        <button
+          type="button"
+          className="button-reset radio-accordion-title-group"
+          aria-expanded={isExpanded}
+          aria-controls={isExpanded ? bodyId : undefined}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleExpand();
+          }}
+        >
+          <span className={`radio-accordion-icon-box ${iconColorClass}`}>
             {icon}
-          </div>
-          <div className="radio-accordion-title-col">
+          </span>
+          <span className="radio-accordion-title-col">
             <span className="radio-accordion-title">{title}</span>
             <span className="radio-accordion-subtitle">{subtitle}</span>
-          </div>
-        </div>
+          </span>
+        </button>
 
-        <div className="radio-accordion-actions" onClick={(e) => e.stopPropagation()}>
-          <label className="radio-switch">
-            <input
-              type="checkbox"
-              checked={masterEnabled}
-              onChange={(e) => onToggleMaster(e.target.checked)}
-            />
-            <span className="radio-switch-slider" />
-          </label>
-          <div onClick={onToggleExpand}>
-            {isExpanded ? (
-              <ChevronUp className="w-4 h-4 radio-accordion-chevron" />
-            ) : (
-              <ChevronDown className="w-4 h-4 radio-accordion-chevron" />
-            )}
-          </div>
+        <div className="radio-accordion-actions">
+          {/* The switch's clicks don't reach the header */}
+          <span role="presentation" style={{ display: 'contents' }} onClick={(e) => e.stopPropagation()}>
+            <label className="radio-switch">
+              <input
+                type="checkbox"
+                aria-label={title}
+                checked={masterEnabled}
+                onChange={(e) => onToggleMaster(e.target.checked)}
+              />
+              <span className="radio-switch-slider" />
+            </label>
+          </span>
+          {isExpanded ? (
+            <ChevronUp className="w-4 h-4 radio-accordion-chevron" aria-hidden="true" />
+          ) : (
+            <ChevronDown className="w-4 h-4 radio-accordion-chevron" aria-hidden="true" />
+          )}
         </div>
       </div>
 
       {isExpanded && (
-        <div className="radio-accordion-body">
+        <div className="radio-accordion-body" id={bodyId}>
           {children}
           {onTestAlert && (
             <button

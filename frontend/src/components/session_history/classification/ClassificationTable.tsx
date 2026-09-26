@@ -61,11 +61,11 @@ export const ClassificationTable: React.FC<ClassificationTableProps> = ({
         </h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.75rem' }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--accent-purple)' }} />
+            <span className="sector-purple" aria-hidden="true" style={{ width: '14px', height: '10px', borderRadius: '2px' }} />
             {t('history.classification.sessionFastestSector')}
           </span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--accent-tertiary)' }} />
+            <span className="sector-green" aria-hidden="true" style={{ width: '14px', height: '10px', borderRadius: '2px' }} />
             {t('history.classification.personalBestSector')}
           </span>
         </div>

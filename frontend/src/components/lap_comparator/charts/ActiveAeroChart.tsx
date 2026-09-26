@@ -2,7 +2,7 @@ import React from 'react';
 import { Wind } from 'lucide-react';
 import { Line } from 'recharts';
 import { useI18n } from '../../../context/I18nContext';
-import { type CommonChartProps } from './chartDefaults';
+import { CHART_COLORS, type CommonChartProps } from './chartDefaults';
 import { ComparatorChart } from './ComparatorChart';
 import { ChartTitle } from './ChartTitle';
 
@@ -20,14 +20,14 @@ export const ActiveAeroChart = React.memo<CommonChartProps>((props) => {
     <ComparatorChart
       {...props}
       height="300px"
-      title={<ChartTitle icon={Wind} label={t('comparator.charts.activeAero')} color="#00f2fe" />}
+      title={<ChartTitle icon={Wind} label={t('comparator.charts.activeAero')} color={CHART_COLORS.AERO} />}
       headerRight={headerRight}
       dataKeyA="activeAeroA"
       dataKeyB="activeAeroB"
       lineNameA={`${nameA} Aero`}
       lineNameB={`${nameB} Aero`}
       lineType="stepAfter"
-      yAxisStroke="#00f2fe"
+      yAxisStroke={CHART_COLORS.AERO}
       yAxisDomain={[0, 1]}
       yAxisTicks={[0, 1]}
       yAxisTickFormatter={(v) =>
@@ -48,8 +48,8 @@ export const ActiveAeroChart = React.memo<CommonChartProps>((props) => {
       }}
       extraLines={
         <>
-          <Line type="stepAfter" dataKey="boostActiveA" name={`${nameA} Boost`} stroke="#ffd700" dot={false} strokeWidth={1.5} isAnimationActive={false} />
-          <Line type="stepAfter" dataKey="boostActiveB" name={`${nameB} Boost`} stroke="#a855f7" dot={false} strokeWidth={1.5} strokeDasharray="2 2" isAnimationActive={false} />
+          <Line type="stepAfter" dataKey="boostActiveA" name={`${nameA} Boost`} stroke={CHART_COLORS.BOOST_A} dot={false} strokeWidth={1.5} isAnimationActive={false} />
+          <Line type="stepAfter" dataKey="boostActiveB" name={`${nameB} Boost`} stroke={CHART_COLORS.BOOST_B} dot={false} strokeWidth={1.5} strokeDasharray="2 2" isAnimationActive={false} />
         </>
       }
     />

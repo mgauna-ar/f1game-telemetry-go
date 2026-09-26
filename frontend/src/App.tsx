@@ -153,10 +153,10 @@ function AppContent() {
         </div>
 
         {/* Reordered Navigation Tabs: 1) Session History, 2) Lap Comparator, 3) Live Telemetry */}
-        <nav className="app-nav-tabs" role="tablist" aria-label="Main Navigation">
+        <nav className="app-nav-tabs" aria-label="Main Navigation">
           <button
-            role="tab"
-            aria-selected={activeTab === 'history'}
+            type="button"
+            aria-current={activeTab === 'history' ? 'page' : undefined}
             className={`app-nav-tab ${activeTab === 'history' ? 'active' : ''}`}
             onClick={() => setActiveTab('history')}
           >
@@ -165,8 +165,8 @@ function AppContent() {
           </button>
 
           <button
-            role="tab"
-            aria-selected={activeTab === 'comparator'}
+            type="button"
+            aria-current={activeTab === 'comparator' ? 'page' : undefined}
             className={`app-nav-tab ${activeTab === 'comparator' ? 'active' : ''}`}
             onClick={() => setActiveTab('comparator')}
           >
@@ -175,8 +175,8 @@ function AppContent() {
           </button>
 
           <button
-            role="tab"
-            aria-selected={activeTab === 'live'}
+            type="button"
+            aria-current={activeTab === 'live' ? 'page' : undefined}
             className={`app-nav-tab ${activeTab === 'live' ? 'active' : ''}`}
             onClick={() => setActiveTab('live')}
           >

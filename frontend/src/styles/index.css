@@ -3,6 +3,7 @@
 @import './base/reset.css';
 @import './base/typography.css';
 @import './base/glass.css';
+@import './base/accessibility.css';
 
 /* ── Components ────────────────────────────────────────── */
 @import './components/navbar.css';

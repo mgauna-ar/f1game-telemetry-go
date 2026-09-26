@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { Zap, Gauge, Award, Layers } from 'lucide-react';
-import { TEAM_COLORS, DEFAULT_MAX_SPEED_FALLBACK_KPH } from '../../constants/f1';
+import { getTeamColor, DEFAULT_MAX_SPEED_FALLBACK_KPH } from '../../constants/f1';
 import { UI } from '../../constants/ui';
 
 import { formatSectorTime } from '../../utils/formatters';
+import { SectorTime } from '../common/SectorTime';
 import type { DriverStanding, ClassificationResponse } from '../../types/session';
 import { useI18n } from '../../context/I18nContext';
 
@@ -152,7 +153,7 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
               </span>
             </div>
             <div style={{ marginTop: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: TEAM_COLORS[s1Holder?.participant.team_id || 0] || '#A0A0A0' }} />
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: getTeamColor(s1Holder?.participant.team_id) }} />
               <span>{s1Holder?.participant.name || 'Unknown'}</span>
             </div>
           </div>
@@ -166,7 +167,7 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
               </span>
             </div>
             <div style={{ marginTop: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: TEAM_COLORS[s2Holder?.participant.team_id || 0] || '#A0A0A0' }} />
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: getTeamColor(s2Holder?.participant.team_id) }} />
               <span>{s2Holder?.participant.name || 'Unknown'}</span>
             </div>
           </div>
@@ -180,7 +181,7 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
               </span>
             </div>
             <div style={{ marginTop: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: TEAM_COLORS[s3Holder?.participant.team_id || 0] || '#A0A0A0' }} />
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: getTeamColor(s3Holder?.participant.team_id) }} />
               <span>{s3Holder?.participant.name || 'Unknown'}</span>
             </div>
           </div>
@@ -241,7 +242,7 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
               </thead>
               <tbody>
                 {driverStandings.map((driver, idx) => {
-                  const teamColor = TEAM_COLORS[driver.participant.team_id] || '#A0A0A0';
+                  const teamColor = getTeamColor(driver.participant.team_id);
                   const s1Delta = driver.bestS1MS > 0 && sessionBestS1 > 0 ? (driver.bestS1MS - sessionBestS1) / 1000 : 0;
                   const s2Delta = driver.bestS2MS > 0 && sessionBestS2 > 0 ? (driver.bestS2MS - sessionBestS2) / 1000 : 0;
                   const s3Delta = driver.bestS3MS > 0 && sessionBestS3 > 0 ? (driver.bestS3MS - sessionBestS3) / 1000 : 0;
@@ -261,9 +262,9 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
                       {(sectorView === 'ALL' || sectorView === 'S1') && (
                         <td className="mono">
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span className={s1Delta === 0 && driver.bestS1MS > 0 ? 'sector-purple' : 'sector-green'}>
+                            <SectorTime isSessionBest={s1Delta === 0 && driver.bestS1MS > 0} isPersonalBest={driver.bestS1MS > 0}>
                               {formatSector(driver.bestS1MS)}
-                            </span>
+                            </SectorTime>
                             {s1Delta > 0 && (
                               <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                                 +{s1Delta.toFixed(3)}
@@ -276,9 +277,9 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
                       {(sectorView === 'ALL' || sectorView === 'S2') && (
                         <td className="mono">
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span className={s2Delta === 0 && driver.bestS2MS > 0 ? 'sector-purple' : 'sector-green'}>
+                            <SectorTime isSessionBest={s2Delta === 0 && driver.bestS2MS > 0} isPersonalBest={driver.bestS2MS > 0}>
                               {formatSector(driver.bestS2MS)}
-                            </span>
+                            </SectorTime>
                             {s2Delta > 0 && (
                               <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                                 +{s2Delta.toFixed(3)}
@@ -291,9 +292,9 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
                       {(sectorView === 'ALL' || sectorView === 'S3') && (
                         <td className="mono">
                           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span className={s3Delta === 0 && driver.bestS3MS > 0 ? 'sector-purple' : 'sector-green'}>
+                            <SectorTime isSessionBest={s3Delta === 0 && driver.bestS3MS > 0} isPersonalBest={driver.bestS3MS > 0}>
                               {formatSector(driver.bestS3MS)}
-                            </span>
+                            </SectorTime>
                             {s3Delta > 0 && (
                               <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                                 +{s3Delta.toFixed(3)}
@@ -323,7 +324,7 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '420px', overflowY: 'auto', paddingRight: '4px' }}>
             {speedRankings.map((driver, rankIdx) => {
-              const teamColor = TEAM_COLORS[driver.participant.team_id] || '#00f2fe';
+              const teamColor = getTeamColor(driver.participant.team_id);
               const speed = driver.maxSpeed;
               const speedRatio =
                 speedSpread > 0

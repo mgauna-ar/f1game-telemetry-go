@@ -39,6 +39,13 @@
   transform: translateY(-1px);
 }
 
+/* The clickable part of a clickable badge (a toggle button inside the badge) */
+.f1-tag-badge-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: inherit;
+}
+
 .f1-tag-dot {
   width: 6px;
   height: 6px;

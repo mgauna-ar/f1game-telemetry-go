@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { TagBadge } from './TagBadge';
 import { useI18n } from '../../context/I18nContext';
 import type { Tag } from '../../types/session';
+import { closeOnBackdropClick } from '../../utils/backdrop';
 
 interface BatchTagModalProps {
   isOpen: boolean;
@@ -30,10 +31,9 @@ export const BatchTagModal: React.FC<BatchTagModalProps> = ({
   };
 
   return (
-    <div className="modal-overlay" onClick={handleClose}>
+    <div className="modal-overlay" role="presentation" onClick={closeOnBackdropClick(handleClose)}>
       <div
         className="modal-container glass-panel"
-        onClick={(e) => e.stopPropagation()}
         style={{ maxWidth: '480px', padding: '1.75rem', borderRadius: 'var(--radius-lg)' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>

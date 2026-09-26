@@ -199,7 +199,7 @@
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: var(--radius-md);
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.85);
-  z-index: 1000;
+  z-index: var(--z-popover);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -221,6 +221,11 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   gap: 0.4rem;
   background: rgba(255, 255, 255, 0.02);
+}
+
+.custom-lap-search-wrapper:focus-within,
+.duel-popover-search:focus-within {
+  border-bottom-color: var(--focus-ring-color);
 }
 
 .custom-lap-search-input {
@@ -459,13 +464,13 @@
 }
 
 .quick-select-card[data-slot="a"] {
-  background: var(--color-slot-a-bg);
-  border-color: var(--color-slot-a-border);
+  background: var(--f1-slot-a-bg);
+  border-color: var(--f1-slot-a-border);
 }
 
 .quick-select-card[data-slot="b"] {
-  background: var(--color-slot-b-bg);
-  border-color: var(--color-slot-b-border);
+  background: var(--f1-slot-b-bg);
+  border-color: var(--f1-slot-b-border);
 }
 
 /* Comparator Header Sector Delta Badges */
@@ -477,13 +482,13 @@
 }
 
 .comparator-sector-delta[data-delta="faster-a"] {
-  background: var(--color-slot-a-bg);
-  color: var(--color-slot-a);
+  background: var(--f1-slot-a-bg);
+  color: var(--f1-slot-a);
 }
 
 .comparator-sector-delta[data-delta="faster-b"] {
-  background: var(--color-slot-b-bg);
-  color: var(--color-slot-b);
+  background: var(--f1-slot-b-bg);
+  color: var(--f1-slot-b);
 }
 
 .comparator-sector-delta[data-delta="equal"] {
@@ -848,7 +853,7 @@
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: var(--radius-md);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7);
-  z-index: 120;
+  z-index: var(--z-popover);
   overflow: hidden;
   backdrop-filter: blur(16px);
 }

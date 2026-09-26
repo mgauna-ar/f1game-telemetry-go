@@ -45,8 +45,3 @@ export const UI = {
 export const APP_NAME = 'F1 Telemetry';
 export const DEFAULT_DOCUMENT_TITLE = 'F1 Telemetry — Real-Time Telemetry & Pit Wall';
 
-export const SLOT_COLORS = {
-  A: { primary: '#00d2d3', bg: 'rgba(0, 210, 211, 0.08)', border: 'rgba(0, 210, 211, 0.4)' },
-  B: { primary: '#ff4757', bg: 'rgba(255, 71, 87, 0.08)', border: 'rgba(255, 71, 87, 0.4)' },
-} as const;
-

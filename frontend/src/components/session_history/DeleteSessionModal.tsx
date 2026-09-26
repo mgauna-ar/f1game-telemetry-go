@@ -2,6 +2,7 @@ import React from 'react';
 import { AlertTriangle, RefreshCw, Trash2, X } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
 import type { Session } from '../../types/session';
+import { closeOnBackdropClick } from '../../utils/backdrop';
 
 interface DeleteSessionModalProps {
   session: Session | null;
@@ -21,10 +22,9 @@ export const DeleteSessionModal: React.FC<DeleteSessionModalProps> = ({
   if (!session) return null;
 
   return (
-    <div className="modal-overlay" onClick={onCancel}>
+    <div className="modal-overlay" role="presentation" onClick={closeOnBackdropClick(onCancel)}>
       <div
         className="modal-container glass-panel"
-        onClick={(e) => e.stopPropagation()}
         style={{ maxWidth: '480px', padding: '1.75rem', borderRadius: 'var(--radius-lg)' }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>

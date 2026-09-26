@@ -36,6 +36,7 @@ export const history = {
     clearSelection: 'Clear Selection',
     selectAll: 'Select all sessions',
     deselectAll: 'Deselect all',
+    selectSession: 'Select session #{id}',
     confirmDeleteTitle: 'Confirm Batch Deletion',
     confirmDeleteBody: 'Are you sure you want to permanently delete {count} selected sessions and all their telemetry, laps, and participants?',
     importSummary: 'Import completed: {imported} imported, {skipped} skipped, {failed} failed.',

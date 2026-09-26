@@ -68,10 +68,23 @@ export const SessionTableView: React.FC<SessionTableViewProps> = React.memo((pro
 
   const renderSortIndicator = (field: string) => {
     if (sortField !== field) {
-      return <ArrowUpDown size={12} style={{ opacity: 0.35 }} />;
+      return <ArrowUpDown size={12} style={{ opacity: 0.35 }} aria-hidden="true" />;
     }
-    return <span className="f1-sort-indicator">{sortOrder === 'asc' ? '↑' : '↓'}</span>;
+    return <span className="f1-sort-indicator" aria-hidden="true">{sortOrder === 'asc' ? '↑' : '↓'}</span>;
   };
+
+  /** A sortable column header: the sort state on the <th>, a button inside it to change it. */
+  const renderSortableHeader = (field: string, label: string) => (
+    <th
+      className="th-sortable"
+      aria-sort={sortField === field ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}
+    >
+      <button type="button" className="button-reset th-sort-wrapper" onClick={() => onToggleSort(field)}>
+        <span>{label}</span>
+        {renderSortIndicator(field)}
+      </button>
+    </th>
+  );
 
   return (
     <div className="glass-panel f1-table-container" style={{ padding: '0', overflow: 'hidden' }}>
@@ -88,38 +101,15 @@ export const SessionTableView: React.FC<SessionTableViewProps> = React.memo((pro
                       checked={isAllSelected}
                       onChange={() => onToggleSelectAll?.()}
                       title={isAllSelected ? t('history.batch.deselectAll') : t('history.batch.selectAll')}
+                      aria-label={isAllSelected ? t('history.batch.deselectAll') : t('history.batch.selectAll')}
                       className="f1-table-checkbox"
                     />
                   </label>
                 </th>
               )}
-              <th
-                className="th-sortable"
-                onClick={() => onToggleSort('date')}
-              >
-                <div className="th-sort-wrapper">
-                  <span>{t('history.table.dateTime')}</span>
-                  {renderSortIndicator('date')}
-                </div>
-              </th>
-              <th
-                className="th-sortable"
-                onClick={() => onToggleSort('track')}
-              >
-                <div className="th-sort-wrapper">
-                  <span>{t('history.table.trackName')}</span>
-                  {renderSortIndicator('track')}
-                </div>
-              </th>
-              <th
-                className="th-sortable"
-                onClick={() => onToggleSort('type')}
-              >
-                <div className="th-sort-wrapper">
-                  <span>{t('history.table.sessionType')}</span>
-                  {renderSortIndicator('type')}
-                </div>
-              </th>
+              {renderSortableHeader('date', t('history.table.dateTime'))}
+              {renderSortableHeader('track', t('history.table.trackName'))}
+              {renderSortableHeader('type', t('history.table.sessionType'))}
               <th>{t('history.tags.title')}</th>
               <th>{t('history.table.weather')}</th>
               <th style={{ textAlign: 'right' }}>{t('history.table.actions')}</th>
@@ -134,6 +124,7 @@ export const SessionTableView: React.FC<SessionTableViewProps> = React.memo((pro
               const countryIso3 = trackInfo?.countryIso3 || null;
 
               return (
+                // Clicking the row is a shortcut for its Explore button
                 <tr
                   key={session.id}
                   onClick={() => onSelectSession(session)}
@@ -146,18 +137,14 @@ export const SessionTableView: React.FC<SessionTableViewProps> = React.memo((pro
                       }}
                       className="td-checkbox"
                     >
-                      <label
-                        onClick={(e) => {
-                          e.stopPropagation();
-                        }}
-                        className="f1-checkbox-label"
-                      >
+                      <label className="f1-checkbox-label">
                         <input
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => {
                             onToggleSelectSession(session.id);
                           }}
+                          aria-label={t('history.batch.selectSession', { id: session.id })}
                           className="f1-table-checkbox"
                         />
                       </label>

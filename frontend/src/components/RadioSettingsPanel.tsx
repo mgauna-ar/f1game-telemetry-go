@@ -14,6 +14,7 @@ import type { UseRadioControllerReturn } from '../hooks/useRadioController';
 import { PersonaSettingsTab } from './radio_settings/PersonaSettingsTab';
 import { AudioSettingsTab } from './radio_settings/AudioSettingsTab';
 import { TacticalCoachingTab } from './radio_settings/TacticalCoachingTab';
+import { closeOnBackdropClick } from '../utils/backdrop';
 
 export type RadioSettingsTab = 'persona' | 'audio' | 'tactical';
 
@@ -41,11 +42,8 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="radio-modal-backdrop" onClick={onClose}>
-      <div
-        className="radio-modal-dialog"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="radio-modal-backdrop" role="presentation" onClick={closeOnBackdropClick(onClose)}>
+      <div className="radio-modal-dialog">
         {/* Header */}
         <div className="radio-modal-header">
           <div className="radio-modal-header-left">
@@ -89,6 +87,7 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
           <label className="radio-switch">
             <input
               type="checkbox"
+              aria-label={t('ai_engineer.radio.masterToggle')}
               checked={radio.isRadioEnabled}
               onChange={(e) => radio.setIsRadioEnabled(e.target.checked)}
             />

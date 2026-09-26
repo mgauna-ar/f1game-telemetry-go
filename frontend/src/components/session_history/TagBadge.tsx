@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Tag as TagIcon } from 'lucide-react';
 import type { Tag } from '../../types/session';
+import { alpha, cssVar } from '../../styles/theme';
 
 interface TagBadgeProps {
   tag: Pick<Tag, 'name' | 'color'>;
@@ -21,22 +22,32 @@ export const TagBadge: React.FC<TagBadgeProps> = ({
   showIcon = false,
   className = '',
 }) => {
-  const color = tag.color || '#06b6d4';
+  const color = tag.color || cssVar('--accent-secondary');
+  const label = (
+    <>
+      {showIcon && <TagIcon size={11} style={{ opacity: 0.8 }} />}
+      <span className="f1-tag-dot" style={{ backgroundColor: color }} />
+      <span>{tag.name}</span>
+    </>
+  );
 
   return (
     <span
-      onClick={onClick}
       style={{
-        backgroundColor: selected ? `${color}35` : `${color}18`,
-        borderColor: selected ? color : `${color}55`,
+        backgroundColor: alpha(color, selected ? 0.21 : 0.09),
+        borderColor: selected ? color : alpha(color, 0.33),
         color: color,
       }}
       className={`f1-tag-badge size-${size} ${onClick ? 'is-clickable' : ''} ${className}`}
       title={tag.name}
     >
-      {showIcon && <TagIcon size={11} style={{ opacity: 0.8 }} />}
-      <span className="f1-tag-dot" style={{ backgroundColor: color }} />
-      <span>{tag.name}</span>
+      {onClick ? (
+        <button type="button" className="button-reset f1-tag-badge-toggle" aria-pressed={selected} onClick={onClick}>
+          {label}
+        </button>
+      ) : (
+        label
+      )}
       {onRemove && (
         <button
           type="button"

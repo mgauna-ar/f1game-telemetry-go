@@ -4,6 +4,12 @@ import type { SessionData, WeatherForecastSample } from '../hooks/useTelemetry';
 import { WEATHER_CODES, SESSION_TYPES, DEFAULT_WEATHER_DEFAULTS } from '../constants/f1';
 import { useI18n } from '../context/I18nContext';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
+import { alpha, cssVar } from '../styles/theme';
+
+const SUN = cssVar('--weather-sun');
+const RAIN = cssVar('--weather-rain');
+const WET = cssVar('--f1-compound-wet');
+const INTER = cssVar('--f1-compound-inter');
 
 interface LiveWeatherRadarProps {
   session?: SessionData | null;
@@ -23,49 +29,49 @@ export const LiveWeatherRadar: React.FC<LiveWeatherRadarProps> = React.memo((pro
       case WEATHER_CODES.CLEAR:
         return {
           name: t('live.weatherClearSunny'),
-          icon: <Sun size={18} color="#FFD700" />,
+          icon: <Sun size={18} color={SUN} />,
           rainLikelihood: '0%',
           dry: true,
         };
       case WEATHER_CODES.LIGHT_CLOUD:
         return {
           name: t('live.weatherLightCloud'),
-          icon: <Sun size={18} color="#FFE680" />,
+          icon: <Sun size={18} color={cssVar('--weather-cloud-light')} />,
           rainLikelihood: '5%',
           dry: true,
         };
       case WEATHER_CODES.OVERCAST:
         return {
           name: t('live.weatherOvercast'),
-          icon: <Cloud size={18} color="#B0C4DE" />,
+          icon: <Cloud size={18} color={cssVar('--weather-cloud')} />,
           rainLikelihood: '20%',
           dry: true,
         };
       case WEATHER_CODES.LIGHT_RAIN:
         return {
           name: t('live.weatherLightRain'),
-          icon: <CloudDrizzle size={18} color="#33CCFF" />,
+          icon: <CloudDrizzle size={18} color={RAIN} />,
           rainLikelihood: '60%',
           inter: true,
         };
       case WEATHER_CODES.HEAVY_RAIN:
         return {
           name: t('live.weatherHeavyRain'),
-          icon: <CloudRain size={18} color="#0099FF" />,
+          icon: <CloudRain size={18} color={cssVar('--weather-rain-heavy')} />,
           rainLikelihood: '90%',
           wet: true,
         };
       case WEATHER_CODES.STORM:
         return {
           name: t('live.weatherStorm'),
-          icon: <CloudLightning size={18} color="#FF3366" />,
+          icon: <CloudLightning size={18} color={cssVar('--weather-storm')} />,
           rainLikelihood: '100%',
           wet: true,
         };
       default:
         return {
           name: t('common.clearWeather'),
-          icon: <Sun size={18} color="#FFD700" />,
+          icon: <Sun size={18} color={SUN} />,
           rainLikelihood: '0%',
           dry: true,
         };
@@ -73,15 +79,15 @@ export const LiveWeatherRadar: React.FC<LiveWeatherRadarProps> = React.memo((pro
   };
 
   const getRainBarColor = (pct: number) => {
-    if (pct >= 70) return '#0099FF';
-    if (pct >= 35) return '#33FF66';
-    if (pct >= 10) return '#FFD700';
-    return '#A0A0A0';
+    if (pct >= 70) return WET;
+    if (pct >= 35) return INTER;
+    if (pct >= 10) return cssVar('--status-warning');
+    return cssVar('--text-muted');
   };
 
   const getTempTrendIcon = (change: number) => {
-    if (change === 1) return <TrendingUp size={11} color="#FF4757" />;
-    if (change === 2) return <TrendingDown size={11} color="#33CCFF" />;
+    if (change === 1) return <TrendingUp size={11} color={cssVar('--weather-warm')} />;
+    if (change === 2) return <TrendingDown size={11} color={cssVar('--weather-cool')} />;
     return <Minus size={11} color="var(--text-muted)" />;
   };
 
@@ -147,12 +153,12 @@ export const LiveWeatherRadar: React.FC<LiveWeatherRadarProps> = React.memo((pro
 
   const getRecommendedTyre = (rainPct: number, wCode: number) => {
     if (rainPct >= 70 || wCode >= WEATHER_CODES.HEAVY_RAIN) {
-      return { label: t('live.fullWet'), color: '#0099FF', bg: 'rgba(0, 153, 255, 0.15)' };
+      return { label: t('live.fullWet'), color: WET };
     }
     if (rainPct >= 35 || wCode === WEATHER_CODES.LIGHT_RAIN) {
-      return { label: t('live.intermediate'), color: '#33FF66', bg: 'rgba(51, 255, 102, 0.15)' };
+      return { label: t('live.intermediate'), color: INTER };
     }
-    return { label: t('live.slickDry'), color: '#FFD700', bg: 'rgba(255, 215, 0, 0.12)' };
+    return { label: t('live.slickDry'), color: SUN };
   };
 
   const highestRainInWindow = Math.max(...forecastSamples.map((s) => s.RainPercentage || 0));
@@ -164,7 +170,7 @@ export const LiveWeatherRadar: React.FC<LiveWeatherRadarProps> = React.memo((pro
       <div className="race-hub-header">
         <div className="race-hub-title-group">
           <div className="race-hub-icon-wrap">
-            <Droplets size={16} color="#33CCFF" />
+            <Droplets size={16} color={RAIN} />
           </div>
           <div>
             <h3 className="race-hub-title">
@@ -179,7 +185,7 @@ export const LiveWeatherRadar: React.FC<LiveWeatherRadarProps> = React.memo((pro
         <div className="race-hub-header-actions">
           <div
             className="weather-tyre-advice-badge mono"
-            style={{ color: tyreAdv.color, background: tyreAdv.bg, border: `1px solid ${tyreAdv.color}40` }}
+            style={{ color: tyreAdv.color, background: alpha(tyreAdv.color, 0.15), border: `1px solid ${alpha(tyreAdv.color, 0.25)}` }}
           >
             {t('live.strategyLabel')} {tyreAdv.label}
           </div>
@@ -199,7 +205,7 @@ export const LiveWeatherRadar: React.FC<LiveWeatherRadarProps> = React.memo((pro
         </div>
 
         <div className="weather-current-item">
-          <Thermometer size={16} color="#FF6B6B" />
+          <Thermometer size={16} color={cssVar('--weather-warm')} />
           <div>
             <div className="readout-label">{t('live.trackTemp')}</div>
             <div className="mono font-semibold" style={{ fontSize: '0.92rem' }}>
@@ -209,7 +215,7 @@ export const LiveWeatherRadar: React.FC<LiveWeatherRadarProps> = React.memo((pro
         </div>
 
         <div className="weather-current-item">
-          <Wind size={16} color="#33CCFF" />
+          <Wind size={16} color={RAIN} />
           <div>
             <div className="readout-label">{t('live.airTemp')}</div>
             <div className="mono font-semibold" style={{ fontSize: '0.92rem' }}>
@@ -219,14 +225,14 @@ export const LiveWeatherRadar: React.FC<LiveWeatherRadarProps> = React.memo((pro
         </div>
 
         <div className="weather-current-item">
-          <Droplets size={16} color={highestRainInWindow > 30 ? '#33CCFF' : 'var(--text-muted)'} />
+          <Droplets size={16} color={highestRainInWindow > 30 ? RAIN : cssVar('--text-muted')} />
           <div>
             <div className="readout-label">{t('live.peakRainRisk')}</div>
             <div
               className="mono font-semibold"
               style={{
                 fontSize: '0.92rem',
-                color: highestRainInWindow > 50 ? '#33CCFF' : highestRainInWindow > 20 ? '#FFD700' : 'var(--accent-primary)',
+                color: highestRainInWindow > 50 ? RAIN : highestRainInWindow > 20 ? cssVar('--status-warning') : cssVar('--accent-primary'),
               }}
             >
               {highestRainInWindow}%

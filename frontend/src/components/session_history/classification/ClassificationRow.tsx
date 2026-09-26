@@ -1,9 +1,10 @@
 import React from 'react';
 import { Clock, ChevronDown, ChevronUp } from 'lucide-react';
-import { TEAM_COLORS, RESULT_REASONS, RESULT_STATUS } from '../../../constants/f1';
+import { getTeamColor, RESULT_REASONS, RESULT_STATUS } from '../../../constants/f1';
 import { formatSectorTime } from '../../../utils/formatters';
 import { useI18n } from '../../../context/I18nContext';
 import { DriverLapsSubTable } from './DriverLapsSubTable';
+import { SectorTime } from '../../common/SectorTime';
 import type { Session, Lap, DriverStanding, StagedLap } from '../../../types/session';
 
 interface ClassificationRowProps {
@@ -62,7 +63,7 @@ export const ClassificationRow: React.FC<ClassificationRowProps> = React.memo(({
 }) => {
   const { t } = useI18n();
   const formatSector = (ms: number) => formatSectorTime(ms, false);
-  const teamColor = TEAM_COLORS[driver.participant.team_id] || '#A0A0A0';
+  const teamColor = getTeamColor(driver.participant.team_id);
 
   // Overall session fastest lap check
   const isOverallFastestLap =
@@ -131,7 +132,7 @@ export const ClassificationRow: React.FC<ClassificationRowProps> = React.memo(({
 
   return (
     <React.Fragment>
-      {/* Driver Row */}
+      {/* Driver Row: clicking it is a shortcut for the laps button in its last cell */}
       <tr
         onClick={() => onToggleDriverExpand(driver.participant.car_index)}
         style={{ cursor: 'pointer' }}
@@ -288,32 +289,23 @@ export const ClassificationRow: React.FC<ClassificationRowProps> = React.memo(({
 
             {/* S1 of Best Lap */}
             <td className="mono" style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-              <span
-                className={isS1Purple ? 'sector-purple' : isS1Green ? 'sector-green' : ''}
-                style={{ padding: '2px 4px', borderRadius: '3px' }}
-              >
+              <SectorTime isSessionBest={isS1Purple} isPersonalBest={isS1Green} style={{ padding: '2px 4px', borderRadius: '3px' }}>
                 {formatSector(bestLapS1)}
-              </span>
+              </SectorTime>
             </td>
 
             {/* S2 of Best Lap */}
             <td className="mono" style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-              <span
-                className={isS2Purple ? 'sector-purple' : isS2Green ? 'sector-green' : ''}
-                style={{ padding: '2px 4px', borderRadius: '3px' }}
-              >
+              <SectorTime isSessionBest={isS2Purple} isPersonalBest={isS2Green} style={{ padding: '2px 4px', borderRadius: '3px' }}>
                 {formatSector(bestLapS2)}
-              </span>
+              </SectorTime>
             </td>
 
             {/* S3 of Best Lap */}
             <td className="mono" style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-              <span
-                className={isS3Purple ? 'sector-purple' : isS3Green ? 'sector-green' : ''}
-                style={{ padding: '2px 4px', borderRadius: '3px' }}
-              >
+              <SectorTime isSessionBest={isS3Purple} isPersonalBest={isS3Green} style={{ padding: '2px 4px', borderRadius: '3px' }}>
                 {formatSector(bestLapS3)}
-              </span>
+              </SectorTime>
             </td>
 
             {/* Max Speed */}
@@ -362,32 +354,23 @@ export const ClassificationRow: React.FC<ClassificationRowProps> = React.memo(({
 
             {/* S1 of Best Lap */}
             <td className="mono" style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-              <span
-                className={isS1Purple ? 'sector-purple' : isS1Green ? 'sector-green' : ''}
-                style={{ padding: '2px 4px', borderRadius: '3px' }}
-              >
+              <SectorTime isSessionBest={isS1Purple} isPersonalBest={isS1Green} style={{ padding: '2px 4px', borderRadius: '3px' }}>
                 {formatSector(bestLapS1)}
-              </span>
+              </SectorTime>
             </td>
 
             {/* S2 of Best Lap */}
             <td className="mono" style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-              <span
-                className={isS2Purple ? 'sector-purple' : isS2Green ? 'sector-green' : ''}
-                style={{ padding: '2px 4px', borderRadius: '3px' }}
-              >
+              <SectorTime isSessionBest={isS2Purple} isPersonalBest={isS2Green} style={{ padding: '2px 4px', borderRadius: '3px' }}>
                 {formatSector(bestLapS2)}
-              </span>
+              </SectorTime>
             </td>
 
             {/* S3 of Best Lap */}
             <td className="mono" style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-              <span
-                className={isS3Purple ? 'sector-purple' : isS3Green ? 'sector-green' : ''}
-                style={{ padding: '2px 4px', borderRadius: '3px' }}
-              >
+              <SectorTime isSessionBest={isS3Purple} isPersonalBest={isS3Green} style={{ padding: '2px 4px', borderRadius: '3px' }}>
                 {formatSector(bestLapS3)}
-              </span>
+              </SectorTime>
             </td>
 
             {/* Laps */}
@@ -408,7 +391,9 @@ export const ClassificationRow: React.FC<ClassificationRowProps> = React.memo(({
         {/* Laps / Expand Details button */}
         <td style={{ textAlign: 'right', paddingRight: '0.65rem' }}>
           <button
+            type="button"
             className="nav-tab"
+            aria-expanded={isExpanded}
             onClick={(e) => {
               e.stopPropagation();
               onToggleDriverExpand(driver.participant.car_index);

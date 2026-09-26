@@ -1,7 +1,7 @@
 import React from 'react';
 import { BatteryCharging } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
-import { type CommonChartProps } from './chartDefaults';
+import { CHART_COLORS, type CommonChartProps } from './chartDefaults';
 import { ComparatorChart } from './ComparatorChart';
 import { ChartTitle } from './ChartTitle';
 
@@ -37,7 +37,7 @@ export const ErsBatteryChart = React.memo<ErsBatteryChartProps>((props) => {
     <ComparatorChart
       {...props}
       height="280px"
-      title={<ChartTitle icon={BatteryCharging} label={t('comparator.charts.ersBattery')} color="#38ef7d" />}
+      title={<ChartTitle icon={BatteryCharging} label={t('comparator.charts.ersBattery')} color={CHART_COLORS.ERS} />}
       headerRight={headerRight}
       dataKeyA="ersBatteryA"
       dataKeyB="ersBatteryB"

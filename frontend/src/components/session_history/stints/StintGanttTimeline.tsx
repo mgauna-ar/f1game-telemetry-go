@@ -1,9 +1,18 @@
 import React, { useState } from 'react';
 import { Layers, Wrench } from 'lucide-react';
-import { TEAM_COLORS } from '../../../constants/f1';
+import { TYRE_COMPOUNDS, TYRE_COMPOUND_IDS, getTeamColor } from '../../../constants/f1';
+import { alpha, cssVar } from '../../../styles/theme';
 import { TyreCompoundBadge } from '../../common/TyreCompoundBadge';
 import { useI18n } from '../../../context/I18nContext';
 import { getCompoundColor, type DriverStintData } from './stintUtils';
+
+const COMPOUND_LEGEND = [
+  { id: TYRE_COMPOUND_IDS.SOFT, name: 'Soft' },
+  { id: TYRE_COMPOUND_IDS.MEDIUM, name: 'Medium' },
+  { id: TYRE_COMPOUND_IDS.HARD, name: 'Hard' },
+  { id: TYRE_COMPOUND_IDS.INTERMEDIATE, name: 'Inter' },
+  { id: TYRE_COMPOUND_IDS.WET, name: 'Wet' },
+];
 
 interface StintGanttTimelineProps {
   driverStintsData: DriverStintData[];
@@ -40,21 +49,11 @@ export const StintGanttTimeline: React.FC<StintGanttTimelineProps> = ({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff3366' }} /> Soft
-          </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ffd700' }} /> Medium
-          </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ffffff' }} /> Hard
-          </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#33cc66' }} /> Inter
-          </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#3399ff' }} /> Wet
-          </span>
+          {COMPOUND_LEGEND.map(({ id, name }) => (
+            <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: TYRE_COMPOUNDS[id].color }} /> {name}
+            </span>
+          ))}
         </div>
       </div>
 
@@ -92,7 +91,7 @@ export const StintGanttTimeline: React.FC<StintGanttTimelineProps> = ({
 
             {/* Driver Stint Rows */}
             {driverStintsData.map((d, dIdx) => {
-              const teamColor = TEAM_COLORS[d.driver.participant.team_id] || '#A0A0A0';
+              const teamColor = getTeamColor(d.driver.participant.team_id);
               const isSelected = !!selectedDrivers[d.driver.participant.car_index];
 
               return (
@@ -109,15 +108,17 @@ export const StintGanttTimeline: React.FC<StintGanttTimelineProps> = ({
                   }}
                 >
                   {/* Driver Identity Cell */}
-                  <div
+                  <button
+                    type="button"
+                    className="button-reset"
                     style={{
                       width: '172px',
                       minWidth: '172px',
                       display: 'flex',
                       alignItems: 'center',
                       gap: '6px',
-                      cursor: 'pointer',
                     }}
+                    aria-pressed={isSelected}
                     onClick={() => toggleDriver(d.driver.participant.car_index)}
                     title={t('history.stints.timeline.clickToFilter')}
                   >
@@ -126,7 +127,7 @@ export const StintGanttTimeline: React.FC<StintGanttTimelineProps> = ({
                       style={{
                         fontSize: '0.72rem',
                         fontWeight: 700,
-                        color: d.driver.position === 1 ? '#ffd700' : 'var(--text-muted)',
+                        color: d.driver.position === 1 ? cssVar('--f1-gold') : 'var(--text-muted)',
                         width: '24px',
                       }}
                     >
@@ -148,7 +149,7 @@ export const StintGanttTimeline: React.FC<StintGanttTimelineProps> = ({
                     <span className="mono" style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
                       #{d.driver.participant.race_number}
                     </span>
-                  </div>
+                  </button>
 
                   {/* Stint Bars Track Area */}
                   <div
@@ -173,6 +174,7 @@ export const StintGanttTimeline: React.FC<StintGanttTimelineProps> = ({
                       return (
                         <div
                           key={sIdx}
+                          role="presentation"
                           onMouseEnter={() => setHoveredStint({ driverIndex: dIdx, stintIndex: sIdx })}
                           onMouseLeave={() => setHoveredStint(null)}
                           onClick={() => toggleDriver(d.driver.participant.car_index)}
@@ -181,9 +183,9 @@ export const StintGanttTimeline: React.FC<StintGanttTimelineProps> = ({
                             left: `${startPct}%`,
                             width: `${widthPct}%`,
                             height: '100%',
-                            backgroundColor: `${compColor}26`,
-                            border: `1px solid ${compColor}88`,
-                            borderRight: stint.hasPitStopAfter ? `2px dashed #ff4757` : `1px solid ${compColor}88`,
+                            backgroundColor: alpha(compColor, 0.15),
+                            border: `1px solid ${alpha(compColor, 0.53)}`,
+                            borderRight: stint.hasPitStopAfter ? `2px dashed ${cssVar('--status-danger')}` : `1px solid ${alpha(compColor, 0.53)}`,
                             borderRadius: sIdx === 0 ? '4px 0 0 4px' : sIdx === d.stints.length - 1 ? '0 4px 4px 0' : '0',
                             display: 'flex',
                             alignItems: 'center',
@@ -193,7 +195,7 @@ export const StintGanttTimeline: React.FC<StintGanttTimelineProps> = ({
                             zIndex: isHovered ? 10 : 1,
                             transform: isHovered ? 'scaleY(1.12)' : 'scaleY(1)',
                             transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-                            boxShadow: isHovered ? `0 0 10px ${compColor}88` : 'none',
+                            boxShadow: isHovered ? `0 0 10px ${alpha(compColor, 0.53)}` : 'none',
                           }}
                           title={`Stint ${stint.stintIndex}: ${stint.compound} (Laps ${stint.startLap} - ${stint.endLap}, ${stint.totalLaps}L) | Avg: ${formatLapTime(stint.avgLapTimeMS)}`}
                         >
@@ -208,7 +210,7 @@ export const StintGanttTimeline: React.FC<StintGanttTimelineProps> = ({
 
                           {stint.hasPitStopAfter && (
                             <span title={`Pit stop on lap ${stint.endLap}`} style={{ display: 'inline-flex', alignItems: 'center' }}>
-                              <Wrench size={10} color="#ff4757" />
+                              <Wrench size={10} color={cssVar('--status-danger')} />
                             </span>
                           )}
                         </div>

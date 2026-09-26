@@ -1,6 +1,7 @@
 import React from 'react';
 import { GitCompare, ArrowLeftRight, X, ChevronRight, Zap } from 'lucide-react';
-import { TEAM_COLORS } from '../../constants/f1';
+import { getTeamColor } from '../../constants/f1';
+import { cssVar } from '../../styles/theme';
 import type { StagedLap } from '../../types/session';
 import { useI18n } from '../../context/I18nContext';
 import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContextDefinitions';
@@ -46,7 +47,7 @@ export const SessionComparatorDock: React.FC<SessionComparatorDockProps> = (prop
         bottom: '24px',
         left: '50%',
         transform: 'translateX(-50%)',
-        zIndex: 1000,
+        zIndex: cssVar('--z-dock'),
         width: 'min(92vw, 840px)',
         backgroundColor: 'rgba(12, 16, 26, 0.95)',
         backdropFilter: 'blur(16px)',
@@ -111,7 +112,7 @@ export const SessionComparatorDock: React.FC<SessionComparatorDockProps> = (prop
           </span>
           {stagedA ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
-              <span style={{ width: '3px', height: '16px', borderRadius: '2px', backgroundColor: TEAM_COLORS[stagedA.teamId] || '#A0A0A0' }} />
+              <span style={{ width: '3px', height: '16px', borderRadius: '2px', backgroundColor: getTeamColor(stagedA.teamId) }} />
               <div style={{ lineHeight: 1.1 }}>
                 <div style={{ fontSize: '0.78rem', fontWeight: 700 }}>{stagedA.driverName}</div>
                 <div className="mono" style={{ fontSize: '0.7rem', color: 'var(--accent-tertiary)' }}>
@@ -175,7 +176,7 @@ export const SessionComparatorDock: React.FC<SessionComparatorDockProps> = (prop
           </span>
           {stagedB ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flex: 1 }}>
-              <span style={{ width: '3px', height: '16px', borderRadius: '2px', backgroundColor: TEAM_COLORS[stagedB.teamId] || '#A0A0A0' }} />
+              <span style={{ width: '3px', height: '16px', borderRadius: '2px', backgroundColor: getTeamColor(stagedB.teamId) }} />
               <div style={{ lineHeight: 1.1 }}>
                 <div style={{ fontSize: '0.78rem', fontWeight: 700 }}>{stagedB.driverName}</div>
                 <div className="mono" style={{ fontSize: '0.7rem', color: '#ff4d4f' }}>

@@ -20,7 +20,8 @@ import { TyreCompoundBadge } from '../common/TyreCompoundBadge';
 import { ComparatorPreferencesModal } from './ComparatorPreferencesModal';
 import { formatTime, formatSectorTime } from '../../utils/formatters';
 import { sortLapsByQuality } from '../../utils/lapUtils';
-import { TEAM_COLORS } from '../../constants/f1';
+import { TEAM_COLORS, getTeamColor } from '../../constants/f1';
+import { cssVar } from '../../styles/theme';
 import { useI18n } from '../../context/I18nContext';
 import type { Session, Participant, Lap } from '../../types/session';
 import type { SessionTypeTab } from '../../hooks/useComparatorSessions';
@@ -195,8 +196,8 @@ export const ComparatorDuelHeader: React.FC<ComparatorDuelHeaderProps> = ({
     setIsDriverSelectorOpenB(false);
   };
 
-  const teamColorA = slotA.driver ? TEAM_COLORS[slotA.driver.team_id] || '#00d2d3' : '#00d2d3';
-  const teamColorB = slotB.driver ? TEAM_COLORS[slotB.driver.team_id] || '#ff4757' : '#ff4757';
+  const teamColorA = (slotA.driver && TEAM_COLORS[slotA.driver.team_id]) || cssVar('--f1-slot-a');
+  const teamColorB = (slotB.driver && TEAM_COLORS[slotB.driver.team_id]) || cssVar('--f1-slot-b');
 
   return (
     <div
@@ -438,7 +439,7 @@ export const ComparatorDuelHeader: React.FC<ComparatorDuelHeaderProps> = ({
               </div>
               <div className="duel-popover-list">
                 {filteredParticipantsA.map((p) => {
-                  const pTeamColor = TEAM_COLORS[p.team_id] || '#888';
+                  const pTeamColor = getTeamColor(p.team_id);
                   const bestLap = sortLapsByQuality(slotA.laps.filter((l) => (l.car_index ?? -1) === p.car_index))[0];
                   return (
                     <button
@@ -700,7 +701,7 @@ export const ComparatorDuelHeader: React.FC<ComparatorDuelHeaderProps> = ({
               </div>
               <div className="duel-popover-list">
                 {filteredParticipantsB.map((p) => {
-                  const pTeamColor = TEAM_COLORS[p.team_id] || '#888';
+                  const pTeamColor = getTeamColor(p.team_id);
                   const bestLap = sortLapsByQuality(slotB.laps.filter((l) => (l.car_index ?? -1) === p.car_index))[0];
                   return (
                     <button

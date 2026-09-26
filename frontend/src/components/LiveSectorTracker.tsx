@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Zap, Gauge, Target } from 'lucide-react';
 import { parseDriverName } from '../hooks/useTelemetry';
-import { TEAM_COLORS, TIME_CONSTANTS } from '../constants/f1';
+import { getTeamColor, TIME_CONSTANTS } from '../constants/f1';
 import type { ParticipantData, LapData } from '../types/telemetry';
 import { useI18n } from '../context/I18nContext';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
@@ -156,7 +156,7 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((p
           <div className="sector-holder">
             <span
               className="team-dot"
-              style={{ backgroundColor: TEAM_COLORS[sectorAnalysis.bestS1.teamId] || 'var(--accent-primary)' }}
+              style={{ backgroundColor: getTeamColor(sectorAnalysis.bestS1.teamId) }}
             />
             <span className="holder-name">{sectorAnalysis.bestS1.driverName}</span>
           </div>
@@ -171,7 +171,7 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((p
           <div className="sector-holder">
             <span
               className="team-dot"
-              style={{ backgroundColor: TEAM_COLORS[sectorAnalysis.bestS2.teamId] || 'var(--accent-primary)' }}
+              style={{ backgroundColor: getTeamColor(sectorAnalysis.bestS2.teamId) }}
             />
             <span className="holder-name">{sectorAnalysis.bestS2.driverName}</span>
           </div>
@@ -186,7 +186,7 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((p
           <div className="sector-holder">
             <span
               className="team-dot"
-              style={{ backgroundColor: TEAM_COLORS[sectorAnalysis.fastestLap.teamId] || '#FFD700' }}
+              style={{ backgroundColor: getTeamColor(sectorAnalysis.fastestLap.teamId) }}
             />
             <span className="holder-name">{sectorAnalysis.fastestLap.driverName}</span>
           </div>
@@ -275,7 +275,7 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((p
                     <span className="mono speed-rank">#{i + 1}</span>
                     <span
                       className="team-color-indicator"
-                      style={{ backgroundColor: TEAM_COLORS[st.teamId] || '#33CCFF' }}
+                      style={{ backgroundColor: getTeamColor(st.teamId) }}
                     />
                     <span className="speed-driver-name">{st.name}</span>
                   </div>

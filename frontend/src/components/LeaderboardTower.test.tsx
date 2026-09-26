@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
 import { LeaderboardTower } from './LeaderboardTower';
 import type { SessionData, ParticipantData, LapData, CarStatusData } from '../hooks/useTelemetry';
 import { makeLiveCarStatus, makeLiveLap, makeLiveParticipant, makeLiveSession } from '../test/wireFactories';
@@ -289,5 +289,34 @@ describe('LeaderboardTower', () => {
     expect(lines).toHaveLength(1);
     expect(lines[0].previousElementSibling).toHaveTextContent('Driver 15');
     expect(container.querySelectorAll('.is-eliminated')).toHaveLength(5);
+  });
+
+  it('makes each driver card a button that says which car is selected', () => {
+    const onSelectCar = vi.fn();
+    const laps: LapData[] = [
+      makeLiveLap({ LastLapTimeInMS: 75000, CarPosition: 1, CurrentLapNum: 3 }),
+      makeLiveLap({ LastLapTimeInMS: 76000, CarPosition: 2, CurrentLapNum: 3 }),
+      makeLiveLap({ LastLapTimeInMS: 77000, CarPosition: 3, CurrentLapNum: 3 }),
+    ];
+    const carStatuses: CarStatusData[] = [makeLiveCarStatus(), makeLiveCarStatus(), makeLiveCarStatus()];
+
+    render(
+      <LeaderboardTower
+        session={qualySession}
+        participants={participants}
+        laps={laps}
+        carStatuses={carStatuses}
+        playerCarIndex={0}
+        selectedCarIndex={0}
+        onSelectCar={onSelectCar}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: /Max Verstappen/ })).toHaveAttribute('aria-pressed', 'true');
+    const hamilton = screen.getByRole('button', { name: /Lewis Hamilton/ });
+    expect(hamilton).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.click(hamilton);
+    expect(onSelectCar).toHaveBeenCalledWith(1);
   });
 });

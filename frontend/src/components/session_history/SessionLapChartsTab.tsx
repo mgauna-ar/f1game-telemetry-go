@@ -10,7 +10,9 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { TrendingUp, Award, Layers, Filter, Activity, Clock } from 'lucide-react';
-import { TEAM_COLORS } from '../../constants/f1';
+import { getTeamColor } from '../../constants/f1';
+import { alpha, cssVar } from '../../styles/theme';
+import { compactTooltipProps } from './stints/stintUtils';
 import type { DriverStanding, ProgressionResponse } from '../../types/session';
 import { useI18n } from '../../context/I18nContext';
 
@@ -21,28 +23,6 @@ interface SessionLapChartsTabProps {
   formatLapTime: (ms: number) => string;
   isRaceSession?: boolean;
 }
-
-const compactTooltipProps = {
-  contentStyle: {
-    backgroundColor: 'rgba(10, 14, 23, 0.85)',
-    backdropFilter: 'blur(8px)',
-    WebkitBackdropFilter: 'blur(8px)',
-    border: '1px solid rgba(255, 255, 255, 0.15)',
-    borderRadius: '8px',
-    padding: '8px 12px',
-    fontSize: '0.8rem',
-    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.6)',
-  },
-  itemStyle: {
-    padding: '2px 0',
-    fontSize: '0.75rem',
-  },
-  labelStyle: {
-    color: '#cbd5e1',
-    fontWeight: 700,
-    marginBottom: '4px',
-  },
-};
 
 export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
   progressionData,
@@ -166,11 +146,13 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
           {driverStandings.map((driver) => {
             const isSelected = !!selectedDrivers[driver.participant.car_index];
-            const teamColor = TEAM_COLORS[driver.participant.team_id] || '#A0A0A0';
+            const teamColor = getTeamColor(driver.participant.team_id);
 
             return (
               <button
+                type="button"
                 key={driver.participant.car_index}
+                aria-pressed={isSelected}
                 onClick={() => toggleDriver(driver.participant.car_index)}
                 style={{
                   display: 'inline-flex',
@@ -182,7 +164,7 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
                   fontWeight: 600,
                   cursor: 'pointer',
                   border: `1px solid ${isSelected ? teamColor : 'rgba(255,255,255,0.1)'}`,
-                  background: isSelected ? `${teamColor}22` : 'rgba(0,0,0,0.3)',
+                  background: isSelected ? alpha(teamColor, 0.13) : 'rgba(0,0,0,0.3)',
                   color: isSelected ? '#FFFFFF' : 'var(--text-muted)',
                   transition: 'all 0.15s ease',
                 }}
@@ -249,7 +231,7 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
                 <div style={{ width: '100%', height: '400px' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={filteredLapProgressionData} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                      <CartesianGrid strokeDasharray="3 3" stroke={cssVar('--chart-grid')} />
                       <XAxis
                         dataKey="lapNumber"
                         stroke="var(--text-muted)"
@@ -295,7 +277,7 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
                       />
                       <Legend />
                       {activeDriverStandings.map((driver) => {
-                        const teamColor = TEAM_COLORS[driver.participant.team_id] || '#00f2fe';
+                        const teamColor = getTeamColor(driver.participant.team_id);
                         return (
                           <Line
                             key={driver.participant.car_index}
@@ -326,7 +308,7 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
                 <div style={{ width: '100%', height: '400px' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={positionProgressionData} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                      <CartesianGrid strokeDasharray="3 3" stroke={cssVar('--chart-grid')} />
                       <XAxis
                         dataKey="lapNumber"
                         stroke="var(--text-muted)"
@@ -351,7 +333,7 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
                       />
                       <Legend />
                       {activeDriverStandings.map((driver) => {
-                        const teamColor = TEAM_COLORS[driver.participant.team_id] || '#00f2fe';
+                        const teamColor = getTeamColor(driver.participant.team_id);
                         return (
                           <Line
                             key={driver.participant.car_index}
@@ -382,7 +364,7 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
                 <div style={{ width: '100%', height: '400px' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={gapToLeaderData} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                      <CartesianGrid strokeDasharray="3 3" stroke={cssVar('--chart-grid')} />
                       <XAxis
                         dataKey="lapNumber"
                         stroke="var(--text-muted)"
@@ -407,7 +389,7 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
                       />
                       <Legend />
                       {activeDriverStandings.map((driver) => {
-                        const teamColor = TEAM_COLORS[driver.participant.team_id] || '#00f2fe';
+                        const teamColor = getTeamColor(driver.participant.team_id);
                         return (
                           <Line
                             key={driver.participant.car_index}

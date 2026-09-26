@@ -2,7 +2,7 @@ import React from 'react';
 import { AlertTriangle, Clock, Timer } from 'lucide-react';
 import { Line } from 'recharts';
 import { useI18n } from '../../../context/I18nContext';
-import { type CommonChartProps } from './chartDefaults';
+import { CHART_COLORS, type CommonChartProps } from './chartDefaults';
 import { ComparatorChart } from './ComparatorChart';
 import { ChartTitle } from './ChartTitle';
 
@@ -107,7 +107,7 @@ export const DeltaChart = React.memo<DeltaChartProps>((props) => {
           type="monotone"
           dataKey="time_delta"
           name={t('comparator.timeDelta')}
-          stroke="#f1c40f"
+          stroke={CHART_COLORS.DELTA}
           dot={false}
           strokeWidth={2.5}
           isAnimationActive={false}

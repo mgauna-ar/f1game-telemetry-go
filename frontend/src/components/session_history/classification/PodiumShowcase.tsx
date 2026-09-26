@@ -1,6 +1,6 @@
 import React from 'react';
 import { Award } from 'lucide-react';
-import { TEAM_COLORS } from '../../../constants/f1';
+import { getTeamColor } from '../../../constants/f1';
 import { useI18n } from '../../../context/I18nContext';
 import type { DriverStanding } from '../../../types/session';
 
@@ -24,7 +24,7 @@ export const PodiumShowcase: React.FC<PodiumShowcaseProps> = ({
   return (
     <div className="podium-grid">
       {top3.map((driver) => {
-        const teamColor = TEAM_COLORS[driver.participant.team_id] || '#A0A0A0';
+        const teamColor = getTeamColor(driver.participant.team_id);
         const isP1 = driver.position === 1;
         const isP2 = driver.position === 2;
         const rankClass = isP1 ? 'podium-p1' : isP2 ? 'podium-p2' : 'podium-p3';

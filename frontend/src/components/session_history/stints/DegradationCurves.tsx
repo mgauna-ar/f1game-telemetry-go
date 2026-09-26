@@ -10,7 +10,8 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { TrendingUp, Filter, Award } from 'lucide-react';
-import { TEAM_COLORS } from '../../../constants/f1';
+import { getTeamColor } from '../../../constants/f1';
+import { alpha, cssVar } from '../../../styles/theme';
 import { TyreCompoundBadge } from '../../common/TyreCompoundBadge';
 import { useI18n } from '../../../context/I18nContext';
 import { getCompoundColor, compactTooltipProps, type DriverStintData } from './stintUtils';
@@ -67,7 +68,9 @@ export const DegradationCurves: React.FC<DegradationCurvesProps> = ({
           {/* Compound Filter Pills */}
           <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
             <button
+              type="button"
               className={`nav-tab ${selectedCompound === 'ALL' ? 'active' : ''}`}
+              aria-pressed={selectedCompound === 'ALL'}
               onClick={() => setSelectedCompound('ALL')}
               style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem' }}
             >
@@ -78,7 +81,9 @@ export const DegradationCurves: React.FC<DegradationCurvesProps> = ({
               const isActive = selectedCompound === comp;
               return (
                 <button
+                  type="button"
                   key={comp}
+                  aria-pressed={isActive}
                   onClick={() => setSelectedCompound(comp)}
                   style={{
                     display: 'inline-flex',
@@ -90,7 +95,7 @@ export const DegradationCurves: React.FC<DegradationCurvesProps> = ({
                     fontWeight: 600,
                     cursor: 'pointer',
                     border: `1px solid ${isActive ? color : 'rgba(255,255,255,0.1)'}`,
-                    backgroundColor: isActive ? `${color}33` : 'rgba(0,0,0,0.3)',
+                    backgroundColor: isActive ? alpha(color, 0.2) : 'rgba(0,0,0,0.3)',
                     color: isActive ? '#FFFFFF' : 'var(--text-muted)',
                     transition: 'all 0.15s ease',
                   }}
@@ -131,11 +136,13 @@ export const DegradationCurves: React.FC<DegradationCurvesProps> = ({
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
           {driverStandings.map((driver) => {
             const isSelected = !!selectedDrivers[driver.participant.car_index];
-            const teamColor = TEAM_COLORS[driver.participant.team_id] || '#A0A0A0';
+            const teamColor = getTeamColor(driver.participant.team_id);
 
             return (
               <button
+                type="button"
                 key={driver.participant.car_index}
+                aria-pressed={isSelected}
                 onClick={() => toggleDriver(driver.participant.car_index)}
                 style={{
                   display: 'inline-flex',
@@ -147,7 +154,7 @@ export const DegradationCurves: React.FC<DegradationCurvesProps> = ({
                   fontWeight: 600,
                   cursor: 'pointer',
                   border: `1px solid ${isSelected ? teamColor : 'rgba(255,255,255,0.1)'}`,
-                  background: isSelected ? `${teamColor}22` : 'rgba(0,0,0,0.3)',
+                  background: isSelected ? alpha(teamColor, 0.13) : 'rgba(0,0,0,0.3)',
                   color: isSelected ? '#FFFFFF' : 'var(--text-muted)',
                   transition: 'all 0.15s ease',
                 }}
@@ -173,7 +180,7 @@ export const DegradationCurves: React.FC<DegradationCurvesProps> = ({
             if (slope === null) return null;
             const [, carIdxStr, , stintIdxStr] = key.split('_');
             const driver = driverStandings.find((d) => String(d.participant.car_index) === carIdxStr);
-            const teamColor = driver ? TEAM_COLORS[driver.participant.team_id] || '#00f2fe' : '#00f2fe';
+            const teamColor = getTeamColor(driver?.participant.team_id);
             const isDegrading = slope > 0;
             const slopeFormatted = Math.abs(slope).toFixed(3);
 
@@ -187,7 +194,7 @@ export const DegradationCurves: React.FC<DegradationCurvesProps> = ({
                   padding: '2px 8px',
                   borderRadius: '12px',
                   backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  border: `1px solid ${teamColor}66`,
+                  border: `1px solid ${alpha(teamColor, 0.4)}`,
                   fontSize: '0.7rem',
                 }}
               >
@@ -212,7 +219,7 @@ export const DegradationCurves: React.FC<DegradationCurvesProps> = ({
         <div style={{ width: '100%', height: '420px' }}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={degradationData} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+              <CartesianGrid strokeDasharray="3 3" stroke={cssVar('--chart-grid')} />
               <XAxis
                 dataKey="tyreAge"
                 stroke="var(--text-muted)"
@@ -250,7 +257,7 @@ export const DegradationCurves: React.FC<DegradationCurvesProps> = ({
                 .filter((d) => selectedDrivers[d.driver.participant.car_index])
                 .flatMap((d) => {
                   const carIdx = d.driver.participant.car_index;
-                  const teamColor = TEAM_COLORS[d.driver.participant.team_id] || '#00f2fe';
+                  const teamColor = getTeamColor(d.driver.participant.team_id);
 
                   return d.stints
                     .filter((s) => selectedCompound === 'ALL' || s.compound === selectedCompound)

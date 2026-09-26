@@ -4,6 +4,7 @@ import { useI18n } from '../../context/I18nContext';
 import { ChatMarkdown } from './ChatMarkdown';
 import { ChatErrorCard } from './ChatErrorCard';
 import type { ChatMessage } from '../../types/ai';
+import { prefersReducedMotion } from '../../utils/motion';
 
 export interface ChatMessageListProps {
   messages: ChatMessage[];
@@ -134,7 +135,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
     stopAtQuestionRef.current = false;
     followRef.current = true;
     ownScrollTopRef.current = null;
-    if (typeof el.scrollTo === 'function') el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    if (typeof el.scrollTo === 'function') el.scrollTo({ top: el.scrollHeight, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
     else el.scrollTop = el.scrollHeight;
   };
 

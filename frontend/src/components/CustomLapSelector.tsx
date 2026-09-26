@@ -4,6 +4,13 @@ import type { Lap, Participant } from '../types/session';
 import { formatLapTime as formatTime, formatSectorTime as formatSector } from '../utils/formatters';
 import { TyreCompoundBadge } from './common/TyreCompoundBadge';
 import { useI18n } from '../context/I18nContext';
+import { alpha, cssVar } from '../styles/theme';
+
+const DANGER = cssVar('--status-danger');
+const WARNING = cssVar('--status-warning');
+const INFO = cssVar('--status-info');
+const GOLD = cssVar('--f1-gold');
+const PERSONAL_BEST = cssVar('--f1-green');
 
 export type { Lap, Participant };
 
@@ -161,14 +168,14 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
   }, [laps, validOnly, telemetryOnly, selectedDriverCarIndex, searchQuery, participants, sortMode]);
 
 
-  const slotColor = slot === 'A' ? '#00d2d3' : '#ff4757';
+  const slotColor = slot === 'A' ? cssVar('--f1-slot-a') : cssVar('--f1-slot-b');
   const defaultPlaceholder = placeholder || `Select Lap ${slot}...`;
 
   return (
     <div
       ref={dropdownRef}
       className={`custom-lap-dropdown ${isOpen ? 'is-open' : ''} slot-${slot.toLowerCase()}`}
-      style={{ position: 'relative', zIndex: isOpen ? 100 : 1 }}
+      style={{ position: 'relative', zIndex: isOpen ? cssVar('--z-popover') : cssVar('--z-raised') }}
     >
       {/* Trigger Button */}
       <button
@@ -194,7 +201,7 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
                 {formatTime(selectedLap.lap_time_ms)}
               </span>
               {!selectedLap.is_valid && (
-                <span style={{ fontSize: '0.65rem', background: 'rgba(255, 71, 87, 0.2)', color: '#ff4757', padding: '1px 4px', borderRadius: '3px' }}>
+                <span style={{ fontSize: '0.65rem', background: alpha(DANGER, 0.2), color: DANGER, padding: '1px 4px', borderRadius: '3px' }}>
                   {t('comparator.invalid')}
                 </span>
               )}
@@ -202,11 +209,11 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
                 <span
                   style={{
                     fontSize: '0.65rem',
-                    background: 'rgba(243, 156, 18, 0.15)',
-                    color: '#f39c12',
+                    background: alpha(WARNING, 0.15),
+                    color: WARNING,
                     padding: '1px 4px',
                     borderRadius: '3px',
-                    border: '1px solid rgba(243, 156, 18, 0.3)',
+                    border: `1px solid ${alpha(WARNING, 0.3)}`,
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '2px',
@@ -233,7 +240,7 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
 
       {/* Popover Dropdown */}
       {isOpen && (
-        <div ref={popoverRef} className="custom-lap-popover" style={{ zIndex: 110 }}>
+        <div ref={popoverRef} className="custom-lap-popover" style={{ zIndex: cssVar('--z-popover') }}>
           {/* Search Header */}
           <div className="custom-lap-search-header">
             <Search size={13} color="var(--text-muted)" />
@@ -262,6 +269,7 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
               <button
                 type="button"
                 className={`custom-lap-driver-tab ${selectedDriverCarIndex === 'ALL' ? 'active' : ''}`}
+                aria-pressed={selectedDriverCarIndex === 'ALL'}
                 onClick={() => setSelectedDriverCarIndex('ALL')}
               >
                 All Drivers ({laps.length})
@@ -271,6 +279,7 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
                   key={d.car_index}
                   type="button"
                   className={`custom-lap-driver-tab ${selectedDriverCarIndex === d.car_index ? 'active' : ''}`}
+                  aria-pressed={selectedDriverCarIndex === d.car_index}
                   onClick={() => setSelectedDriverCarIndex(d.car_index)}
                 >
                   {d.race_number !== undefined ? `#${d.race_number} ` : ''}{d.name} ({d.lapCount})
@@ -284,10 +293,11 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <button
                 type="button"
+                aria-pressed={validOnly}
                 onClick={() => setValidOnly((prev) => !prev)}
                 style={{
-                  background: validOnly ? (slot === 'A' ? 'rgba(0, 210, 211, 0.15)' : 'rgba(255, 71, 87, 0.15)') : 'transparent',
-                  border: validOnly ? (slot === 'A' ? '1px solid #00d2d3' : '1px solid #ff4757') : '1px solid rgba(255,255,255,0.1)',
+                  background: validOnly ? alpha(slotColor, 0.15) : 'transparent',
+                  border: `1px solid ${validOnly ? slotColor : cssVar('--border-subtle')}`,
                   color: validOnly ? slotColor : 'var(--text-muted)',
                   borderRadius: '4px',
                   padding: '2px 6px',
@@ -304,10 +314,11 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
 
               <button
                 type="button"
+                aria-pressed={telemetryOnly}
                 onClick={() => setTelemetryOnly((prev) => !prev)}
                 style={{
-                  background: telemetryOnly ? (slot === 'A' ? 'rgba(0, 210, 211, 0.15)' : 'rgba(255, 71, 87, 0.15)') : 'transparent',
-                  border: telemetryOnly ? (slot === 'A' ? '1px solid #00d2d3' : '1px solid #ff4757') : '1px solid rgba(255,255,255,0.1)',
+                  background: telemetryOnly ? alpha(slotColor, 0.15) : 'transparent',
+                  border: `1px solid ${telemetryOnly ? slotColor : cssVar('--border-subtle')}`,
                   color: telemetryOnly ? slotColor : 'var(--text-muted)',
                   borderRadius: '4px',
                   padding: '2px 6px',
@@ -327,11 +338,12 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
               <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)' }}>Sort:</span>
               <button
                 type="button"
+                aria-pressed={sortMode === 'fastest'}
                 onClick={() => setSortMode('fastest')}
                 style={{
-                  background: sortMode === 'fastest' ? 'rgba(255, 255, 255, 0.12)' : 'transparent',
+                  background: sortMode === 'fastest' ? cssVar('--bg-active') : 'transparent',
                   border: 'none',
-                  color: sortMode === 'fastest' ? '#fff' : 'var(--text-muted)',
+                  color: sortMode === 'fastest' ? cssVar('--text-primary') : 'var(--text-muted)',
                   borderRadius: '3px',
                   padding: '1px 5px',
                   fontSize: '0.68rem',
@@ -344,11 +356,12 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
               <span style={{ color: 'var(--text-muted)', fontSize: '0.6rem' }}>|</span>
               <button
                 type="button"
+                aria-pressed={sortMode === 'lap_num'}
                 onClick={() => setSortMode('lap_num')}
                 style={{
-                  background: sortMode === 'lap_num' ? 'rgba(255, 255, 255, 0.12)' : 'transparent',
+                  background: sortMode === 'lap_num' ? cssVar('--bg-active') : 'transparent',
                   border: 'none',
-                  color: sortMode === 'lap_num' ? '#fff' : 'var(--text-muted)',
+                  color: sortMode === 'lap_num' ? cssVar('--text-primary') : 'var(--text-muted)',
                   borderRadius: '3px',
                   padding: '1px 5px',
                   fontSize: '0.68rem',
@@ -362,7 +375,7 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
           </div>
 
           {/* Scrollable Lap List */}
-          <div className="custom-lap-list">
+          <div className="custom-lap-list" role="listbox" aria-label={defaultPlaceholder}>
             {filteredLaps.length > 0 ? (
               filteredLaps.map((lap) => {
                 const isSelected = lap.id === selectedLapId;
@@ -376,9 +389,10 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
                   : null;
 
                 return (
-                  <div
+                  <button
                     key={lap.id}
-                    className={`custom-lap-item ${isSelected ? 'selected' : ''}`}
+                    type="button"
+                    className={`button-reset custom-lap-item ${isSelected ? 'selected' : ''}`}
                     onClick={() => {
                       onSelectLap(lap.id);
                       setIsOpen(false);
@@ -405,9 +419,9 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
                             style={{
                               fontSize: '0.60rem',
                               fontWeight: 700,
-                              background: 'rgba(0, 210, 211, 0.12)',
-                              color: '#00d2d3',
-                              border: '1px solid rgba(0, 210, 211, 0.3)',
+                              background: alpha(INFO, 0.12),
+                              color: INFO,
+                              border: `1px solid ${alpha(INFO, 0.3)}`,
                               padding: '1px 4px',
                               borderRadius: '3px',
                               display: 'inline-flex',
@@ -423,9 +437,9 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
                             style={{
                               fontSize: '0.60rem',
                               fontWeight: 600,
-                              background: 'rgba(255, 255, 255, 0.05)',
+                              background: cssVar('--bg-hover'),
                               color: 'var(--text-muted)',
-                              border: '1px solid rgba(255, 255, 255, 0.1)',
+                              border: `1px solid ${cssVar('--border-subtle')}`,
                               padding: '1px 4px',
                               borderRadius: '3px',
                               display: 'inline-flex',
@@ -443,9 +457,9 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
                             style={{
                               fontSize: '0.62rem',
                               fontWeight: 700,
-                              background: 'rgba(255, 215, 0, 0.2)',
-                              color: '#ffd700',
-                              border: '1px solid rgba(255, 215, 0, 0.4)',
+                              background: alpha(GOLD, 0.2),
+                              color: GOLD,
+                              border: `1px solid ${alpha(GOLD, 0.4)}`,
                               padding: '1px 4px',
                               borderRadius: '3px',
                               display: 'inline-flex',
@@ -461,9 +475,9 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
                             style={{
                               fontSize: '0.62rem',
                               fontWeight: 700,
-                              background: 'rgba(0, 210, 211, 0.15)',
-                              color: '#00d2d3',
-                              border: '1px solid rgba(0, 210, 211, 0.35)',
+                              background: alpha(PERSONAL_BEST, 0.15),
+                              color: PERSONAL_BEST,
+                              border: `1px solid ${alpha(PERSONAL_BEST, 0.35)}`,
                               padding: '1px 4px',
                               borderRadius: '3px',
                               display: 'inline-flex',
@@ -479,9 +493,9 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
                             style={{
                               fontSize: '0.62rem',
                               fontWeight: 700,
-                              background: 'rgba(255, 71, 87, 0.15)',
-                              color: '#ff4757',
-                              border: '1px solid rgba(255, 71, 87, 0.35)',
+                              background: alpha(DANGER, 0.15),
+                              color: DANGER,
+                              border: `1px solid ${alpha(DANGER, 0.35)}`,
                               padding: '1px 4px',
                               borderRadius: '3px',
                               display: 'inline-flex',
@@ -496,9 +510,9 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
                             style={{
                               fontSize: '0.62rem',
                               fontWeight: 700,
-                              background: 'rgba(243, 156, 18, 0.15)',
-                              color: '#f39c12',
-                              border: '1px solid rgba(243, 156, 18, 0.35)',
+                              background: alpha(WARNING, 0.15),
+                              color: WARNING,
+                              border: `1px solid ${alpha(WARNING, 0.35)}`,
                               padding: '1px 4px',
                               borderRadius: '3px',
                               display: 'inline-flex',
@@ -521,7 +535,7 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
                             fontFamily: 'var(--font-mono)',
                             fontSize: '0.92rem',
                             fontWeight: 700,
-                            color: isSelected ? slotColor : (!isCompleted ? 'var(--text-muted)' : '#fff'),
+                            color: isSelected ? slotColor : (!isCompleted ? 'var(--text-muted)' : cssVar('--text-primary')),
                           }}
                         >
                           {isCompleted ? formatTime(lap.lap_time_ms) : '--:--.---'}
@@ -532,14 +546,14 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
                           </span>
                         )}
                         {isCompleted && deltaToBest === 0 && (
-                          <span style={{ fontSize: '0.7rem', color: '#ffd700', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+                          <span style={{ fontSize: '0.7rem', color: GOLD, fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
                             Fastest Lap
                           </span>
                         )}
                       </div>
 
                       {lap.max_speed_kmh && (
-                        <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', background: 'rgba(255,255,255,0.06)', padding: '1px 4px', borderRadius: '3px' }}>
+                        <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', background: cssVar('--bg-hover'), padding: '1px 4px', borderRadius: '3px' }}>
                           {Math.round(lap.max_speed_kmh)} km/h
                         </span>
                       )}
@@ -549,14 +563,14 @@ export const CustomLapSelector: React.FC<CustomLapSelectorProps> = ({
                     {/* Bottom Row: Sector Breakdown */}
                     {(lap.sector1_ms || lap.sector2_ms || lap.sector3_ms) && (
                       <div className="custom-lap-item-bottom">
-                        <span>S1: <strong style={{ color: '#f39c12' }}>{formatSector(lap.sector1_ms)}</strong></span>
+                        <span>S1: <strong style={{ color: cssVar('--f1-sector-1') }}>{formatSector(lap.sector1_ms)}</strong></span>
                         <span>•</span>
-                        <span>S2: <strong style={{ color: '#9b59b6' }}>{formatSector(lap.sector2_ms)}</strong></span>
+                        <span>S2: <strong style={{ color: cssVar('--f1-sector-2') }}>{formatSector(lap.sector2_ms)}</strong></span>
                         <span>•</span>
-                        <span>S3: <strong style={{ color: '#00d2d3' }}>{formatSector(lap.sector3_ms)}</strong></span>
+                        <span>S3: <strong style={{ color: cssVar('--f1-sector-3') }}>{formatSector(lap.sector3_ms)}</strong></span>
                       </div>
                     )}
-                  </div>
+                  </button>
                 );
               })
             ) : (

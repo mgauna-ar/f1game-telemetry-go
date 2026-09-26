@@ -36,6 +36,7 @@ export const history = {
     clearSelection: 'Limpiar Selección',
     selectAll: 'Seleccionar todas las sesiones',
     deselectAll: 'Deseleccionar todo',
+    selectSession: 'Seleccionar la sesión #{id}',
     confirmDeleteTitle: 'Confirmar Eliminación Masiva',
     confirmDeleteBody: '¿Estás seguro de que deseas eliminar permanentemente las {count} sesiones seleccionadas y toda su telemetría, vueltas y participantes?',
     importSummary: 'Importación finalizada: {imported} importadas, {skipped} omitidas, {failed} fallidas.',

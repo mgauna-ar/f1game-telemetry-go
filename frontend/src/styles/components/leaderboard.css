@@ -95,7 +95,7 @@
   min-height: 0;
 }
 
-.tower-row {
+.leaderboard-tower-card {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -108,18 +108,18 @@
   position: relative;
 }
 
-.tower-row:hover {
+.leaderboard-tower-card:hover {
   background: rgba(255, 255, 255, 0.06);
   border-color: var(--border-highlight);
 }
 
-.tower-row-selected {
+.leaderboard-tower-card.is-selected {
   background: rgba(255, 51, 51, 0.12) !important;
   border-color: var(--accent-primary) !important;
   box-shadow: 0 0 12px rgba(255, 51, 51, 0.2);
 }
 
-.tower-row-player {
+.leaderboard-tower-card.is-player {
   border-left-color: var(--accent-tertiary);
 }
 
@@ -146,6 +146,7 @@
 }
 
 .tower-name {
+  min-width: 0;
   font-weight: 600;
   font-size: 0.85rem;
   white-space: nowrap;
@@ -596,6 +597,6 @@
 
 @media (max-width: 900px) {
   .tower-two-cols-grid {
-    grid-template-columns: 1fr !important;
+    grid-template-columns: minmax(0, 1fr) !important;
   }
 }

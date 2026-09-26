@@ -1,5 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { getRadioAnalyserNode } from '../../utils/radioAudio';
+import { prefersReducedMotion } from '../../utils/motion';
+import { canvasRgba, getCssVars } from '../../styles/theme';
+
+/** Bar colour for each radio state. */
+const WAVEFORM_TOKENS = {
+  transmitting: '--status-danger',
+  speaking: '--status-success',
+  processing: '--status-warning',
+  idle: '--accent-cyan',
+} as const;
 
 export interface RadioWaveformCanvasProps {
   radioState?: 'idle' | 'listening' | 'transmitting' | 'processing' | 'speaking' | string;
@@ -45,6 +55,20 @@ export const RadioWaveformCanvas: React.FC<RadioWaveformCanvasProps> = ({
     const isTransmitting = radioState === 'transmitting';
     const isSpeaking = radioState === 'speaking';
     const isProcessing = radioState === 'processing';
+    const isAudioReactive = (isTransmitting || isSpeaking) && !!analyser;
+    // With reduced motion the idle and thinking pulses hold still; live audio levels still move.
+    const reducedMotion = prefersReducedMotion();
+
+    const palette = getCssVars(WAVEFORM_TOKENS);
+    const barColor = isTransmitting
+      ? palette.transmitting
+      : isSpeaking
+      ? palette.speaking
+      : isProcessing
+      ? palette.processing
+      : palette.idle;
+    const barBase = canvasRgba(ctx, barColor, 0.55);
+    const glow = canvasRgba(ctx, barColor, isTransmitting || isSpeaking ? 0.7 : isProcessing ? 0.5 : 0.3);
 
     const render = () => {
       if (analyser && (isTransmitting || isSpeaking)) {
@@ -65,10 +89,10 @@ export const RadioWaveformCanvas: React.FC<RadioWaveformCanvasProps> = ({
           norm = rawVal / 255;
         } else if (isProcessing) {
           // Subtle harmonic wave during AI processing
-          norm = 0.2 + 0.3 * Math.sin(Date.now() / 200 + i * 0.4);
+          norm = reducedMotion ? 0.35 : 0.2 + 0.3 * Math.sin(Date.now() / 200 + i * 0.4);
         } else {
           // Subtle idle resting pulse
-          norm = 0.08 + 0.04 * Math.sin(Date.now() / 600 + i * 0.2);
+          norm = reducedMotion ? 0.1 : 0.08 + 0.04 * Math.sin(Date.now() / 600 + i * 0.2);
         }
 
         const barHeight = Math.max(3, norm * canvas.height * 0.92);
@@ -77,23 +101,9 @@ export const RadioWaveformCanvas: React.FC<RadioWaveformCanvasProps> = ({
 
         // Gradient & Glow based on radio state
         const gradient = ctx.createLinearGradient(0, y, 0, canvas.height);
-        if (isTransmitting) {
-          gradient.addColorStop(0, '#ef4444');
-          gradient.addColorStop(1, '#991b1b');
-          ctx.shadowColor = 'rgba(239, 68, 68, 0.7)';
-        } else if (isSpeaking) {
-          gradient.addColorStop(0, '#34d399');
-          gradient.addColorStop(1, '#059669');
-          ctx.shadowColor = 'rgba(16, 185, 129, 0.7)';
-        } else if (isProcessing) {
-          gradient.addColorStop(0, '#fbbf24');
-          gradient.addColorStop(1, '#d97706');
-          ctx.shadowColor = 'rgba(245, 158, 11, 0.5)';
-        } else {
-          gradient.addColorStop(0, '#00f2fe');
-          gradient.addColorStop(1, '#0284c7');
-          ctx.shadowColor = 'rgba(0, 242, 254, 0.3)';
-        }
+        gradient.addColorStop(0, barColor);
+        gradient.addColorStop(1, barBase);
+        ctx.shadowColor = glow;
         ctx.shadowBlur = isTransmitting || isSpeaking ? 8 : 4;
 
         ctx.fillStyle = gradient;
@@ -106,7 +116,9 @@ export const RadioWaveformCanvas: React.FC<RadioWaveformCanvasProps> = ({
         ctx.fill();
       }
 
-      animId = requestAnimationFrame(render);
+      if (isAudioReactive || !reducedMotion) {
+        animId = requestAnimationFrame(render);
+      }
     };
 
     render();

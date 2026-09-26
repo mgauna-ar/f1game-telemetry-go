@@ -2,7 +2,7 @@ import React from 'react';
 import { AlertTriangle, Zap } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
 import { getErsModeName } from '../../../constants/f1';
-import { type CommonChartProps } from './chartDefaults';
+import { CHART_COLORS, type CommonChartProps } from './chartDefaults';
 import { ComparatorChart } from './ComparatorChart';
 import { ChartTitle } from './ChartTitle';
 
@@ -20,7 +20,7 @@ export const ErsDeployModeChart = React.memo<ErsDeployModeChartProps>((props) =>
 
   const titleNode = (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
-      <ChartTitle icon={Zap} label={t('comparator.charts.ersDeployMode')} color="#bd93f9" />
+      <ChartTitle icon={Zap} label={t('comparator.charts.ersDeployMode')} color={CHART_COLORS.ERS_MODE} />
       {(isErsRestrictedA || isErsRestrictedB) && (
         <span
           style={{
@@ -66,7 +66,7 @@ export const ErsDeployModeChart = React.memo<ErsDeployModeChartProps>((props) =>
       lineNameA={`${nameA} Mode`}
       lineNameB={`${nameB} Mode`}
       lineType="stepAfter"
-      yAxisStroke="#bd93f9"
+      yAxisStroke={CHART_COLORS.ERS_MODE}
       yAxisDomain={[0, 3]}
       yAxisTicks={[0, 1, 2, 3]}
       yAxisTickFormatter={(v) => (typeof v === 'number' && Number.isFinite(v) ? getErsModeName(Math.round(v), formatA || formatB) : '')}

@@ -4,6 +4,28 @@ import type { Lap, Participant } from '../../types/session';
 import { formatTime } from '../../utils/formatters';
 import { TIME_CONSTANTS } from '../../constants/f1';
 import { useI18n } from '../../context/I18nContext';
+import { alpha, cssVar } from '../../styles/theme';
+
+const SLOT_A = cssVar('--f1-slot-a');
+const SLOT_B = cssVar('--f1-slot-b');
+const TIE = cssVar('--f1-gold');
+const WARNING = cssVar('--status-warning');
+const BADGE_STYLE: React.CSSProperties = {
+  fontSize: '0.70rem',
+  padding: '1px 5px',
+  borderRadius: '3px',
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '3px',
+};
+
+/** A small badge tinted with `color`: its text, a faint fill and a border. */
+const tintedBadge = (color: string): React.CSSProperties => ({
+  ...BADGE_STYLE,
+  color,
+  background: alpha(color, 0.12),
+  border: `1px solid ${alpha(color, 0.3)}`,
+});
 
 interface ComparatorMetricsSummaryProps {
   lapAObj?: Lap;
@@ -28,16 +50,16 @@ export const SectorDeltaBadge: React.FC<{ label: string; deltaMs: number | null 
         display: 'flex',
         alignItems: 'center',
         gap: '0.3rem',
-        background: 'rgba(0,0,0,0.3)',
+        background: cssVar('--bg-inset'),
         padding: '0.35rem 0.6rem',
         borderRadius: '6px',
-        border: '1px solid rgba(255,255,255,0.05)',
+        border: `1px solid ${cssVar('--border-color')}`,
       }}
     >
       <span style={{ color: 'var(--text-muted)' }}>{label}:</span>
       <span
         style={{
-          color: deltaMs === 0 ? 'var(--text-muted)' : isFaster ? '#00d2d3' : '#ff4757',
+          color: deltaMs === 0 ? cssVar('--text-muted') : isFaster ? SLOT_A : SLOT_B,
           fontFamily: 'var(--font-mono)',
           fontWeight: 'bold',
           display: 'flex',
@@ -83,15 +105,15 @@ export const ComparatorMetricsSummary: React.FC<ComparatorMetricsSummaryProps> =
             padding: '1rem 1.5rem',
             background:
               totalDeltaMs < 0
-                ? 'linear-gradient(90deg, rgba(0,210,211,0.15) 0%, rgba(0,210,211,0.02) 100%)'
+                ? `linear-gradient(90deg, ${alpha(SLOT_A, 0.15)} 0%, ${alpha(SLOT_A, 0.02)} 100%)`
                 : totalDeltaMs > 0
-                ? 'linear-gradient(90deg, rgba(255,71,87,0.15) 0%, rgba(255,71,87,0.02) 100%)'
-                : 'rgba(255,255,255,0.05)',
-            borderLeft: `4px solid ${totalDeltaMs < 0 ? '#00d2d3' : totalDeltaMs > 0 ? '#ff4757' : '#ffd700'}`,
+                ? `linear-gradient(90deg, ${alpha(SLOT_B, 0.15)} 0%, ${alpha(SLOT_B, 0.02)} 100%)`
+                : cssVar('--bg-hover'),
+            borderLeft: `4px solid ${totalDeltaMs < 0 ? SLOT_A : totalDeltaMs > 0 ? SLOT_B : TIE}`,
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <Award size={28} color={totalDeltaMs < 0 ? '#00d2d3' : totalDeltaMs > 0 ? '#ff4757' : '#ffd700'} />
+            <Award size={28} color={totalDeltaMs < 0 ? SLOT_A : totalDeltaMs > 0 ? SLOT_B : TIE} />
             <div>
               <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>
                 {totalDeltaMs < 0
@@ -119,32 +141,32 @@ export const ComparatorMetricsSummary: React.FC<ComparatorMetricsSummaryProps> =
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
         {/* Lap A Card */}
         <div className="glass-panel comparator-card-panel" style={{ padding: '1rem' }}>
-          <h3 style={{ margin: 0, fontSize: '1rem', color: '#00d2d3', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <h3 style={{ margin: 0, fontSize: '1rem', color: SLOT_A, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             ● {nameA}
           </h3>
           {lapAObj ? (
             <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              <div style={{ fontSize: '1.2rem', fontWeight: 'bold', fontFamily: 'var(--font-mono)', color: '#fff', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.3rem' }}>
+              <div style={{ fontSize: '1.2rem', fontWeight: 'bold', fontFamily: 'var(--font-mono)', color: cssVar('--text-primary'), display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.3rem' }}>
                 {isLapAComplete ? formatTime(lapAObj.lap_time_ms) : '--:--.---'}
                 {!lapAObj.is_valid ? (
-                  <span style={{ fontSize: '0.75rem', color: '#ff4757' }}>⚠️ {t('comparator.invalid')}</span>
+                  <span style={{ fontSize: '0.75rem', color: cssVar('--status-danger') }}>⚠️ {t('comparator.invalid')}</span>
                 ) : !isLapAComplete ? (
-                  <span style={{ fontSize: '0.75rem', color: '#f39c12' }}>⚠️ {t('comparator.incomplete')}</span>
+                  <span style={{ fontSize: '0.75rem', color: WARNING }}>⚠️ {t('comparator.incomplete')}</span>
                 ) : null}
                 {lapAObj.has_telemetry ? (
-                  <span style={{ fontSize: '0.70rem', color: '#00d2d3', background: 'rgba(0, 210, 211, 0.12)', border: '1px solid rgba(0, 210, 211, 0.3)', padding: '1px 5px', borderRadius: '3px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                  <span style={tintedBadge(cssVar('--status-info'))}>
                     <Activity size={10} /> {t('comparator.charts.telemetryAvailable')}
                   </span>
                 ) : (
-                  <span style={{ fontSize: '0.70rem', color: '#f39c12', background: 'rgba(243, 156, 18, 0.12)', border: '1px solid rgba(243, 156, 18, 0.3)', padding: '1px 5px', borderRadius: '3px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                  <span style={tintedBadge(WARNING)}>
                     <Clock size={10} /> {t('comparator.charts.timingOnly')}
                   </span>
                 )}
               </div>
               <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                {t('common.driver')}: <strong style={{ color: '#fff' }}>{driverA?.name || `Car ${lapAObj.car_index ?? '?'}`}</strong> #{driverA?.race_number ?? ''}
+                {t('common.driver')}: <strong style={{ color: cssVar('--text-primary') }}>{driverA?.name || `Car ${lapAObj.car_index ?? '?'}`}</strong> #{driverA?.race_number ?? ''}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginTop: '0.5rem', background: 'rgba(0,0,0,0.3)', padding: '0.5rem', borderRadius: '6px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginTop: '0.5rem', background: cssVar('--bg-inset'), padding: '0.5rem', borderRadius: '6px' }}>
                 <div>
                   <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>S1</span>
                   <div style={{ fontSize: '0.85rem', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{formatTime(lapAObj.sector1_ms)}</div>
@@ -168,32 +190,32 @@ export const ComparatorMetricsSummary: React.FC<ComparatorMetricsSummaryProps> =
 
         {/* Lap B Card */}
         <div className="glass-panel comparator-card-panel" style={{ padding: '1rem' }}>
-          <h3 style={{ margin: 0, fontSize: '1rem', color: '#ff4757', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <h3 style={{ margin: 0, fontSize: '1rem', color: SLOT_B, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             ● {nameB}
           </h3>
           {lapBObj ? (
             <div style={{ marginTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-              <div style={{ fontSize: '1.2rem', fontWeight: 'bold', fontFamily: 'var(--font-mono)', color: '#fff', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.3rem' }}>
+              <div style={{ fontSize: '1.2rem', fontWeight: 'bold', fontFamily: 'var(--font-mono)', color: cssVar('--text-primary'), display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.3rem' }}>
                 {isLapBComplete ? formatTime(lapBObj.lap_time_ms) : '--:--.---'}
                 {!lapBObj.is_valid ? (
-                  <span style={{ fontSize: '0.75rem', color: '#ff4757' }}>⚠️ {t('comparator.invalid')}</span>
+                  <span style={{ fontSize: '0.75rem', color: cssVar('--status-danger') }}>⚠️ {t('comparator.invalid')}</span>
                 ) : !isLapBComplete ? (
-                  <span style={{ fontSize: '0.75rem', color: '#f39c12' }}>⚠️ {t('comparator.incomplete')}</span>
+                  <span style={{ fontSize: '0.75rem', color: WARNING }}>⚠️ {t('comparator.incomplete')}</span>
                 ) : null}
                 {lapBObj.has_telemetry ? (
-                  <span style={{ fontSize: '0.70rem', color: '#00d2d3', background: 'rgba(0, 210, 211, 0.12)', border: '1px solid rgba(0, 210, 211, 0.3)', padding: '1px 5px', borderRadius: '3px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                  <span style={tintedBadge(cssVar('--status-info'))}>
                     <Activity size={10} /> {t('comparator.charts.telemetryAvailable')}
                   </span>
                 ) : (
-                  <span style={{ fontSize: '0.70rem', color: '#f39c12', background: 'rgba(243, 156, 18, 0.12)', border: '1px solid rgba(243, 156, 18, 0.3)', padding: '1px 5px', borderRadius: '3px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                  <span style={tintedBadge(WARNING)}>
                     <Clock size={10} /> {t('comparator.charts.timingOnly')}
                   </span>
                 )}
               </div>
               <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                {t('common.driver')}: <strong style={{ color: '#fff' }}>{driverB?.name || `Car ${lapBObj.car_index ?? '?'}`}</strong> #{driverB?.race_number ?? ''}
+                {t('common.driver')}: <strong style={{ color: cssVar('--text-primary') }}>{driverB?.name || `Car ${lapBObj.car_index ?? '?'}`}</strong> #{driverB?.race_number ?? ''}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginTop: '0.5rem', background: 'rgba(0,0,0,0.3)', padding: '0.5rem', borderRadius: '6px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', marginTop: '0.5rem', background: cssVar('--bg-inset'), padding: '0.5rem', borderRadius: '6px' }}>
                 <div>
                   <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>S1</span>
                   <div style={{ fontSize: '0.85rem', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{formatTime(lapBObj.sector1_ms)}</div>

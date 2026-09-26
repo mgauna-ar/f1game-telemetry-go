@@ -20,16 +20,16 @@
 }
 
 .copy-value-btn:hover {
-  border-color: var(--color-slot-a-border);
-  background: var(--color-slot-a-bg);
+  border-color: var(--f1-slot-a-border);
+  background: var(--f1-slot-a-bg);
 }
 
 .copy-value-btn:hover svg {
-  color: var(--color-slot-a);
+  color: var(--f1-slot-a);
 }
 
 .copy-value-btn.copied,
 .copy-value-btn.copied svg {
-  color: var(--color-positive);
-  border-color: var(--color-positive);
+  color: var(--status-success);
+  border-color: var(--status-success);
 }

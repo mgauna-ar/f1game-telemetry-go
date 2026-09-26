@@ -7,7 +7,7 @@
   position: fixed;
   bottom: 24px;
   right: 24px;
-  z-index: 1000;
+  z-index: var(--z-dock);
   pointer-events: auto;
 }
 
@@ -90,7 +90,7 @@
   max-width: calc(100vw - 32px);
   height: 640px;
   max-height: calc(100vh - 100px);
-  z-index: 1000;
+  z-index: var(--z-dock);
   display: flex;
   flex-direction: column;
   background: rgba(11, 15, 23, 0.97);
@@ -245,11 +245,6 @@
 .ai-btn-icon.is-active {
   color: #fff;
   background: rgba(255, 255, 255, 0.08);
-}
-
-.ai-btn-icon:focus-visible {
-  outline: 2px solid var(--ai-accent);
-  outline-offset: 1px;
 }
 
 .ai-btn-close:hover {
@@ -643,7 +638,7 @@ ol.chat-md-list > li::marker {
 .chat-md-quote {
   margin: 0 0 0.8em;
   padding: 0.5rem 0.8rem;
-  border-left: 3px solid var(--color-warning);
+  border-left: 3px solid var(--status-warning);
   background: rgba(255, 215, 0, 0.06);
   border-radius: 0 8px 8px 0;
   color: hsl(45, 40%, 85%);
@@ -735,13 +730,5 @@ ol.chat-md-list > li::marker {
     width: calc(100vw - 16px);
     max-width: none;
     height: calc(100vh - 80px);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ai-floating-widget,
-  .ai-jump-latest {
-    animation: none;
-    transition: none;
   }
 }

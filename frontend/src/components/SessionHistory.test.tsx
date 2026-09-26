@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { vi, describe, it, beforeEach, expect } from 'vitest';
 import { SessionHistory } from './SessionHistory';
 import { RaceEngineerProvider } from '../context/RaceEngineerProvider';
@@ -224,6 +224,32 @@ describe('SessionHistory Component', () => {
 
     expect(screen.queryByRole('cell', { name: /Silverstone/i })).not.toBeInTheDocument();
     expect(screen.getByRole('cell', { name: /Monaco/i })).toBeInTheDocument();
+  });
+
+  it('reports the sort order on the column headers and sorts from their buttons', async () => {
+    setupFetchMock({
+      sessions: [
+        makeSession({ id: 1, track_name: 'Silverstone', created_at: '2026-08-10T14:00:00Z' }),
+        makeSession({ id: 2, track_name: 'Monaco', created_at: '2026-08-10T16:00:00Z' }),
+      ],
+    });
+
+    render(<SessionHistory />);
+    await waitFor(() => expect(screen.getAllByText('Monaco').length).toBeGreaterThan(0));
+
+    const dateHeader = screen.getByRole('columnheader', { name: /Date & Time/i });
+    const trackHeader = screen.getByRole('columnheader', { name: /Track Name/i });
+    expect(dateHeader).toHaveAttribute('aria-sort', 'descending');
+    expect(trackHeader).toHaveAttribute('aria-sort', 'none');
+
+    fireEvent.click(within(trackHeader).getByRole('button', { name: /Track Name/i }));
+    expect(trackHeader).toHaveAttribute('aria-sort', 'ascending');
+    expect(dateHeader).toHaveAttribute('aria-sort', 'none');
+
+    fireEvent.click(within(trackHeader).getByRole('button', { name: /Track Name/i }));
+    expect(trackHeader).toHaveAttribute('aria-sort', 'descending');
+
+    expect(screen.getByRole('checkbox', { name: 'Select session #2' })).toBeInTheDocument();
   });
 
   it('selects a session and displays Classification and Driver Standings', async () => {

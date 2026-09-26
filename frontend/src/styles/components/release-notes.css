@@ -16,7 +16,6 @@
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: 0 0 12px rgba(6, 182, 212, 0.2);
-  outline: none;
 }
 
 .nav-update-chip:hover {
@@ -47,7 +46,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
+  z-index: var(--z-modal);
   padding: 1.25rem;
   animation: fadeIn 0.2s ease-out;
 }

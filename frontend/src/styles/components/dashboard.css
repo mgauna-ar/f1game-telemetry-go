@@ -233,7 +233,7 @@
 .history-table.sticky-header thead th {
   position: sticky;
   top: 0;
-  z-index: 2;
+  z-index: var(--z-sticky);
   padding-top: 0.45rem;
   padding-bottom: 0.45rem;
   background: var(--bg-panel-solid);
@@ -294,11 +294,11 @@
 }
 
 .live-status-indicator.status-stale .live-status-dot {
-  background-color: var(--accent-warning);
+  background-color: var(--status-warning);
 }
 
 .live-status-indicator.status-stale .live-status-label {
-  color: var(--accent-warning);
+  color: var(--status-warning);
 }
 
 /* Backend reachable, which is not the same as live data (dot inside the waiting pills) */

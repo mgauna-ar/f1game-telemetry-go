@@ -3,6 +3,7 @@ import { Clock, GitCompare } from 'lucide-react';
 import { formatSectorTime } from '../../../utils/formatters';
 import { useI18n } from '../../../context/I18nContext';
 import type { Session, Lap, DriverStanding, StagedLap } from '../../../types/session';
+import { SectorTime } from '../../common/SectorTime';
 
 interface DriverLapsSubTableProps {
   session: Session;
@@ -107,23 +108,28 @@ export const DriverLapsSubTable: React.FC<DriverLapsSubTableProps> = React.memo(
                 <td className="mono" style={{ padding: '6px 8px', fontWeight: 700 }}>
                   {t('history.classification.lapItem', { number: lap.lap_number })}
                 </td>
-                <td className="mono" style={{ padding: '6px 8px', color: isPB ? 'var(--accent-tertiary)' : 'inherit', fontWeight: isPB ? 700 : 500 }}>
+                <td
+                  className="mono"
+                  style={{ padding: '6px 8px', color: isPB ? 'var(--accent-tertiary)' : 'inherit', fontWeight: isPB ? 700 : 500 }}
+                  title={isPB ? t('history.classification.personalBest') : undefined}
+                >
                   {formatLapTime(lap.lap_time_ms)}
+                  {isPB && <span className="sr-only"> ({t('history.classification.personalBest')})</span>}
                 </td>
                 <td className="mono" style={{ padding: '6px 8px' }}>
-                  <span className={s1Purple ? 'sector-purple' : s1Green ? 'sector-green' : ''}>
+                  <SectorTime isSessionBest={s1Purple} isPersonalBest={s1Green}>
                     {formatSector(s1)}
-                  </span>
+                  </SectorTime>
                 </td>
                 <td className="mono" style={{ padding: '6px 8px' }}>
-                  <span className={s2Purple ? 'sector-purple' : s2Green ? 'sector-green' : ''}>
+                  <SectorTime isSessionBest={s2Purple} isPersonalBest={s2Green}>
                     {formatSector(s2)}
-                  </span>
+                  </SectorTime>
                 </td>
                 <td className="mono" style={{ padding: '6px 8px' }}>
-                  <span className={s3Purple ? 'sector-purple' : s3Green ? 'sector-green' : ''}>
+                  <SectorTime isSessionBest={s3Purple} isPersonalBest={s3Green}>
                     {formatSector(s3)}
-                  </span>
+                  </SectorTime>
                 </td>
                 <td className="mono" style={{ padding: '6px 8px', color: 'var(--text-secondary)' }}>
                   {formatTotalDuration(runningRaceTime)}
@@ -165,6 +171,8 @@ export const DriverLapsSubTable: React.FC<DriverLapsSubTableProps> = React.memo(
                   {(onStageLap || onSendToComparator) && (
                     <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
                       <button
+                        type="button"
+                        aria-pressed={isStagedA}
                         className={`nav-tab ${isStagedA ? 'active' : ''}`}
                         title={isStagedA ? t('history.classification.stagedInSlotA') : t('history.classification.stageLapInSlotA', { lap: lap.lap_number })}
                         onClick={(e) => {
@@ -192,6 +200,8 @@ export const DriverLapsSubTable: React.FC<DriverLapsSubTableProps> = React.memo(
                       </button>
 
                       <button
+                        type="button"
+                        aria-pressed={isStagedB}
                         className={`nav-tab ${isStagedB ? 'active' : ''}`}
                         title={isStagedB ? t('history.classification.stagedInSlotB') : t('history.classification.stageLapInSlotB', { lap: lap.lap_number })}
                         onClick={(e) => {
