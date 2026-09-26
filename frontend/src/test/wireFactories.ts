@@ -1,7 +1,18 @@
 import type { Lap, Participant, RawDriverStanding, Session, Tag, WeatherForecastSample } from '../types/session';
 import { placeholderParticipant } from '../types/session';
 import type { GlobalPTTMapping } from '../types/settings';
-import type { FeedEvent } from '../types/telemetry';
+import type {
+  CarDamageData,
+  CarStatusData,
+  CarTelemetry2Data,
+  CarTelemetryData,
+  FeedEvent,
+  LapData,
+  LiveSnapshot,
+  ParticipantData,
+  SessionData,
+} from '../types/telemetry';
+import { DRIVER_STATUS, F1_FORMATS, PACKET_IDS, RESULT_STATUS } from '../constants/f1';
 
 // Complete wire objects for tests: the generated types require every field the server always
 // sends, so tests set only the fields they care about.
@@ -78,6 +89,128 @@ export function makeForecastSample(fields: Partial<WeatherForecastSample> = {}):
 
 export function makeFeedEvent(fields: Partial<FeedEvent> = {}): FeedEvent {
   return { eventCode: 'SSTA', type: 'general', severity: 'info', ...fields };
+}
+
+// Live snapshot rows (/ws). Numbers default to 0, so tests only set what they check; a lap row
+// defaults to a car racing on track, since the server always sends ResultStatus and DriverStatus.
+
+export function makeLiveLap(fields: Partial<LapData> = {}): LapData {
+  return {
+    LastLapTimeInMS: 0,
+    CurrentLapTimeInMS: 0,
+    Sector1TimeMSPart: 0,
+    Sector2TimeMSPart: 0,
+    DeltaToCarInFrontMSPart: 0,
+    DeltaToCarInFrontMinutesPart: 0,
+    DeltaToRaceLeaderMSPart: 0,
+    DeltaToRaceLeaderMinutesPart: 0,
+    LapDistance: 0,
+    CarPosition: 0,
+    CurrentLapNum: 0,
+    PitStatus: 0,
+    NumPitStops: 0,
+    CurrentLapInvalid: 0,
+    Penalties: 0,
+    TotalWarnings: 0,
+    CornerCuttingWarnings: 0,
+    NumUnservedDriveThroughPens: 0,
+    NumUnservedStopGoPens: 0,
+    GridPosition: 0,
+    DriverStatus: DRIVER_STATUS.ON_TRACK,
+    ResultStatus: RESULT_STATUS.ACTIVE,
+    PitLaneTimeInLaneInMS: 0,
+    PitStopTimerInMS: 0,
+    SpeedTrapFastestSpeed: 0,
+    SpeedTrapFastestLap: 0,
+    ...fields,
+  };
+}
+
+export function makeLiveCarStatus(fields: Partial<CarStatusData> = {}): CarStatusData {
+  return {
+    FuelInTank: 0,
+    FuelRemainingLaps: 0,
+    ActualTyreCompound: 0,
+    VisualTyreCompound: 0,
+    TyresAgeLaps: 0,
+    ERSStoreEnergy: 0,
+    ERSDeployMode: 0,
+    ...fields,
+  };
+}
+
+export function makeLiveCarDamage(fields: Partial<CarDamageData> = {}): CarDamageData {
+  return {
+    TyresWear: [0, 0, 0, 0],
+    FrontLeftWingDamage: 0,
+    FrontRightWingDamage: 0,
+    FloorDamage: 0,
+    DiffuserDamage: 0,
+    ...fields,
+  };
+}
+
+export function makeLiveCarTelemetry(fields: Partial<CarTelemetryData> = {}): CarTelemetryData {
+  return {
+    Speed: 0,
+    BrakesTemperature: [0, 0, 0, 0],
+    TyresSurfaceTemperature: [0, 0, 0, 0],
+    TyresInnerTemperature: [0, 0, 0, 0],
+    EngineTemperature: 0,
+    ...fields,
+  };
+}
+
+export function makeLiveCarTelemetry2(fields: Partial<CarTelemetry2Data> = {}): CarTelemetry2Data {
+  return { ActiveAeroMode: 0, OvertakeActive: 0, ...fields };
+}
+
+export function makeLiveParticipant(fields: Partial<ParticipantData> = {}): ParticipantData {
+  return { AIControlled: 1, DriverId: 0, TeamId: 0, RaceNumber: 0, Name: '', ...fields };
+}
+
+export function makeLiveSession(fields: Partial<SessionData> = {}): SessionData {
+  return {
+    Weather: 0,
+    TrackTemperature: 0,
+    AirTemperature: 0,
+    TotalLaps: 0,
+    SessionType: 0,
+    TrackId: 0,
+    SessionTimeLeft: 0,
+    SafetyCarStatus: 0,
+    NumRedFlagPeriods: 0,
+    PitStopWindowIdealLap: 0,
+    PitStopWindowLatestLap: 0,
+    PitStopRejoinPosition: 0,
+    WeatherForecastSamples: [],
+    ...fields,
+  };
+}
+
+/** A /ws live snapshot; `header` fields override the default 2026 header. */
+export function makeLiveSnapshot(
+  fields: Partial<Omit<LiveSnapshot, 'Header'>> = {},
+  header: Partial<LiveSnapshot['Header']> = {}
+): LiveSnapshot {
+  return {
+    Header: {
+      PacketFormat: F1_FORMATS.FORMAT_2026,
+      GameYear: 26,
+      GameMajorVersion: 1,
+      GameMinorVersion: 0,
+      PacketVersion: 1,
+      PacketId: PACKET_IDS.LIVE_SNAPSHOT,
+      SessionUID: '0x0000000000000001',
+      SessionTime: 0,
+      FrameIdentifier: 0,
+      OverallFrameIdentifier: 0,
+      PlayerCarIndex: 0,
+      SecondaryPlayerCarIndex: 255,
+      ...header,
+    },
+    ...fields,
+  };
 }
 
 export function makeDriverStanding(fields: Partial<RawDriverStanding> = {}): RawDriverStanding {

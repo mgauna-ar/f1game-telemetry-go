@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useSessionStatusStore } from './useSessionStatusStore';
-import type { SessionData } from '../types/telemetry';
+import { makeLiveSession } from '../test/wireFactories';
 
 describe('useSessionStatusStore', () => {
   beforeEach(() => {
@@ -39,7 +39,7 @@ describe('useSessionStatusStore', () => {
 
   it('sets partial session status and resets cleanly', () => {
     useSessionStatusStore.getState().setSessionStatus({
-      session: { TrackId: 3, TotalLaps: 50 } as unknown as SessionData,
+      session: makeLiveSession({ TrackId: 3, TotalLaps: 50 }),
       packetFormat: 2026,
     });
 

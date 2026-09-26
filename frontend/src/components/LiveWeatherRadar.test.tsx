@@ -2,18 +2,17 @@ import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import { LiveWeatherRadar } from './LiveWeatherRadar';
 import type { SessionData } from '../hooks/useTelemetry';
+import { makeLiveSession } from '../test/wireFactories';
 
 describe('LiveWeatherRadar', () => {
-  const mockSession: SessionData = {
+  const mockSession: SessionData = makeLiveSession({
     Weather: 0,
     TrackTemperature: 34,
     AirTemperature: 25,
     TotalLaps: 58,
-    TrackLength: 5303,
     SessionType: 15,
     TrackId: 0,
     SessionTimeLeft: 3600,
-    SessionDuration: 7200,
     SafetyCarStatus: 0,
     WeatherForecastSamples: [
       {
@@ -57,7 +56,7 @@ describe('LiveWeatherRadar', () => {
         RainPercentage: 65,
       },
     ],
-  };
+  });
 
   it('renders weather radar title and strategy advice', () => {
     render(<LiveWeatherRadar session={mockSession} />);

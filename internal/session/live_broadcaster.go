@@ -15,20 +15,6 @@ type HubBroadcaster interface {
 	ClientCount() int
 }
 
-// LiveSnapshot represents a consolidated 10Hz live session telemetry state.
-type LiveSnapshot struct {
-	Header         packets.PacketHeader             `json:"Header"`
-	Session        *packets.PacketSessionData       `json:"Session,omitempty"`
-	Participants   *packets.PacketParticipantsData  `json:"Participants,omitempty"`
-	LapData        *packets.PacketLapData           `json:"LapData,omitempty"`
-	CarTelemetry   *packets.PacketCarTelemetryData  `json:"CarTelemetry,omitempty"`
-	CarTelemetry2  *packets.PacketCarTelemetry2Data `json:"CarTelemetry2,omitempty"`
-	CarStatus      *packets.PacketCarStatusData     `json:"CarStatus,omitempty"`
-	CarDamage      *packets.PacketCarDamageData     `json:"CarDamage,omitempty"`
-	Events         []FeedEvent                      `json:"Events,omitempty"`
-	ActiveCarCount int                              `json:"ActiveCarCount,omitempty"`
-}
-
 // LiveBroadcaster aggregates high-frequency UDP telemetry packets and broadcasts consolidated snapshots at 10Hz.
 type LiveBroadcaster struct {
 	hub HubBroadcaster
@@ -357,7 +343,7 @@ func (b *LiveBroadcaster) ProcessPacket(pkt packets.Packet) {
 	}
 }
 
-// BroadcastSnapshot serializes and broadcasts the consolidated live snapshot if changes are pending.
+// BroadcastSnapshot serializes and broadcasts the slim live snapshot (see LiveSnapshot) if changes are pending.
 func (b *LiveBroadcaster) BroadcastSnapshot() {
 	b.mu.Lock()
 	if b.hub == nil || b.hub.ClientCount() == 0 {
@@ -387,15 +373,27 @@ func (b *LiveBroadcaster) BroadcastSnapshot() {
 
 	snapshot := LiveSnapshot{
 		Header:         snapshotHeader,
-		Session:        b.session,
-		Participants:   b.participants,
-		LapData:        b.lapData,
-		CarTelemetry:   b.carTelemetry,
-		CarTelemetry2:  b.carTelemetry2,
-		CarStatus:      b.carStatus,
-		CarDamage:      b.carDamage,
+		Session:        newLiveSession(b.session),
 		Events:         eventsCopy,
 		ActiveCarCount: activeCarCount,
+	}
+	if b.participants != nil {
+		snapshot.Participants = liveCars(&b.participants.Participants, activeCarCount, toLiveParticipant)
+	}
+	if b.lapData != nil {
+		snapshot.LapData = liveCars(&b.lapData.LapData, activeCarCount, toLiveLapData)
+	}
+	if b.carTelemetry != nil {
+		snapshot.CarTelemetry = liveCars(&b.carTelemetry.CarTelemetryData, activeCarCount, toLiveCarTelemetry)
+	}
+	if b.carTelemetry2 != nil {
+		snapshot.CarTelemetry2 = liveCars(&b.carTelemetry2.CarTelemetry2Data, activeCarCount, toLiveCarTelemetry2)
+	}
+	if b.carStatus != nil {
+		snapshot.CarStatus = liveCars(&b.carStatus.CarStatusData, activeCarCount, toLiveCarStatus)
+	}
+	if b.carDamage != nil {
+		snapshot.CarDamage = liveCars(&b.carDamage.CarDamageData, activeCarCount, toLiveCarDamage)
 	}
 	b.dirty = false
 

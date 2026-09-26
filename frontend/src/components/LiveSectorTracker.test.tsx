@@ -2,15 +2,16 @@ import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import { LiveSectorTracker } from './LiveSectorTracker';
 import type { ParticipantData, LapData } from '../hooks/useTelemetry';
+import { makeLiveLap, makeLiveParticipant } from '../test/wireFactories';
 
 describe('LiveSectorTracker', () => {
   const mockParticipants: ParticipantData[] = [
-    { Name: 'Max Verstappen', DriverId: 9, TeamId: 0, RaceNumber: 1, AIControlled: 0, Nationality: 5 },
-    { Name: 'Charles Leclerc', DriverId: 22, TeamId: 4, RaceNumber: 16, AIControlled: 1, Nationality: 18 },
+    makeLiveParticipant({ Name: 'Max Verstappen', DriverId: 9, TeamId: 0, RaceNumber: 1, AIControlled: 0 }),
+    makeLiveParticipant({ Name: 'Charles Leclerc', DriverId: 22, TeamId: 4, RaceNumber: 16, AIControlled: 1 }),
   ];
 
   const mockLaps: LapData[] = [
-    {
+    makeLiveLap({
       CarPosition: 1,
       CurrentLapNum: 15,
       CurrentLapTimeInMS: 81500,
@@ -21,8 +22,8 @@ describe('LiveSectorTracker', () => {
       SpeedTrapFastestLap: 12,
       PitStatus: 0,
       CurrentLapInvalid: 0,
-    },
-    {
+    }),
+    makeLiveLap({
       CarPosition: 2,
       CurrentLapNum: 15,
       CurrentLapTimeInMS: 81800,
@@ -33,7 +34,7 @@ describe('LiveSectorTracker', () => {
       SpeedTrapFastestLap: 14,
       PitStatus: 0,
       CurrentLapInvalid: 0,
-    },
+    }),
   ];
 
   it('renders sector performance title and theoretical best', () => {

@@ -1,15 +1,5 @@
 import { create } from 'zustand';
-import type {
-  CarTelemetryData,
-  LapData,
-  WeatherForecastSample,
-  ParticipantData,
-  CarStatusData,
-  CarDamageData,
-  PacketHeader,
-  CarTelemetry2Data,
-  FeedEvent,
-} from '../types/telemetry';
+import type { LiveSnapshot, PacketHeader } from '../types/telemetry';
 import { F1_DRIVER_NAMES, PACKET_IDS } from '../constants/f1';
 import { useTelemetryDataStore, type TelemetryDataState } from './useTelemetryDataStore';
 import { useSessionStatusStore, type SessionStatusState } from './useSessionStatusStore';
@@ -34,52 +24,6 @@ export function parseDriverName(rawName: string | undefined, defaultName: string
   }
 
   return defaultName;
-}
-
-export interface LiveSnapshotData {
-  Header: PacketHeader;
-  Session?: {
-    Weather: number;
-    TrackTemperature: number;
-    AirTemperature: number;
-    TotalLaps: number;
-    TrackLength: number;
-    SessionType: number;
-    TrackId: number;
-    SessionTimeLeft: number;
-    SessionDuration: number;
-    SafetyCarStatus: number;
-    PitStopWindowIdealLap?: number;
-    PitStopWindowLatestLap?: number;
-    PitStopRejoinPosition?: number;
-    NumWeatherForecastSamples?: number;
-    WeatherForecastSamples?: WeatherForecastSample[];
-    NumSafetyCarPeriods?: number;
-    NumVirtualSafetyCarPeriods?: number;
-    NumRedFlagPeriods?: number;
-    GamePaused?: number;
-  };
-  Participants?: {
-    NumActiveCars: number;
-    Participants: ParticipantData[];
-  };
-  LapData?: {
-    LapData: LapData[];
-  };
-  CarTelemetry?: {
-    CarTelemetryData: CarTelemetryData[];
-  };
-  CarTelemetry2?: {
-    CarTelemetry2Data: CarTelemetry2Data[];
-  };
-  CarStatus?: {
-    CarStatusData: CarStatusData[];
-  };
-  CarDamage?: {
-    CarDamageData: CarDamageData[];
-  };
-  Events?: FeedEvent[];
-  ActiveCarCount?: number;
 }
 
 export interface TelemetryState {
@@ -121,87 +65,35 @@ export const useTelemetryStore = create<TelemetryState>((_set, get) => ({
     const playerIdx = header.PlayerCarIndex !== undefined ? header.PlayerCarIndex : 0;
     const pktFormat = header.PacketFormat ?? null;
 
-    const snapshot = data as LiveSnapshotData;
+    // The server sends one entry per active car and only the fields the live views read.
+    const snapshot = data as LiveSnapshot;
     const partialData: Partial<TelemetryDataState> = {
       playerCarIndex: playerIdx,
     };
     const partialStatus: Partial<SessionStatusState> = {};
     if (pktFormat !== null) partialStatus.packetFormat = pktFormat;
 
-    // Handle Session
     if (snapshot.Session) {
-      const s = snapshot.Session;
       partialStatus.session = {
-        Weather: s.Weather,
-        TrackTemperature: s.TrackTemperature,
-        AirTemperature: s.AirTemperature,
-        TotalLaps: s.TotalLaps,
-        TrackLength: s.TrackLength,
-        SessionType: s.SessionType,
-        TrackId: s.TrackId,
-        SessionTimeLeft: s.SessionTimeLeft,
-        SessionDuration: s.SessionDuration,
-        SafetyCarStatus: s.SafetyCarStatus,
-        PitStopWindowIdealLap: s.PitStopWindowIdealLap,
-        PitStopWindowLatestLap: s.PitStopWindowLatestLap,
-        PitStopRejoinPosition: s.PitStopRejoinPosition,
-        NumWeatherForecastSamples: s.NumWeatherForecastSamples,
-        WeatherForecastSamples: s.WeatherForecastSamples?.slice(0, s.NumWeatherForecastSamples || 4),
-        NumSafetyCarPeriods: s.NumSafetyCarPeriods,
-        NumVirtualSafetyCarPeriods: s.NumVirtualSafetyCarPeriods,
-        NumRedFlagPeriods: s.NumRedFlagPeriods,
+        ...snapshot.Session,
         PacketFormat: header.PacketFormat,
-        GamePaused: s.GamePaused,
         SessionUID: header.SessionUID,
       };
     }
-
-    // Handle Participants
-    if (snapshot.Participants?.Participants && snapshot.Participants.Participants.length > 0) {
-      const pList = snapshot.Participants.Participants;
-      let maxPopulatedIndex = -1;
-      for (let i = 0; i < pList.length; i++) {
-        const p = pList[i];
-        const hasName = typeof p.Name === 'string' && p.Name.split('\0').join('').trim().length > 0;
-        const hasNumber = p.RaceNumber !== undefined && p.RaceNumber > 0;
-        const hasDriverId = p.DriverId !== undefined && p.DriverId !== 255 && p.DriverId > 0;
-        if (hasName || hasNumber || hasDriverId) {
-          maxPopulatedIndex = i;
-        }
-      }
-      const validCount = Math.max(
-        snapshot.ActiveCarCount || 0,
-        snapshot.Participants.NumActiveCars || 0,
-        maxPopulatedIndex >= 0 ? maxPopulatedIndex + 1 : 0
-      );
-      if (validCount > 0) {
-        partialStatus.participants = pList.slice(0, validCount);
-      }
+    if (snapshot.Participants && snapshot.Participants.length > 0) {
+      partialStatus.participants = snapshot.Participants;
     }
-
-    // Handle LapData
-    if (snapshot.LapData?.LapData) {
-      partialData.allLaps = snapshot.LapData.LapData;
-    }
+    if (snapshot.LapData) partialData.allLaps = snapshot.LapData;
+    if (snapshot.CarTelemetry) partialData.allTelemetry = snapshot.CarTelemetry;
+    if (snapshot.CarTelemetry2) partialData.allTelemetry2 = snapshot.CarTelemetry2;
+    if (snapshot.CarStatus) partialData.allCarStatus = snapshot.CarStatus;
+    if (snapshot.CarDamage) partialData.allCarDamage = snapshot.CarDamage;
 
     // Race feed rows: the server sends them ready to list (codes and parameters, no text)
     if (snapshot.Events) {
       for (const evt of snapshot.Events) {
         useSessionStatusStore.getState().addEvent(evt);
       }
-    }
-
-    if (snapshot.CarTelemetry?.CarTelemetryData) {
-      partialData.allTelemetry = snapshot.CarTelemetry.CarTelemetryData;
-    }
-    if (snapshot.CarTelemetry2?.CarTelemetry2Data) {
-      partialData.allTelemetry2 = snapshot.CarTelemetry2.CarTelemetry2Data;
-    }
-    if (snapshot.CarStatus?.CarStatusData) {
-      partialData.allCarStatus = snapshot.CarStatus.CarStatusData;
-    }
-    if (snapshot.CarDamage?.CarDamageData) {
-      partialData.allCarDamage = snapshot.CarDamage.CarDamageData;
     }
 
     useTelemetryDataStore.getState().setTelemetryData(partialData);

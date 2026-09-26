@@ -108,6 +108,8 @@ make gen-types   # or: go run ./cmd/tsgen
 ```
 CI runs `go run ./cmd/tsgen -check` and fails when the generated files are out of date.
 
+The 10 Hz live snapshot on `/ws` is a slim DTO (`internal/session/live_snapshot.go`): one row per active car and only the fields the live views read. To show another packet field live, add it there first. `go test -run TestLiveSnapshotPayloadSize -v ./cmd/simulator` prints its size per frame next to the raw packets.
+
 ---
 
 ## 🎮 F1 Game Configuration

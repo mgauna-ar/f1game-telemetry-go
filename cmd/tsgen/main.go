@@ -101,11 +101,10 @@ func registry() *tsgen.Generator {
 		api.PTTLearnTimeoutMessage{},
 	)
 
-	// The live snapshot's header (its packet structs are not generated yet), and the race feed
-	// rows the server adds to snapshots: event codes and parameters, no text.
+	// The 10Hz live snapshot on /ws: the slim per-car and session DTOs, and the race feed rows
+	// the server adds to it (event codes and parameters, no text).
 	g.Add(
-		packets.PacketHeader{},
-		session.FeedEvent{},
+		session.LiveSnapshot{},
 	)
 	g.TypeAlias("session", "FeedEventCode", stringUnion(session.FeedEventCodes))
 	g.TypeAlias("session", "FeedEventType", stringUnion(session.FeedEventTypes))

@@ -1,10 +1,10 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { vi } from 'vitest';
 import { Dashboard } from './Dashboard';
-import type { ParticipantData, LapData, CarStatusData } from '../types/telemetry';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import { useTelemetryDataStore } from '../store/useTelemetryDataStore';
 import * as storeModule from '../store/useTelemetryStore';
+import { makeLiveCarStatus, makeLiveLap, makeLiveParticipant, makeLiveSession } from '../test/wireFactories';
 
 // Mock connectTelemetryWebSocket to avoid actual network calls
 vi.spyOn(storeModule, 'connectTelemetryWebSocket').mockReturnValue(() => {});
@@ -68,24 +68,22 @@ describe('Dashboard', () => {
 
   it('renders full live Race Control Hub when connected and session data is received', () => {
     useSessionStatusStore.setState({
-      session: {
+      session: makeLiveSession({
         TrackId: 0,
         SessionType: 15,
         Weather: 0,
         TrackTemperature: 32,
         AirTemperature: 24,
         TotalLaps: 58,
-        TrackLength: 5303,
         SessionTimeLeft: 3600,
-        SessionDuration: 7200,
         SafetyCarStatus: 0,
         PitStopWindowIdealLap: 18,
         PitStopWindowLatestLap: 24,
         PitStopRejoinPosition: 6,
-      },
+      }),
       participants: [
-        { Name: 'Max Verstappen', DriverId: 9, TeamId: 0, RaceNumber: 1, AIControlled: 0 },
-      ] as unknown as ParticipantData[],
+        makeLiveParticipant({ Name: 'Max Verstappen', DriverId: 9, TeamId: 0, RaceNumber: 1, AIControlled: 0 }),
+      ],
       events: [
         {
           id: '1',
@@ -102,11 +100,11 @@ describe('Dashboard', () => {
 
     useTelemetryDataStore.setState({
       allLaps: [
-        { CarPosition: 1, CurrentLapNum: 5, CurrentLapTimeInMS: 81234, LastLapTimeInMS: 80950, Sector: 1, SpeedTrapFastestSpeed: 334.5 },
-      ] as unknown as LapData[],
+        makeLiveLap({ CarPosition: 1, CurrentLapNum: 5, CurrentLapTimeInMS: 81234, LastLapTimeInMS: 80950, SpeedTrapFastestSpeed: 334.5 }),
+      ],
       allCarStatus: [
-        { VisualTyreCompound: 17, TyresAgeLaps: 5, FuelInTank: 45, ERSStoreEnergy: 3500000 },
-      ] as unknown as CarStatusData[],
+        makeLiveCarStatus({ VisualTyreCompound: 17, TyresAgeLaps: 5, FuelInTank: 45, ERSStoreEnergy: 3500000 }),
+      ],
       allCarDamage: [],
       allTelemetry: [],
       allTelemetry2: [],
@@ -133,32 +131,30 @@ describe('Dashboard', () => {
 
   it('switches to Voice Cockpit mode and unmounts 2x2 dashboard modules to save sim racing FPS', async () => {
     useSessionStatusStore.setState({
-      session: {
+      session: makeLiveSession({
         TrackId: 0,
         SessionType: 15,
         Weather: 0,
         TrackTemperature: 32,
         AirTemperature: 24,
         TotalLaps: 58,
-        TrackLength: 5303,
         SessionTimeLeft: 3600,
-        SessionDuration: 7200,
         SafetyCarStatus: 0,
-      },
+      }),
       participants: [
-        { Name: 'Max Verstappen', DriverId: 9, TeamId: 0, RaceNumber: 1, AIControlled: 0 },
-      ] as unknown as ParticipantData[],
+        makeLiveParticipant({ Name: 'Max Verstappen', DriverId: 9, TeamId: 0, RaceNumber: 1, AIControlled: 0 }),
+      ],
       events: [],
       connected: true,
     });
 
     useTelemetryDataStore.setState({
       allLaps: [
-        { CarPosition: 1, CurrentLapNum: 5, CurrentLapTimeInMS: 81234, LastLapTimeInMS: 80950, Sector: 1 },
-      ] as unknown as LapData[],
+        makeLiveLap({ CarPosition: 1, CurrentLapNum: 5, CurrentLapTimeInMS: 81234, LastLapTimeInMS: 80950 }),
+      ],
       allCarStatus: [
-        { VisualTyreCompound: 17, TyresAgeLaps: 5, FuelInTank: 45, ERSStoreEnergy: 3500000 },
-      ] as unknown as CarStatusData[],
+        makeLiveCarStatus({ VisualTyreCompound: 17, TyresAgeLaps: 5, FuelInTank: 45, ERSStoreEnergy: 3500000 }),
+      ],
       allCarDamage: [],
       allTelemetry: [],
       allTelemetry2: [],

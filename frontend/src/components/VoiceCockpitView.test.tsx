@@ -2,9 +2,9 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { VoiceCockpitView } from './VoiceCockpitView';
 import type { UseRadioControllerReturn } from '../hooks/useRadioController';
-import type { SessionData, LapData, CarStatusData, CarDamageData, CarTelemetry2Data } from '../types/telemetry';
 import { I18nProvider } from '../context/I18nProvider';
 import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
+import { makeLiveCarDamage, makeLiveCarStatus, makeLiveCarTelemetry2, makeLiveLap, makeLiveSession } from '../test/wireFactories';
 
 const mockRadio: UseRadioControllerReturn = {
   isRadioEnabled: true,
@@ -113,33 +113,31 @@ describe('VoiceCockpitView', () => {
   });
 
   it('renders vital telemetry strip with position, lap, tyre, fuel, ERS, and damage', () => {
-    const mockSession = {
+    const mockSession = makeLiveSession({
       TrackId: 0,
       TotalLaps: 58,
       SafetyCarStatus: 0,
-    } as unknown as SessionData;
+    });
 
-    const mockLap = {
+    const mockLap = makeLiveLap({
       CarPosition: 3,
       CurrentLapNum: 14,
-    } as unknown as LapData;
+    });
 
-    const mockCarStatus = {
+    const mockCarStatus = makeLiveCarStatus({
       VisualTyreCompound: 17, // Medium
       TyresAgeLaps: 12,
       FuelRemainingLaps: 1.4,
       ERSStoreEnergy: 2800000,
-    } as unknown as CarStatusData;
+    });
 
-    const mockCarDamage = {
+    const mockCarDamage = makeLiveCarDamage({
       TyresWear: [18.4, 22.1, 15.0, 19.8],
       FrontLeftWingDamage: 5,
       FrontRightWingDamage: 0,
       FloorDamage: 12,
       DiffuserDamage: 0,
-      SidepodDamage: 0,
-      RearWingDamage: 0,
-    } as unknown as CarDamageData;
+    });
 
     renderWithI18n(
       <VoiceCockpitView
@@ -171,16 +169,16 @@ describe('VoiceCockpitView', () => {
   });
 
   it('renders Active Aero straight mode for 2026 sessions', () => {
-    const mockSession = {
+    const mockSession = makeLiveSession({
       TrackId: 0,
       TotalLaps: 58,
       SafetyCarStatus: 0,
       PacketFormat: 2026,
-    } as unknown as SessionData;
+    });
 
-    const mockTelemetry2 = {
+    const mockTelemetry2 = makeLiveCarTelemetry2({
       ActiveAeroMode: 1, // Straight mode active
-    } as unknown as CarTelemetry2Data;
+    });
 
     renderWithI18n(
       <VoiceCockpitView
@@ -233,10 +231,10 @@ describe('VoiceCockpitView', () => {
     renderWithI18n(
       <VoiceCockpitView
         radio={mockRadio}
-        session={{
+        session={makeLiveSession({
           TrackId: 0,
           SafetyCarStatus: 1, // Full SC
-        } as unknown as SessionData}
+        })}
         lap={null}
         carStatus={null}
         carDamage={null}

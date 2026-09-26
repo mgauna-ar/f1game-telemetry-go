@@ -1,55 +1,3 @@
-export interface CarTelemetryData {
-  Speed: number;
-  Throttle: number;
-  Steer: number;
-  Brake: number;
-  Clutch: number;
-  Gear: number;
-  EngineRPM: number;
-  DRS: number;
-  RevLightsPercent: number;
-  BrakesTemperature?: [number, number, number, number];
-  TyresSurfaceTemperature?: [number, number, number, number];
-  TyresInnerTemperature?: [number, number, number, number];
-  EngineTemperature?: number;
-  TyresPressure?: [number, number, number, number];
-}
-
-export interface LapData {
-  LastLapTimeInMS: number;
-  CurrentLapTimeInMS: number;
-  Sector1TimeMSPart: number;
-  Sector1TimeMinutesPart?: number;
-  Sector2TimeMSPart: number;
-  Sector2TimeMinutesPart?: number;
-  DeltaToCarInFrontMSPart?: number;
-  DeltaToCarInFrontMinutesPart?: number;
-  DeltaToRaceLeaderMSPart?: number;
-  DeltaToRaceLeaderMinutesPart?: number;
-  SafetyCarDelta?: number;
-  CarPosition: number;
-  CurrentLapNum: number;
-  PitStatus: number;
-  NumPitStops?: number;
-  Sector?: number;
-  CurrentLapInvalid: number;
-  DriverStatus?: number;
-  ResultStatus?: number;
-  LapDistance?: number;
-  TotalDistance?: number;
-  Penalties?: number;
-  TotalWarnings?: number;
-  CornerCuttingWarnings?: number;
-  GridPosition?: number;
-  PitLaneTimerActive?: number;
-  PitLaneTimeInLaneInMS?: number;
-  PitStopTimerInMS?: number;
-  SpeedTrapFastestSpeed?: number;
-  SpeedTrapFastestLap?: number;
-  NumUnservedDriveThroughPens?: number;
-  NumUnservedStopGoPens?: number;
-}
-
 export interface CarMotionData {
   WorldPositionX: number;
   WorldPositionY: number;
@@ -58,34 +6,30 @@ export interface CarMotionData {
 
 import type { EngineerDirective as GeneratedEngineerDirective } from './generated/engineer';
 import type { WeatherForecastSample } from './generated/packets';
-import type { FeedEvent } from './generated/session';
+import type { FeedEvent, LiveCarTelemetry, LiveSession } from './generated/session';
 import type { Narrows } from './wire';
 export type { WeatherForecastSample };
 
-export interface SessionData {
-  Weather: number;
-  TrackTemperature: number;
-  AirTemperature: number;
-  TotalLaps: number;
-  TrackLength: number;
-  SessionType: number;
-  TrackId: number;
-  SessionTimeLeft: number;
-  SessionDuration: number;
-  SafetyCarStatus: number;
-  PitStopWindowIdealLap?: number;
-  PitStopWindowLatestLap?: number;
-  PitStopRejoinPosition?: number;
-  NumWeatherForecastSamples?: number;
-  WeatherForecastSamples?: WeatherForecastSample[];
-  NumSafetyCarPeriods?: number;
-  NumVirtualSafetyCarPeriods?: number;
-  NumRedFlagPeriods?: number;
+/**
+ * The /ws live snapshot and its per-car rows, generated from `internal/session/live_snapshot.go`.
+ * They carry only the fields the live views read; a new field is added to the Go DTO first.
+ */
+export type {
+  LiveSnapshot,
+  LiveLapData as LapData,
+  LiveCarStatus as CarStatusData,
+  LiveCarDamage as CarDamageData,
+  LiveCarTelemetry as CarTelemetryData,
+  LiveCarTelemetry2 as CarTelemetry2Data,
+  LiveParticipant as ParticipantData,
+} from './generated/session';
+
+/** The live session, plus the packet format and session UID the store copies from the snapshot header. */
+export type SessionData = LiveSession & {
   PacketFormat?: number;
-  GamePaused?: number;
   /** Hex string (e.g. "0x1a2b..."), from the packet header. */
   SessionUID?: string;
-}
+};
 
 /**
  * One race feed row: the server's FeedEvent (an event code and its parameters, no text) plus the
@@ -98,70 +42,9 @@ export type RaceEvent = FeedEvent & {
 
 export type { FeedEvent, FeedEventCode, FeedEventType, FeedSeverity } from './generated/session';
 
-export interface ParticipantData {
-  AIControlled: number;
-  DriverId: number;
-  NetworkId?: number;
-  TeamId: number;
-  MyTeam?: number;
-  RaceNumber: number;
-  Nationality: number;
-  Name: string;
-}
-
-export interface CarStatusData {
-  FuelInTank: number;
-  FuelCapacity?: number;
-  FuelRemainingLaps?: number;
-  EngineCoolantTemperature?: number;
-  VisualTyreCompound: number;
-  ActualTyreCompound?: number;
-  TyresAgeLaps?: number;
-  ERSStoreEnergy: number;
-  ERSDeployMode: number;
-  ERSHarvestedThisLapMGUK?: number;
-  ERSHarvestedThisLapMGUH?: number;
-  ERSDeployedThisLap?: number;
-}
-
-export interface CarDamageData {
-  TyresWear: [number, number, number, number]; // RL, RR, FL, FR
-  TyresDamage: [number, number, number, number];
-  BrakesDamage: [number, number, number, number];
-  FrontLeftWingDamage: number;
-  FrontRightWingDamage: number;
-  RearWingDamage: number;
-  FloorDamage: number;
-  DiffuserDamage: number;
-  SidepodDamage: number;
-  DRSFault: number;
-  ERSFault: number;
-  GearBoxDamage: number;
-  EngineDamage: number;
-  EngineMGUHWear: number;
-  EngineESWear: number;
-  EngineCEWear: number;
-  EngineICEWear: number;
-  EngineMGUKWear: number;
-  EngineTCWear: number;
-  EngineBlown: number;
-  EngineSeized: number;
-}
-
 export type { PacketHeader } from './generated/packets';
 
-export interface CarTelemetry2Data {
-  ActiveAeroMode: number;
-  ActiveAeroAvailable: number;
-  ActiveAeroActivationDistance: number;
-  OvertakeAvailable: number;
-  OvertakeActive: number;
-  OvertakeActivationDistance: number;
-  Regulations2026: number;
-  DrivingWrongWay: number;
-}
-
-export interface TelemetrySample extends CarTelemetryData {
+export interface TelemetrySample extends LiveCarTelemetry {
   SessionTime: number;
   active_aero_mode?: number;
   active_aero_available?: number;

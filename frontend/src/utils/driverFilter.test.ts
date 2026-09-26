@@ -8,45 +8,41 @@ import {
 import { RESULT_STATUS, DRIVER_STATUS } from '../constants/f1';
 import type { ParticipantData, LapData } from '../types/telemetry';
 import type { Participant, Lap } from '../types/session';
-import { makeLap, makeParticipant } from '../test/wireFactories';
+import { makeLap, makeLiveLap, makeLiveParticipant, makeParticipant } from '../test/wireFactories';
 
 describe('driverFilter utility', () => {
   describe('Live Telemetry Filtering', () => {
-    const playerParticipant: ParticipantData = {
+    const playerParticipant: ParticipantData = makeLiveParticipant({
       Name: 'LC-LEMAC',
       DriverId: 255,
       TeamId: 0,
       RaceNumber: 99,
       AIControlled: 0,
-      Nationality: 1,
-    };
+    });
 
-    const humanFriend: ParticipantData = {
+    const humanFriend: ParticipantData = makeLiveParticipant({
       Name: 'LC-iL.Magno',
       DriverId: 255,
       TeamId: 1,
       RaceNumber: 32,
       AIControlled: 0,
-      Nationality: 1,
-    };
+    });
 
-    const activeAIDriver: ParticipantData = {
+    const activeAIDriver: ParticipantData = makeLiveParticipant({
       Name: 'Lando Norris',
       DriverId: 10,
       TeamId: 2,
       RaceNumber: 4,
       AIControlled: 1,
-      Nationality: 12,
-    };
+    });
 
-    const inactiveAIDriver: ParticipantData = {
+    const inactiveAIDriver: ParticipantData = makeLiveParticipant({
       Name: 'Max Verstappen',
       DriverId: 9,
       TeamId: 0,
       RaceNumber: 1,
       AIControlled: 1,
-      Nationality: 5,
-    };
+    });
 
     it('always considers local player and human lobby drivers active', () => {
       expect(
@@ -67,7 +63,7 @@ describe('driverFilter utility', () => {
     });
 
     it('considers AI driver active when on track with valid lap data', () => {
-      const activeLap: LapData = {
+      const activeLap: LapData = makeLiveLap({
         CarPosition: 3,
         CurrentLapNum: 5,
         LastLapTimeInMS: 89000,
@@ -79,7 +75,7 @@ describe('driverFilter utility', () => {
         ResultStatus: RESULT_STATUS.ACTIVE,
         DriverStatus: DRIVER_STATUS.ON_TRACK,
         LapDistance: 1200,
-      };
+      });
 
       expect(
         isLiveDriverActive({
@@ -92,7 +88,7 @@ describe('driverFilter utility', () => {
     });
 
     it('filters out inactive AI placeholder slots with no session activity', () => {
-      const inactiveLap: LapData = {
+      const inactiveLap: LapData = makeLiveLap({
         CarPosition: 0,
         CurrentLapNum: 1,
         LastLapTimeInMS: 0,
@@ -104,7 +100,7 @@ describe('driverFilter utility', () => {
         ResultStatus: RESULT_STATUS.INACTIVE,
         DriverStatus: DRIVER_STATUS.IN_GARAGE,
         LapDistance: -5000,
-      };
+      });
 
       expect(
         isLiveDriverActive({
@@ -125,10 +121,10 @@ describe('driverFilter utility', () => {
       ];
 
       const laps: LapData[] = [
-        { CarPosition: 1, CurrentLapNum: 2, LastLapTimeInMS: 89000, CurrentLapTimeInMS: 10000, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, PitStatus: 0, CurrentLapInvalid: 0, ResultStatus: RESULT_STATUS.ACTIVE, DriverStatus: DRIVER_STATUS.FLYING_LAP, LapDistance: 200 },
-        { CarPosition: 2, CurrentLapNum: 2, LastLapTimeInMS: 89500, CurrentLapTimeInMS: 11000, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, PitStatus: 0, CurrentLapInvalid: 0, ResultStatus: RESULT_STATUS.ACTIVE, DriverStatus: DRIVER_STATUS.FLYING_LAP, LapDistance: 150 },
-        { CarPosition: 3, CurrentLapNum: 2, LastLapTimeInMS: 90000, CurrentLapTimeInMS: 12000, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, PitStatus: 0, CurrentLapInvalid: 0, ResultStatus: RESULT_STATUS.ACTIVE, DriverStatus: DRIVER_STATUS.FLYING_LAP, LapDistance: 100 },
-        { CarPosition: 0, CurrentLapNum: 1, LastLapTimeInMS: 0, CurrentLapTimeInMS: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, PitStatus: 0, CurrentLapInvalid: 0, ResultStatus: RESULT_STATUS.INVALID, DriverStatus: DRIVER_STATUS.IN_GARAGE, LapDistance: -5000 },
+        makeLiveLap({ CarPosition: 1, CurrentLapNum: 2, LastLapTimeInMS: 89000, CurrentLapTimeInMS: 10000, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, PitStatus: 0, CurrentLapInvalid: 0, ResultStatus: RESULT_STATUS.ACTIVE, DriverStatus: DRIVER_STATUS.FLYING_LAP, LapDistance: 200 }),
+        makeLiveLap({ CarPosition: 2, CurrentLapNum: 2, LastLapTimeInMS: 89500, CurrentLapTimeInMS: 11000, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, PitStatus: 0, CurrentLapInvalid: 0, ResultStatus: RESULT_STATUS.ACTIVE, DriverStatus: DRIVER_STATUS.FLYING_LAP, LapDistance: 150 }),
+        makeLiveLap({ CarPosition: 3, CurrentLapNum: 2, LastLapTimeInMS: 90000, CurrentLapTimeInMS: 12000, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, PitStatus: 0, CurrentLapInvalid: 0, ResultStatus: RESULT_STATUS.ACTIVE, DriverStatus: DRIVER_STATUS.FLYING_LAP, LapDistance: 100 }),
+        makeLiveLap({ CarPosition: 0, CurrentLapNum: 1, LastLapTimeInMS: 0, CurrentLapTimeInMS: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, PitStatus: 0, CurrentLapInvalid: 0, ResultStatus: RESULT_STATUS.INVALID, DriverStatus: DRIVER_STATUS.IN_GARAGE, LapDistance: -5000 }),
       ];
 
       const result = filterActiveLiveParticipants(participants, laps, 0);

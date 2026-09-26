@@ -1,7 +1,18 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useTelemetryStore, useSessionStatusStore, useTelemetryDataStore } from './useTelemetryStore';
 import { PACKET_IDS, PENALTY_TYPES } from '../constants/f1';
-import { makeFeedEvent } from '../test/wireFactories';
+import {
+  makeFeedEvent,
+  makeForecastSample,
+  makeLiveCarDamage,
+  makeLiveCarStatus,
+  makeLiveCarTelemetry,
+  makeLiveCarTelemetry2,
+  makeLiveLap,
+  makeLiveParticipant,
+  makeLiveSession,
+  makeLiveSnapshot,
+} from '../test/wireFactories';
 
 const SESSION_UID = '0x0000000000000001';
 
@@ -49,6 +60,48 @@ describe('useTelemetryStore race feed', () => {
 describe('useTelemetryStore message formats', () => {
   beforeEach(() => {
     useTelemetryStore.getState().resetStore();
+  });
+
+  it('stores the slim snapshot rows as the server sent them', () => {
+    const { PacketFormat: _format, SessionUID: _uid, ...session } = makeLiveSession({
+      TrackId: 7,
+      WeatherForecastSamples: [makeForecastSample({ RainPercentage: 40 })],
+    });
+    const laps = [makeLiveLap({ CarPosition: 2 }), makeLiveLap({ CarPosition: 1 })];
+    const participants = [makeLiveParticipant({ Name: 'Driver A' }), makeLiveParticipant({ Name: 'Driver B' })];
+    const status = [makeLiveCarStatus({ VisualTyreCompound: 16 }), makeLiveCarStatus()];
+    const damage = [makeLiveCarDamage({ FloorDamage: 12 }), makeLiveCarDamage()];
+    const telemetry = [makeLiveCarTelemetry({ Speed: 300 }), makeLiveCarTelemetry()];
+    const telemetry2 = [makeLiveCarTelemetry2({ OvertakeActive: 1 }), makeLiveCarTelemetry2()];
+
+    useTelemetryStore.getState().processIncomingMessage(
+      makeLiveSnapshot(
+        {
+          Session: session,
+          Participants: participants,
+          LapData: laps,
+          CarStatus: status,
+          CarDamage: damage,
+          CarTelemetry: telemetry,
+          CarTelemetry2: telemetry2,
+          ActiveCarCount: 2,
+        },
+        { SessionUID: SESSION_UID, PacketFormat: 2025, PlayerCarIndex: 1 }
+      )
+    );
+
+    const statusState = useSessionStatusStore.getState();
+    expect(statusState.session).toEqual({ ...session, PacketFormat: 2025, SessionUID: SESSION_UID });
+    expect(statusState.participants).toEqual(participants);
+    expect(statusState.packetFormat).toBe(2025);
+
+    const data = useTelemetryDataStore.getState();
+    expect(data.playerCarIndex).toBe(1);
+    expect(data.allLaps).toEqual(laps);
+    expect(data.allCarStatus).toEqual(status);
+    expect(data.allCarDamage).toEqual(damage);
+    expect(data.allTelemetry).toEqual(telemetry);
+    expect(data.allTelemetry2).toEqual(telemetry2);
   });
 
   it('ignores per-packet messages the server never sends', () => {

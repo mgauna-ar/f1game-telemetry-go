@@ -2,6 +2,7 @@ import { render, screen, act } from '@testing-library/react';
 import { vi, beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest';
 import { useTelemetry, parseDriverName } from './useTelemetry';
 import { useTelemetryStore } from '../store/useTelemetryStore';
+import { makeLiveCarTelemetry, makeLiveLap, makeLiveParticipant, makeLiveSnapshot } from '../test/wireFactories';
 
 // Mock the WebSocket
 class MockWebSocket {
@@ -66,15 +67,16 @@ describe('useTelemetry', () => {
     act(() => {
       if (wsInstance?.onmessage) {
         wsInstance.onmessage({
-          data: JSON.stringify({
-            Header: { PacketId: 255, SessionTime: 10.0, PlayerCarIndex: 0, PacketFormat: 2026 },
-            CarTelemetry: {
-              CarTelemetryData: [{ Speed: 320 }],
-            },
-            LapData: {
-              LapData: [{ CurrentLapNum: 12 }],
-            },
-          }),
+          data: JSON.stringify(
+            makeLiveSnapshot(
+              {
+                CarTelemetry: [makeLiveCarTelemetry({ Speed: 320 })],
+                LapData: [makeLiveLap({ CurrentLapNum: 12 })],
+                ActiveCarCount: 1,
+              },
+              { SessionTime: 10.0 }
+            )
+          ),
         });
       }
     });
@@ -83,7 +85,7 @@ describe('useTelemetry', () => {
     expect(screen.getByTestId('lap')).toHaveTextContent('12');
   });
 
-  it('retains all participants without truncating when NumActiveCars drops on retirement', () => {
+  it('keeps the participants the server sends, one per active car', () => {
     let wsInstance: MockWebSocket | undefined;
     vi.stubGlobal('WebSocket', function (url: string) {
       wsInstance = new MockWebSocket(url);
@@ -92,59 +94,31 @@ describe('useTelemetry', () => {
 
     function ParticipantsTestComponent() {
       const { participants } = useTelemetry('ws://localhost:8080/ws');
-      return <div data-testid="count">{participants.length}</div>;
+      return <div data-testid="count">{participants.map((p) => p.Name).join(',')}</div>;
     }
 
     render(<ParticipantsTestComponent />);
 
-    // Initial snapshot with 4 active cars
+    // The server cuts the rows to ActiveCarCount (a retired car keeps its slot), so the store takes them as they are.
     act(() => {
       if (wsInstance?.onmessage) {
         wsInstance.onmessage({
-          data: JSON.stringify({
-            Header: { PacketId: 255, SessionTime: 1.0, SessionUID: '0x0000000000003039', PlayerCarIndex: 0 },
-            Participants: {
-              NumActiveCars: 4,
-              Participants: [
-                { DriverId: 9, Name: 'Max Verstappen' },
-                { DriverId: 7, Name: 'Lewis Hamilton' },
-                { DriverId: 22, Name: 'Charles Leclerc' },
-                { DriverId: 10, Name: 'Lando Norris' },
-                { DriverId: 0, Name: '' },
-                { DriverId: 0, Name: '' },
-              ],
-            },
-          }),
+          data: JSON.stringify(
+            makeLiveSnapshot(
+              {
+                Participants: ['Max Verstappen', 'Lewis Hamilton', 'Charles Leclerc', 'Lando Norris'].map((Name) =>
+                  makeLiveParticipant({ Name })
+                ),
+                ActiveCarCount: 4,
+              },
+              { SessionUID: '0x0000000000003039' }
+            )
+          ),
         });
       }
     });
 
-    expect(screen.getByTestId('count')).toHaveTextContent('4');
-
-    // Subsequent snapshot when 1 driver retires (NumActiveCars drops to 3)
-    act(() => {
-      if (wsInstance?.onmessage) {
-        wsInstance.onmessage({
-          data: JSON.stringify({
-            Header: { PacketId: 255, SessionTime: 2.0, SessionUID: '0x0000000000003039', PlayerCarIndex: 0 },
-            Participants: {
-              NumActiveCars: 3,
-              Participants: [
-                { DriverId: 9, Name: 'Max Verstappen' },
-                { DriverId: 7, Name: 'Lewis Hamilton' },
-                { DriverId: 22, Name: 'Charles Leclerc' },
-                { DriverId: 10, Name: 'Lando Norris' },
-                { DriverId: 0, Name: '' },
-                { DriverId: 0, Name: '' },
-              ],
-            },
-          }),
-        });
-      }
-    });
-
-    // Must still retain all 4 drivers
-    expect(screen.getByTestId('count')).toHaveTextContent('4');
+    expect(screen.getByTestId('count')).toHaveTextContent('Max Verstappen,Lewis Hamilton,Charles Leclerc,Lando Norris');
   });
 
   it('ingests server-synthesized live events from LiveSnapshot packet', () => {

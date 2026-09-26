@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useTelemetryDataStore } from './useTelemetryDataStore';
-import type { CarTelemetryData, LapData } from '../types/telemetry';
+import { makeLiveCarTelemetry, makeLiveLap } from '../test/wireFactories';
 
 describe('useTelemetryDataStore', () => {
   beforeEach(() => {
@@ -24,21 +24,22 @@ describe('useTelemetryDataStore', () => {
   });
 
   it('sets partial telemetry data', () => {
+    const telemetry = makeLiveCarTelemetry({ Speed: 315 });
     useTelemetryDataStore.getState().setTelemetryData({
       playerCarIndex: 2,
-      allTelemetry: [{ Speed: 315 } as unknown as CarTelemetryData],
+      allTelemetry: [telemetry],
     });
 
     const state = useTelemetryDataStore.getState();
     expect(state.playerCarIndex).toBe(2);
-    expect(state.allTelemetry).toEqual([{ Speed: 315 }]);
+    expect(state.allTelemetry).toEqual([telemetry]);
   });
 
   it('resets telemetry data cleanly', () => {
     useTelemetryDataStore.getState().setTelemetryData({
       playerCarIndex: 3,
       selectedCarIndex: 3,
-      allLaps: [{ CurrentLapNum: 10 } as unknown as LapData],
+      allLaps: [makeLiveLap({ CurrentLapNum: 10 })],
     });
 
     useTelemetryDataStore.getState().resetTelemetryData();

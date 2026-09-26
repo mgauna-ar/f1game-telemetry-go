@@ -3,20 +3,19 @@ import { describe, it, expect, vi } from 'vitest';
 import { RaceControlFeed } from './RaceControlFeed';
 import type { RaceEvent, SessionData } from '../hooks/useTelemetry';
 import { PENALTY_TYPES } from '../constants/f1';
+import { makeLiveSession } from '../test/wireFactories';
 
 describe('RaceControlFeed', () => {
-  const mockSession: SessionData = {
+  const mockSession: SessionData = makeLiveSession({
     Weather: 0,
     TrackTemperature: 32,
     AirTemperature: 24,
     TotalLaps: 58,
-    TrackLength: 5303,
     SessionType: 15,
     TrackId: 0,
     SessionTimeLeft: 3600,
-    SessionDuration: 7200,
     SafetyCarStatus: 0,
-  };
+  });
 
   const mockEvents: RaceEvent[] = [
     {
@@ -56,7 +55,7 @@ describe('RaceControlFeed', () => {
   });
 
   it('displays safety car badge when safety car is deployed', () => {
-    const scSession: SessionData = { ...mockSession, SafetyCarStatus: 1 };
+    const scSession: SessionData = makeLiveSession({ ...mockSession, SafetyCarStatus: 1 });
     render(<RaceControlFeed events={mockEvents} session={scSession} />);
     expect(screen.getByText(/SAFETY CAR/i)).toBeInTheDocument();
   });

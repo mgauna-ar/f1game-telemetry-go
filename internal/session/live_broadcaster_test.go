@@ -91,7 +91,7 @@ func TestLiveBroadcaster_ProcessPacketAndSnapshot(t *testing.T) {
 	if snapshot.Session == nil || snapshot.Session.TrackId != 3 {
 		t.Errorf("expected Session with TrackId 3, got %+v", snapshot.Session)
 	}
-	if snapshot.LapData == nil || snapshot.LapData.LapData[0].CurrentLapNum != 5 {
+	if len(snapshot.LapData) == 0 || snapshot.LapData[0].CurrentLapNum != 5 {
 		t.Errorf("expected LapData with LapNum 5, got %+v", snapshot.LapData)
 	}
 

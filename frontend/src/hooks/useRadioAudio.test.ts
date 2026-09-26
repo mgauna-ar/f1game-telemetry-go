@@ -9,6 +9,7 @@ import { api } from '../utils/apiClient';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import { SESSION_TYPES } from '../constants/f1';
 import type { SessionData } from '../types/telemetry';
+import { makeLiveSession } from '../test/wireFactories';
 
 class FakeSpeechRecognition {
   static last: FakeSpeechRecognition | null = null;
@@ -42,20 +43,18 @@ function createMockSSEResponse(chunks: string[]): Response {
 }
 
 function mockSession(overrides: Partial<SessionData> = {}): SessionData {
-  return {
+  return makeLiveSession({
     Weather: 0,
     TrackTemperature: 30,
     AirTemperature: 22,
     TotalLaps: 50,
-    TrackLength: 5800,
     SessionType: SESSION_TYPES.RACE,
     TrackId: 7,
     SessionTimeLeft: 3600,
-    SessionDuration: 7200,
     SafetyCarStatus: 0,
     SessionUID: '0xabc',
     ...overrides,
-  };
+  });
 }
 
 interface ChatRequestBody {

@@ -143,13 +143,7 @@ export const VitalTelemetryStrip: React.FC<VitalTelemetryStripProps> = ({
           <span className="card-title">{t('live.cockpit.tyreWear')}</span>
           <div className="tyre-badge-row">
             <TyreCompoundBadge
-              compound={
-                carStatus?.ActualTyreCompound !== undefined
-                  ? String(carStatus.ActualTyreCompound)
-                  : carStatus?.VisualTyreCompound !== undefined
-                  ? String(carStatus.VisualTyreCompound)
-                  : String(TYRE_COMPOUND_IDS.SOFT)
-              }
+              compound={String(carStatus ? carStatus.VisualTyreCompound : TYRE_COMPOUND_IDS.SOFT)}
             />
             <span className="mono text-xs text-slate-400">{carStatus?.TyresAgeLaps || 0} L</span>
           </div>

@@ -2,31 +2,30 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { LivePitStrategy } from './LivePitStrategy';
 import type { ParticipantData, LapData, CarStatusData, SessionData } from '../hooks/useTelemetry';
+import { makeLiveCarStatus, makeLiveLap, makeLiveParticipant, makeLiveSession } from '../test/wireFactories';
 
 describe('LivePitStrategy', () => {
-  const mockSession: SessionData = {
+  const mockSession: SessionData = makeLiveSession({
     Weather: 0,
     TrackTemperature: 32,
     AirTemperature: 24,
     TotalLaps: 58,
-    TrackLength: 5303,
     SessionType: 15,
     TrackId: 0,
     SessionTimeLeft: 3600,
-    SessionDuration: 7200,
     SafetyCarStatus: 0,
     PitStopWindowIdealLap: 18,
     PitStopWindowLatestLap: 24,
     PitStopRejoinPosition: 6,
-  };
+  });
 
   const mockParticipants: ParticipantData[] = [
-    { Name: 'Max Verstappen', DriverId: 9, TeamId: 0, RaceNumber: 1, AIControlled: 0, Nationality: 5 },
-    { Name: 'Lando Norris', DriverId: 10, TeamId: 2, RaceNumber: 4, AIControlled: 1, Nationality: 12 },
+    makeLiveParticipant({ Name: 'Max Verstappen', DriverId: 9, TeamId: 0, RaceNumber: 1, AIControlled: 0 }),
+    makeLiveParticipant({ Name: 'Lando Norris', DriverId: 10, TeamId: 2, RaceNumber: 4, AIControlled: 1 }),
   ];
 
   const mockLaps: LapData[] = [
-    {
+    makeLiveLap({
       CarPosition: 1,
       CurrentLapNum: 10,
       CurrentLapTimeInMS: 81000,
@@ -36,8 +35,8 @@ describe('LivePitStrategy', () => {
       PitStatus: 0,
       NumPitStops: 0,
       CurrentLapInvalid: 0,
-    },
-    {
+    }),
+    makeLiveLap({
       CarPosition: 2,
       CurrentLapNum: 10,
       CurrentLapTimeInMS: 81500,
@@ -48,12 +47,12 @@ describe('LivePitStrategy', () => {
       NumPitStops: 1,
       PitLaneTimeInLaneInMS: 18500,
       CurrentLapInvalid: 0,
-    },
+    }),
   ];
 
   const mockStatuses: CarStatusData[] = [
-    { VisualTyreCompound: 17, TyresAgeLaps: 10, FuelInTank: 45, ERSStoreEnergy: 3500000, ERSDeployMode: 1 },
-    { VisualTyreCompound: 16, TyresAgeLaps: 1, FuelInTank: 44, ERSStoreEnergy: 3800000, ERSDeployMode: 2 },
+    makeLiveCarStatus({ VisualTyreCompound: 17, TyresAgeLaps: 10, FuelInTank: 45, ERSStoreEnergy: 3500000, ERSDeployMode: 1 }),
+    makeLiveCarStatus({ VisualTyreCompound: 16, TyresAgeLaps: 1, FuelInTank: 44, ERSStoreEnergy: 3800000, ERSDeployMode: 2 }),
   ];
 
   it('renders pit strategy header and estimated pit window', () => {

@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	"math"
 	"net"
@@ -848,7 +849,7 @@ func buildSessionHistoryPacket(header packets.PacketHeader, carIdx int, lapNum u
 	return histPkt
 }
 
-func sendSessionPacket(conn *net.UDPConn, pkt *packets.PacketSessionData, format uint16) {
+func sendSessionPacket(conn io.Writer, pkt *packets.PacketSessionData, format uint16) {
 	var buf bytes.Buffer
 	_ = binary.Write(&buf, binary.LittleEndian, pkt.Header)
 	_ = binary.Write(&buf, binary.LittleEndian, pkt.Weather)
@@ -948,13 +949,13 @@ func sendSessionPacket(conn *net.UDPConn, pkt *packets.PacketSessionData, format
 	_, _ = conn.Write(buf.Bytes())
 }
 
-func sendEventPacket(conn *net.UDPConn, pkt *packets.PacketEventData) {
+func sendEventPacket(conn io.Writer, pkt *packets.PacketEventData) {
 	var buf bytes.Buffer
 	_ = binary.Write(&buf, binary.LittleEndian, pkt)
 	_, _ = conn.Write(buf.Bytes())
 }
 
-func sendParticipantsPacket(conn *net.UDPConn, header packets.PacketHeader, numActiveCars, totalSlots int, drivers []driverInfo, format uint16) {
+func sendParticipantsPacket(conn io.Writer, header packets.PacketHeader, numActiveCars, totalSlots int, drivers []driverInfo, format uint16) {
 	var buf bytes.Buffer
 	header.PacketId = packets.PacketIDParticipants
 	_ = binary.Write(&buf, binary.LittleEndian, header)
@@ -1017,7 +1018,7 @@ func sendParticipantsPacket(conn *net.UDPConn, header packets.PacketHeader, numA
 	_, _ = conn.Write(buf.Bytes())
 }
 
-func sendMotionPacket(conn *net.UDPConn, header packets.PacketHeader, numCars int, cars []packets.CarMotionData, format uint16) {
+func sendMotionPacket(conn io.Writer, header packets.PacketHeader, numCars int, cars []packets.CarMotionData, format uint16) {
 	var buf bytes.Buffer
 	header.PacketId = packets.PacketIDMotion
 	_ = binary.Write(&buf, binary.LittleEndian, header)
@@ -1053,7 +1054,7 @@ func sendMotionPacket(conn *net.UDPConn, header packets.PacketHeader, numCars in
 	_, _ = conn.Write(buf.Bytes())
 }
 
-func sendTelemetryPacket(conn *net.UDPConn, header packets.PacketHeader, numCars int, cars []packets.CarTelemetryData, format uint16) {
+func sendTelemetryPacket(conn io.Writer, header packets.PacketHeader, numCars int, cars []packets.CarTelemetryData, format uint16) {
 	var buf bytes.Buffer
 	header.PacketId = packets.PacketIDCarTelemetry
 	_ = binary.Write(&buf, binary.LittleEndian, header)
@@ -1089,7 +1090,7 @@ func sendTelemetryPacket(conn *net.UDPConn, header packets.PacketHeader, numCars
 	_, _ = conn.Write(buf.Bytes())
 }
 
-func sendCarTelemetry2Packet(conn *net.UDPConn, header packets.PacketHeader, numCars int, cars []packets.CarTelemetry2Data) {
+func sendCarTelemetry2Packet(conn io.Writer, header packets.PacketHeader, numCars int, cars []packets.CarTelemetry2Data) {
 	var buf bytes.Buffer
 	header.PacketId = packets.PacketIDCarTelemetry2
 	_ = binary.Write(&buf, binary.LittleEndian, header)
@@ -1099,7 +1100,7 @@ func sendCarTelemetry2Packet(conn *net.UDPConn, header packets.PacketHeader, num
 	_, _ = conn.Write(buf.Bytes())
 }
 
-func sendLapDataPacket(conn *net.UDPConn, header packets.PacketHeader, numCars int, laps []packets.LapData) {
+func sendLapDataPacket(conn io.Writer, header packets.PacketHeader, numCars int, laps []packets.LapData) {
 	var buf bytes.Buffer
 	header.PacketId = packets.PacketIDLapData
 	_ = binary.Write(&buf, binary.LittleEndian, header)
@@ -1112,7 +1113,7 @@ func sendLapDataPacket(conn *net.UDPConn, header packets.PacketHeader, numCars i
 	_, _ = conn.Write(buf.Bytes())
 }
 
-func sendCarStatusPacket(conn *net.UDPConn, header packets.PacketHeader, numCars int, status []packets.CarStatusData, format uint16) {
+func sendCarStatusPacket(conn io.Writer, header packets.PacketHeader, numCars int, status []packets.CarStatusData, format uint16) {
 	var buf bytes.Buffer
 	header.PacketId = packets.PacketIDCarStatus
 	_ = binary.Write(&buf, binary.LittleEndian, header)
@@ -1152,7 +1153,7 @@ func sendCarStatusPacket(conn *net.UDPConn, header packets.PacketHeader, numCars
 	_, _ = conn.Write(buf.Bytes())
 }
 
-func sendCarDamagePacket(conn *net.UDPConn, header packets.PacketHeader, numCars int, damage []packets.CarDamageData) {
+func sendCarDamagePacket(conn io.Writer, header packets.PacketHeader, numCars int, damage []packets.CarDamageData) {
 	var buf bytes.Buffer
 	header.PacketId = packets.PacketIDCarDamage
 	_ = binary.Write(&buf, binary.LittleEndian, header)
@@ -1162,7 +1163,7 @@ func sendCarDamagePacket(conn *net.UDPConn, header packets.PacketHeader, numCars
 	_, _ = conn.Write(buf.Bytes())
 }
 
-func sendSessionHistoryPacket(conn *net.UDPConn, pkt *packets.PacketSessionHistoryData) {
+func sendSessionHistoryPacket(conn io.Writer, pkt *packets.PacketSessionHistoryData) {
 	var buf bytes.Buffer
 	pkt.Header.PacketId = packets.PacketIDSessionHistory
 	_ = binary.Write(&buf, binary.LittleEndian, pkt)
@@ -1204,7 +1205,7 @@ func buildTyreSetsPacket(header packets.PacketHeader) *packets.PacketTyreSetsDat
 	return pkt
 }
 
-func sendTyreSetsPacket(conn *net.UDPConn, pkt *packets.PacketTyreSetsData) {
+func sendTyreSetsPacket(conn io.Writer, pkt *packets.PacketTyreSetsData) {
 	var buf bytes.Buffer
 	pkt.Header.PacketId = packets.PacketIDTyreSets
 	_ = binary.Write(&buf, binary.LittleEndian, pkt)
