@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -47,6 +48,7 @@ type Server struct {
 	inputCancel     context.CancelFunc
 	pttMu           sync.Mutex
 	isLearning      bool
+	pttLearnTimeout time.Duration
 	settingsMu      sync.Mutex
 	staticFS        fs.FS
 	comparatorCache *analytics.ComparatorLRUCache
@@ -73,6 +75,7 @@ func NewServerWithFS(repo storage.Repository, telemetryHub, engineerHub *Hub, st
 		engineerHub:     engineerHub,
 		staticFS:        staticFS,
 		comparatorCache: analytics.NewComparatorLRUCache(analytics.ComparatorCacheCapacity),
+		pttLearnTimeout: PTTLearningTimeout,
 	}
 
 	s.router.Use(middleware.Logger)
@@ -213,7 +216,6 @@ func (s *Server) setupAIRoutes(r chi.Router) {
 func (s *Server) setupPTTRoutes(r chi.Router) {
 	// Global Push-to-Talk (PTT) routes
 	r.Get("/ai/ptt/config", s.handleGetPTTConfig)
-	r.Post("/ai/ptt/config", s.handleSetPTTConfig)
 	r.Post("/ai/ptt/learn", s.handleStartPTTLearn)
 	r.Post("/ai/ptt/learn/cancel", s.handleCancelPTTLearn)
 }

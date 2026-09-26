@@ -276,6 +276,57 @@ func TestPTTSettings_SavedAppliedAndRestoredAfterRestart(t *testing.T) {
 	server.SetInputManager(nil)
 }
 
+func TestPTTSettings_ServerSetsTheKeyCode(t *testing.T) {
+	server, _ := newSettingsTestServer(t, ServerConfig{})
+	mgr := &recordingInputManager{mockInputManager: newMockInputManager()}
+	server.SetInputManager(mgr)
+	t.Cleanup(func() { server.SetInputManager(nil) })
+
+	// The dashboard sends only the key name a learned key was given.
+	rec := doJSON(t, server, http.MethodPut, "/api/settings/ptt", map[string]any{"mode": "hold", "keyboard_key": "Caps Lock"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("PUT ptt = %d, body %s", rec.Code, rec.Body.String())
+	}
+	var put PTTSettingsResponse
+	if err := json.NewDecoder(rec.Body).Decode(&put); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if put.KeyCode != input.VKCapsLock {
+		t.Errorf("PUT returned key_code 0x%X, want 0x%X", put.KeyCode, input.VKCapsLock)
+	}
+	if _, key := mgr.mappings(); key.KeyCode != input.VKCapsLock {
+		t.Errorf("input manager got keyboard %+v, want Caps Lock's key code", key)
+	}
+
+	var got PTTSettingsResponse
+	if err := json.NewDecoder(doJSON(t, server, http.MethodGet, "/api/settings/ptt", nil).Body).Decode(&got); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if got.KeyCode != input.VKCapsLock {
+		t.Errorf("GET returned key_code 0x%X, want 0x%X", got.KeyCode, input.VKCapsLock)
+	}
+}
+
+func TestPTTSettings_RestoreRepairsASavedZeroKeyCode(t *testing.T) {
+	server, repo := newSettingsTestServer(t, ServerConfig{})
+	// An older version saved learned keys without their key code.
+	if err := settings.SavePTT(t.Context(), repo, settings.PTT{Mode: settings.PTTModeHold, KeyboardKey: "Mouse 5"}); err != nil {
+		t.Fatalf("SavePTT: %v", err)
+	}
+
+	mgr := &recordingInputManager{mockInputManager: newMockInputManager()}
+	server.SetInputManager(mgr)
+	t.Cleanup(func() { server.SetInputManager(nil) })
+	if _, key := mgr.mappings(); key.KeyCode != input.VKMouse5 {
+		t.Errorf("input manager got keyboard %+v, want Mouse 5's key code", key)
+	}
+
+	saved, _, err := settings.LoadPTT(t.Context(), repo)
+	if err != nil || saved.KeyCode != input.VKMouse5 {
+		t.Errorf("saved settings after restore = %+v (err %v), want the repaired key code", saved, err)
+	}
+}
+
 func TestCrossSiteWritesAreRejected(t *testing.T) {
 	server, _ := newSettingsTestServer(t, ServerConfig{})
 

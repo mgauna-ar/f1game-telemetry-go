@@ -249,26 +249,18 @@ func (w *WindowsManager) scanForAnyInput() (Mapping, bool) {
 		}
 	}
 
-	// Scan common Keyboard keys (Space, F1-F12, Extra Mouse buttons 4/5, Letter/Number keys)
-	scanKeys := []int{
-		0x20,       // VK_SPACE
-		0x05, 0x06, // VK_XBUTTON1, VK_XBUTTON2 (Mouse 4/5)
-		0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77, 0x78, 0x79, 0x7A, 0x7B, // VK_F1 - VK_F12
-		0x14, // VK_CAPITAL (Caps Lock)
-		0x56, // 'V'
-		0x42, // 'B'
-		0x43, // 'C'
-		0x54, // 'T'
-		0x52, // 'R'
+	// Scan common Keyboard keys (Space, F1-F12, Extra Mouse buttons 4/5, Caps Lock, Letter keys)
+	scanKeys := []int{VKSpace, VKMouse4, VKMouse5, VKCapsLock, 'V', 'B', 'C', 'T', 'R'}
+	for vk := VKF1; vk <= VKF12; vk++ {
+		scanKeys = append(scanKeys, vk)
 	}
 
 	for _, vk := range scanKeys {
 		if w.checkKeyboardKey(vk) {
-			name := getVKName(vk)
 			return Mapping{
 				DeviceType: DeviceTypeKeyboard,
 				KeyCode:    vk,
-				KeyName:    name,
+				KeyName:    KeyName(vk),
 				DeviceName: "Keyboard",
 			}, true
 		}
@@ -291,46 +283,4 @@ func (w *WindowsManager) getJoystickName(devIdx int) string {
 		}
 	}
 	return fmt.Sprintf("Controller / Wheel #%d", devIdx+1)
-}
-
-func getVKName(vk int) string {
-	switch vk {
-	case 0x20:
-		return "Space"
-	case 0x05:
-		return "Mouse 4"
-	case 0x06:
-		return "Mouse 5"
-	case 0x14:
-		return "Caps Lock"
-	case 0x70:
-		return "F1"
-	case 0x71:
-		return "F2"
-	case 0x72:
-		return "F3"
-	case 0x73:
-		return "F4"
-	case 0x74:
-		return "F5"
-	case 0x75:
-		return "F6"
-	case 0x76:
-		return "F7"
-	case 0x77:
-		return "F8"
-	case 0x78:
-		return "F9"
-	case 0x79:
-		return "F10"
-	case 0x7A:
-		return "F11"
-	case 0x7B:
-		return "F12"
-	default:
-		if vk >= 0x41 && vk <= 0x5A {
-			return string(rune(vk))
-		}
-		return fmt.Sprintf("Key 0x%X", vk)
-	}
 }

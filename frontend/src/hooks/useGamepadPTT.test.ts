@@ -4,6 +4,15 @@ import { useGamepadPTT } from './useGamepadPTT';
 import { LEGACY_RADIO_STORAGE_KEYS } from '../constants/f1';
 import { api } from '../utils/apiClient';
 
+const engineerSocket = vi.hoisted(() => ({ handlers: new Set<(msg: unknown) => void>() }));
+vi.mock('../utils/engineerSocket', () => ({
+  subscribeEngineerWebSocket: (handler: (msg: unknown) => void) => {
+    engineerSocket.handlers.add(handler);
+    return () => engineerSocket.handlers.delete(handler);
+  },
+}));
+const sendEngineerMessage = (msg: unknown) => engineerSocket.handlers.forEach((handler) => handler(msg));
+
 describe('useGamepadPTT hook', () => {
   let putSpy: ReturnType<typeof vi.spyOn>;
 
@@ -87,7 +96,7 @@ describe('useGamepadPTT hook', () => {
     document.body.removeChild(input);
   });
 
-  it('saves the mapped keyboard key to the server with its Windows key code', () => {
+  it('saves the mapped keyboard key to the server, which sets its key code', () => {
     const { result } = renderHook(() => useGamepadPTT());
 
     act(() => {
@@ -98,7 +107,6 @@ describe('useGamepadPTT hook', () => {
     expect(putSpy).toHaveBeenLastCalledWith('/api/settings/ptt', {
       mode: 'hold',
       keyboard_key: 'KeyT',
-      key_code: 0x54,
       gamepad: null,
     });
   });
@@ -115,6 +123,58 @@ describe('useGamepadPTT hook', () => {
       result.current.cancelLearning();
     });
     expect(result.current.isLearning).toBe(false);
+  });
+
+  it.each([
+    ['Caps Lock', 'CapsLock', 'CapsLock'],
+    ['CAPSLOCK', 'CapsLock', 'CapsLock'],
+    ['1', 'Digit1', '1'],
+  ])('triggers PTT for the %j key on %s', (mappedKey, code, key) => {
+    const onPTTDown = vi.fn();
+    const { result } = renderHook(() => useGamepadPTT({ onPTTDown }));
+
+    act(() => {
+      result.current.setMappedKey(mappedKey);
+    });
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { code, key }));
+    });
+
+    expect(result.current.isPTTActive).toBe(true);
+    expect(onPTTDown).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops learning when the server says learning timed out', () => {
+    const { result } = renderHook(() => useGamepadPTT());
+
+    act(() => {
+      result.current.startLearning();
+    });
+    expect(result.current.isLearning).toBe(true);
+
+    act(() => {
+      sendEngineerMessage({ type: 'ptt_learn_timeout' });
+    });
+    expect(result.current.isLearning).toBe(false);
+  });
+
+  it('keeps learning in the browser when the server cannot learn', async () => {
+    const postSpy = vi.spyOn(api, 'post').mockRejectedValue(new Error('input manager not available'));
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { result } = renderHook(() => useGamepadPTT());
+
+    act(() => {
+      result.current.startLearning();
+    });
+    await waitFor(() => expect(postSpy).toHaveBeenCalledWith('/api/ai/ptt/learn'));
+    await act(async () => {});
+    expect(result.current.isLearning).toBe(true);
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'CapsLock', key: 'CapsLock' }));
+    });
+    expect(result.current.isLearning).toBe(false);
+    expect(result.current.mappedKey).toBe('CAPSLOCK');
   });
 
   it('saves the mapped gamepad button to the server and clears it', () => {
@@ -167,7 +227,6 @@ describe('useGamepadPTT hook', () => {
     expect(putSpy).toHaveBeenCalledWith('/api/settings/ptt', {
       mode: 'toggle',
       keyboard_key: 'Space',
-      key_code: 0x20,
       gamepad: { gamepad_index: 0, button_index: 3 },
     });
     expect(result.current.pttMode).toBe('toggle');

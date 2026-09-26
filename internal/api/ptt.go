@@ -12,16 +12,17 @@ import (
 // PTTLearningTimeout is the maximum duration interactive button learning remains active before auto-canceling.
 const PTTLearningTimeout = 20 * time.Second
 
+// Messages about button learning sent to the dashboard on the engineer WebSocket.
+const (
+	pttLearnedMessageType = "ptt_learned"
+	pttLearnTimeoutType   = "ptt_learn_timeout"
+)
+
 // PTTConfigResponse returns the current global PTT mapping and active status.
 type PTTConfigResponse struct {
 	Status   string        `json:"status"`
 	Mapping  input.Mapping `json:"mapping"`
 	IsActive bool          `json:"is_active"`
-}
-
-// PTTSetConfigRequest represents the payload to update global PTT mapping.
-type PTTSetConfigRequest struct {
-	Mapping input.Mapping `json:"mapping"`
 }
 
 func (s *Server) handleGetPTTConfig(w http.ResponseWriter, r *http.Request) {
@@ -37,29 +38,10 @@ func (s *Server) handleGetPTTConfig(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (s *Server) handleSetPTTConfig(w http.ResponseWriter, r *http.Request) {
-	if s.inputManager == nil {
-		writeJSONError(w, "input manager not available", http.StatusServiceUnavailable)
-		return
-	}
-
-	var req PTTSetConfigRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeJSONError(w, "invalid payload", http.StatusBadRequest)
-		return
-	}
-
-	s.inputManager.SetMapping(req.Mapping)
-
-	writeJSON(w, http.StatusOK, PTTConfigResponse{
-		Status:   "success",
-		Mapping:  s.inputManager.GetMapping(),
-		IsActive: s.inputManager.IsActive(),
-	})
-}
-
 func (s *Server) handleStartPTTLearn(w http.ResponseWriter, r *http.Request) {
-	if s.inputManager == nil {
+	// The learning goroutine keeps using this manager even if another one is attached meanwhile.
+	mgr := s.inputManager
+	if mgr == nil {
 		writeJSONError(w, "input manager not available", http.StatusServiceUnavailable)
 		return
 	}
@@ -76,7 +58,7 @@ func (s *Server) handleStartPTTLearn(w http.ResponseWriter, r *http.Request) {
 	// Interactive button learning outlives this HTTP request (which immediately returns 200 OK
 	// with "success"). We use context.Background() because net/http cancels r.Context()
 	// as soon as the HTTP handler returns.
-	ch, err := s.inputManager.StartLearning(context.Background())
+	ch, err := mgr.StartLearning(context.Background())
 	if err != nil {
 		s.pttMu.Lock()
 		s.isLearning = false
@@ -92,14 +74,14 @@ func (s *Server) handleStartPTTLearn(w http.ResponseWriter, r *http.Request) {
 			s.pttMu.Unlock()
 		}()
 
-		timer := time.NewTimer(PTTLearningTimeout)
+		timer := time.NewTimer(s.pttLearnTimeout)
 		defer timer.Stop()
 
 		select {
 		case m, ok := <-ch:
 			if ok {
 				payload, _ := json.Marshal(map[string]any{
-					"type":    "ptt_learned",
+					"type":    pttLearnedMessageType,
 					"mapping": m,
 				})
 				if s.engineerHub != nil {
@@ -107,7 +89,12 @@ func (s *Server) handleStartPTTLearn(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		case <-timer.C:
-			s.inputManager.CancelLearning()
+			mgr.CancelLearning()
+			// Without this the dashboard's learn button would wait for a key forever.
+			payload, _ := json.Marshal(map[string]string{"type": pttLearnTimeoutType})
+			if s.engineerHub != nil {
+				s.engineerHub.Broadcast(payload)
+			}
 		}
 	}()
 

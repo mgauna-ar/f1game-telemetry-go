@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import type { EngineerDirective, RadioAlertCategory, RadioAlertPayload } from '../types/telemetry';
 import { subscribeEngineerWebSocket } from '../utils/engineerSocket';
+import radioAlertCategories from '../constants/radioAlertCategories.json';
 
 export interface UseProactiveTelemetryRadioOptions {
   isRadioEnabled?: boolean;
@@ -14,103 +15,14 @@ export interface UseProactiveTelemetryRadioOptions {
   [key: string]: unknown;
 }
 
-const CATEGORY_MAP: Record<string, RadioAlertCategory> = {
-  safety_car: 'safety_car',
-  vsc: 'vsc',
-  red_flag: 'red_flag',
-  tyre_puncture: 'tyre_puncture',
-  tyre_wear: 'tyre_wear',
-  tyre_overheat: 'tyre_overheat',
-  tyre_cold: 'tyre_cold',
-  wing_damage: 'wing_damage',
-  floor_damage: 'floor_damage',
-  engine_wear: 'engine_wear',
-  mechanical_fault: 'mechanical_fault',
-  ers_fault: 'ers_fault',
-  aero_fault: 'aero_fault',
-  ers_low: 'ers_low',
-  radiator_overheat: 'radiator_overheat',
-  brake_overheat: 'brake_overheat',
-  brake_cold: 'brake_cold',
-  fuel_deficit: 'fuel_deficit',
-  undercut_window: 'undercut_window',
-  undercut: 'undercut_window',
-  pit_clean_air: 'pit_clean_air',
-  pit_window_open: 'pit_window_open',
-  pit_window: 'pit_window_open',
-  rival_defend: 'rival_defend',
-  rival_attack: 'rival_attack',
-  sector_delta: 'sector_delta',
-  teammate_ahead: 'teammate_ahead',
-  teammate_proximity: 'teammate_ahead',
-  teammate_pitting: 'teammate_pitting',
-  qualy_traffic: 'qualy_traffic',
-  qualy_clean_air: 'qualy_clean_air',
-  qualy_deleted_lap: 'qualy_deleted_lap',
-  qualy_invalid: 'qualy_deleted_lap',
-  qualy_session_time: 'qualy_session_time',
-  qualy_time: 'qualy_session_time',
-  qualy_elimination_danger: 'qualy_elimination_danger',
-  qualy_elim: 'qualy_elimination_danger',
-  track_limits_warnings: 'track_limits_warnings',
-  track_limits: 'track_limits_warnings',
-  penalties_incurred: 'penalties_incurred',
-  penalties: 'penalties_incurred',
-  weather_rain: 'weather_rain',
-  flags_rain: 'weather_rain',
-  flags_sc: 'safety_car',
-  flags_red: 'red_flag',
-  race_finish: 'race_finish',
-  inlap_traffic_behind: 'inlap_traffic_behind',
-  inlap_cooldown: 'inlap_cooldown',
-  flags_rain_live: 'flags_rain_live',
-  tyre_crossover: 'tyre_crossover',
-  flags_sc_in: 'flags_sc_in',
-  safety_car_in: 'flags_sc_in',
-  flags_green: 'flags_green',
-  green_flag: 'flags_green',
-  flags_blue: 'flags_blue',
-  blue_flag: 'flags_blue',
-  flags_yellow: 'flags_yellow',
-  yellow_flag: 'flags_yellow',
-  pit_window_close: 'pit_window_close',
-  teammate_doublestack: 'teammate_doublestack',
-  damage_aero_fault: 'aero_fault',
-  damage_ers_fault: 'ers_fault',
-  damage_terminal_engine: 'terminal_engine',
-  terminal_engine: 'terminal_engine',
-  brake_bias: 'brake_bias',
-  warning_wrong_way: 'wrong_way',
-  wrong_way: 'wrong_way',
-  rival_defend_override: 'rival_defend_override',
-  rival_attack_override: 'rival_attack_override',
-  flags_drs_enabled: 'flags_drs_enabled',
-  flags_drs_disabled: 'flags_drs_disabled',
-  race_fastest_lap: 'race_fastest_lap',
-  car_collision: 'car_collision',
-  car_retirement: 'car_retirement',
-  formation_lap_start: 'formation_lap_start',
-  grid_approach: 'grid_approach',
-  start_reaction_time: 'start_reaction_time',
-  pit_serve_penalty: 'pit_serve_penalty',
-  pit_stop_duration: 'pit_stop_duration',
-  pit_limiter_exit: 'pit_limiter_exit',
-  tyre_crossover_wet: 'tyre_crossover_wet',
-  tyre_crossover_inter: 'tyre_crossover_inter',
-  brake_bias_ok: 'brake_bias_ok',
-  fuel_mix_neutralized: 'fuel_mix_neutralized',
-  fuel_mix_restart: 'fuel_mix_restart',
-  ers_clipping: 'ers_clipping',
-  tyre_set_advisory: 'tyre_set_advisory',
-  aero_straight_anticipation: 'aero_straight_anticipation',
-  overtake_boost_anticipation: 'overtake_boost_anticipation',
-  pit_limiter_overspeed: 'pit_limiter_overspeed',
-  tyre_blistering: 'tyre_blistering',
-  tyre_pressure_high: 'tyre_pressure_high',
-  damage_gearbox_wear: 'damage_gearbox_wear',
-  damage_ice_wear: 'damage_ice_wear',
-  coaching_s3: 'sector_delta',
-};
+/**
+ * Radio phrase category for each directive sub_alert. null reads out the engine's own message.
+ * internal/engineer/alert_categories_test.go fails when the engine emits a key this map lacks.
+ */
+const ALERT_CATEGORIES: Readonly<Record<string, RadioAlertCategory | null>> = radioAlertCategories as Record<
+  string,
+  RadioAlertCategory | null
+>;
 
 /**
  * High-performance hook that subscribes to proactive pit wall intelligence directives
@@ -144,7 +56,7 @@ export function useProactiveTelemetryRadio({
           : { rateModifier: 0, pitchModifier: 0 };
 
         const subKey = directive.sub_alert || directive.category;
-        const alertCat: RadioAlertCategory = CATEGORY_MAP[subKey] || 'directive';
+        const alertCat: RadioAlertCategory = ALERT_CATEGORIES[subKey] ?? 'directive';
 
         onTriggerAlertRef.current(
           {

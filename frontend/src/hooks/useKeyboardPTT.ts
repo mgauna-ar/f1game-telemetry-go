@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { RADIO_PTT_MODES, type RadioPTTMode } from '../constants/f1';
+import { isKeyboardEventForKey } from '../utils/keyNames';
 
 export interface UseKeyboardPTTOptions {
   enabled?: boolean;
@@ -69,13 +70,7 @@ export function useKeyboardPTT(options: UseKeyboardPTTOptions): UseKeyboardPTTRe
         return;
       }
 
-      if (!mappedKey || mappedKey === 'None') return;
-
-      const isKeyMatch =
-        (mappedKey === 'Space' && (e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar')) ||
-        (mappedKey !== 'Space' && (e.code === mappedKey || e.key.toLowerCase() === mappedKey.toLowerCase()));
-
-      if (isKeyMatch) {
+      if (isKeyboardEventForKey(mappedKey, e)) {
         if (e.code === 'Space' || e.key === ' ') {
           e.preventDefault();
         }
@@ -96,13 +91,7 @@ export function useKeyboardPTT(options: UseKeyboardPTTOptions): UseKeyboardPTTRe
         return;
       }
 
-      if (!mappedKey || mappedKey === 'None') return;
-
-      const isKeyMatch =
-        (mappedKey === 'Space' && (e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar')) ||
-        (mappedKey !== 'Space' && (e.code === mappedKey || e.key.toLowerCase() === mappedKey.toLowerCase()));
-
-      if (isKeyMatch) {
+      if (isKeyboardEventForKey(mappedKey, e)) {
         keyboardPressedRef.current = false;
         if (pttModeRef.current === RADIO_PTT_MODES.HOLD) {
           if (!isGamepadPressedRef.current?.()) {

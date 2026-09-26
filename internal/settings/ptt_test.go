@@ -92,3 +92,26 @@ func TestLoadSavePTTAndVoice(t *testing.T) {
 		t.Errorf("LoadVoice = %+v ok %v err %v, want %+v", gotVoice, ok, err, voice)
 	}
 }
+
+func TestPTTNormalize_SetsKeyCodeFromTheKeyName(t *testing.T) {
+	tests := []struct {
+		key     string
+		keyCode int
+		want    int
+	}{
+		{"Caps Lock", 0, input.VKCapsLock},
+		{"Mouse 4", 0, input.VKMouse4},
+		{"CAPSLOCK", 0, input.VKCapsLock},
+		{"KeyT", 0, 'T'},
+		{"F12", 0x20, input.VKF12}, // a stale code sent by the client is replaced
+		{"None", 0x20, 0},
+		{"", 0x20, 0},
+	}
+	for _, tt := range tests {
+		p := PTT{KeyboardKey: tt.key, KeyCode: tt.keyCode}
+		p.Normalize()
+		if p.KeyCode != tt.want {
+			t.Errorf("Normalize with key %q and code 0x%X set KeyCode 0x%X, want 0x%X", tt.key, tt.keyCode, p.KeyCode, tt.want)
+		}
+	}
+}

@@ -17,8 +17,8 @@ export interface GamepadMapping {
 export interface PTTSettingsPayload {
   mode: RadioPTTMode;
   keyboard_key: string;
-  /** Windows virtual-key code, so the server can watch the key while the game has focus. */
-  key_code?: number;
+  /** Windows virtual-key code the server sets from keyboard_key, so it can watch the key in game. */
+  readonly key_code?: number;
   gamepad?: { gamepad_index: number; button_index: number } | null;
 }
 
@@ -35,7 +35,6 @@ export function pttToPayload(v: PTTValues): PTTSettingsPayload {
   return {
     mode: v.mode,
     keyboard_key: v.key,
-    key_code: getVKCodeForName(v.key),
     gamepad: v.gamepad ? { gamepad_index: v.gamepad.gamepadIndex, button_index: v.gamepad.buttonIndex } : null,
   };
 }
@@ -89,63 +88,6 @@ export interface GlobalPTTMapping {
   device_name?: string;
 }
 
-export function getVKCodeForName(keyName: string): number {
-  if (!keyName || keyName === 'None') return 0;
-  switch (keyName) {
-    case 'Space':
-    case ' ':
-    case 'Spacebar':
-      return 0x20;
-    case 'CapsLock':
-      return 0x14;
-    case 'KeyT':
-    case 'T':
-      return 0x54;
-    case 'KeyR':
-    case 'R':
-      return 0x52;
-    case 'KeyV':
-    case 'V':
-      return 0x56;
-    case 'KeyB':
-    case 'B':
-      return 0x42;
-    case 'KeyC':
-    case 'C':
-      return 0x43;
-    case 'F1':
-      return 0x70;
-    case 'F2':
-      return 0x71;
-    case 'F3':
-      return 0x72;
-    case 'F4':
-      return 0x73;
-    case 'F5':
-      return 0x74;
-    case 'F6':
-      return 0x75;
-    case 'F7':
-      return 0x76;
-    case 'F8':
-      return 0x77;
-    case 'F9':
-      return 0x78;
-    case 'F10':
-      return 0x79;
-    case 'F11':
-      return 0x7A;
-    case 'F12':
-      return 0x7B;
-    default:
-      if (keyName.length === 1) {
-        const code = keyName.toUpperCase().charCodeAt(0);
-        if (code >= 0x41 && code <= 0x5A) return code;
-      }
-      return 0;
-  }
-}
-
 export interface UsePTTConfigReturn {
   pttMode: RadioPTTMode;
   setPTTMode: (mode: RadioPTTMode) => void;
@@ -191,9 +133,9 @@ export function usePTTConfig(): UsePTTConfigReturn {
 
   const refreshGlobalStatus = useCallback(async () => {
     const data = await api
-      .get<{ status?: string; is_active?: boolean; mapping?: GlobalPTTMapping }>('/api/ai/ptt/config')
+      .get<{ is_active?: boolean; mapping?: GlobalPTTMapping }>('/api/ai/ptt/config')
       .catch(() => null);
-    if (!data || (data.status !== 'ok' && data.status !== 'success')) return;
+    if (!data) return;
     setGlobalActive(!!data.is_active);
     if (data.mapping) setGlobalMapping(data.mapping);
   }, []);
@@ -221,6 +163,8 @@ export function usePTTConfig(): UsePTTConfigReturn {
 
   const startLearning = useCallback(() => {
     setIsLearning(true);
+    // Learning stays on when this request fails: the browser learns the key itself on systems where
+    // the server can't. The server ends it with ptt_learned or ptt_learn_timeout.
     api.post('/api/ai/ptt/learn').catch((err) => console.warn('[usePTTConfig] Sync failed:', err));
   }, []);
 

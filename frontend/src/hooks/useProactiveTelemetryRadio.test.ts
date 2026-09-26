@@ -119,6 +119,60 @@ describe('useProactiveTelemetryRadio WebSocket hook', () => {
     );
   });
 
+  it.each([
+    ['damage_wing', 'wing_damage'],
+    ['brake_hot', 'brake_overheat'],
+    ['coaching_s1', 'sector_delta'],
+  ])('speaks the %s alert with the %s phrases', (subAlert, category) => {
+    const onTriggerAlert = vi.fn();
+    renderHook(() => useProactiveTelemetryRadio({ isRadioEnabled: true, onTriggerAlert }));
+
+    const directive: EngineerDirective = {
+      id: `dir-${subAlert}`,
+      type: 'directive',
+      category: 'damage',
+      sub_alert: subAlert,
+      title: 'Title',
+      message: 'Message',
+      urgency: 'medium',
+      timestamp: Date.now(),
+      car_index: 0,
+      session_time: 0,
+    };
+    MockWebSocket.instances[0].onmessage?.({ data: JSON.stringify(directive) });
+
+    expect(onTriggerAlert).toHaveBeenCalledWith(
+      expect.objectContaining({ category, alertKey: subAlert }),
+      false,
+      expect.anything()
+    );
+  });
+
+  it('reads out the engine message for an alert the map does not know', () => {
+    const onTriggerAlert = vi.fn();
+    renderHook(() => useProactiveTelemetryRadio({ isRadioEnabled: true, onTriggerAlert }));
+
+    const directive: EngineerDirective = {
+      id: 'dir-unknown',
+      type: 'directive',
+      category: 'flags',
+      sub_alert: 'brand_new_alert',
+      title: 'Title',
+      message: 'Message',
+      urgency: 'low',
+      timestamp: Date.now(),
+      car_index: 0,
+      session_time: 0,
+    };
+    MockWebSocket.instances[0].onmessage?.({ data: JSON.stringify(directive) });
+
+    expect(onTriggerAlert).toHaveBeenCalledWith(
+      expect.objectContaining({ category: 'directive' }),
+      false,
+      expect.anything()
+    );
+  });
+
   it('dispatches critical puncture directive with elevated urgency and voice emotion', () => {
     const onTriggerAlert = vi.fn();
 

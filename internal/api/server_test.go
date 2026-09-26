@@ -763,3 +763,48 @@ func TestPTTLearn_ConcurrencyGuard(t *testing.T) {
 		t.Fatalf("expected 200 OK after cancel for learn request, got %d", rec3.Code)
 	}
 }
+
+func TestPTTLearn_TimeoutTellsTheDashboard(t *testing.T) {
+	server, _ := setupTestServer(t)
+	server.pttLearnTimeout = 10 * time.Millisecond
+	mgr := newMockInputManager()
+	server.SetInputManager(mgr)
+	t.Cleanup(func() { server.SetInputManager(nil) })
+
+	rec := httptest.NewRecorder()
+	server.router.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/ai/ptt/learn", http.NoBody))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("learn = %d, want 200", rec.Code)
+	}
+
+	select {
+	case msg := <-server.engineerHub.broadcast:
+		var got map[string]any
+		if err := json.Unmarshal(msg, &got); err != nil || got["type"] != "ptt_learn_timeout" {
+			t.Fatalf("broadcast %s, want a ptt_learn_timeout message", msg)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("no message was broadcast when learning timed out")
+	}
+
+	mgr.mu.Lock()
+	learning := mgr.isLearning
+	mgr.mu.Unlock()
+	if learning {
+		t.Error("the input manager is still learning after the timeout")
+	}
+
+	// The next learn request is accepted once the timed-out one has finished.
+	deadline := time.Now().Add(time.Second)
+	for {
+		rec = httptest.NewRecorder()
+		server.router.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/api/ai/ptt/learn", http.NoBody))
+		if rec.Code == http.StatusOK || time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(time.Millisecond)
+	}
+	if rec.Code != http.StatusOK {
+		t.Errorf("learn after the timeout = %d, want 200", rec.Code)
+	}
+}

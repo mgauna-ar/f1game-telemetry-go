@@ -1,16 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { RADIO_PTT_MODES, type RadioPTTMode } from '../constants/f1';
 import { subscribeEngineerWebSocket } from '../utils/engineerSocket';
-import {
-  usePTTConfig,
-  getVKCodeForName,
-  type GamepadMapping,
-  type GlobalPTTMapping,
-} from './usePTTConfig';
+import { usePTTConfig, type GamepadMapping, type GlobalPTTMapping } from './usePTTConfig';
 import { useKeyboardPTT } from './useKeyboardPTT';
 import { useGamepadPolling } from './useGamepadPolling';
 
-export { getVKCodeForName };
 export type { GamepadMapping, GlobalPTTMapping };
 
 export interface UseGamepadPTTOptions {
@@ -145,6 +139,8 @@ export function useGamepadPTT(options: UseGamepadPTTOptions = {}): UseGamepadPTT
       };
       if (data.type === 'ptt_event' && (data.state === 'down' || data.state === 'up')) {
         handleGlobalPTTEventRef.current?.(data.state);
+      } else if (data.type === 'ptt_learn_timeout') {
+        setIsLearning(false);
       } else if (data.type === 'ptt_learned' && data.mapping) {
         setGlobalMapping(data.mapping);
         setIsLearning(false);

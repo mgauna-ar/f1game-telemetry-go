@@ -208,6 +208,7 @@ func (s *Server) handlePutPTTSettings(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, fmt.Sprintf("invalid push-to-talk settings payload: %v", err), http.StatusBadRequest)
 		return
 	}
+	ptt.Normalize()
 	if err := ptt.Validate(); err != nil {
 		writeJSONError(w, err.Error(), http.StatusBadRequest)
 		return
@@ -224,7 +225,8 @@ func (s *Server) handlePutPTTSettings(w http.ResponseWriter, r *http.Request) {
 }
 
 // restorePTTSettings applies the saved push-to-talk setup to a newly attached input manager, so
-// the in-game talk button works after a restart before any dashboard is opened.
+// the in-game talk button works after a restart before any dashboard is opened. It also repairs a
+// setup saved without the key code of its key.
 func (s *Server) restorePTTSettings(ctx context.Context, mgr input.Manager) {
 	if s.repo == nil || mgr == nil {
 		return
@@ -234,7 +236,15 @@ func (s *Server) restorePTTSettings(ctx context.Context, mgr input.Manager) {
 		slog.Error("Failed to load push-to-talk settings", "error", err)
 		return
 	}
-	if ok {
-		ptt.Apply(mgr)
+	if !ok {
+		return
 	}
+	savedKeyCode := ptt.KeyCode
+	ptt.Normalize()
+	if ptt.KeyCode != savedKeyCode {
+		if err := settings.SavePTT(ctx, s.repo, ptt); err != nil {
+			slog.Error("Failed to save repaired push-to-talk settings", "error", err)
+		}
+	}
+	ptt.Apply(mgr)
 }

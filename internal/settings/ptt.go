@@ -26,7 +26,7 @@ const (
 type PTT struct {
 	Mode        string         `json:"mode"`
 	KeyboardKey string         `json:"keyboard_key"`       // dashboard key name; "" or "None" means no key
-	KeyCode     int            `json:"key_code,omitempty"` // Windows virtual-key code for the in-game hotkey
+	KeyCode     int            `json:"key_code,omitempty"` // Windows virtual-key code for the in-game hotkey, set by Normalize
 	Gamepad     *GamepadButton `json:"gamepad,omitempty"`
 }
 
@@ -34,6 +34,12 @@ type PTT struct {
 type GamepadButton struct {
 	GamepadIndex int `json:"gamepad_index"`
 	ButtonIndex  int `json:"button_index"`
+}
+
+// Normalize sets KeyCode from KeyboardKey, so the in-game hotkey is always the key the dashboard
+// shows. The server owns key codes: a code sent by a client is replaced.
+func (p *PTT) Normalize() {
+	p.KeyCode = input.KeyCodeForName(p.KeyboardKey)
 }
 
 // Validate reports settings the input manager can't use.

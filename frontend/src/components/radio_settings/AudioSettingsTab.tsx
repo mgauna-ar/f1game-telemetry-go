@@ -18,13 +18,28 @@ import {
 } from '../../constants/f1';
 import { useRadioSettingsStore } from '../../store/useRadioSettingsStore';
 import type { UseRadioControllerReturn } from '../../hooks/useRadioController';
+import { normalizeKeyName } from '../../utils/keyNames';
 
 interface AudioSettingsTabProps {
   radio: UseRadioControllerReturn;
 }
 
+// Keys offered in the push-to-talk dropdown, as KeyboardEvent.code values.
+const PTT_KEY_OPTIONS = [
+  { value: 'Space', label: 'Space' },
+  { value: 'KeyT', label: 'T Key' },
+  { value: 'KeyR', label: 'R Key' },
+  { value: 'KeyV', label: 'V Key' },
+  { value: 'CapsLock', label: 'Caps Lock' },
+] as const;
+
 export const AudioSettingsTab: React.FC<AudioSettingsTabProps> = ({ radio }) => {
   const { t } = useI18n();
+  // Keys are saved under several spellings ("CapsLock", "Caps Lock", "CAPSLOCK"); show the one listed.
+  const knownKeyOption = PTT_KEY_OPTIONS.find(
+    (option) => normalizeKeyName(option.value) === normalizeKeyName(radio.mappedKey)
+  );
+  const selectedKeyOption = knownKeyOption?.value ?? radio.mappedKey;
 
   // Settings from Zustand store with fine-grained selectors
   const radioLanguage = useRadioSettingsStore((s) => s.radioLanguage);
@@ -321,16 +336,20 @@ export const AudioSettingsTab: React.FC<AudioSettingsTabProps> = ({ radio }) => 
             </span>
           </div>
           <select
-            value={radio.mappedKey}
+            value={selectedKeyOption}
             onChange={(e) => radio.setMappedKey(e.target.value)}
             className="radio-select-key"
           >
             <option value="None">🚫 {t('ai_engineer.ptt.noKey')}</option>
-            <option value="Space">Space</option>
-            <option value="KeyT">T Key</option>
-            <option value="KeyR">R Key</option>
-            <option value="KeyV">V Key</option>
-            <option value="CapsLock">Caps Lock</option>
+            {PTT_KEY_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+            {/* A learned key the list doesn't offer, such as "Mouse 4" */}
+            {!knownKeyOption && radio.mappedKey !== 'None' && (
+              <option value={radio.mappedKey}>{radio.mappedKey}</option>
+            )}
           </select>
         </div>
       </div>
