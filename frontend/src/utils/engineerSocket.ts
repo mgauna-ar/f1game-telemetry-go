@@ -16,6 +16,7 @@ const ENGINEER_MESSAGE_TYPES = {
   ptt_event: true,
   ptt_learned: true,
   ptt_learn_timeout: true,
+  settings_changed: true,
 } as const satisfies Record<EngineerMessageType, true>;
 
 function isEngineerSocketMessage(data: unknown): data is EngineerSocketMessage {

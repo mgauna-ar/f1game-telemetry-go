@@ -176,44 +176,6 @@ func TestHandlersAI(t *testing.T) {
 	eng := engineer.NewEngineerEngine(hub)
 	server.SetEngineerEngine(eng)
 
-	t.Run("GET & POST /api/ai/engineer/config", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, "/api/ai/engineer/config", http.NoBody)
-		rec := httptest.NewRecorder()
-		server.Router().ServeHTTP(rec, req)
-
-		if rec.Code != http.StatusOK {
-			t.Fatalf("expected 200 OK, got %d", rec.Code)
-		}
-
-		var cfg engineer.EngineerConfig
-		if err := json.NewDecoder(rec.Body).Decode(&cfg); err != nil {
-			t.Fatalf("failed to decode engineer config: %v", err)
-		}
-
-		// Update config
-		cfg.ChatterCooldownMs = 30000
-		cfgBytes, _ := json.Marshal(cfg)
-		postReq := httptest.NewRequest(http.MethodPost, "/api/ai/engineer/config", bytes.NewReader(cfgBytes))
-		postRec := httptest.NewRecorder()
-		server.Router().ServeHTTP(postRec, postReq)
-
-		if postRec.Code != http.StatusOK {
-			t.Fatalf("expected 200 OK, got %d", postRec.Code)
-		}
-
-		// Verify update in engine
-		if eng.GetConfig().ChatterCooldownMs != 30000 {
-			t.Errorf("expected chatter cooldown 30000, got %d", eng.GetConfig().ChatterCooldownMs)
-		}
-
-		// Verify persistence in SQLite across server/engine restart
-		eng2 := engineer.NewEngineerEngine(hub)
-		server.SetEngineerEngine(eng2)
-		if eng2.GetConfig().ChatterCooldownMs != 30000 {
-			t.Errorf("expected restored chatter cooldown 30000, got %d", eng2.GetConfig().ChatterCooldownMs)
-		}
-	})
-
 	t.Run("POST /api/ai/tts validation", func(t *testing.T) {
 		// Empty text returns 400
 		payload, _ := json.Marshal(ai.AITTSRequest{Text: ""})
@@ -233,21 +195,6 @@ func TestHandlersAI(t *testing.T) {
 
 		if rec.Code != http.StatusBadRequest {
 			t.Errorf("expected 400 Bad Request, got %d", rec.Code)
-		}
-	})
-
-	t.Run("POST /api/ai/engineer/config database failure returns 500", func(t *testing.T) {
-		failServer, failRepo := setupTestServer(t)
-		_ = failRepo.Close() // close underlying db to force storage failure
-
-		cfg := engineer.DefaultEngineerConfig()
-		cfgBytes, _ := json.Marshal(cfg)
-		postReq := httptest.NewRequest(http.MethodPost, "/api/ai/engineer/config", bytes.NewReader(cfgBytes))
-		postRec := httptest.NewRecorder()
-		failServer.Router().ServeHTTP(postRec, postReq)
-
-		if postRec.Code != http.StatusInternalServerError {
-			t.Errorf("expected 500 Internal Server Error when repo fails, got %d", postRec.Code)
 		}
 	})
 }
@@ -292,88 +239,5 @@ func TestSessionDetail_EmptySession(t *testing.T) {
 		if !strings.Contains(rec.Body.String(), want) {
 			t.Errorf("expected %s in %s", want, rec.Body.String())
 		}
-	}
-}
-
-func TestHandleGetEngineerConfigDefaults(t *testing.T) {
-	server, _ := setupTestServer(t)
-	engine := engineer.NewEngineerEngine(nil)
-	server.SetEngineerEngine(engine)
-
-	// Changing the live config must not change what "defaults" returns.
-	custom := engineer.DefaultEngineerConfig()
-	custom.BrakeOverheatC = 1100
-	engine.SetConfig(custom)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/ai/engineer/config/defaults", http.NoBody)
-	rec := httptest.NewRecorder()
-	server.Router().ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200 OK, got %d", rec.Code)
-	}
-	var cfg engineer.EngineerConfig
-	if err := json.NewDecoder(rec.Body).Decode(&cfg); err != nil {
-		t.Fatalf("failed to decode defaults: %v", err)
-	}
-	if cfg.BrakeOverheatC != engineer.BrakeOverheatDefaultC {
-		t.Errorf("expected default BrakeOverheatC %v, got %v", engineer.BrakeOverheatDefaultC, cfg.BrakeOverheatC)
-	}
-	if cfg.UndercutGapSec != engineer.UndercutGapDefaultSec {
-		t.Errorf("expected default UndercutGapSec %v, got %v", engineer.UndercutGapDefaultSec, cfg.UndercutGapSec)
-	}
-}
-
-func TestHandleEngineerConfig_RoundTripsSettingsPanelState(t *testing.T) {
-	server, _ := setupTestServer(t)
-	server.SetEngineerEngine(engineer.NewEngineerEngine(nil))
-
-	payload := `{"chatter_cooldown_ms": 90000, "trigger_preset": "minimal", "alert_switches": {"tyreAlertsEnabled": false, "subTyrePuncture": true}}`
-	postReq := httptest.NewRequest(http.MethodPost, "/api/ai/engineer/config", strings.NewReader(payload))
-	postRec := httptest.NewRecorder()
-	server.Router().ServeHTTP(postRec, postReq)
-	if postRec.Code != http.StatusOK {
-		t.Fatalf("expected 200 OK, got %d: %s", postRec.Code, postRec.Body.String())
-	}
-
-	getReq := httptest.NewRequest(http.MethodGet, "/api/ai/engineer/config", http.NoBody)
-	getRec := httptest.NewRecorder()
-	server.Router().ServeHTTP(getRec, getReq)
-	var cfg engineer.EngineerConfig
-	if err := json.NewDecoder(getRec.Body).Decode(&cfg); err != nil {
-		t.Fatalf("failed to decode engineer config: %v", err)
-	}
-	if cfg.TriggerPreset != "minimal" {
-		t.Errorf("expected trigger_preset minimal, got %q", cfg.TriggerPreset)
-	}
-	if cfg.AlertSwitches["tyreAlertsEnabled"] || !cfg.AlertSwitches["subTyrePuncture"] {
-		t.Errorf("expected alert_switches to round-trip, got %v", cfg.AlertSwitches)
-	}
-}
-
-func TestHandleSetEngineerConfig_GlobalChatterCooldownAndAlertKeys(t *testing.T) {
-	server, _ := setupTestServer(t)
-	engine := engineer.NewEngineerEngine(nil)
-	server.SetEngineerEngine(engine)
-
-	// Partial config omitting global_chatter_cooldown_ms but setting damage_wing to false
-	payload := `{"chatter_cooldown_ms": 25000, "enabled_categories": {"damage_wing": false}}`
-	req := httptest.NewRequest(http.MethodPost, "/api/ai/engineer/config", strings.NewReader(payload))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-
-	server.Router().ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200 OK, got %d: %s", rec.Code, rec.Body.String())
-	}
-
-	engineCfg := server.engineerEngine.GetConfig()
-	if engineCfg.GlobalChatterCooldownMs != engineer.GlobalRadioChatterCooldownMs {
-		t.Errorf("expected GlobalChatterCooldownMs to be %d, got %d", engineer.GlobalRadioChatterCooldownMs, engineCfg.GlobalChatterCooldownMs)
-	}
-
-	if engineCfg.IsAlertEnabled("damage", "damage_wing") {
-		t.Errorf("expected damage_wing alert to be disabled")
 	}
 }

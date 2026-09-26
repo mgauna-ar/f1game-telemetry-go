@@ -1,9 +1,6 @@
 import type { StateCreator } from 'zustand';
 import { RADIO_TRIGGER_PRESETS } from '../../constants/f1';
-import {
-  buildEngineerConfigFromValues,
-  type RadioSettingsState,
-} from '../useRadioSettingsStore';
+import type { RadioSettingsState } from '../useRadioSettingsStore';
 import { TRIGGER_PRESET_VALUES } from './triggerPresets';
 
 export interface TacticalSettingsSlice {
@@ -149,18 +146,9 @@ export const createTacticalSettingsSlice: StateCreator<
   const createBoolAction =
     (field: keyof TacticalSettingsSlice, triggersCustom = false) =>
     (val: boolean) => {
-      set((state) => {
-        const nextState = {
-          ...state,
-          [field]: val,
-          ...(triggersCustom
-            ? { triggerPreset: RADIO_TRIGGER_PRESETS.CUSTOM }
-            : {}),
-        };
-        return {
-          ...nextState,
-          engineerConfig: buildEngineerConfigFromValues(nextState),
-        };
+      set({
+        [field]: val,
+        ...(triggersCustom ? { triggerPreset: RADIO_TRIGGER_PRESETS.CUSTOM } : {}),
       });
       get().syncConfigToBackend();
     };
@@ -169,23 +157,11 @@ export const createTacticalSettingsSlice: StateCreator<
     ...getInitialTacticalSettings(),
 
     setSmartDiscretionEnabled: (val) => {
-      set((state) => {
-        const nextState = { ...state, smartDiscretionEnabled: val };
-        return {
-          ...nextState,
-          engineerConfig: buildEngineerConfigFromValues(nextState),
-        };
-      });
+      set({ smartDiscretionEnabled: val });
       get().syncConfigToBackend();
     },
     setChatterCooldownSeconds: (sec) => {
-      set((state) => {
-        const nextState = { ...state, chatterCooldownSeconds: sec };
-        return {
-          ...nextState,
-          engineerConfig: buildEngineerConfigFromValues(nextState),
-        };
-      });
+      set({ chatterCooldownSeconds: sec });
       get().syncConfigToBackend();
     },
 

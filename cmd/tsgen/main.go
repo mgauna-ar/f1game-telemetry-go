@@ -58,22 +58,24 @@ func registry() *tsgen.Generator {
 	g.TypeAlias("analytics", "DegradationRow",
 		"{ tyreAge: number; [key: string]: number | string | undefined }")
 
-	// Settings shared by every device, and the radio engineer's config.
+	// Settings shared by every device, including the race engineer setup.
 	g.Add(
 		api.AISettingsResponse{},
 		settings.AIUpdate{},
 		api.VoiceSettingsResponse{},
 		api.PTTSettingsResponse{},
 		api.PTTConfigResponse{},
-		engineer.EngineerConfig{},
+		api.EngineerSettingsResponse{},
+		settings.Engineer{},
 	)
+	// The radio settings panel's switch names; the server derives the engine's categories from them.
+	g.TypeAlias("engineer", "EngineerAlertSwitch", stringUnion(engineer.AlertSwitchKeys))
 
 	// The other REST responses.
 	g.Add(
 		api.ErrorResponse{},
 		api.StatusResponse{},
 		api.BatchDeleteResponse{},
-		api.EngineerConfigSaveResponse{},
 		session.ImportBatchResponse{},
 		analytics.ComparatorResponse{},
 		ai.AIFetchModelsResponse{},
@@ -93,13 +95,16 @@ func registry() *tsgen.Generator {
 		api.PTTEventMessage{},
 		api.PTTLearnedMessage{},
 		api.PTTLearnTimeoutMessage{},
+		api.SettingsChangedMessage{},
 	)
 	g.Union("api", "EngineerSocketMessage",
 		engineer.EngineerDirective{},
 		api.PTTEventMessage{},
 		api.PTTLearnedMessage{},
 		api.PTTLearnTimeoutMessage{},
+		api.SettingsChangedMessage{},
 	)
+	g.TypeAlias("api", "SettingsSection", stringUnion(settings.Sections))
 	// A directive carries its alert key, not text; the dashboard picks the words from it.
 	g.TypeAlias("engineer", "EngineerAlertKey", stringUnion(engineer.RadioAlertKeys))
 	g.TypeAlias("engineer", "EngineerDirectiveCategory", stringUnion(directiveCategories()))

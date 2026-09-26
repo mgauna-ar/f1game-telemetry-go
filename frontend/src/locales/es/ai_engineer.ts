@@ -170,6 +170,16 @@ export const ai_engineer = {
     emptyResponseDesc:
       'Se recibió una respuesta vacía del modelo de IA. Verificá el modelo elegido o la configuración de la API.',
   },
+  settingsSync: {
+    saveFailed: 'No se pudo guardar la configuración de {section}: {message}',
+    conflict: 'La configuración de {section} se cambió en otro dispositivo. Se muestra la más reciente.',
+    sections: {
+      engineer: 'ingeniero de carrera',
+      voice: 'voz',
+      ai: 'IA',
+      ptt: 'pulsar para hablar',
+    },
+  },
   radio: {
     title: 'Radio de Voz',
     idle: 'RADIO EN ESPERA',

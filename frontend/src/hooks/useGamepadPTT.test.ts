@@ -2,8 +2,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useGamepadPTT } from './useGamepadPTT';
 import { LEGACY_RADIO_STORAGE_KEYS } from '../constants/f1';
+import { useSettingsSaveStore } from '../store/useSettingsSaveStore';
 import { api } from '../utils/apiClient';
 import { dispatchEngineerMessage, type EngineerMessageHandlers } from '../utils/engineerSocket';
+import { DASHBOARD_CLIENT_HEADER, DASHBOARD_CLIENT_ID } from '../utils/settingsClient';
+
+/** Options every settings save sends: this tab's id, so it can ignore its own settings_changed. */
+const withClientId = { headers: { [DASHBOARD_CLIENT_HEADER]: DASHBOARD_CLIENT_ID } };
 
 const engineerSocket = vi.hoisted(() => ({ handlers: new Set<EngineerMessageHandlers>() }));
 vi.mock('../utils/engineerSocket', async (importOriginal) => {
@@ -110,11 +115,11 @@ describe('useGamepadPTT hook', () => {
     });
 
     expect(result.current.mappedKey).toBe('KeyT');
-    expect(putSpy).toHaveBeenLastCalledWith('/api/settings/ptt', {
-      mode: 'hold',
-      keyboard_key: 'KeyT',
-      gamepad: undefined,
-    });
+    expect(putSpy).toHaveBeenLastCalledWith(
+      '/api/settings/ptt',
+      { mode: 'hold', keyboard_key: 'KeyT', gamepad: undefined },
+      withClientId
+    );
   });
 
   it('handles learning mode activation and cancellation', () => {
@@ -193,7 +198,8 @@ describe('useGamepadPTT hook', () => {
     expect(result.current.mappedGamepadButton).toEqual({ gamepadIndex: 0, buttonIndex: 4 });
     expect(putSpy).toHaveBeenLastCalledWith(
       '/api/settings/ptt',
-      expect.objectContaining({ gamepad: { gamepad_index: 0, button_index: 4 } })
+      expect.objectContaining({ gamepad: { gamepad_index: 0, button_index: 4 } }),
+      withClientId
     );
 
     act(() => {
@@ -202,7 +208,11 @@ describe('useGamepadPTT hook', () => {
 
     expect(result.current.mappedGamepadButton).toBeNull();
     // The body leaves gamepad out: the server stores a fresh setup, so a missing mapping clears it.
-    expect(putSpy).toHaveBeenLastCalledWith('/api/settings/ptt', expect.objectContaining({ gamepad: undefined }));
+    expect(putSpy).toHaveBeenLastCalledWith(
+      '/api/settings/ptt',
+      expect.objectContaining({ gamepad: undefined }),
+      withClientId
+    );
   });
 
   it('loads the saved push-to-talk setup from the server', async () => {
@@ -231,12 +241,56 @@ describe('useGamepadPTT hook', () => {
     const { result } = renderHook(() => useGamepadPTT());
 
     await waitFor(() => expect(localStorage.getItem(LEGACY_RADIO_STORAGE_KEYS.KEYBOARD_KEY)).toBeNull());
-    expect(putSpy).toHaveBeenCalledWith('/api/settings/ptt', {
-      mode: 'toggle',
-      keyboard_key: 'Space',
-      gamepad: { gamepad_index: 0, button_index: 3 },
-    });
+    expect(putSpy).toHaveBeenCalledWith(
+      '/api/settings/ptt',
+      { mode: 'toggle', keyboard_key: 'Space', gamepad: { gamepad_index: 0, button_index: 3 } },
+      withClientId
+    );
     expect(result.current.pttMode).toBe('toggle');
     expect(localStorage.getItem(LEGACY_RADIO_STORAGE_KEYS.GAMEPAD_MAPPING)).toBeNull();
+  });
+
+  it('reloads the setup when another device saves it, and ignores its own saves', async () => {
+    const getSpy = vi.spyOn(api, 'get').mockImplementation(async (url: string) =>
+      url === '/api/settings/ptt'
+        ? { saved: true, mode: 'toggle', keyboard_key: 'F9', key_code: 0x78 }
+        : { status: 'success', is_active: true, mapping: { device_type: 'keyboard' } }
+    );
+    const { result } = renderHook(() => useGamepadPTT());
+    await waitFor(() => expect(result.current.mappedKey).toBe('F9'));
+
+    getSpy.mockImplementation(async (url: string) =>
+      url === '/api/settings/ptt'
+        ? { saved: true, mode: 'hold', keyboard_key: 'F10', key_code: 0x79 }
+        : { status: 'success', is_active: true, mapping: { device_type: 'keyboard' } }
+    );
+    const pttLoads = () => getSpy.mock.calls.filter(([url]) => url === '/api/settings/ptt').length;
+    const loadsBefore = pttLoads();
+
+    act(() => {
+      sendEngineerMessage({ type: 'settings_changed', section: 'ptt', source: DASHBOARD_CLIENT_ID });
+      sendEngineerMessage({ type: 'settings_changed', section: 'voice', source: 'other-tab' });
+    });
+    expect(pttLoads()).toBe(loadsBefore);
+
+    act(() => {
+      sendEngineerMessage({ type: 'settings_changed', section: 'ptt', source: 'other-tab' });
+    });
+    await waitFor(() => expect(result.current.mappedKey).toBe('F10'));
+    expect(result.current.pttMode).toBe('hold');
+  });
+
+  it('shows a failed save', async () => {
+    putSpy.mockRejectedValue(new Error('disk full'));
+    const { result } = renderHook(() => useGamepadPTT());
+
+    act(() => {
+      result.current.setMappedKey('KeyT');
+    });
+
+    await waitFor(() =>
+      expect(useSettingsSaveStore.getState().problem).toMatchObject({ section: 'ptt', kind: 'failed', message: 'disk full' })
+    );
+    useSettingsSaveStore.getState().clear();
   });
 });

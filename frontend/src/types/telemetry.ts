@@ -66,9 +66,8 @@ export type {
   PTTEventMessage,
   PTTLearnedMessage,
   PTTLearnTimeoutMessage,
+  SettingsChangedMessage,
 } from './generated/api';
-
-export type { EngineerConfig } from './generated/engineer';
 
 export type RadioAlertCategory =
   | 'safety_car'

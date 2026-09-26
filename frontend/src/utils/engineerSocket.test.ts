@@ -107,6 +107,7 @@ describe('dispatchEngineerMessage', () => {
     ptt_event: vi.fn(),
     ptt_learned: vi.fn(),
     ptt_learn_timeout: vi.fn(),
+    settings_changed: vi.fn(),
   });
 
   it.each([
@@ -114,6 +115,7 @@ describe('dispatchEngineerMessage', () => {
     ['ptt_event', { type: 'ptt_event', state: 'up', mapping: makePTTMapping(), timestamp: 2 }],
     ['ptt_learned', { type: 'ptt_learned', mapping: makePTTMapping() }],
     ['ptt_learn_timeout', { type: 'ptt_learn_timeout' }],
+    ['settings_changed', { type: 'settings_changed', section: 'engineer', source: 'tab-a', version: 3 }],
   ] as const)('routes a %s message to its handler only', (type, msg) => {
     const h = handlers();
     dispatchEngineerMessage(msg, h);

@@ -1575,3 +1575,20 @@ func TestEngineerEngine_NeutralizationLifecycleAndFIAFlags(t *testing.T) {
 		t.Fatalf("expected flags_yellow directive when driver enters yellow flag sector")
 	}
 }
+
+func TestEngineerEngine_ConfigMapsAreNotShared(t *testing.T) {
+	engine := NewEngineerEngine(nil)
+	input := DefaultEngineerConfig()
+	input.EnabledCategories = map[string]bool{"tyre_wear": true}
+	engine.SetConfig(input)
+
+	// Mutating the caller's map or a returned copy must not change the engine's live config.
+	input.EnabledCategories["tyre_wear"] = false
+	got := engine.GetConfig()
+	got.EnabledCategories["tyre_wear"] = false
+
+	live := engine.GetConfig()
+	if !live.EnabledCategories["tyre_wear"] {
+		t.Errorf("expected engine config map to be isolated, got %v", live.EnabledCategories)
+	}
+}

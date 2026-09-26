@@ -41,3 +41,16 @@ func save(ctx context.Context, store Store, key string, v any) error {
 	}
 	return nil
 }
+
+// The settings sections every device shares, each behind GET/PUT /api/settings/{section}. After a
+// save the server names the section in a settings_changed message on /ws/engineer, so the other
+// dashboards reload it.
+const (
+	SectionAI       = "ai"
+	SectionVoice    = "voice"
+	SectionPTT      = "ptt"
+	SectionEngineer = "engineer"
+)
+
+// Sections lists every settings section, for the generated SettingsSection union.
+var Sections = []string{SectionAI, SectionVoice, SectionPTT, SectionEngineer}

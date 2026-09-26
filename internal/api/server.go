@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"net/http"
 	"os"
 	"path"
@@ -20,6 +21,7 @@ import (
 	"github.com/mgauna/f1game-telemetry-go/internal/analytics"
 	"github.com/mgauna/f1game-telemetry-go/internal/engineer"
 	"github.com/mgauna/f1game-telemetry-go/internal/input"
+	"github.com/mgauna/f1game-telemetry-go/internal/settings"
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
 )
 
@@ -93,13 +95,20 @@ func NewServerWithFS(repo storage.Repository, telemetryHub, engineerHub *Hub, st
 	return s
 }
 
-// SetEngineerEngine attaches the EngineerEngine instance to the API server and restores persisted settings if available.
+// SetEngineerEngine attaches the EngineerEngine instance to the API server and applies the saved
+// race engineer settings, if any.
 func (s *Server) SetEngineerEngine(engine *engineer.EngineerEngine) {
 	s.engineerEngine = engine
-	if s.repo != nil && engine != nil {
-		if cfg, err := engineer.LoadEngineerConfig(context.Background(), s.repo); err == nil && cfg != nil {
-			engine.SetConfig(*cfg)
-		}
+	if s.repo == nil || engine == nil {
+		return
+	}
+	saved, ok, err := settings.LoadEngineer(context.Background(), s.repo)
+	if err != nil {
+		slog.Error("Failed to load race engineer settings, using defaults", "error", err)
+		return
+	}
+	if ok {
+		engine.SetConfig(saved.EngineConfig())
 	}
 }
 
@@ -212,9 +221,6 @@ func (s *Server) setupAIRoutes(r chi.Router) {
 	r.Post("/ai/chat", s.handleAIChat)
 	r.Post("/ai/models", s.handleAIFetchModels)
 	r.Post("/ai/tts", s.handleAITTS)
-	r.Get("/ai/engineer/config", s.handleGetEngineerConfig)
-	r.Post("/ai/engineer/config", s.handleSetEngineerConfig)
-	r.Get("/ai/engineer/config/defaults", s.handleGetEngineerConfigDefaults)
 	r.Get("/ai/engineer/race-context", s.handleRaceContext)
 }
 

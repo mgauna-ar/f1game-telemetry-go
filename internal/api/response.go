@@ -3,8 +3,6 @@ package api
 import (
 	"encoding/json"
 	"net/http"
-
-	"github.com/mgauna/f1game-telemetry-go/internal/engineer"
 )
 
 // Cache duration constants
@@ -32,11 +30,9 @@ type BatchDeleteResponse struct {
 	DeletedCount int64  `json:"deleted_count"`
 }
 
-// EngineerConfigSaveResponse is the body of POST /api/ai/engineer/config: the config now in use.
-type EngineerConfigSaveResponse struct {
-	Status string                  `json:"status"`
-	Config engineer.EngineerConfig `json:"config"`
-}
+// ErrorCodeSettingsConflict marks a settings save rejected because another device saved a newer
+// version first (409). The client reloads the settings.
+const ErrorCodeSettingsConflict = "SETTINGS_CONFLICT"
 
 // writeJSONErrorCode writes a JSON error response with the provided message, status code, and structured error code.
 func writeJSONErrorCode(w http.ResponseWriter, msg string, code int, errorCode string) {

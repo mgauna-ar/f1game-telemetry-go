@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../utils/apiClient';
+import { putSettings, subscribeSettingsChanges } from '../utils/settingsClient';
 import { storage } from '../utils/storage';
+import { reportSettingsSaveFailure } from '../store/useSettingsSaveStore';
 import type { AISettingsResponse, AIUpdate } from '../types/settings';
 import type { Narrows } from '../types/wire';
 import {
@@ -140,10 +142,10 @@ export function useAISettings(): UseAISettingsReturn {
     setKeyStatus(next.keyStatus);
   }, []);
 
-  const putSettings = useCallback(
+  const putAISettings = useCallback(
     async (update: AISettingsUpdate) => {
       const seq = ++requestSeq.current;
-      const res = await api.put<AISettingsResponse>('/api/settings/ai', update);
+      const res = await putSettings<AISettingsResponse>('ai', update);
       applyResponse(res, seq);
     },
     [applyResponse]
@@ -161,7 +163,7 @@ export function useAISettings(): UseAISettingsReturn {
       if (!legacy) return;
       const update = legacyConfigUpdate(legacy, res);
       try {
-        if (update) await putSettings(update);
+        if (update) await putAISettings(update);
         storage.remove(STORAGE_KEY_AI_CONFIG);
       } catch (err) {
         // Keep the old config so the next load tries again.
@@ -172,7 +174,20 @@ export function useAISettings(): UseAISettingsReturn {
     return () => {
       cancelled = true;
     };
-  }, [applyResponse, putSettings]);
+  }, [applyResponse, putAISettings]);
+
+  // Another device saved the AI settings: show them here too.
+  useEffect(
+    () =>
+      subscribeSettingsChanges('ai', () => {
+        const seq = ++requestSeq.current;
+        api
+          .get<AISettingsResponse>('/api/settings/ai')
+          .then((res) => applyResponse(res, seq))
+          .catch(() => {});
+      }),
+    [applyResponse]
+  );
 
   const saveConfig = useCallback(
     (next: AIConfig) => {
@@ -184,14 +199,14 @@ export function useAISettings(): UseAISettingsReturn {
       configRef.current = merged;
       setConfig(merged);
       if (Object.keys(update).length === 0) return;
-      putSettings(update).catch((err) => console.warn('[useAISettings] Save failed:', err));
+      putAISettings(update).catch((err) => reportSettingsSaveFailure('ai', err));
     },
-    [putSettings]
+    [putAISettings]
   );
 
   const saveApiKey = useCallback(
-    (provider: AIProvider, apiKey: string) => putSettings({ api_keys: { [provider]: apiKey.trim() } }),
-    [putSettings]
+    (provider: AIProvider, apiKey: string) => putAISettings({ api_keys: { [provider]: apiKey.trim() } }),
+    [putAISettings]
   );
 
   return { config, keyStatus, saveConfig, saveApiKey };

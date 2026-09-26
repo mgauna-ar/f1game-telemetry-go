@@ -3,11 +3,8 @@ import {
   RADIO_ALERT_CONSTANTS,
   RADIO_TRIGGER_PRESETS,
 } from '../../constants/f1';
-import type { EngineerConfig } from '../../types/telemetry';
-import {
-  buildEngineerConfigFromValues,
-  type RadioSettingsState,
-} from '../useRadioSettingsStore';
+import type { EngineerTuning } from '../../types/settings';
+import type { RadioSettingsState } from '../useRadioSettingsStore';
 
 export interface AlertThresholdsSlice {
   tyreWearWarningPct: number;
@@ -98,9 +95,9 @@ export function getInitialAlertThresholds(): Omit<
 
 export type AlertThresholdValues = ReturnType<typeof getInitialAlertThresholds>;
 
-/** Maps engine config thresholds onto the settings panel, keeping `fallback` for missing fields. */
-export function thresholdsFromEngineerConfig(
-  cfg: Partial<EngineerConfig>,
+/** Maps saved race engineer thresholds onto the settings panel, keeping `fallback` for missing fields. */
+export function thresholdsFromSettings(
+  cfg: Partial<EngineerTuning>,
   fallback: AlertThresholdValues
 ): AlertThresholdValues {
   return {
@@ -139,17 +136,7 @@ export const createAlertThresholdsSlice: StateCreator<
       if (min !== undefined && clamped < min) clamped = min;
       if (max !== undefined && clamped > max) clamped = max;
 
-      set((state) => {
-        const nextState = {
-          ...state,
-          [field]: clamped,
-          triggerPreset: RADIO_TRIGGER_PRESETS.CUSTOM,
-        };
-        return {
-          ...nextState,
-          engineerConfig: buildEngineerConfigFromValues(nextState),
-        };
-      });
+      set({ [field]: clamped, triggerPreset: RADIO_TRIGGER_PRESETS.CUSTOM });
       get().syncConfigToBackend();
     };
 

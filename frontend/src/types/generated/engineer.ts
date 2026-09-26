@@ -2,36 +2,7 @@
 
 export type EngineerAlertKey = 'aero_fault' | 'aero_straight_anticipation' | 'brake_bias' | 'brake_bias_ok' | 'brake_cold' | 'brake_hot' | 'brake_overheat' | 'car_collision' | 'car_retirement' | 'coaching_s1' | 'coaching_s2' | 'coaching_s3' | 'damage_aero_fault' | 'damage_engine' | 'damage_ers_fault' | 'damage_floor' | 'damage_gearbox_wear' | 'damage_ice_wear' | 'damage_terminal_engine' | 'damage_wing' | 'engine_temp' | 'engine_wear' | 'ers_clipping' | 'ers_fault' | 'ers_low' | 'flags_blue' | 'flags_drs_disabled' | 'flags_drs_enabled' | 'flags_green' | 'flags_rain' | 'flags_rain_live' | 'flags_red' | 'flags_sc' | 'flags_sc_in' | 'flags_yellow' | 'floor_damage' | 'formation_lap_start' | 'fuel_deficit' | 'fuel_delta' | 'fuel_mix_neutralized' | 'fuel_mix_restart' | 'grid_approach' | 'inlap_cooldown' | 'inlap_traffic_behind' | 'overtake_boost_anticipation' | 'penalties' | 'penalties_incurred' | 'pit_clean_air' | 'pit_limiter_exit' | 'pit_limiter_overspeed' | 'pit_serve_penalty' | 'pit_stop_duration' | 'pit_window' | 'pit_window_close' | 'pit_window_open' | 'qualy_clean_air' | 'qualy_deleted_lap' | 'qualy_elim' | 'qualy_elimination_danger' | 'qualy_invalid' | 'qualy_session_time' | 'qualy_time' | 'qualy_traffic' | 'race_fastest_lap' | 'race_finish' | 'radiator_overheat' | 'red_flag' | 'rival_attack' | 'rival_attack_override' | 'rival_defend' | 'rival_defend_override' | 'safety_car' | 'sector_delta' | 'start_reaction_time' | 'teammate_ahead' | 'teammate_doublestack' | 'teammate_pitting' | 'teammate_proximity' | 'terminal_engine' | 'track_limits' | 'track_limits_warnings' | 'tyre_blistering' | 'tyre_cold' | 'tyre_crossover' | 'tyre_crossover_inter' | 'tyre_crossover_wet' | 'tyre_overheat' | 'tyre_pressure_high' | 'tyre_puncture' | 'tyre_set_advisory' | 'tyre_wear' | 'undercut' | 'undercut_window' | 'vsc' | 'warning_wrong_way' | 'weather_rain' | 'wing_damage' | 'wrong_way';
 
-/** Go: engineer.EngineerConfig */
-export interface EngineerConfig {
-  chatter_cooldown_ms: number;
-  global_chatter_cooldown_ms: number;
-  smart_discretion_enabled: boolean;
-  tyre_wear_warn_pct: number;
-  tyre_wear_crit_pct: number;
-  tyre_overheat_c: number;
-  tyre_cold_c: number;
-  wing_damage_warn_pct: number;
-  wing_damage_crit_pct: number;
-  floor_damage_warn_pct: number;
-  engine_wear_warn_pct: number;
-  ers_low_pct: number;
-  engine_overheat_c: number;
-  brake_overheat_c: number;
-  brake_cold_c: number;
-  fuel_delta_laps: number;
-  undercut_gap_sec: number;
-  rival_gap_sec: number;
-  rival_ahead_gap_sec: number;
-  qualy_clean_air_sec: number;
-  qualy_time_warn_sec: number;
-  corner_cut_warn_threshold: number;
-  rain_horizon_min: number;
-  rain_prob_pct: number;
-  enabled_categories?: Record<string, boolean>;
-  trigger_preset?: string;
-  alert_switches?: Record<string, boolean>;
-}
+export type EngineerAlertSwitch = 'tyreAlertsEnabled' | 'thermalAlertsEnabled' | 'damageAlertsEnabled' | 'ersAlertsEnabled' | 'brakesAlertsEnabled' | 'fuelAlertsEnabled' | 'rivalAlertsEnabled' | 'pitWindowAlertsEnabled' | 'qualyAlertsEnabled' | 'flagsPensAlertsEnabled' | 'subTyreWear' | 'subTyrePuncture' | 'subTyreThermal' | 'subTyreCold' | 'subDamageWing' | 'subDamageFloor' | 'subDamageEngine' | 'subDamageFaults' | 'subErsLow' | 'subEngineTemp' | 'subBrakeTemp' | 'subBrakeCold' | 'subFuelDelta' | 'subUndercut' | 'subPitWindow' | 'subRivalDefend' | 'subRivalAttack' | 'subQualyTraffic' | 'subQualyInvalid' | 'subQualyTime' | 'subQualyElim' | 'subSafetyCar' | 'subRedFlag' | 'subRain' | 'subTrackLimits' | 'subPenalties';
 
 /** Go: engineer.EngineerDirective */
 export interface EngineerDirective {
@@ -48,3 +19,28 @@ export interface EngineerDirective {
 export type EngineerDirectiveCategory = 'pit_strategy' | 'coaching' | 'weather' | 'teammate' | 'tyres' | 'damage' | 'ers' | 'brakes' | 'fuel' | 'rivals' | 'qualy' | 'flags';
 
 export type EngineerUrgency = 'low' | 'medium' | 'high' | 'critical';
+
+/** Go: engineer.Tuning */
+export interface Tuning {
+  chatter_cooldown_ms: number;
+  smart_discretion_enabled: boolean;
+  tyre_wear_warn_pct: number;
+  tyre_wear_crit_pct: number;
+  tyre_overheat_c: number;
+  tyre_cold_c: number;
+  wing_damage_warn_pct: number;
+  floor_damage_warn_pct: number;
+  engine_wear_warn_pct: number;
+  ers_low_pct: number;
+  engine_overheat_c: number;
+  brake_overheat_c: number;
+  brake_cold_c: number;
+  fuel_delta_laps: number;
+  undercut_gap_sec: number;
+  rival_gap_sec: number;
+  rival_ahead_gap_sec: number;
+  qualy_clean_air_sec: number;
+  corner_cut_warn_threshold: number;
+  rain_horizon_min: number;
+  rain_prob_pct: number;
+}

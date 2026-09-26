@@ -8,6 +8,9 @@ import {
 } from './useAISettings';
 import { api } from '../utils/apiClient';
 import { STORAGE_KEY_AI_CONFIG } from '../context/RaceEngineerContext';
+import { DASHBOARD_CLIENT_HEADER, DASHBOARD_CLIENT_ID } from '../utils/settingsClient';
+/** Options every settings save sends: this tab's id, so it can ignore its own settings_changed. */
+const withClientId = { headers: { [DASHBOARD_CLIENT_HEADER]: DASHBOARD_CLIENT_ID } };
 
 const serverSettings = (overrides: Partial<AISettingsResponse> = {}): AISettingsResponse => ({
   saved: false,
@@ -96,11 +99,11 @@ describe('useAISettings', () => {
     const { result } = renderHook(() => useAISettings());
 
     await waitFor(() => expect(localStorage.getItem(STORAGE_KEY_AI_CONFIG)).toBeNull());
-    expect(putSpy).toHaveBeenCalledWith('/api/settings/ai', {
-      provider: 'openai',
-      api_keys: { openai: 'o-key' },
-      models: { openai: 'gpt-4o' },
-    });
+    expect(putSpy).toHaveBeenCalledWith(
+      '/api/settings/ai',
+      { provider: 'openai', api_keys: { openai: 'o-key' }, models: { openai: 'gpt-4o' } },
+      withClientId
+    );
     await waitFor(() => expect(result.current.config.provider).toBe('openai'));
   });
 
@@ -126,11 +129,11 @@ describe('useAISettings', () => {
     act(() => {
       result.current.saveConfig({ ...result.current.config, model: 'gemini-pro-latest' });
     });
-    expect(putSpy).toHaveBeenLastCalledWith('/api/settings/ai', { models: { gemini: 'gemini-pro-latest' } });
+    expect(putSpy).toHaveBeenLastCalledWith('/api/settings/ai', { models: { gemini: 'gemini-pro-latest' } }, withClientId);
 
     await act(async () => {
       await result.current.saveApiKey('claude', '  sk-ant  ');
     });
-    expect(putSpy).toHaveBeenLastCalledWith('/api/settings/ai', { api_keys: { claude: 'sk-ant' } });
+    expect(putSpy).toHaveBeenLastCalledWith('/api/settings/ai', { api_keys: { claude: 'sk-ant' } }, withClientId);
   });
 });

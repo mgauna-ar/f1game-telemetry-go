@@ -9,6 +9,7 @@ import { AiRaceEngineer } from './components/AiRaceEngineer';
 import { LanguageSelector } from './components/LanguageSelector';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { ToastContainer } from './components/common/ToastContainer';
+import { SettingsSync } from './components/common/SettingsSync';
 import { ToastContext } from './context/ToastContext';
 import { api } from './utils/apiClient';
 import { storage } from './utils/storage';
@@ -271,6 +272,7 @@ function AppContent() {
 
       {/* Global Toast Notifications */}
       <ToastContainer />
+      <SettingsSync />
 
       {/* Global Persistent Floating AI Race Engineer (Non-modal bottom-right widget) */}
       <ErrorBoundary level="widget">

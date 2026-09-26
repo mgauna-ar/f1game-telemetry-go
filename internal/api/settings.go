@@ -3,9 +3,11 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -42,6 +44,46 @@ type PTTSettingsResponse struct {
 	settings.PTT
 }
 
+// EngineerSettingsResponse is the saved race engineer setup, and whether it was ever saved.
+type EngineerSettingsResponse struct {
+	Saved bool `json:"saved"`
+	settings.Engineer
+}
+
+// SettingsChangedMessage tells the dashboards on /ws/engineer that a settings section was saved,
+// so they reload it. Source is the X-Dashboard-Client id of the tab that saved it, which ignores
+// its own message; Version is the engineer settings' new version.
+type SettingsChangedMessage struct {
+	Type    string `json:"type" tstype:"'settings_changed'"`
+	Section string `json:"section" tstype:"SettingsSection"`
+	Source  string `json:"source,omitempty"`
+	Version int64  `json:"version,omitempty"`
+}
+
+const settingsChangedMessageType = "settings_changed"
+
+func (m SettingsChangedMessage) engineerMessageType() string { return m.Type }
+
+// DashboardClientHeader carries the random id a dashboard tab sends with its settings saves.
+const DashboardClientHeader = "X-Dashboard-Client"
+
+// maxDashboardClientIDLen caps the client id copied into settings_changed messages.
+const maxDashboardClientIDLen = 64
+
+// broadcastSettingsChanged tells every dashboard that section was saved by the tab that sent r.
+func (s *Server) broadcastSettingsChanged(r *http.Request, section string, version int64) {
+	source := strings.TrimSpace(r.Header.Get(DashboardClientHeader))
+	if len(source) > maxDashboardClientIDLen {
+		source = source[:maxDashboardClientIDLen]
+	}
+	s.broadcastEngineer(SettingsChangedMessage{
+		Type:    settingsChangedMessageType,
+		Section: section,
+		Source:  source,
+		Version: version,
+	})
+}
+
 func (s *Server) setupSettingsRoutes(r chi.Router) {
 	r.Get("/settings/ai", s.handleGetAISettings)
 	r.Put("/settings/ai", s.handlePutAISettings)
@@ -49,6 +91,9 @@ func (s *Server) setupSettingsRoutes(r chi.Router) {
 	r.Put("/settings/voice", s.handlePutVoiceSettings)
 	r.Get("/settings/ptt", s.handleGetPTTSettings)
 	r.Put("/settings/ptt", s.handlePutPTTSettings)
+	r.Get("/settings/engineer", s.handleGetEngineerSettings)
+	r.Put("/settings/engineer", s.handlePutEngineerSettings)
+	r.Get("/settings/engineer/defaults", s.handleGetEngineerSettingsDefaults)
 }
 
 // aiEnv is the AI setup from environment variables.
@@ -151,6 +196,7 @@ func (s *Server) handlePutAISettings(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, "failed to save AI settings", http.StatusInternalServerError)
 		return
 	}
+	s.broadcastSettingsChanged(r, settings.SectionAI, 0)
 	writeJSON(w, http.StatusOK, newAISettingsResponse(settings.ResolveAI(next, s.aiEnv(), defaultAIModel), true))
 }
 
@@ -182,6 +228,7 @@ func (s *Server) handlePutVoiceSettings(w http.ResponseWriter, r *http.Request) 
 		writeJSONError(w, "failed to save voice settings", http.StatusInternalServerError)
 		return
 	}
+	s.broadcastSettingsChanged(r, settings.SectionVoice, 0)
 	writeJSON(w, http.StatusOK, VoiceSettingsResponse{Saved: true, Voice: voice})
 }
 
@@ -221,7 +268,70 @@ func (s *Server) handlePutPTTSettings(w http.ResponseWriter, r *http.Request) {
 	if s.inputManager != nil {
 		ptt.Apply(s.inputManager)
 	}
+	s.broadcastSettingsChanged(r, settings.SectionPTT, 0)
 	writeJSON(w, http.StatusOK, PTTSettingsResponse{Saved: true, PTT: ptt})
+}
+
+func (s *Server) handleGetEngineerSettings(w http.ResponseWriter, r *http.Request) {
+	resp := EngineerSettingsResponse{Engineer: settings.DefaultEngineer()}
+	if s.repo != nil {
+		var err error
+		if resp.Engineer, resp.Saved, err = settings.LoadEngineer(r.Context(), s.repo); err != nil {
+			slog.Error("Failed to load race engineer settings", "error", err)
+			writeJSONError(w, "failed to load race engineer settings", http.StatusInternalServerError)
+			return
+		}
+	}
+	writeJSON(w, http.StatusOK, resp)
+}
+
+// handleGetEngineerSettingsDefaults returns the built-in race engineer setup, which the settings
+// panel uses for "Reset to defaults" so the UI and the engine share one set of values.
+func (s *Server) handleGetEngineerSettingsDefaults(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, settings.DefaultEngineer())
+}
+
+// handlePutEngineerSettings saves the race engineer setup and applies it to the engine. Fields the
+// request leaves out keep their saved value; a request based on an older version gets 409.
+func (s *Server) handlePutEngineerSettings(w http.ResponseWriter, r *http.Request) {
+	if s.repo == nil {
+		writeJSONError(w, "settings storage not available", http.StatusServiceUnavailable)
+		return
+	}
+
+	s.settingsMu.Lock()
+	defer s.settingsMu.Unlock()
+
+	current, _, err := settings.LoadEngineer(r.Context(), s.repo)
+	if err != nil {
+		slog.Error("Failed to load race engineer settings", "error", err)
+		writeJSONError(w, "failed to load race engineer settings", http.StatusInternalServerError)
+		return
+	}
+	update := current.Clone()
+	if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
+		writeJSONError(w, fmt.Sprintf("invalid race engineer settings payload: %v", err), http.StatusBadRequest)
+		return
+	}
+	next, err := current.Apply(update)
+	if errors.Is(err, settings.ErrVersionConflict) {
+		writeJSONErrorCode(w, err.Error(), http.StatusConflict, ErrorCodeSettingsConflict)
+		return
+	}
+	if err != nil {
+		writeJSONError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := settings.SaveEngineer(r.Context(), s.repo, next); err != nil {
+		slog.Error("Failed to save race engineer settings", "error", err)
+		writeJSONError(w, "failed to save race engineer settings", http.StatusInternalServerError)
+		return
+	}
+	if s.engineerEngine != nil {
+		s.engineerEngine.SetConfig(next.EngineConfig())
+	}
+	s.broadcastSettingsChanged(r, settings.SectionEngineer, next.Version)
+	writeJSON(w, http.StatusOK, EngineerSettingsResponse{Saved: true, Engineer: next})
 }
 
 // restorePTTSettings applies the saved push-to-talk setup to a newly attached input manager, so

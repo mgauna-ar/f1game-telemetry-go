@@ -1,5 +1,6 @@
 import { create } from 'zustand';
-import { api } from '../utils/apiClient';
+import { api, ApiError } from '../utils/apiClient';
+import { putSettings } from '../utils/settingsClient';
 import {
   createAudioSettingsSlice,
   getInitialAudioSettings,
@@ -12,8 +13,9 @@ import {
 import {
   createAlertThresholdsSlice,
   getInitialAlertThresholds,
-  thresholdsFromEngineerConfig,
+  thresholdsFromSettings,
   type AlertThresholdsSlice,
+  type AlertThresholdValues,
 } from './slices/alertThresholdsSlice';
 import {
   createTacticalSettingsSlice,
@@ -31,102 +33,50 @@ import {
   isRadioTriggerPreset,
   type AlertToggles,
 } from './slices/triggerPresets';
-import {
-  TIME_CONSTANTS,
-  RADIO_ALERT_CONSTANTS,
-  type RadioTriggerPreset,
-} from '../constants/f1';
-import type { EngineerConfig } from '../types/telemetry';
-import type { VoiceSettingsResponse } from '../types/settings';
+import { reportSettingsSaveFailure, useSettingsSaveStore } from './useSettingsSaveStore';
+import { TIME_CONSTANTS, type RadioTriggerPreset } from '../constants/f1';
+import type {
+  EngineerSettings,
+  EngineerSettingsResponse,
+  VoiceSettingsResponse,
+} from '../types/settings';
 
 export interface RadioSettingsState
   extends AudioSettingsSlice,
     AlertThresholdsSlice,
     TacticalSettingsSlice,
     RadioPresetsSlice {
-  engineerConfig: EngineerConfig;
-  setEngineerConfig: (config: Partial<EngineerConfig>) => void;
+  /** Version of the saved race engineer settings this tab's values are based on. */
+  engineerVersion: number;
   resetStoreToDefaults: () => void;
+  /** Saves the race engineer settings after a short pause (now with `immediate`). Always resolves. */
   syncConfigToBackend: (immediate?: boolean) => Promise<void>;
   loadConfigFromBackend: () => Promise<void>;
   syncVoiceToBackend: () => void;
   loadVoiceFromBackend: () => Promise<void>;
 }
 
-export function buildEngineerConfigFromValues(v: {
-  triggerPreset: RadioTriggerPreset;
-  smartDiscretionEnabled: boolean;
-  chatterCooldownSeconds: number;
-  tyreWearWarningPct: number;
-  tyreWearCriticalPct: number;
-  tyreOverheatC: number;
-  tyreColdC: number;
-  wingDamageWarnPct: number;
-  floorDamageWarnPct: number;
-  engineWearWarnPct: number;
-  ersLowPct: number;
-  engineOverheatC: number;
-  brakeOverheatC: number;
-  brakeColdC: number;
-  fuelDeltaLaps: number;
-  undercutGapSec: number;
-  rivalGapThresholdSec: number;
-  rivalAheadGapSec: number;
-  qualyCleanAirSec: number;
-  cornerCutWarnThreshold: number;
-  rainHorizonMin: number;
-  rainProbPct: number;
-  tyreAlertsEnabled: boolean;
-  subTyreWear: boolean;
-  subTyrePuncture: boolean;
-  thermalAlertsEnabled: boolean;
-  subTyreThermal: boolean;
-  subTyreCold: boolean;
-  damageAlertsEnabled: boolean;
-  subDamageWing: boolean;
-  subDamageFloor: boolean;
-  subDamageEngine: boolean;
-  subDamageFaults: boolean;
-  subEngineTemp: boolean;
-  ersAlertsEnabled: boolean;
-  subErsLow: boolean;
-  brakesAlertsEnabled: boolean;
-  subBrakeTemp: boolean;
-  subBrakeCold: boolean;
-  fuelAlertsEnabled: boolean;
-  subFuelDelta: boolean;
-  rivalAlertsEnabled: boolean;
-  subUndercut: boolean;
-  subRivalDefend: boolean;
-  subRivalAttack: boolean;
-  pitWindowAlertsEnabled: boolean;
-  subPitWindow: boolean;
-  qualyAlertsEnabled: boolean;
-  subQualyInvalid: boolean;
-  subQualyTraffic: boolean;
-  subQualyTime: boolean;
-  subQualyElim: boolean;
-  flagsPensAlertsEnabled: boolean;
-  subSafetyCar: boolean;
-  subRedFlag: boolean;
-  subRain: boolean;
-  subTrackLimits: boolean;
-  subPenalties: boolean;
-}): EngineerConfig {
-  const alertSwitches = Object.fromEntries(
-    ALERT_TOGGLE_KEYS.map((key) => [key, v[key]])
-  ) as AlertToggles;
+/** The panel values the race engineer settings are made of. */
+export type EngineerSettingsValues = AlertThresholdValues &
+  AlertToggles & {
+    triggerPreset: RadioTriggerPreset;
+    smartDiscretionEnabled: boolean;
+    chatterCooldownSeconds: number;
+  };
 
+/**
+ * The race engineer settings to save, without the version. The server derives what the engine
+ * runs from them; the panel only sends its own values.
+ */
+export function engineerSettingsFromValues(v: EngineerSettingsValues): Omit<EngineerSettings, 'version'> {
   return {
     chatter_cooldown_ms: v.chatterCooldownSeconds * TIME_CONSTANTS.MS_PER_SECOND,
-    global_chatter_cooldown_ms: TIME_CONSTANTS.GLOBAL_CHATTER_COOLDOWN_MS,
     smart_discretion_enabled: v.smartDiscretionEnabled,
     tyre_wear_warn_pct: v.tyreWearWarningPct,
     tyre_wear_crit_pct: v.tyreWearCriticalPct,
     tyre_overheat_c: v.tyreOverheatC,
     tyre_cold_c: v.tyreColdC,
     wing_damage_warn_pct: v.wingDamageWarnPct,
-    wing_damage_crit_pct: RADIO_ALERT_CONSTANTS.CRITICAL_WING_DAMAGE_PCT,
     floor_damage_warn_pct: v.floorDamageWarnPct,
     engine_wear_warn_pct: v.engineWearWarnPct,
     ers_low_pct: v.ersLowPct,
@@ -138,65 +88,21 @@ export function buildEngineerConfigFromValues(v: {
     rival_gap_sec: v.rivalGapThresholdSec,
     rival_ahead_gap_sec: v.rivalAheadGapSec,
     qualy_clean_air_sec: v.qualyCleanAirSec,
-    qualy_time_warn_sec: RADIO_ALERT_CONSTANTS.QUALY_SESSION_TIME_WARN_SEC,
     corner_cut_warn_threshold: v.cornerCutWarnThreshold,
     rain_horizon_min: v.rainHorizonMin,
     rain_prob_pct: v.rainProbPct,
-    enabled_categories: {
-      tyre_wear: v.tyreAlertsEnabled && v.subTyreWear,
-      tyre_puncture: v.tyreAlertsEnabled && v.subTyrePuncture,
-      tyre_thermal: v.thermalAlertsEnabled && v.subTyreThermal,
-      tyre_overheat: v.thermalAlertsEnabled && v.subTyreThermal,
-      tyre_cold: v.thermalAlertsEnabled && v.subTyreCold,
-      wing_damage: v.damageAlertsEnabled && v.subDamageWing,
-      damage_wing: v.damageAlertsEnabled && v.subDamageWing,
-      floor_damage: v.damageAlertsEnabled && v.subDamageFloor,
-      damage_floor: v.damageAlertsEnabled && v.subDamageFloor,
-      engine_wear: v.damageAlertsEnabled && v.subDamageEngine,
-      damage_engine: v.damageAlertsEnabled && v.subDamageEngine,
-      mechanical_fault: v.damageAlertsEnabled && v.subDamageFaults,
-      damage_aero_fault: v.damageAlertsEnabled && v.subDamageFaults,
-      damage_ers_fault: v.damageAlertsEnabled && v.subDamageFaults,
-      damage_gearbox_wear: v.damageAlertsEnabled && v.subDamageEngine,
-      damage_ice_wear: v.damageAlertsEnabled && v.subDamageEngine,
-      damage_terminal_engine: v.damageAlertsEnabled && v.subDamageEngine,
-      damage: v.damageAlertsEnabled,
-      ers_low: v.ersAlertsEnabled && v.subErsLow,
-      engine_temp: v.damageAlertsEnabled && v.subEngineTemp,
-      brake_hot: v.brakesAlertsEnabled && v.subBrakeTemp,
-      brake_cold: v.brakesAlertsEnabled && v.subBrakeCold,
-      fuel_delta: v.fuelAlertsEnabled && v.subFuelDelta,
-      undercut: v.rivalAlertsEnabled && v.subUndercut,
-      pit_window: v.pitWindowAlertsEnabled && v.subPitWindow,
-      rival_defend: v.rivalAlertsEnabled && v.subRivalDefend,
-      rival_attack: v.rivalAlertsEnabled && v.subRivalAttack,
-      qualy_invalid: v.qualyAlertsEnabled && v.subQualyInvalid,
-      qualy_traffic: v.qualyAlertsEnabled && v.subQualyTraffic,
-      qualy_time: v.qualyAlertsEnabled && v.subQualyTime,
-      qualy_elim: v.qualyAlertsEnabled && v.subQualyElim,
-      flags_sc: v.flagsPensAlertsEnabled && v.subSafetyCar,
-      flags_red: v.flagsPensAlertsEnabled && v.subRedFlag,
-      flags_rain: v.flagsPensAlertsEnabled && v.subRain,
-      flags_rain_live: v.flagsPensAlertsEnabled && v.subRain,
-      track_limits: v.flagsPensAlertsEnabled && v.subTrackLimits,
-      penalties: v.flagsPensAlertsEnabled && v.subPenalties,
-    },
     trigger_preset: v.triggerPreset,
-    alert_switches: alertSwitches,
+    alert_switches: Object.fromEntries(ALERT_TOGGLE_KEYS.map((key) => [key, v[key]])),
   };
 }
 
 export function getInitialRadioSettings() {
-  const initialValues = {
+  return {
     ...getInitialAudioSettings(),
     ...getInitialAlertThresholds(),
     ...getInitialTacticalSettings(),
     ...getInitialRadioPresets(),
-  };
-
-  return {
-    ...initialValues,
-    engineerConfig: buildEngineerConfigFromValues(initialValues),
+    engineerVersion: 0,
   };
 }
 
@@ -208,176 +114,176 @@ function alertTogglesFromSwitches(switches: Record<string, boolean>): Partial<Al
   return toggles;
 }
 
-/**
- * Older configs only stored "category switch AND alert switch" per engine alert key, so category
- * switches can't be recovered; only the per-alert switches are restored.
- */
-function alertTogglesFromLegacyCategories(
-  ec: Record<string, boolean> | undefined
-): Partial<AlertToggles> {
-  const toggles: Partial<AlertToggles> = {};
-  if (!ec) return toggles;
-  if (ec.tyre_wear !== undefined) toggles.subTyreWear = ec.tyre_wear;
-  if (ec.tyre_puncture !== undefined) toggles.subTyrePuncture = ec.tyre_puncture;
-  if (ec.tyre_overheat !== undefined) toggles.subTyreThermal = ec.tyre_overheat;
-  else if (ec.tyre_thermal !== undefined) toggles.subTyreThermal = ec.tyre_thermal;
-  if (ec.tyre_cold !== undefined) toggles.subTyreCold = ec.tyre_cold;
-  if (ec.damage_wing !== undefined) toggles.subDamageWing = ec.damage_wing;
-  else if (ec.wing_damage !== undefined) toggles.subDamageWing = ec.wing_damage;
-  if (ec.damage_floor !== undefined) toggles.subDamageFloor = ec.damage_floor;
-  else if (ec.floor_damage !== undefined) toggles.subDamageFloor = ec.floor_damage;
-  if (ec.damage_engine !== undefined) toggles.subDamageEngine = ec.damage_engine;
-  else if (ec.engine_wear !== undefined) toggles.subDamageEngine = ec.engine_wear;
-  if (ec.damage_aero_fault !== undefined) toggles.subDamageFaults = ec.damage_aero_fault;
-  else if (ec.mechanical_fault !== undefined) toggles.subDamageFaults = ec.mechanical_fault;
-  if (ec.ers_low !== undefined) toggles.subErsLow = ec.ers_low;
-  if (ec.engine_temp !== undefined) toggles.subEngineTemp = ec.engine_temp;
-  if (ec.brake_hot !== undefined) toggles.subBrakeTemp = ec.brake_hot;
-  if (ec.brake_cold !== undefined) toggles.subBrakeCold = ec.brake_cold;
-  if (ec.fuel_delta !== undefined) toggles.subFuelDelta = ec.fuel_delta;
-  if (ec.undercut !== undefined) toggles.subUndercut = ec.undercut;
-  if (ec.pit_window !== undefined) toggles.subPitWindow = ec.pit_window;
-  if (ec.rival_defend !== undefined) toggles.subRivalDefend = ec.rival_defend;
-  if (ec.rival_attack !== undefined) toggles.subRivalAttack = ec.rival_attack;
-  if (ec.qualy_invalid !== undefined) toggles.subQualyInvalid = ec.qualy_invalid;
-  if (ec.qualy_traffic !== undefined) toggles.subQualyTraffic = ec.qualy_traffic;
-  if (ec.qualy_time !== undefined) toggles.subQualyTime = ec.qualy_time;
-  if (ec.qualy_elim !== undefined) toggles.subQualyElim = ec.qualy_elim;
-  if (ec.flags_sc !== undefined) toggles.subSafetyCar = ec.flags_sc;
-  if (ec.flags_red !== undefined) toggles.subRedFlag = ec.flags_red;
-  if (ec.flags_rain !== undefined) toggles.subRain = ec.flags_rain;
-  else if (ec.flags_rain_live !== undefined) toggles.subRain = ec.flags_rain_live;
-  if (ec.track_limits !== undefined) toggles.subTrackLimits = ec.track_limits;
-  if (ec.penalties !== undefined) toggles.subPenalties = ec.penalties;
-  return toggles;
-}
-
-let syncTimeout: ReturnType<typeof setTimeout> | null = null;
-let voiceSyncTimeout: ReturnType<typeof setTimeout> | null = null;
-
 /** Waits this long after the last change before saving, so typing a prompt isn't one request per key. */
 const SETTINGS_SYNC_DEBOUNCE_MS = 500;
 
-export const useRadioSettingsStore = create<RadioSettingsState>((set, get, store) => ({
-  ...createAudioSettingsSlice(set, get, store),
-  ...createAlertThresholdsSlice(set, get, store),
-  ...createTacticalSettingsSlice(set, get, store),
-  ...createRadioPresetsSlice(set, get, store),
-  engineerConfig: buildEngineerConfigFromValues(getInitialRadioSettings()),
+// Race engineer saves: one debounce timer and at most one request in flight. A change made while
+// a request is in flight is saved right after it, with the version that request returned.
+let engineerSaveTimer: ReturnType<typeof setTimeout> | null = null;
+let engineerSaveInFlight = false;
+let engineerSaveQueued = false;
+/** Promises of syncConfigToBackend calls waiting for the save that includes their change. */
+let engineerSaveWaiters: Array<() => void> = [];
 
-  setEngineerConfig: (cfg: Partial<EngineerConfig>) => {
-    set((state) => ({
-      engineerConfig: {
-        ...state.engineerConfig,
-        ...cfg,
-      },
-    }));
-    get().syncConfigToBackend();
-  },
+let voiceSyncTimeout: ReturnType<typeof setTimeout> | null = null;
+let voiceSaveInFlight = false;
 
-  resetStoreToDefaults: () => {
-    const initialSettings = getInitialRadioSettings();
-    set(initialSettings);
-  },
+/** True while a race engineer change is waiting to be saved or being saved. */
+export function isEngineerSavePending(): boolean {
+  return engineerSaveTimer !== null || engineerSaveInFlight || engineerSaveQueued;
+}
 
-  syncConfigToBackend: async (immediate = false) => {
-    if (syncTimeout) {
-      clearTimeout(syncTimeout);
-      syncTimeout = null;
-    }
+/** True while a voice change is waiting to be saved or being saved. */
+export function isVoiceSavePending(): boolean {
+  return voiceSyncTimeout !== null || voiceSaveInFlight;
+}
 
-    const doSync = async () => {
-      try {
-        await api.post('/api/ai/engineer/config', get().engineerConfig);
-      } catch {
-        // ignore network error
-      }
+function resetSaveQueues(): void {
+  if (engineerSaveTimer) clearTimeout(engineerSaveTimer);
+  if (voiceSyncTimeout) clearTimeout(voiceSyncTimeout);
+  engineerSaveTimer = null;
+  voiceSyncTimeout = null;
+  engineerSaveQueued = false;
+  const waiters = engineerSaveWaiters;
+  engineerSaveWaiters = [];
+  waiters.forEach((resolve) => resolve());
+}
+
+export const useRadioSettingsStore = create<RadioSettingsState>((set, get, store) => {
+  const saveEngineerSettings = async () => {
+    const body: EngineerSettings = {
+      ...engineerSettingsFromValues(get()),
+      version: get().engineerVersion,
     };
-
-    if (immediate) {
-      await doSync();
-      return;
-    }
-
-    return new Promise<void>((resolve) => {
-      syncTimeout = setTimeout(async () => {
-        await doSync();
-        syncTimeout = null;
-        resolve();
-      }, SETTINGS_SYNC_DEBOUNCE_MS);
-    });
-  },
-
-  loadConfigFromBackend: async () => {
-    // Backend not available or offline: keep the current state
-    const cfg = await api
-      .get<EngineerConfig>('/api/ai/engineer/config')
-      .catch(() => null);
-    if (!cfg) return;
-
-    // Configs saved before the panel state was stored have no alert_switches. Those (and fresh
-    // installs) are migrated below and written back once so the server holds the full state.
-    const needsMigration = !cfg.alert_switches;
-
-    set((state) => {
-      const loaded: Partial<RadioSettingsState> = {
-        ...thresholdsFromEngineerConfig(cfg, state),
-        smartDiscretionEnabled: cfg.smart_discretion_enabled ?? state.smartDiscretionEnabled,
-        chatterCooldownSeconds: cfg.chatter_cooldown_ms
-          ? Math.round(cfg.chatter_cooldown_ms / TIME_CONSTANTS.MS_PER_SECOND)
-          : state.chatterCooldownSeconds,
-        ...(cfg.alert_switches
-          ? alertTogglesFromSwitches(cfg.alert_switches)
-          : alertTogglesFromLegacyCategories(cfg.enabled_categories)),
-      };
-
-      const nextState = { ...state, ...loaded };
-      nextState.triggerPreset = isRadioTriggerPreset(cfg.trigger_preset)
-        ? cfg.trigger_preset
-        : detectTriggerPreset(nextState);
-
-      return {
-        ...nextState,
-        engineerConfig: buildEngineerConfigFromValues(nextState),
-      };
-    });
-
-    if (needsMigration) {
-      await get().syncConfigToBackend(true);
-    }
-  },
-
-  syncVoiceToBackend: () => {
-    if (voiceSyncTimeout) clearTimeout(voiceSyncTimeout);
-    voiceSyncTimeout = setTimeout(() => {
-      voiceSyncTimeout = null;
-      api
-        .put('/api/settings/voice', voiceToPayload(get()))
-        .catch((err) => console.warn('[radioSettings] Saving the voice settings failed:', err));
-    }, SETTINGS_SYNC_DEBOUNCE_MS);
-  },
-
-  loadVoiceFromBackend: async () => {
-    const res = await api
-      .get<VoiceSettingsResponse>('/api/settings/voice')
-      .catch(() => null);
-    if (!res) return;
-
-    if (res.saved) {
-      set((state) => voiceFromPayload(res, state));
-      clearLegacyVoiceSettings();
-      return;
-    }
-
-    // First run of this version: move the voice an older version kept in this browser.
-    const legacy = getLegacyVoiceSettings();
-    if (!legacy) return;
-    set(legacy);
     try {
-      await api.put('/api/settings/voice', voiceToPayload(legacy));
-      clearLegacyVoiceSettings();
+      const res = await putSettings<EngineerSettingsResponse>('engineer', body);
+      set({ engineerVersion: res.version });
     } catch (err) {
-      console.warn('[radioSettings] Moving the voice settings to the server failed:', err);
+      if (err instanceof ApiError && err.status === 409) {
+        // Another device saved first: its settings win, and a queued change would only resave them.
+        engineerSaveQueued = false;
+        await get().loadConfigFromBackend();
+        useSettingsSaveStore.getState().report('engineer', 'conflict', err.message);
+        return;
+      }
+      reportSettingsSaveFailure('engineer', err);
     }
-  },
-}));
+  };
+
+  const flushEngineerSave = async (): Promise<void> => {
+    if (engineerSaveInFlight) {
+      engineerSaveQueued = true;
+      return;
+    }
+    engineerSaveInFlight = true;
+    const waiters = engineerSaveWaiters;
+    engineerSaveWaiters = [];
+    try {
+      await saveEngineerSettings();
+    } finally {
+      engineerSaveInFlight = false;
+      waiters.forEach((resolve) => resolve());
+    }
+    if (engineerSaveQueued) {
+      engineerSaveQueued = false;
+      await flushEngineerSave();
+    }
+  };
+
+  return {
+    ...createAudioSettingsSlice(set, get, store),
+    ...createAlertThresholdsSlice(set, get, store),
+    ...createTacticalSettingsSlice(set, get, store),
+    ...createRadioPresetsSlice(set, get, store),
+    engineerVersion: 0,
+
+    resetStoreToDefaults: () => {
+      resetSaveQueues();
+      set(getInitialRadioSettings());
+    },
+
+    syncConfigToBackend: (immediate = false) => {
+      const saved = new Promise<void>((resolve) => engineerSaveWaiters.push(resolve));
+      if (engineerSaveTimer) {
+        clearTimeout(engineerSaveTimer);
+        engineerSaveTimer = null;
+      }
+      if (immediate) {
+        void flushEngineerSave();
+      } else {
+        engineerSaveTimer = setTimeout(() => {
+          engineerSaveTimer = null;
+          void flushEngineerSave();
+        }, SETTINGS_SYNC_DEBOUNCE_MS);
+      }
+      return saved;
+    },
+
+    loadConfigFromBackend: async () => {
+      // Backend not available or offline: keep the current state
+      const res = await api
+        .get<EngineerSettingsResponse>('/api/settings/engineer')
+        .catch(() => null);
+      if (!res) return;
+
+      set((state) => {
+        const nextState: RadioSettingsState = {
+          ...state,
+          ...thresholdsFromSettings(res, state),
+          smartDiscretionEnabled: res.smart_discretion_enabled ?? state.smartDiscretionEnabled,
+          chatterCooldownSeconds: res.chatter_cooldown_ms
+            ? Math.round(res.chatter_cooldown_ms / TIME_CONSTANTS.MS_PER_SECOND)
+            : state.chatterCooldownSeconds,
+          ...alertTogglesFromSwitches(res.alert_switches ?? {}),
+          engineerVersion: res.version,
+        };
+        nextState.triggerPreset = isRadioTriggerPreset(res.trigger_preset)
+          ? res.trigger_preset
+          : detectTriggerPreset(nextState);
+        return nextState;
+      });
+
+      // Fresh install: save the panel's starting preset so the engine runs what the panel shows.
+      if (!res.saved) {
+        await get().syncConfigToBackend(true);
+      }
+    },
+
+    syncVoiceToBackend: () => {
+      if (voiceSyncTimeout) clearTimeout(voiceSyncTimeout);
+      voiceSyncTimeout = setTimeout(() => {
+        voiceSyncTimeout = null;
+        voiceSaveInFlight = true;
+        putSettings('voice', voiceToPayload(get()))
+          .catch((err) => reportSettingsSaveFailure('voice', err))
+          .finally(() => {
+            voiceSaveInFlight = false;
+          });
+      }, SETTINGS_SYNC_DEBOUNCE_MS);
+    },
+
+    loadVoiceFromBackend: async () => {
+      const res = await api
+        .get<VoiceSettingsResponse>('/api/settings/voice')
+        .catch(() => null);
+      if (!res) return;
+
+      if (res.saved) {
+        set((state) => voiceFromPayload(res, state));
+        clearLegacyVoiceSettings();
+        return;
+      }
+
+      // First run of this version: move the voice an older version kept in this browser.
+      const legacy = getLegacyVoiceSettings();
+      if (!legacy) return;
+      set(legacy);
+      try {
+        await putSettings('voice', voiceToPayload(legacy));
+        clearLegacyVoiceSettings();
+      } catch (err) {
+        console.warn('[radioSettings] Moving the voice settings to the server failed:', err);
+      }
+    },
+  };
+});

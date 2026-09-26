@@ -170,6 +170,16 @@ export const ai_engineer = {
     emptyResponseDesc:
       'Received empty response from AI model. Please verify your selected model or API configuration.',
   },
+  settingsSync: {
+    saveFailed: "Couldn't save the {section} settings: {message}",
+    conflict: 'The {section} settings were changed on another device. Showing the latest ones.',
+    sections: {
+      engineer: 'race engineer',
+      voice: 'voice',
+      ai: 'AI',
+      ptt: 'push-to-talk',
+    },
+  },
   radio: {
     title: 'Voice Radio',
     idle: 'RADIO STANDBY',

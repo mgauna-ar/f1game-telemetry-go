@@ -3,8 +3,12 @@ import {
   RADIO_TRIGGER_PRESETS,
   type RadioTriggerPreset,
 } from '../../constants/f1';
+import type { EngineerAlertSwitch } from '../../types/settings';
 
-/** Category master switches and per-alert switches shown in the radio settings panel. */
+/**
+ * Category master switches and per-alert switches shown in the radio settings panel. The server
+ * turns them into the engine's enabled categories (engineer.EnabledCategoriesFromSwitches).
+ */
 export const ALERT_TOGGLE_KEYS = [
   'tyreAlertsEnabled',
   'thermalAlertsEnabled',
@@ -42,9 +46,13 @@ export const ALERT_TOGGLE_KEYS = [
   'subRain',
   'subTrackLimits',
   'subPenalties',
-] as const;
+] as const satisfies readonly EngineerAlertSwitch[];
 
 export type AlertToggleKey = (typeof ALERT_TOGGLE_KEYS)[number];
+
+// tsc fails here when the server knows a switch the panel doesn't show.
+type NoMissingSwitches<T extends never> = T;
+export type AllAlertSwitchesShown = NoMissingSwitches<Exclude<EngineerAlertSwitch, AlertToggleKey>>;
 export type AlertToggles = Record<AlertToggleKey, boolean>;
 
 export interface TriggerPresetValues extends AlertToggles {

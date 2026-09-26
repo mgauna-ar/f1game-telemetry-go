@@ -6,7 +6,9 @@ import {
   type RadioPTTMode,
 } from '../constants/f1';
 import { api } from '../utils/apiClient';
+import { putSettings, subscribeSettingsChanges } from '../utils/settingsClient';
 import { storage } from '../utils/storage';
+import { reportSettingsSaveFailure } from '../store/useSettingsSaveStore';
 import type { GlobalPTTMapping, PTT, PTTConfigResponse, PTTSettingsResponse } from '../types/settings';
 import type { Narrows } from '../types/wire';
 
@@ -133,10 +135,9 @@ export function usePTTConfig(): UsePTTConfigReturn {
     (changes: Partial<PTTValues>) => {
       const next = { ...valuesRef.current, ...changes };
       applyValues(next);
-      api
-        .put('/api/settings/ptt', pttToPayload(next))
+      putSettings('ptt', pttToPayload(next))
         .then(() => refreshGlobalStatus())
-        .catch((err) => console.warn('[usePTTConfig] Sync failed:', err));
+        .catch((err) => reportSettingsSaveFailure('ptt', err));
     },
     [applyValues, refreshGlobalStatus]
   );
@@ -179,7 +180,7 @@ export function usePTTConfig(): UsePTTConfigReturn {
         if (legacy) {
           applyValues(legacy);
           try {
-            await api.put('/api/settings/ptt', pttToPayload(legacy));
+            await putSettings('ptt', pttToPayload(legacy));
             clearLegacyPTTSettings();
           } catch (err) {
             console.warn('[usePTTConfig] Moving push-to-talk settings to the server failed:', err);
@@ -193,6 +194,21 @@ export function usePTTConfig(): UsePTTConfigReturn {
       cancelled = true;
     };
   }, [applyValues, refreshGlobalStatus]);
+
+  // Another device saved the push-to-talk setup: show it here too.
+  useEffect(
+    () =>
+      subscribeSettingsChanges('ptt', () => {
+        api
+          .get<PTTSettingsResponse>('/api/settings/ptt')
+          .then((res) => {
+            if (res.saved) applyValues(pttFromPayload(res));
+            return refreshGlobalStatus();
+          })
+          .catch(() => {});
+      }),
+    [applyValues, refreshGlobalStatus]
+  );
 
   return {
     pttMode,

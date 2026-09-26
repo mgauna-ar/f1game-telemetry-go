@@ -1,12 +1,9 @@
 import type { StateCreator } from 'zustand';
 import { RADIO_TRIGGER_PRESETS, type RadioTriggerPreset } from '../../constants/f1';
-import type { EngineerConfig } from '../../types/telemetry';
+import type { EngineerSettings } from '../../types/settings';
 import { api } from '../../utils/apiClient';
-import {
-  buildEngineerConfigFromValues,
-  type RadioSettingsState,
-} from '../useRadioSettingsStore';
-import { getInitialAlertThresholds, thresholdsFromEngineerConfig } from './alertThresholdsSlice';
+import type { RadioSettingsState } from '../useRadioSettingsStore';
+import { getInitialAlertThresholds, thresholdsFromSettings } from './alertThresholdsSlice';
 import { TRIGGER_PRESET_VALUES } from './triggerPresets';
 
 export interface RadioPresetsSlice {
@@ -39,13 +36,7 @@ export const createRadioPresetsSlice: StateCreator<
         ? { triggerPreset: preset }
         : { triggerPreset: preset, ...TRIGGER_PRESET_VALUES[preset] };
 
-    set((state) => {
-      const nextState = { ...state, ...partial };
-      return {
-        ...nextState,
-        engineerConfig: buildEngineerConfigFromValues(nextState),
-      };
-    });
+    set(partial);
     get().syncConfigToBackend();
   },
 
@@ -54,25 +45,18 @@ export const createRadioPresetsSlice: StateCreator<
     const bundledDefaults = getInitialAlertThresholds();
     let thresholds = bundledDefaults;
     try {
-      const serverDefaults = await api.get<EngineerConfig>('/api/ai/engineer/config/defaults');
+      const serverDefaults = await api.get<EngineerSettings>('/api/settings/engineer/defaults');
       if (serverDefaults) {
-        thresholds = thresholdsFromEngineerConfig(serverDefaults, bundledDefaults);
+        thresholds = thresholdsFromSettings(serverDefaults, bundledDefaults);
       }
     } catch {
       // Backend unavailable, keep the bundled defaults
     }
 
-    set((state) => {
-      const nextState = {
-        ...state,
-        ...TRIGGER_PRESET_VALUES[RADIO_TRIGGER_PRESETS.IMMERSIVE],
-        ...thresholds,
-        triggerPreset: RADIO_TRIGGER_PRESETS.IMMERSIVE,
-      };
-      return {
-        ...nextState,
-        engineerConfig: buildEngineerConfigFromValues(nextState),
-      };
+    set({
+      ...TRIGGER_PRESET_VALUES[RADIO_TRIGGER_PRESETS.IMMERSIVE],
+      ...thresholds,
+      triggerPreset: RADIO_TRIGGER_PRESETS.IMMERSIVE,
     });
     get().syncConfigToBackend();
   },

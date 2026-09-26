@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { useRadioSettingsStore } from './useRadioSettingsStore';
+import { engineerSettingsFromValues, useRadioSettingsStore } from './useRadioSettingsStore';
+import { useSettingsSaveStore } from './useSettingsSaveStore';
 import {
   RADIO_PERSONAS,
   RADIO_LANGUAGES,
@@ -8,9 +9,54 @@ import {
   RADIO_AUDIO_CONSTANTS,
   RADIO_TRIGGER_PRESETS,
 } from '../constants/f1';
-import { api } from '../utils/apiClient';
-import type { EngineerConfig } from '../types/telemetry';
+import { api, ApiError } from '../utils/apiClient';
+import { DASHBOARD_CLIENT_HEADER, DASHBOARD_CLIENT_ID } from '../utils/settingsClient';
+import type { EngineerSettings, EngineerSettingsResponse } from '../types/settings';
 import { ALERT_TOGGLE_KEYS, TRIGGER_PRESET_VALUES } from './slices/triggerPresets';
+
+const withClientId = { headers: { [DASHBOARD_CLIENT_HEADER]: DASHBOARD_CLIENT_ID } };
+
+/** A GET /api/settings/engineer answer: saved defaults with `overrides`. */
+function serverSettings(overrides: Partial<EngineerSettingsResponse> = {}): EngineerSettingsResponse {
+  return {
+    saved: true,
+    version: 1,
+    chatter_cooldown_ms: 45000,
+    smart_discretion_enabled: true,
+    tyre_wear_warn_pct: 40,
+    tyre_wear_crit_pct: 75,
+    tyre_overheat_c: 110,
+    tyre_cold_c: 80,
+    wing_damage_warn_pct: 20,
+    floor_damage_warn_pct: 25,
+    engine_wear_warn_pct: 70,
+    ers_low_pct: 15,
+    engine_overheat_c: 120,
+    brake_overheat_c: 900,
+    brake_cold_c: 200,
+    fuel_delta_laps: -0.2,
+    undercut_gap_sec: 1.5,
+    rival_gap_sec: 1,
+    rival_ahead_gap_sec: 1,
+    qualy_clean_air_sec: 4,
+    corner_cut_warn_threshold: 2,
+    rain_horizon_min: 10,
+    rain_prob_pct: 50,
+    trigger_preset: RADIO_TRIGGER_PRESETS.IMMERSIVE,
+    ...overrides,
+  };
+}
+
+/** The answer to a successful PUT /api/settings/engineer. */
+function savedResponse(version: number): EngineerSettingsResponse {
+  return serverSettings({ version });
+}
+
+/** The body of the `n`th race engineer save. */
+function engineerBody(putSpy: { mock: { calls: unknown[][] } }, n = 0): EngineerSettings {
+  const calls = putSpy.mock.calls.filter(([url]) => url === '/api/settings/engineer');
+  return calls[n][1] as EngineerSettings;
+}
 
 describe('useRadioSettingsStore and slices', () => {
   beforeEach(() => {
@@ -23,6 +69,7 @@ describe('useRadioSettingsStore and slices', () => {
   afterEach(() => {
     localStorage.clear();
     useRadioSettingsStore.getState().resetStoreToDefaults();
+    useSettingsSaveStore.getState().clear();
     vi.restoreAllMocks();
     vi.useRealTimers();
   });
@@ -51,15 +98,19 @@ describe('useRadioSettingsStore and slices', () => {
 
     await vi.advanceTimersByTimeAsync(500);
     expect(putSpy).toHaveBeenCalledTimes(1);
-    expect(putSpy).toHaveBeenCalledWith('/api/settings/voice', {
-      persona: RADIO_PERSONAS.COLAPINTO,
-      language: RADIO_LANGUAGES.ES,
-      custom_prompt: '',
-      driver_callsign: '',
-      neural_voice: '',
-      speech_rate: RADIO_AUDIO_CONSTANTS.MAX_SPEECH_RATE_PERCENT,
-      speech_pitch: -20,
-    });
+    expect(putSpy).toHaveBeenCalledWith(
+      '/api/settings/voice',
+      {
+        persona: RADIO_PERSONAS.COLAPINTO,
+        language: RADIO_LANGUAGES.ES,
+        custom_prompt: '',
+        driver_callsign: '',
+        neural_voice: '',
+        speech_rate: RADIO_AUDIO_CONSTANTS.MAX_SPEECH_RATE_PERCENT,
+        speech_pitch: -20,
+      },
+      withClientId
+    );
     expect(localStorage.getItem(LEGACY_RADIO_STORAGE_KEYS.PERSONA)).toBeNull();
 
     // Audio effects
@@ -73,101 +124,169 @@ describe('useRadioSettingsStore and slices', () => {
     expect(useRadioSettingsStore.getState().staticFxEnabled).toBe(false);
   });
 
-  it('handles alert thresholds without localStorage writes and debounces sync to backend', () => {
-    const postSpy = vi.spyOn(api, 'post').mockResolvedValue({ status: 'success' });
+  it('saves thresholds to the server after a pause, without localStorage writes', async () => {
+    const putSpy = vi.spyOn(api, 'put').mockResolvedValue(savedResponse(1));
     const store = useRadioSettingsStore.getState();
 
     store.setTyreWearWarningPct(55);
     expect(useRadioSettingsStore.getState().tyreWearWarningPct).toBe(55);
     expect(useRadioSettingsStore.getState().triggerPreset).toBe(RADIO_TRIGGER_PRESETS.CUSTOM);
-    // Should NOT write to localStorage for threshold
     expect(localStorage.getItem('f1_radio_tyre_wear_warn_pct')).toBeNull();
+    expect(putSpy).not.toHaveBeenCalled();
 
-    // Debounced - should not have fired yet
-    expect(postSpy).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(500);
 
-    vi.advanceTimersByTime(500);
-
-    expect(postSpy).toHaveBeenCalledTimes(1);
-    const lastCall = postSpy.mock.calls[postSpy.mock.calls.length - 1];
-    expect(lastCall[0]).toBe('/api/ai/engineer/config');
-    expect((lastCall[1] as Record<string, unknown>).tyre_wear_warn_pct).toBe(55);
+    expect(putSpy).toHaveBeenCalledTimes(1);
+    expect(putSpy).toHaveBeenCalledWith('/api/settings/engineer', expect.anything(), withClientId);
+    const body = engineerBody(putSpy);
+    expect(body.tyre_wear_warn_pct).toBe(55);
+    expect(body.version).toBe(0);
+    expect(useRadioSettingsStore.getState().engineerVersion).toBe(1);
   });
 
-  it('debounces rapid changes into a single backend sync', () => {
-    const postSpy = vi.spyOn(api, 'post').mockResolvedValue({ status: 'success' });
+  it('sends only the panel values, never what the server derives or owns', async () => {
+    const putSpy = vi.spyOn(api, 'put').mockResolvedValue(savedResponse(1));
+    await useRadioSettingsStore.getState().syncConfigToBackend(true);
+
+    const body = engineerBody(putSpy) as unknown as Record<string, unknown>;
+    for (const serverOwned of ['enabled_categories', 'global_chatter_cooldown_ms', 'wing_damage_crit_pct', 'qualy_time_warn_sec']) {
+      expect(body).not.toHaveProperty(serverOwned);
+    }
+    expect(Object.keys(body.alert_switches as object).sort()).toEqual([...ALERT_TOGGLE_KEYS].sort());
+    expect(body.trigger_preset).toBe(RADIO_TRIGGER_PRESETS.IMMERSIVE);
+  });
+
+  it('debounces rapid changes into one save and resolves every waiting caller', async () => {
+    const putSpy = vi.spyOn(api, 'put').mockResolvedValue(savedResponse(1));
     const store = useRadioSettingsStore.getState();
 
     store.setTyreWearWarningPct(40);
-    store.setTyreWearWarningPct(45);
+    const first = store.syncConfigToBackend();
     store.setTyreWearWarningPct(50);
+    const second = store.syncConfigToBackend();
     store.setTyreWearWarningPct(55);
 
-    expect(postSpy).not.toHaveBeenCalled();
+    let resolved = 0;
+    void first.then(() => resolved++);
+    void second.then(() => resolved++);
 
-    vi.advanceTimersByTime(500);
+    await vi.advanceTimersByTimeAsync(500);
 
-    expect(postSpy).toHaveBeenCalledTimes(1);
-    const lastCall = postSpy.mock.calls[0];
-    expect((lastCall[1] as Record<string, unknown>).tyre_wear_warn_pct).toBe(55);
+    expect(putSpy).toHaveBeenCalledTimes(1);
+    expect(engineerBody(putSpy).tyre_wear_warn_pct).toBe(55);
+    expect(resolved).toBe(2);
   });
 
-  it('handles tactical settings toggles and debounces sync to backend', () => {
-    const postSpy = vi.spyOn(api, 'post').mockResolvedValue({ status: 'success' });
+  it('saves a change made during a save right after it, with the new version', async () => {
+    let finishFirst: (value: EngineerSettingsResponse) => void = () => {};
+    const putSpy = vi
+      .spyOn(api, 'put')
+      .mockImplementationOnce(() => new Promise((resolve) => (finishFirst = resolve as typeof finishFirst)))
+      .mockResolvedValue(savedResponse(2));
+    const store = useRadioSettingsStore.getState();
+
+    store.setTyreWearWarningPct(50);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(putSpy).toHaveBeenCalledTimes(1);
+
+    store.setTyreWearWarningPct(60);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(putSpy).toHaveBeenCalledTimes(1); // waits for the first save
+
+    finishFirst(savedResponse(1));
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(putSpy).toHaveBeenCalledTimes(2);
+    const second = engineerBody(putSpy, 1);
+    expect(second.version).toBe(1);
+    expect(second.tyre_wear_warn_pct).toBe(60);
+    expect(useRadioSettingsStore.getState().engineerVersion).toBe(2);
+  });
+
+  it('reports a failed save and still resolves', async () => {
+    vi.spyOn(api, 'put').mockRejectedValue(new ApiError('failed to save race engineer settings', 500, 'Internal Server Error'));
+
+    await useRadioSettingsStore.getState().syncConfigToBackend(true);
+
+    expect(useSettingsSaveStore.getState().problem).toMatchObject({
+      section: 'engineer',
+      kind: 'failed',
+      message: 'failed to save race engineer settings',
+    });
+  });
+
+  it('reloads the newer settings when another device saved first', async () => {
+    vi.spyOn(api, 'put').mockRejectedValue(new ApiError('changed on another device', 409, 'Conflict'));
+    const getSpy = vi.spyOn(api, 'get').mockResolvedValue(
+      serverSettings({ version: 7, tyre_wear_warn_pct: 33, trigger_preset: RADIO_TRIGGER_PRESETS.COACHING })
+    );
+    useRadioSettingsStore.getState().setTyreWearWarningPct(70);
+
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(getSpy).toHaveBeenCalledWith('/api/settings/engineer');
+    const state = useRadioSettingsStore.getState();
+    expect(state.tyreWearWarningPct).toBe(33);
+    expect(state.engineerVersion).toBe(7);
+    expect(state.triggerPreset).toBe(RADIO_TRIGGER_PRESETS.COACHING);
+    expect(useSettingsSaveStore.getState().problem).toMatchObject({ section: 'engineer', kind: 'conflict' });
+  });
+
+  it('handles tactical settings toggles and saves them', async () => {
+    const putSpy = vi.spyOn(api, 'put').mockResolvedValue(savedResponse(1));
     const store = useRadioSettingsStore.getState();
 
     store.setSubTyreThermal(false);
     expect(useRadioSettingsStore.getState().subTyreThermal).toBe(false);
     expect(useRadioSettingsStore.getState().triggerPreset).toBe(RADIO_TRIGGER_PRESETS.CUSTOM);
 
-    vi.advanceTimersByTime(500);
-    expect(postSpy).toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(500);
+    expect(engineerBody(putSpy).alert_switches?.subTyreThermal).toBe(false);
   });
 
-  it('applies trigger presets cleanly (Immersive, Coaching, Minimal)', () => {
-    const postSpy = vi.spyOn(api, 'post').mockResolvedValue({ status: 'success' });
+  it('applies trigger presets cleanly (Immersive, Coaching, Minimal)', async () => {
+    const putSpy = vi.spyOn(api, 'put').mockResolvedValue(savedResponse(1));
     const store = useRadioSettingsStore.getState();
 
-    // Coaching preset
     store.applyTriggerPreset(RADIO_TRIGGER_PRESETS.COACHING);
     expect(useRadioSettingsStore.getState().triggerPreset).toBe(RADIO_TRIGGER_PRESETS.COACHING);
     expect(useRadioSettingsStore.getState().chatterCooldownSeconds).toBe(20);
     expect(useRadioSettingsStore.getState().subTyreThermal).toBe(true);
 
-    // Minimal preset
     store.applyTriggerPreset(RADIO_TRIGGER_PRESETS.MINIMAL);
     expect(useRadioSettingsStore.getState().triggerPreset).toBe(RADIO_TRIGGER_PRESETS.MINIMAL);
     expect(useRadioSettingsStore.getState().chatterCooldownSeconds).toBe(90);
     expect(useRadioSettingsStore.getState().subTyreWear).toBe(false);
     expect(useRadioSettingsStore.getState().subTyrePuncture).toBe(true);
 
-    // Immersive preset
     store.applyTriggerPreset(RADIO_TRIGGER_PRESETS.IMMERSIVE);
     expect(useRadioSettingsStore.getState().triggerPreset).toBe(RADIO_TRIGGER_PRESETS.IMMERSIVE);
     expect(useRadioSettingsStore.getState().chatterCooldownSeconds).toBe(45);
     expect(useRadioSettingsStore.getState().subTyreWear).toBe(true);
     expect(useRadioSettingsStore.getState().subTyreThermal).toBe(false);
 
-    vi.advanceTimersByTime(500);
-    expect(postSpy).toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(500);
+    expect(putSpy).toHaveBeenCalledTimes(1);
+    expect(engineerBody(putSpy).trigger_preset).toBe(RADIO_TRIGGER_PRESETS.IMMERSIVE);
   });
 
-  it('hydrates config from backend via loadConfigFromBackend', async () => {
-    vi.spyOn(api, 'get').mockResolvedValue({
-      chatter_cooldown_ms: 25000,
-      smart_discretion_enabled: false,
-      tyre_wear_warn_pct: 48,
-      tyre_wear_crit_pct: 82,
-      enabled_categories: {
-        tyre_wear: true,
-        tyre_thermal: true,
-        flags_rain: false,
-      },
-    });
+  it('loads the saved settings from the server', async () => {
+    const putSpy = vi.spyOn(api, 'put');
+    vi.spyOn(api, 'get').mockResolvedValue(
+      serverSettings({
+        version: 4,
+        chatter_cooldown_ms: 25000,
+        smart_discretion_enabled: false,
+        tyre_wear_warn_pct: 48,
+        tyre_wear_crit_pct: 82,
+        alert_switches: { subTyreWear: true, subTyreThermal: true, subRain: false },
+      })
+    );
 
     await useRadioSettingsStore.getState().loadConfigFromBackend();
 
     const state = useRadioSettingsStore.getState();
+    expect(state.engineerVersion).toBe(4);
     expect(state.chatterCooldownSeconds).toBe(25);
     expect(state.smartDiscretionEnabled).toBe(false);
     expect(state.tyreWearWarningPct).toBe(48);
@@ -175,55 +294,25 @@ describe('useRadioSettingsStore and slices', () => {
     expect(state.subTyreWear).toBe(true);
     expect(state.subTyreThermal).toBe(true);
     expect(state.subRain).toBe(false);
+    expect(putSpy).not.toHaveBeenCalled();
   });
 
-  it('serializes global_chatter_cooldown_ms and canonical alert keys in engineerConfig', () => {
-    const store = useRadioSettingsStore.getState();
-    const config = store.engineerConfig;
-
-    expect(config.global_chatter_cooldown_ms).toBe(4000);
-    expect(config.enabled_categories?.damage_wing).toBeDefined();
-    expect(config.enabled_categories?.damage_floor).toBeDefined();
-    expect(config.enabled_categories?.damage_engine).toBeDefined();
-    expect(config.enabled_categories?.tyre_overheat).toBeDefined();
-    expect(config.enabled_categories?.flags_rain_live).toBeDefined();
-  });
-
-  it('hydrates canonical backend alert keys (damage_wing, tyre_overheat, flags_rain_live)', async () => {
-    vi.spyOn(api, 'get').mockResolvedValue({
-      chatter_cooldown_ms: 30000,
-      global_chatter_cooldown_ms: 4000,
-      enabled_categories: {
-        damage_wing: false,
-        damage_floor: false,
-        tyre_overheat: false,
-        flags_rain_live: false,
-      },
-    });
-
-    await useRadioSettingsStore.getState().loadConfigFromBackend();
-
-    const state = useRadioSettingsStore.getState();
-    expect(state.subDamageWing).toBe(false);
-    expect(state.subDamageFloor).toBe(false);
-    expect(state.subTyreThermal).toBe(false);
-    expect(state.subRain).toBe(false);
-  });
   it('starts on the Immersive preset with matching alert switches', () => {
     const state = useRadioSettingsStore.getState();
     expect(state.triggerPreset).toBe(RADIO_TRIGGER_PRESETS.IMMERSIVE);
     for (const key of ALERT_TOGGLE_KEYS) {
       expect(state[key]).toBe(TRIGGER_PRESET_VALUES.immersive[key]);
     }
-    expect(state.engineerConfig.trigger_preset).toBe(RADIO_TRIGGER_PRESETS.IMMERSIVE);
-    expect(state.engineerConfig.enabled_categories?.tyre_thermal).toBe(false);
+    const settings = engineerSettingsFromValues(state);
+    expect(settings.trigger_preset).toBe(RADIO_TRIGGER_PRESETS.IMMERSIVE);
+    expect(settings.alert_switches?.subTyreThermal).toBe(false);
   });
 
   it('restores category switches and preset after a reload', async () => {
-    let saved: EngineerConfig | null = null;
-    const postSpy = vi.spyOn(api, 'post').mockImplementation(async (_url, body) => {
-      saved = body as EngineerConfig;
-      return { status: 'success' };
+    let saved: EngineerSettings | null = null;
+    const putSpy = vi.spyOn(api, 'put').mockImplementation(async (_url, body) => {
+      saved = body as EngineerSettings;
+      return savedResponse(1);
     });
     const store = useRadioSettingsStore.getState();
     store.applyTriggerPreset(RADIO_TRIGGER_PRESETS.MINIMAL);
@@ -232,12 +321,11 @@ describe('useRadioSettingsStore and slices', () => {
 
     expect(saved!.alert_switches?.tyreAlertsEnabled).toBe(false);
     expect(saved!.alert_switches?.subTyrePuncture).toBe(true);
-    expect(saved!.enabled_categories?.tyre_puncture).toBe(false);
 
     // Simulate a page reload
     useRadioSettingsStore.getState().resetStoreToDefaults();
-    postSpy.mockClear();
-    vi.spyOn(api, 'get').mockResolvedValue(saved);
+    putSpy.mockClear();
+    vi.spyOn(api, 'get').mockResolvedValue({ ...saved!, saved: true, version: 1 });
     await useRadioSettingsStore.getState().loadConfigFromBackend();
 
     const state = useRadioSettingsStore.getState();
@@ -246,58 +334,44 @@ describe('useRadioSettingsStore and slices', () => {
     expect(state.thermalAlertsEnabled).toBe(false);
     expect(state.subTyrePuncture).toBe(true);
     expect(state.chatterCooldownSeconds).toBe(90);
-    // Already in the current shape, so nothing is written back
-    expect(postSpy).not.toHaveBeenCalled();
+    expect(putSpy).not.toHaveBeenCalled();
   });
 
-  it('migrates configs saved without panel state and writes them back once', async () => {
-    const postSpy = vi.spyOn(api, 'post').mockResolvedValue({ status: 'success' });
+  it('works out the preset of settings saved without one', async () => {
     const minimal = TRIGGER_PRESET_VALUES.minimal;
-    vi.spyOn(api, 'get').mockResolvedValue({
-      chatter_cooldown_ms: minimal.chatterCooldownSeconds * 1000,
-      // Old configs stored "category AND alert", so Minimal's disabled categories read as all-off
-      enabled_categories: {
-        tyre_wear: false,
-        tyre_puncture: true,
-        damage_wing: true,
-        damage_aero_fault: true,
-        flags_sc: true,
-        flags_red: true,
-        penalties: true,
-      },
-    });
+    const switches = Object.fromEntries(ALERT_TOGGLE_KEYS.map((key) => [key, minimal[key]]));
+    vi.spyOn(api, 'get').mockResolvedValue(
+      serverSettings({
+        chatter_cooldown_ms: minimal.chatterCooldownSeconds * 1000,
+        trigger_preset: '',
+        alert_switches: switches,
+      })
+    );
 
     await useRadioSettingsStore.getState().loadConfigFromBackend();
 
-    const state = useRadioSettingsStore.getState();
-    expect(state.subTyreWear).toBe(false);
-    expect(state.subTyrePuncture).toBe(true);
-    expect(postSpy).toHaveBeenCalledTimes(1);
-    const posted = postSpy.mock.calls[0][1] as EngineerConfig;
-    expect(posted.alert_switches).toBeDefined();
-    expect(posted.trigger_preset).toBe(state.triggerPreset);
+    expect(useRadioSettingsStore.getState().triggerPreset).toBe(RADIO_TRIGGER_PRESETS.MINIMAL);
   });
 
   it('keeps Immersive on a fresh install and saves it to the server', async () => {
-    const postSpy = vi.spyOn(api, 'post').mockResolvedValue({ status: 'success' });
-    vi.spyOn(api, 'get').mockResolvedValue({
-      chatter_cooldown_ms: 45000,
-      global_chatter_cooldown_ms: 4000,
-      smart_discretion_enabled: true,
-      brake_overheat_c: 900,
-    });
+    const putSpy = vi.spyOn(api, 'put').mockResolvedValue(savedResponse(1));
+    vi.spyOn(api, 'get').mockResolvedValue(
+      serverSettings({ saved: false, version: 0, trigger_preset: '', alert_switches: undefined, brake_overheat_c: 900 })
+    );
 
     await useRadioSettingsStore.getState().loadConfigFromBackend();
 
     const state = useRadioSettingsStore.getState();
     expect(state.triggerPreset).toBe(RADIO_TRIGGER_PRESETS.IMMERSIVE);
     expect(state.subTyreThermal).toBe(false);
-    expect(postSpy).toHaveBeenCalledTimes(1);
-    expect((postSpy.mock.calls[0][1] as EngineerConfig).enabled_categories?.tyre_thermal).toBe(false);
+    expect(putSpy).toHaveBeenCalledTimes(1);
+    const body = engineerBody(putSpy);
+    expect(body.alert_switches?.subTyreThermal).toBe(false);
+    expect(body.version).toBe(0);
   });
 
   it('resets thresholds to the server defaults', async () => {
-    vi.spyOn(api, 'post').mockResolvedValue({ status: 'success' });
+    vi.spyOn(api, 'put').mockResolvedValue(savedResponse(1));
     const getSpy = vi.spyOn(api, 'get').mockResolvedValue({ brake_overheat_c: 950, undercut_gap_sec: 2.0 });
     const store = useRadioSettingsStore.getState();
     store.setBrakeOverheatC(1100);
@@ -305,7 +379,7 @@ describe('useRadioSettingsStore and slices', () => {
 
     await useRadioSettingsStore.getState().resetTriggerDefaults();
 
-    expect(getSpy).toHaveBeenCalledWith('/api/ai/engineer/config/defaults');
+    expect(getSpy).toHaveBeenCalledWith('/api/settings/engineer/defaults');
     const state = useRadioSettingsStore.getState();
     expect(state.brakeOverheatC).toBe(950);
     expect(state.undercutGapSec).toBe(2.0);
@@ -314,7 +388,7 @@ describe('useRadioSettingsStore and slices', () => {
   });
 
   it('falls back to bundled defaults when the server defaults are unavailable', async () => {
-    vi.spyOn(api, 'post').mockResolvedValue({ status: 'success' });
+    vi.spyOn(api, 'put').mockResolvedValue(savedResponse(1));
     vi.spyOn(api, 'get').mockRejectedValue(new Error('offline'));
     useRadioSettingsStore.getState().setBrakeOverheatC(1100);
 
@@ -322,6 +396,16 @@ describe('useRadioSettingsStore and slices', () => {
 
     expect(useRadioSettingsStore.getState().brakeOverheatC).toBe(900);
   });
+
+  it('reports a failed voice save', async () => {
+    vi.spyOn(api, 'put').mockRejectedValue(new Error('offline'));
+    useRadioSettingsStore.getState().setPersona(RADIO_PERSONAS.COLAPINTO);
+
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(useSettingsSaveStore.getState().problem).toMatchObject({ section: 'voice', kind: 'failed', message: 'offline' });
+  });
+
   it('loads the saved voice from the server and drops old browser copies', async () => {
     localStorage.setItem(LEGACY_RADIO_STORAGE_KEYS.PERSONA, RADIO_PERSONAS.CUSTOM);
     vi.spyOn(api, 'get').mockResolvedValueOnce({
@@ -359,7 +443,8 @@ describe('useRadioSettingsStore and slices', () => {
     expect(useRadioSettingsStore.getState().persona).toBe(RADIO_PERSONAS.COLAPINTO);
     expect(putSpy).toHaveBeenCalledWith(
       '/api/settings/voice',
-      expect.objectContaining({ persona: RADIO_PERSONAS.COLAPINTO, driver_callsign: 'Franco', speech_rate: 10 })
+      expect.objectContaining({ persona: RADIO_PERSONAS.COLAPINTO, driver_callsign: 'Franco', speech_rate: 10 }),
+      withClientId
     );
     expect(localStorage.getItem(LEGACY_RADIO_STORAGE_KEYS.DRIVER_CALLSIGN)).toBeNull();
   });
