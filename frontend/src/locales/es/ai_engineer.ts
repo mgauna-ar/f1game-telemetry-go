@@ -182,6 +182,7 @@ export const ai_engineer = {
   },
   radio: {
     title: 'Radio de Voz',
+    settingsSubtitle: 'Personalidad del Ingeniero y Estratega de Muro',
     idle: 'RADIO EN ESPERA',
     transmitting: 'TRANSMITIENDO [PTT ACTIVO]',
     processing: 'PROCESANDO EN BOXES...',

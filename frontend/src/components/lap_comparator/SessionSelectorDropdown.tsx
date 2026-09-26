@@ -1,7 +1,8 @@
 import React, { useRef, useEffect } from 'react';
 import { Search, ChevronDown, ChevronUp, X } from 'lucide-react';
 import type { Session } from '../../types/session';
-import { getSessionBadgeClass, formatDate } from '../../utils/formatters';
+import { formatDate } from '../../utils/formatters';
+import { SessionTypeBadge } from '../common/SessionTypeBadge';
 import { useI18n } from '../../context/I18nContext';
 import { TagBadge } from '../session_history/TagBadge';
 import { F1FormatBadge } from '../F1FormatBadge';
@@ -90,12 +91,7 @@ export const SessionSelectorDropdown: React.FC<SessionSelectorDropdownProps> = (
             <TrackFlag track={selectedSession.track_name} width={18} height={12} />
             <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedSession.track_name}</span>
             <F1FormatBadge format={selectedSession.packet_format} size="xs" />
-            <span
-              className={`session-badge ${getSessionBadgeClass(selectedSession.session_type)}`}
-              style={{ fontSize: '0.65rem', padding: '1px 6px', flexShrink: 0 }}
-            >
-              {selectedSession.session_type}
-            </span>
+            <SessionTypeBadge sessionType={selectedSession.session_type} size="xs" showIcon={false} />
             <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', flexShrink: 0 }}>
               ({new Date(selectedSession.created_at).toLocaleDateString()})
             </span>
@@ -199,9 +195,7 @@ export const SessionSelectorDropdown: React.FC<SessionSelectorDropdownProps> = (
                       </div>
                       <div className="custom-session-badges">
                         <F1FormatBadge format={s.packet_format} size="xs" />
-                        <span className={`session-badge ${getSessionBadgeClass(s.session_type)}`}>
-                          {s.session_type}
-                        </span>
+                        <SessionTypeBadge sessionType={s.session_type} size="xs" showIcon={false} />
                       </div>
                     </div>
 

@@ -3,6 +3,7 @@ export const common = {
   export: 'Export',
   clear: 'Clear',
   close: 'Close',
+  done: 'Done',
   search: 'Search',
   filter: 'Filter',
   reset: 'Reset',

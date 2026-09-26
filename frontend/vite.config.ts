@@ -63,5 +63,11 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/setupTests.ts'],
     globals: true,
+    // CSS Modules go through Vite so a misspelled class is undefined, and keep their written
+    // names so tests and the DOM read the same class names. Global stylesheets are skipped.
+    css: {
+      include: [/\.module\.css$/],
+      modules: { classNameStrategy: 'non-scoped' },
+    },
   },
 })

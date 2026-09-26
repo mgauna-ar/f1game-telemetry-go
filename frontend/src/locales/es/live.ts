@@ -53,6 +53,7 @@ export const live = {
   driverInGarage: 'En Garaje / Calle de Boxes',
   driverOnTrack: 'En Pista',
   filterAll: 'Todos',
+  feedFilterLabel: 'Filtrar eventos',
   filterFlags: 'Banderas / SC',
   filterPenalties: 'Penalizaciones',
   filterOvertakes: 'Superaciones',
@@ -84,6 +85,7 @@ export const live = {
   pitStrategy: 'Estrategia de Boxes y Matriz de Neumáticos',
   pitStrategyTitle: 'Estrategia de Boxes y Matriz de Neumáticos',
   pitStrategySub: 'Progresión de Stints y Ventanas de Servicio',
+  pitMatrixCaption: 'Neumáticos, paradas y estado en boxes de cada coche',
   pittingNow: '{count} EN BOXES AHORA',
   estimatedPitWindow: 'VENTANA DE PARADA ESTIMADA',
   lapRange: 'VUELTA {ideal} — {latest}',
@@ -283,6 +285,7 @@ export const live = {
   },
 
   viewModeDashboard: 'Control de Carrera',
+  viewModeLabel: 'Vista en vivo',
   viewModeCockpit: 'Cockpit de Voz',
   cockpit: {
     title: 'Cockpit del Ingeniero de Pista',

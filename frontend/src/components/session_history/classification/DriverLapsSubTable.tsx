@@ -4,6 +4,7 @@ import { formatSectorTime } from '../../../utils/formatters';
 import { useI18n } from '../../../context/I18nContext';
 import type { Session, Lap, DriverStanding, StagedLap } from '../../../types/session';
 import { SectorTime } from '../../common/SectorTime';
+import { Badge } from '../../ui/Badge';
 
 interface DriverLapsSubTableProps {
   session: Session;
@@ -163,9 +164,9 @@ export const DriverLapsSubTable: React.FC<DriverLapsSubTableProps> = React.memo(
                   </div>
                 </td>
                 <td style={{ padding: '6px 8px' }}>
-                  <span className={`session-badge ${lap.is_valid ? 'badge-green' : 'badge-red'}`} style={{ fontSize: '0.65rem' }}>
+                  <Badge tone={lap.is_valid ? 'success' : 'danger'} size="xs" uppercase>
                     {lap.is_valid ? t('history.classification.valid') : t('history.classification.invalid')}
-                  </span>
+                  </Badge>
                 </td>
                 <td style={{ padding: '6px 8px', textAlign: 'right' }}>
                   {(onStageLap || onSendToComparator) && (

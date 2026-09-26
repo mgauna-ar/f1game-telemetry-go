@@ -170,15 +170,6 @@
 }
 
 /* ── Footer Actions ──────────────────────────────────────────────────────── */
-.radio-modal-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  padding-top: 16px;
-  margin-top: 4px;
-}
-
 .radio-btn-test {
   display: flex;
   align-items: center;

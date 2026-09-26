@@ -6,6 +6,7 @@ import type { ParticipantData, LapData } from '../types/telemetry';
 import { useI18n } from '../context/I18nContext';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import { useTelemetryDataStore } from '../store/useTelemetryDataStore';
+import { Panel, PanelHeader } from './ui/Panel';
 
 interface LiveSectorTrackerProps {
   participants?: ParticipantData[];
@@ -120,30 +121,18 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((p
   );
 
   return (
-    <div className="glass-panel race-hub-card live-sector-tracker-panel">
-      {/* Panel Header */}
-      <div className="race-hub-header">
-        <div className="race-hub-title-group">
-          <div className="race-hub-icon-wrap">
-            <Zap size={16} color="#B57EDC" />
-          </div>
-          <div>
-            <h3 className="race-hub-title">
-              {t('live.liveSectorsTitle')}
-            </h3>
-            <div className="race-hub-subtitle mono">
-              {t('live.liveSectorsSub')}
-            </div>
-          </div>
-        </div>
-
-        <div className="race-hub-header-actions">
+    <Panel className="race-hub-card live-sector-tracker-panel">
+      <PanelHeader
+        icon={<Zap size={16} color="var(--f1-purple)" />}
+        title={t('live.liveSectorsTitle')}
+        subtitle={t('live.liveSectorsSub')}
+        actions={
           <div className="ultimate-lap-chip mono">
             <span className="label">{t('live.theoreticalBest')}</span>
             <span className="val">{formatTime(sectorAnalysis.theoreticalBest)}</span>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       {/* Sector Purple Cards Row */}
       <div className="sector-purple-grid">
@@ -289,7 +278,7 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((p
           </div>
         </div>
       </div>
-    </div>
+    </Panel>
   );
 });
 

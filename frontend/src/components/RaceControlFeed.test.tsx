@@ -73,7 +73,7 @@ describe('RaceControlFeed', () => {
     render(<RaceControlFeed events={mockEvents} session={mockSession} />);
 
     // Click Penalties filter
-    const penaltyBtn = screen.getByRole('button', { name: /Penalties/i });
+    const penaltyBtn = screen.getByRole('radio', { name: /Penalties/i });
     fireEvent.click(penaltyBtn);
 
     expect(screen.getByText(/Max Verstappen received a 5s time penalty/i)).toBeInTheDocument();

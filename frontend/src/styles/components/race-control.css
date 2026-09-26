@@ -37,63 +37,10 @@
   flex-direction: column;
 }
 
+/* Live widgets are Panels; the grid needs them full height with a common minimum. */
 .race-hub-card {
-  display: flex;
-  flex-direction: column;
   height: 100%;
   min-height: 380px;
-  padding: 1.2rem;
-  background: var(--bg-glass);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--radius-md);
-  box-sizing: border-box;
-}
-
-.race-hub-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.9rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-}
-
-.race-hub-title-group {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.race-hub-icon-wrap {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.race-hub-title {
-  font-size: 1.05rem;
-  font-weight: 700;
-  margin: 0;
-  color: var(--text-primary);
-  letter-spacing: -0.01em;
-}
-
-.race-hub-subtitle {
-  font-size: 0.68rem;
-  color: var(--text-muted);
-  margin-top: 1px;
-}
-
-.race-hub-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
 }
 
 /* Safety Car Status Pills */
@@ -140,24 +87,5 @@
   background: #33ff77;
   box-shadow: 0 0 8px #33ff77;
   animation: pulse-dot 1.2s infinite ease-in-out;
-}
-
-.btn-feed-clear {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: var(--text-muted);
-  padding: 4px 6px;
-  border-radius: 4px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
-}
-
-.btn-feed-clear:hover {
-  background: rgba(255, 77, 77, 0.15);
-  color: #ff4d4d;
-  border-color: rgba(255, 77, 77, 0.3);
 }
 

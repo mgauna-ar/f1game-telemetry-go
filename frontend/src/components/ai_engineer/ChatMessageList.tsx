@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowDown, Bot, Check, Copy } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
-import { ChatMarkdown } from './ChatMarkdown';
+import { Markdown } from '../ui/Markdown';
 import { ChatErrorCard } from './ChatErrorCard';
 import type { ChatMessage } from '../../types/ai';
 import { prefersReducedMotion } from '../../utils/motion';
@@ -177,7 +177,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
                         onOpenSettings={onOpenSettings}
                       />
                     ) : m.content ? (
-                      <ChatMarkdown content={m.content} />
+                      <Markdown content={m.content} className="chat-md" />
                     ) : isStreaming ? (
                       <div className="ai-typing-indicator">
                         <span className="ai-dot" />

@@ -1,21 +1,22 @@
 /**
- * Block structure of AI chat replies: headings, paragraphs, nested lists, tables, code, quotes and
- * rules. `components/ai_engineer/ChatMarkdown.tsx` renders them. Text that is still streaming in
- * parses as far as it goes, so an unfinished table or code block shows as text until it completes.
+ * Block structure of the markdown the app shows (AI chat replies, release notes): headings,
+ * paragraphs, nested lists, tables, code, quotes and rules. `components/ui/Markdown.tsx` renders
+ * them. Text that is still streaming in parses as far as it goes, so an unfinished table or code
+ * block shows as text until it completes.
  */
 
-export type ChatBlock =
+export type MarkdownBlock =
   | { type: 'heading'; level: number; text: string }
   | { type: 'paragraph'; lines: string[] }
   | { type: 'list'; ordered: boolean; start: number; items: ListItem[] }
   | { type: 'table'; header: string[]; align: CellAlign[]; rows: string[][] }
   | { type: 'code'; lang: string; text: string }
-  | { type: 'quote'; blocks: ChatBlock[] }
+  | { type: 'quote'; blocks: MarkdownBlock[] }
   | { type: 'rule' };
 
 export interface ListItem {
   lines: string[];
-  children: ChatBlock[];
+  children: MarkdownBlock[];
 }
 
 export type CellAlign = 'left' | 'center' | 'right' | null;
@@ -74,7 +75,7 @@ const startsBlock = (lines: string[], i: number): boolean => {
 
 const isOrdered = (marker: string): boolean => /\d/.test(marker);
 
-function parseList(lines: string[], start: number): { block: ChatBlock; next: number } {
+function parseList(lines: string[], start: number): { block: MarkdownBlock; next: number } {
   const first = LIST_ITEM.exec(lines[start])!;
   const baseIndent = indentOf(lines[start]);
   const ordered = isOrdered(first[2]);
@@ -150,8 +151,8 @@ function collectIndented(lines: string[], start: number, minIndent: number): str
   return out;
 }
 
-function parseBlocks(lines: string[]): { blocks: ChatBlock[]; lines: number } {
-  const blocks: ChatBlock[] = [];
+function parseBlocks(lines: string[]): { blocks: MarkdownBlock[]; lines: number } {
+  const blocks: MarkdownBlock[] = [];
   let i = 0;
 
   while (i < lines.length) {
@@ -231,7 +232,7 @@ function parseBlocks(lines: string[]): { blocks: ChatBlock[]; lines: number } {
   return { blocks, lines: lines.length };
 }
 
-/** Parses markdown into blocks. Exported for tests. */
-export function parseChatMarkdown(content: string): ChatBlock[] {
+/** Parses markdown into blocks. */
+export function parseMarkdown(content: string): MarkdownBlock[] {
   return parseBlocks(content.replace(/\r\n?/g, '\n').split('\n')).blocks;
 }

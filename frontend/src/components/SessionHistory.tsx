@@ -15,6 +15,10 @@ import { TagManagerModal } from './session_history/TagManagerModal';
 import { SessionComparatorDock } from './session_history/SessionComparatorDock';
 import { SessionBatchDock } from './session_history/SessionBatchDock';
 import { StandaloneToastContainer } from './common/ToastContainer';
+import { Button } from './ui/Button';
+import { EmptyState } from './ui/EmptyState';
+import { Panel } from './ui/Panel';
+import { SkeletonGroup, SkeletonRows } from './ui/Skeleton';
 
 import { useI18n } from '../context/I18nContext';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
@@ -138,29 +142,35 @@ const SessionHistoryContent: React.FC = () => {
 
           {/* Session Content Table */}
           {loadingSessions ? (
-            <div className="glass-panel" style={{ textAlign: 'center', padding: '3rem' }}>
-              <RefreshCw size={32} className="animate-spin" style={{ color: 'var(--accent-primary)', marginBottom: '1rem' }} />
-              <p style={{ color: 'var(--text-secondary)' }}>
-                {t('history.loadingRepo')}
-              </p>
-            </div>
+            <Panel as="div">
+              <SkeletonGroup label={t('history.loadingRepo')}>
+                <SkeletonRows rows={8} />
+              </SkeletonGroup>
+            </Panel>
           ) : error ? (
-            <div className="glass-panel" style={{ textAlign: 'center', padding: '3rem', borderColor: 'var(--accent-primary)' }}>
-              <p style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>{error}</p>
-              <button className="nav-tab active" onClick={fetchSessions} style={{ marginTop: '1rem' }}>
-                {t('common.retry')}
-              </button>
-            </div>
+            <Panel as="div">
+              <EmptyState
+                tone="danger"
+                title={error}
+                action={
+                  <Button variant="primary" icon={<RefreshCw size={14} />} onClick={fetchSessions}>
+                    {t('common.retry')}
+                  </Button>
+                }
+              />
+            </Panel>
           ) : filteredSessions.length === 0 ? (
-            <div className="glass-panel" style={{ textAlign: 'center', padding: '3rem' }}>
-              <Flag size={40} color="var(--text-muted)" style={{ marginBottom: '1rem' }} />
-              <h3>{t('history.noSessionsFound')}</h3>
-              <p style={{ color: 'var(--text-secondary)' }}>
-                {searchQuery || sessionTypeFilter !== 'ALL' || circuitFilter !== 'ALL' || selectedTagId !== null
-                  ? t('history.noSessionsMatch')
-                  : t('history.noSessionsEmpty')}
-              </p>
-            </div>
+            <Panel as="div">
+              <EmptyState
+                icon={<Flag size={40} />}
+                title={t('history.noSessionsFound')}
+                description={
+                  searchQuery || sessionTypeFilter !== 'ALL' || circuitFilter !== 'ALL' || selectedTagId !== null
+                    ? t('history.noSessionsMatch')
+                    : t('history.noSessionsEmpty')
+                }
+              />
+            </Panel>
           ) : (
             <SessionTableView />
           )}

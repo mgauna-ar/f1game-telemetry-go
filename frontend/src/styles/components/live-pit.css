@@ -42,59 +42,34 @@
   flex: 1;
   overflow-y: auto;
   max-height: 220px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
 }
 
-.pit-matrix-table-container::-webkit-scrollbar {
-  width: 4px;
-}
-
-.pit-matrix-table-container::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 4px;
-}
-
-.pit-matrix-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.78rem;
-}
-
-.pit-matrix-table th {
-  position: sticky;
-  top: 0;
-  background: rgba(18, 22, 28, 0.96);
-  color: var(--text-muted);
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  padding: 0.45rem 0.6rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  z-index: var(--z-sticky);
-}
-
-.pit-matrix-row {
-  cursor: pointer;
-  transition: background 0.12s ease;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-}
-
-.pit-matrix-row:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
 .pit-matrix-row.selected {
-  background: rgba(0, 210, 211, 0.12);
-  border-left: 2px solid var(--accent-primary);
+  background: color-mix(in srgb, var(--f1-slot-a) 12%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent-primary);
 }
 
 .pit-matrix-row.player {
-  background: rgba(51, 255, 119, 0.06);
+  background: color-mix(in srgb, var(--f1-green) 6%, transparent);
 }
 
-.pit-matrix-table td {
-  padding: 0.4rem 0.6rem;
+.pit-pos.is-podium {
+  color: var(--f1-gold);
+  font-weight: var(--font-weight-bold);
+}
+
+.pit-tyre-age {
+  font-weight: var(--font-weight-semibold);
+}
+
+.pit-tyre-age.is-worn {
+  color: var(--f1-yellow);
+}
+
+.pit-tyre-age.is-old {
+  color: var(--status-danger);
 }
 
 .pit-driver-cell {

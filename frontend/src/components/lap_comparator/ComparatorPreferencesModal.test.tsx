@@ -121,8 +121,11 @@ describe('ComparatorPreferencesModal Component', () => {
     fireEvent.click(cancelBtn);
     expect(handleClose).toHaveBeenCalledTimes(1);
 
-    const closeBtn = screen.getByTestId('close-preferences-modal-btn');
+    const closeBtn = screen.getByRole('button', { name: /close/i });
     fireEvent.click(closeBtn);
     expect(handleClose).toHaveBeenCalledTimes(2);
+
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+    expect(handleClose).toHaveBeenCalledTimes(3);
   });
 });

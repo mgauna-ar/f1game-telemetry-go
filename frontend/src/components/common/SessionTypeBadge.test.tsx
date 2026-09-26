@@ -7,39 +7,39 @@ describe('SessionTypeBadge Component', () => {
     render(<SessionTypeBadge sessionType="Short Qualifying" />);
     const badge = screen.getByText('Short Qualifying');
     expect(badge).toBeInTheDocument();
-    const container = badge.closest('.session-badge');
-    expect(container).toHaveClass('badge-purple');
+    const container = badge.closest('[data-tone]');
+    expect(container).toHaveAttribute('data-tone', 'purple');
   });
 
   it('renders race session with red badge', () => {
     render(<SessionTypeBadge sessionType="Race" />);
     const badge = screen.getByText('Race');
     expect(badge).toBeInTheDocument();
-    const container = badge.closest('.session-badge');
-    expect(container).toHaveClass('badge-red');
+    const container = badge.closest('[data-tone]');
+    expect(container).toHaveAttribute('data-tone', 'danger');
   });
 
   it('renders practice session with green badge', () => {
     render(<SessionTypeBadge sessionType="Practice 1" />);
     const badge = screen.getByText('Practice 1');
     expect(badge).toBeInTheDocument();
-    const container = badge.closest('.session-badge');
-    expect(container).toHaveClass('badge-green');
+    const container = badge.closest('[data-tone]');
+    expect(container).toHaveAttribute('data-tone', 'success');
   });
 
   it('renders sprint session with orange badge', () => {
     render(<SessionTypeBadge sessionType="Sprint" />);
     const badge = screen.getByText('Sprint');
     expect(badge).toBeInTheDocument();
-    const container = badge.closest('.session-badge');
-    expect(container).toHaveClass('badge-orange');
+    const container = badge.closest('[data-tone]');
+    expect(container).toHaveAttribute('data-tone', 'orange');
   });
 
   it('renders unknown fallback when sessionType is undefined', () => {
     render(<SessionTypeBadge />);
     const badge = screen.getByText('Unknown');
     expect(badge).toBeInTheDocument();
-    const container = badge.closest('.session-badge');
-    expect(container).toHaveClass('badge-gray');
+    const container = badge.closest('[data-tone]');
+    expect(container).toHaveAttribute('data-tone', 'neutral');
   });
 });

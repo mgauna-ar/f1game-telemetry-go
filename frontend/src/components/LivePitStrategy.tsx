@@ -14,6 +14,9 @@ import type { ParticipantData, LapData, CarStatusData, SessionData } from '../ty
 import { useI18n } from '../context/I18nContext';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import { useTelemetryDataStore } from '../store/useTelemetryDataStore';
+import { cx } from './ui/cx';
+import { DataTable } from './ui/DataTable';
+import { Panel, PanelHeader } from './ui/Panel';
 
 interface LivePitStrategyProps {
   session?: SessionData | null;
@@ -121,32 +124,20 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = React.memo((props
   const activePitsCount = laps.filter((l) => l && (l.PitStatus === PIT_STATUS.PITTING || l.PitStatus === PIT_STATUS.IN_PIT_AREA)).length;
 
   return (
-    <div className="glass-panel race-hub-card live-pit-strategy-panel">
-      {/* Panel Header */}
-      <div className="race-hub-header">
-        <div className="race-hub-title-group">
-          <div className="race-hub-icon-wrap">
-            <Wrench size={16} color="var(--accent-primary)" />
-          </div>
-          <div>
-            <h3 className="race-hub-title">
-              {t('live.pitStrategyTitle')}
-            </h3>
-            <div className="race-hub-subtitle mono">
-              {t('live.pitStrategySub')}
-            </div>
-          </div>
-        </div>
-
-        <div className="race-hub-header-actions">
-          {activePitsCount > 0 && (
+    <Panel className="race-hub-card live-pit-strategy-panel">
+      <PanelHeader
+        icon={<Wrench size={16} color="var(--accent-primary)" />}
+        title={t('live.pitStrategyTitle')}
+        subtitle={t('live.pitStrategySub')}
+        actions={
+          activePitsCount > 0 && (
             <span className="active-pits-pill mono">
               <span className="pit-live-dot" />
               {t('live.pittingNow', { count: activePitsCount })}
             </span>
-          )}
-        </div>
-      </div>
+          )
+        }
+      />
 
       {/* Pit Window Strategy KPI Strip */}
       <div className="pit-strategy-kpi-row">
@@ -184,74 +175,88 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = React.memo((props
       </div>
 
       {/* Field Tyre & Pit Matrix Table */}
-      <div className="pit-matrix-table-container">
-        <table className="pit-matrix-table">
-          <thead>
-            <tr>
-              <th style={{ width: '42px', textAlign: 'center' }}>{t('live.thPos')}</th>
-              <th>{t('live.thDriver')}</th>
-              <th style={{ width: '70px', textAlign: 'center' }}>{t('live.thTyre')}</th>
-              <th style={{ width: '75px', textAlign: 'center' }}>{t('live.thAge')}</th>
-              <th style={{ width: '65px', textAlign: 'center' }}>{t('live.thStops')}</th>
-              <th style={{ width: '130px', textAlign: 'right' }}>{t('live.thStatus')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {drivers.map((d) => {
-              const tyreCompound = d.status?.VisualTyreCompound ?? TYRE_COMPOUND_IDS.MEDIUM;
-              const tyreAge = d.status?.TyresAgeLaps ?? 0;
-              const teamColor = getTeamColor(d.teamId);
-
-              return (
-                <tr
-                  key={d.carIndex}
-                  className={`pit-matrix-row ${d.isSelected ? 'selected' : ''} ${d.isPlayer ? 'player' : ''}`}
-                  onClick={() => onSelectCar(d.carIndex)}
+      <DataTable
+        className="pit-matrix-table-container"
+        caption={t('live.pitMatrixCaption')}
+        density="compact"
+        stickyHeader
+        rows={drivers}
+        getRowKey={(d) => d.carIndex}
+        getRowClassName={(d) => cx('pit-matrix-row', d.isSelected && 'selected', d.isPlayer && 'player')}
+        onRowClick={(d) => onSelectCar(d.carIndex)}
+        columns={[
+          {
+            key: 'pos',
+            header: t('live.thPos'),
+            width: '42px',
+            align: 'center',
+            numeric: true,
+            cell: (d) => <span className={cx('pit-pos', d.position <= 3 && 'is-podium')}>P{d.position}</span>,
+          },
+          {
+            key: 'driver',
+            header: t('live.thDriver'),
+            rowHeader: true,
+            cell: (d) => (
+              <div className="pit-driver-cell">
+                <span className="team-color-indicator" style={{ backgroundColor: getTeamColor(d.teamId) }} />
+                {/* The row is also clickable; this button is its keyboard and screen reader equivalent */}
+                <button
+                  type="button"
+                  className="button-reset pit-driver-name"
+                  aria-pressed={d.isSelected}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSelectCar(d.carIndex);
+                  }}
                 >
-                  <td className="mono text-center font-bold" style={{ color: d.position <= 3 ? '#FFD700' : 'inherit' }}>
-                    P{d.position}
-                  </td>
-                  <td>
-                    <div className="pit-driver-cell">
-                      <span className="team-color-indicator" style={{ backgroundColor: teamColor }} />
-                      {/* The row is also clickable; this button is its keyboard and screen reader equivalent */}
-                      <button
-                        type="button"
-                        className="button-reset pit-driver-name"
-                        aria-pressed={d.isSelected}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectCar(d.carIndex);
-                        }}
-                      >
-                        {d.name}
-                      </button>
-                      {d.isPlayer && <span className="player-indicator-chip">{t('live.youChip')}</span>}
-                    </div>
-                  </td>
-                  <td className="text-center">
-                    <TyreCompoundBadge compound={tyreCompound} />
-                  </td>
-                  <td className="mono text-center font-semibold">
-                    <span
-                      style={{
-                        color: tyreAge > 20 ? '#FF4D4D' : tyreAge > 12 ? '#FFD700' : 'inherit',
-                      }}
-                    >
-                      {tyreAge} L
-                    </span>
-                  </td>
-                  <td className="mono text-center font-semibold">{d.lap?.NumPitStops ?? 0}</td>
-                  <td className="text-right">
-                    {getPitStatusBadge(d.lap?.PitStatus, d.lap?.PitStopTimerInMS, d.lap?.PitLaneTimeInLaneInMS, d.lap?.ResultStatus)}
-                  </td>
-                </tr>
+                  {d.name}
+                </button>
+                {d.isPlayer && <span className="player-indicator-chip">{t('live.youChip')}</span>}
+              </div>
+            ),
+          },
+          {
+            key: 'tyre',
+            header: t('live.thTyre'),
+            width: '70px',
+            align: 'center',
+            cell: (d) => <TyreCompoundBadge compound={d.status?.VisualTyreCompound ?? TYRE_COMPOUND_IDS.MEDIUM} />,
+          },
+          {
+            key: 'age',
+            header: t('live.thAge'),
+            width: '75px',
+            align: 'center',
+            numeric: true,
+            cell: (d) => {
+              const tyreAge = d.status?.TyresAgeLaps ?? 0;
+              return (
+                <span className={cx('pit-tyre-age', tyreAge > 20 && 'is-old', tyreAge > 12 && tyreAge <= 20 && 'is-worn')}>
+                  {tyreAge} L
+                </span>
               );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
+            },
+          },
+          {
+            key: 'stops',
+            header: t('live.thStops'),
+            width: '65px',
+            align: 'center',
+            numeric: true,
+            cell: (d) => d.lap?.NumPitStops ?? 0,
+          },
+          {
+            key: 'status',
+            header: t('live.thStatus'),
+            width: '130px',
+            align: 'right',
+            cell: (d) =>
+              getPitStatusBadge(d.lap?.PitStatus, d.lap?.PitStopTimerInMS, d.lap?.PitLaneTimeInLaneInMS, d.lap?.ResultStatus),
+          },
+        ]}
+      />
+    </Panel>
   );
 });
 

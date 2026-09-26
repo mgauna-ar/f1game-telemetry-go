@@ -4,7 +4,9 @@ import type { SessionData, WeatherForecastSample } from '../hooks/useTelemetry';
 import { WEATHER_CODES, SESSION_TYPES, DEFAULT_WEATHER_DEFAULTS } from '../constants/f1';
 import { useI18n } from '../context/I18nContext';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
-import { alpha, cssVar } from '../styles/theme';
+import { cssVar } from '../styles/theme';
+import { Badge } from './ui/Badge';
+import { Panel, PanelHeader } from './ui/Panel';
 
 const SUN = cssVar('--weather-sun');
 const RAIN = cssVar('--weather-rain');
@@ -165,32 +167,17 @@ export const LiveWeatherRadar: React.FC<LiveWeatherRadarProps> = React.memo((pro
   const tyreAdv = getRecommendedTyre(highestRainInWindow, weatherCode);
 
   return (
-    <div className="glass-panel race-hub-card live-weather-radar-panel">
-      {/* Panel Header */}
-      <div className="race-hub-header">
-        <div className="race-hub-title-group">
-          <div className="race-hub-icon-wrap">
-            <Droplets size={16} color={RAIN} />
-          </div>
-          <div>
-            <h3 className="race-hub-title">
-              {t('live.weatherRadarTitle')}
-            </h3>
-            <div className="race-hub-subtitle mono">
-              {t('live.sessionForecast')}
-            </div>
-          </div>
-        </div>
-
-        <div className="race-hub-header-actions">
-          <div
-            className="weather-tyre-advice-badge mono"
-            style={{ color: tyreAdv.color, background: alpha(tyreAdv.color, 0.15), border: `1px solid ${alpha(tyreAdv.color, 0.25)}` }}
-          >
+    <Panel className="race-hub-card live-weather-radar-panel">
+      <PanelHeader
+        icon={<Droplets size={16} color={RAIN} />}
+        title={t('live.weatherRadarTitle')}
+        subtitle={t('live.sessionForecast')}
+        actions={
+          <Badge color={tyreAdv.color} size="md">
             {t('live.strategyLabel')} {tyreAdv.label}
-          </div>
-        </div>
-      </div>
+          </Badge>
+        }
+      />
 
       {/* Current Conditions Quick Strip */}
       <div className="weather-current-strip">
@@ -285,7 +272,7 @@ export const LiveWeatherRadar: React.FC<LiveWeatherRadarProps> = React.memo((pro
           );
         })}
       </div>
-    </div>
+    </Panel>
   );
 });
 

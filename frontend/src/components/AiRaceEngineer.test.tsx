@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, within, act } from '@testing-library/react';
 import { vi, describe, it, beforeEach, expect } from 'vitest';
 import { AiRaceEngineer } from './AiRaceEngineer';
 import { RaceEngineerProvider } from '../context/RaceEngineerProvider';
@@ -127,6 +127,29 @@ describe('AiRaceEngineer Component', () => {
     expect(keyLink.closest('a')).toHaveAttribute('href', 'https://aistudio.google.com/app/apikey');
   });
 
+  it('closes the settings with Esc before the chat, then returns focus to the launcher', () => {
+    render(
+      <RaceEngineerProvider>
+        <AiRaceEngineer />
+      </RaceEngineerProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Open AI Race Engineer/i }));
+    const chat = screen.getByRole('dialog', { name: 'AI Race Engineer' });
+    fireEvent.click(within(chat).getByRole('button', { name: 'Settings' }));
+
+    const settings = screen.getByRole('dialog', { name: 'AI Settings' });
+    expect(settings).toContainElement(document.activeElement as HTMLElement);
+
+    fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'AI Settings' })).toBeNull();
+    expect(screen.getByRole('dialog', { name: 'AI Race Engineer' })).toBeInTheDocument();
+
+    fireEvent.keyDown(document.activeElement as HTMLElement, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'AI Race Engineer' })).toBeNull();
+    expect(screen.getByRole('button', { name: /Open AI Race Engineer/i })).toHaveFocus();
+  });
+
   it('sends with Enter and adds a new line with Shift+Enter', async () => {
     render(
       <RaceEngineerProvider>
@@ -153,7 +176,7 @@ describe('AiRaceEngineer Component', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Expand chat' }));
 
-    expect(screen.getByRole('region', { name: 'AI Race Engineer Chat' })).toHaveClass('is-expanded');
+    expect(screen.getByRole('dialog', { name: 'AI Race Engineer' })).toHaveClass('is-expanded');
     expect(localStorage.getItem('f1_ai_engineer_expanded')).toBe('true');
     expect(screen.getByRole('button', { name: 'Shrink chat' })).toBeInTheDocument();
   });

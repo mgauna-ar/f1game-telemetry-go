@@ -3,7 +3,8 @@ import { Clock, ChevronRight, Trash2, ArrowUpDown, Plus, Download } from 'lucide
 import type { Session } from '../SessionHistory';
 import { useI18n } from '../../context/I18nContext';
 import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContextDefinitions';
-import { formatDate as defaultFormatDate, getSessionBadgeClass as defaultGetSessionBadgeClass } from '../../utils/formatters';
+import { formatDate as defaultFormatDate } from '../../utils/formatters';
+import { SessionTypeBadge } from '../common/SessionTypeBadge';
 import { TagBadge } from './TagBadge';
 import { F1FormatBadge } from '../F1FormatBadge';
 import { TrackFlag } from '../TrackFlag';
@@ -19,7 +20,6 @@ export interface SessionTableViewProps {
   onRequestDelete?: (session: Session) => void;
   onExportSession?: (session: Session) => void;
   formatDate?: (dateStr?: string) => string;
-  getSessionBadgeClass?: (typeStr?: string) => string;
   sortField?: string;
   sortOrder?: 'asc' | 'desc';
   onToggleSort?: (field: string) => void;
@@ -50,7 +50,6 @@ export const SessionTableView: React.FC<SessionTableViewProps> = React.memo((pro
   const onRequestDelete = props.onRequestDelete ?? historyActions.setSessionToDelete;
   const onExportSession = props.onExportSession ?? historyActions.handleExportSession;
   const formatDate = props.formatDate ?? defaultFormatDate;
-  const getSessionBadgeClass = props.getSessionBadgeClass ?? defaultGetSessionBadgeClass;
   const sortField = props.sortField ?? historyData.sortField;
   const sortOrder = props.sortOrder ?? historyData.sortOrder;
   const onToggleSort = props.onToggleSort ?? historyActions.handleToggleSort;
@@ -170,9 +169,11 @@ export const SessionTableView: React.FC<SessionTableViewProps> = React.memo((pro
                   <td className="f1-type-cell">
                     <div className="f1-type-wrapper">
                       <F1FormatBadge format={session.packet_format} size="xs" />
-                      <span className={`session-badge f1-broadcast-badge ${getSessionBadgeClass(session.session_type)}`}>
-                        {session.session_type || 'RACE'}
-                      </span>
+                      <SessionTypeBadge
+                        sessionType={session.session_type || 'RACE'}
+                        size="xs"
+                        showIcon={false}
+                      />
                     </div>
                   </td>
                   <td className="f1-tags-cell" onClick={(e) => e.stopPropagation()}>

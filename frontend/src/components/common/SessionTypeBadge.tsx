@@ -1,66 +1,42 @@
 import React from 'react';
 import { Timer, Flag, Zap, Wrench, Gauge } from 'lucide-react';
-import { getSessionBadgeClass } from '../../utils/formatters';
+import { getSessionTone } from '../../utils/formatters';
+import { Badge } from '../ui/Badge';
 
 export interface SessionTypeBadgeProps {
   sessionType?: string | null;
   size?: 'xs' | 'sm' | 'md';
   showIcon?: boolean;
   className?: string;
-  style?: React.CSSProperties;
 }
 
 export const SessionTypeBadge: React.FC<SessionTypeBadgeProps> = ({
   sessionType,
   size = 'sm',
   showIcon = true,
-  className = '',
-  style,
+  className,
 }) => {
   const rawType = sessionType || 'Unknown';
-  const badgeColorClass = getSessionBadgeClass(rawType);
-
+  const tone = getSessionTone(rawType);
   const lower = rawType.toLowerCase();
+  const iconSize = size === 'xs' ? 11 : size === 'md' ? 14 : 12;
 
-  const getIcon = () => {
-    const iconSize = size === 'xs' ? 11 : size === 'md' ? 14 : 12;
-    if (lower.includes('qual') || lower.includes('shootout') || lower.includes('q1') || lower.includes('q2') || lower.includes('q3')) {
-      return <Timer size={iconSize} className="session-type-badge-icon" aria-hidden="true" />;
-    }
-    if (lower.includes('race')) {
-      return <Flag size={iconSize} className="session-type-badge-icon" aria-hidden="true" />;
-    }
-    if (lower.includes('sprint')) {
-      return <Zap size={iconSize} className="session-type-badge-icon" aria-hidden="true" />;
-    }
-    if (lower.includes('practice') || lower.includes('fp')) {
-      return <Wrench size={iconSize} className="session-type-badge-icon" aria-hidden="true" />;
-    }
-    return <Gauge size={iconSize} className="session-type-badge-icon" aria-hidden="true" />;
-  };
-
-  const sizeStyles: Record<string, React.CSSProperties> = {
-    xs: { fontSize: '0.65rem', padding: '2px 7px', gap: '3px' },
-    sm: { fontSize: '0.72rem', padding: '3px 9px', gap: '4px' },
-    md: { fontSize: '0.8rem', padding: '4px 12px', gap: '5px' },
-  };
+  let Icon = Gauge;
+  if (['qual', 'shootout', 'q1', 'q2', 'q3'].some((part) => lower.includes(part))) Icon = Timer;
+  else if (lower.includes('race')) Icon = Flag;
+  else if (lower.includes('sprint')) Icon = Zap;
+  else if (lower.includes('practice') || lower.includes('fp')) Icon = Wrench;
 
   return (
-    <span
-      className={`session-badge ${badgeColorClass} ${className}`}
-      style={{
-        ...sizeStyles[size],
-        textTransform: 'uppercase',
-        letterSpacing: '0.04em',
-        fontWeight: 700,
-        display: 'inline-flex',
-        alignItems: 'center',
-        ...style,
-      }}
+    <Badge
+      tone={tone}
+      size={size}
+      uppercase
+      className={className}
+      icon={showIcon ? <Icon size={iconSize} aria-hidden="true" /> : undefined}
       title={`Session Type: ${rawType}`}
     >
-      {showIcon && getIcon()}
       <span>{rawType}</span>
-    </span>
+    </Badge>
   );
 };

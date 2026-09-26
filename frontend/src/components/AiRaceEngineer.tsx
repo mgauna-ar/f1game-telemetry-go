@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useId, useRef, useMemo } from 'react';
 import {
   Bot,
   Send,
@@ -24,6 +24,7 @@ import { TrackFlag } from './TrackFlag';
 import { PromptChipBar } from './ai_engineer/PromptChipBar';
 import { ChatMessageList } from './ai_engineer/ChatMessageList';
 import { ChatSettingsDrawer } from './ai_engineer/ChatSettingsDrawer';
+import { useDialogLayer } from './ui/useDialogLayer';
 
 export interface AiRaceEngineerProps {
   // Optional overrides for standalone or test usage
@@ -83,6 +84,19 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
   const [isExpanded, setIsExpanded] = useState<boolean>(() => storage.get<boolean>(STORAGE_KEY_AI_EXPANDED, false));
   const [inputMessage, setInputMessage] = useState('');
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const widgetRef = useRef<HTMLDivElement | null>(null);
+  const fabRef = useRef<HTMLButtonElement | null>(null);
+  const titleId = useId();
+
+  // A panel beside the page, not a modal: Esc closes it and focus goes back to the button that
+  // opened it (or the launcher), but Tab can still leave it. The message box takes focus itself.
+  useDialogLayer({
+    isOpen,
+    onClose: handleClose,
+    containerRef: widgetRef,
+    autoFocus: false,
+    returnFocusRef: fabRef,
+  });
 
   useEffect(() => {
     storage.set(STORAGE_KEY_AI_EXPANDED, isExpanded);
@@ -190,6 +204,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
     return (
       <div className="ai-fab-container">
         <button
+          ref={fabRef}
           className="ai-fab-button"
           onClick={toggleChat}
           title="Open AI Race Engineer"
@@ -205,86 +220,151 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
     );
   }
 
-  // When open: render Floating Chat Widget (No modal-overlay backdrop)
+  // When open: the floating chat panel, with no backdrop so the page stays usable beside it
   return (
     <div
+      ref={widgetRef}
       className={`ai-floating-widget${isExpanded ? ' is-expanded' : ''}`}
-      role="region"
-      aria-label="AI Race Engineer Chat"
+      role="dialog"
+      aria-labelledby={titleId}
     >
-      {/* Widget Header */}
-      <div className="ai-widget-header">
-        <div className="ai-widget-header-left">
-          <div className="ai-widget-avatar">
-            <Bot size={18} color="#00f2fe" />
+      {/* The chat behind the settings layer is out of reach while settings are open */}
+      <div className="ai-widget-content" inert={showSettings}>
+        {/* Widget Header */}
+        <div className="ai-widget-header">
+          <div className="ai-widget-header-left">
+            <div className="ai-widget-avatar">
+              <Bot size={18} color="#00f2fe" />
+            </div>
+            <div className="ai-widget-heading">
+              <div className="ai-widget-title-row">
+                <span className="ai-widget-title" id={titleId}>
+                  AI Race Engineer
+                </span>
+                <span
+                  className="ai-context-badge mono"
+                  style={{
+                    color: contextBadgeInfo.color,
+                    borderColor: `${contextBadgeInfo.color}40`,
+                    backgroundColor: `${contextBadgeInfo.color}15`,
+                  }}
+                >
+                  {contextBadgeInfo.label}
+                </span>
+              </div>
+              <div className="ai-widget-sub">
+                {contextBadgeInfo.track && <TrackFlag track={contextBadgeInfo.track} width={13} height={9} />}
+                <span className="ai-widget-sub-context">{contextBadgeInfo.sub}</span>
+                <span className="ai-widget-sub-sep">•</span>
+                <button
+                  type="button"
+                  className="ai-widget-model-chip mono"
+                  onClick={() => setShowSettings(true)}
+                  title={config.model ? `${providerName} · ${config.model}` : providerName}
+                >
+                  {config.model || providerName}
+                </button>
+              </div>
+            </div>
           </div>
-          <div className="ai-widget-heading">
-            <div className="ai-widget-title-row">
-              <span className="ai-widget-title">AI Race Engineer</span>
-              <span
-                className="ai-context-badge mono"
-                style={{
-                  color: contextBadgeInfo.color,
-                  borderColor: `${contextBadgeInfo.color}40`,
-                  backgroundColor: `${contextBadgeInfo.color}15`,
-                }}
-              >
-                {contextBadgeInfo.label}
-              </span>
-            </div>
-            <div className="ai-widget-sub">
-              {contextBadgeInfo.track && <TrackFlag track={contextBadgeInfo.track} width={13} height={9} />}
-              <span className="ai-widget-sub-context">{contextBadgeInfo.sub}</span>
-              <span className="ai-widget-sub-sep">•</span>
-              <button
-                type="button"
-                className="ai-widget-model-chip mono"
-                onClick={() => setShowSettings(true)}
-                title={config.model ? `${providerName} · ${config.model}` : providerName}
-              >
-                {config.model || providerName}
-              </button>
-            </div>
+
+          <div className="ai-widget-header-actions">
+            <button
+              className={`ai-btn-icon${showSettings ? ' is-active' : ''}`}
+              onClick={() => setShowSettings(!showSettings)}
+              title={t('ai_engineer.settings')}
+              aria-label="Settings"
+            >
+              <Settings size={15} />
+            </button>
+            <button
+              className="ai-btn-icon"
+              onClick={clearMessages}
+              title={t('ai_engineer.clearChat')}
+              aria-label="Clear chat"
+            >
+              <RotateCcw size={15} />
+            </button>
+            <button
+              className="ai-btn-icon"
+              onClick={() => setIsExpanded(!isExpanded)}
+              title={isExpanded ? t('ai_engineer.collapse') : t('ai_engineer.expand')}
+              aria-label={isExpanded ? t('ai_engineer.collapse') : t('ai_engineer.expand')}
+            >
+              {isExpanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+            </button>
+            <button
+              className="ai-btn-icon ai-btn-close"
+              onClick={handleClose}
+              title={t('ai_engineer.close')}
+              aria-label="Close"
+            >
+              <X size={16} />
+            </button>
           </div>
         </div>
 
-        <div className="ai-widget-header-actions">
-          <button
-            className={`ai-btn-icon${showSettings ? ' is-active' : ''}`}
-            onClick={() => setShowSettings(!showSettings)}
-            title={t('ai_engineer.settings')}
-            aria-label="Settings"
-          >
-            <Settings size={15} />
-          </button>
-          <button
-            className="ai-btn-icon"
-            onClick={clearMessages}
-            title={t('ai_engineer.clearChat')}
-            aria-label="Clear chat"
-          >
-            <RotateCcw size={15} />
-          </button>
-          <button
-            className="ai-btn-icon"
-            onClick={() => setIsExpanded(!isExpanded)}
-            title={isExpanded ? t('ai_engineer.collapse') : t('ai_engineer.expand')}
-            aria-label={isExpanded ? t('ai_engineer.collapse') : t('ai_engineer.expand')}
-          >
-            {isExpanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
-          </button>
-          <button
-            className="ai-btn-icon ai-btn-close"
-            onClick={handleClose}
-            title={t('ai_engineer.close')}
-            aria-label="Close"
-          >
-            <X size={16} />
-          </button>
+        {/* Quick Prompt Chips */}
+        <PromptChipBar
+          effectiveMode={effectiveMode}
+          hasLapsSelected={hasLapsSelected}
+          isZoomActive={isZoomActive}
+          hasDebriefSession={sessionDebriefTarget !== null}
+          isLiveStandby={isLiveStandby}
+          isGenerating={isGenerating}
+          onSelectPrompt={handlePromptChipClick}
+        />
+
+        {/* Messages Scroll Area */}
+        <ChatMessageList
+          messages={messages}
+          isGenerating={isGenerating}
+          defaultProvider={config.provider}
+          onRetry={retryLastMessage}
+          onOpenSettings={() => setShowSettings(true)}
+        />
+
+        {/* Chat Input Bar */}
+        <div className="ai-widget-input-bar">
+          <form onSubmit={handleSubmit} className="ai-widget-input-form">
+            <textarea
+              ref={inputRef}
+              rows={1}
+              className="ai-chat-input"
+              placeholder={getChatPlaceholder(effectiveMode, t)}
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              onKeyDown={handleInputKeyDown}
+              disabled={isGenerating}
+              title={t('ai_engineer.inputHint')}
+            />
+
+            {isGenerating ? (
+              <button
+                type="button"
+                className="ai-btn-submit ai-btn-stop"
+                onClick={stopGenerating}
+                title={t('ai_engineer.stop')}
+                aria-label={t('ai_engineer.stop')}
+              >
+                <Square size={13} />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                className="ai-btn-submit"
+                disabled={!inputMessage.trim()}
+                title={t('ai_engineer.send')}
+                aria-label={t('ai_engineer.send')}
+              >
+                <Send size={14} />
+              </button>
+            )}
+          </form>
         </div>
       </div>
 
-      {/* Embedded Settings Drawer within widget */}
+      {/* Settings layer over the whole widget */}
       <ChatSettingsDrawer
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
@@ -297,65 +377,6 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
         modelsError={modelsError}
         fetchAvailableModels={fetchAvailableModels}
       />
-
-      {/* Quick Prompt Chips */}
-      <PromptChipBar
-        effectiveMode={effectiveMode}
-        hasLapsSelected={hasLapsSelected}
-        isZoomActive={isZoomActive}
-        hasDebriefSession={sessionDebriefTarget !== null}
-        isLiveStandby={isLiveStandby}
-        isGenerating={isGenerating}
-        onSelectPrompt={handlePromptChipClick}
-      />
-
-      {/* Messages Scroll Area */}
-      <ChatMessageList
-        messages={messages}
-        isGenerating={isGenerating}
-        defaultProvider={config.provider}
-        onRetry={retryLastMessage}
-        onOpenSettings={() => setShowSettings(true)}
-      />
-
-      {/* Chat Input Bar */}
-      <div className="ai-widget-input-bar">
-        <form onSubmit={handleSubmit} className="ai-widget-input-form">
-          <textarea
-            ref={inputRef}
-            rows={1}
-            className="ai-chat-input"
-            placeholder={getChatPlaceholder(effectiveMode, t)}
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            onKeyDown={handleInputKeyDown}
-            disabled={isGenerating}
-            title={t('ai_engineer.inputHint')}
-          />
-
-          {isGenerating ? (
-            <button
-              type="button"
-              className="ai-btn-submit ai-btn-stop"
-              onClick={stopGenerating}
-              title={t('ai_engineer.stop')}
-              aria-label={t('ai_engineer.stop')}
-            >
-              <Square size={13} />
-            </button>
-          ) : (
-            <button
-              type="submit"
-              className="ai-btn-submit"
-              disabled={!inputMessage.trim()}
-              title={t('ai_engineer.send')}
-              aria-label={t('ai_engineer.send')}
-            >
-              <Send size={14} />
-            </button>
-          )}
-        </form>
-      </div>
     </div>
   );
 };

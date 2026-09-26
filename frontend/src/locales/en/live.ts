@@ -53,6 +53,7 @@ export const live = {
   driverInGarage: 'In Garage / Pit Lane',
   driverOnTrack: 'On Track',
   filterAll: 'All',
+  feedFilterLabel: 'Filter events',
   filterFlags: 'Flags / SC',
   filterPenalties: 'Penalties',
   filterOvertakes: 'Overtakes',
@@ -84,6 +85,7 @@ export const live = {
   pitStrategy: 'Pit Strategy & Field Tyre Matrix',
   pitStrategyTitle: 'Pit Strategy & Field Tyre Matrix',
   pitStrategySub: 'Stint Progression & Service Windows',
+  pitMatrixCaption: 'Tyres, stops and pit status for every car',
   pittingNow: '{count} PITTING NOW',
   estimatedPitWindow: 'ESTIMATED PIT WINDOW',
   lapRange: 'LAP {ideal} — {latest}',
@@ -283,6 +285,7 @@ export const live = {
   },
 
   viewModeDashboard: 'Race Control',
+  viewModeLabel: 'Live view',
   viewModeCockpit: 'Voice Cockpit',
   cockpit: {
     title: 'Voice Engineer Cockpit',

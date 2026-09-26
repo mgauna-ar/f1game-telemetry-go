@@ -25,12 +25,19 @@ import { SessionTypeBadge } from '../common/SessionTypeBadge';
 import { TagBadge } from './TagBadge';
 import { WeatherBadgeWithForecast } from './WeatherBadgeWithForecast';
 import type { Session } from '../../types/session';
+import { Stat } from '../ui/Stat';
+import { Tabs } from '../ui/Tabs';
+
+export type SessionDetailTab = 'classification' | 'charts' | 'stints' | 'sectors';
+
+/** Links the detail tabs to the panel `SessionDetailView` renders. */
+export const SESSION_DETAIL_TABS_ID = 'session-detail';
 
 export interface SessionDetailHeaderProps {
   session?: Session;
   isRaceSession?: boolean;
-  activeDetailTab?: 'classification' | 'charts' | 'stints' | 'sectors';
-  setActiveDetailTab?: (tab: 'classification' | 'charts' | 'stints' | 'sectors') => void;
+  activeDetailTab?: SessionDetailTab;
+  setActiveDetailTab?: (tab: SessionDetailTab) => void;
   totalSessionLaps?: number;
   totalDriversCount?: number;
   onOpenAiDebrief?: () => void;
@@ -164,72 +171,43 @@ export const SessionDetailHeader: React.FC<SessionDetailHeaderProps> = (props) =
 
           {/* Metrics / KPI stat boxes */}
           <div className="session-header-stats-wrap">
-            <div className="header-stat-box">
-              <div>
-                <div className="stat-label">{t('history.detail.weather')}</div>
-                <WeatherBadgeWithForecast session={session} />
-              </div>
-            </div>
-
-            <div className="header-stat-box">
-              <Flag size={16} color="var(--text-secondary)" />
-              <div>
-                <div className="stat-label">{t('history.detail.totalLaps')}</div>
-                <div className="stat-value mono">{t('history.detail.lapsCount', { count: totalSessionLaps })}</div>
-              </div>
-            </div>
-
-            <div className="header-stat-box">
-              <Users size={16} color="var(--text-secondary)" />
-              <div>
-                <div className="stat-label">{t('history.detail.drivers')}</div>
-                <div className="stat-value mono">{t('history.detail.driversCount', { count: totalDriversCount })}</div>
-              </div>
-            </div>
+            <Stat
+              label={t('history.detail.weather')}
+              value={<WeatherBadgeWithForecast session={session} />}
+              mono={false}
+            />
+            <Stat
+              icon={<Flag size={16} />}
+              label={t('history.detail.totalLaps')}
+              value={t('history.detail.lapsCount', { count: totalSessionLaps })}
+            />
+            <Stat
+              icon={<Users size={16} />}
+              label={t('history.detail.drivers')}
+              value={t('history.detail.driversCount', { count: totalDriversCount })}
+            />
           </div>
         </div>
       </div>
 
       {/* Sub-Navigation Tabs inside Session Detail */}
-      <div className="glass-panel" style={{ padding: '0.5rem 1rem', display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border-color)' }}>
-        <button
-          className={`nav-tab ${activeDetailTab === 'classification' ? 'active' : ''}`}
-          onClick={() => setActiveDetailTab?.('classification')}
-          style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', padding: '0.6rem 1.2rem' }}
-        >
-          <Trophy size={16} />
-          <span>{t('history.detail.tabClassification')}</span>
-        </button>
-
-        {isRaceSession && (
-          <button
-            className={`nav-tab ${activeDetailTab === 'charts' ? 'active' : ''}`}
-            onClick={() => setActiveDetailTab?.('charts')}
-            style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', padding: '0.6rem 1.2rem' }}
-          >
-            <TrendingUp size={16} />
-            <span>{t('history.detail.tabProgression')}</span>
-          </button>
-        )}
-
-        <button
-          className={`nav-tab ${activeDetailTab === 'stints' ? 'active' : ''}`}
-          onClick={() => setActiveDetailTab?.('stints')}
-          style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', padding: '0.6rem 1.2rem' }}
-        >
-          <Layers size={16} />
-          <span>{t('history.detail.tabStints')}</span>
-        </button>
-
-        <button
-          className={`nav-tab ${activeDetailTab === 'sectors' ? 'active' : ''}`}
-          onClick={() => setActiveDetailTab?.('sectors')}
-          style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', padding: '0.6rem 1.2rem' }}
-        >
-          <Zap size={16} />
-          <span>{t('history.detail.tabSectors')}</span>
-        </button>
-      </div>
+      {activeDetailTab && setActiveDetailTab && (
+        <Tabs
+          idPrefix={SESSION_DETAIL_TABS_ID}
+          aria-label={t('history.detail.tabsLabel')}
+          value={activeDetailTab}
+          onChange={setActiveDetailTab}
+          className="session-detail-tabs"
+          items={[
+            { id: 'classification', label: t('history.detail.tabClassification'), icon: <Trophy size={16} /> },
+            ...(isRaceSession
+              ? [{ id: 'charts' as const, label: t('history.detail.tabProgression'), icon: <TrendingUp size={16} /> }]
+              : []),
+            { id: 'stints', label: t('history.detail.tabStints'), icon: <Layers size={16} /> },
+            { id: 'sectors', label: t('history.detail.tabSectors'), icon: <Zap size={16} /> },
+          ]}
+        />
+      )}
     </>
   );
 };

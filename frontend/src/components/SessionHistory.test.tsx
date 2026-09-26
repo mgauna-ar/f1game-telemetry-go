@@ -1137,7 +1137,7 @@ describe('SessionHistory Component', () => {
     expect(sessionCalls).toHaveLength(1);
 
     // Check Sector Matrix tab
-    const sectorsTab = screen.getByRole('button', { name: /Sector & Speed/i });
+    const sectorsTab = screen.getByRole('tab', { name: /Sector & Speed/i });
     fireEvent.click(sectorsTab);
 
     await waitFor(() => {

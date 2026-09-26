@@ -5,6 +5,20 @@ import { SAFETY_CAR_STATUS, TIME_CONSTANTS } from '../constants/f1';
 import { useI18n } from '../context/I18nContext';
 import { getLocalizedRaceEventDescription, getLocalizedPenaltyTag } from '../utils/raceEvents';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
+import { IconButton } from './ui/Button';
+import { EmptyState } from './ui/EmptyState';
+import { Panel, PanelHeader } from './ui/Panel';
+import { SegmentedControl } from './ui/SegmentedControl';
+
+type FeedFilter = 'all' | 'flag' | 'penalty' | 'overtake' | 'fastest_lap';
+
+const FEED_FILTERS: ReadonlyArray<{ value: FeedFilter; labelKey: string }> = [
+  { value: 'all', labelKey: 'live.filterAll' },
+  { value: 'flag', labelKey: 'live.filterFlags' },
+  { value: 'penalty', labelKey: 'live.filterPenalties' },
+  { value: 'overtake', labelKey: 'live.filterOvertakes' },
+  { value: 'fastest_lap', labelKey: 'live.filterFastestLaps' },
+];
 
 interface RaceControlFeedProps {
   events?: RaceEvent[];
@@ -22,7 +36,7 @@ export const RaceControlFeed: React.FC<RaceControlFeedProps> = React.memo((props
   const onClearEvents = props.onClearEvents !== undefined ? props.onClearEvents : storeClearEvents;
 
   const { t } = useI18n();
-  const [filter, setFilter] = useState<'all' | 'flag' | 'penalty' | 'overtake' | 'fastest_lap'>('all');
+  const [filter, setFilter] = useState<FeedFilter>('all');
 
   const filteredEvents = useMemo(() => {
     if (filter === 'all') return events;
@@ -91,90 +105,52 @@ export const RaceControlFeed: React.FC<RaceControlFeedProps> = React.memo((props
   };
 
   return (
-    <div className="glass-panel race-hub-card race-control-feed-panel">
-      {/* Panel Header */}
-      <div className="race-hub-header">
-        <div className="race-hub-title-group">
-          <div className="race-hub-icon-wrap">
-            <Radio size={16} color="var(--accent-primary)" />
-          </div>
-          <div>
-            <h3 className="race-hub-title">
-              {t('live.raceControlTitle')}
-            </h3>
-            <div className="race-hub-subtitle mono">
-              {t('live.raceControlSub')}
-            </div>
-          </div>
-        </div>
+    <Panel className="race-hub-card race-control-feed-panel">
+      <PanelHeader
+        icon={<Radio size={16} color="var(--accent-primary)" />}
+        title={t('live.raceControlTitle')}
+        subtitle={t('live.raceControlSub')}
+        actions={
+          <>
+            {getSafetyCarStatusBadge(session?.SafetyCarStatus)}
+            {events.length > 0 && onClearEvents && (
+              <IconButton size="sm" label={t('live.clearFeedEvents')} onClick={onClearEvents}>
+                <Trash2 size={13} />
+              </IconButton>
+            )}
+          </>
+        }
+      />
 
-        <div className="race-hub-header-actions">
-          {getSafetyCarStatusBadge(session?.SafetyCarStatus)}
-          {events.length > 0 && onClearEvents && (
-            <button
-              onClick={onClearEvents}
-              className="btn-feed-clear"
-              title={t('live.clearFeedEvents')}
-              aria-label={t('live.clearFeedEvents')}
-            >
-              <Trash2 size={13} />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Filter Tabs */}
       <div className="race-feed-filters">
-        <div className="race-feed-filter-tabs">
-          <button
-            className={`race-feed-filter-btn ${filter === 'all' ? 'active' : ''}`}
-            onClick={() => setFilter('all')}
-          >
-            {t('live.filterAll')} <span className="mono count-badge">{events.length}</span>
-          </button>
-          <button
-            className={`race-feed-filter-btn ${filter === 'flag' ? 'active' : ''}`}
-            onClick={() => setFilter('flag')}
-          >
-            {t('live.filterFlags')}{' '}
-            <span className="mono count-badge">{events.filter((e) => e.type === 'flag').length}</span>
-          </button>
-          <button
-            className={`race-feed-filter-btn ${filter === 'penalty' ? 'active' : ''}`}
-            onClick={() => setFilter('penalty')}
-          >
-            {t('live.filterPenalties')}{' '}
-            <span className="mono count-badge">{events.filter((e) => e.type === 'penalty').length}</span>
-          </button>
-          <button
-            className={`race-feed-filter-btn ${filter === 'overtake' ? 'active' : ''}`}
-            onClick={() => setFilter('overtake')}
-          >
-            {t('live.filterOvertakes')}{' '}
-            <span className="mono count-badge">{events.filter((e) => e.type === 'overtake').length}</span>
-          </button>
-          <button
-            className={`race-feed-filter-btn ${filter === 'fastest_lap' ? 'active' : ''}`}
-            onClick={() => setFilter('fastest_lap')}
-          >
-            {t('live.filterFastestLaps')}{' '}
-            <span className="mono count-badge">{events.filter((e) => e.type === 'fastest_lap').length}</span>
-          </button>
-        </div>
+        <SegmentedControl
+          size="xs"
+          aria-label={t('live.feedFilterLabel')}
+          value={filter}
+          onChange={setFilter}
+          options={FEED_FILTERS.map(({ value, labelKey }) => ({
+            value,
+            label: (
+              <>
+                {t(labelKey)}{' '}
+                <span className="mono count-badge">
+                  {value === 'all' ? events.length : events.filter((e) => e.type === value).length}
+                </span>
+              </>
+            ),
+          }))}
+        />
       </div>
 
       {/* Event Stream Container */}
       <div className="race-feed-stream" role="log" aria-live="polite">
         {filteredEvents.length === 0 ? (
-          <div className="race-feed-empty">
-            <Radio size={24} className="pulse-slow" color="var(--text-muted)" />
-            <div className="race-feed-empty-title">
-              {t('live.monitoringSignals')}
-            </div>
-            <div className="race-feed-empty-desc">
-              {t('live.monitoringSignalsSub')}
-            </div>
-          </div>
+          <EmptyState
+            compact
+            icon={<Radio size={24} className="pulse-slow" />}
+            title={t('live.monitoringSignals')}
+            description={t('live.monitoringSignalsSub')}
+          />
         ) : (
           filteredEvents.map((evt) => {
             const desc = getLocalizedRaceEventDescription(evt, t);
@@ -195,7 +171,7 @@ export const RaceControlFeed: React.FC<RaceControlFeedProps> = React.memo((props
           })
         )}
       </div>
-    </div>
+    </Panel>
   );
 });
 

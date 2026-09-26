@@ -6,6 +6,9 @@ import { F1FormatBadge } from './F1FormatBadge';
 import { TrackFlag } from './TrackFlag';
 import { LiveStatusIndicator } from './common/LiveStatusIndicator';
 import { SessionTypeBadge } from './common/SessionTypeBadge';
+import { Badge } from './ui/Badge';
+import { SegmentedControl } from './ui/SegmentedControl';
+import { Stat } from './ui/Stat';
 import {
   TRACK_NAMES,
   getTrackInfo,
@@ -21,6 +24,35 @@ import type { LiveViewMode } from '../constants/f1';
 
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import { useTelemetryEndpointStore } from '../store/useTelemetryEndpointStore';
+
+/** Switches the live page between the race control dashboard and the voice cockpit. */
+const ViewModeSwitch: React.FC<{ value: LiveViewMode; onChange: (mode: LiveViewMode) => void }> = ({
+  value,
+  onChange,
+}) => {
+  const { t } = useI18n();
+  return (
+    <SegmentedControl
+      aria-label={t('live.viewModeLabel')}
+      value={value}
+      onChange={onChange}
+      options={[
+        {
+          value: LIVE_VIEW_MODES.DASHBOARD,
+          label: t('live.viewModeDashboard'),
+          icon: <LayoutDashboard size={14} aria-hidden="true" />,
+          'data-testid': 'live-view-toggle-dashboard',
+        },
+        {
+          value: LIVE_VIEW_MODES.COCKPIT,
+          label: t('live.viewModeCockpit'),
+          icon: <Mic size={14} aria-hidden="true" />,
+          'data-testid': 'live-view-toggle-cockpit',
+        },
+      ]}
+    />
+  );
+};
 
 interface SessionHeaderProps {
   session?: SessionData | null;
@@ -58,9 +90,9 @@ export const SessionHeader: React.FC<SessionHeaderProps> = React.memo((props) =>
                 <h1 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 800, whiteSpace: 'nowrap' }}>
                   {t('live.liveHub')}
                 </h1>
-                <span className={`session-badge ${connected ? 'badge-green' : 'badge-yellow'}`}>
+                <Badge tone={connected ? 'success' : 'warning'} uppercase>
                   {connected ? t('live.backendConnected') : t('live.connectingToBackend')}
-                </span>
+                </Badge>
               </div>
               <p className="mono" style={{ color: 'var(--text-secondary)', margin: '2px 0 0 0', fontSize: '0.80rem' }}>
                 {t('live.commandCenter')} • UDP {udpPort}
@@ -70,31 +102,7 @@ export const SessionHeader: React.FC<SessionHeaderProps> = React.memo((props) =>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'nowrap' }}>
-          {/* Live View Mode Segmented Switcher */}
-          {onViewModeChange && (
-            <div className="live-view-mode-toggle" role="group" aria-label="Live View Mode">
-              <button
-                type="button"
-                className={`live-view-toggle-btn ${viewMode === LIVE_VIEW_MODES.DASHBOARD ? 'active' : ''}`}
-                onClick={() => onViewModeChange(LIVE_VIEW_MODES.DASHBOARD)}
-                title={t('live.viewModeDashboard')}
-                data-testid="live-view-toggle-dashboard"
-              >
-                <LayoutDashboard size={14} />
-                <span>{t('live.viewModeDashboard')}</span>
-              </button>
-              <button
-                type="button"
-                className={`live-view-toggle-btn ${viewMode === LIVE_VIEW_MODES.COCKPIT ? 'active' : ''}`}
-                onClick={() => onViewModeChange(LIVE_VIEW_MODES.COCKPIT)}
-                title={t('live.viewModeCockpit')}
-                data-testid="live-view-toggle-cockpit"
-              >
-                <Mic size={14} />
-                <span>{t('live.viewModeCockpit')}</span>
-              </button>
-            </div>
-          )}
+          {onViewModeChange && <ViewModeSwitch value={viewMode} onChange={onViewModeChange} />}
 
           {/* Live feed state */}
           <LiveStatusIndicator />
@@ -121,30 +129,30 @@ export const SessionHeader: React.FC<SessionHeaderProps> = React.memo((props) =>
   const renderSafetyCarBadge = () => {
     if (session.SafetyCarStatus === SAFETY_CAR_STATUS.CLEAR) {
       return (
-        <span className="session-badge badge-green">
-          <Flag size={14} /> {t('live.greenFlag')}
-        </span>
+        <Badge tone="success" size="md" uppercase icon={<Flag size={14} aria-hidden="true" />}>
+          {t('live.greenFlag')}
+        </Badge>
       );
     }
     if (session.SafetyCarStatus === SAFETY_CAR_STATUS.FULL) {
       return (
-        <span className="session-badge badge-yellow glow-yellow">
-          <ShieldAlert size={14} /> {t('live.safetyCarStatus')}
-        </span>
+        <Badge tone="warning" size="md" uppercase className="glow-yellow" icon={<ShieldAlert size={14} aria-hidden="true" />}>
+          {t('live.safetyCarStatus')}
+        </Badge>
       );
     }
     if (session.SafetyCarStatus === SAFETY_CAR_STATUS.VIRTUAL) {
       return (
-        <span className="session-badge badge-orange">
-          <ShieldAlert size={14} /> {t('live.vscStatus')}
-        </span>
+        <Badge tone="orange" size="md" uppercase icon={<ShieldAlert size={14} aria-hidden="true" />}>
+          {t('live.vscStatus')}
+        </Badge>
       );
     }
     if (session.SafetyCarStatus === SAFETY_CAR_STATUS.FORMATION_LAP) {
       return (
-        <span className="session-badge badge-blue">
-          <Flag size={14} /> {t('live.formationLap')}
-        </span>
+        <Badge tone="info" size="md" uppercase icon={<Flag size={14} aria-hidden="true" />}>
+          {t('live.formationLap')}
+        </Badge>
       );
     }
     return null;
@@ -168,66 +176,30 @@ export const SessionHeader: React.FC<SessionHeaderProps> = React.memo((props) =>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-        {/* Live View Mode Segmented Switcher */}
-        {onViewModeChange && (
-          <div className="live-view-mode-toggle" role="group" aria-label="Live View Mode">
-            <button
-              type="button"
-              className={`live-view-toggle-btn ${viewMode === LIVE_VIEW_MODES.DASHBOARD ? 'active' : ''}`}
-              onClick={() => onViewModeChange(LIVE_VIEW_MODES.DASHBOARD)}
-              title={t('live.viewModeDashboard')}
-              data-testid="live-view-toggle-dashboard"
-            >
-              <LayoutDashboard size={14} />
-              <span>{t('live.viewModeDashboard')}</span>
-            </button>
-            <button
-              type="button"
-              className={`live-view-toggle-btn ${viewMode === LIVE_VIEW_MODES.COCKPIT ? 'active' : ''}`}
-              onClick={() => onViewModeChange(LIVE_VIEW_MODES.COCKPIT)}
-              title={t('live.viewModeCockpit')}
-              data-testid="live-view-toggle-cockpit"
-            >
-              <Mic size={14} />
-              <span>{t('live.viewModeCockpit')}</span>
-            </button>
-          </div>
-        )}
+        {onViewModeChange && <ViewModeSwitch value={viewMode} onChange={onViewModeChange} />}
 
         {/* Session Progress / Timer */}
-        <div className="header-stat-box">
-          <Timer size={16} color="var(--text-secondary)" />
-          {isRace ? (
-            <div>
-              <div className="stat-label">{t('live.totalLaps')}</div>
-              <div className="stat-value mono">{session.TotalLaps ? `${session.TotalLaps} ${t('common.laps').toUpperCase()}` : '--'}</div>
-            </div>
-          ) : (
-            <div>
-              <div className="stat-label">{t('live.timeRemaining')}</div>
-              <div className="stat-value mono">{session.SessionTimeLeft ? formatSeconds(session.SessionTimeLeft) : '--:--'}</div>
-            </div>
-          )}
-        </div>
+        {isRace ? (
+          <Stat
+            icon={<Timer size={16} />}
+            label={t('live.totalLaps')}
+            value={session.TotalLaps ? `${session.TotalLaps} ${t('common.laps').toUpperCase()}` : '--'}
+          />
+        ) : (
+          <Stat
+            icon={<Timer size={16} />}
+            label={t('live.timeRemaining')}
+            value={session.SessionTimeLeft ? formatSeconds(session.SessionTimeLeft) : '--:--'}
+          />
+        )}
 
         {/* Weather & Temperatures */}
-        <div className="header-stat-box">
-          <CloudSun size={16} color="var(--text-secondary)" />
-          <div>
-            <div className="stat-label">{t('live.conditions')}</div>
-            <div className="stat-value" style={{ fontSize: '0.85rem' }}>{weatherText}</div>
-          </div>
-        </div>
-
-        <div className="header-stat-box">
-          <Thermometer size={16} color="var(--text-secondary)" />
-          <div>
-            <div className="stat-label">{t('live.trackAirTemp')}</div>
-            <div className="stat-value mono">
-              {`${session.TrackTemperature}°C / ${session.AirTemperature}°C`}
-            </div>
-          </div>
-        </div>
+        <Stat icon={<CloudSun size={16} />} label={t('live.conditions')} value={weatherText} mono={false} />
+        <Stat
+          icon={<Thermometer size={16} />}
+          label={t('live.trackAirTemp')}
+          value={`${session.TrackTemperature}°C / ${session.AirTemperature}°C`}
+        />
 
         {/* Safety Car Badge */}
         {renderSafetyCarBadge()}

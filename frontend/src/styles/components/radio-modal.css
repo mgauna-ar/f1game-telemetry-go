@@ -2,116 +2,15 @@
    RADIO SETTINGS MODAL / PANEL STYLES
    ========================================================================== */
 
-.radio-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: var(--z-modal);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px 16px;
-  background: rgba(2, 4, 8, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  animation: radio-fade-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.radio-modal-dialog {
-  position: relative;
-  width: 100%;
-  max-width: 740px;
-  max-height: 90vh;
-  overflow-y: auto;
-  background-color: #0c101c;
-  background: linear-gradient(165deg, #121828 0%, #0a0d16 100%);
-  border: 1px solid rgba(0, 242, 254, 0.35);
-  border-radius: var(--radius-lg, 18px);
-  box-shadow: 0 25px 80px rgba(0, 0, 0, 0.95), 
-              0 0 45px rgba(0, 242, 254, 0.18),
-              inset 0 1px 0 rgba(255, 255, 255, 0.15);
-  padding: 24px 26px 22px;
-  color: var(--text-primary, #ffffff);
+.radio-modal-body {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(0, 242, 254, 0.3) transparent;
-}
-
-.radio-modal-dialog::-webkit-scrollbar {
-  width: 6px;
-}
-
-.radio-modal-dialog::-webkit-scrollbar-thumb {
-  background: rgba(0, 242, 254, 0.25);
-  border-radius: 6px;
+  gap: var(--space-4);
 }
 
 @keyframes radio-fade-in {
   from { opacity: 0; transform: scale(0.96) translateY(8px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
-}
-
-/* ── Modal Header ────────────────────────────────────────────────────────── */
-.radio-modal-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  padding-bottom: 14px;
-}
-
-.radio-modal-header-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.radio-modal-header-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(0, 242, 254, 0.18), rgba(0, 198, 255, 0.08));
-  border: 1px solid rgba(0, 242, 254, 0.4);
-  color: #00f2fe;
-  box-shadow: 0 0 14px rgba(0, 242, 254, 0.25);
-}
-
-.radio-modal-title {
-  font-family: var(--font-display, 'Titillium Web', sans-serif);
-  font-size: 1.2rem;
-  font-weight: 800;
-  letter-spacing: 0.03em;
-  color: #ffffff;
-  margin: 0;
-}
-
-.radio-modal-subtitle {
-  font-size: 0.76rem;
-  color: var(--text-secondary, #94a3b8);
-  margin: 2px 0 0;
-}
-
-.radio-modal-close-btn {
-  background: transparent;
-  border: 1px solid transparent;
-  padding: 8px;
-  border-radius: 8px;
-  color: var(--text-secondary, #94a3b8);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-}
-
-.radio-modal-close-btn:hover {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.15);
 }
 
 /* ── Master Enable/Disable Switch Card ───────────────────────────────────── */
@@ -233,58 +132,6 @@
 }
 
 /* ── Multi-Tab Navigation in Settings ─────────────────────────────────────── */
-.radio-tabs-nav {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
-  background: rgba(0, 0, 0, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 5px;
-  margin-bottom: 2px;
-}
-
-@media (max-width: 660px) {
-  .radio-tabs-nav {
-    grid-template-columns: 1fr;
-  }
-}
-
-.radio-tab-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px 6px;
-  background: transparent;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  color: var(--text-secondary, #94a3b8);
-  font-family: var(--font-display, 'Titillium Web', sans-serif);
-  font-size: 0.77rem;
-  font-weight: 700;
-  letter-spacing: 0.2px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.radio-tab-btn svg {
-  flex-shrink: 0;
-}
-
-.radio-tab-btn:hover {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.06);
-}
-
-.radio-tab-btn.tab-active {
-  background: linear-gradient(135deg, rgba(0, 242, 254, 0.18), rgba(0, 198, 255, 0.08));
-  border-color: rgba(0, 242, 254, 0.55);
-  color: #00f2fe;
-  box-shadow: 0 2px 10px rgba(0, 242, 254, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.12);
-}
-
 /* ── Section Structure ───────────────────────────────────────────────────── */
 .radio-section {
   display: flex;

@@ -986,16 +986,6 @@
   gap: 6px;
 }
 
-.f1-broadcast-badge {
-  font-size: 0.72rem;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  padding: 3px 8px;
-  border-radius: 4px;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
 /* Tags Cell */
 .f1-tags-wrapper {
   display: flex;

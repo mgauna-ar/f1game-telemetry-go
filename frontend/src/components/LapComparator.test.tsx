@@ -60,7 +60,7 @@ describe('LapComparator Component', () => {
       expect(screen.getByText('Monaco', { selector: '.custom-session-track' })).toBeInTheDocument();
       expect(screen.getByText('Spa-Francorchamps', { selector: '.custom-session-track' })).toBeInTheDocument();
     });
-    expect(screen.getByText('Sprint Race')).toHaveClass('badge-orange');
+    expect(screen.getByText('Sprint Race').closest('[data-tone]')).toHaveAttribute('data-tone', 'orange');
   });
 
   it('filters sessions using search bar and category tabs in custom dropdown', async () => {

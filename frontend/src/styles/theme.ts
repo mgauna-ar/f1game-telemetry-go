@@ -10,6 +10,7 @@
 /** Every token TypeScript reads; theme.test.ts checks that variables.css defines each one. */
 export const THEME_TOKENS = [
   '--accent-primary',
+  '--accent-primary-fill',
   '--accent-secondary',
   '--accent-tertiary',
   '--accent-purple',
@@ -30,6 +31,7 @@ export const THEME_TOKENS = [
   '--status-warning',
   '--status-danger',
   '--status-info',
+  '--status-danger-fill',
   '--f1-slot-a',
   '--f1-slot-b',
   '--f1-sector-1',

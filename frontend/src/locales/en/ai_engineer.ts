@@ -182,6 +182,7 @@ export const ai_engineer = {
   },
   radio: {
     title: 'Voice Radio',
+    settingsSubtitle: 'Race Engineer Persona & Pit Wall Strategist',
     idle: 'RADIO STANDBY',
     transmitting: 'TRANSMITTING [PTT ACTIVE]',
     processing: 'PIT WALL PROCESSING...',

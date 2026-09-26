@@ -1,5 +1,7 @@
 import React from 'react';
-import { parseChatMarkdown, type ChatBlock } from '../../utils/chatMarkdown';
+import { parseMarkdown, type MarkdownBlock } from '../../utils/markdown';
+import { cx } from './cx';
+import styles from './Markdown.module.css';
 
 // Inline formatting: `code`, **bold**, __bold__, ~~strike~~, *italic*, _italic_ and [links](url).
 const INLINE =
@@ -17,7 +19,7 @@ function renderInline(text: string, keyPrefix = 'i'): React.ReactNode[] {
     const key = `${keyPrefix}-${n++}`;
     if (m[1] !== undefined) {
       out.push(
-        <code key={key} className="chat-md-inline-code">
+        <code key={key} className={styles.code}>
           {m[2].trim() === '' ? m[2] : m[2].replace(/^ (.*) $/, '$1')}
         </code>
       );
@@ -56,21 +58,21 @@ const NUMERIC_CELL = /^[+\-−±~]?\d[\d.,:']*\s?(s|ms|%|km\/h|kph|mph|°c|°|l|
 
 const isNumericCell = (cell: string): boolean => NUMERIC_CELL.test(cell.replace(/[*_`~]/g, '').trim());
 
-function renderBlock(block: ChatBlock, key: string): React.ReactNode {
+function renderBlock(block: MarkdownBlock, key: string): React.ReactNode {
   switch (block.type) {
     case 'heading': {
-      // Replies are shown inside a small panel, so the biggest heading is h3.
+      // Shown under a panel or dialog title, so the biggest heading is h3.
       const level = Math.min(Math.max(block.level + 1, 3), 5);
       const Tag = `h${level}` as 'h3' | 'h4' | 'h5';
       return (
-        <Tag key={key} className={`chat-md-h chat-md-h${level}`}>
+        <Tag key={key} className={cx(styles.heading, styles[`h${level}`])}>
           {renderInline(block.text, key)}
         </Tag>
       );
     }
     case 'paragraph':
       return (
-        <p key={key} className="chat-md-p">
+        <p key={key} className={styles.p}>
           {renderLines(block.lines, key)}
         </p>
       );
@@ -82,11 +84,11 @@ function renderBlock(block: ChatBlock, key: string): React.ReactNode {
         </li>
       ));
       return block.ordered ? (
-        <ol key={key} className="chat-md-list" start={block.start !== 1 ? block.start : undefined}>
+        <ol key={key} className={styles.list} start={block.start !== 1 ? block.start : undefined}>
           {items}
         </ol>
       ) : (
-        <ul key={key} className="chat-md-list">
+        <ul key={key} className={styles.list}>
           {items}
         </ul>
       );
@@ -98,8 +100,8 @@ function renderBlock(block: ChatBlock, key: string): React.ReactNode {
       const alignOf = (col: number): React.CSSProperties['textAlign'] =>
         block.align[col] ?? (numericCols[col] ? 'right' : undefined);
       return (
-        <div key={key} className="chat-md-table-wrap">
-          <table className="chat-md-table">
+        <div key={key} className={styles.tableWrap}>
+          <table className={styles.table}>
             <thead>
               <tr>
                 {block.header.map((cell, col) => (
@@ -115,7 +117,7 @@ function renderBlock(block: ChatBlock, key: string): React.ReactNode {
                   {block.header.map((_, col) => (
                     <td
                       key={col}
-                      className={numericCols[col] ? 'chat-md-num' : undefined}
+                      className={numericCols[col] ? styles.num : undefined}
                       style={{ textAlign: alignOf(col) }}
                     >
                       {renderInline(row[col] ?? '', `${key}-${r}-${col}`)}
@@ -130,26 +132,34 @@ function renderBlock(block: ChatBlock, key: string): React.ReactNode {
     }
     case 'code':
       return (
-        <pre key={key} className="chat-md-pre">
+        <pre key={key} className={styles.pre}>
           <code>{block.text}</code>
         </pre>
       );
     case 'quote':
       return (
-        <blockquote key={key} className="chat-md-quote">
+        <blockquote key={key} className={styles.quote}>
           {block.blocks.map((child, idx) => renderBlock(child, `${key}-${idx}`))}
         </blockquote>
       );
     case 'rule':
-      return <hr key={key} className="chat-md-rule" />;
+      return <hr key={key} className={styles.rule} />;
   }
 }
 
+export interface MarkdownProps {
+  content: string;
+  className?: string;
+}
+
 /**
- * Renders an AI chat reply from markdown: the blocks from `parseChatMarkdown`, with bold, italic,
- * strikethrough, inline code and links inside them. It builds React elements, never raw HTML.
+ * Renders markdown (AI chat replies, release notes): the blocks from `parseMarkdown`, with bold,
+ * italic, strikethrough, inline code and links inside them. It builds React elements, never raw
+ * HTML. The biggest heading is an h3, so it sits under a panel or dialog title.
  */
-export const ChatMarkdown: React.FC<{ content: string }> = React.memo(({ content }) => (
-  <div className="chat-md">{parseChatMarkdown(content).map((block, idx) => renderBlock(block, `b${idx}`))}</div>
+export const Markdown: React.FC<MarkdownProps> = React.memo(({ content, className }) => (
+  <div className={cx(styles.markdown, className)}>
+    {parseMarkdown(content).map((block, idx) => renderBlock(block, `b${idx}`))}
+  </div>
 ));
-ChatMarkdown.displayName = 'ChatMarkdown';
+Markdown.displayName = 'Markdown';

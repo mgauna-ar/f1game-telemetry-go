@@ -127,7 +127,8 @@ describe('LiveRadioHUD Component', () => {
     expect(screen.getByText(/Franco Colapinto/i)).toBeInTheDocument();
     expect(screen.getByText(/Peter "Bono" Bonnington/i)).toBeInTheDocument();
 
-    const closeBtn = screen.getByTitle(/Close|Cerrar/i);
+    expect(screen.getByRole('dialog', { name: /Radio Settings|Configuración de Radio/i })).toBeInTheDocument();
+    const closeBtn = screen.getByRole('button', { name: /^(Close|Cerrar)$/i });
     fireEvent.click(closeBtn);
 
     expect(screen.queryByText(/Franco Colapinto/i)).not.toBeInTheDocument();

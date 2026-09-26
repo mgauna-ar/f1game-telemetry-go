@@ -1,6 +1,5 @@
 import React from 'react';
-import { RefreshCw } from 'lucide-react';
-import { SessionDetailHeader } from './SessionDetailHeader';
+import { SessionDetailHeader, SESSION_DETAIL_TABS_ID, type SessionDetailTab } from './SessionDetailHeader';
 import { SessionClassificationTab } from './SessionClassificationTab';
 import { SessionLapChartsTab } from './SessionLapChartsTab';
 import { SessionStintStrategyTab } from './SessionStintStrategyTab';
@@ -10,6 +9,10 @@ import { useI18n } from '../../context/I18nContext';
 import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContextDefinitions';
 import { formatLapTime, formatTotalDuration } from '../../utils/formatters';
 import { groupLapsIntoStints } from '../../utils/lapUtils';
+import { EmptyState } from '../ui/EmptyState';
+import { Panel } from '../ui/Panel';
+import { SkeletonGroup, SkeletonRows } from '../ui/Skeleton';
+import { TabPanel } from '../ui/Tabs';
 import type {
   Session,
   Lap,
@@ -23,8 +26,8 @@ import type {
 
 export interface SessionDetailViewProps {
   session?: Session;
-  activeDetailTab?: 'classification' | 'charts' | 'stints' | 'sectors';
-  setActiveDetailTab?: (tab: 'classification' | 'charts' | 'stints' | 'sectors') => void;
+  activeDetailTab?: SessionDetailTab;
+  setActiveDetailTab?: (tab: SessionDetailTab) => void;
   loadingDetail?: boolean;
   detailError?: string | null;
   classificationData?: ClassificationResponse | null;
@@ -191,22 +194,26 @@ export const SessionDetailView: React.FC<SessionDetailViewProps> = (props) => {
 
       {/* Detail Tab Contents */}
       {detailError && (
-        <div className="glass-panel" style={{ padding: '1rem', borderLeft: '4px solid var(--accent-primary)', background: 'rgba(255, 71, 87, 0.1)' }}>
-          <p style={{ margin: 0, color: '#ff4757', fontWeight: 600 }}>{detailError}</p>
-        </div>
+        <Panel as="div" padding="compact">
+          <EmptyState compact tone="danger" title={detailError} />
+        </Panel>
       )}
 
       {loadingDetail ? (
-        <div className="glass-panel" style={{ textAlign: 'center', padding: '3rem' }}>
-          <RefreshCw size={32} className="animate-spin" style={{ color: 'var(--accent-primary)', marginBottom: '1rem' }} />
-          <p style={{ color: 'var(--text-secondary)' }}>
-            {t('history.detail.retrievingData')}
-          </p>
-        </div>
+        <Panel as="div">
+          <SkeletonGroup label={t('history.detail.retrievingData')}>
+            <SkeletonRows rows={8} />
+          </SkeletonGroup>
+        </Panel>
       ) : (
-        <div key={effectiveTab} className="detail-tab-content-enter">
+        <TabPanel
+          key={effectiveTab}
+          idPrefix={SESSION_DETAIL_TABS_ID}
+          tab={effectiveTab}
+          className="detail-tab-content-enter"
+        >
           {renderDetailTabContent()}
-        </div>
+        </TabPanel>
       )}
     </div>
   );

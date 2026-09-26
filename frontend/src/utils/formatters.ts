@@ -121,16 +121,16 @@ export function getRankBadgeStyle(rank: number) {
 }
 
 /**
- * Returns CSS badge class based on session type string.
+ * The badge tone for a session type: sprint orange, race red, qualifying purple, practice green.
  */
-export function getSessionBadgeClass(typeStr?: string): string {
-  if (!typeStr) return 'badge-gray';
+export function getSessionTone(typeStr?: string | null): 'orange' | 'danger' | 'purple' | 'success' | 'neutral' {
+  if (!typeStr) return 'neutral';
   const lower = typeStr.toLowerCase();
-  if (lower.includes('sprint')) return 'badge-orange';
-  if (lower.includes('race')) return 'badge-red';
-  if (lower.includes('qual') || lower.includes('q1') || lower.includes('q2') || lower.includes('q3')) return 'badge-purple';
-  if (lower.includes('practice') || lower.includes('fp')) return 'badge-green';
-  return 'badge-gray';
+  if (lower.includes('sprint')) return 'orange';
+  if (lower.includes('race')) return 'danger';
+  if (lower.includes('qual') || lower.includes('q1') || lower.includes('q2') || lower.includes('q3')) return 'purple';
+  if (lower.includes('practice') || lower.includes('fp')) return 'success';
+  return 'neutral';
 }
 
 /**

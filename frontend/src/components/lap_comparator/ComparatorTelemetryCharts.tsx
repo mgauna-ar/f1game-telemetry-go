@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { ZoomIn, RotateCcw } from 'lucide-react';
+import { ZoomIn, RotateCcw, LineChart } from 'lucide-react';
 import type { MergedTelemetryPoint } from '../../types/comparator';
 import { useI18n } from '../../context/I18nContext';
 import { type CommonChartProps, type RechartsMouseMoveState } from './charts/chartDefaults';
@@ -12,6 +12,8 @@ import { SteeringChart } from './charts/SteeringChart';
 import { ErsBatteryChart } from './charts/ErsBatteryChart';
 import { ErsDeployModeChart } from './charts/ErsDeployModeChart';
 import { ActiveAeroChart } from './charts/ActiveAeroChart';
+import { EmptyState } from '../ui/EmptyState';
+import { Panel } from '../ui/Panel';
 
 export interface ComparatorTelemetryChartsProps {
   chartData: MergedTelemetryPoint[];
@@ -288,10 +290,10 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
           {hasActiveAeroData && <ActiveAeroChart {...commonProps} />}
         </div>
       ) : (
-        <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center' }}>
-
-          <p style={{ color: 'var(--text-muted)', fontSize: '1rem', margin: 0 }}>
-            {getComparatorEmptyStateMessage(
+        <Panel as="div">
+          <EmptyState
+            icon={<LineChart size={36} />}
+            description={getComparatorEmptyStateMessage(
               sessionAId,
               loadingA,
               loadingB,
@@ -299,8 +301,8 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
               comparisonData.length > 0,
               t
             )}
-          </p>
-        </div>
+          />
+        </Panel>
       )}
     </div>
   );

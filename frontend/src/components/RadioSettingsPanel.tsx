@@ -1,20 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import {
-  X,
-  Radio,
-  Sparkles,
-  Sliders,
-  BellRing,
-  Power,
-  Check,
-  Play,
-} from 'lucide-react';
+import { Radio, Sparkles, Sliders, BellRing, Power, Check, Play } from 'lucide-react';
 import { useI18n } from '../context/I18nContext';
 import type { UseRadioControllerReturn } from '../hooks/useRadioController';
 import { PersonaSettingsTab } from './radio_settings/PersonaSettingsTab';
 import { AudioSettingsTab } from './radio_settings/AudioSettingsTab';
 import { TacticalCoachingTab } from './radio_settings/TacticalCoachingTab';
-import { closeOnBackdropClick } from '../utils/backdrop';
+import { Modal, ModalBody, ModalFooter, ModalHeader } from './ui/Modal';
+import { TabPanel, Tabs } from './ui/Tabs';
 
 export type RadioSettingsTab = 'persona' | 'audio' | 'tactical';
 
@@ -25,6 +17,8 @@ export interface RadioSettingsPanelProps {
   /** Tab to show when the panel opens; without it the panel keeps the last tab shown. */
   initialTab?: RadioSettingsTab;
 }
+
+const TABS_ID = 'radio-settings';
 
 export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
   isOpen,
@@ -39,50 +33,31 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
     if (isOpen && initialTab) setActiveTab(initialTab);
   }, [isOpen, initialTab]);
 
-  if (!isOpen) return null;
-
   return (
-    <div className="radio-modal-backdrop" role="presentation" onClick={closeOnBackdropClick(onClose)}>
-      <div className="radio-modal-dialog">
-        {/* Header */}
-        <div className="radio-modal-header">
-          <div className="radio-modal-header-left">
-            <div className="radio-modal-header-icon">
-              <Radio className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="radio-modal-title">
-                {t('ai_engineer.radio.settings')}
-              </h2>
-              <p className="radio-modal-subtitle">
-                {t('ai_engineer.personas.title')} & Pit Wall Strategist
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="radio-modal-close-btn"
-            title={t('ai_engineer.close')}
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <Modal isOpen={isOpen} onClose={onClose} size="lg">
+      <ModalHeader
+        tone="accent"
+        icon={<Radio size={20} />}
+        title={t('ai_engineer.radio.settings')}
+        subtitle={t('ai_engineer.radio.settingsSubtitle')}
+      />
 
+      <ModalBody className="radio-modal-body">
         {/* Master Enable/Disable Card */}
         <div className="radio-master-toggle-card">
           <div className="radio-master-toggle-info">
             <div className="radio-master-toggle-title-row">
-              <Power className={`w-4 h-4 ${radio.isRadioEnabled ? 'text-emerald-400' : 'text-slate-500'}`} />
-              <span className="radio-master-toggle-title">
-                {t('ai_engineer.radio.masterToggle')}
-              </span>
+              <Power
+                size={16}
+                color={radio.isRadioEnabled ? 'var(--status-success)' : 'var(--text-muted)'}
+                aria-hidden="true"
+              />
+              <span className="radio-master-toggle-title">{t('ai_engineer.radio.masterToggle')}</span>
               <span className={`radio-master-status-badge ${radio.isRadioEnabled ? 'status-active' : 'status-off'}`}>
                 {radio.isRadioEnabled ? 'ON' : 'OFF'}
               </span>
             </div>
-            <p className="radio-master-toggle-desc">
-              {t('ai_engineer.radio.masterToggleDesc')}
-            </p>
+            <p className="radio-master-toggle-desc">{t('ai_engineer.radio.masterToggleDesc')}</p>
           </div>
           <label className="radio-switch">
             <input
@@ -95,67 +70,38 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
           </label>
         </div>
 
-        {/* Sub-Tab Navigation */}
-        <div className="radio-tabs-nav">
-          <button
-            type="button"
-            className={`radio-tab-btn ${activeTab === 'persona' ? 'tab-active' : ''}`}
-            onClick={() => setActiveTab('persona')}
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            {t('ai_engineer.tabs.persona')}
-          </button>
+        <Tabs
+          idPrefix={TABS_ID}
+          aria-label={t('ai_engineer.radio.settings')}
+          tone="accent"
+          size="sm"
+          stretch
+          value={activeTab}
+          onChange={setActiveTab}
+          items={[
+            { id: 'persona', label: t('ai_engineer.tabs.persona'), icon: <Sparkles size={14} /> },
+            { id: 'audio', label: t('ai_engineer.tabs.audio'), icon: <Sliders size={14} /> },
+            { id: 'tactical', label: t('ai_engineer.tabs.tactical'), icon: <BellRing size={14} /> },
+          ]}
+        />
 
-          <button
-            type="button"
-            className={`radio-tab-btn ${activeTab === 'audio' ? 'tab-active' : ''}`}
-            onClick={() => setActiveTab('audio')}
-          >
-            <Sliders className="w-3.5 h-3.5" />
-            {t('ai_engineer.tabs.audio')}
-          </button>
+        <TabPanel idPrefix={TABS_ID} tab={activeTab}>
+          {activeTab === 'persona' && <PersonaSettingsTab radio={radio} />}
+          {activeTab === 'audio' && <AudioSettingsTab radio={radio} />}
+          {activeTab === 'tactical' && <TacticalCoachingTab radio={radio} />}
+        </TabPanel>
+      </ModalBody>
 
-          <button
-            type="button"
-            className={`radio-tab-btn ${activeTab === 'tactical' ? 'tab-active' : ''}`}
-            onClick={() => setActiveTab('tactical')}
-          >
-            <BellRing className="w-3.5 h-3.5" />
-            {t('ai_engineer.tabs.tactical')}
-          </button>
-        </div>
-
-        {/* Tab 1: Persona & Driver Callsign */}
-        {activeTab === 'persona' && <PersonaSettingsTab radio={radio} />}
-
-        {/* Tab 2: Voice, Audio Realism & PTT Controls */}
-        {activeTab === 'audio' && <AudioSettingsTab radio={radio} />}
-
-        {/* Tab 3: Telemetry Triggers, Presets & Tactical Coaching */}
-        {activeTab === 'tactical' && <TacticalCoachingTab radio={radio} />}
-
-        {/* Footer */}
-        <div className="radio-modal-footer">
-          <button
-            type="button"
-            onClick={radio.testRadioTransmission}
-            className="radio-btn-test"
-            title={t('ai_engineer.radio.testRadio')}
-          >
-            <Play className="w-4 h-4" />
-            {t('ai_engineer.radio.testRadio')}
-          </button>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="radio-btn-done"
-          >
-            <Check className="w-4 h-4" />
-            <span>{t('ai_engineer.done')}</span>
-          </button>
-        </div>
-      </div>
-    </div>
+      <ModalFooter align="between">
+        <button type="button" onClick={radio.testRadioTransmission} className="radio-btn-test">
+          <Play size={16} aria-hidden="true" />
+          {t('ai_engineer.radio.testRadio')}
+        </button>
+        <button type="button" onClick={onClose} className="radio-btn-done">
+          <Check size={16} aria-hidden="true" />
+          <span>{t('ai_engineer.done')}</span>
+        </button>
+      </ModalFooter>
+    </Modal>
   );
 };

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId, useRef } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
 import { AI_PROVIDER_URLS } from '../../constants/f1';
@@ -7,6 +7,7 @@ import { ApiKeyField } from './ApiKeyField';
 import { ModelPicker } from './ModelPicker';
 import { ServerAddressField } from './ServerAddressField';
 import { findServerPreset } from '../../utils/aiServers';
+import { useDialogLayer } from '../ui/useDialogLayer';
 import {
   AI_PROVIDER_OPTIONS,
   providerHasKey,
@@ -33,7 +34,8 @@ export interface ChatSettingsDrawerProps {
  * The AI settings, shown over the chat. Pick a provider, then only that provider's fields show:
  * a key and where to get one for cloud providers, a server address (with presets) and an optional
  * key for OpenAI-compatible servers, and the provider's own model list. Every change saves at once
- * to the server, so all devices share it.
+ * to the server, so all devices share it. It is a layer over the chat: Esc closes it before the
+ * chat, and focus moves into it and back to the button that opened it.
  */
 export const ChatSettingsDrawer: React.FC<ChatSettingsDrawerProps> = ({
   isOpen,
@@ -48,6 +50,9 @@ export const ChatSettingsDrawer: React.FC<ChatSettingsDrawerProps> = ({
   fetchAvailableModels,
 }) => {
   const { t } = useI18n();
+  const titleId = useId();
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  useDialogLayer({ isOpen, onClose, containerRef: panelRef });
 
   if (!isOpen) return null;
 
@@ -85,13 +90,19 @@ export const ChatSettingsDrawer: React.FC<ChatSettingsDrawerProps> = ({
   else if (!providerHasKey(keyStatus, provider)) modelsUnavailable = t('ai_engineer.setup.modelsNeedKey');
 
   return (
-    <div className="ai-settings-panel" data-testid="ai-settings-panel">
+    <div
+      ref={panelRef}
+      className="ai-settings-panel"
+      role="dialog"
+      aria-labelledby={titleId}
+      data-testid="ai-settings-panel"
+    >
       <div className="ai-settings-head">
         <button type="button" className="ai-btn-icon" onClick={onClose} aria-label="Close settings">
           <ArrowLeft size={16} />
         </button>
         <div className="ai-settings-head-text">
-          <h4>{t('ai_engineer.settings')}</h4>
+          <h4 id={titleId}>{t('ai_engineer.settings')}</h4>
           <p>{t('ai_engineer.setup.subtitle')}</p>
         </div>
       </div>

@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
-import { ChatMarkdown } from './ChatMarkdown';
+import { Markdown } from './Markdown';
 
-const renderMd = (content: string) => render(<ChatMarkdown content={content} />).container;
+const renderMd = (content: string) => render(<Markdown content={content} />).container;
 
-describe('ChatMarkdown', () => {
+describe('Markdown', () => {
   it('renders lists as real list elements', () => {
     const container = renderMd('- Tyres\n- Fuel');
     expect(container.querySelectorAll('ul > li')).toHaveLength(2);
@@ -36,9 +36,24 @@ describe('ChatMarkdown', () => {
   it('right-aligns number columns in tables', () => {
     const container = renderMd('| Sector | Delta |\n|---|---|\n| S1 | +0.006 |\n| S2 | **+0.439** |');
     const cells = container.querySelectorAll('tbody td');
-    expect(cells[0]).not.toHaveClass('chat-md-num');
-    expect(cells[1]).toHaveClass('chat-md-num');
+    expect(cells[0]).not.toHaveClass('num');
+    expect(cells[1]).toHaveClass('num');
     expect(cells[3].querySelector('strong')?.textContent).toBe('+0.439');
+  });
+
+  it('leaves spaced asterisks alone', () => {
+    const container = renderMd('2 * 3 * 4');
+    expect(container.querySelector('em')).toBeNull();
+    expect(container.textContent).toBe('2 * 3 * 4');
+  });
+
+  it('renders release notes headings under the dialog title', () => {
+    const container = renderMd('## v1.4.0\n### Features\n- Tyre **wear** chart\n1. First\n2. Second');
+    expect(container.querySelector('h1, h2')).toBeNull();
+    expect(container.querySelector('h3')?.textContent).toBe('v1.4.0');
+    expect(container.querySelector('h4')?.textContent).toBe('Features');
+    expect(container.querySelector('ul > li strong')?.textContent).toBe('wear');
+    expect(container.querySelectorAll('ol > li')).toHaveLength(2);
   });
 
   it('never turns reply text into HTML', () => {

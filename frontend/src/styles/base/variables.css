@@ -37,6 +37,7 @@
   /* ── Brand accents ───────────────────────────────────────────────────── */
   --accent-primary: hsl(351, 100%, 55%); /* F1 red */
   --accent-glow: hsla(351, 100%, 55%, 0.3);
+  --accent-primary-fill: hsl(351, 100%, 45%); /* red behind white text (4.8:1) */
   --accent-secondary: hsl(199, 89%, 48%); /* neon blue */
   --accent-secondary-glow: hsla(199, 89%, 48%, 0.3);
   --accent-tertiary: hsl(150, 100%, 40%); /* green */
@@ -49,6 +50,7 @@
   --status-warning: hsl(45, 100%, 50%);
   --status-danger: #ef4444;
   --status-info: var(--accent-cyan);
+  --status-danger-fill: #dc2626; /* red behind white text (4.8:1) */
   --status-success-bg: color-mix(in srgb, var(--status-success) 15%, transparent);
   --status-warning-bg: color-mix(in srgb, var(--status-warning) 15%, transparent);
   --status-danger-bg: color-mix(in srgb, var(--status-danger) 15%, transparent);

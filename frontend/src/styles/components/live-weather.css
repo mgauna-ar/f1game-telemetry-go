@@ -1,11 +1,4 @@
 /* 2. Weather Radar Styles */
-.weather-tyre-advice-badge {
-  font-size: 0.72rem;
-  font-weight: 800;
-  padding: 4px 10px;
-  border-radius: var(--radius-full);
-}
-
 .weather-current-strip {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
