@@ -58,7 +58,7 @@ export interface CarMotionData {
 
 import type { EngineerDirective as GeneratedEngineerDirective } from './generated/engineer';
 import type { WeatherForecastSample } from './generated/packets';
-import type { SyntheticEvent } from './generated/session';
+import type { FeedEvent } from './generated/session';
 import type { Narrows } from './wire';
 export type { WeatherForecastSample };
 
@@ -88,21 +88,15 @@ export interface SessionData {
 }
 
 /**
- * One race feed row. The server's SyntheticEvent and the game's event packets (EventMessage) are
- * both turned into it; the dashboard adds its own id and receive time.
+ * One race feed row: the server's FeedEvent (an event code and its parameters, no text) plus the
+ * id and receive time the dashboard adds. `utils/raceEvents.ts` writes its text.
  */
-export type RaceEvent = Narrows<
-  Omit<SyntheticEvent, 'type' | 'severity'> & {
-    id: string;
-    timestamp: number;
-    type: 'fastest_lap' | 'overtake' | 'penalty' | 'speed_trap' | 'pit' | 'retirement' | 'flag' | 'general';
-    severity: 'info' | 'warning' | 'danger' | 'purple' | 'success';
-  },
-  SyntheticEvent
->;
+export type RaceEvent = FeedEvent & {
+  id: string;
+  timestamp: number;
+};
 
-export type { SyntheticEvent } from './generated/session';
-export type { EventMessage } from './generated/packets';
+export type { FeedEvent, FeedEventCode, FeedEventType, FeedSeverity } from './generated/session';
 
 export interface ParticipantData {
   AIControlled: number;

@@ -3,7 +3,6 @@ package packets
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/json"
 	"testing"
 )
 
@@ -19,97 +18,118 @@ func eventDetails(t *testing.T, payload any) EventDataDetails {
 	return d
 }
 
-func TestPacketEventData_MarshalJSON_VehicleEvents(t *testing.T) {
+func TestPacketEventData_VehicleEventAccessors(t *testing.T) {
 	tests := []struct {
 		name    string
 		code    string
 		format  uint16
 		payload any
-		want    map[string]float64
+		decode  func(PacketEventData) (vehicleIdx uint8, ok bool)
+		want    uint8
 	}{
 		{
 			name:    "fastest lap",
 			code:    EventFastestLap,
 			payload: FastestLapEventData{VehicleIdx: 3, LapTime: 81.5},
-			want:    map[string]float64{"VehicleIdx": 3, "LapTime": 81.5},
+			decode: func(p PacketEventData) (uint8, bool) {
+				d, ok := p.FastestLapData()
+				return d.VehicleIdx, ok && d.LapTime == 81.5
+			},
+			want: 3,
 		},
 		{
 			name:    "retirement",
 			code:    EventRetirement,
 			payload: RetirementEventData{VehicleIdx: 4, Reason: ResultReasonTerminalDamage},
-			want:    map[string]float64{"VehicleIdx": 4, "Reason": float64(ResultReasonTerminalDamage)},
-		},
-		{
-			name:    "teammate in pits",
-			code:    EventTeamMateInPits,
-			payload: TeamMateInPitsEventData{VehicleIdx: 5},
-			want:    map[string]float64{"VehicleIdx": 5},
+			decode: func(p PacketEventData) (uint8, bool) {
+				d, ok := p.RetirementData()
+				return d.VehicleIdx, ok && d.Reason == ResultReasonTerminalDamage
+			},
+			want: 4,
 		},
 		{
 			name:    "race winner",
 			code:    EventRaceWinner,
 			payload: RaceWinnerEventData{VehicleIdx: 6},
-			want:    map[string]float64{"VehicleIdx": 6},
+			decode: func(p PacketEventData) (uint8, bool) {
+				d, ok := p.RaceWinnerData()
+				return d.VehicleIdx, ok
+			},
+			want: 6,
 		},
 		{
 			name:    "drive through served",
 			code:    EventDriveThroughServed,
 			payload: DriveThroughPenaltyServedEventData{VehicleIdx: 7},
-			want:    map[string]float64{"VehicleIdx": 7},
+			decode: func(p PacketEventData) (uint8, bool) {
+				d, ok := p.DriveThroughServedData()
+				return d.VehicleIdx, ok
+			},
+			want: 7,
 		},
 		{
 			name:    "stop go served",
 			code:    EventStopGoServed,
 			payload: StopGoPenaltyServedEventData{VehicleIdx: 8, StopTime: 10.5},
-			want:    map[string]float64{"VehicleIdx": 8, "StopTime": 10.5},
+			decode: func(p PacketEventData) (uint8, bool) {
+				d, ok := p.StopGoServedData()
+				return d.VehicleIdx, ok && d.StopTime == 10.5
+			},
+			want: 8,
 		},
 		{
 			name: "penalty issued",
 			code: EventPenaltyIssued,
 			payload: PenaltyEventData{
-				PenaltyType:      PenaltyTypeTimePenalty,
-				InfringementType: 6,
-				VehicleIdx:       9,
-				OtherVehicleIdx:  10,
-				Time:             5,
-				LapNum:           12,
-				PlacesGained:     1,
+				PenaltyType: PenaltyTypeTimePenalty, VehicleIdx: 9, OtherVehicleIdx: 10, Time: 5, LapNum: 12,
 			},
-			want: map[string]float64{
-				"VehicleIdx":       9,
-				"OtherVehicleIdx":  10,
-				"PenaltyType":      float64(PenaltyTypeTimePenalty),
-				"InfringementType": 6,
-				"PenaltyTime":      5,
-				"LapNum":           12,
-				"PlacesGained":     1,
+			decode: func(p PacketEventData) (uint8, bool) {
+				d, ok := p.PenaltyData()
+				return d.VehicleIdx, ok && d.OtherVehicleIdx == 10 && d.Time == 5 && d.LapNum == 12
 			},
+			want: 9,
 		},
 		{
 			name:    "speed trap",
 			code:    EventSpeedTrapTriggered,
 			payload: SpeedTrapEventData{VehicleIdx: 11, Speed: 331.5},
-			want:    map[string]float64{"VehicleIdx": 11, "Speed": 331.5},
+			decode: func(p PacketEventData) (uint8, bool) {
+				d, ok := p.SpeedTrapData()
+				return d.VehicleIdx, ok && d.Speed == 331.5
+			},
+			want: 11,
 		},
 		{
 			name:    "overtake",
 			code:    EventOvertake,
 			payload: OvertakeEventData{OvertakingVehicleIdx: 12, BeingOvertakenVehicleIdx: 13},
-			want:    map[string]float64{"VehicleIdx": 12, "OtherVehicleIdx": 13},
+			decode: func(p PacketEventData) (uint8, bool) {
+				d, ok := p.OvertakeData()
+				return d.OvertakingVehicleIdx, ok && d.BeingOvertakenVehicleIdx == 13
+			},
+			want: 12,
 		},
 		{
 			name:    "collision 2025",
 			code:    EventCollision,
 			format:  PacketFormat2025,
 			payload: [2]uint8{14, 15},
-			want:    map[string]float64{"VehicleIdx": 14, "OtherVehicleIdx": 15},
+			decode: func(p PacketEventData) (uint8, bool) {
+				d, ok := p.CollisionData()
+				return d.Vehicle1Idx, ok && d.Vehicle2Idx == 15 && d.Severity == 0
+			},
+			want: 14,
 		},
 		{
 			name:    "collision 2026",
 			code:    EventCollision,
 			format:  PacketFormat2026,
 			payload: [3]uint8{16, 17, 2},
-			want:    map[string]float64{"VehicleIdx": 16, "OtherVehicleIdx": 17, "Severity": 2},
+			decode: func(p PacketEventData) (uint8, bool) {
+				d, ok := p.CollisionData()
+				return d.Vehicle1Idx, ok && d.Vehicle2Idx == 17 && d.Severity == 2
+			},
+			want: 16,
 		},
 	}
 
@@ -125,29 +145,28 @@ func TestPacketEventData_MarshalJSON_VehicleEvents(t *testing.T) {
 			}
 			copy(pkt.EventStringCode[:], tt.code)
 
-			js, err := json.Marshal(pkt)
-			if err != nil {
-				t.Fatalf("MarshalJSON failed: %v", err)
+			got, ok := tt.decode(pkt)
+			if !ok {
+				t.Fatalf("%s payload did not decode as expected", tt.code)
 			}
-			var got map[string]any
-			if err := json.Unmarshal(js, &got); err != nil {
-				t.Fatalf("failed to unmarshal event JSON: %v", err)
-			}
-
-			if got["EventCode"] != tt.code {
-				t.Errorf("EventCode = %v, want %s", got["EventCode"], tt.code)
-			}
-			for field, want := range tt.want {
-				v, ok := got[field].(float64)
-				if !ok {
-					t.Errorf("%s missing from %s", field, js)
-					continue
-				}
-				// Compare through float32 so float fields survive the round trip.
-				if float32(v) != float32(want) {
-					t.Errorf("%s = %v, want %v", field, v, want)
-				}
+			if got != tt.want {
+				t.Errorf("vehicle index = %d, want %d", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestPacketEventData_AccessorsRejectOtherCodes(t *testing.T) {
+	var pkt PacketEventData
+	copy(pkt.EventStringCode[:], EventButtonStatus)
+
+	if _, ok := pkt.RaceWinnerData(); ok {
+		t.Error("RaceWinnerData accepted a BUTN event")
+	}
+	if _, ok := pkt.DriveThroughServedData(); ok {
+		t.Error("DriveThroughServedData accepted a BUTN event")
+	}
+	if _, ok := pkt.StopGoServedData(); ok {
+		t.Error("StopGoServedData accepted a BUTN event")
 	}
 }

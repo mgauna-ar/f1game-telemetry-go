@@ -1232,10 +1232,6 @@ func TestEventAccessorsAndCollision(t *testing.T) {
 		if !ok || data.Reason != DRSDisabledReasonSafetyCar {
 			t.Errorf("DRSDisabledData failed: got %+v, ok=%v", data, ok)
 		}
-		marshaled, err := pkt.MarshalJSON()
-		if err != nil || !bytes.Contains(marshaled, []byte(`"Reason":1`)) {
-			t.Errorf("MarshalJSON for DRSD failed: %s", string(marshaled))
-		}
 	}
 
 	// 4. CollisionData 2025 vs 2026

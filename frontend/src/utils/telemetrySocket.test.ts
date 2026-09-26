@@ -74,7 +74,7 @@ describe('telemetrySocket manager', () => {
     const processIncomingMessage = vi.spyOn(useTelemetryStore.getState(), 'processIncomingMessage');
     const unsub1 = connectTelemetryWebSocket();
     const unsub2 = connectTelemetryWebSocket();
-    MockWS.instances[0].onmessage?.({ data: JSON.stringify({ Header: { PacketId: 3 }, EventCode: 'SSTA' }) });
+    MockWS.instances[0].onmessage?.({ data: JSON.stringify({ Header: { PacketId: 255 }, Events: [] }) });
 
     expect(processIncomingMessage).toHaveBeenCalledTimes(1);
     unsub1();
@@ -87,15 +87,15 @@ describe('telemetrySocket manager', () => {
     const ws = MockWS.instances[0];
     ws.onopen?.();
 
-    const mockEvent = {
+    const snapshot = {
       Header: {
-        PacketId: 3,
+        PacketId: 255,
         SessionTime: 123.45,
       },
-      EventCode: 'RDFL',
+      Events: [{ eventCode: 'RDFL', type: 'flag', severity: 'danger', sessionTime: 123.45 }],
     };
 
-    ws.onmessage?.({ data: JSON.stringify(mockEvent) });
+    ws.onmessage?.({ data: JSON.stringify(snapshot) });
     expect(useSessionStatusStore.getState().events.length).toBe(1);
     expect(useSessionStatusStore.getState().events[0].eventCode).toBe('RDFL');
 

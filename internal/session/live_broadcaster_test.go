@@ -143,30 +143,39 @@ func TestLiveBroadcaster_NoClients(t *testing.T) {
 	}
 }
 
-func TestLiveBroadcaster_ImmediateEvents(t *testing.T) {
+func TestLiveBroadcaster_GameEventsRideOnSnapshot(t *testing.T) {
 	hub := &mockHub{clientCount: 1}
 	broadcaster := NewLiveBroadcaster(hub)
 
 	eventPkt := &packets.PacketEventData{
-		Header:          packets.PacketHeader{PacketId: packets.PacketIDEvent, SessionTime: 100.0},
-		EventStringCode: [4]uint8{'F', 'T', 'L', 'P'},
+		Header: packets.PacketHeader{PacketId: packets.PacketIDEvent, SessionTime: 100.0},
 	}
+	copy(eventPkt.EventStringCode[:], packets.EventFastestLap)
 
 	broadcaster.ProcessPacket(eventPkt)
 
-	// Events must be broadcast immediately without waiting for ticker
-	if hub.MessageCount() != 1 {
-		t.Fatalf("expected 1 immediate event broadcast, got %d", hub.MessageCount())
+	// Game events wait for the next snapshot instead of going out as their own message.
+	if hub.MessageCount() != 0 {
+		t.Fatalf("expected no message before the snapshot, got %d", hub.MessageCount())
 	}
 
-	var parsed struct {
-		EventCode string
+	broadcaster.BroadcastSnapshot()
+	if hub.MessageCount() != 1 {
+		t.Fatalf("expected 1 snapshot, got %d", hub.MessageCount())
 	}
-	if err := json.Unmarshal(hub.messages[0], &parsed); err != nil {
-		t.Fatalf("failed to unmarshal event: %v", err)
+
+	var snapshot LiveSnapshot
+	if err := json.Unmarshal(hub.messages[0], &snapshot); err != nil {
+		t.Fatalf("failed to unmarshal snapshot: %v", err)
 	}
-	if parsed.EventCode != "FTLP" {
-		t.Errorf("expected event code FTLP, got %s", parsed.EventCode)
+	if snapshot.Header.PacketId != packets.PacketIDLiveSnapshot {
+		t.Errorf("expected PacketId %d, got %d", packets.PacketIDLiveSnapshot, snapshot.Header.PacketId)
+	}
+	if len(snapshot.Events) != 1 || snapshot.Events[0].EventCode != packets.EventFastestLap {
+		t.Fatalf("expected the FTLP row in the snapshot, got %+v", snapshot.Events)
+	}
+	if snapshot.Events[0].SessionTime != 100.0 {
+		t.Errorf("expected the event's session time, got %v", snapshot.Events[0].SessionTime)
 	}
 }
 
@@ -228,11 +237,11 @@ func TestLiveBroadcaster_SafetyCarEvents(t *testing.T) {
 		t.Fatalf("expected 1 synthetic event, got %d", len(snapshot.Events))
 	}
 	evt := snapshot.Events[0]
-	if evt.EventCode != packets.EventSafetyCarStatus || evt.Type != "flag" || evt.Severity != "warning" {
+	if evt.EventCode != packets.EventSafetyCarStatus || evt.Type != FeedTypeFlag || evt.Severity != FeedSeverityWarning {
 		t.Errorf("unexpected event: %+v", evt)
 	}
-	if evt.Description != "Full Safety Car Deployed" {
-		t.Errorf("unexpected description: %s", evt.Description)
+	if evt.SafetyCarStatus == nil || *evt.SafetyCarStatus != int(packets.SafetyCarFull) {
+		t.Errorf("expected safety car status %d, got %v", packets.SafetyCarFull, evt.SafetyCarStatus)
 	}
 
 	// 3. VSC transition
@@ -249,7 +258,8 @@ func TestLiveBroadcaster_SafetyCarEvents(t *testing.T) {
 	if err := json.Unmarshal(hub.messages[1], &snapshot); err != nil {
 		t.Fatalf("failed to unmarshal snapshot: %v", err)
 	}
-	if len(snapshot.Events) != 1 || snapshot.Events[0].Description != "Virtual Safety Car Deployed" {
+	if len(snapshot.Events) != 1 || snapshot.Events[0].SafetyCarStatus == nil ||
+		*snapshot.Events[0].SafetyCarStatus != int(packets.SafetyCarVirtual) {
 		t.Errorf("expected VSC event, got %+v", snapshot.Events)
 	}
 }
@@ -343,19 +353,21 @@ func TestLiveBroadcaster_PitPenaltyAndRetirementEvents(t *testing.T) {
 
 	// 1. Pit event
 	pitEvt := snapshot.Events[0]
-	if pitEvt.EventCode != packets.EventTeamMateInPits || pitEvt.Type != "pit" || *pitEvt.VehicleIdx != 0 {
+	if pitEvt.EventCode != packets.EventTeamMateInPits || pitEvt.Type != FeedTypePit || *pitEvt.VehicleIdx != 0 ||
+		pitEvt.DriverName != "Franco Colapinto" || *pitEvt.LapNum != 6 {
 		t.Errorf("unexpected pit event: %+v", pitEvt)
 	}
 
 	// 2. Penalty event
 	penEvt := snapshot.Events[1]
-	if penEvt.EventCode != packets.EventPenaltyIssued || penEvt.Type != "penalty" || *penEvt.PenaltyTime != 5 {
+	if penEvt.EventCode != packets.EventPenaltyIssued || penEvt.Type != FeedTypePenalty || *penEvt.PenaltyTime != 5 {
 		t.Errorf("unexpected penalty event: %+v", penEvt)
 	}
 
 	// 3. Retirement event
 	retEvt := snapshot.Events[2]
-	if retEvt.EventCode != packets.EventRetirement || retEvt.Type != "retirement" || *retEvt.VehicleIdx != 1 {
+	if retEvt.EventCode != packets.EventRetirement || retEvt.Type != FeedTypeRetirement || *retEvt.VehicleIdx != 1 ||
+		retEvt.DriverName != "Max Verstappen" {
 		t.Errorf("unexpected retirement event: %+v", retEvt)
 	}
 }
@@ -495,14 +507,14 @@ type feedRow struct {
 	penaltyType int
 }
 
-// feedRows collects the feed entries from every message the hub received:
-// raw game events (Packet ID 3) and the broadcaster's own snapshot events.
+// feedRows collects the feed entries from every snapshot the hub received. The hub must only
+// ever get snapshots: game events ride on them too.
 func feedRows(t *testing.T, hub *mockHub) []feedRow {
 	t.Helper()
 	hub.mu.Lock()
 	defer hub.mu.Unlock()
 
-	var rows []feedRow
+	rows := make([]feedRow, 0, len(hub.messages))
 	for _, msg := range hub.messages {
 		var probe struct {
 			Header packets.PacketHeader
@@ -510,16 +522,14 @@ func feedRows(t *testing.T, hub *mockHub) []feedRow {
 		if err := json.Unmarshal(msg, &probe); err != nil {
 			t.Fatalf("failed to unmarshal message: %v", err)
 		}
-		switch probe.Header.PacketId {
-		case packets.PacketIDEvent:
-			var evt struct {
-				EventCode   string
-				VehicleIdx  *int
-				PenaltyType *int
-			}
-			if err := json.Unmarshal(msg, &evt); err != nil {
-				t.Fatalf("failed to unmarshal event: %v", err)
-			}
+		if probe.Header.PacketId != packets.PacketIDLiveSnapshot {
+			t.Fatalf("expected only snapshots on /ws, got PacketId %d", probe.Header.PacketId)
+		}
+		var snap LiveSnapshot
+		if err := json.Unmarshal(msg, &snap); err != nil {
+			t.Fatalf("failed to unmarshal snapshot: %v", err)
+		}
+		for _, evt := range snap.Events {
 			row := feedRow{code: evt.EventCode, vehicleIdx: -1, penaltyType: -1}
 			if evt.VehicleIdx != nil {
 				row.vehicleIdx = *evt.VehicleIdx
@@ -528,21 +538,6 @@ func feedRows(t *testing.T, hub *mockHub) []feedRow {
 				row.penaltyType = *evt.PenaltyType
 			}
 			rows = append(rows, row)
-		case packets.PacketIDLiveSnapshot:
-			var snap LiveSnapshot
-			if err := json.Unmarshal(msg, &snap); err != nil {
-				t.Fatalf("failed to unmarshal snapshot: %v", err)
-			}
-			for _, evt := range snap.Events {
-				row := feedRow{code: evt.EventCode, vehicleIdx: -1, penaltyType: -1}
-				if evt.VehicleIdx != nil {
-					row.vehicleIdx = *evt.VehicleIdx
-				}
-				if evt.PenaltyType != nil {
-					row.penaltyType = *evt.PenaltyType
-				}
-				rows = append(rows, row)
-			}
 		}
 	}
 	return rows
@@ -768,8 +763,8 @@ func TestLiveBroadcaster_TeamMateInPitsNotForwarded(t *testing.T) {
 	r := newFeedTestRig(t, 0xD1)
 	r.at(140).sendEvent(packets.EventTeamMateInPits, packets.TeamMateInPitsEventData{VehicleIdx: 1})
 
-	if n := r.hub.MessageCount(); n != 0 {
-		t.Fatalf("expected the game's TMPT not to be forwarded, got %d messages", n)
+	if n := countRows(r.rows(), 1, isPitEntryRow); n != 0 {
+		t.Fatalf("expected the game's TMPT not to be forwarded, got %d rows", n)
 	}
 
 	r.laps[1].PitStatus = packets.PitStatusPitting

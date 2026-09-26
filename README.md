@@ -17,7 +17,7 @@
 * **Dual View Modes:** Switch between the complete 2×2 Race Control Hub and a zero-overhead **Voice Cockpit Mode** built for maximum FPS on sim rigs and VR.
 * **Live Leaderboard & Timing Tower:** Full-grid timing tower with interval deltas, tyre compounds, pit status, and live Active Aero / Boost indicators.
 * **Dynamic Weather & Radar:** Live precipitation forecasts (+5m to +30m), track temperature trends, and tyre crossover recommendations.
-* **Real-Time Incidents & Sectors:** Instant ticker tracking overtakes, penalties, safety cars, sector splits, speed traps, and theoretical best laps.
+* **Real-Time Incidents & Sectors:** Instant ticker tracking overtakes, penalties, safety cars, sector splits, speed traps, and theoretical best laps. The server builds every race control row (event code plus parameters) and sends it with the 10 Hz live snapshot; the dashboard writes the text in your language.
 
 ### 🔍 Lap Comparator & Track Map
 * **Side-by-Side Telemetry:** Compare any two laps across Speed, Throttle, Brake, Gears, ERS, and 2026 Active Aero (`Corner` / `Straight` mode) & Boost traces.

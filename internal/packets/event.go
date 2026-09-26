@@ -3,7 +3,6 @@ package packets
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 )
 
@@ -138,6 +137,36 @@ func (p PacketEventData) SpeedTrapData() (SpeedTrapEventData, bool) {
 	return d, err == nil
 }
 
+// RaceWinnerData returns the decoded RaceWinnerEventData if the event is EventRaceWinner.
+func (p PacketEventData) RaceWinnerData() (RaceWinnerEventData, bool) {
+	if p.EventCode() != EventRaceWinner {
+		return RaceWinnerEventData{}, false
+	}
+	var d RaceWinnerEventData
+	err := binary.Read(bytes.NewReader(p.EventDetails.Data[:]), binary.LittleEndian, &d)
+	return d, err == nil
+}
+
+// DriveThroughServedData returns the decoded DriveThroughPenaltyServedEventData if the event is EventDriveThroughServed.
+func (p PacketEventData) DriveThroughServedData() (DriveThroughPenaltyServedEventData, bool) {
+	if p.EventCode() != EventDriveThroughServed {
+		return DriveThroughPenaltyServedEventData{}, false
+	}
+	var d DriveThroughPenaltyServedEventData
+	err := binary.Read(bytes.NewReader(p.EventDetails.Data[:]), binary.LittleEndian, &d)
+	return d, err == nil
+}
+
+// StopGoServedData returns the decoded StopGoPenaltyServedEventData if the event is EventStopGoServed.
+func (p PacketEventData) StopGoServedData() (StopGoPenaltyServedEventData, bool) {
+	if p.EventCode() != EventStopGoServed {
+		return StopGoPenaltyServedEventData{}, false
+	}
+	var d StopGoPenaltyServedEventData
+	err := binary.Read(bytes.NewReader(p.EventDetails.Data[:]), binary.LittleEndian, &d)
+	return d, err == nil
+}
+
 // FastestLapEventData contains data specific to the fastest lap event.
 type FastestLapEventData struct {
 	VehicleIdx uint8   `json:"VehicleIdx"`
@@ -230,103 +259,6 @@ type CollisionEventData struct {
 	Vehicle1Idx uint8 `json:"Vehicle1Idx"`
 	Vehicle2Idx uint8 `json:"Vehicle2Idx"`
 	Severity    uint8 `json:"Severity"`
-}
-
-// EventMessage is the JSON an event packet is sent as on /ws (see PacketEventData.MarshalJSON):
-// the event code and only the details that code carries.
-type EventMessage struct {
-	Header           PacketHeader `json:"Header"`
-	EventCode        string       `json:"EventCode"`
-	VehicleIdx       *uint8       `json:"VehicleIdx,omitempty"`
-	OtherVehicleIdx  *uint8       `json:"OtherVehicleIdx,omitempty"`
-	LapTime          *float32     `json:"LapTime,omitempty"`
-	Speed            *float32     `json:"Speed,omitempty"`
-	PenaltyType      *uint8       `json:"PenaltyType,omitempty"`
-	PenaltyTime      *uint8       `json:"PenaltyTime,omitempty"`
-	InfringementType *uint8       `json:"InfringementType,omitempty"`
-	PlacesGained     *uint8       `json:"PlacesGained,omitempty"`
-	LapNum           *uint8       `json:"LapNum,omitempty"`
-	Reason           *uint8       `json:"Reason,omitempty"`
-	SafetyCarType    *uint8       `json:"SafetyCarType,omitempty"`
-	EventType        *uint8       `json:"EventType,omitempty"`
-	Severity         *uint8       `json:"Severity,omitempty"`
-	StopTime         *float32     `json:"StopTime,omitempty"`
-}
-
-func (p PacketEventData) MarshalJSON() ([]byte, error) {
-	code := p.EventCode()
-	ej := EventMessage{
-		Header:    p.Header,
-		EventCode: code,
-	}
-	r := bytes.NewReader(p.EventDetails.Data[:])
-	switch code {
-	case EventFastestLap:
-		var d FastestLapEventData
-		if err := binary.Read(r, binary.LittleEndian, &d); err == nil {
-			ej.VehicleIdx = &d.VehicleIdx
-			ej.LapTime = &d.LapTime
-		}
-	case EventRetirement:
-		var d RetirementEventData
-		if err := binary.Read(r, binary.LittleEndian, &d); err == nil {
-			ej.VehicleIdx = &d.VehicleIdx
-			ej.Reason = &d.Reason
-		}
-	case EventTeamMateInPits, EventRaceWinner, EventDriveThroughServed:
-		var d TeamMateInPitsEventData
-		if err := binary.Read(r, binary.LittleEndian, &d); err == nil {
-			ej.VehicleIdx = &d.VehicleIdx
-		}
-	case EventStopGoServed:
-		var d StopGoPenaltyServedEventData
-		if err := binary.Read(r, binary.LittleEndian, &d); err == nil {
-			ej.VehicleIdx = &d.VehicleIdx
-			ej.StopTime = &d.StopTime
-		}
-	case EventPenaltyIssued:
-		var d PenaltyEventData
-		if err := binary.Read(r, binary.LittleEndian, &d); err == nil {
-			ej.VehicleIdx = &d.VehicleIdx
-			ej.OtherVehicleIdx = &d.OtherVehicleIdx
-			ej.PenaltyType = &d.PenaltyType
-			ej.InfringementType = &d.InfringementType
-			ej.PenaltyTime = &d.Time
-			ej.LapNum = &d.LapNum
-			ej.PlacesGained = &d.PlacesGained
-		}
-	case EventSpeedTrapTriggered:
-		var d SpeedTrapEventData
-		if err := binary.Read(r, binary.LittleEndian, &d); err == nil {
-			ej.VehicleIdx = &d.VehicleIdx
-			ej.Speed = &d.Speed
-		}
-	case EventOvertake:
-		var d OvertakeEventData
-		if err := binary.Read(r, binary.LittleEndian, &d); err == nil {
-			ej.VehicleIdx = &d.OvertakingVehicleIdx
-			ej.OtherVehicleIdx = &d.BeingOvertakenVehicleIdx
-		}
-	case EventSafetyCarStatus:
-		var d SafetyCarEventData
-		if err := binary.Read(r, binary.LittleEndian, &d); err == nil {
-			ej.SafetyCarType = &d.SafetyCarType
-			ej.EventType = &d.EventType
-		}
-	case EventDRSDisabled:
-		if d, ok := p.DRSDisabledData(); ok {
-			ej.Reason = &d.Reason
-		}
-	case EventCollision:
-		if d, ok := p.CollisionData(); ok {
-			ej.VehicleIdx = &d.Vehicle1Idx
-			ej.OtherVehicleIdx = &d.Vehicle2Idx
-			if p.Header.PacketFormat >= PacketFormat2026 {
-				ej.Severity = &d.Severity
-			}
-		}
-	}
-	return json.Marshal(ej)
 }
 
 type rawEventPayload struct {

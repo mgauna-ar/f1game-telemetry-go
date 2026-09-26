@@ -159,7 +159,7 @@ describe('useTelemetry', () => {
       return (
         <div>
           <div data-testid="event-count">{events.length}</div>
-          <div data-testid="latest-desc">{events[0]?.description || 'none'}</div>
+          <div data-testid="latest-driver">{events[0]?.driverName || 'none'}</div>
           <div data-testid="latest-code">{events[0]?.eventCode || 'none'}</div>
         </div>
       );
@@ -176,14 +176,12 @@ describe('useTelemetry', () => {
               {
                 eventCode: 'SCAR',
                 type: 'flag',
-                description: 'Full Safety Car Deployed',
                 severity: 'warning',
                 sessionTime: 10.0,
               },
               {
                 eventCode: 'TMPT',
                 type: 'pit',
-                description: 'Franco Colapinto entered the pit lane (Lap 12)',
                 vehicleIdx: 0,
                 driverName: 'Franco Colapinto',
                 lapNum: 12,
@@ -199,7 +197,7 @@ describe('useTelemetry', () => {
     expect(screen.getByTestId('event-count')).toHaveTextContent('2');
     // Events are added prepended, so the second event in the list was added last and is at index 0
     expect(screen.getByTestId('latest-code')).toHaveTextContent('TMPT');
-    expect(screen.getByTestId('latest-desc')).toHaveTextContent('Franco Colapinto entered the pit lane (Lap 12)');
+    expect(screen.getByTestId('latest-driver')).toHaveTextContent('Franco Colapinto');
   });
 });
 

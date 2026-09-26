@@ -186,6 +186,7 @@ const (
 	DefaultSessionDurationLimitSeconds       = 7200            // 2-hour default F1 session duration limit emitted by UDP telemetry
 	InvalidDriverID                          = 255
 	InvalidVehicleIdx                  uint8 = 255       // Vehicle index sentinel in event payloads (e.g. PENA OtherVehicleIdx)
+	PenaltyTimeNotApplicable           uint8 = 255       // PENA Time sentinel when the penalty has no time
 	ActiveStintEndLap                  uint8 = 255       // Sentinel indicating active/open-ended stint
 	UnknownValue                             = "Unknown" // Fallback string for uninitialized session/track values
 	UnknownTrackID                           = -1

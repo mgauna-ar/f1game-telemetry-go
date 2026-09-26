@@ -92,7 +92,6 @@ describe('Dashboard', () => {
           timestamp: Date.now(),
           eventCode: 'FTLP',
           type: 'fastest_lap',
-          description: 'Max Verstappen set the fastest lap (80.950s)',
           driverName: 'Max Verstappen',
           lapTime: 80.95,
           severity: 'purple',

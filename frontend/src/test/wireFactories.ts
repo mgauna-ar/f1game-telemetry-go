@@ -1,6 +1,7 @@
 import type { Lap, Participant, RawDriverStanding, Session, Tag, WeatherForecastSample } from '../types/session';
 import { placeholderParticipant } from '../types/session';
 import type { GlobalPTTMapping } from '../types/settings';
+import type { FeedEvent } from '../types/telemetry';
 
 // Complete wire objects for tests: the generated types require every field the server always
 // sends, so tests set only the fields they care about.
@@ -73,6 +74,10 @@ export function makeForecastSample(fields: Partial<WeatherForecastSample> = {}):
     RainPercentage: 0,
     ...fields,
   };
+}
+
+export function makeFeedEvent(fields: Partial<FeedEvent> = {}): FeedEvent {
+  return { eventCode: 'SSTA', type: 'general', severity: 'info', ...fields };
 }
 
 export function makeDriverStanding(fields: Partial<RawDriverStanding> = {}): RawDriverStanding {

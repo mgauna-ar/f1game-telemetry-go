@@ -191,6 +191,22 @@ export const live = {
     lapInvalidated: '{driver} tiempo de vuelta anulado{reason}',
     lapsInvalidated: '{driver} vuelta actual y siguiente anuladas{reason}',
     genericPenalty: '{driver} recibió una penalización{reason}',
+
+    // Drivers the game has not named yet
+    car: 'Auto #{number}',
+    unknownDriver: 'Piloto desconocido',
+  },
+
+  // Feed row tags for rows that are not penalties, by the server's feed type
+  feedTypes: {
+    fastest_lap: 'Vuelta Rápida',
+    overtake: 'Sobrepaso',
+    penalty: 'Penalización',
+    speed_trap: 'Trampa de Velocidad',
+    pit: 'Boxes',
+    retirement: 'Abandono',
+    flag: 'Bandera',
+    general: 'General',
   },
 
   penaltyTypes: {

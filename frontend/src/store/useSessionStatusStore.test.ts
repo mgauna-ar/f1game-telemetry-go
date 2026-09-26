@@ -25,13 +25,13 @@ describe('useSessionStatusStore', () => {
     useSessionStatusStore.getState().addEvent({
       eventCode: 'FTLP',
       type: 'fastest_lap',
-      description: 'Fastest lap set',
       severity: 'purple',
     });
 
     const state = useSessionStatusStore.getState();
     expect(state.events.length).toBe(1);
-    expect(state.events[0].description).toBe('Fastest lap set');
+    expect(state.events[0].eventCode).toBe('FTLP');
+    expect(state.events[0].id).toBeTruthy();
 
     useSessionStatusStore.getState().clearEvents();
     expect(useSessionStatusStore.getState().events.length).toBe(0);

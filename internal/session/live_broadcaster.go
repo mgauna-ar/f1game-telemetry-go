@@ -3,7 +3,6 @@ package session
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"sync"
 	"time"
 
@@ -16,27 +15,6 @@ type HubBroadcaster interface {
 	ClientCount() int
 }
 
-// SyntheticEvent represents a server-synthesized live race event.
-type SyntheticEvent struct {
-	EventCode        string   `json:"eventCode"`
-	Type             string   `json:"type"`
-	Description      string   `json:"description"`
-	VehicleIdx       *int     `json:"vehicleIdx,omitempty"`
-	DriverName       string   `json:"driverName,omitempty"`
-	OtherVehicleIdx  *int     `json:"otherVehicleIdx,omitempty"`
-	TargetDriverName string   `json:"targetDriverName,omitempty"`
-	LapNum           *int     `json:"lapNum,omitempty"`
-	Speed            *float32 `json:"speed,omitempty"`
-	LapTime          *float32 `json:"lapTime,omitempty"`
-	PenaltyType      *int     `json:"penaltyType,omitempty"`
-	InfringementType *int     `json:"infringementType,omitempty"`
-	PenaltyTime      *int     `json:"penaltyTime,omitempty"`
-	PlacesGained     *int     `json:"placesGained,omitempty"`
-	SafetyCarStatus  *int     `json:"safetyCarStatus,omitempty"`
-	Severity         string   `json:"severity"`
-	SessionTime      float32  `json:"sessionTime,omitempty"`
-}
-
 // LiveSnapshot represents a consolidated 10Hz live session telemetry state.
 type LiveSnapshot struct {
 	Header         packets.PacketHeader             `json:"Header"`
@@ -47,7 +25,7 @@ type LiveSnapshot struct {
 	CarTelemetry2  *packets.PacketCarTelemetry2Data `json:"CarTelemetry2,omitempty"`
 	CarStatus      *packets.PacketCarStatusData     `json:"CarStatus,omitempty"`
 	CarDamage      *packets.PacketCarDamageData     `json:"CarDamage,omitempty"`
-	Events         []SyntheticEvent                 `json:"Events,omitempty"`
+	Events         []FeedEvent                      `json:"Events,omitempty"`
 	ActiveCarCount int                              `json:"ActiveCarCount,omitempty"`
 }
 
@@ -72,7 +50,7 @@ type LiveBroadcaster struct {
 	prevSafetyCarStatus uint8
 	hasPrevLapData      [packets.MaxCars]bool
 	prevLapData         [packets.MaxCars]packets.LapData
-	pendingEvents       []SyntheticEvent
+	pendingEvents       []FeedEvent
 
 	// Per-car feed reports. The game and the lap data can both report the same
 	// retirement, disqualification or time penalty; only the first one reaches the feed.
@@ -188,20 +166,6 @@ func (b *LiveBroadcaster) acceptGameEvent(p *packets.PacketEventData) bool {
 	return true
 }
 
-func (b *LiveBroadcaster) getDriverName(vehicleIdx int) string {
-	if b.participants != nil && vehicleIdx >= 0 && vehicleIdx < len(b.participants.Participants) {
-		p := b.participants.Participants[vehicleIdx]
-		name := p.NameString()
-		if name != "" {
-			return name
-		}
-		if p.RaceNumber > 0 {
-			return fmt.Sprintf("Driver #%d", p.RaceNumber)
-		}
-	}
-	return fmt.Sprintf("Car #%d", vehicleIdx+1)
-}
-
 func (b *LiveBroadcaster) computeActiveCarCount() int {
 	maxCars := packets.MaxCarsForFormat(b.latestHeader.PacketFormat)
 	if maxCars <= 0 || maxCars > packets.MaxCars {
@@ -266,8 +230,8 @@ func (b *LiveBroadcaster) isCarActive(i int) bool {
 	return false
 }
 
-// ProcessPacket receives an incoming UDP telemetry packet.
-// Sparse critical event packets are broadcast immediately, while high-frequency telemetry is aggregated.
+// ProcessPacket receives an incoming UDP telemetry packet. Telemetry is aggregated, and game
+// events join the feed rows the broadcaster builds itself; both go out in the next snapshot.
 func (b *LiveBroadcaster) ProcessPacket(pkt packets.Packet) {
 	if pkt == nil {
 		return
@@ -279,15 +243,12 @@ func (b *LiveBroadcaster) ProcessPacket(pkt packets.Packet) {
 	case *packets.PacketEventData:
 		b.mu.Lock()
 		b.checkSessionTransition(header.SessionUID)
-		forward := b.acceptGameEvent(p)
-		b.mu.Unlock()
-
-		// Events are sparse and time-critical (penalties, overtakes, fastest laps): broadcast immediately
-		if forward && b.hub != nil && b.hub.ClientCount() > 0 {
-			if js, err := json.Marshal(p); err == nil {
-				b.hub.Broadcast(js)
+		if b.acceptGameEvent(p) {
+			if evt, ok := b.gameFeedEvent(p); ok {
+				b.pendingEvents = append(b.pendingEvents, evt)
 			}
 		}
+		b.mu.Unlock()
 	case *packets.PacketSessionData:
 		b.mu.Lock()
 		b.checkSessionTransition(header.SessionUID)
@@ -297,31 +258,7 @@ func (b *LiveBroadcaster) ProcessPacket(pkt packets.Packet) {
 		// Synthesize Safety Car state changes
 		if b.hasPrevSafetyCar {
 			if b.prevSafetyCarStatus != p.SafetyCarStatus {
-				var desc string
-				var sev string
-				switch p.SafetyCarStatus {
-				case packets.SafetyCarFull:
-					desc = "Full Safety Car Deployed"
-					sev = "warning"
-				case packets.SafetyCarVirtual:
-					desc = "Virtual Safety Car Deployed"
-					sev = "warning"
-				case packets.SafetyCarFormationLap:
-					desc = "Formation Lap In Progress"
-					sev = "info"
-				default:
-					desc = "Track Clear (Green Flag)"
-					sev = "success"
-				}
-				scStatus := int(p.SafetyCarStatus)
-				b.pendingEvents = append(b.pendingEvents, SyntheticEvent{
-					EventCode:       packets.EventSafetyCarStatus,
-					Type:            "flag",
-					Description:     desc,
-					SafetyCarStatus: &scStatus,
-					Severity:        sev,
-					SessionTime:     header.SessionTime,
-				})
+				b.pendingEvents = append(b.pendingEvents, safetyCarFeedEvent(p.SafetyCarStatus, header.SessionTime))
 				b.prevSafetyCarStatus = p.SafetyCarStatus
 			}
 		} else {
@@ -353,38 +290,19 @@ func (b *LiveBroadcaster) ProcessPacket(pkt packets.Packet) {
 			curr := p.LapData[idx]
 			if b.hasPrevLapData[idx] {
 				prev := b.prevLapData[idx]
-				driverName := b.getDriverName(idx)
-				vIdx := idx
 				lapNum := int(curr.CurrentLapNum)
 
 				// Pit entry transition
 				if prev.PitStatus == packets.PitStatusNone && (curr.PitStatus == packets.PitStatusPitting || curr.PitStatus == packets.PitStatusInPitArea) {
-					b.pendingEvents = append(b.pendingEvents, SyntheticEvent{
-						EventCode:   packets.EventTeamMateInPits,
-						Type:        "pit",
-						Description: fmt.Sprintf("%s entered the pit lane (Lap %d)", driverName, lapNum),
-						VehicleIdx:  &vIdx,
-						DriverName:  driverName,
-						LapNum:      &lapNum,
-						Severity:    "warning",
-						SessionTime: header.SessionTime,
-					})
+					b.pendingEvents = append(b.pendingEvents, b.carFeedEvent(
+						packets.EventTeamMateInPits, FeedTypePit, FeedSeverityWarning, idx, lapNum, header.SessionTime))
 				}
 
 				// Penalty increment, unless the game's own PENA event already reported it
 				if curr.Penalties > prev.Penalties && !b.gamePenaltyReportedNear(idx, header.SessionTime) {
-					added := int(curr.Penalties - prev.Penalties)
-					b.pendingEvents = append(b.pendingEvents, SyntheticEvent{
-						EventCode:   packets.EventPenaltyIssued,
-						Type:        "penalty",
-						Description: fmt.Sprintf("%s received +%ds penalty (Lap %d)", driverName, added, lapNum),
-						VehicleIdx:  &vIdx,
-						DriverName:  driverName,
-						LapNum:      &lapNum,
-						PenaltyTime: &added,
-						Severity:    "danger",
-						SessionTime: header.SessionTime,
-					})
+					evt := b.carFeedEvent(packets.EventPenaltyIssued, FeedTypePenalty, FeedSeverityDanger, idx, lapNum, header.SessionTime)
+					evt.PenaltyTime = ptrTo(int(curr.Penalties - prev.Penalties))
+					b.pendingEvents = append(b.pendingEvents, evt)
 				}
 
 				// Retirement / DNF / DSQ transition
@@ -393,33 +311,15 @@ func (b *LiveBroadcaster) ProcessPacket(pkt packets.Packet) {
 				if prevStatus != packets.ResultStatusRetired && prevStatus != packets.ResultStatusDNF && prevStatus != packets.ResultStatusDSQ {
 					switch currStatus {
 					case packets.ResultStatusDSQ:
-						if !claimReport(&b.dsqReported, idx) {
-							break
+						if claimReport(&b.dsqReported, idx) {
+							b.pendingEvents = append(b.pendingEvents, b.carFeedEvent(
+								packets.EventDisqualification, FeedTypePenalty, FeedSeverityDanger, idx, lapNum, header.SessionTime))
 						}
-						b.pendingEvents = append(b.pendingEvents, SyntheticEvent{
-							EventCode:   packets.EventDisqualification,
-							Type:        "penalty",
-							Description: fmt.Sprintf("%s was disqualified from the session", driverName),
-							VehicleIdx:  &vIdx,
-							DriverName:  driverName,
-							LapNum:      &lapNum,
-							Severity:    "danger",
-							SessionTime: header.SessionTime,
-						})
 					case packets.ResultStatusRetired, packets.ResultStatusDNF:
-						if !claimReport(&b.retirementReported, idx) {
-							break
+						if claimReport(&b.retirementReported, idx) {
+							b.pendingEvents = append(b.pendingEvents, b.carFeedEvent(
+								packets.EventRetirement, FeedTypeRetirement, FeedSeverityDanger, idx, lapNum, header.SessionTime))
 						}
-						b.pendingEvents = append(b.pendingEvents, SyntheticEvent{
-							EventCode:   packets.EventRetirement,
-							Type:        "retirement",
-							Description: fmt.Sprintf("%s retired from the session (Lap %d)", driverName, lapNum),
-							VehicleIdx:  &vIdx,
-							DriverName:  driverName,
-							LapNum:      &lapNum,
-							Severity:    "danger",
-							SessionTime: header.SessionTime,
-						})
 					}
 				}
 			}
@@ -478,9 +378,9 @@ func (b *LiveBroadcaster) BroadcastSnapshot() {
 
 	activeCarCount := b.computeActiveCarCount()
 
-	var eventsCopy []SyntheticEvent
+	var eventsCopy []FeedEvent
 	if len(b.pendingEvents) > 0 {
-		eventsCopy = make([]SyntheticEvent, len(b.pendingEvents))
+		eventsCopy = make([]FeedEvent, len(b.pendingEvents))
 		copy(eventsCopy, b.pendingEvents)
 		b.pendingEvents = nil
 	}

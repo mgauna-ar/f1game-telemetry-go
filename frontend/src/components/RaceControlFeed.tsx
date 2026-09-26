@@ -177,7 +177,7 @@ export const RaceControlFeed: React.FC<RaceControlFeedProps> = React.memo((props
           </div>
         ) : (
           filteredEvents.map((evt) => {
-            const desc = getLocalizedRaceEventDescription(evt, t) || evt.description;
+            const desc = getLocalizedRaceEventDescription(evt, t);
             return (
               <div key={evt.id} className={`race-feed-item severity-${evt.severity}`}>
                 <div className="race-feed-item-left">

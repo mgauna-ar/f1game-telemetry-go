@@ -41,7 +41,6 @@ func registry() *tsgen.Generator {
 	// the type whose fields describe the JSON. TestMarshalerKeys checks one against the other.
 	g.Marshaler(storage.Session{}, storage.Session{})                        // weather_forecast is raw JSON (tstype tag)
 	g.Marshaler(packets.PacketHeader{SessionUID: 1}, packets.PacketHeader{}) // SessionUID is hex (tstype tag)
-	g.Marshaler(penaltyEvent(), packets.EventMessage{})
 
 	// Sessions, laps, participants and tags.
 	g.Add(
@@ -102,20 +101,26 @@ func registry() *tsgen.Generator {
 		api.PTTLearnTimeoutMessage{},
 	)
 
-	// The race feed: game events sent as they arrive, and the events the server adds to snapshots.
+	// The live snapshot's header (its packet structs are not generated yet), and the race feed
+	// rows the server adds to snapshots: event codes and parameters, no text.
 	g.Add(
-		packets.EventMessage{},
-		session.SyntheticEvent{},
+		packets.PacketHeader{},
+		session.FeedEvent{},
 	)
+	g.TypeAlias("session", "FeedEventCode", stringUnion(session.FeedEventCodes))
+	g.TypeAlias("session", "FeedEventType", stringUnion(session.FeedEventTypes))
+	g.TypeAlias("session", "FeedSeverity", stringUnion(session.FeedSeverities))
 
 	return g
 }
 
-// penaltyEvent is a sample event packet whose MarshalJSON writes most of the optional details.
-func penaltyEvent() packets.PacketEventData {
-	var p packets.PacketEventData
-	copy(p.EventStringCode[:], packets.EventPenaltyIssued)
-	return p
+// stringUnion writes a TypeScript union of string literals, e.g. 'a' | 'b'.
+func stringUnion(values []string) string {
+	quoted := make([]string, len(values))
+	for i, v := range values {
+		quoted[i] = "'" + v + "'"
+	}
+	return strings.Join(quoted, " | ")
 }
 
 func main() {

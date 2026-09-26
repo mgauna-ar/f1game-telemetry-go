@@ -191,6 +191,22 @@ export const live = {
     lapInvalidated: '{driver} lap time invalidated{reason}',
     lapsInvalidated: '{driver} this & next lap invalidated{reason}',
     genericPenalty: '{driver} received a penalty{reason}',
+
+    // Drivers the game has not named yet
+    car: 'Car #{number}',
+    unknownDriver: 'Unknown driver',
+  },
+
+  // Feed row tags for rows that are not penalties, by the server's feed type
+  feedTypes: {
+    fastest_lap: 'Fastest Lap',
+    overtake: 'Overtake',
+    penalty: 'Penalty',
+    speed_trap: 'Speed Trap',
+    pit: 'Pit',
+    retirement: 'Retirement',
+    flag: 'Flag',
+    general: 'General',
   },
 
   penaltyTypes: {

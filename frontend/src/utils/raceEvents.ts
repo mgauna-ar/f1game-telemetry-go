@@ -1,12 +1,22 @@
 import type { RaceEvent } from '../types/telemetry';
 import { PENALTY_TYPES, SAFETY_CAR_STATUS } from '../constants/f1';
 
-export function getLocalizedRaceEventDescription(
-  evt: RaceEvent,
-  t: (key: string, params?: Record<string, string | number>) => string
-): string {
-  const driver = evt.driverName || 'Driver';
-  const target = evt.targetDriverName || 'Car';
+type Translate = (key: string, params?: Record<string, string | number>) => string;
+
+/** The driver's name, or a localized "Car #N" while the game has not named the car. */
+function carLabel(name: string | undefined, vehicleIdx: number | undefined, t: Translate): string {
+  if (name) return name;
+  if (vehicleIdx !== undefined) return t('live.events.car', { number: vehicleIdx + 1 });
+  return t('live.events.unknownDriver');
+}
+
+/**
+ * Writes a race feed row's text in the viewer's language. The server sends only an event code
+ * and its parameters, so every FeedEventCode must have a case here (`tsc` checks it).
+ */
+export function getLocalizedRaceEventDescription(evt: RaceEvent, t: Translate): string {
+  const driver = carLabel(evt.driverName, evt.vehicleIdx, t);
+  const target = carLabel(evt.targetDriverName, evt.otherVehicleIdx, t);
 
   switch (evt.eventCode) {
     case 'PENA': {
@@ -134,22 +144,20 @@ export function getLocalizedRaceEventDescription(
           return t('live.events.virtualSafetyCarDeployed');
         case SAFETY_CAR_STATUS.FORMATION_LAP:
           return t('live.events.formationLapInProgress');
-        case SAFETY_CAR_STATUS.CLEAR:
-          return t('live.events.trackClear');
         default:
-          return evt.description;
+          return t('live.events.trackClear');
       }
 
-    default:
-      return evt.description;
+    default: {
+      const unknownCode: never = evt.eventCode;
+      return unknownCode;
+    }
   }
 }
 
-export function getLocalizedPenaltyTag(
-  evt: RaceEvent,
-  t: (key: string, params?: Record<string, string | number>) => string
-): string {
+export function getLocalizedPenaltyTag(evt: RaceEvent, t: Translate): string {
   if (evt.type === 'penalty') {
+    if (evt.eventCode === 'DSQ') return t('live.penaltyTypes.disqualified').toUpperCase();
     if (evt.penaltyType === PENALTY_TYPES.DRIVE_THROUGH) return t('live.penaltyTypes.driveThrough').toUpperCase();
     if (evt.penaltyType === PENALTY_TYPES.STOP_GO) return t('live.penaltyTypes.stopGo').toUpperCase();
     if (evt.penaltyType === PENALTY_TYPES.GRID_PENALTY) return t('live.penaltyTypes.gridPenalty').toUpperCase();
@@ -172,5 +180,5 @@ export function getLocalizedPenaltyTag(
     if (evt.penaltyType === PENALTY_TYPES.BLACK_FLAG_TIMER) return t('live.penaltyTypes.blackFlagTimer').toUpperCase();
     return t('live.penaltyTypes.penalty').toUpperCase();
   }
-  return evt.type.replace('_', ' ').toUpperCase();
+  return t(`live.feedTypes.${evt.type}`).toUpperCase();
 }

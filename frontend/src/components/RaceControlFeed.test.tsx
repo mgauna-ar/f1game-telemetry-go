@@ -24,7 +24,6 @@ describe('RaceControlFeed', () => {
       timestamp: Date.now(),
       eventCode: 'FTLP',
       type: 'fastest_lap',
-      description: 'Lando Norris set the fastest lap (82.115s)',
       driverName: 'Lando Norris',
       lapTime: 82.115,
       severity: 'purple',
@@ -34,7 +33,6 @@ describe('RaceControlFeed', () => {
       timestamp: Date.now() - 1000,
       eventCode: 'OVTK',
       type: 'overtake',
-      description: 'Charles Leclerc overtook Carlos Sainz',
       driverName: 'Charles Leclerc',
       targetDriverName: 'Carlos Sainz',
       severity: 'info',
@@ -44,7 +42,6 @@ describe('RaceControlFeed', () => {
       timestamp: Date.now() - 2000,
       eventCode: 'PENA',
       type: 'penalty',
-      description: 'Max Verstappen received a 5s time penalty',
       driverName: 'Max Verstappen',
       penaltyType: PENALTY_TYPES.TIME_PENALTY,
       penaltyTime: 5,
@@ -69,6 +66,8 @@ describe('RaceControlFeed', () => {
     expect(screen.getByText(/Lando Norris set the fastest lap/i)).toBeInTheDocument();
     expect(screen.getByText(/Charles Leclerc overtook Carlos Sainz/i)).toBeInTheDocument();
     expect(screen.getByText(/Max Verstappen received a 5s time penalty/i)).toBeInTheDocument();
+    expect(screen.getByText('FASTEST LAP')).toBeInTheDocument();
+    expect(screen.getByText('OVERTAKE')).toBeInTheDocument();
   });
 
   it('filters events when filter tabs are clicked', () => {
