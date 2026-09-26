@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import type { ImportBatchResponse, Session } from '../types/session';
 import { useI18n } from '../context/I18nContext';
 import { api } from '../utils/apiClient';
+import { invalidateSessionLapData } from '../utils/sessionDataCache';
 import { useSessionListStore } from '../store/useSessionListStore';
 import { useToastStore } from '../store/useToastStore';
 
@@ -160,6 +161,8 @@ export function useBatchOperations({
           : summary;
         showToast(data.imported > 0 ? 'success' : 'info', text);
 
+        // An imported session can take the ID of one deleted elsewhere, so drop all cached session data.
+        invalidateSessionLapData();
         useSessionListStore.getState().invalidate();
         await fetchSessions();
         if (fetchTags) {
@@ -180,6 +183,7 @@ export function useBatchOperations({
 
     try {
       await api.post('/api/sessions/batch-delete', { session_ids: ids });
+      invalidateSessionLapData(ids);
 
       setSessions((prev) => prev.filter((s) => !selectedSessionIds.has(s.id)));
       setSelectedSessionIds(new Set());

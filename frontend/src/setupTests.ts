@@ -1,5 +1,11 @@
 import '@testing-library/jest-dom';
-import { vi } from 'vitest';
+import { afterEach, vi } from 'vitest';
+import { invalidateSessionLapData } from './utils/sessionDataCache';
+
+// The session data cache is module state; start every test without cached sessions.
+afterEach(() => {
+  invalidateSessionLapData();
+});
 
 const localStorageMock = (() => {
   let store: Record<string, string> = {};

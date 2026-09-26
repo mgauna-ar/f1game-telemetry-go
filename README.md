@@ -111,6 +111,8 @@ CI runs `go run ./cmd/tsgen -check` and fails when the generated files are out o
 
 The 10 Hz live snapshot on `/ws` is a slim DTO (`internal/session/live_snapshot.go`): one row per active car and only the fields the live views read. To show another packet field live, add it there first. `go test -run TestLiveSnapshotPayloadSize -v ./cmd/simulator` prints its size per frame next to the raw packets.
 
+Opening a recorded session is one request, `GET /api/sessions/{id}/detail`: the classification, progression and stints plus the session's participants and laps, loaded from SQLite once and sent once (standings and stints refer to laps by `car_index` and lap ID). `go test -run TestSessionViewPayloadSize -v ./internal/api` prints its bytes and database reads for a full synthetic race; set `F1_PAYLOAD_DB` (a copy of your database) and `F1_PAYLOAD_SESSION` to measure a recorded one.
+
 ---
 
 ## 🎮 F1 Game Configuration

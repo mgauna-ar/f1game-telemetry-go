@@ -3,7 +3,7 @@ import type { Participant, Lap } from '../types/session';
 import type { ComparatorRivalMode } from '../types/comparatorPreferences';
 import { filterActiveHistoricalParticipants } from '../utils/driverFilter';
 import { sortLapsByQuality } from '../utils/lapUtils';
-import { api } from '../utils/apiClient';
+import { getSessionLapData } from '../utils/sessionDataCache';
 import { resolveReferenceLap, resolveComparisonLap } from '../utils/comparatorPreferencesUtils';
 
 export interface UseSlotTelemetryOptions {
@@ -101,20 +101,16 @@ export function useSlotTelemetry({
       return;
     }
 
-    const controller = new AbortController();
-    const { signal } = controller;
+    // The load is shared with the other slot and Session History (sessionDataCache), so it isn't
+    // aborted here; a result that arrives after the session changed is ignored.
+    let cancelled = false;
 
     setLoading(true);
     setError(null);
 
-    Promise.all([
-      api.get<Participant[]>(`/api/sessions/${sessionId}/participants`, { signal }),
-      api.get<Lap[]>(`/api/sessions/${sessionId}/laps`, { signal }),
-    ])
-      .then(([partsData, lapsData]) => {
-        if (signal.aborted) return;
-        const parts: Participant[] = partsData || [];
-        const list: Lap[] = lapsData || [];
+    getSessionLapData(sessionId)
+      .then(({ participants: parts, laps: list }) => {
+        if (cancelled) return;
         setParticipants(parts);
         setLaps(list);
 
@@ -142,17 +138,17 @@ export function useSlotTelemetry({
           setLapId('');
         }
       })
-      .catch((err) => {
-        if (!signal.aborted && err.name !== 'AbortError') {
+      .catch((err: unknown) => {
+        if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Error loading session data');
         }
       })
       .finally(() => {
-        if (!signal.aborted) setLoading(false);
+        if (!cancelled) setLoading(false);
       });
 
     return () => {
-      controller.abort();
+      cancelled = true;
     };
   }, [sessionId]);
 

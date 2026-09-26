@@ -1,13 +1,17 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { api } from '../utils/apiClient';
+import { primeSessionLapData } from '../utils/sessionDataCache';
 import { useRaceEngineerActions } from '../context/RaceEngineerContext';
 import {
   type Session,
   type Lap,
+  type Participant,
   type DriverStanding,
   type ClassificationResponse,
   type ProgressionResponse,
   type StintsResponse,
+  type SessionDetailResponse,
+  groupLapsByCar,
   normalizeDriverStanding,
 } from '../types/session';
 
@@ -48,6 +52,7 @@ export function useSessionDetail({ onClearStagedSlots }: UseSessionDetailProps =
   const [progressionData, setProgressionData] = useState<ProgressionResponse | null>(null);
   const [stintsData, setStintsData] = useState<StintsResponse | null>(null);
   const [laps, setLaps] = useState<Lap[]>([]);
+  const [participants, setParticipants] = useState<Participant[]>([]);
   const [expandedDrivers, setExpandedDrivers] = useState<Record<number, boolean>>({});
   const [activeDetailTab, setActiveDetailTab] = useState<'classification' | 'charts' | 'stints' | 'sectors'>('classification');
 
@@ -76,37 +81,27 @@ export function useSessionDetail({ onClearStagedSlots }: UseSessionDetailProps =
     setActiveDetailTab('classification');
 
     try {
-      const [classRes, progRes, stintsRes, lapsRes] = await Promise.allSettled([
-        api.get<ClassificationResponse>(`/api/sessions/${session.id}/classification`, { signal }),
-        api.get<ProgressionResponse>(`/api/sessions/${session.id}/progression`, { signal }),
-        api.get<StintsResponse>(`/api/sessions/${session.id}/stints`, { signal }),
-        api.get<Lap[]>(`/api/sessions/${session.id}/laps`, { signal }),
-      ]);
-
+      // One request: the server loads the session's participants and laps once and sends each once.
+      const detail = await api.get<SessionDetailResponse>(`/api/sessions/${session.id}/detail`, { signal });
       if (signal.aborted) return;
 
-      const classData = classRes.status === 'fulfilled' ? classRes.value : null;
-      const progData = progRes.status === 'fulfilled' ? progRes.value : null;
-      const stintsDataRes = stintsRes.status === 'fulfilled' ? stintsRes.value : null;
-      const lapsData = lapsRes.status === 'fulfilled' ? lapsRes.value : [];
-
-      const rejectedReasons = [classRes, progRes, stintsRes, lapsRes]
-        .filter((r): r is PromiseRejectedResult => r.status === 'rejected')
-        .map((r) => (r.reason instanceof Error ? r.reason.message : String(r.reason)));
-
-      if (rejectedReasons.length > 0 && !classData && lapsData.length === 0) {
-        setDetailError(rejectedReasons[0] || 'Error fetching session details');
-      }
-
-      setClassificationData(classData);
-      setProgressionData(progData);
-      setStintsData(stintsDataRes);
+      // The comparator reuses these instead of loading the session again.
+      primeSessionLapData(session.id, { participants: detail.participants, laps: detail.laps });
+      setClassificationData(detail.classification);
+      setProgressionData(detail.progression);
+      setStintsData(detail.stints);
+      setParticipants(detail.participants);
       // Sector 3 is already derived server side (storage.DeriveSector3).
-      setLaps(lapsData);
+      setLaps(detail.laps);
     } catch (err: unknown) {
-      if (err instanceof Error && err.name === 'AbortError') {
+      if (signal.aborted || (err instanceof Error && err.name === 'AbortError')) {
         return;
       }
+      setClassificationData(null);
+      setProgressionData(null);
+      setStintsData(null);
+      setParticipants([]);
+      setLaps([]);
       const msg = err instanceof Error ? err.message : 'Error fetching session details';
       setDetailError(msg);
     } finally {
@@ -130,11 +125,16 @@ export function useSessionDetail({ onClearStagedSlots }: UseSessionDetailProps =
   const sessionBestS2 = classificationData?.session_best_s2_ms ?? 0;
   const sessionBestS3 = classificationData?.session_best_s3_ms ?? 0;
 
-  // Driver standings for selected session (from server classification)
+  // Driver standings for selected session (from server classification), joined with the session's
+  // participants and laps by car_index.
   const driverStandings: DriverStanding[] = useMemo(() => {
     if (!selectedSession || !classificationData?.standings) return [];
-    return classificationData.standings.map((s) => normalizeDriverStanding(s, selectedSession.id));
-  }, [classificationData, selectedSession]);
+    const participantsByCar = new Map(participants.map((p) => [p.car_index, p]));
+    const lapsByCar = groupLapsByCar(laps);
+    return classificationData.standings.map((s) =>
+      normalizeDriverStanding(s, selectedSession.id, participantsByCar, lapsByCar)
+    );
+  }, [classificationData, selectedSession, participants, laps]);
 
   // Point the AI debrief at this session once its classification has loaded; the server
   // builds the debrief from the session ID.

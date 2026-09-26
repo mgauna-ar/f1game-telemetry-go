@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { Session } from '../types/session';
 import { api } from '../utils/apiClient';
+import { invalidateSessionLapData } from '../utils/sessionDataCache';
 import { useSessionListStore } from '../store/useSessionListStore';
 
 export interface UseSessionListReturn {
@@ -43,6 +44,7 @@ export function useSessionList(): UseSessionListReturn {
       setDeletingSessionId(targetId);
       try {
         await api.del(`/api/sessions/${targetId}`);
+        invalidateSessionLapData([targetId]);
 
         useSessionListStore.getState().setSessions((prev) => prev.filter((s) => s.id !== targetId));
         invalidate();

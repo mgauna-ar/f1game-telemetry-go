@@ -318,6 +318,9 @@ export const TELEMETRY_DOWNSAMPLE_LIMITS = {
   BUFFER_THRESHOLD: 850,
 } as const;
 
+/** Sessions whose participants and laps the client keeps (utils/sessionDataCache.ts); about 0.6 MB each for a full race. */
+export const SESSION_DATA_CACHE_LIMIT = 8;
+
 export const F1_FORMATS = {
   FORMAT_2025: 2025,
   FORMAT_2026: 2026,

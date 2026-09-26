@@ -42,7 +42,6 @@ describe('useLapStaging Hook', () => {
     laps: [mockLap],
     bestLap: mockLap,
     bestLapTimeMS: 88500,
-    lastLap: mockLap,
     lastLapTimeMS: 88500,
     totalRaceTimeMS: 88500,
     penaltySeconds: 0,

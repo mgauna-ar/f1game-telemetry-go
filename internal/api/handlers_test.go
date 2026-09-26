@@ -52,8 +52,8 @@ func TestHandlersAnalytics(t *testing.T) {
 		}
 	}
 
-	t.Run("GET /api/sessions/{id}/classification", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/sessions/%d/classification", session.ID), http.NoBody)
+	t.Run("GET /api/sessions/{id}/detail", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/sessions/%d/detail", session.ID), http.NoBody)
 		rec := httptest.NewRecorder()
 		server.Router().ServeHTTP(rec, req)
 
@@ -61,74 +61,52 @@ func TestHandlersAnalytics(t *testing.T) {
 			t.Fatalf("expected 200 OK, got %d", rec.Code)
 		}
 
-		var resp analytics.ClassificationResponse
-		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		body := rec.Body.String()
+		var resp analytics.SessionDetailResponse
+		if err := json.Unmarshal([]byte(body), &resp); err != nil {
 			t.Fatalf("failed to decode response: %v", err)
 		}
-		if len(resp.Standings) != 2 {
-			t.Errorf("expected 2 standings, got %d", len(resp.Standings))
+		if len(resp.Participants) != 2 {
+			t.Errorf("expected 2 participants, got %d", len(resp.Participants))
 		}
-	})
-
-	t.Run("GET /api/sessions/{id}/progression", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/sessions/%d/progression", session.ID), http.NoBody)
-		rec := httptest.NewRecorder()
-		server.Router().ServeHTTP(rec, req)
-
-		if rec.Code != http.StatusOK {
-			t.Fatalf("expected 200 OK, got %d", rec.Code)
+		if len(resp.Laps) != len(laps) {
+			t.Errorf("expected %d laps, got %d", len(laps), len(resp.Laps))
 		}
-
-		var resp analytics.ProgressionResponse
-		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
-			t.Fatalf("failed to decode response: %v", err)
+		if len(resp.Classification.Standings) != 2 {
+			t.Errorf("expected 2 standings, got %d", len(resp.Classification.Standings))
 		}
-		if len(resp.Drivers) != 2 {
-			t.Errorf("expected 2 drivers, got %d", len(resp.Drivers))
+		if len(resp.Progression.Drivers) != 2 {
+			t.Errorf("expected 2 progression drivers, got %d", len(resp.Progression.Drivers))
 		}
-	})
-
-	t.Run("GET /api/sessions/{id}/stints", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/sessions/%d/stints", session.ID), http.NoBody)
-		rec := httptest.NewRecorder()
-		server.Router().ServeHTTP(rec, req)
-
-		if rec.Code != http.StatusOK {
-			t.Fatalf("expected 200 OK, got %d", rec.Code)
+		if len(resp.Stints.Drivers) != 2 {
+			t.Errorf("expected 2 stint drivers, got %d", len(resp.Stints.Drivers))
 		}
-
-		var resp analytics.StintsResponse
-		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
-			t.Fatalf("failed to decode response: %v", err)
+		// Laps are sent once, in the top-level list; standings point at the best lap by ID.
+		if got := lapObjects(body); got != len(laps) {
+			t.Errorf("expected %d lap rows in the body, got %d", len(laps), got)
 		}
-		if len(resp.Drivers) != 2 {
-			t.Errorf("expected 2 drivers, got %d", len(resp.Drivers))
+		if best := resp.Classification.Standings[0]; best.BestLapID == 0 {
+			t.Errorf("expected the leader's best_lap_id, got %+v", best)
 		}
 	})
 
 	t.Run("Analytics Error Handling - Invalid ID", func(t *testing.T) {
-		endpoints := []string{"classification", "progression", "stints"}
-		for _, ep := range endpoints {
-			req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/sessions/invalid-id/%s", ep), http.NoBody)
-			rec := httptest.NewRecorder()
-			server.Router().ServeHTTP(rec, req)
+		req := httptest.NewRequest(http.MethodGet, "/api/sessions/invalid-id/detail", http.NoBody)
+		rec := httptest.NewRecorder()
+		server.Router().ServeHTTP(rec, req)
 
-			if rec.Code != http.StatusBadRequest {
-				t.Errorf("%s: expected 400 Bad Request for invalid id, got %d", ep, rec.Code)
-			}
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("expected 400 Bad Request for invalid id, got %d", rec.Code)
 		}
 	})
 
 	t.Run("Analytics Error Handling - Not Found", func(t *testing.T) {
-		endpoints := []string{"classification", "progression", "stints"}
-		for _, ep := range endpoints {
-			req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/sessions/99999999/%s", ep), http.NoBody)
-			rec := httptest.NewRecorder()
-			server.Router().ServeHTTP(rec, req)
+		req := httptest.NewRequest(http.MethodGet, "/api/sessions/99999999/detail", http.NoBody)
+		rec := httptest.NewRecorder()
+		server.Router().ServeHTTP(rec, req)
 
-			if rec.Code != http.StatusNotFound {
-				t.Errorf("%s: expected 404 Not Found, got %d", ep, rec.Code)
-			}
+		if rec.Code != http.StatusNotFound {
+			t.Errorf("expected 404 Not Found, got %d", rec.Code)
 		}
 	})
 }
@@ -295,22 +273,24 @@ func TestComparatorMerge_Errors(t *testing.T) {
 	}
 }
 
-func TestSessionAnalytics_NotFound(t *testing.T) {
-	server, _ := setupTestServer(t)
-
-	endpoints := []string{
-		"/api/sessions/99999/classification",
-		"/api/sessions/99999/progression",
-		"/api/sessions/99999/stints",
+// A session with nothing recorded yet still sends empty lists, never null.
+func TestSessionDetail_EmptySession(t *testing.T) {
+	server, repo := setupTestServer(t)
+	session := &storage.Session{SessionUID: storage.FormatSessionUID(445566), SessionType: "Race", PacketFormat: 2025}
+	if err := repo.SaveSession(context.Background(), session); err != nil {
+		t.Fatalf("failed to save session: %v", err)
 	}
 
-	for _, ep := range endpoints {
-		req := httptest.NewRequest(http.MethodGet, ep, http.NoBody)
-		rec := httptest.NewRecorder()
-		server.Router().ServeHTTP(rec, req)
+	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/sessions/%d/detail", session.ID), http.NoBody)
+	rec := httptest.NewRecorder()
+	server.Router().ServeHTTP(rec, req)
 
-		if rec.Code != http.StatusNotFound {
-			t.Errorf("expected 404 Not Found for %s, got %d", ep, rec.Code)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d", rec.Code)
+	}
+	for _, want := range []string{`"participants":[]`, `"laps":[]`, `"standings":[]`} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Errorf("expected %s in %s", want, rec.Body.String())
 		}
 	}
 }

@@ -1,9 +1,10 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useSlotTelemetry } from './useSlotTelemetry';
+import { primeSessionLapData } from '../utils/sessionDataCache';
 
 import type { Participant } from '../types/session';
-import { makeParticipant } from '../test/wireFactories';
+import { makeLap, makeParticipant } from '../test/wireFactories';
 
 describe('useSlotTelemetry Hook', () => {
   const mockParticipants: Participant[] = [
@@ -141,5 +142,44 @@ describe('useSlotTelemetry Hook', () => {
     // Reference driver has P1 (id 11), so Comparison should pick P2 (id 12, Perez)
     expect(result.current.lapId).toBe(12);
     expect(result.current.driverName).toBe('#11 Sergio Perez');
+  });
+
+  it('loads a session once when both slots use it', async () => {
+    const { result } = renderHook(() => ({
+      slotA: useSlotTelemetry({ sessionId: 1 }),
+      slotB: useSlotTelemetry({ sessionId: 1, isSlotB: true, isSameSessionAsSlotA: true }),
+    }));
+
+    await waitFor(() => {
+      expect(result.current.slotA.laps).toHaveLength(2);
+      expect(result.current.slotB.laps).toHaveLength(2);
+    });
+    const urls = vi.mocked(globalThis.fetch).mock.calls.map(([url]) => url);
+    expect(urls).toEqual(['/api/sessions/1/participants', '/api/sessions/1/laps']);
+  });
+
+  it('does not refetch a session it already has', async () => {
+    const { result, rerender } = renderHook(
+      ({ sessionId }: { sessionId: number | '' }) => useSlotTelemetry({ sessionId }),
+      { initialProps: { sessionId: 1 as number | '' } }
+    );
+    await waitFor(() => expect(result.current.laps).toHaveLength(2));
+
+    rerender({ sessionId: '' });
+    await waitFor(() => expect(result.current.laps).toHaveLength(0));
+    rerender({ sessionId: 1 });
+    await waitFor(() => expect(result.current.laps).toHaveLength(2));
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('uses a session Session History already loaded without any request', async () => {
+    primeSessionLapData(5, { participants: mockParticipants, laps: [makeLap({ id: 50, car_index: 1, lap_time_ms: 87000 })] });
+
+    const { result } = renderHook(() => useSlotTelemetry({ sessionId: 5 }));
+
+    await waitFor(() => expect(result.current.lapId).toBe(50));
+    expect(result.current.driverName).toBe('#11 Sergio Perez');
+    expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 });

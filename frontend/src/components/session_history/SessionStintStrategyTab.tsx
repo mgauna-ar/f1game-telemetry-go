@@ -93,7 +93,6 @@ export const SessionStintStrategyTab: React.FC<SessionStintStrategyTabProps> = (
           startLap: s.start_lap,
           endLap: s.end_lap,
           totalLaps: s.total_laps,
-          laps: s.laps || [],
           avgLapTimeMS: s.avg_lap_time_ms,
           bestLapTimeMS: s.best_lap_time_ms,
           hasPitStopAfter: s.has_pit_stop_after,

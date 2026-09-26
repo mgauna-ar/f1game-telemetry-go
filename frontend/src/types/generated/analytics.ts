@@ -75,10 +75,6 @@ export interface DriverStanding {
   stints_summary: string;
   stints: StintInfo[];
   ai_controlled: boolean;
-  best_lap?: Lap;
-  last_lap?: Lap;
-  participant?: Participant;
-  laps: Lap[];
 }
 
 /** Go: analytics.DriverStint */
@@ -94,7 +90,6 @@ export interface DriverStint {
   best_lap_time_ms: number;
   has_pit_stop_after: boolean;
   deg_slope_sec_per_lap: number | null;
-  laps: Lap[];
 }
 
 /** Go: analytics.DriverStintData */
@@ -158,6 +153,15 @@ export interface ProgressionResponse {
 }
 
 export type ProgressionRow = { lapNumber: number; [key: string]: number | string | boolean | null | undefined };
+
+/** Go: analytics.SessionDetailResponse */
+export interface SessionDetailResponse {
+  participants: Participant[];
+  laps: Lap[];
+  classification: ClassificationResponse;
+  progression: ProgressionResponse;
+  stints: StintsResponse;
+}
 
 /** Go: analytics.SpeedRanking */
 export interface SpeedRanking {

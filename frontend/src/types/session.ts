@@ -20,6 +20,7 @@ export type {
   ProgressionDriverMeta,
   ProgressionResponse,
   ProgressionRow,
+  SessionDetailResponse,
   SpeedRanking,
   StintInfo as StandingStint,
   StintKPIs,
@@ -102,15 +103,24 @@ export interface DriverStanding {
   stintsSummary?: string;
   aiControlled?: boolean;
   bestLap?: Lap | null;
-  lastLap?: Lap | null;
   participant: Participant;
   laps: Lap[];
 }
 
-export function normalizeDriverStanding(raw: RawDriverStanding, sessionId: number): DriverStanding {
-  const p: Participant =
-    raw.participant ||
-    placeholderParticipant({
+/**
+ * Builds a client standing from a classification row, joining the session's participants and laps
+ * by car_index (the server sends them once, next to the classification).
+ */
+export function normalizeDriverStanding(
+  raw: RawDriverStanding,
+  sessionId: number,
+  participantsByCar: ReadonlyMap<number, Participant>,
+  lapsByCar: ReadonlyMap<number, Lap[]>
+): DriverStanding {
+  const joined = participantsByCar.get(raw.car_index);
+  const p: Participant = joined
+    ? { ...joined, position: raw.position }
+    : placeholderParticipant({
       id: raw.car_index ?? 0,
       session_id: sessionId,
       car_index: raw.car_index ?? 0,
@@ -124,6 +134,7 @@ export function normalizeDriverStanding(raw: RawDriverStanding, sessionId: numbe
       result_reason: raw.result_reason,
     });
   const totalWithPenalties = raw.total_with_penalties_ms ?? 0;
+  const laps = lapsByCar.get(raw.car_index) ?? [];
   return {
     position: raw.position ?? 0,
     carIndex: raw.car_index ?? p.car_index,
@@ -155,15 +166,25 @@ export function normalizeDriverStanding(raw: RawDriverStanding, sessionId: numbe
     theoreticalBestMS: raw.theoretical_best_ms ?? 0,
     gapToLeaderMS: raw.gap_to_leader_ms,
     intervalMS: raw.interval_ms,
-    lapsCompleted: raw.laps_completed ?? (raw.laps?.length || 0),
+    lapsCompleted: raw.laps_completed,
     pitStopsCount: raw.pit_stops_count,
     stintsSummary: raw.stints_summary,
     aiControlled: raw.ai_controlled ?? p.ai_controlled,
-    bestLap: raw.best_lap ?? null,
-    lastLap: raw.last_lap ?? null,
+    bestLap: (raw.best_lap_id && laps.find((l) => l.id === raw.best_lap_id)) || null,
     participant: p,
-    laps: raw.laps || [],
+    laps,
   };
+}
+
+/** Groups laps by car_index, keeping their order. */
+export function groupLapsByCar(laps: readonly Lap[]): Map<number, Lap[]> {
+  const byCar = new Map<number, Lap[]>();
+  for (const lap of laps) {
+    const carLaps = byCar.get(lap.car_index);
+    if (carLaps) carLaps.push(lap);
+    else byCar.set(lap.car_index, [lap]);
+  }
+  return byCar;
 }
 
 export interface DriverStint {
@@ -178,7 +199,6 @@ export interface DriverStint {
   bestLapTimeMS: number;
   hasPitStopAfter: boolean;
   degSlopeSecPerLap?: number | null;
-  laps?: Lap[];
 }
 
 /** Outcome for one file of POST /api/sessions/import. */

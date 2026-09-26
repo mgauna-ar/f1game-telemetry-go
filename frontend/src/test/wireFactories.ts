@@ -248,7 +248,6 @@ export function makeDriverStanding(fields: Partial<RawDriverStanding> = {}): Raw
     stints_summary: '',
     stints: [],
     ai_controlled: false,
-    laps: [],
     ...fields,
   };
 }

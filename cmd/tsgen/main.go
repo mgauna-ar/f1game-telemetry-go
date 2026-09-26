@@ -51,12 +51,8 @@ func registry() *tsgen.Generator {
 		packets.WeatherForecastSample{},
 	)
 
-	// Classification, progression and stints.
-	g.Add(
-		analytics.ClassificationResponse{},
-		analytics.ProgressionResponse{},
-		analytics.StintsResponse{},
-	)
+	// Session detail: classification, progression and stints plus the session's participants and laps.
+	g.Add(analytics.SessionDetailResponse{})
 	g.TypeAlias("analytics", "ProgressionRow",
 		"{ lapNumber: number; [key: string]: number | string | boolean | null | undefined }")
 	g.TypeAlias("analytics", "DegradationRow",

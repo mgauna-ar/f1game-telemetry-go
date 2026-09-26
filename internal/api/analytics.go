@@ -46,32 +46,12 @@ func (s *Server) fetchSessionAnalyticsData(w http.ResponseWriter, r *http.Reques
 	return session, participants, laps, true
 }
 
-// handleGetSessionClassification serves GET /api/sessions/{id}/classification
-func (s *Server) handleGetSessionClassification(w http.ResponseWriter, r *http.Request) {
-	session, participants, laps, ok := s.fetchSessionAnalyticsData(w, r, "classification")
+// handleGetSessionDetail serves GET /api/sessions/{id}/detail: the classification, progression
+// and stints of a session plus its participants and laps, loaded from SQLite once.
+func (s *Server) handleGetSessionDetail(w http.ResponseWriter, r *http.Request) {
+	session, participants, laps, ok := s.fetchSessionAnalyticsData(w, r, "session detail")
 	if !ok {
 		return
 	}
-	resp := analytics.ComputeSessionClassification(session, participants, laps)
-	writeJSON(w, http.StatusOK, resp)
-}
-
-// handleGetSessionProgression serves GET /api/sessions/{id}/progression
-func (s *Server) handleGetSessionProgression(w http.ResponseWriter, r *http.Request) {
-	session, participants, laps, ok := s.fetchSessionAnalyticsData(w, r, "progression")
-	if !ok {
-		return
-	}
-	resp := analytics.ComputeSessionProgression(session, participants, laps)
-	writeJSON(w, http.StatusOK, resp)
-}
-
-// handleGetSessionStints serves GET /api/sessions/{id}/stints
-func (s *Server) handleGetSessionStints(w http.ResponseWriter, r *http.Request) {
-	session, participants, laps, ok := s.fetchSessionAnalyticsData(w, r, "stints")
-	if !ok {
-		return
-	}
-	resp := analytics.ComputeSessionStints(session, participants, laps)
-	writeJSON(w, http.StatusOK, resp)
+	writeJSON(w, http.StatusOK, analytics.ComputeSessionDetail(session, participants, laps))
 }

@@ -21,7 +21,6 @@ const makeMockClassification = (participants: Participant[], laps: Lap[]): Class
         : completedLaps.length > 0
         ? completedLaps[0]
         : null;
-    const lastLap = completedLaps.length > 0 ? completedLaps[completedLaps.length - 1] : null;
     const totalTime = completedLaps.reduce((acc, l) => acc + l.lap_time_ms, 0);
 
     const isDNF = Boolean(
@@ -49,10 +48,9 @@ const makeMockClassification = (participants: Participant[], laps: Lap[]): Class
       driver_name: p.name,
       race_number: p.race_number,
       team_id: p.team_id,
-      best_lap: bestLap ?? undefined,
+      best_lap_id: bestLap?.id,
       best_lap_time_ms: bestLap ? bestLap.lap_time_ms : 0,
-      last_lap: lastLap ?? undefined,
-      last_lap_time_ms: lastLap ? lastLap.lap_time_ms : 0,
+      last_lap_time_ms: completedLaps.at(-1)?.lap_time_ms ?? 0,
       total_race_time_ms: totalTime,
       total_with_penalties_ms: totalTime,
       positions_gained: 0,
@@ -64,8 +62,6 @@ const makeMockClassification = (participants: Participant[], laps: Lap[]): Class
       best_s3_ms: bestS3,
       theoretical_best_ms: bestS1 + bestS2 + bestS3,
       stints_summary: 'S (2L)',
-      laps: pLaps,
-      participant: p,
     });
   });
 
@@ -127,37 +123,30 @@ const setupFetchMock = (config: {
     if (url.endsWith('/laps')) {
       return Promise.resolve({ ok: true, json: () => Promise.resolve(laps) });
     }
-    if (url.endsWith('/classification')) {
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve(classification || makeMockClassification(participants, laps)),
-      });
-    }
-    if (url.endsWith('/progression')) {
+    if (url.endsWith('/detail')) {
       return Promise.resolve({
         ok: true,
         json: () =>
           Promise.resolve({
-            lap_pace: [],
-            positions: [],
-            gap_to_leader: [],
-            drivers: [],
-            total_session_laps: 0,
-          }),
-      });
-    }
-    if (url.endsWith('/stints')) {
-      return Promise.resolve({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            drivers: [],
-            kpis: null,
-            degradation_data: [],
-            max_tyre_age: 0,
-            degradation_rates: {},
-            session_compounds: [],
-            effective_max_laps: 0,
+            participants,
+            laps,
+            classification: classification || makeMockClassification(participants, laps),
+            progression: {
+              lap_pace: [],
+              positions: [],
+              gap_to_leader: [],
+              drivers: [],
+              total_session_laps: 0,
+            },
+            stints: {
+              drivers: [],
+              kpis: null,
+              degradation_data: [],
+              max_tyre_age: 0,
+              degradation_rates: {},
+              session_compounds: [],
+              effective_max_laps: 0,
+            },
           }),
       });
     }
@@ -1001,7 +990,7 @@ describe('SessionHistory Component', () => {
     });
   });
 
-  it('fetches and integrates classification, progression, and stints endpoints when exploring session', async () => {
+  it('loads classification, progression and stints with one detail request when exploring a session', async () => {
     const mockSessions: Session[] = [
       makeSession({ id: 42, session_uid: '0xabc42', track_name: 'Monaco', session_type: 'Race', weather: 'Clear', created_at: '2026-08-15T14:00:00Z', total_laps: 78 }),
     ];
@@ -1024,17 +1013,6 @@ describe('SessionHistory Component', () => {
           max_speed: 295.5,
           is_dnf: false,
           is_dsq: false,
-          participant: {
-            id: 1,
-            session_id: 42,
-            car_index: 0,
-            name: 'Charles Leclerc',
-            driver_id: 4,
-            team_id: 1,
-            race_number: 16,
-            ai_controlled: false,
-          },
-          laps: [],
         },
       ],
       session_best_s1_ms: 18500,
@@ -1094,11 +1072,21 @@ describe('SessionHistory Component', () => {
 
     globalThis.fetch = vi.fn().mockImplementation((url: string) => {
       if (url === '/api/sessions') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSessions) });
-      if (url === '/api/sessions/42/classification') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockClassification) });
-      if (url === '/api/sessions/42/progression') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockProgression) });
-      if (url === '/api/sessions/42/stints') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockStints) });
-      if (url === '/api/sessions/42/participants') return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
-      if (url === '/api/sessions/42/laps') return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+      if (url === '/api/sessions/42/detail') {
+        return Promise.resolve({
+          ok: true,
+          json: () =>
+            Promise.resolve({
+              participants: [
+                makeParticipant({ id: 1, session_id: 42, car_index: 0, name: 'Charles Leclerc', driver_id: 4, team_id: 1, race_number: 16 }),
+              ],
+              laps: [],
+              classification: mockClassification,
+              progression: mockProgression,
+              stints: mockStints,
+            }),
+        });
+      }
       return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
     });
 
@@ -1115,11 +1103,12 @@ describe('SessionHistory Component', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Explore$/i }));
 
     await waitFor(() => {
-      expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions/42/classification', expect.anything());
-      expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions/42/progression', expect.anything());
-      expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions/42/stints', expect.anything());
+      expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions/42/detail', expect.anything());
       expect(screen.getAllByText('Charles Leclerc').length).toBeGreaterThan(0);
     });
+    // The whole view comes from one request.
+    const sessionCalls = vi.mocked(globalThis.fetch).mock.calls.filter(([url]) => String(url).startsWith('/api/sessions/42'));
+    expect(sessionCalls).toHaveLength(1);
 
     // Check Sector Matrix tab
     const sectorsTab = screen.getByRole('button', { name: /Sector & Speed/i });

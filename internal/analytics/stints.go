@@ -40,18 +40,19 @@ type DriverStintData struct {
 
 // DriverStint represents a single contiguous tyre stint for a driver.
 type DriverStint struct {
-	StintIndex        int           `json:"stint_index"`
-	StintID           int           `json:"stint_id"`
-	Compound          string        `json:"compound"`
-	ActualCompound    string        `json:"actual_compound,omitempty"`
-	StartLap          int           `json:"start_lap"`
-	EndLap            int           `json:"end_lap"`
-	TotalLaps         int           `json:"total_laps"`
-	AvgLapTimeMS      int           `json:"avg_lap_time_ms"`
-	BestLapTimeMS     int           `json:"best_lap_time_ms"`
-	HasPitStopAfter   bool          `json:"has_pit_stop_after"`
-	DegSlopeSecPerLap *float64      `json:"deg_slope_sec_per_lap"`
-	Laps              []storage.Lap `json:"laps"`
+	StintIndex        int      `json:"stint_index"`
+	StintID           int      `json:"stint_id"`
+	Compound          string   `json:"compound"`
+	ActualCompound    string   `json:"actual_compound,omitempty"`
+	StartLap          int      `json:"start_lap"`
+	EndLap            int      `json:"end_lap"`
+	TotalLaps         int      `json:"total_laps"`
+	AvgLapTimeMS      int      `json:"avg_lap_time_ms"`
+	BestLapTimeMS     int      `json:"best_lap_time_ms"`
+	HasPitStopAfter   bool     `json:"has_pit_stop_after"`
+	DegSlopeSecPerLap *float64 `json:"deg_slope_sec_per_lap"`
+	// Laps feed the KPIs and the degradation matrix; the client has them from the session detail.
+	Laps []storage.Lap `json:"-"`
 }
 
 // StintLongestSummary stores information about the longest stint recorded in the session.

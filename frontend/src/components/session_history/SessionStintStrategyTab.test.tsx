@@ -87,7 +87,6 @@ describe('SessionStintStrategyTab Component', () => {
             best_lap_time_ms: 88200,
             has_pit_stop_after: true,
             deg_slope_sec_per_lap: 0.1,
-            laps: [],
           },
           {
             stint_index: 2,
@@ -101,7 +100,6 @@ describe('SessionStintStrategyTab Component', () => {
             best_lap_time_ms: 87500,
             has_pit_stop_after: false,
             deg_slope_sec_per_lap: null,
-            laps: [],
           },
         ],
       },
@@ -127,7 +125,6 @@ describe('SessionStintStrategyTab Component', () => {
             best_lap_time_ms: 88900,
             has_pit_stop_after: true,
             deg_slope_sec_per_lap: null,
-            laps: [],
           },
           {
             stint_index: 2,
@@ -141,7 +138,6 @@ describe('SessionStintStrategyTab Component', () => {
             best_lap_time_ms: 87900,
             has_pit_stop_after: false,
             deg_slope_sec_per_lap: 0.2,
-            laps: [],
           },
         ],
       },

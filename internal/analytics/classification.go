@@ -22,44 +22,43 @@ type ClassificationResponse struct {
 
 // DriverStanding encapsulates official and telemetry-derived standing information for a single driver.
 type DriverStanding struct {
-	Position             int                  `json:"position"`
-	CarIndex             int                  `json:"car_index"`
-	DriverName           string               `json:"driver_name"`
-	TeamName             string               `json:"team_name"`
-	TeamID               int                  `json:"team_id"`
-	RaceNumber           int                  `json:"race_number"`
-	GridPosition         int                  `json:"grid_position"`
-	PositionsGained      *int                 `json:"positions_gained,omitempty"`
-	BestLapTimeMS        int                  `json:"best_lap_time_ms"`
-	BestLapNumber        int                  `json:"best_lap_number"`
-	BestLapID            int64                `json:"best_lap_id,omitempty"`
-	BestLapS1MS          int                  `json:"best_lap_s1_ms"`
-	BestLapS2MS          int                  `json:"best_lap_s2_ms"`
-	BestLapS3MS          int                  `json:"best_lap_s3_ms"`
-	LastLapTimeMS        int                  `json:"last_lap_time_ms"`
-	TotalRaceTimeMS      int64                `json:"total_race_time_ms"`
-	PenaltySeconds       int                  `json:"penalty_seconds"`
-	TotalWithPenaltiesMS int64                `json:"total_with_penalties_ms"`
-	Points               float32              `json:"points"`
-	IsDNF                bool                 `json:"is_dnf"`
-	IsDSQ                bool                 `json:"is_dsq"`
-	ResultReason         int                  `json:"result_reason"`
-	MaxSpeed             float32              `json:"max_speed"`
-	BestS1MS             int                  `json:"best_s1_ms"`
-	BestS2MS             int                  `json:"best_s2_ms"`
-	BestS3MS             int                  `json:"best_s3_ms"`
-	TheoreticalBestMS    int                  `json:"theoretical_best_ms"`
-	GapToLeaderMS        int64                `json:"gap_to_leader_ms"`
-	IntervalMS           int64                `json:"interval_ms"`
-	LapsCompleted        int                  `json:"laps_completed"`
-	PitStopsCount        int                  `json:"pit_stops_count"`
-	StintsSummary        string               `json:"stints_summary"`
-	Stints               []StintInfo          `json:"stints"`
-	AIControlled         bool                 `json:"ai_controlled"`
-	BestLap              *storage.Lap         `json:"best_lap,omitempty"`
-	LastLap              *storage.Lap         `json:"last_lap,omitempty"`
-	Participant          *storage.Participant `json:"participant,omitempty"`
-	Laps                 []storage.Lap        `json:"laps"`
+	Position             int         `json:"position"`
+	CarIndex             int         `json:"car_index"`
+	DriverName           string      `json:"driver_name"`
+	TeamName             string      `json:"team_name"`
+	TeamID               int         `json:"team_id"`
+	RaceNumber           int         `json:"race_number"`
+	GridPosition         int         `json:"grid_position"`
+	PositionsGained      *int        `json:"positions_gained,omitempty"`
+	BestLapTimeMS        int         `json:"best_lap_time_ms"`
+	BestLapNumber        int         `json:"best_lap_number"`
+	BestLapID            int64       `json:"best_lap_id,omitempty"`
+	BestLapS1MS          int         `json:"best_lap_s1_ms"`
+	BestLapS2MS          int         `json:"best_lap_s2_ms"`
+	BestLapS3MS          int         `json:"best_lap_s3_ms"`
+	LastLapTimeMS        int         `json:"last_lap_time_ms"`
+	TotalRaceTimeMS      int64       `json:"total_race_time_ms"`
+	PenaltySeconds       int         `json:"penalty_seconds"`
+	TotalWithPenaltiesMS int64       `json:"total_with_penalties_ms"`
+	Points               float32     `json:"points"`
+	IsDNF                bool        `json:"is_dnf"`
+	IsDSQ                bool        `json:"is_dsq"`
+	ResultReason         int         `json:"result_reason"`
+	MaxSpeed             float32     `json:"max_speed"`
+	BestS1MS             int         `json:"best_s1_ms"`
+	BestS2MS             int         `json:"best_s2_ms"`
+	BestS3MS             int         `json:"best_s3_ms"`
+	TheoreticalBestMS    int         `json:"theoretical_best_ms"`
+	GapToLeaderMS        int64       `json:"gap_to_leader_ms"`
+	IntervalMS           int64       `json:"interval_ms"`
+	LapsCompleted        int         `json:"laps_completed"`
+	PitStopsCount        int         `json:"pit_stops_count"`
+	StintsSummary        string      `json:"stints_summary"`
+	Stints               []StintInfo `json:"stints"`
+	AIControlled         bool        `json:"ai_controlled"`
+	// Participant orders the standings; the client joins participants and laps by car_index from
+	// the session detail response, so neither is sent again here.
+	Participant *storage.Participant `json:"-"`
 }
 
 // SpeedRanking represents a single entry in the session speed trap / top speed leaderboard.
@@ -216,16 +215,11 @@ func buildDriverStanding(p storage.Participant, driverLaps []storage.Lap) Driver
 		bestLapS3 = bestLap.Sector3MS
 	}
 
-	var lastLap *storage.Lap
 	lastLapTimeMS := 0
 	if len(completedLaps) > 0 {
-		last := completedLaps[len(completedLaps)-1]
-		lastLap = &last
-		lastLapTimeMS = last.LapTimeMS
+		lastLapTimeMS = completedLaps[len(completedLaps)-1].LapTimeMS
 	} else if len(driverLaps) > 0 {
-		last := driverLaps[len(driverLaps)-1]
-		lastLap = &last
-		lastLapTimeMS = last.LapTimeMS
+		lastLapTimeMS = driverLaps[len(driverLaps)-1].LapTimeMS
 	}
 
 	totalRaceTimeMS, totalWithPenaltiesMS, penaltySeconds := computeOfficialTimes(p, driverLaps, completedLaps)
@@ -288,10 +282,7 @@ func buildDriverStanding(p storage.Participant, driverLaps []storage.Lap) Driver
 		StintsSummary:        ComputeStintsSummary(driverLaps),
 		Stints:               ComputeStintsDetailed(driverLaps),
 		AIControlled:         p.AIControlled,
-		BestLap:              bestLap,
-		LastLap:              lastLap,
 		Participant:          &pCopy,
-		Laps:                 driverLaps,
 	}
 }
 
