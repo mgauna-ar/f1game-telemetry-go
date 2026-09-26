@@ -1,91 +1,125 @@
 package ai
 
+import "context"
+
 // AIChatMessage represents a message in the conversation.
 type AIChatMessage struct {
 	Role    string `json:"role"` // "user", "assistant", or "system"
 	Content string `json:"content"`
 }
 
-// TelemetryAnalysisContext represents the driving telemetry context sent to the AI.
-type TelemetryAnalysisContext struct {
-	// Multi-context identifiers
-	ContextMode    string `json:"context_mode,omitempty"`    // "comparator", "session_debrief", "live", "general"
-	SessionSummary string `json:"session_summary,omitempty"` // Detailed session classification / stints summary
-	LiveSummary    string `json:"live_summary,omitempty"`    // Live telemetry / weather / SC / pit strategy summary
-	CustomPrompt   string `json:"custom_prompt,omitempty"`   // Extra context notes
+// Chat context modes: what a chat is about.
+const (
+	ContextModeComparator     = "comparator"
+	ContextModeSessionDebrief = "session_debrief"
+	ContextModeLive           = "live"
+	ContextModeGeneral        = "general"
+)
 
-	TrackName         string  `json:"track_name,omitempty"`
-	SessionType       string  `json:"session_type,omitempty"`
-	SessionBType      string  `json:"session_b_type,omitempty"`
-	WeatherA          string  `json:"weather_a,omitempty"`
-	WeatherB          string  `json:"weather_b,omitempty"`
-	CrossSession      bool    `json:"cross_session,omitempty"`
-	LapAName          string  `json:"lap_a_name,omitempty"`
-	LapBName          string  `json:"lap_b_name,omitempty"`
-	LapATimeFormatted string  `json:"lap_a_time_formatted,omitempty"`
-	LapBTimeFormatted string  `json:"lap_b_time_formatted,omitempty"`
-	TimeDeltaSeconds  float64 `json:"time_delta_seconds,omitempty"` // Negative if A is faster, positive if B is faster
-	FasterLap         string  `json:"faster_lap,omitempty"`         // "Lap A" or "Lap B"
+// ChatContextModes lists every chat context mode; it builds the ChatContextMode union for the frontend.
+var ChatContextModes = []string{ContextModeComparator, ContextModeSessionDebrief, ContextModeLive, ContextModeGeneral}
 
-	LapACompound string `json:"lap_a_compound,omitempty"`
-	LapBCompound string `json:"lap_b_compound,omitempty"`
-
-	LapAS1Formatted string `json:"lap_a_s1_formatted,omitempty"`
-	LapBS1Formatted string `json:"lap_b_s1_formatted,omitempty"`
-	LapAS2Formatted string `json:"lap_a_s2_formatted,omitempty"`
-	LapBS2Formatted string `json:"lap_b_s2_formatted,omitempty"`
-	LapAS3Formatted string `json:"lap_a_s3_formatted,omitempty"`
-	LapBS3Formatted string `json:"lap_b_s3_formatted,omitempty"`
-
-	TopSpeedA float64 `json:"top_speed_a,omitempty"`
-	TopSpeedB float64 `json:"top_speed_b,omitempty"`
-
-	ERSAUsedPercent float64 `json:"ers_a_used_percent,omitempty"`
-	ERSBUsedPercent float64 `json:"ers_b_used_percent,omitempty"`
-
-	// Specific telemetry summary insights
-	BrakingSummary   string `json:"braking_summary,omitempty"`
-	ApexSpeedSummary string `json:"apex_speed_summary,omitempty"`
-	ThrottleSummary  string `json:"throttle_summary,omitempty"`
-	ERSDRSSummary    string `json:"ers_drs_summary,omitempty"`
-
-	// Custom persona prompt definition if custom persona is selected
-	CustomPersonaPrompt string `json:"custom_persona_prompt,omitempty"`
-	Language            string `json:"language,omitempty"` // "es", "en", or ""
-	DriverCallsign      string `json:"driver_callsign,omitempty"`
-	UrgencyLevel        string `json:"urgency_level,omitempty"`   // "critical", "high", "normal", "relaxed"
-	IncidentStatus      string `json:"incident_status,omitempty"` // "safety_car", "vsc", "red_flag", "yellow_flag", "clear"
-	PacketFormat        uint16 `json:"packet_format,omitempty"`   // e.g. 2026, 2025
-	DrivingPhase        string `json:"driving_phase,omitempty"`   // "GRID", "RACE_START", "IN_LAP", "POST_RACE", etc.
-
-	// Zoomed section info if user is zoomed in
-	ZoomedRange *ZoomedRangeInfo `json:"zoomed_range,omitempty"`
+// ChatContextRequest names what a chat is about. The client sends only identifiers; the server
+// builds the prompt data from them (BuildChatContext).
+type ChatContextRequest struct {
+	ContextMode string `json:"context_mode" tstype:"ChatContextMode"`
+	// SessionID is the recorded session a session_debrief chat is about.
+	SessionID int64 `json:"session_id,omitempty"`
+	// LapAID is the driver's lap in a comparator chat, and LapBID the benchmark lap.
+	LapAID int64 `json:"lap_a_id,omitempty"`
+	LapBID int64 `json:"lap_b_id,omitempty"`
+	// Zoom is the track segment the comparator charts are zoomed into, if any.
+	Zoom *ChatZoomRange `json:"zoom,omitempty"`
 }
 
-// ZoomedRangeInfo holds details of a specific track segment currently focused in the UI.
-type ZoomedRangeInfo struct {
-	StartDistanceMeters float64 `json:"start_distance_meters"`
-	EndDistanceMeters   float64 `json:"end_distance_meters"`
-	Description         string  `json:"description,omitempty"`
-	DeltaInSegment      float64 `json:"delta_in_segment"`
-	SpeedDiffAtApex     float64 `json:"speed_diff_at_apex"`
-	BrakingDiffMeters   float64 `json:"braking_diff_meters"`
+// ChatZoomRange is a track segment, in meters of lap distance.
+type ChatZoomRange struct {
+	StartMeters float64 `json:"start_meters"`
+	EndMeters   float64 `json:"end_meters"`
 }
 
 // AIChatRequest represents the incoming chat request from the frontend.
 type AIChatRequest struct {
-	Provider string                    `json:"provider"` // "gemini", "openai", "claude", or "custom"
-	APIKey   string                    `json:"api_key,omitempty"`
-	BaseURL  string                    `json:"base_url,omitempty"`
-	Model    string                    `json:"model,omitempty"`
-	Persona  string                    `json:"persona,omitempty"`  // "colapinto", "bono", "custom"
-	Language string                    `json:"language,omitempty"` // "es", "en"
-	Messages []AIChatMessage           `json:"messages"`
-	Context  *TelemetryAnalysisContext `json:"context,omitempty"`
+	Provider string              `json:"provider,omitempty"` // "gemini", "openai", "claude", or "custom"
+	APIKey   string              `json:"api_key,omitempty"`
+	BaseURL  string              `json:"base_url,omitempty"`
+	Model    string              `json:"model,omitempty"`
+	Persona  string              `json:"persona,omitempty"`  // "colapinto", "bono", "custom"
+	Language string              `json:"language,omitempty"` // "es", "en"
+	Messages []AIChatMessage     `json:"messages"`
+	Context  *ChatContextRequest `json:"context,omitempty"`
 }
 
-// LiveBriefing is live race context built server-side from the telemetry stream. For live-mode
-// chats it replaces the summary the client sends, since the server sees every car and the session history.
+// TelemetryAnalysisContext is the prompt data the server built for one chat. At most one of
+// Live, Debrief and Comparison is set, matching ContextMode.
+type TelemetryAnalysisContext struct {
+	ContextMode string
+	// CustomPersonaPrompt defines the "custom" persona; DriverCallsign is how the engineer
+	// addresses the driver. Both come from the saved voice settings.
+	CustomPersonaPrompt string
+	DriverCallsign      string
+
+	// Live is the race briefing while the server has fresh telemetry.
+	Live *LiveBriefing
+	// Debrief is the recorded session's classification summary.
+	Debrief *SessionDebrief
+	// Comparison is the analysis of two compared laps, when both have telemetry.
+	Comparison *LapComparison
+}
+
+// SessionDebrief is the prompt data for a recorded session, built from its classification.
+type SessionDebrief struct {
+	Summary string
+}
+
+// LapComparison is the prompt data for a lap (A, the driver's) compared with a benchmark lap (B).
+type LapComparison struct {
+	TrackName    string
+	SessionTypeA string
+	SessionTypeB string
+	WeatherA     string
+	WeatherB     string
+	CrossSession bool
+
+	LapAName string
+	LapBName string
+	LapATime string
+	LapBTime string
+	// TimeDeltaSeconds is negative when lap A is faster.
+	TimeDeltaSeconds float64
+	FasterLap        string
+	CompoundA        string
+	CompoundB        string
+	SectorsA         [3]string
+	SectorsB         [3]string
+
+	TopSpeedA   float64
+	TopSpeedB   float64
+	ERSUsedPctA float64
+	ERSUsedPctB float64
+
+	BrakingSummary   string
+	ApexSpeedSummary string
+	ThrottleSummary  string
+	ERSDRSSummary    string
+
+	// Zoom describes the segment the driver zoomed into, if any.
+	Zoom *ZoomedRangeInfo
+}
+
+// ZoomedRangeInfo holds details of the track segment currently focused in the UI.
+type ZoomedRangeInfo struct {
+	StartDistanceMeters float64
+	EndDistanceMeters   float64
+	Description         string
+	DeltaInSegment      float64
+	SpeedDiffAtApex     float64
+	// BrakingDiffMeters is where lap A starts braking relative to lap B; positive means later.
+	BrakingDiffMeters float64
+	HasBrakingDiff    bool
+}
+
+// LiveBriefing is live race context built server-side from the telemetry stream.
 type LiveBriefing struct {
 	Summary        string
 	TrackName      string
@@ -101,13 +135,27 @@ type LiveRaceSource interface {
 	LiveBriefing() (LiveBriefing, bool)
 }
 
+// RecordedRaceSource builds the prompt data for recorded sessions and laps.
+type RecordedRaceSource interface {
+	// SessionDebrief summarizes a recorded session's classification.
+	SessionDebrief(ctx context.Context, sessionID int64) (SessionDebrief, error)
+	// LapComparison analyzes lap A against lap B, optionally within a zoomed segment. It returns
+	// nil when the laps have no telemetry to compare.
+	LapComparison(ctx context.Context, lapAID, lapBID int64, zoom *ChatZoomRange) (*LapComparison, error)
+}
+
 // ChatOptions carries server-side extras for a chat request.
 type ChatOptions struct {
-	// Live provides fresh race context for live-mode chats. Nil keeps the client's summary.
+	// Live provides fresh race context for live-mode chats. Nil means no live briefing.
 	Live LiveRaceSource
+	// Recorded builds session debrief and lap comparison context. Nil leaves those chats without data.
+	Recorded RecordedRaceSource
 	// Tools are live race data lookups the model may call in live-mode chats while Live has
 	// fresh telemetry. Nil disables tool calling.
 	Tools ToolExecutor
+	// CustomPersonaPrompt and DriverCallsign come from the saved voice settings.
+	CustomPersonaPrompt string
+	DriverCallsign      string
 }
 
 // AIFetchModelsRequest represents a request to query available models from a provider.

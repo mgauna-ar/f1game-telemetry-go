@@ -43,7 +43,7 @@ func (v *raceView) lapHistory(limit int) lapHistoryResult {
 	for _, rec := range laps {
 		entry := LapHistoryEntry{
 			Lap:          rec.LapNumber,
-			Time:         formatLapTimeMS(rec.LapTimeMS),
+			Time:         packets.FormatLapTimeMS(rec.LapTimeMS),
 			Valid:        rec.Valid,
 			Compound:     rec.Compound,
 			TyreAgeLaps:  rec.TyreAgeLaps,
@@ -53,7 +53,7 @@ func (v *raceView) lapHistory(limit int) lapHistoryResult {
 			GapBehindSec: msToSec(rec.GapBehindMS),
 		}
 		if rec.Sector1MS > 0 {
-			entry.Sectors = fmt.Sprintf("%s / %s / %s", formatLapTimeMS(rec.Sector1MS), formatLapTimeMS(rec.Sector2MS), formatLapTimeMS(rec.Sector3MS))
+			entry.Sectors = fmt.Sprintf("%s / %s / %s", packets.FormatLapTimeMS(rec.Sector1MS), packets.FormatLapTimeMS(rec.Sector2MS), packets.FormatLapTimeMS(rec.Sector3MS))
 		}
 		for i, w := range rec.TyreWearPct {
 			entry.TyreWearPct[i] = roundTo(float64(w), 1)

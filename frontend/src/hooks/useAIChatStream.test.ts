@@ -37,10 +37,7 @@ describe('useAIChatStream Hook', () => {
   const defaultProps = {
     config: defaultConfig,
     keyStatus: geminiKeySaved,
-    buildCurrentBackendContext: () => ({
-      context_mode: 'general' as const,
-      language: 'en' as const,
-    }),
+    buildChatContext: () => ({ context_mode: 'comparator' as const, lap_a_id: 11, lap_b_id: 12 }),
   };
 
   beforeEach(() => {
@@ -95,7 +92,9 @@ describe('useAIChatStream Hook', () => {
         provider: 'gemini',
         model: 'gemini-flash-lite-latest',
         persona: expect.any(String),
-        language: expect.any(String),
+        language: 'en',
+        // Only identifiers: the server builds the comparison from the lap IDs.
+        context: { context_mode: 'comparator', lap_a_id: 11, lap_b_id: 12 },
       }),
       expect.any(AbortSignal)
     );
@@ -292,5 +291,69 @@ describe('useAIChatStream Hook', () => {
 
     expect(abortCalled).toBe(true);
     expect(result.current.isGenerating).toBe(false);
+  });
+
+  it('keeps its callbacks while replies stream and props change', async () => {
+    vi.spyOn(api, 'stream').mockResolvedValueOnce(
+      createMockSSEResponse(['data: {"text":"One "}\n\n', 'data: {"text":"two "}\n\n', 'data: {"text":"three."}\n\n'])
+    );
+
+    const { result, rerender } = renderHook((props: typeof defaultProps) => useAIChatStream(props), {
+      initialProps: defaultProps,
+    });
+    const first = { ...result.current };
+
+    await act(async () => {
+      await result.current.sendMessage('Count');
+    });
+    rerender({ ...defaultProps, config: { ...defaultConfig, model: 'another-model' } });
+
+    expect(result.current.messages[2].content).toBe('One two three.');
+    expect(result.current.sendMessage).toBe(first.sendMessage);
+    expect(result.current.retryLastMessage).toBe(first.retryLastMessage);
+    expect(result.current.stopGenerating).toBe(first.stopGenerating);
+    expect(result.current.clearMessages).toBe(first.clearMessages);
+  });
+
+  it('reads the latest settings and context when sending', async () => {
+    const streamSpy = vi.spyOn(api, 'stream').mockResolvedValueOnce(createMockSSEResponse(['data: {"text":"Ok"}\n\n']));
+    const { result, rerender } = renderHook((props: typeof defaultProps) => useAIChatStream(props), {
+      initialProps: defaultProps,
+    });
+
+    rerender({
+      ...defaultProps,
+      config: { ...defaultConfig, model: 'gemini-pro-latest' },
+      buildChatContext: () => ({ context_mode: 'session_debrief' as const, session_id: 7 }) as never,
+    });
+    await act(async () => {
+      await result.current.sendMessage('Debrief');
+    });
+
+    expect(streamSpy.mock.calls[0][1]).toMatchObject({
+      model: 'gemini-pro-latest',
+      context: { context_mode: 'session_debrief', session_id: 7 },
+    });
+  });
+
+  it('does not resend the failed answer when retrying it', async () => {
+    const streamSpy = vi
+      .spyOn(api, 'stream')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: 'busy', code: 'MODEL_OVERLOADED' }), { status: 503 }))
+      .mockResolvedValueOnce(createMockSSEResponse(['data: {"text":"Retried"}\n\n']));
+    const { result } = renderHook(() => useAIChatStream(defaultProps));
+
+    await act(async () => {
+      await result.current.sendMessage('Pace?');
+    });
+    const failedId = result.current.messages[2].id;
+    await act(async () => {
+      await result.current.retryLastMessage(failedId);
+    });
+
+    const retryBody = streamSpy.mock.calls[1][1] as { messages: { role: string; content: string }[] };
+    expect(retryBody.messages.filter((m) => m.role === 'assistant')).toHaveLength(0);
+    expect(result.current.messages.some((m) => m.id === failedId)).toBe(false);
+    expect(result.current.messages[result.current.messages.length - 1].content).toBe('Retried');
   });
 });

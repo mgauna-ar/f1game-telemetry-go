@@ -2,7 +2,6 @@ package api
 
 import (
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -46,15 +45,7 @@ func (s *Server) handleComparatorMerge(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cacheKey := fmt.Sprintf("%d:%d:%.2f:%.2f", lapAID, lapBID, stepMeters, targetTrackLength)
-	if s.comparatorCache != nil {
-		if cached, found := s.comparatorCache.Get(cacheKey); found {
-			writeJSON(w, http.StatusOK, cached)
-			return
-		}
-	}
-
-	response, err := analytics.MergeLapComparison(ctx, s.repo, lapAID, lapBID, stepMeters, targetTrackLength)
+	response, err := analytics.MergeLapComparisonCached(ctx, s.repo, s.comparatorCache, lapAID, lapBID, stepMeters, targetTrackLength)
 	if err != nil {
 		var notFoundErr *analytics.LapNotFoundError
 		if errors.As(err, &notFoundErr) {
@@ -64,10 +55,6 @@ func (s *Server) handleComparatorMerge(w http.ResponseWriter, r *http.Request) {
 		slog.Error("Failed to merge lap comparison", "lapA", lapAID, "lapB", lapBID, "error", err)
 		writeJSONError(w, "failed to merge lap comparison", http.StatusInternalServerError)
 		return
-	}
-
-	if s.comparatorCache != nil {
-		s.comparatorCache.Put(cacheKey, response)
 	}
 
 	writeJSON(w, http.StatusOK, response)

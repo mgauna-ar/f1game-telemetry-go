@@ -68,12 +68,3 @@ export function groupLapsIntoStints(driverLaps: Lap[]): TyreStintSummary[] {
 
   return stints;
 }
-
-/**
- * Formats a list of tyre stints into a readable debrief string.
- * Example: "SOFT (15L) ➔ MEDIUM (20L)"
- */
-export function formatStintsText(stints: TyreStintSummary[]): string {
-  if (!stints || stints.length === 0) return 'No stint data';
-  return stints.map((s) => `${s.compound} (${s.count}L)`).join(' ➔ ');
-}

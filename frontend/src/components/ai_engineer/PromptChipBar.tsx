@@ -10,26 +10,25 @@ import {
   CloudRain,
 } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
-import type { TelemetryContextPayload } from '../../utils/aiTelemetrySummary';
 
 export interface PromptChipBarProps {
   effectiveMode: string;
-  activeComparatorContext: TelemetryContextPayload | null;
   hasLapsSelected: boolean;
   isZoomActive: boolean;
-  sessionDebriefContext: { trackName?: string } | null;
-  liveContext: { trackName?: string; sessionType?: string; liveSummary?: string } | null;
+  /** A recorded session is picked for the debrief. */
+  hasDebriefSession: boolean;
+  /** No live telemetry is coming in. */
+  isLiveStandby: boolean;
   isGenerating: boolean;
   onSelectPrompt: (prompt: string) => void;
 }
 
 export const PromptChipBar: React.FC<PromptChipBarProps> = ({
   effectiveMode,
-  activeComparatorContext,
   hasLapsSelected,
   isZoomActive,
-  sessionDebriefContext,
-  liveContext,
+  hasDebriefSession,
+  isLiveStandby,
   isGenerating,
   onSelectPrompt,
 }) => {
@@ -37,7 +36,7 @@ export const PromptChipBar: React.FC<PromptChipBarProps> = ({
 
   const adaptivePromptChips = useMemo(() => {
     if (effectiveMode === 'comparator') {
-      if (hasLapsSelected && activeComparatorContext) {
+      if (hasLapsSelected) {
         const chips = [
           {
             id: 'delta-loss',
@@ -90,7 +89,7 @@ export const PromptChipBar: React.FC<PromptChipBarProps> = ({
       ];
     }
 
-    if (effectiveMode === 'session_debrief' && sessionDebriefContext) {
+    if (effectiveMode === 'session_debrief' && hasDebriefSession) {
       return [
         {
           id: 'debrief-overview',
@@ -114,13 +113,7 @@ export const PromptChipBar: React.FC<PromptChipBarProps> = ({
     }
 
     if (effectiveMode === 'live') {
-      const isStandby =
-        !liveContext ||
-        liveContext.sessionType === 'Standby' ||
-        !liveContext.liveSummary ||
-        liveContext.liveSummary.includes('STANDBY') ||
-        liveContext.liveSummary.includes('Waiting for live');
-      if (isStandby) {
+      if (isLiveStandby) {
         return [
           {
             id: 'live-radio-check',
@@ -185,7 +178,7 @@ export const PromptChipBar: React.FC<PromptChipBarProps> = ({
         prompt: t('ai_engineer.chips.genErsPrompt'),
       },
     ];
-  }, [effectiveMode, activeComparatorContext, hasLapsSelected, isZoomActive, sessionDebriefContext, liveContext, t]);
+  }, [effectiveMode, hasLapsSelected, isZoomActive, hasDebriefSession, isLiveStandby, t]);
 
   return (
     <div className="ai-widget-chips-row">

@@ -264,10 +264,10 @@ func (v *raceView) carSummary(idx int) (CarSummary, bool) {
 		bestLapMS:     v.bestLapMS(idx),
 	}
 	if l.LastLapTimeInMS > 0 {
-		car.LastLap = formatLapTimeMS(l.LastLapTimeInMS)
+		car.LastLap = packets.FormatLapTimeMS(l.LastLapTimeInMS)
 	}
 	if car.bestLapMS > 0 {
-		car.BestLap = formatLapTimeMS(car.bestLapMS)
+		car.BestLap = packets.FormatLapTimeMS(car.bestLapMS)
 	}
 	if st, ok := v.statusOf(idx); ok {
 		car.Tyre = describeTyre(st)
@@ -457,7 +457,7 @@ func (v *raceView) applyPace(strat *StrategySummary) {
 		for _, t := range recent {
 			sum += t
 		}
-		strat.RecentPace = fmt.Sprintf("%s average over the last %d valid laps", formatLapTimeMS(sum/uint32(len(recent))), len(recent))
+		strat.RecentPace = fmt.Sprintf("%s average over the last %d valid laps", packets.FormatLapTimeMS(sum/uint32(len(recent))), len(recent))
 	}
 	last := v.playerLap().LastLapTimeInMS
 	if best := v.bestLapMS(v.playerIdx); best > 0 && last > 0 {

@@ -82,10 +82,14 @@ func registry() *tsgen.Generator {
 		analytics.ComparatorResponse{},
 		ai.AIFetchModelsResponse{},
 		ai.AIErrorPayload{},
+		ai.AIChatRequest{},
 		system.AppVersion{},
 		system.UpdateCheckResponse{},
 		system.TelemetryEndpoint{},
 	)
+
+	// An AI chat request names what it is about; the server builds the prompt data.
+	g.TypeAlias("ai", "ChatContextMode", stringUnion(ai.ChatContextModes))
 
 	// Messages on /ws/engineer, told apart by their type.
 	g.Add(

@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,8 +10,10 @@ import (
 	"strings"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/ai"
+	"github.com/mgauna/f1game-telemetry-go/internal/analytics"
 	"github.com/mgauna/f1game-telemetry-go/internal/engineer"
 	"github.com/mgauna/f1game-telemetry-go/internal/settings"
+	"github.com/mgauna/f1game-telemetry-go/internal/storage"
 )
 
 // aiKeys returns the AI provider API keys configured on the server.
@@ -46,7 +49,8 @@ func (s *Server) handleAIFetchModels(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, ai.AIFetchModelsResponse{Models: models})
 }
 
-// handleAIChat handles streaming LLM chat requests for Lap Comparator telemetry analysis.
+// handleAIChat streams an AI chat answer. The request names what the chat is about (a live
+// session, a recorded session or two laps) and the server builds the prompt data from it.
 func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 	var req ai.AIChatRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -57,6 +61,14 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 	req.Provider, req.Model, req.APIKey, req.BaseURL = filled.Provider, filled.Model, filled.APIKey, filled.BaseURL
 
 	provider := ai.ResolveProvider(req.Provider)
+
+	// The prompt data is built before streaming starts, so an unknown session or lap gets a plain error response.
+	opts := s.chatOptions(r.Context())
+	chatCtx, err := ai.BuildChatContext(r.Context(), req.Context, opts)
+	if err != nil {
+		writeChatContextError(w, err)
+		return
+	}
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
@@ -69,13 +81,26 @@ func (s *Server) handleAIChat(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 
-	err := ai.StreamChat(r.Context(), req, s.aiKeys(), s.chatOptions(), w, flusher)
-	if err != nil {
+	if err := ai.StreamChat(r.Context(), req, chatCtx, s.aiKeys(), opts, w, flusher); err != nil {
 		slog.Error("Error during AI chat streaming", "provider", provider, "error", err)
 		// The response is already a 200 event stream, so the error goes out as the last data frame.
 		errPayload, _ := json.Marshal(aiErrorPayload(err, provider))
 		fmt.Fprintf(w, "data: %s\n\n", string(errPayload))
 		flusher.Flush()
+	}
+}
+
+// writeChatContextError answers a chat whose prompt data couldn't be built.
+func writeChatContextError(w http.ResponseWriter, err error) {
+	var lapNotFound *analytics.LapNotFoundError
+	switch {
+	case errors.Is(err, ai.ErrInvalidChatContext):
+		writeJSONErrorCode(w, err.Error(), http.StatusBadRequest, ai.AIErrorInvalidRequest)
+	case errors.Is(err, storage.ErrSessionNotFound), errors.As(err, &lapNotFound):
+		writeJSONErrorCode(w, err.Error(), http.StatusNotFound, ai.AIErrorInvalidRequest)
+	default:
+		slog.Error("Failed to build AI chat context", "error", err)
+		writeJSONErrorCode(w, "failed to load the chat context", http.StatusInternalServerError, ai.AIErrorGeneric)
 	}
 }
 
@@ -96,12 +121,25 @@ func aiErrorPayload(err error, provider string) ai.AIErrorPayload {
 	return payload
 }
 
-// chatOptions hands the live race engineer context and data tools to AI chats when the engine is running.
-func (s *Server) chatOptions() ai.ChatOptions {
-	if s.engineerEngine == nil {
-		return ai.ChatOptions{}
+// chatOptions gathers what the server adds to AI chats: the live race engineer context and
+// data tools while the engine runs, recorded sessions and laps, and the saved driver call-sign
+// and custom persona.
+func (s *Server) chatOptions(ctx context.Context) ai.ChatOptions {
+	var opts ai.ChatOptions
+	if s.engineerEngine != nil {
+		opts.Live = s.engineerEngine
+		opts.Tools = s.engineerEngine.RaceTools()
 	}
-	return ai.ChatOptions{Live: s.engineerEngine, Tools: s.engineerEngine.RaceTools()}
+	if s.repo != nil {
+		opts.Recorded = analytics.NewChatContextSource(s.repo, s.comparatorCache)
+		voice, _, err := settings.LoadVoice(ctx, s.repo)
+		if err != nil {
+			slog.Error("Failed to load voice settings for AI chat", "error", err)
+		}
+		opts.CustomPersonaPrompt = voice.CustomPrompt
+		opts.DriverCallsign = strings.TrimSpace(voice.DriverCallsign)
+	}
+	return opts
 }
 
 // handleRaceContext returns the live race picture the AI race engineer currently sees.

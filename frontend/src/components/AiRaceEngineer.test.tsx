@@ -3,8 +3,16 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { vi, describe, it, beforeEach, expect } from 'vitest';
 import { AiRaceEngineer } from './AiRaceEngineer';
 import { RaceEngineerProvider } from '../context/RaceEngineerProvider';
-import { useRaceEngineer } from '../context/RaceEngineerContext';
-import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
+import { useRaceEngineerActions, type ComparatorChatTarget } from '../context/RaceEngineerContext';
+import { useSessionStatusStore } from '../store/useSessionStatusStore';
+import { makeLiveSession } from '../test/wireFactories';
+
+// Telemetry is always fresh here; whether the feed is live depends on the session store.
+vi.mock('../utils/telemetrySocket', () => ({
+  getLastTelemetryMessageAt: vi.fn(() => Date.now()),
+}));
+
+const SILVERSTONE_TRACK_ID = 7;
 
 /** A GET /api/settings/ai answer with or without a Gemini key in the server's .env. */
 const aiSettings = (hasGeminiEnvKey: boolean) => ({
@@ -23,6 +31,7 @@ describe('AiRaceEngineer Component', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     localStorage.clear();
+    useSessionStatusStore.setState({ connected: false, session: null });
     globalThis.fetch = vi.fn().mockImplementation((url: string) => {
       if (url === '/api/settings/ai') {
         return Promise.resolve({ ok: true, json: () => Promise.resolve(aiSettings(true)) });
@@ -43,28 +52,16 @@ describe('AiRaceEngineer Component', () => {
     });
   });
 
-  const mockTelemetryContext: TelemetryContextPayload = {
-    track_name: 'Monza',
-    session_type: 'Qualifying',
-    lap_a_name: 'Max Verstappen (Lap 5)',
-    lap_b_name: 'Charles Leclerc (Lap 6)',
-    lap_a_time_formatted: '1:20.500',
-    lap_b_time_formatted: '1:21.100',
-    time_delta_seconds: -0.6,
-    faster_lap: 'Lap A',
-    lap_a_compound: 'SOFT',
-    lap_b_compound: 'SOFT',
-    lap_a_s1_formatted: '25.100s',
-    lap_b_s1_formatted: '25.300s',
-    lap_a_s2_formatted: '27.400s',
-    lap_b_s2_formatted: '27.700s',
-    lap_a_s3_formatted: '28.000s',
-    lap_b_s3_formatted: '28.100s',
-    top_speed_a: 345.2,
-    top_speed_b: 342.8,
-    ers_a_used_percent: 38.5,
-    ers_b_used_percent: 41.2,
-    braking_summary: 'Braking test summary',
+  const comparatorTarget: ComparatorChatTarget = { lapAId: 11, lapBId: 12, zoom: null, trackName: 'Monza' };
+
+  /** Opens the chat on the comparator with two laps picked. */
+  const ComparatorHarness = () => {
+    const { setContextMode, setComparatorTarget } = useRaceEngineerActions();
+    useEffect(() => {
+      setComparatorTarget(comparatorTarget);
+      setContextMode('comparator');
+    }, [setComparatorTarget, setContextMode]);
+    return <AiRaceEngineer isOpenOverride={true} />;
   };
 
   it('renders floating FAB button when closed and expands on click without background overlay', async () => {
@@ -93,12 +90,7 @@ describe('AiRaceEngineer Component', () => {
   it('renders comparative telemetry prompt chips when opened with comparator context', async () => {
     render(
       <RaceEngineerProvider>
-        <AiRaceEngineer
-          isOpenOverride={true}
-          telemetryContext={mockTelemetryContext}
-          hasLapsSelected={true}
-          isZoomActive={false}
-        />
+        <ComparatorHarness />
       </RaceEngineerProvider>
     );
 
@@ -111,17 +103,13 @@ describe('AiRaceEngineer Component', () => {
 
     // Verify prompt input field is ready
     expect(screen.getByPlaceholderText(/Ask engineer about telemetry deltas/i)).toBeInTheDocument();
+    expect(screen.getByText(/Monza/)).toBeInTheDocument();
   });
 
   it('toggles settings panel within the floating card', async () => {
     render(
       <RaceEngineerProvider>
-        <AiRaceEngineer
-          isOpenOverride={true}
-          telemetryContext={mockTelemetryContext}
-          hasLapsSelected={true}
-          isZoomActive={false}
-        />
+        <ComparatorHarness />
       </RaceEngineerProvider>
     );
 
@@ -242,18 +230,14 @@ describe('AiRaceEngineer Component', () => {
   });
 
   it('renders Live Wall badge and live prompt chips when in live mode even if comparator context was populated', async () => {
+    useSessionStatusStore.setState({ connected: true, session: makeLiveSession({ TrackId: SILVERSTONE_TRACK_ID }) });
     const TestLiveHarness = () => {
-      const { setContextMode, setComparatorContext, setLiveContext } = useRaceEngineer();
+      const { setContextMode, setComparatorTarget } = useRaceEngineerActions();
 
       useEffect(() => {
-        setComparatorContext(mockTelemetryContext);
-        setLiveContext({
-          trackName: 'Silverstone',
-          sessionType: 'Race',
-          liveSummary: 'Live race ongoing',
-        });
+        setComparatorTarget(comparatorTarget);
         setContextMode('live');
-      }, [setComparatorContext, setLiveContext, setContextMode]);
+      }, [setComparatorTarget, setContextMode]);
 
       return <AiRaceEngineer isOpenOverride={true} />;
     };
@@ -265,8 +249,9 @@ describe('AiRaceEngineer Component', () => {
     );
 
     expect(screen.getByText('AI Race Engineer')).toBeInTheDocument();
-    // Must show Live Wall badge (not Comparator!)
+    // Must show Live Wall badge (not Comparator!) with the track from the live feed
     expect(screen.getByText('Live Wall')).toBeInTheDocument();
+    expect(screen.getByText(/Silverstone/)).toBeInTheDocument();
     // Must show Live chips (not comparator chips!)
     expect(screen.getByText('Safety Car & Pit Strategy')).toBeInTheDocument();
     expect(screen.getByText('Weather & Crossover')).toBeInTheDocument();
@@ -279,16 +264,11 @@ describe('AiRaceEngineer Component', () => {
 
   it('renders Live Wall badge and standby prompt chips when in live standby mode without active telemetry', async () => {
     const TestLiveStandbyHarness = () => {
-      const { setContextMode, setLiveContext } = useRaceEngineer();
+      const { setContextMode } = useRaceEngineerActions();
 
       useEffect(() => {
-        setLiveContext({
-          trackName: 'F1 Pit Wall',
-          sessionType: 'Standby',
-          liveSummary: 'STATUS: IN GARAGE / STANDBY. No live telemetry packets received from track yet.',
-        });
         setContextMode('live');
-      }, [setLiveContext, setContextMode]);
+      }, [setContextMode]);
 
       return <AiRaceEngineer isOpenOverride={true} />;
     };
@@ -309,17 +289,12 @@ describe('AiRaceEngineer Component', () => {
 
   it('renders Debrief badge and debrief chips when in session_debrief mode', async () => {
     const TestDebriefHarness = () => {
-      const { setContextMode, setSessionDebriefContext } = useRaceEngineer();
+      const { setContextMode, setSessionDebriefTarget } = useRaceEngineerActions();
 
       useEffect(() => {
-        setSessionDebriefContext({
-          trackName: 'Spa-Francorchamps',
-          sessionType: 'Race',
-          driverCount: 20,
-          summaryText: 'P1: Verstappen, P2: Norris',
-        });
+        setSessionDebriefTarget({ sessionId: 42, trackName: 'Spa-Francorchamps' });
         setContextMode('session_debrief');
-      }, [setSessionDebriefContext, setContextMode]);
+      }, [setSessionDebriefTarget, setContextMode]);
 
       return <AiRaceEngineer isOpenOverride={true} />;
     };

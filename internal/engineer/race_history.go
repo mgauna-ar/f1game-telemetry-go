@@ -166,7 +166,7 @@ func (e *EngineerEngine) describeRaceEventLocked(p *packets.PacketEventData) str
 	switch p.EventCode() {
 	case packets.EventFastestLap:
 		if d, ok := p.FastestLapData(); ok {
-			return fmt.Sprintf("Fastest lap: %s, %s", e.driverNameLocked(int(d.VehicleIdx)), formatLapTimeMS(uint32(d.LapTime*packets.MillisPerSecond)))
+			return fmt.Sprintf("Fastest lap: %s, %s", e.driverNameLocked(int(d.VehicleIdx)), packets.FormatLapTimeMS(uint32(d.LapTime*packets.MillisPerSecond)))
 		}
 	case packets.EventRetirement:
 		if d, ok := p.RetirementData(); ok {
@@ -302,17 +302,4 @@ func deltaToCarInFrontMS(l packets.LapData) uint32 {
 
 func deltaToLeaderMS(l packets.LapData) uint32 {
 	return splitTimeMS(l.DeltaToRaceLeaderMinutesPart, l.DeltaToRaceLeaderMSPart)
-}
-
-// formatLapTimeMS renders milliseconds as m:ss.mmm (or s.mmm under a minute).
-func formatLapTimeMS(ms uint32) string {
-	if ms == 0 {
-		return "no time"
-	}
-	minutes := ms / packets.MillisPerMinute
-	seconds := float64(ms%packets.MillisPerMinute) / packets.MillisPerSecond
-	if minutes == 0 {
-		return fmt.Sprintf("%.3f", seconds)
-	}
-	return fmt.Sprintf("%d:%06.3f", minutes, seconds)
 }

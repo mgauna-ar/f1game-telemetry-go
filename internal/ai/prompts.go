@@ -5,26 +5,26 @@ import (
 	"strings"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/locales"
+	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 )
 
 // BuildSystemPrompt constructs a rich system prompt tailored for an elite F1 Race Engineer based on context mode, persona, and language.
-func BuildSystemPrompt(telemetryCtx *TelemetryAnalysisContext, persona, language string) string {
-	if telemetryCtx != nil && (telemetryCtx.ContextMode == "session_debrief" || (telemetryCtx.SessionSummary != "" && telemetryCtx.LapAName == "")) {
-		return buildSessionDebriefPrompt(telemetryCtx)
+func BuildSystemPrompt(tc *TelemetryAnalysisContext, persona, language string) string {
+	if tc == nil {
+		tc = &TelemetryAnalysisContext{ContextMode: ContextModeComparator}
 	}
-
-	if telemetryCtx != nil && (telemetryCtx.ContextMode == "live" || telemetryCtx.LiveSummary != "") {
-		return buildLivePrompt(telemetryCtx, persona, language)
+	switch tc.ContextMode {
+	case ContextModeSessionDebrief:
+		return buildSessionDebriefPrompt(tc.Debrief)
+	case ContextModeLive:
+		return buildLivePrompt(tc, persona, language)
+	case ContextModeGeneral:
+		return buildGeneralPrompt(language)
 	}
-
-	if telemetryCtx != nil && telemetryCtx.ContextMode == "general" {
-		return buildGeneralPrompt(telemetryCtx, language)
-	}
-
-	return buildComparatorPrompt(telemetryCtx)
+	return buildComparatorPrompt(tc.Comparison)
 }
 
-func buildSessionDebriefPrompt(telemetryCtx *TelemetryAnalysisContext) string {
+func buildSessionDebriefPrompt(debrief *SessionDebrief) string {
 	var sb strings.Builder
 	sb.WriteString("You are the Chief Race Strategist and Performance Engineer providing an executive post-session debrief of the recorded session.\n")
 	sb.WriteString("Analyze overall session classification, driver gaps, pace deltas, tyre stint strategies, degradation, and sector splits across the field.\n\n")
@@ -36,73 +36,43 @@ func buildSessionDebriefPrompt(telemetryCtx *TelemetryAnalysisContext) string {
 	sb.WriteString("5. Use structured Markdown with clear headings (## Summary, ## Classification & Gaps, ## Tyre Stints & Strategy, ## Sector Breakdown) and bullet points.\n\n")
 
 	sb.WriteString("### SESSION CLASSIFICATION & TIMING DATA:\n")
-	if telemetryCtx.SessionSummary != "" {
-		sb.WriteString(telemetryCtx.SessionSummary)
+	if debrief != nil && debrief.Summary != "" {
+		sb.WriteString(debrief.Summary)
 		sb.WriteString("\n")
-	}
-	if telemetryCtx.CustomPrompt != "" {
-		fmt.Fprintf(&sb, "\nSession Notes: %s\n", telemetryCtx.CustomPrompt)
+	} else {
+		sb.WriteString("No classification data is available for this session yet.\n")
 	}
 	return sb.String()
 }
 
-func buildLivePrompt(telemetryCtx *TelemetryAnalysisContext, persona, language string) string {
+func buildLivePrompt(tc *TelemetryAnalysisContext, persona, language string) string {
 	var sb strings.Builder
-
-	fallbackLang := ""
-	if telemetryCtx != nil {
-		fallbackLang = telemetryCtx.Language
+	catalog := locales.Resolve(language, "", persona)
+	live := tc.Live
+	if live == nil {
+		live = &LiveBriefing{}
 	}
-	catalog := locales.Resolve(language, fallbackLang, persona)
 
-	customPrompt := ""
-	if telemetryCtx != nil {
-		customPrompt = telemetryCtx.CustomPersonaPrompt
-	}
-	sb.WriteString(catalog.PersonaPrompt(persona, customPrompt))
+	sb.WriteString(catalog.PersonaPrompt(persona, tc.CustomPersonaPrompt))
 
 	sb.WriteString("\nCRITICAL RADIO CONSTRAINTS:\n")
-	if telemetryCtx != nil && strings.TrimSpace(telemetryCtx.DriverCallsign) != "" {
-		sb.WriteString(catalog.DriverCallsignDirective(telemetryCtx.DriverCallsign))
+	if strings.TrimSpace(tc.DriverCallsign) != "" {
+		sb.WriteString(catalog.DriverCallsignDirective(tc.DriverCallsign))
 	}
 	sb.WriteString(catalog.CriticalRadioConstraints())
 	sb.WriteString(catalog.LiveDataDirective())
 
-	// Dynamic Urgency Level Injection
-	if telemetryCtx != nil && telemetryCtx.UrgencyLevel != "" {
-		sb.WriteString(catalog.UrgencyDirective(telemetryCtx.UrgencyLevel))
-	}
-
-	// Incident Status Injection
-	if telemetryCtx != nil && telemetryCtx.IncidentStatus != "" {
-		sb.WriteString(catalog.IncidentDirective(telemetryCtx.IncidentStatus))
+	if live.IncidentStatus != "" {
+		sb.WriteString(catalog.IncidentDirective(live.IncidentStatus))
 	}
 
 	// F1 2026 Regulation Mandate (DRS abolished -> Override Mode / Straight Mode)
-	is2026 := (telemetryCtx != nil && telemetryCtx.PacketFormat >= 2026) ||
-		(telemetryCtx != nil && (strings.Contains(telemetryCtx.LiveSummary, "2026") || strings.Contains(telemetryCtx.CustomPrompt, "2026")))
-	if is2026 {
+	if live.PacketFormat >= packets.PacketFormat2026 {
 		sb.WriteString(catalog.F12026RegulationMandate())
 	}
 
-	// Dynamic Driving Phase Protocol Injection
-	phase := ""
-	if telemetryCtx != nil {
-		phase = strings.ToUpper(strings.TrimSpace(telemetryCtx.DrivingPhase))
-		if phase == "" && telemetryCtx.LiveSummary != "" {
-			switch {
-			case strings.Contains(telemetryCtx.LiveSummary, "STATUS: STARTING GRID") || strings.Contains(telemetryCtx.LiveSummary, "STATUS: GRID"):
-				phase = "GRID"
-			case strings.Contains(telemetryCtx.LiveSummary, "STATUS: RACE START") || strings.Contains(telemetryCtx.LiveSummary, "STATUS: LAP 1"):
-				phase = "RACE_START"
-			case strings.Contains(telemetryCtx.LiveSummary, "STATUS: IN-LAP") || strings.Contains(telemetryCtx.LiveSummary, "STATUS: COOL-DOWN"):
-				phase = "IN_LAP"
-			case strings.Contains(telemetryCtx.LiveSummary, "STATUS: POST-RACE"):
-				phase = "POST_RACE"
-			}
-		}
-	}
-	if phase != "" {
+	// The engine's driving phase picks the radio protocol for this part of the session.
+	if phase := strings.ToUpper(strings.TrimSpace(live.DrivingPhase)); phase != "" {
 		sb.WriteString(catalog.DrivingPhaseDirective(phase))
 	}
 
@@ -111,12 +81,8 @@ func buildLivePrompt(telemetryCtx *TelemetryAnalysisContext, persona, language s
 	sb.WriteString(catalog.EngineThermalDerateCurve())
 
 	// Detect session type mode (Qualifying vs Practice vs Race)
-	sessionType := ""
-	trackName := ""
-	if telemetryCtx != nil {
-		sessionType = strings.ToLower(telemetryCtx.SessionType)
-		trackName = telemetryCtx.TrackName
-	}
+	sessionType := strings.ToLower(live.SessionType)
+	trackName := live.TrackName
 	if trackName == "" {
 		trackName = "F1 Circuit"
 	}
@@ -125,53 +91,34 @@ func buildLivePrompt(telemetryCtx *TelemetryAnalysisContext, persona, language s
 	isPractice := strings.Contains(sessionType, "practice") || strings.Contains(sessionType, "fp1") || strings.Contains(sessionType, "fp2") || strings.Contains(sessionType, "fp3") || strings.Contains(sessionType, "p1") || strings.Contains(sessionType, "p2") || strings.Contains(sessionType, "p3")
 
 	sb.WriteString("\nSESSION PROTOCOL DIRECTIVES:\n")
-	origSessionType := ""
-	if telemetryCtx != nil {
-		origSessionType = telemetryCtx.SessionType
-	}
-	sb.WriteString(catalog.SessionProtocolDirective(origSessionType, trackName, isQualy, isPractice))
+	sb.WriteString(catalog.SessionProtocolDirective(live.SessionType, trackName, isQualy, isPractice))
 
 	sb.WriteString("### LIVE SESSION TELEMETRY & PIT WALL DATA:\n")
-	if telemetryCtx != nil && telemetryCtx.LiveSummary != "" {
-		sb.WriteString(telemetryCtx.LiveSummary)
+	if live.Summary != "" {
+		sb.WriteString(live.Summary)
 		sb.WriteString("\n")
 	} else {
 		sb.WriteString("Standing by for live on-track telemetry. Assist the driver with session preparation, track layout advice, vehicle setup theory, or strategy planning.\n")
-	}
-	if telemetryCtx != nil && telemetryCtx.CustomPrompt != "" {
-		fmt.Fprintf(&sb, "\nLive Strategy Notes: %s\n", telemetryCtx.CustomPrompt)
 	}
 	return sb.String()
 }
 
 // toolUseDirective tells a live-mode engineer how to use the race data tools it was given.
-func toolUseDirective(telemetryCtx *TelemetryAnalysisContext, persona, language string) string {
-	fallbackLang := ""
-	if telemetryCtx != nil {
-		fallbackLang = telemetryCtx.Language
-	}
-	return locales.Resolve(language, fallbackLang, persona).ToolUseDirective()
+func toolUseDirective(persona, language string) string {
+	return locales.Resolve(language, "", persona).ToolUseDirective()
 }
 
-func buildGeneralPrompt(telemetryCtx *TelemetryAnalysisContext, language string) string {
+func buildGeneralPrompt(language string) string {
 	var sb strings.Builder
 	sb.WriteString("You are the personal F1 Race Engineer.\n")
 	sb.WriteString("Help the driver with telemetry interpretation, driving coaching, vehicle setup theory, and racing strategy.\n")
-	fallbackLang := ""
-	if telemetryCtx != nil {
-		fallbackLang = telemetryCtx.Language
-	}
-	catalog := locales.Resolve(language, fallbackLang, "")
-	sb.WriteString(catalog.GeneralAssistantDirectives())
+	sb.WriteString(locales.Resolve(language, "", "").GeneralAssistantDirectives())
 	sb.WriteString("\n")
 	sb.WriteString("Use structured, clear Markdown with concise technical bullet points.\n")
-	if telemetryCtx != nil && telemetryCtx.CustomPrompt != "" {
-		fmt.Fprintf(&sb, "\nContext Notes: %s\n", telemetryCtx.CustomPrompt)
-	}
 	return sb.String()
 }
 
-func buildComparatorPrompt(telemetryCtx *TelemetryAnalysisContext) string {
+func buildComparatorPrompt(c *LapComparison) string {
 	var sb strings.Builder
 	sb.WriteString("You are the personal F1 Race Engineer and exclusive telemetry analyst for the DRIVER OF LAP A (the primary selected driver).\n")
 	sb.WriteString("Your role is to speak directly to your driver (Lap A) over the team radio to analyze their performance, diagnose where lap time was gained or lost, and provide clear, highly technical coaching advice to beat Lap B (the comparison / benchmark lap).\n\n")
@@ -184,64 +131,66 @@ func buildComparatorPrompt(telemetryCtx *TelemetryAnalysisContext) string {
 	sb.WriteString("5. COMMUNICATION STYLE & LANGUAGE: Always respond in the language used by the user / driver (e.g. if the driver writes in Spanish, reply in Spanish; if in English, reply in English; default to English if undetermined). Maintain a professional, sharp, direct F1 team radio tone. Use structured Markdown (bold keywords, bullet points).\n")
 	sb.WriteString("6. DO NOT MENTION CAR SETUPS: Setups of other cars are unavailable. Focus 100% on driving technique, braking points, minimum corner apex speed, exit traction, and ERS/DRS deployment.\n\n")
 
-	switch {
-	case telemetryCtx != nil && telemetryCtx.LapAName != "" && telemetryCtx.LapBName != "":
-		sb.WriteString("### COMPARATIVE TELEMETRY DATA:\n")
-		if telemetryCtx.CrossSession || (telemetryCtx.SessionBType != "" && telemetryCtx.SessionBType != telemetryCtx.SessionType) {
-			fmt.Fprintf(&sb, "- Track: %s (Cross-Session Comparison)\n", telemetryCtx.TrackName)
-			fmt.Fprintf(&sb, "  * Lap A Session: %s", telemetryCtx.SessionType)
-			if telemetryCtx.WeatherA != "" {
-				fmt.Fprintf(&sb, " (Weather: %s)", telemetryCtx.WeatherA)
-			}
-			sb.WriteString("\n")
-			fmt.Fprintf(&sb, "  * Lap B Session: %s", telemetryCtx.SessionBType)
-			if telemetryCtx.WeatherB != "" {
-				fmt.Fprintf(&sb, " (Weather: %s)", telemetryCtx.WeatherB)
-			}
-			sb.WriteString("\n")
-		} else {
-			fmt.Fprintf(&sb, "- Track: %s | Session: %s\n", telemetryCtx.TrackName, telemetryCtx.SessionType)
-		}
-		fmt.Fprintf(&sb, "- YOUR DRIVER (Lap A): %s (%s) - Compound: %s\n", telemetryCtx.LapAName, telemetryCtx.LapATimeFormatted, telemetryCtx.LapACompound)
-		fmt.Fprintf(&sb, "- BENCHMARK / RIVAL (Lap B): %s (%s) - Compound: %s\n", telemetryCtx.LapBName, telemetryCtx.LapBTimeFormatted, telemetryCtx.LapBCompound)
-		fmt.Fprintf(&sb, "- Total Time Delta: %.3f s (Faster: %s)\n", telemetryCtx.TimeDeltaSeconds, telemetryCtx.FasterLap)
-
-		sb.WriteString("- Sector Times:\n")
-		fmt.Fprintf(&sb, "  * Sector 1: Your time (%s) vs Benchmark (%s)\n", telemetryCtx.LapAS1Formatted, telemetryCtx.LapBS1Formatted)
-		fmt.Fprintf(&sb, "  * Sector 2: Your time (%s) vs Benchmark (%s)\n", telemetryCtx.LapAS2Formatted, telemetryCtx.LapBS2Formatted)
-		fmt.Fprintf(&sb, "  * Sector 3: Your time (%s) vs Benchmark (%s)\n", telemetryCtx.LapAS3Formatted, telemetryCtx.LapBS3Formatted)
-
-		fmt.Fprintf(&sb, "- Top Speed (Speed Trap): Your speed = %.1f km/h | Benchmark = %.1f km/h\n", telemetryCtx.TopSpeedA, telemetryCtx.TopSpeedB)
-		fmt.Fprintf(&sb, "- Cumulative ERS Deployment: Your usage = %.1f%% | Benchmark = %.1f%%\n", telemetryCtx.ERSAUsedPercent, telemetryCtx.ERSBUsedPercent)
-
-		if telemetryCtx.BrakingSummary != "" {
-			fmt.Fprintf(&sb, "- Braking Analysis: %s\n", telemetryCtx.BrakingSummary)
-		}
-		if telemetryCtx.ApexSpeedSummary != "" {
-			fmt.Fprintf(&sb, "- Corner Apex Speed: %s\n", telemetryCtx.ApexSpeedSummary)
-		}
-		if telemetryCtx.ThrottleSummary != "" {
-			fmt.Fprintf(&sb, "- Traction & Acceleration: %s\n", telemetryCtx.ThrottleSummary)
-		}
-		if telemetryCtx.ERSDRSSummary != "" {
-			fmt.Fprintf(&sb, "- ERS & DRS: %s\n", telemetryCtx.ERSDRSSummary)
-		}
-
-		if telemetryCtx.ZoomedRange != nil {
-			zr := telemetryCtx.ZoomedRange
-			fmt.Fprintf(&sb, "\n### ZOOMED SECTOR FOCUSED BY DRIVER (%.0fm - %.0fm):\n", zr.StartDistanceMeters, zr.EndDistanceMeters)
-			if zr.Description != "" {
-				fmt.Fprintf(&sb, "- Description: %s\n", zr.Description)
-			}
-			fmt.Fprintf(&sb, "- Delta in this segment: %.3fs\n", zr.DeltaInSegment)
-			fmt.Fprintf(&sb, "- Apex speed delta in corner: %.1f km/h\n", zr.SpeedDiffAtApex)
-			fmt.Fprintf(&sb, "- Braking point difference: %.1f meters\n", zr.BrakingDiffMeters)
-		}
-	case telemetryCtx != nil && telemetryCtx.CustomPrompt != "":
-		fmt.Fprintf(&sb, "\nTelemetry / Context Information:\n%s\n", telemetryCtx.CustomPrompt)
-	default:
+	if c == nil {
 		sb.WriteString("Currently, specific telemetry data is not active. Assist the driver with general F1 telemetry interpretation, driving advice, setup considerations, or racecraft guidance.\n")
+		return sb.String()
+	}
+	writeComparisonData(&sb, c)
+	return sb.String()
+}
+
+// writeComparisonData writes the comparator telemetry section of the prompt.
+func writeComparisonData(sb *strings.Builder, c *LapComparison) {
+	sb.WriteString("### COMPARATIVE TELEMETRY DATA:\n")
+	if c.CrossSession {
+		fmt.Fprintf(sb, "- Track: %s (Cross-Session Comparison)\n", c.TrackName)
+		writeComparedSession(sb, "A", c.SessionTypeA, c.WeatherA)
+		writeComparedSession(sb, "B", c.SessionTypeB, c.WeatherB)
+	} else {
+		fmt.Fprintf(sb, "- Track: %s | Session: %s\n", c.TrackName, c.SessionTypeA)
+	}
+	fmt.Fprintf(sb, "- YOUR DRIVER (Lap A): %s (%s) - Compound: %s\n", c.LapAName, c.LapATime, c.CompoundA)
+	fmt.Fprintf(sb, "- BENCHMARK / RIVAL (Lap B): %s (%s) - Compound: %s\n", c.LapBName, c.LapBTime, c.CompoundB)
+	fmt.Fprintf(sb, "- Total Time Delta: %.3f s (Faster: %s)\n", c.TimeDeltaSeconds, c.FasterLap)
+
+	sb.WriteString("- Sector Times:\n")
+	for i := range c.SectorsA {
+		fmt.Fprintf(sb, "  * Sector %d: Your time (%s) vs Benchmark (%s)\n", i+1, c.SectorsA[i], c.SectorsB[i])
 	}
 
-	return sb.String()
+	fmt.Fprintf(sb, "- Top Speed (Speed Trap): Your speed = %.1f km/h | Benchmark = %.1f km/h\n", c.TopSpeedA, c.TopSpeedB)
+	fmt.Fprintf(sb, "- Cumulative ERS Deployment: Your usage = %.1f%% | Benchmark = %.1f%%\n", c.ERSUsedPctA, c.ERSUsedPctB)
+
+	if c.BrakingSummary != "" {
+		fmt.Fprintf(sb, "- Braking Analysis: %s\n", c.BrakingSummary)
+	}
+	if c.ApexSpeedSummary != "" {
+		fmt.Fprintf(sb, "- Corner Apex Speed: %s\n", c.ApexSpeedSummary)
+	}
+	if c.ThrottleSummary != "" {
+		fmt.Fprintf(sb, "- Traction & Acceleration: %s\n", c.ThrottleSummary)
+	}
+	if c.ERSDRSSummary != "" {
+		fmt.Fprintf(sb, "- ERS & DRS: %s\n", c.ERSDRSSummary)
+	}
+
+	if zr := c.Zoom; zr != nil {
+		fmt.Fprintf(sb, "\n### ZOOMED SECTOR FOCUSED BY DRIVER (%.0fm - %.0fm):\n", zr.StartDistanceMeters, zr.EndDistanceMeters)
+		if zr.Description != "" {
+			fmt.Fprintf(sb, "- Description: %s\n", zr.Description)
+		}
+		fmt.Fprintf(sb, "- Delta in this segment: %.3fs\n", zr.DeltaInSegment)
+		fmt.Fprintf(sb, "- Apex speed delta in corner: %.1f km/h\n", zr.SpeedDiffAtApex)
+		if zr.HasBrakingDiff {
+			fmt.Fprintf(sb, "- Braking point difference: %.1f meters (positive: you brake later than the benchmark)\n", zr.BrakingDiffMeters)
+		}
+	}
+}
+
+func writeComparedSession(sb *strings.Builder, lap, sessionType, weather string) {
+	fmt.Fprintf(sb, "  * Lap %s Session: %s", lap, sessionType)
+	if weather != "" {
+		fmt.Fprintf(sb, " (Weather: %s)", weather)
+	}
+	sb.WriteString("\n")
 }

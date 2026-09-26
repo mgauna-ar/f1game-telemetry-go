@@ -37,6 +37,7 @@
 * **Smart Driving Discretion:** Automatically suppresses non-critical radio chatter during heavy braking or corner apexes until reaching the straight.
 * **Neural Voices & Personas:** Authentic pit wall personas (**Bono 🇬🇧**, **Franco Colapinto 🇦🇷**, or **Custom**) with realistic cockpit radio distortion, spatial audio filtering, and FOM harmonic beeps.
 * **Bilingual Strategy & Debriefs:** Native bilingual support in **English** and **Español (Latinoamérica)** with streaming AI post-session debriefs.
+* **Chat Context From the Server:** The chat only tells the server what it is about (the live session, a recorded session, or two compared laps and the zoomed segment). The server builds the live briefing, the session debrief and the lap comparison from its own data, and adds the driver call-sign and custom persona saved in the settings, so the dashboard does no prompt work while you drive.
 * **Readable Chat Replies:** Long answers render as proper tables, nested lists, code and quotes. The reply starts at your question and stays there while it streams, a *Jump to latest* button takes you to the end, replies can be copied, and the chat can be expanded to a large reading view.
 * **Per-Provider AI Settings:** Pick Gemini, OpenAI, Claude or a local / OpenAI-compatible server from cards that show which ones are ready. Each shows only its own fields: the key and where to get one for cloud providers, the server address (with one-click Ollama, LM Studio and Groq presets) for local servers, and a searchable list of that provider's models.
 

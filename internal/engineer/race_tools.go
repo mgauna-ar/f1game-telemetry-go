@@ -307,11 +307,11 @@ func (v *raceView) driverDetail(idx int) (DriverDetail, bool) {
 		}
 		detail.RecentLaps = append(detail.RecentLaps, DriverLap{
 			Lap:  lap,
-			Time: formatLapTimeMS(entry.LapTimeInMS),
+			Time: packets.FormatLapTimeMS(entry.LapTimeInMS),
 			Sectors: fmt.Sprintf("%s / %s / %s",
-				formatLapTimeMS(splitTimeMS(entry.Sector1TimeMinutesPart, entry.Sector1TimeMSPart)),
-				formatLapTimeMS(splitTimeMS(entry.Sector2TimeMinutesPart, entry.Sector2TimeMSPart)),
-				formatLapTimeMS(splitTimeMS(entry.Sector3TimeMinutesPart, entry.Sector3TimeMSPart))),
+				packets.FormatLapTimeMS(splitTimeMS(entry.Sector1TimeMinutesPart, entry.Sector1TimeMSPart)),
+				packets.FormatLapTimeMS(splitTimeMS(entry.Sector2TimeMinutesPart, entry.Sector2TimeMSPart)),
+				packets.FormatLapTimeMS(splitTimeMS(entry.Sector3TimeMinutesPart, entry.Sector3TimeMSPart))),
 			Valid: entry.LapValidBitFlags&packets.LapValidBitFlag != 0,
 		})
 	}

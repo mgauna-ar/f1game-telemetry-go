@@ -10,3 +10,5 @@ export interface ChatMessage {
   lastPrompt?: string;
 }
 
+
+export type { AIChatRequest, ChatContextMode, ChatContextRequest, ChatZoomRange } from './generated/ai';

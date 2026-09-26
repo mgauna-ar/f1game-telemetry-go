@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useRadioAudio } from './useRadioAudio';
 import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
+import type { AIChatRequest } from '../types/ai';
 import { RADIO_LANGUAGES } from '../constants/f1';
 import * as radioAudio from '../utils/radioAudio';
 import type { ISpeechRecognitionEvent } from '../utils/radioAudio';
@@ -55,11 +56,6 @@ function mockSession(overrides: Partial<SessionData> = {}): SessionData {
     SessionUID: '0xabc',
     ...overrides,
   });
-}
-
-interface ChatRequestBody {
-  messages: Array<{ role: string; content: string }>;
-  context: { session_type?: string; track_name?: string };
 }
 
 describe('useRadioAudio hook', () => {
@@ -151,19 +147,20 @@ describe('useRadioAudio hook', () => {
       });
     }
 
-    function requestBody(call: number): ChatRequestBody {
-      return vi.mocked(api.stream).mock.calls[call][1] as ChatRequestBody;
+    function requestBody(call: number): AIChatRequest {
+      return vi.mocked(api.stream).mock.calls[call][1] as AIChatRequest;
     }
 
-    it('sends the session type and track so the engineer knows the session', async () => {
+    it('sends only the live context mode; the server builds the race briefing and phase', async () => {
       vi.spyOn(api, 'stream').mockImplementation(async () => createMockSSEResponse(['data: {"text":"Copy."}\n\n']));
       const { result } = renderHook(() => useRadioAudio());
 
       await askOverRadio(result, 'How are the tyres?');
 
       const body = requestBody(0);
-      expect(body.context.session_type).toBe('Grand Prix Race');
-      expect(body.context.track_name).toBe('Silverstone');
+      expect(body.context).toEqual({ context_mode: 'live' });
+      expect(body.language).toBe('en');
+      expect(body).not.toHaveProperty('provider');
     });
 
     it('remembers earlier exchanges in the same session', async () => {

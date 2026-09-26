@@ -1,31 +1,23 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
-import { useI18n } from './I18nContext';
-import { useSystemPrompt } from '../hooks/useSystemPrompt';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAIModels } from '../hooks/useAIModels';
 import { useAIChatStream } from '../hooks/useAIChatStream';
 import { useAISettings } from '../hooks/useAISettings';
 import { storage } from '../utils/storage';
+import { buildChatContextRequest } from '../utils/chatContext';
 import {
   RaceEngineerActionsContext,
+  RaceEngineerStateContext,
   RaceEngineerStreamContext,
   STORAGE_KEY_AI_OPEN,
   type ContextMode,
-  type SessionDebriefContextPayload,
-  type LiveContextPayload,
+  type ComparatorChatTarget,
+  type SessionDebriefChatTarget,
   type RaceEngineerActionsContextValue,
+  type RaceEngineerStateContextValue,
   type RaceEngineerStreamContextValue,
 } from './RaceEngineerContext';
 
 export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  let locale: 'en' | 'es' = 'en';
-  try {
-    const i18n = useI18n();
-    locale = i18n.locale;
-  } catch {
-    // If not inside I18nProvider
-  }
-
   // Open / closed state saved to localStorage
   const [isOpen, setIsOpen] = useState<boolean>(() => {
     return storage.get<boolean>(STORAGE_KEY_AI_OPEN, false);
@@ -35,24 +27,21 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     storage.set(STORAGE_KEY_AI_OPEN, isOpen);
   }, [isOpen]);
 
-  // Active telemetry contexts
+  // What the chat is about: only identifiers, the server builds the prompt data from them
   const [contextMode, setContextMode] = useState<ContextMode>('general');
-  const [comparatorContext, setComparatorContext] = useState<TelemetryContextPayload | null>(null);
-  const [sessionDebriefContext, setSessionDebriefContext] =
-    useState<SessionDebriefContextPayload | null>(null);
-  const [liveContext, setLiveContext] = useState<LiveContextPayload | null>(null);
+  const [comparatorTarget, setComparatorTarget] = useState<ComparatorChatTarget | null>(null);
+  const [sessionDebriefTarget, setSessionDebriefTarget] = useState<SessionDebriefChatTarget | null>(null);
+
+  // Read when a message is sent, so the chat callbacks never change with the context
+  const targetsRef = useRef({ contextMode, comparatorTarget, sessionDebriefTarget });
+  targetsRef.current = { contextMode, comparatorTarget, sessionDebriefTarget };
+  const buildChatContext = useCallback(() => {
+    const { contextMode: mode, comparatorTarget: comparator, sessionDebriefTarget: debrief } = targetsRef.current;
+    return buildChatContextRequest(mode, comparator, debrief);
+  }, []);
 
   // AI provider, model and key status, saved on the server
   const { config, keyStatus, saveConfig, saveApiKey } = useAISettings();
-
-  // Composed Subsystems
-  const { buildCurrentBackendContext } = useSystemPrompt({
-    contextMode,
-    comparatorContext,
-    sessionDebriefContext,
-    liveContext,
-    locale,
-  });
 
   const {
     availableModels,
@@ -71,7 +60,7 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
   } = useAIChatStream({
     config,
     keyStatus,
-    buildCurrentBackendContext,
+    buildChatContext,
   });
 
   const openChat = useCallback(
@@ -94,55 +83,50 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setIsOpen((prev) => !prev);
   }, []);
 
+  // Every dependency here is a stable callback, so this value never changes.
   const actionsValue = useMemo<RaceEngineerActionsContextValue>(
     () => ({
-      isOpen,
       openChat,
       closeChat,
       toggleChat,
-      contextMode,
       setContextMode,
-      comparatorContext,
-      setComparatorContext,
-      sessionDebriefContext,
-      setSessionDebriefContext,
-      liveContext,
-      setLiveContext,
+      setComparatorTarget,
+      setSessionDebriefTarget,
       sendMessage,
       retryLastMessage,
       clearMessages,
       stopGenerating,
-      config,
       saveConfig,
-      keyStatus,
       saveApiKey,
-      availableModels,
-      isLoadingModels,
-      modelsError,
       fetchAvailableModels,
     }),
     [
-      isOpen,
       openChat,
       closeChat,
       toggleChat,
-      contextMode,
-      comparatorContext,
-      sessionDebriefContext,
-      liveContext,
       sendMessage,
       retryLastMessage,
       clearMessages,
       stopGenerating,
-      config,
       saveConfig,
-      keyStatus,
       saveApiKey,
+      fetchAvailableModels,
+    ]
+  );
+
+  const stateValue = useMemo<RaceEngineerStateContextValue>(
+    () => ({
+      isOpen,
+      contextMode,
+      comparatorTarget,
+      sessionDebriefTarget,
+      config,
+      keyStatus,
       availableModels,
       isLoadingModels,
       modelsError,
-      fetchAvailableModels,
-    ]
+    }),
+    [isOpen, contextMode, comparatorTarget, sessionDebriefTarget, config, keyStatus, availableModels, isLoadingModels, modelsError]
   );
 
   const streamValue = useMemo<RaceEngineerStreamContextValue>(
@@ -155,9 +139,11 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   return (
     <RaceEngineerActionsContext.Provider value={actionsValue}>
-      <RaceEngineerStreamContext.Provider value={streamValue}>
-        {children}
-      </RaceEngineerStreamContext.Provider>
+      <RaceEngineerStateContext.Provider value={stateValue}>
+        <RaceEngineerStreamContext.Provider value={streamValue}>
+          {children}
+        </RaceEngineerStreamContext.Provider>
+      </RaceEngineerStateContext.Provider>
     </RaceEngineerActionsContext.Provider>
   );
 };

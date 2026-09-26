@@ -338,17 +338,3 @@ func TestRaceContext_QualifyingKnockoutLine(t *testing.T) {
 		t.Errorf("did not expect race strategy line in qualifying:\n%s", snap.Summary)
 	}
 }
-
-func TestFormatLapTimeMS(t *testing.T) {
-	tests := map[uint32]string{
-		0:      "no time",
-		59_999: "59.999",
-		90_500: "1:30.500",
-		61_005: "1:01.005",
-	}
-	for in, want := range tests {
-		if got := formatLapTimeMS(in); got != want {
-			t.Errorf("formatLapTimeMS(%d) = %q; want %q", in, got, want)
-		}
-	}
-}

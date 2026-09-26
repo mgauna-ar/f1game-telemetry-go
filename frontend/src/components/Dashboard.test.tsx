@@ -1,10 +1,12 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { vi } from 'vitest';
 import { Dashboard } from './Dashboard';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import { useTelemetryDataStore } from '../store/useTelemetryDataStore';
 import * as storeModule from '../store/useTelemetryStore';
 import { makeLiveCarStatus, makeLiveLap, makeLiveParticipant, makeLiveSession } from '../test/wireFactories';
+import { RaceEngineerProvider } from '../context/RaceEngineerProvider';
+import { useRaceEngineerActions, useRaceEngineerState } from '../context/RaceEngineerContext';
 
 // Mock connectTelemetryWebSocket to avoid actual network calls
 vi.spyOn(storeModule, 'connectTelemetryWebSocket').mockReturnValue(() => {});
@@ -188,5 +190,48 @@ describe('Dashboard', () => {
     fireEvent.click(dashboardToggleBtn);
     expect(screen.getByText(/Weather Radar & Track Evolution/i)).toBeInTheDocument();
     expect(localStorage.getItem('f1_live_view_mode')).toBe('dashboard');
+  });
+
+  it('sets the live chat context once and never re-renders chat consumers on a timer', async () => {
+    vi.useFakeTimers();
+    try {
+      globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
+      useSessionStatusStore.setState({ connected: true, session: makeLiveSession({ TrackId: 7 }) });
+
+      const renders = { actions: 0, state: 0 };
+      let mode = '';
+      const ActionsProbe = () => {
+        useRaceEngineerActions();
+        renders.actions++;
+        return null;
+      };
+      const StateProbe = () => {
+        mode = useRaceEngineerState().contextMode;
+        renders.state++;
+        return null;
+      };
+
+      render(
+        <RaceEngineerProvider>
+          <ActionsProbe />
+          <StateProbe />
+          <Dashboard />
+        </RaceEngineerProvider>
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(100);
+      });
+      expect(mode).toBe('live');
+
+      const before = { ...renders };
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5_000);
+      });
+
+      expect(renders.actions).toBe(1);
+      expect(renders).toEqual(before);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

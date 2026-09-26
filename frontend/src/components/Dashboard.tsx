@@ -1,24 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { connectTelemetryWebSocket } from '../store/useTelemetryStore';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
-import { useTelemetryDataStore } from '../store/useTelemetryDataStore';
 import { useRaceEngineerActions } from '../context/RaceEngineerContext';
-import {
-  SAFETY_CAR_STATUS,
-  DRIVER_STATUS,
-  RESULT_STATUS,
-  SESSION_TYPES,
-  getTrackInfo,
-  TRACK_NAMES,
-  getSessionTypeName,
-  LIVE_VIEW_MODES,
-  STORAGE_KEY_LIVE_VIEW_MODE,
-  MAX_ERS_STORE_ENERGY_J,
-  getTyreThermalWindow,
-  calculateEnginePowerPct,
-  TYRE_DEGRADATION_TEMP_MARGIN_C,
-  WHEEL_INDEX,
-} from '../constants/f1';
+import { LIVE_VIEW_MODES, STORAGE_KEY_LIVE_VIEW_MODE } from '../constants/f1';
 
 import type { LiveViewMode } from '../constants/f1';
 import { SessionHeader } from './SessionHeader';
@@ -35,30 +19,7 @@ import { useRadioController } from '../hooks/useRadioController';
 import { useProactiveTelemetryRadio } from '../hooks/useProactiveTelemetryRadio';
 import { getProactiveRadioSpeech } from '../utils/radioPhrases';
 import type { RadioAlertPayload } from '../types/telemetry';
-import { useI18n } from '../context/I18nContext';
 import { storage } from '../utils/storage';
-
-const getDriverStatusLabel = (status?: number, t?: (key: string) => string): string => {
-  switch (status) {
-    case DRIVER_STATUS.FLYING_LAP:
-      return t ? t('live.driverFlyingLap') : 'Flying Lap (Hot Lap)';
-    case DRIVER_STATUS.OUT_LAP:
-      return t ? t('live.driverOutLap') : 'Out-Lap (Warming tyres / Building gap)';
-    case DRIVER_STATUS.IN_LAP:
-      return t ? t('live.driverInLap') : 'In-Lap (Returning to box)';
-    case DRIVER_STATUS.IN_GARAGE:
-      return t ? t('live.driverInGarage') : 'In Garage / Pit Lane';
-    default:
-      return t ? t('live.driverOnTrack') : 'On Track';
-  }
-};
-
-const formatSessionClock = (seconds?: number): string => {
-  if (seconds === undefined || seconds === null || seconds <= 0) return 'N/A';
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
-};
 
 export const Dashboard: React.FC = () => {
   const [viewMode, setViewMode] = useState<LiveViewMode>(() => {
@@ -81,158 +42,15 @@ export const Dashboard: React.FC = () => {
   const session = useSessionStatusStore((s) => s.session);
   const connected = useSessionStatusStore((s) => s.connected);
   const packetFormat = useSessionStatusStore((s) => s.packetFormat);
-  const { t } = useI18n();
 
-  const { setLiveContext, setContextMode } = useRaceEngineerActions();
+  const { setContextMode } = useRaceEngineerActions();
 
-  const getLiveTelemetrySummary = useCallback(() => {
-    const sessionState = useSessionStatusStore.getState();
-    const dataState = useTelemetryDataStore.getState();
-    const currentSession = sessionState.session;
-    if (!currentSession) {
-      return 'STATUS: Pit lane / Garage. Waiting for live telemetry packet stream from game.';
-    }
+  // The live chat sends no telemetry: the server builds the race briefing from its own feed.
+  useEffect(() => {
+    setContextMode('live');
+  }, [setContextMode]);
 
-    const trackInfo = currentSession.TrackId !== undefined ? getTrackInfo(currentSession.TrackId) : null;
-    const trackName = trackInfo?.name || (currentSession.TrackId !== undefined ? (TRACK_NAMES[currentSession.TrackId] || `Track #${currentSession.TrackId}`) : 'F1 Circuit');
-    const sessionName = getSessionTypeName(currentSession.SessionType);
-    const sessionTimeLeftFormatted = formatSessionClock(currentSession.SessionTimeLeft);
-
-    const scStatus =
-      currentSession.SafetyCarStatus === SAFETY_CAR_STATUS.FULL
-        ? 'Full Safety Car'
-        : currentSession.SafetyCarStatus === SAFETY_CAR_STATUS.VIRTUAL
-        ? 'Virtual Safety Car'
-        : currentSession.NumRedFlagPeriods && currentSession.NumRedFlagPeriods > 0
-        ? 'Red Flag (Suspended)'
-        : 'Track Clear (Green)';
-
-    const pIdx = dataState.playerCarIndex || 0;
-    const playerLap = dataState.allLaps[pIdx] || null;
-    const playerStatus = dataState.allCarStatus[pIdx] || null;
-    const playerDamage = dataState.allCarDamage[pIdx] || null;
-    const playerTelemetry = dataState.allTelemetry[pIdx] || null;
-    const playerRunStatus = getDriverStatusLabel(playerLap?.DriverStatus, t);
-    const lapValidity = playerLap?.CurrentLapInvalid === 1 ? 'INVALIDATED (Track Limits Exceeded)' : 'Valid';
-
-    let tyreWearSummary = 'Tyres: Normal wear';
-    if (playerDamage && playerDamage.TyresWear) {
-      const wears = playerDamage.TyresWear.map((w: number) => Math.round(w || 0));
-      const maxWear = Math.max(...wears);
-      tyreWearSummary = `Tyres Wear: FL ${wears[0]}% | FR ${wears[1]}% | RL ${wears[2]}% | RR ${wears[3]}% (Peak: ${maxWear}%)`;
-    }
-
-    let tyreTempsSummary = '';
-    if (playerTelemetry?.TyresSurfaceTemperature) {
-      const surf = playerTelemetry.TyresSurfaceTemperature;
-      const inner = playerTelemetry.TyresInnerTemperature || [];
-      const window = getTyreThermalWindow(playerStatus?.ActualTyreCompound, playerStatus?.VisualTyreCompound);
-      const getTempStatus = (temp: number) => {
-        if (temp >= window.maxTemp + TYRE_DEGRADATION_TEMP_MARGIN_C) return '[Overheating]';
-        if (temp <= window.minTemp - TYRE_DEGRADATION_TEMP_MARGIN_C) return '[Cold]';
-        return '[Optimal]';
-      };
-      tyreTempsSummary = `- Tyres (${window.compound}, Ideal: ${window.minTemp}-${window.maxTemp}°C) | Surface Temps: FL ${Math.round(surf[0] || 0)}°C ${getTempStatus(surf[0] || 0)}, FR ${Math.round(surf[1] || 0)}°C ${getTempStatus(surf[1] || 0)}, RL ${Math.round(surf[2] || 0)}°C ${getTempStatus(surf[2] || 0)}, RR ${Math.round(surf[3] || 0)}°C ${getTempStatus(surf[3] || 0)}`;
-      if (inner.length >= 4) {
-        tyreTempsSummary += ` (Inner: FL ${Math.round(inner[0] || 0)}°C, FR ${Math.round(inner[1] || 0)}°C, RL ${Math.round(inner[2] || 0)}°C, RR ${Math.round(inner[3] || 0)}°C)`;
-      }
-    }
-
-    let brakesSummary = '';
-    if (playerTelemetry?.BrakesTemperature) {
-      const brk = playerTelemetry.BrakesTemperature;
-      brakesSummary = `- Brake Temps: FL ${Math.round(brk[WHEEL_INDEX.FRONT_LEFT] || 0)}°C, FR ${Math.round(brk[WHEEL_INDEX.FRONT_RIGHT] || 0)}°C, RL ${Math.round(brk[WHEEL_INDEX.REAR_LEFT] || 0)}°C, RR ${Math.round(brk[WHEEL_INDEX.REAR_RIGHT] || 0)}°C`;
-    }
-
-    let engineSummary = '';
-    if (playerTelemetry?.EngineTemperature) {
-      const engTemp = playerTelemetry.EngineTemperature;
-      const { powerPct, powerLossPct } = calculateEnginePowerPct(engTemp);
-      if (powerLossPct > 0) {
-        engineSummary = `- Engine Core Temp: ${Math.round(engTemp)}°C | Power Output: ${powerPct.toFixed(1)}% (-${powerLossPct.toFixed(1)}% thermal derate)`;
-      } else {
-        engineSummary = `- Engine Core Temp: ${Math.round(engTemp)}°C | Power Output: 100% (Optimal)`;
-      }
-    }
-
-    let ersSummary = '';
-    if (playerStatus) {
-      const storeEnergy = playerStatus.ERSStoreEnergy;
-      if (storeEnergy !== undefined) {
-        const ersPct = Math.round((storeEnergy / MAX_ERS_STORE_ENERGY_J) * 100);
-        ersSummary = `- ERS Battery: ${ersPct}% | Deploy Mode: ${playerStatus.ERSDeployMode ?? 0}`;
-      }
-
-    }
-
-    let fuelSummary = '';
-    if (playerStatus && typeof playerStatus.FuelRemainingLaps === 'number') {
-      fuelSummary = `- Fuel Remaining Delta: ${playerStatus.FuelRemainingLaps.toFixed(1)} laps (${(playerStatus.FuelInTank || 0).toFixed(1)} kg)`;
-    }
-
-    let aeroDamageSummary = '';
-    if (playerDamage) {
-      const flWing = Math.round(playerDamage.FrontLeftWingDamage || 0);
-      const frWing = Math.round(playerDamage.FrontRightWingDamage || 0);
-      const floor = Math.round((playerDamage.FloorDamage || 0) + (playerDamage.DiffuserDamage || 0));
-      if (flWing > 0 || frWing > 0 || floor > 0) {
-        aeroDamageSummary = `- Aero Damage: Front Wing L:${flWing}% R:${frWing}% | Floor/Diffuser: ${floor}%`;
-      }
-    }
-
-    let warningsSummary = '';
-    if (playerLap) {
-      warningsSummary = `- Track Limits / Warnings: ${playerLap.CornerCuttingWarnings ?? playerLap.TotalWarnings ?? 0} warnings | Penalties: ${playerLap.Penalties ?? 0}s`;
-    }
-
-    let operationalPhase = 'ON TRACK (Racing)';
-    if (playerLap?.ResultStatus === RESULT_STATUS.FINISHED) {
-      operationalPhase = 'POST-RACE COOL-DOWN (Chequered flag - Race completed)';
-    } else if (
-      currentSession.SessionType === SESSION_TYPES.RACE &&
-      playerLap?.CurrentLapNum === 1 &&
-      (playerTelemetry?.Speed || 0) <= 10 &&
-      (playerLap?.LapDistance || 0) < 300
-    ) {
-      operationalPhase = 'STARTING GRID (Grid formation - Start lights)';
-    } else if (
-      currentSession.SessionType === SESSION_TYPES.RACE &&
-      playerLap?.CurrentLapNum === 1
-    ) {
-      operationalPhase = 'RACE START / LAP 1 (Opening lap)';
-    } else if (playerLap?.DriverStatus === DRIVER_STATUS.IN_LAP) {
-      operationalPhase = 'IN-LAP / COOL-DOWN (Returning to Pit Lane)';
-    }
-
-    const lines = [
-      'LIVE PIT WALL TELEMETRY:',
-      `- Operational Status: ${operationalPhase}`,
-      `- Track: ${trackName}`,
-      `- Session: ${sessionName}`,
-      `- Session Time Remaining: ${sessionTimeLeftFormatted}`,
-      `- Safety Car Status: ${scStatus}`,
-      `- Track Temp: ${currentSession.TrackTemperature || 0}°C | Air Temp: ${currentSession.AirTemperature || 0}°C`,
-      `- Player Position: P${playerLap?.CarPosition || 1}`,
-      `- Current Lap: ${playerLap?.CurrentLapNum || 1} / ${currentSession.TotalLaps || 'N/A'}`,
-      `- Driver Run Status: ${playerRunStatus}`,
-      `- Current Lap Validity: ${lapValidity}`,
-      `- ${tyreWearSummary} (Tyre age: ${playerStatus?.TyresAgeLaps || 0} laps)`,
-    ];
-
-    if (tyreTempsSummary) lines.push(tyreTempsSummary);
-    if (brakesSummary) lines.push(brakesSummary);
-    if (engineSummary) lines.push(engineSummary);
-    if (ersSummary) lines.push(ersSummary);
-    if (fuelSummary) lines.push(fuelSummary);
-    if (aeroDamageSummary) lines.push(aeroDamageSummary);
-    if (warningsSummary) lines.push(warningsSummary);
-
-    return lines.join('\n');
-  }, [t]);
-
-  const radio = useRadioController({
-    getLiveTelemetrySummary,
-  });
+  const radio = useRadioController();
 
   const radioRef = useRef(radio);
   radioRef.current = radio;
@@ -250,57 +68,6 @@ export const Dashboard: React.FC = () => {
     isRadioEnabled: radio.isRadioEnabled,
     onTriggerAlert: handleProactiveAlert,
   });
-
-  useEffect(() => {
-    setContextMode('live');
-
-    const updateContext = () => {
-      const sessionState = useSessionStatusStore.getState();
-      const currentSession = sessionState.session;
-      if (!sessionState.connected || !currentSession) {
-        setLiveContext({
-          trackName: 'F1 Pit Wall',
-          sessionType: 'Standby',
-          safetyCarStatus: 'Track Clear (Green)',
-          weatherSummary: 'Standby',
-          liveSummary: 'STATUS: IN GARAGE / STANDBY. No live telemetry packets received from track yet. Live weather, tyre data, and telemetry stream are currently unavailable.',
-        });
-        return;
-      }
-
-      const trackInfo = currentSession.TrackId !== undefined ? getTrackInfo(currentSession.TrackId) : null;
-      const trackName = trackInfo?.name || (currentSession.TrackId !== undefined ? (TRACK_NAMES[currentSession.TrackId] || `Track #${currentSession.TrackId}`) : 'F1 Circuit');
-      const sessionName = getSessionTypeName(currentSession.SessionType);
-
-      const weatherDesc =
-        currentSession.WeatherForecastSamples && currentSession.WeatherForecastSamples.length > 0
-          ? `Forecast: ${currentSession.WeatherForecastSamples.length} forecast updates available`
-          : `Weather code: ${currentSession.Weather ?? 0}`;
-
-      const scStatus =
-        currentSession.SafetyCarStatus === SAFETY_CAR_STATUS.FULL
-          ? 'Full Safety Car'
-          : currentSession.SafetyCarStatus === SAFETY_CAR_STATUS.VIRTUAL
-          ? 'Virtual Safety Car'
-          : currentSession.NumRedFlagPeriods && currentSession.NumRedFlagPeriods > 0
-          ? 'Red Flag (Suspended)'
-          : 'Track Clear (Green)';
-
-      const liveSummary = getLiveTelemetrySummary();
-
-      setLiveContext({
-        trackName,
-        sessionType: sessionName,
-        safetyCarStatus: scStatus,
-        weatherSummary: weatherDesc,
-        liveSummary,
-      });
-    };
-
-    updateContext();
-    const interval = setInterval(updateContext, 1000);
-    return () => clearInterval(interval);
-  }, [setLiveContext, setContextMode, getLiveTelemetrySummary]);
 
   if (!connected || !session) {
     return (

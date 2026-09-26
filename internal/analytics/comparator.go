@@ -1026,3 +1026,26 @@ func MergeLapComparison(ctx context.Context, repo storage.Repository, lapAID, la
 		LapB:   metaB,
 	}, nil
 }
+
+// MergeLapComparisonCached is MergeLapComparison through cache, which may be nil. The Lap
+// Comparator charts and the AI comparator chat share the cached merges.
+func MergeLapComparisonCached(ctx context.Context, repo storage.Repository, cache *ComparatorLRUCache, lapAID, lapBID int64, stepMeters, targetTrackLength float64) (*ComparatorResponse, error) {
+	key := comparatorCacheKey(lapAID, lapBID, stepMeters, targetTrackLength)
+	if cache != nil {
+		if cached, found := cache.Get(key); found {
+			return cached, nil
+		}
+	}
+	response, err := MergeLapComparison(ctx, repo, lapAID, lapBID, stepMeters, targetTrackLength)
+	if err != nil {
+		return nil, err
+	}
+	if cache != nil {
+		cache.Put(key, response)
+	}
+	return response, nil
+}
+
+func comparatorCacheKey(lapAID, lapBID int64, stepMeters, targetTrackLength float64) string {
+	return fmt.Sprintf("%d:%d:%.2f:%.2f", lapAID, lapBID, stepMeters, targetTrackLength)
+}

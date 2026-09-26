@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import type { NavigationComparatorPayload } from '../types/session';
-import { buildTelemetryContext } from '../utils/aiTelemetrySummary';
 import { useRaceEngineerActions } from '../context/RaceEngineerContext';
 import { useI18n } from '../context/I18nContext';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
@@ -27,7 +26,7 @@ export interface LapComparatorProps {
 }
 
 export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) => {
-  const { setComparatorContext, setContextMode, openChat } = useRaceEngineerActions();
+  const { setComparatorTarget, setContextMode, openChat } = useRaceEngineerActions();
 
   // Hook 1: Session selection & Synchronization link
   const {
@@ -182,28 +181,19 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
     isLinkedSessions,
   });
 
-  // Telemetry summary context for AI Race Engineer
-  const telemetryContext = useMemo(() => {
-    return buildTelemetryContext(
-      selectedSessionAObj?.track_name || '',
-      selectedSessionAObj?.session_type || '',
-      lapAObj,
-      lapBObj,
-      nameA,
-      nameB,
-      comparisonData,
-      zoomDomain,
-      selectedSessionBObj?.session_type || selectedSessionAObj?.session_type,
-      selectedSessionAObj?.weather,
-      selectedSessionBObj?.weather,
-      detectedTurns
-    );
-  }, [selectedSessionAObj, selectedSessionBObj, lapAObj, lapBObj, nameA, nameB, comparisonData, zoomDomain, detectedTurns]);
-
+  // Point the AI Race Engineer at the compared laps; the server merges and analyzes them itself.
+  const trackName = selectedSessionAObj?.track_name ?? '';
+  const zoomStart = zoomDomain?.[0];
+  const zoomEnd = zoomDomain?.[1];
   useEffect(() => {
-    setComparatorContext(telemetryContext);
+    const lapA = Number(lapAId);
+    const lapB = Number(lapBId);
+    const hasLaps = lapA > 0 && lapB > 0;
+    const zoom: [number, number] | null =
+      zoomStart !== undefined && zoomEnd !== undefined ? [zoomStart, zoomEnd] : null;
+    setComparatorTarget(hasLaps ? { lapAId: lapA, lapBId: lapB, zoom, trackName } : null);
     setContextMode('comparator');
-  }, [telemetryContext, setComparatorContext, setContextMode]);
+  }, [lapAId, lapBId, zoomStart, zoomEnd, trackName, setComparatorTarget, setContextMode]);
 
   // Quick Select Leaderboard data computation
   const quickSelectData = useMemo(() => {

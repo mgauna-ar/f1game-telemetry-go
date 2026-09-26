@@ -408,9 +408,14 @@ func TestStreamChat_OffersToolsOnlyWithFreshTelemetry(t *testing.T) {
 			rec := httptest.NewRecorder()
 			req := AIChatRequest{
 				Provider: "custom", APIKey: "key", BaseURL: url, Model: "gpt-4o-mini",
-				Messages: driverMessages, Context: &TelemetryAnalysisContext{ContextMode: tc.mode},
+				Messages: driverMessages,
 			}
-			if err := StreamChat(context.Background(), req, ServerKeys{}, ChatOptions{Live: tc.live, Tools: &fakeTools{}}, rec, rec); err != nil {
+			opts := ChatOptions{Live: tc.live, Tools: &fakeTools{}}
+			chatCtx, err := BuildChatContext(context.Background(), &ChatContextRequest{ContextMode: tc.mode}, opts)
+			if err != nil {
+				t.Fatalf("unexpected context error: %v", err)
+			}
+			if err := StreamChat(context.Background(), req, chatCtx, ServerKeys{}, opts, rec, rec); err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 			body := up.requests()[0]

@@ -1,9 +1,9 @@
 import { createContext, useContext } from 'react';
-import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
-import type { ChatMessage } from '../types/ai';
+import type { ChatContextMode, ChatMessage } from '../types/ai';
+import type { ComparatorChatTarget, SessionDebriefChatTarget } from '../utils/chatContext';
 import type { AIModelItem } from '../types/generated/ai';
 
-export type { ChatMessage };
+export type { ChatMessage, ComparatorChatTarget, SessionDebriefChatTarget };
 
 export type AIProvider = 'gemini' | 'openai' | 'claude' | 'custom';
 
@@ -59,66 +59,57 @@ export const providerIsReady = (config: AIConfig, keyStatus: AIKeyStatusByProvid
 
 export type { AIModelItem };
 
-export type ContextMode = 'comparator' | 'session_debrief' | 'live' | 'general';
+export type ContextMode = ChatContextMode;
 
-export interface SessionDebriefContextPayload {
-  trackName: string;
-  sessionType: string;
-  weather?: string;
-  driverCount: number;
-  summaryText: string;
-}
-
-export interface LiveContextPayload {
-  trackName: string;
-  sessionType?: string;
-  safetyCarStatus?: string;
-  weatherSummary?: string;
-  liveSummary: string;
-}
-
+/**
+ * Callbacks for the AI race engineer. Every one keeps its identity for the provider's lifetime,
+ * so components that only act on the chat (the app shell, the pages that set its context) never
+ * re-render because of chat state or a streamed reply.
+ */
 export interface RaceEngineerActionsContextValue {
-  isOpen: boolean;
   openChat: (initialPrompt?: string) => void;
   closeChat: () => void;
   toggleChat: () => void;
-  
-  contextMode: ContextMode;
+
+  // What the chat is about. The server builds the prompt data from these identifiers.
   setContextMode: (mode: ContextMode) => void;
-  
-  // Specific contexts
-  comparatorContext: TelemetryContextPayload | null;
-  setComparatorContext: (ctx: TelemetryContextPayload | null) => void;
-  
-  sessionDebriefContext: SessionDebriefContextPayload | null;
-  setSessionDebriefContext: (ctx: SessionDebriefContextPayload | null) => void;
-  
-  liveContext: LiveContextPayload | null;
-  setLiveContext: (ctx: LiveContextPayload | null) => void;
-  
+  setComparatorTarget: (target: ComparatorChatTarget | null) => void;
+  setSessionDebriefTarget: (target: SessionDebriefChatTarget | null) => void;
+
   // Messaging actions
   sendMessage: (customPrompt?: string) => Promise<void>;
   retryLastMessage: (assistantMsgId?: string) => Promise<void>;
   clearMessages: () => void;
   stopGenerating: () => void;
-  
+
   // Configuration
-  config: AIConfig;
   saveConfig: (newConfig: AIConfig) => void;
-  keyStatus: AIKeyStatusByProvider;
   saveApiKey: (provider: AIProvider, apiKey: string) => Promise<void>;
-  availableModels: AIModelItem[];
-  isLoadingModels: boolean;
-  modelsError: string | null;
   fetchAvailableModels: (overrideConfig?: AIConfig) => Promise<void>;
 }
 
+/** Chat window, context and settings state; changes on user actions, never on a timer. */
+export interface RaceEngineerStateContextValue {
+  isOpen: boolean;
+  contextMode: ContextMode;
+  comparatorTarget: ComparatorChatTarget | null;
+  sessionDebriefTarget: SessionDebriefChatTarget | null;
+  config: AIConfig;
+  keyStatus: AIKeyStatusByProvider;
+  availableModels: AIModelItem[];
+  isLoadingModels: boolean;
+  modelsError: string | null;
+}
+
+/** The conversation; changes on every streamed chunk. */
 export interface RaceEngineerStreamContextValue {
   messages: ChatMessage[];
   isGenerating: boolean;
 }
 
-export type RaceEngineerContextValue = RaceEngineerActionsContextValue & RaceEngineerStreamContextValue;
+export type RaceEngineerContextValue = RaceEngineerActionsContextValue &
+  RaceEngineerStateContextValue &
+  RaceEngineerStreamContextValue;
 
 /** Where older versions kept the AI config, keys included, in each browser. Read once to migrate it. */
 export const STORAGE_KEY_AI_CONFIG = 'f1_ai_engineer_config';
@@ -145,34 +136,35 @@ export const NO_AI_KEYS: AIKeyStatusByProvider = {
 };
 
 export const RaceEngineerActionsContext = createContext<RaceEngineerActionsContextValue | null>(null);
+export const RaceEngineerStateContext = createContext<RaceEngineerStateContextValue | null>(null);
 export const RaceEngineerStreamContext = createContext<RaceEngineerStreamContextValue | null>(null);
-export const RaceEngineerContext = RaceEngineerActionsContext;
 
 const defaultFallbackActionsContext: RaceEngineerActionsContextValue = {
-  isOpen: false,
   openChat: () => {},
   closeChat: () => {},
   toggleChat: () => {},
-  contextMode: 'general',
   setContextMode: () => {},
-  comparatorContext: null,
-  setComparatorContext: () => {},
-  sessionDebriefContext: null,
-  setSessionDebriefContext: () => {},
-  liveContext: null,
-  setLiveContext: () => {},
+  setComparatorTarget: () => {},
+  setSessionDebriefTarget: () => {},
   sendMessage: async () => {},
   retryLastMessage: async () => {},
   clearMessages: () => {},
   stopGenerating: () => {},
-  config: DEFAULT_CONFIG,
   saveConfig: () => {},
-  keyStatus: NO_AI_KEYS,
   saveApiKey: async () => {},
+  fetchAvailableModels: async () => {},
+};
+
+const defaultFallbackStateContext: RaceEngineerStateContextValue = {
+  isOpen: false,
+  contextMode: 'general',
+  comparatorTarget: null,
+  sessionDebriefTarget: null,
+  config: DEFAULT_CONFIG,
+  keyStatus: NO_AI_KEYS,
   availableModels: [],
   isLoadingModels: false,
   modelsError: null,
-  fetchAvailableModels: async () => {},
 };
 
 const defaultFallbackStreamContext: RaceEngineerStreamContextValue = {
@@ -180,35 +172,32 @@ const defaultFallbackStreamContext: RaceEngineerStreamContextValue = {
   isGenerating: false,
 };
 
-export const useRaceEngineerActions = (): RaceEngineerActionsContextValue => {
-  const context = useContext(RaceEngineerActionsContext);
-  if (!context) {
-    return defaultFallbackActionsContext;
-  }
-  return context;
-};
+/** Stable chat callbacks. Using only this hook never re-renders a component on chat changes. */
+export const useRaceEngineerActions = (): RaceEngineerActionsContextValue =>
+  useContext(RaceEngineerActionsContext) ?? defaultFallbackActionsContext;
 
-export const useRaceEngineerStream = (): RaceEngineerStreamContextValue => {
-  const context = useContext(RaceEngineerStreamContext);
-  if (!context) {
-    return defaultFallbackStreamContext;
-  }
-  return context;
-};
+/** Chat window, context and settings state. */
+export const useRaceEngineerState = (): RaceEngineerStateContextValue =>
+  useContext(RaceEngineerStateContext) ?? defaultFallbackStateContext;
+
+/** The conversation; re-renders on every streamed chunk. */
+export const useRaceEngineerStream = (): RaceEngineerStreamContextValue =>
+  useContext(RaceEngineerStreamContext) ?? defaultFallbackStreamContext;
 
 /**
- * @warning Convenience hook combining action and stream contexts.
+ * @warning Convenience hook combining the actions, state and stream contexts.
  * Because `useRaceEngineerStream` updates on every streaming token received from the LLM,
  * consuming this hook causes the host component to re-render on every token chunk.
- * For optimal render performance, prefer `useRaceEngineerActions()` for action callbacks
- * and `useRaceEngineerStream()` only where live streaming state is actively rendered.
+ * Prefer `useRaceEngineerActions()` for callbacks, and the state or stream hooks only where
+ * that state is rendered.
  */
 export const useRaceEngineer = (): RaceEngineerContextValue => {
   const actions = useRaceEngineerActions();
+  const state = useRaceEngineerState();
   const stream = useRaceEngineerStream();
   return {
     ...actions,
+    ...state,
     ...stream,
   };
 };
-

@@ -93,6 +93,15 @@ func TestResolveProvider(t *testing.T) {
 	}
 }
 
+// livePrompt builds a live-mode prompt around a server briefing.
+func livePrompt(briefing LiveBriefing, persona, language string, edit ...func(*TelemetryAnalysisContext)) string {
+	tc := &TelemetryAnalysisContext{ContextMode: ContextModeLive, Live: &briefing}
+	for _, e := range edit {
+		e(tc)
+	}
+	return BuildSystemPrompt(tc, persona, language)
+}
+
 func TestBuildSystemPrompt(t *testing.T) {
 	t.Run("nil context", func(t *testing.T) {
 		prompt := BuildSystemPrompt(nil, "", "")
@@ -106,8 +115,8 @@ func TestBuildSystemPrompt(t *testing.T) {
 
 	t.Run("session debrief mode", func(t *testing.T) {
 		ctx := &TelemetryAnalysisContext{
-			ContextMode:    "session_debrief",
-			SessionSummary: "SESSION OVERVIEW:\n- Circuit: Silverstone\n- Session Type: Race\n- P1: Verstappen (Best: 1:28.120)",
+			ContextMode: ContextModeSessionDebrief,
+			Debrief:     &SessionDebrief{Summary: "SESSION OVERVIEW:\n- Circuit: Silverstone\n- Session Type: Race\n- P1: Verstappen (Best: 1:28.120)"},
 		}
 		prompt := BuildSystemPrompt(ctx, "", "")
 		if !strings.Contains(prompt, "session debrief") {
@@ -118,12 +127,22 @@ func TestBuildSystemPrompt(t *testing.T) {
 		}
 	})
 
-	t.Run("live session mode - colapinto persona in Spanish", func(t *testing.T) {
-		ctx := &TelemetryAnalysisContext{
-			ContextMode: "live",
-			LiveSummary: "LIVE STATUS:\n- Track: Monza\n- Safety Car: Active\n- Rain: 85% in 5 min",
+	t.Run("session debrief without data", func(t *testing.T) {
+		prompt := BuildSystemPrompt(&TelemetryAnalysisContext{ContextMode: ContextModeSessionDebrief}, "", "")
+		if !strings.Contains(prompt, "No classification data") {
+			t.Errorf("expected the debrief prompt to say there is no data, got:\n%s", prompt)
 		}
-		prompt := BuildSystemPrompt(ctx, "colapinto", "es")
+	})
+
+	t.Run("general mode", func(t *testing.T) {
+		prompt := BuildSystemPrompt(&TelemetryAnalysisContext{ContextMode: ContextModeGeneral}, "", "en")
+		if !strings.Contains(prompt, "personal F1 Race Engineer") || strings.Contains(prompt, "COMPARATIVE TELEMETRY DATA") {
+			t.Errorf("expected the general assistant prompt, got:\n%s", prompt)
+		}
+	})
+
+	t.Run("live session mode - colapinto persona in Spanish", func(t *testing.T) {
+		prompt := livePrompt(LiveBriefing{Summary: "LIVE STATUS:\n- Track: Monza\n- Safety Car: Active"}, "colapinto", "es")
 		if !strings.Contains(prompt, "argentino") || !strings.Contains(prompt, "gomas") {
 			t.Errorf("expected prompt to contain Argentine motorsport persona")
 		}
@@ -133,150 +152,99 @@ func TestBuildSystemPrompt(t *testing.T) {
 	})
 
 	t.Run("live session mode - colapinto persona in English", func(t *testing.T) {
-		ctx := &TelemetryAnalysisContext{
-			ContextMode: "live",
-			LiveSummary: "LIVE STATUS:\n- Track: Monza\n- Safety Car: Active",
-		}
-		prompt := BuildSystemPrompt(ctx, "colapinto", "en")
+		prompt := livePrompt(LiveBriefing{Summary: "LIVE STATUS:\n- Track: Monza"}, "colapinto", "en")
 		if !strings.Contains(prompt, "Franco Colapinto") || !strings.Contains(prompt, "Tyres in window") { //nolint:misspell // "Tyres" is correct British English (used consistently throughout F1 codebase)
 			t.Errorf("expected prompt to contain Colapinto English persona")
 		}
 	})
 
 	t.Run("live session mode - bono persona in English", func(t *testing.T) {
-		ctx := &TelemetryAnalysisContext{
-			ContextMode: "live",
-			LiveSummary: "LIVE STATUS:\n- Track: Silverstone\n- Gap: +1.2s",
-		}
-		prompt := BuildSystemPrompt(ctx, "bono", "en")
+		prompt := livePrompt(LiveBriefing{Summary: "LIVE STATUS:\n- Track: Silverstone"}, "bono", "en")
 		if !strings.Contains(prompt, "Peter 'Bono' Bonnington") || !strings.Contains(prompt, "Hammer time") {
 			t.Errorf("expected prompt to contain Bono English persona")
 		}
 	})
 
 	t.Run("live session mode - bono persona in Spanish", func(t *testing.T) {
-		ctx := &TelemetryAnalysisContext{
-			ContextMode: "live",
-			LiveSummary: "LIVE STATUS:\n- Track: Silverstone\n- Gap: +1.2s",
-		}
-		prompt := BuildSystemPrompt(ctx, "bono", "es")
+		prompt := livePrompt(LiveBriefing{Summary: "LIVE STATUS:\n- Track: Silverstone"}, "bono", "es")
 		if !strings.Contains(prompt, "Peter 'Bono' Bonnington") || !strings.Contains(prompt, "Modo carrera") {
 			t.Errorf("expected prompt to contain Bono Spanish persona")
 		}
 	})
 
 	t.Run("live session mode - custom persona", func(t *testing.T) {
-		ctx := &TelemetryAnalysisContext{
-			ContextMode:         "live",
-			LiveSummary:         "LIVE STATUS:\n- Track: Spa",
-			CustomPersonaPrompt: "You are an aggressive Red Bull strategist.",
-		}
-		prompt := BuildSystemPrompt(ctx, "custom", "en")
+		prompt := livePrompt(LiveBriefing{}, "custom", "en", func(tc *TelemetryAnalysisContext) {
+			tc.CustomPersonaPrompt = "You are an aggressive Red Bull strategist."
+		})
 		if !strings.Contains(prompt, "aggressive Red Bull strategist") {
 			t.Errorf("expected prompt to contain custom persona prompt")
 		}
 	})
 
 	t.Run("live session mode - default persona falls back to bono", func(t *testing.T) {
-		ctx := &TelemetryAnalysisContext{
-			ContextMode: "live",
-			LiveSummary: "LIVE STATUS:\n- Track: Silverstone\n- Gap: +1.2s",
-		}
-		prompt := BuildSystemPrompt(ctx, "", "")
+		prompt := livePrompt(LiveBriefing{}, "", "")
 		if !strings.Contains(prompt, "Peter 'Bono' Bonnington") || !strings.Contains(prompt, "Hammer time") {
 			t.Errorf("expected default prompt to be Bono English persona")
 		}
 	})
 
-	t.Run("live session mode - with driver call-sign", func(t *testing.T) {
-		ctxEn := &TelemetryAnalysisContext{
-			ContextMode:    "live",
-			LiveSummary:    "LIVE STATUS:\n- Track: Silverstone",
-			DriverCallsign: "Max",
+	t.Run("live session mode - standby without telemetry", func(t *testing.T) {
+		prompt := BuildSystemPrompt(&TelemetryAnalysisContext{ContextMode: ContextModeLive}, "bono", "en")
+		if !strings.Contains(prompt, "Standing by for live on-track telemetry") {
+			t.Errorf("expected the standby text without a briefing, got:\n%s", prompt)
 		}
-		promptEn := BuildSystemPrompt(ctxEn, "bono", "en")
+	})
+
+	t.Run("live session mode - with driver call-sign", func(t *testing.T) {
+		promptEn := livePrompt(LiveBriefing{}, "bono", "en", func(tc *TelemetryAnalysisContext) { tc.DriverCallsign = "Max" })
 		if !strings.Contains(promptEn, `DRIVER CALL-SIGN: The driver's name or call-sign is "Max"`) {
 			t.Errorf("expected prompt to contain English driver call-sign directive")
 		}
 
-		ctxEs := &TelemetryAnalysisContext{
-			ContextMode:    "live",
-			LiveSummary:    "LIVE STATUS:\n- Track: Monza",
-			DriverCallsign: "Franco",
-		}
-		promptEs := BuildSystemPrompt(ctxEs, "colapinto", "es")
+		promptEs := livePrompt(LiveBriefing{}, "colapinto", "es", func(tc *TelemetryAnalysisContext) { tc.DriverCallsign = "Franco" })
 		if !strings.Contains(promptEs, `NOMBRE / CALL-SIGN DEL PILOTO: El nombre o apodo del piloto es "Franco"`) {
 			t.Errorf("expected prompt to contain Spanish driver call-sign directive")
 		}
 	})
 
 	t.Run("live session mode - qualifying session protocol", func(t *testing.T) {
-		ctxQualy := &TelemetryAnalysisContext{
-			ContextMode: "live",
-			SessionType: "Qualifying 3 (Q3)",
-			TrackName:   "Silverstone",
-			LiveSummary: "LIVE STATUS:\n- Track: Silverstone\n- Session: Qualifying 3 (Q3)",
-		}
-		promptEn := BuildSystemPrompt(ctxQualy, "bono", "en")
+		qualy := LiveBriefing{SessionType: "Qualifying 3 (Q3)", TrackName: "Silverstone", Summary: "LIVE STATUS"}
+		promptEn := livePrompt(qualy, "bono", "en")
 		if !strings.Contains(promptEn, "QUALIFYING PROTOCOL") || !strings.Contains(promptEn, "single-lap flying pace") {
 			t.Errorf("expected prompt to contain English qualifying protocol, got: %s", promptEn)
 		}
 
-		promptEs := BuildSystemPrompt(ctxQualy, "colapinto", "es")
+		promptEs := livePrompt(qualy, "colapinto", "es")
 		if !strings.Contains(promptEs, "PROTOCOLO DE CLASIFICACIÓN / QUALY") || !strings.Contains(promptEs, "vuelta rápida lanzada") {
 			t.Errorf("expected prompt to contain Spanish qualifying protocol, got: %s", promptEs)
 		}
 	})
 
 	t.Run("live session mode - practice session protocol", func(t *testing.T) {
-		ctxPractice := &TelemetryAnalysisContext{
-			ContextMode: "live",
-			SessionType: "Practice 2 (FP2)",
-			TrackName:   "Monza",
-			LiveSummary: "LIVE STATUS:\n- Track: Monza\n- Session: Practice 2 (FP2)",
-		}
-		promptEn := BuildSystemPrompt(ctxPractice, "bono", "en")
+		practice := LiveBriefing{SessionType: "Practice 2 (FP2)", TrackName: "Monza", Summary: "LIVE STATUS"}
+		promptEn := livePrompt(practice, "bono", "en")
 		if !strings.Contains(promptEn, "FREE PRACTICE PROTOCOL") || !strings.Contains(promptEn, "setup feedback") {
 			t.Errorf("expected prompt to contain English practice protocol, got: %s", promptEn)
 		}
 
-		promptEs := BuildSystemPrompt(ctxPractice, "colapinto", "es")
+		promptEs := livePrompt(practice, "colapinto", "es")
 		if !strings.Contains(promptEs, "PROTOCOLO DE PRÁCTICAS LIBRES") || !strings.Contains(promptEs, "puesta a punto") {
 			t.Errorf("expected prompt to contain Spanish practice protocol, got: %s", promptEs)
 		}
 	})
 
-	t.Run("live session mode - dynamic urgency and incident status", func(t *testing.T) {
-		ctxCrit := &TelemetryAnalysisContext{
-			ContextMode:    "live",
-			UrgencyLevel:   "critical",
-			IncidentStatus: "safety_car",
-		}
-		promptEn := BuildSystemPrompt(ctxCrit, "bono", "en")
-		if !strings.Contains(promptEn, "CRITICAL EMERGENCY") {
-			t.Errorf("expected prompt to contain critical urgency in English, got: %s", promptEn)
-		}
-		if !strings.Contains(promptEn, "FULL SAFETY CAR ACTIVE") {
+	t.Run("live session mode - incident status", func(t *testing.T) {
+		sc := LiveBriefing{IncidentStatus: "safety_car"}
+		if promptEn := livePrompt(sc, "bono", "en"); !strings.Contains(promptEn, "FULL SAFETY CAR ACTIVE") {
 			t.Errorf("expected prompt to contain full safety car incident directive in English, got: %s", promptEn)
 		}
-
-		promptEs := BuildSystemPrompt(ctxCrit, "colapinto", "es")
-		if !strings.Contains(promptEs, "EMERGENCIA CRÍTICA") {
-			t.Errorf("expected prompt to contain critical urgency in Spanish, got: %s", promptEs)
-		}
-		if !strings.Contains(promptEs, "AUTO DE SEGURIDAD EN PISTA") {
+		if promptEs := livePrompt(sc, "colapinto", "es"); !strings.Contains(promptEs, "AUTO DE SEGURIDAD EN PISTA") {
 			t.Errorf("expected prompt to contain full safety car incident directive in Spanish, got: %s", promptEs)
 		}
 	})
 
 	t.Run("live session mode - 2026 mandate and driving phase protocol", func(t *testing.T) {
-		ctx2026 := &TelemetryAnalysisContext{
-			ContextMode:  "live",
-			PacketFormat: 2026,
-			DrivingPhase: "GRID",
-			LiveSummary:  "STATUS: STARTING GRID\n- Track: Silverstone\n- Current Lap: 1",
-		}
-		promptEn := BuildSystemPrompt(ctx2026, "bono", "en")
+		promptEn := livePrompt(LiveBriefing{PacketFormat: 2026, DrivingPhase: "GRID"}, "bono", "en")
 		if !strings.Contains(promptEn, "F1 2026 REGULATION MANDATE") || !strings.Contains(promptEn, "Traditional DRS DOES NOT EXIST") {
 			t.Errorf("expected English prompt to mandate 2026 DRS abolition, got: %s", promptEn)
 		}
@@ -284,13 +252,7 @@ func TestBuildSystemPrompt(t *testing.T) {
 			t.Errorf("expected English prompt to include starting grid protocol, got: %s", promptEn)
 		}
 
-		ctxPostRace := &TelemetryAnalysisContext{
-			ContextMode:  "live",
-			PacketFormat: 2026,
-			DrivingPhase: "POST_RACE",
-			LiveSummary:  "STATUS: POST-RACE COOL-DOWN\n- Player Position: P3",
-		}
-		promptEs := BuildSystemPrompt(ctxPostRace, "colapinto", "es")
+		promptEs := livePrompt(LiveBriefing{PacketFormat: 2026, DrivingPhase: "POST_RACE"}, "colapinto", "es")
 		if !strings.Contains(promptEs, "MANDATO REGLAMENTARIO F1 2026") || !strings.Contains(promptEs, "El DRS tradicional NO EXISTE") {
 			t.Errorf("expected Spanish prompt to mandate 2026 DRS abolition, got: %s", promptEs)
 		}
@@ -299,70 +261,76 @@ func TestBuildSystemPrompt(t *testing.T) {
 		}
 	})
 
+	t.Run("live session mode - no text sniffing", func(t *testing.T) {
+		// The phase and the 2026 rules come from the engine, never from words in the summary.
+		prompt := livePrompt(LiveBriefing{PacketFormat: 2025, Summary: "STATUS: STARTING GRID 2026"}, "bono", "en")
+		if strings.Contains(prompt, "F1 2026 REGULATION MANDATE") || strings.Contains(prompt, "STARTING GRID ACTIVE") {
+			t.Errorf("expected no 2026 mandate or grid protocol from summary text, got: %s", prompt)
+		}
+	})
+
 	t.Run("with telemetry context and zoom", func(t *testing.T) {
-		ctx := &TelemetryAnalysisContext{
-			TrackName:         "Silverstone",
-			SessionType:       "Qualifying",
-			LapAName:          "Max Verstappen - Lap 5",
-			LapBName:          "Lewis Hamilton - Lap 6",
-			LapATimeFormatted: "1:27.097",
-			LapBTimeFormatted: "1:27.340",
-			TimeDeltaSeconds:  -0.243,
-			FasterLap:         "Lap A",
-			LapACompound:      "SOFT",
-			LapBCompound:      "SOFT",
-			LapAS1Formatted:   "27.810",
-			LapBS1Formatted:   "27.950",
-			LapAS2Formatted:   "34.110",
-			LapBS2Formatted:   "34.020",
-			LapAS3Formatted:   "25.177",
-			LapBS3Formatted:   "25.370",
-			TopSpeedA:         332.5,
-			TopSpeedB:         330.1,
-			ERSAUsedPercent:   42.5,
-			ERSBUsedPercent:   50.2,
-			BrakingSummary:    "Lap A brakes 8m later into Copse.",
-			ApexSpeedSummary:  "Lap B carries 4 km/h more speed in Stowe.",
-			ZoomedRange: &ZoomedRangeInfo{
+		ctx := &TelemetryAnalysisContext{ContextMode: ContextModeComparator, Comparison: &LapComparison{
+			TrackName:        "Silverstone",
+			SessionTypeA:     "Qualifying",
+			SessionTypeB:     "Qualifying",
+			LapAName:         "Max Verstappen - Lap 5",
+			LapBName:         "Lewis Hamilton - Lap 6",
+			LapATime:         "1:27.097",
+			LapBTime:         "1:27.340",
+			TimeDeltaSeconds: -0.243,
+			FasterLap:        "Lap A",
+			CompoundA:        "SOFT",
+			CompoundB:        "SOFT",
+			SectorsA:         [3]string{"27.810s", "34.110s", "25.177s"},
+			SectorsB:         [3]string{"27.950s", "34.020s", "25.370s"},
+			TopSpeedA:        332.5,
+			TopSpeedB:        330.1,
+			ERSUsedPctA:      42.5,
+			ERSUsedPctB:      50.2,
+			BrakingSummary:   "Lap A brakes 8m later into Copse.",
+			ApexSpeedSummary: "Lap B carries 4 km/h more speed in Stowe.",
+			Zoom: &ZoomedRangeInfo{
 				StartDistanceMeters: 1200,
 				EndDistanceMeters:   1600,
 				Description:         "Copse & Maggotts/Becketts",
 				DeltaInSegment:      -0.082,
 				SpeedDiffAtApex:     3.4,
 				BrakingDiffMeters:   8.0,
+				HasBrakingDiff:      true,
 			},
-		}
+		}}
 
 		prompt := BuildSystemPrompt(ctx, "", "")
-		if !strings.Contains(prompt, "Silverstone") {
-			t.Errorf("expected track name Silverstone in prompt")
-		}
-		if !strings.Contains(prompt, "1:27.097") {
-			t.Errorf("expected lap A time in prompt")
-		}
-		if !strings.Contains(prompt, "ZOOMED SECTOR FOCUSED BY DRIVER") {
-			t.Errorf("expected zoomed range in prompt")
-		}
-		if !strings.Contains(prompt, "Copse & Maggotts/Becketts") {
-			t.Errorf("expected zoomed range description in prompt")
+		for _, want := range []string{
+			"Track: Silverstone | Session: Qualifying",
+			"1:27.097",
+			"Sector 3: Your time (25.177s) vs Benchmark (25.370s)",
+			"ZOOMED SECTOR FOCUSED BY DRIVER",
+			"Copse & Maggotts/Becketts",
+			"Braking point difference: 8.0 meters",
+		} {
+			if !strings.Contains(prompt, want) {
+				t.Errorf("expected %q in prompt:\n%s", want, prompt)
+			}
 		}
 	})
 
 	t.Run("with cross-session context", func(t *testing.T) {
-		ctx := &TelemetryAnalysisContext{
-			TrackName:         "Spa-Francorchamps",
-			SessionType:       "Practice 1",
-			SessionBType:      "Qualifying",
-			WeatherA:          "Dry",
-			WeatherB:          "Light Rain",
-			CrossSession:      true,
-			LapAName:          "Max Verstappen - Lap 5",
-			LapBName:          "Lando Norris - Lap 8",
-			LapATimeFormatted: "1:44.500",
-			LapBTimeFormatted: "1:45.200",
-			TimeDeltaSeconds:  -0.700,
-			FasterLap:         "Lap A",
-		}
+		ctx := &TelemetryAnalysisContext{ContextMode: ContextModeComparator, Comparison: &LapComparison{
+			TrackName:        "Spa-Francorchamps",
+			SessionTypeA:     "Practice 1",
+			SessionTypeB:     "Qualifying",
+			WeatherA:         "Dry",
+			WeatherB:         "Light Rain",
+			CrossSession:     true,
+			LapAName:         "Max Verstappen - Lap 5",
+			LapBName:         "Lando Norris - Lap 8",
+			LapATime:         "1:44.500",
+			LapBTime:         "1:45.200",
+			TimeDeltaSeconds: -0.700,
+			FasterLap:        "Lap A",
+		}}
 
 		prompt := BuildSystemPrompt(ctx, "", "")
 		if !strings.Contains(prompt, "Cross-Session Comparison") {
@@ -541,26 +509,52 @@ type fakeLiveRace struct {
 
 func (f fakeLiveRace) LiveBriefing() (LiveBriefing, bool) { return f.briefing, f.ok }
 
-func TestApplyLiveBriefing(t *testing.T) {
-	server := fakeLiveRace{ok: true, briefing: LiveBriefing{
+type fakeRecorded struct {
+	debrief    SessionDebrief
+	debriefErr error
+	comparison *LapComparison
+	calls      []string
+	zoom       *ChatZoomRange
+}
+
+func (f *fakeRecorded) SessionDebrief(_ context.Context, id int64) (SessionDebrief, error) {
+	f.calls = append(f.calls, "debrief")
+	return f.debrief, f.debriefErr
+}
+
+func (f *fakeRecorded) LapComparison(_ context.Context, a, b int64, zoom *ChatZoomRange) (*LapComparison, error) {
+	f.calls = append(f.calls, "comparison")
+	f.zoom = zoom
+	return f.comparison, nil
+}
+
+func TestBuildChatContext(t *testing.T) {
+	ctx := context.Background()
+	briefing := LiveBriefing{
 		Summary:        "LIVE PIT WALL DATA:\n- Car ahead: P2 Charles Leclerc, 1.100s ahead of you",
 		TrackName:      "Silverstone",
-		SessionType:    "Race",
 		PacketFormat:   2026,
-		DrivingPhase:   "RACING",
 		IncidentStatus: "vsc",
-	}}
-	browserContext := func(mode string) *TelemetryAnalysisContext {
-		return &TelemetryAnalysisContext{ContextMode: mode, LiveSummary: "browser summary", TrackName: "Monza", PacketFormat: 2025}
 	}
+	fresh := fakeLiveRace{ok: true, briefing: briefing}
+	voice := ChatOptions{CustomPersonaPrompt: "Be calm.", DriverCallsign: "Max"}
+
+	t.Run("no context is a general chat", func(t *testing.T) {
+		tc, err := BuildChatContext(ctx, nil, ChatOptions{})
+		if err != nil || tc.ContextMode != ContextModeGeneral || tc.Live != nil || tc.Debrief != nil || tc.Comparison != nil {
+			t.Fatalf("expected an empty general context, got %+v, %v", tc, err)
+		}
+	})
 
 	t.Run("live chat uses the server's race picture", func(t *testing.T) {
-		tc := browserContext("live")
-		if !applyLiveBriefing(tc, server) {
-			t.Fatalf("expected the live briefing to apply")
+		opts := voice
+		opts.Live = fresh
+		tc, err := BuildChatContext(ctx, &ChatContextRequest{ContextMode: ContextModeLive}, opts)
+		if err != nil || tc.Live == nil || tc.Live.Summary != briefing.Summary {
+			t.Fatalf("expected the server briefing, got %+v, %v", tc, err)
 		}
-		if tc.LiveSummary != server.briefing.Summary || tc.TrackName != "Silverstone" || tc.PacketFormat != 2026 || tc.IncidentStatus != "vsc" {
-			t.Fatalf("expected the server briefing to replace the browser context, got %+v", tc)
+		if tc.CustomPersonaPrompt != "Be calm." || tc.DriverCallsign != "Max" {
+			t.Fatalf("expected the saved voice settings on the context, got %+v", tc)
 		}
 		prompt := BuildSystemPrompt(tc, "bono", "en")
 		if !strings.Contains(prompt, "Charles Leclerc, 1.100s ahead of you") || !strings.Contains(prompt, "USING THE PIT WALL DATA") {
@@ -568,23 +562,54 @@ func TestApplyLiveBriefing(t *testing.T) {
 		}
 	})
 
-	t.Run("keeps the browser context when telemetry is stale", func(t *testing.T) {
-		tc := browserContext("live")
-		if applyLiveBriefing(tc, fakeLiveRace{ok: false}) || tc.LiveSummary != "browser summary" {
-			t.Fatalf("expected the browser context to be kept, got %+v", tc)
+	t.Run("live chat without fresh telemetry stands by", func(t *testing.T) {
+		for _, live := range []LiveRaceSource{fakeLiveRace{ok: false}, nil} {
+			tc, err := BuildChatContext(ctx, &ChatContextRequest{ContextMode: ContextModeLive}, ChatOptions{Live: live})
+			if err != nil || tc.Live != nil {
+				t.Fatalf("expected no briefing, got %+v, %v", tc, err)
+			}
 		}
 	})
 
-	t.Run("leaves debriefs alone", func(t *testing.T) {
-		tc := browserContext("session_debrief")
-		if applyLiveBriefing(tc, server) || tc.LiveSummary != "browser summary" {
-			t.Fatalf("expected a debrief context to be left alone, got %+v", tc)
+	t.Run("debrief loads the recorded session", func(t *testing.T) {
+		rec := &fakeRecorded{debrief: SessionDebrief{Summary: "P1: Verstappen"}}
+		tc, err := BuildChatContext(ctx, &ChatContextRequest{ContextMode: ContextModeSessionDebrief, SessionID: 7}, ChatOptions{Recorded: rec, Live: fresh})
+		if err != nil || tc.Debrief == nil || tc.Debrief.Summary != "P1: Verstappen" || tc.Live != nil {
+			t.Fatalf("expected the session debrief only, got %+v, %v", tc, err)
 		}
 	})
 
-	t.Run("works without a live source", func(t *testing.T) {
-		if applyLiveBriefing(browserContext("live"), nil) || applyLiveBriefing(nil, server) {
-			t.Fatalf("expected no briefing without a source or context")
+	t.Run("debrief errors are returned", func(t *testing.T) {
+		notFound := errors.New("session 7 not found")
+		rec := &fakeRecorded{debriefErr: notFound}
+		if _, err := BuildChatContext(ctx, &ChatContextRequest{ContextMode: ContextModeSessionDebrief, SessionID: 7}, ChatOptions{Recorded: rec}); !errors.Is(err, notFound) {
+			t.Fatalf("expected the source's error, got %v", err)
+		}
+	})
+
+	t.Run("comparator needs both laps", func(t *testing.T) {
+		rec := &fakeRecorded{comparison: &LapComparison{TrackName: "Monza"}}
+		tc, err := BuildChatContext(ctx, &ChatContextRequest{ContextMode: ContextModeComparator, LapAID: 1}, ChatOptions{Recorded: rec})
+		if err != nil || tc.Comparison != nil || len(rec.calls) != 0 {
+			t.Fatalf("expected no comparison with one lap, got %+v, %v, calls %v", tc, err, rec.calls)
+		}
+
+		zoom := &ChatZoomRange{StartMeters: 100, EndMeters: 400}
+		tc, err = BuildChatContext(ctx, &ChatContextRequest{ContextMode: ContextModeComparator, LapAID: 1, LapBID: 2, Zoom: zoom}, ChatOptions{Recorded: rec})
+		if err != nil || tc.Comparison == nil || tc.Comparison.TrackName != "Monza" || rec.zoom != zoom {
+			t.Fatalf("expected the lap comparison with the zoom, got %+v, %v", tc, err)
+		}
+	})
+
+	t.Run("invalid requests", func(t *testing.T) {
+		for name, req := range map[string]*ChatContextRequest{
+			"unknown mode":        {ContextMode: "telepathy"},
+			"debrief without id":  {ContextMode: ContextModeSessionDebrief},
+			"zoom ends too early": {ContextMode: ContextModeComparator, LapAID: 1, LapBID: 2, Zoom: &ChatZoomRange{StartMeters: 300, EndMeters: 300}},
+		} {
+			if _, err := BuildChatContext(ctx, req, ChatOptions{Recorded: &fakeRecorded{}}); !errors.Is(err, ErrInvalidChatContext) {
+				t.Errorf("%s: expected ErrInvalidChatContext, got %v", name, err)
+			}
 		}
 	})
 }

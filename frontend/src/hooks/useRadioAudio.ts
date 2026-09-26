@@ -1,16 +1,11 @@
 import { useState, useRef, useCallback } from 'react';
-import {
-  RADIO_PERSONAS,
-  RADIO_LANGUAGES,
-  RADIO_CONVERSATION_LIMITS,
-  getSessionTypeName,
-  getTrackInfo,
-} from '../constants/f1';
+import { RADIO_CONVERSATION_LIMITS } from '../constants/f1';
 import { playRadioBeep, stopRadioSpeech } from '../utils/radioAudio';
 import { useI18n } from '../context/I18nContext';
 import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
-import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
+import type { AIChatRequest } from '../types/ai';
+import { resolveRadioLanguage } from '../utils/chatContext';
 import { api } from '../utils/apiClient';
 import { chatStreamErrorFromResponse, readChatStream } from '../utils/sseUtils';
 import { createSentenceChunker } from '../utils/sentenceChunker';
@@ -30,8 +25,6 @@ interface RadioConversation {
 }
 
 export interface UseRadioAudioOptions {
-  telemetryContext?: TelemetryContextPayload | null;
-  getLiveTelemetrySummary?: () => string;
   onTranscriptReceived?: (transcript: string) => void;
   onResponseReceived?: (response: string) => void;
 }
@@ -55,7 +48,7 @@ export interface UseRadioAudioReturn {
 }
 
 export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudioReturn {
-  const { getLiveTelemetrySummary, onTranscriptReceived, onResponseReceived } = options;
+  const { onTranscriptReceived, onResponseReceived } = options;
   const { locale: uiLocale } = useI18n();
 
   const [radioState, setRadioState] = useState<RadioState>('idle');
@@ -65,15 +58,10 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
   const isRadioEnabled = useRadioSettingsStore((s) => s.isRadioEnabled);
   const radioLanguage = useRadioSettingsStore((s) => s.radioLanguage);
   const persona = useRadioSettingsStore((s) => s.persona);
-  const customPrompt = useRadioSettingsStore((s) => s.customPrompt);
-  const driverCallsign = useRadioSettingsStore((s) => s.driverCallsign);
   const beepsEnabled = useRadioSettingsStore((s) => s.beepsEnabled);
 
   // Compute effective radio language
-  const effectiveLanguage: 'es' | 'en' =
-    radioLanguage === RADIO_LANGUAGES.AUTO
-      ? (uiLocale === 'es' ? 'es' : 'en')
-      : (radioLanguage === RADIO_LANGUAGES.ES ? 'es' : 'en');
+  const effectiveLanguage = resolveRadioLanguage(radioLanguage, uiLocale);
 
   // 1. Speech Recognition Sub-hook
   const {
@@ -131,20 +119,11 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
     [ttsSpeakMessage]
   );
 
-  const getLiveTelemetrySummaryRef = useRef(getLiveTelemetrySummary);
-  getLiveTelemetrySummaryRef.current = getLiveTelemetrySummary;
-
   const onResponseReceivedRef = useRef(onResponseReceived);
   onResponseReceivedRef.current = onResponseReceived;
 
   const personaRef = useRef(persona);
   personaRef.current = persona;
-
-  const customPromptRef = useRef(customPrompt);
-  customPromptRef.current = customPrompt;
-
-  const driverCallsignRef = useRef(driverCallsign);
-  driverCallsignRef.current = driverCallsign;
 
   const effectiveLanguageRef = useRef(effectiveLanguage);
   effectiveLanguageRef.current = effectiveLanguage;
@@ -207,21 +186,9 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
     const abortController = new AbortController();
     activeAbortControllerRef.current = abortController;
     try {
-
-      const liveContext = getLiveTelemetrySummaryRef.current ? getLiveTelemetrySummaryRef.current() : '';
-
-      const currentPersona = personaRef.current;
-      const currentLanguage = effectiveLanguageRef.current;
-      const currentCustomPrompt = customPromptRef.current;
-      const currentDriverCallsign = driverCallsignRef.current;
-
-      const sessionState = useSessionStatusStore.getState();
-      const packetFormat = sessionState.packetFormat || 2026;
-      const currentSession = sessionState.session;
-      const sessionType = currentSession ? getSessionTypeName(currentSession.SessionType) : undefined;
-      const trackName =
-        currentSession?.TrackId !== undefined ? getTrackInfo(currentSession.TrackId)?.name : undefined;
-
+      // The session UID only resets the conversation; the server builds the race briefing,
+      // driving phase, call-sign and custom persona itself.
+      const currentSession = useSessionStatusStore.getState().session;
       const sessionKey = currentSession?.SessionUID !== undefined ? String(currentSession.SessionUID) : '';
       if (conversationRef.current.sessionKey !== sessionKey) {
         conversationRef.current = { sessionKey, turns: [] };
@@ -230,33 +197,15 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
         role: 'user',
         content: `[DRIVER RADIO TRANSMISSION]: "${finalTranscript}"`,
       };
-      let drivingPhase = 'RACING';
-      if (liveContext.includes('POST-RACE')) drivingPhase = 'POST_RACE';
-      else if (liveContext.includes('STARTING GRID')) drivingPhase = 'GRID';
-      else if (liveContext.includes('RACE START')) drivingPhase = 'RACE_START';
-      else if (liveContext.includes('IN-LAP')) drivingPhase = 'IN_LAP';
 
-      const response = await api.stream(
-        '/api/ai/chat',
-        {
-          // Provider, model and API key come from the server's saved AI settings.
-          persona: currentPersona,
-          language: currentLanguage,
-          messages: [...conversationRef.current.turns, driverTurn],
-          context: {
-            context_mode: 'live',
-            live_summary: liveContext,
-            session_type: sessionType,
-            track_name: trackName,
-            custom_persona_prompt: currentPersona === RADIO_PERSONAS.CUSTOM ? currentCustomPrompt : undefined,
-            driver_callsign: currentDriverCallsign || undefined,
-            urgency_level: 'normal',
-            packet_format: packetFormat,
-            driving_phase: drivingPhase,
-          },
-        },
-        abortController.signal
-      );
+      const body: AIChatRequest = {
+        // Provider, model and API key come from the server's saved AI settings.
+        persona: personaRef.current,
+        language: effectiveLanguageRef.current,
+        messages: [...conversationRef.current.turns, driverTurn],
+        context: { context_mode: 'live' },
+      };
+      const response = await api.stream('/api/ai/chat', body, abortController.signal);
 
       if (!response.ok) {
         throw await chatStreamErrorFromResponse(response);

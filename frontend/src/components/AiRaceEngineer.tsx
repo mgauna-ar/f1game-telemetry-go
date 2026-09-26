@@ -17,7 +17,9 @@ import {
 } from '../context/RaceEngineerContext';
 import { storage } from '../utils/storage';
 import { useI18n } from '../context/I18nContext';
-import type { TelemetryContextPayload } from '../utils/aiTelemetrySummary';
+import { useSessionStatusStore } from '../store/useSessionStatusStore';
+import { useLiveStatus } from '../hooks/useLiveStatus';
+import { LIVE_STATUS, getTrackInfo, TRACK_NAMES } from '../constants/f1';
 import { TrackFlag } from './TrackFlag';
 import { PromptChipBar } from './ai_engineer/PromptChipBar';
 import { ChatMessageList } from './ai_engineer/ChatMessageList';
@@ -25,9 +27,6 @@ import { ChatSettingsDrawer } from './ai_engineer/ChatSettingsDrawer';
 
 export interface AiRaceEngineerProps {
   // Optional overrides for standalone or test usage
-  telemetryContext?: TelemetryContextPayload | null;
-  hasLapsSelected?: boolean;
-  isZoomActive?: boolean;
   isOpenOverride?: boolean;
   onCloseOverride?: () => void;
 }
@@ -50,9 +49,6 @@ const getChatPlaceholder = (effectiveMode: string, t: (key: string) => string): 
 };
 
 export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
-  telemetryContext: propTelemetryContext,
-  hasLapsSelected: propHasLapsSelected,
-  isZoomActive: propIsZoomActive,
   isOpenOverride,
   onCloseOverride,
 }) => {
@@ -62,9 +58,8 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
     closeChat,
     toggleChat,
     contextMode,
-    comparatorContext,
-    sessionDebriefContext,
-    liveContext,
+    comparatorTarget,
+    sessionDebriefTarget,
     messages,
     sendMessage,
     retryLastMessage,
@@ -101,13 +96,15 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
     el.style.height = `${Math.min(el.scrollHeight, INPUT_MAX_HEIGHT_PX)}px`;
   }, [inputMessage, isOpen]);
 
-  // Effective context mode: if propTelemetryContext is passed directly as prop, it's comparator mode. Otherwise, it follows contextMode.
-  const effectiveMode = propTelemetryContext ? 'comparator' : contextMode;
+  const effectiveMode = contextMode;
+  const hasLapsSelected = comparatorTarget !== null;
+  const isZoomActive = Boolean(comparatorTarget?.zoom);
 
-  // Sync prop telemetry context if passed
-  const activeComparatorContext = propTelemetryContext || (effectiveMode === 'comparator' ? comparatorContext : null);
-  const hasLapsSelected = propHasLapsSelected ?? Boolean(activeComparatorContext?.lap_a_name && activeComparatorContext?.lap_b_name);
-  const isZoomActive = propIsZoomActive ?? Boolean(activeComparatorContext?.zoomed_range);
+  // Only the track and whether telemetry is coming in, so the 10 Hz feed doesn't re-render the chat
+  const liveTrackId = useSessionStatusStore((s) => s.session?.TrackId);
+  const isLiveStandby = useLiveStatus() !== LIVE_STATUS.LIVE;
+  const liveTrackName =
+    liveTrackId === undefined ? null : getTrackInfo(liveTrackId)?.name || TRACK_NAMES[liveTrackId] || null;
 
   // Focus the message box when opened, and again once a reply has finished
   useEffect(() => {
@@ -155,28 +152,28 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
   // Context Mode Badge label & color
   const contextBadgeInfo = useMemo(() => {
     if (effectiveMode === 'comparator') {
-      const hasLaps = hasLapsSelected && activeComparatorContext;
+      const track = comparatorTarget?.trackName || null;
       return {
         label: t('ai_engineer.badges.comparator'),
-        sub: hasLaps ? (activeComparatorContext?.track_name || t('ai_engineer.selectLaps')) : t('ai_engineer.selectLaps'),
-        track: hasLaps ? activeComparatorContext?.track_name : null,
+        sub: track || t('ai_engineer.selectLaps'),
+        track,
         color: '#00f2fe',
       };
     }
-    if (effectiveMode === 'session_debrief' && sessionDebriefContext) {
+    if (effectiveMode === 'session_debrief' && sessionDebriefTarget) {
       return {
         label: t('ai_engineer.badges.debrief'),
-        sub: sessionDebriefContext.trackName || t('ai_engineer.modeDebrief'),
-        track: sessionDebriefContext.trackName,
+        sub: sessionDebriefTarget.trackName || t('ai_engineer.modeDebrief'),
+        track: sessionDebriefTarget.trackName,
         color: '#ffd700',
       };
     }
     if (effectiveMode === 'live') {
-      const hasTrack = liveContext?.trackName && liveContext.trackName !== 'F1 Pit Wall';
+      const track = isLiveStandby ? null : liveTrackName;
       return {
         label: t('ai_engineer.badges.liveWall'),
-        sub: hasTrack ? liveContext.trackName : t('ai_engineer.liveSessionStandby'),
-        track: hasTrack ? liveContext.trackName : null,
+        sub: track || t('ai_engineer.liveSessionStandby'),
+        track,
         color: '#38ef7d',
       };
     }
@@ -186,7 +183,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
       track: null,
       color: 'var(--text-secondary)',
     };
-  }, [effectiveMode, activeComparatorContext, hasLapsSelected, sessionDebriefContext, liveContext, t]);
+  }, [effectiveMode, comparatorTarget, sessionDebriefTarget, isLiveStandby, liveTrackName, t]);
 
   // If closed: render Floating Action Button (FAB)
   if (!isOpen) {
@@ -304,11 +301,10 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
       {/* Quick Prompt Chips */}
       <PromptChipBar
         effectiveMode={effectiveMode}
-        activeComparatorContext={activeComparatorContext}
         hasLapsSelected={hasLapsSelected}
         isZoomActive={isZoomActive}
-        sessionDebriefContext={sessionDebriefContext}
-        liveContext={liveContext}
+        hasDebriefSession={sessionDebriefTarget !== null}
+        isLiveStandby={isLiveStandby}
         isGenerating={isGenerating}
         onSelectPrompt={handlePromptChipClick}
       />

@@ -1,7 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { api } from '../utils/apiClient';
-import { formatLapTime } from '../utils/formatters';
-import { groupLapsIntoStints, formatStintsText } from '../utils/lapUtils';
 import { useRaceEngineerActions } from '../context/RaceEngineerContext';
 import {
   type Session,
@@ -56,7 +54,7 @@ export function useSessionDetail({ onClearStagedSlots }: UseSessionDetailProps =
   const sessionDetailAbortRef = useRef<AbortController | null>(null);
 
   // AI Race Engineer Context Hook
-  const { setSessionDebriefContext, setContextMode } = useRaceEngineerActions();
+  const { setSessionDebriefTarget, setContextMode } = useRaceEngineerActions();
 
   useEffect(() => {
     return () => {
@@ -138,62 +136,20 @@ export function useSessionDetail({ onClearStagedSlots }: UseSessionDetailProps =
     return classificationData.standings.map((s) => normalizeDriverStanding(s, selectedSession.id));
   }, [classificationData, selectedSession]);
 
-  // Helper to format tyre stints for debrief
-  const getStintsText = (driverLaps: Lap[]) => {
-    return formatStintsText(groupLapsIntoStints(driverLaps));
-  };
-
-  // Sync Session Debrief context to global AI Race Engineer
+  // Point the AI debrief at this session once its classification has loaded; the server
+  // builds the debrief from the session ID.
+  const hasStandings = driverStandings.length > 0;
+  const debriefSessionId = selectedSession?.id;
+  const debriefTrackName = selectedSession?.track_name ?? '';
   useEffect(() => {
-    if (selectedSession && driverStandings.length > 0) {
-      const winner = driverStandings[0];
-      const fastestLapDriver = [...driverStandings].sort((a, b) => a.bestLapTimeMS - b.bestLapTimeMS)[0];
-      const ultimateMS = sessionBestS1 + sessionBestS2 + sessionBestS3;
-      const tagsSummary =
-        selectedSession.tags && selectedSession.tags.length > 0
-          ? selectedSession.tags.map((t) => t.name).join(', ')
-          : 'None';
-
-      let summaryText = `SESSION CLASSIFICATION & METRICS:
-- Circuit: ${selectedSession.track_name}
-- Session Type: ${selectedSession.session_type}
-- League / Category Tags: ${tagsSummary}
-- Weather: ${selectedSession.weather || 'Clear'}
-- Total Drivers in Session: ${driverStandings.length}
-- Session Winner / P1: ${winner ? `${winner.participant.name} (#${winner.participant.race_number})` : 'N/A'}
-- Fastest Lap of Session: ${fastestLapDriver ? `${fastestLapDriver.participant.name} (${formatLapTime(fastestLapDriver.bestLapTimeMS)})` : 'N/A'}
-- Session Record Sectors: S1: ${(sessionBestS1 / 1000).toFixed(3)}s | S2: ${(sessionBestS2 / 1000).toFixed(3)}s | S3: ${(sessionBestS3 / 1000).toFixed(3)}s
-- Theoretical Best Lap of Session: ${ultimateMS > 0 ? formatLapTime(ultimateMS) : 'N/A'}
-
-OFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:
-`;
-      driverStandings.slice(0, 10).forEach((d) => {
-        const gapStr =
-          d.position === 1
-            ? 'WINNER / LEADER'
-            : isRaceSession && d.totalRaceTimeWithPenalties && winner?.totalRaceTimeWithPenalties
-            ? `+${((d.totalRaceTimeWithPenalties - winner.totalRaceTimeWithPenalties) / 1000).toFixed(3)}s`
-            : d.bestLapTimeMS !== Infinity && winner?.bestLapTimeMS !== Infinity
-            ? `+${((d.bestLapTimeMS - (winner?.bestLapTimeMS || 0)) / 1000).toFixed(3)}s`
-            : '-';
-        const userTag = d.participant.ai_controlled ? '(AI)' : '(HUMAN PLAYER)';
-        const stintsStr = getStintsText(d.laps);
-        summaryText += `- P${d.position}: ${d.participant.name} (#${d.participant.race_number}) ${userTag} | Total Time/Gap: ${gapStr} | Best Lap: ${formatLapTime(d.bestLapTimeMS)} | S1: ${(d.bestS1MS / 1000).toFixed(3)}s, S2: ${(d.bestS2MS / 1000).toFixed(3)}s, S3: ${(d.bestS3MS / 1000).toFixed(3)}s | Max Speed: ${d.maxSpeed.toFixed(1)} km/h | Stints: ${stintsStr} | Laps: ${d.laps.length} | Status: ${d.isDSQ ? 'DSQ' : d.isDNF ? 'DNF' : 'Finished'}\n`;
-      });
-
-      setSessionDebriefContext({
-        trackName: selectedSession.track_name,
-        sessionType: selectedSession.session_type,
-        weather: selectedSession.weather,
-        driverCount: driverStandings.length,
-        summaryText,
-      });
+    if (debriefSessionId !== undefined && hasStandings) {
+      setSessionDebriefTarget({ sessionId: debriefSessionId, trackName: debriefTrackName });
       setContextMode('session_debrief');
     } else {
-      setSessionDebriefContext(null);
+      setSessionDebriefTarget(null);
       setContextMode('general');
     }
-  }, [selectedSession, driverStandings, sessionBestS1, sessionBestS2, sessionBestS3, isRaceSession, setSessionDebriefContext, setContextMode]);
+  }, [debriefSessionId, debriefTrackName, hasStandings, setSessionDebriefTarget, setContextMode]);
 
   const totalSessionLaps = useMemo(() => {
     if (progressionData && progressionData.total_session_laps > 0) {

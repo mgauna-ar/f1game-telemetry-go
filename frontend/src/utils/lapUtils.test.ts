@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sortLapsByQuality, groupLapsIntoStints, formatStintsText } from './lapUtils';
+import { sortLapsByQuality, groupLapsIntoStints } from './lapUtils';
 import type { Lap } from '../types/session';
 import { makeLap } from '../test/wireFactories';
 
@@ -105,20 +105,6 @@ describe('lapUtils', () => {
 
       const stints = groupLapsIntoStints(laps);
       expect(stints[0].actualCompound).toBe('C3');
-    });
-  });
-
-  describe('formatStintsText', () => {
-    it('returns "No stint data" for empty stints', () => {
-      expect(formatStintsText([])).toBe('No stint data');
-    });
-
-    it('formats multiple stints with arrow separator', () => {
-      const stints = [
-        { compound: 'SOFT', count: 15, stintId: 1 },
-        { compound: 'HARD', count: 35, stintId: 2 },
-      ];
-      expect(formatStintsText(stints)).toBe('SOFT (15L) ➔ HARD (35L)');
     });
   });
 });

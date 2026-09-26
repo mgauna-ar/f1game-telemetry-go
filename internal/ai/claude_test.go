@@ -228,7 +228,7 @@ func TestClaudeChat_IgnoresEnvironmentCredentials(t *testing.T) {
 	rec := httptest.NewRecorder()
 
 	req := AIChatRequest{Provider: "claude", Messages: driverMessages}
-	if err := StreamChat(context.Background(), req, ServerKeys{Claude: "server-key"}, ChatOptions{}, rec, rec); err != nil {
+	if err := StreamChat(context.Background(), req, nil, ServerKeys{Claude: "server-key"}, ChatOptions{}, rec, rec); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	header := up.requestHeaders()[0]

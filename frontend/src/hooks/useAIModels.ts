@@ -32,14 +32,18 @@ export const useAIModels = (
   const [modelsError, setModelsError] = useState<string | null>(null);
   // Requests can overlap when the provider changes; only the latest one may update the state.
   const requestSeq = useRef(0);
+  // Read when fetching, so fetchAvailableModels keeps its identity across settings changes.
+  const latest = useRef({ config, keyStatus });
+  latest.current = { config, keyStatus };
 
   const fetchAvailableModels = useCallback(
     async (overrideConfig?: AIConfig) => {
-      const activeCfg = overrideConfig || config;
+      const { config: savedConfig, keyStatus: keys } = latest.current;
+      const activeCfg = overrideConfig || savedConfig;
       const source = modelsSource(activeCfg);
       const seq = ++requestSeq.current;
       const baseUrl = activeCfg.baseUrl.trim();
-      if (!providerHasKey(keyStatus, activeCfg.provider) || (activeCfg.provider === 'custom' && !baseUrl)) {
+      if (!providerHasKey(keys, activeCfg.provider) || (activeCfg.provider === 'custom' && !baseUrl)) {
         setLoaded({ source, models: [] });
         setModelsError(null);
         setIsLoadingModels(false);
@@ -68,7 +72,7 @@ export const useAIModels = (
         if (seq === requestSeq.current) setIsLoadingModels(false);
       }
     },
-    [config, keyStatus]
+    []
   );
 
   const isCurrent = loaded.source === modelsSource(config);
