@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { storage } from '../utils/storage';
+import { useState } from 'react';
 
 interface UseComparatorSlotsProps {
   sessionAId: number | '';
@@ -35,18 +34,18 @@ export function useComparatorSlots({
   setLapBId,
   isLinkedSessions,
 }: UseComparatorSlotsProps): UseComparatorSlotsReturn {
-
-  // Quick Select Leaderboard State
-  const [isQuickSelectOpen, setIsQuickSelectOpen] = useState<boolean>(() => {
-    return storage.get<boolean>('f1_comparator_quick_select_open', true);
-  });
+  // The timing tower is where laps get picked: open while a lap is missing, and folded away once
+  // both laps are picked (only then, so changing one lap from the open tower leaves it open).
+  const bothLapsPicked = lapAId !== '' && lapBId !== '';
+  const [isQuickSelectOpen, setIsQuickSelectOpen] = useState<boolean>(!bothLapsPicked);
+  const [wereBothLapsPicked, setWereBothLapsPicked] = useState(bothLapsPicked);
+  if (bothLapsPicked !== wereBothLapsPicked) {
+    setWereBothLapsPicked(bothLapsPicked);
+    setIsQuickSelectOpen(!bothLapsPicked);
+  }
 
   const [driverSearchQuery, setDriverSearchQuery] = useState<string>('');
   const [quickSelectSessionTab, setQuickSelectSessionTab] = useState<'ALL' | 'A' | 'B'>('ALL');
-
-  useEffect(() => {
-    storage.set('f1_comparator_quick_select_open', isQuickSelectOpen);
-  }, [isQuickSelectOpen]);
 
   // Swap Slots handler
   const handleSwapSlots = () => {

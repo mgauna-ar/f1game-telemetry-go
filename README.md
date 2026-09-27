@@ -22,6 +22,8 @@
 ### 🔍 Lap Comparator & Track Map
 * **Side-by-Side Telemetry:** Compare any two laps across Speed, Throttle, Brake, Gears, ERS, and 2026 Active Aero (`Corner` / `Straight` mode) & Boost traces.
 * **Interactive Track Visualizer:** Synchronized circuit map with turn badges, apex speed deltas, and racing line overlays.
+* **Where Did I Lose Time:** A corner table (one row per detected turn) with both laps' entry and minimum speed, braking point, throttle pickup and the time gained or lost there. Clicking a corner zooms the charts and the map to it (the zoom is in the URL); "Ask AI" on a corner asks the AI engineer about that stretch.
+* **Quick Start:** Before any lap is picked, one-click comparisons from your sessions: your best lap against the fastest, against your best the last time at that track, and at another track.
 * **Server-Side Distance Merging:** High-performance distance-normalized grid (5m step) for pinpoint delta coaching.
 * **Configurable Driver Defaults & Auto-Rival Matching:** Configure your default Reference pilot name and comparison targets (Fastest Lap / Leader with P2 tiebreaker, Teammate, or specific driver) with immediate re-evaluation and intelligent fallbacks.
 

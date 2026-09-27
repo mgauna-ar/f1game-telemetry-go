@@ -17,6 +17,8 @@ interface ComparatorSidebarProps {
   setHoverDistance: (dist: number | null) => void;
   sector1Distance: number | null;
   sector2Distance: number | null;
+  /** The zoomed stretch of the charts, which the map frames too. */
+  zoomDomain: [number, number] | null;
   selectedSessionAObj?: Session | null;
   nameA: string;
   nameB: string;
@@ -32,6 +34,7 @@ export const ComparatorSidebar: React.FC<ComparatorSidebarProps> = ({
   setHoverDistance,
   sector1Distance,
   sector2Distance,
+  zoomDomain,
   selectedSessionAObj,
   nameA,
   nameB,
@@ -113,6 +116,7 @@ export const ComparatorSidebar: React.FC<ComparatorSidebarProps> = ({
           height={380}
           sector1Distance={sector1Distance}
           sector2Distance={sector2Distance}
+          zoomRange={zoomDomain}
           onSelectDistance={(dist) => setHoverDistance(dist)}
         />
 

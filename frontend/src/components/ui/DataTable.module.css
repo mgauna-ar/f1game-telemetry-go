@@ -1,4 +1,6 @@
 .wrap {
+  /* Holds absolutely positioned content (sr-only text) inside the scroll box, not the page */
+  position: relative;
   width: 100%;
   overflow-x: auto;
   scrollbar-width: thin;

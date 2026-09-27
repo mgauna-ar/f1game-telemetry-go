@@ -1,0 +1,72 @@
+.panel {
+  min-width: 0;
+}
+
+.legend {
+  display: inline-flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+}
+
+.legend [data-slot='a'],
+.pair [data-slot='a'] {
+  color: var(--f1-slot-a);
+}
+
+.legend [data-slot='b'],
+.pair [data-slot='b'] {
+  color: var(--f1-slot-b);
+}
+
+/* Lap A above lap B, the better of the two in bold */
+.pair {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.3;
+}
+
+.pair [data-slot] {
+  opacity: 0.8;
+}
+
+.pair [data-better] {
+  font-weight: var(--font-weight-bold);
+  opacity: 1;
+}
+
+.turnButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-0-5) var(--space-1-5);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-bold);
+}
+
+.turnButton:hover,
+.turnButton[aria-pressed='true'] {
+  border-color: var(--chart-cursor);
+  color: var(--chart-cursor);
+}
+
+.zoomed {
+  background: var(--bg-hover);
+}
+
+.delta {
+  font-weight: var(--font-weight-bold);
+}
+
+.delta[data-faster='a'] {
+  color: var(--f1-slot-a);
+}
+
+.delta[data-faster='b'] {
+  color: var(--f1-slot-b);
+}

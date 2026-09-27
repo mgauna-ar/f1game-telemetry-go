@@ -2,7 +2,9 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import { vi, describe, it, beforeEach, expect } from 'vitest';
 import { LapComparator } from './LapComparator';
 import { useSessionListStore } from '../store/useSessionListStore';
-import { makeLap, makeParticipant, makeSessionListItem } from '../test/wireFactories';
+import { makeLap, makeParticipant, makePlayerResult, makeSessionListItem } from '../test/wireFactories';
+import { RaceEngineerActionsContext, type RaceEngineerActionsContextValue } from '../context/RaceEngineerContext';
+import type { MergedTelemetryPoint, TrackTurn } from '../types/comparator';
 
 // Mock Recharts to prevent canvas/DOM size errors in JSDOM
 vi.mock('recharts', () => ({
@@ -26,14 +28,14 @@ describe('LapComparator Component', () => {
 
   it('fetches sessions on mount, opens custom dropdown and displays session items with badges', async () => {
     const mockSessions = [
-      { id: 1, session_uid: '123', track_name: 'Monaco', session_type: 'Race', created_at: '2026-08-10T12:00:00Z' },
-      {
+      makeSessionListItem({ id: 1, session_uid: '123', track_name: 'Monaco', session_type: 'Race', created_at: '2026-08-10T12:00:00Z' }),
+      makeSessionListItem({
         id: 2,
         session_uid: '124',
         track_name: 'Spa-Francorchamps',
         session_type: 'Sprint Race',
         created_at: '2026-08-11T14:00:00Z',
-      },
+      }),
     ];
 
     globalThis.fetch = vi.fn().mockImplementation((url: string) => {
@@ -72,21 +74,21 @@ describe('LapComparator Component', () => {
 
   it('filters sessions using search bar and category tabs in custom dropdown', async () => {
     const mockSessions = [
-      { id: 1, session_uid: '123', track_name: 'Monaco', session_type: 'Race', created_at: '2026-08-10T12:00:00Z' },
-      {
+      makeSessionListItem({ id: 1, session_uid: '123', track_name: 'Monaco', session_type: 'Race', created_at: '2026-08-10T12:00:00Z' }),
+      makeSessionListItem({
         id: 2,
         session_uid: '124',
         track_name: 'Spa-Francorchamps',
         session_type: 'Sprint Race',
         created_at: '2026-08-11T14:00:00Z',
-      },
-      {
+      }),
+      makeSessionListItem({
         id: 3,
         session_uid: '125',
         track_name: 'Silverstone',
         session_type: 'Qualifying 1',
         created_at: '2026-08-12T10:00:00Z',
-      },
+      }),
     ];
 
     globalThis.fetch = vi.fn().mockImplementation((url: string) => {
@@ -129,7 +131,7 @@ describe('LapComparator Component', () => {
 
   it('selects session, auto-selects laps and displays driver quick selects and custom lap triggers', async () => {
     const mockSessions = [
-      { id: 1, session_uid: '123', track_name: 'Monaco', session_type: 'Race', created_at: '2026-08-10T12:00:00Z' },
+      makeSessionListItem({ id: 1, session_uid: '123', track_name: 'Monaco', session_type: 'Race', created_at: '2026-08-10T12:00:00Z' }),
     ];
 
     const mockLaps = [
@@ -232,21 +234,21 @@ describe('LapComparator Component', () => {
 
   it('supports unlinking sessions for cross-session comparison and filters Session B to same circuit', async () => {
     const mockSessions = [
-      {
+      makeSessionListItem({
         id: 1,
         session_uid: '101',
         track_name: 'Spa-Francorchamps',
         session_type: 'Practice 1',
         created_at: '2026-08-10T10:00:00Z',
-      },
-      {
+      }),
+      makeSessionListItem({
         id: 2,
         session_uid: '102',
         track_name: 'Spa-Francorchamps',
         session_type: 'Qualifying',
         created_at: '2026-08-10T14:00:00Z',
-      },
-      { id: 3, session_uid: '103', track_name: 'Monza', session_type: 'Race', created_at: '2026-08-11T12:00:00Z' },
+      }),
+      makeSessionListItem({ id: 3, session_uid: '103', track_name: 'Monza', session_type: 'Race', created_at: '2026-08-11T12:00:00Z' }),
     ];
 
     const mockLapsP1 = [
@@ -320,13 +322,13 @@ describe('LapComparator Component', () => {
 
   it('custom lap selector opens popover and allows searching and filtering laps', async () => {
     const mockSessions = [
-      {
+      makeSessionListItem({
         id: 1,
         session_uid: '123',
         track_name: 'Silverstone',
         session_type: 'Race',
         created_at: '2026-08-10T12:00:00Z',
-      },
+      }),
     ];
 
     const mockLaps = [
@@ -417,13 +419,13 @@ describe('LapComparator Component', () => {
 
   it('ranks drivers in quick select leaderboard, displays P1/P2 badges, leader delta, and supports searching and toggling', async () => {
     const mockSessions = [
-      {
+      makeSessionListItem({
         id: 1,
         session_uid: '123',
         track_name: 'Monza',
         session_type: 'Qualifying',
         created_at: '2026-08-10T12:00:00Z',
-      },
+      }),
     ];
 
     const mockLaps = [
@@ -496,10 +498,12 @@ describe('LapComparator Component', () => {
     await waitFor(() => expect(screen.getByText('Monza')).toBeInTheDocument());
     fireEvent.click(screen.getByText('Monza'));
 
-    // Wait for Quick Select panel to render
+    // Wait for Quick Select panel to render: both laps get picked, so it folds away
     await waitFor(() => {
       expect(screen.getByTestId('quick-select-panel')).toBeInTheDocument();
     });
+    await waitFor(() => expect(screen.queryByTestId('quick-select-drivers-grid')).not.toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('toggle-quick-select-toolbar-btn'));
 
     // Check P1 (Max Verstappen - LEADER) and P2 (Lando Norris - +0.500s)
     expect(screen.getByTestId('rank-badge-1')).toHaveTextContent('P1');
@@ -544,13 +548,13 @@ describe('LapComparator Component', () => {
 
   it('renders all telemetry charts smoothly when laps have boundary distance differences', async () => {
     const mockSessions = [
-      {
+      makeSessionListItem({
         id: 1,
         session_uid: '123',
         track_name: 'Silverstone',
         session_type: 'Race',
         created_at: '2026-08-10T12:00:00Z',
-      },
+      }),
     ];
     const mockLaps = [
       {
@@ -752,5 +756,143 @@ describe('LapComparator Component', () => {
       expect(screen.getByTestId('lap-b-trigger')).toHaveTextContent('1:25.432');
     });
     localStorage.clear();
+  });
+
+  it('offers quick-start comparisons before any lap is picked, and opens one', async () => {
+    const sessions = [
+      makeSessionListItem(
+        { id: 1, track_name: 'Monaco', session_type: 'Race', player_car_index: 1 },
+        {
+          player: makePlayerResult({ car_index: 1, best_lap_id: 12, best_lap_time_ms: 86_100 }),
+          fastest_lap: { car_index: 0, driver_name: 'Max Verstappen', team_id: 0, race_number: 1, lap_id: 11, lap_time_ms: 85_432 },
+        }
+      ),
+    ];
+    const participants = [
+      makeParticipant({ session_id: 1, car_index: 0, name: 'Max Verstappen', race_number: 1 }),
+      makeParticipant({ session_id: 1, car_index: 1, name: 'Charles Leclerc', race_number: 16 }),
+    ];
+    const laps = [
+      makeLap({ id: 11, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 85_432 }),
+      makeLap({ id: 12, session_id: 1, car_index: 1, lap_number: 1, lap_time_ms: 86_100 }),
+    ];
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url.split('?')[0] === '/api/sessions') return Promise.resolve({ ok: true, json: () => Promise.resolve(sessions) });
+      if (url === '/api/sessions/1/laps') return Promise.resolve({ ok: true, json: () => Promise.resolve(laps) });
+      if (url === '/api/sessions/1/participants') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(participants) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    });
+
+    window.history.replaceState(null, '', '/compare');
+    render(<LapComparator />);
+
+    const card = await screen.findByRole('button', { name: /My best vs the fastest/ });
+    expect(card).toHaveTextContent('1:26.100');
+    expect(card).toHaveTextContent('+0.668 s');
+    fireEvent.click(card);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('lap-a-trigger')).toHaveTextContent('1:26.100');
+      expect(screen.getByTestId('lap-b-trigger')).toHaveTextContent('1:25.432');
+    });
+    expect(screen.queryByRole('button', { name: /My best vs the fastest/ })).not.toBeInTheDocument();
+    await waitFor(() => expect(window.location.search).toBe('?sa=1&a=12&b=11'));
+    // Both laps picked: the timing tower folds away
+    expect(screen.queryByTestId('quick-select-drivers-grid')).not.toBeInTheDocument();
+  });
+
+  it('shows where time was lost per corner; a row zooms and Ask AI sends the corner as the chat zoom', async () => {
+    const sessions = [makeSessionListItem({ id: 1, track_name: 'Monza', session_type: 'Race' })];
+    const participants = [
+      makeParticipant({ session_id: 1, car_index: 0, name: 'Max Verstappen', race_number: 1 }),
+      makeParticipant({ session_id: 1, car_index: 1, name: 'Lando Norris', race_number: 4 }),
+    ];
+    const laps = [
+      makeLap({ id: 501, session_id: 1, car_index: 0, lap_number: 2, lap_time_ms: 80_000, sector1_ms: 26_000, sector2_ms: 27_000, sector3_ms: 27_000 }),
+      makeLap({ id: 502, session_id: 1, car_index: 1, lap_number: 2, lap_time_ms: 80_300, sector1_ms: 26_100, sector2_ms: 27_100, sector3_ms: 27_100 }),
+    ];
+    // A slows to 100 km/h at the 500 m apex, B to 110; A loses 0.2 s through the corner
+    const points: MergedTelemetryPoint[] = [];
+    for (let d = 0; d <= 1000; d += 5) {
+      const near = Math.abs(d - 500) < 150;
+      points.push({
+        lap_distance: d,
+        time_delta: d < 350 ? 0 : d > 650 ? 0.2 : ((d - 350) / 300) * 0.2,
+        timeA: d / 12,
+        timeB: d / 12,
+        speedA: near ? 100 + Math.abs(d - 500) : 250,
+        speedB: near ? 110 + Math.abs(d - 500) : 250,
+        speed_delta: null,
+        throttleA: near ? 0 : 1,
+        throttleB: near ? 0 : 1,
+        brakeA: near && d < 500 ? 0.8 : 0,
+        brakeB: near && d < 500 ? 0.8 : 0,
+        steerA: 0,
+        steerB: 0,
+        gearA: 5,
+        gearB: 5,
+        ersBatteryA: 50,
+        ersBatteryB: 50,
+        ersDeployModeA: 1,
+        ersDeployModeB: 1,
+        worldX: d,
+        worldZ: 0,
+      });
+    }
+    const turns: TrackTurn[] = [
+      { turnNumber: 1, name: 'T1', distance: 500, entryDistance: 465, exitDistance: 535, worldX: 500, worldZ: 0, normalX: 0, normalZ: 1 },
+    ];
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url.split('?')[0] === '/api/sessions') return Promise.resolve({ ok: true, json: () => Promise.resolve(sessions) });
+      if (url === '/api/sessions/1/laps') return Promise.resolve({ ok: true, json: () => Promise.resolve(laps) });
+      if (url === '/api/sessions/1/participants') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(participants) });
+      }
+      if (url.includes('/api/comparator/merge')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ points, turns }) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    });
+    const openChat = vi.fn();
+    const actions: RaceEngineerActionsContextValue = {
+      openChat,
+      closeChat: vi.fn(),
+      toggleChat: vi.fn(),
+      sendMessage: vi.fn(),
+      retryLastMessage: vi.fn(),
+      clearMessages: vi.fn(),
+      stopGenerating: vi.fn(),
+      saveConfig: vi.fn(),
+      saveApiKey: vi.fn(),
+      fetchAvailableModels: vi.fn(),
+    };
+
+    window.history.replaceState(null, '', '/compare?sa=1&a=501&b=502');
+    render(
+      <RaceEngineerActionsContext.Provider value={actions}>
+        <LapComparator />
+      </RaceEngineerActionsContext.Provider>
+    );
+
+    const table = await screen.findByRole('table', { name: /Corners: #1 Max Verstappen against #4 Lando Norris/ });
+    const row = within(table).getByRole('rowheader', { name: 'T1' }).closest('tr')!;
+    expect(row).toHaveTextContent('+0.200 s');
+    expect(within(row).getByText('100')).toHaveAttribute('data-slot', 'a');
+    expect(within(row).getByText('110')).toHaveAttribute('data-better', 'true');
+    expect(screen.getByText(/lost the most time at T1/)).toBeInTheDocument();
+
+    fireEvent.click(within(row).getByRole('button', { name: 'T1' }));
+    await waitFor(() => expect(window.location.search).toBe('?sa=1&a=501&b=502&zoom=250-650'));
+    expect(within(row).getByRole('button', { name: 'T1' })).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Full Track' }));
+    await waitFor(() => expect(window.location.search).toBe('?sa=1&a=501&b=502'));
+
+    fireEvent.click(within(row).getByRole('button', { name: 'Ask the AI engineer about T1' }));
+    // The zoom is in the URL, where the chat reads it, before the question goes out
+    expect(window.location.search).toBe('?sa=1&a=501&b=502&zoom=250-650');
+    expect(openChat).toHaveBeenCalledWith(expect.stringContaining('T1 (250–650 m)'));
   });
 });
