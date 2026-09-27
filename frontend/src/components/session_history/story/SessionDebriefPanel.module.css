@@ -1,0 +1,40 @@
+.panel {
+  min-width: 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1-5);
+}
+
+.body {
+  max-width: 72ch;
+  color: var(--text-body);
+}
+
+.markdown {
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+}
+
+.waiting {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.empty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.empty p {
+  flex: 1 1 280px;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}

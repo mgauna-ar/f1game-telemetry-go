@@ -809,3 +809,39 @@ func TestLiveBroadcaster_ReportedFlagsResetOnSessionChange(t *testing.T) {
 		t.Errorf("expected 1 penalty row in the new session, got %d: %+v", n, rows)
 	}
 }
+
+func TestLiveBroadcaster_FeedEventSink(t *testing.T) {
+	for _, clients := range []int{0, 1} {
+		hub := &mockHub{clientCount: clients}
+		broadcaster := NewLiveBroadcaster(hub)
+		type delivery struct {
+			uid    uint64
+			events []FeedEvent
+		}
+		var got []delivery
+		broadcaster.SetFeedEventSink(func(uid uint64, events []FeedEvent) {
+			got = append(got, delivery{uid, events})
+		})
+
+		header := packets.PacketHeader{PacketFormat: 2026, PacketId: packets.PacketIDSession, SessionUID: 0xFEED, SessionTime: 10}
+		broadcaster.ProcessPacket(&packets.PacketSessionData{Header: header, SafetyCarStatus: packets.SafetyCarNone})
+		broadcaster.BroadcastSnapshot()
+		if len(got) != 0 {
+			t.Fatalf("clients=%d: expected no delivery without new rows, got %d", clients, len(got))
+		}
+
+		header.SessionTime = 12
+		broadcaster.ProcessPacket(&packets.PacketSessionData{Header: header, SafetyCarStatus: packets.SafetyCarVirtual})
+		broadcaster.BroadcastSnapshot()
+		if len(got) != 1 || got[0].uid != 0xFEED || len(got[0].events) != 1 ||
+			got[0].events[0].EventCode != packets.EventSafetyCarStatus {
+			t.Fatalf("clients=%d: expected the VSC row for session 0xFEED, got %+v", clients, got)
+		}
+
+		// Each row reaches the sink once
+		broadcaster.BroadcastSnapshot()
+		if len(got) != 1 {
+			t.Errorf("clients=%d: expected no second delivery, got %d", clients, len(got))
+		}
+	}
+}

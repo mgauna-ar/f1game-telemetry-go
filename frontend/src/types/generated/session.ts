@@ -19,6 +19,7 @@ export interface FeedEvent {
   placesGained?: number;
   safetyCarStatus?: number;
   sessionTime?: number;
+  raceLap?: number;
 }
 
 export type FeedEventCode = 'SSTA' | 'SEND' | 'FTLP' | 'RTMT' | 'CHQF' | 'RCWN' | 'PENA' | 'SPTP' | 'STLG' | 'LGOT' | 'DTSV' | 'SGSV' | 'RDFL' | 'OVTK' | 'COLL' | 'TMPT' | 'DSQ' | 'SCAR';

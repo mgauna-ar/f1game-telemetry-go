@@ -7,15 +7,20 @@ describe('routes', () => {
   });
 
   it('reads the session list, a session and its tab', () => {
-    expect(parseRoute('/history')).toEqual({ page: 'history', sessionId: undefined, tab: 'classification' });
-    expect(parseRoute('/history/12')).toEqual({ page: 'history', sessionId: 12, tab: 'classification' });
+    expect(parseRoute('/history')).toEqual({ page: 'history', sessionId: undefined, tab: 'story' });
+    expect(parseRoute('/history/12')).toEqual({ page: 'history', sessionId: 12, tab: 'story' });
     expect(parseRoute('/history/12/stints')).toEqual({ page: 'history', sessionId: 12, tab: 'stints' });
+    expect(parseRoute('/history/12/gap')).toEqual({ page: 'history', sessionId: 12, tab: 'gap' });
+  });
+
+  it('opens the pace chart for the old lap charts tab', () => {
+    expect(parseRoute('/history/12/charts')).toEqual({ page: 'history', sessionId: 12, tab: 'pace' });
   });
 
   it('drops an invalid session or tab', () => {
-    expect(parseRoute('/history/abc/charts')).toEqual({ page: 'history', sessionId: undefined, tab: 'classification' });
+    expect(parseRoute('/history/abc/charts')).toEqual({ page: 'history', sessionId: undefined, tab: 'story' });
     expect(parseRoute('/history/0')).toMatchObject({ sessionId: undefined });
-    expect(parseRoute('/history/12/nope')).toEqual({ page: 'history', sessionId: 12, tab: 'classification' });
+    expect(parseRoute('/history/12/nope')).toEqual({ page: 'history', sessionId: 12, tab: 'story' });
   });
 
   it('reads the comparator slots and zoom', () => {
@@ -53,13 +58,15 @@ describe('routes', () => {
     expect(parseRoute('/')).toMatchObject({ page: 'live' });
     storeLastPage('progress');
     expect(parseRoute('/')).toMatchObject({ page: 'progress' });
-    expect(parseRoute('/settings/ai')).toEqual({ page: 'history', sessionId: undefined, tab: 'classification' });
+    expect(parseRoute('/settings/ai')).toEqual({ page: 'history', sessionId: undefined, tab: 'story' });
   });
 
   it('builds URLs that parse back to the same route', () => {
     const routes: Route[] = [
-      { page: 'history', tab: 'classification' },
+      { page: 'history', tab: 'story' },
+      { page: 'history', sessionId: 7, tab: 'story' },
       { page: 'history', sessionId: 7, tab: 'classification' },
+      { page: 'history', sessionId: 7, tab: 'pace' },
       { page: 'history', sessionId: 7, tab: 'sectors' },
       { page: 'live', mode: 'cockpit' },
       { page: 'progress' },
@@ -78,6 +85,7 @@ describe('routes', () => {
     expect(buildPath({ page: 'compare', sessionA: 1, lapA: 10, sessionB: 1, lapB: 11, zoom: [100.4, 899.6] })).toBe(
       '/compare?sa=1&a=10&b=11&zoom=100-900'
     );
-    expect(buildPath({ page: 'history', sessionId: 7, tab: 'classification' })).toBe('/history/7');
+    expect(buildPath({ page: 'history', sessionId: 7, tab: 'story' })).toBe('/history/7');
+    expect(buildPath({ page: 'history', sessionId: 7, tab: 'classification' })).toBe('/history/7/classification');
   });
 });

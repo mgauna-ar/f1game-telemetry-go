@@ -18,6 +18,7 @@ type SessionStorage interface {
 	SaveSession(ctx context.Context, s *storage.Session) error
 	UpdateSessionMetadata(ctx context.Context, uidHex string, trackID int, trackName, sessionType, weather, forecastJSON string, totalLaps, aiDifficulty, sessionDuration int) error
 	SaveParticipants(ctx context.Context, sessionID int64, participants []storage.Participant) error
+	SaveSessionEvents(ctx context.Context, sessionID int64, events []storage.SessionEvent) error
 }
 
 // SessionManager orchestrates the processing of F1 telemetry packets.
@@ -30,9 +31,11 @@ type SessionManager struct {
 
 	currentSessionUID uint64
 	currentSession    *storage.Session
-	mu                sync.Mutex
-	closed            bool
-	closeOnce         sync.Once
+	// leaderLap is the lap the race leader is on, stamped on the stored feed rows.
+	leaderLap int
+	mu        sync.Mutex
+	closed    bool
+	closeOnce sync.Once
 }
 
 // NewSessionManager creates a new SessionManager.
@@ -118,6 +121,9 @@ func (sm *SessionManager) ProcessPacket(ctx context.Context, pkt packets.Packet)
 			}
 		}
 	case *packets.PacketLapData:
+		if lap := leaderLap(p, maxCars); lap > 0 {
+			sm.leaderLap = lap
+		}
 		for i := 0; i < maxCars; i++ {
 			if tracker, ok := sm.lapTrackers[i]; ok {
 				tracker.ProcessLapData(ctx, sm.currentSession, p)
@@ -166,6 +172,7 @@ func (sm *SessionManager) handleNewSession(ctx context.Context, header packets.P
 
 	sm.currentSessionUID = header.SessionUID
 	sm.numActiveCars = 0
+	sm.leaderLap = 0
 
 	// Create a new session in storage
 	sm.currentSession = &storage.Session{
@@ -184,6 +191,49 @@ func (sm *SessionManager) handleNewSession(ctx context.Context, header packets.P
 
 	if err := sm.repo.SaveSession(ctx, sm.currentSession); err != nil {
 		slog.Error("Failed to save new session", "sessionUID", uidHex, "error", err)
+	}
+}
+
+// leaderLap returns the lap the car in P1 is on, or 0 when no car is classified yet.
+func leaderLap(p *packets.PacketLapData, maxCars int) int {
+	for i := 0; i < maxCars && i < len(p.LapData); i++ {
+		if p.LapData[i].CarPosition == 1 {
+			return int(p.LapData[i].CurrentLapNum)
+		}
+	}
+	return 0
+}
+
+// RecordFeedEvents stores race-control feed rows with the session they belong to, each with the
+// leader's lap at the time. Rows of a session that is no longer the current one are dropped.
+// It is the LiveBroadcaster's FeedEventSink.
+func (sm *SessionManager) RecordFeedEvents(ctx context.Context, sessionUID uint64, events []FeedEvent) {
+	if len(events) == 0 {
+		return
+	}
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+	if sm.closed || sm.currentSession == nil || sm.currentSession.ID == 0 || sm.currentSessionUID != sessionUID {
+		return
+	}
+
+	rows := make([]storage.SessionEvent, 0, len(events))
+	for _, evt := range events {
+		evt.RaceLap = sm.leaderLap
+		data, err := json.Marshal(evt)
+		if err != nil {
+			slog.Error("Failed to marshal feed event", "eventCode", evt.EventCode, "error", err)
+			continue
+		}
+		rows = append(rows, storage.SessionEvent{
+			Lap:         sm.leaderLap,
+			SessionTime: evt.SessionTime,
+			EventCode:   evt.EventCode,
+			Data:        data,
+		})
+	}
+	if err := sm.repo.SaveSessionEvents(ctx, sm.currentSession.ID, rows); err != nil {
+		slog.Error("Failed to save session events", "sessionID", sm.currentSession.ID, "sessionUID", sm.currentSession.SessionUID, "error", err)
 	}
 }
 

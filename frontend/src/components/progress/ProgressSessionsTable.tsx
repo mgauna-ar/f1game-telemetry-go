@@ -26,7 +26,7 @@ import {
 import styles from './ProgressSessionsTable.module.css';
 
 const sessionPath = (s: ProgressSession) =>
-  buildPath({ page: 'history', sessionId: s.session_id, tab: 'classification' });
+  buildPath({ page: 'history', sessionId: s.session_id, tab: 'story' });
 
 interface CellProps {
   s: ProgressSession;

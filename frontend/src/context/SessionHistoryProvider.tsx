@@ -21,7 +21,7 @@ export interface SessionHistoryProviderProps {
   children: React.ReactNode;
 }
 
-const sessionPath = (sessionId: number, tab: SessionDetailTab = 'classification') =>
+const sessionPath = (sessionId: number, tab: SessionDetailTab = 'story') =>
   buildPath({ page: 'history', sessionId, tab });
 
 export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({ children }) => {
@@ -63,6 +63,7 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({ 
     classificationData,
     progressionData,
     stintsData,
+    events,
     expandedDrivers,
     toggleDriverExpand,
     loadSession,
@@ -142,7 +143,7 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({ 
   // The open session and its tab are in the URL (/history/:id/:tab); show what it names.
   const route = useRoute();
   const routeSessionId = route.page === 'history' ? route.sessionId : undefined;
-  const activeDetailTab: SessionDetailTab = route.page === 'history' ? route.tab : 'classification';
+  const activeDetailTab: SessionDetailTab = route.page === 'history' ? route.tab : 'story';
   const listLoaded = useSessionListStore((s) => s.lastFetchedAt !== null);
   const refetchedFor = useRef<number | null>(null);
   const shownSessionId = selectedSession?.id;
@@ -218,6 +219,7 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({ 
       classificationData,
       progressionData,
       stintsData,
+    events,
       driverStandings,
       sessionBestS1,
       sessionBestS2,
@@ -260,6 +262,7 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({ 
       classificationData,
       progressionData,
       stintsData,
+    events,
       driverStandings,
       sessionBestS1,
       sessionBestS2,

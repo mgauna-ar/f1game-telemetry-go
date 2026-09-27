@@ -83,7 +83,7 @@ func TestBuildSessionDebrief(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			summary := BuildSessionDebrief(tt.session, tt.cls).Summary
+			summary := BuildSessionDebrief(tt.session, tt.cls, nil).Summary
 			for _, want := range tt.want {
 				if !strings.Contains(summary, want) {
 					t.Errorf("expected %q in summary:\n%s", want, summary)
@@ -102,7 +102,7 @@ func TestBuildSessionDebrief(t *testing.T) {
 		for i := 1; i <= DebriefMaxDrivers+2; i++ {
 			cls.Standings = append(cls.Standings, standing(i, "Driver", i, nil))
 		}
-		summary := BuildSessionDebrief(session, cls).Summary
+		summary := BuildSessionDebrief(session, cls, nil).Summary
 		if got := strings.Count(summary, "\n- P"); got != DebriefMaxDrivers {
 			t.Errorf("expected %d classified drivers, got %d:\n%s", DebriefMaxDrivers, got, summary)
 		}
@@ -135,7 +135,7 @@ func TestBuildSessionDebrief(t *testing.T) {
 		me.PitStopsCount = 1
 		playerSession := *session
 		playerSession.PlayerCarIndex = new(2)
-		summary := BuildSessionDebrief(&playerSession, cls).Summary
+		summary := BuildSessionDebrief(&playerSession, cls, nil).Summary
 		for _, want := range []string{
 			"YOUR RESULT (the driver you are debriefing):",
 			"- Driver: Driver 3 (#103, Ferrari)",
@@ -154,7 +154,7 @@ func TestBuildSessionDebrief(t *testing.T) {
 		cls := grid(DebriefMaxDrivers + 8)
 		playerSession := *session
 		playerSession.PlayerCarIndex = new(14) // P15
-		summary := BuildSessionDebrief(&playerSession, cls).Summary
+		summary := BuildSessionDebrief(&playerSession, cls, nil).Summary
 		for _, want := range []string{"- P10: Driver 10", "\n- ...\n- P14: Driver 14", "- P15: Driver 15 (#115) (YOU)", "- P16: Driver 16"} {
 			if !strings.Contains(summary, want) {
 				t.Errorf("expected %q in summary:\n%s", want, summary)
@@ -174,7 +174,7 @@ func TestBuildSessionDebrief(t *testing.T) {
 		cls := grid(DebriefMaxDrivers + 3)
 		playerSession := *session
 		playerSession.PlayerCarIndex = new(DebriefMaxDrivers) // P11
-		summary := BuildSessionDebrief(&playerSession, cls).Summary
+		summary := BuildSessionDebrief(&playerSession, cls, nil).Summary
 		if strings.Contains(summary, "- ...") || !strings.Contains(summary, "- P12:") || strings.Contains(summary, "- P13:") {
 			t.Errorf("expected P1-P12 without a gap:\n%s", summary)
 		}

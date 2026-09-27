@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/analytics"
+	sessionSvc "github.com/mgauna/f1game-telemetry-go/internal/session"
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
 )
 
@@ -47,11 +48,17 @@ func (s *Server) fetchSessionAnalyticsData(w http.ResponseWriter, r *http.Reques
 }
 
 // handleGetSessionDetail serves GET /api/sessions/{id}/detail: the classification, progression
-// and stints of a session plus its participants and laps, loaded from SQLite once.
+// and stints of a session plus its participants, laps and race-control events, loaded from SQLite once.
 func (s *Server) handleGetSessionDetail(w http.ResponseWriter, r *http.Request) {
 	session, participants, laps, ok := s.fetchSessionAnalyticsData(w, r, "session detail")
 	if !ok {
 		return
 	}
-	writeJSON(w, http.StatusOK, analytics.ComputeSessionDetail(session, participants, laps))
+	rows, err := s.repo.GetSessionEvents(r.Context(), session.ID)
+	if err != nil {
+		slog.Error("Failed to fetch events for session detail", "sessionID", session.ID, "error", err)
+		writeJSONError(w, "failed to fetch session events", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, analytics.ComputeSessionDetail(session, participants, laps, sessionSvc.StoredFeedEvents(rows)))
 }

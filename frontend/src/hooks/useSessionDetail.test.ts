@@ -39,6 +39,7 @@ const detail: SessionDetailResponse = {
     session_compounds: [],
     effective_max_laps: 2,
   },
+  events: [{ eventCode: 'LGOT', type: 'general', severity: 'success', raceLap: 1 }],
 };
 
 describe('useSessionDetail', () => {
@@ -64,6 +65,7 @@ describe('useSessionDetail', () => {
     expect(result.current.detailError).toBeNull();
     expect(result.current.laps).toEqual(laps);
     expect(result.current.totalSessionLaps).toBe(2);
+    expect(result.current.events).toEqual([{ eventCode: 'LGOT', type: 'general', severity: 'success', raceLap: 1 }]);
 
     const [leader, second] = result.current.driverStandings;
     expect(leader.participant.name).toBe('Charles Leclerc');

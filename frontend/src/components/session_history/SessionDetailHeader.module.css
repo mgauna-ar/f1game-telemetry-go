@@ -179,3 +179,16 @@
     align-items: stretch;
   }
 }
+
+/* Seven tabs: one row that scrolls sideways on phones instead of four rows */
+@media (--phone) {
+  .tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .tabs [role='tab'] {
+    flex-shrink: 0;
+  }
+}

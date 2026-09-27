@@ -1,5 +1,20 @@
 import React, { useContext, useState } from 'react';
-import { Flag, Users, Trophy, TrendingUp, Layers, Zap, Sparkles, Download, Trash2, Copy, Check } from 'lucide-react';
+import {
+  Activity,
+  Award,
+  BookOpen,
+  Check,
+  Clock,
+  Copy,
+  Download,
+  Flag,
+  Layers,
+  Sparkles,
+  Trash2,
+  Trophy,
+  Users,
+  Zap,
+} from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
 import { Button } from '../ui/Button';
 import { Panel } from '../ui/Panel';
@@ -163,12 +178,18 @@ export const SessionDetailHeader: React.FC<SessionDetailHeaderProps> = (props) =
         <Tabs
           idPrefix={SESSION_DETAIL_TABS_ID}
           aria-label={t('history.detail.tabsLabel')}
+          className={styles.tabs}
           value={activeDetailTab}
           onChange={setActiveDetailTab}
           items={[
+            { id: 'story', label: t('history.detail.tabStory'), icon: <BookOpen size={16} /> },
             { id: 'classification', label: t('history.detail.tabClassification'), icon: <Trophy size={16} /> },
             ...(isRaceSession
-              ? [{ id: 'charts' as const, label: t('history.detail.tabProgression'), icon: <TrendingUp size={16} /> }]
+              ? [
+                  { id: 'pace' as const, label: t('history.detail.tabPace'), icon: <Activity size={16} /> },
+                  { id: 'position' as const, label: t('history.detail.tabPosition'), icon: <Award size={16} /> },
+                  { id: 'gap' as const, label: t('history.detail.tabGap'), icon: <Clock size={16} /> },
+                ]
               : []),
             { id: 'stints', label: t('history.detail.tabStints'), icon: <Layers size={16} /> },
             { id: 'sectors', label: t('history.detail.tabSectors'), icon: <Zap size={16} /> },

@@ -9,6 +9,7 @@ import type {
   ClassificationResponse,
   ProgressionResponse,
   StintsResponse,
+  FeedEvent,
   Tag,
 } from '../types/session';
 import type { SessionDetailTab } from '../router/routes';
@@ -33,6 +34,8 @@ export interface SessionHistoryData {
   classificationData: ClassificationResponse | null;
   progressionData: ProgressionResponse | null;
   stintsData: StintsResponse | null;
+  /** The open session's race-control events; empty for sessions recorded before they were stored. */
+  events: FeedEvent[];
   driverStandings: DriverStanding[];
   sessionBestS1: number;
   sessionBestS2: number;

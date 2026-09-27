@@ -10,6 +10,7 @@
   padding: var(--space-6);
 }
 
+
 .chartHead {
   display: flex;
   flex-wrap: wrap;
@@ -24,6 +25,7 @@
   align-items: center;
   gap: var(--space-2);
   margin: 0;
+  font-size: var(--font-size-lg);
 }
 
 .chart {
@@ -58,4 +60,51 @@
 .pitFilter input {
   cursor: pointer;
   accent-color: var(--accent-primary);
+}
+
+/* What the markers and shading mean */
+.legendNote {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: var(--space-2) 0 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.legendNote:empty {
+  display: none;
+}
+
+.pitKey,
+.scKey {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+}
+
+.pitDot {
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--text-primary);
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.scSwatch {
+  width: 14px;
+  height: 10px;
+  border: 1px solid color-mix(in srgb, var(--f1-yellow) 35%, transparent);
+  background: color-mix(in srgb, var(--f1-yellow) 14%, transparent);
+}
+
+@media (--phone) {
+  .chartPanel {
+    min-height: 0;
+    padding: var(--space-4) var(--space-2);
+  }
+
+  .chart {
+    height: 320px;
+  }
 }

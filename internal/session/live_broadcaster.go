@@ -15,10 +15,16 @@ type HubBroadcaster interface {
 	ClientCount() int
 }
 
+// FeedEventSink receives a session's race-control feed rows as the broadcaster sends them,
+// whether or not a dashboard is connected. Session recording stores them
+// (SessionManager.RecordFeedEvents), so the events are built once for both.
+type FeedEventSink func(sessionUID uint64, events []FeedEvent)
+
 // LiveBroadcaster aggregates high-frequency UDP telemetry packets and broadcasts consolidated snapshots at 10Hz.
 type LiveBroadcaster struct {
-	hub HubBroadcaster
-	mu  sync.RWMutex
+	hub      HubBroadcaster
+	mu       sync.RWMutex
+	feedSink FeedEventSink
 
 	dirty         bool
 	latestHeader  packets.PacketHeader
@@ -51,6 +57,13 @@ func NewLiveBroadcaster(hub HubBroadcaster) *LiveBroadcaster {
 	return &LiveBroadcaster{
 		hub: hub,
 	}
+}
+
+// SetFeedEventSink sets where the feed rows go besides the dashboards. Call it before Start.
+func (b *LiveBroadcaster) SetFeedEventSink(sink FeedEventSink) {
+	b.mu.Lock()
+	b.feedSink = sink
+	b.mu.Unlock()
 }
 
 // Start runs the periodic snapshot broadcast loop at the specified interval.
@@ -343,18 +356,25 @@ func (b *LiveBroadcaster) ProcessPacket(pkt packets.Packet) {
 	}
 }
 
-// BroadcastSnapshot serializes and broadcasts the slim live snapshot (see LiveSnapshot) if changes are pending.
+// BroadcastSnapshot serializes and broadcasts the slim live snapshot (see LiveSnapshot) if changes
+// are pending, and hands the new feed rows to the feed sink.
 func (b *LiveBroadcaster) BroadcastSnapshot() {
 	b.mu.Lock()
+	// The rows leave the queue on every tick, with or without clients, so it never grows
+	events := b.pendingEvents
+	b.pendingEvents = nil
+	sessionUID, sink := b.sessionUID, b.feedSink
+	if sink != nil && len(events) > 0 {
+		defer sink(sessionUID, events)
+	}
+
 	if b.hub == nil || b.hub.ClientCount() == 0 {
-		// Clear pending events even with no clients to prevent unbounded growth
-		b.pendingEvents = nil
 		b.dirty = false
 		b.mu.Unlock()
 		return
 	}
 
-	if !b.dirty && len(b.pendingEvents) == 0 {
+	if !b.dirty && len(events) == 0 {
 		b.mu.Unlock()
 		return
 	}
@@ -364,17 +384,10 @@ func (b *LiveBroadcaster) BroadcastSnapshot() {
 
 	activeCarCount := b.computeActiveCarCount()
 
-	var eventsCopy []FeedEvent
-	if len(b.pendingEvents) > 0 {
-		eventsCopy = make([]FeedEvent, len(b.pendingEvents))
-		copy(eventsCopy, b.pendingEvents)
-		b.pendingEvents = nil
-	}
-
 	snapshot := LiveSnapshot{
 		Header:         snapshotHeader,
 		Session:        newLiveSession(b.session),
-		Events:         eventsCopy,
+		Events:         events,
 		ActiveCarCount: activeCarCount,
 	}
 	if b.participants != nil {

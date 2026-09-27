@@ -10,6 +10,7 @@ import type { Narrows } from './wire';
 // below (DriverStanding, DriverStint) are built from them.
 export type { Lap, Participant, Session, Tag } from './generated/storage';
 export type { WeatherForecastSample } from './generated/packets';
+export type { FeedEvent } from './generated/session';
 export type {
   ClassificationResponse,
   CompoundBestLap,

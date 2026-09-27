@@ -169,6 +169,10 @@ func run(cfg ServerConfig) error {
 	sessionManager.Start(ctx)
 
 	liveBroadcaster := session.NewLiveBroadcaster(telemetryHub)
+	// The race-control feed rows the dashboards get are stored with the session too
+	liveBroadcaster.SetFeedEventSink(func(sessionUID uint64, events []session.FeedEvent) {
+		sessionManager.RecordFeedEvents(ctx, sessionUID, events)
+	})
 	liveBroadcaster.Start(ctx, 100*time.Millisecond)
 
 	// 7. Setup UDP Listener

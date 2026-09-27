@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -11,10 +12,11 @@ import (
 	"sync/atomic"
 	"testing"
 
+	sessionSvc "github.com/mgauna/f1game-telemetry-go/internal/session"
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
 )
 
-// countingRepository counts the session, participant and lap reads the handlers make.
+// countingRepository counts the session, participant, lap and event reads the handlers make.
 type countingRepository struct {
 	storage.Repository
 	reads atomic.Int64
@@ -35,12 +37,18 @@ func (c *countingRepository) GetLapsBySession(ctx context.Context, sessionID int
 	return c.Repository.GetLapsBySession(ctx, sessionID, carIndex)
 }
 
+func (c *countingRepository) GetSessionEvents(ctx context.Context, sessionID int64) ([]storage.SessionEvent, error) {
+	c.reads.Add(1)
+	return c.Repository.GetSessionEvents(ctx, sessionID)
+}
+
 const (
 	payloadRaceCars = 22
 	payloadRaceLaps = 58
 )
 
-// seedPayloadRace stores a full synthetic race: 22 cars, 58 laps each, two pit stops.
+// seedPayloadRace stores a full synthetic race: 22 cars, 58 laps each, two pit stops, and its
+// race-control feed (seedPayloadEvents).
 func seedPayloadRace(t *testing.T, repo storage.Repository) int64 {
 	t.Helper()
 	ctx := context.Background()
@@ -93,7 +101,56 @@ func seedPayloadRace(t *testing.T, repo storage.Repository) int64 {
 			}
 		}
 	}
+	seedPayloadEvents(t, repo, session.ID)
 	return session.ID
+}
+
+// seedPayloadEvents stores a busy race's feed: lights out, an overtake every lap for each of
+// four battles, two pit entries per car, a safety car, penalties, fastest laps and a retirement.
+func seedPayloadEvents(t *testing.T, repo storage.Repository, sessionID int64) {
+	t.Helper()
+	var rows []storage.SessionEvent
+	add := func(lap int, evt sessionSvc.FeedEvent) {
+		evt.RaceLap = lap
+		evt.SessionTime = float32(lap * 81)
+		data, err := json.Marshal(evt)
+		if err != nil {
+			t.Fatalf("marshal event: %v", err)
+		}
+		rows = append(rows, storage.SessionEvent{Lap: lap, SessionTime: evt.SessionTime, EventCode: evt.EventCode, Data: data})
+	}
+	car := func(idx int) *int { return &idx }
+	add(1, sessionSvc.FeedEvent{EventCode: "LGOT", Type: "general", Severity: "success"})
+	for lap := 1; lap <= payloadRaceLaps; lap++ {
+		for battle := range 4 {
+			a, b := battle*4+lap%3, battle*4+3
+			add(lap, sessionSvc.FeedEvent{EventCode: "OVTK", Type: "overtake", Severity: "info",
+				VehicleIdx: car(a), DriverName: fmt.Sprintf("Driver %d", a+1),
+				OtherVehicleIdx: car(b), TargetDriverName: fmt.Sprintf("Driver %d", b+1)})
+		}
+		if lap%9 == 0 {
+			add(lap, sessionSvc.FeedEvent{EventCode: "FTLP", Type: "fastest_lap", Severity: "purple",
+				VehicleIdx: car(lap % payloadRaceCars), DriverName: "Driver", LapTime: new(float32(80.5))})
+		}
+	}
+	for c := range payloadRaceCars {
+		for _, lap := range []int{18, 40} {
+			add(lap, sessionSvc.FeedEvent{EventCode: "TMPT", Type: "pit", Severity: "warning",
+				VehicleIdx: car(c), DriverName: fmt.Sprintf("Driver %d", c+1), LapNum: new(lap)})
+		}
+	}
+	for _, status := range []int{1, 0} {
+		add(22+status*3, sessionSvc.FeedEvent{EventCode: "SCAR", Type: "flag", Severity: "warning", SafetyCarStatus: new(status)})
+	}
+	for i := range 6 {
+		add(10+i*7, sessionSvc.FeedEvent{EventCode: "PENA", Type: "penalty", Severity: "warning",
+			VehicleIdx: car(i), DriverName: fmt.Sprintf("Driver %d", i+1), PenaltyType: new(4),
+			InfringementType: new(7), PenaltyTime: new(5), LapNum: new(10 + i*7), PlacesGained: new(0)})
+	}
+	add(33, sessionSvc.FeedEvent{EventCode: "RTMT", Type: "retirement", Severity: "danger", VehicleIdx: car(21), DriverName: "Driver 22"})
+	if err := repo.SaveSessionEvents(context.Background(), sessionID, rows); err != nil {
+		t.Fatalf("save events: %v", err)
+	}
 }
 
 // payloadRequest replays one GET and returns the body.
@@ -113,9 +170,14 @@ func lapObjects(body string) int {
 	return strings.Count(body, `"lap_time_ms":`)
 }
 
-// sessionDataReadsPerRequest is the most reads one request may make: the session, its participants
-// and its laps.
-const sessionDataReadsPerRequest = 3
+// sessionDataReadsPerRequest is the most reads one request may make: the session, its participants,
+// its laps and its race-control events.
+const sessionDataReadsPerRequest = 4
+
+// eventObjects counts the race-control rows in a JSON body (every stored feed row has an eventCode).
+func eventObjects(body string) int {
+	return strings.Count(body, `"eventCode":`)
+}
 
 type payloadFlow struct {
 	name  string
@@ -144,7 +206,7 @@ func measureSessionView(t *testing.T, server *Server, repo *countingRepository, 
 			body := payloadRequest(t, server, path)
 			totalBytes += len(body)
 			totalLaps += lapObjects(body)
-			t.Logf("  %-45s %9d bytes  %5d lap rows", path, len(body), lapObjects(body))
+			t.Logf("  %-45s %9d bytes  %5d lap rows  %4d events", path, len(body), lapObjects(body), eventObjects(body))
 		}
 		reads := repo.reads.Load()
 		t.Logf("  %s: %d requests, %d bytes, %d lap rows (%.2f× the laps), %d repository reads",

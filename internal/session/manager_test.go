@@ -2,6 +2,7 @@ package session
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 	"testing"
 	"time"
@@ -1016,5 +1017,54 @@ func TestSessionManagerStoresPlayerCarIndex(t *testing.T) {
 				t.Errorf("player_car_index = %v, want %d", saved.PlayerCarIndex, *tt.want)
 			}
 		})
+	}
+}
+
+func TestSessionManagerRecordsFeedEvents(t *testing.T) {
+	repo, err := storage.NewSQLiteRepository(t.TempDir() + "/events.db")
+	if err != nil {
+		t.Fatalf("failed to create repo: %v", err)
+	}
+	defer repo.Close()
+	ctx := context.Background()
+	manager := NewSessionManager(repo)
+	manager.Start(ctx)
+	defer manager.Close(ctx)
+
+	const uid = 7001
+	header := packets.PacketHeader{PacketFormat: 2026, PacketId: packets.PacketIDSession, SessionUID: uid}
+	manager.ProcessPacket(ctx, &packets.PacketSessionData{Header: header, TrackId: 11, SessionType: packets.SessionRace})
+
+	// Car 3 leads on lap 12
+	header.PacketId = packets.PacketIDLapData
+	laps := &packets.PacketLapData{Header: header}
+	laps.LapData[0].CarPosition, laps.LapData[0].CurrentLapNum = 2, 11
+	laps.LapData[3].CarPosition, laps.LapData[3].CurrentLapNum = 1, 12
+	manager.ProcessPacket(ctx, laps)
+
+	manager.RecordFeedEvents(ctx, uid, []FeedEvent{safetyCarFeedEvent(packets.SafetyCarFull, 900)})
+	// Rows of another session are not stored with this one
+	manager.RecordFeedEvents(ctx, uid+1, []FeedEvent{safetyCarFeedEvent(packets.SafetyCarNone, 950)})
+
+	saved, err := repo.GetSessionByUID(ctx, storage.FormatSessionUID(uid))
+	if err != nil || saved == nil {
+		t.Fatalf("GetSessionByUID: %v, %v", saved, err)
+	}
+	rows, err := repo.GetSessionEvents(ctx, saved.ID)
+	if err != nil {
+		t.Fatalf("GetSessionEvents: %v", err)
+	}
+	if len(rows) != 1 {
+		t.Fatalf("expected 1 stored event, got %d", len(rows))
+	}
+	if rows[0].Lap != 12 || rows[0].EventCode != packets.EventSafetyCarStatus || rows[0].SessionTime != 900 {
+		t.Errorf("unexpected stored row: %+v", rows[0])
+	}
+	var evt FeedEvent
+	if err := json.Unmarshal(rows[0].Data, &evt); err != nil {
+		t.Fatalf("stored data is not a feed event: %v", err)
+	}
+	if evt.RaceLap != 12 || evt.SafetyCarStatus == nil || *evt.SafetyCarStatus != int(packets.SafetyCarFull) {
+		t.Errorf("unexpected stored event: %+v", evt)
 	}
 }

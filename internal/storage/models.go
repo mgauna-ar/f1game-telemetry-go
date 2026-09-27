@@ -218,6 +218,17 @@ type ExportedLapPackage struct {
 	Telemetry []TelemetrySample `json:"telemetry,omitempty"`
 }
 
+// SessionEvent is a race-control feed row stored with its session. Data is the row as the
+// dashboard reads it (session.FeedEvent in JSON); Lap and SessionTime order and place it.
+type SessionEvent struct {
+	ID          int64           `db:"id" json:"-"`
+	SessionID   int64           `db:"session_id" json:"-"`
+	Lap         int             `db:"lap" json:"lap"`
+	SessionTime float32         `db:"session_time" json:"session_time"`
+	EventCode   string          `db:"event_code" json:"event_code"`
+	Data        json.RawMessage `db:"data" json:"data"`
+}
+
 // ExportedSessionPackage represents a fully self-contained exported session.
 type ExportedSessionPackage struct {
 	Version      string               `json:"version"`
@@ -225,4 +236,6 @@ type ExportedSessionPackage struct {
 	Tags         []Tag                `json:"tags"`
 	Participants []Participant        `json:"participants"`
 	Laps         []ExportedLapPackage `json:"laps"`
+	// Events is empty for sessions recorded before the race-control feed was stored.
+	Events []SessionEvent `json:"events,omitempty"`
 }
