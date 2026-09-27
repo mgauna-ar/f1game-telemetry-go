@@ -192,9 +192,10 @@ describe('Dashboard', () => {
     expect(localStorage.getItem('f1_live_view_mode')).toBe('dashboard');
   });
 
-  it('sets the live chat context once and never re-renders chat consumers on a timer', async () => {
+  it('points the chat at the live session and never re-renders chat consumers on a timer', async () => {
     vi.useFakeTimers();
     try {
+      window.history.replaceState(null, '', '/live/dashboard');
       globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
       useSessionStatusStore.setState({ connected: true, session: makeLiveSession({ TrackId: 7 }) });
 

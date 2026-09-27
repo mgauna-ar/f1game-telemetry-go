@@ -18,25 +18,14 @@ import { SkeletonGroup, SkeletonRows } from './ui/Skeleton';
 import { useI18n } from '../context/I18nContext';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useToastStore } from '../store/useToastStore';
+import { navigate } from '../router/router';
 import { SessionHistoryProvider } from '../context/SessionHistoryContext';
 import { useSessionHistoryData, useSessionHistoryActions } from '../context/SessionHistoryContextDefinitions';
 
 import styles from './SessionHistory.module.css';
-import type {
-  Session,
-  Participant,
-  Lap,
-  StagedLap,
-  DriverStanding,
-  NavigationComparatorPayload,
-  Tag,
-} from '../types/session';
+import type { Session, Participant, Lap, StagedLap, DriverStanding, Tag } from '../types/session';
 
-export type { Session, Participant, Lap, StagedLap, DriverStanding, NavigationComparatorPayload, Tag };
-
-interface SessionHistoryProps {
-  onNavigateToComparator?: (payload: NavigationComparatorPayload | number, lapId?: number, slot?: 'A' | 'B') => void;
-}
+export type { Session, Participant, Lap, StagedLap, DriverStanding, Tag };
 
 const SessionHistoryContent: React.FC = () => {
   const { t, locale } = useI18n();
@@ -60,9 +49,7 @@ const SessionHistoryContent: React.FC = () => {
   } = useSessionHistoryData();
 
   const {
-    setSelectedSession,
-    setStagedSlotA,
-    setStagedSlotB,
+    closeSession,
     fetchSessions,
     setSessionToDelete,
     confirmDeleteSession,
@@ -102,14 +89,7 @@ const SessionHistoryContent: React.FC = () => {
       ) : (
         <div className={styles.detailBar}>
           <div className={styles.detailNav}>
-            <Button
-              icon={<ArrowLeft size={16} aria-hidden="true" />}
-              onClick={() => {
-                setSelectedSession(null);
-                setStagedSlotA(null);
-                setStagedSlotB(null);
-              }}
-            >
+            <Button icon={<ArrowLeft size={16} aria-hidden="true" />} onClick={closeSession}>
               {t('history.backToList')}
             </Button>
             <div className={styles.crumbs}>
@@ -181,7 +161,7 @@ const SessionHistoryContent: React.FC = () => {
           confirmDeleteSession(
             (id) => {
               if (selectedSession && selectedSession.id === id) {
-                setSelectedSession(null);
+                navigate('/history', { replace: true });
               }
               useToastStore
                 .getState()
@@ -230,9 +210,9 @@ const SessionHistoryContent: React.FC = () => {
   );
 };
 
-export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComparator }) => {
+export const SessionHistory: React.FC = () => {
   return (
-    <SessionHistoryProvider onNavigateToComparator={onNavigateToComparator}>
+    <SessionHistoryProvider>
       <SessionHistoryContent />
     </SessionHistoryProvider>
   );

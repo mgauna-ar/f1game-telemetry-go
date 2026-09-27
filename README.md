@@ -54,7 +54,7 @@ Pre-compiled, self-contained single binaries with the embedded web dashboard are
    * **macOS:** `f1telemetry_v1.0.0_darwin_arm64.zip` (Apple Silicon M-series) or `f1telemetry_v1.0.0_darwin_amd64.zip` (Intel)
    * **Linux:** `f1telemetry_v1.0.0_linux_amd64.tar.gz` (or `arm64`)
 2. Extract the archive contents.
-3. Run `f1telemetry.exe` (Windows) or `./f1telemetry` (macOS / Linux). The server will start and automatically open your default browser to `http://localhost:8080`.
+3. Run `f1telemetry.exe` (Windows) or `./f1telemetry` (macOS / Linux). The server will start and automatically open your default browser to `http://localhost:8080`. Every page has its own address you can bookmark or share on your network: a session (`/history/12/stints`), a lap comparison with its zoom (`/compare?sa=12&a=345&b=346`) or the live cockpit (`/live/cockpit`).
 
 > [!NOTE]
 > **Windows Defender / SmartScreen Notice:**

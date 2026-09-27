@@ -1,5 +1,5 @@
 import { renderHook, act } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { useLapStaging } from './useLapStaging';
 import type { Session, Lap, DriverStanding } from '../types/session';
 import { makeLap, makeParticipant, makeSession } from '../test/wireFactories';
@@ -96,9 +96,8 @@ describe('useLapStaging Hook', () => {
     expect(result.current.stagedSlotB).toBeNull();
   });
 
-  it('launches comparison with navigation callback', () => {
-    const onNavigateToComparator = vi.fn();
-    const { result } = renderHook(() => useLapStaging({ onNavigateToComparator }));
+  it('opens the comparator URL with the staged laps', () => {
+    const { result } = renderHook(() => useLapStaging());
 
     act(() => {
       result.current.handleStageLap(mockSession, mockLap, mockDriver, 'A');
@@ -108,11 +107,7 @@ describe('useLapStaging Hook', () => {
       result.current.handleLaunchComparison();
     });
 
-    expect(onNavigateToComparator).toHaveBeenCalledWith(
-      expect.objectContaining({
-        sessionAId: 42,
-        lapAId: 100,
-      })
-    );
+    expect(window.location.pathname).toBe('/compare');
+    expect(window.location.search).toBe('?sa=42&a=100');
   });
 });

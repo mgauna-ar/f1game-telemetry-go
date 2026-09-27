@@ -1,5 +1,7 @@
 import { RADIO_LANGUAGES } from '../constants/f1';
 import type { ChatContextMode, ChatContextRequest } from '../types/ai';
+import type { Route } from '../router/routes';
+import type { Session } from '../types/session';
 
 /** The two laps the comparator chat is about, and the zoomed segment if any. */
 export interface ComparatorChatTarget {
@@ -16,6 +18,43 @@ export interface SessionDebriefChatTarget {
   sessionId: number;
   /** Only for the chat's header badge; the server loads the session itself. */
   trackName: string;
+}
+
+export interface ChatTargets {
+  contextMode: ChatContextMode;
+  comparatorTarget: ComparatorChatTarget | null;
+  sessionDebriefTarget: SessionDebriefChatTarget | null;
+}
+
+/**
+ * What the chat is about, read from the page's URL: the session open in History, the laps and
+ * zoom in the comparator, or the live session. The sessions only name the track in the badge.
+ */
+export function chatTargetsFromRoute(
+  route: Route,
+  sessions: ReadonlyArray<Pick<Session, 'id' | 'track_name'>>
+): ChatTargets {
+  const trackName = (id: number | undefined) => sessions.find((s) => s.id === id)?.track_name ?? '';
+  switch (route.page) {
+    case 'live':
+      return { contextMode: 'live', comparatorTarget: null, sessionDebriefTarget: null };
+    case 'compare': {
+      const { lapA, lapB, zoom, sessionA } = route;
+      return {
+        contextMode: 'comparator',
+        comparatorTarget:
+          lapA && lapB ? { lapAId: lapA, lapBId: lapB, zoom: zoom ?? null, trackName: trackName(sessionA) } : null,
+        sessionDebriefTarget: null,
+      };
+    }
+    case 'history':
+      if (!route.sessionId) return { contextMode: 'general', comparatorTarget: null, sessionDebriefTarget: null };
+      return {
+        contextMode: 'session_debrief',
+        comparatorTarget: null,
+        sessionDebriefTarget: { sessionId: route.sessionId, trackName: trackName(route.sessionId) },
+      };
+  }
 }
 
 /**

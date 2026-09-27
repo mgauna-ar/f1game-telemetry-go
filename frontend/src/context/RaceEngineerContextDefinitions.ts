@@ -71,11 +71,6 @@ export interface RaceEngineerActionsContextValue {
   closeChat: () => void;
   toggleChat: () => void;
 
-  // What the chat is about. The server builds the prompt data from these identifiers.
-  setContextMode: (mode: ContextMode) => void;
-  setComparatorTarget: (target: ComparatorChatTarget | null) => void;
-  setSessionDebriefTarget: (target: SessionDebriefChatTarget | null) => void;
-
   // Messaging actions
   sendMessage: (customPrompt?: string) => Promise<void>;
   retryLastMessage: (assistantMsgId?: string) => Promise<void>;
@@ -91,6 +86,7 @@ export interface RaceEngineerActionsContextValue {
 /** Chat window, context and settings state; changes on user actions, never on a timer. */
 export interface RaceEngineerStateContextValue {
   isOpen: boolean;
+  /** What the chat is about, read from the page's URL (`chatTargetsFromRoute`). */
   contextMode: ContextMode;
   comparatorTarget: ComparatorChatTarget | null;
   sessionDebriefTarget: SessionDebriefChatTarget | null;
@@ -143,9 +139,6 @@ const defaultFallbackActionsContext: RaceEngineerActionsContextValue = {
   openChat: () => {},
   closeChat: () => {},
   toggleChat: () => {},
-  setContextMode: () => {},
-  setComparatorTarget: () => {},
-  setSessionDebriefTarget: () => {},
   sendMessage: async () => {},
   retryLastMessage: async () => {},
   clearMessages: () => {},

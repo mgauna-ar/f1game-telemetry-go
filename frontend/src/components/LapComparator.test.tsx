@@ -685,7 +685,8 @@ describe('LapComparator Component', () => {
       return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
     });
 
-    render(<LapComparator initialPreload={{ sessionAId: 1, sessionBId: 1, lapAId: 501, lapBId: 502 }} />);
+    window.history.replaceState(null, '', '/compare?sa=1&a=501&b=502');
+    render(<LapComparator />);
 
     // Wait for telemetry charts to render
     await waitFor(() => {
@@ -705,10 +706,14 @@ describe('LapComparator Component', () => {
     expect(screen.getByText('Sector 2')).toBeInTheDocument();
     expect(screen.getByText('Sector 3')).toBeInTheDocument();
 
-    // Click Sector 2 zoom
+    // The laps from the URL stay in it once loaded
+    expect(window.location.search).toBe('?sa=1&a=501&b=502');
+
+    // Click Sector 2 zoom; the zoomed stretch goes into the URL
     fireEvent.click(screen.getByText('Sector 2'));
     await waitFor(() => {
       expect(screen.getByText(/Reset Zoom/i)).toBeInTheDocument();
     });
+    expect(window.location.search).toMatch(/^\?sa=1&a=501&b=502&zoom=\d+-\d+$/);
   });
 });

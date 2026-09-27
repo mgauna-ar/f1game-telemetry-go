@@ -18,7 +18,8 @@ import type { Session } from '../../types/session';
 import { Stat } from '../ui/Stat';
 import { Tabs } from '../ui/Tabs';
 
-export type SessionDetailTab = 'classification' | 'charts' | 'stints' | 'sectors';
+export type { SessionDetailTab } from '../../router/routes';
+import type { SessionDetailTab } from '../../router/routes';
 
 /** Links the detail tabs to the panel `SessionDetailView` renders. */
 export const SESSION_DETAIL_TABS_ID = 'session-detail';

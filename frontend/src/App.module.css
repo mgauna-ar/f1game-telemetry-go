@@ -119,10 +119,10 @@
   font-weight: var(--font-weight-semibold);
   white-space: nowrap;
   color: var(--text-secondary);
+  text-decoration: none;
   background: transparent;
   border: none;
   border-radius: var(--radius-full);
-  cursor: pointer;
   transition: all 0.22s var(--ease-smooth);
 }
 

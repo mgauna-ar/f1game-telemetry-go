@@ -1,8 +1,7 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { Calendar, GitCompare, Radio, Sparkles } from 'lucide-react';
 import { F1TelemetryLogo } from './components/F1TelemetryLogo';
 import { RaceEngineerProvider } from './context/RaceEngineerProvider';
-import { useRaceEngineerActions } from './context/RaceEngineerContext';
 import { I18nProvider } from './context/I18nProvider';
 import { useI18n } from './context/I18nContext';
 import { AiRaceEngineer } from './components/AiRaceEngineer';
@@ -18,6 +17,9 @@ import { useTelemetryEndpointStore } from './store/useTelemetryEndpointStore';
 import { useLiveStatus } from './hooks/useLiveStatus';
 import { LIVE_STATUS } from './constants/f1';
 import type { UpdateCheckResponse, SystemVersion } from './types/system';
+import { Link } from './router/Link';
+import { navigate, useRoute, useUrl } from './router/router';
+import { buildPath, storeLastPage, storedLiveMode, type Page } from './router/routes';
 import styles from './App.module.css';
 
 const SessionHistory = lazy(() => import('./components/SessionHistory').then((m) => ({ default: m.SessionHistory })));
@@ -27,11 +29,9 @@ const ReleaseNotesModal = lazy(() =>
   import('./components/ReleaseNotesModal').then((m) => ({ default: m.ReleaseNotesModal }))
 );
 
-type TabType = 'history' | 'comparator' | 'live';
-
-const NAV_TABS: ReadonlyArray<{ id: TabType; icon: typeof Calendar; labelKey: string }> = [
+const NAV_TABS: ReadonlyArray<{ id: Page; icon: typeof Calendar; labelKey: string }> = [
   { id: 'history', icon: Calendar, labelKey: 'nav.tabs.history' },
-  { id: 'comparator', icon: GitCompare, labelKey: 'nav.tabs.comparator' },
+  { id: 'compare', icon: GitCompare, labelKey: 'nav.tabs.comparator' },
   { id: 'live', icon: Radio, labelKey: 'nav.tabs.live' },
 ];
 
@@ -45,20 +45,34 @@ const releaseChannel = (
   return undefined;
 };
 
-const STORAGE_KEY = 'f1_active_tab';
 const DISMISSED_UPDATE_KEY = 'f1_telemetry_dismissed_update';
 
 function AppContent() {
   const { t } = useI18n();
-  const [activeTab, setActiveTab] = useState<TabType>(() => {
-    const saved = storage.get<string>(STORAGE_KEY, 'history');
-    if (saved === 'history' || saved === 'comparator' || saved === 'live') {
-      return saved;
-    }
-    return 'history';
-  });
+  const url = useUrl();
+  const route = useRoute();
+  const activePage = route.page;
 
-  const { setContextMode } = useRaceEngineerActions();
+  // Every URL is shown in one form: defaults filled in, unknown parts dropped.
+  const canonicalUrl = buildPath(route);
+  useEffect(() => {
+    if (canonicalUrl !== url) navigate(canonicalUrl, { replace: true });
+  }, [canonicalUrl, url]);
+
+  useEffect(() => {
+    storeLastPage(activePage);
+  }, [activePage]);
+
+  // The comparator tab goes back to the laps last compared.
+  const lastCompareUrl = useRef('/compare');
+  if (activePage === 'compare') lastCompareUrl.current = canonicalUrl;
+  const tabHref = (page: Page) =>
+    page === 'compare'
+      ? lastCompareUrl.current
+      : page === 'live'
+        ? buildPath({ page: 'live', mode: activePage === 'live' ? route.mode : storedLiveMode() })
+        : '/history';
+
   const liveStatus = useLiveStatus();
   const udpPort = useTelemetryEndpointStore((s) => s.endpoint.udp_port);
   const isLiveFeedActive = liveStatus === LIVE_STATUS.LIVE;
@@ -101,51 +115,6 @@ function AppContent() {
     storage.set(DISMISSED_UPDATE_KEY, version);
   };
 
-  const [comparatorPreload, setComparatorPreload] = useState<{
-    sessionId?: number;
-    lapId?: number;
-    slot?: 'A' | 'B';
-    sessionAId?: number;
-    lapAId?: number;
-    sessionBId?: number;
-    lapBId?: number;
-  } | null>(null);
-
-  useEffect(() => {
-    storage.set(STORAGE_KEY, activeTab);
-    if (activeTab === 'live') {
-      setContextMode('live');
-    } else if (activeTab === 'comparator') {
-      setContextMode('comparator');
-    } else if (activeTab === 'history') {
-      // If we switch to history, default to session_debrief or general
-      setContextMode('general');
-    }
-  }, [activeTab, setContextMode]);
-
-  const handleNavigateToComparator = (
-    payload:
-      | {
-          sessionId?: number;
-          lapId?: number;
-          slot?: 'A' | 'B';
-          sessionAId?: number;
-          lapAId?: number;
-          sessionBId?: number;
-          lapBId?: number;
-        }
-      | number,
-    lapId?: number,
-    slot?: 'A' | 'B'
-  ) => {
-    if (typeof payload === 'object') {
-      setComparatorPreload(payload);
-    } else {
-      setComparatorPreload({ sessionId: payload, lapId: lapId!, slot: slot || 'A' });
-    }
-    setActiveTab('comparator');
-  };
-
   const versionDetails = systemVersion
     ? [
         t('common.updates.commit', { commit: systemVersion.commit }),
@@ -177,12 +146,11 @@ function AppContent() {
 
         <nav className={styles.tabs} aria-label={t('nav.mainNavigation')}>
           {NAV_TABS.map(({ id, icon: Icon, labelKey }) => (
-            <button
+            <Link
               key={id}
-              type="button"
-              aria-current={activeTab === id ? 'page' : undefined}
+              href={tabHref(id)}
+              aria-current={activePage === id ? 'page' : undefined}
               className={styles.tab}
-              onClick={() => setActiveTab(id)}
             >
               <Icon size={16} aria-hidden="true" />
               <span>{t(labelKey)}</span>
@@ -197,7 +165,7 @@ function AppContent() {
                   {isStale ? t('live.statusStale') : t('nav.liveBadge')}
                 </span>
               )}
-            </button>
+            </Link>
           ))}
         </nav>
 
@@ -239,10 +207,10 @@ function AppContent() {
       <main className={styles.main}>
         <ErrorBoundary level="section" onReset={() => {}}>
           <Suspense fallback={null}>
-            {activeTab === 'history' ? (
-              <SessionHistory onNavigateToComparator={handleNavigateToComparator} />
-            ) : activeTab === 'comparator' ? (
-              <LapComparator initialPreload={comparatorPreload} />
+            {activePage === 'history' ? (
+              <SessionHistory />
+            ) : activePage === 'compare' ? (
+              <LapComparator />
             ) : (
               <Dashboard />
             )}

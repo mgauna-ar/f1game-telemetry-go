@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useEffect, useCallback, useRef } from 'react';
 import { connectTelemetryWebSocket } from '../store/useTelemetryStore';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
-import { useRaceEngineerActions } from '../context/RaceEngineerContext';
 import { LIVE_VIEW_MODES, STORAGE_KEY_LIVE_VIEW_MODE } from '../constants/f1';
 
 import type { LiveViewMode } from '../constants/f1';
@@ -20,17 +19,21 @@ import { useProactiveTelemetryRadio } from '../hooks/useProactiveTelemetryRadio'
 import { getProactiveRadioSpeech } from '../utils/radioPhrases';
 import type { RadioAlertPayload } from '../types/telemetry';
 import { storage } from '../utils/storage';
+import { navigate, useRoute } from '../router/router';
+import { buildPath } from '../router/routes';
 import styles from './Dashboard.module.css';
 
 export const Dashboard: React.FC = () => {
-  const [viewMode, setViewMode] = useState<LiveViewMode>(() => {
-    const saved = storage.get<string>(STORAGE_KEY_LIVE_VIEW_MODE, LIVE_VIEW_MODES.DASHBOARD);
-    return saved === LIVE_VIEW_MODES.COCKPIT ? LIVE_VIEW_MODES.COCKPIT : LIVE_VIEW_MODES.DASHBOARD;
-  });
+  // The mode is in the URL (/live/dashboard, /live/cockpit); the last one is kept for /live.
+  const route = useRoute();
+  const viewMode: LiveViewMode = route.page === 'live' ? route.mode : LIVE_VIEW_MODES.DASHBOARD;
+
+  useEffect(() => {
+    storage.set(STORAGE_KEY_LIVE_VIEW_MODE, viewMode);
+  }, [viewMode]);
 
   const handleViewModeChange = useCallback((mode: LiveViewMode) => {
-    setViewMode(mode);
-    storage.set(STORAGE_KEY_LIVE_VIEW_MODE, mode);
+    navigate(buildPath({ page: 'live', mode }), { replace: true });
   }, []);
 
   useEffect(() => {
@@ -43,13 +46,6 @@ export const Dashboard: React.FC = () => {
   const session = useSessionStatusStore((s) => s.session);
   const connected = useSessionStatusStore((s) => s.connected);
   const packetFormat = useSessionStatusStore((s) => s.packetFormat);
-
-  const { setContextMode } = useRaceEngineerActions();
-
-  // The live chat sends no telemetry: the server builds the race briefing from its own feed.
-  useEffect(() => {
-    setContextMode('live');
-  }, [setContextMode]);
 
   const radio = useRadioController();
 

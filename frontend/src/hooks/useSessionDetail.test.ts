@@ -57,7 +57,7 @@ describe('useSessionDetail', () => {
     const { result } = renderHook(() => useSessionDetail());
 
     await act(async () => {
-      await result.current.selectSession(session);
+      await result.current.loadSession(session);
     });
 
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
@@ -79,7 +79,7 @@ describe('useSessionDetail', () => {
   it('hands the loaded participants and laps to the comparator cache', async () => {
     const { result } = renderHook(() => useSessionDetail());
     await act(async () => {
-      await result.current.selectSession(session);
+      await result.current.loadSession(session);
     });
 
     expect(await getSessionLapData(42)).toEqual({ participants, laps });
@@ -95,7 +95,7 @@ describe('useSessionDetail', () => {
     );
     const { result } = renderHook(() => useSessionDetail());
     await act(async () => {
-      await result.current.selectSession(session);
+      await result.current.loadSession(session);
     });
 
     await waitFor(() => expect(result.current.detailError).toBe('session not found'));

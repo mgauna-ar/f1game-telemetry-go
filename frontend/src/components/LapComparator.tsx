@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import type { NavigationComparatorPayload } from '../types/session';
 import { useRaceEngineerActions } from '../context/RaceEngineerContext';
+import { navigate, useRoute } from '../router/router';
+import { buildPath, type CompareParams } from '../router/routes';
 import { useI18n } from '../context/I18nContext';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
@@ -22,12 +23,15 @@ import {
 } from '../utils/comparatorPreferencesUtils';
 import styles from './LapComparator.module.css';
 
-export interface LapComparatorProps {
-  initialPreload?: NavigationComparatorPayload | null;
-}
-
-export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) => {
-  const { setComparatorTarget, setContextMode, openChat } = useRaceEngineerActions();
+/**
+ * Two laps side by side. The sessions, laps and zoom start from the URL
+ * (`/compare?sa=&a=&sb=&b=&zoom=`) and are written back to it as they change, so the page can be
+ * reloaded or shared, and the AI chat reads what it is about from there.
+ */
+export const LapComparator: React.FC = () => {
+  const { openChat } = useRaceEngineerActions();
+  const route = useRoute();
+  const [initial] = useState<CompareParams>(() => (route.page === 'compare' ? route : {}));
 
   // Hook 1: Session selection & Synchronization link
   const {
@@ -56,7 +60,7 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
     selectedSessionBObj,
     filteredDropdownSessionsA,
     filteredDropdownSessionsB,
-  } = useComparatorSessions({ initialPreload });
+  } = useComparatorSessions({ initial });
 
   // Comparator Preferences State
   const [preferences, setPreferences] = useState<ComparatorPreferences>(() => loadComparatorPreferences());
@@ -64,7 +68,7 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
   // Hook 2: Slot A telemetry & laps loader
   const slotA = useSlotTelemetry({
     sessionId: sessionAId,
-    preloadLapId: initialPreload?.lapAId || (initialPreload?.slot === 'A' ? initialPreload?.lapId : undefined),
+    preloadLapId: initial.lapA,
     defaultDriverName: 'Reference',
     preferredDriverName: preferences.defaultDriverName,
   });
@@ -72,7 +76,7 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
   // Hook 2 (reused): Slot B telemetry & laps loader
   const slotB = useSlotTelemetry({
     sessionId: sessionBId,
-    preloadLapId: initialPreload?.lapBId || (initialPreload?.slot === 'B' ? initialPreload?.lapId : undefined),
+    preloadLapId: initial.lapB,
     isSlotB: true,
     isSameSessionAsSlotA: sessionAId === sessionBId,
     defaultDriverName: 'Comparison',
@@ -135,6 +139,7 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
     lapBId: slotB.lapId,
     lapAObj: slotA.selectedLap,
     lapBObj: slotB.selectedLap,
+    initialZoom: initial.zoom,
   });
 
   // Aliases for clear JSX consumption
@@ -181,19 +186,25 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
     isLinkedSessions,
   });
 
-  // Point the AI Race Engineer at the compared laps; the server merges and analyzes them itself.
-  const trackName = selectedSessionAObj?.track_name ?? '';
-  const zoomStart = zoomDomain?.[0];
-  const zoomEnd = zoomDomain?.[1];
+  // Write the comparison into the URL once the laps asked for in it have loaded, so a half-loaded
+  // page never drops them. The AI chat reads its target from there.
+  const slotSettled = (sessionId: number | '', loadedSessionId: number | '') =>
+    sessionId === '' || loadedSessionId === sessionId;
+  const [hydrated, setHydrated] = useState(false);
+  if (!hydrated && slotSettled(sessionAId, slotA.loadedSessionId) && slotSettled(sessionBId, slotB.loadedSessionId)) {
+    setHydrated(true);
+  }
+  const compareUrl = buildPath({
+    page: 'compare',
+    sessionA: sessionAId || undefined,
+    lapA: lapAId || undefined,
+    sessionB: sessionBId || undefined,
+    lapB: lapBId || undefined,
+    zoom: zoomDomain ?? undefined,
+  });
   useEffect(() => {
-    const lapA = Number(lapAId);
-    const lapB = Number(lapBId);
-    const hasLaps = lapA > 0 && lapB > 0;
-    const zoom: [number, number] | null =
-      zoomStart !== undefined && zoomEnd !== undefined ? [zoomStart, zoomEnd] : null;
-    setComparatorTarget(hasLaps ? { lapAId: lapA, lapBId: lapB, zoom, trackName } : null);
-    setContextMode('comparator');
-  }, [lapAId, lapBId, zoomStart, zoomEnd, trackName, setComparatorTarget, setContextMode]);
+    if (hydrated) navigate(compareUrl, { replace: true });
+  }, [hydrated, compareUrl]);
 
   // Quick Select Leaderboard data computation
   const quickSelectData = useMemo(() => {

@@ -11,6 +11,8 @@ export interface UseMergedTelemetryOptions {
   lapBObj?: Lap;
   stepMeters?: number;
   targetTrackLength?: number;
+  /** The zoomed stretch to start with, in meters. */
+  initialZoom?: [number, number] | null;
 }
 
 export interface UseMergedTelemetryReturn {
@@ -39,13 +41,14 @@ export function useMergedTelemetry({
   lapBObj,
   stepMeters = 5,
   targetTrackLength,
+  initialZoom = null,
 }: UseMergedTelemetryOptions): UseMergedTelemetryReturn {
   const [comparisonData, setComparisonData] = useState<MergedTelemetryPoint[]>([]);
   const [detectedTurns, setDetectedTurns] = useState<TrackTurn[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [hoverDistance, setHoverDistance] = useState<number | null>(null);
-  const [zoomDomain, setZoomDomain] = useState<[number, number] | null>(null);
+  const [zoomDomain, setZoomDomain] = useState<[number, number] | null>(initialZoom);
 
   // Fetch merged comparison telemetry from Go backend endpoint with server-side caching
   useEffect(() => {

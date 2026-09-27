@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildChatContextRequest, resolveRadioLanguage } from './chatContext';
+import { buildChatContextRequest, chatTargetsFromRoute, resolveRadioLanguage } from './chatContext';
+import { parseRoute } from '../router/routes';
 
 describe('buildChatContextRequest', () => {
   const comparator = { lapAId: 11, lapBId: 12, zoom: null, trackName: 'Monza' };
@@ -50,5 +51,43 @@ describe('resolveRadioLanguage', () => {
   it('uses the chosen radio language otherwise', () => {
     expect(resolveRadioLanguage('es', 'en')).toBe('es');
     expect(resolveRadioLanguage('en', 'es')).toBe('en');
+  });
+});
+
+describe('chatTargetsFromRoute', () => {
+  const sessions = [
+    { id: 3, track_name: 'Monza' },
+    { id: 7, track_name: 'Suzuka' },
+  ];
+  const targetsAt = (url: string) => {
+    const { pathname, search } = new URL(url, 'http://localhost');
+    return chatTargetsFromRoute(parseRoute(pathname, search), sessions);
+  };
+
+  it('debriefs the session open in History', () => {
+    expect(targetsAt('/history/7/charts')).toEqual({
+      contextMode: 'session_debrief',
+      comparatorTarget: null,
+      sessionDebriefTarget: { sessionId: 7, trackName: 'Suzuka' },
+    });
+    expect(targetsAt('/history').contextMode).toBe('general');
+  });
+
+  it('compares the laps and zoom in the comparator URL', () => {
+    expect(targetsAt('/compare?sa=3&a=41&b=42&zoom=100-400')).toEqual({
+      contextMode: 'comparator',
+      comparatorTarget: { lapAId: 41, lapBId: 42, zoom: [100, 400], trackName: 'Monza' },
+      sessionDebriefTarget: null,
+    });
+    // Until both laps are picked there is nothing to compare yet
+    expect(targetsAt('/compare?sa=3&a=41')).toMatchObject({ contextMode: 'comparator', comparatorTarget: null });
+  });
+
+  it('briefs the live session on the live pages', () => {
+    expect(targetsAt('/live/cockpit')).toEqual({
+      contextMode: 'live',
+      comparatorTarget: null,
+      sessionDebriefTarget: null,
+    });
   });
 });

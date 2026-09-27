@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { api } from '../utils/apiClient';
 import { primeSessionLapData } from '../utils/sessionDataCache';
-import { useRaceEngineerActions } from '../context/RaceEngineerContext';
 import {
   type Session,
   type Lap,
@@ -31,9 +30,8 @@ export interface UseSessionDetailReturn {
   laps: Lap[];
   expandedDrivers: Record<number, boolean>;
   toggleDriverExpand: (carIndex: number) => void;
-  activeDetailTab: 'classification' | 'charts' | 'stints' | 'sectors';
-  setActiveDetailTab: (tab: 'classification' | 'charts' | 'stints' | 'sectors') => void;
-  selectSession: (session: Session) => Promise<void>;
+  /** Shows a session and loads its detail; History calls it when the URL names the session. */
+  loadSession: (session: Session) => Promise<void>;
   driverStandings: DriverStanding[];
   sessionBestS1: number;
   sessionBestS2: number;
@@ -54,12 +52,8 @@ export function useSessionDetail({ onClearStagedSlots }: UseSessionDetailProps =
   const [laps, setLaps] = useState<Lap[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [expandedDrivers, setExpandedDrivers] = useState<Record<number, boolean>>({});
-  const [activeDetailTab, setActiveDetailTab] = useState<'classification' | 'charts' | 'stints' | 'sectors'>('classification');
 
   const sessionDetailAbortRef = useRef<AbortController | null>(null);
-
-  // AI Race Engineer Context Hook
-  const { setSessionDebriefTarget, setContextMode } = useRaceEngineerActions();
 
   useEffect(() => {
     return () => {
@@ -67,7 +61,7 @@ export function useSessionDetail({ onClearStagedSlots }: UseSessionDetailProps =
     };
   }, []);
 
-  const selectSession = useCallback(async (session: Session) => {
+  const loadSession = useCallback(async (session: Session) => {
     sessionDetailAbortRef.current?.abort();
     const controller = new AbortController();
     sessionDetailAbortRef.current = controller;
@@ -78,7 +72,6 @@ export function useSessionDetail({ onClearStagedSlots }: UseSessionDetailProps =
     setDetailError(null);
     setExpandedDrivers({});
     onClearStagedSlots?.();
-    setActiveDetailTab('classification');
 
     try {
       // One request: the server loads the session's participants and laps once and sends each once.
@@ -136,21 +129,6 @@ export function useSessionDetail({ onClearStagedSlots }: UseSessionDetailProps =
     );
   }, [classificationData, selectedSession, participants, laps]);
 
-  // Point the AI debrief at this session once its classification has loaded; the server
-  // builds the debrief from the session ID.
-  const hasStandings = driverStandings.length > 0;
-  const debriefSessionId = selectedSession?.id;
-  const debriefTrackName = selectedSession?.track_name ?? '';
-  useEffect(() => {
-    if (debriefSessionId !== undefined && hasStandings) {
-      setSessionDebriefTarget({ sessionId: debriefSessionId, trackName: debriefTrackName });
-      setContextMode('session_debrief');
-    } else {
-      setSessionDebriefTarget(null);
-      setContextMode('general');
-    }
-  }, [debriefSessionId, debriefTrackName, hasStandings, setSessionDebriefTarget, setContextMode]);
-
   const totalSessionLaps = useMemo(() => {
     if (progressionData && progressionData.total_session_laps > 0) {
       return progressionData.total_session_laps;
@@ -175,9 +153,7 @@ export function useSessionDetail({ onClearStagedSlots }: UseSessionDetailProps =
     laps,
     expandedDrivers,
     toggleDriverExpand,
-    activeDetailTab,
-    setActiveDetailTab,
-    selectSession,
+    loadSession,
     driverStandings,
     sessionBestS1,
     sessionBestS2,

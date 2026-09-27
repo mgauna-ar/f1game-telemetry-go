@@ -28,15 +28,17 @@ describe('useComparatorSessions Hook', () => {
     vi.restoreAllMocks();
   });
 
-  it('initializes with preload and fetches sessions', async () => {
+  it('starts from the sessions in the URL and fetches sessions', async () => {
     const { result } = renderHook(() =>
       useComparatorSessions({
-        initialPreload: { sessionAId: 1, sessionBId: 2 },
+        initial: { sessionA: 1, sessionB: 2 },
       })
     );
 
     expect(result.current.sessionAId).toBe(1);
     expect(result.current.sessionBId).toBe(2);
+    // Different sessions start unlinked
+    expect(result.current.isLinkedSessions).toBe(false);
 
     await waitFor(() => {
       expect(result.current.sessions).toHaveLength(3);

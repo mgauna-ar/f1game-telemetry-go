@@ -1,5 +1,8 @@
-import React, { useState, useMemo, useCallback } from 'react';
-import type { NavigationComparatorPayload } from '../types/session';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import type { Session } from '../types/session';
+import { navigate, openComparator, useRoute } from '../router/router';
+import { buildPath, type SessionDetailTab } from '../router/routes';
+import { useSessionListStore } from '../store/useSessionListStore';
 import { useSessionList } from '../hooks/useSessionList';
 import { useLapStaging } from '../hooks/useLapStaging';
 import { useSessionDetail } from '../hooks/useSessionDetail';
@@ -16,17 +19,12 @@ import {
 
 export interface SessionHistoryProviderProps {
   children: React.ReactNode;
-  onNavigateToComparator?: (
-    payload: NavigationComparatorPayload | number,
-    lapId?: number,
-    slot?: 'A' | 'B'
-  ) => void;
 }
 
-export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({
-  children,
-  onNavigateToComparator,
-}) => {
+const sessionPath = (sessionId: number, tab: SessionDetailTab = 'classification') =>
+  buildPath({ page: 'history', sessionId, tab });
+
+export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({ children }) => {
   const { openChat } = useRaceEngineerActions();
 
   // Hook 1: Session list & deletion
@@ -54,9 +52,7 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({
     handleClearStagedB,
     handleClearAllStaged,
     handleLaunchComparison,
-  } = useLapStaging({
-    onNavigateToComparator,
-  });
+  } = useLapStaging();
 
   // Hook 3: Session detail
   const {
@@ -69,9 +65,7 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({
     stintsData,
     expandedDrivers,
     toggleDriverExpand,
-    activeDetailTab,
-    setActiveDetailTab,
-    selectSession,
+    loadSession,
     driverStandings,
     sessionBestS1,
     sessionBestS2,
@@ -79,12 +73,7 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({
     isRaceSession,
     totalSessionLaps,
     totalDriversCount,
-  } = useSessionDetail({
-    onClearStagedSlots: () => {
-      setStagedSlotA(null);
-      setStagedSlotB(null);
-    },
-  });
+  } = useSessionDetail({ onClearStagedSlots: handleClearAllStaged });
 
   // Hook 4: Tags management
   const {
@@ -147,6 +136,60 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({
     fetchSessions,
     fetchTags,
   });
+
+  // The open session and its tab are in the URL (/history/:id/:tab); show what it names.
+  const route = useRoute();
+  const routeSessionId = route.page === 'history' ? route.sessionId : undefined;
+  const activeDetailTab: SessionDetailTab = route.page === 'history' ? route.tab : 'classification';
+  const listLoaded = useSessionListStore((s) => s.lastFetchedAt !== null);
+  const refetchedFor = useRef<number | null>(null);
+  const shownSessionId = selectedSession?.id;
+  useEffect(() => {
+    if (routeSessionId === undefined) {
+      if (shownSessionId !== undefined) {
+        setSelectedSession(null);
+        setStagedSlotA(null);
+        setStagedSlotB(null);
+      }
+      return;
+    }
+    if (shownSessionId === routeSessionId) return;
+    const session = sessions.find((s) => s.id === routeSessionId);
+    if (session) {
+      loadSession(session);
+    } else if (listLoaded && !loadingSessions && !error) {
+      // A session recorded after the list was loaded: look once more, then go back to the list.
+      if (refetchedFor.current !== routeSessionId) {
+        refetchedFor.current = routeSessionId;
+        useSessionListStore.getState().fetchSessions({ force: true });
+      } else {
+        navigate('/history', { replace: true });
+      }
+    }
+  }, [
+    routeSessionId,
+    shownSessionId,
+    sessions,
+    listLoaded,
+    loadingSessions,
+    error,
+    loadSession,
+    setSelectedSession,
+    setStagedSlotA,
+    setStagedSlotB,
+  ]);
+
+  const selectSession = useCallback((session: Session) => navigate(sessionPath(session.id)), []);
+  const closeSession = useCallback(() => navigate('/history'), []);
+  const setActiveDetailTab = useCallback(
+    (tab: SessionDetailTab) => {
+      if (routeSessionId !== undefined) navigate(sessionPath(routeSessionId, tab), { replace: true });
+    },
+    [routeSessionId]
+  );
+  const sendLapToComparator = useCallback((sessionId: number, lapId: number, slot: 'A' | 'B') => {
+    openComparator(slot === 'A' ? { sessionA: sessionId, lapA: lapId } : { sessionB: sessionId, lapB: lapId });
+  }, []);
 
   const onOpenAiDebrief = useCallback(() => {
     openChat();
@@ -242,8 +285,8 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({
       setCircuitFilter,
       setSelectedTagId,
       handleToggleSort,
-      setSelectedSession,
       selectSession,
+      closeSession,
       setActiveDetailTab,
       toggleDriverExpand,
       setStagedSlotA,
@@ -272,7 +315,7 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({
       setShowBatchTagModal,
       fetchSessions,
       fetchTags,
-      onNavigateToComparator,
+      sendLapToComparator,
       onOpenAiDebrief,
     }),
     [
@@ -281,8 +324,8 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({
       setCircuitFilter,
       setSelectedTagId,
       handleToggleSort,
-      setSelectedSession,
       selectSession,
+      closeSession,
       setActiveDetailTab,
       toggleDriverExpand,
       setStagedSlotA,
@@ -311,7 +354,7 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({
       setShowBatchTagModal,
       fetchSessions,
       fetchTags,
-      onNavigateToComparator,
+      sendLapToComparator,
       onOpenAiDebrief,
     ]
   );

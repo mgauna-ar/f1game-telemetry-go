@@ -3,15 +3,14 @@ import { useAIModels } from '../hooks/useAIModels';
 import { useAIChatStream } from '../hooks/useAIChatStream';
 import { useAISettings } from '../hooks/useAISettings';
 import { storage } from '../utils/storage';
-import { buildChatContextRequest } from '../utils/chatContext';
+import { buildChatContextRequest, chatTargetsFromRoute } from '../utils/chatContext';
+import { useRoute } from '../router/router';
+import { useSessionListStore } from '../store/useSessionListStore';
 import {
   RaceEngineerActionsContext,
   RaceEngineerStateContext,
   RaceEngineerStreamContext,
   STORAGE_KEY_AI_OPEN,
-  type ContextMode,
-  type ComparatorChatTarget,
-  type SessionDebriefChatTarget,
   type RaceEngineerActionsContextValue,
   type RaceEngineerStateContextValue,
   type RaceEngineerStreamContextValue,
@@ -27,10 +26,14 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     storage.set(STORAGE_KEY_AI_OPEN, isOpen);
   }, [isOpen]);
 
-  // What the chat is about: only identifiers, the server builds the prompt data from them
-  const [contextMode, setContextMode] = useState<ContextMode>('general');
-  const [comparatorTarget, setComparatorTarget] = useState<ComparatorChatTarget | null>(null);
-  const [sessionDebriefTarget, setSessionDebriefTarget] = useState<SessionDebriefChatTarget | null>(null);
+  // What the chat is about comes from the URL: only identifiers, the server builds the prompt
+  // data from them. The session list only names the track in the chat's badge.
+  const route = useRoute();
+  const sessions = useSessionListStore((s) => s.sessions);
+  const { contextMode, comparatorTarget, sessionDebriefTarget } = useMemo(
+    () => chatTargetsFromRoute(route, sessions),
+    [route, sessions]
+  );
 
   // Read when a message is sent, so the chat callbacks never change with the context
   const targetsRef = useRef({ contextMode, comparatorTarget, sessionDebriefTarget });
@@ -89,9 +92,6 @@ export const RaceEngineerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       openChat,
       closeChat,
       toggleChat,
-      setContextMode,
-      setComparatorTarget,
-      setSessionDebriefTarget,
       sendMessage,
       retryLastMessage,
       clearMessages,

@@ -2,9 +2,10 @@ import '@testing-library/jest-dom';
 import { afterEach, vi } from 'vitest';
 import { invalidateSessionLapData } from './utils/sessionDataCache';
 
-// The session data cache is module state; start every test without cached sessions.
+// The session data cache is module state; start every test without cached sessions, and at `/`.
 afterEach(() => {
   invalidateSessionLapData();
+  window.history.replaceState(null, '', '/');
 });
 
 const localStorageMock = (() => {
@@ -28,6 +29,8 @@ const localStorageMock = (() => {
 })();
 
 if (typeof window !== 'undefined') {
+  // jsdom has no scrolling; the router scrolls a new page to the top.
+  window.scrollTo = vi.fn() as unknown as typeof window.scrollTo;
   Object.defineProperty(window, 'localStorage', {
     value: localStorageMock,
     writable: true,

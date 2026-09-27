@@ -22,7 +22,6 @@ import type {
   ClassificationResponse,
   ProgressionResponse,
   StintsResponse,
-  NavigationComparatorPayload,
 } from '../../types/session';
 
 export interface SessionDetailViewProps {
@@ -46,7 +45,7 @@ export interface SessionDetailViewProps {
   stagedA?: StagedLap | null;
   stagedB?: StagedLap | null;
   onStageLap?: (session: Session, lap: Lap, driver: DriverStanding, slot: 'A' | 'B') => void;
-  onNavigateToComparator?: (payload: NavigationComparatorPayload | number, lapId?: number, slot?: 'A' | 'B') => void;
+  onSendToComparator?: (sessionId: number, lapId: number, slot: 'A' | 'B') => void;
   onOpenAiDebrief?: () => void;
   onExportSession?: (session: Session) => void;
   onRequestDelete?: (session: Session) => void;
@@ -81,7 +80,7 @@ export const SessionDetailView: React.FC<SessionDetailViewProps> = (props) => {
   const stagedA = props.stagedA !== undefined ? props.stagedA : historyData.stagedSlotA;
   const stagedB = props.stagedB !== undefined ? props.stagedB : historyData.stagedSlotB;
   const onStageLap = props.onStageLap ?? historyActions.handleStageLap;
-  const onNavigateToComparator = props.onNavigateToComparator ?? historyActions.onNavigateToComparator;
+  const onSendToComparator = props.onSendToComparator ?? historyActions.sendLapToComparator;
   const onExportSession = props.onExportSession ?? historyActions.handleExportSession;
   const onRequestDelete = props.onRequestDelete ?? historyActions.setSessionToDelete;
   const onOpenTagManager = props.onOpenTagManager ?? historyActions.setSessionToManageTags;
@@ -138,7 +137,7 @@ export const SessionDetailView: React.FC<SessionDetailViewProps> = (props) => {
             stagedA={stagedA}
             stagedB={stagedB}
             onStageLap={(lap, driver, slot) => onStageLap(session, lap, driver, slot)}
-            onSendToComparator={onNavigateToComparator}
+            onSendToComparator={onSendToComparator}
             formatLapTime={formatLapTime}
             formatTotalDuration={formatTotalDuration}
             renderTyreBadge={renderTyreBadge}

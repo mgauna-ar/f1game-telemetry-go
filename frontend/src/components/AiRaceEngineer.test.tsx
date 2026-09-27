@@ -1,11 +1,10 @@
-import { useEffect } from 'react';
 import { render, screen, fireEvent, within, act } from '@testing-library/react';
 import { vi, describe, it, beforeEach, expect } from 'vitest';
 import { AiRaceEngineer } from './AiRaceEngineer';
 import { RaceEngineerProvider } from '../context/RaceEngineerProvider';
-import { useRaceEngineerActions, type ComparatorChatTarget } from '../context/RaceEngineerContext';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
-import { makeLiveSession } from '../test/wireFactories';
+import { useSessionListStore } from '../store/useSessionListStore';
+import { makeLiveSession, makeSession } from '../test/wireFactories';
 
 // Telemetry is always fresh here; whether the feed is live depends on the session store.
 vi.mock('../utils/telemetrySocket', () => ({
@@ -32,6 +31,7 @@ describe('AiRaceEngineer Component', () => {
     vi.restoreAllMocks();
     localStorage.clear();
     useSessionStatusStore.setState({ connected: false, session: null });
+    useSessionListStore.getState().reset();
     globalThis.fetch = vi.fn().mockImplementation((url: string) => {
       if (url === '/api/settings/ai') {
         return Promise.resolve({ ok: true, json: () => Promise.resolve(aiSettings(true)) });
@@ -52,17 +52,15 @@ describe('AiRaceEngineer Component', () => {
     });
   });
 
-  const comparatorTarget: ComparatorChatTarget = { lapAId: 11, lapBId: 12, zoom: null, trackName: 'Monza' };
+  /** The chat reads what it is about from the URL; the session list names the track. */
+  const openPage = (url: string, sessions: Array<{ id: number; track_name: string }> = []) => {
+    window.history.replaceState(null, '', url);
+    useSessionListStore.setState({ sessions: sessions.map((s) => makeSession(s)) });
+  };
 
   /** Opens the chat on the comparator with two laps picked. */
-  const ComparatorHarness = () => {
-    const { setContextMode, setComparatorTarget } = useRaceEngineerActions();
-    useEffect(() => {
-      setComparatorTarget(comparatorTarget);
-      setContextMode('comparator');
-    }, [setComparatorTarget, setContextMode]);
-    return <AiRaceEngineer isOpenOverride={true} />;
-  };
+  const ComparatorHarness = () => <AiRaceEngineer isOpenOverride={true} />;
+  const openComparatorPage = () => openPage('/compare?sa=5&a=11&b=12', [{ id: 5, track_name: 'Monza' }]);
 
   it('renders floating FAB button when closed and expands on click without background overlay', async () => {
     render(
@@ -88,6 +86,7 @@ describe('AiRaceEngineer Component', () => {
   });
 
   it('renders comparative telemetry prompt chips when opened with comparator context', async () => {
+    openComparatorPage();
     render(
       <RaceEngineerProvider>
         <ComparatorHarness />
@@ -107,6 +106,7 @@ describe('AiRaceEngineer Component', () => {
   });
 
   it('toggles settings panel within the floating card', async () => {
+    openComparatorPage();
     render(
       <RaceEngineerProvider>
         <ComparatorHarness />
@@ -252,22 +252,13 @@ describe('AiRaceEngineer Component', () => {
     expect(screen.getByText('Configure in Settings')).toBeInTheDocument();
   });
 
-  it('renders Live Wall badge and live prompt chips when in live mode even if comparator context was populated', async () => {
+  it('renders Live Wall badge and live prompt chips on the live page', async () => {
     useSessionStatusStore.setState({ connected: true, session: makeLiveSession({ TrackId: SILVERSTONE_TRACK_ID }) });
-    const TestLiveHarness = () => {
-      const { setContextMode, setComparatorTarget } = useRaceEngineerActions();
-
-      useEffect(() => {
-        setComparatorTarget(comparatorTarget);
-        setContextMode('live');
-      }, [setComparatorTarget, setContextMode]);
-
-      return <AiRaceEngineer isOpenOverride={true} />;
-    };
+    openPage('/live/dashboard', [{ id: 5, track_name: 'Monza' }]);
 
     render(
       <RaceEngineerProvider>
-        <TestLiveHarness />
+        <AiRaceEngineer isOpenOverride={true} />
       </RaceEngineerProvider>
     );
 
@@ -286,19 +277,11 @@ describe('AiRaceEngineer Component', () => {
   });
 
   it('renders Live Wall badge and standby prompt chips when in live standby mode without active telemetry', async () => {
-    const TestLiveStandbyHarness = () => {
-      const { setContextMode } = useRaceEngineerActions();
-
-      useEffect(() => {
-        setContextMode('live');
-      }, [setContextMode]);
-
-      return <AiRaceEngineer isOpenOverride={true} />;
-    };
+    openPage('/live/dashboard');
 
     render(
       <RaceEngineerProvider>
-        <TestLiveStandbyHarness />
+        <AiRaceEngineer isOpenOverride={true} />
       </RaceEngineerProvider>
     );
 
@@ -310,21 +293,12 @@ describe('AiRaceEngineer Component', () => {
     expect(screen.queryByText('Current Sector Pace')).toBeNull();
   });
 
-  it('renders Debrief badge and debrief chips when in session_debrief mode', async () => {
-    const TestDebriefHarness = () => {
-      const { setContextMode, setSessionDebriefTarget } = useRaceEngineerActions();
-
-      useEffect(() => {
-        setSessionDebriefTarget({ sessionId: 42, trackName: 'Spa-Francorchamps' });
-        setContextMode('session_debrief');
-      }, [setSessionDebriefTarget, setContextMode]);
-
-      return <AiRaceEngineer isOpenOverride={true} />;
-    };
+  it('renders Debrief badge and debrief chips on a session page', async () => {
+    openPage('/history/42', [{ id: 42, track_name: 'Spa-Francorchamps' }]);
 
     render(
       <RaceEngineerProvider>
-        <TestDebriefHarness />
+        <AiRaceEngineer isOpenOverride={true} />
       </RaceEngineerProvider>
     );
 

@@ -1,9 +1,6 @@
 import { useState, useCallback } from 'react';
-import type { Session, Lap, DriverStanding, StagedLap, NavigationComparatorPayload } from '../types/session';
-
-export interface UseLapStagingOptions {
-  onNavigateToComparator?: (payload: NavigationComparatorPayload | number, lapId?: number, slot?: 'A' | 'B') => void;
-}
+import type { Session, Lap, DriverStanding, StagedLap } from '../types/session';
+import { openComparator } from '../router/router';
 
 export interface UseLapStagingReturn {
   stagedSlotA: StagedLap | null;
@@ -18,7 +15,7 @@ export interface UseLapStagingReturn {
   handleLaunchComparison: () => void;
 }
 
-export function useLapStaging({ onNavigateToComparator }: UseLapStagingOptions = {}): UseLapStagingReturn {
+export function useLapStaging(): UseLapStagingReturn {
   const [stagedSlotA, setStagedSlotA] = useState<StagedLap | null>(null);
   const [stagedSlotB, setStagedSlotB] = useState<StagedLap | null>(null);
 
@@ -58,20 +55,16 @@ export function useLapStaging({ onNavigateToComparator }: UseLapStagingOptions =
     setStagedSlotB(null);
   }, []);
 
+  /** Opens the comparator with the staged laps. */
   const handleLaunchComparison = useCallback(() => {
     if (!stagedSlotA && !stagedSlotB) return;
-    if (onNavigateToComparator) {
-      onNavigateToComparator({
-        sessionAId: stagedSlotA ? stagedSlotA.sessionId : undefined,
-        lapAId: stagedSlotA ? stagedSlotA.lapId : undefined,
-        sessionBId: stagedSlotB ? stagedSlotB.sessionId : undefined,
-        lapBId: stagedSlotB ? stagedSlotB.lapId : undefined,
-        sessionId: stagedSlotA ? stagedSlotA.sessionId : stagedSlotB?.sessionId,
-        lapId: stagedSlotA ? stagedSlotA.lapId : stagedSlotB?.lapId,
-        slot: stagedSlotA ? 'A' : 'B',
-      });
-    }
-  }, [stagedSlotA, stagedSlotB, onNavigateToComparator]);
+    openComparator({
+      sessionA: stagedSlotA?.sessionId,
+      lapA: stagedSlotA?.lapId,
+      sessionB: stagedSlotB?.sessionId,
+      lapB: stagedSlotB?.lapId,
+    });
+  }, [stagedSlotA, stagedSlotB]);
 
   return {
     stagedSlotA,
