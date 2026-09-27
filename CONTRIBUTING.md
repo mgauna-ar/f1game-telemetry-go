@@ -63,10 +63,9 @@ docs(readme): update configuration section
 - Add comments for exported types and functions
 - Use meaningful variable and function names
 
-## Release Process & Changelog
+## Releases
 
-- Release workflows and versioning policies are detailed in [RELEASE.md](RELEASE.md).
-- Keep track of all notable changes in [CHANGELOG.md](CHANGELOG.md).
+- Releases are published automatically via GitHub Actions when pushing a SemVer git tag (`vX.Y.Z`) and can be found under [GitHub Releases](https://github.com/mgauna-ar/f1game-telemetry-go/releases).
 
 ## Questions?
 
