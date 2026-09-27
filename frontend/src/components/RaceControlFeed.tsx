@@ -1,14 +1,17 @@
 import React, { useState, useMemo } from 'react';
 import { ShieldAlert, Flag, Zap, Swords, Wrench, AlertTriangle, Radio, Trash2 } from 'lucide-react';
 import type { RaceEvent, SessionData } from '../hooks/useTelemetry';
-import { SAFETY_CAR_STATUS, TIME_CONSTANTS } from '../constants/f1';
+import { TIME_CONSTANTS } from '../constants/f1';
 import { useI18n } from '../context/I18nContext';
 import { getLocalizedRaceEventDescription, getLocalizedPenaltyTag } from '../utils/raceEvents';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
+import { SafetyCarBadge } from './common/SafetyCarBadge';
+import { Badge, type BadgeTone } from './ui/Badge';
 import { IconButton } from './ui/Button';
 import { EmptyState } from './ui/EmptyState';
 import { Panel, PanelHeader } from './ui/Panel';
 import { SegmentedControl } from './ui/SegmentedControl';
+import styles from './RaceControlFeed.module.css';
 
 type FeedFilter = 'all' | 'flag' | 'penalty' | 'overtake' | 'fastest_lap';
 
@@ -20,13 +23,42 @@ const FEED_FILTERS: ReadonlyArray<{ value: FeedFilter; labelKey: string }> = [
   { value: 'fastest_lap', labelKey: 'live.filterFastestLaps' },
 ];
 
+const EVENT_TAG_TONES: Partial<Record<RaceEvent['type'], BadgeTone>> = {
+  fastest_lap: 'purple',
+  overtake: 'info',
+  penalty: 'danger',
+  pit: 'warning',
+  flag: 'orange',
+  retirement: 'orange',
+};
+
+const EventIcon: React.FC<{ type: RaceEvent['type'] }> = ({ type }) => {
+  switch (type) {
+    case 'fastest_lap':
+      return <Zap size={14} />;
+    case 'overtake':
+      return <Swords size={14} />;
+    case 'penalty':
+      return <AlertTriangle size={14} />;
+    case 'pit':
+      return <Wrench size={14} />;
+    case 'flag':
+    case 'retirement':
+      return <ShieldAlert size={14} />;
+    default:
+      return <Flag size={14} />;
+  }
+};
+
 interface RaceControlFeedProps {
+  className?: string;
   events?: RaceEvent[];
   session?: SessionData | null;
   onClearEvents?: () => void;
 }
 
 export const RaceControlFeed: React.FC<RaceControlFeedProps> = React.memo((props) => {
+  const { className } = props;
   const storeEvents = useSessionStatusStore((s) => s.events);
   const storeSession = useSessionStatusStore((s) => s.session);
   const storeClearEvents = useSessionStatusStore((s) => s.clearEvents);
@@ -43,57 +75,6 @@ export const RaceControlFeed: React.FC<RaceControlFeedProps> = React.memo((props
     return events.filter((e) => e.type === filter);
   }, [events, filter]);
 
-  const getSafetyCarStatusBadge = (scStatus?: number) => {
-    switch (scStatus) {
-      case SAFETY_CAR_STATUS.FULL:
-        return (
-          <span className="sc-status-pill full-sc">
-            <AlertTriangle size={13} />
-            SAFETY CAR
-          </span>
-        );
-      case SAFETY_CAR_STATUS.VIRTUAL:
-        return (
-          <span className="sc-status-pill vsc">
-            <AlertTriangle size={13} />
-            VIRTUAL SC
-          </span>
-        );
-      case SAFETY_CAR_STATUS.FORMATION_LAP:
-        return (
-          <span className="sc-status-pill formation">
-            <Flag size={13} />
-            {t('live.formationLap')}
-          </span>
-        );
-      default:
-        return (
-          <span className="sc-status-pill green-flag">
-            <span className="sc-dot-live" />
-            {t('live.trackClear')}
-          </span>
-        );
-    }
-  };
-
-  const getEventIcon = (type: RaceEvent['type']) => {
-    switch (type) {
-      case 'fastest_lap':
-        return <Zap size={14} className="event-icon-purple" />;
-      case 'overtake':
-        return <Swords size={14} className="event-icon-cyan" />;
-      case 'penalty':
-        return <AlertTriangle size={14} className="event-icon-red" />;
-      case 'pit':
-        return <Wrench size={14} className="event-icon-yellow" />;
-      case 'flag':
-      case 'retirement':
-        return <ShieldAlert size={14} className="event-icon-orange" />;
-      default:
-        return <Flag size={14} className="event-icon-default" />;
-    }
-  };
-
   const formatEventTime = (timestamp: number, sessionTime?: number) => {
     if (sessionTime !== undefined && sessionTime > 0) {
       const mins = Math.floor(sessionTime / TIME_CONSTANTS.SECONDS_PER_MINUTE);
@@ -105,14 +86,14 @@ export const RaceControlFeed: React.FC<RaceControlFeedProps> = React.memo((props
   };
 
   return (
-    <Panel className="race-hub-card race-control-feed-panel">
+    <Panel className={className}>
       <PanelHeader
         icon={<Radio size={16} color="var(--accent-primary)" />}
         title={t('live.raceControlTitle')}
         subtitle={t('live.raceControlSub')}
         actions={
           <>
-            {getSafetyCarStatusBadge(session?.SafetyCarStatus)}
+            <SafetyCarBadge status={session?.SafetyCarStatus} clearLabel={t('live.trackClear')} />
             {events.length > 0 && onClearEvents && (
               <IconButton size="sm" label={t('live.clearFeedEvents')} onClick={onClearEvents}>
                 <Trash2 size={13} />
@@ -122,7 +103,7 @@ export const RaceControlFeed: React.FC<RaceControlFeedProps> = React.memo((props
         }
       />
 
-      <div className="race-feed-filters">
+      <div className={styles.filters}>
         <SegmentedControl
           size="xs"
           aria-label={t('live.feedFilterLabel')}
@@ -133,7 +114,7 @@ export const RaceControlFeed: React.FC<RaceControlFeedProps> = React.memo((props
             label: (
               <>
                 {t(labelKey)}{' '}
-                <span className="mono count-badge">
+                <span className={`mono ${styles.count}`}>
                   {value === 'all' ? events.length : events.filter((e) => e.type === value).length}
                 </span>
               </>
@@ -143,37 +124,35 @@ export const RaceControlFeed: React.FC<RaceControlFeedProps> = React.memo((props
       </div>
 
       {/* Event Stream Container */}
-      <div className="race-feed-stream" role="log" aria-live="polite">
-        {filteredEvents.length === 0 ? (
-          <EmptyState
-            compact
-            icon={<Radio size={24} className="pulse-slow" />}
-            title={t('live.monitoringSignals')}
-            description={t('live.monitoringSignalsSub')}
-          />
-        ) : (
-          filteredEvents.map((evt) => {
-            const desc = getLocalizedRaceEventDescription(evt, t);
-            return (
-              <div key={evt.id} className={`race-feed-item severity-${evt.severity}`}>
-                <div className="race-feed-item-left">
-                  <span className="race-feed-item-icon">{getEventIcon(evt.type)}</span>
-                  <span className="race-feed-item-time mono">{formatEventTime(evt.timestamp, evt.sessionTime)}</span>
-                </div>
-                <div className="race-feed-item-content">
-                  <span className={`race-feed-tag tag-${evt.type}`}>
-                    {getLocalizedPenaltyTag(evt, t)}
-                  </span>
-                  <span className="race-feed-item-text">{desc}</span>
-                </div>
+      {filteredEvents.length === 0 ? (
+        <EmptyState
+          compact
+          icon={<Radio size={24} />}
+          title={t('live.monitoringSignals')}
+          description={t('live.monitoringSignalsSub')}
+        />
+      ) : (
+        <ol className={styles.stream} role="log" aria-live="polite" aria-label={t('live.raceControlTitle')}>
+          {filteredEvents.map((evt) => (
+            <li key={evt.id} className={styles.item} data-severity={evt.severity}>
+              <div className={styles.meta}>
+                <span className={styles.icon} data-type={evt.type} aria-hidden="true">
+                  <EventIcon type={evt.type} />
+                </span>
+                <span className={`mono ${styles.time}`}>{formatEventTime(evt.timestamp, evt.sessionTime)}</span>
               </div>
-            );
-          })
-        )}
-      </div>
+              <div className={styles.content}>
+                <Badge tone={EVENT_TAG_TONES[evt.type] ?? 'neutral'} size="xs" square uppercase>
+                  {getLocalizedPenaltyTag(evt, t)}
+                </Badge>
+                <span className={styles.text}>{getLocalizedRaceEventDescription(evt, t)}</span>
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
     </Panel>
   );
 });
 
 RaceControlFeed.displayName = 'RaceControlFeed';
-

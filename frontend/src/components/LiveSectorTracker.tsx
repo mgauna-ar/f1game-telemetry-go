@@ -6,9 +6,60 @@ import type { ParticipantData, LapData } from '../types/telemetry';
 import { useI18n } from '../context/I18nContext';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import { useTelemetryDataStore } from '../store/useTelemetryDataStore';
+import { styleVars } from '../styles/theme';
 import { Panel, PanelHeader } from './ui/Panel';
+import styles from './LiveSectorTracker.module.css';
+
+interface BestTime {
+  time: number;
+  carIdx: number;
+  driverName: string;
+  teamId: number;
+}
+
+interface BestTimeCardProps {
+  label: string;
+  best: BestTime;
+  kind: 'sector' | 'lap';
+  formatTime: (ms?: number) => string;
+}
+
+/** A session best (purple sector or fastest lap), with who set it. */
+const BestTimeCard: React.FC<BestTimeCardProps> = ({ label, best, kind, formatTime }) => (
+  <li className={styles.bestCard} data-kind={kind}>
+    <div className={styles.bestHeader}>
+      <span className={styles.bestLabel}>{label}</span>
+      <span className={styles.bestTime}>{formatTime(best.time)}</span>
+    </div>
+    <div className={styles.holder} style={styleVars({ '--team-color': getTeamColor(best.teamId) })}>
+      <span className={styles.teamDot} aria-hidden="true" />
+      <span className={styles.holderName}>{best.driverName}</span>
+    </div>
+  </li>
+);
+
+interface SplitProps {
+  label: string;
+  time: string;
+  note?: React.ReactNode;
+  purple?: boolean;
+}
+
+/** One of the selected driver's splits: its time and the gap to the session best. */
+const Split: React.FC<SplitProps> = ({ label, time, note, purple }) => (
+  <div className={styles.split}>
+    <dt className={styles.splitLabel}>{label}</dt>
+    <dd className={styles.splitTime}>{time}</dd>
+    {note !== undefined && (
+      <dd className={styles.splitDelta} data-purple={purple}>
+        {note}
+      </dd>
+    )}
+  </div>
+);
 
 interface LiveSectorTrackerProps {
+  className?: string;
   participants?: ParticipantData[];
   laps?: LapData[];
   selectedCarIndex?: number;
@@ -24,6 +75,8 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((p
   const selectedCarIndex = props.selectedCarIndex !== undefined ? props.selectedCarIndex : storeSelectedCarIndex;
 
   const { t } = useI18n();
+  const splitsTitleId = React.useId();
+  const speedTitleId = React.useId();
 
   const formatTime = (ms?: number) => {
     if (!ms || ms <= 0) return '--:--.---';
@@ -39,14 +92,14 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((p
 
   // Find Session Best Sectors (Purple Sectors)
   const sectorAnalysis = useMemo(() => {
-    let bestS1 = { time: 0, carIdx: -1, driverName: '--', teamId: -1 };
-    let bestS2 = { time: 0, carIdx: -1, driverName: '--', teamId: -1 };
-    let fastestLap = { time: 0, carIdx: -1, driverName: '--', teamId: -1 };
+    let bestS1: BestTime = { time: 0, carIdx: -1, driverName: '--', teamId: -1 };
+    let bestS2: BestTime = { time: 0, carIdx: -1, driverName: '--', teamId: -1 };
+    let fastestLap: BestTime = { time: 0, carIdx: -1, driverName: '--', teamId: -1 };
 
     laps.forEach((lap, idx) => {
       if (!lap) return;
       const p = participants[idx];
-      const name = parseDriverName(p?.Name, `Car #${idx + 1}`, p?.DriverId);
+      const name = parseDriverName(p?.Name, t('live.events.car', { number: idx + 1 }), p?.DriverId);
       const teamId = p?.TeamId ?? 0;
 
       // Sector 1
@@ -78,8 +131,8 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((p
       bestS1.time > 0 && bestS2.time > 0 && estimatedS3 > 0
         ? bestS1.time + bestS2.time + estimatedS3
         : fastestLap.time > 0
-        ? fastestLap.time
-        : 0;
+          ? fastestLap.time
+          : 0;
 
     return {
       bestS1,
@@ -88,13 +141,13 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((p
       fastestLap,
       theoreticalBest,
     };
-  }, [participants, laps]);
+  }, [participants, laps, t]);
 
   // Speed Trap Leaderboard (Sorted by Fastest Speed)
   const speedTraps = useMemo(() => {
     const list = participants.map((p, idx) => {
       const lap = laps[idx];
-      const name = parseDriverName(p?.Name, `Car #${idx + 1}`, p?.DriverId);
+      const name = parseDriverName(p?.Name, t('live.events.car', { number: idx + 1 }), p?.DriverId);
       return {
         carIndex: idx,
         name,
@@ -109,178 +162,105 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((p
       .filter((s) => s.speed > 0)
       .sort((a, b) => b.speed - a.speed)
       .slice(0, 5);
-  }, [participants, laps, selectedCarIndex]);
+  }, [participants, laps, selectedCarIndex, t]);
 
   // Selected driver sectors
   const selectedLap = laps[selectedCarIndex];
   const selectedParticipant = participants[selectedCarIndex];
   const selectedName = parseDriverName(
     selectedParticipant?.Name,
-    `Car #${selectedCarIndex + 1}`,
+    t('live.events.car', { number: selectedCarIndex + 1 }),
     selectedParticipant?.DriverId
   );
 
+  // Gap of a selected-driver sector to the session best; purple when it is the best
+  const sectorSplit = (label: string, ms: number | undefined, bestMs: number) => {
+    const time = formatTime(ms);
+    if (!(bestMs > 0 && ms)) return <Split label={label} time={time} />;
+    const purple = ms <= bestMs;
+    const note = purple ? t('live.purpleSplit') : `+${((ms - bestMs) / TIME_CONSTANTS.MS_PER_SECOND).toFixed(3)}s`;
+    return <Split label={label} time={time} note={note} purple={purple} />;
+  };
+
   return (
-    <Panel className="race-hub-card live-sector-tracker-panel">
+    <Panel className={props.className}>
       <PanelHeader
         icon={<Zap size={16} color="var(--f1-purple)" />}
         title={t('live.liveSectorsTitle')}
         subtitle={t('live.liveSectorsSub')}
         actions={
-          <div className="ultimate-lap-chip mono">
-            <span className="label">{t('live.theoreticalBest')}</span>
-            <span className="val">{formatTime(sectorAnalysis.theoreticalBest)}</span>
-          </div>
+          <dl className={styles.theoretical}>
+            <dt className={styles.theoreticalLabel}>{t('live.theoreticalBest')}</dt>
+            <dd className={styles.theoreticalValue}>{formatTime(sectorAnalysis.theoreticalBest)}</dd>
+          </dl>
         }
       />
 
-      {/* Sector Purple Cards Row */}
-      <div className="sector-purple-grid">
-        {/* Sector 1 */}
-        <div className="sector-card purple-s1">
-          <div className="sector-card-header">
-            <span className="sector-badge">{t('live.sector1')}</span>
-            <span className="mono sector-time">{formatTime(sectorAnalysis.bestS1.time)}</span>
-          </div>
-          <div className="sector-holder">
-            <span
-              className="team-dot"
-              style={{ backgroundColor: getTeamColor(sectorAnalysis.bestS1.teamId) }}
+      <ul className={styles.bests}>
+        <BestTimeCard label={t('live.sector1')} best={sectorAnalysis.bestS1} kind="sector" formatTime={formatTime} />
+        <BestTimeCard label={t('live.sector2')} best={sectorAnalysis.bestS2} kind="sector" formatTime={formatTime} />
+        <BestTimeCard
+          label={t('live.fastestLap')}
+          best={sectorAnalysis.fastestLap}
+          kind="lap"
+          formatTime={formatTime}
+        />
+      </ul>
+
+      <div className={styles.bottom}>
+        {/* Selected driver splits */}
+        <section className={styles.subcard} aria-labelledby={splitsTitleId}>
+          <h4 id={splitsTitleId} className={styles.subcardTitle}>
+            <Target size={14} color="var(--accent-primary)" aria-hidden="true" />
+            {t('live.driverSectorSplits', { driver: selectedName })}
+          </h4>
+          <dl className={styles.splits}>
+            {sectorSplit('S1', selectedLap?.Sector1TimeMSPart, sectorAnalysis.bestS1.time)}
+            {sectorSplit('S2', selectedLap?.Sector2TimeMSPart, sectorAnalysis.bestS2.time)}
+            <Split
+              label={t('live.lastLap')}
+              time={formatTime(selectedLap?.LastLapTimeInMS)}
+              note={selectedLap?.CurrentLapInvalid ? t('live.invalidated') : t('live.valid')}
             />
-            <span className="holder-name">{sectorAnalysis.bestS1.driverName}</span>
-          </div>
-        </div>
+          </dl>
+        </section>
 
-        {/* Sector 2 */}
-        <div className="sector-card purple-s2">
-          <div className="sector-card-header">
-            <span className="sector-badge">{t('live.sector2')}</span>
-            <span className="mono sector-time">{formatTime(sectorAnalysis.bestS2.time)}</span>
-          </div>
-          <div className="sector-holder">
-            <span
-              className="team-dot"
-              style={{ backgroundColor: getTeamColor(sectorAnalysis.bestS2.teamId) }}
-            />
-            <span className="holder-name">{sectorAnalysis.bestS2.driverName}</span>
-          </div>
-        </div>
-
-        {/* Fastest Lap */}
-        <div className="sector-card fastest-lap-card">
-          <div className="sector-card-header">
-            <span className="sector-badge fastest">{t('live.fastestLap')}</span>
-            <span className="mono sector-time">{formatTime(sectorAnalysis.fastestLap.time)}</span>
-          </div>
-          <div className="sector-holder">
-            <span
-              className="team-dot"
-              style={{ backgroundColor: getTeamColor(sectorAnalysis.fastestLap.teamId) }}
-            />
-            <span className="holder-name">{sectorAnalysis.fastestLap.driverName}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Bottom Split: Selected Driver Splits & Speed Trap Top 5 */}
-      <div className="sector-bottom-split">
-        {/* Selected Driver Splits */}
-        <div className="selected-driver-sector-card">
-          <div className="subcard-title">
-            <Target size={14} color="var(--accent-primary)" />
-            <span>{t('live.driverSectorSplits', { driver: selectedName })}</span>
-          </div>
-
-          <div className="driver-splits-row">
-            <div className="split-col">
-              <span className="split-label">S1</span>
-              <span className="split-time mono">
-                {formatTime(selectedLap?.Sector1TimeMSPart)}
-              </span>
-              {sectorAnalysis.bestS1.time > 0 && selectedLap?.Sector1TimeMSPart ? (
-                <span
-                  className="split-delta mono"
-                  style={{
-                    color:
-                      selectedLap.Sector1TimeMSPart <= sectorAnalysis.bestS1.time ? '#B57EDC' : 'var(--text-muted)',
-                  }}
-                >
-                  {selectedLap.Sector1TimeMSPart <= sectorAnalysis.bestS1.time
-                    ? t('live.purpleSplit')
-                    : `+${((selectedLap.Sector1TimeMSPart - sectorAnalysis.bestS1.time) / TIME_CONSTANTS.MS_PER_SECOND).toFixed(3)}s`}
-                </span>
-              ) : null}
-            </div>
-
-            <div className="split-col">
-              <span className="split-label">S2</span>
-              <span className="split-time mono">
-                {formatTime(selectedLap?.Sector2TimeMSPart)}
-              </span>
-              {sectorAnalysis.bestS2.time > 0 && selectedLap?.Sector2TimeMSPart ? (
-                <span
-                  className="split-delta mono"
-                  style={{
-                    color:
-                      selectedLap.Sector2TimeMSPart <= sectorAnalysis.bestS2.time ? '#B57EDC' : 'var(--text-muted)',
-                  }}
-                >
-                  {selectedLap.Sector2TimeMSPart <= sectorAnalysis.bestS2.time
-                    ? t('live.purpleSplit')
-                    : `+${((selectedLap.Sector2TimeMSPart - sectorAnalysis.bestS2.time) / TIME_CONSTANTS.MS_PER_SECOND).toFixed(3)}s`}
-                </span>
-              ) : null}
-            </div>
-
-            <div className="split-col">
-              <span className="split-label">{t('live.lastLap')}</span>
-              <span className="split-time mono">
-                {formatTime(selectedLap?.LastLapTimeInMS)}
-              </span>
-              <span className="split-delta mono" style={{ color: 'var(--text-muted)' }}>
-                {selectedLap?.CurrentLapInvalid ? t('live.invalidated') : t('live.valid')}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Speed Trap Rankings */}
-        <div className="speed-trap-card">
-          <div className="subcard-title">
-            <Gauge size={14} color="#33CCFF" />
-            <span>{t('live.speedTrapLeaderboard')}</span>
-          </div>
-
-          <div className="speed-trap-list">
-            {speedTraps.length === 0 ? (
-              <div className="speed-trap-empty mono">{t('live.noSpeedTraps')}</div>
-            ) : (
-              speedTraps.map((st, i) => (
-                <div
+        {/* Speed trap top five */}
+        <section className={styles.subcard} aria-labelledby={speedTitleId}>
+          <h4 id={speedTitleId} className={styles.subcardTitle}>
+            <Gauge size={14} color="var(--weather-rain)" aria-hidden="true" />
+            {t('live.speedTrapLeaderboard')}
+          </h4>
+          {speedTraps.length === 0 ? (
+            <div className={styles.speedEmpty}>{t('live.noSpeedTraps')}</div>
+          ) : (
+            <ol className={styles.speedList}>
+              {speedTraps.map((st, i) => (
+                <li
                   key={st.carIndex}
-                  className={`speed-trap-item ${st.isSelected ? 'selected' : ''}`}
+                  className={styles.speedItem}
+                  aria-current={st.isSelected || undefined}
+                  style={styleVars({ '--team-color': getTeamColor(st.teamId) })}
                 >
-                  <div className="speed-trap-left">
-                    <span className="mono speed-rank">#{i + 1}</span>
-                    <span
-                      className="team-color-indicator"
-                      style={{ backgroundColor: getTeamColor(st.teamId) }}
-                    />
-                    <span className="speed-driver-name">{st.name}</span>
-                  </div>
-                  <div className="speed-trap-right mono">
-                    <span className="speed-val">{Math.round(st.speed)} {t('common.units.kmh')}</span>
-                    {st.lapNum > 0 && <span className="speed-lap">L{st.lapNum}</span>}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
+                  <span className={styles.speedDriver}>
+                    <span className={styles.speedRank}>#{i + 1}</span>
+                    <span className={styles.teamBar} aria-hidden="true" />
+                    <span className={styles.speedName}>{st.name}</span>
+                  </span>
+                  <span className={styles.speedValue}>
+                    <span className={styles.speed}>
+                      {Math.round(st.speed)} {t('common.units.kmh')}
+                    </span>
+                    {st.lapNum > 0 && <span className={styles.speedLap}>L{st.lapNum}</span>}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
       </div>
     </Panel>
   );
 });
 
 LiveSectorTracker.displayName = 'LiveSectorTracker';
-

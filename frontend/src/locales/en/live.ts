@@ -72,6 +72,7 @@ export const live = {
   airTemp: 'AIR TEMP',
   peakRainRisk: 'PEAK RAIN RISK',
   now: 'NOW',
+  forecastOffset: '+{minutes} MIN',
   weatherClearSunny: 'Clear / Sunny',
   weatherLightCloud: 'Light Cloud',
   weatherOvercast: 'Overcast',

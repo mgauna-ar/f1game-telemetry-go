@@ -303,3 +303,24 @@
   font-style: italic;
 }
 
+/* Pulsing icons of the standby cards (StandbyStatusCards) */
+.radar-icon-pulse {
+  animation: icon-pulse-glow 2s infinite ease-in-out;
+}
+
+.pulse-indicator {
+  color: var(--accent-primary);
+  animation: icon-pulse-glow 1.5s infinite ease-in-out;
+}
+
+@keyframes icon-pulse-glow {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.75;
+  }
+}

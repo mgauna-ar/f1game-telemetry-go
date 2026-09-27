@@ -72,6 +72,7 @@ export const live = {
   airTemp: 'TEMP. AIRE',
   peakRainRisk: 'RIESGO MÁX. LLUVIA',
   now: 'AHORA',
+  forecastOffset: '+{minutes} MIN',
   weatherClearSunny: 'Despejado / Soleado',
   weatherLightCloud: 'Ligeramente Nublado',
   weatherOvercast: 'Nublado',

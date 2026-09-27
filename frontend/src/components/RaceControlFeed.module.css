@@ -1,0 +1,114 @@
+.filters {
+  margin-bottom: var(--space-3);
+}
+
+.count {
+  padding: 1px var(--space-1-5);
+  font-size: var(--font-size-2xs);
+  background: var(--bg-active);
+  border-radius: var(--radius-full);
+}
+
+.stream {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 280px;
+  margin: 0;
+  padding: 0 var(--space-1) 0 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+/* Left border and icon colour follow the event's severity and type */
+.item {
+  --severity-color: var(--border-highlight);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-hover);
+  border-left: 3px solid var(--severity-color);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  transition: background var(--transition-fast);
+}
+
+.item:hover {
+  background: var(--bg-active);
+}
+
+.item[data-severity='purple'] {
+  --severity-color: var(--f1-purple);
+}
+
+.item[data-severity='danger'] {
+  --severity-color: var(--status-danger);
+  background: color-mix(in srgb, var(--status-danger) 4%, transparent);
+}
+
+.item[data-severity='warning'] {
+  --severity-color: var(--f1-yellow);
+}
+
+.item[data-severity='success'] {
+  --severity-color: var(--f1-green);
+}
+
+.item[data-severity='info'] {
+  --severity-color: var(--weather-rain);
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  min-width: 75px;
+}
+
+.icon {
+  display: flex;
+  color: var(--text-muted);
+}
+
+.icon[data-type='fastest_lap'] {
+  color: var(--f1-purple);
+}
+
+.icon[data-type='overtake'] {
+  color: var(--weather-rain);
+}
+
+.icon[data-type='penalty'] {
+  color: var(--status-danger);
+}
+
+.icon[data-type='pit'] {
+  color: var(--f1-yellow);
+}
+
+.icon[data-type='flag'],
+.icon[data-type='retirement'] {
+  color: var(--f1-sector-1);
+}
+
+.time {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.content {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.text {
+  overflow: hidden;
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -259,7 +259,7 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
   ]);
 
   return (
-    <div className={`dashboard-grid ${styles.page}`}>
+    <div className={styles.page}>
       {/* Header Controls & Comparison Duel Panel */}
       <ComparatorDuelHeader
         sessions={sessions}

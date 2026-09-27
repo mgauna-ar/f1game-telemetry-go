@@ -1,0 +1,107 @@
+.current {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.rainHigh {
+  color: var(--weather-rain);
+}
+
+.rainMedium {
+  color: var(--status-warning);
+}
+
+.forecast {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-2);
+  text-align: center;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.offset {
+  padding: var(--space-0-5) var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-black);
+  color: var(--text-secondary);
+  background: var(--bg-active);
+  border-radius: var(--radius-xs);
+}
+
+.icon {
+  margin: var(--space-2) 0 var(--space-1);
+}
+
+.condition {
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.rain {
+  --bar-color: var(--text-muted);
+  width: 100%;
+  margin-bottom: var(--space-2);
+}
+
+.rainHeader {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 3px;
+  font-size: var(--font-size-2xs);
+  color: var(--text-muted);
+}
+
+.rainValue {
+  font-weight: var(--font-weight-bold);
+  color: var(--bar-color);
+}
+
+.barTrack {
+  height: 6px;
+  overflow: hidden;
+  background: var(--bg-active);
+  border-radius: 3px;
+}
+
+.barFill {
+  width: var(--bar-width);
+  height: 100%;
+  background-color: var(--bar-color);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.temps {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  padding-top: var(--space-1-5);
+  font-size: var(--font-size-2xs);
+  color: var(--text-muted);
+  border-top: 1px solid var(--border-color);
+}
+
+@media (max-width: 768px) {
+  .current,
+  .forecast {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

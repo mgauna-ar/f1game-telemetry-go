@@ -1,11 +1,12 @@
 .page {
-  padding-top: 0;
+  composes: pageGrid from '../styles/pageGrid.module.css';
+  --page-padding-top: 0;
 }
 
 /* Charts on the left, the sticky track map on the right */
 .layout {
   display: grid;
-  grid-column: span 12;
+  grid-column: 1 / -1;
   grid-template-columns: minmax(0, 1fr) 380px;
   align-items: start;
   gap: var(--space-6);

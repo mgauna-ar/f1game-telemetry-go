@@ -1,0 +1,130 @@
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.kpi {
+  min-width: 0;
+  padding: var(--space-3);
+  background: var(--bg-inset);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.kpiLabel {
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.kpiValue {
+  margin: var(--space-0-5) 0;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: 1.15rem;
+  font-weight: var(--font-weight-black);
+  line-height: 1.1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kpiValue[data-tone='open'] {
+  color: var(--f1-green);
+}
+
+.kpiValue[data-tone='rejoin'] {
+  color: var(--accent-primary);
+}
+
+.kpiValue[data-tone='driver'] {
+  font-size: var(--font-size-lg);
+  color: var(--weather-rain);
+}
+
+.kpiSub {
+  font-size: var(--font-size-2xs);
+  color: var(--text-muted);
+}
+
+.matrix {
+  flex: 1;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+}
+
+.selectedRow {
+  background: color-mix(in srgb, var(--f1-slot-a) 12%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent-primary);
+}
+
+.playerRow {
+  background: color-mix(in srgb, var(--f1-green) 6%, transparent);
+}
+
+.pos[data-podium='true'] {
+  font-weight: var(--font-weight-bold);
+  color: var(--f1-gold);
+}
+
+.tyreAge {
+  font-weight: var(--font-weight-semibold);
+}
+
+.tyreAge[data-wear='worn'] {
+  color: var(--f1-yellow);
+}
+
+.tyreAge[data-wear='old'] {
+  color: var(--status-danger);
+}
+
+.driver {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.teamBar {
+  display: inline-block;
+  width: 3px;
+  height: 14px;
+  background: var(--team-color);
+  border-radius: 2px;
+}
+
+.driverName {
+  font-weight: var(--font-weight-semibold);
+}
+
+.trackStatus {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+/* Pulsing dot inside the "in pit lane" and "in box" badges */
+.liveDot {
+  width: 5px;
+  height: 5px;
+  background: currentColor;
+  border-radius: 50%;
+  animation: pulseDot 1s infinite ease-in-out;
+}
+
+@keyframes pulseDot {
+  50% {
+    opacity: 0.3;
+    transform: scale(0.7);
+  }
+}
+
+@media (max-width: 768px) {
+  .kpis {
+    grid-template-columns: 1fr;
+  }
+}

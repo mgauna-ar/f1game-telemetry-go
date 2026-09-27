@@ -1,19 +1,20 @@
 import React from 'react';
-import { Flag, CloudSun, Thermometer, ShieldAlert, Timer, LayoutDashboard, Mic, Radio } from 'lucide-react';
+import { CloudSun, Thermometer, Timer, LayoutDashboard, Mic, Radio } from 'lucide-react';
 import type { SessionData } from '../hooks/useTelemetry';
 import { useI18n } from '../context/I18nContext';
 import { F1FormatBadge } from './F1FormatBadge';
 import { TrackFlag } from './TrackFlag';
 import { LiveStatusIndicator } from './common/LiveStatusIndicator';
+import { SafetyCarBadge } from './common/SafetyCarBadge';
 import { SessionTypeBadge } from './common/SessionTypeBadge';
 import { Badge } from './ui/Badge';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { Stat } from './ui/Stat';
+import { cx } from './ui/cx';
 import {
   TRACK_NAMES,
   getTrackInfo,
   LIVE_VIEW_MODES,
-  SAFETY_CAR_STATUS,
   SESSION_TYPE_LABELS,
   WEATHER_CODES,
   WEATHER_LABEL_KEYS,
@@ -24,6 +25,7 @@ import type { LiveViewMode } from '../constants/f1';
 
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import { useTelemetryEndpointStore } from '../store/useTelemetryEndpointStore';
+import styles from './SessionHeader.module.css';
 
 /** Switches the live page between the race control dashboard and the voice cockpit. */
 const ViewModeSwitch: React.FC<{ value: LiveViewMode; onChange: (mode: LiveViewMode) => void }> = ({
@@ -79,29 +81,25 @@ export const SessionHeader: React.FC<SessionHeaderProps> = React.memo((props) =>
   // If no active session yet (waiting for data)
   if (!session) {
     return (
-      <header className="header session-header-panel session-header-standby">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'nowrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div className="standby-header-pulse">
-              <Radio size={18} className="text-cyan-400" />
+      <header className={cx(styles.header, styles.standby)}>
+        <div className={styles.identity}>
+          <div className={styles.standbyIcon} aria-hidden="true">
+            <Radio size={18} />
+          </div>
+          <div>
+            <div className={styles.titleRow}>
+              <h1 className={styles.title}>{t('live.liveHub')}</h1>
+              <Badge tone={connected ? 'success' : 'warning'} uppercase>
+                {connected ? t('live.backendConnected') : t('live.connectingToBackend')}
+              </Badge>
             </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'nowrap' }}>
-                <h1 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 800, whiteSpace: 'nowrap' }}>
-                  {t('live.liveHub')}
-                </h1>
-                <Badge tone={connected ? 'success' : 'warning'} uppercase>
-                  {connected ? t('live.backendConnected') : t('live.connectingToBackend')}
-                </Badge>
-              </div>
-              <p className="mono" style={{ color: 'var(--text-secondary)', margin: '2px 0 0 0', fontSize: '0.80rem' }}>
-                {t('live.commandCenter')} • UDP {udpPort}
-              </p>
-            </div>
+            <p className={styles.subtitle}>
+              {t('live.commandCenter')} • UDP {udpPort}
+            </p>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', flexWrap: 'nowrap' }}>
+        <div className={styles.controls}>
           {onViewModeChange && <ViewModeSwitch value={viewMode} onChange={onViewModeChange} />}
 
           {/* Live feed state */}
@@ -126,56 +124,22 @@ export const SessionHeader: React.FC<SessionHeaderProps> = React.memo((props) =>
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const renderSafetyCarBadge = () => {
-    if (session.SafetyCarStatus === SAFETY_CAR_STATUS.CLEAR) {
-      return (
-        <Badge tone="success" size="md" uppercase icon={<Flag size={14} aria-hidden="true" />}>
-          {t('live.greenFlag')}
-        </Badge>
-      );
-    }
-    if (session.SafetyCarStatus === SAFETY_CAR_STATUS.FULL) {
-      return (
-        <Badge tone="warning" size="md" uppercase className="glow-yellow" icon={<ShieldAlert size={14} aria-hidden="true" />}>
-          {t('live.safetyCarStatus')}
-        </Badge>
-      );
-    }
-    if (session.SafetyCarStatus === SAFETY_CAR_STATUS.VIRTUAL) {
-      return (
-        <Badge tone="orange" size="md" uppercase icon={<ShieldAlert size={14} aria-hidden="true" />}>
-          {t('live.vscStatus')}
-        </Badge>
-      );
-    }
-    if (session.SafetyCarStatus === SAFETY_CAR_STATUS.FORMATION_LAP) {
-      return (
-        <Badge tone="info" size="md" uppercase icon={<Flag size={14} aria-hidden="true" />}>
-          {t('live.formationLap')}
-        </Badge>
-      );
-    }
-    return null;
-  };
-
   return (
-    <header className="header session-header-panel">
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+    <header className={styles.header}>
+      <div className={styles.identity}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div className={styles.titleRow}>
             <TrackFlag track={session.TrackId} width={26} height={18} />
-            <h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 800 }}>{trackName}</h1>
+            <h1 className={styles.title}>{trackName}</h1>
 
             <F1FormatBadge format={effectiveFormat} size="sm" />
             <SessionTypeBadge sessionType={sessionLabel} size="sm" />
           </div>
-          <p className="mono" style={{ color: 'var(--text-secondary)', margin: '4px 0 0 0', fontSize: '0.9rem' }}>
-            {t('live.commandCenter')}
-          </p>
+          <p className={styles.subtitle}>{t('live.commandCenter')}</p>
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+      <div className={styles.controls}>
         {onViewModeChange && <ViewModeSwitch value={viewMode} onChange={onViewModeChange} />}
 
         {/* Session Progress / Timer */}
@@ -202,7 +166,7 @@ export const SessionHeader: React.FC<SessionHeaderProps> = React.memo((props) =>
         />
 
         {/* Safety Car Badge */}
-        {renderSafetyCarBadge()}
+        <SafetyCarBadge status={session.SafetyCarStatus} size="md" />
 
         {/* Live feed state */}
         <LiveStatusIndicator />
@@ -212,7 +176,3 @@ export const SessionHeader: React.FC<SessionHeaderProps> = React.memo((props) =>
 });
 
 SessionHeader.displayName = 'SessionHeader';
-
-
-
-

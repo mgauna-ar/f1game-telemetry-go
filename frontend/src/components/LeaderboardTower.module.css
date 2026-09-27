@@ -1,0 +1,210 @@
+.count {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+/* One column up to 11 cars, two beyond */
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+}
+
+.columns[data-columns='2'] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  cursor: pointer;
+  background: var(--bg-inset);
+  border: 1px solid var(--border-color);
+  border-left: 4px solid var(--team-color);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.card:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-highlight);
+  border-left-color: var(--team-color);
+}
+
+.card[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  border-color: var(--accent-primary);
+  border-left-color: var(--team-color);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.card[data-eliminated='true'] {
+  opacity: 0.6;
+}
+
+/* Position changes flash green (gained) or red (lost) for a moment */
+.card[data-flash='up'] {
+  animation: flashUp 1.2s ease-out;
+}
+
+.card[data-flash='down'] {
+  animation: flashDown 1.2s ease-out;
+}
+
+@keyframes flashUp {
+  0% {
+    background-color: color-mix(in srgb, var(--f1-green) 35%, transparent);
+  }
+}
+
+@keyframes flashDown {
+  0% {
+    background-color: color-mix(in srgb, var(--status-danger) 35%, transparent);
+  }
+}
+
+.pos {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 45px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+}
+
+.driver {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.nameRow,
+.badges {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+}
+
+.badges {
+  flex-wrap: wrap;
+  margin-top: 1px;
+}
+
+.name {
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.number {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-muted);
+}
+
+.playerTag {
+  padding: 1px var(--space-1);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-black);
+  color: var(--text-on-accent);
+  background: var(--accent-tertiary);
+  border-radius: 3px;
+}
+
+.tyre {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0 var(--space-1-5);
+}
+
+.tyreAge {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-secondary);
+}
+
+.noTyre {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.time {
+  min-width: 75px;
+  font-family: var(--font-mono);
+  text-align: right;
+}
+
+.timeMain,
+.timeSub {
+  display: block;
+}
+
+.timeMain {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.timeMain[data-muted='true'] {
+  color: var(--text-muted);
+}
+
+.timeSub {
+  font-size: var(--font-size-2xs);
+  color: var(--text-secondary);
+}
+
+.timeMain[data-leader='true'],
+.timeSub[data-leader='true'] {
+  color: var(--accent-primary);
+}
+
+/* Qualifying cut-off between the last car through and the first one out */
+.cutoff {
+  margin: var(--space-0-5) 0;
+  text-align: center;
+  border-bottom: 2px dashed var(--status-danger);
+}
+
+.cutoff span {
+  padding: var(--space-0-5) var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-black);
+  color: var(--status-danger);
+  background: var(--bg-dark);
+  border-radius: var(--radius-xs);
+}
+
+@media (max-width: 900px) {
+  .columns[data-columns='2'] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

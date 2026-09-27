@@ -1,0 +1,251 @@
+.theoretical {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  padding: 3px var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  background: var(--f1-purple-bg);
+  border: 1px solid var(--f1-purple-border);
+  border-radius: var(--radius-xs);
+}
+
+.theoreticalLabel {
+  color: var(--text-muted);
+}
+
+.theoreticalValue {
+  margin: 0;
+  font-weight: var(--font-weight-black);
+  color: var(--f1-purple);
+}
+
+/* Session best S1, S2 and lap */
+.bests {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+.bestCard {
+  --best-color: var(--f1-purple);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-width: 0;
+  padding: var(--space-3);
+  background:
+    radial-gradient(circle at 90% 10%, color-mix(in srgb, var(--best-color) 8%, transparent), transparent 60%),
+    var(--bg-inset);
+  border: 1px solid color-mix(in srgb, var(--best-color) 30%, transparent);
+  border-radius: var(--radius-sm);
+}
+
+.bestCard[data-kind='lap'] {
+  --best-color: var(--f1-yellow);
+}
+
+.bestHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1-5);
+}
+
+.bestLabel {
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-black);
+  color: var(--best-color);
+}
+
+.bestTime {
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  font-weight: var(--font-weight-black);
+  color: var(--text-primary);
+}
+
+.holder {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  min-width: 0;
+}
+
+.teamDot {
+  flex-shrink: 0;
+  width: 6px;
+  height: 6px;
+  background: var(--team-color);
+  border-radius: 50%;
+}
+
+.holderName {
+  overflow: hidden;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Selected driver splits and the speed trap top five */
+.bottom {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.subcard {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: var(--space-3);
+  background: var(--bg-hover);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.subcardTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-secondary);
+}
+
+.splits {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: center;
+  gap: var(--space-1-5);
+  margin: 0;
+}
+
+.split {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-2) var(--space-1-5);
+  text-align: center;
+  background: var(--bg-inset);
+  border-radius: var(--radius-xs);
+}
+
+.splitLabel {
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-muted);
+}
+
+.splitTime {
+  margin: var(--space-0-5) 0;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+}
+
+.splitDelta {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  color: var(--text-muted);
+}
+
+.splitDelta[data-purple='true'] {
+  color: var(--f1-purple);
+}
+
+.speedList {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-1-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.speedItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-1-5) var(--space-2);
+  font-size: var(--font-size-xs);
+  background: var(--bg-inset);
+  border-radius: var(--radius-xs);
+}
+
+.speedItem[aria-current='true'] {
+  background: color-mix(in srgb, var(--f1-slot-a) 10%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent-primary);
+}
+
+.speedDriver {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  min-width: 0;
+}
+
+.speedRank {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  color: var(--text-muted);
+}
+
+.teamBar {
+  flex-shrink: 0;
+  width: 3px;
+  height: 14px;
+  background: var(--team-color);
+  border-radius: 2px;
+}
+
+.speedName {
+  overflow: hidden;
+  font-weight: var(--font-weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.speedValue {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-1-5);
+  font-family: var(--font-mono);
+}
+
+.speed {
+  font-weight: var(--font-weight-black);
+  color: var(--weather-rain);
+}
+
+.speedLap {
+  font-size: var(--font-size-2xs);
+  color: var(--text-muted);
+}
+
+.speedEmpty {
+  padding: var(--space-4) 0;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+@media (max-width: 768px) {
+  .bests,
+  .bottom {
+    grid-template-columns: 1fr;
+  }
+}

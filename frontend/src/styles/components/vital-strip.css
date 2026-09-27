@@ -360,28 +360,8 @@
 }
 
 /* ==========================================================================
-   SESSION HEADER & COCKPIT STANDBY STYLES
+   COCKPIT STANDBY STYLES
    ========================================================================== */
-
-.session-header-standby {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.standby-header-pulse {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: rgba(0, 242, 254, 0.1);
-  border: 1px solid rgba(0, 242, 254, 0.3);
-  box-shadow: 0 0 14px rgba(0, 242, 254, 0.2);
-  flex-shrink: 0;
-}
 
 .voice-cockpit-standby-panel {
   display: flex;

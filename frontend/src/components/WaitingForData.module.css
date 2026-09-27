@@ -1,0 +1,292 @@
+.container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: var(--space-6) 0;
+}
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 840px;
+  padding: var(--space-12) var(--space-10);
+  overflow: hidden;
+  text-align: center;
+  background: linear-gradient(180deg, var(--bg-panel) 0%, var(--bg-popover) 100%);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    var(--shadow-lg),
+    inset 0 1px 0 var(--border-subtle);
+}
+
+/* A thin red light along the top edge */
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 20%;
+  right: 20%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent-primary), transparent);
+}
+
+/* Radar ripples around the signal icon */
+.radar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 110px;
+  height: 110px;
+  margin-bottom: var(--space-8);
+}
+
+.ripple {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border: 1.5px solid var(--accent-primary);
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+  animation: radarPulse 3s infinite cubic-bezier(0.1, 0.8, 0.3, 1);
+}
+
+.ripple:nth-child(2) {
+  animation-delay: 1s;
+}
+
+.ripple:nth-child(3) {
+  animation-delay: 2s;
+}
+
+@keyframes radarPulse {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.85;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+.signal {
+  --signal-color: var(--accent-primary);
+  position: relative;
+  z-index: var(--z-raised);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 68px;
+  height: 68px;
+  color: var(--signal-color);
+  background: color-mix(in srgb, var(--signal-color) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--signal-color) 40%, transparent);
+  border-radius: 50%;
+  box-shadow: 0 0 24px color-mix(in srgb, var(--signal-color) 30%, transparent);
+  transition: all var(--transition-normal);
+}
+
+.signal[data-connected='true'] {
+  --signal-color: var(--f1-green);
+}
+
+.pulse {
+  animation: iconPulse 2s infinite ease-in-out;
+}
+
+@keyframes iconPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.75;
+  }
+}
+
+.titleSection {
+  max-width: 620px;
+  margin-bottom: var(--space-8);
+}
+
+.pills {
+  margin-bottom: var(--space-5);
+}
+
+.title {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-display);
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-black);
+  line-height: var(--line-height-tight);
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.subtitle {
+  margin: 0 auto;
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-normal);
+  color: var(--text-secondary);
+}
+
+/* In-game telemetry settings checklist */
+.guide {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto var(--space-8);
+  padding: var(--space-5) var(--space-6);
+  text-align: left;
+  background: var(--bg-inset);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+.guideHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+}
+
+.guideIcon {
+  flex-shrink: 0;
+  color: var(--accent-primary);
+}
+
+.checklist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+}
+
+.checkItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.checkItem:last-child {
+  border-bottom: none;
+}
+
+.checkItem[data-align='top'] {
+  align-items: flex-start;
+}
+
+.checkLabel {
+  color: var(--text-secondary);
+}
+
+.checkValue {
+  margin: 0;
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+.checkValue[data-highlight] {
+  font-weight: var(--font-weight-bold);
+}
+
+.checkValue[data-highlight='green'] {
+  color: var(--f1-green);
+}
+
+.checkValue[data-highlight='blue'] {
+  color: var(--weather-rain);
+}
+
+.checkValue[data-highlight='purple'] {
+  color: var(--accent-purple);
+}
+
+.ipValues {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1-5);
+}
+
+.ipOption {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.ipHint {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.broadcastHint {
+  margin: var(--space-3) 0 0;
+  font-size: var(--font-size-xs);
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--border-color);
+}
+
+.listening {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+
+.listeningIcon {
+  color: var(--accent-primary);
+  animation: iconPulse 1.5s infinite ease-in-out;
+}
+
+.tip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+@media (max-width: 860px) {
+  .card {
+    padding: var(--space-8) var(--space-5);
+  }
+
+  .title {
+    font-size: 1.45rem;
+  }
+}

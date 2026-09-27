@@ -14,11 +14,33 @@ import type { ParticipantData, LapData, CarStatusData, SessionData } from '../ty
 import { useI18n } from '../context/I18nContext';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import { useTelemetryDataStore } from '../store/useTelemetryDataStore';
+import { styleVars } from '../styles/theme';
+import { Badge } from './ui/Badge';
 import { cx } from './ui/cx';
 import { DataTable } from './ui/DataTable';
 import { Panel, PanelHeader } from './ui/Panel';
+import styles from './LivePitStrategy.module.css';
+
+interface KpiProps {
+  label: string;
+  value: React.ReactNode;
+  sub: React.ReactNode;
+  tone?: 'open' | 'rejoin' | 'driver';
+}
+
+/** One figure of the pit window strip: a label, the value and a short note. */
+const Kpi: React.FC<KpiProps> = ({ label, value, sub, tone }) => (
+  <dl className={styles.kpi}>
+    <dt className={styles.kpiLabel}>{label}</dt>
+    <dd className={styles.kpiValue} data-tone={tone}>
+      {value}
+    </dd>
+    <dd className={styles.kpiSub}>{sub}</dd>
+  </dl>
+);
 
 interface LivePitStrategyProps {
+  className?: string;
   session?: SessionData | null;
   participants?: ParticipantData[];
   laps?: LapData[];
@@ -62,7 +84,7 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = React.memo((props
     const lap = laps[idx];
     const status = carStatuses[idx];
     const rawName = p.Name;
-    const defaultName = p.RaceNumber ? `Driver #${p.RaceNumber}` : `Car #${idx + 1}`;
+    const defaultName = p.RaceNumber ? `Driver #${p.RaceNumber}` : t('live.events.car', { number: idx + 1 });
     const name = parseDriverName(rawName, defaultName, p.DriverId);
 
     return {
@@ -79,110 +101,92 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = React.memo((props
   });
 
   drivers.sort((a, b) => a.position - b.position);
+  const selectedDriver = drivers.find((d) => d.isSelected);
 
   const getPitStatusBadge = (pitStatus?: number, timerMs?: number, timeInLaneMs?: number, resultStatus?: number) => {
-    if (resultStatus === RESULT_STATUS.RETIRED) {
+    const resultKey =
+      resultStatus === RESULT_STATUS.RETIRED
+        ? 'live.statusRetired'
+        : resultStatus === RESULT_STATUS.DNF
+          ? 'live.statusDnf'
+          : resultStatus === RESULT_STATUS.DSQ
+            ? 'live.statusDsq'
+            : undefined;
+    if (resultKey) {
       return (
-        <span className="pit-badge-lane mono" style={{ color: '#FF4D4D', borderColor: 'rgba(255, 77, 77, 0.4)' }}>
-          {t('live.statusRetired')}
-        </span>
-      );
-    }
-    if (resultStatus === RESULT_STATUS.DNF) {
-      return (
-        <span className="pit-badge-lane mono" style={{ color: '#FF4D4D', borderColor: 'rgba(255, 77, 77, 0.4)' }}>
-          {t('live.statusDnf')}
-        </span>
-      );
-    }
-    if (resultStatus === RESULT_STATUS.DSQ) {
-      return (
-        <span className="pit-badge-lane mono" style={{ color: '#FF3333', borderColor: 'rgba(255, 51, 51, 0.6)' }}>
-          {t('live.statusDsq')}
-        </span>
+        <Badge tone="danger" size="xs" square>
+          {t(resultKey)}
+        </Badge>
       );
     }
     if (pitStatus === PIT_STATUS.PITTING) {
       return (
-        <span className="pit-badge-lane mono">
-          <span className="pit-live-dot" />
+        <Badge tone="warning" size="xs" square icon={<span className={styles.liveDot} aria-hidden="true" />}>
           {t('live.pitLane')} {timeInLaneMs ? `(${(timeInLaneMs / 1000).toFixed(1)}s)` : ''}
-        </span>
+        </Badge>
       );
     }
     if (pitStatus === PIT_STATUS.IN_PIT_AREA) {
       return (
-        <span className="pit-badge-box mono">
-          <span className="pit-live-dot box" />
+        <Badge tone="danger" size="xs" square icon={<span className={styles.liveDot} aria-hidden="true" />}>
           {t('live.inBox')} {timerMs ? `(${(timerMs / 1000).toFixed(1)}s)` : ''}
-        </span>
+        </Badge>
       );
     }
-    return <span className="pit-badge-track mono">{t('live.trackStatus')}</span>;
+    return <span className={`mono ${styles.trackStatus}`}>{t('live.trackStatus')}</span>;
   };
 
-  const activePitsCount = laps.filter((l) => l && (l.PitStatus === PIT_STATUS.PITTING || l.PitStatus === PIT_STATUS.IN_PIT_AREA)).length;
+  const activePitsCount = laps.filter(
+    (l) => l && (l.PitStatus === PIT_STATUS.PITTING || l.PitStatus === PIT_STATUS.IN_PIT_AREA)
+  ).length;
 
   return (
-    <Panel className="race-hub-card live-pit-strategy-panel">
+    <Panel className={props.className}>
       <PanelHeader
         icon={<Wrench size={16} color="var(--accent-primary)" />}
         title={t('live.pitStrategyTitle')}
         subtitle={t('live.pitStrategySub')}
         actions={
           activePitsCount > 0 && (
-            <span className="active-pits-pill mono">
-              <span className="pit-live-dot" />
+            <Badge tone="warning" icon={<span className={styles.liveDot} aria-hidden="true" />}>
               {t('live.pittingNow', { count: activePitsCount })}
-            </span>
+            </Badge>
           )
         }
       />
 
-      {/* Pit Window Strategy KPI Strip */}
-      <div className="pit-strategy-kpi-row">
-        <div className="pit-kpi-box">
-          <div className="readout-label">{t('live.estimatedPitWindow')}</div>
-          <div className="pit-kpi-value mono" style={{ color: isWindowOpen ? '#33FF99' : 'inherit' }}>
-            {t('live.lapRange', { ideal: idealLap, latest: latestLap })}
-          </div>
-          <div className="pit-kpi-sub">
-            {isWindowOpen
+      {/* Pit window strip */}
+      <div className={styles.kpis}>
+        <Kpi
+          label={t('live.estimatedPitWindow')}
+          value={t('live.lapRange', { ideal: idealLap, latest: latestLap })}
+          tone={isWindowOpen ? 'open' : undefined}
+          sub={
+            isWindowOpen
               ? t('live.windowOpenNow')
               : currentLeaderLap < idealLap
-              ? t('live.windowOpensIn', { count: idealLap - currentLeaderLap })
-              : t('live.windowClosed')}
-          </div>
-        </div>
-
-        <div className="pit-kpi-box">
-          <div className="readout-label">{t('live.predictedRejoin')}</div>
-          <div className="pit-kpi-value mono" style={{ color: 'var(--accent-primary)' }}>
-            P{rejoinPos}
-          </div>
-          <div className="pit-kpi-sub">{t('live.cleanAirEstimate')}</div>
-        </div>
-
-        <div className="pit-kpi-box">
-          <div className="readout-label">{t('live.selectedDriver')}</div>
-          <div className="pit-kpi-value mono" style={{ fontSize: '1rem', color: '#33CCFF' }}>
-            {drivers.find((d) => d.isSelected)?.name || 'Car #1'}
-          </div>
-          <div className="pit-kpi-sub">
-            {t('live.stopsMade', { count: drivers.find((d) => d.isSelected)?.lap?.NumPitStops || 0 })}
-          </div>
-        </div>
+                ? t('live.windowOpensIn', { count: idealLap - currentLeaderLap })
+                : t('live.windowClosed')
+          }
+        />
+        <Kpi label={t('live.predictedRejoin')} value={`P${rejoinPos}`} tone="rejoin" sub={t('live.cleanAirEstimate')} />
+        <Kpi
+          label={t('live.selectedDriver')}
+          value={selectedDriver?.name ?? '--'}
+          tone="driver"
+          sub={t('live.stopsMade', { count: selectedDriver?.lap?.NumPitStops || 0 })}
+        />
       </div>
 
       {/* Field Tyre & Pit Matrix Table */}
       <DataTable
-        className="pit-matrix-table-container"
+        className={styles.matrix}
         caption={t('live.pitMatrixCaption')}
         density="compact"
         stickyHeader
         rows={drivers}
         getRowKey={(d) => d.carIndex}
-        getRowClassName={(d) => cx('pit-matrix-row', d.isSelected && 'selected', d.isPlayer && 'player')}
+        getRowClassName={(d) => cx(d.isSelected && styles.selectedRow, d.isPlayer && styles.playerRow)}
         onRowClick={(d) => onSelectCar(d.carIndex)}
         columns={[
           {
@@ -191,19 +195,23 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = React.memo((props
             width: '42px',
             align: 'center',
             numeric: true,
-            cell: (d) => <span className={cx('pit-pos', d.position <= 3 && 'is-podium')}>P{d.position}</span>,
+            cell: (d) => (
+              <span className={styles.pos} data-podium={d.position <= 3}>
+                P{d.position}
+              </span>
+            ),
           },
           {
             key: 'driver',
             header: t('live.thDriver'),
             rowHeader: true,
             cell: (d) => (
-              <div className="pit-driver-cell">
-                <span className="team-color-indicator" style={{ backgroundColor: getTeamColor(d.teamId) }} />
+              <div className={styles.driver} style={styleVars({ '--team-color': getTeamColor(d.teamId) })}>
+                <span className={styles.teamBar} aria-hidden="true" />
                 {/* The row is also clickable; this button is its keyboard and screen reader equivalent */}
                 <button
                   type="button"
-                  className="button-reset pit-driver-name"
+                  className={`button-reset ${styles.driverName}`}
                   aria-pressed={d.isSelected}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -212,7 +220,11 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = React.memo((props
                 >
                   {d.name}
                 </button>
-                {d.isPlayer && <span className="player-indicator-chip">{t('live.youChip')}</span>}
+                {d.isPlayer && (
+                  <Badge tone="success" size="xs" square>
+                    {t('live.youChip')}
+                  </Badge>
+                )}
               </div>
             ),
           },
@@ -232,7 +244,7 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = React.memo((props
             cell: (d) => {
               const tyreAge = d.status?.TyresAgeLaps ?? 0;
               return (
-                <span className={cx('pit-tyre-age', tyreAge > 20 && 'is-old', tyreAge > 12 && tyreAge <= 20 && 'is-worn')}>
+                <span className={styles.tyreAge} data-wear={tyreAge > 20 ? 'old' : tyreAge > 12 ? 'worn' : undefined}>
                   {tyreAge} L
                 </span>
               );
@@ -252,7 +264,12 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = React.memo((props
             width: '130px',
             align: 'right',
             cell: (d) =>
-              getPitStatusBadge(d.lap?.PitStatus, d.lap?.PitStopTimerInMS, d.lap?.PitLaneTimeInLaneInMS, d.lap?.ResultStatus),
+              getPitStatusBadge(
+                d.lap?.PitStatus,
+                d.lap?.PitStopTimerInMS,
+                d.lap?.PitLaneTimeInLaneInMS,
+                d.lap?.ResultStatus
+              ),
           },
         ]}
       />
@@ -261,4 +278,3 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = React.memo((props
 });
 
 LivePitStrategy.displayName = 'LivePitStrategy';
-

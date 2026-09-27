@@ -33,3 +33,17 @@ body {
   text-align: inherit;
   cursor: pointer;
 }
+
+/* A spinning icon, such as a loader in a button or a status line. */
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

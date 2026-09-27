@@ -7,20 +7,10 @@
 
 /* ── Components ────────────────────────────────────────── */
 @import './components/navbar.css';
-@import './components/dashboard.css';
-@import './components/leaderboard.css';
-@import './components/empty-state.css';
 @import './components/flags.css';
 @import './components/release-notes.css';
 @import './components/error-boundary.css';
 @import './components/copy-value.css';
-
-/* ── Live Race Control Hub ─────────────────────────────── */
-@import './components/race-control.css';
-@import './components/live-feed.css';
-@import './components/live-weather.css';
-@import './components/live-pit.css';
-@import './components/live-sectors.css';
 
 /* ── Live Radio & Voice Cockpit ────────────────────────── */
 @import './components/radio-hud.css';

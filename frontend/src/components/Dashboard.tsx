@@ -20,6 +20,7 @@ import { useProactiveTelemetryRadio } from '../hooks/useProactiveTelemetryRadio'
 import { getProactiveRadioSpeech } from '../utils/radioPhrases';
 import type { RadioAlertPayload } from '../types/telemetry';
 import { storage } from '../utils/storage';
+import styles from './Dashboard.module.css';
 
 export const Dashboard: React.FC = () => {
   const [viewMode, setViewMode] = useState<LiveViewMode>(() => {
@@ -71,7 +72,7 @@ export const Dashboard: React.FC = () => {
 
   if (!connected || !session) {
     return (
-      <div className="voice-cockpit-layout" style={{ position: 'relative', width: '100%' }}>
+      <div className={`voice-cockpit-layout ${styles.cockpit}`}>
         {/* Header with View Mode Switcher in Standby */}
         <LiveDocumentTitle />
         <SessionHeader
@@ -96,7 +97,7 @@ export const Dashboard: React.FC = () => {
   // Voice Cockpit View (0% unneeded widget DOM/Canvas overhead for sim racing)
   if (viewMode === LIVE_VIEW_MODES.COCKPIT) {
     return (
-      <div className="voice-cockpit-layout" style={{ position: 'relative', width: '100%' }}>
+      <div className={`voice-cockpit-layout ${styles.cockpit}`}>
         <LiveDocumentTitle />
         <SessionHeader
           session={session}
@@ -112,7 +113,7 @@ export const Dashboard: React.FC = () => {
 
   // Full Race Control Dashboard View
   return (
-    <div className="dashboard-grid race-control-dashboard">
+    <div className={styles.dashboard}>
       {/* Session Top Header */}
       <LiveDocumentTitle />
       <SessionHeader
@@ -124,31 +125,14 @@ export const Dashboard: React.FC = () => {
       />
 
       {/* Hero Upper Section: Full-Width Leaderboard Tower (Span 12) */}
-      <div className="dash-hero-row" style={{ gridColumn: 'span 12' }}>
-        <LeaderboardTower />
-      </div>
+      <LeaderboardTower className={styles.fullRow} />
 
-      {/* Main 2x2 Race Control Hub */}
-      <div className="race-control-hub-grid" style={{ gridColumn: 'span 12' }}>
-        {/* Top-Left: Real-time Race Control & Incidents Stream */}
-        <div className="hub-grid-cell">
-          <RaceControlFeed />
-        </div>
-
-        {/* Top-Right: Weather Radar & Track Evolution */}
-        <div className="hub-grid-cell">
-          <LiveWeatherRadar />
-        </div>
-
-        {/* Bottom-Left: Field Tyre Matrix & Pit Strategy Windows */}
-        <div className="hub-grid-cell">
-          <LivePitStrategy />
-        </div>
-
-        {/* Bottom-Right: Live Sector Performance & Speed Traps */}
-        <div className="hub-grid-cell">
-          <LiveSectorTracker />
-        </div>
+      {/* Race control hub: feed and weather on top, pit strategy and sectors below */}
+      <div className={`${styles.fullRow} ${styles.hub}`}>
+        <RaceControlFeed className={styles.hubCard} />
+        <LiveWeatherRadar className={styles.hubCard} />
+        <LivePitStrategy className={styles.hubCard} />
+        <LiveSectorTracker className={styles.hubCard} />
       </div>
 
       {/* Floating Interactive Voice Radio HUD */}

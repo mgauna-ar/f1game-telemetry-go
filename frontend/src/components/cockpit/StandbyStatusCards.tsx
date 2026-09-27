@@ -2,6 +2,7 @@ import React from 'react';
 import { Radio, WifiOff, Activity, Gauge } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
 import { useTelemetryEndpointStore } from '../../store/useTelemetryEndpointStore';
+import { ConnectionStatusPills } from '../common/ConnectionStatusPills';
 
 export interface StandbyStatusCardsProps {
   connected: boolean;
@@ -33,17 +34,9 @@ export const StandbyStatusCards: React.FC<StandbyStatusCardsProps> = ({
         </div>
         <div className="standby-panel-titles">
           <div className="standby-badge-row">
-            <span className={`waiting-status-pill ${connected ? 'pill-connected' : 'pill-reconnecting'}`}>
-              <span className={`status-dot ${connected ? 'status-connected' : 'status-waiting'}`} />
-              {connected ? t('live.backendConnected') : t('live.connectingToBackend')}
-            </span>
-            <span className="waiting-port-pill mono">
-              {t('live.udpPort')}: <strong>{endpoint.udp_port}</strong>
-            </span>
+            <ConnectionStatusPills connected={connected} />
           </div>
-          <h3 className="standby-title">
-            {connected ? t('live.waitingForLive') : t('live.connectingToBridge')}
-          </h3>
+          <h3 className="standby-title">{connected ? t('live.waitingForLive') : t('live.connectingToBridge')}</h3>
           <p className="standby-subtitle">
             {connected ? t('live.telemetryListening') : t('live.establishingWebSocket')}
           </p>
@@ -60,9 +53,7 @@ export const StandbyStatusCards: React.FC<StandbyStatusCardsProps> = ({
             <span className="standby-card-val text-emerald-400 mono">
               {personaName} • {effectiveLanguage === 'es' ? 'ES' : 'EN'}
             </span>
-            <span className="standby-card-hint">
-              {pttHint}
-            </span>
+            <span className="standby-card-hint">{pttHint}</span>
           </div>
         </div>
 
@@ -75,9 +66,7 @@ export const StandbyStatusCards: React.FC<StandbyStatusCardsProps> = ({
             <span className="standby-card-val mono text-cyan-300">
               {connected ? t('live.bridgeListening', { addr: endpoint.udp_addr }) : t('live.bridgeConnecting')}
             </span>
-            <span className="standby-card-hint">
-              {t('live.dashboardAutoOpenTip')}
-            </span>
+            <span className="standby-card-hint">{t('live.dashboardAutoOpenTip')}</span>
           </div>
         </div>
 

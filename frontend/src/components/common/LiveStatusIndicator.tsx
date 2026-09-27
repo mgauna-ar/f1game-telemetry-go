@@ -3,6 +3,7 @@ import { useI18n } from '../../context/I18nContext';
 import { useLiveStatus } from '../../hooks/useLiveStatus';
 import { LIVE_STATUS } from '../../constants/f1';
 import type { LiveStatus } from '../../constants/f1';
+import styles from './LiveStatusIndicator.module.css';
 
 const STATUS_LABEL_KEYS: Record<LiveStatus, string> = {
   [LIVE_STATUS.OFFLINE]: 'live.reconnecting',
@@ -18,12 +19,13 @@ export const LiveStatusIndicator: React.FC = () => {
 
   return (
     <div
-      className={`live-status-indicator status-${status}`}
+      className={styles.indicator}
+      data-status={status}
       title={status === LIVE_STATUS.STALE ? t('live.statusStaleTitle') : undefined}
       data-testid="live-status-indicator"
     >
-      <span className="live-status-dot" />
-      <span className="mono live-status-label">{t(STATUS_LABEL_KEYS[status])}</span>
+      <span className={styles.dot} aria-hidden="true" />
+      <span className={`mono ${styles.label}`}>{t(STATUS_LABEL_KEYS[status])}</span>
     </div>
   );
 };
