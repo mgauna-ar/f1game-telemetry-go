@@ -124,7 +124,7 @@ describe('ComparatorTimingTower Component', () => {
   it('renders timing tower table with ranks, gaps, and action buttons', () => {
     render(<ComparatorTimingTower {...defaultProps} />);
 
-    expect(screen.getByTestId('timing-tower-table')).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: 'Best lap of each driver' })).toBeInTheDocument();
     expect(screen.getByTestId('rank-badge-1')).toHaveTextContent('P1');
     expect(screen.getByTestId('rank-badge-2')).toHaveTextContent('P2');
     expect(screen.getByTestId('rank-badge-3')).toHaveTextContent('P3');
@@ -189,12 +189,7 @@ describe('ComparatorTimingTower Component', () => {
       is_valid: false,
     });
 
-    render(
-      <ComparatorTimingTower
-        {...defaultProps}
-        lapsA={[mockLap1, incompleteLap]}
-      />
-    );
+    render(<ComparatorTimingTower {...defaultProps} lapsA={[mockLap1, incompleteLap]} />);
 
     const expandBtn = screen.getByTestId('tower-expand-laps-0');
     fireEvent.click(expandBtn);

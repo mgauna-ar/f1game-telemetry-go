@@ -3,7 +3,7 @@ import { BatteryCharging } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
 import { CHART_COLORS, type CommonChartProps } from './chartDefaults';
 import { ComparatorChart } from './ComparatorChart';
-import { ChartTitle } from './ChartTitle';
+import { ChartNotice, ChartTitle } from './ChartTitle';
 
 export interface ErsBatteryChartProps extends CommonChartProps {
   isErsRestrictedA: boolean;
@@ -14,24 +14,10 @@ export const ErsBatteryChart = React.memo<ErsBatteryChartProps>((props) => {
   const { t } = useI18n();
   const { nameA, nameB, isErsRestrictedA, isErsRestrictedB } = props;
 
-  const headerRight = (isErsRestrictedA || isErsRestrictedB) ? (
-    <span
-      style={{
-        fontSize: '0.72rem',
-        fontWeight: 600,
-        padding: '2px 8px',
-        borderRadius: '4px',
-        backgroundColor: 'rgba(234, 179, 8, 0.15)',
-        color: '#facc15',
-        border: '1px solid rgba(234, 179, 8, 0.35)',
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '4px',
-      }}
-    >
-      ⚠️ {t('comparator.charts.ersTelemetryRestricted')}
-    </span>
-  ) : null;
+  const headerRight =
+    isErsRestrictedA || isErsRestrictedB ? (
+      <ChartNotice>{t('comparator.charts.ersTelemetryRestricted')}</ChartNotice>
+    ) : null;
 
   return (
     <ComparatorChart

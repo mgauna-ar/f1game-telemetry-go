@@ -4,17 +4,13 @@ import { Line } from 'recharts';
 import { useI18n } from '../../../context/I18nContext';
 import { CHART_COLORS, type CommonChartProps } from './chartDefaults';
 import { ComparatorChart } from './ComparatorChart';
-import { ChartTitle } from './ChartTitle';
+import { ChartSubtitle, ChartTitle } from './ChartTitle';
 
 export const ActiveAeroChart = React.memo<CommonChartProps>((props) => {
   const { t } = useI18n();
   const { nameA, nameB } = props;
 
-  const headerRight = (
-    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-      {t('comparator.charts.activeAeroSub')}
-    </span>
-  );
+  const headerRight = <ChartSubtitle>{t('comparator.charts.activeAeroSub')}</ChartSubtitle>;
 
   return (
     <ComparatorChart
@@ -48,8 +44,25 @@ export const ActiveAeroChart = React.memo<CommonChartProps>((props) => {
       }}
       extraLines={
         <>
-          <Line type="stepAfter" dataKey="boostActiveA" name={`${nameA} Boost`} stroke={CHART_COLORS.BOOST_A} dot={false} strokeWidth={1.5} isAnimationActive={false} />
-          <Line type="stepAfter" dataKey="boostActiveB" name={`${nameB} Boost`} stroke={CHART_COLORS.BOOST_B} dot={false} strokeWidth={1.5} strokeDasharray="2 2" isAnimationActive={false} />
+          <Line
+            type="stepAfter"
+            dataKey="boostActiveA"
+            name={`${nameA} Boost`}
+            stroke={CHART_COLORS.BOOST_A}
+            dot={false}
+            strokeWidth={1.5}
+            isAnimationActive={false}
+          />
+          <Line
+            type="stepAfter"
+            dataKey="boostActiveB"
+            name={`${nameB} Boost`}
+            stroke={CHART_COLORS.BOOST_B}
+            dot={false}
+            strokeWidth={1.5}
+            strokeDasharray="2 2"
+            isAnimationActive={false}
+          />
         </>
       }
     />

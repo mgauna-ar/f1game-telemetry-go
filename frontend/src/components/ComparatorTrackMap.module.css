@@ -1,0 +1,92 @@
+.wrapper {
+  position: relative;
+  width: 100%;
+  height: var(--map-height);
+}
+
+.canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.canvas[data-selectable] {
+  cursor: crosshair;
+}
+
+/* Cursor position on the track; the map shows it and places it from its own drawing code */
+.marker {
+  position: absolute;
+  z-index: var(--z-sticky);
+  display: none;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--bg-dark);
+  border-radius: 50%;
+  background: var(--text-primary);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation: markerPulse 1.5s infinite;
+}
+
+@keyframes markerPulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--text-primary) 70%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+.legend {
+  position: absolute;
+  bottom: var(--space-1-5);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  padding: 2px var(--space-1-5);
+  background: var(--bg-tooltip);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xs);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.legendLeft {
+  left: var(--space-1-5);
+}
+
+.legendRight {
+  right: var(--space-1-5);
+}
+
+.lapA {
+  font-weight: var(--font-weight-bold);
+  color: var(--f1-slot-a);
+}
+
+.lapB {
+  font-weight: var(--font-weight-bold);
+  color: var(--f1-slot-b);
+}
+
+.apex {
+  color: var(--text-primary);
+}
+
+.s1 {
+  color: var(--f1-sector-1);
+}
+
+.s2 {
+  color: var(--f1-sector-2);
+}
+
+.s3 {
+  color: var(--f1-sector-3);
+}

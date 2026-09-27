@@ -1,10 +1,10 @@
 import React from 'react';
-import { AlertTriangle, Zap } from 'lucide-react';
+import { Zap } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
 import { getErsModeName } from '../../../constants/f1';
 import { CHART_COLORS, type CommonChartProps } from './chartDefaults';
 import { ComparatorChart } from './ComparatorChart';
-import { ChartTitle } from './ChartTitle';
+import { ChartNotice, ChartSubtitle, ChartTitle } from './ChartTitle';
 
 export interface ErsDeployModeChartProps extends CommonChartProps {
   isErsRestrictedA: boolean;
@@ -19,40 +19,22 @@ export const ErsDeployModeChart = React.memo<ErsDeployModeChartProps>((props) =>
   const { nameA, nameB, isErsRestrictedA, isErsRestrictedB, formatA, formatB, is2026 } = props;
 
   const titleNode = (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+    <>
       <ChartTitle icon={Zap} label={t('comparator.charts.ersDeployMode')} color={CHART_COLORS.ERS_MODE} />
       {(isErsRestrictedA || isErsRestrictedB) && (
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '4px',
-            fontSize: '0.72rem',
-            color: '#ffa502',
-            background: 'rgba(255, 165, 2, 0.15)',
-            border: '1px solid rgba(255, 165, 2, 0.4)',
-            padding: '2px 8px',
-            borderRadius: '4px',
-            fontWeight: 600,
-          }}
-        >
-          <AlertTriangle size={11} />
-          <span>
-            {isErsRestrictedA && isErsRestrictedB
-              ? t('comparator.charts.ersRestrictedBoth', { nameA, nameB })
-              : isErsRestrictedA
-              ? t('comparator.charts.ersRestrictedSingle', { name: nameA })
-              : t('comparator.charts.ersRestrictedSingle', { name: nameB })}
-          </span>
-        </span>
+        <ChartNotice>
+          {isErsRestrictedA && isErsRestrictedB
+            ? t('comparator.charts.ersRestrictedBoth', { nameA, nameB })
+            : t('comparator.charts.ersRestrictedSingle', { name: isErsRestrictedA ? nameA : nameB })}
+        </ChartNotice>
       )}
-    </div>
+    </>
   );
 
   const headerRight = (
-    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+    <ChartSubtitle>
       {is2026 ? t('comparator.charts.ersDeployModesSub2026') : t('comparator.charts.ersDeployModesSub')}
-    </span>
+    </ChartSubtitle>
   );
 
   return (
@@ -69,7 +51,9 @@ export const ErsDeployModeChart = React.memo<ErsDeployModeChartProps>((props) =>
       yAxisStroke={CHART_COLORS.ERS_MODE}
       yAxisDomain={[0, 3]}
       yAxisTicks={[0, 1, 2, 3]}
-      yAxisTickFormatter={(v) => (typeof v === 'number' && Number.isFinite(v) ? getErsModeName(Math.round(v), formatA || formatB) : '')}
+      yAxisTickFormatter={(v) =>
+        typeof v === 'number' && Number.isFinite(v) ? getErsModeName(Math.round(v), formatA || formatB) : ''
+      }
       tooltipFormatter={(val: unknown, name?: string | number) => {
         const num = typeof val === 'number' ? val : Number(val);
         if (val === null || val === undefined || !Number.isFinite(num)) return ['-', String(name ?? '')];

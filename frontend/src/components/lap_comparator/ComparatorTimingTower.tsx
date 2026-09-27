@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useId, useState, useMemo } from 'react';
 import {
   Zap,
   Trophy,
@@ -16,10 +16,19 @@ import {
 import type { Participant, Lap } from '../../types/session';
 import type { QuickSelectDriver } from '../../types/comparator';
 import { TyreCompoundBadge } from '../common/TyreCompoundBadge';
+import { Badge } from '../ui/Badge';
+import { Button, IconButton } from '../ui/Button';
+import { DataTable, type DataTableColumn } from '../ui/DataTable';
+import { SegmentedControl } from '../ui/SegmentedControl';
 import { getTeamColor } from '../../constants/f1';
-import { formatTime, formatSectorTime, getRankBadgeStyle } from '../../utils/formatters';
+import { formatTime, formatSectorTime } from '../../utils/formatters';
 import { sortLapsByQuality } from '../../utils/lapUtils';
+import { styleVars } from '../../styles/theme';
 import { useI18n } from '../../context/I18nContext';
+import styles from './ComparatorTimingTower.module.css';
+
+const SLOT_A_COLOR = 'var(--f1-slot-a)';
+const SLOT_B_COLOR = 'var(--f1-slot-b)';
 
 export interface ComparatorTimingTowerProps {
   isOpen: boolean;
@@ -49,6 +58,8 @@ export interface ComparatorTimingTowerProps {
   lapBObj?: Lap;
 }
 
+const seconds = (ms: number) => (ms / 1000).toFixed(3);
+
 export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
   isOpen,
   onToggleOpen,
@@ -68,11 +79,10 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
   onSetLapB,
   participantsA,
   slotADriver,
-  slotBDriver: _slotBDriver,
   lapAObj,
-  lapBObj: _lapBObj,
 }) => {
   const { t } = useI18n();
+  const titleId = useId();
 
   // Local table filters & expanded lap drilldowns
   const [validOnly, setValidOnly] = useState(false);
@@ -136,544 +146,490 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
     });
   }, [quickSelectData.drivers, validOnly, telemetryOnly]);
 
+  const setBestLap = (d: QuickSelectDriver, laps: Lap[], setLap: (id: number) => void) => {
+    const driverLaps = sortLapsByQuality(laps.filter((l) => (l.car_index ?? -1) === d.car_index));
+    if (driverLaps.length > 0) setLap(driverLaps[0].id);
+  };
+
+  const isAssigned = (lapId: number | '', d: QuickSelectDriver) =>
+    Boolean(lapId && d.bestLap && lapId === d.bestLap.id);
+
+  const baselineGap = (d: QuickSelectDriver): React.ReactNode => {
+    if (slotADriver && slotADriver.car_index === d.car_index) {
+      return (
+        <Badge color={SLOT_A_COLOR} size="xs" square>
+          {t('comparator.timingTower.baselineBadge')}
+        </Badge>
+      );
+    }
+    if (!lapAObj || !d.bestLap || d.bestLap.lap_time_ms <= 0) return '-';
+    const deltaMs = d.bestLap.lap_time_ms - lapAObj.lap_time_ms;
+    if (deltaMs < 0) {
+      return (
+        <span className={styles.gap} data-gap="faster">
+          -{seconds(Math.abs(deltaMs))}s
+        </span>
+      );
+    }
+    if (deltaMs > 0) {
+      return (
+        <span className={styles.gap} data-gap="slower">
+          +{seconds(deltaMs)}s
+        </span>
+      );
+    }
+    return <span className={styles.gap}>0.000s</span>;
+  };
+
+  const leaderGap = (d: QuickSelectDriver): React.ReactNode => {
+    if (!d.bestLap || !quickSelectData.leaderLapTimeMs) return '-';
+    if (d.bestLap.lap_time_ms === quickSelectData.leaderLapTimeMs) {
+      return (
+        <Badge color="var(--f1-gold)" size="xs" square>
+          {t('comparator.timingTower.leaderBadge')}
+        </Badge>
+      );
+    }
+    return <span className={styles.muted}>+{seconds(d.bestLap.lap_time_ms - quickSelectData.leaderLapTimeMs)}s</span>;
+  };
+
+  const sectorCell = (label: string, ms: number | null | undefined) =>
+    ms ? <span className={styles.muted}>{`${label}: ${formatSectorTime(ms)}`}</span> : '-';
+
+  const columns: DataTableColumn<QuickSelectDriver>[] = [
+    {
+      key: 'pos',
+      header: t('comparator.timingTower.colPos'),
+      cell: (_d, idx) => (
+        <span className={styles.rank} data-rank={idx + 1} data-testid={`rank-badge-${idx + 1}`}>
+          P{idx + 1}
+        </span>
+      ),
+    },
+    {
+      key: 'driver',
+      header: t('comparator.timingTower.colDriver'),
+      rowHeader: true,
+      cell: (d) => (
+        <div className={styles.driverCell}>
+          <span
+            className={styles.teamStripe}
+            style={styleVars({ '--team-color': getTeamColor(d.team_id) })}
+            aria-hidden="true"
+          />
+          <span className={styles.raceNum}>#{d.race_number}</span>
+          <span className={styles.driverName} title={d.name}>
+            {d.name}
+          </span>
+          {isAssigned(lapAId, d) && (
+            <Badge color={SLOT_A_COLOR} size="xs" square>
+              {t('comparator.timingTower.baselineBadge')}
+            </Badge>
+          )}
+          {isAssigned(lapBId, d) && (
+            <Badge color={SLOT_B_COLOR} size="xs" square>
+              {t('comparator.timingTower.rivalBadge')}
+            </Badge>
+          )}
+        </div>
+      ),
+    },
+    {
+      key: 'tyre',
+      header: t('comparator.timingTower.colTyre'),
+      cell: (d) => (d.bestLap?.tyre_compound ? <TyreCompoundBadge compound={d.bestLap.tyre_compound} /> : '-'),
+    },
+    {
+      key: 'best',
+      header: t('comparator.timingTower.colBestLap'),
+      numeric: true,
+      align: 'left',
+      cell: (d) =>
+        d.bestLap ? (
+          <span
+            className={styles.bestLap}
+            data-fastest={d.bestLap.lap_time_ms === quickSelectData.leaderLapTimeMs || undefined}
+          >
+            {formatTime(d.bestLap.lap_time_ms)}
+          </span>
+        ) : (
+          '-'
+        ),
+    },
+    {
+      key: 'gapLeader',
+      header: t('comparator.timingTower.colGapLeader'),
+      numeric: true,
+      align: 'left',
+      cell: leaderGap,
+    },
+    {
+      key: 'gapBase',
+      header: t('comparator.timingTower.colGapBaseline'),
+      numeric: true,
+      align: 'left',
+      cell: baselineGap,
+    },
+    {
+      key: 's1',
+      header: t('comparator.timingTower.colS1'),
+      numeric: true,
+      align: 'left',
+      cell: (d) => sectorCell('S1', d.bestLap?.sector1_ms),
+    },
+    {
+      key: 's2',
+      header: t('comparator.timingTower.colS2'),
+      numeric: true,
+      align: 'left',
+      cell: (d) => sectorCell('S2', d.bestLap?.sector2_ms),
+    },
+    {
+      key: 's3',
+      header: t('comparator.timingTower.colS3'),
+      numeric: true,
+      align: 'left',
+      cell: (d) => sectorCell('S3', d.bestLap?.sector3_ms),
+    },
+    {
+      key: 'telemetry',
+      header: <abbr title={t('comparator.charts.telemetryAvailable')}>{t('comparator.timingTower.colTelemetry')}</abbr>,
+      cell: (d) => {
+        if (!d.bestLap) return '-';
+        const label = d.bestLap.has_telemetry
+          ? t('comparator.charts.telemetryAvailable')
+          : t('comparator.charts.timingOnly');
+        return (
+          <span className={styles.telemetry} data-telemetry={d.bestLap.has_telemetry || undefined} title={label}>
+            {d.bestLap.has_telemetry ? (
+              <Activity size={12} aria-label={label} />
+            ) : (
+              <Clock size={12} aria-label={label} />
+            )}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'actions',
+      header: t('comparator.timingTower.colActions'),
+      cell: (d) => {
+        const isExpanded = expandedDriverCarIndex === d.car_index;
+        const isDriverInA = participantsA.some((pa) => pa.car_index === d.car_index);
+        const baselineLabel = `${t('comparator.duel.slotA')} (${t('comparator.timingTower.btnSetBaseline')}): ${d.name}`;
+        const rivalLabel = `${t('comparator.duel.slotB')} (${t('comparator.timingTower.btnSetRival')}): ${d.name}`;
+        return (
+          <div className={styles.actions}>
+            <div className={styles.slotCircles} role="group" aria-label={t('comparator.timingTower.slotGroupLabel')}>
+              {(isLinkedSessions || isDriverInA || d.sessionSlot === 'A') && (
+                <button
+                  type="button"
+                  className={styles.circle}
+                  data-slot="a"
+                  aria-pressed={isAssigned(lapAId, d)}
+                  onClick={() => setBestLap(d, lapsA, onSetLapA)}
+                  title={baselineLabel}
+                  aria-label={baselineLabel}
+                  data-testid={`tower-set-baseline-${d.car_index}`}
+                >
+                  <span className={styles.circleDot} />
+                </button>
+              )}
+              <button
+                type="button"
+                className={styles.circle}
+                data-slot="b"
+                aria-pressed={isAssigned(lapBId, d)}
+                onClick={() => setBestLap(d, lapsB, onSetLapB)}
+                title={rivalLabel}
+                aria-label={rivalLabel}
+                data-testid={`tower-set-rival-${d.car_index}`}
+              >
+                <span className={styles.circleDot} />
+              </button>
+            </div>
+
+            <IconButton
+              size="sm"
+              variant="ghost"
+              className={styles.expand}
+              label={isExpanded ? t('comparator.timingTower.hideLaps') : t('comparator.timingTower.showLaps')}
+              aria-expanded={isExpanded}
+              onClick={() => setExpandedDriverCarIndex(isExpanded ? null : d.car_index)}
+              data-testid={`tower-expand-laps-${d.car_index}`}
+            >
+              {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            </IconButton>
+          </div>
+        );
+      },
+    },
+  ];
+
+  const renderLapHistory = (d: QuickSelectDriver) => {
+    if (expandedDriverCarIndex !== d.car_index) return null;
+    const lapsSource = !isLinkedSessions && d.sessionSlot === 'B' ? lapsB : lapsA;
+    const driverLaps = lapsSource.filter((l) => {
+      if ((l.car_index ?? -1) !== d.car_index) return false;
+      if (!l.lap_time_ms || l.lap_time_ms <= 0) return false;
+      if (validOnly && !l.is_valid) return false;
+      if (telemetryOnly && !l.has_telemetry) return false;
+      return true;
+    });
+
+    return (
+      <div className={styles.history}>
+        <h3 className={styles.historyTitle}>{t('comparator.timingTower.lapHistoryTitle', { driver: d.name })}</h3>
+        <ul className={styles.historyGrid}>
+          {driverLaps.length === 0 ? (
+            <li className={styles.historyEmpty}>{t('comparator.timingTower.noMatchingDrivers')}</li>
+          ) : (
+            driverLaps.map((lap) => {
+              const isLapA = lapAId === lap.id;
+              const isLapB = lapBId === lap.id;
+              return (
+                <li key={lap.id} className={styles.lapCard} data-slot={isLapA ? 'a' : isLapB ? 'b' : undefined}>
+                  <div className={styles.lapCardTop}>
+                    <span className={styles.muted}>{t('comparator.duel.lapNumber', { lap: lap.lap_number })}</span>
+                    <span className={styles.lapTime}>{formatTime(lap.lap_time_ms)}</span>
+                    {lap.tyre_compound && <TyreCompoundBadge compound={lap.tyre_compound} />}
+                  </div>
+                  <div className={styles.lapSectors}>
+                    <span>S1: {formatSectorTime(lap.sector1_ms)}</span>
+                    <span>S2: {formatSectorTime(lap.sector2_ms)}</span>
+                    <span>S3: {formatSectorTime(lap.sector3_ms)}</span>
+                  </div>
+                  <div className={styles.lapActions}>
+                    <button
+                      type="button"
+                      className={styles.slotButton}
+                      data-slot="a"
+                      aria-pressed={isLapA}
+                      onClick={() => onSetLapA(lap.id)}
+                    >
+                      {isLapA
+                        ? t('comparator.timingTower.btnSetBaselineActive')
+                        : t('comparator.timingTower.btnSetBaseline')}
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.slotButton}
+                      data-slot="b"
+                      aria-pressed={isLapB}
+                      onClick={() => onSetLapB(lap.id)}
+                    >
+                      {isLapB ? t('comparator.timingTower.btnSetRivalActive') : t('comparator.timingTower.btnSetRival')}
+                    </button>
+                  </div>
+                </li>
+              );
+            })
+          )}
+        </ul>
+      </div>
+    );
+  };
+
+  const presets = [
+    {
+      key: 'vs-leader',
+      show: true,
+      onClick: handleVsLeader,
+      icon: <Trophy size={12} aria-hidden="true" />,
+      label: t('comparator.timingTower.presetVsLeader'),
+      tooltip: t('comparator.timingTower.presetVsLeaderTooltip'),
+    },
+    {
+      key: 'vs-teammate',
+      show: Boolean(slotADriver),
+      onClick: handleVsTeammate,
+      icon: <Users size={12} aria-hidden="true" />,
+      label: t('comparator.timingTower.presetVsTeammate'),
+      tooltip: t('comparator.timingTower.presetVsTeammateTooltip'),
+    },
+    {
+      key: 'personal-best',
+      show: Boolean(slotADriver),
+      onClick: handlePersonalBest,
+      icon: <Timer size={12} aria-hidden="true" />,
+      label: t('comparator.timingTower.presetPersonalBest'),
+      tooltip: t('comparator.timingTower.presetPersonalBestTooltip'),
+    },
+    {
+      key: 'next-ahead',
+      show: Boolean(slotADriver),
+      onClick: handleNextAhead,
+      icon: <ChevronsUp size={12} aria-hidden="true" />,
+      label: t('comparator.timingTower.presetNextAhead'),
+      tooltip: t('comparator.timingTower.presetNextAheadTooltip'),
+    },
+  ];
+
   return (
-    <div
-      className={`glass-panel timing-tower-panel ${isOpen ? 'is-expanded' : 'is-collapsed'}`}
-      style={{
-        gridColumn: 'span 12',
-        transition: 'all 0.25s ease',
-      }}
+    <section
+      className={`glass-panel ${styles.panel}`}
+      aria-labelledby={titleId}
+      data-expanded={isOpen || undefined}
       data-testid="quick-select-panel"
     >
-      {/* Top Header Bar with Presets & Collapse Toggle */}
-      <div className="timing-tower-header-bar">
-        {/* Left: Title & Driver Count */}
-        <div className="tower-header-left">
-          {/* Clicking the title is a shortcut for the Expand/Collapse button */}
-          <div className="tower-title-group" role="presentation" onClick={onToggleOpen} style={{ cursor: 'pointer' }}>
-            <Zap size={15} className="tower-lightning-icon" />
-            <span className="tower-title">{t('comparator.timingTower.title')}</span>
-            <span className="tower-count-badge" data-testid="timing-tower-count">
+      <div className={styles.headerBar}>
+        <div className={styles.headerSide}>
+          {/* Clicking the title is a mouse shortcut for the expand button */}
+          <div className={styles.titleGroup} role="presentation" onClick={onToggleOpen}>
+            <Zap size={15} className={styles.titleIcon} aria-hidden="true" />
+            <h2 id={titleId} className={styles.title}>
+              {t('comparator.timingTower.title')}
+            </h2>
+            <span className={styles.count} data-testid="timing-tower-count">
               {quickSelectData.drivers.length}
-              {driverSearchQuery ? ` / ${quickSelectData.totalCount}` : ''}{' '}
-              {t('common.drivers').toLowerCase()}
+              {driverSearchQuery ? ` / ${quickSelectData.totalCount}` : ''} {t('common.drivers').toLowerCase()}
             </span>
           </div>
 
-          {/* Preset Buttons Bar */}
-          <div className="tower-presets-bar">
-            <button
-              type="button"
-              className="tower-preset-btn"
-              onClick={handleVsLeader}
-              title={t('comparator.timingTower.presetVsLeaderTooltip')}
-              data-testid="preset-vs-leader"
-            >
-              <Trophy size={12} className="preset-icon" />
-              <span>{t('comparator.timingTower.presetVsLeader')}</span>
-            </button>
-
-            {slotADriver && (
-              <button
-                type="button"
-                className="tower-preset-btn"
-                onClick={handleVsTeammate}
-                title={t('comparator.timingTower.presetVsTeammateTooltip')}
-                data-testid="preset-vs-teammate"
-              >
-                <Users size={12} className="preset-icon" />
-                <span>{t('comparator.timingTower.presetVsTeammate')}</span>
-              </button>
-            )}
-
-            {slotADriver && (
-              <button
-                type="button"
-                className="tower-preset-btn"
-                onClick={handlePersonalBest}
-                title={t('comparator.timingTower.presetPersonalBestTooltip')}
-                data-testid="preset-personal-best"
-              >
-                <Timer size={12} className="preset-icon" />
-                <span>{t('comparator.timingTower.presetPersonalBest')}</span>
-              </button>
-            )}
-
-            {slotADriver && (
-              <button
-                type="button"
-                className="tower-preset-btn"
-                onClick={handleNextAhead}
-                title={t('comparator.timingTower.presetNextAheadTooltip')}
-                data-testid="preset-next-ahead"
-              >
-                <ChevronsUp size={12} className="preset-icon" />
-                <span>{t('comparator.timingTower.presetNextAhead')}</span>
-              </button>
-            )}
+          <div className={styles.presets}>
+            {presets
+              .filter((p) => p.show)
+              .map((p) => (
+                <Button
+                  key={p.key}
+                  size="sm"
+                  className={styles.preset}
+                  onClick={p.onClick}
+                  icon={p.icon}
+                  title={p.tooltip}
+                  data-testid={`preset-${p.key}`}
+                >
+                  {p.label}
+                </Button>
+              ))}
           </div>
         </div>
 
-        {/* Right: Search, Filter Toggles & Expand Button */}
-        <div className="tower-header-right">
-          {/* Quick Collapsed Top 3 Rivals Strip */}
+        <div className={styles.headerSide}>
+          {/* Collapsed: the top three, one click to set as the comparison */}
           {!isOpen && quickSelectData.drivers.length > 0 && (
-            <div className="tower-collapsed-top3" role="presentation" onClick={onToggleOpen}>
+            <div className={styles.top3} role="presentation" onClick={onToggleOpen}>
               {quickSelectData.drivers.slice(0, 3).map((d, i) => (
                 <button
-                  key={`top3-${d.car_index}`}
+                  key={d.car_index}
                   type="button"
-                  className={`top3-pill p${i + 1}`}
+                  className={styles.top3Pill}
+                  data-rank={i + 1}
                   onClick={(e) => {
                     e.stopPropagation();
                     if (d.bestLap) onSetLapB(d.bestLap.id);
                   }}
-                  title={`Click to set ${d.name} as rival`}
+                  title={t('comparator.timingTower.setRivalTitle', { driver: d.name })}
                 >
-                  <span className="p-num">P{i + 1}</span>
-                  <span className="p-name">{d.name.split(' ').pop()}</span>
-                  <span className="p-time">
-                    {d.bestLap ? formatTime(d.bestLap.lap_time_ms) : ''}
-                  </span>
+                  <span className={styles.top3Pos}>P{i + 1}</span>
+                  <span>{d.name.split(' ').pop()}</span>
+                  <span className={styles.top3Time}>{d.bestLap ? formatTime(d.bestLap.lap_time_ms) : ''}</span>
                 </button>
               ))}
             </div>
           )}
 
-          {/* Search Input (visible when open) */}
           {isOpen && (
-            <div className="tower-search-wrapper">
-              <Search size={13} className="tower-search-icon" />
+            <div className={styles.search}>
+              <Search size={13} className={styles.searchIcon} aria-hidden="true" />
               <input
                 type="text"
+                aria-label={t('comparator.timingTower.searchDriver')}
                 placeholder={t('comparator.timingTower.searchDriver')}
                 value={driverSearchQuery}
                 onChange={(e) => onDriverSearchChange(e.target.value)}
-                className="tower-search-input"
+                className={styles.searchInput}
                 data-testid="driver-quick-search-input"
               />
               {driverSearchQuery && (
-                <button
-                  type="button"
-                  className="tower-search-clear"
+                <IconButton
+                  size="sm"
+                  variant="ghost"
+                  className={styles.searchClear}
+                  label={t('comparator.dropdown.clearSearch')}
                   onClick={() => onDriverSearchChange('')}
                 >
                   <X size={11} />
-                </button>
+                </IconButton>
               )}
             </div>
           )}
 
-          {/* Filter Toggles (visible when open) */}
           {isOpen && (
-            <div className="tower-filter-toggles">
-              <button
-                type="button"
-                className={`tower-filter-btn ${validOnly ? 'active' : ''}`}
+            <>
+              <Button
+                size="sm"
+                className={styles.filter}
+                aria-pressed={validOnly}
                 onClick={() => setValidOnly((prev) => !prev)}
-                title="Filter to valid completed laps only"
+                icon={<Filter size={11} aria-hidden="true" />}
               >
-                <Filter size={11} />
-                <span>{t('comparator.timingTower.filterValidOnly')}</span>
-              </button>
-
-              <button
-                type="button"
-                className={`tower-filter-btn ${telemetryOnly ? 'active' : ''}`}
+                {t('comparator.timingTower.filterValidOnly')}
+              </Button>
+              <Button
+                size="sm"
+                className={styles.filter}
+                aria-pressed={telemetryOnly}
                 onClick={() => setTelemetryOnly((prev) => !prev)}
-                title="Filter to laps with telemetry recorded"
+                icon={<Activity size={11} aria-hidden="true" />}
               >
-                <Activity size={11} />
-                <span>{t('comparator.timingTower.filterTelemetryOnly')}</span>
-              </button>
-            </div>
+                {t('comparator.timingTower.filterTelemetryOnly')}
+              </Button>
+            </>
           )}
 
-          {/* Cross-session slot tabs (if cross-session active) */}
+          {/* Cross-session: show one slot's session or both */}
           {isOpen && !isLinkedSessions && sessionAId !== sessionBId && (
-            <div className="tower-slot-tabs">
-              <button
-                type="button"
-                className={`tower-tab-btn ${quickSelectSessionTab === 'ALL' ? 'active' : ''}`}
-                onClick={() => onQuickSelectSessionTabChange('ALL')}
-              >
-                All
-              </button>
-              <button
-                type="button"
-                className={`tower-tab-btn tab-a ${quickSelectSessionTab === 'A' ? 'active' : ''}`}
-                onClick={() => onQuickSelectSessionTabChange('A')}
-              >
-                Slot A
-              </button>
-              <button
-                type="button"
-                className={`tower-tab-btn tab-b ${quickSelectSessionTab === 'B' ? 'active' : ''}`}
-                onClick={() => onQuickSelectSessionTabChange('B')}
-              >
-                Slot B
-              </button>
-            </div>
+            <SegmentedControl
+              size="xs"
+              aria-label={t('comparator.timingTower.sessionFilterLabel')}
+              value={quickSelectSessionTab}
+              onChange={onQuickSelectSessionTabChange}
+              options={[
+                { value: 'ALL', label: t('comparator.dropdown.tabAll') },
+                { value: 'A', label: t('comparator.duel.slotA') },
+                { value: 'B', label: t('comparator.duel.slotB') },
+              ]}
+            />
           )}
 
-          {/* Expand / Collapse Button */}
-          <button
-            type="button"
-            className="tower-toggle-expand-btn"
+          <Button
+            size="sm"
+            className={styles.pill}
             onClick={onToggleOpen}
             aria-expanded={isOpen}
-            aria-label={isOpen ? 'Collapse Timing Tower' : 'Expand Timing Tower'}
+            icon={isOpen ? <ChevronUp size={15} aria-hidden="true" /> : <ChevronDown size={15} aria-hidden="true" />}
             data-testid="quick-select-collapse-btn"
           >
-            {isOpen ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-            <span style={{ fontSize: '0.72rem', fontWeight: 600, marginLeft: '4px' }}>
-              {isOpen ? 'Collapse' : 'Expand'}
-            </span>
-          </button>
+            {isOpen ? t('comparator.timingTower.collapse') : t('comparator.timingTower.expand')}
+          </Button>
         </div>
       </div>
 
-      {/* Expanded F1 Broadcast Timing Table */}
       {isOpen && (
-        <div className="timing-tower-table-container">
+        <div className={styles.body}>
           {displayedDrivers.length === 0 ? (
-            <div className="timing-tower-empty">
-              <span>{t('comparator.timingTower.noMatchingDrivers')}</span>
-            </div>
+            <p className={styles.empty}>{t('comparator.timingTower.noMatchingDrivers')}</p>
           ) : (
-            <div className="timing-tower-table-scroll" data-testid="quick-select-drivers-grid">
-              <table className="timing-tower-table" data-testid="timing-tower-table">
-                <thead>
-                  <tr>
-                    <th className="col-pos">{t('comparator.timingTower.colPos')}</th>
-                    <th className="col-driver">{t('comparator.timingTower.colDriver')}</th>
-                    <th className="col-tyre">{t('comparator.timingTower.colTyre')}</th>
-                    <th className="col-best-lap">{t('comparator.timingTower.colBestLap')}</th>
-                    <th className="col-gap-leader">{t('comparator.timingTower.colGapLeader')}</th>
-                    <th className="col-gap-baseline">{t('comparator.timingTower.colGapBaseline')}</th>
-                    <th className="col-sector">{t('comparator.timingTower.colS1')}</th>
-                    <th className="col-sector">{t('comparator.timingTower.colS2')}</th>
-                    <th className="col-sector">{t('comparator.timingTower.colS3')}</th>
-                    <th className="col-telemetry">TEL</th>
-                    <th className="col-actions">{t('comparator.timingTower.colActions')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {displayedDrivers.map((d, idx) => {
-                    const teamColor = getTeamColor(d.team_id);
-                    const rankStyle = getRankBadgeStyle(idx + 1);
-                    const isAssignedA = Boolean(lapAId && d.bestLap && lapAId === d.bestLap.id);
-                    const isAssignedB = Boolean(lapBId && d.bestLap && lapBId === d.bestLap.id);
-                    const isDriverInA = participantsA.some((pa) => pa.car_index === d.car_index);
-                    const isExpanded = expandedDriverCarIndex === d.car_index;
-
-                    // Gap to baseline (Slot A)
-                    let baselineGapText: React.ReactNode = '-';
-                    if (slotADriver && slotADriver.car_index === d.car_index) {
-                      baselineGapText = (
-                        <span className="baseline-tag">{t('comparator.timingTower.baselineBadge')}</span>
-                      );
-                    } else if (lapAObj && d.bestLap && d.bestLap.lap_time_ms > 0) {
-                      const deltaMs = d.bestLap.lap_time_ms - lapAObj.lap_time_ms;
-                      if (deltaMs < 0) {
-                        baselineGapText = (
-                          <span className="gap-faster">
-                            -{(Math.abs(deltaMs) / 1000).toFixed(3)}s
-                          </span>
-                        );
-                      } else if (deltaMs > 0) {
-                        baselineGapText = (
-                          <span className="gap-slower">
-                            +{(deltaMs / 1000).toFixed(3)}s
-                          </span>
-                        );
-                      } else {
-                        baselineGapText = <span className="gap-equal">0.000s</span>;
-                      }
-                    }
-
-                    // Gap to leader
-                    let leaderGapText: React.ReactNode = '-';
-                    if (d.bestLap && quickSelectData.leaderLapTimeMs) {
-                      if (d.bestLap.lap_time_ms === quickSelectData.leaderLapTimeMs) {
-                        leaderGapText = (
-                          <span className="leader-pill">{t('comparator.timingTower.leaderBadge')}</span>
-                        );
-                      } else {
-                        const gap = d.bestLap.lap_time_ms - quickSelectData.leaderLapTimeMs;
-                        leaderGapText = (
-                          <span className="leader-gap-val">+{(gap / 1000).toFixed(3)}s</span>
-                        );
-                      }
-                    }
-
-                    return (
-                      <React.Fragment key={`tower-driver-${d.session_id}-${d.car_index}`}>
-                        <tr
-                          className={`tower-driver-row ${isAssignedA ? 'assigned-a' : ''} ${
-                            isAssignedB ? 'assigned-b' : ''
-                          }`}
-                          data-testid={`timing-tower-row-${d.car_index}`}
-                        >
-                          {/* POS */}
-                          <td className="col-pos">
-                            <span
-                              className="rank-badge"
-                              style={{
-                                background: rankStyle.bg,
-                                color: rankStyle.color,
-                                border: rankStyle.border,
-                              }}
-                              data-testid={`rank-badge-${idx + 1}`}
-                            >
-                              P{idx + 1}
-                            </span>
-                          </td>
-
-                          {/* DRIVER */}
-                          <td className="col-driver">
-                            <div className="driver-cell">
-                              <span
-                                className="team-stripe"
-                                style={{ backgroundColor: teamColor }}
-                              />
-                              <span className="race-num">#{d.race_number}</span>
-                              <span className="driver-name" title={d.name}>
-                                {d.name}
-                              </span>
-                              {isAssignedA && (
-                                <span className="slot-indicator slot-a-ind">
-                                  {t('comparator.timingTower.baselineBadge')}
-                                </span>
-                              )}
-                              {isAssignedB && (
-                                <span className="slot-indicator slot-b-ind">
-                                  {t('comparator.timingTower.rivalBadge')}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-
-                          {/* TYRE */}
-                          <td className="col-tyre">
-                            {d.bestLap?.tyre_compound ? (
-                              <TyreCompoundBadge compound={d.bestLap.tyre_compound} />
-                            ) : (
-                              '-'
-                            )}
-                          </td>
-
-                          {/* BEST LAP */}
-                          <td className="col-best-lap">
-                            {d.bestLap ? (
-                              <span
-                                className={`best-lap-time ${
-                                  d.bestLap.lap_time_ms === quickSelectData.leaderLapTimeMs
-                                    ? 'fastest-lap'
-                                    : ''
-                                }`}
-                              >
-                                {formatTime(d.bestLap.lap_time_ms)}
-                              </span>
-                            ) : (
-                              <span className="no-lap">-</span>
-                            )}
-                          </td>
-
-                          {/* GAP TO LEADER */}
-                          <td className="col-gap-leader">{leaderGapText}</td>
-
-                          {/* GAP TO BASELINE */}
-                          <td className="col-gap-baseline">{baselineGapText}</td>
-
-                          {/* SECTORS */}
-                          <td className="col-sector">
-                            {d.bestLap?.sector1_ms ? `S1: ${formatSectorTime(d.bestLap.sector1_ms)}` : '-'}
-                          </td>
-                          <td className="col-sector">
-                            {d.bestLap?.sector2_ms ? `S2: ${formatSectorTime(d.bestLap.sector2_ms)}` : '-'}
-                          </td>
-                          <td className="col-sector">
-                            {d.bestLap?.sector3_ms ? `S3: ${formatSectorTime(d.bestLap.sector3_ms)}` : '-'}
-                          </td>
-
-                          {/* TELEMETRY */}
-                          <td className="col-telemetry">
-                            {d.bestLap ? (
-                              d.bestLap.has_telemetry ? (
-                                <span
-                                  className="telemetry-chip full"
-                                  title={t('comparator.timingTower.filterTelemetryOnly')}
-                                >
-                                  <Activity size={12} />
-                                </span>
-                              ) : (
-                                <span
-                                  className="telemetry-chip timing"
-                                  title="Timing data only"
-                                >
-                                  <Clock size={12} />
-                                </span>
-                              )
-                            ) : (
-                              '-'
-                            )}
-                          </td>
-
-                          {/* ACTIONS */}
-                          <td className="col-actions">
-                            <div className="actions-cell">
-                              <div className="tower-slot-circles" role="group" aria-label="Select Slot">
-                                {/* Slot A (Base) */}
-                                {(isLinkedSessions || isDriverInA || d.sessionSlot === 'A') && (
-                                  <button
-                                    type="button"
-                                    className={`slot-circle-btn circle-a ${isAssignedA ? 'is-active' : ''}`}
-                                    onClick={() => {
-                                      const driverLaps = sortLapsByQuality(
-                                        lapsA.filter((l) => (l.car_index ?? -1) === d.car_index)
-                                      );
-                                      if (driverLaps.length > 0) onSetLapA(driverLaps[0].id);
-                                    }}
-                                    title={`${t('comparator.duel.slotA')} (${t('comparator.timingTower.btnSetBaseline')}): ${d.name}`}
-                                    aria-label={`${t('comparator.duel.slotA')} (${t('comparator.timingTower.btnSetBaseline')}): ${d.name}`}
-                                    data-testid={`tower-set-baseline-${d.car_index}`}
-                                  >
-                                    <span className="circle-inner" />
-                                  </button>
-                                )}
-
-                                {/* Slot B (Comparison/Rival) */}
-                                <button
-                                  type="button"
-                                  className={`slot-circle-btn circle-b ${isAssignedB ? 'is-active' : ''}`}
-                                  onClick={() => {
-                                    const driverLaps = sortLapsByQuality(
-                                      lapsB.filter((l) => (l.car_index ?? -1) === d.car_index)
-                                    );
-                                    if (driverLaps.length > 0) onSetLapB(driverLaps[0].id);
-                                  }}
-                                  title={`${t('comparator.duel.slotB')} (${t('comparator.timingTower.btnSetRival')}): ${d.name}`}
-                                  aria-label={`${t('comparator.duel.slotB')} (${t('comparator.timingTower.btnSetRival')}): ${d.name}`}
-                                  data-testid={`tower-set-rival-${d.car_index}`}
-                                >
-                                  <span className="circle-inner" />
-                                </button>
-                              </div>
-
-                              {/* Toggle Lap History Drilldown */}
-                              <button
-                                type="button"
-                                className={`action-btn-expand ${isExpanded ? 'is-open' : ''}`}
-                                onClick={() =>
-                                  setExpandedDriverCarIndex(isExpanded ? null : d.car_index)
-                                }
-                                title={isExpanded ? t('comparator.timingTower.hideLaps') : t('comparator.timingTower.showLaps')}
-                                aria-label={isExpanded ? t('comparator.timingTower.hideLaps') : t('comparator.timingTower.showLaps')}
-                                data-testid={`tower-expand-laps-${d.car_index}`}
-                              >
-                                {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-
-                        {/* Expandable Lap History Drilldown Sub-row */}
-                        {isExpanded && (
-                          <tr className="tower-drilldown-row">
-                            <td colSpan={11} className="tower-drilldown-container">
-                              <div className="driver-lap-history">
-                                <div className="lap-history-header">
-                                  <span>
-                                    {t('comparator.timingTower.lapHistoryTitle', { driver: d.name })}
-                                  </span>
-                                </div>
-                                <div className="lap-history-grid">
-                                  {(() => {
-                                    const lapsSource = !isLinkedSessions && d.sessionSlot === 'B' ? lapsB : lapsA;
-                                    const driverLaps = lapsSource.filter((l) => {
-                                      if ((l.car_index ?? -1) !== d.car_index) return false;
-                                      if (!l.lap_time_ms || l.lap_time_ms <= 0) return false;
-                                      if (validOnly && !l.is_valid) return false;
-                                      if (telemetryOnly && !l.has_telemetry) return false;
-                                      return true;
-                                    });
-
-                                    if (driverLaps.length === 0) {
-                                      return (
-                                        <div
-                                          className="lap-history-empty"
-                                          style={{
-                                            gridColumn: '1 / -1',
-                                            padding: '0.6rem 0.2rem',
-                                            color: 'var(--text-muted)',
-                                            fontSize: '0.74rem',
-                                            fontStyle: 'italic',
-                                          }}
-                                        >
-                                          <span>{t('comparator.timingTower.noMatchingDrivers')}</span>
-                                        </div>
-                                      );
-                                    }
-
-                                    return driverLaps.map((lap) => {
-                                      const isLapA = lapAId === lap.id;
-                                      const isLapB = lapBId === lap.id;
-                                      return (
-                                        <div
-                                          key={`history-lap-${lap.id}`}
-                                          className={`lap-history-card ${isLapA ? 'is-lap-a' : ''} ${
-                                            isLapB ? 'is-lap-b' : ''
-                                          }`}
-                                        >
-                                          <div className="card-top">
-                                            <span className="lap-num">Lap {lap.lap_number}</span>
-                                            <span className="lap-time">
-                                              {formatTime(lap.lap_time_ms)}
-                                            </span>
-                                            {lap.tyre_compound && (
-                                              <TyreCompoundBadge compound={lap.tyre_compound} />
-                                            )}
-                                          </div>
-                                          <div className="card-sectors">
-                                            <span>S1: {formatSectorTime(lap.sector1_ms)}</span>
-                                            <span>S2: {formatSectorTime(lap.sector2_ms)}</span>
-                                            <span>S3: {formatSectorTime(lap.sector3_ms)}</span>
-                                          </div>
-                                          <div className="card-actions">
-                                            <button
-                                              type="button"
-                                              className={`card-btn-a ${isLapA ? 'is-active' : ''}`}
-                                              onClick={() => onSetLapA(lap.id)}
-                                            >
-                                              {isLapA ? 'Base ✓' : 'Base'}
-                                            </button>
-                                            <button
-                                              type="button"
-                                              className={`card-btn-b ${isLapB ? 'is-active' : ''}`}
-                                              onClick={() => onSetLapB(lap.id)}
-                                            >
-                                              {isLapB ? 'Comp ✓' : 'Comp'}
-                                            </button>
-                                          </div>
-                                        </div>
-                                      );
-                                    });
-                                  })()}
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div data-testid="quick-select-drivers-grid">
+              <DataTable
+                columns={columns}
+                rows={displayedDrivers}
+                getRowKey={(d) => `${d.session_id}-${d.car_index}`}
+                caption={t('comparator.timingTower.tableCaption')}
+                getRowClassName={(d) =>
+                  isAssigned(lapAId, d) ? styles.assignedA : isAssigned(lapBId, d) ? styles.assignedB : undefined
+                }
+                renderExpanded={renderLapHistory}
+                stickyHeader
+                density="compact"
+                className={styles.tableWrap}
+                tableClassName={styles.table}
+              />
             </div>
           )}
         </div>
       )}
-    </div>
+    </section>
   );
 };

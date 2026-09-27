@@ -15,9 +15,6 @@
 @import './components/error-boundary.css';
 @import './components/copy-value.css';
 
-/* ── Lap Comparator ────────────────────────────────────── */
-@import './components/lap-comparator.css';
-
 /* ── Live Race Control Hub ─────────────────────────────── */
 @import './components/race-control.css';
 @import './components/live-feed.css';

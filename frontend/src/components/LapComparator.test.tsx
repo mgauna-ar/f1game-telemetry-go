@@ -26,7 +26,13 @@ describe('LapComparator Component', () => {
   it('fetches sessions on mount, opens custom dropdown and displays session items with badges', async () => {
     const mockSessions = [
       { id: 1, session_uid: '123', track_name: 'Monaco', session_type: 'Race', created_at: '2026-08-10T12:00:00Z' },
-      { id: 2, session_uid: '124', track_name: 'Spa-Francorchamps', session_type: 'Sprint Race', created_at: '2026-08-11T14:00:00Z' }
+      {
+        id: 2,
+        session_uid: '124',
+        track_name: 'Spa-Francorchamps',
+        session_type: 'Sprint Race',
+        created_at: '2026-08-11T14:00:00Z',
+      },
     ];
 
     globalThis.fetch = vi.fn().mockImplementation((url: string) => {
@@ -57,8 +63,8 @@ describe('LapComparator Component', () => {
 
     // Both sessions should be listed in the dropdown menu
     await waitFor(() => {
-      expect(screen.getByText('Monaco', { selector: '.custom-session-track' })).toBeInTheDocument();
-      expect(screen.getByText('Spa-Francorchamps', { selector: '.custom-session-track' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: /Monaco/ })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: /Spa-Francorchamps/ })).toBeInTheDocument();
     });
     expect(screen.getByText('Sprint Race').closest('[data-tone]')).toHaveAttribute('data-tone', 'orange');
   });
@@ -66,8 +72,20 @@ describe('LapComparator Component', () => {
   it('filters sessions using search bar and category tabs in custom dropdown', async () => {
     const mockSessions = [
       { id: 1, session_uid: '123', track_name: 'Monaco', session_type: 'Race', created_at: '2026-08-10T12:00:00Z' },
-      { id: 2, session_uid: '124', track_name: 'Spa-Francorchamps', session_type: 'Sprint Race', created_at: '2026-08-11T14:00:00Z' },
-      { id: 3, session_uid: '125', track_name: 'Silverstone', session_type: 'Qualifying 1', created_at: '2026-08-12T10:00:00Z' }
+      {
+        id: 2,
+        session_uid: '124',
+        track_name: 'Spa-Francorchamps',
+        session_type: 'Sprint Race',
+        created_at: '2026-08-11T14:00:00Z',
+      },
+      {
+        id: 3,
+        session_uid: '125',
+        track_name: 'Silverstone',
+        session_type: 'Qualifying 1',
+        created_at: '2026-08-12T10:00:00Z',
+      },
     ];
 
     globalThis.fetch = vi.fn().mockImplementation((url: string) => {
@@ -87,40 +105,84 @@ describe('LapComparator Component', () => {
     fireEvent.click(trigger);
 
     await waitFor(() => {
-      expect(screen.getByText('Monaco', { selector: '.custom-session-track' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: /Monaco/ })).toBeInTheDocument();
     });
 
     // Search for "Silverstone"
     const searchInput = screen.getByPlaceholderText('Search track, type, date...');
     fireEvent.change(searchInput, { target: { value: 'Silverstone' } });
 
-    expect(screen.getByText('Silverstone', { selector: '.custom-session-track' })).toBeInTheDocument();
-    expect(screen.queryByText('Monaco', { selector: '.custom-session-track' })).not.toBeInTheDocument();
-    expect(screen.queryByText('Spa-Francorchamps', { selector: '.custom-session-track' })).not.toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /Silverstone/ })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /Monaco/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /Spa-Francorchamps/ })).not.toBeInTheDocument();
 
     // Clear search and filter by "Sprint" tab
     fireEvent.change(searchInput, { target: { value: '' } });
-    const sprintTab = screen.getByRole('button', { name: 'Sprint' });
+    const sprintTab = screen.getByRole('radio', { name: 'Sprint' });
     fireEvent.click(sprintTab);
 
-    expect(screen.getByText('Spa-Francorchamps', { selector: '.custom-session-track' })).toBeInTheDocument();
-    expect(screen.queryByText('Monaco', { selector: '.custom-session-track' })).not.toBeInTheDocument();
-    expect(screen.queryByText('Silverstone', { selector: '.custom-session-track' })).not.toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /Spa-Francorchamps/ })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /Monaco/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /Silverstone/ })).not.toBeInTheDocument();
   });
 
   it('selects session, auto-selects laps and displays driver quick selects and custom lap triggers', async () => {
     const mockSessions = [
-      { id: 1, session_uid: '123', track_name: 'Monaco', session_type: 'Race', created_at: '2026-08-10T12:00:00Z' }
+      { id: 1, session_uid: '123', track_name: 'Monaco', session_type: 'Race', created_at: '2026-08-10T12:00:00Z' },
     ];
 
     const mockLaps = [
-      { id: 101, session_id: 1, car_index: 0, lap_number: 3, lap_time_ms: 85432, sector1_ms: 28000, sector2_ms: 31000, sector3_ms: 26432, is_valid: true, tyre_compound: 'SOFT', max_speed_kmh: 305 },
-      { id: 102, session_id: 1, car_index: 2, lap_number: 4, lap_time_ms: 86100, sector1_ms: 28200, sector2_ms: 31200, sector3_ms: 26700, is_valid: true, tyre_compound: 'MEDIUM', max_speed_kmh: 301 }
+      {
+        id: 101,
+        session_id: 1,
+        car_index: 0,
+        lap_number: 3,
+        lap_time_ms: 85432,
+        sector1_ms: 28000,
+        sector2_ms: 31000,
+        sector3_ms: 26432,
+        is_valid: true,
+        tyre_compound: 'SOFT',
+        max_speed_kmh: 305,
+      },
+      {
+        id: 102,
+        session_id: 1,
+        car_index: 2,
+        lap_number: 4,
+        lap_time_ms: 86100,
+        sector1_ms: 28200,
+        sector2_ms: 31200,
+        sector3_ms: 26700,
+        is_valid: true,
+        tyre_compound: 'MEDIUM',
+        max_speed_kmh: 301,
+      },
     ];
 
     const mockParticipants = [
-      { id: 1, session_id: 1, car_index: 0, name: 'Max Verstappen', driver_id: 1, team_id: 1, race_number: 1, ai_controlled: false, nationality: 1 },
-      { id: 2, session_id: 1, car_index: 2, name: 'Charles Leclerc', driver_id: 2, team_id: 2, race_number: 16, ai_controlled: false, nationality: 2 }
+      {
+        id: 1,
+        session_id: 1,
+        car_index: 0,
+        name: 'Max Verstappen',
+        driver_id: 1,
+        team_id: 1,
+        race_number: 1,
+        ai_controlled: false,
+        nationality: 1,
+      },
+      {
+        id: 2,
+        session_id: 1,
+        car_index: 2,
+        name: 'Charles Leclerc',
+        driver_id: 2,
+        team_id: 2,
+        race_number: 16,
+        ai_controlled: false,
+        nationality: 2,
+      },
     ];
 
     globalThis.fetch = vi.fn().mockImplementation((url: string) => {
@@ -147,10 +209,10 @@ describe('LapComparator Component', () => {
     fireEvent.click(trigger);
 
     await waitFor(() => {
-      expect(screen.getByText('Monaco', { selector: '.custom-session-track' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: /Monaco/ })).toBeInTheDocument();
     });
 
-    const monacoOption = screen.getByText('Monaco', { selector: '.custom-session-track' });
+    const monacoOption = screen.getByRole('option', { name: /Monaco/ });
     fireEvent.click(monacoOption);
 
     // Verify Session A and Session B triggers display Monaco (linked)
@@ -169,16 +231,44 @@ describe('LapComparator Component', () => {
 
   it('supports unlinking sessions for cross-session comparison and filters Session B to same circuit', async () => {
     const mockSessions = [
-      { id: 1, session_uid: '101', track_name: 'Spa-Francorchamps', session_type: 'Practice 1', created_at: '2026-08-10T10:00:00Z' },
-      { id: 2, session_uid: '102', track_name: 'Spa-Francorchamps', session_type: 'Qualifying', created_at: '2026-08-10T14:00:00Z' },
-      { id: 3, session_uid: '103', track_name: 'Monza', session_type: 'Race', created_at: '2026-08-11T12:00:00Z' }
+      {
+        id: 1,
+        session_uid: '101',
+        track_name: 'Spa-Francorchamps',
+        session_type: 'Practice 1',
+        created_at: '2026-08-10T10:00:00Z',
+      },
+      {
+        id: 2,
+        session_uid: '102',
+        track_name: 'Spa-Francorchamps',
+        session_type: 'Qualifying',
+        created_at: '2026-08-10T14:00:00Z',
+      },
+      { id: 3, session_uid: '103', track_name: 'Monza', session_type: 'Race', created_at: '2026-08-11T12:00:00Z' },
     ];
 
     const mockLapsP1 = [
-      { id: 201, session_id: 1, car_index: 0, lap_number: 5, lap_time_ms: 105000, is_valid: true, tyre_compound: 'HARD' }
+      {
+        id: 201,
+        session_id: 1,
+        car_index: 0,
+        lap_number: 5,
+        lap_time_ms: 105000,
+        is_valid: true,
+        tyre_compound: 'HARD',
+      },
     ];
     const mockLapsQ = [
-      { id: 202, session_id: 2, car_index: 0, lap_number: 3, lap_time_ms: 103500, is_valid: true, tyre_compound: 'SOFT' }
+      {
+        id: 202,
+        session_id: 2,
+        car_index: 0,
+        lap_number: 3,
+        lap_time_ms: 103500,
+        is_valid: true,
+        tyre_compound: 'SOFT',
+      },
     ];
 
     globalThis.fetch = vi.fn().mockImplementation((url: string) => {
@@ -229,23 +319,62 @@ describe('LapComparator Component', () => {
 
   it('custom lap selector opens popover and allows searching and filtering laps', async () => {
     const mockSessions = [
-      { id: 1, session_uid: '123', track_name: 'Silverstone', session_type: 'Race', created_at: '2026-08-10T12:00:00Z' }
+      {
+        id: 1,
+        session_uid: '123',
+        track_name: 'Silverstone',
+        session_type: 'Race',
+        created_at: '2026-08-10T12:00:00Z',
+      },
     ];
 
     const mockLaps = [
-      { id: 301, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 90000, sector1_ms: 30000, sector2_ms: 32000, sector3_ms: 28000, is_valid: true, tyre_compound: 'SOFT' },
-      { id: 302, session_id: 1, car_index: 0, lap_number: 2, lap_time_ms: 88500, sector1_ms: 29500, sector2_ms: 31500, sector3_ms: 27500, is_valid: true, tyre_compound: 'SOFT' },
-      { id: 303, session_id: 1, car_index: 0, lap_number: 3, lap_time_ms: 0, is_valid: false, tyre_compound: 'SOFT' }
+      {
+        id: 301,
+        session_id: 1,
+        car_index: 0,
+        lap_number: 1,
+        lap_time_ms: 90000,
+        sector1_ms: 30000,
+        sector2_ms: 32000,
+        sector3_ms: 28000,
+        is_valid: true,
+        tyre_compound: 'SOFT',
+      },
+      {
+        id: 302,
+        session_id: 1,
+        car_index: 0,
+        lap_number: 2,
+        lap_time_ms: 88500,
+        sector1_ms: 29500,
+        sector2_ms: 31500,
+        sector3_ms: 27500,
+        is_valid: true,
+        tyre_compound: 'SOFT',
+      },
+      { id: 303, session_id: 1, car_index: 0, lap_number: 3, lap_time_ms: 0, is_valid: false, tyre_compound: 'SOFT' },
     ];
 
     const mockParticipants = [
-      { id: 1, session_id: 1, car_index: 0, name: 'Lewis Hamilton', driver_id: 1, team_id: 1, race_number: 44, ai_controlled: false, nationality: 1 }
+      {
+        id: 1,
+        session_id: 1,
+        car_index: 0,
+        name: 'Lewis Hamilton',
+        driver_id: 1,
+        team_id: 1,
+        race_number: 44,
+        ai_controlled: false,
+        nationality: 1,
+      },
     ];
 
     globalThis.fetch = vi.fn().mockImplementation((url: string) => {
       if (url === '/api/sessions') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSessions) });
       if (url === '/api/sessions/1/laps') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockLaps) });
-      if (url === '/api/sessions/1/participants') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockParticipants) });
+      if (url === '/api/sessions/1/participants')
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(mockParticipants) });
       return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
     });
 
@@ -287,23 +416,72 @@ describe('LapComparator Component', () => {
 
   it('ranks drivers in quick select leaderboard, displays P1/P2 badges, leader delta, and supports searching and toggling', async () => {
     const mockSessions = [
-      { id: 1, session_uid: '123', track_name: 'Monza', session_type: 'Qualifying', created_at: '2026-08-10T12:00:00Z' }
+      {
+        id: 1,
+        session_uid: '123',
+        track_name: 'Monza',
+        session_type: 'Qualifying',
+        created_at: '2026-08-10T12:00:00Z',
+      },
     ];
 
     const mockLaps = [
-      { id: 401, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 80000, sector1_ms: 26000, sector2_ms: 28000, sector3_ms: 26000, is_valid: true, tyre_compound: 'SOFT' },
-      { id: 402, session_id: 1, car_index: 2, lap_number: 1, lap_time_ms: 80500, sector1_ms: 26200, sector2_ms: 28100, sector3_ms: 26200, is_valid: true, tyre_compound: 'MEDIUM' }
+      {
+        id: 401,
+        session_id: 1,
+        car_index: 0,
+        lap_number: 1,
+        lap_time_ms: 80000,
+        sector1_ms: 26000,
+        sector2_ms: 28000,
+        sector3_ms: 26000,
+        is_valid: true,
+        tyre_compound: 'SOFT',
+      },
+      {
+        id: 402,
+        session_id: 1,
+        car_index: 2,
+        lap_number: 1,
+        lap_time_ms: 80500,
+        sector1_ms: 26200,
+        sector2_ms: 28100,
+        sector3_ms: 26200,
+        is_valid: true,
+        tyre_compound: 'MEDIUM',
+      },
     ];
 
     const mockParticipants = [
-      { id: 1, session_id: 1, car_index: 0, name: 'Max Verstappen', driver_id: 1, team_id: 1, race_number: 1, ai_controlled: false, nationality: 1 },
-      { id: 2, session_id: 1, car_index: 2, name: 'Lando Norris', driver_id: 2, team_id: 2, race_number: 4, ai_controlled: false, nationality: 2 }
+      {
+        id: 1,
+        session_id: 1,
+        car_index: 0,
+        name: 'Max Verstappen',
+        driver_id: 1,
+        team_id: 1,
+        race_number: 1,
+        ai_controlled: false,
+        nationality: 1,
+      },
+      {
+        id: 2,
+        session_id: 1,
+        car_index: 2,
+        name: 'Lando Norris',
+        driver_id: 2,
+        team_id: 2,
+        race_number: 4,
+        ai_controlled: false,
+        nationality: 2,
+      },
     ];
 
     globalThis.fetch = vi.fn().mockImplementation((url: string) => {
       if (url === '/api/sessions') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSessions) });
       if (url === '/api/sessions/1/laps') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockLaps) });
-      if (url === '/api/sessions/1/participants') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockParticipants) });
+      if (url === '/api/sessions/1/participants')
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(mockParticipants) });
       return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
     });
 
@@ -365,27 +543,139 @@ describe('LapComparator Component', () => {
 
   it('renders all telemetry charts smoothly when laps have boundary distance differences', async () => {
     const mockSessions = [
-      { id: 1, session_uid: '123', track_name: 'Silverstone', session_type: 'Race', created_at: '2026-08-10T12:00:00Z' }
+      {
+        id: 1,
+        session_uid: '123',
+        track_name: 'Silverstone',
+        session_type: 'Race',
+        created_at: '2026-08-10T12:00:00Z',
+      },
     ];
     const mockLaps = [
-      { id: 501, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 90000, sector1_ms: 30000, sector2_ms: 30000, sector3_ms: 30000, is_valid: true, tyre_compound: 'SOFT' },
-      { id: 502, session_id: 1, car_index: 1, lap_number: 1, lap_time_ms: 91000, sector1_ms: 30500, sector2_ms: 30200, sector3_ms: 30300, is_valid: true, tyre_compound: 'MEDIUM' }
+      {
+        id: 501,
+        session_id: 1,
+        car_index: 0,
+        lap_number: 1,
+        lap_time_ms: 90000,
+        sector1_ms: 30000,
+        sector2_ms: 30000,
+        sector3_ms: 30000,
+        is_valid: true,
+        tyre_compound: 'SOFT',
+      },
+      {
+        id: 502,
+        session_id: 1,
+        car_index: 1,
+        lap_number: 1,
+        lap_time_ms: 91000,
+        sector1_ms: 30500,
+        sector2_ms: 30200,
+        sector3_ms: 30300,
+        is_valid: true,
+        tyre_compound: 'MEDIUM',
+      },
     ];
     const mockParticipants = [
-      { id: 1, session_id: 1, car_index: 0, name: 'Driver One', race_number: 1, driver_id: 1, team_id: 1, ai_controlled: false, nationality: 1 },
-      { id: 2, session_id: 1, car_index: 1, name: 'Driver Two', race_number: 2, driver_id: 2, team_id: 2, ai_controlled: false, nationality: 2 }
+      {
+        id: 1,
+        session_id: 1,
+        car_index: 0,
+        name: 'Driver One',
+        race_number: 1,
+        driver_id: 1,
+        team_id: 1,
+        ai_controlled: false,
+        nationality: 1,
+      },
+      {
+        id: 2,
+        session_id: 1,
+        car_index: 1,
+        name: 'Driver Two',
+        race_number: 2,
+        driver_id: 2,
+        team_id: 2,
+        ai_controlled: false,
+        nationality: 2,
+      },
     ];
 
     const mockMergedPoints = [
-      { lap_distance: 0, time_delta: 0, timeA: 0, timeB: 0, speedA: 250, speedB: 245, throttleA: 1, throttleB: 1, brakeA: 0, brakeB: 0, steerA: 0, steerB: 0, gearA: 6, gearB: 6, ersBatteryA: 80, ersBatteryB: 85, ersDeployModeA: 1, ersDeployModeB: 1, worldX: 10, worldZ: 10 },
-      { lap_distance: 2500, time_delta: -0.5, timeA: 45, timeB: 45.5, speedA: 280, speedB: 275, throttleA: 1, throttleB: 1, brakeA: 0, brakeB: 0, steerA: 0.1, steerB: 0.1, gearA: 7, gearB: 7, ersBatteryA: 60, ersBatteryB: 65, ersDeployModeA: 2, ersDeployModeB: 2, worldX: 50, worldZ: 50 },
-      { lap_distance: 5320, time_delta: -1.0, timeA: 90, timeB: 91, speedA: 290, speedB: 285, throttleA: 1, throttleB: 1, brakeA: 0, brakeB: 0, steerA: 0, steerB: 0, gearA: 8, gearB: 8, ersBatteryA: 40, ersBatteryB: 45, ersDeployModeA: 2, ersDeployModeB: 2, worldX: 10, worldZ: 10 }
+      {
+        lap_distance: 0,
+        time_delta: 0,
+        timeA: 0,
+        timeB: 0,
+        speedA: 250,
+        speedB: 245,
+        throttleA: 1,
+        throttleB: 1,
+        brakeA: 0,
+        brakeB: 0,
+        steerA: 0,
+        steerB: 0,
+        gearA: 6,
+        gearB: 6,
+        ersBatteryA: 80,
+        ersBatteryB: 85,
+        ersDeployModeA: 1,
+        ersDeployModeB: 1,
+        worldX: 10,
+        worldZ: 10,
+      },
+      {
+        lap_distance: 2500,
+        time_delta: -0.5,
+        timeA: 45,
+        timeB: 45.5,
+        speedA: 280,
+        speedB: 275,
+        throttleA: 1,
+        throttleB: 1,
+        brakeA: 0,
+        brakeB: 0,
+        steerA: 0.1,
+        steerB: 0.1,
+        gearA: 7,
+        gearB: 7,
+        ersBatteryA: 60,
+        ersBatteryB: 65,
+        ersDeployModeA: 2,
+        ersDeployModeB: 2,
+        worldX: 50,
+        worldZ: 50,
+      },
+      {
+        lap_distance: 5320,
+        time_delta: -1.0,
+        timeA: 90,
+        timeB: 91,
+        speedA: 290,
+        speedB: 285,
+        throttleA: 1,
+        throttleB: 1,
+        brakeA: 0,
+        brakeB: 0,
+        steerA: 0,
+        steerB: 0,
+        gearA: 8,
+        gearB: 8,
+        ersBatteryA: 40,
+        ersBatteryB: 45,
+        ersDeployModeA: 2,
+        ersDeployModeB: 2,
+        worldX: 10,
+        worldZ: 10,
+      },
     ];
 
     globalThis.fetch = vi.fn().mockImplementation((url: string) => {
       if (url === '/api/sessions') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockSessions) });
       if (url === '/api/sessions/1/laps') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockLaps) });
-      if (url === '/api/sessions/1/participants') return Promise.resolve({ ok: true, json: () => Promise.resolve(mockParticipants) });
+      if (url === '/api/sessions/1/participants')
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(mockParticipants) });
       if (url.includes('/api/comparator/merge')) {
         return Promise.resolve({
           ok: true,
@@ -422,4 +712,3 @@ describe('LapComparator Component', () => {
     });
   });
 });
-

@@ -20,6 +20,7 @@ import {
   resolveReferenceLap,
   resolveComparisonLap,
 } from '../utils/comparatorPreferencesUtils';
+import styles from './LapComparator.module.css';
 
 export interface LapComparatorProps {
   initialPreload?: NavigationComparatorPayload | null;
@@ -92,8 +93,7 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
         }
         const effectiveParticipantsB =
           isLinkedSessions || sessionAId === sessionBId ? slotA.participants : slotB.participants;
-        const effectiveLapsB =
-          isLinkedSessions || sessionAId === sessionBId ? slotA.laps : slotB.laps;
+        const effectiveLapsB = isLinkedSessions || sessionAId === sessionBId ? slotA.laps : slotB.laps;
 
         if (effectiveLapsB.length > 0) {
           const compRes = resolveComparisonLap(
@@ -210,7 +210,7 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
       sessionType: selectedSessionBObj?.session_type,
     }));
 
-    let candidateList: Array<typeof driversA[0] | typeof driversB[0]>;
+    let candidateList: Array<(typeof driversA)[0] | (typeof driversB)[0]>;
     if (isLinkedSessions || sessionAId === sessionBId) {
       candidateList = driversA;
     } else {
@@ -259,7 +259,7 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
   ]);
 
   return (
-    <div className="dashboard-grid" style={{ paddingTop: 0 }}>
+    <div className={`dashboard-grid ${styles.page}`}>
       {/* Header Controls & Comparison Duel Panel */}
       <ComparatorDuelHeader
         sessions={sessions}
@@ -328,9 +328,9 @@ export const LapComparator: React.FC<LapComparatorProps> = ({ initialPreload }) 
 
       {/* 2-COLUMN MAIN COMPARISON LAYOUT */}
       {sessionAId !== '' && (lapAObj || lapBObj) && (
-        <div className="comparator-layout" style={{ gridColumn: 'span 12' }}>
+        <div className={styles.layout}>
           {/* LEFT COLUMN: Summary cards & Telemetry Charts Stack */}
-          <div className="comparator-charts-col">
+          <div className={styles.charts}>
             <ComparatorMetricsSummary
               lapAObj={lapAObj}
               lapBObj={lapBObj}

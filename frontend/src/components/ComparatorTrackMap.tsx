@@ -2,7 +2,8 @@ import React, { useRef, useEffect } from 'react';
 import type { MergedTelemetryPoint, TrackTurn } from '../types/comparator';
 import { TRACK_MAP_CONSTANTS } from '../constants/f1';
 import { useI18n } from '../context/I18nContext';
-import { canvasRgba, getCssVars } from '../styles/theme';
+import { canvasRgba, getCssVars, styleVars } from '../styles/theme';
+import styles from './ComparatorTrackMap.module.css';
 
 /** Canvas colours, read from the design tokens at the start of each draw. */
 const TRACK_MAP_TOKENS = {
@@ -88,7 +89,10 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
       }
 
       // Compute bounding box
-      let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+      let minX = Infinity,
+        maxX = -Infinity,
+        minZ = Infinity,
+        maxZ = -Infinity;
       validPoints.forEach((p) => {
         if (p.worldX! < minX) minX = p.worldX!;
         if (p.worldX! > maxX) maxX = p.worldX!;
@@ -117,9 +121,11 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
       const s2TargetDist = sector2Distance && sector2Distance > 0 ? sector2Distance : (maxDist * 2) / 3;
 
       const findClosestPoint = (targetDist: number) => {
-        return validPoints.reduce((prev, curr) =>
-          Math.abs(curr.lap_distance - targetDist) < Math.abs(prev.lap_distance - targetDist) ? curr : prev
-        , validPoints[0]);
+        return validPoints.reduce(
+          (prev, curr) =>
+            Math.abs(curr.lap_distance - targetDist) < Math.abs(prev.lap_distance - targetDist) ? curr : prev,
+          validPoints[0]
+        );
       };
 
       const s0Point = validPoints[0];
@@ -211,7 +217,8 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
 
       // Helper to draw clean perpendicular sector split boundary lines across track (no text)
       const drawSectorSplitMarker = (point: MergedTelemetryPoint, color: string) => {
-        if (point.worldX === undefined || point.worldX === null || point.worldZ === undefined || point.worldZ === null) return;
+        if (point.worldX === undefined || point.worldX === null || point.worldZ === undefined || point.worldZ === null)
+          return;
         const cx = toCanvasX(point.worldX);
         const cy = toCanvasY(point.worldZ);
 
@@ -265,7 +272,8 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
 
       // Helper to draw clean sector region badges at the middle of each sector (S1, S2, S3)
       const drawSectorRegionBadge = (point: MergedTelemetryPoint, label: string, color: string) => {
-        if (point.worldX === undefined || point.worldX === null || point.worldZ === undefined || point.worldZ === null) return;
+        if (point.worldX === undefined || point.worldX === null || point.worldZ === undefined || point.worldZ === null)
+          return;
         const cx = toCanvasX(point.worldX);
         const cy = toCanvasY(point.worldZ);
 
@@ -406,7 +414,13 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
       // Draw Active Telemetry Cursor / Marker on track
       if (activeDistance !== undefined && activeDistance !== null) {
         const activePoint = findClosestPoint(activeDistance);
-        if (activePoint && activePoint.worldX !== undefined && activePoint.worldX !== null && activePoint.worldZ !== undefined && activePoint.worldZ !== null) {
+        if (
+          activePoint &&
+          activePoint.worldX !== undefined &&
+          activePoint.worldX !== null &&
+          activePoint.worldZ !== undefined &&
+          activePoint.worldZ !== null
+        ) {
           const cx = toCanvasX(activePoint.worldX);
           const cy = toCanvasY(activePoint.worldZ);
 
@@ -545,37 +559,29 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
   };
 
   return (
-    <div ref={containerRef} className="track-map-wrapper" style={{ height: `${height}px` }}>
+    <div ref={containerRef} className={styles.wrapper} style={styleVars({ '--map-height': `${height}px` })}>
       <canvas
         ref={canvasRef}
         onClick={handleCanvasClick}
         onMouseMove={handleCanvasMouseMove}
-        className="track-map-canvas"
-        style={{ cursor: onSelectDistance ? 'crosshair' : 'default' }}
+        className={styles.canvas}
+        data-selectable={onSelectDistance ? true : undefined}
       />
 
-      <div
-        ref={markerRef}
-        className="map-hover-marker"
-        style={{
-          display: 'none',
-          position: 'absolute',
-          pointerEvents: 'none',
-        }}
-      />
+      <div ref={markerRef} className={styles.marker} />
 
       {/* Pace Gain Delta Legend */}
-      <div className="track-map-legend legend-left">
-        <span className="legend-lap-a">{t('comparator.legend.lapAFaster')}</span>
-        <span className="legend-lap-b">{t('comparator.legend.lapBFaster')}</span>
+      <div className={`${styles.legend} ${styles.legendLeft}`}>
+        <span className={styles.lapA}>{t('comparator.legend.lapAFaster')}</span>
+        <span className={styles.lapB}>{t('comparator.legend.lapBFaster')}</span>
       </div>
 
       {/* Sector & Turn Legend */}
-      <div className="track-map-legend legend-right">
-        <span className="legend-apex">{t('comparator.legend.apex')}</span>
-        <span className="legend-s1">{t('comparator.legend.s1')}</span>
-        <span className="legend-s2">{t('comparator.legend.s2')}</span>
-        <span className="legend-s3">{t('comparator.legend.s3')}</span>
+      <div className={`${styles.legend} ${styles.legendRight}`}>
+        <span className={styles.apex}>{t('comparator.legend.apex')}</span>
+        <span className={styles.s1}>{t('comparator.legend.s1')}</span>
+        <span className={styles.s2}>{t('comparator.legend.s2')}</span>
+        <span className={styles.s3}>{t('comparator.legend.s3')}</span>
       </div>
     </div>
   );

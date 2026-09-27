@@ -1,0 +1,492 @@
+.panel {
+  grid-column: span 12;
+  padding: var(--space-3) var(--space-5);
+}
+
+.headerBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.headerSide {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.headerSide:first-child {
+  gap: var(--space-4);
+}
+
+/* A mouse shortcut for the expand button */
+.titleGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: inherit;
+  cursor: pointer;
+  user-select: none;
+}
+
+.titleIcon {
+  color: var(--accent-primary);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.count {
+  padding: 1px var(--space-1-5);
+  border-radius: var(--radius-full);
+  background: var(--bg-active);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-secondary);
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1-5);
+}
+
+.pill {
+  border-radius: var(--radius-full);
+}
+
+.preset {
+  border-radius: var(--radius-full);
+}
+
+.preset svg {
+  color: var(--accent-primary);
+}
+
+.preset:hover:not(:disabled),
+.filter[aria-pressed='true'] {
+  background: var(--f1-slot-a-bg);
+  border-color: var(--f1-slot-a-border);
+  color: var(--f1-slot-a);
+}
+
+.filter {
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+}
+
+/* Collapsed: the top three, one click to set as the comparison */
+.top3 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  cursor: pointer;
+}
+
+.top3Pill {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  padding: var(--space-1) var(--space-2);
+  background: var(--bg-hover);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xs);
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.top3Pill:hover {
+  background: var(--f1-slot-a-bg);
+  border-color: var(--f1-slot-a-border);
+  color: var(--f1-slot-a);
+}
+
+.top3Pos {
+  font-weight: var(--font-weight-black);
+  color: var(--rank-color, var(--text-secondary));
+}
+
+.top3Time {
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+.search {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.searchIcon {
+  position: absolute;
+  left: var(--space-2);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 170px;
+  padding: var(--space-1) var(--space-6) var(--space-1) var(--space-8);
+  background: var(--bg-hover);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  color: var(--text-primary);
+  font-size: var(--font-size-xs);
+  transition:
+    width var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.searchInput:focus {
+  width: 200px;
+  background: var(--bg-inset);
+  border-color: var(--accent-primary);
+}
+
+.searchClear {
+  position: absolute;
+  right: var(--space-0-5);
+}
+
+.body {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-color);
+}
+
+.empty {
+  padding: var(--space-4);
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.tableWrap {
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.table {
+  font-size: var(--font-size-sm);
+}
+
+.table tbody tr > * {
+  white-space: nowrap;
+}
+
+.table tbody tr.assignedA {
+  background: var(--f1-slot-a-bg);
+  box-shadow: inset 2px 0 var(--f1-slot-a);
+}
+
+.table tbody tr.assignedB {
+  background: var(--f1-slot-b-bg);
+  box-shadow: inset 2px 0 var(--f1-slot-b);
+}
+
+.rank {
+  --rank-color: var(--text-secondary);
+  display: inline-block;
+  padding: 1px var(--space-1-5);
+  border: 1px solid color-mix(in srgb, var(--rank-color) 45%, transparent);
+  border-radius: var(--radius-xs);
+  background: color-mix(in srgb, var(--rank-color) 18%, transparent);
+  color: var(--rank-color);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-black);
+}
+
+.rank[data-rank='1'],
+.top3Pill[data-rank='1'] {
+  --rank-color: var(--f1-gold);
+}
+
+.rank[data-rank='2'],
+.top3Pill[data-rank='2'] {
+  --rank-color: var(--f1-silver);
+}
+
+.rank[data-rank='3'],
+.top3Pill[data-rank='3'] {
+  --rank-color: var(--f1-bronze);
+}
+
+.driverCell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  font-weight: var(--font-weight-regular);
+}
+
+.teamStripe {
+  flex-shrink: 0;
+  width: 3px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--team-color);
+}
+
+.raceNum {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-muted);
+}
+
+.driverName {
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+}
+
+.slotBadgeA {
+  --badge-color: var(--f1-slot-a);
+}
+
+.slotBadgeB {
+  --badge-color: var(--f1-slot-b);
+}
+
+.bestLap {
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+}
+
+.bestLap[data-fastest] {
+  color: var(--f1-purple);
+}
+
+.muted {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.gap {
+  font-weight: var(--font-weight-bold);
+  color: var(--text-muted);
+}
+
+.gap[data-gap='faster'] {
+  color: var(--status-danger);
+}
+
+.gap[data-gap='slower'] {
+  color: var(--status-success);
+}
+
+.telemetry {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px var(--space-1);
+  border-radius: var(--radius-xs);
+  background: var(--bg-hover);
+  color: var(--text-muted);
+}
+
+.telemetry[data-telemetry] {
+  background: var(--f1-slot-a-bg);
+  color: var(--f1-slot-a);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.slotCircles {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+}
+
+/* Round slot buttons: a ring with a dot, filled once the slot holds this driver */
+.circle {
+  --slot-color: var(--f1-slot-a);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1.5px solid color-mix(in srgb, var(--slot-color) 40%, transparent);
+  border-radius: 50%;
+  background: var(--bg-hover);
+  cursor: pointer;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.circle[data-slot='b'] {
+  --slot-color: var(--f1-slot-b);
+}
+
+.circleDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--slot-color) 50%, transparent);
+  pointer-events: none;
+}
+
+.circle:hover {
+  border-color: var(--slot-color);
+  background: color-mix(in srgb, var(--slot-color) 15%, transparent);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--slot-color) 40%, transparent);
+  transform: scale(1.12);
+}
+
+.circle:hover .circleDot {
+  background: var(--slot-color);
+}
+
+.circle[aria-pressed='true'] {
+  border-color: var(--slot-color);
+  background: var(--slot-color);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--slot-color) 65%, transparent);
+}
+
+.circle[aria-pressed='true'] .circleDot {
+  width: 6px;
+  height: 6px;
+  background: var(--text-primary);
+}
+
+.expand {
+  border-radius: 50%;
+}
+
+/* Lap history drill-down */
+.history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.historyTitle {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-secondary);
+}
+
+.historyGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.historyEmpty {
+  grid-column: 1 / -1;
+  padding: var(--space-2) var(--space-1);
+  font-size: var(--font-size-xs);
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.lapCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-1-5) var(--space-2);
+  background: var(--bg-hover);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xs);
+}
+
+.lapCard[data-slot='a'] {
+  background: var(--f1-slot-a-bg);
+  border-color: var(--f1-slot-a);
+}
+
+.lapCard[data-slot='b'] {
+  background: var(--f1-slot-b-bg);
+  border-color: var(--f1-slot-b);
+}
+
+.lapCardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--font-size-xs);
+}
+
+.lapTime {
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+}
+
+.lapSectors {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  color: var(--text-muted);
+}
+
+.lapActions {
+  display: flex;
+  gap: var(--space-1-5);
+  margin-top: var(--space-1);
+}
+
+.slotButton {
+  --slot-color: var(--f1-slot-a);
+  flex: 1;
+  padding: var(--space-1) var(--space-1-5);
+  background: var(--bg-hover);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.slotButton[data-slot='b'] {
+  --slot-color: var(--f1-slot-b);
+}
+
+.slotButton:hover {
+  background: color-mix(in srgb, var(--slot-color) 12%, transparent);
+  border-color: color-mix(in srgb, var(--slot-color) 45%, transparent);
+  color: var(--slot-color);
+}
+
+.slotButton[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--slot-color) 20%, transparent);
+  border-color: var(--slot-color);
+  color: var(--slot-color);
+  font-weight: var(--font-weight-bold);
+}

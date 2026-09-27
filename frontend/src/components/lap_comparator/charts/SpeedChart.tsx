@@ -1,9 +1,9 @@
 import React from 'react';
-import { AlertTriangle, Gauge } from 'lucide-react';
+import { Gauge } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
 import { type CommonChartProps } from './chartDefaults';
 import { ComparatorChart } from './ComparatorChart';
-import { ChartTitle } from './ChartTitle';
+import { ChartTitle, PacketLossNotice } from './ChartTitle';
 
 export interface SpeedChartProps extends CommonChartProps {
   maxGapA: number;
@@ -14,38 +14,7 @@ export const SpeedChart = React.memo<SpeedChartProps>((props) => {
   const { t } = useI18n();
   const { maxGapA, maxGapB, nameA, nameB } = props;
 
-  const headerRight = (maxGapA > 0 || maxGapB > 0) ? (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '4px',
-        fontSize: '0.72rem',
-        color: '#f39c12',
-        background: 'rgba(243, 156, 18, 0.15)',
-        border: '1px solid rgba(243, 156, 18, 0.35)',
-        padding: '1px 6px',
-        borderRadius: '4px',
-        fontWeight: 600,
-      }}
-      title={
-        maxGapA > 0 && maxGapB > 0
-          ? `${t('comparator.charts.packetLossDetected', { meters: maxGapA, name: nameA })} | ${t('comparator.charts.packetLossDetected', { meters: maxGapB, name: nameB })}`
-          : maxGapA > 0
-          ? t('comparator.charts.packetLossDetected', { meters: maxGapA, name: nameA })
-          : t('comparator.charts.packetLossDetected', { meters: maxGapB, name: nameB })
-      }
-    >
-      <AlertTriangle size={11} />
-      <span>
-        {maxGapA > 0 && maxGapB > 0
-          ? `+${Math.max(maxGapA, maxGapB)}m Gap`
-          : maxGapA > 0
-          ? t('comparator.charts.packetLossDetected', { meters: maxGapA, name: nameA })
-          : t('comparator.charts.packetLossDetected', { meters: maxGapB, name: nameB })}
-      </span>
-    </span>
-  ) : null;
+  const headerRight = <PacketLossNotice maxGapA={maxGapA} maxGapB={maxGapB} nameA={nameA} nameB={nameB} />;
 
   return (
     <ComparatorChart
