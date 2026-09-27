@@ -2,12 +2,15 @@ package storage
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"path/filepath"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/jmoiron/sqlx"
 )
 
 func setupTestRepo(t *testing.T) *SQLiteRepository {
@@ -1591,5 +1594,110 @@ func TestSQLiteRepository_ConcurrentReads(t *testing.T) {
 
 	for err := range errCh {
 		t.Errorf("concurrent read error: %v", err)
+	}
+}
+
+func TestSessionPlayerCarIndex(t *testing.T) {
+	repo := setupTestRepo(t)
+	ctx := context.Background()
+
+	playerCar := 7
+	mine := &Session{SessionUID: FormatSessionUID(1001), TrackID: 11, TrackName: "Monza", SessionType: "Race", PacketFormat: 2026, PlayerCarIndex: &playerCar}
+	spectated := &Session{SessionUID: FormatSessionUID(1002), TrackID: 11, TrackName: "Monza", SessionType: "Race", PacketFormat: 2026}
+	for _, s := range []*Session{mine, spectated} {
+		if err := repo.SaveSession(ctx, s); err != nil {
+			t.Fatalf("SaveSession: %v", err)
+		}
+	}
+
+	// Saving the same session again without a player car keeps the stored one.
+	again := &Session{SessionUID: mine.SessionUID, TrackID: 11, TrackName: "Monza", SessionType: "Race", PacketFormat: 2026}
+	if err := repo.SaveSession(ctx, again); err != nil {
+		t.Fatalf("SaveSession again: %v", err)
+	}
+
+	got, err := repo.GetSessionByID(ctx, mine.ID)
+	if err != nil {
+		t.Fatalf("GetSessionByID: %v", err)
+	}
+	if got.PlayerCarIndex == nil || *got.PlayerCarIndex != playerCar {
+		t.Errorf("GetSessionByID player_car_index = %v, want %d", got.PlayerCarIndex, playerCar)
+	}
+	byUID, err := repo.GetSessionByUID(ctx, mine.SessionUID)
+	if err != nil {
+		t.Fatalf("GetSessionByUID: %v", err)
+	}
+	if byUID.PlayerCarIndex == nil || *byUID.PlayerCarIndex != playerCar {
+		t.Errorf("GetSessionByUID player_car_index = %v, want %d", byUID.PlayerCarIndex, playerCar)
+	}
+
+	list, err := repo.GetSessions(ctx)
+	if err != nil {
+		t.Fatalf("GetSessions: %v", err)
+	}
+	byID := map[int64]Session{}
+	for _, s := range list {
+		byID[s.ID] = s
+	}
+	if p := byID[mine.ID].PlayerCarIndex; p == nil || *p != playerCar {
+		t.Errorf("GetSessions player_car_index = %v, want %d", p, playerCar)
+	}
+	if p := byID[spectated.ID].PlayerCarIndex; p != nil {
+		t.Errorf("GetSessions player_car_index for a session without one = %d, want nil", *p)
+	}
+
+	// Export and import carry it.
+	pkg, err := repo.ExportSession(ctx, mine.ID)
+	if err != nil {
+		t.Fatalf("ExportSession: %v", err)
+	}
+	importedID, err := repo.ImportSessionWithOptions(ctx, pkg, true)
+	if err != nil {
+		t.Fatalf("ImportSession: %v", err)
+	}
+	imported, err := repo.GetSessionByID(ctx, importedID)
+	if err != nil {
+		t.Fatalf("GetSessionByID imported: %v", err)
+	}
+	if imported.PlayerCarIndex == nil || *imported.PlayerCarIndex != playerCar {
+		t.Errorf("imported player_car_index = %v, want %d", imported.PlayerCarIndex, playerCar)
+	}
+}
+
+func TestMigrationAddPlayerCarIndexLeavesOldSessionsNull(t *testing.T) {
+	db, err := sqlx.Connect("sqlite", filepath.Join(t.TempDir(), "old.db"))
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	t.Cleanup(func() { db.Close() })
+
+	// A database from before the migration: every earlier migration applied, one session recorded.
+	if _, err := db.Exec(`CREATE TABLE schema_version (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); err != nil {
+		t.Fatalf("schema_version: %v", err)
+	}
+	for _, m := range migrations {
+		if m.Name == "add_player_car_index_to_sessions" {
+			break
+		}
+		if _, err := db.Exec(m.SQL); err != nil {
+			t.Fatalf("migration %d: %v", m.Version, err)
+		}
+		if _, err := db.Exec(`INSERT INTO schema_version (version, name) VALUES (?, ?)`, m.Version, m.Name); err != nil {
+			t.Fatalf("record migration %d: %v", m.Version, err)
+		}
+	}
+	if _, err := db.Exec(`INSERT INTO sessions (session_uid, track_id, track_name, session_type, packet_format) VALUES ('0x0000000000000abc', 11, 'Monza', 'Race', 2025)`); err != nil {
+		t.Fatalf("insert old session: %v", err)
+	}
+
+	if err := Migrate(db); err != nil {
+		t.Fatalf("Migrate: %v", err)
+	}
+	var playerCar sql.NullInt64
+	if err := db.Get(&playerCar, `SELECT player_car_index FROM sessions WHERE session_uid = '0x0000000000000abc'`); err != nil {
+		t.Fatalf("select: %v", err)
+	}
+	if playerCar.Valid {
+		t.Errorf("old session player_car_index = %d, want NULL (no backfill)", playerCar.Int64)
 	}
 }

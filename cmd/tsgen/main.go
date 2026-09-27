@@ -39,8 +39,8 @@ func registry() *tsgen.Generator {
 
 	// Types with their own MarshalJSON: a sample value that writes the optional properties, and
 	// the type whose fields describe the JSON. TestMarshalerKeys checks one against the other.
-	g.Marshaler(storage.Session{}, storage.Session{})                        // weather_forecast is raw JSON (tstype tag)
-	g.Marshaler(packets.PacketHeader{SessionUID: 1}, packets.PacketHeader{}) // SessionUID is hex (tstype tag)
+	g.Marshaler(storage.Session{PlayerCarIndex: new(int)}, storage.Session{}) // weather_forecast is raw JSON (tstype tag)
+	g.Marshaler(packets.PacketHeader{SessionUID: 1}, packets.PacketHeader{})  // SessionUID is hex (tstype tag)
 
 	// Sessions, laps, participants and tags.
 	g.Add(
