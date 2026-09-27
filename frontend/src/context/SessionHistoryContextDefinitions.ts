@@ -1,6 +1,8 @@
 import { createContext, useContext } from 'react';
 import type {
+  PlayerSource,
   Session,
+  SessionListItem,
   Lap,
   StagedLap,
   DriverStanding,
@@ -12,8 +14,8 @@ import type {
 import type { SessionDetailTab } from '../router/routes';
 
 export interface SessionHistoryData {
-  sessions: Session[];
-  filteredSessions: Session[];
+  sessions: SessionListItem[];
+  filteredSessions: SessionListItem[];
   uniqueCircuits: string[];
   loadingSessions: boolean;
   error: string | null;
@@ -38,6 +40,9 @@ export interface SessionHistoryData {
   isRaceSession: boolean;
   totalSessionLaps: number;
   totalDriversCount: number;
+  /** Your car in the open session, found from its stored car or the saved driver name. */
+  playerCarIndex: number | null;
+  playerSource: PlayerSource | null;
   expandedDrivers: Record<number, boolean>;
   /** The open session's tab, from the URL. */
   activeDetailTab: SessionDetailTab;

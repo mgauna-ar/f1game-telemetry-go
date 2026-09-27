@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
-import type { Session, Lap, DriverStanding, StagedLap } from '../../types/session';
+import type { Session, Lap, DriverStanding, PlayerSource, StagedLap } from '../../types/session';
 import { PodiumShowcase } from './classification/PodiumShowcase';
 import { ClassificationTable } from './classification/ClassificationTable';
+import { YourRaceCard } from './classification/YourRaceCard';
 import styles from './SessionClassificationTab.module.css';
 
 export type { DriverStanding };
@@ -23,6 +24,9 @@ interface SessionClassificationTabProps {
   formatTotalDuration: (ms: number) => string;
   renderTyreBadge: (compoundRaw?: string, actualCompound?: string) => React.ReactNode;
   renderDriverTyreStints: (laps: Lap[]) => React.ReactNode;
+  /** Your car, highlighted in the table and summed up in the "Your race" card. */
+  playerCarIndex?: number | null;
+  playerSource?: PlayerSource | null;
 }
 
 export const SessionClassificationTab: React.FC<SessionClassificationTabProps> = ({
@@ -42,6 +46,8 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
   formatTotalDuration,
   renderTyreBadge,
   renderDriverTyreStints,
+  playerCarIndex = null,
+  playerSource = null,
 }) => {
   const top3 = driverStandings.slice(0, 3);
 
@@ -57,6 +63,17 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
 
   return (
     <div className={styles.tab}>
+      {playerCarIndex !== null && (
+        <YourRaceCard
+          sessionId={session.id}
+          driverStandings={driverStandings}
+          playerCarIndex={playerCarIndex}
+          playerSource={playerSource}
+          isRaceSession={isRaceSession}
+          formatLapTime={formatLapTime}
+        />
+      )}
+
       {/* PODIUM SHOWCASE BANNER (Top 3) */}
       <PodiumShowcase
         top3={top3}
@@ -84,6 +101,7 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
         formatTotalDuration={formatTotalDuration}
         renderTyreBadge={renderTyreBadge}
         renderDriverTyreStints={renderDriverTyreStints}
+        playerCarIndex={playerCarIndex}
       />
     </div>
   );

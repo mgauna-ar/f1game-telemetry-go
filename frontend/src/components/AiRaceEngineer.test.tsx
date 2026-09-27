@@ -4,7 +4,7 @@ import { AiRaceEngineer } from './AiRaceEngineer';
 import { RaceEngineerProvider } from '../context/RaceEngineerProvider';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import { useSessionListStore } from '../store/useSessionListStore';
-import { makeLiveSession, makeSession } from '../test/wireFactories';
+import { makeLiveSession, makeSessionListItem } from '../test/wireFactories';
 
 // Telemetry is always fresh here; whether the feed is live depends on the session store.
 vi.mock('../utils/telemetrySocket', () => ({
@@ -55,7 +55,7 @@ describe('AiRaceEngineer Component', () => {
   /** The chat reads what it is about from the URL; the session list names the track. */
   const openPage = (url: string, sessions: Array<{ id: number; track_name: string }> = []) => {
     window.history.replaceState(null, '', url);
-    useSessionListStore.setState({ sessions: sessions.map((s) => makeSession(s)) });
+    useSessionListStore.setState({ sessions: sessions.map((s) => makeSessionListItem(s)) });
   };
 
   /** Opens the chat on the comparator with two laps picked. */

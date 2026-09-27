@@ -1,10 +1,10 @@
 import { useState, useMemo, useCallback } from 'react';
-import type { Session } from '../types/session';
+import type { SessionListItem } from '../types/session';
 import { useI18n } from '../context/I18nContext';
 import { matchSessionSearch } from '../utils/sessionFilterUtils';
 
 export interface UseSessionFiltersOptions {
-  sessions: Session[];
+  sessions: SessionListItem[];
   selectedTagId?: number | null;
 }
 
@@ -21,7 +21,7 @@ export interface UseSessionFiltersReturn {
   setSortOrder: React.Dispatch<React.SetStateAction<'asc' | 'desc'>>;
   handleToggleSort: (field: string) => void;
   uniqueCircuits: string[];
-  filteredSessions: Session[];
+  filteredSessions: SessionListItem[];
 }
 
 export function useSessionFilters({

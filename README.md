@@ -27,7 +27,7 @@
 
 ### 📊 Session History & League Management
 * **4-Tab Deep Dive:** Detailed analysis for Official Classification & Penalties, Lap Progression & Gap Charts, Tyre Strategy & Stint Degradation, and Speed/Sector Matrix.
-* **Your Car in Every Session:** Each recorded session stores which car you drove (`player_car_index`), so the list and the AI debrief know your result. Sessions recorded before this was stored keep it empty and find you by the driver name saved in the comparator's preferences.
+* **Your Car in Every Session:** Each recorded session stores which car you drove (`player_car_index`), so the list and the AI debrief know your result. The session list has a "Your result" column (position, places gained, best lap; the winner or pole when your car is unknown), a session highlights your row and opens with a "Your race" card (result, grid, best lap against the fastest, the cars either side, and a one-click comparison), its charts start on you and the cars around you, and the Lap Comparator starts from your best lap. Sessions recorded before this was stored keep it empty and find you by the driver name saved in the comparator's preferences.
 * **League & Tag Organization:** Categorize sessions by league (*WOR*, *AOR*, *PSGL*) or weather setup with color chips and tag filtering.
 * **Batch Operations & Portability:** Multi-select sessions to export to ZIP, bulk delete, or batch tag. Drag-and-drop import with duplicate detection.
 

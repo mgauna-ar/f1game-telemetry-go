@@ -3,6 +3,7 @@ import { Filter } from 'lucide-react';
 import { getTeamColor } from '../../constants/f1';
 import { styleVars } from '../../styles/theme';
 import type { DriverStanding } from '../../types/session';
+import { useI18n } from '../../context/I18nContext';
 import { Button } from '../ui/Button';
 import styles from './DriverFilterChips.module.css';
 
@@ -16,6 +17,8 @@ interface DriverFilterChipsProps {
   onClear: () => void;
   selectAllLabel: string;
   clearLabel: string;
+  /** Your car's chip is marked YOU. */
+  playerCarIndex?: number | null;
 }
 
 /** A row of toggle chips, one per driver in their team colour, that picks which drivers a chart shows. */
@@ -28,7 +31,9 @@ export const DriverFilterChips: React.FC<DriverFilterChipsProps> = ({
   onClear,
   selectAllLabel,
   clearLabel,
+  playerCarIndex = null,
 }) => {
+  const { t } = useI18n();
   const labelId = useId();
   return (
     <div>
@@ -60,6 +65,9 @@ export const DriverFilterChips: React.FC<DriverFilterChipsProps> = ({
             <span className={styles.teamDot} aria-hidden="true" />
             <span>{driver.participant.name}</span>
             <span className={styles.raceNumber}>#{driver.participant.race_number}</span>
+            {driver.participant.car_index === playerCarIndex && (
+              <span className={styles.you}>{t('history.player.you')}</span>
+            )}
           </button>
         ))}
       </div>

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import type { ImportBatchResponse, Session } from '../types/session';
+import type { ImportBatchResponse, Session, SessionListItem } from '../types/session';
 import { useI18n } from '../context/I18nContext';
 import { api } from '../utils/apiClient';
 import { invalidateSessionLapData } from '../utils/sessionDataCache';
@@ -7,9 +7,9 @@ import { useSessionListStore } from '../store/useSessionListStore';
 import { useToastStore } from '../store/useToastStore';
 
 export interface UseBatchOperationsOptions {
-  sessions: Session[];
-  filteredSessions: Session[];
-  setSessions: React.Dispatch<React.SetStateAction<Session[]>>;
+  sessions: SessionListItem[];
+  filteredSessions: SessionListItem[];
+  setSessions: React.Dispatch<React.SetStateAction<SessionListItem[]>>;
   fetchSessions: () => Promise<void>;
   fetchTags?: () => Promise<void>;
 }

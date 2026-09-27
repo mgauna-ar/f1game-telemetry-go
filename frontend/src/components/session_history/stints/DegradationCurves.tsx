@@ -27,6 +27,7 @@ interface DegradationCurvesProps {
   setSelectedCompound: (compound: string) => void;
   sessionCompounds: string[];
   formatLapTime: (ms: number) => string;
+  playerCarIndex?: number | null;
 }
 
 export const DegradationCurves: React.FC<DegradationCurvesProps> = ({
@@ -43,6 +44,7 @@ export const DegradationCurves: React.FC<DegradationCurvesProps> = ({
   setSelectedCompound,
   sessionCompounds,
   formatLapTime,
+  playerCarIndex = null,
 }) => {
   const { t } = useI18n();
 
@@ -75,6 +77,7 @@ export const DegradationCurves: React.FC<DegradationCurvesProps> = ({
           label={t('history.stints.degradation.filterDrivers')}
           drivers={driverStandings}
           selected={selectedDrivers}
+          playerCarIndex={playerCarIndex}
           onToggle={toggleDriver}
           onSelectAll={selectAllDrivers}
           onClear={clearAllDrivers}

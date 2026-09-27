@@ -28,6 +28,8 @@ interface ClassificationTableProps {
   formatTotalDuration: (ms: number) => string;
   renderTyreBadge: (compoundRaw?: string, actualCompound?: string) => React.ReactNode;
   renderDriverTyreStints: (laps: Lap[]) => React.ReactNode;
+  /** Your car's row is highlighted and marked YOU. */
+  playerCarIndex?: number | null;
 }
 
 export const ClassificationTable: React.FC<ClassificationTableProps> = ({
@@ -48,6 +50,7 @@ export const ClassificationTable: React.FC<ClassificationTableProps> = ({
   formatTotalDuration,
   renderTyreBadge,
   renderDriverTyreStints,
+  playerCarIndex = null,
 }) => {
   const { t } = useI18n();
   const leader = driverStandings[0];
@@ -68,6 +71,7 @@ export const ClassificationTable: React.FC<ClassificationTableProps> = ({
     formatLapTime,
     formatTotalDuration,
     renderDriverTyreStints,
+    playerCarIndex,
   });
 
   return (
@@ -102,6 +106,7 @@ export const ClassificationTable: React.FC<ClassificationTableProps> = ({
           rows={driverStandings}
           getRowKey={(driver) => driver.participant.car_index}
           onRowClick={(driver) => onToggleDriverExpand(driver.participant.car_index)}
+          getRowClassName={(driver) => (driver.participant.car_index === playerCarIndex ? styles.you : undefined)}
           renderExpanded={(driver) =>
             expandedDrivers[driver.participant.car_index] ? (
               <DriverLapsSubTable

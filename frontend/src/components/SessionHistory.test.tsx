@@ -5,8 +5,8 @@ import { RaceEngineerProvider } from '../context/RaceEngineerProvider';
 import { I18nProvider } from '../context/I18nProvider';
 import { AiRaceEngineer } from './AiRaceEngineer';
 import { useSessionListStore } from '../store/useSessionListStore';
-import type { Session, Participant, Lap, ClassificationResponse } from '../types/session';
-import { makeDriverStanding, makeLap, makeParticipant, makeSession } from '../test/wireFactories';
+import type { SessionListItem, Participant, Lap, ClassificationResponse } from '../types/session';
+import { makeDriverStanding, makeLap, makeParticipant, makePlayerResult, makeSessionListItem } from '../test/wireFactories';
 
 const makeMockClassification = (participants: Participant[], laps: Lap[]): ClassificationResponse => {
   const standings = (participants.length > 0 ? participants : [makeParticipant({
@@ -102,7 +102,7 @@ const makeMockClassification = (participants: Participant[], laps: Lap[]): Class
 };
 
 const setupFetchMock = (config: {
-  sessions?: Session[];
+  sessions?: SessionListItem[];
   participants?: Participant[];
   laps?: Lap[];
   classification?: ClassificationResponse;
@@ -114,7 +114,7 @@ const setupFetchMock = (config: {
       const res = custom(url, options);
       if (res !== null) return res;
     }
-    if (url === '/api/sessions') {
+    if (url.split('?')[0] === '/api/sessions') {
       return Promise.resolve({ ok: true, json: () => Promise.resolve(sessions) });
     }
     if (url.endsWith('/participants')) {
@@ -162,8 +162,8 @@ describe('SessionHistory Component', () => {
   });
 
   it('fetches and renders historical sessions and data table on mount', async () => {
-    const mockSessions: Session[] = [
-      makeSession({
+    const mockSessions: SessionListItem[] = [
+      makeSessionListItem({
         id: 1,
         session_uid: '1001',
         track_name: 'Silverstone',
@@ -173,7 +173,7 @@ describe('SessionHistory Component', () => {
         session_duration: 5400,
         created_at: '2026-08-10T14:00:00Z',
       }),
-      makeSession({
+      makeSessionListItem({
         id: 2,
         session_uid: '1002',
         track_name: 'Spa-Francorchamps',
@@ -200,9 +200,9 @@ describe('SessionHistory Component', () => {
   });
 
   it('filters sessions by search query input and supports column sorting', async () => {
-    const mockSessions: Session[] = [
-      makeSession({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', total_laps: 52, session_duration: 5400, created_at: '2026-08-10T14:00:00Z' }),
-      makeSession({ id: 2, session_uid: '1002', track_name: 'Monaco', session_type: 'Qualifying', weather: 'Clear', total_laps: 20, session_duration: 3600, created_at: '2026-08-10T16:00:00Z' }),
+    const mockSessions: SessionListItem[] = [
+      makeSessionListItem({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', total_laps: 52, session_duration: 5400, created_at: '2026-08-10T14:00:00Z' }),
+      makeSessionListItem({ id: 2, session_uid: '1002', track_name: 'Monaco', session_type: 'Qualifying', weather: 'Clear', total_laps: 20, session_duration: 3600, created_at: '2026-08-10T16:00:00Z' }),
     ];
 
     setupFetchMock({ sessions: mockSessions });
@@ -229,8 +229,8 @@ describe('SessionHistory Component', () => {
   it('reports the sort order on the column headers and sorts from their buttons', async () => {
     setupFetchMock({
       sessions: [
-        makeSession({ id: 1, track_name: 'Silverstone', created_at: '2026-08-10T14:00:00Z' }),
-        makeSession({ id: 2, track_name: 'Monaco', created_at: '2026-08-10T16:00:00Z' }),
+        makeSessionListItem({ id: 1, track_name: 'Silverstone', created_at: '2026-08-10T14:00:00Z' }),
+        makeSessionListItem({ id: 2, track_name: 'Monaco', created_at: '2026-08-10T16:00:00Z' }),
       ],
     });
 
@@ -253,8 +253,8 @@ describe('SessionHistory Component', () => {
   });
 
   it('selects a session and displays Classification and Driver Standings', async () => {
-    const mockSessions: Session[] = [
-      makeSession({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
+    const mockSessions: SessionListItem[] = [
+      makeSessionListItem({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
     ];
 
     const mockParticipants: Participant[] = [
@@ -298,8 +298,8 @@ describe('SessionHistory Component', () => {
   });
 
   it('opens the comparator URL with a staged Slot A lap', async () => {
-    const mockSessions: Session[] = [
-      makeSession({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
+    const mockSessions: SessionListItem[] = [
+      makeSessionListItem({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
     ];
 
     const mockParticipants: Participant[] = [
@@ -346,8 +346,8 @@ describe('SessionHistory Component', () => {
   });
 
   it('stages both Slot A and Slot B, supports swapping, and launches dual comparison', async () => {
-    const mockSessions: Session[] = [
-      makeSession({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
+    const mockSessions: SessionListItem[] = [
+      makeSessionListItem({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
     ];
 
     const mockParticipants: Participant[] = [
@@ -407,8 +407,8 @@ describe('SessionHistory Component', () => {
   });
 
   it('switches between detail tabs: Lap Progression and Sector Matrix', async () => {
-    const mockSessions: Session[] = [
-      makeSession({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
+    const mockSessions: SessionListItem[] = [
+      makeSessionListItem({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
     ];
 
     const mockParticipants: Participant[] = [
@@ -455,8 +455,8 @@ describe('SessionHistory Component', () => {
   });
 
   it('opens the session and tab named in the URL, and leaves an unknown session for the list', async () => {
-    const mockSessions: Session[] = [
-      makeSession({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
+    const mockSessions: SessionListItem[] = [
+      makeSessionListItem({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
     ];
     const mockParticipants: Participant[] = [
       makeParticipant({ id: 10, session_id: 1, car_index: 0, name: 'Lewis Hamilton', driver_id: 2, team_id: 1, race_number: 44, ai_controlled: false }),
@@ -480,8 +480,8 @@ describe('SessionHistory Component', () => {
   });
 
   it('opens and interacts with AI Race Engineer debrief', async () => {
-    const mockSessions: Session[] = [
-      makeSession({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
+    const mockSessions: SessionListItem[] = [
+      makeSessionListItem({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
     ];
 
     const mockParticipants: Participant[] = [
@@ -526,9 +526,9 @@ describe('SessionHistory Component', () => {
   });
 
   it('shows confirmation modal and deletes a session when confirmed', async () => {
-    const mockSessions: Session[] = [
-      makeSession({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
-      makeSession({ id: 2, session_uid: '1002', track_name: 'Monaco', session_type: 'Qualifying', weather: 'Clear', created_at: '2026-08-10T16:00:00Z' }),
+    const mockSessions: SessionListItem[] = [
+      makeSessionListItem({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
+      makeSessionListItem({ id: 2, session_uid: '1002', track_name: 'Monaco', session_type: 'Qualifying', weather: 'Clear', created_at: '2026-08-10T16:00:00Z' }),
     ];
 
     let deletedId: string | null = null;
@@ -574,8 +574,8 @@ describe('SessionHistory Component', () => {
   });
 
   it('correctly sorts race standings based on official F1 positions even when final lap is uncompleted', async () => {
-    const mockSessions: Session[] = [
-      makeSession({ id: 1, session_uid: '1001', track_name: 'Monza', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
+    const mockSessions: SessionListItem[] = [
+      makeSessionListItem({ id: 1, session_uid: '1001', track_name: 'Monza', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
     ];
 
     const mockParticipants: Participant[] = [
@@ -613,8 +613,8 @@ describe('SessionHistory Component', () => {
   });
 
   it('places DNF drivers at the bottom of race standings behind all classified finishers', async () => {
-    const mockSessions: Session[] = [
-      makeSession({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
+    const mockSessions: SessionListItem[] = [
+      makeSessionListItem({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
     ];
 
     const mockParticipants: Participant[] = [
@@ -653,8 +653,8 @@ describe('SessionHistory Component', () => {
   });
 
   it('renders tyre stints sequentially when the same compound is reused across separate stints', async () => {
-    const mockSessions: Session[] = [
-      makeSession({ id: 1, session_uid: '1001', track_name: 'Spa-Francorchamps', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
+    const mockSessions: SessionListItem[] = [
+      makeSessionListItem({ id: 1, session_uid: '1001', track_name: 'Spa-Francorchamps', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
     ];
 
     const mockParticipants: Participant[] = [
@@ -692,8 +692,8 @@ describe('SessionHistory Component', () => {
   it('renders Official Race Classification and Laps subtable in Spanish when locale is es', async () => {
     localStorage.setItem('f1_telemetry_language', 'es');
 
-    const mockSessions: Session[] = [
-      makeSession({ id: 1, session_uid: '1001', track_name: 'Interlagos', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
+    const mockSessions: SessionListItem[] = [
+      makeSessionListItem({ id: 1, session_uid: '1001', track_name: 'Interlagos', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
     ];
 
     const mockParticipants: Participant[] = [
@@ -749,8 +749,8 @@ describe('SessionHistory Component', () => {
   });
 
   it('handles exporting a session and importing a .f1session package', async () => {
-    const mockSessions: Session[] = [
-      makeSession({ id: 1, session_uid: '1001', track_name: 'Monza', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
+    const mockSessions: SessionListItem[] = [
+      makeSessionListItem({ id: 1, session_uid: '1001', track_name: 'Monza', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
     ];
 
     setupFetchMock({
@@ -822,8 +822,8 @@ describe('SessionHistory Component', () => {
   });
 
   it('navigates to the Tyre Strategy & Stints tab within a selected session', async () => {
-    const mockSessions: Session[] = [
-      makeSession({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', total_laps: 5, session_duration: 5400, created_at: '2026-08-10T14:00:00Z' }),
+    const mockSessions: SessionListItem[] = [
+      makeSessionListItem({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', total_laps: 5, session_duration: 5400, created_at: '2026-08-10T14:00:00Z' }),
     ];
 
     const mockParticipants: Participant[] = [
@@ -867,8 +867,8 @@ describe('SessionHistory Component', () => {
   });
 
   it('navigates back to session list when clicking the back to list button', async () => {
-    const mockSessions: Session[] = [
-      makeSession({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', total_laps: 5, session_duration: 5400, created_at: '2026-08-10T14:00:00Z' }),
+    const mockSessions: SessionListItem[] = [
+      makeSessionListItem({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', total_laps: 5, session_duration: 5400, created_at: '2026-08-10T14:00:00Z' }),
     ];
 
     setupFetchMock({ sessions: mockSessions });
@@ -902,9 +902,9 @@ describe('SessionHistory Component', () => {
   });
 
   it('supports multi-session selection, batch ZIP export, and batch deletion', async () => {
-    const mockSessions: Session[] = [
-      makeSession({ id: 1, session_uid: '1001', track_name: 'Monza', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
-      makeSession({ id: 2, session_uid: '1002', track_name: 'Spa', session_type: 'Race', weather: 'Light Rain', created_at: '2026-08-11T14:00:00Z' }),
+    const mockSessions: SessionListItem[] = [
+      makeSessionListItem({ id: 1, session_uid: '1001', track_name: 'Monza', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
+      makeSessionListItem({ id: 2, session_uid: '1002', track_name: 'Spa', session_type: 'Race', weather: 'Light Rain', created_at: '2026-08-11T14:00:00Z' }),
     ];
 
     setupFetchMock({
@@ -992,8 +992,8 @@ describe('SessionHistory Component', () => {
   });
 
   it('handles multi-file / ZIP batch import with summary toast', async () => {
-    const mockSessions: Session[] = [
-      makeSession({ id: 1, session_uid: '1001', track_name: 'Monza', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
+    const mockSessions: SessionListItem[] = [
+      makeSessionListItem({ id: 1, session_uid: '1001', track_name: 'Monza', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
     ];
 
     setupFetchMock({
@@ -1041,8 +1041,8 @@ describe('SessionHistory Component', () => {
   });
 
   it('loads classification, progression and stints with one detail request when exploring a session', async () => {
-    const mockSessions: Session[] = [
-      makeSession({ id: 42, session_uid: '0xabc42', track_name: 'Monaco', session_type: 'Race', weather: 'Clear', created_at: '2026-08-15T14:00:00Z', total_laps: 78 }),
+    const mockSessions: SessionListItem[] = [
+      makeSessionListItem({ id: 42, session_uid: '0xabc42', track_name: 'Monaco', session_type: 'Race', weather: 'Clear', created_at: '2026-08-15T14:00:00Z', total_laps: 78 }),
     ];
 
     const mockClassification = {
@@ -1177,7 +1177,7 @@ describe('SessionHistory Component', () => {
     );
     try {
       setupFetchMock({
-        sessions: [makeSession({ id: 1, track_name: 'Silverstone', session_type: 'Race' })],
+        sessions: [makeSessionListItem({ id: 1, track_name: 'Silverstone', session_type: 'Race' })],
         participants: [],
         laps: [],
       });
@@ -1190,5 +1190,92 @@ describe('SessionHistory Component', () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+
+  describe('your car', () => {
+    const threeCars: Participant[] = [
+      makeParticipant({ id: 10, session_id: 1, car_index: 0, name: 'Lewis Hamilton', team_id: 1, race_number: 44, position: 1 }),
+      makeParticipant({ id: 11, session_id: 1, car_index: 1, name: 'Lando Norris', team_id: 8, race_number: 4, position: 2 }),
+      makeParticipant({ id: 12, session_id: 1, car_index: 2, name: 'Oscar Piastri', team_id: 8, race_number: 81, position: 3 }),
+    ];
+    const threeCarLaps: Lap[] = [
+      makeLap({ id: 301, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 88_000, is_valid: true }),
+      makeLap({ id: 302, session_id: 1, car_index: 1, lap_number: 1, lap_time_ms: 88_400, is_valid: true }),
+      makeLap({ id: 303, session_id: 1, car_index: 2, lap_number: 1, lap_time_ms: 89_000, is_valid: true }),
+    ];
+    const openSession = async (playerCarIndex: number | null) => {
+      setupFetchMock({
+        sessions: [
+          makeSessionListItem({ id: 1, track_name: 'Silverstone', session_type: 'Race', player_car_index: playerCarIndex }),
+        ],
+        participants: threeCars,
+        laps: threeCarLaps,
+      });
+      window.history.replaceState(null, '', '/history/1');
+      render(<SessionHistory />);
+      await waitFor(() => expect(screen.getAllByText('Oscar Piastri').length).toBeGreaterThan(0));
+    };
+
+    it('shows your result in the session table, and the format only where it differs', async () => {
+      setupFetchMock({
+        sessions: [
+          makeSessionListItem(
+            { id: 1, track_name: 'Silverstone', session_type: 'Race', packet_format: 2026 },
+            { player: makePlayerResult({ position: 2, classified_cars: 20, positions_gained: -1 }) }
+          ),
+          makeSessionListItem({ id: 2, track_name: 'Monaco', session_type: 'Race', packet_format: 2026 }),
+          makeSessionListItem({ id: 3, track_name: 'Spa', session_type: 'Race', packet_format: 2025 }),
+        ],
+      });
+      render(<SessionHistory />);
+      const table = await screen.findByRole('table', { name: 'Recorded sessions' });
+      expect(within(table).getByRole('columnheader', { name: 'Your result' })).toBeInTheDocument();
+      const row = (track: string) => within(table).getByRole('rowheader', { name: new RegExp(track) }).closest('tr')!;
+      expect(within(row('Silverstone')).getByText('P2')).toBeInTheDocument();
+      expect(within(row('Silverstone')).getByText('1 place lost')).toBeInTheDocument();
+      expect(within(row('Monaco')).getByText('Your car was not recorded')).toBeInTheDocument();
+      expect(within(table).queryByText('F1 2026')).not.toBeInTheDocument();
+      expect(within(row('Spa')).getByText('F1 2025')).toBeInTheDocument();
+    });
+
+    it('marks your row and sums up your race when the session stored your car', async () => {
+      await openSession(1);
+
+      const card = await screen.findByTestId('your-race');
+      expect(within(card).getByRole('heading', { name: 'Your race' })).toBeInTheDocument();
+      expect(within(card).getByText('Lando Norris')).toBeInTheDocument();
+      expect(within(card).getByText('P2')).toBeInTheDocument();
+      expect(within(card).getByText('of 3')).toBeInTheDocument();
+      expect(within(card).getByText('+0.400s to the fastest')).toBeInTheDocument();
+      expect(within(card).getByText('P1 Lewis Hamilton')).toBeInTheDocument();
+      expect(within(card).getByText('P3 Oscar Piastri')).toBeInTheDocument();
+      expect(within(card).queryByText(/saved in the Lap Comparator/)).not.toBeInTheDocument();
+
+      const table = screen.getByRole('table', { name: /Every driver with position/ });
+      const youRows = within(table)
+        .getAllByRole('row')
+        .filter((row) => within(row).queryByText('YOU'));
+      expect(youRows).toHaveLength(1);
+      expect(within(youRows[0]).getByText('Lando Norris')).toBeInTheDocument();
+
+      fireEvent.click(within(card).getByRole('button', { name: 'Compare with the fastest lap' }));
+      expect(window.location.pathname + window.location.search).toBe('/compare?sa=1&a=302&b=301');
+    });
+
+    it('finds you by the saved driver name in a session recorded before your car was stored', async () => {
+      localStorage.setItem('f1_comparator_default_driver_name', 'Piastri');
+      await openSession(null);
+
+      const card = await screen.findByTestId('your-race');
+      expect(within(card).getByText('Oscar Piastri')).toBeInTheDocument();
+      expect(within(card).getByText(/saved in the Lap Comparator/)).toBeInTheDocument();
+      expect(within(card).getByText('P3')).toBeInTheDocument();
+    });
+
+    it('shows no card and no YOU row when your car is unknown', async () => {
+      await openSession(null);
+      expect(screen.queryByTestId('your-race')).not.toBeInTheDocument();
+      expect(screen.queryByText('YOU')).not.toBeInTheDocument();
+    });
   });
 });

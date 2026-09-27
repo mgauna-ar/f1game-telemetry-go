@@ -1,4 +1,14 @@
-import type { Lap, Participant, RawDriverStanding, Session, Tag, WeatherForecastSample } from '../types/session';
+import type {
+  Lap,
+  Participant,
+  PlayerResult,
+  RawDriverStanding,
+  Session,
+  SessionListItem,
+  SessionSummary,
+  Tag,
+  WeatherForecastSample,
+} from '../types/session';
 import { placeholderParticipant } from '../types/session';
 import type { GlobalPTTMapping } from '../types/settings';
 import type {
@@ -34,6 +44,37 @@ export function makeSession(fields: Partial<Session> = {}): Session {
     player_car_index: null,
     created_at: '2026-01-01T00:00:00Z',
     tags: [],
+    ...fields,
+  };
+}
+
+/** A row of GET /api/sessions: a session with its result summary (empty unless given). */
+export function makeSessionListItem(
+  fields: Partial<Session> = {},
+  summary: Partial<SessionSummary> = {}
+): SessionListItem {
+  return {
+    ...makeSession(fields),
+    summary: { laps_completed: 0, leader: null, fastest_lap: null, player: null, ...summary },
+  };
+}
+
+export function makePlayerResult(fields: Partial<PlayerResult> = {}): PlayerResult {
+  return {
+    car_index: 0,
+    driver_name: '',
+    team_id: 0,
+    race_number: 0,
+    source: 'recorded',
+    position: 1,
+    grid_position: 0,
+    positions_gained: null,
+    classified_cars: 20,
+    best_lap_id: 0,
+    best_lap_time_ms: 0,
+    laps_completed: 0,
+    is_dnf: false,
+    is_dsq: false,
     ...fields,
   };
 }

@@ -67,12 +67,12 @@ export function matchSessionTypeTab(
 /**
  * Filters a list of sessions by query and optional session type tab.
  */
-export function filterSessionsBySearch(
-  sessions: Session[],
+export function filterSessionsBySearch<T extends Session>(
+  sessions: T[],
   query: string,
   typeTab: SessionTypeTab = 'ALL',
   t?: (key: string) => string
-): Session[] {
+): T[] {
   return sessions.filter(
     (s) => matchSessionSearch(s, query, t) && matchSessionTypeTab(s.session_type, typeTab)
   );

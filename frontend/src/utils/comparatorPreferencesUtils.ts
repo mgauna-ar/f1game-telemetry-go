@@ -2,6 +2,9 @@ import type { Participant, Lap } from '../types/session';
 import type { ComparatorPreferences, ComparatorRivalMode } from '../types/comparatorPreferences';
 import { storage } from './storage';
 import { sortLapsByQuality } from './lapUtils';
+import { findParticipantByPartialName, findPlayer } from './player';
+
+export { findParticipantByPartialName };
 
 export const DEFAULT_COMPARATOR_PREFERENCES: ComparatorPreferences = {
   defaultDriverName: '',
@@ -21,24 +24,13 @@ export function loadComparatorPreferences(): ComparatorPreferences {
   };
 }
 
+/** The driver name saved in the preferences; it finds you in sessions recorded before your car was stored. */
+export const savedDriverName = (): string => loadComparatorPreferences().defaultDriverName;
+
 export function saveComparatorPreferences(prefs: ComparatorPreferences): void {
   storage.set('f1_comparator_default_driver_name', prefs.defaultDriverName.trim());
   storage.set('f1_comparator_rival_mode', prefs.rivalMode);
   storage.set('f1_comparator_rival_driver_name', prefs.rivalDriverName.trim());
-}
-
-export function findParticipantByPartialName(
-  participants: Participant[],
-  query: string
-): Participant | undefined {
-  const q = query.trim().toLowerCase();
-  if (!q) return undefined;
-
-  return participants.find((p) => {
-    if (p.name.toLowerCase().includes(q)) return true;
-    if (p.race_number.toString() === q || `#${p.race_number}` === q) return true;
-    return false;
-  });
 }
 
 export interface LapResolutionResult {
@@ -46,25 +38,25 @@ export interface LapResolutionResult {
   driver?: Participant;
 }
 
+/**
+ * The reference slot's default lap: your best lap (your stored car, or the saved driver name for
+ * sessions recorded before it was stored), otherwise the session's fastest.
+ */
 export function resolveReferenceLap(
   participants: Participant[],
   laps: Lap[],
-  defaultDriverName: string
+  defaultDriverName: string,
+  playerCarIndex: number | null = null
 ): LapResolutionResult {
   if (laps.length === 0) {
     return { lapId: '' };
   }
 
-  const query = defaultDriverName.trim();
-  if (query) {
-    const matched = findParticipantByPartialName(participants, query);
-    if (matched) {
-      const driverLaps = sortLapsByQuality(
-        laps.filter((l) => (l.car_index ?? -1) === matched.car_index)
-      );
-      if (driverLaps.length > 0) {
-        return { lapId: driverLaps[0].id, driver: matched };
-      }
+  const matched = findPlayer(participants, playerCarIndex, defaultDriverName)?.participant;
+  if (matched) {
+    const driverLaps = sortLapsByQuality(laps.filter((l) => (l.car_index ?? -1) === matched.car_index));
+    if (driverLaps.length > 0) {
+      return { lapId: driverLaps[0].id, driver: matched };
     }
   }
 
@@ -83,8 +75,12 @@ export function resolveComparisonLap(
   rivalDriverName: string,
   referenceLapId?: number | '',
   isSameSessionAsReference?: boolean,
-  preferredReferenceDriverName?: string
+  preferredReferenceDriverName?: string,
+  referencePlayerCarIndex: number | null = null
 ): LapResolutionResult {
+  const preferredReference = () =>
+    findPlayer(participants, referencePlayerCarIndex, preferredReferenceDriverName ?? '')?.participant;
+  const hasPreferredReference = referencePlayerCarIndex !== null || !!preferredReferenceDriverName?.trim();
   if (laps.length === 0) {
     return { lapId: '' };
   }
@@ -100,8 +96,8 @@ export function resolveComparisonLap(
         return { lapId: p2Lap.id, driver: p2Driver };
       }
       if (!referenceLapId && isSameSessionAsReference) {
-        if (preferredReferenceDriverName?.trim()) {
-          const prefDriver = findParticipantByPartialName(participants, preferredReferenceDriverName);
+        if (hasPreferredReference) {
+          const prefDriver = preferredReference();
           if (prefDriver) {
             const prefLaps = sortLapsByQuality(
               laps.filter((l) => (l.car_index ?? -1) === prefDriver.car_index)
@@ -127,11 +123,7 @@ export function resolveComparisonLap(
 
   // 1. Teammate mode
   if (rivalMode === 'teammate') {
-    const effectiveRefDriver =
-      referenceDriver ||
-      (preferredReferenceDriverName
-        ? findParticipantByPartialName(participants, preferredReferenceDriverName)
-        : undefined);
+    const effectiveRefDriver = referenceDriver || (hasPreferredReference ? preferredReference() : undefined);
 
     if (effectiveRefDriver) {
       const teammate = participants.find(

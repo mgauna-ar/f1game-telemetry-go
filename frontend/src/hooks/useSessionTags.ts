@@ -1,11 +1,11 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import type { Session, Tag } from '../types/session';
+import type { Session, SessionListItem, Tag } from '../types/session';
 import { api } from '../utils/apiClient';
 import { useToastStore } from '../store/useToastStore';
 
 export interface UseSessionTagsOptions {
-  sessions: Session[];
-  setSessions: React.Dispatch<React.SetStateAction<Session[]>>;
+  sessions: SessionListItem[];
+  setSessions: React.Dispatch<React.SetStateAction<SessionListItem[]>>;
   selectedSession: Session | null;
   setSelectedSession: React.Dispatch<React.SetStateAction<Session | null>>;
 }

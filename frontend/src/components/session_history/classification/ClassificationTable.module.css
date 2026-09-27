@@ -89,6 +89,23 @@
   color: var(--status-danger);
 }
 
+/* Your row: tinted, with an accent edge on its first cell */
+tr.you {
+  background: color-mix(in srgb, var(--accent-cyan) 9%, transparent);
+}
+
+tr.you:hover {
+  background: color-mix(in srgb, var(--accent-cyan) 14%, transparent);
+}
+
+tr.you > :first-child {
+  box-shadow: inset 3px 0 0 var(--accent-cyan);
+}
+
+.youBadge {
+  flex-shrink: 0;
+}
+
 /* Driver */
 .driver {
   display: flex;

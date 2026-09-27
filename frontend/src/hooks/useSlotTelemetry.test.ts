@@ -71,6 +71,21 @@ describe('useSlotTelemetry Hook', () => {
     expect(result.current.driverName).toBe('#1 Max Verstappen');
   });
 
+  it("picks your best lap from the session's stored car over the saved driver name", async () => {
+    primeSessionLapData(7, {
+      participants: mockParticipants.map((p) => ({ ...p, session_id: 7 })),
+      laps: [
+        makeLap({ id: 70, session_id: 7, car_index: 0, lap_number: 1, lap_time_ms: 88_000 }),
+        makeLap({ id: 71, session_id: 7, car_index: 1, lap_number: 1, lap_time_ms: 89_000 }),
+      ],
+    });
+    const { result } = renderHook(() =>
+      useSlotTelemetry({ sessionId: 7, preferredDriverName: 'Verstappen', playerCarIndex: 1 })
+    );
+    await waitFor(() => expect(result.current.lapId).toBe(71));
+    expect(result.current.driverName).toBe('#11 Sergio Perez');
+  });
+
   it('auto-selects configured preferred driver lap', async () => {
     const perezLaps = [
       ...mockLaps,

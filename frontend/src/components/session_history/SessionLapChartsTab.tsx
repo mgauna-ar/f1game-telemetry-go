@@ -5,6 +5,7 @@ import { getTeamColor } from '../../constants/f1';
 import { cssVar } from '../../styles/theme';
 import { compactTooltipProps } from './stints/stintUtils';
 import { DriverFilterChips } from './DriverFilterChips';
+import { defaultChartSelection } from '../../utils/player';
 import type { DriverStanding, ProgressionResponse } from '../../types/session';
 import { useI18n } from '../../context/I18nContext';
 import { cx } from '../ui/cx';
@@ -21,6 +22,8 @@ interface SessionLapChartsTabProps {
   totalSessionLaps: number;
   formatLapTime: (ms: number) => string;
   isRaceSession?: boolean;
+  /** Your car: picked by default with the cars around it, and marked in the driver chips. */
+  playerCarIndex?: number | null;
 }
 
 export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
@@ -29,6 +32,7 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
   totalSessionLaps,
   formatLapTime,
   isRaceSession: _isRaceSession = true,
+  playerCarIndex = null,
 }) => {
   const { t } = useI18n();
   const [activeChart, setActiveChart] = useState<ChartKind>('pace');
@@ -36,14 +40,10 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
 
   const [filterPitLaps, setFilterPitLaps] = useState<boolean>(true);
 
-  // Selected driver car_indices for visibility (default to top 5)
-  const [selectedDrivers, setSelectedDrivers] = useState<Record<number, boolean>>(() => {
-    const initial: Record<number, boolean> = {};
-    driverStandings.slice(0, 5).forEach((d) => {
-      initial[d.participant.car_index] = true;
-    });
-    return initial;
-  });
+  // Drivers shown: you and the cars around you, or the top 5 when your car is unknown
+  const [selectedDrivers, setSelectedDrivers] = useState<Record<number, boolean>>(() =>
+    defaultChartSelection(driverStandings, playerCarIndex)
+  );
 
   const toggleDriver = (carIndex: number) => {
     setSelectedDrivers((prev) => ({
@@ -110,6 +110,7 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
           label={`${t('history.progression.filterDrivers')} (${activeDriverStandings.length}/${driverStandings.length} ${t('history.progression.visible')})`}
           drivers={driverStandings}
           selected={selectedDrivers}
+          playerCarIndex={playerCarIndex}
           onToggle={toggleDriver}
           onSelectAll={selectAll}
           onClear={clearAll}

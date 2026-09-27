@@ -13,6 +13,7 @@ import { ComparatorSidebar } from './lap_comparator/ComparatorSidebar';
 
 import { useComparatorSessions } from '../hooks/useComparatorSessions';
 import { useSlotTelemetry } from '../hooks/useSlotTelemetry';
+import { useSessionListStore } from '../store/useSessionListStore';
 import { useMergedTelemetry } from '../hooks/useMergedTelemetry';
 import { useComparatorSlots } from '../hooks/useComparatorSlots';
 import type { ComparatorPreferences } from '../types/comparatorPreferences';
@@ -65,22 +66,32 @@ export const LapComparator: React.FC = () => {
   // Comparator Preferences State
   const [preferences, setPreferences] = useState<ComparatorPreferences>(() => loadComparatorPreferences());
 
+  // The default laps depend on which car was yours in each session, which the session list says:
+  // the slots load once it has arrived (or failed), and it stays that way while it refreshes.
+  const sessionListSettled = useSessionListStore((s) => s.lastFetchedAt !== null || s.error !== null);
+  const [sessionListReady, setSessionListReady] = useState(sessionListSettled);
+  useEffect(() => {
+    if (sessionListSettled) setSessionListReady(true);
+  }, [sessionListSettled]);
+
   // Hook 2: Slot A telemetry & laps loader
   const slotA = useSlotTelemetry({
-    sessionId: sessionAId,
+    sessionId: sessionListReady ? sessionAId : '',
     preloadLapId: initial.lapA,
     defaultDriverName: 'Reference',
     preferredDriverName: preferences.defaultDriverName,
+    playerCarIndex: selectedSessionAObj?.player_car_index ?? null,
   });
 
   // Hook 2 (reused): Slot B telemetry & laps loader
   const slotB = useSlotTelemetry({
-    sessionId: sessionBId,
+    sessionId: sessionListReady ? sessionBId : '',
     preloadLapId: initial.lapB,
     isSlotB: true,
     isSameSessionAsSlotA: sessionAId === sessionBId,
     defaultDriverName: 'Comparison',
     preferredDriverName: preferences.defaultDriverName,
+    playerCarIndex: selectedSessionBObj?.player_car_index ?? null,
     referenceDriver: slotA.driver,
     referenceLapId: slotA.lapId,
     rivalMode: preferences.rivalMode,
@@ -89,9 +100,18 @@ export const LapComparator: React.FC = () => {
 
   const handlePreferencesSave = useCallback(
     (newPrefs: ComparatorPreferences) => {
+      if (newPrefs.defaultDriverName !== preferences.defaultDriverName) {
+        // The session list finds you in older sessions by this name
+        useSessionListStore.getState().fetchSessions({ force: true });
+      }
       setPreferences(newPrefs);
       if (slotA.participants.length > 0 && slotA.laps.length > 0) {
-        const refRes = resolveReferenceLap(slotA.participants, slotA.laps, newPrefs.defaultDriverName);
+        const refRes = resolveReferenceLap(
+          slotA.participants,
+          slotA.laps,
+          newPrefs.defaultDriverName,
+          selectedSessionAObj?.player_car_index ?? null
+        );
         if (refRes.lapId !== '') {
           slotA.setLapId(refRes.lapId);
         }
@@ -114,7 +134,7 @@ export const LapComparator: React.FC = () => {
         }
       }
     },
-    [slotA, slotB, isLinkedSessions, sessionAId, sessionBId]
+    [slotA, slotB, isLinkedSessions, sessionAId, sessionBId, preferences.defaultDriverName, selectedSessionAObj]
   );
 
   // Hook 3: Merged telemetry & delta computations

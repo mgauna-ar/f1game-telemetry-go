@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import type { Session } from '../types/session';
+import type { SessionListItem } from '../types/session';
 import type { CompareParams } from '../router/routes';
 import { useI18n } from '../context/I18nContext';
 import { useSessionListStore } from '../store/useSessionListStore';
@@ -13,8 +13,8 @@ export interface UseComparatorSessionsOptions {
 export type { SessionTypeTab };
 
 export interface UseComparatorSessionsReturn {
-  sessions: Session[];
-  setSessions: React.Dispatch<React.SetStateAction<Session[]>>;
+  sessions: SessionListItem[];
+  setSessions: React.Dispatch<React.SetStateAction<SessionListItem[]>>;
   error: string | null;
   sessionAId: number | '';
   setSessionAId: React.Dispatch<React.SetStateAction<number | ''>>;
@@ -38,16 +38,16 @@ export interface UseComparatorSessionsReturn {
   handleSelectSessionA: (sessionId: number) => void;
   handleSelectSessionB: (sessionId: number) => void;
   toggleSessionLink: () => void;
-  selectedSessionAObj: Session | undefined;
-  selectedSessionBObj: Session | undefined;
-  filteredDropdownSessionsA: Session[];
-  filteredDropdownSessionsB: Session[];
+  selectedSessionAObj: SessionListItem | undefined;
+  selectedSessionBObj: SessionListItem | undefined;
+  filteredDropdownSessionsA: SessionListItem[];
+  filteredDropdownSessionsB: SessionListItem[];
 }
 
 export function useComparatorSessions({ initial = {} }: UseComparatorSessionsOptions = {}): UseComparatorSessionsReturn {
   const { t } = useI18n();
   const sessions = useSessionListStore((s) => s.sessions);
-  const setSessions = useSessionListStore((s) => s.setSessions) as unknown as React.Dispatch<React.SetStateAction<Session[]>>;
+  const setSessions = useSessionListStore((s) => s.setSessions) as unknown as React.Dispatch<React.SetStateAction<SessionListItem[]>>;
   const error = useSessionListStore((s) => s.error);
   const storeFetchSessions = useSessionListStore((s) => s.fetchSessions);
 

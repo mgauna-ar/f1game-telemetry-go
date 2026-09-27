@@ -1,0 +1,67 @@
+.result {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.main {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  font-family: var(--font-mono);
+}
+
+.position {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-black);
+  color: var(--text-primary);
+}
+
+.position[data-podium='1'] {
+  color: var(--f1-gold);
+}
+
+.position[data-podium='2'] {
+  color: var(--f1-silver);
+}
+
+.position[data-podium='3'] {
+  color: var(--f1-bronze);
+}
+
+.of {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.delta {
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-black);
+}
+
+.delta[data-trend='gained'] {
+  color: var(--status-success);
+}
+
+.delta[data-trend='lost'] {
+  color: var(--status-danger);
+}
+
+.byName {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.none {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+}
+
+.detail {
+  overflow: hidden;
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

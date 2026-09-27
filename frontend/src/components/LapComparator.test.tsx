@@ -2,6 +2,7 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import { vi, describe, it, beforeEach, expect } from 'vitest';
 import { LapComparator } from './LapComparator';
 import { useSessionListStore } from '../store/useSessionListStore';
+import { makeLap, makeParticipant, makeSessionListItem } from '../test/wireFactories';
 
 // Mock Recharts to prevent canvas/DOM size errors in JSDOM
 vi.mock('recharts', () => ({
@@ -715,5 +716,41 @@ describe('LapComparator Component', () => {
       expect(screen.getByText(/Reset Zoom/i)).toBeInTheDocument();
     });
     expect(window.location.search).toMatch(/^\?sa=1&a=501&b=502&zoom=\d+-\d+$/);
+  });
+
+  it("defaults slot A to your best lap from the session's stored car, and slot B to the fastest", async () => {
+    // The saved name points at the fastest driver, but the session stored car 1 as yours
+    localStorage.setItem('f1_comparator_default_driver_name', 'Verstappen');
+    const sessions = [makeSessionListItem({ id: 1, track_name: 'Monaco', session_type: 'Race', player_car_index: 1 })];
+    const participants = [
+      makeParticipant({ session_id: 1, car_index: 0, name: 'Max Verstappen', race_number: 1 }),
+      makeParticipant({ session_id: 1, car_index: 1, name: 'Charles Leclerc', race_number: 16 }),
+    ];
+    const laps = [
+      makeLap({ id: 11, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 85_432 }),
+      makeLap({ id: 12, session_id: 1, car_index: 1, lap_number: 1, lap_time_ms: 86_100 }),
+    ];
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url.split('?')[0] === '/api/sessions') {
+        // The list arrives after the laps would have
+        return new Promise((resolve) =>
+          setTimeout(() => resolve({ ok: true, json: () => Promise.resolve(sessions) }), 20)
+        );
+      }
+      if (url === '/api/sessions/1/laps') return Promise.resolve({ ok: true, json: () => Promise.resolve(laps) });
+      if (url === '/api/sessions/1/participants') {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(participants) });
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve([]) });
+    });
+
+    window.history.replaceState(null, '', '/compare?sa=1');
+    render(<LapComparator />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('lap-a-trigger')).toHaveTextContent('1:26.100');
+      expect(screen.getByTestId('lap-b-trigger')).toHaveTextContent('1:25.432');
+    });
+    localStorage.clear();
   });
 });

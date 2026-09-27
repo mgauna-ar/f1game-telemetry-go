@@ -1,6 +1,6 @@
 import React from 'react';
 import { ArrowDownWideNarrow, ArrowUpNarrowWide, ChevronRight, Clock, Download, Trash2 } from 'lucide-react';
-import type { Session } from '../../types/session';
+import type { SessionListItem as Session } from '../../types/session';
 import { useI18n } from '../../context/I18nContext';
 import { getTrackInfo } from '../../constants/f1';
 import { SessionTypeBadge } from '../common/SessionTypeBadge';
@@ -11,6 +11,8 @@ import { WeatherBadgeWithForecast } from './WeatherBadgeWithForecast';
 import { Button, IconButton } from '../ui/Button';
 import { Select } from '../ui/Field';
 import { sessionKind } from './sessionKind';
+import { commonPacketFormat } from './packetFormat';
+import { YourResult } from './YourResult';
 import styles from './SessionCardList.module.css';
 
 const SORT_FIELDS = [
@@ -55,6 +57,7 @@ export const SessionCardList: React.FC<SessionCardListProps> = ({
   const { t } = useI18n();
   const isAllSelected = sessions.length > 0 && sessions.every((s) => selectedSessionIds?.has(s.id));
   const isSomeSelected = !isAllSelected && sessions.some((s) => selectedSessionIds?.has(s.id));
+  const usualFormat = React.useMemo(() => commonPacketFormat(sessions), [sessions]);
   const selectAllRef = React.useRef<HTMLInputElement>(null);
   React.useEffect(() => {
     if (selectAllRef.current) selectAllRef.current.indeterminate = isSomeSelected;
@@ -134,9 +137,14 @@ export const SessionCardList: React.FC<SessionCardListProps> = ({
                   <Clock size={13} aria-hidden="true" />
                   {formatDate(session.created_at)}
                 </span>
-                <F1FormatBadge format={session.packet_format} size="xs" />
+                {session.packet_format !== usualFormat && <F1FormatBadge format={session.packet_format} size="xs" />}
                 <SessionTypeBadge sessionType={session.session_type || 'RACE'} size="xs" showIcon={false} />
                 <WeatherBadgeWithForecast session={session} compact />
+              </div>
+
+              <div className={styles.result}>
+                <span className={styles.resultLabel}>{t('history.player.yourResult')}</span>
+                <YourResult summary={session.summary} sessionType={session.session_type} />
               </div>
 
               <div className={styles.tags}>
