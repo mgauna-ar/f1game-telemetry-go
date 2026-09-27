@@ -1,0 +1,62 @@
+/* A checkbox drawn as a sliding switch. It stays a native input, so labels, focus and forms work. */
+.switch {
+  --switch-color: var(--accent-cyan);
+  --switch-width: 38px;
+  --switch-height: 20px;
+  --switch-knob: 14px;
+  position: relative;
+  flex-shrink: 0;
+  width: var(--switch-width);
+  height: var(--switch-height);
+  margin: 0;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--bg-active);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  transition: all var(--duration-normal) var(--ease-out);
+}
+
+.md {
+  --switch-width: 46px;
+  --switch-height: 24px;
+  --switch-knob: 16px;
+}
+
+.success {
+  --switch-color: var(--status-success);
+}
+
+.switch::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 2px;
+  width: var(--switch-knob);
+  height: var(--switch-knob);
+  background: var(--text-primary);
+  border-radius: 50%;
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-50%);
+  transition: all var(--duration-normal) var(--ease-out);
+}
+
+.switch:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--switch-color) 40%, transparent);
+}
+
+.switch:checked {
+  background: var(--switch-color);
+  border-color: var(--switch-color);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--switch-color) 45%, transparent);
+}
+
+.switch:checked::before {
+  transform: translate(calc(var(--switch-width) - var(--switch-knob) - 6px), -50%);
+}
+
+.switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}

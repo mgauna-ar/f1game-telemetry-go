@@ -98,6 +98,12 @@ export const ai_engineer = {
   copied: 'Copied',
   jumpToLatest: 'Jump to latest',
   inputHint: 'Enter to send, Shift+Enter for a new line',
+  openChat: 'Open AI Race Engineer',
+  closeSettings: 'Close settings',
+  messageLabel: 'Message to your race engineer',
+  replying: 'The engineer is replying',
+  showKey: 'Show API key',
+  hideKey: 'Hide API key',
   setup: {
     subtitle: 'Saved in the app and shared by every device',
     ready: 'Ready',
@@ -182,6 +188,7 @@ export const ai_engineer = {
   },
   radio: {
     title: 'Voice Radio',
+    settingsSubtitle: 'Race Engineer Persona & Pit Wall Strategist',
     idle: 'RADIO STANDBY',
     transmitting: 'TRANSMITTING [PTT ACTIVE]',
     processing: 'PIT WALL PROCESSING...',
@@ -243,6 +250,10 @@ export const ai_engineer = {
     globalMapped: '{device}: {key}',
     noKey: 'None (Disabled)',
     unassigned: 'Unassigned',
+    deviceFallback: 'Device',
+    keySpace: 'Space',
+    keyCapsLock: 'Caps Lock',
+    keyLetter: '{key} key',
   },
   tabs: {
     persona: 'Persona & Driver',

@@ -1,4 +1,6 @@
 import React from 'react';
+import { cx } from './ui/cx';
+import styles from './F1TelemetryLogo.module.css';
 
 interface F1TelemetryLogoProps {
   size?: number;
@@ -9,7 +11,7 @@ interface F1TelemetryLogoProps {
 
 export const F1TelemetryLogo: React.FC<F1TelemetryLogoProps> = ({
   size = 28,
-  className = '',
+  className,
   animated = false,
   variant = 'icon',
 }) => {
@@ -25,7 +27,8 @@ export const F1TelemetryLogo: React.FC<F1TelemetryLogoProps> = ({
       fill="none"
       role="img"
       aria-label="F1 Telemetry"
-      className={`f1-telemetry-logo ${animated ? 'f1-tacho-animated' : ''} ${className}`}
+      className={cx(styles.logo, className)}
+      data-animated={animated || undefined}
     >
       <defs>
         {/* Background Gradient for Badge Mode */}
@@ -91,7 +94,6 @@ export const F1TelemetryLogo: React.FC<F1TelemetryLogoProps> = ({
         stroke={isMonochrome ? 'currentColor' : 'url(#tachoCyanGrad)'}
         strokeWidth="5"
         strokeLinecap="round"
-        className="f1-tacho-seg1"
         filter={!isMonochrome ? 'url(#tachoCyanGlow)' : undefined}
       />
 
@@ -101,7 +103,6 @@ export const F1TelemetryLogo: React.FC<F1TelemetryLogoProps> = ({
         stroke={isMonochrome ? 'currentColor' : '#B138FF'}
         strokeWidth="5"
         strokeLinecap="round"
-        className="f1-tacho-seg2"
       />
 
       {/* 3. Peak Redline Segment (Crimson) */}
@@ -110,21 +111,13 @@ export const F1TelemetryLogo: React.FC<F1TelemetryLogoProps> = ({
         stroke={isMonochrome ? 'currentColor' : 'url(#tachoRedGrad)'}
         strokeWidth="5.5"
         strokeLinecap="round"
-        className="f1-tacho-seg3"
         filter={!isMonochrome ? 'url(#tachoCrimsonGlow)' : undefined}
       />
 
       {/* Shift Light Peak Spark Points */}
       {!isMonochrome && (
         <>
-          <circle
-            cx="48"
-            cy="22"
-            r="1.8"
-            fill="#FFFFFF"
-            className="f1-tacho-spark"
-            filter="url(#tachoCrimsonGlow)"
-          />
+          <circle cx="48" cy="22" r="1.8" fill="#FFFFFF" className={styles.spark} filter="url(#tachoCrimsonGlow)" />
           <circle cx="49" cy="36" r="1.4" fill="#FF1842" />
         </>
       )}
@@ -143,18 +136,13 @@ export const F1TelemetryLogo: React.FC<F1TelemetryLogoProps> = ({
       <polygon
         points="30,35 34,35 44,18 42,16"
         fill={isMonochrome ? 'currentColor' : 'url(#tachoCyanGrad)'}
-        className="f1-tacho-needle"
+        className={styles.needle}
         filter={!isMonochrome ? 'url(#tachoCyanGlow)' : undefined}
       />
       {!isMonochrome && <circle cx="43" cy="17" r="1.2" fill="#FFFFFF" />}
 
       {/* Center Hub Pin */}
-      <circle
-        cx="32"
-        cy="35"
-        r="2"
-        fill={isMonochrome ? 'currentColor' : '#00F0FF'}
-      />
+      <circle cx="32" cy="35" r="2" fill={isMonochrome ? 'currentColor' : '#00F0FF'} />
     </svg>
   );
 };

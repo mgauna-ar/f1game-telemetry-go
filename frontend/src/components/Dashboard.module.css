@@ -1,0 +1,54 @@
+.dashboard {
+  composes: pageGrid from '../styles/pageGrid.module.css';
+  --page-max-width: 1440px;
+  width: 100%;
+}
+
+/* Rows that span the whole grid: the leaderboard and the race control hub */
+.fullRow {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+/* Race control hub: feed, weather, pit strategy and sectors in a 2 × 2 grid */
+.hub {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5);
+}
+
+.hubCard {
+  min-height: 380px;
+}
+
+/* Standby and voice cockpit views */
+.cockpit {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-8);
+  animation: cockpitIn 0.25s var(--ease-out);
+}
+
+@keyframes cockpitIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+}
+
+@media (--tablet) {
+  .cockpit {
+    padding: var(--space-3);
+  }
+}
+
+@media (--laptop) {
+  .hub {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

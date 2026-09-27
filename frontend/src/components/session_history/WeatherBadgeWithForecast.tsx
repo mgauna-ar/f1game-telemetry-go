@@ -1,18 +1,12 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import {
-  Sun,
-  CloudSun,
-  Cloud,
-  CloudDrizzle,
-  CloudRain,
-  CloudLightning,
-  Droplets,
-  Thermometer,
-} from 'lucide-react';
+import { Sun, CloudSun, Cloud, CloudDrizzle, CloudRain, CloudLightning, Droplets, Thermometer } from 'lucide-react';
 import type { Session, WeatherForecastSample } from '../../types/session';
 import { WEATHER_CODES, WEATHER_TYPES, getSessionTypeCode } from '../../constants/f1';
 import { useI18n } from '../../context/I18nContext';
+import { cssVar } from '../../styles/theme';
+import { cx } from '../ui/cx';
+import styles from './WeatherBadgeWithForecast.module.css';
 
 interface WeatherBadgeWithForecastProps {
   session: Session;
@@ -65,19 +59,19 @@ const getWeatherIcon = (weatherNameOrCode?: string | number, size = 14) => {
 
   switch (code) {
     case WEATHER_CODES.CLEAR:
-      return <Sun size={size} color="#f59e0b" />;
+      return <Sun size={size} color={cssVar('--weather-sun')} aria-hidden="true" />;
     case WEATHER_CODES.LIGHT_CLOUD:
-      return <CloudSun size={size} color="#38bdf8" />;
+      return <CloudSun size={size} color={cssVar('--weather-cloud-light')} aria-hidden="true" />;
     case WEATHER_CODES.OVERCAST:
-      return <Cloud size={size} color="#94a3b8" />;
+      return <Cloud size={size} color={cssVar('--weather-cloud')} aria-hidden="true" />;
     case WEATHER_CODES.LIGHT_RAIN:
-      return <CloudDrizzle size={size} color="#06b6d4" />;
+      return <CloudDrizzle size={size} color={cssVar('--weather-rain')} aria-hidden="true" />;
     case WEATHER_CODES.HEAVY_RAIN:
-      return <CloudRain size={size} color="#3b82f6" />;
+      return <CloudRain size={size} color={cssVar('--weather-rain-heavy')} aria-hidden="true" />;
     case WEATHER_CODES.STORM:
-      return <CloudLightning size={size} color="#a855f7" />;
+      return <CloudLightning size={size} color={cssVar('--weather-storm')} aria-hidden="true" />;
     default:
-      return <CloudSun size={size} color="var(--text-secondary)" />;
+      return <CloudSun size={size} color={cssVar('--text-secondary')} aria-hidden="true" />;
   }
 };
 
@@ -106,17 +100,18 @@ const getWeatherLabel = (
   return WEATHER_TYPES[code] || 'Clear';
 };
 
-const getRainColor = (pct: number): string => {
-  if (pct >= 70) return '#3b82f6';
-  if (pct >= 30) return '#06b6d4';
-  if (pct >= 10) return '#eab308';
-  return 'var(--text-muted)';
+/** How likely rain is, which colours the percentage and its bar. */
+const getRainLevel = (pct: number): 'heavy' | 'likely' | 'possible' | 'none' => {
+  if (pct >= 70) return 'heavy';
+  if (pct >= 30) return 'likely';
+  if (pct >= 10) return 'possible';
+  return 'none';
 };
 
 export const WeatherBadgeWithForecast: React.FC<WeatherBadgeWithForecastProps> = ({
   session,
   compact = false,
-  className = '',
+  className,
 }) => {
   const { t } = useI18n();
   const triggerRef = useRef<HTMLDivElement>(null);
@@ -130,9 +125,7 @@ export const WeatherBadgeWithForecast: React.FC<WeatherBadgeWithForecastProps> =
 
   const forecastSamples = useMemo<WeatherForecastSample[]>(() => {
     if (!session.weather_forecast) return [];
-    const raw: WeatherForecastSample[] = Array.isArray(session.weather_forecast)
-      ? session.weather_forecast
-      : [];
+    const raw: WeatherForecastSample[] = Array.isArray(session.weather_forecast) ? session.weather_forecast : [];
     if (raw.length === 0) return [];
 
     // Filter samples for this session's specific type if available
@@ -161,8 +154,8 @@ export const WeatherBadgeWithForecast: React.FC<WeatherBadgeWithForecastProps> =
   const initialWeatherLabel = session.weather
     ? getWeatherLabel(session.weather, t)
     : forecastSamples.length > 0
-    ? getWeatherLabel(forecastSamples[0].Weather, t)
-    : t('common.clearWeather');
+      ? getWeatherLabel(forecastSamples[0].Weather, t)
+      : t('common.clearWeather');
 
   const hasMultipleConditions = useMemo(() => {
     if (forecastSamples.length < 2) return false;
@@ -239,150 +232,56 @@ export const WeatherBadgeWithForecast: React.FC<WeatherBadgeWithForecastProps> =
   return (
     <div
       ref={triggerRef}
-      className={`weather-badge-container ${className}`}
+      className={cx(styles.container, className)}
+      data-weather-badge
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}
     >
       <div
-        className="weather-badge-trigger"
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '6px',
-          padding: compact ? '2px 6px' : '4px 8px',
-          borderRadius: '6px',
-          background: isHovered && forecastSamples.length > 0 ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.04)',
-          border: '1px solid',
-          borderColor: isHovered && forecastSamples.length > 0 ? 'rgba(255, 255, 255, 0.22)' : 'rgba(255, 255, 255, 0.08)',
-          cursor: forecastSamples.length > 0 ? 'pointer' : 'default',
-          transition: 'all 0.2s ease',
-        }}
+        className={cx(styles.trigger, compact && styles.compact, forecastSamples.length > 0 && styles.hasForecast)}
+        data-open={(isHovered && forecastSamples.length > 0) || undefined}
       >
         {getWeatherIcon(session.weather || forecastSamples[0]?.Weather, compact ? 13 : 14)}
-        <span style={{ fontSize: compact ? '0.78rem' : '0.82rem', color: 'var(--text-primary)', fontWeight: 500 }}>
-          {initialWeatherLabel}
-        </span>
-        {hasMultipleConditions && (
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '6px',
-              height: '6px',
-              borderRadius: '50%',
-              backgroundColor: 'var(--accent-cyan, #06b6d4)',
-              boxShadow: '0 0 6px rgba(6, 182, 212, 0.8)',
-            }}
-            title={t('history.forecast.title')}
-          />
-        )}
+        <span className={styles.label}>{initialWeatherLabel}</span>
+        {hasMultipleConditions && <span className={styles.changeDot} title={t('history.forecast.title')} />}
       </div>
 
-      {/* Floating Portal Weather Forecast Popover */}
-      {isHovered && popoverPos && forecastSamples.length > 0 && typeof document !== 'undefined' &&
+      {/* Floating forecast popover */}
+      {isHovered &&
+        popoverPos &&
+        forecastSamples.length > 0 &&
+        typeof document !== 'undefined' &&
         createPortal(
           <div
-            className="glass-panel weather-forecast-popover"
+            className={styles.popover}
             style={{
-              position: 'fixed',
               top: popoverPos.top !== undefined ? `${popoverPos.top}px` : undefined,
               bottom: popoverPos.bottom !== undefined ? `${popoverPos.bottom}px` : undefined,
               left: `${popoverPos.left}px`,
-              zIndex: 99999,
-              width: '340px',
-              maxWidth: 'calc(100vw - 24px)',
-              padding: '12px 14px',
-              background: 'linear-gradient(145deg, rgba(15, 23, 42, 0.98) 0%, rgba(20, 30, 55, 0.98) 100%)',
-              backdropFilter: 'blur(16px)',
-              WebkitBackdropFilter: 'blur(16px)',
-              border: '1px solid rgba(0, 242, 254, 0.25)',
-              borderRadius: '10px',
-              boxShadow: '0 16px 36px rgba(0, 0, 0, 0.65), 0 0 1px rgba(0, 242, 254, 0.4)',
-              animation: 'fadeIn 0.15s ease',
-              pointerEvents: 'none',
             }}
           >
-            {/* Header */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: '10px',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-                paddingBottom: '6px',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <CloudRain size={14} color="var(--accent-cyan, #06b6d4)" />
-                <span
-                  style={{
-                    fontSize: '0.78rem',
-                    fontWeight: 700,
-                    letterSpacing: '0.5px',
-                    textTransform: 'uppercase',
-                    color: 'var(--text-primary)',
-                  }}
-                >
-                  {t('history.forecast.title')}
-                </span>
+            <div className={styles.popoverHead}>
+              <div className={styles.popoverTitle}>
+                <CloudRain size={14} color={cssVar('--weather-rain')} aria-hidden="true" />
+                <span>{t('history.forecast.title')}</span>
               </div>
-              <span
-                className="mono"
-                style={{
-                  fontSize: '0.7rem',
-                  color: 'var(--accent-cyan, #06b6d4)',
-                  background: 'rgba(6, 182, 212, 0.12)',
-                  padding: '1px 6px',
-                  borderRadius: '4px',
-                  border: '1px solid rgba(6, 182, 212, 0.2)',
-                }}
-              >
+              <span className={styles.sampleCount}>
                 {forecastSamples.length} {t('history.forecast.timeline')}
               </span>
             </div>
 
-            {/* Forecast Samples Timeline */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <ol className={styles.samples}>
               {forecastSamples.map((sample, idx) => {
                 const weatherVal = sample.Weather ?? 0;
                 const timeOffset = sample.TimeOffset ?? idx * 5;
                 const rainPercent = sample.RainPercentage ?? 0;
                 const trackTemp = sample.TrackTemperature;
                 const airTemp = sample.AirTemperature;
-                const conditionName = getWeatherLabel(weatherVal, t);
-                const rainColor = getRainColor(rainPercent);
 
                 return (
-                  <div
-                    key={idx}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '8px',
-                      padding: '5px 8px',
-                      background: idx === 0 ? 'rgba(0, 242, 254, 0.08)' : 'rgba(255, 255, 255, 0.03)',
-                      borderRadius: '6px',
-                      border: '1px solid',
-                      borderColor: idx === 0 ? 'rgba(0, 242, 254, 0.2)' : 'rgba(255, 255, 255, 0.04)',
-                    }}
-                  >
-                    {/* Time pill & Weather Icon */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '85px' }}>
-                      <span
-                        className="mono"
-                        style={{
-                          fontSize: '0.72rem',
-                          fontWeight: 600,
-                          color: idx === 0 ? 'var(--accent-cyan, #06b6d4)' : 'var(--text-secondary)',
-                          background: idx === 0 ? 'rgba(6, 182, 212, 0.15)' : 'rgba(255, 255, 255, 0.06)',
-                          padding: '1px 5px',
-                          borderRadius: '4px',
-                        }}
-                      >
+                  <li key={idx} className={cx(styles.sample, idx === 0 && styles.current)}>
+                    <div className={styles.when}>
+                      <span className={styles.offset}>
                         {timeOffset === 0
                           ? t('history.forecast.current')
                           : t('history.forecast.minutesOffset', { mins: timeOffset })}
@@ -390,89 +289,34 @@ export const WeatherBadgeWithForecast: React.FC<WeatherBadgeWithForecastProps> =
                       {getWeatherIcon(weatherVal, 13)}
                     </div>
 
-                    {/* Weather Label */}
-                    <span
-                      style={{
-                        fontSize: '0.75rem',
-                        color: 'var(--text-primary)',
-                        flex: 1,
-                        textOverflow: 'ellipsis',
-                        overflow: 'hidden',
-                        whiteSpace: 'nowrap',
-                        fontWeight: idx === 0 ? 600 : 400,
-                      }}
-                    >
-                      {conditionName}
-                    </span>
+                    <span className={styles.condition}>{getWeatherLabel(weatherVal, t)}</span>
 
-                    {/* Rain Chance Bar & Indicator */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '5px',
-                        minWidth: '65px',
-                        justifyContent: 'flex-end',
-                      }}
-                    >
-                      <Droplets size={11} color={rainColor} />
-                      <span
-                        className="mono"
-                        style={{
-                          fontSize: '0.72rem',
-                          fontWeight: 600,
-                          color: rainColor,
-                          minWidth: '28px',
-                          textAlign: 'right',
-                        }}
-                      >
-                        {rainPercent}%
-                      </span>
-                      <div
-                        style={{
-                          width: '24px',
-                          height: '4px',
-                          backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                          borderRadius: '2px',
-                          overflow: 'hidden',
-                        }}
-                      >
+                    <div className={styles.rain} data-rain={getRainLevel(rainPercent)}>
+                      <Droplets size={11} aria-hidden="true" />
+                      <span className={styles.rainPercent}>{rainPercent}%</span>
+                      <div className={styles.rainTrack} aria-hidden="true">
                         <div
-                          style={{
-                            width: `${Math.min(100, Math.max(0, rainPercent))}%`,
-                            height: '100%',
-                            backgroundColor: rainColor,
-                            borderRadius: '2px',
-                          }}
+                          className={styles.rainFill}
+                          style={{ width: `${Math.min(100, Math.max(0, rainPercent))}%` }}
                         />
                       </div>
                     </div>
 
-                    {/* Temperature Chips */}
                     {(trackTemp !== undefined || airTemp !== undefined) && (
                       <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '3px',
-                          fontSize: '0.7rem',
-                          color: 'var(--text-muted)',
-                          minWidth: '60px',
-                          justifyContent: 'flex-end',
-                        }}
-                        className="mono"
+                        className={styles.temps}
                         title={`${t('common.airTemp')}: ${airTemp ?? '-'}°C | ${t('common.trackTemp')}: ${trackTemp ?? '-'}°C`}
                       >
-                        <Thermometer size={10} color="var(--accent-primary, #ff3366)" />
+                        <Thermometer size={10} color={cssVar('--accent-primary')} aria-hidden="true" />
                         <span>
                           {airTemp ?? '-'}/{trackTemp ?? '-'}°C
                         </span>
                       </div>
                     )}
-                  </div>
+                  </li>
                 );
               })}
-            </div>
+            </ol>
           </div>,
           document.body
         )}

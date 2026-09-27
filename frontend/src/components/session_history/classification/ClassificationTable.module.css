@@ -1,0 +1,175 @@
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* Long tables scroll inside their panel so the column headers stay visible */
+.scroll {
+  max-height: min(75vh, 960px);
+  overflow: auto;
+}
+
+/* Column widths */
+.driverCol {
+  min-width: 140px;
+}
+
+.timeCol {
+  min-width: 110px;
+}
+
+.gapCol {
+  min-width: 80px;
+}
+
+.stintsCol {
+  min-width: 120px;
+}
+
+.lapCol {
+  min-width: 95px;
+}
+
+.sectorCol {
+  min-width: 65px;
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+}
+
+.speedCol {
+  min-width: 75px;
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+}
+
+/* Position and places gained from the grid */
+.pos {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.posNumber {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-secondary);
+}
+
+.posNumber.winner {
+  color: var(--f1-gold);
+}
+
+.posNumber.podium {
+  color: var(--accent-primary);
+}
+
+.gridDelta {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-black);
+  color: var(--text-muted);
+}
+
+.gridDelta.gained {
+  color: var(--status-success);
+}
+
+.gridDelta.lost {
+  color: var(--status-danger);
+}
+
+/* Driver */
+.driver {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  text-align: left;
+}
+
+.teamBar {
+  width: 3px;
+  height: 20px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  background: var(--team-color);
+}
+
+.driverText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.driverName {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+}
+
+.raceNumber {
+  margin-left: 5px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-regular);
+  color: var(--text-muted);
+}
+
+/* Time and gap */
+.timeGap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.timeGap.leader {
+  color: var(--accent-primary);
+}
+
+.timeGap.out {
+  color: var(--status-danger);
+}
+
+.clock {
+  color: var(--text-muted);
+}
+
+.muted {
+  color: var(--text-secondary);
+}
+
+.noPoints {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.bestLap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+  color: var(--accent-tertiary);
+}
+
+.bestLap.fastestOverall {
+  color: var(--accent-purple);
+}
+
+.sectorTime {
+  padding: var(--space-0-5) var(--space-1);
+  border-radius: 3px;
+}

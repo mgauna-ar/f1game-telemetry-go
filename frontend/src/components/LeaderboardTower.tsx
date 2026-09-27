@@ -4,8 +4,7 @@ import { parseDriverName } from '../hooks/useTelemetry';
 import { filterActiveLiveParticipants } from '../utils/driverFilter';
 import type { ParticipantData, LapData, CarStatusData, SessionData, CarTelemetry2Data } from '../types/telemetry';
 import {
-  TEAM_COLORS,
-  TYRE_COMPOUNDS,
+  getTeamColor,
   SESSION_TYPES,
   RESULT_STATUS,
   PIT_STATUS,
@@ -18,8 +17,11 @@ import {
 import { useI18n } from '../context/I18nContext';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import { useTelemetryDataStore } from '../store/useTelemetryDataStore';
-
-export { TEAM_COLORS, TYRE_COMPOUNDS };
+import { styleVars } from '../styles/theme';
+import { TyreCompoundBadge } from './common/TyreCompoundBadge';
+import { Badge, type BadgeTone } from './ui/Badge';
+import { Panel, PanelHeader } from './ui/Panel';
+import styles from './LeaderboardTower.module.css';
 
 const DRIVER_STATUS_LABELS: Record<number, string> = {
   [RESULT_STATUS.RETIRED]: 'live.statusRetired',
@@ -39,8 +41,8 @@ const getDriverDeltaLabel = (
   return formatDeltaFn(driver.lap?.DeltaToRaceLeaderMSPart, driver.lap?.DeltaToRaceLeaderMinutesPart);
 };
 
-
 interface LeaderboardTowerProps {
+  className?: string;
   session?: SessionData | null;
   participants?: ParticipantData[];
   laps?: LapData[];
@@ -85,9 +87,10 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = React.memo((pro
   const onSelectCar = props.onSelectCar !== undefined ? props.onSelectCar : setSelectedCarIndex;
 
   const { t } = useI18n();
-  const isQualy = session?.SessionType !== undefined && 
-    ((session.SessionType >= SESSION_TYPES.Q1 && session.SessionType <= SESSION_TYPES.OSQ) || 
-     (session.SessionType >= SESSION_TYPES.SPRINT_Q1 && session.SessionType <= SESSION_TYPES.OS_SPRINT_Q));
+  const isQualy =
+    session?.SessionType !== undefined &&
+    ((session.SessionType >= SESSION_TYPES.Q1 && session.SessionType <= SESSION_TYPES.OSQ) ||
+      (session.SessionType >= SESSION_TYPES.SPRINT_Q1 && session.SessionType <= SESSION_TYPES.OS_SPRINT_Q));
 
   // Position flash animations on position changes
   const prevPosMapRef = React.useRef<Record<number, number>>({});
@@ -140,7 +143,7 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = React.memo((pro
       const carStatus = carStatuses[idx];
       const telemetry2 = telemetry2List?.[idx];
       const rawName = p.Name;
-      const defaultName = p.RaceNumber ? `Driver #${p.RaceNumber}` : `Car #${idx + 1}`;
+      const defaultName = p.RaceNumber ? `Driver #${p.RaceNumber}` : t('live.events.car', { number: idx + 1 });
       const name = parseDriverName(rawName, defaultName, p.DriverId);
 
       return {
@@ -158,15 +161,30 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = React.memo((pro
       };
     });
 
-    const result: ProcessedDriver[] = drivers.length > 0 ? drivers : [
-      { carIndex: 0, position: laps[0]?.CarPosition || 1, gridPosition: laps[0]?.GridPosition || 1, name: 'Player Car', raceNumber: 1, teamId: 0, aiControlled: false, lap: laps[0], carStatus: carStatuses[0], telemetry2: telemetry2List?.[0], isPlayer: true }
-    ];
+    const result: ProcessedDriver[] =
+      drivers.length > 0
+        ? drivers
+        : [
+            {
+              carIndex: 0,
+              position: laps[0]?.CarPosition || 1,
+              gridPosition: laps[0]?.GridPosition || 1,
+              name: 'Player Car',
+              raceNumber: 1,
+              teamId: 0,
+              aiControlled: false,
+              lap: laps[0],
+              carStatus: carStatuses[0],
+              telemetry2: telemetry2List?.[0],
+              isPlayer: true,
+            },
+          ];
 
     // Sort drivers
     if (isQualy) {
       result.sort((a, b) => {
-        const timeA = effectiveBestTimes[a.carIndex] || (a.lap?.LastLapTimeInMS || 0);
-        const timeB = effectiveBestTimes[b.carIndex] || (b.lap?.LastLapTimeInMS || 0);
+        const timeA = effectiveBestTimes[a.carIndex] || a.lap?.LastLapTimeInMS || 0;
+        const timeB = effectiveBestTimes[b.carIndex] || b.lap?.LastLapTimeInMS || 0;
         const resA = a.lap?.ResultStatus ?? RESULT_STATUS.ACTIVE;
         const resB = b.lap?.ResultStatus ?? RESULT_STATUS.ACTIVE;
 
@@ -186,8 +204,10 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = React.memo((pro
         if (timeA === 0 && timeB > 0) return 1;
 
         // Both without lap time: check retired/DNF vs active un-timed
-        const isRetA = resA === RESULT_STATUS.RETIRED || resA === RESULT_STATUS.DNF || resA === RESULT_STATUS.NOT_CLASSIFIED;
-        const isRetB = resB === RESULT_STATUS.RETIRED || resB === RESULT_STATUS.DNF || resB === RESULT_STATUS.NOT_CLASSIFIED;
+        const isRetA =
+          resA === RESULT_STATUS.RETIRED || resA === RESULT_STATUS.DNF || resA === RESULT_STATUS.NOT_CLASSIFIED;
+        const isRetB =
+          resB === RESULT_STATUS.RETIRED || resB === RESULT_STATUS.DNF || resB === RESULT_STATUS.NOT_CLASSIFIED;
         if (isRetA !== isRetB) return isRetA ? 1 : -1;
 
         return a.carIndex - b.carIndex;
@@ -213,7 +233,7 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = React.memo((pro
     }
 
     return result;
-  }, [participants, laps, carStatuses, telemetry2List, playerCarIndex, isQualy, sessionKey]);
+  }, [participants, laps, carStatuses, telemetry2List, playerCarIndex, isQualy, sessionKey, t]);
 
   // Detect position updates for flash animations with stabilized timers
   React.useEffect(() => {
@@ -251,7 +271,10 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = React.memo((pro
 
   // Find Pole Position lap time in Qualifying
   const p1CarIndex = displayDrivers[0]?.carIndex;
-  const p1BestLap = isQualy && p1CarIndex !== undefined ? (bestLapTimesRef.current[p1CarIndex] || displayDrivers[0]?.lap?.LastLapTimeInMS || 0) : 0;
+  const p1BestLap =
+    isQualy && p1CarIndex !== undefined
+      ? bestLapTimesRef.current[p1CarIndex] || displayDrivers[0]?.lap?.LastLapTimeInMS || 0
+      : 0;
   const poleTimeMs = isQualy && p1BestLap > 0 ? p1BestLap : 0;
 
   const formatTime = (ms?: number) => {
@@ -281,12 +304,24 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = React.memo((pro
     const delta = gridPos - curPos; // > 0 means gained positions (e.g. started P5, now P2 -> +3)
     const movedTitle = t('live.badges.gridDeltaTitle', { grid: gridPos, now: curPos });
     if (delta > 0) {
-      return <span className="grid-delta-badge delta-gain" title={movedTitle}>▲{delta}</span>;
-    } else if (delta < 0) {
-      return <span className="grid-delta-badge delta-loss" title={movedTitle}>▼{Math.abs(delta)}</span>;
-    } else {
-      return <span className="grid-delta-badge delta-same" title={t('live.badges.gridSameTitle', { grid: gridPos })}>=</span>;
+      return (
+        <Badge tone="success" size="xs" square title={movedTitle}>
+          ▲{delta}
+        </Badge>
+      );
     }
+    if (delta < 0) {
+      return (
+        <Badge tone="danger" size="xs" square title={movedTitle}>
+          ▼{Math.abs(delta)}
+        </Badge>
+      );
+    }
+    return (
+      <Badge size="xs" square title={t('live.badges.gridSameTitle', { grid: gridPos })}>
+        =
+      </Badge>
+    );
   };
 
   const getPenaltyBadge = (lap?: LapData) => {
@@ -295,32 +330,38 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = React.memo((pro
 
     if (lap.NumUnservedStopGoPens && lap.NumUnservedStopGoPens > 0) {
       elements.push(
-        <span key="sg" className="driver-penalty-badge penalty-stopgo" title={t('live.badges.stopGoTitle')}>
+        <Badge key="sg" tone="orange" size="xs" square title={t('live.badges.stopGoTitle')}>
           SG
-        </span>
+        </Badge>
       );
     } else if (lap.NumUnservedDriveThroughPens && lap.NumUnservedDriveThroughPens > 0) {
       elements.push(
-        <span key="dt" className="driver-penalty-badge penalty-drivethrough" title={t('live.badges.driveThroughTitle')}>
+        <Badge key="dt" tone="orange" size="xs" square title={t('live.badges.driveThroughTitle')}>
           DT
-        </span>
+        </Badge>
       );
     }
 
     if (lap.Penalties && lap.Penalties > 0) {
       elements.push(
-        <span key="pen" className="driver-penalty-badge penalty-time" title={t('live.badges.timePenaltyTitle', { seconds: lap.Penalties })}>
+        <Badge
+          key="pen"
+          tone="danger"
+          size="xs"
+          square
+          title={t('live.badges.timePenaltyTitle', { seconds: lap.Penalties })}
+        >
           +{lap.Penalties}s
-        </span>
+        </Badge>
       );
     }
 
     const warnings = lap.CornerCuttingWarnings || lap.TotalWarnings || 0;
     if (warnings > 0) {
       elements.push(
-        <span key="warn" className="driver-warning-badge" title={t('live.badges.warningsTitle', { count: warnings })}>
+        <Badge key="warn" tone="warning" size="xs" square title={t('live.badges.warningsTitle', { count: warnings })}>
           {warnings}W
-        </span>
+        </Badge>
       );
     }
 
@@ -329,62 +370,30 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = React.memo((pro
   };
 
   const getDriverStatusBadge = (status?: number, pitStatus?: number, resultStatus?: number) => {
+    const badge = (tone: BadgeTone, label: string, title?: string, icon?: React.ReactNode) => (
+      <Badge tone={tone} size="xs" square title={title} icon={icon}>
+        {label}
+      </Badge>
+    );
+
     if (resultStatus === RESULT_STATUS.RETIRED) {
-      return (
-        <span className="driver-status-badge status-retired" title={t('live.penaltyTypes.retired')}>
-          {t('live.statusRetired')}
-        </span>
-      );
+      return badge('danger', t('live.statusRetired'), t('live.penaltyTypes.retired'));
     }
-    if (resultStatus === RESULT_STATUS.DNF) {
-      return (
-        <span className="driver-status-badge status-dnf" title={t('live.statusDnf')}>
-          {t('live.statusDnf')}
-        </span>
-      );
-    }
+    if (resultStatus === RESULT_STATUS.DNF) return badge('danger', t('live.statusDnf'), t('live.statusDnf'));
     if (resultStatus === RESULT_STATUS.DSQ) {
-      return (
-        <span className="driver-status-badge status-dsq" title={t('live.penaltyTypes.disqualified')}>
-          {t('live.statusDsq')}
-        </span>
-      );
+      return badge('danger', t('live.statusDsq'), t('live.penaltyTypes.disqualified'));
     }
-    if (resultStatus === RESULT_STATUS.NOT_CLASSIFIED) {
-      return (
-        <span className="driver-status-badge status-nc">
-          {t('live.statusNc')}
-        </span>
-      );
-    }
-    if (resultStatus === RESULT_STATUS.FINISHED) {
-      return (
-        <span className="driver-status-badge status-finished">
-          {t('live.statusFinished')}
-        </span>
-      );
-    }
+    if (resultStatus === RESULT_STATUS.NOT_CLASSIFIED) return badge('neutral', t('live.statusNc'));
+    if (resultStatus === RESULT_STATUS.FINISHED) return badge('success', t('live.statusFinished'));
 
     if (pitStatus === PIT_STATUS.PITTING || pitStatus === PIT_STATUS.IN_PIT_AREA) {
-      return (
-        <span className="driver-status-badge status-pit">
-          <Wrench size={10} style={{ display: 'inline', marginRight: '2px' }} /> {t('live.statusPit')}
-        </span>
-      );
+      return badge('warning', t('live.statusPit'), undefined, <Wrench size={10} aria-hidden="true" />);
     }
     if (status === DRIVER_STATUS.FLYING_LAP) {
-      return (
-        <span className="driver-status-badge status-hotlap">
-          <Flame size={10} style={{ display: 'inline', marginRight: '2px' }} /> {t('live.statusHotlap')}
-        </span>
-      );
+      return badge('danger', t('live.statusHotlap'), undefined, <Flame size={10} aria-hidden="true" />);
     }
-    if (status === DRIVER_STATUS.OUT_LAP) {
-      return <span className="driver-status-badge status-outlap">{t('live.statusOutlap')}</span>;
-    }
-    if (status === DRIVER_STATUS.IN_GARAGE) {
-      return <span className="driver-status-badge status-garage">{t('live.statusGarage')}</span>;
-    }
+    if (status === DRIVER_STATUS.OUT_LAP) return badge('info', t('live.statusOutlap'));
+    if (status === DRIVER_STATUS.IN_GARAGE) return badge('neutral', t('live.statusGarage'));
     return null;
   };
 
@@ -395,99 +404,47 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = React.memo((pro
   const col1Drivers = displayDrivers.slice(0, LEADERBOARD_COLUMN_SPLIT);
   const col2Drivers = displayDrivers.slice(LEADERBOARD_COLUMN_SPLIT);
 
+  const renderColumn = (drivers: ProcessedDriver[], offset: number) => (
+    <ol className={styles.column} start={offset + 1}>
+      {drivers.map((driver, idx) => (
+        <DriverRow
+          key={driver.carIndex}
+          driver={driver}
+          overallIndex={idx + offset}
+          isSelected={driver.carIndex === selectedCarIndex}
+          teamColor={getTeamColor(driver.teamId)}
+          driverBestLap={bestLapTimesRef.current[driver.carIndex] || driver.lap?.LastLapTimeInMS || 0}
+          isEliminated={cutoffPosition !== null && driver.position > cutoffPosition}
+          isLastBeforeCutoff={driver.position === cutoffPosition}
+          flash={posFlashMap[driver.carIndex]}
+          isQualy={isQualy}
+          onSelectCar={onSelectCar}
+          getGridDeltaBadge={getGridDeltaBadge}
+          getDriverStatusBadge={getDriverStatusBadge}
+          getPenaltyBadge={getPenaltyBadge}
+          formatDelta={formatDelta}
+          formatQualyDelta={formatQualyDelta}
+          formatTime={formatTime}
+          t={t}
+        />
+      ))}
+    </ol>
+  );
+
   return (
-    <div className="glass-panel leaderboard-tower" style={{ height: 'auto', maxHeight: 'none' }}>
-      {/* Clean F1 TV Timing Tower Header */}
-      <div className="leaderboard-header" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-        <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.05rem' }}>
-          <Trophy size={18} color="var(--accent-primary)" />
-          {isQualy
-            ? t('live.qualifyingStandings')
-            : t('live.raceLeaderboard')}
-        </h3>
-        <span className="mono" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-          {t('live.carsCount', { count: displayDrivers.length })}
-        </span>
+    <Panel className={props.className}>
+      <PanelHeader
+        icon={<Trophy size={18} color="var(--accent-primary)" />}
+        title={isQualy ? t('live.qualifyingStandings') : t('live.raceLeaderboard')}
+        actions={<span className={styles.count}>{t('live.carsCount', { count: displayDrivers.length })}</span>}
+      />
+
+      {/* One column up to 11 cars (P1-P11), a second for P12 onwards */}
+      <div className={styles.columns} data-columns={col2Drivers.length > 0 ? 2 : 1}>
+        {renderColumn(col1Drivers, 0)}
+        {col2Drivers.length > 0 && renderColumn(col2Drivers, col1Drivers.length)}
       </div>
-
-      {/* Dynamic Columns Grid (1 Column if <= 11 drivers, 2 Columns if > 11 drivers) */}
-      <div className="tower-two-cols-grid" style={{ display: 'grid', gridTemplateColumns: col2Drivers.length > 0 ? 'repeat(2, 1fr)' : '1fr', gap: '1rem' }}>
-        {/* Left Column: P1 to P11 (or all drivers if <= 11) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-          {col1Drivers.map((driver, idx) => {
-            const overallIndex = idx;
-            const isSelected = driver.carIndex === selectedCarIndex;
-            const teamColor = TEAM_COLORS[driver.teamId] || 'var(--border-subtle)';
-            const compound = driver.carStatus?.VisualTyreCompound ? TYRE_COMPOUNDS[driver.carStatus.VisualTyreCompound] : undefined;
-            const driverBestLap = bestLapTimesRef.current[driver.carIndex] || driver.lap?.LastLapTimeInMS || 0;
-            const isEliminated = cutoffPosition !== null && driver.position > cutoffPosition;
-            const flashClass = posFlashMap[driver.carIndex] ? `tower-flash-${posFlashMap[driver.carIndex]}` : '';
-
-            return (
-              <DriverRow
-                key={driver.carIndex}
-                driver={driver}
-                overallIndex={overallIndex}
-                isSelected={isSelected}
-                teamColor={teamColor}
-                compound={compound}
-                driverBestLap={driverBestLap}
-                isEliminated={isEliminated}
-                isLastBeforeCutoff={driver.position === cutoffPosition}
-                flashClass={flashClass}
-                isQualy={isQualy}
-                onSelectCar={onSelectCar}
-                getGridDeltaBadge={getGridDeltaBadge}
-                getDriverStatusBadge={getDriverStatusBadge}
-                getPenaltyBadge={getPenaltyBadge}
-                formatDelta={formatDelta}
-                formatQualyDelta={formatQualyDelta}
-                formatTime={formatTime}
-                t={t}
-              />
-            );
-          })}
-        </div>
-
-        {col2Drivers.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            {col2Drivers.map((driver, idx) => {
-              const overallIndex = idx + col1Drivers.length;
-              const isSelected = driver.carIndex === selectedCarIndex;
-              const teamColor = TEAM_COLORS[driver.teamId] || 'var(--border-subtle)';
-              const compound = driver.carStatus?.VisualTyreCompound ? TYRE_COMPOUNDS[driver.carStatus.VisualTyreCompound] : undefined;
-              const driverBestLap = bestLapTimesRef.current[driver.carIndex] || driver.lap?.LastLapTimeInMS || 0;
-              const isEliminated = cutoffPosition !== null && driver.position > cutoffPosition;
-              const flashClass = posFlashMap[driver.carIndex] ? `tower-flash-${posFlashMap[driver.carIndex]}` : '';
-
-              return (
-                <DriverRow
-                  key={driver.carIndex}
-                  driver={driver}
-                  overallIndex={overallIndex}
-                  isSelected={isSelected}
-                  teamColor={teamColor}
-                  compound={compound}
-                  driverBestLap={driverBestLap}
-                  isEliminated={isEliminated}
-                  isLastBeforeCutoff={driver.position === cutoffPosition}
-                  flashClass={flashClass}
-                  isQualy={isQualy}
-                  onSelectCar={onSelectCar}
-                  getGridDeltaBadge={getGridDeltaBadge}
-                  getDriverStatusBadge={getDriverStatusBadge}
-                  getPenaltyBadge={getPenaltyBadge}
-                  formatDelta={formatDelta}
-                  formatQualyDelta={formatQualyDelta}
-                  formatTime={formatTime}
-                  t={t}
-                />
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </div>
+    </Panel>
   );
 });
 
@@ -496,12 +453,12 @@ interface DriverRowProps {
   overallIndex: number;
   isSelected: boolean;
   teamColor: string;
-  compound?: { label: string; color: string; bg: string };
   driverBestLap: number;
   isEliminated: boolean;
   /** Draws the elimination cut-off line under this row. */
   isLastBeforeCutoff: boolean;
-  flashClass: string;
+  /** Set for a moment after the car gains or loses a position. */
+  flash?: 'up' | 'down';
   isQualy: boolean;
   onSelectCar: (carIndex: number) => void;
   getGridDeltaBadge: (gridPos: number, currentPos: number) => React.ReactNode;
@@ -513,143 +470,122 @@ interface DriverRowProps {
   t: (key: string, params?: Record<string, string | number>) => string;
 }
 
+const DriverRow: React.FC<DriverRowProps> = React.memo(
+  ({
+    driver,
+    overallIndex,
+    isSelected,
+    teamColor,
+    driverBestLap,
+    isEliminated,
+    isLastBeforeCutoff,
+    flash,
+    isQualy,
+    onSelectCar,
+    getGridDeltaBadge,
+    getDriverStatusBadge,
+    getPenaltyBadge,
+    formatDelta,
+    formatQualyDelta,
+    formatTime,
+    t,
+  }) => {
+    const isLeader = overallIndex === 0;
+    const isOut =
+      driver.lap?.ResultStatus === RESULT_STATUS.RETIRED ||
+      driver.lap?.ResultStatus === RESULT_STATUS.DNF ||
+      driver.lap?.ResultStatus === RESULT_STATUS.DSQ;
+    const compound = driver.carStatus?.VisualTyreCompound;
 
-const DriverRow: React.FC<DriverRowProps> = React.memo(({
-  driver,
-  overallIndex,
-  isSelected,
-  teamColor,
-  compound,
-  driverBestLap,
-  isEliminated,
-  isLastBeforeCutoff,
-  flashClass,
-  isQualy,
-  onSelectCar,
-  getGridDeltaBadge,
-  getDriverStatusBadge,
-  getPenaltyBadge,
-  formatDelta,
-  formatQualyDelta,
-  formatTime,
-  t,
-}) => {
-  return (
-    <React.Fragment key={driver.carIndex}>
-      <div
-        className={`leaderboard-tower-card ${driver.isPlayer ? 'is-player' : ''} ${isSelected ? 'is-selected' : ''} ${isEliminated ? 'is-eliminated' : ''} ${flashClass}`}
-        onClick={() => onSelectCar(driver.carIndex)}
-        style={{
-          borderLeft: `4px solid ${teamColor}`,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', flex: 1, minWidth: 0, justifyContent: 'space-between' }}>
-          {/* Position & Delta */}
-          <div className="tower-pos mono" style={{ display: 'flex', alignItems: 'center', gap: '4px', minWidth: '45px' }}>
-            <span style={{ fontWeight: 700 }}>P{driver.position}</span>
+    return (
+      <li>
+        <button
+          type="button"
+          className={`button-reset ${styles.card}`}
+          aria-pressed={isSelected}
+          data-player={driver.isPlayer || undefined}
+          data-eliminated={isEliminated || undefined}
+          data-flash={flash}
+          onClick={() => onSelectCar(driver.carIndex)}
+          style={styleVars({ '--team-color': teamColor })}
+        >
+          {/* Position and places gained since the start */}
+          <span className={styles.pos}>
+            P{driver.position}
             {!isQualy && getGridDeltaBadge(driver.gridPosition, driver.position)}
-          </div>
+          </span>
 
-          {/* Driver Info */}
-          <div className="tower-driver-info" style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <span className="tower-name" style={{ fontSize: '0.82rem' }}>{driver.name}</span>
-              <span className="tower-number mono" style={{ fontSize: '0.68rem' }}>#{driver.raceNumber}</span>
-              {driver.isPlayer && <span className="player-tag">{t('live.youChip')}</span>}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '1px', flexWrap: 'wrap' }}>
+          <span className={styles.driver}>
+            <span className={styles.nameRow}>
+              <span className={styles.name}>{driver.name}</span>
+              <span className={styles.number}>#{driver.raceNumber}</span>
+              {driver.isPlayer && <span className={styles.playerTag}>{t('live.youChip')}</span>}
+            </span>
+            <span className={styles.badges}>
               {getDriverStatusBadge(driver.lap?.DriverStatus, driver.lap?.PitStatus, driver.lap?.ResultStatus)}
               {getPenaltyBadge(driver.lap)}
               {driver.telemetry2?.ActiveAeroMode === ACTIVE_AERO_MODES.STRAIGHT && (
-                <span
-                  className="mono font-bold"
-                  style={{
-                    fontSize: '0.60rem',
-                    padding: '1px 4px',
-                    borderRadius: '3px',
-                    background: 'rgba(0, 242, 254, 0.2)',
-                    color: '#00f2fe',
-                    border: '1px solid rgba(0, 242, 254, 0.4)',
-                  }}
-                  title={t('live.badges.activeAeroTitle')}
-                >
+                <Badge tone="accent" size="xs" square title={t('live.badges.activeAeroTitle')}>
                   {t('live.activeAeroStraight')}
-                </span>
+                </Badge>
               )}
               {driver.telemetry2?.OvertakeActive === 1 && (
-                <span
-                  className="mono font-bold"
-                  style={{
-                    fontSize: '0.60rem',
-                    padding: '1px 4px',
-                    borderRadius: '3px',
-                    background: 'rgba(255, 215, 0, 0.25)',
-                    color: '#ffd700',
-                    border: '1px solid rgba(255, 215, 0, 0.5)',
-                  }}
-                  title={t('live.badges.boostTitle')}
-                >
+                <Badge color="var(--f1-yellow)" size="xs" square title={t('live.badges.boostTitle')}>
                   {t('live.boostActive')}
-                </span>
+                </Badge>
               )}
-            </div>
-          </div>
+            </span>
+          </span>
 
-          {/* Tyre Compound Badge & Age */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', margin: '0 6px' }}>
+          {/* Tyre compound and age */}
+          <span className={styles.tyre}>
             {compound ? (
-              <div
-                className="tyre-badge mono"
-                style={{ color: compound.color, backgroundColor: compound.bg, borderColor: compound.color, fontSize: '0.68rem', padding: '1px 5px' }}
-              >
-                {compound.label} <span className="tyre-laps-label">{driver.carStatus?.TyresAgeLaps || 0}L</span>
-              </div>
+              <>
+                <TyreCompoundBadge compound={compound} size="md" />
+                <span className={styles.tyreAge}>{driver.carStatus?.TyresAgeLaps || 0}L</span>
+              </>
             ) : (
-              <div className="tyre-badge mono" style={{ color: '#888', backgroundColor: 'rgba(255,255,255,0.05)', fontSize: '0.68rem', padding: '1px 5px' }}>
-                -
-              </div>
+              <span className={styles.noTyre}>-</span>
             )}
-          </div>
+          </span>
 
-          {/* Gap / Interval / Lap Time */}
-          <div className="tower-time-col mono" style={{ minWidth: '75px', textAlign: 'right' }}>
+          {/* Best lap and gap to pole in qualifying; gap to the leader and interval in a race */}
+          <span className={styles.time}>
             {isQualy ? (
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '0.8rem', fontWeight: 600, color: driverBestLap && driverBestLap > 0 ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+              <>
+                <span className={styles.timeMain} data-muted={!(driverBestLap > 0)}>
                   {formatTime(driverBestLap)}
-                </div>
-                {driverBestLap && driverBestLap > 0 && (
-                  <div style={{ fontSize: '0.68rem', color: overallIndex === 0 ? 'var(--accent-primary)' : 'var(--text-secondary)' }}>
+                </span>
+                {driverBestLap > 0 && (
+                  <span className={styles.timeSub} data-leader={isLeader}>
                     {formatQualyDelta(driverBestLap)}
-                  </div>
+                  </span>
                 )}
-              </div>
+              </>
             ) : (
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '0.8rem', fontWeight: 600, color: overallIndex === 0 ? 'var(--accent-primary)' : 'inherit' }}>
+              <>
+                <span className={styles.timeMain} data-leader={isLeader}>
                   {getDriverDeltaLabel(driver, overallIndex, formatDelta, t)}
-                </div>
-                {overallIndex > 0 && !(driver.lap?.ResultStatus === RESULT_STATUS.RETIRED || driver.lap?.ResultStatus === RESULT_STATUS.DNF || driver.lap?.ResultStatus === RESULT_STATUS.DSQ) && driver.lap?.DeltaToCarInFrontMSPart !== undefined && (
-                  <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
+                </span>
+                {!isLeader && !isOut && driver.lap?.DeltaToCarInFrontMSPart !== undefined && (
+                  <span className={styles.timeSub}>
                     INT {formatDelta(driver.lap.DeltaToCarInFrontMSPart, driver.lap.DeltaToCarInFrontMinutesPart)}
-                  </div>
+                  </span>
                 )}
-              </div>
+              </>
             )}
-          </div>
-        </div>
-      </div>
+          </span>
+        </button>
 
-      {/* Elimination Zone Line for Qualifying, between the last car through and the first one out */}
-      {isLastBeforeCutoff && (
-        <div className="elimination-line" style={{ margin: '2px 0' }}>
-          <span>{t('live.eliminationCutoff')}</span>
-        </div>
-      )}
-    </React.Fragment>
-  );
-});
+        {/* Qualifying cut-off between the last car through and the first one out */}
+        {isLastBeforeCutoff && (
+          <div className={styles.cutoff} data-testid="elimination-line">
+            <span>{t('live.eliminationCutoff')}</span>
+          </div>
+        )}
+      </li>
+    );
+  }
+);
 
 DriverRow.displayName = 'DriverRow';
-
-

@@ -1,0 +1,250 @@
+/* Sticks beside the charts on wide screens */
+.sidebar {
+  position: sticky;
+  top: var(--space-4);
+  z-index: var(--z-sticky);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+@media (--laptop) {
+  .sidebar {
+    position: static;
+  }
+}
+
+.panel {
+  padding: var(--space-3);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  margin: 0;
+  font-size: var(--font-size-md);
+  color: var(--text-primary);
+}
+
+.titleIcon {
+  color: var(--accent-primary);
+}
+
+.headActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+}
+
+.track {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-0-5) var(--space-2);
+  border-radius: var(--radius-xs);
+  background: var(--bg-active);
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+.askAi {
+  border-radius: var(--radius-full);
+  background: var(--status-info-bg);
+  border-color: var(--status-info-border);
+  color: var(--accent-cyan);
+}
+
+.askAi:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent-cyan) 22%, transparent);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+
+/* Turn quick-jump ribbon */
+.turns {
+  margin: var(--space-2) 0 var(--space-1);
+}
+
+.turnsHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-1);
+  font-size: var(--font-size-2xs);
+  color: var(--text-muted);
+}
+
+.turnsLabel {
+  font-weight: var(--font-weight-semibold);
+}
+
+.turnList {
+  display: flex;
+  gap: var(--space-1);
+  padding-bottom: var(--space-1);
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.turn {
+  flex-shrink: 0;
+  padding: 2px var(--space-1-5);
+  background: var(--bg-active);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  color: var(--text-primary);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.turn:hover {
+  border-color: var(--border-strong);
+}
+
+.turn[aria-pressed='true'] {
+  background: var(--f1-yellow);
+  border-color: var(--f1-yellow);
+  color: var(--text-on-accent);
+}
+
+/* Readout of the point under the cursor */
+.readout {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 112px;
+  margin-top: var(--space-1-5);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-inset);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xs);
+  font-size: var(--font-size-xs);
+}
+
+.readoutHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-1);
+  padding-bottom: var(--space-1);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.distance {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+}
+
+.distanceLabel {
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-muted);
+}
+
+.distanceValue {
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-bold);
+  color: var(--f1-yellow);
+}
+
+.turnContext {
+  padding: 1px var(--space-1-5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+  background: var(--bg-active);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-body);
+}
+
+.turnContext[data-phase='apex'] {
+  background: var(--f1-yellow-bg);
+  border-color: var(--f1-yellow-border);
+  color: var(--f1-yellow);
+}
+
+.drivers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-1-5);
+  margin: var(--space-0-5) 0 0;
+}
+
+.driver {
+  --slot-color: var(--f1-slot-a);
+  padding-left: var(--space-1-5);
+  border-left: 2px solid var(--slot-color);
+}
+
+.driver[data-slot='b'] {
+  --slot-color: var(--f1-slot-b);
+}
+
+.driverName {
+  overflow: hidden;
+  font-weight: var(--font-weight-bold);
+  color: var(--slot-color);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.stats {
+  margin: 0;
+}
+
+.stats > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.stats dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-bold);
+}
+
+.delta {
+  margin-top: var(--space-1);
+  padding-top: var(--space-1);
+  border-top: 1px solid var(--border-color);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.delta[data-faster='a'] {
+  color: var(--f1-slot-a);
+}
+
+.delta[data-faster='b'] {
+  color: var(--f1-slot-b);
+}
+
+.hint {
+  padding: var(--space-1) 0;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.hintTitle {
+  display: block;
+  margin-bottom: 2px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-body);
+}

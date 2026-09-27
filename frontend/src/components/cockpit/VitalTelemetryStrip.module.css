@@ -1,0 +1,321 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: var(--space-4);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow:
+    var(--shadow-md),
+    inset 0 1px 0 var(--border-color);
+  transition: all var(--transition-fast);
+}
+
+.card:hover {
+  border-color: color-mix(in srgb, var(--accent-cyan) 30%, transparent);
+  transform: translateY(-1px);
+}
+
+.cardHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.cardTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-black);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.cardBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Position and lap */
+.positionRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.position {
+  display: flex;
+  align-items: baseline;
+}
+
+.positionP {
+  margin-right: 2px;
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: var(--font-weight-black);
+  color: var(--accent-cyan);
+}
+
+.positionValue {
+  font-family: var(--font-mono);
+  font-size: 3rem;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--text-primary);
+  text-shadow: 0 0 15px var(--accent-cyan-glow);
+}
+
+.lapMeta {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.metaRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  font-size: var(--font-size-sm);
+}
+
+.metaLabel {
+  color: var(--text-secondary);
+}
+
+.metaValue {
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+}
+
+.warnings {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: 2px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--status-warning);
+}
+
+/* Tyres: one corner per wheel, coloured by wear */
+.tyreSummary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+}
+
+.tyreAge {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+.corners {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-1-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.corner {
+  --wear-color: var(--status-success);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1);
+  padding: var(--space-1-5) var(--space-2);
+  background: var(--bg-inset);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xs);
+}
+
+.corner[data-wear='warning'] {
+  --wear-color: var(--status-warning);
+}
+
+.corner[data-wear='critical'] {
+  --wear-color: var(--status-danger);
+}
+
+.corner[data-wear='warning'],
+.corner[data-wear='critical'] {
+  background: color-mix(in srgb, var(--wear-color) 12%, transparent);
+  border-color: color-mix(in srgb, var(--wear-color) 45%, transparent);
+}
+
+.cornerLabel {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-secondary);
+}
+
+.cornerWear {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-black);
+  color: var(--wear-color);
+}
+
+.cornerTemp {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+.peakWear {
+  margin-top: 2px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  text-align: right;
+  color: var(--text-secondary);
+}
+
+/* Powertrain: ERS, fuel and engine temperature */
+.metrics {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.metric {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+}
+
+.metricLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  color: var(--text-secondary);
+}
+
+.metricLabel[data-icon='ers'] svg {
+  color: var(--accent-cyan);
+}
+
+.metricLabel[data-icon='fuel'] svg {
+  color: var(--status-warning);
+}
+
+.metricValue {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.bar {
+  display: block;
+  width: 60px;
+  height: 8px;
+  overflow: hidden;
+  background: var(--bg-inset);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xs);
+}
+
+.barFill {
+  display: block;
+  width: var(--fill);
+  height: 100%;
+  background: var(--accent-cyan);
+  box-shadow: 0 0 6px var(--accent-cyan);
+}
+
+.number {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-black);
+  color: var(--text-body);
+}
+
+.number[data-tone='good'] {
+  color: var(--status-success);
+}
+
+.number[data-tone='bad'] {
+  color: var(--status-danger);
+}
+
+/* Damage */
+.damageGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.damageItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-1-5) var(--space-2);
+  background: color-mix(in srgb, var(--status-danger) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--status-danger) 25%, transparent);
+  border-radius: var(--radius-xs);
+}
+
+.damageLabel {
+  font-size: var(--font-size-2xs);
+  color: var(--text-secondary);
+}
+
+.damageValue {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-black);
+  color: var(--status-danger);
+}
+
+.nominal {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  font-size: var(--font-size-sm);
+  line-height: 1.35;
+  color: var(--text-secondary);
+}
+
+.nominal svg {
+  flex-shrink: 0;
+  color: var(--status-success);
+}
+
+@media (--laptop) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (--phone) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

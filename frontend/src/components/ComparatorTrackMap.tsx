@@ -2,6 +2,24 @@ import React, { useRef, useEffect } from 'react';
 import type { MergedTelemetryPoint, TrackTurn } from '../types/comparator';
 import { TRACK_MAP_CONSTANTS } from '../constants/f1';
 import { useI18n } from '../context/I18nContext';
+import { canvasRgba, getCssVars, styleVars } from '../styles/theme';
+import styles from './ComparatorTrackMap.module.css';
+
+/** Canvas colours, read from the design tokens at the start of each draw. */
+const TRACK_MAP_TOKENS = {
+  slotA: '--f1-slot-a',
+  slotB: '--f1-slot-b',
+  track: '--chart-track',
+  casing: '--chart-track-casing',
+  sector1: '--f1-sector-1',
+  sector2: '--f1-sector-2',
+  sector3: '--f1-sector-3',
+  cursor: '--chart-cursor',
+  ring: '--chart-marker-ring',
+  outline: '--chart-marker-outline',
+  badge: '--bg-tooltip',
+  muted: '--text-muted',
+} as const;
 
 interface ComparatorTrackMapProps {
   data: MergedTelemetryPoint[];
@@ -44,6 +62,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
     if (!ctx) return;
 
     const render = () => {
+      const colors = getCssVars(TRACK_MAP_TOKENS);
       const dpr = window.devicePixelRatio || 1;
       const rect = container.getBoundingClientRect();
       const rectWidth = rect.width > 0 ? rect.width : 300;
@@ -62,7 +81,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
       validPointsRef.current = validPoints;
 
       if (validPoints.length < 2) {
-        ctx.fillStyle = '#888';
+        ctx.fillStyle = colors.muted;
         ctx.font = '12px Inter, sans-serif';
         ctx.textAlign = 'center';
         ctx.fillText(t('comparator.noCoordinateData'), rectWidth / 2, rectHeight / 2);
@@ -70,7 +89,10 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
       }
 
       // Compute bounding box
-      let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+      let minX = Infinity,
+        maxX = -Infinity,
+        minZ = Infinity,
+        maxZ = -Infinity;
       validPoints.forEach((p) => {
         if (p.worldX! < minX) minX = p.worldX!;
         if (p.worldX! > maxX) maxX = p.worldX!;
@@ -99,9 +121,11 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
       const s2TargetDist = sector2Distance && sector2Distance > 0 ? sector2Distance : (maxDist * 2) / 3;
 
       const findClosestPoint = (targetDist: number) => {
-        return validPoints.reduce((prev, curr) =>
-          Math.abs(curr.lap_distance - targetDist) < Math.abs(prev.lap_distance - targetDist) ? curr : prev
-        , validPoints[0]);
+        return validPoints.reduce(
+          (prev, curr) =>
+            Math.abs(curr.lap_distance - targetDist) < Math.abs(prev.lap_distance - targetDist) ? curr : prev,
+          validPoints[0]
+        );
       };
 
       const s0Point = validPoints[0];
@@ -126,14 +150,14 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         if (deltaStart !== null && deltaEnd !== null) {
           const dDelta = deltaEnd - deltaStart;
           if (dDelta < -0.005) {
-            segmentColors.push('#00d2d3');
+            segmentColors.push(colors.slotA);
           } else if (dDelta > 0.005) {
-            segmentColors.push('#ff4757');
+            segmentColors.push(colors.slotB);
           } else {
-            segmentColors.push('rgba(255, 255, 255, 0.45)');
+            segmentColors.push(colors.track);
           }
         } else {
-          segmentColors.push('rgba(255, 255, 255, 0.45)');
+          segmentColors.push(colors.track);
         }
       }
 
@@ -141,7 +165,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
       ctx.lineWidth = TRACK_MAP_CONSTANTS.SHADOW_LINE_WIDTH;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.6)';
+      ctx.strokeStyle = colors.casing;
       ctx.beginPath();
       for (let i = 0; i < validPoints.length; i++) {
         const px = toCanvasX(validPoints[i].worldX!);
@@ -187,13 +211,14 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         ctx.beginPath();
         ctx.moveTo(xLast, yLast);
         ctx.lineTo(xFirst, yFirst);
-        ctx.strokeStyle = segmentColors[segmentColors.length - 1] || 'rgba(255, 255, 255, 0.45)';
+        ctx.strokeStyle = segmentColors[segmentColors.length - 1] || colors.track;
         ctx.stroke();
       }
 
       // Helper to draw clean perpendicular sector split boundary lines across track (no text)
       const drawSectorSplitMarker = (point: MergedTelemetryPoint, color: string) => {
-        if (point.worldX === undefined || point.worldX === null || point.worldZ === undefined || point.worldZ === null) return;
+        if (point.worldX === undefined || point.worldX === null || point.worldZ === undefined || point.worldZ === null)
+          return;
         const cx = toCanvasX(point.worldX);
         const cy = toCanvasY(point.worldZ);
 
@@ -222,7 +247,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         ctx.beginPath();
         ctx.moveTo(xA, yA);
         ctx.lineTo(xB, yB);
-        ctx.strokeStyle = '#000000';
+        ctx.strokeStyle = colors.outline;
         ctx.lineWidth = 4.5;
         ctx.lineCap = 'butt';
         ctx.stroke();
@@ -239,7 +264,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         ctx.beginPath();
         ctx.arc(cx, cy, 3.2, 0, Math.PI * 2);
         ctx.fillStyle = color;
-        ctx.strokeStyle = '#ffffff';
+        ctx.strokeStyle = colors.ring;
         ctx.lineWidth = 1;
         ctx.fill();
         ctx.stroke();
@@ -247,7 +272,8 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
 
       // Helper to draw clean sector region badges at the middle of each sector (S1, S2, S3)
       const drawSectorRegionBadge = (point: MergedTelemetryPoint, label: string, color: string) => {
-        if (point.worldX === undefined || point.worldX === null || point.worldZ === undefined || point.worldZ === null) return;
+        if (point.worldX === undefined || point.worldX === null || point.worldZ === undefined || point.worldZ === null)
+          return;
         const cx = toCanvasX(point.worldX);
         const cy = toCanvasY(point.worldZ);
 
@@ -258,7 +284,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         const bx = cx - badgeW / 2;
         const by = cy - badgeH / 2;
 
-        ctx.fillStyle = 'rgba(10, 14, 22, 0.9)';
+        ctx.fillStyle = colors.badge;
         ctx.strokeStyle = color;
         ctx.lineWidth = 1.4;
         ctx.beginPath();
@@ -273,13 +299,13 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         ctx.restore();
       };
 
-      if (s0Point) drawSectorSplitMarker(s0Point, '#f39c12');
-      if (s1Point) drawSectorSplitMarker(s1Point, '#9b59b6');
-      if (s2Point) drawSectorSplitMarker(s2Point, '#2ecc71');
+      if (s0Point) drawSectorSplitMarker(s0Point, colors.sector1);
+      if (s1Point) drawSectorSplitMarker(s1Point, colors.sector2);
+      if (s2Point) drawSectorSplitMarker(s2Point, colors.sector3);
 
-      if (s1MidPoint) drawSectorRegionBadge(s1MidPoint, 'S1', '#f39c12');
-      if (s2MidPoint) drawSectorRegionBadge(s2MidPoint, 'S2', '#9b59b6');
-      if (s3MidPoint) drawSectorRegionBadge(s3MidPoint, 'S3', '#2ecc71');
+      if (s1MidPoint) drawSectorRegionBadge(s1MidPoint, 'S1', colors.sector1);
+      if (s2MidPoint) drawSectorRegionBadge(s2MidPoint, 'S2', colors.sector2);
+      if (s3MidPoint) drawSectorRegionBadge(s3MidPoint, 'S3', colors.sector3);
 
       // Use pre-computed track corner apex dots & interactive hover callout
       const detectedTurns = turns;
@@ -316,7 +342,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
           ctx.save();
           ctx.beginPath();
           ctx.arc(apexX, apexY, 9, 0, Math.PI * 2);
-          ctx.fillStyle = 'rgba(255, 210, 0, 0.4)';
+          ctx.fillStyle = canvasRgba(ctx, colors.cursor, 0.4);
           ctx.fill();
           ctx.restore();
 
@@ -342,8 +368,8 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         // Draw Apex Dot
         ctx.beginPath();
         ctx.arc(apexX, apexY, isNearHover ? 3.8 : 2.2, 0, Math.PI * 2);
-        ctx.fillStyle = isNearHover ? '#ffd200' : 'rgba(255, 255, 255, 0.85)';
-        ctx.strokeStyle = '#000000';
+        ctx.fillStyle = isNearHover ? colors.cursor : canvasRgba(ctx, colors.ring, 0.85);
+        ctx.strokeStyle = colors.outline;
         ctx.lineWidth = 1;
         ctx.fill();
         ctx.stroke();
@@ -358,7 +384,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         ctx.beginPath();
         ctx.moveTo(apexX, apexY);
         ctx.lineTo(badgeX, badgeY);
-        ctx.strokeStyle = 'rgba(255, 210, 0, 0.85)';
+        ctx.strokeStyle = canvasRgba(ctx, colors.cursor, 0.85);
         ctx.lineWidth = 1.2;
         ctx.stroke();
 
@@ -370,15 +396,15 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         const bx = badgeX - badgeW / 2;
         const by = badgeY - badgeH / 2;
 
-        ctx.fillStyle = '#ffd200';
-        ctx.strokeStyle = '#ffffff';
+        ctx.fillStyle = colors.cursor;
+        ctx.strokeStyle = colors.ring;
         ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.roundRect(bx, by, badgeW, badgeH, 4);
         ctx.fill();
         ctx.stroke();
 
-        ctx.fillStyle = '#000000';
+        ctx.fillStyle = colors.outline;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(label, badgeX, badgeY);
@@ -388,28 +414,34 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
       // Draw Active Telemetry Cursor / Marker on track
       if (activeDistance !== undefined && activeDistance !== null) {
         const activePoint = findClosestPoint(activeDistance);
-        if (activePoint && activePoint.worldX !== undefined && activePoint.worldX !== null && activePoint.worldZ !== undefined && activePoint.worldZ !== null) {
+        if (
+          activePoint &&
+          activePoint.worldX !== undefined &&
+          activePoint.worldX !== null &&
+          activePoint.worldZ !== undefined &&
+          activePoint.worldZ !== null
+        ) {
           const cx = toCanvasX(activePoint.worldX);
           const cy = toCanvasY(activePoint.worldZ);
 
           // 1. Draw glowing aura on canvas
           ctx.beginPath();
           ctx.arc(cx, cy, 12, 0, Math.PI * 2);
-          ctx.fillStyle = 'rgba(255, 235, 59, 0.4)';
+          ctx.fillStyle = canvasRgba(ctx, colors.cursor, 0.4);
           ctx.fill();
 
           // 2. Draw outer ring
           ctx.beginPath();
           ctx.arc(cx, cy, 7, 0, Math.PI * 2);
-          ctx.strokeStyle = '#ffee58';
+          ctx.strokeStyle = colors.cursor;
           ctx.lineWidth = 2;
           ctx.stroke();
 
           // 3. Draw inner target dot
           ctx.beginPath();
           ctx.arc(cx, cy, 3.5, 0, Math.PI * 2);
-          ctx.fillStyle = '#ffffff';
-          ctx.strokeStyle = '#000000';
+          ctx.fillStyle = colors.ring;
+          ctx.strokeStyle = colors.outline;
           ctx.lineWidth = 1;
           ctx.fill();
           ctx.stroke();
@@ -527,37 +559,29 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
   };
 
   return (
-    <div ref={containerRef} className="track-map-wrapper" style={{ height: `${height}px` }}>
+    <div ref={containerRef} className={styles.wrapper} style={styleVars({ '--map-height': `${height}px` })}>
       <canvas
         ref={canvasRef}
         onClick={handleCanvasClick}
         onMouseMove={handleCanvasMouseMove}
-        className="track-map-canvas"
-        style={{ cursor: onSelectDistance ? 'crosshair' : 'default' }}
+        className={styles.canvas}
+        data-selectable={onSelectDistance ? true : undefined}
       />
 
-      <div
-        ref={markerRef}
-        className="map-hover-marker"
-        style={{
-          display: 'none',
-          position: 'absolute',
-          pointerEvents: 'none',
-        }}
-      />
+      <div ref={markerRef} className={styles.marker} />
 
       {/* Pace Gain Delta Legend */}
-      <div className="track-map-legend legend-left">
-        <span className="legend-lap-a">{t('comparator.legend.lapAFaster')}</span>
-        <span className="legend-lap-b">{t('comparator.legend.lapBFaster')}</span>
+      <div className={`${styles.legend} ${styles.legendLeft}`}>
+        <span className={styles.lapA}>{t('comparator.legend.lapAFaster')}</span>
+        <span className={styles.lapB}>{t('comparator.legend.lapBFaster')}</span>
       </div>
 
       {/* Sector & Turn Legend */}
-      <div className="track-map-legend legend-right">
-        <span className="legend-apex">{t('comparator.legend.apex')}</span>
-        <span className="legend-s1">{t('comparator.legend.s1')}</span>
-        <span className="legend-s2">{t('comparator.legend.s2')}</span>
-        <span className="legend-s3">{t('comparator.legend.s3')}</span>
+      <div className={`${styles.legend} ${styles.legendRight}`}>
+        <span className={styles.apex}>{t('comparator.legend.apex')}</span>
+        <span className={styles.s1}>{t('comparator.legend.s1')}</span>
+        <span className={styles.s2}>{t('comparator.legend.s2')}</span>
+        <span className={styles.s3}>{t('comparator.legend.s3')}</span>
       </div>
     </div>
   );

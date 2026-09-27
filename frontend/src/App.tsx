@@ -1,8 +1,7 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
 import { Calendar, GitCompare, Radio, Sparkles } from 'lucide-react';
 import { F1TelemetryLogo } from './components/F1TelemetryLogo';
 import { RaceEngineerProvider } from './context/RaceEngineerProvider';
-import { useRaceEngineerActions } from './context/RaceEngineerContext';
 import { I18nProvider } from './context/I18nProvider';
 import { useI18n } from './context/I18nContext';
 import { AiRaceEngineer } from './components/AiRaceEngineer';
@@ -18,36 +17,62 @@ import { useTelemetryEndpointStore } from './store/useTelemetryEndpointStore';
 import { useLiveStatus } from './hooks/useLiveStatus';
 import { LIVE_STATUS } from './constants/f1';
 import type { UpdateCheckResponse, SystemVersion } from './types/system';
+import { Link } from './router/Link';
+import { navigate, useRoute, useUrl } from './router/router';
+import { buildPath, storeLastPage, storedLiveMode, type Page } from './router/routes';
+import styles from './App.module.css';
 
-const SessionHistory = lazy(() =>
-  import('./components/SessionHistory').then((m) => ({ default: m.SessionHistory }))
-);
-const LapComparator = lazy(() =>
-  import('./components/LapComparator').then((m) => ({ default: m.LapComparator }))
-);
-const Dashboard = lazy(() =>
-  import('./components/Dashboard').then((m) => ({ default: m.Dashboard }))
-);
+const SessionHistory = lazy(() => import('./components/SessionHistory').then((m) => ({ default: m.SessionHistory })));
+const LapComparator = lazy(() => import('./components/LapComparator').then((m) => ({ default: m.LapComparator })));
+const Dashboard = lazy(() => import('./components/Dashboard').then((m) => ({ default: m.Dashboard })));
 const ReleaseNotesModal = lazy(() =>
   import('./components/ReleaseNotesModal').then((m) => ({ default: m.ReleaseNotesModal }))
 );
 
-type TabType = 'history' | 'comparator' | 'live';
+const NAV_TABS: ReadonlyArray<{ id: Page; icon: typeof Calendar; labelKey: string; shortKey: string }> = [
+  { id: 'history', icon: Calendar, labelKey: 'nav.tabs.history', shortKey: 'nav.tabsShort.history' },
+  { id: 'compare', icon: GitCompare, labelKey: 'nav.tabs.comparator', shortKey: 'nav.tabsShort.comparator' },
+  { id: 'live', icon: Radio, labelKey: 'nav.tabs.live', shortKey: 'nav.tabsShort.live' },
+];
 
-const STORAGE_KEY = 'f1_active_tab';
+/** Which kind of build is running, for the version badge's colour. */
+const releaseChannel = (
+  systemVersion: SystemVersion | null,
+  currentVersion: string | undefined
+): 'dev' | 'beta' | undefined => {
+  if (systemVersion?.is_dev || currentVersion?.startsWith('dev')) return 'dev';
+  if (systemVersion?.is_beta || currentVersion?.includes('beta') || currentVersion?.includes('rc')) return 'beta';
+  return undefined;
+};
+
 const DISMISSED_UPDATE_KEY = 'f1_telemetry_dismissed_update';
 
 function AppContent() {
   const { t } = useI18n();
-  const [activeTab, setActiveTab] = useState<TabType>(() => {
-    const saved = storage.get<string>(STORAGE_KEY, 'history');
-    if (saved === 'history' || saved === 'comparator' || saved === 'live') {
-      return saved;
-    }
-    return 'history';
-  });
+  const url = useUrl();
+  const route = useRoute();
+  const activePage = route.page;
 
-  const { setContextMode } = useRaceEngineerActions();
+  // Every URL is shown in one form: defaults filled in, unknown parts dropped.
+  const canonicalUrl = buildPath(route);
+  useEffect(() => {
+    if (canonicalUrl !== url) navigate(canonicalUrl, { replace: true });
+  }, [canonicalUrl, url]);
+
+  useEffect(() => {
+    storeLastPage(activePage);
+  }, [activePage]);
+
+  // The comparator tab goes back to the laps last compared.
+  const lastCompareUrl = useRef('/compare');
+  if (activePage === 'compare') lastCompareUrl.current = canonicalUrl;
+  const tabHref = (page: Page) =>
+    page === 'compare'
+      ? lastCompareUrl.current
+      : page === 'live'
+        ? buildPath({ page: 'live', mode: activePage === 'live' ? route.mode : storedLiveMode() })
+        : '/history';
+
   const liveStatus = useLiveStatus();
   const udpPort = useTelemetryEndpointStore((s) => s.endpoint.udp_port);
   const isLiveFeedActive = liveStatus === LIVE_STATUS.LIVE;
@@ -90,147 +115,83 @@ function AppContent() {
     storage.set(DISMISSED_UPDATE_KEY, version);
   };
 
-  const [comparatorPreload, setComparatorPreload] = useState<{
-    sessionId?: number;
-    lapId?: number;
-    slot?: 'A' | 'B';
-    sessionAId?: number;
-    lapAId?: number;
-    sessionBId?: number;
-    lapBId?: number;
-  } | null>(null);
-
-  useEffect(() => {
-    storage.set(STORAGE_KEY, activeTab);
-    if (activeTab === 'live') {
-      setContextMode('live');
-    } else if (activeTab === 'comparator') {
-      setContextMode('comparator');
-    } else if (activeTab === 'history') {
-      // If we switch to history, default to session_debrief or general
-      setContextMode('general');
-    }
-  }, [activeTab, setContextMode]);
-
-  const handleNavigateToComparator = (
-    payload:
-      | {
-          sessionId?: number;
-          lapId?: number;
-          slot?: 'A' | 'B';
-          sessionAId?: number;
-          lapAId?: number;
-          sessionBId?: number;
-          lapBId?: number;
-        }
-      | number,
-    lapId?: number,
-    slot?: 'A' | 'B'
-  ) => {
-    if (typeof payload === 'object') {
-      setComparatorPreload(payload);
-    } else {
-      setComparatorPreload({ sessionId: payload, lapId: lapId!, slot: slot || 'A' });
-    }
-    setActiveTab('comparator');
-  };
+  const versionDetails = systemVersion
+    ? [
+        t('common.updates.commit', { commit: systemVersion.commit }),
+        systemVersion.build_date && systemVersion.build_date !== 'unknown'
+          ? t('common.updates.buildDate', { date: systemVersion.build_date })
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' • ')
+    : t('nav.currentVersion');
+  const isLiveBadgeShown = liveStatus === LIVE_STATUS.LIVE || liveStatus === LIVE_STATUS.STALE;
+  const isStale = liveStatus === LIVE_STATUS.STALE;
 
   return (
-    <div className="app-container">
-      {/* Modern Top Navigation Bar */}
-      <header className="app-top-nav">
-        <div className="app-nav-brand">
-          <div className={`app-brand-logo ${isLiveFeedActive ? 'live' : ''}`}>
+    <div className={styles.app}>
+      <header className={styles.topNav}>
+        <div className={styles.brand}>
+          <div className={styles.logo} data-live={isLiveFeedActive || undefined}>
             <F1TelemetryLogo size={28} animated={isLiveFeedActive} />
           </div>
-          <div className="app-brand-text">
-            <div className="app-brand-title">
-              <span className="app-brand-f1">F1</span>
-              <span className="app-brand-name">TELEMETRY</span>
-            </div>
-            <div className="app-brand-sub mono">{t('nav.brandSub')}</div>
+          <div className={styles.brandText}>
+            <p className={styles.brandTitle}>
+              <span className={styles.brandF1}>F1</span>
+              <span className={styles.brandName}>TELEMETRY</span>
+            </p>
+            <div className={styles.brandSub}>{t('nav.brandSub')}</div>
           </div>
         </div>
 
-        {/* Reordered Navigation Tabs: 1) Session History, 2) Lap Comparator, 3) Live Telemetry */}
-        <nav className="app-nav-tabs" role="tablist" aria-label="Main Navigation">
-          <button
-            role="tab"
-            aria-selected={activeTab === 'history'}
-            className={`app-nav-tab ${activeTab === 'history' ? 'active' : ''}`}
-            onClick={() => setActiveTab('history')}
-          >
-            <Calendar size={16} className="nav-tab-icon" />
-            <span>{t('nav.tabs.history')}</span>
-          </button>
-
-          <button
-            role="tab"
-            aria-selected={activeTab === 'comparator'}
-            className={`app-nav-tab ${activeTab === 'comparator' ? 'active' : ''}`}
-            onClick={() => setActiveTab('comparator')}
-          >
-            <GitCompare size={16} className="nav-tab-icon" />
-            <span>{t('nav.tabs.comparator')}</span>
-          </button>
-
-          <button
-            role="tab"
-            aria-selected={activeTab === 'live'}
-            className={`app-nav-tab ${activeTab === 'live' ? 'active' : ''}`}
-            onClick={() => setActiveTab('live')}
-          >
-            <Radio size={16} className="nav-tab-icon" />
-            <span>{t('nav.tabs.live')}</span>
-            {/* Only while packets arrive (or just stopped): the feed is only opened on this tab */}
-            {(liveStatus === LIVE_STATUS.LIVE || liveStatus === LIVE_STATUS.STALE) && (
-              <span
-                className={`live-pulse-badge ${liveStatus === LIVE_STATUS.STALE ? 'stale' : ''}`}
-                title={liveStatus === LIVE_STATUS.STALE ? t('live.statusStaleTitle') : undefined}
-                data-testid="nav-live-badge"
-              >
-                <span className="live-pulse-dot" />
-                {liveStatus === LIVE_STATUS.STALE ? t('live.statusStale') : t('nav.liveBadge')}
-              </span>
-            )}
-          </button>
+        <nav className={styles.tabs} aria-label={t('nav.mainNavigation')}>
+          {NAV_TABS.map(({ id, icon: Icon, labelKey, shortKey }) => (
+            <Link
+              key={id}
+              href={tabHref(id)}
+              aria-current={activePage === id ? 'page' : undefined}
+              className={styles.tab}
+            >
+              <Icon size={16} aria-hidden="true" />
+              {/* One of the two shows, by width; the hidden one is out of the accessibility tree */}
+              <span className={styles.tabLabel}>{t(labelKey)}</span>
+              <span className={styles.tabShort}>{t(shortKey)}</span>
+              {/* Only while packets arrive (or just stopped): the feed is only opened on this tab */}
+              {id === 'live' && isLiveBadgeShown && (
+                <span
+                  className={styles.liveBadge}
+                  data-stale={isStale || undefined}
+                  title={isStale ? t('live.statusStaleTitle') : undefined}
+                  data-testid="nav-live-badge"
+                >
+                  {isStale ? t('live.statusStale') : t('nav.liveBadge')}
+                </span>
+              )}
+            </Link>
+          ))}
         </nav>
 
-        {/* Status & Language Controls */}
-        <div className="app-nav-status">
+        <div className={styles.status}>
           {updateInfo?.update_available && dismissedVersion !== updateInfo.latest_version && (
             <button
               type="button"
-              className={`nav-update-chip ${updateInfo.is_prerelease ? 'prerelease' : ''}`}
+              className={styles.updateChip}
+              data-prerelease={updateInfo.is_prerelease || undefined}
               onClick={() => setIsReleaseModalOpen(true)}
               aria-label={t('nav.updateAvailable')}
               data-testid="nav-update-chip"
             >
-              <Sparkles size={13} className="animate-pulse" />
-              <span>{updateInfo.latest_version || t('nav.updateAvailable')}</span>
+              <Sparkles size={13} aria-hidden="true" />
+              <span className={styles.updateText}>{updateInfo.latest_version || t('nav.updateAvailable')}</span>
             </button>
           )}
 
-          {/* Active Application Version Badge */}
           <button
             type="button"
-            className={`mono nav-version-badge ${
-              systemVersion?.is_dev || (updateInfo?.current_version && updateInfo.current_version.startsWith('dev'))
-                ? 'dev'
-                : systemVersion?.is_beta || (updateInfo?.current_version && (updateInfo.current_version.includes('beta') || updateInfo.current_version.includes('rc')))
-                ? 'beta'
-                : ''
-            }`}
+            className={styles.version}
+            data-channel={releaseChannel(systemVersion, updateInfo?.current_version)}
             onClick={() => setIsReleaseModalOpen(true)}
-            title={
-              systemVersion
-                ? `Commit: ${systemVersion.commit}${
-                    systemVersion.build_date && systemVersion.build_date !== 'unknown'
-                      ? ` • Built: ${systemVersion.build_date}`
-                      : ''
-                  }`
-                : t('nav.currentVersion')
-            }
+            title={versionDetails}
             aria-label={t('nav.aboutApp')}
             data-testid="nav-version-badge"
           >
@@ -238,18 +199,20 @@ function AppContent() {
           </button>
 
           <LanguageSelector />
-          <span className="mono nav-port-badge">{t('nav.portBadge')} {udpPort}</span>
+          <span className={styles.port}>
+            {t('nav.portBadge')} {udpPort}
+          </span>
         </div>
       </header>
 
       {/* Main Tab Content */}
-      <main className="app-main-content">
+      <main className={styles.main}>
         <ErrorBoundary level="section" onReset={() => {}}>
-          <Suspense fallback={<div className="loading-state" />}>
-            {activeTab === 'history' ? (
-              <SessionHistory onNavigateToComparator={handleNavigateToComparator} />
-            ) : activeTab === 'comparator' ? (
-              <LapComparator initialPreload={comparatorPreload} />
+          <Suspense fallback={null}>
+            {activePage === 'history' ? (
+              <SessionHistory />
+            ) : activePage === 'compare' ? (
+              <LapComparator />
             ) : (
               <Dashboard />
             )}
@@ -297,4 +260,3 @@ function App() {
 }
 
 export default App;
-

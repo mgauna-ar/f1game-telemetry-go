@@ -1,0 +1,37 @@
+/* A value, such as an IP address or a port, that copies itself on click */
+.button {
+  --copy-color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  padding: 2px var(--space-2);
+  font-family: var(--font-mono);
+  font-size: inherit;
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+  background: var(--bg-hover);
+  border: 1px solid var(--border-highlight);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition:
+    color var(--transition-fast),
+    border-color var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.button svg {
+  color: var(--copy-color);
+  transition: color var(--transition-fast);
+}
+
+.button:hover {
+  --copy-color: var(--f1-slot-a);
+  background: var(--f1-slot-a-bg);
+  border-color: var(--f1-slot-a-border);
+}
+
+.button[data-copied] {
+  --copy-color: var(--status-success);
+  color: var(--status-success);
+  border-color: var(--status-success);
+}

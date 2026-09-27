@@ -3,6 +3,8 @@ import { Gauge } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
 import { SubsystemAccordion } from '../SubsystemAccordion';
 import { ThresholdSlider } from '../ThresholdSlider';
+import { ToggleRow } from '../SettingControls';
+import styles from '../RadioSettings.module.css';
 import { useRadioSettingsStore } from '../../../store/useRadioSettingsStore';
 
 interface TyresAccordionProps {
@@ -11,11 +13,7 @@ interface TyresAccordionProps {
   onTestAlert: () => void;
 }
 
-export const TyresAccordion: React.FC<TyresAccordionProps> = ({
-  isExpanded,
-  onToggleExpand,
-  onTestAlert,
-}) => {
+export const TyresAccordion: React.FC<TyresAccordionProps> = ({ isExpanded, onToggleExpand, onTestAlert }) => {
   const { t } = useI18n();
 
   const tyreAlertsEnabled = useRadioSettingsStore((s) => s.tyreAlertsEnabled);
@@ -42,54 +40,42 @@ export const TyresAccordion: React.FC<TyresAccordionProps> = ({
       id="tyres"
       title={t('ai_engineer.proactiveAlerts.tyresTitle')}
       subtitle={t('ai_engineer.proactiveAlerts.tyresDesc')}
-      icon={<Gauge className="w-4 h-4" />}
-      iconColorClass="text-cyan-400"
+      icon={<Gauge size={16} />}
+      tone="cyan"
       masterEnabled={tyreAlertsEnabled}
       onToggleMaster={setTyreAlertsEnabled}
       isExpanded={isExpanded}
       onToggleExpand={onToggleExpand}
       onTestAlert={onTestAlert}
     >
-      <div className="radio-sub-toggles-grid">
-        <label className="radio-sub-toggle-item">
-          <span>{t('ai_engineer.proactiveAlerts.tyreWearWarning')}</span>
-          <input
-            type="checkbox"
-            checked={subTyreWear}
-            onChange={(e) => setSubTyreWear(e.target.checked)}
-            className="radio-checkbox"
-          />
-        </label>
-        <label className="radio-sub-toggle-item">
-          <span>{t('ai_engineer.proactiveAlerts.tyrePuncture')}</span>
-          <input
-            type="checkbox"
-            checked={subTyrePuncture}
-            onChange={(e) => setSubTyrePuncture(e.target.checked)}
-            className="radio-checkbox"
-          />
-        </label>
-        <label className="radio-sub-toggle-item">
-          <span>{t('ai_engineer.proactiveAlerts.tyreThermalOverheat')}</span>
-          <input
-            type="checkbox"
-            checked={subTyreThermal}
-            onChange={(e) => setSubTyreThermal(e.target.checked)}
-            className="radio-checkbox"
-          />
-        </label>
-        <label className="radio-sub-toggle-item">
-          <span>{t('ai_engineer.proactiveAlerts.tyreCold')}</span>
-          <input
-            type="checkbox"
-            checked={subTyreCold}
-            onChange={(e) => setSubTyreCold(e.target.checked)}
-            className="radio-checkbox"
-          />
-        </label>
+      <div className={styles.toggleGrid}>
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.tyreWearWarning')}
+          checked={subTyreWear}
+          onChange={setSubTyreWear}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.tyrePuncture')}
+          checked={subTyrePuncture}
+          onChange={setSubTyrePuncture}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.tyreThermalOverheat')}
+          checked={subTyreThermal}
+          onChange={setSubTyreThermal}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.tyreCold')}
+          checked={subTyreCold}
+          onChange={setSubTyreCold}
+        />
       </div>
 
-      <div className="radio-ptt-grid">
+      <div className={styles.grid2}>
         <ThresholdSlider
           label={t('ai_engineer.proactiveAlerts.tyreWearWarnThreshold')}
           value={tyreWearWarningPct}

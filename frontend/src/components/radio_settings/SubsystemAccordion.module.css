@@ -1,0 +1,132 @@
+.card {
+  overflow: hidden;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  transition:
+    border-color var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.card:hover {
+  border-color: var(--border-strong);
+}
+
+.card[data-open='true'] {
+  background: var(--bg-active);
+  border-color: color-mix(in srgb, var(--accent-cyan) 25%, transparent);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--transition-fast);
+}
+
+.header:hover {
+  background: var(--bg-hover);
+}
+
+.titleButton {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* The icon's colour names the subsystem */
+.icon {
+  --icon-color: var(--accent-cyan);
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: var(--icon-color);
+  background: var(--bg-hover);
+  border: 1px solid var(--border-highlight);
+  border-radius: var(--radius-sm);
+}
+
+.icon[data-tone='green'] {
+  --icon-color: var(--status-success);
+}
+
+.icon[data-tone='orange'] {
+  --icon-color: var(--f1-sector-1);
+}
+
+.icon[data-tone='amber'] {
+  --icon-color: var(--status-warning);
+}
+
+.icon[data-tone='red'] {
+  --icon-color: var(--status-danger);
+}
+
+.icon[data-tone='purple'] {
+  --icon-color: var(--accent-purple);
+}
+
+.icon[data-tone='yellow'] {
+  --icon-color: var(--f1-yellow);
+}
+
+.titles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-0-5);
+  min-width: 0;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+}
+
+.subtitle {
+  font-size: var(--font-size-xs);
+  line-height: 1.25;
+  color: var(--text-secondary);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.switchWrap {
+  display: contents;
+}
+
+.chevron {
+  color: var(--text-secondary);
+  transition: transform var(--transition-fast);
+}
+
+.card[data-open='true'] .chevron {
+  transform: rotate(180deg);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-inset);
+  border-top: 1px solid var(--border-color);
+}
+
+.testButton {
+  align-self: flex-start;
+}

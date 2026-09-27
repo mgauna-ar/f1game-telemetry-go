@@ -1,19 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import {
-  X,
-  Radio,
-  Sparkles,
-  Sliders,
-  BellRing,
-  Power,
-  Check,
-  Play,
-} from 'lucide-react';
+import { Radio, Sparkles, Sliders, BellRing, Power, Check, Play } from 'lucide-react';
 import { useI18n } from '../context/I18nContext';
 import type { UseRadioControllerReturn } from '../hooks/useRadioController';
 import { PersonaSettingsTab } from './radio_settings/PersonaSettingsTab';
 import { AudioSettingsTab } from './radio_settings/AudioSettingsTab';
 import { TacticalCoachingTab } from './radio_settings/TacticalCoachingTab';
+import { Modal, ModalBody, ModalFooter, ModalHeader } from './ui/Modal';
+import { Badge } from './ui/Badge';
+import { Button } from './ui/Button';
+import { Switch } from './ui/Switch';
+import { TabPanel, Tabs } from './ui/Tabs';
+import styles from './RadioSettingsPanel.module.css';
 
 export type RadioSettingsTab = 'persona' | 'audio' | 'tactical';
 
@@ -25,12 +22,9 @@ export interface RadioSettingsPanelProps {
   initialTab?: RadioSettingsTab;
 }
 
-export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
-  isOpen,
-  onClose,
-  radio,
-  initialTab,
-}) => {
+const TABS_ID = 'radio-settings';
+
+export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({ isOpen, onClose, radio, initialTab }) => {
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<RadioSettingsTab>(initialTab ?? 'persona');
 
@@ -38,125 +32,61 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({
     if (isOpen && initialTab) setActiveTab(initialTab);
   }, [isOpen, initialTab]);
 
-  if (!isOpen) return null;
-
   return (
-    <div className="radio-modal-backdrop" onClick={onClose}>
-      <div
-        className="radio-modal-dialog"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="radio-modal-header">
-          <div className="radio-modal-header-left">
-            <div className="radio-modal-header-icon">
-              <Radio className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="radio-modal-title">
-                {t('ai_engineer.radio.settings')}
-              </h2>
-              <p className="radio-modal-subtitle">
-                {t('ai_engineer.personas.title')} & Pit Wall Strategist
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="radio-modal-close-btn"
-            title={t('ai_engineer.close')}
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    <Modal isOpen={isOpen} onClose={onClose} size="lg">
+      <ModalHeader
+        tone="accent"
+        icon={<Radio size={20} />}
+        title={t('ai_engineer.radio.settings')}
+        subtitle={t('ai_engineer.radio.settingsSubtitle')}
+      />
 
-        {/* Master Enable/Disable Card */}
-        <div className="radio-master-toggle-card">
-          <div className="radio-master-toggle-info">
-            <div className="radio-master-toggle-title-row">
-              <Power className={`w-4 h-4 ${radio.isRadioEnabled ? 'text-emerald-400' : 'text-slate-500'}`} />
-              <span className="radio-master-toggle-title">
-                {t('ai_engineer.radio.masterToggle')}
-              </span>
-              <span className={`radio-master-status-badge ${radio.isRadioEnabled ? 'status-active' : 'status-off'}`}>
+      <ModalBody className={styles.body}>
+        {/* Master on/off: the whole card is the switch's label */}
+        <label className={styles.master}>
+          <span className={styles.masterText}>
+            <span className={styles.masterTitleRow}>
+              <Power size={16} className={styles.masterIcon} data-on={radio.isRadioEnabled} aria-hidden="true" />
+              <span className={styles.masterTitle}>{t('ai_engineer.radio.masterToggle')}</span>
+              <Badge tone={radio.isRadioEnabled ? 'success' : 'danger'} size="xs" square aria-hidden="true">
                 {radio.isRadioEnabled ? 'ON' : 'OFF'}
-              </span>
-            </div>
-            <p className="radio-master-toggle-desc">
-              {t('ai_engineer.radio.masterToggleDesc')}
-            </p>
-          </div>
-          <label className="radio-switch">
-            <input
-              type="checkbox"
-              checked={radio.isRadioEnabled}
-              onChange={(e) => radio.setIsRadioEnabled(e.target.checked)}
-            />
-            <span className="radio-switch-slider" />
-          </label>
-        </div>
+              </Badge>
+            </span>
+            <span className={styles.masterDesc}>{t('ai_engineer.radio.masterToggleDesc')}</span>
+          </span>
+          <Switch size="md" tone="success" checked={radio.isRadioEnabled} onChange={radio.setIsRadioEnabled} />
+        </label>
 
-        {/* Sub-Tab Navigation */}
-        <div className="radio-tabs-nav">
-          <button
-            type="button"
-            className={`radio-tab-btn ${activeTab === 'persona' ? 'tab-active' : ''}`}
-            onClick={() => setActiveTab('persona')}
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            {t('ai_engineer.tabs.persona')}
-          </button>
+        <Tabs
+          idPrefix={TABS_ID}
+          aria-label={t('ai_engineer.radio.settings')}
+          tone="accent"
+          size="sm"
+          stretch
+          value={activeTab}
+          onChange={setActiveTab}
+          items={[
+            { id: 'persona', label: t('ai_engineer.tabs.persona'), icon: <Sparkles size={14} /> },
+            { id: 'audio', label: t('ai_engineer.tabs.audio'), icon: <Sliders size={14} /> },
+            { id: 'tactical', label: t('ai_engineer.tabs.tactical'), icon: <BellRing size={14} /> },
+          ]}
+        />
 
-          <button
-            type="button"
-            className={`radio-tab-btn ${activeTab === 'audio' ? 'tab-active' : ''}`}
-            onClick={() => setActiveTab('audio')}
-          >
-            <Sliders className="w-3.5 h-3.5" />
-            {t('ai_engineer.tabs.audio')}
-          </button>
+        <TabPanel idPrefix={TABS_ID} tab={activeTab}>
+          {activeTab === 'persona' && <PersonaSettingsTab radio={radio} />}
+          {activeTab === 'audio' && <AudioSettingsTab radio={radio} />}
+          {activeTab === 'tactical' && <TacticalCoachingTab radio={radio} />}
+        </TabPanel>
+      </ModalBody>
 
-          <button
-            type="button"
-            className={`radio-tab-btn ${activeTab === 'tactical' ? 'tab-active' : ''}`}
-            onClick={() => setActiveTab('tactical')}
-          >
-            <BellRing className="w-3.5 h-3.5" />
-            {t('ai_engineer.tabs.tactical')}
-          </button>
-        </div>
-
-        {/* Tab 1: Persona & Driver Callsign */}
-        {activeTab === 'persona' && <PersonaSettingsTab radio={radio} />}
-
-        {/* Tab 2: Voice, Audio Realism & PTT Controls */}
-        {activeTab === 'audio' && <AudioSettingsTab radio={radio} />}
-
-        {/* Tab 3: Telemetry Triggers, Presets & Tactical Coaching */}
-        {activeTab === 'tactical' && <TacticalCoachingTab radio={radio} />}
-
-        {/* Footer */}
-        <div className="radio-modal-footer">
-          <button
-            type="button"
-            onClick={radio.testRadioTransmission}
-            className="radio-btn-test"
-            title={t('ai_engineer.radio.testRadio')}
-          >
-            <Play className="w-4 h-4" />
-            {t('ai_engineer.radio.testRadio')}
-          </button>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="radio-btn-done"
-          >
-            <Check className="w-4 h-4" />
-            <span>{t('ai_engineer.done')}</span>
-          </button>
-        </div>
-      </div>
-    </div>
+      <ModalFooter align="between">
+        <Button icon={<Play size={15} aria-hidden="true" />} onClick={radio.testRadioTransmission}>
+          {t('ai_engineer.radio.testRadio')}
+        </Button>
+        <Button variant="primary" icon={<Check size={15} aria-hidden="true" />} onClick={onClose}>
+          {t('ai_engineer.done')}
+        </Button>
+      </ModalFooter>
+    </Modal>
   );
 };

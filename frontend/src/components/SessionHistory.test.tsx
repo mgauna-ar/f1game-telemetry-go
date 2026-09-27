@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { vi, describe, it, beforeEach, expect } from 'vitest';
 import { SessionHistory } from './SessionHistory';
 import { RaceEngineerProvider } from '../context/RaceEngineerProvider';
@@ -222,8 +222,34 @@ describe('SessionHistory Component', () => {
     const searchInput = screen.getByPlaceholderText('Search track, session type...');
     fireEvent.change(searchInput, { target: { value: 'Monaco' } });
 
-    expect(screen.queryByRole('cell', { name: /Silverstone/i })).not.toBeInTheDocument();
-    expect(screen.getByRole('cell', { name: /Monaco/i })).toBeInTheDocument();
+    expect(screen.queryByRole('rowheader', { name: /Silverstone/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('rowheader', { name: /Monaco/i })).toBeInTheDocument();
+  });
+
+  it('reports the sort order on the column headers and sorts from their buttons', async () => {
+    setupFetchMock({
+      sessions: [
+        makeSession({ id: 1, track_name: 'Silverstone', created_at: '2026-08-10T14:00:00Z' }),
+        makeSession({ id: 2, track_name: 'Monaco', created_at: '2026-08-10T16:00:00Z' }),
+      ],
+    });
+
+    render(<SessionHistory />);
+    await waitFor(() => expect(screen.getAllByText('Monaco').length).toBeGreaterThan(0));
+
+    const dateHeader = screen.getByRole('columnheader', { name: /Date & Time/i });
+    const trackHeader = screen.getByRole('columnheader', { name: /Track Name/i });
+    expect(dateHeader).toHaveAttribute('aria-sort', 'descending');
+    expect(trackHeader).toHaveAttribute('aria-sort', 'none');
+
+    fireEvent.click(within(trackHeader).getByRole('button', { name: /Track Name/i }));
+    expect(trackHeader).toHaveAttribute('aria-sort', 'ascending');
+    expect(dateHeader).toHaveAttribute('aria-sort', 'none');
+
+    fireEvent.click(within(trackHeader).getByRole('button', { name: /Track Name/i }));
+    expect(trackHeader).toHaveAttribute('aria-sort', 'descending');
+
+    expect(screen.getByRole('checkbox', { name: 'Select session #2' })).toBeInTheDocument();
   });
 
   it('selects a session and displays Classification and Driver Standings', async () => {
@@ -271,7 +297,7 @@ describe('SessionHistory Component', () => {
     });
   });
 
-  it('triggers onNavigateToComparator when Slot A or Slot B button is clicked on a lap', async () => {
+  it('opens the comparator URL with a staged Slot A lap', async () => {
     const mockSessions: Session[] = [
       makeSession({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
     ];
@@ -284,10 +310,9 @@ describe('SessionHistory Component', () => {
       makeLap({ id: 201, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 90100, sector1_ms: 28000, sector2_ms: 35000, sector3_ms: 27100, is_valid: true, tyre_compound: 'SOFT', max_speed_kmh: 312.4 }),
     ];
 
-    const onNavigateMock = vi.fn();
     setupFetchMock({ sessions: mockSessions, participants: mockParticipants, laps: mockLaps });
 
-    render(<SessionHistory onNavigateToComparator={onNavigateMock} />);
+    render(<SessionHistory />);
 
     await waitFor(() => {
       expect(screen.getAllByText('Silverstone').length).toBeGreaterThan(0);
@@ -317,13 +342,10 @@ describe('SessionHistory Component', () => {
 
     // Click Launch Comparator
     fireEvent.click(screen.getByRole('button', { name: /Launch Comparator/i }));
-    expect(onNavigateMock).toHaveBeenCalledWith(
-      expect.objectContaining({ sessionAId: 1, lapAId: 201 })
-    );
+    expect(window.location.pathname + window.location.search).toBe('/compare?sa=1&a=201');
   });
 
   it('stages both Slot A and Slot B, supports swapping, and launches dual comparison', async () => {
-    const onNavigateMock = vi.fn();
     const mockSessions: Session[] = [
       makeSession({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
     ];
@@ -340,7 +362,7 @@ describe('SessionHistory Component', () => {
 
     setupFetchMock({ sessions: mockSessions, participants: mockParticipants, laps: mockLaps });
 
-    render(<SessionHistory onNavigateToComparator={onNavigateMock} />);
+    render(<SessionHistory />);
 
     await waitFor(() => {
       expect(screen.getAllByText('Silverstone').length).toBeGreaterThan(0);
@@ -375,19 +397,13 @@ describe('SessionHistory Component', () => {
     });
 
     // Swap slots
-    const swapBtn = screen.getByTitle('Swap Slot A and Slot B');
+    const swapBtn = screen.getByRole('button', { name: 'Swap Slot A and Slot B' });
     fireEvent.click(swapBtn);
 
     // Launch comparison
     fireEvent.click(screen.getByRole('button', { name: /Compare 2 Laps/i }));
-    expect(onNavigateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        sessionAId: 1,
-        lapAId: 202,
-        sessionBId: 1,
-        lapBId: 201,
-      })
-    );
+    // Both laps are in session 1, so sb is left out
+    expect(window.location.pathname + window.location.search).toBe('/compare?sa=1&a=202&b=201');
   });
 
   it('switches between detail tabs: Lap Progression and Sector Matrix', async () => {
@@ -419,14 +435,48 @@ describe('SessionHistory Component', () => {
       expect(screen.getByText('Sector & Speed Matrix')).toBeInTheDocument();
     });
 
+    expect(window.location.pathname).toBe('/history/1');
+
     // Switch to Charts tab
     fireEvent.click(screen.getByText('Lap Progression & Gap Charts'));
     expect(screen.getByText('Lap Pace Progression')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/history/1/charts');
 
     // Switch to Sector Matrix tab
     fireEvent.click(screen.getByText('Sector & Speed Matrix'));
     expect(screen.getByText('SESSION ULTIMATE THEORETICAL LAP')).toBeInTheDocument();
     expect(screen.getByText('Speed Trap & Maximum Speeds')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/history/1/sectors');
+
+    // Back to the list
+    fireEvent.click(screen.getByRole('button', { name: /Back to/i }));
+    expect(window.location.pathname).toBe('/history');
+    expect(await screen.findByRole('button', { name: /^Explore$/i })).toBeInTheDocument();
+  });
+
+  it('opens the session and tab named in the URL, and leaves an unknown session for the list', async () => {
+    const mockSessions: Session[] = [
+      makeSession({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
+    ];
+    const mockParticipants: Participant[] = [
+      makeParticipant({ id: 10, session_id: 1, car_index: 0, name: 'Lewis Hamilton', driver_id: 2, team_id: 1, race_number: 44, ai_controlled: false }),
+    ];
+    const mockLaps: Lap[] = [
+      makeLap({ id: 201, session_id: 1, car_index: 0, lap_number: 1, lap_time_ms: 90000, sector1_ms: 28000, sector2_ms: 35000, sector3_ms: 27000, is_valid: true, tyre_compound: 'SOFT', max_speed_kmh: 320.0 }),
+    ];
+    setupFetchMock({ sessions: mockSessions, participants: mockParticipants, laps: mockLaps });
+
+    window.history.replaceState(null, '', '/history/1/sectors');
+    const { unmount } = render(<SessionHistory />);
+    expect(await screen.findByText('SESSION ULTIMATE THEORETICAL LAP')).toBeInTheDocument();
+    unmount();
+
+    window.history.replaceState(null, '', '/history/99');
+    render(<SessionHistory />);
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/history');
+    });
+    expect(await screen.findByRole('button', { name: /^Explore$/i })).toBeInTheDocument();
   });
 
   it('opens and interacts with AI Race Engineer debrief', async () => {
@@ -502,7 +552,7 @@ describe('SessionHistory Component', () => {
     });
 
     // Click delete button for Silverstone (#1)
-    const deleteBtn = screen.getByTitle('Delete Session #1');
+    const deleteBtn = screen.getByRole('button', { name: 'Delete Session #1' });
     fireEvent.click(deleteBtn);
 
     // Confirmation modal should appear
@@ -752,7 +802,7 @@ describe('SessionHistory Component', () => {
     expect(screen.getByText('Import Session')).toBeInTheDocument();
 
     // 2. Click Export button on the session card
-    const exportBtn = screen.getByTitle('Export Session (.f1session) #1');
+    const exportBtn = screen.getByRole('button', { name: 'Export Session (.f1session) #1' });
     fireEvent.click(exportBtn);
 
     await waitFor(() => {
@@ -1111,12 +1161,34 @@ describe('SessionHistory Component', () => {
     expect(sessionCalls).toHaveLength(1);
 
     // Check Sector Matrix tab
-    const sectorsTab = screen.getByRole('button', { name: /Sector & Speed/i });
+    const sectorsTab = screen.getByRole('tab', { name: /Sector & Speed/i });
     fireEvent.click(sectorsTab);
 
     await waitFor(() => {
       expect(screen.getByText(/SESSION ULTIMATE THEORETICAL LAP/i)).toBeInTheDocument();
       expect(screen.getAllByText('1:12.400').length).toBeGreaterThan(0);
     });
+  });
+
+  it('lists the sessions as cards on a narrow screen', async () => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    );
+    try {
+      setupFetchMock({
+        sessions: [makeSession({ id: 1, track_name: 'Silverstone', session_type: 'Race' })],
+        participants: [],
+        laps: [],
+      });
+      render(<SessionHistory />);
+
+      const list = await screen.findByRole('list', { name: 'Recorded sessions' });
+      expect(screen.queryByRole('table')).not.toBeInTheDocument();
+      fireEvent.click(within(list).getByRole('button', { name: 'Explore: Silverstone' }));
+      expect(window.location.pathname).toBe('/history/1');
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

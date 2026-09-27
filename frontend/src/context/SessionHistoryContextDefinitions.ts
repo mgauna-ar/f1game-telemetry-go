@@ -7,9 +7,9 @@ import type {
   ClassificationResponse,
   ProgressionResponse,
   StintsResponse,
-  NavigationComparatorPayload,
   Tag,
 } from '../types/session';
+import type { SessionDetailTab } from '../router/routes';
 
 export interface SessionHistoryData {
   sessions: Session[];
@@ -39,7 +39,8 @@ export interface SessionHistoryData {
   totalSessionLaps: number;
   totalDriversCount: number;
   expandedDrivers: Record<number, boolean>;
-  activeDetailTab: 'classification' | 'charts' | 'stints' | 'sectors';
+  /** The open session's tab, from the URL. */
+  activeDetailTab: SessionDetailTab;
   stagedSlotA: StagedLap | null;
   stagedSlotB: StagedLap | null;
   selectedSessionIds: Set<number>;
@@ -58,9 +59,11 @@ export interface SessionHistoryActions {
   setCircuitFilter: (circuit: string) => void;
   setSelectedTagId: (id: number | null) => void;
   handleToggleSort: (field: string) => void;
-  setSelectedSession: (session: Session | null) => void;
+  /** Opens a session's page (`/history/:id`). */
   selectSession: (session: Session) => void;
-  setActiveDetailTab: (tab: 'classification' | 'charts' | 'stints' | 'sectors') => void;
+  /** Back to the session list (`/history`). */
+  closeSession: () => void;
+  setActiveDetailTab: (tab: SessionDetailTab) => void;
   toggleDriverExpand: (carIndex: number) => void;
   setStagedSlotA: (lap: StagedLap | null) => void;
   setStagedSlotB: (lap: StagedLap | null) => void;
@@ -95,11 +98,8 @@ export interface SessionHistoryActions {
   setShowBatchTagModal: (show: boolean) => void;
   fetchSessions: () => Promise<void>;
   fetchTags: () => Promise<void>;
-  onNavigateToComparator?: (
-    payload: NavigationComparatorPayload | number,
-    lapId?: number,
-    slot?: 'A' | 'B'
-  ) => void;
+  /** Opens the comparator with one lap in the given slot. */
+  sendLapToComparator: (sessionId: number, lapId: number, slot: 'A' | 'B') => void;
   onOpenAiDebrief: () => void;
 }
 

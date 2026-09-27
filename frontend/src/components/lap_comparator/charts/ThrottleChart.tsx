@@ -1,7 +1,7 @@
 import React from 'react';
 import { ChevronsUp } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
-import { type CommonChartProps } from './chartDefaults';
+import { CHART_COLORS, type CommonChartProps } from './chartDefaults';
 import { ComparatorChart } from './ComparatorChart';
 import { ChartTitle } from './ChartTitle';
 
@@ -13,7 +13,7 @@ export const ThrottleChart = React.memo<CommonChartProps>((props) => {
     <ComparatorChart
       {...props}
       height="280px"
-      title={<ChartTitle icon={ChevronsUp} label={t('comparator.charts.throttle')} color="#2ed573" />}
+      title={<ChartTitle icon={ChevronsUp} label={t('comparator.charts.throttle')} color={CHART_COLORS.THROTTLE} />}
       dataKeyA="throttleA"
       dataKeyB="throttleB"
       lineNameA={`${nameA} Throttle`}

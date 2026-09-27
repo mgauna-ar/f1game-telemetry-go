@@ -195,10 +195,10 @@ describe('SessionStintStrategyTab Component', () => {
       </I18nProvider>
     );
 
-    expect(screen.getByText('MOST POPULAR STRATEGY')).toBeInTheDocument();
-    expect(screen.getByText('LONGEST STINT')).toBeInTheDocument();
-    expect(screen.getByText('TOTAL PIT STOPS')).toBeInTheDocument();
-    expect(screen.getByText('FASTEST LAP BY COMPOUND')).toBeInTheDocument();
+    expect(screen.getByText('Most Popular Strategy')).toBeInTheDocument();
+    expect(screen.getByText('Longest Stint')).toBeInTheDocument();
+    expect(screen.getByText('Total Pit Stops')).toBeInTheDocument();
+    expect(screen.getByText('Fastest Lap by Compound')).toBeInTheDocument();
 
     // 2 total pit stops
     expect(screen.getByText(/2 Stops/i)).toBeInTheDocument();
@@ -241,9 +241,10 @@ describe('SessionStintStrategyTab Component', () => {
     expect(screen.getByText('All Compounds')).toBeInTheDocument();
 
     // Filter by compound button
-    const hardCompoundBtn = screen.getByRole('button', { name: /HARD/i });
+    const hardCompoundBtn = screen.getByRole('radio', { name: /HARD/i });
     expect(hardCompoundBtn).toBeInTheDocument();
     fireEvent.click(hardCompoundBtn);
+    expect(hardCompoundBtn).toHaveAttribute('aria-checked', 'true');
 
     // Toggle clear all / select all drivers
     const clearBtn = screen.getByText('Clear');
@@ -268,10 +269,10 @@ describe('SessionStintStrategyTab Component', () => {
       </I18nProvider>
     );
 
-    expect(screen.getByText('ESTRATEGIA MÁS POPULAR')).toBeInTheDocument();
-    expect(screen.getByText('STINT MÁS LARGO')).toBeInTheDocument();
-    expect(screen.getByText('PARADAS TOTALES EN BOXES')).toBeInTheDocument();
-    expect(screen.getByText('VUELTA RÁPIDA POR COMPUESTO')).toBeInTheDocument();
+    expect(screen.getByText('Estrategia Más Popular')).toBeInTheDocument();
+    expect(screen.getByText('Stint Más Largo')).toBeInTheDocument();
+    expect(screen.getByText('Paradas Totales en Boxes')).toBeInTheDocument();
+    expect(screen.getByText('Vuelta Rápida por Compuesto')).toBeInTheDocument();
     expect(screen.getByText('Cronología de Estrategia de Neumáticos de la Parrilla')).toBeInTheDocument();
     expect(screen.getByText('Curvas de Degradación y Ritmo por Stint')).toBeInTheDocument();
   });

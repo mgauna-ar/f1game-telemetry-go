@@ -1,0 +1,254 @@
+/* Floating dock at the bottom of the history view: the batch actions and the comparator staging */
+.dock {
+  position: fixed;
+  bottom: var(--dock-inset);
+  left: 50%;
+  z-index: var(--z-dock);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: min(94vw, 760px);
+  padding: var(--space-3) var(--space-5);
+  background: var(--bg-popover);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid color-mix(in srgb, var(--accent-cyan) 40%, transparent);
+  border-radius: 14px;
+  box-shadow:
+    0 20px 48px rgba(0, 0, 0, 0.75),
+    0 0 24px color-mix(in srgb, var(--accent-cyan) 18%, transparent);
+  transform: translateX(-50%);
+  animation: dockIn var(--duration-normal) var(--ease-out);
+}
+
+@keyframes dockIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%);
+  }
+}
+
+.wide {
+  width: min(92vw, 840px);
+  gap: var(--space-4);
+}
+
+.intro {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.introIcon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent-cyan) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-cyan) 30%, transparent);
+  color: var(--accent-cyan);
+}
+
+.count {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+}
+
+.introTitle {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-black);
+  letter-spacing: 0.05em;
+  color: var(--accent-cyan);
+}
+
+.introSub {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Batch actions */
+.export {
+  background: color-mix(in srgb, var(--accent-cyan) 18%, transparent);
+  border-color: color-mix(in srgb, var(--accent-cyan) 60%, transparent);
+  color: var(--accent-cyan);
+}
+
+.export:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent-cyan) 28%, transparent);
+  border-color: var(--accent-cyan);
+  color: var(--accent-cyan);
+}
+
+.tagIcon {
+  color: var(--accent-cyan);
+}
+
+.delete {
+  background: var(--status-danger-bg);
+  border-color: var(--status-danger-border);
+  color: var(--status-danger);
+}
+
+.delete:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--status-danger) 25%, transparent);
+  border-color: var(--status-danger);
+  color: var(--status-danger);
+}
+
+/* Clears the selection; only sized on phones */
+.clear {
+  flex-shrink: 0;
+}
+
+/* Comparator staging: one chip per slot */
+.slots {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.slot {
+  --slot-color: var(--f1-slot-a);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 160px;
+  padding: var(--space-1-5) 10px;
+  border: 1px dashed var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-hover);
+}
+
+.slotB {
+  --slot-color: var(--f1-slot-b);
+}
+
+.slot.filled {
+  border: 1px solid color-mix(in srgb, var(--slot-color) 50%, transparent);
+  background: color-mix(in srgb, var(--slot-color) 10%, transparent);
+}
+
+.slotTag {
+  padding: var(--space-0-5) var(--space-1);
+  border-radius: var(--radius-xs);
+  background: color-mix(in srgb, var(--slot-color) 20%, transparent);
+  color: var(--slot-color);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-black);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.staged {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--space-1-5);
+}
+
+.teamBar {
+  width: 3px;
+  height: 16px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  background: var(--team-color);
+}
+
+.stagedText {
+  line-height: 1.1;
+}
+
+.stagedDriver {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+}
+
+.stagedLap {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--slot-color);
+}
+
+.removeSlot {
+  margin-left: auto;
+}
+
+.empty {
+  font-size: var(--font-size-xs);
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.swap {
+  border-radius: 50%;
+}
+
+/* Launch turns cyan once both slots hold a lap */
+.launchReady {
+  background: linear-gradient(135deg, var(--accent-cyan), #4facfe);
+  border-color: transparent;
+  color: var(--text-on-accent);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+.launchReady:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--accent-cyan), var(--accent-cyan));
+  border-color: transparent;
+}
+
+/* Tablets and phones: above the AI launcher, across the screen */
+@media (--tablet) {
+  .dock,
+  .wide {
+    bottom: calc(var(--dock-inset) + var(--launcher-size) + var(--space-3));
+    width: calc(100vw - 2 * var(--dock-inset));
+  }
+}
+
+/* Phone: the batch actions two to a row, so the dock stays short */
+@media (--phone) {
+  .dock {
+    padding: var(--space-3);
+  }
+
+  .actions {
+    width: 100%;
+  }
+
+  /* Two buttons share a row; the clear button keeps its size beside the last one */
+  .actions > * {
+    flex: 1 1 calc(50% - var(--space-2));
+  }
+
+  .actions > .clear {
+    flex: 0 0 auto;
+  }
+
+  .slot {
+    min-width: 0;
+    flex: 1 1 140px;
+  }
+}

@@ -1,11 +1,19 @@
 import React, { useState, useMemo } from 'react';
 import { Zap, Gauge, Award, Layers } from 'lucide-react';
-import { TEAM_COLORS, DEFAULT_MAX_SPEED_FALLBACK_KPH } from '../../constants/f1';
+import { getTeamColor, DEFAULT_MAX_SPEED_FALLBACK_KPH } from '../../constants/f1';
 import { UI } from '../../constants/ui';
 
 import { formatSectorTime } from '../../utils/formatters';
+import { styleVars } from '../../styles/theme';
+import { SectorTime } from '../common/SectorTime';
+import { cx } from '../ui/cx';
+import { DataTable, type DataTableColumn } from '../ui/DataTable';
+import { Panel, PanelHeader } from '../ui/Panel';
+import { SegmentedControl } from '../ui/SegmentedControl';
+import { Stat } from '../ui/Stat';
 import type { DriverStanding, ClassificationResponse } from '../../types/session';
 import { useI18n } from '../../context/I18nContext';
+import styles from './SessionSectorMatrixTab.module.css';
 
 interface SessionSectorMatrixTabProps {
   classificationData?: ClassificationResponse | null;
@@ -16,6 +24,14 @@ interface SessionSectorMatrixTabProps {
   formatLapTime: (ms: number) => string;
 }
 
+type SectorView = 'ALL' | 'S1' | 'S2' | 'S3';
+type Sector = 1 | 2 | 3;
+
+const SECTORS: readonly Sector[] = [1, 2, 3];
+
+const bestSectorMS = (driver: DriverStanding, sector: Sector): number =>
+  sector === 1 ? driver.bestS1MS : sector === 2 ? driver.bestS2MS : driver.bestS3MS;
+
 export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
   classificationData,
   driverStandings,
@@ -25,22 +41,20 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
   formatLapTime,
 }) => {
   const { t } = useI18n();
-  const [sectorView, setSectorView] = useState<'ALL' | 'S1' | 'S2' | 'S3'>('ALL');
+  const [sectorView, setSectorView] = useState<SectorView>('ALL');
 
   const formatSector = (ms: number) => formatSectorTime(ms, false);
+  const sessionBest = (sector: Sector) => (sector === 1 ? sessionBestS1 : sector === 2 ? sessionBestS2 : sessionBestS3);
 
-  // Find which driver holds each purple sector
-  const s1Holder: DriverStanding | null = useMemo(() => {
-    return driverStandings.find((d) => d.bestS1MS > 0 && d.bestS1MS === sessionBestS1) || null;
-  }, [driverStandings, sessionBestS1]);
-
-  const s2Holder: DriverStanding | null = useMemo(() => {
-    return driverStandings.find((d) => d.bestS2MS > 0 && d.bestS2MS === sessionBestS2) || null;
-  }, [driverStandings, sessionBestS2]);
-
-  const s3Holder: DriverStanding | null = useMemo(() => {
-    return driverStandings.find((d) => d.bestS3MS > 0 && d.bestS3MS === sessionBestS3) || null;
-  }, [driverStandings, sessionBestS3]);
+  // Which driver holds each purple sector
+  const sectorHolders = useMemo(
+    () =>
+      SECTORS.map((sector) => {
+        const best = sector === 1 ? sessionBestS1 : sector === 2 ? sessionBestS2 : sessionBestS3;
+        return driverStandings.find((d) => bestSectorMS(d, sector) > 0 && bestSectorMS(d, sector) === best) ?? null;
+      }),
+    [driverStandings, sessionBestS1, sessionBestS2, sessionBestS3]
+  );
 
   // Absolute theoretical best lap of the entire session
   const ultimateSessionLapMS = classificationData?.ultimate_theoretical_ms ?? 0;
@@ -92,238 +106,164 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
   const speedSpread = maxOverallSpeed - minOverallSpeed;
   const kmh = t('common.units.kmh');
 
+  const recordLabels = [t('history.sectors.s1Record'), t('history.sectors.s2Record'), t('history.sectors.s3Record')];
+  const bestHeaders = [t('history.sectors.bestS1'), t('history.sectors.bestS2'), t('history.sectors.bestS3')];
+
+  const sectorColumn = (sector: Sector): DataTableColumn<DriverStanding> => ({
+    key: `s${sector}`,
+    header: bestHeaders[sector - 1],
+    numeric: true,
+    align: 'left',
+    cell: (driver) => {
+      const time = bestSectorMS(driver, sector);
+      const best = sessionBest(sector);
+      const delta = time > 0 && best > 0 ? (time - best) / 1000 : 0;
+      return (
+        <div className={styles.sectorCell}>
+          <SectorTime isSessionBest={delta === 0 && time > 0} isPersonalBest={time > 0} className={styles.sectorTime}>
+            {formatSector(time)}
+          </SectorTime>
+          {delta > 0 && <span className={styles.gap}>+{delta.toFixed(3)}</span>}
+        </div>
+      );
+    },
+  });
+
+  const columns: DataTableColumn<DriverStanding>[] = [
+    {
+      key: 'pos',
+      header: t('history.classification.headers.pos'),
+      numeric: true,
+      align: 'left',
+      width: '40px',
+      className: styles.pos,
+      cell: (_driver, index) => `P${index + 1}`,
+    },
+    {
+      key: 'driver',
+      header: t('history.classification.headers.driver'),
+      rowHeader: true,
+      cell: (driver) => (
+        <div className={styles.driver} style={styleVars({ '--team-color': getTeamColor(driver.participant.team_id) })}>
+          <span className={styles.teamBar} aria-hidden="true" />
+          {driver.participant.name}
+        </div>
+      ),
+    },
+    ...SECTORS.filter((sector) => sectorView === 'ALL' || sectorView === `S${sector}`).map(sectorColumn),
+  ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className={styles.tab}>
       {/* 1. ULTIMATE THEORETICAL LAP HERO CARD */}
-      <div className="glass-panel" style={{ padding: '1.5rem', background: 'radial-gradient(ellipse at 80% 20%, rgba(176, 38, 255, 0.15), transparent 60%), var(--bg-glass)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1.5rem' }}>
+      <Panel as="div" className={styles.hero}>
+        <div className={styles.heroTop}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent-purple)', fontWeight: 700, fontSize: '0.9rem', marginBottom: '6px' }}>
-              <Zap size={18} />
-              <span>{t('history.sectors.ultimateTheoretical')}</span>
-            </div>
-            <div className="mono" style={{ fontSize: '2.5rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+            <h3 className={styles.heroEyebrow}>
+              <Zap size={18} aria-hidden="true" />
+              {t('history.sectors.ultimateTheoretical')}
+            </h3>
+            <div className={styles.heroTime}>
               {ultimateSessionLapMS > 0 ? formatLapTime(ultimateSessionLapMS) : '--:--.---'}
             </div>
-            <p style={{ color: 'var(--text-secondary)', margin: '4px 0 0 0', fontSize: '0.85rem' }}>
-              {t('history.sectors.ultimateTheoreticalSub')}
-            </p>
+            <p className={styles.heroSub}>{t('history.sectors.ultimateTheoreticalSub')}</p>
           </div>
 
-          <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
-            <div className="header-stat-box" style={{ minWidth: '150px' }}>
-              <Award size={18} color="var(--accent-tertiary)" />
-              <div>
-                <div className="stat-label">{t('history.sectors.actualFastest')}</div>
-                <div className="stat-value mono" style={{ fontSize: '1.1rem', color: 'var(--accent-tertiary)' }}>
-                  {actualSessionBestLap.bestMS > 0 ? formatLapTime(actualSessionBestLap.bestMS) : '--:--.---'}
-                </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  {actualSessionBestLap.driver?.participant.name || '--'}
-                </div>
-              </div>
-            </div>
-
-            <div className="header-stat-box" style={{ minWidth: '150px' }}>
-              <Layers size={18} color="var(--accent-secondary)" />
-              <div>
-                <div className="stat-label">{t('history.sectors.potentialGain')}</div>
-                <div className="stat-value mono" style={{ fontSize: '1.1rem', color: '#00f2fe' }}>
-                  {ultimateDeltaMS > 0 ? `-${(ultimateDeltaMS / 1000).toFixed(3)}s` : '0.000s'}
-                </div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  {t('history.sectors.marginVsBest')}
-                </div>
-              </div>
-            </div>
+          <div className={styles.heroStats}>
+            <Stat
+              className={styles.heroStat}
+              icon={<Award size={18} className={styles.fastest} />}
+              label={t('history.sectors.actualFastest')}
+              value={actualSessionBestLap.bestMS > 0 ? formatLapTime(actualSessionBestLap.bestMS) : '--:--.---'}
+              valueClassName={cx(styles.heroStatValue, styles.fastest)}
+              detail={actualSessionBestLap.driver?.participant.name || '--'}
+            />
+            <Stat
+              className={styles.heroStat}
+              icon={<Layers size={18} className={styles.gain} />}
+              label={t('history.sectors.potentialGain')}
+              value={ultimateDeltaMS > 0 ? `-${(ultimateDeltaMS / 1000).toFixed(3)}s` : '0.000s'}
+              valueClassName={cx(styles.heroStatValue, styles.gain)}
+              detail={t('history.sectors.marginVsBest')}
+            />
           </div>
         </div>
 
-        {/* Sector Component Breakdown Chips */}
-        <div className="sector-breakdown-grid">
-          {/* Sector 1 Record */}
-
-          <div className="glass-panel" style={{ padding: '0.85rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(176, 38, 255, 0.3)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-purple)' }}>{t('history.sectors.s1Record')}</span>
-              <span className="mono sector-purple" style={{ padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
-                {formatSector(sessionBestS1)}
-              </span>
-            </div>
-            <div style={{ marginTop: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: TEAM_COLORS[s1Holder?.participant.team_id || 0] || '#A0A0A0' }} />
-              <span>{s1Holder?.participant.name || 'Unknown'}</span>
-            </div>
-          </div>
-
-          {/* Sector 2 Record */}
-          <div className="glass-panel" style={{ padding: '0.85rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(176, 38, 255, 0.3)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-purple)' }}>{t('history.sectors.s2Record')}</span>
-              <span className="mono sector-purple" style={{ padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
-                {formatSector(sessionBestS2)}
-              </span>
-            </div>
-            <div style={{ marginTop: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: TEAM_COLORS[s2Holder?.participant.team_id || 0] || '#A0A0A0' }} />
-              <span>{s2Holder?.participant.name || 'Unknown'}</span>
-            </div>
-          </div>
-
-          {/* Sector 3 Record */}
-          <div className="glass-panel" style={{ padding: '0.85rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(176, 38, 255, 0.3)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-purple)' }}>{t('history.sectors.s3Record')}</span>
-              <span className="mono sector-purple" style={{ padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
-                {formatSector(sessionBestS3)}
-              </span>
-            </div>
-            <div style={{ marginTop: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: TEAM_COLORS[s3Holder?.participant.team_id || 0] || '#A0A0A0' }} />
-              <span>{s3Holder?.participant.name || 'Unknown'}</span>
-            </div>
-          </div>
-        </div>
-      </div>
+        {/* Sector record cards */}
+        <ul className={styles.records}>
+          {SECTORS.map((sector, i) => {
+            const holder = sectorHolders[i];
+            return (
+              <li key={sector} className={styles.record}>
+                <div className={styles.recordTop}>
+                  <span className={styles.recordLabel}>{recordLabels[i]}</span>
+                  <SectorTime isSessionBest className={styles.recordTime}>
+                    {formatSector(sessionBest(sector))}
+                  </SectorTime>
+                </div>
+                <div
+                  className={styles.recordHolder}
+                  style={styleVars({ '--team-color': getTeamColor(holder?.participant.team_id) })}
+                >
+                  <span className={styles.teamDot} aria-hidden="true" />
+                  <span>{holder?.participant.name || '--'}</span>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </Panel>
 
       {/* 2. SECTOR LEADERBOARD & SPEED TRAP GRID */}
-      <div className="sector-matrix-grid">
-        {/* Sector Leaderboards */}
-
-        <div className="glass-panel" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <h4 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Zap size={18} color="var(--accent-purple)" /> {t('history.sectors.sectorLeaderboards')}
-            </h4>
-            <div style={{ display: 'flex', gap: '4px' }}>
-              <button
-                className={`nav-tab ${sectorView === 'ALL' ? 'active' : ''}`}
-                onClick={() => setSectorView('ALL')}
-                style={{ padding: '2px 8px', fontSize: '0.75rem' }}
-              >
-                {t('history.sectors.allSectors')}
-              </button>
-              <button
-                className={`nav-tab ${sectorView === 'S1' ? 'active' : ''}`}
-                onClick={() => setSectorView('S1')}
-                style={{ padding: '2px 8px', fontSize: '0.75rem' }}
-              >
-                S1
-              </button>
-              <button
-                className={`nav-tab ${sectorView === 'S2' ? 'active' : ''}`}
-                onClick={() => setSectorView('S2')}
-                style={{ padding: '2px 8px', fontSize: '0.75rem' }}
-              >
-                S2
-              </button>
-              <button
-                className={`nav-tab ${sectorView === 'S3' ? 'active' : ''}`}
-                onClick={() => setSectorView('S3')}
-                style={{ padding: '2px 8px', fontSize: '0.75rem' }}
-              >
-                S3
-              </button>
-            </div>
-          </div>
-
-          <div style={{ overflowX: 'auto', maxHeight: '420px', overflowY: 'auto' }}>
-            <table className="history-table" style={{ fontSize: '0.85rem' }}>
-              <thead>
-                <tr>
-                  <th style={{ width: '40px' }}>{t('history.classification.headers.pos')}</th>
-                  <th>{t('history.classification.headers.driver')}</th>
-                  {(sectorView === 'ALL' || sectorView === 'S1') && <th>{t('history.sectors.bestS1')}</th>}
-                  {(sectorView === 'ALL' || sectorView === 'S2') && <th>{t('history.sectors.bestS2')}</th>}
-                  {(sectorView === 'ALL' || sectorView === 'S3') && <th>{t('history.sectors.bestS3')}</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {driverStandings.map((driver, idx) => {
-                  const teamColor = TEAM_COLORS[driver.participant.team_id] || '#A0A0A0';
-                  const s1Delta = driver.bestS1MS > 0 && sessionBestS1 > 0 ? (driver.bestS1MS - sessionBestS1) / 1000 : 0;
-                  const s2Delta = driver.bestS2MS > 0 && sessionBestS2 > 0 ? (driver.bestS2MS - sessionBestS2) / 1000 : 0;
-                  const s3Delta = driver.bestS3MS > 0 && sessionBestS3 > 0 ? (driver.bestS3MS - sessionBestS3) / 1000 : 0;
-
-                  return (
-                    <tr key={driver.participant.car_index}>
-                      <td className="mono" style={{ fontWeight: 700 }}>
-                        P{idx + 1}
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ width: '3px', height: '16px', backgroundColor: teamColor, borderRadius: '2px' }} />
-                          <span style={{ fontWeight: 600 }}>{driver.participant.name}</span>
-                        </div>
-                      </td>
-
-                      {(sectorView === 'ALL' || sectorView === 'S1') && (
-                        <td className="mono">
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span className={s1Delta === 0 && driver.bestS1MS > 0 ? 'sector-purple' : 'sector-green'}>
-                              {formatSector(driver.bestS1MS)}
-                            </span>
-                            {s1Delta > 0 && (
-                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                                +{s1Delta.toFixed(3)}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                      )}
-
-                      {(sectorView === 'ALL' || sectorView === 'S2') && (
-                        <td className="mono">
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span className={s2Delta === 0 && driver.bestS2MS > 0 ? 'sector-purple' : 'sector-green'}>
-                              {formatSector(driver.bestS2MS)}
-                            </span>
-                            {s2Delta > 0 && (
-                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                                +{s2Delta.toFixed(3)}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                      )}
-
-                      {(sectorView === 'ALL' || sectorView === 'S3') && (
-                        <td className="mono">
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span className={s3Delta === 0 && driver.bestS3MS > 0 ? 'sector-purple' : 'sector-green'}>
-                              {formatSector(driver.bestS3MS)}
-                            </span>
-                            {s3Delta > 0 && (
-                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                                +{s3Delta.toFixed(3)}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
+      <div className={styles.grid}>
+        <Panel>
+          <PanelHeader
+            level={4}
+            icon={<Zap size={18} color="var(--accent-purple)" />}
+            title={t('history.sectors.sectorLeaderboards')}
+            actions={
+              <SegmentedControl
+                size="xs"
+                aria-label={t('history.sectors.sectorViewLabel')}
+                value={sectorView}
+                onChange={setSectorView}
+                options={[
+                  { value: 'ALL', label: t('history.sectors.allSectors') },
+                  { value: 'S1', label: 'S1' },
+                  { value: 'S2', label: 'S2' },
+                  { value: 'S3', label: 'S3' },
+                ]}
+              />
+            }
+          />
+          <DataTable
+            caption={t('history.sectors.sectorTableCaption')}
+            columns={columns}
+            rows={driverStandings}
+            getRowKey={(driver) => driver.participant.car_index}
+            density="compact"
+            stickyHeader
+            className={styles.scroll}
+          />
+        </Panel>
 
         {/* Speed Trap & Top Speed Leaderboard */}
-        <div className="glass-panel" style={{ padding: '1.25rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-            <h4 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Gauge size={18} color="var(--accent-secondary)" /> {t('history.sectors.speedTrapMaxSpeeds')}
-            </h4>
-            <span className="mono" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-              {t('history.sectors.highestSpeed', { speed: maxOverallSpeed ? `${maxOverallSpeed.toFixed(1)} ${kmh}` : '--' })}
-            </span>
-          </div>
+        <Panel>
+          <PanelHeader
+            level={4}
+            icon={<Gauge size={18} color="var(--accent-secondary)" />}
+            title={t('history.sectors.speedTrapMaxSpeeds')}
+            actions={
+              <span className={styles.topSpeed}>
+                {t('history.sectors.highestSpeed', {
+                  speed: maxOverallSpeed ? `${maxOverallSpeed.toFixed(1)} ${kmh}` : '--',
+                })}
+              </span>
+            }
+          />
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '420px', overflowY: 'auto', paddingRight: '4px' }}>
+          <ol className={styles.speedList}>
             {speedRankings.map((driver, rankIdx) => {
-              const teamColor = TEAM_COLORS[driver.participant.team_id] || '#00f2fe';
               const speed = driver.maxSpeed;
               const speedRatio =
                 speedSpread > 0
@@ -332,54 +272,39 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
               const deltaToTop = maxOverallSpeed > 0 ? maxOverallSpeed - speed : 0;
 
               return (
-                <div
+                <li
                   key={driver.participant.car_index}
-                  style={{
-                    padding: '8px 10px',
-                    background: 'rgba(0,0,0,0.3)',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid rgba(255,255,255,0.05)',
-                  }}
+                  className={cx(styles.speedRow, rankIdx === 0 && styles.leader)}
+                  style={styleVars({ '--team-color': getTeamColor(driver.participant.team_id) })}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span className="mono" style={{ fontWeight: 700, color: rankIdx === 0 ? '#ffd700' : 'var(--text-muted)', fontSize: '0.8rem', width: '24px' }}>
-                        P{rankIdx + 1}
-                      </span>
-                      <span style={{ width: '3px', height: '14px', backgroundColor: teamColor, borderRadius: '2px' }} />
-                      <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{driver.participant.name}</span>
+                  <div className={styles.speedTop}>
+                    <div className={styles.speedDriver}>
+                      <span className={styles.speedRank}>P{rankIdx + 1}</span>
+                      <span className={styles.teamBar} aria-hidden="true" />
+                      <span>{driver.participant.name}</span>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div className={styles.speedFigures}>
                       {deltaToTop > 0 && (
-                        <span className="mono" style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        <span className={styles.speedGap}>
                           -{deltaToTop.toFixed(1)} {kmh}
                         </span>
                       )}
-                      <span className="mono" style={{ fontSize: '0.9rem', fontWeight: 700, color: rankIdx === 0 ? 'var(--accent-secondary)' : 'var(--text-primary)' }}>
+                      <span className={styles.speed}>
                         {speed.toFixed(1)} {kmh}
                       </span>
                     </div>
                   </div>
 
-                  {/* Horizontal Speed Bar */}
-                  <div style={{ width: '100%', height: '4px', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
-                    <div
-                      className="speed-rank-bar-fill"
-                      style={{
-                        width: `${speedRatio}%`,
-                        height: '100%',
-                        backgroundColor: teamColor,
-                        borderRadius: '2px',
-                        transition: 'width 0.5s ease',
-                      }}
-                    />
+                  {/* Horizontal speed bar */}
+                  <div className={styles.speedTrack} aria-hidden="true">
+                    <div className={styles.speedFill} data-speed-bar style={{ width: `${speedRatio}%` }} />
                   </div>
-                </div>
+                </li>
               );
             })}
-          </div>
-        </div>
+          </ol>
+        </Panel>
       </div>
     </div>
   );

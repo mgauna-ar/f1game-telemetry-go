@@ -1,11 +1,13 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import type { Session, NavigationComparatorPayload } from '../types/session';
+import type { Session } from '../types/session';
+import type { CompareParams } from '../router/routes';
 import { useI18n } from '../context/I18nContext';
 import { useSessionListStore } from '../store/useSessionListStore';
 import { filterSessionsBySearch, type SessionTypeTab } from '../utils/sessionFilterUtils';
 
 export interface UseComparatorSessionsOptions {
-  initialPreload?: NavigationComparatorPayload | null;
+  /** The sessions to start with, from the URL. */
+  initial?: CompareParams;
 }
 
 export type { SessionTypeTab };
@@ -42,9 +44,7 @@ export interface UseComparatorSessionsReturn {
   filteredDropdownSessionsB: Session[];
 }
 
-export function useComparatorSessions({
-  initialPreload,
-}: UseComparatorSessionsOptions = {}): UseComparatorSessionsReturn {
+export function useComparatorSessions({ initial = {} }: UseComparatorSessionsOptions = {}): UseComparatorSessionsReturn {
   const { t } = useI18n();
   const sessions = useSessionListStore((s) => s.sessions);
   const setSessions = useSessionListStore((s) => s.setSessions) as unknown as React.Dispatch<React.SetStateAction<Session[]>>;
@@ -52,21 +52,13 @@ export function useComparatorSessions({
   const storeFetchSessions = useSessionListStore((s) => s.fetchSessions);
 
   // Dual session IDs & Synchronization link
-  const [sessionAId, setSessionAId] = useState<number | ''>(() => {
-    if (initialPreload?.sessionAId) return initialPreload.sessionAId;
-    if (initialPreload?.sessionId && (!initialPreload?.slot || initialPreload?.slot === 'A')) return initialPreload.sessionId;
-    return '';
-  });
+  const [sessionAId, setSessionAId] = useState<number | ''>(initial.sessionA ?? '');
+  const [sessionBId, setSessionBId] = useState<number | ''>(initial.sessionB ?? initial.sessionA ?? '');
 
-  const [sessionBId, setSessionBId] = useState<number | ''>(() => {
-    if (initialPreload?.sessionBId) return initialPreload.sessionBId;
-    if (initialPreload?.sessionId && initialPreload?.slot === 'B') return initialPreload.sessionId;
-    if (initialPreload?.sessionAId) return initialPreload.sessionAId;
-    if (initialPreload?.sessionId) return initialPreload.sessionId;
-    return '';
-  });
-
-  const [isLinkedSessions, setIsLinkedSessions] = useState(true);
+  // Linked unless the two slots start in different sessions
+  const [isLinkedSessions, setIsLinkedSessions] = useState(
+    initial.sessionA === undefined || initial.sessionB === undefined || initial.sessionA === initial.sessionB
+  );
 
   // Dropdown UI states
   const [isSessionADropdownOpen, setIsSessionADropdownOpen] = useState(false);

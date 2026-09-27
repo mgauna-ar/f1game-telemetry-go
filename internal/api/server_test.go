@@ -621,16 +621,18 @@ func TestHandleEmbeddedFrontendAndSPAFallback(t *testing.T) {
 		t.Errorf("expected text/html content type, got %s", recRoot.Header().Get("Content-Type"))
 	}
 
-	// 2. Request SPA client route "/comparator" -> should fallback to index.html with 200 OK
-	reqSPA := httptest.NewRequest(http.MethodGet, "/comparator", http.NoBody)
-	recSPA := httptest.NewRecorder()
-	server.router.ServeHTTP(recSPA, reqSPA)
+	// 2. The dashboard's page URLs (frontend/src/router/routes.ts) fall back to index.html with 200 OK
+	for _, route := range []string{"/history", "/history/12/charts", "/compare?sa=1&a=2&b=3&zoom=10-20", "/live/cockpit"} {
+		reqSPA := httptest.NewRequest(http.MethodGet, route, http.NoBody)
+		recSPA := httptest.NewRecorder()
+		server.router.ServeHTTP(recSPA, reqSPA)
 
-	if recSPA.Code != http.StatusOK {
-		t.Fatalf("expected 200 OK for SPA fallback route, got %d", recSPA.Code)
-	}
-	if !strings.Contains(recSPA.Header().Get("Content-Type"), "text/html") {
-		t.Errorf("expected text/html content type for SPA fallback, got %s", recSPA.Header().Get("Content-Type"))
+		if recSPA.Code != http.StatusOK {
+			t.Fatalf("expected 200 OK for SPA fallback route %s, got %d", route, recSPA.Code)
+		}
+		if !strings.Contains(recSPA.Header().Get("Content-Type"), "text/html") {
+			t.Errorf("expected text/html content type for %s, got %s", route, recSPA.Header().Get("Content-Type"))
+		}
 	}
 
 	// 3. Request static icon/manifest file e.g. "/favicon.svg"

@@ -39,11 +39,19 @@ describe('SessionDetailHeader Component', () => {
       </I18nProvider>
     );
 
-    const progressionBtn = screen.getByRole('button', { name: /Lap Progression & Gap Charts/i });
+    const progressionBtn = screen.getByRole('tab', { name: /Lap Progression & Gap Charts/i });
     expect(progressionBtn).toBeInTheDocument();
 
     fireEvent.click(progressionBtn);
     expect(setActiveDetailTab).toHaveBeenCalledWith('charts');
+
+    // Arrow keys move along the tab list and select, wrapping at the ends
+    const classificationTab = screen.getByRole('tab', { name: /Classification & Laps/i });
+    expect(classificationTab).toHaveAttribute('aria-selected', 'true');
+    fireEvent.keyDown(classificationTab, { key: 'ArrowLeft' });
+    expect(setActiveDetailTab).toHaveBeenLastCalledWith('sectors');
+    fireEvent.keyDown(classificationTab, { key: 'ArrowRight' });
+    expect(setActiveDetailTab).toHaveBeenLastCalledWith('charts');
   });
 
   it('does NOT render Progression tab button when session is Qualifying or not a race', () => {
@@ -61,13 +69,13 @@ describe('SessionDetailHeader Component', () => {
       </I18nProvider>
     );
 
-    const progressionBtn = screen.queryByRole('button', { name: /Lap Progression & Gap Charts/i });
+    const progressionBtn = screen.queryByRole('tab', { name: /Lap Progression & Gap Charts/i });
     expect(progressionBtn).not.toBeInTheDocument();
 
     // Other tabs should still exist
-    expect(screen.getByRole('button', { name: /Classification & Laps/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Tyre Strategy & Stints/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Sector & Speed Matrix/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Classification & Laps/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Tyre Strategy & Stints/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Sector & Speed Matrix/i })).toBeInTheDocument();
   });
 
   it('renders SessionTypeBadge with contextual motorsport style and handles UID copy', async () => {

@@ -2,11 +2,13 @@ import React from 'react';
 import { MapPin, Sparkles } from 'lucide-react';
 import { TrackFlag } from '../TrackFlag';
 import { ComparatorTrackMap } from '../ComparatorTrackMap';
+import { Button } from '../ui/Button';
 import { getTurnContextAtDistance } from '../../utils/trackTurns';
 import { ERS_MODE_NAMES } from '../../constants/f1';
 import { useI18n } from '../../context/I18nContext';
 import type { MergedTelemetryPoint, TrackTurn } from '../../types/comparator';
 import type { Session } from '../../types/session';
+import styles from './ComparatorSidebar.module.css';
 
 interface ComparatorSidebarProps {
   comparisonData: MergedTelemetryPoint[];
@@ -20,6 +22,8 @@ interface ComparatorSidebarProps {
   nameB: string;
   onOpenAiDebrief: () => void;
 }
+
+const percent = (value: number | null) => (value !== null ? Math.round(value * 100) : 0);
 
 export const ComparatorSidebar: React.FC<ComparatorSidebarProps> = ({
   comparisonData,
@@ -37,48 +41,68 @@ export const ComparatorSidebar: React.FC<ComparatorSidebarProps> = ({
   const kmh = t('common.units.kmh');
   const activePoint =
     hoverDistance !== null && comparisonData.length > 0
-      ? comparisonData.reduce((prev, curr) =>
-          Math.abs(curr.lap_distance - hoverDistance) < Math.abs(prev.lap_distance - hoverDistance) ? curr : prev,
-        comparisonData[0])
+      ? comparisonData.reduce(
+          (prev, curr) =>
+            Math.abs(curr.lap_distance - hoverDistance) < Math.abs(prev.lap_distance - hoverDistance) ? curr : prev,
+          comparisonData[0]
+        )
       : null;
 
   const turnContext = getTurnContextAtDistance(detectedTurns, hoverDistance);
 
+  const driverReadout = (slot: 'a' | 'b', point: MergedTelemetryPoint) => {
+    const isA = slot === 'a';
+    const speed = isA ? point.speedA : point.speedB;
+    const throttle = isA ? point.throttleA : point.throttleB;
+    const brake = isA ? point.brakeA : point.brakeB;
+    const battery = isA ? point.ersBatteryA : point.ersBatteryB;
+    const mode = isA ? point.ersDeployModeA : point.ersDeployModeB;
+    const rows = [
+      { label: t('comparator.sidebar.speed'), value: `${speed ?? '-'} ${kmh}` },
+      { label: t('comparator.sidebar.throttleBrake'), value: `${percent(throttle)}% / ${percent(brake)}%` },
+      {
+        label: t('comparator.sidebar.ers'),
+        value: `${battery !== null ? battery.toFixed(0) : '-'}% (${ERS_MODE_NAMES[mode ?? 0] || 'Off'})`,
+      },
+    ];
+    return (
+      <div className={styles.driver} data-slot={slot}>
+        <div className={styles.driverName}>{isA ? nameA : nameB}</div>
+        <dl className={styles.stats}>
+          {rows.map((row) => (
+            <div key={row.label}>
+              <dt>{row.label}</dt>
+              <dd>{row.value}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+    );
+  };
+
   return (
-    <div className="comparator-sidebar-col">
-      {/* Track Map */}
-      <div className="glass-panel" style={{ padding: '0.85rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
-          <h4 style={{ margin: 0, fontSize: '0.88rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-            <MapPin size={15} color="var(--accent-primary)" /> {t('comparator.sidebar.trackHeatmap')}
-          </h4>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+    <div className={styles.sidebar}>
+      <section className={`glass-panel ${styles.panel}`} aria-label={t('comparator.sidebar.trackHeatmap')}>
+        <div className={styles.head}>
+          <h2 className={styles.title}>
+            <MapPin size={15} className={styles.titleIcon} aria-hidden="true" /> {t('comparator.sidebar.trackHeatmap')}
+          </h2>
+          <div className={styles.headActions}>
             {selectedSessionAObj && (
-              <span style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.08)', padding: '0.15rem 0.45rem', borderRadius: '4px', color: 'var(--text-secondary)', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              <span className={styles.track}>
                 <TrackFlag track={selectedSessionAObj.track_name} width={14} height={10} />
                 <span>{selectedSessionAObj.track_name}</span>
               </span>
             )}
-
-            <button
-              type="button"
-              className="nav-tab active"
+            <Button
+              size="sm"
+              className={styles.askAi}
               onClick={onOpenAiDebrief}
-              style={{
-                padding: '3px 8px',
-                fontSize: '0.7rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                borderRadius: '12px',
-                background: 'rgba(0, 242, 254, 0.12)',
-                borderColor: 'rgba(0, 242, 254, 0.35)',
-                color: '#00f2fe',
-              }}
+              icon={<Sparkles size={12} aria-hidden="true" />}
               title={t('comparator.sidebar.askAiTitle')}
             >
-              <Sparkles size={12} color="#00f2fe" /> {t('comparator.sidebar.askAi')}
-            </button>
+              {t('comparator.sidebar.askAi')}
+            </Button>
           </div>
         </div>
 
@@ -92,127 +116,69 @@ export const ComparatorSidebar: React.FC<ComparatorSidebarProps> = ({
           onSelectDistance={(dist) => setHoverDistance(dist)}
         />
 
-        {/* Turn Quick-Jump Ribbon */}
         {detectedTurns.length > 0 && (
-          <div style={{ marginTop: '0.45rem', marginBottom: '0.2rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600 }}>{t('comparator.sidebar.turnsJump')}</span>
-              <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>{t('comparator.sidebar.turnsCount', { count: detectedTurns.length })}</span>
+          <div className={styles.turns}>
+            <div className={styles.turnsHead}>
+              <span className={styles.turnsLabel}>{t('comparator.sidebar.turnsJump')}</span>
+              <span>{t('comparator.sidebar.turnsCount', { count: detectedTurns.length })}</span>
             </div>
-            <div
-              style={{
-                display: 'flex',
-                gap: '4px',
-                overflowX: 'auto',
-                paddingBottom: '3px',
-                scrollbarWidth: 'thin',
-              }}
-            >
-              {detectedTurns.map((turn) => {
-                const isSelected = hoverDistance !== null && Math.abs(turn.distance - hoverDistance) <= 35;
-                return (
-                  <button
-                    key={turn.name}
-                    type="button"
-                    onClick={() => setHoverDistance(turn.distance)}
-                    style={{
-                      background: isSelected ? '#ffd200' : 'rgba(255, 255, 255, 0.08)',
-                      color: isSelected ? '#000000' : '#ffffff',
-                      border: isSelected ? '1px solid #ffd200' : '1px solid rgba(255, 255, 255, 0.12)',
-                      borderRadius: '4px',
-                      padding: '2px 6px',
-                      fontSize: '0.65rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap',
-                      flexShrink: 0,
-                      transition: 'all 0.15s ease',
-                    }}
-                    title={`${turn.name} (${turn.distance}m)`}
-                  >
-                    {turn.name}
-                  </button>
-                );
-              })}
+            <div className={styles.turnList} role="group" aria-label={t('comparator.sidebar.turnsJump')}>
+              {detectedTurns.map((turn) => (
+                <button
+                  key={turn.name}
+                  type="button"
+                  className={styles.turn}
+                  aria-pressed={hoverDistance !== null && Math.abs(turn.distance - hoverDistance) <= 35}
+                  onClick={() => setHoverDistance(turn.distance)}
+                  title={`${turn.name} (${turn.distance}m)`}
+                >
+                  {turn.name}
+                </button>
+              ))}
             </div>
           </div>
         )}
 
-        {/* Active Hover Point Live Telemetry Readout */}
         {comparisonData.length > 0 && (
-          <div
-            style={{
-              marginTop: '0.4rem',
-              padding: '0.5rem 0.75rem',
-              background: 'rgba(0, 0, 0, 0.4)',
-              borderRadius: '6px',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              fontSize: '0.75rem',
-              minHeight: '112px',
-              boxSizing: 'border-box',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-            }}
-          >
+          <div className={styles.readout} aria-live="off">
             {activePoint ? (
               <>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '0.25rem', marginBottom: '0.25rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                    <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>{t('comparator.sidebar.distancePoint')}</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: '#f1c40f' }}>{activePoint.lap_distance}m</span>
+                <div className={styles.readoutHead}>
+                  <div className={styles.distance}>
+                    <span className={styles.distanceLabel}>{t('comparator.sidebar.distancePoint')}</span>
+                    <span className={styles.distanceValue}>{activePoint.lap_distance}m</span>
                   </div>
-
                   {turnContext.label && (
-                    <span
-                      style={{
-                        fontSize: '0.66rem',
-                        fontWeight: 700,
-                        background: turnContext.phase === 'apex' ? 'rgba(255, 210, 0, 0.2)' : 'rgba(255, 255, 255, 0.08)',
-                        color: turnContext.phase === 'apex' ? '#ffd200' : 'rgba(255, 255, 255, 0.85)',
-                        border: turnContext.phase === 'apex' ? '1px solid rgba(255, 210, 0, 0.4)' : '1px solid rgba(255, 255, 255, 0.12)',
-                        borderRadius: '3px',
-                        padding: '1px 5px',
-                      }}
-                    >
+                    <span className={styles.turnContext} data-phase={turnContext.phase}>
                       📍 {turnContext.label}
                     </span>
                   )}
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem', marginTop: '0.15rem' }}>
-                  <div style={{ borderLeft: '2px solid #00d2d3', paddingLeft: '0.35rem' }}>
-                    <div style={{ fontSize: '0.7rem', color: '#00d2d3', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nameA}</div>
-                    <div>{t('comparator.sidebar.speed')} <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.speedA ?? '-'} {kmh}</strong></div>
-                    <div>{t('comparator.sidebar.throttleBrake')} <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.throttleA !== null ? Math.round(activePoint.throttleA * 100) : 0}% / {activePoint.brakeA !== null ? Math.round(activePoint.brakeA * 100) : 0}%</strong></div>
-                    <div>{t('comparator.sidebar.ers')} <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.ersBatteryA !== null ? activePoint.ersBatteryA.toFixed(0) : '-'}% ({ERS_MODE_NAMES[activePoint.ersDeployModeA ?? 0] || 'Off'})</strong></div>
-                  </div>
-
-                  <div style={{ borderLeft: '2px solid #ff4757', paddingLeft: '0.35rem' }}>
-                    <div style={{ fontSize: '0.7rem', color: '#ff4757', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{nameB}</div>
-                    <div>{t('comparator.sidebar.speed')} <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.speedB ?? '-'} {kmh}</strong></div>
-                    <div>{t('comparator.sidebar.throttleBrake')} <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.throttleB !== null ? Math.round(activePoint.throttleB * 100) : 0}% / {activePoint.brakeB !== null ? Math.round(activePoint.brakeB * 100) : 0}%</strong></div>
-                    <div>{t('comparator.sidebar.ers')} <strong style={{ fontFamily: 'var(--font-mono)' }}>{activePoint.ersBatteryB !== null ? activePoint.ersBatteryB.toFixed(0) : '-'}% ({ERS_MODE_NAMES[activePoint.ersDeployModeB ?? 0] || 'Off'})</strong></div>
-                  </div>
+                <div className={styles.drivers}>
+                  {driverReadout('a', activePoint)}
+                  {driverReadout('b', activePoint)}
                 </div>
 
                 {activePoint.time_delta !== null && (
-                  <div style={{ marginTop: '0.25rem', paddingTop: '0.2rem', borderTop: '1px solid rgba(255,255,255,0.08)', textAlign: 'center', fontWeight: 700, fontSize: '0.74rem', color: activePoint.time_delta < 0 ? '#00d2d3' : activePoint.time_delta > 0 ? '#ff4757' : '#fff' }}>
-                    Δ {activePoint.time_delta > 0 ? '+' : ''}{activePoint.time_delta.toFixed(3)}s
+                  <div
+                    className={styles.delta}
+                    data-faster={activePoint.time_delta < 0 ? 'a' : activePoint.time_delta > 0 ? 'b' : undefined}
+                  >
+                    Δ {activePoint.time_delta > 0 ? '+' : ''}
+                    {activePoint.time_delta.toFixed(3)}s
                   </div>
                 )}
               </>
             ) : (
-              <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.72rem', padding: '0.3rem 0' }}>
-                <span style={{ display: 'block', color: 'rgba(255,255,255,0.7)', fontWeight: 600, marginBottom: '2px' }}>
-                  🔍 {t('comparator.sidebar.inspectTitle')}
-                </span>
+              <div className={styles.hint}>
+                <span className={styles.hintTitle}>🔍 {t('comparator.sidebar.inspectTitle')}</span>
                 {t('comparator.sidebar.inspectHint')}
               </div>
             )}
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 };

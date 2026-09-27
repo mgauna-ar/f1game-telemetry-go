@@ -110,4 +110,27 @@ describe('LivePitStrategy', () => {
 
     expect(handleSelect).toHaveBeenCalledWith(1);
   });
+
+  it('selects a car once from its driver button, which says which car is selected', () => {
+    const handleSelect = vi.fn();
+    render(
+      <LivePitStrategy
+        session={mockSession}
+        participants={mockParticipants}
+        laps={mockLaps}
+        carStatuses={mockStatuses}
+        selectedCarIndex={0}
+        playerCarIndex={0}
+        onSelectCar={handleSelect}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'Max Verstappen' })).toHaveAttribute('aria-pressed', 'true');
+    const lando = screen.getByRole('button', { name: 'Lando Norris' });
+    expect(lando).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.click(lando);
+    expect(handleSelect).toHaveBeenCalledTimes(1);
+    expect(handleSelect).toHaveBeenCalledWith(1);
+  });
 });

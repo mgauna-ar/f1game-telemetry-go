@@ -1,67 +1,43 @@
 import React from 'react';
-import { TYRE_COMPOUNDS, TYRE_COMPOUND_IDS } from '../../constants/f1';
+import { TYRE_COMPOUNDS, UNKNOWN_COMPOUND_COLOR, getVisualCompoundId } from '../../constants/f1';
+import { alpha, styleVars } from '../../styles/theme';
+import { cx } from '../ui/cx';
+import styles from './TyreCompoundBadge.module.css';
 
 export interface TyreCompoundBadgeProps {
   compound?: string | number;
   actualCompound?: string;
+  /** `sm` (16px) in dense rows, `md` (22px) in tables. */
+  size?: 'sm' | 'md';
   className?: string;
-  style?: React.CSSProperties;
   title?: string;
 }
 
+/** The compound's letter in a circle of its colour, as on the F1 broadcast. */
 export const TyreCompoundBadge: React.FC<TyreCompoundBadgeProps> = ({
   compound,
   actualCompound,
-  className = 'tyre-badge-mini',
-  style,
+  size = 'sm',
+  className,
   title,
 }) => {
   if (compound === undefined || compound === null || compound === '') return null;
-  const str = String(compound).toUpperCase().trim();
 
-  let label = str.charAt(0);
-  let color = '#FFFFFF';
-  let bg = 'rgba(255, 255, 255, 0.15)';
+  const compoundId = getVisualCompoundId(compound);
+  const meta = compoundId !== undefined ? TYRE_COMPOUNDS[compoundId] : undefined;
+  const label = meta?.label ?? String(compound).toUpperCase().trim().charAt(0);
+  const color = meta?.color ?? UNKNOWN_COMPOUND_COLOR;
+  const bg = meta?.bg ?? alpha(UNKNOWN_COMPOUND_COLOR, 0.18);
 
-  if (str === String(TYRE_COMPOUND_IDS.INTERMEDIATE) || str.includes('INTER') || str === 'I') {
-    label = 'I';
-    color = '#2ed573';
-    bg = 'rgba(46, 213, 115, 0.2)';
-  } else if (str === String(TYRE_COMPOUND_IDS.SOFT) || str.includes('SOFT') || str === 'S') {
-    label = 'S';
-    color = '#ff4757';
-    bg = 'rgba(255, 71, 87, 0.2)';
-  } else if (str === String(TYRE_COMPOUND_IDS.MEDIUM) || str.includes('MEDIUM') || str === 'MED' || str === 'M') {
-    label = 'M';
-    color = '#ffd200';
-    bg = 'rgba(255, 210, 0, 0.2)';
-  } else if (str === String(TYRE_COMPOUND_IDS.HARD) || str.includes('HARD') || str === 'H') {
-    label = 'H';
-    color = '#FFFFFF';
-    bg = 'rgba(255, 255, 255, 0.2)';
-  } else if (str === String(TYRE_COMPOUND_IDS.WET) || str.includes('WET') || str === 'W') {
-    label = 'W';
-    color = '#1e90ff';
-    bg = 'rgba(30, 144, 255, 0.2)';
-  } else if (typeof compound === 'number' && TYRE_COMPOUNDS[compound]) {
-    const meta = TYRE_COMPOUNDS[compound];
-    label = meta.label;
-    color = meta.color;
-    bg = meta.bg;
-  }
-
-  const defaultTitle = actualCompound
-    ? `Tyre: ${compound} (${actualCompound})`
-    : `Tyre Compound: ${compound}`;
+  const defaultTitle = actualCompound ? `Tyre: ${compound} (${actualCompound})` : `Tyre Compound: ${compound}`;
 
   return (
     <span
-      className={`${className} mono`}
-      style={{ color, backgroundColor: bg, borderColor: color, ...style }}
+      className={cx(styles.badge, size === 'md' && styles.md, className)}
+      style={styleVars({ '--tyre-color': color, '--tyre-bg': bg })}
       title={title || defaultTitle}
     >
       {label}
     </span>
   );
 };
-

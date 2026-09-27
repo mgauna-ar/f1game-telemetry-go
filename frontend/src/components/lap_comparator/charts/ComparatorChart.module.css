@@ -1,0 +1,79 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  height: var(--chart-height);
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-1-5);
+  margin-bottom: var(--space-1);
+}
+
+.titleGroup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Heading of a chart card (see ChartTitle), tinted with the trace colour when there is one */
+.title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  margin: 0;
+  font-size: var(--font-size-lg);
+  color: var(--title-color, var(--text-primary));
+}
+
+.subtitle {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.notice {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 1px var(--space-2);
+  border: 1px solid var(--status-warning-border);
+  border-radius: var(--radius-xs);
+  background: var(--status-warning-bg);
+  color: var(--status-warning);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+}
+
+.placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 100%;
+  padding: var(--space-6);
+  background: var(--bg-inset);
+  border: 1px dashed var(--status-warning-border);
+  border-radius: var(--radius-xs);
+  text-align: center;
+}
+
+.placeholderTitle {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--status-warning);
+}
+
+.placeholderText {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}

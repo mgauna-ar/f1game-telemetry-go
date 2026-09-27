@@ -27,9 +27,36 @@ describe('SessionLapChartsTab Component', () => {
       bestLapTimeMS: 87500,
       bestLap: null,
       laps: [
-        makeLap({ id: 1, session_id: 100, car_index: 0, lap_number: 1, lap_time_ms: 88500, is_valid: true, tyre_compound: 'MEDIUM', car_position: 1 }),
-        makeLap({ id: 2, session_id: 100, car_index: 0, lap_number: 2, lap_time_ms: 115000, is_valid: true, tyre_compound: 'MEDIUM', car_position: 1 }),
-        makeLap({ id: 3, session_id: 100, car_index: 0, lap_number: 3, lap_time_ms: 87500, is_valid: true, tyre_compound: 'HARD', car_position: 1 }),
+        makeLap({
+          id: 1,
+          session_id: 100,
+          car_index: 0,
+          lap_number: 1,
+          lap_time_ms: 88500,
+          is_valid: true,
+          tyre_compound: 'MEDIUM',
+          car_position: 1,
+        }),
+        makeLap({
+          id: 2,
+          session_id: 100,
+          car_index: 0,
+          lap_number: 2,
+          lap_time_ms: 115000,
+          is_valid: true,
+          tyre_compound: 'MEDIUM',
+          car_position: 1,
+        }),
+        makeLap({
+          id: 3,
+          session_id: 100,
+          car_index: 0,
+          lap_number: 3,
+          lap_time_ms: 87500,
+          is_valid: true,
+          tyre_compound: 'HARD',
+          car_position: 1,
+        }),
       ],
       bestS1MS: 28000,
       bestS2MS: 33000,
@@ -58,9 +85,36 @@ describe('SessionLapChartsTab Component', () => {
       bestLapTimeMS: 87900,
       bestLap: null,
       laps: [
-        makeLap({ id: 4, session_id: 100, car_index: 1, lap_number: 1, lap_time_ms: 89000, is_valid: true, tyre_compound: 'SOFT', car_position: 2 }),
-        makeLap({ id: 5, session_id: 100, car_index: 1, lap_number: 2, lap_time_ms: 88900, is_valid: true, tyre_compound: 'SOFT', car_position: 2 }),
-        makeLap({ id: 6, session_id: 100, car_index: 1, lap_number: 3, lap_time_ms: 87900, is_valid: true, tyre_compound: 'HARD', car_position: 2 }),
+        makeLap({
+          id: 4,
+          session_id: 100,
+          car_index: 1,
+          lap_number: 1,
+          lap_time_ms: 89000,
+          is_valid: true,
+          tyre_compound: 'SOFT',
+          car_position: 2,
+        }),
+        makeLap({
+          id: 5,
+          session_id: 100,
+          car_index: 1,
+          lap_number: 2,
+          lap_time_ms: 88900,
+          is_valid: true,
+          tyre_compound: 'SOFT',
+          car_position: 2,
+        }),
+        makeLap({
+          id: 6,
+          session_id: 100,
+          car_index: 1,
+          lap_number: 3,
+          lap_time_ms: 87900,
+          is_valid: true,
+          tyre_compound: 'HARD',
+          car_position: 2,
+        }),
       ],
       bestS1MS: 28100,
       bestS2MS: 33200,
@@ -141,12 +195,12 @@ describe('SessionLapChartsTab Component', () => {
     );
 
     // Switch to Position chart
-    const posBtn = screen.getByRole('button', { name: /Position Lap Chart/i });
+    const posBtn = screen.getByRole('tab', { name: /Position Lap Chart/i });
     fireEvent.click(posBtn);
     expect(screen.getByText(/Position Progression/i)).toBeInTheDocument();
 
     // Switch to Gap chart
-    const gapBtn = screen.getByRole('button', { name: /Gap to Leader Evolution/i });
+    const gapBtn = screen.getByRole('tab', { name: /Gap to Leader Evolution/i });
     fireEvent.click(gapBtn);
     expect(screen.getByText(/Gap to Leader Delta/i)).toBeInTheDocument();
   });
@@ -186,7 +240,7 @@ describe('SessionLapChartsTab Component', () => {
     );
 
     // Switch to Position chart
-    const posBtn = screen.getByRole('button', { name: /Position Lap Chart/i });
+    const posBtn = screen.getByRole('tab', { name: /Position Lap Chart/i });
     fireEvent.click(posBtn);
     expect(screen.getByText(/Position Progression/i)).toBeInTheDocument();
   });
@@ -205,12 +259,12 @@ describe('SessionLapChartsTab Component', () => {
     );
 
     // Switch to Position chart
-    const posBtn = screen.getByRole('button', { name: /Position Lap Chart/i });
+    const posBtn = screen.getByRole('tab', { name: /Position Lap Chart/i });
     fireEvent.click(posBtn);
     expect(screen.getByText(/Position Progression/i)).toBeInTheDocument();
 
     // Switch to Gap chart
-    const gapBtn = screen.getByRole('button', { name: /Gap to Leader Evolution/i });
+    const gapBtn = screen.getByRole('tab', { name: /Gap to Leader Evolution/i });
     fireEvent.click(gapBtn);
     expect(screen.getByText(/Gap to Leader Delta/i)).toBeInTheDocument();
   });

@@ -1,8 +1,12 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { Sparkles, User } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
 import { RADIO_PERSONAS } from '../../constants/f1';
 import { useRadioSettingsStore } from '../../store/useRadioSettingsStore';
+import { TextArea, TextInput } from '../ui/Field';
+import { SettingSection } from './SettingControls';
+import shared from './RadioSettings.module.css';
+import styles from './PersonaSettingsTab.module.css';
 
 export interface PersonaSettingsTabProps {
   radio?: {
@@ -15,6 +19,12 @@ export interface PersonaSettingsTabProps {
   };
 }
 
+const PERSONAS = [
+  { id: RADIO_PERSONAS.BONO, key: 'bono', flag: '🇬🇧' },
+  { id: RADIO_PERSONAS.COLAPINTO, key: 'colapinto', flag: '🇦🇷' },
+  { id: RADIO_PERSONAS.CUSTOM, key: 'custom', flag: '🛠️' },
+] as const;
+
 export const PersonaSettingsTab: React.FC<PersonaSettingsTabProps> = () => {
   const { t } = useI18n();
   const persona = useRadioSettingsStore((s) => s.persona);
@@ -23,102 +33,65 @@ export const PersonaSettingsTab: React.FC<PersonaSettingsTabProps> = () => {
   const setCustomPrompt = useRadioSettingsStore((s) => s.setCustomPrompt);
   const driverCallsign = useRadioSettingsStore((s) => s.driverCallsign);
   const setDriverCallsign = useRadioSettingsStore((s) => s.setDriverCallsign);
+  const promptId = useId();
+  const callsignId = useId();
+  const callsignDescId = useId();
 
   return (
-    <div className="radio-section">
-      <label className="radio-section-label">
-        <Sparkles className="w-3.5 h-3.5" />
-        {t('ai_engineer.personas.title')}
-      </label>
-
-      <div className="radio-persona-grid">
-        {/* Bono */}
-        <button
-          type="button"
-          className={`radio-persona-card ${persona === RADIO_PERSONAS.BONO ? 'card-active' : ''}`}
-          onClick={() => setPersona(RADIO_PERSONAS.BONO)}
-        >
-          <div className="radio-persona-header">
-            <span className="radio-persona-name">
-              {t('ai_engineer.personas.bono.name')}
-            </span>
-            <span>🇬🇧</span>
-          </div>
-          <p className="radio-persona-desc">
-            {t('ai_engineer.personas.bono.desc')}
-          </p>
-        </button>
-
-        {/* Colapinto */}
-        <button
-          type="button"
-          className={`radio-persona-card ${persona === RADIO_PERSONAS.COLAPINTO ? 'card-active' : ''}`}
-          onClick={() => setPersona(RADIO_PERSONAS.COLAPINTO)}
-        >
-          <div className="radio-persona-header">
-            <span className="radio-persona-name">
-              {t('ai_engineer.personas.colapinto.name')}
-            </span>
-            <span>🇦🇷</span>
-          </div>
-          <p className="radio-persona-desc">
-            {t('ai_engineer.personas.colapinto.desc')}
-          </p>
-        </button>
-
-        {/* Custom */}
-        <button
-          type="button"
-          className={`radio-persona-card ${persona === RADIO_PERSONAS.CUSTOM ? 'card-active' : ''}`}
-          onClick={() => setPersona(RADIO_PERSONAS.CUSTOM)}
-        >
-          <div className="radio-persona-header">
-            <span className="radio-persona-name">
-              {t('ai_engineer.personas.custom.name')}
-            </span>
-            <span>🛠️</span>
-          </div>
-          <p className="radio-persona-desc">
-            {t('ai_engineer.personas.custom.desc')}
-          </p>
-        </button>
-      </div>
-
-      {/* Custom Prompt Textarea (Conditional) */}
-      {persona === RADIO_PERSONAS.CUSTOM && (
-        <div className="radio-section" style={{ marginTop: '4px' }}>
-          <label className="radio-section-label">
-            {t('ai_engineer.personas.custom.name')}
-          </label>
-          <textarea
-            value={customPrompt}
-            onChange={(e) => setCustomPrompt(e.target.value)}
-            placeholder={t('ai_engineer.personas.custom.placeholder')}
-            rows={3}
-            className="radio-custom-textarea"
-          />
+    <div className={shared.tab}>
+      <SettingSection icon={<Sparkles size={14} />} title={t('ai_engineer.personas.title')}>
+        <div className={shared.grid3}>
+          {PERSONAS.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className={`button-reset ${styles.card}`}
+              aria-pressed={persona === p.id}
+              onClick={() => setPersona(p.id)}
+            >
+              <span className={styles.cardHeader}>
+                <span className={styles.name}>{t(`ai_engineer.personas.${p.key}.name`)}</span>
+                <span aria-hidden="true">{p.flag}</span>
+              </span>
+              <span className={styles.description}>{t(`ai_engineer.personas.${p.key}.desc`)}</span>
+            </button>
+          ))}
         </div>
-      )}
 
-      {/* Driver Call-sign / Nickname */}
-      <div className="radio-section" style={{ marginTop: '10px' }}>
-        <label className="radio-section-label">
-          <User className="w-3.5 h-3.5" />
+        {/* The custom persona's instructions */}
+        {persona === RADIO_PERSONAS.CUSTOM && (
+          <div className={shared.stack}>
+            <label htmlFor={promptId} className={shared.fieldLabel}>
+              {t('ai_engineer.personas.custom.name')}
+            </label>
+            <TextArea
+              id={promptId}
+              value={customPrompt}
+              onChange={(e) => setCustomPrompt(e.target.value)}
+              placeholder={t('ai_engineer.personas.custom.placeholder')}
+              rows={3}
+            />
+          </div>
+        )}
+      </SettingSection>
+
+      <SettingSection icon={<User size={14} />} title={t('ai_engineer.driverCallsign.title')}>
+        <label htmlFor={callsignId} className="sr-only">
           {t('ai_engineer.driverCallsign.title')}
         </label>
-        <input
-          type="text"
+        <TextInput
+          id={callsignId}
+          mono
           value={driverCallsign}
           onChange={(e) => setDriverCallsign(e.target.value)}
           placeholder={t('ai_engineer.driverCallsign.placeholder')}
           maxLength={32}
-          className="radio-input-field"
+          aria-describedby={callsignDescId}
         />
-        <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: '4px 0 0 2px' }}>
+        <p id={callsignDescId} className={shared.hint}>
           {t('ai_engineer.driverCallsign.desc')}
         </p>
-      </div>
+      </SettingSection>
     </div>
   );
 };
-

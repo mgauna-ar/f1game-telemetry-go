@@ -1,9 +1,24 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Layers, Wrench } from 'lucide-react';
-import { TEAM_COLORS } from '../../../constants/f1';
+import { TYRE_COMPOUNDS, TYRE_COMPOUND_IDS, getTeamColor } from '../../../constants/f1';
+import { styleVars } from '../../../styles/theme';
 import { TyreCompoundBadge } from '../../common/TyreCompoundBadge';
 import { useI18n } from '../../../context/I18nContext';
+import { cx } from '../../ui/cx';
+import { EmptyState } from '../../ui/EmptyState';
+import { Panel, PanelHeader } from '../../ui/Panel';
 import { getCompoundColor, type DriverStintData } from './stintUtils';
+import styles from './StintGanttTimeline.module.css';
+
+const COMPOUND_LEGEND = [
+  { id: TYRE_COMPOUND_IDS.SOFT, key: 'soft' },
+  { id: TYRE_COMPOUND_IDS.MEDIUM, key: 'medium' },
+  { id: TYRE_COMPOUND_IDS.HARD, key: 'hard' },
+  { id: TYRE_COMPOUND_IDS.INTERMEDIATE, key: 'inter' },
+  { id: TYRE_COMPOUND_IDS.WET, key: 'wet' },
+];
+
+const RULER_MARKS = [0, 0.25, 0.5, 0.75, 1];
 
 interface StintGanttTimelineProps {
   driverStintsData: DriverStintData[];
@@ -21,194 +36,113 @@ export const StintGanttTimeline: React.FC<StintGanttTimelineProps> = ({
   formatLapTime,
 }) => {
   const { t } = useI18n();
-  const [hoveredStint, setHoveredStint] = useState<{
-    driverIndex: number;
-    stintIndex: number;
-  } | null>(null);
 
   return (
-    <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem' }}>
-        <div>
-          <h3 style={{ margin: '0 0 0.25rem 0', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.1rem' }}>
-            <Layers size={18} color="var(--accent-primary)" />
-            {t('history.stints.timeline.title')}
-          </h3>
-          <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-            {t('history.stints.timeline.subtitle')}
-          </p>
-        </div>
+    <Panel className={styles.panel}>
+      <PanelHeader
+        icon={<Layers size={18} color="var(--accent-primary)" />}
+        title={t('history.stints.timeline.title')}
+        subtitle={t('history.stints.timeline.subtitle')}
+        actions={
+          <ul className={styles.legend} aria-label={t('history.stints.timeline.legendLabel')}>
+            {COMPOUND_LEGEND.map(({ id, key }) => (
+              <li
+                key={id}
+                className={styles.legendItem}
+                style={styleVars({ '--compound-color': TYRE_COMPOUNDS[id].color })}
+              >
+                <span className={styles.legendDot} aria-hidden="true" />
+                {t(`history.stints.timeline.compounds.${key}`)}
+              </li>
+            ))}
+          </ul>
+        }
+      />
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ff3366' }} /> Soft
-          </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ffd700' }} /> Medium
-          </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ffffff' }} /> Hard
-          </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#33cc66' }} /> Inter
-          </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#3399ff' }} /> Wet
-          </span>
-        </div>
-      </div>
-
-      {/* Gantt Timeline Container */}
       {driverStintsData.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
-          {t('history.stints.kpi.noStintsDesc')}
-        </div>
+        <EmptyState title={t('history.stints.kpi.noStintsDesc')} />
       ) : (
-        <div style={{ overflowX: 'auto', paddingBottom: '0.5rem' }}>
-          <div style={{ minWidth: '760px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {/* Lap Ruler Header */}
-            <div style={{ display: 'flex', alignItems: 'center', paddingLeft: '180px', marginBottom: '4px' }}>
-              <div style={{ position: 'relative', width: '100%', height: '18px', borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                {[0, 0.25, 0.5, 0.75, 1].map((pct) => {
-                  const lapVal = Math.max(1, Math.round(pct * effectiveMaxLaps));
-                  return (
-                    <span
-                      key={pct}
-                      className="mono"
-                      style={{
-                        position: 'absolute',
-                        left: `${pct * 100}%`,
-                        transform: pct === 1 ? 'translateX(-100%)' : pct === 0 ? 'none' : 'translateX(-50%)',
-                        fontSize: '0.68rem',
-                        color: 'var(--text-muted)',
-                      }}
-                    >
-                      L{lapVal}
-                    </span>
-                  );
-                })}
+        <div className={styles.scroll}>
+          <div className={styles.rows}>
+            {/* Lap ruler */}
+            <div className={styles.ruler} aria-hidden="true">
+              <div className={styles.rulerTrack}>
+                {RULER_MARKS.map((pct) => (
+                  <span key={pct} className={styles.rulerMark} style={{ left: `${pct * 100}%` }}>
+                    L{Math.max(1, Math.round(pct * effectiveMaxLaps))}
+                  </span>
+                ))}
               </div>
             </div>
 
-            {/* Driver Stint Rows */}
-            {driverStintsData.map((d, dIdx) => {
-              const teamColor = TEAM_COLORS[d.driver.participant.team_id] || '#A0A0A0';
+            {/* One row of stint bars per driver */}
+            {driverStintsData.map((d) => {
               const isSelected = !!selectedDrivers[d.driver.participant.car_index];
-
               return (
                 <div
                   key={d.driver.participant.car_index}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.2)',
-                    borderRadius: '6px',
-                    padding: '4px 8px',
-                    borderLeft: `3px solid ${teamColor}`,
-                    transition: 'all 0.15s ease',
-                  }}
+                  className={styles.row}
+                  data-selected={isSelected || undefined}
+                  style={styleVars({ '--team-color': getTeamColor(d.driver.participant.team_id) })}
                 >
-                  {/* Driver Identity Cell */}
-                  <div
-                    style={{
-                      width: '172px',
-                      minWidth: '172px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      cursor: 'pointer',
-                    }}
+                  <button
+                    type="button"
+                    className={cx('button-reset', styles.driver)}
+                    aria-pressed={isSelected}
                     onClick={() => toggleDriver(d.driver.participant.car_index)}
                     title={t('history.stints.timeline.clickToFilter')}
                   >
-                    <span
-                      className="mono"
-                      style={{
-                        fontSize: '0.72rem',
-                        fontWeight: 700,
-                        color: d.driver.position === 1 ? '#ffd700' : 'var(--text-muted)',
-                        width: '24px',
-                      }}
-                    >
+                    <span className={cx(styles.pos, d.driver.position === 1 && styles.leader)}>
                       P{d.driver.position}
                     </span>
-                    <span
-                      style={{
-                        fontSize: '0.8rem',
-                        fontWeight: 600,
-                        color: isSelected ? '#FFFFFF' : 'var(--text-secondary)',
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        maxWidth: '105px',
-                      }}
-                    >
-                      {d.driver.participant.name}
-                    </span>
-                    <span className="mono" style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                      #{d.driver.participant.race_number}
-                    </span>
-                  </div>
+                    <span className={styles.name}>{d.driver.participant.name}</span>
+                    <span className={styles.raceNumber}>#{d.driver.participant.race_number}</span>
+                  </button>
 
-                  {/* Stint Bars Track Area */}
-                  <div
-                    style={{
-                      flex: 1,
-                      position: 'relative',
-                      height: '24px',
-                      backgroundColor: 'rgba(255, 255, 255, 0.02)',
-                      borderRadius: '4px',
-                      overflow: 'hidden',
-                      display: 'flex',
-                      alignItems: 'center',
-                    }}
-                  >
+                  <div className={styles.track}>
                     {d.stints.map((stint, sIdx) => {
                       const startPct = Math.max(0, ((stint.startLap - 1) / effectiveMaxLaps) * 100);
                       const endPct = Math.min(100, (stint.endLap / effectiveMaxLaps) * 100);
                       const widthPct = Math.max(2, endPct - startPct);
-                      const compColor = getCompoundColor(stint.compound);
-                      const isHovered = hoveredStint?.driverIndex === dIdx && hoveredStint?.stintIndex === sIdx;
 
                       return (
+                        // A mouse shortcut for the driver button at the start of the row
                         <div
                           key={sIdx}
-                          onMouseEnter={() => setHoveredStint({ driverIndex: dIdx, stintIndex: sIdx })}
-                          onMouseLeave={() => setHoveredStint(null)}
+                          role="presentation"
                           onClick={() => toggleDriver(d.driver.participant.car_index)}
+                          className={styles.stint}
+                          data-pit={stint.hasPitStopAfter || undefined}
                           style={{
-                            position: 'absolute',
+                            ...styleVars({ '--compound-color': getCompoundColor(stint.compound) }),
                             left: `${startPct}%`,
                             width: `${widthPct}%`,
-                            height: '100%',
-                            backgroundColor: `${compColor}26`,
-                            border: `1px solid ${compColor}88`,
-                            borderRight: stint.hasPitStopAfter ? `2px dashed #ff4757` : `1px solid ${compColor}88`,
-                            borderRadius: sIdx === 0 ? '4px 0 0 4px' : sIdx === d.stints.length - 1 ? '0 4px 4px 0' : '0',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            padding: '0 4px',
-                            cursor: 'pointer',
-                            zIndex: isHovered ? 10 : 1,
-                            transform: isHovered ? 'scaleY(1.12)' : 'scaleY(1)',
-                            transition: 'transform 0.15s ease, box-shadow 0.15s ease',
-                            boxShadow: isHovered ? `0 0 10px ${compColor}88` : 'none',
                           }}
-                          title={`Stint ${stint.stintIndex}: ${stint.compound} (Laps ${stint.startLap} - ${stint.endLap}, ${stint.totalLaps}L) | Avg: ${formatLapTime(stint.avgLapTimeMS)}`}
+                          title={[
+                            t('history.stints.timeline.stintTooltipTitle', {
+                              stintNum: stint.stintIndex,
+                              driver: d.driver.participant.name,
+                            }),
+                            stint.compound,
+                            t('history.stints.timeline.lapsRange', {
+                              start: stint.startLap,
+                              end: stint.endLap,
+                              count: stint.totalLaps,
+                            }),
+                            `${t('history.stints.timeline.avgLapTime')}: ${formatLapTime(stint.avgLapTimeMS)}`,
+                          ].join(' • ')}
                         >
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                          <span className={styles.stintLabel}>
                             <TyreCompoundBadge compound={stint.compound} />
-                            {widthPct > 6 && (
-                              <span className="mono" style={{ fontSize: '0.65rem', fontWeight: 700, color: compColor }}>
-                                {stint.totalLaps}L
-                              </span>
-                            )}
+                            {widthPct > 6 && <span className={styles.stintLaps}>{stint.totalLaps}L</span>}
                           </span>
 
                           {stint.hasPitStopAfter && (
-                            <span title={`Pit stop on lap ${stint.endLap}`} style={{ display: 'inline-flex', alignItems: 'center' }}>
-                              <Wrench size={10} color="#ff4757" />
+                            <span
+                              className={styles.pit}
+                              title={t('history.stints.timeline.pitLap', { lap: stint.endLap })}
+                            >
+                              <Wrench size={10} aria-hidden="true" />
                             </span>
                           )}
                         </div>
@@ -221,6 +155,6 @@ export const StintGanttTimeline: React.FC<StintGanttTimelineProps> = ({
           </div>
         </div>
       )}
-    </div>
+    </Panel>
   );
 };

@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 import { BellRing } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
 import { RadioPresetSelector } from './RadioPresetSelector';
+import { SettingSection, ToggleRow } from './SettingControls';
+import { ThresholdSlider } from './ThresholdSlider';
+import styles from './RadioSettings.module.css';
 import { useRadioSettingsStore } from '../../store/useRadioSettingsStore';
 import type { UseRadioControllerReturn } from '../../hooks/useRadioController';
 
@@ -49,114 +52,91 @@ export const TacticalCoachingTab: React.FC<TacticalCoachingTabProps> = ({ radio 
   };
 
   return (
-    <div className="radio-section">
-      {/* Preset Selector */}
+    <div className={styles.tab}>
       <RadioPresetSelector
         currentPreset={triggerPreset}
         onSelectPreset={applyTriggerPreset}
         onResetDefaults={resetTriggerDefaults}
       />
 
-      {/* Smart Discretion & Engineer Chatter Row */}
-      <div className="radio-voice-grid" style={{ marginBottom: '6px' }}>
-        <label className="radio-toggle-row" style={{ height: '100%', boxSizing: 'border-box' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-            <span style={{ fontWeight: 700, fontSize: '0.78rem' }}>{t('ai_engineer.triggers.smartDiscretion')}</span>
-            <span style={{ fontSize: '0.70rem', color: 'var(--text-secondary)' }}>
-              {t('ai_engineer.triggers.smartDiscretionDesc')}
-            </span>
-          </div>
-          <input
-            type="checkbox"
-            checked={smartDiscretionEnabled}
-            onChange={(e) => setSmartDiscretionEnabled(e.target.checked)}
-            className="radio-checkbox"
-          />
-        </label>
+      {/* Smart discretion and how often the engineer talks */}
+      <div className={styles.grid2}>
+        <ToggleRow
+          label={t('ai_engineer.triggers.smartDiscretion')}
+          description={t('ai_engineer.triggers.smartDiscretionDesc')}
+          checked={smartDiscretionEnabled}
+          onChange={setSmartDiscretionEnabled}
+        />
+        <ThresholdSlider
+          label={t('ai_engineer.triggers.chatterFrequency')}
+          value={chatterCooldownSeconds}
+          unit="s"
+          min={10}
+          max={120}
+          step={5}
+          onChange={setChatterCooldownSeconds}
+        />
+      </div>
 
-        <div className="radio-ptt-box">
-          <div className="radio-ptt-box-header">
-            <span style={{ fontSize: '0.75rem', fontWeight: 600 }}>{t('ai_engineer.triggers.chatterFrequency')}</span>
-            <span className="radio-badge-val">{chatterCooldownSeconds}s</span>
-          </div>
-          <input
-            type="range"
-            min={10}
-            max={120}
-            step={5}
-            value={chatterCooldownSeconds}
-            onChange={(e) => setChatterCooldownSeconds(parseInt(e.target.value, 10))}
-            className="radio-slider-input"
-            style={{ marginTop: '6px' }}
+      <SettingSection icon={<BellRing size={14} />} title={t('ai_engineer.proactiveAlerts.title')}>
+        <div className={styles.stack}>
+          {/* 1. TYRES */}
+          <TyresAccordion
+            isExpanded={!!expandedCategories.tyres}
+            onToggleExpand={() => toggleCategory('tyres')}
+            onTestAlert={() => radio.testTriggerAlert('tyres')}
+          />
+
+          {/* 2. DAMAGE */}
+          <DamageAccordion
+            isExpanded={!!expandedCategories.damage}
+            onToggleExpand={() => toggleCategory('damage')}
+            onTestAlert={() => radio.testTriggerAlert('damage')}
+          />
+
+          {/* 3. ERS */}
+          <ErsAccordion
+            isExpanded={!!expandedCategories.ers}
+            onToggleExpand={() => toggleCategory('ers')}
+            onTestAlert={() => radio.testTriggerAlert('ers')}
+          />
+
+          {/* 4. BRAKES */}
+          <BrakesAccordion
+            isExpanded={!!expandedCategories.brakes}
+            onToggleExpand={() => toggleCategory('brakes')}
+            onTestAlert={() => radio.testTriggerAlert('brakes')}
+          />
+
+          {/* 5. FUEL */}
+          <FuelAccordion
+            isExpanded={!!expandedCategories.fuel}
+            onToggleExpand={() => toggleCategory('fuel')}
+            onTestAlert={() => radio.testTriggerAlert('fuel')}
+          />
+
+          {/* 6. RIVALS */}
+          <RivalsAccordion
+            isExpanded={!!expandedCategories.rivals}
+            onToggleExpand={() => toggleCategory('rivals')}
+            onTestAlert={() => radio.testTriggerAlert('rivals')}
+          />
+
+          {/* 7. QUALIFYING */}
+          <QualyAccordion
+            isExpanded={!!expandedCategories.qualy}
+            onToggleExpand={() => toggleCategory('qualy')}
+            onTestAlert={() => radio.testTriggerAlert('qualy')}
+          />
+
+          {/* 8. FLAGS & RACE CONTROL */}
+          <FlagsAccordion
+            isExpanded={!!expandedCategories.flags}
+            onToggleExpand={() => toggleCategory('flags')}
+            onTestAlert={() => radio.testTriggerAlert('flags')}
           />
         </div>
-      </div>
-
-      {/* Subsystems Accordion Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '6px 0 2px' }}>
-        <label className="radio-section-label" style={{ margin: 0 }}>
-          <BellRing className="w-3.5 h-3.5" />
-          {t('ai_engineer.proactiveAlerts.title')}
-        </label>
-      </div>
-
-      <div className="radio-accordion-container">
-        {/* 1. TYRES */}
-        <TyresAccordion
-          isExpanded={!!expandedCategories.tyres}
-          onToggleExpand={() => toggleCategory('tyres')}
-          onTestAlert={() => radio.testTriggerAlert('tyres')}
-        />
-
-        {/* 2. DAMAGE */}
-        <DamageAccordion
-          isExpanded={!!expandedCategories.damage}
-          onToggleExpand={() => toggleCategory('damage')}
-          onTestAlert={() => radio.testTriggerAlert('damage')}
-        />
-
-        {/* 3. ERS */}
-        <ErsAccordion
-          isExpanded={!!expandedCategories.ers}
-          onToggleExpand={() => toggleCategory('ers')}
-          onTestAlert={() => radio.testTriggerAlert('ers')}
-        />
-
-        {/* 4. BRAKES */}
-        <BrakesAccordion
-          isExpanded={!!expandedCategories.brakes}
-          onToggleExpand={() => toggleCategory('brakes')}
-          onTestAlert={() => radio.testTriggerAlert('brakes')}
-        />
-
-        {/* 5. FUEL */}
-        <FuelAccordion
-          isExpanded={!!expandedCategories.fuel}
-          onToggleExpand={() => toggleCategory('fuel')}
-          onTestAlert={() => radio.testTriggerAlert('fuel')}
-        />
-
-        {/* 6. RIVALS */}
-        <RivalsAccordion
-          isExpanded={!!expandedCategories.rivals}
-          onToggleExpand={() => toggleCategory('rivals')}
-          onTestAlert={() => radio.testTriggerAlert('rivals')}
-        />
-
-        {/* 7. QUALIFYING */}
-        <QualyAccordion
-          isExpanded={!!expandedCategories.qualy}
-          onToggleExpand={() => toggleCategory('qualy')}
-          onTestAlert={() => radio.testTriggerAlert('qualy')}
-        />
-
-        {/* 8. FLAGS & RACE CONTROL */}
-        <FlagsAccordion
-          isExpanded={!!expandedCategories.flags}
-          onToggleExpand={() => toggleCategory('flags')}
-          onTestAlert={() => radio.testTriggerAlert('flags')}
-        />
-      </div>
+      </SettingSection>
     </div>
   );
 };

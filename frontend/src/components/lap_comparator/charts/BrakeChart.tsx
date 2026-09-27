@@ -1,7 +1,7 @@
 import React from 'react';
 import { Disc } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
-import { type CommonChartProps } from './chartDefaults';
+import { CHART_COLORS, type CommonChartProps } from './chartDefaults';
 import { ComparatorChart } from './ComparatorChart';
 import { ChartTitle } from './ChartTitle';
 
@@ -13,7 +13,7 @@ export const BrakeChart = React.memo<CommonChartProps>((props) => {
     <ComparatorChart
       {...props}
       height="280px"
-      title={<ChartTitle icon={Disc} label={t('comparator.charts.brake')} color="#ff4757" />}
+      title={<ChartTitle icon={Disc} label={t('comparator.charts.brake')} color={CHART_COLORS.BRAKE} />}
       dataKeyA="brakeA"
       dataKeyB="brakeB"
       lineNameA={`${nameA} Brake`}

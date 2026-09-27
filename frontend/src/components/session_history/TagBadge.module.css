@@ -1,0 +1,123 @@
+/* A tag, tinted by its own colour (--tag-color) */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border: 1px solid color-mix(in srgb, var(--tag-color) 33%, transparent);
+  border-radius: var(--radius-xs);
+  background: color-mix(in srgb, var(--tag-color) 9%, transparent);
+  color: var(--tag-color);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+  white-space: nowrap;
+  user-select: none;
+  transition:
+    filter var(--duration-fast) ease,
+    transform var(--duration-fast) ease;
+}
+
+.xs {
+  gap: var(--space-1);
+  padding: 1px 5px;
+  font-size: var(--font-size-2xs);
+}
+
+.md {
+  gap: var(--space-1-5);
+  padding: var(--space-1) 9px;
+  font-size: var(--font-size-sm);
+}
+
+.selected {
+  border-color: var(--tag-color);
+  background: color-mix(in srgb, var(--tag-color) 21%, transparent);
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover {
+  filter: brightness(1.25);
+  transform: translateY(-1px);
+}
+
+/* The clickable part of a clickable badge */
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: inherit;
+}
+
+.icon {
+  opacity: 0.8;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--tag-color);
+}
+
+.remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 2px;
+  padding: 0 1px;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.65;
+  transition: opacity var(--duration-fast) ease;
+}
+
+.remove:hover {
+  background: rgba(0, 0, 0, 0.35);
+  opacity: 1;
+}
+
+/* "+ Tag" button next to a session's tags */
+.add {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  padding: 3px var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--bg-hover);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    background-color var(--duration-fast) ease,
+    transform var(--duration-fast) ease;
+}
+
+.add:hover {
+  border-color: color-mix(in srgb, var(--accent-cyan) 50%, transparent);
+  background: color-mix(in srgb, var(--accent-cyan) 12%, transparent);
+  color: var(--accent-cyan);
+  box-shadow: 0 0 10px var(--accent-cyan-glow);
+  transform: scale(1.06);
+}
+
+.iconOnly {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+}

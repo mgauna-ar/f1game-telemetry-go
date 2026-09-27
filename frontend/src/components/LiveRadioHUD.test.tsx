@@ -65,7 +65,7 @@ describe('LiveRadioHUD Component', () => {
 
     renderWithI18n(<LiveRadioHUD radio={disabledRadio} />);
 
-    const turnOnBtn = screen.getByTitle(/Turn On Radio|Encender Radio/i);
+    const turnOnBtn = screen.getByRole('button', { name: /Turn On Radio|Encender Radio/i });
     expect(turnOnBtn).toBeInTheDocument();
     expect(screen.getByText(/Turn On Radio|Encender Radio/i)).toBeInTheDocument();
 
@@ -102,7 +102,7 @@ describe('LiveRadioHUD Component', () => {
   it('turns off radio on power button click', () => {
     renderWithI18n(<LiveRadioHUD radio={mockRadio} />);
 
-    const powerBtn = screen.getByTitle(/Turn Off Radio|Apagar Radio/i);
+    const powerBtn = screen.getByRole('button', { name: /Turn Off Radio|Apagar Radio/i });
     fireEvent.click(powerBtn);
 
     expect(mockRadio.setIsRadioEnabled).toHaveBeenCalledWith(false);
@@ -112,7 +112,7 @@ describe('LiveRadioHUD Component', () => {
     useRadioSettingsStore.setState({ volume: 0.8 });
     renderWithI18n(<LiveRadioHUD radio={mockRadio} />);
 
-    const muteBtn = screen.getByTitle(/Mute Radio|Silenciar Radio/i);
+    const muteBtn = screen.getByRole('button', { name: /Mute Radio|Silenciar Radio/i });
     fireEvent.click(muteBtn);
 
     expect(useRadioSettingsStore.getState().volume).toBe(0);
@@ -121,13 +121,14 @@ describe('LiveRadioHUD Component', () => {
   it('opens and closes settings panel', () => {
     renderWithI18n(<LiveRadioHUD radio={mockRadio} />);
 
-    const settingsBtn = screen.getByTitle(/Radio Settings|Configuración de Radio/i);
+    const settingsBtn = screen.getByRole('button', { name: /Radio Settings|Configuración de Radio/i });
     fireEvent.click(settingsBtn);
 
     expect(screen.getByText(/Franco Colapinto/i)).toBeInTheDocument();
     expect(screen.getByText(/Peter "Bono" Bonnington/i)).toBeInTheDocument();
 
-    const closeBtn = screen.getByTitle(/Close|Cerrar/i);
+    expect(screen.getByRole('dialog', { name: /Radio Settings|Configuración de Radio/i })).toBeInTheDocument();
+    const closeBtn = screen.getByRole('button', { name: /^(Close|Cerrar)$/i });
     fireEvent.click(closeBtn);
 
     expect(screen.queryByText(/Franco Colapinto/i)).not.toBeInTheDocument();
@@ -141,7 +142,8 @@ describe('LiveRadioHUD Component', () => {
     };
 
     const { unmount } = renderWithI18n(<LiveRadioHUD radio={transmittingRadio} />);
-    const waveform = screen.queryByTestId('live-radio-waveform') || screen.queryByTestId('live-radio-equalizer-fallback');
+    const waveform =
+      screen.queryByTestId('live-radio-waveform') || screen.queryByTestId('live-radio-equalizer-fallback');
     expect(waveform).toBeInTheDocument();
     unmount();
 
@@ -151,7 +153,8 @@ describe('LiveRadioHUD Component', () => {
       lastResponse: 'Copy driver',
     };
     renderWithI18n(<LiveRadioHUD radio={speakingRadio} />);
-    const speakingWaveform = screen.queryByTestId('live-radio-waveform') || screen.queryByTestId('live-radio-equalizer-fallback');
+    const speakingWaveform =
+      screen.queryByTestId('live-radio-waveform') || screen.queryByTestId('live-radio-equalizer-fallback');
     expect(speakingWaveform).toBeInTheDocument();
   });
 });

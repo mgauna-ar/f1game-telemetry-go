@@ -1,0 +1,215 @@
+.container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-hover);
+  transition:
+    background-color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease;
+}
+
+.compact {
+  padding: var(--space-0-5) var(--space-1-5);
+}
+
+.hasForecast {
+  cursor: pointer;
+}
+
+.trigger[data-open] {
+  border-color: var(--border-strong);
+  background: var(--bg-active);
+}
+
+.label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-primary);
+}
+
+/* The weather changes during the session */
+.changeDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--weather-rain);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--weather-rain) 80%, transparent);
+}
+
+/* Forecast popover, placed with inline top/bottom/left */
+.popover {
+  position: fixed;
+  z-index: var(--z-tooltip);
+  width: 340px;
+  max-width: calc(100vw - 24px);
+  padding: var(--space-3) 14px;
+  border: 1px solid color-mix(in srgb, var(--accent-cyan) 25%, transparent);
+  border-radius: 10px;
+  background: var(--bg-popover);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
+  animation: popoverIn var(--duration-fast) ease;
+}
+
+@keyframes popoverIn {
+  from {
+    opacity: 0;
+  }
+}
+
+.popoverHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding-bottom: var(--space-1-5);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.popoverTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.sampleCount {
+  padding: 1px var(--space-1-5);
+  border: 1px solid color-mix(in srgb, var(--weather-rain) 20%, transparent);
+  border-radius: var(--radius-xs);
+  background: color-mix(in srgb, var(--weather-rain) 12%, transparent);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--weather-rain);
+}
+
+.samples {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sample {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: 5px var(--space-2);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-hover);
+}
+
+.sample.current {
+  border-color: color-mix(in srgb, var(--accent-cyan) 20%, transparent);
+  background: color-mix(in srgb, var(--accent-cyan) 8%, transparent);
+}
+
+.when {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 85px;
+}
+
+.offset {
+  padding: 1px 5px;
+  border-radius: var(--radius-xs);
+  background: var(--bg-active);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-secondary);
+}
+
+.current .offset {
+  background: color-mix(in srgb, var(--weather-rain) 15%, transparent);
+  color: var(--weather-rain);
+}
+
+.condition {
+  flex: 1;
+  overflow: hidden;
+  font-size: var(--font-size-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.current .condition {
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Rain chance, coloured by how likely it is */
+.rain {
+  --rain-color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  min-width: 65px;
+  color: var(--rain-color);
+}
+
+.rain[data-rain='possible'] {
+  --rain-color: var(--status-warning);
+}
+
+.rain[data-rain='likely'] {
+  --rain-color: var(--weather-rain);
+}
+
+.rain[data-rain='heavy'] {
+  --rain-color: var(--weather-rain-heavy);
+}
+
+.rainPercent {
+  min-width: 28px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-align: right;
+}
+
+.rainTrack {
+  width: 24px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--bg-active);
+}
+
+.rainFill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--rain-color);
+}
+
+.temps {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 3px;
+  min-width: 60px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}

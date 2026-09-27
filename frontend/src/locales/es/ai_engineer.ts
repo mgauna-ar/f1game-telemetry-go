@@ -98,6 +98,12 @@ export const ai_engineer = {
   copied: 'Copiado',
   jumpToLatest: 'Ir al final',
   inputHint: 'Enter para enviar, Shift+Enter para una línea nueva',
+  openChat: 'Abrir Ingeniero de Carrera IA',
+  closeSettings: 'Cerrar ajustes',
+  messageLabel: 'Mensaje para tu ingeniero de carrera',
+  replying: 'El ingeniero está respondiendo',
+  showKey: 'Mostrar clave API',
+  hideKey: 'Ocultar clave API',
   setup: {
     subtitle: 'Se guarda en la app y lo comparten todos tus dispositivos',
     ready: 'Configurado',
@@ -182,6 +188,7 @@ export const ai_engineer = {
   },
   radio: {
     title: 'Radio de Voz',
+    settingsSubtitle: 'Personalidad del Ingeniero y Estratega de Muro',
     idle: 'RADIO EN ESPERA',
     transmitting: 'TRANSMITIENDO [PTT ACTIVO]',
     processing: 'PROCESANDO EN BOXES...',
@@ -243,6 +250,10 @@ export const ai_engineer = {
     globalMapped: '{device}: {key}',
     noKey: 'Ninguna (Desactivada)',
     unassigned: 'Sin Asignar',
+    deviceFallback: 'Dispositivo',
+    keySpace: 'Espacio',
+    keyCapsLock: 'Bloq Mayús',
+    keyLetter: 'Tecla {key}',
   },
   tabs: {
     persona: 'Persona y Piloto',

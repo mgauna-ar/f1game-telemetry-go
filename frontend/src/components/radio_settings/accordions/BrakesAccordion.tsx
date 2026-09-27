@@ -3,6 +3,8 @@ import { Flame } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
 import { SubsystemAccordion } from '../SubsystemAccordion';
 import { ThresholdSlider } from '../ThresholdSlider';
+import { ToggleRow } from '../SettingControls';
+import styles from '../RadioSettings.module.css';
 import { useRadioSettingsStore } from '../../../store/useRadioSettingsStore';
 
 interface BrakesAccordionProps {
@@ -11,11 +13,7 @@ interface BrakesAccordionProps {
   onTestAlert: () => void;
 }
 
-export const BrakesAccordion: React.FC<BrakesAccordionProps> = ({
-  isExpanded,
-  onToggleExpand,
-  onTestAlert,
-}) => {
+export const BrakesAccordion: React.FC<BrakesAccordionProps> = ({ isExpanded, onToggleExpand, onTestAlert }) => {
   const { t } = useI18n();
 
   const brakesAlertsEnabled = useRadioSettingsStore((s) => s.brakesAlertsEnabled);
@@ -34,36 +32,30 @@ export const BrakesAccordion: React.FC<BrakesAccordionProps> = ({
       id="brakes"
       title={t('ai_engineer.proactiveAlerts.brakesTitle')}
       subtitle={t('ai_engineer.proactiveAlerts.brakesDesc')}
-      icon={<Flame className="w-4 h-4" />}
-      iconColorClass="text-orange-400"
+      icon={<Flame size={16} />}
+      tone="orange"
       masterEnabled={brakesAlertsEnabled}
       onToggleMaster={setBrakesAlertsEnabled}
       isExpanded={isExpanded}
       onToggleExpand={onToggleExpand}
       onTestAlert={onTestAlert}
     >
-      <div className="radio-sub-toggles-grid">
-        <label className="radio-sub-toggle-item">
-          <span>{t('ai_engineer.proactiveAlerts.brakeOverheatFade')}</span>
-          <input
-            type="checkbox"
-            checked={subBrakeTemp}
-            onChange={(e) => setSubBrakeTemp(e.target.checked)}
-            className="radio-checkbox"
-          />
-        </label>
-        <label className="radio-sub-toggle-item">
-          <span>{t('ai_engineer.proactiveAlerts.brakeCold')}</span>
-          <input
-            type="checkbox"
-            checked={subBrakeCold}
-            onChange={(e) => setSubBrakeCold(e.target.checked)}
-            className="radio-checkbox"
-          />
-        </label>
+      <div className={styles.toggleGrid}>
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.brakeOverheatFade')}
+          checked={subBrakeTemp}
+          onChange={setSubBrakeTemp}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.brakeCold')}
+          checked={subBrakeCold}
+          onChange={setSubBrakeCold}
+        />
       </div>
 
-      <div className="radio-ptt-grid">
+      <div className={styles.grid2}>
         <ThresholdSlider
           label={t('ai_engineer.proactiveAlerts.brakeOverheatTemp')}
           value={brakeOverheatC}

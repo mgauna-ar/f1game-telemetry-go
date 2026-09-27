@@ -1,14 +1,19 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useId } from 'react';
 import { Search, ChevronDown, ChevronUp, X } from 'lucide-react';
 import type { Session } from '../../types/session';
-import { getSessionBadgeClass, formatDate } from '../../utils/formatters';
+import { formatDate } from '../../utils/formatters';
+import { SessionTypeBadge } from '../common/SessionTypeBadge';
 import { useI18n } from '../../context/I18nContext';
 import { TagBadge } from '../session_history/TagBadge';
 import { F1FormatBadge } from '../F1FormatBadge';
 import { TrackFlag } from '../TrackFlag';
+import { IconButton } from '../ui/Button';
+import { SegmentedControl } from '../ui/SegmentedControl';
+import styles from './SessionSelectorDropdown.module.css';
+
+type TypeTab = 'ALL' | 'RACE' | 'SPRINT' | 'QUALI' | 'PRACTICE';
 
 interface SessionSelectorDropdownProps {
-  sessions?: Session[];
   filteredSessions: Session[];
   selectedSession: Session | undefined;
   isOpen: boolean;
@@ -16,11 +21,10 @@ interface SessionSelectorDropdownProps {
   dropdownRef?: React.RefObject<HTMLDivElement | null>;
   searchQuery: string;
   onSearchChange: (q: string) => void;
-  typeTab: 'ALL' | 'RACE' | 'SPRINT' | 'QUALI' | 'PRACTICE';
-  onTypeTabChange: (tab: 'ALL' | 'RACE' | 'SPRINT' | 'QUALI' | 'PRACTICE') => void;
+  typeTab: TypeTab;
+  onTypeTabChange: (tab: TypeTab) => void;
   onSelectSession: (id: number) => void;
   slot: 'A' | 'B';
-  accentColor?: string;
   placeholder?: string;
   isRestrictedCircuit?: boolean;
   restrictedTrackName?: string;
@@ -38,7 +42,6 @@ export const SessionSelectorDropdown: React.FC<SessionSelectorDropdownProps> = (
   onTypeTabChange,
   onSelectSession,
   slot,
-  accentColor: _accentColor,
   placeholder = 'Select Session...',
   isRestrictedCircuit = false,
   restrictedTrackName,
@@ -46,6 +49,7 @@ export const SessionSelectorDropdown: React.FC<SessionSelectorDropdownProps> = (
   const { t } = useI18n();
   const internalRef = useRef<HTMLDivElement | null>(null);
   const containerRef = dropdownRef || internalRef;
+  const listId = useId();
 
   // Click outside and Escape key handling
   useEffect(() => {
@@ -71,163 +75,129 @@ export const SessionSelectorDropdown: React.FC<SessionSelectorDropdownProps> = (
     };
   }, [isOpen, onToggleOpen, containerRef]);
 
+  const typeOptions = [
+    { value: 'ALL', label: t('comparator.dropdown.tabAll') },
+    { value: 'RACE', label: t('comparator.dropdown.tabRace') },
+    { value: 'SPRINT', label: t('comparator.dropdown.tabSprint') },
+    { value: 'QUALI', label: t('comparator.dropdown.tabQuali') },
+    { value: 'PRACTICE', label: t('comparator.dropdown.tabPractice') },
+  ] as const;
+
+  const Chevron = isOpen ? ChevronUp : ChevronDown;
+
   return (
-    <div
-      ref={containerRef}
-      className={`custom-session-dropdown ${isOpen ? 'is-open' : ''}`}
-      style={{ position: 'relative', zIndex: isOpen ? 100 : 1 }}
-    >
+    <div ref={containerRef} className={styles.dropdown} data-open={isOpen || undefined}>
       <button
         type="button"
-        className={`custom-session-trigger ${isOpen ? 'is-open' : ''}`}
+        className={styles.trigger}
         onClick={onToggleOpen}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
+        aria-controls={isOpen ? listId : undefined}
         data-testid={slot === 'A' ? 'session-selector-trigger' : 'session-b-selector-trigger'}
       >
         {selectedSession ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <span className={styles.selected}>
             <TrackFlag track={selectedSession.track_name} width={18} height={12} />
-            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedSession.track_name}</span>
+            <span className={styles.selectedTrack}>{selectedSession.track_name}</span>
             <F1FormatBadge format={selectedSession.packet_format} size="xs" />
-            <span
-              className={`session-badge ${getSessionBadgeClass(selectedSession.session_type)}`}
-              style={{ fontSize: '0.65rem', padding: '1px 6px', flexShrink: 0 }}
-            >
-              {selectedSession.session_type}
-            </span>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', flexShrink: 0 }}>
-              ({new Date(selectedSession.created_at).toLocaleDateString()})
-            </span>
-          </div>
+            <SessionTypeBadge sessionType={selectedSession.session_type} size="xs" showIcon={false} />
+            <span className={styles.selectedDate}>({new Date(selectedSession.created_at).toLocaleDateString()})</span>
+          </span>
         ) : (
-          <span style={{ color: 'var(--text-muted)' }}>{placeholder}</span>
+          <span className={styles.placeholder}>{placeholder}</span>
         )}
-        {isOpen ? (
-          <ChevronUp size={15} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
-        ) : (
-          <ChevronDown size={15} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
-        )}
+        <Chevron size={15} className={styles.chevron} aria-hidden="true" />
       </button>
 
       {isOpen && (
-        <div className="custom-session-popover" role="listbox">
-          {/* Circuit Filter Indicator when restricted */}
+        <div className={styles.popover}>
           {isRestrictedCircuit && restrictedTrackName && (
-            <div
-              style={{
-                padding: '0.35rem 0.65rem',
-                background: 'rgba(0, 210, 211, 0.1)',
-                borderBottom: '1px solid rgba(0, 210, 211, 0.2)',
-                fontSize: '0.72rem',
-                color: '#00d2d3',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.45rem',
-              }}
-            >
+            <div className={styles.restricted}>
               <TrackFlag track={restrictedTrackName} width={15} height={10} />
               <span>{t('comparator.dropdown.filteredToCircuit', { track: restrictedTrackName })}</span>
             </div>
           )}
 
-          <div className="custom-session-search-wrapper">
-            <Search size={14} className="custom-session-search-icon" />
+          <div className={styles.search}>
+            <Search size={14} className={styles.searchIcon} aria-hidden="true" />
             <input
               type="text"
-              className="custom-session-search-input"
+              className={styles.searchInput}
+              aria-label={t('comparator.dropdown.searchSessions')}
               placeholder={
-                isRestrictedCircuit
-                  ? t('comparator.dropdown.searchSameCircuit')
-                  : t('comparator.dropdown.searchAny')
+                isRestrictedCircuit ? t('comparator.dropdown.searchSameCircuit') : t('comparator.dropdown.searchAny')
               }
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               autoFocus
             />
             {searchQuery && (
-              <button
-                type="button"
-                className="custom-session-clear-btn"
+              <IconButton
+                variant="ghost"
+                size="sm"
+                className={styles.clear}
+                label={t('comparator.dropdown.clearSearch')}
                 onClick={() => onSearchChange('')}
-                title={t('comparator.dropdown.clearSearch')}
               >
                 <X size={12} />
-              </button>
+              </IconButton>
             )}
           </div>
 
-          <div className="custom-session-filter-tabs">
-            {(['ALL', 'RACE', 'SPRINT', 'QUALI', 'PRACTICE'] as const).map((tab) => {
-              const tabMap: Record<string, string> = {
-                ALL: t('comparator.dropdown.tabAll'),
-                RACE: t('comparator.dropdown.tabRace'),
-                SPRINT: t('comparator.dropdown.tabSprint'),
-                QUALI: t('comparator.dropdown.tabQuali'),
-                PRACTICE: t('comparator.dropdown.tabPractice'),
-              };
-              return (
-                <button
-                  key={tab}
-                  type="button"
-                  className={`custom-session-filter-tab ${typeTab === tab ? 'active' : ''}`}
-                  onClick={() => onTypeTabChange(tab)}
-                >
-                  {tabMap[tab]}
-                </button>
-              );
-            })}
-          </div>
+          <SegmentedControl
+            options={typeOptions}
+            value={typeTab}
+            onChange={onTypeTabChange}
+            aria-label={t('comparator.dropdown.typeFilterLabel')}
+            size="xs"
+          />
 
-          <div className="custom-session-list">
-            {filteredSessions.length > 0 ? (
-              filteredSessions.map((s) => {
+          {filteredSessions.length > 0 ? (
+            <div id={listId} role="listbox" aria-label={placeholder} className={styles.list}>
+              {filteredSessions.map((s) => {
                 const isSelected = selectedSession?.id === s.id;
                 return (
                   <button
                     key={s.id}
                     type="button"
-                    className={`custom-session-item ${isSelected ? 'is-selected' : ''}`}
+                    className={styles.item}
                     onClick={() => onSelectSession(s.id)}
                     role="option"
                     aria-selected={isSelected}
                   >
-                    <div className="custom-session-item-row-top">
-                      <div className="custom-session-track-group">
+                    <span className={styles.itemRow}>
+                      <span className={styles.trackGroup}>
                         <TrackFlag track={s.track_name} width={18} height={12} />
-                        <span className="custom-session-track">{s.track_name}</span>
-                      </div>
-                      <div className="custom-session-badges">
+                        <span className={styles.track}>{s.track_name}</span>
+                      </span>
+                      <span className={styles.badges}>
                         <F1FormatBadge format={s.packet_format} size="xs" />
-                        <span className={`session-badge ${getSessionBadgeClass(s.session_type)}`}>
-                          {s.session_type}
-                        </span>
-                      </div>
-                    </div>
+                        <SessionTypeBadge sessionType={s.session_type} size="xs" showIcon={false} />
+                      </span>
+                    </span>
 
-                    <div className="custom-session-item-row-bottom">
-                      <span className="custom-session-meta-time">{formatDate(s.created_at)}</span>
-                      {s.weather && <span className="custom-session-weather">🌦️ {s.weather}</span>}
-                    </div>
+                    <span className={styles.itemRow}>
+                      <span className={styles.meta}>{formatDate(s.created_at)}</span>
+                      {s.weather && <span className={styles.weather}>🌦️ {s.weather}</span>}
+                    </span>
 
                     {s.tags && s.tags.length > 0 && (
-                      <div className="custom-session-item-tags">
+                      <span className={styles.tags}>
                         {s.tags.map((tag) => (
                           <TagBadge key={tag.id} tag={tag} size="xs" />
                         ))}
-                      </div>
+                      </span>
                     )}
                   </button>
                 );
-              })
-            ) : (
-              <div style={{ textAlign: 'center', padding: '1rem 0.5rem', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
-                {isRestrictedCircuit
-                  ? t('comparator.dropdown.noMatchingTrack')
-                  : t('comparator.dropdown.noMatching')}
-              </div>
-            )}
-          </div>
+              })}
+            </div>
+          ) : (
+            <p className={styles.empty}>
+              {isRestrictedCircuit ? t('comparator.dropdown.noMatchingTrack') : t('comparator.dropdown.noMatching')}
+            </p>
+          )}
         </div>
       )}
     </div>

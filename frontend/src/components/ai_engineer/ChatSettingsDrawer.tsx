@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useId, useRef } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
 import { AI_PROVIDER_URLS } from '../../constants/f1';
@@ -7,6 +7,10 @@ import { ApiKeyField } from './ApiKeyField';
 import { ModelPicker } from './ModelPicker';
 import { ServerAddressField } from './ServerAddressField';
 import { findServerPreset } from '../../utils/aiServers';
+import { SKIP_AUTOFOCUS_ATTRIBUTE, useDialogLayer } from '../ui/useDialogLayer';
+import { Button, IconButton } from '../ui/Button';
+import { cx } from '../ui/cx';
+import styles from './AiSettings.module.css';
 import {
   AI_PROVIDER_OPTIONS,
   providerHasKey,
@@ -33,7 +37,8 @@ export interface ChatSettingsDrawerProps {
  * The AI settings, shown over the chat. Pick a provider, then only that provider's fields show:
  * a key and where to get one for cloud providers, a server address (with presets) and an optional
  * key for OpenAI-compatible servers, and the provider's own model list. Every change saves at once
- * to the server, so all devices share it.
+ * to the server, so all devices share it. It is a layer over the chat: Esc closes it before the
+ * chat, and focus moves into it and back to the button that opened it.
  */
 export const ChatSettingsDrawer: React.FC<ChatSettingsDrawerProps> = ({
   isOpen,
@@ -48,6 +53,9 @@ export const ChatSettingsDrawer: React.FC<ChatSettingsDrawerProps> = ({
   fetchAvailableModels,
 }) => {
   const { t } = useI18n();
+  const titleId = useId();
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  useDialogLayer({ isOpen, onClose, containerRef: panelRef });
 
   if (!isOpen) return null;
 
@@ -85,28 +93,41 @@ export const ChatSettingsDrawer: React.FC<ChatSettingsDrawerProps> = ({
   else if (!providerHasKey(keyStatus, provider)) modelsUnavailable = t('ai_engineer.setup.modelsNeedKey');
 
   return (
-    <div className="ai-settings-panel" data-testid="ai-settings-panel">
-      <div className="ai-settings-head">
-        <button type="button" className="ai-btn-icon" onClick={onClose} aria-label="Close settings">
+    <div
+      ref={panelRef}
+      className={styles.panel}
+      role="dialog"
+      aria-labelledby={titleId}
+      data-testid="ai-settings-panel"
+    >
+      <div className={styles.head}>
+        <IconButton
+          size="sm"
+          label={t('ai_engineer.closeSettings')}
+          onClick={onClose}
+          {...{ [SKIP_AUTOFOCUS_ATTRIBUTE]: true }}
+        >
           <ArrowLeft size={16} />
-        </button>
-        <div className="ai-settings-head-text">
-          <h4>{t('ai_engineer.settings')}</h4>
-          <p>{t('ai_engineer.setup.subtitle')}</p>
+        </IconButton>
+        <div>
+          <h2 id={titleId} className={styles.title}>
+            {t('ai_engineer.settings')}
+          </h2>
+          <p className={styles.subtitle}>{t('ai_engineer.setup.subtitle')}</p>
         </div>
       </div>
 
-      <div className="ai-settings-scroll">
-        <section className="ai-settings-section">
-          <div className="ai-section-title">{t('ai_engineer.provider')}</div>
+      <div className={styles.scroll}>
+        <section className={styles.section}>
+          <h3 className={styles.sectionTitle}>{t('ai_engineer.provider')}</h3>
           <ProviderPicker config={config} keyStatus={keyStatus} onSelect={selectProvider} />
         </section>
 
-        <section className="ai-settings-section ai-provider-panel" key={provider}>
+        <section className={cx(styles.section, styles.providerPanel)} key={provider}>
           {option && (
-            <div className="ai-provider-panel-head">
-              <div className="ai-section-title">{t(option.nameKey)}</div>
-              <p className="ai-provider-about">{t(`ai_engineer.providers.${provider}.about`)}</p>
+            <div>
+              <h3 className={styles.sectionTitle}>{t(option.nameKey)}</h3>
+              <p className={styles.about}>{t(`ai_engineer.providers.${provider}.about`)}</p>
             </div>
           )}
 
@@ -135,11 +156,11 @@ export const ChatSettingsDrawer: React.FC<ChatSettingsDrawerProps> = ({
         </section>
       </div>
 
-      <div className="ai-settings-foot">
+      <div className={styles.foot}>
         <span>{t('ai_engineer.setup.autosaveNote')}</span>
-        <button type="button" className="ai-btn ai-btn-primary" onClick={onClose}>
+        <Button variant="primary" size="sm" onClick={onClose}>
           {t('ai_engineer.done')}
-        </button>
+        </Button>
       </div>
     </div>
   );

@@ -1,0 +1,21 @@
+/* Colour of each radio state, shared by the HUD pill and the cockpit hero card. A component puts
+   `data-state` on an element with the `radioState` class and reads `--radio-color`. */
+.radioState {
+  --radio-color: var(--accent-cyan);
+}
+
+.radioState[data-state='transmitting'] {
+  --radio-color: var(--status-danger);
+}
+
+.radioState[data-state='processing'] {
+  --radio-color: var(--status-warning);
+}
+
+.radioState[data-state='speaking'] {
+  --radio-color: var(--status-success);
+}
+
+.radioState[data-state='off'] {
+  --radio-color: var(--text-muted);
+}

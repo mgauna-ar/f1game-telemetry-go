@@ -1,0 +1,102 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-display);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-smooth),
+    border-color var(--duration-fast) var(--ease-smooth),
+    color var(--duration-fast) var(--ease-smooth),
+    box-shadow var(--duration-fast) var(--ease-smooth);
+}
+
+.button:disabled,
+.button[aria-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.sm {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+.md {
+  padding: var(--space-2) var(--space-5);
+  font-size: var(--font-size-md);
+}
+
+.block {
+  width: 100%;
+}
+
+.primary {
+  background: var(--accent-primary-fill);
+  border-color: var(--accent-primary-fill);
+  color: var(--text-primary);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+.secondary {
+  background: var(--bg-inset);
+  border-color: var(--border-color);
+  color: var(--text-secondary);
+}
+
+.secondary:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: var(--border-highlight);
+  color: var(--text-primary);
+}
+
+.ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.ghost:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.danger {
+  background: var(--status-danger-fill);
+  border-color: var(--status-danger-fill);
+  color: var(--text-primary);
+}
+
+.danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--status-danger-fill) 88%, black);
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Square button that shows only an icon; its name comes from `label`. */
+.icon {
+  padding: var(--space-2);
+  aspect-ratio: 1;
+}
+
+.icon.sm {
+  padding: var(--space-1);
+}

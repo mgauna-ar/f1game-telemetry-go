@@ -1,10 +1,16 @@
-import { Component, type ErrorInfo, type ReactNode } from 'react';
+import React, { Component, type ErrorInfo, type ReactNode } from 'react';
+import { AlertTriangle } from 'lucide-react';
+import { useI18n } from '../../context/I18nContext';
+import { Button } from '../ui/Button';
+import styles from './ErrorBoundary.module.css';
+
+type ErrorLevel = 'root' | 'section' | 'widget';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
   fallback?: ReactNode;
   onReset?: () => void;
-  level?: 'root' | 'section' | 'widget';
+  level?: ErrorLevel;
 }
 
 interface ErrorBoundaryState {
@@ -12,6 +18,57 @@ interface ErrorBoundaryState {
   error: Error | null;
   showDetails: boolean;
 }
+
+interface ErrorFallbackProps {
+  level: ErrorLevel;
+  error: Error | null;
+  showDetails: boolean;
+  onReload: () => void;
+  onReset: () => void;
+  onToggleDetails: () => void;
+}
+
+/** What shows in place of a part that crashed; in English when the language provider itself failed. */
+const ErrorFallback: React.FC<ErrorFallbackProps> = ({
+  level,
+  error,
+  showDetails,
+  onReload,
+  onReset,
+  onToggleDetails,
+}) => {
+  const { t } = useI18n();
+  const isRoot = level === 'root';
+
+  return (
+    <div className={styles.fallback} data-level={level} role="alert">
+      <AlertTriangle size={40} className={styles.icon} aria-hidden="true" />
+      <h3 className={styles.title}>{isRoot ? t('common.errorBoundary.appTitle') : t('common.errorBoundary.title')}</h3>
+      <p className={styles.subtitle}>{t('common.errorBoundary.subtitle')}</p>
+      <div className={styles.actions}>
+        {isRoot ? (
+          <Button variant="primary" onClick={onReload}>
+            {t('common.errorBoundary.reload')}
+          </Button>
+        ) : (
+          <Button variant="primary" onClick={onReset}>
+            {t('common.errorBoundary.tryAgain')}
+          </Button>
+        )}
+        <Button onClick={onToggleDetails} aria-expanded={showDetails}>
+          {showDetails ? t('common.errorBoundary.hideDetails') : t('common.errorBoundary.showDetails')}
+        </Button>
+      </div>
+      {showDetails && error && (
+        <pre className={styles.details}>
+          {error.message}
+          {'\n\n'}
+          {error.stack}
+        </pre>
+      )}
+    </div>
+  );
+};
 
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
@@ -37,7 +94,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   };
 
   toggleDetails = (): void => {
-    this.setState(prev => ({ showDetails: !prev.showDetails }));
+    this.setState((prev) => ({ showDetails: !prev.showDetails }));
   };
 
   render(): ReactNode {
@@ -46,40 +103,15 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         return this.props.fallback;
       }
 
-      const { level = 'section' } = this.props;
-      const isRoot = level === 'root';
-
       return (
-        <div className={`error-boundary error-boundary--${level}`}>
-          <div className="error-boundary__icon">⚠️</div>
-          <h3 className="error-boundary__title">
-            {isRoot ? 'Application Error' : 'Something went wrong'}
-          </h3>
-          <p className="error-boundary__subtitle">
-            An unexpected error occurred while rendering this section.
-          </p>
-          <div className="error-boundary__actions">
-            {isRoot ? (
-              <button onClick={this.handleReload} className="error-boundary__btn error-boundary__btn--primary">
-                Reload Application
-              </button>
-            ) : (
-              <button onClick={this.handleReset} className="error-boundary__btn error-boundary__btn--primary">
-                Try Again
-              </button>
-            )}
-            <button onClick={this.toggleDetails} className="error-boundary__btn error-boundary__btn--secondary">
-              {this.state.showDetails ? 'Hide Details' : 'Technical Details'}
-            </button>
-          </div>
-          {this.state.showDetails && this.state.error && (
-            <pre className="error-boundary__details">
-              {this.state.error.message}
-              {'\n\n'}
-              {this.state.error.stack}
-            </pre>
-          )}
-        </div>
+        <ErrorFallback
+          level={this.props.level ?? 'section'}
+          error={this.state.error}
+          showDetails={this.state.showDetails}
+          onReload={this.handleReload}
+          onReset={this.handleReset}
+          onToggleDetails={this.toggleDetails}
+        />
       );
     }
 

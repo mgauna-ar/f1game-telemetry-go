@@ -32,6 +32,8 @@ export interface UseSlotTelemetryReturn {
   setLapId: React.Dispatch<React.SetStateAction<number | ''>>;
   loading: boolean;
   error: string | null;
+  /** The session whose laps have finished loading (or failed to), so its lap choice is final. */
+  loadedSessionId: number | '';
   selectedLap: Lap | undefined;
   driver: Participant | undefined;
   driverName: string;
@@ -55,6 +57,7 @@ export function useSlotTelemetry({
   const [lapId, setLapId] = useState<number | ''>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadedSessionId, setLoadedSessionId] = useState<number | ''>('');
 
   // Keep references to options that can be read inside the async fetch handler
   const optionsRef = useRef({
@@ -144,7 +147,9 @@ export function useSlotTelemetry({
         }
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (cancelled) return;
+        setLoading(false);
+        setLoadedSessionId(sessionId);
       });
 
     return () => {
@@ -185,6 +190,7 @@ export function useSlotTelemetry({
     setLapId,
     loading,
     error,
+    loadedSessionId,
     selectedLap,
     driver,
     driverName,

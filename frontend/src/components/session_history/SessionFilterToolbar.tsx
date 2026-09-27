@@ -4,6 +4,9 @@ import { TagFilterBar } from './TagFilterBar';
 import { useI18n } from '../../context/I18nContext';
 import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContextDefinitions';
 import type { Tag } from '../../types/session';
+import { Button, IconButton } from '../ui/Button';
+import { cx } from '../ui/cx';
+import styles from './SessionFilterToolbar.module.css';
 
 export interface SessionFilterToolbarProps {
   searchQuery?: string;
@@ -53,10 +56,7 @@ export const SessionFilterToolbar: React.FC<SessionFilterToolbarProps> = (props)
     });
 
   const isFiltered = Boolean(
-    searchQuery.trim() !== '' ||
-    sessionTypeFilter !== 'ALL' ||
-    circuitFilter !== 'ALL' ||
-    selectedTagId !== null
+    searchQuery.trim() !== '' || sessionTypeFilter !== 'ALL' || circuitFilter !== 'ALL' || selectedTagId !== null
   );
 
   const handleResetFilters = () => {
@@ -67,35 +67,37 @@ export const SessionFilterToolbar: React.FC<SessionFilterToolbarProps> = (props)
   };
 
   return (
-    <div className="glass-panel f1-paddock-toolbar">
-      <div className="f1-toolbar-controls">
-        {/* Search Bar */}
-        <div className="f1-search-wrapper">
-          <Search size={15} className="f1-search-icon" />
+    <div className={styles.toolbar}>
+      <div className={styles.controls}>
+        {/* Search */}
+        <div className={styles.search}>
+          <Search size={15} className={styles.searchIcon} aria-hidden="true" />
           <input
             type="text"
+            aria-label={t('history.searchLabel')}
             placeholder={t('history.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="f1-search-input mono"
+            className={styles.searchInput}
           />
           {searchQuery && (
-            <button
-              type="button"
+            <IconButton
+              size="sm"
+              className={styles.searchClear}
+              label={t('common.clear')}
               onClick={() => setSearchQuery('')}
-              className="f1-search-clear-btn"
-              title={t('common.clear') || 'Clear'}
             >
               <X size={13} />
-            </button>
+            </IconButton>
           )}
         </div>
 
-        {/* Session Type Filter */}
-        <div className="f1-filter-select-wrapper">
-          <Trophy size={14} className="f1-select-icon" />
+        {/* Session type filter */}
+        <div className={styles.selectWrap}>
+          <Trophy size={14} className={styles.selectIcon} aria-hidden="true" />
           <select
-            className="f1-filter-select"
+            className={styles.select}
+            aria-label={t('history.typeFilterLabel')}
             value={sessionTypeFilter}
             onChange={(e) => setSessionTypeFilter(e.target.value)}
           >
@@ -107,12 +109,13 @@ export const SessionFilterToolbar: React.FC<SessionFilterToolbarProps> = (props)
           </select>
         </div>
 
-        {/* Circuit Filter */}
+        {/* Circuit filter */}
         {uniqueCircuits.length > 0 && (
-          <div className="f1-filter-select-wrapper">
-            <MapPin size={14} className="f1-select-icon" />
+          <div className={styles.selectWrap}>
+            <MapPin size={14} className={styles.selectIcon} aria-hidden="true" />
             <select
-              className="f1-filter-select"
+              className={styles.select}
+              aria-label={t('history.circuitFilterLabel')}
               value={circuitFilter}
               onChange={(e) => setCircuitFilter(e.target.value)}
             >
@@ -126,32 +129,27 @@ export const SessionFilterToolbar: React.FC<SessionFilterToolbarProps> = (props)
           </div>
         )}
 
-        {/* Reset Filters Quick Button */}
         {isFiltered && (
-          <button
-            type="button"
+          <Button
+            size="sm"
+            className={styles.reset}
+            icon={<RotateCcw size={13} aria-hidden="true" />}
             onClick={handleResetFilters}
-            className="f1-reset-filters-btn"
-            title={t('history.clearFilters')}
           >
-            <RotateCcw size={13} />
-            <span>{t('history.clearFilters')}</span>
-          </button>
+            {t('history.clearFilters')}
+          </Button>
         )}
       </div>
 
-      {/* Import & Refresh Actions */}
-      <div className="f1-toolbar-actions">
-        {/* Import Session Button */}
-        <label
-          className="f1-toolbar-import-btn"
-          title={t('history.importDropPrompt')}
-        >
+      {/* Import & refresh */}
+      <div className={styles.actions}>
+        {/* The file input stays focusable (visually hidden), so the label works from the keyboard */}
+        <label className={cx(styles.import, importingSession && styles.busy)} title={t('history.importDropPrompt')}>
           <input
             type="file"
             multiple
             accept=".f1session,.zip"
-            style={{ display: 'none' }}
+            className="sr-only"
             disabled={importingSession}
             onChange={(e) => {
               if (e.target.files && e.target.files.length > 0) {
@@ -161,32 +159,20 @@ export const SessionFilterToolbar: React.FC<SessionFilterToolbarProps> = (props)
             }}
           />
           {importingSession ? (
-            <>
-              <RefreshCw size={14} className="animate-spin" />
-              <span>{t('history.importing')}</span>
-            </>
+            <RefreshCw size={14} className={styles.spin} aria-hidden="true" />
           ) : (
-            <>
-              <Upload size={14} />
-              <span>{t('history.importSession')}</span>
-            </>
+            <Upload size={14} aria-hidden="true" />
           )}
+          <span>{importingSession ? t('history.importing') : t('history.importSession')}</span>
         </label>
 
-        <button
-          type="button"
-          className="f1-toolbar-refresh-btn"
-          onClick={onRefresh}
-          disabled={loadingSessions}
-        >
-          <RefreshCw size={14} className={loadingSessions ? 'animate-spin' : ''} />
-          <span>{t('common.refresh')}</span>
-        </button>
+        <Button onClick={onRefresh} loading={loadingSessions} icon={<RefreshCw size={14} aria-hidden="true" />}>
+          {t('common.refresh')}
+        </Button>
       </div>
 
-      {/* Tag Filter Bar Strip */}
       {availableTags.length > 0 && (
-        <div style={{ width: '100%', borderTop: '1px solid var(--border-color)', paddingTop: '0.6rem', marginTop: '0.25rem' }}>
+        <div className={styles.tags}>
           <TagFilterBar
             availableTags={availableTags}
             selectedTagId={selectedTagId}

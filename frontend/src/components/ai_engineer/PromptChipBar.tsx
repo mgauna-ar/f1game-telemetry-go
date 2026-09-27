@@ -1,15 +1,7 @@
-import React, { useMemo } from 'react';
-import {
-  Zap,
-  Gauge,
-  Cpu,
-  ZoomIn,
-  Sparkles,
-  Radio,
-  Flag,
-  CloudRain,
-} from 'lucide-react';
+import React from 'react';
+import { Zap, Gauge, Cpu, ZoomIn, Sparkles, Radio, Flag, CloudRain, type LucideIcon } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
+import styles from './PromptChipBar.module.css';
 
 export interface PromptChipBarProps {
   effectiveMode: string;
@@ -23,174 +15,78 @@ export interface PromptChipBarProps {
   onSelectPrompt: (prompt: string) => void;
 }
 
-export const PromptChipBar: React.FC<PromptChipBarProps> = ({
+/** A quick prompt: `key` names its `…Label` and `…Prompt` strings under `ai_engineer.chips`. */
+interface PromptChip {
+  key: string;
+  icon: LucideIcon;
+  /** Icon colour. */
+  tone: 'warning' | 'danger' | 'cyan' | 'green' | 'gold';
+}
+
+const COMPARE_CHIPS: PromptChip[] = [
+  { key: 'deltaLoss', icon: Zap, tone: 'warning' },
+  { key: 'brakingTraction', icon: Gauge, tone: 'danger' },
+  { key: 'ersDrs', icon: Cpu, tone: 'cyan' },
+];
+const ZOOM_CHIP: PromptChip = { key: 'zoomedAnalysis', icon: ZoomIn, tone: 'green' };
+
+const GENERAL_CHIPS: PromptChip[] = [
+  { key: 'genTrailBraking', icon: Gauge, tone: 'danger' },
+  { key: 'genTyreManagement', icon: Zap, tone: 'warning' },
+  { key: 'genErs', icon: Cpu, tone: 'cyan' },
+];
+
+const DEBRIEF_CHIPS: PromptChip[] = [
+  { key: 'debriefOverview', icon: Sparkles, tone: 'gold' },
+  { key: 'debriefTyres', icon: Gauge, tone: 'warning' },
+  { key: 'debriefSectors', icon: Zap, tone: 'cyan' },
+];
+
+const LIVE_STANDBY_CHIPS: PromptChip[] = [
+  { key: 'liveRadioCheck', icon: Radio, tone: 'cyan' },
+  { key: 'livePrep', icon: Gauge, tone: 'warning' },
+  { key: 'liveTacticalPlan', icon: Flag, tone: 'green' },
+];
+
+const LIVE_CHIPS: PromptChip[] = [
+  { key: 'liveWeather', icon: CloudRain, tone: 'cyan' },
+  { key: 'liveStrategy', icon: Flag, tone: 'warning' },
+  { key: 'livePace', icon: Zap, tone: 'green' },
+];
+
+const pickChips = ({
   effectiveMode,
   hasLapsSelected,
   isZoomActive,
   hasDebriefSession,
   isLiveStandby,
-  isGenerating,
-  onSelectPrompt,
-}) => {
+}: Omit<PromptChipBarProps, 'isGenerating' | 'onSelectPrompt'>): PromptChip[] => {
+  if (effectiveMode === 'comparator' && hasLapsSelected) {
+    return isZoomActive ? [ZOOM_CHIP, ...COMPARE_CHIPS] : COMPARE_CHIPS;
+  }
+  if (effectiveMode === 'session_debrief' && hasDebriefSession) return DEBRIEF_CHIPS;
+  if (effectiveMode === 'live') return isLiveStandby ? LIVE_STANDBY_CHIPS : LIVE_CHIPS;
+  return GENERAL_CHIPS;
+};
+
+/** Suggested questions for what the chat is looking at; one click sends one. */
+export const PromptChipBar: React.FC<PromptChipBarProps> = ({ isGenerating, onSelectPrompt, ...context }) => {
   const { t } = useI18n();
-
-  const adaptivePromptChips = useMemo(() => {
-    if (effectiveMode === 'comparator') {
-      if (hasLapsSelected) {
-        const chips = [
-          {
-            id: 'delta-loss',
-            icon: <Zap size={13} style={{ color: '#ffd200' }} />,
-            label: t('ai_engineer.chips.deltaLossLabel'),
-            prompt: t('ai_engineer.chips.deltaLossPrompt'),
-          },
-          {
-            id: 'braking-traction',
-            icon: <Gauge size={13} style={{ color: '#ff4b4b' }} />,
-            label: t('ai_engineer.chips.brakingTractionLabel'),
-            prompt: t('ai_engineer.chips.brakingTractionPrompt'),
-          },
-          {
-            id: 'ers-drs',
-            icon: <Cpu size={13} style={{ color: '#00f2fe' }} />,
-            label: t('ai_engineer.chips.ersDrsLabel'),
-            prompt: t('ai_engineer.chips.ersDrsPrompt'),
-          },
-        ];
-        if (isZoomActive) {
-          chips.unshift({
-            id: 'zoomed-analysis',
-            icon: <ZoomIn size={13} style={{ color: '#38ef7d' }} />,
-            label: t('ai_engineer.chips.zoomedAnalysisLabel'),
-            prompt: t('ai_engineer.chips.zoomedAnalysisPrompt'),
-          });
-        }
-        return chips;
-      }
-      return [
-        {
-          id: 'gen-trail-braking',
-          icon: <Gauge size={13} style={{ color: '#ff4b4b' }} />,
-          label: t('ai_engineer.chips.genTrailBrakingLabel'),
-          prompt: t('ai_engineer.chips.genTrailBrakingPrompt'),
-        },
-        {
-          id: 'gen-tyre-management',
-          icon: <Zap size={13} style={{ color: '#ffd200' }} />,
-          label: t('ai_engineer.chips.genTyreManagementLabel'),
-          prompt: t('ai_engineer.chips.genTyreManagementPrompt'),
-        },
-        {
-          id: 'gen-ers',
-          icon: <Cpu size={13} style={{ color: '#00f2fe' }} />,
-          label: t('ai_engineer.chips.genErsLabel'),
-          prompt: t('ai_engineer.chips.genErsPrompt'),
-        },
-      ];
-    }
-
-    if (effectiveMode === 'session_debrief' && hasDebriefSession) {
-      return [
-        {
-          id: 'debrief-overview',
-          icon: <Sparkles size={13} style={{ color: '#ffd700' }} />,
-          label: t('ai_engineer.chips.debriefOverviewLabel'),
-          prompt: t('ai_engineer.chips.debriefOverviewPrompt'),
-        },
-        {
-          id: 'debrief-tyres',
-          icon: <Gauge size={13} style={{ color: '#ff8000' }} />,
-          label: t('ai_engineer.chips.debriefTyresLabel'),
-          prompt: t('ai_engineer.chips.debriefTyresPrompt'),
-        },
-        {
-          id: 'debrief-sectors',
-          icon: <Zap size={13} style={{ color: '#00f2fe' }} />,
-          label: t('ai_engineer.chips.debriefSectorsLabel'),
-          prompt: t('ai_engineer.chips.debriefSectorsPrompt'),
-        },
-      ];
-    }
-
-    if (effectiveMode === 'live') {
-      if (isLiveStandby) {
-        return [
-          {
-            id: 'live-radio-check',
-            icon: <Radio size={13} style={{ color: '#00f2fe' }} />,
-            label: t('ai_engineer.chips.liveRadioCheckLabel'),
-            prompt: t('ai_engineer.chips.liveRadioCheckPrompt'),
-          },
-          {
-            id: 'live-prep',
-            icon: <Gauge size={13} style={{ color: '#ffd200' }} />,
-            label: t('ai_engineer.chips.livePrepLabel'),
-            prompt: t('ai_engineer.chips.livePrepPrompt'),
-          },
-          {
-            id: 'live-strategy-plan',
-            icon: <Flag size={13} style={{ color: '#38ef7d' }} />,
-            label: t('ai_engineer.chips.liveTacticalPlanLabel'),
-            prompt: t('ai_engineer.chips.liveTacticalPlanPrompt'),
-          },
-        ];
-      }
-      return [
-        {
-          id: 'live-weather',
-          icon: <CloudRain size={13} style={{ color: '#00f2fe' }} />,
-          label: t('ai_engineer.chips.liveWeatherLabel'),
-          prompt: t('ai_engineer.chips.liveWeatherPrompt'),
-        },
-        {
-          id: 'live-strategy',
-          icon: <Flag size={13} style={{ color: '#ffd200' }} />,
-          label: t('ai_engineer.chips.liveStrategyLabel'),
-          prompt: t('ai_engineer.chips.liveStrategyPrompt'),
-        },
-        {
-          id: 'live-pace',
-          icon: <Zap size={13} style={{ color: '#38ef7d' }} />,
-          label: t('ai_engineer.chips.livePaceLabel'),
-          prompt: t('ai_engineer.chips.livePacePrompt'),
-        },
-      ];
-    }
-
-    // Default general chips
-    return [
-      {
-        id: 'gen-trail-braking',
-        icon: <Gauge size={13} style={{ color: '#ff4b4b' }} />,
-        label: t('ai_engineer.chips.genTrailBrakingLabel'),
-        prompt: t('ai_engineer.chips.genTrailBrakingPrompt'),
-      },
-      {
-        id: 'gen-tyre-management',
-        icon: <Zap size={13} style={{ color: '#ffd200' }} />,
-        label: t('ai_engineer.chips.genTyreManagementLabel'),
-        prompt: t('ai_engineer.chips.genTyreManagementPrompt'),
-      },
-      {
-        id: 'gen-ers',
-        icon: <Cpu size={13} style={{ color: '#00f2fe' }} />,
-        label: t('ai_engineer.chips.genErsLabel'),
-        prompt: t('ai_engineer.chips.genErsPrompt'),
-      },
-    ];
-  }, [effectiveMode, hasLapsSelected, isZoomActive, hasDebriefSession, isLiveStandby, t]);
+  const chips = pickChips(context);
 
   return (
-    <div className="ai-widget-chips-row">
-      {adaptivePromptChips.map((chip) => (
+    <div className={styles.bar}>
+      {chips.map(({ key, icon: Icon, tone }) => (
         <button
-          key={chip.id}
-          className="ai-prompt-chip"
-          onClick={() => onSelectPrompt(chip.prompt)}
+          key={key}
+          type="button"
+          className={styles.chip}
+          data-tone={tone}
+          onClick={() => onSelectPrompt(t(`ai_engineer.chips.${key}Prompt`))}
           disabled={isGenerating}
         >
-          {chip.icon}
-          <span>{chip.label}</span>
+          <Icon size={13} aria-hidden="true" />
+          <span>{t(`ai_engineer.chips.${key}Label`)}</span>
         </button>
       ))}
     </div>

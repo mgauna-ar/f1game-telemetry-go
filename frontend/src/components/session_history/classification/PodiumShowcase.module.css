@@ -1,0 +1,104 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+  gap: var(--space-4);
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  list-style: none;
+}
+
+/* Each card is tinted by its step on the podium */
+.card {
+  --podium-color: var(--f1-gold);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: var(--space-5);
+  border: 1px solid color-mix(in srgb, var(--podium-color) 40%, transparent);
+  border-radius: var(--radius-md);
+  background:
+    radial-gradient(circle at 90% 10%, color-mix(in srgb, var(--podium-color) 11%, transparent), transparent 60%),
+    var(--bg-glass);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-panel);
+}
+
+.p1 {
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--f1-gold) 8%, transparent);
+}
+
+.p2 {
+  --podium-color: var(--f1-silver);
+}
+
+.p3 {
+  --podium-color: var(--f1-bronze);
+}
+
+.rank {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-black);
+  letter-spacing: 0.06em;
+  color: var(--podium-color);
+}
+
+.driver {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: var(--space-4);
+}
+
+.teamBar {
+  width: 4px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  background: var(--team-color);
+}
+
+.name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-black);
+}
+
+.raceNumber {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-regular);
+  color: var(--text-muted);
+}
+
+.result {
+  margin-top: var(--space-0-5);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.stats {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-color);
+}
+
+/* Stat without its box: the card is the frame */
+.stat {
+  padding: 0;
+  background: none;
+  border: 0;
+}
+
+.bestLap {
+  color: var(--accent-tertiary);
+}

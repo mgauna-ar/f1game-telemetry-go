@@ -3,6 +3,8 @@ export const common = {
   export: 'Export',
   clear: 'Clear',
   close: 'Close',
+  dismiss: 'Dismiss',
+  done: 'Done',
   search: 'Search',
   filter: 'Filter',
   reset: 'Reset',
@@ -131,6 +133,15 @@ export const common = {
     latestStableRelease: 'Latest Stable Release: {version}',
   },
   releaseNotes: 'Release Notes',
+  errorBoundary: {
+    appTitle: 'Application Error',
+    title: 'Something went wrong',
+    subtitle: 'An unexpected error occurred while rendering this section.',
+    reload: 'Reload Application',
+    tryAgain: 'Try Again',
+    showDetails: 'Technical Details',
+    hideDetails: 'Hide Details',
+  },
 };
 
 

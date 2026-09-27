@@ -1,0 +1,61 @@
+.bar {
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--space-1-5);
+  padding: var(--space-2) var(--space-3);
+  overflow-x: auto;
+  background: var(--bg-inset);
+  border-bottom: 1px solid var(--border-color);
+  scrollbar-color: var(--border-strong) transparent;
+  scrollbar-width: thin;
+}
+
+.chip {
+  --chip-icon: var(--accent-cyan);
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--accent-cyan) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-cyan) 20%, transparent);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.chip svg {
+  color: var(--chip-icon);
+}
+
+.chip[data-tone='warning'] {
+  --chip-icon: var(--status-warning);
+}
+
+.chip[data-tone='danger'] {
+  --chip-icon: var(--status-danger);
+}
+
+.chip[data-tone='green'] {
+  --chip-icon: var(--accent-tertiary);
+}
+
+.chip[data-tone='gold'] {
+  --chip-icon: var(--f1-gold);
+}
+
+.chip:hover:not(:disabled) {
+  color: var(--accent-cyan);
+  background: color-mix(in srgb, var(--accent-cyan) 18%, transparent);
+  border-color: var(--accent-cyan);
+  transform: translateY(-1px);
+}
+
+.chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}

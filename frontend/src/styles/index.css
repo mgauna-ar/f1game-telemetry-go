@@ -1,45 +1,6 @@
-/* ── Base ──────────────────────────────────────────────── */
+/* Global base styles only; every component styles itself with a CSS Module next to it. */
 @import './base/variables.css';
 @import './base/reset.css';
 @import './base/typography.css';
 @import './base/glass.css';
-
-/* ── Components ────────────────────────────────────────── */
-@import './components/navbar.css';
-@import './components/dashboard.css';
-@import './components/leaderboard.css';
-@import './components/empty-state.css';
-@import './components/session-history.css';
-@import './components/tags.css';
-@import './components/flags.css';
-@import './components/release-notes.css';
-@import './components/error-boundary.css';
-@import './components/copy-value.css';
-
-/* ── Lap Comparator ────────────────────────────────────── */
-@import './components/lap-comparator.css';
-
-/* ── Live Race Control Hub ─────────────────────────────── */
-@import './components/race-control.css';
-@import './components/live-feed.css';
-@import './components/live-weather.css';
-@import './components/live-pit.css';
-@import './components/live-sectors.css';
-
-/* ── Live Radio & Voice Cockpit ────────────────────────── */
-@import './components/radio-hud.css';
-@import './components/radio-modal.css';
-@import './components/radio-personas.css';
-@import './components/radio-sliders.css';
-@import './components/radio-accordions.css';
-@import './components/ptt-controls.css';
-@import './components/waveform.css';
-@import './components/voice-cockpit.css';
-@import './components/vital-strip.css';
-
-/* ── AI Race Engineer ──────────────────────────────────── */
-@import './components/ai-chat-widget.css';
-@import './components/ai-error-card.css';
-@import './components/ai-prompt-chips.css';
-@import './components/ai-settings.css';
-
+@import './base/accessibility.css';

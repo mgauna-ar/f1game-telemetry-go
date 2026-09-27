@@ -218,13 +218,3 @@ export type ImportBatchResponse = Narrows<
   },
   GeneratedImportBatchResponse
 >;
-
-export interface NavigationComparatorPayload {
-  sessionAId?: number;
-  lapAId?: number;
-  sessionBId?: number;
-  lapBId?: number;
-  sessionId?: number;
-  lapId?: number;
-  slot?: 'A' | 'B';
-}

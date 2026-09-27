@@ -1,0 +1,68 @@
+.badge {
+  --badge-color: var(--text-secondary);
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-0-5) var(--space-2);
+  border: 1px solid color-mix(in srgb, var(--badge-color) 40%, transparent);
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--badge-color) 15%, transparent);
+  color: var(--badge-color);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.04em;
+  line-height: var(--line-height-tight);
+  white-space: nowrap;
+}
+
+.uppercase {
+  text-transform: uppercase;
+}
+
+.square {
+  border-radius: var(--radius-xs);
+}
+
+.xs {
+  padding: 1px var(--space-1-5);
+  font-size: var(--font-size-2xs);
+}
+
+.md {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+.neutral {
+  --badge-color: var(--text-secondary);
+}
+
+.success {
+  --badge-color: var(--f1-green);
+}
+
+.warning {
+  --badge-color: var(--status-warning);
+}
+
+.danger {
+  --badge-color: var(--status-danger);
+}
+
+.info {
+  --badge-color: var(--accent-secondary);
+}
+
+.accent {
+  --badge-color: var(--accent-cyan);
+}
+
+.purple {
+  --badge-color: var(--f1-purple);
+}
+
+.orange {
+  --badge-color: var(--f1-sector-1);
+}

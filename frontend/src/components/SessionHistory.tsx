@@ -1,10 +1,5 @@
 import React from 'react';
-import {
-  Calendar,
-  Flag,
-  ArrowLeft,
-  RefreshCw,
-} from 'lucide-react';
+import { Calendar, Flag, ArrowLeft, RefreshCw } from 'lucide-react';
 import { SessionTableView } from './session_history/SessionTableView';
 import { SessionDetailView } from './session_history/SessionDetailView';
 import { SessionFilterToolbar } from './session_history/SessionFilterToolbar';
@@ -15,31 +10,22 @@ import { TagManagerModal } from './session_history/TagManagerModal';
 import { SessionComparatorDock } from './session_history/SessionComparatorDock';
 import { SessionBatchDock } from './session_history/SessionBatchDock';
 import { StandaloneToastContainer } from './common/ToastContainer';
+import { Button } from './ui/Button';
+import { EmptyState } from './ui/EmptyState';
+import { Panel } from './ui/Panel';
+import { SkeletonGroup, SkeletonRows } from './ui/Skeleton';
 
 import { useI18n } from '../context/I18nContext';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useToastStore } from '../store/useToastStore';
+import { navigate } from '../router/router';
 import { SessionHistoryProvider } from '../context/SessionHistoryContext';
-import {
-  useSessionHistoryData,
-  useSessionHistoryActions,
-} from '../context/SessionHistoryContextDefinitions';
+import { useSessionHistoryData, useSessionHistoryActions } from '../context/SessionHistoryContextDefinitions';
 
-import type {
-  Session,
-  Participant,
-  Lap,
-  StagedLap,
-  DriverStanding,
-  NavigationComparatorPayload,
-  Tag,
-} from '../types/session';
+import styles from './SessionHistory.module.css';
+import type { Session, Participant, Lap, StagedLap, DriverStanding, Tag } from '../types/session';
 
-export type { Session, Participant, Lap, StagedLap, DriverStanding, NavigationComparatorPayload, Tag };
-
-interface SessionHistoryProps {
-  onNavigateToComparator?: (payload: NavigationComparatorPayload | number, lapId?: number, slot?: 'A' | 'B') => void;
-}
+export type { Session, Participant, Lap, StagedLap, DriverStanding, Tag };
 
 const SessionHistoryContent: React.FC = () => {
   const { t, locale } = useI18n();
@@ -63,9 +49,7 @@ const SessionHistoryContent: React.FC = () => {
   } = useSessionHistoryData();
 
   const {
-    setSelectedSession,
-    setStagedSlotA,
-    setStagedSlotB,
+    closeSession,
     fetchSessions,
     setSessionToDelete,
     confirmDeleteSession,
@@ -86,46 +70,32 @@ const SessionHistoryContent: React.FC = () => {
   );
 
   return (
-    <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '1.5rem 2rem' }}>
+    <div className={styles.page}>
       {/* Session History Title Header */}
       {!selectedSession ? (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <div className={styles.header}>
           <div>
-            <h1 style={{ margin: 0, fontSize: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <Calendar color="var(--accent-primary)" size={28} />
+            <h1 className={styles.title}>
+              <Calendar color="var(--accent-primary)" size={28} aria-hidden="true" />
               {t('history.title')}
             </h1>
-            <p className="mono" style={{ color: 'var(--text-secondary)', margin: '4px 0 0 0', fontSize: '0.9rem' }}>
-              {t('history.subtitle')}
-            </p>
+            <p className={styles.subtitle}>{t('history.subtitle')}</p>
           </div>
-          <div className="session-history-header-badge">
-            <span className="session-header-badge-dot" />
-            <span className="session-header-badge-text">
-              {t('history.recordedSessionsCount', { count: sessions.length })}
-            </span>
+          <div className={styles.countBadge}>
+            <span className={styles.countDot} aria-hidden="true" />
+            <span className={styles.countText}>{t('history.recordedSessionsCount', { count: sessions.length })}</span>
           </div>
         </div>
       ) : (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              className="session-back-btn"
-              onClick={() => {
-                setSelectedSession(null);
-                setStagedSlotA(null);
-                setStagedSlotB(null);
-              }}
-            >
-              <ArrowLeft size={16} /> {t('history.backToList')}
-            </button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-              <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>{t('history.title')}</span>
-              <span>/</span>
-              <span className="mono" style={{ color: 'var(--text-primary)', fontWeight: 700 }}>
-                {selectedSession.track_name}
-              </span>
+        <div className={styles.detailBar}>
+          <div className={styles.detailNav}>
+            <Button icon={<ArrowLeft size={16} aria-hidden="true" />} onClick={closeSession}>
+              {t('history.backToList')}
+            </Button>
+            <div className={styles.crumbs}>
+              <span className={styles.crumbRoot}>{t('history.title')}</span>
+              <span aria-hidden="true">/</span>
+              <span className={styles.crumbCurrent}>{selectedSession.track_name}</span>
             </div>
           </div>
         </div>
@@ -133,34 +103,40 @@ const SessionHistoryContent: React.FC = () => {
 
       {/* VIEW 1: SESSION LIST & FILTER TOOLBAR */}
       {!selectedSession && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        <div className={styles.list}>
           <SessionFilterToolbar />
 
           {/* Session Content Table */}
           {loadingSessions ? (
-            <div className="glass-panel" style={{ textAlign: 'center', padding: '3rem' }}>
-              <RefreshCw size={32} className="animate-spin" style={{ color: 'var(--accent-primary)', marginBottom: '1rem' }} />
-              <p style={{ color: 'var(--text-secondary)' }}>
-                {t('history.loadingRepo')}
-              </p>
-            </div>
+            <Panel as="div">
+              <SkeletonGroup label={t('history.loadingRepo')}>
+                <SkeletonRows rows={8} />
+              </SkeletonGroup>
+            </Panel>
           ) : error ? (
-            <div className="glass-panel" style={{ textAlign: 'center', padding: '3rem', borderColor: 'var(--accent-primary)' }}>
-              <p style={{ color: 'var(--accent-primary)', fontWeight: 600 }}>{error}</p>
-              <button className="nav-tab active" onClick={fetchSessions} style={{ marginTop: '1rem' }}>
-                {t('common.retry')}
-              </button>
-            </div>
+            <Panel as="div">
+              <EmptyState
+                tone="danger"
+                title={error}
+                action={
+                  <Button variant="primary" icon={<RefreshCw size={14} />} onClick={fetchSessions}>
+                    {t('common.retry')}
+                  </Button>
+                }
+              />
+            </Panel>
           ) : filteredSessions.length === 0 ? (
-            <div className="glass-panel" style={{ textAlign: 'center', padding: '3rem' }}>
-              <Flag size={40} color="var(--text-muted)" style={{ marginBottom: '1rem' }} />
-              <h3>{t('history.noSessionsFound')}</h3>
-              <p style={{ color: 'var(--text-secondary)' }}>
-                {searchQuery || sessionTypeFilter !== 'ALL' || circuitFilter !== 'ALL' || selectedTagId !== null
-                  ? t('history.noSessionsMatch')
-                  : t('history.noSessionsEmpty')}
-              </p>
-            </div>
+            <Panel as="div">
+              <EmptyState
+                icon={<Flag size={40} />}
+                title={t('history.noSessionsFound')}
+                description={
+                  searchQuery || sessionTypeFilter !== 'ALL' || circuitFilter !== 'ALL' || selectedTagId !== null
+                    ? t('history.noSessionsMatch')
+                    : t('history.noSessionsEmpty')
+                }
+              />
+            </Panel>
           ) : (
             <SessionTableView />
           )}
@@ -185,13 +161,17 @@ const SessionHistoryContent: React.FC = () => {
           confirmDeleteSession(
             (id) => {
               if (selectedSession && selectedSession.id === id) {
-                setSelectedSession(null);
+                navigate('/history', { replace: true });
               }
-              useToastStore.getState().showToast({ type: 'success', message: t('history.batch.deleteSelected', { count: 1 }) });
+              useToastStore
+                .getState()
+                .showToast({ type: 'success', message: t('history.batch.deleteSelected', { count: 1 }) });
             },
             (err: unknown) => {
               const msg = err instanceof Error ? err.message : String(err);
-              useToastStore.getState().showToast({ type: 'error', message: t('history.deleteError', { message: msg }) });
+              useToastStore
+                .getState()
+                .showToast({ type: 'error', message: t('history.deleteError', { message: msg }) });
             }
           )
         }
@@ -230,9 +210,9 @@ const SessionHistoryContent: React.FC = () => {
   );
 };
 
-export const SessionHistory: React.FC<SessionHistoryProps> = ({ onNavigateToComparator }) => {
+export const SessionHistory: React.FC = () => {
   return (
-    <SessionHistoryProvider onNavigateToComparator={onNavigateToComparator}>
+    <SessionHistoryProvider>
       <SessionHistoryContent />
     </SessionHistoryProvider>
   );

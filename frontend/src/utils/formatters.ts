@@ -85,52 +85,16 @@ export function formatDate(dateStr?: string): string {
 }
 
 /**
- * Style descriptor for leaderboard or podium rank badges (P1, P2, P3, etc.).
+ * The badge tone for a session type: sprint orange, race red, qualifying purple, practice green.
  */
-export function getRankBadgeStyle(rank: number) {
-  if (rank === 1) {
-    return {
-      bg: 'rgba(255, 215, 0, 0.18)',
-      color: '#ffd700',
-      border: '1px solid rgba(255, 215, 0, 0.5)',
-      label: 'P1',
-    };
-  }
-  if (rank === 2) {
-    return {
-      bg: 'rgba(224, 224, 224, 0.18)',
-      color: '#e0e0e0',
-      border: '1px solid rgba(224, 224, 224, 0.45)',
-      label: 'P2',
-    };
-  }
-  if (rank === 3) {
-    return {
-      bg: 'rgba(205, 127, 50, 0.2)',
-      color: '#cd7f32',
-      border: '1px solid rgba(205, 127, 50, 0.45)',
-      label: 'P3',
-    };
-  }
-  return {
-    bg: 'rgba(255, 255, 255, 0.07)',
-    color: 'var(--text-secondary)',
-    border: '1px solid rgba(255, 255, 255, 0.12)',
-    label: `P${rank}`,
-  };
-}
-
-/**
- * Returns CSS badge class based on session type string.
- */
-export function getSessionBadgeClass(typeStr?: string): string {
-  if (!typeStr) return 'badge-gray';
+export function getSessionTone(typeStr?: string | null): 'orange' | 'danger' | 'purple' | 'success' | 'neutral' {
+  if (!typeStr) return 'neutral';
   const lower = typeStr.toLowerCase();
-  if (lower.includes('sprint')) return 'badge-orange';
-  if (lower.includes('race')) return 'badge-red';
-  if (lower.includes('qual') || lower.includes('q1') || lower.includes('q2') || lower.includes('q3')) return 'badge-purple';
-  if (lower.includes('practice') || lower.includes('fp')) return 'badge-green';
-  return 'badge-gray';
+  if (lower.includes('sprint')) return 'orange';
+  if (lower.includes('race')) return 'danger';
+  if (lower.includes('qual') || lower.includes('q1') || lower.includes('q2') || lower.includes('q3')) return 'purple';
+  if (lower.includes('practice') || lower.includes('fp')) return 'success';
+  return 'neutral';
 }
 
 /**

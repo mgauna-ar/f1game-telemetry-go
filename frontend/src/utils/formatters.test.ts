@@ -7,7 +7,7 @@ import {
   formatTotalDuration,
   formatDate,
   formatSessionUID,
-  getSessionBadgeClass,
+  getSessionTone,
 } from './formatters';
 
 describe('formatters', () => {
@@ -114,12 +114,14 @@ describe('formatters', () => {
     });
   });
 
-  describe('getSessionBadgeClass', () => {
-    it('returns badge class according to type', () => {
-      expect(getSessionBadgeClass('Race')).toBe('badge-red');
-      expect(getSessionBadgeClass('Sprint Shootout 1')).toBe('badge-orange');
-      expect(getSessionBadgeClass('Qualifying 1')).toBe('badge-purple');
-      expect(getSessionBadgeClass('Practice 1')).toBe('badge-green');
+  describe('getSessionTone', () => {
+    it('returns the badge tone for the session type', () => {
+      expect(getSessionTone('Race')).toBe('danger');
+      expect(getSessionTone('Sprint Shootout 1')).toBe('orange');
+      expect(getSessionTone('Qualifying 1')).toBe('purple');
+      expect(getSessionTone('Practice 1')).toBe('success');
+      expect(getSessionTone('Time Trial')).toBe('neutral');
+      expect(getSessionTone(undefined)).toBe('neutral');
     });
   });
 

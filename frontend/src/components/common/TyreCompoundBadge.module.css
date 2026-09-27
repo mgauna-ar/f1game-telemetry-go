@@ -1,0 +1,23 @@
+.badge {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--tyre-color);
+  border-radius: 50%;
+  background: var(--tyre-bg);
+  color: var(--tyre-color);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+}
+
+.md {
+  width: 22px;
+  height: 22px;
+  border-width: 1.5px;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-black);
+}

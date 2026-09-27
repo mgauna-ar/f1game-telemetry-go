@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
 import { UI } from '../../constants/ui';
+import styles from './CopyValueButton.module.css';
 
 interface CopyValueButtonProps {
   value: string;
@@ -34,7 +35,8 @@ export const CopyValueButton: React.FC<CopyValueButtonProps> = ({ value }) => {
   return (
     <button
       type="button"
-      className={`copy-value-btn mono ${copied ? 'copied' : ''}`}
+      className={styles.button}
+      data-copied={copied || undefined}
       onClick={handleCopy}
       title={copied ? t('common.copied') : t('common.copyValue', { value })}
       aria-label={t('common.copyValue', { value })}

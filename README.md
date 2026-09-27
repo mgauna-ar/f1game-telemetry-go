@@ -54,7 +54,7 @@ Pre-compiled, self-contained single binaries with the embedded web dashboard are
    * **macOS:** `f1telemetry_v1.0.0_darwin_arm64.zip` (Apple Silicon M-series) or `f1telemetry_v1.0.0_darwin_amd64.zip` (Intel)
    * **Linux:** `f1telemetry_v1.0.0_linux_amd64.tar.gz` (or `arm64`)
 2. Extract the archive contents.
-3. Run `f1telemetry.exe` (Windows) or `./f1telemetry` (macOS / Linux). The server will start and automatically open your default browser to `http://localhost:8080`.
+3. Run `f1telemetry.exe` (Windows) or `./f1telemetry` (macOS / Linux). The server will start and automatically open your default browser to `http://localhost:8080`. Every page has its own address you can bookmark or share on your network: a session (`/history/12/stints`), a lap comparison with its zoom (`/compare?sa=12&a=345&b=346`) or the live cockpit (`/live/cockpit`).
 
 > [!NOTE]
 > **Windows Defender / SmartScreen Notice:**
@@ -112,6 +112,9 @@ CI runs `go run ./cmd/tsgen -check` and fails when the generated files are out o
 The 10 Hz live snapshot on `/ws` is a slim DTO (`internal/session/live_snapshot.go`): one row per active car and only the fields the live views read. To show another packet field live, add it there first. `go test -run TestLiveSnapshotPayloadSize -v ./cmd/simulator` prints its size per frame next to the raw packets.
 
 Opening a recorded session is one request, `GET /api/sessions/{id}/detail`: the classification, progression and stints plus the session's participants and laps, loaded from SQLite once and sent once (standings and stints refer to laps by `car_index` and lap ID). `go test -run TestSessionViewPayloadSize -v ./internal/api` prints its bytes and database reads for a full synthetic race; set `F1_PAYLOAD_DB` (a copy of your database) and `F1_PAYLOAD_SESSION` to measure a recorded one.
+
+#### Styles & Accessibility
+The dashboard's colours, spacing, type, shadows, layers and motion are design tokens in `frontend/src/styles/base/variables.css`; components use them as `var(--token)`, and TypeScript that draws colours (Recharts, canvas) reads them through `frontend/src/styles/theme.ts`. Keyboard focus, screen-reader-only text and reduced motion are handled globally in `frontend/src/styles/base/accessibility.css`, and `npm run lint` includes accessibility rules (oxlint's `jsx-a11y` plugin), so clickable elements must be real buttons or links. Shared building blocks (buttons, dialogs, panels, tabs, tables, badges, empty and loading states, tooltips, markdown) live in `frontend/src/components/ui/`, each styled by its own CSS Module.
 
 ---
 

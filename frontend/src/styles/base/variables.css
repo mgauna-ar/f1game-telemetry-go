@@ -1,64 +1,232 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;800&display=swap');
 
+/*
+ * Design tokens. Components read colours, spacing, type, radius, shadow, layers
+ * and motion from here instead of writing literals. TypeScript that can't use
+ * var() (canvas) resolves them through styles/theme.ts.
+ */
 :root {
-  /* Color Palette - Premium Dark/Neon */
-  --bg-dark: hsl(222, 47%, 7%);
+  /* ── Surfaces: page → panel → raised ─────────────────────────────────── */
+  --bg-dark: hsl(222, 47%, 7%); /* page */
   --bg-panel: hsla(222, 47%, 11%, 0.7);
-  --bg-glass: hsla(222, 47%, 15%, 0.4);
-  
-  --accent-primary: hsl(351, 100%, 55%); /* F1 Red */
-  --accent-glow: hsla(351, 100%, 55%, 0.3);
-  --accent-secondary: hsl(199, 89%, 48%); /* Neon Blue */
-  --accent-secondary-glow: hsla(199, 89%, 48%, 0.3);
-  --accent-tertiary: hsl(150, 100%, 40%); /* Green / Valid */
-  --accent-warning: hsl(45, 100%, 50%); /* Yellow / Sector */
-  --accent-purple: hsl(280, 100%, 65%); /* Fastest Sector */
-
-  --text-primary: hsl(0, 0%, 98%);
-  --text-secondary: hsl(215, 20%, 65%);
-  --text-muted: hsl(215, 15%, 45%);
-
-  --border-color: hsla(0, 0%, 100%, 0.08);
-  --border-highlight: hsla(0, 0%, 100%, 0.15);
-  --border-subtle: hsla(0, 0%, 100%, 0.12);
-
-  --accent-cyan: #06b6d4; /* Rain / wet weather */
-
+  --bg-glass: hsla(222, 47%, 15%, 0.4); /* glass cards (.glass-panel) */
   /* Opaque stand-in for a glass panel, for sticky headers that content scrolls under */
   --bg-panel-solid: hsl(222, 40%, 10%);
+  --bg-elevated: rgba(18, 18, 22, 0.96); /* dialogs */
+  --bg-popover: rgba(10, 14, 23, 0.98); /* menus, dropdowns, popovers */
+  --bg-tooltip: rgba(10, 14, 23, 0.92); /* chart and hover tooltips */
+  --bg-inset: rgba(0, 0, 0, 0.4); /* inputs and wells */
+  --bg-overlay: rgba(0, 0, 0, 0.78); /* modal backdrop */
+  --bg-hover: rgba(255, 255, 255, 0.05);
+  --bg-active: rgba(255, 255, 255, 0.08);
 
-  /* Space kept free at the bottom of the page for the floating radio and AI buttons */
+  /* ── Text: every level stays at 4.5:1 or more on the surfaces above ──── */
+  --text-primary: hsl(0, 0%, 98%);
+  --text-body: hsl(213, 27%, 84%); /* long text and labels, softer than headings */
+  --text-secondary: hsl(215, 20%, 65%);
+  --text-muted: hsl(215, 15%, 58%);
+  --text-disabled: hsl(215, 12%, 40%); /* disabled controls only */
+  --text-on-accent: hsl(222, 47%, 7%); /* dark text on bright fills */
+
+  /* ── Borders ─────────────────────────────────────────────────────────── */
+  --border-color: hsla(0, 0%, 100%, 0.08);
+  --border-subtle: hsla(0, 0%, 100%, 0.12);
+  --border-highlight: hsla(0, 0%, 100%, 0.15);
+  --border-strong: hsla(0, 0%, 100%, 0.25);
+
+  /* ── Brand accents ───────────────────────────────────────────────────── */
+  --accent-primary: hsl(351, 100%, 55%); /* F1 red */
+  --accent-glow: hsla(351, 100%, 55%, 0.3);
+  --accent-primary-fill: hsl(351, 100%, 45%); /* red behind white text (4.8:1) */
+  --accent-secondary: hsl(199, 89%, 48%); /* neon blue */
+  --accent-secondary-glow: hsla(199, 89%, 48%, 0.3);
+  --accent-tertiary: hsl(150, 100%, 40%); /* green */
+  --accent-purple: hsl(280, 100%, 65%);
+  --accent-cyan: #00f2fe; /* radio, AI engineer and live highlights */
+  --accent-cyan-glow: rgba(0, 242, 254, 0.25);
+
+  /* ── Status ──────────────────────────────────────────────────────────── */
+  --status-success: #10b981;
+  --status-warning: hsl(45, 100%, 50%);
+  --status-danger: #ef4444;
+  --status-info: var(--accent-cyan);
+  --status-danger-fill: #dc2626; /* red behind white text (4.8:1) */
+  --status-success-bg: color-mix(in srgb, var(--status-success) 15%, transparent);
+  --status-warning-bg: color-mix(in srgb, var(--status-warning) 15%, transparent);
+  --status-danger-bg: color-mix(in srgb, var(--status-danger) 15%, transparent);
+  --status-info-bg: color-mix(in srgb, var(--status-info) 15%, transparent);
+  --status-success-border: color-mix(in srgb, var(--status-success) 40%, transparent);
+  --status-warning-border: color-mix(in srgb, var(--status-warning) 40%, transparent);
+  --status-danger-border: color-mix(in srgb, var(--status-danger) 40%, transparent);
+  --status-info-border: color-mix(in srgb, var(--status-info) 40%, transparent);
+
+  /* ── F1 ──────────────────────────────────────────────────────────────── */
+  /* Comparison slots A and B */
+  --f1-slot-a: #00d2d3;
+  --f1-slot-b: #ff4757;
+  --f1-slot-a-bg: color-mix(in srgb, var(--f1-slot-a) 8%, transparent);
+  --f1-slot-b-bg: color-mix(in srgb, var(--f1-slot-b) 8%, transparent);
+  --f1-slot-a-border: color-mix(in srgb, var(--f1-slot-a) 40%, transparent);
+  --f1-slot-b-border: color-mix(in srgb, var(--f1-slot-b) 40%, transparent);
+
+  /* Sector regions on charts and track maps */
+  --f1-sector-1: #f39c12;
+  --f1-sector-2: #9b59b6;
+  --f1-sector-3: #2ecc71;
+
+  /* Timing: purple is the session best, green a personal best, yellow no improvement */
+  --f1-purple: #dc84f3;
+  --f1-green: #33ff77;
+  --f1-yellow: #ffd700;
+  --f1-purple-bg: rgba(176, 38, 255, 0.25);
+  --f1-green-bg: color-mix(in srgb, var(--f1-green) 15%, transparent);
+  --f1-yellow-bg: color-mix(in srgb, var(--f1-yellow) 15%, transparent);
+  --f1-purple-border: rgba(176, 38, 255, 0.5);
+  --f1-green-border: color-mix(in srgb, var(--f1-green) 35%, transparent);
+  --f1-yellow-border: color-mix(in srgb, var(--f1-yellow) 35%, transparent);
+
+  /* Tyre compounds */
+  --f1-compound-soft: #ff3366;
+  --f1-compound-medium: #ffd700;
+  --f1-compound-hard: #ffffff;
+  --f1-compound-inter: #33cc66;
+  --f1-compound-wet: #3399ff;
+  --f1-compound-unknown: #a0a0a0;
+  --f1-compound-soft-bg: color-mix(in srgb, var(--f1-compound-soft) 18%, transparent);
+  --f1-compound-medium-bg: color-mix(in srgb, var(--f1-compound-medium) 18%, transparent);
+  --f1-compound-hard-bg: color-mix(in srgb, var(--f1-compound-hard) 18%, transparent);
+  --f1-compound-inter-bg: color-mix(in srgb, var(--f1-compound-inter) 18%, transparent);
+  --f1-compound-wet-bg: color-mix(in srgb, var(--f1-compound-wet) 18%, transparent);
+
+  --f1-gold: #ffd700; /* P1 and podium */
+  --f1-silver: #c0c0c0; /* P2 */
+  --f1-bronze: #cd7f32; /* P3 */
+  --f1-team-fallback: #a0a0a0; /* a car whose team has no colour */
+
+  /* Weather */
+  --weather-sun: #ffd700;
+  --weather-cloud-light: #ffe680;
+  --weather-cloud: #b0c4de;
+  --weather-rain: #33ccff;
+  --weather-rain-heavy: #0099ff;
+  --weather-storm: #ff3366;
+  --weather-warm: #ff6b6b; /* temperatures and rising trends */
+  --weather-cool: var(--weather-rain); /* falling trends */
+
+  /* ── Charts ──────────────────────────────────────────────────────────── */
+  --chart-axis: #666666;
+  --chart-tick: #999999;
+  --chart-grid: rgba(255, 255, 255, 0.08);
+  --chart-cursor: #ffd200;
+  /* One colour per comparator trace that isn't drawn in the slot colours */
+  --chart-throttle: #2ed573;
+  --chart-brake: #ff4757;
+  --chart-ers: #38ef7d;
+  --chart-ers-mode: #bd93f9;
+  --chart-aero: var(--accent-cyan);
+  --chart-delta: #f1c40f;
+  --chart-boost-a: #ffd700;
+  --chart-boost-b: #a855f7;
+  /* Comparator track map (canvas) */
+  --chart-track: rgba(255, 255, 255, 0.45); /* where neither lap gains */
+  --chart-track-casing: rgba(0, 0, 0, 0.6);
+  --chart-marker-ring: #ffffff;
+  --chart-marker-outline: #000000;
+
+  /* ── Focus ring (styles/base/accessibility.css) ──────────────────────── */
+  --focus-ring-color: var(--accent-cyan);
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+
+  /* ── Spacing: 4px steps ──────────────────────────────────────────────── */
+  --space-0-5: 0.125rem;
+  --space-1: 0.25rem;
+  --space-1-5: 0.375rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+
+  /* The floating docks: the radio pill (bottom left), the AI launcher (bottom right) and the
+     history docks (bottom centre, above the launcher on narrow screens). The page keeps
+     --floating-dock-clearance free at its bottom so they never cover its end. */
+  --dock-inset: var(--space-6);
+  --launcher-size: 54px;
   --floating-dock-clearance: 96px;
+  --session-dock-clearance: 120px;
 
-  /* Slot & Comparison Palette */
-  --color-slot-a: #00d2d3;
-  --color-slot-a-bg: rgba(0, 210, 211, 0.08);
-  --color-slot-a-border: rgba(0, 210, 211, 0.4);
-  --color-slot-b: #ff4757;
-  --color-slot-b-bg: rgba(255, 71, 87, 0.08);
-  --color-slot-b-border: rgba(255, 71, 87, 0.4);
-  --color-positive: #52c41a;
-  --color-negative: #ff4d4f;
-  --color-warning: #ffd700;
-  --color-sector-1: #f39c12;
-  --color-sector-2: #9b59b6;
-  --color-sector-3: #33ccff;
+  /* ── Type ────────────────────────────────────────────────────────────── */
+  --font-sans: 'Inter', sans-serif;
+  --font-display: 'Outfit', sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
+  --font-size-2xs: 0.625rem; /* micro badges */
+  --font-size-xs: 0.7rem; /* labels, captions, table meta */
+  --font-size-sm: 0.78rem; /* table cells, secondary text */
+  --font-size-md: 0.875rem; /* body text in panels, inputs */
+  --font-size-lg: 1rem; /* panel titles */
+  --font-size-xl: 1.25rem; /* section headings, stat values */
+  --font-size-2xl: 1.75rem; /* hero numbers */
+  --font-size-3xl: 2.5rem; /* page titles */
 
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-black: 800;
+
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.5;
+
+  /* ── Radius ──────────────────────────────────────────────────────────── */
+  --radius-xs: 4px;
   --radius-sm: 8px;
   --radius-md: 16px;
   --radius-lg: 24px;
   --radius-full: 9999px;
 
-  --font-sans: 'Inter', sans-serif;
-  --font-display: 'Outfit', sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  /* ── Shadows ─────────────────────────────────────────────────────────── */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.6);
+  --shadow-panel: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  --shadow-dialog: 0 24px 60px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08);
 
-  /* Easing */
+  /* ── Layers: every stacking context above the page uses one of these ─── */
+  --z-raised: 1; /* above siblings inside a component */
+  --z-sticky: 10; /* sticky headers inside a view */
+  --z-nav: 100; /* app top navigation */
+  --z-dock: 1000; /* floating radio HUD, AI chat, batch and comparator docks */
+  --z-popover: 1500; /* menus, dropdowns and popovers, above the docks */
+  --z-modal: 2000; /* dialogs and their backdrop */
+  --z-toast: 3000; /* toasts stay visible over dialogs */
+  --z-tooltip: 4000; /* hover tooltips rendered at the document root */
+
+  /* ── Motion: styles/base/accessibility.css turns it off for reduced motion ── */
   --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
   --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 0.15s;
+  --duration-normal: 0.25s;
+  --duration-slow: 0.4s;
+  --transition-fast: var(--duration-fast) var(--ease-smooth);
+  --transition-normal: var(--duration-normal) var(--ease-smooth);
+}
 
-  /* Transitions */
-  --transition-fast: 0.15s var(--ease-smooth);
-  --transition-normal: 0.25s var(--ease-smooth);
+@media (--tablet) {
+  :root {
+    --session-dock-clearance: 200px;
+  }
+}
+
+@media (--phone) {
+  :root {
+    --dock-inset: var(--space-3);
+    --floating-dock-clearance: 80px;
+    --session-dock-clearance: 290px;
+  }
 }

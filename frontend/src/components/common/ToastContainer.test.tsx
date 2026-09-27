@@ -8,9 +8,20 @@ describe('ToastContainer Component', () => {
     useToastStore.getState().clearToasts();
   });
 
-  it('renders nothing when there are no toasts', () => {
-    const { container } = render(<ToastContainer />);
-    expect(container.firstChild).toBeNull();
+  it('keeps an empty live region when there are no toasts, so later toasts are announced', () => {
+    render(<ToastContainer />);
+    const region = screen.getByTestId('toast-container');
+    expect(region).toHaveAttribute('aria-live', 'polite');
+    expect(region).toBeEmptyDOMElement();
+  });
+
+  it('announces error toasts as alerts', () => {
+    useToastStore.getState().showToast({ type: 'error', message: 'Failed to delete' });
+    useToastStore.getState().showToast({ type: 'success', message: 'Session imported' });
+    render(<ToastContainer />);
+
+    expect(screen.getByRole('alert')).toHaveTextContent('Failed to delete');
+    expect(screen.getByTestId('toast-success')).not.toHaveAttribute('role');
   });
 
   it('renders active toasts with dismiss button', () => {

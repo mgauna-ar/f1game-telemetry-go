@@ -1,0 +1,385 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Top bar: brand, page tabs, and version, language and port on the right. On a tablet or phone
+   the tabs take a row of their own under the brand and status. */
+.topNav {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-nav);
+  container: topNav / inline-size;
+  display: grid;
+  grid-template-areas: 'brand tabs status';
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+  padding: var(--space-3) var(--space-6);
+  background: color-mix(in srgb, var(--bg-dark) 88%, transparent);
+  border-bottom: 1px solid var(--border-color);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.brand {
+  grid-area: brand;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  cursor: default;
+  user-select: none;
+}
+
+.logo {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 0 8px var(--accent-glow));
+  transition: all 0.3s var(--ease-out);
+}
+
+.logo:hover {
+  filter: drop-shadow(0 0 16px var(--accent-glow)) drop-shadow(0 0 8px var(--accent-cyan-glow));
+  transform: scale(1.05);
+}
+
+/* Glows while live telemetry comes in */
+.logo[data-live] {
+  animation: brandGlow 3s infinite ease-in-out;
+}
+
+@keyframes brandGlow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 8px var(--accent-glow)) drop-shadow(0 0 4px var(--accent-cyan-glow));
+  }
+  50% {
+    filter: drop-shadow(0 0 18px var(--accent-primary)) drop-shadow(0 0 12px var(--accent-cyan));
+  }
+}
+
+.brandText {
+  display: flex;
+  flex-direction: column;
+}
+
+.brandTitle {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1-5);
+  margin: 0;
+  font-family: var(--font-display);
+  line-height: 1;
+}
+
+.brandF1 {
+  font-size: 1.32rem;
+  font-style: italic;
+  font-weight: var(--font-weight-black);
+  letter-spacing: -0.03em;
+  color: var(--accent-primary);
+  text-shadow: 0 0 14px var(--accent-glow);
+}
+
+.brandName {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-black);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.brandSub {
+  margin-top: 2px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+/* Page tabs in a capsule */
+.tabs {
+  grid-area: tabs;
+  justify-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  background: var(--bg-inset);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-5);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+  color: var(--text-secondary);
+  text-decoration: none;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-full);
+  transition: all 0.22s var(--ease-smooth);
+}
+
+.tab svg {
+  opacity: 0.75;
+  transition:
+    opacity var(--transition-normal),
+    transform var(--transition-normal);
+}
+
+.tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-active);
+}
+
+.tab:hover svg {
+  opacity: 1;
+  transform: scale(1.08);
+}
+
+.tab[aria-current='page'] {
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary-fill));
+  box-shadow: 0 2px 14px var(--accent-glow);
+}
+
+.tab[aria-current='page'] svg {
+  opacity: 1;
+}
+
+/* LIVE, or STALE when packets stopped, on the live tab */
+.liveBadge {
+  --live-dot: var(--f1-green);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: 2px;
+  padding: 2px var(--space-1-5);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-black);
+  letter-spacing: 0.05em;
+  background: color-mix(in srgb, black 35%, transparent);
+  border: 1px solid var(--border-highlight);
+  border-radius: var(--radius-full);
+}
+
+.tab[aria-current='page'] .liveBadge {
+  border-color: var(--border-strong);
+}
+
+.liveBadge::before {
+  width: 6px;
+  height: 6px;
+  content: '';
+  background: var(--live-dot);
+  border-radius: 50%;
+  box-shadow: 0 0 6px var(--live-dot);
+  animation: liveDot 1.6s infinite var(--ease-smooth);
+}
+
+.liveBadge[data-stale]::before {
+  --live-dot: var(--status-warning);
+  box-shadow: none;
+  animation: none;
+}
+
+@keyframes liveDot {
+  50% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
+}
+
+.status {
+  grid-area: status;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+/* A new release is out; amber for a pre-release */
+.updateChip {
+  --update-color: var(--accent-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--update-color);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--update-color) 18%, transparent),
+    color-mix(in srgb, var(--accent-purple) 18%, transparent)
+  );
+  border: 1px solid color-mix(in srgb, var(--update-color) 50%, transparent);
+  border-radius: var(--radius-full);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--update-color) 20%, transparent);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.updateChip[data-prerelease] {
+  --update-color: var(--status-warning);
+}
+
+.updateChip:hover {
+  border-color: color-mix(in srgb, var(--update-color) 80%, transparent);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--update-color) 40%, transparent);
+  transform: translateY(-1px);
+}
+
+.updateChip svg {
+  animation: sparkle 2s ease-in-out infinite;
+}
+
+@keyframes sparkle {
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* The running version; blue for a dev build, amber for a beta */
+.version {
+  --version-color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.03em;
+  color: var(--version-color);
+  background: var(--bg-hover);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.version:hover {
+  color: var(--text-primary);
+  background: var(--bg-active);
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+.version[data-channel='dev'] {
+  --version-color: var(--accent-secondary);
+}
+
+.version[data-channel='beta'] {
+  --version-color: var(--status-warning);
+}
+
+.version[data-channel] {
+  background: color-mix(in srgb, var(--version-color) 8%, transparent);
+  border-color: color-mix(in srgb, var(--version-color) 30%, transparent);
+}
+
+.version[data-channel]:hover {
+  color: var(--version-color);
+  background: color-mix(in srgb, var(--version-color) 15%, transparent);
+  border-color: color-mix(in srgb, var(--version-color) 55%, transparent);
+}
+
+.port {
+  padding: var(--space-1) var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  background: var(--bg-hover);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.main {
+  flex: 1;
+  width: 100%;
+  padding-bottom: var(--floating-dock-clearance);
+}
+
+/* A history dock is showing: keep the end of the page clear of it too */
+.main:has([data-session-dock]) {
+  padding-bottom: var(--session-dock-clearance);
+}
+
+.tabShort {
+  display: none;
+}
+
+/* Short tab names once the long ones (up to ~700px in Spanish) no longer fit beside the brand and
+   the status controls, an update chip included */
+@container topNav (max-width: 1300px) {
+  .tabLabel {
+    display: none;
+  }
+
+  .tabShort {
+    display: inline;
+  }
+}
+
+/* Tablet: the tabs get their own row, in three equal parts */
+@media (--tablet) {
+  .topNav {
+    grid-template-areas:
+      'brand status'
+      'tabs tabs';
+    grid-template-columns: auto 1fr;
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    justify-self: stretch;
+  }
+
+  .tab {
+    justify-content: center;
+    padding-inline: var(--space-2);
+  }
+}
+
+/* Phone: only what's needed next to the brand; the update chip keeps its icon and name */
+@media (--phone) {
+  .topNav {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .brandSub,
+  .port,
+  .updateText {
+    display: none;
+  }
+
+  .tab {
+    gap: var(--space-1-5);
+    font-size: var(--font-size-sm);
+  }
+
+  /* Just the dot; the word stays for screen readers */
+  .liveBadge {
+    gap: 0;
+    padding: 3px;
+    font-size: 0;
+  }
+}

@@ -3,6 +3,8 @@ import { Timer } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
 import { SubsystemAccordion } from '../SubsystemAccordion';
 import { ThresholdSlider } from '../ThresholdSlider';
+import { ToggleRow } from '../SettingControls';
+import styles from '../RadioSettings.module.css';
 import { useRadioSettingsStore } from '../../../store/useRadioSettingsStore';
 
 interface QualyAccordionProps {
@@ -11,11 +13,7 @@ interface QualyAccordionProps {
   onTestAlert: () => void;
 }
 
-export const QualyAccordion: React.FC<QualyAccordionProps> = ({
-  isExpanded,
-  onToggleExpand,
-  onTestAlert,
-}) => {
+export const QualyAccordion: React.FC<QualyAccordionProps> = ({ isExpanded, onToggleExpand, onTestAlert }) => {
   const { t } = useI18n();
 
   const qualyAlertsEnabled = useRadioSettingsStore((s) => s.qualyAlertsEnabled);
@@ -36,54 +34,42 @@ export const QualyAccordion: React.FC<QualyAccordionProps> = ({
       id="qualy"
       title={t('ai_engineer.proactiveAlerts.qualyTitle')}
       subtitle={t('ai_engineer.proactiveAlerts.qualyDesc')}
-      icon={<Timer className="w-4 h-4" />}
-      iconColorClass="text-yellow-400"
+      icon={<Timer size={16} />}
+      tone="yellow"
       masterEnabled={qualyAlertsEnabled}
       onToggleMaster={setQualyAlertsEnabled}
       isExpanded={isExpanded}
       onToggleExpand={onToggleExpand}
       onTestAlert={onTestAlert}
     >
-      <div className="radio-sub-toggles-grid">
-        <label className="radio-sub-toggle-item">
-          <span>{t('ai_engineer.proactiveAlerts.qualyTraffic')}</span>
-          <input
-            type="checkbox"
-            checked={subQualyTraffic}
-            onChange={(e) => setSubQualyTraffic(e.target.checked)}
-            className="radio-checkbox"
-          />
-        </label>
-        <label className="radio-sub-toggle-item">
-          <span>{t('ai_engineer.proactiveAlerts.qualyDeletedLap')}</span>
-          <input
-            type="checkbox"
-            checked={subQualyInvalid}
-            onChange={(e) => setSubQualyInvalid(e.target.checked)}
-            className="radio-checkbox"
-          />
-        </label>
-        <label className="radio-sub-toggle-item">
-          <span>{t('ai_engineer.proactiveAlerts.qualySessionTime')}</span>
-          <input
-            type="checkbox"
-            checked={subQualyTime}
-            onChange={(e) => setSubQualyTime(e.target.checked)}
-            className="radio-checkbox"
-          />
-        </label>
-        <label className="radio-sub-toggle-item">
-          <span>{t('ai_engineer.proactiveAlerts.qualyElimDanger')}</span>
-          <input
-            type="checkbox"
-            checked={subQualyElim}
-            onChange={(e) => setSubQualyElim(e.target.checked)}
-            className="radio-checkbox"
-          />
-        </label>
+      <div className={styles.toggleGrid}>
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.qualyTraffic')}
+          checked={subQualyTraffic}
+          onChange={setSubQualyTraffic}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.qualyDeletedLap')}
+          checked={subQualyInvalid}
+          onChange={setSubQualyInvalid}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.qualySessionTime')}
+          checked={subQualyTime}
+          onChange={setSubQualyTime}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.qualyElimDanger')}
+          checked={subQualyElim}
+          onChange={setSubQualyElim}
+        />
       </div>
 
-      <div className="radio-ptt-grid">
+      <div className={styles.grid2}>
         <ThresholdSlider
           label={t('ai_engineer.proactiveAlerts.qualyCleanAirGap')}
           value={qualyCleanAirSec}

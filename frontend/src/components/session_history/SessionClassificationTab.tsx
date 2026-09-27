@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import type { Session, Lap, DriverStanding, StagedLap } from '../../types/session';
 import { PodiumShowcase } from './classification/PodiumShowcase';
 import { ClassificationTable } from './classification/ClassificationTable';
+import styles from './SessionClassificationTab.module.css';
 
 export type { DriverStanding };
 
@@ -55,7 +56,7 @@ export const SessionClassificationTab: React.FC<SessionClassificationTabProps> =
   }, [driverStandings]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+    <div className={styles.tab}>
       {/* PODIUM SHOWCASE BANNER (Top 3) */}
       <PodiumShowcase
         top3={top3}

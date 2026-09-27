@@ -1,0 +1,27 @@
+.page {
+  composes: pageGrid from '../styles/pageGrid.module.css';
+  --page-padding-top: 0;
+}
+
+/* Charts on the left, the sticky track map on the right */
+.layout {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  align-items: start;
+  gap: var(--space-6);
+  width: 100%;
+}
+
+.charts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+@media (--laptop) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}

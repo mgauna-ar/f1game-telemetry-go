@@ -38,7 +38,7 @@ describe('WeatherBadgeWithForecast', () => {
       </I18nProvider>
     );
 
-    const trigger = screen.getByText('Heavy Rain').closest('.weather-badge-container');
+    const trigger = screen.getByText('Heavy Rain').closest('[data-weather-badge]');
     expect(trigger).toBeTruthy();
 
     if (trigger) {
@@ -68,7 +68,7 @@ describe('WeatherBadgeWithForecast', () => {
 
     expect(screen.getByText('Clear')).toBeInTheDocument();
 
-    const trigger = screen.getByText('Clear').closest('.weather-badge-container');
+    const trigger = screen.getByText('Clear').closest('[data-weather-badge]');
     if (trigger) {
       fireEvent.mouseEnter(trigger);
     }
@@ -97,7 +97,7 @@ describe('WeatherBadgeWithForecast', () => {
     );
 
     expect(screen.getByText('Light Rain')).toBeInTheDocument();
-    const trigger = screen.getByText('Light Rain').closest('.weather-badge-container');
+    const trigger = screen.getByText('Light Rain').closest('[data-weather-badge]');
     if (trigger) {
       fireEvent.mouseEnter(trigger);
     }
@@ -111,7 +111,7 @@ describe('WeatherBadgeWithForecast', () => {
       </I18nProvider>
     );
 
-    const trigger = screen.getByText('Heavy Rain').closest('.weather-badge-container');
+    const trigger = screen.getByText('Heavy Rain').closest('[data-weather-badge]');
     expect(trigger).toBeTruthy();
 
     if (trigger) {
@@ -146,7 +146,7 @@ describe('WeatherBadgeWithForecast', () => {
       </I18nProvider>
     );
 
-    const trigger = screen.getByText('Light Cloud').closest('.weather-badge-container');
+    const trigger = screen.getByText('Light Cloud').closest('[data-weather-badge]');
     if (trigger) {
       fireEvent.mouseEnter(trigger);
     }

@@ -1,0 +1,191 @@
+.panel {
+  padding: var(--space-6);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.legendDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--compound-color);
+}
+
+.scroll {
+  overflow-x: auto;
+  padding-bottom: var(--space-2);
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1-5);
+  min-width: 760px;
+}
+
+/* Lap ruler, aligned with the bar tracks */
+.ruler {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--space-1);
+  padding-left: 180px;
+}
+
+.rulerTrack {
+  position: relative;
+  width: 100%;
+  height: 18px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.rulerMark {
+  position: absolute;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  color: var(--text-muted);
+}
+
+.rulerMark:first-child {
+  transform: none;
+}
+
+.rulerMark:last-child {
+  transform: translateX(-100%);
+}
+
+/* Driver rows */
+.row {
+  display: flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-2);
+  border-left: 3px solid var(--team-color);
+  border-radius: 6px;
+  background: var(--bg-inset);
+  transition: background-color var(--duration-fast) var(--ease-smooth);
+}
+
+.row[data-selected] {
+  background: var(--bg-hover);
+}
+
+.driver {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  width: 172px;
+  min-width: 172px;
+}
+
+.pos {
+  width: 24px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-muted);
+}
+
+.pos.leader {
+  color: var(--f1-gold);
+}
+
+.name {
+  max-width: 105px;
+  overflow: hidden;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+.driver[aria-pressed='true'] .name {
+  color: var(--text-primary);
+}
+
+.raceNumber {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  color: var(--text-muted);
+}
+
+/* Stint bars */
+.track {
+  position: relative;
+  display: flex;
+  flex: 1;
+  align-items: center;
+  height: 24px;
+  overflow: hidden;
+  border-radius: var(--radius-xs);
+  background: var(--bg-hover);
+}
+
+.stint {
+  position: absolute;
+  z-index: var(--z-raised);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 100%;
+  padding: 0 var(--space-1);
+  border: 1px solid color-mix(in srgb, var(--compound-color) 53%, transparent);
+  background: color-mix(in srgb, var(--compound-color) 15%, transparent);
+  cursor: pointer;
+  transition:
+    transform var(--duration-fast) ease,
+    box-shadow var(--duration-fast) ease;
+}
+
+.stint:first-child {
+  border-radius: var(--radius-xs) 0 0 var(--radius-xs);
+}
+
+.stint:last-child {
+  border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+}
+
+.stint[data-pit] {
+  border-right: 2px dashed var(--status-danger);
+}
+
+.stint:hover {
+  z-index: var(--z-sticky);
+  transform: scaleY(1.12);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--compound-color) 53%, transparent);
+}
+
+.stintLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-0-5);
+}
+
+.stintLaps {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--compound-color);
+}
+
+.pit {
+  display: inline-flex;
+  align-items: center;
+  color: var(--status-danger);
+}

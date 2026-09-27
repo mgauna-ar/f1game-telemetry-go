@@ -1,0 +1,34 @@
+.row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.centered {
+  justify-content: center;
+}
+
+/* Backend state dot: steady green when connected, pulsing yellow while connecting */
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.dot[data-connected='false'] {
+  animation: blink 1.5s infinite ease-in-out;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.port {
+  font-weight: var(--font-weight-black);
+  color: var(--text-primary);
+}

@@ -1,3 +1,5 @@
+import { cssVar } from '../styles/theme';
+
 export const PACKET_IDS = {
   MOTION: 0,
   SESSION: 1,
@@ -356,13 +358,41 @@ export const TEAM_COLORS: Record<number, string> = {
   486: '#D4AF37', // Cadillac '26
 };
 
-export const TYRE_COMPOUNDS: Record<number, { label: string; color: string; bg: string }> = {
-  [TYRE_COMPOUND_IDS.SOFT]: { label: 'S', color: '#ff3366', bg: 'rgba(255, 51, 102, 0.18)' }, // Soft (C5/C4/C3)
-  [TYRE_COMPOUND_IDS.MEDIUM]: { label: 'M', color: '#ffd700', bg: 'rgba(255, 215, 0, 0.18)' }, // Medium
-  [TYRE_COMPOUND_IDS.HARD]: { label: 'H', color: '#ffffff', bg: 'rgba(255, 255, 255, 0.18)' }, // Hard
-  [TYRE_COMPOUND_IDS.INTERMEDIATE]: { label: 'I', color: '#33cc66', bg: 'rgba(51, 204, 102, 0.18)' }, // Intermediate
-  [TYRE_COMPOUND_IDS.WET]: { label: 'W', color: '#3399ff', bg: 'rgba(51, 153, 255, 0.18)' }, // Wet
+export interface TyreCompoundStyle {
+  label: string;
+  color: string;
+  bg: string;
+}
+
+/** Badge letter and colours of each visual compound; the colours are the --f1-compound-* tokens. */
+export const TYRE_COMPOUNDS: Record<number, TyreCompoundStyle> = {
+  [TYRE_COMPOUND_IDS.SOFT]: { label: 'S', color: cssVar('--f1-compound-soft'), bg: cssVar('--f1-compound-soft-bg') }, // Soft (C5/C4/C3)
+  [TYRE_COMPOUND_IDS.MEDIUM]: { label: 'M', color: cssVar('--f1-compound-medium'), bg: cssVar('--f1-compound-medium-bg') },
+  [TYRE_COMPOUND_IDS.HARD]: { label: 'H', color: cssVar('--f1-compound-hard'), bg: cssVar('--f1-compound-hard-bg') },
+  [TYRE_COMPOUND_IDS.INTERMEDIATE]: { label: 'I', color: cssVar('--f1-compound-inter'), bg: cssVar('--f1-compound-inter-bg') },
+  [TYRE_COMPOUND_IDS.WET]: { label: 'W', color: cssVar('--f1-compound-wet'), bg: cssVar('--f1-compound-wet-bg') },
 };
+
+export const UNKNOWN_COMPOUND_COLOR = cssVar('--f1-compound-unknown');
+
+/**
+ * The visual compound ID of a packet value (16, "16") or a stored name ("Soft", "MED", "I"),
+ * or undefined when it isn't one of the five dry and wet compounds.
+ */
+export const getVisualCompoundId = (compound?: string | number | null): number | undefined => {
+  if (compound === undefined || compound === null || compound === '') return undefined;
+  const str = String(compound).toUpperCase().trim();
+  if (str === String(TYRE_COMPOUND_IDS.INTERMEDIATE) || str.includes('INTER') || str === 'I') return TYRE_COMPOUND_IDS.INTERMEDIATE;
+  if (str === String(TYRE_COMPOUND_IDS.SOFT) || str.includes('SOFT') || str === 'S') return TYRE_COMPOUND_IDS.SOFT;
+  if (str === String(TYRE_COMPOUND_IDS.MEDIUM) || str.includes('MEDIUM') || str === 'MED' || str === 'M') return TYRE_COMPOUND_IDS.MEDIUM;
+  if (str === String(TYRE_COMPOUND_IDS.HARD) || str.includes('HARD') || str === 'H') return TYRE_COMPOUND_IDS.HARD;
+  if (str === String(TYRE_COMPOUND_IDS.WET) || str.includes('WET') || str === 'W') return TYRE_COMPOUND_IDS.WET;
+  return undefined;
+};
+
+/** A team's colour, or the --f1-team-fallback token for a team this table doesn't list. */
+export const getTeamColor = (teamId?: number | null): string =>
+  (teamId !== undefined && teamId !== null && TEAM_COLORS[teamId]) || cssVar('--f1-team-fallback');
 
 export const ERS_DEPLOY_MODES: Record<number, string> = {
   0: 'NONE',

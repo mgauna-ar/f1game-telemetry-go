@@ -21,12 +21,12 @@ describe('CopyValueButton', () => {
     });
 
     expect(writeText).toHaveBeenCalledWith('192.168.1.20');
-    expect(button).toHaveClass('copied');
+    expect(button).toHaveAttribute('data-copied');
 
     act(() => {
       vi.runAllTimers();
     });
-    expect(button).not.toHaveClass('copied');
+    expect(button).not.toHaveAttribute('data-copied');
   });
 
   it('does not claim to have copied when the clipboard is unavailable', async () => {
@@ -37,6 +37,6 @@ describe('CopyValueButton', () => {
       fireEvent.click(button);
     });
 
-    expect(button).not.toHaveClass('copied');
+    expect(button).not.toHaveAttribute('data-copied');
   });
 });

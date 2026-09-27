@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useEffect, useCallback, useRef } from 'react';
 import { connectTelemetryWebSocket } from '../store/useTelemetryStore';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
-import { useRaceEngineerActions } from '../context/RaceEngineerContext';
 import { LIVE_VIEW_MODES, STORAGE_KEY_LIVE_VIEW_MODE } from '../constants/f1';
 
 import type { LiveViewMode } from '../constants/f1';
@@ -20,16 +19,21 @@ import { useProactiveTelemetryRadio } from '../hooks/useProactiveTelemetryRadio'
 import { getProactiveRadioSpeech } from '../utils/radioPhrases';
 import type { RadioAlertPayload } from '../types/telemetry';
 import { storage } from '../utils/storage';
+import { navigate, useRoute } from '../router/router';
+import { buildPath } from '../router/routes';
+import styles from './Dashboard.module.css';
 
 export const Dashboard: React.FC = () => {
-  const [viewMode, setViewMode] = useState<LiveViewMode>(() => {
-    const saved = storage.get<string>(STORAGE_KEY_LIVE_VIEW_MODE, LIVE_VIEW_MODES.DASHBOARD);
-    return saved === LIVE_VIEW_MODES.COCKPIT ? LIVE_VIEW_MODES.COCKPIT : LIVE_VIEW_MODES.DASHBOARD;
-  });
+  // The mode is in the URL (/live/dashboard, /live/cockpit); the last one is kept for /live.
+  const route = useRoute();
+  const viewMode: LiveViewMode = route.page === 'live' ? route.mode : LIVE_VIEW_MODES.DASHBOARD;
+
+  useEffect(() => {
+    storage.set(STORAGE_KEY_LIVE_VIEW_MODE, viewMode);
+  }, [viewMode]);
 
   const handleViewModeChange = useCallback((mode: LiveViewMode) => {
-    setViewMode(mode);
-    storage.set(STORAGE_KEY_LIVE_VIEW_MODE, mode);
+    navigate(buildPath({ page: 'live', mode }), { replace: true });
   }, []);
 
   useEffect(() => {
@@ -42,13 +46,6 @@ export const Dashboard: React.FC = () => {
   const session = useSessionStatusStore((s) => s.session);
   const connected = useSessionStatusStore((s) => s.connected);
   const packetFormat = useSessionStatusStore((s) => s.packetFormat);
-
-  const { setContextMode } = useRaceEngineerActions();
-
-  // The live chat sends no telemetry: the server builds the race briefing from its own feed.
-  useEffect(() => {
-    setContextMode('live');
-  }, [setContextMode]);
 
   const radio = useRadioController();
 
@@ -71,7 +68,7 @@ export const Dashboard: React.FC = () => {
 
   if (!connected || !session) {
     return (
-      <div className="voice-cockpit-layout" style={{ position: 'relative', width: '100%' }}>
+      <div className={styles.cockpit}>
         {/* Header with View Mode Switcher in Standby */}
         <LiveDocumentTitle />
         <SessionHeader
@@ -96,7 +93,7 @@ export const Dashboard: React.FC = () => {
   // Voice Cockpit View (0% unneeded widget DOM/Canvas overhead for sim racing)
   if (viewMode === LIVE_VIEW_MODES.COCKPIT) {
     return (
-      <div className="voice-cockpit-layout" style={{ position: 'relative', width: '100%' }}>
+      <div className={styles.cockpit}>
         <LiveDocumentTitle />
         <SessionHeader
           session={session}
@@ -112,7 +109,7 @@ export const Dashboard: React.FC = () => {
 
   // Full Race Control Dashboard View
   return (
-    <div className="dashboard-grid race-control-dashboard">
+    <div className={styles.dashboard}>
       {/* Session Top Header */}
       <LiveDocumentTitle />
       <SessionHeader
@@ -124,31 +121,14 @@ export const Dashboard: React.FC = () => {
       />
 
       {/* Hero Upper Section: Full-Width Leaderboard Tower (Span 12) */}
-      <div className="dash-hero-row" style={{ gridColumn: 'span 12' }}>
-        <LeaderboardTower />
-      </div>
+      <LeaderboardTower className={styles.fullRow} />
 
-      {/* Main 2x2 Race Control Hub */}
-      <div className="race-control-hub-grid" style={{ gridColumn: 'span 12' }}>
-        {/* Top-Left: Real-time Race Control & Incidents Stream */}
-        <div className="hub-grid-cell">
-          <RaceControlFeed />
-        </div>
-
-        {/* Top-Right: Weather Radar & Track Evolution */}
-        <div className="hub-grid-cell">
-          <LiveWeatherRadar />
-        </div>
-
-        {/* Bottom-Left: Field Tyre Matrix & Pit Strategy Windows */}
-        <div className="hub-grid-cell">
-          <LivePitStrategy />
-        </div>
-
-        {/* Bottom-Right: Live Sector Performance & Speed Traps */}
-        <div className="hub-grid-cell">
-          <LiveSectorTracker />
-        </div>
+      {/* Race control hub: feed and weather on top, pit strategy and sectors below */}
+      <div className={`${styles.fullRow} ${styles.hub}`}>
+        <RaceControlFeed className={styles.hubCard} />
+        <LiveWeatherRadar className={styles.hubCard} />
+        <LivePitStrategy className={styles.hubCard} />
+        <LiveSectorTracker className={styles.hubCard} />
       </div>
 
       {/* Floating Interactive Voice Radio HUD */}

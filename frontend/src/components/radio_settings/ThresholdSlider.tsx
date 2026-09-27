@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useId } from 'react';
+import { Slider } from '../ui/Slider';
+import styles from './RadioSettings.module.css';
 
 export interface ThresholdSliderProps {
   label: string;
@@ -11,8 +13,11 @@ export interface ThresholdSliderProps {
   onChange: (val: number) => void;
   description?: string;
   formatValue?: (val: number) => string;
+  /** Shown before the label, such as a volume icon. */
+  icon?: React.ReactNode;
 }
 
+/** A labelled slider card: the setting's name, its current value, the slider and an optional note. */
 export const ThresholdSlider: React.FC<ThresholdSliderProps> = ({
   label,
   value,
@@ -24,33 +29,35 @@ export const ThresholdSlider: React.FC<ThresholdSliderProps> = ({
   onChange,
   description,
   formatValue,
+  icon,
 }) => {
+  const id = useId();
+  const descriptionId = useId();
   const displayVal = formatValue ? formatValue(value) : `${prefix}${value}${unit}`;
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value;
-    const isFloat = (step && step % 1 !== 0) || raw.includes('.');
-    const parsed = isFloat ? parseFloat(raw) : parseInt(raw, 10);
-    onChange(Number.isFinite(parsed) ? parsed : 0);
-  };
-
   return (
-    <div className="radio-ptt-box">
-      <div className="radio-ptt-box-header">
-        <span>{label}</span>
-        <span className="radio-badge-val">{displayVal}</span>
+    <div className={styles.box}>
+      <div className={styles.boxHeader}>
+        <label htmlFor={id} className={styles.boxLabel}>
+          {icon}
+          {label}
+        </label>
+        <span className={styles.value} aria-hidden="true">
+          {displayVal}
+        </span>
       </div>
-      <input
-        type="range"
+      <Slider
+        id={id}
+        value={value}
         min={min}
         max={max}
         step={step}
-        value={value}
-        onChange={handleChange}
-        className="radio-slider-input"
+        onChange={onChange}
+        aria-valuetext={displayVal}
+        aria-describedby={description ? descriptionId : undefined}
       />
       {description && (
-        <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>
+        <span id={descriptionId} className={styles.hint}>
           {description}
         </span>
       )}

@@ -1,0 +1,348 @@
+/* Launcher, bottom right, while the chat is closed */
+.launcher {
+  position: fixed;
+  right: var(--dock-inset);
+  bottom: var(--dock-inset);
+  z-index: var(--z-dock);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4) var(--space-2) var(--space-3);
+  font-family: var(--font-display);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent-cyan) 6%, transparent), transparent), var(--bg-popover);
+  border: 1px solid color-mix(in srgb, var(--accent-cyan) 35%, transparent);
+  border-radius: var(--radius-full);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow:
+    var(--shadow-md),
+    0 0 20px color-mix(in srgb, var(--accent-cyan) 18%, transparent);
+  cursor: pointer;
+  transition: all 0.28s var(--ease-out);
+}
+
+.launcher:hover {
+  border-color: var(--accent-cyan);
+  box-shadow:
+    var(--shadow-lg),
+    0 0 28px color-mix(in srgb, var(--accent-cyan) 35%, transparent);
+  transform: translateY(-3px) scale(1.02);
+}
+
+.launcherIcon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  color: var(--accent-cyan);
+  background: color-mix(in srgb, var(--accent-cyan) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-cyan) 30%, transparent);
+  border-radius: 50%;
+}
+
+.launcherIcon svg {
+  transition: transform var(--transition-normal);
+}
+
+/* Tablets and phones: just the round icon, so it takes no room from the radio pill or a dock */
+@media (--tablet) {
+  .launcher {
+    justify-content: center;
+    width: var(--launcher-size);
+    height: var(--launcher-size);
+    padding: 0;
+  }
+
+  .launcherLabel {
+    display: none;
+  }
+}
+
+.launcher:hover .launcherIcon svg {
+  transform: rotate(10deg) scale(1.1);
+}
+
+.pulse {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 9px;
+  height: 9px;
+  background: var(--accent-cyan);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--accent-cyan);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.8;
+    transform: scale(0.9);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 12px var(--accent-cyan);
+    transform: scale(1.35);
+  }
+}
+
+/* The open chat: a panel beside the page, with no backdrop. Its parts adapt to its width with
+   container queries on `chat`, so the large reading mode needs no extra classes. */
+.widget {
+  position: fixed;
+  right: var(--space-6);
+  bottom: var(--space-6);
+  z-index: var(--z-dock);
+  display: flex;
+  flex-direction: column;
+  width: 440px;
+  max-width: calc(100vw - var(--space-8));
+  height: 640px;
+  max-height: calc(100vh - 100px);
+  overflow: hidden;
+  container: chat / inline-size;
+  background: var(--bg-popover);
+  border: 1px solid color-mix(in srgb, var(--accent-cyan) 22%, transparent);
+  border-radius: var(--radius-lg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow:
+    var(--shadow-dialog),
+    0 0 25px color-mix(in srgb, var(--accent-cyan) 10%, transparent);
+  animation: widgetIn 0.25s var(--ease-out);
+  transition:
+    width 0.25s var(--ease-smooth),
+    height 0.25s var(--ease-smooth);
+}
+
+/* Large reading mode for long replies */
+.widget[data-expanded='true'] {
+  width: min(880px, calc(100vw - var(--space-12)));
+  height: calc(100vh - 110px);
+}
+
+@keyframes widgetIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+}
+
+/* Wraps everything but the settings layer so it can go inert; takes no part in the layout. */
+.content {
+  display: contents;
+}
+
+.header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.identity {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.avatar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  color: var(--accent-cyan);
+  background: color-mix(in srgb, var(--accent-cyan) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-cyan) 30%, transparent);
+  border-radius: var(--radius-md);
+}
+
+.heading {
+  min-width: 0;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.context {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  margin-top: 2px;
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+.contextName {
+  flex-shrink: 0;
+}
+
+.separator {
+  color: var(--text-muted);
+}
+
+/* The model name; opens the settings */
+.modelChip {
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.modelChip:hover {
+  color: var(--accent-cyan);
+}
+
+.actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 2px;
+}
+
+.close:hover:not(:disabled) {
+  color: var(--status-danger);
+  background: var(--status-danger-bg);
+}
+
+/* Message box */
+.inputBar {
+  flex-shrink: 0;
+  padding: var(--space-3);
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border-color);
+}
+
+.inputForm {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-1-5);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
+  background: var(--bg-inset);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  transition:
+    border-color var(--transition-normal),
+    box-shadow var(--transition-normal);
+}
+
+.inputForm:focus-within {
+  border-color: color-mix(in srgb, var(--accent-cyan) 55%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-cyan) 8%, transparent);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  max-height: 140px;
+  padding: var(--space-2) 0;
+  overflow-y: auto;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-md);
+  line-height: 1.4;
+  color: var(--text-primary);
+  resize: none;
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+/* The form around it lights up instead */
+.input:focus-visible {
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--text-muted);
+}
+
+.input:disabled {
+  opacity: 0.6;
+}
+
+.send {
+  --send-color: var(--accent-cyan);
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  color: var(--send-color);
+  background: color-mix(in srgb, var(--send-color) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--send-color) 40%, transparent);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.send:hover:not(:disabled) {
+  color: var(--text-on-accent);
+  background: var(--send-color);
+}
+
+.send:disabled {
+  cursor: not-allowed;
+  opacity: 0.3;
+}
+
+.send[data-stop] {
+  --send-color: var(--status-danger);
+}
+
+.send[data-stop]:hover {
+  color: var(--text-primary);
+}
+
+@container chat (min-width: 600px) {
+  .inputBar {
+    padding-inline: max(var(--space-3), calc((100% - 760px) / 2));
+  }
+}
+
+@media (--phone) {
+  .widget,
+  .widget[data-expanded='true'] {
+    right: var(--space-2);
+    bottom: var(--space-2);
+    width: calc(100vw - var(--space-4));
+    max-width: none;
+    height: calc(100vh - 80px);
+  }
+}

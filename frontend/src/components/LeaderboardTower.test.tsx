@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
 import { LeaderboardTower } from './LeaderboardTower';
 import type { SessionData, ParticipantData, LapData, CarStatusData } from '../hooks/useTelemetry';
 import { makeLiveCarStatus, makeLiveLap, makeLiveParticipant, makeLiveSession } from '../test/wireFactories';
@@ -25,9 +25,36 @@ describe('LeaderboardTower', () => {
   it('keeps stable standings order in qualifying when no driver has set a lap time despite fluctuating CarPosition', () => {
     // Simulated laps where no driver has set a time (LastLapTimeInMS = 0), but CarPosition changes rapidly on outlaps
     const lapsInitial: LapData[] = [
-      makeLiveLap({ LastLapTimeInMS: 0, CurrentLapTimeInMS: 15000, CarPosition: 3, CurrentLapNum: 1, PitStatus: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, CurrentLapInvalid: 0 }),
-      makeLiveLap({ LastLapTimeInMS: 0, CurrentLapTimeInMS: 14000, CarPosition: 1, CurrentLapNum: 1, PitStatus: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, CurrentLapInvalid: 0 }),
-      makeLiveLap({ LastLapTimeInMS: 0, CurrentLapTimeInMS: 16000, CarPosition: 2, CurrentLapNum: 1, PitStatus: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, CurrentLapInvalid: 0 }),
+      makeLiveLap({
+        LastLapTimeInMS: 0,
+        CurrentLapTimeInMS: 15000,
+        CarPosition: 3,
+        CurrentLapNum: 1,
+        PitStatus: 0,
+        Sector1TimeMSPart: 0,
+        Sector2TimeMSPart: 0,
+        CurrentLapInvalid: 0,
+      }),
+      makeLiveLap({
+        LastLapTimeInMS: 0,
+        CurrentLapTimeInMS: 14000,
+        CarPosition: 1,
+        CurrentLapNum: 1,
+        PitStatus: 0,
+        Sector1TimeMSPart: 0,
+        Sector2TimeMSPart: 0,
+        CurrentLapInvalid: 0,
+      }),
+      makeLiveLap({
+        LastLapTimeInMS: 0,
+        CurrentLapTimeInMS: 16000,
+        CarPosition: 2,
+        CurrentLapNum: 1,
+        PitStatus: 0,
+        Sector1TimeMSPart: 0,
+        Sector2TimeMSPart: 0,
+        CurrentLapInvalid: 0,
+      }),
     ];
 
     const carStatuses: CarStatusData[] = [
@@ -49,14 +76,41 @@ describe('LeaderboardTower', () => {
     );
 
     // Initial render order should be stable carIndex order: Verstappen (car 0), Hamilton (car 1), Norris (car 2)
-    const driverNamesFirst = screen.getAllByText(/Verstappen|Hamilton|Norris/).map(el => el.textContent);
+    const driverNamesFirst = screen.getAllByText(/Verstappen|Hamilton|Norris/).map((el) => el.textContent);
     expect(driverNamesFirst).toEqual(['Max Verstappen', 'Lewis Hamilton', 'Lando Norris']);
 
     // Now simulate next telemetry tick where CarPosition values swap on track as cars drive around
     const lapsUpdated: LapData[] = [
-      makeLiveLap({ LastLapTimeInMS: 0, CurrentLapTimeInMS: 30000, CarPosition: 1, CurrentLapNum: 1, PitStatus: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, CurrentLapInvalid: 0 }),
-      makeLiveLap({ LastLapTimeInMS: 0, CurrentLapTimeInMS: 29000, CarPosition: 2, CurrentLapNum: 1, PitStatus: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, CurrentLapInvalid: 0 }),
-      makeLiveLap({ LastLapTimeInMS: 0, CurrentLapTimeInMS: 31000, CarPosition: 3, CurrentLapNum: 1, PitStatus: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, CurrentLapInvalid: 0 }),
+      makeLiveLap({
+        LastLapTimeInMS: 0,
+        CurrentLapTimeInMS: 30000,
+        CarPosition: 1,
+        CurrentLapNum: 1,
+        PitStatus: 0,
+        Sector1TimeMSPart: 0,
+        Sector2TimeMSPart: 0,
+        CurrentLapInvalid: 0,
+      }),
+      makeLiveLap({
+        LastLapTimeInMS: 0,
+        CurrentLapTimeInMS: 29000,
+        CarPosition: 2,
+        CurrentLapNum: 1,
+        PitStatus: 0,
+        Sector1TimeMSPart: 0,
+        Sector2TimeMSPart: 0,
+        CurrentLapInvalid: 0,
+      }),
+      makeLiveLap({
+        LastLapTimeInMS: 0,
+        CurrentLapTimeInMS: 31000,
+        CarPosition: 3,
+        CurrentLapNum: 1,
+        PitStatus: 0,
+        Sector1TimeMSPart: 0,
+        Sector2TimeMSPart: 0,
+        CurrentLapInvalid: 0,
+      }),
     ];
 
     rerender(
@@ -72,15 +126,42 @@ describe('LeaderboardTower', () => {
     );
 
     // Standings order MUST remain stable and not jump around
-    const driverNamesSecond = screen.getAllByText(/Verstappen|Hamilton|Norris/).map(el => el.textContent);
+    const driverNamesSecond = screen.getAllByText(/Verstappen|Hamilton|Norris/).map((el) => el.textContent);
     expect(driverNamesSecond).toEqual(['Max Verstappen', 'Lewis Hamilton', 'Lando Norris']);
   });
 
   it('sorts drivers with timed laps above drivers without times in qualifying', () => {
     const laps: LapData[] = [
-      makeLiveLap({ LastLapTimeInMS: 0, CurrentLapTimeInMS: 60000, CarPosition: 1, CurrentLapNum: 2, PitStatus: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, CurrentLapInvalid: 0 }),
-      makeLiveLap({ LastLapTimeInMS: 75000, CurrentLapTimeInMS: 10000, CarPosition: 2, CurrentLapNum: 3, PitStatus: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, CurrentLapInvalid: 0 }), // Hamilton set 1:15.000
-      makeLiveLap({ LastLapTimeInMS: 74000, CurrentLapTimeInMS: 12000, CarPosition: 3, CurrentLapNum: 3, PitStatus: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, CurrentLapInvalid: 0 }), // Norris set 1:14.000
+      makeLiveLap({
+        LastLapTimeInMS: 0,
+        CurrentLapTimeInMS: 60000,
+        CarPosition: 1,
+        CurrentLapNum: 2,
+        PitStatus: 0,
+        Sector1TimeMSPart: 0,
+        Sector2TimeMSPart: 0,
+        CurrentLapInvalid: 0,
+      }),
+      makeLiveLap({
+        LastLapTimeInMS: 75000,
+        CurrentLapTimeInMS: 10000,
+        CarPosition: 2,
+        CurrentLapNum: 3,
+        PitStatus: 0,
+        Sector1TimeMSPart: 0,
+        Sector2TimeMSPart: 0,
+        CurrentLapInvalid: 0,
+      }), // Hamilton set 1:15.000
+      makeLiveLap({
+        LastLapTimeInMS: 74000,
+        CurrentLapTimeInMS: 12000,
+        CarPosition: 3,
+        CurrentLapNum: 3,
+        PitStatus: 0,
+        Sector1TimeMSPart: 0,
+        Sector2TimeMSPart: 0,
+        CurrentLapInvalid: 0,
+      }), // Norris set 1:14.000
     ];
 
     const carStatuses: CarStatusData[] = [
@@ -101,22 +182,70 @@ describe('LeaderboardTower', () => {
       />
     );
 
-    const driverNames = screen.getAllByText(/Verstappen|Hamilton|Norris/).map(el => el.textContent);
+    const driverNames = screen.getAllByText(/Verstappen|Hamilton|Norris/).map((el) => el.textContent);
     // Norris (1:14.000) P1, Hamilton (1:15.000) P2, Verstappen (No time) P3
     expect(driverNames).toEqual(['Lando Norris', 'Lewis Hamilton', 'Max Verstappen']);
   });
 
   it('renders compound laps age and driver penalty badges correctly', () => {
     const laps: LapData[] = [
-      makeLiveLap({ LastLapTimeInMS: 75000, CurrentLapTimeInMS: 10000, CarPosition: 1, CurrentLapNum: 3, PitStatus: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, CurrentLapInvalid: 0, Penalties: 5 }), // 5s penalty
-      makeLiveLap({ LastLapTimeInMS: 76000, CurrentLapTimeInMS: 10000, CarPosition: 2, CurrentLapNum: 3, PitStatus: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, CurrentLapInvalid: 0, TotalWarnings: 2 }), // 2 warnings
-      makeLiveLap({ LastLapTimeInMS: 77000, CurrentLapTimeInMS: 10000, CarPosition: 3, CurrentLapNum: 3, PitStatus: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, CurrentLapInvalid: 0, NumUnservedDriveThroughPens: 1 }), // DT penalty
+      makeLiveLap({
+        LastLapTimeInMS: 75000,
+        CurrentLapTimeInMS: 10000,
+        CarPosition: 1,
+        CurrentLapNum: 3,
+        PitStatus: 0,
+        Sector1TimeMSPart: 0,
+        Sector2TimeMSPart: 0,
+        CurrentLapInvalid: 0,
+        Penalties: 5,
+      }), // 5s penalty
+      makeLiveLap({
+        LastLapTimeInMS: 76000,
+        CurrentLapTimeInMS: 10000,
+        CarPosition: 2,
+        CurrentLapNum: 3,
+        PitStatus: 0,
+        Sector1TimeMSPart: 0,
+        Sector2TimeMSPart: 0,
+        CurrentLapInvalid: 0,
+        TotalWarnings: 2,
+      }), // 2 warnings
+      makeLiveLap({
+        LastLapTimeInMS: 77000,
+        CurrentLapTimeInMS: 10000,
+        CarPosition: 3,
+        CurrentLapNum: 3,
+        PitStatus: 0,
+        Sector1TimeMSPart: 0,
+        Sector2TimeMSPart: 0,
+        CurrentLapInvalid: 0,
+        NumUnservedDriveThroughPens: 1,
+      }), // DT penalty
     ];
 
     const carStatuses: CarStatusData[] = [
-      makeLiveCarStatus({ VisualTyreCompound: 16, TyresAgeLaps: 7, FuelInTank: 10, ERSStoreEnergy: 1000, ERSDeployMode: 1 }),
-      makeLiveCarStatus({ VisualTyreCompound: 17, TyresAgeLaps: 12, FuelInTank: 10, ERSStoreEnergy: 1000, ERSDeployMode: 1 }),
-      makeLiveCarStatus({ VisualTyreCompound: 18, TyresAgeLaps: 3, FuelInTank: 10, ERSStoreEnergy: 1000, ERSDeployMode: 1 }),
+      makeLiveCarStatus({
+        VisualTyreCompound: 16,
+        TyresAgeLaps: 7,
+        FuelInTank: 10,
+        ERSStoreEnergy: 1000,
+        ERSDeployMode: 1,
+      }),
+      makeLiveCarStatus({
+        VisualTyreCompound: 17,
+        TyresAgeLaps: 12,
+        FuelInTank: 10,
+        ERSStoreEnergy: 1000,
+        ERSDeployMode: 1,
+      }),
+      makeLiveCarStatus({
+        VisualTyreCompound: 18,
+        TyresAgeLaps: 3,
+        FuelInTank: 10,
+        ERSStoreEnergy: 1000,
+        ERSDeployMode: 1,
+      }),
     ];
 
     render(
@@ -144,9 +273,39 @@ describe('LeaderboardTower', () => {
 
   it('preserves timed driver position with RET badge when driver retires during qualifying', () => {
     const laps: LapData[] = [
-      makeLiveLap({ LastLapTimeInMS: 0, CurrentLapTimeInMS: 60000, CarPosition: 3, CurrentLapNum: 2, PitStatus: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, CurrentLapInvalid: 0, ResultStatus: 2 }), // Verstappen (No time, Active)
-      makeLiveLap({ LastLapTimeInMS: 75000, CurrentLapTimeInMS: 0, CarPosition: 2, CurrentLapNum: 3, PitStatus: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, CurrentLapInvalid: 0, ResultStatus: 7 }), // Hamilton (1:15.000, Retired)
-      makeLiveLap({ LastLapTimeInMS: 74000, CurrentLapTimeInMS: 12000, CarPosition: 1, CurrentLapNum: 3, PitStatus: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, CurrentLapInvalid: 0, ResultStatus: 2 }), // Norris (1:14.000, Active)
+      makeLiveLap({
+        LastLapTimeInMS: 0,
+        CurrentLapTimeInMS: 60000,
+        CarPosition: 3,
+        CurrentLapNum: 2,
+        PitStatus: 0,
+        Sector1TimeMSPart: 0,
+        Sector2TimeMSPart: 0,
+        CurrentLapInvalid: 0,
+        ResultStatus: 2,
+      }), // Verstappen (No time, Active)
+      makeLiveLap({
+        LastLapTimeInMS: 75000,
+        CurrentLapTimeInMS: 0,
+        CarPosition: 2,
+        CurrentLapNum: 3,
+        PitStatus: 0,
+        Sector1TimeMSPart: 0,
+        Sector2TimeMSPart: 0,
+        CurrentLapInvalid: 0,
+        ResultStatus: 7,
+      }), // Hamilton (1:15.000, Retired)
+      makeLiveLap({
+        LastLapTimeInMS: 74000,
+        CurrentLapTimeInMS: 12000,
+        CarPosition: 1,
+        CurrentLapNum: 3,
+        PitStatus: 0,
+        Sector1TimeMSPart: 0,
+        Sector2TimeMSPart: 0,
+        CurrentLapInvalid: 0,
+        ResultStatus: 2,
+      }), // Norris (1:14.000, Active)
     ];
 
     const carStatuses: CarStatusData[] = [
@@ -167,7 +326,7 @@ describe('LeaderboardTower', () => {
       />
     );
 
-    const driverNames = screen.getAllByText(/Verstappen|Hamilton|Norris/).map(el => el.textContent);
+    const driverNames = screen.getAllByText(/Verstappen|Hamilton|Norris/).map((el) => el.textContent);
     // Norris (1:14.000) P1, Hamilton (1:15.000, RET) P2, Verstappen (No time) P3
     expect(driverNames).toEqual(['Lando Norris', 'Lewis Hamilton', 'Max Verstappen']);
     // Hamilton has RET badge
@@ -180,9 +339,39 @@ describe('LeaderboardTower', () => {
 
   it('ranks un-timed retired driver at bottom with RET badge in qualifying', () => {
     const laps: LapData[] = [
-      makeLiveLap({ LastLapTimeInMS: 0, CurrentLapTimeInMS: 0, CarPosition: 3, CurrentLapNum: 1, PitStatus: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, CurrentLapInvalid: 0, ResultStatus: 7 }), // Verstappen (No time, Retired)
-      makeLiveLap({ LastLapTimeInMS: 75000, CurrentLapTimeInMS: 10000, CarPosition: 2, CurrentLapNum: 3, PitStatus: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, CurrentLapInvalid: 0, ResultStatus: 2 }), // Hamilton (1:15.000, Active)
-      makeLiveLap({ LastLapTimeInMS: 74000, CurrentLapTimeInMS: 12000, CarPosition: 1, CurrentLapNum: 3, PitStatus: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, CurrentLapInvalid: 0, ResultStatus: 2 }), // Norris (1:14.000, Active)
+      makeLiveLap({
+        LastLapTimeInMS: 0,
+        CurrentLapTimeInMS: 0,
+        CarPosition: 3,
+        CurrentLapNum: 1,
+        PitStatus: 0,
+        Sector1TimeMSPart: 0,
+        Sector2TimeMSPart: 0,
+        CurrentLapInvalid: 0,
+        ResultStatus: 7,
+      }), // Verstappen (No time, Retired)
+      makeLiveLap({
+        LastLapTimeInMS: 75000,
+        CurrentLapTimeInMS: 10000,
+        CarPosition: 2,
+        CurrentLapNum: 3,
+        PitStatus: 0,
+        Sector1TimeMSPart: 0,
+        Sector2TimeMSPart: 0,
+        CurrentLapInvalid: 0,
+        ResultStatus: 2,
+      }), // Hamilton (1:15.000, Active)
+      makeLiveLap({
+        LastLapTimeInMS: 74000,
+        CurrentLapTimeInMS: 12000,
+        CarPosition: 1,
+        CurrentLapNum: 3,
+        PitStatus: 0,
+        Sector1TimeMSPart: 0,
+        Sector2TimeMSPart: 0,
+        CurrentLapInvalid: 0,
+        ResultStatus: 2,
+      }), // Norris (1:14.000, Active)
     ];
 
     const carStatuses: CarStatusData[] = [
@@ -203,7 +392,7 @@ describe('LeaderboardTower', () => {
       />
     );
 
-    const driverNames = screen.getAllByText(/Verstappen|Hamilton|Norris/).map(el => el.textContent);
+    const driverNames = screen.getAllByText(/Verstappen|Hamilton|Norris/).map((el) => el.textContent);
     // Norris (1:14.000) P1, Hamilton (1:15.000) P2, Verstappen (No time, RET) P3
     expect(driverNames).toEqual(['Lando Norris', 'Lewis Hamilton', 'Max Verstappen']);
     expect(screen.getByText('RET')).toBeInTheDocument();
@@ -220,18 +409,90 @@ describe('LeaderboardTower', () => {
     ];
 
     const mixedLaps: LapData[] = [
-      makeLiveLap({ LastLapTimeInMS: 89393, CurrentLapTimeInMS: 10000, CarPosition: 1, CurrentLapNum: 2, PitStatus: 0, Sector1TimeMSPart: 28000, Sector2TimeMSPart: 37000, CurrentLapInvalid: 0, ResultStatus: 2, DriverStatus: 1, LapDistance: 500 }),
-      makeLiveLap({ LastLapTimeInMS: 89753, CurrentLapTimeInMS: 12000, CarPosition: 2, CurrentLapNum: 2, PitStatus: 0, Sector1TimeMSPart: 28200, Sector2TimeMSPart: 36500, CurrentLapInvalid: 0, ResultStatus: 2, DriverStatus: 1, LapDistance: 480 }),
+      makeLiveLap({
+        LastLapTimeInMS: 89393,
+        CurrentLapTimeInMS: 10000,
+        CarPosition: 1,
+        CurrentLapNum: 2,
+        PitStatus: 0,
+        Sector1TimeMSPart: 28000,
+        Sector2TimeMSPart: 37000,
+        CurrentLapInvalid: 0,
+        ResultStatus: 2,
+        DriverStatus: 1,
+        LapDistance: 500,
+      }),
+      makeLiveLap({
+        LastLapTimeInMS: 89753,
+        CurrentLapTimeInMS: 12000,
+        CarPosition: 2,
+        CurrentLapNum: 2,
+        PitStatus: 0,
+        Sector1TimeMSPart: 28200,
+        Sector2TimeMSPart: 36500,
+        CurrentLapInvalid: 0,
+        ResultStatus: 2,
+        DriverStatus: 1,
+        LapDistance: 480,
+      }),
       // AI slots with Inactive / InGarage status and no times
-      makeLiveLap({ LastLapTimeInMS: 0, CurrentLapTimeInMS: 0, CarPosition: 0, CurrentLapNum: 1, PitStatus: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, CurrentLapInvalid: 0, ResultStatus: 1, DriverStatus: 0, LapDistance: -5000 }),
-      makeLiveLap({ LastLapTimeInMS: 0, CurrentLapTimeInMS: 0, CarPosition: 0, CurrentLapNum: 1, PitStatus: 0, Sector1TimeMSPart: 0, Sector2TimeMSPart: 0, CurrentLapInvalid: 0, ResultStatus: 1, DriverStatus: 0, LapDistance: -5000 }),
+      makeLiveLap({
+        LastLapTimeInMS: 0,
+        CurrentLapTimeInMS: 0,
+        CarPosition: 0,
+        CurrentLapNum: 1,
+        PitStatus: 0,
+        Sector1TimeMSPart: 0,
+        Sector2TimeMSPart: 0,
+        CurrentLapInvalid: 0,
+        ResultStatus: 1,
+        DriverStatus: 0,
+        LapDistance: -5000,
+      }),
+      makeLiveLap({
+        LastLapTimeInMS: 0,
+        CurrentLapTimeInMS: 0,
+        CarPosition: 0,
+        CurrentLapNum: 1,
+        PitStatus: 0,
+        Sector1TimeMSPart: 0,
+        Sector2TimeMSPart: 0,
+        CurrentLapInvalid: 0,
+        ResultStatus: 1,
+        DriverStatus: 0,
+        LapDistance: -5000,
+      }),
     ];
 
     const mixedCarStatuses: CarStatusData[] = [
-      makeLiveCarStatus({ VisualTyreCompound: 16, TyresAgeLaps: 1, FuelInTank: 10, ERSStoreEnergy: 1000, ERSDeployMode: 1 }),
-      makeLiveCarStatus({ VisualTyreCompound: 16, TyresAgeLaps: 1, FuelInTank: 10, ERSStoreEnergy: 1000, ERSDeployMode: 1 }),
-      makeLiveCarStatus({ VisualTyreCompound: 16, TyresAgeLaps: 0, FuelInTank: 0, ERSStoreEnergy: 0, ERSDeployMode: 0 }),
-      makeLiveCarStatus({ VisualTyreCompound: 16, TyresAgeLaps: 0, FuelInTank: 0, ERSStoreEnergy: 0, ERSDeployMode: 0 }),
+      makeLiveCarStatus({
+        VisualTyreCompound: 16,
+        TyresAgeLaps: 1,
+        FuelInTank: 10,
+        ERSStoreEnergy: 1000,
+        ERSDeployMode: 1,
+      }),
+      makeLiveCarStatus({
+        VisualTyreCompound: 16,
+        TyresAgeLaps: 1,
+        FuelInTank: 10,
+        ERSStoreEnergy: 1000,
+        ERSDeployMode: 1,
+      }),
+      makeLiveCarStatus({
+        VisualTyreCompound: 16,
+        TyresAgeLaps: 0,
+        FuelInTank: 0,
+        ERSStoreEnergy: 0,
+        ERSDeployMode: 0,
+      }),
+      makeLiveCarStatus({
+        VisualTyreCompound: 16,
+        TyresAgeLaps: 0,
+        FuelInTank: 0,
+        ERSStoreEnergy: 0,
+        ERSDeployMode: 0,
+      }),
     ];
 
     render(
@@ -255,23 +516,27 @@ describe('LeaderboardTower', () => {
   });
   it('draws the Q1 elimination line once, between the last car through and the first one out', () => {
     const carCount = 20;
-    const manyParticipants: ParticipantData[] = Array.from({ length: carCount }, (_, i) => (makeLiveParticipant({
-      AIControlled: 1,
-      DriverId: 255,
-      TeamId: i % 10,
-      RaceNumber: i + 1,
-      Name: `Driver ${String(i + 1).padStart(2, '0')}`,
-    })));
-    const timedLaps: LapData[] = manyParticipants.map((_, i) => (makeLiveLap({
-      LastLapTimeInMS: 80_000 + i * 100,
-      CurrentLapTimeInMS: 10_000,
-      CarPosition: i + 1,
-      CurrentLapNum: 3,
-      PitStatus: 0,
-      Sector1TimeMSPart: 0,
-      Sector2TimeMSPart: 0,
-      CurrentLapInvalid: 0,
-    })));
+    const manyParticipants: ParticipantData[] = Array.from({ length: carCount }, (_, i) =>
+      makeLiveParticipant({
+        AIControlled: 1,
+        DriverId: 255,
+        TeamId: i % 10,
+        RaceNumber: i + 1,
+        Name: `Driver ${String(i + 1).padStart(2, '0')}`,
+      })
+    );
+    const timedLaps: LapData[] = manyParticipants.map((_, i) =>
+      makeLiveLap({
+        LastLapTimeInMS: 80_000 + i * 100,
+        CurrentLapTimeInMS: 10_000,
+        CarPosition: i + 1,
+        CurrentLapNum: 3,
+        PitStatus: 0,
+        Sector1TimeMSPart: 0,
+        Sector2TimeMSPart: 0,
+        CurrentLapInvalid: 0,
+      })
+    );
 
     const { container } = render(
       <LeaderboardTower
@@ -285,9 +550,38 @@ describe('LeaderboardTower', () => {
       />
     );
 
-    const lines = container.querySelectorAll('.elimination-line');
+    const lines = screen.getAllByTestId('elimination-line');
     expect(lines).toHaveLength(1);
     expect(lines[0].previousElementSibling).toHaveTextContent('Driver 15');
-    expect(container.querySelectorAll('.is-eliminated')).toHaveLength(5);
+    expect(container.querySelectorAll('[data-eliminated="true"]')).toHaveLength(5);
+  });
+
+  it('makes each driver card a button that says which car is selected', () => {
+    const onSelectCar = vi.fn();
+    const laps: LapData[] = [
+      makeLiveLap({ LastLapTimeInMS: 75000, CarPosition: 1, CurrentLapNum: 3 }),
+      makeLiveLap({ LastLapTimeInMS: 76000, CarPosition: 2, CurrentLapNum: 3 }),
+      makeLiveLap({ LastLapTimeInMS: 77000, CarPosition: 3, CurrentLapNum: 3 }),
+    ];
+    const carStatuses: CarStatusData[] = [makeLiveCarStatus(), makeLiveCarStatus(), makeLiveCarStatus()];
+
+    render(
+      <LeaderboardTower
+        session={qualySession}
+        participants={participants}
+        laps={laps}
+        carStatuses={carStatuses}
+        playerCarIndex={0}
+        selectedCarIndex={0}
+        onSelectCar={onSelectCar}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: /Max Verstappen/ })).toHaveAttribute('aria-pressed', 'true');
+    const hamilton = screen.getByRole('button', { name: /Lewis Hamilton/ });
+    expect(hamilton).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.click(hamilton);
+    expect(onSelectCar).toHaveBeenCalledWith(1);
   });
 });

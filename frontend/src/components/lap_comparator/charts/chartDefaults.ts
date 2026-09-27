@@ -1,5 +1,6 @@
 import React from 'react';
 import type { MergedTelemetryPoint } from '../../../types/comparator';
+import { CHART_TOOLTIP_CONTENT_STYLE, cssVar } from '../../../styles/theme';
 
 export interface RechartsMouseMoveState<T = unknown> {
   activeTooltipIndex?: number | null | string;
@@ -22,15 +23,11 @@ export interface CommonChartProps {
 
 export const compactTooltipProps = {
   contentStyle: {
-    backgroundColor: 'rgba(10, 14, 23, 0.65)',
-    backdropFilter: 'blur(8px)',
-    WebkitBackdropFilter: 'blur(8px)',
-    border: '1px solid rgba(255, 255, 255, 0.15)',
-    borderRadius: '6px',
+    ...CHART_TOOLTIP_CONTENT_STYLE,
+    borderRadius: cssVar('--radius-xs'),
     padding: '4px 8px',
     fontSize: '0.72rem',
     lineHeight: '1.2',
-    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.45)',
   },
   itemStyle: {
     padding: '1px 0',
@@ -38,27 +35,35 @@ export const compactTooltipProps = {
     margin: 0,
   },
   labelStyle: {
-    color: '#cbd5e1',
+    color: cssVar('--text-body'),
     fontSize: '0.68rem',
     marginBottom: '2px',
     fontWeight: 600,
   },
   wrapperStyle: {
-    zIndex: 100,
+    zIndex: cssVar('--z-popover'),
     pointerEvents: 'none' as const,
   },
   labelFormatter: (label: React.ReactNode) => `${Math.round(Number(label))}m`,
 };
 
 export const CHART_COLORS = {
-  SLOT_A: '#00d2d3',
-  SLOT_B: '#ff4757',
-  SECTOR_1: '#f39c12',
-  SECTOR_2: '#9b59b6',
-  CURSOR: '#ffd200',
-  AXIS_STROKE: '#666666',
-  AXIS_TICK: '#999999',
-  GRID_STROKE: 'rgba(255, 255, 255, 0.08)',
+  SLOT_A: cssVar('--f1-slot-a'),
+  SLOT_B: cssVar('--f1-slot-b'),
+  SECTOR_1: cssVar('--f1-sector-1'),
+  SECTOR_2: cssVar('--f1-sector-2'),
+  CURSOR: cssVar('--chart-cursor'),
+  AXIS_STROKE: cssVar('--chart-axis'),
+  AXIS_TICK: cssVar('--chart-tick'),
+  GRID_STROKE: cssVar('--chart-grid'),
+  THROTTLE: cssVar('--chart-throttle'),
+  BRAKE: cssVar('--chart-brake'),
+  ERS: cssVar('--chart-ers'),
+  ERS_MODE: cssVar('--chart-ers-mode'),
+  AERO: cssVar('--chart-aero'),
+  DELTA: cssVar('--chart-delta'),
+  BOOST_A: cssVar('--chart-boost-a'),
+  BOOST_B: cssVar('--chart-boost-b'),
 } as const;
 
 export const CHART_MARGIN = { top: 5, right: 30, left: 0, bottom: 0 } as const;

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within, act } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import App from './App';
 
@@ -15,6 +15,14 @@ vi.mock('./components/Dashboard', () => ({
   Dashboard: () => <div data-testid="dashboard-view">Live Dashboard View</div>,
 }));
 
+/** The three views in the main navigation, in order. */
+const navItems = () => within(screen.getByRole('navigation', { name: 'Main Navigation' })).getAllByRole('link');
+const navItem = (name: RegExp) =>
+  within(screen.getByRole('navigation', { name: 'Main Navigation' })).getByRole('link', { name });
+
+/** Opens a URL the way a bookmark or a typed address would. */
+const openAt = (url: string) => window.history.replaceState(null, '', url);
+
 describe('App Navigation and Tab Bar', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -23,7 +31,7 @@ describe('App Navigation and Tab Bar', () => {
   it('renders reordered navigation tabs in exact order: 1) Session History, 2) Lap Comparator, 3) Live Session', () => {
     render(<App />);
 
-    const tabs = screen.getAllByRole('tab');
+    const tabs = navItems();
     expect(tabs).toHaveLength(3);
     expect(tabs[0]).toHaveTextContent(/Session History/i);
     expect(tabs[1]).toHaveTextContent(/Lap Comparator/i);
@@ -37,34 +45,68 @@ describe('App Navigation and Tab Bar', () => {
     expect(screen.queryByTestId('lap-comparator-view')).not.toBeInTheDocument();
     expect(screen.queryByTestId('dashboard-view')).not.toBeInTheDocument();
 
-    const tabs = screen.getAllByRole('tab');
-    expect(tabs[0]).toHaveClass('active');
-    expect(tabs[1]).not.toHaveClass('active');
-    expect(tabs[2]).not.toHaveClass('active');
+    const tabs = navItems();
+    expect(tabs[0]).toHaveAttribute('aria-current', 'page');
+    expect(tabs[1]).not.toHaveAttribute('aria-current');
+    expect(tabs[2]).not.toHaveAttribute('aria-current');
+    expect(window.location.pathname).toBe('/history');
   });
 
   it('switches to Lap Comparator when clicked and persists to localStorage', async () => {
     render(<App />);
 
-    const comparatorTab = screen.getByRole('tab', { name: /Lap Comparator/i });
+    const comparatorTab = navItem(/Lap Comparator/i);
     fireEvent.click(comparatorTab);
 
     expect(await screen.findByTestId('lap-comparator-view')).toBeInTheDocument();
     expect(screen.queryByTestId('session-history-view')).not.toBeInTheDocument();
-    expect(comparatorTab).toHaveClass('active');
+    expect(comparatorTab).toHaveAttribute('aria-current', 'page');
+    expect(window.location.pathname).toBe('/compare');
     expect(localStorage.getItem('f1_active_tab')).toBe('comparator');
   });
 
   it('switches to Live Session when clicked and persists to localStorage', async () => {
     render(<App />);
 
-    const liveTab = screen.getByRole('tab', { name: /Live Session/i });
+    const liveTab = navItem(/Live Session/i);
     fireEvent.click(liveTab);
 
     expect(await screen.findByTestId('dashboard-view')).toBeInTheDocument();
     expect(screen.queryByTestId('session-history-view')).not.toBeInTheDocument();
-    expect(liveTab).toHaveClass('active');
+    expect(liveTab).toHaveAttribute('aria-current', 'page');
+    expect(window.location.pathname).toBe('/live/dashboard');
     expect(localStorage.getItem('f1_active_tab')).toBe('live');
+  });
+
+  it('opens the page a URL names', async () => {
+    openAt('/live/cockpit');
+    render(<App />);
+
+    expect(await screen.findByTestId('dashboard-view')).toBeInTheDocument();
+    expect(navItem(/Live Session/i)).toHaveAttribute('aria-current', 'page');
+    expect(navItem(/Live Session/i)).toHaveAttribute('href', '/live/cockpit');
+  });
+
+  it('goes back to the previous page with the browser back button', async () => {
+    render(<App />);
+    await screen.findByTestId('session-history-view');
+
+    fireEvent.click(navItem(/Live Session/i));
+    expect(await screen.findByTestId('dashboard-view')).toBeInTheDocument();
+
+    act(() => {
+      window.history.back();
+    });
+    expect(await screen.findByTestId('session-history-view')).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/history');
+  });
+
+  it('shows an unknown address as the session list', async () => {
+    openAt('/nowhere?x=1');
+    render(<App />);
+
+    expect(await screen.findByTestId('session-history-view')).toBeInTheDocument();
+    expect(window.location.pathname + window.location.search).toBe('/history');
   });
 
   it('restores saved tab from localStorage on mount', async () => {
@@ -72,8 +114,8 @@ describe('App Navigation and Tab Bar', () => {
     render(<App />);
 
     expect(await screen.findByTestId('lap-comparator-view')).toBeInTheDocument();
-    const tabs = screen.getAllByRole('tab');
-    expect(tabs[1]).toHaveClass('active');
+    const tabs = navItems();
+    expect(tabs[1]).toHaveAttribute('aria-current', 'page');
   });
 
   it('renders active version badge in navigation header', async () => {

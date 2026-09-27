@@ -103,7 +103,7 @@ describe('ChatSettingsDrawer custom endpoint', () => {
 
     expect(screen.getByText('API key (optional)')).toBeInTheDocument();
     expect(screen.getByText(/need no key/)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Ollama/ })).toHaveClass('is-selected');
+    expect(screen.getByRole('button', { name: /Ollama/ })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('links to where a hosted server hands out keys', () => {

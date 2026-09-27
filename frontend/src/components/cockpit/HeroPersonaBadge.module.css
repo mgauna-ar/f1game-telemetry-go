@@ -1,0 +1,111 @@
+/* Sits inside the hero card, which sets `--radio-color` for the radio state */
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-6);
+}
+
+.persona {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.avatar {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  background: color-mix(in srgb, var(--accent-cyan) 12%, transparent);
+  border: 1.5px solid color-mix(in srgb, var(--accent-cyan) 40%, transparent);
+  border-radius: 50%;
+  box-shadow: 0 0 16px var(--accent-cyan-glow);
+}
+
+.flag {
+  font-size: 1.4rem;
+}
+
+/* The radio state icon in the avatar's corner */
+.stateIcon {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: flex;
+  padding: 2px;
+  color: var(--radio-color);
+  background: var(--bg-dark);
+  border-radius: 50%;
+  box-shadow: var(--shadow-sm);
+}
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.titleRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-black);
+  color: var(--text-primary);
+}
+
+.status {
+  font-family: var(--font-display);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-black);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.waveformBox {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-width: 200px;
+}
+
+.waveform {
+  width: 100%;
+  max-width: 320px;
+  height: 38px;
+}
+
+.waveformFallback {
+  gap: var(--space-1);
+  height: 28px;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.muted {
+  color: var(--status-danger);
+}
+
+/* The power button stays red while the radio is off, so it reads as "turn on" */
+.powerOff {
+  color: var(--status-danger);
+  background: var(--status-danger-bg);
+  border-color: var(--status-danger-border);
+}
