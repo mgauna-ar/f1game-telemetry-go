@@ -55,7 +55,7 @@ Pre-compiled, self-contained single binaries with the embedded web dashboard are
    * **macOS:** `f1telemetry_<version>_darwin_arm64.zip` (Apple Silicon M-series) or `f1telemetry_<version>_darwin_amd64.zip` (Intel)
    * **Linux:** `f1telemetry_<version>_linux_amd64.tar.gz` (or `arm64`)
 2. Extract the archive contents.
-3. Run `f1telemetry.exe` (Windows) or `./f1telemetry` (macOS / Linux). The server will start and automatically open your default browser to `http://localhost:8080`. Every page has its own address you can bookmark or share on your network: a session (`/history/12/stints`), a lap comparison with its zoom (`/compare?sa=12&a=345&b=346`) or the live cockpit (`/live/cockpit`).
+3. Run `f1telemetry.exe` (Windows) or `./f1telemetry` (macOS / Linux). The server will start and automatically open your default browser to `http://localhost:8080`. Every page has its own address you can bookmark or share on your network: a session (`/history/12/stints`), a lap comparison with its zoom (`/compare?sa=12&a=345&b=346`), your progress at a track (`/progress/Silverstone`) or the live cockpit (`/live/cockpit`).
 
 > [!NOTE]
 > **Windows Defender / SmartScreen Notice:**
@@ -113,6 +113,8 @@ CI runs `go run ./cmd/tsgen -check` and fails when the generated files are out o
 The 10 Hz live snapshot on `/ws` is a slim DTO (`internal/session/live_snapshot.go`): one row per active car and only the fields the live views read. To show another packet field live, add it there first. `go test -run TestLiveSnapshotPayloadSize -v ./cmd/simulator` prints its size per frame next to the raw packets.
 
 `GET /api/sessions` returns each session with a `summary` of its result (`analytics.SessionListItem`): the leader (race winner or pole), the fastest lap, the laps completed and `player`, your finish and grid position, places gained, best lap and laps. `player` comes from the session's stored `player_car_index`; for sessions recorded before it was stored, pass `?driver=<name or race number>` to match your driver the way the comparator does (`player.source` says which).
+
+`GET /api/progress?track=<name>&driver=<name>` powers the Progress page (`analytics.TrackProgressResponse`): every track with its session count, and your sessions at the chosen track (the latest session's track when `track` is left out), oldest first. Each one has your best lap and best valid sectors, the session's fastest lap and your gap to it, and your consistency: the standard deviation of your clean laps (valid, no pit in or out lap, none slower than 107% of your median, not a race's first lap), given from 3 of them. Sessions where you aren't found are counted in `unmatched_sessions`; `driver` finds you in old sessions as above.
 
 Opening a recorded session is one request, `GET /api/sessions/{id}/detail`: the classification, progression and stints plus the session's participants and laps, loaded from SQLite once and sent once (standings and stints refer to laps by `car_index` and lap ID). `go test -run TestSessionViewPayloadSize -v ./internal/api` prints its bytes and database reads for a full synthetic race; set `F1_PAYLOAD_DB` (a copy of your database) and `F1_PAYLOAD_SESSION` to measure a recorded one.
 

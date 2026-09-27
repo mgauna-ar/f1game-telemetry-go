@@ -150,6 +150,37 @@ export interface PlayerResult extends SummaryDriver {
 
 export type PlayerSource = 'recorded' | 'driver_name';
 
+/** Go: analytics.ProgressSession */
+export interface ProgressSession {
+  session_id: number;
+  session_type: string;
+  packet_format: number;
+  created_at: string;
+  source: PlayerSource;
+  position: number;
+  classified_cars: number;
+  laps_completed: number;
+  best_lap_id: number;
+  best_lap_number: number;
+  best_lap_time_ms: number;
+  best_sector1_ms: number;
+  best_sector2_ms: number;
+  best_sector3_ms: number;
+  fastest_lap_time_ms: number;
+  fastest_lap_id: number;
+  fastest_driver_name: string;
+  gap_to_fastest_ms: number | null;
+  consistency_ms: number | null;
+  clean_laps: number;
+}
+
+/** Go: analytics.ProgressTrack */
+export interface ProgressTrack {
+  track_name: string;
+  sessions: number;
+  last_session_at: string;
+}
+
 /** Go: analytics.ProgressionDriverMeta */
 export interface ProgressionDriverMeta {
   car_index: number;
@@ -249,6 +280,14 @@ export interface SummaryDriver {
 export interface SummaryLap extends SummaryDriver {
   lap_id: number;
   lap_time_ms: number;
+}
+
+/** Go: analytics.TrackProgressResponse */
+export interface TrackProgressResponse {
+  track: string;
+  tracks: ProgressTrack[];
+  sessions: ProgressSession[];
+  unmatched_sessions: number;
 }
 
 /** Go: analytics.TrackTurn */

@@ -71,6 +71,7 @@ describe('chatTargetsFromRoute', () => {
       sessionDebriefTarget: { sessionId: 7, trackName: 'Suzuka' },
     });
     expect(targetsAt('/history').contextMode).toBe('general');
+    expect(targetsAt('/progress/Monza').contextMode).toBe('general');
   });
 
   it('compares the laps and zoom in the comparator URL', () => {

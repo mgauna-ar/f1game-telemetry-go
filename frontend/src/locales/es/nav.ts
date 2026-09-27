@@ -5,11 +5,13 @@ export const nav = {
   tabs: {
     history: 'Historial de Sesiones',
     comparator: 'Comparador de Vueltas',
+    progress: 'Progreso',
     live: 'Sesión en Vivo',
   },
   tabsShort: {
     history: 'Historial',
     comparator: 'Comparar',
+    progress: 'Progreso',
     live: 'En vivo',
   },
   liveBadge: 'EN VIVO',

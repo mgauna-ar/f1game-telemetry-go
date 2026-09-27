@@ -11,11 +11,15 @@ vi.mock('./components/LapComparator', () => ({
   LapComparator: () => <div data-testid="lap-comparator-view">Lap Comparator View</div>,
 }));
 
+vi.mock('./components/progress/TrackProgress', () => ({
+  TrackProgress: () => <div data-testid="progress-view">Progress View</div>,
+}));
+
 vi.mock('./components/Dashboard', () => ({
   Dashboard: () => <div data-testid="dashboard-view">Live Dashboard View</div>,
 }));
 
-/** The three views in the main navigation, in order. */
+/** The four views in the main navigation, in order. */
 const navItems = () => within(screen.getByRole('navigation', { name: 'Main Navigation' })).getAllByRole('link');
 const navItem = (name: RegExp) =>
   within(screen.getByRole('navigation', { name: 'Main Navigation' })).getByRole('link', { name });
@@ -28,14 +32,15 @@ describe('App Navigation and Tab Bar', () => {
     localStorage.clear();
   });
 
-  it('renders reordered navigation tabs in exact order: 1) Session History, 2) Lap Comparator, 3) Live Session', () => {
+  it('renders the navigation tabs in order: Session History, Lap Comparator, Progress, Live Session', () => {
     render(<App />);
 
     const tabs = navItems();
-    expect(tabs).toHaveLength(3);
+    expect(tabs).toHaveLength(4);
     expect(tabs[0]).toHaveTextContent(/Session History/i);
     expect(tabs[1]).toHaveTextContent(/Lap Comparator/i);
-    expect(tabs[2]).toHaveTextContent(/Live Session/i);
+    expect(tabs[2]).toHaveTextContent(/Progress/i);
+    expect(tabs[3]).toHaveTextContent(/Live Session/i);
   });
 
   it('defaults to Session History on initial launch', async () => {
@@ -49,6 +54,7 @@ describe('App Navigation and Tab Bar', () => {
     expect(tabs[0]).toHaveAttribute('aria-current', 'page');
     expect(tabs[1]).not.toHaveAttribute('aria-current');
     expect(tabs[2]).not.toHaveAttribute('aria-current');
+    expect(tabs[3]).not.toHaveAttribute('aria-current');
     expect(window.location.pathname).toBe('/history');
   });
 
@@ -76,6 +82,18 @@ describe('App Navigation and Tab Bar', () => {
     expect(liveTab).toHaveAttribute('aria-current', 'page');
     expect(window.location.pathname).toBe('/live/dashboard');
     expect(localStorage.getItem('f1_active_tab')).toBe('live');
+  });
+
+  it('opens Progress at a track, and its tab goes back to that track', async () => {
+    openAt('/progress/Abu%20Dhabi');
+    render(<App />);
+
+    expect(await screen.findByTestId('progress-view')).toBeInTheDocument();
+    expect(localStorage.getItem('f1_active_tab')).toBe('progress');
+
+    fireEvent.click(navItem(/Session History/i));
+    expect(await screen.findByTestId('session-history-view')).toBeInTheDocument();
+    expect(navItem(/Progress/i)).toHaveAttribute('href', '/progress/Abu%20Dhabi');
   });
 
   it('opens the page a URL names', async () => {

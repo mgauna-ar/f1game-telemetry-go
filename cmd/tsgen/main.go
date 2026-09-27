@@ -57,6 +57,9 @@ func registry() *tsgen.Generator {
 	g.Add(analytics.SessionListItem{})
 	g.TypeAlias("analytics", "PlayerSource", stringUnion(analytics.PlayerSources))
 
+	// GET /api/progress: the player's sessions at a track.
+	g.Add(analytics.TrackProgressResponse{})
+
 	// Session detail: classification, progression and stints plus the session's participants and laps.
 	g.Add(analytics.SessionDetailResponse{})
 	g.TypeAlias("analytics", "ProgressionRow",

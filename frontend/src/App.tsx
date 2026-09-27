@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
-import { Calendar, GitCompare, Radio, Sparkles } from 'lucide-react';
+import { Calendar, GitCompare, Radio, Sparkles, TrendingUp } from 'lucide-react';
 import { F1TelemetryLogo } from './components/F1TelemetryLogo';
 import { RaceEngineerProvider } from './context/RaceEngineerProvider';
 import { I18nProvider } from './context/I18nProvider';
@@ -24,6 +24,9 @@ import styles from './App.module.css';
 
 const SessionHistory = lazy(() => import('./components/SessionHistory').then((m) => ({ default: m.SessionHistory })));
 const LapComparator = lazy(() => import('./components/LapComparator').then((m) => ({ default: m.LapComparator })));
+const TrackProgress = lazy(() =>
+  import('./components/progress/TrackProgress').then((m) => ({ default: m.TrackProgress }))
+);
 const Dashboard = lazy(() => import('./components/Dashboard').then((m) => ({ default: m.Dashboard })));
 const ReleaseNotesModal = lazy(() =>
   import('./components/ReleaseNotesModal').then((m) => ({ default: m.ReleaseNotesModal }))
@@ -32,6 +35,7 @@ const ReleaseNotesModal = lazy(() =>
 const NAV_TABS: ReadonlyArray<{ id: Page; icon: typeof Calendar; labelKey: string; shortKey: string }> = [
   { id: 'history', icon: Calendar, labelKey: 'nav.tabs.history', shortKey: 'nav.tabsShort.history' },
   { id: 'compare', icon: GitCompare, labelKey: 'nav.tabs.comparator', shortKey: 'nav.tabsShort.comparator' },
+  { id: 'progress', icon: TrendingUp, labelKey: 'nav.tabs.progress', shortKey: 'nav.tabsShort.progress' },
   { id: 'live', icon: Radio, labelKey: 'nav.tabs.live', shortKey: 'nav.tabsShort.live' },
 ];
 
@@ -63,15 +67,23 @@ function AppContent() {
     storeLastPage(activePage);
   }, [activePage]);
 
-  // The comparator tab goes back to the laps last compared.
+  // The comparator and progress tabs go back to the laps last compared and the track last shown.
   const lastCompareUrl = useRef('/compare');
+  const lastProgressUrl = useRef('/progress');
   if (activePage === 'compare') lastCompareUrl.current = canonicalUrl;
-  const tabHref = (page: Page) =>
-    page === 'compare'
-      ? lastCompareUrl.current
-      : page === 'live'
-        ? buildPath({ page: 'live', mode: activePage === 'live' ? route.mode : storedLiveMode() })
-        : '/history';
+  if (activePage === 'progress') lastProgressUrl.current = canonicalUrl;
+  const tabHref = (page: Page) => {
+    switch (page) {
+      case 'compare':
+        return lastCompareUrl.current;
+      case 'progress':
+        return lastProgressUrl.current;
+      case 'live':
+        return buildPath({ page: 'live', mode: activePage === 'live' ? route.mode : storedLiveMode() });
+      default:
+        return '/history';
+    }
+  };
 
   const liveStatus = useLiveStatus();
   const udpPort = useTelemetryEndpointStore((s) => s.endpoint.udp_port);
@@ -213,6 +225,8 @@ function AppContent() {
               <SessionHistory />
             ) : activePage === 'compare' ? (
               <LapComparator />
+            ) : activePage === 'progress' ? (
+              <TrackProgress />
             ) : (
               <Dashboard />
             )}

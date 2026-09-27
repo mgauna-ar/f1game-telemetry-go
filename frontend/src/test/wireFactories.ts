@@ -10,6 +10,7 @@ import type {
   WeatherForecastSample,
 } from '../types/session';
 import { placeholderParticipant } from '../types/session';
+import type { ProgressSession } from '../types/progress';
 import type { GlobalPTTMapping } from '../types/settings';
 import type {
   CarDamageData,
@@ -75,6 +76,32 @@ export function makePlayerResult(fields: Partial<PlayerResult> = {}): PlayerResu
     laps_completed: 0,
     is_dnf: false,
     is_dsq: false,
+    ...fields,
+  };
+}
+
+export function makeProgressSession(fields: Partial<ProgressSession> = {}): ProgressSession {
+  return {
+    session_id: 1,
+    session_type: 'Race',
+    packet_format: 2026,
+    created_at: '2026-09-01T18:00:00Z',
+    source: 'recorded',
+    position: 1,
+    classified_cars: 20,
+    laps_completed: 0,
+    best_lap_id: 0,
+    best_lap_number: 0,
+    best_lap_time_ms: 0,
+    best_sector1_ms: 0,
+    best_sector2_ms: 0,
+    best_sector3_ms: 0,
+    fastest_lap_time_ms: 0,
+    fastest_lap_id: 0,
+    fastest_driver_name: '',
+    gap_to_fastest_ms: null,
+    consistency_ms: null,
+    clean_laps: 0,
     ...fields,
   };
 }

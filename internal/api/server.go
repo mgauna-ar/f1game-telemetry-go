@@ -189,6 +189,7 @@ func (s *Server) setupWebSocketRoutes() {
 func (s *Server) setupSessionRoutes(r chi.Router) {
 	// Session routes
 	r.Get("/sessions", s.handleGetSessions)
+	r.Get("/progress", s.handleGetProgress)
 	r.Delete("/sessions/{id}", s.handleDeleteSession)
 	r.Post("/sessions/batch-delete", s.handleBatchDeleteSessions)
 	r.Get("/sessions/{id}/participants", s.handleGetParticipants)

@@ -1,10 +1,8 @@
-import type { Session } from '../../types/session';
-
 /**
  * The packet format most of the listed sessions use. The list shows a session's format badge only
  * when it differs from this one, instead of the same "F1 2026" on every row.
  */
-export const commonPacketFormat = (sessions: Session[]): number | undefined => {
+export const commonPacketFormat = (sessions: ReadonlyArray<{ packet_format: number }>): number | undefined => {
   const counts = new Map<number, number>();
   let common: number | undefined;
   for (const s of sessions) {

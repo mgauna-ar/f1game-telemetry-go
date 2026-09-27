@@ -152,6 +152,45 @@ func TestHandlersAnalytics(t *testing.T) {
 		}
 	})
 
+	t.Run("GET /api/progress returns the player's sessions at a track", func(t *testing.T) {
+		get := func(url string) analytics.TrackProgressResponse {
+			t.Helper()
+			rec := httptest.NewRecorder()
+			server.Router().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, url, http.NoBody))
+			if rec.Code != http.StatusOK {
+				t.Fatalf("GET %s: expected 200 OK, got %d: %s", url, rec.Code, rec.Body.String())
+			}
+			var resp analytics.TrackProgressResponse
+			if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+				t.Fatalf("failed to decode response: %v", err)
+			}
+			return resp
+		}
+
+		// The previous subtest added a second Albert Park session that stored the player's car.
+		resp := get("/api/progress")
+		if resp.Track != "Albert Park" || len(resp.Tracks) != 1 || resp.Tracks[0].Sessions != 2 {
+			t.Fatalf("track = %q, tracks = %+v; want Albert Park with 2 sessions", resp.Track, resp.Tracks)
+		}
+		if len(resp.Sessions) != 1 || resp.UnmatchedSessions != 1 || resp.Sessions[0].Source != analytics.PlayerSourceRecorded {
+			t.Errorf("without a driver name: sessions %+v, unmatched %d; want the recorded one only", resp.Sessions, resp.UnmatchedSessions)
+		}
+
+		resp = get("/api/progress?track=Albert+Park&driver=hamilton")
+		if len(resp.Sessions) != 2 || resp.UnmatchedSessions != 0 {
+			t.Fatalf("with a driver name: %d sessions, %d unmatched; want 2 and 0", len(resp.Sessions), resp.UnmatchedSessions)
+		}
+		if first := resp.Sessions[0]; first.SessionID != session.ID || first.BestLapTimeMS != 91000 ||
+			first.GapToFastestMS == nil || *first.GapToFastestMS != 1000 || first.FastestDriverName != "Max Verstappen" {
+			t.Errorf("oldest session = %+v, want Hamilton 1.000s off Verstappen", first)
+		}
+
+		resp = get("/api/progress?track=Monaco")
+		if resp.Track != "Monaco" || len(resp.Sessions) != 0 || len(resp.Tracks) != 1 {
+			t.Errorf("unknown track: %+v, want no sessions and the track list", resp)
+		}
+	})
+
 	t.Run("Analytics Error Handling - Invalid ID", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/sessions/invalid-id/detail", http.NoBody)
 		rec := httptest.NewRecorder()

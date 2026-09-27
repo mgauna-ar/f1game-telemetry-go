@@ -39,12 +39,20 @@ describe('routes', () => {
     expect(parseRoute('/live/other')).toEqual({ page: 'live', mode: 'cockpit' });
   });
 
+  it('reads the progress track', () => {
+    expect(parseRoute('/progress')).toEqual({ page: 'progress', track: undefined });
+    expect(parseRoute('/progress/Abu%20Dhabi')).toEqual({ page: 'progress', track: 'Abu Dhabi' });
+    expect(parseRoute('/progress/%E0%A4%A')).toEqual({ page: 'progress', track: undefined });
+  });
+
   it('opens the last page at the root, and the list at an unknown path', () => {
     expect(parseRoute('/')).toMatchObject({ page: 'history' });
     storeLastPage('compare');
     expect(parseRoute('/')).toMatchObject({ page: 'compare' });
     storeLastPage('live');
     expect(parseRoute('/')).toMatchObject({ page: 'live' });
+    storeLastPage('progress');
+    expect(parseRoute('/')).toMatchObject({ page: 'progress' });
     expect(parseRoute('/settings/ai')).toEqual({ page: 'history', sessionId: undefined, tab: 'classification' });
   });
 
@@ -54,6 +62,8 @@ describe('routes', () => {
       { page: 'history', sessionId: 7, tab: 'classification' },
       { page: 'history', sessionId: 7, tab: 'sectors' },
       { page: 'live', mode: 'cockpit' },
+      { page: 'progress' },
+      { page: 'progress', track: 'Abu Dhabi' },
       { page: 'compare', sessionA: 1, lapA: 10, sessionB: 2, lapB: 20, zoom: [100, 900] },
       { page: 'compare', sessionA: 1, lapA: 10, sessionB: 1, lapB: 11 },
     ];

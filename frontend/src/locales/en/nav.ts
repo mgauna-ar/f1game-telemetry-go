@@ -5,12 +5,14 @@ export const nav = {
   tabs: {
     history: 'Session History',
     comparator: 'Lap Comparator',
+    progress: 'Progress',
     live: 'Live Session',
   },
   /** On narrow screens */
   tabsShort: {
     history: 'History',
     comparator: 'Compare',
+    progress: 'Progress',
     live: 'Live',
   },
   liveBadge: 'LIVE',
