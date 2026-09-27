@@ -17,6 +17,7 @@ vi.mock('recharts', () => ({
   Tooltip: () => <div />,
   Legend: () => <div />,
   ReferenceLine: () => <div />,
+  ReferenceArea: () => <div />,
   Brush: () => <div />,
 }));
 
@@ -720,6 +721,13 @@ describe('LapComparator Component', () => {
       expect(screen.getByText(/Reset Zoom/i)).toBeInTheDocument();
     });
     expect(window.location.search).toMatch(/^\?sa=1&a=501&b=502&zoom=\d+-\d+$/);
+
+    // The compact strips replace the cards, and the choice is remembered on this device
+    fireEvent.click(screen.getByRole('radio', { name: /Strips/ }));
+    expect(screen.getByRole('list', { name: 'Telemetry strips' })).toBeInTheDocument();
+    expect(screen.queryByText(/Gear Selection/i)).not.toBeInTheDocument();
+    expect(localStorage.getItem('f1_comparator_chart_view')).toContain('strips');
+    localStorage.removeItem('f1_comparator_chart_view');
   });
 
   it("defaults slot A to your best lap from the session's stored car, and slot B to the fastest", async () => {

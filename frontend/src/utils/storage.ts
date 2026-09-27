@@ -20,7 +20,9 @@ export type KnownStorageKey =
   | 'f1_ai_engineer_expanded'
   | 'f1_comparator_default_driver_name'
   | 'f1_comparator_rival_mode'
-  | 'f1_comparator_rival_driver_name';
+  | 'f1_comparator_rival_driver_name'
+  | 'f1_comparator_chart_view'
+  | 'f1_comparator_strip_layout';
 
 export type StorageKey = KnownStorageKey | (string & {});
 

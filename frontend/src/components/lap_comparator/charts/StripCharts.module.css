@@ -1,0 +1,144 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-glass);
+  user-select: none;
+}
+
+.wrap[data-dragging] {
+  cursor: col-resize;
+}
+
+.hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.strips {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Readout and controls on the left, the strip on the right; strips share one x-axis at the bottom */
+.strip {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  align-items: stretch;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.strip:first-child {
+  border-top: none;
+}
+
+.side {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto 1fr;
+  gap: 0 var(--space-1);
+  padding: var(--space-1) var(--space-1) var(--space-1) 0;
+}
+
+.name {
+  grid-column: 1 / -1;
+  color: var(--text-secondary);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.values {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.values dd {
+  margin: 0;
+  color: var(--chart-delta);
+}
+
+.values [data-slot='a'] dd {
+  color: var(--f1-slot-a);
+}
+
+.values [data-slot='b'] dd {
+  color: var(--f1-slot-b);
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  align-self: center;
+}
+
+/* Hide the move and hide buttons until the strip is hovered or a control has focus */
+@media (hover: hover) {
+  .controls {
+    opacity: 0;
+    transition: opacity var(--duration-fast) var(--ease-smooth);
+  }
+
+  .strip:hover .controls,
+  .controls:focus-within {
+    opacity: 1;
+  }
+}
+
+.chart {
+  height: 88px;
+  min-width: 0;
+}
+
+.strip[data-axis] .chart {
+  height: 108px;
+}
+
+.strip[data-trace='delta'] .chart {
+  height: 104px;
+}
+
+.strip[data-trace='delta'][data-axis] .chart {
+  height: 124px;
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.hidden {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.hiddenLabel {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+}
+
+@media (--phone) {
+  .strip {
+    grid-template-columns: 92px minmax(0, 1fr);
+  }
+}
