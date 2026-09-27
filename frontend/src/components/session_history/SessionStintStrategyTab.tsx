@@ -1,9 +1,15 @@
 import React, { useState, useMemo } from 'react';
-import { placeholderParticipant, type DriverStanding, type DriverStint, type StintsResponse } from '../../types/session';
+import {
+  placeholderParticipant,
+  type DriverStanding,
+  type DriverStint,
+  type StintsResponse,
+} from '../../types/session';
 import { StrategyKPICards, type StrategyKPIs } from './stints/StrategyKPICards';
 import { StintGanttTimeline } from './stints/StintGanttTimeline';
 import { DegradationCurves } from './stints/DegradationCurves';
 import type { DriverStintData } from './stints/stintUtils';
+import styles from './SessionStintStrategyTab.module.css';
 
 export type { DriverStint, DriverStintData };
 
@@ -57,31 +63,30 @@ export const SessionStintStrategyTab: React.FC<SessionStintStrategyTabProps> = (
     if (!stintsData?.drivers) return [];
 
     const mapped = stintsData.drivers.map((d) => {
-      const standing =
-        driverStandings.find((ds) => ds.participant.car_index === d.car_index) || {
-          position: d.position,
-          carIndex: d.car_index,
-          driverName: d.driver_name,
-          teamName: '',
-          teamId: d.team_id,
-          raceNumber: d.race_number,
-          participant: placeholderParticipant({
-            id: d.car_index,
-            car_index: d.car_index,
-            name: d.driver_name,
-            team_id: d.team_id,
-            race_number: d.race_number,
-          }),
-          laps: [],
-          bestLap: null,
-          bestLapTimeMS: 0,
-          isDNF: false,
-          isDSQ: false,
-          maxSpeed: 0,
-          bestS1MS: 0,
-          bestS2MS: 0,
-          bestS3MS: 0,
-        };
+      const standing = driverStandings.find((ds) => ds.participant.car_index === d.car_index) || {
+        position: d.position,
+        carIndex: d.car_index,
+        driverName: d.driver_name,
+        teamName: '',
+        teamId: d.team_id,
+        raceNumber: d.race_number,
+        participant: placeholderParticipant({
+          id: d.car_index,
+          car_index: d.car_index,
+          name: d.driver_name,
+          team_id: d.team_id,
+          race_number: d.race_number,
+        }),
+        laps: [],
+        bestLap: null,
+        bestLapTimeMS: 0,
+        isDNF: false,
+        isDSQ: false,
+        maxSpeed: 0,
+        bestS1MS: 0,
+        bestS2MS: 0,
+        bestS3MS: 0,
+      };
 
       return {
         driver: standing,
@@ -134,9 +139,7 @@ export const SessionStintStrategyTab: React.FC<SessionStintStrategyTabProps> = (
       const dMatch = driverStintsData.find(
         (d) => d.driver.participant.car_index === stintsData.kpis.longest_stint!.car_index
       );
-      const sMatch = dMatch?.stints.find(
-        (s) => s.totalLaps === stintsData.kpis.longest_stint!.total_laps
-      );
+      const sMatch = dMatch?.stints.find((s) => s.totalLaps === stintsData.kpis.longest_stint!.total_laps);
       if (dMatch && sMatch) {
         longestStint = { driver: dMatch.driver, stint: sMatch };
       } else if (dMatch && dMatch.stints.length > 0) {
@@ -182,13 +185,9 @@ export const SessionStintStrategyTab: React.FC<SessionStintStrategyTabProps> = (
   const sessionCompounds = stintsData?.session_compounds || [];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+    <div className={styles.tab}>
       {/* 1. TOP STRATEGY KPI SUMMARY CARDS */}
-      <StrategyKPICards
-        strategyKPIs={strategyKPIs}
-        driverStandings={driverStandings}
-        formatLapTime={formatLapTime}
-      />
+      <StrategyKPICards strategyKPIs={strategyKPIs} driverStandings={driverStandings} formatLapTime={formatLapTime} />
 
       {/* 2. FIELD TYRE STRATEGY GANTT TIMELINE */}
       <StintGanttTimeline

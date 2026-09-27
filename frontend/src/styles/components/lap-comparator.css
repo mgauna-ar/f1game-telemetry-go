@@ -372,18 +372,6 @@
   font-family: var(--font-mono);
 }
 
-.tyre-badge-mini {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  font-size: 0.6rem;
-  font-weight: 700;
-  border: 1px solid currentColor;
-  flex-shrink: 0;
-}
 
 /* Track Map & Legends */
 .track-map-wrapper {

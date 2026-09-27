@@ -1,0 +1,198 @@
+/* The session list, styled like a broadcast timing strip */
+.container {
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, rgba(16, 20, 31, 0.9) 0%, rgba(10, 13, 22, 0.95) 100%);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+}
+
+/* Separate rounded rows; element selectors outrank the DataTable's own cell rules */
+.table {
+  border-collapse: separate;
+  border-spacing: 0 4px;
+  padding: 0 var(--space-2);
+}
+
+.table thead th {
+  padding: 0.65rem 0.75rem;
+  background: none;
+  letter-spacing: 0.08em;
+}
+
+.table tbody tr {
+  --row-stripe: var(--border-strong);
+  --row-bg: rgba(18, 24, 38, 0.5);
+  --row-edge: var(--border-color);
+}
+
+.table tbody tr > * {
+  padding: 0.75rem;
+  border-top: 1px solid var(--row-edge);
+  border-bottom: 1px solid var(--row-edge);
+  background: var(--row-bg);
+  font-size: var(--font-size-md);
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.table tbody tr > :first-child {
+  border-left: 4px solid var(--row-stripe);
+  border-radius: 6px 0 0 6px;
+}
+
+.table tbody tr > :last-child {
+  border-right: 1px solid var(--row-edge);
+  border-radius: 0 6px 6px 0;
+}
+
+.table tbody tr:hover {
+  --row-bg: rgba(28, 36, 56, 0.85);
+  --row-edge: color-mix(in srgb, var(--accent-cyan) 25%, transparent);
+  background: none;
+}
+
+/* Session type stripe on the left edge */
+.table tbody tr.race {
+  --row-stripe: var(--accent-primary);
+}
+
+.table tbody tr.qualifying {
+  --row-stripe: var(--accent-purple);
+}
+
+.table tbody tr.sprint {
+  --row-stripe: var(--status-warning);
+}
+
+.table tbody tr.practice {
+  --row-stripe: var(--status-success);
+}
+
+.table tbody tr.selected {
+  --row-bg: color-mix(in srgb, var(--accent-cyan) 8%, transparent);
+  --row-edge: color-mix(in srgb, var(--accent-cyan) 35%, transparent);
+}
+
+.checkboxLabel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem;
+  cursor: pointer;
+}
+
+.checkbox {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent-cyan);
+  cursor: pointer;
+}
+
+.date {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.clock {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.dateText {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+.track {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.iso {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 5px;
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  background: var(--bg-active);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-black);
+  letter-spacing: 0.08em;
+  line-height: 1;
+}
+
+.trackName {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.type {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1-5);
+  min-width: 110px;
+}
+
+.actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.export {
+  border-color: color-mix(in srgb, var(--accent-cyan) 25%, transparent);
+  background: color-mix(in srgb, var(--accent-cyan) 6%, transparent);
+  color: var(--accent-cyan);
+}
+
+.export:hover:not(:disabled) {
+  border-color: var(--accent-cyan);
+  background: color-mix(in srgb, var(--accent-cyan) 20%, transparent);
+  color: var(--accent-cyan);
+}
+
+.delete {
+  border-color: var(--status-danger-border);
+  background: color-mix(in srgb, var(--status-danger) 6%, transparent);
+  color: var(--status-danger);
+}
+
+.delete:hover:not(:disabled) {
+  border-color: var(--status-danger);
+  background: color-mix(in srgb, var(--status-danger) 20%, transparent);
+  color: var(--status-danger);
+}
+
+/* Fades in on row hover, like a "go" chevron */
+.explore {
+  color: var(--text-muted);
+  opacity: 0.35;
+}
+
+.table tbody tr:hover .explore,
+.explore:hover,
+.explore:focus-visible {
+  color: var(--accent-cyan);
+  opacity: 1;
+}

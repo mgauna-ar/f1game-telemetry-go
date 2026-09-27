@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import { SessionSectorMatrixTab } from './SessionSectorMatrixTab';
 import { I18nProvider } from '../../context/I18nProvider';
@@ -122,13 +122,18 @@ describe('SessionSectorMatrixTab Component', () => {
       </I18nProvider>
     );
 
-    const s1Btn = screen.getByRole('button', { name: 'S1' });
-    fireEvent.click(s1Btn);
-    expect(s1Btn).toBeInTheDocument();
+    const table = screen.getByRole('table', { name: 'Best sector times by driver' });
+    expect(within(table).getAllByRole('columnheader')).toHaveLength(5);
 
-    const s2Btn = screen.getByRole('button', { name: 'S2' });
-    fireEvent.click(s2Btn);
-    expect(s2Btn).toBeInTheDocument();
+    const s1Btn = screen.getByRole('radio', { name: 'S1' });
+    fireEvent.click(s1Btn);
+    expect(s1Btn).toHaveAttribute('aria-checked', 'true');
+    expect(within(table).getByRole('columnheader', { name: 'BEST S1' })).toBeInTheDocument();
+    expect(within(table).queryByRole('columnheader', { name: 'BEST S2' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('radio', { name: 'S2' }));
+    expect(within(table).getByRole('columnheader', { name: 'BEST S2' })).toBeInTheDocument();
+    expect(within(table).queryByRole('columnheader', { name: 'BEST S1' })).toBeNull();
   });
   it('scales the speed trap bars from the slowest to the fastest top speed', () => {
     const { container } = render(
@@ -144,7 +149,7 @@ describe('SessionSectorMatrixTab Component', () => {
       </I18nProvider>
     );
 
-    const bars = Array.from(container.querySelectorAll<HTMLElement>('.speed-rank-bar-fill'));
+    const bars = Array.from(container.querySelectorAll<HTMLElement>('[data-speed-bar]'));
     expect(bars.map((bar) => bar.style.width)).toEqual(['100%', '8%']);
   });
 });

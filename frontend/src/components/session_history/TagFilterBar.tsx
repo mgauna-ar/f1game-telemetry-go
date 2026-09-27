@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { Tag as TagIcon } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
+import { cssVar, styleVars } from '../../styles/theme';
 import type { Tag } from '../../types/session';
+import { TagDot } from './TagBadge';
+import styles from './TagFilterBar.module.css';
 
 interface TagFilterBarProps {
   availableTags: Tag[];
@@ -19,69 +22,43 @@ export const TagFilterBar: React.FC<TagFilterBarProps> = ({
   totalSessionsCount,
 }) => {
   const { t } = useI18n();
+  const labelId = useId();
 
   if (availableTags.length === 0) {
     return null;
   }
 
   return (
-    <div className="f1-tag-filter-bar">
-      <div className="f1-tag-filter-label">
-        <TagIcon size={13} color="var(--accent-secondary)" />
+    <div className={styles.bar} role="group" aria-labelledby={labelId}>
+      <div id={labelId} className={styles.label}>
+        <TagIcon size={13} color={cssVar('--accent-secondary')} aria-hidden="true" />
         <span>{t('history.tags.title')}:</span>
       </div>
 
-      {/* All Tags Pill */}
       <button
         type="button"
+        aria-pressed={selectedTagId === null}
         onClick={() => onSelectTag(null)}
-        className={`f1-tag-filter-pill ${selectedTagId === null ? 'active' : ''}`}
+        className={styles.pill}
       >
         <span>{t('history.tags.allTags')}</span>
-        <span
-          className="f1-tag-count-badge"
-          style={{
-            backgroundColor: selectedTagId === null ? 'rgba(0, 242, 254, 0.25)' : 'rgba(255, 255, 255, 0.1)',
-            color: selectedTagId === null ? '#00f2fe' : 'var(--text-secondary)',
-          }}
-        >
-          {totalSessionsCount}
-        </span>
+        <span className={styles.count}>{totalSessionsCount}</span>
       </button>
 
-      {/* Dynamic Tag Pills */}
       {availableTags.map((tag) => {
         const isSelected = selectedTagId === tag.id;
-        const count = sessionCountByTag[tag.id] || 0;
-        const color = tag.color || '#06b6d4';
-
         return (
           <button
             type="button"
             key={tag.id}
+            aria-pressed={isSelected}
             onClick={() => onSelectTag(isSelected ? null : tag.id)}
-            style={{
-              backgroundColor: isSelected ? `${color}25` : undefined,
-              borderColor: isSelected ? color : undefined,
-              color: isSelected ? '#fff' : undefined,
-              boxShadow: isSelected ? `0 0 12px ${color}40` : undefined,
-            }}
-            className={`f1-tag-filter-pill ${isSelected ? 'active' : ''}`}
+            className={styles.pill}
+            style={styleVars({ '--pill-color': tag.color || cssVar('--weather-rain') })}
           >
-            <span
-              className="f1-tag-dot"
-              style={{ backgroundColor: color }}
-            />
+            <TagDot color={tag.color} />
             <span>{tag.name}</span>
-            <span
-              className="f1-tag-count-badge"
-              style={{
-                backgroundColor: isSelected ? `${color}40` : `${color}18`,
-                color: color,
-              }}
-            >
-              {count}
-            </span>
+            <span className={styles.count}>{sessionCountByTag[tag.id] || 0}</span>
           </button>
         );
       })}

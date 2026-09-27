@@ -1,8 +1,14 @@
 import React from 'react';
 import { Trophy } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
-import { ClassificationRow } from './ClassificationRow';
+import { SectorSwatch } from '../../common/SectorTime';
+import { DataTable } from '../../ui/DataTable';
+import { EmptyState } from '../../ui/EmptyState';
+import { Panel, PanelHeader } from '../../ui/Panel';
+import { useClassificationColumns } from './classificationColumns';
+import { DriverLapsSubTable } from './DriverLapsSubTable';
 import type { Session, Lap, DriverStanding, StagedLap } from '../../../types/session';
+import styles from './ClassificationTable.module.css';
 
 interface ClassificationTableProps {
   session: Session;
@@ -44,107 +50,81 @@ export const ClassificationTable: React.FC<ClassificationTableProps> = ({
   renderDriverTyreStints,
 }) => {
   const { t } = useI18n();
-  const leaderBestLapMS = driverStandings.length > 0 ? driverStandings[0].bestLapTimeMS : Infinity;
-  const leaderTotalRaceTimeMS = driverStandings.length > 0 ? driverStandings[0].totalRaceTimeWithPenalties : undefined;
-  const leaderLapsCount = driverStandings.length > 0 ? driverStandings[0].laps.length : 0;
-  // Lobbies without a points system report 0 for everyone, which only adds noise
-  const showPoints = isRaceSession && driverStandings.some((d) => (d.points ?? 0) > 0);
-  const raceColumnCount = showPoints ? 12 : 11;
-  const timingColumnCount = 11;
+  const leader = driverStandings[0];
+
+  const columns = useClassificationColumns({
+    isRaceSession,
+    // Lobbies without a points system report 0 for everyone, which only adds noise
+    showPoints: isRaceSession && driverStandings.some((d) => (d.points ?? 0) > 0),
+    leaderBestLapMS: leader ? leader.bestLapTimeMS : Infinity,
+    leaderTotalRaceTimeMS: leader?.totalRaceTimeWithPenalties,
+    leaderLapsCount: leader ? leader.laps.length : 0,
+    sessionBestS1,
+    sessionBestS2,
+    sessionBestS3,
+    sessionFastestLapMS,
+    expandedDrivers,
+    onToggleDriverExpand,
+    formatLapTime,
+    formatTotalDuration,
+    renderDriverTyreStints,
+  });
 
   return (
-    <div className="glass-panel" style={{ padding: '1.25rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-        <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Trophy size={20} color="var(--accent-primary)" />
-          {isRaceSession ? t('history.classification.raceClassification') : t('history.classification.timingClassification')}
-        </h3>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.75rem' }}>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-            <span className="sector-purple" aria-hidden="true" style={{ width: '14px', height: '10px', borderRadius: '2px' }} />
-            {t('history.classification.sessionFastestSector')}
-          </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-            <span className="sector-green" aria-hidden="true" style={{ width: '14px', height: '10px', borderRadius: '2px' }} />
-            {t('history.classification.personalBestSector')}
-          </span>
-        </div>
-      </div>
+    <Panel>
+      <PanelHeader
+        icon={<Trophy size={20} color="var(--accent-primary)" />}
+        title={
+          isRaceSession
+            ? t('history.classification.raceClassification')
+            : t('history.classification.timingClassification')
+        }
+        actions={
+          <div className={styles.legend}>
+            <span className={styles.legendItem}>
+              <SectorSwatch kind="session" />
+              {t('history.classification.sessionFastestSector')}
+            </span>
+            <span className={styles.legendItem}>
+              <SectorSwatch kind="personal" />
+              {t('history.classification.personalBestSector')}
+            </span>
+          </div>
+        }
+      />
 
       {driverStandings.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
-          {t('history.classification.noLapData')}
-        </div>
+        <EmptyState compact title={t('history.classification.noLapData')} />
       ) : (
-        <div className="history-table-scroll">
-          <table className="history-table sticky-header">
-            <thead>
-              {isRaceSession ? (
-                <tr>
-                  <th style={{ width: '55px', paddingLeft: '0.65rem' }}>{t('history.classification.headers.pos')}</th>
-                  <th style={{ minWidth: '140px' }}>{t('history.classification.headers.driver')}</th>
-                  <th style={{ minWidth: '110px' }}>{t('history.classification.headers.timeGap')}</th>
-                  <th style={{ width: '45px', textAlign: 'center' }}>{t('history.classification.headers.laps')}</th>
-                  <th style={{ minWidth: '120px' }}>{t('history.classification.headers.tyreStints')}</th>
-                  {showPoints && (
-                    <th style={{ width: '45px', textAlign: 'center' }}>{t('history.classification.headers.points')}</th>
-                  )}
-                  <th style={{ minWidth: '95px' }}>{t('history.classification.headers.fastestLap')}</th>
-                  <th style={{ minWidth: '65px' }}>{t('history.classification.headers.s1')}</th>
-                  <th style={{ minWidth: '65px' }}>{t('history.classification.headers.s2')}</th>
-                  <th style={{ minWidth: '65px' }}>{t('history.classification.headers.s3')}</th>
-                  <th style={{ minWidth: '75px' }}>{t('history.classification.headers.topSpeed')}</th>
-                  <th style={{ textAlign: 'right', width: '85px', paddingRight: '0.65rem' }}>{t('history.classification.headers.details')}</th>
-                </tr>
-              ) : (
-                <tr>
-                  <th style={{ width: '38px', paddingLeft: '0.65rem' }}>{t('history.classification.headers.pos')}</th>
-                  <th style={{ minWidth: '140px' }}>{t('history.classification.headers.driver')}</th>
-                  <th style={{ minWidth: '95px' }}>{t('history.classification.headers.bestLap')}</th>
-                  <th style={{ minWidth: '80px' }}>{t('history.classification.headers.gap')}</th>
-                  <th style={{ minWidth: '65px' }}>{t('history.classification.headers.s1')}</th>
-                  <th style={{ minWidth: '65px' }}>{t('history.classification.headers.s2')}</th>
-                  <th style={{ minWidth: '65px' }}>{t('history.classification.headers.s3')}</th>
-                  <th style={{ width: '45px', textAlign: 'center' }}>{t('history.classification.headers.laps')}</th>
-                  <th style={{ minWidth: '120px' }}>{t('history.classification.headers.tyreStints')}</th>
-                  <th style={{ minWidth: '75px' }}>{t('history.classification.headers.topSpeed')}</th>
-                  <th style={{ textAlign: 'right', width: '85px', paddingRight: '0.65rem' }}>{t('history.classification.headers.details')}</th>
-                </tr>
-              )}
-            </thead>
-            <tbody>
-              {driverStandings.map((driver) => (
-                <ClassificationRow
-                  key={driver.participant.car_index}
-                  session={session}
-                  driver={driver}
-                  isLeader={driver.position === 1}
-                  isRaceSession={isRaceSession}
-                  showPoints={showPoints}
-                  columnCount={isRaceSession ? raceColumnCount : timingColumnCount}
-                  leaderBestLapMS={leaderBestLapMS}
-                  leaderTotalRaceTimeMS={leaderTotalRaceTimeMS}
-                  leaderLapsCount={leaderLapsCount}
-                  sessionBestS1={sessionBestS1}
-                  sessionBestS2={sessionBestS2}
-                  sessionBestS3={sessionBestS3}
-                  sessionFastestLapMS={sessionFastestLapMS}
-                  isExpanded={!!expandedDrivers[driver.participant.car_index]}
-                  onToggleDriverExpand={onToggleDriverExpand}
-                  stagedA={stagedA}
-                  stagedB={stagedB}
-                  onStageLap={onStageLap}
-                  onSendToComparator={onSendToComparator}
-                  formatLapTime={formatLapTime}
-                  formatTotalDuration={formatTotalDuration}
-                  renderTyreBadge={renderTyreBadge}
-                  renderDriverTyreStints={renderDriverTyreStints}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <DataTable
+          caption={t('history.classification.tableCaption')}
+          columns={columns}
+          rows={driverStandings}
+          getRowKey={(driver) => driver.participant.car_index}
+          onRowClick={(driver) => onToggleDriverExpand(driver.participant.car_index)}
+          renderExpanded={(driver) =>
+            expandedDrivers[driver.participant.car_index] ? (
+              <DriverLapsSubTable
+                session={session}
+                driver={driver}
+                sessionBestS1={sessionBestS1}
+                sessionBestS2={sessionBestS2}
+                sessionBestS3={sessionBestS3}
+                stagedA={stagedA}
+                stagedB={stagedB}
+                onStageLap={onStageLap}
+                onSendToComparator={onSendToComparator}
+                formatLapTime={formatLapTime}
+                formatTotalDuration={formatTotalDuration}
+                renderTyreBadge={renderTyreBadge}
+              />
+            ) : null
+          }
+          stickyHeader
+          density="compact"
+          className={styles.scroll}
+        />
       )}
-    </div>
+    </Panel>
   );
 };

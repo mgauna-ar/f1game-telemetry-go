@@ -99,6 +99,8 @@
   --f1-compound-wet-bg: color-mix(in srgb, var(--f1-compound-wet) 18%, transparent);
 
   --f1-gold: #ffd700; /* P1 and podium */
+  --f1-silver: #c0c0c0; /* P2 */
+  --f1-bronze: #cd7f32; /* P3 */
   --f1-team-fallback: #a0a0a0; /* a car whose team has no colour */
 
   /* Weather */

@@ -44,6 +44,8 @@ export interface DataTableProps<Row> {
    * because a table row can't take keyboard focus.
    */
   onRowClick?: (row: Row) => void;
+  /** A full-width row under a row, such as a driver's laps; return nothing to leave it out. */
+  renderExpanded?: (row: Row) => React.ReactNode;
   stickyHeader?: boolean;
   density?: 'normal' | 'compact';
   className?: string;
@@ -70,6 +72,7 @@ export function DataTable<Row>({
   empty,
   getRowClassName,
   onRowClick,
+  renderExpanded,
   stickyHeader = false,
   density = 'normal',
   className,
@@ -127,26 +130,37 @@ export function DataTable<Row>({
               </td>
             </tr>
           ) : (
-            rows.map((row, index) => (
-              <tr
-                key={getRowKey(row, index)}
-                className={cx(styles.row, onRowClick && styles.clickable, getRowClassName?.(row))}
-                onClick={onRowClick ? () => onRowClick(row) : undefined}
-              >
-                {columns.map((column) => {
-                  const Cell = column.rowHeader ? 'th' : 'td';
-                  return (
-                    <Cell
-                      key={column.key}
-                      scope={column.rowHeader ? 'row' : undefined}
-                      className={cx(styles.td, alignOf(column), column.numeric && styles.numeric, column.className)}
-                    >
-                      {column.cell(row, index)}
-                    </Cell>
-                  );
-                })}
-              </tr>
-            ))
+            rows.map((row, index) => {
+              const expanded = renderExpanded?.(row);
+              return (
+                <React.Fragment key={getRowKey(row, index)}>
+                  <tr
+                    className={cx(styles.row, onRowClick && styles.clickable, getRowClassName?.(row))}
+                    onClick={onRowClick ? () => onRowClick(row) : undefined}
+                  >
+                    {columns.map((column) => {
+                      const Cell = column.rowHeader ? 'th' : 'td';
+                      return (
+                        <Cell
+                          key={column.key}
+                          scope={column.rowHeader ? 'row' : undefined}
+                          className={cx(styles.td, alignOf(column), column.numeric && styles.numeric, column.className)}
+                        >
+                          {column.cell(row, index)}
+                        </Cell>
+                      );
+                    })}
+                  </tr>
+                  {expanded && (
+                    <tr>
+                      <td colSpan={columns.length} className={styles.expanded}>
+                        {expanded}
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+            })
           )}
         </tbody>
       </table>

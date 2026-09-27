@@ -6,6 +6,7 @@ import type { Tag } from '../../types/session';
 import { Button } from '../ui/Button';
 import { EmptyState } from '../ui/EmptyState';
 import { Modal, ModalBody, ModalDescription, ModalFooter, ModalHeader } from '../ui/Modal';
+import styles from './BatchTagModal.module.css';
 
 interface BatchTagModalProps {
   isOpen: boolean;
@@ -49,12 +50,12 @@ export const BatchTagModal: React.FC<BatchTagModalProps> = ({
         icon={<TagIcon size={20} />}
         title={t('history.batch.tagModalTitle', { count: selectedCount })}
       />
-      <ModalBody className="batch-tag-modal-body">
+      <ModalBody className={styles.body}>
         <ModalDescription>{t('history.batch.tagSelectPlaceholder')}</ModalDescription>
         {availableTags.length === 0 ? (
           <EmptyState compact description={t('history.tags.noTagsAvailable')} />
         ) : (
-          <div className="batch-tag-options">
+          <div className={styles.options}>
             {availableTags.map((tag) => {
               const isSelected = batchSelectedTagId === tag.id;
               return (

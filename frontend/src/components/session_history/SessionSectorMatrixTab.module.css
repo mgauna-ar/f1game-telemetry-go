@@ -1,0 +1,259 @@
+.tab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+/* Ultimate theoretical lap */
+.hero {
+  padding: var(--space-6);
+  background:
+    radial-gradient(ellipse at 80% 20%, color-mix(in srgb, var(--accent-purple) 15%, transparent), transparent 60%),
+    var(--bg-glass);
+}
+
+.heroTop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-6);
+}
+
+.heroEyebrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-1-5);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--accent-purple);
+}
+
+.heroTime {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-black);
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.heroSub {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-md);
+  color: var(--text-secondary);
+}
+
+.heroStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+}
+
+.heroStat {
+  min-width: 150px;
+}
+
+.heroStatValue {
+  font-size: var(--font-size-lg);
+}
+
+.fastest {
+  color: var(--accent-tertiary);
+}
+
+.gain {
+  color: var(--accent-cyan);
+}
+
+/* One card per sector record */
+.records {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-4);
+  margin: var(--space-6) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.record {
+  padding: var(--space-3);
+  background: var(--bg-inset);
+  border: 1px solid color-mix(in srgb, var(--accent-purple) 30%, transparent);
+  border-radius: var(--radius-md);
+}
+
+.recordTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.recordLabel {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--accent-purple);
+}
+
+.recordTime {
+  padding: var(--space-0-5) var(--space-1-5);
+  border-radius: var(--radius-xs);
+  font-family: var(--font-mono);
+}
+
+.recordHolder {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  margin-top: var(--space-1-5);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.teamDot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--team-color);
+}
+
+/* Sector leaderboards and speed trap */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(400px, 100%), 1fr));
+  gap: var(--space-6);
+}
+
+.scroll {
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.driver {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: var(--font-weight-semibold);
+  text-align: left;
+}
+
+.teamBar {
+  width: 3px;
+  height: 16px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  background: var(--team-color);
+}
+
+.pos {
+  font-weight: var(--font-weight-bold);
+}
+
+.sectorCell {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.sectorTime {
+  padding: var(--space-0-5) var(--space-1);
+  border-radius: 3px;
+}
+
+.gap {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.topSpeed {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.speedList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-height: 420px;
+  margin: 0;
+  padding: 0 var(--space-1) 0 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.speedRow {
+  padding: var(--space-2) 10px;
+  background: var(--bg-inset);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.speedTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-1);
+}
+
+.speedDriver {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+}
+
+.speedDriver .teamBar {
+  height: 14px;
+}
+
+.speedRank {
+  width: 24px;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-muted);
+}
+
+.speedFigures {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+}
+
+.speedGap {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.speed {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+}
+
+.speedRow.leader .speedRank {
+  color: var(--f1-gold);
+}
+
+.speedRow.leader .speed {
+  color: var(--accent-cyan);
+}
+
+.speedTrack {
+  width: 100%;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--bg-hover);
+}
+
+.speedFill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--team-color);
+  transition: width 0.5s ease;
+}

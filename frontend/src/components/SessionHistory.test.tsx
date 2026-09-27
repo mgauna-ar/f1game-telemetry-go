@@ -222,8 +222,8 @@ describe('SessionHistory Component', () => {
     const searchInput = screen.getByPlaceholderText('Search track, session type...');
     fireEvent.change(searchInput, { target: { value: 'Monaco' } });
 
-    expect(screen.queryByRole('cell', { name: /Silverstone/i })).not.toBeInTheDocument();
-    expect(screen.getByRole('cell', { name: /Monaco/i })).toBeInTheDocument();
+    expect(screen.queryByRole('rowheader', { name: /Silverstone/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('rowheader', { name: /Monaco/i })).toBeInTheDocument();
   });
 
   it('reports the sort order on the column headers and sorts from their buttons', async () => {
@@ -401,7 +401,7 @@ describe('SessionHistory Component', () => {
     });
 
     // Swap slots
-    const swapBtn = screen.getByTitle('Swap Slot A and Slot B');
+    const swapBtn = screen.getByRole('button', { name: 'Swap Slot A and Slot B' });
     fireEvent.click(swapBtn);
 
     // Launch comparison
@@ -528,7 +528,7 @@ describe('SessionHistory Component', () => {
     });
 
     // Click delete button for Silverstone (#1)
-    const deleteBtn = screen.getByTitle('Delete Session #1');
+    const deleteBtn = screen.getByRole('button', { name: 'Delete Session #1' });
     fireEvent.click(deleteBtn);
 
     // Confirmation modal should appear
@@ -778,7 +778,7 @@ describe('SessionHistory Component', () => {
     expect(screen.getByText('Import Session')).toBeInTheDocument();
 
     // 2. Click Export button on the session card
-    const exportBtn = screen.getByTitle('Export Session (.f1session) #1');
+    const exportBtn = screen.getByRole('button', { name: 'Export Session (.f1session) #1' });
     fireEvent.click(exportBtn);
 
     await waitFor(() => {

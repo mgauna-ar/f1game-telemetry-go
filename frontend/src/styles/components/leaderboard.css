@@ -19,33 +19,7 @@
   0% { box-shadow: 0 0 5px rgba(255, 204, 0, 0.4); }
   50% { box-shadow: 0 0 18px rgba(255, 204, 0, 0.8); }
   100% { box-shadow: 0 0 5px rgba(255, 204, 0, 0.4); }
-}
-
-.header-stat-box {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid var(--border-color);
-  padding: 6px 14px;
-  border-radius: var(--radius-sm);
-}
-
-.stat-label {
-  font-size: 0.65rem;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 600;
-}
-
-.stat-value {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-/* Leaderboard Tower Styling */
+}/* Leaderboard Tower Styling */
 .leaderboard-tower {
   grid-column: span 5;
   display: flex;

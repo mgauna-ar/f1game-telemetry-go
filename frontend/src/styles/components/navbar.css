@@ -439,14 +439,6 @@
   padding-bottom: var(--floating-dock-clearance);
 }
 
-/* Legacy fallback nav-tabs */
-.nav-tabs {
-  display: flex;
-  gap: 1rem;
-  padding: 1rem;
-  justify-content: center;
-}
-
 .nav-tab {
   background: rgba(0, 0, 0, 0.4);
   border: 1px solid var(--border-color);

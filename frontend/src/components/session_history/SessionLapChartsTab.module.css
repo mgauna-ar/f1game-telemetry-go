@@ -1,0 +1,61 @@
+.tab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+/* Chart area */
+.chartPanel {
+  min-height: 480px;
+  padding: var(--space-6);
+}
+
+.chartHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.chartTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.chart {
+  width: 100%;
+  height: 400px;
+}
+
+/* Pit-lap filter toggle */
+.pitFilter {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    border-color var(--duration-fast) var(--ease-smooth),
+    color var(--duration-fast) var(--ease-smooth);
+}
+
+.pitFilter:has(input:checked) {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+
+.pitFilter input {
+  cursor: pointer;
+  accent-color: var(--accent-primary);
+}

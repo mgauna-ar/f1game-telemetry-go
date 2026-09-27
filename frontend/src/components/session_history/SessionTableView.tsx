@@ -1,15 +1,19 @@
 import React from 'react';
-import { Clock, ChevronRight, Trash2, ArrowUpDown, Plus, Download } from 'lucide-react';
+import { Clock, ChevronRight, Trash2, Download } from 'lucide-react';
 import type { Session } from '../SessionHistory';
 import { useI18n } from '../../context/I18nContext';
 import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContextDefinitions';
 import { formatDate as defaultFormatDate } from '../../utils/formatters';
 import { SessionTypeBadge } from '../common/SessionTypeBadge';
-import { TagBadge } from './TagBadge';
+import { AddTagButton, TagBadge } from './TagBadge';
 import { F1FormatBadge } from '../F1FormatBadge';
 import { TrackFlag } from '../TrackFlag';
 import { WeatherBadgeWithForecast } from './WeatherBadgeWithForecast';
 import { getTrackInfo } from '../../constants/f1';
+import { IconButton } from '../ui/Button';
+import { cx } from '../ui/cx';
+import { DataTable, type DataTableColumn } from '../ui/DataTable';
+import styles from './SessionTableView.module.css';
 
 export interface SessionTableViewProps {
   sessions?: Session[];
@@ -26,15 +30,24 @@ export interface SessionTableViewProps {
   onOpenTagManager?: (session: Session) => void;
 }
 
-const getSessionTypeStripeClass = (typeStr?: string): string => {
-  if (!typeStr) return 'session-stripe-default';
+/** The colour of a row's left edge, by session type. */
+const getSessionStripe = (typeStr?: string): string | undefined => {
+  if (!typeStr) return undefined;
   const lower = typeStr.toLowerCase();
-  if (lower.includes('race')) return 'session-stripe-race';
-  if (lower.includes('qual') || lower.includes('q1') || lower.includes('q2') || lower.includes('q3')) return 'session-stripe-qualifying';
-  if (lower.includes('sprint')) return 'session-stripe-sprint';
-  if (lower.includes('practice') || lower.includes('fp')) return 'session-stripe-practice';
-  return 'session-stripe-default';
+  if (lower.includes('race')) return styles.race;
+  if (lower.includes('qual') || lower.includes('q1') || lower.includes('q2') || lower.includes('q3'))
+    return styles.qualifying;
+  if (lower.includes('sprint')) return styles.sprint;
+  if (lower.includes('practice') || lower.includes('fp')) return styles.practice;
+  return undefined;
 };
+
+/** Keeps a click inside a cell (a checkbox, a tag, the forecast) from also opening the session. */
+const StopRowClick: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (
+  <div role="presentation" className={className} onClick={(e) => e.stopPropagation()}>
+    {children}
+  </div>
+);
 
 export const SessionTableView: React.FC<SessionTableViewProps> = React.memo((props) => {
   const { t } = useI18n();
@@ -65,193 +78,172 @@ export const SessionTableView: React.FC<SessionTableViewProps> = React.memo((pro
     }
   }, [isSomeSelected]);
 
-  const renderSortIndicator = (field: string) => {
-    if (sortField !== field) {
-      return <ArrowUpDown size={12} style={{ opacity: 0.35 }} aria-hidden="true" />;
-    }
-    return <span className="f1-sort-indicator" aria-hidden="true">{sortOrder === 'asc' ? '↑' : '↓'}</span>;
-  };
+  const selectAllLabel = isAllSelected ? t('history.batch.deselectAll') : t('history.batch.selectAll');
 
-  /** A sortable column header: the sort state on the <th>, a button inside it to change it. */
-  const renderSortableHeader = (field: string, label: string) => (
-    <th
-      className="th-sortable"
-      aria-sort={sortField === field ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}
-    >
-      <button type="button" className="button-reset th-sort-wrapper" onClick={() => onToggleSort(field)}>
-        <span>{label}</span>
-        {renderSortIndicator(field)}
-      </button>
-    </th>
-  );
+  const columns: DataTableColumn<Session>[] = [
+    ...(onToggleSelectSession
+      ? [
+          {
+            key: 'select',
+            header: (
+              <label className={styles.checkboxLabel}>
+                <input
+                  type="checkbox"
+                  ref={selectAllRef}
+                  checked={isAllSelected}
+                  onChange={() => onToggleSelectAll?.()}
+                  title={selectAllLabel}
+                  aria-label={selectAllLabel}
+                  className={styles.checkbox}
+                />
+              </label>
+            ),
+            width: '44px',
+            align: 'center' as const,
+            cell: (session: Session) => (
+              <StopRowClick>
+                <label className={styles.checkboxLabel}>
+                  <input
+                    type="checkbox"
+                    checked={selectedSessionIds?.has(session.id) || false}
+                    onChange={() => onToggleSelectSession(session.id)}
+                    aria-label={t('history.batch.selectSession', { id: session.id })}
+                    className={styles.checkbox}
+                  />
+                </label>
+              </StopRowClick>
+            ),
+          },
+        ]
+      : []),
+    {
+      key: 'date',
+      header: t('history.table.dateTime'),
+      sortable: true,
+      cell: (session) => (
+        <div className={styles.date}>
+          <Clock size={13} className={styles.clock} aria-hidden="true" />
+          <span className={styles.dateText}>{formatDate(session.created_at)}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'track',
+      header: t('history.table.trackName'),
+      sortable: true,
+      rowHeader: true,
+      cell: (session) => {
+        const countryIso3 = getTrackInfo(session.track_name)?.countryIso3 || null;
+        return (
+          <div className={styles.track}>
+            <TrackFlag track={session.track_name} width={20} height={14} />
+            {countryIso3 && <span className={styles.iso}>{countryIso3}</span>}
+            <span className={styles.trackName}>{session.track_name || t('common.unknownTrack')}</span>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'type',
+      header: t('history.table.sessionType'),
+      sortable: true,
+      cell: (session) => (
+        <div className={styles.type}>
+          <F1FormatBadge format={session.packet_format} size="xs" />
+          <SessionTypeBadge sessionType={session.session_type || 'RACE'} size="xs" showIcon={false} />
+        </div>
+      ),
+    },
+    {
+      key: 'tags',
+      header: t('history.tags.title'),
+      cell: (session) => {
+        const sessionTags = session.tags || [];
+        return (
+          <StopRowClick className={styles.tags}>
+            {sessionTags.map((tag) => (
+              <TagBadge key={tag.id} tag={tag} size="xs" />
+            ))}
+            <AddTagButton compact hasTags={sessionTags.length > 0} onClick={() => onOpenTagManager(session)} />
+          </StopRowClick>
+        );
+      },
+    },
+    {
+      key: 'weather',
+      header: t('history.table.weather'),
+      cell: (session) => (
+        <StopRowClick>
+          <WeatherBadgeWithForecast session={session} compact />
+        </StopRowClick>
+      ),
+    },
+    {
+      key: 'actions',
+      header: t('history.table.actions'),
+      align: 'right',
+      cell: (session) => (
+        <div className={styles.actions}>
+          {onExportSession && (
+            <IconButton
+              size="sm"
+              variant="secondary"
+              className={styles.export}
+              label={`${t('history.exportSession')} #${session.id}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onExportSession(session);
+              }}
+            >
+              <Download size={14} />
+            </IconButton>
+          )}
+          <IconButton
+            size="sm"
+            variant="secondary"
+            className={styles.delete}
+            label={`${t('common.deleteSession')} #${session.id}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onRequestDelete(session);
+            }}
+          >
+            <Trash2 size={14} />
+          </IconButton>
+          <IconButton
+            size="sm"
+            className={styles.explore}
+            label={t('common.explore')}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSelectSession(session);
+            }}
+          >
+            <ChevronRight size={16} />
+          </IconButton>
+        </div>
+      ),
+    },
+  ];
 
   return (
-    <div className="glass-panel f1-table-container" style={{ padding: '0', overflow: 'hidden' }}>
-      <div style={{ overflowX: 'auto' }}>
-        <table className="history-table f1-broadcast-table">
-          <thead>
-            <tr>
-              {Boolean(onToggleSelectSession) && (
-                <th className="th-checkbox">
-                  <label className="f1-checkbox-label">
-                    <input
-                      type="checkbox"
-                      ref={selectAllRef}
-                      checked={isAllSelected}
-                      onChange={() => onToggleSelectAll?.()}
-                      title={isAllSelected ? t('history.batch.deselectAll') : t('history.batch.selectAll')}
-                      aria-label={isAllSelected ? t('history.batch.deselectAll') : t('history.batch.selectAll')}
-                      className="f1-table-checkbox"
-                    />
-                  </label>
-                </th>
-              )}
-              {renderSortableHeader('date', t('history.table.dateTime'))}
-              {renderSortableHeader('track', t('history.table.trackName'))}
-              {renderSortableHeader('type', t('history.table.sessionType'))}
-              <th>{t('history.tags.title')}</th>
-              <th>{t('history.table.weather')}</th>
-              <th style={{ textAlign: 'right' }}>{t('history.table.actions')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sessions.map((session) => {
-              const sessionTags = session.tags || [];
-              const isSelected = selectedSessionIds?.has(session.id) || false;
-              const stripeClass = getSessionTypeStripeClass(session.session_type);
-              const trackInfo = getTrackInfo(session.track_name);
-              const countryIso3 = trackInfo?.countryIso3 || null;
-
-              return (
-                // Clicking the row is a shortcut for its Explore button
-                <tr
-                  key={session.id}
-                  onClick={() => onSelectSession(session)}
-                  className={`f1-session-row ${stripeClass} ${isSelected ? 'selected' : ''}`}
-                >
-                  {onToggleSelectSession && (
-                    <td
-                      onClick={(e) => {
-                        e.stopPropagation();
-                      }}
-                      className="td-checkbox"
-                    >
-                      <label className="f1-checkbox-label">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => {
-                            onToggleSelectSession(session.id);
-                          }}
-                          aria-label={t('history.batch.selectSession', { id: session.id })}
-                          className="f1-table-checkbox"
-                        />
-                      </label>
-                    </td>
-                  )}
-                  <td className="f1-date-cell">
-                    <div className="f1-date-wrapper">
-                      <Clock size={13} className="f1-clock-icon" />
-                      <span className="mono f1-date-text">{formatDate(session.created_at)}</span>
-                    </div>
-                  </td>
-                  <td className="f1-track-cell">
-                    <div className="f1-track-wrapper">
-                      <TrackFlag track={session.track_name} width={20} height={14} />
-                      {countryIso3 && (
-                        <span className="f1-country-iso-badge mono">{countryIso3}</span>
-                      )}
-                      <span className="f1-track-title">
-                        {session.track_name || t('common.unknownTrack')}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="f1-type-cell">
-                    <div className="f1-type-wrapper">
-                      <F1FormatBadge format={session.packet_format} size="xs" />
-                      <SessionTypeBadge
-                        sessionType={session.session_type || 'RACE'}
-                        size="xs"
-                        showIcon={false}
-                      />
-                    </div>
-                  </td>
-                  <td className="f1-tags-cell" onClick={(e) => e.stopPropagation()}>
-                    <div className="f1-tags-wrapper">
-                      {sessionTags.map((tag) => (
-                        <TagBadge key={tag.id} tag={tag} size="xs" />
-                      ))}
-
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onOpenTagManager(session);
-                        }}
-                        className={`session-add-tag-btn ${sessionTags.length > 0 ? 'icon-only' : ''}`}
-                        title={t('history.tags.manageTags')}
-                      >
-                        <Plus size={sessionTags.length > 0 ? 12 : 11} />
-                        {sessionTags.length === 0 && <span>{t('history.tags.addTag')}</span>}
-                      </button>
-                    </div>
-                  </td>
-                  <td className="f1-weather-cell" onClick={(e) => e.stopPropagation()}>
-                    <WeatherBadgeWithForecast session={session} compact />
-                  </td>
-                  <td className="f1-actions-cell" style={{ textAlign: 'right' }}>
-                    <div className="f1-actions-wrapper">
-                      {onExportSession && (
-                        <button
-                          type="button"
-                          className="f1-action-icon-btn export"
-                          title={`${t('history.exportSession')} #${session.id}`}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            onExportSession(session);
-                          }}
-                        >
-                          <Download size={14} />
-                        </button>
-                      )}
-
-                      <button
-                        type="button"
-                        className="f1-action-icon-btn delete"
-                        title={`${t('common.deleteSession')} #${session.id}`}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          onRequestDelete(session);
-                        }}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-
-                      <button
-                        type="button"
-                        className="f1-row-navigate-btn"
-                        title={t('common.explore')}
-                        aria-label={t('common.explore')}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelectSession(session);
-                        }}
-                      >
-                        <ChevronRight size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+    <div className={styles.container}>
+      <DataTable
+        caption={t('history.table.caption')}
+        columns={columns}
+        rows={sessions}
+        getRowKey={(session) => session.id}
+        sort={sortField ? { key: sortField, direction: sortOrder } : null}
+        onSortChange={onToggleSort}
+        // Clicking the row is a shortcut for its Explore button
+        onRowClick={onSelectSession}
+        getRowClassName={(session) =>
+          cx(getSessionStripe(session.session_type), selectedSessionIds?.has(session.id) && styles.selected)
+        }
+        tableClassName={styles.table}
+      />
     </div>
   );
 });
 
 SessionTableView.displayName = 'SessionTableView';
-

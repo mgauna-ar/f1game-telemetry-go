@@ -13,6 +13,7 @@ import { EmptyState } from '../ui/EmptyState';
 import { Panel } from '../ui/Panel';
 import { SkeletonGroup, SkeletonRows } from '../ui/Skeleton';
 import { TabPanel } from '../ui/Tabs';
+import styles from './SessionDetailView.module.css';
 import type {
   Session,
   Lap,
@@ -87,29 +88,31 @@ export const SessionDetailView: React.FC<SessionDetailViewProps> = (props) => {
   const onRemoveTag = props.onRemoveTag ?? ((tagId: number) => historyActions.handleRemoveTag(session.id, tagId));
 
   const renderTyreBadge = (compoundRaw?: string, actualCompound?: string) => {
-    return <TyreCompoundBadge compound={compoundRaw} actualCompound={actualCompound} className="tyre-badge" />;
+    return <TyreCompoundBadge compound={compoundRaw} actualCompound={actualCompound} size="md" />;
   };
 
   const renderDriverTyreStints = (driverLaps: Lap[]) => {
     if (!driverLaps || driverLaps.length === 0) {
-      return <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>-</span>;
+      return <span className={styles.none}>-</span>;
     }
 
     const stints = groupLapsIntoStints(driverLaps);
     if (stints.length === 0) {
-      return <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>-</span>;
+      return <span className={styles.none}>-</span>;
     }
 
     return (
-      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', whiteSpace: 'nowrap' }}>
+      <div className={styles.stints}>
         {stints.map(({ compound, actualCompound, count }, idx) => (
           <React.Fragment key={idx}>
-            {idx > 0 && <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', margin: '0 1px' }}>➔</span>}
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-              <TyreCompoundBadge compound={compound} actualCompound={actualCompound} className="tyre-badge" />
-              <span className="mono" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                {count}L
+            {idx > 0 && (
+              <span className={styles.arrow} aria-hidden="true">
+                ➔
               </span>
+            )}
+            <div className={styles.stint}>
+              <TyreCompoundBadge compound={compound} actualCompound={actualCompound} size="md" />
+              <span className={styles.stintLaps}>{count}L</span>
             </div>
           </React.Fragment>
         ))}
@@ -178,7 +181,7 @@ export const SessionDetailView: React.FC<SessionDetailViewProps> = (props) => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }} data-testid="session-detail-view">
+    <div className={styles.view} data-testid="session-detail-view">
       <SessionDetailHeader
         session={session}
         isRaceSession={isRaceSession}
@@ -206,12 +209,7 @@ export const SessionDetailView: React.FC<SessionDetailViewProps> = (props) => {
           </SkeletonGroup>
         </Panel>
       ) : (
-        <TabPanel
-          key={effectiveTab}
-          idPrefix={SESSION_DETAIL_TABS_ID}
-          tab={effectiveTab}
-          className="detail-tab-content-enter"
-        >
+        <TabPanel key={effectiveTab} idPrefix={SESSION_DETAIL_TABS_ID} tab={effectiveTab} className={styles.tabContent}>
           {renderDetailTabContent()}
         </TabPanel>
       )}

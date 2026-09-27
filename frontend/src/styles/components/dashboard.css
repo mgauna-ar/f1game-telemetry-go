@@ -184,63 +184,6 @@
 .rpm-led.red { background: var(--accent-primary); box-shadow: 0 0 8px var(--accent-primary); }
 .rpm-led.blue { background: var(--accent-secondary); box-shadow: 0 0 8px var(--accent-secondary); }
 
-/* History Table */
-.history-table {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0 6px;
-  margin-top: 0.75rem;
-}
-
-.history-table th {
-  text-align: left;
-  padding: 0 0.55rem;
-  color: var(--text-secondary);
-  font-weight: 600;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  white-space: nowrap;
-}
-
-.history-table td {
-  background: rgba(0, 0, 0, 0.3);
-  padding: 0.6rem 0.55rem;
-  font-size: 0.84rem;
-  vertical-align: middle;
-}
-
-.history-table tr td:first-child {
-  border-top-left-radius: var(--radius-sm);
-  border-bottom-left-radius: var(--radius-sm);
-}
-
-.history-table tr td:last-child {
-  border-top-right-radius: var(--radius-sm);
-  border-bottom-right-radius: var(--radius-sm);
-}
-
-.history-table tr:hover td {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-/* Long tables scroll inside their panel so the column headers stay visible */
-.history-table-scroll {
-  overflow: auto;
-  max-height: min(75vh, 960px);
-}
-
-.history-table.sticky-header thead th {
-  position: sticky;
-  top: 0;
-  z-index: var(--z-sticky);
-  padding-top: 0.45rem;
-  padding-bottom: 0.45rem;
-  background: var(--bg-panel-solid);
-  /* Covers the row gap (border-spacing) below the header, where scrolled rows would show through */
-  box-shadow: 0 6px 0 var(--bg-panel-solid);
-}
-
 /* Utility */
 .animate-spin {
   animation: spin 1s linear infinite;

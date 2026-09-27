@@ -98,17 +98,6 @@
   border-radius: 3px;
 }
 
-.tyre-badge-mini {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  font-size: 0.72rem;
-  font-weight: 800;
-  border: 1px solid transparent;
-}
 
 .pit-badge-lane {
   display: inline-flex;

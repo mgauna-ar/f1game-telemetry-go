@@ -2,11 +2,14 @@ import React, { useState } from 'react';
 import { Tag as TagIcon, Search, Plus, Check, Trash2 } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
 import type { Session, Tag } from '../../types/session';
-import { cssVar } from '../../styles/theme';
+import { styleVars } from '../../styles/theme';
 import { TrackFlag } from '../TrackFlag';
 import { Button, IconButton } from '../ui/Button';
+import { cx } from '../ui/cx';
 import { EmptyState } from '../ui/EmptyState';
 import { Modal, ModalBody, ModalFooter, ModalHeader } from '../ui/Modal';
+import { TagDot } from './TagBadge';
+import styles from './TagManagerModal.module.css';
 
 const MOTORSPORT_COLORS = [
   { name: 'Red', hex: '#ef4444' },
@@ -49,9 +52,7 @@ export const TagManagerModal: React.FC<TagManagerModalProps> = ({
   const sessionTags = session.tags || [];
   const assignedTagIds = new Set(sessionTags.map((t) => t.id));
 
-  const filteredTags = availableTags.filter((tag) =>
-    tag.name.toLowerCase().includes(search.toLowerCase().trim())
-  );
+  const filteredTags = availableTags.filter((tag) => tag.name.toLowerCase().includes(search.toLowerCase().trim()));
 
   const handleToggleTag = async (tag: Tag) => {
     if (loading) return;
@@ -74,9 +75,7 @@ export const TagManagerModal: React.FC<TagManagerModalProps> = ({
 
     setLoading(true);
     try {
-      const existing = availableTags.find(
-        (t) => t.name.toLowerCase() === trimmed.toLowerCase()
-      );
+      const existing = availableTags.find((t) => t.name.toLowerCase() === trimmed.toLowerCase());
       if (existing) {
         if (!assignedTagIds.has(existing.id)) {
           await onAddTag(session.id, existing.id);
@@ -108,7 +107,7 @@ export const TagManagerModal: React.FC<TagManagerModalProps> = ({
         icon={<TagIcon size={20} />}
         title={t('history.tags.manageTags')}
         subtitle={
-          <span className="tag-manager-session mono">
+          <span className={styles.session}>
             <span>#{session.id} •</span>
             <TrackFlag track={session.track_name} width={14} height={10} />
             <span>
@@ -119,11 +118,11 @@ export const TagManagerModal: React.FC<TagManagerModalProps> = ({
       />
 
       <ModalBody>
-        <div className="tag-manager-search">
-          <Search size={14} className="tag-manager-search-icon" aria-hidden="true" />
+        <div className={styles.search}>
+          <Search size={14} className={styles.searchIcon} aria-hidden="true" />
           <input
             type="text"
-            className="tag-manager-search-input"
+            className={styles.input}
             placeholder={t('history.tags.searchTags')}
             aria-label={t('history.tags.searchTags')}
             value={search}
@@ -131,11 +130,10 @@ export const TagManagerModal: React.FC<TagManagerModalProps> = ({
           />
         </div>
 
-        <div className="tag-manager-list custom-scrollbar">
+        <div className={styles.list}>
           {filteredTags.length > 0 ? (
             filteredTags.map((tag) => {
               const isAssigned = assignedTagIds.has(tag.id);
-              const color = tag.color || cssVar('--accent-secondary');
 
               return (
                 // Clicking anywhere on the row is a shortcut for its toggle button
@@ -143,29 +141,29 @@ export const TagManagerModal: React.FC<TagManagerModalProps> = ({
                   key={tag.id}
                   role="presentation"
                   onClick={() => handleToggleTag(tag)}
-                  className={`tag-manager-item ${isAssigned ? 'is-assigned' : ''}`}
+                  className={cx(styles.item, isAssigned && styles.assigned)}
                 >
                   <button
                     type="button"
-                    className="button-reset tag-manager-item-toggle"
+                    className={cx('button-reset', styles.toggle)}
                     aria-pressed={isAssigned}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleToggleTag(tag);
                     }}
                   >
-                    <span className="f1-tag-dot" style={{ backgroundColor: color }} />
-                    <span className="tag-manager-item-name mono">{tag.name}</span>
+                    <TagDot color={tag.color} />
+                    <span className={styles.name}>{tag.name}</span>
                   </button>
 
-                  <div className="tag-manager-item-actions">
+                  <div className={styles.actions}>
                     {isAssigned ? (
-                      <span className="tag-manager-item-state is-assigned">
+                      <span className={cx(styles.state, styles.assigned)}>
                         <Check size={14} aria-hidden="true" />
                         <span>{t('history.tags.assigned')}</span>
                       </span>
                     ) : (
-                      <span className="tag-manager-item-state">+ {t('history.tags.add')}</span>
+                      <span className={styles.state}>+ {t('history.tags.add')}</span>
                     )}
 
                     {onDeleteGlobalTag && (
@@ -182,32 +180,29 @@ export const TagManagerModal: React.FC<TagManagerModalProps> = ({
               );
             })
           ) : (
-            <EmptyState
-              compact
-              description={search ? t('history.tags.noMatchingTags') : t('history.tags.noTagsYet')}
-            />
+            <EmptyState compact description={search ? t('history.tags.noMatchingTags') : t('history.tags.noTagsYet')} />
           )}
         </div>
 
-        <form onSubmit={handleCreateAndAssign} className="tag-manager-create">
-          <h3 className="tag-manager-create-title">{t('history.tags.createTag')}</h3>
+        <form onSubmit={handleCreateAndAssign} className={styles.create}>
+          <h3 className={styles.createTitle}>{t('history.tags.createTag')}</h3>
           <input
             type="text"
-            className="tag-manager-search-input tag-manager-name-input"
+            className={cx(styles.input, styles.nameInput)}
             placeholder={t('history.tags.tagNamePlaceholder')}
             aria-label={t('history.tags.tagNamePlaceholder')}
             value={newTagName}
             onChange={(e) => setNewTagName(e.target.value)}
           />
 
-          <div className="color-swatch-row" role="group" aria-label={t('history.tags.selectColor')}>
+          <div className={styles.swatches} role="group" aria-label={t('history.tags.selectColor')}>
             {MOTORSPORT_COLORS.map((col) => (
               <button
                 type="button"
                 key={col.hex}
                 onClick={() => setSelectedColor(col.hex)}
-                style={{ backgroundColor: col.hex }}
-                className={`color-swatch-btn ${selectedColor === col.hex ? 'is-active' : ''}`}
+                style={styleVars({ '--swatch-color': col.hex })}
+                className={styles.swatch}
                 title={col.name}
                 aria-label={col.name}
                 aria-pressed={selectedColor === col.hex}
@@ -215,7 +210,7 @@ export const TagManagerModal: React.FC<TagManagerModalProps> = ({
             ))}
           </div>
 
-          <div className="tag-manager-create-actions">
+          <div className={styles.createActions}>
             <Button
               type="submit"
               variant="primary"

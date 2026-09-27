@@ -141,6 +141,22 @@ describe('DataTable', () => {
     fireEvent.click(screen.getByText('1:27.350'));
     expect(onRowClick).toHaveBeenCalledWith(rows[1]);
   });
+
+  it('adds a full-width row under the rows that have more to show', () => {
+    render(
+      <DataTable
+        caption="Best laps"
+        columns={columns}
+        rows={rows}
+        getRowKey={(row) => row.id}
+        renderExpanded={(row) => (row.id === 1 ? `Laps for ${row.driver}` : null)}
+      />
+    );
+    const expanded = screen.getByRole('cell', { name: 'Laps for Leclerc' });
+    expect(expanded).toHaveAttribute('colspan', '2');
+    // header row, two driver rows and one expanded row
+    expect(screen.getAllByRole('row')).toHaveLength(4);
+  });
 });
 
 describe('Panel, Stat, Badge, EmptyState and Skeleton', () => {

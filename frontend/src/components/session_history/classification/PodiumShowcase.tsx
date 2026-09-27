@@ -2,7 +2,11 @@ import React from 'react';
 import { Award } from 'lucide-react';
 import { getTeamColor } from '../../../constants/f1';
 import { useI18n } from '../../../context/I18nContext';
+import { styleVars } from '../../../styles/theme';
 import type { DriverStanding } from '../../../types/session';
+import { cx } from '../../ui/cx';
+import { Stat } from '../../ui/Stat';
+import styles from './PodiumShowcase.module.css';
 
 interface PodiumShowcaseProps {
   top3: DriverStanding[];
@@ -22,66 +26,63 @@ export const PodiumShowcase: React.FC<PodiumShowcaseProps> = ({
   if (top3.length === 0) return null;
 
   return (
-    <div className="podium-grid">
+    <ol className={styles.grid}>
       {top3.map((driver) => {
-        const teamColor = getTeamColor(driver.participant.team_id);
         const isP1 = driver.position === 1;
         const isP2 = driver.position === 2;
-        const rankClass = isP1 ? 'podium-p1' : isP2 ? 'podium-p2' : 'podium-p3';
         const rankLabel = isP1
           ? t('history.classification.podiumP1')
           : isP2
-          ? t('history.classification.podiumP2')
-          : t('history.classification.podiumP3');
-        const rankColor = isP1 ? '#ffd700' : isP2 ? '#c0c0c0' : '#cd7f32';
+            ? t('history.classification.podiumP2')
+            : t('history.classification.podiumP3');
 
         return (
-          <div key={driver.participant.car_index} className={`glass-panel podium-card ${rankClass}`}>
-            <div className="podium-rank-ribbon" style={{ color: rankColor }}>
-              <Award size={16} />
+          <li
+            key={driver.participant.car_index}
+            className={cx(styles.card, isP1 ? styles.p1 : isP2 ? styles.p2 : styles.p3)}
+            style={styleVars({ '--team-color': getTeamColor(driver.participant.team_id) })}
+          >
+            <div className={styles.rank}>
+              <Award size={16} aria-hidden="true" />
               <span>{rankLabel}</span>
             </div>
 
-            <div className="podium-driver-info">
-              <div style={{ width: '4px', height: '32px', backgroundColor: teamColor, borderRadius: '2px' }} />
+            <div className={styles.driver}>
+              <span className={styles.teamBar} aria-hidden="true" />
               <div>
-                <div className="podium-driver-name">
+                <div className={styles.name}>
                   {driver.participant.name}
-                  <span className="mono podium-race-num">#{driver.participant.race_number}</span>
+                  <span className={styles.raceNumber}>#{driver.participant.race_number}</span>
                 </div>
-                <div className="podium-driver-sub mono">
+                <div className={styles.result}>
                   {isRaceSession
                     ? driver.isDSQ
                       ? 'DSQ'
                       : driver.isDNF
-                      ? 'DNF'
-                      : formatTotalDuration(driver.totalRaceTimeMS ?? 0)
+                        ? 'DNF'
+                        : formatTotalDuration(driver.totalRaceTimeMS ?? 0)
                     : t('history.classification.bestPrefix', { time: formatLapTime(driver.bestLapTimeMS) })}
                 </div>
               </div>
             </div>
 
-            <div className="podium-stats-row mono">
-              <div className="podium-stat">
-                <span className="stat-label">{t('history.classification.bestLap')}</span>
-                <span className="stat-value" style={{ color: 'var(--accent-tertiary)' }}>
-                  {formatLapTime(driver.bestLapTimeMS)}
-                </span>
-              </div>
-              <div className="podium-stat">
-                <span className="stat-label">{t('history.classification.laps')}</span>
-                <span className="stat-value">{driver.laps.length}</span>
-              </div>
-              <div className="podium-stat">
-                <span className="stat-label">{t('history.classification.maxSpeed')}</span>
-                <span className="stat-value">
-                  {driver.maxSpeed ? `${driver.maxSpeed.toFixed(0)} km/h` : '--'}
-                </span>
-              </div>
+            <div className={styles.stats}>
+              <Stat
+                className={styles.stat}
+                label={t('history.classification.bestLap')}
+                value={formatLapTime(driver.bestLapTimeMS)}
+                valueClassName={styles.bestLap}
+              />
+              <Stat className={styles.stat} label={t('history.classification.laps')} value={driver.laps.length} />
+              <Stat
+                className={styles.stat}
+                label={t('history.classification.maxSpeed')}
+                value={driver.maxSpeed ? `${driver.maxSpeed.toFixed(0)} ${t('common.units.kmh')}` : '--'}
+              />
             </div>
-          </div>
+          </li>
         );
       })}
-    </div>
+    </ol>
   );
 };

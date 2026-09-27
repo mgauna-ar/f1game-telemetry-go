@@ -2,8 +2,11 @@ import React from 'react';
 import { Layers, Clock, Wrench, Zap } from 'lucide-react';
 import { TyreCompoundBadge } from '../../common/TyreCompoundBadge';
 import { useI18n } from '../../../context/I18nContext';
+import { styleVars } from '../../../styles/theme';
+import { Panel } from '../../ui/Panel';
 import { getCompoundColor } from './stintUtils';
 import type { DriverStanding, DriverStint } from '../../../types/session';
+import styles from './StrategyKPICards.module.css';
 
 export interface StrategyKPIs {
   mostPopularStrategy: string;
@@ -19,115 +22,96 @@ interface StrategyKPICardsProps {
   formatLapTime: (ms: number) => string;
 }
 
-export const StrategyKPICards: React.FC<StrategyKPICardsProps> = ({
-  strategyKPIs,
-  driverStandings,
-  formatLapTime,
-}) => {
+const KpiCard: React.FC<{ label: string; icon: React.ReactNode; children: React.ReactNode }> = ({
+  label,
+  icon,
+  children,
+}) => (
+  <li className={styles.item}>
+    <Panel as="div" padding="compact" className={styles.card}>
+      <div className={styles.head}>
+        <h4 className={styles.label}>{label}</h4>
+        {icon}
+      </div>
+      {children}
+    </Panel>
+  </li>
+);
+
+export const StrategyKPICards: React.FC<StrategyKPICardsProps> = ({ strategyKPIs, driverStandings, formatLapTime }) => {
   const { t } = useI18n();
+  const longest = strategyKPIs.longestStintDriver;
+  const bestLaps = Object.entries(strategyKPIs.bestLapsByCompound);
 
   return (
-    <div
-      style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-        gap: '1rem',
-      }}
-    >
-      {/* Most Popular Strategy */}
-      <div className="glass-panel" style={{ padding: '1.1rem 1.25rem', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>
-            {t('history.stints.kpi.mostPopularStrategy').toUpperCase()}
-          </span>
-          <Layers size={16} color="var(--accent-primary)" />
-        </div>
-        <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#FFFFFF', marginBottom: '0.25rem' }}>
-          {strategyKPIs.mostPopularStrategy}
-        </div>
-        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+    <ul className={styles.grid}>
+      <KpiCard
+        label={t('history.stints.kpi.mostPopularStrategy')}
+        icon={<Layers size={16} className={styles.popular} aria-hidden="true" />}
+      >
+        <div className={styles.value}>{strategyKPIs.mostPopularStrategy}</div>
+        <div className={styles.sub}>
           {strategyKPIs.mostPopularCount > 0
             ? t('history.detail.driversCount', { count: strategyKPIs.mostPopularCount })
             : t('history.stints.kpi.noStints')}
         </div>
-      </div>
+      </KpiCard>
 
-      {/* Longest Stint */}
-      <div className="glass-panel" style={{ padding: '1.1rem 1.25rem', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>
-            {t('history.stints.kpi.longestStint').toUpperCase()}
-          </span>
-          <Clock size={16} color="#ffd700" />
-        </div>
-        {strategyKPIs.longestStintDriver ? (
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '0.25rem' }}>
-              <TyreCompoundBadge compound={strategyKPIs.longestStintDriver.stint.compound} />
-              <span style={{ fontSize: '1.25rem', fontWeight: 800, color: '#FFFFFF' }}>
-                {t('history.detail.lapsCount', { count: strategyKPIs.longestStintDriver.stint.totalLaps })}
-              </span>
+      <KpiCard
+        label={t('history.stints.kpi.longestStint')}
+        icon={<Clock size={16} className={styles.longest} aria-hidden="true" />}
+      >
+        {longest ? (
+          <>
+            <div className={styles.valueRow}>
+              <TyreCompoundBadge compound={longest.stint.compound} />
+              <span className={styles.value}>{t('history.detail.lapsCount', { count: longest.stint.totalLaps })}</span>
             </div>
-            <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-              {strategyKPIs.longestStintDriver.driver.participant.name} (#{strategyKPIs.longestStintDriver.driver.participant.race_number})
+            <div className={styles.sub}>
+              {longest.driver.participant.name} (#{longest.driver.participant.race_number})
             </div>
-          </div>
+          </>
         ) : (
-          <div style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>{t('history.stints.kpi.noStints')}</div>
+          <div className={styles.none}>{t('history.stints.kpi.noStints')}</div>
         )}
-      </div>
+      </KpiCard>
 
-      {/* Total Pit Stops */}
-      <div className="glass-panel" style={{ padding: '1.1rem 1.25rem', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>
-            {t('history.stints.kpi.totalPitStops').toUpperCase()}
-          </span>
-          <Wrench size={16} color="#ff3366" />
-        </div>
-        <div style={{ fontSize: '1.25rem', fontWeight: 800, color: '#FFFFFF', marginBottom: '0.25rem' }}>
+      <KpiCard
+        label={t('history.stints.kpi.totalPitStops')}
+        icon={<Wrench size={16} className={styles.stops} aria-hidden="true" />}
+      >
+        <div className={styles.value}>
           {t('history.stints.kpi.stopsCount', { count: strategyKPIs.totalFieldPitStops })}
         </div>
-        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-          {(strategyKPIs.totalFieldPitStops / Math.max(driverStandings.length, 1)).toFixed(1)} avg stops / car
+        <div className={styles.sub}>
+          {t('history.stints.kpi.avgStopsPerCar', {
+            count: (strategyKPIs.totalFieldPitStops / Math.max(driverStandings.length, 1)).toFixed(1),
+          })}
         </div>
-      </div>
+      </KpiCard>
 
-      {/* Fastest Compound Laps */}
-      <div className="glass-panel" style={{ padding: '1.1rem 1.25rem', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>
-            {t('history.stints.kpi.bestCompoundLaps').toUpperCase()}
-          </span>
-          <Zap size={16} color="#a855f7" />
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
-          {Object.keys(strategyKPIs.bestLapsByCompound).length === 0 ? (
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{t('history.stints.kpi.noStints')}</span>
+      <KpiCard
+        label={t('history.stints.kpi.bestCompoundLaps')}
+        icon={<Zap size={16} className={styles.compounds} aria-hidden="true" />}
+      >
+        <div className={styles.bestLaps}>
+          {bestLaps.length === 0 ? (
+            <span className={styles.none}>{t('history.stints.kpi.noStints')}</span>
           ) : (
-            Object.entries(strategyKPIs.bestLapsByCompound).map(([comp, item]) => (
+            bestLaps.map(([comp, item]) => (
               <div
                 key={comp}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                  fontSize: '0.72rem',
-                }}
+                className={styles.bestLap}
+                style={styleVars({ '--compound-color': getCompoundColor(comp) })}
                 title={`${comp}: ${formatLapTime(item.timeMS)} (${item.driverName})`}
               >
                 <TyreCompoundBadge compound={comp} />
-                <span className="mono" style={{ color: getCompoundColor(comp), fontWeight: 700 }}>
-                  {formatLapTime(item.timeMS)}
-                </span>
+                <span className={styles.bestLapTime}>{formatLapTime(item.timeMS)}</span>
               </div>
             ))
           )}
         </div>
-      </div>
-    </div>
+      </KpiCard>
+    </ul>
   );
 };

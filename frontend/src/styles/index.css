@@ -10,8 +10,6 @@
 @import './components/dashboard.css';
 @import './components/leaderboard.css';
 @import './components/empty-state.css';
-@import './components/session-history.css';
-@import './components/tags.css';
 @import './components/flags.css';
 @import './components/release-notes.css';
 @import './components/error-boundary.css';

@@ -5,7 +5,11 @@
  *   resolves it, so the colour always follows the stylesheet.
  * - Canvas can't resolve var(), so canvas code reads the value with `getCssVar(token)`.
  * - `alpha(color, amount)` tints any colour (a token or a hex value) with color-mix().
+ * - `styleVars({...})` passes data-driven values (a team colour, a bar width) to a CSS Module
+ *   as custom properties, so the rule itself stays in the stylesheet.
  */
+
+import type { CSSProperties } from 'react';
 
 /** Every token TypeScript reads; theme.test.ts checks that variables.css defines each one. */
 export const THEME_TOKENS = [
@@ -131,6 +135,10 @@ export function canvasRgba(ctx: CanvasRenderingContext2D, color: string, amount:
 /** `color` at `amount` opacity (0–1); works for tokens (`cssVar(...)`) and hex values alike. */
 export const alpha = (color: string, amount: number): string =>
   `color-mix(in srgb, ${color} ${Math.round(amount * 100)}%, transparent)`;
+
+/** Inline custom properties for a CSS Module: `style={styleVars({ '--team-color': color })}`. */
+export const styleVars = (vars: Record<`--${string}`, string | number | undefined>): CSSProperties =>
+  vars as CSSProperties;
 
 /** Shared look of Recharts tooltips; each chart adds its own padding and font sizes. */
 export const CHART_TOOLTIP_CONTENT_STYLE = {

@@ -1,0 +1,82 @@
+.box {
+  padding: var(--space-2);
+  background: var(--bg-hover);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.caption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-secondary);
+}
+
+.helper {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.lapNumber {
+  font-weight: var(--font-weight-bold);
+}
+
+.personalBest,
+.personalBestDelta {
+  color: var(--accent-tertiary);
+}
+
+.personalBest {
+  font-weight: var(--font-weight-bold);
+}
+
+.muted {
+  color: var(--text-secondary);
+}
+
+.faint {
+  color: var(--text-muted);
+}
+
+.tyre {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.stageButtons {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* Slot buttons: pressed means the lap is staged in that slot */
+.stage {
+  font-size: var(--font-size-xs);
+}
+
+.stage.slotA[aria-pressed='true'] {
+  background: var(--f1-slot-a-bg);
+  border-color: var(--f1-slot-a);
+  color: var(--f1-slot-a);
+  font-weight: var(--font-weight-black);
+  box-shadow: 0 0 10px var(--f1-slot-a-border);
+}
+
+.stage.slotB[aria-pressed='true'] {
+  background: var(--f1-slot-b-bg);
+  border-color: var(--f1-slot-b);
+  color: var(--f1-slot-b);
+  font-weight: var(--font-weight-black);
+  box-shadow: 0 0 10px var(--f1-slot-b-border);
+}

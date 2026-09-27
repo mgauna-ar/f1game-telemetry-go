@@ -1,0 +1,48 @@
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.tabContent {
+  animation: tabIn 0.22s var(--ease-out);
+}
+
+@keyframes tabIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* Tyre stints of a driver in the classification table */
+.none {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.stints {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.arrow {
+  margin: 0 1px;
+  font-size: var(--font-size-2xs);
+  color: var(--text-muted);
+}
+
+.stint {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.stintLaps {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-secondary);
+}
