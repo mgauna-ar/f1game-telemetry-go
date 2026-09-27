@@ -1,0 +1,126 @@
+.panel {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.date {
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.session {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.byName {
+  color: var(--text-muted);
+  cursor: help;
+}
+
+.result {
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-bold);
+}
+
+.of {
+  color: var(--text-muted);
+  font-weight: var(--font-weight-regular);
+}
+
+.lap {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+}
+
+.sector {
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+.personalBest {
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-bold);
+  color: var(--f1-purple);
+}
+
+.gap {
+  font-family: var(--font-mono);
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.actions {
+  display: inline-flex;
+  justify-content: flex-end;
+  gap: var(--space-1);
+}
+
+/* Phone: one card per session */
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bg-inset);
+}
+
+.cardHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+}
+
+.cardResult {
+  margin-left: auto;
+}
+
+.cardStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+}
+
+.cardStats dt {
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.cardStats dd {
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+}
+
+.cardStats dd > span {
+  max-width: 100%;
+  white-space: normal;
+}
+
+.card .actions {
+  justify-content: flex-end;
+}

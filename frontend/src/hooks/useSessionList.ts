@@ -1,12 +1,12 @@
 import { useState, useCallback, useEffect } from 'react';
-import type { Session } from '../types/session';
+import type { Session, SessionListItem } from '../types/session';
 import { api } from '../utils/apiClient';
 import { invalidateSessionLapData } from '../utils/sessionDataCache';
 import { useSessionListStore } from '../store/useSessionListStore';
 
 export interface UseSessionListReturn {
-  sessions: Session[];
-  setSessions: React.Dispatch<React.SetStateAction<Session[]>>;
+  sessions: SessionListItem[];
+  setSessions: React.Dispatch<React.SetStateAction<SessionListItem[]>>;
   loadingSessions: boolean;
   error: string | null;
   sessionToDelete: Session | null;
@@ -21,7 +21,7 @@ export interface UseSessionListReturn {
 
 export function useSessionList(): UseSessionListReturn {
   const sessions = useSessionListStore((s) => s.sessions);
-  const setSessions = useSessionListStore((s) => s.setSessions) as unknown as React.Dispatch<React.SetStateAction<Session[]>>;
+  const setSessions = useSessionListStore((s) => s.setSessions) as unknown as React.Dispatch<React.SetStateAction<SessionListItem[]>>;
   const loadingSessions = useSessionListStore((s) => s.loading);
   const error = useSessionListStore((s) => s.error);
   const storeFetchSessions = useSessionListStore((s) => s.fetchSessions);

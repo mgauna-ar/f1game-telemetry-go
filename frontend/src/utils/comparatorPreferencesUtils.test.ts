@@ -174,6 +174,17 @@ describe('comparatorPreferencesUtils', () => {
       expect(result.driver?.name).toBe('Max Verstappen');
     });
 
+    it("prefers the session's stored player car over the saved driver name", () => {
+      const result = resolveReferenceLap(mockParticipants, mockLaps, 'Verstappen', 1);
+      expect(result.lapId).toBe(102);
+      expect(result.driver?.name).toBe('Liam Lawson');
+    });
+
+    it('falls back to the fastest lap when the stored player car has no laps, without the name', () => {
+      const result = resolveReferenceLap(mockParticipants, mockLaps, 'Lawson', 7);
+      expect(result.lapId).toBe(101);
+    });
+
     it('defaults to fastest lap when defaultDriverName is empty', () => {
       const result = resolveReferenceLap(mockParticipants, mockLaps, '');
       expect(result.lapId).toBe(101);

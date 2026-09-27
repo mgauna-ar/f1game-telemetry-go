@@ -19,6 +19,7 @@ import type {
   Lap,
   StagedLap,
   DriverStanding,
+  PlayerSource,
   ClassificationResponse,
   ProgressionResponse,
   StintsResponse,
@@ -51,6 +52,8 @@ export interface SessionDetailViewProps {
   onRequestDelete?: (session: Session) => void;
   onOpenTagManager?: (session: Session) => void;
   onRemoveTag?: (tagId: number) => void;
+  playerCarIndex?: number | null;
+  playerSource?: PlayerSource | null;
 }
 
 export const SessionDetailView: React.FC<SessionDetailViewProps> = (props) => {
@@ -76,6 +79,8 @@ export const SessionDetailView: React.FC<SessionDetailViewProps> = (props) => {
   const totalSessionLaps = props.totalSessionLaps ?? historyData.totalSessionLaps;
   const totalDriversCount = props.totalDriversCount ?? historyData.totalDriversCount;
   const expandedDrivers = props.expandedDrivers ?? historyData.expandedDrivers;
+  const playerCarIndex = props.playerCarIndex !== undefined ? props.playerCarIndex : historyData.playerCarIndex;
+  const playerSource = props.playerSource !== undefined ? props.playerSource : historyData.playerSource;
   const onToggleDriverExpand = props.onToggleDriverExpand ?? historyActions.toggleDriverExpand;
   const stagedA = props.stagedA !== undefined ? props.stagedA : historyData.stagedSlotA;
   const stagedB = props.stagedB !== undefined ? props.stagedB : historyData.stagedSlotB;
@@ -142,6 +147,8 @@ export const SessionDetailView: React.FC<SessionDetailViewProps> = (props) => {
             formatTotalDuration={formatTotalDuration}
             renderTyreBadge={renderTyreBadge}
             renderDriverTyreStints={renderDriverTyreStints}
+            playerCarIndex={playerCarIndex}
+            playerSource={playerSource}
           />
         );
       case 'charts':
@@ -152,6 +159,7 @@ export const SessionDetailView: React.FC<SessionDetailViewProps> = (props) => {
             totalSessionLaps={totalSessionLaps}
             formatLapTime={formatLapTime}
             isRaceSession={isRaceSession}
+            playerCarIndex={playerCarIndex}
           />
         );
       case 'stints':
@@ -162,6 +170,7 @@ export const SessionDetailView: React.FC<SessionDetailViewProps> = (props) => {
             totalSessionLaps={totalSessionLaps}
             formatLapTime={formatLapTime}
             renderTyreBadge={renderTyreBadge}
+            playerCarIndex={playerCarIndex}
           />
         );
       case 'sectors':

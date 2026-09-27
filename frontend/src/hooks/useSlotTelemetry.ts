@@ -13,6 +13,8 @@ export interface UseSlotTelemetryOptions {
   isSameSessionAsSlotA?: boolean;
   defaultDriverName?: string;
   preferredDriverName?: string;
+  /** Your car in this slot's session (its stored player car); null for older sessions, which use preferredDriverName. */
+  playerCarIndex?: number | null;
   referenceDriver?: Participant;
   referenceLapId?: number | '';
   rivalMode?: ComparatorRivalMode;
@@ -47,6 +49,7 @@ export function useSlotTelemetry({
   isSameSessionAsSlotA = false,
   defaultDriverName = 'Lap',
   preferredDriverName = '',
+  playerCarIndex = null,
   referenceDriver,
   referenceLapId,
   rivalMode = 'fastest',
@@ -65,6 +68,7 @@ export function useSlotTelemetry({
     isSlotB,
     isSameSessionAsSlotA,
     preferredDriverName,
+    playerCarIndex,
     referenceDriver,
     referenceLapId,
     rivalMode,
@@ -77,6 +81,7 @@ export function useSlotTelemetry({
       isSlotB,
       isSameSessionAsSlotA,
       preferredDriverName,
+      playerCarIndex,
       referenceDriver,
       referenceLapId,
       rivalMode,
@@ -87,6 +92,7 @@ export function useSlotTelemetry({
     isSlotB,
     isSameSessionAsSlotA,
     preferredDriverName,
+    playerCarIndex,
     referenceDriver,
     referenceLapId,
     rivalMode,
@@ -122,7 +128,7 @@ export function useSlotTelemetry({
           setLapId(currentOpts.preloadLapId);
         } else if (list.length > 0) {
           if (!currentOpts.isSlotB) {
-            const refRes = resolveReferenceLap(parts, list, currentOpts.preferredDriverName);
+            const refRes = resolveReferenceLap(parts, list, currentOpts.preferredDriverName, currentOpts.playerCarIndex);
             setLapId(refRes.lapId);
           } else {
             const compRes = resolveComparisonLap(
@@ -133,7 +139,8 @@ export function useSlotTelemetry({
               currentOpts.rivalDriverName,
               currentOpts.referenceLapId,
               currentOpts.isSameSessionAsSlotA,
-              currentOpts.preferredDriverName
+              currentOpts.preferredDriverName,
+              currentOpts.playerCarIndex
             );
             setLapId(compRes.lapId);
           }

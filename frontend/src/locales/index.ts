@@ -3,6 +3,7 @@ import { nav as enNav } from './en/nav';
 import { history as enHistory } from './en/history';
 import { comparator as enComparator } from './en/comparator';
 import { live as enLive } from './en/live';
+import { progress as enProgress } from './en/progress';
 import { ai_engineer as enAiEngineer } from './en/ai_engineer';
 import { radio_phrases as enRadioPhrases } from './en/radio_phrases';
 
@@ -11,6 +12,7 @@ import { nav as esNav } from './es/nav';
 import { history as esHistory } from './es/history';
 import { comparator as esComparator } from './es/comparator';
 import { live as esLive } from './es/live';
+import { progress as esProgress } from './es/progress';
 import { ai_engineer as esAiEngineer } from './es/ai_engineer';
 import { radio_phrases as esRadioPhrases } from './es/radio_phrases';
 
@@ -19,6 +21,7 @@ export const en = {
   nav: enNav,
   history: enHistory,
   comparator: enComparator,
+  progress: enProgress,
   live: enLive,
   ai_engineer: enAiEngineer,
   radio_phrases: enRadioPhrases,
@@ -29,6 +32,7 @@ export const es = {
   nav: esNav,
   history: esHistory,
   comparator: esComparator,
+  progress: esProgress,
   live: esLive,
   ai_engineer: esAiEngineer,
   radio_phrases: esRadioPhrases,

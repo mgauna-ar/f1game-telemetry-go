@@ -1,5 +1,16 @@
-import type { Lap, Participant, RawDriverStanding, Session, Tag, WeatherForecastSample } from '../types/session';
+import type {
+  Lap,
+  Participant,
+  PlayerResult,
+  RawDriverStanding,
+  Session,
+  SessionListItem,
+  SessionSummary,
+  Tag,
+  WeatherForecastSample,
+} from '../types/session';
 import { placeholderParticipant } from '../types/session';
+import type { ProgressSession } from '../types/progress';
 import type { GlobalPTTMapping } from '../types/settings';
 import type {
   CarDamageData,
@@ -31,8 +42,66 @@ export function makeSession(fields: Partial<Session> = {}): Session {
     ai_difficulty: 0,
     session_duration: 0,
     packet_format: 2025,
+    player_car_index: null,
     created_at: '2026-01-01T00:00:00Z',
     tags: [],
+    ...fields,
+  };
+}
+
+/** A row of GET /api/sessions: a session with its result summary (empty unless given). */
+export function makeSessionListItem(
+  fields: Partial<Session> = {},
+  summary: Partial<SessionSummary> = {}
+): SessionListItem {
+  return {
+    ...makeSession(fields),
+    summary: { laps_completed: 0, leader: null, fastest_lap: null, player: null, ...summary },
+  };
+}
+
+export function makePlayerResult(fields: Partial<PlayerResult> = {}): PlayerResult {
+  return {
+    car_index: 0,
+    driver_name: '',
+    team_id: 0,
+    race_number: 0,
+    source: 'recorded',
+    position: 1,
+    grid_position: 0,
+    positions_gained: null,
+    classified_cars: 20,
+    best_lap_id: 0,
+    best_lap_time_ms: 0,
+    laps_completed: 0,
+    is_dnf: false,
+    is_dsq: false,
+    ...fields,
+  };
+}
+
+export function makeProgressSession(fields: Partial<ProgressSession> = {}): ProgressSession {
+  return {
+    session_id: 1,
+    session_type: 'Race',
+    packet_format: 2026,
+    created_at: '2026-09-01T18:00:00Z',
+    source: 'recorded',
+    position: 1,
+    classified_cars: 20,
+    laps_completed: 0,
+    best_lap_id: 0,
+    best_lap_number: 0,
+    best_lap_time_ms: 0,
+    best_sector1_ms: 0,
+    best_sector2_ms: 0,
+    best_sector3_ms: 0,
+    fastest_lap_time_ms: 0,
+    fastest_lap_id: 0,
+    fastest_driver_name: '',
+    gap_to_fastest_ms: null,
+    consistency_ms: null,
+    clean_laps: 0,
     ...fields,
   };
 }

@@ -325,9 +325,9 @@
   display: none;
 }
 
-/* Short tab names once the long ones (up to ~700px in Spanish) no longer fit beside the brand and
+/* Short tab names once the long ones (up to ~740px in Spanish) no longer fit beside the brand and
    the status controls, an update chip included */
-@container topNav (max-width: 1300px) {
+@container topNav (max-width: 1400px) {
   .tabLabel {
     display: none;
   }
@@ -337,7 +337,7 @@
   }
 }
 
-/* Tablet: the tabs get their own row, in three equal parts */
+/* Tablet: the tabs get their own row, in equal parts */
 @media (--tablet) {
   .topNav {
     grid-template-areas:
@@ -349,7 +349,8 @@
 
   .tabs {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-columns: minmax(0, 1fr);
+    grid-auto-flow: column;
     justify-self: stretch;
   }
 
@@ -371,14 +372,25 @@
     display: none;
   }
 
+  /* Four tabs in a row: the icon above the name, so neither gets squeezed */
   .tab {
-    gap: var(--space-1-5);
-    font-size: var(--font-size-sm);
+    flex-direction: column;
+    gap: 2px;
+    padding-block: var(--space-1-5);
+    font-size: var(--font-size-xs);
   }
 
-  /* Just the dot; the word stays for screen readers */
+  .tab svg {
+    flex-shrink: 0;
+  }
+
+  /* Just the dot, on the tab's corner; the word stays for screen readers */
   .liveBadge {
+    position: absolute;
+    top: var(--space-1);
+    right: var(--space-2);
     gap: 0;
+    margin: 0;
     padding: 3px;
     font-size: 0;
   }

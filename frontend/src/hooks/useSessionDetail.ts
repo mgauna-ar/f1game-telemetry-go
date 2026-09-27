@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { api } from '../utils/apiClient';
 import { primeSessionLapData } from '../utils/sessionDataCache';
+import { savedDriverName } from '../utils/comparatorPreferencesUtils';
+import { findPlayer } from '../utils/player';
 import {
   type Session,
   type Lap,
@@ -10,6 +12,7 @@ import {
   type ProgressionResponse,
   type StintsResponse,
   type SessionDetailResponse,
+  type PlayerSource,
   groupLapsByCar,
   normalizeDriverStanding,
 } from '../types/session';
@@ -39,6 +42,10 @@ export interface UseSessionDetailReturn {
   isRaceSession: boolean;
   totalSessionLaps: number;
   totalDriversCount: number;
+  /** Your car in the open session (its stored car, or the saved driver name), or null. */
+  playerCarIndex: number | null;
+  /** How your car was found, or null when it wasn't. */
+  playerSource: PlayerSource | null;
 }
 
 export function useSessionDetail({ onClearStagedSlots }: UseSessionDetailProps = {}): UseSessionDetailReturn {
@@ -142,6 +149,11 @@ export function useSessionDetail({ onClearStagedSlots }: UseSessionDetailProps =
 
   const totalDriversCount = driverStandings.length;
 
+  const player = useMemo(
+    () => (selectedSession ? findPlayer(participants, selectedSession.player_car_index, savedDriverName()) : undefined),
+    [selectedSession, participants]
+  );
+
   return {
     selectedSession,
     setSelectedSession,
@@ -161,5 +173,7 @@ export function useSessionDetail({ onClearStagedSlots }: UseSessionDetailProps =
     isRaceSession,
     totalSessionLaps,
     totalDriversCount,
+    playerCarIndex: player?.participant.car_index ?? null,
+    playerSource: player?.source ?? null,
   };
 }

@@ -9,6 +9,7 @@ import { storage } from '../utils/storage';
  * - `/history/:sessionId[/:tab]`: one session; the tab is left out for the classification
  * - `/compare?sa=&a=&sb=&b=&zoom=`: sessions and laps of slots A and B, and the zoomed stretch
  *   in meters (`120-560`). `sb` is left out when both slots use the same session.
+ * - `/progress[/:track]`: your pace at a track across its sessions; the latest track when left out
  * - `/live/:mode`: the live dashboard or the voice cockpit
  */
 
@@ -27,13 +28,19 @@ export interface CompareParams {
 export type Route =
   | { page: 'history'; sessionId?: number; tab: SessionDetailTab }
   | ({ page: 'compare' } & CompareParams)
+  | { page: 'progress'; track?: string }
   | { page: 'live'; mode: LiveViewMode };
 
 export type Page = Route['page'];
 
 /** The last page, reopened when the dashboard is opened at `/`. The old tab names are kept. */
 export const STORAGE_KEY_LAST_PAGE = 'f1_active_tab';
-const PAGE_TO_STORED: Record<Page, string> = { history: 'history', compare: 'comparator', live: 'live' };
+const PAGE_TO_STORED: Record<Page, string> = {
+  history: 'history',
+  compare: 'comparator',
+  progress: 'progress',
+  live: 'live',
+};
 
 const positiveInt = (value: string | null | undefined): number | undefined => {
   if (!value || !/^\d+$/.test(value)) return undefined;
@@ -47,6 +54,16 @@ const parseZoom = (value: string | null): [number, number] | undefined => {
   const start = Number(match[1]);
   const end = Number(match[2]);
   return end > start ? [start, end] : undefined;
+};
+
+/** A decoded path segment; undefined when it is empty or not valid percent-encoding. */
+const decodeSegment = (value: string | undefined): string | undefined => {
+  if (!value) return undefined;
+  try {
+    return decodeURIComponent(value).trim() || undefined;
+  } catch {
+    return undefined;
+  }
 };
 
 const isDetailTab = (value: string | undefined): value is SessionDetailTab =>
@@ -64,7 +81,7 @@ export const storedLiveMode = (): LiveViewMode => {
 const storedPage = (): Page => {
   const saved = storage.get<string>(STORAGE_KEY_LAST_PAGE, 'history');
   if (saved === 'comparator') return 'compare';
-  return saved === 'live' ? 'live' : 'history';
+  return saved === 'live' || saved === 'progress' ? saved : 'history';
 };
 
 /**
@@ -88,6 +105,9 @@ export function parseRoute(pathname: string, search = ''): Route {
     };
     return { page: 'compare', ...params };
   }
+  if (page === 'progress') {
+    return { page: 'progress', track: decodeSegment(second) };
+  }
   if (page === 'live') {
     return { page: 'live', mode: isLiveMode(second) ? second : storedLiveMode() };
   }
@@ -107,6 +127,8 @@ export function buildPath(route: Route): string {
         : `/history/${route.sessionId}/${route.tab}`;
     case 'live':
       return `/live/${route.mode}`;
+    case 'progress':
+      return route.track ? `/progress/${encodeURIComponent(route.track)}` : '/progress';
     case 'compare': {
       const query = new URLSearchParams();
       if (route.sessionA) query.set('sa', String(route.sessionA));

@@ -179,11 +179,22 @@ func (sm *SessionManager) handleNewSession(ctx context.Context, header packets.P
 		TotalLaps:       0,
 		AIDifficulty:    0,
 		SessionDuration: 0,
+		PlayerCarIndex:  playerCarIndex(header),
 	}
 
 	if err := sm.repo.SaveSession(ctx, sm.currentSession); err != nil {
 		slog.Error("Failed to save new session", "sessionUID", uidHex, "error", err)
 	}
+}
+
+// playerCarIndex returns the header's player car, or nil when it is not a car of the grid (the
+// game sends 255 while spectating).
+func playerCarIndex(header packets.PacketHeader) *int {
+	idx := int(header.PlayerCarIndex)
+	if idx >= packets.MaxCarsForFormat(header.PacketFormat) {
+		return nil
+	}
+	return &idx
 }
 
 func (sm *SessionManager) updateSessionInfo(ctx context.Context, p *packets.PacketSessionData) {

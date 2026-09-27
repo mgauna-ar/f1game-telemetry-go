@@ -142,8 +142,8 @@ func (r *SQLiteRepository) SaveSession(ctx context.Context, s *Session) error {
 
 func saveSession(ctx context.Context, db sqlx.ExtContext, s *Session) error {
 	query := `
-		INSERT INTO sessions (session_uid, track_id, track_name, session_type, weather, weather_forecast, total_laps, ai_difficulty, session_duration, packet_format)
-		VALUES (:session_uid, :track_id, :track_name, :session_type, :weather, :weather_forecast, :total_laps, :ai_difficulty, :session_duration, :packet_format)
+		INSERT INTO sessions (session_uid, track_id, track_name, session_type, weather, weather_forecast, total_laps, ai_difficulty, session_duration, packet_format, player_car_index)
+		VALUES (:session_uid, :track_id, :track_name, :session_type, :weather, :weather_forecast, :total_laps, :ai_difficulty, :session_duration, :packet_format, :player_car_index)
 		ON CONFLICT(session_uid) DO UPDATE SET
 			track_id = excluded.track_id,
 			track_name = excluded.track_name,
@@ -153,7 +153,8 @@ func saveSession(ctx context.Context, db sqlx.ExtContext, s *Session) error {
 			total_laps = CASE WHEN excluded.total_laps > 0 THEN excluded.total_laps ELSE sessions.total_laps END,
 			ai_difficulty = CASE WHEN excluded.ai_difficulty > 0 THEN excluded.ai_difficulty ELSE sessions.ai_difficulty END,
 			session_duration = CASE WHEN excluded.session_duration > 0 THEN excluded.session_duration ELSE sessions.session_duration END,
-			packet_format = excluded.packet_format
+			packet_format = excluded.packet_format,
+			player_car_index = COALESCE(excluded.player_car_index, sessions.player_car_index)
 		RETURNING id
 	`
 	rows, err := sqlx.NamedQueryContext(ctx, db, query, s)
@@ -473,6 +474,7 @@ func (r *SQLiteRepository) GetSessions(ctx context.Context) ([]Session, error) {
 			s.ai_difficulty,
 			s.session_duration,
 			s.packet_format,
+			s.player_car_index,
 			s.created_at
 		FROM sessions s
 		WHERE ` + sessionValidFilter + `
@@ -805,6 +807,43 @@ func getParticipantsBySession(ctx context.Context, db queryPreparer, sessionID i
 	return participants, nil
 }
 
+// GetSessionResults loads the participants and laps of the given sessions, keyed by session ID,
+// with the same rows and order GetParticipantsBySession and GetLapsBySession return.
+func (r *SQLiteRepository) GetSessionResults(ctx context.Context, sessionIDs []int64) (participantsBySession map[int64][]Participant, lapsBySession map[int64][]Lap, err error) {
+	participantsBySession = make(map[int64][]Participant, len(sessionIDs))
+	lapsBySession = make(map[int64][]Lap, len(sessionIDs))
+	if len(sessionIDs) == 0 {
+		return participantsBySession, lapsBySession, nil
+	}
+
+	query, args, err := sqlx.In(`SELECT * FROM participants WHERE session_id IN (?) ORDER BY session_id, car_index ASC`, sessionIDs)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to build participants query: %w", err)
+	}
+	var participants []Participant
+	if err := r.db.SelectContext(ctx, &participants, r.db.Rebind(query), args...); err != nil {
+		return nil, nil, fmt.Errorf("failed to get participants: %w", err)
+	}
+	for _, p := range participants {
+		participantsBySession[p.SessionID] = append(participantsBySession[p.SessionID], p)
+	}
+
+	query, args, err = sqlx.In(`SELECT `+lapSelectColumns+` `+lapFromJoin+` WHERE laps.session_id IN (?) AND `+lapValidFilter+
+		` ORDER BY laps.session_id, laps.car_index ASC, laps.lap_number ASC`, sessionIDs)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to build laps query: %w", err)
+	}
+	var laps []Lap
+	if err := r.db.SelectContext(ctx, &laps, r.db.Rebind(query), args...); err != nil {
+		return nil, nil, fmt.Errorf("failed to get laps: %w", err)
+	}
+	for i := range laps {
+		DeriveSector3(&laps[i])
+		lapsBySession[laps[i].SessionID] = append(lapsBySession[laps[i].SessionID], laps[i])
+	}
+	return participantsBySession, lapsBySession, nil
+}
+
 // GetSessionByID retrieves a session by its database ID.
 func (r *SQLiteRepository) GetSessionByID(ctx context.Context, sessionID int64) (*Session, error) {
 	return getSessionByID(ctx, r.db, sessionID)
@@ -825,6 +864,7 @@ func getSessionByID(ctx context.Context, db queryPreparer, sessionID int64) (*Se
 			s.ai_difficulty,
 			s.session_duration,
 			s.packet_format,
+			s.player_car_index,
 			s.created_at
 		FROM sessions s
 		WHERE s.id = ?
@@ -932,7 +972,7 @@ func (r *SQLiteRepository) ExportSession(ctx context.Context, sessionID int64) (
 // GetSessionByUID retrieves a session by its hex session UID. Returns nil, nil if not found.
 func (r *SQLiteRepository) GetSessionByUID(ctx context.Context, sessionUID string) (*Session, error) {
 	var session Session
-	query := `SELECT id, session_uid, track_id, track_name, session_type, weather, weather_forecast, total_laps, ai_difficulty, session_duration, packet_format, created_at FROM sessions WHERE session_uid = ?`
+	query := `SELECT id, session_uid, track_id, track_name, session_type, weather, weather_forecast, total_laps, ai_difficulty, session_duration, packet_format, player_car_index, created_at FROM sessions WHERE session_uid = ?`
 	if err := r.db.GetContext(ctx, &session, query, sessionUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -1040,6 +1080,7 @@ func (r *SQLiteRepository) ImportSessionWithOptions(ctx context.Context, pkg *Ex
 		AIDifficulty:    pkg.Session.AIDifficulty,
 		SessionDuration: pkg.Session.SessionDuration,
 		PacketFormat:    pkg.Session.PacketFormat,
+		PlayerCarIndex:  pkg.Session.PlayerCarIndex,
 		CreatedAt:       pkg.Session.CreatedAt,
 	}
 

@@ -1,13 +1,14 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { useSessionListStore, SESSION_LIST_TTL_MS } from './useSessionListStore';
 import { api } from '../utils/apiClient';
-import type { Session } from '../types/session';
-import { makeSession } from '../test/wireFactories';
+import type { SessionListItem } from '../types/session';
+import { makeSessionListItem } from '../test/wireFactories';
+import { storage } from '../utils/storage';
 
 describe('useSessionListStore', () => {
-  const mockSessions: Session[] = [
-    makeSession({ id: 1, track_name: 'Silverstone', session_type: 'Race' }) as Session,
-    makeSession({ id: 2, track_name: 'Monza', session_type: 'Qualifying' }) as Session,
+  const mockSessions: SessionListItem[] = [
+    makeSessionListItem({ id: 1, track_name: 'Silverstone', session_type: 'Race' }),
+    makeSessionListItem({ id: 2, track_name: 'Monza', session_type: 'Qualifying' }),
   ];
 
   beforeEach(() => {
@@ -29,6 +30,17 @@ describe('useSessionListStore', () => {
     expect(state.loading).toBe(false);
     expect(state.error).toBeNull();
     expect(state.lastFetchedAt).not.toBeNull();
+  });
+
+  it("asks for the saved driver name's results in sessions recorded before the player's car was stored", async () => {
+    const getSpy = vi.spyOn(api, 'get').mockResolvedValue(mockSessions);
+    await useSessionListStore.getState().fetchSessions();
+    expect(getSpy).toHaveBeenLastCalledWith('/api/sessions');
+
+    storage.set('f1_comparator_default_driver_name', 'Max Verstappen');
+    await useSessionListStore.getState().fetchSessions({ force: true });
+    expect(getSpy).toHaveBeenLastCalledWith('/api/sessions?driver=Max+Verstappen');
+    localStorage.clear();
   });
 
   it('skips network call if data is fresh within TTL', async () => {

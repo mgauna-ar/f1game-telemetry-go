@@ -9,6 +9,7 @@ import { StrategyKPICards, type StrategyKPIs } from './stints/StrategyKPICards';
 import { StintGanttTimeline } from './stints/StintGanttTimeline';
 import { DegradationCurves } from './stints/DegradationCurves';
 import type { DriverStintData } from './stints/stintUtils';
+import { defaultChartSelection } from '../../utils/player';
 import styles from './SessionStintStrategyTab.module.css';
 
 export type { DriverStint, DriverStintData };
@@ -19,6 +20,8 @@ interface SessionStintStrategyTabProps {
   totalSessionLaps: number;
   formatLapTime: (ms: number) => string;
   renderTyreBadge?: (compound?: string, actualCompound?: string) => React.ReactNode;
+  /** Your car: picked by default with the cars around it, and marked in the driver chips. */
+  playerCarIndex?: number | null;
 }
 
 export const SessionStintStrategyTab: React.FC<SessionStintStrategyTabProps> = ({
@@ -26,15 +29,12 @@ export const SessionStintStrategyTab: React.FC<SessionStintStrategyTabProps> = (
   driverStandings,
   totalSessionLaps,
   formatLapTime,
+  playerCarIndex = null,
 }) => {
-  // Driver selection for degradation curves (default to top 5)
-  const [selectedDrivers, setSelectedDrivers] = useState<Record<number, boolean>>(() => {
-    const initial: Record<number, boolean> = {};
-    driverStandings.slice(0, 5).forEach((d) => {
-      initial[d.participant.car_index] = true;
-    });
-    return initial;
-  });
+  // Drivers shown in the degradation curves: you and the cars around you, or the top 5
+  const [selectedDrivers, setSelectedDrivers] = useState<Record<number, boolean>>(() =>
+    defaultChartSelection(driverStandings, playerCarIndex)
+  );
 
   // Compound filter for degradation curves ('ALL' or specific compound)
   const [selectedCompound, setSelectedCompound] = useState<string>('ALL');
@@ -207,6 +207,7 @@ export const SessionStintStrategyTab: React.FC<SessionStintStrategyTabProps> = (
         driverStandings={driverStandings}
         selectedDrivers={selectedDrivers}
         toggleDriver={toggleDriver}
+        playerCarIndex={playerCarIndex}
         selectAllDrivers={selectAllDrivers}
         clearAllDrivers={clearAllDrivers}
         selectedCompound={selectedCompound}

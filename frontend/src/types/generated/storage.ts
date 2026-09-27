@@ -64,6 +64,7 @@ export interface Session {
   ai_difficulty: number;
   session_duration: number;
   packet_format: number;
+  player_car_index: number | null;
   created_at: string;
   tags: Tag[];
 }

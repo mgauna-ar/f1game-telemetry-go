@@ -39,8 +39,10 @@ func registry() *tsgen.Generator {
 
 	// Types with their own MarshalJSON: a sample value that writes the optional properties, and
 	// the type whose fields describe the JSON. TestMarshalerKeys checks one against the other.
-	g.Marshaler(storage.Session{}, storage.Session{})                        // weather_forecast is raw JSON (tstype tag)
-	g.Marshaler(packets.PacketHeader{SessionUID: 1}, packets.PacketHeader{}) // SessionUID is hex (tstype tag)
+	g.Marshaler(storage.Session{PlayerCarIndex: new(int)}, storage.Session{}) // weather_forecast is raw JSON (tstype tag)
+	g.Marshaler(packets.PacketHeader{SessionUID: 1}, packets.PacketHeader{})  // SessionUID is hex (tstype tag)
+	// the session's JSON with the summary added
+	g.Marshaler(analytics.SessionListItem{Session: storage.Session{PlayerCarIndex: new(int)}}, analytics.SessionListItem{})
 
 	// Sessions, laps, participants and tags.
 	g.Add(
@@ -50,6 +52,13 @@ func registry() *tsgen.Generator {
 		storage.Tag{},
 		packets.WeatherForecastSample{},
 	)
+
+	// GET /api/sessions: each session with a summary of its result and the player's line.
+	g.Add(analytics.SessionListItem{})
+	g.TypeAlias("analytics", "PlayerSource", stringUnion(analytics.PlayerSources))
+
+	// GET /api/progress: the player's sessions at a track.
+	g.Add(analytics.TrackProgressResponse{})
 
 	// Session detail: classification, progression and stints plus the session's participants and laps.
 	g.Add(analytics.SessionDetailResponse{})

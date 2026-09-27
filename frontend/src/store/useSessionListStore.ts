@@ -1,15 +1,17 @@
 import { create } from 'zustand';
-import type { Session } from '../types/session';
+import type { SessionListItem } from '../types/session';
 import { api } from '../utils/apiClient';
+import { savedDriverName } from '../utils/comparatorPreferencesUtils';
 
 export const SESSION_LIST_TTL_MS = 30_000;
 
 export interface SessionListState {
-  sessions: Session[];
+  /** The recorded sessions, each with a summary of its result. */
+  sessions: SessionListItem[];
   loading: boolean;
   error: string | null;
   lastFetchedAt: number | null;
-  setSessions: (sessions: Session[] | ((prev: Session[]) => Session[])) => void;
+  setSessions: (sessions: SessionListItem[] | ((prev: SessionListItem[]) => SessionListItem[])) => void;
   fetchSessions: (options?: { force?: boolean }) => Promise<void>;
   invalidate: () => void;
   reset: () => void;
@@ -45,7 +47,10 @@ export const useSessionListStore = create<SessionListState>((set, get) => ({
 
     set({ loading: true, error: null });
     try {
-      const data = await api.get<Session[]>('/api/sessions');
+      // The saved driver name finds the player in sessions recorded before their car was stored.
+      const driver = savedDriverName().trim();
+      const query = driver ? `?${new URLSearchParams({ driver })}` : '';
+      const data = await api.get<SessionListItem[]>(`/api/sessions${query}`);
       set({
         sessions: data || [],
         lastFetchedAt: Date.now(),

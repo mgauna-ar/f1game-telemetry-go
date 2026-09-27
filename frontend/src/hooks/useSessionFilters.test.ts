@@ -1,12 +1,12 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import { useSessionFilters } from './useSessionFilters';
-import type { Session } from '../types/session';
-import { makeSession, makeTag } from '../test/wireFactories';
+import type { SessionListItem } from '../types/session';
+import { makeSessionListItem, makeTag } from '../test/wireFactories';
 
 describe('useSessionFilters Hook', () => {
-  const mockSessions: Session[] = [
-    makeSession({
+  const mockSessions: SessionListItem[] = [
+    makeSessionListItem({
       id: 1,
       session_uid: '0x1',
       track_name: 'Monza',
@@ -15,7 +15,7 @@ describe('useSessionFilters Hook', () => {
       total_laps: 53,
       tags: [makeTag({ id: 10, name: 'League A', color: '#ff0000' })],
     }),
-    makeSession({
+    makeSessionListItem({
       id: 2,
       session_uid: '0x2',
       track_name: 'Spa-Francorchamps',
@@ -24,7 +24,7 @@ describe('useSessionFilters Hook', () => {
       total_laps: 20,
       tags: [makeTag({ id: 20, name: 'League B', color: '#00ff00' })],
     }),
-    makeSession({
+    makeSessionListItem({
       id: 3,
       session_uid: '0x3',
       track_name: 'Monza',

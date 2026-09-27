@@ -68,3 +68,13 @@
   font-size: var(--font-size-2xs);
   opacity: 0.8;
 }
+
+.you {
+  padding: 0 var(--space-1);
+  border-radius: var(--radius-sm);
+  background: var(--accent-cyan);
+  color: var(--bg-dark);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-black);
+  letter-spacing: 0.04em;
+}

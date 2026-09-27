@@ -976,3 +976,45 @@ func TestSessionManager_ConcurrentProcessPacketAndClose(t *testing.T) {
 
 	wg.Wait()
 }
+
+func TestSessionManagerStoresPlayerCarIndex(t *testing.T) {
+	tests := []struct {
+		name      string
+		uid       uint64
+		playerCar uint8
+		want      *int
+	}{
+		{name: "player car", uid: 5001, playerCar: 5, want: new(5)},
+		{name: "spectating", uid: 5002, playerCar: 255, want: nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo, err := storage.NewSQLiteRepository(t.TempDir() + "/player.db")
+			if err != nil {
+				t.Fatalf("failed to create repo: %v", err)
+			}
+			defer repo.Close()
+			ctx := context.Background()
+			manager := NewSessionManager(repo)
+			manager.Start(ctx)
+			defer manager.Close(ctx)
+
+			manager.ProcessPacket(ctx, &packets.PacketSessionData{
+				Header:      packets.PacketHeader{PacketFormat: 2026, PacketId: packets.PacketIDSession, SessionUID: tt.uid, PlayerCarIndex: tt.playerCar},
+				TrackId:     11,
+				SessionType: packets.SessionRace,
+			})
+
+			saved, err := repo.GetSessionByUID(ctx, storage.FormatSessionUID(tt.uid))
+			if err != nil || saved == nil {
+				t.Fatalf("GetSessionByUID: %v, %v", saved, err)
+			}
+			switch {
+			case tt.want == nil && saved.PlayerCarIndex != nil:
+				t.Errorf("player_car_index = %d, want nil", *saved.PlayerCarIndex)
+			case tt.want != nil && (saved.PlayerCarIndex == nil || *saved.PlayerCarIndex != *tt.want):
+				t.Errorf("player_car_index = %v, want %d", saved.PlayerCarIndex, *tt.want)
+			}
+		})
+	}
+}

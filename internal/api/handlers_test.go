@@ -90,6 +90,107 @@ func TestHandlersAnalytics(t *testing.T) {
 		}
 	})
 
+	t.Run("GET /api/sessions adds each session's summary", func(t *testing.T) {
+		// A second session that stored the player's car.
+		mine := &storage.Session{SessionUID: storage.FormatSessionUID(445566), TrackID: 1, TrackName: "Albert Park", SessionType: "Race", PacketFormat: 2026, PlayerCarIndex: new(1)}
+		if err := repo.SaveSession(ctx, mine); err != nil {
+			t.Fatalf("failed to save session: %v", err)
+		}
+		if err := repo.SaveParticipants(ctx, mine.ID, participants); err != nil {
+			t.Fatalf("failed to save participants: %v", err)
+		}
+		for _, l := range laps {
+			lap := *l
+			lap.ID = 0
+			lap.SessionID = mine.ID
+			if err := repo.SaveLap(ctx, &lap, false); err != nil {
+				t.Fatalf("failed to save lap: %v", err)
+			}
+		}
+
+		type listItem struct {
+			ID             int64                    `json:"id"`
+			PlayerCarIndex *int                     `json:"player_car_index"`
+			Summary        analytics.SessionSummary `json:"summary"`
+		}
+		get := func(url string) map[int64]listItem {
+			t.Helper()
+			rec := httptest.NewRecorder()
+			server.Router().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, url, http.NoBody))
+			if rec.Code != http.StatusOK {
+				t.Fatalf("GET %s: expected 200 OK, got %d: %s", url, rec.Code, rec.Body.String())
+			}
+			var items []listItem
+			if err := json.Unmarshal(rec.Body.Bytes(), &items); err != nil {
+				t.Fatalf("failed to decode response: %v", err)
+			}
+			byID := map[int64]listItem{}
+			for _, it := range items {
+				byID[it.ID] = it
+			}
+			return byID
+		}
+
+		items := get("/api/sessions")
+		old, recorded := items[session.ID], items[mine.ID]
+		if old.PlayerCarIndex != nil || old.Summary.Player != nil {
+			t.Errorf("old session without a driver name: player_car_index %v, player %+v; want both null", old.PlayerCarIndex, old.Summary.Player)
+		}
+		if old.Summary.Leader == nil || old.Summary.Leader.DriverName != "Max Verstappen" || old.Summary.LapsCompleted != 2 {
+			t.Errorf("old session summary = %+v, want Verstappen leading after 2 laps", old.Summary)
+		}
+		if fl := old.Summary.FastestLap; fl == nil || fl.LapTimeMS != 90000 {
+			t.Errorf("fastest lap = %+v, want 90000", fl)
+		}
+		if p := recorded.Summary.Player; p == nil || p.CarIndex != 1 || p.Source != analytics.PlayerSourceRecorded || p.Position != 2 {
+			t.Errorf("recorded player = %+v, want car 1 P2 from the stored car", p)
+		}
+
+		items = get("/api/sessions?driver=hamilton")
+		if p := items[session.ID].Summary.Player; p == nil || p.CarIndex != 1 || p.Source != analytics.PlayerSourceDriverName {
+			t.Errorf("old session with a driver name: player = %+v, want car 1 by name", p)
+		}
+	})
+
+	t.Run("GET /api/progress returns the player's sessions at a track", func(t *testing.T) {
+		get := func(url string) analytics.TrackProgressResponse {
+			t.Helper()
+			rec := httptest.NewRecorder()
+			server.Router().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, url, http.NoBody))
+			if rec.Code != http.StatusOK {
+				t.Fatalf("GET %s: expected 200 OK, got %d: %s", url, rec.Code, rec.Body.String())
+			}
+			var resp analytics.TrackProgressResponse
+			if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+				t.Fatalf("failed to decode response: %v", err)
+			}
+			return resp
+		}
+
+		// The previous subtest added a second Albert Park session that stored the player's car.
+		resp := get("/api/progress")
+		if resp.Track != "Albert Park" || len(resp.Tracks) != 1 || resp.Tracks[0].Sessions != 2 {
+			t.Fatalf("track = %q, tracks = %+v; want Albert Park with 2 sessions", resp.Track, resp.Tracks)
+		}
+		if len(resp.Sessions) != 1 || resp.UnmatchedSessions != 1 || resp.Sessions[0].Source != analytics.PlayerSourceRecorded {
+			t.Errorf("without a driver name: sessions %+v, unmatched %d; want the recorded one only", resp.Sessions, resp.UnmatchedSessions)
+		}
+
+		resp = get("/api/progress?track=Albert+Park&driver=hamilton")
+		if len(resp.Sessions) != 2 || resp.UnmatchedSessions != 0 {
+			t.Fatalf("with a driver name: %d sessions, %d unmatched; want 2 and 0", len(resp.Sessions), resp.UnmatchedSessions)
+		}
+		if first := resp.Sessions[0]; first.SessionID != session.ID || first.BestLapTimeMS != 91000 ||
+			first.GapToFastestMS == nil || *first.GapToFastestMS != 1000 || first.FastestDriverName != "Max Verstappen" {
+			t.Errorf("oldest session = %+v, want Hamilton 1.000s off Verstappen", first)
+		}
+
+		resp = get("/api/progress?track=Monaco")
+		if resp.Track != "Monaco" || len(resp.Sessions) != 0 || len(resp.Tracks) != 1 {
+			t.Errorf("unknown track: %+v, want no sessions and the track list", resp)
+		}
+	})
+
 	t.Run("Analytics Error Handling - Invalid ID", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/sessions/invalid-id/detail", http.NoBody)
 		rec := httptest.NewRecorder()

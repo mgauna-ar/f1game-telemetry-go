@@ -2,8 +2,8 @@ import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useBatchOperations } from './useBatchOperations';
 import { useToastStore } from '../store/useToastStore';
-import type { Session } from '../types/session';
-import { makeSession } from '../test/wireFactories';
+import type { SessionListItem } from '../types/session';
+import { makeSessionListItem } from '../test/wireFactories';
 
 const jsonResponse = (status: number, body: unknown) =>
   Promise.resolve({
@@ -21,16 +21,16 @@ const lastToast = () => {
 };
 
 describe('useBatchOperations Hook', () => {
-  let mockSessions: Session[];
+  let mockSessions: SessionListItem[];
   let fetchSessions: () => Promise<void>;
   let fetchTags: () => Promise<void>;
-  let setSessions: React.Dispatch<React.SetStateAction<Session[]>>;
+  let setSessions: React.Dispatch<React.SetStateAction<SessionListItem[]>>;
 
   beforeEach(() => {
     mockSessions = [
-      makeSession({ id: 1, session_uid: '0x1', created_at: '2026-05-01T10:00:00Z', track_name: 'Monza', session_type: 'Race' }),
-      makeSession({ id: 2, session_uid: '0x2', created_at: '2026-05-02T10:00:00Z', track_name: 'Spa', session_type: 'Qualifying' }),
-      makeSession({ id: 3, session_uid: '0x3', created_at: '2026-05-03T10:00:00Z', track_name: 'Monaco', session_type: 'Practice' }),
+      makeSessionListItem({ id: 1, session_uid: '0x1', created_at: '2026-05-01T10:00:00Z', track_name: 'Monza', session_type: 'Race' }),
+      makeSessionListItem({ id: 2, session_uid: '0x2', created_at: '2026-05-02T10:00:00Z', track_name: 'Spa', session_type: 'Qualifying' }),
+      makeSessionListItem({ id: 3, session_uid: '0x3', created_at: '2026-05-03T10:00:00Z', track_name: 'Monaco', session_type: 'Practice' }),
     ];
     fetchSessions = vi.fn().mockResolvedValue(undefined);
     fetchTags = vi.fn().mockResolvedValue(undefined);

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Clock, ChevronRight, Trash2, Download } from 'lucide-react';
-import type { Session } from '../SessionHistory';
+import type { SessionListItem as Session } from '../../types/session';
 import { useI18n } from '../../context/I18nContext';
 import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContextDefinitions';
 import { formatDate as defaultFormatDate } from '../../utils/formatters';
@@ -17,6 +17,8 @@ import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { maxWidth } from '../../styles/breakpoints';
 import { SessionCardList } from './SessionCardList';
 import { sessionKind } from './sessionKind';
+import { commonPacketFormat } from './packetFormat';
+import { YourResult } from './YourResult';
 import styles from './SessionTableView.module.css';
 
 export interface SessionTableViewProps {
@@ -75,6 +77,8 @@ export const SessionTableView: React.FC<SessionTableViewProps> = React.memo((pro
       selectAllRef.current.indeterminate = isSomeSelected;
     }
   }, [isSomeSelected]);
+
+  const usualFormat = React.useMemo(() => commonPacketFormat(sessions), [sessions]);
 
   const selectAllLabel = isAllSelected ? t('history.batch.deselectAll') : t('history.batch.selectAll');
 
@@ -150,10 +154,15 @@ export const SessionTableView: React.FC<SessionTableViewProps> = React.memo((pro
       sortable: true,
       cell: (session) => (
         <div className={styles.type}>
-          <F1FormatBadge format={session.packet_format} size="xs" />
+          {session.packet_format !== usualFormat && <F1FormatBadge format={session.packet_format} size="xs" />}
           <SessionTypeBadge sessionType={session.session_type || 'RACE'} size="xs" showIcon={false} />
         </div>
       ),
+    },
+    {
+      key: 'result',
+      header: t('history.player.yourResult'),
+      cell: (session) => <YourResult summary={session.summary} sessionType={session.session_type} />,
     },
     {
       key: 'tags',

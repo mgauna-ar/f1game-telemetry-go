@@ -226,6 +226,36 @@ describe('SessionLapChartsTab Component', () => {
     expect(screen.getByText(/Lap-by-Lap Pace Evolution/i)).toBeInTheDocument();
   });
 
+  it('picks you and the cars around you by default, and marks your chip', () => {
+    const grid: DriverStanding[] = Array.from({ length: 8 }, (_, i) => ({
+      ...mockDriverStandings[0],
+      position: i + 1,
+      carIndex: i + 10,
+      driverName: `Driver ${i + 1}`,
+      participant: makeParticipant({ car_index: i + 10, name: `Driver ${i + 1}`, race_number: i + 1 }),
+    }));
+    render(
+      <I18nProvider>
+        <SessionLapChartsTab
+          progressionData={mockProgressionData}
+          driverStandings={grid}
+          totalSessionLaps={3}
+          formatLapTime={formatLapTime}
+          playerCarIndex={16}
+        />
+      </I18nProvider>
+    );
+
+    const pressed = (name: string) =>
+      screen.getByRole('button', { name: new RegExp(`^${name}\\s*#`) }).getAttribute('aria-pressed');
+    // P7 is yours: P4 to P8 are picked (the window shifts at the back of the field)
+    expect(['Driver 1', 'Driver 2', 'Driver 3'].map(pressed)).toEqual(['false', 'false', 'false']);
+    expect(['Driver 4', 'Driver 5', 'Driver 6', 'Driver 7', 'Driver 8'].map(pressed)).toEqual(
+      Array(5).fill('true')
+    );
+    expect(screen.getByRole('button', { name: /^Driver 7\s*#7/ })).toHaveTextContent('YOU');
+  });
+
   it('renders position progression in race mode', () => {
     render(
       <I18nProvider>

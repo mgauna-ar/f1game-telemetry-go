@@ -158,6 +158,14 @@ CREATE INDEX IF NOT EXISTS idx_laps_session_car_num ON laps(session_id, car_inde
 DROP INDEX IF EXISTS idx_participants_session;
 `,
 	},
+	{
+		// Sessions recorded before this migration keep NULL: they are not backfilled.
+		Version: 6,
+		Name:    "add_player_car_index_to_sessions",
+		SQL: `
+ALTER TABLE sessions ADD COLUMN player_car_index INTEGER;
+`,
+	},
 }
 
 // Migrate runs all pending migrations in version order.

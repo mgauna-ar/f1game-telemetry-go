@@ -53,7 +53,19 @@ func (s *Server) handleGetSessions(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, "failed to get sessions", http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, http.StatusOK, sessions)
+	ids := make([]int64, len(sessions))
+	for i := range sessions {
+		ids[i] = sessions[i].ID
+	}
+	participants, laps, err := s.repo.GetSessionResults(r.Context(), ids)
+	if err != nil {
+		slog.Error("Failed to get session results", "error", err)
+		writeJSONError(w, "failed to get sessions", http.StatusInternalServerError)
+		return
+	}
+	// driver is the dashboard's saved driver name, which finds the player in sessions recorded
+	// before the player's car was stored.
+	writeJSON(w, http.StatusOK, analytics.ComputeSessionList(sessions, participants, laps, r.URL.Query().Get("driver")))
 }
 
 func (s *Server) handleDeleteSession(w http.ResponseWriter, r *http.Request) {

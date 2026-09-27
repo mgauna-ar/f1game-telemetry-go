@@ -18,14 +18,20 @@ export type {
   DriverStint as RawDriverStint,
   DriverStintData,
   ProgressionDriverMeta,
+  PlayerResult,
+  PlayerSource,
   ProgressionResponse,
   ProgressionRow,
   SessionDetailResponse,
+  SessionListItem,
+  SessionSummary,
   SpeedRanking,
   StintInfo as StandingStint,
   StintKPIs,
   StintLongestSummary,
   StintsResponse,
+  SummaryDriver,
+  SummaryLap,
 } from './generated/analytics';
 
 /** A participant for a car the server sent no participant row for, with the given fields set. */

@@ -1,0 +1,141 @@
+.page {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-8);
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  font-size: 2rem;
+}
+
+.subtitle {
+  margin: var(--space-1) 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-md);
+  color: var(--text-secondary);
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.trackPicker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.controlLabel {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.trackSelect {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 220px;
+}
+
+.trackSelect > :last-child {
+  flex: 1;
+}
+
+.unmatched {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--f1-yellow-border);
+  border-radius: var(--radius-sm);
+  background: var(--f1-yellow-bg);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.stat {
+  padding: var(--space-3) var(--space-4);
+}
+
+/* Let the detail lines wrap instead of being cut off */
+.stat dd {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.statValue {
+  font-size: var(--font-size-xl);
+}
+
+.best {
+  color: var(--f1-purple);
+}
+
+@media (--laptop) {
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (--tablet) {
+  .page {
+    padding: var(--space-4);
+  }
+}
+
+@media (--phone) {
+  .page {
+    padding: var(--space-4) var(--space-4) var(--space-6);
+  }
+
+  .title {
+    font-size: var(--font-size-2xl);
+  }
+
+  .controls,
+  .trackPicker,
+  .trackSelect {
+    width: 100%;
+  }
+
+  .stats {
+    gap: var(--space-2);
+  }
+
+  .stat {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .statValue {
+    font-size: var(--font-size-lg);
+  }
+}

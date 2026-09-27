@@ -28,6 +28,8 @@ export interface ClassificationColumnsOptions {
   formatLapTime: (ms: number) => string;
   formatTotalDuration: (ms: number) => string;
   renderDriverTyreStints: (laps: Lap[]) => React.ReactNode;
+  /** Your car, whose name is marked YOU. */
+  playerCarIndex?: number | null;
 }
 
 type Translate = ReturnType<typeof useI18n>['t'];
@@ -143,6 +145,11 @@ export const useClassificationColumns = (o: ClassificationColumnsOptions): DataT
           <span className={styles.driverName}>{driver.participant.name}</span>
           <span className={styles.raceNumber}>#{driver.participant.race_number}</span>
         </span>
+        {driver.participant.car_index === o.playerCarIndex && (
+          <Badge tone="accent" size="xs" className={styles.youBadge}>
+            {t('history.player.you')}
+          </Badge>
+        )}
       </div>
     ),
   };

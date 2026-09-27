@@ -150,3 +150,18 @@
 .explore {
   margin-left: auto;
 }
+
+.result {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.resultLabel {
+  flex-shrink: 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}

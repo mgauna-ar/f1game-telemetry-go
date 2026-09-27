@@ -73,6 +73,8 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({ 
     isRaceSession,
     totalSessionLaps,
     totalDriversCount,
+    playerCarIndex,
+    playerSource,
   } = useSessionDetail({ onClearStagedSlots: handleClearAllStaged });
 
   // Hook 4: Tags management
@@ -223,6 +225,8 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({ 
       isRaceSession,
       totalSessionLaps,
       totalDriversCount,
+      playerCarIndex,
+      playerSource,
       expandedDrivers,
       activeDetailTab,
       stagedSlotA,
@@ -263,6 +267,8 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({ 
       isRaceSession,
       totalSessionLaps,
       totalDriversCount,
+      playerCarIndex,
+      playerSource,
       expandedDrivers,
       activeDetailTab,
       stagedSlotA,

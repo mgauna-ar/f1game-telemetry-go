@@ -42,6 +42,7 @@ type Session struct {
 	AIDifficulty    int       `db:"ai_difficulty" json:"ai_difficulty"`
 	SessionDuration int       `db:"session_duration" json:"session_duration"`
 	PacketFormat    int       `db:"packet_format" json:"packet_format"`
+	PlayerCarIndex  *int      `db:"player_car_index" json:"player_car_index"` // PacketHeader.PlayerCarIndex; null before migration 6 (no backfill) and when spectating
 	CreatedAt       time.Time `db:"created_at" json:"created_at"`
 	Tags            []Tag     `db:"-" json:"tags"`
 }
