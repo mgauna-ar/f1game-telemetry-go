@@ -32,6 +32,10 @@ type Repository interface {
 	SaveParticipants(ctx context.Context, sessionID int64, participants []Participant) error
 	GetParticipantsBySession(ctx context.Context, sessionID int64) ([]Participant, error)
 
+	// GetSessionResults loads the participants and laps of several sessions in one query each,
+	// keyed by session ID, for the session list's summaries.
+	GetSessionResults(ctx context.Context, sessionIDs []int64) (map[int64][]Participant, map[int64][]Lap, error)
+
 	// Tags & League Organization
 	GetAllTags(ctx context.Context) ([]Tag, error)
 	CreateTag(ctx context.Context, t *Tag) error

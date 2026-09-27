@@ -807,6 +807,43 @@ func getParticipantsBySession(ctx context.Context, db queryPreparer, sessionID i
 	return participants, nil
 }
 
+// GetSessionResults loads the participants and laps of the given sessions, keyed by session ID,
+// with the same rows and order GetParticipantsBySession and GetLapsBySession return.
+func (r *SQLiteRepository) GetSessionResults(ctx context.Context, sessionIDs []int64) (participantsBySession map[int64][]Participant, lapsBySession map[int64][]Lap, err error) {
+	participantsBySession = make(map[int64][]Participant, len(sessionIDs))
+	lapsBySession = make(map[int64][]Lap, len(sessionIDs))
+	if len(sessionIDs) == 0 {
+		return participantsBySession, lapsBySession, nil
+	}
+
+	query, args, err := sqlx.In(`SELECT * FROM participants WHERE session_id IN (?) ORDER BY session_id, car_index ASC`, sessionIDs)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to build participants query: %w", err)
+	}
+	var participants []Participant
+	if err := r.db.SelectContext(ctx, &participants, r.db.Rebind(query), args...); err != nil {
+		return nil, nil, fmt.Errorf("failed to get participants: %w", err)
+	}
+	for _, p := range participants {
+		participantsBySession[p.SessionID] = append(participantsBySession[p.SessionID], p)
+	}
+
+	query, args, err = sqlx.In(`SELECT `+lapSelectColumns+` `+lapFromJoin+` WHERE laps.session_id IN (?) AND `+lapValidFilter+
+		` ORDER BY laps.session_id, laps.car_index ASC, laps.lap_number ASC`, sessionIDs)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to build laps query: %w", err)
+	}
+	var laps []Lap
+	if err := r.db.SelectContext(ctx, &laps, r.db.Rebind(query), args...); err != nil {
+		return nil, nil, fmt.Errorf("failed to get laps: %w", err)
+	}
+	for i := range laps {
+		DeriveSector3(&laps[i])
+		lapsBySession[laps[i].SessionID] = append(lapsBySession[laps[i].SessionID], laps[i])
+	}
+	return participantsBySession, lapsBySession, nil
+}
+
 // GetSessionByID retrieves a session by its database ID.
 func (r *SQLiteRepository) GetSessionByID(ctx context.Context, sessionID int64) (*Session, error) {
 	return getSessionByID(ctx, r.db, sessionID)

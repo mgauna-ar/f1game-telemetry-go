@@ -1701,3 +1701,59 @@ func TestMigrationAddPlayerCarIndexLeavesOldSessionsNull(t *testing.T) {
 		t.Errorf("old session player_car_index = %d, want NULL (no backfill)", playerCar.Int64)
 	}
 }
+
+func TestGetSessionResults(t *testing.T) {
+	repo := setupTestRepo(t)
+	ctx := context.Background()
+
+	ids := make([]int64, 0, 2)
+	for n := range 2 {
+		s := &Session{SessionUID: FormatSessionUID(uint64(2001 + n)), TrackID: 11, TrackName: "Monza", SessionType: "Race", PacketFormat: 2026}
+		if err := repo.SaveSession(ctx, s); err != nil {
+			t.Fatalf("SaveSession: %v", err)
+		}
+		ids = append(ids, s.ID)
+		if err := repo.SaveParticipants(ctx, s.ID, []Participant{{CarIndex: 1, Name: "B"}, {CarIndex: 0, Name: "A"}}); err != nil {
+			t.Fatalf("SaveParticipants: %v", err)
+		}
+		for _, l := range []Lap{
+			{SessionID: s.ID, CarIndex: 1, LapNumber: 1, LapTimeMS: 91_000 + n, Sector1MS: 30_000, Sector2MS: 30_000},
+			{SessionID: s.ID, CarIndex: 0, LapNumber: 2, LapTimeMS: 90_000},
+			{SessionID: s.ID, CarIndex: 0, LapNumber: 1, LapTimeMS: 90_500},
+			{SessionID: s.ID, CarIndex: 0, LapNumber: 3}, // not a lap GetLapsBySession returns
+		} {
+			if err := repo.SaveLap(ctx, &l, false); err != nil {
+				t.Fatalf("SaveLap: %v", err)
+			}
+		}
+	}
+
+	participants, laps, err := repo.GetSessionResults(ctx, ids)
+	if err != nil {
+		t.Fatalf("GetSessionResults: %v", err)
+	}
+	for _, id := range ids {
+		wantParticipants, err := repo.GetParticipantsBySession(ctx, id)
+		if err != nil {
+			t.Fatalf("GetParticipantsBySession: %v", err)
+		}
+		wantLaps, err := repo.GetLapsBySession(ctx, id, nil)
+		if err != nil {
+			t.Fatalf("GetLapsBySession: %v", err)
+		}
+		if fmt.Sprint(participants[id]) != fmt.Sprint(wantParticipants) {
+			t.Errorf("session %d participants = %v, want %v", id, participants[id], wantParticipants)
+		}
+		if fmt.Sprint(laps[id]) != fmt.Sprint(wantLaps) {
+			t.Errorf("session %d laps = %v, want %v", id, laps[id], wantLaps)
+		}
+		if len(laps[id]) != 3 {
+			t.Errorf("session %d: %d laps, want 3", id, len(laps[id]))
+		}
+	}
+
+	participants, laps, err = repo.GetSessionResults(ctx, nil)
+	if err != nil || len(participants) != 0 || len(laps) != 0 {
+		t.Errorf("no sessions: %v, %v, %v", participants, laps, err)
+	}
+}

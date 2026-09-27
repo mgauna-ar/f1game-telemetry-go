@@ -27,6 +27,7 @@
 
 ### 📊 Session History & League Management
 * **4-Tab Deep Dive:** Detailed analysis for Official Classification & Penalties, Lap Progression & Gap Charts, Tyre Strategy & Stint Degradation, and Speed/Sector Matrix.
+* **Your Car in Every Session:** Each recorded session stores which car you drove (`player_car_index`), so the list and the AI debrief know your result. Sessions recorded before this was stored keep it empty and find you by the driver name saved in the comparator's preferences.
 * **League & Tag Organization:** Categorize sessions by league (*WOR*, *AOR*, *PSGL*) or weather setup with color chips and tag filtering.
 * **Batch Operations & Portability:** Multi-select sessions to export to ZIP, bulk delete, or batch tag. Drag-and-drop import with duplicate detection.
 
@@ -110,6 +111,8 @@ make gen-types   # or: go run ./cmd/tsgen
 CI runs `go run ./cmd/tsgen -check` and fails when the generated files are out of date.
 
 The 10 Hz live snapshot on `/ws` is a slim DTO (`internal/session/live_snapshot.go`): one row per active car and only the fields the live views read. To show another packet field live, add it there first. `go test -run TestLiveSnapshotPayloadSize -v ./cmd/simulator` prints its size per frame next to the raw packets.
+
+`GET /api/sessions` returns each session with a `summary` of its result (`analytics.SessionListItem`): the leader (race winner or pole), the fastest lap, the laps completed and `player`, your finish and grid position, places gained, best lap and laps. `player` comes from the session's stored `player_car_index`; for sessions recorded before it was stored, pass `?driver=<name or race number>` to match your driver the way the comparator does (`player.source` says which).
 
 Opening a recorded session is one request, `GET /api/sessions/{id}/detail`: the classification, progression and stints plus the session's participants and laps, loaded from SQLite once and sent once (standings and stints refer to laps by `car_index` and lap ID). `go test -run TestSessionViewPayloadSize -v ./internal/api` prints its bytes and database reads for a full synthetic race; set `F1_PAYLOAD_DB` (a copy of your database) and `F1_PAYLOAD_SESSION` to measure a recorded one.
 

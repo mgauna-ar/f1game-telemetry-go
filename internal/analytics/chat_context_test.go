@@ -3,6 +3,7 @@ package analytics
 import (
 	"context"
 	"errors"
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -107,6 +108,75 @@ func TestBuildSessionDebrief(t *testing.T) {
 		}
 		if !strings.Contains(summary, "Total Drivers in Session: 12") {
 			t.Errorf("expected the full driver count, got:\n%s", summary)
+		}
+		if strings.Contains(summary, "YOUR RESULT") || strings.Contains(summary, "(YOU)") {
+			t.Errorf("a session without a player car has no player section:\n%s", summary)
+		}
+	})
+
+	grid := func(n int) *ClassificationResponse {
+		cls := &ClassificationResponse{ActualBestLapMS: 90_050, ActualBestLapDriver: "Driver 1"}
+		for i := 1; i <= n; i++ {
+			cls.Standings = append(cls.Standings, standing(i, fmt.Sprintf("Driver %d", i), 100+i, func(d *DriverStanding) {
+				d.CarIndex = i - 1
+				d.AIControlled = true
+			}))
+		}
+		return cls
+	}
+
+	t.Run("is about the player's race", func(t *testing.T) {
+		cls := grid(5)
+		me := &cls.Standings[2]
+		me.AIControlled = false
+		me.TeamName = "Ferrari"
+		me.GridPosition = 5
+		me.PositionsGained = new(2)
+		me.PitStopsCount = 1
+		playerSession := *session
+		playerSession.PlayerCarIndex = new(2)
+		summary := BuildSessionDebrief(&playerSession, cls).Summary
+		for _, want := range []string{
+			"YOUR RESULT (the driver you are debriefing):",
+			"- Driver: Driver 3 (#103, Ferrari)",
+			"- Result: P3 of 5 (started P5, +2 places)",
+			"- Best Lap: 1:30.300 (+0.250s to the session's fastest lap) | Laps: 30 | Pit Stops: 1",
+			"- P3: Driver 3 (#103) (YOU) |",
+			"- P2: Driver 2 (#102) (AI) |",
+		} {
+			if !strings.Contains(summary, want) {
+				t.Errorf("expected %q in summary:\n%s", want, summary)
+			}
+		}
+	})
+
+	t.Run("lists the player and the cars either side outside the top drivers", func(t *testing.T) {
+		cls := grid(DebriefMaxDrivers + 8)
+		playerSession := *session
+		playerSession.PlayerCarIndex = new(14) // P15
+		summary := BuildSessionDebrief(&playerSession, cls).Summary
+		for _, want := range []string{"- P10: Driver 10", "\n- ...\n- P14: Driver 14", "- P15: Driver 15 (#115) (YOU)", "- P16: Driver 16"} {
+			if !strings.Contains(summary, want) {
+				t.Errorf("expected %q in summary:\n%s", want, summary)
+			}
+		}
+		for _, dontWant := range []string{"- P11:", "- P13:", "- P17:"} {
+			if strings.Contains(summary, dontWant) {
+				t.Errorf("did not expect %q in summary:\n%s", dontWant, summary)
+			}
+		}
+		if got := strings.Count(summary, "- ...\n"); got != 1 {
+			t.Errorf("expected one gap marker, got %d:\n%s", got, summary)
+		}
+	})
+
+	t.Run("no gap marker when the player is just outside the top drivers", func(t *testing.T) {
+		cls := grid(DebriefMaxDrivers + 3)
+		playerSession := *session
+		playerSession.PlayerCarIndex = new(DebriefMaxDrivers) // P11
+		summary := BuildSessionDebrief(&playerSession, cls).Summary
+		if strings.Contains(summary, "- ...") || !strings.Contains(summary, "- P12:") || strings.Contains(summary, "- P13:") {
+			t.Errorf("expected P1-P12 without a gap:\n%s", summary)
 		}
 	})
 }

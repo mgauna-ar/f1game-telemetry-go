@@ -83,10 +83,15 @@ func (s *ChatContextSource) lapWithSession(ctx context.Context, lapID int64) (*s
 	return lap, session, nil
 }
 
-// BuildSessionDebrief writes the session classification summary the debrief chat reads.
+// BuildSessionDebrief writes the session classification summary the debrief chat reads. When
+// the session stored the player's car, the debrief is about that driver's race: their result
+// comes first, their line is marked (YOU), and they and the cars either side of them are listed
+// even outside the top DebriefMaxDrivers. Sessions recorded before the player's car was stored
+// get the classification alone.
 func BuildSessionDebrief(session *storage.Session, cls *ClassificationResponse) ai.SessionDebrief {
 	var sb strings.Builder
 	standings := cls.Standings
+	me, _ := FindPlayerStanding(standings, session.PlayerCarIndex, "")
 
 	sb.WriteString("SESSION CLASSIFICATION & METRICS:\n")
 	fmt.Fprintf(&sb, "- Circuit: %s\n", session.TrackName)
@@ -112,17 +117,54 @@ func BuildSessionDebrief(session *storage.Session, cls *ClassificationResponse) 
 	}
 	fmt.Fprintf(&sb, "- Theoretical Best Lap of Session: %s\n", theoretical)
 
+	if me != nil {
+		writeDebriefPlayer(&sb, me, cls)
+	}
+
 	sb.WriteString("\nOFFICIAL DRIVER CLASSIFICATION & STINT BREAKDOWN:\n")
+	last := -1
 	for i := range standings {
-		if i == DebriefMaxDrivers {
-			break
+		// The player's row is at Position-1; the cars either side of it are listed too.
+		near := me != nil && i >= me.Position-2 && i <= me.Position
+		if i >= DebriefMaxDrivers && !near {
+			continue
 		}
-		writeDebriefStanding(&sb, &standings[i])
+		if i != last+1 {
+			sb.WriteString("- ...\n")
+		}
+		writeDebriefStanding(&sb, &standings[i], me)
+		last = i
 	}
 	return ai.SessionDebrief{Summary: sb.String()}
 }
 
-func writeDebriefStanding(sb *strings.Builder, d *DriverStanding) {
+// writeDebriefPlayer writes the player's own result, which the debrief is about.
+func writeDebriefPlayer(sb *strings.Builder, me *DriverStanding, cls *ClassificationResponse) {
+	sb.WriteString("\nYOUR RESULT (the driver you are debriefing):\n")
+	fmt.Fprintf(sb, "- Driver: %s (#%d, %s)\n", me.DriverName, me.RaceNumber, orDefault(me.TeamName, "Unknown team"))
+	result := fmt.Sprintf("P%d of %d", me.Position, len(cls.Standings))
+	switch {
+	case me.IsDSQ:
+		result = "DSQ"
+	case me.IsDNF:
+		result = "DNF"
+	}
+	if me.GridPosition > 0 {
+		result += fmt.Sprintf(" (started P%d", me.GridPosition)
+		if me.PositionsGained != nil {
+			result += fmt.Sprintf(", %+d places", *me.PositionsGained)
+		}
+		result += ")"
+	}
+	fmt.Fprintf(sb, "- Result: %s\n", result)
+	best := lapTimeText(me.BestLapTimeMS)
+	if cls.ActualBestLapMS > 0 && me.BestLapTimeMS > cls.ActualBestLapMS {
+		best += fmt.Sprintf(" (+%.3fs to the session's fastest lap)", float64(me.BestLapTimeMS-cls.ActualBestLapMS)/packets.MillisPerSecond)
+	}
+	fmt.Fprintf(sb, "- Best Lap: %s | Laps: %d | Pit Stops: %d\n", best, me.LapsCompleted, me.PitStopsCount)
+}
+
+func writeDebriefStanding(sb *strings.Builder, d, me *DriverStanding) {
 	gap := "-"
 	switch {
 	case d.Position == 1:
@@ -131,7 +173,10 @@ func writeDebriefStanding(sb *strings.Builder, d *DriverStanding) {
 		gap = fmt.Sprintf("+%.3fs", float64(d.GapToLeaderMS)/packets.MillisPerSecond)
 	}
 	driver := "(HUMAN PLAYER)"
-	if d.AIControlled {
+	switch {
+	case d == me:
+		driver = "(YOU)"
+	case d.AIControlled:
 		driver = "(AI)"
 	}
 	status := "Finished"
