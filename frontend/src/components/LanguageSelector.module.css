@@ -1,0 +1,120 @@
+.selector {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  user-select: none;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.button:hover {
+  color: var(--text-primary);
+  background: var(--bg-active);
+  border-color: var(--border-strong);
+}
+
+.button[aria-expanded='true'] {
+  color: var(--text-primary);
+  background: var(--bg-active);
+  border-color: var(--accent-primary);
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.flag {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+.code {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.05em;
+  color: var(--text-primary);
+}
+
+.chevron {
+  color: var(--text-muted);
+  transition: transform var(--transition-normal);
+}
+
+.button[aria-expanded='true'] .chevron {
+  transform: rotate(180deg);
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: var(--z-popover);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 220px;
+  padding: var(--space-1);
+  background: var(--bg-popover);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-dialog);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  animation: menuIn 0.15s ease-out;
+}
+
+@keyframes menuIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-sm);
+  text-align: left;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.option:hover {
+  color: var(--text-primary);
+  background: var(--bg-active);
+}
+
+.option[aria-selected='true'] {
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--accent-primary) 15%, transparent);
+}
+
+.label {
+  flex: 1;
+}
+
+.check {
+  color: var(--accent-primary);
+}

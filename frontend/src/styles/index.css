@@ -1,20 +1,6 @@
-/* ── Base ──────────────────────────────────────────────── */
+/* Global base styles only; every component styles itself with a CSS Module next to it. */
 @import './base/variables.css';
 @import './base/reset.css';
 @import './base/typography.css';
 @import './base/glass.css';
 @import './base/accessibility.css';
-
-/* ── Components ────────────────────────────────────────── */
-@import './components/navbar.css';
-@import './components/flags.css';
-@import './components/release-notes.css';
-@import './components/error-boundary.css';
-@import './components/copy-value.css';
-
-/* ── AI Race Engineer ──────────────────────────────────── */
-@import './components/ai-chat-widget.css';
-@import './components/ai-error-card.css';
-@import './components/ai-prompt-chips.css';
-@import './components/ai-settings.css';
-

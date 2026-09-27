@@ -98,6 +98,12 @@ export const ai_engineer = {
   copied: 'Copied',
   jumpToLatest: 'Jump to latest',
   inputHint: 'Enter to send, Shift+Enter for a new line',
+  openChat: 'Open AI Race Engineer',
+  closeSettings: 'Close settings',
+  messageLabel: 'Message to your race engineer',
+  replying: 'The engineer is replying',
+  showKey: 'Show API key',
+  hideKey: 'Hide API key',
   setup: {
     subtitle: 'Saved in the app and shared by every device',
     ready: 'Ready',

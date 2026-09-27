@@ -1,7 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useId, useState } from 'react';
 import { Eye, EyeOff, ExternalLink } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
 import type { AIKeyStatus, AIProvider } from '../../context/RaceEngineerContext';
+import { Badge, type BadgeTone } from '../ui/Badge';
+import { Button, IconButton } from '../ui/Button';
+import { TextInput } from '../ui/Field';
+import styles from './AiSettings.module.css';
 
 export interface ApiKeyFieldProps {
   provider: AIProvider;
@@ -31,6 +35,8 @@ export const ApiKeyField: React.FC<ApiKeyFieldProps> = ({
   const [showKey, setShowKey] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const inputId = useId();
+  const hintId = useId();
 
   useEffect(() => {
     setDraftKey('');
@@ -50,16 +56,16 @@ export const ApiKeyField: React.FC<ApiKeyFieldProps> = ({
     }
   };
 
-  let statusClass = 'is-missing';
+  let statusTone: BadgeTone = 'warning';
   let statusLabel = optional ? t('ai_engineer.setup.noKeyNeeded') : t('ai_engineer.setup.noKey');
   if (status.hasSavedKey) {
-    statusClass = 'is-ready';
+    statusTone = 'success';
     statusLabel = t('ai_engineer.apiKeySaved');
   } else if (status.hasEnvKey) {
-    statusClass = 'is-env';
+    statusTone = 'info';
     statusLabel = t('ai_engineer.serverEnvActive');
   } else if (optional) {
-    statusClass = 'is-neutral';
+    statusTone = 'neutral';
   }
 
   let placeholder = t('ai_engineer.enterApiKey');
@@ -69,77 +75,75 @@ export const ApiKeyField: React.FC<ApiKeyFieldProps> = ({
   const hasDraft = draftKey.trim() !== '';
 
   return (
-    <div className="ai-field">
-      <div className="ai-field-label-row">
-        <label className="ai-field-label" htmlFor={`ai-key-${provider}`}>
+    <div className={styles.field}>
+      <div className={styles.labelRow}>
+        <label className={styles.label} htmlFor={inputId}>
           {optional ? t('ai_engineer.setup.apiKeyOptional') : t('ai_engineer.apiKey')}
         </label>
-        <span className={`ai-key-status ${statusClass}`}>
-          <span className="ai-status-dot" />
+        <Badge tone={statusTone} size="xs">
           {statusLabel}
-        </span>
+        </Badge>
       </div>
 
-      <div className="ai-key-row">
-        <div className="ai-input-shell">
-          <input
-            id={`ai-key-${provider}`}
+      <div className={styles.keyRow}>
+        <div className={styles.inputShell}>
+          <TextInput
+            id={inputId}
             type={showKey ? 'text' : 'password'}
-            className="ai-input"
+            className={styles.withTrailing}
             autoComplete="off"
             spellCheck={false}
             placeholder={placeholder}
+            aria-describedby={hintId}
             value={draftKey}
             onChange={(e) => setDraftKey(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && hasDraft) store(draftKey);
             }}
           />
-          <button
-            type="button"
-            className="ai-input-icon-btn"
+          <IconButton
+            size="sm"
+            className={styles.trailing}
+            label={showKey ? t('ai_engineer.hideKey') : t('ai_engineer.showKey')}
+            aria-pressed={showKey}
             onClick={() => setShowKey(!showKey)}
-            aria-label={showKey ? 'Hide API key' : 'Show API key'}
           >
             {showKey ? <EyeOff size={14} /> : <Eye size={14} />}
-          </button>
+          </IconButton>
         </div>
         {hasDraft ? (
-          <button
-            type="button"
-            className="ai-btn ai-btn-primary"
+          <Button
+            variant="primary"
+            size="sm"
             onClick={() => store(draftKey)}
-            disabled={isSaving}
+            loading={isSaving}
             aria-label={t('ai_engineer.saveApiKey')}
           >
             {t('ai_engineer.setup.save')}
-          </button>
+          </Button>
         ) : (
           status.hasSavedKey && (
-            <button
-              type="button"
-              className="ai-btn ai-btn-ghost-danger"
+            <Button
+              size="sm"
+              className={styles.remove}
               onClick={() => store('')}
-              disabled={isSaving}
+              loading={isSaving}
               aria-label={t('ai_engineer.removeApiKey')}
-              title={t('ai_engineer.removeApiKey')}
             >
               {t('ai_engineer.setup.remove')}
-            </button>
+            </Button>
           )
         )}
       </div>
 
-      {error ? (
-        <div className="ai-field-hint is-error">{error}</div>
-      ) : (
-        <div className="ai-field-hint">{hint ?? t('ai_engineer.apiKeyStoredHint')}</div>
-      )}
+      <div id={hintId} className={styles.hint} role={error ? 'alert' : undefined}>
+        {error ?? hint ?? t('ai_engineer.apiKeyStoredHint')}
+      </div>
 
       {keyLink && (
-        <a className="ai-field-link" href={keyLink.url} target="_blank" rel="noopener noreferrer">
+        <a className={styles.link} href={keyLink.url} target="_blank" rel="noopener noreferrer">
           <span>{keyLink.label}</span>
-          <ExternalLink size={11} />
+          <ExternalLink size={11} aria-hidden="true" />
         </a>
       )}
     </div>

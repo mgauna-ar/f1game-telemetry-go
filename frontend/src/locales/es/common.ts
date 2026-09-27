@@ -3,6 +3,7 @@ export const common = {
   export: 'Exportar',
   clear: 'Limpiar',
   close: 'Cerrar',
+  dismiss: 'Descartar',
   done: 'Listo',
   search: 'Buscar',
   filter: 'Filtrar',
@@ -132,6 +133,15 @@ export const common = {
     latestStableRelease: 'Última versión estable: {version}',
   },
   releaseNotes: 'Notas de la versión',
+  errorBoundary: {
+    appTitle: 'Error de la aplicación',
+    title: 'Algo salió mal',
+    subtitle: 'Ocurrió un error inesperado al mostrar esta sección.',
+    reload: 'Recargar la aplicación',
+    tryAgain: 'Reintentar',
+    showDetails: 'Detalles técnicos',
+    hideDetails: 'Ocultar detalles',
+  },
 };
 
 

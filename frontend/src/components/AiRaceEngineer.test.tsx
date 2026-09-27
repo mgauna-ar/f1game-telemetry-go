@@ -136,7 +136,7 @@ describe('AiRaceEngineer Component', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Open AI Race Engineer/i }));
     const chat = screen.getByRole('dialog', { name: 'AI Race Engineer' });
-    fireEvent.click(within(chat).getByRole('button', { name: 'Settings' }));
+    fireEvent.click(within(chat).getByRole('button', { name: 'AI Settings' }));
 
     const settings = screen.getByRole('dialog', { name: 'AI Settings' });
     expect(settings).toContainElement(document.activeElement as HTMLElement);
@@ -176,7 +176,7 @@ describe('AiRaceEngineer Component', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Expand chat' }));
 
-    expect(screen.getByRole('dialog', { name: 'AI Race Engineer' })).toHaveClass('is-expanded');
+    expect(screen.getByRole('dialog', { name: 'AI Race Engineer' })).toHaveAttribute('data-expanded', 'true');
     expect(localStorage.getItem('f1_ai_engineer_expanded')).toBe('true');
     expect(screen.getByRole('button', { name: 'Shrink chat' })).toBeInTheDocument();
   });

@@ -1,14 +1,5 @@
 import React, { useState, useEffect, useId, useRef, useMemo } from 'react';
-import {
-  Bot,
-  Send,
-  Square,
-  Settings,
-  RotateCcw,
-  X,
-  Maximize2,
-  Minimize2,
-} from 'lucide-react';
+import { Bot, Send, Square, Settings, RotateCcw, X, Maximize2, Minimize2 } from 'lucide-react';
 import {
   useRaceEngineer,
   providerHasKey,
@@ -25,6 +16,9 @@ import { PromptChipBar } from './ai_engineer/PromptChipBar';
 import { ChatMessageList } from './ai_engineer/ChatMessageList';
 import { ChatSettingsDrawer } from './ai_engineer/ChatSettingsDrawer';
 import { useDialogLayer } from './ui/useDialogLayer';
+import { Badge, type BadgeProps } from './ui/Badge';
+import { IconButton } from './ui/Button';
+import styles from './AiRaceEngineer.module.css';
 
 export interface AiRaceEngineerProps {
   // Optional overrides for standalone or test usage
@@ -36,7 +30,6 @@ export interface AiRaceEngineerProps {
 const INPUT_MAX_HEIGHT_PX = 140;
 
 const getChatPlaceholder = (effectiveMode: string, t: (key: string) => string): string => {
-
   switch (effectiveMode) {
     case 'comparator':
       return t('ai_engineer.placeholderComparator');
@@ -49,10 +42,7 @@ const getChatPlaceholder = (effectiveMode: string, t: (key: string) => string): 
   }
 };
 
-export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
-  isOpenOverride,
-  onCloseOverride,
-}) => {
+export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({ isOpenOverride, onCloseOverride }) => {
   const { t } = useI18n();
   const {
     isOpen: contextIsOpen,
@@ -163,15 +153,20 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
     sendMessage(prompt);
   };
 
-  // Context Mode Badge label & color
-  const contextBadgeInfo = useMemo(() => {
+  // What the engineer is looking at: a badge and the track or state beside it
+  const context = useMemo((): {
+    label: string;
+    sub: string;
+    track: string | null;
+    badge: Pick<BadgeProps, 'tone' | 'color'>;
+  } => {
     if (effectiveMode === 'comparator') {
       const track = comparatorTarget?.trackName || null;
       return {
         label: t('ai_engineer.badges.comparator'),
         sub: track || t('ai_engineer.selectLaps'),
         track,
-        color: '#00f2fe',
+        badge: { tone: 'accent' },
       };
     }
     if (effectiveMode === 'session_debrief' && sessionDebriefTarget) {
@@ -179,7 +174,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
         label: t('ai_engineer.badges.debrief'),
         sub: sessionDebriefTarget.trackName || t('ai_engineer.modeDebrief'),
         track: sessionDebriefTarget.trackName,
-        color: '#ffd700',
+        badge: { color: 'var(--f1-gold)' },
       };
     }
     if (effectiveMode === 'live') {
@@ -188,77 +183,65 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
         label: t('ai_engineer.badges.liveWall'),
         sub: track || t('ai_engineer.liveSessionStandby'),
         track,
-        color: '#38ef7d',
+        badge: { tone: 'success' },
       };
     }
     return {
       label: t('ai_engineer.badges.standby'),
       sub: t('ai_engineer.telemetryReady'),
       track: null,
-      color: 'var(--text-secondary)',
+      badge: { tone: 'neutral' },
     };
   }, [effectiveMode, comparatorTarget, sessionDebriefTarget, isLiveStandby, liveTrackName, t]);
 
-  // If closed: render Floating Action Button (FAB)
   if (!isOpen) {
     return (
-      <div className="ai-fab-container">
-        <button
-          ref={fabRef}
-          className="ai-fab-button"
-          onClick={toggleChat}
-          title="Open AI Race Engineer"
-          aria-label="Open AI Race Engineer"
-        >
-          <div className="ai-fab-icon-wrapper">
-            <Bot size={22} className="ai-fab-bot-icon" />
-            <span className="ai-fab-pulse-ring" />
-          </div>
-          <span className="ai-fab-label">Race Engineer</span>
-        </button>
-      </div>
+      <button
+        ref={fabRef}
+        type="button"
+        className={styles.launcher}
+        onClick={toggleChat}
+        aria-label={t('ai_engineer.openChat')}
+      >
+        <span className={styles.launcherIcon} aria-hidden="true">
+          <Bot size={22} />
+          <span className={styles.pulse} />
+        </span>
+        <span>{t('ai_engineer.roleEngineer')}</span>
+      </button>
     );
   }
 
+  const expandLabel = isExpanded ? t('ai_engineer.collapse') : t('ai_engineer.expand');
+
   // When open: the floating chat panel, with no backdrop so the page stays usable beside it
   return (
-    <div
-      ref={widgetRef}
-      className={`ai-floating-widget${isExpanded ? ' is-expanded' : ''}`}
-      role="dialog"
-      aria-labelledby={titleId}
-    >
+    <div ref={widgetRef} className={styles.widget} data-expanded={isExpanded} role="dialog" aria-labelledby={titleId}>
       {/* The chat behind the settings layer is out of reach while settings are open */}
-      <div className="ai-widget-content" inert={showSettings}>
-        {/* Widget Header */}
-        <div className="ai-widget-header">
-          <div className="ai-widget-header-left">
-            <div className="ai-widget-avatar">
-              <Bot size={18} color="#00f2fe" />
-            </div>
-            <div className="ai-widget-heading">
-              <div className="ai-widget-title-row">
-                <span className="ai-widget-title" id={titleId}>
-                  AI Race Engineer
-                </span>
-                <span
-                  className="ai-context-badge mono"
-                  style={{
-                    color: contextBadgeInfo.color,
-                    borderColor: `${contextBadgeInfo.color}40`,
-                    backgroundColor: `${contextBadgeInfo.color}15`,
-                  }}
-                >
-                  {contextBadgeInfo.label}
-                </span>
+      <div className={styles.content} inert={showSettings}>
+        <div className={styles.header}>
+          <div className={styles.identity}>
+            <span className={styles.avatar} aria-hidden="true">
+              <Bot size={18} />
+            </span>
+            <div className={styles.heading}>
+              <div className={styles.titleRow}>
+                <h2 className={styles.title} id={titleId}>
+                  {t('ai_engineer.widgetTitle')}
+                </h2>
+                <Badge {...context.badge} size="xs" square uppercase>
+                  {context.label}
+                </Badge>
               </div>
-              <div className="ai-widget-sub">
-                {contextBadgeInfo.track && <TrackFlag track={contextBadgeInfo.track} width={13} height={9} />}
-                <span className="ai-widget-sub-context">{contextBadgeInfo.sub}</span>
-                <span className="ai-widget-sub-sep">•</span>
+              <div className={styles.context}>
+                {context.track && <TrackFlag track={context.track} width={13} height={9} />}
+                <span className={styles.contextName}>{context.sub}</span>
+                <span className={styles.separator} aria-hidden="true">
+                  •
+                </span>
                 <button
                   type="button"
-                  className="ai-widget-model-chip mono"
+                  className={styles.modelChip}
                   onClick={() => setShowSettings(true)}
                   title={config.model ? `${providerName} · ${config.model}` : providerName}
                 >
@@ -268,43 +251,27 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
             </div>
           </div>
 
-          <div className="ai-widget-header-actions">
-            <button
-              className={`ai-btn-icon${showSettings ? ' is-active' : ''}`}
+          <div className={styles.actions}>
+            <IconButton
+              size="sm"
+              label={t('ai_engineer.settings')}
+              aria-pressed={showSettings}
               onClick={() => setShowSettings(!showSettings)}
-              title={t('ai_engineer.settings')}
-              aria-label="Settings"
             >
               <Settings size={15} />
-            </button>
-            <button
-              className="ai-btn-icon"
-              onClick={clearMessages}
-              title={t('ai_engineer.clearChat')}
-              aria-label="Clear chat"
-            >
+            </IconButton>
+            <IconButton size="sm" label={t('ai_engineer.clearChat')} onClick={clearMessages}>
               <RotateCcw size={15} />
-            </button>
-            <button
-              className="ai-btn-icon"
-              onClick={() => setIsExpanded(!isExpanded)}
-              title={isExpanded ? t('ai_engineer.collapse') : t('ai_engineer.expand')}
-              aria-label={isExpanded ? t('ai_engineer.collapse') : t('ai_engineer.expand')}
-            >
+            </IconButton>
+            <IconButton size="sm" label={expandLabel} onClick={() => setIsExpanded(!isExpanded)}>
               {isExpanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
-            </button>
-            <button
-              className="ai-btn-icon ai-btn-close"
-              onClick={handleClose}
-              title={t('ai_engineer.close')}
-              aria-label="Close"
-            >
+            </IconButton>
+            <IconButton size="sm" label={t('ai_engineer.close')} className={styles.close} onClick={handleClose}>
               <X size={16} />
-            </button>
+            </IconButton>
           </div>
         </div>
 
-        {/* Quick Prompt Chips */}
         <PromptChipBar
           effectiveMode={effectiveMode}
           hasLapsSelected={hasLapsSelected}
@@ -315,7 +282,6 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
           onSelectPrompt={handlePromptChipClick}
         />
 
-        {/* Messages Scroll Area */}
         <ChatMessageList
           messages={messages}
           isGenerating={isGenerating}
@@ -324,14 +290,14 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
           onOpenSettings={() => setShowSettings(true)}
         />
 
-        {/* Chat Input Bar */}
-        <div className="ai-widget-input-bar">
-          <form onSubmit={handleSubmit} className="ai-widget-input-form">
+        <div className={styles.inputBar}>
+          <form onSubmit={handleSubmit} className={styles.inputForm}>
             <textarea
               ref={inputRef}
               rows={1}
-              className="ai-chat-input"
+              className={styles.input}
               placeholder={getChatPlaceholder(effectiveMode, t)}
+              aria-label={t('ai_engineer.messageLabel')}
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               onKeyDown={handleInputKeyDown}
@@ -342,7 +308,8 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
             {isGenerating ? (
               <button
                 type="button"
-                className="ai-btn-submit ai-btn-stop"
+                className={styles.send}
+                data-stop
                 onClick={stopGenerating}
                 title={t('ai_engineer.stop')}
                 aria-label={t('ai_engineer.stop')}
@@ -352,7 +319,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({
             ) : (
               <button
                 type="submit"
-                className="ai-btn-submit"
+                className={styles.send}
                 disabled={!inputMessage.trim()}
                 title={t('ai_engineer.send')}
                 aria-label={t('ai_engineer.send')}

@@ -5,6 +5,7 @@ import { Markdown } from '../ui/Markdown';
 import { ChatErrorCard } from './ChatErrorCard';
 import type { ChatMessage } from '../../types/ai';
 import { prefersReducedMotion } from '../../utils/motion';
+import styles from './ChatMessageList.module.css';
 
 export interface ChatMessageListProps {
   messages: ChatMessage[];
@@ -46,7 +47,14 @@ const CopyButton: React.FC<{ text: string }> = ({ text }) => {
 
   const label = copied ? t('ai_engineer.copied') : t('ai_engineer.copyReply');
   return (
-    <button type="button" className="ai-message-action" onClick={copy} title={label} aria-label={label}>
+    <button
+      type="button"
+      className={styles.copy}
+      data-copied={copied || undefined}
+      onClick={copy}
+      title={label}
+      aria-label={label}
+    >
       {copied ? <Check size={12} /> : <Copy size={12} />}
       {copied && <span>{label}</span>}
     </button>
@@ -135,39 +143,36 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
     stopAtQuestionRef.current = false;
     followRef.current = true;
     ownScrollTopRef.current = null;
-    if (typeof el.scrollTo === 'function') el.scrollTo({ top: el.scrollHeight, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+    if (typeof el.scrollTo === 'function')
+      el.scrollTo({ top: el.scrollHeight, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
     else el.scrollTop = el.scrollHeight;
   };
 
   return (
-    <div className="ai-widget-messages-wrap">
-      <div className="ai-widget-messages" ref={containerRef} onScroll={handleScroll}>
+    <div className={styles.wrap}>
+      <div className={styles.messages} ref={containerRef} onScroll={handleScroll}>
         {messages.map((m, idx) => {
           const isUser = m.role === 'user';
           const isStreaming = isGenerating && !isUser && idx === messages.length - 1;
           const time = formatTime(m.timestamp);
           return (
-            <div
-              key={m.id}
-              data-message-id={m.id}
-              className={`ai-message-row ${isUser ? 'ai-user-row' : 'ai-assistant-row'}`}
-            >
+            <div key={m.id} data-message-id={m.id} data-role={m.role} className={styles.row}>
               {isUser ? (
-                <div className="ai-message-bubble ai-user-bubble">
-                  <div className="ai-user-text">{m.content}</div>
-                  {time && <div className="ai-message-time mono">{time}</div>}
+                <div className={styles.question}>
+                  <div className={styles.questionText}>{m.content}</div>
+                  {time && <time className={styles.time}>{time}</time>}
                 </div>
               ) : (
-                <div className="ai-assistant-message">
-                  <div className="ai-message-meta">
-                    <span className="ai-message-avatar">
+                <div className={styles.reply}>
+                  <div className={styles.meta}>
+                    <span className={styles.avatar} aria-hidden="true">
                       <Bot size={12} />
                     </span>
-                    <span className="ai-message-author">{t('ai_engineer.roleEngineer')}</span>
-                    {time && <span className="ai-message-time mono">{time}</span>}
+                    <span className={styles.author}>{t('ai_engineer.roleEngineer')}</span>
+                    {time && <time className={styles.time}>{time}</time>}
                     {m.content && !m.errorCode && !isStreaming && <CopyButton text={m.content} />}
                   </div>
-                  <div className="ai-message-body">
+                  <div className={styles.body}>
                     {m.errorCode ? (
                       <ChatErrorCard
                         message={m}
@@ -177,12 +182,12 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
                         onOpenSettings={onOpenSettings}
                       />
                     ) : m.content ? (
-                      <Markdown content={m.content} className="chat-md" />
+                      <Markdown content={m.content} className={styles.markdown} />
                     ) : isStreaming ? (
-                      <div className="ai-typing-indicator">
-                        <span className="ai-dot" />
-                        <span className="ai-dot" />
-                        <span className="ai-dot" />
+                      <div className={styles.typing} role="status" aria-label={t('ai_engineer.replying')}>
+                        <span />
+                        <span />
+                        <span />
                       </div>
                     ) : null}
                   </div>
@@ -194,8 +199,8 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
       </div>
 
       {showJump && (
-        <button type="button" className="ai-jump-latest" onClick={jumpToLatest}>
-          <ArrowDown size={12} />
+        <button type="button" className={styles.jump} onClick={jumpToLatest}>
+          <ArrowDown size={12} aria-hidden="true" />
           <span>{t('ai_engineer.jumpToLatest')}</span>
         </button>
       )}

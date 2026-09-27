@@ -1,0 +1,40 @@
+.logo {
+  overflow: visible;
+}
+
+/* The needle sweeps and the spark pulses while animated, or on hover */
+.logo[data-animated] .needle,
+.logo:hover .needle {
+  transform-origin: 32px 35px;
+  animation: needleSweep 3s ease-in-out infinite;
+}
+
+.logo[data-animated] .spark,
+.logo:hover .spark {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: sparkPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes needleSweep {
+  30% {
+    transform: rotate(12deg);
+  }
+  60% {
+    transform: rotate(-6deg);
+  }
+  80% {
+    transform: rotate(8deg);
+  }
+}
+
+@keyframes sparkPulse {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.4);
+  }
+}

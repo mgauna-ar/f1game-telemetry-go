@@ -43,11 +43,9 @@ describe('App Navigation and Tab Bar', () => {
     expect(screen.queryByTestId('dashboard-view')).not.toBeInTheDocument();
 
     const tabs = navItems();
-    expect(tabs[0]).toHaveClass('active');
     expect(tabs[0]).toHaveAttribute('aria-current', 'page');
-    expect(tabs[1]).not.toHaveClass('active');
     expect(tabs[1]).not.toHaveAttribute('aria-current');
-    expect(tabs[2]).not.toHaveClass('active');
+    expect(tabs[2]).not.toHaveAttribute('aria-current');
   });
 
   it('switches to Lap Comparator when clicked and persists to localStorage', async () => {
@@ -58,7 +56,6 @@ describe('App Navigation and Tab Bar', () => {
 
     expect(await screen.findByTestId('lap-comparator-view')).toBeInTheDocument();
     expect(screen.queryByTestId('session-history-view')).not.toBeInTheDocument();
-    expect(comparatorTab).toHaveClass('active');
     expect(comparatorTab).toHaveAttribute('aria-current', 'page');
     expect(localStorage.getItem('f1_active_tab')).toBe('comparator');
   });
@@ -71,7 +68,7 @@ describe('App Navigation and Tab Bar', () => {
 
     expect(await screen.findByTestId('dashboard-view')).toBeInTheDocument();
     expect(screen.queryByTestId('session-history-view')).not.toBeInTheDocument();
-    expect(liveTab).toHaveClass('active');
+    expect(liveTab).toHaveAttribute('aria-current', 'page');
     expect(localStorage.getItem('f1_active_tab')).toBe('live');
   });
 
@@ -81,7 +78,7 @@ describe('App Navigation and Tab Bar', () => {
 
     expect(await screen.findByTestId('lap-comparator-view')).toBeInTheDocument();
     const tabs = navItems();
-    expect(tabs[1]).toHaveClass('active');
+    expect(tabs[1]).toHaveAttribute('aria-current', 'page');
   });
 
   it('renders active version badge in navigation header', async () => {

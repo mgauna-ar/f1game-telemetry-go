@@ -7,6 +7,7 @@ import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
 import { Markdown } from './ui/Markdown';
 import { Modal, ModalBody, ModalFooter, ModalHeader } from './ui/Modal';
+import styles from './ReleaseNotesModal.module.css';
 
 interface ReleaseNotesModalProps {
   isOpen: boolean;
@@ -60,11 +61,11 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
       case 'windows':
       case 'macos':
       case 'linux':
-        return <HardDrive size={15} className="asset-platform-icon" />;
+        return <HardDrive size={15} />;
       case 'checksums':
-        return <ShieldCheck size={15} className="asset-platform-icon text-cyan" />;
+        return <ShieldCheck size={15} />;
       default:
-        return <Package size={15} className="asset-platform-icon" />;
+        return <Package size={15} />;
     }
   };
 
@@ -102,23 +103,22 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
           isDev
             ? t('common.updates.devTitle')
             : effectiveData.update_available
-            ? t('common.updates.title')
-            : t('common.updates.upToDateTitle')
+              ? t('common.updates.title')
+              : t('common.updates.upToDateTitle')
         }
         subtitle={
           isDev
             ? t('common.updates.devSubtitle')
             : effectiveData.update_available
-            ? t('common.updates.subtitle')
-            : t('common.updates.upToDateDesc', { version: effectiveData.current_version })
+              ? t('common.updates.subtitle')
+              : t('common.updates.upToDateDesc', { version: effectiveData.current_version })
         }
       />
 
-      {/* Version Banner */}
-      <div className="release-version-banner">
-        <div className="release-version-info">
-          <div className="release-tag-title">
-            <span className="release-tag-name mono">
+      <div className={styles.banner}>
+        <div>
+          <div className={styles.tagRow}>
+            <span className={styles.tag}>
               {isDev ? 'dev' : effectiveData.latest_version || effectiveData.current_version}
             </span>
             {isDev ? (
@@ -135,37 +135,25 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
               </Badge>
             )}
           </div>
-          <div className="release-meta-row mono text-xs text-muted">
-            {!isDev && <span>{t('common.updates.currentVersion', { version: effectiveData.current_version })}</span>}
+          <ul className={styles.meta}>
+            {!isDev && <li>{t('common.updates.currentVersion', { version: effectiveData.current_version })}</li>}
             {systemVersion?.commit && systemVersion.commit !== 'none' && (
-              <>
-                {!isDev && <span className="meta-sep">•</span>}
-                <span>{t('common.updates.commit', { commit: systemVersion.commit })}</span>
-              </>
+              <li>{t('common.updates.commit', { commit: systemVersion.commit })}</li>
             )}
             {systemVersion?.build_date && systemVersion.build_date !== 'unknown' && (
-              <>
-                <span className="meta-sep">•</span>
-                <span>{t('common.updates.buildDate', { date: systemVersion.build_date })}</span>
-              </>
+              <li>{t('common.updates.buildDate', { date: systemVersion.build_date })}</li>
             )}
             {isDev && effectiveData.latest_version && (
-              <>
-                <span className="meta-sep">•</span>
-                <span>{t('common.updates.latestStableRelease', { version: effectiveData.latest_version })}</span>
-              </>
+              <li>{t('common.updates.latestStableRelease', { version: effectiveData.latest_version })}</li>
             )}
             {!isDev && effectiveData.published_at && (
-              <>
-                <span className="meta-sep">•</span>
-                <span>
-                  {t('common.updates.publishedOn', {
-                    date: new Date(effectiveData.published_at).toLocaleDateString(),
-                  })}
-                </span>
-              </>
+              <li>
+                {t('common.updates.publishedOn', {
+                  date: new Date(effectiveData.published_at).toLocaleDateString(),
+                })}
+              </li>
             )}
-          </div>
+          </ul>
         </div>
 
         {(effectiveData.html_url || isDev) && (
@@ -173,83 +161,74 @@ export const ReleaseNotesModal: React.FC<ReleaseNotesModalProps> = ({
             href={effectiveData.html_url || 'https://github.com/mgauna-ar/f1game-telemetry-go/releases'}
             target="_blank"
             rel="noopener noreferrer"
-            className="release-github-link-btn"
+            className={styles.link}
           >
             <span>{t('common.updates.viewOnGitHub')}</span>
-            <ExternalLink size={13} />
+            <ExternalLink size={13} aria-hidden="true" />
           </a>
         )}
       </div>
 
-      <ModalBody className="release-modal-body">
-        {/* Download Packages Section (Filtered strictly to user's OS) */}
-        {effectiveData.assets && effectiveData.assets.length > 0 && (() => {
-          const userOS = detectUserOS();
-          const filteredAssets = effectiveData.assets.filter((asset) => {
-            if (userOS === 'other') return true;
-            return asset.platform === userOS;
-          });
+      <ModalBody className={styles.body}>
+        {/* Downloads for the user's own system */}
+        {effectiveData.assets &&
+          effectiveData.assets.length > 0 &&
+          (() => {
+            const userOS = detectUserOS();
+            const filteredAssets = effectiveData.assets.filter((asset) => {
+              if (userOS === 'other') return true;
+              return asset.platform === userOS;
+            });
 
-          if (filteredAssets.length === 0) return null;
+            if (filteredAssets.length === 0) return null;
 
-          return (
-            <div className="release-downloads-section">
-              <div className="release-section-title">
-                <Download size={14} className="text-cyan" />
-                <span>
-                  {isDev && effectiveData.latest_version
-                    ? `${t('common.updates.downloadTitle')} (${effectiveData.latest_version})`
-                    : t('common.updates.downloadTitle')}
-                </span>
-              </div>
-              <div className="release-assets-grid">
-                {filteredAssets.map((asset, index) => (
-                  <a
-                    key={index}
-                    href={asset.download_url}
-                    download
-                    className="release-asset-card"
-                  >
-                    <div className="release-asset-icon-box">
-                      {getPlatformIcon(asset.platform)}
-                    </div>
-                    <div className="release-asset-details">
-                      <div className="release-asset-label font-medium">
-                        {getAssetArchitectureLabel(asset)}
-                      </div>
-                      <div className="release-asset-name mono text-xs text-muted">
-                        {asset.name} {asset.size > 0 && `(${formatSize(asset.size)})`}
-                      </div>
-                    </div>
-                    <Download size={14} className="release-asset-dl-icon" />
-                  </a>
-                ))}
-              </div>
-            </div>
-          );
-        })()}
+            return (
+              <section>
+                <h3 className={styles.sectionTitle}>
+                  <Download size={14} aria-hidden="true" />
+                  <span>
+                    {isDev && effectiveData.latest_version
+                      ? `${t('common.updates.downloadTitle')} (${effectiveData.latest_version})`
+                      : t('common.updates.downloadTitle')}
+                  </span>
+                </h3>
+                <ul className={styles.assets}>
+                  {filteredAssets.map((asset) => (
+                    <li key={asset.name}>
+                      <a href={asset.download_url} download className={styles.asset}>
+                        <span className={styles.assetIcon} data-kind={asset.platform} aria-hidden="true">
+                          {getPlatformIcon(asset.platform)}
+                        </span>
+                        <span className={styles.assetText}>
+                          <span className={styles.assetLabel}>{getAssetArchitectureLabel(asset)}</span>
+                          <span className={styles.assetName}>
+                            {asset.name} {asset.size > 0 && `(${formatSize(asset.size)})`}
+                          </span>
+                        </span>
+                        <Download size={14} className={styles.download} aria-hidden="true" />
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            );
+          })()}
 
-        {/* Release Notes Changelog Body (when available) */}
         {effectiveData.release_notes && (
-          <div className="release-changelog-section">
-            <div className="release-section-title">
-              <Package size={14} className="text-cyan" />
+          <section>
+            <h3 className={styles.sectionTitle}>
+              <Package size={14} aria-hidden="true" />
               <span>{t('common.releaseNotes')}</span>
-            </div>
-            <Markdown content={effectiveData.release_notes} className="release-notes-content" />
-          </div>
+            </h3>
+            <Markdown content={effectiveData.release_notes} className={styles.notes} />
+          </section>
         )}
       </ModalBody>
 
       <ModalFooter align={effectiveData.update_available ? 'between' : 'end'}>
         {effectiveData.update_available && (
-          <label className="release-dont-remind-label">
-            <input
-              type="checkbox"
-              checked={dontRemind}
-              onChange={(e) => setDontRemind(e.target.checked)}
-              className="release-checkbox"
-            />
+          <label className={styles.dontRemind}>
+            <input type="checkbox" checked={dontRemind} onChange={(e) => setDontRemind(e.target.checked)} />
             <span>{t('common.updates.dontRemind')}</span>
           </label>
         )}

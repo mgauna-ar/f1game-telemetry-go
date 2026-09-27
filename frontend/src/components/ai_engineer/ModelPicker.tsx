@@ -1,7 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Check, RefreshCw, Search } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
 import type { AIModelItem } from '../../context/RaceEngineerContext';
+import { IconButton } from '../ui/Button';
+import { TextInput } from '../ui/Field';
+import styles from './AiSettings.module.css';
 
 export interface ModelPickerProps {
   currentModel: string;
@@ -33,6 +36,8 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
   const listRef = useRef<HTMLDivElement | null>(null);
   const selectedRef = useRef<HTMLButtonElement | null>(null);
   const hasList = availableModels.length > 0;
+  const inputId = useId();
+  const hintId = useId();
 
   useEffect(() => {
     setDraftModel(currentModel);
@@ -41,9 +46,7 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return availableModels;
-    return availableModels.filter(
-      (m) => m.id.toLowerCase().includes(q) || m.display_name.toLowerCase().includes(q)
-    );
+    return availableModels.filter((m) => m.id.toLowerCase().includes(q) || m.display_name.toLowerCase().includes(q));
   }, [availableModels, query]);
 
   // Show the selected model when the list loads, without scrolling anything around the list.
@@ -73,39 +76,45 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
   if (isLoadingModels) status = t('ai_engineer.setup.loadingModels');
   else if (hasList) status = t('ai_engineer.setup.modelsAvailable', { count: availableModels.length });
 
+  const hint = hasList
+    ? currentModel && !availableModels.some((m) => m.id === currentModel)
+      ? t('ai_engineer.setup.currentModelNotListed', { model: currentModel })
+      : null
+    : modelsError
+      ? null
+      : (unavailableReason ?? t('ai_engineer.setup.modelTypeHint'));
+
   return (
-    <div className="ai-field">
-      <div className="ai-field-label-row">
-        <label className="ai-field-label" htmlFor="ai-model-input">
+    <div className={styles.field}>
+      <div className={styles.labelRow}>
+        <label className={styles.label} htmlFor={inputId}>
           {t('ai_engineer.model')}
         </label>
-        <span className="ai-field-meta">
-          {status && <span>{status}</span>}
+        <span className={styles.meta}>
+          {status && <span role="status">{status}</span>}
           {!unavailableReason && (
-            <button
-              type="button"
-              className="ai-icon-link"
+            <IconButton
+              size="sm"
+              label={t('ai_engineer.refreshModels')}
               onClick={onRefreshModels}
               disabled={isLoadingModels}
-              title={t('ai_engineer.refreshModels')}
-              aria-label={t('ai_engineer.refreshModels')}
             >
-              <RefreshCw size={12} className={isLoadingModels ? 'animate-spin' : ''} />
-            </button>
+              <RefreshCw size={12} className={isLoadingModels ? 'animate-spin' : undefined} />
+            </IconButton>
           )}
         </span>
       </div>
 
       {hasList ? (
-        <div className="ai-model-picker">
-          <div className="ai-input-shell">
-            <Search size={13} className="ai-input-lead-icon" />
-            <input
-              id="ai-model-input"
-              type="text"
-              className="ai-input has-lead-icon"
+        <div className={styles.modelPicker}>
+          <div className={styles.inputShell}>
+            <Search size={13} className={styles.leadIcon} aria-hidden="true" />
+            <TextInput
+              id={inputId}
+              className={styles.withLeading}
               spellCheck={false}
               placeholder={t('ai_engineer.setup.searchModels')}
+              aria-describedby={hint ? hintId : undefined}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
@@ -115,10 +124,17 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
               }}
             />
           </div>
-          <div className="ai-model-list" ref={listRef} role="listbox" aria-label={t('ai_engineer.model')}>
+          <div className={styles.modelList} ref={listRef} role="listbox" aria-label={t('ai_engineer.model')}>
             {typed && !typedIsListed && (
-              <button type="button" className="ai-model-option is-custom" onClick={() => choose(typed)}>
-                <span className="ai-model-option-name">{t('ai_engineer.setup.useModel', { model: typed })}</span>
+              <button
+                type="button"
+                role="option"
+                aria-selected={false}
+                className={styles.model}
+                data-custom
+                onClick={() => choose(typed)}
+              >
+                <span className={styles.modelName}>{t('ai_engineer.setup.useModel', { model: typed })}</span>
               </button>
             )}
             {filtered.map((m) => {
@@ -130,44 +146,43 @@ export const ModelPicker: React.FC<ModelPickerProps> = ({
                   type="button"
                   role="option"
                   aria-selected={selected}
-                  className={`ai-model-option${selected ? ' is-selected' : ''}`}
+                  className={styles.model}
                   onClick={() => choose(m.id)}
                 >
-                  <span className="ai-model-option-name">{m.display_name || m.id}</span>
-                  {m.display_name && m.display_name !== m.id && (
-                    <span className="ai-model-option-id mono">{m.id}</span>
-                  )}
-                  {selected && <Check size={13} className="ai-model-option-check" />}
+                  <span className={styles.modelName}>{m.display_name || m.id}</span>
+                  {m.display_name && m.display_name !== m.id && <span className={styles.modelId}>{m.id}</span>}
+                  {selected && <Check size={13} className={styles.modelCheck} aria-hidden="true" />}
                 </button>
               );
             })}
           </div>
-          {currentModel && !availableModels.some((m) => m.id === currentModel) && (
-            <div className="ai-field-hint">{t('ai_engineer.setup.currentModelNotListed', { model: currentModel })}</div>
-          )}
         </div>
       ) : (
-        <>
-          <input
-            id="ai-model-input"
-            type="text"
-            className="ai-input mono"
-            spellCheck={false}
-            value={draftModel}
-            placeholder="gemini-flash-latest, gpt-4o-mini, claude-opus-5…"
-            onChange={(e) => setDraftModel(e.target.value)}
-            onBlur={commitDraft}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') commitDraft();
-            }}
-          />
-          {!modelsError && (
-            <div className="ai-field-hint">{unavailableReason ?? t('ai_engineer.setup.modelTypeHint')}</div>
-          )}
-        </>
+        <TextInput
+          id={inputId}
+          mono
+          spellCheck={false}
+          value={draftModel}
+          placeholder="gemini-flash-latest, gpt-4o-mini, claude-opus-5…"
+          aria-describedby={hint ? hintId : undefined}
+          onChange={(e) => setDraftModel(e.target.value)}
+          onBlur={commitDraft}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') commitDraft();
+          }}
+        />
       )}
 
-      {modelsError && <div className="ai-field-hint is-error">{modelsError}</div>}
+      {hint && (
+        <div id={hintId} className={styles.hint}>
+          {hint}
+        </div>
+      )}
+      {modelsError && (
+        <div className={styles.hint} role="alert">
+          {modelsError}
+        </div>
+      )}
     </div>
   );
 };

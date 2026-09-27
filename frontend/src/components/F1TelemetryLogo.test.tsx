@@ -23,10 +23,10 @@ describe('F1TelemetryLogo Component', () => {
     expect(svg?.classList.contains('custom-test-logo')).toBe(true);
   });
 
-  it('applies f1-tacho-animated class when animated is true', () => {
+  it('marks the logo animated when animated is true', () => {
     const { container } = render(<F1TelemetryLogo animated={true} />);
     const svg = container.querySelector('svg');
-    expect(svg?.classList.contains('f1-tacho-animated')).toBe(true);
+    expect(svg).toHaveAttribute('data-animated', 'true');
   });
 
   it('renders monochrome variant using currentColor', () => {

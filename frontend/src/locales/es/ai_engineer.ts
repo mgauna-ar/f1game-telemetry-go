@@ -98,6 +98,12 @@ export const ai_engineer = {
   copied: 'Copiado',
   jumpToLatest: 'Ir al final',
   inputHint: 'Enter para enviar, Shift+Enter para una línea nueva',
+  openChat: 'Abrir Ingeniero de Carrera IA',
+  closeSettings: 'Cerrar ajustes',
+  messageLabel: 'Mensaje para tu ingeniero de carrera',
+  replying: 'El ingeniero está respondiendo',
+  showKey: 'Mostrar clave API',
+  hideKey: 'Ocultar clave API',
   setup: {
     subtitle: 'Se guarda en la app y lo comparten todos tus dispositivos',
     ready: 'Configurado',

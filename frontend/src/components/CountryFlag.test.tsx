@@ -15,7 +15,7 @@ describe('CountryFlag & TrackFlag Components', () => {
     const flag = screen.getByTestId('track-country-flag');
     expect(flag).toBeInTheDocument();
     expect(flag).toHaveAttribute('data-country', 'au');
-    expect(flag).toHaveAttribute('title', 'Australia');
+    expect(flag).toHaveAccessibleName('Australia');
   });
 
   it('renders Argentina SVG flag correctly', () => {
@@ -28,7 +28,7 @@ describe('CountryFlag & TrackFlag Components', () => {
     const flag = screen.getByTestId('track-country-flag');
     expect(flag).toBeInTheDocument();
     expect(flag).toHaveAttribute('data-country', 'ar');
-    expect(flag).toHaveAttribute('title', 'Argentina');
+    expect(flag).toHaveAccessibleName('Argentina');
   });
 
   it('renders tooltip with localized text when showTooltip is enabled', () => {
@@ -38,10 +38,10 @@ describe('CountryFlag & TrackFlag Components', () => {
       </I18nProvider>
     );
 
-    const tooltip = screen.getByRole('tooltip');
+    // Hidden until the flag is hovered
+    const tooltip = screen.getByRole('tooltip', { hidden: true });
     expect(tooltip).toBeInTheDocument();
     expect(tooltip).toHaveTextContent('United Kingdom');
-    expect(tooltip).toHaveClass('track-flag-tooltip');
   });
 
   it('omits tooltip element when showTooltip is false', () => {
@@ -51,7 +51,9 @@ describe('CountryFlag & TrackFlag Components', () => {
       </I18nProvider>
     );
 
-    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    expect(screen.queryByRole('tooltip', { hidden: true })).not.toBeInTheDocument();
+    // Without its own tooltip, the flag names the country on hover through the browser's
+    expect(screen.getByTestId('track-country-flag')).toHaveAttribute('title', 'United Kingdom');
   });
 
   it('renders fallback checkered flag for unknown country code', () => {
@@ -64,7 +66,7 @@ describe('CountryFlag & TrackFlag Components', () => {
     const flag = screen.getByTestId('track-country-flag');
     expect(flag).toBeInTheDocument();
     expect(flag).toHaveAttribute('data-country', 'xx');
-    expect(flag).toHaveAttribute('title', 'International / Unknown');
+    expect(flag).toHaveAccessibleName('International / Unknown');
   });
 
   it('renders TrackFlag correctly from numeric track ID', () => {
