@@ -172,7 +172,7 @@
   gap: var(--space-2);
 }
 
-@media (max-width: 600px) {
+@media (--phone) {
   .grid2,
   .grid3 {
     grid-template-columns: minmax(0, 1fr);

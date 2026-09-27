@@ -83,7 +83,7 @@ export const SessionComparatorDock: React.FC<SessionComparatorDockProps> = (prop
   if (!hasAny) return null;
 
   return (
-    <section className={cx(styles.dock, styles.wide)} aria-labelledby="comparator-dock-title">
+    <section className={cx(styles.dock, styles.wide)} data-session-dock aria-labelledby="comparator-dock-title">
       <div className={styles.intro}>
         <span className={styles.introIcon} aria-hidden="true">
           <GitCompare size={18} />

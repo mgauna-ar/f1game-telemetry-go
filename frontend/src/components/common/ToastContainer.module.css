@@ -63,7 +63,7 @@
   opacity: 1;
 }
 
-@media (max-width: 600px) {
+@media (--phone) {
   .stack {
     right: var(--space-4);
     bottom: var(--space-4);

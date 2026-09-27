@@ -281,7 +281,7 @@
   color: var(--text-muted);
 }
 
-@media (max-width: 860px) {
+@media (--tablet) {
   .card {
     padding: var(--space-8) var(--space-5);
   }

@@ -243,7 +243,7 @@
   color: var(--text-muted);
 }
 
-@media (max-width: 768px) {
+@media (--tablet) {
   .bests,
   .bottom {
     grid-template-columns: 1fr;

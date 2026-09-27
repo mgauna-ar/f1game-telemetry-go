@@ -113,7 +113,7 @@
   gap: var(--space-5);
 }
 
-@media (max-width: 900px) {
+@media (--tablet) {
   .matchup {
     grid-template-columns: 1fr;
     gap: var(--space-4);
@@ -207,4 +207,26 @@
   background: var(--f1-slot-a-bg);
   border-color: var(--f1-slot-a-border);
   color: var(--f1-slot-a);
+}
+
+/* Phone: the session picker takes the full width, its label above it, and the actions wrap */
+@media (--phone) {
+  .panel {
+    padding: var(--space-4);
+  }
+
+  .sessionControls,
+  .sessionPicker {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .sessionPicker {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .actions {
+    flex-wrap: wrap;
+  }
 }

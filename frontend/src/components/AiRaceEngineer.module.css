@@ -1,8 +1,8 @@
 /* Launcher, bottom right, while the chat is closed */
 .launcher {
   position: fixed;
-  right: var(--space-6);
-  bottom: var(--space-6);
+  right: var(--dock-inset);
+  bottom: var(--dock-inset);
   z-index: var(--z-dock);
   display: flex;
   align-items: center;
@@ -49,6 +49,20 @@
 
 .launcherIcon svg {
   transition: transform var(--transition-normal);
+}
+
+/* Tablets and phones: just the round icon, so it takes no room from the radio pill or a dock */
+@media (--tablet) {
+  .launcher {
+    justify-content: center;
+    width: var(--launcher-size);
+    height: var(--launcher-size);
+    padding: 0;
+  }
+
+  .launcherLabel {
+    display: none;
+  }
 }
 
 .launcher:hover .launcherIcon svg {
@@ -322,7 +336,7 @@
   }
 }
 
-@media (max-width: 600px) {
+@media (--phone) {
   .widget,
   .widget[data-expanded='true'] {
     right: var(--space-2);

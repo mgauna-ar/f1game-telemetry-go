@@ -203,8 +203,37 @@
   border-radius: var(--radius-xs);
 }
 
-@media (max-width: 900px) {
+@media (--tablet) {
   .columns[data-columns='2'] {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Phone: the name gets the room. Places gained go under the position, the tyre age under the
+   compound, and the car number (still in the car's tooltip and radio) is left out. */
+@media (--phone) {
+  .card {
+    gap: var(--space-1-5);
+    padding: var(--space-2);
+  }
+
+  .pos {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    min-width: 34px;
+  }
+
+  .number {
+    display: none;
+  }
+
+  .tyre {
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .time {
+    min-width: 62px;
   }
 }

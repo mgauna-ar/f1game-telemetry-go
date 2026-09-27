@@ -107,7 +107,7 @@
   gap: var(--space-6);
 }
 
-@media (max-width: 480px) {
+@media (--phone) {
   .title {
     font-size: var(--font-size-2xl);
   }

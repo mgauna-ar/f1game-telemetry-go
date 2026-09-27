@@ -7,6 +7,12 @@ export const nav = {
     comparator: 'Lap Comparator',
     live: 'Live Session',
   },
+  /** On narrow screens */
+  tabsShort: {
+    history: 'History',
+    comparator: 'Compare',
+    live: 'Live',
+  },
   liveBadge: 'LIVE',
   portBadge: 'PORT',
   language: 'Language',

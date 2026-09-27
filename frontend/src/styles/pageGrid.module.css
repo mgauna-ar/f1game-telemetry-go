@@ -11,7 +11,7 @@
   padding-top: var(--page-padding-top, var(--space-8));
 }
 
-@media (max-width: 1024px) {
+@media (--laptop) {
   .pageGrid {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-4);
@@ -20,7 +20,7 @@
   }
 }
 
-@media (max-width: 768px) {
+@media (--tablet) {
   .pageGrid {
     gap: var(--space-3);
     padding: var(--space-3);

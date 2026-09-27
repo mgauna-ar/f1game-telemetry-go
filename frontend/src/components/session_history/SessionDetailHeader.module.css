@@ -157,7 +157,7 @@
   gap: var(--space-3);
 }
 
-@media (max-width: 960px) {
+@media (--tablet) {
   .topRow,
   .bottomRow {
     flex-direction: column;
@@ -172,7 +172,7 @@
   }
 }
 
-@media (max-width: 600px) {
+@media (--phone) {
   .actions,
   .stats {
     flex-direction: column;

@@ -7,6 +7,11 @@ export const nav = {
     comparator: 'Comparador de Vueltas',
     live: 'Sesión en Vivo',
   },
+  tabsShort: {
+    history: 'Historial',
+    comparator: 'Comparar',
+    live: 'En vivo',
+  },
   liveBadge: 'EN VIVO',
   portBadge: 'PUERTO',
   language: 'Idioma',

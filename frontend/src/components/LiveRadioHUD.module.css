@@ -1,8 +1,8 @@
 /* Floating radio pill, bottom left */
 .hud {
   position: fixed;
-  bottom: var(--space-6);
-  left: var(--space-6);
+  bottom: var(--dock-inset);
+  left: var(--dock-inset);
   z-index: var(--z-dock);
   user-select: none;
 }
@@ -167,4 +167,33 @@
   color: var(--status-success);
   background: color-mix(in srgb, var(--status-success) 25%, transparent);
   border-color: var(--status-success);
+}
+
+/* Tablets and phones: the pill ends before the AI launcher and its text gives way first */
+@media (--tablet) {
+  .hud {
+    right: calc(var(--dock-inset) + var(--launcher-size) + var(--space-3));
+  }
+
+  .pill {
+    width: fit-content;
+    max-width: 100%;
+    min-height: var(--launcher-size);
+  }
+
+  .info {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+}
+
+@media (--phone) {
+  .pill {
+    gap: var(--space-2);
+    padding-right: var(--space-2);
+  }
+
+  .waveform {
+    display: none;
+  }
 }

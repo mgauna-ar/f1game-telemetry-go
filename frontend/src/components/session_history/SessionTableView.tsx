@@ -13,6 +13,10 @@ import { getTrackInfo } from '../../constants/f1';
 import { IconButton } from '../ui/Button';
 import { cx } from '../ui/cx';
 import { DataTable, type DataTableColumn } from '../ui/DataTable';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { maxWidth } from '../../styles/breakpoints';
+import { SessionCardList } from './SessionCardList';
+import { sessionKind } from './sessionKind';
 import styles from './SessionTableView.module.css';
 
 export interface SessionTableViewProps {
@@ -32,14 +36,8 @@ export interface SessionTableViewProps {
 
 /** The colour of a row's left edge, by session type. */
 const getSessionStripe = (typeStr?: string): string | undefined => {
-  if (!typeStr) return undefined;
-  const lower = typeStr.toLowerCase();
-  if (lower.includes('race')) return styles.race;
-  if (lower.includes('qual') || lower.includes('q1') || lower.includes('q2') || lower.includes('q3'))
-    return styles.qualifying;
-  if (lower.includes('sprint')) return styles.sprint;
-  if (lower.includes('practice') || lower.includes('fp')) return styles.practice;
-  return undefined;
+  const kind = sessionKind(typeStr);
+  return kind ? styles[kind] : undefined;
 };
 
 /** Keeps a click inside a cell (a checkbox, a tag, the forecast) from also opening the session. */
@@ -79,6 +77,9 @@ export const SessionTableView: React.FC<SessionTableViewProps> = React.memo((pro
   }, [isSomeSelected]);
 
   const selectAllLabel = isAllSelected ? t('history.batch.deselectAll') : t('history.batch.selectAll');
+
+  // Below a tablet's width the table's seven columns don't fit: one card per session instead
+  const isNarrow = useMediaQuery(maxWidth('tablet'));
 
   const columns: DataTableColumn<Session>[] = [
     ...(onToggleSelectSession
@@ -225,6 +226,25 @@ export const SessionTableView: React.FC<SessionTableViewProps> = React.memo((pro
       ),
     },
   ];
+
+  if (isNarrow) {
+    return (
+      <SessionCardList
+        sessions={sessions}
+        selectedSessionIds={selectedSessionIds}
+        onToggleSelectSession={onToggleSelectSession}
+        onToggleSelectAll={onToggleSelectAll}
+        onSelectSession={onSelectSession}
+        onRequestDelete={onRequestDelete}
+        onExportSession={onExportSession}
+        formatDate={formatDate}
+        sortField={sortField}
+        sortOrder={sortOrder}
+        onToggleSort={onToggleSort}
+        onOpenTagManager={onOpenTagManager}
+      />
+    );
+  }
 
   return (
     <div className={styles.container}>

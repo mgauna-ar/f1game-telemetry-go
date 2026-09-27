@@ -4,15 +4,18 @@
   min-height: 100vh;
 }
 
-/* Top bar: brand, page tabs, and version, language and port on the right */
+/* Top bar: brand, page tabs, and version, language and port on the right. On a tablet or phone
+   the tabs take a row of their own under the brand and status. */
 .topNav {
   position: sticky;
   top: 0;
   z-index: var(--z-nav);
-  display: flex;
+  container: topNav / inline-size;
+  display: grid;
+  grid-template-areas: 'brand tabs status';
+  grid-template-columns: auto 1fr auto;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
+  gap: var(--space-3) var(--space-4);
   padding: var(--space-3) var(--space-6);
   background: color-mix(in srgb, var(--bg-dark) 88%, transparent);
   border-bottom: 1px solid var(--border-color);
@@ -21,6 +24,7 @@
 }
 
 .brand {
+  grid-area: brand;
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -98,6 +102,8 @@
 
 /* Page tabs in a capsule */
 .tabs {
+  grid-area: tabs;
+  justify-self: center;
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
@@ -199,8 +205,10 @@
 }
 
 .status {
+  grid-area: status;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--space-2);
 }
 
@@ -308,22 +316,70 @@
   padding-bottom: var(--floating-dock-clearance);
 }
 
-/* Narrow screens: the nav stacks, its tabs scroll and the status controls hide */
-@media (max-width: 860px) {
+/* A history dock is showing: keep the end of the page clear of it too */
+.main:has([data-session-dock]) {
+  padding-bottom: var(--session-dock-clearance);
+}
+
+.tabShort {
+  display: none;
+}
+
+/* Short tab names once the long ones (up to ~700px in Spanish) no longer fit beside the brand and
+   the status controls, an update chip included */
+@container topNav (max-width: 1300px) {
+  .tabLabel {
+    display: none;
+  }
+
+  .tabShort {
+    display: inline;
+  }
+}
+
+/* Tablet: the tabs get their own row, in three equal parts */
+@media (--tablet) {
   .topNav {
-    flex-direction: column;
-    align-items: center;
-    gap: var(--space-3);
+    grid-template-areas:
+      'brand status'
+      'tabs tabs';
+    grid-template-columns: auto 1fr;
     padding: var(--space-3) var(--space-4);
   }
 
   .tabs {
-    justify-content: center;
-    width: 100%;
-    overflow-x: auto;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    justify-self: stretch;
   }
 
-  .status {
+  .tab {
+    justify-content: center;
+    padding-inline: var(--space-2);
+  }
+}
+
+/* Phone: only what's needed next to the brand; the update chip keeps its icon and name */
+@media (--phone) {
+  .topNav {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .brandSub,
+  .port,
+  .updateText {
     display: none;
+  }
+
+  .tab {
+    gap: var(--space-1-5);
+    font-size: var(--font-size-sm);
+  }
+
+  /* Just the dot; the word stays for screen readers */
+  .liveBadge {
+    gap: 0;
+    padding: 3px;
+    font-size: 0;
   }
 }

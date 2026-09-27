@@ -151,8 +151,13 @@
   --space-10: 2.5rem;
   --space-12: 3rem;
 
-  /* Space kept free at the bottom of the page for the floating radio and AI buttons */
+  /* The floating docks: the radio pill (bottom left), the AI launcher (bottom right) and the
+     history docks (bottom centre, above the launcher on narrow screens). The page keeps
+     --floating-dock-clearance free at its bottom so they never cover its end. */
+  --dock-inset: var(--space-6);
+  --launcher-size: 54px;
   --floating-dock-clearance: 96px;
+  --session-dock-clearance: 120px;
 
   /* ── Type ────────────────────────────────────────────────────────────── */
   --font-sans: 'Inter', sans-serif;
@@ -210,4 +215,18 @@
   --duration-slow: 0.4s;
   --transition-fast: var(--duration-fast) var(--ease-smooth);
   --transition-normal: var(--duration-normal) var(--ease-smooth);
+}
+
+@media (--tablet) {
+  :root {
+    --session-dock-clearance: 200px;
+  }
+}
+
+@media (--phone) {
+  :root {
+    --dock-inset: var(--space-3);
+    --floating-dock-clearance: 80px;
+    --session-dock-clearance: 290px;
+  }
 }

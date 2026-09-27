@@ -29,10 +29,10 @@ const ReleaseNotesModal = lazy(() =>
   import('./components/ReleaseNotesModal').then((m) => ({ default: m.ReleaseNotesModal }))
 );
 
-const NAV_TABS: ReadonlyArray<{ id: Page; icon: typeof Calendar; labelKey: string }> = [
-  { id: 'history', icon: Calendar, labelKey: 'nav.tabs.history' },
-  { id: 'compare', icon: GitCompare, labelKey: 'nav.tabs.comparator' },
-  { id: 'live', icon: Radio, labelKey: 'nav.tabs.live' },
+const NAV_TABS: ReadonlyArray<{ id: Page; icon: typeof Calendar; labelKey: string; shortKey: string }> = [
+  { id: 'history', icon: Calendar, labelKey: 'nav.tabs.history', shortKey: 'nav.tabsShort.history' },
+  { id: 'compare', icon: GitCompare, labelKey: 'nav.tabs.comparator', shortKey: 'nav.tabsShort.comparator' },
+  { id: 'live', icon: Radio, labelKey: 'nav.tabs.live', shortKey: 'nav.tabsShort.live' },
 ];
 
 /** Which kind of build is running, for the version badge's colour. */
@@ -145,7 +145,7 @@ function AppContent() {
         </div>
 
         <nav className={styles.tabs} aria-label={t('nav.mainNavigation')}>
-          {NAV_TABS.map(({ id, icon: Icon, labelKey }) => (
+          {NAV_TABS.map(({ id, icon: Icon, labelKey, shortKey }) => (
             <Link
               key={id}
               href={tabHref(id)}
@@ -153,7 +153,9 @@ function AppContent() {
               className={styles.tab}
             >
               <Icon size={16} aria-hidden="true" />
-              <span>{t(labelKey)}</span>
+              {/* One of the two shows, by width; the hidden one is out of the accessibility tree */}
+              <span className={styles.tabLabel}>{t(labelKey)}</span>
+              <span className={styles.tabShort}>{t(shortKey)}</span>
               {/* Only while packets arrive (or just stopped): the feed is only opened on this tab */}
               {id === 'live' && isLiveBadgeShown && (
                 <span
@@ -180,7 +182,7 @@ function AppContent() {
               data-testid="nav-update-chip"
             >
               <Sparkles size={13} aria-hidden="true" />
-              <span>{updateInfo.latest_version || t('nav.updateAvailable')}</span>
+              <span className={styles.updateText}>{updateInfo.latest_version || t('nav.updateAvailable')}</span>
             </button>
           )}
 

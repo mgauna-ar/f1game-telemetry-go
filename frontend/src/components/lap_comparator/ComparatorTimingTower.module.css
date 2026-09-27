@@ -16,6 +16,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
+  min-width: 0;
 }
 
 .headerSide:first-child {
@@ -89,6 +90,7 @@
 /* Collapsed: the top three, one click to set as the comparison */
 .top3 {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-1-5);
   cursor: pointer;

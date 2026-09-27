@@ -1169,4 +1169,26 @@ describe('SessionHistory Component', () => {
       expect(screen.getAllByText('1:12.400').length).toBeGreaterThan(0);
     });
   });
+
+  it('lists the sessions as cards on a narrow screen', async () => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn(() => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    );
+    try {
+      setupFetchMock({
+        sessions: [makeSession({ id: 1, track_name: 'Silverstone', session_type: 'Race' })],
+        participants: [],
+        laps: [],
+      });
+      render(<SessionHistory />);
+
+      const list = await screen.findByRole('list', { name: 'Recorded sessions' });
+      expect(screen.queryByRole('table')).not.toBeInTheDocument();
+      fireEvent.click(within(list).getByRole('button', { name: 'Explore: Silverstone' }));
+      expect(window.location.pathname).toBe('/history/1');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });

@@ -29,7 +29,7 @@ export const SessionBatchDock: React.FC<SessionBatchDockProps> = (props) => {
   if (selectedCount <= 0) return null;
 
   return (
-    <section className={styles.dock} aria-labelledby="batch-dock-title">
+    <section className={styles.dock} data-session-dock aria-labelledby="batch-dock-title">
       <div className={styles.intro}>
         <span className={styles.introIcon} aria-hidden="true">
           <Layers size={18} />
@@ -57,7 +57,12 @@ export const SessionBatchDock: React.FC<SessionBatchDockProps> = (props) => {
           {t('history.batch.deleteSelected', { count: selectedCount })}
         </Button>
 
-        <IconButton variant="secondary" label={t('history.batch.clearSelection')} onClick={onClearSelection}>
+        <IconButton
+          variant="secondary"
+          className={styles.clear}
+          label={t('history.batch.clearSelection')}
+          onClick={onClearSelection}
+        >
           <X size={14} />
         </IconButton>
       </div>

@@ -151,7 +151,7 @@
   color: var(--text-muted);
 }
 
-@media (max-width: 900px) {
+@media (--tablet) {
   .grid {
     grid-template-columns: minmax(0, 1fr);
   }

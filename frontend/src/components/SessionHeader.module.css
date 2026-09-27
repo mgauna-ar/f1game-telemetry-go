@@ -1,10 +1,12 @@
+/* The header lays itself out by its own width (container `liveHeader`):
+   - wide: one row, the title, then the session stats, then the view switch and feed state
+   - default: the title and actions on top, the stats in a row of their own below
+   - narrow: everything stacked, the stats two to a row
+   The stats don't fit beside the title at 1440px in every language and flag state, so they
+   get their own row rather than wrapping wherever they run out of room. */
 .header {
   grid-column: 1 / -1;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
+  container: liveHeader / inline-size;
   margin-bottom: var(--space-2);
   padding: var(--space-5) var(--space-6);
   background: var(--bg-glass);
@@ -15,7 +17,18 @@
   box-shadow: var(--shadow-panel);
 }
 
+.layout {
+  display: grid;
+  grid-template-areas:
+    'identity actions'
+    'stats stats';
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-4) var(--space-6);
+}
+
 .identity {
+  grid-area: identity;
   display: flex;
   align-items: center;
   gap: var(--space-3);
@@ -42,11 +55,23 @@
   color: var(--text-secondary);
 }
 
-.controls {
+.actions {
+  grid-area: actions;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-4);
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+.stats {
+  grid-area: stats;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-color);
 }
 
 /* Standby: before the first session packet */
@@ -65,7 +90,11 @@
   font-size: var(--font-size-sm);
 }
 
-.standby .controls {
+.standby .layout {
+  grid-template-areas: 'identity actions';
+}
+
+.standby .actions {
   flex-wrap: nowrap;
 }
 
@@ -83,13 +112,57 @@
   box-shadow: 0 0 14px var(--accent-cyan-glow);
 }
 
-@media (max-width: 768px) {
-  .header {
-    flex-direction: column;
-    align-items: flex-start;
+@container liveHeader (min-width: 1560px) {
+  .layout {
+    grid-template-areas: 'identity stats actions';
+    grid-template-columns: auto minmax(0, 1fr) auto;
   }
 
-  .standby .controls {
+  .stats {
+    justify-content: flex-end;
+    padding-top: 0;
+    border-top: none;
+  }
+}
+
+@container liveHeader (max-width: 720px) {
+  .layout,
+  .standby .layout {
+    grid-template-areas:
+      'identity'
+      'actions'
+      'stats';
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .actions,
+  .standby .actions {
     flex-wrap: wrap;
+    justify-content: space-between;
+  }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* The flag keeps its own size in its cell */
+  .stats > :last-child {
+    justify-self: start;
+  }
+
+  .title {
+    font-size: var(--font-size-xl);
+  }
+
+  /* Two stats to a row: a long value wraps inside its box */
+  .statValue {
+    white-space: normal;
+  }
+}
+
+@media (--phone) {
+  .header {
+    padding: var(--space-4);
   }
 }

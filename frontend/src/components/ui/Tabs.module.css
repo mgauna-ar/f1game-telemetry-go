@@ -67,7 +67,7 @@
   font-size: var(--font-size-sm);
 }
 
-@media (max-width: 640px) {
+@media (--phone) {
   .stretch {
     grid-auto-flow: row;
   }

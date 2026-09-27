@@ -207,7 +207,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({ isOpenOverride, 
           <Bot size={22} />
           <span className={styles.pulse} />
         </span>
-        <span>{t('ai_engineer.roleEngineer')}</span>
+        <span className={styles.launcherLabel}>{t('ai_engineer.roleEngineer')}</span>
       </button>
     );
   }

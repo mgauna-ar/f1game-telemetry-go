@@ -1,7 +1,7 @@
 /* Floating dock at the bottom of the history view: the batch actions and the comparator staging */
 .dock {
   position: fixed;
-  bottom: 24px;
+  bottom: var(--dock-inset);
   left: 50%;
   z-index: var(--z-dock);
   display: flex;
@@ -114,6 +114,11 @@
   color: var(--status-danger);
 }
 
+/* Clears the selection; only sized on phones */
+.clear {
+  flex-shrink: 0;
+}
+
 /* Comparator staging: one chip per slot */
 .slots {
   display: flex;
@@ -212,4 +217,38 @@
 .launchReady:hover:not(:disabled) {
   background: linear-gradient(135deg, var(--accent-cyan), var(--accent-cyan));
   border-color: transparent;
+}
+
+/* Tablets and phones: above the AI launcher, across the screen */
+@media (--tablet) {
+  .dock,
+  .wide {
+    bottom: calc(var(--dock-inset) + var(--launcher-size) + var(--space-3));
+    width: calc(100vw - 2 * var(--dock-inset));
+  }
+}
+
+/* Phone: the batch actions two to a row, so the dock stays short */
+@media (--phone) {
+  .dock {
+    padding: var(--space-3);
+  }
+
+  .actions {
+    width: 100%;
+  }
+
+  /* Two buttons share a row; the clear button keeps its size beside the last one */
+  .actions > * {
+    flex: 1 1 calc(50% - var(--space-2));
+  }
+
+  .actions > .clear {
+    flex: 0 0 auto;
+  }
+
+  .slot {
+    min-width: 0;
+    flex: 1 1 140px;
+  }
 }

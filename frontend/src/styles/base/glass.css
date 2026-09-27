@@ -15,7 +15,7 @@
   transform: translateY(-2px);
 }
 
-@media (max-width: 768px) {
+@media (--tablet) {
   .glass-panel {
     padding: var(--space-4);
   }

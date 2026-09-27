@@ -82,28 +82,30 @@ export const SessionHeader: React.FC<SessionHeaderProps> = React.memo((props) =>
   if (!session) {
     return (
       <header className={cx(styles.header, styles.standby)}>
-        <div className={styles.identity}>
-          <div className={styles.standbyIcon} aria-hidden="true">
-            <Radio size={18} />
-          </div>
-          <div>
-            <div className={styles.titleRow}>
-              <h1 className={styles.title}>{t('live.liveHub')}</h1>
-              <Badge tone={connected ? 'success' : 'warning'} uppercase>
-                {connected ? t('live.backendConnected') : t('live.connectingToBackend')}
-              </Badge>
+        <div className={styles.layout}>
+          <div className={styles.identity}>
+            <div className={styles.standbyIcon} aria-hidden="true">
+              <Radio size={18} />
             </div>
-            <p className={styles.subtitle}>
-              {t('live.commandCenter')} • UDP {udpPort}
-            </p>
+            <div>
+              <div className={styles.titleRow}>
+                <h1 className={styles.title}>{t('live.liveHub')}</h1>
+                <Badge tone={connected ? 'success' : 'warning'} uppercase>
+                  {connected ? t('live.backendConnected') : t('live.connectingToBackend')}
+                </Badge>
+              </div>
+              <p className={styles.subtitle}>
+                {t('live.commandCenter')} • UDP {udpPort}
+              </p>
+            </div>
           </div>
-        </div>
 
-        <div className={styles.controls}>
-          {onViewModeChange && <ViewModeSwitch value={viewMode} onChange={onViewModeChange} />}
+          <div className={styles.actions}>
+            {onViewModeChange && <ViewModeSwitch value={viewMode} onChange={onViewModeChange} />}
 
-          {/* Live feed state */}
-          <LiveStatusIndicator />
+            {/* Live feed state */}
+            <LiveStatusIndicator />
+          </div>
         </div>
       </header>
     );
@@ -126,50 +128,63 @@ export const SessionHeader: React.FC<SessionHeaderProps> = React.memo((props) =>
 
   return (
     <header className={styles.header}>
-      <div className={styles.identity}>
-        <div>
-          <div className={styles.titleRow}>
-            <TrackFlag track={session.TrackId} width={26} height={18} />
-            <h1 className={styles.title}>{trackName}</h1>
+      <div className={styles.layout}>
+        <div className={styles.identity}>
+          <div>
+            <div className={styles.titleRow}>
+              <TrackFlag track={session.TrackId} width={26} height={18} />
+              <h1 className={styles.title}>{trackName}</h1>
 
-            <F1FormatBadge format={effectiveFormat} size="sm" />
-            <SessionTypeBadge sessionType={sessionLabel} size="sm" />
+              <F1FormatBadge format={effectiveFormat} size="sm" />
+              <SessionTypeBadge sessionType={sessionLabel} size="sm" />
+            </div>
+            <p className={styles.subtitle}>{t('live.commandCenter')}</p>
           </div>
-          <p className={styles.subtitle}>{t('live.commandCenter')}</p>
         </div>
-      </div>
 
-      <div className={styles.controls}>
-        {onViewModeChange && <ViewModeSwitch value={viewMode} onChange={onViewModeChange} />}
+        <div className={styles.actions}>
+          {onViewModeChange && <ViewModeSwitch value={viewMode} onChange={onViewModeChange} />}
 
-        {/* Session Progress / Timer */}
-        {isRace ? (
+          {/* Live feed state */}
+          <LiveStatusIndicator />
+        </div>
+
+        <div className={styles.stats}>
+          {/* Session Progress / Timer */}
+          {isRace ? (
+            <Stat
+              icon={<Timer size={16} />}
+              label={t('live.totalLaps')}
+              valueClassName={styles.statValue}
+              value={session.TotalLaps ? `${session.TotalLaps} ${t('common.laps').toUpperCase()}` : '--'}
+            />
+          ) : (
+            <Stat
+              icon={<Timer size={16} />}
+              label={t('live.timeRemaining')}
+              valueClassName={styles.statValue}
+              value={session.SessionTimeLeft ? formatSeconds(session.SessionTimeLeft) : '--:--'}
+            />
+          )}
+
+          {/* Weather & Temperatures */}
           <Stat
-            icon={<Timer size={16} />}
-            label={t('live.totalLaps')}
-            value={session.TotalLaps ? `${session.TotalLaps} ${t('common.laps').toUpperCase()}` : '--'}
+            icon={<CloudSun size={16} />}
+            label={t('live.conditions')}
+            value={weatherText}
+            mono={false}
+            valueClassName={styles.statValue}
           />
-        ) : (
           <Stat
-            icon={<Timer size={16} />}
-            label={t('live.timeRemaining')}
-            value={session.SessionTimeLeft ? formatSeconds(session.SessionTimeLeft) : '--:--'}
+            icon={<Thermometer size={16} />}
+            label={t('live.trackAirTemp')}
+            valueClassName={styles.statValue}
+            value={`${session.TrackTemperature}°C / ${session.AirTemperature}°C`}
           />
-        )}
 
-        {/* Weather & Temperatures */}
-        <Stat icon={<CloudSun size={16} />} label={t('live.conditions')} value={weatherText} mono={false} />
-        <Stat
-          icon={<Thermometer size={16} />}
-          label={t('live.trackAirTemp')}
-          value={`${session.TrackTemperature}°C / ${session.AirTemperature}°C`}
-        />
-
-        {/* Safety Car Badge */}
-        <SafetyCarBadge status={session.SafetyCarStatus} size="md" />
-
-        {/* Live feed state */}
-        <LiveStatusIndicator />
+          {/* Safety Car Badge */}
+          <SafetyCarBadge status={session.SafetyCarStatus} size="md" />
+        </div>
       </div>
     </header>
   );

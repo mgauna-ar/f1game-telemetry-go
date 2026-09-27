@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
+import { expandMediaParams } from './src/styles/breakpoints.ts'
 
 function preserveGitkeep() {
   return {
@@ -15,9 +16,34 @@ function preserveGitkeep() {
   }
 }
 
+interface MediaRule {
+  params: string
+}
+interface CssRoot {
+  source?: { input: { file?: string } }
+  walkAtRules: (name: string, visit: (rule: MediaRule) => void) => void
+}
+
+// Named breakpoints in stylesheets, `@media (--tablet)`, become widths (src/styles/breakpoints.ts).
+// It runs on exit, after CSS Modules has merged in the sheets a module `composes` from.
+function breakpointMedia() {
+  return {
+    postcssPlugin: 'breakpoint-media',
+    OnceExit(root: CssRoot) {
+      const file = root.source?.input.file
+      root.walkAtRules('media', (rule) => {
+        rule.params = expandMediaParams(rule.params, file)
+      })
+    },
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), preserveGitkeep()],
+  css: {
+    postcss: { plugins: [breakpointMedia()] },
+  },
   server: {
     host: '0.0.0.0',
     proxy: {

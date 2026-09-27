@@ -81,6 +81,8 @@ export const history = {
     weather: 'Clima',
     actions: 'Acciones',
     caption: 'Sesiones registradas',
+    sortBy: 'Ordenar por',
+    reverseOrder: 'Invertir orden',
   },
   classification: {
     podiumP1: 'P1 • GANADOR',

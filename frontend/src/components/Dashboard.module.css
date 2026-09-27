@@ -41,13 +41,13 @@
   }
 }
 
-@media (max-width: 768px) {
+@media (--tablet) {
   .cockpit {
     padding: var(--space-3);
   }
 }
 
-@media (max-width: 1100px) {
+@media (--laptop) {
   .hub {
     grid-template-columns: minmax(0, 1fr);
   }
