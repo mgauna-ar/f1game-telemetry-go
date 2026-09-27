@@ -72,7 +72,7 @@ export const Dashboard: React.FC = () => {
 
   if (!connected || !session) {
     return (
-      <div className={`voice-cockpit-layout ${styles.cockpit}`}>
+      <div className={styles.cockpit}>
         {/* Header with View Mode Switcher in Standby */}
         <LiveDocumentTitle />
         <SessionHeader
@@ -97,7 +97,7 @@ export const Dashboard: React.FC = () => {
   // Voice Cockpit View (0% unneeded widget DOM/Canvas overhead for sim racing)
   if (viewMode === LIVE_VIEW_MODES.COCKPIT) {
     return (
-      <div className={`voice-cockpit-layout ${styles.cockpit}`}>
+      <div className={styles.cockpit}>
         <LiveDocumentTitle />
         <SessionHeader
           session={session}

@@ -1,0 +1,68 @@
+/* Text inputs, text areas and selects share one look: an inset box that lights up on focus. */
+.control {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  background: var(--bg-popover);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
+}
+
+.control::placeholder {
+  color: var(--text-muted);
+}
+
+.control:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent-cyan) 40%, transparent);
+}
+
+.control:focus {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 14px var(--accent-cyan-glow);
+}
+
+.control:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.mono {
+  font-family: var(--font-mono);
+}
+
+.textarea {
+  line-height: 1.4;
+  resize: vertical;
+}
+
+.selectWrap {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.select {
+  padding-right: var(--space-8);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.select option {
+  color: var(--text-primary);
+  background: var(--bg-panel-solid);
+}
+
+.chevron {
+  position: absolute;
+  top: 50%;
+  right: var(--space-3);
+  color: var(--accent-cyan);
+  pointer-events: none;
+  transform: translateY(-50%);
+}

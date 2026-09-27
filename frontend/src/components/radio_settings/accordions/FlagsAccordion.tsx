@@ -3,6 +3,8 @@ import { Flag } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
 import { SubsystemAccordion } from '../SubsystemAccordion';
 import { ThresholdSlider } from '../ThresholdSlider';
+import { ToggleRow } from '../SettingControls';
+import styles from '../RadioSettings.module.css';
 import { useRadioSettingsStore } from '../../../store/useRadioSettingsStore';
 
 interface FlagsAccordionProps {
@@ -11,11 +13,7 @@ interface FlagsAccordionProps {
   onTestAlert: () => void;
 }
 
-export const FlagsAccordion: React.FC<FlagsAccordionProps> = ({
-  isExpanded,
-  onToggleExpand,
-  onTestAlert,
-}) => {
+export const FlagsAccordion: React.FC<FlagsAccordionProps> = ({ isExpanded, onToggleExpand, onTestAlert }) => {
   const { t } = useI18n();
 
   const flagsPensAlertsEnabled = useRadioSettingsStore((s) => s.flagsPensAlertsEnabled);
@@ -42,63 +40,48 @@ export const FlagsAccordion: React.FC<FlagsAccordionProps> = ({
       id="flags"
       title={t('ai_engineer.proactiveAlerts.flagsTitle')}
       subtitle={t('ai_engineer.proactiveAlerts.flagsDesc')}
-      icon={<Flag className="w-4 h-4" />}
-      iconColorClass="text-emerald-400"
+      icon={<Flag size={16} />}
+      tone="green"
       masterEnabled={flagsPensAlertsEnabled}
       onToggleMaster={setFlagsPensAlertsEnabled}
       isExpanded={isExpanded}
       onToggleExpand={onToggleExpand}
       onTestAlert={onTestAlert}
     >
-      <div className="radio-sub-toggles-grid">
-        <label className="radio-sub-toggle-item">
-          <span>{t('ai_engineer.proactiveAlerts.safetyCarAlert')}</span>
-          <input
-            type="checkbox"
-            checked={subSafetyCar}
-            onChange={(e) => setSubSafetyCar(e.target.checked)}
-            className="radio-checkbox"
-          />
-        </label>
-        <label className="radio-sub-toggle-item">
-          <span>{t('ai_engineer.proactiveAlerts.redFlagAlert')}</span>
-          <input
-            type="checkbox"
-            checked={subRedFlag}
-            onChange={(e) => setSubRedFlag(e.target.checked)}
-            className="radio-checkbox"
-          />
-        </label>
-        <label className="radio-sub-toggle-item">
-          <span>{t('ai_engineer.proactiveAlerts.dynamicRainAlert')}</span>
-          <input
-            type="checkbox"
-            checked={subRain}
-            onChange={(e) => setSubRain(e.target.checked)}
-            className="radio-checkbox"
-          />
-        </label>
-        <label className="radio-sub-toggle-item">
-          <span>{t('ai_engineer.proactiveAlerts.trackLimitsWarning')}</span>
-          <input
-            type="checkbox"
-            checked={subTrackLimits}
-            onChange={(e) => setSubTrackLimits(e.target.checked)}
-            className="radio-checkbox"
-          />
-        </label>
-        <label className="radio-sub-toggle-item">
-          <span>{t('ai_engineer.proactiveAlerts.penaltiesIncurred')}</span>
-          <input
-            type="checkbox"
-            checked={subPenalties}
-            onChange={(e) => setSubPenalties(e.target.checked)}
-            className="radio-checkbox"
-          />
-        </label>
+      <div className={styles.toggleGrid}>
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.safetyCarAlert')}
+          checked={subSafetyCar}
+          onChange={setSubSafetyCar}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.redFlagAlert')}
+          checked={subRedFlag}
+          onChange={setSubRedFlag}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.dynamicRainAlert')}
+          checked={subRain}
+          onChange={setSubRain}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.trackLimitsWarning')}
+          checked={subTrackLimits}
+          onChange={setSubTrackLimits}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.penaltiesIncurred')}
+          checked={subPenalties}
+          onChange={setSubPenalties}
+        />
       </div>
 
-      <div className="radio-ptt-grid">
+      <div className={styles.grid2}>
         <ThresholdSlider
           label={t('ai_engineer.proactiveAlerts.cornerCutLimit')}
           value={cornerCutWarnThreshold}

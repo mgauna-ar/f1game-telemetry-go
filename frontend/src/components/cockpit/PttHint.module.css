@@ -1,0 +1,26 @@
+.hint {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  min-width: 0;
+  white-space: nowrap;
+}
+
+/* The hint gives way to the "Set up" link when the pill runs out of room */
+.text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-secondary);
+}
+
+.setUp {
+  flex-shrink: 0;
+  font-weight: var(--font-weight-bold);
+  color: var(--accent-secondary);
+  white-space: nowrap;
+}
+
+.setUp:hover {
+  text-decoration: underline;
+}

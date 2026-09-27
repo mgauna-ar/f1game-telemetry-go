@@ -1,21 +1,16 @@
 import React, { useState } from 'react';
-import {
-  Radio,
-  Mic,
-  Volume2,
-  VolumeX,
-  Settings,
-  Loader2,
-  Power,
-} from 'lucide-react';
+import { Volume2, VolumeX, Settings, Power } from 'lucide-react';
 import { useI18n } from '../context/I18nContext';
-import { RADIO_PERSONAS } from '../constants/f1';
 import { RadioSettingsPanel } from './RadioSettingsPanel';
 import type { RadioSettingsTab } from './RadioSettingsPanel';
 import { RadioWaveformCanvas } from './common/RadioWaveformCanvas';
+import { PttHint } from './cockpit/PttHint';
+import { RadioStateIcon } from './cockpit/RadioStateIcon';
+import { getPersonaInfo, getRadioVisualState } from '../utils/radioVisuals';
+import { Button, IconButton } from './ui/Button';
 import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
 import type { UseRadioControllerReturn } from '../hooks/useRadioController';
-import { getPttHint } from '../utils/pttHint';
+import styles from './LiveRadioHUD.module.css';
 
 export interface LiveRadioHUDProps {
   radio: UseRadioControllerReturn;
@@ -33,186 +28,102 @@ export const LiveRadioHUD: React.FC<LiveRadioHUDProps> = ({ radio }) => {
     setIsSettingsOpen(true);
   };
 
-  const getPersonaLabel = () => {
-    const langFlag = radio.effectiveLanguage === 'es' ? '🇦🇷' : '🇬🇧';
-    switch (radio.persona) {
-      case RADIO_PERSONAS.COLAPINTO:
-        return { name: 'Colapinto', flag: langFlag };
-      case RADIO_PERSONAS.CUSTOM:
-        return { name: t('ai_engineer.personas.custom.name'), flag: '⚙️' };
-      case RADIO_PERSONAS.BONO:
-      default:
-        return { name: 'Bono', flag: langFlag };
-    }
-  };
+  const state = getRadioVisualState(radio);
+  const persona = getPersonaInfo(radio.persona, radio.effectiveLanguage, t);
 
-  const personaInfo = getPersonaLabel();
-  const pttHint = getPttHint(radio, t);
+  const statusText =
+    state === 'transmitting'
+      ? t('ai_engineer.radio.transmitting')
+      : state === 'processing'
+        ? t('ai_engineer.radio.processing')
+        : state === 'speaking'
+          ? t('ai_engineer.radio.speaking', { name: persona.shortName.toUpperCase() })
+          : t('ai_engineer.radio.idle');
 
-  // If radio is disabled, render compact minimized pill
-  if (!radio.isRadioEnabled) {
-    return (
-      <>
-        <div className="live-radio-hud-container">
-          <div className="live-radio-pill state-off">
-            <button
-              type="button"
-              onClick={() => radio.setIsRadioEnabled(true)}
-              className="live-radio-power-btn"
-              title={t('ai_engineer.radio.turnOn')}
-            >
-              <Power className="w-3.5 h-3.5" />
-              <span className="live-radio-power-text">
-                {t('ai_engineer.radio.turnOn')}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => openSettings()}
-              className="live-radio-btn"
-              title={t('ai_engineer.radio.settings')}
-            >
-              <Settings className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
-        <RadioSettingsPanel
-          isOpen={isSettingsOpen}
-          onClose={() => setIsSettingsOpen(false)}
-          radio={radio}
-          initialTab={settingsTab}
-        />
-      </>
-    );
-  }
-
-  // State class determination
-  let stateClass = '';
-  let statusText = t('ai_engineer.radio.idle');
-
-  if (radio.radioState === 'transmitting') {
-    stateClass = 'state-transmitting';
-    statusText = t('ai_engineer.radio.transmitting');
-  } else if (radio.radioState === 'processing') {
-    stateClass = 'state-processing';
-    statusText = t('ai_engineer.radio.processing');
-  } else if (radio.radioState === 'speaking') {
-    stateClass = 'state-speaking';
-    statusText = t('ai_engineer.radio.speaking', { name: personaInfo.name.toUpperCase() });
-  }
+  const settingsButton = (
+    <IconButton size="sm" label={t('ai_engineer.radio.settings')} onClick={() => openSettings()}>
+      <Settings size={state === 'off' ? 14 : 16} />
+    </IconButton>
+  );
 
   return (
     <>
-      <div className="live-radio-hud-container">
-        {/* Floating Radio Pill Widget */}
-        <div className={`live-radio-pill ${stateClass}`}>
-          {/* Radio Antenna / State Icon */}
-          <div className="live-radio-icon-box">
-            {radio.radioState === 'transmitting' ? (
-              <Mic className="w-5 h-5 animate-bounce" />
-            ) : radio.radioState === 'processing' ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : radio.radioState === 'speaking' ? (
-              <Radio className="w-5 h-5 animate-pulse" />
-            ) : (
-              <Radio className="w-5 h-5" />
-            )}
+      <div className={styles.hud}>
+        {state === 'off' ? (
+          // Radio off: a compact pill to switch it back on
+          <div className={styles.pill} data-state="off">
+            <Button
+              size="sm"
+              className={styles.powerOn}
+              icon={<Power size={14} aria-hidden="true" />}
+              onClick={() => radio.setIsRadioEnabled(true)}
+            >
+              {t('ai_engineer.radio.turnOn')}
+            </Button>
+            {settingsButton}
           </div>
-
-          {/* Persona Chip & Radio Status */}
-          <div className="live-radio-info">
-            <div className="live-radio-status-row">
-              <span className="live-radio-status-label">
-                {statusText}
-              </span>
-              <span className="live-radio-flag">{personaInfo.flag}</span>
+        ) : (
+          <div className={styles.pill} data-state={state}>
+            <div className={styles.icon}>
+              <RadioStateIcon state={state} />
             </div>
 
-            {/* Subtitle / PTT key helper */}
-            <span className="live-radio-subtitle">
-              {radio.radioState === 'speaking' && radio.lastResponse ? (
-                <span title={radio.lastResponse}>
-                  "{radio.lastResponse}"
-                </span>
-              ) : radio.radioState === 'transmitting' && radio.lastTranscript ? (
-                <span>
-                  {radio.lastTranscript}...
-                </span>
-              ) : (
-                <>
-                  {pttHint.badge && (
-                    <span className="live-radio-key-badge">
-                      {pttHint.badge}
-                    </span>
-                  )}
-                  <span className="live-radio-ptt-text">{pttHint.text}</span>
-                  {!pttHint.badge && (
-                    <button type="button" className="ptt-setup-link" onClick={() => openSettings('audio')}>
-                      {t('ai_engineer.radio.pttSetUp')} →
-                    </button>
-                  )}
-                </>
-              )}
-            </span>
+            {/* Radio status, persona and what was last said (or how to talk) */}
+            <div className={styles.info}>
+              <div className={styles.statusRow}>
+                <span className={styles.status}>{statusText}</span>
+                <span className={styles.flag}>{persona.flag}</span>
+              </div>
+
+              <span className={styles.subtitle}>
+                {state === 'speaking' && radio.lastResponse ? (
+                  <span className={styles.quote} title={radio.lastResponse}>
+                    "{radio.lastResponse}"
+                  </span>
+                ) : state === 'transmitting' && radio.lastTranscript ? (
+                  <span className={styles.quote}>{radio.lastTranscript}...</span>
+                ) : (
+                  <PttHint controls={radio} onSetUp={() => openSettings('audio')} />
+                )}
+              </span>
+            </div>
+
+            {/* Live waveform while someone is talking */}
+            {(state === 'transmitting' || state === 'speaking') && (
+              <RadioWaveformCanvas
+                radioState={state}
+                width={36}
+                height={18}
+                barCount={6}
+                gap={3}
+                className={styles.waveform}
+                testId="live-radio-waveform"
+                fallbackTestId="live-radio-equalizer-fallback"
+              />
+            )}
+
+            <div className={styles.actions}>
+              <IconButton
+                size="sm"
+                label={volume > 0 ? t('ai_engineer.radio.mute') : t('ai_engineer.radio.unmute')}
+                onClick={() => setVolume(volume > 0 ? 0 : 0.8)}
+              >
+                {volume > 0 ? <Volume2 size={16} /> : <VolumeX size={16} className={styles.muted} />}
+              </IconButton>
+              <IconButton
+                size="sm"
+                className={styles.powerOff}
+                label={t('ai_engineer.radio.turnOff')}
+                onClick={() => radio.setIsRadioEnabled(false)}
+              >
+                <Power size={16} />
+              </IconButton>
+              {settingsButton}
+            </div>
           </div>
-
-          {/* Real-time Waveform visualization when speaking or transmitting */}
-          {(radio.radioState === 'transmitting' || radio.radioState === 'speaking') && (
-            <RadioWaveformCanvas
-              radioState={radio.radioState}
-              width={36}
-              height={18}
-              barCount={6}
-              gap={3}
-              className="live-radio-waveform-canvas"
-              testId="live-radio-waveform"
-              fallbackTestId="live-radio-equalizer-fallback"
-              fallbackClassName="live-radio-equalizer"
-            />
-          )}
-
-          {/* Quick Action Controls */}
-          <div className="live-radio-actions">
-            {/* Mute / Unmute Volume */}
-            <button
-              type="button"
-              onClick={() => setVolume(volume > 0 ? 0 : 0.8)}
-              className="live-radio-btn"
-              title={volume > 0 ? t('ai_engineer.radio.mute') : t('ai_engineer.radio.unmute')}
-            >
-              {volume > 0 ? (
-                <Volume2 className="w-4 h-4" />
-              ) : (
-                <VolumeX className="w-4 h-4" style={{ color: '#ef4444' }} />
-              )}
-            </button>
-
-            {/* Turn Off Power Button */}
-            <button
-              type="button"
-              onClick={() => radio.setIsRadioEnabled(false)}
-              className="live-radio-btn btn-power-off"
-              title={t('ai_engineer.radio.turnOff')}
-            >
-              <Power className="w-4 h-4" />
-            </button>
-
-            {/* Settings Gear */}
-            <button
-              type="button"
-              onClick={() => openSettings()}
-              className="live-radio-btn"
-              title={t('ai_engineer.radio.settings')}
-            >
-              <Settings className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
+        )}
       </div>
 
-      {/* Settings Modal */}
       <RadioSettingsPanel
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}

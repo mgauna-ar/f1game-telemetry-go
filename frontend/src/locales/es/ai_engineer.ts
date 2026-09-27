@@ -244,6 +244,10 @@ export const ai_engineer = {
     globalMapped: '{device}: {key}',
     noKey: 'Ninguna (Desactivada)',
     unassigned: 'Sin Asignar',
+    deviceFallback: 'Dispositivo',
+    keySpace: 'Espacio',
+    keyCapsLock: 'Bloq Mayús',
+    keyLetter: 'Tecla {key}',
   },
   tabs: {
     persona: 'Persona y Piloto',

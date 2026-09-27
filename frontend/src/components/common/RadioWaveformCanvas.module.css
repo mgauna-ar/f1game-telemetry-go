@@ -1,0 +1,48 @@
+.canvas {
+  display: block;
+  flex-shrink: 0;
+}
+
+/* Animated bars when the canvas can't draw */
+.fallback {
+  composes: radioState from '../cockpit/radioState.module.css';
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 18px;
+  padding: 0 var(--space-1);
+}
+
+.bar {
+  width: 3px;
+  background-color: var(--radio-color);
+  border-radius: 3px;
+  box-shadow: 0 0 6px var(--radio-color);
+  animation: eq 0.75s ease-in-out infinite alternate;
+}
+
+.bar:nth-child(1) {
+  height: 45%;
+  animation-delay: 0.1s;
+}
+
+.bar:nth-child(2) {
+  height: 95%;
+  animation-delay: 0.3s;
+}
+
+.bar:nth-child(3) {
+  height: 70%;
+  animation-delay: 0.2s;
+}
+
+.bar:nth-child(4) {
+  height: 40%;
+  animation-delay: 0.4s;
+}
+
+@keyframes eq {
+  from {
+    transform: scaleY(0.25);
+  }
+}

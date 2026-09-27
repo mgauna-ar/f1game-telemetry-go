@@ -1,0 +1,93 @@
+/* Global (OS-level) push-to-talk capture: green when the desktop helper is listening */
+.globalStatus {
+  --global-color: var(--text-secondary);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-1-5) var(--space-3);
+  font-size: var(--font-size-xs);
+  background: color-mix(in srgb, var(--global-color) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--global-color) 20%, transparent);
+  border-radius: var(--radius-xs);
+}
+
+.globalStatus[data-active='true'] {
+  --global-color: var(--status-success);
+}
+
+.globalLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+}
+
+.globalDot {
+  width: 7px;
+  height: 7px;
+  background: var(--global-color);
+  border-radius: 50%;
+}
+
+.globalName {
+  color: var(--global-color);
+}
+
+.globalState {
+  color: var(--text-secondary);
+}
+
+.boxIcon {
+  flex-shrink: 0;
+  color: var(--accent-cyan);
+}
+
+.gamepadName {
+  overflow: hidden;
+  font-weight: var(--font-weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gamepadName[data-connected='true'] {
+  color: var(--status-success);
+}
+
+.mapRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.mapButton {
+  flex: 1;
+  white-space: normal;
+}
+
+/* Waiting for the button or key to map: the button pulses amber */
+.mapButton[aria-pressed='true'] {
+  color: var(--status-warning);
+  background: var(--status-warning-bg);
+  border-color: var(--status-warning-border);
+  animation: learningPulse 1s infinite alternate;
+}
+
+@keyframes learningPulse {
+  from {
+    box-shadow: 0 0 5px color-mix(in srgb, var(--status-warning) 20%, transparent);
+  }
+  to {
+    box-shadow: 0 0 15px color-mix(in srgb, var(--status-warning) 50%, transparent);
+  }
+}
+
+.modes {
+  display: flex;
+  width: 100%;
+}
+
+.modes > * {
+  flex: 1;
+  justify-content: center;
+}

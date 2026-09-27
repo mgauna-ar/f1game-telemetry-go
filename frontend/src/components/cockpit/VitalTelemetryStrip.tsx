@@ -1,21 +1,12 @@
 import React from 'react';
-import {
-  Zap,
-  Fuel,
-
-  Gauge,
-  CheckCircle2,
-  AlertTriangle,
-} from 'lucide-react';
+import { Zap, Fuel, Gauge, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
-import {
-  DRIVER_STATUS,
-  ACTIVE_AERO_MODES,
-  TYRE_COMPOUND_IDS,
-  MAX_ERS_STORE_ENERGY_J,
-} from '../../constants/f1';
+import { DRIVER_STATUS, ACTIVE_AERO_MODES, TYRE_COMPOUND_IDS, MAX_ERS_STORE_ENERGY_J } from '../../constants/f1';
 import { TyreCompoundBadge } from '../common/TyreCompoundBadge';
 import { TrackFlag } from '../TrackFlag';
+import { Badge } from '../ui/Badge';
+import { styleVars } from '../../styles/theme';
+import styles from './VitalTelemetryStrip.module.css';
 import type {
   SessionData,
   LapData,
@@ -35,6 +26,31 @@ export interface VitalTelemetryStripProps {
   trackName: string;
   is2026: boolean;
 }
+
+interface VitalCardProps {
+  title: string;
+  /** A status chip on the right of the title. */
+  badge?: React.ReactNode;
+  children: React.ReactNode;
+}
+
+/** One card of the strip: a title, an optional status chip and its figures. */
+const VitalCard: React.FC<VitalCardProps> = ({ title, badge, children }) => {
+  const titleId = React.useId();
+  return (
+    <section className={styles.card} aria-labelledby={titleId}>
+      <div className={styles.cardHeader}>
+        <h3 id={titleId} className={styles.cardTitle}>
+          {title}
+        </h3>
+        {badge}
+      </div>
+      <div className={styles.cardBody}>{children}</div>
+    </section>
+  );
+};
+
+const getTyreWearLevel = (wear: number) => (wear >= 75 ? 'critical' : wear >= 40 ? 'warning' : 'nominal');
 
 export const VitalTelemetryStrip: React.FC<VitalTelemetryStripProps> = ({
   session,
@@ -60,7 +76,7 @@ export const VitalTelemetryStrip: React.FC<VitalTelemetryStripProps> = ({
       case DRIVER_STATUS.IN_GARAGE:
         return t('live.statusGarage');
       default:
-        return 'ON TRACK';
+        return t('live.cockpit.onTrack');
     }
   };
 
@@ -70,12 +86,6 @@ export const VitalTelemetryStrip: React.FC<VitalTelemetryStripProps> = ({
   const peakWear = Math.max(...roundedWears);
   const surfTemps = telemetry?.TyresSurfaceTemperature || [0, 0, 0, 0];
 
-  const getTyreWearClass = (wear: number) => {
-    if (wear >= 75) return 'wear-critical';
-    if (wear >= 40) return 'wear-warning';
-    return 'wear-nominal';
-  };
-
   // ERS Energy (Zero magic numbers: using MAX_ERS_STORE_ENERGY_J)
   const storeEnergy = carStatus?.ERSStoreEnergy;
   const ersPct =
@@ -84,10 +94,7 @@ export const VitalTelemetryStrip: React.FC<VitalTelemetryStripProps> = ({
       : null;
 
   // Fuel remaining delta laps
-  const fuelDelta =
-    carStatus && typeof carStatus.FuelRemainingLaps === 'number'
-      ? carStatus.FuelRemainingLaps
-      : null;
+  const fuelDelta = carStatus && typeof carStatus.FuelRemainingLaps === 'number' ? carStatus.FuelRemainingLaps : null;
 
   // Aero damage
   const flWing = Math.round(carDamage?.FrontLeftWingDamage || 0);
@@ -97,181 +104,175 @@ export const VitalTelemetryStrip: React.FC<VitalTelemetryStripProps> = ({
 
   // Active Aero / Boost (2026)
   const activeAeroMode = telemetry2?.ActiveAeroMode;
-  const boostActive =
-    telemetry2 && typeof telemetry2.OvertakeActive === 'number' && telemetry2.OvertakeActive > 0;
+  const boostActive = telemetry2 && typeof telemetry2.OvertakeActive === 'number' && telemetry2.OvertakeActive > 0;
+
+  const corners = ['FL', 'FR', 'RL', 'RR'].map((label, i) => ({
+    label,
+    wear: roundedWears[i],
+    temp: Math.round(surfTemps[i] || 0),
+  }));
 
   return (
-    <div className="voice-cockpit-vitals-grid" data-testid="voice-cockpit-vitals-grid">
-      {/* Card 1: Position & Lap Status */}
-      <div className="voice-cockpit-card">
-        <div className="card-header">
-          <span className="card-title">{t('live.cockpit.position')} & {t('live.cockpit.lap')}</span>
-          <span className="run-status-chip">{getRunStatusLabel()}</span>
-        </div>
-        <div className="card-content position-row">
-          <div className="big-stat">
-            <span className="stat-p">P</span>
-            <span className="stat-val mono">{lap?.CarPosition || 1}</span>
+    <div className={styles.grid} data-testid="voice-cockpit-vitals-grid">
+      {/* Position and lap */}
+      <VitalCard
+        title={`${t('live.cockpit.position')} & ${t('live.cockpit.lap')}`}
+        badge={
+          <Badge tone="accent" size="xs" square uppercase>
+            {getRunStatusLabel()}
+          </Badge>
+        }
+      >
+        <div className={styles.positionRow}>
+          <div className={styles.position}>
+            <span className={styles.positionP}>P</span>
+            <span className={styles.positionValue}>{lap?.CarPosition || 1}</span>
           </div>
-          <div className="lap-meta">
-            <div className="stat-sub-row">
-              <span className="meta-label">{t('live.cockpit.lap')}:</span>
-              <span className="meta-val mono">
+          <div className={styles.lapMeta}>
+            <div className={styles.metaRow}>
+              <span className={styles.metaLabel}>{t('live.cockpit.lap')}:</span>
+              <span className={styles.metaValue}>
                 {lap?.CurrentLapNum || 1} / {session?.TotalLaps || '--'}
               </span>
             </div>
-            <div className="stat-sub-row">
-              <span className="meta-label">{trackName}</span>
+            <div className={styles.metaRow}>
+              <span className={styles.metaLabel}>{trackName}</span>
               <TrackFlag track={session?.TrackId ?? trackName} width={18} height={12} />
             </div>
             {lap && (lap.Penalties || lap.CornerCuttingWarnings) ? (
-              <div className="warnings-badge">
-                <AlertTriangle size={12} className="text-amber-400" />
+              <div className={styles.warnings}>
+                <AlertTriangle size={12} aria-hidden="true" />
                 <span>
-                  {lap.CornerCuttingWarnings ?? 0}/3 warnings
+                  {t('live.cockpit.warningsCount', { count: lap.CornerCuttingWarnings ?? 0 })}
                   {lap.Penalties ? ` • +${lap.Penalties}s` : ''}
                 </span>
               </div>
             ) : null}
           </div>
         </div>
-      </div>
+      </VitalCard>
 
-      {/* Card 2: Tyres & Thermal Vitals */}
-      <div className="voice-cockpit-card">
-        <div className="card-header">
-          <span className="card-title">{t('live.cockpit.tyreWear')}</span>
-          <div className="tyre-badge-row">
-            <TyreCompoundBadge
-              compound={String(carStatus ? carStatus.VisualTyreCompound : TYRE_COMPOUND_IDS.SOFT)}
-            />
-            <span className="mono text-xs text-slate-400">{carStatus?.TyresAgeLaps || 0} L</span>
-          </div>
-        </div>
-        <div className="card-content">
-          <div className="tyre-grid-2x2">
-            <div className={`tyre-corner ${getTyreWearClass(roundedWears[0])}`}>
-              <div className="corner-label">FL</div>
-              <div className="corner-wear mono">{roundedWears[0]}%</div>
-              <div className="corner-temp mono">{Math.round(surfTemps[0] || 0)}°C</div>
-            </div>
-            <div className={`tyre-corner ${getTyreWearClass(roundedWears[1])}`}>
-              <div className="corner-label">FR</div>
-              <div className="corner-wear mono">{roundedWears[1]}%</div>
-              <div className="corner-temp mono">{Math.round(surfTemps[1] || 0)}°C</div>
-            </div>
-            <div className={`tyre-corner ${getTyreWearClass(roundedWears[2])}`}>
-              <div className="corner-label">RL</div>
-              <div className="corner-wear mono">{roundedWears[2]}%</div>
-              <div className="corner-temp mono">{Math.round(surfTemps[2] || 0)}°C</div>
-            </div>
-            <div className={`tyre-corner ${getTyreWearClass(roundedWears[3])}`}>
-              <div className="corner-label">RR</div>
-              <div className="corner-wear mono">{roundedWears[3]}%</div>
-              <div className="corner-temp mono">{Math.round(surfTemps[3] || 0)}°C</div>
-            </div>
-          </div>
-          <div className="peak-wear-indicator">
-            <span>{t('live.cockpit.peakWear', { percent: peakWear })}</span>
-          </div>
-        </div>
-      </div>
+      {/* Tyre wear and surface temperature per corner */}
+      <VitalCard
+        title={t('live.cockpit.tyreWear')}
+        badge={
+          <span className={styles.tyreSummary}>
+            <TyreCompoundBadge compound={String(carStatus ? carStatus.VisualTyreCompound : TYRE_COMPOUND_IDS.SOFT)} />
+            <span className={styles.tyreAge}>{carStatus?.TyresAgeLaps || 0} L</span>
+          </span>
+        }
+      >
+        <ul className={styles.corners}>
+          {corners.map((corner) => (
+            <li key={corner.label} className={styles.corner} data-wear={getTyreWearLevel(corner.wear)}>
+              <span className={styles.cornerLabel}>{corner.label}</span>
+              <span className={styles.cornerWear}>{corner.wear}%</span>
+              <span className={styles.cornerTemp}>{corner.temp}°C</span>
+            </li>
+          ))}
+        </ul>
+        <div className={styles.peakWear}>{t('live.cockpit.peakWear', { percent: peakWear })}</div>
+      </VitalCard>
 
-      {/* Card 3: Powertrain, ERS & Fuel Delta */}
-      <div className="voice-cockpit-card">
-        <div className="card-header">
-          <span className="card-title">POWERTRAIN & STRATEGY</span>
-          {is2026 && activeAeroMode !== undefined && (
-            <span className={`aero-badge ${activeAeroMode === ACTIVE_AERO_MODES.STRAIGHT ? 'straight' : 'corner'}`}>
-              {activeAeroMode === ACTIVE_AERO_MODES.STRAIGHT ? t('live.activeAeroStraight') : t('live.activeAeroCorner')}
-            </span>
-          )}
-        </div>
-        <div className="card-content powertrain-content">
-          {/* ERS Store */}
-          <div className="vitals-metric-row">
-            <div className="metric-label-box">
-              <Zap size={14} className="text-cyan-400" />
-              <span>{t('live.cockpit.ersBattery')}</span>
-            </div>
-            <div className="metric-value-box">
-              <div className="progress-bar-bg">
-                <div
-                  className="progress-bar-fill ers-fill"
-                  style={{ width: `${ersPct ?? 0}%` }}
-                />
-              </div>
-              <span className="metric-num mono">{ersPct !== null ? `${ersPct}%` : '--'}</span>
-            </div>
-          </div>
-
-          {/* Fuel Delta */}
-          <div className="vitals-metric-row">
-            <div className="metric-label-box">
-              <Fuel size={14} className="text-amber-400" />
-              <span>{t('live.cockpit.fuelDelta')}</span>
-            </div>
-            <div className="metric-value-box">
-              <span
-                className={`metric-num mono ${
-                  fuelDelta !== null && fuelDelta >= 0 ? 'text-emerald-400' : 'text-red-400'
-                }`}
-              >
-                {fuelDelta !== null ? `${fuelDelta >= 0 ? '+' : ''}${fuelDelta.toFixed(1)} Laps` : '--'}
+      {/* Powertrain: ERS store, fuel margin and engine temperature */}
+      <VitalCard
+        title={t('live.cockpit.powertrain')}
+        badge={
+          is2026 &&
+          activeAeroMode !== undefined && (
+            <Badge tone={activeAeroMode === ACTIVE_AERO_MODES.STRAIGHT ? 'success' : 'accent'} size="xs" square>
+              {activeAeroMode === ACTIVE_AERO_MODES.STRAIGHT
+                ? t('live.activeAeroStraight')
+                : t('live.activeAeroCorner')}
+            </Badge>
+          )
+        }
+      >
+        <dl className={styles.metrics}>
+          <div className={styles.metric}>
+            <dt className={styles.metricLabel} data-icon="ers">
+              <Zap size={14} aria-hidden="true" />
+              {t('live.cockpit.ersBattery')}
+            </dt>
+            <dd className={styles.metricValue}>
+              <span className={styles.bar} style={styleVars({ '--fill': `${ersPct ?? 0}%` })} aria-hidden="true">
+                <span className={styles.barFill} />
               </span>
-            </div>
+              <span className={styles.number}>{ersPct !== null ? `${ersPct}%` : '--'}</span>
+            </dd>
           </div>
 
-          {/* 2026 Boost / Engine Temperature */}
-          <div className="vitals-metric-row">
-            <div className="metric-label-box">
-              <Gauge size={14} className="text-slate-400" />
-              <span>Engine / Coolant</span>
-            </div>
-            <div className="metric-value-box">
-              <span className="metric-num mono text-slate-300">
+          <div className={styles.metric}>
+            <dt className={styles.metricLabel} data-icon="fuel">
+              <Fuel size={14} aria-hidden="true" />
+              {t('live.cockpit.fuelDelta')}
+            </dt>
+            <dd className={styles.metricValue}>
+              <span
+                className={styles.number}
+                data-tone={fuelDelta === null ? undefined : fuelDelta >= 0 ? 'good' : 'bad'}
+              >
+                {fuelDelta !== null
+                  ? t('live.cockpit.fuelLaps', { value: `${fuelDelta >= 0 ? '+' : ''}${fuelDelta.toFixed(1)}` })
+                  : '--'}
+              </span>
+            </dd>
+          </div>
+
+          <div className={styles.metric}>
+            <dt className={styles.metricLabel}>
+              <Gauge size={14} aria-hidden="true" />
+              {t('live.cockpit.engineTemp')}
+            </dt>
+            <dd className={styles.metricValue}>
+              <span className={styles.number}>
                 {telemetry?.EngineTemperature ? `${Math.round(telemetry.EngineTemperature)}°C` : '--°C'}
               </span>
-              {boostActive && <span className="boost-pill">{t('live.boostActive')}</span>}
-            </div>
+              {boostActive && (
+                <Badge tone="danger" size="xs" square>
+                  {t('live.boostActive')}
+                </Badge>
+              )}
+            </dd>
           </div>
-        </div>
-      </div>
+        </dl>
+      </VitalCard>
 
-      {/* Card 4: Damage & Vehicle Systems */}
-      <div className="voice-cockpit-card">
-        <div className="card-header">
-          <span className="card-title">{t('live.cockpit.aeroDamage')}</span>
-          {!hasAeroDamage ? (
-            <span className="status-nominal-badge">
-              <CheckCircle2 size={12} /> NOMINAL
-            </span>
+      {/* Aero damage */}
+      <VitalCard
+        title={t('live.cockpit.aeroDamage')}
+        badge={
+          hasAeroDamage ? (
+            <Badge tone="danger" size="xs" square icon={<AlertTriangle size={12} aria-hidden="true" />}>
+              {t('live.cockpit.damage')}
+            </Badge>
           ) : (
-            <span className="status-damaged-badge">
-              <AlertTriangle size={12} /> DAMAGE
-            </span>
-          )}
-        </div>
-        <div className="card-content damage-content">
-          {hasAeroDamage ? (
-            <div className="damage-details-grid">
-              <div className="damage-item">
-                <span className="dmg-label">{t('live.cockpit.frontWing')} (L/R)</span>
-                <span className="dmg-val mono text-red-400">{flWing}% / {frWing}%</span>
-              </div>
-              <div className="damage-item">
-                <span className="dmg-label">{t('live.cockpit.floorDiffuser')}</span>
-                <span className="dmg-val mono text-red-400">{floorDamage}%</span>
-              </div>
+            <Badge tone="success" size="xs" square icon={<CheckCircle2 size={12} aria-hidden="true" />}>
+              {t('live.cockpit.nominal')}
+            </Badge>
+          )
+        }
+      >
+        {hasAeroDamage ? (
+          <dl className={styles.damageGrid}>
+            <div className={styles.damageItem}>
+              <dt className={styles.damageLabel}>{t('live.cockpit.frontWing')} (L/R)</dt>
+              <dd className={styles.damageValue}>
+                {flWing}% / {frWing}%
+              </dd>
             </div>
-          ) : (
-            <div className="nominal-state-box">
-              <CheckCircle2 size={24} className="text-emerald-400" />
-              <span className="nominal-text">Aero downforce & bodywork at 100% efficiency</span>
+            <div className={styles.damageItem}>
+              <dt className={styles.damageLabel}>{t('live.cockpit.floorDiffuser')}</dt>
+              <dd className={styles.damageValue}>{floorDamage}%</dd>
             </div>
-          )}
-        </div>
-      </div>
+          </dl>
+        ) : (
+          <div className={styles.nominal}>
+            <CheckCircle2 size={24} aria-hidden="true" />
+            <span>{t('live.cockpit.aeroNominal')}</span>
+          </div>
+        )}
+      </VitalCard>
     </div>
   );
 };

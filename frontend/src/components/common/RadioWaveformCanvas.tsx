@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { getRadioAnalyserNode } from '../../utils/radioAudio';
 import { prefersReducedMotion } from '../../utils/motion';
 import { canvasRgba, getCssVars } from '../../styles/theme';
+import { cx } from '../ui/cx';
+import styles from './RadioWaveformCanvas.module.css';
 
 /** Bar colour for each radio state. */
 const WAVEFORM_TOKENS = {
@@ -17,9 +19,11 @@ export interface RadioWaveformCanvasProps {
   height?: number;
   barCount?: number;
   gap?: number;
+  /** Sizes the canvas (width and height in CSS). */
   className?: string;
   testId?: string;
   fallbackTestId?: string;
+  /** Sizes the bar fallback shown when the canvas can't draw. */
   fallbackClassName?: string;
 }
 
@@ -29,10 +33,10 @@ export const RadioWaveformCanvas: React.FC<RadioWaveformCanvasProps> = ({
   height = 36,
   barCount = 24,
   gap = 4,
-  className = 'voice-cockpit-waveform-canvas',
+  className,
   testId = 'radio-waveform-canvas',
   fallbackTestId,
-  fallbackClassName = 'live-radio-equalizer',
+  fallbackClassName,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [hasCanvasCtx, setHasCanvasCtx] = useState(true);
@@ -63,10 +67,10 @@ export const RadioWaveformCanvas: React.FC<RadioWaveformCanvasProps> = ({
     const barColor = isTransmitting
       ? palette.transmitting
       : isSpeaking
-      ? palette.speaking
-      : isProcessing
-      ? palette.processing
-      : palette.idle;
+        ? palette.speaking
+        : isProcessing
+          ? palette.processing
+          : palette.idle;
     const barBase = canvasRgba(ctx, barColor, 0.55);
     const glow = canvasRgba(ctx, barColor, isTransmitting || isSpeaking ? 0.7 : isProcessing ? 0.5 : 0.3);
 
@@ -130,11 +134,16 @@ export const RadioWaveformCanvas: React.FC<RadioWaveformCanvasProps> = ({
 
   if (!hasCanvasCtx) {
     return (
-      <div className={fallbackClassName} data-testid={fallbackTestId || `${testId}-fallback`}>
-        <span className="live-radio-eq-bar" />
-        <span className="live-radio-eq-bar" />
-        <span className="live-radio-eq-bar" />
-        <span className="live-radio-eq-bar" />
+      <div
+        className={cx(styles.fallback, fallbackClassName)}
+        data-state={radioState}
+        data-testid={fallbackTestId || `${testId}-fallback`}
+        aria-hidden="true"
+      >
+        <span className={styles.bar} />
+        <span className={styles.bar} />
+        <span className={styles.bar} />
+        <span className={styles.bar} />
       </div>
     );
   }
@@ -144,8 +153,9 @@ export const RadioWaveformCanvas: React.FC<RadioWaveformCanvasProps> = ({
       ref={canvasRef}
       width={width}
       height={height}
-      className={className}
+      className={cx(styles.canvas, className)}
       data-testid={testId}
+      aria-hidden="true"
     />
   );
 };

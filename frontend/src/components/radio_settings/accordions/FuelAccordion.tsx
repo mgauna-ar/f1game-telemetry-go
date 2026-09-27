@@ -3,6 +3,8 @@ import { Fuel } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
 import { SubsystemAccordion } from '../SubsystemAccordion';
 import { ThresholdSlider } from '../ThresholdSlider';
+import { ToggleRow } from '../SettingControls';
+import styles from '../RadioSettings.module.css';
 import { useRadioSettingsStore } from '../../../store/useRadioSettingsStore';
 
 interface FuelAccordionProps {
@@ -11,11 +13,7 @@ interface FuelAccordionProps {
   onTestAlert: () => void;
 }
 
-export const FuelAccordion: React.FC<FuelAccordionProps> = ({
-  isExpanded,
-  onToggleExpand,
-  onTestAlert,
-}) => {
+export const FuelAccordion: React.FC<FuelAccordionProps> = ({ isExpanded, onToggleExpand, onTestAlert }) => {
   const { t } = useI18n();
 
   const fuelAlertsEnabled = useRadioSettingsStore((s) => s.fuelAlertsEnabled);
@@ -30,27 +28,24 @@ export const FuelAccordion: React.FC<FuelAccordionProps> = ({
       id="fuel"
       title={t('ai_engineer.proactiveAlerts.fuelTitle')}
       subtitle={t('ai_engineer.proactiveAlerts.fuelDesc')}
-      icon={<Fuel className="w-4 h-4" />}
-      iconColorClass="text-emerald-400"
+      icon={<Fuel size={16} />}
+      tone="green"
       masterEnabled={fuelAlertsEnabled}
       onToggleMaster={setFuelAlertsEnabled}
       isExpanded={isExpanded}
       onToggleExpand={onToggleExpand}
       onTestAlert={onTestAlert}
     >
-      <div className="radio-sub-toggles-grid">
-        <label className="radio-sub-toggle-item">
-          <span>{t('ai_engineer.proactiveAlerts.fuelDeficitLiftCoast')}</span>
-          <input
-            type="checkbox"
-            checked={subFuelDelta}
-            onChange={(e) => setSubFuelDelta(e.target.checked)}
-            className="radio-checkbox"
-          />
-        </label>
+      <div className={styles.toggleGrid}>
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.fuelDeficitLiftCoast')}
+          checked={subFuelDelta}
+          onChange={setSubFuelDelta}
+        />
       </div>
 
-      <div className="radio-ptt-grid">
+      <div className={styles.grid2}>
         <ThresholdSlider
           label={t('ai_engineer.proactiveAlerts.fuelDeltaThreshold')}
           value={fuelDeltaLaps}

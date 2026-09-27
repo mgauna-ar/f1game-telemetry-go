@@ -1,16 +1,13 @@
 import React from 'react';
-import {
-  Mic,
-  Loader2,
-  Radio,
-  Volume2,
-  VolumeX,
-  Power,
-  Settings,
-} from 'lucide-react';
+import { Volume2, VolumeX, Power, Settings } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
 import { RadioWaveformCanvas } from '../common/RadioWaveformCanvas';
+import { Badge } from '../ui/Badge';
+import { IconButton } from '../ui/Button';
 import type { UseRadioControllerReturn } from '../../hooks/useRadioController';
+import { getRadioVisualState } from '../../utils/radioVisuals';
+import { RadioStateIcon } from './RadioStateIcon';
+import styles from './HeroPersonaBadge.module.css';
 
 export interface PersonaInfo {
   name: string;
@@ -36,78 +33,69 @@ export const HeroPersonaBadge: React.FC<HeroPersonaBadgeProps> = ({
   onOpenSettings,
 }) => {
   const { t } = useI18n();
+  const state = getRadioVisualState(radio);
 
   return (
-    <div className="voice-cockpit-hero-header">
-      {/* Persona Avatar & Info */}
-      <div className="voice-cockpit-persona-box">
-        <div className="voice-cockpit-avatar">
-          <span className="persona-flag">{personaInfo.flag}</span>
-          {radio.radioState === 'transmitting' ? (
-            <Mic className="persona-status-icon animate-bounce text-red-500" />
-          ) : radio.radioState === 'processing' ? (
-            <Loader2 className="persona-status-icon animate-spin text-amber-500" />
-          ) : radio.radioState === 'speaking' ? (
-            <Radio className="persona-status-icon animate-pulse text-emerald-500" />
-          ) : (
-            <Radio className="persona-status-icon text-cyan-400" />
-          )}
+    <div className={styles.header}>
+      {/* Who is on the radio, and what the radio is doing */}
+      <div className={styles.persona}>
+        <div className={styles.avatar}>
+          <span className={styles.flag}>{personaInfo.flag}</span>
+          <span className={styles.stateIcon}>
+            <RadioStateIcon state={state} size={14} />
+          </span>
         </div>
 
-        <div className="voice-cockpit-persona-meta">
-          <div className="persona-title-row">
-            <span className="persona-name">{personaInfo.name}</span>
-            <span className="persona-role-badge">{personaInfo.role}</span>
+        <div className={styles.meta}>
+          <div className={styles.titleRow}>
+            <h2 className={styles.name}>{personaInfo.name}</h2>
+            <Badge tone="accent" size="xs" square uppercase>
+              {personaInfo.role}
+            </Badge>
           </div>
-          <span className="voice-cockpit-status-badge">{statusHeroText}</span>
+          <span className={styles.status}>{statusHeroText}</span>
         </div>
       </div>
 
-      {/* Hero Waveform Canvas & Volume Level */}
-      <div className="voice-cockpit-waveform-box">
+      <div className={styles.waveformBox}>
         <RadioWaveformCanvas
           radioState={radio.isRadioEnabled ? radio.radioState : 'idle'}
           width={260}
           height={36}
           barCount={24}
           gap={4}
-          className="voice-cockpit-waveform-canvas"
+          className={styles.waveform}
           testId="voice-cockpit-waveform"
-          fallbackClassName="voice-cockpit-eq-fallback"
+          fallbackClassName={styles.waveformFallback}
         />
       </div>
 
-      {/* Quick Action Buttons */}
-      <div className="voice-cockpit-controls">
-        <button
-          type="button"
+      <div className={styles.controls}>
+        <IconButton
+          variant="secondary"
+          label={volume > 0 ? t('ai_engineer.radio.mute') : t('ai_engineer.radio.unmute')}
           onClick={() => setVolume(volume > 0 ? 0 : 0.8)}
-          className="voice-cockpit-btn"
-          title={volume > 0 ? t('ai_engineer.radio.mute') : t('ai_engineer.radio.unmute')}
           data-testid="voice-cockpit-mute-btn"
         >
-          {volume > 0 ? <Volume2 size={16} /> : <VolumeX size={16} style={{ color: '#ef4444' }} />}
-        </button>
-
-        <button
-          type="button"
+          {volume > 0 ? <Volume2 size={16} /> : <VolumeX size={16} className={styles.muted} />}
+        </IconButton>
+        <IconButton
+          variant="secondary"
+          className={radio.isRadioEnabled ? undefined : styles.powerOff}
+          label={radio.isRadioEnabled ? t('live.cockpit.turnRadioOff') : t('live.cockpit.turnRadioOn')}
           onClick={() => radio.setIsRadioEnabled(!radio.isRadioEnabled)}
-          className={`voice-cockpit-btn ${!radio.isRadioEnabled ? 'btn-power-off' : ''}`}
-          title={radio.isRadioEnabled ? t('live.cockpit.turnRadioOff') : t('live.cockpit.turnRadioOn')}
           data-testid="voice-cockpit-power-btn"
         >
           <Power size={16} />
-        </button>
-
-        <button
-          type="button"
+        </IconButton>
+        <IconButton
+          variant="secondary"
+          label={t('live.cockpit.settings')}
           onClick={onOpenSettings}
-          className="voice-cockpit-btn"
-          title={t('live.cockpit.settings')}
           data-testid="voice-cockpit-settings-btn"
         >
           <Settings size={16} />
-        </button>
+        </IconButton>
       </div>
     </div>
   );

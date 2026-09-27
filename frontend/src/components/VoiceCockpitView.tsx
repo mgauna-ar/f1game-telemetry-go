@@ -2,16 +2,11 @@ import React, { useState } from 'react';
 import { ShieldAlert, Flag } from 'lucide-react';
 import { useI18n } from '../context/I18nContext';
 
-import {
-  RADIO_PERSONAS,
-  SAFETY_CAR_STATUS,
-  F1_FORMATS,
-  getTrackInfo,
-  TRACK_NAMES,
-} from '../constants/f1';
+import { SAFETY_CAR_STATUS, F1_FORMATS, getTrackInfo, TRACK_NAMES } from '../constants/f1';
 import { RadioSettingsPanel } from './RadioSettingsPanel';
 import type { RadioSettingsTab } from './RadioSettingsPanel';
 import { getPttHint } from '../utils/pttHint';
+import { getPersonaInfo, getRadioVisualState } from '../utils/radioVisuals';
 import { HeroPersonaBadge } from './cockpit/HeroPersonaBadge';
 import { RadioDialogueTranscript } from './cockpit/RadioDialogueTranscript';
 import { VitalTelemetryStrip } from './cockpit/VitalTelemetryStrip';
@@ -29,6 +24,7 @@ import type {
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import { useTelemetryDataStore } from '../store/useTelemetryDataStore';
 import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
+import styles from './VoiceCockpitView.module.css';
 
 export interface VoiceCockpitViewProps {
   radio: UseRadioControllerReturn;
@@ -82,79 +78,53 @@ export const VoiceCockpitView: React.FC<VoiceCockpitViewProps> = React.memo((pro
   const trackInfo = session?.TrackId !== undefined ? getTrackInfo(session.TrackId) : null;
   const trackName =
     trackInfo?.name ||
-    (session?.TrackId !== undefined ? TRACK_NAMES[session.TrackId] || `Track #${session.TrackId}` : 'F1 Circuit');
+    (session?.TrackId !== undefined
+      ? TRACK_NAMES[session.TrackId] || t('live.cockpit.trackFallback', { id: session.TrackId })
+      : t('live.cockpit.circuitFallback'));
 
-  const getPersonaLabel = () => {
-    const langFlag = radio.effectiveLanguage === 'es' ? '🇦🇷' : '🇬🇧';
-    switch (radio.persona) {
-      case RADIO_PERSONAS.COLAPINTO:
-        return { name: 'Franco Colapinto', flag: langFlag, role: 'Race Engineer' };
-      case RADIO_PERSONAS.CUSTOM:
-        return { name: t('ai_engineer.personas.custom.name'), flag: '⚙️', role: 'Custom Pit Wall' };
-      case RADIO_PERSONAS.BONO:
-      default:
-        return { name: 'Peter "Bono" Bonnington', flag: langFlag, role: 'Senior Race Engineer' };
-    }
-  };
+  const persona = getPersonaInfo(radio.persona, radio.effectiveLanguage, t);
+  const personaInfo = { name: persona.fullName, flag: persona.flag, role: persona.role };
 
-  const personaInfo = getPersonaLabel();
-
-  // Safety Car / Flag banner determination
+  // Safety car, virtual safety car or red flag banner
   const renderSafetyCarBanner = () => {
     if (!session) return null;
-
-    if (session.SafetyCarStatus === SAFETY_CAR_STATUS.FULL) {
-      return (
-        <div className="voice-cockpit-flag-banner sc-full">
-          <ShieldAlert className="w-5 h-5 animate-pulse" />
-          <span className="banner-text">SAFETY CAR DEPLOYED — DELTA POSITIVE</span>
-        </div>
-      );
-    }
-    if (session.SafetyCarStatus === SAFETY_CAR_STATUS.VIRTUAL) {
-      return (
-        <div className="voice-cockpit-flag-banner sc-vsc">
-          <ShieldAlert className="w-5 h-5 animate-pulse" />
-          <span className="banner-text">VIRTUAL SAFETY CAR — MAINTAIN DELTA</span>
-        </div>
-      );
-    }
-    if (session.NumRedFlagPeriods && session.NumRedFlagPeriods > 0) {
-      return (
-        <div className="voice-cockpit-flag-banner sc-red">
-          <Flag className="w-5 h-5 animate-pulse" />
-          <span className="banner-text">RED FLAG — RETURN TO PIT LANE</span>
-        </div>
-      );
-    }
-    return null;
+    const banner =
+      session.SafetyCarStatus === SAFETY_CAR_STATUS.FULL
+        ? { kind: 'sc', icon: ShieldAlert, text: t('live.cockpit.bannerSafetyCar') }
+        : session.SafetyCarStatus === SAFETY_CAR_STATUS.VIRTUAL
+          ? { kind: 'vsc', icon: ShieldAlert, text: t('live.cockpit.bannerVsc') }
+          : session.NumRedFlagPeriods && session.NumRedFlagPeriods > 0
+            ? { kind: 'red', icon: Flag, text: t('live.cockpit.bannerRedFlag') }
+            : null;
+    if (!banner) return null;
+    const Icon = banner.icon;
+    return (
+      <div className={styles.banner} data-kind={banner.kind} role="status">
+        <Icon size={20} aria-hidden="true" />
+        <span>{banner.text}</span>
+      </div>
+    );
   };
 
-  // Radio active status pill
-  let stateClass = 'state-idle';
-  let statusHeroText = t('live.cockpit.standby');
-
-  if (!radio.isRadioEnabled) {
-    stateClass = 'state-off';
-    statusHeroText = 'RADIO POWER OFF';
-  } else if (radio.radioState === 'transmitting') {
-    stateClass = 'state-transmitting';
-    statusHeroText = t('live.cockpit.transmitting');
-  } else if (radio.radioState === 'processing') {
-    stateClass = 'state-processing';
-    statusHeroText = t('live.cockpit.processing');
-  } else if (radio.radioState === 'speaking') {
-    stateClass = 'state-speaking';
-    statusHeroText = t('live.cockpit.speaking', { name: personaInfo.name.toUpperCase() });
-  }
+  const radioState = getRadioVisualState(radio);
+  const statusHeroText =
+    radioState === 'off'
+      ? t('ai_engineer.radio.radioOff')
+      : radioState === 'transmitting'
+        ? t('live.cockpit.transmitting')
+        : radioState === 'processing'
+          ? t('live.cockpit.processing')
+          : radioState === 'speaking'
+            ? t('live.cockpit.speaking', { name: personaInfo.name.toUpperCase() })
+            : t('live.cockpit.standby');
 
   return (
-    <div className="voice-cockpit-container" data-testid="voice-cockpit-container">
+    <div className={styles.container} data-testid="voice-cockpit-container">
       {/* Safety Car / Flag Alert Banner */}
       {renderSafetyCarBanner()}
 
       {/* Hero Voice Engineer Card */}
-      <div className={`voice-cockpit-hero-card ${stateClass}`}>
+      <div className={styles.hero} data-state={radioState}>
         <HeroPersonaBadge
           personaInfo={personaInfo}
           statusHeroText={statusHeroText}

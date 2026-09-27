@@ -41,13 +41,13 @@ describe('SubsystemAccordion', () => {
   });
 
   it('keeps the named switch from toggling the section, while the chevron still does', () => {
-    const { container, onToggleExpand, onToggleMaster } = renderAccordion(false);
+    const { onToggleExpand, onToggleMaster } = renderAccordion(false);
 
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Tyres' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Tyres' }));
     expect(onToggleMaster).toHaveBeenCalledWith(false);
     expect(onToggleExpand).not.toHaveBeenCalled();
 
-    fireEvent.click(container.querySelector('.radio-accordion-chevron')!);
+    fireEvent.click(screen.getByTestId('accordion-chevron'));
     expect(onToggleExpand).toHaveBeenCalledTimes(1);
   });
 });

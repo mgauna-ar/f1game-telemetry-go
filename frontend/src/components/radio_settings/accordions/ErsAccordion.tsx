@@ -3,6 +3,8 @@ import { Zap } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
 import { SubsystemAccordion } from '../SubsystemAccordion';
 import { ThresholdSlider } from '../ThresholdSlider';
+import { ToggleRow } from '../SettingControls';
+import styles from '../RadioSettings.module.css';
 import { useRadioSettingsStore } from '../../../store/useRadioSettingsStore';
 
 interface ErsAccordionProps {
@@ -11,11 +13,7 @@ interface ErsAccordionProps {
   onTestAlert: () => void;
 }
 
-export const ErsAccordion: React.FC<ErsAccordionProps> = ({
-  isExpanded,
-  onToggleExpand,
-  onTestAlert,
-}) => {
+export const ErsAccordion: React.FC<ErsAccordionProps> = ({ isExpanded, onToggleExpand, onTestAlert }) => {
   const { t } = useI18n();
 
   const ersAlertsEnabled = useRadioSettingsStore((s) => s.ersAlertsEnabled);
@@ -30,27 +28,24 @@ export const ErsAccordion: React.FC<ErsAccordionProps> = ({
       id="ers"
       title={t('ai_engineer.proactiveAlerts.ersTitle')}
       subtitle={t('ai_engineer.proactiveAlerts.ersDesc')}
-      icon={<Zap className="w-4 h-4" />}
-      iconColorClass="text-amber-400"
+      icon={<Zap size={16} />}
+      tone="amber"
       masterEnabled={ersAlertsEnabled}
       onToggleMaster={setErsAlertsEnabled}
       isExpanded={isExpanded}
       onToggleExpand={onToggleExpand}
       onTestAlert={onTestAlert}
     >
-      <div className="radio-sub-toggles-grid">
-        <label className="radio-sub-toggle-item">
-          <span>{t('ai_engineer.proactiveAlerts.ersLowReserve')}</span>
-          <input
-            type="checkbox"
-            checked={subErsLow}
-            onChange={(e) => setSubErsLow(e.target.checked)}
-            className="radio-checkbox"
-          />
-        </label>
+      <div className={styles.toggleGrid}>
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.ersLowReserve')}
+          checked={subErsLow}
+          onChange={setSubErsLow}
+        />
       </div>
 
-      <div className="radio-ptt-grid">
+      <div className={styles.grid2}>
         <ThresholdSlider
           label={t('ai_engineer.proactiveAlerts.ersLowThreshold')}
           value={ersLowPct}

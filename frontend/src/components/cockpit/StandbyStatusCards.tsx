@@ -3,6 +3,7 @@ import { Radio, WifiOff, Activity, Gauge } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
 import { useTelemetryEndpointStore } from '../../store/useTelemetryEndpointStore';
 import { ConnectionStatusPills } from '../common/ConnectionStatusPills';
+import styles from './StandbyStatusCards.module.css';
 
 export interface StandbyStatusCardsProps {
   connected: boolean;
@@ -11,6 +12,31 @@ export interface StandbyStatusCardsProps {
   /** How to talk to the pit wall, e.g. "Hold Space or mapped wheel button to talk". */
   pttHint: string;
 }
+
+interface StandbyCardProps {
+  icon: React.ReactNode;
+  tone?: 'cyan' | 'amber' | 'purple';
+  label: string;
+  value: React.ReactNode;
+  hint: React.ReactNode;
+  highlight?: boolean;
+}
+
+/** One status card: an icon, what it is, its current value and a hint. */
+const StandbyCard: React.FC<StandbyCardProps> = ({ icon, tone = 'cyan', label, value, hint, highlight }) => (
+  <li className={styles.card} data-tone={tone}>
+    <span className={styles.cardIcon} aria-hidden="true">
+      {icon}
+    </span>
+    <dl className={styles.cardText}>
+      <dt className={styles.cardLabel}>{label}</dt>
+      <dd className={styles.cardValue} data-highlight={highlight}>
+        {value}
+      </dd>
+      <dd className={styles.cardHint}>{hint}</dd>
+    </dl>
+  </li>
+);
 
 export const StandbyStatusCards: React.FC<StandbyStatusCardsProps> = ({
   connected,
@@ -23,70 +49,47 @@ export const StandbyStatusCards: React.FC<StandbyStatusCardsProps> = ({
   const lanIp = endpoint.lan_ips.find((ip) => ip !== endpoint.local_ip);
 
   return (
-    <div className="voice-cockpit-standby-panel" data-testid="voice-cockpit-standby-panel">
-      <div className="standby-panel-header">
-        <div className="standby-radar-mini">
-          {connected ? (
-            <Radio size={26} className="radar-icon-pulse text-cyan-400" />
-          ) : (
-            <WifiOff size={26} className="text-amber-400" />
-          )}
+    <div className={styles.panel} data-testid="voice-cockpit-standby-panel">
+      <div className={styles.header}>
+        <div className={styles.radar} data-connected={connected} aria-hidden="true">
+          {connected ? <Radio size={26} className={styles.pulse} /> : <WifiOff size={26} />}
         </div>
-        <div className="standby-panel-titles">
-          <div className="standby-badge-row">
-            <ConnectionStatusPills connected={connected} />
-          </div>
-          <h3 className="standby-title">{connected ? t('live.waitingForLive') : t('live.connectingToBridge')}</h3>
-          <p className="standby-subtitle">
+        <div className={styles.titles}>
+          <ConnectionStatusPills connected={connected} />
+          <h3 className={styles.title}>{connected ? t('live.waitingForLive') : t('live.connectingToBridge')}</h3>
+          <p className={styles.subtitle}>
             {connected ? t('live.telemetryListening') : t('live.establishingWebSocket')}
           </p>
         </div>
       </div>
 
-      <div className="voice-cockpit-standby-grid">
-        <div className="standby-status-card">
-          <div className="standby-card-icon text-cyan-400">
-            <Radio size={18} />
-          </div>
-          <div className="standby-card-info">
-            <span className="standby-card-label">{t('live.cockpit.title')}</span>
-            <span className="standby-card-val text-emerald-400 mono">
-              {personaName} • {effectiveLanguage === 'es' ? 'ES' : 'EN'}
-            </span>
-            <span className="standby-card-hint">{pttHint}</span>
-          </div>
-        </div>
-
-        <div className="standby-status-card">
-          <div className="standby-card-icon text-amber-400">
-            <Activity size={18} className="pulse-indicator" />
-          </div>
-          <div className="standby-card-info">
-            <span className="standby-card-label">{t('live.udpBridge')}</span>
-            <span className="standby-card-val mono text-cyan-300">
-              {connected ? t('live.bridgeListening', { addr: endpoint.udp_addr }) : t('live.bridgeConnecting')}
-            </span>
-            <span className="standby-card-hint">{t('live.dashboardAutoOpenTip')}</span>
-          </div>
-        </div>
-
-        <div className="standby-status-card">
-          <div className="standby-card-icon text-purple-400">
-            <Gauge size={18} />
-          </div>
-          <div className="standby-card-info">
-            <span className="standby-card-label">{t('live.inGameTelemetrySettings')}</span>
-            <span className="standby-card-val mono text-slate-300">
-              {t('live.udpSettingsSummary', { port: endpoint.udp_port })}
-            </span>
-            <span className="standby-card-hint">
-              {lanIp
-                ? t('live.ipSummary', { local: endpoint.local_ip, lan: lanIp })
-                : t('live.ipSummaryLocalOnly', { local: endpoint.local_ip })}
-            </span>
-          </div>
-        </div>
-      </div>
+      <ul className={styles.grid}>
+        <StandbyCard
+          icon={<Radio size={18} />}
+          label={t('live.cockpit.title')}
+          value={`${personaName} • ${effectiveLanguage === 'es' ? 'ES' : 'EN'}`}
+          highlight
+          hint={pttHint}
+        />
+        <StandbyCard
+          icon={<Activity size={18} className={styles.pulse} />}
+          tone="amber"
+          label={t('live.udpBridge')}
+          value={connected ? t('live.bridgeListening', { addr: endpoint.udp_addr }) : t('live.bridgeConnecting')}
+          hint={t('live.dashboardAutoOpenTip')}
+        />
+        <StandbyCard
+          icon={<Gauge size={18} />}
+          tone="purple"
+          label={t('live.inGameTelemetrySettings')}
+          value={t('live.udpSettingsSummary', { port: endpoint.udp_port })}
+          hint={
+            lanIp
+              ? t('live.ipSummary', { local: endpoint.local_ip, lan: lanIp })
+              : t('live.ipSummaryLocalOnly', { local: endpoint.local_ip })
+          }
+        />
+      </ul>
     </div>
   );
 };

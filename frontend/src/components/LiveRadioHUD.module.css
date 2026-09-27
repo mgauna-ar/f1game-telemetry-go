@@ -1,0 +1,170 @@
+/* Floating radio pill, bottom left */
+.hud {
+  position: fixed;
+  bottom: var(--space-6);
+  left: var(--space-6);
+  z-index: var(--z-dock);
+  user-select: none;
+}
+
+/* Its border, glow and icon follow the radio state (see cockpit/radioState.module.css) */
+.pill {
+  composes: radioState from './cockpit/radioState.module.css';
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: 480px;
+  padding: var(--space-2) var(--space-4) var(--space-2) var(--space-2);
+  color: var(--text-primary);
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--radio-color) 6%, transparent), transparent), var(--bg-elevated);
+  border: 1px solid color-mix(in srgb, var(--radio-color) 45%, transparent);
+  border-radius: var(--radius-full);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow:
+    var(--shadow-md),
+    0 0 20px color-mix(in srgb, var(--radio-color) 15%, transparent),
+    inset 0 1px 0 var(--border-highlight);
+  transition: all 0.28s var(--ease-out);
+}
+
+.pill:hover {
+  border-color: color-mix(in srgb, var(--radio-color) 70%, transparent);
+  transform: translateY(-1px);
+}
+
+.pill[data-state='transmitting'],
+.pill[data-state='speaking'] {
+  border-color: color-mix(in srgb, var(--radio-color) 85%, transparent);
+  box-shadow:
+    var(--shadow-md),
+    0 0 30px color-mix(in srgb, var(--radio-color) 40%, transparent);
+}
+
+.pill[data-state='transmitting'] {
+  animation: redPulse 1.4s infinite;
+}
+
+@keyframes redPulse {
+  50% {
+    border-color: var(--radio-color);
+    box-shadow:
+      0 0 35px color-mix(in srgb, var(--radio-color) 65%, transparent),
+      inset 0 0 14px color-mix(in srgb, var(--radio-color) 35%, transparent);
+  }
+}
+
+/* Radio off: a small, dimmer pill with the power button and the settings */
+.pill[data-state='off'] {
+  gap: var(--space-2);
+  padding: var(--space-1-5) var(--space-3) var(--space-1-5) var(--space-2);
+  border-color: var(--border-subtle);
+  box-shadow: var(--shadow-md);
+  opacity: 0.88;
+}
+
+.pill[data-state='off']:hover {
+  border-color: color-mix(in srgb, var(--accent-cyan) 40%, transparent);
+  opacity: 1;
+}
+
+.icon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  color: var(--radio-color);
+  background: color-mix(in srgb, var(--radio-color) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--radio-color) 45%, transparent);
+  border-radius: 50%;
+  box-shadow: 0 0 12px color-mix(in srgb, var(--radio-color) 30%, transparent);
+  transition: all var(--transition-normal);
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 140px;
+  max-width: 280px;
+  overflow: hidden;
+}
+
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+}
+
+.status {
+  font-family: var(--font-display);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-black);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.flag {
+  font-size: var(--font-size-md);
+  line-height: 1;
+}
+
+.subtitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quote {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.waveform {
+  width: 36px;
+  height: 18px;
+  margin-left: 2px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: var(--space-1);
+  padding-left: var(--space-2);
+  border-left: 1px solid var(--border-subtle);
+}
+
+.powerOff:hover:not(:disabled) {
+  color: var(--status-danger);
+  background: var(--status-danger-bg);
+}
+
+.muted {
+  color: var(--status-danger);
+}
+
+.powerOn {
+  color: var(--status-success);
+  background: var(--status-success-bg);
+  border-color: var(--status-success-border);
+  border-radius: var(--radius-full);
+}
+
+.powerOn:hover:not(:disabled) {
+  color: var(--status-success);
+  background: color-mix(in srgb, var(--status-success) 25%, transparent);
+  border-color: var(--status-success);
+}

@@ -3,6 +3,8 @@ import { ShieldAlert } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
 import { SubsystemAccordion } from '../SubsystemAccordion';
 import { ThresholdSlider } from '../ThresholdSlider';
+import { ToggleRow } from '../SettingControls';
+import styles from '../RadioSettings.module.css';
 import { useRadioSettingsStore } from '../../../store/useRadioSettingsStore';
 
 interface DamageAccordionProps {
@@ -11,11 +13,7 @@ interface DamageAccordionProps {
   onTestAlert: () => void;
 }
 
-export const DamageAccordion: React.FC<DamageAccordionProps> = ({
-  isExpanded,
-  onToggleExpand,
-  onTestAlert,
-}) => {
+export const DamageAccordion: React.FC<DamageAccordionProps> = ({ isExpanded, onToggleExpand, onTestAlert }) => {
   const { t } = useI18n();
 
   const damageAlertsEnabled = useRadioSettingsStore((s) => s.damageAlertsEnabled);
@@ -44,63 +42,48 @@ export const DamageAccordion: React.FC<DamageAccordionProps> = ({
       id="damage"
       title={t('ai_engineer.proactiveAlerts.damageTitle')}
       subtitle={t('ai_engineer.proactiveAlerts.damageDesc')}
-      icon={<ShieldAlert className="w-4 h-4" />}
-      iconColorClass="text-rose-400"
+      icon={<ShieldAlert size={16} />}
+      tone="red"
       masterEnabled={damageAlertsEnabled}
       onToggleMaster={setDamageAlertsEnabled}
       isExpanded={isExpanded}
       onToggleExpand={onToggleExpand}
       onTestAlert={onTestAlert}
     >
-      <div className="radio-sub-toggles-grid">
-        <label className="radio-sub-toggle-item">
-          <span>{t('ai_engineer.proactiveAlerts.wingDamage')}</span>
-          <input
-            type="checkbox"
-            checked={subDamageWing}
-            onChange={(e) => setSubDamageWing(e.target.checked)}
-            className="radio-checkbox"
-          />
-        </label>
-        <label className="radio-sub-toggle-item">
-          <span>{t('ai_engineer.proactiveAlerts.floorDamage')}</span>
-          <input
-            type="checkbox"
-            checked={subDamageFloor}
-            onChange={(e) => setSubDamageFloor(e.target.checked)}
-            className="radio-checkbox"
-          />
-        </label>
-        <label className="radio-sub-toggle-item">
-          <span>{t('ai_engineer.proactiveAlerts.engineWear')}</span>
-          <input
-            type="checkbox"
-            checked={subDamageEngine}
-            onChange={(e) => setSubDamageEngine(e.target.checked)}
-            className="radio-checkbox"
-          />
-        </label>
-        <label className="radio-sub-toggle-item">
-          <span>{t('ai_engineer.proactiveAlerts.mechanicalFaults')}</span>
-          <input
-            type="checkbox"
-            checked={subDamageFaults}
-            onChange={(e) => setSubDamageFaults(e.target.checked)}
-            className="radio-checkbox"
-          />
-        </label>
-        <label className="radio-sub-toggle-item">
-          <span>{t('ai_engineer.proactiveAlerts.engineOverheat')}</span>
-          <input
-            type="checkbox"
-            checked={subEngineTemp}
-            onChange={(e) => setSubEngineTemp(e.target.checked)}
-            className="radio-checkbox"
-          />
-        </label>
+      <div className={styles.toggleGrid}>
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.wingDamage')}
+          checked={subDamageWing}
+          onChange={setSubDamageWing}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.floorDamage')}
+          checked={subDamageFloor}
+          onChange={setSubDamageFloor}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.engineWear')}
+          checked={subDamageEngine}
+          onChange={setSubDamageEngine}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.mechanicalFaults')}
+          checked={subDamageFaults}
+          onChange={setSubDamageFaults}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.engineOverheat')}
+          checked={subEngineTemp}
+          onChange={setSubEngineTemp}
+        />
       </div>
 
-      <div className="radio-ptt-grid">
+      <div className={styles.grid2}>
         <ThresholdSlider
           label={t('ai_engineer.proactiveAlerts.wingDamageThreshold')}
           value={wingDamageWarnPct}
