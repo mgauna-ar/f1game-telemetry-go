@@ -36,7 +36,7 @@ func ComputeSessionDetail(session *storage.Session, participants []storage.Parti
 		Laps:           laps,
 		Classification: *ComputeSessionClassification(session, participants, laps),
 		Progression:    *ComputeSessionProgression(session, participants, laps),
-		Stints:         *ComputeSessionStints(session, participants, laps),
+		Stints:         *ComputeSessionStints(session, participants, laps, RaceControlPeriods(events)),
 		Events:         events,
 	}
 }

@@ -199,6 +199,8 @@ export const SessionDetailView: React.FC<SessionDetailViewProps> = (props) => {
       case 'stints':
         return (
           <SessionStintStrategyTab
+            // The stint selection belongs to one session
+            key={session.id}
             stintsData={stintsData}
             driverStandings={driverStandings}
             totalSessionLaps={totalSessionLaps}

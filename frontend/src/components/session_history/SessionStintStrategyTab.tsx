@@ -8,7 +8,7 @@ import {
 import { StrategyKPICards, type StrategyKPIs } from './stints/StrategyKPICards';
 import { StintGanttTimeline } from './stints/StintGanttTimeline';
 import { DegradationCurves } from './stints/DegradationCurves';
-import type { DriverStintData } from './stints/stintUtils';
+import { stintKey, stintKeysOf, type DriverStintData } from './stints/stintUtils';
 import { defaultChartSelection } from '../../utils/player';
 import styles from './SessionStintStrategyTab.module.css';
 
@@ -31,32 +31,8 @@ export const SessionStintStrategyTab: React.FC<SessionStintStrategyTabProps> = (
   formatLapTime,
   playerCarIndex = null,
 }) => {
-  // Drivers shown in the degradation curves: you and the cars around you, or the top 5
-  const [selectedDrivers, setSelectedDrivers] = useState<Record<number, boolean>>(() =>
-    defaultChartSelection(driverStandings, playerCarIndex)
-  );
-
   // Compound filter for degradation curves ('ALL' or specific compound)
   const [selectedCompound, setSelectedCompound] = useState<string>('ALL');
-
-  const toggleDriver = (carIndex: number) => {
-    setSelectedDrivers((prev) => ({
-      ...prev,
-      [carIndex]: !prev[carIndex],
-    }));
-  };
-
-  const selectAllDrivers = () => {
-    const next: Record<number, boolean> = {};
-    driverStandings.forEach((d) => {
-      next[d.participant.car_index] = true;
-    });
-    setSelectedDrivers(next);
-  };
-
-  const clearAllDrivers = () => {
-    setSelectedDrivers({});
-  };
 
   // 1. Process server-computed Stint structures with driverStandings metadata
   const driverStintsData: DriverStintData[] = useMemo(() => {
@@ -102,6 +78,8 @@ export const SessionStintStrategyTab: React.FC<SessionStintStrategyTabProps> = (
           bestLapTimeMS: s.best_lap_time_ms,
           hasPitStopAfter: s.has_pit_stop_after,
           degSlopeSecPerLap: s.deg_slope_sec_per_lap ?? null,
+          fitLaps: s.fit_laps ?? 0,
+          excludedLaps: s.excluded_laps ?? [],
         })),
         strategyString: d.strategy_string,
         totalStints: d.total_stints,
@@ -118,6 +96,38 @@ export const SessionStintStrategyTab: React.FC<SessionStintStrategyTabProps> = (
 
     return mapped;
   }, [stintsData, driverStandings]);
+
+  // The stints on the degradation chart: at first every stint of you and the cars around you, or
+  // of the top 5. Picked per stint in the degradation table; a driver button in the timeline
+  // toggles all of that driver's stints.
+  const [selectedStints, setSelectedStints] = useState<Record<string, boolean>>(() => {
+    const drivers = defaultChartSelection(driverStandings, playerCarIndex);
+    return stintKeysOf(driverStintsData, (car) => !!drivers[car]);
+  });
+
+  const selectedDrivers = useMemo(() => {
+    const selected: Record<number, boolean> = {};
+    for (const d of driverStintsData) {
+      const car = d.driver.participant.car_index;
+      selected[car] = d.stints.some((s) => selectedStints[stintKey(car, s.stintIndex)]);
+    }
+    return selected;
+  }, [driverStintsData, selectedStints]);
+
+  const toggleStint = (key: string) => setSelectedStints((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  const toggleDriver = (carIndex: number) => {
+    const keys = stintKeysOf(driverStintsData, (car) => car === carIndex);
+    const on = !selectedDrivers[carIndex];
+    setSelectedStints((prev) => {
+      const next = { ...prev };
+      for (const key of Object.keys(keys)) next[key] = on;
+      return next;
+    });
+  };
+
+  const hasPlayerStints =
+    playerCarIndex !== null && driverStintsData.some((d) => d.driver.participant.car_index === playerCarIndex);
 
   // Effective maximum lap count for Gantt width scaling
   const effectiveMaxLaps = stintsData?.effective_max_laps || totalSessionLaps || 1;
@@ -165,21 +175,8 @@ export const SessionStintStrategyTab: React.FC<SessionStintStrategyTabProps> = (
   }, [stintsData, driverStintsData]);
 
   // 3. Degradation & Pace Curves Data directly from server
-  const { degradationData, maxTyreAge, degradationRates } = useMemo(() => {
-    if (!stintsData) {
-      return {
-        degradationData: [] as Array<{ tyreAge: number; [key: string]: number | string | null | undefined }>,
-        maxTyreAge: 0,
-        degradationRates: {} as Record<string, number | null>,
-      };
-    }
-
-    return {
-      degradationData: stintsData.degradation_data || [],
-      maxTyreAge: stintsData.max_tyre_age || 0,
-      degradationRates: stintsData.degradation_rates || {},
-    };
-  }, [stintsData]);
+  const degradationData = stintsData?.degradation_data ?? [];
+  const maxTyreAge = stintsData?.max_tyre_age ?? 0;
 
   // Unique compounds used in this session for filter pills
   const sessionCompounds = stintsData?.session_compounds || [];
@@ -202,14 +199,17 @@ export const SessionStintStrategyTab: React.FC<SessionStintStrategyTabProps> = (
       <DegradationCurves
         degradationData={degradationData}
         maxTyreAge={maxTyreAge}
-        degradationRates={degradationRates}
         driverStintsData={driverStintsData}
-        driverStandings={driverStandings}
-        selectedDrivers={selectedDrivers}
-        toggleDriver={toggleDriver}
+        selectedStints={selectedStints}
+        toggleStint={toggleStint}
+        selectAllStints={() => setSelectedStints(stintKeysOf(driverStintsData, () => true))}
+        selectOnlyYours={
+          hasPlayerStints
+            ? () => setSelectedStints(stintKeysOf(driverStintsData, (car) => car === playerCarIndex))
+            : null
+        }
+        clearStints={() => setSelectedStints({})}
         playerCarIndex={playerCarIndex}
-        selectAllDrivers={selectAllDrivers}
-        clearAllDrivers={clearAllDrivers}
         selectedCompound={selectedCompound}
         setSelectedCompound={setSelectedCompound}
         sessionCompounds={sessionCompounds}

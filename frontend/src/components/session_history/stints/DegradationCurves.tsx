@@ -1,28 +1,29 @@
-import React from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { TrendingUp, Award } from 'lucide-react';
+import React, { useMemo } from 'react';
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { TrendingUp } from 'lucide-react';
 import { getTeamColor } from '../../../constants/f1';
-import { cssVar, styleVars } from '../../../styles/theme';
-import { TyreCompoundBadge } from '../../common/TyreCompoundBadge';
 import { useI18n } from '../../../context/I18nContext';
+import { cssVar } from '../../../styles/theme';
+import type { DegradationRow } from '../../../types/session';
+import { TyreCompoundBadge } from '../../common/TyreCompoundBadge';
+import { Button } from '../../ui/Button';
 import { EmptyState } from '../../ui/EmptyState';
 import { Panel, PanelHeader } from '../../ui/Panel';
 import { SegmentedControl } from '../../ui/SegmentedControl';
-import { DriverFilterChips } from '../DriverFilterChips';
 import styles from './DegradationCurves.module.css';
-import { getCompoundColor, compactTooltipProps, type DriverStintData } from './stintUtils';
-import type { DriverStanding } from '../../../types/session';
+import { DegradationTable, type DegradationTableRow } from './DegradationTable';
+import { compactTooltipProps, getCompoundColor, stintKey, type DriverStintData } from './stintUtils';
 
 interface DegradationCurvesProps {
-  degradationData: Array<{ tyreAge: number; [key: string]: number | string | null | undefined }>;
+  degradationData: DegradationRow[];
   maxTyreAge: number;
-  degradationRates: Record<string, number | null>;
   driverStintsData: DriverStintData[];
-  driverStandings: DriverStanding[];
-  selectedDrivers: Record<number, boolean>;
-  toggleDriver: (carIndex: number) => void;
-  selectAllDrivers: () => void;
-  clearAllDrivers: () => void;
+  /** The stints on the chart, by stint key. */
+  selectedStints: Record<string, boolean>;
+  toggleStint: (key: string) => void;
+  selectAllStints: () => void;
+  selectOnlyYours: (() => void) | null;
+  clearStints: () => void;
   selectedCompound: string;
   setSelectedCompound: (compound: string) => void;
   sessionCompounds: string[];
@@ -30,16 +31,21 @@ interface DegradationCurvesProps {
   playerCarIndex?: number | null;
 }
 
+const AXIS_TICK = { fill: cssVar('--text-muted'), fontSize: 11 };
+
+/**
+ * Every stint's degradation in a sortable table, and the lap times of the stints ticked in it
+ * against tyre age. Laps the fit leaves out (pit, safety car, slow) are hollow dots off the line.
+ */
 export const DegradationCurves: React.FC<DegradationCurvesProps> = ({
   degradationData,
   maxTyreAge,
-  degradationRates,
   driverStintsData,
-  driverStandings,
-  selectedDrivers,
-  toggleDriver,
-  selectAllDrivers,
-  clearAllDrivers,
+  selectedStints,
+  toggleStint,
+  selectAllStints,
+  selectOnlyYours,
+  clearStints,
   selectedCompound,
   setSelectedCompound,
   sessionCompounds,
@@ -47,6 +53,44 @@ export const DegradationCurves: React.FC<DegradationCurvesProps> = ({
   playerCarIndex = null,
 }) => {
   const { t } = useI18n();
+
+  const rows: DegradationTableRow[] = useMemo(
+    () =>
+      driverStintsData.flatMap((d) =>
+        d.stints
+          .filter((s) => selectedCompound === 'ALL' || s.compound === selectedCompound)
+          .map((stint) => ({
+            key: stintKey(d.driver.participant.car_index, stint.stintIndex),
+            driver: d.driver,
+            stint,
+          }))
+      ),
+    [driverStintsData, selectedCompound]
+  );
+  const charted = rows.filter((r) => selectedStints[r.key]);
+  const names = useMemo(() => new Map(rows.map((r) => [r.key, r])), [rows]);
+
+  // The y-range fits the laps in the fit, up to 107% of their median: a left-out lap (an in-lap,
+  // a safety car lap) or a stint run behind a safety car the session didn't store is clipped
+  // rather than flattening every curve
+  const chartedKeys = charted.map((r) => r.key).join(',');
+  const domain = useMemo((): [number, number] | ['auto', 'auto'] => {
+    const keys = chartedKeys.split(',');
+    const values = degradationData
+      .flatMap((row) => keys.map((k) => row[k]).filter((v): v is number => typeof v === 'number'))
+      .sort((a, b) => a - b);
+    if (values.length === 0) return ['auto', 'auto'];
+    const min = values[0];
+    const max = Math.min(values[values.length - 1], values[values.length >> 1] * 1.07);
+    const pad = Math.max((max - min) * 0.1, 0.3);
+    return [Math.floor((min - pad) * 10) / 10, Math.ceil((max + pad) * 10) / 10];
+  }, [degradationData, chartedKeys]);
+
+  const tooltipName = (dataKey: string) => {
+    const key = dataKey.replace(/_excluded$/, '');
+    const row = names.get(key);
+    return row ? { row, excluded: key !== dataKey } : null;
+  };
 
   return (
     <Panel className={styles.panel}>
@@ -72,124 +116,125 @@ export const DegradationCurves: React.FC<DegradationCurvesProps> = ({
         }
       />
 
-      <div className={styles.drivers}>
-        <DriverFilterChips
-          label={t('history.stints.degradation.filterDrivers')}
-          drivers={driverStandings}
-          selected={selectedDrivers}
-          playerCarIndex={playerCarIndex}
-          onToggle={toggleDriver}
-          onSelectAll={selectAllDrivers}
-          onClear={clearAllDrivers}
-          selectAllLabel={t('history.stints.degradation.selectAll')}
-          clearLabel={t('history.stints.degradation.clear')}
-        />
+      <div className={styles.toolbar}>
+        <span className={styles.count} aria-live="polite">
+          {t('history.stints.degradation.shown', { count: charted.length, total: rows.length })}
+        </span>
+        <div className={styles.actions}>
+          {selectOnlyYours && (
+            <Button size="sm" onClick={selectOnlyYours}>
+              {t('history.stints.degradation.onlyYours')}
+            </Button>
+          )}
+          <Button size="sm" onClick={selectAllStints}>
+            {t('history.stints.degradation.selectAll')}
+          </Button>
+          <Button size="sm" onClick={clearStints}>
+            {t('history.stints.degradation.clear')}
+          </Button>
+        </div>
       </div>
 
-      {/* Degradation rate of each stint */}
-      {Object.keys(degradationRates).length > 0 && (
-        <div className={styles.rates}>
-          <span className={styles.ratesLabel}>
-            <Award size={13} aria-hidden="true" /> {t('history.stints.degradation.degRate')}:
-          </span>
-          {Object.entries(degradationRates).map(([key, slope]) => {
-            if (slope === null) return null;
-            const [, carIdxStr, , stintIdxStr] = key.split('_');
-            const driver = driverStandings.find((d) => String(d.participant.car_index) === carIdxStr);
-            const isDegrading = slope > 0;
-            const slopeFormatted = Math.abs(slope).toFixed(3);
+      <DegradationTable
+        rows={rows}
+        selected={selectedStints}
+        onToggle={toggleStint}
+        formatLapTime={formatLapTime}
+        playerCarIndex={playerCarIndex}
+      />
 
-            return (
-              <div
-                key={key}
-                className={styles.rate}
-                style={styleVars({ '--team-color': getTeamColor(driver?.participant.team_id) })}
-              >
-                <span className={styles.teamDot} aria-hidden="true" />
-                <span className={styles.rateDriver}>{driver?.participant.name || `Car #${carIdxStr}`}</span>
-                <span className={styles.rateStint}>S{stintIdxStr}:</span>
-                <span className={isDegrading ? styles.degrading : styles.improving}>
-                  {isDegrading ? `+${slopeFormatted}s/lap` : `-${slopeFormatted}s/lap`}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Degradation Chart Container */}
-      {degradationData.length === 0 || maxTyreAge === 0 ? (
+      {charted.length === 0 || degradationData.length === 0 || maxTyreAge === 0 ? (
         <EmptyState title={t('history.stints.degradation.noDegradationData')} />
       ) : (
-        <div className={styles.chart}>
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={degradationData} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={cssVar('--chart-grid')} />
-              <XAxis
-                dataKey="tyreAge"
-                stroke="var(--text-muted)"
-                tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-                tickFormatter={(val) => `Age ${val}`}
-              />
-              <YAxis
-                stroke="var(--text-muted)"
-                tick={{ fill: 'var(--text-muted)', fontSize: 11 }}
-                domain={['auto', 'auto']}
-                tickFormatter={(val) => `${val.toFixed(1)}s`}
-              />
-              <Tooltip
-                {...compactTooltipProps}
-                labelFormatter={(age) => `${t('history.stints.degradation.tyreAgeAxis')}: ${age} Laps`}
-                formatter={(val, name, item) => {
-                  const key = String(item?.dataKey || name);
-                  const payload = item?.payload as Record<string, unknown> | undefined;
-                  const rawMS = payload ? (payload[`${key}_rawMS`] as number | undefined) : undefined;
-                  const comp = payload ? (payload[`${key}_compound`] as string | undefined) : undefined;
-                  const lapNum = payload ? (payload[`${key}_lapNum`] as number | undefined) : undefined;
-                  const timeStr = rawMS ? formatLapTime(rawMS) : `${val}s`;
-
-                  const [, carIdxStr, , stintIdxStr] = key.split('_');
-                  const driver = driverStandings.find((d) => String(d.participant.car_index) === carIdxStr);
-                  const driverName =
-                    driver?.participant.name || (typeof name === 'string' ? name.split(' ')[0] : 'Driver');
-                  const label = `${driverName} (Stint ${stintIdxStr || '1'} • ${comp || 'Tyre'} • Race L${lapNum ?? '?'})`;
-                  return [timeStr, label];
-                }}
-              />
-              <Legend />
-
-              {/* Render a line for each driver stint */}
-              {driverStintsData
-                .filter((d) => selectedDrivers[d.driver.participant.car_index])
-                .flatMap((d) => {
-                  const carIdx = d.driver.participant.car_index;
-                  const teamColor = getTeamColor(d.driver.participant.team_id);
-
-                  return d.stints
-                    .filter((s) => selectedCompound === 'ALL' || s.compound === selectedCompound)
-                    .map((stint) => {
-                      const key = `driver_${carIdx}_stint_${stint.stintIndex}`;
-                      const lineName = `${d.driver.participant.name} (S${stint.stintIndex} ${stint.compound.charAt(0)})`;
-
-                      return (
-                        <Line
-                          key={key}
-                          type="monotone"
-                          dataKey={key}
-                          name={lineName}
-                          stroke={teamColor}
-                          strokeWidth={2}
-                          strokeDasharray={stint.stintIndex > 1 ? '4 4' : undefined}
-                          dot={{ r: 3, fill: getCompoundColor(stint.compound) }}
-                          activeDot={{ r: 6 }}
-                          connectNulls
-                        />
-                      );
+        <>
+          <div className={styles.chart} aria-hidden="true">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart
+                data={degradationData}
+                margin={{ top: 10, right: 16, left: 0, bottom: 4 }}
+                accessibilityLayer={false}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke={cssVar('--chart-grid')} />
+                <XAxis
+                  dataKey="tyreAge"
+                  stroke={cssVar('--text-muted')}
+                  tick={AXIS_TICK}
+                  tickFormatter={(age) => t('history.stints.degradation.ageTick', { age: String(age) })}
+                />
+                <YAxis
+                  width={52}
+                  stroke={cssVar('--text-muted')}
+                  tick={AXIS_TICK}
+                  domain={domain}
+                  allowDataOverflow
+                  tickFormatter={(val: number) => `${val.toFixed(1)}s`}
+                />
+                <Tooltip
+                  {...compactTooltipProps}
+                  labelFormatter={(age) => t('history.stints.degradation.ageLabel', { age: String(age) })}
+                  formatter={(val, name, item) => {
+                    const dataKey = String(item?.dataKey ?? name);
+                    const found = tooltipName(dataKey);
+                    const payload = item?.payload as Record<string, unknown> | undefined;
+                    const key = dataKey.replace(/_excluded$/, '');
+                    const rawMS = payload?.[`${key}_rawMS`] as number | undefined;
+                    const lapNum = payload?.[`${key}_lapNum`] as number | undefined;
+                    const reason = payload?.[`${key}_reason`] as string | undefined;
+                    const time = rawMS ? formatLapTime(rawMS) : `${val}s`;
+                    if (!found) return [time, String(name)];
+                    const label = t('history.stints.degradation.tooltipSeries', {
+                      driver: found.row.driver.participant.name,
+                      stint: found.row.stint.stintIndex,
+                      compound: found.row.stint.compound,
+                      lap: lapNum ?? '?',
                     });
+                    return [
+                      found.excluded && reason
+                        ? `${time} (${t('history.stints.degradation.tooltipLeftOut', {
+                            reason: t(`history.stints.degradation.reasons.${reason}`),
+                          })})`
+                        : time,
+                      label,
+                    ];
+                  }}
+                />
+
+                {charted.flatMap(({ key, driver, stint }) => {
+                  const teamColor = getTeamColor(driver.participant.team_id);
+                  const mine = driver.participant.car_index === playerCarIndex;
+                  return [
+                    <Line
+                      key={key}
+                      type="monotone"
+                      dataKey={key}
+                      stroke={teamColor}
+                      strokeWidth={mine ? 3 : 2}
+                      strokeDasharray={stint.stintIndex > 1 ? '5 4' : undefined}
+                      dot={{ r: 3, fill: getCompoundColor(stint.compound), stroke: teamColor }}
+                      activeDot={{ r: 5 }}
+                      connectNulls
+                      isAnimationActive={false}
+                    />,
+                    <Line
+                      key={`${key}_excluded`}
+                      dataKey={`${key}_excluded`}
+                      stroke="none"
+                      dot={{ r: 3.5, fill: cssVar('--bg-panel-solid'), stroke: teamColor, strokeWidth: 1.5 }}
+                      activeDot={{ r: 5, fill: cssVar('--bg-panel-solid'), stroke: teamColor }}
+                      legendType="none"
+                      isAnimationActive={false}
+                    />,
+                  ];
                 })}
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          <ul className={styles.legend}>
+            <li data-series="fit">{t('history.stints.degradation.legendFit')}</li>
+            <li data-series="out">{t('history.stints.degradation.legendLeftOut')}</li>
+            <li data-series="later">{t('history.stints.degradation.legendLaterStint')}</li>
+          </ul>
+        </>
       )}
     </Panel>
   );

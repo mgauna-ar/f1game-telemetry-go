@@ -1,4 +1,4 @@
-import type { DriverStanding as RawDriverStanding } from './generated/analytics';
+import type { DriverStanding as RawDriverStanding, StintExcludedLap } from './generated/analytics';
 import type {
   ImportBatchResponse as GeneratedImportBatchResponse,
   ImportDetail as GeneratedImportDetail,
@@ -28,6 +28,7 @@ export type {
   SessionSummary,
   SpeedRanking,
   StintInfo as StandingStint,
+  StintExcludedLap,
   StintKPIs,
   StintLongestSummary,
   StintsResponse,
@@ -206,6 +207,10 @@ export interface DriverStint {
   bestLapTimeMS: number;
   hasPitStopAfter: boolean;
   degSlopeSecPerLap?: number | null;
+  /** How many laps the slope and the average are taken from. */
+  fitLaps: number;
+  /** Timed laps left out of the fit, and why. */
+  excludedLaps: StintExcludedLap[];
 }
 
 /** Outcome for one file of POST /api/sessions/import. */

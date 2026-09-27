@@ -1,0 +1,134 @@
+/* About twelve rows, then the table scrolls under its sticky header */
+.scroll {
+  max-height: 26rem;
+  overflow-y: auto;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+}
+
+/* The checkbox and a line swatch in the stint's chart style */
+.pick {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  cursor: pointer;
+}
+
+.pick input {
+  margin: 0;
+  accent-color: var(--accent-primary);
+  cursor: pointer;
+}
+
+.swatch {
+  width: 14px;
+  height: 0;
+  border-top: 3px solid var(--team-color);
+}
+
+.pick[data-later] .swatch {
+  border-top-style: dashed;
+}
+
+.driver {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  white-space: nowrap;
+}
+
+.pos {
+  min-width: 2.25em;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.name {
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+.muted {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.laps {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  white-space: nowrap;
+}
+
+.leftOut {
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.degrading,
+.improving {
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+}
+
+.degrading {
+  color: var(--status-danger);
+}
+
+.improving {
+  color: var(--status-success);
+}
+
+tr.selected {
+  background: color-mix(in srgb, var(--accent-primary) 6%, transparent);
+}
+
+tr.you > :first-child {
+  box-shadow: inset 3px 0 0 var(--accent-cyan);
+}
+
+@media (--tablet) {
+  .stintCol,
+  .bestCol {
+    display: none;
+  }
+
+  .leftOut {
+    max-width: 7.5rem;
+  }
+}
+
+/* Phones keep the driver, tyre, laps used and rate; the full list of left-out laps stays in the
+   laps cell's title and for screen readers */
+@media (--phone) {
+  .scroll {
+    max-height: 22rem;
+  }
+
+  .avgCol,
+  .pos,
+  .youBadge,
+  .swatch {
+    display: none;
+  }
+
+  .name {
+    max-width: 5.5rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .leftOut {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}

@@ -91,6 +91,8 @@ export interface DriverStint {
   best_lap_time_ms: number;
   has_pit_stop_after: boolean;
   deg_slope_sec_per_lap: number | null;
+  fit_laps: number;
+  excluded_laps: StintExcludedLap[];
 }
 
 /** Go: analytics.DriverStintData */
@@ -232,6 +234,12 @@ export interface SpeedRanking {
   team_id: number;
   max_speed: number;
   delta_to_top: number;
+}
+
+/** Go: analytics.StintExcludedLap */
+export interface StintExcludedLap {
+  lap_number: number;
+  reason: 'pit_in' | 'pit_out' | 'sc' | 'vsc' | 'slow';
 }
 
 /** Go: analytics.StintInfo */

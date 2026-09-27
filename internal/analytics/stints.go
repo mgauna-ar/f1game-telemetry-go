@@ -12,9 +12,11 @@ import (
 
 // StintsResponse contains complete stint partitions, degradation models, and strategy metrics for a session.
 //
-// Each degradation_data row has tyreAge plus keys built at runtime: driver_{carIndex}_stint_{index},
-// and the same key with _compound, _rawMS and _lapNum. The tstype tag describes that shape for the
-// generated frontend types.
+// Each degradation_data row has tyreAge plus keys built at runtime: driver_{carIndex}_stint_{index}
+// holds the lap time in seconds of a lap the degradation fit uses; a lap it leaves out has its
+// time under the same key with _excluded and the reason (a StintLapExclusion) with _reason. Both
+// kinds carry _compound, _rawMS and _lapNum. The tstype tag describes that shape for the generated
+// frontend types.
 type StintsResponse struct {
 	Drivers          []DriverStintData   `json:"drivers"`
 	KPIs             StintKPIs           `json:"kpis"`
@@ -51,8 +53,32 @@ type DriverStint struct {
 	BestLapTimeMS     int      `json:"best_lap_time_ms"`
 	HasPitStopAfter   bool     `json:"has_pit_stop_after"`
 	DegSlopeSecPerLap *float64 `json:"deg_slope_sec_per_lap"`
+	// FitLaps is how many laps the degradation slope and the average are taken from.
+	FitLaps int `json:"fit_laps"`
+	// ExcludedLaps are the timed laps left out of the fit, in lap order.
+	ExcludedLaps []StintExcludedLap `json:"excluded_laps"`
 	// Laps feed the KPIs and the degradation matrix; the client has them from the session detail.
 	Laps []storage.Lap `json:"-"`
+}
+
+// StintLapExclusion says why a lap is left out of a stint's degradation fit.
+type StintLapExclusion string
+
+// The reasons a lap is left out of the degradation fit: the laps into and out of the pits, laps
+// under the safety car or the virtual safety car, and laps slower than 107% of the stint's median
+// (analyzeDriverLapOutliers applied to the stint's racing laps).
+const (
+	ExcludedPitIn  StintLapExclusion = "pit_in"
+	ExcludedPitOut StintLapExclusion = "pit_out"
+	ExcludedSC     StintLapExclusion = "sc"
+	ExcludedVSC    StintLapExclusion = "vsc"
+	ExcludedSlow   StintLapExclusion = "slow"
+)
+
+// StintExcludedLap is a timed lap left out of a stint's degradation fit.
+type StintExcludedLap struct {
+	LapNumber int               `json:"lap_number"`
+	Reason    StintLapExclusion `json:"reason" tstype:"'pit_in' | 'pit_out' | 'sc' | 'vsc' | 'slow'"`
 }
 
 // StintLongestSummary stores information about the longest stint recorded in the session.
@@ -80,8 +106,10 @@ type StintKPIs struct {
 	TotalFieldPitStops  int                        `json:"total_field_pit_stops"`
 }
 
-// partitionDriverStints partitions contiguous laps of a single driver into distinct tyre stints.
-func partitionDriverStints(driverLaps []storage.Lap, usedCompoundsSet map[string]bool) (stints []DriverStint, maxDriverLap int) {
+// partitionDriverStints partitions contiguous laps of a single driver into distinct tyre stints and
+// fits each stint's degradation on its clean laps (see stintExclusions). neutralised maps the laps
+// run under the safety car or the VSC to ExcludedSC or ExcludedVSC.
+func partitionDriverStints(driverLaps []storage.Lap, usedCompoundsSet map[string]bool, neutralised map[int]StintLapExclusion) (stints []DriverStint, maxDriverLap int) {
 	var rawStints []*DriverStint
 	var currentStint *DriverStint
 	maxDriverLap = 0
@@ -131,33 +159,40 @@ func partitionDriverStints(driverLaps []storage.Lap, usedCompoundsSet map[string
 		}
 	}
 
+	pitLaps := analyzeDriverLapOutliers(driverLaps)
 	finalStints := make([]DriverStint, len(rawStints))
 	for sIdx, s := range rawStints {
-		var validLaps []storage.Lap
+		excluded := stintExclusions(s.Laps, pitLaps, neutralised)
+		var fitLaps []storage.Lap
 		var degPoints []DegRegressionPoint
-
+		best := 0
+		s.ExcludedLaps = []StintExcludedLap{}
 		for lapIndexInStint, l := range s.Laps {
-			if l.LapTimeMS > 0 {
-				validLaps = append(validLaps, l)
-				sec := float64(l.LapTimeMS) / 1000.0
-				degPoints = append(degPoints, DegRegressionPoint{
-					Age:     float64(lapIndexInStint + 1),
-					TimeSec: sec,
-				})
+			if l.LapTimeMS <= 0 {
+				continue
 			}
+			if best == 0 || l.LapTimeMS < best {
+				best = l.LapTimeMS
+			}
+			if reason, ok := excluded[l.LapNumber]; ok {
+				s.ExcludedLaps = append(s.ExcludedLaps, StintExcludedLap{LapNumber: l.LapNumber, Reason: reason})
+				continue
+			}
+			fitLaps = append(fitLaps, l)
+			degPoints = append(degPoints, DegRegressionPoint{
+				Age:     float64(lapIndexInStint + 1),
+				TimeSec: float64(l.LapTimeMS) / 1000.0,
+			})
 		}
 
-		if len(validLaps) > 0 {
+		s.BestLapTimeMS = best
+		s.FitLaps = len(fitLaps)
+		if len(fitLaps) > 0 {
 			sum := int64(0)
-			best := validLaps[0].LapTimeMS
-			for _, l := range validLaps {
+			for _, l := range fitLaps {
 				sum += int64(l.LapTimeMS)
-				if l.LapTimeMS < best {
-					best = l.LapTimeMS
-				}
 			}
-			s.AvgLapTimeMS = int(sum / int64(len(validLaps)))
-			s.BestLapTimeMS = best
+			s.AvgLapTimeMS = int(sum / int64(len(fitLaps)))
 		}
 		s.DegSlopeSecPerLap = CalculateDegradationSlope(degPoints)
 		finalStints[sIdx] = *s
@@ -166,9 +201,61 @@ func partitionDriverStints(driverLaps []storage.Lap, usedCompoundsSet map[string
 	return finalStints, maxDriverLap
 }
 
+// stintExclusions picks the laps of a stint the degradation fit leaves out: the in and out laps
+// (from analyzeDriverLapOutliers on the driver's whole race, in pitLaps), the laps under the
+// safety car or the VSC, and then, from the laps left, those analyzeDriverLapOutliers finds slower
+// than 107% of their median. Taking that median from the stint's own racing laps keeps a slower
+// compound or a safety car period from moving it.
+func stintExclusions(laps []storage.Lap, pitLaps map[int]driverLapOutlierInfo, neutralised map[int]StintLapExclusion) map[int]StintLapExclusion {
+	excluded := make(map[int]StintLapExclusion)
+	racing := make([]storage.Lap, 0, len(laps))
+	for _, l := range laps {
+		switch {
+		case pitLaps[l.LapNumber].outlierReason == "pit_in":
+			excluded[l.LapNumber] = ExcludedPitIn
+		case pitLaps[l.LapNumber].outlierReason == "pit_out":
+			excluded[l.LapNumber] = ExcludedPitOut
+		case neutralised[l.LapNumber] != "":
+			excluded[l.LapNumber] = neutralised[l.LapNumber]
+		default:
+			racing = append(racing, l)
+		}
+	}
+	for lapNum, info := range analyzeDriverLapOutliers(racing) {
+		if info.isOutlier {
+			excluded[lapNum] = ExcludedSlow
+		}
+	}
+	return excluded
+}
+
+// neutralisedLaps maps every lap inside a safety car or VSC period to its reason; a period still
+// open at the end runs to lastLap. The periods are in the leader's laps, so for a lapped car they
+// can be a lap early; the 107% rule catches its slow laps either way.
+func neutralisedLaps(periods []RaceControlPeriod, lastLap int) map[int]StintLapExclusion {
+	laps := make(map[int]StintLapExclusion)
+	for _, p := range periods {
+		reason := ExcludedSC
+		if p.Kind == PeriodVirtualSafetyCar {
+			reason = ExcludedVSC
+		}
+		end := p.EndLap
+		if end == 0 {
+			end = lastLap
+		}
+		for lap := p.StartLap; lap <= end; lap++ {
+			// A full safety car wins over the VSC it followed on the lap they share
+			if laps[lap] != ExcludedSC {
+				laps[lap] = reason
+			}
+		}
+	}
+	return laps
+}
+
 // buildDriverStintData constructs DriverStintData for a driver including strategy string.
-func buildDriverStintData(p storage.Participant, pIdx int, driverLaps []storage.Lap, usedCompoundsSet map[string]bool) (data DriverStintData, maxLap int) {
-	finalStints, maxLap := partitionDriverStints(driverLaps, usedCompoundsSet)
+func buildDriverStintData(p storage.Participant, pIdx int, driverLaps []storage.Lap, usedCompoundsSet map[string]bool, neutralised map[int]StintLapExclusion) (data DriverStintData, maxLap int) {
+	finalStints, maxLap := partitionDriverStints(driverLaps, usedCompoundsSet, neutralised)
 
 	strategyString := "N/A"
 	if len(finalStints) > 0 {
@@ -296,6 +383,10 @@ func buildDegradationData(driverStintsData []DriverStintData) (degradationData [
 		for _, stint := range d.Stints {
 			key := fmt.Sprintf("driver_%d_stint_%d", carIdx, stint.StintIndex)
 			rates[key] = stint.DegSlopeSecPerLap
+			reasons := make(map[int]StintLapExclusion, len(stint.ExcludedLaps))
+			for _, e := range stint.ExcludedLaps {
+				reasons[e.LapNumber] = e.Reason
+			}
 
 			for lapIndexInStint, lap := range stint.Laps {
 				tyreAge := lapIndexInStint + 1
@@ -308,7 +399,12 @@ func buildDegradationData(driverStintsData []DriverStintData) (degradationData [
 					if ageDataMap[tyreAge] == nil {
 						ageDataMap[tyreAge] = map[string]any{"tyreAge": tyreAge}
 					}
-					ageDataMap[tyreAge][key] = sec
+					if reason, ok := reasons[lap.LapNumber]; ok {
+						ageDataMap[tyreAge][key+"_excluded"] = sec
+						ageDataMap[tyreAge][key+"_reason"] = string(reason)
+					} else {
+						ageDataMap[tyreAge][key] = sec
+					}
 					ageDataMap[tyreAge][key+"_compound"] = stint.Compound
 					ageDataMap[tyreAge][key+"_rawMS"] = lap.LapTimeMS
 					ageDataMap[tyreAge][key+"_lapNum"] = lap.LapNumber
@@ -330,7 +426,9 @@ func buildDegradationData(driverStintsData []DriverStintData) (degradationData [
 }
 
 // ComputeSessionStints executes server-side stint strategy analysis, partitioning, OLS regression, and KPIs.
-func ComputeSessionStints(session *storage.Session, participants []storage.Participant, laps []storage.Lap) *StintsResponse {
+// The safety car and VSC periods (from the session's stored race-control events; none for older
+// sessions) are left out of the degradation fits.
+func ComputeSessionStints(session *storage.Session, participants []storage.Participant, laps []storage.Lap, periods []RaceControlPeriod) *StintsResponse {
 	isRaceSession := session != nil && strings.Contains(strings.ToLower(session.SessionType), "race")
 
 	// 1. Group laps by car
@@ -375,10 +473,15 @@ func ComputeSessionStints(session *storage.Session, participants []storage.Parti
 		effectiveMaxLaps = session.TotalLaps
 	}
 	usedCompoundsSet := make(map[string]bool)
+	lastLap := 0
+	for _, l := range laps {
+		lastLap = max(lastLap, l.LapNumber)
+	}
+	neutralised := neutralisedLaps(periods, lastLap)
 
 	for pIdx, p := range activeParticipants {
 		driverLaps := lapsByCar[p.CarIndex]
-		driverStint, maxLap := buildDriverStintData(p, pIdx, driverLaps, usedCompoundsSet)
+		driverStint, maxLap := buildDriverStintData(p, pIdx, driverLaps, usedCompoundsSet, neutralised)
 		driverStintsData = append(driverStintsData, driverStint)
 		if maxLap > effectiveMaxLaps {
 			effectiveMaxLaps = maxLap
