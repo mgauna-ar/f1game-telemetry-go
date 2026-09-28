@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Trophy } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
 import { SectorSwatch } from '../../common/SectorTime';
 import { DataTable } from '../../ui/DataTable';
 import { EmptyState } from '../../ui/EmptyState';
 import { Panel, PanelHeader } from '../../ui/Panel';
-import { useClassificationColumns } from './classificationColumns';
+import { SegmentedControl } from '../../ui/SegmentedControl';
+import { useClassificationColumns, type GapMode } from './classificationColumns';
 import { DriverLapsSubTable } from './DriverLapsSubTable';
 import type { Session, Lap, DriverStanding, StagedLap } from '../../../types/session';
 import styles from './ClassificationTable.module.css';
@@ -54,6 +55,7 @@ export const ClassificationTable: React.FC<ClassificationTableProps> = ({
 }) => {
   const { t } = useI18n();
   const leader = driverStandings[0];
+  const [gapMode, setGapMode] = useState<GapMode>('gap');
 
   const columns = useClassificationColumns({
     isRaceSession,
@@ -72,6 +74,8 @@ export const ClassificationTable: React.FC<ClassificationTableProps> = ({
     formatTotalDuration,
     renderDriverTyreStints,
     playerCarIndex,
+    gapMode,
+    standings: driverStandings,
   });
 
   return (
@@ -84,15 +88,34 @@ export const ClassificationTable: React.FC<ClassificationTableProps> = ({
             : t('history.classification.timingClassification')
         }
         actions={
-          <div className={styles.legend}>
-            <span className={styles.legendItem}>
-              <SectorSwatch kind="session" />
-              {t('history.classification.sessionFastestSector')}
-            </span>
-            <span className={styles.legendItem}>
-              <SectorSwatch kind="personal" />
-              {t('history.classification.personalBestSector')}
-            </span>
+          <div className={styles.headerActions}>
+            <SegmentedControl
+              size="xs"
+              aria-label={t('history.classification.gapModeLabel')}
+              value={gapMode}
+              onChange={setGapMode}
+              options={[
+                {
+                  value: 'gap',
+                  label: t(isRaceSession ? 'history.classification.gapModeGap' : 'history.classification.gapModePole'),
+                },
+                { value: 'interval', label: t('history.classification.gapModeInterval') },
+              ]}
+            />
+            <div className={styles.legend}>
+              <span className={styles.legendItem}>
+                <SectorSwatch kind="session" />
+                {t('history.classification.sessionFastestSector')}
+              </span>
+              <span className={styles.legendItem}>
+                <SectorSwatch kind="personal" />
+                {t('history.classification.personalBestSector')}
+              </span>
+              <span className={styles.legendItem}>
+                <SectorSwatch kind="slower" />
+                {t('history.classification.slowerSector')}
+              </span>
+            </div>
           </div>
         }
       />

@@ -10,12 +10,12 @@
 /* Separate rounded rows; element selectors outrank the DataTable's own cell rules */
 .table {
   border-collapse: separate;
-  border-spacing: 0 4px;
+  border-spacing: 0 3px;
   padding: 0 var(--space-2);
 }
 
 .table thead th {
-  padding: 0.65rem 0.75rem;
+  padding: 0.55rem 0.65rem;
   background: none;
   letter-spacing: 0.08em;
 }
@@ -27,11 +27,11 @@
 }
 
 .table tbody tr > * {
-  padding: 0.75rem;
+  padding: 0.4rem 0.65rem;
   border-top: 1px solid var(--row-edge);
   border-bottom: 1px solid var(--row-edge);
   background: var(--row-bg);
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
   transition:
     background-color var(--duration-fast) var(--ease-out),
     border-color var(--duration-fast) var(--ease-out);
@@ -157,31 +157,7 @@
 .actions {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-}
-
-.export {
-  border-color: color-mix(in srgb, var(--accent-cyan) 25%, transparent);
-  background: color-mix(in srgb, var(--accent-cyan) 6%, transparent);
-  color: var(--accent-cyan);
-}
-
-.export:hover:not(:disabled) {
-  border-color: var(--accent-cyan);
-  background: color-mix(in srgb, var(--accent-cyan) 20%, transparent);
-  color: var(--accent-cyan);
-}
-
-.delete {
-  border-color: var(--status-danger-border);
-  background: color-mix(in srgb, var(--status-danger) 6%, transparent);
-  color: var(--status-danger);
-}
-
-.delete:hover:not(:disabled) {
-  border-color: var(--status-danger);
-  background: color-mix(in srgb, var(--status-danger) 20%, transparent);
-  color: var(--status-danger);
+  gap: var(--space-1);
 }
 
 /* Fades in on row hover, like a "go" chevron */
@@ -195,4 +171,11 @@
 .explore:focus-visible {
   color: var(--accent-cyan);
   opacity: 1;
+}
+
+/* A group's heading row: no row chrome, just the heading */
+.table tbody tr.groupRow > th {
+  padding: var(--space-3) var(--space-1) var(--space-0-5);
+  border: none;
+  background: none;
 }

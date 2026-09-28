@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  getTrackInfo,
   getQualifyingCutoffPosition,
   getTeamColor,
   getVisualCompoundId,
@@ -63,5 +64,15 @@ describe('getQualifyingCutoffPosition', () => {
     { name: 'an unknown session', sessionType: undefined, carCount: 20 },
   ])('knocks nobody out in $name', ({ sessionType, carCount }) => {
     expect(getQualifyingCutoffPosition(sessionType, carCount)).toBeNull();
+  });
+});
+
+describe('getTrackInfo', () => {
+  it('prefers an exact name or alias to a partial match', () => {
+    // "spa" is also part of Spain's alias "spain"
+    expect(getTrackInfo('Spa')?.countryIso3).toBe('BEL');
+    expect(getTrackInfo('Spa-Francorchamps')?.countryIso3).toBe('BEL');
+    expect(getTrackInfo('Monza')?.countryIso3).toBe('ITA');
+    expect(getTrackInfo('Circuit de Spa-Francorchamps')?.countryIso3).toBe('BEL');
   });
 });

@@ -25,6 +25,12 @@
   font-weight: var(--font-weight-semibold);
 }
 
+.yellow {
+  background-color: var(--f1-yellow-bg);
+  color: var(--f1-yellow);
+  border: 1px solid var(--f1-yellow-border);
+}
+
 /* The legend's colour sample */
 .swatch {
   display: inline-block;

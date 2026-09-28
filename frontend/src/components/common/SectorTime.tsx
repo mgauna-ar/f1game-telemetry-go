@@ -8,24 +8,33 @@ interface SectorTimeProps {
   isSessionBest?: boolean;
   /** The driver's own fastest time for this sector (green); ignored when it's also the session best. */
   isPersonalBest?: boolean;
+  /** A completed sector slower than the driver's best (yellow); ignored when either best applies. */
+  isSlower?: boolean;
   children: React.ReactNode;
   className?: string;
 }
 
 /**
- * A sector time coloured the F1 way: purple for the session best, green for a personal best.
+ * A sector time coloured the F1 way: purple for the session best, green for a personal best and
+ * yellow for a slower one.
  * Colour isn't the only cue: session bests carry a corner notch, and both kinds say what they
  * are in a tooltip and to screen readers.
  */
 export const SectorTime: React.FC<SectorTimeProps> = ({
   isSessionBest = false,
   isPersonalBest = false,
+  isSlower = false,
   children,
   className,
 }) => {
   const { t } = useI18n();
   if (!isSessionBest && !isPersonalBest) {
-    return <span className={className}>{children}</span>;
+    // Yellow says "no improvement", which the time next to the best ones already tells a screen reader
+    return (
+      <span className={cx(isSlower && styles.yellow, className)} data-best={isSlower ? 'none' : undefined}>
+        {children}
+      </span>
+    );
   }
 
   const label = t(
@@ -44,6 +53,12 @@ export const SectorTime: React.FC<SectorTimeProps> = ({
 };
 
 /** The purple or green sample for a legend; decorative, so the legend text must say what it means. */
-export const SectorSwatch: React.FC<{ kind: 'session' | 'personal' }> = ({ kind }) => (
-  <span className={cx(styles.swatch, kind === 'session' ? styles.purple : styles.green)} aria-hidden="true" />
+export const SectorSwatch: React.FC<{ kind: 'session' | 'personal' | 'slower' }> = ({ kind }) => (
+  <span
+    className={cx(
+      styles.swatch,
+      kind === 'session' ? styles.purple : kind === 'personal' ? styles.green : styles.yellow
+    )}
+    aria-hidden="true"
+  />
 );

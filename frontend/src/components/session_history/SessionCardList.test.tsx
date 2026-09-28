@@ -74,7 +74,8 @@ describe('SessionCardList', () => {
     const monza = screen.getAllByRole('listitem')[0];
     fireEvent.click(within(monza).getByRole('button', { name: 'Explore: Monza' }));
     expect(props.onSelectSession).toHaveBeenCalledWith(sessions[0]);
-    fireEvent.click(within(monza).getByRole('button', { name: /Delete Session #1/ }));
+    fireEvent.click(within(monza).getByRole('button', { name: 'More actions for Monza, session #1' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete session' }));
     expect(props.onRequestDelete).toHaveBeenCalledWith(sessions[0]);
     fireEvent.click(within(monza).getByRole('checkbox'));
     expect(props.onToggleSelectSession).toHaveBeenCalledWith(1);

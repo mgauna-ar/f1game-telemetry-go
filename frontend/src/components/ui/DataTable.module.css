@@ -111,3 +111,12 @@
   background: var(--bg-inset);
   border-bottom: 1px solid var(--border-subtle);
 }
+
+/* A group's heading row */
+.groupHeader {
+  padding: var(--space-3) var(--space-3) var(--space-1-5);
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-align: left;
+}

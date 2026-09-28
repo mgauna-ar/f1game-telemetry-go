@@ -8,6 +8,8 @@ import { useLapStaging } from '../hooks/useLapStaging';
 import { useSessionDetail } from '../hooks/useSessionDetail';
 import { useSessionTags } from '../hooks/useSessionTags';
 import { useSessionFilters } from '../hooks/useSessionFilters';
+import { useSessionListPreferences } from '../hooks/useSessionListPreferences';
+import type { SavedSessionFilter } from '../utils/sessionListView';
 import { useBatchOperations } from '../hooks/useBatchOperations';
 import { useRaceEngineerActions } from './RaceEngineerContext';
 import {
@@ -105,6 +107,9 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({ 
     setSessionTypeFilter,
     circuitFilter,
     setCircuitFilter,
+    quickFilters,
+    setQuickFilters,
+    toggleQuickFilter,
     sortField,
     sortOrder,
     handleToggleSort,
@@ -114,6 +119,41 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({ 
     sessions,
     selectedTagId,
   });
+
+  const { groupBy, setGroupBy, savedFilters, saveFilter, deleteSavedFilter } = useSessionListPreferences();
+
+  const saveCurrentFilter = useCallback(
+    (name: string) =>
+      saveFilter({
+        name,
+        search: searchQuery,
+        type: sessionTypeFilter,
+        circuit: circuitFilter,
+        tagId: selectedTagId,
+        quick: quickFilters,
+      }),
+    [saveFilter, searchQuery, sessionTypeFilter, circuitFilter, selectedTagId, quickFilters]
+  );
+
+  const applySavedFilter = useCallback(
+    (filter: SavedSessionFilter) => {
+      setSearchQuery(filter.search);
+      setSessionTypeFilter(filter.type);
+      setCircuitFilter(filter.circuit);
+      // A deleted tag can't filter anything
+      setSelectedTagId(availableTags.some((tag) => tag.id === filter.tagId) ? filter.tagId : null);
+      setQuickFilters(filter.quick);
+    },
+    [setSearchQuery, setSessionTypeFilter, setCircuitFilter, setSelectedTagId, setQuickFilters, availableTags]
+  );
+
+  const resetFilters = useCallback(() => {
+    setSearchQuery('');
+    setSessionTypeFilter('ALL');
+    setCircuitFilter('ALL');
+    setSelectedTagId(null);
+    setQuickFilters([]);
+  }, [setSearchQuery, setSessionTypeFilter, setCircuitFilter, setSelectedTagId, setQuickFilters]);
 
   // Modal states for batch operations
   const [showBatchDeleteModal, setShowBatchDeleteModal] = useState<boolean>(false);
@@ -211,6 +251,9 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({ 
       searchQuery,
       sessionTypeFilter,
       circuitFilter,
+      quickFilters,
+      groupBy,
+      savedFilters,
       sortField,
       sortOrder,
       selectedSession,
@@ -219,7 +262,7 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({ 
       classificationData,
       progressionData,
       stintsData,
-    events,
+      events,
       driverStandings,
       sessionBestS1,
       sessionBestS2,
@@ -254,6 +297,9 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({ 
       searchQuery,
       sessionTypeFilter,
       circuitFilter,
+      quickFilters,
+      groupBy,
+      savedFilters,
       sortField,
       sortOrder,
       selectedSession,
@@ -262,7 +308,7 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({ 
       classificationData,
       progressionData,
       stintsData,
-    events,
+      events,
       driverStandings,
       sessionBestS1,
       sessionBestS2,
@@ -293,6 +339,12 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({ 
       setSessionTypeFilter,
       setCircuitFilter,
       setSelectedTagId,
+      toggleQuickFilter,
+      setGroupBy,
+      saveCurrentFilter,
+      applySavedFilter,
+      deleteSavedFilter,
+      resetFilters,
       handleToggleSort,
       selectSession,
       closeSession,
@@ -332,6 +384,12 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({ 
       setSessionTypeFilter,
       setCircuitFilter,
       setSelectedTagId,
+      toggleQuickFilter,
+      setGroupBy,
+      saveCurrentFilter,
+      applySavedFilter,
+      deleteSavedFilter,
+      resetFilters,
       handleToggleSort,
       selectSession,
       closeSession,
@@ -370,9 +428,7 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({ 
 
   return (
     <SessionHistoryDataContext.Provider value={dataValue}>
-      <SessionHistoryActionsContext.Provider value={actionsValue}>
-        {children}
-      </SessionHistoryActionsContext.Provider>
+      <SessionHistoryActionsContext.Provider value={actionsValue}>{children}</SessionHistoryActionsContext.Provider>
     </SessionHistoryDataContext.Provider>
   );
 };
