@@ -8,7 +8,8 @@ import type { Narrows } from './wire';
 
 // Wire types generated from the Go structs (go run ./cmd/tsgen). The camelCase client models
 // below (DriverStanding, DriverStint) are built from them.
-export type { Lap, Participant, Session, Tag } from './generated/storage';
+export type { BatchPlayerResult, Lap, Participant, PlayerCarSource, Session, Tag } from './generated/storage';
+export type { BatchPlayerRequest, SetPlayerCarRequest } from './generated/api';
 export type { WeatherForecastSample } from './generated/packets';
 export type { FeedEvent } from './generated/session';
 export type {

@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { api } from '../utils/apiClient';
 import { primeSessionLapData } from '../utils/sessionDataCache';
-import { savedDriverName } from '../utils/comparatorPreferencesUtils';
 import { findPlayer } from '../utils/player';
+import { useSessionListStore } from '../store/useSessionListStore';
 import {
   type Session,
   type Lap,
@@ -45,7 +45,7 @@ export interface UseSessionDetailReturn {
   isRaceSession: boolean;
   totalSessionLaps: number;
   totalDriversCount: number;
-  /** Your car in the open session (its stored car, or the saved driver name), or null. */
+  /** Your car in the open session (recorded or picked), or null. */
   playerCarIndex: number | null;
   /** How your car was found, or null when it wasn't. */
   playerSource: PlayerSource | null;
@@ -155,9 +155,17 @@ export function useSessionDetail({ onClearStagedSlots }: UseSessionDetailProps =
 
   const totalDriversCount = driverStandings.length;
 
+  // The list has the latest pick (useSessionListStore.setPlayerCar), so a change shows at once.
+  const listed = useSessionListStore((s) =>
+    selectedSession ? s.sessions.find((item) => item.id === selectedSession.id) : undefined
+  );
+  const playerSession = listed ?? selectedSession;
   const player = useMemo(
-    () => (selectedSession ? findPlayer(participants, selectedSession.player_car_index, savedDriverName()) : undefined),
-    [selectedSession, participants]
+    () =>
+      playerSession
+        ? findPlayer(participants, playerSession.player_car_index, playerSession.player_car_source)
+        : undefined,
+    [playerSession, participants]
   );
 
   return {

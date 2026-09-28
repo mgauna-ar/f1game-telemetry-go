@@ -65,6 +65,7 @@ export interface SessionHistoryData {
   sessionToManageTags: Session | null;
   showBatchDeleteModal: boolean;
   showBatchTagModal: boolean;
+  showBatchDriverModal: boolean;
 }
 
 export interface SessionHistoryActions {
@@ -118,6 +119,7 @@ export interface SessionHistoryActions {
   handleDeleteGlobalTag: (tagId: number) => Promise<void>;
   setShowBatchDeleteModal: (show: boolean) => void;
   setShowBatchTagModal: (show: boolean) => void;
+  setShowBatchDriverModal: (show: boolean) => void;
   fetchSessions: () => Promise<void>;
   fetchTags: () => Promise<void>;
   /** Opens the comparator with one lap in the given slot. */

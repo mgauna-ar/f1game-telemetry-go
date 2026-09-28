@@ -1260,7 +1260,8 @@ describe('SessionHistory Component', () => {
       const row = (track: string) => within(table).getByRole('rowheader', { name: new RegExp(track) }).closest('tr')!;
       expect(within(row('Silverstone')).getByText('P2')).toBeInTheDocument();
       expect(within(row('Silverstone')).getByText('1 place lost')).toBeInTheDocument();
-      expect(within(row('Monaco')).getByText('Your car was not recorded')).toBeInTheDocument();
+      expect(within(row('Monaco')).getByRole('button', { name: 'Pick your driver in Monaco Race' })).toBeInTheDocument();
+      expect(within(row('Silverstone')).queryByRole('button', { name: /Pick your driver/ })).not.toBeInTheDocument();
       expect(within(table).queryByText('F1 2026')).not.toBeInTheDocument();
       expect(within(row('Spa')).getByText('F1 2025')).toBeInTheDocument();
     });
@@ -1276,7 +1277,7 @@ describe('SessionHistory Component', () => {
       expect(within(card).getByText('+0.400s to the fastest')).toBeInTheDocument();
       expect(within(card).getByText('P1 Lewis Hamilton')).toBeInTheDocument();
       expect(within(card).getByText('P3 Oscar Piastri')).toBeInTheDocument();
-      expect(within(card).queryByText(/saved in the Lap Comparator/)).not.toBeInTheDocument();
+      expect(within(card).queryByText(/Chosen by you/)).not.toBeInTheDocument();
 
       fireEvent.click(within(card).getByRole('button', { name: 'Compare with the fastest lap' }));
       expect(window.location.pathname + window.location.search).toBe('/compare?sa=1&a=302&b=301');
@@ -1293,20 +1294,106 @@ describe('SessionHistory Component', () => {
       expect(within(youRows[0]).getByText('Lando Norris')).toBeInTheDocument();
     });
 
-    it('finds you by the saved driver name in a session recorded before your car was stored', async () => {
+    it('lets you pick your driver in a session without one, and follows the pick', async () => {
+      // The saved driver name of older versions no longer finds anyone
       localStorage.setItem('f1_comparator_default_driver_name', 'Piastri');
-      await openSession(null);
+      let listed = makeSessionListItem({ id: 1, track_name: 'Silverstone', session_type: 'Race', player_car_index: null });
+      const put = vi.fn();
+      setupFetchMock({
+        participants: threeCars,
+        laps: threeCarLaps,
+        custom: (url, options) => {
+          if (url === '/api/sessions/1/player' && options?.method === 'PUT') {
+            const body = JSON.parse(String(options.body)) as { car_index: number | null };
+            put(body);
+            listed = { ...listed, player_car_index: body.car_index, player_car_source: body.car_index === null ? null : 'user' };
+            return Promise.resolve({ ok: true, json: () => Promise.resolve(listed) });
+          }
+          if (url === '/api/sessions') return Promise.resolve({ ok: true, json: () => Promise.resolve([listed]) });
+          return null;
+        },
+      });
+      window.history.replaceState(null, '', '/history/1');
+      render(<SessionHistory />);
 
+      const note = await screen.findByTestId('no-driver');
+      expect(screen.queryByTestId('your-race')).not.toBeInTheDocument();
+      fireEvent.click(within(note).getByRole('button', { name: 'Pick your driver' }));
+
+      const dialog = await screen.findByRole('dialog', { name: 'Who were you?' });
+      const radios = await within(dialog).findAllByRole('radio');
+      // Classification order, then "None"
+      expect(radios.map((r) => r.closest('label')?.textContent)).toEqual([
+        'P1#44Lewis Hamilton',
+        'P2#4Lando Norris',
+        'P3#81Oscar Piastri',
+        "None: I wasn't driving",
+      ]);
+      const save = within(dialog).getByRole('button', { name: 'Save' });
+      expect(save).toBeDisabled();
+      fireEvent.click(within(dialog).getByRole('radio', { name: /Oscar Piastri/ }));
+      fireEvent.click(save);
+
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(put).toHaveBeenCalledWith({ car_index: 2 });
       const card = await screen.findByTestId('your-race');
       expect(within(card).getByText('Oscar Piastri')).toBeInTheDocument();
-      expect(within(card).getByText(/saved in the Lap Comparator/)).toBeInTheDocument();
+      expect(within(card).getByText(/Chosen by you/)).toBeInTheDocument();
       expect(within(card).getByText('P3')).toBeInTheDocument();
+      expect(await screen.findByText('Oscar Piastri is now your driver in this session')).toBeInTheDocument();
+
+      // Change, then "None" takes the card away again
+      fireEvent.click(within(card).getByRole('button', { name: 'Change your driver' }));
+      const again = await screen.findByRole('dialog', { name: 'Who were you?' });
+      expect(await within(again).findByRole('radio', { name: /Oscar Piastri/ })).toBeChecked();
+      expect(within(again).getByText('Your pick')).toBeInTheDocument();
+      fireEvent.click(within(again).getByRole('radio', { name: "None: I wasn't driving" }));
+      fireEvent.click(within(again).getByRole('button', { name: 'Save' }));
+      await screen.findByTestId('no-driver');
+      expect(put).toHaveBeenLastCalledWith({ car_index: null });
+    });
+
+    it('offers the old saved name once, and sets your driver in the selected sessions from the batch dock', async () => {
+      localStorage.setItem('f1_comparator_default_driver_name', 'Piastri');
+      const batches: unknown[] = [];
+      setupFetchMock({
+        sessions: [
+          makeSessionListItem({ id: 7, track_name: 'Silverstone', session_type: 'Race', player_car_index: null }),
+          makeSessionListItem({ id: 8, track_name: 'Monza', session_type: 'Race', player_car_index: null }),
+          makeSessionListItem({ id: 9, track_name: 'Spa', session_type: 'Race', player_car_index: 0, player_car_source: 'game' }),
+        ],
+        participants: threeCars,
+        laps: threeCarLaps,
+        custom: (url, options) => {
+          if (url !== '/api/sessions/batch-player') return null;
+          batches.push(JSON.parse(String(options?.body)));
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({ updated: [7, 8], not_found: [], ambiguous: [] }) });
+        },
+      });
+      window.history.replaceState(null, '', '/history');
+      render(<SessionHistory />);
+
+      const notice = await screen.findByRole('region', { name: 'Apply “Piastri” to the 2 sessions without a driver?' });
+      fireEvent.click(within(notice).getByRole('button', { name: 'Dismiss' }));
+      expect(screen.queryByRole('region', { name: /Apply “Piastri”/ })).not.toBeInTheDocument();
+      expect(localStorage.getItem('f1_comparator_default_driver_name')).toBeNull();
+
+      fireEvent.click(screen.getByRole('button', { name: 'No driver' }));
+      fireEvent.click(screen.getByTitle('Select all sessions'));
+      fireEvent.click(await screen.findByRole('button', { name: 'Set my driver…' }));
+
+      const dialog = await screen.findByRole('dialog', { name: 'Set my driver' });
+      fireEvent.click(await within(dialog).findByRole('button', { name: 'Lando Norris, in 2 of 2 sessions' }));
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Apply to 2' }));
+
+      expect(await within(dialog).findByRole('heading', { name: 'Updated: 2' })).toBeInTheDocument();
+      expect(batches).toEqual([{ session_ids: [7, 8], driver_name: 'Lando Norris' }]);
     });
 
     it('shows no card and no YOU row when your car is unknown', async () => {
       await openSession(null);
       expect(screen.queryByTestId('your-race')).not.toBeInTheDocument();
-      expect(screen.getByText(/Your car wasn't recorded in this session/)).toBeInTheDocument();
+      expect(screen.getByText(/Which car was yours isn't known/)).toBeInTheDocument();
       await openClassification();
       expect(screen.queryByText('YOU')).not.toBeInTheDocument();
     });

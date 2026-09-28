@@ -9,8 +9,7 @@ import (
 )
 
 // handleGetProgress returns the player's progress at a track (?track=, the latest session's
-// track when left out) and the tracks to pick from. driver is the dashboard's saved driver name,
-// as in GET /api/sessions.
+// track when left out) and the tracks to pick from.
 func (s *Server) handleGetProgress(w http.ResponseWriter, r *http.Request) {
 	sessions, err := s.repo.GetSessions(r.Context())
 	if err != nil {
@@ -45,6 +44,6 @@ func (s *Server) handleGetProgress(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, "failed to get progress", http.StatusInternalServerError)
 		return
 	}
-	resp.Sessions, resp.UnmatchedSessions = analytics.ComputeTrackProgress(atTrack, participants, laps, r.URL.Query().Get("driver"))
+	resp.Sessions, resp.UnmatchedSessions = analytics.ComputeTrackProgress(atTrack, participants, laps)
 	writeJSON(w, http.StatusOK, resp)
 }

@@ -243,10 +243,7 @@ func buildDriverStanding(p storage.Participant, driverLaps []storage.Lap) Driver
 		positionsGained = &gained
 	}
 
-	driverName := p.Name
-	if strings.TrimSpace(driverName) == "" {
-		driverName = packets.DriverName(uint16(p.DriverID))
-	}
+	driverName := p.DisplayName()
 	teamName := packets.TeamName(uint16(p.TeamID))
 
 	pCopy := p

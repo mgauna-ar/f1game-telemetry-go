@@ -1,18 +1,19 @@
 import React from 'react';
-import { GitCompareArrows, UserRound } from 'lucide-react';
+import { GitCompareArrows, UserRound, UserRoundPen } from 'lucide-react';
 import { getTeamColor } from '../../../constants/f1';
 import { useI18n } from '../../../context/I18nContext';
 import { openComparator } from '../../../router/router';
 import { placesKey } from '../../../utils/player';
 import { styleVars } from '../../../styles/theme';
-import type { DriverStanding, PlayerSource } from '../../../types/session';
+import type { DriverStanding, PlayerSource, Session } from '../../../types/session';
 import { Button } from '../../ui/Button';
 import { Panel, PanelHeader } from '../../ui/Panel';
 import { Stat } from '../../ui/Stat';
+import { openPlayerPicker } from '../player/playerPickerStore';
 import styles from './YourRaceCard.module.css';
 
 interface YourRaceCardProps {
-  sessionId: number;
+  session: Session;
   driverStandings: DriverStanding[];
   playerCarIndex: number;
   playerSource: PlayerSource | null;
@@ -33,7 +34,7 @@ const neighbourGap = (ahead: DriverStanding, behind: DriverStanding, isRaceSessi
 
 /** Your own result in a session: position, grid, best lap, the cars either side, and a comparison. */
 export const YourRaceCard: React.FC<YourRaceCardProps> = ({
-  sessionId,
+  session,
   driverStandings,
   playerCarIndex,
   playerSource,
@@ -87,21 +88,33 @@ export const YourRaceCard: React.FC<YourRaceCardProps> = ({
             <span className={styles.muted}>
               {t('history.player.driverDetail', { number: me.participant.race_number, team: me.teamName || '—' })}
             </span>
-            {playerSource === 'driver_name' && (
-              <span className={styles.muted}>· {t('history.player.matchedByName')}</span>
-            )}
+            {playerSource === 'chosen' && <span className={styles.muted}>· {t('history.player.chosenByYou')}</span>}
           </span>
         }
         actions={
-          me.bestLapId && benchmark?.bestLapId ? (
+          <span className={styles.actions}>
             <Button
               size="sm"
-              icon={<GitCompareArrows size={15} aria-hidden="true" />}
-              onClick={() => openComparator({ sessionA: sessionId, lapA: me.bestLapId, lapB: benchmark.bestLapId })}
+              variant="ghost"
+              icon={<UserRoundPen size={15} aria-hidden="true" />}
+              aria-label={t('history.player.changeDriver')}
+              title={t('history.player.changeDriver')}
+              onClick={() => openPlayerPicker(session)}
             >
-              {t(isFastest ? 'history.player.compareWithSecond' : 'history.player.compareWithFastest')}
+              {t('history.player.change')}
             </Button>
-          ) : undefined
+            {me.bestLapId && benchmark?.bestLapId ? (
+              <Button
+                size="sm"
+                icon={<GitCompareArrows size={15} aria-hidden="true" />}
+                onClick={() =>
+                  openComparator({ sessionA: session.id, lapA: me.bestLapId, lapB: benchmark.bestLapId })
+                }
+              >
+                {t(isFastest ? 'history.player.compareWithSecond' : 'history.player.compareWithFastest')}
+              </Button>
+            ) : null}
+          </span>
         }
       />
 

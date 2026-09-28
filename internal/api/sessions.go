@@ -63,9 +63,7 @@ func (s *Server) handleGetSessions(w http.ResponseWriter, r *http.Request) {
 		writeJSONError(w, "failed to get sessions", http.StatusInternalServerError)
 		return
 	}
-	// driver is the dashboard's saved driver name, which finds the player in sessions recorded
-	// before the player's car was stored.
-	writeJSON(w, http.StatusOK, analytics.ComputeSessionList(sessions, participants, laps, r.URL.Query().Get("driver")))
+	writeJSON(w, http.StatusOK, analytics.ComputeSessionList(sessions, participants, laps))
 }
 
 func (s *Server) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
@@ -587,4 +585,70 @@ func (s *Server) handleBatchAssignTags(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, StatusResponse{Status: StatusSuccess})
+}
+
+// SetPlayerCarRequest is the body of PUT /api/sessions/{id}/player: the car the player drove, or
+// null for "I wasn't driving".
+type SetPlayerCarRequest struct {
+	CarIndex *int `json:"car_index"`
+}
+
+// handleSetPlayerCar saves the player's pick of their car in a session and returns the session.
+func (s *Server) handleSetPlayerCar(w http.ResponseWriter, r *http.Request) {
+	sessionID, ok := parseSessionID(w, r)
+	if !ok {
+		return
+	}
+	var req SetPlayerCarRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, "invalid request payload", http.StatusBadRequest)
+		return
+	}
+	if err := s.repo.SetPlayerCar(r.Context(), sessionID, req.CarIndex); err != nil {
+		switch {
+		case errors.Is(err, storage.ErrSessionNotFound):
+			writeJSONError(w, "session not found", http.StatusNotFound)
+		case errors.Is(err, storage.ErrCarNotInSession):
+			writeJSONError(w, "that car is not in this session", http.StatusBadRequest)
+		default:
+			slog.Error("Failed to set the player car", "sessionID", sessionID, "error", err)
+			writeJSONError(w, "failed to set the player car", http.StatusInternalServerError)
+		}
+		return
+	}
+	updated, err := s.repo.GetSessionByID(r.Context(), sessionID)
+	if err != nil {
+		slog.Error("Failed to get session", "sessionID", sessionID, "error", err)
+		writeJSONError(w, "failed to get session", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, updated)
+}
+
+// BatchPlayerRequest is the body of POST /api/sessions/batch-player: the sessions to set, and the
+// driver name to find in each (matched whole, ignoring case).
+type BatchPlayerRequest struct {
+	SessionIDs []int64 `json:"session_ids"`
+	DriverName string  `json:"driver_name"`
+}
+
+// handleBatchSetPlayer sets the player's car in several sessions by driver name and reports which
+// sessions were set, had no such driver, or had more than one.
+func (s *Server) handleBatchSetPlayer(w http.ResponseWriter, r *http.Request) {
+	var req BatchPlayerRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSONError(w, "invalid request payload", http.StatusBadRequest)
+		return
+	}
+	if len(req.SessionIDs) == 0 || strings.TrimSpace(req.DriverName) == "" {
+		writeJSONError(w, "session IDs and a driver name are required", http.StatusBadRequest)
+		return
+	}
+	result, err := s.repo.SetPlayerCarByName(r.Context(), req.SessionIDs, req.DriverName)
+	if err != nil {
+		slog.Error("Failed to set the player car of sessions", "error", err)
+		writeJSONError(w, "failed to set the player car", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }

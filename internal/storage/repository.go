@@ -18,6 +18,10 @@ type Repository interface {
 	DeleteSessions(ctx context.Context, sessionIDs []int64) (int64, error)
 	ExportSession(ctx context.Context, sessionID int64) (*ExportedSessionPackage, error)
 	ImportSession(ctx context.Context, pkg *ExportedSessionPackage) (int64, error)
+	// SetPlayerCar saves the player's pick of their car (nil clears it).
+	SetPlayerCar(ctx context.Context, sessionID int64, carIndex *int) error
+	// SetPlayerCarByName picks the participant named driverName in each session.
+	SetPlayerCarByName(ctx context.Context, sessionIDs []int64, driverName string) (BatchPlayerResult, error)
 	ImportSessionWithOptions(ctx context.Context, pkg *ExportedSessionPackage, allowDuplicateUID bool) (int64, error)
 
 	// Laps & Telemetry

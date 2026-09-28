@@ -24,6 +24,12 @@ export interface BatchDeleteResponse {
   deleted_count: number;
 }
 
+/** Go: api.BatchPlayerRequest */
+export interface BatchPlayerRequest {
+  session_ids: number[];
+  driver_name: string;
+}
+
 /** Go: api.EngineerSettingsResponse */
 export interface EngineerSettingsResponse extends Engineer {
   saved: boolean;
@@ -66,6 +72,11 @@ export interface PTTLearnedMessage {
 /** Go: api.PTTSettingsResponse */
 export interface PTTSettingsResponse extends PTT {
   saved: boolean;
+}
+
+/** Go: api.SetPlayerCarRequest */
+export interface SetPlayerCarRequest {
+  car_index: number | null;
 }
 
 /** Go: api.SettingsChangedMessage */

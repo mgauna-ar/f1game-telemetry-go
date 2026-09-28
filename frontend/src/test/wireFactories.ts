@@ -43,6 +43,7 @@ export function makeSession(fields: Partial<Session> = {}): Session {
     session_duration: 0,
     packet_format: 2025,
     player_car_index: null,
+    player_car_source: null,
     created_at: '2026-01-01T00:00:00Z',
     tags: [],
     ...fields,

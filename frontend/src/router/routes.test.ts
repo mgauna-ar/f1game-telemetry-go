@@ -64,6 +64,8 @@ describe('routes', () => {
   it('builds URLs that parse back to the same route', () => {
     const routes: Route[] = [
       { page: 'history', tab: 'story' },
+      { page: 'history', tab: 'story', listFilter: { quick: 'noDriver', track: 'Abu Dhabi' } },
+      { page: 'history', tab: 'story', listFilter: { quick: 'podium' } },
       { page: 'history', sessionId: 7, tab: 'story' },
       { page: 'history', sessionId: 7, tab: 'classification' },
       { page: 'history', sessionId: 7, tab: 'pace' },
@@ -78,6 +80,20 @@ describe('routes', () => {
       const url = new URL(buildPath(route), 'http://localhost');
       expect(parseRoute(url.pathname, url.search)).toMatchObject(route);
     }
+  });
+
+  it('reads the filters a link opens the session list with, and drops unknown ones', () => {
+    expect(parseRoute('/history', '?quick=noDriver&track=Spa')).toEqual({
+      page: 'history',
+      tab: 'story',
+      listFilter: { quick: 'noDriver', track: 'Spa' },
+    });
+    expect(parseRoute('/history', '?quick=bogus')).toEqual({ page: 'history', sessionId: undefined, tab: 'story' });
+    // A session page ignores them
+    expect(parseRoute('/history/3', '?quick=noDriver')).toEqual({ page: 'history', sessionId: 3, tab: 'story' });
+    expect(buildPath({ page: 'history', tab: 'story', listFilter: { track: 'São Paulo' } })).toBe(
+      '/history?track=S%C3%A3o+Paulo'
+    );
   });
 
   it('writes short comparator URLs', () => {

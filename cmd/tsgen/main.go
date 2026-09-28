@@ -39,10 +39,10 @@ func registry() *tsgen.Generator {
 
 	// Types with their own MarshalJSON: a sample value that writes the optional properties, and
 	// the type whose fields describe the JSON. TestMarshalerKeys checks one against the other.
-	g.Marshaler(storage.Session{PlayerCarIndex: new(int)}, storage.Session{}) // weather_forecast is raw JSON (tstype tag)
-	g.Marshaler(packets.PacketHeader{SessionUID: 1}, packets.PacketHeader{})  // SessionUID is hex (tstype tag)
+	g.Marshaler(storage.Session{PlayerCarIndex: new(int), PlayerCarSource: new(string)}, storage.Session{}) // weather_forecast is raw JSON (tstype tag)
+	g.Marshaler(packets.PacketHeader{SessionUID: 1}, packets.PacketHeader{})                                // SessionUID is hex (tstype tag)
 	// the session's JSON with the summary added
-	g.Marshaler(analytics.SessionListItem{Session: storage.Session{PlayerCarIndex: new(int)}}, analytics.SessionListItem{})
+	g.Marshaler(analytics.SessionListItem{Session: storage.Session{PlayerCarIndex: new(int), PlayerCarSource: new(string)}}, analytics.SessionListItem{})
 
 	// Sessions, laps, participants and tags.
 	g.Add(
@@ -51,6 +51,14 @@ func registry() *tsgen.Generator {
 		storage.Participant{},
 		storage.Tag{},
 		packets.WeatherForecastSample{},
+	)
+	g.TypeAlias("storage", "PlayerCarSource", stringUnion(storage.PlayerCarSources))
+
+	// Picking the player's car: PUT /api/sessions/{id}/player and POST /api/sessions/batch-player.
+	g.Add(
+		api.SetPlayerCarRequest{},
+		api.BatchPlayerRequest{},
+		storage.BatchPlayerResult{},
 	)
 
 	// GET /api/sessions: each session with a summary of its result and the player's line.

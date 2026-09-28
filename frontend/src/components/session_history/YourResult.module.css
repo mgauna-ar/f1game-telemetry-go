@@ -48,9 +48,9 @@
   color: var(--status-danger);
 }
 
-.byName {
-  font-size: var(--font-size-xs);
-  color: var(--text-muted);
+.pick {
+  padding-block: 0;
+  min-height: 0;
 }
 
 .none {

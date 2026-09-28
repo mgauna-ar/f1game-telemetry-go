@@ -16,11 +16,10 @@ export const progress = {
   noSessionsHint: 'Drive a session with the game sending telemetry, and your pace at each track shows up here.',
   noneAtTrack: 'None of your sessions at {track}',
   noneForKind: 'None of your sessions of this type at {track}',
-  unmatchedOne:
-    '1 session at this track is left out: it was recorded before your car was saved, and no driver name finds you in it.',
-  unmatchedMany:
-    '{count} sessions at this track are left out: they were recorded before your car was saved, and no driver name finds you in them.',
-  unmatchedHint: 'Set your driver name in the Lap Comparator preferences to find yourself in them.',
+  unmatchedOne: '1 session at this track is left out: it has no driver picked.',
+  unmatchedMany: '{count} sessions at this track are left out: they have no driver picked.',
+  unmatchedLinkOne: 'Pick your driver in it',
+  unmatchedLinkMany: 'Pick your driver in them',
   stats: {
     personalBest: 'Personal best',
     theoretical: 'Theoretical best',
@@ -61,6 +60,6 @@ export const progress = {
     fastest: 'Fastest',
     personalBest: 'Personal best',
     bestSector: 'Your best sector at this track',
-    foundByName: 'Found by the driver name saved in the Lap Comparator preferences',
+    chosen: 'Driver chosen by you',
   },
 };

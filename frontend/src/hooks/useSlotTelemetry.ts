@@ -12,8 +12,7 @@ export interface UseSlotTelemetryOptions {
   isSlotB?: boolean;
   isSameSessionAsSlotA?: boolean;
   defaultDriverName?: string;
-  preferredDriverName?: string;
-  /** Your car in this slot's session (its stored player car); null for older sessions, which use preferredDriverName. */
+  /** Your car in this slot's session (recorded or picked); null when it has none. */
   playerCarIndex?: number | null;
   referenceDriver?: Participant;
   referenceLapId?: number | '';
@@ -48,7 +47,6 @@ export function useSlotTelemetry({
   isSlotB = false,
   isSameSessionAsSlotA = false,
   defaultDriverName = 'Lap',
-  preferredDriverName = '',
   playerCarIndex = null,
   referenceDriver,
   referenceLapId,
@@ -67,7 +65,6 @@ export function useSlotTelemetry({
     preloadLapId,
     isSlotB,
     isSameSessionAsSlotA,
-    preferredDriverName,
     playerCarIndex,
     referenceDriver,
     referenceLapId,
@@ -80,8 +77,7 @@ export function useSlotTelemetry({
       preloadLapId,
       isSlotB,
       isSameSessionAsSlotA,
-      preferredDriverName,
-      playerCarIndex,
+        playerCarIndex,
       referenceDriver,
       referenceLapId,
       rivalMode,
@@ -91,7 +87,6 @@ export function useSlotTelemetry({
     preloadLapId,
     isSlotB,
     isSameSessionAsSlotA,
-    preferredDriverName,
     playerCarIndex,
     referenceDriver,
     referenceLapId,
@@ -128,7 +123,7 @@ export function useSlotTelemetry({
           setLapId(currentOpts.preloadLapId);
         } else if (list.length > 0) {
           if (!currentOpts.isSlotB) {
-            const refRes = resolveReferenceLap(parts, list, currentOpts.preferredDriverName, currentOpts.playerCarIndex);
+            const refRes = resolveReferenceLap(parts, list, currentOpts.playerCarIndex);
             setLapId(refRes.lapId);
           } else {
             const compRes = resolveComparisonLap(
@@ -139,7 +134,6 @@ export function useSlotTelemetry({
               currentOpts.rivalDriverName,
               currentOpts.referenceLapId,
               currentOpts.isSameSessionAsSlotA,
-              currentOpts.preferredDriverName,
               currentOpts.playerCarIndex
             );
             setLapId(compRes.lapId);

@@ -269,7 +269,6 @@ export const ComparatorDuelHeader: React.FC<ComparatorDuelHeaderProps> = ({
         onSave={(prefs) => {
           onPreferencesSave?.(prefs);
         }}
-        currentSlotADriverName={slotA.driver?.name}
         currentSlotBDriverName={slotB.driver?.name}
       />
     </section>

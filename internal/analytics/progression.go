@@ -431,10 +431,7 @@ func buildGapToLeaderMatrix(
 func buildProgressionDriverMeta(activeParticipants []storage.Participant) []ProgressionDriverMeta {
 	drivers := make([]ProgressionDriverMeta, 0, len(activeParticipants))
 	for _, p := range activeParticipants {
-		name := p.Name
-		if strings.TrimSpace(name) == "" {
-			name = packets.DriverName(uint16(p.DriverID))
-		}
+		name := p.DisplayName()
 		color := packets.TeamColor(uint16(p.TeamID))
 		drivers = append(drivers, ProgressionDriverMeta{
 			CarIndex:   p.CarIndex,

@@ -1,9 +1,16 @@
 import { create } from 'zustand';
-import type { SessionListItem } from '../types/session';
+import type {
+  BatchPlayerRequest,
+  BatchPlayerResult,
+  Session,
+  SessionListItem,
+  SetPlayerCarRequest,
+} from '../types/session';
 import { api } from '../utils/apiClient';
-import { savedDriverName } from '../utils/comparatorPreferencesUtils';
 
 export const SESSION_LIST_TTL_MS = 30_000;
+
+let forcedWhileLoading: Promise<void> | null = null;
 
 export interface SessionListState {
   /** The recorded sessions, each with a summary of its result. */
@@ -15,6 +22,20 @@ export interface SessionListState {
   fetchSessions: (options?: { force?: boolean }) => Promise<void>;
   invalidate: () => void;
   reset: () => void;
+  /** Goes up each time a session's player car changes, so views built from it (Progress) reload. */
+  playerRevision: number;
+  /**
+   * Saves your car in a session (`null`: "I wasn't driving"), then refreshes the list, whose
+   * summaries follow it. Resolves with the updated session; rejects when the save fails.
+   */
+  setPlayerCar: (sessionId: number, carIndex: number | null) => Promise<Session>;
+  /**
+   * Makes the driver with this name yours in each session (the server matches it ignoring case), then
+   * refreshes the list. Resolves with the sessions updated, without that driver, and with more than one.
+   */
+  setPlayerByName: (sessionIds: number[], driverName: string) => Promise<BatchPlayerResult>;
+  /** Refreshes the list after player cars changed on the server and bumps `playerRevision`. */
+  playerCarsChanged: () => Promise<void>;
 }
 
 export const useSessionListStore = create<SessionListState>((set, get) => ({
@@ -22,6 +43,7 @@ export const useSessionListStore = create<SessionListState>((set, get) => ({
   loading: false,
   error: null,
   lastFetchedAt: null,
+  playerRevision: 0,
 
   setSessions: (updater) => {
     const next = typeof updater === 'function' ? updater(get().sessions) : updater;
@@ -42,15 +64,26 @@ export const useSessionListStore = create<SessionListState>((set, get) => ({
       return;
     }
 
-    // Avoid concurrent duplicate requests
-    if (loading) return;
+    // Avoid concurrent duplicate requests; a forced fetch during one runs again after it, since the
+    // data may have changed after that request was sent.
+    if (loading) {
+      if (options?.force) {
+        forcedWhileLoading ??= new Promise<void>((resolve) => {
+          const unsubscribe = useSessionListStore.subscribe((state) => {
+            if (state.loading) return;
+            unsubscribe();
+            forcedWhileLoading = null;
+            void get().fetchSessions({ force: true }).then(resolve);
+          });
+        });
+        return forcedWhileLoading;
+      }
+      return;
+    }
 
     set({ loading: true, error: null });
     try {
-      // The saved driver name finds the player in sessions recorded before their car was stored.
-      const driver = savedDriverName().trim();
-      const query = driver ? `?${new URLSearchParams({ driver })}` : '';
-      const data = await api.get<SessionListItem[]>(`/api/sessions${query}`);
+      const data = await api.get<SessionListItem[]>('/api/sessions');
       set({
         sessions: data || [],
         lastFetchedAt: Date.now(),
@@ -68,12 +101,39 @@ export const useSessionListStore = create<SessionListState>((set, get) => ({
     set({ lastFetchedAt: null });
   },
 
+  setPlayerCar: async (sessionId, carIndex) => {
+    const body: SetPlayerCarRequest = { car_index: carIndex };
+    const session = await api.put<Session>(`/api/sessions/${sessionId}/player`, body);
+    set((state) => ({
+      sessions: state.sessions.map((item) =>
+        item.id === sessionId
+          ? { ...item, player_car_index: session.player_car_index, player_car_source: session.player_car_source }
+          : item
+      ),
+    }));
+    await get().playerCarsChanged();
+    return session;
+  },
+
+  setPlayerByName: async (sessionIds, driverName) => {
+    const body: BatchPlayerRequest = { session_ids: sessionIds, driver_name: driverName };
+    const result = await api.post<BatchPlayerResult>('/api/sessions/batch-player', body);
+    if (result.updated.length > 0) await get().playerCarsChanged();
+    return result;
+  },
+
+  playerCarsChanged: async () => {
+    set((state) => ({ playerRevision: state.playerRevision + 1 }));
+    await get().fetchSessions({ force: true });
+  },
+
   reset: () => {
     set({
       sessions: [],
       loading: false,
       error: null,
       lastFetchedAt: null,
+      playerRevision: 0,
     });
   },
 }));

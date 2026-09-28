@@ -170,7 +170,7 @@ export const SessionTableView: React.FC<SessionTableViewProps> = React.memo((pro
     {
       key: 'result',
       header: t('history.player.yourResult'),
-      cell: (session) => <YourResult summary={session.summary} sessionType={session.session_type} />,
+      cell: (session) => <YourResult session={session} />,
     },
     {
       key: 'tags',

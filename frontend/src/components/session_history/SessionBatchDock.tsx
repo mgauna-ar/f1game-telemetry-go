@@ -1,5 +1,5 @@
 import React from 'react';
-import { Download, Tag, Trash2, X, Layers } from 'lucide-react';
+import { Download, Tag, Trash2, UserRound, X, Layers } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
 import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContextDefinitions';
 import { Button, IconButton } from '../ui/Button';
@@ -10,6 +10,7 @@ export interface SessionBatchDockProps {
   isExporting?: boolean;
   onExportZip?: () => void;
   onOpenBatchTagModal?: () => void;
+  onOpenBatchDriverModal?: () => void;
   onRequestBatchDelete?: () => void;
   onClearSelection?: () => void;
 }
@@ -23,6 +24,7 @@ export const SessionBatchDock: React.FC<SessionBatchDockProps> = (props) => {
   const isExporting = props.isExporting ?? historyData.isExportingBatch;
   const onExportZip = props.onExportZip ?? historyActions.handleBatchExport;
   const onOpenBatchTagModal = props.onOpenBatchTagModal ?? (() => historyActions.setShowBatchTagModal(true));
+  const onOpenBatchDriverModal = props.onOpenBatchDriverModal ?? (() => historyActions.setShowBatchDriverModal(true));
   const onRequestBatchDelete = props.onRequestBatchDelete ?? (() => historyActions.setShowBatchDeleteModal(true));
   const onClearSelection = props.onClearSelection ?? historyActions.handleClearSelection;
 
@@ -51,6 +53,10 @@ export const SessionBatchDock: React.FC<SessionBatchDockProps> = (props) => {
 
         <Button onClick={onOpenBatchTagModal} icon={<Tag size={14} className={styles.tagIcon} aria-hidden="true" />}>
           {t('history.batch.tagSelected')}
+        </Button>
+
+        <Button onClick={onOpenBatchDriverModal} icon={<UserRound size={14} aria-hidden="true" />}>
+          {t('history.player.batch.action')}
         </Button>
 
         <Button className={styles.delete} onClick={onRequestBatchDelete} icon={<Trash2 size={14} aria-hidden="true" />}>

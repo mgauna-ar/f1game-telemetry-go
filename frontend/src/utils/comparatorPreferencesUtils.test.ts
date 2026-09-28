@@ -16,6 +16,13 @@ describe('comparatorPreferencesUtils', () => {
   });
 
   describe('loadComparatorPreferences & saveComparatorPreferences', () => {
+    it('ignores the old saved driver name', () => {
+      localStorage.setItem('f1_comparator_default_driver_name', JSON.stringify('Verstappen'));
+      expect(loadComparatorPreferences()).toEqual(DEFAULT_COMPARATOR_PREFERENCES);
+      saveComparatorPreferences(DEFAULT_COMPARATOR_PREFERENCES);
+      expect(localStorage.getItem('f1_comparator_default_driver_name')).toBe(JSON.stringify('Verstappen'));
+    });
+
     it('returns default preferences when nothing stored', () => {
       const prefs = loadComparatorPreferences();
       expect(prefs).toEqual(DEFAULT_COMPARATOR_PREFERENCES);
@@ -23,26 +30,22 @@ describe('comparatorPreferencesUtils', () => {
 
     it('persists and retrieves valid preferences', () => {
       saveComparatorPreferences({
-        defaultDriverName: 'Verstappen',
         rivalMode: 'teammate',
         rivalDriverName: '',
       });
 
       const loaded = loadComparatorPreferences();
-      expect(loaded.defaultDriverName).toBe('Verstappen');
       expect(loaded.rivalMode).toBe('teammate');
       expect(loaded.rivalDriverName).toBe('');
     });
 
     it('sanitizes and trims inputs', () => {
       saveComparatorPreferences({
-        defaultDriverName: '  Norris  ',
         rivalMode: 'driver',
         rivalDriverName: '  Piastri  ',
       });
 
       const loaded = loadComparatorPreferences();
-      expect(loaded.defaultDriverName).toBe('Norris');
       expect(loaded.rivalMode).toBe('driver');
       expect(loaded.rivalDriverName).toBe('Piastri');
     });
@@ -159,35 +162,24 @@ describe('comparatorPreferencesUtils', () => {
     ];
 
     it('returns empty when no laps available', () => {
-      expect(resolveReferenceLap(mockParticipants, [], 'Max')).toEqual({ lapId: '' });
+      expect(resolveReferenceLap(mockParticipants, [], 1)).toEqual({ lapId: '' });
     });
 
-    it('resolves configured driver best lap if found', () => {
-      const result = resolveReferenceLap(mockParticipants, mockLaps, 'Lawson');
+    it("picks your car's best lap", () => {
+      const result = resolveReferenceLap(mockParticipants, mockLaps, 1);
       expect(result.lapId).toBe(102);
       expect(result.driver?.name).toBe('Liam Lawson');
     });
 
-    it('falls back to fastest lap if configured driver not found in session', () => {
-      const result = resolveReferenceLap(mockParticipants, mockLaps, 'Hamilton');
+    it('falls back to the fastest lap when your car has no laps', () => {
+      const result = resolveReferenceLap(mockParticipants, mockLaps, 7);
+      expect(result.lapId).toBe(101);
+    });
+
+    it('picks the fastest lap when the session has no player car, even with a saved name', () => {
+      localStorage.setItem('f1_comparator_default_driver_name', JSON.stringify('Lawson'));
+      const result = resolveReferenceLap(mockParticipants, mockLaps);
       expect(result.lapId).toBe(101); // Verstappen's lap 80000ms is fastest
-      expect(result.driver?.name).toBe('Max Verstappen');
-    });
-
-    it("prefers the session's stored player car over the saved driver name", () => {
-      const result = resolveReferenceLap(mockParticipants, mockLaps, 'Verstappen', 1);
-      expect(result.lapId).toBe(102);
-      expect(result.driver?.name).toBe('Liam Lawson');
-    });
-
-    it('falls back to the fastest lap when the stored player car has no laps, without the name', () => {
-      const result = resolveReferenceLap(mockParticipants, mockLaps, 'Lawson', 7);
-      expect(result.lapId).toBe(101);
-    });
-
-    it('defaults to fastest lap when defaultDriverName is empty', () => {
-      const result = resolveReferenceLap(mockParticipants, mockLaps, '');
-      expect(result.lapId).toBe(101);
       expect(result.driver?.name).toBe('Max Verstappen');
     });
   });

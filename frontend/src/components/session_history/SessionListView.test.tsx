@@ -1,6 +1,7 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionHistory } from '../SessionHistory';
+import { navigate } from '../../router/router';
 import { useSessionListStore } from '../../store/useSessionListStore';
 import type { SessionListItem } from '../../types/session';
 import { makePlayerResult, makeSessionListItem } from '../../test/wireFactories';
@@ -70,6 +71,27 @@ describe('Session list: quick filters, saved filters, groups and pages', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Last 7 days' }));
     expect(rowTracks()).toEqual(['Monza']);
+  });
+
+  it('lists the sessions without a driver, and opens with that filter from a link', async () => {
+    const sessions = [
+      ...SESSIONS.slice(0, 2).map((s) => ({ ...s, player_car_index: 0, player_car_source: 'game' as const })),
+      SESSIONS[2],
+    ];
+    await renderList(sessions);
+    fireEvent.click(screen.getByRole('button', { name: 'No driver' }));
+    expect(rowTracks()).toEqual(['Monza']);
+    fireEvent.click(screen.getByRole('button', { name: 'No driver' }));
+    expect(rowTracks()).toHaveLength(3);
+
+    // Progress links here with the filter and its track; the list applies them and drops them from the URL
+    fireEvent.click(screen.getByRole('button', { name: 'Last 7 days' }));
+    act(() => navigate('/history?quick=noDriver&track=Spa'));
+    await waitFor(() => expect(window.location.search).toBe(''));
+    expect(screen.getByRole('button', { name: 'No driver' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Last 7 days' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('combobox', { name: /circuit/i })).toHaveValue('Spa');
+    expect(rowTracks()).toEqual([]);
   });
 
   it('saves the current filters under a name, applies them with a click and deletes them', async () => {

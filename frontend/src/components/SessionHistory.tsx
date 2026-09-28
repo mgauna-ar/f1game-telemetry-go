@@ -7,6 +7,9 @@ import { DeleteSessionModal } from './session_history/DeleteSessionModal';
 import { BatchDeleteModal } from './session_history/BatchDeleteModal';
 import { BatchTagModal } from './session_history/BatchTagModal';
 import { TagManagerModal } from './session_history/TagManagerModal';
+import { BatchDriverModal } from './session_history/player/BatchDriverModal';
+import { OldDriverNameNotice } from './session_history/player/OldDriverNameNotice';
+import { PlayerPickerModal } from './session_history/player/PlayerPickerModal';
 import { SessionComparatorDock } from './session_history/SessionComparatorDock';
 import { SessionBatchDock } from './session_history/SessionBatchDock';
 import { StandaloneToastContainer } from './common/ToastContainer';
@@ -47,6 +50,7 @@ const SessionHistoryContent: React.FC = () => {
     selectedSessionIds,
     showBatchDeleteModal,
     showBatchTagModal,
+    showBatchDriverModal,
   } = useSessionHistoryData();
 
   const {
@@ -60,6 +64,7 @@ const SessionHistoryContent: React.FC = () => {
     handleDeleteGlobalTag,
     setShowBatchDeleteModal,
     setShowBatchTagModal,
+    setShowBatchDriverModal,
     handleExecuteBatchDelete,
     handleExecuteBatchTag,
   } = useSessionHistoryActions();
@@ -105,6 +110,7 @@ const SessionHistoryContent: React.FC = () => {
       {/* VIEW 1: SESSION LIST & FILTER TOOLBAR */}
       {!selectedSession && (
         <div className={styles.list}>
+          <OldDriverNameNotice />
           <SessionFilterToolbar />
 
           {/* Session Content Table */}
@@ -199,6 +205,13 @@ const SessionHistoryContent: React.FC = () => {
         onApplyTag={handleExecuteBatchTag}
       />
 
+      {/* BATCH "SET MY DRIVER" MODAL */}
+      <BatchDriverModal
+        isOpen={showBatchDriverModal}
+        sessionIds={[...selectedSessionIds]}
+        onClose={() => setShowBatchDriverModal(false)}
+      />
+
       {/* TAG MANAGER MODAL */}
       <TagManagerModal
         session={sessionToManageTags}
@@ -209,6 +222,9 @@ const SessionHistoryContent: React.FC = () => {
         isOpen={sessionToManageTags !== null}
         onClose={() => setSessionToManageTags(null)}
       />
+
+      {/* "WHO WERE YOU?" DRIVER PICKER (list rows, story tab, your race card) */}
+      <PlayerPickerModal />
 
       <StandaloneToastContainer />
     </div>

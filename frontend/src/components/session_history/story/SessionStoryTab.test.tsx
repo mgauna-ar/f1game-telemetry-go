@@ -1,9 +1,10 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { I18nProvider } from '../../../context/I18nProvider';
 import { normalizeDriverStanding, type FeedEvent, type ProgressionResponse } from '../../../types/session';
 import { makeDriverStanding, makeFeedEvent, makeParticipant, makeSession } from '../../../test/wireFactories';
 import { SessionStoryTab } from './SessionStoryTab';
+import { usePlayerPickerStore } from '../player/playerPickerStore';
 
 const participants = [0, 1, 2].map((car) =>
   makeParticipant({
@@ -100,7 +101,11 @@ describe('SessionStoryTab', () => {
     renderStory({ events: [], playerCarIndex: null });
     expect(screen.queryByRole('list', { name: 'Key moments' })).not.toBeInTheDocument();
     expect(screen.getByText(/recorded before race-control events were saved/)).toBeInTheDocument();
-    expect(screen.getByText(/Your car wasn't recorded in this session/)).toBeInTheDocument();
+    const note = screen.getByTestId('no-driver');
+    expect(note).toHaveTextContent(/Which car was yours isn't known for this session/);
+    fireEvent.click(within(note).getByRole('button', { name: 'Pick your driver' }));
+    expect(usePlayerPickerStore.getState().session?.id).toBe(1);
+    act(() => usePlayerPickerStore.getState().closePlayerPicker());
     expect(screen.queryByRole('heading', { name: 'Your pace against the field' })).not.toBeInTheDocument();
   });
 

@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { I18nProvider } from '../../context/I18nProvider';
 import { api } from '../../utils/apiClient';
+import { useSessionListStore } from '../../store/useSessionListStore';
 import type { TrackProgressResponse } from '../../types/progress';
 import { makeProgressSession } from '../../test/wireFactories';
 import { TrackProgress } from './TrackProgress';
@@ -43,7 +44,7 @@ const response = (fields: Partial<TrackProgressResponse> = {}): TrackProgressRes
       gap_to_fastest_ms: 0,
       consistency_ms: 420,
       clean_laps: 8,
-      source: 'driver_name',
+      source: 'chosen',
     }),
   ],
   unmatched_sessions: 1,
@@ -70,16 +71,13 @@ describe('TrackProgress', () => {
     vi.restoreAllMocks();
   });
 
-  it('asks for the track in the URL with the saved driver name', async () => {
+  it('asks for the track in the URL, without the old saved driver name', async () => {
     localStorage.setItem('f1_comparator_default_driver_name', JSON.stringify('Hamilton'));
     const get = vi.spyOn(api, 'get').mockResolvedValue(response());
     renderPage('/progress/Monza');
     await screen.findByRole('table');
     expect(document.title).toBe('Progress: Monza · F1 Telemetry');
-    expect(get).toHaveBeenCalledWith(
-      '/api/progress',
-      expect.objectContaining({ params: { track: 'Monza', driver: 'Hamilton' } })
-    );
+    expect(get).toHaveBeenCalledWith('/api/progress', expect.objectContaining({ params: { track: 'Monza' } }));
   });
 
   it('shows your personal best, the latest gap and consistency, and every session newest first', async () => {
@@ -99,17 +97,29 @@ describe('TrackProgress', () => {
     expect(within(race).getByText('P3')).toBeInTheDocument();
     expect(within(race).getByText('Personal best', { exact: false })).toHaveClass('sr-only');
     expect(within(race).getByText('Fastest')).toHaveAttribute('title', 'Fastest of the session');
-    expect(within(race).getByText('Found by the driver name saved in the Lap Comparator preferences')).toHaveClass(
-      'sr-only'
-    );
+    expect(within(race).getByText('Driver chosen by you')).toHaveClass('sr-only');
     expect(within(quali).getByText('+0.900s')).toHaveAttribute('title', 'Max Verstappen');
     expect(within(quali).getByText('26.000')).toBeInTheDocument();
   });
 
-  it('says how many sessions were left out because your car is unknown in them', async () => {
+  it('says how many sessions have no driver, and links to them in the list', async () => {
     vi.spyOn(api, 'get').mockResolvedValue(response());
     renderPage();
-    expect(await screen.findByRole('note')).toHaveTextContent(/1 session at this track is left out/);
+    const note = await screen.findByRole('note');
+    expect(note).toHaveTextContent(/1 session at this track is left out: it has no driver picked/);
+    const link = within(note).getByRole('link', { name: 'Pick your driver in it' });
+    expect(link).toHaveAttribute('href', '/history?quick=noDriver&track=Monza');
+    fireEvent.click(link);
+    expect(window.location.pathname + window.location.search).toBe('/history?quick=noDriver&track=Monza');
+  });
+
+  it('reloads when a driver is picked in a session', async () => {
+    const get = vi.spyOn(api, 'get').mockResolvedValue(response());
+    renderPage();
+    await screen.findByRole('table');
+    expect(get).toHaveBeenCalledTimes(1);
+    act(() => useSessionListStore.setState((s) => ({ playerRevision: s.playerRevision + 1 })));
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(2));
   });
 
   it('opens the comparator with your best lap and the fastest, or the session', async () => {

@@ -15,7 +15,6 @@ export interface ComparatorPreferencesModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (prefs: ComparatorPreferences) => void;
-  currentSlotADriverName?: string;
   currentSlotBDriverName?: string;
 }
 
@@ -29,12 +28,10 @@ export const ComparatorPreferencesModal: React.FC<ComparatorPreferencesModalProp
   isOpen,
   onClose,
   onSave,
-  currentSlotADriverName,
   currentSlotBDriverName,
 }) => {
   const { t } = useI18n();
 
-  const [defaultDriverName, setDefaultDriverName] = useState('');
   const [rivalMode, setRivalMode] = useState<ComparatorRivalMode>('fastest');
   const [rivalDriverName, setRivalDriverName] = useState('');
 
@@ -42,7 +39,6 @@ export const ComparatorPreferencesModal: React.FC<ComparatorPreferencesModalProp
   useEffect(() => {
     if (isOpen) {
       const prefs = loadComparatorPreferences();
-      setDefaultDriverName(prefs.defaultDriverName);
       setRivalMode(prefs.rivalMode);
       setRivalDriverName(prefs.rivalDriverName);
     }
@@ -50,7 +46,6 @@ export const ComparatorPreferencesModal: React.FC<ComparatorPreferencesModalProp
 
   const handleSave = () => {
     const updated: ComparatorPreferences = {
-      defaultDriverName: defaultDriverName.trim(),
       rivalMode,
       rivalDriverName: rivalDriverName.trim(),
     };
@@ -69,39 +64,6 @@ export const ComparatorPreferencesModal: React.FC<ComparatorPreferencesModalProp
       />
 
       <ModalBody className={styles.body}>
-        {/* Default reference driver (slot A) */}
-        <div className={cx(styles.section, styles.slotA)}>
-          <div className={styles.sectionHead}>
-            <label htmlFor="default-reference-driver-input" className={styles.label}>
-              <span className={styles.dot} aria-hidden="true" />
-              {t('comparator.preferences.defaultReferenceDriver')}
-            </label>
-            {currentSlotADriverName && (
-              <button
-                type="button"
-                className={styles.useCurrent}
-                onClick={() => setDefaultDriverName(currentSlotADriverName)}
-                data-testid="use-current-driver-a-btn"
-              >
-                {t('comparator.preferences.useCurrentDriver')}: {currentSlotADriverName}
-              </button>
-            )}
-          </div>
-          <input
-            id="default-reference-driver-input"
-            type="text"
-            className={styles.input}
-            value={defaultDriverName}
-            onChange={(e) => setDefaultDriverName(e.target.value)}
-            placeholder={t('comparator.preferences.defaultReferenceDriverPlaceholder')}
-            aria-describedby="default-reference-driver-help"
-            data-testid="default-driver-name-input"
-          />
-          <p id="default-reference-driver-help" className={styles.help}>
-            {t('comparator.preferences.defaultReferenceDriverHelp')}
-          </p>
-        </div>
-
         {/* Default comparison target (slot B) */}
         <fieldset className={cx(styles.section, styles.slotB)}>
           <legend className={styles.label}>

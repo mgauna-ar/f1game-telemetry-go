@@ -184,6 +184,17 @@ CREATE TABLE IF NOT EXISTS session_events (
 CREATE INDEX IF NOT EXISTS idx_session_events_session ON session_events(session_id, session_time);
 `,
 	},
+	{
+		// Who set player_car_index: 'game' (the recorded header) or 'user' (picked in the
+		// dashboard). A live re-save never overwrites a 'user' pick. Every car stored so far came
+		// from the game.
+		Version: 8,
+		Name:    "add_player_car_source_to_sessions",
+		SQL: `
+ALTER TABLE sessions ADD COLUMN player_car_source TEXT CHECK (player_car_source IN ('game', 'user'));
+UPDATE sessions SET player_car_source = 'game' WHERE player_car_index IS NOT NULL;
+`,
+	},
 }
 
 // Migrate runs all pending migrations in version order.

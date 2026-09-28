@@ -2,33 +2,26 @@ import type { Participant, Lap } from '../types/session';
 import type { ComparatorPreferences, ComparatorRivalMode } from '../types/comparatorPreferences';
 import { storage } from './storage';
 import { sortLapsByQuality } from './lapUtils';
-import { findParticipantByPartialName, findPlayer } from './player';
+import { findParticipantByPartialName } from './player';
 
 export { findParticipantByPartialName };
 
 export const DEFAULT_COMPARATOR_PREFERENCES: ComparatorPreferences = {
-  defaultDriverName: '',
   rivalMode: 'fastest',
   rivalDriverName: '',
 };
 
 export function loadComparatorPreferences(): ComparatorPreferences {
-  const defaultDriverName = storage.get<string>('f1_comparator_default_driver_name', '');
   const rivalMode = storage.get<ComparatorRivalMode>('f1_comparator_rival_mode', 'fastest');
   const rivalDriverName = storage.get<string>('f1_comparator_rival_driver_name', '');
 
   return {
-    defaultDriverName: typeof defaultDriverName === 'string' ? defaultDriverName : '',
     rivalMode: rivalMode === 'teammate' || rivalMode === 'driver' ? rivalMode : 'fastest',
     rivalDriverName: typeof rivalDriverName === 'string' ? rivalDriverName : '',
   };
 }
 
-/** The driver name saved in the preferences; it finds you in sessions recorded before your car was stored. */
-export const savedDriverName = (): string => loadComparatorPreferences().defaultDriverName;
-
 export function saveComparatorPreferences(prefs: ComparatorPreferences): void {
-  storage.set('f1_comparator_default_driver_name', prefs.defaultDriverName.trim());
   storage.set('f1_comparator_rival_mode', prefs.rivalMode);
   storage.set('f1_comparator_rival_driver_name', prefs.rivalDriverName.trim());
 }
@@ -39,20 +32,19 @@ export interface LapResolutionResult {
 }
 
 /**
- * The reference slot's default lap: your best lap (your stored car, or the saved driver name for
- * sessions recorded before it was stored), otherwise the session's fastest.
+ * The reference slot's default lap: your best lap (your car in that session, recorded or picked),
+ * otherwise the session's fastest.
  */
 export function resolveReferenceLap(
   participants: Participant[],
   laps: Lap[],
-  defaultDriverName: string,
   playerCarIndex: number | null = null
 ): LapResolutionResult {
   if (laps.length === 0) {
     return { lapId: '' };
   }
 
-  const matched = findPlayer(participants, playerCarIndex, defaultDriverName)?.participant;
+  const matched = participants.find((p) => p.car_index === playerCarIndex);
   if (matched) {
     const driverLaps = sortLapsByQuality(laps.filter((l) => (l.car_index ?? -1) === matched.car_index));
     if (driverLaps.length > 0) {
@@ -75,12 +67,10 @@ export function resolveComparisonLap(
   rivalDriverName: string,
   referenceLapId?: number | '',
   isSameSessionAsReference?: boolean,
-  preferredReferenceDriverName?: string,
   referencePlayerCarIndex: number | null = null
 ): LapResolutionResult {
-  const preferredReference = () =>
-    findPlayer(participants, referencePlayerCarIndex, preferredReferenceDriverName ?? '')?.participant;
-  const hasPreferredReference = referencePlayerCarIndex !== null || !!preferredReferenceDriverName?.trim();
+  const preferredReference = () => participants.find((p) => p.car_index === referencePlayerCarIndex);
+  const hasPreferredReference = referencePlayerCarIndex !== null;
   if (laps.length === 0) {
     return { lapId: '' };
   }

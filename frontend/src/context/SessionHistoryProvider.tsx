@@ -158,6 +158,7 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({ 
   // Modal states for batch operations
   const [showBatchDeleteModal, setShowBatchDeleteModal] = useState<boolean>(false);
   const [showBatchTagModal, setShowBatchTagModal] = useState<boolean>(false);
+  const [showBatchDriverModal, setShowBatchDriverModal] = useState<boolean>(false);
 
   // Hook 6: Batch operations
   const {
@@ -222,6 +223,19 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({ 
     setStagedSlotB,
   ]);
 
+  // A link to the list with filters (/history?quick=&track=, as from Progress): apply them in
+  // place of the current ones, then drop them from the URL so they stay changeable.
+  const listFilter = route.page === 'history' && !route.sessionId ? route.listFilter : undefined;
+  const listQuick = listFilter?.quick;
+  const listTrack = listFilter?.track;
+  useEffect(() => {
+    if (!listQuick && !listTrack) return;
+    resetFilters();
+    if (listQuick) setQuickFilters([listQuick]);
+    if (listTrack) setCircuitFilter(listTrack);
+    navigate('/history', { replace: true });
+  }, [listQuick, listTrack, resetFilters, setQuickFilters, setCircuitFilter]);
+
   const selectSession = useCallback((session: Session) => navigate(sessionPath(session.id)), []);
   const closeSession = useCallback(() => navigate('/history'), []);
   const setActiveDetailTab = useCallback(
@@ -284,6 +298,7 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({ 
       sessionToManageTags,
       showBatchDeleteModal,
       showBatchTagModal,
+      showBatchDriverModal,
     }),
     [
       sessions,
@@ -330,6 +345,7 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({ 
       sessionToManageTags,
       showBatchDeleteModal,
       showBatchTagModal,
+      showBatchDriverModal,
     ]
   );
 
@@ -374,6 +390,7 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({ 
       handleDeleteGlobalTag,
       setShowBatchDeleteModal,
       setShowBatchTagModal,
+      setShowBatchDriverModal,
       fetchSessions,
       fetchTags,
       sendLapToComparator,
@@ -419,6 +436,7 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({ 
       handleDeleteGlobalTag,
       setShowBatchDeleteModal,
       setShowBatchTagModal,
+      setShowBatchDriverModal,
       fetchSessions,
       fetchTags,
       sendLapToComparator,

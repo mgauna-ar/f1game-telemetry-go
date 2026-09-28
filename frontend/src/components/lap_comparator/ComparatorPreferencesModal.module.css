@@ -32,10 +32,6 @@
   color: var(--text-primary);
 }
 
-.slotA {
-  --slot-color: var(--f1-slot-a);
-}
-
 .slotB {
   --slot-color: var(--f1-slot-b);
 }

@@ -2,8 +2,7 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { useSessionListStore, SESSION_LIST_TTL_MS } from './useSessionListStore';
 import { api } from '../utils/apiClient';
 import type { SessionListItem } from '../types/session';
-import { makeSessionListItem } from '../test/wireFactories';
-import { storage } from '../utils/storage';
+import { makeSession, makeSessionListItem } from '../test/wireFactories';
 
 describe('useSessionListStore', () => {
   const mockSessions: SessionListItem[] = [
@@ -32,15 +31,66 @@ describe('useSessionListStore', () => {
     expect(state.lastFetchedAt).not.toBeNull();
   });
 
-  it("asks for the saved driver name's results in sessions recorded before the player's car was stored", async () => {
+  it('saves a player car, patches the session and refetches the summaries', async () => {
     const getSpy = vi.spyOn(api, 'get').mockResolvedValue(mockSessions);
     await useSessionListStore.getState().fetchSessions();
-    expect(getSpy).toHaveBeenLastCalledWith('/api/sessions');
+    const saved = makeSession({ id: 2, player_car_index: 4, player_car_source: 'user' });
+    const putSpy = vi.spyOn(api, 'put').mockResolvedValue(saved);
+    getSpy.mockResolvedValueOnce([
+      mockSessions[0],
+      { ...mockSessions[1], player_car_index: 4, player_car_source: 'user' },
+    ]);
 
-    storage.set('f1_comparator_default_driver_name', 'Max Verstappen');
-    await useSessionListStore.getState().fetchSessions({ force: true });
-    expect(getSpy).toHaveBeenLastCalledWith('/api/sessions?driver=Max+Verstappen');
-    localStorage.clear();
+    await expect(useSessionListStore.getState().setPlayerCar(2, 4)).resolves.toEqual(saved);
+
+    expect(putSpy).toHaveBeenCalledWith('/api/sessions/2/player', { car_index: 4 });
+    expect(getSpy).toHaveBeenCalledTimes(2);
+    expect(getSpy).toHaveBeenLastCalledWith('/api/sessions');
+    const state = useSessionListStore.getState();
+    expect(state.playerRevision).toBe(1);
+    expect(state.sessions[1]).toMatchObject({ id: 2, player_car_index: 4, player_car_source: 'user' });
+  });
+
+  it('sets a driver by name in several sessions and refreshes the list only when one changed', async () => {
+    const postSpy = vi
+      .spyOn(api, 'post')
+      .mockResolvedValueOnce({ updated: [1], not_found: [2], ambiguous: [] })
+      .mockResolvedValueOnce({ updated: [], not_found: [1, 2], ambiguous: [] });
+    const getSpy = vi.spyOn(api, 'get').mockResolvedValue(mockSessions);
+
+    await expect(useSessionListStore.getState().setPlayerByName([1, 2], 'Lando Norris')).resolves.toEqual({
+      updated: [1],
+      not_found: [2],
+      ambiguous: [],
+    });
+    expect(postSpy).toHaveBeenCalledWith('/api/sessions/batch-player', {
+      session_ids: [1, 2],
+      driver_name: 'Lando Norris',
+    });
+    expect(getSpy).toHaveBeenCalledTimes(1);
+    expect(useSessionListStore.getState().playerRevision).toBe(1);
+
+    await useSessionListStore.getState().setPlayerByName([1, 2], 'Nobody');
+    expect(getSpy).toHaveBeenCalledTimes(1);
+    expect(useSessionListStore.getState().playerRevision).toBe(1);
+  });
+
+  it('runs a forced fetch again once the fetch in flight finishes', async () => {
+    let finishFirst: (value: SessionListItem[]) => void = () => {};
+    const getSpy = vi
+      .spyOn(api, 'get')
+      .mockImplementationOnce(() => new Promise((resolve) => (finishFirst = resolve)))
+      .mockResolvedValueOnce([mockSessions[1]]);
+
+    const first = useSessionListStore.getState().fetchSessions();
+    const forced = useSessionListStore.getState().fetchSessions({ force: true });
+    expect(getSpy).toHaveBeenCalledTimes(1);
+    finishFirst(mockSessions);
+    await first;
+    await forced;
+
+    expect(getSpy).toHaveBeenCalledTimes(2);
+    expect(useSessionListStore.getState().sessions).toEqual([mockSessions[1]]);
   });
 
   it('skips network call if data is fresh within TTL', async () => {

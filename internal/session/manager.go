@@ -188,6 +188,10 @@ func (sm *SessionManager) handleNewSession(ctx context.Context, header packets.P
 		SessionDuration: 0,
 		PlayerCarIndex:  playerCarIndex(header),
 	}
+	if sm.currentSession.PlayerCarIndex != nil {
+		source := storage.PlayerCarSourceGame
+		sm.currentSession.PlayerCarSource = &source
+	}
 
 	if err := sm.repo.SaveSession(ctx, sm.currentSession); err != nil {
 		slog.Error("Failed to save new session", "sessionUID", uidHex, "error", err)

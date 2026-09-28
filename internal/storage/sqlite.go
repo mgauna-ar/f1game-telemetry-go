@@ -140,10 +140,13 @@ func (r *SQLiteRepository) SaveSession(ctx context.Context, s *Session) error {
 	return saveSession(ctx, r.db, s)
 }
 
+// saveSession inserts or updates a session by its UID. The player's car is kept when the update
+// has none, and a car the player picked (PlayerCarSourceUser) is never overwritten by a re-save.
 func saveSession(ctx context.Context, db sqlx.ExtContext, s *Session) error {
+	normalizePlayerCarSource(s)
 	query := `
-		INSERT INTO sessions (session_uid, track_id, track_name, session_type, weather, weather_forecast, total_laps, ai_difficulty, session_duration, packet_format, player_car_index)
-		VALUES (:session_uid, :track_id, :track_name, :session_type, :weather, :weather_forecast, :total_laps, :ai_difficulty, :session_duration, :packet_format, :player_car_index)
+		INSERT INTO sessions (session_uid, track_id, track_name, session_type, weather, weather_forecast, total_laps, ai_difficulty, session_duration, packet_format, player_car_index, player_car_source)
+		VALUES (:session_uid, :track_id, :track_name, :session_type, :weather, :weather_forecast, :total_laps, :ai_difficulty, :session_duration, :packet_format, :player_car_index, :player_car_source)
 		ON CONFLICT(session_uid) DO UPDATE SET
 			track_id = excluded.track_id,
 			track_name = excluded.track_name,
@@ -154,7 +157,12 @@ func saveSession(ctx context.Context, db sqlx.ExtContext, s *Session) error {
 			ai_difficulty = CASE WHEN excluded.ai_difficulty > 0 THEN excluded.ai_difficulty ELSE sessions.ai_difficulty END,
 			session_duration = CASE WHEN excluded.session_duration > 0 THEN excluded.session_duration ELSE sessions.session_duration END,
 			packet_format = excluded.packet_format,
-			player_car_index = COALESCE(excluded.player_car_index, sessions.player_car_index)
+			player_car_index = CASE
+				WHEN sessions.player_car_source = 'user' OR excluded.player_car_index IS NULL THEN sessions.player_car_index
+				ELSE excluded.player_car_index END,
+			player_car_source = CASE
+				WHEN sessions.player_car_source = 'user' OR excluded.player_car_index IS NULL THEN sessions.player_car_source
+				ELSE excluded.player_car_source END
 		RETURNING id
 	`
 	rows, err := sqlx.NamedQueryContext(ctx, db, query, s)
@@ -475,6 +483,7 @@ func (r *SQLiteRepository) GetSessions(ctx context.Context) ([]Session, error) {
 			s.session_duration,
 			s.packet_format,
 			s.player_car_index,
+			s.player_car_source,
 			s.created_at
 		FROM sessions s
 		WHERE ` + sessionValidFilter + `
@@ -852,28 +861,37 @@ func getParticipantsBySession(ctx context.Context, db queryPreparer, sessionID i
 	return participants, nil
 }
 
-// GetSessionResults loads the participants and laps of the given sessions, keyed by session ID,
-// with the same rows and order GetParticipantsBySession and GetLapsBySession return.
-func (r *SQLiteRepository) GetSessionResults(ctx context.Context, sessionIDs []int64) (participantsBySession map[int64][]Participant, lapsBySession map[int64][]Lap, err error) {
-	participantsBySession = make(map[int64][]Participant, len(sessionIDs))
-	lapsBySession = make(map[int64][]Lap, len(sessionIDs))
-	if len(sessionIDs) == 0 {
-		return participantsBySession, lapsBySession, nil
-	}
-
+// getSessionParticipants loads the participants of several sessions in one query, keyed by
+// session ID, each in car index order.
+func (r *SQLiteRepository) getSessionParticipants(ctx context.Context, sessionIDs []int64) (map[int64][]Participant, error) {
+	bySession := make(map[int64][]Participant, len(sessionIDs))
 	query, args, err := sqlx.In(`SELECT * FROM participants WHERE session_id IN (?) ORDER BY session_id, car_index ASC`, sessionIDs)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to build participants query: %w", err)
+		return nil, fmt.Errorf("failed to build participants query: %w", err)
 	}
 	var participants []Participant
 	if err := r.db.SelectContext(ctx, &participants, r.db.Rebind(query), args...); err != nil {
-		return nil, nil, fmt.Errorf("failed to get participants: %w", err)
+		return nil, fmt.Errorf("failed to get participants: %w", err)
 	}
 	for _, p := range participants {
-		participantsBySession[p.SessionID] = append(participantsBySession[p.SessionID], p)
+		bySession[p.SessionID] = append(bySession[p.SessionID], p)
+	}
+	return bySession, nil
+}
+
+// GetSessionResults loads the participants and laps of the given sessions, keyed by session ID,
+// with the same rows and order GetParticipantsBySession and GetLapsBySession return.
+func (r *SQLiteRepository) GetSessionResults(ctx context.Context, sessionIDs []int64) (participantsBySession map[int64][]Participant, lapsBySession map[int64][]Lap, err error) {
+	lapsBySession = make(map[int64][]Lap, len(sessionIDs))
+	if len(sessionIDs) == 0 {
+		return make(map[int64][]Participant), lapsBySession, nil
+	}
+	participantsBySession, err = r.getSessionParticipants(ctx, sessionIDs)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	query, args, err = sqlx.In(`SELECT `+lapSelectColumns+` `+lapFromJoin+` WHERE laps.session_id IN (?) AND `+lapValidFilter+
+	query, args, err := sqlx.In(`SELECT `+lapSelectColumns+` `+lapFromJoin+` WHERE laps.session_id IN (?) AND `+lapValidFilter+
 		` ORDER BY laps.session_id, laps.car_index ASC, laps.lap_number ASC`, sessionIDs)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to build laps query: %w", err)
@@ -910,6 +928,7 @@ func getSessionByID(ctx context.Context, db queryPreparer, sessionID int64) (*Se
 			s.session_duration,
 			s.packet_format,
 			s.player_car_index,
+			s.player_car_source,
 			s.created_at
 		FROM sessions s
 		WHERE s.id = ?
@@ -1023,7 +1042,7 @@ func (r *SQLiteRepository) ExportSession(ctx context.Context, sessionID int64) (
 // GetSessionByUID retrieves a session by its hex session UID. Returns nil, nil if not found.
 func (r *SQLiteRepository) GetSessionByUID(ctx context.Context, sessionUID string) (*Session, error) {
 	var session Session
-	query := `SELECT id, session_uid, track_id, track_name, session_type, weather, weather_forecast, total_laps, ai_difficulty, session_duration, packet_format, player_car_index, created_at FROM sessions WHERE session_uid = ?`
+	query := `SELECT id, session_uid, track_id, track_name, session_type, weather, weather_forecast, total_laps, ai_difficulty, session_duration, packet_format, player_car_index, player_car_source, created_at FROM sessions WHERE session_uid = ?`
 	if err := r.db.GetContext(ctx, &session, query, sessionUID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -1036,6 +1055,126 @@ func (r *SQLiteRepository) GetSessionByUID(ctx context.Context, sessionUID strin
 	}
 	session.Tags = tags
 	return &session, nil
+}
+
+// sqliteTimestampLayout is how SQLite's CURRENT_TIMESTAMP writes a time (UTC), so dates written
+// from Go sort and compare with the column's defaults.
+const sqliteTimestampLayout = "2006-01-02 15:04:05"
+
+// normalizePlayerCarSource gives a stored car a source (the game's, when the caller named none,
+// as for an export made before sources were stored) and clears the source of a session without one.
+func normalizePlayerCarSource(s *Session) {
+	if s.PlayerCarIndex == nil {
+		s.PlayerCarSource = nil
+		return
+	}
+	if s.PlayerCarSource == nil || (*s.PlayerCarSource != PlayerCarSourceGame && *s.PlayerCarSource != PlayerCarSourceUser) {
+		source := PlayerCarSourceGame
+		s.PlayerCarSource = &source
+	}
+}
+
+// SetPlayerCar saves the player's pick of their car in a session (PlayerCarSourceUser), or clears
+// the car when carIndex is nil ("I wasn't driving"). It returns ErrSessionNotFound for an unknown
+// session and ErrCarNotInSession when the car is not one of its participants.
+func (r *SQLiteRepository) SetPlayerCar(ctx context.Context, sessionID int64, carIndex *int) error {
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	var exists bool
+	if err := tx.GetContext(ctx, &exists, `SELECT EXISTS(SELECT 1 FROM sessions WHERE id = ?)`, sessionID); err != nil {
+		return fmt.Errorf("failed to check session %d: %w", sessionID, err)
+	}
+	if !exists {
+		return fmt.Errorf("session %d: %w", sessionID, ErrSessionNotFound)
+	}
+	if carIndex != nil {
+		var isParticipant bool
+		if err := tx.GetContext(ctx, &isParticipant, `SELECT EXISTS(SELECT 1 FROM participants WHERE session_id = ? AND car_index = ?)`, sessionID, *carIndex); err != nil {
+			return fmt.Errorf("failed to check car %d of session %d: %w", *carIndex, sessionID, err)
+		}
+		if !isParticipant {
+			return fmt.Errorf("car %d of session %d: %w", *carIndex, sessionID, ErrCarNotInSession)
+		}
+	}
+	if err := setPlayerCar(ctx, tx, sessionID, carIndex); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func setPlayerCar(ctx context.Context, tx *sqlx.Tx, sessionID int64, carIndex *int) error {
+	var source *string
+	if carIndex != nil {
+		user := PlayerCarSourceUser
+		source = &user
+	}
+	if _, err := tx.ExecContext(ctx, `UPDATE sessions SET player_car_index = ?, player_car_source = ? WHERE id = ?`, carIndex, source, sessionID); err != nil {
+		return fmt.Errorf("failed to set the player car of session %d: %w", sessionID, err)
+	}
+	return nil
+}
+
+// SetPlayerCarByName picks, in each session, the participant whose name equals driverName
+// (ignoring case and surrounding spaces) as the player's car (PlayerCarSourceUser). Sessions with
+// no such participant (unknown sessions included) and sessions with more than one are left as they
+// are and reported.
+func (r *SQLiteRepository) SetPlayerCarByName(ctx context.Context, sessionIDs []int64, driverName string) (BatchPlayerResult, error) {
+	result := BatchPlayerResult{Updated: []int64{}, NotFound: []int64{}, Ambiguous: []int64{}}
+	if len(sessionIDs) == 0 {
+		return result, nil
+	}
+	participants, err := r.getSessionParticipants(ctx, sessionIDs)
+	if err != nil {
+		return result, err
+	}
+
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return result, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	name := strings.TrimSpace(driverName)
+	seen := make(map[int64]bool, len(sessionIDs))
+	for _, id := range sessionIDs {
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		var match *Participant
+		ambiguous := false
+		for i := range participants[id] {
+			p := &participants[id][i]
+			if !strings.EqualFold(p.DisplayName(), name) {
+				continue
+			}
+			if match != nil {
+				ambiguous = true
+				break
+			}
+			match = p
+		}
+		switch {
+		case ambiguous:
+			result.Ambiguous = append(result.Ambiguous, id)
+		case match == nil:
+			result.NotFound = append(result.NotFound, id)
+		default:
+			carIndex := match.CarIndex
+			if err := setPlayerCar(ctx, tx, id, &carIndex); err != nil {
+				return result, err
+			}
+			result.Updated = append(result.Updated, id)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return result, fmt.Errorf("failed to commit player cars: %w", err)
+	}
+	return result, nil
 }
 
 // DeleteSessions deletes multiple sessions by their IDs in a single transaction.
@@ -1132,11 +1271,19 @@ func (r *SQLiteRepository) ImportSessionWithOptions(ctx context.Context, pkg *Ex
 		SessionDuration: pkg.Session.SessionDuration,
 		PacketFormat:    pkg.Session.PacketFormat,
 		PlayerCarIndex:  pkg.Session.PlayerCarIndex,
+		PlayerCarSource: pkg.Session.PlayerCarSource,
 		CreatedAt:       pkg.Session.CreatedAt,
 	}
 
 	if err := saveSession(ctx, tx, newSession); err != nil {
 		return 0, fmt.Errorf("failed to save imported session: %w", err)
+	}
+	// saveSession leaves created_at to the column default (now); an import keeps the file's date.
+	if !pkg.Session.CreatedAt.IsZero() {
+		if _, err := tx.ExecContext(ctx, `UPDATE sessions SET created_at = ? WHERE id = ?`,
+			pkg.Session.CreatedAt.UTC().Format(sqliteTimestampLayout), newSession.ID); err != nil {
+			return 0, fmt.Errorf("failed to keep the imported session's date: %w", err)
+		}
 	}
 
 	// Import and link tags

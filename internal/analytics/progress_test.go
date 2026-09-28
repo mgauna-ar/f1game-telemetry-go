@@ -21,7 +21,7 @@ func TestComputeTrackProgress(t *testing.T) {
 	}
 	// Listed newest first, as GetSessions returns them.
 	sessions := []storage.Session{
-		{ID: 3, TrackName: "Monza", SessionType: "Race", CreatedAt: day(3)},                         // no stored car: found by name or left out
+		{ID: 3, TrackName: "Monza", SessionType: "Race", CreatedAt: day(3)},                         // no player car until one is picked
 		{ID: 2, TrackName: "Monza", SessionType: "Race", CreatedAt: day(2), PlayerCarIndex: new(1)}, // the player sets the fastest lap
 		{ID: 1, TrackName: "Monza", SessionType: "Race", CreatedAt: day(1), PlayerCarIndex: new(1)},
 	}
@@ -37,7 +37,7 @@ func TestComputeTrackProgress(t *testing.T) {
 		3: {lap(3, 1, 1, 94_000), lap(3, 1, 2, 88_500), lap(3, 0, 1, 94_500), lap(3, 0, 2, 88_200)},
 	}
 
-	points, unmatched := ComputeTrackProgress(sessions, participantsBy, lapsBy, "")
+	points, unmatched := ComputeTrackProgress(sessions, participantsBy, lapsBy)
 	if unmatched != 1 || len(points) != 2 {
 		t.Fatalf("got %d points, %d unmatched; want 2 and 1", len(points), unmatched)
 	}
@@ -66,9 +66,12 @@ func TestComputeTrackProgress(t *testing.T) {
 		t.Errorf("second: consistency %v from %d clean laps; want null below %d", second.ConsistencyMS, second.CleanLaps, MinConsistencyLaps)
 	}
 
-	points, unmatched = ComputeTrackProgress(sessions, participantsBy, lapsBy, "hamilton")
-	if unmatched != 0 || len(points) != 3 || points[2].Source != PlayerSourceDriverName || *points[2].GapToFastestMS != 300 {
-		t.Errorf("with a driver name: %d points, %d unmatched, last %+v", len(points), unmatched, points[len(points)-1])
+	// Picking Hamilton in session 3 brings it in.
+	user := storage.PlayerCarSourceUser
+	sessions[0].PlayerCarIndex, sessions[0].PlayerCarSource = new(1), &user
+	points, unmatched = ComputeTrackProgress(sessions, participantsBy, lapsBy)
+	if unmatched != 0 || len(points) != 3 || points[2].Source != PlayerSourceChosen || *points[2].GapToFastestMS != 300 {
+		t.Errorf("with a picked car: %d points, %d unmatched, last %+v", len(points), unmatched, points[len(points)-1])
 	}
 }
 
