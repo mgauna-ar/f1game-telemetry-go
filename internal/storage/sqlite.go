@@ -1057,6 +1057,10 @@ func (r *SQLiteRepository) GetSessionByUID(ctx context.Context, sessionUID strin
 	return &session, nil
 }
 
+// sqliteTimestampLayout is how SQLite's CURRENT_TIMESTAMP writes a time (UTC), so dates written
+// from Go sort and compare with the column's defaults.
+const sqliteTimestampLayout = "2006-01-02 15:04:05"
+
 // normalizePlayerCarSource gives a stored car a source (the game's, when the caller named none,
 // as for an export made before sources were stored) and clears the source of a session without one.
 func normalizePlayerCarSource(s *Session) {
@@ -1273,6 +1277,13 @@ func (r *SQLiteRepository) ImportSessionWithOptions(ctx context.Context, pkg *Ex
 
 	if err := saveSession(ctx, tx, newSession); err != nil {
 		return 0, fmt.Errorf("failed to save imported session: %w", err)
+	}
+	// saveSession leaves created_at to the column default (now); an import keeps the file's date.
+	if !pkg.Session.CreatedAt.IsZero() {
+		if _, err := tx.ExecContext(ctx, `UPDATE sessions SET created_at = ? WHERE id = ?`,
+			pkg.Session.CreatedAt.UTC().Format(sqliteTimestampLayout), newSession.ID); err != nil {
+			return 0, fmt.Errorf("failed to keep the imported session's date: %w", err)
+		}
 	}
 
 	// Import and link tags

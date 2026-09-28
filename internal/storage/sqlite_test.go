@@ -1863,6 +1863,54 @@ func TestPlayerCarSourceExportImport(t *testing.T) {
 	}
 }
 
+func TestImportKeepsTheSessionDate(t *testing.T) {
+	repo := setupTestRepo(t)
+	ctx := context.Background()
+
+	s := &Session{SessionUID: FormatSessionUID(4001), TrackName: "Interlagos", SessionType: "Race", PacketFormat: 2025}
+	if err := repo.SaveSession(ctx, s); err != nil {
+		t.Fatalf("SaveSession: %v", err)
+	}
+	raceDay := time.Date(2026, 9, 2, 22, 33, 0, 0, time.UTC)
+	if _, err := repo.db.ExecContext(ctx, `UPDATE sessions SET created_at = ? WHERE id = ?`, raceDay.Format(sqliteTimestampLayout), s.ID); err != nil {
+		t.Fatalf("set date: %v", err)
+	}
+	pkg, err := repo.ExportSession(ctx, s.ID)
+	if err != nil {
+		t.Fatalf("ExportSession: %v", err)
+	}
+	if !pkg.Session.CreatedAt.Equal(raceDay) {
+		t.Fatalf("exported date = %v, want %v", pkg.Session.CreatedAt, raceDay)
+	}
+	// Through JSON, as a file, with another time zone
+	pkg.Session.CreatedAt = raceDay.In(time.FixedZone("ART", -3*60*60))
+
+	id, err := repo.ImportSessionWithOptions(ctx, pkg, true)
+	if err != nil {
+		t.Fatalf("ImportSession: %v", err)
+	}
+	got, err := repo.GetSessionByID(ctx, id)
+	if err != nil {
+		t.Fatalf("GetSessionByID: %v", err)
+	}
+	if !got.CreatedAt.Equal(raceDay) {
+		t.Errorf("imported date = %v, want %v", got.CreatedAt, raceDay)
+	}
+
+	// The list still sorts it among sessions dated by the column default
+	newer := &Session{SessionUID: FormatSessionUID(4002), TrackName: "Monza", SessionType: "Race", PacketFormat: 2025}
+	if err := repo.SaveSession(ctx, newer); err != nil {
+		t.Fatalf("SaveSession: %v", err)
+	}
+	var order []int64
+	if err := repo.db.SelectContext(ctx, &order, `SELECT id FROM sessions WHERE id IN (?, ?) ORDER BY created_at DESC`, id, newer.ID); err != nil {
+		t.Fatalf("order: %v", err)
+	}
+	if len(order) != 2 || order[0] != newer.ID {
+		t.Errorf("order = %v, want the new session (%d) first", order, newer.ID)
+	}
+}
+
 func TestGetSessionResults(t *testing.T) {
 	repo := setupTestRepo(t)
 	ctx := context.Background()
