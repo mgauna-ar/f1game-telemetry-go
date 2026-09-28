@@ -7,6 +7,8 @@ import { DeleteSessionModal } from './session_history/DeleteSessionModal';
 import { BatchDeleteModal } from './session_history/BatchDeleteModal';
 import { BatchTagModal } from './session_history/BatchTagModal';
 import { TagManagerModal } from './session_history/TagManagerModal';
+import { BatchDriverModal } from './session_history/player/BatchDriverModal';
+import { OldDriverNameNotice } from './session_history/player/OldDriverNameNotice';
 import { PlayerPickerModal } from './session_history/player/PlayerPickerModal';
 import { SessionComparatorDock } from './session_history/SessionComparatorDock';
 import { SessionBatchDock } from './session_history/SessionBatchDock';
@@ -48,6 +50,7 @@ const SessionHistoryContent: React.FC = () => {
     selectedSessionIds,
     showBatchDeleteModal,
     showBatchTagModal,
+    showBatchDriverModal,
   } = useSessionHistoryData();
 
   const {
@@ -61,6 +64,7 @@ const SessionHistoryContent: React.FC = () => {
     handleDeleteGlobalTag,
     setShowBatchDeleteModal,
     setShowBatchTagModal,
+    setShowBatchDriverModal,
     handleExecuteBatchDelete,
     handleExecuteBatchTag,
   } = useSessionHistoryActions();
@@ -106,6 +110,7 @@ const SessionHistoryContent: React.FC = () => {
       {/* VIEW 1: SESSION LIST & FILTER TOOLBAR */}
       {!selectedSession && (
         <div className={styles.list}>
+          <OldDriverNameNotice />
           <SessionFilterToolbar />
 
           {/* Session Content Table */}
@@ -198,6 +203,13 @@ const SessionHistoryContent: React.FC = () => {
         availableTags={availableTags}
         onClose={() => setShowBatchTagModal(false)}
         onApplyTag={handleExecuteBatchTag}
+      />
+
+      {/* BATCH "SET MY DRIVER" MODAL */}
+      <BatchDriverModal
+        isOpen={showBatchDriverModal}
+        sessionIds={[...selectedSessionIds]}
+        onClose={() => setShowBatchDriverModal(false)}
       />
 
       {/* TAG MANAGER MODAL */}

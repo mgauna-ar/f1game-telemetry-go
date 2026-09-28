@@ -158,6 +158,7 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({ 
   // Modal states for batch operations
   const [showBatchDeleteModal, setShowBatchDeleteModal] = useState<boolean>(false);
   const [showBatchTagModal, setShowBatchTagModal] = useState<boolean>(false);
+  const [showBatchDriverModal, setShowBatchDriverModal] = useState<boolean>(false);
 
   // Hook 6: Batch operations
   const {
@@ -297,6 +298,7 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({ 
       sessionToManageTags,
       showBatchDeleteModal,
       showBatchTagModal,
+      showBatchDriverModal,
     }),
     [
       sessions,
@@ -343,6 +345,7 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({ 
       sessionToManageTags,
       showBatchDeleteModal,
       showBatchTagModal,
+      showBatchDriverModal,
     ]
   );
 
@@ -387,6 +390,7 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({ 
       handleDeleteGlobalTag,
       setShowBatchDeleteModal,
       setShowBatchTagModal,
+      setShowBatchDriverModal,
       fetchSessions,
       fetchTags,
       sendLapToComparator,
@@ -432,6 +436,7 @@ export const SessionHistoryProvider: React.FC<SessionHistoryProviderProps> = ({ 
       handleDeleteGlobalTag,
       setShowBatchDeleteModal,
       setShowBatchTagModal,
+      setShowBatchDriverModal,
       fetchSessions,
       fetchTags,
       sendLapToComparator,

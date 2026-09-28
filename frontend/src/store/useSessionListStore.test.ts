@@ -51,6 +51,30 @@ describe('useSessionListStore', () => {
     expect(state.sessions[1]).toMatchObject({ id: 2, player_car_index: 4, player_car_source: 'user' });
   });
 
+  it('sets a driver by name in several sessions and refreshes the list only when one changed', async () => {
+    const postSpy = vi
+      .spyOn(api, 'post')
+      .mockResolvedValueOnce({ updated: [1], not_found: [2], ambiguous: [] })
+      .mockResolvedValueOnce({ updated: [], not_found: [1, 2], ambiguous: [] });
+    const getSpy = vi.spyOn(api, 'get').mockResolvedValue(mockSessions);
+
+    await expect(useSessionListStore.getState().setPlayerByName([1, 2], 'Lando Norris')).resolves.toEqual({
+      updated: [1],
+      not_found: [2],
+      ambiguous: [],
+    });
+    expect(postSpy).toHaveBeenCalledWith('/api/sessions/batch-player', {
+      session_ids: [1, 2],
+      driver_name: 'Lando Norris',
+    });
+    expect(getSpy).toHaveBeenCalledTimes(1);
+    expect(useSessionListStore.getState().playerRevision).toBe(1);
+
+    await useSessionListStore.getState().setPlayerByName([1, 2], 'Nobody');
+    expect(getSpy).toHaveBeenCalledTimes(1);
+    expect(useSessionListStore.getState().playerRevision).toBe(1);
+  });
+
   it('runs a forced fetch again once the fetch in flight finishes', async () => {
     let finishFirst: (value: SessionListItem[]) => void = () => {};
     const getSpy = vi

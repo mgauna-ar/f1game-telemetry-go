@@ -1353,6 +1353,43 @@ describe('SessionHistory Component', () => {
       expect(put).toHaveBeenLastCalledWith({ car_index: null });
     });
 
+    it('offers the old saved name once, and sets your driver in the selected sessions from the batch dock', async () => {
+      localStorage.setItem('f1_comparator_default_driver_name', 'Piastri');
+      const batches: unknown[] = [];
+      setupFetchMock({
+        sessions: [
+          makeSessionListItem({ id: 7, track_name: 'Silverstone', session_type: 'Race', player_car_index: null }),
+          makeSessionListItem({ id: 8, track_name: 'Monza', session_type: 'Race', player_car_index: null }),
+          makeSessionListItem({ id: 9, track_name: 'Spa', session_type: 'Race', player_car_index: 0, player_car_source: 'game' }),
+        ],
+        participants: threeCars,
+        laps: threeCarLaps,
+        custom: (url, options) => {
+          if (url !== '/api/sessions/batch-player') return null;
+          batches.push(JSON.parse(String(options?.body)));
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({ updated: [7, 8], not_found: [], ambiguous: [] }) });
+        },
+      });
+      window.history.replaceState(null, '', '/history');
+      render(<SessionHistory />);
+
+      const notice = await screen.findByRole('region', { name: 'Apply “Piastri” to the 2 sessions without a driver?' });
+      fireEvent.click(within(notice).getByRole('button', { name: 'Dismiss' }));
+      expect(screen.queryByRole('region', { name: /Apply “Piastri”/ })).not.toBeInTheDocument();
+      expect(localStorage.getItem('f1_comparator_default_driver_name')).toBeNull();
+
+      fireEvent.click(screen.getByRole('button', { name: 'No driver' }));
+      fireEvent.click(screen.getByTitle('Select all sessions'));
+      fireEvent.click(await screen.findByRole('button', { name: 'Set my driver…' }));
+
+      const dialog = await screen.findByRole('dialog', { name: 'Set my driver' });
+      fireEvent.click(await within(dialog).findByRole('button', { name: 'Lando Norris, in 2 of 2 sessions' }));
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Apply to 2' }));
+
+      expect(await within(dialog).findByRole('heading', { name: 'Updated: 2' })).toBeInTheDocument();
+      expect(batches).toEqual([{ session_ids: [7, 8], driver_name: 'Lando Norris' }]);
+    });
+
     it('shows no card and no YOU row when your car is unknown', async () => {
       await openSession(null);
       expect(screen.queryByTestId('your-race')).not.toBeInTheDocument();

@@ -1,5 +1,11 @@
 import { create } from 'zustand';
-import type { Session, SessionListItem, SetPlayerCarRequest } from '../types/session';
+import type {
+  BatchPlayerRequest,
+  BatchPlayerResult,
+  Session,
+  SessionListItem,
+  SetPlayerCarRequest,
+} from '../types/session';
 import { api } from '../utils/apiClient';
 
 export const SESSION_LIST_TTL_MS = 30_000;
@@ -23,6 +29,11 @@ export interface SessionListState {
    * summaries follow it. Resolves with the updated session; rejects when the save fails.
    */
   setPlayerCar: (sessionId: number, carIndex: number | null) => Promise<Session>;
+  /**
+   * Makes the driver with this name yours in each session (the server matches it ignoring case), then
+   * refreshes the list. Resolves with the sessions updated, without that driver, and with more than one.
+   */
+  setPlayerByName: (sessionIds: number[], driverName: string) => Promise<BatchPlayerResult>;
   /** Refreshes the list after player cars changed on the server and bumps `playerRevision`. */
   playerCarsChanged: () => Promise<void>;
 }
@@ -102,6 +113,13 @@ export const useSessionListStore = create<SessionListState>((set, get) => ({
     }));
     await get().playerCarsChanged();
     return session;
+  },
+
+  setPlayerByName: async (sessionIds, driverName) => {
+    const body: BatchPlayerRequest = { session_ids: sessionIds, driver_name: driverName };
+    const result = await api.post<BatchPlayerResult>('/api/sessions/batch-player', body);
+    if (result.updated.length > 0) await get().playerCarsChanged();
+    return result;
   },
 
   playerCarsChanged: async () => {
