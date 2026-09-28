@@ -1,5 +1,5 @@
 .panel {
-  gap: var(--space-5);
+  gap: var(--space-4);
   padding: var(--space-6);
 }
 
@@ -8,70 +8,75 @@
   margin-bottom: 0;
 }
 
-.drivers {
-  padding: var(--space-2) 0;
-  border-top: 1px solid var(--border-color);
-  border-bottom: 1px solid var(--border-color);
-}
-
-.rates {
+.toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: space-between;
   gap: var(--space-2);
 }
 
-.ratesLabel {
+.count {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.actions {
   display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
-  color: var(--text-muted);
-}
-
-.rate {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-0-5) var(--space-2);
-  border: 1px solid color-mix(in srgb, var(--team-color) 40%, transparent);
-  border-radius: var(--radius-full);
-  background: var(--bg-hover);
-  font-size: var(--font-size-xs);
-}
-
-.teamDot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--team-color);
-}
-
-.rateDriver {
-  font-weight: var(--font-weight-semibold);
-  color: var(--text-primary);
-}
-
-.rateStint {
-  color: var(--text-muted);
-}
-
-.degrading,
-.improving {
-  font-family: var(--font-mono);
-  font-weight: var(--font-weight-bold);
-}
-
-.degrading {
-  color: var(--status-danger);
-}
-
-.improving {
-  color: var(--status-success);
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 .chart {
   width: 100%;
-  height: 420px;
+  height: 380px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1-5) var(--space-4);
+  margin: 0;
+  padding: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  list-style: none;
+}
+
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+}
+
+.legend li::before {
+  content: '';
+  flex-shrink: 0;
+}
+
+.legend [data-series='fit']::before,
+.legend [data-series='out']::before {
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--text-secondary);
+  border-radius: 50%;
+}
+
+.legend [data-series='fit']::before {
+  background: var(--text-secondary);
+}
+
+.legend [data-series='later']::before {
+  width: 16px;
+  border-top: 2px dashed var(--text-secondary);
+}
+
+@media (--phone) {
+  .panel {
+    padding: var(--space-4);
+  }
+
+  .chart {
+    height: 300px;
+  }
 }

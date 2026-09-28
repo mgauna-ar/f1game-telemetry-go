@@ -275,8 +275,10 @@ describe('SessionHistory Component', () => {
     });
 
     // Click explore on session
-    const exploreBtn = screen.getByRole('button', { name: /^Explore$/i });
+    const exploreBtn = screen.getByRole('button', { name: /^Explore:/i });
     fireEvent.click(exploreBtn);
+    // A session opens on its story; the drivers are on the classification tab
+    fireEvent.click(await screen.findByRole('tab', { name: /^(Classification|Clasificación)$/ }));
 
     // Verify detail header & standings table
     await waitFor(() => {
@@ -318,7 +320,9 @@ describe('SessionHistory Component', () => {
       expect(screen.getAllByText('Silverstone').length).toBeGreaterThan(0);
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /^Explore$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Explore:/i }));
+    // A session opens on its story; the drivers are on the classification tab
+    fireEvent.click(await screen.findByRole('tab', { name: /^(Classification|Clasificación)$/ }));
 
     await waitFor(() => {
       expect(screen.getAllByText('Lewis Hamilton').length).toBeGreaterThan(0);
@@ -368,7 +372,9 @@ describe('SessionHistory Component', () => {
       expect(screen.getAllByText('Silverstone').length).toBeGreaterThan(0);
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /^Explore$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Explore:/i }));
+    // A session opens on its story; the drivers are on the classification tab
+    fireEvent.click(await screen.findByRole('tab', { name: /^(Classification|Clasificación)$/ }));
 
     await waitFor(() => {
       expect(screen.getAllByText('Lewis Hamilton').length).toBeGreaterThan(0);
@@ -406,7 +412,7 @@ describe('SessionHistory Component', () => {
     expect(window.location.pathname + window.location.search).toBe('/compare?sa=1&a=202&b=201');
   });
 
-  it('switches between detail tabs: Lap Progression and Sector Matrix', async () => {
+  it('opens on the story and switches between the detail tabs', async () => {
     const mockSessions: SessionListItem[] = [
       makeSessionListItem({ id: 1, session_uid: '1001', track_name: 'Silverstone', session_type: 'Race', weather: 'Clear', created_at: '2026-08-10T14:00:00Z' }),
     ];
@@ -427,23 +433,29 @@ describe('SessionHistory Component', () => {
       expect(screen.getAllByText('Silverstone').length).toBeGreaterThan(0);
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /^Explore$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Explore:/i }));
 
     await waitFor(() => {
-      expect(screen.getByText('Classification & Laps')).toBeInTheDocument();
-      expect(screen.getByText('Lap Progression & Gap Charts')).toBeInTheDocument();
-      expect(screen.getByText('Sector & Speed Matrix')).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Story' })).toHaveAttribute('aria-selected', 'true');
+      expect(screen.getByRole('tab', { name: 'Pace' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Positions' })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Gap to leader' })).toBeInTheDocument();
     });
 
+    // One tab bar: the story first, the lap charts are tabs of their own
     expect(window.location.pathname).toBe('/history/1');
+    expect(screen.getByRole('heading', { name: 'Race engineer debrief' })).toBeInTheDocument();
 
-    // Switch to Charts tab
-    fireEvent.click(screen.getByText('Lap Progression & Gap Charts'));
-    expect(screen.getByText('Lap Pace Progression')).toBeInTheDocument();
-    expect(window.location.pathname).toBe('/history/1/charts');
+    fireEvent.click(screen.getByRole('tab', { name: 'Pace' }));
+    expect(screen.getByText(/Lap-by-Lap Pace Evolution/)).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/history/1/pace');
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Gap to leader' }));
+    expect(screen.getByText(/Gap to Leader Delta/)).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/history/1/gap');
 
     // Switch to Sector Matrix tab
-    fireEvent.click(screen.getByText('Sector & Speed Matrix'));
+    fireEvent.click(screen.getByRole('tab', { name: 'Sectors & speed' }));
     expect(screen.getByText('SESSION ULTIMATE THEORETICAL LAP')).toBeInTheDocument();
     expect(screen.getByText('Speed Trap & Maximum Speeds')).toBeInTheDocument();
     expect(window.location.pathname).toBe('/history/1/sectors');
@@ -451,7 +463,7 @@ describe('SessionHistory Component', () => {
     // Back to the list
     fireEvent.click(screen.getByRole('button', { name: /Back to/i }));
     expect(window.location.pathname).toBe('/history');
-    expect(await screen.findByRole('button', { name: /^Explore$/i })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^Explore:/i })).toBeInTheDocument();
   });
 
   it('opens the session and tab named in the URL, and leaves an unknown session for the list', async () => {
@@ -476,7 +488,7 @@ describe('SessionHistory Component', () => {
     await waitFor(() => {
       expect(window.location.pathname).toBe('/history');
     });
-    expect(await screen.findByRole('button', { name: /^Explore$/i })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /^Explore:/i })).toBeInTheDocument();
   });
 
   it('opens and interacts with AI Race Engineer debrief', async () => {
@@ -509,7 +521,9 @@ describe('SessionHistory Component', () => {
       expect(screen.getAllByText('Silverstone').length).toBeGreaterThan(0);
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /^Explore$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Explore:/i }));
+    // A session opens on its story; the drivers are on the classification tab
+    fireEvent.click(await screen.findByRole('tab', { name: /^(Classification|Clasificación)$/ }));
 
     await waitFor(() => {
       expect(screen.getByText(/AI Race Engineer Debrief/i)).toBeInTheDocument();
@@ -551,9 +565,9 @@ describe('SessionHistory Component', () => {
       expect(screen.getAllByText('Monaco').length).toBeGreaterThan(0);
     });
 
-    // Click delete button for Silverstone (#1)
-    const deleteBtn = screen.getByRole('button', { name: 'Delete Session #1' });
-    fireEvent.click(deleteBtn);
+    // Delete Silverstone (#1) from its "⋯" menu
+    fireEvent.click(screen.getByRole('button', { name: 'More actions for Silverstone, session #1' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete session' }));
 
     // Confirmation modal should appear
     await waitFor(() => {
@@ -598,7 +612,9 @@ describe('SessionHistory Component', () => {
       expect(screen.getAllByText('Monza').length).toBeGreaterThan(0);
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /^Explore$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Explore:/i }));
+    // A session opens on its story; the drivers are on the classification tab
+    fireEvent.click(await screen.findByRole('tab', { name: /^(Classification|Clasificación)$/ }));
 
     await waitFor(() => {
       expect(screen.getAllByText('Max Verstappen').length).toBeGreaterThan(0);
@@ -637,7 +653,9 @@ describe('SessionHistory Component', () => {
       expect(screen.getAllByText('Silverstone').length).toBeGreaterThan(0);
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /^Explore$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Explore:/i }));
+    // A session opens on its story; the drivers are on the classification tab
+    fireEvent.click(await screen.findByRole('tab', { name: /^(Classification|Clasificación)$/ }));
 
     await waitFor(() => {
       expect(screen.getAllByText('Driver Finisher').length).toBeGreaterThan(0);
@@ -678,7 +696,9 @@ describe('SessionHistory Component', () => {
       expect(screen.getAllByText('Spa-Francorchamps').length).toBeGreaterThan(0);
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /^Explore$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Explore:/i }));
+    // A session opens on its story; the drivers are on the classification tab
+    fireEvent.click(await screen.findByRole('tab', { name: /^(Classification|Clasificación)$/ }));
 
     await waitFor(() => {
       expect(screen.getAllByText('Oscar Piastri').length).toBeGreaterThan(0);
@@ -717,7 +737,8 @@ describe('SessionHistory Component', () => {
     });
 
     // Click explore button (Explorar in Spanish)
-    fireEvent.click(screen.getByRole('button', { name: /^Explorar$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Explorar:/i }));
+    fireEvent.click(await screen.findByRole('tab', { name: 'Clasificación' }));
 
     await waitFor(() => {
       expect(screen.getAllByText('Franco Colapinto').length).toBeGreaterThan(0);
@@ -801,9 +822,9 @@ describe('SessionHistory Component', () => {
     // 1. Verify Import Button is present
     expect(screen.getByText('Import Session')).toBeInTheDocument();
 
-    // 2. Click Export button on the session card
-    const exportBtn = screen.getByRole('button', { name: 'Export Session (.f1session) #1' });
-    fireEvent.click(exportBtn);
+    // 2. Export from the session's "⋯" menu
+    fireEvent.click(screen.getByRole('button', { name: 'More actions for Monza, session #1' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Export session' }));
 
     await waitFor(() => {
       expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions/1/export', expect.anything());
@@ -849,15 +870,15 @@ describe('SessionHistory Component', () => {
     });
 
     // Select the session
-    const selectBtn = screen.getByRole('button', { name: /^Explore$/i });
+    const selectBtn = screen.getByRole('button', { name: /^Explore:/i });
     fireEvent.click(selectBtn);
 
     await waitFor(() => {
-      expect(screen.getByText('Tyre Strategy & Stints')).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: 'Tyres & stints' })).toBeInTheDocument();
     });
 
     // Click on Tyre Strategy & Stints tab
-    const stintsTabBtn = screen.getByText('Tyre Strategy & Stints');
+    const stintsTabBtn = screen.getByRole('tab', { name: 'Tyres & stints' });
     fireEvent.click(stintsTabBtn);
 
     await waitFor(() => {
@@ -884,7 +905,7 @@ describe('SessionHistory Component', () => {
     });
 
     // Select the session
-    const selectBtn = screen.getByRole('button', { name: /^Explore$/i });
+    const selectBtn = screen.getByRole('button', { name: /^Explore:/i });
     fireEvent.click(selectBtn);
 
     // Verify back button is visible
@@ -1150,7 +1171,9 @@ describe('SessionHistory Component', () => {
       expect(screen.getAllByText('Monaco').length).toBeGreaterThan(0);
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /^Explore$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Explore:/i }));
+    // A session opens on its story; the drivers are on the classification tab
+    fireEvent.click(await screen.findByRole('tab', { name: /^(Classification|Clasificación)$/ }));
 
     await waitFor(() => {
       expect(globalThis.fetch).toHaveBeenCalledWith('/api/sessions/42/detail', expect.anything());
@@ -1161,7 +1184,7 @@ describe('SessionHistory Component', () => {
     expect(sessionCalls).toHaveLength(1);
 
     // Check Sector Matrix tab
-    const sectorsTab = screen.getByRole('tab', { name: /Sector & Speed/i });
+    const sectorsTab = screen.getByRole('tab', { name: 'Sectors & speed' });
     fireEvent.click(sectorsTab);
 
     await waitFor(() => {
@@ -1213,6 +1236,10 @@ describe('SessionHistory Component', () => {
       });
       window.history.replaceState(null, '', '/history/1');
       render(<SessionHistory />);
+      await screen.findByRole('tab', { name: 'Story', selected: true });
+    };
+    const openClassification = async () => {
+      fireEvent.click(screen.getByRole('tab', { name: 'Classification' }));
       await waitFor(() => expect(screen.getAllByText('Oscar Piastri').length).toBeGreaterThan(0));
     };
 
@@ -1238,7 +1265,7 @@ describe('SessionHistory Component', () => {
       expect(within(row('Spa')).getByText('F1 2025')).toBeInTheDocument();
     });
 
-    it('marks your row and sums up your race when the session stored your car', async () => {
+    it('sums up your race on the story when the session stored your car', async () => {
       await openSession(1);
 
       const card = await screen.findByTestId('your-race');
@@ -1251,15 +1278,19 @@ describe('SessionHistory Component', () => {
       expect(within(card).getByText('P3 Oscar Piastri')).toBeInTheDocument();
       expect(within(card).queryByText(/saved in the Lap Comparator/)).not.toBeInTheDocument();
 
+      fireEvent.click(within(card).getByRole('button', { name: 'Compare with the fastest lap' }));
+      expect(window.location.pathname + window.location.search).toBe('/compare?sa=1&a=302&b=301');
+    });
+
+    it('marks your row in the classification', async () => {
+      await openSession(1);
+      await openClassification();
       const table = screen.getByRole('table', { name: /Every driver with position/ });
       const youRows = within(table)
         .getAllByRole('row')
         .filter((row) => within(row).queryByText('YOU'));
       expect(youRows).toHaveLength(1);
       expect(within(youRows[0]).getByText('Lando Norris')).toBeInTheDocument();
-
-      fireEvent.click(within(card).getByRole('button', { name: 'Compare with the fastest lap' }));
-      expect(window.location.pathname + window.location.search).toBe('/compare?sa=1&a=302&b=301');
     });
 
     it('finds you by the saved driver name in a session recorded before your car was stored', async () => {
@@ -1275,6 +1306,8 @@ describe('SessionHistory Component', () => {
     it('shows no card and no YOU row when your car is unknown', async () => {
       await openSession(null);
       expect(screen.queryByTestId('your-race')).not.toBeInTheDocument();
+      expect(screen.getByText(/Your car wasn't recorded in this session/)).toBeInTheDocument();
+      await openClassification();
       expect(screen.queryByText('YOU')).not.toBeInTheDocument();
     });
   });

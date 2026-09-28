@@ -1,0 +1,60 @@
+/* Your race, pace and debrief on the left; the key moments beside them on wide screens */
+.story {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.side {
+  min-width: 0;
+}
+
+.note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.note svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.story[data-events] {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+}
+
+/* The timeline scrolls on its own beside a long debrief */
+.story[data-events] .side {
+  position: sticky;
+  top: var(--space-4);
+  max-height: calc(100vh - var(--space-8));
+  overflow-y: auto;
+}
+
+/* Side columns stack below laptop width */
+@media (--laptop) {
+  .story[data-events] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .story[data-events] .side {
+    position: static;
+    max-height: none;
+    overflow-y: visible;
+  }
+}

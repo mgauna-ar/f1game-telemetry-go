@@ -75,3 +75,14 @@ export function defaultChartSelection(
 /** The locale key for places gained or lost from the grid (`gained` < 0 is places lost). */
 export const placesKey = (gained: number): string =>
   `history.player.place${Math.abs(gained) === 1 ? '' : 's'}${gained > 0 ? 'Gained' : 'Lost'}`;
+
+/**
+ * A three-letter label for a driver on a chart line: the first letters of their surname
+ * ("Max Verstappen" → VER), or the car number when the game sent no name.
+ */
+export function driverCode(name: string | undefined, raceNumber?: number): string {
+  const last = (name ?? '').trim().split(/\s+/).pop() ?? '';
+  const letters = last.replace(/[^\p{L}\p{N}]/gu, '');
+  if (letters) return letters.slice(0, 3).toUpperCase();
+  return raceNumber ? `#${raceNumber}` : '—';
+}

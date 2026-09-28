@@ -29,7 +29,14 @@ interface ComparatorTrackMapProps {
   sector1Distance?: number | null;
   sector2Distance?: number | null;
   onSelectDistance?: (distance: number) => void;
+  /** The zoomed stretch in lap meters: the map frames it and dims the rest of the lap. */
+  zoomRange?: [number, number] | null;
 }
+
+/** Track shown around a zoomed stretch, in lap meters on each side, so the corner keeps its context. */
+const ZOOM_CONTEXT_METERS = 60;
+/** How visible the lap outside a zoomed stretch stays. */
+const OUTSIDE_ZOOM_ALPHA = 0.3;
 
 export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
   data,
@@ -39,6 +46,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
   sector1Distance,
   sector2Distance,
   onSelectDistance,
+  zoomRange = null,
 }) => {
   const { t } = useI18n();
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -88,12 +96,21 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         return;
       }
 
+      // Frame the zoomed stretch (with some track either side), else the whole lap
+      const inZoom = (d: number) => zoomRange === null || (d >= zoomRange[0] && d <= zoomRange[1]);
+      const zoomedPoints = zoomRange
+        ? validPoints.filter(
+            (p) => p.lap_distance >= zoomRange[0] - ZOOM_CONTEXT_METERS && p.lap_distance <= zoomRange[1] + ZOOM_CONTEXT_METERS
+          )
+        : validPoints;
+      const framePoints = zoomedPoints.length >= 2 ? zoomedPoints : validPoints;
+
       // Compute bounding box
       let minX = Infinity,
         maxX = -Infinity,
         minZ = Infinity,
         maxZ = -Infinity;
-      validPoints.forEach((p) => {
+      framePoints.forEach((p) => {
         if (p.worldX! < minX) minX = p.worldX!;
         if (p.worldX! > maxX) maxX = p.worldX!;
         if (p.worldZ! < minZ) minZ = p.worldZ!;
@@ -192,12 +209,14 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         const x2 = toCanvasX(p2.worldX!);
         const y2 = toCanvasY(p2.worldZ!);
 
+        ctx.globalAlpha = inZoom(p1.lap_distance) && inZoom(p2.lap_distance) ? 1 : OUTSIDE_ZOOM_ALPHA;
         ctx.beginPath();
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
         ctx.strokeStyle = segmentColors[i];
         ctx.stroke();
       }
+      ctx.globalAlpha = 1;
 
       // Connect final point back to start point to ensure complete closed circuit loop
       if (validPoints.length > 2) {
@@ -211,8 +230,10 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         ctx.beginPath();
         ctx.moveTo(xLast, yLast);
         ctx.lineTo(xFirst, yFirst);
+        ctx.globalAlpha = inZoom(pLast.lap_distance) && inZoom(pFirst.lap_distance) ? 1 : OUTSIDE_ZOOM_ALPHA;
         ctx.strokeStyle = segmentColors[segmentColors.length - 1] || colors.track;
         ctx.stroke();
+        ctx.globalAlpha = 1;
       }
 
       // Helper to draw clean perpendicular sector split boundary lines across track (no text)
@@ -473,7 +494,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
     return () => {
       if (observer) observer.disconnect();
     };
-  }, [data, turns, activeDistance, height, sector1Distance, sector2Distance, t]);
+  }, [data, turns, activeDistance, height, sector1Distance, sector2Distance, zoomRange, t]);
 
   // Handle canvas click to jump to turn or track position
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {

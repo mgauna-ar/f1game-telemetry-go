@@ -88,7 +88,7 @@ export const DriverLapsSubTable: React.FC<DriverLapsSubTableProps> = React.memo(
         const isPurple = time > 0 && sessionBest > 0 && time <= sessionBest;
         const isGreen = !isPurple && time > 0 && time <= personalBest;
         return (
-          <SectorTime isSessionBest={isPurple} isPersonalBest={isGreen}>
+          <SectorTime isSessionBest={isPurple} isPersonalBest={isGreen} isSlower={time > 0}>
             {formatSectorTime(time, false)}
           </SectorTime>
         );

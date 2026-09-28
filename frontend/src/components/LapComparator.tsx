@@ -10,6 +10,9 @@ import { ComparatorTimingTower } from './lap_comparator/ComparatorTimingTower';
 import { ComparatorMetricsSummary } from './lap_comparator/ComparatorMetricsSummary';
 import { ComparatorTelemetryCharts } from './lap_comparator/ComparatorTelemetryCharts';
 import { ComparatorSidebar } from './lap_comparator/ComparatorSidebar';
+import { ComparatorQuickStart } from './lap_comparator/ComparatorQuickStart';
+import { CornerTable } from './lap_comparator/CornerTable';
+import { analyzeCorners, type CornerAnalysis } from '../utils/trackTurns';
 
 import { useComparatorSessions } from '../hooks/useComparatorSessions';
 import { useSlotTelemetry } from '../hooks/useSlotTelemetry';
@@ -42,6 +45,7 @@ export const LapComparator: React.FC = () => {
     sessionBId,
     setSessionBId,
     isLinkedSessions,
+    setIsLinkedSessions,
     isSessionADropdownOpen,
     setIsSessionADropdownOpen,
     sessionASearchQuery,
@@ -63,6 +67,12 @@ export const LapComparator: React.FC = () => {
     filteredDropdownSessionsB,
   } = useComparatorSessions({ initial });
 
+  // The laps a slot picks once its session loads: from the URL, then from a quick-start card
+  const [preload, setPreload] = useState<Pick<CompareParams, 'lapA' | 'lapB'>>({
+    lapA: initial.lapA,
+    lapB: initial.lapB,
+  });
+
   // Comparator Preferences State
   const [preferences, setPreferences] = useState<ComparatorPreferences>(() => loadComparatorPreferences());
 
@@ -77,7 +87,7 @@ export const LapComparator: React.FC = () => {
   // Hook 2: Slot A telemetry & laps loader
   const slotA = useSlotTelemetry({
     sessionId: sessionListReady ? sessionAId : '',
-    preloadLapId: initial.lapA,
+    preloadLapId: preload.lapA,
     defaultDriverName: 'Reference',
     preferredDriverName: preferences.defaultDriverName,
     playerCarIndex: selectedSessionAObj?.player_car_index ?? null,
@@ -86,7 +96,7 @@ export const LapComparator: React.FC = () => {
   // Hook 2 (reused): Slot B telemetry & laps loader
   const slotB = useSlotTelemetry({
     sessionId: sessionListReady ? sessionBId : '',
-    preloadLapId: initial.lapB,
+    preloadLapId: preload.lapB,
     isSlotB: true,
     isSameSessionAsSlotA: sessionAId === sessionBId,
     defaultDriverName: 'Comparison',
@@ -226,6 +236,86 @@ export const LapComparator: React.FC = () => {
     if (hydrated) navigate(compareUrl, { replace: true });
   }, [hydrated, compareUrl]);
 
+  // "Where did I lose time": one row per detected turn
+  const corners = useMemo(() => analyzeCorners(comparisonData, detectedTurns), [comparisonData, detectedTurns]);
+
+  const handleZoomCorner = useCallback(
+    (corner: CornerAnalysis) => {
+      setZoomDomain(corner.range);
+      setHoverDistance(corner.turn.distance);
+    },
+    [setZoomDomain, setHoverDistance]
+  );
+
+  // The chat reads its zoom from the URL, so write the corner's range there before asking
+  const handleAskAiCorner = useCallback(
+    (corner: CornerAnalysis) => {
+      setZoomDomain(corner.range);
+      navigate(
+        buildPath({
+          page: 'compare',
+          sessionA: sessionAId || undefined,
+          lapA: lapAId || undefined,
+          sessionB: sessionBId || undefined,
+          lapB: lapBId || undefined,
+          zoom: corner.range,
+        }),
+        { replace: true }
+      );
+      openChat(
+        t('comparator.corners.askAiPrompt', { turn: corner.turn.name, from: corner.range[0], to: corner.range[1] })
+      );
+    },
+    [setZoomDomain, sessionAId, lapAId, sessionBId, lapBId, openChat, t]
+  );
+
+  // A quick-start card: load its sessions and laps as if they came from the URL
+  const startComparison = useCallback(
+    (params: CompareParams) => {
+      const sa = params.sessionA;
+      if (sa === undefined) return;
+      const sb = params.sessionB ?? sa;
+      setPreload({ lapA: params.lapA, lapB: params.lapB });
+      setZoomDomain(null);
+      setIsLinkedSessions(sb === sa);
+      setSessionAId(sa);
+      setSessionBId(sb);
+      // A session that is already loaded won't load again, so pick its laps here
+      if (sa === slotA.loadedSessionId && params.lapA) setLapAId(params.lapA);
+      if (sb === slotB.loadedSessionId) {
+        if (params.lapB) {
+          setLapBId(params.lapB);
+        } else if (sb === sa && params.lapA) {
+          const reference = slotA.laps.find((l) => l.id === params.lapA);
+          const next = resolveComparisonLap(
+            slotA.participants,
+            slotA.laps,
+            slotA.participants.find((p) => p.car_index === reference?.car_index),
+            preferences.rivalMode,
+            preferences.rivalDriverName,
+            params.lapA
+          );
+          if (next.lapId !== '') setLapBId(next.lapId);
+        }
+      }
+    },
+    [
+      setZoomDomain,
+      setIsLinkedSessions,
+      setSessionAId,
+      setSessionBId,
+      slotA.loadedSessionId,
+      slotA.laps,
+      slotA.participants,
+      slotB.loadedSessionId,
+      setLapAId,
+      setLapBId,
+      preferences.rivalMode,
+      preferences.rivalDriverName,
+    ]
+  );
+  const showQuickStart = sessionListReady && (sessionAId === '' || (lapAId === '' && lapBId === ''));
+
   // Quick Select Leaderboard data computation
   const quickSelectData = useMemo(() => {
     const driversA = activeParticipantsA.map((p) => ({
@@ -330,6 +420,10 @@ export const LapComparator: React.FC = () => {
         onPreferencesSave={handlePreferencesSave}
       />
 
+      {showQuickStart && !loadingA && !loadingB && (
+        <ComparatorQuickStart sessions={sessions} onStart={startComparison} />
+      )}
+
       {/* Enhanced F1 Broadcast Timing Tower & Rival Leaderboard */}
       {sessionAId !== '' && (activeParticipantsA.length > 0 || activeParticipantsB.length > 0) && (
         <ComparatorTimingTower
@@ -375,6 +469,17 @@ export const LapComparator: React.FC = () => {
               s3Delta={s3Delta}
             />
 
+            {corners.length > 0 && lapAObj && lapBObj && (
+              <CornerTable
+                corners={corners}
+                nameA={nameA}
+                nameB={nameB}
+                zoomDomain={zoomDomain}
+                onZoom={handleZoomCorner}
+                onAskAi={handleAskAiCorner}
+              />
+            )}
+
             <ComparatorTelemetryCharts
               chartData={chartData}
               comparisonData={comparisonData}
@@ -404,6 +509,7 @@ export const LapComparator: React.FC = () => {
               setHoverDistance={setHoverDistance}
               sector1Distance={sector1Distance}
               sector2Distance={sector2Distance}
+              zoomDomain={zoomDomain}
               selectedSessionAObj={selectedSessionAObj}
               nameA={nameA}
               nameB={nameB}

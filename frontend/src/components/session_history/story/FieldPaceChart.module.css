@@ -1,0 +1,68 @@
+.panel {
+  min-width: 0;
+}
+
+.chart {
+  width: 100%;
+  height: 260px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1-5) var(--space-4);
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  list-style: none;
+}
+
+/* A short sample of each line before its name */
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+}
+
+.legend li::before {
+  content: '';
+  width: 16px;
+  border-top: 2px solid var(--line-color);
+}
+
+.legend [data-series='you'] {
+  --line-color: var(--accent-primary);
+
+  color: var(--text-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.legend [data-series='median'] {
+  --line-color: var(--text-muted);
+}
+
+.legend [data-series='median']::before {
+  border-top-style: dashed;
+}
+
+.legend [data-series='fastest'] {
+  --line-color: var(--f1-purple);
+}
+
+.legend [data-series='fastest']::before {
+  border-top-style: dotted;
+}
+
+.legend [data-series='sc']::before {
+  width: 14px;
+  height: 10px;
+  border: 1px solid color-mix(in srgb, var(--f1-yellow) 35%, transparent);
+  background: color-mix(in srgb, var(--f1-yellow) 14%, transparent);
+}
+
+@media (--phone) {
+  .chart {
+    height: 220px;
+  }
+}

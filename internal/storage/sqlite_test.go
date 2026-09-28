@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -1755,5 +1756,74 @@ func TestGetSessionResults(t *testing.T) {
 	participants, laps, err = repo.GetSessionResults(ctx, nil)
 	if err != nil || len(participants) != 0 || len(laps) != 0 {
 		t.Errorf("no sessions: %v, %v, %v", participants, laps, err)
+	}
+}
+
+func TestSessionEvents(t *testing.T) {
+	repo := setupTestRepo(t)
+	session := createTestSession(t, repo)
+	ctx := context.Background()
+
+	empty, err := repo.GetSessionEvents(ctx, session.ID)
+	if err != nil || len(empty) != 0 {
+		t.Fatalf("expected no events for a new session, got %v, %v", empty, err)
+	}
+
+	// Saved out of order across two calls, read back by session time
+	if err := repo.SaveSessionEvents(ctx, session.ID, []SessionEvent{
+		{Lap: 12, SessionTime: 900.5, EventCode: "SCAR", Data: json.RawMessage(`{"eventCode":"SCAR","safetyCarStatus":1}`)},
+	}); err != nil {
+		t.Fatalf("SaveSessionEvents error: %v", err)
+	}
+	if err := repo.SaveSessionEvents(ctx, session.ID, []SessionEvent{
+		{Lap: 1, SessionTime: 60, EventCode: "LGOT", Data: json.RawMessage(`{"eventCode":"LGOT"}`)},
+	}); err != nil {
+		t.Fatalf("SaveSessionEvents error: %v", err)
+	}
+
+	events, err := repo.GetSessionEvents(ctx, session.ID)
+	if err != nil {
+		t.Fatalf("GetSessionEvents error: %v", err)
+	}
+	if len(events) != 2 || events[0].EventCode != "LGOT" || events[1].EventCode != "SCAR" {
+		t.Fatalf("expected LGOT then SCAR, got %+v", events)
+	}
+	if events[1].Lap != 12 || string(events[1].Data) != `{"eventCode":"SCAR","safetyCarStatus":1}` {
+		t.Errorf("unexpected stored SCAR row: %+v (data %s)", events[1], events[1].Data)
+	}
+
+	// Export and import keep them
+	pkg, err := repo.ExportSession(ctx, session.ID)
+	if err != nil {
+		t.Fatalf("ExportSession failed: %v", err)
+	}
+	if len(pkg.Events) != 2 {
+		t.Fatalf("expected 2 exported events, got %d", len(pkg.Events))
+	}
+	raw, err := json.Marshal(pkg)
+	if err != nil {
+		t.Fatalf("marshal package: %v", err)
+	}
+	var decoded ExportedSessionPackage
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		t.Fatalf("unmarshal package: %v", err)
+	}
+	freshRepo := setupTestRepo(t)
+	importedID, err := freshRepo.ImportSession(ctx, &decoded)
+	if err != nil {
+		t.Fatalf("ImportSession failed: %v", err)
+	}
+	imported, err := freshRepo.GetSessionEvents(ctx, importedID)
+	if err != nil || len(imported) != 2 || imported[1].Lap != 12 || imported[1].EventCode != "SCAR" {
+		t.Fatalf("expected the 2 events after import, got %+v, %v", imported, err)
+	}
+
+	// Deleting the session deletes its events
+	if err := repo.DeleteSession(ctx, session.ID); err != nil {
+		t.Fatalf("DeleteSession failed: %v", err)
+	}
+	var left int
+	if err := repo.DB().GetContext(ctx, &left, `SELECT COUNT(*) FROM session_events`); err != nil || left != 0 {
+		t.Errorf("expected the events deleted with the session, %d left (%v)", left, err)
 	}
 }

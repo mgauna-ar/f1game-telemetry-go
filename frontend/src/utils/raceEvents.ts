@@ -1,4 +1,4 @@
-import type { RaceEvent } from '../types/telemetry';
+import type { FeedEvent } from '../types/telemetry';
 import { PENALTY_TYPES, SAFETY_CAR_STATUS } from '../constants/f1';
 
 type Translate = (key: string, params?: Record<string, string | number>) => string;
@@ -14,7 +14,7 @@ function carLabel(name: string | undefined, vehicleIdx: number | undefined, t: T
  * Writes a race feed row's text in the viewer's language. The server sends only an event code
  * and its parameters, so every FeedEventCode must have a case here (`tsc` checks it).
  */
-export function getLocalizedRaceEventDescription(evt: RaceEvent, t: Translate): string {
+export function getLocalizedRaceEventDescription(evt: FeedEvent, t: Translate): string {
   const driver = carLabel(evt.driverName, evt.vehicleIdx, t);
   const target = carLabel(evt.targetDriverName, evt.otherVehicleIdx, t);
 
@@ -155,7 +155,7 @@ export function getLocalizedRaceEventDescription(evt: RaceEvent, t: Translate): 
   }
 }
 
-export function getLocalizedPenaltyTag(evt: RaceEvent, t: Translate): string {
+export function getLocalizedPenaltyTag(evt: FeedEvent, t: Translate): string {
   if (evt.type === 'penalty') {
     if (evt.eventCode === 'DSQ') return t('live.penaltyTypes.disqualified').toUpperCase();
     if (evt.penaltyType === PENALTY_TYPES.DRIVE_THROUGH) return t('live.penaltyTypes.driveThrough').toUpperCase();

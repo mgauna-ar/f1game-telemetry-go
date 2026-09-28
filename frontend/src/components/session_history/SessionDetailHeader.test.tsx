@@ -24,14 +24,14 @@ describe('SessionDetailHeader Component', () => {
     created_at: '2026-07-11T14:00:00Z',
   });
 
-  it('renders Progression tab button when session is a Race session', () => {
+  it('shows one tab bar with the story first and the three lap charts for a race', () => {
     const setActiveDetailTab = vi.fn();
     render(
       <I18nProvider>
         <SessionDetailHeader
           session={mockRaceSession}
           isRaceSession={true}
-          activeDetailTab="classification"
+          activeDetailTab="story"
           setActiveDetailTab={setActiveDetailTab}
           totalSessionLaps={52}
           totalDriversCount={20}
@@ -39,43 +39,47 @@ describe('SessionDetailHeader Component', () => {
       </I18nProvider>
     );
 
-    const progressionBtn = screen.getByRole('tab', { name: /Lap Progression & Gap Charts/i });
-    expect(progressionBtn).toBeInTheDocument();
-
-    fireEvent.click(progressionBtn);
-    expect(setActiveDetailTab).toHaveBeenCalledWith('charts');
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+      'Story',
+      'Classification',
+      'Pace',
+      'Positions',
+      'Gap to leader',
+      'Tyres & stints',
+      'Sectors & speed',
+    ]);
+    fireEvent.click(screen.getByRole('tab', { name: 'Positions' }));
+    expect(setActiveDetailTab).toHaveBeenCalledWith('position');
 
     // Arrow keys move along the tab list and select, wrapping at the ends
-    const classificationTab = screen.getByRole('tab', { name: /Classification & Laps/i });
-    expect(classificationTab).toHaveAttribute('aria-selected', 'true');
-    fireEvent.keyDown(classificationTab, { key: 'ArrowLeft' });
+    const story = screen.getByRole('tab', { name: 'Story' });
+    expect(story).toHaveAttribute('aria-selected', 'true');
+    fireEvent.keyDown(story, { key: 'ArrowLeft' });
     expect(setActiveDetailTab).toHaveBeenLastCalledWith('sectors');
-    fireEvent.keyDown(classificationTab, { key: 'ArrowRight' });
-    expect(setActiveDetailTab).toHaveBeenLastCalledWith('charts');
+    fireEvent.keyDown(story, { key: 'ArrowRight' });
+    expect(setActiveDetailTab).toHaveBeenLastCalledWith('classification');
   });
 
-  it('does NOT render Progression tab button when session is Qualifying or not a race', () => {
-    const setActiveDetailTab = vi.fn();
+  it('leaves the lap charts out for a session that is not a race', () => {
     render(
       <I18nProvider>
         <SessionDetailHeader
           session={mockQualySession}
           isRaceSession={false}
           activeDetailTab="classification"
-          setActiveDetailTab={setActiveDetailTab}
+          setActiveDetailTab={vi.fn()}
           totalSessionLaps={15}
           totalDriversCount={20}
         />
       </I18nProvider>
     );
 
-    const progressionBtn = screen.queryByRole('tab', { name: /Lap Progression & Gap Charts/i });
-    expect(progressionBtn).not.toBeInTheDocument();
-
-    // Other tabs should still exist
-    expect(screen.getByRole('tab', { name: /Classification & Laps/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /Tyre Strategy & Stints/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /Sector & Speed Matrix/i })).toBeInTheDocument();
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+      'Story',
+      'Classification',
+      'Tyres & stints',
+      'Sectors & speed',
+    ]);
   });
 
   it('renders SessionTypeBadge with contextual motorsport style and handles UID copy', async () => {

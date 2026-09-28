@@ -790,6 +790,51 @@ func saveParticipants(ctx context.Context, db sqlx.ExtContext, sessionID int64, 
 	return nil
 }
 
+// SaveSessionEvents appends race-control feed rows to a session.
+func (r *SQLiteRepository) SaveSessionEvents(ctx context.Context, sessionID int64, events []SessionEvent) error {
+	if len(events) == 0 {
+		return nil
+	}
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if err := saveSessionEvents(ctx, tx, sessionID, events); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func saveSessionEvents(ctx context.Context, db sqlx.ExtContext, sessionID int64, events []SessionEvent) error {
+	query := `INSERT INTO session_events (session_id, lap, session_time, event_code, data) VALUES (?, ?, ?, ?, ?)`
+	for i := range events {
+		e := &events[i]
+		e.SessionID = sessionID
+		// Stored as text so the rows read as JSON in any SQLite tool
+		if _, err := db.ExecContext(ctx, query, sessionID, e.Lap, e.SessionTime, e.EventCode, string(e.Data)); err != nil {
+			return fmt.Errorf("failed to save session event %q: %w", e.EventCode, err)
+		}
+	}
+	return nil
+}
+
+// GetSessionEvents returns a session's race-control feed rows in the order they happened.
+func (r *SQLiteRepository) GetSessionEvents(ctx context.Context, sessionID int64) ([]SessionEvent, error) {
+	return getSessionEvents(ctx, r.db, sessionID)
+}
+
+func getSessionEvents(ctx context.Context, db queryPreparer, sessionID int64) ([]SessionEvent, error) {
+	events := []SessionEvent{}
+	query := `SELECT id, session_id, lap, session_time, event_code, CAST(data AS BLOB) AS data FROM session_events
+		WHERE session_id = ? ORDER BY session_time ASC, id ASC`
+	if err := db.SelectContext(ctx, &events, query, sessionID); err != nil {
+		return nil, fmt.Errorf("failed to get events for session %d: %w", sessionID, err)
+	}
+	return events, nil
+}
+
 // GetParticipantsBySession retrieves all participants for a given session.
 func (r *SQLiteRepository) GetParticipantsBySession(ctx context.Context, sessionID int64) ([]Participant, error) {
 	return getParticipantsBySession(ctx, r.db, sessionID)
@@ -916,6 +961,11 @@ func (r *SQLiteRepository) ExportSession(ctx context.Context, sessionID int64) (
 		return nil, fmt.Errorf("failed to export laps: %w", err)
 	}
 
+	events, err := getSessionEvents(ctx, tx, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to export events: %w", err)
+	}
+
 	type telemetryRow struct {
 		LapID int64  `db:"lap_id"`
 		Data  []byte `db:"data"`
@@ -966,6 +1016,7 @@ func (r *SQLiteRepository) ExportSession(ctx context.Context, sessionID int64) (
 		Tags:         tags,
 		Participants: participants,
 		Laps:         lapPackages,
+		Events:       events,
 	}, nil
 }
 
@@ -1118,6 +1169,10 @@ func (r *SQLiteRepository) ImportSessionWithOptions(ctx context.Context, pkg *Ex
 				return 0, fmt.Errorf("failed to save imported lap telemetry for lap %d: %w", lap.LapNumber, err)
 			}
 		}
+	}
+
+	if err := saveSessionEvents(ctx, tx, newSession.ID, pkg.Events); err != nil {
+		return 0, fmt.Errorf("failed to save imported events: %w", err)
 	}
 
 	if err := tx.Commit(); err != nil {

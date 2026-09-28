@@ -1,6 +1,7 @@
 import React from 'react';
 import { Search, RefreshCw, Upload, X, Trophy, MapPin, RotateCcw } from 'lucide-react';
 import { TagFilterBar } from './TagFilterBar';
+import { SessionQuickBar } from './SessionQuickBar';
 import { useI18n } from '../../context/I18nContext';
 import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContextDefinitions';
 import type { Tag } from '../../types/session';
@@ -56,7 +57,11 @@ export const SessionFilterToolbar: React.FC<SessionFilterToolbarProps> = (props)
     });
 
   const isFiltered = Boolean(
-    searchQuery.trim() !== '' || sessionTypeFilter !== 'ALL' || circuitFilter !== 'ALL' || selectedTagId !== null
+    searchQuery.trim() !== '' ||
+    sessionTypeFilter !== 'ALL' ||
+    circuitFilter !== 'ALL' ||
+    selectedTagId !== null ||
+    historyData.quickFilters.length > 0
   );
 
   const handleResetFilters = () => {
@@ -64,6 +69,7 @@ export const SessionFilterToolbar: React.FC<SessionFilterToolbarProps> = (props)
     setSessionTypeFilter('ALL');
     setCircuitFilter('ALL');
     onSelectTag(null);
+    historyActions.resetFilters();
   };
 
   return (
@@ -170,6 +176,8 @@ export const SessionFilterToolbar: React.FC<SessionFilterToolbarProps> = (props)
           {t('common.refresh')}
         </Button>
       </div>
+
+      <SessionQuickBar />
 
       {availableTags.length > 0 && (
         <div className={styles.tags}>

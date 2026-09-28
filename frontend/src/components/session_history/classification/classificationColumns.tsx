@@ -30,17 +30,41 @@ export interface ClassificationColumnsOptions {
   renderDriverTyreStints: (laps: Lap[]) => React.ReactNode;
   /** Your car, whose name is marked YOU. */
   playerCarIndex?: number | null;
+  /** Gap to the leader, or interval to the car ahead. */
+  gapMode: GapMode;
+  /** The rows in table order, for the car ahead of each one. */
+  standings: readonly DriverStanding[];
 }
+
+export type GapMode = 'gap' | 'interval';
 
 type Translate = ReturnType<typeof useI18n>['t'];
 
-/** The Time/Gap cell's text, with the reason a car didn't finish. */
-const timeGapText = (driver: DriverStanding, o: ClassificationColumnsOptions, t: Translate): string => {
+const plusSeconds = (ms: number) => `+${(Math.max(ms, 0) / 1000).toFixed(3)}s`;
+
+const lapDiffText = (lapDiff: number, t: Translate) =>
+  lapDiff === 1
+    ? t('history.classification.lapDiffSingular', { count: lapDiff })
+    : t('history.classification.lapDiffPlural', { count: lapDiff });
+
+/**
+ * The Time/Gap cell's text, with the reason a car didn't finish. In interval mode the gap is to
+ * the car ahead (`ahead`, the row above), in laps when it lapped this car; the leader and the
+ * cars that didn't finish read the same in both modes.
+ */
+const timeGapText = (
+  driver: DriverStanding,
+  ahead: DriverStanding | undefined,
+  o: ClassificationColumnsOptions,
+  t: Translate
+): string => {
   const isLeader = driver.position === 1;
+  const interval = o.gapMode === 'interval' && ahead !== undefined;
   if (!o.isRaceSession) {
     if (isLeader) return t('history.classification.leader');
-    if (driver.bestLapTimeMS < Infinity && o.leaderBestLapMS < Infinity) {
-      return `+${((driver.bestLapTimeMS - o.leaderBestLapMS) / 1000).toFixed(3)}s`;
+    const reference = interval ? ahead.bestLapTimeMS : o.leaderBestLapMS;
+    if (driver.bestLapTimeMS > 0 && driver.bestLapTimeMS < Infinity && reference > 0 && reference < Infinity) {
+      return plusSeconds(driver.bestLapTimeMS - reference);
     }
     return '--';
   }
@@ -69,15 +93,17 @@ const timeGapText = (driver: DriverStanding, o: ClassificationColumnsOptions, t:
   if (isLeader) return o.formatTotalDuration(driver.totalRaceTimeWithPenalties ?? 0);
 
   const driverLapsCount = driver.laps.length;
-  if (o.leaderLapsCount > 0 && driverLapsCount < o.leaderLapsCount) {
-    const lapDiff = o.leaderLapsCount - driverLapsCount;
-    return lapDiff === 1
-      ? t('history.classification.lapDiffSingular', { count: lapDiff })
-      : t('history.classification.lapDiffPlural', { count: lapDiff });
+  const driverTime = driver.totalRaceTimeWithPenalties ?? 0;
+  if (interval && !ahead.isDNF && !ahead.isDSQ) {
+    if (driverLapsCount < ahead.laps.length) return lapDiffText(ahead.laps.length - driverLapsCount, t);
+    const aheadTime = ahead.totalRaceTimeWithPenalties ?? 0;
+    return driverTime > 0 && aheadTime > 0 ? plusSeconds(driverTime - aheadTime) : '--';
   }
-  if ((driver.totalRaceTimeWithPenalties ?? 0) > 0 && (o.leaderTotalRaceTimeMS ?? 0) > 0) {
-    const gapMS = (driver.totalRaceTimeWithPenalties ?? 0) - (o.leaderTotalRaceTimeMS ?? 0);
-    return gapMS >= 0 ? `+${(gapMS / 1000).toFixed(3)}s` : `+0.000s`;
+  if (o.leaderLapsCount > 0 && driverLapsCount < o.leaderLapsCount) {
+    return lapDiffText(o.leaderLapsCount - driverLapsCount, t);
+  }
+  if (driverTime > 0 && (o.leaderTotalRaceTimeMS ?? 0) > 0) {
+    return plusSeconds(driverTime - (o.leaderTotalRaceTimeMS ?? 0));
   }
   return '--';
 };
@@ -156,17 +182,17 @@ export const useClassificationColumns = (o: ClassificationColumnsOptions): DataT
 
   const timeGap: DataTableColumn<DriverStanding> = {
     key: 'timeGap',
-    header: h(o.isRaceSession ? 'timeGap' : 'gap'),
+    header: h(o.gapMode === 'interval' ? 'interval' : o.isRaceSession ? 'timeGap' : 'gap'),
     numeric: true,
     align: 'left',
     className: o.isRaceSession ? styles.timeCol : styles.gapCol,
-    cell: (driver) => {
+    cell: (driver, index) => {
       const isLeader = driver.position === 1;
       const out = o.isRaceSession && (driver.isDSQ || driver.isDNF);
       return (
         <div className={cx(styles.timeGap, out && styles.out, isLeader && !out && styles.leader)}>
           {o.isRaceSession && isLeader && !out && <Clock size={11} className={styles.clock} aria-hidden="true" />}
-          <span>{timeGapText(driver, o, t)}</span>
+          <span>{timeGapText(driver, index > 0 ? o.standings[index - 1] : undefined, o, t)}</span>
           {o.isRaceSession && (driver.penaltySeconds ?? 0) > 0 && (
             <Badge
               tone="danger"
@@ -257,7 +283,7 @@ export const useClassificationColumns = (o: ClassificationColumnsOptions): DataT
       const isPurple = time > 0 && sessionBest > 0 && time <= sessionBest;
       const isGreen = !isPurple && time > 0 && personalBest > 0 && time <= personalBest;
       return (
-        <SectorTime isSessionBest={isPurple} isPersonalBest={isGreen} className={styles.sectorTime}>
+        <SectorTime isSessionBest={isPurple} isPersonalBest={isGreen} isSlower={time > 0} className={styles.sectorTime}>
           {formatSectorTime(time, false)}
         </SectorTime>
       );

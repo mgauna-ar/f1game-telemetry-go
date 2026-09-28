@@ -21,6 +21,7 @@ export const THEME_TOKENS = [
   '--accent-cyan',
   '--bg-tooltip',
   '--bg-inset',
+  '--bg-panel-solid',
   '--bg-hover',
   '--bg-active',
   '--text-primary',

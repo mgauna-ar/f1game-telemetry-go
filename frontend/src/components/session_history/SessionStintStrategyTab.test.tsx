@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import { SessionStintStrategyTab } from './SessionStintStrategyTab';
 import { I18nProvider } from '../../context/I18nProvider';
@@ -87,6 +87,8 @@ describe('SessionStintStrategyTab Component', () => {
             best_lap_time_ms: 88200,
             has_pit_stop_after: true,
             deg_slope_sec_per_lap: 0.1,
+            fit_laps: 2,
+            excluded_laps: [],
           },
           {
             stint_index: 2,
@@ -100,6 +102,8 @@ describe('SessionStintStrategyTab Component', () => {
             best_lap_time_ms: 87500,
             has_pit_stop_after: false,
             deg_slope_sec_per_lap: null,
+            fit_laps: 2,
+            excluded_laps: [],
           },
         ],
       },
@@ -125,6 +129,8 @@ describe('SessionStintStrategyTab Component', () => {
             best_lap_time_ms: 88900,
             has_pit_stop_after: true,
             deg_slope_sec_per_lap: null,
+            fit_laps: 2,
+            excluded_laps: [],
           },
           {
             stint_index: 2,
@@ -138,6 +144,8 @@ describe('SessionStintStrategyTab Component', () => {
             best_lap_time_ms: 87900,
             has_pit_stop_after: false,
             deg_slope_sec_per_lap: 0.2,
+            fit_laps: 2,
+            excluded_laps: [],
           },
         ],
       },
@@ -220,38 +228,117 @@ describe('SessionStintStrategyTab Component', () => {
     expect(screen.getByText('Field Tyre Strategy Timeline')).toBeInTheDocument();
     expect(screen.getAllByText('Max Verstappen').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Lewis Hamilton').length).toBeGreaterThan(0);
-    expect(screen.getByText('P1')).toBeInTheDocument();
-    expect(screen.getByText('P2')).toBeInTheDocument();
+    const timeline = screen.getByText('Field Tyre Strategy Timeline').closest('section') as HTMLElement;
+    expect(within(timeline).getByText('P1')).toBeInTheDocument();
+    expect(within(timeline).getByText('P2')).toBeInTheDocument();
   });
 
-  it('renders tyre degradation and pace curves with interactive driver & compound filters', () => {
+  const renderTab = (stintsData: StintsResponse = mockStintsData, playerCarIndex: number | null = null) =>
     render(
       <I18nProvider>
         <SessionStintStrategyTab
-          stintsData={mockStintsData}
+          stintsData={stintsData}
           driverStandings={mockDriverStandings}
           totalSessionLaps={5}
           formatLapTime={formatLapTime}
           renderTyreBadge={renderTyreBadge}
+          playerCarIndex={playerCarIndex}
         />
       </I18nProvider>
     );
 
+  const degradationTable = () => screen.getByRole('table', { name: /Degradation of each stint/ });
+  const tableDrivers = () =>
+    within(degradationTable())
+      .getAllByRole('rowheader')
+      .map((cell) => cell.textContent);
+
+  it('lists every stint in the degradation table and charts the ticked ones', () => {
+    renderTab();
+
     expect(screen.getByText('Tyre Degradation & Stint Pace Curves')).toBeInTheDocument();
-    expect(screen.getByText('All Compounds')).toBeInTheDocument();
+    // Both drivers are picked by default, so all their stints are charted
+    expect(screen.getByText('4 of 4 stints on the chart')).toBeInTheDocument();
+    expect(within(degradationTable()).getAllByRole('checkbox')).toHaveLength(4);
 
-    // Filter by compound button
-    const hardCompoundBtn = screen.getByRole('radio', { name: /HARD/i });
-    expect(hardCompoundBtn).toBeInTheDocument();
-    fireEvent.click(hardCompoundBtn);
-    expect(hardCompoundBtn).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+    expect(screen.getByText('0 of 4 stints on the chart')).toBeInTheDocument();
+    expect(screen.getByText(/Tick at least one stint/)).toBeInTheDocument();
 
-    // Toggle clear all / select all drivers
-    const clearBtn = screen.getByText('Clear');
-    fireEvent.click(clearBtn);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Show Lewis Hamilton, stint 2 on the chart' }));
+    expect(screen.getByText('1 of 4 stints on the chart')).toBeInTheDocument();
 
-    const selectAllBtn = screen.getByText('Select All');
-    fireEvent.click(selectAllBtn);
+    // A driver button in the timeline toggles all of that driver's stints
+    fireEvent.click(screen.getByRole('button', { name: /Max Verstappen/, pressed: false }));
+    expect(screen.getByText('3 of 4 stints on the chart')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Max Verstappen/, pressed: true }));
+    expect(screen.getByText('1 of 4 stints on the chart')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Chart all' }));
+    expect(screen.getByText('4 of 4 stints on the chart')).toBeInTheDocument();
+
+    // The compound filter narrows the table
+    fireEvent.click(screen.getByRole('radio', { name: /HARD/i }));
+    expect(screen.getByText('2 of 2 stints on the chart')).toBeInTheDocument();
+  });
+
+  it('sorts the stints by degradation, with the stints that have no rate last', () => {
+    renderTab();
+    expect(tableDrivers()).toEqual(['P1Max Verstappen', 'P1Max Verstappen', 'P2Lewis Hamilton', 'P2Lewis Hamilton']);
+
+    fireEvent.click(within(degradationTable()).getByRole('button', { name: /Deg \/ lap/ }));
+    const rates = within(degradationTable())
+      .getAllByRole('row')
+      .slice(1)
+      .map((row) => row.textContent);
+    expect(rates[0]).toContain('S1 · L1–3');
+    expect(rates[0]).toContain('+0.100s');
+    expect(rates[1]).toContain('+0.200s');
+    expect(rates[2]).toContain('Needs 3 clean laps');
+    expect(rates[3]).toContain('Needs 3 clean laps');
+
+    // Descending keeps the stints with no rate last
+    fireEvent.click(within(degradationTable()).getByRole('button', { name: /Deg \/ lap/ }));
+    const desc = within(degradationTable())
+      .getAllByRole('row')
+      .slice(1)
+      .map((row) => row.textContent);
+    expect(desc[0]).toContain('+0.200s');
+    expect(desc[3]).toContain('Needs 3 clean laps');
+  });
+
+  it('says which laps the fit leaves out, and offers only your stints when you drove', () => {
+    const withExclusions: StintsResponse = {
+      ...mockStintsData,
+      drivers: mockStintsData.drivers.map((d, i) =>
+        i === 0
+          ? {
+              ...d,
+              stints: [
+                {
+                  ...d.stints[0],
+                  fit_laps: 1,
+                  excluded_laps: [
+                    { lap_number: 2, reason: 'sc' },
+                    { lap_number: 3, reason: 'sc' },
+                  ],
+                },
+                d.stints[1],
+              ],
+            }
+          : d
+      ),
+    };
+    renderTab(withExclusions, 1);
+
+    expect(within(degradationTable()).getByText('1 of 3')).toBeInTheDocument();
+    expect(within(degradationTable()).getByText('Left out: L2–3 safety car')).toBeInTheDocument();
+    expect(within(degradationTable()).getAllByText('YOU')).toHaveLength(2);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Only yours' }));
+    expect(screen.getByText('2 of 4 stints on the chart')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Show Lewis Hamilton, stint 1 on the chart' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Show Max Verstappen, stint 1 on the chart' })).not.toBeChecked();
   });
 
   it('renders correctly in Spanish locale', () => {

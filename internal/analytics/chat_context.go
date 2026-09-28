@@ -8,6 +8,7 @@ import (
 
 	"github.com/mgauna/f1game-telemetry-go/internal/ai"
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
+	sessionfeed "github.com/mgauna/f1game-telemetry-go/internal/session"
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
 )
 
@@ -52,7 +53,12 @@ func (s *ChatContextSource) SessionDebrief(ctx context.Context, sessionID int64)
 	if err != nil {
 		return ai.SessionDebrief{}, fmt.Errorf("failed to get laps for session %d: %w", sessionID, err)
 	}
-	return BuildSessionDebrief(session, ComputeSessionClassification(session, participants, laps)), nil
+	rows, err := s.repo.GetSessionEvents(ctx, sessionID)
+	if err != nil {
+		return ai.SessionDebrief{}, fmt.Errorf("failed to get events for session %d: %w", sessionID, err)
+	}
+	cls := ComputeSessionClassification(session, participants, laps)
+	return BuildSessionDebrief(session, cls, sessionfeed.StoredFeedEvents(rows)), nil
 }
 
 // LapComparison merges two laps the way the Lap Comparator charts do and analyzes them.
@@ -87,8 +93,9 @@ func (s *ChatContextSource) lapWithSession(ctx context.Context, lapID int64) (*s
 // the session stored the player's car, the debrief is about that driver's race: their result
 // comes first, their line is marked (YOU), and they and the cars either side of them are listed
 // even outside the top DebriefMaxDrivers. Sessions recorded before the player's car was stored
-// get the classification alone.
-func BuildSessionDebrief(session *storage.Session, cls *ClassificationResponse) ai.SessionDebrief {
+// get the classification alone. The stored race-control events add the key moments
+// (writeDebriefMoments); sessions recorded before they were stored have none.
+func BuildSessionDebrief(session *storage.Session, cls *ClassificationResponse, events []sessionfeed.FeedEvent) ai.SessionDebrief {
 	var sb strings.Builder
 	standings := cls.Standings
 	me, _ := FindPlayerStanding(standings, session.PlayerCarIndex, "")
@@ -135,6 +142,7 @@ func BuildSessionDebrief(session *storage.Session, cls *ClassificationResponse) 
 		writeDebriefStanding(&sb, &standings[i], me)
 		last = i
 	}
+	writeDebriefMoments(&sb, events, me)
 	return ai.SessionDebrief{Summary: sb.String()}
 }
 

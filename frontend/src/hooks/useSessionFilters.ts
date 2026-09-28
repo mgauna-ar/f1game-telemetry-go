@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import type { SessionListItem } from '../types/session';
 import { useI18n } from '../context/I18nContext';
 import { matchSessionSearch } from '../utils/sessionFilterUtils';
+import { matchQuickFilter, type QuickFilter } from '../utils/sessionListView';
 
 export interface UseSessionFiltersOptions {
   sessions: SessionListItem[];
@@ -15,6 +16,10 @@ export interface UseSessionFiltersReturn {
   setSessionTypeFilter: React.Dispatch<React.SetStateAction<string>>;
   circuitFilter: string;
   setCircuitFilter: React.Dispatch<React.SetStateAction<string>>;
+  /** Quick filters that are on; a session must pass every one. */
+  quickFilters: QuickFilter[];
+  setQuickFilters: React.Dispatch<React.SetStateAction<QuickFilter[]>>;
+  toggleQuickFilter: (filter: QuickFilter) => void;
   sortField: string;
   setSortField: React.Dispatch<React.SetStateAction<string>>;
   sortOrder: 'asc' | 'desc';
@@ -32,6 +37,7 @@ export function useSessionFilters({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sessionTypeFilter, setSessionTypeFilter] = useState<string>('ALL');
   const [circuitFilter, setCircuitFilter] = useState<string>('ALL');
+  const [quickFilters, setQuickFilters] = useState<QuickFilter[]>([]);
   const [sortField, setSortField] = useState<string>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
@@ -46,6 +52,12 @@ export function useSessionFilters({
     });
   }, []);
 
+  const toggleQuickFilter = useCallback((filter: QuickFilter) => {
+    setQuickFilters((current) =>
+      current.includes(filter) ? current.filter((f) => f !== filter) : [...current, filter]
+    );
+  }, []);
+
   // Distinct track circuits list for filter dropdown
   const uniqueCircuits = useMemo(() => {
     const set = new Set<string>();
@@ -57,22 +69,20 @@ export function useSessionFilters({
 
   // Session filtering and sorting logic
   const filteredSessions = useMemo(() => {
+    const now = Date.now();
     const list = sessions.filter((s) => {
       const matchesSearch = matchSessionSearch(s, searchQuery, t);
 
       const matchesType =
-        sessionTypeFilter === 'ALL' ||
-        s.session_type?.toLowerCase().includes(sessionTypeFilter.toLowerCase());
+        sessionTypeFilter === 'ALL' || s.session_type?.toLowerCase().includes(sessionTypeFilter.toLowerCase());
 
-      const matchesCircuit =
-        circuitFilter === 'ALL' ||
-        s.track_name?.toLowerCase() === circuitFilter.toLowerCase();
+      const matchesCircuit = circuitFilter === 'ALL' || s.track_name?.toLowerCase() === circuitFilter.toLowerCase();
 
-      const matchesTag =
-        selectedTagId === null ||
-        (s.tags && s.tags.some((t) => t.id === selectedTagId));
+      const matchesTag = selectedTagId === null || (s.tags && s.tags.some((t) => t.id === selectedTagId));
 
-      return matchesSearch && matchesType && matchesCircuit && matchesTag;
+      const matchesQuick = quickFilters.every((f) => matchQuickFilter(s, f, now));
+
+      return matchesSearch && matchesType && matchesCircuit && matchesTag && matchesQuick;
     });
 
     list.sort((a, b) => {
@@ -93,7 +103,7 @@ export function useSessionFilters({
     });
 
     return list;
-  }, [sessions, searchQuery, sessionTypeFilter, circuitFilter, selectedTagId, sortField, sortOrder, t]);
+  }, [sessions, searchQuery, sessionTypeFilter, circuitFilter, selectedTagId, quickFilters, sortField, sortOrder, t]);
 
   return {
     searchQuery,
@@ -102,6 +112,9 @@ export function useSessionFilters({
     setSessionTypeFilter,
     circuitFilter,
     setCircuitFilter,
+    quickFilters,
+    setQuickFilters,
+    toggleQuickFilter,
     sortField,
     setSortField,
     sortOrder,

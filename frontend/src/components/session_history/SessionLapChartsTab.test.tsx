@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { SessionLapChartsTab } from './SessionLapChartsTab';
 import { I18nProvider } from '../../context/I18nProvider';
 import type { DriverStanding, ProgressionResponse } from '../../types/session';
@@ -182,10 +182,11 @@ describe('SessionLapChartsTab Component', () => {
     expect(screen.getByText('Lewis Hamilton')).toBeInTheDocument();
   });
 
-  it('allows switching between Pace, Position, and Gap charts', () => {
-    render(
+  it('draws the chart it is given: position or gap', () => {
+    const { rerender } = render(
       <I18nProvider>
         <SessionLapChartsTab
+          chart="position"
           progressionData={mockProgressionData}
           driverStandings={mockDriverStandings}
           totalSessionLaps={3}
@@ -193,16 +194,62 @@ describe('SessionLapChartsTab Component', () => {
         />
       </I18nProvider>
     );
-
-    // Switch to Position chart
-    const posBtn = screen.getByRole('tab', { name: /Position Lap Chart/i });
-    fireEvent.click(posBtn);
     expect(screen.getByText(/Position Progression/i)).toBeInTheDocument();
+    // The pit-lap filter only applies to lap times
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
 
-    // Switch to Gap chart
-    const gapBtn = screen.getByRole('tab', { name: /Gap to Leader Evolution/i });
-    fireEvent.click(gapBtn);
+    rerender(
+      <I18nProvider>
+        <SessionLapChartsTab
+          chart="gap"
+          progressionData={mockProgressionData}
+          driverStandings={mockDriverStandings}
+          totalSessionLaps={3}
+          formatLapTime={formatLapTime}
+        />
+      </I18nProvider>
+    );
     expect(screen.getByText(/Gap to Leader Delta/i)).toBeInTheDocument();
+  });
+
+  it('explains the safety car shading, pit markers and dashed teammates', () => {
+    const teammates: DriverStanding[] = mockDriverStandings.map((d) => ({
+      ...d,
+      participant: { ...d.participant, team_id: 9 },
+    }));
+    const progression: ProgressionResponse = {
+      ...mockProgressionData,
+      lap_pace: [
+        { lapNumber: 1, driver_0: 88.5, driver_1: 89.0 },
+        { lapNumber: 2, driver_0: 115.0, driver_0_is_outlier: true, driver_0_outlier_reason: 'pit_in', driver_1: 88.9 },
+        { lapNumber: 3, driver_0: 87.5, driver_1: 87.9 },
+      ],
+    };
+    const onChange = vi.fn();
+    render(
+      <I18nProvider>
+        <SessionLapChartsTab
+          chart="pace"
+          progressionData={progression}
+          driverStandings={teammates}
+          totalSessionLaps={3}
+          formatLapTime={formatLapTime}
+          events={[
+            { eventCode: 'SCAR', type: 'flag', severity: 'warning', safetyCarStatus: 1, raceLap: 2 },
+            { eventCode: 'SCAR', type: 'flag', severity: 'success', safetyCarStatus: 0, raceLap: 3 },
+          ]}
+          selectedDrivers={{ 0: true, 1: true }}
+          onSelectedDriversChange={onChange}
+        />
+      </I18nProvider>
+    );
+    expect(screen.getByText('Pit stop (on the in-lap)')).toBeInTheDocument();
+    expect(screen.getByText('Safety car / VSC')).toBeInTheDocument();
+    expect(screen.getByText('Dashed: the second car of a team')).toBeInTheDocument();
+
+    // The parent keeps the selection across the three charts
+    fireEvent.click(screen.getByText('Clear'));
+    expect(onChange).toHaveBeenCalledWith({});
   });
 
   it('supports selecting and clearing all drivers', () => {
@@ -254,48 +301,5 @@ describe('SessionLapChartsTab Component', () => {
       Array(5).fill('true')
     );
     expect(screen.getByRole('button', { name: /^Driver 7\s*#7/ })).toHaveTextContent('YOU');
-  });
-
-  it('renders position progression in race mode', () => {
-    render(
-      <I18nProvider>
-        <SessionLapChartsTab
-          progressionData={mockProgressionData}
-          driverStandings={mockDriverStandings}
-          totalSessionLaps={3}
-          formatLapTime={formatLapTime}
-          isRaceSession={true}
-        />
-      </I18nProvider>
-    );
-
-    // Switch to Position chart
-    const posBtn = screen.getByRole('tab', { name: /Position Lap Chart/i });
-    fireEvent.click(posBtn);
-    expect(screen.getByText(/Position Progression/i)).toBeInTheDocument();
-  });
-
-  it('renders position progression in qualifying mode', () => {
-    render(
-      <I18nProvider>
-        <SessionLapChartsTab
-          progressionData={mockProgressionData}
-          driverStandings={mockDriverStandings}
-          totalSessionLaps={3}
-          formatLapTime={formatLapTime}
-          isRaceSession={false}
-        />
-      </I18nProvider>
-    );
-
-    // Switch to Position chart
-    const posBtn = screen.getByRole('tab', { name: /Position Lap Chart/i });
-    fireEvent.click(posBtn);
-    expect(screen.getByText(/Position Progression/i)).toBeInTheDocument();
-
-    // Switch to Gap chart
-    const gapBtn = screen.getByRole('tab', { name: /Gap to Leader Evolution/i });
-    fireEvent.click(gapBtn);
-    expect(screen.getByText(/Gap to Leader Delta/i)).toBeInTheDocument();
   });
 });

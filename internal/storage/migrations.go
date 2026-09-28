@@ -166,6 +166,24 @@ DROP INDEX IF EXISTS idx_participants_session;
 ALTER TABLE sessions ADD COLUMN player_car_index INTEGER;
 `,
 	},
+	{
+		// The race-control feed rows of each session. Sessions recorded before this migration
+		// have none.
+		Version: 7,
+		Name:    "create_session_events_table",
+		SQL: `
+CREATE TABLE IF NOT EXISTS session_events (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id   INTEGER NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    lap          INTEGER NOT NULL DEFAULT 0,
+    session_time REAL NOT NULL DEFAULT 0,
+    event_code   TEXT NOT NULL,
+    data         TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_session_events_session ON session_events(session_id, session_time);
+`,
+	},
 }
 
 // Migrate runs all pending migrations in version order.

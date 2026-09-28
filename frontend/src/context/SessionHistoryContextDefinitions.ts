@@ -9,9 +9,11 @@ import type {
   ClassificationResponse,
   ProgressionResponse,
   StintsResponse,
+  FeedEvent,
   Tag,
 } from '../types/session';
 import type { SessionDetailTab } from '../router/routes';
+import type { QuickFilter, SavedSessionFilter, SessionGroupBy } from '../utils/sessionListView';
 
 export interface SessionHistoryData {
   sessions: SessionListItem[];
@@ -25,6 +27,11 @@ export interface SessionHistoryData {
   searchQuery: string;
   sessionTypeFilter: string;
   circuitFilter: string;
+  quickFilters: QuickFilter[];
+  /** How the list is grouped; kept per device. */
+  groupBy: SessionGroupBy;
+  /** Named filter sets; kept per device. */
+  savedFilters: SavedSessionFilter[];
   sortField: string;
   sortOrder: 'asc' | 'desc';
   selectedSession: Session | null;
@@ -33,6 +40,8 @@ export interface SessionHistoryData {
   classificationData: ClassificationResponse | null;
   progressionData: ProgressionResponse | null;
   stintsData: StintsResponse | null;
+  /** The open session's race-control events; empty for sessions recorded before they were stored. */
+  events: FeedEvent[];
   driverStandings: DriverStanding[];
   sessionBestS1: number;
   sessionBestS2: number;
@@ -63,6 +72,14 @@ export interface SessionHistoryActions {
   setSessionTypeFilter: (type: string) => void;
   setCircuitFilter: (circuit: string) => void;
   setSelectedTagId: (id: number | null) => void;
+  toggleQuickFilter: (filter: QuickFilter) => void;
+  setGroupBy: (groupBy: SessionGroupBy) => void;
+  /** Saves the filters applied now under a name. */
+  saveCurrentFilter: (name: string) => void;
+  applySavedFilter: (filter: SavedSessionFilter) => void;
+  deleteSavedFilter: (id: string) => void;
+  /** Clears the search, the type, circuit and tag filters and the quick filters. */
+  resetFilters: () => void;
   handleToggleSort: (field: string) => void;
   /** Opens a session's page (`/history/:id`). */
   selectSession: (session: Session) => void;

@@ -1,0 +1,104 @@
+.panel {
+  min-width: 0;
+}
+
+/* One row per lap: the lap on the left, its moments on the right, joined by a rail */
+.laps {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lap {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.lap:first-child {
+  border-top: none;
+}
+
+.lapNumber {
+  padding-top: 2px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+.moments {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1-5);
+  margin: 0;
+  padding: 0 0 0 var(--space-3);
+  border-left: 2px solid var(--border-color);
+  list-style: none;
+}
+
+.moment {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  color: var(--text-body);
+  font-size: var(--font-size-sm);
+}
+
+.moment[data-mine] {
+  color: var(--text-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.icon {
+  display: flex;
+  flex-shrink: 0;
+  padding-top: 2px;
+  color: var(--text-muted);
+}
+
+.icon[data-type='fastest_lap'] {
+  color: var(--f1-purple);
+}
+
+.icon[data-type='overtake'] {
+  color: var(--weather-rain);
+}
+
+.icon[data-type='penalty'] {
+  color: var(--status-danger);
+}
+
+.icon[data-type='pit'],
+.moment[data-severity='warning'] .icon[data-type='flag'] {
+  color: var(--f1-yellow);
+}
+
+.icon[data-type='retirement'] {
+  color: var(--f1-sector-1);
+}
+
+.text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.you {
+  flex-shrink: 0;
+}
+
+@media (--phone) {
+  .lap {
+    grid-template-columns: 44px minmax(0, 1fr);
+    gap: var(--space-2);
+  }
+
+  .moments {
+    padding-left: var(--space-2);
+  }
+}

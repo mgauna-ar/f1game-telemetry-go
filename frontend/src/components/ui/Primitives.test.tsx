@@ -157,6 +157,28 @@ describe('DataTable', () => {
     // header row, two driver rows and one expanded row
     expect(screen.getAllByRole('row')).toHaveLength(4);
   });
+
+  it('puts grouped rows under row-group headers, one tbody per group, and folds a collapsed group', () => {
+    const { container } = render(
+      <DataTable
+        caption="Best laps"
+        columns={columns}
+        rows={rows}
+        getRowKey={(row) => row.id}
+        groups={[
+          { key: 'ferrari', header: 'Ferrari', rows: [rows[0]] },
+          { key: 'mclaren', header: 'McLaren', rows: [rows[1]], collapsed: true },
+        ]}
+      />
+    );
+    expect(container.querySelectorAll('tbody')).toHaveLength(2);
+    const ferrari = screen.getByRole('rowheader', { name: 'Ferrari' });
+    expect(ferrari).toHaveAttribute('scope', 'rowgroup');
+    expect(ferrari).toHaveAttribute('colspan', '2');
+    expect(screen.getByRole('rowheader', { name: 'Leclerc' })).toBeInTheDocument();
+    expect(screen.getByRole('rowheader', { name: 'McLaren' })).toBeInTheDocument();
+    expect(screen.queryByRole('rowheader', { name: 'Norris' })).not.toBeInTheDocument();
+  });
 });
 
 describe('Panel, Stat, Badge, EmptyState and Skeleton', () => {

@@ -6,14 +6,15 @@ import { storage } from '../utils/storage';
  * index.html, so each of these can be opened, bookmarked and shared directly.
  *
  * - `/history`: the session list
- * - `/history/:sessionId[/:tab]`: one session; the tab is left out for the classification
+ * - `/history/:sessionId[/:tab]`: one session; the tab is left out for the story. The old
+ *   `charts` tab opens the pace chart.
  * - `/compare?sa=&a=&sb=&b=&zoom=`: sessions and laps of slots A and B, and the zoomed stretch
  *   in meters (`120-560`). `sb` is left out when both slots use the same session.
  * - `/progress[/:track]`: your pace at a track across its sessions; the latest track when left out
  * - `/live/:mode`: the live dashboard or the voice cockpit
  */
 
-export const SESSION_DETAIL_TABS = ['classification', 'charts', 'stints', 'sectors'] as const;
+export const SESSION_DETAIL_TABS = ['story', 'classification', 'pace', 'position', 'gap', 'stints', 'sectors'] as const;
 export type SessionDetailTab = (typeof SESSION_DETAIL_TABS)[number];
 
 export interface CompareParams {
@@ -66,8 +67,15 @@ const decodeSegment = (value: string | undefined): string | undefined => {
   }
 };
 
+/** The lap charts, which only race sessions have. */
+export const RACE_CHART_TABS: readonly SessionDetailTab[] = ['pace', 'position', 'gap'];
+
 const isDetailTab = (value: string | undefined): value is SessionDetailTab =>
   (SESSION_DETAIL_TABS as readonly string[]).includes(value ?? '');
+
+/** A tab from the URL; `charts` was the lap charts tab before they became three tabs. */
+const detailTab = (value: string | undefined): SessionDetailTab =>
+  value === 'charts' ? 'pace' : isDetailTab(value) ? value : 'story';
 
 const isLiveMode = (value: string | undefined): value is LiveViewMode =>
   value === LIVE_VIEW_MODES.DASHBOARD || value === LIVE_VIEW_MODES.COCKPIT;
@@ -112,7 +120,7 @@ export function parseRoute(pathname: string, search = ''): Route {
     return { page: 'live', mode: isLiveMode(second) ? second : storedLiveMode() };
   }
   const sessionId = page === 'history' ? positiveInt(second) : undefined;
-  return { page: 'history', sessionId, tab: sessionId && isDetailTab(third) ? third : 'classification' };
+  return { page: 'history', sessionId, tab: sessionId ? detailTab(third) : 'story' };
 }
 
 const roundMeters = (value: number) => String(Math.round(value));
@@ -122,7 +130,7 @@ export function buildPath(route: Route): string {
   switch (route.page) {
     case 'history':
       if (!route.sessionId) return '/history';
-      return route.tab === 'classification'
+      return route.tab === 'story'
         ? `/history/${route.sessionId}`
         : `/history/${route.sessionId}/${route.tab}`;
     case 'live':

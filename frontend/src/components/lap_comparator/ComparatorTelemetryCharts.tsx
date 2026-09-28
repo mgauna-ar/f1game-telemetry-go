@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { ZoomIn, RotateCcw, LineChart } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { ZoomIn, RotateCcw, LineChart, LayoutGrid, Rows3 } from 'lucide-react';
 import type { MergedTelemetryPoint } from '../../types/comparator';
 import { useI18n } from '../../context/I18nContext';
 import { type CommonChartProps, type RechartsMouseMoveState } from './charts/chartDefaults';
@@ -15,7 +15,17 @@ import { ActiveAeroChart } from './charts/ActiveAeroChart';
 import { EmptyState } from '../ui/EmptyState';
 import { Panel } from '../ui/Panel';
 import { Button } from '../ui/Button';
+import { SegmentedControl } from '../ui/SegmentedControl';
+import { StripCharts } from './charts/StripCharts';
+import { STRIP_TRACE_IDS, type StripTraceId } from './charts/stripTraces';
+import { storage } from '../../utils/storage';
 import styles from './ComparatorTelemetryCharts.module.css';
+
+/** Full chart cards, or the compact strips on one shared axis; remembered on this device. */
+export type ComparatorChartView = 'cards' | 'strips';
+
+const loadChartView = (): ComparatorChartView =>
+  storage.get<ComparatorChartView>('f1_comparator_chart_view', 'cards') === 'strips' ? 'strips' : 'cards';
 
 export interface ComparatorTelemetryChartsProps {
   chartData: MergedTelemetryPoint[];
@@ -56,6 +66,11 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
     onMouseMove,
   }) => {
     const { t } = useI18n();
+    const [view, setView] = useState<ComparatorChartView>(loadChartView);
+    const changeView = (next: ComparatorChartView) => {
+      setView(next);
+      storage.set('f1_comparator_chart_view', next);
+    };
 
     const hasDataA = comparisonData.some((p) => p.speedA !== null && p.speedA !== undefined);
     const hasDataB = comparisonData.some((p) => p.speedB !== null && p.speedB !== undefined);
@@ -124,6 +139,11 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
       onHoverDistanceChange,
     };
 
+    const stripTraces = useMemo<StripTraceId[]>(
+      () => STRIP_TRACE_IDS.filter((id) => id !== 'aero' || hasActiveAeroData),
+      [hasActiveAeroData]
+    );
+
     // Zoom presets: the whole lap, or one sector once the sector boundaries are known
     const lapEnd = comparisonData.length > 0 ? comparisonData[comparisonData.length - 1].lap_distance : null;
     const sectorRanges: Array<{ sector: number; range: [number, number] | null }> = [
@@ -171,6 +191,25 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
               )}
             </div>
 
+            <SegmentedControl<ComparatorChartView>
+              aria-label={t('comparator.strips.viewLabel')}
+              size="xs"
+              value={view}
+              onChange={changeView}
+              options={[
+                {
+                  value: 'cards',
+                  label: t('comparator.strips.viewCards'),
+                  icon: <LayoutGrid size={12} aria-hidden="true" />,
+                },
+                {
+                  value: 'strips',
+                  label: t('comparator.strips.viewStrips'),
+                  icon: <Rows3 size={12} aria-hidden="true" />,
+                },
+              ]}
+            />
+
             {zoomDomain && (
               <Button
                 size="sm"
@@ -186,7 +225,22 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
           </div>
         )}
 
-        {comparisonData.length > 0 && hasAnyTelemetry ? (
+        {comparisonData.length > 0 && hasAnyTelemetry && view === 'strips' ? (
+          <StripCharts
+            chartData={chartData}
+            nameA={nameA}
+            nameB={nameB}
+            formatA={formatA}
+            formatB={formatB}
+            available={stripTraces}
+            sector1Distance={sector1Distance}
+            sector2Distance={sector2Distance}
+            hoverDistance={hoverDistance}
+            onMouseMove={onMouseMove}
+            onHoverDistanceChange={onHoverDistanceChange}
+            onZoomDomainChange={onZoomDomainChange}
+          />
+        ) : comparisonData.length > 0 && hasAnyTelemetry ? (
           <div className={styles.charts}>
             {/* 1. TIME DELTA CHART */}
             <DeltaChart {...commonProps} hasDeltaData={hasDeltaData} maxGapA={maxGapA} maxGapB={maxGapB} />

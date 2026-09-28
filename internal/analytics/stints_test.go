@@ -66,7 +66,7 @@ func TestComputeSessionStints(t *testing.T) {
 		{SessionID: 30, CarIndex: 1, LapNumber: 5, LapTimeMS: 88300, TyreCompound: "HARD", Stint: 2, IsValid: true},
 	}
 
-	resp := ComputeSessionStints(session, participants, laps)
+	resp := ComputeSessionStints(session, participants, laps, nil)
 	if resp == nil {
 		t.Fatal("expected non-nil response")
 	}
@@ -128,5 +128,67 @@ func TestComputeSessionStints(t *testing.T) {
 	// 4. Session Compounds
 	if len(resp.SessionCompounds) != 3 {
 		t.Errorf("expected 3 compounds (HARD, MEDIUM, SOFT), got %v", resp.SessionCompounds)
+	}
+}
+
+func TestComputeSessionStintsLeavesOutLapsFromTheFit(t *testing.T) {
+	session := &storage.Session{ID: 31, SessionType: "Race", TotalLaps: 12}
+	participants := []storage.Participant{{CarIndex: 0, Name: "Driver", Position: 1}}
+
+	// Stint 1 (medium, laps 1-5) degrades 0.1s a lap; lap 3 is under the safety car and lap 5 is
+	// the in-lap. Stint 2 (hard, laps 6-12) degrades 0.2s a lap: lap 6 is the out-lap, lap 8 a
+	// spin (over 107% of the stint's median) and laps 11-12 are under a VSC still out at the end.
+	times := map[int]int{
+		1: 90000, 2: 90100, 3: 130000, 4: 90300, 5: 110000,
+		6: 115000, 7: 89000, 8: 99000, 9: 89400, 10: 89600, 11: 100000, 12: 90000,
+	}
+	var laps []storage.Lap
+	for lap := 1; lap <= 12; lap++ {
+		compound, stint := "MEDIUM", 1
+		if lap >= 6 {
+			compound, stint = "HARD", 2
+		}
+		laps = append(laps, storage.Lap{CarIndex: 0, LapNumber: lap, LapTimeMS: times[lap], TyreCompound: compound, Stint: stint, IsValid: true})
+	}
+	periods := []RaceControlPeriod{{Kind: PeriodSafetyCar, StartLap: 3, EndLap: 3}, {Kind: PeriodVirtualSafetyCar, StartLap: 11}}
+
+	resp := ComputeSessionStints(session, participants, laps, periods)
+	stints := resp.Drivers[0].Stints
+	if len(stints) != 2 {
+		t.Fatalf("expected 2 stints, got %d", len(stints))
+	}
+
+	check := func(s DriverStint, wantSlope float64, wantFit int, wantExcluded []StintExcludedLap) {
+		t.Helper()
+		if s.DegSlopeSecPerLap == nil || *s.DegSlopeSecPerLap != wantSlope {
+			t.Errorf("stint %d: slope = %v, want %v", s.StintIndex, s.DegSlopeSecPerLap, wantSlope)
+		}
+		if s.FitLaps != wantFit {
+			t.Errorf("stint %d: fit laps = %d, want %d", s.StintIndex, s.FitLaps, wantFit)
+		}
+		if len(s.ExcludedLaps) != len(wantExcluded) {
+			t.Fatalf("stint %d: excluded = %+v, want %+v", s.StintIndex, s.ExcludedLaps, wantExcluded)
+		}
+		for i := range wantExcluded {
+			if s.ExcludedLaps[i] != wantExcluded[i] {
+				t.Errorf("stint %d: excluded = %+v, want %+v", s.StintIndex, s.ExcludedLaps, wantExcluded)
+			}
+		}
+	}
+	check(stints[0], 0.1, 3, []StintExcludedLap{{3, ExcludedSC}, {5, ExcludedPitIn}})
+	check(stints[1], 0.2, 3, []StintExcludedLap{{6, ExcludedPitOut}, {8, ExcludedSlow}, {11, ExcludedVSC}, {12, ExcludedVSC}})
+
+	// The average is the clean pace; the best lap is the best of every lap
+	if stints[1].AvgLapTimeMS != 89333 || stints[1].BestLapTimeMS != 89000 {
+		t.Errorf("stint 2: avg %d best %d, want 89333 and 89000", stints[1].AvgLapTimeMS, stints[1].BestLapTimeMS)
+	}
+
+	// The chart keeps the left-out laps under their own key with the reason
+	age3 := resp.DegradationData[2]
+	if _, ok := age3["driver_0_stint_1"]; ok || age3["driver_0_stint_1_excluded"] != 130.0 || age3["driver_0_stint_1_reason"] != "sc" {
+		t.Errorf("age 3 of stint 1: %+v", age3)
+	}
+	if resp.DegradationData[1]["driver_0_stint_2"] != 89.0 {
+		t.Errorf("age 2 of stint 2: %+v", resp.DegradationData[1])
 	}
 }

@@ -26,6 +26,16 @@ export interface DataTableColumn<Row> {
   className?: string;
 }
 
+/** A run of rows under a heading row, rendered as its own `<tbody>`. */
+export interface DataTableGroup<Row> {
+  key: React.Key;
+  /** The heading row's content, such as the day and how many sessions it has. */
+  header: React.ReactNode;
+  rows: ReadonlyArray<Row>;
+  /** Show only the heading row. */
+  collapsed?: boolean;
+}
+
 export interface DataTableProps<Row> {
   columns: ReadonlyArray<DataTableColumn<Row>>;
   rows: ReadonlyArray<Row>;
@@ -44,6 +54,12 @@ export interface DataTableProps<Row> {
    * because a table row can't take keyboard focus.
    */
   onRowClick?: (row: Row) => void;
+  /**
+   * Rows in groups, each under a full-width heading row (`<th scope="rowgroup">`). When set, it
+   * is rendered instead of `rows`; `rows` still decides whether the table is empty.
+   */
+  groups?: ReadonlyArray<DataTableGroup<Row>>;
+  groupHeaderClassName?: string;
   /** A full-width row under a row, such as a driver's laps; return nothing to leave it out. */
   renderExpanded?: (row: Row) => React.ReactNode;
   stickyHeader?: boolean;
@@ -73,12 +89,47 @@ export function DataTable<Row>({
   getRowClassName,
   onRowClick,
   renderExpanded,
+  groups,
+  groupHeaderClassName,
   stickyHeader = false,
   density = 'normal',
   className,
   tableClassName,
 }: DataTableProps<Row>): React.ReactElement {
   const alignOf = (column: DataTableColumn<Row>) => styles[column.align ?? (column.numeric ? 'right' : 'left')];
+
+  const renderRows = (rows: ReadonlyArray<Row>) =>
+    rows.map((row, index) => {
+      const expanded = renderExpanded?.(row);
+      return (
+        <React.Fragment key={getRowKey(row, index)}>
+          <tr
+            className={cx(styles.row, onRowClick && styles.clickable, getRowClassName?.(row))}
+            onClick={onRowClick ? () => onRowClick(row) : undefined}
+          >
+            {columns.map((column) => {
+              const Cell = column.rowHeader ? 'th' : 'td';
+              return (
+                <Cell
+                  key={column.key}
+                  scope={column.rowHeader ? 'row' : undefined}
+                  className={cx(styles.td, alignOf(column), column.numeric && styles.numeric, column.className)}
+                >
+                  {column.cell(row, index)}
+                </Cell>
+              );
+            })}
+          </tr>
+          {expanded && (
+            <tr>
+              <td colSpan={columns.length} className={styles.expanded}>
+                {expanded}
+              </td>
+            </tr>
+          )}
+        </React.Fragment>
+      );
+    });
 
   return (
     <div className={cx(styles.wrap, className)}>
@@ -122,47 +173,30 @@ export function DataTable<Row>({
             })}
           </tr>
         </thead>
-        <tbody>
-          {rows.length === 0 && empty ? (
-            <tr>
-              <td colSpan={columns.length} className={styles.empty}>
-                {empty}
-              </td>
-            </tr>
-          ) : (
-            rows.map((row, index) => {
-              const expanded = renderExpanded?.(row);
-              return (
-                <React.Fragment key={getRowKey(row, index)}>
-                  <tr
-                    className={cx(styles.row, onRowClick && styles.clickable, getRowClassName?.(row))}
-                    onClick={onRowClick ? () => onRowClick(row) : undefined}
-                  >
-                    {columns.map((column) => {
-                      const Cell = column.rowHeader ? 'th' : 'td';
-                      return (
-                        <Cell
-                          key={column.key}
-                          scope={column.rowHeader ? 'row' : undefined}
-                          className={cx(styles.td, alignOf(column), column.numeric && styles.numeric, column.className)}
-                        >
-                          {column.cell(row, index)}
-                        </Cell>
-                      );
-                    })}
-                  </tr>
-                  {expanded && (
-                    <tr>
-                      <td colSpan={columns.length} className={styles.expanded}>
-                        {expanded}
-                      </td>
-                    </tr>
-                  )}
-                </React.Fragment>
-              );
-            })
-          )}
-        </tbody>
+        {groups && rows.length > 0 ? (
+          groups.map((group) => (
+            <tbody key={group.key}>
+              <tr className={groupHeaderClassName}>
+                <th scope="rowgroup" colSpan={columns.length} className={styles.groupHeader}>
+                  {group.header}
+                </th>
+              </tr>
+              {!group.collapsed && renderRows(group.rows)}
+            </tbody>
+          ))
+        ) : (
+          <tbody>
+            {rows.length === 0 && empty ? (
+              <tr>
+                <td colSpan={columns.length} className={styles.empty}>
+                  {empty}
+                </td>
+              </tr>
+            ) : (
+              renderRows(rows)
+            )}
+          </tbody>
+        )}
       </table>
     </div>
   );

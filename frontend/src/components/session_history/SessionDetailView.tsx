@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { SessionDetailHeader, SESSION_DETAIL_TABS_ID, type SessionDetailTab } from './SessionDetailHeader';
 import { SessionClassificationTab } from './SessionClassificationTab';
 import { SessionLapChartsTab } from './SessionLapChartsTab';
+import { SessionStoryTab } from './story/SessionStoryTab';
+import { RACE_CHART_TABS } from '../../router/routes';
+import { defaultChartSelection } from '../../utils/player';
 import { SessionStintStrategyTab } from './SessionStintStrategyTab';
 import { SessionSectorMatrixTab } from './SessionSectorMatrixTab';
 import { TyreCompoundBadge } from '../common/TyreCompoundBadge';
@@ -23,6 +26,7 @@ import type {
   ClassificationResponse,
   ProgressionResponse,
   StintsResponse,
+  FeedEvent,
 } from '../../types/session';
 
 export interface SessionDetailViewProps {
@@ -34,6 +38,7 @@ export interface SessionDetailViewProps {
   classificationData?: ClassificationResponse | null;
   progressionData?: ProgressionResponse | null;
   stintsData?: StintsResponse | null;
+  events?: FeedEvent[];
   driverStandings?: DriverStanding[];
   sessionBestS1?: number;
   sessionBestS2?: number;
@@ -62,6 +67,11 @@ export const SessionDetailView: React.FC<SessionDetailViewProps> = (props) => {
   const historyActions = useSessionHistoryActions();
 
   const session = props.session ?? historyData.selectedSession;
+  // The drivers on the pace, position and gap charts, kept while you move between them
+  const [chartSelection, setChartSelection] = useState<{
+    sessionId: number;
+    selected: Record<number, boolean>;
+  } | null>(null);
   if (!session) return null;
 
   const activeDetailTab = props.activeDetailTab ?? historyData.activeDetailTab;
@@ -71,6 +81,7 @@ export const SessionDetailView: React.FC<SessionDetailViewProps> = (props) => {
   const classificationData = props.classificationData ?? historyData.classificationData;
   const progressionData = props.progressionData ?? historyData.progressionData;
   const stintsData = props.stintsData ?? historyData.stintsData;
+  const events = props.events ?? historyData.events;
   const driverStandings = props.driverStandings ?? historyData.driverStandings;
   const sessionBestS1 = props.sessionBestS1 ?? historyData.sessionBestS1;
   const sessionBestS2 = props.sessionBestS2 ?? historyData.sessionBestS2;
@@ -124,10 +135,28 @@ export const SessionDetailView: React.FC<SessionDetailViewProps> = (props) => {
     );
   };
 
-  const effectiveTab = !isRaceSession && activeDetailTab === 'charts' ? 'classification' : activeDetailTab;
+  // Only races have the lap charts; another session opened on one shows its story
+  const effectiveTab = !isRaceSession && RACE_CHART_TABS.includes(activeDetailTab) ? 'story' : activeDetailTab;
+  const chartDrivers =
+    chartSelection?.sessionId === session.id
+      ? chartSelection.selected
+      : defaultChartSelection(driverStandings, playerCarIndex);
 
   const renderDetailTabContent = () => {
     switch (effectiveTab) {
+      case 'story':
+        return (
+          <SessionStoryTab
+            session={session}
+            driverStandings={driverStandings}
+            progressionData={progressionData}
+            events={events}
+            isRaceSession={isRaceSession}
+            playerCarIndex={playerCarIndex}
+            playerSource={playerSource}
+            formatLapTime={formatLapTime}
+          />
+        );
       case 'classification':
         return (
           <SessionClassificationTab
@@ -148,12 +177,17 @@ export const SessionDetailView: React.FC<SessionDetailViewProps> = (props) => {
             renderTyreBadge={renderTyreBadge}
             renderDriverTyreStints={renderDriverTyreStints}
             playerCarIndex={playerCarIndex}
-            playerSource={playerSource}
           />
         );
-      case 'charts':
+      case 'pace':
+      case 'position':
+      case 'gap':
         return (
           <SessionLapChartsTab
+            chart={effectiveTab}
+            events={events}
+            selectedDrivers={chartDrivers}
+            onSelectedDriversChange={(selected) => setChartSelection({ sessionId: session.id, selected })}
             progressionData={progressionData}
             driverStandings={driverStandings}
             totalSessionLaps={totalSessionLaps}
@@ -165,6 +199,8 @@ export const SessionDetailView: React.FC<SessionDetailViewProps> = (props) => {
       case 'stints':
         return (
           <SessionStintStrategyTab
+            // The stint selection belongs to one session
+            key={session.id}
             stintsData={stintsData}
             driverStandings={driverStandings}
             totalSessionLaps={totalSessionLaps}

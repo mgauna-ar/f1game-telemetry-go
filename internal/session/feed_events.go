@@ -1,6 +1,12 @@
 package session
 
-import "github.com/mgauna/f1game-telemetry-go/internal/packets"
+import (
+	"encoding/json"
+	"log/slog"
+
+	"github.com/mgauna/f1game-telemetry-go/internal/packets"
+	"github.com/mgauna/f1game-telemetry-go/internal/storage"
+)
 
 // FeedEvent is one race-control feed row, sent in LiveSnapshot.Events. It carries an event code
 // and typed parameters only; the dashboard writes the text in the viewer's language.
@@ -21,6 +27,9 @@ type FeedEvent struct {
 	PlacesGained     *int     `json:"placesGained,omitempty"`
 	SafetyCarStatus  *int     `json:"safetyCarStatus,omitempty"`
 	SessionTime      float32  `json:"sessionTime,omitempty"`
+	// RaceLap is the leader's lap when the event happened. Only the rows stored with a session
+	// carry it (SessionManager.RecordFeedEvents); the live feed leaves it out.
+	RaceLap int `json:"raceLap,omitempty"`
 }
 
 // Feed row categories: the dashboard's filter tabs, icons and tags.
@@ -84,6 +93,21 @@ var FeedSeverities = []string{
 }
 
 func ptrTo[T any](v T) *T { return &v }
+
+// StoredFeedEvents decodes the feed rows stored with a session (SessionManager.RecordFeedEvents),
+// in their stored order. A row that no longer decodes is skipped.
+func StoredFeedEvents(rows []storage.SessionEvent) []FeedEvent {
+	events := make([]FeedEvent, 0, len(rows))
+	for _, row := range rows {
+		var evt FeedEvent
+		if err := json.Unmarshal(row.Data, &evt); err != nil {
+			slog.Warn("Skipping a stored feed event that does not decode", "eventCode", row.EventCode, "error", err)
+			continue
+		}
+		events = append(events, evt)
+	}
+	return events
+}
 
 // driverName returns the car's driver name, or "" when the game has not named it yet.
 // The dashboard shows its own localized fallback for an unnamed car.

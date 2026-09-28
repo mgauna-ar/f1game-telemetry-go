@@ -12,6 +12,7 @@ import {
   type ProgressionResponse,
   type StintsResponse,
   type SessionDetailResponse,
+  type FeedEvent,
   type PlayerSource,
   groupLapsByCar,
   normalizeDriverStanding,
@@ -30,6 +31,8 @@ export interface UseSessionDetailReturn {
   classificationData: ClassificationResponse | null;
   progressionData: ProgressionResponse | null;
   stintsData: StintsResponse | null;
+  /** The session's race-control events in order; empty for sessions recorded before they were stored. */
+  events: FeedEvent[];
   laps: Lap[];
   expandedDrivers: Record<number, boolean>;
   toggleDriverExpand: (carIndex: number) => void;
@@ -56,6 +59,7 @@ export function useSessionDetail({ onClearStagedSlots }: UseSessionDetailProps =
   const [classificationData, setClassificationData] = useState<ClassificationResponse | null>(null);
   const [progressionData, setProgressionData] = useState<ProgressionResponse | null>(null);
   const [stintsData, setStintsData] = useState<StintsResponse | null>(null);
+  const [events, setEvents] = useState<FeedEvent[]>([]);
   const [laps, setLaps] = useState<Lap[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [expandedDrivers, setExpandedDrivers] = useState<Record<number, boolean>>({});
@@ -90,6 +94,7 @@ export function useSessionDetail({ onClearStagedSlots }: UseSessionDetailProps =
       setClassificationData(detail.classification);
       setProgressionData(detail.progression);
       setStintsData(detail.stints);
+      setEvents(detail.events ?? []);
       setParticipants(detail.participants);
       // Sector 3 is already derived server side (storage.DeriveSector3).
       setLaps(detail.laps);
@@ -100,6 +105,7 @@ export function useSessionDetail({ onClearStagedSlots }: UseSessionDetailProps =
       setClassificationData(null);
       setProgressionData(null);
       setStintsData(null);
+      setEvents([]);
       setParticipants([]);
       setLaps([]);
       const msg = err instanceof Error ? err.message : 'Error fetching session details';
@@ -162,6 +168,7 @@ export function useSessionDetail({ onClearStagedSlots }: UseSessionDetailProps =
     classificationData,
     progressionData,
     stintsData,
+    events,
     laps,
     expandedDrivers,
     toggleDriverExpand,

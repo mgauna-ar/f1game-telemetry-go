@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, ChevronRight, Trash2, Download } from 'lucide-react';
+import { Clock, ChevronRight } from 'lucide-react';
 import type { SessionListItem as Session } from '../../types/session';
 import { useI18n } from '../../context/I18nContext';
 import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContextDefinitions';
@@ -19,6 +19,11 @@ import { SessionCardList } from './SessionCardList';
 import { sessionKind } from './sessionKind';
 import { commonPacketFormat } from './packetFormat';
 import { YourResult } from './YourResult';
+import { SessionActionsMenu } from './SessionActionsMenu';
+import { SessionGroupHeading } from './SessionGroupHeading';
+import { useSessionListPaging } from '../../hooks/useSessionListPaging';
+import { SessionListMore } from './SessionListMore';
+import type { SessionGroupBy } from '../../utils/sessionListView';
 import styles from './SessionTableView.module.css';
 
 export interface SessionTableViewProps {
@@ -34,6 +39,7 @@ export interface SessionTableViewProps {
   sortOrder?: 'asc' | 'desc';
   onToggleSort?: (field: string) => void;
   onOpenTagManager?: (session: Session) => void;
+  groupBy?: SessionGroupBy;
 }
 
 /** The colour of a row's left edge, by session type. */
@@ -67,6 +73,8 @@ export const SessionTableView: React.FC<SessionTableViewProps> = React.memo((pro
   const sortOrder = props.sortOrder ?? historyData.sortOrder;
   const onToggleSort = props.onToggleSort ?? historyActions.handleToggleSort;
   const onOpenTagManager = props.onOpenTagManager ?? historyActions.setSessionToManageTags;
+  const groupBy = props.groupBy ?? historyData.groupBy;
+  const paging = useSessionListPaging(sessions, groupBy, sortField === 'date' && sortOrder === 'asc');
 
   const isAllSelected = sessions.length > 0 && sessions.every((s) => selectedSessionIds?.has(s.id));
   const isSomeSelected = !isAllSelected && sessions.some((s) => selectedSessionIds?.has(s.id));
@@ -190,40 +198,21 @@ export const SessionTableView: React.FC<SessionTableViewProps> = React.memo((pro
     },
     {
       key: 'actions',
-      header: t('history.table.actions'),
+      header: <span className="sr-only">{t('history.table.actions')}</span>,
       align: 'right',
+      width: '84px',
       cell: (session) => (
         <div className={styles.actions}>
-          {onExportSession && (
-            <IconButton
-              size="sm"
-              variant="secondary"
-              className={styles.export}
-              label={`${t('history.exportSession')} #${session.id}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                onExportSession(session);
-              }}
-            >
-              <Download size={14} />
-            </IconButton>
-          )}
-          <IconButton
-            size="sm"
-            variant="secondary"
-            className={styles.delete}
-            label={`${t('common.deleteSession')} #${session.id}`}
-            onClick={(e) => {
-              e.stopPropagation();
-              onRequestDelete(session);
-            }}
-          >
-            <Trash2 size={14} />
-          </IconButton>
+          <SessionActionsMenu
+            session={session}
+            onExport={onExportSession}
+            onManageTags={onOpenTagManager}
+            onDelete={onRequestDelete}
+          />
           <IconButton
             size="sm"
             className={styles.explore}
-            label={t('common.explore')}
+            label={`${t('common.explore')}: ${session.track_name}`}
             onClick={(e) => {
               e.stopPropagation();
               onSelectSession(session);
@@ -251,16 +240,37 @@ export const SessionTableView: React.FC<SessionTableViewProps> = React.memo((pro
         sortOrder={sortOrder}
         onToggleSort={onToggleSort}
         onOpenTagManager={onOpenTagManager}
+        paging={paging}
       />
     );
   }
+
+  const grouped = groupBy !== 'none';
+  const pagedRows = paging.groups.flatMap((g) => g.sessions);
 
   return (
     <div className={styles.container}>
       <DataTable
         caption={t('history.table.caption')}
         columns={columns}
-        rows={sessions}
+        rows={pagedRows}
+        groups={
+          grouped
+            ? paging.groups.map((group) => ({
+                key: group.key,
+                collapsed: paging.isCollapsed(group.key),
+                rows: group.sessions,
+                header: (
+                  <SessionGroupHeading
+                    group={group}
+                    collapsed={paging.isCollapsed(group.key)}
+                    onToggle={() => paging.toggleGroup(group.key)}
+                  />
+                ),
+              }))
+            : undefined
+        }
+        groupHeaderClassName={styles.groupRow}
         getRowKey={(session) => session.id}
         sort={sortField ? { key: sortField, direction: sortOrder } : null}
         onSortChange={onToggleSort}
@@ -271,6 +281,7 @@ export const SessionTableView: React.FC<SessionTableViewProps> = React.memo((pro
         }
         tableClassName={styles.table}
       />
+      <SessionListMore paging={paging} />
     </div>
   );
 });

@@ -38,6 +38,7 @@ const SessionHistoryContent: React.FC = () => {
     sessionTypeFilter,
     circuitFilter,
     selectedTagId,
+    quickFilters,
     selectedSession,
     sessionToDelete,
     deletingSessionId,
@@ -131,7 +132,11 @@ const SessionHistoryContent: React.FC = () => {
                 icon={<Flag size={40} />}
                 title={t('history.noSessionsFound')}
                 description={
-                  searchQuery || sessionTypeFilter !== 'ALL' || circuitFilter !== 'ALL' || selectedTagId !== null
+                  searchQuery ||
+                  sessionTypeFilter !== 'ALL' ||
+                  circuitFilter !== 'ALL' ||
+                  selectedTagId !== null ||
+                  quickFilters.length > 0
                     ? t('history.noSessionsMatch')
                     : t('history.noSessionsEmpty')
                 }

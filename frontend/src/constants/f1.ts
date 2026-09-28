@@ -561,11 +561,14 @@ export const getTrackInfo = (trackIdOrName?: number | string | null): TrackInfo 
     return TRACK_METADATA[numericId];
   }
 
+  // An exact name or alias wins over a partial one ("Spa" is Belgium's alias, not part of "spain")
   for (const info of Object.values(TRACK_METADATA)) {
-    if (info.name.toLowerCase() === trimmed) {
+    if (info.name.toLowerCase() === trimmed || info.aliases?.some((a) => a.toLowerCase() === trimmed)) {
       return info;
     }
-    if (info.aliases && info.aliases.some((a) => a.toLowerCase() === trimmed || trimmed.includes(a.toLowerCase()) || a.toLowerCase().includes(trimmed))) {
+  }
+  for (const info of Object.values(TRACK_METADATA)) {
+    if (info.aliases && info.aliases.some((a) => trimmed.includes(a.toLowerCase()) || a.toLowerCase().includes(trimmed))) {
       return info;
     }
   }

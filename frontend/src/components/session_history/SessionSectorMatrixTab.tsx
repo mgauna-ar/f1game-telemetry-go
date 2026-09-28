@@ -120,7 +120,7 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
       const delta = time > 0 && best > 0 ? (time - best) / 1000 : 0;
       return (
         <div className={styles.sectorCell}>
-          <SectorTime isSessionBest={delta === 0 && time > 0} isPersonalBest={time > 0} className={styles.sectorTime}>
+          <SectorTime isSessionBest={delta === 0 && time > 0} className={styles.sectorTime}>
             {formatSector(time)}
           </SectorTime>
           {delta > 0 && <span className={styles.gap}>+{delta.toFixed(3)}</span>}

@@ -23,4 +23,15 @@ describe('SectorTime', () => {
     expect(time).toHaveAttribute('data-best', 'personal');
     expect(time).toHaveTextContent('28.410 (Personal Best Sector)');
   });
+
+  it('colours a slower completed sector yellow, and a best one never', () => {
+    const { rerender } = render(<SectorTime isSlower>29.100</SectorTime>);
+    expect(screen.getByText('29.100')).toHaveAttribute('data-best', 'none');
+    rerender(
+      <SectorTime isSlower isPersonalBest>
+        29.100
+      </SectorTime>
+    );
+    expect(screen.getByTitle('Personal Best Sector')).toHaveAttribute('data-best', 'personal');
+  });
 });

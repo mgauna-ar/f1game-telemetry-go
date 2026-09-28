@@ -1,0 +1,119 @@
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-5);
+  width: 100%;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border-color);
+}
+
+.group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1-5);
+}
+
+.label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-right: var(--space-0-5);
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  padding: var(--space-0-5) 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) ease,
+    border-color var(--duration-fast) ease,
+    color var(--duration-fast) ease;
+}
+
+.chip:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-active);
+  color: var(--text-primary);
+}
+
+.chip[aria-pressed='true'] {
+  border-color: var(--accent-cyan);
+  background: color-mix(in srgb, var(--accent-cyan) 16%, transparent);
+  color: var(--text-primary);
+}
+
+/* A saved filter: the chip and its delete button read as one pill */
+.saved {
+  display: inline-flex;
+  align-items: center;
+}
+
+.saved .chip {
+  padding-right: var(--space-5);
+}
+
+.remove {
+  width: 1.4rem;
+  height: 1.4rem;
+  min-height: 0;
+  margin-left: calc(-1 * var(--space-5));
+  border-radius: 50%;
+}
+
+.nameForm {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1-5);
+}
+
+.nameInput {
+  width: 16rem;
+  max-width: 100%;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--bg-inset);
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.nameInput:focus {
+  border-color: var(--accent-cyan);
+}
+
+.groupBy {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  margin-left: auto;
+}
+
+.groupIcon {
+  color: var(--text-muted);
+}
+
+@media (--phone) {
+  .groupBy {
+    margin-left: 0;
+  }
+
+  .nameInput {
+    width: 100%;
+  }
+}

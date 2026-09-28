@@ -1,0 +1,13 @@
+.more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.moreCount {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+}
