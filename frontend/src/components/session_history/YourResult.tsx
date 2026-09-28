@@ -1,19 +1,25 @@
 import React from 'react';
-import type { SessionSummary } from '../../types/session';
+import { UserRound } from 'lucide-react';
+import type { SessionListItem } from '../../types/session';
 import { useI18n } from '../../context/I18nContext';
 import { formatLapTime } from '../../utils/formatters';
 import { placesKey } from '../../utils/player';
+import { Button } from '../ui/Button';
+import { openPlayerPicker } from './player/playerPickerStore';
 import { sessionKind } from './sessionKind';
 import styles from './YourResult.module.css';
 
 interface YourResultProps {
-  summary: SessionSummary;
-  sessionType: string;
+  session: SessionListItem;
 }
 
-/** The session list's "Your result": your position, places gained and best lap, or who won. */
-export const YourResult: React.FC<YourResultProps> = ({ summary, sessionType }) => {
+/**
+ * The session list's "Your result": your position, places gained and best lap, or who won. A
+ * session with no driver gets a "Pick" button that opens the "Who were you?" picker.
+ */
+export const YourResult: React.FC<YourResultProps> = ({ session }) => {
   const { t } = useI18n();
+  const { summary, session_type: sessionType } = session;
   const me = summary.player;
 
   if (!me) {
@@ -25,12 +31,33 @@ export const YourResult: React.FC<YourResultProps> = ({ summary, sessionType }) 
         : kind === 'qualifying'
           ? 'history.player.pole'
           : 'history.player.leader';
+    const noDriver = session.player_car_index === null;
     return (
-      <div className={styles.result} data-player="none" title={t('history.player.notRecorded')}>
-        <span className={styles.none} aria-hidden="true">
-          —
+      <div className={styles.result} data-player="none">
+        <span className={styles.main}>
+          <span className={styles.none} aria-hidden="true">
+            —
+          </span>
+          {noDriver ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              className={styles.pick}
+              icon={<UserRound size={13} aria-hidden="true" />}
+              aria-label={t('history.player.pickIn', { session: `${session.track_name} ${sessionType}` })}
+              title={t('history.player.noDriver')}
+              onClick={(event) => {
+                // The row opens the session on click
+                event.stopPropagation();
+                openPlayerPicker(session);
+              }}
+            >
+              {t('history.player.pick')}
+            </Button>
+          ) : (
+            <span className="sr-only">{t('history.player.noDriverShort')}</span>
+          )}
         </span>
-        <span className="sr-only">{t('history.player.notRecordedShort')}</span>
         {leader && <span className={styles.detail}>{t(leaderKey, { name: leader.driver_name })}</span>}
       </div>
     );
@@ -42,7 +69,7 @@ export const YourResult: React.FC<YourResultProps> = ({ summary, sessionType }) 
     <div
       className={styles.result}
       data-player={me.source}
-      title={me.source === 'chosen' ? t('history.player.matchedByName') : undefined}
+      title={me.source === 'chosen' ? t('history.player.chosenByYou') : undefined}
     >
       <span className={styles.main}>
         <span className={styles.position} data-podium={!out && me.position <= 3 ? me.position : undefined}>
@@ -53,11 +80,6 @@ export const YourResult: React.FC<YourResultProps> = ({ summary, sessionType }) 
           <span className={styles.delta} data-trend={gained > 0 ? 'gained' : 'lost'}>
             <span aria-hidden="true">{gained > 0 ? `▲${gained}` : `▼${Math.abs(gained)}`}</span>
             <span className="sr-only">{t(placesKey(gained), { count: Math.abs(gained) })}</span>
-          </span>
-        )}
-        {me.source === 'chosen' && (
-          <span className={styles.byName} aria-hidden="true">
-            *
           </span>
         )}
       </span>

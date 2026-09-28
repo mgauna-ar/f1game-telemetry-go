@@ -89,7 +89,6 @@ export const LapComparator: React.FC = () => {
     sessionId: sessionListReady ? sessionAId : '',
     preloadLapId: preload.lapA,
     defaultDriverName: 'Reference',
-    preferredDriverName: preferences.defaultDriverName,
     playerCarIndex: selectedSessionAObj?.player_car_index ?? null,
   });
 
@@ -100,7 +99,6 @@ export const LapComparator: React.FC = () => {
     isSlotB: true,
     isSameSessionAsSlotA: sessionAId === sessionBId,
     defaultDriverName: 'Comparison',
-    preferredDriverName: preferences.defaultDriverName,
     playerCarIndex: selectedSessionBObj?.player_car_index ?? null,
     referenceDriver: slotA.driver,
     referenceLapId: slotA.lapId,
@@ -110,16 +108,11 @@ export const LapComparator: React.FC = () => {
 
   const handlePreferencesSave = useCallback(
     (newPrefs: ComparatorPreferences) => {
-      if (newPrefs.defaultDriverName !== preferences.defaultDriverName) {
-        // The session list finds you in older sessions by this name
-        useSessionListStore.getState().fetchSessions({ force: true });
-      }
       setPreferences(newPrefs);
       if (slotA.participants.length > 0 && slotA.laps.length > 0) {
         const refRes = resolveReferenceLap(
           slotA.participants,
           slotA.laps,
-          newPrefs.defaultDriverName,
           selectedSessionAObj?.player_car_index ?? null
         );
         if (refRes.lapId !== '') {
@@ -144,7 +137,7 @@ export const LapComparator: React.FC = () => {
         }
       }
     },
-    [slotA, slotB, isLinkedSessions, sessionAId, sessionBId, preferences.defaultDriverName, selectedSessionAObj]
+    [slotA, slotB, isLinkedSessions, sessionAId, sessionBId, selectedSessionAObj]
   );
 
   // Hook 3: Merged telemetry & delta computations

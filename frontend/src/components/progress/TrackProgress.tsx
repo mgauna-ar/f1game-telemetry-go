@@ -4,6 +4,7 @@ import { useI18n } from '../../context/I18nContext';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useTrackProgress } from '../../hooks/useTrackProgress';
 import { useRoute, navigate } from '../../router/router';
+import { Link } from '../../router/Link';
 import { buildPath } from '../../router/routes';
 import type { ProgressSession } from '../../types/progress';
 import { formatLapTime } from '../../utils/formatters';
@@ -128,7 +129,16 @@ export const TrackProgress: React.FC = () => {
             {data.unmatched_sessions === 1
               ? t('progress.unmatchedOne')
               : t('progress.unmatchedMany', { count: data.unmatched_sessions })}{' '}
-            {t('progress.unmatchedHint')}
+            <Link
+              className={styles.unmatchedLink}
+              href={buildPath({
+                page: 'history',
+                tab: 'story',
+                listFilter: { quick: 'noDriver', track: data.track },
+              })}
+            >
+              {t(data.unmatched_sessions === 1 ? 'progress.unmatchedLinkOne' : 'progress.unmatchedLinkMany')}
+            </Link>
           </p>
         )}
         {sessions.length === 0 ? (

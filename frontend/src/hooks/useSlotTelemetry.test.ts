@@ -71,7 +71,7 @@ describe('useSlotTelemetry Hook', () => {
     expect(result.current.driverName).toBe('#1 Max Verstappen');
   });
 
-  it("picks your best lap from the session's stored car over the saved driver name", async () => {
+  it("picks your best lap from the session's car", async () => {
     primeSessionLapData(7, {
       participants: mockParticipants.map((p) => ({ ...p, session_id: 7 })),
       laps: [
@@ -80,44 +80,9 @@ describe('useSlotTelemetry Hook', () => {
       ],
     });
     const { result } = renderHook(() =>
-      useSlotTelemetry({ sessionId: 7, preferredDriverName: 'Verstappen', playerCarIndex: 1 })
+      useSlotTelemetry({ sessionId: 7, playerCarIndex: 1 })
     );
     await waitFor(() => expect(result.current.lapId).toBe(71));
-    expect(result.current.driverName).toBe('#11 Sergio Perez');
-  });
-
-  it('auto-selects configured preferred driver lap', async () => {
-    const perezLaps = [
-      ...mockLaps,
-      { id: 12, car_index: 1, lap_number: 3, lap_time_ms: 89000, is_valid: true, sector1_ms: 29500 },
-    ];
-
-    vi.stubGlobal(
-      'fetch',
-      vi.fn((url: string) => {
-        if (url === '/api/sessions/1/participants') {
-          return Promise.resolve({ ok: true, json: () => Promise.resolve(mockParticipants) });
-        }
-        if (url === '/api/sessions/1/laps') {
-          return Promise.resolve({ ok: true, json: () => Promise.resolve(perezLaps) });
-        }
-        return Promise.reject(new Error(`Unhandled URL: ${url}`));
-      })
-    );
-
-    const { result } = renderHook(() =>
-      useSlotTelemetry({
-        sessionId: 1,
-        preferredDriverName: 'Perez',
-      })
-    );
-
-    await waitFor(() => {
-      expect(result.current.laps).toHaveLength(3);
-    });
-
-    // Should select Perez's best lap (id 12), not Verstappen's faster lap (id 11)
-    expect(result.current.lapId).toBe(12);
     expect(result.current.driverName).toBe('#11 Sergio Perez');
   });
 

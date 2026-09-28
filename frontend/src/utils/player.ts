@@ -1,4 +1,5 @@
-import type { DriverStanding, Participant, PlayerSource } from '../types/session';
+import { F1_DRIVER_NAMES } from '../constants/f1';
+import type { DriverStanding, Participant, PlayerCarSource, PlayerSource } from '../types/session';
 
 /**
  * How many cars the session charts pick by default: the player and the cars either side of them
@@ -9,6 +10,14 @@ export const DEFAULT_CHART_DRIVERS = 5;
 export interface PlayerMatch {
   participant: Participant;
   source: PlayerSource;
+}
+
+/**
+ * A participant's name as the classification shows it: the name the game sent, or its name for the
+ * driver ID (as the server's `Participant.DisplayName`, which the batch driver pick matches).
+ */
+export function participantDisplayName(participant: Participant): string {
+  return participant.name.trim() || F1_DRIVER_NAMES[participant.driver_id] || `#${participant.race_number}`;
 }
 
 /** The first participant whose name contains the query or whose race number is it ("7" or "#7"). */
@@ -24,21 +33,19 @@ export function findParticipantByPartialName(participants: Participant[], query:
 }
 
 /**
- * The player's participant: the session's stored car (`player_car_index`) when it has one,
- * otherwise, for sessions recorded before the car was stored, the saved driver name matched as the
- * comparator matches it. The server's summaries use the same rule (`FindPlayerStanding`).
+ * The player's participant: the session's car (`player_car_index`), recorded by the game or picked
+ * by the player (`player_car_source`). The server's summaries use the same rule
+ * (`FindPlayerStanding`).
  */
 export function findPlayer(
   participants: Participant[],
   playerCarIndex: number | null | undefined,
-  driverName: string
+  playerCarSource: PlayerCarSource | null | undefined
 ): PlayerMatch | undefined {
-  if (playerCarIndex !== null && playerCarIndex !== undefined) {
-    const participant = participants.find((p) => p.car_index === playerCarIndex);
-    return participant ? { participant, source: 'recorded' } : undefined;
-  }
-  const participant = findParticipantByPartialName(participants, driverName);
-  return participant ? { participant, source: 'chosen' } : undefined;
+  if (playerCarIndex === null || playerCarIndex === undefined) return undefined;
+  const participant = participants.find((p) => p.car_index === playerCarIndex);
+  if (!participant) return undefined;
+  return { participant, source: playerCarSource === 'user' ? 'chosen' : 'recorded' };
 }
 
 /**

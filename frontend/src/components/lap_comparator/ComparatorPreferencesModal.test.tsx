@@ -21,7 +21,6 @@ describe('ComparatorPreferencesModal Component', () => {
 
   it('renders correctly when open and loads initial storage preferences', () => {
     saveComparatorPreferences({
-      defaultDriverName: 'Verstappen',
       rivalMode: 'teammate',
       rivalDriverName: '',
     });
@@ -31,17 +30,17 @@ describe('ComparatorPreferencesModal Component', () => {
         isOpen={true}
         onClose={vi.fn()}
         onSave={vi.fn()}
-        currentSlotADriverName="Max Verstappen"
         currentSlotBDriverName="Liam Lawson"
       />
     );
 
     expect(screen.getByTestId('comparator-preferences-modal')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('Verstappen')).toBeInTheDocument();
+    // Your driver is picked per session now, not by a saved name
+    expect(screen.queryByTestId('default-driver-name-input')).toBeNull();
     expect(screen.getByTestId('rival-mode-teammate-radio')).toBeChecked();
   });
 
-  it('allows changing driver name and selecting rival modes', () => {
+  it('allows selecting rival modes', () => {
     const handleSave = vi.fn();
     const handleClose = vi.fn();
 
@@ -52,11 +51,6 @@ describe('ComparatorPreferencesModal Component', () => {
         onSave={handleSave}
       />
     );
-
-    // Change reference driver name
-    const driverInput = screen.getByTestId('default-driver-name-input');
-    fireEvent.change(driverInput, { target: { value: 'Norris' } });
-    expect(driverInput).toHaveValue('Norris');
 
     // Switch to driver mode
     const driverRadio = screen.getByTestId('rival-mode-driver-radio');
@@ -72,29 +66,21 @@ describe('ComparatorPreferencesModal Component', () => {
     fireEvent.click(saveBtn);
 
     expect(handleSave).toHaveBeenCalledWith({
-      defaultDriverName: 'Norris',
       rivalMode: 'driver',
       rivalDriverName: 'Piastri',
     });
     expect(handleClose).toHaveBeenCalled();
   });
 
-  it('supports "use current driver" shortcuts', () => {
+  it('supports the "use current driver" shortcut', () => {
     render(
       <ComparatorPreferencesModal
         isOpen={true}
         onClose={vi.fn()}
         onSave={vi.fn()}
-        currentSlotADriverName="Max Verstappen"
         currentSlotBDriverName="Lando Norris"
       />
     );
-
-    const useDriverABtn = screen.getByTestId('use-current-driver-a-btn');
-    fireEvent.click(useDriverABtn);
-
-    const driverInput = screen.getByTestId('default-driver-name-input');
-    expect(driverInput).toHaveValue('Max Verstappen');
 
     // Select driver mode
     const driverRadio = screen.getByTestId('rival-mode-driver-radio');

@@ -10,11 +10,16 @@ import { Markdown } from '../../ui/Markdown';
 import { Panel, PanelHeader } from '../../ui/Panel';
 import styles from './SessionDebriefPanel.module.css';
 
-/** Debriefs written in this tab, by session, so switching tabs or sessions doesn't lose them. */
-const writtenDebriefs = new Map<number, string>();
+/**
+ * Debriefs written in this tab, by session and your car in it, so switching tabs or sessions
+ * doesn't lose them and picking another driver asks for a new one.
+ */
+const writtenDebriefs = new Map<string, string>();
 
 interface SessionDebriefPanelProps {
   sessionId: number;
+  /** Your car in the session; the debrief is about it. */
+  playerCarIndex: number | null;
 }
 
 /**
@@ -22,8 +27,9 @@ interface SessionDebriefPanelProps {
  * builds the same `session_debrief` context the chat uses (classification, your result and the
  * stored key moments). It only runs when asked, since it calls the AI provider.
  */
-export const SessionDebriefPanel: React.FC<SessionDebriefPanelProps> = ({ sessionId }) => {
+export const SessionDebriefPanel: React.FC<SessionDebriefPanelProps> = ({ sessionId, playerCarIndex }) => {
   const { t } = useI18n();
+  const debriefKey = `${sessionId}:${playerCarIndex ?? 'none'}`;
   const { config, keyStatus } = useRaceEngineerState();
   const { openChat } = useRaceEngineerActions();
   const buildChatContext = useCallback(
@@ -35,7 +41,7 @@ export const SessionDebriefPanel: React.FC<SessionDebriefPanelProps> = ({ sessio
     keyStatus,
     buildChatContext,
   });
-  const [saved, setSaved] = useState<string | undefined>(() => writtenDebriefs.get(sessionId));
+  const [saved, setSaved] = useState<string | undefined>(() => writtenDebriefs.get(debriefKey));
 
   const reply = [...messages].reverse().find((m) => m.role === 'assistant' && m.id.startsWith('assistant-'));
   const failed = !!reply?.errorCode;
@@ -43,13 +49,13 @@ export const SessionDebriefPanel: React.FC<SessionDebriefPanelProps> = ({ sessio
   // Keep a finished debrief for this session
   useEffect(() => {
     if (!isGenerating && reply && !reply.errorCode && reply.content.trim()) {
-      writtenDebriefs.set(sessionId, reply.content);
+      writtenDebriefs.set(debriefKey, reply.content);
     }
-  }, [isGenerating, reply, sessionId]);
+  }, [isGenerating, reply, debriefKey]);
 
   const write = () => {
     setSaved(undefined);
-    writtenDebriefs.delete(sessionId);
+    writtenDebriefs.delete(debriefKey);
     clearMessages();
     void sendMessage(t('history.story.debriefPrompt'));
   };

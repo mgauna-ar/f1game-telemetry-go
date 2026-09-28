@@ -1,8 +1,11 @@
 import React from 'react';
-import { Info } from 'lucide-react';
+import { Info, UserRound } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
 import type { DriverStanding, FeedEvent, PlayerSource, ProgressionResponse, Session } from '../../../types/session';
+import { Button } from '../../ui/Button';
+import { cx } from '../../ui/cx';
 import { YourRaceCard } from '../classification/YourRaceCard';
+import { openPlayerPicker } from '../player/playerPickerStore';
 import { FieldPaceChart } from './FieldPaceChart';
 import { KeyMomentsTimeline } from './KeyMomentsTimeline';
 import { SessionDebriefPanel } from './SessionDebriefPanel';
@@ -42,7 +45,7 @@ export const SessionStoryTab: React.FC<SessionStoryTabProps> = ({
       <div className={styles.main}>
         {playerCarIndex !== null ? (
           <YourRaceCard
-            sessionId={session.id}
+            session={session}
             driverStandings={driverStandings}
             playerCarIndex={playerCarIndex}
             playerSource={playerSource}
@@ -50,10 +53,18 @@ export const SessionStoryTab: React.FC<SessionStoryTabProps> = ({
             formatLapTime={formatLapTime}
           />
         ) : (
-          <p className={styles.note}>
+          <div className={cx(styles.note, styles.noteAction)} role="note" data-testid="no-driver">
             <Info size={14} aria-hidden="true" />
-            {t('history.player.notRecorded')}
-          </p>
+            <span>{t('history.player.noDriver')}</span>
+            <Button
+              size="sm"
+              variant="primary"
+              icon={<UserRound size={14} aria-hidden="true" />}
+              onClick={() => openPlayerPicker(session)}
+            >
+              {t('history.player.pickDriver')}
+            </Button>
+          </div>
         )}
         {isRaceSession && playerCarIndex !== null && (
           <FieldPaceChart
@@ -63,7 +74,12 @@ export const SessionStoryTab: React.FC<SessionStoryTabProps> = ({
             events={events}
           />
         )}
-        <SessionDebriefPanel sessionId={session.id} />
+        <SessionDebriefPanel
+          // A new driver starts a new debrief
+          key={`${session.id}:${playerCarIndex}`}
+          sessionId={session.id}
+          playerCarIndex={playerCarIndex}
+        />
       </div>
       {hasEvents ? (
         <div className={styles.side}>

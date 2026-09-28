@@ -16,12 +16,10 @@ export const progress = {
   noSessionsHint: 'Corré una sesión con el juego enviando telemetría y tu ritmo en cada circuito aparece acá.',
   noneAtTrack: 'Ninguna sesión tuya en {track}',
   noneForKind: 'Ninguna sesión tuya de este tipo en {track}',
-  unmatchedOne:
-    'Queda afuera 1 sesión de este circuito: se grabó antes de que se guardara tu auto y ningún nombre de piloto te encuentra en ella.',
-  unmatchedMany:
-    'Quedan afuera {count} sesiones de este circuito: se grabaron antes de que se guardara tu auto y ningún nombre de piloto te encuentra en ellas.',
-  unmatchedHint:
-    'Configurá tu nombre de piloto en las preferencias del Comparador de Vueltas para encontrarte en ellas.',
+  unmatchedOne: 'Queda afuera 1 sesión de este circuito: no tiene piloto elegido.',
+  unmatchedMany: 'Quedan afuera {count} sesiones de este circuito: no tienen piloto elegido.',
+  unmatchedLinkOne: 'Elegí tu piloto en ella',
+  unmatchedLinkMany: 'Elegí tu piloto en ellas',
   stats: {
     personalBest: 'Mejor personal',
     theoretical: 'Mejor teórica',
@@ -62,6 +60,6 @@ export const progress = {
     fastest: 'La más rápida',
     personalBest: 'Mejor personal',
     bestSector: 'Tu mejor sector en este circuito',
-    foundByName: 'Encontrado por el nombre de piloto guardado en las preferencias del Comparador de Vueltas',
+    chosen: 'Piloto elegido por vos',
   },
 };

@@ -1,11 +1,13 @@
 import { LIVE_VIEW_MODES, STORAGE_KEY_LIVE_VIEW_MODE, type LiveViewMode } from '../constants/f1';
 import { storage } from '../utils/storage';
+import { isQuickFilter, type QuickFilter } from '../utils/sessionListView';
 
 /**
  * The dashboard's pages and what their URLs hold. The Go server answers every unknown path with
  * index.html, so each of these can be opened, bookmarked and shared directly.
  *
- * - `/history`: the session list
+ * - `/history[?quick=&track=]`: the session list; a link can turn on one quick filter and pick a
+ *   circuit, which the list applies once before going back to plain `/history`
  * - `/history/:sessionId[/:tab]`: one session; the tab is left out for the story. The old
  *   `charts` tab opens the pace chart.
  * - `/compare?sa=&a=&sb=&b=&zoom=`: sessions and laps of slots A and B, and the zoomed stretch
@@ -26,8 +28,14 @@ export interface CompareParams {
   zoom?: [number, number];
 }
 
+/** Filters a link opens the session list with. */
+export interface ListFilterParams {
+  quick?: QuickFilter;
+  track?: string;
+}
+
 export type Route =
-  | { page: 'history'; sessionId?: number; tab: SessionDetailTab }
+  | { page: 'history'; sessionId?: number; tab: SessionDetailTab; listFilter?: ListFilterParams }
   | ({ page: 'compare' } & CompareParams)
   | { page: 'progress'; track?: string }
   | { page: 'live'; mode: LiveViewMode };
@@ -120,6 +128,15 @@ export function parseRoute(pathname: string, search = ''): Route {
     return { page: 'live', mode: isLiveMode(second) ? second : storedLiveMode() };
   }
   const sessionId = page === 'history' ? positiveInt(second) : undefined;
+  if (!sessionId && page === 'history') {
+    const query = new URLSearchParams(search);
+    const quick = query.get('quick');
+    const listFilter: ListFilterParams = {
+      quick: isQuickFilter(quick) ? quick : undefined,
+      track: query.get('track')?.trim() || undefined,
+    };
+    if (listFilter.quick || listFilter.track) return { page: 'history', tab: 'story', listFilter };
+  }
   return { page: 'history', sessionId, tab: sessionId ? detailTab(third) : 'story' };
 }
 
@@ -128,11 +145,18 @@ const roundMeters = (value: number) => String(Math.round(value));
 /** The URL of a page; parsing it gives the same route back. */
 export function buildPath(route: Route): string {
   switch (route.page) {
-    case 'history':
-      if (!route.sessionId) return '/history';
+    case 'history': {
+      if (!route.sessionId) {
+        const query = new URLSearchParams();
+        if (route.listFilter?.quick) query.set('quick', route.listFilter.quick);
+        if (route.listFilter?.track) query.set('track', route.listFilter.track);
+        const text = query.toString();
+        return text ? `/history?${text}` : '/history';
+      }
       return route.tab === 'story'
         ? `/history/${route.sessionId}`
         : `/history/${route.sessionId}/${route.tab}`;
+    }
     case 'live':
       return `/live/${route.mode}`;
     case 'progress':

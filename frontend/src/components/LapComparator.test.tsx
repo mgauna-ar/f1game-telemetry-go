@@ -731,7 +731,7 @@ describe('LapComparator Component', () => {
   });
 
   it("defaults slot A to your best lap from the session's stored car, and slot B to the fastest", async () => {
-    // The saved name points at the fastest driver, but the session stored car 1 as yours
+    // An old saved driver name points at the fastest driver, but the session stored car 1 as yours
     localStorage.setItem('f1_comparator_default_driver_name', 'Verstappen');
     const sessions = [makeSessionListItem({ id: 1, track_name: 'Monaco', session_type: 'Race', player_car_index: 1 })];
     const participants = [

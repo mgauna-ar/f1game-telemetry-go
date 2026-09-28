@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { SessionCardList } from './SessionCardList';
+import { usePlayerPickerStore } from './player/playerPickerStore';
 import { sessionKind } from './sessionKind';
 import { makePlayerResult, makeSessionListItem } from '../../test/wireFactories';
 
@@ -57,7 +58,9 @@ describe('SessionCardList', () => {
     expect(within(monza).getByText('▲3')).toBeInTheDocument();
     expect(within(monza).getByText('3 places gained')).toHaveClass('sr-only');
     expect(within(monza).getByText('Best 1:21.234')).toBeInTheDocument();
-    expect(within(suzuka).getByText('Your car was not recorded')).toHaveClass('sr-only');
+    fireEvent.click(within(suzuka).getByRole('button', { name: /^Pick your driver in Suzuka/ }));
+    expect(usePlayerPickerStore.getState().session?.track_name).toBe('Suzuka');
+    act(() => usePlayerPickerStore.getState().closePlayerPicker());
     expect(within(suzuka).getByText('Pole: Oscar Piastri')).toBeInTheDocument();
   });
 

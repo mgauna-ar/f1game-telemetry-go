@@ -34,6 +34,19 @@
   margin-top: 2px;
 }
 
+.noteAction {
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.noteAction > svg {
+  margin-top: 0;
+}
+
+.noteAction > button {
+  margin-left: auto;
+}
+
 .story[data-events] {
   grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
 }

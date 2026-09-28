@@ -39,8 +39,8 @@ const SessionCell: React.FC<CellProps & { usualFormat?: number }> = ({ s, usualF
       {s.packet_format !== usualFormat && <F1FormatBadge format={s.packet_format} size="xs" />}
       <SessionTypeBadge sessionType={s.session_type} size="xs" showIcon={false} />
       {s.source === 'chosen' && (
-        <span className={styles.byName} title={t('progress.table.foundByName')}>
-          *<span className="sr-only">{t('progress.table.foundByName')}</span>
+        <span className={styles.byName} title={t('progress.table.chosen')}>
+          *<span className="sr-only">{t('progress.table.chosen')}</span>
         </span>
       )}
     </span>
@@ -197,7 +197,7 @@ export const ProgressSessionsTable: React.FC<{ sessions: ProgressSession[]; trac
         level={2}
         icon={<List size={18} />}
         title={title}
-        subtitle={sessions.some((s) => s.source === 'chosen') ? `* ${t('progress.table.foundByName')}` : undefined}
+        subtitle={sessions.some((s) => s.source === 'chosen') ? `* ${t('progress.table.chosen')}` : undefined}
       />
       {isPhone ? (
         <ul className={styles.cards} aria-label={title}>

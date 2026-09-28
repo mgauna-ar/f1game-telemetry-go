@@ -172,7 +172,7 @@ export const SessionCardList: React.FC<SessionCardListProps> = ({
 
                       <div className={styles.result}>
                         <span className={styles.resultLabel}>{t('history.player.yourResult')}</span>
-                        <YourResult summary={session.summary} sessionType={session.session_type} />
+                        <YourResult session={session} />
                       </div>
 
                       <div className={styles.tags}>

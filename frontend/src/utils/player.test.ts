@@ -9,19 +9,16 @@ describe('findPlayer', () => {
     makeParticipant({ car_index: 2, name: 'Oscar Piastri', race_number: 81 }),
   ];
 
-  it("uses the session's stored car first", () => {
-    expect(findPlayer(participants, 2, 'Norris')).toEqual({ participant: participants[2], source: 'recorded' });
+  it("finds the session's car and says who set it", () => {
+    expect(findPlayer(participants, 2, 'game')).toEqual({ participant: participants[2], source: 'recorded' });
+    expect(findPlayer(participants, 1, 'user')).toEqual({ participant: participants[1], source: 'chosen' });
+    expect(findPlayer(participants, 0, null)).toEqual({ participant: participants[0], source: 'recorded' });
   });
 
-  it('finds nobody when the stored car has no participant, even if the name matches', () => {
-    expect(findPlayer(participants, 9, 'Norris')).toBeUndefined();
-  });
-
-  it('matches the saved driver name, or race number, for older sessions', () => {
-    expect(findPlayer(participants, null, 'norris')).toEqual({ participant: participants[1], source: 'chosen' });
-    expect(findPlayer(participants, null, '#81')?.participant.car_index).toBe(2);
-    expect(findPlayer(participants, null, '')).toBeUndefined();
-    expect(findPlayer(participants, null, 'Senna')).toBeUndefined();
+  it('finds nobody without a car, or when the car has no participant', () => {
+    expect(findPlayer(participants, null, null)).toBeUndefined();
+    expect(findPlayer(participants, undefined, undefined)).toBeUndefined();
+    expect(findPlayer(participants, 9, 'user')).toBeUndefined();
   });
 });
 

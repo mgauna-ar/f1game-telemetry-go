@@ -7,6 +7,7 @@ import { DeleteSessionModal } from './session_history/DeleteSessionModal';
 import { BatchDeleteModal } from './session_history/BatchDeleteModal';
 import { BatchTagModal } from './session_history/BatchTagModal';
 import { TagManagerModal } from './session_history/TagManagerModal';
+import { PlayerPickerModal } from './session_history/player/PlayerPickerModal';
 import { SessionComparatorDock } from './session_history/SessionComparatorDock';
 import { SessionBatchDock } from './session_history/SessionBatchDock';
 import { StandaloneToastContainer } from './common/ToastContainer';
@@ -209,6 +210,9 @@ const SessionHistoryContent: React.FC = () => {
         isOpen={sessionToManageTags !== null}
         onClose={() => setSessionToManageTags(null)}
       />
+
+      {/* "WHO WERE YOU?" DRIVER PICKER (list rows, story tab, your race card) */}
+      <PlayerPickerModal />
 
       <StandaloneToastContainer />
     </div>

@@ -1,16 +1,22 @@
 import type { SessionListItem, Tag } from '../types/session';
 
 /** One-click filters on top of the search, type, circuit and tag filters. */
-export type QuickFilter = 'recent' | 'yours' | 'podium' | 'gained';
+export type QuickFilter = 'recent' | 'yours' | 'noDriver' | 'podium' | 'gained';
 
-export const QUICK_FILTERS: readonly QuickFilter[] = ['recent', 'yours', 'podium', 'gained'];
+export const QUICK_FILTERS: readonly QuickFilter[] = ['recent', 'yours', 'noDriver', 'podium', 'gained'];
+
+export const isQuickFilter = (value: unknown): value is QuickFilter =>
+  typeof value === 'string' && (QUICK_FILTERS as readonly string[]).includes(value);
 
 /** How far back "recent" reaches. */
 export const RECENT_DAYS = 7;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** Whether a session passes one quick filter; the player ones need a recorded or name-matched result. */
+/**
+ * Whether a session passes one quick filter. The player ones need your result (a recorded or
+ * picked car); `noDriver` is the sessions with no car at all, to pick one in.
+ */
 export function matchQuickFilter(session: SessionListItem, filter: QuickFilter, now = Date.now()): boolean {
   const player = session.summary?.player ?? null;
   switch (filter) {
@@ -20,6 +26,8 @@ export function matchQuickFilter(session: SessionListItem, filter: QuickFilter, 
     }
     case 'yours':
       return player !== null;
+    case 'noDriver':
+      return session.player_car_index === null;
     case 'podium':
       return player !== null && player.position >= 1 && player.position <= 3 && !player.is_dnf && !player.is_dsq;
     case 'gained':

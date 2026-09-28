@@ -22,6 +22,16 @@ describe('matchQuickFilter', () => {
     expect(matchQuickFilter(p3, 'gained', now)).toBe(true);
     expect(matchQuickFilter(p4, 'gained', now)).toBe(false);
   });
+
+  it('reads the sessions with no driver: no car at all, recorded or picked', () => {
+    const noCar = makeSessionListItem({ player_car_index: null });
+    const picked = makeSessionListItem({ player_car_index: 3, player_car_source: 'user' });
+    // A car that isn't in the classification still counts as a driver
+    const unclassified = makeSessionListItem({ player_car_index: 9, player_car_source: 'game' }, { player: null });
+    expect(matchQuickFilter(noCar, 'noDriver', now)).toBe(true);
+    expect(matchQuickFilter(picked, 'noDriver', now)).toBe(false);
+    expect(matchQuickFilter(unclassified, 'noDriver', now)).toBe(false);
+  });
 });
 
 describe('groupSessions', () => {
