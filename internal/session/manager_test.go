@@ -1015,6 +1015,10 @@ func TestSessionManagerStoresPlayerCarIndex(t *testing.T) {
 				t.Errorf("player_car_index = %d, want nil", *saved.PlayerCarIndex)
 			case tt.want != nil && (saved.PlayerCarIndex == nil || *saved.PlayerCarIndex != *tt.want):
 				t.Errorf("player_car_index = %v, want %d", saved.PlayerCarIndex, *tt.want)
+			case tt.want == nil && saved.PlayerCarSource != nil:
+				t.Errorf("player_car_source = %s, want nil", *saved.PlayerCarSource)
+			case tt.want != nil && (saved.PlayerCarSource == nil || *saved.PlayerCarSource != storage.PlayerCarSourceGame):
+				t.Errorf("player_car_source = %v, want game", saved.PlayerCarSource)
 			}
 		})
 	}

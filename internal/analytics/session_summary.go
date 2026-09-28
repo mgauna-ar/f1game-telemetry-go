@@ -3,23 +3,20 @@ package analytics
 import (
 	"bytes"
 	"encoding/json"
-	"strconv"
-	"strings"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/storage"
 )
 
 // How a session's player car was found.
 const (
-	// PlayerSourceRecorded: the session stored the player's car (storage.Session.PlayerCarIndex).
+	// PlayerSourceRecorded: the game's recorded player car (storage.PlayerCarSourceGame).
 	PlayerSourceRecorded = "recorded"
-	// PlayerSourceDriverName: a session recorded before the player's car was stored, matched by
-	// the driver name the dashboard saved (as the comparator matches it).
-	PlayerSourceDriverName = "driver_name"
+	// PlayerSourceChosen: the player picked their car in the dashboard (storage.PlayerCarSourceUser).
+	PlayerSourceChosen = "chosen"
 )
 
 // PlayerSources lists every PlayerSource; it builds the PlayerSource union for the frontend.
-var PlayerSources = []string{PlayerSourceRecorded, PlayerSourceDriverName}
+var PlayerSources = []string{PlayerSourceRecorded, PlayerSourceChosen}
 
 // SessionListItem is one row of GET /api/sessions: the session and a summary of its result.
 type SessionListItem struct {
@@ -53,8 +50,7 @@ type SessionSummary struct {
 	Leader *SummaryDriver `json:"leader"`
 	// FastestLap is the session's fastest lap.
 	FastestLap *SummaryLap `json:"fastest_lap"`
-	// Player is the player's result: null when the session has no player car and no saved driver
-	// name matches.
+	// Player is the player's result: null when the session has no player car (recorded or picked).
 	Player *PlayerResult `json:"player"`
 }
 
@@ -88,47 +84,31 @@ type PlayerResult struct {
 	IsDSQ           bool   `json:"is_dsq"`
 }
 
-// FindPlayerStanding returns the player's standing: the stored player car when the session has
-// one, otherwise the first car (by car index) whose name contains driverName or whose race number
-// is driverName ("7" or "#7"), matching the comparator's saved driver name. It returns nil when
-// neither finds a car.
-func FindPlayerStanding(standings []DriverStanding, playerCar *int, driverName string) (standing *DriverStanding, source string) {
-	if playerCar != nil {
-		for i := range standings {
-			if standings[i].CarIndex == *playerCar {
-				return &standings[i], PlayerSourceRecorded
-			}
-		}
+// FindPlayerStanding returns the standing of the session's player car (recorded by the game or
+// picked by the player) and how it was found. It returns nil when the session has no player car
+// or the car is not in the classification.
+func FindPlayerStanding(standings []DriverStanding, session *storage.Session) (standing *DriverStanding, source string) {
+	if session == nil || session.PlayerCarIndex == nil {
 		return nil, ""
 	}
-	query := strings.ToLower(strings.TrimSpace(driverName))
-	if query == "" {
-		return nil, ""
+	source = PlayerSourceRecorded
+	if session.PlayerCarSource != nil && *session.PlayerCarSource == storage.PlayerCarSourceUser {
+		source = PlayerSourceChosen
 	}
-	var match *DriverStanding
 	for i := range standings {
-		d := &standings[i]
-		number := strconv.Itoa(d.RaceNumber)
-		if !strings.Contains(strings.ToLower(d.DriverName), query) && query != number && query != "#"+number {
-			continue
-		}
-		if match == nil || d.CarIndex < match.CarIndex {
-			match = d
+		if standings[i].CarIndex == *session.PlayerCarIndex {
+			return &standings[i], source
 		}
 	}
-	if match == nil {
-		return nil, ""
-	}
-	return match, PlayerSourceDriverName
+	return nil, ""
 }
 
 func summaryDriver(d *DriverStanding) SummaryDriver {
 	return SummaryDriver{CarIndex: d.CarIndex, DriverName: d.DriverName, TeamID: d.TeamID, RaceNumber: d.RaceNumber}
 }
 
-// ComputeSessionSummary summarizes a session's classification for the session list. driverName
-// is the saved driver name used for sessions without a stored player car.
-func ComputeSessionSummary(session *storage.Session, participants []storage.Participant, laps []storage.Lap, driverName string) SessionSummary {
+// ComputeSessionSummary summarizes a session's classification for the session list.
+func ComputeSessionSummary(session *storage.Session, participants []storage.Participant, laps []storage.Lap) SessionSummary {
 	cls := ComputeSessionClassification(session, participants, laps)
 	summary := SessionSummary{}
 	if len(cls.Standings) == 0 {
@@ -148,11 +128,7 @@ func ComputeSessionSummary(session *storage.Session, participants []storage.Part
 		}
 	}
 
-	var playerCar *int
-	if session != nil {
-		playerCar = session.PlayerCarIndex
-	}
-	if me, source := FindPlayerStanding(cls.Standings, playerCar, driverName); me != nil {
+	if me, source := FindPlayerStanding(cls.Standings, session); me != nil {
 		summary.Player = &PlayerResult{
 			SummaryDriver:   summaryDriver(me),
 			Source:          source,
@@ -172,11 +148,11 @@ func ComputeSessionSummary(session *storage.Session, participants []storage.Part
 
 // ComputeSessionList adds a result summary to each session, from the participants and laps of
 // every session loaded at once (storage.Repository.GetSessionResults).
-func ComputeSessionList(sessions []storage.Session, participants map[int64][]storage.Participant, laps map[int64][]storage.Lap, driverName string) []SessionListItem {
+func ComputeSessionList(sessions []storage.Session, participants map[int64][]storage.Participant, laps map[int64][]storage.Lap) []SessionListItem {
 	items := make([]SessionListItem, len(sessions))
 	for i := range sessions {
 		s := &sessions[i]
-		items[i] = SessionListItem{Session: *s, Summary: ComputeSessionSummary(s, participants[s.ID], laps[s.ID], driverName)}
+		items[i] = SessionListItem{Session: *s, Summary: ComputeSessionSummary(s, participants[s.ID], laps[s.ID])}
 	}
 	return items
 }

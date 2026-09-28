@@ -198,6 +198,7 @@ func (s *Server) setupSessionRoutes(r chi.Router) {
 	r.Get("/sessions/{id}/export", s.handleExportSession)
 	r.Post("/sessions/export-batch", s.handleExportSessionBatch)
 	r.Post("/sessions/batch-tags", s.handleBatchAssignTags)
+	r.Post("/sessions/batch-player", s.handleBatchSetPlayer)
 	r.Get("/laps/{id}/telemetry", s.handleGetTelemetry)
 
 	// Tag routes
@@ -210,6 +211,7 @@ func (s *Server) setupSessionRoutes(r chi.Router) {
 	r.Get("/sessions/{id}/tags", s.handleGetSessionTags)
 	r.Post("/sessions/{id}/tags", s.handleAddSessionTag)
 	r.Put("/sessions/{id}/tags", s.handleSetSessionTags)
+	r.Put("/sessions/{id}/player", s.handleSetPlayerCar)
 	r.Delete("/sessions/{id}/tags/{tagId}", s.handleRemoveSessionTag)
 }
 

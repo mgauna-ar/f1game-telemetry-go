@@ -151,7 +151,7 @@ export interface PlayerResult extends SummaryDriver {
   is_dsq: boolean;
 }
 
-export type PlayerSource = 'recorded' | 'driver_name';
+export type PlayerSource = 'recorded' | 'chosen';
 
 /** Go: analytics.ProgressSession */
 export interface ProgressSession {

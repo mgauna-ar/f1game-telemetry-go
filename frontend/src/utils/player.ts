@@ -38,7 +38,7 @@ export function findPlayer(
     return participant ? { participant, source: 'recorded' } : undefined;
   }
   const participant = findParticipantByPartialName(participants, driverName);
-  return participant ? { participant, source: 'driver_name' } : undefined;
+  return participant ? { participant, source: 'chosen' } : undefined;
 }
 
 /**

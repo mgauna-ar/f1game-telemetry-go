@@ -30,7 +30,7 @@ func summaryRace(playerCar *int) (*storage.Session, []storage.Participant, []sto
 
 func TestComputeSessionSummary(t *testing.T) {
 	session, participants, laps := summaryRace(new(1))
-	summary := ComputeSessionSummary(session, participants, laps, "")
+	summary := ComputeSessionSummary(session, participants, laps)
 
 	if summary.Leader == nil || summary.Leader.DriverName != "Lewis Hamilton" || summary.Leader.RaceNumber != 44 {
 		t.Errorf("leader = %+v, want Lewis Hamilton", summary.Leader)
@@ -53,26 +53,26 @@ func TestComputeSessionSummary(t *testing.T) {
 }
 
 func TestComputeSessionSummaryPlayer(t *testing.T) {
+	game, user, bogus := storage.PlayerCarSourceGame, storage.PlayerCarSourceUser, "other"
 	tests := []struct {
 		name       string
 		playerCar  *int
-		driverName string
+		source     *string
 		wantCar    int // -1: no player
 		wantSource string
 	}{
-		{name: "recorded car wins over the driver name", playerCar: new(2), driverName: "Hamilton", wantCar: 2, wantSource: PlayerSourceRecorded},
-		{name: "recorded car not in the classification", playerCar: new(9), driverName: "Hamilton", wantCar: -1},
-		{name: "old session, partial name, any case", driverName: "  leclerc ", wantCar: 1, wantSource: PlayerSourceDriverName},
-		{name: "old session, race number", driverName: "4", wantCar: 2, wantSource: PlayerSourceDriverName},
-		{name: "old session, race number with #", driverName: "#44", wantCar: 0, wantSource: PlayerSourceDriverName},
-		{name: "old session, first car index of several matches", driverName: "l", wantCar: 0, wantSource: PlayerSourceDriverName},
-		{name: "old session, no match", driverName: "Senna", wantCar: -1},
-		{name: "old session, no driver name", wantCar: -1},
+		{name: "recorded by the game", playerCar: new(2), source: &game, wantCar: 2, wantSource: PlayerSourceRecorded},
+		{name: "picked by the player", playerCar: new(1), source: &user, wantCar: 1, wantSource: PlayerSourceChosen},
+		{name: "a car without a source counts as recorded", playerCar: new(0), wantCar: 0, wantSource: PlayerSourceRecorded},
+		{name: "an unknown source counts as recorded", playerCar: new(0), source: &bogus, wantCar: 0, wantSource: PlayerSourceRecorded},
+		{name: "car not in the classification", playerCar: new(9), source: &user, wantCar: -1},
+		{name: "no player car", wantCar: -1},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			session, participants, laps := summaryRace(tt.playerCar)
-			p := ComputeSessionSummary(session, participants, laps, tt.driverName).Player
+			session.PlayerCarSource = tt.source
+			p := ComputeSessionSummary(session, participants, laps).Player
 			if tt.wantCar < 0 {
 				if p != nil {
 					t.Errorf("player = %+v, want nil", p)
@@ -87,26 +87,27 @@ func TestComputeSessionSummaryPlayer(t *testing.T) {
 }
 
 func TestComputeSessionSummaryEmptySession(t *testing.T) {
-	summary := ComputeSessionSummary(&storage.Session{ID: 1, SessionType: "Race", PlayerCarIndex: new(0)}, nil, nil, "Hamilton")
+	summary := ComputeSessionSummary(&storage.Session{ID: 1, SessionType: "Race", PlayerCarIndex: new(0)}, nil, nil)
 	if summary.Leader != nil || summary.FastestLap != nil || summary.Player != nil || summary.LapsCompleted != 0 {
 		t.Errorf("summary = %+v, want empty", summary)
 	}
 }
 
 func TestComputeSessionList(t *testing.T) {
-	session, participants, laps := summaryRace(nil)
+	session, participants, laps := summaryRace(new(2))
+	user := storage.PlayerCarSourceUser
+	session.PlayerCarSource = &user
 	other := storage.Session{ID: 2, TrackName: "Spa", SessionType: "Race"}
 	items := ComputeSessionList(
 		[]storage.Session{*session, other},
 		map[int64][]storage.Participant{1: participants},
 		map[int64][]storage.Lap{1: laps},
-		"Norris",
 	)
 	if len(items) != 2 || items[0].ID != 1 || items[1].ID != 2 {
 		t.Fatalf("items = %+v, want sessions 1 and 2 in order", items)
 	}
-	if p := items[0].Summary.Player; p == nil || p.CarIndex != 2 {
-		t.Errorf("session 1 player = %+v, want Norris (car 2)", p)
+	if p := items[0].Summary.Player; p == nil || p.CarIndex != 2 || p.Source != PlayerSourceChosen {
+		t.Errorf("session 1 player = %+v, want Norris (car 2), chosen", p)
 	}
 	if items[1].Summary.Leader != nil {
 		t.Errorf("session 2 has no results, got leader %+v", items[1].Summary.Leader)

@@ -42,7 +42,7 @@ export const YourResult: React.FC<YourResultProps> = ({ summary, sessionType }) 
     <div
       className={styles.result}
       data-player={me.source}
-      title={me.source === 'driver_name' ? t('history.player.matchedByName') : undefined}
+      title={me.source === 'chosen' ? t('history.player.matchedByName') : undefined}
     >
       <span className={styles.main}>
         <span className={styles.position} data-podium={!out && me.position <= 3 ? me.position : undefined}>
@@ -55,7 +55,7 @@ export const YourResult: React.FC<YourResultProps> = ({ summary, sessionType }) 
             <span className="sr-only">{t(placesKey(gained), { count: Math.abs(gained) })}</span>
           </span>
         )}
-        {me.source === 'driver_name' && (
+        {me.source === 'chosen' && (
           <span className={styles.byName} aria-hidden="true">
             *
           </span>

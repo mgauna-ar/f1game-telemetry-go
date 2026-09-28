@@ -14,7 +14,20 @@ var (
 	ErrSessionAlreadyExists = errors.New("session already exists in database")
 	ErrSessionNotFound      = errors.New("session not found")
 	ErrTagNotFound          = errors.New("tag not found")
+	// ErrCarNotInSession marks a player car pick that is not one of the session's participants.
+	ErrCarNotInSession = errors.New("car is not a participant of the session")
 )
+
+// Who set a session's player car (Session.PlayerCarSource).
+const (
+	// PlayerCarSourceGame: the car came from the recorded packets (PacketHeader.PlayerCarIndex).
+	PlayerCarSourceGame = "game"
+	// PlayerCarSourceUser: the player picked the car in the dashboard. A live re-save keeps it.
+	PlayerCarSourceUser = "user"
+)
+
+// PlayerCarSources lists every PlayerCarSource; it builds the union for the frontend.
+var PlayerCarSources = []string{PlayerCarSourceGame, PlayerCarSourceUser}
 
 // FormatSessionUID formats a uint64 session UID into a standard hexadecimal string (e.g. 0x00000000075BCD15).
 func FormatSessionUID(uid uint64) string {
@@ -42,7 +55,8 @@ type Session struct {
 	AIDifficulty    int       `db:"ai_difficulty" json:"ai_difficulty"`
 	SessionDuration int       `db:"session_duration" json:"session_duration"`
 	PacketFormat    int       `db:"packet_format" json:"packet_format"`
-	PlayerCarIndex  *int      `db:"player_car_index" json:"player_car_index"` // PacketHeader.PlayerCarIndex; null before migration 6 (no backfill) and when spectating
+	PlayerCarIndex  *int      `db:"player_car_index" json:"player_car_index"`                                   // PacketHeader.PlayerCarIndex or the player's pick; null before migration 6 until picked, when spectating, and for "I wasn't driving"
+	PlayerCarSource *string   `db:"player_car_source" json:"player_car_source" tstype:"PlayerCarSource | null"` // who set PlayerCarIndex (PlayerCarSourceGame or PlayerCarSourceUser); null exactly when it is
 	CreatedAt       time.Time `db:"created_at" json:"created_at"`
 	Tags            []Tag     `db:"-" json:"tags"`
 }
@@ -202,6 +216,23 @@ type Participant struct {
 	NumPitStops   int       `db:"num_pit_stops" json:"num_pit_stops"`
 	ResultStatus  int       `db:"result_status" json:"result_status"`
 	CreatedAt     time.Time `db:"created_at" json:"created_at"`
+}
+
+// DisplayName is the participant's name, or the game's name for their driver ID when the game
+// sent none, as the classification shows it.
+func (p Participant) DisplayName() string {
+	if strings.TrimSpace(p.Name) == "" {
+		return packets.DriverName(uint16(p.DriverID))
+	}
+	return p.Name
+}
+
+// BatchPlayerResult is the response of POST /api/sessions/batch-player: the sessions whose player
+// car was set, those with no participant of that name, and those with more than one.
+type BatchPlayerResult struct {
+	Updated   []int64 `json:"updated"`
+	NotFound  []int64 `json:"not_found"`
+	Ambiguous []int64 `json:"ambiguous"`
 }
 
 // LapTelemetryBlob represents the compressed telemetry payload for a single lap.

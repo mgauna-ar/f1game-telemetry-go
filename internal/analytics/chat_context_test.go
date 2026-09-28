@@ -150,6 +150,17 @@ func TestBuildSessionDebrief(t *testing.T) {
 		}
 	})
 
+	t.Run("follows a car the player picked", func(t *testing.T) {
+		cls := grid(5)
+		playerSession := *session
+		user := storage.PlayerCarSourceUser
+		playerSession.PlayerCarIndex, playerSession.PlayerCarSource = new(3), &user
+		summary := BuildSessionDebrief(&playerSession, cls, nil).Summary
+		if !strings.Contains(summary, "- Driver: Driver 4 (#104") || !strings.Contains(summary, "- P4: Driver 4 (#104) (YOU)") {
+			t.Errorf("expected the picked car (Driver 4) as YOU:\n%s", summary)
+		}
+	})
+
 	t.Run("lists the player and the cars either side outside the top drivers", func(t *testing.T) {
 		cls := grid(DebriefMaxDrivers + 8)
 		playerSession := *session

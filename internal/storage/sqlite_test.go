@@ -1703,6 +1703,166 @@ func TestMigrationAddPlayerCarIndexLeavesOldSessionsNull(t *testing.T) {
 	}
 }
 
+func TestMigrationAddPlayerCarSourceMarksRecordedCarsGame(t *testing.T) {
+	db, err := sqlx.Connect("sqlite", filepath.Join(t.TempDir(), "old.db"))
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	t.Cleanup(func() { db.Close() })
+
+	// A database from before the migration, with a recorded car in one session only.
+	if _, err := db.Exec(`CREATE TABLE schema_version (version INTEGER PRIMARY KEY, name TEXT NOT NULL, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); err != nil {
+		t.Fatalf("schema_version: %v", err)
+	}
+	for _, m := range migrations {
+		if m.Name == "add_player_car_source_to_sessions" {
+			break
+		}
+		if _, err := db.Exec(m.SQL); err != nil {
+			t.Fatalf("migration %d: %v", m.Version, err)
+		}
+		if _, err := db.Exec(`INSERT INTO schema_version (version, name) VALUES (?, ?)`, m.Version, m.Name); err != nil {
+			t.Fatalf("record migration %d: %v", m.Version, err)
+		}
+	}
+	if _, err := db.Exec(`INSERT INTO sessions (session_uid, track_id, track_name, session_type, packet_format, player_car_index) VALUES
+		('0x0000000000000001', 11, 'Monza', 'Race', 2025, 3),
+		('0x0000000000000002', 11, 'Monza', 'Race', 2025, NULL)`); err != nil {
+		t.Fatalf("insert old sessions: %v", err)
+	}
+
+	if err := Migrate(db); err != nil {
+		t.Fatalf("Migrate: %v", err)
+	}
+	var sources []sql.NullString
+	if err := db.Select(&sources, `SELECT player_car_source FROM sessions ORDER BY session_uid`); err != nil {
+		t.Fatalf("select: %v", err)
+	}
+	if len(sources) != 2 || sources[0].String != PlayerCarSourceGame || sources[1].Valid {
+		t.Errorf("sources = %+v, want 'game' for the recorded car and NULL for the other", sources)
+	}
+	if _, err := db.Exec(`UPDATE sessions SET player_car_source = 'someone' WHERE session_uid = '0x0000000000000001'`); err == nil {
+		t.Error("the column accepted a source other than 'game' or 'user'")
+	}
+}
+
+func TestSetPlayerCar(t *testing.T) {
+	repo := setupTestRepo(t)
+	ctx := context.Background()
+
+	gameCar := 0
+	s := &Session{SessionUID: FormatSessionUID(2001), TrackName: "Monza", SessionType: "Race", PacketFormat: 2025, PlayerCarIndex: &gameCar}
+	if err := repo.SaveSession(ctx, s); err != nil {
+		t.Fatalf("SaveSession: %v", err)
+	}
+	if err := repo.SaveParticipants(ctx, s.ID, []Participant{{CarIndex: 0, Name: "A"}, {CarIndex: 2, Name: "B"}, {CarIndex: 5, Name: "C"}}); err != nil {
+		t.Fatalf("SaveParticipants: %v", err)
+	}
+	check := func(label string, wantCar *int, wantSource string) {
+		t.Helper()
+		got, err := repo.GetSessionByID(ctx, s.ID)
+		if err != nil {
+			t.Fatalf("GetSessionByID: %v", err)
+		}
+		if wantCar == nil {
+			if got.PlayerCarIndex != nil || got.PlayerCarSource != nil {
+				t.Errorf("%s: car %v, source %v; want both nil", label, got.PlayerCarIndex, got.PlayerCarSource)
+			}
+			return
+		}
+		if got.PlayerCarIndex == nil || *got.PlayerCarIndex != *wantCar || got.PlayerCarSource == nil || *got.PlayerCarSource != wantSource {
+			t.Errorf("%s: car %v, source %v; want %d, %s", label, got.PlayerCarIndex, got.PlayerCarSource, *wantCar, wantSource)
+		}
+	}
+	resave := func(car *int) {
+		t.Helper()
+		again := &Session{SessionUID: s.SessionUID, TrackName: "Monza", SessionType: "Race", PacketFormat: 2025, PlayerCarIndex: car}
+		if car != nil {
+			game := PlayerCarSourceGame
+			again.PlayerCarSource = &game
+		}
+		if err := repo.SaveSession(ctx, again); err != nil {
+			t.Fatalf("SaveSession again: %v", err)
+		}
+	}
+
+	check("recorded", new(0), PlayerCarSourceGame)
+	// A session without a pick follows the game.
+	resave(new(5))
+	check("re-saved by the game", new(5), PlayerCarSourceGame)
+
+	if err := repo.SetPlayerCar(ctx, s.ID, new(2)); err != nil {
+		t.Fatalf("SetPlayerCar: %v", err)
+	}
+	check("picked", new(2), PlayerCarSourceUser)
+	// A live re-save never overwrites the pick, with or without a car.
+	resave(new(0))
+	resave(nil)
+	check("re-saved after a pick", new(2), PlayerCarSourceUser)
+
+	if err := repo.SetPlayerCar(ctx, s.ID, new(9)); !errors.Is(err, ErrCarNotInSession) {
+		t.Errorf("unknown car: err = %v, want ErrCarNotInSession", err)
+	}
+	if err := repo.SetPlayerCar(ctx, 999999, new(2)); !errors.Is(err, ErrSessionNotFound) {
+		t.Errorf("unknown session: err = %v, want ErrSessionNotFound", err)
+	}
+	if err := repo.SetPlayerCar(ctx, 999999, nil); !errors.Is(err, ErrSessionNotFound) {
+		t.Errorf("unknown session, clearing: err = %v, want ErrSessionNotFound", err)
+	}
+	check("after rejected picks", new(2), PlayerCarSourceUser)
+
+	if err := repo.SetPlayerCar(ctx, s.ID, nil); err != nil {
+		t.Fatalf("SetPlayerCar nil: %v", err)
+	}
+	check("cleared", nil, "")
+}
+
+func TestPlayerCarSourceExportImport(t *testing.T) {
+	repo := setupTestRepo(t)
+	ctx := context.Background()
+
+	car := 1
+	s := &Session{SessionUID: FormatSessionUID(3001), TrackName: "Monza", SessionType: "Race", PacketFormat: 2025, PlayerCarIndex: &car}
+	if err := repo.SaveSession(ctx, s); err != nil {
+		t.Fatalf("SaveSession: %v", err)
+	}
+	if err := repo.SaveParticipants(ctx, s.ID, []Participant{{CarIndex: 1, Name: "A"}, {CarIndex: 4, Name: "B"}}); err != nil {
+		t.Fatalf("SaveParticipants: %v", err)
+	}
+	if err := repo.SetPlayerCar(ctx, s.ID, new(4)); err != nil {
+		t.Fatalf("SetPlayerCar: %v", err)
+	}
+	pkg, err := repo.ExportSession(ctx, s.ID)
+	if err != nil {
+		t.Fatalf("ExportSession: %v", err)
+	}
+	if pkg.Session.PlayerCarSource == nil || *pkg.Session.PlayerCarSource != PlayerCarSourceUser {
+		t.Fatalf("exported source = %v, want user", pkg.Session.PlayerCarSource)
+	}
+
+	importAndGet := func() *Session {
+		t.Helper()
+		id, err := repo.ImportSessionWithOptions(ctx, pkg, true)
+		if err != nil {
+			t.Fatalf("ImportSession: %v", err)
+		}
+		got, err := repo.GetSessionByID(ctx, id)
+		if err != nil {
+			t.Fatalf("GetSessionByID: %v", err)
+		}
+		return got
+	}
+	// The import keeps the file's value.
+	if got := importAndGet(); got.PlayerCarIndex == nil || *got.PlayerCarIndex != 4 || *got.PlayerCarSource != PlayerCarSourceUser {
+		t.Errorf("imported car %v, source %v; want 4, user", got.PlayerCarIndex, got.PlayerCarSource)
+	}
+	// An export made before sources were stored has a car and no source: the game's.
+	pkg.Session.PlayerCarSource = nil
+	if got := importAndGet(); got.PlayerCarIndex == nil || *got.PlayerCarIndex != 4 || got.PlayerCarSource == nil || *got.PlayerCarSource != PlayerCarSourceGame {
+		t.Errorf("imported old export: car %v, source %v; want 4, game", got.PlayerCarIndex, got.PlayerCarSource)
+	}
+}
+
 func TestGetSessionResults(t *testing.T) {
 	repo := setupTestRepo(t)
 	ctx := context.Background()

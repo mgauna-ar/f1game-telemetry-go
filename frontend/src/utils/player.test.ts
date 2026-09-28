@@ -18,7 +18,7 @@ describe('findPlayer', () => {
   });
 
   it('matches the saved driver name, or race number, for older sessions', () => {
-    expect(findPlayer(participants, null, 'norris')).toEqual({ participant: participants[1], source: 'driver_name' });
+    expect(findPlayer(participants, null, 'norris')).toEqual({ participant: participants[1], source: 'chosen' });
     expect(findPlayer(participants, null, '#81')?.participant.car_index).toBe(2);
     expect(findPlayer(participants, null, '')).toBeUndefined();
     expect(findPlayer(participants, null, 'Senna')).toBeUndefined();

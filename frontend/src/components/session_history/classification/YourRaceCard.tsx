@@ -87,7 +87,7 @@ export const YourRaceCard: React.FC<YourRaceCardProps> = ({
             <span className={styles.muted}>
               {t('history.player.driverDetail', { number: me.participant.race_number, team: me.teamName || '—' })}
             </span>
-            {playerSource === 'driver_name' && (
+            {playerSource === 'chosen' && (
               <span className={styles.muted}>· {t('history.player.matchedByName')}</span>
             )}
           </span>

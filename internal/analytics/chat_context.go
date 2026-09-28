@@ -90,15 +90,15 @@ func (s *ChatContextSource) lapWithSession(ctx context.Context, lapID int64) (*s
 }
 
 // BuildSessionDebrief writes the session classification summary the debrief chat reads. When
-// the session stored the player's car, the debrief is about that driver's race: their result
+// the session has the player's car (recorded or picked), the debrief is about that driver's race: their result
 // comes first, their line is marked (YOU), and they and the cars either side of them are listed
-// even outside the top DebriefMaxDrivers. Sessions recorded before the player's car was stored
-// get the classification alone. The stored race-control events add the key moments
+// even outside the top DebriefMaxDrivers. Sessions without one get the
+// classification alone. The stored race-control events add the key moments
 // (writeDebriefMoments); sessions recorded before they were stored have none.
 func BuildSessionDebrief(session *storage.Session, cls *ClassificationResponse, events []sessionfeed.FeedEvent) ai.SessionDebrief {
 	var sb strings.Builder
 	standings := cls.Standings
-	me, _ := FindPlayerStanding(standings, session.PlayerCarIndex, "")
+	me, _ := FindPlayerStanding(standings, session)
 
 	sb.WriteString("SESSION CLASSIFICATION & METRICS:\n")
 	fmt.Fprintf(&sb, "- Circuit: %s\n", session.TrackName)

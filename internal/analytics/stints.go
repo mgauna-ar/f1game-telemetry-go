@@ -275,10 +275,7 @@ func buildDriverStintData(p storage.Participant, pIdx int, driverLaps []storage.
 		totalPits = 0
 	}
 
-	driverName := p.Name
-	if strings.TrimSpace(driverName) == "" {
-		driverName = packets.DriverName(uint16(p.DriverID))
-	}
+	driverName := p.DisplayName()
 
 	pos := p.Position
 	if pos == 0 && len(driverLaps) > 0 {

@@ -20,8 +20,8 @@ type TrackProgressResponse struct {
 	Tracks []ProgressTrack `json:"tracks"`
 	// Sessions are the track's sessions where the player was found, oldest first.
 	Sessions []ProgressSession `json:"sessions"`
-	// UnmatchedSessions counts the track's sessions left out because the player wasn't found in
-	// them (no stored car, and no driver name or no car matching it).
+	// UnmatchedSessions counts the track's sessions left out because they have no player car
+	// (none recorded and none picked).
 	UnmatchedSessions int `json:"unmatched_sessions"`
 }
 
@@ -91,13 +91,13 @@ func ProgressTracks(sessions []storage.Session) []ProgressTrack {
 }
 
 // ComputeTrackProgress builds the player's progress at a track from its sessions (any order) and
-// their participants and laps (storage.Repository.GetSessionResults). driverName finds the player
-// in sessions without a stored car, as in the session list.
-func ComputeTrackProgress(sessions []storage.Session, participants map[int64][]storage.Participant, laps map[int64][]storage.Lap, driverName string) (points []ProgressSession, unmatched int) {
+// their participants and laps (storage.Repository.GetSessionResults). unmatched counts the
+// sessions without a player car (recorded or picked).
+func ComputeTrackProgress(sessions []storage.Session, participants map[int64][]storage.Participant, laps map[int64][]storage.Lap) (points []ProgressSession, unmatched int) {
 	points = []ProgressSession{}
 	for i := range sessions {
 		s := &sessions[i]
-		point, ok := computeProgressSession(s, participants[s.ID], laps[s.ID], driverName)
+		point, ok := computeProgressSession(s, participants[s.ID], laps[s.ID])
 		if !ok {
 			unmatched++
 			continue
@@ -108,9 +108,9 @@ func ComputeTrackProgress(sessions []storage.Session, participants map[int64][]s
 	return points, unmatched
 }
 
-func computeProgressSession(session *storage.Session, participants []storage.Participant, laps []storage.Lap, driverName string) (ProgressSession, bool) {
+func computeProgressSession(session *storage.Session, participants []storage.Participant, laps []storage.Lap) (ProgressSession, bool) {
 	cls := ComputeSessionClassification(session, participants, laps)
-	me, source := FindPlayerStanding(cls.Standings, session.PlayerCarIndex, driverName)
+	me, source := FindPlayerStanding(cls.Standings, session)
 	if me == nil {
 		return ProgressSession{}, false
 	}

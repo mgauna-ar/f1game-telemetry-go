@@ -43,7 +43,7 @@ const response = (fields: Partial<TrackProgressResponse> = {}): TrackProgressRes
       gap_to_fastest_ms: 0,
       consistency_ms: 420,
       clean_laps: 8,
-      source: 'driver_name',
+      source: 'chosen',
     }),
   ],
   unmatched_sessions: 1,
