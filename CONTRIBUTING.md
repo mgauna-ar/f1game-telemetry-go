@@ -14,7 +14,8 @@ Thank you for your interest in contributing! 🏎️
 
 ## Prerequisites
 
-- [Go 1.21+](https://go.dev/dl/)
+- [Go 1.26+](https://go.dev/dl/)
+- [Node.js 22+](https://nodejs.org/)
 - Make (for build tasks)
 
 ## Branch Naming

@@ -314,11 +314,6 @@ export const ACTIVE_AERO_MODES = {
   STRAIGHT: 1,
 } as const;
 
-export const TELEMETRY_DOWNSAMPLE_LIMITS = {
-  DEFAULT_MAX_POINTS: 800,
-  BUFFER_THRESHOLD: 850,
-} as const;
-
 /** Sessions whose participants and laps the client keeps (utils/sessionDataCache.ts); about 0.6 MB each for a full race. */
 export const SESSION_DATA_CACHE_LIMIT = 8;
 
@@ -943,6 +938,3 @@ export const calculateEnginePowerPct = (tempC: number): { powerPct: number; powe
 
   return { powerPct: 100, powerLossPct: 0 };
 };
-
-
-

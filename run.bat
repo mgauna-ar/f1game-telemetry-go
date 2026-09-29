@@ -10,7 +10,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command "Unblock-File -Path '%~dp
 where go >nul 2>&1
 if errorlevel 1 (
     echo [ERROR] Go compiler is not installed or not in PATH.
-    echo Please install Go 1.21+ from https://go.dev/dl/
+    echo Please install Go 1.26+ from https://go.dev/dl/
     echo.
     pause
     exit /b 1
@@ -19,7 +19,7 @@ if errorlevel 1 (
 where npm >nul 2>&1
 if errorlevel 1 (
     echo [ERROR] Node.js / npm is not installed or not in PATH.
-    echo Please install Node.js 18+ from https://nodejs.org/
+    echo Please install Node.js 22+ from https://nodejs.org/
     echo.
     pause
     exit /b 1
