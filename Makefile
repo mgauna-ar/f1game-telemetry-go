@@ -1,4 +1,4 @@
-.PHONY: gen-types build run run-embedded build-frontend build-embedded build-all dev test test-short lint clean help fmt simulate install-hooks
+.PHONY: gen-types build run run-embedded build-frontend build-embedded build-all dev test test-short lint clean help fmt simulate install-hooks demo-gif
 
 BINARY_NAME=f1telemetry
 BUILD_DIR=bin
@@ -84,3 +84,7 @@ install-hooks:
 	cp scripts/pre-commit.sh .git/hooks/pre-commit
 	chmod +x .git/hooks/pre-commit
 	@echo "Pre-commit hooks installed successfully!"
+
+## demo-gif: Regenerate docs/assets/demo.gif for README.md
+demo-gif:
+	node .agents/skills/regenerate-readme-gif/scripts/generate-demo-gif.mjs
