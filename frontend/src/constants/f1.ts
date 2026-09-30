@@ -796,7 +796,7 @@ export const STORAGE_KEY_LIVE_VIEW_MODE = 'f1_live_view_mode';
 
 /** What the live telemetry feed is doing right now, as shown in the nav and the live header. */
 export const LIVE_STATUS = {
-  /** Not connected to the backend (or not on the Live tab, where the feed is opened). */
+  /** The backend can't be reached. */
   OFFLINE: 'offline',
   /** Connected to the backend, but no session packets have arrived yet. */
   LISTENING: 'listening',
@@ -812,6 +812,10 @@ export type LiveStatus = (typeof LIVE_STATUS)[keyof typeof LIVE_STATUS];
 export const LIVE_STALE_AFTER_MS = 3_000;
 /** How often the live status re-checks for a stale feed. */
 export const LIVE_STATUS_POLL_MS = 1_000;
+/** How often pages without the live feed ask the server whether telemetry is arriving. */
+export const SYSTEM_STATUS_POLL_MS = 2_000;
+/** Pages without the live feed stop calling a session stale (and go back to listening) after this long. */
+export const LIVE_STALE_FORGET_MS = 60_000;
 
 /** The game's default UDP telemetry port, shown until the server reports the real one. */
 export const DEFAULT_UDP_PORT = 20777;

@@ -101,6 +101,7 @@ func registry() *tsgen.Generator {
 		system.AppVersion{},
 		system.UpdateCheckResponse{},
 		system.TelemetryEndpoint{},
+		api.SystemStatus{},
 	)
 
 	// An AI chat request names what it is about; the server builds the prompt data.

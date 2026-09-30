@@ -1,10 +1,17 @@
 import { create } from 'zustand';
 
+export interface ToastAction {
+  label: string;
+  /** Runs on click; the toast closes afterwards. */
+  onAction: () => void;
+}
+
 export interface Toast {
   id: string;
   type: 'success' | 'error' | 'info';
   message: string;
   duration?: number;
+  action?: ToastAction;
 }
 
 export interface ToastStore {
@@ -18,9 +25,9 @@ let toastCounter = 0;
 
 export const useToastStore = create<ToastStore>((set, get) => ({
   toasts: [],
-  showToast: ({ type, message, duration = 4000 }) => {
+  showToast: ({ type, message, duration = 4000, action }) => {
     const id = `toast-${Date.now()}-${++toastCounter}`;
-    const newToast: Toast = { id, type, message, duration };
+    const newToast: Toast = { id, type, message, duration, action };
 
     set((state) => ({
       toasts: [...state.toasts, newToast],

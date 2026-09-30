@@ -23,6 +23,8 @@ export const live = {
   statusListening: 'ESCUCHANDO',
   statusStale: 'SIN SEÑAL',
   statusStaleTitle: 'Sin telemetría hace unos segundos: el juego está cerrado, en pausa o en los menús',
+  sessionDetected: 'Sesión en vivo detectada: {session} en {track}',
+  sessionDetectedOpen: 'Abrir',
   noTime: 'SIN TIEMPO',
   statusRetired: 'RET',
   statusDnf: 'DNF',

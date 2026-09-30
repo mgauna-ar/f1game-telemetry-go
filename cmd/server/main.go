@@ -142,9 +142,10 @@ func run(cfg ServerConfig) error {
 	inputMgr.Start(ctx)
 
 	engineerEngine := engineer.NewEngineerEngine(engineerHub)
+	liveBroadcaster := session.NewLiveBroadcaster(telemetryHub)
 
 	// 4. Initialize HTTP Server with bound TCP listener
-	ln, srv, err := initHTTPServer(cfg, repo, telemetryHub, engineerHub, inputMgr, engineerEngine)
+	ln, srv, err := initHTTPServer(cfg, repo, telemetryHub, engineerHub, inputMgr, engineerEngine, liveBroadcaster)
 	if err != nil {
 		return fmt.Errorf("failed to bind HTTP server on %s: %w", cfg.HTTPAddr, err)
 	}
@@ -168,7 +169,6 @@ func run(cfg ServerConfig) error {
 	sessionManager := session.NewSessionManager(repo)
 	sessionManager.Start(ctx)
 
-	liveBroadcaster := session.NewLiveBroadcaster(telemetryHub)
 	// The race-control feed rows the dashboards get are stored with the session too
 	liveBroadcaster.SetFeedEventSink(func(sessionUID uint64, events []session.FeedEvent) {
 		sessionManager.RecordFeedEvents(ctx, sessionUID, events)
@@ -199,6 +199,7 @@ func initHTTPServer(
 	telemetryHub, engineerHub *api.Hub,
 	inputMgr input.Manager,
 	engineerEngine *engineer.EngineerEngine,
+	liveFeed api.LiveFeed,
 ) (net.Listener, *http.Server, error) {
 	apiConfig := api.ServerConfig{
 		GeminiAPIKey: cfg.GeminiAPIKey,
@@ -212,6 +213,7 @@ func initHTTPServer(
 	apiServer := api.NewServer(repo, telemetryHub, engineerHub, apiConfig)
 	apiServer.SetInputManager(inputMgr)
 	apiServer.SetEngineerEngine(engineerEngine)
+	apiServer.SetLiveFeed(liveFeed)
 
 	srv := &http.Server{
 		Addr:    cfg.HTTPAddr,

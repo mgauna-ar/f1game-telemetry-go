@@ -17,6 +17,7 @@
 * **Dual View Modes:** Switch between the complete 2×2 Race Control Hub and a zero-overhead **Voice Cockpit Mode** built for maximum FPS on sim rigs and VR.
 * **Live Leaderboard & Timing Tower:** Full-grid timing tower with interval deltas, tyre compounds, pit status, and live Active Aero / Boost indicators.
 * **Dynamic Weather & Radar:** Live precipitation forecasts (+5m to +30m), track temperature trends, and tyre crossover recommendations.
+* **Live Status on Every Page:** The nav's LIVE badge is accurate from any page (the server reports packet age and the active session at `GET /api/system/status`), and a toast offers to open the Live view as soon as a session starts.
 * **Real-Time Incidents & Sectors:** Instant race-control ticker tracking overtakes, penalties, safety cars, sector splits, speed traps, and theoretical best laps in English and Spanish.
 
 ### 🔍 Lap Comparator & Track Map

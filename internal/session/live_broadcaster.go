@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
@@ -25,6 +26,11 @@ type LiveBroadcaster struct {
 	hub      HubBroadcaster
 	mu       sync.RWMutex
 	feedSink FeedEventSink
+
+	// lastPacketAt is the UnixNano time of the last packet, read by FeedStatus without the lock
+	lastPacketAt atomic.Int64
+	// sessionHeader is the header of the last session packet, which names the session reported
+	sessionHeader packets.PacketHeader
 
 	dirty         bool
 	latestHeader  packets.PacketHeader
@@ -237,6 +243,7 @@ func (b *LiveBroadcaster) ProcessPacket(pkt packets.Packet) {
 	}
 
 	header := pkt.GetHeader()
+	b.notePacket(time.Now())
 
 	switch p := pkt.(type) {
 	case *packets.PacketEventData:
@@ -252,6 +259,7 @@ func (b *LiveBroadcaster) ProcessPacket(pkt packets.Packet) {
 		b.mu.Lock()
 		b.checkSessionTransition(header.SessionUID)
 		b.latestHeader = header
+		b.sessionHeader = header
 		b.session = p
 
 		// Synthesize Safety Car state changes

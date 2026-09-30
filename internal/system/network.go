@@ -27,14 +27,12 @@ type TelemetryEndpoint struct {
 func DescribeTelemetryEndpoint(udpAddr string) TelemetryEndpoint {
 	endpoint := TelemetryEndpoint{UDPAddr: udpAddr, LocalIP: LoopbackIPv4, LANIPs: []string{}}
 
-	host, portStr, err := net.SplitHostPort(udpAddr)
+	host, _, err := net.SplitHostPort(udpAddr)
 	if err != nil {
 		endpoint.LANIPs = LANIPv4Addresses()
 		return endpoint
 	}
-	if port, err := strconv.Atoi(portStr); err == nil {
-		endpoint.UDPPort = port
-	}
+	endpoint.UDPPort = ListenPort(udpAddr)
 
 	ip := net.ParseIP(host)
 	switch {
@@ -47,6 +45,19 @@ func DescribeTelemetryEndpoint(udpAddr string) TelemetryEndpoint {
 		endpoint.LANIPs = []string{host}
 	}
 	return endpoint
+}
+
+// ListenPort is the port of a listen address such as "0.0.0.0:20777", or 0 when it can't be parsed.
+func ListenPort(addr string) int {
+	_, portStr, err := net.SplitHostPort(addr)
+	if err != nil {
+		return 0
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return 0
+	}
+	return port
 }
 
 // LANIPv4Addresses lists the IPv4 addresses other devices on the network can reach this PC on:

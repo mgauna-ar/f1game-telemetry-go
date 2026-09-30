@@ -18,6 +18,15 @@ export interface AISettingsResponse {
   providers: Record<string, AIProviderStatus>;
 }
 
+/** Go: api.ActiveSession */
+export interface ActiveSession {
+  session_uid: string;
+  session_type: number;
+  track_id: number;
+  packet_format: number;
+  player_car_index: number;
+}
+
 /** Go: api.BatchDeleteResponse */
 export interface BatchDeleteResponse {
   status: string;
@@ -92,6 +101,14 @@ export type SettingsSection = 'ai' | 'voice' | 'ptt' | 'engineer';
 /** Go: api.StatusResponse */
 export interface StatusResponse {
   status: string;
+}
+
+/** Go: api.SystemStatus */
+export interface SystemStatus {
+  udp_addr: string;
+  udp_port: number;
+  packet_age_ms: number | null;
+  session: ActiveSession | null;
 }
 
 /** Go: api.VoiceSettingsResponse */
