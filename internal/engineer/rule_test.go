@@ -26,7 +26,7 @@ func TestTyresRule_Unit(t *testing.T) {
 	// 1. Wear Warning at 42%
 	damagePkt := &packets.PacketCarDamageData{
 		CarDamageData: [packets.MaxCars]packets.CarDamageData{
-			{TyresWear: [4]float32{42.0, 38.0, 30.0, 25.0}},
+			{TyresWear: wheels[float32](42.0, 38.0, 30.0, 25.0)},
 		},
 	}
 	ctx1 := &EvaluationContext{
@@ -60,7 +60,7 @@ func TestTyresRule_Unit(t *testing.T) {
 	// 4. Critical Puncture emergency bypass (>= 95%)
 	puncturePkt := &packets.PacketCarDamageData{
 		CarDamageData: [packets.MaxCars]packets.CarDamageData{
-			{TyresWear: [4]float32{96.0, 20.0, 20.0, 20.0}},
+			{TyresWear: wheels[float32](96.0, 20.0, 20.0, 20.0)},
 		},
 	}
 	ctxPuncture := &EvaluationContext{
@@ -78,7 +78,7 @@ func TestTyresRule_Unit(t *testing.T) {
 	telemetryPkt := &packets.PacketCarTelemetryData{
 		CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
 			{
-				TyresSurfaceTemperature: [4]uint8{100, 100, 112, 111}, // Rears at 112°C
+				TyresSurfaceTemperature: wheels[uint8](100, 100, 112, 111), // Rears at 112°C
 			},
 		},
 	}
@@ -423,7 +423,7 @@ func TestERSRuleAndBrakesRule_Unit(t *testing.T) {
 	// 2. Brake Overheat
 	telePkt := &packets.PacketCarTelemetryData{
 		CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
-			{BrakesTemperature: [4]uint16{960, 920, 800, 800}},
+			{BrakesTemperature: wheels[uint16](960, 920, 800, 800)},
 		},
 	}
 	ctxBrakes := &EvaluationContext{
@@ -1369,7 +1369,7 @@ func TestBrakesRule_FadeAndCold(t *testing.T) {
 	ctxFade := &EvaluationContext{
 		Telemetry: &packets.PacketCarTelemetryData{
 			CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
-				{BrakesTemperature: [4]uint16{950, 910, 800, 800}},
+				{BrakesTemperature: wheels[uint16](950, 910, 800, 800)},
 			},
 		},
 		Config:         cfg,
@@ -1384,7 +1384,7 @@ func TestBrakesRule_FadeAndCold(t *testing.T) {
 	ctxCold := &EvaluationContext{
 		Telemetry: &packets.PacketCarTelemetryData{
 			CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
-				{BrakesTemperature: [4]uint16{80, 85, 70, 75}},
+				{BrakesTemperature: wheels[uint16](80, 85, 70, 75)},
 			},
 		},
 		Config:         cfg,
@@ -1401,7 +1401,7 @@ func TestBrakesRule_FadeAndCold(t *testing.T) {
 	ctxBias := &EvaluationContext{
 		Telemetry: &packets.PacketCarTelemetryData{
 			CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
-				{BrakesTemperature: [4]uint16{850, 850, 400, 400}},
+				{BrakesTemperature: wheels[uint16](850, 850, 400, 400)},
 			},
 		},
 		Config:         cfg,
@@ -1430,7 +1430,7 @@ func TestTyresRule_ColdAndSuppression(t *testing.T) {
 	ctxCold := &EvaluationContext{
 		Telemetry: &packets.PacketCarTelemetryData{
 			CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
-				{TyresSurfaceTemperature: [4]uint8{60, 65, 55, 58}},
+				{TyresSurfaceTemperature: wheels[uint8](60, 65, 55, 58)},
 			},
 		},
 		Status: &packets.PacketCarStatusData{
@@ -1960,7 +1960,7 @@ func TestNeutralizationShields_TeammateFuelRivalsTyres(t *testing.T) {
 	ctxTyresSC := &EvaluationContext{
 		Telemetry: &packets.PacketCarTelemetryData{
 			CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
-				{TyresSurfaceTemperature: [4]uint8{120, 120, 125, 125}},
+				{TyresSurfaceTemperature: wheels[uint8](120, 120, 125, 125)},
 			},
 		},
 		Status: &packets.PacketCarStatusData{
@@ -2342,7 +2342,7 @@ func TestPhase5CockpitAndCrossovers(t *testing.T) {
 		teleImbalanced := &packets.PacketCarTelemetryData{
 			CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
 				{
-					BrakesTemperature: [4]uint16{850, 850, 400, 400}, // Front 850, Rear 400 (delta 450 >= 400)
+					BrakesTemperature: wheels[uint16](850, 850, 400, 400), // Front 850, Rear 400 (delta 450 >= 400)
 				},
 			},
 		}
@@ -2361,7 +2361,7 @@ func TestPhase5CockpitAndCrossovers(t *testing.T) {
 		teleBalanced := &packets.PacketCarTelemetryData{
 			CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
 				{
-					BrakesTemperature: [4]uint16{600, 600, 550, 550}, // Front 600, Rear 550 (delta 50 < 150)
+					BrakesTemperature: wheels[uint16](600, 600, 550, 550), // Front 600, Rear 550 (delta 50 < 150)
 				},
 			},
 		}
@@ -2692,7 +2692,7 @@ func TestPhase6AeroPitOverspeedAndDynamics(t *testing.T) {
 		damageBlister := &packets.PacketCarDamageData{
 			CarDamageData: [packets.MaxCars]packets.CarDamageData{
 				{
-					TyreBlisters: [4]uint8{42, 10, 15, 20}, // Front Left blister 42% >= 35%
+					TyreBlisters: wheels[uint8](42, 10, 15, 20), // Front Left blister 42% >= 35%
 				},
 			},
 		}
@@ -2714,7 +2714,7 @@ func TestPhase6AeroPitOverspeedAndDynamics(t *testing.T) {
 		teleSpike := &packets.PacketCarTelemetryData{
 			CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
 				{
-					TyresPressure: [4]float32{26.1, 23.0, 23.0, 23.0}, // Front Left 26.1 >= 25.5 PSI
+					TyresPressure: wheels[float32](26.1, 23.0, 23.0, 23.0), // Front Left 26.1 >= 25.5 PSI
 				},
 			},
 		}
@@ -2734,7 +2734,7 @@ func TestPhase6AeroPitOverspeedAndDynamics(t *testing.T) {
 		teleAsym := &packets.PacketCarTelemetryData{
 			CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
 				{
-					TyresPressure: [4]float32{24.8, 22.9, 23.0, 23.0}, // Front delta 1.9 >= 1.5 PSI
+					TyresPressure: wheels[float32](24.8, 22.9, 23.0, 23.0), // Front delta 1.9 >= 1.5 PSI
 				},
 			},
 		}

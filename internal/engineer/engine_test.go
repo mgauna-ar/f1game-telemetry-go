@@ -129,7 +129,7 @@ func TestEngineerEngine_TyreSubsystem(t *testing.T) {
 	damagePkt1 := &packets.PacketCarDamageData{
 		Header: header1,
 		CarDamageData: [packets.MaxCars]packets.CarDamageData{
-			{TyresWear: [4]float32{42.0, 38.0, 30.0, 29.0}},
+			{TyresWear: wheels[float32](42.0, 38.0, 30.0, 29.0)},
 		},
 	}
 	engine.ProcessPacket(ctx, damagePkt1)
@@ -156,7 +156,7 @@ func TestEngineerEngine_TyreSubsystem(t *testing.T) {
 	puncturePkt := &packets.PacketCarDamageData{
 		Header: header2,
 		CarDamageData: [packets.MaxCars]packets.CarDamageData{
-			{TyresWear: [4]float32{96.0, 30.0, 25.0, 20.0}},
+			{TyresWear: wheels[float32](96.0, 30.0, 25.0, 20.0)},
 		},
 	}
 	engine.ProcessPacket(ctx, puncturePkt)
@@ -184,7 +184,7 @@ func TestEngineerEngine_TyreSubsystem(t *testing.T) {
 		Header: header3,
 		CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
 			{
-				TyresSurfaceTemperature: [4]uint8{100, 100, 112, 111}, // Rear Left/Right at 112°C
+				TyresSurfaceTemperature: wheels[uint8](100, 100, 112, 111), // Rear Left/Right at 112°C
 				Brake:                   0,
 				Steer:                   0,
 			},
@@ -222,7 +222,7 @@ func TestEngineerEngine_TyreSubsystem(t *testing.T) {
 		Header: header4,
 		CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
 			{
-				TyresSurfaceTemperature: [4]uint8{100, 100, 112, 111},
+				TyresSurfaceTemperature: wheels[uint8](100, 100, 112, 111),
 				Brake:                   0,
 				Steer:                   0,
 			},
@@ -356,7 +356,7 @@ func TestEngineerEngine_ERSAndBrakes(t *testing.T) {
 		Header: header,
 		CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
 			{
-				BrakesTemperature: [4]uint16{950, 940, 800, 810},
+				BrakesTemperature: wheels[uint16](950, 940, 800, 810),
 				Brake:             0,
 				Steer:             0,
 			},
@@ -604,7 +604,7 @@ func TestEngineerEngine_SmartDiscretionSuppression(t *testing.T) {
 	damagePkt := &packets.PacketCarDamageData{
 		Header: header,
 		CarDamageData: [packets.MaxCars]packets.CarDamageData{
-			{TyresWear: [4]float32{45.0, 30.0, 20.0, 20.0}},
+			{TyresWear: wheels[float32](45.0, 30.0, 20.0, 20.0)},
 		},
 	}
 	engine.ProcessPacket(ctx, damagePkt)
@@ -645,7 +645,7 @@ func TestEngineerEngine_DeduplicationScopesAndOutLapGuard(t *testing.T) {
 	telemetryPkt := &packets.PacketCarTelemetryData{
 		Header: header,
 		CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
-			{TyresSurfaceTemperature: [4]uint8{70, 70, 70, 70}}, // Cold tyres
+			{TyresSurfaceTemperature: wheels[uint8](70, 70, 70, 70)}, // Cold tyres
 		},
 	}
 	engine.ProcessPacket(ctx, lapPktEarly)
@@ -695,7 +695,7 @@ func TestEngineerEngine_DeduplicationScopesAndOutLapGuard(t *testing.T) {
 	damageStint := &packets.PacketCarDamageData{
 		Header: header901,
 		CarDamageData: [packets.MaxCars]packets.CarDamageData{
-			{TyresWear: [4]float32{42.0, 30.0, 20.0, 20.0}},
+			{TyresWear: wheels[float32](42.0, 30.0, 20.0, 20.0)},
 		},
 	}
 	engine.ProcessPacket(ctx, lapStint)
@@ -1237,7 +1237,7 @@ func TestEngineerEngine_StartSilenceAndPostRaceSuppression(t *testing.T) {
 	damagePkt := &packets.PacketCarDamageData{
 		Header: header,
 		CarDamageData: [packets.MaxCars]packets.CarDamageData{
-			{TyresWear: [4]float32{45.0, 30.0, 20.0, 20.0}},
+			{TyresWear: wheels[float32](45.0, 30.0, 20.0, 20.0)},
 		},
 	}
 	engine.ProcessPacket(ctx, damagePkt)
@@ -1250,7 +1250,7 @@ func TestEngineerEngine_StartSilenceAndPostRaceSuppression(t *testing.T) {
 	puncturePkt := &packets.PacketCarDamageData{
 		Header: header,
 		CarDamageData: [packets.MaxCars]packets.CarDamageData{
-			{TyresWear: [4]float32{96.0, 30.0, 20.0, 20.0}},
+			{TyresWear: wheels[float32](96.0, 30.0, 20.0, 20.0)},
 		},
 	}
 	engine.ProcessPacket(ctx, puncturePkt)
@@ -1339,7 +1339,7 @@ func TestEngineerEngine_GlobalRadioCooldown(t *testing.T) {
 	puncturePkt := &packets.PacketCarDamageData{
 		Header: header,
 		CarDamageData: [packets.MaxCars]packets.CarDamageData{
-			{TyresWear: [4]float32{96.0, 20.0, 20.0, 20.0}},
+			{TyresWear: wheels[float32](96.0, 20.0, 20.0, 20.0)},
 		},
 	}
 	engine.ProcessPacket(ctx, puncturePkt)

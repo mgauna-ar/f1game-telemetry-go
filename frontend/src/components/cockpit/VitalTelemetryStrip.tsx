@@ -1,7 +1,13 @@
 import React from 'react';
 import { Zap, Fuel, Gauge, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
-import { DRIVER_STATUS, ACTIVE_AERO_MODES, TYRE_COMPOUND_IDS, MAX_ERS_STORE_ENERGY_J } from '../../constants/f1';
+import {
+  DRIVER_STATUS,
+  ACTIVE_AERO_MODES,
+  TYRE_COMPOUND_IDS,
+  MAX_ERS_STORE_ENERGY_J,
+  WHEELS_FRONT_FIRST,
+} from '../../constants/f1';
 import { TyreCompoundBadge } from '../common/TyreCompoundBadge';
 import { TrackFlag } from '../TrackFlag';
 import { Badge } from '../ui/Badge';
@@ -106,10 +112,10 @@ export const VitalTelemetryStrip: React.FC<VitalTelemetryStripProps> = ({
   const activeAeroMode = telemetry2?.ActiveAeroMode;
   const boostActive = telemetry2 && typeof telemetry2.OvertakeActive === 'number' && telemetry2.OvertakeActive > 0;
 
-  const corners = ['FL', 'FR', 'RL', 'RR'].map((label, i) => ({
+  const corners = WHEELS_FRONT_FIRST.map(({ label, index }) => ({
     label,
-    wear: roundedWears[i],
-    temp: Math.round(surfTemps[i] || 0),
+    wear: roundedWears[index],
+    temp: Math.round(surfTemps[index] || 0),
   }));
 
   return (

@@ -162,6 +162,12 @@ describe('VoiceCockpitView', () => {
     expect(screen.getByText('12 L')).toBeInTheDocument();
     // Max tyre wear (22.1% -> 22%)
     expect(screen.getByText(/Peak: 22%/i)).toBeInTheDocument();
+    // Wheel arrays are RL, RR, FL, FR: the corners read FL 15%, FR 20%, RL 18%, RR 22%
+    const corner = (label: string) => screen.getByText(label, { selector: 'span' }).closest('li');
+    expect(corner('FL')).toHaveTextContent('15%');
+    expect(corner('FR')).toHaveTextContent('20%');
+    expect(corner('RL')).toHaveTextContent('18%');
+    expect(corner('RR')).toHaveTextContent('22%');
     // Fuel +1.4 Laps
     expect(screen.getByText('+1.4 Laps')).toBeInTheDocument();
     // ERS 70%

@@ -21,12 +21,24 @@ export const PACKET_IDS = {
   LIVE_SNAPSHOT: 255,
 } as const;
 
+/**
+ * Indices into the packets' wheel arrays (tyre wear, temperatures, pressures, brakes, damage),
+ * which the UDP specification orders RL, RR, FL, FR.
+ */
 export const WHEEL_INDEX = {
-  FRONT_LEFT: 0,
-  FRONT_RIGHT: 1,
-  REAR_LEFT: 2,
-  REAR_RIGHT: 3,
+  REAR_LEFT: 0,
+  REAR_RIGHT: 1,
+  FRONT_LEFT: 2,
+  FRONT_RIGHT: 3,
 } as const;
+
+/** The wheels in reading order, front axle first, with the label shown for each. */
+export const WHEELS_FRONT_FIRST = [
+  { key: 'fl', label: 'FL', index: WHEEL_INDEX.FRONT_LEFT },
+  { key: 'fr', label: 'FR', index: WHEEL_INDEX.FRONT_RIGHT },
+  { key: 'rl', label: 'RL', index: WHEEL_INDEX.REAR_LEFT },
+  { key: 'rr', label: 'RR', index: WHEEL_INDEX.REAR_RIGHT },
+] as const;
 
 export const TYRE_COMPOUND_IDS = {
   INTERMEDIATE: 7,

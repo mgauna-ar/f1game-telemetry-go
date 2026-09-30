@@ -511,7 +511,30 @@ func (v *raceView) forecast() []packets.WeatherForecastSample {
 	return sessionForecast(v.session)
 }
 
-var wheelNames = [4]string{"FL", "FR", "RL", "RR"}
+// wheelNames names the wheels by their index in the packets' wheel arrays (RL, RR, FL, FR).
+var wheelNames = [4]string{
+	packets.WheelRearLeft:   "RL",
+	packets.WheelRearRight:  "RR",
+	packets.WheelFrontLeft:  "FL",
+	packets.WheelFrontRight: "FR",
+}
+
+// wheelLongNames are wheelNames spelled out, for radio messages.
+var wheelLongNames = [4]string{
+	packets.WheelRearLeft:   "Rear Left",
+	packets.WheelRearRight:  "Rear Right",
+	packets.WheelFrontLeft:  "Front Left",
+	packets.WheelFrontRight: "Front Right",
+}
+
+// frontFirst reorders a packet wheel array to FL, FR, RL, RR for the AI's text and tools.
+func frontFirst[T any](wheels [4]T) [4]T {
+	var out [4]T
+	for i, w := range packets.WheelsFrontFirst {
+		out[i] = wheels[w]
+	}
+	return out
+}
 
 // Car run status labels.
 const (

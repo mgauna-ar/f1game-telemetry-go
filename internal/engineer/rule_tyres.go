@@ -159,7 +159,6 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 
 		// Tyre Blistering Detection
 		if ctx.Phase == PhaseRacing {
-			wheelNames := [4]string{"Front Left", "Front Right", "Rear Left", "Rear Right"}
 			for wIdx, blister := range dmg.TyreBlisters {
 				if blister >= TyreBlisterWarnPct && !r.blisterAlertFired[wIdx] {
 					r.blisterAlertFired[wIdx] = true
@@ -168,7 +167,7 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 						Category: DirectiveCategoryTyres,
 						SubAlert: "tyre_blistering",
 						Title:    "Tyre Blistering Detected",
-						Message:  fmt.Sprintf("Tyre blistering detected on the %s tyre (%d%% blister)! Back off lateral loads and avoid aggressive curb strikes.", wheelNames[wIdx], blister),
+						Message:  fmt.Sprintf("Tyre blistering detected on the %s tyre (%d%% blister)! Back off lateral loads and avoid aggressive curb strikes.", wheelLongNames[wIdx], blister),
 						Urgency:  UrgencyMedium,
 					})
 					break
@@ -187,7 +186,7 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 			if val > maxSurfTemp {
 				maxSurfTemp = val
 			}
-			if (i == TyreIndexRL || i == TyreIndexRR) && val > rearMaxTemp { // Rear Left / Rear Right
+			if (i == packets.WheelRearLeft || i == packets.WheelRearRight) && val > rearMaxTemp {
 				rearMaxTemp = val
 			}
 		}
@@ -247,16 +246,16 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 			switch {
 			case flPress >= TyrePressureMaxFrontPSI:
 				maxPress = flPress
-				maxPressWheel = "Front Left"
+				maxPressWheel = wheelLongNames[packets.WheelFrontLeft]
 			case frPress >= TyrePressureMaxFrontPSI:
 				maxPress = frPress
-				maxPressWheel = "Front Right"
+				maxPressWheel = wheelLongNames[packets.WheelFrontRight]
 			case rlPress >= TyrePressureMaxRearPSI:
 				maxPress = rlPress
-				maxPressWheel = "Rear Left"
+				maxPressWheel = wheelLongNames[packets.WheelRearLeft]
 			case rrPress >= TyrePressureMaxRearPSI:
 				maxPress = rrPress
-				maxPressWheel = "Rear Right"
+				maxPressWheel = wheelLongNames[packets.WheelRearRight]
 			}
 
 			if maxPress > 0 {

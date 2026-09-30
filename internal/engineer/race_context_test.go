@@ -19,6 +19,15 @@ const (
 	fxCars       = 4
 )
 
+// wheels builds a packet wheel array from values given front first (FL, FR, RL, RR); the packets
+// order them RL, RR, FL, FR.
+func wheels[T any](fl, fr, rl, rr T) [4]T {
+	var w [4]T
+	w[packets.WheelFrontLeft], w[packets.WheelFrontRight] = fl, fr
+	w[packets.WheelRearLeft], w[packets.WheelRearRight] = rl, rr
+	return w
+}
+
 type raceFixture struct {
 	t      *testing.T
 	engine *EngineerEngine
@@ -86,7 +95,7 @@ func (f *raceFixture) endLap(norrisPitStops uint8) {
 	n := float32(f.lap)
 
 	dmg := &packets.PacketCarDamageData{Header: f.header}
-	dmg.CarDamageData[fxPlayer].TyresWear = [4]float32{5 + n, 10 + 2*n, 4 + n, 4 + n}
+	dmg.CarDamageData[fxPlayer].TyresWear = wheels(5+n, 10+2*n, 4+n, 4+n)
 	f.send(dmg)
 
 	status := &packets.PacketCarStatusData{Header: f.header}

@@ -108,7 +108,7 @@ func (v *raceView) writeCarState(sb *strings.Builder, strat StrategySummary) {
 	if hasStatus {
 		fmt.Fprintf(sb, "- Tyres: %s", describeTyre(st))
 		if hasDamage {
-			w := dmg.TyresWear
+			w := frontFirst(dmg.TyresWear)
 			fmt.Fprintf(sb, " | Wear FL %.0f%% FR %.0f%% RL %.0f%% RR %.0f%%", w[0], w[1], w[2], w[3])
 		}
 		if strat.TyreWearPerLapPct > 0 {
@@ -119,10 +119,11 @@ func (v *raceView) writeCarState(sb *strings.Builder, strat StrategySummary) {
 	if hasTelemetry {
 		window := GetTyreThermalWindow(st.ActualTyreCompound, st.VisualTyreCompound)
 		fmt.Fprintf(sb, "- Tyre surface temps (window %.0f-%.0f°C):", window.MinTemp, window.MaxTemp)
-		for i, t := range tel.TyresSurfaceTemperature {
+		for _, i := range packets.WheelsFrontFirst {
+			t := tel.TyresSurfaceTemperature[i]
 			fmt.Fprintf(sb, " %s %d%s", wheelNames[i], t, thermalTag(float32(t), window))
 		}
-		b := tel.BrakesTemperature
+		b := frontFirst(tel.BrakesTemperature)
 		fmt.Fprintf(sb, " | Brakes FL %d FR %d RL %d RR %d°C\n", b[0], b[1], b[2], b[3])
 		powerPct, lossPct := CalculateEnginePowerPct(float32(tel.EngineTemperature))
 		fmt.Fprintf(sb, "- Engine: %d°C, %.1f%% power", tel.EngineTemperature, powerPct)
@@ -269,8 +270,8 @@ func describeDamage(d packets.CarDamageData) string {
 	add("sidepod", d.SidepodDamage)
 	add("gearbox wear", d.GearBoxDamage)
 	add("engine damage", d.EngineDamage)
-	for i, blisters := range d.TyreBlisters {
-		add(wheelNames[i]+" blisters", blisters)
+	for _, i := range packets.WheelsFrontFirst {
+		add(wheelNames[i]+" blisters", d.TyreBlisters[i])
 	}
 	if d.DRSFault == 1 {
 		parts = append(parts, "DRS fault")
