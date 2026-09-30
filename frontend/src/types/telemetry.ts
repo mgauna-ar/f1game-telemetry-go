@@ -20,6 +20,7 @@ export type {
   LiveCarTelemetry as CarTelemetryData,
   LiveCarTelemetry2 as CarTelemetry2Data,
   LiveParticipant as ParticipantData,
+  LiveGapTrend as GapTrend,
 } from './generated/session';
 
 /** The live session, plus the packet format and session UID the store copies from the snapshot header. */

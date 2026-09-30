@@ -1,4 +1,10 @@
-import { LIVE_VIEW_MODES, STORAGE_KEY_LIVE_VIEW_MODE, type LiveViewMode } from '../constants/f1';
+import {
+  LIVE_VIEW_MODES,
+  STORAGE_KEY_LIVE_VIEW_MODE,
+  STORAGE_KEY_LIVE_VIEW_MODE_PHONE,
+  type LiveViewMode,
+} from '../constants/f1';
+import { PHONE_MEDIA } from '../styles/breakpoints';
 import { storage } from '../utils/storage';
 import { isQuickFilter, type QuickFilter } from '../utils/sessionListView';
 
@@ -13,7 +19,8 @@ import { isQuickFilter, type QuickFilter } from '../utils/sessionListView';
  * - `/compare?sa=&a=&sb=&b=&zoom=`: sessions and laps of slots A and B, and the zoomed stretch
  *   in meters (`120-560`). `sb` is left out when both slots use the same session.
  * - `/progress[/:track]`: your pace at a track across its sessions; the latest track when left out
- * - `/live/:mode`: the live dashboard or the voice cockpit
+ * - `/live/:mode`: the live dashboard, the voice cockpit or the driver glance view (a phone opens
+ *   the driver view unless another mode was last used at phone size)
  */
 
 export const SESSION_DETAIL_TABS = ['story', 'classification', 'pace', 'position', 'gap', 'stints', 'sectors'] as const;
@@ -86,12 +93,24 @@ const detailTab = (value: string | undefined): SessionDetailTab =>
   value === 'charts' ? 'pace' : isDetailTab(value) ? value : 'story';
 
 const isLiveMode = (value: string | undefined): value is LiveViewMode =>
-  value === LIVE_VIEW_MODES.DASHBOARD || value === LIVE_VIEW_MODES.COCKPIT;
+  (Object.values(LIVE_VIEW_MODES) as string[]).includes(value ?? '');
 
-/** The live mode last used on this browser. */
+const isPhoneSize = (): boolean =>
+  typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(PHONE_MEDIA).matches;
+
+/** Where the last live mode is kept: phones keep their own, so they start on the Driver view. */
+const liveModeKey = () => (isPhoneSize() ? STORAGE_KEY_LIVE_VIEW_MODE_PHONE : STORAGE_KEY_LIVE_VIEW_MODE);
+
+/** The live mode last used on this browser at this size: Driver on a phone, else Race Control. */
 export const storedLiveMode = (): LiveViewMode => {
-  const saved = storage.get<string>(STORAGE_KEY_LIVE_VIEW_MODE, LIVE_VIEW_MODES.DASHBOARD);
-  return isLiveMode(saved) ? saved : LIVE_VIEW_MODES.DASHBOARD;
+  const fallback = isPhoneSize() ? LIVE_VIEW_MODES.DRIVER : LIVE_VIEW_MODES.DASHBOARD;
+  const saved = storage.get<string>(liveModeKey(), fallback);
+  return isLiveMode(saved) ? saved : fallback;
+};
+
+/** Remembers the live mode for the next `/live` at this size. */
+export const storeLiveMode = (mode: LiveViewMode): void => {
+  storage.set(liveModeKey(), mode);
 };
 
 const storedPage = (): Page => {

@@ -24,7 +24,7 @@ import type {
   ParticipantData,
   SessionData,
 } from '../types/telemetry';
-import { DRIVER_STATUS, F1_FORMATS, PACKET_IDS, RESULT_STATUS } from '../constants/f1';
+import { DRIVER_STATUS, F1_FORMATS, PACKET_IDS, RESULT_STATUS, VEHICLE_FIA_FLAGS } from '../constants/f1';
 
 // Complete wire objects for tests: the generated types require every field the server always
 // sends, so tests set only the fields they care about.
@@ -206,6 +206,7 @@ export function makeLiveCarStatus(fields: Partial<CarStatusData> = {}): CarStatu
     TyresAgeLaps: 0,
     ERSStoreEnergy: 0,
     ERSDeployMode: 0,
+    VehicleFIAFlags: VEHICLE_FIA_FLAGS.NONE,
     ...fields,
   };
 }

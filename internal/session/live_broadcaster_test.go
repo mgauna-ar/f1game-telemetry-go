@@ -845,3 +845,32 @@ func TestLiveBroadcaster_FeedEventSink(t *testing.T) {
 		}
 	}
 }
+
+func TestLiveBroadcaster_GapTrendsRideOnSnapshot(t *testing.T) {
+	hub := &mockHub{clientCount: 1}
+	b := NewLiveBroadcaster(hub)
+	b.SetGapTrendSource(func() (ahead, behind *LiveGapTrend) {
+		return &LiveGapTrend{CarIndex: 3, ChangePerLapMS: -120, Laps: 3}, nil
+	})
+	var status [packets.MaxCars]packets.CarStatusData
+	status[0].VehicleFIAFlags = packets.VehicleFIAFlagYellow
+	b.ProcessPacket(&packets.PacketCarStatusData{Header: packets.PacketHeader{PacketFormat: 2025}, CarStatusData: status})
+	b.BroadcastSnapshot()
+
+	if hub.MessageCount() != 1 {
+		t.Fatalf("expected 1 snapshot, got %d", hub.MessageCount())
+	}
+	var snapshot LiveSnapshot
+	if err := json.Unmarshal(hub.messages[0], &snapshot); err != nil {
+		t.Fatalf("failed to unmarshal snapshot: %v", err)
+	}
+	if snapshot.GapAheadTrend == nil || *snapshot.GapAheadTrend != (LiveGapTrend{CarIndex: 3, ChangePerLapMS: -120, Laps: 3}) {
+		t.Errorf("GapAheadTrend = %+v", snapshot.GapAheadTrend)
+	}
+	if snapshot.GapBehindTrend != nil {
+		t.Errorf("GapBehindTrend = %+v, want omitted", snapshot.GapBehindTrend)
+	}
+	if len(snapshot.CarStatus) == 0 || snapshot.CarStatus[0].VehicleFIAFlags != packets.VehicleFIAFlagYellow {
+		t.Errorf("player's VehicleFIAFlags not carried: %+v", snapshot.CarStatus)
+	}
+}

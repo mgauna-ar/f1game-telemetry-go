@@ -21,11 +21,16 @@ type HubBroadcaster interface {
 // (SessionManager.RecordFeedEvents), so the events are built once for both.
 type FeedEventSink func(sessionUID uint64, events []FeedEvent)
 
+// GapTrendSource returns the race engineer's gap trends to the cars ahead of and behind the
+// player, each nil when it can't be measured yet.
+type GapTrendSource func() (ahead, behind *LiveGapTrend)
+
 // LiveBroadcaster aggregates high-frequency UDP telemetry packets and broadcasts consolidated snapshots at 10Hz.
 type LiveBroadcaster struct {
-	hub      HubBroadcaster
-	mu       sync.RWMutex
-	feedSink FeedEventSink
+	hub       HubBroadcaster
+	mu        sync.RWMutex
+	feedSink  FeedEventSink
+	gapTrends GapTrendSource
 
 	// lastPacketAt is the UnixNano time of the last packet, read by FeedStatus without the lock
 	lastPacketAt atomic.Int64
@@ -69,6 +74,13 @@ func NewLiveBroadcaster(hub HubBroadcaster) *LiveBroadcaster {
 func (b *LiveBroadcaster) SetFeedEventSink(sink FeedEventSink) {
 	b.mu.Lock()
 	b.feedSink = sink
+	b.mu.Unlock()
+}
+
+// SetGapTrendSource sets where the snapshot's gap trends come from. Call it before Start.
+func (b *LiveBroadcaster) SetGapTrendSource(source GapTrendSource) {
+	b.mu.Lock()
+	b.gapTrends = source
 	b.mu.Unlock()
 }
 
@@ -417,9 +429,14 @@ func (b *LiveBroadcaster) BroadcastSnapshot() {
 		snapshot.CarDamage = liveCars(&b.carDamage.CarDamageData, activeCarCount, toLiveCarDamage)
 	}
 	b.dirty = false
-
-	js, err := json.Marshal(snapshot)
+	gapTrends := b.gapTrends
 	b.mu.Unlock()
+
+	// The engine takes its own lock; ask it outside ours
+	if gapTrends != nil {
+		snapshot.GapAheadTrend, snapshot.GapBehindTrend = gapTrends()
+	}
+	js, err := json.Marshal(snapshot)
 
 	if err == nil {
 		b.hub.Broadcast(js)

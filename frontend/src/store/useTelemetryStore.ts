@@ -4,6 +4,7 @@ import { F1_DRIVER_NAMES, PACKET_IDS } from '../constants/f1';
 import { useTelemetryDataStore, type TelemetryDataState } from './useTelemetryDataStore';
 import { useSessionStatusStore, type SessionStatusState } from './useSessionStatusStore';
 import { connectTelemetryWebSocket } from '../utils/telemetrySocket';
+import { mergeBestLaps } from '../utils/liveTiming';
 
 export { useTelemetryDataStore, useSessionStatusStore, connectTelemetryWebSocket };
 export type { TelemetryDataState, SessionStatusState };
@@ -34,10 +35,13 @@ export interface TelemetryState {
 
 // Kept outside Zustand state to prevent extra subscriber triggers
 let lastSessionUID: string | null = null;
+// Best laps start over when the session type or track changes, even under the same UID
+let lastBestLapKey: string | null = null;
 
 export const useTelemetryStore = create<TelemetryState>((_set, get) => ({
   resetStore: () => {
     lastSessionUID = null;
+    lastBestLapKey = null;
     useTelemetryDataStore.getState().resetTelemetryData();
     useSessionStatusStore.getState().resetSession();
   },
@@ -83,7 +87,19 @@ export const useTelemetryStore = create<TelemetryState>((_set, get) => ({
     if (snapshot.Participants && snapshot.Participants.length > 0) {
       partialStatus.participants = snapshot.Participants;
     }
-    if (snapshot.LapData) partialData.allLaps = snapshot.LapData;
+    let bestLapTimes = useTelemetryDataStore.getState().bestLapTimes;
+    if (snapshot.Session) {
+      const bestLapKey = `${snapshot.Session.SessionType}_${snapshot.Session.TrackId}`;
+      if (bestLapKey !== lastBestLapKey) bestLapTimes = [];
+      lastBestLapKey = bestLapKey;
+    }
+    if (snapshot.LapData) {
+      partialData.allLaps = snapshot.LapData;
+      bestLapTimes = mergeBestLaps(bestLapTimes, snapshot.LapData);
+    }
+    partialData.bestLapTimes = bestLapTimes;
+    partialData.gapAheadTrend = snapshot.GapAheadTrend ?? null;
+    partialData.gapBehindTrend = snapshot.GapBehindTrend ?? null;
     if (snapshot.CarTelemetry) partialData.allTelemetry = snapshot.CarTelemetry;
     if (snapshot.CarTelemetry2) partialData.allTelemetry2 = snapshot.CarTelemetry2;
     if (snapshot.CarStatus) partialData.allCarStatus = snapshot.CarStatus;

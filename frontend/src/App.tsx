@@ -16,7 +16,9 @@ import { storage } from './utils/storage';
 import { useRadioSettingsStore } from './store/useRadioSettingsStore';
 import { useTelemetryEndpointStore } from './store/useTelemetryEndpointStore';
 import { useLiveStatus } from './hooks/useLiveStatus';
-import { LIVE_STATUS } from './constants/f1';
+import { useMediaQuery } from './hooks/useMediaQuery';
+import { PHONE_MEDIA } from './styles/breakpoints';
+import { LIVE_STATUS, LIVE_VIEW_MODES } from './constants/f1';
 import type { UpdateCheckResponse, SystemVersion } from './types/system';
 import { Link } from './router/Link';
 import { navigate, useRoute, useUrl } from './router/router';
@@ -86,6 +88,10 @@ function AppContent() {
     }
   };
 
+  // The Driver view on a phone takes the whole screen; its own mode switch leads back
+  const isPhone = useMediaQuery(PHONE_MEDIA);
+  const driverFocus = isPhone && route.page === 'live' && route.mode === LIVE_VIEW_MODES.DRIVER;
+
   const liveStatus = useLiveStatus();
   const udpPort = useTelemetryEndpointStore((s) => s.endpoint.udp_port);
   const isLiveFeedActive = liveStatus === LIVE_STATUS.LIVE;
@@ -143,7 +149,7 @@ function AppContent() {
 
   return (
     <div className={styles.app}>
-      <header className={styles.topNav}>
+      <header className={styles.topNav} hidden={driverFocus}>
         <div className={styles.brand}>
           <div className={styles.logo} data-live={isLiveFeedActive || undefined}>
             <F1TelemetryLogo size={28} animated={isLiveFeedActive} />

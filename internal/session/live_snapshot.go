@@ -18,6 +18,21 @@ type LiveSnapshot struct {
 	CarDamage      []LiveCarDamage      `json:"CarDamage,omitempty"`
 	Events         []FeedEvent          `json:"Events,omitempty"`
 	ActiveCarCount int                  `json:"ActiveCarCount,omitempty"`
+	// GapAheadTrend and GapBehindTrend are the race engineer's gap trends to the player's
+	// neighbours (see LiveGapTrend); omitted until two lap ends with the same car there.
+	GapAheadTrend  *LiveGapTrend `json:"GapAheadTrend,omitempty"`
+	GapBehindTrend *LiveGapTrend `json:"GapBehindTrend,omitempty"`
+}
+
+// LiveGapTrend is how the gap between the player and a neighbour changed per lap over the last
+// lap ends while the same car was there, as the race engineer measures it.
+type LiveGapTrend struct {
+	// CarIndex is the neighbour's car index.
+	CarIndex uint8 `json:"CarIndex"`
+	// ChangePerLapMS is the gap's change per lap: positive when it grew, negative when it shrank.
+	ChangePerLapMS int32 `json:"ChangePerLapMS"`
+	// Laps is how many laps the change was measured over.
+	Laps uint8 `json:"Laps"`
 }
 
 // LiveSession is the part of packets.PacketSessionData the live views read.
@@ -100,6 +115,7 @@ type LiveCarStatus struct {
 	TyresAgeLaps       uint8   `json:"TyresAgeLaps"`
 	ERSStoreEnergy     float32 `json:"ERSStoreEnergy"`
 	ERSDeployMode      uint8   `json:"ERSDeployMode"`
+	VehicleFIAFlags    int8    `json:"VehicleFIAFlags"`
 }
 
 // LiveCarDamage is the part of packets.CarDamageData the live views read.
@@ -210,6 +226,7 @@ func toLiveCarStatus(s *packets.CarStatusData) LiveCarStatus {
 		TyresAgeLaps:       s.TyresAgeLaps,
 		ERSStoreEnergy:     s.ERSStoreEnergy,
 		ERSDeployMode:      s.ERSDeployMode,
+		VehicleFIAFlags:    s.VehicleFIAFlags,
 	}
 }
 

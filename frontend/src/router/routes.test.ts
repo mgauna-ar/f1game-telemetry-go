@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { buildPath, parseRoute, storeLastPage, type Route } from './routes';
+import { buildPath, parseRoute, storeLastPage, storeLiveMode, type Route } from './routes';
 
 describe('routes', () => {
   beforeEach(() => {
@@ -44,6 +44,24 @@ describe('routes', () => {
     expect(parseRoute('/live/other')).toEqual({ page: 'live', mode: 'cockpit' });
   });
 
+  it('opens the Driver view on a phone, which keeps its own last mode', () => {
+    const matchMedia = window.matchMedia;
+    window.matchMedia = ((query: string) =>
+      ({ matches: query.includes('max-width: 600px') }) as MediaQueryList) as typeof window.matchMedia;
+    try {
+      localStorage.setItem('f1_live_view_mode', JSON.stringify('cockpit'));
+      expect(parseRoute('/live/driver')).toEqual({ page: 'live', mode: 'driver' });
+      expect(parseRoute('/live')).toEqual({ page: 'live', mode: 'driver' });
+      storeLiveMode('dashboard');
+      expect(localStorage.getItem('f1_live_view_mode_phone')).toBe('dashboard');
+      expect(parseRoute('/live')).toEqual({ page: 'live', mode: 'dashboard' });
+    } finally {
+      window.matchMedia = matchMedia;
+    }
+    // A wide screen keeps its own choice
+    expect(parseRoute('/live')).toEqual({ page: 'live', mode: 'cockpit' });
+  });
+
   it('reads the progress track', () => {
     expect(parseRoute('/progress')).toEqual({ page: 'progress', track: undefined });
     expect(parseRoute('/progress/Abu%20Dhabi')).toEqual({ page: 'progress', track: 'Abu Dhabi' });
@@ -71,6 +89,7 @@ describe('routes', () => {
       { page: 'history', sessionId: 7, tab: 'pace' },
       { page: 'history', sessionId: 7, tab: 'sectors' },
       { page: 'live', mode: 'cockpit' },
+      { page: 'live', mode: 'driver' },
       { page: 'progress' },
       { page: 'progress', track: 'Abu Dhabi' },
       { page: 'compare', sessionA: 1, lapA: 10, sessionB: 2, lapB: 20, zoom: [100, 900] },

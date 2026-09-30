@@ -190,6 +190,14 @@ describe('Dashboard', () => {
     fireEvent.click(dashboardToggleBtn);
     expect(screen.getByText(/Weather Radar & Track Evolution/i)).toBeInTheDocument();
     expect(localStorage.getItem('f1_live_view_mode')).toBe('dashboard');
+
+    // The Driver view replaces the whole page, and keeps its own compact switch
+    fireEvent.click(screen.getByTestId('live-view-toggle-driver'));
+    expect(screen.getByTestId('driver-glance')).toBeInTheDocument();
+    expect(screen.queryByText(/Weather Radar & Track Evolution/i)).not.toBeInTheDocument();
+    expect(window.location.pathname).toBe('/live/driver');
+    fireEvent.click(screen.getByRole('radio', { name: 'Race Control' }));
+    expect(screen.getByText(/Weather Radar & Track Evolution/i)).toBeInTheDocument();
   });
 
   it('points the chat at the live session and never re-renders chat consumers on a timer', async () => {

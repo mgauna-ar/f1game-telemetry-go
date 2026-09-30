@@ -1,7 +1,7 @@
 import React, { useEffect, useCallback, useRef } from 'react';
 import { connectTelemetryWebSocket } from '../store/useTelemetryStore';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
-import { LIVE_VIEW_MODES, STORAGE_KEY_LIVE_VIEW_MODE } from '../constants/f1';
+import { LIVE_VIEW_MODES } from '../constants/f1';
 
 import type { LiveViewMode } from '../constants/f1';
 import { SessionHeader } from './SessionHeader';
@@ -14,13 +14,13 @@ import { WaitingForData } from './WaitingForData';
 import { LiveRadioHUD } from './LiveRadioHUD';
 import { VoiceCockpitView } from './VoiceCockpitView';
 import { LiveDocumentTitle } from './LiveDocumentTitle';
+import { DriverGlance } from './driver/DriverGlance';
 import { useRadioController } from '../hooks/useRadioController';
 import { useProactiveTelemetryRadio } from '../hooks/useProactiveTelemetryRadio';
 import { getProactiveRadioSpeech } from '../utils/radioPhrases';
 import type { RadioAlertPayload } from '../types/telemetry';
-import { storage } from '../utils/storage';
 import { navigate, useRoute } from '../router/router';
-import { buildPath } from '../router/routes';
+import { buildPath, storeLiveMode } from '../router/routes';
 import styles from './Dashboard.module.css';
 
 export const Dashboard: React.FC = () => {
@@ -29,7 +29,7 @@ export const Dashboard: React.FC = () => {
   const viewMode: LiveViewMode = route.page === 'live' ? route.mode : LIVE_VIEW_MODES.DASHBOARD;
 
   useEffect(() => {
-    storage.set(STORAGE_KEY_LIVE_VIEW_MODE, viewMode);
+    storeLiveMode(viewMode);
   }, [viewMode]);
 
   const handleViewModeChange = useCallback((mode: LiveViewMode) => {
@@ -86,6 +86,16 @@ export const Dashboard: React.FC = () => {
             <LiveRadioHUD radio={radio} />
           </>
         )}
+      </div>
+    );
+  }
+
+  // Driver view: a phone on the rig, big numbers and nothing else
+  if (viewMode === LIVE_VIEW_MODES.DRIVER) {
+    return (
+      <div className={styles.driverPage}>
+        <LiveDocumentTitle />
+        <DriverGlance viewMode={viewMode} onViewModeChange={handleViewModeChange} />
       </div>
     );
   }

@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"math"
 	"net"
 	"net/http"
 	"os"
@@ -170,6 +171,7 @@ func run(cfg ServerConfig) error {
 	sessionManager.Start(ctx)
 
 	// The race-control feed rows the dashboards get are stored with the session too
+	liveBroadcaster.SetGapTrendSource(gapTrendSource(engineerEngine))
 	liveBroadcaster.SetFeedEventSink(func(sessionUID uint64, events []session.FeedEvent) {
 		sessionManager.RecordFeedEvents(ctx, sessionUID, events)
 	})
@@ -187,6 +189,26 @@ func run(cfg ServerConfig) error {
 	// 9. Wait for termination signal and handle graceful shutdown
 	runGracefulShutdown(cancel, inputMgr, sessionManager, srv)
 	return nil
+}
+
+// gapTrendSource hands the race engineer's gap trends to the live snapshot.
+func gapTrendSource(engine *engineer.EngineerEngine) session.GapTrendSource {
+	return func() (ahead, behind *session.LiveGapTrend) {
+		a, b := engine.GapTrends()
+		return liveGapTrend(a), liveGapTrend(b)
+	}
+}
+
+// liveGapTrend is an engine gap trend in the snapshot's units (milliseconds per lap).
+func liveGapTrend(t *engineer.GapTrend) *session.LiveGapTrend {
+	if t == nil {
+		return nil
+	}
+	return &session.LiveGapTrend{
+		CarIndex:       uint8(t.CarIdx),
+		ChangePerLapMS: int32(math.Round(t.PerLapSec * packets.MillisPerSecond)),
+		Laps:           uint8(min(t.Laps, math.MaxUint8)),
+	}
 }
 
 func initDatabase(dbPath string) (storage.Repository, error) {

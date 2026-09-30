@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"math"
 	"strings"
 	"testing"
 
@@ -345,5 +346,28 @@ func TestRaceContext_QualifyingKnockoutLine(t *testing.T) {
 	}
 	if strings.Contains(snap.Summary, "Strategy:") {
 		t.Errorf("did not expect race strategy line in qualifying:\n%s", snap.Summary)
+	}
+}
+
+func TestGapTrends_NumbersBehindTheText(t *testing.T) {
+	f := runRaceLaps(t)
+
+	ahead, behind := f.engine.GapTrends()
+	if ahead == nil || behind == nil {
+		t.Fatalf("expected both trends, got ahead=%+v behind=%+v", ahead, behind)
+	}
+	// The same numbers the strategy text reads: closing on Leclerc 0.10s a lap, Norris stable
+	if ahead.CarIdx != fxLeclerc || ahead.Laps != 3 || math.Abs(ahead.PerLapSec+0.1) > 1e-9 {
+		t.Errorf("ahead = %+v, want Leclerc, -0.10 s/lap over 3 laps", ahead)
+	}
+	if behind.CarIdx != fxNorris || behind.Laps != 3 || math.Abs(behind.PerLapSec) > GapTrendStableSecPerLap {
+		t.Errorf("behind = %+v, want Norris, stable over 3 laps", behind)
+	}
+}
+
+func TestGapTrends_NothingBeforeLapData(t *testing.T) {
+	engine := newTestEngineerEngine(nil)
+	if ahead, behind := engine.GapTrends(); ahead != nil || behind != nil {
+		t.Errorf("expected no trends before lap data, got %+v %+v", ahead, behind)
 	}
 }

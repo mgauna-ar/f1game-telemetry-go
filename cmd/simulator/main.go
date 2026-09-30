@@ -754,10 +754,20 @@ func buildCarStatusCars(cfg SimulatorConfig, st *simState) []packets.CarStatusDa
 				ERSDeployMode:         uint8(i % 4),
 				ERSHarvestLimitPerLap: 2000000.0,
 				PitLimiterStatus:      pitLimiter,
+				VehicleFIAFlags:       simFIAFlag(cfg, st),
 			}
 		}
 	}
 	return statusCars
+}
+
+// simFIAFlag is the flag every car sees: yellow while the sc/vsc scenario neutralises the race.
+func simFIAFlag(cfg SimulatorConfig, st *simState) int8 {
+	neutralised := cfg.Scenario == "sc" || cfg.Scenario == "safetycar" || cfg.Scenario == "vsc"
+	if neutralised && st.sessionTime >= 4.0 && st.sessionTime < 60.0 {
+		return packets.VehicleFIAFlagYellow
+	}
+	return packets.VehicleFIAFlagGreen
 }
 
 func buildCarDamageCars(cfg SimulatorConfig, st *simState) []packets.CarDamageData {

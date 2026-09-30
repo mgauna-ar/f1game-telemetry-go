@@ -67,6 +67,7 @@ export interface LiveCarStatus {
   TyresAgeLaps: number;
   ERSStoreEnergy: number;
   ERSDeployMode: number;
+  VehicleFIAFlags: number;
 }
 
 /** Go: session.LiveCarTelemetry */
@@ -82,6 +83,13 @@ export interface LiveCarTelemetry {
 export interface LiveCarTelemetry2 {
   ActiveAeroMode: number;
   OvertakeActive: number;
+}
+
+/** Go: session.LiveGapTrend */
+export interface LiveGapTrend {
+  CarIndex: number;
+  ChangePerLapMS: number;
+  Laps: number;
 }
 
 /** Go: session.LiveLapData */
@@ -152,4 +160,6 @@ export interface LiveSnapshot {
   CarDamage?: LiveCarDamage[];
   Events?: FeedEvent[];
   ActiveCarCount?: number;
+  GapAheadTrend?: LiveGapTrend;
+  GapBehindTrend?: LiveGapTrend;
 }

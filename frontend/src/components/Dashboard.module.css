@@ -21,6 +21,12 @@
   min-height: 380px;
 }
 
+/* Driver view: the whole width, room at the end for the AI launcher */
+.driverPage {
+  width: 100%;
+  padding: var(--space-2) var(--space-2) var(--floating-dock-clearance);
+}
+
 /* Standby and voice cockpit views */
 .cockpit {
   position: relative;

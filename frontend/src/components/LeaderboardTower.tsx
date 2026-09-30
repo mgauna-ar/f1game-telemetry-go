@@ -17,6 +17,7 @@ import {
 import { useI18n } from '../context/I18nContext';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import { useTelemetryDataStore } from '../store/useTelemetryDataStore';
+import { mergeBestLaps } from '../utils/liveTiming';
 import { styleVars } from '../styles/theme';
 import { TyreCompoundBadge } from './common/TyreCompoundBadge';
 import { Badge, type BadgeTone } from './ui/Badge';
@@ -97,45 +98,12 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = React.memo((pro
   const [posFlashMap, setPosFlashMap] = React.useState<Record<number, 'up' | 'down'>>({});
   const flashTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Track best lap times per car during qualifying session
-  const bestLapTimesRef = React.useRef<Record<number, number>>({});
-  const lastSessionKeyRef = React.useRef<string | number | null>(null);
-
-  const sessionKey = `${session?.SessionType}_${session?.TrackId}`;
-
-  // Update best lap times per car in effect instead of mutating ref inside useMemo
-  React.useEffect(() => {
-    if (lastSessionKeyRef.current !== sessionKey) {
-      bestLapTimesRef.current = {};
-      lastSessionKeyRef.current = sessionKey;
-    }
-
-    laps.forEach((lap, idx) => {
-      if (lap && lap.LastLapTimeInMS > 0) {
-        const currentBest = bestLapTimesRef.current[idx] || 0;
-        if (currentBest === 0 || lap.LastLapTimeInMS < currentBest) {
-          bestLapTimesRef.current[idx] = lap.LastLapTimeInMS;
-        }
-      }
-    });
-  }, [laps, sessionKey]);
+  // Best laps are kept by the store for the whole session; laps passed in as props (tests) count too
+  const storeBestLapTimes = useTelemetryDataStore((s) => s.bestLapTimes);
+  const bestLapTimes = React.useMemo(() => mergeBestLaps(storeBestLapTimes, laps), [storeBestLapTimes, laps]);
 
   // Build unified driver entries
   const displayDrivers: ProcessedDriver[] = React.useMemo(() => {
-    // Pure computation of best lap times for this calculation
-    const effectiveBestTimes: Record<number, number> = { ...bestLapTimesRef.current };
-    if (lastSessionKeyRef.current !== sessionKey) {
-      Object.keys(effectiveBestTimes).forEach((k) => delete effectiveBestTimes[Number(k)]);
-    }
-    laps.forEach((lap, idx) => {
-      if (lap && lap.LastLapTimeInMS > 0) {
-        const currentBest = effectiveBestTimes[idx] || 0;
-        if (currentBest === 0 || lap.LastLapTimeInMS < currentBest) {
-          effectiveBestTimes[idx] = lap.LastLapTimeInMS;
-        }
-      }
-    });
-
     const activeParticipants = filterActiveLiveParticipants(participants, laps, playerCarIndex);
 
     const drivers: ProcessedDriver[] = activeParticipants.map(({ participant: p, carIndex: idx }) => {
@@ -183,8 +151,8 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = React.memo((pro
     // Sort drivers
     if (isQualy) {
       result.sort((a, b) => {
-        const timeA = effectiveBestTimes[a.carIndex] || a.lap?.LastLapTimeInMS || 0;
-        const timeB = effectiveBestTimes[b.carIndex] || b.lap?.LastLapTimeInMS || 0;
+        const timeA = bestLapTimes[a.carIndex] || a.lap?.LastLapTimeInMS || 0;
+        const timeB = bestLapTimes[b.carIndex] || b.lap?.LastLapTimeInMS || 0;
         const resA = a.lap?.ResultStatus ?? RESULT_STATUS.ACTIVE;
         const resB = b.lap?.ResultStatus ?? RESULT_STATUS.ACTIVE;
 
@@ -233,7 +201,7 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = React.memo((pro
     }
 
     return result;
-  }, [participants, laps, carStatuses, telemetry2List, playerCarIndex, isQualy, sessionKey, t]);
+  }, [participants, laps, carStatuses, telemetry2List, playerCarIndex, isQualy, bestLapTimes, t]);
 
   // Detect position updates for flash animations with stabilized timers
   React.useEffect(() => {
@@ -273,7 +241,7 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = React.memo((pro
   const p1CarIndex = displayDrivers[0]?.carIndex;
   const p1BestLap =
     isQualy && p1CarIndex !== undefined
-      ? bestLapTimesRef.current[p1CarIndex] || displayDrivers[0]?.lap?.LastLapTimeInMS || 0
+      ? bestLapTimes[p1CarIndex] || displayDrivers[0]?.lap?.LastLapTimeInMS || 0
       : 0;
   const poleTimeMs = isQualy && p1BestLap > 0 ? p1BestLap : 0;
 
@@ -413,7 +381,7 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = React.memo((pro
           overallIndex={idx + offset}
           isSelected={driver.carIndex === selectedCarIndex}
           teamColor={getTeamColor(driver.teamId)}
-          driverBestLap={bestLapTimesRef.current[driver.carIndex] || driver.lap?.LastLapTimeInMS || 0}
+          driverBestLap={bestLapTimes[driver.carIndex] || driver.lap?.LastLapTimeInMS || 0}
           isEliminated={cutoffPosition !== null && driver.position > cutoffPosition}
           isLastBeforeCutoff={driver.position === cutoffPosition}
           flash={posFlashMap[driver.carIndex]}

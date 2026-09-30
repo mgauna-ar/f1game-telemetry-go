@@ -59,6 +59,15 @@ export const SAFETY_CAR_STATUS = {
   FORMATION_LAP: 3,
 } as const;
 
+/** The flag a car is shown (CarStatus VehicleFIAFlags). */
+export const VEHICLE_FIA_FLAGS = {
+  INVALID: -1,
+  NONE: 0,
+  GREEN: 1,
+  BLUE: 2,
+  YELLOW: 3,
+} as const;
+
 export const DRS_DISABLED_REASONS = {
   SURFACE_CONDITIONS: 0,
   SAFETY_CAR: 1,
@@ -800,11 +809,15 @@ export const RADIO_TRIGGER_PRESETS = {
 export const LIVE_VIEW_MODES = {
   DASHBOARD: 'dashboard',
   COCKPIT: 'cockpit',
+  /** Big numbers for a phone on the rig. */
+  DRIVER: 'driver',
 } as const;
 
 export type LiveViewMode = (typeof LIVE_VIEW_MODES)[keyof typeof LIVE_VIEW_MODES];
 
 export const STORAGE_KEY_LIVE_VIEW_MODE = 'f1_live_view_mode';
+/** The live mode last used at phone size, kept apart so a phone opens the Driver view by default. */
+export const STORAGE_KEY_LIVE_VIEW_MODE_PHONE = 'f1_live_view_mode_phone';
 
 /** What the live telemetry feed is doing right now, as shown in the nav and the live header. */
 export const LIVE_STATUS = {
@@ -824,6 +837,8 @@ export type LiveStatus = (typeof LIVE_STATUS)[keyof typeof LIVE_STATUS];
 export const LIVE_STALE_AFTER_MS = 3_000;
 /** How often the live status re-checks for a stale feed. */
 export const LIVE_STATUS_POLL_MS = 1_000;
+/** A gap trend under this many ms per lap counts as stable (as the race engineer says it). */
+export const GAP_TREND_STABLE_MS_PER_LAP = 50;
 /** How often pages without the live feed ask the server whether telemetry is arriving. */
 export const SYSTEM_STATUS_POLL_MS = 2_000;
 /** Pages without the live feed stop calling a session stale (and go back to listening) after this long. */

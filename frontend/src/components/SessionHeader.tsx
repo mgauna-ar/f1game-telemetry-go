@@ -1,5 +1,5 @@
 import React from 'react';
-import { CloudSun, Thermometer, Timer, LayoutDashboard, Mic, Radio } from 'lucide-react';
+import { CloudSun, Thermometer, Timer, Radio } from 'lucide-react';
 import type { SessionData } from '../hooks/useTelemetry';
 import { useI18n } from '../context/I18nContext';
 import { F1FormatBadge } from './F1FormatBadge';
@@ -8,7 +8,9 @@ import { LiveStatusIndicator } from './common/LiveStatusIndicator';
 import { SafetyCarBadge } from './common/SafetyCarBadge';
 import { SessionTypeBadge } from './common/SessionTypeBadge';
 import { Badge } from './ui/Badge';
-import { SegmentedControl } from './ui/SegmentedControl';
+import { LiveViewModeSwitch } from './LiveViewModeSwitch';
+import { useMediaQuery } from '../hooks/useMediaQuery';
+import { maxWidth } from '../styles/breakpoints';
 import { Stat } from './ui/Stat';
 import { cx } from './ui/cx';
 import {
@@ -26,35 +28,6 @@ import type { LiveViewMode } from '../constants/f1';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import { useTelemetryEndpointStore } from '../store/useTelemetryEndpointStore';
 import styles from './SessionHeader.module.css';
-
-/** Switches the live page between the race control dashboard and the voice cockpit. */
-const ViewModeSwitch: React.FC<{ value: LiveViewMode; onChange: (mode: LiveViewMode) => void }> = ({
-  value,
-  onChange,
-}) => {
-  const { t } = useI18n();
-  return (
-    <SegmentedControl
-      aria-label={t('live.viewModeLabel')}
-      value={value}
-      onChange={onChange}
-      options={[
-        {
-          value: LIVE_VIEW_MODES.DASHBOARD,
-          label: t('live.viewModeDashboard'),
-          icon: <LayoutDashboard size={14} aria-hidden="true" />,
-          'data-testid': 'live-view-toggle-dashboard',
-        },
-        {
-          value: LIVE_VIEW_MODES.COCKPIT,
-          label: t('live.viewModeCockpit'),
-          icon: <Mic size={14} aria-hidden="true" />,
-          'data-testid': 'live-view-toggle-cockpit',
-        },
-      ]}
-    />
-  );
-};
 
 interface SessionHeaderProps {
   session?: SessionData | null;
@@ -76,6 +49,8 @@ export const SessionHeader: React.FC<SessionHeaderProps> = React.memo((props) =>
   const onViewModeChange = props.onViewModeChange;
 
   const { t } = useI18n();
+  // Three labelled modes don't fit a phone's header row; icons with tooltips do
+  const compactSwitch = useMediaQuery(maxWidth('phone'));
   const udpPort = useTelemetryEndpointStore((s) => s.endpoint.udp_port);
 
   // If no active session yet (waiting for data)
@@ -101,7 +76,7 @@ export const SessionHeader: React.FC<SessionHeaderProps> = React.memo((props) =>
           </div>
 
           <div className={styles.actions}>
-            {onViewModeChange && <ViewModeSwitch value={viewMode} onChange={onViewModeChange} />}
+            {onViewModeChange && <LiveViewModeSwitch value={viewMode} onChange={onViewModeChange} compact={compactSwitch} />}
 
             {/* Live feed state */}
             <LiveStatusIndicator />
@@ -143,7 +118,7 @@ export const SessionHeader: React.FC<SessionHeaderProps> = React.memo((props) =>
         </div>
 
         <div className={styles.actions}>
-          {onViewModeChange && <ViewModeSwitch value={viewMode} onChange={onViewModeChange} />}
+          {onViewModeChange && <LiveViewModeSwitch value={viewMode} onChange={onViewModeChange} compact={compactSwitch} />}
 
           {/* Live feed state */}
           <LiveStatusIndicator />

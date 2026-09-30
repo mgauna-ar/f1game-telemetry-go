@@ -14,7 +14,8 @@
 ## ✨ Key Features
 
 ### ⏱️ Live Pit Wall & Race Control
-* **Dual View Modes:** Switch between the complete 2×2 Race Control Hub and a zero-overhead **Voice Cockpit Mode** built for maximum FPS on sim rigs and VR.
+* **Three View Modes:** Switch between the complete 2×2 Race Control Hub, a zero-overhead **Voice Cockpit Mode** built for maximum FPS on sim rigs and VR, and a **Driver** view for a phone mounted by the wheel.
+* **Driver View for Your Phone (`/live/driver`):** Big, high-contrast numbers with no blur or animation: position, gaps ahead and behind with the race engineer's closing/opening trend, last vs best lap, four-corner tyre wear, fuel, ERS, flags (SC, VSC, yellow, blue) and warnings. Phones open it automatically and it keeps the screen on (Screen Wake Lock, or a muted looping video over plain HTTP; if the browser blocks both it suggests turning off auto-lock).
 * **Live Leaderboard & Timing Tower:** Full-grid timing tower with interval deltas, tyre compounds, pit status, and live Active Aero / Boost indicators.
 * **Dynamic Weather & Radar:** Live precipitation forecasts (+5m to +30m), track temperature trends, and tyre crossover recommendations.
 * **Live Status on Every Page:** The nav's LIVE badge is accurate from any page (the server reports packet age and the active session at `GET /api/system/status`), and a toast offers to open the Live view as soon as a session starts.
