@@ -93,9 +93,10 @@ export const useTelemetryStore = create<TelemetryState>((_set, get) => ({
       if (bestLapKey !== lastBestLapKey) bestLapTimes = [];
       lastBestLapKey = bestLapKey;
     }
+    if (snapshot.LapTimes) partialData.allLapTimes = snapshot.LapTimes;
     if (snapshot.LapData) {
       partialData.allLaps = snapshot.LapData;
-      bestLapTimes = mergeBestLaps(bestLapTimes, snapshot.LapData);
+      bestLapTimes = mergeBestLaps(bestLapTimes, snapshot.LapData, snapshot.LapTimes);
     }
     partialData.bestLapTimes = bestLapTimes;
     partialData.gapAheadTrend = snapshot.GapAheadTrend ?? null;

@@ -6,6 +6,7 @@ import type {
   CarStatusData,
   CarDamageData,
   GapTrend,
+  LapTimes,
 } from '../types/telemetry';
 
 export interface TelemetryDataState {
@@ -14,6 +15,8 @@ export interface TelemetryDataState {
   allCarDamage: CarDamageData[];
   allTelemetry: CarTelemetryData[];
   allTelemetry2: CarTelemetry2Data[];
+  /** Each car's completed-lap sectors and bests from the session history, by car index. */
+  allLapTimes: LapTimes[];
   playerCarIndex: number;
   selectedCarIndex: number;
   /** Each car's best completed lap this session in ms, by car index (0: none yet). */
@@ -33,6 +36,7 @@ export const useTelemetryDataStore = create<TelemetryDataState>((set) => ({
   allCarDamage: [],
   allTelemetry: [],
   allTelemetry2: [],
+  allLapTimes: [],
   playerCarIndex: 0,
   selectedCarIndex: 0,
   bestLapTimes: [],
@@ -50,6 +54,7 @@ export const useTelemetryDataStore = create<TelemetryDataState>((set) => ({
       allCarDamage: [],
       allTelemetry: [],
       allTelemetry2: [],
+      allLapTimes: [],
       playerCarIndex: 0,
       selectedCarIndex: 0,
       bestLapTimes: [],

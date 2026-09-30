@@ -816,6 +816,24 @@ export const LIVE_VIEW_MODES = {
 export type LiveViewMode = (typeof LIVE_VIEW_MODES)[keyof typeof LIVE_VIEW_MODES];
 
 export const STORAGE_KEY_LIVE_VIEW_MODE = 'f1_live_view_mode';
+
+/**
+ * How Race Control lays out its four hub panels: all four in a 2 × 2 grid or in one row (a wide
+ * second monitor), or two of them larger for the race (feed, pit strategy) or for pace (sectors, feed).
+ */
+export const RACE_CONTROL_LAYOUTS = {
+  GRID: 'grid',
+  ROW: 'row',
+  RACE: 'race',
+  TIMING: 'timing',
+} as const;
+
+export type RaceControlLayout = (typeof RACE_CONTROL_LAYOUTS)[keyof typeof RACE_CONTROL_LAYOUTS];
+
+export const STORAGE_KEY_RACE_CONTROL_LAYOUT = 'f1_race_control_layout';
+
+/** How often the car detail drawer reloads the car's lap history while it's open. */
+export const CAR_LAPS_REFRESH_MS = 5_000;
 /** The live mode last used at phone size, kept apart so a phone opens the Driver view by default. */
 export const STORAGE_KEY_LIVE_VIEW_MODE_PHONE = 'f1_live_view_mode_phone';
 

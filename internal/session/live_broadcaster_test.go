@@ -874,3 +874,77 @@ func TestLiveBroadcaster_GapTrendsRideOnSnapshot(t *testing.T) {
 		t.Errorf("player's VehicleFIAFlags not carried: %+v", snapshot.CarStatus)
 	}
 }
+
+func sessionHistory(uid uint64, carIdx uint8, laps ...packets.LapHistoryData) *packets.PacketSessionHistoryData {
+	h := &packets.PacketSessionHistoryData{
+		Header:  packets.PacketHeader{PacketFormat: 2025, SessionUID: uid},
+		CarIdx:  carIdx,
+		NumLaps: uint8(len(laps)),
+	}
+	copy(h.LapHistoryData[:], laps)
+	return h
+}
+
+func lapOf(s1, s2, s3 uint16) packets.LapHistoryData {
+	return packets.LapHistoryData{
+		LapTimeInMS:       uint32(s1) + uint32(s2) + uint32(s3),
+		Sector1TimeMSPart: s1,
+		Sector2TimeMSPart: s2,
+		Sector3TimeMSPart: s3,
+		LapValidBitFlags:  packets.LapValidBitFlag,
+	}
+}
+
+func TestLiveBroadcaster_LapTimesFromSessionHistory(t *testing.T) {
+	hub := &mockHub{clientCount: 1}
+	b := NewLiveBroadcaster(hub)
+	var laps [packets.MaxCars]packets.LapData
+	laps[0].CarPosition, laps[1].CarPosition = 1, 2
+	b.ProcessPacket(&packets.PacketParticipantsData{Header: packets.PacketHeader{PacketFormat: 2025, SessionUID: 7}, NumActiveCars: 2})
+	b.ProcessPacket(&packets.PacketLapData{Header: packets.PacketHeader{PacketFormat: 2025, SessionUID: 7}, LapData: laps})
+	b.BroadcastSnapshot()
+
+	var snapshot LiveSnapshot
+	if err := json.Unmarshal(hub.messages[0], &snapshot); err != nil {
+		t.Fatalf("failed to unmarshal snapshot: %v", err)
+	}
+	if snapshot.LapTimes != nil {
+		t.Errorf("LapTimes = %+v before any session history, want omitted", snapshot.LapTimes)
+	}
+
+	// Car 1: best S1 on lap 1, best S2 and S3 and best lap on lap 2, lap 3 in progress
+	h := sessionHistory(7, 1, lapOf(28_000, 31_500, 26_000), lapOf(28_200, 31_000, 25_900), packets.LapHistoryData{Sector1TimeMSPart: 27_900})
+	h.BestLapTimeLapNum, h.BestSector1LapNum, h.BestSector2LapNum, h.BestSector3LapNum = 2, 1, 2, 2
+	b.ProcessPacket(h)
+	b.BroadcastSnapshot()
+
+	if err := json.Unmarshal(hub.messages[1], &snapshot); err != nil {
+		t.Fatalf("failed to unmarshal snapshot: %v", err)
+	}
+	if len(snapshot.LapTimes) != 2 || snapshot.ActiveCarCount != 2 {
+		t.Fatalf("LapTimes has %d cars, want %d", len(snapshot.LapTimes), snapshot.ActiveCarCount)
+	}
+	want := LiveLapTimes{
+		LastSectorsMS:   [3]uint32{28_200, 31_000, 25_900},
+		BestSectorsMS:   [3]uint32{28_000, 31_000, 25_900},
+		BestLapTimeInMS: 85_100,
+	}
+	if snapshot.LapTimes[1] != want {
+		t.Errorf("LapTimes[1] = %+v, want %+v", snapshot.LapTimes[1], want)
+	}
+	if snapshot.LapTimes[0] != (LiveLapTimes{}) {
+		t.Errorf("LapTimes[0] = %+v, want zero for a car without history", snapshot.LapTimes[0])
+	}
+	if got := b.CarHistory(1); got != h {
+		t.Errorf("CarHistory(1) = %p, want the last packet %p", got, h)
+	}
+	if b.CarHistory(-1) != nil || b.CarHistory(packets.MaxCars) != nil {
+		t.Error("CarHistory out of range should be nil")
+	}
+
+	// A new session forgets the histories
+	b.ProcessPacket(&packets.PacketLapData{Header: packets.PacketHeader{PacketFormat: 2025, SessionUID: 8}, LapData: laps})
+	if b.CarHistory(1) != nil {
+		t.Error("CarHistory kept a history from the previous session")
+	}
+}

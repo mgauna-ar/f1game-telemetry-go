@@ -16,6 +16,7 @@ import type {
   CarDamageData,
   CarStatusData,
   CarTelemetry2Data,
+  LapTimes,
   CarTelemetryData,
   EngineerDirective,
   FeedEvent,
@@ -207,6 +208,7 @@ export function makeLiveCarStatus(fields: Partial<CarStatusData> = {}): CarStatu
     ERSStoreEnergy: 0,
     ERSDeployMode: 0,
     VehicleFIAFlags: VEHICLE_FIA_FLAGS.NONE,
+    DRSAllowed: 0,
     ...fields,
   };
 }
@@ -237,6 +239,10 @@ export function makeLiveCarTelemetry2(fields: Partial<CarTelemetry2Data> = {}): 
   return { ActiveAeroMode: 0, OvertakeActive: 0, ...fields };
 }
 
+export function makeLiveLapTimes(fields: Partial<LapTimes> = {}): LapTimes {
+  return { LastSectorsMS: [0, 0, 0], BestSectorsMS: [0, 0, 0], BestLapTimeInMS: 0, ...fields };
+}
+
 export function makeLiveParticipant(fields: Partial<ParticipantData> = {}): ParticipantData {
   return { AIControlled: 1, DriverId: 0, TeamId: 0, RaceNumber: 0, Name: '', ...fields };
 }
@@ -249,6 +255,7 @@ export function makeLiveSession(fields: Partial<SessionData> = {}): SessionData 
     TotalLaps: 0,
     SessionType: 0,
     TrackId: 0,
+    TrackLength: 0,
     SessionTimeLeft: 0,
     SafetyCarStatus: 0,
     NumRedFlagPeriods: 0,

@@ -1,0 +1,119 @@
+.strip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  /* Room either side so a dot at the line isn't clipped */
+  padding: 0 var(--space-3);
+}
+
+.lane {
+  position: relative;
+  height: 3.25rem;
+}
+
+.lane[data-lane='pit'] {
+  height: 2rem;
+  opacity: 0.8;
+}
+
+.line {
+  position: absolute;
+  inset: auto 0 var(--space-3);
+  height: var(--space-1-5);
+  background: var(--bg-inset);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+}
+
+/* The start/finish line at the left end */
+.lane[data-lane='track'] .line::before {
+  content: '';
+  position: absolute;
+  top: calc(-1 * var(--space-2));
+  bottom: calc(-1 * var(--space-2));
+  left: 0;
+  width: 2px;
+  background: var(--text-primary);
+}
+
+.lane[data-lane='pit'] .line {
+  border-style: dashed;
+}
+
+.laneLabel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  transform: translateY(100%);
+}
+
+.lane[data-lane='pit'] .laneLabel {
+  display: none;
+}
+
+.dot {
+  --dot-size: 0.75rem;
+  position: absolute;
+  bottom: calc(var(--space-3) + var(--space-0-5));
+  left: calc(var(--at) * 100%);
+  width: var(--dot-size);
+  height: var(--dot-size);
+  background: var(--team-color);
+  border: 1px solid var(--bg-panel-solid);
+  border-radius: var(--radius-full);
+  transform: translate(-50%, 50%);
+}
+
+.dot[data-role='neighbour'] {
+  --dot-size: 0.95rem;
+  z-index: var(--z-raised);
+}
+
+.dot[data-role='you'] {
+  --dot-size: 1.15rem;
+  z-index: calc(var(--z-raised) + 1);
+  box-shadow: 0 0 0 2px var(--text-primary);
+}
+
+.dot:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+.code {
+  position: absolute;
+  bottom: calc(100% + var(--space-1));
+  left: 50%;
+  padding: 0 var(--space-1);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  line-height: 1.4;
+  color: var(--text-primary);
+  white-space: nowrap;
+  background: var(--bg-panel-solid);
+  border-radius: var(--radius-xs);
+  transform: translateX(-50%);
+}
+
+/* Neighbours' codes go under the line, so they don't hide under yours when the cars are close */
+.dot[data-role='neighbour'] .code {
+  top: calc(100% + var(--space-1));
+  bottom: auto;
+}
+
+.dot[data-role='you'] .code {
+  color: var(--text-on-accent);
+  background: var(--accent-primary);
+}
+
+.waiting {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}

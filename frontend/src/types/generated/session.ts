@@ -68,6 +68,7 @@ export interface LiveCarStatus {
   ERSStoreEnergy: number;
   ERSDeployMode: number;
   VehicleFIAFlags: number;
+  DRSAllowed: number;
 }
 
 /** Go: session.LiveCarTelemetry */
@@ -122,6 +123,13 @@ export interface LiveLapData {
   SpeedTrapFastestLap: number;
 }
 
+/** Go: session.LiveLapTimes */
+export interface LiveLapTimes {
+  LastSectorsMS: number[];
+  BestSectorsMS: number[];
+  BestLapTimeInMS: number;
+}
+
 /** Go: session.LiveParticipant */
 export interface LiveParticipant {
   AIControlled: number;
@@ -139,6 +147,7 @@ export interface LiveSession {
   TotalLaps: number;
   SessionType: number;
   TrackId: number;
+  TrackLength: number;
   SessionTimeLeft: number;
   SafetyCarStatus: number;
   NumRedFlagPeriods: number;
@@ -162,4 +171,5 @@ export interface LiveSnapshot {
   ActiveCarCount?: number;
   GapAheadTrend?: LiveGapTrend;
   GapBehindTrend?: LiveGapTrend;
+  LapTimes?: LiveLapTimes[];
 }

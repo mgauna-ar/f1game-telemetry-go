@@ -10,6 +10,13 @@ describe('liveTiming', () => {
     expect(mergeBestLaps(best, [makeLiveLap({ LastLapTimeInMS: 90_500 })])).toEqual([90_500]);
   });
 
+  it('prefers the game’s best lap from the session history, which leaves out invalid laps', () => {
+    const laps = [makeLiveLap({ LastLapTimeInMS: 89_000 }), makeLiveLap({ LastLapTimeInMS: 90_000 })];
+    const best = mergeBestLaps([], laps, [{ BestLapTimeInMS: 90_500 }, undefined]);
+    expect(best).toEqual([90_500, 90_000]);
+    expect(mergeBestLaps(best, laps, [{ BestLapTimeInMS: 90_500 }, undefined])).toBe(best);
+  });
+
   it('reads the gap to the car in front and finds cars by position', () => {
     expect(deltaToCarInFrontMs(makeLiveLap({ DeltaToCarInFrontMinutesPart: 1, DeltaToCarInFrontMSPart: 2_345 }))).toBe(
       62_345

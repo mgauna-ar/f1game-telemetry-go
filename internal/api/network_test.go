@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 	"github.com/mgauna/f1game-telemetry-go/internal/session"
 	"github.com/mgauna/f1game-telemetry-go/internal/system"
 )
@@ -41,9 +42,16 @@ func TestHandleGetSystemNetwork(t *testing.T) {
 	}
 }
 
-type fakeLiveFeed struct{ status session.FeedStatus }
+type fakeLiveFeed struct {
+	status  session.FeedStatus
+	history map[int]*packets.PacketSessionHistoryData
+}
 
 func (f fakeLiveFeed) FeedStatus() session.FeedStatus { return f.status }
+
+func (f fakeLiveFeed) CarHistory(carIdx int) *packets.PacketSessionHistoryData {
+	return f.history[carIdx]
+}
 
 func TestHandleGetSystemStatus(t *testing.T) {
 	getStatus := func(t *testing.T, server *Server) SystemStatus {

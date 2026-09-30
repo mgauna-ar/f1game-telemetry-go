@@ -12,6 +12,8 @@ import (
 // LiveFeed reports what the live feed last received (session.LiveBroadcaster).
 type LiveFeed interface {
 	FeedStatus() session.FeedStatus
+	// CarHistory returns a car's last session history packet this session, or nil.
+	CarHistory(carIdx int) *packets.PacketSessionHistoryData
 }
 
 // SystemStatus is GET /api/system/status: whether telemetry is arriving and from which session.
@@ -36,7 +38,7 @@ type ActiveSession struct {
 	PlayerCarIndex uint8  `json:"player_car_index"`
 }
 
-// SetLiveFeed attaches the live feed that GET /api/system/status reports on. Call it before serving.
+// SetLiveFeed attaches the live feed that GET /api/system/status and /api/live report on. Call it before serving.
 func (s *Server) SetLiveFeed(feed LiveFeed) {
 	s.liveFeed = feed
 }

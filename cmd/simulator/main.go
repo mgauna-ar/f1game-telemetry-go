@@ -24,6 +24,12 @@ const (
 	sendInterval                = 50 * time.Millisecond // 20Hz
 	simBrakingThrottleThreshold = 0.3
 	simBrakingForce             = 0.8
+	// simTrackLengthM is the simulated track's length (Melbourne).
+	simTrackLengthM = 5278
+	// simCarSpacingM is how far behind the car in front each car runs.
+	simCarSpacingM = 90
+	// simDRSFromLap is the first lap DRS can be enabled on (2025).
+	simDRSFromLap = 3
 )
 
 type driverInfo struct {
@@ -263,7 +269,7 @@ func main() {
 				brake = simBrakingForce
 			}
 
-			lapDist := float32((st.angle / (2 * math.Pi)) * 5000.0)
+			lapDist := float32((st.angle / (2 * math.Pi)) * simTrackLengthM)
 			st.totalDistance += 5.0
 
 			switch cfg.Scenario {
@@ -361,7 +367,7 @@ func main() {
 
 			// 7. Session History Packet (ID: 11) - sent every 100 frames (~5s) for active cars
 			if st.frameID%100 == 0 {
-				for carIdx := 0; carIdx < cfg.NumActiveCars && carIdx < 5; carIdx++ {
+				for carIdx := 0; carIdx < cfg.NumActiveCars; carIdx++ {
 					histPkt := buildSessionHistoryPacket(header, carIdx, st.lapNum)
 					sendSessionHistoryPacket(conn, histPkt)
 				}
@@ -418,7 +424,7 @@ func buildSessionPacket(cfg SimulatorConfig, st *simState, header packets.Packet
 		TrackId:                   0, // Melbourne
 		SessionType:               cfg.SessionType,
 		TotalLaps:                 totalLaps,
-		TrackLength:               5278,
+		TrackLength:               simTrackLengthM,
 		SessionTimeLeft:           st.sessionTimeLeft,
 		SessionDuration:           3600,
 		TrackTemperature:          32,
@@ -703,11 +709,11 @@ func buildLapCars(cfg SimulatorConfig, st *simState, lapDist float32) []packets.
 			lapCars[i] = packets.LapData{
 				DriverStatus:                driverStatus,
 				CurrentLapTimeInMS:          st.lapTimeMs + gapMs,
-				LastLapTimeInMS:             uint32(85432 + i*220),
+				LastLapTimeInMS:             simLastLapMS(i, st.lapNum),
 				Sector1TimeMSPart:           uint16(28120 + i*100),
 				Sector2TimeMSPart:           uint16(31450 + i*90),
 				CurrentLapNum:               st.lapNum,
-				LapDistance:                 lapDist,
+				LapDistance:                 simCarLapDistance(lapDist, i),
 				TotalDistance:               st.totalDistance - float32(i*15),
 				CarPosition:                 uint8(i + 1),
 				GridPosition:                gridPos,
@@ -755,10 +761,20 @@ func buildCarStatusCars(cfg SimulatorConfig, st *simState) []packets.CarStatusDa
 				ERSHarvestLimitPerLap: 2000000.0,
 				PitLimiterStatus:      pitLimiter,
 				VehicleFIAFlags:       simFIAFlag(cfg, st),
+				DRSAllowed:            simDRSAllowed(cfg, st, i),
 			}
 		}
 	}
 	return statusCars
+}
+
+// simDRSAllowed enables 2025 DRS from simDRSFromLap for every car within a second of the one in
+// front (all but the leader); 2026 cars have no DRS.
+func simDRSAllowed(cfg SimulatorConfig, st *simState, carIdx int) uint8 {
+	if cfg.PacketFormat >= packets.PacketFormat2026 || carIdx == 0 || st.lapNum < simDRSFromLap {
+		return 0
+	}
+	return 1
 }
 
 // simFIAFlag is the flag every car sees: yellow while the sc/vsc scenario neutralises the race.
@@ -845,18 +861,58 @@ func buildSessionHistoryPacket(header packets.PacketHeader, carIdx int, lapNum u
 		EndLap:             255,
 		TyreVisualCompound: compounds[carIdx%len(compounds)],
 	}
-	if lapNum > 1 {
-		for l := uint8(1); l < lapNum; l++ {
-			histPkt.LapHistoryData[l-1] = packets.LapHistoryData{
-				LapTimeInMS:       uint32(85432 + carIdx*220),
-				Sector1TimeMSPart: uint16(28120 + carIdx*100),
-				Sector2TimeMSPart: uint16(31450 + carIdx*90),
-				Sector3TimeMSPart: uint16(25862 + carIdx*30),
-				LapValidBitFlags:  1,
+	var bestLap, bestSectors [3]uint32
+	for l := uint8(1); l < lapNum && int(l) <= len(histPkt.LapHistoryData); l++ {
+		sectors := simSectorsMS(carIdx, int(l))
+		lapTime := sectors[0] + sectors[1] + sectors[2]
+		histPkt.LapHistoryData[l-1] = packets.LapHistoryData{
+			LapTimeInMS:       lapTime,
+			Sector1TimeMSPart: uint16(sectors[0]),
+			Sector2TimeMSPart: uint16(sectors[1]),
+			Sector3TimeMSPart: uint16(sectors[2]),
+			LapValidBitFlags:  packets.LapValidBitFlag | packets.Sector1ValidBitFlag | packets.Sector2ValidBitFlag | packets.Sector3ValidBitFlag,
+		}
+		if bestLap[0] == 0 || lapTime < bestLap[0] {
+			bestLap[0] = lapTime
+			histPkt.BestLapTimeLapNum = l
+		}
+		for i, lapNumField := range []*uint8{&histPkt.BestSector1LapNum, &histPkt.BestSector2LapNum, &histPkt.BestSector3LapNum} {
+			if bestSectors[i] == 0 || sectors[i] < bestSectors[i] {
+				bestSectors[i] = sectors[i]
+				*lapNumField = l
 			}
 		}
 	}
 	return histPkt
+}
+
+// simSectorsMS is a car's sector times on a lap: slower down the order, and a little different
+// every lap so each car has its own best lap and sectors.
+func simSectorsMS(carIdx, lap int) [3]uint32 {
+	wobble := func(sector int) uint32 { return uint32(((lap*37 + carIdx*13 + sector*29) % 7) * 60) }
+	return [3]uint32{
+		uint32(28000+carIdx*100) + wobble(1),
+		uint32(31300+carIdx*90) + wobble(2),
+		uint32(25800+carIdx*30) + wobble(3),
+	}
+}
+
+// simLastLapMS is a car's last completed lap time, matching its session history.
+func simLastLapMS(carIdx int, currentLap uint8) uint32 {
+	if currentLap <= 1 {
+		return 0
+	}
+	s := simSectorsMS(carIdx, int(currentLap)-1)
+	return s[0] + s[1] + s[2]
+}
+
+// simCarLapDistance places a car simCarSpacingM behind the one in front, on the same lap.
+func simCarLapDistance(leaderLapDist float32, carIdx int) float32 {
+	d := leaderLapDist - float32(carIdx*simCarSpacingM)
+	for d < 0 {
+		d += simTrackLengthM
+	}
+	return d
 }
 
 func sendSessionPacket(conn io.Writer, pkt *packets.PacketSessionData, format uint16) {

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { useTelemetryStore, useSessionStatusStore, useTelemetryDataStore } from './useTelemetryStore';
 import { PACKET_IDS, PENALTY_TYPES } from '../constants/f1';
 import {
+  makeLiveLapTimes,
   makeFeedEvent,
   makeForecastSample,
   makeLiveCarDamage,
@@ -143,5 +144,11 @@ describe('useTelemetryStore best laps and gap trends', () => {
     expect(useTelemetryDataStore.getState()).toMatchObject({ gapAheadTrend: trend, gapBehindTrend: null });
     sendSnapshot({});
     expect(useTelemetryDataStore.getState().gapAheadTrend).toBeNull();
+  });
+
+  it('keeps the session history lap times, and takes each car’s best lap from them', () => {
+    const lapTimes = [makeLiveLapTimes({ LastSectorsMS: [28_000, 31_000, 26_000], BestLapTimeInMS: 90_500 })];
+    sendSnapshot({ LapData: [makeLiveLap({ LastLapTimeInMS: 89_000 })], LapTimes: lapTimes });
+    expect(useTelemetryDataStore.getState()).toMatchObject({ allLapTimes: lapTimes, bestLapTimes: [90_500] });
   });
 });

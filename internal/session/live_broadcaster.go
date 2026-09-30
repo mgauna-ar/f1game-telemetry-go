@@ -46,6 +46,8 @@ type LiveBroadcaster struct {
 	carTelemetry2 *packets.PacketCarTelemetry2Data
 	carStatus     *packets.PacketCarStatusData
 	carDamage     *packets.PacketCarDamageData
+	// carHistory is each car's last session history packet (completed laps, sectors, stints)
+	carHistory [packets.MaxCars]*packets.PacketSessionHistoryData
 
 	// State tracking for event synthesis
 	sessionUID          uint64
@@ -112,6 +114,7 @@ func (b *LiveBroadcaster) checkSessionTransition(sessionUID uint64) {
 		b.dsqReported = [packets.MaxCars]bool{}
 		b.hasGamePenalty = [packets.MaxCars]bool{}
 		b.lastGamePenaltyTime = [packets.MaxCars]float32{}
+		b.carHistory = [packets.MaxCars]*packets.PacketSessionHistoryData{}
 	}
 }
 
@@ -373,7 +376,43 @@ func (b *LiveBroadcaster) ProcessPacket(pkt packets.Packet) {
 		b.carDamage = p
 		b.dirty = true
 		b.mu.Unlock()
+	case *packets.PacketSessionHistoryData:
+		if int(p.CarIdx) >= packets.MaxCars {
+			return
+		}
+		b.mu.Lock()
+		b.checkSessionTransition(header.SessionUID)
+		b.carHistory[p.CarIdx] = p
+		b.dirty = true
+		b.mu.Unlock()
 	}
+}
+
+// CarHistory returns a car's last session history packet this session, or nil. The packet is
+// shared: callers must not modify it.
+func (b *LiveBroadcaster) CarHistory(carIdx int) *packets.PacketSessionHistoryData {
+	if carIdx < 0 || carIdx >= packets.MaxCars {
+		return nil
+	}
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return b.carHistory[carIdx]
+}
+
+// liveLapTimes converts the first n cars' session histories, or nil before the first one.
+func (b *LiveBroadcaster) liveLapTimes(n int) []LiveLapTimes {
+	n = min(max(n, 0), packets.MaxCars)
+	var out []LiveLapTimes
+	for i := range n {
+		if b.carHistory[i] == nil {
+			continue
+		}
+		if out == nil {
+			out = make([]LiveLapTimes, n)
+		}
+		out[i] = toLiveLapTimes(b.carHistory[i])
+	}
+	return out
 }
 
 // BroadcastSnapshot serializes and broadcasts the slim live snapshot (see LiveSnapshot) if changes
@@ -428,6 +467,7 @@ func (b *LiveBroadcaster) BroadcastSnapshot() {
 	if b.carDamage != nil {
 		snapshot.CarDamage = liveCars(&b.carDamage.CarDamageData, activeCarCount, toLiveCarDamage)
 	}
+	snapshot.LapTimes = b.liveLapTimes(activeCarCount)
 	b.dirty = false
 	gapTrends := b.gapTrends
 	b.mu.Unlock()

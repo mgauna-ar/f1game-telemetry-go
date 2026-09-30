@@ -167,6 +167,7 @@ func (s *Server) routes() {
 			s.setupPTTRoutes(r)
 			s.setupSettingsRoutes(r)
 			s.setupSystemRoutes(r)
+			s.setupLiveRoutes(r)
 		})
 	})
 

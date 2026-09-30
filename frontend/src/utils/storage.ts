@@ -16,6 +16,7 @@ export type KnownStorageKey =
   | 'f1_telemetry_language'
   | 'f1_live_view_mode'
   | 'f1_live_view_mode_phone'
+  | 'f1_race_control_layout'
   | 'f1_ai_engineer_config'
   | 'f1_ai_engineer_open'
   | 'f1_ai_engineer_expanded'

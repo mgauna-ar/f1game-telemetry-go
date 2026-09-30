@@ -52,6 +52,31 @@ export interface ErrorResponse {
   code?: string;
 }
 
+/** Go: api.LiveCarLap */
+export interface LiveCarLap {
+  lap: number;
+  lap_time_ms: number;
+  sectors_ms: number[];
+  valid: boolean;
+}
+
+/** Go: api.LiveCarLaps */
+export interface LiveCarLaps {
+  session_uid: string;
+  car_index: number;
+  best_lap_num: number;
+  best_sector_lap_nums: number[];
+  laps: LiveCarLap[];
+  stints: LiveCarStint[];
+}
+
+/** Go: api.LiveCarStint */
+export interface LiveCarStint {
+  end_lap: number | null;
+  actual_compound: number;
+  visual_compound: number;
+}
+
 /** Go: api.PTTConfigResponse */
 export interface PTTConfigResponse {
   status: string;
