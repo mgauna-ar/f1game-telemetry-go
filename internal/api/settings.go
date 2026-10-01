@@ -50,6 +50,13 @@ type EngineerSettingsResponse struct {
 	settings.Engineer
 }
 
+// ComparatorSettingsResponse is the saved lap comparator setup (the defaults when never saved), and
+// whether it was ever saved.
+type ComparatorSettingsResponse struct {
+	Saved bool `json:"saved"`
+	settings.Comparator
+}
+
 // SettingsChangedMessage tells the dashboards on /ws/engineer that a settings section was saved,
 // so they reload it. Source is the X-Dashboard-Client id of the tab that saved it, which ignores
 // its own message; Version is the engineer settings' new version.
@@ -94,6 +101,8 @@ func (s *Server) setupSettingsRoutes(r chi.Router) {
 	r.Get("/settings/engineer", s.handleGetEngineerSettings)
 	r.Put("/settings/engineer", s.handlePutEngineerSettings)
 	r.Get("/settings/engineer/defaults", s.handleGetEngineerSettingsDefaults)
+	r.Get("/settings/comparator", s.handleGetComparatorSettings)
+	r.Put("/settings/comparator", s.handlePutComparatorSettings)
 }
 
 // aiEnv is the AI setup from environment variables.
@@ -332,6 +341,43 @@ func (s *Server) handlePutEngineerSettings(w http.ResponseWriter, r *http.Reques
 	}
 	s.broadcastSettingsChanged(r, settings.SectionEngineer, next.Version)
 	writeJSON(w, http.StatusOK, EngineerSettingsResponse{Saved: true, Engineer: next})
+}
+
+func (s *Server) handleGetComparatorSettings(w http.ResponseWriter, r *http.Request) {
+	resp := ComparatorSettingsResponse{Comparator: settings.DefaultComparator()}
+	if s.repo != nil {
+		var err error
+		if resp.Comparator, resp.Saved, err = settings.LoadComparator(r.Context(), s.repo); err != nil {
+			slog.Error("Failed to load comparator settings", "error", err)
+			writeJSONError(w, "failed to load comparator settings", http.StatusInternalServerError)
+			return
+		}
+	}
+	writeJSON(w, http.StatusOK, resp)
+}
+
+func (s *Server) handlePutComparatorSettings(w http.ResponseWriter, r *http.Request) {
+	if s.repo == nil {
+		writeJSONError(w, "settings storage not available", http.StatusServiceUnavailable)
+		return
+	}
+	var comparator settings.Comparator
+	if err := json.NewDecoder(r.Body).Decode(&comparator); err != nil {
+		writeJSONError(w, fmt.Sprintf("invalid comparator settings payload: %v", err), http.StatusBadRequest)
+		return
+	}
+	comparator.Normalize()
+	if err := comparator.Validate(); err != nil {
+		writeJSONError(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	if err := settings.SaveComparator(r.Context(), s.repo, comparator); err != nil {
+		slog.Error("Failed to save comparator settings", "error", err)
+		writeJSONError(w, "failed to save comparator settings", http.StatusInternalServerError)
+		return
+	}
+	s.broadcastSettingsChanged(r, settings.SectionComparator, 0)
+	writeJSON(w, http.StatusOK, ComparatorSettingsResponse{Saved: true, Comparator: comparator})
 }
 
 // restorePTTSettings applies the saved push-to-talk setup to a newly attached input manager, so

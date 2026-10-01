@@ -28,7 +28,7 @@ export interface ChatTargets {
 
 /**
  * What the chat is about, read from the page's URL: the session open in History, the laps and
- * zoom in the comparator, or the live session; the progress page is a general chat. The sessions only name the track in the badge.
+ * zoom in the comparator, or the live session; the progress and settings pages are a general chat. The sessions only name the track in the badge.
  */
 export function chatTargetsFromRoute(
   route: Route,
@@ -48,6 +48,7 @@ export function chatTargetsFromRoute(
       };
     }
     case 'progress':
+    case 'settings':
       return { contextMode: 'general', comparatorTarget: null, sessionDebriefTarget: null };
     case 'history':
       if (!route.sessionId) return { contextMode: 'general', comparatorTarget: null, sessionDebriefTarget: null };

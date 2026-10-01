@@ -4,9 +4,7 @@ import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import {
   LIVE_VIEW_MODES,
   RACE_CONTROL_LAYOUTS,
-  STORAGE_KEY_RACE_CONTROL_LAYOUT,
   type LiveViewMode,
-  type RaceControlLayout,
 } from '../constants/f1';
 import { SessionHeader } from './SessionHeader';
 import { LeaderboardTower } from './LeaderboardTower';
@@ -26,8 +24,8 @@ import { CarDetailDrawer } from './race_control/CarDetailDrawer';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { useI18n } from '../context/I18nContext';
 import { useTelemetryDataStore } from '../store/useTelemetryDataStore';
-import { storage } from '../utils/storage';
-import { HUB_PANELS, isRaceControlLayout, type HubPanel } from '../utils/raceControl';
+import { HUB_PANELS, type HubPanel } from '../utils/raceControl';
+import { useDevicePreferencesStore } from '../store/useDevicePreferencesStore';
 import { useRadioController } from '../hooks/useRadioController';
 import { useProactiveTelemetryRadio } from '../hooks/useProactiveTelemetryRadio';
 import { getProactiveRadioSpeech } from '../utils/radioPhrases';
@@ -75,14 +73,8 @@ export const Dashboard: React.FC = () => {
   );
   const closeCar = useCallback(() => setDrawerCar(null), []);
 
-  const [layout, setLayout] = useState<RaceControlLayout>(() => {
-    const saved = storage.get<string>(STORAGE_KEY_RACE_CONTROL_LAYOUT, RACE_CONTROL_LAYOUTS.GRID);
-    return isRaceControlLayout(saved) ? saved : RACE_CONTROL_LAYOUTS.GRID;
-  });
-  const changeLayout = useCallback((next: RaceControlLayout) => {
-    setLayout(next);
-    storage.set(STORAGE_KEY_RACE_CONTROL_LAYOUT, next);
-  }, []);
+  const layout = useDevicePreferencesStore((s) => s.raceControlLayout);
+  const changeLayout = useDevicePreferencesStore((s) => s.setRaceControlLayout);
 
   const radioRef = useRef(radio);
   radioRef.current = radio;

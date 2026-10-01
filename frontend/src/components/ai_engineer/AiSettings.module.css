@@ -1,5 +1,6 @@
-/* The AI settings layer (ChatSettingsDrawer) and its fields. It sits inside the chat widget, whose
-   `chat` container lets the large reading mode spread the settings out. */
+/* The AI settings layer (ChatSettingsDrawer) and its fields (AiSettingsFields, also on the settings
+   page). An `ai-settings` container (the chat widget, the settings page's section) lets a wide
+   space spread the fields out. */
 .panel {
   position: absolute;
   inset: 0;
@@ -100,6 +101,13 @@
   color: var(--text-muted);
   background: var(--bg-panel);
   border-top: 1px solid var(--border-color);
+}
+
+.footActions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-1);
 }
 
 /* Provider cards */
@@ -413,7 +421,7 @@
   color: var(--accent-cyan);
 }
 
-@container chat (min-width: 600px) {
+@container ai-settings (min-width: 600px) {
   .scroll {
     padding: var(--space-5) max(var(--space-5), calc((100% - 620px) / 2));
   }

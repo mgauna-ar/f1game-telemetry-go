@@ -20,11 +20,8 @@ import { useSessionListStore } from '../store/useSessionListStore';
 import { useMergedTelemetry } from '../hooks/useMergedTelemetry';
 import { useComparatorSlots } from '../hooks/useComparatorSlots';
 import type { ComparatorPreferences } from '../types/comparatorPreferences';
-import {
-  loadComparatorPreferences,
-  resolveReferenceLap,
-  resolveComparisonLap,
-} from '../utils/comparatorPreferencesUtils';
+import { resolveReferenceLap, resolveComparisonLap } from '../utils/comparatorPreferencesUtils';
+import { useComparatorPreferencesStore } from '../store/useComparatorPreferencesStore';
 import styles from './LapComparator.module.css';
 
 /**
@@ -73,20 +70,25 @@ export const LapComparator: React.FC = () => {
     lapB: initial.lapB,
   });
 
-  // Comparator Preferences State
-  const [preferences, setPreferences] = useState<ComparatorPreferences>(() => loadComparatorPreferences());
-
-  // The default laps depend on which car was yours in each session, which the session list says:
-  // the slots load once it has arrived (or failed), and it stays that way while it refreshes.
-  const sessionListSettled = useSessionListStore((s) => s.lastFetchedAt !== null || s.error !== null);
-  const [sessionListReady, setSessionListReady] = useState(sessionListSettled);
+  // Who slot B compares against by default, shared by every device
+  const preferences = useComparatorPreferencesStore((s) => s.preferences);
+  const preferencesLoaded = useComparatorPreferencesStore((s) => s.loaded);
   useEffect(() => {
-    if (sessionListSettled) setSessionListReady(true);
-  }, [sessionListSettled]);
+    void useComparatorPreferencesStore.getState().ensureLoaded();
+  }, []);
+
+  // The default laps depend on which car was yours in each session, which the session list says,
+  // and on the rival preference: the slots load once both have arrived (or failed), and it stays
+  // that way while they refresh.
+  const sessionListSettled = useSessionListStore((s) => s.lastFetchedAt !== null || s.error !== null);
+  const [slotsReady, setSlotsReady] = useState(sessionListSettled && preferencesLoaded);
+  useEffect(() => {
+    if (sessionListSettled && preferencesLoaded) setSlotsReady(true);
+  }, [sessionListSettled, preferencesLoaded]);
 
   // Hook 2: Slot A telemetry & laps loader
   const slotA = useSlotTelemetry({
-    sessionId: sessionListReady ? sessionAId : '',
+    sessionId: slotsReady ? sessionAId : '',
     preloadLapId: preload.lapA,
     defaultDriverName: 'Reference',
     playerCarIndex: selectedSessionAObj?.player_car_index ?? null,
@@ -94,7 +96,7 @@ export const LapComparator: React.FC = () => {
 
   // Hook 2 (reused): Slot B telemetry & laps loader
   const slotB = useSlotTelemetry({
-    sessionId: sessionListReady ? sessionBId : '',
+    sessionId: slotsReady ? sessionBId : '',
     preloadLapId: preload.lapB,
     isSlotB: true,
     isSameSessionAsSlotA: sessionAId === sessionBId,
@@ -108,7 +110,6 @@ export const LapComparator: React.FC = () => {
 
   const handlePreferencesSave = useCallback(
     (newPrefs: ComparatorPreferences) => {
-      setPreferences(newPrefs);
       if (slotA.participants.length > 0 && slotA.laps.length > 0) {
         const refRes = resolveReferenceLap(
           slotA.participants,
@@ -307,7 +308,7 @@ export const LapComparator: React.FC = () => {
       preferences.rivalDriverName,
     ]
   );
-  const showQuickStart = sessionListReady && (sessionAId === '' || (lapAId === '' && lapBId === ''));
+  const showQuickStart = slotsReady && (sessionAId === '' || (lapAId === '' && lapBId === ''));
 
   // Quick Select Leaderboard data computation
   const quickSelectData = useMemo(() => {

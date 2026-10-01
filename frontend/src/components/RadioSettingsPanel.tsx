@@ -10,6 +10,8 @@ import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
 import { Switch } from './ui/Switch';
 import { TabPanel, Tabs } from './ui/Tabs';
+import { AllSettingsLink } from './settings/AllSettingsLink';
+import type { SettingsPageSection } from '../router/routes';
 import styles from './RadioSettingsPanel.module.css';
 
 export type RadioSettingsTab = 'persona' | 'audio' | 'tactical';
@@ -23,6 +25,13 @@ export interface RadioSettingsPanelProps {
 }
 
 const TABS_ID = 'radio-settings';
+
+/** The settings page section each tab's settings live in. */
+const TAB_SECTIONS: Record<RadioSettingsTab, SettingsPageSection> = {
+  persona: 'voice',
+  audio: 'voice',
+  tactical: 'alerts',
+};
 
 export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({ isOpen, onClose, radio, initialTab }) => {
   const { t } = useI18n();
@@ -83,9 +92,12 @@ export const RadioSettingsPanel: React.FC<RadioSettingsPanelProps> = ({ isOpen, 
         <Button icon={<Play size={15} aria-hidden="true" />} onClick={radio.testRadioTransmission}>
           {t('ai_engineer.radio.testRadio')}
         </Button>
-        <Button variant="primary" icon={<Check size={15} aria-hidden="true" />} onClick={onClose}>
-          {t('ai_engineer.done')}
-        </Button>
+        <span className={styles.footerActions}>
+          <AllSettingsLink section={TAB_SECTIONS[activeTab]} onNavigate={onClose} />
+          <Button variant="primary" icon={<Check size={15} aria-hidden="true" />} onClick={onClose}>
+            {t('ai_engineer.done')}
+          </Button>
+        </span>
       </ModalFooter>
     </Modal>
   );

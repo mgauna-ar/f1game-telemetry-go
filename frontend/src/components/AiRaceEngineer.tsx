@@ -4,9 +4,8 @@ import {
   useRaceEngineer,
   providerHasKey,
   AI_PROVIDER_OPTIONS,
-  STORAGE_KEY_AI_EXPANDED,
 } from '../context/RaceEngineerContext';
-import { storage } from '../utils/storage';
+import { useDevicePreferencesStore } from '../store/useDevicePreferencesStore';
 import { useI18n } from '../context/I18nContext';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import { useLiveStatus } from '../hooks/useLiveStatus';
@@ -71,7 +70,8 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({ isOpenOverride, 
   const handleClose = onCloseOverride || closeChat;
 
   const [showSettings, setShowSettings] = useState(false);
-  const [isExpanded, setIsExpanded] = useState<boolean>(() => storage.get<boolean>(STORAGE_KEY_AI_EXPANDED, false));
+  const isExpanded = useDevicePreferencesStore((s) => s.chatExpanded);
+  const setIsExpanded = useDevicePreferencesStore((s) => s.setChatExpanded);
   const [inputMessage, setInputMessage] = useState('');
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const widgetRef = useRef<HTMLDivElement | null>(null);
@@ -87,10 +87,6 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({ isOpenOverride, 
     autoFocus: false,
     returnFocusRef: fabRef,
   });
-
-  useEffect(() => {
-    storage.set(STORAGE_KEY_AI_EXPANDED, isExpanded);
-  }, [isExpanded]);
 
   // Grow the message box with its text, up to a few lines.
   useEffect(() => {

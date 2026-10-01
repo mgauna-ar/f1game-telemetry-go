@@ -10,6 +10,7 @@ import { findServerPreset } from '../../utils/aiServers';
 import { SKIP_AUTOFOCUS_ATTRIBUTE, useDialogLayer } from '../ui/useDialogLayer';
 import { Button, IconButton } from '../ui/Button';
 import { cx } from '../ui/cx';
+import { AllSettingsLink } from '../settings/AllSettingsLink';
 import styles from './AiSettings.module.css';
 import {
   AI_PROVIDER_OPTIONS,
@@ -20,9 +21,7 @@ import {
   type AIProvider,
 } from '../../context/RaceEngineerContext';
 
-export interface ChatSettingsDrawerProps {
-  isOpen: boolean;
-  onClose: () => void;
+export interface AiSettingsFieldsProps {
   config: AIConfig;
   saveConfig: (config: AIConfig) => void;
   keyStatus: AIKeyStatusByProvider;
@@ -33,16 +32,18 @@ export interface ChatSettingsDrawerProps {
   fetchAvailableModels: (cfg?: AIConfig) => Promise<void>;
 }
 
+export interface ChatSettingsDrawerProps extends AiSettingsFieldsProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
 /**
- * The AI settings, shown over the chat. Pick a provider, then only that provider's fields show:
- * a key and where to get one for cloud providers, a server address (with presets) and an optional
- * key for OpenAI-compatible servers, and the provider's own model list. Every change saves at once
- * to the server, so all devices share it. It is a layer over the chat: Esc closes it before the
- * chat, and focus moves into it and back to the button that opened it.
+ * The AI settings fields. Pick a provider, then only that provider's fields show: a key and where
+ * to get one for cloud providers, a server address (with presets) and an optional key for
+ * OpenAI-compatible servers, and the provider's own model list. Every change saves at once to
+ * the server, so all devices share it.
  */
-export const ChatSettingsDrawer: React.FC<ChatSettingsDrawerProps> = ({
-  isOpen,
-  onClose,
+export const AiSettingsFields: React.FC<AiSettingsFieldsProps> = ({
   config,
   saveConfig,
   keyStatus,
@@ -53,12 +54,6 @@ export const ChatSettingsDrawer: React.FC<ChatSettingsDrawerProps> = ({
   fetchAvailableModels,
 }) => {
   const { t } = useI18n();
-  const titleId = useId();
-  const panelRef = useRef<HTMLDivElement | null>(null);
-  useDialogLayer({ isOpen, onClose, containerRef: panelRef });
-
-  if (!isOpen) return null;
-
   const provider = config.provider;
   const isCustom = provider === 'custom';
   const option = AI_PROVIDER_OPTIONS.find((o) => o.provider === provider);
@@ -93,6 +88,61 @@ export const ChatSettingsDrawer: React.FC<ChatSettingsDrawerProps> = ({
   else if (!providerHasKey(keyStatus, provider)) modelsUnavailable = t('ai_engineer.setup.modelsNeedKey');
 
   return (
+    <>
+      <section className={styles.section}>
+        <h3 className={styles.sectionTitle}>{t('ai_engineer.provider')}</h3>
+        <ProviderPicker config={config} keyStatus={keyStatus} onSelect={selectProvider} />
+      </section>
+
+      <section className={cx(styles.section, styles.providerPanel)} key={provider}>
+        {option && (
+          <div>
+            <h3 className={styles.sectionTitle}>{t(option.nameKey)}</h3>
+            <p className={styles.about}>{t(`ai_engineer.providers.${provider}.about`)}</p>
+          </div>
+        )}
+
+        {isCustom && (
+          <ServerAddressField baseUrl={config.baseUrl} onChange={(baseUrl) => saveConfig({ ...config, baseUrl })} />
+        )}
+
+        <ApiKeyField
+          provider={provider}
+          status={status}
+          saveApiKey={saveApiKey}
+          optional={isCustom}
+          keyLink={keyLink}
+          hint={keyHint}
+        />
+
+        <ModelPicker
+          currentModel={config.model}
+          availableModels={availableModels}
+          isLoadingModels={isLoadingModels}
+          modelsError={modelsUnavailable ? null : modelsError}
+          unavailableReason={modelsUnavailable}
+          onModelChange={(model) => saveConfig({ ...config, model })}
+          onRefreshModels={() => fetchAvailableModels()}
+        />
+      </section>
+    </>
+  );
+};
+
+/**
+ * The AI settings, shown over the chat: a shortcut to the settings page's AI section. It is a
+ * layer over the chat: Esc closes it before the chat, and focus moves into it and back to the
+ * button that opened it.
+ */
+export const ChatSettingsDrawer: React.FC<ChatSettingsDrawerProps> = ({ isOpen, onClose, ...fields }) => {
+  const { t } = useI18n();
+  const titleId = useId();
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  useDialogLayer({ isOpen, onClose, containerRef: panelRef });
+
+  if (!isOpen) return null;
+
+  return (
     <div
       ref={panelRef}
       className={styles.panel}
@@ -118,49 +168,17 @@ export const ChatSettingsDrawer: React.FC<ChatSettingsDrawerProps> = ({
       </div>
 
       <div className={styles.scroll}>
-        <section className={styles.section}>
-          <h3 className={styles.sectionTitle}>{t('ai_engineer.provider')}</h3>
-          <ProviderPicker config={config} keyStatus={keyStatus} onSelect={selectProvider} />
-        </section>
-
-        <section className={cx(styles.section, styles.providerPanel)} key={provider}>
-          {option && (
-            <div>
-              <h3 className={styles.sectionTitle}>{t(option.nameKey)}</h3>
-              <p className={styles.about}>{t(`ai_engineer.providers.${provider}.about`)}</p>
-            </div>
-          )}
-
-          {isCustom && (
-            <ServerAddressField baseUrl={config.baseUrl} onChange={(baseUrl) => saveConfig({ ...config, baseUrl })} />
-          )}
-
-          <ApiKeyField
-            provider={provider}
-            status={status}
-            saveApiKey={saveApiKey}
-            optional={isCustom}
-            keyLink={keyLink}
-            hint={keyHint}
-          />
-
-          <ModelPicker
-            currentModel={config.model}
-            availableModels={availableModels}
-            isLoadingModels={isLoadingModels}
-            modelsError={modelsUnavailable ? null : modelsError}
-            unavailableReason={modelsUnavailable}
-            onModelChange={(model) => saveConfig({ ...config, model })}
-            onRefreshModels={() => fetchAvailableModels()}
-          />
-        </section>
+        <AiSettingsFields {...fields} />
       </div>
 
       <div className={styles.foot}>
         <span>{t('ai_engineer.setup.autosaveNote')}</span>
-        <Button variant="primary" size="sm" onClick={onClose}>
-          {t('ai_engineer.done')}
-        </Button>
+        <span className={styles.footActions}>
+          <AllSettingsLink section="ai" onNavigate={onClose} />
+          <Button variant="primary" size="sm" onClick={onClose}>
+            {t('ai_engineer.done')}
+          </Button>
+        </span>
       </div>
     </div>
   );

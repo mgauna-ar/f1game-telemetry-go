@@ -622,7 +622,7 @@ func TestHandleEmbeddedFrontendAndSPAFallback(t *testing.T) {
 	}
 
 	// 2. The dashboard's page URLs (frontend/src/router/routes.ts) fall back to index.html with 200 OK
-	for _, route := range []string{"/history", "/history/12/charts", "/compare?sa=1&a=2&b=3&zoom=10-20", "/progress", "/progress/Abu%20Dhabi", "/live/cockpit"} {
+	for _, route := range []string{"/history", "/history/12/charts", "/compare?sa=1&a=2&b=3&zoom=10-20", "/progress", "/progress/Abu%20Dhabi", "/live/cockpit", "/settings/comparator"} {
 		reqSPA := httptest.NewRequest(http.MethodGet, route, http.NoBody)
 		recSPA := httptest.NewRecorder()
 		server.router.ServeHTTP(recSPA, reqSPA)

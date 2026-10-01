@@ -118,3 +118,11 @@
 .check {
   color: var(--accent-primary);
 }
+
+/* On a phone the top bar also holds the settings gear: the flag and code are enough */
+@media (--phone) {
+  .button > .muted,
+  .chevron {
+    display: none;
+  }
+}

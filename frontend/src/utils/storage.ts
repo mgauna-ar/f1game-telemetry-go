@@ -5,8 +5,9 @@ type LegacyRadioStorageKey = (typeof LEGACY_RADIO_STORAGE_KEYS)[keyof typeof LEG
 
 /**
  * Every key the app keeps in localStorage. These settings are per browser; settings every device
- * shares (alerts, AI provider and keys, voice, push-to-talk) live on the server. The legacy keys
- * and 'f1_ai_engineer_config' are only read once, to move older browser settings to the server.
+ * shares (alerts, AI provider and keys, voice, push-to-talk, comparator rival) live on the server.
+ * The legacy keys, 'f1_ai_engineer_config' and the comparator rival keys are only read once, to move
+ * older browser settings to the server.
  */
 export type KnownStorageKey =
   | RadioStorageKey
@@ -24,6 +25,7 @@ export type KnownStorageKey =
   | 'f1_ai_engineer_expanded'
   // Old saved driver name: only read once to apply it to sessions without a driver, then removed
   | 'f1_comparator_default_driver_name'
+  // Comparator rival: only read once to move it to /api/settings/comparator, then removed
   | 'f1_comparator_rival_mode'
   | 'f1_comparator_rival_driver_name'
   | 'f1_comparator_chart_view'

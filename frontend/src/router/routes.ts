@@ -21,10 +21,18 @@ import { isQuickFilter, type QuickFilter } from '../utils/sessionListView';
  * - `/progress[/:track]`: your pace at a track across its sessions; the latest track when left out
  * - `/live/:mode`: the live dashboard, the voice cockpit or the driver glance view (a phone opens
  *   the driver view unless another mode was last used at phone size)
+ * - `/settings/:section`: one section of the settings page; the first when left out
  */
 
 export const SESSION_DETAIL_TABS = ['story', 'classification', 'pace', 'position', 'gap', 'stints', 'sectors'] as const;
 export type SessionDetailTab = (typeof SESSION_DETAIL_TABS)[number];
+
+/**
+ * The settings page's sections: the race engineer's voice and persona, its radio calls,
+ * push-to-talk, the AI chat, the comparator (all shared by every device), then this device's own.
+ */
+export const SETTINGS_SECTIONS = ['voice', 'alerts', 'ptt', 'ai', 'comparator', 'device'] as const;
+export type SettingsPageSection = (typeof SETTINGS_SECTIONS)[number];
 
 export interface CompareParams {
   sessionA?: number;
@@ -45,13 +53,17 @@ export type Route =
   | { page: 'history'; sessionId?: number; tab: SessionDetailTab; listFilter?: ListFilterParams }
   | ({ page: 'compare' } & CompareParams)
   | { page: 'progress'; track?: string }
-  | { page: 'live'; mode: LiveViewMode };
+  | { page: 'live'; mode: LiveViewMode }
+  | { page: 'settings'; section: SettingsPageSection };
 
 export type Page = Route['page'];
 
-/** The last page, reopened when the dashboard is opened at `/`. The old tab names are kept. */
+/**
+ * The last page, reopened when the dashboard is opened at `/`. The old tab names are kept. The
+ * settings page isn't one: the dashboard opens on the page used before it.
+ */
 export const STORAGE_KEY_LAST_PAGE = 'f1_active_tab';
-const PAGE_TO_STORED: Record<Page, string> = {
+const PAGE_TO_STORED: Record<Exclude<Page, 'settings'>, string> = {
   history: 'history',
   compare: 'comparator',
   progress: 'progress',
@@ -92,6 +104,9 @@ const isDetailTab = (value: string | undefined): value is SessionDetailTab =>
 const detailTab = (value: string | undefined): SessionDetailTab =>
   value === 'charts' ? 'pace' : isDetailTab(value) ? value : 'story';
 
+const isSettingsSection = (value: string | undefined): value is SettingsPageSection =>
+  (SETTINGS_SECTIONS as readonly string[]).includes(value ?? '');
+
 const isLiveMode = (value: string | undefined): value is LiveViewMode =>
   (Object.values(LIVE_VIEW_MODES) as string[]).includes(value ?? '');
 
@@ -99,19 +114,25 @@ const isPhoneSize = (): boolean =>
   typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(PHONE_MEDIA).matches;
 
 /** Where the last live mode is kept: phones keep their own, so they start on the Driver view. */
-const liveModeKey = () => (isPhoneSize() ? STORAGE_KEY_LIVE_VIEW_MODE_PHONE : STORAGE_KEY_LIVE_VIEW_MODE);
+const liveModeKey = (phone: boolean) => (phone ? STORAGE_KEY_LIVE_VIEW_MODE_PHONE : STORAGE_KEY_LIVE_VIEW_MODE);
 
-/** The live mode last used on this browser at this size: Driver on a phone, else Race Control. */
-export const storedLiveMode = (): LiveViewMode => {
-  const fallback = isPhoneSize() ? LIVE_VIEW_MODES.DRIVER : LIVE_VIEW_MODES.DASHBOARD;
-  const saved = storage.get<string>(liveModeKey(), fallback);
+/** The live mode `/live` opens on a phone or on a bigger screen: the last one used there. */
+export const storedLiveModeFor = (phone: boolean): LiveViewMode => {
+  const fallback = phone ? LIVE_VIEW_MODES.DRIVER : LIVE_VIEW_MODES.DASHBOARD;
+  const saved = storage.get<string>(liveModeKey(phone), fallback);
   return isLiveMode(saved) ? saved : fallback;
 };
 
-/** Remembers the live mode for the next `/live` at this size. */
-export const storeLiveMode = (mode: LiveViewMode): void => {
-  storage.set(liveModeKey(), mode);
+/** Sets the live mode `/live` opens on a phone or on a bigger screen. */
+export const storeLiveModeFor = (phone: boolean, mode: LiveViewMode): void => {
+  storage.set(liveModeKey(phone), mode);
 };
+
+/** The live mode last used on this browser at this size: Driver on a phone, else Race Control. */
+export const storedLiveMode = (): LiveViewMode => storedLiveModeFor(isPhoneSize());
+
+/** Remembers the live mode for the next `/live` at this size. */
+export const storeLiveMode = (mode: LiveViewMode): void => storeLiveModeFor(isPhoneSize(), mode);
 
 const storedPage = (): Page => {
   const saved = storage.get<string>(STORAGE_KEY_LAST_PAGE, 'history');
@@ -146,6 +167,9 @@ export function parseRoute(pathname: string, search = ''): Route {
   if (page === 'live') {
     return { page: 'live', mode: isLiveMode(second) ? second : storedLiveMode() };
   }
+  if (page === 'settings') {
+    return { page: 'settings', section: isSettingsSection(second) ? second : SETTINGS_SECTIONS[0] };
+  }
   const sessionId = page === 'history' ? positiveInt(second) : undefined;
   if (!sessionId && page === 'history') {
     const query = new URLSearchParams(search);
@@ -178,6 +202,8 @@ export function buildPath(route: Route): string {
     }
     case 'live':
       return `/live/${route.mode}`;
+    case 'settings':
+      return `/settings/${route.section}`;
     case 'progress':
       return route.track ? `/progress/${encodeURIComponent(route.track)}` : '/progress';
     case 'compare': {
@@ -194,4 +220,10 @@ export function buildPath(route: Route): string {
 }
 
 /** Remembers the page for the next time the dashboard is opened at `/`. */
-export const storeLastPage = (page: Page) => storage.set(STORAGE_KEY_LAST_PAGE, PAGE_TO_STORED[page]);
+export const storeLastPage = (page: Page) => {
+  if (page !== 'settings') storage.set(STORAGE_KEY_LAST_PAGE, PAGE_TO_STORED[page]);
+};
+
+/** The URL of a settings section. */
+export const settingsPath = (section: SettingsPageSection = SETTINGS_SECTIONS[0]) =>
+  buildPath({ page: 'settings', section });

@@ -128,3 +128,8 @@
   font-size: var(--font-size-sm);
   color: var(--text-secondary);
 }
+
+.footerActions {
+  display: flex;
+  gap: var(--space-2);
+}

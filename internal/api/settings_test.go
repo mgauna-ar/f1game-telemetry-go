@@ -346,3 +346,32 @@ func TestCrossSiteWritesAreRejected(t *testing.T) {
 		t.Errorf("Access-Control-Allow-Origin = %q, other websites must not be able to read API responses", got)
 	}
 }
+
+func TestComparatorSettings_RoundTripAndValidation(t *testing.T) {
+	server, _ := newSettingsTestServer(t, ServerConfig{})
+
+	var before ComparatorSettingsResponse
+	if err := json.NewDecoder(doJSON(t, server, http.MethodGet, "/api/settings/comparator", nil).Body).Decode(&before); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if before.Saved || before.Comparator != settings.DefaultComparator() {
+		t.Errorf("GET comparator on a fresh database = %+v, want the defaults, not saved", before)
+	}
+
+	if rec := doJSON(t, server, http.MethodPut, "/api/settings/comparator", settings.Comparator{RivalMode: "slowest"}); rec.Code != http.StatusBadRequest {
+		t.Errorf("PUT with an unknown rival mode = %d, want 400", rec.Code)
+	}
+
+	rec := doJSON(t, server, http.MethodPut, "/api/settings/comparator", settings.Comparator{RivalMode: settings.RivalModeDriver, RivalDriverName: "  Leclerc "})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("PUT comparator = %d, body %s", rec.Code, rec.Body.String())
+	}
+	want := settings.Comparator{RivalMode: settings.RivalModeDriver, RivalDriverName: "Leclerc"}
+	var after ComparatorSettingsResponse
+	if err := json.NewDecoder(doJSON(t, server, http.MethodGet, "/api/settings/comparator", nil).Body).Decode(&after); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if !after.Saved || after.Comparator != want {
+		t.Errorf("GET comparator = %+v, want saved %+v", after, want)
+	}
+}

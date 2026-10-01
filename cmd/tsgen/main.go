@@ -84,7 +84,9 @@ func registry() *tsgen.Generator {
 		api.PTTConfigResponse{},
 		api.EngineerSettingsResponse{},
 		settings.Engineer{},
+		api.ComparatorSettingsResponse{},
 	)
+	g.TypeAlias("settings", "ComparatorRivalMode", stringUnion(settings.RivalModes))
 	// The radio settings panel's switch names; the server derives the engine's categories from them.
 	g.TypeAlias("engineer", "EngineerAlertSwitch", stringUnion(engineer.AlertSwitchKeys))
 

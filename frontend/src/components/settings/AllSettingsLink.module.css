@@ -1,0 +1,4 @@
+.link {
+  composes: button ghost sm from '../ui/Button.module.css';
+  text-decoration: none;
+}

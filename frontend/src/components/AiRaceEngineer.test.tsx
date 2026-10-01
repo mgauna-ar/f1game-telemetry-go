@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, within, act } from '@testing-library/react';
 import { vi, describe, it, beforeEach, expect } from 'vitest';
+import { resetDevicePreferences } from '../store/useDevicePreferencesStore';
 import { AiRaceEngineer } from './AiRaceEngineer';
 import { RaceEngineerProvider } from '../context/RaceEngineerProvider';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
@@ -30,6 +31,7 @@ describe('AiRaceEngineer Component', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     localStorage.clear();
+    resetDevicePreferences();
     useSessionStatusStore.setState({ connected: false, session: null });
     useSessionListStore.getState().reset();
     globalThis.fetch = vi.fn().mockImplementation((url: string) => {

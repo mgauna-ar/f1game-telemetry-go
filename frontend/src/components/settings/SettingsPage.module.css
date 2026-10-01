@@ -1,0 +1,163 @@
+/* The settings page: a list of sections beside the open one; above it on tablets and phones. */
+.page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-8);
+}
+
+.header {
+  margin-bottom: var(--space-6);
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  font-size: 2rem;
+}
+
+.subtitle {
+  max-width: 72ch;
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-md);
+  color: var(--text-secondary);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-6);
+}
+
+.nav {
+  position: sticky;
+  top: var(--space-4);
+}
+
+.navList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.navLink:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.navLink[aria-current='page'] {
+  border-color: color-mix(in srgb, var(--accent-primary) 40%, transparent);
+  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
+  color: var(--text-primary);
+}
+
+/* "This device" sits apart from the shared sections */
+.navList li:has(.navLink[data-device]) {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.sectionHeader {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.sectionHeading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: var(--font-size-xl);
+}
+
+.sectionDescription {
+  margin: 0;
+  font-size: var(--font-size-md);
+  color: var(--text-secondary);
+}
+
+.sectionActions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* The AI fields spread out like the chat's large reading mode when there is room */
+.aiFields {
+  container: ai-settings / inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+@media (--tablet) {
+  .page {
+    padding: var(--space-4);
+  }
+
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+  }
+
+  .nav {
+    position: static;
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+
+  .navList {
+    flex-direction: row;
+  }
+
+  .navList li:has(.navLink[data-device]) {
+    margin: 0 0 0 var(--space-2);
+    padding: 0 0 0 var(--space-2);
+    border-top: 0;
+    border-left: 1px solid var(--border-subtle);
+  }
+}
+
+@media (--phone) {
+  .page {
+    padding: var(--space-4) var(--space-4) var(--space-6);
+  }
+
+  .title {
+    font-size: var(--font-size-2xl);
+  }
+
+  .content {
+    padding: var(--space-4) var(--space-3);
+  }
+}

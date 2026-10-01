@@ -1,0 +1,61 @@
+export const settings = {
+  title: 'Configuración',
+  subtitle:
+    'La configuración compartida se guarda en el servidor para todos los dispositivos que abren el panel, y los demás paneles abiertos la siguen. "Este dispositivo" queda en este navegador.',
+  navLabel: 'Secciones de configuración',
+  open: 'Configuración',
+  allSettings: 'Toda la configuración',
+  scope: {
+    shared: 'Todos los dispositivos',
+    device: 'Este dispositivo',
+    sharedHint: 'Se guarda en el servidor al cambiarla; la usan todos los dispositivos.',
+    deviceHint: 'Queda en este navegador; los demás dispositivos tienen la suya.',
+  },
+  sections: {
+    voice: {
+      title: 'Ingeniero y voz',
+      short: 'Ingeniero y voz',
+      description: 'Quién es tu ingeniero de carrera, cómo te llama y cómo suena.',
+    },
+    alerts: {
+      title: 'Llamadas de radio',
+      short: 'Llamadas de radio',
+      description: 'Cuándo habla el ingeniero: el preset, cada alerta y sus umbrales.',
+    },
+    ptt: {
+      title: 'Pulsar para hablar',
+      short: 'Pulsar para hablar',
+      description: 'El botón del volante o la tecla que mantenés o pulsás para hablar con el ingeniero.',
+    },
+    ai: {
+      title: 'Chat de IA',
+      short: 'Chat de IA',
+      description: 'El proveedor, la clave y el modelo que usa el ingeniero de IA.',
+    },
+    comparator: {
+      title: 'Comparador de vueltas',
+      short: 'Comparador',
+      description: 'Contra qué vuelta compara el slot B cuando el comparador elige las vueltas.',
+    },
+    device: {
+      title: 'Este dispositivo',
+      short: 'Este dispositivo',
+      description: 'Sonido, idioma, vistas y diseño de esta pantalla. Los demás dispositivos tienen los suyos.',
+    },
+  },
+  device: {
+    radio: 'Radio en este dispositivo',
+    radioMasterDesc: 'Apagá al ingeniero en una pantalla que no debe hablar, como un teléfono en el simulador.',
+    liveViews: 'Vistas en vivo',
+    liveView: 'En vivo abre en una computadora o tablet',
+    liveViewPhone: 'En vivo abre en un teléfono',
+    liveViewHint: 'La pestaña En vivo también recuerda la última vista que usaste en cada tamaño.',
+    layout: 'Diseño',
+    chatSize: 'Tamaño del chat de IA',
+    chatCompact: 'Compacto',
+    chatExpanded: 'Grande',
+    performanceGeneral: 'Todas las páginas menos la vista Piloto',
+    performanceDriver: 'Vista Piloto',
+    performanceDriverDesc: 'Activado por defecto: un teléfono en el simulador se lee de un vistazo.',
+  },
+};

@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import { vi } from 'vitest';
+import { resetDevicePreferences } from '../store/useDevicePreferencesStore';
 import { api } from '../utils/apiClient';
 import { Dashboard } from './Dashboard';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
@@ -15,6 +16,7 @@ vi.spyOn(storeModule, 'connectTelemetryWebSocket').mockReturnValue(() => {});
 describe('Dashboard', () => {
   beforeEach(() => {
     localStorage.removeItem('f1_race_control_layout');
+    resetDevicePreferences();
     useSessionStatusStore.getState().resetSession();
     useTelemetryDataStore.getState().resetTelemetryData();
     useSessionStatusStore.setState({

@@ -184,6 +184,7 @@ export const ai_engineer = {
       voice: 'voz',
       ai: 'IA',
       ptt: 'pulsar para hablar',
+      comparator: 'comparador',
     },
   },
   radio: {
@@ -307,6 +308,7 @@ export const ai_engineer = {
   },
   neuralVoice: {
     title: 'Voz Neuronal (Síntesis)',
+    sectionTitle: 'Idioma y voz',
     auto: '⚡ Automática (Recomendada)',
     tomas: '🇦🇷 Tomás (Argentino - Masculino)',
     ryan: '🇬🇧 Ryan (Británico - Masculino)',

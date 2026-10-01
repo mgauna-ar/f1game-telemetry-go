@@ -1,10 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ComparatorPreferencesModal } from './ComparatorPreferencesModal';
-import { saveComparatorPreferences } from '../../utils/comparatorPreferencesUtils';
+import {
+  resetComparatorPreferencesStore,
+  useComparatorPreferencesStore,
+} from '../../store/useComparatorPreferencesStore';
 
 describe('ComparatorPreferencesModal Component', () => {
   beforeEach(() => {
+    resetComparatorPreferencesStore();
     localStorage.clear();
   });
 
@@ -20,10 +24,7 @@ describe('ComparatorPreferencesModal Component', () => {
   });
 
   it('renders correctly when open and loads initial storage preferences', () => {
-    saveComparatorPreferences({
-      rivalMode: 'teammate',
-      rivalDriverName: '',
-    });
+    useComparatorPreferencesStore.setState({ preferences: { rivalMode: 'teammate', rivalDriverName: '' } });
 
     render(
       <ComparatorPreferencesModal
@@ -70,6 +71,8 @@ describe('ComparatorPreferencesModal Component', () => {
       rivalDriverName: 'Piastri',
     });
     expect(handleClose).toHaveBeenCalled();
+    // Saved for every device
+    expect(useComparatorPreferencesStore.getState().preferences).toEqual({ rivalMode: 'driver', rivalDriverName: 'Piastri' });
   });
 
   it('supports the "use current driver" shortcut', () => {
@@ -93,6 +96,17 @@ describe('ComparatorPreferencesModal Component', () => {
     expect(rivalInput).toHaveValue('Lando Norris');
   });
 
+  it('leads to the comparator section of the settings page', () => {
+    const handleClose = vi.fn();
+    render(<ComparatorPreferencesModal isOpen={true} onClose={handleClose} onSave={vi.fn()} />);
+
+    const link = screen.getByRole('link', { name: 'All settings' });
+    expect(link).toHaveAttribute('href', '/settings/comparator');
+    fireEvent.click(link);
+    expect(handleClose).toHaveBeenCalled();
+    expect(window.location.pathname).toBe('/settings/comparator');
+  });
+
   it('closes on cancel and close button clicks', () => {
     const handleClose = vi.fn();
     render(
@@ -107,7 +121,7 @@ describe('ComparatorPreferencesModal Component', () => {
     fireEvent.click(cancelBtn);
     expect(handleClose).toHaveBeenCalledTimes(1);
 
-    const closeBtn = screen.getByRole('button', { name: /close/i });
+    const closeBtn = screen.getByRole('button', { name: /^close/i });
     fireEvent.click(closeBtn);
     expect(handleClose).toHaveBeenCalledTimes(2);
 

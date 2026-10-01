@@ -6,6 +6,7 @@ import { live as enLive } from './en/live';
 import { progress as enProgress } from './en/progress';
 import { ai_engineer as enAiEngineer } from './en/ai_engineer';
 import { radio_phrases as enRadioPhrases } from './en/radio_phrases';
+import { settings as enSettings } from './en/settings';
 
 import { common as esCommon } from './es/common';
 import { nav as esNav } from './es/nav';
@@ -15,6 +16,7 @@ import { live as esLive } from './es/live';
 import { progress as esProgress } from './es/progress';
 import { ai_engineer as esAiEngineer } from './es/ai_engineer';
 import { radio_phrases as esRadioPhrases } from './es/radio_phrases';
+import { settings as esSettings } from './es/settings';
 
 export const en = {
   common: enCommon,
@@ -25,6 +27,7 @@ export const en = {
   live: enLive,
   ai_engineer: enAiEngineer,
   radio_phrases: enRadioPhrases,
+  settings: enSettings,
 };
 
 export const es = {
@@ -36,6 +39,7 @@ export const es = {
   live: esLive,
   ai_engineer: esAiEngineer,
   radio_phrases: esRadioPhrases,
+  settings: esSettings,
 };
 
 export type LocaleCode = 'en' | 'es';

@@ -1,0 +1,61 @@
+export const settings = {
+  title: 'Settings',
+  subtitle:
+    'Shared settings are saved on the server for every device that opens the dashboard, and other open dashboards follow. "This device" stays in this browser.',
+  navLabel: 'Settings sections',
+  open: 'Settings',
+  allSettings: 'All settings',
+  scope: {
+    shared: 'Every device',
+    device: 'This device',
+    sharedHint: 'Saved on the server as you change it; every device uses it.',
+    deviceHint: 'Kept in this browser; other devices keep their own.',
+  },
+  sections: {
+    voice: {
+      title: 'Engineer & voice',
+      short: 'Engineer & voice',
+      description: 'Who your race engineer is, what they call you and how they sound.',
+    },
+    alerts: {
+      title: 'Radio calls',
+      short: 'Radio calls',
+      description: 'When the engineer speaks up: the preset, each alert and its thresholds.',
+    },
+    ptt: {
+      title: 'Push-to-talk',
+      short: 'Push-to-talk',
+      description: 'The wheel button or key you hold or press to talk to the engineer.',
+    },
+    ai: {
+      title: 'AI chat',
+      short: 'AI chat',
+      description: 'The provider, key and model the AI race engineer uses.',
+    },
+    comparator: {
+      title: 'Lap comparator',
+      short: 'Comparator',
+      description: 'Which lap slot B compares against when the comparator picks the laps.',
+    },
+    device: {
+      title: 'This device',
+      short: 'This device',
+      description: 'Sound, language, views and layout for this screen. Other devices keep their own.',
+    },
+  },
+  device: {
+    radio: 'Radio on this device',
+    radioMasterDesc: 'Turn the race engineer off on a screen that shouldn’t speak, such as a phone on the rig.',
+    liveViews: 'Live views',
+    liveView: 'Live opens on a computer or tablet',
+    liveViewPhone: 'Live opens on a phone',
+    liveViewHint: 'The Live tab also remembers the last view you used at each size.',
+    layout: 'Layout',
+    chatSize: 'AI chat size',
+    chatCompact: 'Compact',
+    chatExpanded: 'Large',
+    performanceGeneral: 'Every page but the Driver view',
+    performanceDriver: 'Driver view',
+    performanceDriverDesc: 'On by default: a phone on the rig reads it at a glance.',
+  },
+};

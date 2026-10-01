@@ -108,7 +108,7 @@
   height: 640px;
   max-height: calc(100vh - 100px);
   overflow: hidden;
-  container: chat / inline-size;
+  container: chat ai-settings / inline-size;
   background: var(--bg-popover);
   border: 1px solid color-mix(in srgb, var(--accent-cyan) 22%, transparent);
   border-radius: var(--radius-lg);
