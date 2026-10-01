@@ -1,13 +1,7 @@
 import React from 'react';
 import { Zap, Fuel, Gauge, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
-import {
-  DRIVER_STATUS,
-  ACTIVE_AERO_MODES,
-  TYRE_COMPOUND_IDS,
-  MAX_ERS_STORE_ENERGY_J,
-  WHEELS_FRONT_FIRST,
-} from '../../constants/f1';
+import { DRIVER_STATUS, ACTIVE_AERO_MODES, MAX_ERS_STORE_ENERGY_J, WHEELS_FRONT_FIRST } from '../../constants/f1';
 import { TyreCompoundBadge } from '../common/TyreCompoundBadge';
 import { TrackFlag } from '../TrackFlag';
 import { Badge } from '../ui/Badge';
@@ -126,7 +120,7 @@ export const VitalTelemetryStrip: React.FC<VitalTelemetryStripProps> = ({
       <VitalCard
         title={`${t('live.cockpit.position')} & ${t('live.cockpit.lap')}`}
         badge={
-          <Badge tone="accent" size="xs" square uppercase>
+          <Badge size="xs" square uppercase>
             {getRunStatusLabel()}
           </Badge>
         }
@@ -134,13 +128,13 @@ export const VitalTelemetryStrip: React.FC<VitalTelemetryStripProps> = ({
         <div className={styles.positionRow}>
           <div className={styles.position}>
             <span className={styles.positionP}>P</span>
-            <span className={styles.positionValue}>{lap?.CarPosition || 1}</span>
+            <span className={styles.positionValue}>{lap?.CarPosition || '—'}</span>
           </div>
           <div className={styles.lapMeta}>
             <div className={styles.metaRow}>
               <span className={styles.metaLabel}>{t('live.cockpit.lap')}:</span>
               <span className={styles.metaValue}>
-                {lap?.CurrentLapNum || 1} / {session?.TotalLaps || '--'}
+                {lap?.CurrentLapNum || 1} / {session?.TotalLaps || '—'}
               </span>
             </div>
             <div className={styles.metaRow}>
@@ -165,7 +159,12 @@ export const VitalTelemetryStrip: React.FC<VitalTelemetryStripProps> = ({
         title={t('live.cockpit.tyreWear')}
         badge={
           <span className={styles.tyreSummary}>
-            <TyreCompoundBadge compound={String(carStatus ? carStatus.VisualTyreCompound : TYRE_COMPOUND_IDS.SOFT)} />
+            {/* No compound yet: a grey "?" rather than a guess */}
+            {carStatus?.VisualTyreCompound ? (
+              <TyreCompoundBadge compound={carStatus.VisualTyreCompound} />
+            ) : (
+              <TyreCompoundBadge compound="?" title={t('live.badges.unknownCompoundTitle')} />
+            )}
             <span className={styles.tyreAge}>{carStatus?.TyresAgeLaps || 0} L</span>
           </span>
         }
@@ -188,7 +187,7 @@ export const VitalTelemetryStrip: React.FC<VitalTelemetryStripProps> = ({
         badge={
           is2026 &&
           activeAeroMode !== undefined && (
-            <Badge tone={activeAeroMode === ACTIVE_AERO_MODES.STRAIGHT ? 'success' : 'accent'} size="xs" square>
+            <Badge tone={activeAeroMode === ACTIVE_AERO_MODES.STRAIGHT ? 'info' : 'neutral'} size="xs" square>
               {activeAeroMode === ACTIVE_AERO_MODES.STRAIGHT
                 ? t('live.activeAeroStraight')
                 : t('live.activeAeroCorner')}
@@ -206,7 +205,7 @@ export const VitalTelemetryStrip: React.FC<VitalTelemetryStripProps> = ({
               <span className={styles.bar} style={styleVars({ '--fill': `${ersPct ?? 0}%` })} aria-hidden="true">
                 <span className={styles.barFill} />
               </span>
-              <span className={styles.number}>{ersPct !== null ? `${ersPct}%` : '--'}</span>
+              <span className={styles.number}>{ersPct !== null ? `${ersPct}%` : '—'}</span>
             </dd>
           </div>
 
@@ -222,7 +221,7 @@ export const VitalTelemetryStrip: React.FC<VitalTelemetryStripProps> = ({
               >
                 {fuelDelta !== null
                   ? t('live.cockpit.fuelLaps', { value: `${fuelDelta >= 0 ? '+' : ''}${fuelDelta.toFixed(1)}` })
-                  : '--'}
+                  : '—'}
               </span>
             </dd>
           </div>
@@ -233,11 +232,9 @@ export const VitalTelemetryStrip: React.FC<VitalTelemetryStripProps> = ({
               {t('live.cockpit.engineTemp')}
             </dt>
             <dd className={styles.metricValue}>
-              <span className={styles.number}>
-                {units.temperature(telemetry?.EngineTemperature || null, 0, `--${units.temperatureUnit}`)}
-              </span>
+              <span className={styles.number}>{units.temperature(telemetry?.EngineTemperature || null, 0, '—')}</span>
               {boostActive && (
-                <Badge tone="danger" size="xs" square>
+                <Badge color="var(--f1-yellow)" size="xs" square title={t('live.badges.boostTitle')}>
                   {t('live.boostActive')}
                 </Badge>
               )}

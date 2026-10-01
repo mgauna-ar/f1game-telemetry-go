@@ -2,15 +2,12 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
-  padding: var(--space-6) var(--space-8);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  box-shadow:
-    var(--shadow-lg),
-    inset 0 1px 0 var(--border-color);
+  /* The surface of ui/Panel */
+  padding: var(--space-5) var(--space-6);
+  background: var(--bg-glass);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-panel);
 }
 
 .header {
@@ -31,22 +28,10 @@
   background: radial-gradient(circle, color-mix(in srgb, var(--radar-color) 15%, transparent) 0%, var(--bg-inset) 100%);
   border: 1.5px solid color-mix(in srgb, var(--radar-color) 40%, transparent);
   border-radius: 50%;
-  box-shadow: 0 0 20px color-mix(in srgb, var(--radar-color) 25%, transparent);
 }
 
 .radar[data-connected='true'] {
   --radar-color: var(--accent-cyan);
-}
-
-.pulse {
-  animation: iconPulse 2s infinite ease-in-out;
-}
-
-@keyframes iconPulse {
-  50% {
-    opacity: 0.75;
-    transform: scale(1.1);
-  }
 }
 
 .titles {
@@ -58,9 +43,9 @@
 .title {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 1.35rem;
-  font-weight: var(--font-weight-black);
-  letter-spacing: -0.01em;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--tracking-tight);
   color: var(--text-primary);
 }
 
@@ -121,12 +106,7 @@
 }
 
 .cardLabel {
-  font-family: var(--font-display);
-  font-size: var(--font-size-2xs);
-  font-weight: var(--font-weight-black);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
+  composes: eyebrow from '../ui/patterns.module.css';
 }
 
 .cardValue {

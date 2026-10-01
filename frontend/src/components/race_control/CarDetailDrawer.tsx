@@ -7,7 +7,8 @@ import { parseDriverName } from '../../store/useTelemetryStore';
 import { useLiveCarLaps } from '../../hooks/useLiveCarLaps';
 import { PIT_STATUS, TIME_CONSTANTS, getTeamColor, isRaceSession } from '../../constants/f1';
 import { sessionBestSectors } from '../../utils/raceControl';
-import { formatGapTime, formatLapTime, formatSectorTime } from '../../utils/formatters';
+import { formatGap, formatLapTime, formatSectorTime } from '../../utils/formatters';
+import { Badge } from '../ui/Badge';
 import { styleVars } from '../../styles/theme';
 import type { LiveCarLaps } from '../../types/telemetry';
 import { TyreCompoundBadge } from '../common/TyreCompoundBadge';
@@ -61,11 +62,15 @@ const DrawerContent: React.FC<{ carIndex: number; onClose: () => void }> = ({ ca
   return (
     <>
       <header className={styles.head} style={styleVars({ '--team-color': getTeamColor(participant?.TeamId) })}>
-        <span className={styles.pos}>P{lap?.CarPosition || '–'}</span>
+        <span className={styles.pos}>P{lap?.CarPosition || '—'}</span>
         <div className={styles.identity}>
           <h2 id={`car-drawer-${carIndex}`} className={styles.name}>
             {name}
-            {isPlayer && <span className={styles.you}>{t('live.youChip')}</span>}
+            {isPlayer && (
+              <Badge tone="you" size="xs" square>
+                {t('live.youChip')}
+              </Badge>
+            )}
           </h2>
           {participant?.RaceNumber ? <p className={styles.number}>#{participant.RaceNumber}</p> : null}
         </div>
@@ -87,14 +92,14 @@ const DrawerContent: React.FC<{ carIndex: number; onClose: () => void }> = ({ ca
           {isRace && (
             <div>
               <dt>{t('live.raceControlView.gapToLeader')}</dt>
-              <dd>{lap?.CarPosition === 1 ? t('live.raceControlView.leader') : formatGapTime(gapToLeader)}</dd>
+              <dd>{lap?.CarPosition === 1 ? t('live.raceControlView.leader') : gapToLeader ? `+${formatGap(gapToLeader)}` : '—'}</dd>
             </div>
           )}
           <div>
             <dt>{t('live.driver.tyres')}</dt>
             <dd className={styles.tyre}>
               {status && <TyreCompoundBadge compound={status.VisualTyreCompound} />}
-              {status ? t('live.driver.tyreAge', { laps: status.TyresAgeLaps }) : '–'}
+              {status ? t('live.driver.tyreAge', { laps: status.TyresAgeLaps }) : '—'}
             </dd>
           </div>
           <div>

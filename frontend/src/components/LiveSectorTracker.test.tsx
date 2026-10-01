@@ -98,14 +98,14 @@ describe('LiveSectorTracker', () => {
 
     // Session bests: S1 Verstappen, S2 and S3 Leclerc; theoretical best is their sum
     expect(screen.getByText('SECTOR 3')).toBeInTheDocument();
-    expect(screen.getByText('27.900s')).toBeInTheDocument();
-    expect(screen.getByText('30.900s')).toBeInTheDocument();
-    expect(screen.getByText('26.000s')).toBeInTheDocument();
+    expect(screen.getByText('27.900')).toBeInTheDocument();
+    expect(screen.getByText('30.900')).toBeInTheDocument();
+    expect(screen.getByText('26.000')).toBeInTheDocument();
     expect(screen.getByText('1:24.800')).toBeInTheDocument();
 
     // Verstappen's last lap splits against the session bests
     expect(screen.getByText(/Last lap splits: Max Verstappen/)).toBeInTheDocument();
-    expect(screen.getAllByText('+0.100s')).toHaveLength(2);
-    expect(screen.getByText('+0.500s')).toBeInTheDocument();
+    expect(screen.getAllByText('+0.100')).toHaveLength(2);
+    expect(screen.getByText('+0.500')).toBeInTheDocument();
   });
 });

@@ -1,3 +1,13 @@
+/* Bordered like the other status controls in the top bar (aria-pressed is always set; it also
+   outranks the Button base rule) */
+.toggle[aria-pressed] {
+  border-color: var(--border-color);
+}
+
+.toggle[aria-pressed]:hover:not(:disabled) {
+  border-color: var(--border-strong);
+}
+
 .toggle[aria-pressed='true'] {
   color: var(--accent-cyan);
   background: color-mix(in srgb, var(--accent-cyan) 14%, transparent);

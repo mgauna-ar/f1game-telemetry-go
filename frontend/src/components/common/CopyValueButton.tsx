@@ -42,7 +42,7 @@ export const CopyValueButton: React.FC<CopyValueButtonProps> = ({ value }) => {
       aria-label={t('common.copyValue', { value })}
     >
       <span>{value}</span>
-      {copied ? <Check size={UI.ICON_SIZE_SM} /> : <Copy size={UI.ICON_SIZE_SM} />}
+      {copied ? <Check size={UI.ICON_SIZE_XS} /> : <Copy size={UI.ICON_SIZE_XS} />}
     </button>
   );
 };

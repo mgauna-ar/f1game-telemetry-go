@@ -23,8 +23,6 @@
   background: color-mix(in srgb, var(--toast-color) 95%, transparent);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-panel);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
   animation: toastIn 0.2s var(--ease-out);
 }
 

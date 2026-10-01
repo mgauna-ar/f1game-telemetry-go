@@ -513,8 +513,8 @@ describe('LapComparator Component', () => {
     expect(screen.getAllByText('+0.500s').length).toBeGreaterThan(0);
 
     // Check Sector timings are rendered
-    expect(screen.getAllByText(/S1: 26.000/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/S2: 28.000/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('26.000s').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('28.000s').length).toBeGreaterThan(0);
 
     // Test Search input inside Quick Select
     const searchInput = screen.getByTestId('driver-quick-search-input');
@@ -895,7 +895,7 @@ describe('LapComparator Component', () => {
     await waitFor(() => expect(window.location.search).toBe('?sa=1&a=501&b=502&zoom=250-650'));
     expect(within(row).getByRole('button', { name: 'T1' })).toHaveAttribute('aria-pressed', 'true');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Full Track' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Full Track' }));
     await waitFor(() => expect(window.location.search).toBe('?sa=1&a=501&b=502'));
 
     fireEvent.click(within(row).getByRole('button', { name: 'Ask the AI engineer about T1' }));

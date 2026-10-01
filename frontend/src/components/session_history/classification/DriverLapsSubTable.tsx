@@ -81,7 +81,6 @@ export const DriverLapsSubTable: React.FC<DriverLapsSubTableProps> = React.memo(
       key: `s${index + 1}`,
       header: sub(`s${index + 1}`),
       numeric: true,
-      align: 'left',
       cell: ({ sectors }) => {
         const time = sectors[index];
         const sessionBest = [sessionBestS1, sessionBestS2, sessionBestS3][index];
@@ -126,7 +125,6 @@ export const DriverLapsSubTable: React.FC<DriverLapsSubTableProps> = React.memo(
         header: sub('lapNumber'),
         rowHeader: true,
         numeric: true,
-        align: 'left',
         className: styles.lapNumber,
         cell: ({ lap }) => t('history.classification.lapItem', { number: lap.lap_number }),
       },
@@ -134,7 +132,6 @@ export const DriverLapsSubTable: React.FC<DriverLapsSubTableProps> = React.memo(
         key: 'time',
         header: sub('lapTime'),
         numeric: true,
-        align: 'left',
         cell: ({ lap }) =>
           isPersonalBest(lap) ? (
             <span className={styles.personalBest} title={t('history.classification.personalBest')}>
@@ -152,7 +149,6 @@ export const DriverLapsSubTable: React.FC<DriverLapsSubTableProps> = React.memo(
         key: 'cumulative',
         header: sub('cumulative'),
         numeric: true,
-        align: 'left',
         className: styles.muted,
         cell: ({ runningRaceTime }) => formatTotalDuration(runningRaceTime),
       },
@@ -160,7 +156,6 @@ export const DriverLapsSubTable: React.FC<DriverLapsSubTableProps> = React.memo(
         key: 'delta',
         header: sub('deltaToBest'),
         numeric: true,
-        align: 'left',
         cell: ({ lap }) => {
           if (!driver.bestLap || lap.lap_time_ms <= 0) return <span className={styles.faint}>--</span>;
           if (isPersonalBest(lap)) {
@@ -175,7 +170,6 @@ export const DriverLapsSubTable: React.FC<DriverLapsSubTableProps> = React.memo(
         key: 'speed',
         header: sub('maxSpeed'),
         numeric: true,
-        align: 'left',
         cell: ({ lap }) => units.speed(lap.max_speed_kmh || null, 1, '-'),
       },
       {

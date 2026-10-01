@@ -24,11 +24,13 @@
 }
 
 .sm {
+  min-height: var(--control-height-sm);
   padding: var(--space-1) var(--space-3);
   font-size: var(--font-size-sm);
 }
 
 .md {
+  min-height: var(--control-height-md);
   padding: var(--space-2) var(--space-5);
   font-size: var(--font-size-md);
 }
@@ -41,7 +43,7 @@
   background: var(--accent-primary-fill);
   border-color: var(--accent-primary-fill);
   color: var(--text-primary);
-  box-shadow: 0 0 12px var(--accent-glow);
+  box-shadow: 0 0 var(--glow-sm) var(--accent-glow);
 }
 
 .primary:hover:not(:disabled) {
@@ -93,10 +95,11 @@
 
 /* Square button that shows only an icon; its name comes from `label`. */
 .icon {
-  padding: var(--space-2);
-  aspect-ratio: 1;
+  min-width: var(--control-height-md);
+  padding: 0;
 }
 
 .icon.sm {
-  padding: var(--space-1);
+  min-width: var(--control-height-sm);
+  padding: 0;
 }

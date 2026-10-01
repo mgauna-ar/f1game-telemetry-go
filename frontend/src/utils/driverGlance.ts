@@ -4,10 +4,8 @@ import {
   PIT_STATUS,
   RADIO_ALERT_CONSTANTS,
   SAFETY_CAR_STATUS,
-  TIME_CONSTANTS,
   VEHICLE_FIA_FLAGS,
 } from '../constants/f1';
-import { formatLapTime } from './formatters';
 import type { CarDamageData, CarStatusData, GapTrend, LapData, SessionData } from '../types/telemetry';
 import { carAtPosition, deltaToCarInFrontMs } from './liveTiming';
 
@@ -137,12 +135,5 @@ export const tyreWearLevel = (wear: number): 'ok' | 'warning' | 'critical' =>
       ? 'warning'
       : 'ok';
 
-const GAP_DECIMALS = 3;
-
-/** A gap for the glance: "1.234" under a minute, "1:02.345" above. */
-export const formatGlanceGap = (ms: number): string =>
-  ms >= TIME_CONSTANTS.MS_PER_MINUTE ? formatLapTime(ms) : (ms / TIME_CONSTANTS.MS_PER_SECOND).toFixed(GAP_DECIMALS);
-
-/** A signed time difference in seconds: "+0.236", "−0.120". */
-export const formatSignedDelta = (ms: number): string =>
-  `${ms > 0 ? '+' : ms < 0 ? '−' : '±'}${(Math.abs(ms) / TIME_CONSTANTS.MS_PER_SECOND).toFixed(GAP_DECIMALS)}`;
+/** The app's gap formatters (utils/formatters), under the names the glance has used. */
+export { formatGap as formatGlanceGap, formatSignedDelta } from './formatters';

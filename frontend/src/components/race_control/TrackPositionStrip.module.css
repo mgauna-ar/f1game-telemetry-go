@@ -44,9 +44,9 @@
   position: absolute;
   bottom: 0;
   left: 0;
-  font-size: var(--font-size-2xs);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 0.08em;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   color: var(--text-muted);
   transform: translateY(100%);
@@ -77,12 +77,12 @@
 .dot[data-role='you'] {
   --dot-size: 1.15rem;
   z-index: calc(var(--z-raised) + 1);
-  box-shadow: 0 0 0 2px var(--text-primary);
+  box-shadow: 0 0 0 2px var(--f1-you);
 }
 
 .dot:focus-visible {
-  outline: 2px solid var(--accent-primary);
-  outline-offset: 2px;
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .code {
@@ -91,7 +91,7 @@
   left: 50%;
   padding: 0 var(--space-1);
   font-family: var(--font-mono);
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
   font-weight: var(--font-weight-bold);
   line-height: 1.4;
   color: var(--text-primary);
@@ -109,11 +109,5 @@
 
 .dot[data-role='you'] .code {
   color: var(--text-on-accent);
-  background: var(--accent-primary);
-}
-
-.waiting {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  color: var(--text-muted);
+  background: var(--f1-you);
 }

@@ -53,15 +53,15 @@
 }
 
 .sectionTitle {
+  composes: subheading from './ui/patterns.module.css';
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin: 0 0 var(--space-3);
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text-primary);
+}
+
+/* subheading sets margin 0; the heading element adds the space under it */
+h3.sectionTitle {
+  margin-bottom: var(--space-3);
 }
 
 .sectionTitle svg {
@@ -78,22 +78,21 @@
 }
 
 .asset {
+  composes: tile from './ui/patterns.module.css';
   display: flex;
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3);
   color: inherit;
   text-decoration: none;
-  background: var(--bg-hover);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  transition: all var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .asset:hover {
-  background: color-mix(in srgb, var(--accent-cyan) 8%, transparent);
-  border-color: color-mix(in srgb, var(--accent-cyan) 35%, transparent);
-  transform: translateY(-1px);
+  background: var(--bg-hover);
+  border-color: var(--border-highlight);
 }
 
 .assetIcon {
@@ -145,10 +144,8 @@
 }
 
 .notes {
+  composes: tile from './ui/patterns.module.css';
   padding: var(--space-4);
-  background: var(--bg-inset);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
 }
 
 .dontRemind {
@@ -162,6 +159,5 @@
 }
 
 .dontRemind input {
-  accent-color: var(--accent-cyan);
   cursor: pointer;
 }

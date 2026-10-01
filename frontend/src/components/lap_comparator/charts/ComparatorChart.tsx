@@ -1,24 +1,11 @@
 import React from 'react';
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  ReferenceLine,
-} from 'recharts';
-import {
-  compactTooltipProps,
-  CHART_COLORS,
-  CHART_MARGIN,
-  type CommonChartProps,
-  type RechartsMouseMoveState,
-} from './chartDefaults';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
+import { compactTooltipProps, CHART_COLORS, type CommonChartProps, type RechartsMouseMoveState } from './chartDefaults';
 import type { MergedTelemetryPoint } from '../../../types/comparator';
 import { styleVars } from '../../../styles/theme';
+import { AXIS_PROPS, AXIS_TICK, CHART_MARGIN, GRID_PROPS, NO_ANIMATION } from '../../charts/chartTheme';
+import { ChartLegend, type ChartLegendItem } from '../../charts/ChartLegend';
+import { Panel } from '../../ui/Panel';
 import styles from './ComparatorChart.module.css';
 
 export interface ComparatorChartProps extends CommonChartProps {
@@ -39,7 +26,14 @@ export interface ComparatorChartProps extends CommonChartProps {
   yAxisStroke?: string;
   yAxisTickFormatter?: (val: unknown) => string;
   yAxisUnit?: string;
-  tooltipFormatter?: (val: unknown, name?: string | number) => [React.ReactNode, React.ReactNode] | [React.ReactNode];
+  /** Recharts' tooltip formatter: the value, the series name and the series (its `dataKey`). */
+  tooltipFormatter?: (
+    val: unknown,
+    name?: string | number,
+    item?: { dataKey?: unknown }
+  ) => [React.ReactNode, React.ReactNode] | [React.ReactNode];
+  /** Legend entries after the two laps' (or instead of them, for a chart without `dataKeyA/B`). */
+  legendItems?: ChartLegendItem[];
   showZeroLine?: boolean;
   extraLines?: React.ReactNode;
   customBody?: React.ReactNode;
@@ -75,13 +69,21 @@ export const ComparatorChart = React.memo<ComparatorChartProps>(
     yAxisUnit,
     tooltipFormatter,
     showZeroLine = false,
+    legendItems = [],
     extraLines,
     customBody,
     children,
   }) => {
+    const legend: ChartLegendItem[] = [
+      ...(dataKeyA ? [{ id: 'a', label: nameA, color: strokeA, shape: 'line' as const }] : []),
+      ...(dataKeyB ? [{ id: 'b', label: nameB, color: strokeB, shape: 'dashed' as const }] : []),
+      ...legendItems,
+    ];
     return (
-      <div
-        className={`glass-panel ${styles.card}`}
+      <Panel
+        as="div"
+        padding="compact"
+        className={styles.card}
         style={styleVars({ '--chart-height': typeof height === 'number' ? `${height}px` : height })}
       >
         <div className={styles.header}>
@@ -103,22 +105,18 @@ export const ComparatorChart = React.memo<ComparatorChartProps>(
                 onMouseLeave={() => onHoverDistanceChange(null)}
                 margin={CHART_MARGIN}
               >
-                <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.GRID_STROKE} />
+                <CartesianGrid {...GRID_PROPS} />
                 <XAxis
+                  {...AXIS_PROPS}
                   dataKey="lap_distance"
                   type="number"
                   domain={['dataMin', 'dataMax']}
                   allowDataOverflow={true}
-                  stroke={CHART_COLORS.AXIS_STROKE}
-                  tick={{ fill: CHART_COLORS.AXIS_TICK, fontSize: 11 }}
                   unit="m"
                 />
                 <YAxis
                   stroke={yAxisStroke}
-                  tick={{
-                    fill: yAxisStroke === CHART_COLORS.AXIS_STROKE ? CHART_COLORS.AXIS_TICK : yAxisStroke,
-                    fontSize: 11,
-                  }}
+                  tick={yAxisStroke === CHART_COLORS.AXIS_STROKE ? AXIS_TICK : { ...AXIS_TICK, fill: yAxisStroke }}
                   domain={yAxisDomain as never}
                   ticks={yAxisTicks}
                   tickFormatter={yAxisTickFormatter as never}
@@ -132,7 +130,7 @@ export const ComparatorChart = React.memo<ComparatorChartProps>(
                     x={sector1Distance}
                     stroke={CHART_COLORS.SECTOR_1}
                     strokeDasharray="3 3"
-                    label={{ value: 'S1', fill: CHART_COLORS.SECTOR_1, fontSize: 10, position: 'top' }}
+                    label={{ value: 'S1', fill: CHART_COLORS.SECTOR_1, fontSize: 11, position: 'top' }}
                   />
                 )}
                 {sector2Distance && (
@@ -140,14 +138,12 @@ export const ComparatorChart = React.memo<ComparatorChartProps>(
                     x={sector2Distance}
                     stroke={CHART_COLORS.SECTOR_2}
                     strokeDasharray="3 3"
-                    label={{ value: 'S2', fill: CHART_COLORS.SECTOR_2, fontSize: 10, position: 'top' }}
+                    label={{ value: 'S2', fill: CHART_COLORS.SECTOR_2, fontSize: 11, position: 'top' }}
                   />
                 )}
                 {hoverDistance !== null && (
                   <ReferenceLine x={hoverDistance} stroke={CHART_COLORS.CURSOR} strokeWidth={2} strokeDasharray="3 3" />
                 )}
-
-                <Legend wrapperStyle={{ fontSize: '0.75rem', paddingTop: '2px' }} iconSize={10} />
 
                 {dataKeyA && (
                   <Line
@@ -157,7 +153,7 @@ export const ComparatorChart = React.memo<ComparatorChartProps>(
                     stroke={strokeA}
                     dot={false}
                     strokeWidth={strokeWidth}
-                    isAnimationActive={false}
+                    {...NO_ANIMATION}
                   />
                 )}
                 {dataKeyB && (
@@ -169,7 +165,7 @@ export const ComparatorChart = React.memo<ComparatorChartProps>(
                     dot={false}
                     strokeWidth={strokeWidth}
                     strokeDasharray={strokeDasharrayB}
-                    isAnimationActive={false}
+                    {...NO_ANIMATION}
                   />
                 )}
 
@@ -179,7 +175,8 @@ export const ComparatorChart = React.memo<ComparatorChartProps>(
             </ResponsiveContainer>
           )}
         </div>
-      </div>
+        {!customBody && legend.length > 0 && <ChartLegend items={legend} className={styles.legend} />}
+      </Panel>
     );
   }
 );

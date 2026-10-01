@@ -1,0 +1,62 @@
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.text {
+  min-width: 0;
+}
+
+/* Keeps the global h1 look (display font, uppercase, gradient) at the page-title size */
+.title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  font-size: var(--font-size-page-title);
+  line-height: var(--line-height-tight);
+}
+
+.icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--accent-primary);
+}
+
+.icon svg {
+  width: 0.875em;
+  height: 0.875em;
+}
+
+.subtitle {
+  max-width: 72ch;
+  margin: var(--space-1-5) 0 0;
+  font-size: var(--font-size-md);
+  color: var(--text-secondary);
+}
+
+.aside {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+@media (--phone) {
+  .header {
+    margin-bottom: var(--space-4);
+  }
+
+  .subtitle {
+    font-size: var(--font-size-sm);
+  }
+
+  /* Wrapped under the title: the controls get the full width */
+  .aside {
+    width: 100%;
+  }
+}

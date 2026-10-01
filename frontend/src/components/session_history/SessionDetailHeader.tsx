@@ -123,10 +123,11 @@ export const SessionDetailHeader: React.FC<SessionDetailHeaderProps> = (props) =
               icon={<Sparkles size={15} className={styles.sparkle} aria-hidden="true" />}
               onClick={onOpenAiDebrief}
             >
-              {t('history.detail.aiDebrief')}
+              {/* One of the two shows, by width; the hidden one is out of the accessibility tree */}
+              <span className={styles.longLabel}>{t('history.detail.aiDebrief')}</span>
+              <span className={styles.shortLabel}>{t('history.detail.aiDebriefShort')}</span>
             </Button>
             <Button
-              className={styles.export}
               icon={<Download size={15} aria-hidden="true" />}
               title={t('history.detail.exportThis')}
               onClick={onExportSession}

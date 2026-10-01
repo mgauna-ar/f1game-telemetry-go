@@ -115,7 +115,7 @@ export const KeyMomentsTimeline: React.FC<KeyMomentsTimelineProps> = ({ events, 
                     </span>
                     <span className={styles.text}>{getLocalizedRaceEventDescription(m.event, t, units)}</span>
                     {m.mine && (
-                      <Badge tone="info" size="sm" className={styles.you}>
+                      <Badge tone="you" size="sm" className={styles.you}>
                         {t('history.player.you')}
                       </Badge>
                     )}

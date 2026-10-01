@@ -19,7 +19,8 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
+  min-height: var(--control-height-md);
+  padding: 0 var(--space-4);
   background: transparent;
   border: 1px solid transparent;
   border-radius: var(--radius-xs);
@@ -27,6 +28,7 @@
   font-family: var(--font-display);
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
   white-space: nowrap;
   cursor: pointer;
   transition:
@@ -46,14 +48,14 @@
 
 .tab:disabled {
   cursor: not-allowed;
-  opacity: 0.45;
+  opacity: 0.5;
 }
 
 .primary .tab[aria-selected='true'] {
   background: var(--accent-primary-fill);
   border-color: var(--accent-primary-fill);
   color: var(--text-primary);
-  box-shadow: 0 0 12px var(--accent-glow);
+  box-shadow: 0 0 var(--glow-sm) var(--accent-glow);
 }
 
 .accent .tab[aria-selected='true'] {
@@ -63,7 +65,8 @@
 }
 
 .sm .tab {
-  padding: var(--space-1-5) var(--space-3);
+  min-height: var(--control-height-sm);
+  padding: 0 var(--space-3);
   font-size: var(--font-size-sm);
 }
 

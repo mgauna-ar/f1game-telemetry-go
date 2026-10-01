@@ -1,9 +1,9 @@
 import React, { useId } from 'react';
 import { Tag as TagIcon } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
-import { cssVar, styleVars } from '../../styles/theme';
+import { cssVar } from '../../styles/theme';
 import type { Tag } from '../../types/session';
-import { TagDot } from './TagBadge';
+import { Chip } from '../ui/Chip';
 import styles from './TagFilterBar.module.css';
 
 interface TagFilterBarProps {
@@ -31,35 +31,26 @@ export const TagFilterBar: React.FC<TagFilterBarProps> = ({
   return (
     <div className={styles.bar} role="group" aria-labelledby={labelId}>
       <div id={labelId} className={styles.label}>
-        <TagIcon size={13} color={cssVar('--accent-secondary')} aria-hidden="true" />
+        <TagIcon size={12} aria-hidden="true" />
         <span>{t('history.tags.title')}:</span>
       </div>
 
-      <button
-        type="button"
-        aria-pressed={selectedTagId === null}
-        onClick={() => onSelectTag(null)}
-        className={styles.pill}
-      >
-        <span>{t('history.tags.allTags')}</span>
-        <span className={styles.count}>{totalSessionsCount}</span>
-      </button>
+      <Chip pressed={selectedTagId === null} onClick={() => onSelectTag(null)} count={totalSessionsCount}>
+        {t('history.tags.allTags')}
+      </Chip>
 
       {availableTags.map((tag) => {
         const isSelected = selectedTagId === tag.id;
         return (
-          <button
-            type="button"
+          <Chip
             key={tag.id}
-            aria-pressed={isSelected}
+            pressed={isSelected}
             onClick={() => onSelectTag(isSelected ? null : tag.id)}
-            className={styles.pill}
-            style={styleVars({ '--pill-color': tag.color || cssVar('--weather-rain') })}
+            color={tag.color || cssVar('--weather-rain')}
+            count={sessionCountByTag[tag.id] || 0}
           >
-            <TagDot color={tag.color} />
-            <span>{tag.name}</span>
-            <span className={styles.count}>{sessionCountByTag[tag.id] || 0}</span>
-          </button>
+            {tag.name}
+          </Chip>
         );
       })}
     </div>

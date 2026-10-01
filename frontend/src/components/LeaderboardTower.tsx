@@ -18,6 +18,7 @@ import { useI18n } from '../context/I18nContext';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import { useTelemetryDataStore } from '../store/useTelemetryDataStore';
 import { mergeBestLaps } from '../utils/liveTiming';
+import { formatGap, formatLapTime } from '../utils/formatters';
 import { styleVars } from '../styles/theme';
 import { TyreCompoundBadge } from './common/TyreCompoundBadge';
 import { Badge, type BadgeTone } from './ui/Badge';
@@ -245,26 +246,20 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = React.memo((pro
       : 0;
   const poleTimeMs = isQualy && p1BestLap > 0 ? p1BestLap : 0;
 
-  const formatTime = (ms?: number) => {
-    if (!ms || ms <= 0) return t('live.noTime');
-    const mins = Math.floor(ms / TIME_CONSTANTS.MS_PER_MINUTE);
-    const secs = Math.floor((ms % TIME_CONSTANTS.MS_PER_MINUTE) / TIME_CONSTANTS.MS_PER_SECOND);
-    const millis = ms % TIME_CONSTANTS.MS_PER_SECOND;
-    return `${mins}:${secs.toString().padStart(2, '0')}.${millis.toString().padStart(3, '0')}`;
-  };
+  // A lap without a time is "NO TIME" here: in qualifying that is the driver's status
+  const formatTime = (ms?: number) => (!ms || ms <= 0 ? t('live.noTime') : formatLapTime(ms));
 
   const formatQualyDelta = (driverMs?: number) => {
     if (!driverMs || driverMs <= 0) return '';
     if (!poleTimeMs || driverMs === poleTimeMs) return 'POLE';
-    const delta = (driverMs - poleTimeMs) / TIME_CONSTANTS.MS_PER_SECOND;
-    return `+${delta.toFixed(3)}s`;
+    return `+${formatGap(driverMs - poleTimeMs)}`;
   };
 
   const formatDelta = (msPart?: number, minsPart?: number) => {
-    if (msPart === undefined && minsPart === undefined) return '--';
+    if (msPart === undefined && minsPart === undefined) return '—';
     const totalMs = (minsPart || 0) * TIME_CONSTANTS.MS_PER_MINUTE + (msPart || 0);
     if (totalMs === 0) return t('live.leaderBadge');
-    return `+${(totalMs / TIME_CONSTANTS.MS_PER_SECOND).toFixed(3)}s`;
+    return `+${formatGap(totalMs)}`;
   };
 
   const getGridDeltaBadge = (gridPos?: number, curPos?: number) => {
@@ -355,10 +350,10 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = React.memo((pro
     if (resultStatus === RESULT_STATUS.FINISHED) return badge('success', t('live.statusFinished'));
 
     if (pitStatus === PIT_STATUS.PITTING || pitStatus === PIT_STATUS.IN_PIT_AREA) {
-      return badge('warning', t('live.statusPit'), undefined, <Wrench size={10} aria-hidden="true" />);
+      return badge('warning', t('live.statusPit'), undefined, <Wrench size={12} aria-hidden="true" />);
     }
     if (status === DRIVER_STATUS.FLYING_LAP) {
-      return badge('danger', t('live.statusHotlap'), undefined, <Flame size={10} aria-hidden="true" />);
+      return badge('danger', t('live.statusHotlap'), undefined, <Flame size={12} aria-hidden="true" />);
     }
     if (status === DRIVER_STATUS.OUT_LAP) return badge('info', t('live.statusOutlap'));
     if (status === DRIVER_STATUS.IN_GARAGE) return badge('neutral', t('live.statusGarage'));
@@ -402,7 +397,7 @@ export const LeaderboardTower: React.FC<LeaderboardTowerProps> = React.memo((pro
   return (
     <Panel className={props.className}>
       <PanelHeader
-        icon={<Trophy size={18} color="var(--accent-primary)" />}
+        icon={<Trophy size={16} />}
         title={isQualy ? t('live.qualifyingStandings') : t('live.raceLeaderboard')}
         actions={<span className={styles.count}>{t('live.carsCount', { count: displayDrivers.length })}</span>}
       />
@@ -487,13 +482,17 @@ const DriverRow: React.FC<DriverRowProps> = React.memo(
             <span className={styles.nameRow}>
               <span className={styles.name}>{driver.name}</span>
               <span className={styles.number}>#{driver.raceNumber}</span>
-              {driver.isPlayer && <span className={styles.playerTag}>{t('live.youChip')}</span>}
+              {driver.isPlayer && (
+                <Badge tone="you" size="xs" square>
+                  {t('live.youChip')}
+                </Badge>
+              )}
             </span>
             <span className={styles.badges}>
               {getDriverStatusBadge(driver.lap?.DriverStatus, driver.lap?.PitStatus, driver.lap?.ResultStatus)}
               {getPenaltyBadge(driver.lap)}
               {driver.telemetry2?.ActiveAeroMode === ACTIVE_AERO_MODES.STRAIGHT && (
-                <Badge tone="accent" size="xs" square title={t('live.badges.activeAeroTitle')}>
+                <Badge tone="info" size="xs" square title={t('live.badges.activeAeroTitle')}>
                   {t('live.activeAeroStraight')}
                 </Badge>
               )}
@@ -513,7 +512,7 @@ const DriverRow: React.FC<DriverRowProps> = React.memo(
                 <span className={styles.tyreAge}>{driver.carStatus?.TyresAgeLaps || 0}L</span>
               </>
             ) : (
-              <span className={styles.noTyre}>-</span>
+              <span className={styles.noTyre}>—</span>
             )}
           </span>
 

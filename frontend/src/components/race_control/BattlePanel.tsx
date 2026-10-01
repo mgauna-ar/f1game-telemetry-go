@@ -115,7 +115,7 @@ const CarRow: React.FC<CarRowProps> = ({ carIndex, kind, is2026, onSelectCar }) 
   const name = parseDriverName(participant?.Name, t('live.events.car', { number: carIndex + 1 }), participant?.DriverId);
   const content = (
     <>
-      <span className={styles.pos}>P{lap?.CarPosition || '–'}</span>
+      <span className={styles.pos}>P{lap?.CarPosition || '—'}</span>
       <span className={styles.teamBar} aria-hidden="true" />
       <span className={styles.name}>
         <span className={styles.code}>{driverCode(name, participant?.RaceNumber)}</span>
@@ -133,7 +133,7 @@ const CarRow: React.FC<CarRowProps> = ({ carIndex, kind, is2026, onSelectCar }) 
           </Badge>
         )}
         {is2026 && telemetry2?.OvertakeActive === 1 && (
-          <Badge tone="danger" size="xs" square>
+          <Badge color="var(--f1-yellow)" size="xs" square title={t('live.badges.boostTitle')}>
             {t('live.boostActive')}
           </Badge>
         )}
@@ -172,7 +172,7 @@ const GapLine: React.FC<{ side: Side; gap: GapReading | null }> = ({ side, gap }
   return (
     <li className={styles.gap} aria-label={t(`live.driver.gap.${side}`)} data-testid={`battle-gap-${side}`}>
       <span className={styles.gapValue}>
-        {gap ? `${side === 'ahead' ? '−' : '+'}${formatGlanceGap(gap.ms)}` : '–'}
+        {gap ? `${side === 'ahead' ? '−' : '+'}${formatGlanceGap(gap.ms)}` : '—'}
       </span>
       {trend && TrendIcon && (
         <span className={styles.trend} data-good={trend.good} data-direction={trend.direction}>

@@ -1,38 +1,5 @@
 .page {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: var(--space-6) var(--space-8);
-}
-
-.header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: var(--space-4);
-  margin-bottom: var(--space-6);
-}
-
-.title {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin: 0;
-  font-size: 2rem;
-}
-
-.subtitle {
-  margin: var(--space-1) 0 0;
-  font-family: var(--font-mono);
-  font-size: var(--font-size-md);
-  color: var(--text-secondary);
-}
-
-.controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--space-3);
+  composes: page from '../../styles/page.module.css';
 }
 
 .trackPicker {
@@ -42,11 +9,7 @@
 }
 
 .controlLabel {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
+  composes: eyebrow from '../ui/patterns.module.css';
 }
 
 .trackSelect {
@@ -61,13 +24,7 @@
 }
 
 .unmatched {
-  margin: 0 0 var(--space-4);
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--f1-yellow-border);
-  border-radius: var(--radius-sm);
-  background: var(--f1-yellow-bg);
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
+  margin-bottom: var(--space-4);
 }
 
 .unmatchedLink {
@@ -101,8 +58,9 @@
   font-size: var(--font-size-xl);
 }
 
+/* Your personal best: green, as in F1 timing */
 .best {
-  color: var(--f1-purple);
+  color: var(--f1-green);
 }
 
 @media (--laptop) {
@@ -111,22 +69,7 @@
   }
 }
 
-@media (--tablet) {
-  .page {
-    padding: var(--space-4);
-  }
-}
-
 @media (--phone) {
-  .page {
-    padding: var(--space-4) var(--space-4) var(--space-6);
-  }
-
-  .title {
-    font-size: var(--font-size-2xl);
-  }
-
-  .controls,
   .trackPicker,
   .trackSelect {
     width: 100%;

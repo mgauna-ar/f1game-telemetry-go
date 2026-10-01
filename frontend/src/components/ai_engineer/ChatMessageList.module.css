@@ -27,20 +27,16 @@
   justify-content: flex-end;
 }
 
-/* The driver's question: a compact bubble on the right */
+/* The driver's question: a compact bubble on the right, in the "you" tint */
 .question {
   max-width: 85%;
   padding: var(--space-2) var(--space-3);
   font-size: var(--font-size-md);
   line-height: 1.5;
   color: var(--text-primary);
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--accent-cyan) 20%, transparent),
-    color-mix(in srgb, var(--accent-secondary) 12%, transparent)
-  );
-  border: 1px solid color-mix(in srgb, var(--accent-cyan) 32%, transparent);
-  border-radius: var(--radius-lg) var(--radius-lg) var(--radius-xs) var(--radius-lg);
+  background: var(--f1-you-bg);
+  border: 1px solid var(--f1-you-border);
+  border-radius: var(--radius-md) var(--radius-md) var(--radius-xs) var(--radius-md);
 }
 
 .questionText {
@@ -69,6 +65,7 @@
   color: var(--text-muted);
 }
 
+/* The engineer's mark: the small size of the round one in the header and the launcher */
 .avatar {
   display: inline-flex;
   align-items: center;
@@ -76,9 +73,9 @@
   width: 20px;
   height: 20px;
   color: var(--accent-cyan);
-  background: color-mix(in srgb, var(--accent-cyan) 10%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent-cyan) 25%, transparent);
-  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent-cyan) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-cyan) 30%, transparent);
+  border-radius: 50%;
 }
 
 .author {
@@ -88,28 +85,28 @@
 
 .time {
   font-family: var(--font-mono);
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
   color: var(--text-muted);
 }
 
-/* Copy button: shows on hover or focus, and stays while it says "Copied" */
+/* Copy button: always there at low emphasis, full strength on hover or while it says "Copied" */
 .copy {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
   margin-left: auto;
   padding: 3px var(--space-1-5);
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
   color: var(--text-muted);
   background: transparent;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   cursor: pointer;
-  opacity: 0;
+  opacity: 0.6;
   transition:
     opacity var(--transition-fast),
     color var(--transition-fast),
-    background var(--transition-fast);
+    background-color var(--transition-fast);
 }
 
 .reply:hover .copy,
@@ -121,12 +118,6 @@
 .copy:hover {
   color: var(--text-primary);
   background: var(--bg-active);
-}
-
-@media (hover: none) {
-  .copy {
-    opacity: 1;
-  }
 }
 
 .body {

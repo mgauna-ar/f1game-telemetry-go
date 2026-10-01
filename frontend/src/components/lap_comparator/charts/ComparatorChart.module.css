@@ -10,7 +10,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-1-5);
-  margin-bottom: var(--space-1);
+  margin-bottom: var(--space-2);
 }
 
 .titleGroup {
@@ -20,14 +20,24 @@
   gap: var(--space-2);
 }
 
-/* Heading of a chart card (see ChartTitle), tinted with the trace colour when there is one */
+/* Heading of a chart card (see ChartTitle): the panel title's type; the icon takes the trace
+   colour when there is one */
 .title {
   display: flex;
   align-items: center;
-  gap: var(--space-1-5);
+  gap: var(--space-2);
   margin: 0;
-  font-size: var(--font-size-lg);
-  color: var(--title-color, var(--text-primary));
+  font-family: var(--font-display);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-primary);
+}
+
+.title svg {
+  flex-shrink: 0;
+  color: var(--title-color, var(--text-secondary));
 }
 
 .subtitle {
@@ -53,6 +63,10 @@
   min-height: 0;
 }
 
+.legend {
+  margin-top: var(--space-1);
+}
+
 .placeholder {
   display: flex;
   flex-direction: column;
@@ -63,7 +77,7 @@
   padding: var(--space-6);
   background: var(--bg-inset);
   border: 1px dashed var(--status-warning-border);
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-sm);
   text-align: center;
 }
 

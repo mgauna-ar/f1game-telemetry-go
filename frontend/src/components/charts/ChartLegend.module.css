@@ -1,0 +1,62 @@
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-1-5) var(--space-4);
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  list-style: none;
+}
+
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+}
+
+.emphasis {
+  color: var(--text-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.swatch {
+  flex-shrink: 0;
+}
+
+.line,
+.dashed,
+.dotted {
+  width: 16px;
+  border-top: 2px solid var(--legend-color);
+}
+
+.dashed {
+  border-top-style: dashed;
+}
+
+.dotted {
+  border-top-style: dotted;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--legend-color);
+}
+
+.bar {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--legend-color);
+}
+
+.area {
+  width: 14px;
+  height: 10px;
+  border: 1px solid color-mix(in srgb, var(--legend-color) 35%, transparent);
+  background: color-mix(in srgb, var(--legend-color) 14%, transparent);
+}

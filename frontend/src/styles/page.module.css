@@ -1,0 +1,7 @@
+/* The container every page sits in: centred, at most --page-max-width wide, with --page-gutter at
+   its sides like the top bar. Pages pull it in with `composes: page from '../styles/page.module.css';`. */
+.page {
+  max-width: var(--page-max-width);
+  margin: 0 auto;
+  padding: var(--space-6) var(--page-gutter);
+}

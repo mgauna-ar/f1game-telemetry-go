@@ -1,9 +1,8 @@
-import React, { useId, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -20,9 +19,10 @@ import { cssVar } from '../../styles/theme';
 import type { ProgressSession } from '../../types/progress';
 import { formatLapTime, formatSectorTime } from '../../utils/formatters';
 import { sessionTypeLabel } from '../../utils/sessionTypeLabel';
-import { compactTooltipProps } from '../session_history/stints/stintUtils';
+import { AXIS_PROPS, AXIS_TICK, GRID_PROPS, NO_ANIMATION, TOOLTIP_PROPS } from '../charts/chartTheme';
+import { ChartLegend, type ChartLegendItem } from '../charts/ChartLegend';
 import { Panel, PanelHeader } from '../ui/Panel';
-import { TabPanel, Tabs } from '../ui/Tabs';
+import { SegmentedControl } from '../ui/SegmentedControl';
 import { sessionKind } from '../session_history/sessionKind';
 import { formatChange, formatSpread, SECTOR_KEYS, shortDate, type SectorKey } from './progressStats';
 import styles from './ProgressCharts.module.css';
@@ -45,15 +45,9 @@ const orNull = (ms: number | null | undefined): number | null => (ms && ms > 0 ?
 /** Seconds with one decimal, for the gap and consistency axes. */
 const axisSeconds = (ms: number): string => `${(ms / 1000).toFixed(1)}s`;
 
-const axisProps = {
-  stroke: 'var(--text-muted)',
-  tick: { fill: 'var(--text-muted)', fontSize: 11 },
-};
-
 /** Your best lap and sectors, the gap to each session's fastest lap and your consistency, one point per session. */
 export const ProgressCharts: React.FC<{ sessions: ProgressSession[] }> = ({ sessions }) => {
   const { t, locale } = useI18n();
-  const tabsId = useId();
   const [view, setView] = useState<TimeView>('lap');
   const isPhone = useMediaQuery(maxWidth('phone'));
 
@@ -80,10 +74,10 @@ export const ProgressCharts: React.FC<{ sessions: ProgressSession[] }> = ({ sess
     if (!s) return <g />;
     const kind = sessionKind(s.session_type);
     return (
-      <text x={x} y={y + 12} textAnchor="middle" fill="var(--text-muted)" fontSize={11}>
+      <text x={x} y={y + 12} textAnchor="middle" fill={AXIS_TICK.fill} fontSize={AXIS_TICK.fontSize}>
         <tspan x={x}>{shortDate(s.created_at, locale)}</tspan>
         {kind && (
-          <tspan x={x} dy={13} fontSize={10}>
+          <tspan x={x} dy={13}>
             {t(`progress.kinds.${kind}`)}
           </tspan>
         )}
@@ -97,14 +91,27 @@ export const ProgressCharts: React.FC<{ sessions: ProgressSession[] }> = ({ sess
   // The ticks are drawn by hand, so Recharts can't measure them to skip the ones that would collide
   const tickInterval = Math.max(0, Math.ceil(sessions.length / (isPhone ? 3 : 8)) - 1);
   const xAxis = (
-    <XAxis dataKey="index" stroke="var(--text-muted)" tick={renderTick} height={40} interval={tickInterval} />
+    <XAxis dataKey="index" stroke={AXIS_PROPS.stroke} tick={renderTick} height={40} interval={tickInterval} />
   );
-  const grid = <CartesianGrid strokeDasharray="3 3" stroke={cssVar('--chart-grid')} />;
+  const grid = <CartesianGrid {...GRID_PROPS} />;
 
   const timeFormat = view === 'lap' ? formatLapTime : (ms: number) => formatSectorTime(ms);
-  const viewItems = [
-    { id: 'lap' as const, label: t('progress.charts.lap') },
-    ...SECTOR_KEYS.map((key, i) => ({ id: key, label: `S${i + 1}` })),
+  const viewOptions = [
+    { value: 'lap' as const, label: t('progress.charts.lap') },
+    ...SECTOR_KEYS.map((key, i) => ({ value: key, label: `S${i + 1}` })),
+  ];
+  const timeLegend: ChartLegendItem[] = [
+    { id: 'you', label: t('progress.charts.you'), color: cssVar('--f1-you'), emphasis: true },
+    ...(view === 'lap'
+      ? [
+          {
+            id: 'fastest',
+            label: t('progress.charts.sessionFastest'),
+            color: cssVar('--f1-purple'),
+            shape: 'dashed' as const,
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -112,65 +119,64 @@ export const ProgressCharts: React.FC<{ sessions: ProgressSession[] }> = ({ sess
       <Panel className={styles.panel}>
         <PanelHeader
           level={2}
-          icon={<Clock size={18} />}
+          icon={<Clock size={16} />}
           title={t('progress.charts.title')}
           actions={
-            <Tabs
-              items={viewItems}
+            <SegmentedControl
+              size="xs"
+              options={viewOptions}
               value={view}
               onChange={setView}
               aria-label={t('progress.charts.tabsLabel')}
-              idPrefix={tabsId}
-              size="sm"
             />
           }
         />
-        <TabPanel idPrefix={tabsId} tab={view}>
-          <div className={styles.chart}>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={rows} margin={{ top: 10, right: 32, left: 0, bottom: 0 }}>
-                {grid}
-                {xAxis}
-                <YAxis {...axisProps} domain={['auto', 'auto']} tickFormatter={timeFormat} width={72} />
-                <Tooltip
-                  {...compactTooltipProps}
-                  labelFormatter={tooltipLabel}
-                  formatter={(value) => timeFormat(Number(value))}
-                />
-                <Legend />
+        <div className={styles.chart}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={rows} margin={{ top: 10, right: 32, left: 0, bottom: 0 }}>
+              {grid}
+              {xAxis}
+              <YAxis {...AXIS_PROPS} domain={['auto', 'auto']} tickFormatter={timeFormat} width={72} />
+              <Tooltip
+                {...TOOLTIP_PROPS}
+                labelFormatter={tooltipLabel}
+                formatter={(value) => timeFormat(Number(value))}
+              />
+              <Line
+                type="linear"
+                dataKey={view}
+                name={t('progress.charts.you')}
+                stroke={cssVar('--f1-you')}
+                strokeWidth={2}
+                dot={{ r: 4, fill: cssVar('--f1-you') }}
+                activeDot={{ r: 6 }}
+                connectNulls
+                {...NO_ANIMATION}
+              />
+              {view === 'lap' && (
                 <Line
                   type="linear"
-                  dataKey={view}
-                  name={t('progress.charts.you')}
-                  stroke={cssVar('--accent-cyan')}
-                  strokeWidth={2}
-                  dot={{ r: 4, fill: cssVar('--accent-cyan') }}
-                  activeDot={{ r: 6 }}
+                  dataKey="fastest"
+                  name={t('progress.charts.sessionFastest')}
+                  stroke={cssVar('--f1-purple')}
+                  strokeDasharray="5 4"
+                  strokeWidth={1.5}
+                  dot={{ r: 3, fill: cssVar('--f1-purple') }}
                   connectNulls
+                  {...NO_ANIMATION}
                 />
-                {view === 'lap' && (
-                  <Line
-                    type="linear"
-                    dataKey="fastest"
-                    name={t('progress.charts.sessionFastest')}
-                    stroke={cssVar('--f1-purple')}
-                    strokeDasharray="5 4"
-                    strokeWidth={1.5}
-                    dot={{ r: 3, fill: cssVar('--f1-purple') }}
-                    connectNulls
-                  />
-                )}
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </TabPanel>
+              )}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+        <ChartLegend items={timeLegend} />
       </Panel>
 
       <div className={styles.pair}>
         <Panel className={styles.panel}>
           <PanelHeader
             level={2}
-            icon={<Target size={18} />}
+            icon={<Target size={16} />}
             title={t('progress.charts.gapTitle')}
             subtitle={t('progress.charts.gapHelp')}
           />
@@ -179,9 +185,9 @@ export const ProgressCharts: React.FC<{ sessions: ProgressSession[] }> = ({ sess
               <BarChart data={rows} margin={{ top: 10, right: 32, left: 0, bottom: 0 }}>
                 {grid}
                 {xAxis}
-                <YAxis {...axisProps} tickFormatter={axisSeconds} width={56} />
+                <YAxis {...AXIS_PROPS} tickFormatter={axisSeconds} width={56} />
                 <Tooltip
-                  {...compactTooltipProps}
+                  {...TOOLTIP_PROPS}
                   cursor={{ fill: cssVar('--chart-grid') }}
                   labelFormatter={tooltipLabel}
                   formatter={(value) =>
@@ -192,8 +198,10 @@ export const ProgressCharts: React.FC<{ sessions: ProgressSession[] }> = ({ sess
                   dataKey="gap"
                   name={t('progress.stats.gap')}
                   fill={cssVar('--accent-secondary')}
+                  fillOpacity={0.5}
                   radius={[4, 4, 0, 0]}
                   maxBarSize={36}
+                  {...NO_ANIMATION}
                 />
               </BarChart>
             </ResponsiveContainer>
@@ -203,7 +211,7 @@ export const ProgressCharts: React.FC<{ sessions: ProgressSession[] }> = ({ sess
         <Panel className={styles.panel}>
           <PanelHeader
             level={2}
-            icon={<Activity size={18} />}
+            icon={<Activity size={16} />}
             title={t('progress.charts.consistencyTitle')}
             subtitle={t('progress.charts.consistencyHelp')}
           />
@@ -212,9 +220,9 @@ export const ProgressCharts: React.FC<{ sessions: ProgressSession[] }> = ({ sess
               <LineChart data={rows} margin={{ top: 10, right: 32, left: 0, bottom: 0 }}>
                 {grid}
                 {xAxis}
-                <YAxis {...axisProps} domain={[0, 'auto']} tickFormatter={axisSeconds} width={56} />
+                <YAxis {...AXIS_PROPS} domain={[0, 'auto']} tickFormatter={axisSeconds} width={56} />
                 <Tooltip
-                  {...compactTooltipProps}
+                  {...TOOLTIP_PROPS}
                   labelFormatter={tooltipLabel}
                   formatter={(value, _name, item) => {
                     const s = sessions[(item?.payload as ChartRow | undefined)?.index ?? -1];
@@ -226,10 +234,11 @@ export const ProgressCharts: React.FC<{ sessions: ProgressSession[] }> = ({ sess
                   type="linear"
                   dataKey="consistency"
                   name={t('progress.stats.consistency')}
-                  stroke={cssVar('--accent-tertiary')}
+                  stroke={cssVar('--accent-secondary')}
                   strokeWidth={2}
-                  dot={{ r: 4, fill: cssVar('--accent-tertiary') }}
+                  dot={{ r: 4, fill: cssVar('--accent-secondary') }}
                   connectNulls
+                  {...NO_ANIMATION}
                 />
               </LineChart>
             </ResponsiveContainer>

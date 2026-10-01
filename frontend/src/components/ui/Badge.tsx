@@ -2,7 +2,8 @@ import React from 'react';
 import { cx } from './cx';
 import styles from './Badge.module.css';
 
-export type BadgeTone = 'neutral' | 'success' | 'warning' | 'danger' | 'info' | 'accent' | 'purple' | 'orange';
+/** `you` marks the player (cyan, `--f1-you`); `info` is blue; `accent` is cyan for highlights that aren't you. */
+export type BadgeTone = 'neutral' | 'success' | 'warning' | 'danger' | 'info' | 'accent' | 'you' | 'purple' | 'orange';
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
   tone?: BadgeTone;

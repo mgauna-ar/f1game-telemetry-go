@@ -5,6 +5,7 @@
 
 .date {
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
@@ -42,10 +43,11 @@
   color: var(--text-secondary);
 }
 
+/* Your personal best lap and sectors: green, as in F1 timing (purple is the session's fastest) */
 .personalBest {
   font-family: var(--font-mono);
   font-weight: var(--font-weight-bold);
-  color: var(--f1-purple);
+  color: var(--f1-green);
 }
 
 .gap {
@@ -72,14 +74,34 @@
   list-style: none;
 }
 
+/* Phone cards as in the session list: the left edge takes the session type's colour */
 .card {
+  --card-stripe: var(--border-strong);
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding: var(--space-3);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
   background: var(--bg-inset);
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--card-stripe);
+  border-radius: var(--radius-sm);
+}
+
+.card[data-kind='race'] {
+  --card-stripe: var(--accent-primary);
+}
+
+.card[data-kind='qualifying'] {
+  --card-stripe: var(--accent-purple);
+}
+
+.card[data-kind='sprint'] {
+  --card-stripe: var(--status-warning);
+}
+
+.card[data-kind='practice'] {
+  --card-stripe: var(--status-success);
 }
 
 .cardHead {
@@ -101,18 +123,18 @@
   margin: 0;
 }
 
-.cardStats dt {
-  font-size: var(--font-size-2xs);
-  font-weight: var(--font-weight-semibold);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
+.cardLabel {
+  composes: eyebrow from '../ui/patterns.module.css';
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .cardStats dd {
   min-width: 0;
   margin: 0;
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--font-size-sm);
 }
 

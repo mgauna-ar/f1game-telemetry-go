@@ -45,7 +45,7 @@ export const ComparatorQuickStart: React.FC<ComparatorQuickStartProps> = ({ sess
     <Panel className={styles.panel}>
       <PanelHeader
         level={2}
-        icon={<Rocket size={15} />}
+        icon={<Rocket size={16} />}
         title={t('comparator.quickStart.title')}
         subtitle={t('comparator.quickStart.subtitle')}
       />

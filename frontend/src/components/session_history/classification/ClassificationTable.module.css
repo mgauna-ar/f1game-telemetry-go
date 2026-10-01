@@ -64,7 +64,7 @@
 .pos {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-1);
 }
 
 .posNumber {
@@ -74,18 +74,23 @@
   color: var(--text-secondary);
 }
 
-.posNumber.winner {
+/* The podium in gold, silver and bronze */
+.posNumber.p1 {
   color: var(--f1-gold);
 }
 
-.posNumber.podium {
-  color: var(--accent-primary);
+.posNumber.p2 {
+  color: var(--f1-silver);
+}
+
+.posNumber.p3 {
+  color: var(--f1-bronze);
 }
 
 .gridDelta {
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
-  font-weight: var(--font-weight-black);
+  font-weight: var(--font-weight-bold);
   color: var(--text-muted);
 }
 
@@ -97,17 +102,17 @@
   color: var(--status-danger);
 }
 
-/* Your row: tinted, with an accent edge on its first cell */
+/* Your row: the "you" tint, with the "you" edge on its first cell */
 tr.you {
-  background: color-mix(in srgb, var(--accent-cyan) 9%, transparent);
+  background: var(--f1-you-bg);
 }
 
 tr.you:hover {
-  background: color-mix(in srgb, var(--accent-cyan) 14%, transparent);
+  background: color-mix(in srgb, var(--f1-you) 16%, transparent);
 }
 
 tr.you > :first-child {
-  box-shadow: inset 3px 0 0 var(--accent-cyan);
+  box-shadow: inset 3px 0 0 var(--f1-you);
 }
 
 .youBadge {
@@ -126,7 +131,7 @@ tr.you > :first-child {
   width: 3px;
   height: 20px;
   flex-shrink: 0;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   background: var(--team-color);
 }
 
@@ -143,7 +148,7 @@ tr.you > :first-child {
 }
 
 .raceNumber {
-  margin-left: 5px;
+  margin-left: var(--space-1);
   font-family: var(--font-mono);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-regular);
@@ -154,6 +159,7 @@ tr.you > :first-child {
 .timeGap {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--space-1);
   font-weight: var(--font-weight-bold);
   white-space: nowrap;
@@ -184,6 +190,7 @@ tr.you > :first-child {
 .bestLap {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--space-1);
   font-weight: var(--font-weight-bold);
   white-space: nowrap;
@@ -191,10 +198,10 @@ tr.you > :first-child {
 }
 
 .bestLap.fastestOverall {
-  color: var(--accent-purple);
+  color: var(--f1-purple);
 }
 
 .sectorTime {
   padding: var(--space-0-5) var(--space-1);
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
 }

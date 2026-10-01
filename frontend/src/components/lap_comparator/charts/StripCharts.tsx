@@ -25,6 +25,7 @@ import {
   type StripLayout,
   type StripTraceId,
 } from './stripTraces';
+import { AXIS_PROPS, GRID_PROPS, NO_ANIMATION } from '../../charts/chartTheme';
 import styles from './StripCharts.module.css';
 import { useUnits } from '../../../hooks/useUnits';
 import { pointsInSpeedUnit } from '../../../utils/units';
@@ -183,7 +184,7 @@ export const StripCharts: React.FC<StripChartsProps> = ({
                     disabled={index === 0}
                     onClick={() => updateLayout(moveStripTrace(layout, id, -1, visible))}
                   >
-                    <ChevronUp size={12} aria-hidden="true" />
+                    <ChevronUp size={14} aria-hidden="true" />
                   </IconButton>
                   <IconButton
                     size="sm"
@@ -192,7 +193,7 @@ export const StripCharts: React.FC<StripChartsProps> = ({
                     disabled={isLast}
                     onClick={() => updateLayout(moveStripTrace(layout, id, 1, visible))}
                   >
-                    <ChevronDown size={12} aria-hidden="true" />
+                    <ChevronDown size={14} aria-hidden="true" />
                   </IconButton>
                   <IconButton
                     size="sm"
@@ -200,7 +201,7 @@ export const StripCharts: React.FC<StripChartsProps> = ({
                     label={t('comparator.strips.hide', { trace: label })}
                     onClick={() => updateLayout({ ...layout, hidden: [...layout.hidden, id] })}
                   >
-                    <EyeOff size={12} aria-hidden="true" />
+                    <EyeOff size={14} aria-hidden="true" />
                   </IconButton>
                 </div>
               </div>
@@ -217,15 +218,14 @@ export const StripCharts: React.FC<StripChartsProps> = ({
                     onMouseUp={handleMouseUp}
                     onMouseLeave={() => onHoverDistanceChange(null)}
                   >
-                    <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.GRID_STROKE} vertical={false} />
+                    <CartesianGrid {...GRID_PROPS} vertical={false} />
                     <XAxis
                       dataKey="lap_distance"
                       type="number"
                       domain={['dataMin', 'dataMax']}
                       allowDataOverflow
                       hide={!isLast}
-                      stroke={CHART_COLORS.AXIS_STROKE}
-                      tick={{ fill: CHART_COLORS.AXIS_TICK, fontSize: 10 }}
+                      {...AXIS_PROPS}
                       unit="m"
                       height={20}
                     />
@@ -234,8 +234,7 @@ export const StripCharts: React.FC<StripChartsProps> = ({
                       domain={trace.domain}
                       ticks={trace.ticks}
                       allowDataOverflow={trace.domain[0] !== 'auto'}
-                      stroke={CHART_COLORS.AXIS_STROKE}
-                      tick={{ fill: CHART_COLORS.AXIS_TICK, fontSize: 9 }}
+                      {...AXIS_PROPS}
                       tickFormatter={(v: number) => (trace.axis ? trace.axis(v) : trace.format(v, { t }))}
                     />
                     {/* Hover state for the shared cursor; the values show beside the strip */}
@@ -269,7 +268,7 @@ export const StripCharts: React.FC<StripChartsProps> = ({
                         strokeDasharray={line.slot === 'b' ? '4 3' : undefined}
                         strokeWidth={1.5}
                         dot={false}
-                        isAnimationActive={false}
+                        {...NO_ANIMATION}
                       />
                     ))}
                   </LineChart>
@@ -290,7 +289,7 @@ export const StripCharts: React.FC<StripChartsProps> = ({
                   key={id}
                   size="sm"
                   variant="ghost"
-                  icon={<Plus size={12} aria-hidden="true" />}
+                  icon={<Plus size={14} aria-hidden="true" />}
                   onClick={() => updateLayout({ ...layout, hidden: layout.hidden.filter((h) => h !== id) })}
                 >
                   {t(STRIP_TRACES[id].labelKey)}
@@ -301,7 +300,7 @@ export const StripCharts: React.FC<StripChartsProps> = ({
           <Button
             size="sm"
             variant="ghost"
-            icon={<RotateCcw size={12} aria-hidden="true" />}
+            icon={<RotateCcw size={14} aria-hidden="true" />}
             onClick={() => updateLayout(DEFAULT_STRIP_LAYOUT)}
           >
             {t('comparator.strips.resetLayout')}

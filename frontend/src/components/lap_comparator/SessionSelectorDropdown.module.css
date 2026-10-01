@@ -14,28 +14,29 @@
   justify-content: space-between;
   gap: var(--space-2);
   width: 100%;
-  padding: var(--space-2) var(--space-3);
-  background: var(--bg-inset);
-  border: 1px solid var(--border-color);
+  min-height: var(--control-height-md);
+  padding: var(--space-1-5) var(--space-3);
+  background: var(--bg-popover);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-family: var(--font-sans);
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
   text-align: left;
   cursor: pointer;
   transition:
-    background-color var(--transition-fast),
-    border-color var(--transition-fast);
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
+/* Looks like the app's select (ui/Field): cyan on hover and while open */
 .trigger:hover {
-  background: var(--bg-hover);
-  border-color: var(--border-strong);
+  border-color: color-mix(in srgb, var(--accent-cyan) 40%, transparent);
 }
 
 .trigger[aria-expanded='true'] {
-  border-color: var(--accent-primary);
-  box-shadow: 0 0 12px var(--accent-glow);
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 var(--glow-sm) var(--accent-cyan-glow);
 }
 
 .chevron {
@@ -67,6 +68,7 @@
 }
 
 .popover {
+  composes: popover from '../ui/patterns.module.css';
   position: absolute;
   top: calc(100% + var(--space-1-5));
   left: 0;
@@ -78,10 +80,6 @@
   min-width: min(380px, 90vw);
   max-width: min(480px, 90vw);
   padding: var(--space-3);
-  background: var(--bg-popover);
-  border: 1px solid var(--border-highlight);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
   animation: popoverIn var(--duration-fast) var(--ease-out);
 }
 
@@ -92,16 +90,17 @@
   }
 }
 
+/* Slot B is limited to slot A's circuit: an info note */
 .restricted {
   display: flex;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-1-5) var(--space-3);
-  background: var(--f1-slot-a-bg);
-  border: 1px solid var(--f1-slot-a-border);
+  background: var(--status-info-bg);
+  border: 1px solid var(--status-info-border);
   border-radius: var(--radius-xs);
   font-size: var(--font-size-xs);
-  color: var(--f1-slot-a);
+  color: var(--text-secondary);
 }
 
 .search {
@@ -113,27 +112,13 @@
 .searchIcon {
   position: absolute;
   left: var(--space-3);
+  z-index: 1;
   color: var(--text-muted);
   pointer-events: none;
 }
 
-.searchInput {
-  width: 100%;
-  padding: var(--space-2) var(--space-8) var(--space-2) var(--space-8);
-  background: var(--bg-inset);
-  border: 1px solid var(--border-highlight);
-  border-radius: var(--radius-sm);
-  color: var(--text-primary);
-  font-family: var(--font-sans);
-  font-size: var(--font-size-sm);
-}
-
-.searchInput::placeholder {
-  color: var(--text-muted);
-}
-
-.searchInput:focus {
-  border-color: var(--accent-primary);
+.search input {
+  padding-inline: var(--space-8);
 }
 
 .clear {
@@ -159,8 +144,8 @@
   gap: var(--space-1-5);
   width: 100%;
   padding: var(--space-2) var(--space-3);
-  background: var(--bg-hover);
-  border: 1px solid var(--border-color);
+  background: var(--bg-inset);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-xs);
   color: var(--text-primary);
   text-align: left;
@@ -171,13 +156,14 @@
 }
 
 .item:hover {
-  background: var(--bg-active);
-  border-color: var(--border-strong);
+  background: var(--bg-hover);
+  border-color: var(--border-color);
 }
 
+/* The session in the slot: the neutral selected look */
 .item[aria-selected='true'] {
-  background: var(--f1-slot-a-bg);
-  border-color: var(--f1-slot-a-border);
+  background: var(--bg-active);
+  border-color: var(--border-strong);
 }
 
 .itemRow {
@@ -198,8 +184,8 @@
 
 .track {
   overflow: hidden;
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -219,7 +205,10 @@
 }
 
 .weather {
+  display: inline-flex;
   flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-1);
   font-size: var(--font-size-xs);
   color: var(--text-secondary);
   white-space: nowrap;
@@ -237,4 +226,11 @@
   font-size: var(--font-size-sm);
   color: var(--text-muted);
   text-align: center;
+}
+
+/* Phone: the date doesn't fit beside the track and badges (the list below shows it) */
+@media (--phone) {
+  .selectedDate {
+    display: none;
+  }
 }

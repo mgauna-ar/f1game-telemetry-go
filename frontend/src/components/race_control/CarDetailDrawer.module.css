@@ -19,14 +19,15 @@
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-4);
-  border-bottom: 1px solid var(--border-color);
-  border-top: var(--space-1) solid var(--team-color);
+  border-bottom: 1px solid var(--border-subtle);
+  border-top: 3px solid var(--team-color);
 }
 
 .pos {
-  font-family: var(--font-display);
+  font-family: var(--font-mono);
   font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-black);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-bold);
   line-height: 1;
 }
 
@@ -44,15 +45,6 @@
   font-weight: var(--font-weight-bold);
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.you {
-  padding: 0 var(--space-1-5);
-  font-size: var(--font-size-2xs);
-  font-weight: var(--font-weight-bold);
-  color: var(--text-on-accent);
-  background: var(--accent-primary);
-  border-radius: var(--radius-xs);
 }
 
 .number {
@@ -86,11 +78,11 @@
 }
 
 .stats dt {
-  font-size: var(--font-size-2xs);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 0.08em;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
-  color: var(--text-secondary);
+  color: var(--text-muted);
 }
 
 .stats dd {
@@ -107,7 +99,7 @@
 
 .inPit {
   font-family: var(--font-sans);
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
   color: var(--status-warning);
 }
 
@@ -116,12 +108,12 @@
 }
 
 .sectionTitle {
-  margin: 0 0 var(--space-2);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
+  composes: subheading from '../ui/patterns.module.css';
+}
+
+/* subheading sets margin 0; the heading element adds the space under it */
+h3.sectionTitle {
+  margin-bottom: var(--space-2);
 }
 
 .stints {
@@ -155,15 +147,16 @@
 .laps td {
   padding: var(--space-1-5) var(--space-2);
   text-align: right;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .laps thead th {
   font-family: var(--font-sans);
-  font-size: var(--font-size-2xs);
-  letter-spacing: 0.08em;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
-  color: var(--text-secondary);
+  color: var(--text-muted);
 }
 
 .laps th[scope='row'] {
@@ -171,8 +164,9 @@
   text-align: left;
 }
 
+/* The car's best lap is its personal best: green, as in F1 timing (purple is the session's best) */
 .laps tr[data-best] td:first-of-type {
-  color: var(--f1-purple);
+  color: var(--f1-green);
   font-weight: var(--font-weight-bold);
 }
 
@@ -186,13 +180,13 @@
 }
 
 .laps td[data-sector='personal'] {
-  color: var(--status-success);
+  color: var(--f1-green);
 }
 
 .invalid {
   display: block;
   font-family: var(--font-sans);
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
   color: var(--status-danger);
 }
 

@@ -20,6 +20,7 @@ const TRACK_MAP_TOKENS = {
   outline: '--chart-marker-outline',
   badge: '--bg-tooltip',
   muted: '--text-muted',
+  font: '--font-sans',
 } as const;
 
 interface ComparatorTrackMapProps {
@@ -92,7 +93,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
 
       if (validPoints.length < 2) {
         ctx.fillStyle = colors.muted;
-        ctx.font = '12px Inter, sans-serif';
+        ctx.font = `12px ${colors.font || 'sans-serif'}`;
         ctx.textAlign = 'center';
         ctx.fillText(t('comparator.noCoordinateData'), rectWidth / 2, rectHeight / 2);
         return;
@@ -301,7 +302,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         const cy = toCanvasY(point.worldZ);
 
         ctx.save();
-        ctx.font = 'bold 9px Inter, sans-serif';
+        ctx.font = `600 9px ${colors.font || 'sans-serif'}`;
         const badgeW = 22;
         const badgeH = 15;
         const bx = cx - badgeW / 2;
@@ -412,7 +413,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
         ctx.stroke();
 
         // Badge Container
-        ctx.font = 'bold 8.5px Inter, -apple-system, sans-serif';
+        ctx.font = `600 9px ${colors.font || 'sans-serif'}`;
         const textWidth = ctx.measureText(label).width;
         const badgeW = Math.max(22, textWidth + 10);
         const badgeH = 15;

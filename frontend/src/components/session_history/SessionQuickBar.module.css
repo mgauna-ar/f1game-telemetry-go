@@ -5,7 +5,7 @@
   gap: var(--space-2) var(--space-5);
   width: 100%;
   padding-top: var(--space-2);
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .group {
@@ -16,45 +16,10 @@
 }
 
 .label {
+  composes: eyebrow from '../ui/patterns.module.css';
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  margin-right: var(--space-0-5);
-  color: var(--text-muted);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.chip {
-  display: inline-flex;
-  align-items: center;
-  min-height: 1.75rem;
-  padding: var(--space-0-5) 10px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-full);
-  background: var(--bg-hover);
-  color: var(--text-secondary);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  cursor: pointer;
-  transition:
-    background-color var(--duration-fast) ease,
-    border-color var(--duration-fast) ease,
-    color var(--duration-fast) ease;
-}
-
-.chip:hover {
-  border-color: var(--border-strong);
-  background: var(--bg-active);
-  color: var(--text-primary);
-}
-
-.chip[aria-pressed='true'] {
-  border-color: var(--accent-cyan);
-  background: color-mix(in srgb, var(--accent-cyan) 16%, transparent);
-  color: var(--text-primary);
 }
 
 /* A saved filter: the chip and its delete button read as one pill */
@@ -63,15 +28,16 @@
   align-items: center;
 }
 
-.saved .chip {
-  padding-right: var(--space-5);
+.saved > button:first-child {
+  padding-right: var(--space-6);
 }
 
-.remove {
+.saved > .remove {
   width: 1.4rem;
+  min-width: 0;
   height: 1.4rem;
   min-height: 0;
-  margin-left: calc(-1 * var(--space-5));
+  margin-left: calc(-1 * var(--space-6));
   border-radius: 50%;
 }
 
@@ -82,19 +48,9 @@
   gap: var(--space-1-5);
 }
 
-.nameInput {
+.nameForm .nameInput {
   width: 16rem;
   max-width: 100%;
-  padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  background: var(--bg-inset);
-  color: var(--text-primary);
-  font-size: var(--font-size-sm);
-}
-
-.nameInput:focus {
-  border-color: var(--accent-cyan);
 }
 
 .groupBy {
@@ -113,7 +69,15 @@
     margin-left: 0;
   }
 
-  .nameInput {
+  .nameForm .nameInput {
     width: 100%;
+  }
+
+  /* The quick filters scroll sideways on one row, like the tags */
+  .group:first-child {
+    flex-wrap: nowrap;
+    width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
   }
 }

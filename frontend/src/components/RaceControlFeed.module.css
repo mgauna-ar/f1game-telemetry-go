@@ -4,17 +4,18 @@
 
 .count {
   padding: 1px var(--space-1-5);
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
   background: var(--bg-active);
   border-radius: var(--radius-full);
 }
 
+/* The list fills the panel (as tall as its row) and scrolls inside it */
 .stream {
   display: flex;
-  flex: 1;
+  flex: 1 1 0;
   flex-direction: column;
   gap: var(--space-2);
-  max-height: 280px;
+  min-height: 220px;
   margin: 0;
   padding: 0 var(--space-1) 0 0;
   overflow-y: auto;
@@ -31,7 +32,7 @@
   background: var(--bg-hover);
   border-left: 3px solid var(--severity-color);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  transition: background var(--transition-fast);
+  transition: background-color var(--transition-fast);
 }
 
 .item:hover {
@@ -94,6 +95,7 @@
 
 .time {
   font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
   color: var(--text-muted);
 }
 
@@ -111,4 +113,25 @@
   color: var(--text-primary);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* A narrow hub panel: the time above the event, the text wraps */
+@container hubCard (max-width: 420px) {
+  .item {
+    align-items: flex-start;
+    gap: var(--space-2);
+  }
+
+  .meta {
+    min-width: 0;
+  }
+
+  .content {
+    flex-wrap: wrap;
+    gap: var(--space-1);
+  }
+
+  .text {
+    white-space: normal;
+  }
 }

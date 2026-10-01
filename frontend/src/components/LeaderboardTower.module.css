@@ -36,9 +36,11 @@
   cursor: pointer;
   background: var(--bg-inset);
   border: 1px solid var(--border-color);
-  border-left: 4px solid var(--team-color);
+  border-left: 3px solid var(--team-color);
   border-radius: var(--radius-sm);
-  transition: all var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .card:hover {
@@ -47,11 +49,16 @@
   border-left-color: var(--team-color);
 }
 
+/* You: the "you" tint (the badge names it) */
+.card[data-player] {
+  background: var(--f1-you-bg);
+}
+
+/* The car open in the drawer: the neutral selected look */
 .card[aria-pressed='true'] {
-  background: color-mix(in srgb, var(--accent-primary) 12%, transparent);
-  border-color: var(--accent-primary);
+  background: var(--bg-active);
+  border-color: var(--border-strong);
   border-left-color: var(--team-color);
-  box-shadow: 0 0 12px var(--accent-glow);
 }
 
 .card[data-eliminated='true'] {
@@ -120,19 +127,8 @@
 
 .number {
   font-family: var(--font-mono);
-  font-size: var(--font-size-2xs);
-  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-xs);
   color: var(--text-muted);
-}
-
-.playerTag {
-  padding: 1px var(--space-1);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-2xs);
-  font-weight: var(--font-weight-black);
-  color: var(--text-on-accent);
-  background: var(--accent-tertiary);
-  border-radius: 3px;
 }
 
 .tyre {
@@ -145,8 +141,8 @@
 
 .tyreAge {
   font-family: var(--font-mono);
-  font-size: var(--font-size-2xs);
-  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
 }
 
@@ -159,7 +155,9 @@
 .time {
   min-width: 75px;
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   text-align: right;
+  white-space: nowrap;
 }
 
 .timeMain,
@@ -177,7 +175,7 @@
 }
 
 .timeSub {
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
   color: var(--text-secondary);
 }
 
@@ -196,8 +194,8 @@
 .cutoff span {
   padding: var(--space-0-5) var(--space-2);
   font-family: var(--font-mono);
-  font-size: var(--font-size-2xs);
-  font-weight: var(--font-weight-black);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
   color: var(--status-danger);
   background: var(--bg-dark);
   border-radius: var(--radius-xs);

@@ -69,6 +69,8 @@ export const comparator = {
     activeAeroCorner: 'Corner Mode',
     activeAeroStraight: 'Straight Mode',
     boost: 'Boost',
+    boostOn: 'Active',
+    boostOff: 'Off',
     zoom: 'Track Distance Zoom',
     fullTrack: 'Full Track',
     selectSessionAndLaps: 'Select a session and two laps above to compare telemetry.',
@@ -103,7 +105,6 @@ export const comparator = {
     minSpeed: 'Min Apex Speed',
     fullThrottle: 'Full Throttle %',
     telemetryStatus: 'Telemetry Status',
-    sectorDelta: '{sector} Delta',
     carFallback: 'Car {index}',
   },
   dropdown: {

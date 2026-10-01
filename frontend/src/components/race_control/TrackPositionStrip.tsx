@@ -8,6 +8,7 @@ import { getTeamColor } from '../../constants/f1';
 import { trackPositions, type TrackDot } from '../../utils/raceControl';
 import { driverCode } from '../../utils/player';
 import { styleVars } from '../../styles/theme';
+import { EmptyState } from '../ui/EmptyState';
 import { Panel, PanelHeader } from '../ui/Panel';
 import styles from './TrackPositionStrip.module.css';
 
@@ -83,7 +84,7 @@ export const TrackPositionStrip: React.FC<TrackPositionStripProps> = ({ classNam
           </div>
         </div>
       ) : (
-        <p className={styles.waiting}>{t('live.raceControlView.waitingForTrack')}</p>
+        <EmptyState compact title={t('live.raceControlView.waitingForTrack')} />
       )}
     </Panel>
   );

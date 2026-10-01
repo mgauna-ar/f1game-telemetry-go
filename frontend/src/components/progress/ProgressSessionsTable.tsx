@@ -10,6 +10,7 @@ import { formatLapTime, formatSectorTime } from '../../utils/formatters';
 import { SessionTypeBadge } from '../common/SessionTypeBadge';
 import { F1FormatBadge } from '../F1FormatBadge';
 import { commonPacketFormat } from '../session_history/packetFormat';
+import { sessionKind } from '../session_history/sessionKind';
 import { Badge } from '../ui/Badge';
 import { IconButton } from '../ui/Button';
 import { DataTable, type DataTableColumn } from '../ui/DataTable';
@@ -65,7 +66,7 @@ const BestLapCell: React.FC<CellProps & { bests: ProgressBests }> = ({ s, bests 
     <span className={styles.lap}>
       <span className={isPB ? styles.personalBest : undefined}>{formatLapTime(s.best_lap_time_ms)}</span>
       {isPB && (
-        <Badge tone="purple" size="xs" title={t('progress.table.personalBest')}>
+        <Badge tone="success" size="xs" title={t('progress.table.personalBest')}>
           {t('progress.table.pb')}
           <span className="sr-only"> {t('progress.table.personalBest')}</span>
         </Badge>
@@ -197,14 +198,14 @@ export const ProgressSessionsTable: React.FC<{ sessions: ProgressSession[]; trac
     <Panel className={styles.panel}>
       <PanelHeader
         level={2}
-        icon={<List size={18} />}
+        icon={<List size={16} />}
         title={title}
         subtitle={sessions.some((s) => s.source === 'chosen') ? `* ${t('progress.table.chosen')}` : undefined}
       />
       {isPhone ? (
         <ul className={styles.cards} aria-label={title}>
           {rows.map((s) => (
-            <li key={s.session_id} className={styles.card}>
+            <li key={s.session_id} className={styles.card} data-kind={sessionKind(s.session_type)}>
               <div className={styles.cardHead}>
                 <span className={styles.date}>{shortDateTime(s.created_at, units)}</span>
                 <SessionCell s={s} usualFormat={usualFormat} />
@@ -214,26 +215,26 @@ export const ProgressSessionsTable: React.FC<{ sessions: ProgressSession[]; trac
               </div>
               <dl className={styles.cardStats}>
                 <div>
-                  <dt>{t('progress.table.bestLap')}</dt>
+                  <dt className={styles.cardLabel}>{t('progress.table.bestLap')}</dt>
                   <dd>
                     <BestLapCell s={s} bests={bests} />
                   </dd>
                 </div>
                 <div>
-                  <dt>{t('progress.table.gap')}</dt>
+                  <dt className={styles.cardLabel}>{t('progress.table.gap')}</dt>
                   <dd>
                     <GapCell s={s} />
                   </dd>
                 </div>
                 <div>
-                  <dt>{t('progress.table.consistency')}</dt>
+                  <dt className={styles.cardLabel}>{t('progress.table.consistency')}</dt>
                   <dd>
                     <ConsistencyCell s={s} />
                   </dd>
                 </div>
                 {SECTOR_KEYS.map((key, i) => (
                   <div key={key}>
-                    <dt>S{i + 1}</dt>
+                    <dt className={styles.cardLabel}>S{i + 1}</dt>
                     <dd>
                       <SectorCell s={s} bests={bests} sector={key} />
                     </dd>

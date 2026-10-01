@@ -52,7 +52,7 @@ export const StandbyStatusCards: React.FC<StandbyStatusCardsProps> = ({
     <div className={styles.panel} data-testid="voice-cockpit-standby-panel">
       <div className={styles.header}>
         <div className={styles.radar} data-connected={connected} aria-hidden="true">
-          {connected ? <Radio size={26} className={styles.pulse} /> : <WifiOff size={26} />}
+          {connected ? <Radio size={26} /> : <WifiOff size={26} />}
         </div>
         <div className={styles.titles}>
           <ConnectionStatusPills connected={connected} />
@@ -72,7 +72,7 @@ export const StandbyStatusCards: React.FC<StandbyStatusCardsProps> = ({
           hint={pttHint}
         />
         <StandbyCard
-          icon={<Activity size={18} className={styles.pulse} />}
+          icon={<Activity size={18} />}
           tone="amber"
           label={t('live.udpBridge')}
           value={connected ? t('live.bridgeListening', { addr: endpoint.udp_addr }) : t('live.bridgeConnecting')}

@@ -29,6 +29,6 @@
 }
 
 .port {
-  font-weight: var(--font-weight-black);
+  font-weight: var(--font-weight-bold);
   color: var(--text-primary);
 }

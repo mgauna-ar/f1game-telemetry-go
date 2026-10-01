@@ -13,7 +13,7 @@
 
 .car {
   display: grid;
-  grid-template-columns: 2.5rem var(--space-1) minmax(0, 1fr) auto 5.5rem 4.5rem;
+  grid-template-columns: 2.5rem 3px minmax(0, 1fr) auto 5.5rem 4.5rem;
   align-items: center;
   gap: var(--space-2);
   width: 100%;
@@ -29,15 +29,17 @@ button.car:hover {
   border-color: var(--border-highlight);
 }
 
+/* You: the "you" tint and border */
 .row[data-kind='you'] .car {
-  background: color-mix(in srgb, var(--accent-primary) 12%, var(--bg-inset));
-  border-color: color-mix(in srgb, var(--accent-primary) 45%, transparent);
+  background: var(--f1-you-bg);
+  border-color: var(--f1-you-border);
 }
 
 .pos {
-  font-family: var(--font-display);
+  font-family: var(--font-mono);
   font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-black);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-bold);
 }
 
 .teamBar {
@@ -56,7 +58,6 @@ button.car:hover {
   font-family: var(--font-mono);
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-bold);
-  letter-spacing: 0.04em;
 }
 
 .fullName {
@@ -133,7 +134,7 @@ button.car:hover {
 
 @media (--phone) {
   .car {
-    grid-template-columns: 2.25rem var(--space-1) minmax(0, 1fr) auto 4.5rem;
+    grid-template-columns: 2.25rem 3px minmax(0, 1fr) auto 4.5rem;
   }
 
   .lastLap {

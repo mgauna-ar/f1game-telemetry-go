@@ -13,8 +13,10 @@ import { PlayerPickerModal } from './session_history/player/PlayerPickerModal';
 import { SessionComparatorDock } from './session_history/SessionComparatorDock';
 import { SessionBatchDock } from './session_history/SessionBatchDock';
 import { StandaloneToastContainer } from './common/ToastContainer';
+import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
 import { EmptyState } from './ui/EmptyState';
+import { PageHeader } from './ui/PageHeader';
 import { Panel } from './ui/Panel';
 import { SkeletonGroup, SkeletonRows } from './ui/Skeleton';
 
@@ -70,29 +72,27 @@ const SessionHistoryContent: React.FC = () => {
     handleExecuteBatchTag,
   } = useSessionHistoryActions();
 
-  useDocumentTitle(
-    selectedSession
-      ? `${selectedSession.track_name} ${sessionTypeLabel(selectedSession.session_type, t)} · ${new Date(selectedSession.created_at).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}`
-      : t('nav.tabs.history')
-  );
+  // "Race · 1 Oct": the breadcrumb's last step (the track is the page's h1) and, after the track,
+  // the tab title
+  const sessionCrumb = selectedSession
+    ? `${sessionTypeLabel(selectedSession.session_type, t)} · ${new Date(selectedSession.created_at).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}`
+    : '';
+  useDocumentTitle(selectedSession ? `${selectedSession.track_name} ${sessionCrumb}` : t('nav.tabs.history'));
 
   return (
     <div className={styles.page}>
       {/* Session History Title Header */}
       {!selectedSession ? (
-        <div className={styles.header}>
-          <div>
-            <h1 className={styles.title}>
-              <Calendar color="var(--accent-primary)" size={28} aria-hidden="true" />
-              {t('history.title')}
-            </h1>
-            <p className={styles.subtitle}>{t('history.subtitle')}</p>
-          </div>
-          <div className={styles.countBadge}>
-            <span className={styles.countDot} aria-hidden="true" />
-            <span className={styles.countText}>{t('history.recordedSessionsCount', { count: sessions.length })}</span>
-          </div>
-        </div>
+        <PageHeader
+          icon={<Calendar />}
+          title={t('history.title')}
+          subtitle={t('history.subtitle')}
+          aside={
+            <Badge tone="accent" size="md" uppercase className={styles.count}>
+              {t('history.recordedSessionsCount', { count: sessions.length })}
+            </Badge>
+          }
+        />
       ) : (
         <div className={styles.detailBar}>
           <div className={styles.detailNav}>
@@ -102,7 +102,7 @@ const SessionHistoryContent: React.FC = () => {
             <div className={styles.crumbs}>
               <span className={styles.crumbRoot}>{t('history.title')}</span>
               <span aria-hidden="true">/</span>
-              <span className={styles.crumbCurrent}>{selectedSession.track_name}</span>
+              <span className={styles.crumbCurrent}>{sessionCrumb}</span>
             </div>
           </div>
         </div>

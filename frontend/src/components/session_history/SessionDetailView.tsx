@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ChevronRight } from 'lucide-react';
 import { SessionDetailHeader, SESSION_DETAIL_TABS_ID, type SessionDetailTab } from './SessionDetailHeader';
 import { SessionClassificationTab } from './SessionClassificationTab';
 import { SessionLapChartsTab } from './SessionLapChartsTab';
@@ -120,13 +121,9 @@ export const SessionDetailView: React.FC<SessionDetailViewProps> = (props) => {
       <div className={styles.stints}>
         {stints.map(({ compound, actualCompound, count }, idx) => (
           <React.Fragment key={idx}>
-            {idx > 0 && (
-              <span className={styles.arrow} aria-hidden="true">
-                ➔
-              </span>
-            )}
+            {idx > 0 && <ChevronRight size={12} className={styles.arrow} aria-hidden="true" data-stint-arrow />}
             <div className={styles.stint}>
-              <TyreCompoundBadge compound={compound} actualCompound={actualCompound} size="md" />
+              <TyreCompoundBadge compound={compound} actualCompound={actualCompound} />
               <span className={styles.stintLaps}>{count}L</span>
             </div>
           </React.Fragment>

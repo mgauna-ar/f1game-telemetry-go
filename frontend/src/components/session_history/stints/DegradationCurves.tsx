@@ -11,6 +11,7 @@ import { EmptyState } from '../../ui/EmptyState';
 import { Panel, PanelHeader } from '../../ui/Panel';
 import { AskAiButton } from '../../ai_engineer/AskAiButton';
 import { SegmentedControl } from '../../ui/SegmentedControl';
+import { AXIS_PROPS, GRID_PROPS, NO_ANIMATION } from '../../charts/chartTheme';
 import styles from './DegradationCurves.module.css';
 import { DegradationTable, type DegradationTableRow } from './DegradationTable';
 import { compactTooltipProps, getCompoundColor, stintKey, type DriverStintData } from './stintUtils';
@@ -32,7 +33,6 @@ interface DegradationCurvesProps {
   playerCarIndex?: number | null;
 }
 
-const AXIS_TICK = { fill: cssVar('--text-muted'), fontSize: 11 };
 
 /**
  * Every stint's degradation in a sortable table, and the lap times of the stints ticked in it
@@ -96,7 +96,7 @@ export const DegradationCurves: React.FC<DegradationCurvesProps> = ({
   return (
     <Panel className={styles.panel}>
       <PanelHeader
-        icon={<TrendingUp size={18} color="var(--accent-secondary)" />}
+        icon={<TrendingUp size={16} />}
         title={t('history.stints.degradation.title')}
         subtitle={t('history.stints.degradation.subtitle')}
         actions={
@@ -161,17 +161,15 @@ export const DegradationCurves: React.FC<DegradationCurvesProps> = ({
                 margin={{ top: 10, right: 16, left: 0, bottom: 4 }}
                 accessibilityLayer={false}
               >
-                <CartesianGrid strokeDasharray="3 3" stroke={cssVar('--chart-grid')} />
+                <CartesianGrid {...GRID_PROPS} />
                 <XAxis
                   dataKey="tyreAge"
-                  stroke={cssVar('--text-muted')}
-                  tick={AXIS_TICK}
+                  {...AXIS_PROPS}
                   tickFormatter={(age) => t('history.stints.degradation.ageTick', { age: String(age) })}
                 />
                 <YAxis
                   width={52}
-                  stroke={cssVar('--text-muted')}
-                  tick={AXIS_TICK}
+                  {...AXIS_PROPS}
                   domain={domain}
                   allowDataOverflow
                   tickFormatter={(val: number) => `${val.toFixed(1)}s`}
@@ -220,7 +218,7 @@ export const DegradationCurves: React.FC<DegradationCurvesProps> = ({
                       dot={{ r: 3, fill: getCompoundColor(stint.compound), stroke: teamColor }}
                       activeDot={{ r: 5 }}
                       connectNulls
-                      isAnimationActive={false}
+                      {...NO_ANIMATION}
                     />,
                     <Line
                       key={`${key}_excluded`}
@@ -229,7 +227,7 @@ export const DegradationCurves: React.FC<DegradationCurvesProps> = ({
                       dot={{ r: 3.5, fill: cssVar('--bg-panel-solid'), stroke: teamColor, strokeWidth: 1.5 }}
                       activeDot={{ r: 5, fill: cssVar('--bg-panel-solid'), stroke: teamColor }}
                       legendType="none"
-                      isAnimationActive={false}
+                      {...NO_ANIMATION}
                     />,
                   ];
                 })}

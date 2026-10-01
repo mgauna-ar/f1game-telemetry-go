@@ -32,7 +32,9 @@ export const Button: React.FC<ButtonProps> = ({
   children,
   ...rest
 }) => {
-  const iconSize = size === 'sm' ? 13 : 15;
+  // The spinner takes the place of the icon at the icon's own size, so the text doesn't move
+  const passedSize = React.isValidElement<{ size?: unknown }>(icon) ? icon.props.size : undefined;
+  const iconSize = typeof passedSize === 'number' ? passedSize : size === 'sm' ? 13 : 15;
   return (
     <button
       type={type}

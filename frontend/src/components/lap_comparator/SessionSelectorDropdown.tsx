@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useId } from 'react';
-import { Search, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, X, CloudSun } from 'lucide-react';
 import type { Session } from '../../types/session';
 import { SessionTypeBadge } from '../common/SessionTypeBadge';
 import { useI18n } from '../../context/I18nContext';
@@ -8,6 +8,7 @@ import { F1FormatBadge } from '../F1FormatBadge';
 import { TrackFlag } from '../TrackFlag';
 import { IconButton } from '../ui/Button';
 import { SegmentedControl } from '../ui/SegmentedControl';
+import { TextInput } from '../ui/Field';
 import styles from './SessionSelectorDropdown.module.css';
 import { useUnits } from '../../hooks/useUnits';
 
@@ -103,12 +104,14 @@ export const SessionSelectorDropdown: React.FC<SessionSelectorDropdownProps> = (
             <span className={styles.selectedTrack}>{selectedSession.track_name}</span>
             <F1FormatBadge format={selectedSession.packet_format} size="xs" />
             <SessionTypeBadge sessionType={selectedSession.session_type} size="xs" showIcon={false} />
-            <span className={styles.selectedDate}>({new Date(selectedSession.created_at).toLocaleDateString()})</span>
+            <span className={styles.selectedDate}>
+              {units.dateTime(selectedSession.created_at, { dateStyle: 'medium' })}
+            </span>
           </span>
         ) : (
           <span className={styles.placeholder}>{placeholder}</span>
         )}
-        <Chevron size={15} className={styles.chevron} aria-hidden="true" />
+        <Chevron size={14} className={styles.chevron} aria-hidden="true" />
       </button>
 
       {isOpen && (
@@ -122,9 +125,7 @@ export const SessionSelectorDropdown: React.FC<SessionSelectorDropdownProps> = (
 
           <div className={styles.search}>
             <Search size={14} className={styles.searchIcon} aria-hidden="true" />
-            <input
-              type="text"
-              className={styles.searchInput}
+            <TextInput
               aria-label={t('comparator.dropdown.searchSessions')}
               placeholder={
                 isRestrictedCircuit ? t('comparator.dropdown.searchSameCircuit') : t('comparator.dropdown.searchAny')
@@ -180,7 +181,12 @@ export const SessionSelectorDropdown: React.FC<SessionSelectorDropdownProps> = (
 
                     <span className={styles.itemRow}>
                       <span className={styles.meta}>{units.dateAndTime(s.created_at)}</span>
-                      {s.weather && <span className={styles.weather}>🌦️ {s.weather}</span>}
+                      {s.weather && (
+                        <span className={styles.weather}>
+                          <CloudSun size={12} aria-hidden="true" />
+                          {s.weather}
+                        </span>
+                      )}
                     </span>
 
                     {s.tags && s.tags.length > 0 && (

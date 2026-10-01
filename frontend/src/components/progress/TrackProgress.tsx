@@ -1,5 +1,5 @@
 import React, { useId, useMemo, useState } from 'react';
-import { TrendingUp } from 'lucide-react';
+import { Info, RefreshCw, TrendingUp } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useTrackProgress } from '../../hooks/useTrackProgress';
@@ -11,8 +11,10 @@ import { formatLapTime } from '../../utils/formatters';
 import { sessionTypeLabel } from '../../utils/sessionTypeLabel';
 import { TrackFlag } from '../TrackFlag';
 import { Button } from '../ui/Button';
+import { Callout } from '../ui/Callout';
 import { EmptyState } from '../ui/EmptyState';
 import { Select } from '../ui/Field';
+import { PageHeader } from '../ui/PageHeader';
 import { Panel } from '../ui/Panel';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { SkeletonGroup, SkeletonRows } from '../ui/Skeleton';
@@ -51,51 +53,51 @@ export const TrackProgress: React.FC = () => {
   useDocumentTitle(shownTrack ? `${t('progress.title')}: ${shownTrack}` : t('progress.title'));
 
   const header = (
-    <header className={styles.header}>
-      <div>
-        <h1 className={styles.title}>
-          <TrendingUp color="var(--accent-primary)" size={28} aria-hidden="true" />
-          {t('progress.title')}
-        </h1>
-        <p className={styles.subtitle}>{t('progress.subtitle')}</p>
-      </div>
-      {tracks.length > 0 && (
-        <div className={styles.controls}>
-          <div className={styles.trackPicker}>
-            <label htmlFor={trackSelectId} className={styles.controlLabel}>
-              {t('progress.trackLabel')}
-            </label>
-            <div className={styles.trackSelect}>
-              <TrackFlag track={shownTrack} width={20} height={14} />
-              <Select
-                id={trackSelectId}
-                value={shownTrack}
-                onChange={(e) => navigate(buildPath({ page: 'progress', track: e.target.value }))}
-              >
-                {tracks.map((tr) => (
-                  <option key={tr.track_name} value={tr.track_name}>
-                    {t('progress.trackOption', { track: tr.track_name, count: tr.sessions })}
-                  </option>
-                ))}
-                {/* A track from the URL that has no sessions */}
-                {!tracks.some((tr) => tr.track_name === shownTrack) && <option value={shownTrack}>{shownTrack}</option>}
-              </Select>
+    <PageHeader
+      icon={<TrendingUp />}
+      title={t('progress.title')}
+      subtitle={t('progress.subtitle')}
+      aside={
+        tracks.length > 0 && (
+          <>
+            <div className={styles.trackPicker}>
+              <label htmlFor={trackSelectId} className={styles.controlLabel}>
+                {t('progress.trackLabel')}
+              </label>
+              <div className={styles.trackSelect}>
+                <TrackFlag track={shownTrack} width={20} height={14} />
+                <Select
+                  id={trackSelectId}
+                  value={shownTrack}
+                  onChange={(e) => navigate(buildPath({ page: 'progress', track: e.target.value }))}
+                >
+                  {tracks.map((tr) => (
+                    <option key={tr.track_name} value={tr.track_name}>
+                      {t('progress.trackOption', { track: tr.track_name, count: tr.sessions })}
+                    </option>
+                  ))}
+                  {/* A track from the URL that has no sessions */}
+                  {!tracks.some((tr) => tr.track_name === shownTrack) && (
+                    <option value={shownTrack}>{shownTrack}</option>
+                  )}
+                </Select>
+              </div>
             </div>
-          </div>
-          {kinds.length > 1 && (
-            <SegmentedControl
-              aria-label={t('progress.kindLabel')}
-              value={activeKind}
-              onChange={setKind}
-              options={[
-                { value: 'all', label: t('progress.kinds.all') },
-                ...kinds.map((k) => ({ value: k, label: t(`progress.kinds.${k}`) })),
-              ]}
-            />
-          )}
-        </div>
-      )}
-    </header>
+            {kinds.length > 1 && (
+              <SegmentedControl
+                aria-label={t('progress.kindLabel')}
+                value={activeKind}
+                onChange={setKind}
+                options={[
+                  { value: 'all', label: t('progress.kinds.all') },
+                  ...kinds.map((k) => ({ value: k, label: t(`progress.kinds.${k}`) })),
+                ]}
+              />
+            )}
+          </>
+        )
+      }
+    />
   );
 
   let body: React.ReactNode;
@@ -109,26 +111,34 @@ export const TrackProgress: React.FC = () => {
     );
   } else if (error && !data) {
     body = (
-      <EmptyState
-        tone="danger"
-        title={t('progress.loadError')}
-        description={error}
-        action={<Button onClick={reload}>{t('common.retry')}</Button>}
-      />
+      <Panel as="div">
+        <EmptyState
+          tone="danger"
+          title={t('progress.loadError')}
+          description={error}
+          action={
+            <Button variant="primary" icon={<RefreshCw size={14} />} onClick={reload}>
+              {t('common.retry')}
+            </Button>
+          }
+        />
+      </Panel>
     );
   } else if (tracks.length === 0) {
     body = (
-      <EmptyState
-        icon={<TrendingUp size={32} />}
-        title={t('progress.noSessions')}
-        description={t('progress.noSessionsHint')}
-      />
+      <Panel as="div">
+        <EmptyState
+          icon={<TrendingUp size={32} />}
+          title={t('progress.noSessions')}
+          description={t('progress.noSessionsHint')}
+        />
+      </Panel>
     );
   } else {
     body = (
       <>
         {data && data.unmatched_sessions > 0 && (
-          <p className={styles.unmatched} role="note">
+          <Callout tone="warning" icon={<Info size={16} />} role="note" className={styles.unmatched}>
             {data.unmatched_sessions === 1
               ? t('progress.unmatchedOne')
               : t('progress.unmatchedMany', { count: data.unmatched_sessions })}{' '}
@@ -142,12 +152,14 @@ export const TrackProgress: React.FC = () => {
             >
               {t(data.unmatched_sessions === 1 ? 'progress.unmatchedLinkOne' : 'progress.unmatchedLinkMany')}
             </Link>
-          </p>
+          </Callout>
         )}
         {sessions.length === 0 ? (
-          <EmptyState
-            title={t(activeKind === 'all' ? 'progress.noneAtTrack' : 'progress.noneForKind', { track: shownTrack })}
-          />
+          <Panel as="div">
+            <EmptyState
+              title={t(activeKind === 'all' ? 'progress.noneAtTrack' : 'progress.noneForKind', { track: shownTrack })}
+            />
+          </Panel>
         ) : (
           <div className={styles.content} aria-busy={loading || undefined}>
             <ProgressStats sessions={sessions} />
@@ -184,7 +196,10 @@ const ProgressStats: React.FC<{ sessions: ProgressSession[] }> = ({ sessions }) 
         valueClassName={cx(styles.statValue, styles.best)}
         label={t('progress.stats.personalBest')}
         value={formatLapTime(bests.bestLap?.best_lap_time_ms)}
-        detail={bests.bestLap && `${sessionTypeLabel(bests.bestLap.session_type, t)} · ${shortDate(bests.bestLap.created_at, locale)}`}
+        detail={
+          bests.bestLap &&
+          `${sessionTypeLabel(bests.bestLap.session_type, t)} · ${shortDate(bests.bestLap.created_at, locale)}`
+        }
       />
       <Stat
         className={styles.stat}

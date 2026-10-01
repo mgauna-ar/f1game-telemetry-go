@@ -1,8 +1,9 @@
 import React from 'react';
-import { MapPin, Sparkles } from 'lucide-react';
+import { MapPin, Search, Sparkles } from 'lucide-react';
 import { TrackFlag } from '../TrackFlag';
 import { ComparatorTrackMap } from '../ComparatorTrackMap';
 import { Button } from '../ui/Button';
+import { Panel, PanelHeader } from '../ui/Panel';
 import { getTurnContextAtDistance } from '../../utils/trackTurns';
 import { ERS_MODE_NAMES } from '../../constants/f1';
 import { useI18n } from '../../context/I18nContext';
@@ -62,11 +63,11 @@ export const ComparatorSidebar: React.FC<ComparatorSidebarProps> = ({
     const battery = isA ? point.ersBatteryA : point.ersBatteryB;
     const mode = isA ? point.ersDeployModeA : point.ersDeployModeB;
     const rows = [
-      { label: t('comparator.sidebar.speed'), value: units.speed(speed, 0, `- ${units.speedUnit}`) },
+      { label: t('comparator.sidebar.speed'), value: units.speed(speed, 0, '—') },
       { label: t('comparator.sidebar.throttleBrake'), value: `${percent(throttle)}% / ${percent(brake)}%` },
       {
         label: t('comparator.sidebar.ers'),
-        value: `${battery !== null ? battery.toFixed(0) : '-'}% (${ERS_MODE_NAMES[mode ?? 0] || 'Off'})`,
+        value: `${battery !== null ? battery.toFixed(0) : '—'}% (${ERS_MODE_NAMES[mode ?? 0] || 'Off'})`,
       },
     ];
     return (
@@ -86,29 +87,32 @@ export const ComparatorSidebar: React.FC<ComparatorSidebarProps> = ({
 
   return (
     <div className={styles.sidebar}>
-      <section className={`glass-panel ${styles.panel}`} aria-label={t('comparator.sidebar.trackHeatmap')}>
-        <div className={styles.head}>
-          <h2 className={styles.title}>
-            <MapPin size={15} className={styles.titleIcon} aria-hidden="true" /> {t('comparator.sidebar.trackHeatmap')}
-          </h2>
-          <div className={styles.headActions}>
-            {selectedSessionAObj && (
-              <span className={styles.track}>
-                <TrackFlag track={selectedSessionAObj.track_name} width={14} height={10} />
-                <span>{selectedSessionAObj.track_name}</span>
-              </span>
-            )}
-            <Button
-              size="sm"
-              className={styles.askAi}
-              onClick={onOpenAiDebrief}
-              icon={<Sparkles size={12} aria-hidden="true" />}
-              title={t('comparator.sidebar.askAiTitle')}
-            >
-              {t('comparator.sidebar.askAi')}
-            </Button>
-          </div>
-        </div>
+      <Panel padding="compact">
+        <PanelHeader
+          level={2}
+          icon={<MapPin size={16} />}
+          title={t('comparator.sidebar.trackHeatmap')}
+          className={styles.head}
+          actions={
+            <>
+              {selectedSessionAObj && (
+                <span className={styles.track}>
+                  <TrackFlag track={selectedSessionAObj.track_name} width={14} height={10} />
+                  <span>{selectedSessionAObj.track_name}</span>
+                </span>
+              )}
+              <Button
+                size="sm"
+                className={styles.askAi}
+                onClick={onOpenAiDebrief}
+                icon={<Sparkles size={14} className={styles.sparkle} aria-hidden="true" />}
+                title={t('comparator.sidebar.askAiTitle')}
+              >
+                {t('comparator.sidebar.askAi')}
+              </Button>
+            </>
+          }
+        />
 
         <ComparatorTrackMap
           data={comparisonData}
@@ -155,7 +159,8 @@ export const ComparatorSidebar: React.FC<ComparatorSidebarProps> = ({
                   </div>
                   {turnContext.label && (
                     <span className={styles.turnContext} data-phase={turnContext.phase}>
-                      📍 {turnContext.label}
+                      <MapPin size={12} aria-hidden="true" />
+                      {turnContext.label}
                     </span>
                   )}
                 </div>
@@ -177,13 +182,16 @@ export const ComparatorSidebar: React.FC<ComparatorSidebarProps> = ({
               </>
             ) : (
               <div className={styles.hint}>
-                <span className={styles.hintTitle}>🔍 {t('comparator.sidebar.inspectTitle')}</span>
+                <span className={styles.hintTitle}>
+                  <Search size={14} aria-hidden="true" />
+                  {t('comparator.sidebar.inspectTitle')}
+                </span>
                 {t('comparator.sidebar.inspectHint')}
               </div>
             )}
           </div>
         )}
-      </section>
+      </Panel>
     </div>
   );
 };

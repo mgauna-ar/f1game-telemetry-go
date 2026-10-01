@@ -60,16 +60,16 @@
   border-radius: var(--radius-sm);
 }
 
-/* Laid out like the pages: centred, at most 1400px, with their padding */
+/* Laid out like the pages: the page container, a PageHeader-sized title block, two panels */
 .page {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: var(--space-6) var(--space-8);
+  composes: page from '../../styles/page.module.css';
 }
 
 .pageHeader {
-  height: 7rem;
-  border-radius: var(--radius-md);
+  width: min(28rem, 80%);
+  height: 4rem;
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius-sm);
 }
 
 .pagePanels {
@@ -84,10 +84,6 @@
 }
 
 @media (--tablet) {
-  .page {
-    padding: var(--space-4);
-  }
-
   .pagePanels {
     grid-template-columns: minmax(0, 1fr);
   }

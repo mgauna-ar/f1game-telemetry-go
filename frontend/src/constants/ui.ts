@@ -4,20 +4,13 @@
  */
 
 export const UI = {
-  // Icon Sizes
-  ICON_SIZE_XS: 9,
-  ICON_SIZE_SM: 11,
-  ICON_SIZE_MD: 13,
-  ICON_SIZE_LG: 16,
-  ICON_SIZE_XL: 20,
-  ICON_SIZE_2XL: 24,
-
-  // Chart Geometry & Defaults
-  CHART_HEIGHT_DEFAULT: 300,
-  CHART_HEIGHT_COMPACT: 180,
-  CHART_HEIGHT_MINI: 120,
-  CHART_MARGIN: { top: 5, right: 20, bottom: 5, left: 20 },
-  CHART_MARGIN_COMPACT: { top: 4, right: 12, bottom: 4, left: 12 },
+  // Icon sizes (lucide `size`): one step per role, so icons line up with the text beside them
+  ICON_SIZE_XS: 12, // inline with small text, badges
+  ICON_SIZE_SM: 14, // buttons, chips, table actions
+  ICON_SIZE_MD: 16, // panel headers, tabs, nav
+  ICON_SIZE_LG: 20, // page-level hero cards
+  ICON_SIZE_XL: 28, // page titles (ui/PageHeader sizes it from the title)
+  ICON_SIZE_2XL: 32, // empty states (ui/EmptyState sizes it)
 
   // Visual Opacity Levels
   DEFAULT_OPACITY: 0.65,

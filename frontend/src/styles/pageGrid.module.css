@@ -1,29 +1,25 @@
 /* The 12-column page grid of the live dashboard and the lap comparator. Pages pull it in with
    `composes: pageGrid from '../styles/pageGrid.module.css';` and tune it through
-   `--page-max-width` and `--page-padding-top` rather than overriding its properties. */
+   `--page-padding-top` rather than overriding its properties. */
 .pageGrid {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   gap: var(--space-6);
-  max-width: var(--page-max-width, 1400px);
+  max-width: var(--page-max-width);
   margin: 0 auto;
-  padding: var(--space-8);
-  padding-top: var(--page-padding-top, var(--space-8));
+  padding: var(--page-padding-top, var(--space-6)) var(--page-gutter) var(--space-6);
 }
 
 @media (--laptop) {
   .pageGrid {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-4);
-    padding: var(--space-4);
-    padding-top: var(--page-padding-top, var(--space-4));
   }
 }
 
 @media (--tablet) {
   .pageGrid {
     gap: var(--space-3);
-    padding: var(--space-3);
-    padding-top: var(--page-padding-top, var(--space-3));
+    padding-top: var(--page-padding-top, var(--space-4));
   }
 }

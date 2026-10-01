@@ -1,6 +1,7 @@
 /* Text inputs, text areas and selects share one look: an inset box that lights up on focus. */
 .control {
   width: 100%;
+  min-height: var(--control-height-md);
   padding: var(--space-2) var(--space-3);
   font-family: var(--font-sans);
   font-size: var(--font-size-sm);
@@ -23,7 +24,7 @@
 
 .control:focus {
   border-color: var(--accent-cyan);
-  box-shadow: 0 0 14px var(--accent-cyan-glow);
+  box-shadow: 0 0 var(--glow-sm) var(--accent-cyan-glow);
 }
 
 .control:disabled {

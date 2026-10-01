@@ -1,10 +1,11 @@
 import React, { useId } from 'react';
 import { Filter } from 'lucide-react';
 import { getTeamColor } from '../../constants/f1';
-import { styleVars } from '../../styles/theme';
 import type { DriverStanding } from '../../types/session';
 import { useI18n } from '../../context/I18nContext';
+import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
+import { Chip } from '../ui/Chip';
 import styles from './DriverFilterChips.module.css';
 
 interface DriverFilterChipsProps {
@@ -54,21 +55,22 @@ export const DriverFilterChips: React.FC<DriverFilterChipsProps> = ({
 
       <div className={styles.chips} role="group" aria-labelledby={labelId}>
         {drivers.map((driver) => (
-          <button
-            type="button"
+          <Chip
             key={driver.participant.car_index}
-            aria-pressed={!!selected[driver.participant.car_index]}
+            pressed={!!selected[driver.participant.car_index]}
             onClick={() => onToggle(driver.participant.car_index)}
-            className={styles.chip}
-            style={styleVars({ '--team-color': getTeamColor(driver.participant.team_id) })}
+            color={getTeamColor(driver.participant.team_id)}
           >
-            <span className={styles.teamDot} aria-hidden="true" />
-            <span>{driver.participant.name}</span>
-            <span className={styles.raceNumber}>#{driver.participant.race_number}</span>
+            {driver.participant.name} <span className={styles.raceNumber}>#{driver.participant.race_number}</span>
             {driver.participant.car_index === playerCarIndex && (
-              <span className={styles.you}>{t('history.player.you')}</span>
+              <>
+                {' '}
+                <Badge tone="you" size="xs">
+                  {t('history.player.you')}
+                </Badge>
+              </>
             )}
-          </button>
+          </Chip>
         ))}
       </div>
     </div>

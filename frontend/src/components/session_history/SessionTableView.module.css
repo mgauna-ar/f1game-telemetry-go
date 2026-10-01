@@ -1,33 +1,32 @@
 /* The session list, styled like a broadcast timing strip */
 .container {
   overflow: hidden;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  background: linear-gradient(180deg, rgba(16, 20, 31, 0.9) 0%, rgba(10, 13, 22, 0.95) 100%);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+  background: var(--bg-glass);
+  box-shadow: var(--shadow-panel);
 }
 
 /* Separate rounded rows; element selectors outrank the DataTable's own cell rules */
 .table {
   border-collapse: separate;
   border-spacing: 0 3px;
-  padding: 0 var(--space-2);
+  padding: 0 var(--space-2) var(--space-1);
 }
 
 .table thead th {
-  padding: 0.55rem 0.65rem;
+  padding: var(--space-2) var(--space-3);
   background: none;
-  letter-spacing: 0.08em;
 }
 
 .table tbody tr {
   --row-stripe: var(--border-strong);
-  --row-bg: rgba(18, 24, 38, 0.5);
-  --row-edge: var(--border-color);
+  --row-bg: var(--bg-inset);
+  --row-edge: var(--border-subtle);
 }
 
 .table tbody tr > * {
-  padding: 0.4rem 0.65rem;
+  padding: var(--space-1-5) var(--space-3);
   border-top: 1px solid var(--row-edge);
   border-bottom: 1px solid var(--row-edge);
   background: var(--row-bg);
@@ -37,19 +36,20 @@
     border-color var(--duration-fast) var(--ease-out);
 }
 
+/* The session type's colour as one 3px edge, like a team edge */
 .table tbody tr > :first-child {
-  border-left: 4px solid var(--row-stripe);
-  border-radius: 6px 0 0 6px;
+  border-left: 3px solid var(--row-stripe);
+  border-radius: var(--radius-xs) 0 0 var(--radius-xs);
 }
 
 .table tbody tr > :last-child {
   border-right: 1px solid var(--row-edge);
-  border-radius: 0 6px 6px 0;
+  border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
 }
 
 .table tbody tr:hover {
-  --row-bg: rgba(28, 36, 56, 0.85);
-  --row-edge: color-mix(in srgb, var(--accent-cyan) 25%, transparent);
+  --row-bg: var(--bg-hover);
+  --row-edge: var(--border-highlight);
   background: none;
 }
 
@@ -70,16 +70,17 @@
   --row-stripe: var(--status-success);
 }
 
+/* Ticked for a batch action: neutral, like every selected row */
 .table tbody tr.selected {
-  --row-bg: color-mix(in srgb, var(--accent-cyan) 8%, transparent);
-  --row-edge: color-mix(in srgb, var(--accent-cyan) 35%, transparent);
+  --row-bg: var(--bg-active);
+  --row-edge: var(--border-strong);
 }
 
 .checkboxLabel {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.4rem;
+  padding: var(--space-1-5);
   cursor: pointer;
 }
 
@@ -87,14 +88,13 @@
   width: 16px;
   height: 16px;
   margin: 0;
-  accent-color: var(--accent-cyan);
   cursor: pointer;
 }
 
 .date {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--space-1-5);
 }
 
 .clock {
@@ -121,15 +121,15 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 2px 5px;
+  padding: 2px var(--space-1);
   border: 1px solid var(--border-strong);
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
   background: var(--bg-active);
   color: var(--text-primary);
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
-  font-weight: var(--font-weight-black);
-  letter-spacing: 0.08em;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--tracking-label);
   line-height: 1;
 }
 

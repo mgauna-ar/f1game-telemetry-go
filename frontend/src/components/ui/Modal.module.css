@@ -7,8 +7,6 @@
   justify-content: center;
   padding: var(--space-6) var(--space-4);
   background-color: var(--bg-overlay);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
   animation: overlay-in var(--duration-normal) var(--ease-out);
 }
 
@@ -21,7 +19,7 @@
   overflow: hidden;
   background-color: var(--bg-elevated);
   border: 1px solid var(--border-highlight);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-dialog);
   color: var(--text-primary);
   animation: dialog-in var(--duration-normal) var(--ease-out);

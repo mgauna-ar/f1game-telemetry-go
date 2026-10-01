@@ -37,13 +37,13 @@ export const WaitingForData: React.FC<WaitingForDataProps> = ({ connected }) => 
   return (
     <div className={styles.container}>
       <div className={styles.card}>
-        {/* Animated signal radar */}
+        {/* Signal radar */}
         <div className={styles.radar} aria-hidden="true">
           <div className={styles.ripple} />
           <div className={styles.ripple} />
           <div className={styles.ripple} />
           <div className={styles.signal} data-connected={connected}>
-            {connected ? <Radio size={36} className={styles.pulse} /> : <WifiOff size={36} />}
+            {connected ? <Radio size={36} /> : <WifiOff size={36} />}
           </div>
         </div>
 
@@ -98,7 +98,7 @@ export const WaitingForData: React.FC<WaitingForDataProps> = ({ connected }) => 
             <span className="mono">{t('live.listeningFooter', { addr: endpoint.udp_addr })}</span>
           </div>
           <div className={styles.tip}>
-            <Info size={13} aria-hidden="true" />
+            <Info size={14} aria-hidden="true" />
             <span>{t('live.dashboardAutoOpenTip')}</span>
           </div>
         </div>

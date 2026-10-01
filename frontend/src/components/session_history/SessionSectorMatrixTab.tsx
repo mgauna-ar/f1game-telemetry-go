@@ -115,7 +115,6 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
     key: `s${sector}`,
     header: bestHeaders[sector - 1],
     numeric: true,
-    align: 'left',
     cell: (driver) => {
       const time = bestSectorMS(driver, sector);
       const best = sessionBest(sector);
@@ -162,7 +161,7 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
         <div className={styles.heroTop}>
           <div>
             <h3 className={styles.heroEyebrow}>
-              <Zap size={18} aria-hidden="true" />
+              <Zap size={16} aria-hidden="true" />
               {t('history.sectors.ultimateTheoretical')}
             </h3>
             <div className={styles.heroTime}>
@@ -174,7 +173,7 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
           <div className={styles.heroStats}>
             <Stat
               className={styles.heroStat}
-              icon={<Award size={18} className={styles.fastest} />}
+              icon={<Award size={16} className={styles.fastest} />}
               label={t('history.sectors.actualFastest')}
               value={actualSessionBestLap.bestMS > 0 ? formatLapTime(actualSessionBestLap.bestMS) : '--:--.---'}
               valueClassName={cx(styles.heroStatValue, styles.fastest)}
@@ -182,7 +181,7 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
             />
             <Stat
               className={styles.heroStat}
-              icon={<Layers size={18} className={styles.gain} />}
+              icon={<Layers size={16} />}
               label={t('history.sectors.potentialGain')}
               value={ultimateDeltaMS > 0 ? `-${(ultimateDeltaMS / 1000).toFixed(3)}s` : '0.000s'}
               valueClassName={cx(styles.heroStatValue, styles.gain)}
@@ -221,7 +220,7 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
         <Panel>
           <PanelHeader
             level={4}
-            icon={<Zap size={18} color="var(--accent-purple)" />}
+            icon={<Zap size={16} />}
             title={t('history.sectors.sectorLeaderboards')}
             actions={
               <>
@@ -259,7 +258,7 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
         <Panel>
           <PanelHeader
             level={4}
-            icon={<Gauge size={18} color="var(--accent-secondary)" />}
+            icon={<Gauge size={16} />}
             title={t('history.sectors.speedTrapMaxSpeeds')}
             actions={
               <span className={styles.topSpeed}>

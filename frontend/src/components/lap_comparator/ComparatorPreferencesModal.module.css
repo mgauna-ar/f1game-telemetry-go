@@ -22,14 +22,13 @@
   gap: var(--space-2);
 }
 
+/* The settings sub-heading, like the radio and AI sections */
 .label {
+  composes: subheading from '../ui/patterns.module.css';
   display: flex;
   align-items: center;
   gap: var(--space-1-5);
   padding: 0;
-  font-size: var(--font-size-md);
-  font-weight: var(--font-weight-semibold);
-  color: var(--text-primary);
 }
 
 .slotB {
@@ -42,7 +41,6 @@
   height: 8px;
   border-radius: var(--radius-full);
   background-color: var(--slot-color);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--slot-color) 60%, transparent);
 }
 
 .useCurrent {
@@ -60,20 +58,6 @@
   background: color-mix(in srgb, var(--slot-color) 22%, transparent);
 }
 
-.input {
-  width: 100%;
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-xs);
-  background: var(--bg-inset);
-  color: var(--text-primary);
-  font-size: var(--font-size-md);
-}
-
-.input:focus {
-  border-color: var(--slot-color, var(--border-highlight));
-}
-
 .help {
   margin: 0;
   font-size: var(--font-size-sm);
@@ -87,13 +71,11 @@
 }
 
 .option {
+  composes: tile from '../ui/patterns.module.css';
   display: flex;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-xs);
-  background: var(--bg-hover);
   color: var(--text-secondary);
   font-size: var(--font-size-md);
   cursor: pointer;

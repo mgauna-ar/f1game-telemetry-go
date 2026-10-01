@@ -1,9 +1,10 @@
-/* Sector timing colours: purple for the session best, green for a personal best. */
+/* Sector timing colours: purple for the session best, green for a personal best (a tinted fill and
+   bold text), yellow for a slower one (text colour only). No borders, so a table of sectors stays
+   calm. */
 .purple {
   position: relative;
   background-color: var(--f1-purple-bg);
   color: var(--f1-purple);
-  border: 1px solid var(--f1-purple-border);
   font-weight: var(--font-weight-bold);
 }
 
@@ -21,14 +22,11 @@
 .green {
   background-color: var(--f1-green-bg);
   color: var(--f1-green);
-  border: 1px solid var(--f1-green-border);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-bold);
 }
 
 .yellow {
-  background-color: var(--f1-yellow-bg);
   color: var(--f1-yellow);
-  border: 1px solid var(--f1-yellow-border);
 }
 
 /* The legend's colour sample */
@@ -37,4 +35,12 @@
   width: 14px;
   height: 10px;
   border-radius: 2px;
+}
+
+.swatch.yellow {
+  background-color: var(--f1-yellow);
+}
+
+.swatch::after {
+  content: none;
 }

@@ -12,7 +12,7 @@ export interface ErsBatteryChartProps extends CommonChartProps {
 
 export const ErsBatteryChart = React.memo<ErsBatteryChartProps>((props) => {
   const { t } = useI18n();
-  const { nameA, nameB, isErsRestrictedA, isErsRestrictedB } = props;
+  const { isErsRestrictedA, isErsRestrictedB } = props;
 
   const headerRight =
     isErsRestrictedA || isErsRestrictedB ? (
@@ -27,13 +27,11 @@ export const ErsBatteryChart = React.memo<ErsBatteryChartProps>((props) => {
       headerRight={headerRight}
       dataKeyA="ersBatteryA"
       dataKeyB="ersBatteryB"
-      lineNameA={`${nameA} Battery (%)`}
-      lineNameB={`${nameB} Battery (%)`}
       yAxisDomain={[0, 100]}
       yAxisTickFormatter={(v) => (typeof v === 'number' && Number.isFinite(v) ? `${Math.round(v)}%` : '')}
       tooltipFormatter={(val: unknown) => {
         const num = typeof val === 'number' ? val : Number(val);
-        return Number.isFinite(num) ? [`${num.toFixed(1)}%`] : ['-'];
+        return Number.isFinite(num) ? [`${num.toFixed(1)}%`] : ['—'];
       }}
     />
   );

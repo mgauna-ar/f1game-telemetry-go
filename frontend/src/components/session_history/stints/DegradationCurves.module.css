@@ -1,6 +1,5 @@
 .panel {
   gap: var(--space-4);
-  padding: var(--space-6);
 }
 
 /* The panel's gap already spaces its header */
@@ -72,10 +71,6 @@
 }
 
 @media (--phone) {
-  .panel {
-    padding: var(--space-4);
-  }
-
   .chart {
     height: 300px;
   }

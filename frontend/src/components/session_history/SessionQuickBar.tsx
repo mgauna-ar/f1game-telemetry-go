@@ -10,6 +10,8 @@ import {
   type SavedSessionFilter,
 } from '../../utils/sessionListView';
 import { Button, IconButton } from '../ui/Button';
+import { Chip } from '../ui/Chip';
+import { TextInput } from '../ui/Field';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import styles from './SessionQuickBar.module.css';
 
@@ -81,15 +83,13 @@ export const SessionQuickBar: React.FC = () => {
           {t('history.list.quickLabel')}
         </span>
         {QUICK_FILTERS.map((filter) => (
-          <button
+          <Chip
             key={filter}
-            type="button"
-            className={styles.chip}
-            aria-pressed={data.quickFilters.includes(filter)}
+            pressed={data.quickFilters.includes(filter)}
             onClick={() => actions.toggleQuickFilter(filter)}
           >
             {t(`history.list.quick.${filter}`, { days: RECENT_DAYS })}
-          </button>
+          </Chip>
         ))}
       </div>
 
@@ -101,14 +101,9 @@ export const SessionQuickBar: React.FC = () => {
           </span>
           {data.savedFilters.map((filter) => (
             <span key={filter.id} className={styles.saved}>
-              <button
-                type="button"
-                className={styles.chip}
-                aria-pressed={isSameFilter(filter, current)}
-                onClick={() => actions.applySavedFilter(filter)}
-              >
+              <Chip pressed={isSameFilter(filter, current)} onClick={() => actions.applySavedFilter(filter)}>
                 {filter.name}
-              </button>
+              </Chip>
               <IconButton
                 size="sm"
                 className={styles.remove}
@@ -127,7 +122,7 @@ export const SessionQuickBar: React.FC = () => {
                 save();
               }}
             >
-              <input
+              <TextInput
                 ref={inputRef}
                 className={styles.nameInput}
                 value={naming}

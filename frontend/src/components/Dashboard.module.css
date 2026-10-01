@@ -36,8 +36,10 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+/* Each hub panel lays itself out by its own width (a quarter of the page in the row layout) */
 .hubCard {
   min-height: 380px;
+  container: hubCard / inline-size;
 }
 
 /* Driver view: the whole width, room at the end for the AI launcher */
@@ -48,28 +50,12 @@
 
 /* Standby and voice cockpit views */
 .cockpit {
+  composes: page from '../styles/page.module.css';
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
+  gap: var(--space-5);
   width: 100%;
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: var(--space-6) var(--space-8);
-  animation: cockpitIn 0.25s var(--ease-out);
-}
-
-@keyframes cockpitIn {
-  from {
-    opacity: 0;
-    transform: scale(0.96) translateY(8px);
-  }
-}
-
-@media (--tablet) {
-  .cockpit {
-    padding: var(--space-3);
-  }
 }
 
 @media (--laptop) {

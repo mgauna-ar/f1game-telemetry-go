@@ -28,9 +28,10 @@
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
+  min-width: 0;
   padding: var(--space-3) var(--space-2);
   text-align: center;
-  background: var(--bg-hover);
+  background: var(--bg-inset);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
 }
@@ -38,7 +39,7 @@
 .offset {
   padding: var(--space-0-5) var(--space-2);
   font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-black);
+  font-weight: var(--font-weight-bold);
   color: var(--text-secondary);
   background: var(--bg-active);
   border-radius: var(--radius-xs);
@@ -65,7 +66,7 @@
   display: flex;
   justify-content: space-between;
   margin-bottom: 3px;
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
   color: var(--text-muted);
 }
 
@@ -86,20 +87,38 @@
   height: 100%;
   background-color: var(--bar-color);
   border-radius: 3px;
-  transition: width 0.3s ease;
+  transition: width var(--transition-normal);
 }
 
 .temps {
   display: flex;
   justify-content: space-between;
   width: 100%;
+  gap: var(--space-1);
   padding-top: var(--space-1-5);
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
   color: var(--text-muted);
-  border-top: 1px solid var(--border-color);
+  white-space: nowrap;
+  border-top: 1px solid var(--border-subtle);
 }
 
-@media (--tablet) {
+/* A narrow panel (a quarter-width hub card, a phone): two columns, and the two temperatures stack */
+@container hubCard (max-width: 560px) {
+  .current,
+  .forecast {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container hubCard (max-width: 300px) {
+  .temps {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
+@media (--phone) {
   .current,
   .forecast {
     grid-template-columns: repeat(2, minmax(0, 1fr));

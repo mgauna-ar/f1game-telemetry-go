@@ -23,11 +23,9 @@
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: var(--space-3) var(--space-4);
-  padding: var(--space-3) var(--space-6);
+  padding: var(--space-3) var(--page-gutter);
   background: color-mix(in srgb, var(--bg-dark) 88%, transparent);
   border-bottom: 1px solid var(--border-color);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
 }
 
 .brand {
@@ -44,28 +42,12 @@
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  filter: drop-shadow(0 0 8px var(--accent-glow));
-  transition: all 0.3s var(--ease-out);
+  filter: drop-shadow(0 0 var(--glow-sm) var(--accent-glow));
 }
 
-.logo:hover {
-  filter: drop-shadow(0 0 16px var(--accent-glow)) drop-shadow(0 0 8px var(--accent-cyan-glow));
-  transform: scale(1.05);
-}
-
-/* Glows while live telemetry comes in */
+/* A cyan halo while live telemetry comes in (the needle sweeps too) */
 .logo[data-live] {
-  animation: brandGlow 3s infinite ease-in-out;
-}
-
-@keyframes brandGlow {
-  0%,
-  100% {
-    filter: drop-shadow(0 0 8px var(--accent-glow)) drop-shadow(0 0 4px var(--accent-cyan-glow));
-  }
-  50% {
-    filter: drop-shadow(0 0 18px var(--accent-primary)) drop-shadow(0 0 12px var(--accent-cyan));
-  }
+  filter: drop-shadow(0 0 var(--glow-sm) var(--accent-glow)) drop-shadow(0 0 var(--glow-sm) var(--accent-cyan-glow));
 }
 
 .brandText {
@@ -88,7 +70,6 @@
   font-weight: var(--font-weight-black);
   letter-spacing: -0.03em;
   color: var(--accent-primary);
-  text-shadow: 0 0 14px var(--accent-glow);
 }
 
 .brandName {
@@ -101,9 +82,8 @@
 
 .brandSub {
   margin-top: 2px;
-  font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
-  letter-spacing: 0.06em;
+  letter-spacing: var(--tracking-label);
   color: var(--text-muted);
 }
 
@@ -118,7 +98,6 @@
   background: var(--bg-inset);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-full);
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
 .tab {
@@ -126,7 +105,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-5);
+  min-height: calc(var(--control-height-md) - 2px);
+  padding: 0 var(--space-5);
   font-family: var(--font-sans);
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-semibold);
@@ -136,14 +116,14 @@
   background: transparent;
   border: none;
   border-radius: var(--radius-full);
-  transition: all 0.22s var(--ease-smooth);
+  transition:
+    color var(--transition-fast),
+    background-color var(--transition-fast);
 }
 
 .tab svg {
   opacity: 0.75;
-  transition:
-    opacity var(--transition-normal),
-    transform var(--transition-normal);
+  transition: opacity var(--transition-fast);
 }
 
 .tab:hover {
@@ -153,14 +133,13 @@
 
 .tab:hover svg {
   opacity: 1;
-  transform: scale(1.08);
 }
 
 .tab[aria-current='page'] {
   font-weight: var(--font-weight-bold);
   color: var(--text-primary);
-  background: linear-gradient(135deg, var(--accent-primary), var(--accent-primary-fill));
-  box-shadow: 0 2px 14px var(--accent-glow);
+  background: var(--accent-primary-fill);
+  box-shadow: 0 0 var(--glow-sm) var(--accent-glow);
 }
 
 .tab[aria-current='page'] svg {
@@ -177,8 +156,8 @@
   padding: 2px var(--space-1-5);
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
-  font-weight: var(--font-weight-black);
-  letter-spacing: 0.05em;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--tracking-label);
   background: color-mix(in srgb, black 35%, transparent);
   border: 1px solid var(--border-highlight);
   border-radius: var(--radius-full);
@@ -194,13 +173,11 @@
   content: '';
   background: var(--live-dot);
   border-radius: 50%;
-  box-shadow: 0 0 6px var(--live-dot);
   animation: liveDot 1.6s infinite var(--ease-smooth);
 }
 
 .liveBadge[data-stale]::before {
   --live-dot: var(--status-warning);
-  box-shadow: none;
   animation: none;
 }
 
@@ -219,26 +196,40 @@
   gap: var(--space-2);
 }
 
+/* The status controls share one look: a small bordered ghost (the settings gear, performance
+   toggle and language button match it). A selector list rather than composes, so each control's
+   own rules below keep winning after minification. */
+.updateChip,
+.version,
+.port {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1-5);
+  min-height: var(--control-height-sm);
+  padding: 0 var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  white-space: nowrap;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
 /* A new release is out; amber for a pre-release */
 .updateChip {
   --update-color: var(--accent-secondary);
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1-5);
-  padding: var(--space-1) var(--space-3);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
+  font-family: var(--font-sans);
   color: var(--update-color);
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, var(--update-color) 18%, transparent),
-    color-mix(in srgb, var(--accent-purple) 18%, transparent)
-  );
-  border: 1px solid color-mix(in srgb, var(--update-color) 50%, transparent);
-  border-radius: var(--radius-full);
-  box-shadow: 0 0 12px color-mix(in srgb, var(--update-color) 20%, transparent);
+  background: color-mix(in srgb, var(--update-color) 10%, transparent);
+  border-color: color-mix(in srgb, var(--update-color) 40%, transparent);
   cursor: pointer;
-  transition: all var(--transition-normal);
+  transition:
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .updateChip[data-prerelease] {
@@ -246,44 +237,25 @@
 }
 
 .updateChip:hover {
-  border-color: color-mix(in srgb, var(--update-color) 80%, transparent);
-  box-shadow: 0 0 18px color-mix(in srgb, var(--update-color) 40%, transparent);
-  transform: translateY(-1px);
-}
-
-.updateChip svg {
-  animation: sparkle 2s ease-in-out infinite;
-}
-
-@keyframes sparkle {
-  50% {
-    opacity: 0.5;
-  }
+  background: color-mix(in srgb, var(--update-color) 18%, transparent);
+  border-color: color-mix(in srgb, var(--update-color) 70%, transparent);
 }
 
 /* The running version; blue for a dev build, amber for a beta */
 .version {
   --version-color: var(--text-secondary);
-  display: inline-flex;
-  align-items: center;
-  padding: var(--space-1) var(--space-2);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: 0.03em;
   color: var(--version-color);
-  background: var(--bg-hover);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: all var(--transition-normal);
+  transition:
+    color var(--transition-fast),
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .version:hover {
   color: var(--text-primary);
-  background: var(--bg-active);
+  background: var(--bg-hover);
   border-color: var(--border-strong);
-  transform: translateY(-1px);
 }
 
 .version[data-channel='dev'] {
@@ -295,26 +267,17 @@
 }
 
 .version[data-channel] {
-  background: color-mix(in srgb, var(--version-color) 8%, transparent);
-  border-color: color-mix(in srgb, var(--version-color) 30%, transparent);
+  border-color: color-mix(in srgb, var(--version-color) 35%, transparent);
 }
 
 .version[data-channel]:hover {
   color: var(--version-color);
-  background: color-mix(in srgb, var(--version-color) 15%, transparent);
-  border-color: color-mix(in srgb, var(--version-color) 55%, transparent);
+  background: color-mix(in srgb, var(--version-color) 10%, transparent);
+  border-color: color-mix(in srgb, var(--version-color) 60%, transparent);
 }
 
 .port {
-  padding: var(--space-1) var(--space-2);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: 0.04em;
   color: var(--text-muted);
-  background: var(--bg-hover);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-sm);
 }
 
 .main {
@@ -351,7 +314,6 @@
       'brand status'
       'tabs tabs';
     grid-template-columns: auto 1fr;
-    padding: var(--space-3) var(--space-4);
   }
 
   .tabs {
@@ -370,7 +332,7 @@
 /* Phone: only what's needed next to the brand; the update chip keeps its icon and name */
 @media (--phone) {
   .topNav {
-    padding: var(--space-2) var(--space-3);
+    padding-block: var(--space-2);
   }
 
   .brandSub,
@@ -407,6 +369,11 @@
 .settingsLink {
   composes: button ghost sm icon from './components/ui/Button.module.css';
   text-decoration: none;
+  border-color: var(--border-color);
+}
+
+.settingsLink:hover {
+  border-color: var(--border-strong);
 }
 
 .settingsLink[aria-current='page'] {

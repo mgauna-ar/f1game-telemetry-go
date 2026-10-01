@@ -1,13 +1,14 @@
 import React, { useMemo } from 'react';
 import { Zap, Gauge, Target } from 'lucide-react';
 import { parseDriverName } from '../hooks/useTelemetry';
-import { getTeamColor, TIME_CONSTANTS } from '../constants/f1';
+import { getTeamColor } from '../constants/f1';
 import type { ParticipantData, LapData, LapTimes } from '../types/telemetry';
 import { sessionBestSectors, sessionFastestLap, theoreticalBest, type SessionBest } from '../utils/raceControl';
 import { useI18n } from '../context/I18nContext';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import { useTelemetryDataStore } from '../store/useTelemetryDataStore';
 import { styleVars } from '../styles/theme';
+import { formatLapTime, formatSectorTime, formatSignedDelta } from '../utils/formatters';
 import { EmptyState } from './ui/EmptyState';
 import { Panel, PanelHeader } from './ui/Panel';
 import styles from './LiveSectorTracker.module.css';
@@ -26,16 +27,16 @@ interface BestTimeCardProps {
   label: string;
   best: BestTime;
   kind: 'sector' | 'lap';
-  formatTime: (ms?: number) => string;
 }
 
+/** A sector time: "27.900", or "--.---" before there is one. */
+const sectorTime = (ms?: number) => formatSectorTime(ms, false);
+
 /** A session best (purple sector or fastest lap), with who set it. */
-const BestTimeCard: React.FC<BestTimeCardProps> = ({ label, best, kind, formatTime }) => (
+const BestTimeCard: React.FC<BestTimeCardProps> = ({ label, best, kind }) => (
   <li className={styles.bestCard} data-kind={kind}>
-    <div className={styles.bestHeader}>
-      <span className={styles.bestLabel}>{label}</span>
-      <span className={styles.bestTime}>{formatTime(best.time)}</span>
-    </div>
+    <span className={styles.bestLabel}>{label}</span>
+    <span className={styles.bestTime}>{kind === 'lap' ? formatLapTime(best.time) : sectorTime(best.time)}</span>
     <div className={styles.holder} style={styleVars({ '--team-color': getTeamColor(best.teamId) })}>
       <span className={styles.teamDot} aria-hidden="true" />
       <span className={styles.holderName}>{best.driverName}</span>
@@ -92,18 +93,6 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((p
   const splitsTitleId = React.useId();
   const speedTitleId = React.useId();
 
-  const formatTime = (ms?: number) => {
-    if (!ms || ms <= 0) return '--:--.---';
-    const mins = Math.floor(ms / TIME_CONSTANTS.MS_PER_MINUTE);
-    const secs = Math.floor((ms % TIME_CONSTANTS.MS_PER_MINUTE) / TIME_CONSTANTS.MS_PER_SECOND);
-    const millis = ms % TIME_CONSTANTS.MS_PER_SECOND;
-
-    if (mins > 0) {
-      return `${mins}:${secs.toString().padStart(2, '0')}.${millis.toString().padStart(3, '0')}`;
-    }
-    return `${secs}.${millis.toString().padStart(3, '0')}s`;
-  };
-
   // Session bests from the session history: every car's best sectors and best lap
   const sectorAnalysis = useMemo(() => {
     const best = (b: SessionBest): BestTime => {
@@ -158,23 +147,23 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((p
 
   // Gap of a selected-driver sector to the session best; purple when it is the best
   const sectorSplit = (label: string, ms: number | undefined, bestMs: number) => {
-    const time = formatTime(ms);
+    const time = sectorTime(ms);
     if (!(bestMs > 0 && ms)) return <Split label={label} time={time} />;
     const purple = ms <= bestMs;
-    const note = purple ? t('live.purpleSplit') : `+${((ms - bestMs) / TIME_CONSTANTS.MS_PER_SECOND).toFixed(3)}s`;
+    const note = purple ? t('live.purpleSplit') : formatSignedDelta(ms - bestMs);
     return <Split label={label} time={time} note={note} purple={purple} />;
   };
 
   return (
     <Panel className={props.className}>
       <PanelHeader
-        icon={<Zap size={16} color="var(--f1-purple)" />}
+        icon={<Zap size={16} />}
         title={t('live.liveSectorsTitle')}
         subtitle={t('live.liveSectorsSub')}
         actions={
           <dl className={styles.theoretical}>
             <dt className={styles.theoreticalLabel}>{t('live.theoreticalBest')}</dt>
-            <dd className={styles.theoreticalValue}>{formatTime(sectorAnalysis.theoreticalBest)}</dd>
+            <dd className={styles.theoreticalValue}>{formatLapTime(sectorAnalysis.theoreticalBest)}</dd>
           </dl>
         }
       />
@@ -186,14 +175,12 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((p
             label={t(`live.sector${i + 1}`)}
             best={best}
             kind="sector"
-            formatTime={formatTime}
           />
         ))}
         <BestTimeCard
           label={t('live.fastestLap')}
           best={sectorAnalysis.fastestLap}
           kind="lap"
-          formatTime={formatTime}
         />
       </ul>
 
@@ -201,7 +188,7 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((p
         {/* Selected driver splits */}
         <section className={styles.subcard} aria-labelledby={splitsTitleId}>
           <h4 id={splitsTitleId} className={styles.subcardTitle}>
-            <Target size={14} color="var(--accent-primary)" aria-hidden="true" />
+            <Target size={14} aria-hidden="true" />
             {t('live.driverLastLapSplits', { driver: selectedName })}
           </h4>
           <dl className={styles.splits}>
@@ -210,7 +197,7 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((p
             ))}
             <Split
               label={t('live.lastLap')}
-              time={formatTime(selectedLap?.LastLapTimeInMS)}
+              time={formatLapTime(selectedLap?.LastLapTimeInMS)}
               note={selectedLap?.CurrentLapInvalid ? t('live.invalidated') : t('live.valid')}
             />
           </dl>
@@ -219,7 +206,7 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((p
         {/* Speed trap top five */}
         <section className={styles.subcard} aria-labelledby={speedTitleId}>
           <h4 id={speedTitleId} className={styles.subcardTitle}>
-            <Gauge size={14} color="var(--weather-rain)" aria-hidden="true" />
+            <Gauge size={14} aria-hidden="true" />
             {t('live.speedTrapLeaderboard')}
           </h4>
           {speedTraps.length === 0 ? (

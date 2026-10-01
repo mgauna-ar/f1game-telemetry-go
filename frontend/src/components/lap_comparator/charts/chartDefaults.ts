@@ -1,6 +1,7 @@
 import React from 'react';
 import type { MergedTelemetryPoint } from '../../../types/comparator';
-import { CHART_TOOLTIP_CONTENT_STYLE, cssVar } from '../../../styles/theme';
+import { cssVar } from '../../../styles/theme';
+import { TOOLTIP_PROPS } from '../../charts/chartTheme';
 
 export interface RechartsMouseMoveState<T = unknown> {
   activeTooltipIndex?: number | null | string;
@@ -21,29 +22,9 @@ export interface CommonChartProps {
   onHoverDistanceChange: (dist: number | null) => void;
 }
 
+/** The shared chart tooltip; the label is the distance along the lap. */
 export const compactTooltipProps = {
-  contentStyle: {
-    ...CHART_TOOLTIP_CONTENT_STYLE,
-    borderRadius: cssVar('--radius-xs'),
-    padding: '4px 8px',
-    fontSize: '0.72rem',
-    lineHeight: '1.2',
-  },
-  itemStyle: {
-    padding: '1px 0',
-    fontSize: '0.70rem',
-    margin: 0,
-  },
-  labelStyle: {
-    color: cssVar('--text-body'),
-    fontSize: '0.68rem',
-    marginBottom: '2px',
-    fontWeight: 600,
-  },
-  wrapperStyle: {
-    zIndex: cssVar('--z-popover'),
-    pointerEvents: 'none' as const,
-  },
+  ...TOOLTIP_PROPS,
   labelFormatter: (label: React.ReactNode) => `${Math.round(Number(label))}m`,
 };
 
@@ -65,6 +46,4 @@ export const CHART_COLORS = {
   BOOST_A: cssVar('--chart-boost-a'),
   BOOST_B: cssVar('--chart-boost-b'),
 } as const;
-
-export const CHART_MARGIN = { top: 5, right: 30, left: 0, bottom: 0 } as const;
 

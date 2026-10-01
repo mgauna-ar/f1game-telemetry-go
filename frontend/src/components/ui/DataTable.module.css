@@ -23,14 +23,14 @@
 
 .th {
   padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-highlight);
   background: var(--bg-panel-solid);
   color: var(--text-muted);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
   text-align: left;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--tracking-label);
   white-space: nowrap;
 }
 
@@ -42,7 +42,7 @@
 
 .td {
   padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-color);
   vertical-align: middle;
 }
 
