@@ -55,8 +55,6 @@ const (
 	OverheatRearTyres2026C     = 110.0
 	ColdTyresTargetC           = 85.0
 	ColdTyresMaxAgeLaps        = 2
-	TyreIndexRL                = 2
-	TyreIndexRR                = 3
 
 	// Mechanical & Aero damage thresholds
 	CriticalWingDamageThresholdPct = 40.0

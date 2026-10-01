@@ -1,6 +1,8 @@
 import { render, screen, fireEvent, within, act } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import App from './App';
+import { usePerformanceModeStore } from './store/usePerformanceModeStore';
+import { navigate } from './router/router';
 
 // Mock child components to isolate App tab navigation testing
 vi.mock('./components/SessionHistory', () => ({
@@ -141,5 +143,51 @@ describe('App Navigation and Tab Bar', () => {
 
     const versionBadge = await screen.findByTestId('nav-version-badge');
     expect(versionBadge).toBeInTheDocument();
+  });
+});
+
+describe('Performance mode', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    usePerformanceModeStore.setState({ enabled: { driver: true, general: false } });
+  });
+
+  const root = () => document.documentElement;
+  const toggle = () => screen.getByTestId('performance-mode-toggle');
+
+  it('is off on the dashboard and on in the Driver view by default', async () => {
+    openAt('/live/dashboard');
+    const { unmount } = render(<App />);
+    await screen.findByTestId('dashboard-view');
+    expect(root()).not.toHaveAttribute('data-performance');
+    expect(toggle()).toHaveAttribute('aria-pressed', 'false');
+    unmount();
+
+    openAt('/live/driver');
+    render(<App />);
+    await screen.findByTestId('dashboard-view');
+    expect(root()).toHaveAttribute('data-performance', 'on');
+    expect(toggle()).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('keeps the Driver view and the other pages apart', async () => {
+    openAt('/history');
+    render(<App />);
+    await screen.findByTestId('session-history-view');
+
+    fireEvent.click(toggle());
+    expect(root()).toHaveAttribute('data-performance', 'on');
+    expect(localStorage.getItem('f1_performance_mode')).toBe('true');
+
+    // Turning it off in the Driver view leaves the other pages on
+    act(() => navigate('/live/driver'));
+    await screen.findByTestId('dashboard-view');
+    fireEvent.click(toggle());
+    expect(root()).not.toHaveAttribute('data-performance');
+    expect(localStorage.getItem('f1_performance_mode_driver')).toBe('false');
+
+    act(() => window.history.back());
+    await screen.findByTestId('session-history-view');
+    expect(root()).toHaveAttribute('data-performance', 'on');
   });
 });

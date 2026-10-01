@@ -53,6 +53,7 @@ type Server struct {
 	settingsMu      sync.Mutex
 	staticFS        fs.FS
 	comparatorCache *analytics.ComparatorLRUCache
+	liveFeed        LiveFeed
 }
 
 // MaxJSONBodyBytes caps JSON request bodies on the API routes. Session import has its own,
@@ -166,6 +167,7 @@ func (s *Server) routes() {
 			s.setupPTTRoutes(r)
 			s.setupSettingsRoutes(r)
 			s.setupSystemRoutes(r)
+			s.setupLiveRoutes(r)
 		})
 	})
 
@@ -238,6 +240,7 @@ func (s *Server) setupSystemRoutes(r chi.Router) {
 	r.Get("/system/version", s.handleGetSystemVersion)
 	r.Get("/system/check-updates", s.handleCheckUpdates)
 	r.Get("/system/network", s.handleGetSystemNetwork)
+	r.Get("/system/status", s.handleGetSystemStatus)
 }
 
 func (s *Server) setupStaticRoutes() {

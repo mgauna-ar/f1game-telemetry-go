@@ -465,9 +465,20 @@ func (v *raceView) applyPace(strat *StrategySummary) {
 	}
 }
 
-// gapTrend describes how the gap to a neighbour changed over the last few lap ends while the
-// same car was there. For the car ahead a shrinking gap means the player is closing in.
-func gapTrend(laps []LapRecord, carIdx int, currentGapMS uint32, ahead bool) string {
+// GapTrend is how the gap to the car ahead or behind changed over the last lap ends while the
+// same car was there.
+type GapTrend struct {
+	// CarIdx is the neighbour's car index.
+	CarIdx int
+	// PerLapSec is the gap's change per lap: positive when it grew, negative when it shrank.
+	PerLapSec float64
+	// Laps is how many laps the change was measured over.
+	Laps int
+}
+
+// gapTrendOf measures how the gap to a neighbour changed over the last few lap ends while the
+// same car was there. False until two lap ends with that car, or when there is no current gap.
+func gapTrendOf(laps []LapRecord, carIdx int, currentGapMS uint32, ahead bool) (GapTrend, bool) {
 	var samples []LapRecord
 	for i := len(laps) - 1; i >= 0 && len(samples) <= GapTrendLaps; i-- {
 		rec := laps[i]
@@ -478,7 +489,7 @@ func gapTrend(laps []LapRecord, carIdx int, currentGapMS uint32, ahead bool) str
 		samples = append(samples, rec)
 	}
 	if len(samples) < 2 || currentGapMS == 0 {
-		return ""
+		return GapTrend{}, false
 	}
 	newest, oldest := samples[0], samples[len(samples)-1]
 	gapOf := func(r LapRecord) float64 {
@@ -489,12 +500,22 @@ func gapTrend(laps []LapRecord, carIdx int, currentGapMS uint32, ahead bool) str
 	}
 	span := newest.LapNumber - oldest.LapNumber
 	if span <= 0 {
+		return GapTrend{}, false
+	}
+	return GapTrend{CarIdx: carIdx, PerLapSec: (gapOf(newest) - gapOf(oldest)) / float64(span), Laps: span}, true
+}
+
+// gapTrend describes the gap trend to a neighbour for the AI race engineer. For the car ahead a
+// shrinking gap means the player is closing in.
+func gapTrend(laps []LapRecord, carIdx int, currentGapMS uint32, ahead bool) string {
+	trend, ok := gapTrendOf(laps, carIdx, currentGapMS, ahead)
+	if !ok {
 		return ""
 	}
-	perLap := (gapOf(newest) - gapOf(oldest)) / float64(span)
+	perLap := trend.PerLapSec
 	switch {
 	case math.Abs(perLap) < GapTrendStableSecPerLap:
-		return fmt.Sprintf("gap stable over the last %d laps", span)
+		return fmt.Sprintf("gap stable over the last %d laps", trend.Laps)
 	case perLap < 0 && ahead:
 		return fmt.Sprintf("you are closing %.2fs per lap", -perLap)
 	case perLap < 0:
@@ -506,12 +527,58 @@ func gapTrend(laps []LapRecord, carIdx int, currentGapMS uint32, ahead bool) str
 	}
 }
 
+// GapTrends measures the gap trends to the cars ahead of and behind the player, the same numbers
+// the AI race engineer describes. Each is nil when it can't be measured yet.
+func (e *EngineerEngine) GapTrends() (ahead, behind *GapTrend) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	lapData := e.latestLapData
+	if lapData == nil || e.playerCarIndex < 0 || e.playerCarIndex >= len(lapData.LapData) {
+		return nil, nil
+	}
+	player := lapData.LapData[e.playerCarIndex]
+	if idx := carAtPosition(lapData, int(player.CarPosition)-1); idx >= 0 {
+		if t, ok := gapTrendOf(e.history.playerLaps, idx, deltaToCarInFrontMS(player), true); ok {
+			ahead = &t
+		}
+	}
+	if idx := carAtPosition(lapData, int(player.CarPosition)+1); idx >= 0 {
+		if t, ok := gapTrendOf(e.history.playerLaps, idx, deltaToCarInFrontMS(lapData.LapData[idx]), false); ok {
+			behind = &t
+		}
+	}
+	return ahead, behind
+}
+
 // forecast returns the weather forecast samples for the current session, soonest first.
 func (v *raceView) forecast() []packets.WeatherForecastSample {
 	return sessionForecast(v.session)
 }
 
-var wheelNames = [4]string{"FL", "FR", "RL", "RR"}
+// wheelNames names the wheels by their index in the packets' wheel arrays (RL, RR, FL, FR).
+var wheelNames = [4]string{
+	packets.WheelRearLeft:   "RL",
+	packets.WheelRearRight:  "RR",
+	packets.WheelFrontLeft:  "FL",
+	packets.WheelFrontRight: "FR",
+}
+
+// wheelLongNames are wheelNames spelled out, for radio messages.
+var wheelLongNames = [4]string{
+	packets.WheelRearLeft:   "Rear Left",
+	packets.WheelRearRight:  "Rear Right",
+	packets.WheelFrontLeft:  "Front Left",
+	packets.WheelFrontRight: "Front Right",
+}
+
+// frontFirst reorders a packet wheel array to FL, FR, RL, RR for the AI's text and tools.
+func frontFirst[T any](wheels [4]T) [4]T {
+	var out [4]T
+	for i, w := range packets.WheelsFrontFirst {
+		out[i] = wheels[w]
+	}
+	return out
+}
 
 // Car run status labels.
 const (

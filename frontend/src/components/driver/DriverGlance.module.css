@@ -1,0 +1,359 @@
+/* The Driver view: solid surfaces, high contrast, nothing that moves (performance mode, on by
+   default here, also stops what the app around it would animate). */
+.driver {
+  --flag-color: transparent;
+  --flag-text: var(--text-on-accent);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2);
+  background: var(--bg-panel-solid);
+  border-radius: var(--radius-md);
+  /* A flag frames the whole screen, so it's seen from the corner of the eye */
+  box-shadow: inset 0 0 0 var(--space-1-5) var(--flag-color);
+  color: var(--text-primary);
+}
+
+.driver[data-flag='safetyCar'],
+.driver[data-flag='virtualSafetyCar'],
+.driver[data-flag='formationLap'],
+.driver[data-flag='yellow'] {
+  --flag-color: var(--f1-yellow);
+}
+
+.driver[data-flag='blue'] {
+  --flag-color: var(--f1-flag-blue);
+  --flag-text: var(--text-primary);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-1) 0;
+}
+
+.session {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-body);
+}
+
+.wake {
+  display: inline-flex;
+  color: var(--text-muted);
+}
+
+.wake[data-mode='wake-lock'],
+.wake[data-mode='video'] {
+  color: var(--status-success);
+}
+
+.wake[data-mode='blocked'] {
+  color: var(--status-warning);
+}
+
+.flag {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-display);
+  font-size: var(--font-size-glance-sm);
+  font-weight: var(--font-weight-black);
+  letter-spacing: 0.04em;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--flag-text);
+  background: var(--flag-color);
+  border-radius: var(--radius-sm);
+}
+
+.wakeTip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--text-body);
+  background: var(--status-warning-bg);
+  border: 1px solid var(--status-warning-border);
+  border-radius: var(--radius-sm);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-areas:
+    'pos ahead'
+    'pos behind'
+    'last best'
+    'tyres tyres'
+    'fuel ers'
+    'warn warn';
+  gap: var(--space-2);
+  margin: 0;
+}
+
+/* Sideways (a phone on the rig in landscape, a second monitor): everything on one screen */
+@media (orientation: landscape) {
+  .grid {
+    grid-template-columns: minmax(0, 1.1fr) repeat(3, minmax(0, 1fr));
+    grid-template-areas:
+      'pos ahead last tyres'
+      'pos behind best tyres'
+      'fuel ers warn warn';
+  }
+}
+
+.grid > div {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-inset);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.grid dd {
+  margin: 0;
+}
+
+.label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.position {
+  grid-area: pos;
+  align-items: center;
+}
+
+.positionValue {
+  font-family: var(--font-display);
+  font-size: var(--font-size-glance-lg);
+  font-weight: var(--font-weight-black);
+  line-height: 1;
+}
+
+.positionOf {
+  font-size: var(--font-size-glance-sm);
+  color: var(--text-secondary);
+}
+
+.gapRow[data-side='ahead'],
+.gapRow[data-side='leader'] {
+  grid-area: ahead;
+}
+
+.gapRow[data-side='leader'] {
+  grid-row: ahead / behind;
+}
+
+.gapRow[data-side='behind'] {
+  grid-area: behind;
+}
+
+.gapName {
+  font-family: var(--font-mono);
+  color: var(--text-body);
+  letter-spacing: 0.02em;
+}
+
+.gapValue,
+.bigValue,
+.lapValue {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-glance-md);
+  font-weight: var(--font-weight-bold);
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+
+.lapValue {
+  font-size: var(--font-size-glance-sm);
+}
+
+.gapTrend {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-secondary);
+}
+
+.gapTrend[data-good='true']:not([data-direction='stable']) {
+  color: var(--status-success);
+}
+
+.gapTrend[data-good='false'] {
+  color: var(--status-danger);
+}
+
+.lastLap {
+  grid-area: last;
+}
+
+.bestLap {
+  grid-area: best;
+}
+
+.lapDelta {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--status-warning);
+}
+
+.lapDelta[data-best] {
+  color: var(--f1-purple);
+}
+
+.tyres {
+  grid-area: tyres;
+}
+
+.compound {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  color: var(--text-body);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.corners {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-1-5);
+}
+
+.corner {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  column-gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-left: var(--space-1) solid var(--status-success);
+  background: var(--bg-panel-solid);
+  border-radius: var(--radius-xs);
+}
+
+.corner[data-level='warning'] {
+  border-left-color: var(--status-warning);
+}
+
+.corner[data-level='critical'] {
+  border-left-color: var(--status-danger);
+}
+
+.cornerName {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-secondary);
+}
+
+.cornerWear {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-glance-sm);
+  font-weight: var(--font-weight-bold);
+  text-align: right;
+}
+
+.corner[data-level='critical'] .cornerWear {
+  color: var(--status-danger);
+}
+
+.cornerTemp {
+  grid-column: 1 / -1;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.fuel {
+  grid-area: fuel;
+}
+
+.ers {
+  grid-area: ers;
+}
+
+.unit {
+  margin-left: var(--space-1);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-secondary);
+}
+
+.bigValue[data-level='critical'] {
+  color: var(--status-danger);
+}
+
+.detail {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.ersBar {
+  height: var(--space-2);
+  background: linear-gradient(to right, var(--status-info) var(--ers-pct), var(--bg-panel-solid) var(--ers-pct));
+  border-radius: var(--radius-xs);
+}
+
+.warnings {
+  grid-area: warn;
+}
+
+.grid > .warnings {
+  flex-flow: row wrap;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.warnings .label {
+  flex-basis: 100%;
+}
+
+.noWarnings {
+  font-size: var(--font-size-md);
+  color: var(--text-secondary);
+}
+
+.warning {
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  border-radius: var(--radius-xs);
+  color: var(--text-on-accent);
+  background: var(--status-info);
+}
+
+.warning[data-severity='danger'] {
+  color: var(--text-primary);
+  background: var(--status-danger-fill);
+}
+
+.warning[data-severity='warning'] {
+  background: var(--status-warning);
+}

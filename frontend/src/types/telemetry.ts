@@ -20,6 +20,8 @@ export type {
   LiveCarTelemetry as CarTelemetryData,
   LiveCarTelemetry2 as CarTelemetry2Data,
   LiveParticipant as ParticipantData,
+  LiveGapTrend as GapTrend,
+  LiveLapTimes as LapTimes,
 } from './generated/session';
 
 /** The live session, plus the packet format and session UID the store copies from the snapshot header. */
@@ -41,6 +43,9 @@ export type RaceEvent = FeedEvent & {
 export type { FeedEvent, FeedEventCode, FeedEventType, FeedSeverity } from './generated/session';
 
 export type { PacketHeader } from './generated/packets';
+
+/** GET /api/live/cars/{carIndex}/laps: a car's completed laps and stints in the live session. */
+export type { LiveCarLap, LiveCarLaps, LiveCarStint } from './generated/api';
 
 export interface TelemetrySample extends LiveCarTelemetry {
   SessionTime: number;

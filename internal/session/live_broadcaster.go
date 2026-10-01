@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
@@ -20,11 +21,21 @@ type HubBroadcaster interface {
 // (SessionManager.RecordFeedEvents), so the events are built once for both.
 type FeedEventSink func(sessionUID uint64, events []FeedEvent)
 
+// GapTrendSource returns the race engineer's gap trends to the cars ahead of and behind the
+// player, each nil when it can't be measured yet.
+type GapTrendSource func() (ahead, behind *LiveGapTrend)
+
 // LiveBroadcaster aggregates high-frequency UDP telemetry packets and broadcasts consolidated snapshots at 10Hz.
 type LiveBroadcaster struct {
-	hub      HubBroadcaster
-	mu       sync.RWMutex
-	feedSink FeedEventSink
+	hub       HubBroadcaster
+	mu        sync.RWMutex
+	feedSink  FeedEventSink
+	gapTrends GapTrendSource
+
+	// lastPacketAt is the UnixNano time of the last packet, read by FeedStatus without the lock
+	lastPacketAt atomic.Int64
+	// sessionHeader is the header of the last session packet, which names the session reported
+	sessionHeader packets.PacketHeader
 
 	dirty         bool
 	latestHeader  packets.PacketHeader
@@ -35,6 +46,8 @@ type LiveBroadcaster struct {
 	carTelemetry2 *packets.PacketCarTelemetry2Data
 	carStatus     *packets.PacketCarStatusData
 	carDamage     *packets.PacketCarDamageData
+	// carHistory is each car's last session history packet (completed laps, sectors, stints)
+	carHistory [packets.MaxCars]*packets.PacketSessionHistoryData
 
 	// State tracking for event synthesis
 	sessionUID          uint64
@@ -66,6 +79,13 @@ func (b *LiveBroadcaster) SetFeedEventSink(sink FeedEventSink) {
 	b.mu.Unlock()
 }
 
+// SetGapTrendSource sets where the snapshot's gap trends come from. Call it before Start.
+func (b *LiveBroadcaster) SetGapTrendSource(source GapTrendSource) {
+	b.mu.Lock()
+	b.gapTrends = source
+	b.mu.Unlock()
+}
+
 // Start runs the periodic snapshot broadcast loop at the specified interval.
 func (b *LiveBroadcaster) Start(ctx context.Context, interval time.Duration) {
 	ticker := time.NewTicker(interval)
@@ -94,6 +114,7 @@ func (b *LiveBroadcaster) checkSessionTransition(sessionUID uint64) {
 		b.dsqReported = [packets.MaxCars]bool{}
 		b.hasGamePenalty = [packets.MaxCars]bool{}
 		b.lastGamePenaltyTime = [packets.MaxCars]float32{}
+		b.carHistory = [packets.MaxCars]*packets.PacketSessionHistoryData{}
 	}
 }
 
@@ -237,6 +258,7 @@ func (b *LiveBroadcaster) ProcessPacket(pkt packets.Packet) {
 	}
 
 	header := pkt.GetHeader()
+	b.notePacket(time.Now())
 
 	switch p := pkt.(type) {
 	case *packets.PacketEventData:
@@ -252,6 +274,7 @@ func (b *LiveBroadcaster) ProcessPacket(pkt packets.Packet) {
 		b.mu.Lock()
 		b.checkSessionTransition(header.SessionUID)
 		b.latestHeader = header
+		b.sessionHeader = header
 		b.session = p
 
 		// Synthesize Safety Car state changes
@@ -353,7 +376,43 @@ func (b *LiveBroadcaster) ProcessPacket(pkt packets.Packet) {
 		b.carDamage = p
 		b.dirty = true
 		b.mu.Unlock()
+	case *packets.PacketSessionHistoryData:
+		if int(p.CarIdx) >= packets.MaxCars {
+			return
+		}
+		b.mu.Lock()
+		b.checkSessionTransition(header.SessionUID)
+		b.carHistory[p.CarIdx] = p
+		b.dirty = true
+		b.mu.Unlock()
 	}
+}
+
+// CarHistory returns a car's last session history packet this session, or nil. The packet is
+// shared: callers must not modify it.
+func (b *LiveBroadcaster) CarHistory(carIdx int) *packets.PacketSessionHistoryData {
+	if carIdx < 0 || carIdx >= packets.MaxCars {
+		return nil
+	}
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	return b.carHistory[carIdx]
+}
+
+// liveLapTimes converts the first n cars' session histories, or nil before the first one.
+func (b *LiveBroadcaster) liveLapTimes(n int) []LiveLapTimes {
+	n = min(max(n, 0), packets.MaxCars)
+	var out []LiveLapTimes
+	for i := range n {
+		if b.carHistory[i] == nil {
+			continue
+		}
+		if out == nil {
+			out = make([]LiveLapTimes, n)
+		}
+		out[i] = toLiveLapTimes(b.carHistory[i])
+	}
+	return out
 }
 
 // BroadcastSnapshot serializes and broadcasts the slim live snapshot (see LiveSnapshot) if changes
@@ -408,10 +467,16 @@ func (b *LiveBroadcaster) BroadcastSnapshot() {
 	if b.carDamage != nil {
 		snapshot.CarDamage = liveCars(&b.carDamage.CarDamageData, activeCarCount, toLiveCarDamage)
 	}
+	snapshot.LapTimes = b.liveLapTimes(activeCarCount)
 	b.dirty = false
-
-	js, err := json.Marshal(snapshot)
+	gapTrends := b.gapTrends
 	b.mu.Unlock()
+
+	// The engine takes its own lock; ask it outside ours
+	if gapTrends != nil {
+		snapshot.GapAheadTrend, snapshot.GapBehindTrend = gapTrends()
+	}
+	js, err := json.Marshal(snapshot)
 
 	if err == nil {
 		b.hub.Broadcast(js)

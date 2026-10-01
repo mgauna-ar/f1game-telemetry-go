@@ -16,6 +16,7 @@ import type {
   CarDamageData,
   CarStatusData,
   CarTelemetry2Data,
+  LapTimes,
   CarTelemetryData,
   EngineerDirective,
   FeedEvent,
@@ -24,7 +25,7 @@ import type {
   ParticipantData,
   SessionData,
 } from '../types/telemetry';
-import { DRIVER_STATUS, F1_FORMATS, PACKET_IDS, RESULT_STATUS } from '../constants/f1';
+import { DRIVER_STATUS, F1_FORMATS, PACKET_IDS, RESULT_STATUS, VEHICLE_FIA_FLAGS } from '../constants/f1';
 
 // Complete wire objects for tests: the generated types require every field the server always
 // sends, so tests set only the fields they care about.
@@ -206,6 +207,8 @@ export function makeLiveCarStatus(fields: Partial<CarStatusData> = {}): CarStatu
     TyresAgeLaps: 0,
     ERSStoreEnergy: 0,
     ERSDeployMode: 0,
+    VehicleFIAFlags: VEHICLE_FIA_FLAGS.NONE,
+    DRSAllowed: 0,
     ...fields,
   };
 }
@@ -236,6 +239,10 @@ export function makeLiveCarTelemetry2(fields: Partial<CarTelemetry2Data> = {}): 
   return { ActiveAeroMode: 0, OvertakeActive: 0, ...fields };
 }
 
+export function makeLiveLapTimes(fields: Partial<LapTimes> = {}): LapTimes {
+  return { LastSectorsMS: [0, 0, 0], BestSectorsMS: [0, 0, 0], BestLapTimeInMS: 0, ...fields };
+}
+
 export function makeLiveParticipant(fields: Partial<ParticipantData> = {}): ParticipantData {
   return { AIControlled: 1, DriverId: 0, TeamId: 0, RaceNumber: 0, Name: '', ...fields };
 }
@@ -248,6 +255,7 @@ export function makeLiveSession(fields: Partial<SessionData> = {}): SessionData 
     TotalLaps: 0,
     SessionType: 0,
     TrackId: 0,
+    TrackLength: 0,
     SessionTimeLeft: 0,
     SafetyCarStatus: 0,
     NumRedFlagPeriods: 0,

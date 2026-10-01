@@ -6,16 +6,21 @@ import { I18nProvider } from './context/I18nProvider';
 import { useI18n } from './context/I18nContext';
 import { AiRaceEngineer } from './components/AiRaceEngineer';
 import { LanguageSelector } from './components/LanguageSelector';
+import { PerformanceModeToggle } from './components/common/PerformanceModeToggle';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { ToastContainer } from './components/common/ToastContainer';
 import { SettingsSync } from './components/common/SettingsSync';
+import { LiveSessionToast } from './components/common/LiveSessionToast';
 import { ToastContext } from './context/ToastContext';
 import { api } from './utils/apiClient';
 import { storage } from './utils/storage';
 import { useRadioSettingsStore } from './store/useRadioSettingsStore';
 import { useTelemetryEndpointStore } from './store/useTelemetryEndpointStore';
 import { useLiveStatus } from './hooks/useLiveStatus';
-import { LIVE_STATUS } from './constants/f1';
+import { useMediaQuery } from './hooks/useMediaQuery';
+import { usePerformanceModeAttribute } from './hooks/usePerformanceMode';
+import { PHONE_MEDIA } from './styles/breakpoints';
+import { LIVE_STATUS, LIVE_VIEW_MODES } from './constants/f1';
 import type { UpdateCheckResponse, SystemVersion } from './types/system';
 import { Link } from './router/Link';
 import { navigate, useRoute, useUrl } from './router/router';
@@ -85,6 +90,11 @@ function AppContent() {
     }
   };
 
+  // The Driver view on a phone takes the whole screen; its own mode switch leads back
+  const isPhone = useMediaQuery(PHONE_MEDIA);
+  const driverFocus = isPhone && route.page === 'live' && route.mode === LIVE_VIEW_MODES.DRIVER;
+  usePerformanceModeAttribute();
+
   const liveStatus = useLiveStatus();
   const udpPort = useTelemetryEndpointStore((s) => s.endpoint.udp_port);
   const isLiveFeedActive = liveStatus === LIVE_STATUS.LIVE;
@@ -142,7 +152,7 @@ function AppContent() {
 
   return (
     <div className={styles.app}>
-      <header className={styles.topNav}>
+      <header className={styles.topNav} hidden={driverFocus}>
         <div className={styles.brand}>
           <div className={styles.logo} data-live={isLiveFeedActive || undefined}>
             <F1TelemetryLogo size={28} animated={isLiveFeedActive} />
@@ -210,6 +220,7 @@ function AppContent() {
             <span>{systemVersion?.version || updateInfo?.current_version || 'dev'}</span>
           </button>
 
+          <PerformanceModeToggle />
           <LanguageSelector />
           <span className={styles.port}>
             {t('nav.portBadge')} {udpPort}
@@ -249,6 +260,7 @@ function AppContent() {
 
       {/* Global Toast Notifications */}
       <ToastContainer />
+      <LiveSessionToast />
       <SettingsSync />
 
       {/* Global Persistent Floating AI Race Engineer (Non-modal bottom-right widget) */}

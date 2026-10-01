@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { useTelemetryStore, useSessionStatusStore, useTelemetryDataStore } from './useTelemetryStore';
 import { PACKET_IDS, PENALTY_TYPES } from '../constants/f1';
 import {
+  makeLiveLapTimes,
   makeFeedEvent,
   makeForecastSample,
   makeLiveCarDamage,
@@ -117,5 +118,37 @@ describe('useTelemetryStore message formats', () => {
     const data = useTelemetryDataStore.getState();
     expect(data.allTelemetry).toEqual([]);
     expect(data.allLaps).toEqual([]);
+  });
+});
+
+describe('useTelemetryStore best laps and gap trends', () => {
+  beforeEach(() => {
+    useTelemetryStore.getState().resetStore();
+  });
+
+  it('keeps each car’s best lap across snapshots and starts over for a new session type', () => {
+    sendSnapshot({ Session: makeLiveSession({ SessionType: 15 }), LapData: [makeLiveLap({ LastLapTimeInMS: 91_000 })] });
+    sendSnapshot({ LapData: [makeLiveLap({ LastLapTimeInMS: 92_000 })] });
+    expect(useTelemetryDataStore.getState().bestLapTimes).toEqual([91_000]);
+
+    sendSnapshot({ Session: makeLiveSession({ SessionType: 15 }), LapData: [makeLiveLap({ LastLapTimeInMS: 90_000 })] });
+    expect(useTelemetryDataStore.getState().bestLapTimes).toEqual([90_000]);
+
+    sendSnapshot({ Session: makeLiveSession({ SessionType: 5 }), LapData: [makeLiveLap({ LastLapTimeInMS: 95_000 })] });
+    expect(useTelemetryDataStore.getState().bestLapTimes).toEqual([95_000]);
+  });
+
+  it('carries the race engineer’s gap trends, and clears them when a snapshot has none', () => {
+    const trend = { CarIndex: 2, ChangePerLapMS: -80, Laps: 3 };
+    sendSnapshot({ GapAheadTrend: trend });
+    expect(useTelemetryDataStore.getState()).toMatchObject({ gapAheadTrend: trend, gapBehindTrend: null });
+    sendSnapshot({});
+    expect(useTelemetryDataStore.getState().gapAheadTrend).toBeNull();
+  });
+
+  it('keeps the session history lap times, and takes each car’s best lap from them', () => {
+    const lapTimes = [makeLiveLapTimes({ LastSectorsMS: [28_000, 31_000, 26_000], BestLapTimeInMS: 90_500 })];
+    sendSnapshot({ LapData: [makeLiveLap({ LastLapTimeInMS: 89_000 })], LapTimes: lapTimes });
+    expect(useTelemetryDataStore.getState()).toMatchObject({ allLapTimes: lapTimes, bestLapTimes: [90_500] });
   });
 });

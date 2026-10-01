@@ -2,7 +2,8 @@ import React, { useMemo } from 'react';
 import { Zap, Gauge, Target } from 'lucide-react';
 import { parseDriverName } from '../hooks/useTelemetry';
 import { getTeamColor, TIME_CONSTANTS } from '../constants/f1';
-import type { ParticipantData, LapData } from '../types/telemetry';
+import type { ParticipantData, LapData, LapTimes } from '../types/telemetry';
+import { sessionBestSectors, sessionFastestLap, theoreticalBest, type SessionBest } from '../utils/raceControl';
 import { useI18n } from '../context/I18nContext';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import { useTelemetryDataStore } from '../store/useTelemetryDataStore';
@@ -16,6 +17,8 @@ interface BestTime {
   driverName: string;
   teamId: number;
 }
+
+const NO_BEST_TIME: BestTime = { time: 0, carIdx: -1, driverName: '--', teamId: -1 };
 
 interface BestTimeCardProps {
   label: string;
@@ -62,6 +65,10 @@ interface LiveSectorTrackerProps {
   className?: string;
   participants?: ParticipantData[];
   laps?: LapData[];
+  /** Each car's completed-lap sectors and bests, by car index. */
+  lapTimes?: LapTimes[];
+  /** Each car's best lap in ms, by car index. */
+  bestLapTimes?: number[];
   selectedCarIndex?: number;
   playerCarIndex?: number;
 }
@@ -69,9 +76,13 @@ interface LiveSectorTrackerProps {
 export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((props) => {
   const storeParticipants = useSessionStatusStore((s) => s.participants);
   const storeLaps = useTelemetryDataStore((s) => s.allLaps);
+  const storeLapTimes = useTelemetryDataStore((s) => s.allLapTimes);
+  const storeBestLapTimes = useTelemetryDataStore((s) => s.bestLapTimes);
   const storeSelectedCarIndex = useTelemetryDataStore((s) => s.selectedCarIndex);
   const participants = props.participants !== undefined ? props.participants : storeParticipants;
   const laps = props.laps !== undefined ? props.laps : storeLaps;
+  const lapTimes = props.lapTimes !== undefined ? props.lapTimes : storeLapTimes;
+  const bestLapTimes = props.bestLapTimes !== undefined ? props.bestLapTimes : storeBestLapTimes;
   const selectedCarIndex = props.selectedCarIndex !== undefined ? props.selectedCarIndex : storeSelectedCarIndex;
 
   const { t } = useI18n();
@@ -90,58 +101,26 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((p
     return `${secs}.${millis.toString().padStart(3, '0')}s`;
   };
 
-  // Find Session Best Sectors (Purple Sectors)
+  // Session bests from the session history: every car's best sectors and best lap
   const sectorAnalysis = useMemo(() => {
-    let bestS1: BestTime = { time: 0, carIdx: -1, driverName: '--', teamId: -1 };
-    let bestS2: BestTime = { time: 0, carIdx: -1, driverName: '--', teamId: -1 };
-    let fastestLap: BestTime = { time: 0, carIdx: -1, driverName: '--', teamId: -1 };
-
-    laps.forEach((lap, idx) => {
-      if (!lap) return;
-      const p = participants[idx];
-      const name = parseDriverName(p?.Name, t('live.events.car', { number: idx + 1 }), p?.DriverId);
-      const teamId = p?.TeamId ?? 0;
-
-      // Sector 1
-      const s1Ms = lap.Sector1TimeMSPart;
-      if (s1Ms > 0 && (bestS1.time === 0 || s1Ms < bestS1.time)) {
-        bestS1 = { time: s1Ms, carIdx: idx, driverName: name, teamId };
-      }
-
-      // Sector 2
-      const s2Ms = lap.Sector2TimeMSPart;
-      if (s2Ms > 0 && (bestS2.time === 0 || s2Ms < bestS2.time)) {
-        bestS2 = { time: s2Ms, carIdx: idx, driverName: name, teamId };
-      }
-
-      // Fastest Lap
-      const lastLap = lap.LastLapTimeInMS;
-      if (lastLap > 0 && (fastestLap.time === 0 || lastLap < fastestLap.time)) {
-        fastestLap = { time: lastLap, carIdx: idx, driverName: name, teamId };
-      }
-    });
-
-    // Approximate Sector 3 if fastestLap exists
-    let estimatedS3 = 0;
-    if (fastestLap.time > 0 && bestS1.time > 0 && bestS2.time > 0) {
-      estimatedS3 = Math.max(0, fastestLap.time - bestS1.time - bestS2.time);
-    }
-
-    const theoreticalBest =
-      bestS1.time > 0 && bestS2.time > 0 && estimatedS3 > 0
-        ? bestS1.time + bestS2.time + estimatedS3
-        : fastestLap.time > 0
-          ? fastestLap.time
-          : 0;
-
-    return {
-      bestS1,
-      bestS2,
-      estimatedS3,
-      fastestLap,
-      theoreticalBest,
+    const best = (b: SessionBest): BestTime => {
+      if (b.carIndex < 0) return NO_BEST_TIME;
+      const p = participants[b.carIndex];
+      return {
+        time: b.time,
+        carIdx: b.carIndex,
+        driverName: parseDriverName(p?.Name, t('live.events.car', { number: b.carIndex + 1 }), p?.DriverId),
+        teamId: p?.TeamId ?? 0,
+      };
     };
-  }, [participants, laps, t]);
+    const sectors = sessionBestSectors(lapTimes);
+    const fastestLap = sessionFastestLap(bestLapTimes);
+    return {
+      sectors: sectors.map(best),
+      fastestLap: best(fastestLap),
+      theoreticalBest: theoreticalBest(sectors) || fastestLap.time,
+    };
+  }, [participants, lapTimes, bestLapTimes, t]);
 
   // Speed Trap Leaderboard (Sorted by Fastest Speed)
   const speedTraps = useMemo(() => {
@@ -164,8 +143,9 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((p
       .slice(0, 5);
   }, [participants, laps, selectedCarIndex, t]);
 
-  // Selected driver sectors
+  // Selected driver: the sectors of their last completed lap
   const selectedLap = laps[selectedCarIndex];
+  const selectedSectors = lapTimes[selectedCarIndex]?.LastSectorsMS;
   const selectedParticipant = participants[selectedCarIndex];
   const selectedName = parseDriverName(
     selectedParticipant?.Name,
@@ -197,8 +177,15 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((p
       />
 
       <ul className={styles.bests}>
-        <BestTimeCard label={t('live.sector1')} best={sectorAnalysis.bestS1} kind="sector" formatTime={formatTime} />
-        <BestTimeCard label={t('live.sector2')} best={sectorAnalysis.bestS2} kind="sector" formatTime={formatTime} />
+        {sectorAnalysis.sectors.map((best, i) => (
+          <BestTimeCard
+            key={i}
+            label={t(`live.sector${i + 1}`)}
+            best={best}
+            kind="sector"
+            formatTime={formatTime}
+          />
+        ))}
         <BestTimeCard
           label={t('live.fastestLap')}
           best={sectorAnalysis.fastestLap}
@@ -212,11 +199,12 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((p
         <section className={styles.subcard} aria-labelledby={splitsTitleId}>
           <h4 id={splitsTitleId} className={styles.subcardTitle}>
             <Target size={14} color="var(--accent-primary)" aria-hidden="true" />
-            {t('live.driverSectorSplits', { driver: selectedName })}
+            {t('live.driverLastLapSplits', { driver: selectedName })}
           </h4>
           <dl className={styles.splits}>
-            {sectorSplit('S1', selectedLap?.Sector1TimeMSPart, sectorAnalysis.bestS1.time)}
-            {sectorSplit('S2', selectedLap?.Sector2TimeMSPart, sectorAnalysis.bestS2.time)}
+            {sectorAnalysis.sectors.map((best, i) => (
+              <React.Fragment key={i}>{sectorSplit(`S${i + 1}`, selectedSectors?.[i], best.time)}</React.Fragment>
+            ))}
             <Split
               label={t('live.lastLap')}
               time={formatTime(selectedLap?.LastLapTimeInMS)}

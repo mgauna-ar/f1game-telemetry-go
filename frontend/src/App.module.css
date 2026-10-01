@@ -4,6 +4,11 @@
   min-height: 100vh;
 }
 
+/* Hidden while the Driver view fills a phone */
+.topNav[hidden] {
+  display: none;
+}
+
 /* Top bar: brand, page tabs, and version, language and port on the right. On a tablet or phone
    the tabs take a row of their own under the brand and status. */
 .topNav {

@@ -18,6 +18,15 @@ export interface AISettingsResponse {
   providers: Record<string, AIProviderStatus>;
 }
 
+/** Go: api.ActiveSession */
+export interface ActiveSession {
+  session_uid: string;
+  session_type: number;
+  track_id: number;
+  packet_format: number;
+  player_car_index: number;
+}
+
 /** Go: api.BatchDeleteResponse */
 export interface BatchDeleteResponse {
   status: string;
@@ -41,6 +50,31 @@ export type EngineerSocketMessage = EngineerDirective | PTTEventMessage | PTTLea
 export interface ErrorResponse {
   error: string;
   code?: string;
+}
+
+/** Go: api.LiveCarLap */
+export interface LiveCarLap {
+  lap: number;
+  lap_time_ms: number;
+  sectors_ms: number[];
+  valid: boolean;
+}
+
+/** Go: api.LiveCarLaps */
+export interface LiveCarLaps {
+  session_uid: string;
+  car_index: number;
+  best_lap_num: number;
+  best_sector_lap_nums: number[];
+  laps: LiveCarLap[];
+  stints: LiveCarStint[];
+}
+
+/** Go: api.LiveCarStint */
+export interface LiveCarStint {
+  end_lap: number | null;
+  actual_compound: number;
+  visual_compound: number;
 }
 
 /** Go: api.PTTConfigResponse */
@@ -92,6 +126,14 @@ export type SettingsSection = 'ai' | 'voice' | 'ptt' | 'engineer';
 /** Go: api.StatusResponse */
 export interface StatusResponse {
   status: string;
+}
+
+/** Go: api.SystemStatus */
+export interface SystemStatus {
+  udp_addr: string;
+  udp_port: number;
+  packet_age_ms: number | null;
+  session: ActiveSession | null;
 }
 
 /** Go: api.VoiceSettingsResponse */

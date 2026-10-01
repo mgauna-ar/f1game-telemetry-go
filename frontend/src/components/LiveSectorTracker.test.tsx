@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import { LiveSectorTracker } from './LiveSectorTracker';
 import type { ParticipantData, LapData } from '../hooks/useTelemetry';
-import { makeLiveLap, makeLiveParticipant } from '../test/wireFactories';
+import { makeLiveLap, makeLiveLapTimes, makeLiveParticipant } from '../test/wireFactories';
 
 describe('LiveSectorTracker', () => {
   const mockParticipants: ParticipantData[] = [
@@ -78,5 +78,34 @@ describe('LiveSectorTracker', () => {
 
     expect(screen.getByText(/Speed Trap Leaderboard/i)).toBeInTheDocument();
     expect(screen.getByText(/335 KM\/H/i)).toBeInTheDocument();
+  });
+
+  it('takes S1, S2 and S3 from the session history, not from the lap in progress', () => {
+    const lapTimes = [
+      makeLiveLapTimes({ LastSectorsMS: [28_000, 31_000, 26_500], BestSectorsMS: [27_900, 31_000, 26_100] }),
+      makeLiveLapTimes({ LastSectorsMS: [28_300, 30_900, 26_000], BestSectorsMS: [28_200, 30_900, 26_000] }),
+    ];
+    render(
+      <LiveSectorTracker
+        participants={mockParticipants}
+        laps={mockLaps}
+        lapTimes={lapTimes}
+        bestLapTimes={[85_300, 85_400]}
+        selectedCarIndex={0}
+        playerCarIndex={0}
+      />
+    );
+
+    // Session bests: S1 Verstappen, S2 and S3 Leclerc; theoretical best is their sum
+    expect(screen.getByText('SECTOR 3')).toBeInTheDocument();
+    expect(screen.getByText('27.900s')).toBeInTheDocument();
+    expect(screen.getByText('30.900s')).toBeInTheDocument();
+    expect(screen.getByText('26.000s')).toBeInTheDocument();
+    expect(screen.getByText('1:24.800')).toBeInTheDocument();
+
+    // Verstappen's last lap splits against the session bests
+    expect(screen.getByText(/Last lap splits: Max Verstappen/)).toBeInTheDocument();
+    expect(screen.getAllByText('+0.100s')).toHaveLength(2);
+    expect(screen.getByText('+0.500s')).toBeInTheDocument();
   });
 });

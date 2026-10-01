@@ -20,10 +20,10 @@
   color: var(--f1-purple);
 }
 
-/* Session best S1, S2 and lap */
+/* Session best S1, S2, S3 and lap */
 .bests {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
   gap: var(--space-2);
   margin: 0 0 var(--space-3);
   padding: 0;

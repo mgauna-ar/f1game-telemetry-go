@@ -55,7 +55,7 @@ func (v *raceView) lapHistory(limit int) lapHistoryResult {
 		if rec.Sector1MS > 0 {
 			entry.Sectors = fmt.Sprintf("%s / %s / %s", packets.FormatLapTimeMS(rec.Sector1MS), packets.FormatLapTimeMS(rec.Sector2MS), packets.FormatLapTimeMS(rec.Sector3MS))
 		}
-		for i, w := range rec.TyreWearPct {
+		for i, w := range frontFirst(rec.TyreWearPct) {
 			entry.TyreWearPct[i] = roundTo(float64(w), 1)
 		}
 		res.Laps = append(res.Laps, entry)
@@ -192,11 +192,11 @@ func (v *raceView) carStatus() (CarStatusDetail, error) {
 	if hasTelemetry {
 		window := GetTyreThermalWindow(st.ActualTyreCompound, st.VisualTyreCompound)
 		d.TyreWindowC = fmt.Sprintf("%.0f-%.0f", window.MinTemp, window.MaxTemp)
-		for i := range wheelNames {
-			d.TyreSurfaceTempC[i] = int(tel.TyresSurfaceTemperature[i])
-			d.TyreInnerTempC[i] = int(tel.TyresInnerTemperature[i])
-			d.TyrePressurePSI[i] = roundTo(float64(tel.TyresPressure[i]), 1)
-			d.BrakeTempC[i] = int(tel.BrakesTemperature[i])
+		for i, w := range packets.WheelsFrontFirst {
+			d.TyreSurfaceTempC[i] = int(tel.TyresSurfaceTemperature[w])
+			d.TyreInnerTempC[i] = int(tel.TyresInnerTemperature[w])
+			d.TyrePressurePSI[i] = roundTo(float64(tel.TyresPressure[w]), 1)
+			d.BrakeTempC[i] = int(tel.BrakesTemperature[w])
 		}
 		d.EngineTempC = int(tel.EngineTemperature)
 		powerPct, _ := CalculateEnginePowerPct(float32(tel.EngineTemperature))
@@ -204,9 +204,9 @@ func (v *raceView) carStatus() (CarStatusDetail, error) {
 	}
 	d.Damage = "none"
 	if hasDamage {
-		for i := range wheelNames {
-			d.TyreWearPct[i] = roundTo(float64(dmg.TyresWear[i]), 1)
-			d.TyreBlistersPct[i] = int(dmg.TyreBlisters[i])
+		for i, w := range packets.WheelsFrontFirst {
+			d.TyreWearPct[i] = roundTo(float64(dmg.TyresWear[w]), 1)
+			d.TyreBlistersPct[i] = int(dmg.TyreBlisters[w])
 		}
 		if desc := describeDamage(dmg); desc != "" {
 			d.Damage = desc

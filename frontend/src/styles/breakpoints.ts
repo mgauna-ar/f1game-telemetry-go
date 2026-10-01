@@ -19,6 +19,12 @@ export type Breakpoint = keyof typeof BREAKPOINTS;
 /** The media condition for widths up to a breakpoint: `(max-width: 900px)`. */
 export const maxWidth = (name: Breakpoint): string => `(max-width: ${BREAKPOINTS[name]}px)`;
 
+/**
+ * A phone in either orientation: phone widths, or a short touch screen held sideways (a phone
+ * mounted on a rig in landscape is wider than the phone breakpoint).
+ */
+export const PHONE_MEDIA = `${maxWidth('phone')}, (max-height: ${BREAKPOINTS.phone}px) and (orientation: landscape) and (pointer: coarse)`;
+
 const NAMED_MEDIA = /\(--([a-z-]+)\)/g;
 
 /**

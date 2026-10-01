@@ -1,6 +1,6 @@
 .dashboard {
   composes: pageGrid from '../styles/pageGrid.module.css';
-  --page-max-width: 1440px;
+  --page-max-width: 1920px;
   width: 100%;
 }
 
@@ -10,15 +10,40 @@
   min-width: 0;
 }
 
-/* Race control hub: feed, weather, pit strategy and sectors in a 2 × 2 grid */
+/* The battle panel beside the track position strip */
+.battleRow {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.hubToolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: calc(-1 * var(--space-2));
+}
+
+/* Race control hub: its panels as the layout places them (2 × 2 by default) */
 .hub {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-5);
 }
 
+/* All four in a row, for a wide second monitor */
+.hub[data-layout='row'] {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .hubCard {
   min-height: 380px;
+}
+
+/* Driver view: the whole width, room at the end for the AI launcher */
+.driverPage {
+  width: 100%;
+  padding: var(--space-2) var(--space-2) var(--floating-dock-clearance);
 }
 
 /* Standby and voice cockpit views */
@@ -48,7 +73,9 @@
 }
 
 @media (--laptop) {
-  .hub {
+  .battleRow,
+  .hub,
+  .hub[data-layout='row'] {
     grid-template-columns: minmax(0, 1fr);
   }
 }

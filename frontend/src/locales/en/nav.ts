@@ -27,4 +27,12 @@ export const nav = {
   updateAvailable: 'Update Available',
   whatsNew: "What's New",
   checkUpdates: 'Check for Updates',
+  performanceMode: {
+    label: 'Performance mode',
+    on: 'on',
+    off: 'off',
+    hint: 'Solid panels with no blur, glow or animation, for a slow device or a screen you read at a glance.',
+    driverScope: 'Saved for the Driver view on this device (on by default).',
+    generalScope: 'Saved for every page but the Driver view on this device.',
+  },
 };

@@ -1,5 +1,6 @@
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, within } from '@testing-library/react';
 import { vi } from 'vitest';
+import { api } from '../utils/apiClient';
 import { Dashboard } from './Dashboard';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import { useTelemetryDataStore } from '../store/useTelemetryDataStore';
@@ -13,6 +14,7 @@ vi.spyOn(storeModule, 'connectTelemetryWebSocket').mockReturnValue(() => {});
 
 describe('Dashboard', () => {
   beforeEach(() => {
+    localStorage.removeItem('f1_race_control_layout');
     useSessionStatusStore.getState().resetSession();
     useTelemetryDataStore.getState().resetTelemetryData();
     useSessionStatusStore.setState({
@@ -115,8 +117,13 @@ describe('Dashboard', () => {
     });
 
     render(<Dashboard />);
-    // Session Header
-    expect(screen.getByText(/Melbourne/i)).toBeInTheDocument();
+    // Session Header (and the your-car panel)
+    expect(screen.getAllByText(/Melbourne/i).length).toBeGreaterThan(0);
+
+    // Your car, the battle and the track position strip
+    expect(screen.getByTestId('race-control-your-car')).toBeInTheDocument();
+    expect(screen.getByTestId('battle-panel')).toBeInTheDocument();
+    expect(screen.getByTestId('track-position-strip')).toBeInTheDocument();
 
     // 4 Core Race Modules
     expect(screen.getByText(/Race Control & Incidents/i)).toBeInTheDocument();
@@ -129,6 +136,35 @@ describe('Dashboard', () => {
 
     // Voice Radio HUD is active
     expect(screen.getByText(/RADIO STANDBY|RADIO EN ESPERA/i)).toBeInTheDocument();
+  });
+
+  it('lays out the hub panels by preset, remembers it, and opens a car from the tower', async () => {
+    vi.spyOn(api, 'get').mockResolvedValue({
+      session_uid: '',
+      car_index: 0,
+      best_lap_num: 0,
+      best_sector_lap_nums: [0, 0, 0],
+      laps: [],
+      stints: [],
+    });
+    useSessionStatusStore.setState({
+      session: makeLiveSession({ SessionType: 15 }),
+      participants: [makeLiveParticipant({ Name: 'Max Verstappen', RaceNumber: 1, AIControlled: 0 })],
+      connected: true,
+    });
+    useTelemetryDataStore.setState({ allLaps: [makeLiveLap({ CarPosition: 1 })], playerCarIndex: 0 });
+    render(<Dashboard />);
+
+    const hub = screen.getByTestId('race-control-hub');
+    expect(hub).toHaveAttribute('data-layout', 'grid');
+    fireEvent.click(screen.getByRole('radio', { name: 'Race' }));
+    expect(hub).toHaveAttribute('data-layout', 'race');
+    expect(screen.queryByText(/Weather Radar & Track Evolution/i)).toBeNull();
+    expect(localStorage.getItem('f1_race_control_layout')).toBe('race');
+
+    const tower = screen.getByRole('region', { name: /Race Leaderboard Tower/i });
+    fireEvent.click(within(tower).getByRole('button', { name: /Max Verstappen/ }));
+    expect(await screen.findByRole('dialog', { name: /Max Verstappen/ })).toBeInTheDocument();
   });
 
   it('switches to Voice Cockpit mode and unmounts 2x2 dashboard modules to save sim racing FPS', async () => {
@@ -190,6 +226,14 @@ describe('Dashboard', () => {
     fireEvent.click(dashboardToggleBtn);
     expect(screen.getByText(/Weather Radar & Track Evolution/i)).toBeInTheDocument();
     expect(localStorage.getItem('f1_live_view_mode')).toBe('dashboard');
+
+    // The Driver view replaces the whole page, and keeps its own compact switch
+    fireEvent.click(screen.getByTestId('live-view-toggle-driver'));
+    expect(screen.getByTestId('driver-glance')).toBeInTheDocument();
+    expect(screen.queryByText(/Weather Radar & Track Evolution/i)).not.toBeInTheDocument();
+    expect(window.location.pathname).toBe('/live/driver');
+    fireEvent.click(screen.getByRole('radio', { name: 'Race Control' }));
+    expect(screen.getByText(/Weather Radar & Track Evolution/i)).toBeInTheDocument();
   });
 
   it('points the chat at the live session and never re-renders chat consumers on a timer', async () => {

@@ -200,11 +200,12 @@ const (
 	// the live feed skips its own penalty entry for that car's accumulated penalty increase.
 	GamePenaltyEventWindowSeconds float32 = 10
 
-	// Wheel array index constants used across the telemetry engine (0: FL, 1: FR, 2: RL, 3: RR)
-	WheelFrontLeft  = 0
-	WheelFrontRight = 1
-	WheelRearLeft   = 2
-	WheelRearRight  = 3
+	// Wheel array indices. Every wheel array in the packets (tyre wear, temperatures, pressures,
+	// brakes, damage, blisters, suspension) is ordered RL, RR, FL, FR (UDP specification).
+	WheelRearLeft   = 0
+	WheelRearRight  = 1
+	WheelFrontLeft  = 2
+	WheelFrontRight = 3
 
 	// DRS disabled reason codes (emitted in DRSD event)
 	DRSDisabledReasonSurfaceConditions uint8 = 0
@@ -240,3 +241,7 @@ func NormalizeCompoundName(raw string) string {
 		return s
 	}
 }
+
+// WheelsFrontFirst lists the wheel array indices in reading order, FL, FR, RL, RR, for text and
+// tables that show the front axle first.
+var WheelsFrontFirst = [4]int{WheelFrontLeft, WheelFrontRight, WheelRearLeft, WheelRearRight}

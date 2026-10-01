@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { getRadioAnalyserNode } from '../../utils/radioAudio';
-import { prefersReducedMotion } from '../../utils/motion';
+import { shouldReduceMotion } from '../../utils/motion';
 import { canvasRgba, getCssVars } from '../../styles/theme';
 import { cx } from '../ui/cx';
 import styles from './RadioWaveformCanvas.module.css';
@@ -61,7 +61,7 @@ export const RadioWaveformCanvas: React.FC<RadioWaveformCanvasProps> = ({
     const isProcessing = radioState === 'processing';
     const isAudioReactive = (isTransmitting || isSpeaking) && !!analyser;
     // With reduced motion the idle and thinking pulses hold still; live audio levels still move.
-    const reducedMotion = prefersReducedMotion();
+    const reducedMotion = shouldReduceMotion();
 
     const palette = getCssVars(WAVEFORM_TOKENS);
     const barColor = isTransmitting

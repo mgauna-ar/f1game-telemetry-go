@@ -21,12 +21,24 @@ export const PACKET_IDS = {
   LIVE_SNAPSHOT: 255,
 } as const;
 
+/**
+ * Indices into the packets' wheel arrays (tyre wear, temperatures, pressures, brakes, damage),
+ * which the UDP specification orders RL, RR, FL, FR.
+ */
 export const WHEEL_INDEX = {
-  FRONT_LEFT: 0,
-  FRONT_RIGHT: 1,
-  REAR_LEFT: 2,
-  REAR_RIGHT: 3,
+  REAR_LEFT: 0,
+  REAR_RIGHT: 1,
+  FRONT_LEFT: 2,
+  FRONT_RIGHT: 3,
 } as const;
+
+/** The wheels in reading order, front axle first, with the label shown for each. */
+export const WHEELS_FRONT_FIRST = [
+  { key: 'fl', label: 'FL', index: WHEEL_INDEX.FRONT_LEFT },
+  { key: 'fr', label: 'FR', index: WHEEL_INDEX.FRONT_RIGHT },
+  { key: 'rl', label: 'RL', index: WHEEL_INDEX.REAR_LEFT },
+  { key: 'rr', label: 'RR', index: WHEEL_INDEX.REAR_RIGHT },
+] as const;
 
 export const TYRE_COMPOUND_IDS = {
   INTERMEDIATE: 7,
@@ -45,6 +57,15 @@ export const SAFETY_CAR_STATUS = {
   FULL: 1,
   VIRTUAL: 2,
   FORMATION_LAP: 3,
+} as const;
+
+/** The flag a car is shown (CarStatus VehicleFIAFlags). */
+export const VEHICLE_FIA_FLAGS = {
+  INVALID: -1,
+  NONE: 0,
+  GREEN: 1,
+  BLUE: 2,
+  YELLOW: 3,
 } as const;
 
 export const DRS_DISABLED_REASONS = {
@@ -788,15 +809,44 @@ export const RADIO_TRIGGER_PRESETS = {
 export const LIVE_VIEW_MODES = {
   DASHBOARD: 'dashboard',
   COCKPIT: 'cockpit',
+  /** Big numbers for a phone on the rig. */
+  DRIVER: 'driver',
 } as const;
 
 export type LiveViewMode = (typeof LIVE_VIEW_MODES)[keyof typeof LIVE_VIEW_MODES];
 
 export const STORAGE_KEY_LIVE_VIEW_MODE = 'f1_live_view_mode';
 
+/**
+ * How Race Control lays out its four hub panels: all four in a 2 × 2 grid or in one row (a wide
+ * second monitor), or two of them larger for the race (feed, pit strategy) or for pace (sectors, feed).
+ */
+export const RACE_CONTROL_LAYOUTS = {
+  GRID: 'grid',
+  ROW: 'row',
+  RACE: 'race',
+  TIMING: 'timing',
+} as const;
+
+export type RaceControlLayout = (typeof RACE_CONTROL_LAYOUTS)[keyof typeof RACE_CONTROL_LAYOUTS];
+
+export const STORAGE_KEY_RACE_CONTROL_LAYOUT = 'f1_race_control_layout';
+
+/** How often the car detail drawer reloads the car's lap history while it's open. */
+export const CAR_LAPS_REFRESH_MS = 5_000;
+/** The live mode last used at phone size, kept apart so a phone opens the Driver view by default. */
+export const STORAGE_KEY_LIVE_VIEW_MODE_PHONE = 'f1_live_view_mode_phone';
+
+/**
+ * Performance mode (solid surfaces, no blur, glow or motion) is saved per device, as two choices:
+ * one for the Driver view, where it's on by default, and one for every other page (off by default).
+ */
+export const STORAGE_KEY_PERFORMANCE_MODE = 'f1_performance_mode';
+export const STORAGE_KEY_PERFORMANCE_MODE_DRIVER = 'f1_performance_mode_driver';
+
 /** What the live telemetry feed is doing right now, as shown in the nav and the live header. */
 export const LIVE_STATUS = {
-  /** Not connected to the backend (or not on the Live tab, where the feed is opened). */
+  /** The backend can't be reached. */
   OFFLINE: 'offline',
   /** Connected to the backend, but no session packets have arrived yet. */
   LISTENING: 'listening',
@@ -812,6 +862,12 @@ export type LiveStatus = (typeof LIVE_STATUS)[keyof typeof LIVE_STATUS];
 export const LIVE_STALE_AFTER_MS = 3_000;
 /** How often the live status re-checks for a stale feed. */
 export const LIVE_STATUS_POLL_MS = 1_000;
+/** A gap trend under this many ms per lap counts as stable (as the race engineer says it). */
+export const GAP_TREND_STABLE_MS_PER_LAP = 50;
+/** How often pages without the live feed ask the server whether telemetry is arriving. */
+export const SYSTEM_STATUS_POLL_MS = 2_000;
+/** Pages without the live feed stop calling a session stale (and go back to listening) after this long. */
+export const LIVE_STALE_FORGET_MS = 60_000;
 
 /** The game's default UDP telemetry port, shown until the server reports the real one. */
 export const DEFAULT_UDP_PORT = 20777;

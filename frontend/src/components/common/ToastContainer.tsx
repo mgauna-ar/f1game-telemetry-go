@@ -28,6 +28,18 @@ export const ToastContainer: React.FC = () => {
         >
           {TOAST_ICONS[toast.type]}
           <span className={styles.message}>{toast.message}</span>
+          {toast.action && (
+            <button
+              type="button"
+              className={styles.action}
+              onClick={() => {
+                toast.action?.onAction();
+                dismissToast(toast.id);
+              }}
+            >
+              {toast.action.label}
+            </button>
+          )}
           <button
             type="button"
             className={styles.dismiss}

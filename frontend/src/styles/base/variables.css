@@ -75,6 +75,7 @@
   --f1-sector-3: #2ecc71;
 
   /* Timing: purple is the session best, green a personal best, yellow no improvement */
+  --f1-flag-blue: #2563eb; /* blue flag, behind white text (5.2:1) */
   --f1-purple: #dc84f3;
   --f1-green: #33ff77;
   --f1-yellow: #ffd700;
@@ -172,6 +173,10 @@
   --font-size-xl: 1.25rem; /* section headings, stat values */
   --font-size-2xl: 1.75rem; /* hero numbers */
   --font-size-3xl: 2.5rem; /* page titles */
+  /* The Driver view's glance numbers, read at arm's length on a phone */
+  --font-size-glance-sm: clamp(1.25rem, 5vw, 1.75rem);
+  --font-size-glance-md: clamp(1.75rem, 8vw, 2.75rem);
+  --font-size-glance-lg: clamp(3.5rem, 20vw, 6.5rem);
 
   --font-weight-regular: 400;
   --font-weight-medium: 500;

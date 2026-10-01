@@ -18,6 +18,35 @@ type LiveSnapshot struct {
 	CarDamage      []LiveCarDamage      `json:"CarDamage,omitempty"`
 	Events         []FeedEvent          `json:"Events,omitempty"`
 	ActiveCarCount int                  `json:"ActiveCarCount,omitempty"`
+	// GapAheadTrend and GapBehindTrend are the race engineer's gap trends to the player's
+	// neighbours (see LiveGapTrend); omitted until two lap ends with the same car there.
+	GapAheadTrend  *LiveGapTrend `json:"GapAheadTrend,omitempty"`
+	GapBehindTrend *LiveGapTrend `json:"GapBehindTrend,omitempty"`
+	// LapTimes is each car's completed-lap timing from the session history packets, by car
+	// index like LapData; omitted until the first history packet of the session.
+	LapTimes []LiveLapTimes `json:"LapTimes,omitempty"`
+}
+
+// LiveLapTimes is a car's completed-lap timing, from its session history packet. LapData's
+// sector times belong to the lap in progress; these belong to finished laps. Zero means not set yet.
+type LiveLapTimes struct {
+	// LastSectorsMS are the sector times of the car's last completed lap.
+	LastSectorsMS [3]uint32 `json:"LastSectorsMS"`
+	// BestSectorsMS are the car's best time in each sector this session.
+	BestSectorsMS [3]uint32 `json:"BestSectorsMS"`
+	// BestLapTimeInMS is the car's best lap this session as the game counts it (valid laps only).
+	BestLapTimeInMS uint32 `json:"BestLapTimeInMS"`
+}
+
+// LiveGapTrend is how the gap between the player and a neighbour changed per lap over the last
+// lap ends while the same car was there, as the race engineer measures it.
+type LiveGapTrend struct {
+	// CarIndex is the neighbour's car index.
+	CarIndex uint8 `json:"CarIndex"`
+	// ChangePerLapMS is the gap's change per lap: positive when it grew, negative when it shrank.
+	ChangePerLapMS int32 `json:"ChangePerLapMS"`
+	// Laps is how many laps the change was measured over.
+	Laps uint8 `json:"Laps"`
 }
 
 // LiveSession is the part of packets.PacketSessionData the live views read.
@@ -28,6 +57,7 @@ type LiveSession struct {
 	TotalLaps              uint8                           `json:"TotalLaps"`
 	SessionType            uint8                           `json:"SessionType"`
 	TrackId                int8                            `json:"TrackId"`
+	TrackLength            uint16                          `json:"TrackLength"`
 	SessionTimeLeft        uint16                          `json:"SessionTimeLeft"`
 	SafetyCarStatus        uint8                           `json:"SafetyCarStatus"`
 	NumRedFlagPeriods      uint8                           `json:"NumRedFlagPeriods"`
@@ -100,6 +130,8 @@ type LiveCarStatus struct {
 	TyresAgeLaps       uint8   `json:"TyresAgeLaps"`
 	ERSStoreEnergy     float32 `json:"ERSStoreEnergy"`
 	ERSDeployMode      uint8   `json:"ERSDeployMode"`
+	VehicleFIAFlags    int8    `json:"VehicleFIAFlags"`
+	DRSAllowed         uint8   `json:"DRSAllowed"`
 }
 
 // LiveCarDamage is the part of packets.CarDamageData the live views read.
@@ -123,6 +155,7 @@ func newLiveSession(p *packets.PacketSessionData) *LiveSession {
 		TotalLaps:              p.TotalLaps,
 		SessionType:            p.SessionType,
 		TrackId:                p.TrackId,
+		TrackLength:            p.TrackLength,
 		SessionTimeLeft:        p.SessionTimeLeft,
 		SafetyCarStatus:        p.SafetyCarStatus,
 		NumRedFlagPeriods:      p.NumRedFlagPeriods,
@@ -210,6 +243,8 @@ func toLiveCarStatus(s *packets.CarStatusData) LiveCarStatus {
 		TyresAgeLaps:       s.TyresAgeLaps,
 		ERSStoreEnergy:     s.ERSStoreEnergy,
 		ERSDeployMode:      s.ERSDeployMode,
+		VehicleFIAFlags:    s.VehicleFIAFlags,
+		DRSAllowed:         s.DRSAllowed,
 	}
 }
 
@@ -221,4 +256,24 @@ func toLiveCarDamage(d *packets.CarDamageData) LiveCarDamage {
 		FloorDamage:          d.FloorDamage,
 		DiffuserDamage:       d.DiffuserDamage,
 	}
+}
+
+// toLiveLapTimes reads a car's completed-lap timing from its session history packet.
+func toLiveLapTimes(h *packets.PacketSessionHistoryData) LiveLapTimes {
+	var out LiveLapTimes
+	if h == nil {
+		return out
+	}
+	if last, ok := h.LastCompletedLap(); ok {
+		out.LastSectorsMS = last.SectorsMS()
+	}
+	if lap, ok := h.Lap(int(h.BestLapTimeLapNum)); ok {
+		out.BestLapTimeInMS = lap.LapTimeInMS
+	}
+	for i, lapNum := range [3]uint8{h.BestSector1LapNum, h.BestSector2LapNum, h.BestSector3LapNum} {
+		if lap, ok := h.Lap(int(lapNum)); ok {
+			out.BestSectorsMS[i] = lap.SectorsMS()[i]
+		}
+	}
+	return out
 }

@@ -5,3 +5,4 @@ export type {
   TelemetryEndpoint,
   UpdateCheckResponse,
 } from './generated/system';
+export type { ActiveSession, SystemStatus } from './generated/api';

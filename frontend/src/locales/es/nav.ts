@@ -26,4 +26,12 @@ export const nav = {
   updateAvailable: 'Actualización Disponible',
   whatsNew: 'Novedades',
   checkUpdates: 'Buscar Actualizaciones',
+  performanceMode: {
+    label: 'Modo rendimiento',
+    on: 'activado',
+    off: 'desactivado',
+    hint: 'Paneles sólidos sin desenfoque, brillos ni animaciones, para un equipo lento o una pantalla que se mira de reojo.',
+    driverScope: 'Se guarda para la vista Piloto en este dispositivo (activado por defecto).',
+    generalScope: 'Se guarda para todas las páginas menos la vista Piloto en este dispositivo.',
+  },
 };

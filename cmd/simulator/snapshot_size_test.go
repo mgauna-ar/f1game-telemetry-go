@@ -103,6 +103,9 @@ func sendRaceFrame(w *datagramRecorder, cfg SimulatorConfig) {
 	sendLapDataPacket(w, header, cfg.TotalSlots, buildLapCars(cfg, st, lapDist))
 	sendCarStatusPacket(w, header, cfg.TotalSlots, buildCarStatusCars(cfg, st), cfg.PacketFormat)
 	sendCarDamagePacket(w, header, cfg.TotalSlots, buildCarDamageCars(cfg, st))
+	for carIdx := range cfg.NumActiveCars {
+		sendSessionHistoryPacket(w, buildSessionHistoryPacket(header, carIdx, st.lapNum))
+	}
 }
 
 // TestLiveSnapshotPayloadSize measures the 10 Hz live snapshot built from simulator packets, next to
@@ -176,6 +179,7 @@ func TestLiveSnapshotPayloadSize(t *testing.T) {
 			"CarTelemetry": len(slim.CarTelemetry),
 			"CarStatus":    len(slim.CarStatus),
 			"CarDamage":    len(slim.CarDamage),
+			"LapTimes":     len(slim.LapTimes),
 		}
 		if format >= packets.PacketFormat2026 {
 			lengths["CarTelemetry2"] = len(slim.CarTelemetry2)

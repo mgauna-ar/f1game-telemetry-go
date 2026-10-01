@@ -1,0 +1,203 @@
+/* A side panel over the right of the page; the page stays usable next to it */
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-popover);
+  display: flex;
+  flex-direction: column;
+  width: min(26rem, 100vw);
+  background: var(--bg-panel-solid);
+  border-left: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-lg);
+}
+
+.head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--border-color);
+  border-top: var(--space-1) solid var(--team-color);
+}
+
+.pos {
+  font-family: var(--font-display);
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-black);
+  line-height: 1;
+}
+
+.identity {
+  min-width: 0;
+}
+
+.name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.you {
+  padding: 0 var(--space-1-5);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-on-accent);
+  background: var(--accent-primary);
+  border-radius: var(--radius-xs);
+}
+
+.number {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.scroll {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  overflow-y: auto;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.stats > div {
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-inset);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+.stats dt {
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.stats dd {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1-5);
+  margin: var(--space-1) 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+.inPit {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-2xs);
+  color: var(--status-warning);
+}
+
+.penalty {
+  color: var(--status-danger);
+}
+
+.sectionTitle {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.stints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stint {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-sm);
+  background: var(--bg-inset);
+  border-radius: var(--radius-sm);
+}
+
+.laps {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+  border-collapse: collapse;
+}
+
+.laps th,
+.laps td {
+  padding: var(--space-1-5) var(--space-2);
+  text-align: right;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.laps thead th {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-2xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.laps th[scope='row'] {
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.laps tr[data-best] td:first-of-type {
+  color: var(--f1-purple);
+  font-weight: var(--font-weight-bold);
+}
+
+.laps tr[data-invalid] td {
+  color: var(--text-muted);
+}
+
+.laps td[data-sector='session'] {
+  color: var(--f1-purple);
+  font-weight: var(--font-weight-bold);
+}
+
+.laps td[data-sector='personal'] {
+  color: var(--status-success);
+}
+
+.invalid {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-2xs);
+  color: var(--status-danger);
+}
+
+.note {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
