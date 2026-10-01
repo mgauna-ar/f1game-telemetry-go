@@ -12,6 +12,7 @@ import { EmptyState } from './ui/EmptyState';
 import { Panel, PanelHeader } from './ui/Panel';
 import { SegmentedControl } from './ui/SegmentedControl';
 import styles from './RaceControlFeed.module.css';
+import { useUnits } from '../hooks/useUnits';
 
 type FeedFilter = 'all' | 'flag' | 'penalty' | 'overtake' | 'fastest_lap';
 
@@ -68,6 +69,7 @@ export const RaceControlFeed: React.FC<RaceControlFeedProps> = React.memo((props
   const onClearEvents = props.onClearEvents !== undefined ? props.onClearEvents : storeClearEvents;
 
   const { t } = useI18n();
+  const units = useUnits();
   const [filter, setFilter] = useState<FeedFilter>('all');
 
   const filteredEvents = useMemo(() => {
@@ -81,8 +83,7 @@ export const RaceControlFeed: React.FC<RaceControlFeedProps> = React.memo((props
       const secs = Math.floor(sessionTime % TIME_CONSTANTS.SECONDS_PER_MINUTE);
       return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
-    const d = new Date(timestamp);
-    return d.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    return units.time(timestamp, true);
   };
 
   return (
@@ -145,7 +146,7 @@ export const RaceControlFeed: React.FC<RaceControlFeedProps> = React.memo((props
                 <Badge tone={EVENT_TAG_TONES[evt.type] ?? 'neutral'} size="xs" square uppercase>
                   {getLocalizedPenaltyTag(evt, t)}
                 </Badge>
-                <span className={styles.text}>{getLocalizedRaceEventDescription(evt, t)}</span>
+                <span className={styles.text}>{getLocalizedRaceEventDescription(evt, t, units)}</span>
               </div>
             </li>
           ))}

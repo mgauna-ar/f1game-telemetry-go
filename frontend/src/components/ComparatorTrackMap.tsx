@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from 'react';
 import type { MergedTelemetryPoint, TrackTurn } from '../types/comparator';
 import { TRACK_MAP_CONSTANTS } from '../constants/f1';
 import { useI18n } from '../context/I18nContext';
+import { useUnits } from '../hooks/useUnits';
 import { canvasRgba, getCssVars, styleVars } from '../styles/theme';
 import styles from './ComparatorTrackMap.module.css';
 
@@ -49,6 +50,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
   zoomRange = null,
 }) => {
   const { t } = useI18n();
+  const units = useUnits();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const markerRef = useRef<HTMLDivElement | null>(null);
@@ -369,7 +371,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
 
           let label = turn.name;
           if (turn.speedA !== undefined && turn.speedB !== undefined) {
-            label = `${turn.name} • ${turn.speedA} / ${turn.speedB} km/h`;
+            label = `${turn.name} • ${Math.round(units.speedValue(turn.speedA))} / ${units.speed(turn.speedB)}`;
           }
 
           const baseOffset = 16;
@@ -494,7 +496,7 @@ export const ComparatorTrackMap: React.FC<ComparatorTrackMapProps> = ({
     return () => {
       if (observer) observer.disconnect();
     };
-  }, [data, turns, activeDistance, height, sector1Distance, sector2Distance, zoomRange, t]);
+  }, [data, turns, activeDistance, height, sector1Distance, sector2Distance, zoomRange, t, units]);
 
   // Handle canvas click to jump to turn or track position
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {

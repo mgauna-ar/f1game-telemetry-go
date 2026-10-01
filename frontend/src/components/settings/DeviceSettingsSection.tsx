@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Gauge, Languages, LayoutDashboard, Power, Radio } from 'lucide-react';
+import { Gauge, Languages, LayoutDashboard, Power, Radio, Ruler } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
 import { LIVE_VIEW_MODES, RACE_CONTROL_LAYOUTS, type LiveViewMode, type RaceControlLayout } from '../../constants/f1';
 import { storedLiveModeFor, storeLiveModeFor } from '../../router/routes';
@@ -10,6 +10,7 @@ import type { LocaleCode } from '../../locales';
 import { RadioEffectsSettings } from '../radio_settings/AudioSettingsTab';
 import { SelectField, SettingSection, ToggleRow } from '../radio_settings/SettingControls';
 import { SegmentedControl, type SegmentOption } from '../ui/SegmentedControl';
+import type { ClockFormat, SpeedUnit, TemperatureUnit } from '../../utils/units';
 import shared from '../radio_settings/RadioSettings.module.css';
 
 interface ChoiceProps<T extends string> {
@@ -38,7 +39,7 @@ const LIVE_MODE_KEYS: Record<LiveViewMode, string> = {
 };
 
 /**
- * What this screen keeps for itself in this browser: radio sound, the language, which live view
+ * What this screen keeps for itself in this browser: radio sound, the language, units, which live view
  * opens, the Race Control layout, the chat's size and performance mode.
  */
 export const DeviceSettingsSection: React.FC = () => {
@@ -50,6 +51,8 @@ export const DeviceSettingsSection: React.FC = () => {
   const chatExpanded = useDevicePreferencesStore((s) => s.chatExpanded);
   const setChatExpanded = useDevicePreferencesStore((s) => s.setChatExpanded);
   const layout = useDevicePreferencesStore((s) => s.raceControlLayout);
+  const units = useDevicePreferencesStore((s) => s.units);
+  const setUnits = useDevicePreferencesStore((s) => s.setUnits);
   const setLayout = useDevicePreferencesStore((s) => s.setRaceControlLayout);
 
   // The live page writes these itself as you switch views; this page only needs them on opening
@@ -85,6 +88,39 @@ export const DeviceSettingsSection: React.FC = () => {
             </option>
           ))}
         </SelectField>
+      </SettingSection>
+
+      <SettingSection icon={<Ruler size={14} />} title={t('settings.device.units')}>
+        <div className={shared.grid3}>
+          <Choice<SpeedUnit>
+            label={t('settings.device.speed')}
+            value={units.speed}
+            onChange={(speed) => setUnits({ speed })}
+            options={[
+              { value: 'kmh', label: t('common.units.kmh') },
+              { value: 'mph', label: t('common.units.mph') },
+            ]}
+          />
+          <Choice<TemperatureUnit>
+            label={t('settings.device.temperature')}
+            value={units.temperature}
+            onChange={(temperature) => setUnits({ temperature })}
+            options={[
+              { value: 'c', label: t('common.units.degC') },
+              { value: 'f', label: t('common.units.degF') },
+            ]}
+          />
+          <Choice<ClockFormat>
+            label={t('settings.device.clock')}
+            value={units.clock}
+            onChange={(clock) => setUnits({ clock })}
+            options={[
+              { value: '24h', label: t('settings.device.clock24') },
+              { value: '12h', label: t('settings.device.clock12') },
+            ]}
+          />
+        </div>
+        <p className={shared.hint}>{t('settings.device.unitsHint')}</p>
       </SettingSection>
 
       <SettingSection icon={<Radio size={14} />} title={t('settings.device.liveViews')}>

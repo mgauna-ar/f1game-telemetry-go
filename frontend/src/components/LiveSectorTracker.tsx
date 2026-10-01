@@ -10,6 +10,7 @@ import { useTelemetryDataStore } from '../store/useTelemetryDataStore';
 import { styleVars } from '../styles/theme';
 import { Panel, PanelHeader } from './ui/Panel';
 import styles from './LiveSectorTracker.module.css';
+import { useUnits } from '../hooks/useUnits';
 
 interface BestTime {
   time: number;
@@ -86,6 +87,7 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((p
   const selectedCarIndex = props.selectedCarIndex !== undefined ? props.selectedCarIndex : storeSelectedCarIndex;
 
   const { t } = useI18n();
+  const units = useUnits();
   const splitsTitleId = React.useId();
   const speedTitleId = React.useId();
 
@@ -237,7 +239,7 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((p
                   </span>
                   <span className={styles.speedValue}>
                     <span className={styles.speed}>
-                      {Math.round(st.speed)} {t('common.units.kmh')}
+                      {units.speed(st.speed)}
                     </span>
                     {st.lapNum > 0 && <span className={styles.speedLap}>L{st.lapNum}</span>}
                   </span>

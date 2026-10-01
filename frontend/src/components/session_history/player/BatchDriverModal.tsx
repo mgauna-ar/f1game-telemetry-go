@@ -4,7 +4,7 @@ import { useI18n } from '../../../context/I18nContext';
 import { useSessionListStore } from '../../../store/useSessionListStore';
 import { useToastStore } from '../../../store/useToastStore';
 import type { BatchPlayerResult, SessionListItem } from '../../../types/session';
-import { formatDate } from '../../../utils/formatters';
+import { useUnits } from '../../../hooks/useUnits';
 import { getSessionLapData } from '../../../utils/sessionDataCache';
 import { Button } from '../../ui/Button';
 import { TextInput } from '../../ui/Field';
@@ -184,6 +184,7 @@ const BatchDriverResult: React.FC<{ result: BatchPlayerResult; sessions: Session
   driverName,
 }) => {
   const { t } = useI18n();
+  const units = useUnits();
   const byId = new Map(sessions.map((s) => [s.id, s]));
   const groups = [
     { key: 'updated', ids: result.updated, title: t('history.player.batch.updated', { count: result.updated.length }) },
@@ -210,7 +211,7 @@ const BatchDriverResult: React.FC<{ result: BatchPlayerResult; sessions: Session
                 return (
                   <li key={id}>
                     {session
-                      ? `${session.track_name} · ${session.session_type} · ${formatDate(session.created_at)}`
+                      ? `${session.track_name} · ${session.session_type} · ${units.dateAndTime(session.created_at)}`
                       : `#${id}`}
                   </li>
                 );

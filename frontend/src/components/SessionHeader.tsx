@@ -28,6 +28,7 @@ import type { LiveViewMode } from '../constants/f1';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import { useTelemetryEndpointStore } from '../store/useTelemetryEndpointStore';
 import styles from './SessionHeader.module.css';
+import { useUnits } from '../hooks/useUnits';
 
 interface SessionHeaderProps {
   session?: SessionData | null;
@@ -49,6 +50,7 @@ export const SessionHeader: React.FC<SessionHeaderProps> = React.memo((props) =>
   const onViewModeChange = props.onViewModeChange;
 
   const { t } = useI18n();
+  const units = useUnits();
   // Three labelled modes don't fit a phone's header row; icons with tooltips do
   const compactSwitch = useMediaQuery(maxWidth('phone'));
   const udpPort = useTelemetryEndpointStore((s) => s.endpoint.udp_port);
@@ -154,7 +156,7 @@ export const SessionHeader: React.FC<SessionHeaderProps> = React.memo((props) =>
             icon={<Thermometer size={16} />}
             label={t('live.trackAirTemp')}
             valueClassName={styles.statValue}
-            value={`${session.TrackTemperature}°C / ${session.AirTemperature}°C`}
+            value={`${units.temperature(session.TrackTemperature)} / ${units.temperature(session.AirTemperature)}`}
           />
 
           {/* Safety Car Badge */}

@@ -9,6 +9,7 @@ import { styleVars } from '../../styles/theme';
 import { useI18n } from '../../context/I18nContext';
 import type { Participant, Lap } from '../../types/session';
 import styles from './DuelSlotCard.module.css';
+import { useUnits } from '../../hooks/useUnits';
 
 export interface DuelSlot {
   driver?: Participant;
@@ -39,6 +40,7 @@ const TelemetryIcon: React.FC<{ lap: Lap; size: number }> = ({ lap, size }) => {
 /** One side of the duel: the slot's driver and lap, each with a picker popover. */
 export const DuelSlotCard: React.FC<DuelSlotCardProps> = ({ slot, label, lap, data }) => {
   const { t } = useI18n();
+  const units = useUnits();
   const key = slot.toLowerCase();
   const [openPicker, setOpenPicker] = useState<'driver' | 'lap' | null>(null);
   const [driverSearch, setDriverSearch] = useState('');
@@ -93,7 +95,7 @@ export const DuelSlotCard: React.FC<DuelSlotCardProps> = ({ slot, label, lap, da
         </span>
         {lap?.max_speed_kmh && (
           <span className={styles.speed}>
-            {Math.round(lap.max_speed_kmh)} {t('common.units.kmh')}
+            {units.speed(lap.max_speed_kmh)}
           </span>
         )}
       </div>

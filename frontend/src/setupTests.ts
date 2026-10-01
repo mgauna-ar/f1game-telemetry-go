@@ -43,6 +43,10 @@ if (typeof globalThis !== 'undefined') {
     writable: true,
   });
 
+  // jsdom's locale is en-US, which would start the units at mph, °F and a 12-hour clock: tests see
+  // metric units unless they pick others (the device preferences store reads this when imported).
+  localStorageMock.setItem('f1_units', JSON.stringify({ speed: 'kmh', temperature: 'c', clock: '24h' }));
+
   // Mock fetch in Node/JSDOM test environment to ensure tests are isolated and never leak HTTP traffic to a running backend
   globalThis.fetch = vi.fn().mockImplementation(() => {
     return Promise.resolve({

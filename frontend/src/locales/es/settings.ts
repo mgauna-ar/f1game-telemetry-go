@@ -44,6 +44,13 @@ export const settings = {
     },
   },
   device: {
+    units: 'Unidades',
+    speed: 'Velocidad',
+    temperature: 'Temperatura',
+    clock: 'Reloj',
+    clock24: '24 horas',
+    clock12: '12 horas',
+    unitsHint: 'Empiezan según la región de tu navegador. Los valores del juego siguen en km/h y °C.',
     radio: 'Radio en este dispositivo',
     radioMasterDesc: 'Apagá al ingeniero en una pantalla que no debe hablar, como un teléfono en el simulador.',
     liveViews: 'Vistas en vivo',

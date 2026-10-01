@@ -10,6 +10,7 @@ import {
   makeLiveParticipant,
   makeLiveSession,
 } from '../../test/wireFactories';
+import { resetDevicePreferences, useDevicePreferencesStore } from '../../store/useDevicePreferencesStore';
 import { SAFETY_CAR_STATUS, SESSION_TYPES, VEHICLE_FIA_FLAGS } from '../../constants/f1';
 
 vi.mock('../../hooks/useScreenWakeLock', () => ({
@@ -21,6 +22,7 @@ const renderGlance = () => render(<DriverGlance viewMode="driver" onViewModeChan
 describe('DriverGlance', () => {
   beforeEach(() => {
     useTelemetryStore.getState().resetStore();
+    resetDevicePreferences();
     useSessionStatusStore.setState({
       session: makeLiveSession({ SessionType: SESSION_TYPES.RACE, TotalLaps: 58 }),
       participants: [
@@ -81,6 +83,13 @@ describe('DriverGlance', () => {
     expect(screen.getByText('Track limits: 2')).toBeInTheDocument();
     const tip = screen.getByRole('note');
     expect(within(tip).getByRole('button', { name: 'Keep screen on' })).toBeInTheDocument();
+  });
+
+  it('shows tyre temperatures in this device’s unit', () => {
+    useTelemetryDataStore.setState({ allTelemetry: [makeLiveCarTelemetry({ TyresSurfaceTemperature: [90, 90, 100, 90] })] });
+    useDevicePreferencesStore.getState().setUnits({ temperature: 'f' });
+    renderGlance();
+    expect(screen.getByText('FL').closest('[data-level]')).toHaveTextContent('212°');
   });
 
   it('shows the time left and the gap to P1 outside a race', () => {

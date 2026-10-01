@@ -6,6 +6,7 @@ import { ThresholdSlider } from '../ThresholdSlider';
 import { ToggleRow } from '../SettingControls';
 import styles from '../RadioSettings.module.css';
 import { useRadioSettingsStore } from '../../../store/useRadioSettingsStore';
+import { useUnits } from '../../../hooks/useUnits';
 
 interface DamageAccordionProps {
   isExpanded: boolean;
@@ -15,6 +16,7 @@ interface DamageAccordionProps {
 
 export const DamageAccordion: React.FC<DamageAccordionProps> = ({ isExpanded, onToggleExpand, onTestAlert }) => {
   const { t } = useI18n();
+  const units = useUnits();
 
   const damageAlertsEnabled = useRadioSettingsStore((s) => s.damageAlertsEnabled);
   const setDamageAlertsEnabled = useRadioSettingsStore((s) => s.setDamageAlertsEnabled);
@@ -114,7 +116,7 @@ export const DamageAccordion: React.FC<DamageAccordionProps> = ({ isExpanded, on
         <ThresholdSlider
           label={t('ai_engineer.proactiveAlerts.engineOverheatTemp')}
           value={engineOverheatC}
-          unit="°C"
+          formatValue={(c) => units.temperature(c)}
           min={105}
           max={145}
           step={5}

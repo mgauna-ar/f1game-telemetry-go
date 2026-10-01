@@ -165,7 +165,7 @@ export const live = {
   events: {
     overtake: '{driver} superó a {target}',
     fastestLap: '{driver} marcó la vuelta rápida ({time})',
-    speedTrap: '{driver} registró {speed} km/h en la trampa de velocidad',
+    speedTrap: '{driver} registró {speed} en la trampa de velocidad',
     pitEntry: '{driver} ingresó a boxes',
     retirement: '{driver} abandonó la sesión',
     sessionStarted: 'Sesión Iniciada',

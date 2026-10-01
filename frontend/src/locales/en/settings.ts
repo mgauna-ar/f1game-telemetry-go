@@ -44,6 +44,13 @@ export const settings = {
     },
   },
   device: {
+    units: 'Units',
+    speed: 'Speed',
+    temperature: 'Temperature',
+    clock: 'Clock',
+    clock24: '24-hour',
+    clock12: '12-hour',
+    unitsHint: 'They start from your browser’s region. The game’s own values stay in km/h and °C.',
     radio: 'Radio on this device',
     radioMasterDesc: 'Turn the race engineer off on a screen that shouldn’t speak, such as a phone on the rig.',
     liveViews: 'Live views',

@@ -9,6 +9,7 @@ import { Button } from '../../ui/Button';
 import { cx } from '../../ui/cx';
 import { DataTable, type DataTableColumn } from '../../ui/DataTable';
 import styles from './DriverLapsSubTable.module.css';
+import { useUnits } from '../../../hooks/useUnits';
 
 interface DriverLapsSubTableProps {
   session: Session;
@@ -47,7 +48,7 @@ export const DriverLapsSubTable: React.FC<DriverLapsSubTableProps> = React.memo(
     renderTyreBadge,
   }) => {
     const { t } = useI18n();
-    const kmh = t('common.units.kmh');
+    const units = useUnits();
 
     const rows = useMemo<LapRow[]>(() => {
       let runningRaceTime = 0;
@@ -175,7 +176,7 @@ export const DriverLapsSubTable: React.FC<DriverLapsSubTableProps> = React.memo(
         header: sub('maxSpeed'),
         numeric: true,
         align: 'left',
-        cell: ({ lap }) => (lap.max_speed_kmh ? `${lap.max_speed_kmh.toFixed(1)} ${kmh}` : '-'),
+        cell: ({ lap }) => units.speed(lap.max_speed_kmh || null, 1, '-'),
       },
       {
         key: 'tyre',

@@ -6,6 +6,7 @@ import { ThresholdSlider } from '../ThresholdSlider';
 import { ToggleRow } from '../SettingControls';
 import styles from '../RadioSettings.module.css';
 import { useRadioSettingsStore } from '../../../store/useRadioSettingsStore';
+import { useUnits } from '../../../hooks/useUnits';
 
 interface BrakesAccordionProps {
   isExpanded: boolean;
@@ -15,6 +16,7 @@ interface BrakesAccordionProps {
 
 export const BrakesAccordion: React.FC<BrakesAccordionProps> = ({ isExpanded, onToggleExpand, onTestAlert }) => {
   const { t } = useI18n();
+  const units = useUnits();
 
   const brakesAlertsEnabled = useRadioSettingsStore((s) => s.brakesAlertsEnabled);
   const setBrakesAlertsEnabled = useRadioSettingsStore((s) => s.setBrakesAlertsEnabled);
@@ -59,7 +61,7 @@ export const BrakesAccordion: React.FC<BrakesAccordionProps> = ({ isExpanded, on
         <ThresholdSlider
           label={t('ai_engineer.proactiveAlerts.brakeOverheatTemp')}
           value={brakeOverheatC}
-          unit="°C"
+          formatValue={(c) => units.temperature(c)}
           min={600}
           max={1200}
           step={50}
@@ -68,7 +70,7 @@ export const BrakesAccordion: React.FC<BrakesAccordionProps> = ({ isExpanded, on
         <ThresholdSlider
           label={t('ai_engineer.proactiveAlerts.brakeColdTemp')}
           value={brakeColdC}
-          unit="°C"
+          formatValue={(c) => units.temperature(c)}
           min={50}
           max={400}
           step={25}

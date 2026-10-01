@@ -9,6 +9,7 @@ import { useI18n } from '../../context/I18nContext';
 import type { MergedTelemetryPoint, TrackTurn } from '../../types/comparator';
 import type { Session } from '../../types/session';
 import styles from './ComparatorSidebar.module.css';
+import { useUnits } from '../../hooks/useUnits';
 
 interface ComparatorSidebarProps {
   comparisonData: MergedTelemetryPoint[];
@@ -41,7 +42,7 @@ export const ComparatorSidebar: React.FC<ComparatorSidebarProps> = ({
   onOpenAiDebrief,
 }) => {
   const { t } = useI18n();
-  const kmh = t('common.units.kmh');
+  const units = useUnits();
   const activePoint =
     hoverDistance !== null && comparisonData.length > 0
       ? comparisonData.reduce(
@@ -61,7 +62,7 @@ export const ComparatorSidebar: React.FC<ComparatorSidebarProps> = ({
     const battery = isA ? point.ersBatteryA : point.ersBatteryB;
     const mode = isA ? point.ersDeployModeA : point.ersDeployModeB;
     const rows = [
-      { label: t('comparator.sidebar.speed'), value: `${speed ?? '-'} ${kmh}` },
+      { label: t('comparator.sidebar.speed'), value: units.speed(speed, 0, `- ${units.speedUnit}`) },
       { label: t('comparator.sidebar.throttleBrake'), value: `${percent(throttle)}% / ${percent(brake)}%` },
       {
         label: t('comparator.sidebar.ers'),

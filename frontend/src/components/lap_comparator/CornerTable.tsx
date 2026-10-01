@@ -6,6 +6,7 @@ import { DataTable, type DataTableColumn, type SortState } from '../ui/DataTable
 import { IconButton } from '../ui/Button';
 import { Panel, PanelHeader } from '../ui/Panel';
 import styles from './CornerTable.module.css';
+import { useUnits } from '../../hooks/useUnits';
 
 export interface CornerTableProps {
   corners: CornerAnalysis[];
@@ -59,10 +60,8 @@ export const CornerTable: React.FC<CornerTableProps> = ({ corners, nameA, nameB,
   const isZoomed = (c: CornerAnalysis) =>
     zoomDomain !== null && zoomDomain[0] === c.range[0] && zoomDomain[1] === c.range[1];
 
-  const units = {
-    kmh: t('common.units.kmh'),
-    m: t('comparator.corners.meters'),
-  };
+  const speedUnits = useUnits();
+  const units = { m: t('comparator.corners.meters') };
 
   /** Both laps' values, lap A on top, in the slot colours; `better` marks the faster one. */
   const pair = (
@@ -109,25 +108,25 @@ export const CornerTable: React.FC<CornerTableProps> = ({ corners, nameA, nameB,
     },
     {
       key: 'entry',
-      header: t('comparator.corners.entrySpeed'),
+      header: t('comparator.corners.entrySpeed', { unit: speedUnits.speedUnit }),
       numeric: true,
       cell: (c) =>
         pair(
           c,
           (m) => m.entrySpeed,
-          (v) => v.toFixed(0),
+          (v) => speedUnits.speedValue(v).toFixed(0),
           higherIsBetter(c.a.entrySpeed, c.b.entrySpeed)
         ),
     },
     {
       key: 'min',
-      header: t('comparator.corners.minSpeed'),
+      header: t('comparator.corners.minSpeed', { unit: speedUnits.speedUnit }),
       numeric: true,
       cell: (c) =>
         pair(
           c,
           (m) => m.minSpeed,
-          (v) => v.toFixed(0),
+          (v) => speedUnits.speedValue(v).toFixed(0),
           higherIsBetter(c.a.minSpeed, c.b.minSpeed)
         ),
     },

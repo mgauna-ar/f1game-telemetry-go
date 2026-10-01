@@ -7,6 +7,7 @@ import { useI18n } from '../../context/I18nContext';
 import { cssVar } from '../../styles/theme';
 import { cx } from '../ui/cx';
 import styles from './WeatherBadgeWithForecast.module.css';
+import { useUnits } from '../../hooks/useUnits';
 
 interface WeatherBadgeWithForecastProps {
   session: Session;
@@ -114,6 +115,7 @@ export const WeatherBadgeWithForecast: React.FC<WeatherBadgeWithForecastProps> =
   className,
 }) => {
   const { t } = useI18n();
+  const units = useUnits();
   const triggerRef = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
   const [popoverPos, setPopoverPos] = useState<{
@@ -305,11 +307,12 @@ export const WeatherBadgeWithForecast: React.FC<WeatherBadgeWithForecastProps> =
                     {(trackTemp !== undefined || airTemp !== undefined) && (
                       <div
                         className={styles.temps}
-                        title={`${t('common.airTemp')}: ${airTemp ?? '-'}°C | ${t('common.trackTemp')}: ${trackTemp ?? '-'}°C`}
+                        title={`${t('common.airTemp')}: ${units.temperature(airTemp, 0, '-')} | ${t('common.trackTemp')}: ${units.temperature(trackTemp, 0, '-')}`}
                       >
                         <Thermometer size={10} color={cssVar('--accent-primary')} aria-hidden="true" />
                         <span>
-                          {airTemp ?? '-'}/{trackTemp ?? '-'}°C
+                          {airTemp !== undefined ? Math.round(units.temperatureValue(airTemp)) : '-'}/
+                          {units.temperature(trackTemp, 0, '-')}
                         </span>
                       </div>
                     )}

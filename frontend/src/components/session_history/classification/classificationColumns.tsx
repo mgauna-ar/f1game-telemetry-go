@@ -11,6 +11,7 @@ import { cx } from '../../ui/cx';
 import type { DataTableColumn } from '../../ui/DataTable';
 import type { Lap, DriverStanding } from '../../../types/session';
 import styles from './ClassificationTable.module.css';
+import { useUnits } from '../../../hooks/useUnits';
 
 export interface ClassificationColumnsOptions {
   isRaceSession: boolean;
@@ -122,7 +123,7 @@ const bestLapSectors = (driver: DriverStanding): [number, number, number] => {
 /** Columns of the classification table, for race or timing sessions. */
 export const useClassificationColumns = (o: ClassificationColumnsOptions): DataTableColumn<DriverStanding>[] => {
   const { t } = useI18n();
-  const kmh = t('common.units.kmh');
+  const units = useUnits();
   const h = (key: string) => t(`history.classification.headers.${key}`);
 
   const pos: DataTableColumn<DriverStanding> = {
@@ -296,7 +297,7 @@ export const useClassificationColumns = (o: ClassificationColumnsOptions): DataT
     numeric: true,
     align: 'left',
     className: styles.speedCol,
-    cell: (driver) => (driver.maxSpeed ? `${driver.maxSpeed.toFixed(0)} ${kmh}` : '--'),
+    cell: (driver) => units.speed(driver.maxSpeed || null),
   };
 
   const details: DataTableColumn<DriverStanding> = {

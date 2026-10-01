@@ -5,6 +5,8 @@ import type { FeedEvent, FeedEventCode, FeedEventType, RaceEvent } from '../type
 import { PENALTY_TYPES, SAFETY_CAR_STATUS } from '../constants/f1';
 import { makeFeedEvent } from '../test/wireFactories';
 
+import { createUnitFormatter } from '../hooks/useUnits';
+
 describe('raceEvents utility with i18n', () => {
   const tEn = (key: string, params?: Record<string, string | number>) => getTranslation('en', key, params);
   const tEs = (key: string, params?: Record<string, string | number>) => getTranslation('es', key, params);
@@ -218,6 +220,12 @@ describe('raceEvents utility with i18n', () => {
       expect(getLocalizedPenaltyTag(evt, tEn)).toBe('DISQUALIFIED');
       expect(getLocalizedPenaltyTag(evt, tEs)).toBe('DESCALIFICADO');
     });
+  });
+
+  it('writes a speed trap in the unit it is given', () => {
+    const evt = makeFeedEvent({ eventCode: 'SPTP', vehicleIdx: 4, driverName: 'Lando Norris', speed: 321.87 });
+    const mph = createUnitFormatter({ speed: 'mph', temperature: 'f', clock: '12h' }, tEn, 'en');
+    expect(getLocalizedRaceEventDescription(evt, tEn, mph)).toBe('Lando Norris triggered speed trap at 200.0 mph');
   });
 
   it("translates the server's disqualification row", () => {

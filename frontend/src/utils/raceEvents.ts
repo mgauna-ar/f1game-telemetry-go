@@ -1,5 +1,7 @@
 import type { FeedEvent } from '../types/telemetry';
 import { PENALTY_TYPES, SAFETY_CAR_STATUS } from '../constants/f1';
+import { createUnitFormatter, type UnitFormatter } from '../hooks/useUnits';
+import { METRIC_UNITS } from './units';
 
 type Translate = (key: string, params?: Record<string, string | number>) => string;
 
@@ -14,7 +16,15 @@ function carLabel(name: string | undefined, vehicleIdx: number | undefined, t: T
  * Writes a race feed row's text in the viewer's language. The server sends only an event code
  * and its parameters, so every FeedEventCode must have a case here (`tsc` checks it).
  */
-export function getLocalizedRaceEventDescription(evt: FeedEvent, t: Translate): string {
+/**
+ * The feed row's text in the page's language. Speeds show in `units` (a `useUnits()` formatter);
+ * km/h without one.
+ */
+export function getLocalizedRaceEventDescription(
+  evt: FeedEvent,
+  t: Translate,
+  units: Pick<UnitFormatter, 'speed'> = createUnitFormatter(METRIC_UNITS, t, 'en')
+): string {
   const driver = carLabel(evt.driverName, evt.vehicleIdx, t);
   const target = carLabel(evt.targetDriverName, evt.otherVehicleIdx, t);
 
@@ -93,8 +103,7 @@ export function getLocalizedRaceEventDescription(evt: FeedEvent, t: Translate): 
     }
 
     case 'SPTP': {
-      const speed = evt.speed !== undefined ? evt.speed.toFixed(1) : '0.0';
-      return t('live.events.speedTrap', { driver, speed });
+      return t('live.events.speedTrap', { driver, speed: units.speed(evt.speed ?? 0, 1) });
     }
 
     case 'TMPT':

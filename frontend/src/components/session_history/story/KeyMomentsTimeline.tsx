@@ -9,6 +9,7 @@ import { EmptyState } from '../../ui/EmptyState';
 import { Panel, PanelHeader } from '../../ui/Panel';
 import { SegmentedControl } from '../../ui/SegmentedControl';
 import styles from './KeyMomentsTimeline.module.css';
+import { useUnits } from '../../../hooks/useUnits';
 
 type MomentFilter = 'all' | 'mine';
 
@@ -41,6 +42,7 @@ interface KeyMomentsTimelineProps {
  */
 export const KeyMomentsTimeline: React.FC<KeyMomentsTimelineProps> = ({ events, playerCarIndex }) => {
   const { t } = useI18n();
+  const units = useUnits();
   const [filter, setFilter] = useState<MomentFilter>('all');
 
   const moments = useMemo(() => keyMoments(events, playerCarIndex), [events, playerCarIndex]);
@@ -105,7 +107,7 @@ export const KeyMomentsTimeline: React.FC<KeyMomentsTimelineProps> = ({ events, 
                     <span className={styles.icon} data-type={m.event.type} aria-hidden="true">
                       <MomentIcon event={m.event} />
                     </span>
-                    <span className={styles.text}>{getLocalizedRaceEventDescription(m.event, t)}</span>
+                    <span className={styles.text}>{getLocalizedRaceEventDescription(m.event, t, units)}</span>
                     {m.mine && (
                       <Badge tone="info" size="sm" className={styles.you}>
                         {t('history.player.you')}

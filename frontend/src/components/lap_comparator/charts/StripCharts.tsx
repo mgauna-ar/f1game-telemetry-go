@@ -26,6 +26,8 @@ import {
   type StripTraceId,
 } from './stripTraces';
 import styles from './StripCharts.module.css';
+import { useUnits } from '../../../hooks/useUnits';
+import { pointsInSpeedUnit } from '../../../utils/units';
 
 export interface StripChartsProps {
   chartData: MergedTelemetryPoint[];
@@ -70,7 +72,7 @@ function pointAt(points: MergedTelemetryPoint[], distance: number | null): Merge
  * strips move up and down or hide, and the layout is remembered on this device.
  */
 export const StripCharts: React.FC<StripChartsProps> = ({
-  chartData,
+  chartData: metricData,
   nameA,
   nameB,
   formatA,
@@ -84,6 +86,9 @@ export const StripCharts: React.FC<StripChartsProps> = ({
   onZoomDomainChange,
 }) => {
   const { t } = useI18n();
+  const units = useUnits();
+  // Speeds in this device's unit; every other trace is unitless or the same everywhere
+  const chartData = useMemo(() => pointsInSpeedUnit(metricData, units.prefs.speed), [metricData, units.prefs.speed]);
   const [layout, setLayout] = useState<StripLayout>(loadStripLayout);
   const updateLayout = (next: StripLayout) => {
     setLayout(next);
@@ -150,7 +155,10 @@ export const StripCharts: React.FC<StripChartsProps> = ({
           return (
             <li key={id} className={styles.strip} data-axis={isLast || undefined} data-trace={id}>
               <div className={styles.side}>
-                <div className={styles.name}>{label}</div>
+                <div className={styles.name}>
+                  {label}
+                  {id === 'speed' && <span className={styles.unit}> {units.speedUnit}</span>}
+                </div>
                 <dl className={styles.values}>
                   {trace.lines.map((line) => {
                     const value = point?.[line.dataKey];

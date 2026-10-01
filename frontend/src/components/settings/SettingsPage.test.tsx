@@ -107,6 +107,16 @@ describe('SettingsPage', () => {
     fireEvent.click(within(phone).getByRole('radio', { name: 'Voice Cockpit' }));
     expect(localStorage.getItem('f1_live_view_mode_phone')).toBe('cockpit');
 
+    fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Speed' })).getByRole('radio', { name: 'mph' }));
+    fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Temperature' })).getByRole('radio', { name: '°F' }));
+    fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Clock' })).getByRole('radio', { name: '12-hour' }));
+    expect(useDevicePreferencesStore.getState().units).toEqual({ speed: 'mph', temperature: 'f', clock: '12h' });
+    expect(JSON.parse(localStorage.getItem('f1_units') ?? '{}')).toEqual({
+      speed: 'mph',
+      temperature: 'f',
+      clock: '12h',
+    });
+
     fireEvent.click(screen.getByRole('switch', { name: 'Every page but the Driver view' }));
     expect(usePerformanceModeStore.getState().enabled.general).toBe(true);
   });

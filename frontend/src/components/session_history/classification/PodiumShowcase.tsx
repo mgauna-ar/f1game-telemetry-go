@@ -7,6 +7,7 @@ import type { DriverStanding } from '../../../types/session';
 import { cx } from '../../ui/cx';
 import { Stat } from '../../ui/Stat';
 import styles from './PodiumShowcase.module.css';
+import { useUnits } from '../../../hooks/useUnits';
 
 interface PodiumShowcaseProps {
   top3: DriverStanding[];
@@ -22,6 +23,7 @@ export const PodiumShowcase: React.FC<PodiumShowcaseProps> = ({
   formatTotalDuration,
 }) => {
   const { t } = useI18n();
+  const units = useUnits();
 
   if (top3.length === 0) return null;
 
@@ -77,7 +79,7 @@ export const PodiumShowcase: React.FC<PodiumShowcaseProps> = ({
               <Stat
                 className={styles.stat}
                 label={t('history.classification.maxSpeed')}
-                value={driver.maxSpeed ? `${driver.maxSpeed.toFixed(0)} ${t('common.units.kmh')}` : '--'}
+                value={units.speed(driver.maxSpeed || null)}
               />
             </div>
           </li>
