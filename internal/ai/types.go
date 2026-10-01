@@ -19,12 +19,31 @@ const (
 // ChatContextModes lists every chat context mode; it builds the ChatContextMode union for the frontend.
 var ChatContextModes = []string{ContextModeComparator, ContextModeSessionDebrief, ContextModeLive, ContextModeGeneral}
 
+// Debrief focuses: the session detail chart a debrief chat was opened from. The debrief then adds
+// that chart's data (lap by lap, stints or sectors); the Story tab adds nothing, its key moments
+// are always in the debrief.
+const (
+	DebriefFocusPace     = "pace"
+	DebriefFocusPosition = "position"
+	DebriefFocusGap      = "gap"
+	DebriefFocusStints   = "stints"
+	DebriefFocusSectors  = "sectors"
+	DebriefFocusStory    = "story"
+)
+
+// DebriefFocuses lists every debrief focus; it builds the DebriefFocus union for the frontend.
+var DebriefFocuses = []string{
+	DebriefFocusPace, DebriefFocusPosition, DebriefFocusGap, DebriefFocusStints, DebriefFocusSectors, DebriefFocusStory,
+}
+
 // ChatContextRequest names what a chat is about. The client sends only identifiers; the server
 // builds the prompt data from them (BuildChatContext).
 type ChatContextRequest struct {
 	ContextMode string `json:"context_mode" tstype:"ChatContextMode"`
 	// SessionID is the recorded session a session_debrief chat is about.
 	SessionID int64 `json:"session_id,omitempty"`
+	// Focus is the session detail chart a session_debrief chat is looking at, if any.
+	Focus string `json:"focus,omitempty" tstype:"DebriefFocus"`
 	// LapAID is the driver's lap in a comparator chat, and LapBID the benchmark lap.
 	LapAID int64 `json:"lap_a_id,omitempty"`
 	LapBID int64 `json:"lap_b_id,omitempty"`
@@ -70,6 +89,10 @@ type TelemetryAnalysisContext struct {
 // SessionDebrief is the prompt data for a recorded session, built from its classification.
 type SessionDebrief struct {
 	Summary string
+	// Focus is the chart the driver is looking at (a DebriefFocus*), and FocusData that chart's
+	// data; both empty for the whole session.
+	Focus     string
+	FocusData string
 }
 
 // LapComparison is the prompt data for a lap (A, the driver's) compared with a benchmark lap (B).
@@ -137,8 +160,9 @@ type LiveRaceSource interface {
 
 // RecordedRaceSource builds the prompt data for recorded sessions and laps.
 type RecordedRaceSource interface {
-	// SessionDebrief summarizes a recorded session's classification.
-	SessionDebrief(ctx context.Context, sessionID int64) (SessionDebrief, error)
+	// SessionDebrief summarizes a recorded session's classification, plus the data of the chart
+	// named by focus (a DebriefFocus*, or empty).
+	SessionDebrief(ctx context.Context, sessionID int64, focus string) (SessionDebrief, error)
 	// LapComparison analyzes lap A against lap B, optionally within a zoomed segment. It returns
 	// nil when the laps have no telemetry to compare.
 	LapComparison(ctx context.Context, lapAID, lapBID int64, zoom *ChatZoomRange) (*LapComparison, error)

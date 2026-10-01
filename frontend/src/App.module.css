@@ -2,6 +2,8 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  /* Room for the docked AI chat; zero while it floats */
+  padding-right: var(--chat-dock-space);
 }
 
 /* Hidden while the Driver view fills a phone */

@@ -7,6 +7,7 @@ import { keyMoments, momentsByLap, raceControlPeriods } from '../../../utils/rac
 import { Badge } from '../../ui/Badge';
 import { EmptyState } from '../../ui/EmptyState';
 import { Panel, PanelHeader } from '../../ui/Panel';
+import { AskAiButton } from '../../ai_engineer/AskAiButton';
 import { SegmentedControl } from '../../ui/SegmentedControl';
 import styles from './KeyMomentsTimeline.module.css';
 import { useUnits } from '../../../hooks/useUnits';
@@ -73,17 +74,22 @@ export const KeyMomentsTimeline: React.FC<KeyMomentsTimelineProps> = ({ events, 
             : t('history.story.momentsQuiet')
         }
         actions={
-          playerCarIndex !== null && mineCount > 0 ? (
-            <SegmentedControl
-              size="xs"
-              aria-label={t('history.story.momentsFilterLabel')}
-              value={filter}
-              onChange={setFilter}
-              options={[
-                { value: 'all', label: t('history.story.momentsAll') },
-                { value: 'mine', label: t('history.story.momentsMine', { count: mineCount }) },
-              ]}
-            />
+          moments.length > 0 ? (
+            <>
+              {playerCarIndex !== null && mineCount > 0 && (
+                <SegmentedControl
+                  size="xs"
+                  aria-label={t('history.story.momentsFilterLabel')}
+                  value={filter}
+                  onChange={setFilter}
+                  options={[
+                    { value: 'all', label: t('history.story.momentsAll') },
+                    { value: 'mine', label: t('history.story.momentsMine', { count: mineCount }) },
+                  ]}
+                />
+              )}
+              <AskAiButton prompt={t('history.detail.askAiPrompts.story')} about={t('history.story.momentsTitle')} />
+            </>
           ) : undefined
         }
       />

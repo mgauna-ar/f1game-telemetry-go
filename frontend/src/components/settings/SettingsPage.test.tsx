@@ -91,11 +91,15 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByRole('switch', { name: /Live Voice Race Engineer/ }));
     expect(useRadioSettingsStore.getState().isRadioEnabled).toBe(false);
 
-    fireEvent.click(
-      within(screen.getByRole('radiogroup', { name: 'AI chat size' })).getByRole('radio', { name: 'Large' })
-    );
+    const chat = screen.getByRole('radiogroup', { name: 'AI chat window' });
+    fireEvent.click(within(chat).getByRole('radio', { name: 'Large' }));
     expect(useDevicePreferencesStore.getState().chatExpanded).toBe(true);
     expect(localStorage.getItem('f1_ai_engineer_expanded')).toBe('true');
+    fireEvent.click(within(chat).getByRole('radio', { name: 'Docked' }));
+    expect(useDevicePreferencesStore.getState()).toMatchObject({ chatDocked: true, chatExpanded: true });
+    expect(localStorage.getItem('f1_ai_engineer_docked')).toBe('true');
+    fireEvent.click(within(chat).getByRole('radio', { name: 'Compact' }));
+    expect(useDevicePreferencesStore.getState()).toMatchObject({ chatDocked: false, chatExpanded: false });
 
     fireEvent.click(
       within(screen.getByRole('radiogroup', { name: 'Panel layout' })).getByRole('radio', { name: 'Race' })

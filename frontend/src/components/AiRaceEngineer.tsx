@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useId, useRef, useMemo } from 'react';
-import { Bot, Send, Square, Settings, RotateCcw, X, Maximize2, Minimize2 } from 'lucide-react';
+import { Bot, Send, Square, Settings, RotateCcw, X, Maximize2, Minimize2, PanelRight, PanelRightClose } from 'lucide-react';
 import {
   useRaceEngineer,
   providerHasKey,
@@ -9,6 +9,8 @@ import { useDevicePreferencesStore } from '../store/useDevicePreferencesStore';
 import { useI18n } from '../context/I18nContext';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import { useLiveStatus } from '../hooks/useLiveStatus';
+import { useMediaQuery } from '../hooks/useMediaQuery';
+import { maxWidth } from '../styles/breakpoints';
 import { LIVE_STATUS, getTrackInfo, TRACK_NAMES } from '../constants/f1';
 import { TrackFlag } from './TrackFlag';
 import { PromptChipBar } from './ai_engineer/PromptChipBar';
@@ -27,6 +29,19 @@ export interface AiRaceEngineerProps {
 
 /** Tallest the message box grows, in pixels, before it scrolls. */
 const INPUT_MAX_HEIGHT_PX = 140;
+
+/** On <html> while the chat is docked: the page makes room for it (--chat-dock-space). */
+export const CHAT_DOCKED_ATTRIBUTE = 'data-chat-docked';
+
+/** The session detail tabs, by the label the chat's header gives them. */
+const FOCUS_LABEL_KEYS: Record<string, string> = {
+  story: 'history.detail.tabStory',
+  pace: 'history.detail.tabPace',
+  position: 'history.detail.tabPosition',
+  gap: 'history.detail.tabGap',
+  stints: 'history.detail.tabStints',
+  sectors: 'history.detail.tabSectors',
+};
 
 const getChatPlaceholder = (effectiveMode: string, t: (key: string) => string): string => {
   switch (effectiveMode) {
@@ -72,6 +87,11 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({ isOpenOverride, 
   const [showSettings, setShowSettings] = useState(false);
   const isExpanded = useDevicePreferencesStore((s) => s.chatExpanded);
   const setIsExpanded = useDevicePreferencesStore((s) => s.setChatExpanded);
+  const dockPreferred = useDevicePreferencesStore((s) => s.chatDocked);
+  const setDockPreferred = useDevicePreferencesStore((s) => s.setChatDocked);
+  // Docking needs a window wider than a laptop breakpoint; narrower ones keep the floating chat
+  const canDock = !useMediaQuery(maxWidth('laptop'));
+  const isDocked = isOpen && dockPreferred && canDock;
   const [inputMessage, setInputMessage] = useState('');
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const widgetRef = useRef<HTMLDivElement | null>(null);
@@ -87,6 +107,14 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({ isOpenOverride, 
     autoFocus: false,
     returnFocusRef: fabRef,
   });
+
+  // While docked the page makes room for the chat instead of sitting under it
+  useEffect(() => {
+    if (!isDocked) return;
+    const root = document.documentElement;
+    root.setAttribute(CHAT_DOCKED_ATTRIBUTE, '');
+    return () => root.removeAttribute(CHAT_DOCKED_ATTRIBUTE);
+  }, [isDocked]);
 
   // Grow the message box with its text, up to a few lines.
   useEffect(() => {
@@ -166,9 +194,12 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({ isOpenOverride, 
       };
     }
     if (effectiveMode === 'session_debrief' && sessionDebriefTarget) {
+      const { focus } = sessionDebriefTarget;
+      const session = sessionDebriefTarget.trackName || t('ai_engineer.modeDebrief');
       return {
         label: t('ai_engineer.badges.debrief'),
-        sub: sessionDebriefTarget.trackName || t('ai_engineer.modeDebrief'),
+        // The tab open in the session is what the engineer looks at first
+        sub: focus ? `${session} · ${t(FOCUS_LABEL_KEYS[focus])}` : session,
         track: sessionDebriefTarget.trackName,
         badge: { color: 'var(--f1-gold)' },
       };
@@ -210,9 +241,17 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({ isOpenOverride, 
 
   const expandLabel = isExpanded ? t('ai_engineer.collapse') : t('ai_engineer.expand');
 
-  // When open: the floating chat panel, with no backdrop so the page stays usable beside it
+  // When open: the chat panel, floating with no backdrop or docked beside the page, so the page
+  // stays usable next to it
   return (
-    <div ref={widgetRef} className={styles.widget} data-expanded={isExpanded} role="dialog" aria-labelledby={titleId}>
+    <div
+      ref={widgetRef}
+      className={styles.widget}
+      data-expanded={isExpanded}
+      data-docked={isDocked}
+      role={isDocked ? 'complementary' : 'dialog'}
+      aria-labelledby={titleId}
+    >
       {/* The chat behind the settings layer is out of reach while settings are open */}
       <div className={styles.content} inert={showSettings}>
         <div className={styles.header}>
@@ -259,9 +298,21 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({ isOpenOverride, 
             <IconButton size="sm" label={t('ai_engineer.clearChat')} onClick={clearMessages}>
               <RotateCcw size={15} />
             </IconButton>
-            <IconButton size="sm" label={expandLabel} onClick={() => setIsExpanded(!isExpanded)}>
-              {isExpanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
-            </IconButton>
+            {canDock && (
+              <IconButton
+                size="sm"
+                label={t('ai_engineer.dock')}
+                aria-pressed={isDocked}
+                onClick={() => setDockPreferred(!isDocked)}
+              >
+                {isDocked ? <PanelRightClose size={15} /> : <PanelRight size={15} />}
+              </IconButton>
+            )}
+            {!isDocked && (
+              <IconButton size="sm" label={expandLabel} onClick={() => setIsExpanded(!isExpanded)}>
+                {isExpanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+              </IconButton>
+            )}
             <IconButton size="sm" label={t('ai_engineer.close')} className={styles.close} onClick={handleClose}>
               <X size={16} />
             </IconButton>

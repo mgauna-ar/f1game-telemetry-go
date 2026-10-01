@@ -42,7 +42,24 @@ func buildSessionDebriefPrompt(debrief *SessionDebrief) string {
 	} else {
 		sb.WriteString("No classification data is available for this session yet.\n")
 	}
+	if debrief != nil && debrief.Focus != "" {
+		sb.WriteString("\n### WHAT THE USER IS LOOKING AT:\n")
+		fmt.Fprintf(&sb, "The user opened this chat from the %s. Answer about it first, using the data below; bring in the rest of the session only where it explains it.\n", debriefFocusNames[debrief.Focus])
+		if debrief.FocusData != "" {
+			sb.WriteString(debrief.FocusData)
+		}
+	}
 	return sb.String()
+}
+
+// debriefFocusNames names each session detail chart for the debrief prompt.
+var debriefFocusNames = map[string]string{
+	DebriefFocusPace:     "lap pace chart (lap times lap by lap)",
+	DebriefFocusPosition: "position chart (race position lap by lap)",
+	DebriefFocusGap:      "gap chart (gap to the leader lap by lap)",
+	DebriefFocusStints:   "tyre strategy and degradation tab",
+	DebriefFocusSectors:  "sector analysis tab",
+	DebriefFocusStory:    "race story (key moments and race-control events)",
 }
 
 func buildLivePrompt(tc *TelemetryAnalysisContext, persona, language string) string {

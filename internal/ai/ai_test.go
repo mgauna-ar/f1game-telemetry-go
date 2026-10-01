@@ -515,10 +515,12 @@ type fakeRecorded struct {
 	comparison *LapComparison
 	calls      []string
 	zoom       *ChatZoomRange
+	focus      string
 }
 
-func (f *fakeRecorded) SessionDebrief(_ context.Context, id int64) (SessionDebrief, error) {
+func (f *fakeRecorded) SessionDebrief(_ context.Context, id int64, focus string) (SessionDebrief, error) {
 	f.calls = append(f.calls, "debrief")
+	f.focus = focus
 	return f.debrief, f.debriefErr
 }
 
@@ -579,6 +581,18 @@ func TestBuildChatContext(t *testing.T) {
 		}
 	})
 
+	t.Run("debrief passes the chart it was opened from", func(t *testing.T) {
+		rec := &fakeRecorded{debrief: SessionDebrief{Summary: "P1: Verstappen", Focus: DebriefFocusStints, FocusData: "TYRE STINTS & DEGRADATION:\n- P1 Verstappen"}}
+		tc, err := BuildChatContext(ctx, &ChatContextRequest{ContextMode: ContextModeSessionDebrief, SessionID: 7, Focus: DebriefFocusStints}, ChatOptions{Recorded: rec})
+		if err != nil || rec.focus != DebriefFocusStints {
+			t.Fatalf("expected the stints focus passed to the source, got %q, %v", rec.focus, err)
+		}
+		prompt := BuildSystemPrompt(tc, "", "en")
+		if !strings.Contains(prompt, "WHAT THE USER IS LOOKING AT") || !strings.Contains(prompt, "degradation tab") || !strings.Contains(prompt, "TYRE STINTS & DEGRADATION") {
+			t.Fatalf("expected the prompt to name the chart and carry its data:\n%s", prompt)
+		}
+	})
+
 	t.Run("debrief errors are returned", func(t *testing.T) {
 		notFound := errors.New("session 7 not found")
 		rec := &fakeRecorded{debriefErr: notFound}
@@ -605,6 +619,7 @@ func TestBuildChatContext(t *testing.T) {
 		for name, req := range map[string]*ChatContextRequest{
 			"unknown mode":        {ContextMode: "telepathy"},
 			"debrief without id":  {ContextMode: ContextModeSessionDebrief},
+			"unknown focus":       {ContextMode: ContextModeSessionDebrief, SessionID: 7, Focus: "weather"},
 			"zoom ends too early": {ContextMode: ContextModeComparator, LapAID: 1, LapBID: 2, Zoom: &ChatZoomRange{StartMeters: 300, EndMeters: 300}},
 		} {
 			if _, err := BuildChatContext(ctx, req, ChatOptions{Recorded: &fakeRecorded{}}); !errors.Is(err, ErrInvalidChatContext) {

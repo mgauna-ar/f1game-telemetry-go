@@ -4,12 +4,17 @@ import { parseRoute } from '../router/routes';
 
 describe('buildChatContextRequest', () => {
   const comparator = { lapAId: 11, lapBId: 12, zoom: null, trackName: 'Monza' };
-  const debrief = { sessionId: 7, trackName: 'Suzuka' };
+  const debrief = { sessionId: 7, focus: null, trackName: 'Suzuka' };
 
-  it('sends only the session ID for a debrief', () => {
+  it('sends only the session ID for a debrief, and the chart it looks at', () => {
     expect(buildChatContextRequest('session_debrief', comparator, debrief)).toEqual({
       context_mode: 'session_debrief',
       session_id: 7,
+    });
+    expect(buildChatContextRequest('session_debrief', null, { ...debrief, focus: 'stints' })).toEqual({
+      context_mode: 'session_debrief',
+      session_id: 7,
+      focus: 'stints',
     });
   });
 
@@ -64,12 +69,14 @@ describe('chatTargetsFromRoute', () => {
     return chatTargetsFromRoute(parseRoute(pathname, search), sessions);
   };
 
-  it('debriefs the session open in History', () => {
+  it('debriefs the session open in History, focused on its tab', () => {
     expect(targetsAt('/history/7/charts')).toEqual({
       contextMode: 'session_debrief',
       comparatorTarget: null,
-      sessionDebriefTarget: { sessionId: 7, trackName: 'Suzuka' },
+      sessionDebriefTarget: { sessionId: 7, focus: 'pace', trackName: 'Suzuka' },
     });
+    expect(targetsAt('/history/7/sectors').sessionDebriefTarget?.focus).toBe('sectors');
+    expect(targetsAt('/history/7/classification').sessionDebriefTarget?.focus).toBeNull();
     expect(targetsAt('/history').contextMode).toBe('general');
     expect(targetsAt('/progress/Monza').contextMode).toBe('general');
   });

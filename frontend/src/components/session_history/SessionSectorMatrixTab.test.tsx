@@ -109,6 +109,7 @@ describe('SessionSectorMatrixTab Component', () => {
     expect(screen.getByText(/SPEED TRAP/i)).toBeInTheDocument();
     expect(screen.getByText('1:27.300')).toBeInTheDocument();
     expect(screen.getByText('330.5 km/h')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Ask the AI engineer about Sector/i })).toBeInTheDocument();
   });
 
   it('shows the speed trap in this device’s unit', () => {

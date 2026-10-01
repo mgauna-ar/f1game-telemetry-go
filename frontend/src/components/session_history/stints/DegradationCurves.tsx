@@ -9,6 +9,7 @@ import { TyreCompoundBadge } from '../../common/TyreCompoundBadge';
 import { Button } from '../../ui/Button';
 import { EmptyState } from '../../ui/EmptyState';
 import { Panel, PanelHeader } from '../../ui/Panel';
+import { AskAiButton } from '../../ai_engineer/AskAiButton';
 import { SegmentedControl } from '../../ui/SegmentedControl';
 import styles from './DegradationCurves.module.css';
 import { DegradationTable, type DegradationTableRow } from './DegradationTable';
@@ -99,20 +100,26 @@ export const DegradationCurves: React.FC<DegradationCurvesProps> = ({
         title={t('history.stints.degradation.title')}
         subtitle={t('history.stints.degradation.subtitle')}
         actions={
-          <SegmentedControl
-            size="xs"
-            aria-label={t('history.stints.degradation.filterCompounds')}
-            value={selectedCompound}
-            onChange={setSelectedCompound}
-            options={[
-              { value: 'ALL', label: t('history.stints.degradation.allCompounds') },
-              ...sessionCompounds.map((comp) => ({
-                value: comp,
-                label: comp,
-                icon: <TyreCompoundBadge compound={comp} />,
-              })),
-            ]}
-          />
+          <>
+            <SegmentedControl
+              size="xs"
+              aria-label={t('history.stints.degradation.filterCompounds')}
+              value={selectedCompound}
+              onChange={setSelectedCompound}
+              options={[
+                { value: 'ALL', label: t('history.stints.degradation.allCompounds') },
+                ...sessionCompounds.map((comp) => ({
+                  value: comp,
+                  label: comp,
+                  icon: <TyreCompoundBadge compound={comp} />,
+                })),
+              ]}
+            />
+            <AskAiButton
+              prompt={t('history.detail.askAiPrompts.stints')}
+              about={t('history.stints.degradation.title')}
+            />
+          </>
         }
       />
 

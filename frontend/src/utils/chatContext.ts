@@ -1,6 +1,6 @@
 import { RADIO_LANGUAGES } from '../constants/f1';
-import type { ChatContextMode, ChatContextRequest } from '../types/ai';
-import type { Route } from '../router/routes';
+import type { ChatContextMode, ChatContextRequest, DebriefFocus } from '../types/ai';
+import type { Route, SessionDetailTab } from '../router/routes';
 import type { Session } from '../types/session';
 
 /** The two laps the comparator chat is about, and the zoomed segment if any. */
@@ -16,6 +16,8 @@ export interface ComparatorChatTarget {
 /** The recorded session the debrief chat is about. */
 export interface SessionDebriefChatTarget {
   sessionId: number;
+  /** The chart open in the session (its tab), whose data the server adds; null for the classification. */
+  focus: DebriefFocus | null;
   /** Only for the chat's header badge; the server loads the session itself. */
   trackName: string;
 }
@@ -26,9 +28,13 @@ export interface ChatTargets {
   sessionDebriefTarget: SessionDebriefChatTarget | null;
 }
 
+/** The session detail tabs that are charts the debrief can focus on; the classification is the debrief itself. */
+const debriefFocus = (tab: SessionDetailTab): DebriefFocus | null => (tab === 'classification' ? null : tab);
+
 /**
- * What the chat is about, read from the page's URL: the session open in History, the laps and
- * zoom in the comparator, or the live session; the progress and settings pages are a general chat. The sessions only name the track in the badge.
+ * What the chat is about, read from the page's URL: the session and tab open in History, the laps
+ * and zoom in the comparator, or the live session; the progress and settings pages are a general
+ * chat. The sessions only name the track in the badge.
  */
 export function chatTargetsFromRoute(
   route: Route,
@@ -55,7 +61,11 @@ export function chatTargetsFromRoute(
       return {
         contextMode: 'session_debrief',
         comparatorTarget: null,
-        sessionDebriefTarget: { sessionId: route.sessionId, trackName: trackName(route.sessionId) },
+        sessionDebriefTarget: {
+          sessionId: route.sessionId,
+          focus: debriefFocus(route.tab),
+          trackName: trackName(route.sessionId),
+        },
       };
   }
 }
@@ -70,7 +80,11 @@ export function buildChatContextRequest(
   debrief: SessionDebriefChatTarget | null
 ): ChatContextRequest {
   if (mode === 'session_debrief' && debrief) {
-    return { context_mode: 'session_debrief', session_id: debrief.sessionId };
+    return {
+      context_mode: 'session_debrief',
+      session_id: debrief.sessionId,
+      ...(debrief.focus ? { focus: debrief.focus } : {}),
+    };
   }
   if (mode === 'comparator') {
     if (!comparator) return { context_mode: 'comparator' };

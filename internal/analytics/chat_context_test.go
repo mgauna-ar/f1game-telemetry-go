@@ -353,7 +353,7 @@ func TestChatContextSource(t *testing.T) {
 	var _ ai.RecordedRaceSource = src
 
 	t.Run("session debrief", func(t *testing.T) {
-		debrief, err := src.SessionDebrief(ctx, session.ID)
+		debrief, err := src.SessionDebrief(ctx, session.ID, "")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -362,7 +362,7 @@ func TestChatContextSource(t *testing.T) {
 				t.Errorf("expected %q in debrief:\n%s", want, debrief.Summary)
 			}
 		}
-		if _, err := src.SessionDebrief(ctx, 9999); !errors.Is(err, storage.ErrSessionNotFound) {
+		if _, err := src.SessionDebrief(ctx, 9999, ""); !errors.Is(err, storage.ErrSessionNotFound) {
 			t.Errorf("expected ErrSessionNotFound for an unknown session, got %v", err)
 		}
 	})

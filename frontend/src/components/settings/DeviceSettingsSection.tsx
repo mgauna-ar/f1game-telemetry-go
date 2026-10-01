@@ -40,7 +40,7 @@ const LIVE_MODE_KEYS: Record<LiveViewMode, string> = {
 
 /**
  * What this screen keeps for itself in this browser: radio sound, the language, units, which live view
- * opens, the Race Control layout, the chat's size and performance mode.
+ * opens, the Race Control layout, the chat's size or dock and performance mode.
  */
 export const DeviceSettingsSection: React.FC = () => {
   const { t, locale, setLocale, availableLocales } = useI18n();
@@ -50,6 +50,8 @@ export const DeviceSettingsSection: React.FC = () => {
   const setPerformance = usePerformanceModeStore((s) => s.setEnabled);
   const chatExpanded = useDevicePreferencesStore((s) => s.chatExpanded);
   const setChatExpanded = useDevicePreferencesStore((s) => s.setChatExpanded);
+  const chatDocked = useDevicePreferencesStore((s) => s.chatDocked);
+  const setChatDocked = useDevicePreferencesStore((s) => s.setChatDocked);
   const layout = useDevicePreferencesStore((s) => s.raceControlLayout);
   const units = useDevicePreferencesStore((s) => s.units);
   const setUnits = useDevicePreferencesStore((s) => s.setUnits);
@@ -153,16 +155,21 @@ export const DeviceSettingsSection: React.FC = () => {
               title: t(`live.raceControlView.layoutTitles.${value}`),
             }))}
           />
-          <Choice<'compact' | 'expanded'>
+          <Choice<'compact' | 'expanded' | 'docked'>
             label={t('settings.device.chatSize')}
-            value={chatExpanded ? 'expanded' : 'compact'}
-            onChange={(value) => setChatExpanded(value === 'expanded')}
+            value={chatDocked ? 'docked' : chatExpanded ? 'expanded' : 'compact'}
+            onChange={(value) => {
+              setChatDocked(value === 'docked');
+              if (value !== 'docked') setChatExpanded(value === 'expanded');
+            }}
             options={[
               { value: 'compact', label: t('settings.device.chatCompact') },
               { value: 'expanded', label: t('settings.device.chatExpanded') },
+              { value: 'docked', label: t('settings.device.chatDocked') },
             ]}
           />
         </div>
+        <p className={shared.hint}>{t('settings.device.chatDockedHint')}</p>
       </SettingSection>
 
       <SettingSection icon={<Gauge size={14} />} title={t('nav.performanceMode.label')}>

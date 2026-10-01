@@ -12,6 +12,7 @@ import type { DriverStanding, FeedEvent, ProgressionResponse, ProgressionRow } f
 import { useI18n } from '../../context/I18nContext';
 import { EmptyState } from '../ui/EmptyState';
 import { Panel } from '../ui/Panel';
+import { AskAiButton } from '../ai_engineer/AskAiButton';
 import styles from './SessionLapChartsTab.module.css';
 
 export type LapChartKind = 'pace' | 'position' | 'gap';
@@ -229,17 +230,20 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
                 {heading.icon}
                 {heading.title}
               </h2>
-              {chart === 'pace' && (
-                <label className={styles.pitFilter} title={t('history.progression.filterPitLapsDesc')}>
-                  <input
-                    type="checkbox"
-                    data-testid="filter-pit-laps-checkbox"
-                    checked={filterPitLaps}
-                    onChange={(e) => setFilterPitLaps(e.target.checked)}
-                  />
-                  <span>{t('history.progression.filterPitLaps')}</span>
-                </label>
-              )}
+              <div className={styles.chartActions}>
+                {chart === 'pace' && (
+                  <label className={styles.pitFilter} title={t('history.progression.filterPitLapsDesc')}>
+                    <input
+                      type="checkbox"
+                      data-testid="filter-pit-laps-checkbox"
+                      checked={filterPitLaps}
+                      onChange={(e) => setFilterPitLaps(e.target.checked)}
+                    />
+                    <span>{t('history.progression.filterPitLaps')}</span>
+                  </label>
+                )}
+                <AskAiButton prompt={t(`history.detail.askAiPrompts.${chart}`)} about={heading.title} />
+              </div>
             </div>
             <div className={styles.chart}>
               <ResponsiveContainer width="100%" height="100%">

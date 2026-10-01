@@ -34,6 +34,13 @@
 }
 
 /* Pit-lap filter toggle */
+.chartActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
 .pitFilter {
   display: inline-flex;
   align-items: center;

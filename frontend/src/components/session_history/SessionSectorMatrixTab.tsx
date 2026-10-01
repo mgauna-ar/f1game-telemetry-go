@@ -9,6 +9,7 @@ import { SectorTime } from '../common/SectorTime';
 import { cx } from '../ui/cx';
 import { DataTable, type DataTableColumn } from '../ui/DataTable';
 import { Panel, PanelHeader } from '../ui/Panel';
+import { AskAiButton } from '../ai_engineer/AskAiButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { Stat } from '../ui/Stat';
 import type { DriverStanding, ClassificationResponse } from '../../types/session';
@@ -223,18 +224,24 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
             icon={<Zap size={18} color="var(--accent-purple)" />}
             title={t('history.sectors.sectorLeaderboards')}
             actions={
-              <SegmentedControl
-                size="xs"
-                aria-label={t('history.sectors.sectorViewLabel')}
-                value={sectorView}
-                onChange={setSectorView}
-                options={[
-                  { value: 'ALL', label: t('history.sectors.allSectors') },
-                  { value: 'S1', label: 'S1' },
-                  { value: 'S2', label: 'S2' },
-                  { value: 'S3', label: 'S3' },
-                ]}
-              />
+              <>
+                <SegmentedControl
+                  size="xs"
+                  aria-label={t('history.sectors.sectorViewLabel')}
+                  value={sectorView}
+                  onChange={setSectorView}
+                  options={[
+                    { value: 'ALL', label: t('history.sectors.allSectors') },
+                    { value: 'S1', label: 'S1' },
+                    { value: 'S2', label: 'S2' },
+                    { value: 'S3', label: 'S3' },
+                  ]}
+                />
+                <AskAiButton
+                  prompt={t('history.detail.askAiPrompts.sectors')}
+                  about={t('history.sectors.sectorLeaderboards')}
+                />
+              </>
             }
           />
           <DataTable

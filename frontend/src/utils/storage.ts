@@ -24,6 +24,7 @@ export type KnownStorageKey =
   | 'f1_ai_engineer_config'
   | 'f1_ai_engineer_open'
   | 'f1_ai_engineer_expanded'
+  | 'f1_ai_engineer_docked'
   // Old saved driver name: only read once to apply it to sessions without a driver, then removed
   | 'f1_comparator_default_driver_name'
   // Comparator rival: only read once to move it to /api/settings/comparator, then removed

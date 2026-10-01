@@ -109,6 +109,7 @@ func registry() *tsgen.Generator {
 
 	// An AI chat request names what it is about; the server builds the prompt data.
 	g.TypeAlias("ai", "ChatContextMode", stringUnion(ai.ChatContextModes))
+	g.TypeAlias("ai", "DebriefFocus", stringUnion(ai.DebriefFocuses))
 
 	// Messages on /ws/engineer, told apart by their type.
 	g.Add(

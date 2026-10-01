@@ -257,6 +257,9 @@ describe('SessionStintStrategyTab Component', () => {
     renderTab();
 
     expect(screen.getByText('Tyre Degradation & Stint Pace Curves')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Ask the AI engineer about Tyre Degradation & Stint Pace Curves' })
+    ).toBeInTheDocument();
     // Both drivers are picked by default, so all their stints are charted
     expect(screen.getByText('4 of 4 stints on the chart')).toBeInTheDocument();
     expect(within(degradationTable()).getAllByRole('checkbox')).toHaveLength(4);
