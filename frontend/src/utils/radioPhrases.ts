@@ -1,21 +1,18 @@
 import type { RadioPersona } from '../constants/f1';
-import { en, es, type LocaleCode } from '../locales';
+import type { LocaleCode } from '../locales';
+import { radio_phrases as en } from '../locales/en/radio_phrases';
+import { radio_phrases as es } from '../locales/es/radio_phrases';
 import type { RadioAlertCategory, RadioPhrasePool } from '../types/telemetry';
 
 export type { RadioAlertCategory };
 
 /**
  * The spoken wording of every proactive radio call, per language. The engine only sends an alert
- * key; this catalog is the one place its words come from.
+ * key; this catalog is the one place its words come from. Only the Live tab speaks them, so they
+ * load with it rather than with the UI dictionaries. Both languages: the radio's language is its
+ * own setting, not the UI's.
  */
-export const RADIO_PHRASE_CATALOG: Record<LocaleCode, Record<RadioAlertCategory, RadioPhrasePool>> = {
-  get en() {
-    return en.radio_phrases;
-  },
-  get es() {
-    return es.radio_phrases;
-  },
-};
+export const RADIO_PHRASE_CATALOG: Record<LocaleCode, Record<RadioAlertCategory, RadioPhrasePool>> = { en, es };
 
 /** The phrases `persona` can say for `category` in `language`, falling back to the standard pool. */
 export function radioPhrasePool(

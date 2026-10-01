@@ -1,6 +1,10 @@
 import '@testing-library/jest-dom';
 import { afterEach, vi } from 'vitest';
 import { invalidateSessionLapData } from './utils/sessionDataCache';
+import { loadLocale } from './locales';
+
+// Spanish loads on demand in the app; tests that switch to it expect it at once
+await loadLocale('es');
 
 // The session data cache is module state; start every test without cached sessions, and at `/`.
 afterEach(() => {
@@ -42,6 +46,10 @@ if (typeof globalThis !== 'undefined') {
     value: localStorageMock,
     writable: true,
   });
+
+  // jsdom's locale is en-US, which would start the units at mph, °F and a 12-hour clock: tests see
+  // metric units unless they pick others (the device preferences store reads this when imported).
+  localStorageMock.setItem('f1_units', JSON.stringify({ speed: 'kmh', temperature: 'c', clock: '24h' }));
 
   // Mock fetch in Node/JSDOM test environment to ensure tests are isolated and never leak HTTP traffic to a running backend
   globalThis.fetch = vi.fn().mockImplementation(() => {

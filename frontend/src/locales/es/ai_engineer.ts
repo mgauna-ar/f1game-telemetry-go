@@ -94,6 +94,9 @@ export const ai_engineer = {
   stop: 'Detener respuesta',
   expand: 'Agrandar chat',
   collapse: 'Achicar chat',
+  dock: 'Fijar al costado de la página',
+  askAi: 'Preguntar a la IA',
+  askAiAbout: 'Preguntar al ingeniero IA sobre {chart}',
   copyReply: 'Copiar respuesta',
   copied: 'Copiado',
   jumpToLatest: 'Ir al final',
@@ -184,6 +187,7 @@ export const ai_engineer = {
       voice: 'voz',
       ai: 'IA',
       ptt: 'pulsar para hablar',
+      comparator: 'comparador',
     },
   },
   radio: {
@@ -307,6 +311,7 @@ export const ai_engineer = {
   },
   neuralVoice: {
     title: 'Voz Neuronal (Síntesis)',
+    sectionTitle: 'Idioma y voz',
     auto: '⚡ Automática (Recomendada)',
     tomas: '🇦🇷 Tomás (Argentino - Masculino)',
     ryan: '🇬🇧 Ryan (Británico - Masculino)',

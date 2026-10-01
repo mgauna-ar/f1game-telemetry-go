@@ -30,6 +30,7 @@ import { TyreCompoundBadge } from '../common/TyreCompoundBadge';
 import { LiveViewModeSwitch } from '../LiveViewModeSwitch';
 import { Button } from '../ui/Button';
 import styles from './DriverGlance.module.css';
+import { useUnits } from '../../hooks/useUnits';
 
 interface DriverGlanceProps {
   viewMode: LiveViewMode;
@@ -45,6 +46,7 @@ const TREND_ICONS = { closing: ArrowDown, opening: ArrowUp, stable: Minus } as c
  */
 export const DriverGlance: React.FC<DriverGlanceProps> = ({ viewMode, onViewModeChange }) => {
   const { t } = useI18n();
+  const units = useUnits();
   const session = useSessionStatusStore((s) => s.session);
   const participants = useSessionStatusStore((s) => s.participants);
   const playerIdx = useTelemetryDataStore((s) => s.playerCarIndex);
@@ -172,7 +174,7 @@ export const DriverGlance: React.FC<DriverGlanceProps> = ({ viewMode, onViewMode
                   <span className={styles.cornerName}>{t(`live.driver.corners.${key}`)}</span>
                   <span className={styles.cornerWear}>{damage ? `${wear}%` : '–'}</span>
                   <span className={styles.cornerTemp}>
-                    {telemetry?.TyresSurfaceTemperature[index] ? `${telemetry.TyresSurfaceTemperature[index]}°` : ''}
+                    {telemetry?.TyresSurfaceTemperature[index] ? units.degrees(telemetry.TyresSurfaceTemperature[index]) : ''}
                   </span>
                 </span>
               );

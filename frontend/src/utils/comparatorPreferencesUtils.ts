@@ -1,30 +1,9 @@
 import type { Participant, Lap } from '../types/session';
-import type { ComparatorPreferences, ComparatorRivalMode } from '../types/comparatorPreferences';
-import { storage } from './storage';
+import type { ComparatorRivalMode } from '../types/comparatorPreferences';
 import { sortLapsByQuality } from './lapUtils';
 import { findParticipantByPartialName } from './player';
 
 export { findParticipantByPartialName };
-
-export const DEFAULT_COMPARATOR_PREFERENCES: ComparatorPreferences = {
-  rivalMode: 'fastest',
-  rivalDriverName: '',
-};
-
-export function loadComparatorPreferences(): ComparatorPreferences {
-  const rivalMode = storage.get<ComparatorRivalMode>('f1_comparator_rival_mode', 'fastest');
-  const rivalDriverName = storage.get<string>('f1_comparator_rival_driver_name', '');
-
-  return {
-    rivalMode: rivalMode === 'teammate' || rivalMode === 'driver' ? rivalMode : 'fastest',
-    rivalDriverName: typeof rivalDriverName === 'string' ? rivalDriverName : '',
-  };
-}
-
-export function saveComparatorPreferences(prefs: ComparatorPreferences): void {
-  storage.set('f1_comparator_rival_mode', prefs.rivalMode);
-  storage.set('f1_comparator_rival_driver_name', prefs.rivalDriverName.trim());
-}
 
 export interface LapResolutionResult {
   lapId: number | '';

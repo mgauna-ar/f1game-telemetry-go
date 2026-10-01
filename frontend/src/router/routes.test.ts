@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { buildPath, parseRoute, storeLastPage, storeLiveMode, type Route } from './routes';
+import { buildPath, parseRoute, settingsPath, storeLastPage, storeLiveMode, type Route } from './routes';
 
 describe('routes', () => {
   beforeEach(() => {
@@ -76,7 +76,17 @@ describe('routes', () => {
     expect(parseRoute('/')).toMatchObject({ page: 'live' });
     storeLastPage('progress');
     expect(parseRoute('/')).toMatchObject({ page: 'progress' });
-    expect(parseRoute('/settings/ai')).toEqual({ page: 'history', sessionId: undefined, tab: 'story' });
+    expect(parseRoute('/nowhere/ai')).toEqual({ page: 'history', sessionId: undefined, tab: 'story' });
+  });
+
+  it('reads the settings section, and keeps the page before it as the last page', () => {
+    expect(parseRoute('/settings')).toEqual({ page: 'settings', section: 'voice' });
+    expect(parseRoute('/settings/comparator')).toEqual({ page: 'settings', section: 'comparator' });
+    expect(parseRoute('/settings/nope')).toEqual({ page: 'settings', section: 'voice' });
+    expect(settingsPath('device')).toBe('/settings/device');
+    storeLastPage('progress');
+    storeLastPage('settings');
+    expect(parseRoute('/')).toMatchObject({ page: 'progress' });
   });
 
   it('builds URLs that parse back to the same route', () => {
@@ -91,6 +101,8 @@ describe('routes', () => {
       { page: 'live', mode: 'cockpit' },
       { page: 'live', mode: 'driver' },
       { page: 'progress' },
+      { page: 'settings', section: 'ai' },
+      { page: 'settings', section: 'device' },
       { page: 'progress', track: 'Abu Dhabi' },
       { page: 'compare', sessionA: 1, lapA: 10, sessionB: 2, lapB: 20, zoom: [100, 900] },
       { page: 'compare', sessionA: 1, lapA: 10, sessionB: 1, lapB: 11 },

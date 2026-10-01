@@ -45,6 +45,7 @@ export type ChatContextMode = 'comparator' | 'session_debrief' | 'live' | 'gener
 export interface ChatContextRequest {
   context_mode: ChatContextMode;
   session_id?: number;
+  focus?: DebriefFocus;
   lap_a_id?: number;
   lap_b_id?: number;
   zoom?: ChatZoomRange;
@@ -55,3 +56,5 @@ export interface ChatZoomRange {
   start_meters: number;
   end_meters: number;
 }
+
+export type DebriefFocus = 'pace' | 'position' | 'gap' | 'stints' | 'sectors' | 'story';

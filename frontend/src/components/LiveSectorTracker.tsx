@@ -8,8 +8,10 @@ import { useI18n } from '../context/I18nContext';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import { useTelemetryDataStore } from '../store/useTelemetryDataStore';
 import { styleVars } from '../styles/theme';
+import { EmptyState } from './ui/EmptyState';
 import { Panel, PanelHeader } from './ui/Panel';
 import styles from './LiveSectorTracker.module.css';
+import { useUnits } from '../hooks/useUnits';
 
 interface BestTime {
   time: number;
@@ -86,6 +88,7 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((p
   const selectedCarIndex = props.selectedCarIndex !== undefined ? props.selectedCarIndex : storeSelectedCarIndex;
 
   const { t } = useI18n();
+  const units = useUnits();
   const splitsTitleId = React.useId();
   const speedTitleId = React.useId();
 
@@ -220,7 +223,7 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((p
             {t('live.speedTrapLeaderboard')}
           </h4>
           {speedTraps.length === 0 ? (
-            <div className={styles.speedEmpty}>{t('live.noSpeedTraps')}</div>
+            <EmptyState compact title={t('live.noSpeedTraps')} />
           ) : (
             <ol className={styles.speedList}>
               {speedTraps.map((st, i) => (
@@ -237,7 +240,7 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((p
                   </span>
                   <span className={styles.speedValue}>
                     <span className={styles.speed}>
-                      {Math.round(st.speed)} {t('common.units.kmh')}
+                      {units.speed(st.speed)}
                     </span>
                     {st.lapNum > 0 && <span className={styles.speedLap}>L{st.lapNum}</span>}
                   </span>

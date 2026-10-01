@@ -90,6 +90,7 @@ describe('SessionStoryTab', () => {
     expect(within(timeline).getByText('Full Safety Car Deployed')).toBeInTheDocument();
     expect(within(timeline).getByText('Oscar Piastri retired from the session')).toBeInTheDocument();
     expect(screen.getByText('1 safety car(s) · 1 retirement(s)')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ask the AI engineer about Key moments' })).toBeInTheDocument();
 
     // Only yours
     fireEvent.click(screen.getByRole('radio', { name: 'Yours (1)' }));

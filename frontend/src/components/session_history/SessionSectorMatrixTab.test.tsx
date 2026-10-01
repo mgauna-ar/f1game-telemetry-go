@@ -1,11 +1,14 @@
 import { render, screen, fireEvent, within } from '@testing-library/react';
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect } from 'vitest';
 import { SessionSectorMatrixTab } from './SessionSectorMatrixTab';
 import { I18nProvider } from '../../context/I18nProvider';
 import type { DriverStanding, ClassificationResponse } from '../../types/session';
 import { makeParticipant } from '../../test/wireFactories';
+import { resetDevicePreferences, useDevicePreferencesStore } from '../../store/useDevicePreferencesStore';
 
 describe('SessionSectorMatrixTab Component', () => {
+  afterEach(() => resetDevicePreferences());
+
   const mockDriverStandings: DriverStanding[] = [
     {
       position: 1,
@@ -106,6 +109,24 @@ describe('SessionSectorMatrixTab Component', () => {
     expect(screen.getByText(/SPEED TRAP/i)).toBeInTheDocument();
     expect(screen.getByText('1:27.300')).toBeInTheDocument();
     expect(screen.getByText('330.5 km/h')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Ask the AI engineer about Sector/i })).toBeInTheDocument();
+  });
+
+  it('shows the speed trap in this device’s unit', () => {
+    useDevicePreferencesStore.getState().setUnits({ speed: 'mph' });
+    render(
+      <I18nProvider>
+        <SessionSectorMatrixTab
+          classificationData={mockClassificationData}
+          driverStandings={mockDriverStandings}
+          sessionBestS1={27300}
+          sessionBestS2={33500}
+          sessionBestS3={26500}
+          formatLapTime={formatLapTime}
+        />
+      </I18nProvider>
+    );
+    expect(screen.getByText('205.4 mph')).toBeInTheDocument();
   });
 
   it('supports sector filter buttons (ALL, S1, S2, S3)', () => {

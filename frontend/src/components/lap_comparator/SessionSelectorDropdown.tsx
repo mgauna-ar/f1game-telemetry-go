@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useId } from 'react';
 import { Search, ChevronDown, ChevronUp, X } from 'lucide-react';
 import type { Session } from '../../types/session';
-import { formatDate } from '../../utils/formatters';
 import { SessionTypeBadge } from '../common/SessionTypeBadge';
 import { useI18n } from '../../context/I18nContext';
 import { TagBadge } from '../session_history/TagBadge';
@@ -10,6 +9,7 @@ import { TrackFlag } from '../TrackFlag';
 import { IconButton } from '../ui/Button';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import styles from './SessionSelectorDropdown.module.css';
+import { useUnits } from '../../hooks/useUnits';
 
 type TypeTab = 'ALL' | 'RACE' | 'SPRINT' | 'QUALI' | 'PRACTICE';
 
@@ -47,6 +47,7 @@ export const SessionSelectorDropdown: React.FC<SessionSelectorDropdownProps> = (
   restrictedTrackName,
 }) => {
   const { t } = useI18n();
+  const units = useUnits();
   const internalRef = useRef<HTMLDivElement | null>(null);
   const containerRef = dropdownRef || internalRef;
   const listId = useId();
@@ -178,7 +179,7 @@ export const SessionSelectorDropdown: React.FC<SessionSelectorDropdownProps> = (
                     </span>
 
                     <span className={styles.itemRow}>
-                      <span className={styles.meta}>{formatDate(s.created_at)}</span>
+                      <span className={styles.meta}>{units.dateAndTime(s.created_at)}</span>
                       {s.weather && <span className={styles.weather}>🌦️ {s.weather}</span>}
                     </span>
 

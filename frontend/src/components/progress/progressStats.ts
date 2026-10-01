@@ -1,5 +1,6 @@
 import type { ProgressSession } from '../../types/progress';
 import { sessionKind, type SessionKind } from '../session_history/sessionKind';
+import type { UnitFormatter } from '../../hooks/useUnits';
 
 /** Which sessions the page shows: every one, or one kind. */
 export type ProgressKindFilter = 'all' | SessionKind;
@@ -77,10 +78,5 @@ export const shortDate = (iso: string, locale: string): string =>
   new Date(iso).toLocaleDateString(locale === 'es' ? 'es-AR' : 'en-GB', { day: 'numeric', month: 'short' });
 
 /** A short date and time, for the table: a weekend has several sessions on one day. */
-export const shortDateTime = (iso: string, locale: string): string =>
-  new Date(iso).toLocaleString(locale === 'es' ? 'es-AR' : 'en-GB', {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+export const shortDateTime = (iso: string, units: Pick<UnitFormatter, 'dateTime'>): string =>
+  units.dateTime(iso, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });

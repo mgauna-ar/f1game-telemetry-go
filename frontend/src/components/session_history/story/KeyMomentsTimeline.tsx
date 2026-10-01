@@ -7,8 +7,10 @@ import { keyMoments, momentsByLap, raceControlPeriods } from '../../../utils/rac
 import { Badge } from '../../ui/Badge';
 import { EmptyState } from '../../ui/EmptyState';
 import { Panel, PanelHeader } from '../../ui/Panel';
+import { AskAiButton } from '../../ai_engineer/AskAiButton';
 import { SegmentedControl } from '../../ui/SegmentedControl';
 import styles from './KeyMomentsTimeline.module.css';
+import { useUnits } from '../../../hooks/useUnits';
 
 type MomentFilter = 'all' | 'mine';
 
@@ -41,6 +43,7 @@ interface KeyMomentsTimelineProps {
  */
 export const KeyMomentsTimeline: React.FC<KeyMomentsTimelineProps> = ({ events, playerCarIndex }) => {
   const { t } = useI18n();
+  const units = useUnits();
   const [filter, setFilter] = useState<MomentFilter>('all');
 
   const moments = useMemo(() => keyMoments(events, playerCarIndex), [events, playerCarIndex]);
@@ -71,17 +74,22 @@ export const KeyMomentsTimeline: React.FC<KeyMomentsTimelineProps> = ({ events, 
             : t('history.story.momentsQuiet')
         }
         actions={
-          playerCarIndex !== null && mineCount > 0 ? (
-            <SegmentedControl
-              size="xs"
-              aria-label={t('history.story.momentsFilterLabel')}
-              value={filter}
-              onChange={setFilter}
-              options={[
-                { value: 'all', label: t('history.story.momentsAll') },
-                { value: 'mine', label: t('history.story.momentsMine', { count: mineCount }) },
-              ]}
-            />
+          moments.length > 0 ? (
+            <>
+              {playerCarIndex !== null && mineCount > 0 && (
+                <SegmentedControl
+                  size="xs"
+                  aria-label={t('history.story.momentsFilterLabel')}
+                  value={filter}
+                  onChange={setFilter}
+                  options={[
+                    { value: 'all', label: t('history.story.momentsAll') },
+                    { value: 'mine', label: t('history.story.momentsMine', { count: mineCount }) },
+                  ]}
+                />
+              )}
+              <AskAiButton prompt={t('history.detail.askAiPrompts.story')} about={t('history.story.momentsTitle')} />
+            </>
           ) : undefined
         }
       />
@@ -105,7 +113,7 @@ export const KeyMomentsTimeline: React.FC<KeyMomentsTimelineProps> = ({ events, 
                     <span className={styles.icon} data-type={m.event.type} aria-hidden="true">
                       <MomentIcon event={m.event} />
                     </span>
-                    <span className={styles.text}>{getLocalizedRaceEventDescription(m.event, t)}</span>
+                    <span className={styles.text}>{getLocalizedRaceEventDescription(m.event, t, units)}</span>
                     {m.mine && (
                       <Badge tone="info" size="sm" className={styles.you}>
                         {t('history.player.you')}

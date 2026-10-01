@@ -1,7 +1,8 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { useI18n } from './I18nContext';
 import { I18nProvider } from './I18nProvider';
-import { getTranslation, en, es } from '../locales';
+import { getTranslation, en } from '../locales';
+import { es } from '../locales/es';
 
 const TestComponent = () => {
   const { locale, setLocale, t, currentLocaleInfo } = useI18n();

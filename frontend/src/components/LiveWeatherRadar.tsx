@@ -21,6 +21,7 @@ import { Badge } from './ui/Badge';
 import { Panel, PanelHeader } from './ui/Panel';
 import { Stat } from './ui/Stat';
 import styles from './LiveWeatherRadar.module.css';
+import { useUnits } from '../hooks/useUnits';
 
 const SUN = cssVar('--weather-sun');
 const RAIN = cssVar('--weather-rain');
@@ -37,6 +38,7 @@ export const LiveWeatherRadar: React.FC<LiveWeatherRadarProps> = React.memo((pro
   const session = props.session !== undefined ? props.session : storeSession;
 
   const { t } = useI18n();
+  const units = useUnits();
   const weatherCode = session?.Weather ?? WEATHER_CODES.CLEAR;
   const trackTemp = session?.TrackTemperature ?? DEFAULT_WEATHER_DEFAULTS.TRACK_TEMP;
   const airTemp = session?.AirTemperature ?? DEFAULT_WEATHER_DEFAULTS.AIR_TEMP;
@@ -204,9 +206,9 @@ export const LiveWeatherRadar: React.FC<LiveWeatherRadarProps> = React.memo((pro
         <Stat
           icon={<Thermometer size={16} color={cssVar('--weather-warm')} />}
           label={t('live.trackTemp')}
-          value={`${trackTemp}°C`}
+          value={units.temperature(trackTemp)}
         />
-        <Stat icon={<Wind size={16} color={RAIN} />} label={t('live.airTemp')} value={`${airTemp}°C`} />
+        <Stat icon={<Wind size={16} color={RAIN} />} label={t('live.airTemp')} value={units.temperature(airTemp)} />
         <Stat
           icon={<Droplets size={16} color={highestRainInWindow > 30 ? RAIN : cssVar('--text-muted')} />}
           label={t('live.peakRainRisk')}
@@ -252,10 +254,10 @@ export const LiveWeatherRadar: React.FC<LiveWeatherRadarProps> = React.memo((pro
               {/* Temperature trends */}
               <div className={`mono ${styles.temps}`}>
                 <span title={t('common.trackTemp')}>
-                  T: {sample.TrackTemperature ?? '-'}°C {getTempTrendIcon(sample.TrackTemperatureChange ?? 0)}
+                  T: {units.temperature(sample.TrackTemperature, 0, '-')} {getTempTrendIcon(sample.TrackTemperatureChange ?? 0)}
                 </span>
                 <span title={t('common.airTemp')}>
-                  A: {sample.AirTemperature ?? '-'}°C {getTempTrendIcon(sample.AirTemperatureChange ?? 0)}
+                  A: {units.temperature(sample.AirTemperature, 0, '-')} {getTempTrendIcon(sample.AirTemperatureChange ?? 0)}
                 </span>
               </div>
             </li>

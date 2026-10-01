@@ -4,6 +4,10 @@ import { SettingsSync } from './SettingsSync';
 import { useRadioSettingsStore } from '../../store/useRadioSettingsStore';
 import { useSettingsSaveStore } from '../../store/useSettingsSaveStore';
 import { useToastStore } from '../../store/useToastStore';
+import {
+  resetComparatorPreferencesStore,
+  useComparatorPreferencesStore,
+} from '../../store/useComparatorPreferencesStore';
 import { api } from '../../utils/apiClient';
 import { DASHBOARD_CLIENT_ID } from '../../utils/settingsClient';
 import { dispatchEngineerMessage, type EngineerMessageHandlers } from '../../utils/engineerSocket';
@@ -26,6 +30,7 @@ describe('SettingsSync', () => {
   beforeEach(() => {
     useRadioSettingsStore.getState().resetStoreToDefaults();
     useToastStore.getState().clearToasts();
+    resetComparatorPreferencesStore();
   });
 
   afterEach(() => {
@@ -72,6 +77,20 @@ describe('SettingsSync', () => {
 
     await waitFor(() => expect(useRadioSettingsStore.getState().driverCallsign).toBe('Mati'));
     expect(getSpy).toHaveBeenCalledWith('/api/settings/voice');
+  });
+
+  it('reloads the comparator preferences once this tab has them', async () => {
+    const getSpy = vi.spyOn(api, 'get').mockResolvedValue({ saved: true, rival_mode: 'teammate', rival_driver_name: '' });
+    render(<SettingsSync />);
+
+    act(() => sendEngineerMessage({ type: 'settings_changed', section: 'comparator', source: 'tab-b' }));
+    expect(getSpy).not.toHaveBeenCalled();
+
+    useComparatorPreferencesStore.setState({ loaded: true });
+    act(() => sendEngineerMessage({ type: 'settings_changed', section: 'comparator', source: 'tab-b' }));
+
+    await waitFor(() => expect(useComparatorPreferencesStore.getState().preferences.rivalMode).toBe('teammate'));
+    expect(getSpy).toHaveBeenCalledWith('/api/settings/comparator');
   });
 
   it('shows failed saves and conflicts as toasts', () => {

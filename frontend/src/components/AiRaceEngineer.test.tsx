@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, within, act } from '@testing-library/react';
 import { vi, describe, it, beforeEach, expect } from 'vitest';
+import { resetDevicePreferences, useDevicePreferencesStore } from '../store/useDevicePreferencesStore';
 import { AiRaceEngineer } from './AiRaceEngineer';
 import { RaceEngineerProvider } from '../context/RaceEngineerProvider';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
@@ -30,6 +31,7 @@ describe('AiRaceEngineer Component', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     localStorage.clear();
+    resetDevicePreferences();
     useSessionStatusStore.setState({ connected: false, session: null });
     useSessionListStore.getState().reset();
     globalThis.fetch = vi.fn().mockImplementation((url: string) => {
@@ -181,6 +183,62 @@ describe('AiRaceEngineer Component', () => {
     expect(screen.getByRole('button', { name: 'Shrink chat' })).toBeInTheDocument();
   });
 
+  it('docks beside the page, making room for it, and remembers it on this browser', () => {
+    const { rerender } = render(
+      <RaceEngineerProvider>
+        <AiRaceEngineer isOpenOverride={true} />
+      </RaceEngineerProvider>
+    );
+
+    const dock = screen.getByRole('button', { name: 'Dock beside the page' });
+    expect(dock).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(dock);
+
+    const panel = screen.getByRole('complementary', { name: 'AI Race Engineer' });
+    expect(panel).toHaveAttribute('data-docked', 'true');
+    expect(document.documentElement).toHaveAttribute('data-chat-docked');
+    expect(localStorage.getItem('f1_ai_engineer_docked')).toBe('true');
+    // Docked it is full height already, so there is no large view to switch to
+    expect(screen.queryByRole('button', { name: 'Expand chat' })).toBeNull();
+
+    // Closed, the page takes its whole width back; opened again, it docks again
+    rerender(
+      <RaceEngineerProvider>
+        <AiRaceEngineer isOpenOverride={false} />
+      </RaceEngineerProvider>
+    );
+    expect(document.documentElement).not.toHaveAttribute('data-chat-docked');
+    rerender(
+      <RaceEngineerProvider>
+        <AiRaceEngineer isOpenOverride={true} />
+      </RaceEngineerProvider>
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Dock beside the page', pressed: true }));
+    expect(screen.getByRole('dialog', { name: 'AI Race Engineer' })).toHaveAttribute('data-docked', 'false');
+    expect(document.documentElement).not.toHaveAttribute('data-chat-docked');
+  });
+
+  it('floats on a window too narrow to dock', () => {
+    useDevicePreferencesStore.setState({ chatDocked: true });
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((query: string) => ({ matches: query.includes('1100px'), addEventListener: vi.fn(), removeEventListener: vi.fn() }))
+    );
+    try {
+      render(
+        <RaceEngineerProvider>
+          <AiRaceEngineer isOpenOverride={true} />
+        </RaceEngineerProvider>
+      );
+
+      expect(screen.getByRole('dialog', { name: 'AI Race Engineer' })).toHaveAttribute('data-docked', 'false');
+      expect(screen.queryByRole('button', { name: 'Dock beside the page' })).toBeNull();
+      expect(document.documentElement).not.toHaveAttribute('data-chat-docked');
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('displays a friendly missing API key card with links when no key is configured', async () => {
     // Setup config status with NO server key
     globalThis.fetch = vi.fn().mockImplementation((url: string) => {
@@ -307,5 +365,15 @@ describe('AiRaceEngineer Component', () => {
     expect(screen.getByText('Session Pace Overview')).toBeInTheDocument();
     expect(screen.getByText('Tyre Stint Degradation')).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Ask about session pace, stints, or strategy/i)).toBeInTheDocument();
+  });
+
+  it('names the session tab the engineer looks at first', () => {
+    openPage('/history/42/stints', [{ id: 42, track_name: 'Spa-Francorchamps' }]);
+    render(
+      <RaceEngineerProvider>
+        <AiRaceEngineer isOpenOverride={true} />
+      </RaceEngineerProvider>
+    );
+    expect(screen.getByText('Spa-Francorchamps · Tyres & stints')).toBeInTheDocument();
   });
 });

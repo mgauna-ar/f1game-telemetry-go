@@ -9,6 +9,14 @@ export interface AIUpdate {
   api_keys?: Record<string, string>;
 }
 
+/** Go: settings.Comparator */
+export interface Comparator {
+  rival_mode: ComparatorRivalMode;
+  rival_driver_name: string;
+}
+
+export type ComparatorRivalMode = 'fastest' | 'teammate' | 'driver';
+
 /** Go: settings.Engineer */
 export interface Engineer extends Tuning {
   version: number;

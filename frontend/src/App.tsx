@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
-import { Calendar, GitCompare, Radio, Sparkles, TrendingUp } from 'lucide-react';
+import { Calendar, GitCompare, Radio, Settings, Sparkles, TrendingUp } from 'lucide-react';
 import { F1TelemetryLogo } from './components/F1TelemetryLogo';
 import { RaceEngineerProvider } from './context/RaceEngineerProvider';
 import { I18nProvider } from './context/I18nProvider';
@@ -24,13 +24,17 @@ import { LIVE_STATUS, LIVE_VIEW_MODES } from './constants/f1';
 import type { UpdateCheckResponse, SystemVersion } from './types/system';
 import { Link } from './router/Link';
 import { navigate, useRoute, useUrl } from './router/router';
-import { buildPath, storeLastPage, storedLiveMode, type Page } from './router/routes';
+import { buildPath, settingsPath, storeLastPage, storedLiveMode, type Page } from './router/routes';
+import { SkeletonPage } from './components/ui/Skeleton';
 import styles from './App.module.css';
 
 const SessionHistory = lazy(() => import('./components/SessionHistory').then((m) => ({ default: m.SessionHistory })));
 const LapComparator = lazy(() => import('./components/LapComparator').then((m) => ({ default: m.LapComparator })));
 const TrackProgress = lazy(() =>
   import('./components/progress/TrackProgress').then((m) => ({ default: m.TrackProgress }))
+);
+const SettingsPage = lazy(() =>
+  import('./components/settings/SettingsPage').then((m) => ({ default: m.SettingsPage }))
 );
 const Dashboard = lazy(() => import('./components/Dashboard').then((m) => ({ default: m.Dashboard })));
 const ReleaseNotesModal = lazy(() =>
@@ -77,6 +81,8 @@ function AppContent() {
   const lastProgressUrl = useRef('/progress');
   if (activePage === 'compare') lastCompareUrl.current = canonicalUrl;
   if (activePage === 'progress') lastProgressUrl.current = canonicalUrl;
+  const lastSettingsUrl = useRef(settingsPath());
+  if (activePage === 'settings') lastSettingsUrl.current = canonicalUrl;
   const tabHref = (page: Page) => {
     switch (page) {
       case 'compare':
@@ -220,6 +226,15 @@ function AppContent() {
             <span>{systemVersion?.version || updateInfo?.current_version || 'dev'}</span>
           </button>
 
+          <Link
+            href={lastSettingsUrl.current}
+            className={styles.settingsLink}
+            aria-current={activePage === 'settings' ? 'page' : undefined}
+            aria-label={t('settings.open')}
+            title={t('settings.open')}
+          >
+            <Settings size={15} aria-hidden="true" />
+          </Link>
           <PerformanceModeToggle />
           <LanguageSelector />
           <span className={styles.port}>
@@ -231,13 +246,16 @@ function AppContent() {
       {/* Main Tab Content */}
       <main className={styles.main}>
         <ErrorBoundary level="section" onReset={() => {}}>
-          <Suspense fallback={null}>
+          {/* While a page's code loads, the shape of a page instead of a blank screen */}
+          <Suspense fallback={<SkeletonPage label={t('common.loading')} />}>
             {activePage === 'history' ? (
               <SessionHistory />
             ) : activePage === 'compare' ? (
               <LapComparator />
             ) : activePage === 'progress' ? (
               <TrackProgress />
+            ) : activePage === 'settings' ? (
+              <SettingsPage />
             ) : (
               <Dashboard />
             )}

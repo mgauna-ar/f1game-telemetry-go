@@ -3,7 +3,6 @@ import { Clock, ChevronRight } from 'lucide-react';
 import type { SessionListItem as Session } from '../../types/session';
 import { useI18n } from '../../context/I18nContext';
 import { useSessionHistoryData, useSessionHistoryActions } from '../../context/SessionHistoryContextDefinitions';
-import { formatDate as defaultFormatDate } from '../../utils/formatters';
 import { SessionTypeBadge } from '../common/SessionTypeBadge';
 import { AddTagButton, TagBadge } from './TagBadge';
 import { F1FormatBadge } from '../F1FormatBadge';
@@ -25,6 +24,7 @@ import { useSessionListPaging } from '../../hooks/useSessionListPaging';
 import { SessionListMore } from './SessionListMore';
 import type { SessionGroupBy } from '../../utils/sessionListView';
 import styles from './SessionTableView.module.css';
+import { useUnits } from '../../hooks/useUnits';
 
 export interface SessionTableViewProps {
   sessions?: Session[];
@@ -57,6 +57,7 @@ const StopRowClick: React.FC<{ children: React.ReactNode; className?: string }> 
 
 export const SessionTableView: React.FC<SessionTableViewProps> = React.memo((props) => {
   const { t } = useI18n();
+  const units = useUnits();
 
   const historyData = useSessionHistoryData();
   const historyActions = useSessionHistoryActions();
@@ -68,7 +69,7 @@ export const SessionTableView: React.FC<SessionTableViewProps> = React.memo((pro
   const onSelectSession = props.onSelectSession ?? historyActions.selectSession;
   const onRequestDelete = props.onRequestDelete ?? historyActions.setSessionToDelete;
   const onExportSession = props.onExportSession ?? historyActions.handleExportSession;
-  const formatDate = props.formatDate ?? defaultFormatDate;
+  const formatDate = props.formatDate ?? ((dateStr?: string) => units.dateAndTime(dateStr ?? ''));
   const sortField = props.sortField ?? historyData.sortField;
   const sortOrder = props.sortOrder ?? historyData.sortOrder;
   const onToggleSort = props.onToggleSort ?? historyActions.handleToggleSort;

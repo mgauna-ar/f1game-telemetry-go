@@ -84,7 +84,9 @@ func registry() *tsgen.Generator {
 		api.PTTConfigResponse{},
 		api.EngineerSettingsResponse{},
 		settings.Engineer{},
+		api.ComparatorSettingsResponse{},
 	)
+	g.TypeAlias("settings", "ComparatorRivalMode", stringUnion(settings.RivalModes))
 	// The radio settings panel's switch names; the server derives the engine's categories from them.
 	g.TypeAlias("engineer", "EngineerAlertSwitch", stringUnion(engineer.AlertSwitchKeys))
 
@@ -107,6 +109,7 @@ func registry() *tsgen.Generator {
 
 	// An AI chat request names what it is about; the server builds the prompt data.
 	g.TypeAlias("ai", "ChatContextMode", stringUnion(ai.ChatContextModes))
+	g.TypeAlias("ai", "DebriefFocus", stringUnion(ai.DebriefFocuses))
 
 	// Messages on /ws/engineer, told apart by their type.
 	g.Add(

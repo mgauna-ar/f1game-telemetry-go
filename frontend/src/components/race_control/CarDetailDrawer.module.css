@@ -2,7 +2,7 @@
 .drawer {
   position: fixed;
   top: 0;
-  right: 0;
+  right: var(--chat-dock-space); /* beside the docked AI chat, not over it */
   bottom: 0;
   z-index: var(--z-popover);
   display: flex;
@@ -196,8 +196,3 @@
   color: var(--status-danger);
 }
 
-.note {
-  margin: 0;
-  font-size: var(--font-size-sm);
-  color: var(--text-muted);
-}

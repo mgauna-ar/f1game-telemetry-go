@@ -1,5 +1,6 @@
 import type { Session } from '../types/session';
 import { getTrackInfo } from '../constants/f1';
+import { sessionTypeLabel } from './sessionTypeLabel';
 
 export type SessionTypeTab = 'ALL' | 'RACE' | 'QUALI' | 'PRACTICE' | 'SPRINT';
 
@@ -29,6 +30,8 @@ export function matchSessionSearch(
     (session.track_name ? session.track_name.toLowerCase().includes(q) : false) ||
     Boolean(countryMatches) ||
     (session.session_type ? session.session_type.toLowerCase().includes(q) : false) ||
+    // The name shown in the UI language finds it too ("carrera")
+    (session.session_type && t ? sessionTypeLabel(session.session_type, t).toLowerCase().includes(q) : false) ||
     String(session.id).includes(q) ||
     (session.created_at
       ? new Date(session.created_at).toLocaleDateString().toLowerCase().includes(q)

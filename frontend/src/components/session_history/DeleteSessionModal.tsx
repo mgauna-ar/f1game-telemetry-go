@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertTriangle, Trash2 } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
+import { sessionTypeLabel } from '../../utils/sessionTypeLabel';
 import type { Session } from '../../types/session';
 import { Button } from '../ui/Button';
 import { Modal, ModalBody, ModalDescription, ModalFooter, ModalHeader } from '../ui/Modal';
@@ -30,7 +31,7 @@ export const DeleteSessionModal: React.FC<DeleteSessionModalProps> = ({
             {t('history.modal.confirmBody', {
               id: session.id,
               track: session.track_name,
-              type: session.session_type,
+              type: sessionTypeLabel(session.session_type, t),
             })}
           </ModalDescription>
         </ModalBody>

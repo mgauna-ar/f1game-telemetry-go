@@ -5,7 +5,6 @@ import {
   formatGapTime,
   formatDuration,
   formatTotalDuration,
-  formatDate,
   formatSessionUID,
   getSessionTone,
 } from './formatters';
@@ -99,18 +98,6 @@ describe('formatters', () => {
 
     it('returns dashes for invalid or zero ms', () => {
       expect(formatTotalDuration(0)).toBe('--:--.---');
-    });
-  });
-
-  describe('formatDate', () => {
-    it('formats ISO date string without errors', () => {
-      const res = formatDate('2026-06-01T14:30:00Z');
-      expect(res).toBeTruthy();
-      expect(res).not.toBe('Unknown Date');
-    });
-
-    it('returns Unknown Date for empty date', () => {
-      expect(formatDate(undefined)).toBe('Unknown Date');
     });
   });
 

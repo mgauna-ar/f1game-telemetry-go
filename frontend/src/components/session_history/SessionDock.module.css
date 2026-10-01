@@ -2,7 +2,7 @@
 .dock {
   position: fixed;
   bottom: var(--dock-inset);
-  left: 50%;
+  left: calc(50% - var(--chat-dock-space) / 2); /* centred on the page, beside a docked AI chat */
   z-index: var(--z-dock);
   display: flex;
   flex-wrap: wrap;

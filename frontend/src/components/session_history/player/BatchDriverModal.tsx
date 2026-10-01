@@ -4,10 +4,13 @@ import { useI18n } from '../../../context/I18nContext';
 import { useSessionListStore } from '../../../store/useSessionListStore';
 import { useToastStore } from '../../../store/useToastStore';
 import type { BatchPlayerResult, SessionListItem } from '../../../types/session';
-import { formatDate } from '../../../utils/formatters';
+import { useUnits } from '../../../hooks/useUnits';
 import { getSessionLapData } from '../../../utils/sessionDataCache';
+import { sessionTypeLabel } from '../../../utils/sessionTypeLabel';
 import { Button } from '../../ui/Button';
+import { EmptyState } from '../../ui/EmptyState';
 import { TextInput } from '../../ui/Field';
+import { SkeletonChips, SkeletonGroup } from '../../ui/Skeleton';
 import { Modal, ModalBody, ModalFooter, ModalHeader } from '../../ui/Modal';
 import { driverNameSuggestions, type DriverNameSuggestion } from './driverNameSuggestions';
 import styles from './BatchDriverModal.module.css';
@@ -139,9 +142,11 @@ const BatchDriverContent: React.FC<{ sessionIds: number[]; onClose: () => void }
               : t('history.player.batch.suggestions')}
           </h3>
           {suggestions === null ? (
-            <p className={styles.muted}>{t('history.player.picker.loading')}</p>
+            <SkeletonGroup label={t('history.player.picker.loading')}>
+              <SkeletonChips count={4} />
+            </SkeletonGroup>
           ) : suggestions.length === 0 ? (
-            <p className={styles.muted}>{t('history.player.batch.noSuggestions')}</p>
+            <EmptyState compact title={t('history.player.batch.noSuggestions')} />
           ) : (
             <ul className={styles.chips}>
               {suggestions.slice(0, SUGGESTION_BUTTONS).map((s) => (
@@ -184,6 +189,7 @@ const BatchDriverResult: React.FC<{ result: BatchPlayerResult; sessions: Session
   driverName,
 }) => {
   const { t } = useI18n();
+  const units = useUnits();
   const byId = new Map(sessions.map((s) => [s.id, s]));
   const groups = [
     { key: 'updated', ids: result.updated, title: t('history.player.batch.updated', { count: result.updated.length }) },
@@ -210,7 +216,7 @@ const BatchDriverResult: React.FC<{ result: BatchPlayerResult; sessions: Session
                 return (
                   <li key={id}>
                     {session
-                      ? `${session.track_name} · ${session.session_type} · ${formatDate(session.created_at)}`
+                      ? `${session.track_name} · ${sessionTypeLabel(session.session_type, t)} · ${units.dateAndTime(session.created_at)}`
                       : `#${id}`}
                   </li>
                 );

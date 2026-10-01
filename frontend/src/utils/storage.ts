@@ -5,8 +5,9 @@ type LegacyRadioStorageKey = (typeof LEGACY_RADIO_STORAGE_KEYS)[keyof typeof LEG
 
 /**
  * Every key the app keeps in localStorage. These settings are per browser; settings every device
- * shares (alerts, AI provider and keys, voice, push-to-talk) live on the server. The legacy keys
- * and 'f1_ai_engineer_config' are only read once, to move older browser settings to the server.
+ * shares (alerts, AI provider and keys, voice, push-to-talk, comparator rival) live on the server.
+ * The legacy keys, 'f1_ai_engineer_config' and the comparator rival keys are only read once, to move
+ * older browser settings to the server.
  */
 export type KnownStorageKey =
   | RadioStorageKey
@@ -17,13 +18,16 @@ export type KnownStorageKey =
   | 'f1_live_view_mode'
   | 'f1_live_view_mode_phone'
   | 'f1_race_control_layout'
+  | 'f1_units'
   | 'f1_performance_mode'
   | 'f1_performance_mode_driver'
   | 'f1_ai_engineer_config'
   | 'f1_ai_engineer_open'
   | 'f1_ai_engineer_expanded'
+  | 'f1_ai_engineer_docked'
   // Old saved driver name: only read once to apply it to sessions without a driver, then removed
   | 'f1_comparator_default_driver_name'
+  // Comparator rival: only read once to move it to /api/settings/comparator, then removed
   | 'f1_comparator_rival_mode'
   | 'f1_comparator_rival_driver_name'
   | 'f1_comparator_chart_view'
@@ -33,7 +37,53 @@ export type KnownStorageKey =
 
 export type StorageKey = KnownStorageKey | (string & {});
 
+/** The raw stored text, or null when absent or storage is unavailable. */
+function readRaw(key: StorageKey): string | null {
+  if (typeof window === 'undefined' || !window.localStorage) return null;
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
 export const storage = {
+  /** Whether anything is stored under `key`. */
+  has(key: StorageKey): boolean {
+    return readRaw(key) !== null;
+  },
+
+  /**
+   * A stored string, saved raw or JSON-quoted. Unlike `get`, a value that looks like a number or
+   * boolean ("44" as a callsign) stays a string. Falls back when absent, empty, or not one of
+   * `allowed`.
+   */
+  getString<T extends string>(key: StorageKey, fallback: T, allowed?: readonly T[]): T {
+    const raw = readRaw(key);
+    if (!raw) return fallback;
+    let value = raw;
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      if (typeof parsed === 'string') value = parsed;
+    } catch {
+      // Saved raw
+    }
+    return value && (!allowed || allowed.includes(value as T)) ? (value as T) : fallback;
+  },
+
+  /** A stored `true`/`false`; anything else falls back. */
+  getBoolean(key: StorageKey, fallback: boolean): boolean {
+    const raw = readRaw(key);
+    return raw === 'true' ? true : raw === 'false' ? false : fallback;
+  },
+
+  /** A stored number clamped to [min, max]; anything that isn't a number falls back. */
+  getNumber(key: StorageKey, fallback: number, min = -Infinity, max = Infinity): number {
+    const raw = readRaw(key);
+    const num = raw === null || raw.trim() === '' ? NaN : Number(raw);
+    return Number.isNaN(num) ? fallback : Math.min(max, Math.max(min, num));
+  },
+
   /**
    * Safely retrieves and parses a value from localStorage.
    * If the item is absent, corrupted, or cannot be parsed, returns fallback.

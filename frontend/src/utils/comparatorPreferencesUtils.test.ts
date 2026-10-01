@@ -1,11 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
-  loadComparatorPreferences,
-  saveComparatorPreferences,
   findParticipantByPartialName,
   resolveReferenceLap,
   resolveComparisonLap,
-  DEFAULT_COMPARATOR_PREFERENCES,
 } from './comparatorPreferencesUtils';
 import type { Participant, Lap } from '../types/session';
 import { makeLap, makeParticipant } from '../test/wireFactories';
@@ -13,42 +10,6 @@ import { makeLap, makeParticipant } from '../test/wireFactories';
 describe('comparatorPreferencesUtils', () => {
   beforeEach(() => {
     localStorage.clear();
-  });
-
-  describe('loadComparatorPreferences & saveComparatorPreferences', () => {
-    it('ignores the old saved driver name', () => {
-      localStorage.setItem('f1_comparator_default_driver_name', JSON.stringify('Verstappen'));
-      expect(loadComparatorPreferences()).toEqual(DEFAULT_COMPARATOR_PREFERENCES);
-      saveComparatorPreferences(DEFAULT_COMPARATOR_PREFERENCES);
-      expect(localStorage.getItem('f1_comparator_default_driver_name')).toBe(JSON.stringify('Verstappen'));
-    });
-
-    it('returns default preferences when nothing stored', () => {
-      const prefs = loadComparatorPreferences();
-      expect(prefs).toEqual(DEFAULT_COMPARATOR_PREFERENCES);
-    });
-
-    it('persists and retrieves valid preferences', () => {
-      saveComparatorPreferences({
-        rivalMode: 'teammate',
-        rivalDriverName: '',
-      });
-
-      const loaded = loadComparatorPreferences();
-      expect(loaded.rivalMode).toBe('teammate');
-      expect(loaded.rivalDriverName).toBe('');
-    });
-
-    it('sanitizes and trims inputs', () => {
-      saveComparatorPreferences({
-        rivalMode: 'driver',
-        rivalDriverName: '  Piastri  ',
-      });
-
-      const loaded = loadComparatorPreferences();
-      expect(loaded.rivalMode).toBe('driver');
-      expect(loaded.rivalDriverName).toBe('Piastri');
-    });
   });
 
   describe('findParticipantByPartialName', () => {

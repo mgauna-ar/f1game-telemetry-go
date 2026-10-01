@@ -159,6 +159,10 @@
   --launcher-size: 54px;
   --floating-dock-clearance: 96px;
   --session-dock-clearance: 120px;
+  /* The AI chat docked beside the page; --chat-dock-space is the room the page leaves it, zero
+     unless <html> has data-chat-docked (set by the chat, only above the laptop breakpoint). */
+  --chat-dock-width: clamp(360px, 26vw, 460px);
+  --chat-dock-space: 0px;
 
   /* ── Type ────────────────────────────────────────────────────────────── */
   --font-sans: 'Inter', sans-serif;
@@ -220,6 +224,11 @@
   --duration-slow: 0.4s;
   --transition-fast: var(--duration-fast) var(--ease-smooth);
   --transition-normal: var(--duration-normal) var(--ease-smooth);
+}
+
+/* The page makes room for the docked AI chat */
+:root[data-chat-docked] {
+  --chat-dock-space: var(--chat-dock-width);
 }
 
 @media (--tablet) {

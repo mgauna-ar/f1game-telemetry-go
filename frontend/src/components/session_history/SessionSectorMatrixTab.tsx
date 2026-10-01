@@ -9,11 +9,13 @@ import { SectorTime } from '../common/SectorTime';
 import { cx } from '../ui/cx';
 import { DataTable, type DataTableColumn } from '../ui/DataTable';
 import { Panel, PanelHeader } from '../ui/Panel';
+import { AskAiButton } from '../ai_engineer/AskAiButton';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { Stat } from '../ui/Stat';
 import type { DriverStanding, ClassificationResponse } from '../../types/session';
 import { useI18n } from '../../context/I18nContext';
 import styles from './SessionSectorMatrixTab.module.css';
+import { useUnits } from '../../hooks/useUnits';
 
 interface SessionSectorMatrixTabProps {
   classificationData?: ClassificationResponse | null;
@@ -104,7 +106,7 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
   const minOverallSpeed = speedRankings.length > 0 ? Math.min(...speedRankings.map((d) => d.maxSpeed)) : 0;
   // Top speeds sit within a few km/h of each other, so bars span slowest-to-fastest instead of 0-to-fastest
   const speedSpread = maxOverallSpeed - minOverallSpeed;
-  const kmh = t('common.units.kmh');
+  const units = useUnits();
 
   const recordLabels = [t('history.sectors.s1Record'), t('history.sectors.s2Record'), t('history.sectors.s3Record')];
   const bestHeaders = [t('history.sectors.bestS1'), t('history.sectors.bestS2'), t('history.sectors.bestS3')];
@@ -222,18 +224,24 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
             icon={<Zap size={18} color="var(--accent-purple)" />}
             title={t('history.sectors.sectorLeaderboards')}
             actions={
-              <SegmentedControl
-                size="xs"
-                aria-label={t('history.sectors.sectorViewLabel')}
-                value={sectorView}
-                onChange={setSectorView}
-                options={[
-                  { value: 'ALL', label: t('history.sectors.allSectors') },
-                  { value: 'S1', label: 'S1' },
-                  { value: 'S2', label: 'S2' },
-                  { value: 'S3', label: 'S3' },
-                ]}
-              />
+              <>
+                <SegmentedControl
+                  size="xs"
+                  aria-label={t('history.sectors.sectorViewLabel')}
+                  value={sectorView}
+                  onChange={setSectorView}
+                  options={[
+                    { value: 'ALL', label: t('history.sectors.allSectors') },
+                    { value: 'S1', label: 'S1' },
+                    { value: 'S2', label: 'S2' },
+                    { value: 'S3', label: 'S3' },
+                  ]}
+                />
+                <AskAiButton
+                  prompt={t('history.detail.askAiPrompts.sectors')}
+                  about={t('history.sectors.sectorLeaderboards')}
+                />
+              </>
             }
           />
           <DataTable
@@ -256,7 +264,7 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
             actions={
               <span className={styles.topSpeed}>
                 {t('history.sectors.highestSpeed', {
-                  speed: maxOverallSpeed ? `${maxOverallSpeed.toFixed(1)} ${kmh}` : '--',
+                  speed: units.speed(maxOverallSpeed || null, 1),
                 })}
               </span>
             }
@@ -287,11 +295,11 @@ export const SessionSectorMatrixTab: React.FC<SessionSectorMatrixTabProps> = ({
                     <div className={styles.speedFigures}>
                       {deltaToTop > 0 && (
                         <span className={styles.speedGap}>
-                          -{deltaToTop.toFixed(1)} {kmh}
+                          -{units.speed(deltaToTop, 1)}
                         </span>
                       )}
                       <span className={styles.speed}>
-                        {speed.toFixed(1)} {kmh}
+                        {units.speed(speed, 1)}
                       </span>
                     </div>
                   </div>

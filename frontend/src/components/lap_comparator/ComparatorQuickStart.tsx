@@ -4,11 +4,13 @@ import { useI18n } from '../../context/I18nContext';
 import type { CompareParams } from '../../router/routes';
 import type { SessionListItem } from '../../types/session';
 import { quickStartComparisons, type QuickStartComparison } from '../../utils/comparatorQuickStart';
-import { formatDate, formatLapTime } from '../../utils/formatters';
+import { sessionTypeLabel } from '../../utils/sessionTypeLabel';
+import { formatLapTime } from '../../utils/formatters';
 import { TrackFlag } from '../TrackFlag';
 import { EmptyState } from '../ui/EmptyState';
 import { Panel, PanelHeader } from '../ui/Panel';
 import styles from './ComparatorQuickStart.module.css';
+import { useUnits } from '../../hooks/useUnits';
 
 export interface ComparatorQuickStartProps {
   sessions: SessionListItem[];
@@ -25,6 +27,7 @@ const TITLE_KEYS: Record<QuickStartComparison['kind'], string> = {
 /** What the comparator shows before any lap is picked: comparisons to open in one click. */
 export const ComparatorQuickStart: React.FC<ComparatorQuickStartProps> = ({ sessions, onStart }) => {
   const { t } = useI18n();
+  const units = useUnits();
   const cards = useMemo(() => quickStartComparisons(sessions), [sessions]);
 
   if (cards.length === 0) {
@@ -58,12 +61,12 @@ export const ComparatorQuickStart: React.FC<ComparatorQuickStartProps> = ({ sess
                 </span>
                 <span className={styles.session}>
                   <TrackFlag track={card.session.track_name} width={16} height={11} />
-                  {card.session.track_name} · {card.session.session_type}
+                  {card.session.track_name} · {sessionTypeLabel(card.session.session_type, t)}
                 </span>
                 <span className={styles.meta}>
                   {card.previous
-                    ? t('comparator.quickStart.previousSession', { date: formatDate(card.previous.created_at) })
-                    : formatDate(card.session.created_at)}
+                    ? t('comparator.quickStart.previousSession', { date: units.dateAndTime(card.previous.created_at) })
+                    : units.dateAndTime(card.session.created_at)}
                 </span>
                 <span className={styles.times}>
                   <span data-slot="a">{formatLapTime(card.lapATimeMs)}</span>

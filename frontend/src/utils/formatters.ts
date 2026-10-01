@@ -69,22 +69,6 @@ export function formatTotalDuration(ms?: number): string {
 }
 
 /**
- * Formats ISO date string into a localized medium date + short time.
- */
-export function formatDate(dateStr?: string): string {
-  if (!dateStr) return 'Unknown Date';
-  try {
-    const date = new Date(dateStr);
-    return date.toLocaleString(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    });
-  } catch {
-    return dateStr;
-  }
-}
-
-/**
  * The badge tone for a session type: sprint orange, race red, qualifying purple, practice green.
  */
 export function getSessionTone(typeStr?: string | null): 'orange' | 'danger' | 'purple' | 'success' | 'neutral' {

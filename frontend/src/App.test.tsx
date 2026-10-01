@@ -98,6 +98,25 @@ describe('App Navigation and Tab Bar', () => {
     expect(navItem(/Progress/i)).toHaveAttribute('href', '/progress/Abu%20Dhabi');
   });
 
+  it('opens the settings from the gear, which returns to the last section, without becoming the last page', async () => {
+    openAt('/progress');
+    render(<App />);
+    expect(await screen.findByTestId('progress-view')).toBeInTheDocument();
+
+    const gear = screen.getByRole('link', { name: 'Settings' });
+    expect(gear).toHaveAttribute('href', '/settings/voice');
+    fireEvent.click(gear);
+    expect(await screen.findByRole('heading', { level: 1, name: 'Settings' })).toBeInTheDocument();
+    expect(gear).toHaveAttribute('aria-current', 'page');
+    expect(localStorage.getItem('f1_active_tab')).toBe('progress');
+
+    fireEvent.click(screen.getByRole('link', { name: 'Comparator' }));
+    expect(window.location.pathname).toBe('/settings/comparator');
+    fireEvent.click(navItem(/Session History/i));
+    expect(await screen.findByTestId('session-history-view')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/settings/comparator');
+  });
+
   it('opens the page a URL names', async () => {
     openAt('/live/cockpit');
     render(<App />);

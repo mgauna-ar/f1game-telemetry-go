@@ -39,8 +39,9 @@ func NewChatContextSource(repo storage.Repository, cache *ComparatorLRUCache) *C
 	return &ChatContextSource{repo: repo, cache: cache}
 }
 
-// SessionDebrief summarizes a recorded session's classification for the debrief chat.
-func (s *ChatContextSource) SessionDebrief(ctx context.Context, sessionID int64) (ai.SessionDebrief, error) {
+// SessionDebrief summarizes a recorded session's classification for the debrief chat, plus the
+// data of the chart named by focus (BuildDebriefFocus).
+func (s *ChatContextSource) SessionDebrief(ctx context.Context, sessionID int64, focus string) (ai.SessionDebrief, error) {
 	session, err := s.repo.GetSessionByID(ctx, sessionID)
 	if err != nil {
 		return ai.SessionDebrief{}, err
@@ -58,7 +59,13 @@ func (s *ChatContextSource) SessionDebrief(ctx context.Context, sessionID int64)
 		return ai.SessionDebrief{}, fmt.Errorf("failed to get events for session %d: %w", sessionID, err)
 	}
 	cls := ComputeSessionClassification(session, participants, laps)
-	return BuildSessionDebrief(session, cls, sessionfeed.StoredFeedEvents(rows)), nil
+	events := sessionfeed.StoredFeedEvents(rows)
+	debrief := BuildSessionDebrief(session, cls, events)
+	if focus != "" {
+		debrief.Focus = focus
+		debrief.FocusData = BuildDebriefFocus(focus, session, participants, laps, cls, events)
+	}
+	return debrief, nil
 }
 
 // LapComparison merges two laps the way the Lap Comparator charts do and analyzes them.

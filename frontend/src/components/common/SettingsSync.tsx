@@ -6,11 +6,12 @@ import {
   useRadioSettingsStore,
 } from '../../store/useRadioSettingsStore';
 import { useSettingsSaveStore } from '../../store/useSettingsSaveStore';
+import { useComparatorPreferencesStore } from '../../store/useComparatorPreferencesStore';
 import { useToastStore } from '../../store/useToastStore';
 import { subscribeSettingsChanges } from '../../utils/settingsClient';
 
 /**
- * Keeps the shared race engineer and voice settings in step with other devices, and shows settings
+ * Keeps the shared race engineer, voice and comparator settings in step with other devices, and shows settings
  * saves that failed. Renders nothing; mounted once by the app shell.
  */
 export function SettingsSync(): null {
@@ -28,9 +29,15 @@ export function SettingsSync(): null {
       if (isVoiceSavePending()) return;
       void useRadioSettingsStore.getState().loadVoiceFromBackend();
     });
+    // Only a comparator this tab has loaded needs the new copy; reload skips it while a save is pending
+    const offComparator = subscribeSettingsChanges('comparator', () => {
+      const comparator = useComparatorPreferencesStore.getState();
+      if (comparator.loaded) void comparator.reload();
+    });
     return () => {
       offEngineer();
       offVoice();
+      offComparator();
     };
   }, []);
 

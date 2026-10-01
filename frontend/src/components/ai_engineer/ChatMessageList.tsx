@@ -6,6 +6,7 @@ import { ChatErrorCard } from './ChatErrorCard';
 import type { ChatMessage } from '../../types/ai';
 import { shouldReduceMotion } from '../../utils/motion';
 import styles from './ChatMessageList.module.css';
+import { useUnits } from '../../hooks/useUnits';
 
 export interface ChatMessageListProps {
   messages: ChatMessage[];
@@ -20,11 +21,6 @@ const BOTTOM_THRESHOLD_PX = 48;
 /** Space left above a question when a reply scrolls it to the top. */
 const QUESTION_TOP_GAP_PX = 8;
 const COPIED_FEEDBACK_MS = 1500;
-
-const formatTime = (date: Date): string =>
-  date instanceof Date && !Number.isNaN(date.getTime())
-    ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    : '';
 
 const CopyButton: React.FC<{ text: string }> = ({ text }) => {
   const { t } = useI18n();
@@ -69,6 +65,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
   onOpenSettings,
 }) => {
   const { t } = useI18n();
+  const units = useUnits();
   const containerRef = useRef<HTMLDivElement | null>(null);
   // Follow new text while the reader is at the bottom. For a new question, follow only until the
   // question reaches the top, so a long reply is read from its start instead of scrolling away.
@@ -154,7 +151,7 @@ export const ChatMessageList: React.FC<ChatMessageListProps> = ({
         {messages.map((m, idx) => {
           const isUser = m.role === 'user';
           const isStreaming = isGenerating && !isUser && idx === messages.length - 1;
-          const time = formatTime(m.timestamp);
+          const time = units.time(m.timestamp);
           return (
             <div key={m.id} data-message-id={m.id} data-role={m.role} className={styles.row}>
               {isUser ? (

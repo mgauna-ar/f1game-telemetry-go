@@ -112,6 +112,8 @@ export const STORAGE_KEY_AI_CONFIG = 'f1_ai_engineer_config';
 export const STORAGE_KEY_AI_OPEN = 'f1_ai_engineer_open';
 /** Whether the chat window is shown large on this browser. */
 export const STORAGE_KEY_AI_EXPANDED = 'f1_ai_engineer_expanded';
+/** Whether the open chat docks beside the page on this browser, on a window wide enough for it. */
+export const STORAGE_KEY_AI_DOCKED = 'f1_ai_engineer_docked';
 
 /**
  * Placeholder until the server's settings load. Default model names come from the server, so the

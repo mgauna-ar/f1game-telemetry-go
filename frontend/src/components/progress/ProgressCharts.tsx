@@ -19,6 +19,7 @@ import { maxWidth } from '../../styles/breakpoints';
 import { cssVar } from '../../styles/theme';
 import type { ProgressSession } from '../../types/progress';
 import { formatLapTime, formatSectorTime } from '../../utils/formatters';
+import { sessionTypeLabel } from '../../utils/sessionTypeLabel';
 import { compactTooltipProps } from '../session_history/stints/stintUtils';
 import { Panel, PanelHeader } from '../ui/Panel';
 import { TabPanel, Tabs } from '../ui/Tabs';
@@ -91,7 +92,7 @@ export const ProgressCharts: React.FC<{ sessions: ProgressSession[] }> = ({ sess
   };
   const tooltipLabel = (index: unknown) => {
     const s = sessions[Number(index)];
-    return s ? `${s.session_type} · ${shortDate(s.created_at, locale)}` : '';
+    return s ? `${sessionTypeLabel(s.session_type, t)} · ${shortDate(s.created_at, locale)}` : '';
   };
   // The ticks are drawn by hand, so Recharts can't measure them to skip the ones that would collide
   const tickInterval = Math.max(0, Math.ceil(sessions.length / (isPhone ? 3 : 8)) - 1);

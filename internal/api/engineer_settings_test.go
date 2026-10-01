@@ -189,6 +189,7 @@ func TestSettingsPuts_BroadcastSettingsChanged(t *testing.T) {
 		{"/api/settings/voice", `{"persona":"standard"}`, settings.SectionVoice, " tab-b ", "tab-b"},
 		{"/api/settings/ptt", `{"mode":"hold","keyboard_key":"Space"}`, settings.SectionPTT, "", ""},
 		{"/api/settings/engineer", `{"version":0}`, settings.SectionEngineer, longID, longID[:maxDashboardClientIDLen]},
+		{"/api/settings/comparator", `{"rival_mode":"teammate"}`, settings.SectionComparator, "tab-c", "tab-c"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.section, func(t *testing.T) {

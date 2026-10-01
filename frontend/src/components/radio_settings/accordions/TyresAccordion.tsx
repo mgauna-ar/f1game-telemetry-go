@@ -6,6 +6,7 @@ import { ThresholdSlider } from '../ThresholdSlider';
 import { ToggleRow } from '../SettingControls';
 import styles from '../RadioSettings.module.css';
 import { useRadioSettingsStore } from '../../../store/useRadioSettingsStore';
+import { useUnits } from '../../../hooks/useUnits';
 
 interface TyresAccordionProps {
   isExpanded: boolean;
@@ -15,6 +16,7 @@ interface TyresAccordionProps {
 
 export const TyresAccordion: React.FC<TyresAccordionProps> = ({ isExpanded, onToggleExpand, onTestAlert }) => {
   const { t } = useI18n();
+  const units = useUnits();
 
   const tyreAlertsEnabled = useRadioSettingsStore((s) => s.tyreAlertsEnabled);
   const setTyreAlertsEnabled = useRadioSettingsStore((s) => s.setTyreAlertsEnabled);
@@ -97,7 +99,7 @@ export const TyresAccordion: React.FC<TyresAccordionProps> = ({ isExpanded, onTo
         <ThresholdSlider
           label={t('ai_engineer.proactiveAlerts.tyreOverheatTemp')}
           value={tyreOverheatC}
-          unit="°C"
+          formatValue={(c) => units.temperature(c)}
           min={90}
           max={140}
           step={5}
@@ -106,7 +108,7 @@ export const TyresAccordion: React.FC<TyresAccordionProps> = ({ isExpanded, onTo
         <ThresholdSlider
           label={t('ai_engineer.proactiveAlerts.tyreColdTemp')}
           value={tyreColdC}
-          unit="°C"
+          formatValue={(c) => units.temperature(c)}
           min={50}
           max={100}
           step={5}

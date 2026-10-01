@@ -23,7 +23,6 @@ import {
   SessionHistoryDataContext,
   SessionHistoryActionsContext,
 } from '../../context/SessionHistoryContextDefinitions';
-import { formatDate as defaultFormatDate } from '../../utils/formatters';
 import { TrackFlag } from '../TrackFlag';
 import { F1FormatBadge } from '../F1FormatBadge';
 import { SessionTypeBadge } from '../common/SessionTypeBadge';
@@ -35,6 +34,7 @@ import { Tabs } from '../ui/Tabs';
 
 export type { SessionDetailTab } from '../../router/routes';
 import type { SessionDetailTab } from '../../router/routes';
+import { useUnits } from '../../hooks/useUnits';
 
 /** Links the detail tabs to the panel `SessionDetailView` renders. */
 export const SESSION_DETAIL_TABS_ID = 'session-detail';
@@ -56,6 +56,7 @@ export interface SessionDetailHeaderProps {
 
 export const SessionDetailHeader: React.FC<SessionDetailHeaderProps> = (props) => {
   const { t } = useI18n();
+  const units = useUnits();
   const historyData = useContext(SessionHistoryDataContext);
   const historyActions = useContext(SessionHistoryActionsContext);
   const [copiedUid, setCopiedUid] = useState(false);
@@ -74,7 +75,7 @@ export const SessionDetailHeader: React.FC<SessionDetailHeaderProps> = (props) =
   const onRequestDelete = props.onRequestDelete ?? (() => historyActions?.setSessionToDelete(session));
   const onOpenTagManager = props.onOpenTagManager ?? (() => historyActions?.setSessionToManageTags(session));
   const onRemoveTag = props.onRemoveTag ?? ((tagId: number) => historyActions?.handleRemoveTag(session.id, tagId));
-  const formatDate = props.formatDate ?? defaultFormatDate;
+  const formatDate = props.formatDate ?? units.dateAndTime;
 
   const handleCopyUid = () => {
     if (!session?.session_uid) return;

@@ -178,6 +178,7 @@ describe('SessionLapChartsTab Component', () => {
 
     // Chart title and buttons should be rendered
     expect(screen.getByText(/Lap-by-Lap Pace Evolution/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Ask the AI engineer about Lap-by-Lap Pace/i })).toBeInTheDocument();
     expect(screen.getByText('Max Verstappen')).toBeInTheDocument();
     expect(screen.getByText('Lewis Hamilton')).toBeInTheDocument();
   });

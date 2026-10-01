@@ -24,6 +24,7 @@ import {
   type SectorKey,
 } from './progressStats';
 import styles from './ProgressSessionsTable.module.css';
+import { useUnits } from '../../hooks/useUnits';
 
 const sessionPath = (s: ProgressSession) =>
   buildPath({ page: 'history', sessionId: s.session_id, tab: 'story' });
@@ -149,7 +150,8 @@ export const ProgressSessionsTable: React.FC<{ sessions: ProgressSession[]; trac
   sessions,
   track,
 }) => {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
+  const units = useUnits();
   const isPhone = useMediaQuery(maxWidth('phone'));
   const bests = progressBests(sessions);
   const usualFormat = commonPacketFormat(sessions);
@@ -161,7 +163,7 @@ export const ProgressSessionsTable: React.FC<{ sessions: ProgressSession[]; trac
       key: 'date',
       header: t('progress.table.date'),
       rowHeader: true,
-      cell: (s) => <span className={styles.date}>{shortDateTime(s.created_at, locale)}</span>,
+      cell: (s) => <span className={styles.date}>{shortDateTime(s.created_at, units)}</span>,
     },
     {
       key: 'session',
@@ -204,7 +206,7 @@ export const ProgressSessionsTable: React.FC<{ sessions: ProgressSession[]; trac
           {rows.map((s) => (
             <li key={s.session_id} className={styles.card}>
               <div className={styles.cardHead}>
-                <span className={styles.date}>{shortDateTime(s.created_at, locale)}</span>
+                <span className={styles.date}>{shortDateTime(s.created_at, units)}</span>
                 <SessionCell s={s} usualFormat={usualFormat} />
                 <span className={styles.cardResult}>
                   <ResultCell s={s} />

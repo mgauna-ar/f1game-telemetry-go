@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { availableLocales, getTranslation } from '../locales';
+import { availableLocales, getTranslation, isLocaleLoaded, loadLocale } from '../locales';
 import type { LocaleCode, TranslationKey } from '../locales';
 import { I18nContext } from './I18nContext';
 import { storage } from '../utils/storage';
@@ -25,44 +25,70 @@ function detectDefaultLocale(): LocaleCode {
   return 'en';
 }
 
+/**
+ * The UI language. Only the chosen language's dictionary is downloaded: until it arrives the app
+ * renders nothing on first load (rather than flashing English), and on a switch it keeps the
+ * current language on screen.
+ */
 export function I18nProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<LocaleCode>(detectDefaultLocale);
-
-  const setLocale = useCallback((newLocale: LocaleCode) => {
-    setLocaleState(newLocale);
-    storage.set(STORAGE_KEY, newLocale);
-    if (typeof document !== 'undefined') {
-      document.documentElement.lang = newLocale;
-    }
-  }, []);
+  // The language chosen, and the one on screen (the last one whose dictionary is loaded)
+  const [requested, setRequested] = useState<LocaleCode>(detectDefaultLocale);
+  const [locale, setLocaleState] = useState<LocaleCode | null>(() => (isLocaleLoaded(requested) ? requested : null));
 
   useEffect(() => {
-    if (typeof document !== 'undefined') {
+    if (isLocaleLoaded(requested)) {
+      setLocaleState(requested);
+      return;
+    }
+    let current = true;
+    loadLocale(requested)
+      .then(() => current && setLocaleState(requested))
+      // Offline or a failed chunk: stay in (or fall back to) English, which is always loaded
+      .catch((err) => {
+        console.warn(`[i18n] Loading the ${requested} dictionary failed:`, err);
+        if (current) setLocaleState((shown) => shown ?? 'en');
+      });
+    return () => {
+      current = false;
+    };
+  }, [requested]);
+
+  const setLocale = useCallback((newLocale: LocaleCode) => {
+    setRequested(newLocale);
+    storage.set(STORAGE_KEY, newLocale);
+  }, []);
+
+  const shown = locale ?? 'en';
+
+  useEffect(() => {
+    if (locale && typeof document !== 'undefined') {
       document.documentElement.lang = locale;
     }
   }, [locale]);
 
   const t = useCallback(
-    (key: TranslationKey | string, params?: Record<string, string | number>) => {
-      return getTranslation(locale, key, params);
-    },
-    [locale]
+    (key: TranslationKey | string, params?: Record<string, string | number>) => getTranslation(shown, key, params),
+    [shown]
   );
 
-  const currentLocaleInfo = useMemo(() => {
-    return availableLocales.find((l) => l.code === locale) || availableLocales[0];
-  }, [locale]);
+  const currentLocaleInfo = useMemo(
+    () => availableLocales.find((l) => l.code === shown) || availableLocales[0],
+    [shown]
+  );
 
   const value = useMemo(
     () => ({
-      locale,
+      locale: shown,
       setLocale,
       t,
       availableLocales,
       currentLocaleInfo,
     }),
-    [locale, setLocale, t, currentLocaleInfo]
+    [shown, setLocale, t, currentLocaleInfo]
   );
+
+  // First load in a language not yet downloaded: a moment of nothing rather than English
+  if (locale === null) return null;
 
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }

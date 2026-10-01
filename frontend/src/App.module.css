@@ -2,6 +2,8 @@
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  /* Room for the docked AI chat; zero while it floats */
+  padding-right: var(--chat-dock-space);
 }
 
 /* Hidden while the Driver view fills a phone */
@@ -399,4 +401,16 @@
     padding: 3px;
     font-size: 0;
   }
+}
+
+/* The settings page's gear, styled as the small ghost icon buttons beside it */
+.settingsLink {
+  composes: button ghost sm icon from './components/ui/Button.module.css';
+  text-decoration: none;
+}
+
+.settingsLink[aria-current='page'] {
+  color: var(--accent-primary);
+  background: color-mix(in srgb, var(--accent-primary) 14%, transparent);
+  border-color: color-mix(in srgb, var(--accent-primary) 40%, transparent);
 }

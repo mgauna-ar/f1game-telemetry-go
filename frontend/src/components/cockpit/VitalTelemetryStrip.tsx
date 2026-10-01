@@ -21,6 +21,7 @@ import type {
   CarTelemetryData,
   CarTelemetry2Data,
 } from '../../types/telemetry';
+import { useUnits } from '../../hooks/useUnits';
 
 export interface VitalTelemetryStripProps {
   session: SessionData | null;
@@ -69,6 +70,7 @@ export const VitalTelemetryStrip: React.FC<VitalTelemetryStripProps> = ({
   is2026,
 }) => {
   const { t } = useI18n();
+  const units = useUnits();
 
   // Driver run status text
   const getRunStatusLabel = () => {
@@ -173,7 +175,7 @@ export const VitalTelemetryStrip: React.FC<VitalTelemetryStripProps> = ({
             <li key={corner.label} className={styles.corner} data-wear={getTyreWearLevel(corner.wear)}>
               <span className={styles.cornerLabel}>{corner.label}</span>
               <span className={styles.cornerWear}>{corner.wear}%</span>
-              <span className={styles.cornerTemp}>{corner.temp}°C</span>
+              <span className={styles.cornerTemp}>{units.temperature(corner.temp)}</span>
             </li>
           ))}
         </ul>
@@ -232,7 +234,7 @@ export const VitalTelemetryStrip: React.FC<VitalTelemetryStripProps> = ({
             </dt>
             <dd className={styles.metricValue}>
               <span className={styles.number}>
-                {telemetry?.EngineTemperature ? `${Math.round(telemetry.EngineTemperature)}°C` : '--°C'}
+                {units.temperature(telemetry?.EngineTemperature || null, 0, `--${units.temperatureUnit}`)}
               </span>
               {boostActive && (
                 <Badge tone="danger" size="xs" square>

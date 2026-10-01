@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 )
 
 // ErrInvalidChatContext reports a chat context the server can't build prompt data for.
@@ -35,8 +36,11 @@ func BuildChatContext(ctx context.Context, req *ChatContextRequest, opts ChatOpt
 		if req.SessionID <= 0 {
 			return nil, fmt.Errorf("%w: session_debrief needs a session_id", ErrInvalidChatContext)
 		}
+		if req.Focus != "" && !slices.Contains(DebriefFocuses, req.Focus) {
+			return nil, fmt.Errorf("%w: unknown focus %q", ErrInvalidChatContext, req.Focus)
+		}
 		if opts.Recorded != nil {
-			debrief, err := opts.Recorded.SessionDebrief(ctx, req.SessionID)
+			debrief, err := opts.Recorded.SessionDebrief(ctx, req.SessionID, req.Focus)
 			if err != nil {
 				return nil, err
 			}
