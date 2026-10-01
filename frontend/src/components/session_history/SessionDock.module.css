@@ -11,12 +11,11 @@
   gap: var(--space-3);
   width: min(94vw, 760px);
   padding: var(--space-3) var(--space-5);
+  /* The popover surface (ui/patterns.module.css) at the panel radius */
   background: var(--bg-popover);
-  border: 1px solid color-mix(in srgb, var(--accent-cyan) 40%, transparent);
-  border-radius: 14px;
-  box-shadow:
-    0 20px 48px rgba(0, 0, 0, 0.75),
-    0 0 24px color-mix(in srgb, var(--accent-cyan) 18%, transparent);
+  border: 1px solid var(--border-highlight);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
   transform: translateX(-50%);
   animation: dockIn var(--duration-normal) var(--ease-out);
 }
@@ -66,9 +65,8 @@
 .introTitle {
   margin: 0;
   font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-black);
-  letter-spacing: 0.05em;
-  color: var(--accent-cyan);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
 }
 
 .introSub {
@@ -83,23 +81,7 @@
   gap: var(--space-2);
 }
 
-/* Batch actions */
-.export {
-  background: color-mix(in srgb, var(--accent-cyan) 18%, transparent);
-  border-color: color-mix(in srgb, var(--accent-cyan) 60%, transparent);
-  color: var(--accent-cyan);
-}
-
-.export:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--accent-cyan) 28%, transparent);
-  border-color: var(--accent-cyan);
-  color: var(--accent-cyan);
-}
-
-.tagIcon {
-  color: var(--accent-cyan);
-}
-
+/* Batch actions: secondary buttons; delete is tinted red */
 .delete {
   background: var(--status-danger-bg);
   border-color: var(--status-danger-border);
@@ -133,7 +115,7 @@
   align-items: center;
   gap: var(--space-2);
   min-width: 160px;
-  padding: var(--space-1-5) 10px;
+  padding: var(--space-1-5) var(--space-2);
   border: 1px dashed var(--border-subtle);
   border-radius: var(--radius-sm);
   background: var(--bg-hover);
@@ -155,7 +137,7 @@
   color: var(--slot-color);
   font-family: var(--font-mono);
   font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-black);
+  font-weight: var(--font-weight-bold);
   text-transform: uppercase;
   white-space: nowrap;
 }
@@ -171,7 +153,7 @@
   width: 3px;
   height: 16px;
   flex-shrink: 0;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   background: var(--team-color);
 }
 
@@ -200,22 +182,6 @@
   color: var(--text-muted);
 }
 
-.swap {
-  border-radius: 50%;
-}
-
-/* Launch turns cyan once both slots hold a lap */
-.launchReady {
-  background: linear-gradient(135deg, var(--accent-cyan), #4facfe);
-  border-color: transparent;
-  color: var(--text-on-accent);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
-}
-
-.launchReady:hover:not(:disabled) {
-  background: linear-gradient(135deg, var(--accent-cyan), var(--accent-cyan));
-  border-color: transparent;
-}
 
 /* Tablets and phones: above the AI launcher, across the screen */
 @media (--tablet) {

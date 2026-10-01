@@ -1,12 +1,11 @@
 .tab {
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
+  gap: var(--space-5);
 }
 
 /* Ultimate theoretical lap */
 .hero {
-  padding: var(--space-6);
   background:
     radial-gradient(ellipse at 80% 20%, color-mix(in srgb, var(--accent-purple) 15%, transparent), transparent 60%),
     var(--bg-glass);
@@ -153,12 +152,13 @@
 .sectorCell {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: var(--space-1);
 }
 
 .sectorTime {
   padding: var(--space-0-5) var(--space-1);
-  border-radius: 3px;
+  border-radius: var(--radius-xs);
 }
 
 .gap {

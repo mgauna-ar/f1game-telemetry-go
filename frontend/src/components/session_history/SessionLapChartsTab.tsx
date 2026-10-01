@@ -11,9 +11,10 @@ import { raceControlAreas } from './raceControlAreas';
 import type { DriverStanding, FeedEvent, ProgressionResponse, ProgressionRow } from '../../types/session';
 import { useI18n } from '../../context/I18nContext';
 import { EmptyState } from '../ui/EmptyState';
-import { Panel } from '../ui/Panel';
+import { Panel, PanelHeader } from '../ui/Panel';
 import { AskAiButton } from '../ai_engineer/AskAiButton';
-import { AXIS_TICK } from '../charts/chartTheme';
+import { AXIS_PROPS, GRID_PROPS, NO_ANIMATION } from '../charts/chartTheme';
+import { ChartLegend, type ChartLegendItem } from '../charts/ChartLegend';
 import styles from './SessionLapChartsTab.module.css';
 
 export type LapChartKind = 'pace' | 'position' | 'gap';
@@ -143,7 +144,11 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
       for (const d of activeDriverStandings) {
         const car = d.participant.car_index;
         if (row[`driver_${car}_outlier_reason`] === 'pit_in') {
-          stops.push({ lap: row.lapNumber, car, color: getTeamColor(d.participant.team_id) });
+          stops.push({
+            lap: row.lapNumber,
+            car,
+            color: getTeamColor(d.participant.team_id),
+          });
         }
       }
     }
@@ -185,17 +190,43 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
     return [`${time} (${tyre || '—'}${reasonLabel})`, driverName(key)];
   };
 
+  // What the pit markers and the shading mean; the lines carry their drivers' codes at their ends
+  const legendItems: ChartLegendItem[] = [
+    ...(chart === 'pace' && pitStops.length > 0
+      ? [
+          {
+            id: 'pit',
+            label: t('history.progression.pitMarker'),
+            color: cssVar('--text-muted'),
+            shape: 'dot' as const,
+          },
+        ]
+      : []),
+    ...(periods.length > 0
+      ? [
+          {
+            id: 'sc',
+            label: t('history.progression.scShading'),
+            color: cssVar('--f1-yellow'),
+            shape: 'area' as const,
+          },
+        ]
+      : []),
+  ];
+
   const heading = {
     pace: {
-      icon: <Activity size={18} color={cssVar('--accent-primary')} aria-hidden="true" />,
+      icon: <Activity size={16} />,
       title: t('history.progression.lapByLapPace'),
     },
     position: {
-      icon: <Award size={18} color={cssVar('--accent-secondary')} aria-hidden="true" />,
-      title: t('history.progression.positionProgression', { count: driverStandings.length }),
+      icon: <Award size={16} />,
+      title: t('history.progression.positionProgression', {
+        count: driverStandings.length,
+      }),
     },
     gap: {
-      icon: <Layers size={18} color={cssVar('--accent-tertiary')} aria-hidden="true" />,
+      icon: <Layers size={16} />,
       title: t('history.progression.gapToLeaderDelta'),
     },
   }[chart];
@@ -208,7 +239,12 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
           drivers={driverStandings}
           selected={selectedDrivers}
           playerCarIndex={playerCarIndex}
-          onToggle={(car) => setSelectedDrivers({ ...selectedDrivers, [car]: !selectedDrivers[car] })}
+          onToggle={(car) =>
+            setSelectedDrivers({
+              ...selectedDrivers,
+              [car]: !selectedDrivers[car],
+            })
+          }
           onSelectAll={() =>
             setSelectedDrivers(Object.fromEntries(driverStandings.map((d) => [d.participant.car_index, true])))
           }
@@ -225,43 +261,42 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
           <EmptyState title={t('history.progression.noLapProgression')} />
         ) : (
           <>
-            <div className={styles.chartHead}>
-              <h2 className={styles.chartTitle}>
-                {heading.icon}
-                {heading.title}
-              </h2>
-              <div className={styles.chartActions}>
-                {chart === 'pace' && (
-                  <label className={styles.pitFilter} title={t('history.progression.filterPitLapsDesc')}>
-                    <input
-                      type="checkbox"
-                      data-testid="filter-pit-laps-checkbox"
-                      checked={filterPitLaps}
-                      onChange={(e) => setFilterPitLaps(e.target.checked)}
-                    />
-                    <span>{t('history.progression.filterPitLaps')}</span>
-                  </label>
-                )}
-                <AskAiButton prompt={t(`history.detail.askAiPrompts.${chart}`)} about={heading.title} />
-              </div>
-            </div>
+            <PanelHeader
+              level={2}
+              icon={heading.icon}
+              title={heading.title}
+              actions={
+                <>
+                  {chart === 'pace' && (
+                    <label className={styles.pitFilter} title={t('history.progression.filterPitLapsDesc')}>
+                      <input
+                        type="checkbox"
+                        data-testid="filter-pit-laps-checkbox"
+                        checked={filterPitLaps}
+                        onChange={(e) => setFilterPitLaps(e.target.checked)}
+                      />
+                      <span>{t('history.progression.filterPitLaps')}</span>
+                    </label>
+                  )}
+                  <AskAiButton prompt={t(`history.detail.askAiPrompts.${chart}`)} about={heading.title} />
+                </>
+              }
+            />
             <div className={styles.chart}>
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={rows} margin={CHART_MARGIN}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={cssVar('--chart-grid')} />
+                  <CartesianGrid {...GRID_PROPS} />
                   <XAxis
                     dataKey="lapNumber"
                     type="number"
                     domain={['dataMin', 'dataMax']}
                     allowDecimals={false}
-                    stroke={cssVar('--text-muted')}
-                    tick={AXIS_TICK}
+                    {...AXIS_PROPS}
                     tickFormatter={(val) => `L${val}`}
                   />
                   {chart === 'pace' && (
                     <YAxis
-                      stroke={cssVar('--text-muted')}
-                      tick={AXIS_TICK}
+                      {...AXIS_PROPS}
                       domain={paceDomain ?? ['auto', 'auto']}
                       allowDataOverflow
                       tickFormatter={(val: number) => `${val.toFixed(1)}s`}
@@ -269,8 +304,7 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
                   )}
                   {chart === 'position' && (
                     <YAxis
-                      stroke={cssVar('--text-muted')}
-                      tick={AXIS_TICK}
+                      {...AXIS_PROPS}
                       reversed
                       domain={[1, Math.max(driverStandings.length, 10)]}
                       tickFormatter={(val) => `P${val}`}
@@ -278,8 +312,7 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
                   )}
                   {chart === 'gap' && (
                     <YAxis
-                      stroke={cssVar('--text-muted')}
-                      tick={AXIS_TICK}
+                      {...AXIS_PROPS}
                       domain={[0, 'auto']}
                       tickFormatter={(val: number) => `+${val.toFixed(1)}s`}
                     />
@@ -308,7 +341,7 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
                         dot={chart === 'position' ? false : { r: 2.5, fill: color }}
                         activeDot={{ r: 5 }}
                         connectNulls
-                        isAnimationActive={false}
+                        {...NO_ANIMATION}
                         label={endLabel(
                           lastIndexOf(rows, key),
                           driverCode(driver.participant.name, driver.participant.race_number),
@@ -333,21 +366,8 @@ export const SessionLapChartsTab: React.FC<SessionLapChartsTabProps> = ({
                 </LineChart>
               </ResponsiveContainer>
             </div>
-            <p className={styles.legendNote}>
-              {chart === 'pace' && pitStops.length > 0 && (
-                <span className={styles.pitKey}>
-                  <span className={styles.pitDot} aria-hidden="true" />
-                  {t('history.progression.pitMarker')}
-                </span>
-              )}
-              {periods.length > 0 && (
-                <span className={styles.scKey}>
-                  <span className={styles.scSwatch} aria-hidden="true" />
-                  {t('history.progression.scShading')}
-                </span>
-              )}
-              {dashedCars.size > 0 && <span>{t('history.progression.teammatesDashed')}</span>}
-            </p>
+            {legendItems.length > 0 && <ChartLegend items={legendItems} />}
+            {dashedCars.size > 0 && <p className={styles.note}>{t('history.progression.teammatesDashed')}</p>}
           </>
         )}
       </Panel>

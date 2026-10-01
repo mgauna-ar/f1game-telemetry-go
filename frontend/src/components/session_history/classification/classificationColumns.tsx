@@ -137,8 +137,9 @@ export const useClassificationColumns = (o: ClassificationColumnsOptions): DataT
           <span
             className={cx(
               styles.posNumber,
-              driver.position === 1 && styles.winner,
-              driver.position > 1 && driver.position <= 3 && styles.podium
+              driver.position === 1 && styles.p1,
+              driver.position === 2 && styles.p2,
+              driver.position === 3 && styles.p3
             )}
           >
             P{driver.position}
@@ -173,7 +174,7 @@ export const useClassificationColumns = (o: ClassificationColumnsOptions): DataT
           <span className={styles.raceNumber}>#{driver.participant.race_number}</span>
         </span>
         {driver.participant.car_index === o.playerCarIndex && (
-          <Badge tone="accent" size="xs" className={styles.youBadge}>
+          <Badge tone="you" size="xs" className={styles.youBadge}>
             {t('history.player.you')}
           </Badge>
         )}
@@ -185,7 +186,6 @@ export const useClassificationColumns = (o: ClassificationColumnsOptions): DataT
     key: 'timeGap',
     header: h(o.gapMode === 'interval' ? 'interval' : o.isRaceSession ? 'timeGap' : 'gap'),
     numeric: true,
-    align: 'left',
     className: o.isRaceSession ? styles.timeCol : styles.gapCol,
     cell: (driver, index) => {
       const isLeader = driver.position === 1;
@@ -213,7 +213,6 @@ export const useClassificationColumns = (o: ClassificationColumnsOptions): DataT
     key: 'laps',
     header: h('laps'),
     numeric: true,
-    align: 'center',
     width: '45px',
     className: styles.muted,
     cell: (driver) => driver.laps.length,
@@ -230,7 +229,6 @@ export const useClassificationColumns = (o: ClassificationColumnsOptions): DataT
     key: 'points',
     header: h('points'),
     numeric: true,
-    align: 'center',
     width: '45px',
     cell: (driver) =>
       (driver.points ?? 0) > 0 ? (
@@ -246,7 +244,6 @@ export const useClassificationColumns = (o: ClassificationColumnsOptions): DataT
     key: 'bestLap',
     header: h(o.isRaceSession ? 'fastestLap' : 'bestLap'),
     numeric: true,
-    align: 'left',
     className: styles.lapCol,
     cell: (driver) => {
       const isOverallFastest =
@@ -275,7 +272,6 @@ export const useClassificationColumns = (o: ClassificationColumnsOptions): DataT
     key: `s${index + 1}`,
     header: h(`s${index + 1}`),
     numeric: true,
-    align: 'left',
     className: styles.sectorCol,
     cell: (driver) => {
       const time = bestLapSectors(driver)[index];
@@ -295,7 +291,6 @@ export const useClassificationColumns = (o: ClassificationColumnsOptions): DataT
     key: 'topSpeed',
     header: h('topSpeed'),
     numeric: true,
-    align: 'left',
     className: styles.speedCol,
     cell: (driver) => units.speed(driver.maxSpeed || null),
   };

@@ -8,7 +8,8 @@ import { fieldPace, neutralisedLaps, raceControlPeriods } from '../../../utils/r
 import { Panel, PanelHeader } from '../../ui/Panel';
 import { raceControlAreas } from '../raceControlAreas';
 import { compactTooltipProps } from '../stints/stintUtils';
-import { AXIS_TICK } from '../../charts/chartTheme';
+import { AXIS_PROPS, GRID_PROPS, NO_ANIMATION } from '../../charts/chartTheme';
+import { ChartLegend } from '../../charts/ChartLegend';
 import styles from './FieldPaceChart.module.css';
 
 interface FieldPaceChartProps {
@@ -70,20 +71,18 @@ export const FieldPaceChart: React.FC<FieldPaceChartProps> = ({ lapPace, driverS
       <div className={styles.chart} aria-hidden="true">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={pace.rows} margin={{ top: 16, right: 12, left: 0, bottom: 4 }} accessibilityLayer={false}>
-            <CartesianGrid strokeDasharray="3 3" stroke={cssVar('--chart-grid')} />
+            <CartesianGrid {...GRID_PROPS} />
             <XAxis
               dataKey="lapNumber"
               type="number"
               domain={['dataMin', 'dataMax']}
               allowDecimals={false}
-              stroke={cssVar('--text-muted')}
-              tick={AXIS_TICK}
+              {...AXIS_PROPS}
               tickFormatter={(v) => `L${v}`}
             />
             <YAxis
               width={48}
-              stroke={cssVar('--text-muted')}
-              tick={AXIS_TICK}
+              {...AXIS_PROPS}
               domain={domain}
               allowDataOverflow
               tickFormatter={(v: number) => `${v.toFixed(1)}s`}
@@ -100,7 +99,7 @@ export const FieldPaceChart: React.FC<FieldPaceChartProps> = ({ lapPace, driverS
               strokeDasharray="2 3"
               strokeWidth={1.5}
               dot={false}
-              isAnimationActive={false}
+              {...NO_ANIMATION}
             />
             <Line
               dataKey="median"
@@ -108,24 +107,28 @@ export const FieldPaceChart: React.FC<FieldPaceChartProps> = ({ lapPace, driverS
               strokeDasharray="6 4"
               strokeWidth={2}
               dot={false}
-              isAnimationActive={false}
+              {...NO_ANIMATION}
             />
             <Line
               dataKey="you"
-              stroke={cssVar('--accent-primary')}
+              stroke={cssVar('--f1-you')}
               strokeWidth={2.5}
-              dot={{ r: 2.5, fill: cssVar('--accent-primary') }}
-              isAnimationActive={false}
+              dot={{ r: 2.5, fill: cssVar('--f1-you') }}
+              {...NO_ANIMATION}
             />
           </LineChart>
         </ResponsiveContainer>
       </div>
-      <ul className={styles.legend}>
-        <li data-series="you">{names.you}</li>
-        <li data-series="median">{names.median}</li>
-        <li data-series="fastest">{names.fastest}</li>
-        {periods.length > 0 && <li data-series="sc">{t('history.progression.scShading')}</li>}
-      </ul>
+      <ChartLegend
+        items={[
+          { id: 'you', label: names.you, color: cssVar('--f1-you'), emphasis: true },
+          { id: 'median', label: names.median, color: cssVar('--text-muted'), shape: 'dashed' },
+          { id: 'fastest', label: names.fastest, color: cssVar('--f1-purple'), shape: 'dotted' },
+          ...(periods.length > 0
+            ? [{ id: 'sc', label: t('history.progression.scShading'), color: cssVar('--f1-yellow'), shape: 'area' as const }]
+            : []),
+        ]}
+      />
     </Panel>
   );
 };

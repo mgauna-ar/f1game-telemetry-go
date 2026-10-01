@@ -136,7 +136,7 @@ export const SessionStintStrategyTab: React.FC<SessionStintStrategyTabProps> = (
   const strategyKPIs: StrategyKPIs = useMemo(() => {
     if (!stintsData?.kpis) {
       return {
-        mostPopularStrategy: 'N/A',
+        mostPopularStrategy: '—',
         mostPopularCount: 0,
         longestStintDriver: null,
         bestLapsByCompound: {},
@@ -166,7 +166,7 @@ export const SessionStintStrategyTab: React.FC<SessionStintStrategyTabProps> = (
     });
 
     return {
-      mostPopularStrategy: stintsData.kpis.most_popular_strategy || 'N/A',
+      mostPopularStrategy: stintsData.kpis.most_popular_strategy || '—',
       mostPopularCount: stintsData.kpis.most_popular_count || 0,
       longestStintDriver: longestStint,
       bestLapsByCompound: bestLaps,

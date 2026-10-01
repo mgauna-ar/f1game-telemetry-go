@@ -1,7 +1,3 @@
-.panel {
-  padding: var(--space-6);
-}
-
 .legend {
   display: flex;
   flex-wrap: wrap;
@@ -76,7 +72,7 @@
   align-items: center;
   padding: var(--space-1) var(--space-2);
   border-left: 3px solid var(--team-color);
-  border-radius: 6px;
+  border-radius: var(--radius-xs);
   background: var(--bg-inset);
   transition: background-color var(--duration-fast) var(--ease-smooth);
 }
@@ -145,12 +141,11 @@
   justify-content: space-between;
   height: 100%;
   padding: 0 var(--space-1);
-  border: 1px solid color-mix(in srgb, var(--compound-color) 53%, transparent);
-  background: color-mix(in srgb, var(--compound-color) 15%, transparent);
+  /* A light compound fill with the compound's colour as its left edge */
+  border-left: 3px solid var(--compound-color);
+  background: color-mix(in srgb, var(--compound-color) 14%, transparent);
   cursor: pointer;
-  transition:
-    transform var(--duration-fast) ease,
-    box-shadow var(--duration-fast) ease;
+  transition: background-color var(--duration-fast) ease;
 }
 
 .stint:first-child {
@@ -167,8 +162,7 @@
 
 .stint:hover {
   z-index: var(--z-sticky);
-  transform: scaleY(1.12);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--compound-color) 53%, transparent);
+  background: color-mix(in srgb, var(--compound-color) 26%, transparent);
 }
 
 .stintLabel {

@@ -3,7 +3,7 @@
   max-height: 26rem;
   overflow-y: auto;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
 }
 
 /* The checkbox and a line swatch in the stint's chart style */
@@ -16,7 +16,6 @@
 
 .pick input {
   margin: 0;
-  accent-color: var(--accent-primary);
   cursor: pointer;
 }
 
@@ -84,12 +83,13 @@
   color: var(--status-success);
 }
 
+/* Charted: neutral, like every selected row */
 tr.selected {
-  background: color-mix(in srgb, var(--accent-primary) 6%, transparent);
+  background: var(--bg-active);
 }
 
 tr.you > :first-child {
-  box-shadow: inset 3px 0 0 var(--accent-cyan);
+  box-shadow: inset 3px 0 0 var(--f1-you);
 }
 
 @media (--tablet) {

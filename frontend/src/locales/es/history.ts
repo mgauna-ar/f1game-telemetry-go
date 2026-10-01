@@ -86,6 +86,7 @@ export const history = {
     drivers: 'PILOTOS',
     driversCount: '{count} Pilotos',
     aiDebrief: 'Debrief con Ingeniero IA',
+    aiDebriefShort: 'Debrief IA',
     exportThis: 'Exportar esta sesión',
     deleteThis: 'Eliminar esta sesión',
     tabStory: 'Resumen',

@@ -706,7 +706,7 @@ describe('SessionHistory Component', () => {
 
     const stintElements = screen.getAllByText('2L');
     expect(stintElements.length).toBe(3);
-    expect(screen.getAllByText('➔').length).toBe(2);
+    expect(document.querySelectorAll('[data-stint-arrow]').length).toBe(2);
   });
 
   it('renders Official Race Classification and Laps subtable in Spanish when locale is es', async () => {

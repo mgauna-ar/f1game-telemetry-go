@@ -59,38 +59,40 @@ export const TrackProgress: React.FC = () => {
       aside={
         tracks.length > 0 && (
           <>
-          <div className={styles.trackPicker}>
-            <label htmlFor={trackSelectId} className={styles.controlLabel}>
-              {t('progress.trackLabel')}
-            </label>
-            <div className={styles.trackSelect}>
-              <TrackFlag track={shownTrack} width={20} height={14} />
-              <Select
-                id={trackSelectId}
-                value={shownTrack}
-                onChange={(e) => navigate(buildPath({ page: 'progress', track: e.target.value }))}
-              >
-                {tracks.map((tr) => (
-                  <option key={tr.track_name} value={tr.track_name}>
-                    {t('progress.trackOption', { track: tr.track_name, count: tr.sessions })}
-                  </option>
-                ))}
-                {/* A track from the URL that has no sessions */}
-                {!tracks.some((tr) => tr.track_name === shownTrack) && <option value={shownTrack}>{shownTrack}</option>}
-              </Select>
+            <div className={styles.trackPicker}>
+              <label htmlFor={trackSelectId} className={styles.controlLabel}>
+                {t('progress.trackLabel')}
+              </label>
+              <div className={styles.trackSelect}>
+                <TrackFlag track={shownTrack} width={20} height={14} />
+                <Select
+                  id={trackSelectId}
+                  value={shownTrack}
+                  onChange={(e) => navigate(buildPath({ page: 'progress', track: e.target.value }))}
+                >
+                  {tracks.map((tr) => (
+                    <option key={tr.track_name} value={tr.track_name}>
+                      {t('progress.trackOption', { track: tr.track_name, count: tr.sessions })}
+                    </option>
+                  ))}
+                  {/* A track from the URL that has no sessions */}
+                  {!tracks.some((tr) => tr.track_name === shownTrack) && (
+                    <option value={shownTrack}>{shownTrack}</option>
+                  )}
+                </Select>
+              </div>
             </div>
-          </div>
-          {kinds.length > 1 && (
-            <SegmentedControl
-              aria-label={t('progress.kindLabel')}
-              value={activeKind}
-              onChange={setKind}
-              options={[
-                { value: 'all', label: t('progress.kinds.all') },
-                ...kinds.map((k) => ({ value: k, label: t(`progress.kinds.${k}`) })),
-              ]}
-            />
-          )}
+            {kinds.length > 1 && (
+              <SegmentedControl
+                aria-label={t('progress.kindLabel')}
+                value={activeKind}
+                onChange={setKind}
+                options={[
+                  { value: 'all', label: t('progress.kinds.all') },
+                  ...kinds.map((k) => ({ value: k, label: t(`progress.kinds.${k}`) })),
+                ]}
+              />
+            )}
           </>
         )
       }
@@ -183,7 +185,10 @@ const ProgressStats: React.FC<{ sessions: ProgressSession[] }> = ({ sessions }) 
         valueClassName={cx(styles.statValue, styles.best)}
         label={t('progress.stats.personalBest')}
         value={formatLapTime(bests.bestLap?.best_lap_time_ms)}
-        detail={bests.bestLap && `${sessionTypeLabel(bests.bestLap.session_type, t)} · ${shortDate(bests.bestLap.created_at, locale)}`}
+        detail={
+          bests.bestLap &&
+          `${sessionTypeLabel(bests.bestLap.session_type, t)} · ${shortDate(bests.bestLap.created_at, locale)}`
+        }
       />
       <Stat
         className={styles.stat}

@@ -38,9 +38,9 @@ export const StintGanttTimeline: React.FC<StintGanttTimelineProps> = ({
   const { t } = useI18n();
 
   return (
-    <Panel className={styles.panel}>
+    <Panel>
       <PanelHeader
-        icon={<Layers size={18} color="var(--accent-primary)" />}
+        icon={<Layers size={16} />}
         title={t('history.stints.timeline.title')}
         subtitle={t('history.stints.timeline.subtitle')}
         actions={

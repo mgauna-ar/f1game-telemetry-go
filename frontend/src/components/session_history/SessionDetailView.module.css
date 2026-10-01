@@ -1,7 +1,7 @@
 .view {
   display: flex;
   flex-direction: column;
-  gap: var(--space-6);
+  gap: var(--space-4);
 }
 
 .tabContent {
@@ -24,20 +24,19 @@
 .stints {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--space-0-5);
   white-space: nowrap;
 }
 
 .arrow {
-  margin: 0 1px;
-  font-size: var(--font-size-2xs);
+  flex-shrink: 0;
   color: var(--text-muted);
 }
 
 .stint {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--space-1);
 }
 
 .stintLaps {

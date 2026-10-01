@@ -7,6 +7,8 @@ import { useSessionHistoryData, useSessionHistoryActions } from '../../context/S
 import type { Tag } from '../../types/session';
 import { Button, IconButton } from '../ui/Button';
 import { cx } from '../ui/cx';
+import { Select, TextInput } from '../ui/Field';
+import { Panel } from '../ui/Panel';
 import styles from './SessionFilterToolbar.module.css';
 
 export interface SessionFilterToolbarProps {
@@ -73,18 +75,16 @@ export const SessionFilterToolbar: React.FC<SessionFilterToolbarProps> = (props)
   };
 
   return (
-    <div className={styles.toolbar}>
+    <Panel as="div" padding="compact" className={styles.toolbar}>
       <div className={styles.controls}>
         {/* Search */}
         <div className={styles.search}>
           <Search size={15} className={styles.searchIcon} aria-hidden="true" />
-          <input
-            type="text"
+          <TextInput
             aria-label={t('history.searchLabel')}
             placeholder={t('history.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className={styles.searchInput}
           />
           {searchQuery && (
             <IconButton
@@ -101,8 +101,7 @@ export const SessionFilterToolbar: React.FC<SessionFilterToolbarProps> = (props)
         {/* Session type filter */}
         <div className={styles.selectWrap}>
           <Trophy size={14} className={styles.selectIcon} aria-hidden="true" />
-          <select
-            className={styles.select}
+          <Select
             aria-label={t('history.typeFilterLabel')}
             value={sessionTypeFilter}
             onChange={(e) => setSessionTypeFilter(e.target.value)}
@@ -112,15 +111,14 @@ export const SessionFilterToolbar: React.FC<SessionFilterToolbarProps> = (props)
             <option value="Sprint">{t('history.sprint')}</option>
             <option value="Qualifying">{t('history.qualifying')}</option>
             <option value="Practice">{t('history.practice')}</option>
-          </select>
+          </Select>
         </div>
 
         {/* Circuit filter */}
         {uniqueCircuits.length > 0 && (
           <div className={styles.selectWrap}>
             <MapPin size={14} className={styles.selectIcon} aria-hidden="true" />
-            <select
-              className={styles.select}
+            <Select
               aria-label={t('history.circuitFilterLabel')}
               value={circuitFilter}
               onChange={(e) => setCircuitFilter(e.target.value)}
@@ -131,15 +129,16 @@ export const SessionFilterToolbar: React.FC<SessionFilterToolbarProps> = (props)
                   {circ}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
         )}
 
         {isFiltered && (
           <Button
             size="sm"
+            variant="ghost"
             className={styles.reset}
-            icon={<RotateCcw size={13} aria-hidden="true" />}
+            icon={<RotateCcw size={14} aria-hidden="true" />}
             onClick={handleResetFilters}
           >
             {t('history.clearFilters')}
@@ -169,11 +168,13 @@ export const SessionFilterToolbar: React.FC<SessionFilterToolbarProps> = (props)
           ) : (
             <Upload size={14} aria-hidden="true" />
           )}
-          <span>{importingSession ? t('history.importing') : t('history.importSession')}</span>
+          <span className={styles.actionLabel}>
+            {importingSession ? t('history.importing') : t('history.importSession')}
+          </span>
         </label>
 
         <Button onClick={onRefresh} loading={loadingSessions} icon={<RefreshCw size={14} aria-hidden="true" />}>
-          {t('common.refresh')}
+          <span className={styles.actionLabel}>{t('common.refresh')}</span>
         </Button>
       </div>
 
@@ -190,6 +191,6 @@ export const SessionFilterToolbar: React.FC<SessionFilterToolbarProps> = (props)
           />
         </div>
       )}
-    </div>
+    </Panel>
   );
 };

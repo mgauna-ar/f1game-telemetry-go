@@ -7,25 +7,6 @@
 /* Chart area */
 .chartPanel {
   min-height: 480px;
-  padding: var(--space-6);
-}
-
-
-.chartHead {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  margin-bottom: var(--space-4);
-}
-
-.chartTitle {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin: 0;
-  font-size: var(--font-size-lg);
 }
 
 .chart {
@@ -33,24 +14,18 @@
   height: 400px;
 }
 
-/* Pit-lap filter toggle */
-.chartActions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-2);
-}
-
+/* Pit-lap filter: a toggle chip */
 .pitFilter {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-1) 10px;
+  min-height: var(--control-height-sm);
+  padding: 0 var(--space-3);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-full);
   background: var(--bg-hover);
   color: var(--text-secondary);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
   cursor: pointer;
   user-select: none;
@@ -60,55 +35,24 @@
 }
 
 .pitFilter:has(input:checked) {
-  border-color: var(--accent-primary);
-  color: var(--accent-primary);
+  border-color: color-mix(in srgb, var(--accent-cyan) 60%, transparent);
+  color: var(--text-primary);
 }
 
 .pitFilter input {
   cursor: pointer;
-  accent-color: var(--accent-primary);
 }
 
-/* What the markers and shading mean */
-.legendNote {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-4);
-  margin: var(--space-2) 0 0;
+.note {
+  margin: var(--space-1) 0 0;
   color: var(--text-muted);
   font-size: var(--font-size-xs);
-}
-
-.legendNote:empty {
-  display: none;
-}
-
-.pitKey,
-.scKey {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1-5);
-}
-
-.pitDot {
-  width: 8px;
-  height: 8px;
-  border: 1px solid var(--text-primary);
-  border-radius: 50%;
-  background: var(--text-muted);
-}
-
-.scSwatch {
-  width: 14px;
-  height: 10px;
-  border: 1px solid color-mix(in srgb, var(--f1-yellow) 35%, transparent);
-  background: color-mix(in srgb, var(--f1-yellow) 14%, transparent);
+  text-align: center;
 }
 
 @media (--phone) {
   .chartPanel {
     min-height: 0;
-    padding: var(--space-4) var(--space-2);
   }
 
   .chart {

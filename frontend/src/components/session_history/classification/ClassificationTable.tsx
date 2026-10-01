@@ -81,7 +81,7 @@ export const ClassificationTable: React.FC<ClassificationTableProps> = ({
   return (
     <Panel>
       <PanelHeader
-        icon={<Trophy size={20} color="var(--accent-primary)" />}
+        icon={<Trophy size={16} />}
         title={
           isRaceSession
             ? t('history.classification.raceClassification')

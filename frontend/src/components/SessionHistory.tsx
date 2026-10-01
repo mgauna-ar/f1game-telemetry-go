@@ -72,11 +72,12 @@ const SessionHistoryContent: React.FC = () => {
     handleExecuteBatchTag,
   } = useSessionHistoryActions();
 
-  useDocumentTitle(
-    selectedSession
-      ? `${selectedSession.track_name} ${sessionTypeLabel(selectedSession.session_type, t)} · ${new Date(selectedSession.created_at).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}`
-      : t('nav.tabs.history')
-  );
+  // "Race · 1 Oct": the breadcrumb's last step (the track is the page's h1) and, after the track,
+  // the tab title
+  const sessionCrumb = selectedSession
+    ? `${sessionTypeLabel(selectedSession.session_type, t)} · ${new Date(selectedSession.created_at).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}`
+    : '';
+  useDocumentTitle(selectedSession ? `${selectedSession.track_name} ${sessionCrumb}` : t('nav.tabs.history'));
 
   return (
     <div className={styles.page}>
@@ -101,7 +102,7 @@ const SessionHistoryContent: React.FC = () => {
             <div className={styles.crumbs}>
               <span className={styles.crumbRoot}>{t('history.title')}</span>
               <span aria-hidden="true">/</span>
-              <span className={styles.crumbCurrent}>{selectedSession.track_name}</span>
+              <span className={styles.crumbCurrent}>{sessionCrumb}</span>
             </div>
           </div>
         </div>

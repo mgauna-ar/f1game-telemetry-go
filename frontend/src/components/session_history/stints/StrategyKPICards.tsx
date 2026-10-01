@@ -47,7 +47,7 @@ export const StrategyKPICards: React.FC<StrategyKPICardsProps> = ({ strategyKPIs
     <ul className={styles.grid}>
       <KpiCard
         label={t('history.stints.kpi.mostPopularStrategy')}
-        icon={<Layers size={16} className={styles.popular} aria-hidden="true" />}
+        icon={<Layers size={16} className={styles.icon} aria-hidden="true" />}
       >
         <div className={styles.value}>{strategyKPIs.mostPopularStrategy}</div>
         <div className={styles.sub}>
@@ -59,7 +59,7 @@ export const StrategyKPICards: React.FC<StrategyKPICardsProps> = ({ strategyKPIs
 
       <KpiCard
         label={t('history.stints.kpi.longestStint')}
-        icon={<Clock size={16} className={styles.longest} aria-hidden="true" />}
+        icon={<Clock size={16} className={styles.icon} aria-hidden="true" />}
       >
         {longest ? (
           <>
@@ -78,7 +78,7 @@ export const StrategyKPICards: React.FC<StrategyKPICardsProps> = ({ strategyKPIs
 
       <KpiCard
         label={t('history.stints.kpi.totalPitStops')}
-        icon={<Wrench size={16} className={styles.stops} aria-hidden="true" />}
+        icon={<Wrench size={16} className={styles.icon} aria-hidden="true" />}
       >
         <div className={styles.value}>
           {t('history.stints.kpi.stopsCount', { count: strategyKPIs.totalFieldPitStops })}
@@ -92,7 +92,7 @@ export const StrategyKPICards: React.FC<StrategyKPICardsProps> = ({ strategyKPIs
 
       <KpiCard
         label={t('history.stints.kpi.bestCompoundLaps')}
-        icon={<Zap size={16} className={styles.compounds} aria-hidden="true" />}
+        icon={<Zap size={16} className={styles.icon} aria-hidden="true" />}
       >
         <div className={styles.bestLaps}>
           {bestLaps.length === 0 ? (

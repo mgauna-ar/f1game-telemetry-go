@@ -14,7 +14,6 @@
 /* Cards in a row share the tallest one's height */
 .card {
   flex: 1;
-  padding: var(--space-4) var(--space-5);
 }
 
 .head {
@@ -24,35 +23,20 @@
   margin-bottom: var(--space-2);
 }
 
+/* Labelled like ui/Stat, with a neutral icon */
 .label {
-  margin: 0;
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
+  composes: eyebrow from '../../ui/patterns.module.css';
 }
 
-.popular {
-  color: var(--accent-primary);
-}
-
-.longest {
-  color: var(--f1-gold);
-}
-
-.stops {
-  color: var(--f1-compound-soft);
-}
-
-.compounds {
-  color: var(--accent-purple);
+.icon {
+  color: var(--text-muted);
 }
 
 .value {
   margin-bottom: var(--space-1);
+  font-family: var(--font-display);
   font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-black);
+  font-weight: var(--font-weight-bold);
   color: var(--text-primary);
 }
 

@@ -3,7 +3,7 @@ import { Info, UserRound } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
 import type { DriverStanding, FeedEvent, PlayerSource, ProgressionResponse, Session } from '../../../types/session';
 import { Button } from '../../ui/Button';
-import { cx } from '../../ui/cx';
+import { Callout } from '../../ui/Callout';
 import { YourRaceCard } from '../classification/YourRaceCard';
 import { openPlayerPicker } from '../player/playerPickerStore';
 import { FieldPaceChart } from './FieldPaceChart';
@@ -53,18 +53,24 @@ export const SessionStoryTab: React.FC<SessionStoryTabProps> = ({
             formatLapTime={formatLapTime}
           />
         ) : (
-          <div className={cx(styles.note, styles.noteAction)} role="note" data-testid="no-driver">
-            <Info size={14} aria-hidden="true" />
-            <span>{t('history.player.noDriver')}</span>
-            <Button
-              size="sm"
-              variant="primary"
-              icon={<UserRound size={14} aria-hidden="true" />}
-              onClick={() => openPlayerPicker(session)}
-            >
-              {t('history.player.pickDriver')}
-            </Button>
-          </div>
+          <Callout
+            tone="neutral"
+            role="note"
+            data-testid="no-driver"
+            icon={<Info size={16} />}
+            actions={
+              <Button
+                size="sm"
+                variant="primary"
+                icon={<UserRound size={14} aria-hidden="true" />}
+                onClick={() => openPlayerPicker(session)}
+              >
+                {t('history.player.pickDriver')}
+              </Button>
+            }
+          >
+            {t('history.player.noDriver')}
+          </Callout>
         )}
         {isRaceSession && playerCarIndex !== null && (
           <FieldPaceChart
@@ -86,10 +92,9 @@ export const SessionStoryTab: React.FC<SessionStoryTabProps> = ({
           <KeyMomentsTimeline events={events} playerCarIndex={playerCarIndex} />
         </div>
       ) : (
-        <p className={styles.note}>
-          <Info size={14} aria-hidden="true" />
+        <Callout tone="neutral" role="note" icon={<Info size={16} />}>
           {t('history.story.noEvents')}
-        </p>
+        </Callout>
       )}
     </div>
   );

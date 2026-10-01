@@ -42,16 +42,11 @@ export const SessionBatchDock: React.FC<SessionBatchDockProps> = (props) => {
       </div>
 
       <div className={styles.actions}>
-        <Button
-          className={styles.export}
-          onClick={onExportZip}
-          loading={isExporting}
-          icon={<Download size={14} aria-hidden="true" />}
-        >
+        <Button onClick={onExportZip} loading={isExporting} icon={<Download size={14} aria-hidden="true" />}>
           {isExporting ? t('history.batch.exportingZip') : t('history.batch.exportZip', { count: selectedCount })}
         </Button>
 
-        <Button onClick={onOpenBatchTagModal} icon={<Tag size={14} className={styles.tagIcon} aria-hidden="true" />}>
+        <Button onClick={onOpenBatchTagModal} icon={<Tag size={14} aria-hidden="true" />}>
           {t('history.batch.tagSelected')}
         </Button>
 

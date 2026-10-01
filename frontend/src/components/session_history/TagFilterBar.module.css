@@ -1,3 +1,4 @@
+/* The tags as one row of chips that scrolls sideways */
 .bar {
   display: flex;
   align-items: center;
@@ -5,65 +6,13 @@
   width: 100%;
   padding: 2px 0 var(--space-1);
   overflow-x: auto;
+  scrollbar-width: thin;
 }
 
 .label {
+  composes: eyebrow from '../ui/patterns.module.css';
   display: flex;
   flex-shrink: 0;
   align-items: center;
   gap: var(--space-1);
-  margin-right: var(--space-1);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-/* One pill per tag; "All tags" uses the cyan accent, a tag its own colour */
-.pill {
-  --pill-color: var(--accent-cyan);
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: var(--space-1-5);
-  padding: var(--space-1) 10px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-full);
-  background: var(--bg-hover);
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
-  cursor: pointer;
-  transition:
-    background-color var(--duration-fast) ease,
-    border-color var(--duration-fast) ease,
-    color var(--duration-fast) ease;
-}
-
-.pill:hover {
-  border-color: var(--border-strong);
-  background: var(--bg-active);
-  color: var(--text-primary);
-}
-
-.pill[aria-pressed='true'] {
-  border-color: var(--pill-color);
-  background: color-mix(in srgb, var(--pill-color) 16%, transparent);
-  color: var(--text-primary);
-  font-weight: var(--font-weight-bold);
-  box-shadow: 0 0 12px color-mix(in srgb, var(--pill-color) 25%, transparent);
-}
-
-.count {
-  padding: 1px var(--space-1-5);
-  border-radius: var(--radius-full);
-  background: color-mix(in srgb, var(--pill-color) 10%, transparent);
-  color: var(--pill-color);
-  font-size: var(--font-size-2xs);
-  font-weight: var(--font-weight-bold);
-}
-
-.pill[aria-pressed='true'] .count {
-  background: color-mix(in srgb, var(--pill-color) 25%, transparent);
 }

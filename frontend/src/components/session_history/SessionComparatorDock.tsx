@@ -103,7 +103,6 @@ export const SessionComparatorDock: React.FC<SessionComparatorDockProps> = (prop
         <IconButton
           size="sm"
           variant="secondary"
-          className={styles.swap}
           label={t('history.dock.swapSlots')}
           disabled={!hasBoth}
           onClick={onSwap}
@@ -117,12 +116,7 @@ export const SessionComparatorDock: React.FC<SessionComparatorDockProps> = (prop
         <Button variant="ghost" size="sm" onClick={onClearAll}>
           {t('common.clear')}
         </Button>
-        <Button
-          variant="primary"
-          className={cx(hasBoth && styles.launchReady)}
-          icon={<Zap size={14} aria-hidden="true" />}
-          onClick={onLaunch}
-        >
+        <Button variant="primary" icon={<Zap size={14} aria-hidden="true" />} onClick={onLaunch}>
           {hasBoth ? t('history.dock.compare2Laps') : t('history.dock.launchComparator')}
           <ChevronRight size={14} aria-hidden="true" />
         </Button>

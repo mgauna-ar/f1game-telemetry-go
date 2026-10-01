@@ -12,7 +12,7 @@
   align-items: center;
   gap: var(--space-1-5);
   font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
+  font-weight: var(--font-weight-semibold);
   color: var(--text-secondary);
 }
 
@@ -27,54 +27,8 @@
   gap: var(--space-1-5);
 }
 
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1-5);
-  padding: var(--space-1) 10px;
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-full);
-  background: var(--bg-inset);
-  color: var(--text-muted);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  cursor: pointer;
-  transition:
-    background-color var(--duration-fast) var(--ease-smooth),
-    border-color var(--duration-fast) var(--ease-smooth),
-    color var(--duration-fast) var(--ease-smooth);
-}
-
-.chip:hover {
-  color: var(--text-primary);
-}
-
-.chip[aria-pressed='true'] {
-  border-color: var(--team-color);
-  background: color-mix(in srgb, var(--team-color) 13%, transparent);
-  color: var(--text-primary);
-}
-
-.teamDot {
-  width: 8px;
-  height: 8px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: var(--team-color);
-}
-
 .raceNumber {
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
   opacity: 0.8;
-}
-
-.you {
-  padding: 0 var(--space-1);
-  border-radius: var(--radius-sm);
-  background: var(--accent-cyan);
-  color: var(--bg-dark);
-  font-size: var(--font-size-2xs);
-  font-weight: var(--font-weight-black);
-  letter-spacing: 0.04em;
 }
