@@ -837,6 +837,13 @@ export const CAR_LAPS_REFRESH_MS = 5_000;
 /** The live mode last used at phone size, kept apart so a phone opens the Driver view by default. */
 export const STORAGE_KEY_LIVE_VIEW_MODE_PHONE = 'f1_live_view_mode_phone';
 
+/**
+ * Performance mode (solid surfaces, no blur, glow or motion) is saved per device, as two choices:
+ * one for the Driver view, where it's on by default, and one for every other page (off by default).
+ */
+export const STORAGE_KEY_PERFORMANCE_MODE = 'f1_performance_mode';
+export const STORAGE_KEY_PERFORMANCE_MODE_DRIVER = 'f1_performance_mode_driver';
+
 /** What the live telemetry feed is doing right now, as shown in the nav and the live header. */
 export const LIVE_STATUS = {
   /** The backend can't be reached. */
