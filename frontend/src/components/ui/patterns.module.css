@@ -1,6 +1,8 @@
 /*
  * Shared looks that aren't components of their own. Other modules pull them in with
- * `composes: tile from '../ui/patterns.module.css';` and add only what differs.
+ * `composes: tile from '../ui/patterns.module.css';` and add only what differs. Don't restate a
+ * property these set: the bundle may place this file after yours, so the override can lose. Add a
+ * variant here instead (as `subheading` is for `eyebrow`).
  */
 
 /* A floating surface: menus, dropdowns, popovers and docks */
@@ -18,8 +20,10 @@
   border-radius: var(--radius-sm);
 }
 
-/* The small uppercase label above a value or a group of settings */
-.eyebrow {
+/* The small uppercase label above a value (eyebrow), and the heading of a group of settings or
+   notes inside a panel (subheading, one step brighter) */
+.eyebrow,
+.subheading {
   margin: 0;
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
@@ -27,6 +31,10 @@
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: var(--tracking-label);
+}
+
+.subheading {
+  color: var(--text-secondary);
 }
 
 /* A driver's row or card: one 3px edge in the team colour, set with styleVars({'--team-color': …}) */

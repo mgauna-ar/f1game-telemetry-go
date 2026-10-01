@@ -257,7 +257,7 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({ isOpenOverride, 
         <div className={styles.header}>
           <div className={styles.identity}>
             <span className={styles.avatar} aria-hidden="true">
-              <Bot size={18} />
+              <Bot size={16} />
             </span>
             <div className={styles.heading}>
               <div className={styles.titleRow}>
@@ -293,10 +293,10 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({ isOpenOverride, 
               aria-pressed={showSettings}
               onClick={() => setShowSettings(!showSettings)}
             >
-              <Settings size={15} />
+              <Settings size={16} />
             </IconButton>
             <IconButton size="sm" label={t('ai_engineer.clearChat')} onClick={clearMessages}>
-              <RotateCcw size={15} />
+              <RotateCcw size={16} />
             </IconButton>
             {canDock && (
               <IconButton
@@ -305,12 +305,12 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({ isOpenOverride, 
                 aria-pressed={isDocked}
                 onClick={() => setDockPreferred(!isDocked)}
               >
-                {isDocked ? <PanelRightClose size={15} /> : <PanelRight size={15} />}
+                {isDocked ? <PanelRightClose size={16} /> : <PanelRight size={16} />}
               </IconButton>
             )}
             {!isDocked && (
               <IconButton size="sm" label={expandLabel} onClick={() => setIsExpanded(!isExpanded)}>
-                {isExpanded ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+                {isExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
               </IconButton>
             )}
             <IconButton size="sm" label={t('ai_engineer.close')} className={styles.close} onClick={handleClose}>
@@ -353,26 +353,18 @@ export const AiRaceEngineer: React.FC<AiRaceEngineerProps> = ({ isOpenOverride, 
             />
 
             {isGenerating ? (
-              <button
-                type="button"
-                className={styles.send}
-                data-stop
-                onClick={stopGenerating}
-                title={t('ai_engineer.stop')}
-                aria-label={t('ai_engineer.stop')}
-              >
-                <Square size={13} />
-              </button>
+              <IconButton className={styles.send} data-stop onClick={stopGenerating} label={t('ai_engineer.stop')}>
+                <Square size={14} />
+              </IconButton>
             ) : (
-              <button
+              <IconButton
                 type="submit"
                 className={styles.send}
                 disabled={!inputMessage.trim()}
-                title={t('ai_engineer.send')}
-                aria-label={t('ai_engineer.send')}
+                label={t('ai_engineer.send')}
               >
                 <Send size={14} />
-              </button>
+              </IconButton>
             )}
           </form>
         </div>

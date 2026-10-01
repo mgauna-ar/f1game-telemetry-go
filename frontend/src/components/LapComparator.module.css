@@ -1,6 +1,11 @@
 .page {
   composes: pageGrid from '../styles/pageGrid.module.css';
-  --page-padding-top: 0;
+}
+
+/* The grid's gap spaces the title from the duel panel */
+.header {
+  grid-column: 1 / -1;
+  margin-bottom: 0;
 }
 
 /* Charts on the left, the sticky track map on the right */

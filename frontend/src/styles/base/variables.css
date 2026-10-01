@@ -162,6 +162,11 @@
   --space-10: 2.5rem;
   --space-12: 3rem;
 
+  /* Pages (styles/page.module.css) sit centred, at most --page-max-width wide, with --page-gutter
+     at their sides; the top bar uses the same gutter so its edges line up with the page's */
+  --page-max-width: 1400px;
+  --page-gutter: var(--space-8);
+
   /* The floating docks: the radio pill (bottom left), the AI launcher (bottom right) and the
      history docks (bottom centre, above the launcher on narrow screens). The page keeps
      --floating-dock-clearance free at its bottom so they never cover its end. */
@@ -258,6 +263,7 @@
 
 @media (--tablet) {
   :root {
+    --page-gutter: var(--space-4);
     --session-dock-clearance: 200px;
   }
 }

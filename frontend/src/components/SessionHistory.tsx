@@ -13,8 +13,10 @@ import { PlayerPickerModal } from './session_history/player/PlayerPickerModal';
 import { SessionComparatorDock } from './session_history/SessionComparatorDock';
 import { SessionBatchDock } from './session_history/SessionBatchDock';
 import { StandaloneToastContainer } from './common/ToastContainer';
+import { Badge } from './ui/Badge';
 import { Button } from './ui/Button';
 import { EmptyState } from './ui/EmptyState';
+import { PageHeader } from './ui/PageHeader';
 import { Panel } from './ui/Panel';
 import { SkeletonGroup, SkeletonRows } from './ui/Skeleton';
 
@@ -80,19 +82,16 @@ const SessionHistoryContent: React.FC = () => {
     <div className={styles.page}>
       {/* Session History Title Header */}
       {!selectedSession ? (
-        <div className={styles.header}>
-          <div>
-            <h1 className={styles.title}>
-              <Calendar color="var(--accent-primary)" size={28} aria-hidden="true" />
-              {t('history.title')}
-            </h1>
-            <p className={styles.subtitle}>{t('history.subtitle')}</p>
-          </div>
-          <div className={styles.countBadge}>
-            <span className={styles.countDot} aria-hidden="true" />
-            <span className={styles.countText}>{t('history.recordedSessionsCount', { count: sessions.length })}</span>
-          </div>
-        </div>
+        <PageHeader
+          icon={<Calendar />}
+          title={t('history.title')}
+          subtitle={t('history.subtitle')}
+          aside={
+            <Badge tone="accent" size="md" uppercase className={styles.count}>
+              {t('history.recordedSessionsCount', { count: sessions.length })}
+            </Badge>
+          }
+        />
       ) : (
         <div className={styles.detailBar}>
           <div className={styles.detailNav}>

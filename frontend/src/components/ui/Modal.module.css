@@ -19,7 +19,7 @@
   overflow: hidden;
   background-color: var(--bg-elevated);
   border: 1px solid var(--border-highlight);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-dialog);
   color: var(--text-primary);
   animation: dialog-in var(--duration-normal) var(--ease-out);

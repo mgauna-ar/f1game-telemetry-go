@@ -3,6 +3,7 @@ import { Trophy, Users, User } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
 import type { ComparatorPreferences, ComparatorRivalMode } from '../../types/comparatorPreferences';
 import { cx } from '../ui/cx';
+import { TextInput } from '../ui/Field';
 import styles from './ComparatorPreferencesModal.module.css';
 
 export interface ComparatorPreferencesFieldsProps {
@@ -68,10 +69,8 @@ export const ComparatorPreferencesFields: React.FC<ComparatorPreferencesFieldsPr
                 </button>
               )}
             </div>
-            <input
+            <TextInput
               id={nameId}
-              type="text"
-              className={styles.input}
               value={value.rivalDriverName}
               onChange={(e) => onChange({ ...value, rivalDriverName: e.target.value })}
               placeholder={t('comparator.preferences.rivalDriverPlaceholder')}

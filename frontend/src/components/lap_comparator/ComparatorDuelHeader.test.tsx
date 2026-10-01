@@ -119,7 +119,6 @@ describe('ComparatorDuelHeader Component', () => {
   it('renders duel matchup with baseline driver, rival driver, and delta', () => {
     render(<ComparatorDuelHeader {...defaultProps} />);
 
-    expect(screen.getByText('Lap Comparator')).toBeInTheDocument();
     expect(screen.getByText('Max Verstappen')).toBeInTheDocument();
     expect(screen.getByText('Lando Norris')).toBeInTheDocument();
     expect(screen.getByText('324 km/h')).toBeInTheDocument();

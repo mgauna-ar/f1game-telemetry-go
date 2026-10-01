@@ -13,23 +13,23 @@
   font-weight: var(--font-weight-bold);
   letter-spacing: 0.02em;
   color: var(--text-primary);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--accent-cyan) 6%, transparent), transparent), var(--bg-popover);
+  background: var(--bg-popover);
   border: 1px solid color-mix(in srgb, var(--accent-cyan) 35%, transparent);
   border-radius: var(--radius-full);
   box-shadow:
     var(--shadow-md),
-    0 0 20px color-mix(in srgb, var(--accent-cyan) 18%, transparent);
+    0 0 var(--glow-sm) var(--accent-cyan-glow);
   cursor: pointer;
-  transition: all 0.28s var(--ease-out);
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 
 .launcher:hover {
   border-color: var(--accent-cyan);
   box-shadow:
     var(--shadow-lg),
-    0 0 28px color-mix(in srgb, var(--accent-cyan) 35%, transparent);
-  transform: translateY(-3px) scale(1.02);
+    0 0 var(--glow-md) var(--accent-cyan-glow);
 }
 
 .launcherIcon {
@@ -43,10 +43,6 @@
   background: color-mix(in srgb, var(--accent-cyan) 12%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent-cyan) 30%, transparent);
   border-radius: 50%;
-}
-
-.launcherIcon svg {
-  transition: transform var(--transition-normal);
 }
 
 /* Tablets and phones: just the round icon, so it takes no room from the radio pill or a dock */
@@ -63,10 +59,7 @@
   }
 }
 
-.launcher:hover .launcherIcon svg {
-  transform: rotate(10deg) scale(1.1);
-}
-
+/* A still dot on the mark: the engineer is ready */
 .pulse {
   position: absolute;
   top: -2px;
@@ -74,45 +67,31 @@
   width: 9px;
   height: 9px;
   background: var(--accent-cyan);
+  border: 2px solid var(--bg-popover);
   border-radius: 50%;
-  box-shadow: 0 0 8px var(--accent-cyan);
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0%,
-  100% {
-    opacity: 0.8;
-    transform: scale(0.9);
-  }
-  50% {
-    opacity: 1;
-    box-shadow: 0 0 12px var(--accent-cyan);
-    transform: scale(1.35);
-  }
 }
 
 /* The open chat: a panel beside the page, with no backdrop. Its parts adapt to its width with
    container queries on `chat`, so the large reading mode needs no extra classes. */
 .widget {
   position: fixed;
-  right: var(--space-6);
-  bottom: var(--space-6);
+  right: var(--dock-inset);
+  bottom: var(--dock-inset);
   z-index: var(--z-dock);
   display: flex;
   flex-direction: column;
   width: 440px;
-  max-width: calc(100vw - var(--space-8));
+  max-width: calc(100vw - 2 * var(--dock-inset));
   height: 640px;
   max-height: calc(100vh - 100px);
   overflow: hidden;
   container: chat ai-settings / inline-size;
   background: var(--bg-popover);
   border: 1px solid color-mix(in srgb, var(--accent-cyan) 22%, transparent);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   box-shadow:
     var(--shadow-dialog),
-    0 0 25px color-mix(in srgb, var(--accent-cyan) 10%, transparent);
+    0 0 var(--glow-sm) var(--accent-cyan-glow);
   animation: widgetIn 0.25s var(--ease-out);
   transition:
     width 0.25s var(--ease-smooth),
@@ -178,17 +157,18 @@
   min-width: 0;
 }
 
+/* The engineer's round mark: 36px on the launcher, 32px here, 20px beside each reply */
 .avatar {
   display: flex;
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   color: var(--accent-cyan);
   background: color-mix(in srgb, var(--accent-cyan) 12%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent-cyan) 30%, transparent);
-  border-radius: var(--radius-md);
+  border-radius: 50%;
 }
 
 .heading {
@@ -252,7 +232,7 @@
   display: flex;
   flex-shrink: 0;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-1);
 }
 
 .close:hover:not(:disabled) {
@@ -275,7 +255,7 @@
   padding: var(--space-1) var(--space-1) var(--space-1) var(--space-3);
   background: var(--bg-inset);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-sm);
   transition:
     border-color var(--transition-normal),
     box-shadow var(--transition-normal);
@@ -315,37 +295,25 @@
   opacity: 0.6;
 }
 
-.send {
+/* Send and stop: an IconButton tinted cyan, or red to stop */
+.inputForm .send {
   --send-color: var(--accent-cyan);
-  display: flex;
   flex-shrink: 0;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
   color: var(--send-color);
   background: color-mix(in srgb, var(--send-color) 15%, transparent);
-  border: 1px solid color-mix(in srgb, var(--send-color) 40%, transparent);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: all var(--transition-normal);
+  border-color: color-mix(in srgb, var(--send-color) 40%, transparent);
 }
 
-.send:hover:not(:disabled) {
+.inputForm .send:hover:not(:disabled) {
   color: var(--text-on-accent);
   background: var(--send-color);
 }
 
-.send:disabled {
-  cursor: not-allowed;
-  opacity: 0.3;
-}
-
-.send[data-stop] {
+.inputForm .send[data-stop] {
   --send-color: var(--status-danger);
 }
 
-.send[data-stop]:hover {
+.inputForm .send[data-stop]:hover {
   color: var(--text-primary);
 }
 
@@ -358,9 +326,7 @@
 @media (--phone) {
   .widget,
   .widget[data-expanded='true'] {
-    right: var(--space-2);
-    bottom: var(--space-2);
-    width: calc(100vw - var(--space-4));
+    width: calc(100vw - 2 * var(--dock-inset));
     max-width: none;
     height: calc(100vh - 80px);
   }

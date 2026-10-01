@@ -54,4 +54,9 @@
   .subtitle {
     font-size: var(--font-size-sm);
   }
+
+  /* Wrapped under the title: the controls get the full width */
+  .aside {
+    width: 100%;
+  }
 }

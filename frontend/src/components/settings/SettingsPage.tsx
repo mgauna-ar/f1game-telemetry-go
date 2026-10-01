@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Bot, GitCompare, Mic, Monitor, Radio, Server, Settings, Sparkles } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
@@ -7,7 +7,8 @@ import { useRoute } from '../../router/router';
 import { SETTINGS_SECTIONS, settingsPath, type SettingsPageSection } from '../../router/routes';
 import { useComparatorPreferencesStore } from '../../store/useComparatorPreferencesStore';
 import { Badge } from '../ui/Badge';
-import { Panel } from '../ui/Panel';
+import { PageHeader } from '../ui/PageHeader';
+import { Panel, PanelHeader } from '../ui/Panel';
 import { AiSettingsSection } from './AiSettingsSection';
 import { ComparatorSettingsSection } from './ComparatorSettingsSection';
 import { DeviceSettingsSection } from './DeviceSettingsSection';
@@ -50,7 +51,6 @@ export const SettingsPage: React.FC = () => {
   const route = useRoute();
   const section: SettingsPageSection = route.page === 'settings' ? route.section : SETTINGS_SECTIONS[0];
   const meta = SECTION_META[section];
-  const titleId = useId();
   const title = t(`settings.sections.${section}.title`);
   useDocumentTitle(`${t('settings.title')}: ${title}`);
 
@@ -68,13 +68,7 @@ export const SettingsPage: React.FC = () => {
 
   return (
     <div className={styles.page}>
-      <header className={styles.header}>
-        <h1 className={styles.title}>
-          <Settings color="var(--accent-primary)" size={28} aria-hidden="true" />
-          {t('settings.title')}
-        </h1>
-        <p className={styles.subtitle}>{t('settings.subtitle')}</p>
-      </header>
+      <PageHeader icon={<Settings />} title={t('settings.title')} subtitle={t('settings.subtitle')} />
 
       <div className={styles.layout}>
         <nav ref={navRef} className={styles.nav} aria-label={t('settings.navLabel')}>
@@ -99,23 +93,24 @@ export const SettingsPage: React.FC = () => {
           </ul>
         </nav>
 
-        <Panel className={styles.content} aria-labelledby={titleId} data-section={section}>
-          <header className={styles.sectionHeader}>
-            <div className={styles.sectionHeading}>
-              <h2 id={titleId} className={styles.sectionTitle}>
-                {title}
-              </h2>
+        <Panel className={styles.content} data-section={section}>
+          <PanelHeader
+            level={2}
+            className={styles.sectionHeader}
+            icon={<meta.icon size={16} />}
+            title={title}
+            subtitle={t(`settings.sections.${section}.description`)}
+            actions={
               <Badge
                 tone={meta.shared ? 'info' : 'neutral'}
                 size="xs"
-                icon={meta.shared ? <Server size={11} /> : <Monitor size={11} />}
+                icon={meta.shared ? <Server size={12} /> : <Monitor size={12} />}
                 title={t(meta.shared ? 'settings.scope.sharedHint' : 'settings.scope.deviceHint')}
               >
                 {t(meta.shared ? 'settings.scope.shared' : 'settings.scope.device')}
               </Badge>
-            </div>
-            <p className={styles.sectionDescription}>{t(`settings.sections.${section}.description`)}</p>
-          </header>
+            }
+          />
           <SectionContent section={section} />
         </Panel>
       </div>

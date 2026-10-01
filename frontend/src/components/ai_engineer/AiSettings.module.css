@@ -60,22 +60,16 @@
   gap: var(--space-2);
 }
 
+/* The settings sub-heading, shared with the radio and comparator sections */
 .sectionTitle {
-  margin: 0;
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
+  composes: subheading from '../ui/patterns.module.css';
 }
 
 /* The selected provider's own fields */
 .providerPanel {
+  composes: tile from '../ui/patterns.module.css';
   gap: var(--space-4);
   padding: var(--space-4);
-  background: var(--bg-hover);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
   animation: slideIn 0.18s ease-out;
 }
 
@@ -128,9 +122,9 @@
   padding: var(--space-3);
   text-align: left;
   color: var(--text-primary);
-  background: var(--bg-hover);
+  background: var(--bg-inset);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition:
     border-color var(--transition-fast),
@@ -145,9 +139,7 @@
 .providerCard[aria-checked='true'] {
   background: color-mix(in srgb, var(--provider-color) 9%, transparent);
   border-color: color-mix(in srgb, var(--provider-color) 70%, transparent);
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--provider-color) 35%, transparent),
-    0 6px 20px color-mix(in srgb, var(--provider-color) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--provider-color) 35%, transparent);
 }
 
 .providerIcon {
@@ -159,7 +151,7 @@
   color: var(--provider-color);
   background: color-mix(in srgb, var(--provider-color) 14%, transparent);
   border: 1px solid color-mix(in srgb, var(--provider-color) 30%, transparent);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
 }
 
 .providerText {
@@ -186,7 +178,7 @@
   color: var(--text-muted);
 }
 
-/* "Ready" or what is missing, with a glowing dot */
+/* "Ready" or what is missing, with a dot */
 .readiness {
   display: inline-flex;
   grid-column: 1 / -1;
@@ -208,7 +200,6 @@
   content: '';
   background: currentColor;
   border-radius: 50%;
-  box-shadow: 0 0 6px currentColor;
 }
 
 /* Fields */
@@ -317,11 +308,13 @@
   gap: var(--space-1-5);
 }
 
+/* Shaped like ui/Chip */
 .preset {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1-5);
-  padding: var(--space-1) var(--space-2);
+  min-height: var(--control-height-sm);
+  padding: 0 var(--space-3);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
   color: var(--text-secondary);
@@ -329,7 +322,10 @@
   border: 1px solid var(--border-color);
   border-radius: var(--radius-full);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition:
+    color var(--transition-fast),
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .preset:hover {
@@ -346,7 +342,7 @@
 .presetKind {
   font-size: var(--font-size-2xs);
   font-weight: var(--font-weight-medium);
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   color: var(--text-muted);
 }
@@ -367,7 +363,7 @@
   overflow-y: auto;
   background: var(--bg-inset);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   scrollbar-color: var(--border-strong) transparent;
   scrollbar-width: thin;
 }
@@ -383,7 +379,7 @@
   color: var(--text-primary);
   background: transparent;
   border: none;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-xs);
   cursor: pointer;
 }
 

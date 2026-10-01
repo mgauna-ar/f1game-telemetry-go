@@ -16,7 +16,8 @@
   flex-shrink: 0;
   align-items: center;
   gap: var(--space-1);
-  padding: var(--space-1) var(--space-2);
+  min-height: var(--control-height-sm);
+  padding: 0 var(--space-3);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-medium);
   white-space: nowrap;
@@ -25,7 +26,10 @@
   border: 1px solid color-mix(in srgb, var(--accent-cyan) 20%, transparent);
   border-radius: var(--radius-full);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition:
+    color var(--transition-fast),
+    background-color var(--transition-fast),
+    border-color var(--transition-fast);
 }
 
 .chip svg {
@@ -52,10 +56,9 @@
   color: var(--accent-cyan);
   background: color-mix(in srgb, var(--accent-cyan) 18%, transparent);
   border-color: var(--accent-cyan);
-  transform: translateY(-1px);
 }
 
 .chip:disabled {
   cursor: not-allowed;
-  opacity: 0.4;
+  opacity: 0.5;
 }

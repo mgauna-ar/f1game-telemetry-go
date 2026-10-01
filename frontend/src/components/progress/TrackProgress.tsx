@@ -13,6 +13,7 @@ import { TrackFlag } from '../TrackFlag';
 import { Button } from '../ui/Button';
 import { EmptyState } from '../ui/EmptyState';
 import { Select } from '../ui/Field';
+import { PageHeader } from '../ui/PageHeader';
 import { Panel } from '../ui/Panel';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { SkeletonGroup, SkeletonRows } from '../ui/Skeleton';
@@ -51,16 +52,13 @@ export const TrackProgress: React.FC = () => {
   useDocumentTitle(shownTrack ? `${t('progress.title')}: ${shownTrack}` : t('progress.title'));
 
   const header = (
-    <header className={styles.header}>
-      <div>
-        <h1 className={styles.title}>
-          <TrendingUp color="var(--accent-primary)" size={28} aria-hidden="true" />
-          {t('progress.title')}
-        </h1>
-        <p className={styles.subtitle}>{t('progress.subtitle')}</p>
-      </div>
-      {tracks.length > 0 && (
-        <div className={styles.controls}>
+    <PageHeader
+      icon={<TrendingUp />}
+      title={t('progress.title')}
+      subtitle={t('progress.subtitle')}
+      aside={
+        tracks.length > 0 && (
+          <>
           <div className={styles.trackPicker}>
             <label htmlFor={trackSelectId} className={styles.controlLabel}>
               {t('progress.trackLabel')}
@@ -93,9 +91,10 @@ export const TrackProgress: React.FC = () => {
               ]}
             />
           )}
-        </div>
-      )}
-    </header>
+          </>
+        )
+      }
+    />
   );
 
   let body: React.ReactNode;

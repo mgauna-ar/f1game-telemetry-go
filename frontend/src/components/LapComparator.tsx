@@ -1,10 +1,12 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { Gauge } from 'lucide-react';
 import { useRaceEngineerActions } from '../context/RaceEngineerContext';
 import { navigate, useRoute } from '../router/router';
 import { buildPath, type CompareParams } from '../router/routes';
 import { useI18n } from '../context/I18nContext';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 
+import { PageHeader } from './ui/PageHeader';
 import { ComparatorDuelHeader } from './lap_comparator/ComparatorDuelHeader';
 import { ComparatorTimingTower } from './lap_comparator/ComparatorTimingTower';
 import { ComparatorMetricsSummary } from './lap_comparator/ComparatorMetricsSummary';
@@ -375,6 +377,13 @@ export const LapComparator: React.FC = () => {
 
   return (
     <div className={styles.page}>
+      <PageHeader
+        className={styles.header}
+        icon={<Gauge />}
+        title={t('comparator.title')}
+        subtitle={t('comparator.subtitle')}
+      />
+
       {/* Header Controls & Comparison Duel Panel */}
       <ComparatorDuelHeader
         sessions={sessions}

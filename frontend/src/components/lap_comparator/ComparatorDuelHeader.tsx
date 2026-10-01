@@ -1,5 +1,5 @@
-import React, { useId, useState } from 'react';
-import { Gauge, Timer, ArrowLeftRight, Zap, Link, Unlink, X, ChevronDown, ChevronUp, Sliders } from 'lucide-react';
+import React, { useState } from 'react';
+import { Timer, ArrowLeftRight, Zap, Link, Unlink, X, ChevronDown, ChevronUp, Sliders } from 'lucide-react';
 import { SessionSelectorDropdown } from './SessionSelectorDropdown';
 import { ComparatorPreferencesModal } from './ComparatorPreferencesModal';
 import { DuelSlotCard, type DuelSlot } from './DuelSlotCard';
@@ -89,7 +89,6 @@ export const ComparatorDuelHeader: React.FC<ComparatorDuelHeaderProps> = ({
   onPreferencesSave,
 }) => {
   const { t } = useI18n();
-  const titleId = useId();
   const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
 
   const sectorDeltas = [
@@ -99,13 +98,7 @@ export const ComparatorDuelHeader: React.FC<ComparatorDuelHeaderProps> = ({
   ];
 
   return (
-    <section className={`glass-panel ${styles.panel}`} aria-labelledby={titleId}>
-      <div>
-        <h2 id={titleId} className={styles.title}>
-          <Gauge size={26} className={styles.titleIcon} aria-hidden="true" /> {t('comparator.title')}
-        </h2>
-        <p className={styles.subtitle}>{t('comparator.subtitle')}</p>
-      </div>
+    <div className={`glass-panel ${styles.panel}`}>
 
       {/* Session pickers and actions */}
       <div className={styles.toolbar}>
@@ -271,6 +264,6 @@ export const ComparatorDuelHeader: React.FC<ComparatorDuelHeaderProps> = ({
         }}
         currentSlotBDriverName={slotB.driver?.name}
       />
-    </section>
+    </div>
   );
 };

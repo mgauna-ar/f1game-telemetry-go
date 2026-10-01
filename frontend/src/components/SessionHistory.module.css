@@ -1,68 +1,10 @@
 .page {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: var(--space-6) var(--space-8);
+  composes: page from '../styles/page.module.css';
 }
 
-/* List view title */
-.header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  margin-bottom: var(--space-6);
-}
-
-.title {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  margin: 0;
-  font-size: 2rem;
-}
-
-.subtitle {
-  margin: var(--space-1) 0 0;
+.count {
   font-family: var(--font-mono);
-  font-size: var(--font-size-md);
-  color: var(--text-secondary);
-}
-
-.countBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 0.35rem 0.85rem;
-  border: 1px solid color-mix(in srgb, var(--accent-cyan) 25%, transparent);
-  border-radius: var(--radius-full);
-  background: color-mix(in srgb, var(--accent-cyan) 8%, transparent);
-  box-shadow: 0 0 12px color-mix(in srgb, var(--accent-cyan) 10%, transparent);
-}
-
-.countDot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--accent-cyan);
-  box-shadow: 0 0 8px var(--accent-cyan);
-  animation: pulse 2s infinite ease-in-out;
-}
-
-@keyframes pulse {
-  50% {
-    opacity: 0.4;
-    transform: scale(0.85);
-  }
-}
-
-.countText {
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--accent-cyan);
+  letter-spacing: var(--tracking-label);
 }
 
 /* Detail view: back button and breadcrumb */
@@ -105,10 +47,4 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
-}
-
-@media (--phone) {
-  .title {
-    font-size: var(--font-size-2xl);
-  }
 }
