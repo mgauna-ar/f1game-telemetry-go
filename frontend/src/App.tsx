@@ -25,6 +25,7 @@ import type { UpdateCheckResponse, SystemVersion } from './types/system';
 import { Link } from './router/Link';
 import { navigate, useRoute, useUrl } from './router/router';
 import { buildPath, settingsPath, storeLastPage, storedLiveMode, type Page } from './router/routes';
+import { SkeletonPage } from './components/ui/Skeleton';
 import styles from './App.module.css';
 
 const SessionHistory = lazy(() => import('./components/SessionHistory').then((m) => ({ default: m.SessionHistory })));
@@ -245,7 +246,8 @@ function AppContent() {
       {/* Main Tab Content */}
       <main className={styles.main}>
         <ErrorBoundary level="section" onReset={() => {}}>
-          <Suspense fallback={null}>
+          {/* While a page's code loads, the shape of a page instead of a blank screen */}
+          <Suspense fallback={<SkeletonPage label={t('common.loading')} />}>
             {activePage === 'history' ? (
               <SessionHistory />
             ) : activePage === 'compare' ? (

@@ -14,7 +14,7 @@ import { EmptyState } from '../ui/EmptyState';
 import { Select } from '../ui/Field';
 import { Panel } from '../ui/Panel';
 import { SegmentedControl } from '../ui/SegmentedControl';
-import { SkeletonRows } from '../ui/Skeleton';
+import { SkeletonGroup, SkeletonRows } from '../ui/Skeleton';
 import { Stat } from '../ui/Stat';
 import { cx } from '../ui/cx';
 import { ProgressCharts } from './ProgressCharts';
@@ -101,7 +101,9 @@ export const TrackProgress: React.FC = () => {
   if (loading && !data) {
     body = (
       <Panel as="div">
-        <SkeletonRows rows={6} />
+        <SkeletonGroup label={t('progress.loading')}>
+          <SkeletonRows rows={6} />
+        </SkeletonGroup>
       </Panel>
     );
   } else if (error && !data) {

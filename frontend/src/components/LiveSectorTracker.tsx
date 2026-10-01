@@ -8,6 +8,7 @@ import { useI18n } from '../context/I18nContext';
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import { useTelemetryDataStore } from '../store/useTelemetryDataStore';
 import { styleVars } from '../styles/theme';
+import { EmptyState } from './ui/EmptyState';
 import { Panel, PanelHeader } from './ui/Panel';
 import styles from './LiveSectorTracker.module.css';
 import { useUnits } from '../hooks/useUnits';
@@ -222,7 +223,7 @@ export const LiveSectorTracker: React.FC<LiveSectorTrackerProps> = React.memo((p
             {t('live.speedTrapLeaderboard')}
           </h4>
           {speedTraps.length === 0 ? (
-            <div className={styles.speedEmpty}>{t('live.noSpeedTraps')}</div>
+            <EmptyState compact title={t('live.noSpeedTraps')} />
           ) : (
             <ol className={styles.speedList}>
               {speedTraps.map((st, i) => (

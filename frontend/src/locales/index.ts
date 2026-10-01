@@ -1,50 +1,10 @@
-import { common as enCommon } from './en/common';
-import { nav as enNav } from './en/nav';
-import { history as enHistory } from './en/history';
-import { comparator as enComparator } from './en/comparator';
-import { live as enLive } from './en/live';
-import { progress as enProgress } from './en/progress';
-import { ai_engineer as enAiEngineer } from './en/ai_engineer';
-import { radio_phrases as enRadioPhrases } from './en/radio_phrases';
-import { settings as enSettings } from './en/settings';
+import { en } from './en';
+import type { LocaleDictionary } from './types';
 
-import { common as esCommon } from './es/common';
-import { nav as esNav } from './es/nav';
-import { history as esHistory } from './es/history';
-import { comparator as esComparator } from './es/comparator';
-import { live as esLive } from './es/live';
-import { progress as esProgress } from './es/progress';
-import { ai_engineer as esAiEngineer } from './es/ai_engineer';
-import { radio_phrases as esRadioPhrases } from './es/radio_phrases';
-import { settings as esSettings } from './es/settings';
-
-export const en = {
-  common: enCommon,
-  nav: enNav,
-  history: enHistory,
-  comparator: enComparator,
-  progress: enProgress,
-  live: enLive,
-  ai_engineer: enAiEngineer,
-  radio_phrases: enRadioPhrases,
-  settings: enSettings,
-};
-
-export const es = {
-  common: esCommon,
-  nav: esNav,
-  history: esHistory,
-  comparator: esComparator,
-  progress: esProgress,
-  live: esLive,
-  ai_engineer: esAiEngineer,
-  radio_phrases: esRadioPhrases,
-  settings: esSettings,
-};
+export { en };
+export type { LocaleDictionary };
 
 export type LocaleCode = 'en' | 'es';
-
-export type LocaleDictionary = typeof en;
 
 export interface LocaleInfo {
   code: LocaleCode;
@@ -59,10 +19,24 @@ export const availableLocales: LocaleInfo[] = [
   { code: 'es', name: 'Español (Latinoamérica)', label: 'Español (Latinoamérica)', countryCode: 'ar', flag: '🇦🇷' },
 ];
 
-export const dictionaries: Record<LocaleCode, LocaleDictionary> = {
-  en,
-  es,
+/**
+ * Each language's dictionary, loaded on demand so a browser only downloads the one on screen.
+ * English is always here: it is the default and the fallback for a key a dictionary lacks.
+ */
+const loaders: Record<LocaleCode, () => Promise<LocaleDictionary>> = {
+  en: async () => en,
+  es: () => import('./es').then((m) => m.es),
 };
+
+const loaded: Partial<Record<LocaleCode, LocaleDictionary>> = { en };
+
+/** Whether `locale`'s dictionary is loaded, so `getTranslation` can use it. */
+export const isLocaleLoaded = (locale: LocaleCode): boolean => loaded[locale] !== undefined;
+
+/** Loads `locale`'s dictionary; later calls reuse it. */
+export async function loadLocale(locale: LocaleCode): Promise<void> {
+  if (!loaded[locale]) loaded[locale] = await loaders[locale]();
+}
 
 // Recursive path extraction for strongly-typed dot-notation keys
 type Prev = [never, 0, 1, 2, 3, 4, ...0[]];
@@ -86,8 +60,8 @@ export function getTranslation(
   key: string,
   params?: Record<string, string | number>
 ): string {
-  const dict = dictionaries[locale] || dictionaries.en;
-  const fallbackDict = dictionaries.en;
+  const dict = loaded[locale] ?? en;
+  const fallbackDict = en;
 
   const getNested = (obj: Record<string, unknown> | undefined, path: string): unknown => {
     return path.split('.').reduce<unknown>((prev, curr) => {

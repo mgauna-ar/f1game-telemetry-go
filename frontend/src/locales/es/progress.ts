@@ -1,6 +1,7 @@
 export const progress = {
   title: 'Progreso',
   subtitle: 'Tu ritmo en un circuito, sesión por sesión',
+  loading: 'Cargando tu progreso…',
   trackLabel: 'Circuito',
   trackOption: '{track} ({count})',
   kindLabel: 'Tipo de sesión',

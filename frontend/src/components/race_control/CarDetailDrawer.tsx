@@ -12,6 +12,8 @@ import { styleVars } from '../../styles/theme';
 import type { LiveCarLaps } from '../../types/telemetry';
 import { TyreCompoundBadge } from '../common/TyreCompoundBadge';
 import { IconButton } from '../ui/Button';
+import { EmptyState } from '../ui/EmptyState';
+import { SkeletonGroup, SkeletonRows } from '../ui/Skeleton';
 import { SKIP_AUTOFOCUS_ATTRIBUTE, useDialogLayer } from '../ui/useDialogLayer';
 import styles from './CarDetailDrawer.module.css';
 
@@ -129,7 +131,13 @@ const LapHistory: React.FC<LapHistoryProps> = ({ data, failed, sessionBests }) =
   const stintsId = useId();
   const lapsId = useId();
   if (!data) {
-    return <p className={styles.note}>{failed ? t('live.raceControlView.lapsFailed') : t('live.raceControlView.lapsLoading')}</p>;
+    return failed ? (
+      <EmptyState compact tone="danger" title={t('live.raceControlView.lapsFailed')} />
+    ) : (
+      <SkeletonGroup label={t('live.raceControlView.lapsLoading')}>
+        <SkeletonRows rows={5} />
+      </SkeletonGroup>
+    );
   }
 
   const laps = [...data.laps].reverse();
@@ -168,7 +176,7 @@ const LapHistory: React.FC<LapHistoryProps> = ({ data, failed, sessionBests }) =
           {t('live.raceControlView.laps')}
         </h3>
         {laps.length === 0 ? (
-          <p className={styles.note}>{t('live.raceControlView.noLaps')}</p>
+          <EmptyState compact title={t('live.raceControlView.noLaps')} />
         ) : (
           <table className={styles.laps}>
             <thead>

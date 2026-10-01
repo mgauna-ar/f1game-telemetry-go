@@ -13,6 +13,7 @@ import { styleVars } from '../../styles/theme';
 import type { LapData } from '../../types/telemetry';
 import { TyreCompoundBadge } from '../common/TyreCompoundBadge';
 import { Badge } from '../ui/Badge';
+import { EmptyState } from '../ui/EmptyState';
 import { Panel, PanelHeader } from '../ui/Panel';
 import styles from './BattlePanel.module.css';
 
@@ -63,7 +64,7 @@ export const BattlePanel: React.FC<BattlePanelProps> = ({ className, onSelectCar
         subtitle={isRace ? t('live.raceControlView.battleSubRace') : t('live.raceControlView.battleSubBestLap')}
       />
       {position <= 0 ? (
-        <p className={styles.waiting}>{t('live.raceControlView.noPosition')}</p>
+        <EmptyState compact title={t('live.raceControlView.noPosition')} />
       ) : (
         <ol className={styles.battle}>
           {row(aheadIdx, 'ahead')}

@@ -157,6 +157,17 @@ describe('Race Control panels', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it('shows placeholders while the laps load, and says so when loading fails', async () => {
+    let fail: (err: Error) => void = () => {};
+    vi.spyOn(api, 'get').mockImplementation(() => new Promise((_, reject) => (fail = reject)));
+    render(<CarDetailDrawer carIndex={2} onClose={vi.fn()} />);
+    expect(screen.getByRole('status')).toHaveTextContent('Loading laps…');
+
+    await act(async () => fail(new Error('offline')));
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+  });
+
   it('says so when a car has no completed laps', async () => {
     vi.spyOn(api, 'get').mockResolvedValue({
       session_uid: '',

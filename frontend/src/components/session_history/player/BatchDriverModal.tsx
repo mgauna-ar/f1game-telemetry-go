@@ -7,7 +7,9 @@ import type { BatchPlayerResult, SessionListItem } from '../../../types/session'
 import { useUnits } from '../../../hooks/useUnits';
 import { getSessionLapData } from '../../../utils/sessionDataCache';
 import { Button } from '../../ui/Button';
+import { EmptyState } from '../../ui/EmptyState';
 import { TextInput } from '../../ui/Field';
+import { SkeletonChips, SkeletonGroup } from '../../ui/Skeleton';
 import { Modal, ModalBody, ModalFooter, ModalHeader } from '../../ui/Modal';
 import { driverNameSuggestions, type DriverNameSuggestion } from './driverNameSuggestions';
 import styles from './BatchDriverModal.module.css';
@@ -139,9 +141,11 @@ const BatchDriverContent: React.FC<{ sessionIds: number[]; onClose: () => void }
               : t('history.player.batch.suggestions')}
           </h3>
           {suggestions === null ? (
-            <p className={styles.muted}>{t('history.player.picker.loading')}</p>
+            <SkeletonGroup label={t('history.player.picker.loading')}>
+              <SkeletonChips count={4} />
+            </SkeletonGroup>
           ) : suggestions.length === 0 ? (
-            <p className={styles.muted}>{t('history.player.batch.noSuggestions')}</p>
+            <EmptyState compact title={t('history.player.batch.noSuggestions')} />
           ) : (
             <ul className={styles.chips}>
               {suggestions.slice(0, SUGGESTION_BUTTONS).map((s) => (

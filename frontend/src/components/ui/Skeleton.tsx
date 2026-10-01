@@ -46,3 +46,35 @@ export const SkeletonRows: React.FC<{ rows?: number }> = ({ rows = 6 }) => (
     ))}
   </>
 );
+
+/** Placeholder chips, such as a row of suggestions. */
+export const SkeletonChips: React.FC<{ count?: number }> = ({ count = 4 }) => (
+  <div className={styles.chips} aria-hidden="true">
+    {Array.from({ length: count }, (_, index) => (
+      <Skeleton key={index} className={styles.chip} width={`${6 + (index % 3) * 2}rem`} />
+    ))}
+  </div>
+);
+
+/** Placeholder chart cards: a title line over a chart area. */
+export const SkeletonCharts: React.FC<{ count?: number }> = ({ count = 2 }) => (
+  <>
+    {Array.from({ length: count }, (_, index) => (
+      <div key={index} className={styles.chart} aria-hidden="true">
+        <Skeleton width="30%" />
+        <Skeleton variant="block" className={styles.chartArea} />
+      </div>
+    ))}
+  </>
+);
+
+/** A whole page while its code loads: a header card and two panels, laid out like the pages. */
+export const SkeletonPage: React.FC<{ label: string }> = ({ label }) => (
+  <SkeletonGroup label={label} className={styles.page}>
+    <Skeleton variant="block" className={styles.pageHeader} />
+    <div className={styles.pagePanels} aria-hidden="true">
+      <Skeleton variant="block" className={styles.pagePanel} />
+      <Skeleton variant="block" className={styles.pagePanel} />
+    </div>
+  </SkeletonGroup>
+);

@@ -38,6 +38,61 @@
   border-bottom: 1px solid var(--border-subtle);
 }
 
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.chip {
+  height: 1.9rem;
+  border-radius: var(--radius-full);
+}
+
+.chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.chartArea {
+  height: 14rem;
+  border-radius: var(--radius-sm);
+}
+
+/* Laid out like the pages: centred, at most 1400px, with their padding */
+.page {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-8);
+}
+
+.pageHeader {
+  height: 7rem;
+  border-radius: var(--radius-md);
+}
+
+.pagePanels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.pagePanel {
+  height: 18rem;
+  border-radius: var(--radius-md);
+}
+
+@media (--tablet) {
+  .page {
+    padding: var(--space-4);
+  }
+
+  .pagePanels {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @keyframes shimmer {
   from {
     background-position: 100% 0;

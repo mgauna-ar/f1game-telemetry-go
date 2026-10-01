@@ -1,6 +1,10 @@
 import '@testing-library/jest-dom';
 import { afterEach, vi } from 'vitest';
 import { invalidateSessionLapData } from './utils/sessionDataCache';
+import { loadLocale } from './locales';
+
+// Spanish loads on demand in the app; tests that switch to it expect it at once
+await loadLocale('es');
 
 // The session data cache is module state; start every test without cached sessions, and at `/`.
 afterEach(() => {

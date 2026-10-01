@@ -235,14 +235,6 @@
   color: var(--text-muted);
 }
 
-.speedEmpty {
-  padding: var(--space-4) 0;
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
-  text-align: center;
-  color: var(--text-muted);
-}
-
 @media (--tablet) {
   .bests,
   .bottom {

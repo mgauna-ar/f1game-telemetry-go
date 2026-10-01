@@ -73,7 +73,11 @@ describe('SettingsPage', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     renderAt('/settings/comparator');
 
+    // Placeholders until the saved rival arrives, so the defaults can't be edited and overwritten
+    expect(screen.getByRole('status')).toHaveTextContent('Loading...');
+    expect(screen.queryByTestId('rival-mode-driver-radio')).toBeNull();
     await waitFor(() => expect(screen.getByTestId('rival-mode-teammate-radio')).toBeChecked());
+    expect(screen.queryByRole('status')).toBeNull();
     fireEvent.click(screen.getByTestId('rival-mode-driver-radio'));
     fireEvent.change(screen.getByTestId('rival-driver-name-input'), { target: { value: 'Norris ' } });
     await act(() => vi.runAllTimersAsync());

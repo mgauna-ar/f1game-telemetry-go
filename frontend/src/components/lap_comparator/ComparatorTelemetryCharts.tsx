@@ -14,6 +14,7 @@ import { ErsDeployModeChart } from './charts/ErsDeployModeChart';
 import { ActiveAeroChart } from './charts/ActiveAeroChart';
 import { EmptyState } from '../ui/EmptyState';
 import { Panel } from '../ui/Panel';
+import { SkeletonCharts, SkeletonGroup } from '../ui/Skeleton';
 import { Button } from '../ui/Button';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { StripCharts } from './charts/StripCharts';
@@ -276,18 +277,17 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
             {/* 9. ACTIVE AERO & BOOST CHART (When 2026 Telemetry Present) */}
             {hasActiveAeroData && <ActiveAeroChart {...commonProps} />}
           </div>
+        ) : sessionAId && (loadingA || loadingB) ? (
+          <Panel as="div">
+            <SkeletonGroup label={t('comparator.charts.loadingTelemetry')}>
+              <SkeletonCharts count={2} />
+            </SkeletonGroup>
+          </Panel>
         ) : (
           <Panel as="div">
             <EmptyState
               icon={<LineChart size={36} />}
-              description={getComparatorEmptyStateMessage(
-                sessionAId,
-                loadingA,
-                loadingB,
-                hasAnyTelemetry,
-                comparisonData.length > 0,
-                t
-              )}
+              description={getComparatorEmptyStateMessage(sessionAId, hasAnyTelemetry, comparisonData.length > 0, t)}
             />
           </Panel>
         )}
@@ -298,18 +298,12 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
 
 const getComparatorEmptyStateMessage = (
   sessionAId: number | '',
-
-  loadingA: boolean,
-  loadingB: boolean,
   hasAnyTelemetry: boolean,
   hasComparisonData: boolean,
   t: (key: string) => string
 ): string => {
   if (!sessionAId) {
     return t('comparator.charts.selectSessionAndLaps');
-  }
-  if (loadingA || loadingB) {
-    return t('comparator.charts.loadingTelemetry');
   }
   if (hasComparisonData && !hasAnyTelemetry) {
     return t('comparator.charts.noTelemetryBoth');

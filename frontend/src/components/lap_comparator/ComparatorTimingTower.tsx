@@ -19,6 +19,7 @@ import { TyreCompoundBadge } from '../common/TyreCompoundBadge';
 import { Badge } from '../ui/Badge';
 import { Button, IconButton } from '../ui/Button';
 import { DataTable, type DataTableColumn } from '../ui/DataTable';
+import { EmptyState } from '../ui/EmptyState';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { getTeamColor } from '../../constants/f1';
 import { formatTime, formatSectorTime } from '../../utils/formatters';
@@ -609,7 +610,7 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
       {isOpen && (
         <div className={styles.body}>
           {displayedDrivers.length === 0 ? (
-            <p className={styles.empty}>{t('comparator.timingTower.noMatchingDrivers')}</p>
+            <EmptyState compact title={t('comparator.timingTower.noMatchingDrivers')} />
           ) : (
             <div data-testid="quick-select-drivers-grid">
               <DataTable

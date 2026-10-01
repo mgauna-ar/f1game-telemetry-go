@@ -6,7 +6,7 @@ import { DataTable, type DataTableColumn } from './DataTable';
 import { EmptyState } from './EmptyState';
 import { Modal } from './Modal';
 import { Panel, PanelHeader } from './Panel';
-import { SkeletonGroup, SkeletonRows } from './Skeleton';
+import { SkeletonCharts, SkeletonChips, SkeletonGroup, SkeletonPage, SkeletonRows } from './Skeleton';
 import { Stat } from './Stat';
 import { Tooltip } from './Tooltip';
 
@@ -216,5 +216,21 @@ describe('Panel, Stat, Badge, EmptyState and Skeleton', () => {
     );
     expect(screen.getByRole('alert')).toHaveTextContent('Could not load sessions');
     expect(screen.getByRole('status')).toHaveTextContent('Loading sessions');
+  });
+
+  it('shapes a whole page, charts and chips while they load, hidden from screen readers', () => {
+    const { container } = render(
+      <>
+        <SkeletonPage label="Loading..." />
+        <SkeletonGroup label="Loading telemetry">
+          <SkeletonCharts count={2} />
+          <SkeletonChips count={3} />
+        </SkeletonGroup>
+      </>
+    );
+    expect(screen.getAllByRole('status').map((s) => s.textContent)).toEqual(['Loading...', 'Loading telemetry']);
+    // Only the labels are read out; every placeholder is aria-hidden
+    const shapes = container.querySelectorAll('[role="status"] > :not(.sr-only)');
+    expect([...shapes].every((el) => el.closest('[aria-hidden="true"]'))).toBe(true);
   });
 });
