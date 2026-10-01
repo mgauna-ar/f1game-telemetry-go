@@ -18,6 +18,7 @@ import { useRadioSettingsStore } from './store/useRadioSettingsStore';
 import { useTelemetryEndpointStore } from './store/useTelemetryEndpointStore';
 import { useLiveStatus } from './hooks/useLiveStatus';
 import { useMediaQuery } from './hooks/useMediaQuery';
+import { useNavHeightVar } from './hooks/useNavHeightVar';
 import { usePerformanceModeAttribute } from './hooks/usePerformanceMode';
 import { PHONE_MEDIA } from './styles/breakpoints';
 import { LIVE_STATUS, LIVE_VIEW_MODES } from './constants/f1';
@@ -82,6 +83,8 @@ function AppContent() {
   if (activePage === 'compare') lastCompareUrl.current = canonicalUrl;
   if (activePage === 'progress') lastProgressUrl.current = canonicalUrl;
   const lastSettingsUrl = useRef(settingsPath());
+  const topNavRef = useRef<HTMLElement>(null);
+  useNavHeightVar(topNavRef);
   if (activePage === 'settings') lastSettingsUrl.current = canonicalUrl;
   const tabHref = (page: Page) => {
     switch (page) {
@@ -158,7 +161,7 @@ function AppContent() {
 
   return (
     <div className={styles.app}>
-      <header className={styles.topNav} hidden={driverFocus}>
+      <header ref={topNavRef} className={styles.topNav} hidden={driverFocus}>
         <div className={styles.brand}>
           <div className={styles.logo} data-live={isLiveFeedActive || undefined}>
             <F1TelemetryLogo size={28} animated={isLiveFeedActive} />

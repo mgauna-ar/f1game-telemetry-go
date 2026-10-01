@@ -53,8 +53,6 @@
   border-radius: var(--radius-xs);
   font-size: var(--font-size-2xs);
   font-weight: var(--font-weight-semibold);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
 }
 
 .legendLeft {

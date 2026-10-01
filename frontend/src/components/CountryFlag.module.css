@@ -59,8 +59,6 @@
   border-radius: var(--radius-xs);
   box-shadow: var(--shadow-md);
   opacity: 0;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
   transform: translate(-50%, 3px);
   transition:
     opacity var(--transition-fast),

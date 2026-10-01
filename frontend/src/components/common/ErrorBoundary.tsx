@@ -2,6 +2,7 @@ import React, { Component, type ErrorInfo, type ReactNode } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
 import { Button } from '../ui/Button';
+import { EmptyState } from '../ui/EmptyState';
 import styles from './ErrorBoundary.module.css';
 
 type ErrorLevel = 'root' | 'section' | 'widget';
@@ -41,24 +42,30 @@ const ErrorFallback: React.FC<ErrorFallbackProps> = ({
   const isRoot = level === 'root';
 
   return (
-    <div className={styles.fallback} data-level={level} role="alert">
-      <AlertTriangle size={40} className={styles.icon} aria-hidden="true" />
-      <h3 className={styles.title}>{isRoot ? t('common.errorBoundary.appTitle') : t('common.errorBoundary.title')}</h3>
-      <p className={styles.subtitle}>{t('common.errorBoundary.subtitle')}</p>
-      <div className={styles.actions}>
-        {isRoot ? (
-          <Button variant="primary" onClick={onReload}>
-            {t('common.errorBoundary.reload')}
-          </Button>
-        ) : (
-          <Button variant="primary" onClick={onReset}>
-            {t('common.errorBoundary.tryAgain')}
-          </Button>
-        )}
-        <Button onClick={onToggleDetails} aria-expanded={showDetails}>
-          {showDetails ? t('common.errorBoundary.hideDetails') : t('common.errorBoundary.showDetails')}
-        </Button>
-      </div>
+    <div className={styles.fallback} data-level={level}>
+      <EmptyState
+        tone="danger"
+        compact={level === 'widget'}
+        icon={<AlertTriangle aria-hidden="true" />}
+        title={isRoot ? t('common.errorBoundary.appTitle') : t('common.errorBoundary.title')}
+        description={t('common.errorBoundary.subtitle')}
+        action={
+          <div className={styles.actions}>
+            {isRoot ? (
+              <Button variant="primary" onClick={onReload}>
+                {t('common.errorBoundary.reload')}
+              </Button>
+            ) : (
+              <Button variant="primary" onClick={onReset}>
+                {t('common.errorBoundary.tryAgain')}
+              </Button>
+            )}
+            <Button onClick={onToggleDetails} aria-expanded={showDetails}>
+              {showDetails ? t('common.errorBoundary.hideDetails') : t('common.errorBoundary.showDetails')}
+            </Button>
+          </div>
+        }
+      />
       {showDetails && error && (
         <pre className={styles.details}>
           {error.message}

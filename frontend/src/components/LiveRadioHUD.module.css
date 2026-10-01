@@ -21,8 +21,6 @@
     linear-gradient(135deg, color-mix(in srgb, var(--radio-color) 6%, transparent), transparent), var(--bg-elevated);
   border: 1px solid color-mix(in srgb, var(--radio-color) 45%, transparent);
   border-radius: var(--radius-full);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   box-shadow:
     var(--shadow-md),
     0 0 20px color-mix(in srgb, var(--radio-color) 15%, transparent),

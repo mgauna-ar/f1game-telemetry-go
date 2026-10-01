@@ -1,0 +1,53 @@
+/*
+ * Shared looks that aren't components of their own. Other modules pull them in with
+ * `composes: tile from '../ui/patterns.module.css';` and add only what differs.
+ */
+
+/* A floating surface: menus, dropdowns, popovers and docks */
+.popover {
+  background: var(--bg-popover);
+  border: 1px solid var(--border-highlight);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+}
+
+/* A small card inside a panel: a stat, a KPI, a row of a list */
+.tile {
+  background: var(--bg-inset);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+}
+
+/* The small uppercase label above a value or a group of settings */
+.eyebrow {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+}
+
+/* A driver's row or card: one 3px edge in the team colour, set with styleVars({'--team-color': …}) */
+.teamEdge {
+  border-left: 3px solid var(--team-color, var(--f1-team-fallback));
+}
+
+/* Your row or card: the "you" tint and edge */
+.you {
+  background: var(--f1-you-bg);
+  box-shadow: inset 3px 0 0 var(--f1-you);
+}
+
+/* A selected row or card (not you): neutral, so it never reads as you or as an error */
+.selected {
+  background: var(--bg-active);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+/* Timing figures: monospace digits that line up in columns */
+.numeric {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}

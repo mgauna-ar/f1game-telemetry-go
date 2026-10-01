@@ -1,11 +1,11 @@
+/* The crash fallback: an EmptyState in the danger tone, plus the technical details on demand */
 .fallback {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 200px;
-  padding: var(--space-12) var(--space-8);
-  text-align: center;
+  padding: 0 var(--space-4) var(--space-6);
 }
 
 .fallback[data-level='root'] {
@@ -15,26 +15,6 @@
 
 .fallback[data-level='widget'] {
   min-height: 100px;
-  padding: var(--space-6) var(--space-4);
-}
-
-.icon {
-  margin-bottom: var(--space-4);
-  color: var(--status-warning);
-}
-
-.title {
-  margin: 0 0 var(--space-2);
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--text-primary);
-}
-
-.subtitle {
-  max-width: 400px;
-  margin: 0 0 var(--space-6);
-  font-size: var(--font-size-md);
-  color: var(--text-secondary);
 }
 
 .actions {
@@ -47,7 +27,7 @@
 .details {
   max-width: 600px;
   max-height: 200px;
-  margin: var(--space-6) 0 0;
+  margin: 0;
   padding: var(--space-4);
   overflow: auto;
   font-family: var(--font-mono);
@@ -58,5 +38,5 @@
   color: var(--text-secondary);
   background: var(--bg-inset);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
 }

@@ -1,10 +1,14 @@
+import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { Badge } from './Badge';
 import { Button, IconButton } from './Button';
+import { Callout } from './Callout';
+import { Chip } from './Chip';
 import { DataTable, type DataTableColumn } from './DataTable';
 import { EmptyState } from './EmptyState';
 import { Modal } from './Modal';
+import { PageHeader } from './PageHeader';
 import { Panel, PanelHeader } from './Panel';
 import { SkeletonCharts, SkeletonChips, SkeletonGroup, SkeletonPage, SkeletonRows } from './Skeleton';
 import { Stat } from './Stat';
@@ -13,6 +17,8 @@ import { Tooltip } from './Tooltip';
 afterEach(() => {
   vi.useRealTimers();
 });
+
+const TestIcon: React.FC<{ size: number }> = ({ size }) => <svg width={size} />;
 
 describe('Button', () => {
   it('never submits a form by accident and blocks clicks while loading', () => {
@@ -28,6 +34,20 @@ describe('Button', () => {
     );
     expect(button).toBeDisabled();
     expect(button).toHaveAttribute('aria-busy', 'true');
+
+    // The spinner takes the icon's own size, so the label doesn't shift
+    rerender(
+      <Button onClick={onClick} loading icon={<svg width={18} />}>
+        Save
+      </Button>
+    );
+    expect(button.querySelector('svg')).toHaveAttribute('width', '15');
+    rerender(
+      <Button onClick={onClick} loading icon={<TestIcon size={18} />}>
+        Save
+      </Button>
+    );
+    expect(button.querySelector('svg')).toHaveAttribute('width', '18');
     fireEvent.click(button);
     expect(onClick).not.toHaveBeenCalled();
   });
@@ -178,6 +198,44 @@ describe('DataTable', () => {
     expect(screen.getByRole('rowheader', { name: 'Leclerc' })).toBeInTheDocument();
     expect(screen.getByRole('rowheader', { name: 'McLaren' })).toBeInTheDocument();
     expect(screen.queryByRole('rowheader', { name: 'Norris' })).not.toBeInTheDocument();
+  });
+});
+
+describe('PageHeader, Chip and Callout', () => {
+  it('starts a page with its h1, subtitle and controls', () => {
+    render(<PageHeader title="Progress" subtitle="Your pace at one track" icon={<svg />} aside={<button type="button">Track</button>} />);
+    expect(screen.getByRole('heading', { level: 1, name: 'Progress' })).toBeInTheDocument();
+    expect(screen.getByText('Your pace at one track')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Track' })).toBeInTheDocument();
+  });
+
+  it('is a toggle when pressed is set and a plain button otherwise', () => {
+    const onClick = vi.fn();
+    const { rerender } = render(
+      <Chip pressed={false} count={4} color="#ff8000" onClick={onClick}>
+        Interliga
+      </Chip>
+    );
+    const chip = screen.getByRole('button', { name: /^Interliga\s*4$/ });
+    expect(chip).toHaveAttribute('aria-pressed', 'false');
+    expect(chip).toHaveAttribute('type', 'button');
+    expect(chip.style.getPropertyValue('--chip-color')).toBe('#ff8000');
+    fireEvent.click(chip);
+    expect(onClick).toHaveBeenCalledTimes(1);
+
+    rerender(<Chip>Norris</Chip>);
+    expect(screen.getByRole('button', { name: 'Norris' })).not.toHaveAttribute('aria-pressed');
+  });
+
+  it('shows a note with its tone and actions', () => {
+    render(
+      <Callout tone="warning" title="2 sessions without a driver" actions={<button type="button">Pick</button>}>
+        Pick who you were to see them here.
+      </Callout>
+    );
+    expect(screen.getByText('2 sessions without a driver').closest('[data-tone]')).toHaveAttribute('data-tone', 'warning');
+    expect(screen.getByText('Pick who you were to see them here.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Pick' })).toBeInTheDocument();
   });
 });
 

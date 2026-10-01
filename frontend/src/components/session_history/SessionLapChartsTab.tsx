@@ -13,6 +13,7 @@ import { useI18n } from '../../context/I18nContext';
 import { EmptyState } from '../ui/EmptyState';
 import { Panel } from '../ui/Panel';
 import { AskAiButton } from '../ai_engineer/AskAiButton';
+import { AXIS_TICK } from '../charts/chartTheme';
 import styles from './SessionLapChartsTab.module.css';
 
 export type LapChartKind = 'pace' | 'position' | 'gap';
@@ -34,7 +35,6 @@ interface SessionLapChartsTabProps {
   onSelectedDriversChange?: (selected: Record<number, boolean>) => void;
 }
 
-const AXIS_TICK = { fill: cssVar('--text-muted'), fontSize: 11 };
 /** Room on the right for the driver labels at the end of each line. */
 const CHART_MARGIN = { top: 16, right: 44, left: 4, bottom: 8 };
 

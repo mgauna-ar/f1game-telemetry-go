@@ -54,8 +54,8 @@
 /* The timeline scrolls on its own beside a long debrief */
 .story[data-events] .side {
   position: sticky;
-  top: var(--space-4);
-  max-height: calc(100vh - var(--space-8));
+  top: var(--sticky-top);
+  max-height: calc(100vh - var(--sticky-top) - var(--space-4));
   overflow-y: auto;
 }
 

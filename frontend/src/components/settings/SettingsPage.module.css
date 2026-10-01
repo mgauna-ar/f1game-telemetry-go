@@ -33,7 +33,7 @@
 
 .nav {
   position: sticky;
-  top: var(--space-4);
+  top: var(--sticky-top);
 }
 
 .navList {

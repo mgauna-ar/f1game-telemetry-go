@@ -26,8 +26,6 @@
   padding: var(--space-3) var(--space-6);
   background: color-mix(in srgb, var(--bg-dark) 88%, transparent);
   border-bottom: 1px solid var(--border-color);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
 }
 
 .brand {

@@ -10,8 +10,6 @@
   margin-bottom: var(--space-2);
   padding: var(--space-5) var(--space-6);
   background: var(--bg-glass);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-panel);

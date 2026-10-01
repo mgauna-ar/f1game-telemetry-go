@@ -59,6 +59,10 @@
   --badge-color: var(--accent-cyan);
 }
 
+.you {
+  --badge-color: var(--f1-you);
+}
+
 .purple {
   --badge-color: var(--f1-purple);
 }

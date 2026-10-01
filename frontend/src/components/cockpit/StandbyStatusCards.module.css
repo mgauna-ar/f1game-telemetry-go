@@ -6,8 +6,6 @@
   background: var(--bg-elevated);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   box-shadow:
     var(--shadow-lg),
     inset 0 1px 0 var(--border-color);

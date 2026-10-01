@@ -17,8 +17,6 @@
     linear-gradient(135deg, color-mix(in srgb, var(--accent-cyan) 6%, transparent), transparent), var(--bg-popover);
   border: 1px solid color-mix(in srgb, var(--accent-cyan) 35%, transparent);
   border-radius: var(--radius-full);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   box-shadow:
     var(--shadow-md),
     0 0 20px color-mix(in srgb, var(--accent-cyan) 18%, transparent);
@@ -112,8 +110,6 @@
   background: var(--bg-popover);
   border: 1px solid color-mix(in srgb, var(--accent-cyan) 22%, transparent);
   border-radius: var(--radius-lg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   box-shadow:
     var(--shadow-dialog),
     0 0 25px color-mix(in srgb, var(--accent-cyan) 10%, transparent);

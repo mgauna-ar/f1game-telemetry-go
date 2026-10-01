@@ -19,6 +19,12 @@ body {
   overflow-x: hidden;
 }
 
+/* Native checkboxes and radios take the control colour (cyan), like the app's own toggles */
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--accent-cyan);
+}
+
 /* A native <button> that looks like its content, for headers, cards and names that act as buttons. */
 .button-reset {
   appearance: none;

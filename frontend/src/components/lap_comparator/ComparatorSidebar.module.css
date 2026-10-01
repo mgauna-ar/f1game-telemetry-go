@@ -1,7 +1,7 @@
 /* Sticks beside the charts on wide screens */
 .sidebar {
   position: sticky;
-  top: var(--space-4);
+  top: var(--sticky-top);
   z-index: var(--z-sticky);
   display: flex;
   flex-direction: column;

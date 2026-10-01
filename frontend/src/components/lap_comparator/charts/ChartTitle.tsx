@@ -16,7 +16,7 @@ interface ChartTitleProps {
 /** Heading of a comparator chart card: an icon and the chart name. */
 export const ChartTitle: React.FC<ChartTitleProps> = ({ icon: Icon, label, color }) => (
   <h3 className={styles.title} style={color ? styleVars({ '--title-color': color }) : undefined}>
-    <Icon size={UI.ICON_SIZE_LG} aria-hidden="true" />
+    <Icon size={UI.ICON_SIZE_MD} aria-hidden="true" />
     {label}
   </h3>
 );

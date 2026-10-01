@@ -12,8 +12,6 @@
   width: min(94vw, 760px);
   padding: var(--space-3) var(--space-5);
   background: var(--bg-popover);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
   border: 1px solid color-mix(in srgb, var(--accent-cyan) 40%, transparent);
   border-radius: 14px;
   box-shadow:

@@ -815,7 +815,7 @@ export const CAR_LAPS_REFRESH_MS = 5_000;
 export const STORAGE_KEY_LIVE_VIEW_MODE_PHONE = 'f1_live_view_mode_phone';
 
 /**
- * Performance mode (solid surfaces, no blur, glow or motion) is saved per device, as two choices:
+ * Performance mode (solid surfaces, no glow or motion) is saved per device, as two choices:
  * one for the Driver view, where it's on by default, and one for every other page (off by default).
  */
 export const STORAGE_KEY_PERFORMANCE_MODE = 'f1_performance_mode';

@@ -4,15 +4,12 @@
 }
 
 .menu {
+  composes: popover from './patterns.module.css';
   position: fixed;
   z-index: var(--z-popover);
   min-width: 11rem;
   margin: 0;
   padding: var(--space-1);
-  border: 1px solid var(--border-highlight);
-  border-radius: var(--radius-sm);
-  background: var(--bg-tooltip);
-  box-shadow: var(--shadow-md);
   list-style: none;
 }
 

@@ -22,7 +22,7 @@ export interface PerformanceModeState {
 const load = (context: PerformanceContext): boolean =>
   storage.get<boolean>(STORAGE_KEYS[context], DEFAULTS[context]) === true;
 
-/** Performance mode (solid surfaces, no blur, glow or motion), saved per device and per context. */
+/** Performance mode (solid surfaces, no glow or motion), saved per device and per context. */
 export const usePerformanceModeStore = create<PerformanceModeState>((set) => ({
   enabled: { driver: load('driver'), general: load('general') },
   setEnabled: (context, on) => {

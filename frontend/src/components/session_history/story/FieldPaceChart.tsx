@@ -8,6 +8,7 @@ import { fieldPace, neutralisedLaps, raceControlPeriods } from '../../../utils/r
 import { Panel, PanelHeader } from '../../ui/Panel';
 import { raceControlAreas } from '../raceControlAreas';
 import { compactTooltipProps } from '../stints/stintUtils';
+import { AXIS_TICK } from '../../charts/chartTheme';
 import styles from './FieldPaceChart.module.css';
 
 interface FieldPaceChartProps {
@@ -17,7 +18,6 @@ interface FieldPaceChartProps {
   events: FeedEvent[];
 }
 
-const AXIS_TICK = { fill: cssVar('--text-muted'), fontSize: 11 };
 
 /**
  * Your lap times against the field's median and the fastest lap of each lap, with the safety car

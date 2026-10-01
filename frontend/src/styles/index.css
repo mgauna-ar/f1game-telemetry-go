@@ -1,4 +1,8 @@
 /* Global base styles only; every component styles itself with a CSS Module next to it. */
+/* Self-hosted variable fonts (bundled into dist, so an offline rig gets them too); every weight works. */
+@import '@fontsource-variable/inter/wght.css';
+@import '@fontsource-variable/outfit/wght.css';
+@import '@fontsource-variable/jetbrains-mono/wght.css';
 @import './base/variables.css';
 @import './base/reset.css';
 @import './base/typography.css';

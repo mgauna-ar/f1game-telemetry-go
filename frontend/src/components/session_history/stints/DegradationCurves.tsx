@@ -11,6 +11,7 @@ import { EmptyState } from '../../ui/EmptyState';
 import { Panel, PanelHeader } from '../../ui/Panel';
 import { AskAiButton } from '../../ai_engineer/AskAiButton';
 import { SegmentedControl } from '../../ui/SegmentedControl';
+import { AXIS_TICK } from '../../charts/chartTheme';
 import styles from './DegradationCurves.module.css';
 import { DegradationTable, type DegradationTableRow } from './DegradationTable';
 import { compactTooltipProps, getCompoundColor, stintKey, type DriverStintData } from './stintUtils';
@@ -32,7 +33,6 @@ interface DegradationCurvesProps {
   playerCarIndex?: number | null;
 }
 
-const AXIS_TICK = { fill: cssVar('--text-muted'), fontSize: 11 };
 
 /**
  * Every stint's degradation in a sortable table, and the lap times of the stints ticked in it

@@ -40,7 +40,7 @@ interface DriverGlanceProps {
 const TREND_ICONS = { closing: ArrowDown, opening: ArrowUp, stable: Minus } as const;
 
 /**
- * The Driver view: a phone on the rig, read at a glance. Big solid numbers with no blur or
+ * The Driver view: a phone on the rig, read at a glance. Big solid numbers with no glow or
  * animation: position, gaps with their trends, last vs best lap, tyres, fuel, ERS, flags and
  * warnings. Keeps the screen on while it shows.
  */
