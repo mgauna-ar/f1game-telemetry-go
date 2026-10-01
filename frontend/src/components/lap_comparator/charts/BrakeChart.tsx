@@ -7,8 +7,6 @@ import { ChartTitle } from './ChartTitle';
 
 export const BrakeChart = React.memo<CommonChartProps>((props) => {
   const { t } = useI18n();
-  const { nameA, nameB } = props;
-
   return (
     <ComparatorChart
       {...props}
@@ -16,13 +14,11 @@ export const BrakeChart = React.memo<CommonChartProps>((props) => {
       title={<ChartTitle icon={Disc} label={t('comparator.charts.brake')} color={CHART_COLORS.BRAKE} />}
       dataKeyA="brakeA"
       dataKeyB="brakeB"
-      lineNameA={`${nameA} Brake`}
-      lineNameB={`${nameB} Brake`}
       yAxisDomain={[0, 1]}
       yAxisTickFormatter={(v) => (typeof v === 'number' && Number.isFinite(v) ? `${Math.round(v * 100)}%` : '')}
       tooltipFormatter={(val: unknown) => {
         const num = typeof val === 'number' ? val : Number(val);
-        return Number.isFinite(num) ? [`${Math.round(num * 100)}%`] : ['-'];
+        return Number.isFinite(num) ? [`${Math.round(num * 100)}%`] : ['—'];
       }}
     />
   );

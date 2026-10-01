@@ -1,10 +1,11 @@
 import React from 'react';
-import { Award, ArrowUpRight, ArrowDownRight, Activity, Clock } from 'lucide-react';
+import { Award, Activity, Clock, TriangleAlert } from 'lucide-react';
 import type { Lap, Participant } from '../../types/session';
 import { formatTime } from '../../utils/formatters';
 import { TIME_CONSTANTS } from '../../constants/f1';
 import { useI18n } from '../../context/I18nContext';
 import { Badge } from '../ui/Badge';
+import { Panel } from '../ui/Panel';
 import styles from './ComparatorMetricsSummary.module.css';
 
 interface ComparatorMetricsSummaryProps {
@@ -15,29 +16,12 @@ interface ComparatorMetricsSummaryProps {
   driverA?: Participant;
   driverB?: Participant;
   totalDeltaMs: number | null;
-  s1Delta: number | null;
-  s2Delta: number | null;
-  s3Delta: number | null;
 }
 
 const fasterSide = (delta: number) => (delta < 0 ? 'a' : delta > 0 ? 'b' : 'equal');
 
 /** A lap is complete when it is valid, has a time and has reached sector 3. */
 const isComplete = (lap?: Lap) => Boolean(lap?.is_valid && lap.lap_time_ms > 0 && lap.sector3_ms && lap.sector3_ms > 0);
-
-const SectorDeltaBadge: React.FC<{ label: string; deltaMs: number | null }> = ({ label, deltaMs }) => {
-  if (deltaMs === null || deltaMs === undefined) return null;
-  const Arrow = deltaMs < 0 ? ArrowDownRight : ArrowUpRight;
-  return (
-    <div className={styles.sectorBadge}>
-      <dt>{label}:</dt>
-      <dd data-faster={fasterSide(deltaMs)}>
-        {deltaMs === 0 ? '0.000s' : `${(deltaMs / 1000).toFixed(3)}s`}
-        {deltaMs !== 0 && <Arrow size={14} aria-hidden="true" />}
-      </dd>
-    </div>
-  );
-};
 
 const LapCard: React.FC<{ slot: 'a' | 'b'; name: string; lap?: Lap; driver?: Participant; emptyText: string }> = ({
   slot,
@@ -49,9 +33,10 @@ const LapCard: React.FC<{ slot: 'a' | 'b'; name: string; lap?: Lap; driver?: Par
   const { t } = useI18n();
   const complete = isComplete(lap);
   return (
-    <div className={`glass-panel ${styles.card}`} data-slot={slot}>
+    <Panel as="div" padding="compact" className={styles.card} data-slot={slot}>
       <h3 className={styles.cardTitle}>
-        <span aria-hidden="true">●</span> {name}
+        <span className={styles.dot} aria-hidden="true" />
+        {name}
       </h3>
       {lap ? (
         <div className={styles.cardBody}>
@@ -59,17 +44,21 @@ const LapCard: React.FC<{ slot: 'a' | 'b'; name: string; lap?: Lap; driver?: Par
             {complete ? formatTime(lap.lap_time_ms) : '--:--.---'}
             {!lap.is_valid ? (
               <span className={styles.flag} data-kind="invalid">
-                ⚠️ {t('comparator.invalid')}
+                <TriangleAlert size={12} aria-hidden="true" />
+                {t('comparator.invalid')}
               </span>
             ) : !complete ? (
-              <span className={styles.flag}>⚠️ {t('comparator.incomplete')}</span>
+              <span className={styles.flag}>
+                <TriangleAlert size={12} aria-hidden="true" />
+                {t('comparator.incomplete')}
+              </span>
             ) : null}
             {lap.has_telemetry ? (
-              <Badge tone="accent" size="xs" square icon={<Activity size={10} aria-hidden="true" />}>
+              <Badge tone="success" size="xs" square icon={<Activity size={12} aria-hidden="true" />}>
                 {t('comparator.charts.telemetryAvailable')}
               </Badge>
             ) : (
-              <Badge tone="warning" size="xs" square icon={<Clock size={10} aria-hidden="true" />}>
+              <Badge tone="warning" size="xs" square icon={<Clock size={12} aria-hidden="true" />}>
                 {t('comparator.charts.timingOnly')}
               </Badge>
             )}
@@ -82,7 +71,7 @@ const LapCard: React.FC<{ slot: 'a' | 'b'; name: string; lap?: Lap; driver?: Par
           <dl className={styles.sectors}>
             {(['sector1_ms', 'sector2_ms', 'sector3_ms'] as const).map((key, i) => (
               <div key={key}>
-                <dt>S{i + 1}</dt>
+                <dt className={styles.sectorLabel}>S{i + 1}</dt>
                 <dd>{formatTime(lap[key])}</dd>
               </div>
             ))}
@@ -91,10 +80,11 @@ const LapCard: React.FC<{ slot: 'a' | 'b'; name: string; lap?: Lap; driver?: Par
       ) : (
         <p className={styles.empty}>{emptyText}</p>
       )}
-    </div>
+    </Panel>
   );
 };
 
+/** Who was faster and by how much (the sector deltas are in the duel header), then one card per lap. */
 export const ComparatorMetricsSummary: React.FC<ComparatorMetricsSummaryProps> = ({
   lapAObj,
   lapBObj,
@@ -103,9 +93,6 @@ export const ComparatorMetricsSummary: React.FC<ComparatorMetricsSummaryProps> =
   driverA,
   driverB,
   totalDeltaMs,
-  s1Delta,
-  s2Delta,
-  s3Delta,
 }) => {
   const { t } = useI18n();
   const isBothComplete = isComplete(lapAObj) && isComplete(lapBObj);
@@ -114,29 +101,21 @@ export const ComparatorMetricsSummary: React.FC<ComparatorMetricsSummaryProps> =
   return (
     <div className={styles.summary}>
       {isBothComplete && totalDeltaMs !== null && (
-        <div className={`glass-panel ${styles.banner}`} data-faster={fasterSide(totalDeltaMs)}>
-          <div className={styles.bannerMain}>
-            <Award size={28} className={styles.bannerIcon} aria-hidden="true" />
-            <div>
-              <p className={styles.bannerTitle}>
-                {totalDeltaMs < 0
-                  ? t('comparator.metrics.fasterLapA', { driver: nameA, delta: deltaSeconds })
-                  : totalDeltaMs > 0
-                    ? t('comparator.metrics.fasterLapB', { driver: nameB, delta: deltaSeconds })
-                    : t('comparator.metrics.identicalTime')}
-              </p>
-              <span className={styles.bannerSub}>
-                {nameA} ({formatTime(lapAObj?.lap_time_ms)}) vs {nameB} ({formatTime(lapBObj?.lap_time_ms)})
-              </span>
-            </div>
+        <Panel as="div" padding="compact" className={styles.banner} data-faster={fasterSide(totalDeltaMs)}>
+          <Award size={20} className={styles.bannerIcon} aria-hidden="true" />
+          <div>
+            <p className={styles.bannerTitle}>
+              {totalDeltaMs < 0
+                ? t('comparator.metrics.fasterLapA', { driver: nameA, delta: deltaSeconds })
+                : totalDeltaMs > 0
+                  ? t('comparator.metrics.fasterLapB', { driver: nameB, delta: deltaSeconds })
+                  : t('comparator.metrics.identicalTime')}
+            </p>
+            <span className={styles.bannerSub}>
+              {nameA} ({formatTime(lapAObj?.lap_time_ms)}) vs {nameB} ({formatTime(lapBObj?.lap_time_ms)})
+            </span>
           </div>
-
-          <dl className={styles.sectorBadges}>
-            <SectorDeltaBadge label={t('comparator.metrics.sectorDelta', { sector: 'S1' })} deltaMs={s1Delta} />
-            <SectorDeltaBadge label={t('comparator.metrics.sectorDelta', { sector: 'S2' })} deltaMs={s2Delta} />
-            <SectorDeltaBadge label={t('comparator.metrics.sectorDelta', { sector: 'S3' })} deltaMs={s3Delta} />
-          </dl>
-        </div>
+        </Panel>
       )}
 
       <div className={styles.cards}>

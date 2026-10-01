@@ -101,7 +101,7 @@ export const CornerTable: React.FC<CornerTableProps> = ({ corners, nameA, nameB,
             onZoom(c);
           }}
         >
-          <Crosshair size={11} aria-hidden="true" />
+          <Crosshair size={12} aria-hidden="true" />
           {c.turn.name}
         </button>
       ),
@@ -190,7 +190,7 @@ export const CornerTable: React.FC<CornerTableProps> = ({ corners, nameA, nameB,
             onAskAi(c);
           }}
         >
-          <Sparkles size={13} aria-hidden="true" />
+          <Sparkles size={14} aria-hidden="true" />
         </IconButton>
       ),
     },
@@ -200,7 +200,7 @@ export const CornerTable: React.FC<CornerTableProps> = ({ corners, nameA, nameB,
     <Panel padding="compact" className={styles.panel}>
       <PanelHeader
         level={2}
-        icon={<Crosshair size={15} />}
+        icon={<Crosshair size={16} />}
         title={t('comparator.corners.title')}
         subtitle={
           worst

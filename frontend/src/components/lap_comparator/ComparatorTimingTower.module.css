@@ -1,6 +1,5 @@
 .panel {
   grid-column: 1 / -1;
-  padding: var(--space-3) var(--space-5);
 }
 
 .headerBar {
@@ -35,15 +34,18 @@
 }
 
 .titleIcon {
-  color: var(--accent-primary);
+  flex-shrink: 0;
+  color: var(--text-secondary);
 }
 
+/* The panel title of ui/Panel, one step smaller for this one-line bar */
 .title {
   margin: 0;
-  font-size: var(--font-size-sm);
+  font-family: var(--font-display);
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-bold);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--tracking-tight);
   color: var(--text-primary);
 }
 
@@ -63,30 +65,6 @@
   gap: var(--space-1-5);
 }
 
-.pill {
-  border-radius: var(--radius-full);
-}
-
-.preset {
-  border-radius: var(--radius-full);
-}
-
-.preset svg {
-  color: var(--accent-primary);
-}
-
-.preset:hover:not(:disabled),
-.filter[aria-pressed='true'] {
-  background: var(--f1-slot-a-bg);
-  border-color: var(--f1-slot-a-border);
-  color: var(--f1-slot-a);
-}
-
-.filter {
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-xs);
-}
-
 /* Collapsed: the top three, one click to set as the comparison */
 .top3 {
   display: flex;
@@ -100,10 +78,11 @@
   display: flex;
   align-items: center;
   gap: var(--space-1-5);
-  padding: var(--space-1) var(--space-2);
-  background: var(--bg-hover);
+  min-height: var(--control-height-sm);
+  padding: 0 var(--space-2);
+  background: var(--bg-inset);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-sm);
   color: var(--text-secondary);
   font-size: var(--font-size-xs);
   cursor: pointer;
@@ -114,18 +93,20 @@
 }
 
 .top3Pill:hover {
-  background: var(--f1-slot-a-bg);
-  border-color: var(--f1-slot-a-border);
-  color: var(--f1-slot-a);
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
 }
 
 .top3Pos {
-  font-weight: var(--font-weight-black);
+  font-family: var(--font-mono);
+  font-weight: var(--font-weight-bold);
   color: var(--rank-color, var(--text-secondary));
 }
 
 .top3Time {
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-weight: var(--font-weight-semibold);
   color: var(--text-primary);
 }
@@ -138,28 +119,18 @@
 
 .searchIcon {
   position: absolute;
-  left: var(--space-2);
+  left: var(--space-3);
+  z-index: 1;
   color: var(--text-muted);
   pointer-events: none;
 }
 
-.searchInput {
-  width: 170px;
-  padding: var(--space-1) var(--space-6) var(--space-1) var(--space-8);
-  background: var(--bg-hover);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-full);
-  color: var(--text-primary);
-  font-size: var(--font-size-xs);
-  transition:
-    width var(--transition-fast),
-    border-color var(--transition-fast);
-}
-
-.searchInput:focus {
-  width: 200px;
-  background: var(--bg-inset);
-  border-color: var(--accent-primary);
+/* The app's text input at the small control height of the buttons beside it */
+.search input {
+  width: 230px;
+  min-height: var(--control-height-sm);
+  padding-block: 0;
+  padding-inline: var(--space-8);
 }
 
 .searchClear {
@@ -170,7 +141,7 @@
 .body {
   margin-top: var(--space-3);
   padding-top: var(--space-3);
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .tableWrap {
@@ -186,14 +157,15 @@
   white-space: nowrap;
 }
 
+/* The drivers in the slots: the slot's tint and a 3px edge */
 .table tbody tr.assignedA {
   background: var(--f1-slot-a-bg);
-  box-shadow: inset 2px 0 var(--f1-slot-a);
+  box-shadow: inset 3px 0 var(--f1-slot-a);
 }
 
 .table tbody tr.assignedB {
   background: var(--f1-slot-b-bg);
-  box-shadow: inset 2px 0 var(--f1-slot-b);
+  box-shadow: inset 3px 0 var(--f1-slot-b);
 }
 
 .rank {
@@ -204,8 +176,9 @@
   border-radius: var(--radius-xs);
   background: color-mix(in srgb, var(--rank-color) 18%, transparent);
   color: var(--rank-color);
+  font-family: var(--font-mono);
   font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-black);
+  font-weight: var(--font-weight-bold);
 }
 
 .rank[data-rank='1'],
@@ -234,13 +207,13 @@
   flex-shrink: 0;
   width: 3px;
   height: 14px;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   background: var(--team-color);
 }
 
 .raceNum {
+  font-family: var(--font-mono);
   font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
   color: var(--text-muted);
 }
 
@@ -250,14 +223,6 @@
   text-overflow: ellipsis;
   font-weight: var(--font-weight-bold);
   color: var(--text-primary);
-}
-
-.slotBadgeA {
-  --badge-color: var(--f1-slot-a);
-}
-
-.slotBadgeB {
-  --badge-color: var(--f1-slot-b);
 }
 
 .bestLap {
@@ -287,19 +252,15 @@
   color: var(--status-success);
 }
 
+/* Telemetry recorded (green, as in the duel's lap picker) or timing only (muted) */
 .telemetry {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  padding: 2px var(--space-1);
-  border-radius: var(--radius-xs);
-  background: var(--bg-hover);
   color: var(--text-muted);
 }
 
 .telemetry[data-telemetry] {
-  background: var(--f1-slot-a-bg);
-  color: var(--f1-slot-a);
+  color: var(--status-success);
 }
 
 .actions {
@@ -330,9 +291,7 @@
   cursor: pointer;
   transition:
     background-color var(--transition-fast),
-    border-color var(--transition-fast),
-    box-shadow var(--transition-fast),
-    transform var(--transition-fast);
+    border-color var(--transition-fast);
 }
 
 .circle[data-slot='b'] {
@@ -350,8 +309,6 @@
 .circle:hover {
   border-color: var(--slot-color);
   background: color-mix(in srgb, var(--slot-color) 15%, transparent);
-  box-shadow: 0 0 8px color-mix(in srgb, var(--slot-color) 40%, transparent);
-  transform: scale(1.12);
 }
 
 .circle:hover .circleDot {
@@ -361,17 +318,12 @@
 .circle[aria-pressed='true'] {
   border-color: var(--slot-color);
   background: var(--slot-color);
-  box-shadow: 0 0 10px color-mix(in srgb, var(--slot-color) 65%, transparent);
 }
 
 .circle[aria-pressed='true'] .circleDot {
   width: 6px;
   height: 6px;
   background: var(--text-primary);
-}
-
-.expand {
-  border-radius: 50%;
 }
 
 /* Lap history drill-down */
@@ -382,10 +334,7 @@
 }
 
 .historyTitle {
-  margin: 0;
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
-  color: var(--text-secondary);
+  composes: subheading from '../ui/patterns.module.css';
 }
 
 .historyGrid {
@@ -409,10 +358,10 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  padding: var(--space-1-5) var(--space-2);
-  background: var(--bg-hover);
+  padding: var(--space-2);
+  background: var(--bg-inset);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-sm);
 }
 
 .lapCard[data-slot='a'] {
@@ -434,6 +383,7 @@
 
 .lapTime {
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-weight: var(--font-weight-bold);
   color: var(--text-primary);
 }
@@ -455,10 +405,11 @@
 .slotButton {
   --slot-color: var(--f1-slot-a);
   flex: 1;
-  padding: var(--space-1) var(--space-1-5);
+  min-height: var(--control-height-sm);
+  padding: 0 var(--space-1-5);
   background: var(--bg-hover);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-sm);
   color: var(--text-secondary);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);

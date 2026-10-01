@@ -4,26 +4,18 @@
   gap: var(--space-4);
 }
 
-/* Winner banner, tinted with the faster slot's colour */
+/* Winner banner: a flat tint and a 3px edge in the faster slot's colour */
 .banner {
   --winner-color: var(--f1-gold);
-  display: flex;
-  flex-wrap: wrap;
+  flex-direction: row;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  padding: var(--space-4) var(--space-6);
-  background: var(--bg-hover);
-  border-left: 4px solid var(--winner-color);
+  gap: var(--space-3);
+  border-left: 3px solid var(--winner-color);
 }
 
 .banner[data-faster='a'],
 .banner[data-faster='b'] {
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--winner-color) 15%, transparent) 0%,
-    color-mix(in srgb, var(--winner-color) 2%, transparent) 100%
-  );
+  background: color-mix(in srgb, var(--winner-color) 8%, var(--bg-glass));
 }
 
 .banner[data-faster='a'] {
@@ -34,64 +26,23 @@
   --winner-color: var(--f1-slot-b);
 }
 
-.bannerMain {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-}
-
 .bannerIcon {
+  flex-shrink: 0;
   color: var(--winner-color);
 }
 
 .bannerTitle {
   margin: 0;
-  font-size: var(--font-size-xl);
+  font-family: var(--font-display);
+  font-size: var(--font-size-lg);
   font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-tight);
+  color: var(--text-primary);
 }
 
 .bannerSub {
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
   color: var(--text-secondary);
-}
-
-.sectorBadges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  margin: 0;
-  font-size: var(--font-size-md);
-}
-
-.sectorBadge {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-1-5) var(--space-2);
-  background: var(--bg-inset);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-xs);
-}
-
-.sectorBadge dt {
-  color: var(--text-muted);
-}
-
-.sectorBadge dd {
-  display: flex;
-  align-items: center;
-  margin: 0;
-  font-family: var(--font-mono);
-  font-weight: var(--font-weight-bold);
-  color: var(--text-muted);
-}
-
-.sectorBadge dd[data-faster='a'] {
-  color: var(--f1-slot-a);
-}
-
-.sectorBadge dd[data-faster='b'] {
-  color: var(--f1-slot-b);
 }
 
 .cards {
@@ -102,7 +53,7 @@
 
 .card {
   --slot-color: var(--f1-slot-a);
-  padding: var(--space-4);
+  border-left: 3px solid var(--slot-color);
 }
 
 .card[data-slot='b'] {
@@ -112,33 +63,48 @@
 .cardTitle {
   display: flex;
   align-items: center;
-  gap: var(--space-1-5);
+  gap: var(--space-2);
   margin: 0;
-  font-size: var(--font-size-lg);
+  font-family: var(--font-display);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-bold);
   color: var(--slot-color);
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  background: var(--slot-color);
 }
 
 .cardBody {
   display: flex;
   flex-direction: column;
   gap: var(--space-1-5);
-  margin-top: var(--space-3);
+  margin-top: var(--space-2);
 }
 
 .lapTime {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-2);
   font-family: var(--font-mono);
   font-size: var(--font-size-xl);
+  font-variant-numeric: tabular-nums;
   font-weight: var(--font-weight-bold);
   color: var(--text-primary);
 }
 
 .flag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
   font-family: var(--font-sans);
   font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
   color: var(--status-warning);
 }
 
@@ -147,7 +113,7 @@
 }
 
 .driver {
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
   color: var(--text-secondary);
 }
 
@@ -156,30 +122,31 @@
 }
 
 .sectors {
+  composes: tile from '../ui/patterns.module.css';
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--space-2);
-  margin: var(--space-2) 0 0;
-  padding: var(--space-2);
-  background: var(--bg-inset);
-  border-radius: var(--radius-xs);
+  margin: var(--space-1) 0 0;
+  padding: var(--space-2) var(--space-3);
 }
 
-.sectors dt {
-  font-size: var(--font-size-xs);
-  color: var(--text-muted);
+.sectorLabel {
+  composes: eyebrow from '../ui/patterns.module.css';
 }
 
 .sectors dd {
   margin: 0;
   font-family: var(--font-mono);
   font-size: var(--font-size-md);
+  font-variant-numeric: tabular-nums;
   font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
 }
 
 .empty {
-  padding: var(--space-8) var(--space-4);
-  font-size: var(--font-size-md);
+  margin: 0;
+  padding: var(--space-6) var(--space-4);
+  font-size: var(--font-size-sm);
   color: var(--text-muted);
   text-align: center;
 }

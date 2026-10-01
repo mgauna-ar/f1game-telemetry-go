@@ -18,8 +18,11 @@ import type { QuickSelectDriver } from '../../types/comparator';
 import { TyreCompoundBadge } from '../common/TyreCompoundBadge';
 import { Badge } from '../ui/Badge';
 import { Button, IconButton } from '../ui/Button';
+import { Chip } from '../ui/Chip';
 import { DataTable, type DataTableColumn } from '../ui/DataTable';
 import { EmptyState } from '../ui/EmptyState';
+import { TextInput } from '../ui/Field';
+import { Panel } from '../ui/Panel';
 import { SegmentedControl } from '../ui/SegmentedControl';
 import { getTeamColor } from '../../constants/f1';
 import { formatTime, formatSectorTime } from '../../utils/formatters';
@@ -163,7 +166,7 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
         </Badge>
       );
     }
-    if (!lapAObj || !d.bestLap || d.bestLap.lap_time_ms <= 0) return '-';
+    if (!lapAObj || !d.bestLap || d.bestLap.lap_time_ms <= 0) return '—';
     const deltaMs = d.bestLap.lap_time_ms - lapAObj.lap_time_ms;
     if (deltaMs < 0) {
       return (
@@ -183,7 +186,7 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
   };
 
   const leaderGap = (d: QuickSelectDriver): React.ReactNode => {
-    if (!d.bestLap || !quickSelectData.leaderLapTimeMs) return '-';
+    if (!d.bestLap || !quickSelectData.leaderLapTimeMs) return '—';
     if (d.bestLap.lap_time_ms === quickSelectData.leaderLapTimeMs) {
       return (
         <Badge color="var(--f1-gold)" size="xs" square>
@@ -194,8 +197,8 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
     return <span className={styles.muted}>+{seconds(d.bestLap.lap_time_ms - quickSelectData.leaderLapTimeMs)}s</span>;
   };
 
-  const sectorCell = (label: string, ms: number | null | undefined) =>
-    ms ? <span className={styles.muted}>{`${label}: ${formatSectorTime(ms)}`}</span> : '-';
+  const sectorCell = (ms: number | null | undefined) =>
+    ms ? <span className={styles.muted}>{formatSectorTime(ms)}</span> : '—';
 
   const columns: DataTableColumn<QuickSelectDriver>[] = [
     {
@@ -238,13 +241,12 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
     {
       key: 'tyre',
       header: t('comparator.timingTower.colTyre'),
-      cell: (d) => (d.bestLap?.tyre_compound ? <TyreCompoundBadge compound={d.bestLap.tyre_compound} /> : '-'),
+      cell: (d) => (d.bestLap?.tyre_compound ? <TyreCompoundBadge compound={d.bestLap.tyre_compound} /> : '—'),
     },
     {
       key: 'best',
       header: t('comparator.timingTower.colBestLap'),
       numeric: true,
-      align: 'left',
       cell: (d) =>
         d.bestLap ? (
           <span
@@ -254,49 +256,44 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
             {formatTime(d.bestLap.lap_time_ms)}
           </span>
         ) : (
-          '-'
+          '—'
         ),
     },
     {
       key: 'gapLeader',
       header: t('comparator.timingTower.colGapLeader'),
       numeric: true,
-      align: 'left',
       cell: leaderGap,
     },
     {
       key: 'gapBase',
       header: t('comparator.timingTower.colGapBaseline'),
       numeric: true,
-      align: 'left',
       cell: baselineGap,
     },
     {
       key: 's1',
       header: t('comparator.timingTower.colS1'),
       numeric: true,
-      align: 'left',
-      cell: (d) => sectorCell('S1', d.bestLap?.sector1_ms),
+      cell: (d) => sectorCell(d.bestLap?.sector1_ms),
     },
     {
       key: 's2',
       header: t('comparator.timingTower.colS2'),
       numeric: true,
-      align: 'left',
-      cell: (d) => sectorCell('S2', d.bestLap?.sector2_ms),
+      cell: (d) => sectorCell(d.bestLap?.sector2_ms),
     },
     {
       key: 's3',
       header: t('comparator.timingTower.colS3'),
       numeric: true,
-      align: 'left',
-      cell: (d) => sectorCell('S3', d.bestLap?.sector3_ms),
+      cell: (d) => sectorCell(d.bestLap?.sector3_ms),
     },
     {
       key: 'telemetry',
       header: <abbr title={t('comparator.charts.telemetryAvailable')}>{t('comparator.timingTower.colTelemetry')}</abbr>,
       cell: (d) => {
-        if (!d.bestLap) return '-';
+        if (!d.bestLap) return '—';
         const label = d.bestLap.has_telemetry
           ? t('comparator.charts.telemetryAvailable')
           : t('comparator.charts.timingOnly');
@@ -353,13 +350,12 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
             <IconButton
               size="sm"
               variant="ghost"
-              className={styles.expand}
               label={isExpanded ? t('comparator.timingTower.hideLaps') : t('comparator.timingTower.showLaps')}
               aria-expanded={isExpanded}
               onClick={() => setExpandedDriverCarIndex(isExpanded ? null : d.car_index)}
               data-testid={`tower-expand-laps-${d.car_index}`}
             >
-              {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+              {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             </IconButton>
           </div>
         );
@@ -436,7 +432,7 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
       key: 'vs-leader',
       show: true,
       onClick: handleVsLeader,
-      icon: <Trophy size={12} aria-hidden="true" />,
+      icon: <Trophy size={14} aria-hidden="true" />,
       label: t('comparator.timingTower.presetVsLeader'),
       tooltip: t('comparator.timingTower.presetVsLeaderTooltip'),
     },
@@ -444,7 +440,7 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
       key: 'vs-teammate',
       show: Boolean(slotADriver),
       onClick: handleVsTeammate,
-      icon: <Users size={12} aria-hidden="true" />,
+      icon: <Users size={14} aria-hidden="true" />,
       label: t('comparator.timingTower.presetVsTeammate'),
       tooltip: t('comparator.timingTower.presetVsTeammateTooltip'),
     },
@@ -452,7 +448,7 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
       key: 'personal-best',
       show: Boolean(slotADriver),
       onClick: handlePersonalBest,
-      icon: <Timer size={12} aria-hidden="true" />,
+      icon: <Timer size={14} aria-hidden="true" />,
       label: t('comparator.timingTower.presetPersonalBest'),
       tooltip: t('comparator.timingTower.presetPersonalBestTooltip'),
     },
@@ -460,15 +456,16 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
       key: 'next-ahead',
       show: Boolean(slotADriver),
       onClick: handleNextAhead,
-      icon: <ChevronsUp size={12} aria-hidden="true" />,
+      icon: <ChevronsUp size={14} aria-hidden="true" />,
       label: t('comparator.timingTower.presetNextAhead'),
       tooltip: t('comparator.timingTower.presetNextAheadTooltip'),
     },
   ];
 
   return (
-    <section
-      className={`glass-panel ${styles.panel}`}
+    <Panel
+      padding="compact"
+      className={styles.panel}
       aria-labelledby={titleId}
       data-expanded={isOpen || undefined}
       data-testid="quick-select-panel"
@@ -477,7 +474,7 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
         <div className={styles.headerSide}>
           {/* Clicking the title is a mouse shortcut for the expand button */}
           <div className={styles.titleGroup} role="presentation" onClick={onToggleOpen}>
-            <Zap size={15} className={styles.titleIcon} aria-hidden="true" />
+            <Zap size={16} className={styles.titleIcon} aria-hidden="true" />
             <h2 id={titleId} className={styles.title}>
               {t('comparator.timingTower.title')}
             </h2>
@@ -494,7 +491,6 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
                 <Button
                   key={p.key}
                   size="sm"
-                  className={styles.preset}
                   onClick={p.onClick}
                   icon={p.icon}
                   title={p.tooltip}
@@ -532,14 +528,12 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
 
           {isOpen && (
             <div className={styles.search}>
-              <Search size={13} className={styles.searchIcon} aria-hidden="true" />
-              <input
-                type="text"
+              <Search size={14} className={styles.searchIcon} aria-hidden="true" />
+              <TextInput
                 aria-label={t('comparator.timingTower.searchDriver')}
                 placeholder={t('comparator.timingTower.searchDriver')}
                 value={driverSearchQuery}
                 onChange={(e) => onDriverSearchChange(e.target.value)}
-                className={styles.searchInput}
                 data-testid="driver-quick-search-input"
               />
               {driverSearchQuery && (
@@ -550,7 +544,7 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
                   label={t('comparator.dropdown.clearSearch')}
                   onClick={() => onDriverSearchChange('')}
                 >
-                  <X size={11} />
+                  <X size={12} />
                 </IconButton>
               )}
             </div>
@@ -558,24 +552,20 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
 
           {isOpen && (
             <>
-              <Button
-                size="sm"
-                className={styles.filter}
-                aria-pressed={validOnly}
+              <Chip
+                pressed={validOnly}
                 onClick={() => setValidOnly((prev) => !prev)}
-                icon={<Filter size={11} aria-hidden="true" />}
+                icon={<Filter size={12} aria-hidden="true" />}
               >
                 {t('comparator.timingTower.filterValidOnly')}
-              </Button>
-              <Button
-                size="sm"
-                className={styles.filter}
-                aria-pressed={telemetryOnly}
+              </Chip>
+              <Chip
+                pressed={telemetryOnly}
                 onClick={() => setTelemetryOnly((prev) => !prev)}
-                icon={<Activity size={11} aria-hidden="true" />}
+                icon={<Activity size={12} aria-hidden="true" />}
               >
                 {t('comparator.timingTower.filterTelemetryOnly')}
-              </Button>
+              </Chip>
             </>
           )}
 
@@ -596,10 +586,10 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
 
           <Button
             size="sm"
-            className={styles.pill}
+            variant="ghost"
             onClick={onToggleOpen}
             aria-expanded={isOpen}
-            icon={isOpen ? <ChevronUp size={15} aria-hidden="true" /> : <ChevronDown size={15} aria-hidden="true" />}
+            icon={isOpen ? <ChevronUp size={14} aria-hidden="true" /> : <ChevronDown size={14} aria-hidden="true" />}
             data-testid="quick-select-collapse-btn"
           >
             {isOpen ? t('comparator.timingTower.collapse') : t('comparator.timingTower.expand')}
@@ -631,6 +621,6 @@ export const ComparatorTimingTower: React.FC<ComparatorTimingTowerProps> = ({
           )}
         </div>
       )}
-    </section>
+    </Panel>
   );
 };

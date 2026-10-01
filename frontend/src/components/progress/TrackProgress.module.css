@@ -9,11 +9,7 @@
 }
 
 .controlLabel {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-label);
-  color: var(--text-muted);
+  composes: eyebrow from '../ui/patterns.module.css';
 }
 
 .trackSelect {
@@ -28,13 +24,7 @@
 }
 
 .unmatched {
-  margin: 0 0 var(--space-4);
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--f1-yellow-border);
-  border-radius: var(--radius-sm);
-  background: var(--f1-yellow-bg);
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
+  margin-bottom: var(--space-4);
 }
 
 .unmatchedLink {
@@ -68,8 +58,9 @@
   font-size: var(--font-size-xl);
 }
 
+/* Your personal best: green, as in F1 timing */
 .best {
-  color: var(--f1-purple);
+  color: var(--f1-green);
 }
 
 @media (--laptop) {

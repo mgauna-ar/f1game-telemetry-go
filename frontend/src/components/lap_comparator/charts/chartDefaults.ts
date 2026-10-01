@@ -47,5 +47,3 @@ export const CHART_COLORS = {
   BOOST_B: cssVar('--chart-boost-b'),
 } as const;
 
-export const CHART_MARGIN = { top: 5, right: 30, left: 0, bottom: 0 } as const;
-

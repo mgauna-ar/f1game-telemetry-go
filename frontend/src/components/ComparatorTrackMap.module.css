@@ -24,21 +24,9 @@
   border: 2px solid var(--bg-dark);
   border-radius: 50%;
   background: var(--text-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--text-primary) 25%, transparent);
   transform: translate(-50%, -50%);
   pointer-events: none;
-  animation: markerPulse 1.5s infinite;
-}
-
-@keyframes markerPulse {
-  0% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--text-primary) 70%, transparent);
-  }
-  70% {
-    box-shadow: 0 0 0 10px transparent;
-  }
-  100% {
-    box-shadow: 0 0 0 0 transparent;
-  }
 }
 
 .legend {
@@ -51,7 +39,7 @@
   background: var(--bg-tooltip);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-xs);
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
 }
 

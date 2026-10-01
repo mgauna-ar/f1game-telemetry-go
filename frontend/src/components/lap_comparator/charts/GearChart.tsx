@@ -7,8 +7,6 @@ import { ChartTitle } from './ChartTitle';
 
 export const GearChart = React.memo<CommonChartProps>((props) => {
   const { t } = useI18n();
-  const { nameA, nameB } = props;
-
   return (
     <ComparatorChart
       {...props}
@@ -16,15 +14,13 @@ export const GearChart = React.memo<CommonChartProps>((props) => {
       title={<ChartTitle icon={Cog} label={t('comparator.charts.gear')} />}
       dataKeyA="gearA"
       dataKeyB="gearB"
-      lineNameA={`${nameA} Gear`}
-      lineNameB={`${nameB} Gear`}
       lineType="stepAfter"
       yAxisDomain={[1, 8]}
       yAxisTicks={[1, 2, 3, 4, 5, 6, 7, 8]}
       yAxisTickFormatter={(v) => (typeof v === 'number' && Number.isFinite(v) ? `G${Math.round(v)}` : '')}
       tooltipFormatter={(val: unknown) => {
         const num = typeof val === 'number' ? val : Number(val);
-        return Number.isFinite(num) ? [`Gear ${Math.round(num)}`] : ['-'];
+        return Number.isFinite(num) ? [`G${Math.round(num)}`] : ['—'];
       }}
     />
   );

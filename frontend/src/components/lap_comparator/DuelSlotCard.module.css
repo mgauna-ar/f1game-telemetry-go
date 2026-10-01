@@ -5,23 +5,14 @@
   flex-direction: column;
   gap: var(--space-2);
   padding: var(--space-3) var(--space-4);
-  background: var(--bg-hover);
+  background: var(--bg-inset);
   border: 1px solid var(--border-color);
   border-left: 3px solid var(--slot-color);
-  border-radius: var(--radius-md);
-  transition:
-    background-color var(--transition-normal),
-    border-color var(--transition-normal);
+  border-radius: var(--radius-sm);
 }
 
 .card[data-slot='b'] {
   --slot-color: var(--f1-slot-b);
-}
-
-.card:hover {
-  background: color-mix(in srgb, var(--slot-color) 3%, transparent);
-  border-color: color-mix(in srgb, var(--slot-color) 25%, transparent);
-  border-left-color: var(--slot-color);
 }
 
 .header {
@@ -36,7 +27,7 @@
   gap: var(--space-1-5);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-bold);
-  letter-spacing: 0.06em;
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   white-space: nowrap;
   color: var(--slot-color);
@@ -47,7 +38,6 @@
   height: 7px;
   border-radius: 50%;
   background: var(--slot-color);
-  box-shadow: 0 0 6px color-mix(in srgb, var(--slot-color) 60%, transparent);
 }
 
 .speed {
@@ -77,9 +67,9 @@
 
 .teamStripe {
   flex-shrink: 0;
-  width: 4px;
+  width: 3px;
   height: 24px;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   background: var(--team-color, var(--slot-color));
 }
 
@@ -87,10 +77,11 @@
   display: flex;
   align-items: center;
   gap: var(--space-1-5);
-  padding: var(--space-1-5) var(--space-2);
-  background: var(--bg-active);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-xs);
+  min-height: var(--control-height-sm);
+  padding: var(--space-1) var(--space-2);
+  background: var(--bg-hover);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: var(--font-size-md);
   font-weight: var(--font-weight-bold);
@@ -100,7 +91,8 @@
     border-color var(--transition-fast);
 }
 
-.chip:hover {
+.chip:hover,
+.chip[aria-expanded='true'] {
   background: var(--bg-active);
   border-color: var(--border-strong);
 }
@@ -118,10 +110,9 @@
 }
 
 .lapChip {
-  background: var(--bg-inset);
-  border-color: color-mix(in srgb, var(--slot-color) 35%, transparent);
   font-family: var(--font-mono);
   font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
 }
 
 .lapChip[data-empty] {
@@ -133,9 +124,9 @@
 }
 
 .driverNum {
+  font-family: var(--font-mono);
   font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-black);
-  color: var(--accent-primary);
+  color: var(--text-muted);
 }
 
 .driverName {
@@ -150,10 +141,6 @@
   color: var(--text-secondary);
 }
 
-.lapTime {
-  letter-spacing: 0.02em;
-}
-
 .telemetry {
   color: var(--status-warning);
 }
@@ -164,16 +151,13 @@
 
 /* Driver and lap popovers */
 .popover {
+  composes: popover from '../ui/patterns.module.css';
   position: absolute;
   top: calc(100% + var(--space-1-5));
   right: 0;
   left: 0;
   z-index: var(--z-popover);
   overflow: hidden;
-  background: var(--bg-popover);
-  border: 1px solid var(--border-highlight);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
 }
 
 .popoverSearch {
@@ -181,7 +165,7 @@
   align-items: center;
   gap: var(--space-1-5);
   padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-subtle);
   color: var(--text-muted);
 }
 
@@ -203,9 +187,9 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-subtle);
   font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
+  font-weight: var(--font-weight-semibold);
   color: var(--text-secondary);
 }
 
@@ -225,7 +209,7 @@
   gap: var(--space-2);
   width: 100%;
   padding: var(--space-2) var(--space-3);
-  background: var(--bg-hover);
+  background: transparent;
   border: 1px solid transparent;
   border-radius: var(--radius-xs);
   color: var(--text-primary);
@@ -238,13 +222,13 @@
 }
 
 .item:hover {
-  background: var(--bg-active);
-  border-color: var(--border-highlight);
+  background: var(--bg-hover);
 }
 
+/* The lap or driver in the slot: the neutral selected look */
 .item[aria-pressed='true'] {
-  background: var(--f1-slot-a-bg);
-  border-color: var(--f1-slot-a-border);
+  background: var(--bg-active);
+  border-color: var(--border-strong);
 }
 
 .itemSide {
@@ -256,7 +240,7 @@
 .teamIndicator {
   width: 3px;
   height: 14px;
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   background: var(--team-color);
 }
 
@@ -266,6 +250,7 @@
 
 .mono {
   font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .sectors {

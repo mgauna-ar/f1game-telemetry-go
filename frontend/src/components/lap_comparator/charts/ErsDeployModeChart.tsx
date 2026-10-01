@@ -45,8 +45,6 @@ export const ErsDeployModeChart = React.memo<ErsDeployModeChartProps>((props) =>
       headerRight={headerRight}
       dataKeyA="ersDeployModeA"
       dataKeyB="ersDeployModeB"
-      lineNameA={`${nameA} Mode`}
-      lineNameB={`${nameB} Mode`}
       lineType="stepAfter"
       yAxisStroke={CHART_COLORS.ERS_MODE}
       yAxisDomain={[0, 3]}
@@ -54,11 +52,11 @@ export const ErsDeployModeChart = React.memo<ErsDeployModeChartProps>((props) =>
       yAxisTickFormatter={(v) =>
         typeof v === 'number' && Number.isFinite(v) ? getErsModeName(Math.round(v), formatA || formatB) : ''
       }
-      tooltipFormatter={(val: unknown, name?: string | number) => {
+      tooltipFormatter={(val: unknown, name?: string | number, item?: { dataKey?: unknown }) => {
         const num = typeof val === 'number' ? val : Number(val);
-        if (val === null || val === undefined || !Number.isFinite(num)) return ['-', String(name ?? '')];
+        if (val === null || val === undefined || !Number.isFinite(num)) return ['—', String(name ?? '')];
         const modeNum = Math.round(num);
-        const fmt = String(name ?? '').includes(nameA) ? formatA : formatB;
+        const fmt = item?.dataKey === 'ersDeployModeA' ? formatA : formatB;
         return [getErsModeName(modeNum, fmt), String(name ?? '')];
       }}
     />

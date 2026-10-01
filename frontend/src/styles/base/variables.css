@@ -7,7 +7,7 @@
   /* ── Surfaces: page → panel → raised ─────────────────────────────────── */
   --bg-dark: hsl(222, 47%, 7%); /* page */
   --bg-panel: hsla(222, 47%, 11%, 0.7);
-  --bg-glass: hsla(222, 47%, 15%, 0.4); /* glass cards (.glass-panel) */
+  --bg-glass: hsla(222, 47%, 15%, 0.4); /* glass cards (ui/Panel) */
   /* Opaque stand-in for a glass panel, for sticky headers that content scrolls under */
   --bg-panel-solid: hsl(222, 40%, 10%);
   --bg-elevated: hsla(222, 40%, 9%, 0.97); /* dialogs */

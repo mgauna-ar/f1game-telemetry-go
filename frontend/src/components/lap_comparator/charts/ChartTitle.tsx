@@ -29,7 +29,7 @@ export const ChartSubtitle: React.FC<{ children: React.ReactNode }> = ({ childre
 /** A small warning next to a chart's title, such as missing ERS data. */
 export const ChartNotice: React.FC<{ title?: string; children: React.ReactNode }> = ({ title, children }) => (
   <span className={styles.notice} title={title}>
-    <AlertTriangle size={11} aria-hidden="true" />
+    <AlertTriangle size={UI.ICON_SIZE_XS} aria-hidden="true" />
     <span>{children}</span>
   </span>
 );

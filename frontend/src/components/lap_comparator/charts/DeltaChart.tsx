@@ -4,6 +4,7 @@ import { Line } from 'recharts';
 import { useI18n } from '../../../context/I18nContext';
 import { CHART_COLORS, type CommonChartProps } from './chartDefaults';
 import { ComparatorChart } from './ComparatorChart';
+import { NO_ANIMATION } from '../../charts/chartTheme';
 import { ChartSubtitle, ChartTitle, PacketLossNotice } from './ChartTitle';
 import styles from './ComparatorChart.module.css';
 
@@ -31,7 +32,7 @@ export const DeltaChart = React.memo<DeltaChartProps>((props) => {
   const driverB = nameB || t('comparator.defaultDriverB');
   const emptyBody = !hasDeltaData ? (
     <div className={styles.placeholder}>
-      <Clock size={28} className={styles.placeholderTitle} aria-hidden="true" />
+      <Clock size={20} className={styles.placeholderTitle} aria-hidden="true" />
       <span className={styles.placeholderTitle}>
         {t('comparator.charts.timeDeltaRequiresBoth', { driver: driverB })}
       </span>
@@ -55,8 +56,9 @@ export const DeltaChart = React.memo<DeltaChartProps>((props) => {
         const num = typeof val === 'number' ? val : Number(val);
         return Number.isFinite(num)
           ? [`${num > 0 ? '+' : ''}${num.toFixed(3)}s`, `${t('comparator.timeDelta')} (${nameA} vs ${nameB})`]
-          : ['-', `${t('comparator.timeDelta')} (${nameA} vs ${nameB})`];
+          : ['—', `${t('comparator.timeDelta')} (${nameA} vs ${nameB})`];
       }}
+      legendItems={[{ id: 'delta', label: t('comparator.timeDelta'), color: CHART_COLORS.DELTA }]}
       extraLines={
         <Line
           type="monotone"
@@ -65,7 +67,7 @@ export const DeltaChart = React.memo<DeltaChartProps>((props) => {
           stroke={CHART_COLORS.DELTA}
           dot={false}
           strokeWidth={2.5}
-          isAnimationActive={false}
+          {...NO_ANIMATION}
         />
       }
     />

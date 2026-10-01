@@ -69,6 +69,8 @@ export const comparator = {
     activeAeroCorner: 'Modo Curva',
     activeAeroStraight: 'Modo Recta',
     boost: 'Boost',
+    boostOn: 'Activo',
+    boostOff: 'Apagado',
     zoom: 'Zoom por Distancia',
     fullTrack: 'Circuito Completo',
     selectSessionAndLaps: 'Selecciona una sesión y dos vueltas arriba para comparar telemetría.',
@@ -103,7 +105,6 @@ export const comparator = {
     minSpeed: 'Velocidad Mín de Vértice',
     fullThrottle: '% Acelerador a Fondo',
     telemetryStatus: 'Estado de Telemetría',
-    sectorDelta: 'Delta {sector}',
     carFallback: 'Coche {index}',
   },
   dropdown: {

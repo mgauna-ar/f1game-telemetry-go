@@ -55,8 +55,9 @@
   color: var(--chart-cursor);
 }
 
+/* The zoomed corner: the neutral selected look */
 .zoomed {
-  background: var(--bg-hover);
+  background: var(--bg-active);
 }
 
 .delta {

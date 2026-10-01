@@ -157,39 +157,38 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
     ];
     const isZoomedTo = (range: [number, number]) =>
       zoomDomain !== null && zoomDomain[0] === range[0] && zoomDomain[1] === range[1];
+    // The preset shown as chosen; a corner's or a dragged stretch matches none of them
+    const zoomValue = !zoomDomain
+      ? 'full'
+      : (sectorRanges.find(({ range }) => range && isZoomedTo(range))?.sector.toString() ?? 'custom');
+    const zoomOptions = [
+      { value: 'full', label: t('comparator.charts.fullTrack') },
+      ...sectorRanges
+        .filter(({ range }) => range !== null)
+        .map(({ sector }) => ({ value: sector.toString(), label: t('comparator.charts.sectorN', { sector }) })),
+    ];
+    const handleZoomPreset = (value: string) =>
+      onZoomDomainChange(
+        value === 'full' ? null : (sectorRanges.find((s) => s.sector.toString() === value)?.range ?? null)
+      );
 
     return (
       <div className={styles.wrap}>
         {/* Zoom shared by every chart, by track distance */}
         {comparisonData.length > 0 && hasAnyTelemetry && (
           <div className={styles.toolbar}>
-            <div className={styles.zoom} role="group" aria-label={t('comparator.charts.zoom')}>
+            <div className={styles.zoom}>
               <ZoomIn size={16} className={styles.zoomIcon} aria-hidden="true" />
               <span className={styles.zoomLabel} aria-hidden="true">
-                {t('comparator.charts.zoom')}:
+                {t('comparator.charts.zoom')}
               </span>
-              <button
-                type="button"
-                className={styles.zoomButton}
-                aria-pressed={!zoomDomain}
-                onClick={() => onZoomDomainChange(null)}
-              >
-                {t('comparator.charts.fullTrack')}
-              </button>
-              {sectorRanges.map(({ sector, range }) =>
-                range ? (
-                  <button
-                    key={sector}
-                    type="button"
-                    className={styles.zoomButton}
-                    data-sector={sector}
-                    aria-pressed={isZoomedTo(range)}
-                    onClick={() => onZoomDomainChange(range)}
-                  >
-                    {t('comparator.charts.sectorN', { sector })}
-                  </button>
-                ) : null
-              )}
+              <SegmentedControl
+                aria-label={t('comparator.charts.zoom')}
+                size="xs"
+                value={zoomValue}
+                onChange={handleZoomPreset}
+                options={zoomOptions}
+              />
             </div>
 
             <SegmentedControl<ComparatorChartView>
@@ -215,7 +214,8 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
               <Button
                 size="sm"
                 onClick={() => onZoomDomainChange(null)}
-                icon={<RotateCcw size={12} aria-hidden="true" />}
+                variant="ghost"
+                icon={<RotateCcw size={14} aria-hidden="true" />}
               >
                 {t('comparator.charts.resetZoom', {
                   from: Math.round(zoomDomain[0]),
@@ -286,7 +286,7 @@ export const ComparatorTelemetryCharts: React.FC<ComparatorTelemetryChartsProps>
         ) : (
           <Panel as="div">
             <EmptyState
-              icon={<LineChart size={36} />}
+              icon={<LineChart size={32} />}
               description={getComparatorEmptyStateMessage(sessionAId, hasAnyTelemetry, comparisonData.length > 0, t)}
             />
           </Panel>

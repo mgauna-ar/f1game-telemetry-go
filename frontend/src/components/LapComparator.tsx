@@ -467,9 +467,6 @@ export const LapComparator: React.FC = () => {
               driverA={driverA}
               driverB={driverB}
               totalDeltaMs={totalDeltaMs}
-              s1Delta={s1Delta}
-              s2Delta={s2Delta}
-              s3Delta={s3Delta}
             />
 
             {corners.length > 0 && lapAObj && lapBObj && (

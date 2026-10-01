@@ -29,13 +29,11 @@ export const SpeedChart = React.memo<SpeedChartProps>((props) => {
       headerRight={headerRight}
       dataKeyA="speedA"
       dataKeyB="speedB"
-      lineNameA={`${nameA} Speed`}
-      lineNameB={`${nameB} Speed`}
       yAxisDomain={['auto', 'auto']}
       yAxisTickFormatter={(v) => (typeof v === 'number' && Number.isFinite(v) ? `${Math.round(v)}` : '')}
       tooltipFormatter={(val: unknown) => {
         const num = typeof val === 'number' ? val : Number(val);
-        return Number.isFinite(num) ? [`${Math.round(num)} ${units.speedUnit}`] : ['-'];
+        return Number.isFinite(num) ? [`${Math.round(num)} ${units.speedUnit}`] : ['—'];
       }}
     />
   );

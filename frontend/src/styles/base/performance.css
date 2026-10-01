@@ -19,8 +19,3 @@
   transition: none !important;
   scroll-behavior: auto !important;
 }
-
-/* A glass card doesn't lift on hover */
-:root[data-performance='on'] .glass-panel:hover {
-  transform: none;
-}

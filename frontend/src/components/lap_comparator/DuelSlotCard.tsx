@@ -150,14 +150,14 @@ export const DuelSlotCard: React.FC<DuelSlotCardProps> = ({ slot, label, lap, da
           ) : (
             <span>{t('comparator.duel.selectLap')}</span>
           )}
-          <ChevronDown size={13} className={styles.chevron} aria-hidden="true" />
+          <ChevronDown size={14} className={styles.chevron} aria-hidden="true" />
         </button>
       </div>
 
       {openPicker === 'driver' && (
         <div className={styles.popover} data-testid={`slot-${key}-driver-popover`}>
           <label className={styles.popoverSearch}>
-            <Search size={13} aria-hidden="true" />
+            <Search size={14} aria-hidden="true" />
             <input
               type="text"
               aria-label={t('comparator.timingTower.searchDriver')}
@@ -235,7 +235,7 @@ export const DuelSlotCard: React.FC<DuelSlotCardProps> = ({ slot, label, lap, da
                       <span>S3: {formatSectorTime(l.sector3_ms)}</span>
                     </span>
                   ) : null}
-                  <TelemetryIcon lap={l} size={10} />
+                  <TelemetryIcon lap={l} size={12} />
                   {!l.is_valid && (
                     <Badge tone="danger" size="xs" square>
                       {t('comparator.invalid')}

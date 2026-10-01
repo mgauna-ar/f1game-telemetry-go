@@ -1,5 +1,5 @@
 import React, { useId, useMemo, useState } from 'react';
-import { TrendingUp } from 'lucide-react';
+import { Info, RefreshCw, TrendingUp } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useTrackProgress } from '../../hooks/useTrackProgress';
@@ -11,6 +11,7 @@ import { formatLapTime } from '../../utils/formatters';
 import { sessionTypeLabel } from '../../utils/sessionTypeLabel';
 import { TrackFlag } from '../TrackFlag';
 import { Button } from '../ui/Button';
+import { Callout } from '../ui/Callout';
 import { EmptyState } from '../ui/EmptyState';
 import { Select } from '../ui/Field';
 import { PageHeader } from '../ui/PageHeader';
@@ -110,26 +111,34 @@ export const TrackProgress: React.FC = () => {
     );
   } else if (error && !data) {
     body = (
-      <EmptyState
-        tone="danger"
-        title={t('progress.loadError')}
-        description={error}
-        action={<Button onClick={reload}>{t('common.retry')}</Button>}
-      />
+      <Panel as="div">
+        <EmptyState
+          tone="danger"
+          title={t('progress.loadError')}
+          description={error}
+          action={
+            <Button variant="primary" icon={<RefreshCw size={14} />} onClick={reload}>
+              {t('common.retry')}
+            </Button>
+          }
+        />
+      </Panel>
     );
   } else if (tracks.length === 0) {
     body = (
-      <EmptyState
-        icon={<TrendingUp size={32} />}
-        title={t('progress.noSessions')}
-        description={t('progress.noSessionsHint')}
-      />
+      <Panel as="div">
+        <EmptyState
+          icon={<TrendingUp size={32} />}
+          title={t('progress.noSessions')}
+          description={t('progress.noSessionsHint')}
+        />
+      </Panel>
     );
   } else {
     body = (
       <>
         {data && data.unmatched_sessions > 0 && (
-          <p className={styles.unmatched} role="note">
+          <Callout tone="warning" icon={<Info size={16} />} role="note" className={styles.unmatched}>
             {data.unmatched_sessions === 1
               ? t('progress.unmatchedOne')
               : t('progress.unmatchedMany', { count: data.unmatched_sessions })}{' '}
@@ -143,12 +152,14 @@ export const TrackProgress: React.FC = () => {
             >
               {t(data.unmatched_sessions === 1 ? 'progress.unmatchedLinkOne' : 'progress.unmatchedLinkMany')}
             </Link>
-          </p>
+          </Callout>
         )}
         {sessions.length === 0 ? (
-          <EmptyState
-            title={t(activeKind === 'all' ? 'progress.noneAtTrack' : 'progress.noneForKind', { track: shownTrack })}
-          />
+          <Panel as="div">
+            <EmptyState
+              title={t(activeKind === 'all' ? 'progress.noneAtTrack' : 'progress.noneForKind', { track: shownTrack })}
+            />
+          </Panel>
         ) : (
           <div className={styles.content} aria-busy={loading || undefined}>
             <ProgressStats sessions={sessions} />

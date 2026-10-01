@@ -25,7 +25,8 @@ export interface SegmentedControlProps<T extends string> {
 
 /**
  * Pick one of a few options, such as a view mode or a filter. A radio group: one Tab stop, and
- * the arrow keys move and select.
+ * the arrow keys move and select. A `value` that matches no option leaves them all unchecked
+ * (the comparator's zoom, when it shows a corner rather than a sector).
  */
 export function SegmentedControl<T extends string>({
   options,
@@ -36,10 +37,8 @@ export function SegmentedControl<T extends string>({
   className,
 }: SegmentedControlProps<T>): React.ReactElement {
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
-  const checkedIndex = Math.max(
-    0,
-    options.findIndex((option) => option.value === value)
-  );
+  const checkedIndex = options.findIndex((option) => option.value === value);
+  const tabStop = Math.max(0, checkedIndex);
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
     const next = nextRovingIndex(
@@ -66,7 +65,7 @@ export function SegmentedControl<T extends string>({
             type="button"
             role="radio"
             aria-checked={checked}
-            tabIndex={checked ? 0 : -1}
+            tabIndex={index === tabStop ? 0 : -1}
             disabled={option.disabled}
             title={option.title}
             className={styles.option}

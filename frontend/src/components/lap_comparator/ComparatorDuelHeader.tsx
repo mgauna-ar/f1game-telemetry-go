@@ -4,6 +4,7 @@ import { SessionSelectorDropdown } from './SessionSelectorDropdown';
 import { ComparatorPreferencesModal } from './ComparatorPreferencesModal';
 import { DuelSlotCard, type DuelSlot } from './DuelSlotCard';
 import { Button } from '../ui/Button';
+import { Panel } from '../ui/Panel';
 import { useI18n } from '../../context/I18nContext';
 import type { Session, Participant, Lap } from '../../types/session';
 import type { SessionTypeTab } from '../../hooks/useComparatorSessions';
@@ -98,8 +99,7 @@ export const ComparatorDuelHeader: React.FC<ComparatorDuelHeaderProps> = ({
   ];
 
   return (
-    <div className={`glass-panel ${styles.panel}`}>
-
+    <Panel as="div" className={styles.panel}>
       {/* Session pickers and actions */}
       <div className={styles.toolbar}>
         <div className={styles.sessionControls}>
@@ -160,9 +160,8 @@ export const ComparatorDuelHeader: React.FC<ComparatorDuelHeaderProps> = ({
         <div className={styles.actions}>
           <Button
             size="sm"
-            className={styles.pill}
             onClick={() => setIsPreferencesOpen(true)}
-            icon={<Sliders size={13} aria-hidden="true" />}
+            icon={<Sliders size={14} aria-hidden="true" />}
             title={t('comparator.preferencesBtnTooltip')}
             data-testid="duel-open-preferences-btn"
           >
@@ -172,9 +171,8 @@ export const ComparatorDuelHeader: React.FC<ComparatorDuelHeaderProps> = ({
           {lapAObj && lapBObj && (
             <Button
               size="sm"
-              className={styles.pill}
               onClick={handleSwapSlots}
-              icon={<ArrowLeftRight size={13} aria-hidden="true" />}
+              icon={<ArrowLeftRight size={14} aria-hidden="true" />}
               title={t('comparator.swapTitle')}
               data-testid="duel-swap-slots-btn"
             >
@@ -185,9 +183,9 @@ export const ComparatorDuelHeader: React.FC<ComparatorDuelHeaderProps> = ({
           {(slotA.lapId || slotB.lapId) && (
             <Button
               size="sm"
-              className={styles.clear}
+              variant="ghost"
               onClick={handleClearSelections}
-              icon={<X size={13} aria-hidden="true" />}
+              icon={<X size={14} aria-hidden="true" />}
               title={t('comparator.clearTitle')}
               data-testid="duel-clear-selections-btn"
             >
@@ -204,7 +202,7 @@ export const ComparatorDuelHeader: React.FC<ComparatorDuelHeaderProps> = ({
           {lapAObj && lapBObj && totalDeltaMs !== null ? (
             <div className={styles.delta}>
               <div className={styles.deltaBadge} data-faster={fasterSide(totalDeltaMs)} data-testid="duel-delta-badge">
-                <Timer size={15} aria-hidden="true" />
+                <Timer size={14} aria-hidden="true" />
                 <span>
                   {totalDeltaMs === 0
                     ? t('comparator.identicalLaps')
@@ -240,14 +238,14 @@ export const ComparatorDuelHeader: React.FC<ComparatorDuelHeaderProps> = ({
               className={styles.towerToggle}
               onClick={() => setIsTimingTowerOpen((prev) => !prev)}
               aria-expanded={isTimingTowerOpen}
-              icon={<Zap size={13} aria-hidden="true" />}
+              icon={<Zap size={14} aria-hidden="true" />}
               data-testid="toggle-quick-select-toolbar-btn"
             >
               {t('comparator.timingTower.title')} ({timingTowerTotalCount})
               {isTimingTowerOpen ? (
-                <ChevronUp size={13} aria-hidden="true" />
+                <ChevronUp size={14} aria-hidden="true" />
               ) : (
-                <ChevronDown size={13} aria-hidden="true" />
+                <ChevronDown size={14} aria-hidden="true" />
               )}
             </Button>
           )}
@@ -264,6 +262,6 @@ export const ComparatorDuelHeader: React.FC<ComparatorDuelHeaderProps> = ({
         }}
         currentSlotBDriverName={slotB.driver?.name}
       />
-    </div>
+    </Panel>
   );
 };
