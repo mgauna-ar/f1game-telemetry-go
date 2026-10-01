@@ -95,6 +95,9 @@
   --f1-purple-border: color-mix(in srgb, var(--f1-purple) 45%, transparent);
   --f1-green-border: color-mix(in srgb, var(--f1-green) 35%, transparent);
   --f1-yellow-border: color-mix(in srgb, var(--f1-yellow) 35%, transparent);
+  /* Track status, the same in every badge, banner and frame: safety car yellow, VSC and formation lap orange */
+  --f1-flag-sc: var(--f1-yellow);
+  --f1-flag-vsc: var(--f1-sector-1);
 
   /* Tyre compounds */
   --f1-compound-soft: #ff3366;

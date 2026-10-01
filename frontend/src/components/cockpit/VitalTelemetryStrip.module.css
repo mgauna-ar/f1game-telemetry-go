@@ -4,23 +4,13 @@
   gap: var(--space-4);
 }
 
+/* Flat tiles inside the panel: no shadow, no hover lift */
 .card {
+  composes: tile from '../ui/patterns.module.css';
   display: flex;
   flex-direction: column;
   min-width: 0;
-  padding: var(--space-4);
-  background: var(--bg-elevated);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  box-shadow:
-    var(--shadow-md),
-    inset 0 1px 0 var(--border-color);
-  transition: all var(--transition-fast);
-}
-
-.card:hover {
-  border-color: color-mix(in srgb, var(--accent-cyan) 30%, transparent);
-  transform: translateY(-1px);
+  padding: var(--space-3) var(--space-4);
 }
 
 .cardHeader {
@@ -33,13 +23,7 @@
 }
 
 .cardTitle {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-black);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
+  composes: subheading from '../ui/patterns.module.css';
 }
 
 .cardBody {
@@ -63,19 +47,19 @@
 
 .positionP {
   margin-right: 2px;
-  font-family: var(--font-display);
-  font-size: 1.6rem;
-  font-weight: var(--font-weight-black);
-  color: var(--accent-cyan);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-muted);
 }
 
 .positionValue {
   font-family: var(--font-mono);
-  font-size: 3rem;
-  font-weight: 900;
+  font-size: var(--font-size-3xl);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-bold);
   line-height: 1;
   color: var(--text-primary);
-  text-shadow: 0 0 15px var(--accent-cyan-glow);
 }
 
 .lapMeta {
@@ -163,15 +147,16 @@
 
 .cornerLabel {
   font-family: var(--font-mono);
-  font-size: var(--font-size-2xs);
-  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
   color: var(--text-secondary);
 }
 
 .cornerWear {
   font-family: var(--font-mono);
   font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-black);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-bold);
   color: var(--wear-color);
 }
 
@@ -242,14 +227,15 @@
   width: var(--fill);
   height: 100%;
   background: var(--accent-cyan);
-  box-shadow: 0 0 6px var(--accent-cyan);
 }
 
 .number {
   font-family: var(--font-mono);
   font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-black);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-bold);
   color: var(--text-body);
+  white-space: nowrap;
 }
 
 .number[data-tone='good'] {
@@ -279,7 +265,7 @@
 }
 
 .damageLabel {
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
   color: var(--text-secondary);
 }
 
@@ -287,7 +273,7 @@
   margin: 0;
   font-family: var(--font-mono);
   font-size: var(--font-size-md);
-  font-weight: var(--font-weight-black);
+  font-weight: var(--font-weight-bold);
   color: var(--status-danger);
 }
 

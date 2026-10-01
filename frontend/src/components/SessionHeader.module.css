@@ -7,10 +7,10 @@
 .header {
   grid-column: 1 / -1;
   container: liveHeader / inline-size;
-  margin-bottom: var(--space-2);
-  padding: var(--space-5) var(--space-6);
+  /* The surface of ui/Panel */
+  padding: var(--space-5);
   background: var(--bg-glass);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-panel);
 }
@@ -42,14 +42,15 @@
 
 .title {
   margin: 0;
+  font-family: var(--font-display);
   font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-black);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--tracking-tight);
 }
 
 .subtitle {
   margin: var(--space-1) 0 0;
-  font-family: var(--font-mono);
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-sm);
   color: var(--text-secondary);
 }
 
@@ -69,7 +70,7 @@
   align-items: center;
   gap: var(--space-3) var(--space-4);
   padding-top: var(--space-4);
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--border-subtle);
 }
 
 /* Standby: before the first session packet */
@@ -79,7 +80,7 @@
 }
 
 .standby .title {
-  font-size: 1.35rem;
+  font-size: var(--font-size-xl);
   white-space: nowrap;
 }
 
@@ -107,7 +108,6 @@
   background: color-mix(in srgb, var(--accent-cyan) 10%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent-cyan) 30%, transparent);
   border-radius: 50%;
-  box-shadow: 0 0 14px var(--accent-cyan-glow);
 }
 
 @container liveHeader (min-width: 1560px) {

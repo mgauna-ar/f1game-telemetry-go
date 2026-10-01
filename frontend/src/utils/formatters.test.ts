@@ -2,7 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   formatLapTime,
   formatSectorTime,
-  formatGapTime,
+  formatGap,
+  formatSignedDelta,
   formatDuration,
   formatTotalDuration,
   formatSessionUID,
@@ -62,18 +63,18 @@ describe('formatters', () => {
     });
   });
 
-  describe('formatGapTime', () => {
-    it('returns LEADER for 0 or negative', () => {
-      expect(formatGapTime(0)).toBe('LEADER');
-      expect(formatGapTime(undefined)).toBe('LEADER');
+  describe('formatGap', () => {
+    it('formats seconds and minutes without a unit', () => {
+      expect(formatGap(1250)).toBe('1.250');
+      expect(formatGap(65430)).toBe('1:05.430');
     });
+  });
 
-    it('formats seconds gap', () => {
-      expect(formatGapTime(1250)).toBe('+1.250s');
-    });
-
-    it('formats minute gap', () => {
-      expect(formatGapTime(65430)).toBe('+1:05.430');
+  describe('formatSignedDelta', () => {
+    it('signs the difference with a real minus', () => {
+      expect(formatSignedDelta(236)).toBe('+0.236');
+      expect(formatSignedDelta(-120)).toBe('−0.120');
+      expect(formatSignedDelta(0)).toBe('±0.000');
     });
   });
 

@@ -89,7 +89,7 @@ export const RaceControlFeed: React.FC<RaceControlFeedProps> = React.memo((props
   return (
     <Panel className={className}>
       <PanelHeader
-        icon={<Radio size={16} color="var(--accent-primary)" />}
+        icon={<Radio size={16} />}
         title={t('live.raceControlTitle')}
         subtitle={t('live.raceControlSub')}
         actions={
@@ -97,7 +97,7 @@ export const RaceControlFeed: React.FC<RaceControlFeedProps> = React.memo((props
             <SafetyCarBadge status={session?.SafetyCarStatus} clearLabel={t('live.trackClear')} />
             {events.length > 0 && onClearEvents && (
               <IconButton size="sm" label={t('live.clearFeedEvents')} onClick={onClearEvents}>
-                <Trash2 size={13} />
+                <Trash2 size={14} />
               </IconButton>
             )}
           </>

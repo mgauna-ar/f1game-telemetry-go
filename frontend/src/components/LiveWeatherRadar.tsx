@@ -190,7 +190,7 @@ export const LiveWeatherRadar: React.FC<LiveWeatherRadarProps> = React.memo((pro
   return (
     <Panel className={props.className}>
       <PanelHeader
-        icon={<Droplets size={16} color={RAIN} />}
+        icon={<Droplets size={16} />}
         title={t('live.weatherRadarTitle')}
         subtitle={t('live.sessionForecast')}
         actions={
@@ -254,10 +254,10 @@ export const LiveWeatherRadar: React.FC<LiveWeatherRadarProps> = React.memo((pro
               {/* Temperature trends */}
               <div className={`mono ${styles.temps}`}>
                 <span title={t('common.trackTemp')}>
-                  T: {units.temperature(sample.TrackTemperature, 0, '-')} {getTempTrendIcon(sample.TrackTemperatureChange ?? 0)}
+                  T: {units.temperature(sample.TrackTemperature, 0, '—')} {getTempTrendIcon(sample.TrackTemperatureChange ?? 0)}
                 </span>
                 <span title={t('common.airTemp')}>
-                  A: {units.temperature(sample.AirTemperature, 0, '-')} {getTempTrendIcon(sample.AirTemperatureChange ?? 0)}
+                  A: {units.temperature(sample.AirTemperature, 0, '—')} {getTempTrendIcon(sample.AirTemperatureChange ?? 0)}
                 </span>
               </div>
             </li>

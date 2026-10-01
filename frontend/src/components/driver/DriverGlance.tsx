@@ -85,7 +85,7 @@ export const DriverGlance: React.FC<DriverGlanceProps> = ({ viewMode, onViewMode
         <LiveStatusIndicator />
         <span className={styles.session}>
           {isRace
-            ? t('live.driver.lapOf', { lap: lap?.CurrentLapNum || '–', total: session?.TotalLaps || '–' })
+            ? t('live.driver.lapOf', { lap: lap?.CurrentLapNum || '—', total: session?.TotalLaps || '—' })
             : t('live.driver.timeLeft', {
                 time: formatDuration((session?.SessionTimeLeft ?? 0) * TIME_CONSTANTS.MS_PER_SECOND),
               })}
@@ -121,7 +121,7 @@ export const DriverGlance: React.FC<DriverGlanceProps> = ({ viewMode, onViewMode
         <div className={styles.position}>
           <dt className={styles.label}>{t('live.driver.position')}</dt>
           <dd className={styles.positionValue} data-testid="driver-position">
-            P{lap?.CarPosition || '–'}
+            P{lap?.CarPosition || '—'}
             {carCount > 0 && <span className={styles.positionOf}>/{carCount}</span>}
           </dd>
         </div>
@@ -137,7 +137,7 @@ export const DriverGlance: React.FC<DriverGlanceProps> = ({ viewMode, onViewMode
             <dd className={styles.gapValue}>
               {bestMs > 0 && leaderBestMs > 0 && leaderIdx !== playerIdx
                 ? formatSignedDelta(bestMs - leaderBestMs)
-                : '–'}
+                : '—'}
             </dd>
           </div>
         )}
@@ -172,7 +172,7 @@ export const DriverGlance: React.FC<DriverGlanceProps> = ({ viewMode, onViewMode
               return (
                 <span key={key} className={styles.corner} data-level={tyreWearLevel(wear)}>
                   <span className={styles.cornerName}>{t(`live.driver.corners.${key}`)}</span>
-                  <span className={styles.cornerWear}>{damage ? `${wear}%` : '–'}</span>
+                  <span className={styles.cornerWear}>{damage ? `${wear}%` : '—'}</span>
                   <span className={styles.cornerTemp}>
                     {telemetry?.TyresSurfaceTemperature[index] ? units.degrees(telemetry.TyresSurfaceTemperature[index]) : ''}
                   </span>
@@ -191,7 +191,7 @@ export const DriverGlance: React.FC<DriverGlanceProps> = ({ viewMode, onViewMode
                 <span className={styles.unit}>{t('live.driver.lapsUnit')}</span>
               </>
             ) : (
-              '–'
+              '—'
             )}
           </dd>
           {status && <dd className={styles.detail}>{t('live.driver.fuelKg', { kg: status.FuelInTank.toFixed(1) })}</dd>}
@@ -199,7 +199,7 @@ export const DriverGlance: React.FC<DriverGlanceProps> = ({ viewMode, onViewMode
 
         <div className={styles.ers}>
           <dt className={styles.label}>{t('live.driver.ers')}</dt>
-          <dd className={styles.bigValue}>{ers === null ? '–' : `${ers}%`}</dd>
+          <dd className={styles.bigValue}>{ers === null ? '—' : `${ers}%`}</dd>
           {ers !== null && (
             <dd className={styles.ersBar} style={styleVars({ '--ers-pct': `${ers}%` })} aria-hidden="true" />
           )}

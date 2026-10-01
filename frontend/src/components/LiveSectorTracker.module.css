@@ -5,6 +5,7 @@
   padding: 3px var(--space-2);
   font-family: var(--font-mono);
   font-size: var(--font-size-xs);
+  white-space: nowrap;
   background: var(--f1-purple-bg);
   border: 1px solid var(--f1-purple-border);
   border-radius: var(--radius-xs);
@@ -16,7 +17,8 @@
 
 .theoreticalValue {
   margin: 0;
-  font-weight: var(--font-weight-black);
+  font-weight: var(--font-weight-bold);
+  font-variant-numeric: tabular-nums;
   color: var(--f1-purple);
 }
 
@@ -34,13 +36,12 @@
   --best-color: var(--f1-purple);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  gap: var(--space-1);
   min-width: 0;
-  padding: var(--space-3);
-  background:
-    radial-gradient(circle at 90% 10%, color-mix(in srgb, var(--best-color) 8%, transparent), transparent 60%),
-    var(--bg-inset);
-  border: 1px solid color-mix(in srgb, var(--best-color) 30%, transparent);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-inset);
+  border: 1px solid var(--border-color);
+  border-top: 2px solid var(--best-color);
   border-radius: var(--radius-sm);
 }
 
@@ -48,25 +49,18 @@
   --best-color: var(--f1-yellow);
 }
 
-.bestHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  margin-bottom: var(--space-1-5);
-}
-
 .bestLabel {
-  font-size: var(--font-size-2xs);
-  font-weight: var(--font-weight-black);
-  color: var(--best-color);
+  composes: eyebrow from './ui/patterns.module.css';
+  white-space: nowrap;
 }
 
 .bestTime {
   font-family: var(--font-mono);
-  font-size: 1.05rem;
-  font-weight: var(--font-weight-black);
-  color: var(--text-primary);
+  font-size: var(--font-size-lg);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
+  color: var(--best-color);
 }
 
 .holder {
@@ -106,19 +100,21 @@
   flex-direction: column;
   min-width: 0;
   padding: var(--space-3);
-  background: var(--bg-hover);
+  background: var(--bg-inset);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
 }
 
 .subcardTitle {
+  composes: subheading from './ui/patterns.module.css';
   display: flex;
   align-items: center;
   gap: var(--space-1-5);
-  margin: 0 0 var(--space-3);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-bold);
-  color: var(--text-secondary);
+}
+
+/* subheading sets margin 0; the heading element adds the space under it */
+h4.subcardTitle {
+  margin-bottom: var(--space-3);
 }
 
 .splits {
@@ -133,30 +129,33 @@
 .split {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   padding: var(--space-2) var(--space-1-5);
   text-align: center;
-  background: var(--bg-inset);
+  background: var(--bg-hover);
   border-radius: var(--radius-xs);
 }
 
 .splitLabel {
-  font-size: var(--font-size-2xs);
-  font-weight: var(--font-weight-bold);
-  color: var(--text-muted);
+  composes: eyebrow from './ui/patterns.module.css';
 }
 
 .splitTime {
   margin: var(--space-0-5) 0;
   font-family: var(--font-mono);
   font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
   font-weight: var(--font-weight-bold);
+  white-space: nowrap;
 }
 
 .splitDelta {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
   color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .splitDelta[data-purple='true'] {
@@ -184,9 +183,10 @@
   border-radius: var(--radius-xs);
 }
 
+/* The selected car: the neutral selected look */
 .speedItem[aria-current='true'] {
-  background: color-mix(in srgb, var(--f1-slot-a) 10%, transparent);
-  box-shadow: inset 2px 0 0 var(--accent-primary);
+  background: var(--bg-active);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
 }
 
 .speedDriver {
@@ -198,7 +198,7 @@
 
 .speedRank {
   font-family: var(--font-mono);
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
   color: var(--text-muted);
 }
 
@@ -207,7 +207,7 @@
   width: 3px;
   height: 14px;
   background: var(--team-color);
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
 }
 
 .speedName {
@@ -226,13 +226,26 @@
 }
 
 .speed {
-  font-weight: var(--font-weight-black);
-  color: var(--weather-rain);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
 }
 
 .speedLap {
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
   color: var(--text-muted);
+}
+
+/* A narrow hub panel (a quarter of the page in the row layout): bests two to a row, the splits
+   and the speed trap stacked */
+@container hubCard (max-width: 560px) {
+  .bests {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .bottom {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 @media (--tablet) {

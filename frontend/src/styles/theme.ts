@@ -48,6 +48,8 @@ export const THEME_TOKENS = [
   '--f1-purple',
   '--f1-green',
   '--f1-yellow',
+  '--f1-flag-sc',
+  '--f1-flag-vsc',
   '--f1-compound-soft',
   '--f1-compound-medium',
   '--f1-compound-hard',

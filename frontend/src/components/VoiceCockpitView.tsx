@@ -24,6 +24,7 @@ import type {
 import { useSessionStatusStore } from '../store/useSessionStatusStore';
 import { useTelemetryDataStore } from '../store/useTelemetryDataStore';
 import { useRadioSettingsStore } from '../store/useRadioSettingsStore';
+import { Panel } from './ui/Panel';
 import styles from './VoiceCockpitView.module.css';
 
 export interface VoiceCockpitViewProps {
@@ -151,16 +152,18 @@ export const VoiceCockpitView: React.FC<VoiceCockpitViewProps> = React.memo((pro
           pttHint={getPttHint(radio, t).text}
         />
       ) : (
-        <VitalTelemetryStrip
-          session={session}
-          lap={lap}
-          carStatus={carStatus}
-          carDamage={carDamage}
-          telemetry={telemetry}
-          telemetry2={telemetry2}
-          trackName={trackName}
-          is2026={is2026}
-        />
+        <Panel as="div" padding="compact">
+          <VitalTelemetryStrip
+            session={session}
+            lap={lap}
+            carStatus={carStatus}
+            carDamage={carDamage}
+            telemetry={telemetry}
+            telemetry2={telemetry2}
+            trackName={trackName}
+            is2026={is2026}
+          />
+        </Panel>
       )}
 
       {/* Settings Modal */}

@@ -25,17 +25,14 @@ export function formatSectorTime(ms?: number, includeUnit = true): string {
   return includeUnit ? `${val}s` : val;
 }
 
-/**
- * Formats delta/gap milliseconds into "+S.mmm s" or "+M:SS.mmm" format.
- */
-export function formatGapTime(gapMs?: number): string {
-  if (gapMs === undefined || gapMs === null || gapMs <= 0) return 'LEADER';
-  if (gapMs >= TIME_CONSTANTS.MS_PER_MINUTE) {
-    const mins = Math.floor(gapMs / TIME_CONSTANTS.MS_PER_MINUTE);
-    const secs = ((gapMs % TIME_CONSTANTS.MS_PER_MINUTE) / TIME_CONSTANTS.MS_PER_SECOND).toFixed(3);
-    return `+${mins}:${secs.padStart(6, '0')}`;
-  }
-  return `+${(gapMs / TIME_CONSTANTS.MS_PER_SECOND).toFixed(3)}s`;
+/** A gap between two cars: "1.234" under a minute, "1:02.345" above. The unit is left to the label. */
+export function formatGap(ms: number): string {
+  return ms >= TIME_CONSTANTS.MS_PER_MINUTE ? formatLapTime(ms) : (ms / TIME_CONSTANTS.MS_PER_SECOND).toFixed(3);
+}
+
+/** A signed time difference in seconds: "+0.236", "−0.120" (a real minus sign), "±0.000". */
+export function formatSignedDelta(ms: number): string {
+  return `${ms > 0 ? '+' : ms < 0 ? '−' : '±'}${(Math.abs(ms) / TIME_CONSTANTS.MS_PER_SECOND).toFixed(3)}`;
 }
 
 /**

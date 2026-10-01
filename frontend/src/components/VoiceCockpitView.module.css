@@ -5,9 +5,9 @@
   width: 100%;
 }
 
-/* Safety car, virtual safety car or red flag across the top */
+/* Safety car, virtual safety car or red flag across the top: static, in the track-status colours */
 .banner {
-  --banner-color: var(--f1-yellow);
+  --banner-color: var(--f1-flag-sc);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -15,48 +15,39 @@
   padding: var(--space-2) var(--space-4);
   font-family: var(--font-display);
   font-size: var(--font-size-md);
-  font-weight: var(--font-weight-black);
-  letter-spacing: 0.06em;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   color: var(--banner-color);
-  background: color-mix(in srgb, var(--banner-color) 20%, transparent);
-  border: 1px solid color-mix(in srgb, var(--banner-color) 70%, transparent);
+  background: color-mix(in srgb, var(--banner-color) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--banner-color) 60%, transparent);
   border-radius: var(--radius-md);
-  box-shadow: 0 0 25px color-mix(in srgb, var(--banner-color) 35%, transparent);
-  animation: bannerPulse 1.6s infinite ease-in-out;
 }
 
 .banner[data-kind='vsc'] {
-  --banner-color: var(--f1-sector-1);
+  --banner-color: var(--f1-flag-vsc);
 }
 
 .banner[data-kind='red'] {
   --banner-color: var(--status-danger);
 }
 
-@keyframes bannerPulse {
-  50% {
-    filter: brightness(1.1);
-    transform: scale(1.008);
-  }
-}
-
-/* The engineer card: its colour follows the radio state */
+/* The engineer card: the panel surface, tinted and edged by the radio state (the one card that
+   changes with the radio) */
 .hero {
   composes: radioState from './cockpit/radioState.module.css';
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
-  padding: var(--space-6) var(--space-8);
-  background:
-    linear-gradient(165deg, color-mix(in srgb, var(--radio-color) 8%, transparent), transparent 60%), var(--bg-elevated);
+  padding: var(--space-5) var(--space-6);
+  background: color-mix(in srgb, var(--radio-color) 6%, var(--bg-glass));
   border: 1px solid color-mix(in srgb, var(--radio-color) 40%, transparent);
-  border-radius: var(--radius-lg);
-  box-shadow:
-    var(--shadow-lg),
-    0 0 30px color-mix(in srgb, var(--radio-color) 15%, transparent),
-    inset 0 1px 0 var(--border-highlight);
-  transition: all 0.28s ease;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-panel);
+  transition:
+    background-color var(--transition-normal),
+    border-color var(--transition-normal),
+    box-shadow var(--transition-normal);
 }
 
 .hero[data-state='transmitting'],
@@ -64,11 +55,17 @@
 .hero[data-state='processing'] {
   border-color: color-mix(in srgb, var(--radio-color) 80%, transparent);
   box-shadow:
-    var(--shadow-lg),
-    0 0 40px color-mix(in srgb, var(--radio-color) 35%, transparent);
+    var(--shadow-panel),
+    0 0 var(--glow-md) color-mix(in srgb, var(--radio-color) 30%, transparent);
 }
 
 .hero[data-state='off'] {
   border-color: var(--border-subtle);
   opacity: 0.7;
+}
+
+@media (--phone) {
+  .hero {
+    padding: var(--space-4);
+  }
 }

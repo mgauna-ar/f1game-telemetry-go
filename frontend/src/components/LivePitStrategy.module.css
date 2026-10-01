@@ -14,20 +14,17 @@
 }
 
 .kpiLabel {
-  font-size: var(--font-size-2xs);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--text-muted);
+  composes: eyebrow from './ui/patterns.module.css';
 }
 
 .kpiValue {
-  margin: var(--space-0-5) 0;
+  margin: var(--space-1) 0 var(--space-0-5);
   overflow: hidden;
   font-family: var(--font-mono);
-  font-size: 1.15rem;
-  font-weight: var(--font-weight-black);
-  line-height: 1.1;
+  font-size: var(--font-size-xl);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-bold);
+  line-height: var(--line-height-tight);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -41,30 +38,33 @@
 }
 
 .kpiValue[data-tone='driver'] {
+  font-family: var(--font-sans);
   font-size: var(--font-size-lg);
-  color: var(--weather-rain);
 }
 
 .kpiSub {
-  font-size: var(--font-size-2xs);
+  margin: 0;
+  font-size: var(--font-size-xs);
   color: var(--text-muted);
 }
 
+/* The table fills the panel (as tall as its row) and scrolls inside it */
 .matrix {
-  flex: 1;
-  max-height: 220px;
+  flex: 1 1 0;
+  min-height: 180px;
   overflow-y: auto;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
 }
 
-.selectedRow {
-  background: color-mix(in srgb, var(--f1-slot-a) 12%, transparent);
-  box-shadow: inset 2px 0 0 var(--accent-primary);
+/* You: the "you" tint and edge; the car open in the drawer: the neutral selected look */
+.playerRow {
+  background: var(--f1-you-bg);
+  box-shadow: inset 3px 0 0 var(--f1-you);
 }
 
-.playerRow {
-  background: color-mix(in srgb, var(--f1-green) 6%, transparent);
+.selectedRow {
+  background: var(--bg-active);
 }
 
 .pos[data-podium='true'] {
@@ -74,6 +74,7 @@
 
 .tyreAge {
   font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
 }
 
 .tyreAge[data-wear='worn'] {
@@ -95,7 +96,7 @@
   width: 3px;
   height: 14px;
   background: var(--team-color);
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
 }
 
 .driverName {
@@ -107,19 +108,18 @@
   color: var(--text-muted);
 }
 
-/* Pulsing dot inside the "in pit lane" and "in box" badges */
+/* Dot inside the "in pit lane" and "in box" badges (static: only the LIVE dot and the radio move) */
 .liveDot {
   width: 5px;
   height: 5px;
   background: currentColor;
   border-radius: 50%;
-  animation: pulseDot 1s infinite ease-in-out;
 }
 
-@keyframes pulseDot {
-  50% {
-    opacity: 0.3;
-    transform: scale(0.7);
+/* A narrow hub panel or a tablet: the three figures stacked */
+@container hubCard (max-width: 520px) {
+  .kpis {
+    grid-template-columns: 1fr;
   }
 }
 

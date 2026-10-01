@@ -15,11 +15,15 @@
   color: var(--text-primary);
 }
 
+/* Track status in the app's colours: safety car and yellow flag yellow, VSC and formation orange */
 .driver[data-flag='safetyCar'],
-.driver[data-flag='virtualSafetyCar'],
-.driver[data-flag='formationLap'],
 .driver[data-flag='yellow'] {
-  --flag-color: var(--f1-yellow);
+  --flag-color: var(--f1-flag-sc);
+}
+
+.driver[data-flag='virtualSafetyCar'],
+.driver[data-flag='formationLap'] {
+  --flag-color: var(--f1-flag-vsc);
 }
 
 .driver[data-flag='blue'] {
@@ -65,8 +69,8 @@
   padding: var(--space-2) var(--space-3);
   font-family: var(--font-display);
   font-size: var(--font-size-glance-sm);
-  font-weight: var(--font-weight-black);
-  letter-spacing: 0.04em;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--tracking-label);
   text-align: center;
   text-transform: uppercase;
   color: var(--flag-text);
@@ -113,6 +117,19 @@
   }
 }
 
+/* A screen taller than a phone (a tablet, a monitor): the tiles share the whole height under the
+   top bar instead of sitting in its top third. Phones keep their own layout. */
+@media not ((--phone) or (max-height: 600px)) {
+  .driver {
+    min-height: calc(100dvh - var(--nav-height) - var(--space-2) - var(--floating-dock-clearance));
+  }
+
+  .grid {
+    flex: 1;
+    grid-auto-rows: minmax(0, 1fr);
+  }
+}
+
 .grid > div {
   display: flex;
   flex-direction: column;
@@ -136,7 +153,7 @@
   gap: var(--space-2);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-bold);
-  letter-spacing: 0.08em;
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   color: var(--text-secondary);
 }
@@ -147,9 +164,10 @@
 }
 
 .positionValue {
-  font-family: var(--font-display);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: var(--font-size-glance-lg);
-  font-weight: var(--font-weight-black);
+  font-weight: var(--font-weight-bold);
   line-height: 1;
 }
 
@@ -223,8 +241,9 @@
   color: var(--status-warning);
 }
 
+/* The last lap was your best: green, a personal best as in F1 timing */
 .lapDelta[data-best] {
-  color: var(--f1-purple);
+  color: var(--f1-green);
 }
 
 .tyres {
@@ -252,7 +271,7 @@
   align-items: baseline;
   column-gap: var(--space-2);
   padding: var(--space-1) var(--space-2);
-  border-left: var(--space-1) solid var(--status-success);
+  border-left: 3px solid var(--status-success);
   background: var(--bg-panel-solid);
   border-radius: var(--radius-xs);
 }

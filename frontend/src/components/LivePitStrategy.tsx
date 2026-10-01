@@ -2,13 +2,7 @@ import React from 'react';
 import { Wrench } from 'lucide-react';
 import { parseDriverName } from '../hooks/useTelemetry';
 import { filterActiveLiveParticipants } from '../utils/driverFilter';
-import {
-  getTeamColor,
-  RESULT_STATUS,
-  PIT_STATUS,
-  TYRE_COMPOUND_IDS,
-  DEFAULT_PIT_STRATEGY_DEFAULTS,
-} from '../constants/f1';
+import { getTeamColor, RESULT_STATUS, PIT_STATUS, DEFAULT_PIT_STRATEGY_DEFAULTS } from '../constants/f1';
 import { TyreCompoundBadge } from './common/TyreCompoundBadge';
 import type { ParticipantData, LapData, CarStatusData, SessionData } from '../types/telemetry';
 import { useI18n } from '../context/I18nContext';
@@ -143,7 +137,7 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = React.memo((props
   return (
     <Panel className={props.className}>
       <PanelHeader
-        icon={<Wrench size={16} color="var(--accent-primary)" />}
+        icon={<Wrench size={16} />}
         title={t('live.pitStrategyTitle')}
         subtitle={t('live.pitStrategySub')}
         actions={
@@ -172,7 +166,7 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = React.memo((props
         <Kpi label={t('live.predictedRejoin')} value={`P${rejoinPos}`} tone="rejoin" sub={t('live.cleanAirEstimate')} />
         <Kpi
           label={t('live.selectedDriver')}
-          value={selectedDriver?.name ?? '--'}
+          value={selectedDriver?.name ?? '—'}
           tone="driver"
           sub={t('live.stopsMade', { count: selectedDriver?.lap?.NumPitStops || 0 })}
         />
@@ -221,7 +215,7 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = React.memo((props
                   {d.name}
                 </button>
                 {d.isPlayer && (
-                  <Badge tone="success" size="xs" square>
+                  <Badge tone="you" size="xs" square>
                     {t('live.youChip')}
                   </Badge>
                 )}
@@ -233,7 +227,13 @@ export const LivePitStrategy: React.FC<LivePitStrategyProps> = React.memo((props
             header: t('live.thTyre'),
             width: '70px',
             align: 'center',
-            cell: (d) => <TyreCompoundBadge compound={d.status?.VisualTyreCompound ?? TYRE_COMPOUND_IDS.MEDIUM} />,
+            // No compound yet: a grey "?" rather than a guess
+            cell: (d) =>
+              d.status?.VisualTyreCompound ? (
+                <TyreCompoundBadge compound={d.status.VisualTyreCompound} />
+              ) : (
+                <TyreCompoundBadge compound="?" title={t('live.badges.unknownCompoundTitle')} />
+              ),
           },
           {
             key: 'age',

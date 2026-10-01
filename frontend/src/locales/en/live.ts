@@ -278,6 +278,7 @@ export const live = {
   },
 
   badges: {
+    unknownCompoundTitle: 'Compound not known yet',
     gridDeltaTitle: 'Grid: P{grid} → Now: P{now}',
     gridSameTitle: 'Grid: P{grid}',
     activeAeroTitle: 'Active Aero: Straight Mode (Low Drag)',
