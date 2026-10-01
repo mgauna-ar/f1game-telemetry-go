@@ -4,6 +4,7 @@ import { useI18n } from '../../context/I18nContext';
 import type { CompareParams } from '../../router/routes';
 import type { SessionListItem } from '../../types/session';
 import { quickStartComparisons, type QuickStartComparison } from '../../utils/comparatorQuickStart';
+import { sessionTypeLabel } from '../../utils/sessionTypeLabel';
 import { formatLapTime } from '../../utils/formatters';
 import { TrackFlag } from '../TrackFlag';
 import { EmptyState } from '../ui/EmptyState';
@@ -60,7 +61,7 @@ export const ComparatorQuickStart: React.FC<ComparatorQuickStartProps> = ({ sess
                 </span>
                 <span className={styles.session}>
                   <TrackFlag track={card.session.track_name} width={16} height={11} />
-                  {card.session.track_name} · {card.session.session_type}
+                  {card.session.track_name} · {sessionTypeLabel(card.session.session_type, t)}
                 </span>
                 <span className={styles.meta}>
                   {card.previous

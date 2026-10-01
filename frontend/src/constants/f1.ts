@@ -226,53 +226,6 @@ export const isRaceSession = (sessionType?: number): boolean => {
   );
 };
 
-export const getSessionTypeName = (sessionType?: number): string => {
-  switch (sessionType) {
-    case SESSION_TYPES.P1:
-      return 'Practice 1 (FP1)';
-    case SESSION_TYPES.P2:
-      return 'Practice 2 (FP2)';
-    case SESSION_TYPES.P3:
-      return 'Practice 3 (FP3)';
-    case SESSION_TYPES.SHORT_P:
-      return 'Short Practice';
-    case SESSION_TYPES.Q1:
-      return 'Qualifying 1 (Q1)';
-    case SESSION_TYPES.Q2:
-      return 'Qualifying 2 (Q2)';
-    case SESSION_TYPES.Q3:
-      return 'Qualifying 3 (Q3)';
-    case SESSION_TYPES.SHORT_Q:
-      return 'Short Qualifying';
-    case SESSION_TYPES.OSQ:
-      return 'One-Shot Qualifying';
-    case SESSION_TYPES.SPRINT_Q1:
-      return 'Sprint Shootout 1 (SQ1)';
-    case SESSION_TYPES.SPRINT_Q2:
-      return 'Sprint Shootout 2 (SQ2)';
-    case SESSION_TYPES.SPRINT_Q3:
-      return 'Sprint Shootout 3 (SQ3)';
-    case SESSION_TYPES.SHORT_SPRINT_Q:
-      return 'Short Sprint Shootout';
-    case SESSION_TYPES.OS_SPRINT_Q:
-      return 'One-Shot Sprint Shootout';
-    case SESSION_TYPES.RACE:
-      return 'Grand Prix Race';
-    case SESSION_TYPES.RACE_2:
-      return 'Race 2';
-    case SESSION_TYPES.RACE_3:
-      return 'Race 3';
-    case SESSION_TYPES.TIME_TRIAL:
-      return 'Time Trial';
-    case SESSION_TYPES.SPRINT_RACE:
-      return 'Sprint Race';
-    case SESSION_TYPES.EQUAL_SPRINT_RACE:
-      return 'Equal Sprint Race';
-    default:
-      return 'Live Session';
-  }
-};
-
 /** Session names exactly as the server stores them (packets.SessionTypeName), for session badges. */
 export const SESSION_TYPE_LABELS: Record<number, string> = {
   [SESSION_TYPES.P1]: 'Practice 1',
@@ -295,6 +248,30 @@ export const SESSION_TYPE_LABELS: Record<number, string> = {
   [SESSION_TYPES.TIME_TRIAL]: 'Time Trial',
   [SESSION_TYPES.SPRINT_RACE]: 'Sprint Race',
   [SESSION_TYPES.EQUAL_SPRINT_RACE]: 'Equal Sprint Race',
+};
+
+/** Each session type's key under `common.sessionTypes` in the locales. */
+export const SESSION_TYPE_KEYS: Record<number, string> = {
+  [SESSION_TYPES.P1]: 'p1',
+  [SESSION_TYPES.P2]: 'p2',
+  [SESSION_TYPES.P3]: 'p3',
+  [SESSION_TYPES.SHORT_P]: 'shortPractice',
+  [SESSION_TYPES.Q1]: 'q1',
+  [SESSION_TYPES.Q2]: 'q2',
+  [SESSION_TYPES.Q3]: 'q3',
+  [SESSION_TYPES.SHORT_Q]: 'shortQualifying',
+  [SESSION_TYPES.OSQ]: 'oneShotQualifying',
+  [SESSION_TYPES.SPRINT_Q1]: 'sprintShootout1',
+  [SESSION_TYPES.SPRINT_Q2]: 'sprintShootout2',
+  [SESSION_TYPES.SPRINT_Q3]: 'sprintShootout3',
+  [SESSION_TYPES.SHORT_SPRINT_Q]: 'shortSprintShootout',
+  [SESSION_TYPES.OS_SPRINT_Q]: 'oneShotSprintShootout',
+  [SESSION_TYPES.RACE]: 'race',
+  [SESSION_TYPES.RACE_2]: 'race2',
+  [SESSION_TYPES.RACE_3]: 'race3',
+  [SESSION_TYPES.TIME_TRIAL]: 'timeTrial',
+  [SESSION_TYPES.SPRINT_RACE]: 'sprintRace',
+  [SESSION_TYPES.EQUAL_SPRINT_RACE]: 'equalSprintRace',
 };
 
 export const getSessionTypeCode = (sessionTypeStr?: string): number => {

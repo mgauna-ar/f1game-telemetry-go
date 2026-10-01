@@ -1,6 +1,8 @@
 import React from 'react';
 import { Timer, Flag, Zap, Wrench, Gauge } from 'lucide-react';
+import { useI18n } from '../../context/I18nContext';
 import { getSessionTone } from '../../utils/formatters';
+import { sessionTypeLabel } from '../../utils/sessionTypeLabel';
 import { Badge } from '../ui/Badge';
 
 export interface SessionTypeBadgeProps {
@@ -16,7 +18,10 @@ export const SessionTypeBadge: React.FC<SessionTypeBadgeProps> = ({
   showIcon = true,
   className,
 }) => {
+  const { t } = useI18n();
+  // Tone and icon read the stored English name; the text is in the UI language
   const rawType = sessionType || 'Unknown';
+  const label = sessionTypeLabel(sessionType, t);
   const tone = getSessionTone(rawType);
   const lower = rawType.toLowerCase();
   const iconSize = size === 'xs' ? 11 : size === 'md' ? 14 : 12;
@@ -34,9 +39,9 @@ export const SessionTypeBadge: React.FC<SessionTypeBadgeProps> = ({
       uppercase
       className={className}
       icon={showIcon ? <Icon size={iconSize} aria-hidden="true" /> : undefined}
-      title={`Session Type: ${rawType}`}
+      title={`${t('history.table.sessionType')}: ${label}`}
     >
-      <span>{rawType}</span>
+      <span>{label}</span>
     </Badge>
   );
 };

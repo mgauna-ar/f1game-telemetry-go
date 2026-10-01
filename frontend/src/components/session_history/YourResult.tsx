@@ -7,6 +7,7 @@ import { placesKey } from '../../utils/player';
 import { Button } from '../ui/Button';
 import { openPlayerPicker } from './player/playerPickerStore';
 import { sessionKind } from './sessionKind';
+import { sessionTypeLabel } from '../../utils/sessionTypeLabel';
 import styles from './YourResult.module.css';
 
 interface YourResultProps {
@@ -44,7 +45,7 @@ export const YourResult: React.FC<YourResultProps> = ({ session }) => {
               variant="ghost"
               className={styles.pick}
               icon={<UserRound size={13} aria-hidden="true" />}
-              aria-label={t('history.player.pickIn', { session: `${session.track_name} ${sessionType}` })}
+              aria-label={t('history.player.pickIn', { session: `${session.track_name} ${sessionTypeLabel(sessionType, t)}` })}
               title={t('history.player.noDriver')}
               onClick={(event) => {
                 // The row opens the session on click

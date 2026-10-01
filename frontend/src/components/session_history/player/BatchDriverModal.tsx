@@ -6,6 +6,7 @@ import { useToastStore } from '../../../store/useToastStore';
 import type { BatchPlayerResult, SessionListItem } from '../../../types/session';
 import { useUnits } from '../../../hooks/useUnits';
 import { getSessionLapData } from '../../../utils/sessionDataCache';
+import { sessionTypeLabel } from '../../../utils/sessionTypeLabel';
 import { Button } from '../../ui/Button';
 import { EmptyState } from '../../ui/EmptyState';
 import { TextInput } from '../../ui/Field';
@@ -215,7 +216,7 @@ const BatchDriverResult: React.FC<{ result: BatchPlayerResult; sessions: Session
                 return (
                   <li key={id}>
                     {session
-                      ? `${session.track_name} · ${session.session_type} · ${units.dateAndTime(session.created_at)}`
+                      ? `${session.track_name} · ${sessionTypeLabel(session.session_type, t)} · ${units.dateAndTime(session.created_at)}`
                       : `#${id}`}
                   </li>
                 );

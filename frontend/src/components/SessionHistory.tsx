@@ -25,6 +25,7 @@ import { navigate } from '../router/router';
 import { SessionHistoryProvider } from '../context/SessionHistoryContext';
 import { useSessionHistoryData, useSessionHistoryActions } from '../context/SessionHistoryContextDefinitions';
 
+import { sessionTypeLabel } from '../utils/sessionTypeLabel';
 import styles from './SessionHistory.module.css';
 import type { Session, Participant, Lap, StagedLap, DriverStanding, Tag } from '../types/session';
 
@@ -71,7 +72,7 @@ const SessionHistoryContent: React.FC = () => {
 
   useDocumentTitle(
     selectedSession
-      ? `${selectedSession.track_name} ${selectedSession.session_type} · ${new Date(selectedSession.created_at).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}`
+      ? `${selectedSession.track_name} ${sessionTypeLabel(selectedSession.session_type, t)} · ${new Date(selectedSession.created_at).toLocaleDateString(locale, { day: 'numeric', month: 'short' })}`
       : t('nav.tabs.history')
   );
 

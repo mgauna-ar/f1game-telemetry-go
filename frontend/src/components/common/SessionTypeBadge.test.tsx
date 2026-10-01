@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
+import { I18nProvider } from '../../context/I18nProvider';
 import { SessionTypeBadge } from './SessionTypeBadge';
 
 describe('SessionTypeBadge Component', () => {
@@ -37,9 +38,25 @@ describe('SessionTypeBadge Component', () => {
 
   it('renders unknown fallback when sessionType is undefined', () => {
     render(<SessionTypeBadge />);
-    const badge = screen.getByText('Unknown');
+    const badge = screen.getByText('Unknown session');
     expect(badge).toBeInTheDocument();
     const container = badge.closest('[data-tone]');
     expect(container).toHaveAttribute('data-tone', 'neutral');
+  });
+
+  it('shows the stored name in the UI language, keeping its colour', () => {
+    localStorage.setItem('f1_telemetry_language', 'es');
+    try {
+      render(
+        <I18nProvider>
+          <SessionTypeBadge sessionType="Short Qualifying" />
+        </I18nProvider>
+      );
+      const badge = screen.getByText('Clasificación corta');
+      expect(badge.closest('[data-tone]')).toHaveAttribute('data-tone', 'purple');
+      expect(badge.closest('[data-tone]')).toHaveAttribute('title', 'Tipo de Sesión: Clasificación corta');
+    } finally {
+      localStorage.removeItem('f1_telemetry_language');
+    }
   });
 });

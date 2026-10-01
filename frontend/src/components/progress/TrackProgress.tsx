@@ -8,6 +8,7 @@ import { Link } from '../../router/Link';
 import { buildPath } from '../../router/routes';
 import type { ProgressSession } from '../../types/progress';
 import { formatLapTime } from '../../utils/formatters';
+import { sessionTypeLabel } from '../../utils/sessionTypeLabel';
 import { TrackFlag } from '../TrackFlag';
 import { Button } from '../ui/Button';
 import { EmptyState } from '../ui/EmptyState';
@@ -183,7 +184,7 @@ const ProgressStats: React.FC<{ sessions: ProgressSession[] }> = ({ sessions }) 
         valueClassName={cx(styles.statValue, styles.best)}
         label={t('progress.stats.personalBest')}
         value={formatLapTime(bests.bestLap?.best_lap_time_ms)}
-        detail={bests.bestLap && `${bests.bestLap.session_type} · ${shortDate(bests.bestLap.created_at, locale)}`}
+        detail={bests.bestLap && `${sessionTypeLabel(bests.bestLap.session_type, t)} · ${shortDate(bests.bestLap.created_at, locale)}`}
       />
       <Stat
         className={styles.stat}

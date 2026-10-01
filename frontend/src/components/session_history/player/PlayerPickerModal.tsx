@@ -7,6 +7,7 @@ import { useToastStore } from '../../../store/useToastStore';
 import { styleVars } from '../../../styles/theme';
 import type { Lap, Participant, Session } from '../../../types/session';
 import { participantDisplayName } from '../../../utils/player';
+import { sessionTypeLabel } from '../../../utils/sessionTypeLabel';
 import { getSessionLapData } from '../../../utils/sessionDataCache';
 import { Badge } from '../../ui/Badge';
 import { Button } from '../../ui/Button';
@@ -34,7 +35,7 @@ export const PlayerPickerModal: React.FC = () => {
         tone="accent"
         icon={<UserRound size={20} />}
         title={t('history.player.picker.title')}
-        subtitle={session ? `${session.track_name} · ${session.session_type}` : undefined}
+        subtitle={session ? `${session.track_name} · ${sessionTypeLabel(session.session_type, t)}` : undefined}
       />
       {session && <PickerContent key={session.id} session={session} onClose={close} />}
     </Modal>

@@ -91,6 +91,7 @@ export const SessionHeader: React.FC<SessionHeaderProps> = React.memo((props) =>
   // Active Session rendering
   const trackInfo = getTrackInfo(session.TrackId);
   const trackName = trackInfo?.name || TRACK_NAMES[session.TrackId] || `Track #${session.TrackId}`;
+  // The game's English name: the badge translates it and picks its colour and icon from it
   const sessionLabel = SESSION_TYPE_LABELS[session.SessionType] || t('nav.tabs.live');
   const isRace = isRaceSession(session.SessionType);
   const weatherText = t(WEATHER_LABEL_KEYS[session.Weather] ?? WEATHER_LABEL_KEYS[WEATHER_CODES.CLEAR]);

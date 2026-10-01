@@ -37,7 +37,53 @@ export type KnownStorageKey =
 
 export type StorageKey = KnownStorageKey | (string & {});
 
+/** The raw stored text, or null when absent or storage is unavailable. */
+function readRaw(key: StorageKey): string | null {
+  if (typeof window === 'undefined' || !window.localStorage) return null;
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
 export const storage = {
+  /** Whether anything is stored under `key`. */
+  has(key: StorageKey): boolean {
+    return readRaw(key) !== null;
+  },
+
+  /**
+   * A stored string, saved raw or JSON-quoted. Unlike `get`, a value that looks like a number or
+   * boolean ("44" as a callsign) stays a string. Falls back when absent, empty, or not one of
+   * `allowed`.
+   */
+  getString<T extends string>(key: StorageKey, fallback: T, allowed?: readonly T[]): T {
+    const raw = readRaw(key);
+    if (!raw) return fallback;
+    let value = raw;
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      if (typeof parsed === 'string') value = parsed;
+    } catch {
+      // Saved raw
+    }
+    return value && (!allowed || allowed.includes(value as T)) ? (value as T) : fallback;
+  },
+
+  /** A stored `true`/`false`; anything else falls back. */
+  getBoolean(key: StorageKey, fallback: boolean): boolean {
+    const raw = readRaw(key);
+    return raw === 'true' ? true : raw === 'false' ? false : fallback;
+  },
+
+  /** A stored number clamped to [min, max]; anything that isn't a number falls back. */
+  getNumber(key: StorageKey, fallback: number, min = -Infinity, max = Infinity): number {
+    const raw = readRaw(key);
+    const num = raw === null || raw.trim() === '' ? NaN : Number(raw);
+    return Number.isNaN(num) ? fallback : Math.min(max, Math.max(min, num));
+  },
+
   /**
    * Safely retrieves and parses a value from localStorage.
    * If the item is absent, corrupted, or cannot be parsed, returns fallback.

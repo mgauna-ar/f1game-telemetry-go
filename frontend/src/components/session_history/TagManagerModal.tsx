@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Tag as TagIcon, Search, Plus, Check, Trash2 } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
+import { sessionTypeLabel } from '../../utils/sessionTypeLabel';
 import type { Session, Tag } from '../../types/session';
 import { styleVars } from '../../styles/theme';
 import { TrackFlag } from '../TrackFlag';
@@ -111,7 +112,7 @@ export const TagManagerModal: React.FC<TagManagerModalProps> = ({
             <span>#{session.id} •</span>
             <TrackFlag track={session.track_name} width={14} height={10} />
             <span>
-              {session.track_name} ({session.session_type})
+              {session.track_name} ({sessionTypeLabel(session.session_type, t)})
             </span>
           </span>
         }
