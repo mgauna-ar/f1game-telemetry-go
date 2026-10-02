@@ -9,19 +9,29 @@ import (
 
 // OpenBrowser opens the specified URL in the user's default browser on Windows, macOS, or Linux.
 func OpenBrowser(url string) error {
+	if err := OpenPath(url); err != nil {
+		return fmt.Errorf("failed to launch default browser: %w", err)
+	}
+	return nil
+}
+
+// OpenPath opens a URL, file or folder with whatever the OS uses for it by default: the browser
+// for a URL, the associated app for a file (e.g. a text editor for a .log), the file manager for
+// a folder.
+func OpenPath(target string) error {
 	var cmd *exec.Cmd
 
 	switch runtime.GOOS {
 	case "windows":
-		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", target)
 	case "darwin":
-		cmd = exec.Command("open", url)
+		cmd = exec.Command("open", target)
 	default: // linux, bsd, etc.
-		cmd = exec.Command("xdg-open", url)
+		cmd = exec.Command("xdg-open", target)
 	}
 
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("failed to launch default browser: %w", err)
+		return fmt.Errorf("failed to open %s: %w", target, err)
 	}
 	return nil
 }

@@ -63,13 +63,27 @@ Pre-compiled, self-contained single binaries with the embedded web dashboard are
    * **macOS:** `f1telemetry_<version>_darwin_arm64.zip` (Apple Silicon M-series) or `f1telemetry_<version>_darwin_amd64.zip` (Intel)
    * **Linux:** `f1telemetry_<version>_linux_amd64.tar.gz` (or `arm64`)
 2. Extract the archive contents.
-3. Run `f1telemetry.exe` (Windows) or `./f1telemetry` (macOS / Linux). The server will start and automatically open your default browser to `http://localhost:8080`. Every page has its own address you can bookmark or share on your network: a session (`/history/12/stints`), a lap comparison with its zoom (`/compare?sa=12&a=345&b=346`), your progress at a track (`/progress/Silverstone`), the live cockpit (`/live/cockpit`) or a settings section (`/settings/comparator`).
+3. Run `f1telemetry.exe` (Windows) or `./f1telemetry` (macOS / Linux). The server will start and automatically open your default browser to `http://localhost:8080`. Running it again while it's already running just opens the dashboard. Every page has its own address you can bookmark or share on your network: a session (`/history/12/stints`), a lap comparison with its zoom (`/compare?sa=12&a=345&b=346`), your progress at a track (`/progress/Silverstone`), the live cockpit (`/live/cockpit`) or a settings section (`/settings/comparator`).
+
+#### 🖥️ On Windows: lives in the notification area
+
+There's no console window: the app runs in the background with an icon in the notification area (next to the clock; Windows 11 may first put it under the **^** overflow, and you can drag it out to keep it visible).
+
+* **Left-click** the icon to open the dashboard. **Right-click** for the menu: the live status (*"Live: Race · Monza"* or *"Waiting for the game on UDP port 20777"*), **Open live view**, **Start with Windows**, **Open data folder**, **Open log file** and **Quit**. A notice appears in the menu when a new release is out.
+* The icon shows a green dot while the game is sending telemetry.
+* **Start with Windows** starts it in the background when you sign in, without opening the browser, using the same database.
+* The log is written to `f1telemetry.log` next to the database. If the app can't start (for example because another program uses its port), it tells you in a dialog.
+* The menu follows your Windows display language (English or Spanish).
 
 > [!NOTE]
 > **Windows Defender / SmartScreen Notice:**
 > Because this is a free, community open-source project without an expensive commercial code-signing certificate, Windows Defender SmartScreen may display a blue warning (*"Windows protected your PC"* or *"Unknown Publisher"*). This is standard and expected for newly released, unsigned open-source executables.
 >
 > To proceed: click **"More info"** → **"Run anyway"**. You can also verify binary integrity against the official SHA-256 hashes published in `checksums.txt`, or compile the binary yourself from source.
+
+### 🧪 Development Builds (Without a Release)
+
+Every CI run of a pull request or of `main` builds all six binaries. You can also start one by hand for any branch: **Actions** → **CI/CD Pipeline** → **Run workflow**. Open the run, scroll to **Artifacts**, and download the one for your system (e.g. `f1telemetry-windows-amd64`). They are kept for 14 days. These builds report a `dev-<commit>` version, so they don't offer release updates. On macOS / Linux, make the extracted file executable first (`chmod +x f1telemetry_*`).
 
 ---
 
@@ -172,6 +186,7 @@ Server settings can be set with command-line flags, environment variables, or a 
 | `-http` | `F1T_HTTP_ADDR` | Web API & WebSocket server address | `:8080` |
 | `-db` | `F1T_DB_PATH` | SQLite database file (relative paths are resolved from the current folder; the full path is shown at startup) | `f1telemetry.db` |
 | `-no-browser` | `F1T_NO_BROWSER` | Don't open the dashboard in a browser on startup | `false` |
+| `-no-tray` | `F1T_NO_TRAY` | Windows: run without the notification-area icon (the release build then has no window at all; stop it from Task Manager) | `false` |
 | `-version` | — | Print version, commit, and build date, then exit | `false` |
 | | `GEMINI_API_KEY` | Google Gemini API key for the AI Race Engineer | *(Can be set in UI)* |
 | | `OPENAI_API_KEY` | OpenAI API key for the AI Race Engineer | *(Can be set in UI)* |

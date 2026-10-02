@@ -5,6 +5,8 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  # Run it by hand from the Actions tab to get downloadable builds of any branch
+  workflow_dispatch:
 
 jobs:
   backend:
@@ -41,6 +43,34 @@ jobs:
       - name: Build
         run: go build -v ./...
 
+  windows:
+    name: Go Backend (Windows)
+    runs-on: windows-latest
+    steps:
+      # Keep LF line endings so gofmt doesn't flag every file
+      - name: Disable CRLF conversion
+        run: git config --global core.autocrlf false
+
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+
+      # Windows-only code (tray, autostart, wheel input) is skipped on the Linux job
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v7
+        with:
+          version: latest
+
+      - name: Run tests
+        run: go test ./...
+
   frontend:
     name: React Frontend
     runs-on: ubuntu-latest
@@ -69,3 +99,73 @@ jobs:
 
       - name: Build frontend
         run: npm run build
+
+  artifacts:
+    name: Downloadable Builds
+    needs: [backend, windows, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+
+      # A "dev-" version marks these as development builds, so they don't offer release updates
+      - name: Build all platforms
+        run: make build-all VERSION=dev-$(git rev-parse --short HEAD)
+
+      - name: Upload Windows (x64)
+        uses: actions/upload-artifact@v7
+        with:
+          name: f1telemetry-windows-amd64
+          path: bin/f1telemetry_windows_amd64.exe
+          retention-days: 14
+
+      - name: Upload Windows (ARM64)
+        uses: actions/upload-artifact@v7
+        with:
+          name: f1telemetry-windows-arm64
+          path: bin/f1telemetry_windows_arm64.exe
+          retention-days: 14
+
+      - name: Upload macOS (Apple silicon)
+        uses: actions/upload-artifact@v7
+        with:
+          name: f1telemetry-darwin-arm64
+          path: bin/f1telemetry_darwin_arm64
+          retention-days: 14
+
+      - name: Upload macOS (Intel)
+        uses: actions/upload-artifact@v7
+        with:
+          name: f1telemetry-darwin-amd64
+          path: bin/f1telemetry_darwin_amd64
+          retention-days: 14
+
+      - name: Upload Linux (x64)
+        uses: actions/upload-artifact@v7
+        with:
+          name: f1telemetry-linux-amd64
+          path: bin/f1telemetry_linux_amd64
+          retention-days: 14
+
+      - name: Upload Linux (ARM64)
+        uses: actions/upload-artifact@v7
+        with:
+          name: f1telemetry-linux-arm64
+          path: bin/f1telemetry_linux_arm64
+          retention-days: 14
