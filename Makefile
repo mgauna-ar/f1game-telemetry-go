@@ -7,6 +7,8 @@ VERSION ?= $(shell git describe --tags --exact-match 2>/dev/null || echo dev)
 COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
 DATE ?= $(shell date -u +%Y-%m-%d)
 LDFLAGS=-s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)
+# Windows release builds are GUI apps: no console window, the app lives in the notification area
+WINDOWS_LDFLAGS=-H=windowsgui
 
 ## help: Show this help message
 help:
@@ -29,8 +31,8 @@ build-embedded: build-frontend
 build-all: build-frontend
 	@mkdir -p $(BUILD_DIR)
 	@go run ./scripts/build_windows_resources.go
-	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)_windows_amd64.exe ./cmd/server
-	CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)_windows_arm64.exe ./cmd/server
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="$(LDFLAGS) $(WINDOWS_LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)_windows_amd64.exe ./cmd/server
+	CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build -ldflags="$(LDFLAGS) $(WINDOWS_LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)_windows_arm64.exe ./cmd/server
 	@go run ./scripts/build_windows_resources.go -clean
 	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)_darwin_arm64 ./cmd/server
 	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)_darwin_amd64 ./cmd/server

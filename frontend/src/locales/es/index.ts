@@ -7,6 +7,7 @@ import { live } from './live';
 import { progress } from './progress';
 import { ai_engineer } from './ai_engineer';
 import { settings } from './settings';
+import { desktop } from './desktop';
 
 /** The Spanish dictionary, loaded only when Spanish is the language on screen. */
 export const es: LocaleDictionary = {
@@ -18,4 +19,5 @@ export const es: LocaleDictionary = {
   live,
   ai_engineer,
   settings,
+  desktop,
 };

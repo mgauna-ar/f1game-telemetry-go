@@ -20,6 +20,7 @@ import (
 	"github.com/mgauna/f1game-telemetry-go/internal/ai"
 	"github.com/mgauna/f1game-telemetry-go/internal/analytics"
 	"github.com/mgauna/f1game-telemetry-go/internal/api"
+	"github.com/mgauna/f1game-telemetry-go/internal/desktop"
 	"github.com/mgauna/f1game-telemetry-go/internal/engineer"
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
 	"github.com/mgauna/f1game-telemetry-go/internal/session"
@@ -105,6 +106,8 @@ func registry() *tsgen.Generator {
 		system.TelemetryEndpoint{},
 		api.SystemStatus{},
 		api.LiveCarLaps{},
+		desktop.DesktopState{},
+		desktop.DesktopUpdate{},
 	)
 
 	// An AI chat request names what it is about; the server builds the prompt data.

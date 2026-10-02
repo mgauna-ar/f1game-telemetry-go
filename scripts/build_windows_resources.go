@@ -1,20 +1,19 @@
 package main
 
 import (
-	"bytes"
-	"encoding/binary"
 	"flag"
 	"fmt"
-	"image"
-	"image/draw"
-	_ "image/png"
 	"os"
 	"os/exec"
 	"path/filepath"
 )
 
+// appIconPath is the multi-size app icon (16 to 180 px) also used by the tray; regenerate it with
+// `go generate ./internal/desktop`.
+const appIconPath = "internal/desktop/icons/app.ico"
+
 func main() {
-	cleanFlag := flag.Bool("clean", false, "Remove all generated .syso and .ico files from cmd/server")
+	cleanFlag := flag.Bool("clean", false, "Remove all generated .syso and .manifest files from cmd/server")
 	flag.Parse()
 
 	if *cleanFlag {
@@ -27,66 +26,20 @@ func main() {
 
 func cleanResources() {
 	files, _ := filepath.Glob("cmd/server/*.syso")
-	icoFiles, _ := filepath.Glob("cmd/server/*.ico")
 	manifestFiles, _ := filepath.Glob("cmd/server/*.manifest")
-	all := append(append(files, icoFiles...), manifestFiles...)
+	files = append(files, manifestFiles...)
 
-	for _, f := range all {
+	for _, f := range files {
 		_ = os.Remove(f)
 	}
 	fmt.Println("Cleaned up Windows resource files from cmd/server/")
 }
 
 func generateResources() {
-	pngPath := "frontend/public/apple-touch-icon.png"
-	icoPath := "cmd/server/app.ico"
 	manifestPath := "cmd/server/app.manifest"
 
-	pngBytes, err := os.ReadFile(pngPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to read PNG: %v\n", err)
-		os.Exit(1)
-	}
-
-	img, _, err := image.Decode(bytes.NewReader(pngBytes))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to decode PNG: %v\n", err)
-		os.Exit(1)
-	}
-
-	// Create ICO file with 256x256 frame
-	bounds := img.Bounds()
-	w, h := bounds.Dx(), bounds.Dy()
-	_ = draw.Draw
-
-	var icoBuf bytes.Buffer
-	// ICO Header
-	_ = binary.Write(&icoBuf, binary.LittleEndian, uint16(0)) // Reserved
-	_ = binary.Write(&icoBuf, binary.LittleEndian, uint16(1)) // Type 1 = ICO
-	_ = binary.Write(&icoBuf, binary.LittleEndian, uint16(1)) // 1 Image count
-
-	// Icon Directory Entry
-	widthByte := byte(w)
-	if w >= 256 {
-		widthByte = 0
-	}
-	heightByte := byte(h)
-	if h >= 256 {
-		heightByte = 0
-	}
-	icoBuf.WriteByte(widthByte)
-	icoBuf.WriteByte(heightByte)
-	icoBuf.WriteByte(0)                                                   // Colors
-	icoBuf.WriteByte(0)                                                   // Reserved
-	_ = binary.Write(&icoBuf, binary.LittleEndian, uint16(1))             // Planes
-	_ = binary.Write(&icoBuf, binary.LittleEndian, uint16(32))            // BPP
-	_ = binary.Write(&icoBuf, binary.LittleEndian, uint32(len(pngBytes))) // Size
-	_ = binary.Write(&icoBuf, binary.LittleEndian, uint32(6+16))          // Offset (6 byte header + 16 byte entry)
-
-	icoBuf.Write(pngBytes)
-
-	if err := os.WriteFile(icoPath, icoBuf.Bytes(), 0o644); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to write ICO: %v\n", err)
+	if _, err := os.Stat(appIconPath); err != nil {
+		fmt.Fprintf(os.Stderr, "app icon missing: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -130,7 +83,7 @@ func generateResources() {
 		outFile := fmt.Sprintf("cmd/server/rsrc_windows_%s.syso", arch)
 		cmd := exec.Command("go", "run", "github.com/akavel/rsrc@latest",
 			"-manifest", manifestPath,
-			"-ico", icoPath,
+			"-ico", appIconPath,
 			"-arch", arch,
 			"-o", outFile,
 		)
@@ -142,8 +95,7 @@ func generateResources() {
 		}
 	}
 
-	// Clean up temp ICO and manifest files, leaving only the syso files
-	_ = os.Remove(icoPath)
+	// Clean up the manifest, leaving only the syso files
 	_ = os.Remove(manifestPath)
 	fmt.Println("Generated Windows .syso resource files in cmd/server/")
 }

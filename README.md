@@ -63,13 +63,27 @@ Pre-compiled, self-contained single binaries with the embedded web dashboard are
    * **macOS:** `f1telemetry_<version>_darwin_arm64.zip` (Apple Silicon M-series) or `f1telemetry_<version>_darwin_amd64.zip` (Intel)
    * **Linux:** `f1telemetry_<version>_linux_amd64.tar.gz` (or `arm64`)
 2. Extract the archive contents.
-3. Run `f1telemetry.exe` (Windows) or `./f1telemetry` (macOS / Linux). The server will start and automatically open your default browser to `http://localhost:8080`. Every page has its own address you can bookmark or share on your network: a session (`/history/12/stints`), a lap comparison with its zoom (`/compare?sa=12&a=345&b=346`), your progress at a track (`/progress/Silverstone`), the live cockpit (`/live/cockpit`) or a settings section (`/settings/comparator`).
+3. Run `f1telemetry.exe` (Windows) or `./f1telemetry` (macOS / Linux). A small **app window** opens: whether the game is sending telemetry, the dashboard's address on this PC and for a phone or tablet, what to enter in the game, and an **Open dashboard** button. It's a Chrome, Edge, Chromium or Brave window without tabs (Edge comes with Windows; without one of these it opens as a tab in your default browser). Closing it keeps the app running: on Windows in the tray, on macOS / Linux in its terminal (stop it with Ctrl+C or the window's **Quit** button). Turn off **Show this window at startup** in it to start straight to the tray or terminal. Starting it again while it's already running does nothing. Every page has its own address you can bookmark or share on your network: a session (`/history/12/stints`), a lap comparison with its zoom (`/compare?sa=12&a=345&b=346`), your progress at a track (`/progress/Silverstone`), the live cockpit (`/live/cockpit`) or a settings section (`/settings/comparator`).
+
+#### 🖥️ On Windows: lives in the notification area
+
+There's no console window: the app runs with an icon in the notification area (next to the clock; Windows 11 may first put it under the **^** overflow, and you can drag it out to keep it visible).
+
+* **Left-click** the icon to bring the app window back. **Right-click** for the menu: the live status (*"Live: Race · Monza"* or *"Waiting for the game on UDP port 20777"*), **Show window**, **Open dashboard**, **Open live view**, **Start with Windows**, **Open data folder**, **Open log file** and **Quit**. A notice appears in the menu when a new release is out.
+* The icon shows a green dot while the game is sending telemetry.
+* **Start with Windows** (in the menu or the app window) starts it in the tray when you sign in, without the window, using the same database.
+* The log is written to `f1telemetry.log` next to the database. If the app can't start (for example because another program uses its port), it tells you in a dialog.
+* The menu follows your Windows display language (English or Spanish).
 
 > [!NOTE]
 > **Windows Defender / SmartScreen Notice:**
 > Because this is a free, community open-source project without an expensive commercial code-signing certificate, Windows Defender SmartScreen may display a blue warning (*"Windows protected your PC"* or *"Unknown Publisher"*). This is standard and expected for newly released, unsigned open-source executables.
 >
 > To proceed: click **"More info"** → **"Run anyway"**. You can also verify binary integrity against the official SHA-256 hashes published in `checksums.txt`, or compile the binary yourself from source.
+
+### 🧪 Development Builds (Without a Release)
+
+Every CI run of a pull request or of `main` builds all six binaries. You can also start one by hand for any branch: **Actions** → **CI/CD Pipeline** → **Run workflow**. Open the run, scroll to **Artifacts**, and download the one for your system (e.g. `f1telemetry-windows-amd64`). They are kept for 14 days. These builds report a `dev-<commit>` version, so they don't offer release updates. On macOS / Linux, make the extracted file executable first (`chmod +x f1telemetry_*`).
 
 ---
 
@@ -99,7 +113,7 @@ If you prefer building from source or contributing to the codebase:
 ```powershell
 .\run.bat
 ```
-*Installs frontend dependencies if needed, builds the embedded web assets, compiles, and launches the standalone single-binary application with automatic browser opening.*
+*Installs frontend dependencies if needed, builds the embedded web assets, compiles, and launches the standalone single-binary application.*
 
 ### Single-Binary Embedded Build (All Platforms)
 ```bash
@@ -171,7 +185,8 @@ Server settings can be set with command-line flags, environment variables, or a 
 | `-udp` | `F1T_UDP_ADDR` | UDP telemetry listener address | `0.0.0.0:20777` |
 | `-http` | `F1T_HTTP_ADDR` | Web API & WebSocket server address | `:8080` |
 | `-db` | `F1T_DB_PATH` | SQLite database file (relative paths are resolved from the current folder; the full path is shown at startup) | `f1telemetry.db` |
-| `-no-browser` | `F1T_NO_BROWSER` | Don't open the dashboard in a browser on startup | `false` |
+| `-open-browser` | `F1T_OPEN_BROWSER` | Open the dashboard in the browser on startup (`-no-browser` is still accepted and does nothing) | `false` |
+| `-no-tray` | `F1T_NO_TRAY` | Windows: run without the notification-area icon (the release build then has no window at all; stop it from Task Manager) | `false` |
 | `-version` | — | Print version, commit, and build date, then exit | `false` |
 | | `GEMINI_API_KEY` | Google Gemini API key for the AI Race Engineer | *(Can be set in UI)* |
 | | `OPENAI_API_KEY` | OpenAI API key for the AI Race Engineer | *(Can be set in UI)* |
@@ -185,7 +200,7 @@ All settings are on one page, opened from the gear in the top bar (`/settings/vo
 
 Settings you change in the dashboard are saved in the database, so every device that opens it (the PC, a tablet on your network) shares them: radio alert rules, the AI provider, model and API keys, the engineer's persona and voice, push-to-talk, and who the lap comparator compares you with by default. When one device saves a change, the other open dashboards reload it right away, and if two devices change the radio alert rules at once, the later save is refused and that dashboard shows the newer rules instead of overwriting them. A save that fails shows a notice. Saved API keys are never sent back to a browser; the settings only show that a key is saved. The settings page's "This device" section holds what stays per browser: volume, radio effects, whether the radio speaks on this screen, UI language (the dashboard downloads only the language on screen), units (km/h or mph, °C or °F, a 24- or 12-hour clock; they start from the browser's region and apply to every speed, temperature and clock time, live views included), which live view opens on a computer and on a phone, the Race Control layout, the AI chat window (compact, large, or docked beside the page) and performance mode. The comparator's chart view and strip layout and the session list's grouping and saved filters are per browser too. A comparator rival saved in a browser by an older version moves to the server the first time it opens.
 
-The API only accepts changes from the dashboard the app serves, so other websites open in your browser can't change settings or use your saved keys. Any device that can open the dashboard can still chat using the saved keys, the same as keys set in `.env`.
+The API only accepts changes from the dashboard the app serves, so other websites open in your browser can't change settings or use your saved keys. Any device that can open the dashboard can still chat using the saved keys, the same as keys set in `.env`. The app window's startup options and Quit (`/api/desktop`) only answer the PC the app runs on, so a phone or tablet on your network can't stop it.
 
 ---
 

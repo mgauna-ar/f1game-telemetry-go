@@ -12,10 +12,12 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/api"
+	"github.com/mgauna/f1game-telemetry-go/internal/desktop"
 	"github.com/mgauna/f1game-telemetry-go/internal/engineer"
 	"github.com/mgauna/f1game-telemetry-go/internal/input"
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
@@ -45,7 +47,9 @@ type ServerConfig struct {
 	UDPAddr      string
 	HTTPAddr     string
 	DBPath       string
-	NoBrowser    bool
+	OpenBrowser  bool
+	NoTray       bool
+	Autostart    bool
 	ShowVersion  bool
 	GeminiAPIKey string
 	OpenAIAPIKey string
@@ -59,16 +63,22 @@ type ServerConfig struct {
 func loadServerConfig() ServerConfig {
 	udpFlag := flag.String("udp", getEnv("F1T_UDP_ADDR", defaultUDPAddr), "UDP listen address for F1 telemetry packets")
 	httpFlag := flag.String("http", getEnv("F1T_HTTP_ADDR", defaultHTTPAddr), "HTTP server address for Web Dashboard and API")
-	dbFlag := flag.String("db", getEnv("F1T_DB_PATH", defaultDBPath), "Path to SQLite database file")
-	noBrowserFlag := flag.Bool("no-browser", getEnvBool("F1T_NO_BROWSER", false), "Do not automatically launch web browser on startup")
-	versionFlag := flag.Bool("version", false, "Print version information and exit")
+	dbFlag := flag.String(flagDB, getEnv("F1T_DB_PATH", defaultDBPath), "Path to SQLite database file")
+	openBrowserFlag := flag.Bool(flagOpenBrowser, getEnvBool("F1T_OPEN_BROWSER", false), "Open the dashboard in the browser on startup")
+	// Kept so older scripts and shortcuts passing it still start: not opening is now the default
+	flag.Bool(flagNoBrowser, false, "Deprecated: the browser no longer opens on startup unless -open-browser is set")
+	noTrayFlag := flag.Bool("no-tray", getEnvBool("F1T_NO_TRAY", false), "Windows: run without the notification-area icon")
+	autostartFlag := flag.Bool(flagAutostart, false, "Set by Start with Windows: start without opening the app window")
+	versionFlag := flag.Bool(flagVersion, false, "Print version information and exit")
 	flag.Parse()
 
 	return ServerConfig{
 		UDPAddr:      *udpFlag,
 		HTTPAddr:     *httpFlag,
 		DBPath:       *dbFlag,
-		NoBrowser:    *noBrowserFlag,
+		OpenBrowser:  *openBrowserFlag,
+		NoTray:       *noTrayFlag,
+		Autostart:    *autostartFlag,
 		ShowVersion:  *versionFlag,
 		GeminiAPIKey: getEnv("GEMINI_API_KEY", ""),
 		OpenAIAPIKey: getEnv("OPENAI_API_KEY", ""),
@@ -92,10 +102,9 @@ func llmProviderFromEnv(raw string) string {
 func main() {
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo})))
 
-	// Must run before loadServerConfig, which reads the environment for flag defaults.
-	for _, path := range loadDotEnv(dotEnvPaths()...) {
-		slog.Info("Loaded settings from .env file", "path", path)
-	}
+	// Must run before loadServerConfig, which reads the environment for flag defaults. They are
+	// logged once logging is set up, which may be to a file.
+	envFiles := loadDotEnv(dotEnvPaths()...)
 
 	cfg := loadServerConfig()
 
@@ -104,13 +113,22 @@ func main() {
 		os.Exit(0)
 	}
 
-	if err := run(cfg); err != nil {
-		slog.Error("Fatal application error", "error", err)
-		os.Exit(1)
+	if err := run(cfg, envFiles); err != nil {
+		fatal(err)
 	}
 }
 
-func run(cfg ServerConfig) error {
+// fatal logs err and exits. A build without a console (the Windows release) shows it in a dialog
+// too, since nobody would see the log otherwise.
+func fatal(err error) {
+	slog.Error("Fatal application error", "error", err)
+	if !desktop.HasConsole() {
+		desktop.ShowError(err.Error())
+	}
+	os.Exit(1)
+}
+
+func run(cfg ServerConfig, envFiles []string) error {
 	system.SetAppVersion(version, commit, date)
 
 	// Calculate display URLs
@@ -118,27 +136,45 @@ func run(cfg ServerConfig) error {
 	localURL := fmt.Sprintf("http://localhost:%s", port)
 	lanIP := system.GetLocalIP()
 	lanURL := fmt.Sprintf("http://%s:%s", lanIP, port)
-
-	printStartupBanner(version, commit, localURL, lanURL, cfg.UDPAddr, cfg.DBPath)
-
-	// 1. Initialize Database
-	repo, err := initDatabase(cfg.DBPath)
-	if err != nil {
-		return fmt.Errorf("failed to initialize database on %s: %w", cfg.DBPath, err)
-	}
-	defer repo.Close()
+	dbPath := absolutePath(cfg.DBPath)
+	tray := desktop.Supported() && !cfg.NoTray
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// 2. Setup WebSocket Hubs
+	// 1. Bind the HTTP port first: when this app already runs there, open it instead of starting
+	// a second copy (before touching the database or the running copy's log file)
+	ln, err := net.Listen("tcp", cfg.HTTPAddr)
+	if err != nil {
+		return openRunningInstance(ctx, localURL, port, cfg.OpenBrowser, err)
+	}
+
+	logPath, closeLog := setupLogging(dbPath, tray || !desktop.HasConsole(), desktop.HasConsole())
+	defer closeLog()
+	for _, path := range envFiles {
+		slog.Info("Loaded settings from .env file", "path", path)
+	}
+
+	printStartupBanner(version, commit, localURL, lanURL, cfg.UDPAddr, dbPath, tray)
+	slog.Info("Starting F1 Telemetry Analyzer", "version", version, "dashboard", localURL, "network", lanURL,
+		"udpAddr", cfg.UDPAddr, "db", dbPath, "log", logPath)
+
+	// 2. Initialize Database
+	repo, err := initDatabase(cfg.DBPath)
+	if err != nil {
+		_ = ln.Close()
+		return fmt.Errorf("failed to initialize database on %s: %w", dbPath, err)
+	}
+	defer repo.Close()
+
+	// 3. Setup WebSocket Hubs
 	telemetryHub := api.NewHub("Telemetry")
 	go telemetryHub.Run(ctx)
 
 	engineerHub := api.NewHub("Engineer")
 	go engineerHub.Run(ctx)
 
-	// 3. Setup Input Manager & Engineer Engine
+	// 4. Setup Input Manager & Engineer Engine
 	inputMgr := input.NewManager()
 	inputMgr.Start(ctx)
 
@@ -149,11 +185,25 @@ func run(cfg ServerConfig) error {
 	}
 	liveBroadcaster := session.NewLiveBroadcaster(telemetryHub)
 
-	// 4. Initialize HTTP Server with bound TCP listener
-	ln, srv, err := initHTTPServer(cfg, repo, telemetryHub, engineerHub, inputMgr, engineerEngine, liveBroadcaster)
-	if err != nil {
-		return fmt.Errorf("failed to bind HTTP server on %s: %w", cfg.HTTPAddr, err)
-	}
+	// The app on this PC: its small window, starting at sign-in, and Quit from the window
+	quitRequested := make(chan struct{})
+	var quitOnce sync.Once
+	desktopApp := desktop.NewApp(desktop.AppConfig{
+		Store:         repo,
+		DashboardURL:  localURL,
+		AutostartArgs: autostartArgs(flag.CommandLine, dbPath),
+		Tray:          tray,
+		Quit: func() {
+			if tray {
+				desktop.Quit()
+				return
+			}
+			quitOnce.Do(func() { close(quitRequested) })
+		},
+	})
+
+	// 5. Serve the dashboard and API on the bound TCP listener
+	srv := initHTTPServer(cfg, repo, telemetryHub, engineerHub, inputMgr, engineerEngine, liveBroadcaster, desktopApp)
 
 	go func() {
 		if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
@@ -161,8 +211,8 @@ func run(cfg ServerConfig) error {
 		}
 	}()
 
-	// 5. Auto-launch browser if not disabled (port is guaranteed bound)
-	if !cfg.NoBrowser {
+	// 6. Open the dashboard in the browser if asked to (port is guaranteed bound)
+	if cfg.OpenBrowser {
 		go func() {
 			if err := system.OpenBrowser(localURL); err != nil {
 				slog.Warn("Could not automatically open browser", "url", localURL, "error", err)
@@ -170,7 +220,7 @@ func run(cfg ServerConfig) error {
 		}()
 	}
 
-	// 6. Setup Session Manager and Live Broadcaster
+	// 7. Setup Session Manager and Live Broadcaster
 	sessionManager := session.NewSessionManager(repo)
 	sessionManager.Start(ctx)
 
@@ -181,18 +231,105 @@ func run(cfg ServerConfig) error {
 	})
 	liveBroadcaster.Start(ctx, 100*time.Millisecond)
 
-	// 7. Setup UDP Listener
+	// 8. Setup UDP Listener
 	listener, err := initUDPListener(ctx, cfg.UDPAddr)
 	if err != nil {
-		return fmt.Errorf("failed to bind UDP listener on %s: %w", cfg.UDPAddr, err)
+		return fmt.Errorf("%w. If another telemetry app (such as SimHub) uses UDP port %s, close it or pick "+
+			"another port with -udp or F1T_UDP_ADDR (and set the same port in the game)", err, extractPort(cfg.UDPAddr, "20777"))
 	}
 
-	// 8. Start Packet Processing Loop
+	// 9. Start Packet Processing Loop
 	startPacketProcessing(ctx, listener, sessionManager, engineerEngine, liveBroadcaster, cfg.UDPAddr)
 
-	// 9. Wait for termination signal and handle graceful shutdown
-	runGracefulShutdown(cancel, inputMgr, sessionManager, srv)
+	// 10. Open the app window, unless this is a start at sign-in or it was turned off
+	if !cfg.Autostart {
+		go openWindowAtStart(ctx, desktopApp)
+	}
+
+	// 11. Run until a termination signal or Quit (tray or app window), then shut down gracefully
+	var shutdownOnce sync.Once
+	shutdown := func() {
+		shutdownOnce.Do(func() { gracefulShutdown(cancel, inputMgr, sessionManager, srv) })
+	}
+
+	if !tray {
+		waitForSignal(quitRequested)
+		shutdown()
+		return nil
+	}
+
+	go func() {
+		waitForSignal(nil)
+		desktop.Quit()
+	}()
+	// The tray runs shutdown before RunTray returns, also when Windows ends the session
+	desktop.RunTray(desktop.Options{
+		Version:      version,
+		DashboardURL: localURL,
+		LiveURL:      localURL + "/live",
+		UDPPort:      system.ListenPort(cfg.UDPAddr),
+		DBPath:       dbPath,
+		LogPath:      logPath,
+		Feed:         liveBroadcaster.FeedStatus,
+		CheckUpdates: updateChecker(),
+		App:          desktopApp,
+	}, shutdown)
+	shutdown()
 	return nil
+}
+
+// openRunningInstance handles a busy HTTP port: when this app is the one answering there, the
+// second launch exits quietly (opening the running copy's dashboard only with -open-browser).
+// Otherwise it explains which port is busy and how to pick another.
+func openRunningInstance(ctx context.Context, localURL, port string, openBrowser bool, bindErr error) error {
+	ver, running := system.FindRunningInstance(ctx, localURL)
+	if !running {
+		return fmt.Errorf("HTTP port %s is not available (%w). Close the program using it, or pick another "+
+			"port with -http or F1T_HTTP_ADDR (for example :8090)", port, bindErr)
+	}
+
+	slog.Info("F1 Telemetry Analyzer is already running", "url", localURL, "version", ver.Version)
+	if !openBrowser {
+		return nil
+	}
+	if err := system.OpenBrowser(localURL); err != nil {
+		return fmt.Errorf("F1 Telemetry Analyzer is already running at %s, but the browser didn't open: %w", localURL, err)
+	}
+	return nil
+}
+
+// openWindowAtStart opens the app window unless it was turned off in the window itself.
+func openWindowAtStart(ctx context.Context, app *desktop.App) {
+	state, err := app.State(ctx)
+	if err != nil {
+		slog.Warn("Could not read the desktop settings", "error", err)
+		return
+	}
+	if !state.ShowWindowAtStart {
+		return
+	}
+	if err := app.OpenWindow(); err != nil {
+		slog.Warn("Could not open the app window", "error", err)
+	}
+}
+
+// updateChecker looks for a newer release for the tray, or is nil for a dev build.
+func updateChecker() func(ctx context.Context) (*system.UpdateCheckResponse, error) {
+	ver := system.GetAppVersion()
+	if ver.IsDev {
+		return nil
+	}
+	return func(ctx context.Context) (*system.UpdateCheckResponse, error) {
+		return system.CheckForUpdates(ctx, system.DefaultGitHubRepo, ver.Version, ver.IsBeta)
+	}
+}
+
+// absolutePath is path made absolute, or path itself if that fails.
+func absolutePath(path string) string {
+	if abs, err := filepath.Abs(path); err == nil {
+		return abs
+	}
+	return path
 }
 
 // gapTrendSource hands the race engineer's gap trends to the live snapshot.
@@ -226,7 +363,8 @@ func initHTTPServer(
 	inputMgr input.Manager,
 	engineerEngine *engineer.EngineerEngine,
 	liveFeed api.LiveFeed,
-) (net.Listener, *http.Server, error) {
+	desktopApp api.DesktopApp,
+) *http.Server {
 	apiConfig := api.ServerConfig{
 		GeminiAPIKey: cfg.GeminiAPIKey,
 		OpenAIAPIKey: cfg.OpenAIAPIKey,
@@ -240,18 +378,12 @@ func initHTTPServer(
 	apiServer.SetInputManager(inputMgr)
 	apiServer.SetEngineerEngine(engineerEngine)
 	apiServer.SetLiveFeed(liveFeed)
+	apiServer.SetDesktopApp(desktopApp)
 
-	srv := &http.Server{
+	return &http.Server{
 		Addr:    cfg.HTTPAddr,
 		Handler: apiServer.Router(),
 	}
-
-	ln, err := net.Listen("tcp", cfg.HTTPAddr)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return ln, srv, nil
 }
 
 func initUDPListener(ctx context.Context, udpAddr string) (*udp.Listener, error) {
@@ -306,16 +438,24 @@ func startPacketProcessing(
 	}()
 }
 
-func runGracefulShutdown(
+// waitForSignal blocks until Ctrl+C, a termination signal, or quitRequested closes (nil waits
+// for signals only).
+func waitForSignal(quitRequested <-chan struct{}) {
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+	select {
+	case <-sig:
+		fmt.Println()
+	case <-quitRequested:
+	}
+}
+
+func gracefulShutdown(
 	cancel context.CancelFunc,
 	inputMgr input.Manager,
 	sessionManager *session.SessionManager,
 	srv *http.Server,
 ) {
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	fmt.Println()
 	slog.Info("Shutting down F1 Telemetry Analyzer...")
 
 	cancel() // Stop UDP listener and packet loop
@@ -334,7 +474,7 @@ func runGracefulShutdown(
 	slog.Info("Shutdown complete. See you on track!")
 }
 
-func printStartupBanner(ver, cmt, localURL, lanURL, udpAddr, dbPath string) {
+func printStartupBanner(ver, cmt, localURL, lanURL, udpAddr, dbPath string, tray bool) {
 	fmt.Println()
 	fmt.Println("  ========================================================")
 	fmt.Println("  🏎️   F1 TELEMETRY ANALYZER  -  Official Telemetry Hub")
@@ -353,10 +493,10 @@ func printStartupBanner(ver, cmt, localURL, lanURL, udpAddr, dbPath string) {
 	fmt.Println("      5. UDP Send Rate:         20Hz (or 30Hz / 60Hz)")
 	fmt.Println("      6. UDP Format:            2026 (or 2025)")
 	fmt.Println()
-	if absPath, err := filepath.Abs(dbPath); err == nil {
-		dbPath = absPath
-	}
 	fmt.Printf("  📁  Database: %s\n", dbPath)
+	if tray {
+		fmt.Println("  🖥️   Running in the system tray: quit from its menu.")
+	}
 	fmt.Println("  🛑  Press Ctrl+C at any time to stop.")
 	fmt.Println("  ========================================================")
 	fmt.Println()
