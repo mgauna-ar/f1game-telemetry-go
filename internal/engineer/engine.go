@@ -350,6 +350,7 @@ func (e *EngineerEngine) buildEvaluationContextLocked(header packets.PacketHeade
 		PlayerLaps:       e.history.playerLaps,
 		CallLaps:         e.callLaps,
 		BoxDueLap:        e.boxDueLap,
+		CarHistory:       &e.history.carHistory,
 	}
 }
 
@@ -838,11 +839,6 @@ func (e *EngineerEngine) gateDirectiveLocked(alertKey, category, urgency string)
 	// deleted lap, a slow car ahead).
 	silent := e.currentPhase == PhaseGrid || e.currentPhase == PhaseRaceStart || e.currentPhase == PhaseFlyingLap
 	if silent && urgency != UrgencyCritical && !e.alertRules[alertKey].BreaksRadioSilence {
-		return gateDrop
-	}
-
-	// 3. Post-Race suppression: only race_finish announcement or emergencies permitted
-	if e.currentPhase == PhasePostRace && urgency != UrgencyCritical && alertKey != "race_finish" {
 		return gateDrop
 	}
 

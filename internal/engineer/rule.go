@@ -250,7 +250,24 @@ type DirectiveValues struct {
 	TyreLapsLeft int `json:"tyre_laps_left,omitempty"`
 	// Minutes is how many minutes are left in the session, rounded up (session clock).
 	Minutes int `json:"minutes,omitempty"`
+	// PoleGapSec is how far a qualifying lap is off P1's best, or, on provisional pole, how far
+	// ahead of P2's, to a thousandth; 0 while unknown (lap result).
+	PoleGapSec float64 `json:"pole_gap_sec,omitempty"`
+	// Elimination says the lap result leaves the player on the last place through or in the drop
+	// zone of Q1 or Q2; empty when safe or nobody is knocked out (lap result).
+	Elimination EliminationStatus `json:"elimination,omitempty" tstype:"EngineerElimination"`
 }
+
+// EliminationStatus is where a qualifying position stands against the cut line.
+type EliminationStatus string
+
+const (
+	EliminationLastThrough EliminationStatus = "last_through"
+	EliminationDropZone    EliminationStatus = "drop_zone"
+)
+
+// EliminationStatuses lists every EliminationStatus, for the generated TypeScript union.
+var EliminationStatuses = []string{string(EliminationLastThrough), string(EliminationDropZone)}
 
 // GapToCar is the gap to a car close ahead or behind and how it is moving.
 type GapToCar struct {
@@ -307,6 +324,8 @@ type EvaluationContext struct {
 	CallLaps map[string]int
 	// BoxDueLap is the lap a call told the player to box on; 0 when none is open.
 	BoxDueLap int
+	// CarHistory is each car's latest session history packet (nil until one came). Read only.
+	CarHistory *[packets.MaxCars]*packets.PacketSessionHistoryData
 }
 
 // PlayerLap returns the player car's LapData if available.

@@ -62,6 +62,7 @@ const (
 	simQualyYellowFromM    = 2000
 	simQualyYellowToM      = 2600
 	simQualyInvalidFromM   = 3000
+	simQualyPlayerLossMS   = 1500 // the player's laps are this much slower, as fits P17
 )
 
 // The stages of a qualifying run: the lap number modulo simQualyRunLaps.
@@ -725,12 +726,16 @@ func buildLapCars(cfg SimulatorConfig, st *simState, lapDist float32) []packets.
 
 			carLapDist := simCarLapDistance(lapDist, i)
 			carPosition := uint8(i + 1)
+			lastLapMS := simLastLapMS(i, st.lapNum)
 			var lapInvalid uint8
 			if cfg.Scenario == "qualy" {
 				driverStatus, pitStatus, carLapDist = simQualyCar(i, st.lapNum, lapDist)
 				carPosition = simQualyPosition(i)
 				if i == 0 && simQualyPushLapInvalid(st.lapNum, lapDist) {
 					lapInvalid = 1
+				}
+				if i == 0 && lastLapMS > 0 {
+					lastLapMS += simQualyPlayerLossMS
 				}
 			}
 
@@ -771,7 +776,7 @@ func buildLapCars(cfg SimulatorConfig, st *simState, lapDist float32) []packets.
 			lapCars[i] = packets.LapData{
 				DriverStatus:                driverStatus,
 				CurrentLapTimeInMS:          st.lapTimeMs + gapMs,
-				LastLapTimeInMS:             simLastLapMS(i, st.lapNum),
+				LastLapTimeInMS:             lastLapMS,
 				Sector1TimeMSPart:           uint16(28120 + i*100),
 				Sector2TimeMSPart:           uint16(31450 + i*90),
 				CurrentLapNum:               st.lapNum,

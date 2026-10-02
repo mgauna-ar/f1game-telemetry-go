@@ -303,14 +303,17 @@ export const radio_phrases = {
   },
   qualy_traffic: {
     colapinto: [
-      'Hay tráfico adelante para lanzar, {driver}. Abrí un hueco de cuatro segundos en el último sector.',
+      'Tráfico adelante a {gap} segundos, {driver}. Levantá y abrí un hueco antes de la última curva.',
+      'Hay tráfico adelante, {driver}. Abrí un hueco antes de lanzar.',
     ],
     bono: [
-      'Tráfico por delante. Abre un hueco de cuatro segundos antes de lanzar la vuelta.',
+      'Tráfico por delante a {gap} segundos. Levanta y abre un hueco antes de lanzar la vuelta.',
+      'Tráfico por delante, {driver}. Abre un hueco antes de lanzar la vuelta.',
     ],
     standard: [
-      'Tráfico por delante. Abre un hueco de cuatro segundos antes de lanzar la vuelta.',
-      'Tráfico en vuelta de salida, {driver}. Deja caer el ritmo para ganar aire limpio.',
+      'Tráfico por delante a {gap} segundos. Levanta y abre un hueco.',
+      'Auto adelante a {gap} segundos, {driver}. Deja espacio antes de lanzar la vuelta.',
+      'Tráfico en la vuelta de salida. Levanta y abre un hueco.',
     ],
   },
   qualy_clean_air: {
@@ -327,75 +330,133 @@ export const radio_phrases = {
   },
   qualy_traffic_ahead: {
     colapinto: [
+      'Auto lento adelante a {gap} segundos, {driver}. Ojo.',
       'Auto lento adelante, {driver}. No está en vuelta rápida, ojo.',
     ],
     bono: [
-      'Coche lento por delante, {driver}. No está en vuelta rápida.',
-      'Tráfico por delante en vuelta lenta. Debería apartarse, pero atento.',
+      'Auto lento por delante a {gap} segundos, {driver}. No está en vuelta rápida.',
+      'Auto lento por delante, {driver}. No está en vuelta rápida.',
     ],
     standard: [
-      'Coche lento por delante, no está en vuelta rápida.',
+      'Auto lento por delante a {gap} segundos. No está en vuelta rápida.',
       'Tráfico por delante en vuelta lenta, {driver}. Atento.',
     ],
   },
   qualy_deleted_lap: {
     colapinto: [
-      'Vuelta anulada por límites de pista, {driver}. Recargá el ERS y reseteá para el próximo intento.',
+      'Vuelta inválida, {driver}. Esa no cuenta.',
     ],
     bono: [
-      'Vuelta anulada por límites de pista. Recarga batería y prepárate para el siguiente intento.',
+      'Esa vuelta es inválida, {driver}. No va a contar.',
+      'Vuelta invalidada. Levanta y recarga batería.',
     ],
     standard: [
-      'Vuelta anulada por límites de pista. Recarga batería y prepárate para el siguiente intento.',
-      'Tiempo de vuelta eliminado por límites de pista, {driver}. Recarga ERS y prepara otro intento.',
+      'Vuelta inválida. Esa no va a contar.',
+      'Te invalidaron la vuelta, {driver}. Levanta y recarga.',
     ],
   },
   qualy_session_time: {
     colapinto: [
+      'Quedan menos de {minutes} minutos, {driver}. Cruzá la línea antes de la bandera a cuadros.',
       'Queda poco tiempo, {driver}. Cruzá la línea antes de la bandera a cuadros.',
     ],
     bono: [
+      'Quedan menos de {minutes} minutos, {driver}. Asegúrate de abrir la vuelta antes de la bandera.',
       'Se acaba el tiempo, {driver}. Asegúrate de abrir la vuelta antes de la bandera.',
     ],
     standard: [
+      'Quedan menos de {minutes} minutos. Asegúrate de cruzar la línea antes de la bandera.',
       'Se acaba el tiempo. Asegúrate de cruzar la línea antes de la bandera.',
       'Queda poco tiempo de sesión, {driver}. Abre la vuelta antes de la bandera a cuadros.',
     ],
   },
   qualy_session_time_garage: {
     colapinto: [
+      'Quedan menos de {minutes} minutos, {driver}. Salí ahora para llegar a la bandera.',
       'Queda poco tiempo, {driver}. Salí ahora para llegar a la bandera.',
     ],
     bono: [
+      'Quedan menos de {minutes} minutos, {driver}. Hay que salir para el último intento.',
       'Se acaba el tiempo, {driver}. Hay que salir para el último intento.',
     ],
     standard: [
+      'Quedan menos de {minutes} minutos. Hay que salir para el último intento.',
       'Se acaba el tiempo. Hay que salir para el último intento.',
       'Queda poco tiempo de sesión, {driver}. Sal de boxes ya para cruzar la línea antes de la bandera.',
     ],
   },
   qualy_elimination_danger: {
     colapinto: [
+      'P{position}, estamos en zona de eliminación, {driver}. Necesitamos una vuelta perfecta.',
       'Estamos en zona de eliminación, {driver}. Necesitamos una vuelta perfecta para pasar el corte.',
     ],
     bono: [
+      'Estamos P{position}, en zona de eliminación. Hay que mejorar.',
       'Estamos en zona de eliminación. Necesitamos una vuelta limpia al límite.',
     ],
     standard: [
+      'P{position}, en zona de eliminación. Hay que mejorar.',
       'Estamos en zona de eliminación. Necesitamos una vuelta limpia al límite.',
-      'Zona de peligro de eliminación, {driver}. Necesitamos mejorar el tiempo.',
+      'Zona de eliminación, {driver}. Necesitamos mejorar el tiempo.',
     ],
   },
   qualy_elimination_bubble: {
     colapinto: [
+      'P{position}, justo en el corte, {driver}. Si alguien mejora, quedamos afuera.',
       'Estamos justo en el corte, {driver}. Si alguien mejora, quedamos afuera.',
     ],
     bono: [
+      'P{position}, el último que pasa, {driver}. No estamos a salvo, hay que mejorar.',
       'Ahora mismo somos el último que pasa, {driver}. No estamos a salvo, hay que mejorar.',
     ],
     standard: [
-      'Somos el último coche que pasa. No estamos a salvo, hay que mejorar.',
+      'P{position}, el último auto que pasa. No estamos a salvo, hay que mejorar.',
+      'Somos el último auto que pasa. No estamos a salvo, hay que mejorar.',
       'Justo en el corte, {driver}. Una mejora de alguien detrás y quedamos fuera.',
+    ],
+  },
+  qualy_lap_pole: {
+    colapinto: [
+      '¡Pole provisional, {driver}! P1 por {pole_gap}.',
+      '¡P1, {driver}! ¡Pole provisional!',
+    ],
+    bono: [
+      'Pole provisional, {driver}. {pole_gap} de ventaja sobre la P2.',
+      'Pole provisional, {driver}.',
+    ],
+    standard: [
+      'Pole provisional. {pole_gap} de ventaja sobre la P2.',
+      'P1, {driver}. Margen de {pole_gap}.',
+      'Pole provisional, {driver}.',
+    ],
+  },
+  qualy_lap_result: {
+    colapinto: [
+      'P{position}, {driver}. A {pole_gap} del primero.',
+      'P{position}, {driver}.',
+    ],
+    bono: [
+      'P{position}, a {pole_gap} de la P1, {driver}.',
+      'Eso nos pone P{position}, a {pole_gap} de la punta.',
+      'Eso nos pone P{position}, {driver}.',
+    ],
+    standard: [
+      'P{position}, a {pole_gap} de la P1.',
+      'Eso te pone P{position}, a {pole_gap} de la punta.',
+      'Eso te pone P{position}.',
+    ],
+  },
+  qualy_lap_no_improvement: {
+    colapinto: [
+      'No mejoramos, {driver}. Seguimos P{position}.',
+    ],
+    bono: [
+      'Sin mejora en esa vuelta, {driver}. Seguimos P{position}.',
+      'No fue más rápida, seguimos P{position}.',
+    ],
+    standard: [
+      'Sin mejora. Seguimos P{position}.',
+      'Esa vuelta no fue más rápida, {driver}. Sigues P{position}.',
     ],
   },
   track_limits_warnings: {
@@ -572,26 +633,28 @@ export const radio_phrases = {
   },
   inlap_traffic_behind: {
     colapinto: [
-      'Ojo que viene uno lanzado atrás en vuelta rápida, {driver}. Dale paso limpio y no molestes.',
+      'Viene uno lanzado atrás, a {gap} segundos, {driver}. Dale paso limpio.',
+      'Ojo que viene uno lanzado atrás, {driver}. Dale paso limpio.',
     ],
     bono: [
-      'Atención: monoplaza rápido aproximándose en vuelta lanzada por detrás. Deja espacio limpio.',
+      'Auto en vuelta rápida detrás, a {gap} segundos, {driver}. Déjalo pasar.',
+      'Auto en vuelta rápida detrás, {driver}. Deja espacio.',
     ],
     standard: [
-      'Tráfico: auto rápido en vuelta lanzada acercándose por detrás. Cede el paso de forma segura.',
-      'Monoplaza lanzado detrás, {driver}. Mantén la línea limpia.',
+      'Auto en vuelta rápida detrás, a {gap} segundos. Cede el paso.',
+      'Auto en vuelta rápida detrás, {driver}. Cede el paso de forma segura.',
     ],
   },
   inlap_cooldown: {
     colapinto: [
-      'Vuelta terminada, a boxes ahora, {driver}. Recargá la batería, refrigerá frenos y gomas y traelo tranqui.',
+      'Vuelta de enfriamiento, {driver}. Recargá la batería, refrigerá frenos y gomas y traelo tranqui.',
     ],
     bono: [
-      'Vuelta completada, entramos a boxes en esta vuelta. Recarga batería y enfría frenos.',
+      'Vuelta de enfriamiento. Recarga batería y enfría frenos y neumáticos.',
     ],
     standard: [
-      'Vuelta rápida finalizada, entra a boxes esta vuelta. Modos de enfriamiento activos.',
-      'Vuelta completa, a boxes, {driver}. Refrigera frenos y recarga el ERS.',
+      'Vuelta de enfriamiento. Recarga batería y enfría frenos y neumáticos.',
+      'Vuelta de enfriamiento, {driver}. Refrigera frenos y recarga el ERS.',
     ],
   },
   flags_rain_live: {
@@ -662,16 +725,16 @@ export const radio_phrases = {
   },
   flags_yellow: {
     colapinto: [
-      '¡Bandera amarilla en este sector! Hay un auto parado o incidente adelante, prohibido pasar.',
-      'Bandera amarilla, {driver}. Cuidado con posibles restos en pista y levantá si hace falta.',
+      '¡Bandera amarilla en este sector! Levantá si hace falta, {driver}.',
+      'Bandera amarilla, {driver}. Cuidado con autos fuera de pista.',
     ],
     bono: [
-      'Bandera amarilla en este sector. Incidente adelante, sin sobrepasos y prepárate para levantar.',
+      'Bandera amarilla en este sector. Cuidado, prepárate para levantar.',
       'Bandera amarilla, {driver}. Precaución en esta zona.',
     ],
     standard: [
-      'Bandera amarilla en este sector. Incidente adelante, sin sobrepasos y mantén la precaución.',
-      'Bandera amarilla en pista. Reduce la velocidad si es necesario.',
+      'Bandera amarilla en este sector. Cuidado, prepárate para levantar.',
+      'Bandera amarilla, {driver}. Incidente adelante en este sector.',
     ],
   },
   wrong_way: {
@@ -1237,6 +1300,18 @@ export const report_phrases = {
     standard: [
       'Queda más o menos una vuelta en estos neumáticos.',
       'Estos neumáticos están al límite, queda una vuelta.',
+    ],
+  },
+  elimination_drop_zone: {
+    standard: [
+      'Eso es zona de eliminación.',
+      'Estamos en zona de eliminación.',
+    ],
+  },
+  elimination_last_through: {
+    standard: [
+      'Somos el último que pasa, no estamos a salvo.',
+      'Justo en el corte.',
     ],
   },
 } satisfies Record<ReportPhrase, RadioPhrasePool>;

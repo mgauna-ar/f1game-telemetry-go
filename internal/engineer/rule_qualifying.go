@@ -22,6 +22,12 @@ type QualifyingRule struct {
 	// ahead (0: not called).
 	behindCalled [packets.MaxCars]uint8
 	aheadCalled  [packets.MaxCars]uint8
+	// The push lap the player is on (0: none) and whether it was invalidated; the player's best
+	// valid push lap this session; and when the lap just finished is reported (0: none due).
+	pushLap        uint8
+	pushLapInvalid bool
+	bestLapMS      uint32
+	resultDueAt    int64
 }
 
 // NewQualifyingRule creates a new QualifyingRule.
@@ -41,8 +47,9 @@ func (r *QualifyingRule) Category() string {
 	return string(DirectiveCategoryQualifying)
 }
 
+// ValidPhases includes PhasePostRace: the last lap's result comes after the chequered flag.
 func (r *QualifyingRule) ValidPhases() []DrivingPhase {
-	return []DrivingPhase{PhaseInGarage, PhasePitLane, PhaseOutLap, PhaseFlyingLap, PhaseInLap}
+	return []DrivingPhase{PhaseInGarage, PhasePitLane, PhaseOutLap, PhaseFlyingLap, PhaseInLap, PhasePostRace}
 }
 
 func (r *QualifyingRule) AlertKeys() map[string]AlertKeyConfig {
@@ -82,6 +89,14 @@ func (r *QualifyingRule) AlertKeys() map[string]AlertKeyConfig {
 			MaxDelayMs:  MomentMaxDelayMs,
 			MinRepeatMs: TrafficMinRepeatMs,
 		},
+		"qualy_lap_result": {
+			Category:             DirectiveCategoryQualifying,
+			ValidPhases:          []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseInLap, PhasePitLane, PhaseInGarage, PhasePostRace},
+			DedupScope:           DedupScopeNone,
+			MaxDelayMs:           MomentMaxDelayMs,
+			SkipCategoryCooldown: true,
+			BreaksRadioSilence:   true,
+		},
 		"inlap_cooldown": {
 			Category:    DirectiveCategoryCoaching,
 			ValidPhases: []DrivingPhase{PhaseInLap},
@@ -110,6 +125,10 @@ func (r *QualifyingRule) Reset(scope DedupScope) {
 		r.sessionTimeCalled = false
 		r.elimCalled = false
 		r.elimLeftZone = false
+		r.pushLap = 0
+		r.pushLapInvalid = false
+		r.bestLapMS = 0
+		r.resultDueAt = 0
 	}
 }
 
@@ -132,6 +151,7 @@ func (r *QualifyingRule) Evaluate(ctx *EvaluationContext) []Directive {
 	if playerLap == nil || (ctx.Packet != nil && !isPacketType[*packets.PacketLapData](ctx.Packet)) {
 		return directives
 	}
+	add(r.evaluateLapResult(ctx, playerLap))
 	add(r.evaluateInvalidLap(ctx, playerLap))
 	add(r.evaluateOutLapTraffic(ctx, playerLap))
 	add(r.evaluateCooldown(ctx, playerLap))
@@ -288,10 +308,12 @@ func (r *QualifyingRule) evaluateElimination(ctx *EvaluationContext, playerLap *
 	}
 }
 
-// evaluateCooldown says once per in-lap of a timed session to cool the car down.
+// evaluateCooldown says once per in-lap of a timed session to cool the car down, a little into the
+// lap: at the line the lap result has the radio.
 func (r *QualifyingRule) evaluateCooldown(ctx *EvaluationContext, playerLap *packets.LapData) *Directive {
 	currentLap := int(playerLap.CurrentLapNum)
-	if !timedSession(ctx) || ctx.Phase != PhaseInLap || r.lastInLapCooldownLap == currentLap {
+	if !timedSession(ctx) || ctx.Phase != PhaseInLap || r.lastInLapCooldownLap == currentLap ||
+		playerLap.LapDistance < ctx.TrackLengthM()*InLapCooldownFromLapPct {
 		return nil
 	}
 	r.lastInLapCooldownLap = currentLap
@@ -338,7 +360,7 @@ func (r *QualifyingRule) evaluateCarBehind(ctx *EvaluationContext, playerLap *pa
 		Category: DirectiveCategoryQualifying,
 		SubAlert: "inlap_traffic_behind",
 		Title:    "Car Behind on a Push Lap",
-		Message:  fmt.Sprintf("Car behind on a push lap, %.1fs back. Let him by safely.", gapSec),
+		Message:  fmt.Sprintf("Car behind on a push lap, %.1fs back. Give way safely.", gapSec),
 		Urgency:  UrgencyHigh,
 		Values:   &DirectiveValues{Behind: &GapToCar{GapSec: gapSec}},
 	}
@@ -390,6 +412,107 @@ func (r *QualifyingRule) evaluateTrafficAhead(ctx *EvaluationContext, playerLap 
 	}
 }
 
+// evaluateLapResult reports each valid push lap of a qualifying session QualyLapResultSettleMs
+// after the line, once the positions have settled: provisional pole and the margin, or the
+// position and the gap to P1, or no improvement; and whether it leaves the player at risk of
+// elimination. An invalid lap has its own call (qualy_invalid) and no result.
+func (r *QualifyingRule) evaluateLapResult(ctx *EvaluationContext, playerLap *packets.LapData) *Directive {
+	if !ctx.IsQualifyingSession() {
+		return nil
+	}
+	lapNum := playerLap.CurrentLapNum
+	pushing := playerLap.DriverStatus == packets.DriverStatusFlyingLap
+	switch {
+	case r.pushLap != 0 && lapNum != r.pushLap:
+		// The push lap ended at the line.
+		if !r.pushLapInvalid {
+			r.resultDueAt = ctx.Now + QualyLapResultSettleMs
+		}
+		r.pushLap = 0
+	case r.pushLap != 0 && !pushing:
+		// Abandoned before the line.
+		r.pushLap = 0
+	}
+	if pushing && r.pushLap == 0 {
+		r.pushLap, r.pushLapInvalid = lapNum, false
+	}
+	if r.pushLap != 0 && playerLap.CurrentLapInvalid == 1 {
+		r.pushLapInvalid = true
+	}
+
+	if r.resultDueAt == 0 || ctx.Now < r.resultDueAt {
+		return nil
+	}
+	r.resultDueAt = 0
+	lapMS := playerLap.LastLapTimeInMS
+	pos := int(playerLap.CarPosition)
+	if lapMS == 0 || pos == 0 {
+		return nil
+	}
+	improved := r.bestLapMS == 0 || lapMS < r.bestLapMS
+	if improved {
+		r.bestLapMS = lapMS
+	}
+
+	values := &DirectiveValues{Position: pos, Elimination: eliminationStatus(ctx, pos)}
+	subAlert := "qualy_lap_no_improvement"
+	msg := fmt.Sprintf("No improvement on that lap (%s), still P%d.", packets.FormatLapTimeMS(lapMS), pos)
+	switch {
+	case improved && pos == 1:
+		subAlert = "qualy_lap_pole"
+		msg = fmt.Sprintf("Provisional pole with %s.", packets.FormatLapTimeMS(lapMS))
+		if p2 := bestLapAtPosition(ctx, 2); p2 > lapMS {
+			values.PoleGapSec = roundTo(msToSec(p2-lapMS), 3)
+			msg = fmt.Sprintf("Provisional pole with %s, %.3fs clear of P2.", packets.FormatLapTimeMS(lapMS), values.PoleGapSec)
+		}
+	case improved:
+		subAlert = "qualy_lap_result"
+		msg = fmt.Sprintf("%s puts us P%d.", packets.FormatLapTimeMS(lapMS), pos)
+		if p1 := bestLapAtPosition(ctx, 1); p1 > 0 && lapMS > p1 {
+			values.PoleGapSec = roundTo(msToSec(lapMS-p1), 3)
+			msg = fmt.Sprintf("%s puts us P%d, %.3fs off P1.", packets.FormatLapTimeMS(lapMS), pos, values.PoleGapSec)
+		}
+	}
+	if values.Elimination != "" {
+		msg += fmt.Sprintf(" Elimination: %s.", values.Elimination)
+	}
+	return &Directive{
+		ID:       "qualy_lap_result",
+		Category: DirectiveCategoryQualifying,
+		SubAlert: subAlert,
+		Title:    "Lap Result",
+		Message:  msg,
+		Urgency:  UrgencyHigh,
+		Values:   values,
+	}
+}
+
+// eliminationStatus is where position pos stands against the Q1/Q2 cut line.
+func eliminationStatus(ctx *EvaluationContext, pos int) EliminationStatus {
+	lastSafe := lastSafePosition(ctx)
+	switch {
+	case lastSafe == 0 || pos < lastSafe:
+		return ""
+	case pos == lastSafe:
+		return EliminationLastThrough
+	}
+	return EliminationDropZone
+}
+
+// bestLapAtPosition is the best lap of the car in position pos (other than the player) from its
+// session history, or 0 while unknown.
+func bestLapAtPosition(ctx *EvaluationContext, pos int) uint32 {
+	if ctx.CarHistory == nil || ctx.LapData == nil {
+		return 0
+	}
+	for i := range ctx.LapData.LapData {
+		if i != ctx.PlayerCarIndex && int(ctx.LapData.LapData[i].CarPosition) == pos {
+			return historyBestLapMS(ctx.CarHistory[i])
+		}
+	}
+	return 0
+}
+
 // minutesLeft is the session time left in whole minutes, rounded up: "under N minutes".
 func minutesLeft(secondsLeft uint16) int {
 	return int(math.Ceil(float64(secondsLeft) / packets.SecondsPerMinute))
@@ -398,6 +521,9 @@ func minutesLeft(secondsLeft uint16) int {
 // lastSafePosition is the last place through to the next qualifying segment in Q1 and Q2, or 0 in
 // a session nobody is knocked out of.
 func lastSafePosition(ctx *EvaluationContext) int {
+	if ctx.Session == nil {
+		return 0
+	}
 	numCars := 0
 	if ctx.Participants != nil {
 		numCars = int(ctx.Participants.NumActiveCars)

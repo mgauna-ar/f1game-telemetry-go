@@ -461,6 +461,9 @@ func TestQualifyingRule_Elimination(t *testing.T) {
 
 func TestQualifyingRule_CooldownOncePerInLap(t *testing.T) {
 	rule := NewQualifyingRule()
+	if directiveFor(rule.Evaluate(qualyCtx(packets.SessionQ2, PhaseInLap, qualyCar(packets.DriverStatusInLap, 100, 100))), "inlap_cooldown") != nil {
+		t.Fatal("the cool-down call came at the line, over the lap result")
+	}
 	ctx := qualyCtx(packets.SessionQ2, PhaseInLap, qualyCar(packets.DriverStatusInLap, 1000, 1000))
 	if directiveFor(rule.Evaluate(ctx), "inlap_cooldown") == nil {
 		t.Fatal("expected the cool-down call")
@@ -542,5 +545,152 @@ func TestFlagsRule_TrackLimitsInRacesOnly(t *testing.T) {
 		if got := directiveFor(rule.Evaluate(ctx), "track_limits_warnings") != nil; got != tt.want {
 			t.Errorf("session %d: track limits call = %v, want %v", tt.sessionType, got, tt.want)
 		}
+	}
+}
+
+// lapResultRun drives the qualifying rule through push laps in a 22-car Q1, with the player in
+// car 0, car 1 in P1 and car 2 in P2.
+type lapResultRun struct {
+	t           *testing.T
+	rule        *QualifyingRule
+	now         int64
+	sessionType uint8
+	history     [packets.MaxCars]*packets.PacketSessionHistoryData
+}
+
+func newLapResultRun(t *testing.T, sessionType uint8, p1BestMS, p2BestMS uint32) *lapResultRun {
+	r := &lapResultRun{t: t, rule: NewQualifyingRule(), now: 1_000_000, sessionType: sessionType}
+	for idx, best := range map[int]uint32{1: p1BestMS, 2: p2BestMS} {
+		h := &packets.PacketSessionHistoryData{BestLapTimeLapNum: 1}
+		h.LapHistoryData[0].LapTimeInMS = best
+		r.history[idx] = h
+	}
+	return r
+}
+
+// step evaluates one lap data packet after advancing the clock by ms.
+func (r *lapResultRun) step(ms int64, status, lapNum uint8, invalid bool, lastLapMS uint32, pos uint8) []Directive {
+	r.now += ms
+	player := qualyCar(status, 100, 100)
+	player.CurrentLapNum = lapNum
+	player.LastLapTimeInMS = lastLapMS
+	player.CarPosition = pos
+	if invalid {
+		player.CurrentLapInvalid = 1
+	}
+	p1, p2 := qualyCar(packets.DriverStatusInGarage, 0, 0), qualyCar(packets.DriverStatusInGarage, 0, 0)
+	p1.CarPosition, p2.CarPosition = 1, 2
+	if pos <= 2 {
+		p1.CarPosition, p2.CarPosition = 2, 3
+	}
+	ctx := qualyCtx(r.sessionType, PhaseFlyingLap, player, p1, p2)
+	ctx.Now = r.now
+	ctx.CarHistory = &r.history
+	ctx.Participants = &packets.PacketParticipantsData{NumActiveCars: 22}
+	return r.rule.Evaluate(ctx)
+}
+
+// pushLap drives a push lap on lapNum to the line and returns the result said once the positions
+// settle (nil when none).
+func (r *lapResultRun) pushLap(lapNum uint8, invalid bool, lapMS uint32, pos uint8) *Directive {
+	r.step(0, packets.DriverStatusFlyingLap, lapNum, false, 0, pos)
+	r.step(30_000, packets.DriverStatusFlyingLap, lapNum, invalid, 0, pos)
+	if d := directiveFor(r.step(1_000, packets.DriverStatusInLap, lapNum+1, false, lapMS, pos), "qualy_lap_result"); d != nil {
+		r.t.Fatalf("lap result said before the positions settled: %+v", d)
+	}
+	for _, d := range r.step(QualyLapResultSettleMs, packets.DriverStatusInLap, lapNum+1, false, lapMS, pos) {
+		if d.ID == "qualy_lap_result" {
+			return &d
+		}
+	}
+	return nil
+}
+
+func TestQualifyingRule_LapResult(t *testing.T) {
+	t.Run("position and gap to P1", func(t *testing.T) {
+		d := newLapResultRun(t, packets.SessionQ2, 80_000, 80_100).pushLap(3, false, 80_345, 6)
+		if d == nil || d.SubAlert != "qualy_lap_result" || d.Values.Position != 6 || d.Values.PoleGapSec != 0.345 || d.Values.Elimination != "" {
+			t.Fatalf("expected P6, 0.345 off P1, safe; got %+v", d)
+		}
+	})
+	t.Run("provisional pole and the margin to P2", func(t *testing.T) {
+		d := newLapResultRun(t, packets.SessionQ3, 80_000, 80_100).pushLap(3, false, 79_912, 1)
+		if d == nil || d.SubAlert != "qualy_lap_pole" || d.Values.PoleGapSec != 0.088 {
+			t.Fatalf("expected provisional pole 0.088 clear; got %+v", d)
+		}
+	})
+	t.Run("no improvement on a slower lap", func(t *testing.T) {
+		run := newLapResultRun(t, packets.SessionQ2, 80_000, 80_100)
+		run.pushLap(3, false, 80_345, 6)
+		d := run.pushLap(5, false, 80_600, 7)
+		if d == nil || d.SubAlert != "qualy_lap_no_improvement" || d.Values.Position != 7 || d.Values.PoleGapSec != 0 {
+			t.Fatalf("expected no improvement, P7; got %+v", d)
+		}
+	})
+	t.Run("an invalid lap has no result", func(t *testing.T) {
+		if d := newLapResultRun(t, packets.SessionQ2, 80_000, 80_100).pushLap(3, true, 79_000, 1); d != nil {
+			t.Fatalf("expected no result for an invalid lap, got %+v", d)
+		}
+	})
+	t.Run("an abandoned push lap has no result", func(t *testing.T) {
+		run := newLapResultRun(t, packets.SessionQ2, 80_000, 80_100)
+		run.step(0, packets.DriverStatusFlyingLap, 3, false, 0, 9)
+		run.step(10_000, packets.DriverStatusInLap, 3, false, 0, 9)
+		run.step(30_000, packets.DriverStatusInLap, 4, false, 95_000, 9)
+		if d := directiveFor(run.step(QualyLapResultSettleMs, packets.DriverStatusInLap, 4, false, 95_000, 9), "qualy_lap_no_improvement"); d != nil {
+			t.Fatalf("expected no result after an abandoned lap, got %+v", d)
+		}
+	})
+	t.Run("drop zone and last place through in Q1", func(t *testing.T) {
+		for pos, want := range map[uint8]EliminationStatus{17: EliminationDropZone, 16: EliminationLastThrough, 15: ""} {
+			d := newLapResultRun(t, packets.SessionQ1, 80_000, 80_100).pushLap(3, false, 81_000, pos)
+			if d == nil || d.Values.Elimination != want {
+				t.Errorf("P%d: elimination = %+v, want %q", pos, d, want)
+			}
+		}
+	})
+	t.Run("not outside qualifying", func(t *testing.T) {
+		if d := newLapResultRun(t, packets.SessionP1, 80_000, 80_100).pushLap(3, false, 80_345, 6); d != nil {
+			t.Fatalf("expected no lap result in practice, got %+v", d)
+		}
+	})
+}
+
+// The lap result reaches the radio through the next push lap's radio silence and after the
+// chequered flag.
+func TestEngineerEngine_LapResultGates(t *testing.T) {
+	for _, tt := range []struct {
+		name  string
+		after packets.LapData
+	}{
+		{"straight into another push lap", packets.LapData{DriverStatus: packets.DriverStatusFlyingLap}},
+		{"after the chequered flag", packets.LapData{DriverStatus: packets.DriverStatusInLap, ResultStatus: packets.ResultStatusFinished}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			b := &mockBroadcaster{}
+			e := newTestEngineerEngine(b)
+			clock := newTestClock()
+			clock.install(e)
+			h := createTestHeader(packets.PacketFormat2025, 779, 0)
+			e.ProcessPacket(ctx, &packets.PacketSessionData{Header: h, SessionType: packets.SessionQ3, TrackLength: qualyTrackLen, SessionTimeLeft: 600})
+			push := qualyCar(packets.DriverStatusFlyingLap, 3000, 3000)
+			push.CarPosition = 4
+			e.ProcessPacket(ctx, &packets.PacketLapData{Header: h, LapData: [packets.MaxCars]packets.LapData{push}})
+
+			after := qualyCar(tt.after.DriverStatus, 50, 5050)
+			if tt.after.ResultStatus != 0 {
+				after.ResultStatus = tt.after.ResultStatus
+			}
+			after.CurrentLapNum = push.CurrentLapNum + 1
+			after.LastLapTimeInMS = 80_500
+			after.CarPosition = 3
+			e.ProcessPacket(ctx, &packets.PacketLapData{Header: h, LapData: [packets.MaxCars]packets.LapData{after}})
+			clock.advance(QualyLapResultSettleMs * time.Millisecond)
+			e.ProcessPacket(ctx, &packets.PacketLapData{Header: h, LapData: [packets.MaxCars]packets.LapData{after}})
+			if spoken(t, b, "qualy_lap_result") != 1 {
+				t.Fatalf("phase %v: expected the lap result to be said", e.currentPhase)
+			}
+		})
 	}
 }

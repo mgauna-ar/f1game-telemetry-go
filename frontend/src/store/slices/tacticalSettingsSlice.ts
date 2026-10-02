@@ -60,6 +60,7 @@ export interface TacticalSettingsSlice {
   subQualyInvalid: boolean;
   subQualyTime: boolean;
   subQualyElim: boolean;
+  subQualyResult: boolean;
   subSafetyCar: boolean;
   subRedFlag: boolean;
   subRain: boolean;
@@ -122,6 +123,7 @@ export interface TacticalSettingsSlice {
   setSubQualyInvalid: (enabled: boolean) => void;
   setSubQualyTime: (enabled: boolean) => void;
   setSubQualyElim: (enabled: boolean) => void;
+  setSubQualyResult: (enabled: boolean) => void;
   setSubSafetyCar: (enabled: boolean) => void;
   setSubRedFlag: (enabled: boolean) => void;
   setSubRain: (enabled: boolean) => void;
@@ -185,6 +187,7 @@ export function getInitialTacticalSettings(): Omit<
   | 'setSubQualyInvalid'
   | 'setSubQualyTime'
   | 'setSubQualyElim'
+  | 'setSubQualyResult'
   | 'setSubSafetyCar'
   | 'setSubRedFlag'
   | 'setSubRain'
@@ -279,6 +282,7 @@ export const createTacticalSettingsSlice: StateCreator<
     setSubQualyInvalid: createBoolAction('subQualyInvalid', true),
     setSubQualyTime: createBoolAction('subQualyTime', true),
     setSubQualyElim: createBoolAction('subQualyElim', true),
+    setSubQualyResult: createBoolAction('subQualyResult', true),
     setSubSafetyCar: createBoolAction('subSafetyCar', true),
     setSubRedFlag: createBoolAction('subRedFlag', true),
     setSubRain: createBoolAction('subRain', true),

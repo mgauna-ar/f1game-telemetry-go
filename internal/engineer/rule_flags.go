@@ -469,7 +469,7 @@ func (r *FlagsRule) evaluateFIAFlags(ctx *EvaluationContext) *Directive {
 			Category: DirectiveCategoryFlags,
 			SubAlert: "flags_yellow",
 			Title:    "Yellow Flag",
-			Message:  "Yellow flag in this sector. Incident ahead, no overtaking and be prepared to lift.",
+			Message:  "Yellow flag in this sector. Careful, be ready to lift.",
 			Urgency:  UrgencyHigh,
 		}
 	}

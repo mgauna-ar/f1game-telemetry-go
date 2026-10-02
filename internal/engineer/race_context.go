@@ -225,10 +225,8 @@ func (v *raceView) neighbourIdx(offset int) int {
 
 func (v *raceView) bestLapMS(idx int) uint32 {
 	if idx >= 0 && idx < len(v.carHistory) {
-		if h := v.carHistory[idx]; h != nil && h.BestLapTimeLapNum > 0 && int(h.BestLapTimeLapNum) <= len(h.LapHistoryData) {
-			if t := h.LapHistoryData[h.BestLapTimeLapNum-1].LapTimeInMS; t > 0 {
-				return t
-			}
+		if t := historyBestLapMS(v.carHistory[idx]); t > 0 {
+			return t
 		}
 	}
 	if idx == v.playerIdx {
@@ -241,6 +239,14 @@ func (v *raceView) bestLapMS(idx int) uint32 {
 		return best
 	}
 	return 0
+}
+
+// historyBestLapMS is a car's best lap time from its session history, or 0 while unknown.
+func historyBestLapMS(h *packets.PacketSessionHistoryData) uint32 {
+	if h == nil || h.BestLapTimeLapNum == 0 || int(h.BestLapTimeLapNum) > len(h.LapHistoryData) {
+		return 0
+	}
+	return h.LapHistoryData[h.BestLapTimeLapNum-1].LapTimeInMS
 }
 
 func (v *raceView) carSummary(idx int) (CarSummary, bool) {

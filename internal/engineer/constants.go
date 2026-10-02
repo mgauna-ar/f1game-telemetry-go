@@ -121,9 +121,11 @@ const (
 	QualyTimeWarnDefaultSec             = 180.0
 	QualyElimDangerTimeSec              = 300.0
 	FinalSectorTrackDistanceFraction    = 0.70
-	QualyCarBehindWarnSec               = 3.5 // A car on a push lap this close behind (at push pace) is called on an out-lap or in-lap
-	QualyTrafficAheadWarnSec            = 5.0 // A slow car this close ahead (at push pace) is called on the player's push lap
-	QualyQ1EliminationPositionThreshold = 15  // Last safe Q1 place on a 20-car grid, when the car count is unknown
+	QualyCarBehindWarnSec               = 3.5   // A car on a push lap this close behind (at push pace) is called on an out-lap or in-lap
+	QualyTrafficAheadWarnSec            = 5.0   // A slow car this close ahead (at push pace) is called on the player's push lap
+	QualyLapResultSettleMs              = 2_000 // The lap result waits this long after the line for the positions to settle
+	InLapCooldownFromLapPct             = 0.10  // The in-lap cool-down call comes this far into the lap, after the lap result
+	QualyQ1EliminationPositionThreshold = 15    // Last safe Q1 place on a 20-car grid, when the car count is unknown
 	QualyQ2EliminationPositionThreshold = 10
 	QualyQ3Cars                         = 10 // Cars in Q3; Q1 and Q2 knock out half of the rest each
 
