@@ -119,11 +119,16 @@ export const DesktopWindow: React.FC = () => {
     setError(null);
     try {
       await desktopClient.quit();
-      setStopped(true);
-      window.close();
     } catch (err) {
-      setError(t('desktop.quitFailed', { error: errorText(err) }));
+      // fetch fails with a TypeError when nothing answers: the app on this PC has already stopped
+      // (Ctrl+C in its terminal, or it closed), and only this window outlived it
+      if (!(err instanceof TypeError)) {
+        setError(t('desktop.quitFailed', { error: errorText(err) }));
+        return;
+      }
     }
+    setStopped(true);
+    window.close();
   };
 
   if (stopped) {
