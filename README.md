@@ -71,6 +71,7 @@ There's no console window: the app runs in the background with an icon in the no
 
 * **Left-click** the icon to open the dashboard. **Right-click** for the menu: the live status (*"Live: Race · Monza"* or *"Waiting for the game on UDP port 20777"*), **Open live view**, **Start with Windows**, **Open data folder**, **Open log file** and **Quit**. A notice appears in the menu when a new release is out.
 * The icon shows a green dot while the game is sending telemetry.
+* When you start it, a Windows notification says it's running in the tray (not when it starts with Windows).
 * **Start with Windows** starts it in the background when you sign in, using the same database.
 * The log is written to `f1telemetry.log` next to the database. If the app can't start (for example because another program uses its port), it tells you in a dialog.
 * The menu follows your Windows display language (English or Spanish).

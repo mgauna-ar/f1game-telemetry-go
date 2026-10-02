@@ -63,6 +63,9 @@ type tray struct {
 func (t *tray) ready() {
 	systray.SetIcon(appIcon)
 	systray.SetTooltip(appName)
+	if t.opts.StartupNotice {
+		go t.notifyStarted()
+	}
 	systray.SetOnTapped(func() { t.open(t.opts.DashboardURL) })
 
 	header := systray.AddMenuItem(fmt.Sprintf("%s %s", appName, t.opts.Version), "")
@@ -121,6 +124,14 @@ func (t *tray) run() {
 			systray.Quit()
 			return
 		}
+	}
+}
+
+// notifyStarted says the app is running in the tray: nothing else shows it started, and Windows 11
+// often hides a new tray icon under the overflow arrow.
+func (t *tray) notifyStarted() {
+	if err := showBalloon(t.text.StartedTitle, t.text.StartedBody); err != nil {
+		slog.Warn("Could not show the startup notification", "error", err)
 	}
 }
 

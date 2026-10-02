@@ -49,6 +49,7 @@ type ServerConfig struct {
 	DBPath       string
 	OpenBrowser  bool
 	NoTray       bool
+	Autostart    bool
 	ShowVersion  bool
 	GeminiAPIKey string
 	OpenAIAPIKey string
@@ -67,6 +68,7 @@ func loadServerConfig() ServerConfig {
 	// Kept so older scripts and shortcuts passing it still start: not opening is now the default
 	flag.Bool(flagNoBrowser, false, "Deprecated: the browser no longer opens on startup unless -open-browser is set")
 	noTrayFlag := flag.Bool("no-tray", getEnvBool("F1T_NO_TRAY", false), "Windows: run without the notification-area icon")
+	autostartFlag := flag.Bool(flagAutostart, false, "Set by Start with Windows: start without the startup notification")
 	versionFlag := flag.Bool(flagVersion, false, "Print version information and exit")
 	flag.Parse()
 
@@ -76,6 +78,7 @@ func loadServerConfig() ServerConfig {
 		DBPath:       *dbFlag,
 		OpenBrowser:  *openBrowserFlag,
 		NoTray:       *noTrayFlag,
+		Autostart:    *autostartFlag,
 		ShowVersion:  *versionFlag,
 		GeminiAPIKey: getEnv("GEMINI_API_KEY", ""),
 		OpenAIAPIKey: getEnv("OPENAI_API_KEY", ""),
@@ -248,6 +251,7 @@ func run(cfg ServerConfig, envFiles []string) error {
 		AutostartArgs: autostartArgs(flag.CommandLine, dbPath),
 		Feed:          liveBroadcaster.FeedStatus,
 		CheckUpdates:  updateChecker(),
+		StartupNotice: !cfg.Autostart,
 	}, shutdown)
 	shutdown()
 	return nil

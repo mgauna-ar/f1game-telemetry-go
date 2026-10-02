@@ -16,17 +16,17 @@ func TestAutostartArgs(t *testing.T) {
 		{
 			name: "nothing set",
 			args: nil,
-			want: []string{"-db=" + absDB},
+			want: []string{"-autostart", "-db=" + absDB},
 		},
 		{
 			name: "keeps ports and tray choice",
 			args: []string{"-http", ":8090", "-udp=0.0.0.0:20778", "-no-tray"},
-			want: []string{"-http=:8090", "-no-tray=true", "-udp=0.0.0.0:20778", "-db=" + absDB},
+			want: []string{"-http=:8090", "-no-tray=true", "-udp=0.0.0.0:20778", "-autostart", "-db=" + absDB},
 		},
 		{
-			name: "replaces db and drops browser flags",
-			args: []string{"-db", "relative.db", "-open-browser", "-no-browser", "-version"},
-			want: []string{"-db=" + absDB},
+			name: "replaces db and autostart, drops browser flags",
+			args: []string{"-db", "relative.db", "-open-browser", "-no-browser", "-version", "-autostart"},
+			want: []string{"-autostart", "-db=" + absDB},
 		},
 	}
 
@@ -40,6 +40,7 @@ func TestAutostartArgs(t *testing.T) {
 			fs.Bool(flagNoBrowser, false, "")
 			fs.Bool("no-tray", false, "")
 			fs.Bool(flagVersion, false, "")
+			fs.Bool(flagAutostart, false, "")
 			if err := fs.Parse(tt.args); err != nil {
 				t.Fatal(err)
 			}

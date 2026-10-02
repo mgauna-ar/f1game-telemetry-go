@@ -30,4 +30,7 @@ type Options struct {
 	Feed func() session.FeedStatus
 	// CheckUpdates looks for a newer release; nil turns the update notice off (dev builds).
 	CheckUpdates func(ctx context.Context) (*system.UpdateCheckResponse, error)
+	// StartupNotice shows the "running in the tray" notification once the icon is up: on a start
+	// by hand, not at sign-in.
+	StartupNotice bool
 }
