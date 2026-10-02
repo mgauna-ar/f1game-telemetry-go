@@ -28,6 +28,14 @@ const isTelemetryEndpoint = (value: unknown): value is TelemetryEndpoint => {
   );
 };
 
+/**
+ * The addresses another device (a console, a phone or tablet) reaches this PC on. A listener bound
+ * to a single LAN address already shows it as the local address, so it isn't repeated.
+ */
+export function otherDeviceIps(endpoint: TelemetryEndpoint): string[] {
+  return endpoint.lan_ips.filter((ip) => ip !== endpoint.local_ip);
+}
+
 /** The UDP port and addresses the game has to send telemetry to, as the server reports them. */
 export const useTelemetryEndpointStore = create<TelemetryEndpointState>((set) => ({
   endpoint: DEFAULT_TELEMETRY_ENDPOINT,

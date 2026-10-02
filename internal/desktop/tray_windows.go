@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"os/exec"
 	"strings"
 	"syscall"
@@ -45,6 +44,7 @@ type tray struct {
 	text text
 
 	status     *systray.MenuItem
+	window     *systray.MenuItem
 	dashboard  *systray.MenuItem
 	live       *systray.MenuItem
 	update     *systray.MenuItem
@@ -53,7 +53,6 @@ type tray struct {
 	logFile    *systray.MenuItem
 	quit       *systray.MenuItem
 
-	exe       string
 	view      feedView
 	updateURL string
 }
@@ -63,10 +62,7 @@ type tray struct {
 func (t *tray) ready() {
 	systray.SetIcon(appIcon)
 	systray.SetTooltip(appName)
-	if t.opts.StartupNotice {
-		go t.notifyStarted()
-	}
-	systray.SetOnTapped(func() { t.open(t.opts.DashboardURL) })
+	systray.SetOnTapped(func() { go t.showWindow() })
 
 	header := systray.AddMenuItem(fmt.Sprintf("%s %s", appName, t.opts.Version), "")
 	header.Disable()
@@ -74,6 +70,7 @@ func (t *tray) ready() {
 	t.status.Disable()
 	systray.AddSeparator()
 
+	t.window = systray.AddMenuItem(t.text.ShowWindow, "")
 	t.dashboard = systray.AddMenuItem(t.text.OpenDashboard, "")
 	t.live = systray.AddMenuItem(t.text.OpenLive, "")
 	systray.AddSeparator()
@@ -108,6 +105,8 @@ func (t *tray) run() {
 			t.refreshFeed()
 		case resp := <-updates:
 			t.showUpdate(resp)
+		case <-t.window.ClickedCh:
+			go t.showWindow()
 		case <-t.dashboard.ClickedCh:
 			t.open(t.opts.DashboardURL)
 		case <-t.live.ClickedCh:
@@ -116,6 +115,8 @@ func (t *tray) run() {
 			t.open(t.updateURL)
 		case <-t.autostart.ClickedCh:
 			t.toggleAutostart()
+		case enabled := <-t.opts.App.startWithOSChanged:
+			t.setAutostartChecked(enabled)
 		case <-t.dataFolder.ClickedCh:
 			showInFolder(t.opts.DBPath)
 		case <-t.logFile.ClickedCh:
@@ -127,36 +128,36 @@ func (t *tray) run() {
 	}
 }
 
-// notifyStarted says the app is running in the tray: nothing else shows it started, and Windows 11
-// often hides a new tray icon under the overflow arrow.
-func (t *tray) notifyStarted() {
-	if err := showBalloon(t.text.StartedTitle, t.text.StartedBody); err != nil {
-		slog.Warn("Could not show the startup notification", "error", err)
+// showWindow opens the app window.
+func (t *tray) showWindow() {
+	if err := t.opts.App.OpenWindow(); err != nil {
+		slog.Warn("Could not open the app window", "error", err)
 	}
 }
 
 // addAutostartItem adds "Start with Windows", ticked when this user's Run entry starts this
 // executable, and greyed out for a build that can't be started at sign-in.
 func (t *tray) addAutostartItem() *systray.MenuItem {
-	exe, err := os.Executable()
-	if err != nil || !canAutostart(exe) {
+	if !t.opts.App.startWithOSAvailable() {
 		item := systray.AddMenuItemCheckbox(t.text.StartWithWindows, t.text.DevBuildHint, false)
 		item.Disable()
 		return item
 	}
-	t.exe = exe
-	return systray.AddMenuItemCheckbox(t.text.StartWithWindows, "", autostartEnabled(exe))
+	return systray.AddMenuItemCheckbox(t.text.StartWithWindows, "", t.opts.App.StartWithOS())
 }
 
 func (t *tray) toggleAutostart() {
 	enable := !t.autostart.Checked()
-	if err := setAutostart(enable, t.exe, t.opts.AutostartArgs); err != nil {
+	if err := t.opts.App.SetStartWithOS(enable); err != nil {
 		slog.Warn("Could not change Start with Windows", "enable", enable, "error", err)
 		go showDialog(appName, fmt.Sprintf("%s: %v", t.text.StartWithWindows, err))
 		return
 	}
-	slog.Info("Start with Windows changed", "enabled", enable)
-	if enable {
+	t.setAutostartChecked(enable)
+}
+
+func (t *tray) setAutostartChecked(enabled bool) {
+	if enabled {
 		t.autostart.Check()
 	} else {
 		t.autostart.Uncheck()

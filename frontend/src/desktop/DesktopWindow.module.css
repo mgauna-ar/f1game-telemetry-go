@@ -1,0 +1,163 @@
+/* The app window: a narrow column that fills a small browser window and still works at phone width */
+.window {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 520px;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-5);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+}
+
+.version {
+  composes: numeric from '../components/ui/patterns.module.css';
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.status {
+  --status-color: var(--text-secondary);
+  composes: tile from '../components/ui/patterns.module.css';
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  color: var(--status-color);
+}
+
+.dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: var(--accent-tertiary);
+}
+
+.status[data-status='live'] {
+  --status-color: var(--status-success);
+}
+
+.status[data-status='live'] .dot {
+  background-color: var(--status-success);
+  box-shadow: 0 0 10px var(--status-success);
+}
+
+.status[data-status='stale'] {
+  --status-color: var(--status-warning);
+}
+
+.status[data-status='stale'] .dot {
+  background-color: var(--status-warning);
+}
+
+.status[data-status='offline'] .dot {
+  background-color: var(--text-muted);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.heading {
+  composes: subheading from '../components/ui/patterns.module.css';
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.row dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.value {
+  composes: numeric from '../components/ui/patterns.module.css';
+  color: var(--text-primary);
+}
+
+.ips {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+}
+
+.ip {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.hint {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.option {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  cursor: pointer;
+}
+
+.optionLabel {
+  display: block;
+  font-size: var(--font-size-md);
+  color: var(--text-primary);
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin-top: auto;
+}
+
+.note {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+}
+
+.stopped {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  margin: auto 0;
+  text-align: center;
+}

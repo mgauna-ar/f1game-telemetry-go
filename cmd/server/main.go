@@ -68,7 +68,7 @@ func loadServerConfig() ServerConfig {
 	// Kept so older scripts and shortcuts passing it still start: not opening is now the default
 	flag.Bool(flagNoBrowser, false, "Deprecated: the browser no longer opens on startup unless -open-browser is set")
 	noTrayFlag := flag.Bool("no-tray", getEnvBool("F1T_NO_TRAY", false), "Windows: run without the notification-area icon")
-	autostartFlag := flag.Bool(flagAutostart, false, "Set by Start with Windows: start without the startup notification")
+	autostartFlag := flag.Bool(flagAutostart, false, "Set by Start with Windows: start without opening the app window")
 	versionFlag := flag.Bool(flagVersion, false, "Print version information and exit")
 	flag.Parse()
 
@@ -185,8 +185,25 @@ func run(cfg ServerConfig, envFiles []string) error {
 	}
 	liveBroadcaster := session.NewLiveBroadcaster(telemetryHub)
 
+	// The app on this PC: its small window, starting at sign-in, and Quit from the window
+	quitRequested := make(chan struct{})
+	var quitOnce sync.Once
+	desktopApp := desktop.NewApp(desktop.AppConfig{
+		Store:         repo,
+		DashboardURL:  localURL,
+		AutostartArgs: autostartArgs(flag.CommandLine, dbPath),
+		Tray:          tray,
+		Quit: func() {
+			if tray {
+				desktop.Quit()
+				return
+			}
+			quitOnce.Do(func() { close(quitRequested) })
+		},
+	})
+
 	// 5. Serve the dashboard and API on the bound TCP listener
-	srv := initHTTPServer(cfg, repo, telemetryHub, engineerHub, inputMgr, engineerEngine, liveBroadcaster)
+	srv := initHTTPServer(cfg, repo, telemetryHub, engineerHub, inputMgr, engineerEngine, liveBroadcaster, desktopApp)
 
 	go func() {
 		if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
@@ -224,34 +241,38 @@ func run(cfg ServerConfig, envFiles []string) error {
 	// 9. Start Packet Processing Loop
 	startPacketProcessing(ctx, listener, sessionManager, engineerEngine, liveBroadcaster, cfg.UDPAddr)
 
-	// 10. Run until a termination signal (or the tray's Quit), then shut down gracefully
+	// 10. Open the app window, unless this is a start at sign-in or it was turned off
+	if !cfg.Autostart {
+		go openWindowAtStart(ctx, desktopApp)
+	}
+
+	// 11. Run until a termination signal or Quit (tray or app window), then shut down gracefully
 	var shutdownOnce sync.Once
 	shutdown := func() {
 		shutdownOnce.Do(func() { gracefulShutdown(cancel, inputMgr, sessionManager, srv) })
 	}
 
 	if !tray {
-		waitForSignal()
+		waitForSignal(quitRequested)
 		shutdown()
 		return nil
 	}
 
 	go func() {
-		waitForSignal()
+		waitForSignal(nil)
 		desktop.Quit()
 	}()
 	// The tray runs shutdown before RunTray returns, also when Windows ends the session
 	desktop.RunTray(desktop.Options{
-		Version:       version,
-		DashboardURL:  localURL,
-		LiveURL:       localURL + "/live",
-		UDPPort:       system.ListenPort(cfg.UDPAddr),
-		DBPath:        dbPath,
-		LogPath:       logPath,
-		AutostartArgs: autostartArgs(flag.CommandLine, dbPath),
-		Feed:          liveBroadcaster.FeedStatus,
-		CheckUpdates:  updateChecker(),
-		StartupNotice: !cfg.Autostart,
+		Version:      version,
+		DashboardURL: localURL,
+		LiveURL:      localURL + "/live",
+		UDPPort:      system.ListenPort(cfg.UDPAddr),
+		DBPath:       dbPath,
+		LogPath:      logPath,
+		Feed:         liveBroadcaster.FeedStatus,
+		CheckUpdates: updateChecker(),
+		App:          desktopApp,
 	}, shutdown)
 	shutdown()
 	return nil
@@ -275,6 +296,21 @@ func openRunningInstance(ctx context.Context, localURL, port string, openBrowser
 		return fmt.Errorf("F1 Telemetry Analyzer is already running at %s, but the browser didn't open: %w", localURL, err)
 	}
 	return nil
+}
+
+// openWindowAtStart opens the app window unless it was turned off in the window itself.
+func openWindowAtStart(ctx context.Context, app *desktop.App) {
+	state, err := app.State(ctx)
+	if err != nil {
+		slog.Warn("Could not read the desktop settings", "error", err)
+		return
+	}
+	if !state.ShowWindowAtStart {
+		return
+	}
+	if err := app.OpenWindow(); err != nil {
+		slog.Warn("Could not open the app window", "error", err)
+	}
 }
 
 // updateChecker looks for a newer release for the tray, or is nil for a dev build.
@@ -327,6 +363,7 @@ func initHTTPServer(
 	inputMgr input.Manager,
 	engineerEngine *engineer.EngineerEngine,
 	liveFeed api.LiveFeed,
+	desktopApp api.DesktopApp,
 ) *http.Server {
 	apiConfig := api.ServerConfig{
 		GeminiAPIKey: cfg.GeminiAPIKey,
@@ -341,6 +378,7 @@ func initHTTPServer(
 	apiServer.SetInputManager(inputMgr)
 	apiServer.SetEngineerEngine(engineerEngine)
 	apiServer.SetLiveFeed(liveFeed)
+	apiServer.SetDesktopApp(desktopApp)
 
 	return &http.Server{
 		Addr:    cfg.HTTPAddr,
@@ -400,12 +438,16 @@ func startPacketProcessing(
 	}()
 }
 
-// waitForSignal blocks until Ctrl+C or a termination signal.
-func waitForSignal() {
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
-	fmt.Println()
+// waitForSignal blocks until Ctrl+C, a termination signal, or quitRequested closes (nil waits
+// for signals only).
+func waitForSignal(quitRequested <-chan struct{}) {
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+	select {
+	case <-sig:
+		fmt.Println()
+	case <-quitRequested:
+	}
 }
 
 func gracefulShutdown(

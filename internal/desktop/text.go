@@ -7,6 +7,7 @@ const appName = "F1 Telemetry"
 
 // text is what the tray and dialogs say, in the user's Windows display language.
 type text struct {
+	ShowWindow       string
 	OpenDashboard    string
 	OpenLive         string
 	UpdateAvailable  string // %s: the new version
@@ -19,11 +20,10 @@ type text struct {
 	Paused           string
 	Waiting          string // %d: the UDP port
 	StartFailed      string
-	StartedTitle     string
-	StartedBody      string
 }
 
 var englishText = text{
+	ShowWindow:       "Show window",
 	OpenDashboard:    "Open dashboard",
 	OpenLive:         "Open live view",
 	UpdateAvailable:  "Update available: %s",
@@ -36,11 +36,10 @@ var englishText = text{
 	Paused:           "Telemetry paused",
 	Waiting:          "Waiting for the game on UDP port %d",
 	StartFailed:      "F1 Telemetry could not start",
-	StartedTitle:     "F1 Telemetry is running",
-	StartedBody:      "Click its icon in the notification area to open the dashboard.",
 }
 
 var spanishText = text{
+	ShowWindow:       "Mostrar ventana",
 	OpenDashboard:    "Abrir panel",
 	OpenLive:         "Abrir vista en vivo",
 	UpdateAvailable:  "Actualización disponible: %s",
@@ -53,8 +52,6 @@ var spanishText = text{
 	Paused:           "Telemetría en pausa",
 	Waiting:          "Esperando al juego en el puerto UDP %d",
 	StartFailed:      "F1 Telemetry no pudo iniciar",
-	StartedTitle:     "F1 Telemetry está en ejecución",
-	StartedBody:      "Hacé clic en su ícono del área de notificación para abrir el panel.",
 }
 
 // textFor picks the strings for a language tag such as "es-AR": Spanish for any Spanish

@@ -16,3 +16,8 @@ func RunTray(_ Options, onExit func()) { onExit() }
 
 // Quit closes the tray, making RunTray return.
 func Quit() {}
+
+// Starting at sign-in is a Windows feature.
+func canAutostart(string) bool                  { return false }
+func autostartEnabled(string) bool              { return false }
+func setAutostart(bool, string, []string) error { return ErrStartWithOSUnavailable }

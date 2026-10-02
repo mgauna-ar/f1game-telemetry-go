@@ -83,8 +83,8 @@ func TestTextFor(t *testing.T) {
 
 func TestTextHasEveryString(t *testing.T) {
 	for name, tx := range map[string]text{"english": englishText, "spanish": spanishText} {
-		fields := []string{tx.OpenDashboard, tx.OpenLive, tx.UpdateAvailable, tx.StartWithWindows, tx.DevBuildHint,
-			tx.OpenDataFolder, tx.OpenLogFile, tx.Quit, tx.Live, tx.Paused, tx.Waiting, tx.StartFailed, tx.StartedTitle, tx.StartedBody}
+		fields := []string{tx.ShowWindow, tx.OpenDashboard, tx.OpenLive, tx.UpdateAvailable, tx.StartWithWindows, tx.DevBuildHint,
+			tx.OpenDataFolder, tx.OpenLogFile, tx.Quit, tx.Live, tx.Paused, tx.Waiting, tx.StartFailed}
 		for i, f := range fields {
 			if f == "" {
 				t.Errorf("%s text field %d is empty", name, i)

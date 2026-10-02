@@ -1,7 +1,7 @@
 import React from 'react';
 import { Radio, WifiOff, Activity, CheckCircle2, Info } from 'lucide-react';
 import { useI18n } from '../context/I18nContext';
-import { useTelemetryEndpointStore } from '../store/useTelemetryEndpointStore';
+import { otherDeviceIps, useTelemetryEndpointStore } from '../store/useTelemetryEndpointStore';
 import { ConnectionStatusPills } from './common/ConnectionStatusPills';
 import { CopyValueButton } from './common/CopyValueButton';
 import styles from './WaitingForData.module.css';
@@ -30,8 +30,7 @@ const CheckItem: React.FC<CheckItemProps> = ({ label, children, highlight, align
 export const WaitingForData: React.FC<WaitingForDataProps> = ({ connected }) => {
   const { t } = useI18n();
   const endpoint = useTelemetryEndpointStore((s) => s.endpoint);
-  // A listener bound to a single LAN address already shows it as the local address
-  const lanIps = endpoint.lan_ips.filter((ip) => ip !== endpoint.local_ip);
+  const lanIps = otherDeviceIps(endpoint);
   const guideTitleId = React.useId();
 
   return (

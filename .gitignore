@@ -7,6 +7,8 @@ dist_release/
 *.so
 *.dylib
 *.syso
+# Left by scripts/build_windows_resources.go if a build stops halfway
+cmd/server/app.manifest
 
 # Test
 *.test

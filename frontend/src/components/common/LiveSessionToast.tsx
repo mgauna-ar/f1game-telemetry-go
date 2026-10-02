@@ -5,8 +5,8 @@ import { useSystemStatusStore } from '../../store/useSystemStatusStore';
 import { useToastStore } from '../../store/useToastStore';
 import { navigate, useRoute } from '../../router/router';
 import { buildPath, storedLiveMode } from '../../router/routes';
-import { LIVE_STATUS, SESSION_TYPE_LABELS, TRACK_NAMES, getTrackInfo } from '../../constants/f1';
-import { sessionTypeLabelForCode } from '../../utils/sessionTypeLabel';
+import { LIVE_STATUS } from '../../constants/f1';
+import { liveSessionLabel } from '../../utils/liveSessionLabel';
 
 /** How long the "live session detected" toast stays up. */
 const LIVE_SESSION_TOAST_MS = 10_000;
@@ -29,10 +29,7 @@ export const LiveSessionToast: React.FC = () => {
   useEffect(() => {
     if (!session || onLivePage || announced.current.has(session.session_uid)) return;
     announced.current.add(session.session_uid);
-    const track = getTrackInfo(session.track_id)?.name || TRACK_NAMES[session.track_id] || t('common.unknownTrack');
-    const kind = SESSION_TYPE_LABELS[session.session_type]
-      ? sessionTypeLabelForCode(session.session_type, t)
-      : t('nav.tabs.live');
+    const { kind, track } = liveSessionLabel(session, t);
     useToastStore.getState().showToast({
       type: 'info',
       message: t('live.sessionDetected', { session: kind, track }),

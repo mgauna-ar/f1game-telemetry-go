@@ -63,16 +63,15 @@ Pre-compiled, self-contained single binaries with the embedded web dashboard are
    * **macOS:** `f1telemetry_<version>_darwin_arm64.zip` (Apple Silicon M-series) or `f1telemetry_<version>_darwin_amd64.zip` (Intel)
    * **Linux:** `f1telemetry_<version>_linux_amd64.tar.gz` (or `arm64`)
 2. Extract the archive contents.
-3. Run `f1telemetry.exe` (Windows) or `./f1telemetry` (macOS / Linux). The server starts without opening a browser: open the dashboard at `http://localhost:8080` (on Windows, click the tray icon; on macOS / Linux the address is also printed in the terminal). Starting it again while it's already running does nothing. Every page has its own address you can bookmark or share on your network: a session (`/history/12/stints`), a lap comparison with its zoom (`/compare?sa=12&a=345&b=346`), your progress at a track (`/progress/Silverstone`), the live cockpit (`/live/cockpit`) or a settings section (`/settings/comparator`).
+3. Run `f1telemetry.exe` (Windows) or `./f1telemetry` (macOS / Linux). A small **app window** opens: whether the game is sending telemetry, the dashboard's address on this PC and for a phone or tablet, what to enter in the game, and an **Open dashboard** button. It's a Chrome, Edge, Chromium or Brave window without tabs (Edge comes with Windows; without one of these it opens as a tab in your default browser). Closing it keeps the app running: on Windows in the tray, on macOS / Linux in its terminal (stop it with Ctrl+C or the window's **Quit** button). Turn off **Show this window at startup** in it to start straight to the tray or terminal. Starting it again while it's already running does nothing. Every page has its own address you can bookmark or share on your network: a session (`/history/12/stints`), a lap comparison with its zoom (`/compare?sa=12&a=345&b=346`), your progress at a track (`/progress/Silverstone`), the live cockpit (`/live/cockpit`) or a settings section (`/settings/comparator`).
 
 #### 🖥️ On Windows: lives in the notification area
 
-There's no console window: the app runs in the background with an icon in the notification area (next to the clock; Windows 11 may first put it under the **^** overflow, and you can drag it out to keep it visible).
+There's no console window: the app runs with an icon in the notification area (next to the clock; Windows 11 may first put it under the **^** overflow, and you can drag it out to keep it visible).
 
-* **Left-click** the icon to open the dashboard. **Right-click** for the menu: the live status (*"Live: Race · Monza"* or *"Waiting for the game on UDP port 20777"*), **Open live view**, **Start with Windows**, **Open data folder**, **Open log file** and **Quit**. A notice appears in the menu when a new release is out.
+* **Left-click** the icon to bring the app window back. **Right-click** for the menu: the live status (*"Live: Race · Monza"* or *"Waiting for the game on UDP port 20777"*), **Show window**, **Open dashboard**, **Open live view**, **Start with Windows**, **Open data folder**, **Open log file** and **Quit**. A notice appears in the menu when a new release is out.
 * The icon shows a green dot while the game is sending telemetry.
-* When you start it, a Windows notification says it's running in the tray (not when it starts with Windows).
-* **Start with Windows** starts it in the background when you sign in, using the same database.
+* **Start with Windows** (in the menu or the app window) starts it in the tray when you sign in, without the window, using the same database.
 * The log is written to `f1telemetry.log` next to the database. If the app can't start (for example because another program uses its port), it tells you in a dialog.
 * The menu follows your Windows display language (English or Spanish).
 
@@ -201,7 +200,7 @@ All settings are on one page, opened from the gear in the top bar (`/settings/vo
 
 Settings you change in the dashboard are saved in the database, so every device that opens it (the PC, a tablet on your network) shares them: radio alert rules, the AI provider, model and API keys, the engineer's persona and voice, push-to-talk, and who the lap comparator compares you with by default. When one device saves a change, the other open dashboards reload it right away, and if two devices change the radio alert rules at once, the later save is refused and that dashboard shows the newer rules instead of overwriting them. A save that fails shows a notice. Saved API keys are never sent back to a browser; the settings only show that a key is saved. The settings page's "This device" section holds what stays per browser: volume, radio effects, whether the radio speaks on this screen, UI language (the dashboard downloads only the language on screen), units (km/h or mph, °C or °F, a 24- or 12-hour clock; they start from the browser's region and apply to every speed, temperature and clock time, live views included), which live view opens on a computer and on a phone, the Race Control layout, the AI chat window (compact, large, or docked beside the page) and performance mode. The comparator's chart view and strip layout and the session list's grouping and saved filters are per browser too. A comparator rival saved in a browser by an older version moves to the server the first time it opens.
 
-The API only accepts changes from the dashboard the app serves, so other websites open in your browser can't change settings or use your saved keys. Any device that can open the dashboard can still chat using the saved keys, the same as keys set in `.env`.
+The API only accepts changes from the dashboard the app serves, so other websites open in your browser can't change settings or use your saved keys. Any device that can open the dashboard can still chat using the saved keys, the same as keys set in `.env`. The app window's startup options and Quit (`/api/desktop`) only answer the PC the app runs on, so a phone or tablet on your network can't stop it.
 
 ---
 

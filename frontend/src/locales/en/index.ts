@@ -6,6 +6,7 @@ import { live } from './live';
 import { progress } from './progress';
 import { ai_engineer } from './ai_engineer';
 import { settings } from './settings';
+import { desktop } from './desktop';
 
 /**
  * The English dictionary: the base every other language matches key for key, and the fallback.
@@ -20,4 +21,5 @@ export const en = {
   live,
   ai_engineer,
   settings,
+  desktop,
 };
