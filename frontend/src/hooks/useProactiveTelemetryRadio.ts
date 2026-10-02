@@ -45,6 +45,7 @@ export function useProactiveTelemetryRadio({
           isCritical,
           emotion: isCritical ? CRITICAL_EMOTION : CALM_EMOTION,
           ttlMs: directive.ttl_ms || undefined,
+          box: directive.box,
         });
       },
     });

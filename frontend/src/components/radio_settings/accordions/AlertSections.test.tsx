@@ -39,6 +39,15 @@ describe('alert sections', () => {
     expect(useRadioSettingsStore.getState().triggerPreset).toBe(RADIO_TRIGGER_PRESETS.CUSTOM);
   });
 
+  it('sets the pit entry reminder and how early box calls come', () => {
+    renderSection(<PitAccordion {...sectionProps} />);
+
+    fireEvent.click(screen.getByText('Box Reminder Before the Pit Entry'));
+    expect(useRadioSettingsStore.getState().subPitEntryReminder).toBe(false);
+    expect(screen.getByText('Box Call Distance Before the Pit Entry')).toBeInTheDocument();
+    expect(useRadioSettingsStore.getState().pitCallLeadM).toBe(500);
+  });
+
   it('sets hot and cold tyre calls with one margin', () => {
     renderSection(<TyresAccordion {...sectionProps} />);
 

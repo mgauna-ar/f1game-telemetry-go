@@ -1,20 +1,20 @@
-import type { RadioAlertCategory, RadioPhrasePool } from '../../types/telemetry';
+import type { BoxCallKind, EngineerBoxTiming, RadioAlertCategory, RadioPhrasePool } from '../../types/telemetry';
 
 export const radio_phrases = {
   safety_car: {
     bono: [
-      'Safety Car deployed, Safety Car. Keep the delta positive, stand by for pit stop.',
+      'Safety Car deployed, Safety Car. Keep the delta positive.',
       'Safety Car, {driver}. Delta positive, stay positive on the delta and stand by.',
       'Okay {driver}, Safety Car deployed. Keep delta positive, we are looking at the box option.',
     ],
     colapinto: [
-      'Safety Car on track, Safety Car. Keep delta positive and confirm if you want to box.',
-      'Safety Car deployed, {driver}. Mind the delta and stay alert for pit entry.',
+      'Safety Car on track, Safety Car. Keep delta positive and tell us if you want to box.',
+      'Safety Car deployed, {driver}. Mind the delta and stay alert for the pit call.',
     ],
     standard: [
-      'Safety Car deployed, Safety Car. Keep delta positive, stand by for pit stop.',
-      'Full Safety Car on track. Maintain positive delta and prepare for strategy call.',
-      'Safety Car, {driver}. Keep delta positive and confirm if boxing this lap.',
+      'Safety Car deployed, Safety Car. Keep delta positive, stand by for the pit call.',
+      'Full Safety Car on track. Maintain positive delta and prepare for the strategy call.',
+      'Safety Car, {driver}. Keep delta positive and confirm if you want to box.',
     ],
   },
   vsc: {
@@ -46,15 +46,15 @@ export const radio_phrases = {
   },
   tyre_puncture: {
     bono: [
-      'Puncture, puncture! Box this lap, box box box.',
-      'Critical puncture on the tyre! Bring it in this lap, {driver}, carefully.',
+      'Puncture, puncture! Bring it in carefully, {driver}.',
+      'Critical puncture on the tyre, {driver}. Nurse the car back.',
     ],
     colapinto: [
-      'Puncture, puncture! Box this lap, {driver}, bring it in easy.',
+      'Puncture, puncture! Bring it in easy, {driver}.',
     ],
     standard: [
-      'Puncture, puncture! Box this lap, bring it in carefully.',
-      'Critical tyre puncture detected, {driver}. Box immediately.',
+      'Puncture, puncture! Bring it in carefully.',
+      'Critical tyre puncture detected, {driver}. Nurse the car back.',
     ],
   },
   tyre_wear: {
@@ -98,13 +98,13 @@ export const radio_phrases = {
   wing_damage: {
     bono: [
       'Front wing damage detected, {driver}. Expect understeer in medium and high speed corners.',
-      'Front wing flap damage. We have lost front downforce, stand by for nose change.',
+      'Front wing flap damage. We have lost front downforce.',
     ],
     colapinto: [
-      'Front wing damage, {driver}. We lost downforce, be ready for a front wing change.',
+      'Front wing damage, {driver}. We lost downforce on the front.',
     ],
     standard: [
-      'Front wing damage detected. Downforce loss, box for a wing change.',
+      'Front wing damage detected. Downforce loss on the front axle.',
       'Front wing damage, {driver}. Aerodynamic balance is compromised.',
     ],
   },
@@ -238,29 +238,29 @@ export const radio_phrases = {
   },
   pit_window_open: {
     bono: [
-      'Pit window is open, {driver}. Box this lap, confirm tyres.',
-      'Pit window open. Confirm if boxing this lap, {driver}.',
+      'Pit window is open, {driver}. Confirm tyres.',
+      'Pit window open, {driver}. Your call on the stop.',
     ],
     colapinto: [
-      'Pit window open, {driver}. Confirm if we box this lap.',
+      'Pit window open, {driver}. Let us know if you want to stop.',
     ],
     standard: [
-      'Pit window is open. Confirm if boxing this lap.',
-      'Pit stop window open, {driver}. Stand by for box call.',
+      'Pit window is open. Confirm if you want to stop.',
+      'Pit stop window open, {driver}. Stand by for the box call.',
     ],
   },
   pit_window_close: {
     bono: [
-      'Box this lap, box box! Pit window is closing, {driver}, we must box now to protect tyre performance.',
-      'Pit stop window closing, {driver}. Box this lap, box box!',
+      'Pit window is closing, {driver}. We must stop to protect tyre performance.',
+      'Pit stop window closing, {driver}.',
     ],
     colapinto: [
-      'Pit window is closing, {driver}! Box this lap, box box, we need fresh tyres now.',
-      'Window closing this lap, {driver}. Box now to protect our stint.',
+      'Pit window is closing, {driver}! We need fresh tyres.',
+      'Window is closing, {driver}. We stop to protect our stint.',
     ],
     standard: [
-      'Box this lap, box box! Pit stop window is closing.',
-      'Pit stop window closing now, {driver}. Box this lap to maintain tyre delta.',
+      'Pit stop window is closing.',
+      'Pit stop window closing, {driver}. We stop to maintain the tyre delta.',
     ],
   },
   rival_defend: {
@@ -440,15 +440,15 @@ export const radio_phrases = {
   },
   pit_clean_air: {
     bono: [
-      'Pit window offers clean air on rejoin, {driver}. Prime opportunity for undercut.',
-      'Clean air window open on pit exit. Stand by for box call.',
+      'A stop gives us clean air on rejoin, {driver}. Prime opportunity for the undercut.',
+      'Clean air window open on pit exit.',
     ],
     colapinto: [
-      'Clean air on pit exit if we box now, {driver}. Good undercut chance.',
+      'Clean air on pit exit if we box, {driver}. Good undercut chance.',
     ],
     standard: [
-      'Pit window offers clean air on rejoin. Ideal opportunity for undercut strategy.',
-      'Clean air available on pit exit, {driver}. Strategy window open.',
+      'A stop gives clean air on rejoin. Ideal opportunity for the undercut.',
+      'Clean air available on pit exit, {driver}.',
     ],
   },
   ers_fault: {
@@ -551,14 +551,14 @@ export const radio_phrases = {
   },
   tyre_crossover: {
     bono: [
-      'Conditions at crossover threshold, {driver}. Box this lap, box box for tyre change.',
+      'Conditions at the crossover threshold, {driver}. Time for a tyre change.',
     ],
     colapinto: [
-      'We are at the tyre crossover window, {driver}. Box this lap, box box!',
+      'We are at the tyre crossover window, {driver}! Time to change tyres.',
     ],
     standard: [
-      'Tyre crossover threshold reached! Box this lap for tyre compound change.',
-      'Crossover window is open, {driver}. Box this lap, box box.',
+      'Tyre crossover threshold reached. Time for a compound change.',
+      'Crossover window is open, {driver}. We change tyres.',
     ],
   },
   flags_sc_in: {
@@ -787,30 +787,30 @@ export const radio_phrases = {
   },
   tyre_crossover_wet: {
     bono: [
-      'Track is saturated, standing water is too deep for Inters! Box this lap, box box for Full Wets.',
-      'Aquaplaning risk is critical, {driver}. Box this lap for Full Wets.',
+      'Track is saturated, standing water is too deep for Inters! We need Full Wets.',
+      'Aquaplaning risk is critical, {driver}. We need Full Wets.',
     ],
     colapinto: [
-      'Way too much water on track, aquaplaning risk! Box this lap, {driver}, we need Full Wets!',
-      'Standing water is too deep for Inters, box now, box box for Full Wets!',
+      'Way too much water on track, aquaplaning risk! We need Full Wets, {driver}!',
+      'Standing water is too deep for Inters, we go to Full Wets!',
     ],
     standard: [
-      'Track is saturated with standing water, aquaplaning risk! Box this lap for Full Wets.',
-      'Heavy rain crossover reached. Box this lap, box box for Extreme Wet tyres.',
+      'Track is saturated with standing water, aquaplaning risk! We need Full Wets.',
+      'Heavy rain crossover reached. Extreme Wet tyres, {driver}.',
     ],
   },
   tyre_crossover_inter: {
     bono: [
-      'Rain has eased off and standing water is clearing, {driver}. Intermediate tyre is much faster now, box for Inters.',
-      'Track is drying out from heavy wet, {driver}. Inters are the faster compound now, box this lap.',
+      'Rain has eased off and standing water is clearing, {driver}. Intermediate tyre is much faster now.',
+      'Track is drying out from heavy wet, {driver}. Inters are the faster compound now.',
     ],
     colapinto: [
-      'The rain is easing up, the track is draining! Inters are way faster now, box this lap, {driver}!',
-      'Standing water is clearing, let us switch to Inters! Box this lap, box box!',
+      'The rain is easing up, the track is draining! Inters are way faster now, {driver}!',
+      'Standing water is clearing, let us switch to Inters!',
     ],
     standard: [
-      'Rain has eased up and standing water is clearing. Intermediate tyre is much faster now, box for Inters.',
-      'Drying crossover window open. Box this lap to change from Full Wets to Intermediates.',
+      'Rain has eased up and standing water is clearing. Intermediate tyre is much faster now.',
+      'Drying crossover window open. Time to change from Full Wets to Intermediates.',
     ],
   },
   brake_bias_ok: {
@@ -981,4 +981,92 @@ export const radio_phrases = {
       'High engine ICE wear detected. Top speed and power output are degraded.',
     ],
   },
+  pit_entry_reminder: {
+    bono: [
+      'Box, box. Pit entry coming up, {driver}.',
+      'Box this lap, box box. Stay to the pit lane side.',
+    ],
+    colapinto: [
+      'Box box box! Pit entry coming up, {driver}!',
+    ],
+    standard: [
+      'Box, box. Pit entry coming up.',
+      'Pit entry coming up, {driver}. Box, box.',
+    ],
+  },
 } satisfies Record<RadioAlertCategory, RadioPhrasePool>;
+
+/**
+ * What is said after a call to pit about when to: an instruction ("box this lap") or an option
+ * (a Safety Car stop). Keyed by the directive's box timing.
+ */
+export const box_timing_phrases = {
+  instruction: {
+    this_lap: {
+      bono: [
+        'Box this lap, box box.',
+        'Box, box, this lap.',
+      ],
+      colapinto: [
+        'Box this lap, box box!',
+      ],
+      standard: [
+        'Box this lap, box box.',
+        'Box this lap.',
+      ],
+    },
+    next_lap: {
+      bono: [
+        'Too late for the pit entry, box next lap.',
+        'Stay out this lap, box next lap.',
+      ],
+      colapinto: [
+        'We missed the pit entry, box next lap!',
+      ],
+      standard: [
+        'Too late for this pit entry. Box next lap.',
+        'Stay out, box next lap.',
+      ],
+    },
+    asap: {
+      bono: [
+        'Box as soon as you can.',
+      ],
+      colapinto: [
+        'Box as soon as you can!',
+      ],
+      standard: [
+        'Box as soon as possible.',
+      ],
+    },
+  },
+  option: {
+    this_lap: {
+      bono: [
+        'We can still make the pit entry this lap.',
+      ],
+      colapinto: [
+        'We can still box this lap if you want!',
+      ],
+      standard: [
+        'Pit entry is still on this lap.',
+        'We can still box this lap.',
+      ],
+    },
+    next_lap: {
+      bono: [
+        'Too late for this lap\'s pit entry, it would be next lap.',
+      ],
+      colapinto: [
+        'Too late for this pit entry, it would be next lap.',
+      ],
+      standard: [
+        'Too late for the pit entry this lap, next lap is the option.',
+      ],
+    },
+    asap: {
+      standard: [
+      ],
+    },
+  },
+} satisfies Record<BoxCallKind, Record<EngineerBoxTiming, RadioPhrasePool>>;

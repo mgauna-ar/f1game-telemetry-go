@@ -48,6 +48,7 @@ export interface TacticalSettingsSlice {
   subPitCleanAir: boolean;
   subTyreSet: boolean;
   subPitLane: boolean;
+  subPitEntryReminder: boolean;
   subSectorDelta: boolean;
   subStartProcedure: boolean;
   subInlapCooldown: boolean;
@@ -107,6 +108,7 @@ export interface TacticalSettingsSlice {
   setSubPitCleanAir: (enabled: boolean) => void;
   setSubTyreSet: (enabled: boolean) => void;
   setSubPitLane: (enabled: boolean) => void;
+  setSubPitEntryReminder: (enabled: boolean) => void;
   setSubSectorDelta: (enabled: boolean) => void;
   setSubStartProcedure: (enabled: boolean) => void;
   setSubInlapCooldown: (enabled: boolean) => void;
@@ -167,6 +169,7 @@ export function getInitialTacticalSettings(): Omit<
   | 'setSubPitCleanAir'
   | 'setSubTyreSet'
   | 'setSubPitLane'
+  | 'setSubPitEntryReminder'
   | 'setSubSectorDelta'
   | 'setSubStartProcedure'
   | 'setSubInlapCooldown'
@@ -258,6 +261,7 @@ export const createTacticalSettingsSlice: StateCreator<
     setSubPitCleanAir: createBoolAction('subPitCleanAir', true),
     setSubTyreSet: createBoolAction('subTyreSet', true),
     setSubPitLane: createBoolAction('subPitLane', true),
+    setSubPitEntryReminder: createBoolAction('subPitEntryReminder', true),
     setSubSectorDelta: createBoolAction('subSectorDelta', true),
     setSubStartProcedure: createBoolAction('subStartProcedure', true),
     setSubInlapCooldown: createBoolAction('subInlapCooldown', true),

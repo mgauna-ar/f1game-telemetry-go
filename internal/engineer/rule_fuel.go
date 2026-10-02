@@ -184,6 +184,7 @@ func (r *FuelRule) Evaluate(ctx *EvaluationContext) []Directive {
 				Title:    "Pit Stop Window",
 				Message:  fmt.Sprintf("Pit stop window is now open (Lap %d). Target rejoin position P%d.", currentLapNum, rejoinPos),
 				Urgency:  UrgencyLow,
+				BoxCall:  BoxCallOption,
 			})
 		}
 	}
@@ -203,6 +204,7 @@ func (r *FuelRule) Evaluate(ctx *EvaluationContext) []Directive {
 				Title:    "Pit Window Closing",
 				Message:  fmt.Sprintf("Box this lap, box box! Pit stop window is closing (Lap %d), take the stop now to preserve tyre life.", currentLapNum),
 				Urgency:  UrgencyHigh,
+				BoxCall:  BoxCallInstruction,
 			})
 		}
 	}

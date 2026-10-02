@@ -1,4 +1,4 @@
-import type { RadioAlertCategory, RadioPhrasePool } from '../../types/telemetry';
+import type { BoxCallKind, EngineerBoxTiming, RadioAlertCategory, RadioPhrasePool } from '../../types/telemetry';
 
 export const radio_phrases = {
   safety_car: {
@@ -49,16 +49,16 @@ export const radio_phrases = {
   },
   tyre_puncture: {
     colapinto: [
-      '¡Pinchadura, pinchadura! Box esta vuelta, {driver}, entrá despacito.',
-      '¡Tenemos pinchadura! Venite a boxes ya mismo, cuidá el auto.',
+      '¡Pinchadura, pinchadura! Entrá despacito, {driver}.',
+      '¡Tenemos pinchadura! Cuidá el auto hasta boxes.',
     ],
     bono: [
-      '¡Pinchadura en el neumático! Box esta vuelta, {driver}, entra con cuidado.',
-      'Pinchadura detectada. Box esta vuelta, box box box.',
+      '¡Pinchadura en el neumático! Entra con cuidado, {driver}.',
+      'Pinchadura detectada. Cuida el auto hasta boxes.',
     ],
     standard: [
-      '¡Pinchadura en el neumático! Box esta vuelta, entra con cuidado.',
-      'Pinchadura crítica detectada, {driver}. Entra a boxes inmediatamente.',
+      '¡Pinchadura en el neumático! Entra con cuidado.',
+      'Pinchadura crítica detectada, {driver}. Cuida el auto hasta boxes.',
     ],
   },
   tyre_wear: {
@@ -103,16 +103,16 @@ export const radio_phrases = {
   },
   wing_damage: {
     colapinto: [
-      'Daño en el alerón delantero, {driver}. Perdimos carga aerodinámica, preparate para cambiar trompa.',
+      'Daño en el alerón delantero, {driver}. Perdimos carga aerodinámica adelante.',
       'Tocamos el alerón delantero. Hay pérdida de carga en curva rápida.',
     ],
     bono: [
-      'Daño en el alerón delantero. Pérdida de carga aerodinámica, entra a boxes a cambiar la trompa.',
+      'Daño en el alerón delantero. Pérdida de carga aerodinámica en el eje delantero.',
       'Daño frontal detectado, {driver}. Espera subviraje en curva media y rápida.',
     ],
     standard: [
-      'Daño en el alerón delantero. Pérdida de carga aerodinámica, entra a boxes a cambiar el alerón.',
-      'Daño en el alerón delantero detectado, {driver}. Posible parada para cambio de alerón.',
+      'Daño en el alerón delantero. Pérdida de carga aerodinámica.',
+      'Daño en el alerón delantero detectado, {driver}. El balance aerodinámico está comprometido.',
     ],
   },
   floor_damage: {
@@ -247,28 +247,28 @@ export const radio_phrases = {
   },
   pit_window_open: {
     colapinto: [
-      'Ventana de pits abierta, {driver}. Confirmame si paramos esta vuelta.',
+      'Ventana de pits abierta, {driver}. Avisame si querés parar.',
     ],
     bono: [
-      'Ventana de parada abierta. Confirma si entramos a boxes esta vuelta.',
+      'Ventana de parada abierta. Confirma si quieres parar.',
     ],
     standard: [
-      'Ventana de parada abierta. Confirma si entramos a boxes esta vuelta.',
-      'Ventana de boxes abierta, {driver}. Prepárate para llamada de parada.',
+      'Ventana de parada abierta. Confirma si quieres parar.',
+      'Ventana de boxes abierta, {driver}. Prepárate para la llamada de parada.',
     ],
   },
   pit_window_close: {
     colapinto: [
-      '¡A boxes en esta vuelta, box box! Se nos cierra la ventana, {driver}, entramos ya para no liquidar las gomas.',
-      'Ventana de parada cerrando en esta vuelta, {driver}. ¡Box box ahora!',
+      'Se nos cierra la ventana, {driver}, paramos para no liquidar las gomas.',
+      'Ventana de parada cerrando, {driver}.',
     ],
     bono: [
-      'Box en esta vuelta, box box. La ventana de parada se cierra ahora, {driver}.',
-      'Ventana de pits cerrando. Entramos a boxes en esta vuelta para proteger el neumático.',
+      'La ventana de parada se cierra, {driver}.',
+      'Ventana de pits cerrando. Paramos para proteger el neumático.',
     ],
     standard: [
-      'Box en esta vuelta, box box. Se cierra la ventana de parada.',
-      'Ventana de parada cerrándose ahora, {driver}. Entra a boxes para mantener el delta de gomas.',
+      'Se cierra la ventana de parada.',
+      'Ventana de parada cerrándose, {driver}. Paramos para mantener el delta de gomas.',
     ],
   },
   rival_defend: {
@@ -451,16 +451,16 @@ export const radio_phrases = {
   },
   pit_clean_air: {
     colapinto: [
-      'Si paramos ahora salimos con aire limpio, {driver}. Gran oportunidad de undercut.',
-      'Aire limpio garantizado en la salida de boxes, {driver}. Atento a la orden de box.',
+      'Si paramos salimos con aire limpio, {driver}. Gran oportunidad de undercut.',
+      'Aire limpio en la salida de boxes, {driver}.',
     ],
     bono: [
-      'La ventana de parada ofrece aire limpio al reingreso. Momento óptimo para undercut o extensión.',
-      'Ventana de parada abierta con aire limpio garantizado, {driver}.',
+      'Una parada nos deja en aire limpio al reingreso. Momento óptimo para el undercut.',
+      'Aire limpio disponible a la salida de boxes, {driver}.',
     ],
     standard: [
-      'Ventana de boxes con aire limpio disponible. Oportunidad óptima de estrategia.',
-      'Reingreso con aire limpio disponible en boxes, {driver}.',
+      'Una parada nos deja en aire limpio. Oportunidad óptima de estrategia.',
+      'Reingreso con aire limpio disponible, {driver}.',
     ],
   },
   ers_fault: {
@@ -565,14 +565,14 @@ export const radio_phrases = {
   },
   tyre_crossover: {
     colapinto: [
-      '¡Llegamos a la ventana de cruce de neumáticos, {driver}! A boxes en esta vuelta, ¡a boxes ya!',
+      '¡Llegamos a la ventana de cruce de neumáticos, {driver}! Toca cambiar gomas.',
     ],
     bono: [
-      'Condiciones en ventana de cruce, {driver}. Entra a boxes esta vuelta para cambio de compuesto.',
+      'Condiciones en ventana de cruce, {driver}. Toca cambio de compuesto.',
     ],
     standard: [
-      '¡Ventana de cruce alcanzada! Entra a boxes esta vuelta para cambio de neumáticos.',
-      'Ventana de cruce abierta, {driver}. Box en esta vuelta, box box.',
+      '¡Ventana de cruce alcanzada! Toca cambio de neumáticos.',
+      'Ventana de cruce abierta, {driver}. Cambiamos neumáticos.',
     ],
   },
   flags_sc_in: {
@@ -801,30 +801,30 @@ export const radio_phrases = {
   },
   tyre_crossover_wet: {
     colapinto: [
-      '¡Hay demasiada agua en pista, riesgo de aquaplaning! ¡A boxes esta vuelta, {driver}, necesitamos gomas de lluvia extrema!',
-      '¡El agua estancada es tremenda para intermedios! ¡A boxes ahora, boxes boxes, ponemos gomas de lluvia!',
+      '¡Hay demasiada agua en pista, riesgo de aquaplaning! ¡Necesitamos gomas de lluvia extrema, {driver}!',
+      '¡El agua estancada es tremenda para intermedios! ¡Ponemos gomas de lluvia!',
     ],
     bono: [
-      'La pista está saturada, demasiado agua para intermedias, {driver}. Boxes en esta vuelta para neumáticos de lluvia extrema.',
-      'Riesgo crítico de aquaplaning. Boxes esta vuelta, boxes boxes para neumático de lluvia.',
+      'La pista está saturada, demasiada agua para intermedias, {driver}. Necesitamos neumáticos de lluvia extrema.',
+      'Riesgo crítico de aquaplaning. Necesitamos neumático de lluvia.',
     ],
     standard: [
-      'Pista saturada con agua estancada, riesgo inminente de aquaplaning. Entra a boxes esta vuelta por neumáticos de lluvia extrema.',
-      'Transición a lluvia extrema confirmada. Boxes esta vuelta para montar neumáticos de lluvia.',
+      'Pista saturada con agua estancada, riesgo inminente de aquaplaning. Necesitamos neumáticos de lluvia extrema.',
+      'Transición a lluvia extrema confirmada. Montamos neumáticos de lluvia.',
     ],
   },
   tyre_crossover_inter: {
     colapinto: [
-      '¡La lluvia aflojó y el agua está drenando! ¡El intermedio es muchísimo más rápido ahora, a boxes esta vuelta, {driver}!',
-      '¡Se está secando la huella para intermedios! ¡A boxes en esta vuelta, boxes boxes!',
+      '¡La lluvia aflojó y el agua está drenando! ¡El intermedio es muchísimo más rápido ahora, {driver}!',
+      '¡Se está secando la huella para intermedios! ¡Vamos a intermedios!',
     ],
     bono: [
-      'La lluvia ha remitido y el agua estancada se dispersa, {driver}. El intermedio es más rápido ahora, boxes para intermedias.',
-      'Pista mejorando de lluvia extrema. Neumático intermedio es el más rápido, boxes en esta vuelta.',
+      'La lluvia ha remitido y el agua estancada se dispersa, {driver}. El intermedio es más rápido ahora.',
+      'Pista mejorando de lluvia extrema. El neumático intermedio es el más rápido.',
     ],
     standard: [
-      'La lluvia ha disminuido y el agua estancada se dispersa. El neumático intermedio es mucho más rápido ahora, boxes por intermedios.',
-      'Ventana de transición a intermedios abierta. Entra a boxes para cambiar de lluvia extrema a intermedios.',
+      'La lluvia ha disminuido y el agua estancada se dispersa. El neumático intermedio es mucho más rápido ahora.',
+      'Ventana de transición a intermedios abierta. Cambiamos de lluvia extrema a intermedios.',
     ],
   },
   brake_bias_ok: {
@@ -995,4 +995,88 @@ export const radio_phrases = {
       'Alto desgaste detectado en el ICE. La velocidad final y potencia están degradadas.',
     ],
   },
+  pit_entry_reminder: {
+    colapinto: [
+      '¡Box box box! Se viene la entrada de boxes, {driver}!',
+    ],
+    bono: [
+      'Box, box. Entrada de boxes a la vista, {driver}.',
+    ],
+    standard: [
+      'Box, box. Se acerca la entrada de boxes.',
+      'Entrada de boxes a la vista, {driver}. Box, box.',
+    ],
+  },
 } satisfies Record<RadioAlertCategory, RadioPhrasePool>;
+
+/**
+ * What is said after a call to pit about when to: an instruction ("box this lap") or an option
+ * (a Safety Car stop). Keyed by the directive's box timing.
+ */
+export const box_timing_phrases = {
+  instruction: {
+    this_lap: {
+      colapinto: [
+        '¡Box esta vuelta, box box!',
+      ],
+      bono: [
+        'Box esta vuelta, box box.',
+      ],
+      standard: [
+        'Box esta vuelta, box box.',
+        'Entra a boxes esta vuelta.',
+      ],
+    },
+    next_lap: {
+      colapinto: [
+        'Ya no llegamos a la entrada de boxes, ¡box la vuelta que viene!',
+      ],
+      bono: [
+        'Demasiado tarde para esta entrada, box la próxima vuelta.',
+      ],
+      standard: [
+        'Ya pasó la entrada de boxes. Box la próxima vuelta.',
+        'Quédate fuera, box la próxima vuelta.',
+      ],
+    },
+    asap: {
+      colapinto: [
+        '¡Entrá a boxes en cuanto puedas!',
+      ],
+      bono: [
+        'Entra a boxes en cuanto puedas.',
+      ],
+      standard: [
+        'Entra a boxes lo antes posible.',
+      ],
+    },
+  },
+  option: {
+    this_lap: {
+      colapinto: [
+        'Todavía llegamos a parar esta vuelta.',
+      ],
+      bono: [
+        'Todavía llegamos a la entrada de boxes esta vuelta.',
+      ],
+      standard: [
+        'Aún llegamos a la entrada de boxes esta vuelta.',
+      ],
+    },
+    next_lap: {
+      colapinto: [
+        'Esta entrada ya no la llegamos, sería la vuelta que viene.',
+      ],
+      bono: [
+        'Demasiado tarde para esta entrada, sería la próxima vuelta.',
+      ],
+      standard: [
+        'Ya no llegamos a la entrada de boxes esta vuelta, sería la próxima.',
+      ],
+    },
+    asap: {
+      standard: [
+      ],
+    },
+  },
+} satisfies Record<BoxCallKind, Record<EngineerBoxTiming, RadioPhrasePool>>;

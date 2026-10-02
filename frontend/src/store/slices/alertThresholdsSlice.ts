@@ -25,6 +25,7 @@ export interface AlertThresholdsSlice {
   cornerCutWarnThreshold: number;
   rainHorizonMin: number;
   rainProbPct: number;
+  pitCallLeadM: number;
 
   setTyreWearWarningPct: (pct: number) => void;
   setTyreWearCriticalPct: (pct: number) => void;
@@ -44,6 +45,7 @@ export interface AlertThresholdsSlice {
   setCornerCutWarnThreshold: (count: number) => void;
   setRainHorizonMin: (min: number) => void;
   setRainProbPct: (pct: number) => void;
+  setPitCallLeadM: (meters: number) => void;
 }
 
 export function getInitialAlertThresholds(): Omit<
@@ -66,6 +68,7 @@ export function getInitialAlertThresholds(): Omit<
   | 'setCornerCutWarnThreshold'
   | 'setRainHorizonMin'
   | 'setRainProbPct'
+  | 'setPitCallLeadM'
 > {
   return {
     tyreWearWarningPct: RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_WARN_PCT,
@@ -86,6 +89,7 @@ export function getInitialAlertThresholds(): Omit<
     cornerCutWarnThreshold: RADIO_ALERT_CONSTANTS.DEFAULT_CORNER_CUT_WARN_THRESHOLD,
     rainHorizonMin: RADIO_ALERT_CONSTANTS.DEFAULT_RAIN_HORIZON_MIN,
     rainProbPct: RADIO_ALERT_CONSTANTS.DEFAULT_RAIN_PROB_PCT,
+    pitCallLeadM: RADIO_ALERT_CONSTANTS.DEFAULT_PIT_CALL_LEAD_M,
   };
 }
 
@@ -115,6 +119,7 @@ export function thresholdsFromSettings(
     cornerCutWarnThreshold: cfg.corner_cut_warn_threshold ?? fallback.cornerCutWarnThreshold,
     rainHorizonMin: cfg.rain_horizon_min ?? fallback.rainHorizonMin,
     rainProbPct: cfg.rain_prob_pct ?? fallback.rainProbPct,
+    pitCallLeadM: cfg.pit_call_lead_m ?? fallback.pitCallLeadM,
   };
 }
 
@@ -156,5 +161,6 @@ export const createAlertThresholdsSlice: StateCreator<
     setCornerCutWarnThreshold: createThresholdAction('cornerCutWarnThreshold', 1, 3),
     setRainHorizonMin: createThresholdAction('rainHorizonMin', 5, 30),
     setRainProbPct: createThresholdAction('rainProbPct', 20, 80),
+    setPitCallLeadM: createThresholdAction('pitCallLeadM', 200, 1500),
   };
 };

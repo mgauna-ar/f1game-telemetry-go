@@ -439,6 +439,8 @@ export const ai_engineer = {
     pitCleanAir: 'Aire Limpio a la Salida de Boxes',
     tyreSet: 'Juego de Neumáticos Listo para la Parada',
     pitLane: 'Limitador, Tiempo de Parada y Cumplimiento de Sanciones',
+    pitEntryReminder: 'Recordatorio de Box Antes de la Entrada',
+    pitCallLead: 'Distancia del Llamado a Boxes Antes de la Entrada',
     // 10. Coaching
     coachingTitle: 'Coaching del Piloto',
     coachingDesc: 'Diferencias por sector, vuelta de formación, grilla y largada, vuelta de entrada en clasificación',

@@ -1313,16 +1313,19 @@ func TestEngineerEngine_GlobalRadioCooldown(t *testing.T) {
 	header := createTestHeader(packets.PacketFormat2026, 9999, 0)
 
 	sessionPkt := &packets.PacketSessionData{
-		Header:      header,
-		SessionType: packets.SessionRace,
+		Header:                 header,
+		SessionType:            packets.SessionRace,
+		TrackLength:            5000,
+		PitStopWindowIdealLap:  4,
+		PitStopWindowLatestLap: 8,
 	}
 	engine.ProcessPacket(ctx, sessionPkt)
 
-	// 1. Lap 5 triggers clean_air_pit_rejoin (DirectiveCategoryPitStrategy, UrgencyLow)
+	// 1. Lap 5, inside the pit window, triggers pit_clean_air (DirectiveCategoryPitStrategy, UrgencyLow)
 	lapPkt := &packets.PacketLapData{
 		Header: header,
 		LapData: [packets.MaxCars]packets.LapData{
-			{CurrentLapNum: 5, DriverStatus: packets.DriverStatusOnTrack},
+			{CurrentLapNum: 5, LapDistance: 100, TotalDistance: 20100, DriverStatus: packets.DriverStatusOnTrack},
 		},
 	}
 	engine.ProcessPacket(ctx, lapPkt)

@@ -30,7 +30,6 @@ const (
 	MinStintLapsForReset           = 3
 	PostPitSuppressionLaps         = 1
 	TyreCrossoverMinStintLaps      = 2
-	CleanAirMinRemainingLaps       = 4
 
 	// Race start & pit stop procedure heuristics
 	GridApproachDistanceFraction  = 0.92   // Within final 8% of track on formation lap
@@ -87,7 +86,7 @@ const (
 	DefaultPitLaneLossSeconds    = 21.0
 	CleanAirTrafficWindowSeconds = 3.0
 	UndercutGapDefaultSec        = 2.5
-	CleanAirPeriodicLapModulo    = 5
+	CleanAirMinTyreAgeLaps       = 3 // Tyres younger than this were just fitted: no clean air call
 
 	// Coaching & Sector delta thresholds
 	SectorTimeLossThresholdSec     = 0.35
@@ -101,6 +100,12 @@ const (
 	RivalDefendGapDefaultSec = 1.0
 	RivalAttackGapDefaultSec = 1.2
 	RivalRearmHysteresisSec  = 0.5 // Gap beyond the threshold before the same rival can be called again
+
+	// Pit entry and box calls
+	DefaultPitCallLeadM = 500.0 // How far before the pit entry a "box this lap" call must come
+	PitEntryMaxSamples  = 9     // Pit entry samples kept per track; the entry is their median
+	// PitEntryReminderMinGapMs: no pit entry reminder this soon after the call to box.
+	PitEntryReminderMinGapMs = 15_000
 
 	// Qualifying & Shootout thresholds
 	QualyCleanAirDefaultSec             = 4.0

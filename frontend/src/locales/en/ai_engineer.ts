@@ -439,6 +439,8 @@ export const ai_engineer = {
     pitCleanAir: 'Clean Air on Rejoin',
     tyreSet: 'Tyre Set Ready for the Stop',
     pitLane: 'Pit Limiter, Stop Time & Penalty Serving',
+    pitEntryReminder: 'Box Reminder Before the Pit Entry',
+    pitCallLead: 'Box Call Distance Before the Pit Entry',
     // 10. Coaching
     coachingTitle: 'Driver Coaching',
     coachingDesc: 'Sector time deltas, formation lap, grid and launch, qualifying in-lap',

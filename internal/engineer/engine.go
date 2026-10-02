@@ -57,6 +57,14 @@ type EngineerEngine struct {
 	// Calls a passing gate (braking, radio spacing, cooldown, pause) held back, by alert key.
 	pending map[string]pendingDirective
 
+	// Box calls: the learned pit entries (kept across sessions), where the player is, calls to box
+	// waiting for the line, and the lap a call told the player to box on (0: none).
+	pitLanes  *pitLanes
+	playerPos playerTrackPosition
+	lineWait  map[string]lineWaitDirective
+	boxDueLap int
+	boxCallAt int64 // unix ms of the last call telling the player to box
+
 	// The session's red flag count only goes up, so whether a red flag is on now is tracked here:
 	// from the count going up (or RDFL) until the restart.
 	redFlagActive bool
@@ -98,6 +106,8 @@ func NewEngineerEngine(broadcaster DirectiveBroadcaster) *EngineerEngine {
 		phaseKeys:        make(map[string]bool),
 		lapKeys:          make(map[string]int),
 		pending:          make(map[string]pendingDirective),
+		pitLanes:         newPitLanes(),
+		lineWait:         make(map[string]lineWaitDirective),
 		teammateCarIndex: -1,
 		playerTeamID:     -1,
 		currentPhase:     PhaseUnknown,
@@ -174,6 +184,10 @@ func (e *EngineerEngine) resetLocked(sessionUID uint64) {
 	e.phaseKeys = make(map[string]bool)
 	e.lapKeys = make(map[string]int)
 	e.pending = make(map[string]pendingDirective)
+	e.lineWait = make(map[string]lineWaitDirective)
+	e.playerPos = playerTrackPosition{}
+	e.boxDueLap = 0
+	e.boxCallAt = 0
 	e.redFlagActive = false
 	e.redFlagCount = 0
 	e.redFlagLap = 0
@@ -257,6 +271,7 @@ func (e *EngineerEngine) ProcessPacket(ctx context.Context, pkt packets.Packet) 
 		e.latestSession = p
 	case *packets.PacketLapData:
 		e.recordLapTransitionsLocked(p)
+		e.pitLanes.learn(e.latestSession, e.latestLapData, p)
 		e.endRedFlagOnRestartLocked(p)
 		e.latestLapData = p
 	case *packets.PacketCarDamageData:
@@ -327,7 +342,16 @@ func (e *EngineerEngine) buildEvaluationContextLocked(header packets.PacketHeade
 		PacketFormat:     e.packetFormat,
 		CurrentLap:       currentLap,
 		Now:              e.nowMs(),
+		PitEntryM:        e.pitEntryLocked(),
 	}
+}
+
+// pitEntryLocked is the learned pit entry of the session's track, or 0 while unknown.
+func (e *EngineerEngine) pitEntryLocked() float32 {
+	if e.latestSession == nil {
+		return 0
+	}
+	return e.pitLanes.entry(e.latestSession.TrackId)
 }
 
 func (e *EngineerEngine) nowMs() int64 {
@@ -408,6 +432,8 @@ func (e *EngineerEngine) evaluateLocked(ctx *EvaluationContext) []Directive {
 		}
 	}
 
+	e.updatePlayerPositionLocked(ctx)
+	e.releaseLineWaitLocked()
 	emittedDirectives = append(emittedDirectives, e.releasePendingLocked(ctx.Header)...)
 
 	for _, rule := range e.rules {
@@ -431,6 +457,9 @@ func (e *EngineerEngine) evaluateLocked(ctx *EvaluationContext) []Directive {
 			}
 			switch e.gateDirectiveLocked(alertKey, cat, d.Urgency) {
 			case gateEmit:
+				if e.waitForLineLocked(d, alertKey) {
+					continue
+				}
 				prepared := e.emitDirectiveLocked(ctx.Header, d, alertKey, 0)
 				emittedDirectives = append(emittedDirectives, prepared)
 			case gateHold:
@@ -440,7 +469,7 @@ func (e *EngineerEngine) evaluateLocked(ctx *EvaluationContext) []Directive {
 		}
 	}
 
-	return emittedDirectives
+	return append(emittedDirectives, e.pitEntryReminderLocked(ctx.Header)...)
 }
 
 // holdDirectiveLocked keeps a call a passing gate blocked, so it is said once the radio is free
@@ -485,6 +514,9 @@ func (e *EngineerEngine) releasePendingLocked(header packets.PacketHeader) []Dir
 		}
 		switch e.gateDirectiveLocked(p.alertKey, string(p.directive.Category), p.directive.Urgency) {
 		case gateEmit:
+			if e.waitForLineLocked(p.directive, p.alertKey) {
+				continue
+			}
 			released = append(released, e.emitDirectiveLocked(header, p.directive, p.alertKey, now-p.heldAt))
 		case gateDrop:
 			delete(e.pending, p.alertKey)
@@ -804,18 +836,7 @@ func (e *EngineerEngine) gateDirectiveLocked(alertKey, category, urgency string)
 		return gateDrop
 	}
 
-	// 4. Pit Box & Pit Limiter Silence:
-	// While stationary in the pit box or running with the pit speed limiter active,
-	// silence non-critical driving directives (permitting only session-level flags or weather).
-	playerLap := e.getPlayerLapDataLocked()
-	playerStatus := e.getPlayerCarStatusLocked()
-	isPitLimiterActive := playerStatus != nil && playerStatus.PitLimiterStatus == 1
-	isPitBoxActive := playerLap != nil && playerLap.PitStatus == packets.PitStatusInPitArea
-	if (isPitLimiterActive || isPitBoxActive) && urgency != UrgencyCritical && category != string(DirectiveCategoryFlags) && category != string(DirectiveCategoryWeather) {
-		return gateDrop
-	}
-
-	// 5. Time Trial session integrity:
+	// 4. Time Trial session integrity:
 	// In Time Trial mode, suppress race-specific categories (fuel, pit strategy, rivals, teammate).
 	if e.latestSession != nil && e.latestSession.SessionType == packets.SessionTimeTrial {
 		if category == string(DirectiveCategoryFuel) || category == string(DirectiveCategoryPitStrategy) || category == string(DirectiveCategoryRivals) || category == string(DirectiveCategoryTeammate) {
@@ -823,21 +844,32 @@ func (e *EngineerEngine) gateDirectiveLocked(alertKey, category, urgency string)
 		}
 	}
 
-	// 6. Driving phase rule validation
+	// 5. Driving phase rule validation
 	if !e.isPhaseAllowed(alertKey) {
 		return gateDrop
 	}
 
-	// 7. Deduplication check
+	// 6. Deduplication check
 	if e.isDeduplicated(alertKey, isCritical) {
 		return gateDrop
 	}
 
-	// 8. Repeat limit, at every urgency: a call never repeats within its MinRepeatMs (a crash's
+	// 7. Repeat limit, at every urgency: a call never repeats within its MinRepeatMs (a crash's
 	// several collision events, a flickering blue flag, an engine that stays hot).
 	now := e.nowMs()
 	if last, said := e.lastDirectives[alertKey]; said && now-last < e.minRepeatMs(alertKey) {
 		return gateDrop
+	}
+
+	// 8. Pit box & pit limiter: while stationary in the box or on the limiter, non-critical calls
+	// wait for the pit exit. Flags, weather and the pit lane's own calls (stop time, penalty) don't.
+	playerLap := e.getPlayerLapDataLocked()
+	playerStatus := e.getPlayerCarStatusLocked()
+	isPitLimiterActive := playerStatus != nil && playerStatus.PitLimiterStatus == 1
+	isPitBoxActive := playerLap != nil && playerLap.PitStatus == packets.PitStatusInPitArea
+	if (isPitLimiterActive || isPitBoxActive) && urgency != UrgencyCritical && category != string(DirectiveCategoryFlags) &&
+		category != string(DirectiveCategoryWeather) && category != string(DirectiveCategoryPitStrategy) {
+		return gateHold
 	}
 
 	// 9. Paused game: say it once the game runs again
@@ -851,7 +883,7 @@ func (e *EngineerEngine) gateDirectiveLocked(alertKey, category, urgency string)
 	}
 
 	// 11. Per-category chatter cooldown check
-	if e.isChatterCooldownActive(category, isCritical) {
+	if !e.alertRules[alertKey].SkipCategoryCooldown && e.isChatterCooldownActive(category, isCritical) {
 		return gateHold
 	}
 
@@ -894,6 +926,7 @@ func (e *EngineerEngine) emitDirectiveLocked(header packets.PacketHeader, direct
 	directive.Type = DirectiveMessageType
 	directive.Timestamp = now
 	directive.TTLMs = e.speechTTLMs(alertKey, heldForMs)
+	e.setBoxTimingLocked(&directive)
 	if directive.SubAlert == "" {
 		directive.SubAlert = alertKey
 	}
@@ -917,6 +950,10 @@ func (e *EngineerEngine) broadcastDirective(broadcaster DirectiveBroadcaster, di
 		slog.Error("Failed to marshal engineer directive", "alertKey", directive.SubAlert, "error", err)
 		return
 	}
-	slog.Info("Proactive directive emitted", "category", string(directive.Category), "subAlert", directive.SubAlert, "urgency", string(directive.Urgency), "message", directive.Message)
+	attrs := []any{"category", string(directive.Category), "subAlert", directive.SubAlert, "urgency", string(directive.Urgency), "message", directive.Message}
+	if directive.Box != "" {
+		attrs = append(attrs, "box", string(directive.Box))
+	}
+	slog.Info("Proactive directive emitted", attrs...)
 	broadcaster.Broadcast(data)
 }

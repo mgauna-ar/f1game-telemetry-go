@@ -2,6 +2,7 @@ import React from 'react';
 import { Wrench } from 'lucide-react';
 import { useI18n } from '../../../context/I18nContext';
 import { SubsystemAccordion } from '../SubsystemAccordion';
+import { ThresholdSlider } from '../ThresholdSlider';
 import { ToggleRow } from '../SettingControls';
 import styles from '../RadioSettings.module.css';
 import { useRadioSettingsStore } from '../../../store/useRadioSettingsStore';
@@ -27,6 +28,10 @@ export const PitAccordion: React.FC<PitAccordionProps> = ({ isExpanded, onToggle
   const setSubTyreSet = useRadioSettingsStore((s) => s.setSubTyreSet);
   const subPitLane = useRadioSettingsStore((s) => s.subPitLane);
   const setSubPitLane = useRadioSettingsStore((s) => s.setSubPitLane);
+  const subPitEntryReminder = useRadioSettingsStore((s) => s.subPitEntryReminder);
+  const setSubPitEntryReminder = useRadioSettingsStore((s) => s.setSubPitEntryReminder);
+  const pitCallLeadM = useRadioSettingsStore((s) => s.pitCallLeadM);
+  const setPitCallLeadM = useRadioSettingsStore((s) => s.setPitCallLeadM);
 
   return (
     <SubsystemAccordion
@@ -71,6 +76,24 @@ export const PitAccordion: React.FC<PitAccordionProps> = ({ isExpanded, onToggle
           label={t('ai_engineer.proactiveAlerts.pitLane')}
           checked={subPitLane}
           onChange={setSubPitLane}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.pitEntryReminder')}
+          checked={subPitEntryReminder}
+          onChange={setSubPitEntryReminder}
+        />
+      </div>
+
+      <div className={styles.grid2}>
+        <ThresholdSlider
+          label={t('ai_engineer.proactiveAlerts.pitCallLead')}
+          value={pitCallLeadM}
+          unit="m"
+          min={200}
+          max={1500}
+          step={50}
+          onChange={setPitCallLeadM}
         />
       </div>
     </SubsystemAccordion>

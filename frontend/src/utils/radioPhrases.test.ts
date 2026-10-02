@@ -1,9 +1,15 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { getProactiveRadioSpeech, radioPhrasePool, RADIO_PHRASE_CATALOG } from './radioPhrases';
+import {
+  BOX_TIMING_PHRASES,
+  boxTimingPhrase,
+  getProactiveRadioSpeech,
+  radioPhrasePool,
+  RADIO_PHRASE_CATALOG,
+} from './radioPhrases';
 import { RADIO_ALERT_CATEGORIES } from '../constants/radioAlertCategories';
 import type { RadioPersona } from '../constants/f1';
 import type { LocaleCode } from '../locales';
-import type { EngineerAlertKey, RadioAlertCategory } from '../types/telemetry';
+import type { EngineerAlertKey, EngineerBoxTiming, RadioAlertCategory } from '../types/telemetry';
 
 const LOCALES: LocaleCode[] = ['en', 'es'];
 const PERSONAS: RadioPersona[] = ['bono', 'colapinto', 'custom'];
@@ -131,6 +137,77 @@ describe('radioPhrases', () => {
         }
       }
     }
+  });
+
+  describe('calls to pit', () => {
+    // Calls the engine sends with a box timing: their phrases leave the timing to it.
+    const BOX_CATEGORIES: RadioAlertCategory[] = [
+      'tyre_puncture',
+      'wing_damage',
+      'tyre_crossover',
+      'tyre_crossover_inter',
+      'tyre_crossover_wet',
+      'pit_window_open',
+      'pit_window_close',
+      'pit_clean_air',
+      'safety_car',
+      'vsc',
+    ];
+    const TIMINGS: EngineerBoxTiming[] = ['this_lap', 'next_lap', 'asap'];
+
+    it.each(LOCALES)('leave out when to box in %s, so it never contradicts the timing', (language) => {
+      const timingWords =
+        language === 'es'
+          ? /esta vuelta|pr[oó]xima vuelta|ya mismo|inmediatamente|\bahora\b.*box/i
+          : /this lap|next lap|immediately|box now/i;
+      for (const category of BOX_CATEGORIES) {
+        for (const template of allTemplates(language, category)) {
+          expect(template, `${language}/${category}`).not.toMatch(timingWords);
+        }
+      }
+    });
+
+    it.each(LOCALES)('have something to say for every timing and persona in %s', (language) => {
+      for (const timing of TIMINGS) {
+        for (const persona of PERSONAS) {
+          expect(
+            boxTimingPhrase('tyre_puncture', timing, language, persona),
+            `${language}/${persona}/${timing}`
+          ).not.toBe('');
+        }
+        expect(BOX_TIMING_PHRASES[language].option[timing]).toBeDefined();
+      }
+    });
+
+    it('ends an order to pit with when to box', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      expect(getProactiveRadioSpeech('tyre_puncture', 'en', 'custom', '', 'this_lap')).toBe(
+        'Puncture, puncture! Bring it in carefully. Box this lap, box box.'
+      );
+      expect(getProactiveRadioSpeech('tyre_puncture', 'en', 'custom', '', 'next_lap')).toBe(
+        'Puncture, puncture! Bring it in carefully. Too late for this pit entry. Box next lap.'
+      );
+      expect(getProactiveRadioSpeech('tyre_puncture', 'es', 'colapinto', '', 'asap')).toBe(
+        '¡Pinchadura, pinchadura! Entrá despacito. ¡Entrá a boxes en cuanto puedas!'
+      );
+    });
+
+    it('offers a Safety Car stop instead of ordering it', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      expect(getProactiveRadioSpeech('safety_car', 'en', 'custom', '', 'this_lap')).toBe(
+        'Safety Car deployed, Safety Car. Keep delta positive, stand by for the pit call. Pit entry is still on this lap.'
+      );
+      expect(getProactiveRadioSpeech('safety_car', 'en', 'custom', '', 'asap')).toBe(
+        'Safety Car deployed, Safety Car. Keep delta positive, stand by for the pit call.'
+      );
+    });
+
+    it('says nothing about timing on a call without one', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      expect(getProactiveRadioSpeech('wing_damage', 'en', 'custom')).toBe(
+        'Front wing damage detected. Downforce loss on the front axle.'
+      );
+    });
   });
 
   it('addresses the driver by callsign', () => {

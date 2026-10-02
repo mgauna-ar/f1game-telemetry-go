@@ -41,6 +41,7 @@ function serverSettings(overrides: Partial<EngineerSettingsResponse> = {}): Engi
     corner_cut_warn_threshold: 2,
     rain_horizon_min: 10,
     rain_prob_pct: 50,
+    pit_call_lead_m: 500,
     trigger_preset: RADIO_TRIGGER_PRESETS.IMMERSIVE,
     alert_switches: immersiveSwitches(),
     ...overrides,

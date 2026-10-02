@@ -143,6 +143,10 @@ func run(cfg ServerConfig) error {
 	inputMgr.Start(ctx)
 
 	engineerEngine := engineer.NewEngineerEngine(engineerHub)
+	// Pit entries learned in earlier races time the calls to box from the first lap.
+	if err := engineerEngine.UsePitLaneStore(ctx, repo); err != nil {
+		slog.Warn("Could not load the learned pit lanes", "error", err)
+	}
 	liveBroadcaster := session.NewLiveBroadcaster(telemetryHub)
 
 	// 4. Initialize HTTP Server with bound TCP listener

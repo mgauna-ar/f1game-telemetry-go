@@ -104,6 +104,17 @@ describe('useProactiveTelemetryRadio WebSocket hook', () => {
     expect(onTriggerAlert).toHaveBeenCalledWith(expect.objectContaining({ category: 'rival_defend', ttlMs: 5000 }));
   });
 
+  it('passes on when the driver can pit', () => {
+    const onTriggerAlert = vi.fn();
+    renderHook(() => useProactiveTelemetryRadio({ isRadioEnabled: true, onTriggerAlert }));
+
+    send(makeEngineerDirective({ id: 'dir-box', sub_alert: 'tyre_puncture', urgency: 'critical', box: 'next_lap' }));
+
+    expect(onTriggerAlert).toHaveBeenCalledWith(
+      expect.objectContaining({ category: 'tyre_puncture', box: 'next_lap' })
+    );
+  });
+
   it.each([
     ['damage_wing', 'wing_damage'],
     ['brake_hot', 'brake_overheat'],

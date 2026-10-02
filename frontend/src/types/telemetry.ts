@@ -60,10 +60,15 @@ export interface TelemetrySample extends LiveCarTelemetry {
  */
 export type {
   EngineerAlertKey,
+  EngineerBoxTiming,
   EngineerDirective,
   EngineerDirectiveCategory,
   EngineerUrgency,
 } from './generated/engineer';
+import type { EngineerBoxTiming } from './generated/engineer';
+
+/** How a call that mentions pitting puts it: an order to box, or a stop the team offers. */
+export type BoxCallKind = 'instruction' | 'option';
 
 /** Every message /ws/engineer sends, told apart by `type`. */
 export type {
@@ -94,6 +99,7 @@ export type RadioAlertCategory =
   | 'fuel_deficit'
   | 'undercut_window'
   | 'pit_clean_air'
+  | 'pit_entry_reminder'
   | 'pit_window_open'
   | 'rival_defend'
   | 'rival_attack'
@@ -168,6 +174,8 @@ export interface RadioAlertPayload {
   emotion: RadioEmotion;
   /** How long the call stays worth saying while it waits behind other speech (ms). */
   ttlMs?: number;
+  /** When the driver can pit, on a call that asks them to. */
+  box?: EngineerBoxTiming;
 }
 
 export interface RadioEmotion {

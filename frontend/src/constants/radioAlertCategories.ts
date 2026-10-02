@@ -54,6 +54,7 @@ export const RADIO_ALERT_CATEGORIES: Readonly<Record<EngineerAlertKey, RadioAler
   penalties: 'penalties_incurred',
   penalties_incurred: 'penalties_incurred',
   pit_clean_air: 'pit_clean_air',
+  pit_entry_reminder: 'pit_entry_reminder',
   pit_limiter_exit: 'pit_limiter_exit',
   pit_limiter_overspeed: 'pit_limiter_overspeed',
   pit_serve_penalty: 'pit_serve_penalty',

@@ -101,6 +101,9 @@ type AlertKeyConfig struct {
 	// MinRepeatMs is the shortest gap before the call is made again, at any urgency. Zero means
 	// DefaultMinRepeatMs.
 	MinRepeatMs int64
+	// SkipCategoryCooldown lets the call through right after another of its category: a step of
+	// the pit stop, said when it happens.
+	SkipCategoryCooldown bool
 }
 
 // Tuning holds the race engineer values the driver sets in the dashboard: radio spacing and
@@ -129,6 +132,9 @@ type Tuning struct {
 	CornerCutWarnThreshold int     `json:"corner_cut_warn_threshold"`
 	RainHorizonMin         float32 `json:"rain_horizon_min"`
 	RainProbPct            float32 `json:"rain_prob_pct"`
+	// PitCallLeadM is how far before the pit entry a call to box this lap must come; later than
+	// that the call says to box next lap.
+	PitCallLeadM float32 `json:"pit_call_lead_m"`
 }
 
 // DefaultTuning returns the built-in radio spacing and alert thresholds.
@@ -154,6 +160,7 @@ func DefaultTuning() Tuning {
 		CornerCutWarnThreshold: CornerCutWarnDefaultThreshold,
 		RainHorizonMin:         WeatherRainHorizonMinutes,
 		RainProbPct:            WeatherRainTransitionProbPct,
+		PitCallLeadM:           DefaultPitCallLeadM,
 	}
 }
 
@@ -217,6 +224,10 @@ type EngineerDirective struct {
 	// TTLMs is how long after it arrives the call is still worth saying; a dashboard drops it
 	// from its speech queue after that.
 	TTLMs int64 `json:"ttl_ms"`
+	// Box is when the driver can pit, on a call that asks them to (BoxCall).
+	Box BoxTiming `json:"box,omitempty" tstype:"EngineerBoxTiming"`
+	// BoxCall says whether the call asks the driver to pit; the rule sets it.
+	BoxCall BoxCall `json:"-"`
 }
 
 // Directive is an alias for EngineerDirective for concise usage.
@@ -243,6 +254,9 @@ type EvaluationContext struct {
 	PacketFormat     uint16
 	CurrentLap       int
 	Now              int64
+	// PitEntryM is the track's pit entry as a lap distance, learned from the cars that pit; 0
+	// while unknown.
+	PitEntryM float32
 }
 
 // PlayerLap returns the player car's LapData if available.
@@ -254,6 +268,15 @@ func (ctx *EvaluationContext) PlayerLap() *packets.LapData {
 }
 
 // PlayerStatus returns the player car's CarStatusData if available.
+// BoxTiming is when the player could pit if told to now.
+func (ctx *EvaluationContext) BoxTiming() BoxTiming {
+	lap := ctx.PlayerLap()
+	if lap == nil || ctx.Session == nil {
+		return BoxASAP
+	}
+	return boxTimingAt(lap.LapDistance, float32(ctx.Session.TrackLength), ctx.PitEntryM, ctx.Config.PitCallLeadM)
+}
+
 func (ctx *EvaluationContext) PlayerStatus() *packets.CarStatusData {
 	if ctx.Status == nil || ctx.PlayerCarIndex < 0 || ctx.PlayerCarIndex >= len(ctx.Status.CarStatusData) {
 		return nil

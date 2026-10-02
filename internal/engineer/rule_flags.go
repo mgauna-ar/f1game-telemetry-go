@@ -257,6 +257,7 @@ func (r *FlagsRule) evaluateSafetyCar(ctx *EvaluationContext) *Directive {
 			Title:    "Safety Car Deployed",
 			Message:  "Full Safety Car deployed! Maintain delta positive, stand by for pit stop window.",
 			Urgency:  UrgencyCritical,
+			BoxCall:  BoxCallOption,
 		}
 	case packets.SafetyCarVirtual:
 		return &Directive{
@@ -266,6 +267,7 @@ func (r *FlagsRule) evaluateSafetyCar(ctx *EvaluationContext) *Directive {
 			Title:    "VSC Deployed",
 			Message:  "Virtual Safety Car (VSC) deployed! Maintain delta, no overtaking.",
 			Urgency:  UrgencyCritical,
+			BoxCall:  BoxCallOption,
 		}
 	case packets.SafetyCarNone:
 		if prevStatus == packets.SafetyCarFull || prevStatus == packets.SafetyCarVirtual {
