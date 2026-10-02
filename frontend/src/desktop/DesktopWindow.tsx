@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useId, useState } from 'react';
+import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { ExternalLink, Power } from 'lucide-react';
 import { useI18n } from '../context/I18nContext';
 import { useLiveStatus } from '../hooks/useLiveStatus';
@@ -16,6 +16,7 @@ import { desktopClient } from '../utils/desktopClient';
 import { liveSessionLabel } from '../utils/liveSessionLabel';
 import type { DesktopState, DesktopUpdate } from '../types/desktop';
 import type { SystemVersion } from '../types/system';
+import { useFitWindowToContent } from './useFitWindowToContent';
 import styles from './DesktopWindow.module.css';
 
 const LOGO_SIZE = 44;
@@ -67,6 +68,8 @@ export const DesktopWindow: React.FC = () => {
   const [stopped, setStopped] = useState(false);
   const startupHeadingId = useId();
   const otherIps = otherDeviceIps(endpoint);
+  const windowRef = useRef<HTMLElement>(null);
+  useFitWindowToContent(windowRef);
 
   // The app window's title bar shows the app's name, not the dashboard's long title
   useEffect(() => {
@@ -138,7 +141,7 @@ export const DesktopWindow: React.FC = () => {
   const controls = desktop !== null && desktop !== 'unavailable' ? desktop : null;
 
   return (
-    <main className={styles.window}>
+    <main ref={windowRef} className={styles.window}>
       <header className={styles.header}>
         <F1TelemetryLogo size={LOGO_SIZE} />
         <div>

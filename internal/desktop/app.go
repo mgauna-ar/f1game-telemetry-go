@@ -13,7 +13,7 @@ import (
 // The app window's size: a small panel, not a second dashboard.
 const (
 	windowWidth  = 440
-	windowHeight = 680
+	windowHeight = 720
 	// windowPath is the dashboard page the app window shows.
 	windowPath = "/desktop"
 )
