@@ -727,8 +727,11 @@ func TestRivalsRule_TableDriven(t *testing.T) {
 		if dirs[0].SubAlert != "rival_defend" {
 			t.Errorf("expected rival_defend, got %s", dirs[0].SubAlert)
 		}
-		if !strings.Contains(dirs[0].Message, "DRS threat") {
-			t.Errorf("expected 2025 message to mention DRS threat: %s", dirs[0].Message)
+		if strings.Contains(dirs[0].Message, "DRS") {
+			t.Errorf("expected no DRS in the message while the car behind can't use it: %s", dirs[0].Message)
+		}
+		if dirs[0].Values == nil || dirs[0].Values.Behind == nil || dirs[0].Values.Behind.GapSec == 0 {
+			t.Errorf("expected the gap behind in the values: %+v", dirs[0].Values)
 		}
 		if !strings.Contains(dirs[0].Message, "MEDIUM tyres") {
 			t.Errorf("expected message to mention rival tyres: %s", dirs[0].Message)
@@ -1322,7 +1325,7 @@ func TestFlagsRule_VSCAndPenalties(t *testing.T) {
 		Phase:          PhaseRacing,
 	}
 	dirsPnl := rule.Evaluate(ctxDriveThrough)
-	if len(dirsPnl) != 1 || dirsPnl[0].SubAlert != "penalties_incurred" || !strings.Contains(dirsPnl[0].Message, "Drive-through penalty") {
+	if len(dirsPnl) != 1 || dirsPnl[0].SubAlert != "penalty_drive_through" || !strings.Contains(dirsPnl[0].Message, "Drive-through penalty") {
 		t.Fatalf("expected drive-through penalty directive, got %+v", dirsPnl)
 	}
 }
@@ -1910,7 +1913,7 @@ func TestPhase4ProceduresAndEvents(t *testing.T) {
 			Phase:          PhaseRacing,
 		}
 		dirsSlow := ruleSlow.Evaluate(ctxSlow)
-		if len(dirsSlow) != 1 || !strings.Contains(dirsSlow[0].Message, "maintaining track position") {
+		if len(dirsSlow) != 1 || dirsSlow[0].SubAlert != "start_reaction_slow" {
 			t.Fatalf("expected slow start reaction alert, got %+v", dirsSlow)
 		}
 	})

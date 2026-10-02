@@ -111,7 +111,7 @@ export function getProactiveRadioSpeech(
 }
 
 /** The number placeholders a phrase can use; `{driver}` is the callsign. */
-const NUMBER_PLACEHOLDER = /{(position|gap|rate|laps|minutes|pole_gap)}/g;
+const NUMBER_PLACEHOLDER = /{(position|gap|rate|laps|minutes|pole_gap|count|penalty_sec|stop_sec)}/g;
 
 /** The numbers a call says, written the listener's way, by placeholder. */
 function callNumbers(values: DirectiveValues | undefined, language: LocaleCode): Record<string, string> {
@@ -122,6 +122,9 @@ function callNumbers(values: DirectiveValues | undefined, language: LocaleCode):
   if (values.minutes && values.minutes > 1) numbers.minutes = String(values.minutes);
   if (values.tyre_laps_left) numbers.laps = String(values.tyre_laps_left);
   if (values.pole_gap_sec) numbers.pole_gap = formatThousandths(values.pole_gap_sec, language);
+  if (values.count) numbers.count = String(values.count);
+  if (values.penalty_sec) numbers.penalty_sec = String(values.penalty_sec);
+  if (values.stop_sec) numbers.stop_sec = formatTenths(values.stop_sec, language);
   // A traffic call is about one car, ahead or behind.
   const car = values.ahead ?? values.behind;
   if (car) numbers.gap = formatTenths(car.gap_sec, language);

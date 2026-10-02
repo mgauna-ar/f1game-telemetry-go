@@ -69,16 +69,28 @@ export const radio_phrases = {
   },
   tyre_wear: {
     colapinto: [
-      'Desgaste alto en las gomas, {driver}. Cuidá la tracción en salida de curva.',
-      'Las gomas están sufriendo, {driver}. Gestioná el ritmo y no patines.',
+      'Las gomas empiezan a gastarse, {driver}. Cuidá la tracción a la salida de las curvas.',
     ],
     bono: [
-      'Desgaste elevado en los neumáticos. Gestiona el ritmo y cuida las gomas.',
-      'Desgaste crítico en los neumáticos, {driver}. Modo gestión activado.',
+      'Los neumáticos empiezan a caer, {driver}. Cuida los traseros a la salida de las curvas lentas.',
+      'El desgaste va subiendo. Controla los deslizamientos.',
     ],
     standard: [
-      'Desgaste elevado en los neumáticos. Gestiona el ritmo y cuida las gomas.',
-      'Degradación alta de neumáticos, {driver}. Prioriza tracción y cuida la goma.',
+      'El desgaste va subiendo. Controla los deslizamientos y cuida los neumáticos.',
+      'Los neumáticos empiezan a caer, {driver}. Tracción suave.',
+    ],
+  },
+  tyre_wear_critical: {
+    colapinto: [
+      '¡Las gomas están casi terminadas, {driver}! Cuidalas.',
+    ],
+    bono: [
+      'Los neumáticos están casi acabados, {driver}. Hay que cuidar cada curva.',
+      'Desgaste crítico. Protege los neumáticos.',
+    ],
+    standard: [
+      'Desgaste crítico de neumáticos. Controla el ritmo y protégelos.',
+      'Los neumáticos están casi acabados, {driver}. Cuida cada curva.',
     ],
   },
   tyre_overheat: {
@@ -97,14 +109,14 @@ export const radio_phrases = {
   },
   tyre_cold: {
     colapinto: [
-      'Gomas frías, {driver}. Hacé zig-zag para meterle temperatura a la carcasa antes de relanzar.',
+      'Gomas frías, {driver}. Metele temperatura.',
     ],
     bono: [
-      'Neumáticos fríos. Haz zig-zag para meter temperatura en la carcasa.',
+      'Neumáticos fríos, {driver}. Mete temperatura.',
     ],
     standard: [
-      'Neumáticos fríos. Haz zig-zag para meter temperatura en la carcasa.',
-      'Gomas frías, {driver}. Calienta los neumáticos antes de la bandera verde.',
+      'Neumáticos fríos. Sube la temperatura antes de empujar.',
+      'Gomas frías, {driver}. Mete temperatura.',
     ],
   },
   wing_damage: {
@@ -201,14 +213,14 @@ export const radio_phrases = {
   },
   brake_cold: {
     colapinto: [
-      'Frenos fríos, {driver}. Meteles temperatura antes de relanzar.',
+      'Frenos fríos, {driver}. Calentá los discos.',
     ],
     bono: [
-      'Frenos fríos. Calienta los discos antes de la relanzada.',
+      'Frenos fríos, {driver}. Mete temperatura en los discos.',
     ],
     standard: [
-      'Frenos fríos. Calienta los discos antes de la relanzada.',
-      'Discos de freno fríos, {driver}. Realiza frenadas de calentamiento.',
+      'Frenos fríos. Mete temperatura en los discos.',
+      'Frenos fríos, {driver}. Calienta los discos antes de empujar.',
     ],
   },
   brake_bias: {
@@ -279,26 +291,58 @@ export const radio_phrases = {
   },
   rival_defend: {
     colapinto: [
-      'Auto de atrás con DRS a menos de un segundo, {driver}. Cuidale la cuerda en la recta.',
+      'Auto de atrás a {gap}, {driver}. ¡Cerrá la puerta!',
+      'El de atrás está encima, {driver}. ¡Cerrá la puerta!',
     ],
     bono: [
-      'Rival a menos de un segundo con DRS. Defiende el interior en la recta.',
+      'Auto de atrás a menos de un segundo, a {gap}, {driver}. Defiende.',
+      'Auto de atrás a menos de un segundo, {driver}. Cubre el interior.',
     ],
     standard: [
-      'Rival a menos de un segundo con DRS. Defiende el interior en la recta.',
-      'Presión de rival detrás en zona de DRS, {driver}. Defiende la posición.',
+      'Auto de atrás a {gap} segundos. Defiende.',
+      'Auto de atrás a menos de un segundo, {driver}. Defiende tu línea.',
+    ],
+  },
+  rival_defend_drs: {
+    colapinto: [
+      'El de atrás tiene DRS, a {gap}, {driver}. ¡Cubrí el interior!',
+      'El de atrás tiene DRS, {driver}. ¡Cubrí el interior!',
+    ],
+    bono: [
+      'El auto de atrás tiene DRS, a {gap} segundos, {driver}. Defiende el interior.',
+      'El auto de atrás tiene DRS, {driver}. Defiende.',
+    ],
+    standard: [
+      'El auto de atrás tiene DRS, a {gap} segundos. Defiende.',
+      'Auto de atrás en rango de DRS, {driver}. Defiende el interior.',
     ],
   },
   rival_attack: {
     colapinto: [
-      'Estamos en zona de DRS, {driver}. Mandale modo ataque y buscalo en la recta.',
+      'Auto de adelante a {gap}, {driver}. ¡Vamos a buscarlo!',
+      'Nos acercamos al de adelante, {driver}. ¡Vamos!',
     ],
     bono: [
-      'Estamos a distancia de DRS. Usa el modo ataque en la recta.',
+      'Auto de adelante a {gap} segundos, {driver}. Mantén la presión.',
+      'Nos acercamos al auto de adelante. Mantén la presión.',
     ],
     standard: [
-      'Estamos a distancia de DRS. Usa el modo ataque en la recta.',
-      'Oportunidad de ataque con DRS, {driver}. Usa el modo adelantamiento.',
+      'Auto de adelante a {gap} segundos. Sigue empujando.',
+      'Te acercas al auto de adelante, {driver}. Mantén la presión.',
+    ],
+  },
+  rival_attack_drs: {
+    colapinto: [
+      '¡DRS sobre el de adelante, a {gap}, {driver}! Modo adelantamiento, ¡vamos!',
+      '¡DRS sobre el de adelante, {driver}! ¡Vamos!',
+    ],
+    bono: [
+      'DRS sobre el auto de adelante, a {gap} segundos, {driver}. Modo adelantamiento disponible.',
+      'DRS sobre el auto de adelante. Usa el modo adelantamiento en la recta.',
+    ],
+    standard: [
+      'DRS sobre el auto de adelante, a {gap} segundos. Modo adelantamiento disponible.',
+      'En rango de DRS del auto de adelante, {driver}. Modo adelantamiento disponible.',
     ],
   },
   qualy_traffic: {
@@ -461,26 +505,54 @@ export const radio_phrases = {
   },
   track_limits_warnings: {
     colapinto: [
-      'Llegamos a 3 advertencias de límites de pista, {driver}. Una más y nos clavan 3 segundos.',
+      'Van {count} advertencias por límites de pista, {driver}. Mantenelo dentro de las líneas blancas.',
+      'Advertencia por límites de pista, {driver}. Mantenelo dentro de las líneas blancas.',
     ],
     bono: [
-      'Tres advertencias de límites de pista. Mantén las cuatro ruedas dentro de las líneas blancas.',
+      'Son {count} advertencias por límites de pista, {driver}. Mantente en el asfalto.',
+      'Advertencia por límites de pista, {driver}. Mantente en el asfalto.',
     ],
     standard: [
-      'Tres advertencias de límites de pista. Una más y tendremos penalización.',
-      'Última advertencia de límites de pista, {driver}. Mantén el auto dentro de la línea blanca.',
+      '{count} advertencias por límites de pista. Mantén las cuatro ruedas dentro de las líneas.',
+      'Advertencia por límites de pista, {driver}. Mantente dentro de las líneas.',
     ],
   },
   penalties_incurred: {
     colapinto: [
-      'Penalización confirmada por los comisarios, {driver}. La cumpliremos en la próxima parada.',
+      'Penalización de {penalty_sec} segundos, {driver}. Cabeza fría, seguimos empujando.',
+      'Penalización de tiempo, {driver}. Seguimos empujando.',
     ],
     bono: [
-      'Penalización confirmada por los comisarios. La cumpliremos en la próxima parada.',
+      'Penalización de {penalty_sec} segundos, {driver}.',
+      'Penalización de tiempo de los comisarios, {driver}.',
     ],
     standard: [
-      'Penalización confirmada por los comisarios. La cumpliremos en la próxima parada.',
-      'Sanción impuesta por los comisarios, {driver}. La serviremos en boxes.',
+      'Penalización de {penalty_sec} segundos de los comisarios.',
+      'Penalización de tiempo confirmada, {driver}.',
+    ],
+  },
+  penalty_drive_through: {
+    colapinto: [
+      'Drive-through, {driver}. Lo cumplimos dentro de tres vueltas.',
+    ],
+    bono: [
+      'Penalización de drive-through, {driver}. Tenemos tres vueltas para cumplirla.',
+    ],
+    standard: [
+      'Penalización de drive-through. Hay que cumplirla dentro de tres vueltas.',
+      'Drive-through, {driver}. Tres vueltas para cumplirla.',
+    ],
+  },
+  penalty_stop_go: {
+    colapinto: [
+      'Stop and go, {driver}. Lo cumplimos dentro de tres vueltas.',
+    ],
+    bono: [
+      'Penalización de stop and go, {driver}. Tenemos tres vueltas para cumplirla.',
+    ],
+    standard: [
+      'Penalización de stop and go. Hay que cumplirla dentro de tres vueltas.',
+      'Stop and go, {driver}. Tres vueltas para cumplirla.',
     ],
   },
   weather_rain: {
@@ -527,16 +599,15 @@ export const radio_phrases = {
   },
   teammate_pitting: {
     colapinto: [
-      'Tu compañero entra a boxes en esta vuelta, {driver}. Meté una vuelta limpia con aire limpio.',
-      'Compañero parando en boxes, {driver}. Dale con todo.',
+      'Tu compañero entra a boxes ahora, {driver}.',
     ],
     bono: [
-      'Tu compañero de equipo entra a boxes ahora. Concéntrate en tu vuelta de entrada.',
-      'Compañero en boxes, {driver}. Pista libre para tu stint.',
+      'Tu compañero entra a boxes ahora, {driver}.',
+      'Tu compañero está en el pit lane esta vuelta.',
     ],
     standard: [
-      'Compañero de equipo en boxes. Concéntrate en tu vuelta.',
-      'Tu compañero entra a boxes ahora, {driver}. Maximiza el ritmo.',
+      'Tu compañero entra a boxes ahora.',
+      'Compañero en boxes, {driver}.',
     ],
   },
   teammate_doublestack: {
@@ -597,38 +668,86 @@ export const radio_phrases = {
   },
   rival_defend_override: {
     colapinto: [
+      'Auto de atrás a {gap} con Override, {driver}. Cuidale la cuerda.',
       'Auto de atrás con amenaza de Override y Boost a menos de un segundo, {driver}. Cuidale la cuerda.',
     ],
     bono: [
+      'Rival a {gap} segundos con amenaza de Modo Override, {driver}. Defiende el interior en recta.',
       'Rival a menos de un segundo con amenaza de Modo Override. Defiende el interior en recta.',
     ],
     standard: [
+      'Rival a {gap} segundos con amenaza de Modo Override. Defiende el interior.',
       'Rival a menos de un segundo con amenaza de Modo Override. Defiende el interior.',
       'Presión de rival detrás con Modo Override / Boost, {driver}. Cuida la posición.',
     ],
   },
   rival_attack_override: {
     colapinto: [
-      'Estamos a tiro del de adelante, {driver}. Mandale Straight Mode y activa el Boost para buscarlo.',
+      'El de adelante está a {gap}, {driver}. Mandale Straight Mode y activá el Boost.',
+      'Estamos a tiro del de adelante, {driver}. Mandale Straight Mode y activá el Boost para buscarlo.',
     ],
     bono: [
+      'Auto de adelante a {gap} segundos, {driver}. Activa Straight Mode y prepara el Modo Override.',
       'Estamos a tiro del monoplaza adelante. Activa Straight Mode y prepara el Modo Override.',
     ],
     standard: [
+      'Auto de adelante a {gap} segundos. Activa Straight Mode y despliega el Boost.',
       'Estamos a tiro del auto de adelante. Activa Straight Mode y despliega el Boost.',
       'Oportunidad de sobrepaso, {driver}. Usa Straight Mode y Modo Override.',
     ],
   },
   race_finish: {
     colapinto: [
-      '¡Bandera a cuadros! Tremenda carrera metiste, {driver}. Poné mapa de enfriamiento, levantá goma fuera de la huella y traelo despacio a parque cerrado.',
+      'Bandera a cuadros, P{position}, {driver}. Hoy no se dio, seguimos trabajando. Llevalo al parque cerrado.',
+      'Bandera a cuadros, {driver}. Llevalo al parque cerrado.',
     ],
     bono: [
-      'Bandera a cuadros. Excelente trabajo hoy, bien conducido. Pasa a modo de enfriamiento y trae el auto a parque cerrado.',
+      'Bandera a cuadros, P{position}, {driver}. Hoy no fue nuestro día. Vuelta de enfriamiento y al parque cerrado.',
+      'Bandera a cuadros, {driver}. Vuelta de enfriamiento y al parque cerrado.',
     ],
     standard: [
-      'Bandera a cuadros. Gran carrera completada. Cambia a modo de enfriamiento y dirígete a parque cerrado.',
-      '¡Carrera finalizada, {driver}! Recoge goma y trae el monoplaza a parque cerrado.',
+      'Bandera a cuadros, P{position}. Vuelta de enfriamiento y lleva el auto al parque cerrado.',
+      'Carrera terminada, {driver}. Lleva el auto al parque cerrado.',
+    ],
+  },
+  race_finish_points: {
+    colapinto: [
+      '¡Bandera a cuadros! P{position}, sumamos puntos, {driver}. Llevalo al parque cerrado.',
+      '¡Bandera a cuadros, sumamos puntos, {driver}! Llevalo al parque cerrado.',
+    ],
+    bono: [
+      'Bandera a cuadros, P{position}, {driver}. Buenos puntos hoy. Al parque cerrado.',
+      'Bandera a cuadros, puntos para nosotros, {driver}. Al parque cerrado.',
+    ],
+    standard: [
+      'Bandera a cuadros, P{position}. Puntos hoy. Lleva el auto al parque cerrado.',
+      'Bandera a cuadros, en los puntos, {driver}. Lleva el auto al parque cerrado.',
+    ],
+  },
+  race_finish_podium: {
+    colapinto: [
+      '¡P{position}! ¡Podio, {driver}! ¡Increíble, llevalo al parque cerrado!',
+      '¡Podio, {driver}! ¡Llevalo al parque cerrado!',
+    ],
+    bono: [
+      '¡Bandera a cuadros! P{position}, es podio, {driver}. Gran carrera. Al parque cerrado.',
+      'Bandera a cuadros, podio, {driver}. Al parque cerrado.',
+    ],
+    standard: [
+      'Bandera a cuadros, P{position}, podio. Gran carrera. Lleva el auto al parque cerrado.',
+      'Podio, {driver}. Lleva el auto al parque cerrado.',
+    ],
+  },
+  race_finish_win: {
+    colapinto: [
+      '¡Ganamos, {driver}! ¡P1! ¡Qué carrera! Llevalo al parque cerrado.',
+    ],
+    bono: [
+      '¡Bandera a cuadros! ¡Ganaste, {driver}! P1. Extraordinario. Al parque cerrado.',
+    ],
+    standard: [
+      'Bandera a cuadros, ¡P1! Ganaste la carrera, {driver}. Lleva el auto al parque cerrado.',
+      '¡P1, victoria! Carrera extraordinaria. Al parque cerrado.',
     ],
   },
   inlap_traffic_behind: {
@@ -711,16 +830,16 @@ export const radio_phrases = {
   },
   flags_blue: {
     colapinto: [
-      '¡Banderas azules, banderas azules {driver}! Viene el puntero atrás, dale paso limpio en la próxima curva.',
-      'Banderas azules, {driver}. Dejá pasar al auto de atrás para no comerte sanción.',
+      '¡Banderas azules, {driver}! Auto más rápido atrás, dejalo pasar limpio.',
+      '¡Banderas azules! Cedé el paso al de atrás en la próxima frenada.',
     ],
     bono: [
-      'Banderas azules, {driver}. Viene el líder detrás, cede la posición limpiamente.',
-      'Banderas azules. Deja pasar al líder en la siguiente recta.',
+      'Banderas azules, {driver}. Auto más rápido detrás, déjalo pasar limpio.',
+      'Banderas azules, banderas azules. Auto más rápido justo detrás, cede en la próxima curva.',
     ],
     standard: [
-      'Banderas azules, {driver}. Viene el líder detrás, cede la posición de forma limpia.',
-      'Banderas azules. Permite el paso al puntero que viene a doblar.',
+      'Banderas azules, {driver}. Auto más rápido detrás, déjalo pasar.',
+      'Banderas azules. Deja que el auto más rápido te doble limpio.',
     ],
   },
   flags_yellow: {
@@ -781,16 +900,16 @@ export const radio_phrases = {
   },
   race_fastest_lap: {
     colapinto: [
-      '¡Vuelta rápida, {driver}! ¡Púrpura en todos los sectores, tremendo ritmo!',
-      '¡Récord de vuelta! Volaste en los tres parciales, hermoso giro.',
+      '¡Vuelta rápida de la carrera, {driver}! ¡Qué ritmo!',
+      '¡Vuelta rápida! ¡Hermosa vuelta!',
     ],
     bono: [
-      'Vuelta rápida de la sesión, {driver}. Sectores en púrpura, impecable.',
-      'Esa es la vuelta más rápida de la carrera, gran trabajo.',
+      'Vuelta rápida, {driver}. Muy bien, mantén este ritmo.',
+      'Y esa es la vuelta rápida de la carrera. Sigue así.',
     ],
     standard: [
-      'Vuelta más rápida de la sesión. Excelente ritmo.',
-      'Nuevo récord de vuelta registrado.',
+      'Vuelta rápida de la carrera. Buen ritmo.',
+      'Esa es la vuelta rápida, {driver}. Sigue así.',
     ],
   },
   car_collision: {
@@ -851,16 +970,40 @@ export const radio_phrases = {
   },
   start_reaction_time: {
     colapinto: [
-      '¡Buena largada, {driver}! Reaccionaste rápido, ahora cuidá la cuerda en la primera curva.',
-      '¡Excelente reacción en los semáforos! Mantenete firme en la curva 1.',
+      'Buena largada, {driver}. A seguir peleando.',
     ],
     bono: [
-      'Buena reacción en la salida, {driver}. Concéntrate en la trazada de la curva 1.',
-      'Procedimiento de arrancada correcto. Ahora consolida posición.',
+      'Salida correcta, {driver}. Acomódate.',
+      'Salida limpia. Acomódate al ritmo de carrera.',
     ],
     standard: [
-      'Buena respuesta en la largada. Mantén la posición en las primeras curvas.',
-      'Salida completada. Enfócate en el ritmo de carrera.',
+      'Salida sólida. Acomódate al ritmo de carrera.',
+      'Salida limpia, {driver}.',
+    ],
+  },
+  start_reaction_fast: {
+    colapinto: [
+      '¡Qué largada, {driver}! ¡Gran reacción!',
+    ],
+    bono: [
+      'Gran reacción en la salida, {driver}.',
+      'Salida tremenda. Muy bien.',
+    ],
+    standard: [
+      'Gran reacción en la salida.',
+      'Excelente salida, {driver}.',
+    ],
+  },
+  start_reaction_slow: {
+    colapinto: [
+      'Largamos un poco lento, {driver}. Cabeza fría, lo recuperamos.',
+    ],
+    bono: [
+      'La reacción fue algo lenta, {driver}. Carrera larga, hay tiempo para recuperar.',
+    ],
+    standard: [
+      'Reacción lenta en la salida. Queda mucha carrera para recuperar.',
+      'La salida fue algo lenta, {driver}. Cabeza fría.',
     ],
   },
   pit_serve_penalty: {
@@ -879,16 +1022,44 @@ export const radio_phrases = {
   },
   pit_stop_duration: {
     colapinto: [
-      '¡Buena parada de los pibes! Gomas puestas, salí a fondo en la vuelta de salida.',
-      '¡Impecable el pit stop! A fondo ahora, dale calor a las gomas en la vuelta de salida.',
+      'Parada de {stop_sec} segundos, {driver}. ¡Empujá en la vuelta de salida!',
+      '¡Parada hecha! Empujá fuerte en la vuelta de salida.',
     ],
     bono: [
-      'Buena parada, {driver}. Cambio limpio, empuja fuerte en la vuelta de salida.',
-      'Parada completada. Neumáticos montados, a tope en la out-lap.',
+      'Parada de {stop_sec} segundos, {driver}. Empuja ahora.',
+      'Parada completa. Neumáticos puestos, empuja con gomas frías.',
     ],
     standard: [
-      'Parada en boxes completada. Empuja ahora en la vuelta de salida.',
-      'Servicio completado. Maximiza el ritmo en la vuelta de salida.',
+      'Parada de {stop_sec} segundos. Empuja ahora.',
+      'Parada completa. Empuja en la vuelta de salida.',
+    ],
+  },
+  pit_stop_fast: {
+    colapinto: [
+      '¡Qué parada de los muchachos, {stop_sec} segundos! ¡Empujá, {driver}!',
+      '¡Gran parada de los muchachos! ¡Empujá ahora!',
+    ],
+    bono: [
+      'Gran parada, {stop_sec} segundos, {driver}. Empuja ahora.',
+      'Parada rapidísima del equipo. Empuja ahora.',
+    ],
+    standard: [
+      'Gran parada, {stop_sec} segundos. Empuja ahora.',
+      'Parada rápida, {driver}. Empuja ahora.',
+    ],
+  },
+  pit_stop_slow: {
+    colapinto: [
+      'Parada lenta, {stop_sec} segundos, {driver}. Empujá fuerte, lo recuperamos.',
+      'Parada lenta, {driver}. Empujá fuerte, lo recuperamos.',
+    ],
+    bono: [
+      'Parada lenta, {stop_sec} segundos, {driver}. Perdón, recuperemos en la vuelta de salida.',
+      'La parada fue lenta, perdón. Recuperemos en la vuelta de salida.',
+    ],
+    standard: [
+      'Parada lenta, {stop_sec} segundos. Recupera en la vuelta de salida.',
+      'Fue una parada lenta, {driver}. Empuja en la vuelta de salida.',
     ],
   },
   pit_limiter_exit: {

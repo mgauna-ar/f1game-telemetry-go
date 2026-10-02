@@ -166,23 +166,25 @@ func (r *TrafficRule) Evaluate(ctx *EvaluationContext) []Directive {
 
 		if leavingBox && r.lastRecordedPitTimerMS > 0 && !r.pitTimerReported {
 			r.pitTimerReported = true
-			durationSec := float32(r.lastRecordedPitTimerMS) / 1000.0
-			var durMsg string
+			durationSec := float32(r.lastRecordedPitTimerMS) / packets.MillisPerSecond
+			subAlert := "pit_stop_duration"
+			durMsg := fmt.Sprintf("Stationary time %.1fs. Clean stop, push now.", durationSec)
 			switch {
 			case durationSec <= FastPitStopDurationSec:
+				subAlert = "pit_stop_fast"
 				durMsg = fmt.Sprintf("Rapid stop! Stationary time was %.1fs, brilliant work by the crew.", durationSec)
 			case durationSec >= SlowPitStopDurationSec:
+				subAlert = "pit_stop_slow"
 				durMsg = fmt.Sprintf("Stationary time was %.1fs, longer than planned. Let's make up time on the out-lap.", durationSec)
-			default:
-				durMsg = fmt.Sprintf("Stationary time %.1fs. Clean stop, push now.", durationSec)
 			}
 			directives = append(directives, Directive{
 				ID:       "pit_stop_duration",
 				Category: DirectiveCategoryPitStrategy,
-				SubAlert: "pit_stop_duration",
+				SubAlert: subAlert,
 				Title:    "Pit Stop Duration",
 				Message:  durMsg,
 				Urgency:  UrgencyMedium,
+				Values:   &DirectiveValues{StopSec: roundTo(float64(durationSec), 1)},
 			})
 		}
 		r.lastPitStatus = playerLap.PitStatus

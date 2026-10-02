@@ -240,7 +240,7 @@ type EngineerDirective struct {
 
 // DirectiveValues are the numbers a report call says. Only the fields of its report are set.
 type DirectiveValues struct {
-	// Position is the player's position (gap report, elimination danger).
+	// Position is the player's position (gap report, elimination danger, lap result, finish).
 	Position int `json:"position,omitempty"`
 	// Ahead and Behind are the cars close in front and behind: in the gap report, nil when there
 	// is no car within GapReportMaxGapSec; in qualifying traffic calls, the car the call is about.
@@ -256,6 +256,12 @@ type DirectiveValues struct {
 	// Elimination says the lap result leaves the player on the last place through or in the drop
 	// zone of Q1 or Q2; empty when safe or nobody is knocked out (lap result).
 	Elimination EliminationStatus `json:"elimination,omitempty" tstype:"EngineerElimination"`
+	// Count is how many track limits warnings the player has (track limits).
+	Count int `json:"count,omitempty"`
+	// PenaltySec is the time penalty just given, in seconds (penalties).
+	PenaltySec int `json:"penalty_sec,omitempty"`
+	// StopSec is how long the car stood in the pit box, to a tenth (pit stop time).
+	StopSec float64 `json:"stop_sec,omitempty"`
 }
 
 // EliminationStatus is where a qualifying position stands against the cut line.

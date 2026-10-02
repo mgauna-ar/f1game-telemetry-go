@@ -50,6 +50,20 @@ const CATEGORY_NUMBERS: Partial<Record<RadioAlertCategory, string[]>> = {
   qualy_lap_pole: ['pole_gap'],
   qualy_lap_result: ['position', 'pole_gap'],
   qualy_lap_no_improvement: ['position'],
+  race_finish: ['position'],
+  race_finish_points: ['position'],
+  race_finish_podium: ['position'],
+  pit_stop_duration: ['stop_sec'],
+  pit_stop_fast: ['stop_sec'],
+  pit_stop_slow: ['stop_sec'],
+  penalties_incurred: ['penalty_sec'],
+  track_limits_warnings: ['count'],
+  rival_defend: ['gap'],
+  rival_defend_drs: ['gap'],
+  rival_attack: ['gap'],
+  rival_attack_drs: ['gap'],
+  rival_defend_override: ['gap'],
+  rival_attack_override: ['gap'],
 };
 
 /** Every template a category can speak in one locale, across all personas. */
@@ -347,6 +361,74 @@ describe('radioPhrases', () => {
       expect(formatTenths(12, 'es')).toBe('12,0');
       expect(formatThousandths(0.088, 'en')).toBe('0.088');
       expect(formatThousandths(0.345, 'es')).toBe('0,345');
+    });
+  });
+
+  describe('races', () => {
+    it('says where the race finished', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      expect(getProactiveRadioSpeech('race_finish_podium', 'en', 'custom', '', undefined, { position: 2 })).toBe(
+        'Chequered flag, P2, a podium. Great drive. Bring the car to parc fermé.'
+      );
+      expect(getProactiveRadioSpeech('race_finish', 'es', 'custom', '', undefined, { position: 14 })).toBe(
+        'Bandera a cuadros, P14. Vuelta de enfriamiento y lleva el auto al parque cerrado.'
+      );
+    });
+
+    it('only praises a fast launch or a fast stop', () => {
+      for (const language of LOCALES) {
+        for (const category of ['start_reaction_slow', 'pit_stop_slow'] as RadioAlertCategory[]) {
+          for (const template of allTemplates(language, category)) {
+            expect(template, `${language}/${category}`).not.toMatch(/great|brilliant|excellent|gran |qué /i);
+          }
+        }
+      }
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      expect(getProactiveRadioSpeech('pit_stop_fast', 'en', 'custom', '', undefined, { stop_sec: 2.4 })).toBe(
+        'Great stop, 2.4 seconds. Push now.'
+      );
+      expect(getProactiveRadioSpeech('pit_stop_slow', 'es', 'custom', '', undefined, { stop_sec: 4.6 })).toBe(
+        'Parada lenta, 4,6 segundos. Recupera en la vuelta de salida.'
+      );
+    });
+
+    it('says the penalty and the warnings as they are', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      expect(getProactiveRadioSpeech('penalties_incurred', 'en', 'custom', '', undefined, { penalty_sec: 5 })).toBe(
+        '5 second time penalty from the stewards.'
+      );
+      expect(getProactiveRadioSpeech('track_limits_warnings', 'en', 'custom', '', undefined, { count: 2 })).toBe(
+        '2 warnings for track limits. Keep all four wheels inside the white lines.'
+      );
+      for (const language of LOCALES) {
+        for (const category of ['penalties_incurred', 'penalty_drive_through', 'penalty_stop_go'] as RadioAlertCategory[]) {
+          for (const template of allTemplates(language, category)) {
+            expect(template, `${language}/${category}`).not.toMatch(/next stop|próxima parada/i);
+          }
+        }
+      }
+    });
+
+    it('says DRS only on the calls that have it', () => {
+      for (const language of LOCALES) {
+        for (const category of ['rival_defend', 'rival_attack'] as RadioAlertCategory[]) {
+          for (const template of allTemplates(language, category)) expect(template).not.toContain('DRS');
+        }
+        for (const category of ['rival_defend_drs', 'rival_attack_drs'] as RadioAlertCategory[]) {
+          for (const template of allTemplates(language, category)) expect(template).toContain('DRS');
+        }
+      }
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      expect(
+        getProactiveRadioSpeech('rival_defend_drs', 'en', 'custom', '', undefined, { behind: { gap_sec: 0.6 } })
+      ).toBe('Car behind has DRS, 0.6 seconds. Defend.');
+    });
+
+    it('never calls a lapping car "the leader" or praises another car\'s fastest lap as purple', () => {
+      for (const language of LOCALES) {
+        for (const template of allTemplates(language, 'flags_blue')) expect(template).not.toMatch(/leader|líder/i);
+        for (const template of allTemplates(language, 'race_fastest_lap')) expect(template).not.toMatch(/purple|morado/i);
+      }
     });
   });
 

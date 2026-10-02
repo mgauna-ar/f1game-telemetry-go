@@ -409,27 +409,14 @@ func (r *FlagsRule) evaluateEvent(ctx *EvaluationContext, p *packets.PacketEvent
 		}
 
 	case packets.EventFastestLap:
-		if fl, ok := p.FastestLapData(); ok {
-			driverName := fmt.Sprintf("Car %d", fl.VehicleIdx)
-			if ctx.Participants != nil && int(fl.VehicleIdx) < len(ctx.Participants.Participants) {
-				name := ctx.Participants.Participants[fl.VehicleIdx].NameString()
-				if name != "" {
-					driverName = name
-				}
-			}
-			isPlayer := int(fl.VehicleIdx) == ctx.PlayerCarIndex
-			var msg string
-			if isPlayer {
-				msg = fmt.Sprintf("Fastest lap of the session! Purple in all sectors, lap time %.3f.", fl.LapTime)
-			} else {
-				msg = fmt.Sprintf("New overall fastest lap set by %s: %.3f.", driverName, fl.LapTime)
-			}
+		// Only the player's: the phrases congratulate the driver.
+		if fl, ok := p.FastestLapData(); ok && int(fl.VehicleIdx) == ctx.PlayerCarIndex {
 			return &Directive{
 				ID:       "race_fastest_lap",
 				Category: DirectiveCategoryFlags,
 				SubAlert: "race_fastest_lap",
 				Title:    "Fastest Lap",
-				Message:  msg,
+				Message:  fmt.Sprintf("Fastest lap of the race, %.3f.", fl.LapTime),
 				Urgency:  UrgencyMedium,
 			}
 		}
@@ -538,39 +525,50 @@ func (r *FlagsRule) evaluateTrackLimits(ctx *EvaluationContext, playerLap *packe
 			Category: DirectiveCategoryFlags,
 			SubAlert: "track_limits_warnings",
 			Title:    "Track Limits Warning",
-			Message:  fmt.Sprintf("We have accumulated %d track limits warnings! Keep inside white lines to avoid a penalty.", cutWarnings),
+			Message:  fmt.Sprintf("That is %d warnings for track limits. Keep it inside the white lines.", cutWarnings),
 			Urgency:  UrgencyCritical,
+			Values:   &DirectiveValues{Count: int(cutWarnings)},
 		}
 	}
 	return nil
 }
 
+// evaluatePenalties calls a new penalty: a drive-through, a stop-go, or the seconds of a time
+// penalty. The counts are followed down too (a penalty served), so the next one is still called.
 func (r *FlagsRule) evaluatePenalties(playerLap *packets.LapData) *Directive {
 	pnlTime := playerLap.Penalties
-	numPnl := playerLap.NumUnservedDriveThroughPens + playerLap.NumUnservedStopGoPens
-	if pnlTime <= r.lastPenaltyTime && numPnl <= (r.lastDriveThroughPnlCount+r.lastStopGoPnlCount) {
-		return nil
-	}
+	newTime := pnlTime > r.lastPenaltyTime
+	addedSec := int(pnlTime) - int(r.lastPenaltyTime)
+	newDriveThrough := playerLap.NumUnservedDriveThroughPens > r.lastDriveThroughPnlCount
+	newStopGo := playerLap.NumUnservedStopGoPens > r.lastStopGoPnlCount
 	r.lastPenaltyTime = pnlTime
 	r.lastDriveThroughPnlCount = playerLap.NumUnservedDriveThroughPens
 	r.lastStopGoPnlCount = playerLap.NumUnservedStopGoPens
 
-	var pnlMsg string
+	subAlert := "penalties_incurred"
+	var msg string
+	var values *DirectiveValues
 	switch {
-	case pnlTime > 0:
-		pnlMsg = fmt.Sprintf("We have been assessed a %d-second time penalty by the stewards! We will serve it at the next stop.", pnlTime)
-	case playerLap.NumUnservedDriveThroughPens > 0:
-		pnlMsg = "Drive-through penalty issued by race control! We must serve it within 3 laps."
+	case newDriveThrough:
+		subAlert = "penalty_drive_through"
+		msg = "Drive-through penalty. It must be served within three laps."
+	case newStopGo:
+		subAlert = "penalty_stop_go"
+		msg = "Stop-go penalty. It must be served within three laps."
+	case newTime:
+		msg = fmt.Sprintf("%d-second time penalty from the stewards.", addedSec)
+		values = &DirectiveValues{PenaltySec: addedSec}
 	default:
-		pnlMsg = "Stop-and-go penalty issued by race control!"
+		return nil
 	}
 	return &Directive{
 		ID:       "penalties",
 		Category: DirectiveCategoryFlags,
-		SubAlert: "penalties_incurred",
+		SubAlert: subAlert,
 		Title:    "Steward Penalty Issued",
-		Message:  pnlMsg,
+		Message:  msg,
 		Urgency:  UrgencyCritical,
+		Values:   values,
 	}
 }
 

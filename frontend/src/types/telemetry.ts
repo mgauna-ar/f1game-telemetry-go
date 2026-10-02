@@ -183,7 +183,19 @@ export type RadioAlertCategory =
   | 'damage_ice_wear'
   | 'gap_report'
   | 'tyre_life'
-  | 'tyre_life_end';
+  | 'tyre_life_end'
+  | 'race_finish_win'
+  | 'race_finish_podium'
+  | 'race_finish_points'
+  | 'penalty_drive_through'
+  | 'penalty_stop_go'
+  | 'start_reaction_fast'
+  | 'start_reaction_slow'
+  | 'pit_stop_fast'
+  | 'pit_stop_slow'
+  | 'tyre_wear_critical'
+  | 'rival_defend_drs'
+  | 'rival_attack_drs';
 
 /**
  * The phrases one radio category can speak, per persona. Bono and Colapinto fall back to

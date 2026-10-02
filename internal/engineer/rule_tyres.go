@@ -150,13 +150,15 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 				}
 				r.triggeredWearThresholds[th] = true
 				urgency := UrgencyLow
+				subAlert := "tyre_wear"
 				if maxWear >= ctx.Config.TyreWearCritPct {
 					urgency = UrgencyHigh
+					subAlert = "tyre_wear_critical"
 				}
 				directives = append(directives, Directive{
 					ID:       "tyre_wear",
 					Category: DirectiveCategoryTyres,
-					SubAlert: "tyre_wear",
+					SubAlert: subAlert,
 					Title:    "Tyre Wear Alert",
 					Message:  fmt.Sprintf("Tyre wear reached %d%% (stint age: %d laps).", int(math.Round(float64(maxWear))), currentTyreAge),
 					Urgency:  urgency,

@@ -422,20 +422,13 @@ func (e *EngineerEngine) Evaluate(ctx *EvaluationContext) []Directive {
 func (e *EngineerEngine) evaluateLocked(ctx *EvaluationContext) []Directive {
 	var emittedDirectives []Directive
 
-	// Post-race debrief directive when transitioning to PhasePostRace
-	if e.currentPhase == PhasePostRace && !e.postRaceAnnounced {
+	// The chequered flag of a race: where the player finished. Qualifying and practice end with
+	// their own calls (the last lap's result).
+	if e.currentPhase == PhasePostRace && !e.postRaceAnnounced && e.isRaceSessionLocked() {
 		playerLap := e.getPlayerLapDataLocked()
 		if playerLap != nil && playerLap.ResultStatus == packets.ResultStatusFinished {
 			e.postRaceAnnounced = true
-			postRaceDirective := Directive{
-				ID:       "race_finish",
-				Category: DirectiveCategoryFlags,
-				SubAlert: "race_finish",
-				Title:    "Race Finished",
-				Message:  fmt.Sprintf("Chequered flag! Outstanding drive, you finished in P%d. Pick up rubber off line, switch to cool down mode and bring the car to parc fermé.", playerLap.CarPosition),
-				Urgency:  UrgencyLow,
-			}
-			prepared := e.emitDirectiveLocked(ctx.Header, postRaceDirective, "race_finish", 0)
+			prepared := e.emitDirectiveLocked(ctx.Header, e.raceFinishDirectiveLocked(int(playerLap.CarPosition)), "race_finish", 0)
 			emittedDirectives = append(emittedDirectives, prepared)
 		}
 	}
@@ -478,6 +471,37 @@ func (e *EngineerEngine) evaluateLocked(ctx *EvaluationContext) []Directive {
 	}
 
 	return append(emittedDirectives, e.pitEntryReminderLocked(ctx.Header)...)
+}
+
+// raceFinishDirectiveLocked is the chequered flag call for a finish in position pos: a win, a
+// podium, points or none.
+func (e *EngineerEngine) raceFinishDirectiveLocked(pos int) Directive {
+	pointsPositions := RacePointsPositions
+	if e.latestSession != nil && (e.latestSession.SessionType == packets.SessionSprintRace || e.latestSession.SessionType == packets.SessionEqualSprintRace) {
+		pointsPositions = SprintPointsPositions
+	}
+	subAlert := "race_finish"
+	result := "outside the points"
+	switch {
+	case pos == 1:
+		subAlert = "race_finish_win"
+		result = "the win"
+	case pos <= PodiumPositions:
+		subAlert = "race_finish_podium"
+		result = "a podium"
+	case pos <= pointsPositions:
+		subAlert = "race_finish_points"
+		result = "points"
+	}
+	return Directive{
+		ID:       "race_finish",
+		Category: DirectiveCategoryFlags,
+		SubAlert: subAlert,
+		Title:    "Race Finished",
+		Message:  fmt.Sprintf("Chequered flag, P%d: %s. Cool-down lap, then bring the car to parc fermé.", pos, result),
+		Urgency:  UrgencyLow,
+		Values:   &DirectiveValues{Position: pos},
+	}
 }
 
 // holdDirectiveLocked keeps a call a passing gate blocked, so it is said once the radio is free

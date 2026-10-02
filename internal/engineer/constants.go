@@ -129,6 +129,11 @@ const (
 	QualyQ2EliminationPositionThreshold = 10
 	QualyQ3Cars                         = 10 // Cars in Q3; Q1 and Q2 knock out half of the rest each
 
+	// Race results
+	PodiumPositions       = 3
+	RacePointsPositions   = 10 // Places scoring points in a Grand Prix
+	SprintPointsPositions = 8  // Places scoring points in a sprint
+
 	// Flags & Weather thresholds
 	WeatherRainTransitionProbPct   = 50
 	WeatherRainHorizonMinutes      = 5
