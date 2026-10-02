@@ -59,11 +59,34 @@ export interface TelemetrySample extends LiveCarTelemetry {
  * the call from its phrase catalog (`utils/radioPhrases.ts`).
  */
 export type {
+  DirectiveValues,
   EngineerAlertKey,
+  EngineerBoxTiming,
   EngineerDirective,
   EngineerDirectiveCategory,
+  EngineerGapTrend,
   EngineerUrgency,
+  GapToCar,
 } from './generated/engineer';
+import type { DirectiveValues, EngineerBoxTiming } from './generated/engineer';
+
+/** How a call that mentions pitting puts it: an order to box, or a stop the team offers. */
+export type BoxCallKind = 'instruction' | 'option';
+
+/** The parts a report's numbers are said with (each locale's `report_phrases`). */
+export type ReportPhrase =
+  | 'position'
+  | 'leading'
+  | 'ahead'
+  | 'ahead_closing'
+  | 'ahead_opening'
+  | 'ahead_stable'
+  | 'behind'
+  | 'behind_closing'
+  | 'behind_opening'
+  | 'behind_stable'
+  | 'nobody_close'
+  | 'tyre_life_one_lap';
 
 /** Every message /ws/engineer sends, told apart by `type`. */
 export type {
@@ -94,6 +117,7 @@ export type RadioAlertCategory =
   | 'fuel_deficit'
   | 'undercut_window'
   | 'pit_clean_air'
+  | 'pit_entry_reminder'
   | 'pit_window_open'
   | 'rival_defend'
   | 'rival_attack'
@@ -148,7 +172,10 @@ export type RadioAlertCategory =
   | 'tyre_blistering'
   | 'tyre_pressure_high'
   | 'damage_gearbox_wear'
-  | 'damage_ice_wear';
+  | 'damage_ice_wear'
+  | 'gap_report'
+  | 'tyre_life'
+  | 'tyre_life_end';
 
 /**
  * The phrases one radio category can speak, per persona. Bono and Colapinto fall back to
@@ -166,6 +193,12 @@ export interface RadioAlertPayload {
   category: RadioAlertCategory;
   isCritical: boolean;
   emotion: RadioEmotion;
+  /** How long the call stays worth saying while it waits behind other speech (ms). */
+  ttlMs?: number;
+  /** When the driver can pit, on a call that asks them to. */
+  box?: EngineerBoxTiming;
+  /** The numbers a report says (gap report, tyre life). */
+  values?: DirectiveValues;
 }
 
 export interface RadioEmotion {

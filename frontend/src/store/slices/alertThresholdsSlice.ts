@@ -9,8 +9,7 @@ import type { RadioSettingsState } from '../useRadioSettingsStore';
 export interface AlertThresholdsSlice {
   tyreWearWarningPct: number;
   tyreWearCriticalPct: number;
-  tyreOverheatC: number;
-  tyreColdC: number;
+  tyreTempMarginC: number;
   wingDamageWarnPct: number;
   floorDamageWarnPct: number;
   engineWearWarnPct: number;
@@ -26,11 +25,12 @@ export interface AlertThresholdsSlice {
   cornerCutWarnThreshold: number;
   rainHorizonMin: number;
   rainProbPct: number;
+  pitCallLeadM: number;
+  gapReportLaps: number;
 
   setTyreWearWarningPct: (pct: number) => void;
   setTyreWearCriticalPct: (pct: number) => void;
-  setTyreOverheatC: (temp: number) => void;
-  setTyreColdC: (temp: number) => void;
+  setTyreTempMarginC: (degrees: number) => void;
   setWingDamageWarnPct: (pct: number) => void;
   setFloorDamageWarnPct: (pct: number) => void;
   setEngineWearWarnPct: (pct: number) => void;
@@ -46,14 +46,15 @@ export interface AlertThresholdsSlice {
   setCornerCutWarnThreshold: (count: number) => void;
   setRainHorizonMin: (min: number) => void;
   setRainProbPct: (pct: number) => void;
+  setPitCallLeadM: (meters: number) => void;
+  setGapReportLaps: (laps: number) => void;
 }
 
 export function getInitialAlertThresholds(): Omit<
   AlertThresholdsSlice,
   | 'setTyreWearWarningPct'
   | 'setTyreWearCriticalPct'
-  | 'setTyreOverheatC'
-  | 'setTyreColdC'
+  | 'setTyreTempMarginC'
   | 'setWingDamageWarnPct'
   | 'setFloorDamageWarnPct'
   | 'setEngineWearWarnPct'
@@ -69,12 +70,13 @@ export function getInitialAlertThresholds(): Omit<
   | 'setCornerCutWarnThreshold'
   | 'setRainHorizonMin'
   | 'setRainProbPct'
+  | 'setPitCallLeadM'
+  | 'setGapReportLaps'
 > {
   return {
     tyreWearWarningPct: RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_WARN_PCT,
     tyreWearCriticalPct: RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_CRIT_PCT,
-    tyreOverheatC: RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_OVERHEAT_C,
-    tyreColdC: RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_COLD_C,
+    tyreTempMarginC: RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_TEMP_MARGIN_C,
     wingDamageWarnPct: RADIO_ALERT_CONSTANTS.DEFAULT_WING_DAMAGE_WARN_PCT,
     floorDamageWarnPct: RADIO_ALERT_CONSTANTS.DEFAULT_FLOOR_DAMAGE_WARN_PCT,
     engineWearWarnPct: RADIO_ALERT_CONSTANTS.DEFAULT_ENGINE_WEAR_WARN_PCT,
@@ -90,6 +92,8 @@ export function getInitialAlertThresholds(): Omit<
     cornerCutWarnThreshold: RADIO_ALERT_CONSTANTS.DEFAULT_CORNER_CUT_WARN_THRESHOLD,
     rainHorizonMin: RADIO_ALERT_CONSTANTS.DEFAULT_RAIN_HORIZON_MIN,
     rainProbPct: RADIO_ALERT_CONSTANTS.DEFAULT_RAIN_PROB_PCT,
+    pitCallLeadM: RADIO_ALERT_CONSTANTS.DEFAULT_PIT_CALL_LEAD_M,
+    gapReportLaps: RADIO_ALERT_CONSTANTS.DEFAULT_GAP_REPORT_LAPS,
   };
 }
 
@@ -103,8 +107,7 @@ export function thresholdsFromSettings(
   return {
     tyreWearWarningPct: cfg.tyre_wear_warn_pct ?? fallback.tyreWearWarningPct,
     tyreWearCriticalPct: cfg.tyre_wear_crit_pct ?? fallback.tyreWearCriticalPct,
-    tyreOverheatC: cfg.tyre_overheat_c ?? fallback.tyreOverheatC,
-    tyreColdC: cfg.tyre_cold_c ?? fallback.tyreColdC,
+    tyreTempMarginC: cfg.tyre_temp_margin_c ?? fallback.tyreTempMarginC,
     wingDamageWarnPct: cfg.wing_damage_warn_pct ?? fallback.wingDamageWarnPct,
     floorDamageWarnPct: cfg.floor_damage_warn_pct ?? fallback.floorDamageWarnPct,
     engineWearWarnPct: cfg.engine_wear_warn_pct ?? fallback.engineWearWarnPct,
@@ -120,6 +123,8 @@ export function thresholdsFromSettings(
     cornerCutWarnThreshold: cfg.corner_cut_warn_threshold ?? fallback.cornerCutWarnThreshold,
     rainHorizonMin: cfg.rain_horizon_min ?? fallback.rainHorizonMin,
     rainProbPct: cfg.rain_prob_pct ?? fallback.rainProbPct,
+    pitCallLeadM: cfg.pit_call_lead_m ?? fallback.pitCallLeadM,
+    gapReportLaps: cfg.gap_report_laps ?? fallback.gapReportLaps,
   };
 }
 
@@ -145,8 +150,7 @@ export const createAlertThresholdsSlice: StateCreator<
 
     setTyreWearWarningPct: createThresholdAction('tyreWearWarningPct', 20, 80),
     setTyreWearCriticalPct: createThresholdAction('tyreWearCriticalPct', 50, 95),
-    setTyreOverheatC: createThresholdAction('tyreOverheatC', 90, 140),
-    setTyreColdC: createThresholdAction('tyreColdC', 50, 100),
+    setTyreTempMarginC: createThresholdAction('tyreTempMarginC', 0, 15),
     setWingDamageWarnPct: createThresholdAction('wingDamageWarnPct', 5, 50),
     setFloorDamageWarnPct: createThresholdAction('floorDamageWarnPct', 10, 60),
     setEngineWearWarnPct: createThresholdAction('engineWearWarnPct', 40, 90),
@@ -162,5 +166,7 @@ export const createAlertThresholdsSlice: StateCreator<
     setCornerCutWarnThreshold: createThresholdAction('cornerCutWarnThreshold', 1, 3),
     setRainHorizonMin: createThresholdAction('rainHorizonMin', 5, 30),
     setRainProbPct: createThresholdAction('rainProbPct', 20, 80),
+    setPitCallLeadM: createThresholdAction('pitCallLeadM', 200, 1500),
+    setGapReportLaps: createThresholdAction('gapReportLaps', 1, 10),
   };
 };

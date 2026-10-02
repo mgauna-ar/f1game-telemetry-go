@@ -1,13 +1,37 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { getProactiveRadioSpeech, radioPhrasePool, RADIO_PHRASE_CATALOG } from './radioPhrases';
+import {
+  BOX_TIMING_PHRASES,
+  boxTimingPhrase,
+  formatTenths,
+  getProactiveRadioSpeech,
+  radioPhrasePool,
+  RADIO_PHRASE_CATALOG,
+  REPORT_PHRASES,
+} from './radioPhrases';
 import { RADIO_ALERT_CATEGORIES } from '../constants/radioAlertCategories';
 import type { RadioPersona } from '../constants/f1';
 import type { LocaleCode } from '../locales';
-import type { EngineerAlertKey, RadioAlertCategory } from '../types/telemetry';
+import type {
+  DirectiveValues,
+  EngineerAlertKey,
+  EngineerBoxTiming,
+  RadioAlertCategory,
+  ReportPhrase,
+} from '../types/telemetry';
 
 const LOCALES: LocaleCode[] = ['en', 'es'];
 const PERSONAS: RadioPersona[] = ['bono', 'colapinto', 'custom'];
 const ALERT_KEYS = Object.keys(RADIO_ALERT_CATEGORIES) as EngineerAlertKey[];
+
+/** The reports' numbers, as the engine sends them; a report says nothing without them. */
+const REPORT_VALUES: Partial<Record<RadioAlertCategory, DirectiveValues>> = {
+  gap_report: {
+    position: 5,
+    ahead: { gap_sec: 1.4, trend: 'closing', per_lap_sec: 0.2 },
+    behind: { gap_sec: 2, trend: 'stable' },
+  },
+  tyre_life: { tyre_laps_left: 6 },
+};
 
 /** Every template a category can speak in one locale, across all personas. */
 function allTemplates(language: LocaleCode, category: RadioAlertCategory): string[] {
@@ -26,6 +50,7 @@ describe('radioPhrases', () => {
         const category = RADIO_ALERT_CATEGORIES[key];
         const pool = radioPhrasePool(category, language, persona);
         expect(pool.length, `${language}/${persona}/${key}`).toBeGreaterThan(0);
+        if (REPORT_VALUES[category]) continue; // reports add their numbers: see 'reports'
 
         const speech = getProactiveRadioSpeech(category, language, persona, 'Lewis');
         const expected = pool.map((template) =>
@@ -54,10 +79,13 @@ describe('radioPhrases', () => {
       }
     });
 
-    it('only uses the {driver} placeholder', () => {
+    it('only uses the {driver} placeholder, and {laps} for tyre life', () => {
       for (const category of Object.keys(RADIO_PHRASE_CATALOG[language]) as RadioAlertCategory[]) {
         for (const template of allTemplates(language, category)) {
-          expect(template.replace(/{driver}/g, ''), `${language}/${category}`).not.toMatch(/[{}]/);
+          const rest = template.replace(/{driver}/g, '');
+          const filled = category === 'tyre_life' ? rest.replace(/{laps}/g, '') : rest;
+          expect(filled, `${language}/${category}`).not.toMatch(/[{}]/);
+          if (category === 'tyre_life') expect(template, `${language}/${category}`).toContain('{laps}');
         }
       }
     });
@@ -67,7 +95,8 @@ describe('radioPhrases', () => {
         const category = RADIO_ALERT_CATEGORIES[key];
         for (let i = 0; i < radioPhrasePool(category, language, 'bono').length; i++) {
           vi.spyOn(Math, 'random').mockReturnValueOnce(i / radioPhrasePool(category, language, 'bono').length);
-          const speech = getProactiveRadioSpeech(category, language, 'bono');
+          const speech = getProactiveRadioSpeech(category, language, 'bono', '', undefined, REPORT_VALUES[category]);
+          expect(speech, `${language}/${key}`).not.toBe('');
           expect(speech, `${language}/${key}`).not.toContain('{driver}');
           expect(speech, `${language}/${key}`).not.toMatch(/^,|,\s*[.!?]|\s{2,}/);
         }
@@ -131,6 +160,163 @@ describe('radioPhrases', () => {
         }
       }
     }
+  });
+
+  describe('calls to pit', () => {
+    // Calls the engine sends with a box timing: their phrases leave the timing to it.
+    const BOX_CATEGORIES: RadioAlertCategory[] = [
+      'tyre_puncture',
+      'wing_damage',
+      'tyre_crossover',
+      'tyre_crossover_inter',
+      'tyre_crossover_wet',
+      'pit_window_open',
+      'pit_window_close',
+      'pit_clean_air',
+      'safety_car',
+      'vsc',
+    ];
+    const TIMINGS: EngineerBoxTiming[] = ['this_lap', 'next_lap', 'asap'];
+
+    it.each(LOCALES)('leave out when to box in %s, so it never contradicts the timing', (language) => {
+      const timingWords =
+        language === 'es'
+          ? /esta vuelta|pr[oó]xima vuelta|ya mismo|inmediatamente|\bahora\b.*box/i
+          : /this lap|next lap|immediately|box now/i;
+      for (const category of BOX_CATEGORIES) {
+        for (const template of allTemplates(language, category)) {
+          expect(template, `${language}/${category}`).not.toMatch(timingWords);
+        }
+      }
+    });
+
+    it.each(LOCALES)('have something to say for every timing and persona in %s', (language) => {
+      for (const timing of TIMINGS) {
+        for (const persona of PERSONAS) {
+          expect(
+            boxTimingPhrase('tyre_puncture', timing, language, persona),
+            `${language}/${persona}/${timing}`
+          ).not.toBe('');
+        }
+        expect(BOX_TIMING_PHRASES[language].option[timing]).toBeDefined();
+      }
+    });
+
+    it('ends an order to pit with when to box', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      expect(getProactiveRadioSpeech('tyre_puncture', 'en', 'custom', '', 'this_lap')).toBe(
+        'Puncture, puncture! Bring it in carefully. Box this lap, box box.'
+      );
+      expect(getProactiveRadioSpeech('tyre_puncture', 'en', 'custom', '', 'next_lap')).toBe(
+        'Puncture, puncture! Bring it in carefully. Too late for this pit entry. Box next lap.'
+      );
+      expect(getProactiveRadioSpeech('tyre_puncture', 'es', 'colapinto', '', 'asap')).toBe(
+        '¡Pinchadura, pinchadura! Entrá despacito. ¡Entrá a boxes en cuanto puedas!'
+      );
+    });
+
+    it('offers a Safety Car stop instead of ordering it', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      expect(getProactiveRadioSpeech('safety_car', 'en', 'custom', '', 'this_lap')).toBe(
+        'Safety Car deployed, Safety Car. Keep delta positive, stand by for the pit call. Pit entry is still on this lap.'
+      );
+      expect(getProactiveRadioSpeech('safety_car', 'en', 'custom', '', 'asap')).toBe(
+        'Safety Car deployed, Safety Car. Keep delta positive, stand by for the pit call.'
+      );
+    });
+
+    it('says nothing about timing on a call without one', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      expect(getProactiveRadioSpeech('wing_damage', 'en', 'custom')).toBe(
+        'Front wing damage detected. Downforce loss on the front axle.'
+      );
+    });
+  });
+
+  describe('reports', () => {
+    const REPORT_KEYS = Object.keys(REPORT_PHRASES.en) as ReportPhrase[];
+
+    it.each(LOCALES)('has every report part in %s, with only its own numbers', (language) => {
+      const numbers: Partial<Record<ReportPhrase, RegExp>> = {
+        position: /^[^{}]*{position}[^{}]*$/,
+        ahead: /{gap}/,
+        behind: /{gap}/,
+      };
+      for (const key of REPORT_KEYS) {
+        const pool = REPORT_PHRASES[language][key];
+        expect(pool.standard.length, `${language}/${key}`).toBeGreaterThan(0);
+        for (const template of pool.standard) {
+          const rest = template.replace(/{(position|gap|rate)}/g, '');
+          expect(rest, `${language}/${key}`).not.toMatch(/[{}]/);
+          if (/_(closing|opening)$/.test(key)) expect(template, `${language}/${key}`).toMatch(/{gap}.*{rate}/);
+          if (/_stable$/.test(key)) expect(template, `${language}/${key}`).toContain('{gap}');
+          const pattern = numbers[key];
+          if (pattern) expect(template, `${language}/${key}`).toMatch(pattern);
+        }
+      }
+    });
+
+    it('says the position and the gaps with how they move', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      expect(getProactiveRadioSpeech('gap_report', 'en', 'custom', '', undefined, REPORT_VALUES.gap_report)).toBe(
+        'Gap report. You are P5. Gap ahead 1.4 seconds, you are gaining 0.2 a lap. Car behind at 2.0, gap is stable.'
+      );
+      expect(getProactiveRadioSpeech('gap_report', 'es', 'custom', '', undefined, REPORT_VALUES.gap_report)).toBe(
+        'Informe de diferencias. Vas P5. Diferencia adelante 1,4 segundos, le descuentas 0,2 por vuelta. ' +
+          'Auto de atrás a 2,0, la diferencia se mantiene.'
+      );
+    });
+
+    it('says a gap opening, a gap without a trend yet, and the leader', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      const values: DirectiveValues = {
+        position: 1,
+        behind: { gap_sec: 3.25, trend: 'opening', per_lap_sec: 0.4 },
+      };
+      expect(getProactiveRadioSpeech('gap_report', 'en', 'custom', 'Franco', undefined, values)).toBe(
+        'Franco, Gap report. You are leading. Car behind at 3.3, you are pulling away 0.4 a lap.'
+      );
+      expect(
+        getProactiveRadioSpeech('gap_report', 'en', 'custom', '', undefined, {
+          position: 4,
+          ahead: { gap_sec: 0.9 },
+        })
+      ).toBe('Gap report. You are P4. Gap ahead 0.9 seconds.');
+    });
+
+    it('says when nobody is close', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      expect(getProactiveRadioSpeech('gap_report', 'es', 'bono', '', undefined, { position: 7 })).toBe(
+        'Te paso las diferencias. Vas P7. Nadie a menos de diez segundos.'
+      );
+    });
+
+    it('says how many laps the tyres have left', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      expect(getProactiveRadioSpeech('tyre_life', 'en', 'custom', '', undefined, { tyre_laps_left: 6 })).toBe(
+        'About 6 laps left on these tyres.'
+      );
+      expect(getProactiveRadioSpeech('tyre_life', 'es', 'bono', 'Franco', undefined, { tyre_laps_left: 3 })).toBe(
+        'Quedan unas 3 vueltas en estos neumáticos, Franco.'
+      );
+      expect(getProactiveRadioSpeech('tyre_life', 'en', 'bono', '', undefined, { tyre_laps_left: 1 })).toBe(
+        'About one lap left on these tyres.'
+      );
+      expect(getProactiveRadioSpeech('tyre_life_end', 'en', 'custom')).toBe(
+        'These tyres will make the end of the race. Keep managing them.'
+      );
+    });
+
+    it('says nothing without its numbers', () => {
+      expect(getProactiveRadioSpeech('gap_report', 'en', 'custom')).toBe('');
+      expect(getProactiveRadioSpeech('tyre_life', 'en', 'custom', 'Franco', undefined, {})).toBe('');
+    });
+
+    it("writes numbers the listener's way", () => {
+      expect(formatTenths(1.4, 'en')).toBe('1.4');
+      expect(formatTenths(1.4, 'es')).toBe('1,4');
+      expect(formatTenths(12, 'es')).toBe('12,0');
+    });
   });
 
   it('addresses the driver by callsign', () => {

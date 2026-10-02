@@ -51,6 +51,7 @@ func (r *QualifyingRule) AlertKeys() map[string]AlertKeyConfig {
 			ValidPhases:       []DrivingPhase{PhaseOutLap},
 			MinLapDistancePct: MinQualyOutLapDistancePct,
 			DedupScope:        DedupScopeLap,
+			MaxDelayMs:        MomentMaxDelayMs,
 		},
 		"qualy_time": {
 			ValidPhases: []DrivingPhase{PhaseInGarage, PhasePitLane, PhaseOutLap, PhaseInLap},
@@ -192,8 +193,13 @@ func (r *QualifyingRule) Evaluate(ctx *EvaluationContext) []Directive {
 		(ctx.Packet == nil || isPacketType[*packets.PacketSessionData](ctx.Packet)) {
 		if playerLap != nil && playerLap.CarPosition > 0 {
 			playerPos := int(playerLap.CarPosition)
-			isQ1Danger := (ctx.Session.SessionType == packets.SessionQ1 || ctx.Session.SessionType == packets.SessionSprintQ1) && playerPos >= QualyQ1EliminationPositionThreshold
-			isQ2Danger := (ctx.Session.SessionType == packets.SessionQ2 || ctx.Session.SessionType == packets.SessionSprintQ2) && playerPos >= QualyQ2EliminationPositionThreshold
+			numCars := 0
+			if ctx.Participants != nil {
+				numCars = int(ctx.Participants.NumActiveCars)
+			}
+			q1Danger, q2Danger := qualyDangerPositions(numCars)
+			isQ1Danger := (ctx.Session.SessionType == packets.SessionQ1 || ctx.Session.SessionType == packets.SessionSprintQ1) && playerPos >= q1Danger
+			isQ2Danger := (ctx.Session.SessionType == packets.SessionQ2 || ctx.Session.SessionType == packets.SessionSprintQ2) && playerPos >= q2Danger
 			if isQ1Danger || isQ2Danger {
 				r.lastElimDangerWarned = true
 				sessionName := packets.SessionTypeName(ctx.Session.SessionType)
@@ -262,4 +268,16 @@ func (r *QualifyingRule) Evaluate(ctx *EvaluationContext) []Directive {
 	}
 
 	return directives
+}
+
+// qualyDangerPositions returns the first Q1 and Q2 places in the elimination danger zone: the last
+// place that goes through, and every place behind it. Q3 holds QualyQ3Cars cars and Q1 and Q2 each
+// knock out half of the rest (5 on a 20-car grid, 6 on a 22-car one). Without a car count it uses
+// the 20-car places.
+func qualyDangerPositions(numCars int) (q1, q2 int) {
+	if numCars <= QualyQ3Cars {
+		return QualyQ1EliminationPositionThreshold, QualyQ2EliminationPositionThreshold
+	}
+	knockedOut := (numCars - QualyQ3Cars) / 2
+	return numCars - knockedOut, QualyQ3Cars
 }

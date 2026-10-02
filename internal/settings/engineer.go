@@ -57,12 +57,14 @@ func (e Engineer) Apply(update Engineer) (Engineer, error) {
 	if update.Version != e.Version {
 		return Engineer{}, ErrVersionConflict
 	}
-	for key := range update.AlertSwitches {
+	next := update.Clone()
+	// A dashboard tab opened before an upgrade still sends the retired switches.
+	retireMasterSwitches(next.AlertSwitches)
+	for key := range next.AlertSwitches {
 		if !engineer.IsAlertSwitch(key) {
 			return Engineer{}, fmt.Errorf("unknown alert switch %q", key)
 		}
 	}
-	next := update.Clone()
 	next.Version = e.Version + 1
 	return next, nil
 }
@@ -83,7 +85,42 @@ func LoadEngineer(ctx context.Context, store Store) (Engineer, bool, error) {
 	if doc.AlertSwitches == nil && doc.EnabledCategories != nil {
 		doc.AlertSwitches = alertSwitchesFromLegacyCategories(doc.EnabledCategories)
 	}
+	dropRetiredAlertSwitches(doc.AlertSwitches)
 	return doc.Engineer, true, nil
+}
+
+// retiredMasterSwitches are master switches the panel no longer has, with the alert switches they
+// used to turn off. Their alerts now sit under the master of the section they are drawn in.
+var retiredMasterSwitches = map[string][]string{
+	"thermalAlertsEnabled":   {"subTyreThermal", "subTyreCold"},
+	"pitWindowAlertsEnabled": {"subPitWindow"},
+}
+
+// dropRetiredAlertSwitches removes the switches of a saved setup that the panel no longer has.
+func dropRetiredAlertSwitches(switches map[string]bool) {
+	retireMasterSwitches(switches)
+	for key := range switches {
+		if !engineer.IsAlertSwitch(key) {
+			delete(switches, key)
+		}
+	}
+}
+
+// retireMasterSwitches removes the retired master switches. One that was off turns its alerts' own
+// switches off, so alerts that were silent stay silent.
+func retireMasterSwitches(switches map[string]bool) {
+	for master, alerts := range retiredMasterSwitches {
+		on, ok := switches[master]
+		if !ok {
+			continue
+		}
+		if !on {
+			for _, alert := range alerts {
+				switches[alert] = false
+			}
+		}
+		delete(switches, master)
+	}
 }
 
 // SaveEngineer stores the race engineer setup.

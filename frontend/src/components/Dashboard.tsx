@@ -82,9 +82,16 @@ export const Dashboard: React.FC = () => {
   const handleProactiveAlert = useCallback((payload: RadioAlertPayload) => {
     const r = radioRef.current;
     // Instant pit wall radio call with persona-specific phrasing & randomized variety
-    const speech = getProactiveRadioSpeech(payload.category, r.effectiveLanguage, r.persona, r.driverCallsign);
+    const speech = getProactiveRadioSpeech(
+      payload.category,
+      r.effectiveLanguage,
+      r.persona,
+      r.driverCallsign,
+      payload.box,
+      payload.values
+    );
     if (speech) {
-      r.speakMessage(speech, payload.isCritical, payload.emotion);
+      r.speakMessage(speech, payload.isCritical, payload.emotion, payload.ttlMs);
     }
   }, []);
 

@@ -12,7 +12,7 @@ type FlagsRule struct {
 	mu                       sync.Mutex
 	lastSafetyCarStatus      uint8
 	lastRedFlagCount         uint8
-	lastWeatherAlertOffset   int
+	rainForecastCalled       bool
 	lastLiveWeather          uint8
 	lastCornerCutWarnings    uint8
 	lastPenaltyTime          uint8
@@ -26,8 +26,7 @@ type FlagsRule struct {
 // NewFlagsRule creates a new FlagsRule.
 func NewFlagsRule() *FlagsRule {
 	return &FlagsRule{
-		lastWeatherAlertOffset: -1,
-		lastVehicleFIAFlag:     packets.VehicleFIAFlagNone,
+		lastVehicleFIAFlag: packets.VehicleFIAFlagNone,
 	}
 }
 
@@ -64,6 +63,7 @@ func (r *FlagsRule) AlertKeys() map[string]AlertKeyConfig {
 			Category:    DirectiveCategoryFlags,
 			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeNone,
+			MinRepeatMs: BlueFlagMinRepeatMs,
 		},
 		"flags_yellow": {
 			Category:    DirectiveCategoryFlags,
@@ -114,6 +114,7 @@ func (r *FlagsRule) AlertKeys() map[string]AlertKeyConfig {
 			Category:    DirectiveCategoryFlags,
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
 			DedupScope:  DedupScopeNone,
+			MinRepeatMs: CollisionMinRepeatMs,
 		},
 		"car_retirement": {
 			Category:    DirectiveCategoryFlags,
@@ -140,7 +141,7 @@ func (r *FlagsRule) Reset(scope DedupScope) {
 	if scope == DedupScopeNone {
 		r.lastSafetyCarStatus = 0
 		r.lastRedFlagCount = 0
-		r.lastWeatherAlertOffset = -1
+		r.rainForecastCalled = false
 		r.lastLiveWeather = 0
 		r.lastCornerCutWarnings = 0
 		r.lastPenaltyTime = 0
@@ -256,6 +257,7 @@ func (r *FlagsRule) evaluateSafetyCar(ctx *EvaluationContext) *Directive {
 			Title:    "Safety Car Deployed",
 			Message:  "Full Safety Car deployed! Maintain delta positive, stand by for pit stop window.",
 			Urgency:  UrgencyCritical,
+			BoxCall:  BoxCallOption,
 		}
 	case packets.SafetyCarVirtual:
 		return &Directive{
@@ -265,6 +267,7 @@ func (r *FlagsRule) evaluateSafetyCar(ctx *EvaluationContext) *Directive {
 			Title:    "VSC Deployed",
 			Message:  "Virtual Safety Car (VSC) deployed! Maintain delta, no overtaking.",
 			Urgency:  UrgencyCritical,
+			BoxCall:  BoxCallOption,
 		}
 	case packets.SafetyCarNone:
 		if prevStatus == packets.SafetyCarFull || prevStatus == packets.SafetyCarVirtual {
@@ -486,26 +489,36 @@ func (r *FlagsRule) evaluateRedFlag(p *packets.PacketSessionData) *Directive {
 	}
 }
 
+// evaluateWeather calls rain in the forecast once per rain spell: once a sample inside the
+// horizon passes the threshold, nothing more is said until none does. While it already rains,
+// the live weather call covers it.
 func (r *FlagsRule) evaluateWeather(ctx *EvaluationContext) *Directive {
 	if !ctx.Config.IsAlertEnabled(string(DirectiveCategoryWeather), "flags_rain") {
 		return nil
 	}
+	var soonest *packets.WeatherForecastSample
 	for _, sample := range sessionForecast(ctx.Session) {
-		rainPct := int(sample.RainPercentage)
-		timeOffset := int(sample.TimeOffset)
-		if rainPct >= int(ctx.Config.RainProbPct) && timeOffset <= int(ctx.Config.RainHorizonMin) && r.lastWeatherAlertOffset != timeOffset {
-			r.lastWeatherAlertOffset = timeOffset
-			return &Directive{
-				ID:       "flags_rain",
-				Category: DirectiveCategoryWeather,
-				SubAlert: "weather_rain",
-				Title:    "Weather Transition",
-				Message:  fmt.Sprintf("Weather radar confirms %d%% chance of rain in the next %d minutes.", rainPct, timeOffset),
-				Urgency:  UrgencyHigh,
-			}
+		if float32(sample.RainPercentage) >= ctx.Config.RainProbPct && float32(sample.TimeOffset) <= ctx.Config.RainHorizonMin {
+			soonest = &sample
+			break
 		}
 	}
-	return nil
+	if soonest == nil {
+		r.rainForecastCalled = false
+		return nil
+	}
+	if r.rainForecastCalled || ctx.Session.Weather >= packets.WeatherLightRain {
+		return nil
+	}
+	r.rainForecastCalled = true
+	return &Directive{
+		ID:       "flags_rain",
+		Category: DirectiveCategoryWeather,
+		SubAlert: "weather_rain",
+		Title:    "Weather Transition",
+		Message:  fmt.Sprintf("Weather radar confirms %d%% chance of rain in the next %d minutes.", soonest.RainPercentage, soonest.TimeOffset),
+		Urgency:  UrgencyHigh,
+	}
 }
 
 func (r *FlagsRule) evaluateTrackLimits(ctx *EvaluationContext, playerLap *packets.LapData) *Directive {

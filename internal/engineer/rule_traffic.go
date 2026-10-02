@@ -17,6 +17,7 @@ type TrafficRule struct {
 	pitTimerReported       bool
 	limiterOverspeedFired  bool
 	lastRecordedPitTimerMS uint16
+	cleanAirLap            int // the lap the clean air call was made on
 }
 
 // NewTrafficRule creates a new TrafficRule.
@@ -32,8 +33,10 @@ func (r *TrafficRule) Category() string {
 	return string(DirectiveCategoryPitStrategy)
 }
 
+// ValidPhases includes PhaseInGarage, the phase of a car standing in its pit box, so the rule sees
+// the stop it times; its calls are said in the pit lane and after.
 func (r *TrafficRule) ValidPhases() []DrivingPhase {
-	return []DrivingPhase{PhaseRacing, PhasePitLane, PhaseInLap, PhaseOutLap}
+	return []DrivingPhase{PhaseRacing, PhasePitLane, PhaseInLap, PhaseOutLap, PhaseInGarage}
 }
 
 func (r *TrafficRule) AlertKeys() map[string]AlertKeyConfig {
@@ -47,8 +50,9 @@ func (r *TrafficRule) AlertKeys() map[string]AlertKeyConfig {
 			DedupScope:  DedupScopeStint,
 		},
 		"pit_stop_duration": {
-			ValidPhases: []DrivingPhase{PhasePitLane, PhaseOutLap},
-			DedupScope:  DedupScopeStint,
+			ValidPhases:          []DrivingPhase{PhasePitLane, PhaseOutLap},
+			DedupScope:           DedupScopeStint,
+			SkipCategoryCooldown: true,
 		},
 		"pit_limiter_exit": {
 			ValidPhases: []DrivingPhase{PhasePitLane, PhaseOutLap},
@@ -57,6 +61,12 @@ func (r *TrafficRule) AlertKeys() map[string]AlertKeyConfig {
 		"pit_limiter_overspeed": {
 			ValidPhases: []DrivingPhase{PhasePitLane, PhaseRacing, PhaseInLap},
 			DedupScope:  DedupScopeStint,
+		},
+		// Said by the engine, not this rule: on the lap a call told the driver to box.
+		"pit_entry_reminder": {
+			ValidPhases: []DrivingPhase{PhaseRacing, PhaseInLap, PhaseSafetyCar},
+			DedupScope:  DedupScopeNone,
+			MaxDelayMs:  MomentMaxDelayMs,
 		},
 	}
 }
@@ -72,6 +82,9 @@ func (r *TrafficRule) Reset(scope DedupScope) {
 		r.lastRecordedPitTimerMS = 0
 		r.lastPitLimiterStatus = 0
 		r.lastPitStatus = 0
+	}
+	if scope == DedupScopeNone {
+		r.cleanAirLap = 0
 	}
 }
 
@@ -175,59 +188,62 @@ func (r *TrafficRule) Evaluate(ctx *EvaluationContext) []Directive {
 		r.lastPitStatus = playerLap.PitStatus
 	}
 
-	// 3. Clean Air Pit Window (LapData based)
-	if ctx.Packet != nil && !isPacketType[*packets.PacketLapData](ctx.Packet) {
-		return directives
-	}
-
-	if !ctx.IsRaceSession() || ctx.Phase != PhaseRacing ||
-		(ctx.Session != nil && ctx.Session.SafetyCarStatus != packets.SafetyCarNone) ||
-		playerLap == nil || ctx.LapData == nil {
-		return directives
-	}
-
-	// Strategy integrity: suppress clean air pit calls if player already pitted or race is near conclusion
-	if playerLap.NumPitStops >= 1 {
-		return directives
-	}
-	currentLap := int(playerLap.CurrentLapNum)
-	if ctx.Session != nil && ctx.Session.TotalLaps > 0 {
-		lapsRemaining := int(ctx.Session.TotalLaps) - currentLap
-		if lapsRemaining <= CleanAirMinRemainingLaps {
-			return directives
-		}
-	}
-	trackLen := float32(DefaultTrackLengthMeters)
-	if ctx.Session != nil && ctx.Session.TrackLength > 0 {
-		trackLen = float32(ctx.Session.TrackLength)
-	}
-
-	pitLossDistance := float32(DefaultPitLaneLossSeconds * AverageRaceSpeedMetersPerSec)
-	targetRejoinTotalDist := playerLap.TotalDistance - pitLossDistance
-	trafficCount := 0
-
-	for i, rival := range ctx.LapData.LapData {
-		if i == ctx.PlayerCarIndex || rival.TotalDistance == 0 {
-			continue
-		}
-		distDelta := math.Abs(float64(rival.TotalDistance - targetRejoinTotalDist))
-		distDeltaOnTrack := math.Mod(distDelta, float64(trackLen))
-		windowDistance := CleanAirTrafficWindowSeconds * AverageRaceSpeedMetersPerSec
-		if distDeltaOnTrack < windowDistance {
-			trafficCount++
-		}
-	}
-
-	if trafficCount == 0 && currentLap%CleanAirPeriodicLapModulo == 0 {
-		directives = append(directives, Directive{
-			ID:       "pit_clean_air",
-			Category: DirectiveCategoryPitStrategy,
-			SubAlert: "pit_clean_air",
-			Title:    "Clean Air Pit Window",
-			Message:  "Pit window offers clean air on rejoin. Ideal opportunity for undercut/overcut strategy.",
-			Urgency:  UrgencyLow,
-		})
+	// 3. Clean air on rejoin: inside the pit window, early enough to box this lap, once a lap
+	if d := r.evaluateCleanAir(ctx, playerLap); d != nil {
+		directives = append(directives, *d)
 	}
 
 	return directives
+}
+
+// evaluateCleanAir says when pitting now would bring the player out in clean air: inside the
+// game's pit window, while this lap's pit entry can still be made, at most once a lap.
+func (r *TrafficRule) evaluateCleanAir(ctx *EvaluationContext, playerLap *packets.LapData) *Directive {
+	if ctx.Packet != nil && !isPacketType[*packets.PacketLapData](ctx.Packet) {
+		return nil
+	}
+	if !ctx.IsRaceSession() || ctx.Phase != PhaseRacing || ctx.Session == nil ||
+		ctx.Session.SafetyCarStatus != packets.SafetyCarNone || playerLap == nil || ctx.LapData == nil {
+		return nil
+	}
+	currentLap := int(playerLap.CurrentLapNum)
+	windowOpen, windowClose := int(ctx.Session.PitStopWindowIdealLap), int(ctx.Session.PitStopWindowLatestLap)
+	if windowOpen == 0 || windowClose == 0 || currentLap < windowOpen || currentLap > windowClose {
+		return nil
+	}
+	if currentLap == r.cleanAirLap || ctx.BoxTiming() != BoxThisLap {
+		return nil
+	}
+	// Tyres this fresh were just fitted: the window is for the next stop.
+	if status := ctx.PlayerStatus(); status != nil && int(status.TyresAgeLaps) < CleanAirMinTyreAgeLaps {
+		return nil
+	}
+
+	trackLen := float64(DefaultTrackLengthMeters)
+	if ctx.Session.TrackLength > 0 {
+		trackLen = float64(ctx.Session.TrackLength)
+	}
+	rejoinAt := float64(playerLap.TotalDistance) - DefaultPitLaneLossSeconds*AverageRaceSpeedMetersPerSec
+	window := CleanAirTrafficWindowSeconds * AverageRaceSpeedMetersPerSec
+	for i, rival := range ctx.LapData.LapData {
+		if i == ctx.PlayerCarIndex || rival.TotalDistance == 0 || rival.ResultStatus != packets.ResultStatusActive ||
+			rival.PitStatus != packets.PitStatusNone || rival.DriverStatus == packets.DriverStatusInGarage {
+			continue
+		}
+		gap := math.Mod(math.Abs(float64(rival.TotalDistance)-rejoinAt), trackLen)
+		if math.Min(gap, trackLen-gap) < window {
+			return nil
+		}
+	}
+
+	r.cleanAirLap = currentLap
+	return &Directive{
+		ID:       "pit_clean_air",
+		Category: DirectiveCategoryPitStrategy,
+		SubAlert: "pit_clean_air",
+		Title:    "Clean Air Pit Window",
+		Message:  "Box this lap and you rejoin in clean air. Good chance for the undercut.",
+		Urgency:  UrgencyLow,
+		BoxCall:  BoxCallOption,
+	}
 }

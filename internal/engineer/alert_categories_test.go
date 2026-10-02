@@ -150,7 +150,7 @@ func TestEngineerDirective_WireKeys(t *testing.T) {
 		got = append(got, k)
 	}
 	sort.Strings(got)
-	want := []string{"car_index", "category", "id", "session_time", "sub_alert", "timestamp", "type", "urgency"}
+	want := []string{"car_index", "category", "id", "session_time", "sub_alert", "timestamp", "ttl_ms", "type", "urgency"}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Errorf("directive JSON keys = %v, want %v", got, want)
 	}

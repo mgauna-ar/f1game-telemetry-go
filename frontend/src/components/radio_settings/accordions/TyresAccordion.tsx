@@ -28,14 +28,18 @@ export const TyresAccordion: React.FC<TyresAccordionProps> = ({ isExpanded, onTo
   const setSubTyreThermal = useRadioSettingsStore((s) => s.setSubTyreThermal);
   const subTyreCold = useRadioSettingsStore((s) => s.subTyreCold);
   const setSubTyreCold = useRadioSettingsStore((s) => s.setSubTyreCold);
+  const subTyreCondition = useRadioSettingsStore((s) => s.subTyreCondition);
+  const setSubTyreCondition = useRadioSettingsStore((s) => s.setSubTyreCondition);
+  const subTyreCrossover = useRadioSettingsStore((s) => s.subTyreCrossover);
+  const setSubTyreCrossover = useRadioSettingsStore((s) => s.setSubTyreCrossover);
+  const subTyreLife = useRadioSettingsStore((s) => s.subTyreLife);
+  const setSubTyreLife = useRadioSettingsStore((s) => s.setSubTyreLife);
   const tyreWearWarningPct = useRadioSettingsStore((s) => s.tyreWearWarningPct);
   const setTyreWearWarningPct = useRadioSettingsStore((s) => s.setTyreWearWarningPct);
   const tyreWearCriticalPct = useRadioSettingsStore((s) => s.tyreWearCriticalPct);
   const setTyreWearCriticalPct = useRadioSettingsStore((s) => s.setTyreWearCriticalPct);
-  const tyreOverheatC = useRadioSettingsStore((s) => s.tyreOverheatC);
-  const setTyreOverheatC = useRadioSettingsStore((s) => s.setTyreOverheatC);
-  const tyreColdC = useRadioSettingsStore((s) => s.tyreColdC);
-  const setTyreColdC = useRadioSettingsStore((s) => s.setTyreColdC);
+  const tyreTempMarginC = useRadioSettingsStore((s) => s.tyreTempMarginC);
+  const setTyreTempMarginC = useRadioSettingsStore((s) => s.setTyreTempMarginC);
 
   return (
     <SubsystemAccordion
@@ -75,6 +79,24 @@ export const TyresAccordion: React.FC<TyresAccordionProps> = ({ isExpanded, onTo
           checked={subTyreCold}
           onChange={setSubTyreCold}
         />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.tyreCondition')}
+          checked={subTyreCondition}
+          onChange={setSubTyreCondition}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.tyreCrossover')}
+          checked={subTyreCrossover}
+          onChange={setSubTyreCrossover}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.tyreLife')}
+          checked={subTyreLife}
+          onChange={setSubTyreLife}
+        />
       </div>
 
       <div className={styles.grid2}>
@@ -97,22 +119,15 @@ export const TyresAccordion: React.FC<TyresAccordionProps> = ({ isExpanded, onTo
           onChange={setTyreWearCriticalPct}
         />
         <ThresholdSlider
-          label={t('ai_engineer.proactiveAlerts.tyreOverheatTemp')}
-          value={tyreOverheatC}
-          formatValue={(c) => units.temperature(c)}
-          min={90}
-          max={140}
-          step={5}
-          onChange={setTyreOverheatC}
-        />
-        <ThresholdSlider
-          label={t('ai_engineer.proactiveAlerts.tyreColdTemp')}
-          value={tyreColdC}
-          formatValue={(c) => units.temperature(c)}
-          min={50}
-          max={100}
-          step={5}
-          onChange={setTyreColdC}
+          label={t('ai_engineer.proactiveAlerts.tyreTempMargin')}
+          value={tyreTempMarginC}
+          formatValue={(c) =>
+            `±${(units.temperatureValue(c) - units.temperatureValue(0)).toFixed(0)}${units.temperatureUnit}`
+          }
+          min={0}
+          max={15}
+          step={1}
+          onChange={setTyreTempMarginC}
         />
       </div>
     </SubsystemAccordion>

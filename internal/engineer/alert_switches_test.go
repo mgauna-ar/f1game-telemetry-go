@@ -6,51 +6,6 @@ import (
 	"testing"
 )
 
-// dashboardEnabledCategories is the enabled_categories map the dashboard built before the server
-// took over (buildEngineerConfigFromValues in frontend/src/store/useRadioSettingsStore.ts), copied
-// line by line. It pins today's behaviour for EnabledCategoriesFromSwitches.
-func dashboardEnabledCategories(v map[string]bool) map[string]bool {
-	return map[string]bool{
-		"tyre_wear":              v["tyreAlertsEnabled"] && v["subTyreWear"],
-		"tyre_puncture":          v["tyreAlertsEnabled"] && v["subTyrePuncture"],
-		"tyre_thermal":           v["thermalAlertsEnabled"] && v["subTyreThermal"],
-		"tyre_overheat":          v["thermalAlertsEnabled"] && v["subTyreThermal"],
-		"tyre_cold":              v["thermalAlertsEnabled"] && v["subTyreCold"],
-		"wing_damage":            v["damageAlertsEnabled"] && v["subDamageWing"],
-		"damage_wing":            v["damageAlertsEnabled"] && v["subDamageWing"],
-		"floor_damage":           v["damageAlertsEnabled"] && v["subDamageFloor"],
-		"damage_floor":           v["damageAlertsEnabled"] && v["subDamageFloor"],
-		"engine_wear":            v["damageAlertsEnabled"] && v["subDamageEngine"],
-		"damage_engine":          v["damageAlertsEnabled"] && v["subDamageEngine"],
-		"mechanical_fault":       v["damageAlertsEnabled"] && v["subDamageFaults"],
-		"damage_aero_fault":      v["damageAlertsEnabled"] && v["subDamageFaults"],
-		"damage_ers_fault":       v["damageAlertsEnabled"] && v["subDamageFaults"],
-		"damage_gearbox_wear":    v["damageAlertsEnabled"] && v["subDamageEngine"],
-		"damage_ice_wear":        v["damageAlertsEnabled"] && v["subDamageEngine"],
-		"damage_terminal_engine": v["damageAlertsEnabled"] && v["subDamageEngine"],
-		"damage":                 v["damageAlertsEnabled"],
-		"ers_low":                v["ersAlertsEnabled"] && v["subErsLow"],
-		"engine_temp":            v["damageAlertsEnabled"] && v["subEngineTemp"],
-		"brake_hot":              v["brakesAlertsEnabled"] && v["subBrakeTemp"],
-		"brake_cold":             v["brakesAlertsEnabled"] && v["subBrakeCold"],
-		"fuel_delta":             v["fuelAlertsEnabled"] && v["subFuelDelta"],
-		"undercut":               v["rivalAlertsEnabled"] && v["subUndercut"],
-		"pit_window":             v["pitWindowAlertsEnabled"] && v["subPitWindow"],
-		"rival_defend":           v["rivalAlertsEnabled"] && v["subRivalDefend"],
-		"rival_attack":           v["rivalAlertsEnabled"] && v["subRivalAttack"],
-		"qualy_invalid":          v["qualyAlertsEnabled"] && v["subQualyInvalid"],
-		"qualy_traffic":          v["qualyAlertsEnabled"] && v["subQualyTraffic"],
-		"qualy_time":             v["qualyAlertsEnabled"] && v["subQualyTime"],
-		"qualy_elim":             v["qualyAlertsEnabled"] && v["subQualyElim"],
-		"flags_sc":               v["flagsPensAlertsEnabled"] && v["subSafetyCar"],
-		"flags_red":              v["flagsPensAlertsEnabled"] && v["subRedFlag"],
-		"flags_rain":             v["flagsPensAlertsEnabled"] && v["subRain"],
-		"flags_rain_live":        v["flagsPensAlertsEnabled"] && v["subRain"],
-		"track_limits":           v["flagsPensAlertsEnabled"] && v["subTrackLimits"],
-		"penalties":              v["flagsPensAlertsEnabled"] && v["subPenalties"],
-	}
-}
-
 func allSwitches(on bool) map[string]bool {
 	m := make(map[string]bool, len(AlertSwitchKeys))
 	for _, k := range AlertSwitchKeys {
@@ -59,47 +14,87 @@ func allSwitches(on bool) map[string]bool {
 	return m
 }
 
-func TestEnabledCategoriesFromSwitches_MatchesDashboard(t *testing.T) {
-	cases := map[string]map[string]bool{
-		"all on":  allSwitches(true),
-		"all off": allSwitches(false),
-	}
-	for _, key := range AlertSwitchKeys {
-		off := allSwitches(true)
-		off[key] = false
-		cases[key+" off"] = off
-
-		on := allSwitches(false)
-		on[key] = true
-		cases["only "+key+" on"] = on
-	}
-	// Each alert switch with its master switch on, everything else off.
+func TestEnabledCategoriesFromSwitches_NeedsMasterAndAlertSwitch(t *testing.T) {
 	for _, g := range alertGates {
-		sw := allSwitches(false)
-		sw[g.master] = true
-		if g.alert != "" {
-			sw[g.alert] = true
-		}
-		cases["only "+g.master+"+"+g.alert+" on"] = sw
-	}
-
-	for name, switches := range cases {
-		t.Run(name, func(t *testing.T) {
-			got := EnabledCategoriesFromSwitches(switches)
-			want := dashboardEnabledCategories(switches)
-			if !maps.Equal(got, want) {
-				for k := range want {
-					if got[k] != want[k] {
-						t.Errorf("%s: got %v, want %v", k, got[k], want[k])
-					}
-				}
-				for k := range got {
-					if _, ok := want[k]; !ok {
-						t.Errorf("unexpected key %s", k)
-					}
-				}
+		t.Run(g.master+"/"+g.alert, func(t *testing.T) {
+			if got := EnabledCategoriesFromSwitches(allSwitches(true)); !allKeysAre(got, g.keys, true) {
+				t.Errorf("all switches on: %v should be on, got %v", g.keys, got)
+			}
+			masterOff := allSwitches(true)
+			masterOff[g.master] = false
+			if got := EnabledCategoriesFromSwitches(masterOff); !allKeysAre(got, g.keys, false) {
+				t.Errorf("%s off: %v should be off", g.master, g.keys)
+			}
+			if g.alert == "" {
+				return
+			}
+			alertOff := allSwitches(true)
+			alertOff[g.alert] = false
+			if got := EnabledCategoriesFromSwitches(alertOff); !allKeysAre(got, g.keys, false) {
+				t.Errorf("%s off: %v should be off", g.alert, g.keys)
+			}
+			only := allSwitches(false)
+			only[g.master] = true
+			only[g.alert] = true
+			if got := EnabledCategoriesFromSwitches(only); !allKeysAre(got, g.keys, true) {
+				t.Errorf("only %s and %s on: %v should be on", g.master, g.alert, g.keys)
 			}
 		})
+	}
+}
+
+func allKeysAre(enabled map[string]bool, keys []string, want bool) bool {
+	for _, k := range keys {
+		if v, ok := enabled[k]; !ok || v != want {
+			return false
+		}
+	}
+	return true
+}
+
+// Every call a rule can make has exactly one switch on the panel, apart from the few that are
+// always on, so nothing the engineer says can't be turned off from the dashboard.
+func TestAlertGates_CoverEveryAlertKey(t *testing.T) {
+	gatesOf := make(map[string][]string)
+	for _, g := range alertGates {
+		for _, k := range g.keys {
+			gatesOf[k] = append(gatesOf[k], g.master+"/"+g.alert)
+		}
+	}
+	engine := NewEngineerEngine(nil)
+	for key, rule := range engine.alertRules {
+		if slices.Contains(AlwaysOnAlertKeys, key) {
+			if len(gatesOf[key]) > 0 {
+				t.Errorf("%s is always on but has switches %v", key, gatesOf[key])
+			}
+			continue
+		}
+		switch n := len(gatesOf[key]); {
+		case n == 0:
+			t.Errorf("%s has no switch", key)
+			continue
+		case n > 1:
+			t.Errorf("%s has %d switches: %v", key, n, gatesOf[key])
+		}
+
+		// Turning off the alert's own switch silences it in the engine.
+		for _, g := range alertGates {
+			if g.alert == "" || !slices.Contains(g.keys, key) {
+				continue
+			}
+			sw := allSwitches(true)
+			sw[g.alert] = false
+			cfg := DefaultEngineerConfig()
+			cfg.EnabledCategories = EnabledCategoriesFromSwitches(sw)
+			if cfg.IsAlertEnabled(string(rule.Category), key) {
+				t.Errorf("%s stays on with %s off", key, g.alert)
+			}
+		}
+	}
+	for _, k := range AlwaysOnAlertKeys {
+		if _, ok := engine.alertRules[k]; !ok {
+			t.Errorf("always-on key %s is no rule's alert key", k)
+		}
 	}
 }
 

@@ -230,7 +230,7 @@ func TestRaceContext_NeighboursAndSummary(t *testing.T) {
 	f := runRaceLaps(t)
 	f.send(fastestLapEvent(f.header, fxVerstappen, 90.5))
 	f.engine.mu.Lock()
-	f.engine.emitDirectiveLocked(f.header, Directive{Message: "Box this lap for hards.", Urgency: UrgencyHigh}, "test_box")
+	f.engine.emitDirectiveLocked(f.header, Directive{Message: "Box this lap for hards.", Urgency: UrgencyHigh}, "test_box", 0)
 	f.engine.mu.Unlock()
 
 	snap := f.engine.RaceContext()

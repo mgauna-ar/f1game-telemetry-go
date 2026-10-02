@@ -46,6 +46,7 @@ func (r *FuelRule) AlertKeys() map[string]AlertKeyConfig {
 			Category:    DirectiveCategoryFuel,
 			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeLap,
+			MaxDelayMs:  ConditionMaxDelayMs,
 		},
 		"undercut": {
 			Category:    DirectiveCategoryPitStrategy,
@@ -183,6 +184,7 @@ func (r *FuelRule) Evaluate(ctx *EvaluationContext) []Directive {
 				Title:    "Pit Stop Window",
 				Message:  fmt.Sprintf("Pit stop window is now open (Lap %d). Target rejoin position P%d.", currentLapNum, rejoinPos),
 				Urgency:  UrgencyLow,
+				BoxCall:  BoxCallOption,
 			})
 		}
 	}
@@ -202,6 +204,7 @@ func (r *FuelRule) Evaluate(ctx *EvaluationContext) []Directive {
 				Title:    "Pit Window Closing",
 				Message:  fmt.Sprintf("Box this lap, box box! Pit stop window is closing (Lap %d), take the stop now to preserve tyre life.", currentLapNum),
 				Urgency:  UrgencyHigh,
+				BoxCall:  BoxCallInstruction,
 			})
 		}
 	}
@@ -226,7 +229,7 @@ func (r *FuelRule) Evaluate(ctx *EvaluationContext) []Directive {
 						Category: DirectiveCategoryPitStrategy,
 						SubAlert: "undercut_window",
 						Title:    "Undercut Threat",
-						Message:  fmt.Sprintf("Car behind (P%d) has just pitted for an undercut attempt! Push hard now on the in-lap to defend track position.", playerPos+1),
+						Message:  fmt.Sprintf("Car behind (P%d) has just pitted for the undercut! Push now to cover it.", playerPos+1),
 						Urgency:  UrgencyCritical,
 					})
 				}

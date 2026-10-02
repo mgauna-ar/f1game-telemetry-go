@@ -1182,126 +1182,89 @@ func TestTeammateRule_TableDriven(t *testing.T) {
 	})
 }
 
-func TestTrafficRule_TableDriven(t *testing.T) {
-	cfg := DefaultEngineerConfig()
-
-	t.Run("clean air pit rejoin opportunity on modulo lap", func(t *testing.T) {
-		rule := NewTrafficRule()
-		ctx := &EvaluationContext{
-			LapData: &packets.PacketLapData{
-				LapData: [packets.MaxCars]packets.LapData{
-					{CurrentLapNum: 5, TotalDistance: 10000.0},
-					{CurrentLapNum: 5, TotalDistance: 5000.0},
+func TestTrafficRule_CleanAir(t *testing.T) {
+	// Lap 12 of a 10-15 pit window, 1 km into a 5 km lap. Pitting now rejoins 21 s (1365 m) back.
+	const rejoinAt = 56000.0 - DefaultPitLaneLossSeconds*AverageRaceSpeedMetersPerSec
+	type rival struct {
+		totalDistance float32
+		pitStatus     uint8
+		result        uint8
+	}
+	tests := []struct {
+		name        string
+		lap         uint8
+		lapDistance float32
+		pitEntryM   float32
+		tyreAge     uint8
+		rivals      []rival
+		want        bool
+	}{
+		{name: "clean air inside the window", want: true},
+		{name: "before the window", lap: 9},
+		{name: "after the window", lap: 16},
+		{name: "a car where we would rejoin", rivals: []rival{{totalDistance: rejoinAt + 50}}},
+		{name: "a car a lap away where we would rejoin", rivals: []rival{{totalDistance: rejoinAt + 5000 - 50}}},
+		{name: "a car in the pit lane doesn't count", rivals: []rival{{totalDistance: rejoinAt + 50, pitStatus: packets.PitStatusPitting}}, want: true},
+		{name: "a retired car doesn't count", rivals: []rival{{totalDistance: rejoinAt + 50, result: packets.ResultStatusRetired}}, want: true},
+		{name: "too late for this lap's pit entry", lapDistance: 4500, pitEntryM: 4800},
+		{name: "pit entry still ahead", lapDistance: 4000, pitEntryM: 4800, want: true},
+		{name: "tyres just fitted", tyreAge: 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.lap == 0 {
+				tt.lap = 12
+			}
+			if tt.lapDistance == 0 {
+				tt.lapDistance = 1000
+			}
+			if tt.tyreAge == 0 {
+				tt.tyreAge = 10
+			}
+			lapData := &packets.PacketLapData{}
+			lapData.LapData[0] = packets.LapData{CurrentLapNum: tt.lap, LapDistance: tt.lapDistance, TotalDistance: 56000}
+			lapData.LapData[1] = packets.LapData{CurrentLapNum: tt.lap, TotalDistance: 30000} // far from the rejoin point
+			for i, r := range tt.rivals {
+				result := r.result
+				if result == 0 {
+					result = packets.ResultStatusActive
+				}
+				lapData.LapData[2+i] = packets.LapData{CurrentLapNum: tt.lap, TotalDistance: r.totalDistance, PitStatus: r.pitStatus, ResultStatus: result, DriverStatus: packets.DriverStatusOnTrack}
+			}
+			lapData.LapData[1].ResultStatus = packets.ResultStatusActive
+			status := &packets.PacketCarStatusData{}
+			status.CarStatusData[0].TyresAgeLaps = tt.tyreAge
+			ctx := &EvaluationContext{
+				LapData:   lapData,
+				Status:    status,
+				Config:    DefaultEngineerConfig(),
+				Phase:     PhaseRacing,
+				PitEntryM: tt.pitEntryM,
+				Session: &packets.PacketSessionData{
+					SessionType:            packets.SessionRace,
+					TrackLength:            5000,
+					PitStopWindowIdealLap:  10,
+					PitStopWindowLatestLap: 15,
 				},
-			},
-			Config:         cfg,
-			PlayerCarIndex: 0,
-			Phase:          PhaseRacing,
-			Session: &packets.PacketSessionData{
-				SessionType:     packets.SessionRace,
-				SafetyCarStatus: packets.SafetyCarNone,
-				TrackLength:     5000,
-			},
-		}
+			}
 
-		dirs := rule.Evaluate(ctx)
-		if len(dirs) != 1 || dirs[0].SubAlert != "pit_clean_air" {
-			t.Fatalf("expected pit_clean_air directive, got %+v", dirs)
-		}
-	})
-
-	t.Run("traffic on rejoin suppresses clean air alert", func(t *testing.T) {
-		rule := NewTrafficRule()
-		ctx := &EvaluationContext{
-			LapData: &packets.PacketLapData{
-				LapData: [packets.MaxCars]packets.LapData{
-					{CurrentLapNum: 5, TotalDistance: 10000.0},
-					{CurrentLapNum: 5, TotalDistance: 8650.0},
-				},
-			},
-			Config:         cfg,
-			PlayerCarIndex: 0,
-			Phase:          PhaseRacing,
-			Session: &packets.PacketSessionData{
-				SessionType:     packets.SessionRace,
-				SafetyCarStatus: packets.SafetyCarNone,
-				TrackLength:     5000,
-			},
-		}
-
-		dirs := rule.Evaluate(ctx)
-		if len(dirs) != 0 {
-			t.Fatalf("expected 0 directives when rejoin is blocked by traffic, got %d", len(dirs))
-		}
-	})
-
-	t.Run("non-periodic lap produces no alert", func(t *testing.T) {
-		rule := NewTrafficRule()
-		ctx := &EvaluationContext{
-			LapData: &packets.PacketLapData{
-				LapData: [packets.MaxCars]packets.LapData{
-					{CurrentLapNum: 4, TotalDistance: 10000.0},
-				},
-			},
-			Config:         cfg,
-			PlayerCarIndex: 0,
-			Phase:          PhaseRacing,
-			Session: &packets.PacketSessionData{
-				SessionType:     packets.SessionRace,
-				SafetyCarStatus: packets.SafetyCarNone,
-				TrackLength:     5000,
-			},
-		}
-		if dirs := rule.Evaluate(ctx); len(dirs) != 0 {
-			t.Fatalf("expected 0 directives on non-periodic lap, got %d", len(dirs))
-		}
-	})
-
-	t.Run("already pitted driver suppresses clean air alert", func(t *testing.T) {
-		rule := NewTrafficRule()
-		ctx := &EvaluationContext{
-			LapData: &packets.PacketLapData{
-				LapData: [packets.MaxCars]packets.LapData{
-					{CurrentLapNum: 10, TotalDistance: 20000.0, NumPitStops: 1},
-				},
-			},
-			Config:         cfg,
-			PlayerCarIndex: 0,
-			Phase:          PhaseRacing,
-			Session: &packets.PacketSessionData{
-				SessionType:     packets.SessionRace,
-				SafetyCarStatus: packets.SafetyCarNone,
-				TrackLength:     5000,
-				TotalLaps:       53,
-			},
-		}
-		if dirs := rule.Evaluate(ctx); len(dirs) != 0 {
-			t.Fatalf("expected 0 directives when driver already completed pit stop, got %d", len(dirs))
-		}
-	})
-
-	t.Run("late race lap suppresses clean air alert", func(t *testing.T) {
-		rule := NewTrafficRule()
-		ctx := &EvaluationContext{
-			LapData: &packets.PacketLapData{
-				LapData: [packets.MaxCars]packets.LapData{
-					{CurrentLapNum: 50, TotalDistance: 100000.0, NumPitStops: 0},
-				},
-			},
-			Config:         cfg,
-			PlayerCarIndex: 0,
-			Phase:          PhaseRacing,
-			Session: &packets.PacketSessionData{
-				SessionType:     packets.SessionRace,
-				SafetyCarStatus: packets.SafetyCarNone,
-				TrackLength:     5000,
-				TotalLaps:       53,
-			},
-		}
-		if dirs := rule.Evaluate(ctx); len(dirs) != 0 {
-			t.Fatalf("expected 0 directives on lap 50 of 53, got %d", len(dirs))
-		}
-	})
+			rule := NewTrafficRule()
+			dirs := rule.Evaluate(ctx)
+			got := len(dirs) == 1 && dirs[0].SubAlert == "pit_clean_air"
+			if got != tt.want || (!tt.want && len(dirs) != 0) {
+				t.Fatalf("clean air call = %v, want %v (%+v)", got, tt.want, dirs)
+			}
+			if !tt.want {
+				return
+			}
+			if dirs[0].BoxCall != BoxCallOption {
+				t.Errorf("BoxCall = %v, want an option", dirs[0].BoxCall)
+			}
+			if again := rule.Evaluate(ctx); len(again) != 0 {
+				t.Errorf("called twice on one lap: %+v", again)
+			}
+		})
+	}
 }
 
 func TestERSRule_YearAware(t *testing.T) {
@@ -2781,4 +2744,48 @@ func TestPhase6AeroPitOverspeedAndDynamics(t *testing.T) {
 			t.Fatalf("expected both damage_gearbox_wear and damage_ice_wear, got %+v", dirsDmg)
 		}
 	})
+}
+
+func TestTyresRule_TempMarginSetsHotAndColdCalls(t *testing.T) {
+	// C1 works from 95 to 115°C.
+	tests := []struct {
+		name    string
+		temps   [4]uint8 // front left, front right, rear left, rear right
+		marginC float32
+		want    string
+	}{
+		{"118°C inside the default 5°C margin", [4]uint8{100, 100, 118, 118}, 5, ""},
+		{"118°C past a 2°C margin", [4]uint8{100, 100, 118, 118}, 2, "tyre_overheat"},
+		{"92°C inside the default 5°C margin", [4]uint8{92, 92, 92, 92}, 5, ""},
+		{"92°C past a 2°C margin", [4]uint8{92, 92, 92, 92}, 2, "tyre_cold"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := DefaultEngineerConfig()
+			cfg.TyreTempMarginC = tt.marginC
+			ctx := &EvaluationContext{
+				Telemetry: &packets.PacketCarTelemetryData{
+					CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
+						{TyresSurfaceTemperature: wheels(tt.temps[0], tt.temps[1], tt.temps[2], tt.temps[3])},
+					},
+				},
+				Status: &packets.PacketCarStatusData{
+					CarStatusData: [packets.MaxCars]packets.CarStatusData{
+						{ActualTyreCompound: packets.ActualCompoundC1},
+					},
+				},
+				Config: cfg,
+				Phase:  PhaseRacing,
+			}
+			got := ""
+			for _, d := range NewTyresRule().Evaluate(ctx) {
+				if d.SubAlert == "tyre_overheat" || d.SubAlert == "tyre_cold" {
+					got = d.SubAlert
+				}
+			}
+			if got != tt.want {
+				t.Errorf("call = %q, want %q", got, tt.want)
+			}
+		})
+	}
 }

@@ -30,7 +30,22 @@ const (
 	simCarSpacingM = 90
 	// simDRSFromLap is the first lap DRS can be enabled on (2025).
 	simDRSFromLap = 3
+
+	// The pit scenario's pit lane: cars start pitting at simPitEntryM, stop in the box early in the
+	// next lap and rejoin at simPitExitM.
+	simPitEntryM  = 4950
+	simPitBoxEndM = 150
+	simPitExitM   = 300
+	// simPlayerPitLap is the lap the player pits at the end of; a puncture comes on the lap before,
+	// just past the point a call to box that lap can still be made.
+	simPlayerPitLap  = 4
+	simPunctureLap   = 3
+	simPunctureFromM = 4460
 )
+
+// simAIPitLaps are the AI cars that pit in the pit scenario and the lap each pits at the end of, so
+// the server learns the pit entry before the player's puncture.
+var simAIPitLaps = map[int]uint8{9: 1, 10: 2, 11: 3}
 
 type driverInfo struct {
 	name         string
@@ -191,6 +206,8 @@ type simState struct {
 	lapNum          uint8
 	totalDistance   float32
 	sessionTimeLeft uint16
+	lapDist         float32                // the player's lap distance this frame
+	pitStatus       [packets.MaxCars]uint8 // each car's pit status last frame (pit scenario)
 }
 
 func main() {
@@ -283,27 +300,23 @@ func main() {
 					lapDist = float32(150.0 + (st.sessionTime-10.0)*30.0)
 				}
 			case "pit":
-				switch {
-				case st.sessionTime >= 4.0 && st.sessionTime < 7.0:
+				switch simPitStatus(st.lapNum, lapDist, simPlayerPitLap) {
+				case packets.PitStatusPitting:
 					speedKmh = 78
 					rpm = 7800
 					gear = 2
 					throttle = 0.4
 					brake = 0.0
-				case st.sessionTime >= 7.0 && st.sessionTime < 11.0:
+				case packets.PitStatusInPitArea:
 					speedKmh = 0
 					rpm = 4500
 					gear = 0
 					throttle = 0.0
 					brake = 1.0
-				case st.sessionTime >= 11.0 && st.sessionTime < 14.0:
-					speedKmh = 75
-					rpm = 7500
-					gear = 2
-					throttle = 0.35
-					brake = 0.0
 				}
 			}
+
+			st.lapDist = lapDist
 
 			// Common Header
 			header := packets.PacketHeader{
@@ -665,37 +678,31 @@ func buildLapCars(cfg SimulatorConfig, st *simState, lapDist float32) []packets.
 				driverStatus = packets.DriverStatusInLap
 			}
 
-			if i == 0 && cfg.Scenario == "pit" {
-				switch {
-				case st.sessionTime >= 4.0 && st.sessionTime < 7.0:
-					pitStatus = packets.PitStatusPitting
-					driverStatus = packets.DriverStatusInLap
-					penalties = 5
-					pitStopShouldServePen = 1
-					if st.sessionTime >= 4.0 && st.sessionTime < 4.1 {
-						slog.Info("Pit entry: limiter engaged, penalty to serve", "scenario", "pit", "penalties", 5)
+			if cfg.Scenario == "pit" {
+				carLapDist := simCarLapDistance(lapDist, i)
+				if i == 0 {
+					pitStatus = simPitStatus(st.lapNum, lapDist, simPlayerPitLap)
+					switch {
+					case pitStatus == packets.PitStatusPitting && st.lapNum == simPlayerPitLap:
+						driverStatus = packets.DriverStatusInLap
+						penalties = 5
+						pitStopShouldServePen = 1
+					case pitStatus != packets.PitStatusNone:
+						driverStatus = packets.DriverStatusInLap
+						pitStopTimerInMS = 2400
+					case st.lapNum == simPlayerPitLap+1:
+						driverStatus = packets.DriverStatusOutLap
 					}
-				case st.sessionTime >= 7.0 && st.sessionTime < 11.0:
-					pitStatus = packets.PitStatusInPitArea
-					driverStatus = packets.DriverStatusInLap
-					pitStopTimerInMS = 2400
-					if st.sessionTime >= 7.0 && st.sessionTime < 7.1 {
-						slog.Info("Stationary in pit box", "scenario", "pit", "stopTimerMs", 2400)
-					}
-				case st.sessionTime >= 11.0 && st.sessionTime < 14.0:
-					pitStatus = packets.PitStatusPitting
-					driverStatus = packets.DriverStatusInLap
-					pitStopTimerInMS = 2400
-					if st.sessionTime >= 11.0 && st.sessionTime < 11.1 {
-						slog.Info("Leaving pit box, rolling down pit lane", "scenario", "pit")
-					}
-				case st.sessionTime >= 14.0 && st.sessionTime < 16.0:
-					pitStatus = packets.PitStatusNone
-					driverStatus = packets.DriverStatusOutLap
-					if st.sessionTime >= 14.0 && st.sessionTime < 14.1 {
-						slog.Info("Pit exit: limiter disengaged, rejoined track", "scenario", "pit")
+				} else if pitLap, ok := simAIPitLaps[i]; ok {
+					pitStatus = simPitStatus(simCarLap(st.lapNum, lapDist, carLapDist), carLapDist, pitLap)
+					if pitStatus != packets.PitStatusNone {
+						driverStatus = packets.DriverStatusInLap
 					}
 				}
+				if pitStatus != st.pitStatus[i] && (i == 0 || simAIPitLaps[i] > 0) {
+					slog.Info("Pit status changed", "scenario", "pit", "car", i, "pitStatus", pitStatus, "lapDistance", int(carLapDist))
+				}
+				st.pitStatus[i] = pitStatus
 			}
 
 			gridPos := uint8((i+3)%cfg.NumActiveCars + 1)
@@ -748,7 +755,7 @@ func buildCarStatusCars(cfg SimulatorConfig, st *simState) []packets.CarStatusDa
 	for i := 0; i < cfg.TotalSlots; i++ {
 		if i < cfg.NumActiveCars {
 			pitLimiter := uint8(0)
-			if i == 0 && cfg.Scenario == "pit" && st.sessionTime >= 4.0 && st.sessionTime < 14.0 {
+			if i == 0 && cfg.Scenario == "pit" && simPitStatus(st.lapNum, st.lapDist, simPlayerPitLap) != packets.PitStatusNone {
 				pitLimiter = 1
 			}
 			statusCars[i] = packets.CarStatusData{
@@ -803,6 +810,9 @@ func buildCarDamageCars(cfg SimulatorConfig, st *simState) []packets.CarDamageDa
 		frWear := baseWear + float32((i+1)%2)*2.5
 		rlWear := baseWear * 0.95
 		rrWear := baseWear * 0.92
+		if i == 0 && cfg.Scenario == "pit" && simPunctured(st.lapNum, st.lapDist) {
+			rlWear = 97
+		}
 
 		if i == 0 && (cfg.Scenario == "wear" || cfg.Scenario == "tyre-wear") && st.frameID%100 == 0 {
 			slog.Info("Player tyre wear update", "scenario", cfg.Scenario, "flWear", flWear, "frWear", frWear, "sessionTime", st.sessionTime)
@@ -904,6 +914,43 @@ func simLastLapMS(carIdx int, currentLap uint8) uint32 {
 	}
 	s := simSectorsMS(carIdx, int(currentLap)-1)
 	return s[0] + s[1] + s[2]
+}
+
+// simPitStatus is the pit status of a car lapDist metres into its lap ownLap, when it pits at the
+// end of lap pitLap: pitting from the pit entry, in the box early in the next lap, then out.
+func simPitStatus(ownLap uint8, lapDist float32, pitLap uint8) uint8 {
+	switch {
+	case ownLap == pitLap && lapDist >= simPitEntryM:
+		return packets.PitStatusPitting
+	case ownLap == pitLap+1 && lapDist < simPitBoxEndM:
+		return packets.PitStatusInPitArea
+	case ownLap == pitLap+1 && lapDist < simPitExitM:
+		return packets.PitStatusPitting
+	}
+	return packets.PitStatusNone
+}
+
+// simCarLap is the lap a car carLapDist into its lap is on: one behind the leader's until it too
+// has crossed the line (0 before the start).
+func simCarLap(leaderLap uint8, leaderLapDist, carLapDist float32) uint8 {
+	if carLapDist > leaderLapDist && leaderLap > 0 {
+		return leaderLap - 1
+	}
+	return leaderLap
+}
+
+// simPunctured reports whether the player's rear left is punctured in the pit scenario: from late
+// on simPunctureLap until the tyres are changed.
+func simPunctured(lapNum uint8, lapDist float32) bool {
+	switch lapNum {
+	case simPunctureLap:
+		return lapDist >= simPunctureFromM
+	case simPlayerPitLap:
+		return true
+	case simPlayerPitLap + 1:
+		return lapDist < simPitBoxEndM
+	}
+	return false
 }
 
 // simCarLapDistance places a car simCarSpacingM behind the one in front, on the same lap.

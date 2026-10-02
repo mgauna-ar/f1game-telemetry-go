@@ -95,6 +95,15 @@ type AlertKeyConfig struct {
 	MinLapDistancePct       float32
 	SuppressAfterPitForLaps int
 	DedupScope              DedupScope
+	// MaxDelayMs is how long the call stays worth saying while a passing gate holds it back
+	// (braking, radio spacing, cooldown, pause). Zero means DefaultMaxDelayMs.
+	MaxDelayMs int64
+	// MinRepeatMs is the shortest gap before the call is made again, at any urgency. Zero means
+	// DefaultMinRepeatMs.
+	MinRepeatMs int64
+	// SkipCategoryCooldown lets the call through right after another of its category: a step of
+	// the pit stop, said when it happens.
+	SkipCategoryCooldown bool
 }
 
 // Tuning holds the race engineer values the driver sets in the dashboard: radio spacing and
@@ -105,8 +114,9 @@ type Tuning struct {
 	SmartDiscretionEnabled bool    `json:"smart_discretion_enabled"`
 	TyreWearWarnPct        float32 `json:"tyre_wear_warn_pct"`
 	TyreWearCritPct        float32 `json:"tyre_wear_crit_pct"`
-	TyreOverheatC          float32 `json:"tyre_overheat_c"`
-	TyreColdC              float32 `json:"tyre_cold_c"`
+	// TyreTempMarginC is how far outside the compound's working window the tyre surface must be
+	// before the engineer calls it hot or cold.
+	TyreTempMarginC        float32 `json:"tyre_temp_margin_c"`
 	WingDamageWarnPct      float32 `json:"wing_damage_warn_pct"`
 	FloorDamageWarnPct     float32 `json:"floor_damage_warn_pct"`
 	EngineWearWarnPct      float32 `json:"engine_wear_warn_pct"`
@@ -122,6 +132,11 @@ type Tuning struct {
 	CornerCutWarnThreshold int     `json:"corner_cut_warn_threshold"`
 	RainHorizonMin         float32 `json:"rain_horizon_min"`
 	RainProbPct            float32 `json:"rain_prob_pct"`
+	// PitCallLeadM is how far before the pit entry a call to box this lap must come; later than
+	// that the call says to box next lap.
+	PitCallLeadM float32 `json:"pit_call_lead_m"`
+	// GapReportLaps is how many laps apart the gap reports come in a race.
+	GapReportLaps int `json:"gap_report_laps"`
 }
 
 // DefaultTuning returns the built-in radio spacing and alert thresholds.
@@ -131,8 +146,7 @@ func DefaultTuning() Tuning {
 		SmartDiscretionEnabled: true,
 		TyreWearWarnPct:        40.0,
 		TyreWearCritPct:        75.0,
-		TyreOverheatC:          OverheatRearTyres2025C,
-		TyreColdC:              ColdTyresTargetC,
+		TyreTempMarginC:        TyreDegradationTempMarginC,
 		WingDamageWarnPct:      20.0,
 		FloorDamageWarnPct:     25.0,
 		EngineWearWarnPct:      70.0,
@@ -148,6 +162,8 @@ func DefaultTuning() Tuning {
 		CornerCutWarnThreshold: CornerCutWarnDefaultThreshold,
 		RainHorizonMin:         WeatherRainHorizonMinutes,
 		RainProbPct:            WeatherRainTransitionProbPct,
+		PitCallLeadM:           DefaultPitCallLeadM,
+		GapReportLaps:          DefaultGapReportLaps,
 	}
 }
 
@@ -208,7 +224,50 @@ type EngineerDirective struct {
 	Timestamp   int64                     `json:"timestamp"`
 	CarIndex    int                       `json:"car_index"`
 	SessionTime float32                   `json:"session_time"`
+	// TTLMs is how long after it arrives the call is still worth saying; a dashboard drops it
+	// from its speech queue after that.
+	TTLMs int64 `json:"ttl_ms"`
+	// Box is when the driver can pit, on a call that asks them to (BoxCall).
+	Box BoxTiming `json:"box,omitempty" tstype:"EngineerBoxTiming"`
+	// BoxCall says whether the call asks the driver to pit; the rule sets it.
+	BoxCall BoxCall `json:"-"`
+	// Values are the numbers a report says (gap report, tyre life); the dashboard speaks them.
+	Values *DirectiveValues `json:"values,omitempty"`
 }
+
+// DirectiveValues are the numbers a report call says. Only the fields of its report are set.
+type DirectiveValues struct {
+	// Position is the player's race position (gap report).
+	Position int `json:"position,omitempty"`
+	// Ahead and Behind are the cars close in front and behind (gap report); nil when there is no
+	// car within GapReportMaxGapSec.
+	Ahead  *GapToCar `json:"ahead,omitempty"`
+	Behind *GapToCar `json:"behind,omitempty"`
+	// TyreLapsLeft is about how many laps the tyres have before the wear limit (tyre life).
+	TyreLapsLeft int `json:"tyre_laps_left,omitempty"`
+}
+
+// GapToCar is the gap to a car close ahead or behind and how it is moving.
+type GapToCar struct {
+	// GapSec is the gap in seconds, to a tenth.
+	GapSec float64 `json:"gap_sec"`
+	// Trend is how the gap moved over the last laps; empty until it can be measured.
+	Trend GapTrendDirection `json:"trend,omitempty" tstype:"EngineerGapTrend"`
+	// PerLapSec is how much the gap changes each lap, to a tenth; 0 when stable.
+	PerLapSec float64 `json:"per_lap_sec,omitempty"`
+}
+
+// GapTrendDirection says whether a gap is shrinking, growing or holding.
+type GapTrendDirection string
+
+const (
+	GapClosing GapTrendDirection = "closing"
+	GapOpening GapTrendDirection = "opening"
+	GapStable  GapTrendDirection = "stable"
+)
+
+// GapTrendDirections lists every GapTrendDirection, for the generated TypeScript union.
+var GapTrendDirections = []string{string(GapClosing), string(GapOpening), string(GapStable)}
 
 // Directive is an alias for EngineerDirective for concise usage.
 type Directive = EngineerDirective
@@ -234,6 +293,15 @@ type EvaluationContext struct {
 	PacketFormat     uint16
 	CurrentLap       int
 	Now              int64
+	// PitEntryM is the track's pit entry as a lap distance, learned from the cars that pit; 0
+	// while unknown.
+	PitEntryM float32
+	// PlayerLaps are the player's completed laps this session, oldest first. Read only.
+	PlayerLaps []LapRecord
+	// CallLaps is the lap each alert key was last said on. Read only.
+	CallLaps map[string]int
+	// BoxDueLap is the lap a call told the player to box on; 0 when none is open.
+	BoxDueLap int
 }
 
 // PlayerLap returns the player car's LapData if available.
@@ -242,6 +310,15 @@ func (ctx *EvaluationContext) PlayerLap() *packets.LapData {
 		return nil
 	}
 	return &ctx.LapData.LapData[ctx.PlayerCarIndex]
+}
+
+// BoxTiming is when the player could pit if told to now.
+func (ctx *EvaluationContext) BoxTiming() BoxTiming {
+	lap := ctx.PlayerLap()
+	if lap == nil || ctx.Session == nil {
+		return BoxASAP
+	}
+	return boxTimingAt(lap.LapDistance, float32(ctx.Session.TrackLength), ctx.PitEntryM, ctx.Config.PitCallLeadM)
 }
 
 // PlayerStatus returns the player car's CarStatusData if available.

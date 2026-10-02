@@ -44,6 +44,7 @@ func (r *TyresRule) AlertKeys() map[string]AlertKeyConfig {
 		"tyre_wear": {
 			ValidPhases: []DrivingPhase{PhaseRacing, PhaseSafetyCar},
 			DedupScope:  DedupScopeStint,
+			MaxDelayMs:  ConditionMaxDelayMs,
 		},
 		"tyre_puncture": {
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseGrid, PhaseRaceStart, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
@@ -52,15 +53,18 @@ func (r *TyresRule) AlertKeys() map[string]AlertKeyConfig {
 		"tyre_overheat": {
 			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeStint,
+			MaxDelayMs:  ConditionMaxDelayMs,
 		},
 		"tyre_cold": {
 			ValidPhases:       []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseSafetyCar},
 			MinLapDistancePct: MinOutLapDistanceCompletionPct,
 			DedupScope:        DedupScopePhase,
+			MaxDelayMs:        ConditionMaxDelayMs,
 		},
 		"tyre_crossover": {
 			ValidPhases: []DrivingPhase{PhaseRacing, PhaseSafetyCar},
 			DedupScope:  DedupScopeStint,
+			MaxDelayMs:  ConditionMaxDelayMs,
 		},
 		"tyre_crossover_wet": {
 			ValidPhases: []DrivingPhase{PhaseRacing, PhaseSafetyCar},
@@ -74,14 +78,17 @@ func (r *TyresRule) AlertKeys() map[string]AlertKeyConfig {
 			Category:    DirectiveCategoryPitStrategy,
 			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeStint,
+			MaxDelayMs:  ConditionMaxDelayMs,
 		},
 		"tyre_blistering": {
 			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeStint,
+			MaxDelayMs:  ConditionMaxDelayMs,
 		},
 		"tyre_pressure_high": {
 			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeStint,
+			MaxDelayMs:  ConditionMaxDelayMs,
 		},
 	}
 }
@@ -127,6 +134,7 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 				Title:    "Critical Tyre Puncture",
 				Message:  fmt.Sprintf("Critical tyre puncture! Wear is at %d%%. Box now, box box!", int(math.Round(float64(maxWear)))),
 				Urgency:  UrgencyCritical,
+				BoxCall:  BoxCallInstruction,
 			})
 		} else if maxWear < PunctureWearThresholdPct {
 			// Wear warning / critical thresholds
@@ -200,8 +208,8 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 		}
 
 		window := GetTyreThermalWindow(actualCompound, visualCompound)
-		overheatLimit := window.MaxTemp + TyreDegradationTempMarginC
-		coldLimit := window.MinTemp - TyreDegradationTempMarginC
+		overheatLimit := window.MaxTemp + ctx.Config.TyreTempMarginC
+		coldLimit := window.MinTemp - ctx.Config.TyreTempMarginC
 
 		playerLap := ctx.PlayerLap()
 		isNeutralized := ctx.Phase == PhaseSafetyCar ||
@@ -323,6 +331,7 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 					Title:    "Tyre Crossover (Box for Inters)",
 					Message:  "Track conditions are too wet for slick tyres! Box now, box box for Intermediates.",
 					Urgency:  UrgencyCritical,
+					BoxCall:  BoxCallInstruction,
 				})
 			case isInter && (currentWeather >= packets.WeatherHeavyRain || rainPct >= WeatherHeavyRainWetThreshold) && r.lastCrossoverTarget != "WET":
 				// Case B: Inters on heavy standing water -> Aquaplaning risk, box for Full Wets
@@ -334,6 +343,7 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 					Title:    "Tyre Crossover (Box for Full Wets)",
 					Message:  "Track is saturated with standing water, aquaplaning risk! Box this lap for Full Wets.",
 					Urgency:  UrgencyCritical,
+					BoxCall:  BoxCallInstruction,
 				})
 			case isWet && (currentWeather <= packets.WeatherLightRain && rainPct <= WeatherLightRainInterThreshold) && stintLaps >= TyreCrossoverMinStintLaps && r.lastCrossoverTarget != "INTER_DRYING":
 				// Case C: Full Wets on drying/easing rain -> Inters are much faster
@@ -345,6 +355,7 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 					Title:    "Tyre Crossover (Box for Inters)",
 					Message:  "Rain has eased up and standing water is clearing. Intermediate tyre is much faster now, box for Inters.",
 					Urgency:  UrgencyHigh,
+					BoxCall:  BoxCallInstruction,
 				})
 			case (isInter || isWet) && currentWeather <= packets.WeatherLightCloud && stintLaps >= TyreCrossoverMinStintLaps && r.lastCrossoverTarget != "SLICKS":
 				// Case D: Wet tyres on drying track -> Crossover approaching for Slicks
@@ -356,6 +367,7 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 					Title:    "Tyre Crossover (Box for Slicks)",
 					Message:  "Track is drying out, crossover window is approaching. Prepare to box for slicks.",
 					Urgency:  UrgencyMedium,
+					BoxCall:  BoxCallInstruction,
 				})
 			}
 		}

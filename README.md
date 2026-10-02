@@ -42,6 +42,8 @@
 ### 🎙️ AI Race Engineer & Voice Radio
 * **Hands-Free Global Push-to-Talk (PTT):** DirectInput support for steering wheels (Fanatec, Logitech, Moza, Simagic) and global keyboard shortcuts while driving in full-screen.
 * **Proactive Pit Wall Calls:** Context-aware pit wall alerts for tyre wear/temperatures, aero damage, ERS deployment, fuel Lift & Coast, rival gaps, and safety cars, with automatic suppression under heavy braking or cornering until you reach the straight.
+* **Box Calls That Know Where the Pit Entry Is:** The engineer learns each track's pit entry from the cars that pit (kept between races), so a call to pit says "box this lap" only while you can still make it, "box next lap" when it's too late, and reminds you as the entry comes up. Every call has its own switch, grouped by section, in Settings → Radio calls.
+* **Gap and Tyre Reports:** Every few laps of a race (3 by default, adjustable) the engineer gives your position and the gaps to the cars within 10 seconds ahead and behind, with whether each is closing, opening or stable, said with real numbers in your language. It skips laps under the Safety Car, around your pit stop and right after a battle call. It also tells you how many laps your tyres have left (at about 8 and again at 3), or that they'll make the end.
 * **Radio Q&A With the Full Race Picture:** Ask anything over push-to-talk; the engineer tracks live gaps, rival tyres and pit stops, wear rates, fuel targets, pit windows, and weather, and uses function calling to look up deeper lap-by-lap history or standings on demand. Streamed replies begin speaking as soon as the first sentence is synthesized.
 * **Neural Voices & Bilingual Personas:** Authentic pit wall personas (**Bono 🇬🇧**, **Franco Colapinto 🇦🇷**, or **Custom**) in **English** and **Español (Latinoamérica)** with cockpit radio filtering, static squelch, and FOM harmonic beeps.
 * **Server-Built Context & Rich Markdown Chat:** The server assembles live briefings, post-session debriefs, and zoomed lap comparisons directly from telemetry data, streaming replies formatted with tables, lists, code blocks, and an expandable reading view. On a wide screen the chat can dock beside the page, which makes room for it instead of covering the comparator or your charts.
@@ -155,7 +157,7 @@ go run ./cmd/simulator -scenario sc        # Deploys a Full Safety Car → tests
 go run ./cmd/simulator -scenario vsc       # Deploys Virtual Safety Car (VSC)
 go run ./cmd/simulator -scenario rain      # Injects rain forecast → tests weather crossover alert
 go run ./cmd/simulator -scenario start     # Formation lap warmup, grid approach, and lights-out launch reaction debrief
-go run ./cmd/simulator -scenario pit       # Pit limiter entry, penalty hold, stationary stop duration debrief, and exit release
+go run ./cmd/simulator -scenario pit       # AI cars pit (pit entry learned), a puncture late on lap 3 → "box next lap", pit entry reminder, then the player's stop: limiter, penalty hold, stop time, exit
 ```
 
 ---

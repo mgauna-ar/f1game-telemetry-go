@@ -84,6 +84,56 @@ func TestLoadEngineer_MigratesSetupsWithoutAlertSwitches(t *testing.T) {
 	}
 }
 
+func TestLoadEngineer_DropsRetiredMasterSwitches(t *testing.T) {
+	tests := []struct {
+		name  string
+		saved string
+		want  map[string]bool
+	}{
+		{
+			name:  "hidden masters off keep their alerts silent",
+			saved: `{"alert_switches":{"thermalAlertsEnabled":false,"pitWindowAlertsEnabled":false,"subTyreThermal":true,"subTyreCold":true,"subPitWindow":true,"subTyreWear":true}}`,
+			want:  map[string]bool{"subTyreThermal": false, "subTyreCold": false, "subPitWindow": false, "subTyreWear": true},
+		},
+		{
+			name:  "hidden masters on leave their alerts as they were",
+			saved: `{"alert_switches":{"thermalAlertsEnabled":true,"pitWindowAlertsEnabled":true,"subTyreThermal":false,"subTyreCold":true,"subPitWindow":true}}`,
+			want:  map[string]bool{"subTyreThermal": false, "subTyreCold": true, "subPitWindow": true},
+		},
+		{
+			name:  "unknown switches are dropped",
+			saved: `{"alert_switches":{"subSomethingOld":false,"subRain":false}}`,
+			want:  map[string]bool{"subRain": false},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, _, err := LoadEngineer(context.Background(), memStore{engineerSettingsKey: tt.saved})
+			if err != nil {
+				t.Fatalf("LoadEngineer: %v", err)
+			}
+			if !maps.Equal(got.AlertSwitches, tt.want) {
+				t.Errorf("alert switches = %v, want %v", got.AlertSwitches, tt.want)
+			}
+			// The setup must still save: Apply rejects switches the panel doesn't have.
+			if _, err := got.Apply(got); err != nil {
+				t.Errorf("Apply after load: %v", err)
+			}
+		})
+	}
+}
+
+func TestLoadEngineer_OldTyreTemperaturesGiveTheDefaultMargin(t *testing.T) {
+	store := memStore{engineerSettingsKey: `{"tyre_overheat_c":110,"tyre_cold_c":80}`}
+	got, _, err := LoadEngineer(context.Background(), store)
+	if err != nil {
+		t.Fatalf("LoadEngineer: %v", err)
+	}
+	if got.TyreTempMarginC != engineer.DefaultTuning().TyreTempMarginC {
+		t.Errorf("tyre temp margin = %v, want the default", got.TyreTempMarginC)
+	}
+}
+
 func TestLoadEngineer_CurrentSetupIgnoresStoredCategories(t *testing.T) {
 	store := memStore{engineerSettingsKey: `{"alert_switches":{"subTyreWear":true},"enabled_categories":{"tyre_wear":false}}`}
 	got, _, err := LoadEngineer(context.Background(), store)
@@ -120,6 +170,18 @@ func TestEngineerApply(t *testing.T) {
 	unknown.AlertSwitches = map[string]bool{"damage_wing": false}
 	if _, err := saved.Apply(unknown); err == nil || errors.Is(err, ErrVersionConflict) {
 		t.Errorf("unknown switch: err = %v, want a validation error", err)
+	}
+
+	// A tab opened before the upgrade still sends the retired master switches.
+	retired := saved.Clone()
+	retired.AlertSwitches = map[string]bool{"thermalAlertsEnabled": false, "subTyreCold": true, "subRain": true}
+	next, err = saved.Apply(retired)
+	if err != nil {
+		t.Fatalf("Apply with a retired switch: %v", err)
+	}
+	want := map[string]bool{"subTyreThermal": false, "subTyreCold": false, "subRain": true}
+	if !maps.Equal(next.AlertSwitches, want) {
+		t.Errorf("alert switches = %v, want %v", next.AlertSwitches, want)
 	}
 }
 

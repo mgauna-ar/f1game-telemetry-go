@@ -861,12 +861,20 @@ func TestEngineerEngine_DeriveDrivingPhase(t *testing.T) {
 		session   *packets.PacketSessionData
 		lap       *packets.LapData
 		telemetry *packets.CarTelemetryData
+		redFlag   bool
 		expected  DrivingPhase
 	}{
 		{
 			name:     "Red flag",
 			session:  &packets.PacketSessionData{NumRedFlagPeriods: 1, SessionType: packets.SessionRace},
+			redFlag:  true,
 			expected: PhaseRedFlag,
+		},
+		{
+			name:     "Racing again after an earlier red flag",
+			session:  &packets.PacketSessionData{NumRedFlagPeriods: 1, SessionType: packets.SessionRace},
+			lap:      &packets.LapData{DriverStatus: packets.DriverStatusOnTrack, CurrentLapNum: 12},
+			expected: PhaseRacing,
 		},
 		{
 			name:     "In garage explicit",
@@ -953,6 +961,7 @@ func TestEngineerEngine_DeriveDrivingPhase(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			engine.redFlagActive = tt.redFlag
 			got := engine.deriveDrivingPhase(tt.session, tt.lap, tt.telemetry)
 			if got != tt.expected {
 				t.Errorf("deriveDrivingPhase() = %v, want %v", got, tt.expected)
@@ -1304,16 +1313,19 @@ func TestEngineerEngine_GlobalRadioCooldown(t *testing.T) {
 	header := createTestHeader(packets.PacketFormat2026, 9999, 0)
 
 	sessionPkt := &packets.PacketSessionData{
-		Header:      header,
-		SessionType: packets.SessionRace,
+		Header:                 header,
+		SessionType:            packets.SessionRace,
+		TrackLength:            5000,
+		PitStopWindowIdealLap:  4,
+		PitStopWindowLatestLap: 8,
 	}
 	engine.ProcessPacket(ctx, sessionPkt)
 
-	// 1. Lap 5 triggers clean_air_pit_rejoin (DirectiveCategoryPitStrategy, UrgencyLow)
+	// 1. Lap 5, inside the pit window, triggers pit_clean_air (DirectiveCategoryPitStrategy, UrgencyLow)
 	lapPkt := &packets.PacketLapData{
 		Header: header,
 		LapData: [packets.MaxCars]packets.LapData{
-			{CurrentLapNum: 5, DriverStatus: packets.DriverStatusOnTrack},
+			{CurrentLapNum: 5, LapDistance: 100, TotalDistance: 20100, DriverStatus: packets.DriverStatusOnTrack},
 		},
 	}
 	engine.ProcessPacket(ctx, lapPkt)

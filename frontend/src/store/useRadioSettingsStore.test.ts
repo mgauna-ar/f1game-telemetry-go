@@ -25,8 +25,7 @@ function serverSettings(overrides: Partial<EngineerSettingsResponse> = {}): Engi
     smart_discretion_enabled: true,
     tyre_wear_warn_pct: 40,
     tyre_wear_crit_pct: 75,
-    tyre_overheat_c: 110,
-    tyre_cold_c: 80,
+    tyre_temp_margin_c: 5,
     wing_damage_warn_pct: 20,
     floor_damage_warn_pct: 25,
     engine_wear_warn_pct: 70,
@@ -42,9 +41,17 @@ function serverSettings(overrides: Partial<EngineerSettingsResponse> = {}): Engi
     corner_cut_warn_threshold: 2,
     rain_horizon_min: 10,
     rain_prob_pct: 50,
+    pit_call_lead_m: 500,
+    gap_report_laps: 3,
     trigger_preset: RADIO_TRIGGER_PRESETS.IMMERSIVE,
+    alert_switches: immersiveSwitches(),
     ...overrides,
   };
+}
+
+/** The Immersive preset's switches, as a setup saved on Immersive stores them. */
+function immersiveSwitches(): Record<string, boolean> {
+  return Object.fromEntries(ALERT_TOGGLE_KEYS.map((key) => [key, TRIGGER_PRESET_VALUES.immersive[key]]));
 }
 
 /** The answer to a successful PUT /api/settings/engineer. */
@@ -279,7 +286,8 @@ describe('useRadioSettingsStore and slices', () => {
         smart_discretion_enabled: false,
         tyre_wear_warn_pct: 48,
         tyre_wear_crit_pct: 82,
-        alert_switches: { subTyreWear: true, subTyreThermal: true, subRain: false },
+        tyre_temp_margin_c: 8,
+        alert_switches: { ...immersiveSwitches(), subTyreWear: true, subTyreThermal: true, subRain: false },
       })
     );
 
@@ -291,10 +299,53 @@ describe('useRadioSettingsStore and slices', () => {
     expect(state.smartDiscretionEnabled).toBe(false);
     expect(state.tyreWearWarningPct).toBe(48);
     expect(state.tyreWearCriticalPct).toBe(82);
+    expect(state.tyreTempMarginC).toBe(8);
     expect(state.subTyreWear).toBe(true);
     expect(state.subTyreThermal).toBe(true);
     expect(state.subRain).toBe(false);
     expect(putSpy).not.toHaveBeenCalled();
+  });
+
+  it('gives switches added since the setup was saved their preset value, and saves them', async () => {
+    const putSpy = vi.spyOn(api, 'put').mockResolvedValue(savedResponse(2));
+    const addedSince = ['subAeroZones', 'subFlags'];
+    const switches = Object.fromEntries(
+      ALERT_TOGGLE_KEYS.filter((key) => !addedSince.includes(key)).map((key) => [
+        key,
+        TRIGGER_PRESET_VALUES.minimal[key],
+      ])
+    );
+    vi.spyOn(api, 'get').mockResolvedValue(
+      serverSettings({
+        trigger_preset: RADIO_TRIGGER_PRESETS.MINIMAL,
+        chatter_cooldown_ms: 90000,
+        alert_switches: switches,
+      })
+    );
+
+    await useRadioSettingsStore.getState().loadConfigFromBackend();
+
+    const state = useRadioSettingsStore.getState();
+    expect(state.triggerPreset).toBe(RADIO_TRIGGER_PRESETS.MINIMAL);
+    expect(state.subAeroZones).toBe(false);
+    expect(state.subFlags).toBe(true);
+    expect(putSpy).toHaveBeenCalledTimes(1);
+    expect(engineerBody(putSpy).alert_switches?.subAeroZones).toBe(false);
+    expect(engineerBody(putSpy).alert_switches?.subFlags).toBe(true);
+  });
+
+  it('turns on switches a custom setup was saved without, as the server does', async () => {
+    vi.spyOn(api, 'put').mockResolvedValue(savedResponse(2));
+    vi.spyOn(api, 'get').mockResolvedValue(
+      serverSettings({ trigger_preset: RADIO_TRIGGER_PRESETS.CUSTOM, alert_switches: { subTyreWear: false } })
+    );
+
+    await useRadioSettingsStore.getState().loadConfigFromBackend();
+
+    const state = useRadioSettingsStore.getState();
+    expect(state.subTyreWear).toBe(false);
+    expect(state.subAeroZones).toBe(true);
+    expect(state.subSectorDelta).toBe(true);
   });
 
   it('starts on the Immersive preset with matching alert switches', () => {
@@ -331,7 +382,6 @@ describe('useRadioSettingsStore and slices', () => {
     const state = useRadioSettingsStore.getState();
     expect(state.triggerPreset).toBe(RADIO_TRIGGER_PRESETS.MINIMAL);
     expect(state.tyreAlertsEnabled).toBe(false);
-    expect(state.thermalAlertsEnabled).toBe(false);
     expect(state.subTyrePuncture).toBe(true);
     expect(state.chatterCooldownSeconds).toBe(90);
     expect(putSpy).not.toHaveBeenCalled();

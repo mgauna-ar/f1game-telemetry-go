@@ -20,6 +20,10 @@ export const ErsAccordion: React.FC<ErsAccordionProps> = ({ isExpanded, onToggle
   const setErsAlertsEnabled = useRadioSettingsStore((s) => s.setErsAlertsEnabled);
   const subErsLow = useRadioSettingsStore((s) => s.subErsLow);
   const setSubErsLow = useRadioSettingsStore((s) => s.setSubErsLow);
+  const subErsClipping = useRadioSettingsStore((s) => s.subErsClipping);
+  const setSubErsClipping = useRadioSettingsStore((s) => s.setSubErsClipping);
+  const subAeroZones = useRadioSettingsStore((s) => s.subAeroZones);
+  const setSubAeroZones = useRadioSettingsStore((s) => s.setSubAeroZones);
   const ersLowPct = useRadioSettingsStore((s) => s.ersLowPct);
   const setErsLowPct = useRadioSettingsStore((s) => s.setErsLowPct);
 
@@ -42,6 +46,18 @@ export const ErsAccordion: React.FC<ErsAccordionProps> = ({ isExpanded, onToggle
           label={t('ai_engineer.proactiveAlerts.ersLowReserve')}
           checked={subErsLow}
           onChange={setSubErsLow}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.ersClipping')}
+          checked={subErsClipping}
+          onChange={setSubErsClipping}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.aeroZones')}
+          checked={subAeroZones}
+          onChange={setSubAeroZones}
         />
       </div>
 

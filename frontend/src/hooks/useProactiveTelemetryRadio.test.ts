@@ -91,7 +91,38 @@ describe('useProactiveTelemetryRadio WebSocket hook', () => {
       category: 'tyre_wear',
       isCritical: false,
       emotion: { rateModifier: 0, pitchModifier: 0 },
+      ttlMs: 15000,
     });
+  });
+
+  it('passes on how long the call stays worth saying', () => {
+    const onTriggerAlert = vi.fn();
+    renderHook(() => useProactiveTelemetryRadio({ isRadioEnabled: true, onTriggerAlert }));
+
+    send(makeEngineerDirective({ id: 'dir-gap', sub_alert: 'rival_defend', urgency: 'medium', ttl_ms: 5000 }));
+
+    expect(onTriggerAlert).toHaveBeenCalledWith(expect.objectContaining({ category: 'rival_defend', ttlMs: 5000 }));
+  });
+
+  it('passes on when the driver can pit', () => {
+    const onTriggerAlert = vi.fn();
+    renderHook(() => useProactiveTelemetryRadio({ isRadioEnabled: true, onTriggerAlert }));
+
+    send(makeEngineerDirective({ id: 'dir-box', sub_alert: 'tyre_puncture', urgency: 'critical', box: 'next_lap' }));
+
+    expect(onTriggerAlert).toHaveBeenCalledWith(
+      expect.objectContaining({ category: 'tyre_puncture', box: 'next_lap' })
+    );
+  });
+
+  it('passes on the numbers a report says', () => {
+    const onTriggerAlert = vi.fn();
+    renderHook(() => useProactiveTelemetryRadio({ isRadioEnabled: true, onTriggerAlert }));
+
+    const values = { position: 3, ahead: { gap_sec: 1.2, trend: 'closing' as const, per_lap_sec: 0.1 } };
+    send(makeEngineerDirective({ id: 'dir-report', sub_alert: 'gap_report', urgency: 'low', values }));
+
+    expect(onTriggerAlert).toHaveBeenCalledWith(expect.objectContaining({ category: 'gap_report', values }));
   });
 
   it.each([
@@ -129,6 +160,7 @@ describe('useProactiveTelemetryRadio WebSocket hook', () => {
       category: 'tyre_puncture',
       isCritical: true,
       emotion: { rateModifier: 12, pitchModifier: 5 },
+      ttlMs: 15000,
     });
   });
 

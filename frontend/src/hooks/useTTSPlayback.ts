@@ -32,6 +32,8 @@ interface SpeechQueueItem {
   emotion?: SpeechEmotion;
   /** Set on sentences of a streamed reply. */
   stream?: ReplyStreamState;
+  /** Epoch ms after which a queued pit wall call is stale and is skipped instead of spoken. */
+  expiresAt?: number;
 }
 
 interface ReplyStreamState {
@@ -56,7 +58,8 @@ export interface UseTTSPlaybackReturn {
   speakMessage: (
     text: string,
     forceInterrupt?: boolean,
-    emotion?: { rateModifier?: number; pitchModifier?: number }
+    emotion?: { rateModifier?: number; pitchModifier?: number },
+    ttlMs?: number
   ) => Promise<void>;
   stopSpeech: () => void;
   testRadioTransmission: () => Promise<void>;
@@ -133,6 +136,10 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
   );
 
   const playNext = useCallback(async () => {
+    // A pit wall call that waited too long behind other speech is no longer worth saying.
+    const now = Date.now();
+    queueRef.current = queueRef.current.filter((item) => item.expiresAt === undefined || item.expiresAt > now);
+
     if (!isRadioEnabled || queueRef.current.length === 0) {
       const stream = streamRef.current;
       if (isRadioEnabled && stream && !stream.finished && !stream.cancelled) {
@@ -231,10 +238,12 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
     async (
       text: string,
       forceInterrupt = false,
-      emotion?: { rateModifier?: number; pitchModifier?: number }
+      emotion?: { rateModifier?: number; pitchModifier?: number },
+      ttlMs?: number
     ) => {
       const cleaned = cleanRadioSpeechText(text);
       if (!isRadioEnabled || !cleaned) return;
+      const expiresAt = ttlMs ? Date.now() + ttlMs : undefined;
 
       if (forceInterrupt) {
         // Critical emergency or forced interrupt: halt current audio, any reply being spoken,
@@ -243,7 +252,7 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
         queueRef.current = [];
         stopRadioSpeech();
         isSpeakingRef.current = false;
-        queueRef.current.push({ id: newQueueItemId(), text: cleaned, emotion });
+        queueRef.current.push({ id: newQueueItemId(), text: cleaned, emotion, expiresAt });
         await playNext();
         return;
       }
@@ -252,13 +261,13 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
       if (isSpeakingRef.current) {
         const queuedCalls = queueRef.current.filter((item) => !item.stream).length;
         if (queuedCalls < MAX_QUEUE_SIZE) {
-          queueRef.current.push({ id: newQueueItemId(), text: cleaned, emotion });
+          queueRef.current.push({ id: newQueueItemId(), text: cleaned, emotion, expiresAt });
         }
         return;
       }
 
       // Not currently speaking, play immediately
-      queueRef.current.push({ id: newQueueItemId(), text: cleaned, emotion });
+      queueRef.current.push({ id: newQueueItemId(), text: cleaned, emotion, expiresAt });
       await playNext();
     },
     [isRadioEnabled, playNext, cancelReplyStream]
@@ -304,6 +313,24 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
           sampleText = isEs
             ? 'Rival detrás a menos de 0.8 segundos con DRS. Cubrí la cuerda interna en la frenada.'
             : 'Car behind is within 0.8 seconds in DRS zone. Defend the inside line into Turn 1.';
+          break;
+        case 'pit':
+        case 'pit_window':
+          sampleText = isEs
+            ? 'Se abrió la ventana de parada. Juego de medios listo en boxes.'
+            : 'Pit window is open. Set of mediums ready in the box.';
+          break;
+        case 'coaching':
+        case 'sector_delta':
+          sampleText = isEs
+            ? 'Perdiste dos décimas en el Sector 2. Frená un poco antes en la curva 9.'
+            : 'Two tenths down in Sector 2. Brake a touch earlier into Turn 9.';
+          break;
+        case 'teammate':
+        case 'teammate_pitting':
+          sampleText = isEs
+            ? 'Tu compañero entra a boxes esta vuelta. Quedate afuera, vos seguís.'
+            : 'Your teammate is boxing this lap. Stay out, you continue.';
           break;
         case 'qualy':
         case 'qualy_traffic':

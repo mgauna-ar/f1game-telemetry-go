@@ -104,6 +104,31 @@ describe('useTTSPlayback hook', () => {
     expect(result.current.isSpeaking).toBe(false);
   });
 
+  it('skips a queued call that went stale while other speech played', async () => {
+    let activeOnEnd: (() => void) | undefined;
+    const spokenMessages: string[] = [];
+    vi.spyOn(radioAudio, 'speakRadioResponse').mockImplementation(async (text, opts) => {
+      spokenMessages.push(text);
+      activeOnEnd = opts?.onEnd;
+    });
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+
+    const { result } = renderHook(() => useTTSPlayback({ effectiveLanguage: 'en' }));
+
+    await act(async () => {
+      await result.current.speakMessage('A long answer', false);
+      await result.current.speakMessage('Car behind is within a second', false, undefined, 5000);
+      await result.current.speakMessage('Tyre wear is high', false, undefined, 15000);
+    });
+
+    now.mockReturnValue(1_000_000 + 8000);
+    await act(async () => {
+      activeOnEnd?.();
+    });
+
+    expect(spokenMessages).toEqual(['A long answer', 'Tyre wear is high']);
+  });
+
   it('clears queue and stops audio on stopSpeech', async () => {
     const stopSpy = vi.spyOn(radioAudio, 'stopRadioSpeech').mockImplementation(() => {});
     vi.spyOn(radioAudio, 'speakRadioResponse').mockImplementation(async () => {});

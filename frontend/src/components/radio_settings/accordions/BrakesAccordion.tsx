@@ -24,6 +24,8 @@ export const BrakesAccordion: React.FC<BrakesAccordionProps> = ({ isExpanded, on
   const setSubBrakeTemp = useRadioSettingsStore((s) => s.setSubBrakeTemp);
   const subBrakeCold = useRadioSettingsStore((s) => s.subBrakeCold);
   const setSubBrakeCold = useRadioSettingsStore((s) => s.setSubBrakeCold);
+  const subBrakeBias = useRadioSettingsStore((s) => s.subBrakeBias);
+  const setSubBrakeBias = useRadioSettingsStore((s) => s.setSubBrakeBias);
   const brakeOverheatC = useRadioSettingsStore((s) => s.brakeOverheatC);
   const setBrakeOverheatC = useRadioSettingsStore((s) => s.setBrakeOverheatC);
   const brakeColdC = useRadioSettingsStore((s) => s.brakeColdC);
@@ -54,6 +56,12 @@ export const BrakesAccordion: React.FC<BrakesAccordionProps> = ({ isExpanded, on
           label={t('ai_engineer.proactiveAlerts.brakeCold')}
           checked={subBrakeCold}
           onChange={setSubBrakeCold}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.brakeBias')}
+          checked={subBrakeBias}
+          onChange={setSubBrakeBias}
         />
       </div>
 
