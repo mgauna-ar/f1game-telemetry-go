@@ -47,7 +47,7 @@ type ServerConfig struct {
 	UDPAddr      string
 	HTTPAddr     string
 	DBPath       string
-	NoBrowser    bool
+	OpenBrowser  bool
 	NoTray       bool
 	ShowVersion  bool
 	GeminiAPIKey string
@@ -63,7 +63,9 @@ func loadServerConfig() ServerConfig {
 	udpFlag := flag.String("udp", getEnv("F1T_UDP_ADDR", defaultUDPAddr), "UDP listen address for F1 telemetry packets")
 	httpFlag := flag.String("http", getEnv("F1T_HTTP_ADDR", defaultHTTPAddr), "HTTP server address for Web Dashboard and API")
 	dbFlag := flag.String(flagDB, getEnv("F1T_DB_PATH", defaultDBPath), "Path to SQLite database file")
-	noBrowserFlag := flag.Bool(flagNoBrowser, getEnvBool("F1T_NO_BROWSER", false), "Do not automatically launch web browser on startup")
+	openBrowserFlag := flag.Bool(flagOpenBrowser, getEnvBool("F1T_OPEN_BROWSER", false), "Open the dashboard in the browser on startup")
+	// Kept so older scripts and shortcuts passing it still start: not opening is now the default
+	flag.Bool(flagNoBrowser, false, "Deprecated: the browser no longer opens on startup unless -open-browser is set")
 	noTrayFlag := flag.Bool("no-tray", getEnvBool("F1T_NO_TRAY", false), "Windows: run without the notification-area icon")
 	versionFlag := flag.Bool(flagVersion, false, "Print version information and exit")
 	flag.Parse()
@@ -72,7 +74,7 @@ func loadServerConfig() ServerConfig {
 		UDPAddr:      *udpFlag,
 		HTTPAddr:     *httpFlag,
 		DBPath:       *dbFlag,
-		NoBrowser:    *noBrowserFlag,
+		OpenBrowser:  *openBrowserFlag,
 		NoTray:       *noTrayFlag,
 		ShowVersion:  *versionFlag,
 		GeminiAPIKey: getEnv("GEMINI_API_KEY", ""),
@@ -141,7 +143,7 @@ func run(cfg ServerConfig, envFiles []string) error {
 	// a second copy (before touching the database or the running copy's log file)
 	ln, err := net.Listen("tcp", cfg.HTTPAddr)
 	if err != nil {
-		return openRunningInstance(ctx, cfg, localURL, port, err)
+		return openRunningInstance(ctx, localURL, port, cfg.OpenBrowser, err)
 	}
 
 	logPath, closeLog := setupLogging(dbPath, tray || !desktop.HasConsole(), desktop.HasConsole())
@@ -189,8 +191,8 @@ func run(cfg ServerConfig, envFiles []string) error {
 		}
 	}()
 
-	// 6. Auto-launch browser if not disabled (port is guaranteed bound)
-	if !cfg.NoBrowser {
+	// 6. Open the dashboard in the browser if asked to (port is guaranteed bound)
+	if cfg.OpenBrowser {
 		go func() {
 			if err := system.OpenBrowser(localURL); err != nil {
 				slog.Warn("Could not automatically open browser", "url", localURL, "error", err)
@@ -251,10 +253,10 @@ func run(cfg ServerConfig, envFiles []string) error {
 	return nil
 }
 
-// openRunningInstance handles a busy HTTP port: when this app is the one answering there, it opens
-// the dashboard of that copy (unless -no-browser) and returns nil, so launching the app twice just
-// brings the dashboard up. Otherwise it explains which port is busy and how to pick another.
-func openRunningInstance(ctx context.Context, cfg ServerConfig, localURL, port string, bindErr error) error {
+// openRunningInstance handles a busy HTTP port: when this app is the one answering there, the
+// second launch exits quietly (opening the running copy's dashboard only with -open-browser).
+// Otherwise it explains which port is busy and how to pick another.
+func openRunningInstance(ctx context.Context, localURL, port string, openBrowser bool, bindErr error) error {
 	ver, running := system.FindRunningInstance(ctx, localURL)
 	if !running {
 		return fmt.Errorf("HTTP port %s is not available (%w). Close the program using it, or pick another "+
@@ -262,10 +264,11 @@ func openRunningInstance(ctx context.Context, cfg ServerConfig, localURL, port s
 	}
 
 	slog.Info("F1 Telemetry Analyzer is already running", "url", localURL, "version", ver.Version)
-	if !cfg.NoBrowser {
-		if err := system.OpenBrowser(localURL); err != nil {
-			return fmt.Errorf("F1 Telemetry Analyzer is already running at %s, but the browser didn't open: %w", localURL, err)
-		}
+	if !openBrowser {
+		return nil
+	}
+	if err := system.OpenBrowser(localURL); err != nil {
+		return fmt.Errorf("F1 Telemetry Analyzer is already running at %s, but the browser didn't open: %w", localURL, err)
 	}
 	return nil
 }

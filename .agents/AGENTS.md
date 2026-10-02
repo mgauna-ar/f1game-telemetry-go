@@ -35,7 +35,7 @@ Architectural boundaries, invariants, and verification gates for this repo.
   - `settings/`: Shared JSON settings (`settings.Sections`: `ai`, `voice`, `ptt`, `engineer`, `comparator`).
   - `locales/`: Type-safe `PromptCatalog`, registry (`Resolve`, `Get`), `en`/`es` catalogs (no boolean flags).
   - `input/`: Global PTT (`winmm.dll` DirectInput wheels, `user32.dll` keyboard on Windows; Gamepad API + `Space` fallback).
-  - `system/`: Version metadata, GitHub update check (`system.DefaultGitHubRepo`), network discovery (`DescribeTelemetryEndpoint`), `OpenBrowser`/`OpenPath`, `FindRunningInstance` (2nd launch opens the running app).
+  - `system/`: Version metadata, GitHub update check (`system.DefaultGitHubRepo`), network discovery (`DescribeTelemetryEndpoint`), `OpenBrowser`/`OpenPath`, `FindRunningInstance` (2nd launch exits quietly).
   - `desktop/`: Windows tray (`fyne.io/systray` only in `_windows.go`; `onExit` = shutdown), en/es by OS language, Start with Windows (HKCU `Run`), dialogs; stubs elsewhere. Release: `-H=windowsgui`, `f1telemetry.log` by DB. Icons: `go generate ./internal/desktop`.
   - `tsgen/`: Standard-library Go-to-TS wire type generator (`cmd/tsgen`).
 

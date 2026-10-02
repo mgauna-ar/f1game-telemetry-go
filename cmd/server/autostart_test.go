@@ -16,17 +16,17 @@ func TestAutostartArgs(t *testing.T) {
 		{
 			name: "nothing set",
 			args: nil,
-			want: []string{"-no-browser", "-db=" + absDB},
+			want: []string{"-db=" + absDB},
 		},
 		{
 			name: "keeps ports and tray choice",
 			args: []string{"-http", ":8090", "-udp=0.0.0.0:20778", "-no-tray"},
-			want: []string{"-http=:8090", "-no-tray=true", "-udp=0.0.0.0:20778", "-no-browser", "-db=" + absDB},
+			want: []string{"-http=:8090", "-no-tray=true", "-udp=0.0.0.0:20778", "-db=" + absDB},
 		},
 		{
-			name: "replaces db and browser flags",
-			args: []string{"-db", "relative.db", "-no-browser=false", "-version"},
-			want: []string{"-no-browser", "-db=" + absDB},
+			name: "replaces db and drops browser flags",
+			args: []string{"-db", "relative.db", "-open-browser", "-no-browser", "-version"},
+			want: []string{"-db=" + absDB},
 		},
 	}
 
@@ -36,6 +36,7 @@ func TestAutostartArgs(t *testing.T) {
 			fs.String("http", ":8080", "")
 			fs.String("udp", "0.0.0.0:20777", "")
 			fs.String(flagDB, "f1telemetry.db", "")
+			fs.Bool(flagOpenBrowser, false, "")
 			fs.Bool(flagNoBrowser, false, "")
 			fs.Bool("no-tray", false, "")
 			fs.Bool(flagVersion, false, "")

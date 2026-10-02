@@ -10,7 +10,7 @@ import (
 
 func TestAutostartCommandRoundTrip(t *testing.T) {
 	exe := `C:\Users\Max Driver\Apps\F1 Telemetry\f1telemetry.exe`
-	command := autostartCommand(exe, []string{"-no-browser", `-db=C:\Users\Max Driver\Apps\F1 Telemetry\f1telemetry.db`})
+	command := autostartCommand(exe, []string{`-db=C:\Users\Max Driver\Apps\F1 Telemetry\f1telemetry.db`})
 
 	if !commandRunsExe(command, exe) {
 		t.Errorf("command %q should run %q", command, exe)

@@ -63,7 +63,7 @@ Pre-compiled, self-contained single binaries with the embedded web dashboard are
    * **macOS:** `f1telemetry_<version>_darwin_arm64.zip` (Apple Silicon M-series) or `f1telemetry_<version>_darwin_amd64.zip` (Intel)
    * **Linux:** `f1telemetry_<version>_linux_amd64.tar.gz` (or `arm64`)
 2. Extract the archive contents.
-3. Run `f1telemetry.exe` (Windows) or `./f1telemetry` (macOS / Linux). The server will start and automatically open your default browser to `http://localhost:8080`. Running it again while it's already running just opens the dashboard. Every page has its own address you can bookmark or share on your network: a session (`/history/12/stints`), a lap comparison with its zoom (`/compare?sa=12&a=345&b=346`), your progress at a track (`/progress/Silverstone`), the live cockpit (`/live/cockpit`) or a settings section (`/settings/comparator`).
+3. Run `f1telemetry.exe` (Windows) or `./f1telemetry` (macOS / Linux). The server starts without opening a browser: open the dashboard at `http://localhost:8080` (on Windows, click the tray icon; on macOS / Linux the address is also printed in the terminal). Starting it again while it's already running does nothing. Every page has its own address you can bookmark or share on your network: a session (`/history/12/stints`), a lap comparison with its zoom (`/compare?sa=12&a=345&b=346`), your progress at a track (`/progress/Silverstone`), the live cockpit (`/live/cockpit`) or a settings section (`/settings/comparator`).
 
 #### 🖥️ On Windows: lives in the notification area
 
@@ -71,7 +71,7 @@ There's no console window: the app runs in the background with an icon in the no
 
 * **Left-click** the icon to open the dashboard. **Right-click** for the menu: the live status (*"Live: Race · Monza"* or *"Waiting for the game on UDP port 20777"*), **Open live view**, **Start with Windows**, **Open data folder**, **Open log file** and **Quit**. A notice appears in the menu when a new release is out.
 * The icon shows a green dot while the game is sending telemetry.
-* **Start with Windows** starts it in the background when you sign in, without opening the browser, using the same database.
+* **Start with Windows** starts it in the background when you sign in, using the same database.
 * The log is written to `f1telemetry.log` next to the database. If the app can't start (for example because another program uses its port), it tells you in a dialog.
 * The menu follows your Windows display language (English or Spanish).
 
@@ -113,7 +113,7 @@ If you prefer building from source or contributing to the codebase:
 ```powershell
 .\run.bat
 ```
-*Installs frontend dependencies if needed, builds the embedded web assets, compiles, and launches the standalone single-binary application with automatic browser opening.*
+*Installs frontend dependencies if needed, builds the embedded web assets, compiles, and launches the standalone single-binary application.*
 
 ### Single-Binary Embedded Build (All Platforms)
 ```bash
@@ -185,7 +185,7 @@ Server settings can be set with command-line flags, environment variables, or a 
 | `-udp` | `F1T_UDP_ADDR` | UDP telemetry listener address | `0.0.0.0:20777` |
 | `-http` | `F1T_HTTP_ADDR` | Web API & WebSocket server address | `:8080` |
 | `-db` | `F1T_DB_PATH` | SQLite database file (relative paths are resolved from the current folder; the full path is shown at startup) | `f1telemetry.db` |
-| `-no-browser` | `F1T_NO_BROWSER` | Don't open the dashboard in a browser on startup | `false` |
+| `-open-browser` | `F1T_OPEN_BROWSER` | Open the dashboard in the browser on startup (`-no-browser` is still accepted and does nothing) | `false` |
 | `-no-tray` | `F1T_NO_TRAY` | Windows: run without the notification-area icon (the release build then has no window at all; stop it from Task Manager) | `false` |
 | `-version` | — | Print version, commit, and build date, then exit | `false` |
 | | `GEMINI_API_KEY` | Google Gemini API key for the AI Race Engineer | *(Can be set in UI)* |
