@@ -116,6 +116,29 @@ describe('DesktopWindow', () => {
     expect(close).toHaveBeenCalled();
   });
 
+  it('says the app stopped when it already had and Quit finds nothing answering', async () => {
+    mockGets(windowsTray);
+    vi.spyOn(api, 'post').mockRejectedValue(new TypeError('Failed to fetch'));
+    const close = vi.spyOn(window, 'close').mockImplementation(() => {});
+    render(<DesktopWindow />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Quit F1 Telemetry/ }));
+    expect(await screen.findByRole('heading', { name: 'F1 Telemetry stopped' })).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(close).toHaveBeenCalled();
+  });
+
+  it('shows a refused Quit and keeps the window', async () => {
+    mockGets(windowsTray);
+    vi.spyOn(api, 'post').mockRejectedValue(new ApiError('desktop app not available', 404, 'Not Found'));
+    const close = vi.spyOn(window, 'close').mockImplementation(() => {});
+    render(<DesktopWindow />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Quit F1 Telemetry/ }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not quit: desktop app not available');
+    expect(close).not.toHaveBeenCalled();
+  });
+
   it('opens the dashboard in the browser through the server', async () => {
     mockGets(windowsTray);
     const post = vi.spyOn(api, 'post').mockResolvedValue({ status: 'success' });
