@@ -104,6 +104,9 @@ type AlertKeyConfig struct {
 	// SkipCategoryCooldown lets the call through right after another of its category: a step of
 	// the pit stop, said when it happens.
 	SkipCategoryCooldown bool
+	// BreaksRadioSilence lets the call through the radio silence of a flying lap and of the race
+	// start at any urgency: what the driver must hear right then (a yellow flag, a slow car ahead).
+	BreaksRadioSilence bool
 }
 
 // Tuning holds the race engineer values the driver sets in the dashboard: radio spacing and
@@ -237,15 +240,40 @@ type EngineerDirective struct {
 
 // DirectiveValues are the numbers a report call says. Only the fields of its report are set.
 type DirectiveValues struct {
-	// Position is the player's race position (gap report).
+	// Position is the player's position (gap report, elimination danger, lap result, finish).
 	Position int `json:"position,omitempty"`
-	// Ahead and Behind are the cars close in front and behind (gap report); nil when there is no
-	// car within GapReportMaxGapSec.
+	// Ahead and Behind are the cars close in front and behind: in the gap report, nil when there
+	// is no car within GapReportMaxGapSec; in qualifying traffic calls, the car the call is about.
 	Ahead  *GapToCar `json:"ahead,omitempty"`
 	Behind *GapToCar `json:"behind,omitempty"`
 	// TyreLapsLeft is about how many laps the tyres have before the wear limit (tyre life).
 	TyreLapsLeft int `json:"tyre_laps_left,omitempty"`
+	// Minutes is how many minutes are left in the session, rounded up (session clock).
+	Minutes int `json:"minutes,omitempty"`
+	// PoleGapSec is how far a qualifying lap is off P1's best, or, on provisional pole, how far
+	// ahead of P2's, to a thousandth; 0 while unknown (lap result).
+	PoleGapSec float64 `json:"pole_gap_sec,omitempty"`
+	// Elimination says the lap result leaves the player on the last place through or in the drop
+	// zone of Q1 or Q2; empty when safe or nobody is knocked out (lap result).
+	Elimination EliminationStatus `json:"elimination,omitempty" tstype:"EngineerElimination"`
+	// Count is how many track limits warnings the player has (track limits).
+	Count int `json:"count,omitempty"`
+	// PenaltySec is the time penalty just given, in seconds (penalties).
+	PenaltySec int `json:"penalty_sec,omitempty"`
+	// StopSec is how long the car stood in the pit box, to a tenth (pit stop time).
+	StopSec float64 `json:"stop_sec,omitempty"`
 }
+
+// EliminationStatus is where a qualifying position stands against the cut line.
+type EliminationStatus string
+
+const (
+	EliminationLastThrough EliminationStatus = "last_through"
+	EliminationDropZone    EliminationStatus = "drop_zone"
+)
+
+// EliminationStatuses lists every EliminationStatus, for the generated TypeScript union.
+var EliminationStatuses = []string{string(EliminationLastThrough), string(EliminationDropZone)}
 
 // GapToCar is the gap to a car close ahead or behind and how it is moving.
 type GapToCar struct {
@@ -302,6 +330,8 @@ type EvaluationContext struct {
 	CallLaps map[string]int
 	// BoxDueLap is the lap a call told the player to box on; 0 when none is open.
 	BoxDueLap int
+	// CarHistory is each car's latest session history packet (nil until one came). Read only.
+	CarHistory *[packets.MaxCars]*packets.PacketSessionHistoryData
 }
 
 // PlayerLap returns the player car's LapData if available.
@@ -359,6 +389,14 @@ func (ctx *EvaluationContext) PlayerTyreSets() *packets.PacketTyreSetsData {
 		return nil
 	}
 	return ctx.TyreSets
+}
+
+// TrackLengthM is the track's length in metres, or DefaultTrackLengthMeters while unknown.
+func (ctx *EvaluationContext) TrackLengthM() float32 {
+	if ctx.Session == nil || ctx.Session.TrackLength == 0 {
+		return DefaultTrackLengthMeters
+	}
+	return float32(ctx.Session.TrackLength)
 }
 
 // IsRaceSession returns true if the session is a confirmed race session.

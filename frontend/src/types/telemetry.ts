@@ -86,7 +86,9 @@ export type ReportPhrase =
   | 'behind_opening'
   | 'behind_stable'
   | 'nobody_close'
-  | 'tyre_life_one_lap';
+  | 'tyre_life_one_lap'
+  | 'elimination_drop_zone'
+  | 'elimination_last_through';
 
 /** Every message /ws/engineer sends, told apart by `type`. */
 export type {
@@ -127,8 +129,14 @@ export type RadioAlertCategory =
   | 'qualy_traffic'
   | 'qualy_clean_air'
   | 'qualy_deleted_lap'
+  | 'qualy_traffic_ahead'
   | 'qualy_session_time'
+  | 'qualy_session_time_garage'
   | 'qualy_elimination_danger'
+  | 'qualy_elimination_bubble'
+  | 'qualy_lap_pole'
+  | 'qualy_lap_result'
+  | 'qualy_lap_no_improvement'
   | 'track_limits_warnings'
   | 'penalties_incurred'
   | 'weather_rain'
@@ -175,7 +183,19 @@ export type RadioAlertCategory =
   | 'damage_ice_wear'
   | 'gap_report'
   | 'tyre_life'
-  | 'tyre_life_end';
+  | 'tyre_life_end'
+  | 'race_finish_win'
+  | 'race_finish_podium'
+  | 'race_finish_points'
+  | 'penalty_drive_through'
+  | 'penalty_stop_go'
+  | 'start_reaction_fast'
+  | 'start_reaction_slow'
+  | 'pit_stop_fast'
+  | 'pit_stop_slow'
+  | 'tyre_wear_critical'
+  | 'rival_defend_drs'
+  | 'rival_attack_drs';
 
 /**
  * The phrases one radio category can speak, per persona. Bono and Colapinto fall back to

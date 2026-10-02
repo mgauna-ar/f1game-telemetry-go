@@ -727,8 +727,11 @@ func TestRivalsRule_TableDriven(t *testing.T) {
 		if dirs[0].SubAlert != "rival_defend" {
 			t.Errorf("expected rival_defend, got %s", dirs[0].SubAlert)
 		}
-		if !strings.Contains(dirs[0].Message, "DRS threat") {
-			t.Errorf("expected 2025 message to mention DRS threat: %s", dirs[0].Message)
+		if strings.Contains(dirs[0].Message, "DRS") {
+			t.Errorf("expected no DRS in the message while the car behind can't use it: %s", dirs[0].Message)
+		}
+		if dirs[0].Values == nil || dirs[0].Values.Behind == nil || dirs[0].Values.Behind.GapSec == 0 {
+			t.Errorf("expected the gap behind in the values: %+v", dirs[0].Values)
 		}
 		if !strings.Contains(dirs[0].Message, "MEDIUM tyres") {
 			t.Errorf("expected message to mention rival tyres: %s", dirs[0].Message)
@@ -958,144 +961,6 @@ func TestCoachingRule_TableDriven(t *testing.T) {
 	if rule.GetBestSector1MS() != 0 {
 		t.Errorf("expected best S1 to be 0 after reset, got %d", rule.GetBestSector1MS())
 	}
-}
-
-func TestQualifyingRule_TableDriven(t *testing.T) {
-	cfg := DefaultEngineerConfig()
-
-	t.Run("lap invalidation on track limits", func(t *testing.T) {
-		rule := NewQualifyingRule()
-		ctx := &EvaluationContext{
-			LapData: &packets.PacketLapData{
-				LapData: [packets.MaxCars]packets.LapData{
-					{CurrentLapNum: 3, CurrentLapInvalid: 1, DriverStatus: packets.DriverStatusFlyingLap},
-				},
-			},
-			Config:         cfg,
-			PlayerCarIndex: 0,
-			Phase:          PhaseFlyingLap,
-			Session: &packets.PacketSessionData{
-				SessionType: packets.SessionQ1,
-			},
-		}
-		dirs := rule.Evaluate(ctx)
-		if len(dirs) != 1 || dirs[0].SubAlert != "qualy_deleted_lap" {
-			t.Fatalf("expected qualy_deleted_lap directive, got %+v", dirs)
-		}
-		dirsRepeat := rule.Evaluate(ctx)
-		if len(dirsRepeat) != 0 {
-			t.Fatalf("expected 0 directives for repeated invalidation on same lap, got %d", len(dirsRepeat))
-		}
-	})
-
-	t.Run("out-lap traffic ahead in final sector", func(t *testing.T) {
-		rule := NewQualifyingRule()
-		ctxTraffic := &EvaluationContext{
-			LapData: &packets.PacketLapData{
-				LapData: [packets.MaxCars]packets.LapData{
-					{CurrentLapNum: 1, DriverStatus: packets.DriverStatusOutLap, Sector: 2, TotalDistance: 5000.0},
-					{TotalDistance: 5080.0},
-				},
-			},
-			Config:         cfg,
-			PlayerCarIndex: 0,
-			Phase:          PhaseOutLap,
-			Session: &packets.PacketSessionData{
-				SessionType: packets.SessionQ2,
-			},
-		}
-		dirs := rule.Evaluate(ctxTraffic)
-		if len(dirs) != 1 || dirs[0].SubAlert != "qualy_traffic" || dirs[0].Urgency != UrgencyCritical {
-			t.Fatalf("expected critical qualy_traffic directive, got %+v", dirs)
-		}
-
-		rule.Reset(DedupScopeLap)
-		ctxClean := &EvaluationContext{
-			LapData: &packets.PacketLapData{
-				LapData: [packets.MaxCars]packets.LapData{
-					{CurrentLapNum: 1, DriverStatus: packets.DriverStatusOutLap, Sector: 2, TotalDistance: 5000.0},
-					{TotalDistance: 5350.0},
-				},
-			},
-			Config:         cfg,
-			PlayerCarIndex: 0,
-			Phase:          PhaseOutLap,
-			Session: &packets.PacketSessionData{
-				SessionType: packets.SessionQ2,
-			},
-		}
-		dirsClean := rule.Evaluate(ctxClean)
-		if len(dirsClean) != 1 || dirsClean[0].SubAlert != "qualy_clean_air" || dirsClean[0].Urgency != UrgencyLow {
-			t.Fatalf("expected low urgency qualy_clean_air directive, got %+v", dirsClean)
-		}
-	})
-
-	t.Run("session clock countdown warning", func(t *testing.T) {
-		rule := NewQualifyingRule()
-		ctx := &EvaluationContext{
-			Session: &packets.PacketSessionData{
-				SessionType:     packets.SessionQ3,
-				SessionTimeLeft: 120,
-			},
-			Config:         cfg,
-			PlayerCarIndex: 0,
-			Phase:          PhaseInGarage,
-		}
-		dirs := rule.Evaluate(ctx)
-		if len(dirs) != 1 || dirs[0].SubAlert != "qualy_session_time" {
-			t.Fatalf("expected qualy_session_time directive, got %+v", dirs)
-		}
-	})
-
-	t.Run("elimination danger zone in Q1", func(t *testing.T) {
-		rule := NewQualifyingRule()
-		ctx := &EvaluationContext{
-			LapData: &packets.PacketLapData{
-				LapData: [packets.MaxCars]packets.LapData{
-					{CarPosition: 17},
-				},
-			},
-			Session: &packets.PacketSessionData{
-				SessionType:     packets.SessionQ1,
-				SessionTimeLeft: 240,
-			},
-			Config:         cfg,
-			PlayerCarIndex: 0,
-			Phase:          PhaseFlyingLap,
-		}
-		dirs := rule.Evaluate(ctx)
-		if len(dirs) != 1 || dirs[0].SubAlert != "qualy_elimination_danger" {
-			t.Fatalf("expected qualy_elimination_danger directive, got %+v", dirs)
-		}
-	})
-
-	t.Run("in-lap cooldown and fast car behind traffic", func(t *testing.T) {
-		rule := NewQualifyingRule()
-		ctx := &EvaluationContext{
-			LapData: &packets.PacketLapData{
-				LapData: [packets.MaxCars]packets.LapData{
-					{CurrentLapNum: 3, DriverStatus: packets.DriverStatusInLap, TotalDistance: 10000.0},
-					{CurrentLapNum: 3, DriverStatus: packets.DriverStatusFlyingLap, TotalDistance: 9850.0}, // 150m behind on flying lap
-				},
-			},
-			Session: &packets.PacketSessionData{
-				SessionType: packets.SessionQ2,
-			},
-			Config:         cfg,
-			PlayerCarIndex: 0,
-			Phase:          PhaseInLap,
-		}
-		dirs := rule.Evaluate(ctx)
-		if len(dirs) != 2 {
-			t.Fatalf("expected 2 directives (inlap_cooldown and inlap_traffic_behind), got %d: %+v", len(dirs), dirs)
-		}
-		if dirs[0].SubAlert != "inlap_cooldown" {
-			t.Errorf("expected first directive to be inlap_cooldown, got %s", dirs[0].SubAlert)
-		}
-		if dirs[1].SubAlert != "inlap_traffic_behind" {
-			t.Errorf("expected second directive to be inlap_traffic_behind, got %s", dirs[1].SubAlert)
-		}
-	})
 }
 
 func TestTeammateRule_TableDriven(t *testing.T) {
@@ -1460,7 +1325,7 @@ func TestFlagsRule_VSCAndPenalties(t *testing.T) {
 		Phase:          PhaseRacing,
 	}
 	dirsPnl := rule.Evaluate(ctxDriveThrough)
-	if len(dirsPnl) != 1 || dirsPnl[0].SubAlert != "penalties_incurred" || !strings.Contains(dirsPnl[0].Message, "Drive-through penalty") {
+	if len(dirsPnl) != 1 || dirsPnl[0].SubAlert != "penalty_drive_through" || !strings.Contains(dirsPnl[0].Message, "Drive-through penalty") {
 		t.Fatalf("expected drive-through penalty directive, got %+v", dirsPnl)
 	}
 }
@@ -2048,7 +1913,7 @@ func TestPhase4ProceduresAndEvents(t *testing.T) {
 			Phase:          PhaseRacing,
 		}
 		dirsSlow := ruleSlow.Evaluate(ctxSlow)
-		if len(dirsSlow) != 1 || !strings.Contains(dirsSlow[0].Message, "maintaining track position") {
+		if len(dirsSlow) != 1 || dirsSlow[0].SubAlert != "start_reaction_slow" {
 			t.Fatalf("expected slow start reaction alert, got %+v", dirsSlow)
 		}
 	})

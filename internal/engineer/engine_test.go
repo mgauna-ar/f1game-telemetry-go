@@ -952,6 +952,24 @@ func TestEngineerEngine_DeriveDrivingPhase(t *testing.T) {
 			expected:  PhaseGrid,
 		},
 		{
+			name:     "Race lap the game calls a flying lap",
+			session:  &packets.PacketSessionData{SessionType: packets.SessionRace, SafetyCarStatus: packets.SafetyCarNone},
+			lap:      &packets.LapData{DriverStatus: packets.DriverStatusFlyingLap, CurrentLapNum: 8},
+			expected: PhaseRacing,
+		},
+		{
+			name:     "Qualifying on track but not on a timed lap",
+			session:  &packets.PacketSessionData{SessionType: packets.SessionQ2},
+			lap:      &packets.LapData{DriverStatus: packets.DriverStatusOnTrack},
+			expected: PhaseOutLap,
+		},
+		{
+			name:     "Practice on track but not on a timed lap",
+			session:  &packets.PacketSessionData{SessionType: packets.SessionP1},
+			lap:      &packets.LapData{DriverStatus: packets.DriverStatusOnTrack},
+			expected: PhaseOutLap,
+		},
+		{
 			name:     "Qualifying Unknown DriverStatus",
 			session:  &packets.PacketSessionData{SessionType: packets.SessionQ1, SafetyCarStatus: packets.SafetyCarNone},
 			lap:      &packets.LapData{DriverStatus: 99},

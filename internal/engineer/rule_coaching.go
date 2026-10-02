@@ -160,19 +160,20 @@ func (r *CoachingRule) Evaluate(ctx *EvaluationContext) []Directive {
 			rt := ctx.Session.StartReactionTime
 			if rt >= MinValidReactionTimeSeconds && rt <= MaxValidReactionTimeSeconds {
 				r.startReactionFired = true
-				var msg string
+				subAlert := "start_reaction_time"
+				msg := fmt.Sprintf("Solid start off the line, reaction time %.2fs.", rt)
 				switch {
 				case rt < FastReactionTimeThresholdSec:
-					msg = fmt.Sprintf("Great launch! Reaction time %.2fs, excellent start.", rt)
+					subAlert = "start_reaction_fast"
+					msg = fmt.Sprintf("Great launch! Reaction time %.2fs.", rt)
 				case rt > SlowReactionTimeThresholdSec:
-					msg = fmt.Sprintf("Launch reaction time was %.2fs, let's focus on maintaining track position into Turn 1.", rt)
-				default:
-					msg = fmt.Sprintf("Solid start off the line, reaction time %.2fs.", rt)
+					subAlert = "start_reaction_slow"
+					msg = fmt.Sprintf("Slow reaction off the line, %.2fs. Plenty of race to recover.", rt)
 				}
 				directives = append(directives, Directive{
 					ID:       "start_reaction_time",
 					Category: DirectiveCategoryCoaching,
-					SubAlert: "start_reaction_time",
+					SubAlert: subAlert,
 					Title:    "Launch Reaction Time",
 					Message:  msg,
 					Urgency:  UrgencyMedium,

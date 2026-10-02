@@ -412,8 +412,8 @@ func TestEngineerEngine_PitStopTimeIsSaid(t *testing.T) {
 	}
 	drive(11, 10, packets.PitStatusInPitArea, 1200) // standing in the box
 	drive(11, 10, packets.PitStatusInPitArea, 2400)
-	drive(11, 160, packets.PitStatusPitting, 2400) // leaving it
-	if n := spoken(t, b, "pit_stop_duration"); n != 1 {
+	drive(11, 160, packets.PitStatusPitting, 2400)  // leaving it
+	if n := spoken(t, b, "pit_stop_fast"); n != 1 { // 2.4 s
 		t.Errorf("stop time said %d times leaving the box, want once", n)
 	}
 }

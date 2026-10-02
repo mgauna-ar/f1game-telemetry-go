@@ -34,6 +34,8 @@ interface SpeechQueueItem {
   stream?: ReplyStreamState;
   /** Epoch ms after which a queued pit wall call is stale and is skipped instead of spoken. */
   expiresAt?: number;
+  /** A high or critical pit wall call: it goes ahead of routine calls and cuts them off. */
+  urgent?: boolean;
 }
 
 interface ReplyStreamState {
@@ -91,6 +93,8 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
   onResponseReceivedRef.current = onResponseReceived;
 
   const isSpeakingRef = useRef(false);
+  /** Whether the call on the air is an urgent one. */
+  const speakingUrgentRef = useRef(false);
   const queueRef = useRef<SpeechQueueItem[]>([]);
   const streamRef = useRef<ReplyStreamState | null>(null);
   const MAX_QUEUE_SIZE = 3;
@@ -148,6 +152,7 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
         return;
       }
       isSpeakingRef.current = false;
+      speakingUrgentRef.current = false;
       setIsSpeaking(false);
       onSpeakingChangeRef.current?.(false);
       return;
@@ -156,6 +161,7 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
     const item = queueRef.current.shift()!;
     const stream = item.stream;
     isSpeakingRef.current = true;
+    speakingUrgentRef.current = item.urgent === true;
     setIsSpeaking(true);
     onSpeakingChangeRef.current?.(true);
 
@@ -192,6 +198,7 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
     cancelReplyStream();
     queueRef.current = [];
     isSpeakingRef.current = false;
+    speakingUrgentRef.current = false;
     stopRadioSpeech();
     setIsSpeaking(false);
     onSpeakingChangeRef.current?.(false);
@@ -237,7 +244,7 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
   const speakMessage = useCallback(
     async (
       text: string,
-      forceInterrupt = false,
+      urgent = false,
       emotion?: { rateModifier?: number; pitchModifier?: number },
       ttlMs?: number
     ) => {
@@ -245,14 +252,19 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
       if (!isRadioEnabled || !cleaned) return;
       const expiresAt = ttlMs ? Date.now() + ttlMs : undefined;
 
-      if (forceInterrupt) {
-        // Critical emergency or forced interrupt: halt current audio, any reply being spoken,
-        // and the non-critical backlog
+      if (urgent) {
+        // An urgent call goes next, after the urgent calls already waiting.
+        const item: SpeechQueueItem = { id: newQueueItemId(), text: cleaned, emotion, expiresAt, urgent: true };
+        const queue = queueRef.current;
+        let insertAt = 0;
+        while (insertAt < queue.length && queue[insertAt].urgent) insertAt++;
+        queue.splice(insertAt, 0, item);
+        // Another urgent call on the air is finished first; a routine call or the driver's answer
+        // is cut off for it. Routine calls waiting stay queued, until they go stale.
+        if (isSpeakingRef.current && speakingUrgentRef.current) return;
         cancelReplyStream();
-        queueRef.current = [];
         stopRadioSpeech();
         isSpeakingRef.current = false;
-        queueRef.current.push({ id: newQueueItemId(), text: cleaned, emotion, expiresAt });
         await playNext();
         return;
       }

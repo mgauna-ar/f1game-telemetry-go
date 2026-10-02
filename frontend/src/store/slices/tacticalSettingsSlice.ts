@@ -60,6 +60,7 @@ export interface TacticalSettingsSlice {
   subQualyInvalid: boolean;
   subQualyTime: boolean;
   subQualyElim: boolean;
+  subQualyResult: boolean;
   subSafetyCar: boolean;
   subRedFlag: boolean;
   subRain: boolean;
@@ -122,6 +123,7 @@ export interface TacticalSettingsSlice {
   setSubQualyInvalid: (enabled: boolean) => void;
   setSubQualyTime: (enabled: boolean) => void;
   setSubQualyElim: (enabled: boolean) => void;
+  setSubQualyResult: (enabled: boolean) => void;
   setSubSafetyCar: (enabled: boolean) => void;
   setSubRedFlag: (enabled: boolean) => void;
   setSubRain: (enabled: boolean) => void;
@@ -185,6 +187,7 @@ export function getInitialTacticalSettings(): Omit<
   | 'setSubQualyInvalid'
   | 'setSubQualyTime'
   | 'setSubQualyElim'
+  | 'setSubQualyResult'
   | 'setSubSafetyCar'
   | 'setSubRedFlag'
   | 'setSubRain'
@@ -228,17 +231,17 @@ export const createTacticalSettingsSlice: StateCreator<
       get().syncConfigToBackend();
     },
 
-    setTyreAlertsEnabled: createBoolAction('tyreAlertsEnabled'),
-    setDamageAlertsEnabled: createBoolAction('damageAlertsEnabled'),
-    setErsAlertsEnabled: createBoolAction('ersAlertsEnabled'),
-    setBrakesAlertsEnabled: createBoolAction('brakesAlertsEnabled'),
-    setFuelAlertsEnabled: createBoolAction('fuelAlertsEnabled'),
-    setRivalAlertsEnabled: createBoolAction('rivalAlertsEnabled'),
-    setPitAlertsEnabled: createBoolAction('pitAlertsEnabled'),
-    setCoachingAlertsEnabled: createBoolAction('coachingAlertsEnabled'),
-    setTeammateAlertsEnabled: createBoolAction('teammateAlertsEnabled'),
-    setQualyAlertsEnabled: createBoolAction('qualyAlertsEnabled'),
-    setFlagsPensAlertsEnabled: createBoolAction('flagsPensAlertsEnabled'),
+    setTyreAlertsEnabled: createBoolAction('tyreAlertsEnabled', true),
+    setDamageAlertsEnabled: createBoolAction('damageAlertsEnabled', true),
+    setErsAlertsEnabled: createBoolAction('ersAlertsEnabled', true),
+    setBrakesAlertsEnabled: createBoolAction('brakesAlertsEnabled', true),
+    setFuelAlertsEnabled: createBoolAction('fuelAlertsEnabled', true),
+    setRivalAlertsEnabled: createBoolAction('rivalAlertsEnabled', true),
+    setPitAlertsEnabled: createBoolAction('pitAlertsEnabled', true),
+    setCoachingAlertsEnabled: createBoolAction('coachingAlertsEnabled', true),
+    setTeammateAlertsEnabled: createBoolAction('teammateAlertsEnabled', true),
+    setQualyAlertsEnabled: createBoolAction('qualyAlertsEnabled', true),
+    setFlagsPensAlertsEnabled: createBoolAction('flagsPensAlertsEnabled', true),
 
     setSubTyreWear: createBoolAction('subTyreWear', true),
     setSubTyrePuncture: createBoolAction('subTyrePuncture', true),
@@ -279,6 +282,7 @@ export const createTacticalSettingsSlice: StateCreator<
     setSubQualyInvalid: createBoolAction('subQualyInvalid', true),
     setSubQualyTime: createBoolAction('subQualyTime', true),
     setSubQualyElim: createBoolAction('subQualyElim', true),
+    setSubQualyResult: createBoolAction('subQualyResult', true),
     setSubSafetyCar: createBoolAction('subSafetyCar', true),
     setSubRedFlag: createBoolAction('subRedFlag', true),
     setSubRain: createBoolAction('subRain', true),

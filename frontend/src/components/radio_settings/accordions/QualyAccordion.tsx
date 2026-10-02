@@ -26,6 +26,8 @@ export const QualyAccordion: React.FC<QualyAccordionProps> = ({ isExpanded, onTo
   const setSubQualyTime = useRadioSettingsStore((s) => s.setSubQualyTime);
   const subQualyElim = useRadioSettingsStore((s) => s.subQualyElim);
   const setSubQualyElim = useRadioSettingsStore((s) => s.setSubQualyElim);
+  const subQualyResult = useRadioSettingsStore((s) => s.subQualyResult);
+  const setSubQualyResult = useRadioSettingsStore((s) => s.setSubQualyResult);
   const qualyCleanAirSec = useRadioSettingsStore((s) => s.qualyCleanAirSec);
   const setQualyCleanAirSec = useRadioSettingsStore((s) => s.setQualyCleanAirSec);
 
@@ -66,6 +68,12 @@ export const QualyAccordion: React.FC<QualyAccordionProps> = ({ isExpanded, onTo
           label={t('ai_engineer.proactiveAlerts.qualyElimDanger')}
           checked={subQualyElim}
           onChange={setSubQualyElim}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.qualyLapResult')}
+          checked={subQualyResult}
+          onChange={setSubQualyResult}
         />
       </div>
 

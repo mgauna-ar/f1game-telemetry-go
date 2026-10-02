@@ -205,24 +205,31 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 				}
 			}
 
-			var defendMsg string
+			// DRS is only said when the car behind can use it (2025): not on the first laps, in the
+			// wet or when race control has it off.
+			id := "rival_defend"
 			subAlert := "rival_defend"
 			title := "Defend Position"
-			if is2026 {
+			defendMsg := fmt.Sprintf("Defend! Car behind (P%d) is within a second (%.1fs gap).%s", playerPos+1, gapSec, extraContext)
+			switch {
+			case is2026:
+				id = "rival_defend_override"
 				subAlert = "rival_defend_override"
 				title = "Defend Position (Boost Threat)"
 				defendMsg = fmt.Sprintf("Defend! Car behind (P%d) is within Override/Boost attack threat (%.1fs gap).%s", playerPos+1, gapSec, extraContext)
-			} else {
-				defendMsg = fmt.Sprintf("Defend! Car behind (P%d) is within DRS threat (%.1fs gap).%s", playerPos+1, gapSec, extraContext)
+			case ctx.Status != nil && i < len(ctx.Status.CarStatusData) && ctx.Status.CarStatusData[i].DRSAllowed == 1:
+				subAlert = "rival_defend_drs"
+				defendMsg = fmt.Sprintf("Defend! Car behind (P%d) has DRS (%.1fs gap).%s", playerPos+1, gapSec, extraContext)
 			}
 
 			directives = append(directives, Directive{
-				ID:       subAlert,
+				ID:       id,
 				Category: DirectiveCategoryRivals,
 				SubAlert: subAlert,
 				Title:    title,
 				Message:  defendMsg,
 				Urgency:  UrgencyMedium,
+				Values:   &DirectiveValues{Behind: &GapToCar{GapSec: roundTo(float64(gapSec), 1)}},
 			})
 		}
 	}
@@ -269,10 +276,14 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 					tyreContext = fmt.Sprintf(" Car ahead is on %s tyres (age: %d laps).", rivalCompound, rivalStatus.TyresAgeLaps)
 				}
 
-				var attackMsg string
+				id := "rival_attack"
 				subAlert := "rival_attack"
 				title := "Attack Opportunity"
-				if is2026 {
+				attackMsg := fmt.Sprintf("We are catching car ahead (P%d), gap is %.1fs.%s", playerPos-1, gapSec, tyreContext)
+				playerStatus := ctx.PlayerStatus()
+				switch {
+				case is2026:
+					id = "rival_attack_override"
 					subAlert = "rival_attack_override"
 					title = "Attack Opportunity (Override Available)"
 					telemetry2 := ctx.PlayerTelemetry2()
@@ -281,17 +292,19 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 						boostContext = " Override Boost is available!"
 					}
 					attackMsg = fmt.Sprintf("We are catching car ahead (P%d), gap is %.1fs.%s%s Prepare overtake using Straight Mode and Boost deployment.", playerPos-1, gapSec, tyreContext, boostContext)
-				} else {
-					attackMsg = fmt.Sprintf("We are catching car ahead (P%d), gap is %.1fs.%s Mode overtake available.", playerPos-1, gapSec, tyreContext)
+				case playerStatus != nil && playerStatus.DRSAllowed == 1:
+					subAlert = "rival_attack_drs"
+					attackMsg = fmt.Sprintf("We are catching car ahead (P%d) with DRS, gap is %.1fs.%s", playerPos-1, gapSec, tyreContext)
 				}
 
 				directives = append(directives, Directive{
-					ID:       subAlert,
+					ID:       id,
 					Category: DirectiveCategoryRivals,
 					SubAlert: subAlert,
 					Title:    title,
 					Message:  attackMsg,
 					Urgency:  UrgencyMedium,
+					Values:   &DirectiveValues{Ahead: &GapToCar{GapSec: roundTo(float64(gapSec), 1)}},
 				})
 			}
 		}

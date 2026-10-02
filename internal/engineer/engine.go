@@ -350,6 +350,7 @@ func (e *EngineerEngine) buildEvaluationContextLocked(header packets.PacketHeade
 		PlayerLaps:       e.history.playerLaps,
 		CallLaps:         e.callLaps,
 		BoxDueLap:        e.boxDueLap,
+		CarHistory:       &e.history.carHistory,
 	}
 }
 
@@ -421,20 +422,13 @@ func (e *EngineerEngine) Evaluate(ctx *EvaluationContext) []Directive {
 func (e *EngineerEngine) evaluateLocked(ctx *EvaluationContext) []Directive {
 	var emittedDirectives []Directive
 
-	// Post-race debrief directive when transitioning to PhasePostRace
-	if e.currentPhase == PhasePostRace && !e.postRaceAnnounced {
+	// The chequered flag of a race: where the player finished. Qualifying and practice end with
+	// their own calls (the last lap's result).
+	if e.currentPhase == PhasePostRace && !e.postRaceAnnounced && e.isRaceSessionLocked() {
 		playerLap := e.getPlayerLapDataLocked()
 		if playerLap != nil && playerLap.ResultStatus == packets.ResultStatusFinished {
 			e.postRaceAnnounced = true
-			postRaceDirective := Directive{
-				ID:       "race_finish",
-				Category: DirectiveCategoryFlags,
-				SubAlert: "race_finish",
-				Title:    "Race Finished",
-				Message:  fmt.Sprintf("Chequered flag! Outstanding drive, you finished in P%d. Pick up rubber off line, switch to cool down mode and bring the car to parc fermé.", playerLap.CarPosition),
-				Urgency:  UrgencyLow,
-			}
-			prepared := e.emitDirectiveLocked(ctx.Header, postRaceDirective, "race_finish", 0)
+			prepared := e.emitDirectiveLocked(ctx.Header, e.raceFinishDirectiveLocked(int(playerLap.CarPosition)), "race_finish", 0)
 			emittedDirectives = append(emittedDirectives, prepared)
 		}
 	}
@@ -477,6 +471,37 @@ func (e *EngineerEngine) evaluateLocked(ctx *EvaluationContext) []Directive {
 	}
 
 	return append(emittedDirectives, e.pitEntryReminderLocked(ctx.Header)...)
+}
+
+// raceFinishDirectiveLocked is the chequered flag call for a finish in position pos: a win, a
+// podium, points or none.
+func (e *EngineerEngine) raceFinishDirectiveLocked(pos int) Directive {
+	pointsPositions := RacePointsPositions
+	if e.latestSession != nil && (e.latestSession.SessionType == packets.SessionSprintRace || e.latestSession.SessionType == packets.SessionEqualSprintRace) {
+		pointsPositions = SprintPointsPositions
+	}
+	subAlert := "race_finish"
+	result := "outside the points"
+	switch {
+	case pos == 1:
+		subAlert = "race_finish_win"
+		result = "the win"
+	case pos <= PodiumPositions:
+		subAlert = "race_finish_podium"
+		result = "a podium"
+	case pos <= pointsPositions:
+		subAlert = "race_finish_points"
+		result = "points"
+	}
+	return Directive{
+		ID:       "race_finish",
+		Category: DirectiveCategoryFlags,
+		SubAlert: subAlert,
+		Title:    "Race Finished",
+		Message:  fmt.Sprintf("Chequered flag, P%d: %s. Cool-down lap, then bring the car to parc fermé.", pos, result),
+		Urgency:  UrgencyLow,
+		Values:   &DirectiveValues{Position: pos},
+	}
 }
 
 // holdDirectiveLocked keeps a call a passing gate blocked, so it is said once the radio is free
@@ -669,15 +694,22 @@ func (e *EngineerEngine) deriveDrivingPhase(session *packets.PacketSessionData, 
 		return PhaseInLap
 	}
 
-	// 10. Flying Lap
+	// 10. Racing. A race lap is racing whatever the game calls it (a "flying lap" included).
+	if session != nil && packets.IsRaceSession(session.SessionType) {
+		return PhaseRacing
+	}
+
+	// 11. Flying Lap
 	if playerLap != nil && playerLap.DriverStatus == packets.DriverStatusFlyingLap {
 		return PhaseFlyingLap
 	}
 
-	// 11. Racing
-	if session != nil && packets.IsRaceSession(session.SessionType) {
-		return PhaseRacing
+	// 12. Practice and qualifying: on track but not on a timed lap, so not pushing, like an out-lap.
+	if session != nil && (packets.IsQualifyingSession(session.SessionType) || packets.IsPracticeSession(session.SessionType)) &&
+		playerLap != nil && playerLap.DriverStatus == packets.DriverStatusOnTrack {
+		return PhaseOutLap
 	}
+
 	if session == nil && playerLap != nil && playerLap.DriverStatus == packets.DriverStatusOnTrack {
 		return PhaseRacing
 	}
@@ -826,20 +858,11 @@ func (e *EngineerEngine) gateDirectiveLocked(alertKey, category, urgency string)
 		return gateDrop
 	}
 
-	// 1. Strict Radio Silence during Grid and Race Start
-	// During PhaseGrid or PhaseRaceStart, only true emergency alerts (UrgencyCritical) are permitted.
-	if (e.currentPhase == PhaseGrid || e.currentPhase == PhaseRaceStart) && urgency != UrgencyCritical {
-		return gateDrop
-	}
-
-	// 2. Strict Radio Discipline during Flying Lap (Hot Lap)
-	// During PhaseFlyingLap, only lap invalidation or critical emergency alerts are permitted.
-	if e.currentPhase == PhaseFlyingLap && urgency != UrgencyCritical && alertKey != "qualy_invalid" {
-		return gateDrop
-	}
-
-	// 3. Post-Race suppression: only race_finish announcement or emergencies permitted
-	if e.currentPhase == PhasePostRace && urgency != UrgencyCritical && alertKey != "race_finish" {
+	// 1-2. Radio silence on the grid, at the race start and on a flying lap: only emergencies
+	// (UrgencyCritical) and the calls that must break it (BreaksRadioSilence: a yellow flag, a
+	// deleted lap, a slow car ahead).
+	silent := e.currentPhase == PhaseGrid || e.currentPhase == PhaseRaceStart || e.currentPhase == PhaseFlyingLap
+	if silent && urgency != UrgencyCritical && !e.alertRules[alertKey].BreaksRadioSilence {
 		return gateDrop
 	}
 

@@ -43,6 +43,36 @@ const (
 	simPunctureFromM = 4460
 )
 
+// The qualifying scenario (Q1, 22 cars, the player P17: in the drop zone) runs in runs of
+// simQualyRunLaps laps: out-lap, push lap, in-lap, a lap in the garage. Car 1 is on a push lap
+// behind the player on every out-lap and in-lap and passes them; on every other run car 2 is on
+// its own out-lap just ahead (traffic, then clean air on the next run); car 3 is on an in-lap
+// ahead on the player's push lap. A yellow flag shows in sector 2 of the push lap and the second
+// run's push lap is invalidated. The clock starts at simQualyStartSec, so the elimination warning
+// and the session clock calls come in the garage.
+const (
+	simQualyRunLaps        = 4
+	simQualyStartSec       = 360
+	simQualyPlayerPosition = 17
+	simQualyBehindStartM   = 300 // car 1 starts the player's lap this far behind...
+	simQualyBehindGainM    = 900 // ...and gains this much over it
+	simQualyTrafficAheadM  = 150 // car 2's gap ahead of the player
+	simQualySlowAheadM     = 400 // car 3's gap ahead at the start of the push lap...
+	simQualySlowCloseM     = 500 // ...and what the player gains on it over the lap
+	simQualyYellowFromM    = 2000
+	simQualyYellowToM      = 2600
+	simQualyInvalidFromM   = 3000
+	simQualyPlayerLossMS   = 1500 // the player's laps are this much slower, as fits P17
+)
+
+// The stages of a qualifying run: the lap number modulo simQualyRunLaps.
+const (
+	simQualyGarage = iota
+	simQualyOutLap
+	simQualyPushLap
+	simQualyInLap
+)
+
 // simAIPitLaps are the AI cars that pit in the pit scenario and the lap each pits at the end of, so
 // the server learns the pit entry before the player's puncture.
 var simAIPitLaps = map[int]uint8{9: 1, 10: 2, 11: 3}
@@ -132,7 +162,7 @@ type SimulatorConfig struct {
 func loadSimulatorConfig() SimulatorConfig {
 	sessionFlag := flag.String("session", getEnv("F1T_SESSION_TYPE", "race"), "Session type to simulate: race, quali, q1, q2, q3, practice, timetrial")
 	formatFlag := flag.String("format", getEnv("F1T_PACKET_FORMAT", "2026"), "F1 UDP packet format: 2025 (20 active cars + 2 observers) or 2026 (22 active cars + 2 observers, default)")
-	scenarioFlag := flag.String("scenario", getEnv("F1T_SCENARIO", "default"), "Simulation scenario: default, wear / tyre-wear, sc / safetycar, vsc, rain, start, pit")
+	scenarioFlag := flag.String("scenario", getEnv("F1T_SCENARIO", "default"), "Simulation scenario: default, wear / tyre-wear, sc / safetycar, vsc, rain, start, pit, qualy (runs Q1)")
 	targetFlag := flag.String("target", getEnv("F1T_SIM_TARGET", defaultSimTarget()), "UDP address to send packets to (defaults to the server's F1T_UDP_ADDR port on 127.0.0.1)")
 	flag.Parse()
 
@@ -179,6 +209,11 @@ func loadSimulatorConfig() SimulatorConfig {
 	default:
 		sessionType = packets.SessionRace
 		sessionModeName = "Race"
+	}
+	if scenario == "qualy" && !isQualifying {
+		sessionType = packets.SessionQ1
+		sessionModeName = "Qualifying 1 (Q1)"
+		isQualifying = true
 	}
 
 	return SimulatorConfig{
@@ -245,9 +280,12 @@ func main() {
 		sessionUID: 987654321,
 		lapNum:     1,
 	}
-	if cfg.IsQualifying {
+	switch {
+	case cfg.Scenario == "qualy":
+		st.sessionTimeLeft = simQualyStartSec
+	case cfg.IsQualifying:
 		st.sessionTimeLeft = 720 // 12 minutes
-	} else {
+	default:
 		st.sessionTimeLeft = 2400
 	}
 
@@ -313,6 +351,14 @@ func main() {
 					gear = 0
 					throttle = 0.0
 					brake = 1.0
+				}
+			case "qualy":
+				if simQualyStage(st.lapNum) == simQualyGarage {
+					speedKmh = 0
+					rpm = 4500
+					gear = 0
+					throttle = 0.0
+					brake = 0.0
 				}
 			}
 
@@ -678,8 +724,22 @@ func buildLapCars(cfg SimulatorConfig, st *simState, lapDist float32) []packets.
 				driverStatus = packets.DriverStatusInLap
 			}
 
+			carLapDist := simCarLapDistance(lapDist, i)
+			carPosition := uint8(i + 1)
+			lastLapMS := simLastLapMS(i, st.lapNum)
+			var lapInvalid uint8
+			if cfg.Scenario == "qualy" {
+				driverStatus, pitStatus, carLapDist = simQualyCar(i, st.lapNum, lapDist)
+				carPosition = simQualyPosition(i)
+				if i == 0 && simQualyPushLapInvalid(st.lapNum, lapDist) {
+					lapInvalid = 1
+				}
+				if i == 0 && lastLapMS > 0 {
+					lastLapMS += simQualyPlayerLossMS
+				}
+			}
+
 			if cfg.Scenario == "pit" {
-				carLapDist := simCarLapDistance(lapDist, i)
 				if i == 0 {
 					pitStatus = simPitStatus(st.lapNum, lapDist, simPlayerPitLap)
 					switch {
@@ -716,13 +776,14 @@ func buildLapCars(cfg SimulatorConfig, st *simState, lapDist float32) []packets.
 			lapCars[i] = packets.LapData{
 				DriverStatus:                driverStatus,
 				CurrentLapTimeInMS:          st.lapTimeMs + gapMs,
-				LastLapTimeInMS:             simLastLapMS(i, st.lapNum),
+				LastLapTimeInMS:             lastLapMS,
 				Sector1TimeMSPart:           uint16(28120 + i*100),
 				Sector2TimeMSPart:           uint16(31450 + i*90),
 				CurrentLapNum:               st.lapNum,
-				LapDistance:                 simCarLapDistance(lapDist, i),
+				CurrentLapInvalid:           lapInvalid,
+				LapDistance:                 carLapDist,
 				TotalDistance:               st.totalDistance - float32(i*15),
-				CarPosition:                 uint8(i + 1),
+				CarPosition:                 carPosition,
 				GridPosition:                gridPos,
 				ResultStatus:                packets.ResultStatusActive,
 				DeltaToRaceLeaderMSPart:     uint16(gapMs),
@@ -767,7 +828,7 @@ func buildCarStatusCars(cfg SimulatorConfig, st *simState) []packets.CarStatusDa
 				ERSDeployMode:         uint8(i % 4),
 				ERSHarvestLimitPerLap: 2000000.0,
 				PitLimiterStatus:      pitLimiter,
-				VehicleFIAFlags:       simFIAFlag(cfg, st),
+				VehicleFIAFlags:       simFIAFlag(cfg, st, i),
 				DRSAllowed:            simDRSAllowed(cfg, st, i),
 			}
 		}
@@ -784,10 +845,15 @@ func simDRSAllowed(cfg SimulatorConfig, st *simState, carIdx int) uint8 {
 	return 1
 }
 
-// simFIAFlag is the flag every car sees: yellow while the sc/vsc scenario neutralises the race.
-func simFIAFlag(cfg SimulatorConfig, st *simState) int8 {
+// simFIAFlag is the flag a car sees: yellow for every car while the sc/vsc scenario neutralises
+// the race, and for the player in sector 2 of the qualifying scenario's push lap.
+func simFIAFlag(cfg SimulatorConfig, st *simState, carIdx int) int8 {
 	neutralised := cfg.Scenario == "sc" || cfg.Scenario == "safetycar" || cfg.Scenario == "vsc"
 	if neutralised && st.sessionTime >= 4.0 && st.sessionTime < 60.0 {
+		return packets.VehicleFIAFlagYellow
+	}
+	if cfg.Scenario == "qualy" && carIdx == 0 && simQualyStage(st.lapNum) == simQualyPushLap &&
+		st.lapDist >= simQualyYellowFromM && st.lapDist < simQualyYellowToM {
 		return packets.VehicleFIAFlagYellow
 	}
 	return packets.VehicleFIAFlagGreen
@@ -951,6 +1017,63 @@ func simPunctured(lapNum uint8, lapDist float32) bool {
 		return lapDist < simPitBoxEndM
 	}
 	return false
+}
+
+// simQualyStage is the stage of the qualifying run the player's lap lapNum is.
+func simQualyStage(lapNum uint8) int {
+	return int(lapNum) % simQualyRunLaps
+}
+
+// simQualyCar is car carIdx's driver status, pit status and lap distance in the qualifying
+// scenario, while the player is lapDist into lap lapNum. Cars without a part in the scenario wait
+// in their garage.
+func simQualyCar(carIdx int, lapNum uint8, lapDist float32) (driverStatus, pitStatus uint8, carLapDist float32) {
+	stage := simQualyStage(lapNum)
+	frac := lapDist / simTrackLengthM
+	firstRunOfTwo := (int(lapNum)-1)/simQualyRunLaps%2 == 0
+	switch {
+	case carIdx == 0 && stage == simQualyOutLap:
+		return packets.DriverStatusOutLap, packets.PitStatusNone, lapDist
+	case carIdx == 0 && stage == simQualyPushLap:
+		return packets.DriverStatusFlyingLap, packets.PitStatusNone, lapDist
+	case carIdx == 0 && stage == simQualyInLap:
+		return packets.DriverStatusInLap, packets.PitStatusNone, lapDist
+	case carIdx == 1 && (stage == simQualyOutLap || stage == simQualyInLap):
+		return packets.DriverStatusFlyingLap, packets.PitStatusNone, simWrapLapDistance(lapDist - simQualyBehindStartM + simQualyBehindGainM*frac)
+	case carIdx == 2 && stage == simQualyOutLap && firstRunOfTwo:
+		return packets.DriverStatusOutLap, packets.PitStatusNone, simWrapLapDistance(lapDist + simQualyTrafficAheadM)
+	case carIdx == 3 && stage == simQualyPushLap:
+		return packets.DriverStatusInLap, packets.PitStatusNone, simWrapLapDistance(lapDist + simQualySlowAheadM - simQualySlowCloseM*frac)
+	}
+	return packets.DriverStatusInGarage, packets.PitStatusInPitArea, lapDist
+}
+
+// simQualyPosition is car carIdx's position in the qualifying scenario: the player at
+// simQualyPlayerPosition, the other cars in order around them.
+func simQualyPosition(carIdx int) uint8 {
+	switch {
+	case carIdx == 0:
+		return simQualyPlayerPosition
+	case carIdx < simQualyPlayerPosition:
+		return uint8(carIdx)
+	}
+	return uint8(carIdx + 1)
+}
+
+// simQualyPushLapInvalid reports whether the player's push lap is invalid: on the second run, from
+// simQualyInvalidFromM.
+func simQualyPushLapInvalid(lapNum uint8, lapDist float32) bool {
+	secondRun := (int(lapNum)-1)/simQualyRunLaps == 1
+	return secondRun && simQualyStage(lapNum) == simQualyPushLap && lapDist >= simQualyInvalidFromM
+}
+
+// simWrapLapDistance brings a lap distance back into [0, simTrackLengthM).
+func simWrapLapDistance(d float32) float32 {
+	d = float32(math.Mod(float64(d), simTrackLengthM))
+	if d < 0 {
+		d += simTrackLengthM
+	}
+	return d
 }
 
 // simCarLapDistance places a car simCarSpacingM behind the one in front, on the same lap.

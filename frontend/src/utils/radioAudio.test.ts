@@ -337,6 +337,29 @@ describe('radioAudio utils', () => {
       expect(globalThis.fetch).toHaveBeenCalledTimes(1); // No new network call
     });
 
+    it('does not play a message stopped while its audio was being fetched', async () => {
+      let resolveFetch: (r: Response) => void = () => {};
+      globalThis.fetch = vi.fn(() => new Promise<Response>((resolve) => (resolveFetch = resolve)));
+      const onStart = vi.fn();
+      const onEnd = vi.fn();
+      const onError = vi.fn();
+
+      const speaking = speakRadioResponse('Car behind on a push lap', { onStart, onEnd, onError, enableBeeps: false });
+      stopRadioSpeech(); // an urgent call took the radio
+      resolveFetch({ ok: true, arrayBuffer: vi.fn().mockResolvedValue(new ArrayBuffer(8)) } as unknown as Response);
+      await speaking;
+
+      expect(onStart).not.toHaveBeenCalled();
+      expect(onEnd).not.toHaveBeenCalled();
+      expect(onError).not.toHaveBeenCalled();
+    });
+
+    it('ends at once when there is nothing to say, so the speech queue moves on', async () => {
+      const onEnd = vi.fn();
+      await speakRadioResponse('   ', { onEnd });
+      expect(onEnd).toHaveBeenCalledTimes(1);
+    });
+
     it('manages analyser node and microphone connection', () => {
       const mockAnalyser = {
         fftSize: 64,

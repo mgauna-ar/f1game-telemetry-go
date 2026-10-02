@@ -194,7 +194,7 @@ func TestEngineerEngine_StartReactionIsSaidAfterTheStart(t *testing.T) {
 	if e.currentPhase != PhaseRaceStart {
 		t.Fatalf("phase = %v right after the launch, want %v", e.currentPhase, PhaseRaceStart)
 	}
-	if n := spoken(t, b, "start_reaction_time"); n != 0 {
+	if n := spoken(t, b, "start_reaction_fast"); n != 0 { // 0.21 s
 		t.Fatalf("reaction time said %d times during the start, want it kept for after", n)
 	}
 
@@ -202,7 +202,7 @@ func TestEngineerEngine_StartReactionIsSaidAfterTheStart(t *testing.T) {
 	if e.currentPhase != PhaseRacing {
 		t.Fatalf("phase = %v past the start zone, want %v", e.currentPhase, PhaseRacing)
 	}
-	if n := spoken(t, b, "start_reaction_time"); n != 1 {
+	if n := spoken(t, b, "start_reaction_fast"); n != 1 {
 		t.Fatalf("reaction time said %d times after the start, want 1", n)
 	}
 }

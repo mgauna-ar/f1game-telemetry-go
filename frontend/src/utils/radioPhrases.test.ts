@@ -3,6 +3,7 @@ import {
   BOX_TIMING_PHRASES,
   boxTimingPhrase,
   formatTenths,
+  formatThousandths,
   getProactiveRadioSpeech,
   radioPhrasePool,
   RADIO_PHRASE_CATALOG,
@@ -31,6 +32,38 @@ const REPORT_VALUES: Partial<Record<RadioAlertCategory, DirectiveValues>> = {
     behind: { gap_sec: 2, trend: 'stable' },
   },
   tyre_life: { tyre_laps_left: 6 },
+  qualy_lap_pole: { position: 1, pole_gap_sec: 0.088 },
+  qualy_lap_result: { position: 6, pole_gap_sec: 0.345 },
+  qualy_lap_no_improvement: { position: 7 },
+};
+
+/** The numbers each category's phrases may say; every other phrase only says `{driver}`. */
+const CATEGORY_NUMBERS: Partial<Record<RadioAlertCategory, string[]>> = {
+  tyre_life: ['laps'],
+  inlap_traffic_behind: ['gap'],
+  qualy_traffic: ['gap'],
+  qualy_traffic_ahead: ['gap'],
+  qualy_session_time: ['minutes'],
+  qualy_session_time_garage: ['minutes'],
+  qualy_elimination_danger: ['position'],
+  qualy_elimination_bubble: ['position'],
+  qualy_lap_pole: ['pole_gap'],
+  qualy_lap_result: ['position', 'pole_gap'],
+  qualy_lap_no_improvement: ['position'],
+  race_finish: ['position'],
+  race_finish_points: ['position'],
+  race_finish_podium: ['position'],
+  pit_stop_duration: ['stop_sec'],
+  pit_stop_fast: ['stop_sec'],
+  pit_stop_slow: ['stop_sec'],
+  penalties_incurred: ['penalty_sec'],
+  track_limits_warnings: ['count'],
+  rival_defend: ['gap'],
+  rival_defend_drs: ['gap'],
+  rival_attack: ['gap'],
+  rival_attack_drs: ['gap'],
+  rival_defend_override: ['gap'],
+  rival_attack_override: ['gap'],
 };
 
 /** Every template a category can speak in one locale, across all personas. */
@@ -79,13 +112,23 @@ describe('radioPhrases', () => {
       }
     });
 
-    it('only uses the {driver} placeholder, and {laps} for tyre life', () => {
+    it('only uses {driver} and the numbers its call carries', () => {
       for (const category of Object.keys(RADIO_PHRASE_CATALOG[language]) as RadioAlertCategory[]) {
+        const allowed = CATEGORY_NUMBERS[category] ?? [];
         for (const template of allTemplates(language, category)) {
-          const rest = template.replace(/{driver}/g, '');
-          const filled = category === 'tyre_life' ? rest.replace(/{laps}/g, '') : rest;
-          expect(filled, `${language}/${category}`).not.toMatch(/[{}]/);
+          const rest = allowed.reduce((t, key) => t.replaceAll(`{${key}}`, ''), template.replace(/{driver}/g, ''));
+          expect(rest, `${language}/${category}`).not.toMatch(/[{}]/);
           if (category === 'tyre_life') expect(template, `${language}/${category}`).toContain('{laps}');
+        }
+      }
+    });
+
+    it('has a phrase without numbers in every pool of a call that can come without them', () => {
+      for (const category of Object.keys(RADIO_PHRASE_CATALOG[language]) as RadioAlertCategory[]) {
+        if (REPORT_VALUES[category] || category === 'tyre_life') continue;
+        for (const persona of PERSONAS) {
+          const plain = radioPhrasePool(category, language, persona).filter((t) => !/{(?!driver})\w+}/.test(t));
+          expect(plain.length, `${language}/${persona}/${category}`).toBeGreaterThan(0);
         }
       }
     });
@@ -316,6 +359,131 @@ describe('radioPhrases', () => {
       expect(formatTenths(1.4, 'en')).toBe('1.4');
       expect(formatTenths(1.4, 'es')).toBe('1,4');
       expect(formatTenths(12, 'es')).toBe('12,0');
+      expect(formatThousandths(0.088, 'en')).toBe('0.088');
+      expect(formatThousandths(0.345, 'es')).toBe('0,345');
+    });
+  });
+
+  describe('races', () => {
+    it('says where the race finished', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      expect(getProactiveRadioSpeech('race_finish_podium', 'en', 'custom', '', undefined, { position: 2 })).toBe(
+        'Chequered flag, P2, a podium. Great drive. Bring the car to parc fermé.'
+      );
+      expect(getProactiveRadioSpeech('race_finish', 'es', 'custom', '', undefined, { position: 14 })).toBe(
+        'Bandera a cuadros, P14. Vuelta de enfriamiento y lleva el auto al parque cerrado.'
+      );
+    });
+
+    it('only praises a fast launch or a fast stop', () => {
+      for (const language of LOCALES) {
+        for (const category of ['start_reaction_slow', 'pit_stop_slow'] as RadioAlertCategory[]) {
+          for (const template of allTemplates(language, category)) {
+            expect(template, `${language}/${category}`).not.toMatch(/great|brilliant|excellent|gran |qué /i);
+          }
+        }
+      }
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      expect(getProactiveRadioSpeech('pit_stop_fast', 'en', 'custom', '', undefined, { stop_sec: 2.4 })).toBe(
+        'Great stop, 2.4 seconds. Push now.'
+      );
+      expect(getProactiveRadioSpeech('pit_stop_slow', 'es', 'custom', '', undefined, { stop_sec: 4.6 })).toBe(
+        'Parada lenta, 4,6 segundos. Recupera en la vuelta de salida.'
+      );
+    });
+
+    it('says the penalty and the warnings as they are', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      expect(getProactiveRadioSpeech('penalties_incurred', 'en', 'custom', '', undefined, { penalty_sec: 5 })).toBe(
+        '5 second time penalty from the stewards.'
+      );
+      expect(getProactiveRadioSpeech('track_limits_warnings', 'en', 'custom', '', undefined, { count: 2 })).toBe(
+        '2 warnings for track limits. Keep all four wheels inside the white lines.'
+      );
+      for (const language of LOCALES) {
+        for (const category of ['penalties_incurred', 'penalty_drive_through', 'penalty_stop_go'] as RadioAlertCategory[]) {
+          for (const template of allTemplates(language, category)) {
+            expect(template, `${language}/${category}`).not.toMatch(/next stop|próxima parada/i);
+          }
+        }
+      }
+    });
+
+    it('says DRS only on the calls that have it', () => {
+      for (const language of LOCALES) {
+        for (const category of ['rival_defend', 'rival_attack'] as RadioAlertCategory[]) {
+          for (const template of allTemplates(language, category)) expect(template).not.toContain('DRS');
+        }
+        for (const category of ['rival_defend_drs', 'rival_attack_drs'] as RadioAlertCategory[]) {
+          for (const template of allTemplates(language, category)) expect(template).toContain('DRS');
+        }
+      }
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      expect(
+        getProactiveRadioSpeech('rival_defend_drs', 'en', 'custom', '', undefined, { behind: { gap_sec: 0.6 } })
+      ).toBe('Car behind has DRS, 0.6 seconds. Defend.');
+    });
+
+    it('never calls a lapping car "the leader" or praises another car\'s fastest lap as purple', () => {
+      for (const language of LOCALES) {
+        for (const template of allTemplates(language, 'flags_blue')) expect(template).not.toMatch(/leader|líder/i);
+        for (const template of allTemplates(language, 'race_fastest_lap')) expect(template).not.toMatch(/purple|morado/i);
+      }
+    });
+  });
+
+  describe('qualifying', () => {
+    it('says the gap to a car on a push lap behind, and to traffic ahead', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      expect(
+        getProactiveRadioSpeech('inlap_traffic_behind', 'en', 'custom', '', undefined, { behind: { gap_sec: 2.3 } })
+      ).toBe('Car behind on a push lap, 2.3 seconds. Give way.');
+      expect(
+        getProactiveRadioSpeech('qualy_traffic_ahead', 'es', 'custom', '', undefined, { ahead: { gap_sec: 3.1 } })
+      ).toBe('Auto lento por delante a 3,1 segundos. No está en vuelta rápida.');
+    });
+
+    it('says a phrase without the number when the call has none', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      expect(getProactiveRadioSpeech('inlap_traffic_behind', 'en', 'custom', 'Franco')).toBe(
+        'Car behind on a push lap, Franco. Give way safely.'
+      );
+    });
+
+    it('says the minutes left, but not "1 minutes"', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      expect(getProactiveRadioSpeech('qualy_session_time_garage', 'en', 'custom', '', undefined, { minutes: 3 })).toBe(
+        'Under 3 minutes left. Time to go out for the final run.'
+      );
+      expect(getProactiveRadioSpeech('qualy_session_time', 'en', 'custom', '', undefined, { minutes: 1 })).toBe(
+        'Clock is running down. Make sure you cross the line before the flag.'
+      );
+    });
+
+    it('says the lap result with the gap to P1 and the cut line', () => {
+      vi.spyOn(Math, 'random').mockReturnValue(0);
+      expect(
+        getProactiveRadioSpeech('qualy_lap_result', 'en', 'custom', '', undefined, {
+          position: 17,
+          pole_gap_sec: 1.234,
+          elimination: 'drop_zone',
+        })
+      ).toBe('P17, 1.234 off P1. That is in the drop zone.');
+      expect(getProactiveRadioSpeech('qualy_lap_result', 'es', 'custom', '', undefined, { position: 6 })).toBe(
+        'Eso te pone P6.'
+      );
+      expect(
+        getProactiveRadioSpeech('qualy_lap_pole', 'es', 'colapinto', 'Franco', undefined, {
+          position: 1,
+          pole_gap_sec: 0.088,
+        })
+      ).toBe('¡Pole provisional, Franco! P1 por 0,088.');
+      expect(
+        getProactiveRadioSpeech('qualy_lap_no_improvement', 'en', 'bono', '', undefined, {
+          position: 16,
+          elimination: 'last_through',
+        })
+      ).toBe('No improvement on that one. Still P16. Last car through, not safe yet.');
     });
   });
 

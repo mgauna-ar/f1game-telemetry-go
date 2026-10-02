@@ -65,15 +65,28 @@ export const radio_phrases = {
   },
   tyre_wear: {
     bono: [
-      'Tyre wear is high, {driver}. We need to manage the rear deg out of low-speed turns.',
-      'High degradation on the tyres. Manage the pace and protect the rubber.',
+      'Tyres are starting to go off, {driver}. Look after the rears out of the slow corners.',
+      'Tyre wear is building. Manage the slides.',
     ],
     colapinto: [
-      'High tyre wear, {driver}. Watch the traction out of the corners.',
+      'Tyres are starting to wear, {driver}. Watch the traction out of the corners.',
+    ],
+    standard: [
+      'Tyre wear is building. Manage the slides and protect the tyres.',
+      'Tyres are starting to go off, {driver}. Focus on smooth traction.',
+    ],
+  },
+  tyre_wear_critical: {
+    bono: [
+      'Tyres are almost gone, {driver}. We need to manage every corner now.',
+      'Tyre wear is critical. Protect the rubber.',
+    ],
+    colapinto: [
+      'The tyres are nearly gone, {driver}! Look after them.',
     ],
     standard: [
       'Tyre wear is critical. Manage your pace and protect the tyres.',
-      'High tyre degradation detected, {driver}. Focus on smooth traction.',
+      'Tyres are nearly gone, {driver}. Manage every corner.',
     ],
   },
   tyre_overheat: {
@@ -91,14 +104,14 @@ export const radio_phrases = {
   },
   tyre_cold: {
     bono: [
-      'Tyres are cold, {driver}. Weave and get temperature into the carcass before the restart.',
+      'Tyres are cold, {driver}. Work some temperature into them.',
     ],
     colapinto: [
-      'Cold tyres, {driver}. Weave hard to build temperature.',
+      'Cold tyres, {driver}. Get some heat into them.',
     ],
     standard: [
-      'Tyres are cold. Weave to bring core temperature up.',
-      'Cold tyre warning, {driver}. Build carcass temperature before the green flag.',
+      'Tyres are cold. Build temperature before you push.',
+      'Cold tyres, {driver}. Work some heat into them.',
     ],
   },
   wing_damage: {
@@ -192,14 +205,14 @@ export const radio_phrases = {
   },
   brake_cold: {
     bono: [
-      'Brakes are cold, {driver}. Put heat into the discs before the restart.',
+      'Brakes are cold, {driver}. Put some heat into the discs.',
     ],
     colapinto: [
-      'Cold brakes, {driver}. Warm the discs before the green flag.',
+      'Cold brakes, {driver}. Warm the discs up.',
     ],
     standard: [
-      'Brakes are cold. Put heat into the discs before the restart.',
-      'Cold brake drag warning, {driver}. Warm up the discs before the restart.',
+      'Brakes are cold. Put heat into the discs.',
+      'Cold brakes, {driver}. Warm the discs before you push.',
     ],
   },
   brake_bias: {
@@ -271,39 +284,74 @@ export const radio_phrases = {
   },
   rival_defend: {
     bono: [
-      'Car behind within 1 second with DRS, {driver}. Defend the inside into turn 1.',
+      'Car behind within a second, {gap} seconds, {driver}. Defend.',
+      'Car behind is within a second, {driver}. Cover the inside.',
     ],
     colapinto: [
-      'Car behind with DRS within a second, {driver}. Cover the inside line.',
+      'Car behind at {gap}, {driver}! Close the door.',
+      'Car behind is right there, {driver}! Close the door.',
     ],
     standard: [
-      'Car behind within one second with DRS. Defend the inside.',
-      'Rival within DRS threat behind, {driver}. Defend the racing line.',
+      'Car behind at {gap} seconds. Defend.',
+      'Car behind within a second, {driver}. Defend your line.',
+    ],
+  },
+  rival_defend_drs: {
+    bono: [
+      'Car behind has DRS, {gap} seconds, {driver}. Defend the inside.',
+      'Car behind has DRS, {driver}. Defend.',
+    ],
+    colapinto: [
+      'Car behind with DRS at {gap}, {driver}! Cover the inside.',
+      'Car behind has DRS, {driver}! Cover the inside.',
+    ],
+    standard: [
+      'Car behind has DRS, {gap} seconds. Defend.',
+      'Car behind within DRS range, {driver}. Defend the inside.',
     ],
   },
   rival_attack: {
     bono: [
-      'Within DRS range, {driver}. Mode overtake available on the straight.',
-      'We have DRS on the car ahead. Mode overtake available.',
+      'Car ahead at {gap} seconds, {driver}. Keep the pressure on.',
+      'We are catching the car ahead. Keep the pressure on.',
     ],
     colapinto: [
-      'In DRS range, {driver}. Use overtake mode on the main straight.',
+      'Car ahead at {gap}, {driver}! Go for it!',
+      'We are catching the car ahead, {driver}! Go for it!',
     ],
     standard: [
-      'Within DRS range. Mode overtake available on the straight.',
-      'Rival in DRS range ahead, {driver}. Attack mode available.',
+      'Car ahead at {gap} seconds. Keep pushing.',
+      'Closing on the car ahead, {driver}. Keep the pressure on.',
+    ],
+  },
+  rival_attack_drs: {
+    bono: [
+      'DRS on the car ahead, {gap} seconds, {driver}. Overtake mode is yours.',
+      'DRS on the car ahead. Use overtake mode on the straight.',
+    ],
+    colapinto: [
+      'DRS on the car ahead at {gap}, {driver}! Overtake mode, go!',
+      'DRS on the car ahead, {driver}! Go for it!',
+    ],
+    standard: [
+      'DRS on the car ahead, {gap} seconds. Overtake mode available.',
+      'Within DRS of the car ahead, {driver}. Overtake mode available.',
     ],
   },
   qualy_traffic: {
     bono: [
-      'Traffic ahead on the out-lap, {driver}. Build at least 4 seconds of clean air before launching.',
+      'Traffic ahead, {gap} seconds, {driver}. Back off and make the gap.',
+      'Car ahead at {gap} seconds. Drop back for some space before the lap.',
+      'Traffic ahead, {driver}. Back off and make a gap.',
     ],
     colapinto: [
-      'Traffic ahead, {driver}. Open a 4 second gap before the final corner.',
+      'Traffic ahead at {gap} seconds, {driver}! Back off and make space before the last corner.',
+      'Traffic ahead, {driver}! Make a gap before you start the lap.',
     ],
     standard: [
-      'Traffic ahead on out-lap. Build at least 4 seconds of clean air.',
-      'Out-lap traffic warning, {driver}. Build a gap for clean air.',
+      'Traffic ahead, {gap} seconds. Back off and make a gap.',
+      'Car ahead at {gap} seconds, {driver}. Drop back before you start the lap.',
+      'Traffic ahead on the out-lap. Back off and make a gap.',
     ],
   },
   qualy_clean_air: {
@@ -318,64 +366,188 @@ export const radio_phrases = {
       'Clean air confirmed ahead, {driver}. Launch your flying lap.',
     ],
   },
-  qualy_deleted_lap: {
+  qualy_traffic_ahead: {
     bono: [
-      'Lap deleted for track limits, {driver}. Recharge ERS and reset for the next flying attempt.',
+      'Slow car ahead, {gap} seconds, {driver}. Not on a push lap.',
+      'Traffic ahead on a slow lap, {gap} seconds. Be ready.',
+      'Slow car ahead, {driver}. Not on a push lap.',
     ],
     colapinto: [
-      'Lap deleted for track limits, {driver}. Recharge the battery and go again.',
+      'Slow car ahead, {gap} seconds, {driver}! Careful.',
+      'Slow car ahead, {driver}! Careful.',
     ],
     standard: [
-      'Lap deleted for track limits. Recharge ERS and reset for next flying lap.',
-      'Lap time deleted, {driver}. Recharge battery and prepare another push lap.',
+      'Slow car ahead, {gap} seconds. Not on a push lap.',
+      'Slow car ahead, {driver}. Be ready.',
+    ],
+  },
+  qualy_deleted_lap: {
+    bono: [
+      'That lap is invalid, {driver}. It will not count.',
+      'Lap invalidated. Back off and recharge.',
+    ],
+    colapinto: [
+      'Lap invalid, {driver}. That one does not count.',
+    ],
+    standard: [
+      'Lap invalid. That one will not count.',
+      'That lap has been invalidated, {driver}. Back off and recharge.',
     ],
   },
   qualy_session_time: {
     bono: [
-      'Under 3 minutes remaining, {driver}. Leave the box now for the final flying lap.',
+      'Under {minutes} minutes left, {driver}. Make sure you start the lap before the flag.',
+      'Clock is running down, {driver}. Make sure you start the lap before the flag.',
     ],
     colapinto: [
-      'Under 3 minutes left, {driver}. Head out now to make the flag.',
+      'Under {minutes} minutes to go, {driver}! Cross the line before the chequered flag.',
+      'Not much time left, {driver}! Cross the line before the chequered flag.',
     ],
     standard: [
-      'Under 3 minutes remaining in session. Leave pit lane now for final run.',
-      'Session clock critical, {driver}. Box exit now to reach the line before the flag.',
+      'Under {minutes} minutes left. Make sure you cross the line before the flag.',
+      'Clock is running down. Make sure you cross the line before the flag.',
+      'Session time is short, {driver}. Start your lap before the chequered flag.',
+    ],
+  },
+  qualy_session_time_garage: {
+    bono: [
+      'Under {minutes} minutes left, {driver}. Time to go out for the last run.',
+      'Clock is running down, {driver}. Time to go out for the last run.',
+    ],
+    colapinto: [
+      'Under {minutes} minutes to go, {driver}! Head out now to make the flag.',
+      'Not much time left, {driver}. Head out now to make the flag.',
+    ],
+    standard: [
+      'Under {minutes} minutes left. Time to go out for the final run.',
+      'Clock is running down. Time to go out for the final run.',
+      'Session time is short, {driver}. Leave the pit lane now to reach the line before the flag.',
     ],
   },
   qualy_elimination_danger: {
     bono: [
-      'We are in the elimination danger zone, {driver}. We need a clean, maximized lap to make the cutoff.',
+      'We are P{position}, in the drop zone, {driver}. We need to improve.',
+      'We are in the drop zone, {driver}. We need a clean lap to make the cut.',
     ],
     colapinto: [
+      'P{position}, in the drop zone, {driver}! We need a big lap.',
       'We are in the drop zone, {driver}. We need a monster lap here.',
     ],
     standard: [
-      'We are in the elimination danger zone. We need a clean, maximized lap.',
-      'Danger zone for elimination, {driver}. Push for a clean improvement.',
+      'P{position}, in the drop zone. We need to improve.',
+      'We are in the drop zone, {driver}. We need a clean lap to make the cut.',
+    ],
+  },
+  qualy_elimination_bubble: {
+    bono: [
+      'P{position}, the last car through, {driver}. Not safe yet, we need to improve.',
+      'We are the last car through at the moment, {driver}. Not safe yet, we need to improve.',
+    ],
+    colapinto: [
+      'P{position}, right on the cut line, {driver}! Anyone improves and we are out.',
+      'We are right on the cut line, {driver}. Anyone improves and we are out.',
+    ],
+    standard: [
+      'P{position}, the last car through. Not safe, we need to improve.',
+      'We are the last car through. Not safe, we need to improve.',
+      'Right on the cut line, {driver}. One improvement behind and we drop out.',
+    ],
+  },
+  qualy_lap_pole: {
+    bono: [
+      'Provisional pole, {driver}! {pole_gap} clear of P2.',
+      'P1, P1! {pole_gap} the margin.',
+      'Provisional pole, {driver}!',
+    ],
+    colapinto: [
+      'Provisional pole, {driver}! P1 by {pole_gap}!',
+      'P1, {driver}! Provisional pole!',
+    ],
+    standard: [
+      'Provisional pole. {pole_gap} clear of P2.',
+      'P1, {driver}. {pole_gap} the margin.',
+      'Provisional pole, {driver}.',
+    ],
+  },
+  qualy_lap_result: {
+    bono: [
+      'P{position}, {pole_gap} off P1, {driver}.',
+      'That puts us P{position}, {pole_gap} off the top.',
+      'That puts us P{position}, {driver}.',
+    ],
+    colapinto: [
+      'P{position}, {driver}! {pole_gap} off P1.',
+      'P{position}, {driver}!',
+    ],
+    standard: [
+      'P{position}, {pole_gap} off P1.',
+      'That puts you P{position}, {pole_gap} off the top.',
+      'That puts you P{position}.',
+    ],
+  },
+  qualy_lap_no_improvement: {
+    bono: [
+      'No improvement on that one, {driver}. Still P{position}.',
+      'Not quicker, still P{position}.',
+    ],
+    colapinto: [
+      'No improvement, {driver}. We stay P{position}.',
+    ],
+    standard: [
+      'No improvement. Still P{position}.',
+      'Not quicker that time, {driver}. You stay P{position}.',
     ],
   },
   track_limits_warnings: {
     bono: [
-      'That is 3 track limits warnings, {driver}. One more is a time penalty. Keep it on the black stuff.',
+      'That is {count} warnings for track limits, {driver}. Keep it on the black stuff.',
+      'Track limits warning, {driver}. Keep it on the black stuff.',
     ],
     colapinto: [
-      'Three track limits warnings, {driver}. One more is a penalty. Keep it inside the white lines.',
+      '{count} track limits warnings, {driver}. Keep it inside the white lines.',
+      'Track limits warning, {driver}. Keep it inside the white lines.',
     ],
     standard: [
-      'Three track limits warnings. Keep all four wheels within the white lines.',
-      'Final track limits warning, {driver}. Another infringement incurs a time penalty.',
+      '{count} warnings for track limits. Keep all four wheels inside the white lines.',
+      'Track limits warning, {driver}. Keep it inside the lines.',
     ],
   },
   penalties_incurred: {
     bono: [
-      'Time penalty confirmed by the stewards, {driver}. We will serve it at the next stop.',
+      '{penalty_sec} second time penalty, {driver}.',
+      'Time penalty from the stewards, {driver}.',
     ],
     colapinto: [
-      'Time penalty from stewards, {driver}. We will serve it in the pit stop.',
+      '{penalty_sec} second penalty, {driver}. Head down, we keep pushing.',
+      'Time penalty, {driver}. Keep pushing.',
     ],
     standard: [
-      'Time penalty confirmed by stewards. We will serve it at the next stop.',
-      'Penalty confirmed by race control, {driver}. We will serve it in the pits.',
+      '{penalty_sec} second time penalty from the stewards.',
+      'Time penalty confirmed, {driver}.',
+    ],
+  },
+  penalty_drive_through: {
+    bono: [
+      'Drive-through penalty, {driver}. We have three laps to serve it.',
+    ],
+    colapinto: [
+      'Drive-through penalty, {driver}. We serve it within three laps.',
+    ],
+    standard: [
+      'Drive-through penalty. It must be served within three laps.',
+      'Drive-through penalty, {driver}. Three laps to serve it.',
+    ],
+  },
+  penalty_stop_go: {
+    bono: [
+      'Stop-go penalty, {driver}. We have three laps to serve it.',
+    ],
+    colapinto: [
+      'Stop-go penalty, {driver}. We serve it within three laps.',
+    ],
+    standard: [
+      'Stop-go penalty. It must be served within three laps.',
+      'Stop-go penalty, {driver}. Three laps to serve it.',
     ],
   },
   weather_rain: {
@@ -419,15 +591,15 @@ export const radio_phrases = {
   },
   teammate_pitting: {
     bono: [
-      'Teammate is pitting now, {driver}. Focus on a clean in-lap.',
-      'Teammate in the pit lane. Track is clear for your run.',
+      'Teammate is pitting now, {driver}.',
+      'Teammate is in the pit lane this lap.',
     ],
     colapinto: [
-      'Teammate is boxing now, {driver}. Keep pushing with clean air.',
+      'Teammate is boxing now, {driver}.',
     ],
     standard: [
-      'Teammate is pitting now. Focus on a clean lap.',
-      'Teammate in boxes, {driver}. Maximize your pace.',
+      'Teammate is pitting now.',
+      'Teammate in the pits, {driver}.',
     ],
   },
   teammate_doublestack: {
@@ -485,62 +657,113 @@ export const radio_phrases = {
   },
   rival_defend_override: {
     bono: [
+      'Car behind at {gap} seconds with Override threat, {driver}. Defend the inside line.',
       'Car behind within one second with Override Boost threat, {driver}. Defend the inside line.',
     ],
     colapinto: [
+      'Car behind at {gap} with Override, {driver}! Protect the inside on the straight.',
       'Car behind with Override attack threat within a second, {driver}. Protect the inside on the straight.',
     ],
     standard: [
+      'Car behind at {gap} seconds with Override threat. Defend the inside line.',
       'Car behind within one second with Override threat. Defend the inside line.',
       'Pressure from car behind with Override Boost available, {driver}. Defend position.',
     ],
   },
   rival_attack_override: {
     bono: [
+      'Car ahead at {gap} seconds, {driver}. Deploy Straight Mode and prepare Override Boost.',
       'Closing in on car ahead, {driver}. Deploy Straight Mode and prepare Override Boost.',
     ],
     colapinto: [
+      'Car ahead at {gap}, {driver}! Straight Mode and Boost on the straight!',
       'We are catching the car ahead, {driver}. Switch to Straight Mode and use Boost on the straight.',
     ],
     standard: [
+      'Car ahead at {gap} seconds. Switch to Straight Mode and prepare Override deployment.',
       'Closing in on car ahead. Switch to Straight Mode and prepare Override deployment.',
       'Overtake opportunity, {driver}. Use Straight Mode and Override Boost.',
     ],
   },
   race_finish: {
     bono: [
-      'Chequered flag! Outstanding drive today, {driver}. Switch to cool down mode, pick up rubber off line and bring the car to parc fermé.',
+      'Chequered flag, P{position}, {driver}. Not our day. Cool-down lap, then bring it to parc fermé.',
+      'Chequered flag, {driver}. Cool-down lap, then bring it to parc fermé.',
     ],
     colapinto: [
-      'Chequered flag! Brilliant drive, {driver}. Cool the car down, pick up rubber and bring it to parc fermé.',
+      'Chequered flag, P{position}, {driver}. We keep working. Bring it to parc fermé.',
+      'Chequered flag, {driver}. Bring the car to parc fermé.',
     ],
     standard: [
-      'Chequered flag. Fantastic race. Switch to cool down mode and bring the car safely to parc fermé.',
-      'Race finished, {driver}! Pick up rubber off line and head to parc fermé.',
+      'Chequered flag, P{position}. Cool-down lap, then bring the car to parc fermé.',
+      'Race finished, {driver}. Pick up rubber off line and head to parc fermé.',
+    ],
+  },
+  race_finish_points: {
+    bono: [
+      'Chequered flag, P{position}, {driver}! Good points today. Bring it to parc fermé.',
+      'Chequered flag, points for us, {driver}! Bring it to parc fermé.',
+    ],
+    colapinto: [
+      'Chequered flag! P{position}, points, {driver}! Great job, bring it to parc fermé.',
+      'Chequered flag, points, {driver}! Bring it to parc fermé.',
+    ],
+    standard: [
+      'Chequered flag, P{position}. Points today. Bring the car to parc fermé.',
+      'Chequered flag, in the points, {driver}. Bring the car to parc fermé.',
+    ],
+  },
+  race_finish_podium: {
+    bono: [
+      'Chequered flag! P{position}, that is a podium, {driver}! Great drive. Bring it to parc fermé.',
+      'Chequered flag, podium, {driver}! Bring it to parc fermé.',
+    ],
+    colapinto: [
+      'P{position}! Podium, {driver}! Unbelievable, bring it to parc fermé!',
+      'Podium, {driver}! Bring it to parc fermé!',
+    ],
+    standard: [
+      'Chequered flag, P{position}, a podium. Great drive. Bring the car to parc fermé.',
+      'Podium finish, {driver}. Bring the car to parc fermé.',
+    ],
+  },
+  race_finish_win: {
+    bono: [
+      'Chequered flag! You win, {driver}! P1! Outstanding. Bring it to parc fermé.',
+    ],
+    colapinto: [
+      'We won, {driver}! P1! Incredible drive! Bring it to parc fermé!',
+    ],
+    standard: [
+      'Chequered flag, P1! You win the race, {driver}. Bring the car to parc fermé.',
+      'P1, race win! Outstanding drive. Bring it to parc fermé.',
     ],
   },
   inlap_traffic_behind: {
     bono: [
-      'Traffic alert: fast car approaching on a flying lap behind, {driver}. Give way cleanly.',
+      'Car behind on a push lap, {gap} seconds, {driver}. Give way.',
+      'Push lap car behind, {gap} seconds back. Give it room.',
+      'Car behind on a push lap, {driver}. Give way.',
     ],
     colapinto: [
-      'Watch out behind, fast car coming on a hot lap, {driver}. Move off line safely.',
+      'Car coming on a push lap, {gap} seconds behind, {driver}! Let it by.',
+      'Car behind on a push lap, {driver}! Move off line.',
     ],
     standard: [
-      'Traffic alert: fast car approaching on flying lap behind. Move off the racing line cleanly.',
-      'Fast car on flying lap behind, {driver}. Give way safely.',
+      'Car behind on a push lap, {gap} seconds. Give way.',
+      'Car behind on a push lap, {driver}. Give way safely.',
     ],
   },
   inlap_cooldown: {
     bono: [
-      'Flying lap completed, box this lap. Recharge ERS battery, cool the brakes and bring the car home.',
+      'Cool-down lap, {driver}. Recharge the battery and bring the brakes and tyres down.',
     ],
     colapinto: [
-      'Lap done, boxing this lap, {driver}. Recharge the battery, cool down brakes and bring it in.',
+      'Cool-down lap, {driver}. Recharge the battery, cool the brakes and bring it home.',
     ],
     standard: [
-      'Flying lap completed, box this lap. Recharge battery, cool brakes and tyres.',
-      'Lap complete, into the pits this lap, {driver}. Focus on cooling.',
+      'Cool-down lap. Recharge the battery, cool the brakes and tyres.',
+      'Cool-down lap, {driver}. Focus on cooling.',
     ],
   },
   flags_rain_live: {
@@ -597,30 +820,30 @@ export const radio_phrases = {
   },
   flags_blue: {
     bono: [
-      'Blue flags, {driver}. Leader approaching behind, let them through cleanly.',
-      'Blue flags, blue flags. Faster car right behind, yield position into the next corner.',
+      'Blue flags, {driver}. Faster car behind, let it through cleanly.',
+      'Blue flags, blue flags. Faster car right behind, let it by into the next corner.',
     ],
     colapinto: [
-      'Blue flags, {driver}! Leader is behind, let them pass cleanly to avoid penalty.',
+      'Blue flags, {driver}! Faster car behind, let it pass cleanly.',
       'Blue flags! Give way to the car behind into the next braking zone.',
     ],
     standard: [
-      'Blue flags, {driver}! Leader is approaching from behind, yield position cleanly.',
-      'Blue flags. Allow the faster car behind to lap cleanly.',
+      'Blue flags, {driver}! Faster car behind, let it through.',
+      'Blue flags. Let the faster car behind lap you cleanly.',
     ],
   },
   flags_yellow: {
     bono: [
-      'Yellow flag in this sector. Incident ahead, no overtaking and prepare to lift.',
-      'Yellow flag, {driver}. Watch for debris or slow car ahead in this sector.',
+      'Yellow flag in this sector. Careful, be ready to lift.',
+      'Yellow flag, {driver}. Watch for debris or a slow car ahead in this sector.',
     ],
     colapinto: [
-      'Yellow flag ahead in this sector! Incident on track, no overtaking.',
-      'Yellow flag, {driver}. Lift off if needed and watch for cars off track.',
+      'Yellow flag ahead in this sector! Lift if you need to, {driver}.',
+      'Yellow flag, {driver}. Watch for cars off track.',
     ],
     standard: [
-      'Yellow flag in this sector. Incident ahead, no overtaking and be prepared to lift.',
-      'Yellow flag on track. Exercise caution and maintain delta.',
+      'Yellow flag in this sector. Careful, be ready to lift.',
+      'Yellow flag, {driver}. Incident ahead in this sector.',
     ],
   },
   wrong_way: {
@@ -667,16 +890,16 @@ export const radio_phrases = {
   },
   race_fastest_lap: {
     bono: [
-      'Fastest lap of the session, {driver}. Purple in all sectors.',
-      'And that is the fastest lap, well done. Keep this rhythm.',
+      'Fastest lap, {driver}. Nice one, keep this rhythm.',
+      'And that is the fastest lap of the race. Keep it going.',
     ],
     colapinto: [
       'Fastest lap of the race, {driver}! Brilliant pace!',
-      'Fastest lap! Purples across the board, beautiful lap!',
+      'Fastest lap! Beautiful lap!',
     ],
     standard: [
-      'Fastest lap of the session. Outstanding pace.',
-      'New overall fastest lap set, excellent drive.',
+      'Fastest lap of the race. Good pace.',
+      'That is the fastest lap, {driver}. Keep it up.',
     ],
   },
   car_collision: {
@@ -737,16 +960,40 @@ export const radio_phrases = {
   },
   start_reaction_time: {
     bono: [
-      'Good reaction off the line, {driver}. Focus on Turn 1 positioning.',
-      'Launch reaction was clean. Keep pushing into the opening complex.',
+      'Decent start, {driver}. Settle in.',
+      'Clean getaway. Settle into the race.',
     ],
     colapinto: [
-      'Great launch off the line, {driver}! Keep your elbows out into Turn 1.',
-      'Clean reaction on the lights! Hold track position through the opening laps.',
+      'Good start, {driver}! Keep fighting.',
     ],
     standard: [
-      'Solid start off the line. Maintain track position through the opening corners.',
-      'Launch procedure complete. Settle into race pace.',
+      'Solid start off the line. Settle into race pace.',
+      'Clean getaway, {driver}.',
+    ],
+  },
+  start_reaction_fast: {
+    bono: [
+      'Great reaction off the line, {driver}!',
+      'Mega launch. Nice job.',
+    ],
+    colapinto: [
+      'What a launch, {driver}! Great reaction!',
+    ],
+    standard: [
+      'Great reaction off the line.',
+      'Excellent launch, {driver}.',
+    ],
+  },
+  start_reaction_slow: {
+    bono: [
+      'Reaction was a bit slow, {driver}. Long race, plenty of time to recover.',
+    ],
+    colapinto: [
+      'Slow off the line, {driver}. Head down, we get it back.',
+    ],
+    standard: [
+      'Slow reaction off the line. Plenty of race left to recover.',
+      'Start was a bit slow, {driver}. Head down.',
     ],
   },
   pit_serve_penalty: {
@@ -765,16 +1012,44 @@ export const radio_phrases = {
   },
   pit_stop_duration: {
     bono: [
-      'Good stop, {driver}. Clean tyre change, push hard on the out-lap.',
+      '{stop_sec} second stop, {driver}. Push now.',
       'Stop complete. Tyres fitted, push now on cold rubber.',
     ],
     colapinto: [
-      'Great pit stop by the boys! Fresh rubber on, push hard on the out-lap.',
-      'Clean stop! Now hammer it on the out-lap to make the undercut count.',
+      '{stop_sec} second stop, {driver}! Push now on the out-lap.',
+      'Stop done! Push hard on the out-lap.',
     ],
     standard: [
+      '{stop_sec} second stop. Push now.',
       'Pit stop complete. Push now on the out-lap.',
-      'Stationary service complete. Maximise out-lap pace.',
+    ],
+  },
+  pit_stop_fast: {
+    bono: [
+      'Great stop, {stop_sec} seconds, {driver}. Push now.',
+      'Rapid stop by the crew. Push now.',
+    ],
+    colapinto: [
+      'What a stop by the boys, {stop_sec} seconds! Push, {driver}!',
+      'Great stop by the boys! Push now!',
+    ],
+    standard: [
+      'Great stop, {stop_sec} seconds. Push now.',
+      'Rapid stop, {driver}. Push now.',
+    ],
+  },
+  pit_stop_slow: {
+    bono: [
+      'Slow stop, {stop_sec} seconds, {driver}. Sorry, let us make it up on the out-lap.',
+      'Stop was slow, sorry. Let us make it up on the out-lap.',
+    ],
+    colapinto: [
+      'Slow stop, {stop_sec} seconds, {driver}. Push hard, we get it back.',
+      'Slow stop, {driver}. Push hard, we get it back.',
+    ],
+    standard: [
+      'Slow stop, {stop_sec} seconds. Make it up on the out-lap.',
+      'That was a slow stop, {driver}. Push on the out-lap.',
     ],
   },
   pit_limiter_exit: {
@@ -1190,6 +1465,18 @@ export const report_phrases = {
     standard: [
       'About one lap left on these tyres.',
       'These tyres are about done, one lap left.',
+    ],
+  },
+  elimination_drop_zone: {
+    standard: [
+      'That is in the drop zone.',
+      'We are in the drop zone.',
+    ],
+  },
+  elimination_last_through: {
+    standard: [
+      'Last car through, not safe yet.',
+      'Right on the cut line.',
     ],
   },
 } satisfies Record<ReportPhrase, RadioPhrasePool>;

@@ -22,6 +22,7 @@ const (
 	CollisionMinRepeatMs  = 15_000
 	BlueFlagMinRepeatMs   = 20_000
 	EngineTempMinRepeatMs = 60_000
+	TrafficMinRepeatMs    = 3_000 // a second car on a push lap gets its own call
 	MaxSpeechTTLMs        = 15_000
 	MinSpeechTTLMs        = 2_000
 
@@ -42,17 +43,13 @@ const (
 	FastPitStopDurationSec        = 2.8
 	SlowPitStopDurationSec        = 4.0
 
-	// Speed and distance estimations
-	AverageRaceSpeedMetersPerSec   = 65.0
-	QualyOutLapSpeedMetersPerSec   = 60.0
-	SpeedGarageMaxKmh              = 5.0
-	SpeedGridMaxKmh                = 10.0
-	MaxGridTrackDistanceMeters     = 300.0
-	InLapFastCarBehindGapSec       = 3.5
-	InLapFastCarBehindSpeedDiffKmh = 40.0
-	DefaultTrackLengthMeters       = 5000.0
-	MaxCleanAirDistanceMeters      = 9000.0
-	MaxTrackDistanceDeltaInitial   = 99999.0
+	// Speed and distance estimations. AverageRaceSpeedMetersPerSec is also the push-lap pace
+	// qualifying traffic gaps are measured at.
+	AverageRaceSpeedMetersPerSec = 65.0
+	SpeedGarageMaxKmh            = 5.0
+	SpeedGridMaxKmh              = 10.0
+	MaxGridTrackDistanceMeters   = 300.0
+	DefaultTrackLengthMeters     = 5000.0
 
 	// Lap progress & sector midpoint approximations
 	SectorMidpointFractionS1       = 0.15
@@ -124,10 +121,18 @@ const (
 	QualyTimeWarnDefaultSec             = 180.0
 	QualyElimDangerTimeSec              = 300.0
 	FinalSectorTrackDistanceFraction    = 0.70
-	MinTrafficAheadDistanceMeters       = 10.0
-	QualyQ1EliminationPositionThreshold = 15 // Last safe Q1 place on a 20-car grid, when the car count is unknown
+	QualyCarBehindWarnSec               = 3.5   // A car on a push lap this close behind (at push pace) is called on an out-lap or in-lap
+	QualyTrafficAheadWarnSec            = 5.0   // A slow car this close ahead (at push pace) is called on the player's push lap
+	QualyLapResultSettleMs              = 2_000 // The lap result waits this long after the line for the positions to settle
+	InLapCooldownFromLapPct             = 0.10  // The in-lap cool-down call comes this far into the lap, after the lap result
+	QualyQ1EliminationPositionThreshold = 15    // Last safe Q1 place on a 20-car grid, when the car count is unknown
 	QualyQ2EliminationPositionThreshold = 10
 	QualyQ3Cars                         = 10 // Cars in Q3; Q1 and Q2 knock out half of the rest each
+
+	// Race results
+	PodiumPositions       = 3
+	RacePointsPositions   = 10 // Places scoring points in a Grand Prix
+	SprintPointsPositions = 8  // Places scoring points in a sprint
 
 	// Flags & Weather thresholds
 	WeatherRainTransitionProbPct   = 50

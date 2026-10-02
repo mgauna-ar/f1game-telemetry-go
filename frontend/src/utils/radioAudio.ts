@@ -3,6 +3,8 @@ import { api } from './apiClient';
 
 let audioCtx: AudioContext | null = null;
 let activeSourceNode: AudioBufferSourceNode | null = null;
+/** Goes up each time speech stops, so a message still being fetched then is not played. */
+let speechGeneration = 0;
 let activeStaticSourceNode: AudioBufferSourceNode | null = null;
 let activeStaticGainNode: GainNode | null = null;
 let activeWorkletNode: AudioWorkletNode | null = null;
@@ -624,17 +626,24 @@ export async function speakRadioResponse(
   options: RadioSpeechOptions = {}
 ): Promise<void> {
   const request = buildRadioSpeechRequest(text, options);
-  if (!request) return;
+  if (!request) {
+    // Nothing to say: done, so the caller's queue moves on.
+    options.onEnd?.();
+    return;
+  }
 
   stopRadioSpeech();
+  const generation = speechGeneration;
 
   let audioBuffer: ArrayBuffer;
   try {
     audioBuffer = await fetchRadioSpeechAudio(request);
   } catch (err) {
-    options.onError?.(err);
+    if (generation === speechGeneration) options.onError?.(err);
     return;
   }
+  // Stopped, or another message took the radio, while the audio was fetched: it is not played.
+  if (generation !== speechGeneration) return;
   await playRadioAudioBuffer(audioBuffer, options);
 }
 
@@ -642,6 +651,7 @@ export async function speakRadioResponse(
  * Stops any ongoing radio audio playback and background static immediately.
  */
 export function stopRadioSpeech(): void {
+  speechGeneration++;
   if (activeSourceNode) {
     try {
       activeSourceNode.onended = null;
