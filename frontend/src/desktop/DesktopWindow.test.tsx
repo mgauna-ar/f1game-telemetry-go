@@ -38,6 +38,8 @@ function mockGets(desktop: DesktopState | Error, feed: unknown = waiting) {
 describe('DesktopWindow', () => {
   beforeEach(() => {
     useTelemetryEndpointStore.setState({ endpoint: DEFAULT_TELEMETRY_ENDPOINT });
+    // The page sizes its window when it opens; jsdom has no window to resize
+    vi.spyOn(window, 'resizeTo').mockImplementation(() => {});
   });
 
   afterEach(() => {
