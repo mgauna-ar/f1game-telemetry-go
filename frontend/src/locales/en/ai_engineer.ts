@@ -293,7 +293,7 @@ export const ai_engineer = {
     rainHorizon: 'Rain Radar Horizon',
     presetsTitle: 'Radio Trigger Presets',
     immersive: 'F1 Immersive',
-    immersiveDesc: 'Pure race realism: SC, punctures, strategic undercuts, damage & flags',
+    immersiveDesc: 'Pure race realism: what a real pit wall says in races and qualifying, from rivals and box calls to traffic and lap results',
     coaching: 'Pro Coaching',
     coachingDesc: 'Full telemetry debriefs: brakes, ERS, delta fuel, thermal windows & clean air.',
     minimalPreset: 'Minimal',

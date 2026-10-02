@@ -293,7 +293,7 @@ export const ai_engineer = {
     rainHorizon: 'Horizonte de Radar de Lluvia',
     presetsTitle: 'Presets de Estilo de Radio',
     immersive: 'Inmersivo F1',
-    immersiveDesc: 'Máximo realismo: Safety Car, pinchazos, llamadas de undercut, roturas graves y banderas',
+    immersiveDesc: 'Máximo realismo: lo que dice un muro de boxes real en carrera y clasificación, de rivales y paradas a tráfico y tiempos de vuelta',
     coaching: 'Coaching Pro',
     coachingDesc: 'Telemetría total: frenos, ERS, delta de combustible, ventanas térmicas y tráfico limpio.',
     minimalPreset: 'Mínimo',

@@ -32,6 +32,7 @@ import {
   TRIGGER_PRESET_VALUES,
   detectTriggerPreset,
   isRadioTriggerPreset,
+  type AlertToggleKey,
   type AlertToggles,
 } from './slices/triggerPresets';
 import { reportSettingsSaveFailure, useSettingsSaveStore } from './useSettingsSaveStore';
@@ -109,25 +110,33 @@ export function getInitialRadioSettings() {
 }
 
 /**
- * The panel's switches from a saved setup. A switch the setup was saved without (one added since)
- * takes the saved preset's value, or is on, as the server treats a missing switch.
+ * The panel's switches from a saved setup. A setup saved on a named preset follows that preset:
+ * its alert switches take the preset's current values, so calls a preset gained since reach the
+ * people using it (any change of an alert switch makes the setup custom, so nothing chosen by hand
+ * is overwritten). Its section switches stay as saved. A switch a custom setup was saved without
+ * (one added since) is on, as the server treats a missing switch. `changed` says the setup must be
+ * saved back so the engine runs what the panel shows.
  */
 function alertTogglesFromSwitches(
   switches: Record<string, boolean>,
   preset: RadioTriggerPreset
-): { toggles: AlertToggles; missing: boolean } {
+): { toggles: AlertToggles; changed: boolean } {
   const presetValues = preset === RADIO_TRIGGER_PRESETS.CUSTOM ? null : TRIGGER_PRESET_VALUES[preset];
   const toggles = {} as AlertToggles;
-  let missing = false;
+  let changed = false;
   for (const key of ALERT_TOGGLE_KEYS) {
-    if (typeof switches[key] === 'boolean') {
-      toggles[key] = switches[key];
-    } else {
-      toggles[key] = presetValues ? presetValues[key] : true;
-      missing = true;
-    }
+    const saved = switches[key];
+    const followsPreset = presetValues !== null && (typeof saved !== 'boolean' || !isSectionSwitch(key));
+    const value = followsPreset ? presetValues[key] : typeof saved === 'boolean' ? saved : true;
+    toggles[key] = value;
+    if (value !== saved) changed = true;
   }
-  return { toggles, missing };
+  return { toggles, changed };
+}
+
+/** A section's master switch (tyreAlertsEnabled…), as opposed to one alert's switch (subTyreWear…). */
+function isSectionSwitch(key: AlertToggleKey): boolean {
+  return key.endsWith('AlertsEnabled');
 }
 
 /** Waits this long after the last change before saving, so typing a prompt isn't one request per key. */
@@ -242,7 +251,7 @@ export const useRadioSettingsStore = create<RadioSettingsState>((set, get, store
         .catch(() => null);
       if (!res) return;
 
-      let switchesMissing = false;
+      let switchesChanged = false;
       set((state) => {
         const nextState: RadioSettingsState = {
           ...state,
@@ -257,9 +266,9 @@ export const useRadioSettingsStore = create<RadioSettingsState>((set, get, store
           const savedPreset = isRadioTriggerPreset(res.trigger_preset)
             ? res.trigger_preset
             : RADIO_TRIGGER_PRESETS.CUSTOM;
-          const { toggles, missing } = alertTogglesFromSwitches(res.alert_switches ?? {}, savedPreset);
+          const { toggles, changed } = alertTogglesFromSwitches(res.alert_switches ?? {}, savedPreset);
           Object.assign(nextState, toggles);
-          switchesMissing = missing;
+          switchesChanged = changed;
         }
         nextState.triggerPreset = isRadioTriggerPreset(res.trigger_preset)
           ? res.trigger_preset
@@ -267,9 +276,9 @@ export const useRadioSettingsStore = create<RadioSettingsState>((set, get, store
         return nextState;
       });
 
-      // Fresh install, or switches added since the setup was saved: save the panel's switches so
-      // the engine runs what the panel shows.
-      if (!res.saved || switchesMissing) {
+      // Fresh install, or switches added or changed by the preset since the setup was saved: save
+      // the panel's switches so the engine runs what the panel shows.
+      if (!res.saved || switchesChanged) {
         await get().syncConfigToBackend(true);
       }
     },

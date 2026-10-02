@@ -104,6 +104,40 @@ describe('useTTSPlayback hook', () => {
     expect(result.current.isSpeaking).toBe(false);
   });
 
+  it('lets an urgent call finish: the next urgent call waits its turn, ahead of routine calls', async () => {
+    const stopSpy = vi.spyOn(radioAudio, 'stopRadioSpeech').mockImplementation(() => {});
+    const spokenMessages: string[] = [];
+    let activeOnEnd: (() => void) | undefined;
+    vi.spyOn(radioAudio, 'speakRadioResponse').mockImplementation(async (text, opts) => {
+      spokenMessages.push(text);
+      activeOnEnd = opts?.onEnd;
+    });
+    const { result } = renderHook(() => useTTSPlayback({ effectiveLanguage: 'en' }));
+
+    await act(async () => {
+      await result.current.speakMessage('Gap report', false);
+      await result.current.speakMessage('Safety Car deployed', true); // cuts the routine call
+      await result.current.speakMessage('Tyre wear is building', false); // waits
+      await result.current.speakMessage('Yellow flag in this sector', true); // waits for the Safety Car call
+    });
+    expect(stopSpy).toHaveBeenCalledTimes(1);
+    expect(spokenMessages).toEqual(['Gap report', 'Safety Car deployed']);
+
+    await act(async () => {
+      activeOnEnd?.();
+    });
+    await act(async () => {
+      activeOnEnd?.();
+    });
+    expect(spokenMessages).toEqual([
+      'Gap report',
+      'Safety Car deployed',
+      'Yellow flag in this sector',
+      'Tyre wear is building',
+    ]);
+    expect(stopSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('skips a queued call that went stale while other speech played', async () => {
     let activeOnEnd: (() => void) | undefined;
     const spokenMessages: string[] = [];

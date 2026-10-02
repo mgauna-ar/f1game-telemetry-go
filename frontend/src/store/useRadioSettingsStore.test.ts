@@ -8,6 +8,7 @@ import {
   LEGACY_RADIO_STORAGE_KEYS,
   RADIO_AUDIO_CONSTANTS,
   RADIO_TRIGGER_PRESETS,
+  type RadioTriggerPreset,
 } from '../constants/f1';
 import { api, ApiError } from '../utils/apiClient';
 import { DASHBOARD_CLIENT_HEADER, DASHBOARD_CLIENT_ID } from '../utils/settingsClient';
@@ -44,14 +45,14 @@ function serverSettings(overrides: Partial<EngineerSettingsResponse> = {}): Engi
     pit_call_lead_m: 500,
     gap_report_laps: 3,
     trigger_preset: RADIO_TRIGGER_PRESETS.IMMERSIVE,
-    alert_switches: immersiveSwitches(),
+    alert_switches: presetSwitches(),
     ...overrides,
   };
 }
 
-/** The Immersive preset's switches, as a setup saved on Immersive stores them. */
-function immersiveSwitches(): Record<string, boolean> {
-  return Object.fromEntries(ALERT_TOGGLE_KEYS.map((key) => [key, TRIGGER_PRESET_VALUES.immersive[key]]));
+/** A preset's switches, as a setup saved on that preset stores them. */
+function presetSwitches(preset: Exclude<RadioTriggerPreset, 'custom'> = 'immersive'): Record<string, boolean> {
+  return Object.fromEntries(ALERT_TOGGLE_KEYS.map((key) => [key, TRIGGER_PRESET_VALUES[preset][key]]));
 }
 
 /** The answer to a successful PUT /api/settings/engineer. */
@@ -225,7 +226,12 @@ describe('useRadioSettingsStore and slices', () => {
   it('reloads the newer settings when another device saved first', async () => {
     vi.spyOn(api, 'put').mockRejectedValue(new ApiError('changed on another device', 409, 'Conflict'));
     const getSpy = vi.spyOn(api, 'get').mockResolvedValue(
-      serverSettings({ version: 7, tyre_wear_warn_pct: 33, trigger_preset: RADIO_TRIGGER_PRESETS.COACHING })
+      serverSettings({
+        version: 7,
+        tyre_wear_warn_pct: 33,
+        trigger_preset: RADIO_TRIGGER_PRESETS.COACHING,
+        alert_switches: presetSwitches('coaching'),
+      })
     );
     useRadioSettingsStore.getState().setTyreWearWarningPct(70);
 
@@ -287,7 +293,8 @@ describe('useRadioSettingsStore and slices', () => {
         tyre_wear_warn_pct: 48,
         tyre_wear_crit_pct: 82,
         tyre_temp_margin_c: 8,
-        alert_switches: { ...immersiveSwitches(), subTyreWear: true, subTyreThermal: true, subRain: false },
+        trigger_preset: RADIO_TRIGGER_PRESETS.CUSTOM,
+        alert_switches: { ...presetSwitches(), subTyreWear: true, subTyreThermal: true, subRain: false },
       })
     );
 
@@ -334,6 +341,25 @@ describe('useRadioSettingsStore and slices', () => {
     expect(engineerBody(putSpy).alert_switches?.subFlags).toBe(true);
   });
 
+  it('gives a setup saved on a named preset the calls the preset gained since, keeping its section switches', async () => {
+    const putSpy = vi.spyOn(api, 'put').mockResolvedValue(savedResponse(2));
+    // Saved on Immersive before it turned on the qualifying traffic call, with a section switch off.
+    vi.spyOn(api, 'get').mockResolvedValue(
+      serverSettings({
+        trigger_preset: RADIO_TRIGGER_PRESETS.IMMERSIVE,
+        alert_switches: { ...presetSwitches(), subQualyTraffic: false, fuelAlertsEnabled: false },
+      })
+    );
+
+    await useRadioSettingsStore.getState().loadConfigFromBackend();
+
+    const state = useRadioSettingsStore.getState();
+    expect(state.triggerPreset).toBe(RADIO_TRIGGER_PRESETS.IMMERSIVE);
+    expect(state.subQualyTraffic).toBe(true);
+    expect(state.fuelAlertsEnabled).toBe(false);
+    expect(engineerBody(putSpy).alert_switches?.subQualyTraffic).toBe(true);
+  });
+
   it('turns on switches a custom setup was saved without, as the server does', async () => {
     vi.spyOn(api, 'put').mockResolvedValue(savedResponse(2));
     vi.spyOn(api, 'get').mockResolvedValue(
@@ -346,6 +372,28 @@ describe('useRadioSettingsStore and slices', () => {
     expect(state.subTyreWear).toBe(false);
     expect(state.subAeroZones).toBe(true);
     expect(state.subSectorDelta).toBe(true);
+  });
+
+  it('marks the setup custom when a section switch is changed by hand', () => {
+    useRadioSettingsStore.getState().setQualyAlertsEnabled(false);
+    expect(useRadioSettingsStore.getState().triggerPreset).toBe(RADIO_TRIGGER_PRESETS.CUSTOM);
+  });
+
+  it('has Immersive say the qualifying traffic, clock, cut line and lap results, and race defend/attack, track limits and pit window calls', () => {
+    const immersive = TRIGGER_PRESET_VALUES.immersive;
+    for (const key of [
+      'subQualyTraffic',
+      'subQualyTime',
+      'subQualyElim',
+      'subQualyResult',
+      'subRivalDefend',
+      'subRivalAttack',
+      'subTrackLimits',
+      'subPitWindow',
+      'subPitWindowClose',
+    ] as const) {
+      expect(immersive[key], key).toBe(true);
+    }
   });
 
   it('starts on the Immersive preset with matching alert switches', () => {
@@ -380,7 +428,7 @@ describe('useRadioSettingsStore and slices', () => {
     await useRadioSettingsStore.getState().loadConfigFromBackend();
 
     const state = useRadioSettingsStore.getState();
-    expect(state.triggerPreset).toBe(RADIO_TRIGGER_PRESETS.MINIMAL);
+    expect(state.triggerPreset).toBe(RADIO_TRIGGER_PRESETS.CUSTOM); // a section switch changed by hand
     expect(state.tyreAlertsEnabled).toBe(false);
     expect(state.subTyrePuncture).toBe(true);
     expect(state.chatterCooldownSeconds).toBe(90);
