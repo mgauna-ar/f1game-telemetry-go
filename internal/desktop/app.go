@@ -10,7 +10,8 @@ import (
 	"github.com/mgauna/f1game-telemetry-go/internal/system"
 )
 
-// The app window's size: a small panel, not a second dashboard.
+// The app window's size: a small panel, not a second dashboard. On macOS the page gives the window
+// this size itself (APP_WINDOW_SIZE in frontend/src/desktop/useFitWindowToContent.ts).
 const (
 	windowWidth  = 440
 	windowHeight = 720
