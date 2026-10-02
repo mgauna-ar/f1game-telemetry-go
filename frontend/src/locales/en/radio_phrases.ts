@@ -318,6 +318,19 @@ export const radio_phrases = {
       'Clean air confirmed ahead, {driver}. Launch your flying lap.',
     ],
   },
+  qualy_traffic_ahead: {
+    bono: [
+      'Slow car ahead, {driver}. He is not on a push lap.',
+      'Traffic ahead on a slow lap. He should move, but be ready.',
+    ],
+    colapinto: [
+      'Slow car ahead, {driver}! He is on a slow lap, careful.',
+    ],
+    standard: [
+      'Slow car ahead, not on a push lap.',
+      'Traffic ahead on a slow lap, {driver}. Be ready.',
+    ],
+  },
   qualy_deleted_lap: {
     bono: [
       'Lap deleted for track limits, {driver}. Recharge ERS and reset for the next flying attempt.',
@@ -332,14 +345,26 @@ export const radio_phrases = {
   },
   qualy_session_time: {
     bono: [
-      'Under 3 minutes remaining, {driver}. Leave the box now for the final flying lap.',
+      'Clock is running down, {driver}. Make sure you start the lap before the flag.',
     ],
     colapinto: [
-      'Under 3 minutes left, {driver}. Head out now to make the flag.',
+      'Not much time left, {driver}! Cross the line before the chequered flag.',
     ],
     standard: [
-      'Under 3 minutes remaining in session. Leave pit lane now for final run.',
-      'Session clock critical, {driver}. Box exit now to reach the line before the flag.',
+      'Clock is running down. Make sure you cross the line before the flag.',
+      'Session time is short, {driver}. Start your lap before the chequered flag.',
+    ],
+  },
+  qualy_session_time_garage: {
+    bono: [
+      'Clock is running down, {driver}. Time to go out for the last run.',
+    ],
+    colapinto: [
+      'Not much time left, {driver}. Head out now to make the flag.',
+    ],
+    standard: [
+      'Clock is running down. Time to go out for the final run.',
+      'Session time is short, {driver}. Leave the pit lane now to reach the line before the flag.',
     ],
   },
   qualy_elimination_danger: {
@@ -352,6 +377,18 @@ export const radio_phrases = {
     standard: [
       'We are in the elimination danger zone. We need a clean, maximized lap.',
       'Danger zone for elimination, {driver}. Push for a clean improvement.',
+    ],
+  },
+  qualy_elimination_bubble: {
+    bono: [
+      'We are the last car through at the moment, {driver}. Not safe yet, we need to improve.',
+    ],
+    colapinto: [
+      'We are right on the cut line, {driver}. Anyone improves and we are out.',
+    ],
+    standard: [
+      'We are the last car through. Not safe, we need to improve.',
+      'Right on the cut line, {driver}. One improvement behind and we drop out.',
     ],
   },
   track_limits_warnings: {

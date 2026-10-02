@@ -172,6 +172,7 @@ go run ./cmd/simulator -scenario vsc       # Deploys Virtual Safety Car (VSC)
 go run ./cmd/simulator -scenario rain      # Injects rain forecast → tests weather crossover alert
 go run ./cmd/simulator -scenario start     # Formation lap warmup, grid approach, and lights-out launch reaction debrief
 go run ./cmd/simulator -scenario pit       # AI cars pit (pit entry learned), a puncture late on lap 3 → "box next lap", pit entry reminder, then the player's stop: limiter, penalty hold, stop time, exit
+go run ./cmd/simulator -scenario qualy     # Q1 runs (out-lap, push lap, in-lap, garage): car behind on a push lap, out-lap traffic / clean air, slow car ahead and a yellow on the push lap, a deleted lap, drop zone and session clock calls
 ```
 
 ---

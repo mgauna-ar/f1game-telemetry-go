@@ -66,9 +66,10 @@ func (r *FlagsRule) AlertKeys() map[string]AlertKeyConfig {
 			MinRepeatMs: BlueFlagMinRepeatMs,
 		},
 		"flags_yellow": {
-			Category:    DirectiveCategoryFlags,
-			ValidPhases: []DrivingPhase{PhaseRacing},
-			DedupScope:  DedupScopeNone,
+			Category:           DirectiveCategoryFlags,
+			ValidPhases:        []DrivingPhase{PhaseRaceStart, PhaseRacing, PhaseOutLap, PhaseFlyingLap, PhaseInLap},
+			DedupScope:         DedupScopeNone,
+			BreaksRadioSilence: true,
 		},
 		"warning_wrong_way": {
 			Category:    DirectiveCategoryFlags,
@@ -92,7 +93,7 @@ func (r *FlagsRule) AlertKeys() map[string]AlertKeyConfig {
 		},
 		"track_limits": {
 			Category:    DirectiveCategoryFlags,
-			ValidPhases: []DrivingPhase{PhaseFlyingLap, PhaseRacing},
+			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeLap,
 		},
 		"penalties": {
@@ -436,10 +437,9 @@ func (r *FlagsRule) evaluateEvent(ctx *EvaluationContext, p *packets.PacketEvent
 	return nil
 }
 
+// evaluateFIAFlags calls the flag shown to the player when it changes: a yellow in any session, a
+// blue in races (in qualifying and practice the car behind on a push lap is its own call).
 func (r *FlagsRule) evaluateFIAFlags(ctx *EvaluationContext) *Directive {
-	if !ctx.IsRaceSession() {
-		return nil
-	}
 	status := ctx.PlayerStatus()
 	if status == nil {
 		return nil
@@ -452,6 +452,9 @@ func (r *FlagsRule) evaluateFIAFlags(ctx *EvaluationContext) *Directive {
 
 	switch flag {
 	case packets.VehicleFIAFlagBlue:
+		if !ctx.IsRaceSession() {
+			return nil
+		}
 		return &Directive{
 			ID:       "flags_blue",
 			Category: DirectiveCategoryFlags,
@@ -521,7 +524,12 @@ func (r *FlagsRule) evaluateWeather(ctx *EvaluationContext) *Directive {
 	}
 }
 
+// evaluateTrackLimits calls each new corner cutting warning from CornerCutWarnThreshold on, in
+// races only: in qualifying and practice a cut deletes the lap instead (qualy_invalid).
 func (r *FlagsRule) evaluateTrackLimits(ctx *EvaluationContext, playerLap *packets.LapData) *Directive {
+	if ctx.Session != nil && !ctx.IsRaceSession() {
+		return nil
+	}
 	cutWarnings := playerLap.CornerCuttingWarnings
 	if int(cutWarnings) >= ctx.Config.CornerCutWarnThreshold && cutWarnings > r.lastCornerCutWarnings {
 		r.lastCornerCutWarnings = cutWarnings

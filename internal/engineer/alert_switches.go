@@ -116,7 +116,7 @@ var alertGates = []alertGate{
 	{"teammateAlertsEnabled", "subTeammateAhead", []string{"teammate_ahead"}},
 	{"teammateAlertsEnabled", "subTeammatePit", []string{"teammate_pitting", "teammate_doublestack"}},
 	{"qualyAlertsEnabled", "subQualyInvalid", []string{"qualy_invalid"}},
-	{"qualyAlertsEnabled", "subQualyTraffic", []string{"qualy_traffic", "inlap_traffic_behind"}},
+	{"qualyAlertsEnabled", "subQualyTraffic", []string{"qualy_traffic", "qualy_traffic_ahead", "inlap_traffic_behind"}},
 	{"qualyAlertsEnabled", "subQualyTime", []string{"qualy_time"}},
 	{"qualyAlertsEnabled", "subQualyElim", []string{"qualy_elim"}},
 	{"flagsPensAlertsEnabled", "subSafetyCar", []string{"flags_sc"}},

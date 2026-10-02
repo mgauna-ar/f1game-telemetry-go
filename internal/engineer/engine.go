@@ -669,15 +669,22 @@ func (e *EngineerEngine) deriveDrivingPhase(session *packets.PacketSessionData, 
 		return PhaseInLap
 	}
 
-	// 10. Flying Lap
+	// 10. Racing. A race lap is racing whatever the game calls it (a "flying lap" included).
+	if session != nil && packets.IsRaceSession(session.SessionType) {
+		return PhaseRacing
+	}
+
+	// 11. Flying Lap
 	if playerLap != nil && playerLap.DriverStatus == packets.DriverStatusFlyingLap {
 		return PhaseFlyingLap
 	}
 
-	// 11. Racing
-	if session != nil && packets.IsRaceSession(session.SessionType) {
-		return PhaseRacing
+	// 12. Practice and qualifying: on track but not on a timed lap, so not pushing, like an out-lap.
+	if session != nil && (packets.IsQualifyingSession(session.SessionType) || packets.IsPracticeSession(session.SessionType)) &&
+		playerLap != nil && playerLap.DriverStatus == packets.DriverStatusOnTrack {
+		return PhaseOutLap
 	}
+
 	if session == nil && playerLap != nil && playerLap.DriverStatus == packets.DriverStatusOnTrack {
 		return PhaseRacing
 	}
@@ -826,15 +833,11 @@ func (e *EngineerEngine) gateDirectiveLocked(alertKey, category, urgency string)
 		return gateDrop
 	}
 
-	// 1. Strict Radio Silence during Grid and Race Start
-	// During PhaseGrid or PhaseRaceStart, only true emergency alerts (UrgencyCritical) are permitted.
-	if (e.currentPhase == PhaseGrid || e.currentPhase == PhaseRaceStart) && urgency != UrgencyCritical {
-		return gateDrop
-	}
-
-	// 2. Strict Radio Discipline during Flying Lap (Hot Lap)
-	// During PhaseFlyingLap, only lap invalidation or critical emergency alerts are permitted.
-	if e.currentPhase == PhaseFlyingLap && urgency != UrgencyCritical && alertKey != "qualy_invalid" {
+	// 1-2. Radio silence on the grid, at the race start and on a flying lap: only emergencies
+	// (UrgencyCritical) and the calls that must break it (BreaksRadioSilence: a yellow flag, a
+	// deleted lap, a slow car ahead).
+	silent := e.currentPhase == PhaseGrid || e.currentPhase == PhaseRaceStart || e.currentPhase == PhaseFlyingLap
+	if silent && urgency != UrgencyCritical && !e.alertRules[alertKey].BreaksRadioSilence {
 		return gateDrop
 	}
 

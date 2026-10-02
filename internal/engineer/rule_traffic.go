@@ -219,10 +219,7 @@ func (r *TrafficRule) evaluateCleanAir(ctx *EvaluationContext, playerLap *packet
 		return nil
 	}
 
-	trackLen := float64(DefaultTrackLengthMeters)
-	if ctx.Session.TrackLength > 0 {
-		trackLen = float64(ctx.Session.TrackLength)
-	}
+	trackLen := float64(ctx.TrackLengthM())
 	rejoinAt := float64(playerLap.TotalDistance) - DefaultPitLaneLossSeconds*AverageRaceSpeedMetersPerSec
 	window := CleanAirTrafficWindowSeconds * AverageRaceSpeedMetersPerSec
 	for i, rival := range ctx.LapData.LapData {

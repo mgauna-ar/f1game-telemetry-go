@@ -325,6 +325,19 @@ export const radio_phrases = {
       'Aire limpio por delante, {driver}. Prepara las gomas y abre la vuelta rápida.',
     ],
   },
+  qualy_traffic_ahead: {
+    colapinto: [
+      'Auto lento adelante, {driver}. No está en vuelta rápida, ojo.',
+    ],
+    bono: [
+      'Coche lento por delante, {driver}. No está en vuelta rápida.',
+      'Tráfico por delante en vuelta lenta. Debería apartarse, pero atento.',
+    ],
+    standard: [
+      'Coche lento por delante, no está en vuelta rápida.',
+      'Tráfico por delante en vuelta lenta, {driver}. Atento.',
+    ],
+  },
   qualy_deleted_lap: {
     colapinto: [
       'Vuelta anulada por límites de pista, {driver}. Recargá el ERS y reseteá para el próximo intento.',
@@ -339,14 +352,26 @@ export const radio_phrases = {
   },
   qualy_session_time: {
     colapinto: [
-      'Quedan menos de 3 minutos de sesión, {driver}. Salí ahora para llegar a la bandera a cuadros.',
+      'Queda poco tiempo, {driver}. Cruzá la línea antes de la bandera a cuadros.',
     ],
     bono: [
-      'Menos de 3 minutos de sesión. Sal a pista ahora para el último intento.',
+      'Se acaba el tiempo, {driver}. Asegúrate de abrir la vuelta antes de la bandera.',
     ],
     standard: [
-      'Menos de 3 minutos de sesión. Sal a pista ahora para el último intento.',
-      'Tiempo de sesión crítico, {driver}. Sal de boxes ya para cruzar antes de la bandera a cuadros.',
+      'Se acaba el tiempo. Asegúrate de cruzar la línea antes de la bandera.',
+      'Queda poco tiempo de sesión, {driver}. Abre la vuelta antes de la bandera a cuadros.',
+    ],
+  },
+  qualy_session_time_garage: {
+    colapinto: [
+      'Queda poco tiempo, {driver}. Salí ahora para llegar a la bandera.',
+    ],
+    bono: [
+      'Se acaba el tiempo, {driver}. Hay que salir para el último intento.',
+    ],
+    standard: [
+      'Se acaba el tiempo. Hay que salir para el último intento.',
+      'Queda poco tiempo de sesión, {driver}. Sal de boxes ya para cruzar la línea antes de la bandera.',
     ],
   },
   qualy_elimination_danger: {
@@ -359,6 +384,18 @@ export const radio_phrases = {
     standard: [
       'Estamos en zona de eliminación. Necesitamos una vuelta limpia al límite.',
       'Zona de peligro de eliminación, {driver}. Necesitamos mejorar el tiempo.',
+    ],
+  },
+  qualy_elimination_bubble: {
+    colapinto: [
+      'Estamos justo en el corte, {driver}. Si alguien mejora, quedamos afuera.',
+    ],
+    bono: [
+      'Ahora mismo somos el último que pasa, {driver}. No estamos a salvo, hay que mejorar.',
+    ],
+    standard: [
+      'Somos el último coche que pasa. No estamos a salvo, hay que mejorar.',
+      'Justo en el corte, {driver}. Una mejora de alguien detrás y quedamos fuera.',
     ],
   },
   track_limits_warnings: {

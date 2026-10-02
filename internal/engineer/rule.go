@@ -104,6 +104,9 @@ type AlertKeyConfig struct {
 	// SkipCategoryCooldown lets the call through right after another of its category: a step of
 	// the pit stop, said when it happens.
 	SkipCategoryCooldown bool
+	// BreaksRadioSilence lets the call through the radio silence of a flying lap and of the race
+	// start at any urgency: what the driver must hear right then (a yellow flag, a slow car ahead).
+	BreaksRadioSilence bool
 }
 
 // Tuning holds the race engineer values the driver sets in the dashboard: radio spacing and
@@ -237,14 +240,16 @@ type EngineerDirective struct {
 
 // DirectiveValues are the numbers a report call says. Only the fields of its report are set.
 type DirectiveValues struct {
-	// Position is the player's race position (gap report).
+	// Position is the player's position (gap report, elimination danger).
 	Position int `json:"position,omitempty"`
-	// Ahead and Behind are the cars close in front and behind (gap report); nil when there is no
-	// car within GapReportMaxGapSec.
+	// Ahead and Behind are the cars close in front and behind: in the gap report, nil when there
+	// is no car within GapReportMaxGapSec; in qualifying traffic calls, the car the call is about.
 	Ahead  *GapToCar `json:"ahead,omitempty"`
 	Behind *GapToCar `json:"behind,omitempty"`
 	// TyreLapsLeft is about how many laps the tyres have before the wear limit (tyre life).
 	TyreLapsLeft int `json:"tyre_laps_left,omitempty"`
+	// Minutes is how many minutes are left in the session, rounded up (session clock).
+	Minutes int `json:"minutes,omitempty"`
 }
 
 // GapToCar is the gap to a car close ahead or behind and how it is moving.
@@ -359,6 +364,14 @@ func (ctx *EvaluationContext) PlayerTyreSets() *packets.PacketTyreSetsData {
 		return nil
 	}
 	return ctx.TyreSets
+}
+
+// TrackLengthM is the track's length in metres, or DefaultTrackLengthMeters while unknown.
+func (ctx *EvaluationContext) TrackLengthM() float32 {
+	if ctx.Session == nil || ctx.Session.TrackLength == 0 {
+		return DefaultTrackLengthMeters
+	}
+	return float32(ctx.Session.TrackLength)
 }
 
 // IsRaceSession returns true if the session is a confirmed race session.
