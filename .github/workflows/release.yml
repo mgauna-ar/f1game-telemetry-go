@@ -122,7 +122,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
-          name: "F1 Telemetry Analyzer ${{ steps.version.outputs.tag }}"
+          name: ${{ steps.version.outputs.tag }}
           files: dist_release/*
           generate_release_notes: true
           draft: false
