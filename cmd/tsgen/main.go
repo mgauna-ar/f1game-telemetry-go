@@ -132,6 +132,7 @@ func registry() *tsgen.Generator {
 	g.TypeAlias("engineer", "EngineerDirectiveCategory", stringUnion(directiveCategories()))
 	g.TypeAlias("engineer", "EngineerUrgency", stringUnion(engineer.Urgencies))
 	g.TypeAlias("engineer", "EngineerBoxTiming", stringUnion(engineer.BoxTimings))
+	g.TypeAlias("engineer", "EngineerGapTrend", stringUnion(engineer.GapTrendDirections))
 
 	// The 10Hz live snapshot on /ws: the slim per-car and session DTOs, and the race feed rows
 	// the server adds to it (event codes and parameters, no text).

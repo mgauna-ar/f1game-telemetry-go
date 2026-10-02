@@ -42,6 +42,7 @@ function serverSettings(overrides: Partial<EngineerSettingsResponse> = {}): Engi
     rain_horizon_min: 10,
     rain_prob_pct: 50,
     pit_call_lead_m: 500,
+    gap_report_laps: 3,
     trigger_preset: RADIO_TRIGGER_PRESETS.IMMERSIVE,
     alert_switches: immersiveSwitches(),
     ...overrides,

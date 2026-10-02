@@ -115,6 +115,16 @@ describe('useProactiveTelemetryRadio WebSocket hook', () => {
     );
   });
 
+  it('passes on the numbers a report says', () => {
+    const onTriggerAlert = vi.fn();
+    renderHook(() => useProactiveTelemetryRadio({ isRadioEnabled: true, onTriggerAlert }));
+
+    const values = { position: 3, ahead: { gap_sec: 1.2, trend: 'closing' as const, per_lap_sec: 0.1 } };
+    send(makeEngineerDirective({ id: 'dir-report', sub_alert: 'gap_report', urgency: 'low', values }));
+
+    expect(onTriggerAlert).toHaveBeenCalledWith(expect.objectContaining({ category: 'gap_report', values }));
+  });
+
   it.each([
     ['damage_wing', 'wing_damage'],
     ['brake_hot', 'brake_overheat'],

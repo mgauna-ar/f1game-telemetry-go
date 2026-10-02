@@ -26,6 +26,7 @@ export interface AlertThresholdsSlice {
   rainHorizonMin: number;
   rainProbPct: number;
   pitCallLeadM: number;
+  gapReportLaps: number;
 
   setTyreWearWarningPct: (pct: number) => void;
   setTyreWearCriticalPct: (pct: number) => void;
@@ -46,6 +47,7 @@ export interface AlertThresholdsSlice {
   setRainHorizonMin: (min: number) => void;
   setRainProbPct: (pct: number) => void;
   setPitCallLeadM: (meters: number) => void;
+  setGapReportLaps: (laps: number) => void;
 }
 
 export function getInitialAlertThresholds(): Omit<
@@ -69,6 +71,7 @@ export function getInitialAlertThresholds(): Omit<
   | 'setRainHorizonMin'
   | 'setRainProbPct'
   | 'setPitCallLeadM'
+  | 'setGapReportLaps'
 > {
   return {
     tyreWearWarningPct: RADIO_ALERT_CONSTANTS.DEFAULT_TYRE_WARN_PCT,
@@ -90,6 +93,7 @@ export function getInitialAlertThresholds(): Omit<
     rainHorizonMin: RADIO_ALERT_CONSTANTS.DEFAULT_RAIN_HORIZON_MIN,
     rainProbPct: RADIO_ALERT_CONSTANTS.DEFAULT_RAIN_PROB_PCT,
     pitCallLeadM: RADIO_ALERT_CONSTANTS.DEFAULT_PIT_CALL_LEAD_M,
+    gapReportLaps: RADIO_ALERT_CONSTANTS.DEFAULT_GAP_REPORT_LAPS,
   };
 }
 
@@ -120,6 +124,7 @@ export function thresholdsFromSettings(
     rainHorizonMin: cfg.rain_horizon_min ?? fallback.rainHorizonMin,
     rainProbPct: cfg.rain_prob_pct ?? fallback.rainProbPct,
     pitCallLeadM: cfg.pit_call_lead_m ?? fallback.pitCallLeadM,
+    gapReportLaps: cfg.gap_report_laps ?? fallback.gapReportLaps,
   };
 }
 
@@ -162,5 +167,6 @@ export const createAlertThresholdsSlice: StateCreator<
     setRainHorizonMin: createThresholdAction('rainHorizonMin', 5, 30),
     setRainProbPct: createThresholdAction('rainProbPct', 20, 80),
     setPitCallLeadM: createThresholdAction('pitCallLeadM', 200, 1500),
+    setGapReportLaps: createThresholdAction('gapReportLaps', 1, 10),
   };
 };

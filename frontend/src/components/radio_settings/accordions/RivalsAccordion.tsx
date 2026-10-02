@@ -24,12 +24,16 @@ export const RivalsAccordion: React.FC<RivalsAccordionProps> = ({ isExpanded, on
   const setSubRivalDefend = useRadioSettingsStore((s) => s.setSubRivalDefend);
   const subRivalAttack = useRadioSettingsStore((s) => s.subRivalAttack);
   const setSubRivalAttack = useRadioSettingsStore((s) => s.setSubRivalAttack);
+  const subGapReport = useRadioSettingsStore((s) => s.subGapReport);
+  const setSubGapReport = useRadioSettingsStore((s) => s.setSubGapReport);
   const undercutGapSec = useRadioSettingsStore((s) => s.undercutGapSec);
   const setUndercutGapSec = useRadioSettingsStore((s) => s.setUndercutGapSec);
   const rivalGapThresholdSec = useRadioSettingsStore((s) => s.rivalGapThresholdSec);
   const setRivalGapThresholdSec = useRadioSettingsStore((s) => s.setRivalGapThresholdSec);
   const rivalAheadGapSec = useRadioSettingsStore((s) => s.rivalAheadGapSec);
   const setRivalAheadGapSec = useRadioSettingsStore((s) => s.setRivalAheadGapSec);
+  const gapReportLaps = useRadioSettingsStore((s) => s.gapReportLaps);
+  const setGapReportLaps = useRadioSettingsStore((s) => s.setGapReportLaps);
 
   return (
     <SubsystemAccordion
@@ -63,6 +67,12 @@ export const RivalsAccordion: React.FC<RivalsAccordionProps> = ({ isExpanded, on
           checked={subRivalAttack}
           onChange={setSubRivalAttack}
         />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.gapReport')}
+          checked={subGapReport}
+          onChange={setSubGapReport}
+        />
       </div>
 
       <div className={styles.grid2}>
@@ -95,6 +105,19 @@ export const RivalsAccordion: React.FC<RivalsAccordionProps> = ({ isExpanded, on
           step={0.1}
           formatValue={(v) => `${v.toFixed(1)}s`}
           onChange={setRivalAheadGapSec}
+        />
+        <ThresholdSlider
+          label={t('ai_engineer.proactiveAlerts.gapReportLaps')}
+          value={gapReportLaps}
+          min={1}
+          max={10}
+          step={1}
+          formatValue={(laps) =>
+            laps === 1
+              ? t('ai_engineer.proactiveAlerts.gapReportEveryLap')
+              : t('ai_engineer.proactiveAlerts.gapReportEveryLaps', { laps })
+          }
+          onChange={setGapReportLaps}
         />
       </div>
     </SubsystemAccordion>

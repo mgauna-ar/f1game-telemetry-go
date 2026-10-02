@@ -326,7 +326,7 @@ export const ai_engineer = {
     testSubsystem: 'Probar Llamado',
     // 1. Neumáticos
     tyresTitle: 'Neumáticos y Desgaste',
-    tyresDesc: 'Desgaste, pinchazos, gomas calientes y frías, ampollas y cambio de neumático por clima',
+    tyresDesc: 'Desgaste, vueltas restantes, pinchazos, gomas calientes y frías, ampollas y cambio de neumático por clima',
     tyreWearWarning: 'Aviso de Desgaste Progresivo',
     tyreWearCritical: 'Nivel de Desgaste Crítico',
     tyrePuncture: 'Pinchazo Inmediato / Falla de Goma',
@@ -336,6 +336,7 @@ export const ai_engineer = {
     tyreWearCritThreshold: 'Umbral de Desgaste Crítico',
     tyreCondition: 'Ampollas y Presión Alta de Neumáticos',
     tyreCrossover: 'Cambio de Neumático por Clima',
+    tyreLife: 'Vueltas Restantes de los Neumáticos',
     tyreTempMargin: 'Margen Caliente/Frío Fuera de la Ventana del Compuesto',
     // 2. Daños y Aerodinámica
     damageTitle: 'Daños Aerodinámicos y Mecánica',
@@ -388,7 +389,7 @@ export const ai_engineer = {
     undercutThreshold: 'Margen de Undercut',
     // 6. Rivales y Batallas DRS
     rivalsTitle: 'Rivales y Batallas en Pista',
-    rivalsDesc: 'Defensa ante el auto de atrás, ataque al de adelante y undercuts de rivales',
+    rivalsDesc: 'Defensa ante el auto de atrás, ataque al de adelante, undercuts de rivales e informe de diferencias',
     undercutThreat: 'Rival Entra a Boxes para Intentar Undercut',
     pitWindowOpen: 'Ventana de Parada Ideal Abierta',
     rivalDefend: 'Rival Detrás Atacando en Zona DRS',
@@ -398,6 +399,10 @@ export const ai_engineer = {
     rivalAttackThreshold: 'Margen de Caza en Pista',
     rivalDefendGap: 'Margen de Alerta Defensiva',
     rivalAttackGap: 'Margen de Caza en Pista',
+    gapReport: 'Informe de Diferencias con los Autos Cercanos',
+    gapReportLaps: 'Informe de Diferencias Cada',
+    gapReportEveryLap: 'Vuelta',
+    gapReportEveryLaps: '{laps} vueltas',
     // 7. Qualy y Prácticas
     qualyTitle: 'Suite de Clasificación y Prácticas',
     qualyDesc: 'Tráfico en out-lap para aire limpio, vueltas anuladas, reloj de sesión y zona de eliminación',

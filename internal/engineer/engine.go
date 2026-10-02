@@ -21,6 +21,7 @@ type EngineerEngine struct {
 	rules          []EngineerRule
 	alertRules     map[string]AlertKeyConfig
 	lastDirectives map[string]int64 // alertKey/category -> timestamp ms
+	callLaps       map[string]int   // alertKey -> the player's lap it was last said on
 
 	// Deduplication states
 	stintKeys map[string]bool
@@ -102,6 +103,7 @@ func NewEngineerEngine(broadcaster DirectiveBroadcaster) *EngineerEngine {
 		broadcaster:      broadcaster,
 		config:           DefaultEngineerConfig(),
 		lastDirectives:   make(map[string]int64),
+		callLaps:         make(map[string]int),
 		stintKeys:        make(map[string]bool),
 		phaseKeys:        make(map[string]bool),
 		lapKeys:          make(map[string]int),
@@ -127,6 +129,7 @@ func NewEngineerEngine(broadcaster DirectiveBroadcaster) *EngineerEngine {
 		NewFlagsRule(),
 		NewTeammateRule(),
 		NewTrafficRule(),
+		NewReportsRule(),
 	}
 
 	e.alertRules = make(map[string]AlertKeyConfig)
@@ -180,6 +183,7 @@ func (e *EngineerEngine) Reset(sessionUID uint64) {
 func (e *EngineerEngine) resetLocked(sessionUID uint64) {
 	e.currentSessionUID = sessionUID
 	e.lastDirectives = make(map[string]int64)
+	e.callLaps = make(map[string]int)
 	e.stintKeys = make(map[string]bool)
 	e.phaseKeys = make(map[string]bool)
 	e.lapKeys = make(map[string]int)
@@ -343,6 +347,9 @@ func (e *EngineerEngine) buildEvaluationContextLocked(header packets.PacketHeade
 		CurrentLap:       currentLap,
 		Now:              e.nowMs(),
 		PitEntryM:        e.pitEntryLocked(),
+		PlayerLaps:       e.history.playerLaps,
+		CallLaps:         e.callLaps,
+		BoxDueLap:        e.boxDueLap,
 	}
 }
 
@@ -907,11 +914,12 @@ func (e *EngineerEngine) emitDirectiveLocked(header packets.PacketHeader, direct
 	e.lastGlobalDirectiveTime = now
 	delete(e.pending, alertKey)
 
+	currentLapNum := 1
+	if pLap := e.getPlayerLapDataLocked(); pLap != nil && pLap.CurrentLapNum > 0 {
+		currentLapNum = int(pLap.CurrentLapNum)
+	}
+	e.callLaps[alertKey] = currentLapNum
 	if rule, hasRule := e.alertRules[alertKey]; hasRule {
-		currentLapNum := 1
-		if pLap := e.getPlayerLapDataLocked(); pLap != nil && pLap.CurrentLapNum > 0 {
-			currentLapNum = int(pLap.CurrentLapNum)
-		}
 		switch rule.DedupScope {
 		case DedupScopeStint:
 			e.stintKeys[alertKey] = true

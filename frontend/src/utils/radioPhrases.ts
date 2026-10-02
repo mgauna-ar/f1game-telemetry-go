@@ -1,8 +1,24 @@
 import type { RadioPersona } from '../constants/f1';
 import type { LocaleCode } from '../locales';
-import { box_timing_phrases as enBox, radio_phrases as en } from '../locales/en/radio_phrases';
-import { box_timing_phrases as esBox, radio_phrases as es } from '../locales/es/radio_phrases';
-import type { BoxCallKind, EngineerBoxTiming, RadioAlertCategory, RadioPhrasePool } from '../types/telemetry';
+import {
+  box_timing_phrases as enBox,
+  radio_phrases as en,
+  report_phrases as enReport,
+} from '../locales/en/radio_phrases';
+import {
+  box_timing_phrases as esBox,
+  radio_phrases as es,
+  report_phrases as esReport,
+} from '../locales/es/radio_phrases';
+import type {
+  BoxCallKind,
+  DirectiveValues,
+  EngineerBoxTiming,
+  GapToCar,
+  RadioAlertCategory,
+  RadioPhrasePool,
+  ReportPhrase,
+} from '../types/telemetry';
 
 export type { RadioAlertCategory };
 
@@ -19,6 +35,9 @@ export const BOX_TIMING_PHRASES: Record<LocaleCode, Record<BoxCallKind, Record<E
   en: enBox,
   es: esBox,
 };
+
+/** The parts the reports' numbers are said with, per language. */
+export const REPORT_PHRASES: Record<LocaleCode, Record<ReportPhrase, RadioPhrasePool>> = { en: enReport, es: esReport };
 
 /**
  * The calls that offer a stop rather than order one; every other call that comes with a box timing
@@ -60,18 +79,89 @@ export function boxTimingPhrase(
 
 /**
  * Returns a random phrase for a proactive radio call, in the listener's language and the
- * engineer's persona, addressed to the driver's callsign. A call to pit ends with when to (`box`).
+ * engineer's persona, addressed to the driver's callsign. A call to pit ends with when to (`box`);
+ * a report says its numbers (`values`), and is left unsaid ('') without them.
  */
 export function getProactiveRadioSpeech(
   category: RadioAlertCategory,
   language: LocaleCode = 'es',
   persona: RadioPersona = 'bono',
   driverCallsign?: string,
-  box?: EngineerBoxTiming
+  box?: EngineerBoxTiming,
+  values?: DirectiveValues
 ): string {
+  if (category === 'tyre_life') {
+    return tyreLifeSpeech(values, language, persona, driverCallsign);
+  }
   const speech = interpolateCallsign(pick(radioPhrasePool(category, language, persona)), driverCallsign);
+  if (category === 'gap_report') {
+    const body = values ? gapReportBody(values, language, persona) : '';
+    return body ? `${speech} ${body}` : '';
+  }
   const timing = box ? boxTimingPhrase(category, box, language, persona) : '';
   return timing ? `${speech} ${timing}` : speech;
+}
+
+/** A number with one decimal, written the listener's way ("1.4", "1,4"). */
+export function formatTenths(value: number, language: LocaleCode): string {
+  return new Intl.NumberFormat(language, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value);
+}
+
+function reportPhrase(
+  key: ReportPhrase,
+  language: LocaleCode,
+  persona: RadioPersona,
+  numbers: Record<string, string> = {}
+): string {
+  return fillNumbers(pick(personaPhrases(REPORT_PHRASES[language][key], persona)), numbers);
+}
+
+function fillNumbers(template: string, numbers: Record<string, string>): string {
+  return template.replace(/{(position|gap|rate|laps)}/g, (match, key: string) => numbers[key] ?? match);
+}
+
+/** The position and the gaps around the driver, after the gap report's opening phrase. */
+function gapReportBody(values: DirectiveValues, language: LocaleCode, persona: RadioPersona): string {
+  if (!values.position) return '';
+  const parts = [
+    values.position === 1
+      ? reportPhrase('leading', language, persona)
+      : reportPhrase('position', language, persona, { position: String(values.position) }),
+  ];
+  const side = (where: 'ahead' | 'behind', gap?: GapToCar) => {
+    if (!gap) return;
+    // A gap that moves too little to say how much is said without its trend.
+    let key: ReportPhrase = where;
+    if (gap.trend === 'stable' || (gap.trend && gap.per_lap_sec)) key = `${where}_${gap.trend}`;
+    parts.push(
+      reportPhrase(key, language, persona, {
+        gap: formatTenths(gap.gap_sec, language),
+        rate: formatTenths(gap.per_lap_sec ?? 0, language),
+      })
+    );
+  };
+  side('ahead', values.ahead);
+  side('behind', values.behind);
+  if (!values.ahead && !values.behind) {
+    parts.push(reportPhrase('nobody_close', language, persona));
+  }
+  return parts.join(' ');
+}
+
+/** About how many laps the tyres have left. */
+function tyreLifeSpeech(
+  values: DirectiveValues | undefined,
+  language: LocaleCode,
+  persona: RadioPersona,
+  driverCallsign?: string
+): string {
+  const laps = values?.tyre_laps_left;
+  if (!laps) return '';
+  const template =
+    laps === 1
+      ? pick(personaPhrases(REPORT_PHRASES[language].tyre_life_one_lap, persona))
+      : pick(radioPhrasePool('tyre_life', language, persona));
+  return interpolateCallsign(fillNumbers(template, { laps: String(laps) }), driverCallsign);
 }
 
 function interpolateCallsign(template: string, driverCallsign?: string): string {

@@ -326,7 +326,7 @@ export const ai_engineer = {
     testSubsystem: 'Test Call',
     // 1. Tyres
     tyresTitle: 'Tyres & Degradation',
-    tyresDesc: 'Wear, punctures, hot and cold tyres, blistering and tyre changes for the weather',
+    tyresDesc: 'Wear, laps left, punctures, hot and cold tyres, blistering and tyre changes for the weather',
     tyreWearWarning: 'Progressive Wear Warning',
     tyreWearCritical: 'Critical Wear Level',
     tyrePuncture: 'Instant Puncture / Tyre Failure',
@@ -336,6 +336,7 @@ export const ai_engineer = {
     tyreWearCritThreshold: 'Critical Wear Threshold',
     tyreCondition: 'Blistering & High Tyre Pressure',
     tyreCrossover: 'Tyre Crossover When the Weather Changes',
+    tyreLife: 'Laps Left on the Tyres',
     tyreTempMargin: 'Hot/Cold Margin Outside the Compound Window',
     // 2. Damage & Aero
     damageTitle: 'Aero Damage & Mechanical',
@@ -388,7 +389,7 @@ export const ai_engineer = {
     undercutThreshold: 'Undercut Gap Window',
     // 6. Rivals & DRS Battles
     rivalsTitle: 'Rival Battles & DRS Gaps',
-    rivalsDesc: 'Defending from the car behind, attacking the car ahead and rival undercuts',
+    rivalsDesc: 'Defending from the car behind, attacking the car ahead, rival undercuts and gap reports',
     undercutThreat: 'Rival Box-Box Undercut Threat Behind',
     pitWindowOpen: 'Ideal Pit Stop Window Open',
     rivalDefend: 'Car Behind Attacking in DRS Zone',
@@ -398,6 +399,10 @@ export const ai_engineer = {
     rivalAttackThreshold: 'Attack Gap Threshold',
     rivalDefendGap: 'Defense Gap Threshold',
     rivalAttackGap: 'Attack Gap Threshold',
+    gapReport: 'Gap Report to the Cars Around You',
+    gapReportLaps: 'Gap Report Every',
+    gapReportEveryLap: 'Lap',
+    gapReportEveryLaps: '{laps} laps',
     // 7. Qualy & Practice Suite
     qualyTitle: 'Qualifying & Practice Suite',
     qualyDesc: 'Out-lap clean air traffic detection, lap deletions, session clock and cutoff danger',

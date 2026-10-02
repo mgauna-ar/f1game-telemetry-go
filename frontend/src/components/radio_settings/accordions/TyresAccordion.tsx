@@ -32,6 +32,8 @@ export const TyresAccordion: React.FC<TyresAccordionProps> = ({ isExpanded, onTo
   const setSubTyreCondition = useRadioSettingsStore((s) => s.setSubTyreCondition);
   const subTyreCrossover = useRadioSettingsStore((s) => s.subTyreCrossover);
   const setSubTyreCrossover = useRadioSettingsStore((s) => s.setSubTyreCrossover);
+  const subTyreLife = useRadioSettingsStore((s) => s.subTyreLife);
+  const setSubTyreLife = useRadioSettingsStore((s) => s.setSubTyreLife);
   const tyreWearWarningPct = useRadioSettingsStore((s) => s.tyreWearWarningPct);
   const setTyreWearWarningPct = useRadioSettingsStore((s) => s.setTyreWearWarningPct);
   const tyreWearCriticalPct = useRadioSettingsStore((s) => s.tyreWearCriticalPct);
@@ -88,6 +90,12 @@ export const TyresAccordion: React.FC<TyresAccordionProps> = ({ isExpanded, onTo
           label={t('ai_engineer.proactiveAlerts.tyreCrossover')}
           checked={subTyreCrossover}
           onChange={setSubTyreCrossover}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.tyreLife')}
+          checked={subTyreLife}
+          onChange={setSubTyreLife}
         />
       </div>
 

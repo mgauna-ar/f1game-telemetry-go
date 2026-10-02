@@ -135,6 +135,8 @@ type Tuning struct {
 	// PitCallLeadM is how far before the pit entry a call to box this lap must come; later than
 	// that the call says to box next lap.
 	PitCallLeadM float32 `json:"pit_call_lead_m"`
+	// GapReportLaps is how many laps apart the gap reports come in a race.
+	GapReportLaps int `json:"gap_report_laps"`
 }
 
 // DefaultTuning returns the built-in radio spacing and alert thresholds.
@@ -161,6 +163,7 @@ func DefaultTuning() Tuning {
 		RainHorizonMin:         WeatherRainHorizonMinutes,
 		RainProbPct:            WeatherRainTransitionProbPct,
 		PitCallLeadM:           DefaultPitCallLeadM,
+		GapReportLaps:          DefaultGapReportLaps,
 	}
 }
 
@@ -228,7 +231,43 @@ type EngineerDirective struct {
 	Box BoxTiming `json:"box,omitempty" tstype:"EngineerBoxTiming"`
 	// BoxCall says whether the call asks the driver to pit; the rule sets it.
 	BoxCall BoxCall `json:"-"`
+	// Values are the numbers a report says (gap report, tyre life); the dashboard speaks them.
+	Values *DirectiveValues `json:"values,omitempty"`
 }
+
+// DirectiveValues are the numbers a report call says. Only the fields of its report are set.
+type DirectiveValues struct {
+	// Position is the player's race position (gap report).
+	Position int `json:"position,omitempty"`
+	// Ahead and Behind are the cars close in front and behind (gap report); nil when there is no
+	// car within GapReportMaxGapSec.
+	Ahead  *GapToCar `json:"ahead,omitempty"`
+	Behind *GapToCar `json:"behind,omitempty"`
+	// TyreLapsLeft is about how many laps the tyres have before the wear limit (tyre life).
+	TyreLapsLeft int `json:"tyre_laps_left,omitempty"`
+}
+
+// GapToCar is the gap to a car close ahead or behind and how it is moving.
+type GapToCar struct {
+	// GapSec is the gap in seconds, to a tenth.
+	GapSec float64 `json:"gap_sec"`
+	// Trend is how the gap moved over the last laps; empty until it can be measured.
+	Trend GapTrendDirection `json:"trend,omitempty" tstype:"EngineerGapTrend"`
+	// PerLapSec is how much the gap changes each lap, to a tenth; 0 when stable.
+	PerLapSec float64 `json:"per_lap_sec,omitempty"`
+}
+
+// GapTrendDirection says whether a gap is shrinking, growing or holding.
+type GapTrendDirection string
+
+const (
+	GapClosing GapTrendDirection = "closing"
+	GapOpening GapTrendDirection = "opening"
+	GapStable  GapTrendDirection = "stable"
+)
+
+// GapTrendDirections lists every GapTrendDirection, for the generated TypeScript union.
+var GapTrendDirections = []string{string(GapClosing), string(GapOpening), string(GapStable)}
 
 // Directive is an alias for EngineerDirective for concise usage.
 type Directive = EngineerDirective
@@ -257,6 +296,12 @@ type EvaluationContext struct {
 	// PitEntryM is the track's pit entry as a lap distance, learned from the cars that pit; 0
 	// while unknown.
 	PitEntryM float32
+	// PlayerLaps are the player's completed laps this session, oldest first. Read only.
+	PlayerLaps []LapRecord
+	// CallLaps is the lap each alert key was last said on. Read only.
+	CallLaps map[string]int
+	// BoxDueLap is the lap a call told the player to box on; 0 when none is open.
+	BoxDueLap int
 }
 
 // PlayerLap returns the player car's LapData if available.
@@ -267,7 +312,6 @@ func (ctx *EvaluationContext) PlayerLap() *packets.LapData {
 	return &ctx.LapData.LapData[ctx.PlayerCarIndex]
 }
 
-// PlayerStatus returns the player car's CarStatusData if available.
 // BoxTiming is when the player could pit if told to now.
 func (ctx *EvaluationContext) BoxTiming() BoxTiming {
 	lap := ctx.PlayerLap()
@@ -277,6 +321,7 @@ func (ctx *EvaluationContext) BoxTiming() BoxTiming {
 	return boxTimingAt(lap.LapDistance, float32(ctx.Session.TrackLength), ctx.PitEntryM, ctx.Config.PitCallLeadM)
 }
 
+// PlayerStatus returns the player car's CarStatusData if available.
 func (ctx *EvaluationContext) PlayerStatus() *packets.CarStatusData {
 	if ctx.Status == nil || ctx.PlayerCarIndex < 0 || ctx.PlayerCarIndex >= len(ctx.Status.CarStatusData) {
 		return nil

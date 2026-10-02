@@ -87,7 +87,8 @@ export const Dashboard: React.FC = () => {
       r.effectiveLanguage,
       r.persona,
       r.driverCallsign,
-      payload.box
+      payload.box,
+      payload.values
     );
     if (speech) {
       r.speakMessage(speech, payload.isCritical, payload.emotion, payload.ttlMs);

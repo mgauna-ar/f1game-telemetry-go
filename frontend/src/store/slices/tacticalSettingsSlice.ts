@@ -27,6 +27,7 @@ export interface TacticalSettingsSlice {
   subTyreCold: boolean;
   subTyreCondition: boolean;
   subTyreCrossover: boolean;
+  subTyreLife: boolean;
   subDamageWing: boolean;
   subDamageFloor: boolean;
   subDamageEngine: boolean;
@@ -43,6 +44,7 @@ export interface TacticalSettingsSlice {
   subUndercut: boolean;
   subRivalDefend: boolean;
   subRivalAttack: boolean;
+  subGapReport: boolean;
   subPitWindow: boolean;
   subPitWindowClose: boolean;
   subPitCleanAir: boolean;
@@ -87,6 +89,7 @@ export interface TacticalSettingsSlice {
   setSubTyreCold: (enabled: boolean) => void;
   setSubTyreCondition: (enabled: boolean) => void;
   setSubTyreCrossover: (enabled: boolean) => void;
+  setSubTyreLife: (enabled: boolean) => void;
   setSubDamageWing: (enabled: boolean) => void;
   setSubDamageFloor: (enabled: boolean) => void;
   setSubDamageEngine: (enabled: boolean) => void;
@@ -103,6 +106,7 @@ export interface TacticalSettingsSlice {
   setSubUndercut: (enabled: boolean) => void;
   setSubRivalDefend: (enabled: boolean) => void;
   setSubRivalAttack: (enabled: boolean) => void;
+  setSubGapReport: (enabled: boolean) => void;
   setSubPitWindow: (enabled: boolean) => void;
   setSubPitWindowClose: (enabled: boolean) => void;
   setSubPitCleanAir: (enabled: boolean) => void;
@@ -148,6 +152,7 @@ export function getInitialTacticalSettings(): Omit<
   | 'setSubTyreCold'
   | 'setSubTyreCondition'
   | 'setSubTyreCrossover'
+  | 'setSubTyreLife'
   | 'setSubDamageWing'
   | 'setSubDamageFloor'
   | 'setSubDamageEngine'
@@ -164,6 +169,7 @@ export function getInitialTacticalSettings(): Omit<
   | 'setSubUndercut'
   | 'setSubRivalDefend'
   | 'setSubRivalAttack'
+  | 'setSubGapReport'
   | 'setSubPitWindow'
   | 'setSubPitWindowClose'
   | 'setSubPitCleanAir'
@@ -240,6 +246,7 @@ export const createTacticalSettingsSlice: StateCreator<
     setSubTyreCold: createBoolAction('subTyreCold', true),
     setSubTyreCondition: createBoolAction('subTyreCondition', true),
     setSubTyreCrossover: createBoolAction('subTyreCrossover', true),
+    setSubTyreLife: createBoolAction('subTyreLife', true),
     setSubDamageWing: createBoolAction('subDamageWing', true),
     setSubDamageFloor: createBoolAction('subDamageFloor', true),
     setSubDamageEngine: createBoolAction('subDamageEngine', true),
@@ -256,6 +263,7 @@ export const createTacticalSettingsSlice: StateCreator<
     setSubUndercut: createBoolAction('subUndercut', true),
     setSubRivalDefend: createBoolAction('subRivalDefend', true),
     setSubRivalAttack: createBoolAction('subRivalAttack', true),
+    setSubGapReport: createBoolAction('subGapReport', true),
     setSubPitWindow: createBoolAction('subPitWindow', true),
     setSubPitWindowClose: createBoolAction('subPitWindowClose', true),
     setSubPitCleanAir: createBoolAction('subPitCleanAir', true),

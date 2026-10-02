@@ -334,10 +334,16 @@ func (v *raceView) sessionSummary() SessionSummary {
 
 func (v *raceView) lapsRemaining() float64 {
 	player := v.playerLap()
-	if v.session.TotalLaps == 0 || player.CurrentLapNum == 0 {
+	return raceLapsRemaining(v.session, &player)
+}
+
+// raceLapsRemaining is how many laps the player has left to the flag, counting the part of the
+// current lap still to drive; 0 when the race length isn't known.
+func raceLapsRemaining(session *packets.PacketSessionData, player *packets.LapData) float64 {
+	if session == nil || player == nil || session.TotalLaps == 0 || player.CurrentLapNum == 0 {
 		return 0
 	}
-	remaining := float64(int(v.session.TotalLaps)-int(player.CurrentLapNum)+1) - float64(CalculateLapDistanceFraction(v.session, &player))
+	remaining := float64(int(session.TotalLaps)-int(player.CurrentLapNum)+1) - float64(CalculateLapDistanceFraction(session, player))
 	return math.Max(0, roundTo(remaining, 1))
 }
 
@@ -355,9 +361,14 @@ func (v *raceView) incidentStatus() string {
 
 // currentStintLaps returns the player's completed laps on the current set of tyres.
 func (v *raceView) currentStintLaps() []LapRecord {
-	stops := int(v.playerLap().NumPitStops)
+	return stintLaps(v.playerLaps, int(v.playerLap().NumPitStops))
+}
+
+// stintLaps returns the completed laps driven after the given number of pit stops: the laps on
+// the current set of tyres when stops is the player's pit stop count.
+func stintLaps(laps []LapRecord, stops int) []LapRecord {
 	var stint []LapRecord
-	for _, rec := range v.playerLaps {
+	for _, rec := range laps {
 		if rec.PitStops == stops {
 			stint = append(stint, rec)
 		}
@@ -401,30 +412,50 @@ func (v *raceView) strategySummary() StrategySummary {
 // applyTyreTrend measures wear per lap over the current stint and projects laps to the wear limit.
 func (v *raceView) applyTyreTrend(strat *StrategySummary, stint []LapRecord) {
 	dmg, ok := v.damageOf(v.playerIdx)
-	if !ok || len(stint) < 2 {
+	if !ok {
 		return
+	}
+	if life, ok := projectTyreLife(stint, dmg.TyresWear, v.config.TyreWearCritPct); ok {
+		strat.TyreWearPerLapPct = roundTo(life.WearPerLapPct, 2)
+		strat.WorstTyre = wheelNames[life.Corner]
+		strat.LapsToWearLimit = roundTo(life.LapsToLimit, 1)
+	}
+}
+
+// tyreLife is how many laps the tyres have left: the tyre that reaches the wear limit first, at
+// the rate it wore over the stint.
+type tyreLife struct {
+	Corner        int     // wheel index, as in the packets' wheel arrays
+	WearPerLapPct float64 // that tyre's wear per lap over the stint
+	LapsToLimit   float64 // laps until it reaches the wear limit; 0 once it has
+}
+
+// projectTyreLife projects the tyres' laps to limitPct of wear from the stint's lap ends and their
+// wear now. False until two lap ends, or while no tyre is wearing.
+func projectTyreLife(stint []LapRecord, wear [4]float32, limitPct float32) (tyreLife, bool) {
+	if len(stint) < 2 {
+		return tyreLife{}, false
 	}
 	first, last := stint[0], stint[len(stint)-1]
 	laps := last.LapNumber - first.LapNumber
 	if laps <= 0 {
-		return
+		return tyreLife{}, false
 	}
-	bestLaps := math.Inf(1)
-	for corner := range dmg.TyresWear {
+	best := tyreLife{LapsToLimit: math.Inf(1)}
+	for corner := range wear {
 		rate := float64(last.TyreWearPct[corner]-first.TyreWearPct[corner]) / float64(laps)
 		if rate <= 0 {
 			continue
 		}
-		toLimit := (float64(v.config.TyreWearCritPct) - float64(dmg.TyresWear[corner])) / rate
-		if toLimit < bestLaps {
-			bestLaps = toLimit
-			strat.TyreWearPerLapPct = roundTo(rate, 2)
-			strat.WorstTyre = wheelNames[corner]
+		if toLimit := (float64(limitPct) - float64(wear[corner])) / rate; toLimit < best.LapsToLimit {
+			best = tyreLife{Corner: corner, WearPerLapPct: rate, LapsToLimit: toLimit}
 		}
 	}
-	if !math.IsInf(bestLaps, 1) {
-		strat.LapsToWearLimit = roundTo(math.Max(0, bestLaps), 1)
+	if math.IsInf(best.LapsToLimit, 1) {
+		return tyreLife{}, false
 	}
+	best.LapsToLimit = math.Max(0, best.LapsToLimit)
+	return best, true
 }
 
 // applyFuelTrend averages recent fuel burn and the burn needed to reach the flag.

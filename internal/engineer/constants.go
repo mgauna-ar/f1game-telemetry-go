@@ -107,6 +107,18 @@ const (
 	// PitEntryReminderMinGapMs: no pit entry reminder this soon after the call to box.
 	PitEntryReminderMinGapMs = 15_000
 
+	// Gap and tyre life reports
+	DefaultGapReportLaps   = 3    // Laps between gap reports
+	GapReportFirstLap      = 3    // No gap report before this race lap: the order is still settling
+	GapReportMaxGapSec     = 10.0 // A car further away than this isn't part of the gap report
+	GapReportFromLapPct    = 0.05 // The gap report comes early in the lap, from here...
+	GapReportToLapPct      = 0.40 // ...to here
+	GapReportMaxDelayMs    = 15_000
+	TyreLifeMinStintLaps   = 3    // Lap ends on the set before its life is projected
+	TyreLifeWarnLaps       = 8.0  // First tyre life call when the projection drops to this many laps
+	TyreLifeLastLaps       = 3.0  // Second tyre life call
+	TyreLifeEndCallMaxLaps = 20.0 // "These tyres make the end" only with this many laps or fewer to go
+
 	// Qualifying & Shootout thresholds
 	QualyCleanAirDefaultSec             = 4.0
 	QualyTimeWarnDefaultSec             = 180.0

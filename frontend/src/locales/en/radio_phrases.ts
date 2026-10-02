@@ -1,4 +1,10 @@
-import type { BoxCallKind, EngineerBoxTiming, RadioAlertCategory, RadioPhrasePool } from '../../types/telemetry';
+import type {
+  BoxCallKind,
+  EngineerBoxTiming,
+  RadioAlertCategory,
+  RadioPhrasePool,
+  ReportPhrase,
+} from '../../types/telemetry';
 
 export const radio_phrases = {
   safety_car: {
@@ -994,6 +1000,45 @@ export const radio_phrases = {
       'Pit entry coming up, {driver}. Box, box.',
     ],
   },
+  gap_report: {
+    bono: [
+      'Gaps for you, {driver}.',
+      'Quick update on the gaps.',
+    ],
+    colapinto: [
+      'Gap update, {driver}!',
+    ],
+    standard: [
+      'Gap report.',
+      'Update on the gaps, {driver}.',
+    ],
+  },
+  tyre_life: {
+    bono: [
+      'About {laps} laps left in these tyres, {driver}.',
+      'These tyres have around {laps} laps left.',
+    ],
+    colapinto: [
+      'About {laps} laps left on these tyres, {driver}!',
+    ],
+    standard: [
+      'About {laps} laps left on these tyres.',
+      'Tyre life: around {laps} laps left, {driver}.',
+    ],
+  },
+  tyre_life_end: {
+    bono: [
+      'Good news, {driver}. These tyres will make the end, just look after them.',
+      'At this rate the tyres go to the flag. Keep managing them.',
+    ],
+    colapinto: [
+      'These tyres make the end, {driver}! Keep looking after them!',
+    ],
+    standard: [
+      'These tyres will make the end of the race. Keep managing them.',
+      'Tyres are good to the flag at this rate, {driver}.',
+    ],
+  },
 } satisfies Record<RadioAlertCategory, RadioPhrasePool>;
 
 /**
@@ -1070,3 +1115,81 @@ export const box_timing_phrases = {
     },
   },
 } satisfies Record<BoxCallKind, Record<EngineerBoxTiming, RadioPhrasePool>>;
+
+/**
+ * The parts a gap report is built from, after its opening phrase: the position, then the gap to the
+ * car ahead and to the car behind with how it moves. `{position}`, `{gap}` (seconds) and `{rate}`
+ * (seconds a lap) are filled with the report's numbers, written the listener's way.
+ */
+export const report_phrases = {
+  position: {
+    standard: [
+      'You are P{position}.',
+      'Running P{position}.',
+    ],
+  },
+  leading: {
+    standard: [
+      'You are leading.',
+      'Leading the race.',
+    ],
+  },
+  ahead: {
+    standard: [
+      'Gap ahead {gap} seconds.',
+    ],
+  },
+  ahead_closing: {
+    standard: [
+      'Gap ahead {gap} seconds, you are gaining {rate} a lap.',
+      'Car ahead at {gap}, closing {rate} a lap.',
+    ],
+  },
+  ahead_opening: {
+    standard: [
+      'Gap ahead {gap} seconds, losing {rate} a lap.',
+      'Car ahead at {gap}, pulling away {rate} a lap.',
+    ],
+  },
+  ahead_stable: {
+    standard: [
+      'Gap ahead {gap} seconds, holding steady.',
+      'Car ahead at {gap}, gap is stable.',
+    ],
+  },
+  behind: {
+    standard: [
+      'Car behind at {gap} seconds.',
+    ],
+  },
+  behind_closing: {
+    standard: [
+      'Car behind at {gap}, gaining {rate} a lap.',
+      'Gap behind {gap} seconds, coming down {rate} a lap.',
+    ],
+  },
+  behind_opening: {
+    standard: [
+      'Car behind at {gap}, you are pulling away {rate} a lap.',
+      'Gap behind {gap} seconds, growing {rate} a lap.',
+    ],
+  },
+  behind_stable: {
+    standard: [
+      'Car behind at {gap}, gap is stable.',
+      'Gap behind {gap} seconds, holding steady.',
+    ],
+  },
+  nobody_close: {
+    standard: [
+      'Nobody within ten seconds.',
+      'Clear gaps both ways, more than ten seconds.',
+    ],
+  },
+  tyre_life_one_lap: {
+    standard: [
+      'About one lap left on these tyres.',
+      'These tyres are about done, one lap left.',
+    ],
+  },
+} satisfies Record<ReportPhrase, RadioPhrasePool>;

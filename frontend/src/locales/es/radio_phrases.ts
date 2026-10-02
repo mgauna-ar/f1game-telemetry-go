@@ -1,4 +1,10 @@
-import type { BoxCallKind, EngineerBoxTiming, RadioAlertCategory, RadioPhrasePool } from '../../types/telemetry';
+import type {
+  BoxCallKind,
+  EngineerBoxTiming,
+  RadioAlertCategory,
+  RadioPhrasePool,
+  ReportPhrase,
+} from '../../types/telemetry';
 
 export const radio_phrases = {
   safety_car: {
@@ -1007,6 +1013,45 @@ export const radio_phrases = {
       'Entrada de boxes a la vista, {driver}. Box, box.',
     ],
   },
+  gap_report: {
+    bono: [
+      'Te paso las diferencias, {driver}.',
+      'Actualización rápida de las diferencias.',
+    ],
+    colapinto: [
+      '¡Te paso las diferencias, {driver}!',
+    ],
+    standard: [
+      'Informe de diferencias.',
+      'Actualización de las diferencias, {driver}.',
+    ],
+  },
+  tyre_life: {
+    bono: [
+      'Quedan unas {laps} vueltas en estos neumáticos, {driver}.',
+      'A estos neumáticos les quedan unas {laps} vueltas.',
+    ],
+    colapinto: [
+      '¡Quedan unas {laps} vueltas en estas gomas, {driver}!',
+    ],
+    standard: [
+      'Quedan unas {laps} vueltas en estos neumáticos.',
+      'Vida de los neumáticos: unas {laps} vueltas, {driver}.',
+    ],
+  },
+  tyre_life_end: {
+    bono: [
+      'Buenas noticias, {driver}. Estos neumáticos llegan al final, solo cuídalos.',
+      'A este ritmo los neumáticos llegan a la bandera. Sigue cuidándolos.',
+    ],
+    colapinto: [
+      '¡Estas gomas llegan al final, {driver}! Seguí cuidándolas.',
+    ],
+    standard: [
+      'Estos neumáticos llegan al final de la carrera. Sigue cuidándolos.',
+      'A este ritmo los neumáticos llegan a la bandera, {driver}.',
+    ],
+  },
 } satisfies Record<RadioAlertCategory, RadioPhrasePool>;
 
 /**
@@ -1080,3 +1125,81 @@ export const box_timing_phrases = {
     },
   },
 } satisfies Record<BoxCallKind, Record<EngineerBoxTiming, RadioPhrasePool>>;
+
+/**
+ * Las partes de un informe de diferencias, después de su frase de apertura: la posición, y la
+ * diferencia con el auto de adelante y el de atrás con cómo se mueve. `{position}`, `{gap}`
+ * (segundos) y `{rate}` (segundos por vuelta) se llenan con los números del informe.
+ */
+export const report_phrases = {
+  position: {
+    standard: [
+      'Vas P{position}.',
+      'Posición {position}.',
+    ],
+  },
+  leading: {
+    standard: [
+      'Vas liderando.',
+      'Lideras la carrera.',
+    ],
+  },
+  ahead: {
+    standard: [
+      'Diferencia adelante {gap} segundos.',
+    ],
+  },
+  ahead_closing: {
+    standard: [
+      'Diferencia adelante {gap} segundos, le descuentas {rate} por vuelta.',
+      'Auto de adelante a {gap}, te acercas {rate} por vuelta.',
+    ],
+  },
+  ahead_opening: {
+    standard: [
+      'Diferencia adelante {gap} segundos, pierdes {rate} por vuelta.',
+      'Auto de adelante a {gap}, se aleja {rate} por vuelta.',
+    ],
+  },
+  ahead_stable: {
+    standard: [
+      'Diferencia adelante {gap} segundos, estable.',
+      'Auto de adelante a {gap}, la diferencia se mantiene.',
+    ],
+  },
+  behind: {
+    standard: [
+      'Auto de atrás a {gap} segundos.',
+    ],
+  },
+  behind_closing: {
+    standard: [
+      'Auto de atrás a {gap}, te descuenta {rate} por vuelta.',
+      'Diferencia atrás {gap} segundos, se acerca {rate} por vuelta.',
+    ],
+  },
+  behind_opening: {
+    standard: [
+      'Auto de atrás a {gap}, le sacas {rate} por vuelta.',
+      'Diferencia atrás {gap} segundos, crece {rate} por vuelta.',
+    ],
+  },
+  behind_stable: {
+    standard: [
+      'Auto de atrás a {gap}, la diferencia se mantiene.',
+      'Diferencia atrás {gap} segundos, estable.',
+    ],
+  },
+  nobody_close: {
+    standard: [
+      'Nadie a menos de diez segundos.',
+      'Diferencias amplias, más de diez segundos para los dos lados.',
+    ],
+  },
+  tyre_life_one_lap: {
+    standard: [
+      'Queda más o menos una vuelta en estos neumáticos.',
+      'Estos neumáticos están al límite, queda una vuelta.',
+    ],
+  },
+} satisfies Record<ReportPhrase, RadioPhrasePool>;
