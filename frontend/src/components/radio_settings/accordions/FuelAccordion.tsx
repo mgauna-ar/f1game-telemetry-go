@@ -20,6 +20,8 @@ export const FuelAccordion: React.FC<FuelAccordionProps> = ({ isExpanded, onTogg
   const setFuelAlertsEnabled = useRadioSettingsStore((s) => s.setFuelAlertsEnabled);
   const subFuelDelta = useRadioSettingsStore((s) => s.subFuelDelta);
   const setSubFuelDelta = useRadioSettingsStore((s) => s.setSubFuelDelta);
+  const subFuelMix = useRadioSettingsStore((s) => s.subFuelMix);
+  const setSubFuelMix = useRadioSettingsStore((s) => s.setSubFuelMix);
   const fuelDeltaLaps = useRadioSettingsStore((s) => s.fuelDeltaLaps);
   const setFuelDeltaLaps = useRadioSettingsStore((s) => s.setFuelDeltaLaps);
 
@@ -42,6 +44,12 @@ export const FuelAccordion: React.FC<FuelAccordionProps> = ({ isExpanded, onTogg
           label={t('ai_engineer.proactiveAlerts.fuelDeficitLiftCoast')}
           checked={subFuelDelta}
           onChange={setSubFuelDelta}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.fuelMix')}
+          checked={subFuelMix}
+          onChange={setSubFuelMix}
         />
       </div>
 

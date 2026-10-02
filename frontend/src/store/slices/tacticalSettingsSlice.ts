@@ -9,13 +9,14 @@ export interface TacticalSettingsSlice {
 
   // Subsystem master switches
   tyreAlertsEnabled: boolean;
-  thermalAlertsEnabled: boolean;
   damageAlertsEnabled: boolean;
   ersAlertsEnabled: boolean;
   brakesAlertsEnabled: boolean;
   fuelAlertsEnabled: boolean;
   rivalAlertsEnabled: boolean;
-  pitWindowAlertsEnabled: boolean;
+  pitAlertsEnabled: boolean;
+  coachingAlertsEnabled: boolean;
+  teammateAlertsEnabled: boolean;
   qualyAlertsEnabled: boolean;
   flagsPensAlertsEnabled: boolean;
 
@@ -24,19 +25,34 @@ export interface TacticalSettingsSlice {
   subTyrePuncture: boolean;
   subTyreThermal: boolean;
   subTyreCold: boolean;
+  subTyreCondition: boolean;
+  subTyreCrossover: boolean;
   subDamageWing: boolean;
   subDamageFloor: boolean;
   subDamageEngine: boolean;
   subDamageFaults: boolean;
-  subErsLow: boolean;
   subEngineTemp: boolean;
+  subErsLow: boolean;
+  subErsClipping: boolean;
+  subAeroZones: boolean;
   subBrakeTemp: boolean;
   subBrakeCold: boolean;
+  subBrakeBias: boolean;
   subFuelDelta: boolean;
+  subFuelMix: boolean;
   subUndercut: boolean;
-  subPitWindow: boolean;
   subRivalDefend: boolean;
   subRivalAttack: boolean;
+  subPitWindow: boolean;
+  subPitWindowClose: boolean;
+  subPitCleanAir: boolean;
+  subTyreSet: boolean;
+  subPitLane: boolean;
+  subSectorDelta: boolean;
+  subStartProcedure: boolean;
+  subInlapCooldown: boolean;
+  subTeammateAhead: boolean;
+  subTeammatePit: boolean;
   subQualyTraffic: boolean;
   subQualyInvalid: boolean;
   subQualyTime: boolean;
@@ -46,18 +62,21 @@ export interface TacticalSettingsSlice {
   subRain: boolean;
   subTrackLimits: boolean;
   subPenalties: boolean;
+  subFlags: boolean;
+  subRaceEvents: boolean;
 
   setSmartDiscretionEnabled: (enabled: boolean) => void;
   setChatterCooldownSeconds: (sec: number) => void;
 
   setTyreAlertsEnabled: (enabled: boolean) => void;
-  setThermalAlertsEnabled: (enabled: boolean) => void;
   setDamageAlertsEnabled: (enabled: boolean) => void;
   setErsAlertsEnabled: (enabled: boolean) => void;
   setBrakesAlertsEnabled: (enabled: boolean) => void;
   setFuelAlertsEnabled: (enabled: boolean) => void;
   setRivalAlertsEnabled: (enabled: boolean) => void;
-  setPitWindowAlertsEnabled: (enabled: boolean) => void;
+  setPitAlertsEnabled: (enabled: boolean) => void;
+  setCoachingAlertsEnabled: (enabled: boolean) => void;
+  setTeammateAlertsEnabled: (enabled: boolean) => void;
   setQualyAlertsEnabled: (enabled: boolean) => void;
   setFlagsPensAlertsEnabled: (enabled: boolean) => void;
 
@@ -65,19 +84,34 @@ export interface TacticalSettingsSlice {
   setSubTyrePuncture: (enabled: boolean) => void;
   setSubTyreThermal: (enabled: boolean) => void;
   setSubTyreCold: (enabled: boolean) => void;
+  setSubTyreCondition: (enabled: boolean) => void;
+  setSubTyreCrossover: (enabled: boolean) => void;
   setSubDamageWing: (enabled: boolean) => void;
   setSubDamageFloor: (enabled: boolean) => void;
   setSubDamageEngine: (enabled: boolean) => void;
   setSubDamageFaults: (enabled: boolean) => void;
-  setSubErsLow: (enabled: boolean) => void;
   setSubEngineTemp: (enabled: boolean) => void;
+  setSubErsLow: (enabled: boolean) => void;
+  setSubErsClipping: (enabled: boolean) => void;
+  setSubAeroZones: (enabled: boolean) => void;
   setSubBrakeTemp: (enabled: boolean) => void;
   setSubBrakeCold: (enabled: boolean) => void;
+  setSubBrakeBias: (enabled: boolean) => void;
   setSubFuelDelta: (enabled: boolean) => void;
+  setSubFuelMix: (enabled: boolean) => void;
   setSubUndercut: (enabled: boolean) => void;
-  setSubPitWindow: (enabled: boolean) => void;
   setSubRivalDefend: (enabled: boolean) => void;
   setSubRivalAttack: (enabled: boolean) => void;
+  setSubPitWindow: (enabled: boolean) => void;
+  setSubPitWindowClose: (enabled: boolean) => void;
+  setSubPitCleanAir: (enabled: boolean) => void;
+  setSubTyreSet: (enabled: boolean) => void;
+  setSubPitLane: (enabled: boolean) => void;
+  setSubSectorDelta: (enabled: boolean) => void;
+  setSubStartProcedure: (enabled: boolean) => void;
+  setSubInlapCooldown: (enabled: boolean) => void;
+  setSubTeammateAhead: (enabled: boolean) => void;
+  setSubTeammatePit: (enabled: boolean) => void;
   setSubQualyTraffic: (enabled: boolean) => void;
   setSubQualyInvalid: (enabled: boolean) => void;
   setSubQualyTime: (enabled: boolean) => void;
@@ -87,6 +121,8 @@ export interface TacticalSettingsSlice {
   setSubRain: (enabled: boolean) => void;
   setSubTrackLimits: (enabled: boolean) => void;
   setSubPenalties: (enabled: boolean) => void;
+  setSubFlags: (enabled: boolean) => void;
+  setSubRaceEvents: (enabled: boolean) => void;
 }
 
 export function getInitialTacticalSettings(): Omit<
@@ -94,32 +130,48 @@ export function getInitialTacticalSettings(): Omit<
   | 'setSmartDiscretionEnabled'
   | 'setChatterCooldownSeconds'
   | 'setTyreAlertsEnabled'
-  | 'setThermalAlertsEnabled'
   | 'setDamageAlertsEnabled'
   | 'setErsAlertsEnabled'
   | 'setBrakesAlertsEnabled'
   | 'setFuelAlertsEnabled'
   | 'setRivalAlertsEnabled'
-  | 'setPitWindowAlertsEnabled'
+  | 'setPitAlertsEnabled'
+  | 'setCoachingAlertsEnabled'
+  | 'setTeammateAlertsEnabled'
   | 'setQualyAlertsEnabled'
   | 'setFlagsPensAlertsEnabled'
   | 'setSubTyreWear'
   | 'setSubTyrePuncture'
   | 'setSubTyreThermal'
   | 'setSubTyreCold'
+  | 'setSubTyreCondition'
+  | 'setSubTyreCrossover'
   | 'setSubDamageWing'
   | 'setSubDamageFloor'
   | 'setSubDamageEngine'
   | 'setSubDamageFaults'
-  | 'setSubErsLow'
   | 'setSubEngineTemp'
+  | 'setSubErsLow'
+  | 'setSubErsClipping'
+  | 'setSubAeroZones'
   | 'setSubBrakeTemp'
   | 'setSubBrakeCold'
+  | 'setSubBrakeBias'
   | 'setSubFuelDelta'
+  | 'setSubFuelMix'
   | 'setSubUndercut'
-  | 'setSubPitWindow'
   | 'setSubRivalDefend'
   | 'setSubRivalAttack'
+  | 'setSubPitWindow'
+  | 'setSubPitWindowClose'
+  | 'setSubPitCleanAir'
+  | 'setSubTyreSet'
+  | 'setSubPitLane'
+  | 'setSubSectorDelta'
+  | 'setSubStartProcedure'
+  | 'setSubInlapCooldown'
+  | 'setSubTeammateAhead'
+  | 'setSubTeammatePit'
   | 'setSubQualyTraffic'
   | 'setSubQualyInvalid'
   | 'setSubQualyTime'
@@ -129,6 +181,8 @@ export function getInitialTacticalSettings(): Omit<
   | 'setSubRain'
   | 'setSubTrackLimits'
   | 'setSubPenalties'
+  | 'setSubFlags'
+  | 'setSubRaceEvents'
 > {
   // First run starts on the Immersive preset so the panel label matches what's enabled.
   return {
@@ -166,13 +220,14 @@ export const createTacticalSettingsSlice: StateCreator<
     },
 
     setTyreAlertsEnabled: createBoolAction('tyreAlertsEnabled'),
-    setThermalAlertsEnabled: createBoolAction('thermalAlertsEnabled'),
     setDamageAlertsEnabled: createBoolAction('damageAlertsEnabled'),
     setErsAlertsEnabled: createBoolAction('ersAlertsEnabled'),
     setBrakesAlertsEnabled: createBoolAction('brakesAlertsEnabled'),
     setFuelAlertsEnabled: createBoolAction('fuelAlertsEnabled'),
     setRivalAlertsEnabled: createBoolAction('rivalAlertsEnabled'),
-    setPitWindowAlertsEnabled: createBoolAction('pitWindowAlertsEnabled'),
+    setPitAlertsEnabled: createBoolAction('pitAlertsEnabled'),
+    setCoachingAlertsEnabled: createBoolAction('coachingAlertsEnabled'),
+    setTeammateAlertsEnabled: createBoolAction('teammateAlertsEnabled'),
     setQualyAlertsEnabled: createBoolAction('qualyAlertsEnabled'),
     setFlagsPensAlertsEnabled: createBoolAction('flagsPensAlertsEnabled'),
 
@@ -180,19 +235,34 @@ export const createTacticalSettingsSlice: StateCreator<
     setSubTyrePuncture: createBoolAction('subTyrePuncture', true),
     setSubTyreThermal: createBoolAction('subTyreThermal', true),
     setSubTyreCold: createBoolAction('subTyreCold', true),
+    setSubTyreCondition: createBoolAction('subTyreCondition', true),
+    setSubTyreCrossover: createBoolAction('subTyreCrossover', true),
     setSubDamageWing: createBoolAction('subDamageWing', true),
     setSubDamageFloor: createBoolAction('subDamageFloor', true),
     setSubDamageEngine: createBoolAction('subDamageEngine', true),
     setSubDamageFaults: createBoolAction('subDamageFaults', true),
-    setSubErsLow: createBoolAction('subErsLow', true),
     setSubEngineTemp: createBoolAction('subEngineTemp', true),
+    setSubErsLow: createBoolAction('subErsLow', true),
+    setSubErsClipping: createBoolAction('subErsClipping', true),
+    setSubAeroZones: createBoolAction('subAeroZones', true),
     setSubBrakeTemp: createBoolAction('subBrakeTemp', true),
     setSubBrakeCold: createBoolAction('subBrakeCold', true),
+    setSubBrakeBias: createBoolAction('subBrakeBias', true),
     setSubFuelDelta: createBoolAction('subFuelDelta', true),
+    setSubFuelMix: createBoolAction('subFuelMix', true),
     setSubUndercut: createBoolAction('subUndercut', true),
-    setSubPitWindow: createBoolAction('subPitWindow', true),
     setSubRivalDefend: createBoolAction('subRivalDefend', true),
     setSubRivalAttack: createBoolAction('subRivalAttack', true),
+    setSubPitWindow: createBoolAction('subPitWindow', true),
+    setSubPitWindowClose: createBoolAction('subPitWindowClose', true),
+    setSubPitCleanAir: createBoolAction('subPitCleanAir', true),
+    setSubTyreSet: createBoolAction('subTyreSet', true),
+    setSubPitLane: createBoolAction('subPitLane', true),
+    setSubSectorDelta: createBoolAction('subSectorDelta', true),
+    setSubStartProcedure: createBoolAction('subStartProcedure', true),
+    setSubInlapCooldown: createBoolAction('subInlapCooldown', true),
+    setSubTeammateAhead: createBoolAction('subTeammateAhead', true),
+    setSubTeammatePit: createBoolAction('subTeammatePit', true),
     setSubQualyTraffic: createBoolAction('subQualyTraffic', true),
     setSubQualyInvalid: createBoolAction('subQualyInvalid', true),
     setSubQualyTime: createBoolAction('subQualyTime', true),
@@ -202,5 +272,7 @@ export const createTacticalSettingsSlice: StateCreator<
     setSubRain: createBoolAction('subRain', true),
     setSubTrackLimits: createBoolAction('subTrackLimits', true),
     setSubPenalties: createBoolAction('subPenalties', true),
+    setSubFlags: createBoolAction('subFlags', true),
+    setSubRaceEvents: createBoolAction('subRaceEvents', true),
   };
 };

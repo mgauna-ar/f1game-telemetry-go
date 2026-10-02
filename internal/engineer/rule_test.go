@@ -2782,3 +2782,47 @@ func TestPhase6AeroPitOverspeedAndDynamics(t *testing.T) {
 		}
 	})
 }
+
+func TestTyresRule_TempMarginSetsHotAndColdCalls(t *testing.T) {
+	// C1 works from 95 to 115°C.
+	tests := []struct {
+		name    string
+		temps   [4]uint8 // front left, front right, rear left, rear right
+		marginC float32
+		want    string
+	}{
+		{"118°C inside the default 5°C margin", [4]uint8{100, 100, 118, 118}, 5, ""},
+		{"118°C past a 2°C margin", [4]uint8{100, 100, 118, 118}, 2, "tyre_overheat"},
+		{"92°C inside the default 5°C margin", [4]uint8{92, 92, 92, 92}, 5, ""},
+		{"92°C past a 2°C margin", [4]uint8{92, 92, 92, 92}, 2, "tyre_cold"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := DefaultEngineerConfig()
+			cfg.TyreTempMarginC = tt.marginC
+			ctx := &EvaluationContext{
+				Telemetry: &packets.PacketCarTelemetryData{
+					CarTelemetryData: [packets.MaxCars]packets.CarTelemetryData{
+						{TyresSurfaceTemperature: wheels(tt.temps[0], tt.temps[1], tt.temps[2], tt.temps[3])},
+					},
+				},
+				Status: &packets.PacketCarStatusData{
+					CarStatusData: [packets.MaxCars]packets.CarStatusData{
+						{ActualTyreCompound: packets.ActualCompoundC1},
+					},
+				},
+				Config: cfg,
+				Phase:  PhaseRacing,
+			}
+			got := ""
+			for _, d := range NewTyresRule().Evaluate(ctx) {
+				if d.SubAlert == "tyre_overheat" || d.SubAlert == "tyre_cold" {
+					got = d.SubAlert
+				}
+			}
+			if got != tt.want {
+				t.Errorf("call = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}

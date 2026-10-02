@@ -207,8 +207,8 @@ func (r *TyresRule) Evaluate(ctx *EvaluationContext) []Directive {
 		}
 
 		window := GetTyreThermalWindow(actualCompound, visualCompound)
-		overheatLimit := window.MaxTemp + TyreDegradationTempMarginC
-		coldLimit := window.MinTemp - TyreDegradationTempMarginC
+		overheatLimit := window.MaxTemp + ctx.Config.TyreTempMarginC
+		coldLimit := window.MinTemp - ctx.Config.TyreTempMarginC
 
 		playerLap := ctx.PlayerLap()
 		isNeutralized := ctx.Phase == PhaseSafetyCar ||

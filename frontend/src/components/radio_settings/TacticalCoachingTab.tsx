@@ -13,7 +13,10 @@ import { DamageAccordion } from './accordions/DamageAccordion';
 import { ErsAccordion } from './accordions/ErsAccordion';
 import { BrakesAccordion } from './accordions/BrakesAccordion';
 import { FuelAccordion } from './accordions/FuelAccordion';
+import { PitAccordion } from './accordions/PitAccordion';
 import { RivalsAccordion } from './accordions/RivalsAccordion';
+import { CoachingAccordion } from './accordions/CoachingAccordion';
+import { TeammateAccordion } from './accordions/TeammateAccordion';
 import { QualyAccordion } from './accordions/QualyAccordion';
 import { FlagsAccordion } from './accordions/FlagsAccordion';
 
@@ -39,7 +42,10 @@ export const TacticalCoachingTab: React.FC<TacticalCoachingTabProps> = ({ radio 
     ers: false,
     brakes: false,
     fuel: false,
+    pit: false,
     rivals: false,
+    coaching: false,
+    teammate: false,
     qualy: false,
     flags: false,
   });
@@ -115,21 +121,42 @@ export const TacticalCoachingTab: React.FC<TacticalCoachingTabProps> = ({ radio 
             onTestAlert={() => radio.testTriggerAlert('fuel')}
           />
 
-          {/* 6. RIVALS */}
+          {/* 6. PIT STOP */}
+          <PitAccordion
+            isExpanded={!!expandedCategories.pit}
+            onToggleExpand={() => toggleCategory('pit')}
+            onTestAlert={() => radio.testTriggerAlert('pit')}
+          />
+
+          {/* 7. RIVALS */}
           <RivalsAccordion
             isExpanded={!!expandedCategories.rivals}
             onToggleExpand={() => toggleCategory('rivals')}
             onTestAlert={() => radio.testTriggerAlert('rivals')}
           />
 
-          {/* 7. QUALIFYING */}
+          {/* 8. COACHING */}
+          <CoachingAccordion
+            isExpanded={!!expandedCategories.coaching}
+            onToggleExpand={() => toggleCategory('coaching')}
+            onTestAlert={() => radio.testTriggerAlert('coaching')}
+          />
+
+          {/* 9. TEAMMATE */}
+          <TeammateAccordion
+            isExpanded={!!expandedCategories.teammate}
+            onToggleExpand={() => toggleCategory('teammate')}
+            onTestAlert={() => radio.testTriggerAlert('teammate')}
+          />
+
+          {/* 10. QUALIFYING */}
           <QualyAccordion
             isExpanded={!!expandedCategories.qualy}
             onToggleExpand={() => toggleCategory('qualy')}
             onTestAlert={() => radio.testTriggerAlert('qualy')}
           />
 
-          {/* 8. FLAGS & RACE CONTROL */}
+          {/* 11. FLAGS & RACE CONTROL */}
           <FlagsAccordion
             isExpanded={!!expandedCategories.flags}
             onToggleExpand={() => toggleCategory('flags')}

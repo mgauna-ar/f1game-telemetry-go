@@ -20,8 +20,6 @@ export const RivalsAccordion: React.FC<RivalsAccordionProps> = ({ isExpanded, on
   const setRivalAlertsEnabled = useRadioSettingsStore((s) => s.setRivalAlertsEnabled);
   const subUndercut = useRadioSettingsStore((s) => s.subUndercut);
   const setSubUndercut = useRadioSettingsStore((s) => s.setSubUndercut);
-  const subPitWindow = useRadioSettingsStore((s) => s.subPitWindow);
-  const setSubPitWindow = useRadioSettingsStore((s) => s.setSubPitWindow);
   const subRivalDefend = useRadioSettingsStore((s) => s.subRivalDefend);
   const setSubRivalDefend = useRadioSettingsStore((s) => s.setSubRivalDefend);
   const subRivalAttack = useRadioSettingsStore((s) => s.subRivalAttack);
@@ -52,12 +50,6 @@ export const RivalsAccordion: React.FC<RivalsAccordionProps> = ({ isExpanded, on
           label={t('ai_engineer.proactiveAlerts.undercutThreat')}
           checked={subUndercut}
           onChange={setSubUndercut}
-        />
-        <ToggleRow
-          compact
-          label={t('ai_engineer.proactiveAlerts.pitWindowOpen')}
-          checked={subPitWindow}
-          onChange={setSubPitWindow}
         />
         <ToggleRow
           compact

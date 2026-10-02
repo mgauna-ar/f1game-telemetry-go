@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, act, waitFor } from '@testing-library/react';
 import { SettingsSync } from './SettingsSync';
 import { useRadioSettingsStore } from '../../store/useRadioSettingsStore';
+import { ALERT_TOGGLE_KEYS } from '../../store/slices/triggerPresets';
 import { useSettingsSaveStore } from '../../store/useSettingsSaveStore';
 import { useToastStore } from '../../store/useToastStore';
 import {
@@ -45,6 +46,7 @@ describe('SettingsSync', () => {
       version: 5,
       tyre_wear_warn_pct: 61,
       trigger_preset: 'custom',
+      alert_switches: Object.fromEntries(ALERT_TOGGLE_KEYS.map((key) => [key, true])),
     });
     render(<SettingsSync />);
 

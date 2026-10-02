@@ -28,6 +28,10 @@ export const FlagsAccordion: React.FC<FlagsAccordionProps> = ({ isExpanded, onTo
   const setSubTrackLimits = useRadioSettingsStore((s) => s.setSubTrackLimits);
   const subPenalties = useRadioSettingsStore((s) => s.subPenalties);
   const setSubPenalties = useRadioSettingsStore((s) => s.setSubPenalties);
+  const subFlags = useRadioSettingsStore((s) => s.subFlags);
+  const setSubFlags = useRadioSettingsStore((s) => s.setSubFlags);
+  const subRaceEvents = useRadioSettingsStore((s) => s.subRaceEvents);
+  const setSubRaceEvents = useRadioSettingsStore((s) => s.setSubRaceEvents);
   const cornerCutWarnThreshold = useRadioSettingsStore((s) => s.cornerCutWarnThreshold);
   const setCornerCutWarnThreshold = useRadioSettingsStore((s) => s.setCornerCutWarnThreshold);
   const rainHorizonMin = useRadioSettingsStore((s) => s.rainHorizonMin);
@@ -78,6 +82,18 @@ export const FlagsAccordion: React.FC<FlagsAccordionProps> = ({ isExpanded, onTo
           label={t('ai_engineer.proactiveAlerts.penaltiesIncurred')}
           checked={subPenalties}
           onChange={setSubPenalties}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.flagsGeneral')}
+          checked={subFlags}
+          onChange={setSubFlags}
+        />
+        <ToggleRow
+          compact
+          label={t('ai_engineer.proactiveAlerts.raceEvents')}
+          checked={subRaceEvents}
+          onChange={setSubRaceEvents}
         />
       </div>
 

@@ -111,8 +111,9 @@ type Tuning struct {
 	SmartDiscretionEnabled bool    `json:"smart_discretion_enabled"`
 	TyreWearWarnPct        float32 `json:"tyre_wear_warn_pct"`
 	TyreWearCritPct        float32 `json:"tyre_wear_crit_pct"`
-	TyreOverheatC          float32 `json:"tyre_overheat_c"`
-	TyreColdC              float32 `json:"tyre_cold_c"`
+	// TyreTempMarginC is how far outside the compound's working window the tyre surface must be
+	// before the engineer calls it hot or cold.
+	TyreTempMarginC        float32 `json:"tyre_temp_margin_c"`
 	WingDamageWarnPct      float32 `json:"wing_damage_warn_pct"`
 	FloorDamageWarnPct     float32 `json:"floor_damage_warn_pct"`
 	EngineWearWarnPct      float32 `json:"engine_wear_warn_pct"`
@@ -137,8 +138,7 @@ func DefaultTuning() Tuning {
 		SmartDiscretionEnabled: true,
 		TyreWearWarnPct:        40.0,
 		TyreWearCritPct:        75.0,
-		TyreOverheatC:          OverheatRearTyres2025C,
-		TyreColdC:              ColdTyresTargetC,
+		TyreTempMarginC:        TyreDegradationTempMarginC,
 		WingDamageWarnPct:      20.0,
 		FloorDamageWarnPct:     25.0,
 		EngineWearWarnPct:      70.0,

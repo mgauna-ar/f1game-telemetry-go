@@ -29,12 +29,13 @@ import {
 } from './slices/radioPresetsSlice';
 import {
   ALERT_TOGGLE_KEYS,
+  TRIGGER_PRESET_VALUES,
   detectTriggerPreset,
   isRadioTriggerPreset,
   type AlertToggles,
 } from './slices/triggerPresets';
 import { reportSettingsSaveFailure, useSettingsSaveStore } from './useSettingsSaveStore';
-import { TIME_CONSTANTS, type RadioTriggerPreset } from '../constants/f1';
+import { RADIO_TRIGGER_PRESETS, TIME_CONSTANTS, type RadioTriggerPreset } from '../constants/f1';
 import type {
   EngineerSettings,
   EngineerSettingsResponse,
@@ -74,8 +75,7 @@ export function engineerSettingsFromValues(v: EngineerSettingsValues): Omit<Engi
     smart_discretion_enabled: v.smartDiscretionEnabled,
     tyre_wear_warn_pct: v.tyreWearWarningPct,
     tyre_wear_crit_pct: v.tyreWearCriticalPct,
-    tyre_overheat_c: v.tyreOverheatC,
-    tyre_cold_c: v.tyreColdC,
+    tyre_temp_margin_c: v.tyreTempMarginC,
     wing_damage_warn_pct: v.wingDamageWarnPct,
     floor_damage_warn_pct: v.floorDamageWarnPct,
     engine_wear_warn_pct: v.engineWearWarnPct,
@@ -106,12 +106,26 @@ export function getInitialRadioSettings() {
   };
 }
 
-function alertTogglesFromSwitches(switches: Record<string, boolean>): Partial<AlertToggles> {
-  const toggles: Partial<AlertToggles> = {};
+/**
+ * The panel's switches from a saved setup. A switch the setup was saved without (one added since)
+ * takes the saved preset's value, or is on, as the server treats a missing switch.
+ */
+function alertTogglesFromSwitches(
+  switches: Record<string, boolean>,
+  preset: RadioTriggerPreset
+): { toggles: AlertToggles; missing: boolean } {
+  const presetValues = preset === RADIO_TRIGGER_PRESETS.CUSTOM ? null : TRIGGER_PRESET_VALUES[preset];
+  const toggles = {} as AlertToggles;
+  let missing = false;
   for (const key of ALERT_TOGGLE_KEYS) {
-    if (typeof switches[key] === 'boolean') toggles[key] = switches[key];
+    if (typeof switches[key] === 'boolean') {
+      toggles[key] = switches[key];
+    } else {
+      toggles[key] = presetValues ? presetValues[key] : true;
+      missing = true;
+    }
   }
-  return toggles;
+  return { toggles, missing };
 }
 
 /** Waits this long after the last change before saving, so typing a prompt isn't one request per key. */
@@ -226,6 +240,7 @@ export const useRadioSettingsStore = create<RadioSettingsState>((set, get, store
         .catch(() => null);
       if (!res) return;
 
+      let switchesMissing = false;
       set((state) => {
         const nextState: RadioSettingsState = {
           ...state,
@@ -234,17 +249,25 @@ export const useRadioSettingsStore = create<RadioSettingsState>((set, get, store
           chatterCooldownSeconds: res.chatter_cooldown_ms
             ? Math.round(res.chatter_cooldown_ms / TIME_CONSTANTS.MS_PER_SECOND)
             : state.chatterCooldownSeconds,
-          ...alertTogglesFromSwitches(res.alert_switches ?? {}),
           engineerVersion: res.version,
         };
+        if (res.saved) {
+          const savedPreset = isRadioTriggerPreset(res.trigger_preset)
+            ? res.trigger_preset
+            : RADIO_TRIGGER_PRESETS.CUSTOM;
+          const { toggles, missing } = alertTogglesFromSwitches(res.alert_switches ?? {}, savedPreset);
+          Object.assign(nextState, toggles);
+          switchesMissing = missing;
+        }
         nextState.triggerPreset = isRadioTriggerPreset(res.trigger_preset)
           ? res.trigger_preset
           : detectTriggerPreset(nextState);
         return nextState;
       });
 
-      // Fresh install: save the panel's starting preset so the engine runs what the panel shows.
-      if (!res.saved) {
+      // Fresh install, or switches added since the setup was saved: save the panel's switches so
+      // the engine runs what the panel shows.
+      if (!res.saved || switchesMissing) {
         await get().syncConfigToBackend(true);
       }
     },

@@ -65,9 +65,6 @@ const (
 	// Tyre & Thermal thresholds
 	PunctureWearThresholdPct   = 95.0
 	TyreDegradationTempMarginC = 5.0
-	OverheatRearTyres2025C     = 115.0
-	OverheatRearTyres2026C     = 110.0
-	ColdTyresTargetC           = 85.0
 	ColdTyresMaxAgeLaps        = 2
 
 	// Mechanical & Aero damage thresholds
