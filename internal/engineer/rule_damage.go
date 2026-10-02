@@ -43,24 +43,29 @@ func (r *DamageRule) AlertKeys() map[string]AlertKeyConfig {
 		"damage_wing": {
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseGrid, PhaseRaceStart, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
 			DedupScope:  DedupScopeStint,
+			MaxDelayMs:  ConditionMaxDelayMs,
 		},
 		"damage_floor": {
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseGrid, PhaseRaceStart, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
 			DedupScope:  DedupScopeStint,
+			MaxDelayMs:  ConditionMaxDelayMs,
 		},
 		"damage_engine": {
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
 			DedupScope:  DedupScopeStint,
+			MaxDelayMs:  ConditionMaxDelayMs,
 		},
 		"damage_gearbox_wear": {
 			Category:    DirectiveCategoryDamage,
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
 			DedupScope:  DedupScopeStint,
+			MaxDelayMs:  ConditionMaxDelayMs,
 		},
 		"damage_ice_wear": {
 			Category:    DirectiveCategoryDamage,
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
 			DedupScope:  DedupScopeStint,
+			MaxDelayMs:  ConditionMaxDelayMs,
 		},
 		"damage_terminal_engine": {
 			Category:    DirectiveCategoryDamage,
@@ -185,9 +190,7 @@ func (r *DamageRule) Evaluate(ctx *EvaluationContext) []Directive {
 	if float32(dmg.EngineTCWear) > maxEngineWear {
 		maxEngineWear = float32(dmg.EngineTCWear)
 	}
-	if float32(dmg.GearBoxDamage) > maxEngineWear {
-		maxEngineWear = float32(dmg.GearBoxDamage)
-	}
+	// Gearbox wear has its own call (damage_gearbox_wear).
 
 	if maxEngineWear >= ctx.Config.EngineWearWarnPct && !r.lastEngineWearAlert {
 		r.lastEngineWearAlert = true
@@ -196,7 +199,7 @@ func (r *DamageRule) Evaluate(ctx *EvaluationContext) []Directive {
 			Category: DirectiveCategoryDamage,
 			SubAlert: "engine_wear",
 			Title:    "Engine Component Wear",
-			Message:  fmt.Sprintf("Power unit / gearbox component wear reached %d%%!", int(math.Round(float64(maxEngineWear)))),
+			Message:  fmt.Sprintf("Power unit component wear reached %d%%!", int(math.Round(float64(maxEngineWear)))),
 			Urgency:  UrgencyMedium,
 		})
 	}

@@ -43,33 +43,39 @@ func (r *RivalsRule) AlertKeys() map[string]AlertKeyConfig {
 			ValidPhases:             []DrivingPhase{PhaseRacing},
 			SuppressAfterPitForLaps: PostPitSuppressionLaps,
 			DedupScope:              DedupScopeNone,
+			MaxDelayMs:              MomentMaxDelayMs,
 		},
 		"rival_defend_override": {
 			Category:                DirectiveCategoryRivals,
 			ValidPhases:             []DrivingPhase{PhaseRacing},
 			SuppressAfterPitForLaps: PostPitSuppressionLaps,
 			DedupScope:              DedupScopeNone,
+			MaxDelayMs:              MomentMaxDelayMs,
 		},
 		"rival_attack": {
 			ValidPhases:             []DrivingPhase{PhaseRacing},
 			SuppressAfterPitForLaps: PostPitSuppressionLaps,
 			DedupScope:              DedupScopeNone,
+			MaxDelayMs:              MomentMaxDelayMs,
 		},
 		"rival_attack_override": {
 			Category:                DirectiveCategoryRivals,
 			ValidPhases:             []DrivingPhase{PhaseRacing},
 			SuppressAfterPitForLaps: PostPitSuppressionLaps,
 			DedupScope:              DedupScopeNone,
+			MaxDelayMs:              MomentMaxDelayMs,
 		},
 		"aero_straight_anticipation": {
 			Category:    DirectiveCategoryRivals,
 			ValidPhases: []DrivingPhase{PhaseRacing, PhaseFlyingLap},
 			DedupScope:  DedupScopeNone,
+			MaxDelayMs:  MomentMaxDelayMs,
 		},
 		"overtake_boost_anticipation": {
 			Category:    DirectiveCategoryRivals,
 			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeNone,
+			MaxDelayMs:  MomentMaxDelayMs,
 		},
 	}
 }
@@ -154,10 +160,12 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 
 	// 1. Defend: Car Behind (playerPos + 1)
 	maxDefendDist := ctx.Config.RivalGapSec * AverageRaceSpeedMetersPerSec
+	behindIdx := -1
 	for i, rival := range ctx.LapData.LapData {
 		if i == ctx.PlayerCarIndex || int(rival.CarPosition) != playerPos+1 {
 			continue
 		}
+		behindIdx = i
 		distDelta := playerLap.TotalDistance - rival.TotalDistance
 		var gapSec float32
 		var hasExactGap bool
@@ -173,6 +181,10 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 		}
 
 		inDefendRange := (hasExactGap && gapSec <= ctx.Config.RivalGapSec) || (!hasExactGap && distDelta > 0 && distDelta < maxDefendDist)
+		// The car can be called again once it has dropped back past the threshold.
+		if r.lastDrsWarningIndex == i && gapSec > ctx.Config.RivalGapSec+RivalRearmHysteresisSec {
+			r.lastDrsWarningIndex = -1
+		}
 		if inDefendRange && r.lastDrsWarningIndex != i {
 			r.lastDrsWarningIndex = i
 
@@ -215,13 +227,20 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 		}
 	}
 
+	// A car that is no longer right behind can be called again when it is back there.
+	if r.lastDrsWarningIndex != behindIdx {
+		r.lastDrsWarningIndex = -1
+	}
+
 	// 2. Attack: Car Ahead (playerPos - 1)
+	aheadIdx := -1
 	if playerPos > 1 {
 		maxAttackDist := ctx.Config.RivalAheadGapSec * AverageRaceSpeedMetersPerSec
 		for i, rival := range ctx.LapData.LapData {
 			if i == ctx.PlayerCarIndex || int(rival.CarPosition) != playerPos-1 {
 				continue
 			}
+			aheadIdx = i
 			distDelta := rival.TotalDistance - playerLap.TotalDistance
 			var gapSec float32
 			var hasExactGap bool
@@ -237,6 +256,9 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 			}
 
 			inAttackRange := (hasExactGap && gapSec <= ctx.Config.RivalAheadGapSec) || (!hasExactGap && distDelta > 0 && distDelta < maxAttackDist)
+			if r.lastCarAheadWarningIndex == i && gapSec > ctx.Config.RivalAheadGapSec+RivalRearmHysteresisSec {
+				r.lastCarAheadWarningIndex = -1
+			}
 			if inAttackRange && r.lastCarAheadWarningIndex != i {
 				r.lastCarAheadWarningIndex = i
 
@@ -273,6 +295,9 @@ func (r *RivalsRule) Evaluate(ctx *EvaluationContext) []Directive {
 				})
 			}
 		}
+	}
+	if r.lastCarAheadWarningIndex != aheadIdx {
+		r.lastCarAheadWarningIndex = -1
 	}
 
 	return directives

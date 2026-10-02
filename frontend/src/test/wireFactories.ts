@@ -344,6 +344,7 @@ export function makeEngineerDirective(fields: Partial<EngineerDirective> = {}): 
     timestamp: 0,
     car_index: 0,
     session_time: 0,
+    ttl_ms: 15000,
     ...fields,
   };
 }

@@ -14,6 +14,7 @@ export interface EngineerDirective {
   timestamp: number;
   car_index: number;
   session_time: number;
+  ttl_ms: number;
 }
 
 export type EngineerDirectiveCategory = 'pit_strategy' | 'coaching' | 'weather' | 'teammate' | 'tyres' | 'damage' | 'ers' | 'brakes' | 'fuel' | 'rivals' | 'qualy' | 'flags';

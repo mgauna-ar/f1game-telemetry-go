@@ -95,6 +95,12 @@ type AlertKeyConfig struct {
 	MinLapDistancePct       float32
 	SuppressAfterPitForLaps int
 	DedupScope              DedupScope
+	// MaxDelayMs is how long the call stays worth saying while a passing gate holds it back
+	// (braking, radio spacing, cooldown, pause). Zero means DefaultMaxDelayMs.
+	MaxDelayMs int64
+	// MinRepeatMs is the shortest gap before the call is made again, at any urgency. Zero means
+	// DefaultMinRepeatMs.
+	MinRepeatMs int64
 }
 
 // Tuning holds the race engineer values the driver sets in the dashboard: radio spacing and
@@ -208,6 +214,9 @@ type EngineerDirective struct {
 	Timestamp   int64                     `json:"timestamp"`
 	CarIndex    int                       `json:"car_index"`
 	SessionTime float32                   `json:"session_time"`
+	// TTLMs is how long after it arrives the call is still worth saying; a dashboard drops it
+	// from its speech queue after that.
+	TTLMs int64 `json:"ttl_ms"`
 }
 
 // Directive is an alias for EngineerDirective for concise usage.

@@ -37,7 +37,7 @@ func (r *CoachingRule) Category() string {
 }
 
 func (r *CoachingRule) ValidPhases() []DrivingPhase {
-	return []DrivingPhase{PhaseRacing, PhaseFormationLap, PhaseRaceStart}
+	return []DrivingPhase{PhaseRacing, PhaseFormationLap}
 }
 
 func (r *CoachingRule) AlertKeys() map[string]AlertKeyConfig {
@@ -45,14 +45,17 @@ func (r *CoachingRule) AlertKeys() map[string]AlertKeyConfig {
 		"coaching_s1": {
 			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeLap,
+			MaxDelayMs:  MomentMaxDelayMs,
 		},
 		"coaching_s2": {
 			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeLap,
+			MaxDelayMs:  MomentMaxDelayMs,
 		},
 		"coaching_s3": {
 			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeLap,
+			MaxDelayMs:  MomentMaxDelayMs,
 		},
 		"formation_lap_start": {
 			ValidPhases: []DrivingPhase{PhaseFormationLap},
@@ -61,10 +64,12 @@ func (r *CoachingRule) AlertKeys() map[string]AlertKeyConfig {
 		"grid_approach": {
 			ValidPhases: []DrivingPhase{PhaseFormationLap},
 			DedupScope:  DedupScopePhase,
+			MaxDelayMs:  MomentMaxDelayMs,
 		},
 		"start_reaction_time": {
-			ValidPhases: []DrivingPhase{PhaseRaceStart, PhaseRacing},
+			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopePhase,
+			MaxDelayMs:  ConditionMaxDelayMs, // said once a race, so it waits out a coaching cooldown
 		},
 	}
 }
@@ -148,10 +153,10 @@ func (r *CoachingRule) Evaluate(ctx *EvaluationContext) []Directive {
 		return directives
 	}
 
-	// 2. Race Start Reaction Time debrief
+	// 2. Race Start Reaction Time debrief, once the start's radio silence ends on lap 1
 	playerLap := ctx.PlayerLap()
-	if (ctx.Phase == PhaseRaceStart || ctx.Phase == PhaseRacing) && ctx.IsRaceSession() && playerLap != nil && playerLap.CurrentLapNum == 1 {
-		if !r.startReactionFired && ctx.Session != nil && playerLap.LapDistance <= RaceStartLaunchMaxDistanceM {
+	if ctx.Phase == PhaseRacing && ctx.IsRaceSession() && playerLap != nil && playerLap.CurrentLapNum == 1 {
+		if !r.startReactionFired && ctx.Session != nil && playerLap.LapDistance <= RaceStartReactionMaxDistanceM {
 			rt := ctx.Session.StartReactionTime
 			if rt >= MinValidReactionTimeSeconds && rt <= MaxValidReactionTimeSeconds {
 				r.startReactionFired = true

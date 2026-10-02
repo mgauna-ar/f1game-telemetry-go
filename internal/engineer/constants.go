@@ -12,6 +12,19 @@ const (
 	SmartDiscretionBrakeThreshold = 0.30
 	SmartDiscretionSteerThreshold = 0.35
 
+	// Radio delivery: how long a call held back by a passing gate (braking, radio spacing, cooldown,
+	// pause) stays worth saying, the shortest gap before the same call is made again, and how long
+	// a dashboard may keep a call queued behind other speech.
+	DefaultMaxDelayMs     = 20_000
+	MomentMaxDelayMs      = 5_000  // gaps, aero zones and sector times go stale fast
+	ConditionMaxDelayMs   = 60_000 // wear, damage and similar conditions stay true
+	DefaultMinRepeatMs    = 10_000
+	CollisionMinRepeatMs  = 15_000
+	BlueFlagMinRepeatMs   = 20_000
+	EngineTempMinRepeatMs = 60_000
+	MaxSpeechTTLMs        = 15_000
+	MinSpeechTTLMs        = 2_000
+
 	// Stint & Pit stop tracking heuristics
 	PitStopDetectionMaxTyreAgeLaps = 1
 	MinStintLapsForReset           = 3
@@ -20,14 +33,15 @@ const (
 	CleanAirMinRemainingLaps       = 4
 
 	// Race start & pit stop procedure heuristics
-	GridApproachDistanceFraction = 0.92  // Within final 8% of track on formation lap
-	RaceStartLaunchMaxDistanceM  = 500.0 // Distance window to report launch reaction
-	MinValidReactionTimeSeconds  = 0.05
-	MaxValidReactionTimeSeconds  = 1.50
-	FastReactionTimeThresholdSec = 0.25
-	SlowReactionTimeThresholdSec = 0.40
-	FastPitStopDurationSec       = 2.8
-	SlowPitStopDurationSec       = 4.0
+	GridApproachDistanceFraction  = 0.92   // Within final 8% of track on formation lap
+	RaceStartPhaseDistanceM       = 1000.0 // Lap 1 distance after which the start's radio silence ends
+	RaceStartReactionMaxDistanceM = 3000.0 // Lap 1 distance after which the launch reaction is too old to report
+	MinValidReactionTimeSeconds   = 0.05
+	MaxValidReactionTimeSeconds   = 1.50
+	FastReactionTimeThresholdSec  = 0.25
+	SlowReactionTimeThresholdSec  = 0.40
+	FastPitStopDurationSec        = 2.8
+	SlowPitStopDurationSec        = 4.0
 
 	// Speed and distance estimations
 	AverageRaceSpeedMetersPerSec   = 65.0
@@ -89,6 +103,7 @@ const (
 	// Rivals & Overtake thresholds
 	RivalDefendGapDefaultSec = 1.0
 	RivalAttackGapDefaultSec = 1.2
+	RivalRearmHysteresisSec  = 0.5 // Gap beyond the threshold before the same rival can be called again
 
 	// Qualifying & Shootout thresholds
 	QualyCleanAirDefaultSec             = 4.0
@@ -96,8 +111,9 @@ const (
 	QualyElimDangerTimeSec              = 300.0
 	FinalSectorTrackDistanceFraction    = 0.70
 	MinTrafficAheadDistanceMeters       = 10.0
-	QualyQ1EliminationPositionThreshold = 15
+	QualyQ1EliminationPositionThreshold = 15 // Last safe Q1 place on a 20-car grid, when the car count is unknown
 	QualyQ2EliminationPositionThreshold = 10
+	QualyQ3Cars                         = 10 // Cars in Q3; Q1 and Q2 knock out half of the rest each
 
 	// Flags & Weather thresholds
 	WeatherRainTransitionProbPct   = 50

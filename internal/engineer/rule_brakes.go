@@ -36,18 +36,22 @@ func (r *BrakesRule) AlertKeys() map[string]AlertKeyConfig {
 		"brake_hot": {
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseRacing},
 			DedupScope:  DedupScopeStint,
+			MaxDelayMs:  ConditionMaxDelayMs,
 		},
 		"brake_cold": {
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseSafetyCar},
 			DedupScope:  DedupScopePhase,
+			MaxDelayMs:  ConditionMaxDelayMs,
 		},
 		"brake_bias": {
 			ValidPhases: []DrivingPhase{PhaseRacing, PhaseFlyingLap},
 			DedupScope:  DedupScopeStint,
+			MaxDelayMs:  ConditionMaxDelayMs,
 		},
 		"brake_bias_ok": {
 			ValidPhases: []DrivingPhase{PhaseRacing, PhaseFlyingLap},
 			DedupScope:  DedupScopeStint,
+			MaxDelayMs:  ConditionMaxDelayMs,
 		},
 	}
 }

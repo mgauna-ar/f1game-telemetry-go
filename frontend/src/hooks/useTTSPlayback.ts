@@ -32,6 +32,8 @@ interface SpeechQueueItem {
   emotion?: SpeechEmotion;
   /** Set on sentences of a streamed reply. */
   stream?: ReplyStreamState;
+  /** Epoch ms after which a queued pit wall call is stale and is skipped instead of spoken. */
+  expiresAt?: number;
 }
 
 interface ReplyStreamState {
@@ -56,7 +58,8 @@ export interface UseTTSPlaybackReturn {
   speakMessage: (
     text: string,
     forceInterrupt?: boolean,
-    emotion?: { rateModifier?: number; pitchModifier?: number }
+    emotion?: { rateModifier?: number; pitchModifier?: number },
+    ttlMs?: number
   ) => Promise<void>;
   stopSpeech: () => void;
   testRadioTransmission: () => Promise<void>;
@@ -133,6 +136,10 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
   );
 
   const playNext = useCallback(async () => {
+    // A pit wall call that waited too long behind other speech is no longer worth saying.
+    const now = Date.now();
+    queueRef.current = queueRef.current.filter((item) => item.expiresAt === undefined || item.expiresAt > now);
+
     if (!isRadioEnabled || queueRef.current.length === 0) {
       const stream = streamRef.current;
       if (isRadioEnabled && stream && !stream.finished && !stream.cancelled) {
@@ -231,10 +238,12 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
     async (
       text: string,
       forceInterrupt = false,
-      emotion?: { rateModifier?: number; pitchModifier?: number }
+      emotion?: { rateModifier?: number; pitchModifier?: number },
+      ttlMs?: number
     ) => {
       const cleaned = cleanRadioSpeechText(text);
       if (!isRadioEnabled || !cleaned) return;
+      const expiresAt = ttlMs ? Date.now() + ttlMs : undefined;
 
       if (forceInterrupt) {
         // Critical emergency or forced interrupt: halt current audio, any reply being spoken,
@@ -243,7 +252,7 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
         queueRef.current = [];
         stopRadioSpeech();
         isSpeakingRef.current = false;
-        queueRef.current.push({ id: newQueueItemId(), text: cleaned, emotion });
+        queueRef.current.push({ id: newQueueItemId(), text: cleaned, emotion, expiresAt });
         await playNext();
         return;
       }
@@ -252,13 +261,13 @@ export function useTTSPlayback(options: UseTTSPlaybackOptions): UseTTSPlaybackRe
       if (isSpeakingRef.current) {
         const queuedCalls = queueRef.current.filter((item) => !item.stream).length;
         if (queuedCalls < MAX_QUEUE_SIZE) {
-          queueRef.current.push({ id: newQueueItemId(), text: cleaned, emotion });
+          queueRef.current.push({ id: newQueueItemId(), text: cleaned, emotion, expiresAt });
         }
         return;
       }
 
       // Not currently speaking, play immediately
-      queueRef.current.push({ id: newQueueItemId(), text: cleaned, emotion });
+      queueRef.current.push({ id: newQueueItemId(), text: cleaned, emotion, expiresAt });
       await playNext();
     },
     [isRadioEnabled, playNext, cancelReplyStream]

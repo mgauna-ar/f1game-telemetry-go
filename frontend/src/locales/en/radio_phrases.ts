@@ -225,15 +225,15 @@ export const radio_phrases = {
   },
   undercut_window: {
     bono: [
-      'Undercut window is open, {driver}. Hammer time on this in-lap!',
-      'We have an undercut opportunity. Push hard now, {driver}.',
+      'Car behind has boxed for the undercut, {driver}. Push now, we need to cover it.',
+      'Undercut attempt from the car behind. Hammer time, {driver}, push hard now.',
     ],
     colapinto: [
-      'Undercut window open, {driver}. Push flat out on this in-lap!',
+      'Car behind just pitted, {driver}! Push flat out to cover the undercut.',
     ],
     standard: [
-      'Undercut window is open. Push hard on this in-lap.',
-      'Undercut window active, {driver}. Maximize pace on the in-lap.',
+      'Car behind has pitted for the undercut. Push now to cover it.',
+      'Undercut threat, {driver}. The car behind has boxed, maximize your pace now.',
     ],
   },
   pit_window_open: {

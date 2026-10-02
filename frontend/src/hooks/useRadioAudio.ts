@@ -38,7 +38,8 @@ export interface UseRadioAudioReturn {
   speakMessage: (
     text: string,
     forceInterrupt?: boolean,
-    emotion?: { rateModifier?: number; pitchModifier?: number }
+    emotion?: { rateModifier?: number; pitchModifier?: number },
+    ttlMs?: number
   ) => Promise<void>;
   stopRadio: () => void;
   testRadioTransmission: () => Promise<void>;
@@ -112,9 +113,10 @@ export function useRadioAudio(options: UseRadioAudioOptions = {}): UseRadioAudio
     async (
       text: string,
       forceInterrupt = false,
-      emotion?: { rateModifier?: number; pitchModifier?: number }
+      emotion?: { rateModifier?: number; pitchModifier?: number },
+      ttlMs?: number
     ) => {
-      await ttsSpeakMessage(text, forceInterrupt, emotion);
+      await ttsSpeakMessage(text, forceInterrupt, emotion, ttlMs);
     },
     [ttsSpeakMessage]
   );

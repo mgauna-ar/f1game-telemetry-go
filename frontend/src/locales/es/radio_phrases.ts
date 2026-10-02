@@ -235,14 +235,14 @@ export const radio_phrases = {
   },
   undercut_window: {
     colapinto: [
-      '¡Ventana de undercut abierta, {driver}! Dale con todo en esta vuelta de entrada.',
+      '¡El de atrás entró a boxes, {driver}! Dale con todo para cubrir el undercut.',
     ],
     bono: [
-      'Ventana de undercut abierta. Empuja al máximo en esta vuelta de entrada.',
+      'El auto de atrás paró buscando el undercut. Empuja al máximo ahora, {driver}.',
     ],
     standard: [
-      'Ventana de undercut abierta. Empuja al máximo en esta vuelta de entrada.',
-      'Oportunidad de undercut activa, {driver}. Vuelta rápida de entrada.',
+      'El auto de atrás entró a boxes buscando el undercut. Empuja ahora para cubrirlo.',
+      'Amenaza de undercut, {driver}. El de atrás ya paró, máximo ritmo ahora.',
     ],
   },
   pit_window_open: {

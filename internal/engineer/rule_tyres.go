@@ -44,6 +44,7 @@ func (r *TyresRule) AlertKeys() map[string]AlertKeyConfig {
 		"tyre_wear": {
 			ValidPhases: []DrivingPhase{PhaseRacing, PhaseSafetyCar},
 			DedupScope:  DedupScopeStint,
+			MaxDelayMs:  ConditionMaxDelayMs,
 		},
 		"tyre_puncture": {
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseGrid, PhaseRaceStart, PhaseFlyingLap, PhaseRacing, PhaseInLap, PhaseSafetyCar},
@@ -52,15 +53,18 @@ func (r *TyresRule) AlertKeys() map[string]AlertKeyConfig {
 		"tyre_overheat": {
 			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeStint,
+			MaxDelayMs:  ConditionMaxDelayMs,
 		},
 		"tyre_cold": {
 			ValidPhases:       []DrivingPhase{PhaseOutLap, PhaseFormationLap, PhaseSafetyCar},
 			MinLapDistancePct: MinOutLapDistanceCompletionPct,
 			DedupScope:        DedupScopePhase,
+			MaxDelayMs:        ConditionMaxDelayMs,
 		},
 		"tyre_crossover": {
 			ValidPhases: []DrivingPhase{PhaseRacing, PhaseSafetyCar},
 			DedupScope:  DedupScopeStint,
+			MaxDelayMs:  ConditionMaxDelayMs,
 		},
 		"tyre_crossover_wet": {
 			ValidPhases: []DrivingPhase{PhaseRacing, PhaseSafetyCar},
@@ -74,14 +78,17 @@ func (r *TyresRule) AlertKeys() map[string]AlertKeyConfig {
 			Category:    DirectiveCategoryPitStrategy,
 			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeStint,
+			MaxDelayMs:  ConditionMaxDelayMs,
 		},
 		"tyre_blistering": {
 			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeStint,
+			MaxDelayMs:  ConditionMaxDelayMs,
 		},
 		"tyre_pressure_high": {
 			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeStint,
+			MaxDelayMs:  ConditionMaxDelayMs,
 		},
 	}
 }

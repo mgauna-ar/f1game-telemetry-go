@@ -3,7 +3,6 @@ package engineer
 import (
 	"fmt"
 	"math"
-	"time"
 
 	"github.com/mgauna/f1game-telemetry-go/internal/ai"
 	"github.com/mgauna/f1game-telemetry-go/internal/packets"
@@ -37,7 +36,7 @@ func (e *EngineerEngine) liveView() (*raceView, bool) {
 
 	if e.latestSession == nil || e.latestLapData == nil ||
 		e.playerCarIndex < 0 || e.playerCarIndex >= packets.MaxCars ||
-		time.Now().UnixMilli()-e.lastPacketAt > LiveRaceContextMaxAgeMs {
+		e.nowMs()-e.lastPacketAt > LiveRaceContextMaxAgeMs {
 		return nil, false
 	}
 

@@ -166,6 +166,8 @@ export interface RadioAlertPayload {
   category: RadioAlertCategory;
   isCritical: boolean;
   emotion: RadioEmotion;
+  /** How long the call stays worth saying while it waits behind other speech (ms). */
+  ttlMs?: number;
 }
 
 export interface RadioEmotion {

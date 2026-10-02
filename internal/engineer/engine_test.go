@@ -861,12 +861,20 @@ func TestEngineerEngine_DeriveDrivingPhase(t *testing.T) {
 		session   *packets.PacketSessionData
 		lap       *packets.LapData
 		telemetry *packets.CarTelemetryData
+		redFlag   bool
 		expected  DrivingPhase
 	}{
 		{
 			name:     "Red flag",
 			session:  &packets.PacketSessionData{NumRedFlagPeriods: 1, SessionType: packets.SessionRace},
+			redFlag:  true,
 			expected: PhaseRedFlag,
+		},
+		{
+			name:     "Racing again after an earlier red flag",
+			session:  &packets.PacketSessionData{NumRedFlagPeriods: 1, SessionType: packets.SessionRace},
+			lap:      &packets.LapData{DriverStatus: packets.DriverStatusOnTrack, CurrentLapNum: 12},
+			expected: PhaseRacing,
 		},
 		{
 			name:     "In garage explicit",
@@ -953,6 +961,7 @@ func TestEngineerEngine_DeriveDrivingPhase(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			engine.redFlagActive = tt.redFlag
 			got := engine.deriveDrivingPhase(tt.session, tt.lap, tt.telemetry)
 			if got != tt.expected {
 				t.Errorf("deriveDrivingPhase() = %v, want %v", got, tt.expected)

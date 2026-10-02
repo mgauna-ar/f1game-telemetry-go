@@ -32,14 +32,18 @@ func (r *ERSRule) AlertKeys() map[string]AlertKeyConfig {
 		"ers_low": {
 			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeLap,
+			MaxDelayMs:  ConditionMaxDelayMs,
 		},
 		"ers_clipping": {
 			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeLap,
+			MaxDelayMs:  MomentMaxDelayMs,
 		},
 		"engine_temp": {
 			ValidPhases: []DrivingPhase{PhaseOutLap, PhaseFlyingLap, PhaseRacing, PhaseInLap},
 			DedupScope:  DedupScopeStint,
+			MaxDelayMs:  ConditionMaxDelayMs,
+			MinRepeatMs: EngineTempMinRepeatMs,
 		},
 	}
 }

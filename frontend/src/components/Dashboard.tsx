@@ -84,7 +84,7 @@ export const Dashboard: React.FC = () => {
     // Instant pit wall radio call with persona-specific phrasing & randomized variety
     const speech = getProactiveRadioSpeech(payload.category, r.effectiveLanguage, r.persona, r.driverCallsign);
     if (speech) {
-      r.speakMessage(speech, payload.isCritical, payload.emotion);
+      r.speakMessage(speech, payload.isCritical, payload.emotion, payload.ttlMs);
     }
   }, []);
 

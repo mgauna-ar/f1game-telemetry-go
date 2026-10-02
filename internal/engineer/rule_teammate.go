@@ -44,6 +44,7 @@ func (r *TeammateRule) AlertKeys() map[string]AlertKeyConfig {
 		"teammate_ahead": {
 			ValidPhases: []DrivingPhase{PhaseRacing},
 			DedupScope:  DedupScopeNone,
+			MaxDelayMs:  MomentMaxDelayMs,
 		},
 		"teammate_pitting": {
 			ValidPhases: []DrivingPhase{PhaseRacing, PhaseOutLap, PhaseInLap, PhaseSafetyCar},
