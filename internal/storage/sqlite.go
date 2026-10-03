@@ -303,7 +303,8 @@ func saveLap(ctx context.Context, db sqlx.ExtContext, l *Lap, mergeMode bool) er
 	return nil
 }
 
-// SaveLapTelemetryBlob compresses and saves the telemetry samples for a given lap ID.
+// SaveLapTelemetryBlob compresses and saves the telemetry samples for a given lap ID, thinned to
+// at most packets.RecordedTelemetryHz (ThinSamples).
 func (r *SQLiteRepository) SaveLapTelemetryBlob(ctx context.Context, lapID int64, samples []TelemetrySample) error {
 	return saveLapTelemetryBlob(ctx, r.db, lapID, samples)
 }
@@ -313,6 +314,7 @@ func saveLapTelemetryBlob(ctx context.Context, db sqlx.ExtContext, lapID int64, 
 		return nil
 	}
 
+	samples = ThinSamples(samples)
 	compressed, err := compressJSON(samples)
 	if err != nil {
 		return fmt.Errorf("failed to compress lap telemetry: %w", err)

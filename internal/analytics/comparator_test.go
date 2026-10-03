@@ -400,12 +400,15 @@ func TestMergeLapComparison(t *testing.T) {
 	}
 
 	samples := []storage.TelemetrySample{
-		{LapDistance: 0, Speed: 200, Throttle: 1.0, Brake: 0.0, Steer: 0.0, Gear: 6},
-		{LapDistance: 100, Speed: 220, Throttle: 1.0, Brake: 0.0, Steer: 0.0, Gear: 6},
-		{LapDistance: 200, Speed: 240, Throttle: 1.0, Brake: 0.0, Steer: 0.0, Gear: 7},
+		{LapDistance: 0, SessionTime: 10.0, Speed: 200, Throttle: 1.0, Brake: 0.0, Steer: 0.0, Gear: 6},
+		{LapDistance: 100, SessionTime: 11.7, Speed: 220, Throttle: 1.0, Brake: 0.0, Steer: 0.0, Gear: 6},
+		{LapDistance: 200, SessionTime: 13.3, Speed: 240, Throttle: 1.0, Brake: 0.0, Steer: 0.0, Gear: 7},
 	}
 	if err := repo.SaveLapTelemetryBlob(ctx, lapA.ID, samples); err != nil {
 		t.Fatalf("failed to save telemetry: %v", err)
+	}
+	if stored, err := repo.GetTelemetryByLap(ctx, lapA.ID); err != nil || len(stored) != len(samples) {
+		t.Fatalf("stored %d of %d samples (err %v), want all", len(stored), len(samples), err)
 	}
 
 	resp, err = MergeLapComparison(ctx, repo, lapA.ID, 0, 50.0, 200.0)

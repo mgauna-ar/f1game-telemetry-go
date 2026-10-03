@@ -300,6 +300,36 @@ func TestSaveAndGetTelemetryWithERS(t *testing.T) {
 	}
 }
 
+func TestSaveLapTelemetryBlobStoresSixtyHertzAtTwenty(t *testing.T) {
+	repo := setupTestRepo(t)
+	session := createTestSession(t, repo)
+	ctx := context.Background()
+
+	lap := &Lap{SessionID: session.ID, LapNumber: 1, LapTimeMS: 90000}
+	if err := repo.SaveLap(ctx, lap, false); err != nil {
+		t.Fatalf("SaveLap() error = %v", err)
+	}
+	samples := feedLap(60, testLapSeconds, testSessionStart, 0, 0)
+	if err := repo.SaveLapTelemetryBlob(ctx, lap.ID, samples); err != nil {
+		t.Fatalf("SaveLapTelemetryBlob() error = %v", err)
+	}
+
+	stored, err := repo.GetTelemetryByLap(ctx, lap.ID)
+	if err != nil {
+		t.Fatalf("GetTelemetryByLap() error = %v", err)
+	}
+	if want := ThinSamples(samples); len(stored) != len(want) || len(stored) > len(samples)/3+1 {
+		t.Fatalf("stored %d of %d samples, want %d (20 Hz)", len(stored), len(samples), len(want))
+	}
+	saved, err := repo.GetLapByID(ctx, lap.ID)
+	if err != nil {
+		t.Fatalf("GetLapByID() error = %v", err)
+	}
+	if saved.SampleCount != len(stored) {
+		t.Errorf("sample_count = %d, want the %d stored samples", saved.SampleCount, len(stored))
+	}
+}
+
 func TestDeleteSession(t *testing.T) {
 	repo := setupTestRepo(t)
 	session := createTestSession(t, repo)

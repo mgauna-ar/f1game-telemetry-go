@@ -98,7 +98,7 @@ To stream telemetry from your game (PC, PlayStation, or Xbox):
    * **UDP Format:** `2025` *(or `2026` for Season Pack DLC)*
    * **UDP IP Address:** IP address of the machine running this application (`127.0.0.1` if playing on the same PC; the **Live** tab displays your PC's LAN IP addresses with copy buttons for consoles)
    * **UDP Port:** `20777`
-   * **UDP Send Rate:** `20Hz` *(Recommended for optimal storage savings and smooth 60 FPS charts; 60Hz is also fully supported)*
+   * **UDP Send Rate:** `20Hz` *(Recommended. Saved laps are stored at up to 20 Hz, so a higher rate works but adds nothing to them)*
 
 ---
 
