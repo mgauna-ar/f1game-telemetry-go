@@ -60,9 +60,11 @@
 Pre-compiled, self-contained single binaries with the embedded web dashboard are available under **[GitHub Releases](https://github.com/mgauna-ar/f1game-telemetry-go/releases/latest)**. **No runtime dependencies or installations are required** (no Go or Node.js needed to run).
 
 1. Download the archive for your operating system from the **[Latest Release](https://github.com/mgauna-ar/f1game-telemetry-go/releases/latest)**:
-   * **Windows:** `f1telemetry_<version>_windows_amd64.zip` (or `arm64`)
-   * **macOS:** `f1telemetry_<version>_darwin_arm64.zip` (Apple Silicon M-series) or `f1telemetry_<version>_darwin_amd64.zip` (Intel)
-   * **Linux:** `f1telemetry_<version>_linux_amd64.tar.gz` (or `arm64`)
+   * **Windows (x64):** `f1telemetry_<version>_windows_amd64.zip`
+   * **macOS (Apple Silicon M-series):** `f1telemetry_<version>_darwin_arm64.zip`
+   * **Linux (x64):** `f1telemetry_<version>_linux_amd64.tar.gz`
+
+   Other platforms (Intel Macs, ARM Linux) aren't published as binaries: build from source with `make build-embedded`. Windows on ARM runs the x64 build.
 2. Extract the archive contents.
 3. Run `f1telemetry.exe` (Windows) or `./f1telemetry` (macOS / Linux). A small **app window** opens: whether the game is sending telemetry, the dashboard's address on this PC and for a phone or tablet, what to enter in the game, and an **Open dashboard** button. It's a Chrome, Edge, Chromium or Brave window without tabs (Edge comes with Windows; without one of these it opens as a tab in your default browser). On macOS it opens in your own browser profile, so the browser stays the one you're signed in to. Closing it keeps the app running: on Windows in the tray, on macOS / Linux in its terminal (stop it with Ctrl+C or the window's **Quit** button). Turn off **Show this window at startup** in it to start straight to the tray or terminal. Starting it again while it's already running does nothing. Every page has its own address you can bookmark or share on your network: a session (`/history/12/stints`), a lap comparison with its zoom (`/compare?sa=12&a=345&b=346`), your progress at a track (`/progress/Silverstone`), the live cockpit (`/live/cockpit`) or a settings section (`/settings/comparator`).
 
@@ -84,7 +86,7 @@ There's no console window: the app runs with an icon in the notification area (n
 
 ### 🧪 Development Builds (Without a Release)
 
-Every CI run of a pull request or of `main` builds all six binaries. You can also start one by hand for any branch: **Actions** → **CI/CD Pipeline** → **Run workflow**. Open the run, scroll to **Artifacts**, and download the one for your system (e.g. `f1telemetry-windows-amd64`). They are kept for 14 days. These builds report a `dev-<commit>` version, so they don't offer release updates. On macOS / Linux, make the extracted file executable first (`chmod +x f1telemetry_*`).
+Every CI run of a pull request or of `main` builds all three binaries. You can also start one by hand for any branch: **Actions** → **CI/CD Pipeline** → **Run workflow**. Open the run, scroll to **Artifacts**, and download the one for your system (e.g. `f1telemetry-windows-amd64`). They are kept for 14 days. These builds report a `dev-<commit>` version, so they don't offer release updates. On macOS / Linux, make the extracted file executable first (`chmod +x f1telemetry_*`).
 
 ---
 

@@ -27,17 +27,14 @@ build-frontend:
 build-embedded: build-frontend
 	go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/server
 
-## build-all: Cross-compile standalone binaries for Windows, macOS, and Linux
+## build-all: Cross-compile standalone binaries for Windows x64, macOS Apple Silicon, and Linux x64
 build-all: build-frontend
 	@mkdir -p $(BUILD_DIR)
 	@go run ./scripts/build_windows_resources.go
 	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="$(LDFLAGS) $(WINDOWS_LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)_windows_amd64.exe ./cmd/server
-	CGO_ENABLED=0 GOOS=windows GOARCH=arm64 go build -ldflags="$(LDFLAGS) $(WINDOWS_LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)_windows_arm64.exe ./cmd/server
 	@go run ./scripts/build_windows_resources.go -clean
 	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)_darwin_arm64 ./cmd/server
-	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)_darwin_amd64 ./cmd/server
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)_linux_amd64 ./cmd/server
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="$(LDFLAGS)" -o $(BUILD_DIR)/$(BINARY_NAME)_linux_arm64 ./cmd/server
 	@echo "All standalone binaries built successfully in $(BUILD_DIR)/"
 
 ## run: Build and run the server

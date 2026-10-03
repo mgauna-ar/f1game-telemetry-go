@@ -78,7 +78,7 @@ func generateResources() {
 		os.Exit(1)
 	}
 
-	architectures := []string{"amd64", "arm64"}
+	architectures := []string{"amd64"}
 	for _, arch := range architectures {
 		outFile := fmt.Sprintf("cmd/server/rsrc_windows_%s.syso", arch)
 		cmd := exec.Command("go", "run", "github.com/akavel/rsrc@latest",
