@@ -71,11 +71,8 @@ jobs:
 
           TARGETS=(
             "windows/amd64/f1telemetry_${TAG}_windows_amd64.zip/f1telemetry.exe"
-            "windows/arm64/f1telemetry_${TAG}_windows_arm64.zip/f1telemetry.exe"
             "darwin/arm64/f1telemetry_${TAG}_darwin_arm64.zip/f1telemetry"
-            "darwin/amd64/f1telemetry_${TAG}_darwin_amd64.zip/f1telemetry"
             "linux/amd64/f1telemetry_${TAG}_linux_amd64.tar.gz/f1telemetry"
-            "linux/arm64/f1telemetry_${TAG}_linux_arm64.tar.gz/f1telemetry"
           )
 
           for TARGET in "${TARGETS[@]}"; do

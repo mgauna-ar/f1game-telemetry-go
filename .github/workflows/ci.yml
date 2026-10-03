@@ -135,13 +135,6 @@ jobs:
           path: bin/f1telemetry_windows_amd64.exe
           retention-days: 14
 
-      - name: Upload Windows (ARM64)
-        uses: actions/upload-artifact@v7
-        with:
-          name: f1telemetry-windows-arm64
-          path: bin/f1telemetry_windows_arm64.exe
-          retention-days: 14
-
       - name: Upload macOS (Apple silicon)
         uses: actions/upload-artifact@v7
         with:
@@ -149,23 +142,9 @@ jobs:
           path: bin/f1telemetry_darwin_arm64
           retention-days: 14
 
-      - name: Upload macOS (Intel)
-        uses: actions/upload-artifact@v7
-        with:
-          name: f1telemetry-darwin-amd64
-          path: bin/f1telemetry_darwin_amd64
-          retention-days: 14
-
       - name: Upload Linux (x64)
         uses: actions/upload-artifact@v7
         with:
           name: f1telemetry-linux-amd64
           path: bin/f1telemetry_linux_amd64
-          retention-days: 14
-
-      - name: Upload Linux (ARM64)
-        uses: actions/upload-artifact@v7
-        with:
-          name: f1telemetry-linux-arm64
-          path: bin/f1telemetry_linux_arm64
           retention-days: 14
