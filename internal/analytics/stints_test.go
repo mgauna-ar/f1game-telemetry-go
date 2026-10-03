@@ -192,3 +192,61 @@ func TestComputeSessionStintsLeavesOutLapsFromTheFit(t *testing.T) {
 		t.Errorf("age 2 of stint 2: %+v", resp.DegradationData[1])
 	}
 }
+
+func TestBuildStrategyKPIsMostPopularStrategy(t *testing.T) {
+	// driver finishes in position with one stint per compound
+	driver := func(position int, compounds ...string) DriverStintData {
+		d := DriverStintData{Position: position}
+		for _, c := range compounds {
+			d.Stints = append(d.Stints, DriverStint{Compound: c})
+		}
+		return d
+	}
+	tests := []struct {
+		name         string
+		drivers      []DriverStintData
+		wantStrategy string
+		wantDrivers  int
+	}{
+		{name: "no stints", drivers: []DriverStintData{{Position: 1}}, wantStrategy: "N/A", wantDrivers: 0},
+		{
+			name:         "most drivers",
+			drivers:      []DriverStintData{driver(1, "SOFT", "HARD"), driver(2, "MEDIUM", "HARD"), driver(3, "MEDIUM", "HARD")},
+			wantStrategy: "M ➔ H",
+			wantDrivers:  2,
+		},
+		{
+			name: "a tie goes to the strategy whose driver finished highest",
+			drivers: []DriverStintData{driver(3, "MEDIUM", "HARD"), driver(4, "MEDIUM", "HARD"),
+				driver(1, "HARD", "MEDIUM"), driver(5, "HARD", "MEDIUM")},
+			wantStrategy: "H ➔ M",
+			wantDrivers:  2,
+		},
+		{
+			name: "the same tie in another order",
+			drivers: []DriverStintData{driver(5, "HARD", "MEDIUM"), driver(1, "HARD", "MEDIUM"),
+				driver(4, "MEDIUM", "HARD"), driver(3, "MEDIUM", "HARD")},
+			wantStrategy: "H ➔ M",
+			wantDrivers:  2,
+		},
+		{
+			name:         "a tie on position goes to the first by name",
+			drivers:      []DriverStintData{driver(2, "MEDIUM", "HARD"), driver(2, "HARD", "MEDIUM")},
+			wantStrategy: "H ➔ M",
+			wantDrivers:  1,
+		},
+	}
+	// Map order changes from one run to the next
+	const runs = 100
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for range runs {
+				kpis := buildStrategyKPIs(tt.drivers)
+				if kpis.MostPopularStrategy != tt.wantStrategy || kpis.MostPopularCount != tt.wantDrivers {
+					t.Fatalf("most popular strategy %q (%d drivers), want %q (%d)",
+						kpis.MostPopularStrategy, kpis.MostPopularCount, tt.wantStrategy, tt.wantDrivers)
+				}
+			}
+		})
+	}
+}
