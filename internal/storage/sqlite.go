@@ -102,6 +102,20 @@ func NewSQLiteRepository(dbPath string) (*SQLiteRepository, error) {
 	}
 
 	repo := &SQLiteRepository{db: db}
+	// A new database starts in incremental auto-vacuum mode, so deleting sessions shrinks the file
+	// (ReclaimFreeSpace switches older ones). VACUUM applies the mode before any table exists.
+	var tables int
+	if err := db.Get(&tables, `SELECT COUNT(*) FROM sqlite_schema`); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("failed to read the schema: %w", err)
+	}
+	if tables == 0 {
+		if err := repo.vacuumIncremental(context.Background()); err != nil {
+			db.Close()
+			return nil, err
+		}
+	}
+
 	if err := Migrate(db); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("failed to run migrations: %w", err)
@@ -327,7 +341,9 @@ func (r *SQLiteRepository) DeleteSession(ctx context.Context, sessionID int64) e
 		return ErrSessionNotFound
 	}
 
-	// Fast checkpoint to consolidate WAL log and keep disk files clean (<1ms)
+	// Shrink the file by the session's pages, then a fast checkpoint to consolidate WAL log and keep
+	// disk files clean. The session is gone either way.
+	_ = r.freePages(ctx)
 	_, _ = r.db.ExecContext(ctx, `PRAGMA wal_checkpoint(TRUNCATE);`)
 
 	return nil
@@ -1167,6 +1183,7 @@ func (r *SQLiteRepository) DeleteSessions(ctx context.Context, sessionIDs []int6
 	if err != nil {
 		return 0, fmt.Errorf("failed to get rows affected: %w", err)
 	}
+	_ = r.freePages(ctx)
 	_, _ = r.db.ExecContext(ctx, `PRAGMA wal_checkpoint(TRUNCATE);`)
 	return rowsAffected, nil
 }

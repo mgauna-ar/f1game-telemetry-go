@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -220,7 +221,25 @@ func run(cfg ServerConfig, envFiles []string) error {
 		}()
 	}
 
-	// 7. Setup Session Manager and Live Broadcaster
+	// 7. Laps saved before the compact telemetry format are converted once, in the background; the
+	// next start gives the space they free back to the disk (a VACUUM of a few seconds, once)
+	if err := repo.ReclaimFreeSpace(ctx); err != nil {
+		slog.Warn("Could not give the database's free space back to the disk", "error", err)
+	}
+	upgradeDone := make(chan struct{})
+	go func() {
+		defer close(upgradeDone)
+		if err := repo.UpgradeLapTelemetry(ctx); err != nil && !errors.Is(err, context.Canceled) {
+			slog.Warn("Could not convert the saved laps to the compact telemetry format", "error", err)
+		}
+	}()
+	// The conversion stops between laps, before the database closes
+	defer func() {
+		cancel()
+		<-upgradeDone
+	}()
+
+	// 8. Setup Session Manager and Live Broadcaster
 	sessionManager := session.NewSessionManager(repo)
 	sessionManager.Start(ctx)
 
@@ -231,22 +250,22 @@ func run(cfg ServerConfig, envFiles []string) error {
 	})
 	liveBroadcaster.Start(ctx, 100*time.Millisecond)
 
-	// 8. Setup UDP Listener
+	// 9. Setup UDP Listener
 	listener, err := initUDPListener(ctx, cfg.UDPAddr)
 	if err != nil {
 		return fmt.Errorf("%w. If another telemetry app (such as SimHub) uses UDP port %s, close it or pick "+
 			"another port with -udp or F1T_UDP_ADDR (and set the same port in the game)", err, extractPort(cfg.UDPAddr, "20777"))
 	}
 
-	// 9. Start Packet Processing Loop
+	// 10. Start Packet Processing Loop
 	startPacketProcessing(ctx, listener, sessionManager, engineerEngine, liveBroadcaster, cfg.UDPAddr)
 
-	// 10. Open the app window, unless this is a start at sign-in or it was turned off
+	// 11. Open the app window, unless this is a start at sign-in or it was turned off
 	if !cfg.Autostart {
 		go openWindowAtStart(ctx, desktopApp)
 	}
 
-	// 11. Run until a termination signal or Quit (tray or app window), then shut down gracefully
+	// 12. Run until a termination signal or Quit (tray or app window), then shut down gracefully
 	var shutdownOnce sync.Once
 	shutdown := func() {
 		shutdownOnce.Do(func() { gracefulShutdown(cancel, inputMgr, sessionManager, srv) })
@@ -352,7 +371,7 @@ func liveGapTrend(t *engineer.GapTrend) *session.LiveGapTrend {
 	}
 }
 
-func initDatabase(dbPath string) (storage.Repository, error) {
+func initDatabase(dbPath string) (*storage.SQLiteRepository, error) {
 	return storage.NewSQLiteRepository(dbPath)
 }
 

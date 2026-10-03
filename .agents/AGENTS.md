@@ -24,20 +24,20 @@ Architectural boundaries, invariants, and verification gates.
 ## 3. Technology Stack & Architecture
 * **Platform & Spec:** Windows 10/11, macOS, Linux. Exclusive to **F1 2025** & **F1 2026 DLC** UDP (`PacketFormat` 2025/2026, 29-byte `PacketHeader`; ≤2023 deprecated). Vite (`frontend/dist`) embeds via `//go:embed` (`frontend/embed.go`), served with SPA fallback (`setupStaticRoutes`) + `system.OpenBrowser`.
 * **Backend Packages (`internal/`):**
-  - `api/`: HTTP router, decoding, middleware, serialization only (**zero domain/analytical logic**). Enforces `http.CrossOriginProtection`, no CORS headers, `MaxJSONBodyBytes` (2 MB) on `/api`, `MaxImportPayloadSize` (100 MB) on `/api/sessions/import`.
+  - `api/`: HTTP router, decoding, middleware, serialization only (**zero domain/analytical logic**). Enforces `http.CrossOriginProtection`, no CORS headers, `MaxJSONBodyBytes` (2 MB) on `/api`, `MaxImportPayloadSize` (100 MB) on imports.
   - `udp/`: Non-blocking UDP listener (`Listener`).
   - `packets/`: 1:1 binary UDP decoders/constants. **Gotcha:** in `PacketLapData`, `LapDistance` and `TotalDistance` (`float32`) sit right before `SafetyCarDelta`.
   - `session/`: `SessionManager`, `LapTracker`, `TelemetryBatchWriter`, `LiveBroadcaster` (10 Hz `LiveSnapshot` + `FeedEvent`), ZIP import/export.
   - `analytics/`: Standings, `MergeLapComparisonCached` (5m grid), progression matrices, stint degradation OLS regression, `TrackProgressResponse`, `ChatContextSource` (`ai.RecordedRaceSource`).
   - `engineer/`: Strategy engine (`EngineerEngine`, `EngineerRule`), race history (player laps, rival histories, events, radio calls), live context (`RaceContext()`, `LiveBriefing()` as `ai.LiveRaceSource` at `GET /api/ai/engineer/race-context`), `RaceTools()` (`race_tools*.go` as `ai.ToolExecutor`).
   - `ai/`: Providers (`gemini.go`, `openai.go`, `claude.go` on `anthropic-sdk-go`, OpenAI-compatible `custom`) + Edge neural TTS. `provider.go` is the registry (`DefaultModel()`, `ServerKeys`, models, `chatSession`). `chat.go` runs the tool loop over `ChatOptions.ToolExecutor` (≤ `MaxToolRounds`, last round without tools, retry without tools if rejected), streaming text + `[DONE]`. API keys in headers only; `custom` uses only the request key.
-  - `storage/`: CGO-free `modernc.org/sqlite`, migrations (`schema_version`), `MarshalJSON` sanitization, `EncodeLapTelemetry` lap BLOBs (`lap_telemetry`, `ON DELETE CASCADE`; `.f1session` 2.0) ≤ 20 Hz (`ThinSamples`). **Session UIDs must always be stored/serialized as Hex strings** (`TEXT`, `0x...`).
+  - `storage/`: CGO-free `modernc.org/sqlite`, migrations (`schema_version`), `MarshalJSON` sanitization, `EncodeLapTelemetry` lap BLOBs (`lap_telemetry`, `ON DELETE CASCADE`; `.f1session` 2.0) ≤ 20 Hz (`ThinSamples`), incremental `auto_vacuum`. **Session UIDs are always stored/serialized as Hex strings** (`TEXT`, `0x...`).
   - `settings/`: Shared JSON settings (`settings.Sections`: `ai`, `voice`, `ptt`, `engineer`, `comparator`).
   - `locales/`: Type-safe `PromptCatalog`, registry (`Resolve`, `Get`), `en`/`es` catalogs (no boolean flags).
   - `input/`: Global PTT (`winmm.dll` DirectInput wheels, `user32.dll` keyboard on Windows; Gamepad API + `Space` fallback).
   - `system/`: Version metadata, GitHub update check (`system.DefaultGitHubRepo`), network discovery (`DescribeTelemetryEndpoint`), `OpenBrowser`/`OpenPath`, `FindRunningInstance` (2nd launch exits quietly).
   - `desktop/`: `App` behind loopback-only `/api/desktop` (`system.OpenAppWindow`, `LoadDesktop`, HKCU `Run`, Quit). Tray (`fyne.io/systray` only in `_windows.go`; `onExit` = shutdown), en/es by OS, dialogs; stubs elsewhere. Release `-H=windowsgui`, log by DB. Icons: `go generate`.
-  - `tsgen/`: Standard-library Go-to-TS wire type generator (`cmd/tsgen`).
+  - `tsgen/`: Stdlib Go-to-TS wire type generator (`cmd/tsgen`).
 
 ### Wire Types & REST Contracts
 * **Wire Types (`cmd/tsgen` → `frontend/src/types/generated/`):**

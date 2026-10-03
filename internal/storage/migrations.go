@@ -195,6 +195,16 @@ ALTER TABLE sessions ADD COLUMN player_car_source TEXT CHECK (player_car_source 
 UPDATE sessions SET player_car_source = 'game' WHERE player_car_index IS NOT NULL;
 `,
 	},
+	{
+		// The UNIQUE(session_id, car_index, lap_number) index serves the lookups these two served,
+		// and each lap write updated all three.
+		Version: 9,
+		Name:    "drop_duplicate_lap_indexes",
+		SQL: `
+DROP INDEX IF EXISTS idx_laps_session_car;
+DROP INDEX IF EXISTS idx_laps_session_car_num;
+`,
+	},
 }
 
 // Migrate runs all pending migrations in version order.
