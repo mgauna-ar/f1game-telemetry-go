@@ -1,8 +1,11 @@
 package analytics
 
 import (
+	"cmp"
 	"fmt"
+	"maps"
 	"math"
+	"slices"
 	"sort"
 	"strings"
 
@@ -303,9 +306,31 @@ func buildDriverStintData(p storage.Participant, pIdx int, driverLaps []storage.
 	}, maxLap
 }
 
+// strategyTally is how many drivers ran a strategy, and the best position one of them finished in.
+type strategyTally struct {
+	drivers      int
+	bestPosition int
+}
+
+// mostPopularStrategy is the strategy the most drivers ran. A tie goes to the strategy whose driver
+// finished highest, then to the first by name, so a session always shows the same one.
+func mostPopularStrategy(strategies map[string]strategyTally) (strategy string, drivers int) {
+	if len(strategies) == 0 {
+		return "N/A", 0
+	}
+	strategy = slices.MinFunc(slices.Collect(maps.Keys(strategies)), func(a, b string) int {
+		return cmp.Or(
+			cmp.Compare(strategies[b].drivers, strategies[a].drivers),
+			cmp.Compare(strategies[a].bestPosition, strategies[b].bestPosition),
+			strings.Compare(a, b),
+		)
+	})
+	return strategy, strategies[strategy].drivers
+}
+
 // buildStrategyKPIs calculates session-wide strategy KPIs including most popular strategy and compound records.
 func buildStrategyKPIs(driverStintsData []DriverStintData) StintKPIs {
-	strategyCounts := make(map[string]int)
+	strategies := make(map[string]strategyTally)
 	totalFieldPitStops := 0
 	bestLapsByCompound := make(map[string]CompoundBestLap)
 	var longestStint *StintLongestSummary
@@ -322,7 +347,12 @@ func buildStrategyKPIs(driverStintsData []DriverStintData) StintKPIs {
 				patternParts[i] = compInitial
 			}
 			pattern := strings.Join(patternParts, " ➔ ")
-			strategyCounts[pattern]++
+			tally, seen := strategies[pattern]
+			if !seen || d.Position < tally.bestPosition {
+				tally.bestPosition = d.Position
+			}
+			tally.drivers++
+			strategies[pattern] = tally
 
 			for _, s := range d.Stints {
 				if longestStint == nil || s.TotalLaps > longestStint.TotalLaps {
@@ -351,18 +381,11 @@ func buildStrategyKPIs(driverStintsData []DriverStintData) StintKPIs {
 		}
 	}
 
-	mostPopularStrategy := "N/A"
-	mostPopularCount := 0
-	for strategyKey, count := range strategyCounts {
-		if count > mostPopularCount {
-			mostPopularStrategy = strategyKey
-			mostPopularCount = count
-		}
-	}
+	popular, popularDrivers := mostPopularStrategy(strategies)
 
 	return StintKPIs{
-		MostPopularStrategy: mostPopularStrategy,
-		MostPopularCount:    mostPopularCount,
+		MostPopularStrategy: popular,
+		MostPopularCount:    popularDrivers,
 		LongestStint:        longestStint,
 		BestLapsByCompound:  bestLapsByCompound,
 		TotalFieldPitStops:  totalFieldPitStops,
