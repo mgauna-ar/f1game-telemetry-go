@@ -82,6 +82,19 @@ func TestParseSessionPackage(t *testing.T) {
 	if _, err := ParseSessionPackage(corruptZstd); err == nil {
 		t.Errorf("expected error for corrupt zstd stream, got nil")
 	}
+
+	// 6. Files of another version: 1.0 held lap telemetry as JSON samples
+	oldFile := []byte(`{"version":"1.0","session":{"track_name":"Monza"},"laps":[{"lap":{"lap_number":1},"telemetry":[{"speed":290}]}]}`)
+	for _, data := range [][]byte{oldFile, storage.CompressRaw(oldFile), []byte(`{"session":{"track_name":"Monza"}}`)} {
+		_, err := ParseSessionPackage(data)
+		if !errors.Is(err, ErrUnsupportedPackageVersion) {
+			t.Errorf("expected ErrUnsupportedPackageVersion, got %v", err)
+		}
+	}
+	if _, err := ParseSessionPackage(storage.CompressRaw(oldFile)); err == nil ||
+		err.Error() != `unsupported session file version "1.0" (this app reads "2.0")` {
+		t.Errorf("unexpected reason for a 1.0 file: %v", err)
+	}
 }
 
 func TestExpandZipFiles(t *testing.T) {

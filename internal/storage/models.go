@@ -243,10 +243,11 @@ type LapTelemetryBlob struct {
 	CreatedAt   time.Time `db:"created_at" json:"created_at"`
 }
 
-// ExportedLapPackage represents a lap and its telemetry samples for export/import.
+// ExportedLapPackage represents a lap and its telemetry for export/import.
 type ExportedLapPackage struct {
-	Lap       Lap               `json:"lap"`
-	Telemetry []TelemetrySample `json:"telemetry,omitempty"`
+	Lap Lap `json:"lap"`
+	// Telemetry is the lap's samples as EncodeLapTelemetry writes them (base64 in JSON).
+	Telemetry []byte `json:"telemetry,omitempty"`
 }
 
 // SessionEvent is a race-control feed row stored with its session. Data is the row as the

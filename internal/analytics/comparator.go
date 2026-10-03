@@ -20,15 +20,31 @@ const (
 	MinComparatorStepMeters         = 1.0
 	MaxComparatorStepMeters         = 100.0
 	ComparatorCacheCapacity         = 128
-	MinTurnDistSpacing              = 70.0
-	TurnApexSearchRadiusMax         = 8
-	TurnCurvatureThreshold          = 0.0025
 	TurnEntryOffsetMeters           = 35.0
 	TurnExitOffsetMeters            = 35.0
 	MinPointsForTurnDetection       = 20
-	TurnLookaroundWindow            = 4
 	wrapAroundMinPrevDistanceMeters = 500.0
 	wrapAroundMaxNextDistanceMeters = 100.0
+)
+
+// Turn detection (DetectTrackTurns). Windows count merged points, DefaultComparatorStepMeters apart.
+const (
+	// TurnCurvatureThreshold is the curvature, in radians per metre, that starts a corner: a radius
+	// under 400 m. Few corners peak near it.
+	TurnCurvatureThreshold = 0.0025
+	// TurnCurvatureExitThreshold is the curvature a corner keeps until it ends: a radius under 800 m.
+	TurnCurvatureExitThreshold = TurnCurvatureThreshold / 2
+	// TurnHeadingWindow is how many points either side a point's heading is measured over.
+	TurnHeadingWindow = 6
+	// TurnSmoothingWindow is how many points either side the curvature is averaged over.
+	TurnSmoothingWindow = 4
+	// minCurvatureStepMeters bounds the distance a curvature is taken over, for points that barely move.
+	minCurvatureStepMeters = 1.0
+	// turnNormalWindow is how many points either side of the apex its normal is measured over.
+	turnNormalWindow = 3
+	// minTurnNormalLength is the shortest change of direction that gives the normal; a straighter
+	// apex uses the perpendicular to the track instead.
+	minTurnNormalLength = 0.0001
 )
 
 // ComparatorResponse encapsulates merged telemetry, detected track turns, and lap metadata.
@@ -756,7 +772,14 @@ func CalculateMergedComparison(
 	return result
 }
 
-// DetectTrackTurns detects corner apexes and outward normal vectors along a track trajectory.
+// DetectTrackTurns finds the corners along a merged lap from its world positions, with each
+// corner's apex and outward normal.
+//
+// A corner is a stretch where the smoothed curvature (smoothedCurvature) turns one way: it starts
+// where the curvature goes over TurnCurvatureThreshold, and lasts while it keeps its direction and
+// stays over TurnCurvatureExitThreshold. Its apex is its slowest point. Keeping the direction
+// splits a chicane into its turns, and the lower exit threshold keeps a corner whole while its
+// curvature wobbles, so laps a few centimetres apart get the same turns.
 func DetectTrackTurns(points []MergedTelemetryPoint) []TrackTurn {
 	valid := make([]MergedTelemetryPoint, 0, len(points))
 	for _, p := range points {
@@ -764,175 +787,143 @@ func DetectTrackTurns(points []MergedTelemetryPoint) []TrackTurn {
 			valid = append(valid, p)
 		}
 	}
-
 	if len(valid) < MinPointsForTurnDetection {
 		return []TrackTurn{}
 	}
 
-	turns := make([]TrackTurn, 0)
-	w := TurnLookaroundWindow
-	n := len(valid)
-
-	// 1. Calculate heading angles along trajectory
-	headings := make([]float64, n)
-	for i := 0; i < n; i++ {
-		p1Idx := i - w
-		if p1Idx < 0 {
-			p1Idx = 0
-		}
-		p2Idx := i + w
-		if p2Idx >= n {
-			p2Idx = n - 1
-		}
-		p1 := valid[p1Idx]
-		p2 := valid[p2Idx]
-		dx := *p2.WorldX - *p1.WorldX
-		dz := *p2.WorldZ - *p1.WorldZ
-		headings[i] = math.Atan2(dz, dx)
+	curvature := smoothedCurvature(valid)
+	corners := findCorners(curvature)
+	turns := make([]TrackTurn, 0, len(corners))
+	for _, c := range corners {
+		turns = append(turns, newTrackTurn(valid, slowestPoint(valid, c), len(turns)+1))
 	}
-
-	// 2. Calculate angular change rate (curvature)
-	curvatures := make([]float64, n)
-	for i := 1; i < n-1; i++ {
-		diff := headings[i+1] - headings[i-1]
-		for diff > math.Pi {
-			diff -= 2 * math.Pi
-		}
-		for diff < -math.Pi {
-			diff += 2 * math.Pi
-		}
-		distStep := math.Max(1, valid[i+1].LapDistance-valid[i-1].LapDistance)
-		curvatures[i] = math.Abs(diff) / distStep
-	}
-
-	// 3. Smooth curvatures with rolling average
-	smoothed := make([]float64, n)
-	smoothW := TurnLookaroundWindow
-	for i := 0; i < n; i++ {
-		sum := 0.0
-		count := 0
-		start := i - smoothW
-		if start < 0 {
-			start = 0
-		}
-		end := i + smoothW
-		if end >= n {
-			end = n - 1
-		}
-		for j := start; j <= end; j++ {
-			sum += curvatures[j]
-			count++
-		}
-		if count > 0 {
-			smoothed[i] = sum / float64(count)
-		}
-	}
-
-	// 4. Find local peaks in curvature that correspond to turns
-	lastTurnDist := -999.0
-
-	for i := smoothW; i < n-smoothW; i++ {
-		cur := smoothed[i]
-		dist := valid[i].LapDistance
-
-		if cur > TurnCurvatureThreshold &&
-			cur >= smoothed[i-1] &&
-			cur >= smoothed[i+1] &&
-			dist-lastTurnDist >= MinTurnDistSpacing {
-
-			// Find local speed minimum in a radius around this peak
-			apexIdx := i
-			minSpeed := 999.0
-			searchRadius := n / 20
-			if searchRadius > TurnApexSearchRadiusMax {
-				searchRadius = TurnApexSearchRadiusMax
-			}
-
-			startK := i - searchRadius
-			if startK < 0 {
-				startK = 0
-			}
-			endK := i + searchRadius
-			if endK >= n {
-				endK = n - 1
-			}
-
-			for k := startK; k <= endK; k++ {
-				spd := 999.0
-				if valid[k].SpeedA != nil {
-					spd = *valid[k].SpeedA
-				} else if valid[k].SpeedB != nil {
-					spd = *valid[k].SpeedB
-				}
-				if spd < minSpeed {
-					minSpeed = spd
-					apexIdx = k
-				}
-			}
-
-			apexPt := valid[apexIdx]
-
-			// Calculate outward normal vector for apex
-			prevIdx := apexIdx - 3
-			if prevIdx < 0 {
-				prevIdx = 0
-			}
-			nextIdx := apexIdx + 3
-			if nextIdx >= n {
-				nextIdx = n - 1
-			}
-
-			pPrev := valid[prevIdx]
-			pNext := valid[nextIdx]
-			v1x := *apexPt.WorldX - *pPrev.WorldX
-			v1z := *apexPt.WorldZ - *pPrev.WorldZ
-			v2x := *pNext.WorldX - *apexPt.WorldX
-			v2z := *pNext.WorldZ - *apexPt.WorldZ
-
-			ax := v2x - v1x
-			az := v2z - v1z
-			aLen := math.Hypot(ax, az)
-
-			normX := 0.0
-			normZ := 0.0
-			if aLen > 0.0001 {
-				normX = -ax / aLen
-				normZ = -az / aLen
-			} else {
-				tx := *pNext.WorldX - *pPrev.WorldX
-				tz := *pNext.WorldZ - *pPrev.WorldZ
-				tLen := math.Hypot(tx, tz)
-				if tLen == 0 {
-					tLen = 1
-				}
-				normX = -tz / tLen
-				normZ = tx / tLen
-			}
-
-			turnNum := len(turns) + 1
-			apexDist := math.Round(apexPt.LapDistance)
-			turns = append(turns, TrackTurn{
-				TurnNumber:    turnNum,
-				Name:          fmt.Sprintf("T%d", turnNum),
-				Distance:      apexDist,
-				EntryDistance: math.Max(0, apexDist-TurnEntryOffsetMeters),
-				ExitDistance:  apexDist + TurnExitOffsetMeters,
-				WorldX:        *apexPt.WorldX,
-				WorldZ:        *apexPt.WorldZ,
-				NormalX:       normX,
-				NormalZ:       normZ,
-				SpeedA:        apexPt.SpeedA,
-				SpeedB:        apexPt.SpeedB,
-			})
-
-			lastTurnDist = apexPt.LapDistance
-			if apexIdx+3 > i {
-				i = apexIdx + 3
-			}
-		}
-	}
-
 	return turns
+}
+
+// smoothedCurvature returns the signed curvature at each point, in radians per metre (positive
+// one way, negative the other): the change in heading, taken over TurnHeadingWindow points either
+// side, averaged over TurnSmoothingWindow points either side.
+func smoothedCurvature(valid []MergedTelemetryPoint) []float64 {
+	n := len(valid)
+	headings := make([]float64, n)
+	for i := range n {
+		from, to := valid[max(0, i-TurnHeadingWindow)], valid[min(n-1, i+TurnHeadingWindow)]
+		headings[i] = math.Atan2(*to.WorldZ-*from.WorldZ, *to.WorldX-*from.WorldX)
+	}
+
+	curvature := make([]float64, n)
+	for i := 1; i < n-1; i++ {
+		turn := math.Remainder(headings[i+1]-headings[i-1], 2*math.Pi)
+		curvature[i] = turn / math.Max(minCurvatureStepMeters, valid[i+1].LapDistance-valid[i-1].LapDistance)
+	}
+
+	smoothed := make([]float64, n)
+	for i := range n {
+		first, last := max(0, i-TurnSmoothingWindow), min(n-1, i+TurnSmoothingWindow)
+		sum := 0.0
+		for _, c := range curvature[first : last+1] {
+			sum += c
+		}
+		smoothed[i] = sum / float64(last-first+1)
+	}
+	return smoothed
+}
+
+// trackCorner is a corner's stretch of points, first to last, and its point of highest curvature.
+type trackCorner struct{ first, last, peak int }
+
+// findCorners returns the corners of a lap's smoothed curvature, in order (see DetectTrackTurns).
+// Points within TurnSmoothingWindow of either end are left out: their windows are cut short.
+func findCorners(curvature []float64) []trackCorner {
+	first, last := TurnSmoothingWindow, len(curvature)-TurnSmoothingWindow-1
+	var corners []trackCorner
+	for i := first; i <= last; i++ {
+		if math.Abs(curvature[i]) <= TurnCurvatureThreshold {
+			continue
+		}
+		left := math.Signbit(curvature[i])
+		inCorner := func(k int) bool {
+			return math.Signbit(curvature[k]) == left && math.Abs(curvature[k]) > TurnCurvatureExitThreshold
+		}
+		c := trackCorner{first: i, last: i, peak: i}
+		for c.first > first && inCorner(c.first-1) {
+			c.first--
+		}
+		for c.last < last && inCorner(c.last+1) {
+			c.last++
+		}
+		for k := c.first; k <= c.last; k++ {
+			if math.Abs(curvature[k]) > math.Abs(curvature[c.peak]) {
+				c.peak = k
+			}
+		}
+		corners = append(corners, c)
+		i = c.last
+	}
+	return corners
+}
+
+// slowestPoint returns a corner's apex: its slowest point (lap A's speed, else lap B's), or its
+// point of highest curvature when it has no speeds.
+func slowestPoint(valid []MergedTelemetryPoint, c trackCorner) int {
+	apex, minSpeed := c.peak, math.Inf(1)
+	for k := c.first; k <= c.last; k++ {
+		speed := valid[k].SpeedA
+		if speed == nil {
+			speed = valid[k].SpeedB
+		}
+		if speed != nil && *speed < minSpeed {
+			apex, minSpeed = k, *speed
+		}
+	}
+	return apex
+}
+
+// newTrackTurn builds turn number num with its apex at valid[apex], and the normal pointing out
+// of the corner.
+func newTrackTurn(valid []MergedTelemetryPoint, apex, num int) TrackTurn {
+	n := len(valid)
+	apexPt := valid[apex]
+	pPrev := valid[max(0, apex-turnNormalWindow)]
+	pNext := valid[min(n-1, apex+turnNormalWindow)]
+	v1x := *apexPt.WorldX - *pPrev.WorldX
+	v1z := *apexPt.WorldZ - *pPrev.WorldZ
+	v2x := *pNext.WorldX - *apexPt.WorldX
+	v2z := *pNext.WorldZ - *apexPt.WorldZ
+
+	ax := v2x - v1x
+	az := v2z - v1z
+	aLen := math.Hypot(ax, az)
+
+	var normX, normZ float64
+	if aLen > minTurnNormalLength {
+		normX = -ax / aLen
+		normZ = -az / aLen
+	} else {
+		tx := *pNext.WorldX - *pPrev.WorldX
+		tz := *pNext.WorldZ - *pPrev.WorldZ
+		tLen := math.Hypot(tx, tz)
+		if tLen == 0 {
+			tLen = 1
+		}
+		normX = -tz / tLen
+		normZ = tx / tLen
+	}
+
+	apexDist := math.Round(apexPt.LapDistance)
+	return TrackTurn{
+		TurnNumber:    num,
+		Name:          fmt.Sprintf("T%d", num),
+		Distance:      apexDist,
+		EntryDistance: math.Max(0, apexDist-TurnEntryOffsetMeters),
+		ExitDistance:  apexDist + TurnExitOffsetMeters,
+		WorldX:        *apexPt.WorldX,
+		WorldZ:        *apexPt.WorldZ,
+		NormalX:       normX,
+		NormalZ:       normZ,
+		SpeedA:        apexPt.SpeedA,
+		SpeedB:        apexPt.SpeedB,
+	}
 }
 
 // LapNotFoundError indicates that a requested lap ID was not found in the database.

@@ -179,11 +179,12 @@ const (
 	MillisPerSecond                          = 1000
 	SecondsPerMinute                         = 60
 	MillisPerMinute                          = 60_000
-	KmhToMps                                 = 1000.0 / 3600.0 // Conversion factor from km/h to m/s
-	MaxERSStoreEnergyJoules                  = 4_000_000.0     // 4 MJ standard F1 ERS store capacity
-	DefaultTelemetrySampleCapacity           = 1800            // Default buffer capacity for a single lap (~90s @ 20Hz)
-	MaxSessionLapsSanity                     = 120             // Sanity cap for F1 session laps
-	DefaultSessionDurationLimitSeconds       = 7200            // 2-hour default F1 session duration limit emitted by UDP telemetry
+	KmhToMps                                 = 1000.0 / 3600.0          // Conversion factor from km/h to m/s
+	MaxERSStoreEnergyJoules                  = 4_000_000.0              // 4 MJ standard F1 ERS store capacity
+	RecordedTelemetryHz                      = 20                       // Lap telemetry is stored at most this often per second, whatever the game's UDP Send Rate
+	DefaultTelemetrySampleCapacity           = 90 * RecordedTelemetryHz // Default buffer capacity for a single lap (~90s)
+	MaxSessionLapsSanity                     = 120                      // Sanity cap for F1 session laps
+	DefaultSessionDurationLimitSeconds       = 7200                     // 2-hour default F1 session duration limit emitted by UDP telemetry
 	InvalidDriverID                          = 255
 	InvalidVehicleIdx                  uint8 = 255       // Vehicle index sentinel in event payloads (e.g. PENA OtherVehicleIdx)
 	PenaltyTimeNotApplicable           uint8 = 255       // PENA Time sentinel when the penalty has no time

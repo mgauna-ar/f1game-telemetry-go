@@ -98,7 +98,7 @@ To stream telemetry from your game (PC, PlayStation, or Xbox):
    * **UDP Format:** `2025` *(or `2026` for Season Pack DLC)*
    * **UDP IP Address:** IP address of the machine running this application (`127.0.0.1` if playing on the same PC; the **Live** tab displays your PC's LAN IP addresses with copy buttons for consoles)
    * **UDP Port:** `20777`
-   * **UDP Send Rate:** `20Hz` *(Recommended for optimal storage savings and smooth 60 FPS charts; 60Hz is also fully supported)*
+   * **UDP Send Rate:** `20Hz` *(Recommended. Saved laps are stored at up to 20 Hz, so a higher rate works but adds nothing to them)*
 
 ---
 
@@ -195,6 +195,8 @@ Server settings can be set with command-line flags, environment variables, or a 
 | | `ANTHROPIC_API_KEY` | Anthropic API key for Claude models in the AI Race Engineer | *(Can be set in UI)* |
 | | `LLM_PROVIDER` | Default AI provider: `gemini`, `openai`, `claude` or `custom` | First provider with a key, else `gemini` |
 | | `LLM_MODEL` | Default model for `LLM_PROVIDER` | Built-in model for the provider |
+
+The database keeps every car's laps, so you can compare yourself with anyone in a session: a 20-car race takes about 6–9 MB. Laps saved by earlier versions take about 7 times more. The first start after updating converts them in the background (about a minute for 1 GB of laps), and the next start gives the space back to the disk. Deleting sessions shrinks the file.
 
 The Live tab shows the UDP port the server listens on and this PC's network addresses (with copy buttons), which is what to enter in the game's telemetry settings on a console. The simulator sends to `127.0.0.1` on the server's `F1T_UDP_ADDR` port. Use `-target` (or `F1T_SIM_TARGET`) to send somewhere else, e.g. `go run ./cmd/simulator -target 192.168.1.20:20777`.
 

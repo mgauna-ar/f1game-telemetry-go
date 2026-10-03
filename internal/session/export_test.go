@@ -29,7 +29,7 @@ func (m *mockSessionExporter) ExportSession(ctx context.Context, sessionID int64
 
 func sampleExportPackage(id int64, track, sessionType string) *storage.ExportedSessionPackage {
 	return &storage.ExportedSessionPackage{
-		Version: "1.0.0",
+		Version: storage.ExportPackageVersion,
 		Session: storage.Session{
 			ID:          id,
 			SessionUID:  storage.FormatSessionUID(uint64(id * 1000)),
