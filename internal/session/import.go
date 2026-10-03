@@ -15,6 +15,9 @@ import (
 )
 
 var (
+	// ErrUnsupportedPackageVersion marks a session file whose version is not
+	// storage.ExportPackageVersion, such as a 1.0 file with its lap telemetry as JSON samples.
+	ErrUnsupportedPackageVersion = errors.New("unsupported session file version")
 	// ZstdMagicHeader represents the 4-byte standard magic header for Zstandard compressed streams (0xFD2FB528 in little-endian).
 	ZstdMagicHeader = []byte{0x28, 0xB5, 0x2F, 0xFD}
 	// ZipMagicHeader represents the 4-byte magic header for standard ZIP archives (PK\x03\x04).
@@ -71,6 +74,15 @@ func ParseSessionPackage(data []byte) (*storage.ExportedSessionPackage, error) {
 			return nil, fmt.Errorf("failed to decompress .f1session file: %w", err)
 		}
 		data = decompressed
+	}
+	var header struct {
+		Version string `json:"version"`
+	}
+	if err := json.Unmarshal(data, &header); err != nil {
+		return nil, fmt.Errorf("invalid session package format: %w", err)
+	}
+	if header.Version != storage.ExportPackageVersion {
+		return nil, fmt.Errorf("%w %q (this app reads %q)", ErrUnsupportedPackageVersion, header.Version, storage.ExportPackageVersion)
 	}
 	var pkg storage.ExportedSessionPackage
 	if err := json.Unmarshal(data, &pkg); err != nil {

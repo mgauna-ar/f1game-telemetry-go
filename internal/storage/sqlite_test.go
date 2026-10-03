@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -330,6 +331,128 @@ func TestSaveLapTelemetryBlobStoresSixtyHertzAtTwenty(t *testing.T) {
 	}
 }
 
+func TestGetTelemetryByLapReadsOldJSONBlobs(t *testing.T) {
+	repo := setupTestRepo(t)
+	session := createTestSession(t, repo)
+	ctx := context.Background()
+
+	lap := &Lap{SessionID: session.ID, LapNumber: 1, LapTimeMS: 90000}
+	if err := repo.SaveLap(ctx, lap, false); err != nil {
+		t.Fatalf("SaveLap() error = %v", err)
+	}
+	// A row written before the column format: zstd JSON, at the game's 60 Hz
+	samples := feedLap(60, 10, testSessionStart, 0, 0)
+	raw, err := json.Marshal(samples)
+	if err != nil {
+		t.Fatalf("marshal samples: %v", err)
+	}
+	if _, err := repo.db.ExecContext(ctx, `INSERT INTO lap_telemetry (lap_id, sample_count, data) VALUES (?, ?, ?)`,
+		lap.ID, len(samples), CompressRaw(raw)); err != nil {
+		t.Fatalf("insert old blob: %v", err)
+	}
+
+	stored, err := repo.GetTelemetryByLap(ctx, lap.ID)
+	if err != nil {
+		t.Fatalf("GetTelemetryByLap() error = %v", err)
+	}
+	if !slices.Equal(stored, samples) {
+		t.Errorf("read %d samples, want the old blob's %d unchanged", len(stored), len(samples))
+	}
+
+	pkg, err := repo.ExportSession(ctx, session.ID)
+	if err != nil {
+		t.Fatalf("ExportSession() error = %v", err)
+	}
+	exported, err := DecodeLapTelemetry(pkg.Laps[0].Telemetry)
+	if err != nil {
+		t.Fatalf("the old blob was not exported in the current format: %v", err)
+	}
+	assertSamplesWithinStep(t, exported, samples)
+}
+
+func TestExportImportKeepsEveryStoredSample(t *testing.T) {
+	tests := []struct {
+		name        string
+		hz          float64
+		jitter, fps float64
+	}{
+		{name: "20 Hz with frame jitter", hz: 20, jitter: 0.012},
+		{name: "60 Hz on 144 fps frames", hz: 60, fps: 144},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := setupTestRepo(t)
+			session := createTestSession(t, repo)
+			ctx := context.Background()
+
+			lap := &Lap{SessionID: session.ID, LapNumber: 1, LapTimeMS: 90000}
+			if err := repo.SaveLap(ctx, lap, false); err != nil {
+				t.Fatalf("SaveLap() error = %v", err)
+			}
+			samples := feedLap(tt.hz, testLapSeconds, testSessionStart, tt.jitter, tt.fps)
+			if err := repo.SaveLapTelemetryBlob(ctx, lap.ID, samples); err != nil {
+				t.Fatalf("SaveLapTelemetryBlob() error = %v", err)
+			}
+			stored, err := repo.GetTelemetryByLap(ctx, lap.ID)
+			if err != nil {
+				t.Fatalf("GetTelemetryByLap() error = %v", err)
+			}
+
+			// Through a .f1session file's JSON, into another database
+			pkg, err := repo.ExportSession(ctx, session.ID)
+			if err != nil {
+				t.Fatalf("ExportSession() error = %v", err)
+			}
+			raw, err := json.Marshal(pkg)
+			if err != nil {
+				t.Fatalf("marshal package: %v", err)
+			}
+			var file ExportedSessionPackage
+			if err := json.Unmarshal(raw, &file); err != nil {
+				t.Fatalf("unmarshal package: %v", err)
+			}
+			fresh := setupTestRepo(t)
+			importedID, err := fresh.ImportSession(ctx, &file)
+			if err != nil {
+				t.Fatalf("ImportSession() error = %v", err)
+			}
+			laps, err := fresh.GetLapsBySession(ctx, importedID, nil)
+			if err != nil || len(laps) != 1 {
+				t.Fatalf("expected 1 imported lap, got %v (err: %v)", laps, err)
+			}
+			imported, err := fresh.GetTelemetryByLap(ctx, laps[0].ID)
+			if err != nil {
+				t.Fatalf("GetTelemetryByLap() error = %v", err)
+			}
+			if !slices.Equal(imported, stored) {
+				t.Errorf("imported %d samples, want the %d stored ones unchanged", len(imported), len(stored))
+			}
+			if laps[0].SampleCount != len(stored) {
+				t.Errorf("imported sample_count = %d, want %d", laps[0].SampleCount, len(stored))
+			}
+		})
+	}
+}
+
+func TestImportSessionRejectsDamagedTelemetry(t *testing.T) {
+	repo := setupTestRepo(t)
+	ctx := context.Background()
+
+	pkg := &ExportedSessionPackage{
+		Version: ExportPackageVersion,
+		Session: Session{SessionUID: FormatSessionUID(424242), TrackName: "Monza"},
+		Laps: []ExportedLapPackage{
+			{Lap: Lap{LapNumber: 1}, Telemetry: []byte("corrupted_zstd_data")},
+		},
+	}
+	if _, err := repo.ImportSession(ctx, pkg); !errors.Is(err, ErrLapTelemetryFormat) {
+		t.Fatalf("ImportSession() error = %v, want ErrLapTelemetryFormat", err)
+	}
+	if existing, err := repo.GetSessionByUID(ctx, pkg.Session.SessionUID); err != nil || existing != nil {
+		t.Errorf("the failed import left session %v (err: %v)", existing, err)
+	}
+}
+
 func TestDeleteSession(t *testing.T) {
 	repo := setupTestRepo(t)
 	session := createTestSession(t, repo)
@@ -471,8 +594,11 @@ func TestExportAndImportSession(t *testing.T) {
 	if len(pkg.Participants) != 1 || pkg.Participants[0].Name != "Ayrton Senna" {
 		t.Errorf("expected participant Ayrton Senna, got %v", pkg.Participants)
 	}
-	if len(pkg.Laps) != 1 || len(pkg.Laps[0].Telemetry) != 2 {
-		t.Errorf("expected 1 lap with 2 telemetry samples, got %v", pkg.Laps)
+	if len(pkg.Laps) != 1 {
+		t.Fatalf("expected 1 lap, got %v", pkg.Laps)
+	}
+	if exported, err := DecodeLapTelemetry(pkg.Laps[0].Telemetry); err != nil || len(exported) != 2 {
+		t.Errorf("expected 2 exported telemetry samples, got %v (err: %v)", exported, err)
 	}
 
 	// 2. Import session into a fresh repo
@@ -1544,12 +1670,12 @@ func TestExportSession_BatchQueryAndReadTransaction(t *testing.T) {
 
 	for _, lapPkg := range pkg.Laps {
 		if lapPkg.Lap.LapNumber%2 != 0 {
-			if len(lapPkg.Telemetry) != 1 {
-				t.Errorf("lap %d expected 1 telemetry sample, got %d", lapPkg.Lap.LapNumber, len(lapPkg.Telemetry))
+			if exported, err := DecodeLapTelemetry(lapPkg.Telemetry); err != nil || len(exported) != 1 {
+				t.Errorf("lap %d expected 1 telemetry sample, got %v (err: %v)", lapPkg.Lap.LapNumber, exported, err)
 			}
 		} else {
 			if len(lapPkg.Telemetry) != 0 {
-				t.Errorf("lap %d expected 0 telemetry samples, got %d", lapPkg.Lap.LapNumber, len(lapPkg.Telemetry))
+				t.Errorf("lap %d expected no telemetry, got %d bytes", lapPkg.Lap.LapNumber, len(lapPkg.Telemetry))
 			}
 		}
 	}

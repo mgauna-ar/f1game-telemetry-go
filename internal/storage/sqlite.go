@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -39,28 +38,10 @@ func DecompressRaw(compressed []byte) ([]byte, error) {
 	return zstdDecoder.DecodeAll(compressed, nil)
 }
 
-func compressJSON(data any) ([]byte, error) {
-	raw, err := json.Marshal(data)
-	if err != nil {
-		return nil, fmt.Errorf("compress json marshal: %w", err)
-	}
-	return CompressRaw(raw), nil
-}
-
-func decompressJSON[T any](compressed []byte, out *T) error {
-	decompressed, err := DecompressRaw(compressed)
-	if err != nil {
-		return fmt.Errorf("failed to decompress zstd data: %w", err)
-	}
-	if err := json.Unmarshal(decompressed, out); err != nil {
-		return fmt.Errorf("failed to unmarshal decompressed json: %w", err)
-	}
-	return nil
-}
-
 const (
-	// ExportPackageVersion is the standard schema version for exported session packages.
-	ExportPackageVersion = "1.0"
+	// ExportPackageVersion is the schema version of exported session packages. 2.0 carries each
+	// lap's telemetry as an EncodeLapTelemetry blob; 1.0 files (JSON samples) are not read.
+	ExportPackageVersion = "2.0"
 
 	// defaultSessionDurationPlaceholder is the placeholder 2-hour session duration (7200s) emitted by F1 game.
 	defaultSessionDurationPlaceholder = packets.DefaultSessionDurationLimitSeconds
@@ -315,10 +296,7 @@ func saveLapTelemetryBlob(ctx context.Context, db sqlx.ExtContext, lapID int64, 
 	}
 
 	samples = ThinSamples(samples)
-	compressed, err := compressJSON(samples)
-	if err != nil {
-		return fmt.Errorf("failed to compress lap telemetry: %w", err)
-	}
+	blob := EncodeLapTelemetry(samples)
 
 	query := `
 		INSERT INTO lap_telemetry (lap_id, sample_count, data)
@@ -328,8 +306,7 @@ func saveLapTelemetryBlob(ctx context.Context, db sqlx.ExtContext, lapID int64, 
 			data = excluded.data,
 			created_at = CURRENT_TIMESTAMP
 	`
-	_, err = db.ExecContext(ctx, query, lapID, len(samples), compressed)
-	if err != nil {
+	if _, err := db.ExecContext(ctx, query, lapID, len(samples), blob); err != nil {
 		return fmt.Errorf("failed to save lap telemetry blob: %w", err)
 	}
 	return nil
@@ -708,8 +685,8 @@ func getLapsBySession(ctx context.Context, db queryPreparer, sessionID int64, ca
 // GetTelemetryByLap retrieves time-series telemetry data for a specific lap.
 func (r *SQLiteRepository) GetTelemetryByLap(ctx context.Context, lapID int64) ([]TelemetrySample, error) {
 	query := `SELECT data FROM lap_telemetry WHERE lap_id = ?`
-	var compressed []byte
-	err := r.db.GetContext(ctx, &compressed, query, lapID)
+	var blob []byte
+	err := r.db.GetContext(ctx, &blob, query, lapID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return []TelemetrySample{}, nil
@@ -717,8 +694,8 @@ func (r *SQLiteRepository) GetTelemetryByLap(ctx context.Context, lapID int64) (
 		return nil, fmt.Errorf("failed to get telemetry for lap %d: %w", lapID, err)
 	}
 
-	var samples []TelemetrySample
-	if err := decompressJSON(compressed, &samples); err != nil {
+	samples, err := decodeStoredLapTelemetry(blob)
+	if err != nil {
 		return nil, fmt.Errorf("failed to decode telemetry samples for lap %d: %w", lapID, err)
 	}
 	if samples == nil {
@@ -1003,27 +980,20 @@ func (r *SQLiteRepository) ExportSession(ctx context.Context, sessionID int64) (
 		return nil, fmt.Errorf("failed to batch query lap telemetry: %w", err)
 	}
 
-	telemetryByLap := make(map[int64][]TelemetrySample, len(rows))
+	telemetryByLap := make(map[int64][]byte, len(rows))
 	for _, row := range rows {
-		var samples []TelemetrySample
-		if err := decompressJSON(row.Data, &samples); err != nil {
+		blob, err := exportLapTelemetry(row.Data)
+		if err != nil {
 			return nil, fmt.Errorf("failed to export telemetry for lap %d: %w", row.LapID, err)
 		}
-		if samples == nil {
-			samples = []TelemetrySample{}
-		}
-		telemetryByLap[row.LapID] = samples
+		telemetryByLap[row.LapID] = blob
 	}
 
 	lapPackages := make([]ExportedLapPackage, 0, len(laps))
 	for _, lap := range laps {
-		telemetry := telemetryByLap[lap.ID]
-		if telemetry == nil {
-			telemetry = []TelemetrySample{}
-		}
 		lapPackages = append(lapPackages, ExportedLapPackage{
 			Lap:       lap,
-			Telemetry: telemetry,
+			Telemetry: telemetryByLap[lap.ID],
 		})
 	}
 
@@ -1314,7 +1284,11 @@ func (r *SQLiteRepository) ImportSessionWithOptions(ctx context.Context, pkg *Ex
 			return 0, fmt.Errorf("failed to save imported lap %d: %w", lap.LapNumber, err)
 		}
 		if len(lapPkg.Telemetry) > 0 {
-			if err := saveLapTelemetryBlob(ctx, tx, lap.ID, lapPkg.Telemetry); err != nil {
+			samples, err := DecodeLapTelemetry(lapPkg.Telemetry)
+			if err != nil {
+				return 0, fmt.Errorf("imported lap %d telemetry: %w", lap.LapNumber, err)
+			}
+			if err := saveLapTelemetryBlob(ctx, tx, lap.ID, samples); err != nil {
 				return 0, fmt.Errorf("failed to save imported lap telemetry for lap %d: %w", lap.LapNumber, err)
 			}
 		}
