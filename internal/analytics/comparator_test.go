@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/rand/v2"
 	"sync"
 	"testing"
 
@@ -292,6 +293,111 @@ func TestDetectTrackTurns(t *testing.T) {
 			t.Errorf("invalid normal vector: (%f, %f)", turns[0].NormalX, turns[0].NormalZ)
 		}
 	})
+}
+
+// trackSegment is a stretch of a synthetic track: its length, and how far it turns (degrees, left
+// positive). A corner is slowest halfway through.
+type trackSegment struct {
+	length, angle float64
+}
+
+// syntheticTrack lays out segments one after another, a point every DefaultComparatorStepMeters,
+// as merged points with lap A's speed and the track's positions. noise moves each position by up
+// to that many metres either way.
+func syntheticTrack(segments []trackSegment, noise float64, seed uint64) []MergedTelemetryPoint {
+	rng := rand.New(rand.NewPCG(seed, 3))
+	var points []MergedTelemetryPoint
+	x, z, heading, dist := 0.0, 0.0, 0.0, 0.0
+	for _, seg := range segments {
+		curvature := seg.angle * math.Pi / 180 / seg.length
+		for s := 0.0; s < seg.length; s += DefaultComparatorStepMeters {
+			speed := 300.0
+			if seg.angle != 0 {
+				speed -= 150 * math.Sin(math.Pi*s/seg.length)
+			}
+			px := x + (rng.Float64()*2-1)*noise
+			pz := z + (rng.Float64()*2-1)*noise
+			points = append(points, MergedTelemetryPoint{LapDistance: dist, SpeedA: &speed, WorldX: &px, WorldZ: &pz})
+
+			heading += curvature * DefaultComparatorStepMeters
+			x += math.Cos(heading) * DefaultComparatorStepMeters
+			z += math.Sin(heading) * DefaultComparatorStepMeters
+			dist += DefaultComparatorStepMeters
+		}
+	}
+	return points
+}
+
+func TestDetectTrackTurnsCorners(t *testing.T) {
+	// Each corner's distance range along the lap, in the order the turns must come
+	type corner struct{ from, to float64 }
+	segments := []trackSegment{
+		{length: 400},
+		{length: 90, angle: 180}, // hairpin
+		{length: 300},
+		{length: 35, angle: -50}, // chicane: right, then left
+		{length: 35, angle: 50},
+		{length: 300},
+		{length: 70, angle: -50}, // double apex: the middle's curvature is under the start threshold
+		{length: 120, angle: -12},
+		{length: 70, angle: -50},
+		{length: 300},
+		{length: 60, angle: 5}, // kink: too gentle to be a corner
+		{length: 300},
+		{length: 400, angle: 90}, // long sweeper: the same curvature all the way
+		{length: 300},
+		{length: 60, angle: 90},
+		{length: 400},
+	}
+	want := []corner{{400, 490}, {790, 825}, {825, 860}, {1160, 1420}, {2080, 2480}, {2780, 2840}}
+
+	turns := DetectTrackTurns(syntheticTrack(segments, 0, 1))
+	if len(turns) != len(want) {
+		t.Fatalf("detected %d turns at %v, want %d", len(turns), turnDistances(turns), len(want))
+	}
+	for i, turn := range turns {
+		if turn.Distance < want[i].from || turn.Distance > want[i].to {
+			t.Errorf("%s at %v m, want it within %v-%v m", turn.Name, turn.Distance, want[i].from, want[i].to)
+		}
+		if turn.Name != fmt.Sprintf("T%d", i+1) || turn.TurnNumber != i+1 {
+			t.Errorf("turn %d is named %s (number %d)", i+1, turn.Name, turn.TurnNumber)
+		}
+		if math.IsNaN(turn.NormalX) || math.IsNaN(turn.NormalZ) || math.Abs(math.Hypot(turn.NormalX, turn.NormalZ)-1) > 1e-9 {
+			t.Errorf("%s has normal (%v, %v), want a unit vector", turn.Name, turn.NormalX, turn.NormalZ)
+		}
+	}
+
+	// A few centimetres of difference in the positions, as between a stored lap and its original,
+	// give the same turns
+	for _, noise := range []float64{0.01, 0.03, 0.05} {
+		for seed := range uint64(5) {
+			noisy := DetectTrackTurns(syntheticTrack(segments, noise, seed+2))
+			if len(noisy) != len(turns) {
+				t.Errorf("±%v m noise (seed %d): turns at %v, want them at %v", noise, seed, turnDistances(noisy), turnDistances(turns))
+				continue
+			}
+			for i := range turns {
+				if math.Abs(noisy[i].Distance-turns[i].Distance) > 2*DefaultComparatorStepMeters {
+					t.Errorf("±%v m noise (seed %d): %s at %v m, want %v m", noise, seed, turns[i].Name, noisy[i].Distance, turns[i].Distance)
+				}
+			}
+		}
+	}
+}
+
+func TestDetectTrackTurnsStraight(t *testing.T) {
+	points := syntheticTrack([]trackSegment{{length: 1000}, {length: 60, angle: 5}, {length: 1000}}, 0.05, 1)
+	if turns := DetectTrackTurns(points); len(turns) != 0 {
+		t.Errorf("detected turns at %v on a straight with a gentle kink, want none", turnDistances(turns))
+	}
+}
+
+func turnDistances(turns []TrackTurn) []float64 {
+	distances := make([]float64, len(turns))
+	for i, turn := range turns {
+		distances[i] = turn.Distance
+	}
+	return distances
 }
 
 func TestComparatorLRUCache(t *testing.T) {
